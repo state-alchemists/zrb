@@ -223,13 +223,36 @@ async def _run_agent_task(
         return AgentTaskResult(agent_name, None, str(e))
 
 
+def _delegatable_agents(sub_agent_manager: SubAgentManager) -> list:
+    """Agents the current permission policy permits delegating to.
+
+    With no policy in force (the default), every scanned agent is returned —
+    byte-identical to the historical behavior. When a policy denies delegation
+    to a specific agent, it is omitted from the advertised roster so the model
+    isn't offered an option it cannot use.
+    """
+    # lazy: permission is a leaf module.
+    from zrb.llm.permission import DENY, Capability, get_effective_policy
+
+    agents = sub_agent_manager.scan()
+    policy = get_effective_policy()
+    if policy is None:
+        return agents
+    return [
+        a
+        for a in agents
+        if policy.decide("DelegateToAgent", Capability.DELEGATE, {"agent_name": a.name})
+        != DENY
+    ]
+
+
 def create_delegate_to_agent_tool(
     sub_agent_manager: SubAgentManager | None = None,
 ):
     if sub_agent_manager is None:
         sub_agent_manager = default_sub_agent_manager
-    # Scan for available agents to populate the docstring
-    available_agents = sub_agent_manager.scan()
+    # Scan for available (and permitted) agents to populate the docstring
+    available_agents = _delegatable_agents(sub_agent_manager)
     agent_docs = []
     for agent in available_agents:
         agent_docs.append(f"- `{agent.name}`: {agent.description}")
@@ -287,100 +310,3 @@ def create_delegate_to_agent_tool(
         f"AVAILABLE AGENTS:\n{agent_doc_section}"
     )
     return delegate_to_agent
-
-
-def create_parallel_delegate_tool(
-    sub_agent_manager: SubAgentManager | None = None,
-):
-    """Create a tool for delegating tasks to multiple agents in parallel."""
-    if sub_agent_manager is None:
-        sub_agent_manager = default_sub_agent_manager
-
-    async def parallel_delegate_to_agents(
-        tasks: list[dict[str, Any]],
-    ) -> str:
-        """
-        Delegates multiple tasks to subagents in parallel.
-
-        Each entry in `tasks` must have `agent_name`, `deliverable`, `task`,
-        and `non_goals`. `additional_context` is optional.
-        Apply Scope independently per task — each gets its own clamp.
-        """
-        if not tasks:
-            return "No tasks provided."
-
-        # Validate required keys early so the model sees a clear schema error
-        # rather than a generic agent failure. Missing scope-clamp fields are
-        # the failure mode we are guarding against.
-        required = ("agent_name", "deliverable", "task", "non_goals")
-        for idx, spec in enumerate(tasks):
-            missing = [k for k in required if k not in spec]
-            if missing:
-                return (
-                    f"Error: tasks[{idx}] missing required keys: {missing}. "
-                    "[SYSTEM SUGGESTION]: every task needs agent_name, "
-                    "deliverable, task, and non_goals (list; [] allowed)."
-                )
-
-        parent_ui = get_current_ui() or StdUI()
-        # Shared lock ensures tool approvals are processed sequentially
-        # across all parallel agents to prevent UI conflicts
-        ui_lock = asyncio.Lock()
-
-        async def run_single_agent(task_spec: dict[str, Any]) -> AgentTaskResult:
-            agent_name = task_spec.get("agent_name", "")
-            deliverable = task_spec.get("deliverable", "")
-            task = task_spec.get("task", "")
-            non_goals = task_spec.get("non_goals", []) or []
-            additional_context = task_spec.get("additional_context", "")
-            # Generate unique identifier for this agent instance
-            unique_id = get_random_name(separator="-", add_random_digit=True)
-            prefix = f"[{agent_name}:{unique_id}] "
-            # All BufferedUI instances share the same lock for sequential user interaction
-            buffered_ui = BufferedUI(parent_ui, prefix=prefix, shared_lock=ui_lock)
-
-            result = await _run_agent_task(
-                agent_name=agent_name,
-                deliverable=deliverable,
-                non_goals=non_goals,
-                task=task,
-                additional_context=additional_context,
-                sub_agent_manager=sub_agent_manager,
-                ui=buffered_ui,
-                flush_ui=False,  # Don't flush here - flush happens inside ask_user under lock
-            )
-            # After agent completes, flush any remaining buffered output under the lock
-            async with ui_lock:
-                buffered_ui.flush_to_parent()
-            # Return result with unique_id for identification
-            return AgentTaskResult(
-                f"{agent_name}:{unique_id}",
-                result.result,
-                result.error,
-            )
-
-        # Run all agents in parallel (they share ui_lock for sequential user interaction)
-        results = await asyncio.gather(*[run_single_agent(t) for t in tasks])
-
-        # Format combined results
-        combined_results = []
-        for r in results:
-            if not r.success:
-                combined_results.append(f"[{r.agent_name}] Error: {r.error}")
-            else:
-                indented_result = "\n".join(
-                    ["  " + line for line in r.result.splitlines()]
-                )
-                combined_results.append(
-                    f"[{r.agent_name}] completed:\n{indented_result}"
-                )
-
-        return "\n\n".join(combined_results)
-
-    parallel_delegate_to_agents.zrb_is_delegate_tool = True
-    parallel_delegate_to_agents.__name__ = "DelegateToAgentsParallel"
-    parallel_delegate_to_agents.__doc__ = (
-        "Delegates multiple tasks to subagents in parallel. "
-        "See DelegateToAgent for the list of available agents."
-    )
-    return parallel_delegate_to_agents

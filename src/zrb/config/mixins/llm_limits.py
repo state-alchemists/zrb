@@ -27,6 +27,7 @@ class LLMLimitsMixin:
         self.DEFAULT_LLM_MODEL_FETCH_TIMEOUT: str = "5000"
         self.DEFAULT_LLM_GIT_CMD_TIMEOUT: str = "1000"
         self.DEFAULT_LLM_MAX_OUTPUT_CHARS: str = "100000"
+        self.DEFAULT_LLM_MAX_TOOL_RESULT_CHARS: str = "100000"
         self.DEFAULT_LLM_PROJECT_DOC_MAX_CHARS: str = "8000"
         self.DEFAULT_LLM_MAX_COMPLETION_FILES: str = "5000"
         # Image scaling — 1568px is Anthropic's no-extra-cost tier; JPEG q85 is
@@ -130,6 +131,16 @@ class LLMLimitsMixin:
     LLM_MAX_OUTPUT_CHARS = EnvField(
         int,
         doc="Maximum characters for tool output (shell commands, file reads).",
+    )
+
+    LLM_MAX_TOOL_RESULT_CHARS = EnvField(
+        int,
+        doc=(
+            "Global backstop cap (characters) on every tool's model-facing "
+            "result, applied after the tool runs. Catches outputs not already "
+            "capped by a tool (Grep, AnalyzeCode, web, MCP). 0 disables it; "
+            "only the model-facing text is affected, not structured returns."
+        ),
     )
 
     LLM_MAX_IMAGE_DIMENSION = EnvField(

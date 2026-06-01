@@ -35,6 +35,12 @@ from zrb.llm.factory_resolver import resolve_factory_items
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.history_manager.file_history_manager import FileHistoryManager
 from zrb.llm.hook.manager import HookManager
+from zrb.llm.permission import (
+    ALLOW,
+    Capability,
+    get_effective_policy,
+    tool_capability,
+)
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.prompt.tool_guidance import ToolGuidance
 from zrb.llm.summarizer import (
@@ -604,7 +610,28 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
                 ui = StdUI()
             # tool_confirmation = None (let UI handle it via approval_channel)
 
+        # Capability lookup for the resolved tool surface, used only when a
+        # permission policy is in force (keyed by the LLM-visible tool name).
+        cap_by_name = {
+            (getattr(t, "name", None) or getattr(t, "__name__", "")): tool_capability(t)
+            for t in resolved_tools
+        }
+
         def check_yolo(tool_def=None):
+            # A permission policy (incl. plan mode) takes precedence: auto-approve
+            # only on an explicit "allow"; "ask"/"deny" defer to the approval flow
+            # ("deny" is additionally enforced by the execution gate). With no
+            # policy in force this branch is skipped and the legacy yolo truth
+            # table below runs unchanged.
+            policy = get_effective_policy()
+            if policy is not None:
+                tool_name = (
+                    getattr(tool_def, "name", str(tool_def))
+                    if tool_def is not None
+                    else ""
+                )
+                cap = cap_by_name.get(tool_name, Capability.UNKNOWN)
+                return policy.decide(tool_name, cap, {}) == ALLOW
             if self._yolo_xcom_key not in ctx.xcom:
                 return False
             yolo_value = ctx.xcom[self._yolo_xcom_key].get(False)

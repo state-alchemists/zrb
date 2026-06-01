@@ -14,9 +14,10 @@ from zrb.llm.hook.journal import create_journaling_hook_factory
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.skill.manager import skill_manager
 from zrb.llm.task.chat.task import LLMChatTask
-from zrb.llm.tool.delegate import (
-    create_delegate_to_agent_tool,
-    create_parallel_delegate_tool,
+from zrb.llm.tool.delegate import create_delegate_to_agent_tool
+from zrb.llm.tool.delegate_background import (
+    create_background_delegate_tool,
+    create_get_delegation_result_tool,
 )
 from zrb.llm.tool_call import (
     auto_approve,
@@ -81,7 +82,8 @@ apply_common_tools(llm_chat)
 # the prompt mentions them in both places consistently.
 llm_chat.add_tool_factory(
     lambda ctx: create_delegate_to_agent_tool(),
-    lambda ctx: create_parallel_delegate_tool(),
+    lambda ctx: create_background_delegate_tool(),
+    lambda ctx: create_get_delegation_result_tool(),
 )
 
 # Add argument formatter (show arguments when asking for user confirmation)
@@ -123,7 +125,13 @@ llm_chat.add_tool_policy(
     # AskUserQuestion blocks on stdin only when interactive; no side effects.
     auto_approve("AskUserQuestion"),
     auto_approve("DelegateToAgent"),
-    auto_approve("DelegateToAgentsParallel"),
+    # Background delegation runs fail-closed (its own tools can't auto-confirm),
+    # and result-polling is read-only.
+    auto_approve("DelegateToAgentBackground"),
+    auto_approve("GetDelegationResult"),
+    # Plan-mode toggles only flip a read-only flag — no external side effects.
+    auto_approve("EnterPlanMode"),
+    auto_approve("ExitPlanMode"),
     # LSP tools - read-only, safe to auto-approve
     auto_approve("LspFindDefinition"),
     auto_approve("LspFindReferences"),

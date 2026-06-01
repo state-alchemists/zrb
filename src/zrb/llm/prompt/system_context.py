@@ -240,6 +240,9 @@ def system_context(
         parts.append(
             f"- Active worktree: {active_wt} (pass as cwd to Bash; use absolute paths for Read/Write/Edit/Grep)"
         )
+    mode_line = _format_mode_line()
+    if mode_line:
+        parts.append(mode_line)
     if interactive_bool:
         parts.append("- Interactive: yes (AskUserQuestion is available)")
     else:
@@ -255,6 +258,23 @@ def system_context(
 
     context_block = "# System Context\n" + "\n".join(parts)
     return next_handler(ctx, f"{current_prompt}\n\n{context_block}")
+
+
+def _format_mode_line() -> str | None:
+    """Render the agent-mode line, or None in the default mode.
+
+    Only emits when a non-default mode (e.g. PLAN) is active, so the section is
+    byte-identical to before unless plan mode is explicitly entered.
+    """
+    # lazy: permission is a leaf module.
+    from zrb.llm.permission.state import AgentMode, get_current_agent_mode
+
+    if get_current_agent_mode() != AgentMode.PLAN:
+        return None
+    return (
+        "- Active mode: PLAN (read-only — edits, shell, and delegation are "
+        "blocked). Investigate, then call ExitPlanMode with your plan to resume."
+    )
 
 
 def _format_model_line(model: "Any") -> str | None:

@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, Callable
 
 from zrb.attr.type import BoolAttr, StrAttr, StrListAttr, fstring
 from zrb.config.config import CFG
+from zrb.llm.permission import resolve_policy
 from zrb.context.any_context import AnyContext
 from zrb.context.print_fn import PrintFn
 from zrb.env.any_env import AnyEnv
@@ -97,6 +98,7 @@ class LLMTask(BaseTask):
         ui: UIProtocol | None = None,
         yolo: BoolAttr = False,
         dynamic_yolo: Callable[..., bool] | None = None,
+        permissions: Any = None,
         approval_channel: ApprovalChannel | None = None,
         summarize_command: list[str] | None = None,
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
@@ -181,6 +183,7 @@ class LLMTask(BaseTask):
         self._yolo = yolo
         self._ui_factories: list[Callable[..., UIProtocol]] = []
         self._dynamic_yolo = dynamic_yolo
+        self._permissions = permissions
         self._approval_channel = approval_channel
         self._summarize_command = (
             summarize_command if summarize_command is not None else []
@@ -386,6 +389,13 @@ class LLMTask(BaseTask):
                 if callable(self._dynamic_yolo)
                 else get_bool_attr(ctx, self._yolo, False)
             )
+            # Resolve the permission policy from the explicit task param, else
+            # global config. None → run_agent keeps legacy/inherited behavior.
+            permission_policy = resolve_policy(
+                self._permissions
+                if self._permissions is not None
+                else CFG.LLM_PERMISSIONS
+            )
             CFG.LOGGER.debug("llm_task Calling run_agent with:")
             CFG.LOGGER.debug(f"  tool_confirmation: {self._tool_confirmation}")
             CFG.LOGGER.debug(f"  approval_channel: {self._approval_channel}")
@@ -403,6 +413,7 @@ class LLMTask(BaseTask):
                 yolo=yolo_value,
                 approval_channel=self._approval_channel,
                 system_prompt=system_prompt,
+                permission_policy=permission_policy,
             )
         except asyncio.CancelledError:
             self._save_cancelled_history(

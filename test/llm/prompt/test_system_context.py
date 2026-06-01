@@ -267,3 +267,23 @@ class TestSystemContext:
             assert get_interactive_mode() is False
         finally:
             set_interactive_mode(True)
+
+    def test_system_context_omits_mode_line_in_default_mode(self):
+        """No 'Active mode' line unless plan mode is explicitly entered."""
+        received = []
+        ctx = MagicMock(spec=AnyContext)
+        system_context(ctx, "test", lambda c, p: received.append(p))
+        assert "Active mode" not in received[0]
+
+    def test_system_context_includes_plan_mode_line(self):
+        """Entering plan mode surfaces a read-only mode line in the prompt."""
+        from zrb.llm.permission.state import AgentMode, current_agent_mode
+
+        received = []
+        ctx = MagicMock(spec=AnyContext)
+        token = current_agent_mode.set(AgentMode.PLAN)
+        try:
+            system_context(ctx, "test", lambda c, p: received.append(p))
+        finally:
+            current_agent_mode.reset(token)
+        assert "Active mode: PLAN" in received[0]

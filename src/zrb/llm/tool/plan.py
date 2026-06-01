@@ -304,7 +304,10 @@ async def write_todos(
         }.get(todo["status"], "[?]")
         lines.append(f"  {status_char} [{todo['id']}] {todo['content']}")
 
-    lines.append("\nUse `update_todo` to change status; `get_todos` to check state.")
+    lines.append(
+        "\nCall `write_todos` again with the full list to change status "
+        "(it replaces by default); `get_todos` to check state."
+    )
 
     return "\n".join(lines)
 
@@ -433,5 +436,10 @@ clear_todos.__name__ = "ClearTodos"
 
 
 def create_plan_tools() -> list:
-    """Create planning tools for registration with LLM agent."""
-    return [write_todos, get_todos, update_todo, clear_todos]
+    """Create planning tools for registration with the LLM agent.
+
+    Only WriteTodos (replace-by-default) and GetTodos are exposed: WriteTodos
+    subsumes per-item status changes and clearing. ``update_todo`` / ``clear_todos``
+    remain importable for direct/programmatic use.
+    """
+    return [write_todos, get_todos]
