@@ -31,14 +31,14 @@ def make_yolo_inheritance_checker() -> Callable[..., bool]:
 
     # lazy: permission is a leaf; kept local to mirror get_current_* deferral
     # and so tests patching either layer take effect inside the closure.
-    from zrb.llm.permission import ALLOW, Capability, get_effective_policy
+    from zrb.llm.permission import ALLOW, Capability, DENY, get_effective_policy
 
     def check_yolo_inheritance(tool_def: Any = None) -> bool:
-        # A permission policy (incl. an inherited plan mode) takes precedence:
-        # auto-approve only on "allow". Capability is unknown here (the sub-agent
-        # tool surface isn't visible), so capability-keyed rules resolve via the
-        # policy's tool-name / "*" rules; the execution gate enforces "deny" with
-        # the real capability regardless. None → legacy yolo logic below.
+        # Approval precedence (matches chat/task.py check_yolo):
+        #   perm_policy: allow→auto-approve, deny→auto-approve (gate blocks),
+        #                ask→defer to tool-policy / yolo cascade
+        #   tool_policy: handled in _resolve_approval
+        #   yolo:        handled in _resolve_approval
         policy = get_effective_policy()
         if policy is not None:
             tool_name = (
@@ -46,7 +46,12 @@ def make_yolo_inheritance_checker() -> Callable[..., bool]:
                 if tool_def is not None
                 else ""
             )
-            return policy.decide(tool_name, Capability.UNKNOWN, {}) == ALLOW
+            result = policy.decide(tool_name, Capability.UNKNOWN, {})
+            if result == ALLOW:
+                return True
+            if result == DENY:
+                return True  # auto-approved (gate blocks at execution)
+            # ASK → fall through to yolo cascade
         yolo_val = get_current_yolo()
         if isinstance(yolo_val, bool):
             if yolo_val:

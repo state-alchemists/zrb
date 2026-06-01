@@ -455,11 +455,36 @@ class LLMTask(BaseTask):
         return False
 
     def _create_agent(self, ctx: AnyContext, system_prompt: str | None = None) -> Any:
-        yolo = (
-            self._dynamic_yolo
-            if self._dynamic_yolo is not None
-            else get_bool_attr(ctx, self._yolo, False)
-        )
+        if self._dynamic_yolo is not None:
+            yolo = self._dynamic_yolo
+        else:
+            # Default policy-aware callable (bare LLMTask without dynamic_yolo).
+            # Follows the same precedence chain as chat/task.py check_yolo.
+            # Caching the yolo value at closure-creation time is fine — bare
+            # LLMTask yolo is a BoolAttr, not a live xcom like LLMChatTask.
+            yolo_bool = get_bool_attr(ctx, self._yolo, False)
+
+            def _default_yolo(tool_def=None):
+                # lazy: permission is a leaf module.
+                from zrb.llm.permission import ALLOW, DENY, get_effective_policy
+                from zrb.llm.permission.capability import Capability
+
+                policy = get_effective_policy()
+                if policy is not None:
+                    tool_name = (
+                        getattr(tool_def, "name", str(tool_def))
+                        if tool_def is not None
+                        else ""
+                    )
+                    result = policy.decide(tool_name, Capability.UNKNOWN, {})
+                    if result == ALLOW:
+                        return True
+                    if result == DENY:
+                        return True  # auto-approved (gate blocks at execution)
+                    # ASK → fall through to yolo
+                return yolo_bool
+
+            yolo = _default_yolo
         if system_prompt is None:
             system_prompt = self.get_system_prompt(ctx)
         ctx.log_debug(f"SYSTEM PROMPT: {system_prompt}")

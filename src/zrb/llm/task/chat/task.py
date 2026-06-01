@@ -38,6 +38,7 @@ from zrb.llm.hook.manager import HookManager
 from zrb.llm.permission import (
     ALLOW,
     Capability,
+    DENY,
     get_effective_policy,
     tool_capability,
 )
@@ -618,11 +619,11 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
         }
 
         def check_yolo(tool_def=None):
-            # A permission policy (incl. plan mode) takes precedence: auto-approve
-            # only on an explicit "allow"; "ask"/"deny" defer to the approval flow
-            # ("deny" is additionally enforced by the execution gate). With no
-            # policy in force this branch is skipped and the legacy yolo truth
-            # table below runs unchanged.
+            # Approval precedence chain:
+            #   perm_policy: allow→auto-approve, deny→auto-approve (gate blocks),
+            #                ask→defer to tool_policy cascade
+            #   tool_policy: handled in _resolve_approval (deferred_calls.py)
+            #   yolo:        handled in _resolve_approval (deferred_calls.py)
             policy = get_effective_policy()
             if policy is not None:
                 tool_name = (
@@ -631,7 +632,12 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
                     else ""
                 )
                 cap = cap_by_name.get(tool_name, Capability.UNKNOWN)
-                return policy.decide(tool_name, cap, {}) == ALLOW
+                result = policy.decide(tool_name, cap, {})
+                if result == ALLOW:
+                    return True   # unconditional auto-approve
+                if result == DENY:
+                    return True   # auto-approved (gate blocks at execution)
+                # ASK → fall through to tool-policy / yolo cascade
             if self._yolo_xcom_key not in ctx.xcom:
                 return False
             yolo_value = ctx.xcom[self._yolo_xcom_key].get(False)

@@ -65,6 +65,44 @@ prompt_manager.add_tool_guidance(group="My Tools", name="MyTool",
 
 `LLMChatTask._exec_action` sets `prompt_manager.tool_names` from the resolved tool list at runtime; guidance for unregistered tools is suppressed. **For factory-created tools whose Python function names differ from their LLM-visible names**, register an `add_tool_guidance()` entry explicitly — otherwise the runtime-name filter drops them.
 
+## Architecture Decision Records (ADRs)
+
+Significant design decisions are recorded as ADRs in `docs/adr/`. Each ADR
+captures context, decision, consequences, alternatives rejected, and evidence
+(cross-references to code/docs). The index at `docs/adr/README.md` lists every
+record.
+
+### When to write one
+
+Write an ADR when a decision is:
+- **Non-trivial** — a reasonable developer could pick a different path.
+- **Consequential** — affects how other parts of the system work or how users
+  interact with it.
+- **Persistent** — the decision is expected to last (not a quick hack).
+
+### How to add one
+
+1. Find the next free `ADR-NNNN` in the index.
+2. Append to the relevant thematic file under `docs/adr/`.
+3. Add a row to the index in `docs/adr/README.md`.
+4. If the decision reverses or refines an old ADR, mark the old one
+   `Superseded by ADR-NNNN` — preserve the history.
+
+### Format
+
+Every ADR uses this shape:
+
+- **Status** — Accepted / Superseded / Evolving
+- **Context** — the forces and problem that prompted the decision
+- **Decision** — what was chosen, concretely
+- **Consequences** — what this buys and what it costs
+- **Alternatives rejected** — and why
+- **Evidence** — file/doc pointers; tag each rationale `[DOCUMENTED]` (stated
+  in code/docs) or `[INFERRED]` (deduced from code structure)
+
+One decision per record. If the decision is still being discussed, mark it
+**Evolving** and note open questions as `@<owner> please decide` tags.
+
 ## Development Conventions
 
 ### Code Style

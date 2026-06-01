@@ -131,6 +131,7 @@ def create_background_delegate_tool(
             additional_context=additional_context,
             sub_agent_manager=sub_agent_manager,
             ui=buffered_ui,
+            yolo=True,  # auto-approve tool calls (deny still blocked by gate)
         )
 
         _registry.start(handle, coro, buffered_ui)

@@ -1,11 +1,14 @@
 """Deferred-tool-call processing for `run_agent`.
 
 When pydantic-ai produces a `DeferredToolRequests`, we route each call
-through three approval strategies in priority order:
+through the approval precedence chain (ADR-0055):
 
-1. Tool policy via `ToolCallHandler.check_policies` (auto approve/deny)
-2. Approval channel (remote / multi-channel; first response wins)
-3. CLI fallback via the tool confirmation handler
+1. Permission policy   — allow→auto-approve, deny→block, ask→defer
+   (checked at check_yolo time; deny pre-checked again before prompting)
+2. Tool policy         — allow→auto-approve, deny→block, no-opinion→defer
+3. Yolo                — True→auto-approve, False→continue
+4. Approval channel    — remote / multi-channel; first response wins
+5. CLI fallback        — prompt the user
 
 After the loop we rebuild `current_results` with `calls={}` if any tool was
 denied, so pydantic-ai does not execute denied calls. Returns `None` if
@@ -139,15 +142,59 @@ async def _resolve_approval(
     effective_tool_confirmation: Any,
     approval_channel: "ApprovalChannel | None",
 ):
-    """Run the three-tier approval cascade for a single deferred call."""
+    """Run the approval cascade for a single deferred call.
 
-    # Priority 1: Tool policy (automatic approval based on rules)
+    Approval precedence chain (ADR-0055):
+      1. Permission policy   — allow→auto-approve, deny→block, ask→defer
+         (checked at check_yolo time; deny pre-checked again before prompting)
+      2. Tool policy         — allow→auto-approve, deny→block, no-opinion→defer
+         Priority 1: checked first. Permission policy was already checked in
+         check_yolo (allow→returned True, deny→returned True for gate,
+         ask→deferred). If we reach here, it was ask or no policy — now check
+         tool-level rules.
+      3. Yolo                — True→auto-approve, False→continue
+         Priority 2: auto-approve if yolo says so, otherwise prompt.
+         Only reached when tool policy had no opinion.
+      4. Approval channel    — remote / multi-channel; first response wins
+      5. CLI fallback        — prompt the user
+         Priority 3 before prompt: permission policy pre-check.
+         Catches the case where check_yolo was a plain bool (no policy-aware
+         callable) and a deny rule exists. Checked here rather than in the gate
+         so the user never sees a wasted approval prompt for a denied tool.
+    """
+
     if isinstance(effective_tool_confirmation, ToolCallHandler):
         policy_result = await effective_tool_confirmation.check_policies(ui, call)
         if policy_result is not None:
             return policy_result
 
-    # Priority 2: Approval channel (multi-channel, first response wins)
+    # lazy: runtime_state is a thin re-export of runner ContextVars.
+    from zrb.llm.agent.run.runtime_state import get_current_yolo
+
+    yolo_val = get_current_yolo()
+    if yolo_val:
+        from pydantic_ai import ToolApproved
+
+        return ToolApproved("auto-approved by yolo")
+
+    # lazy: permission is a leaf module.
+    from zrb.llm.permission import DENY, get_effective_policy, tool_capability
+
+    deny_policy = get_effective_policy()
+    if deny_policy is not None:
+        cap = tool_capability(call)
+        raw_args = getattr(call, "args", None) or {}
+        if isinstance(raw_args, str):
+            try:
+                raw_args = json.loads(raw_args)
+            except json.JSONDecodeError:
+                raw_args = {}
+        if deny_policy.decide(call.tool_name, cap, raw_args) == DENY:
+            from pydantic_ai import ToolDenied
+
+            return ToolDenied("Blocked by permission policy")
+
+    # Priority 4: Approval channel (multi-channel, first response wins)
     if approval_channel is not None:
         CFG.LOGGER.debug(f"Using approval channel for {call.tool_name}")
         args: dict = {}
@@ -172,7 +219,7 @@ async def _resolve_approval(
         )
         return approval_result.to_pydantic_result()
 
-    # Priority 3: CLI fallback via tool confirmation
+    # Priority 5: CLI fallback via tool confirmation
     CFG.LOGGER.debug(f"Using CLI fallback for {call.tool_name}")
     if isinstance(effective_tool_confirmation, ToolCallHandler):
         result = await effective_tool_confirmation.handle(ui, call)

@@ -106,8 +106,8 @@ async def test_failed_subagent_surfaces_error(manager):
 @pytest.mark.asyncio
 async def test_background_inherits_parent_permission_context(manager):
     """The background task inherits the parent's approval channel and interactive
-    mode (it does NOT neutralize them and does NOT force yolo), so its tool-call
-    approvals route to the user's UI just like a synchronous delegate."""
+    mode, and auto-approves tool calls (yolo=True) so background agents never
+    block. Deny rules in the permission policy still block at execution time."""
     from zrb.llm.approval.approval_channel import current_approval_channel
     from zrb.llm.tool.ambient_state import get_interactive_mode, set_interactive_mode
 
@@ -137,7 +137,7 @@ async def test_background_inherits_parent_permission_context(manager):
 
     assert captured["channel"] is sentinel_channel  # inherited, not dropped
     assert captured["interactive"] is True  # not forced off
-    assert captured["forced_yolo"] is False  # no forced auto-approve
+    assert captured["forced_yolo"] is True  # auto-approve background tool calls
 
 
 @pytest.mark.asyncio

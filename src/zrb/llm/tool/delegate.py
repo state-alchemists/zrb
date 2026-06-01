@@ -180,13 +180,14 @@ async def _run_agent_task(
     sub_agent_manager: SubAgentManager,
     ui: UIProtocol,
     flush_ui: bool = False,
+    yolo: bool | None = None,
 ) -> AgentTaskResult:
     """Run a single agent task and return structured result.
 
-    Returns:
-        AgentTaskResult with agent_name, result (if successful), and error (if failed).
+    Args:
+        yolo: Override yolo for the sub-agent. None = inherit from parent.
     """
-    sub_agent = sub_agent_manager.create_agent(agent_name)
+    sub_agent = sub_agent_manager.create_agent(agent_name, yolo=yolo)
     if not sub_agent:
         return AgentTaskResult(
             agent_name,
@@ -205,6 +206,7 @@ async def _run_agent_task(
             message_history=[],
             limiter=llm_limiter,
             ui=ui,
+            yolo=bool(yolo) if yolo is not None else yolo,
         )
 
         if flush_ui and hasattr(ui, "flush_to_parent"):
