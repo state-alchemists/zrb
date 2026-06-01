@@ -232,6 +232,8 @@ class BaseUI(CommandsMixin):
         # Queue for pending confirmation requests to handle parallel tool approvals
         self._confirmation_queue: list[tuple[asyncio.Future[str], str]] = []
         self._current_confirmation: asyncio.Future[str] | None = None
+        # Buffer for main-agent output during confirmation (avoids interleaving)
+        self._confirmation_output_buffer: list[str] = []
 
         # Track background tasks to prevent garbage collection
         self._background_tasks: set[asyncio.Task] = set()

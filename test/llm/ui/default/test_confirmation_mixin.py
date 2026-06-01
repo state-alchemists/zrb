@@ -9,6 +9,7 @@ from zrb.llm.ui.default.confirmation_mixin import ConfirmationMixin
 class MockConfirmationUI(ConfirmationMixin):
     def __init__(self):
         self._confirmation_queue = []
+        self._confirmation_output_buffer = []
         self._current_confirmation = None
 
     def append_to_output(self, text, end="\n"):

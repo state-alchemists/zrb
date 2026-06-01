@@ -5,13 +5,12 @@ so there is zero regression risk to existing behavior. ``DelegateToAgentBackgrou
 starts a subagent and returns a handle immediately; ``GetDelegationResult`` polls
 that handle.
 
-Permissions are inherited, not bypassed: ``asyncio.ensure_future`` copies the
-current ``contextvars`` context when the task is created (while the parent run's
+Permissions and yolo are inherited: ``asyncio.ensure_future`` copies the current
+``contextvars`` context when the task is created (while the parent run's
 ContextVars are still set), so the background agent inherits the parent's UI,
-yolo, permission policy, approval channel, and agent mode. When one of its tool
-calls needs approval, its ``BufferedUI.ask_user`` forwards to the parent UI's
-confirmation queue, which interrupts and prompts the user — the same path a
-synchronous delegate uses. It never auto-approves or silently denies.
+yolo, permission policy, approval channel, and agent mode. When ``yolo=None``
+(default, inherit), tool calls that need approval flow through the parent UI's
+confirmation queue — the same path a synchronous delegate uses.
 
 Caveat: the registry is process- and event-loop-scoped. Results are pollable for
 the life of the running loop/session; they do not persist across process
@@ -104,10 +103,10 @@ def create_background_delegate_tool(
         speculative research, generating a file). For work whose result you need
         now, use the synchronous DelegateToAgent instead.
 
-        The background agent inherits the main agent's permissions. If one of its
-        tool calls needs approval, the request interrupts and prompts the user
-        through the same UI (queued behind any current prompt), just like a
-        synchronous delegate — it does not silently auto-approve or skip.
+        The background agent inherits the main agent's permissions and yolo
+        setting. If one of its tool calls needs approval, the request interrupts
+        and prompts the user through the same UI (queued behind any current
+        prompt), just like a synchronous delegate.
 
         REQUIRED ARGS mirror DelegateToAgent: agent_name, deliverable, task,
         non_goals (list; [] only when no scope-expansion risk). additional_context
@@ -120,9 +119,10 @@ def create_background_delegate_tool(
 
         # The detached task copies the current context (yolo, permission policy,
         # approval channel, UI), so the sub-agent inherits the main agent's
-        # permissions. Its BufferedUI.ask_user forwards approval prompts to the
-        # parent UI's confirmation queue, which surfaces them to the user — the
-        # same path foreground delegate sub-agents use.
+        # permissions and yolo setting (None → inherit). Its BufferedUI.ask_user
+        # forwards approval prompts to the parent UI's confirmation queue, which
+        # surfaces them to the user — the same path foreground delegate sub-agents
+        # use.
         coro = _run_agent_task(
             agent_name=agent_name,
             deliverable=deliverable,
@@ -131,7 +131,7 @@ def create_background_delegate_tool(
             additional_context=additional_context,
             sub_agent_manager=sub_agent_manager,
             ui=buffered_ui,
-            yolo=True,  # auto-approve tool calls (deny still blocked by gate)
+            yolo=None,  # None = inherit parent's yolo
         )
 
         _registry.start(handle, coro, buffered_ui)
