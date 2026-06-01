@@ -5,10 +5,13 @@ so there is zero regression risk to existing behavior. ``DelegateToAgentBackgrou
 starts a subagent and returns a handle immediately; ``GetDelegationResult`` polls
 that handle.
 
-Ambient state is captured automatically: ``asyncio.ensure_future`` copies the
+Permissions are inherited, not bypassed: ``asyncio.ensure_future`` copies the
 current ``contextvars`` context when the task is created (while the parent run's
 ContextVars are still set), so the background agent inherits the parent's UI,
-yolo, permission policy, and agent mode without a use-after-reset hazard.
+yolo, permission policy, approval channel, and agent mode. When one of its tool
+calls needs approval, its ``BufferedUI.ask_user`` forwards to the parent UI's
+confirmation queue, which interrupts and prompts the user — the same path a
+synchronous delegate uses. It never auto-approves or silently denies.
 
 Caveat: the registry is process- and event-loop-scoped. Results are pollable for
 the life of the running loop/session; they do not persist across process
@@ -19,7 +22,6 @@ restarts. A plan-mode parent cannot start a background agent — the tool is tag
 from __future__ import annotations
 
 import asyncio
-from typing import Any
 
 from zrb.llm.agent.run.runtime_state import get_current_ui
 from zrb.llm.agent.subagent.manager.manager import SubAgentManager
@@ -76,51 +78,10 @@ class _BackgroundRegistry:
 
 _registry = _BackgroundRegistry()
 
-# Shown to the model when a background agent attempts an action that would
-# otherwise require interactive confirmation.
-_BACKGROUND_DENY_MSG = (
-    "Blocked: background agents run non-interactively and cannot prompt for "
-    "confirmation, so this action was denied. Inherited auto-approval (yolo) "
-    "and the active permission policy still apply — anything pre-approved runs. "
-    "[SYSTEM SUGGESTION]: if this action genuinely needs approval, run it in the "
-    "foreground with DelegateToAgent (or yourself) instead of in the background."
-)
-
 
 def get_background_registry() -> _BackgroundRegistry:
     """Public accessor for the background-delegation registry."""
     return _registry
-
-
-def _install_background_guardrails() -> None:
-    """Make the *current* (copied) context fail-closed and non-interactive.
-
-    A background agent is detached from the turn that started it, so there is no
-    safe way for it to drive the shared UI / approval channel for confirmation —
-    doing so would race or hang the foreground agent. We therefore, inside the
-    background task's own copied context (so the parent is unaffected):
-
-    * replace the tool-confirmation handler with an auto-deny callable,
-    * drop the approval channel so no remote/terminal prompt is attempted,
-    * mark the run non-interactive so AskUserQuestion short-circuits.
-
-    Tools the inherited yolo flag or permission policy already auto-approve still
-    run normally (they never reach confirmation); everything else is denied with
-    ``_BACKGROUND_DENY_MSG`` rather than blocking on a human.
-    """
-    # lazy: heavy third-party
-    from pydantic_ai import ToolDenied
-
-    from zrb.llm.agent.run.runner import current_tool_confirmation
-    from zrb.llm.approval.approval_channel import current_approval_channel
-    from zrb.llm.tool.ambient_state import set_interactive_mode
-
-    def _auto_deny(_call: object) -> "ToolDenied":
-        return ToolDenied(_BACKGROUND_DENY_MSG)
-
-    current_tool_confirmation.set(_auto_deny)
-    current_approval_channel.set(None)
-    set_interactive_mode(False)
 
 
 def create_background_delegate_tool(
@@ -140,8 +101,13 @@ def create_background_delegate_tool(
 
         Poll with GetDelegationResult(handle) to collect the result later. Use
         for long, independent work you do not need before continuing (e.g.
-        speculative research). For work whose result you need now, use the
-        synchronous DelegateToAgent instead.
+        speculative research, generating a file). For work whose result you need
+        now, use the synchronous DelegateToAgent instead.
+
+        The background agent inherits the main agent's permissions. If one of its
+        tool calls needs approval, the request interrupts and prompts the user
+        through the same UI (queued behind any current prompt), just like a
+        synchronous delegate — it does not silently auto-approve or skip.
 
         REQUIRED ARGS mirror DelegateToAgent: agent_name, deliverable, task,
         non_goals (list; [] only when no scope-expansion risk). additional_context
@@ -152,22 +118,22 @@ def create_background_delegate_tool(
         prefix = f"[{agent_name}:{handle}] "
         buffered_ui = BufferedUI(parent_ui, prefix=prefix)
 
-        async def _guarded() -> Any:
-            # Runs in the task's own copied context (captured at task-creation
-            # time, so yolo/policy/mode are inherited). Make it fail-closed and
-            # non-interactive before the agent executes.
-            _install_background_guardrails()
-            return await _run_agent_task(
-                agent_name=agent_name,
-                deliverable=deliverable,
-                non_goals=non_goals,
-                task=task,
-                additional_context=additional_context,
-                sub_agent_manager=sub_agent_manager,
-                ui=buffered_ui,
-            )
+        # The detached task copies the current context (yolo, permission policy,
+        # approval channel, UI), so the sub-agent inherits the main agent's
+        # permissions. Its BufferedUI.ask_user forwards approval prompts to the
+        # parent UI's confirmation queue, which surfaces them to the user — the
+        # same path foreground delegate sub-agents use.
+        coro = _run_agent_task(
+            agent_name=agent_name,
+            deliverable=deliverable,
+            non_goals=non_goals,
+            task=task,
+            additional_context=additional_context,
+            sub_agent_manager=sub_agent_manager,
+            ui=buffered_ui,
+        )
 
-        _registry.start(handle, _guarded(), buffered_ui)
+        _registry.start(handle, coro, buffered_ui)
         return (
             f"Started background agent '{agent_name}'. Handle: {handle}. "
             "Call GetDelegationResult with this handle to collect the result."

@@ -24,10 +24,12 @@ After implementation, a tool-surface review trimmed the agent's tool count
   (sync) and `DelegateToAgentBackground` + `GetDelegationResult`; fan-out is
   achieved by starting several background agents. See
   [06-background-subagents.md](06-background-subagents.md).
-- **Background confirmation — fail-closed.** A detached background agent cannot
-  drive the shared UI for approval, so it runs non-interactively: anything not
-  auto-approved by the inherited yolo/policy is **denied**, never prompted. See
-  06's "Confirmation" section.
+- **Background confirmation — inherit & interrupt.** A background sub-agent
+  inherits the main agent's permissions; when a tool needs approval it
+  interrupts the UI and prompts the user via the existing concurrent-confirmation
+  queue (the same path foreground delegates use). Earlier fail-closed (denied
+  everything → useless) and auto-approve (exceeded the parent's permissions)
+  iterations were both wrong. See 06's "Confirmation" section.
 - **Todos collapsed 4 → 2.** Only `WriteTodos` (replace-by-default) and
   `GetTodos` are exposed; `UpdateTodo`/`ClearTodos` are subsumed (rewrite the
   list / write `[]`) and remain importable for direct use only.

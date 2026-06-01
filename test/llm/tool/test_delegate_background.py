@@ -104,37 +104,40 @@ async def test_failed_subagent_surfaces_error(manager):
 
 
 @pytest.mark.asyncio
-async def test_background_run_is_fail_closed_and_non_interactive(manager):
-    """The background task installs auto-deny confirmation, drops the approval
-    channel, and goes non-interactive — so it never blocks on the user."""
+async def test_background_inherits_parent_permission_context(manager):
+    """The background task inherits the parent's approval channel and interactive
+    mode (it does NOT neutralize them and does NOT force yolo), so its tool-call
+    approvals route to the user's UI just like a synchronous delegate."""
+    from zrb.llm.approval.approval_channel import current_approval_channel
+    from zrb.llm.tool.ambient_state import get_interactive_mode, set_interactive_mode
+
+    sentinel_channel = MagicMock()
     captured = {}
 
     async def capture_env(*args, **kwargs):
-        from zrb.llm.agent.run.runner import current_tool_confirmation
-        from zrb.llm.approval.approval_channel import current_approval_channel
-        from zrb.llm.tool.ambient_state import get_interactive_mode
-
-        confirm = current_tool_confirmation.get()
-        captured["denies"] = confirm is not None and "ToolDenied" in type(
-            confirm(MagicMock())
-        ).__name__
         captured["channel"] = current_approval_channel.get()
         captured["interactive"] = get_interactive_mode()
+        captured["forced_yolo"] = "yolo" in kwargs
         return AgentTaskResult("agent", "ok", None)
 
-    delegate = create_background_delegate_tool(manager)
-    with patch(
-        "zrb.llm.tool.delegate_background._run_agent_task", side_effect=capture_env
-    ), patch(
-        "zrb.llm.tool.delegate_background.get_current_ui", return_value=MagicMock()
-    ):
-        await delegate("agent", "deliver", "do it", [])
-        for _ in range(5):
-            await asyncio.sleep(0)
+    tok = current_approval_channel.set(sentinel_channel)
+    set_interactive_mode(True)
+    try:
+        delegate = create_background_delegate_tool(manager)
+        with patch(
+            "zrb.llm.tool.delegate_background._run_agent_task", side_effect=capture_env
+        ), patch(
+            "zrb.llm.tool.delegate_background.get_current_ui", return_value=MagicMock()
+        ):
+            await delegate("agent", "deliver", "do it", [])
+            for _ in range(5):
+                await asyncio.sleep(0)
+    finally:
+        current_approval_channel.reset(tok)
 
-    assert captured["denies"] is True
-    assert captured["channel"] is None
-    assert captured["interactive"] is False
+    assert captured["channel"] is sentinel_channel  # inherited, not dropped
+    assert captured["interactive"] is True  # not forced off
+    assert captured["forced_yolo"] is False  # no forced auto-approve
 
 
 @pytest.mark.asyncio

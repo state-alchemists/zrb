@@ -125,8 +125,8 @@ llm_chat.add_tool_policy(
     # AskUserQuestion blocks on stdin only when interactive; no side effects.
     auto_approve("AskUserQuestion"),
     auto_approve("DelegateToAgent"),
-    # Background delegation runs fail-closed (its own tools can't auto-confirm),
-    # and result-polling is read-only.
+    # Starting a background delegation and polling its result are harmless; the
+    # sub-agent's own tool calls still route their approvals to the user.
     auto_approve("DelegateToAgentBackground"),
     auto_approve("GetDelegationResult"),
     # Plan-mode toggles only flip a read-only flag — no external side effects.

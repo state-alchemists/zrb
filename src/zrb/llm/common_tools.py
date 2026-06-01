@@ -265,12 +265,13 @@ _DYNAMIC_TOOL_GUIDANCE_FACTORIES: "list[Callable[[AnyContext], ToolGuidance]]" =
         group_name="Delegation",
         tool_name="DelegateToAgentBackground",
         when_to_use="Long, independent work you do NOT need before continuing "
-        "(e.g. speculative research). Returns a handle immediately. To fan out, "
-        "start several and collect each handle later.",
+        "(e.g. speculative research, generating a file). Returns a handle "
+        "immediately. To fan out, start several and collect each handle later.",
         key_rule="Same scope clamp as DelegateToAgent. Collect with "
-        "GetDelegationResult(handle). Runs non-interactively and fail-closed: "
-        "anything needing confirmation is denied — use synchronous DelegateToAgent "
-        "when you need the result now or the work needs approvals.",
+        "GetDelegationResult(handle). Runs autonomously — its tool calls are "
+        "auto-approved (a configured permission policy still applies), so only "
+        "delegate work you're fine running without per-step approval. Use "
+        "synchronous DelegateToAgent when you need the result now.",
     ),
     lambda ctx: ToolGuidance(
         group_name="Delegation",

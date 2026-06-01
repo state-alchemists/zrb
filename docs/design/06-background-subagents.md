@@ -76,28 +76,43 @@ sub-agent. A plan-mode parent cannot spawn a mutating background agent (the
 `DELEGATE` deny in `PLAN_MODE_POLICY` blocks the background-delegate tool too,
 since it is tagged `DELEGATE`).
 
-## Confirmation — fail-closed (critical)
+## Confirmation — inherit and interrupt (critical)
 
-A foreground (synchronous) delegate forwards its sub-agent's approval prompts to
-the user through a `BufferedUI` while the parent blocks. A **background** agent
-has no such anchor: the spawning tool call already returned, so if the detached
-task hit a tool needing confirmation it would try to drive the shared UI /
-approval channel concurrently with the foreground agent — a race or a hang.
+A background agent **inherits the main agent's permissions** and, when a tool
+call needs approval, **interrupts the UI to ask the user** — it does not
+auto-approve and does not silently deny.
 
-So a background agent runs **non-interactively and fail-closed**. Inside the
-task's own (copied) context, before the agent executes, we:
+This works by reusing machinery that already exists for concurrent delegation.
+The default interactive UI's `ask_user` (`ui/default/confirmation_mixin.py`) is
+a **confirmation queue**: its docstring states it is built so "multiple parallel
+callers (e.g. delegate sub-agents) can each request user input… queues them so
+each waits its turn." A background sub-agent runs with a `BufferedUI` whose
+`ask_user` forwards to the parent UI; the parent enqueues the prompt, shows it,
+and resolves it on the user's keypress — exactly the path a synchronous delegate
+uses. Because the detached task copies the spawning context
+(`asyncio.ensure_future`), it inherits the parent's approval channel, yolo flag,
+permission policy, and UI; nothing is neutralized.
 
-- replace the tool-confirmation handler with an auto-deny callable,
-- drop the approval channel (no remote/terminal prompt is attempted),
-- mark the run non-interactive (`AskUserQuestion` short-circuits).
+### Iterations that were wrong
 
-Tools the inherited `yolo` flag or permission policy already auto-approve still
-run; everything that *would* prompt is denied with a message telling the model
-to re-run it in the foreground with `DelegateToAgent`. This guarantees a
-background agent never blocks on a human and never silently performs an
-unapproved action. Implemented in `_install_background_guardrails()`; the
-guardrails are installed inside the `asyncio.ensure_future` context copy, so the
-parent run is unaffected.
+- **Fail-closed (deny anything not pre-approved).** Made background useless: a
+  "write a poem to /tmp" delegation had `Write`, then `Bash`, then even `echo`
+  denied, and the agent gave up empty-handed.
+- **Auto-approve (`yolo=True`).** Worked, but granted the sub-agent *more* than
+  a non-yolo main agent has — it could mutate without the approval the main
+  agent would have required. Rejected: a sub-agent must not exceed its parent's
+  permissions.
+
+The fix was to **delete the guardrails entirely** and let the sub-agent inherit
+and route approvals through the queue, rather than short-circuiting them.
+
+### Residual note
+
+If the main agent keeps polling `GetDelegationResult` and gives up before the
+user answers the queued prompt, the background agent stays parked on the prompt;
+once answered it completes and the result is collectable on a later poll. That's
+model-pacing, not a correctness issue — the guidance tells the model to keep
+polling.
 
 ## Fan-out replaces DelegateToAgentsParallel
 
