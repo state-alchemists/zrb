@@ -7,7 +7,7 @@ conforms to ``CommonToolHost`` — used by both ``LLMChatTask`` (main
 agent), ``LLMTask`` (programmatic agents), and ``SubAgentManager``
 (sub-agents) so they share the same tool surface and guidance.
 
-Delegate tools (``DelegateToAgent`` / ``DelegateToAgentBackground``) are
+Delegate tools (``DelegateToAgent`` / ``DelegateToAgentsParallel`` / ``DelegateToAgentBackground``) are
 intentionally NOT registered here — they're main-agent-only and sub-agents
 filter them out via ``zrb_is_delegate_tool``. Tool policies, argument
 formatters, and response handlers are also out of scope: those live on
@@ -116,9 +116,22 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
     # Execution
     ToolGuidance(
         group_name="Execution",
-        tool_name="Bash",
-        key_rule="For file I/O, use Read/Write/Edit/Grep/RM/MV — not Bash. "
+        tool_name="Shell",
+        when_to_use="Running any shell command (alias: Bash)",
+        key_rule="For file I/O, use Read/Write/Edit/Grep/RM/MV — not Shell. "
         "System Context already lists time, OS, CWD, and available tools — read from there before running commands to discover them.",
+    ),
+    ToolGuidance(
+        group_name="Execution",
+        tool_name="ShellBackground",
+        when_to_use="Long-running processes (dev servers, watchers, builds) that should not block the conversation",
+        key_rule="Returns a handle immediately. Poll with MonitorProcess(handle) to see incremental output. Kill with MonitorProcess(handle, kill=True).",
+    ),
+    ToolGuidance(
+        group_name="Execution",
+        tool_name="MonitorProcess",
+        when_to_use="Check status or kill a background process started by ShellBackground",
+        key_rule="Without kill=True, returns stdout/stderr so far. With kill=True, terminates the process group.",
     ),
     # Analysis
     ToolGuidance(
@@ -186,7 +199,7 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
         group_name="Git Worktrees",
         tool_name="EnterWorktree",
         when_to_use="Isolated branch for experimental changes",
-        key_rule="ListWorktrees first. Pass the returned path as the `cwd` argument to Bash.",
+        key_rule="ListWorktrees first. Pass the returned path as the `cwd` argument to Shell/Bash.",
     ),
     # Plan Mode
     ToolGuidance(
@@ -275,6 +288,18 @@ _DYNAMIC_TOOL_GUIDANCE_FACTORIES: "list[Callable[[AnyContext], ToolGuidance]]" =
     ),
     lambda ctx: ToolGuidance(
         group_name="Delegation",
+        tool_name="DelegateToAgentsParallel",
+        when_to_use="Two or more independent sub-tasks specified at once, when "
+        "you want them all to run concurrently and return together. "
+        "Prefer this over N sequential DelegateToAgentBackground calls when "
+        "you know all the tasks up front — some models handle a single "
+        "list[dict] better than iterating N tool calls.",
+        key_rule="Each task dict needs its own deliverable and non_goals — "
+        "apply the scope clamp per task, not once for the batch. "
+        "Sub-tasks share no state; each runs blind to the others.",
+    ),
+    lambda ctx: ToolGuidance(
+        group_name="Delegation",
         tool_name="GetDelegationResult",
         when_to_use="Collect the result of a DelegateToAgentBackground handle",
         key_rule="Returns 'still running' until done; the handle is consumed once "
@@ -306,7 +331,7 @@ def apply_common_tools(host: CommonToolHost) -> None:
     # lazy: permission is a leaf module.
     from zrb.llm.permission import Capability, tag
     from zrb.llm.tool.ask import ask_user_question
-    from zrb.llm.tool.bash import run_shell_command
+    from zrb.llm.tool.bash import run_shell_command as bash_cmd
     from zrb.llm.tool.code import analyze_code
     from zrb.llm.tool.file import (
         analyze_file,
@@ -323,6 +348,11 @@ def apply_common_tools(host: CommonToolHost) -> None:
     from zrb.llm.tool.mcp import load_mcp_config
     from zrb.llm.tool.plan import get_todos, write_todos
     from zrb.llm.tool.plan_mode import enter_plan_mode, exit_plan_mode
+    from zrb.llm.tool.shell import run_shell_command
+    from zrb.llm.tool.shell_background import (
+        create_monitor_process_tool,
+        create_shell_background_tool,
+    )
     from zrb.llm.tool.skill import create_activate_skill_tool
     from zrb.llm.tool.web import open_web_page, search_internet
     from zrb.llm.tool.worktree import enter_worktree, exit_worktree, list_worktrees
@@ -360,6 +390,7 @@ def apply_common_tools(host: CommonToolHost) -> None:
     ):
         tag(_fn, Capability.EDIT)
     tag(run_shell_command, Capability.EXECUTE)
+    tag(bash_cmd, Capability.EXECUTE)
     for _fn in (search_internet, open_web_page):
         tag(_fn, Capability.NETWORK)
     for _fn in plan_tools + [ask_user_question]:
@@ -370,6 +401,7 @@ def apply_common_tools(host: CommonToolHost) -> None:
 
     host.add_tool(
         run_shell_command,
+        bash_cmd,
         analyze_code,
         list_files,
         glob_files,
@@ -396,6 +428,8 @@ def apply_common_tools(host: CommonToolHost) -> None:
         lambda ctx: tag(create_list_zrb_task_tool(), Capability.READ),
         lambda ctx: tag(create_run_zrb_task_tool(), Capability.EXECUTE),
         lambda ctx: tag(create_activate_skill_tool(), Capability.META),
+        lambda ctx: tag(create_shell_background_tool(), Capability.EXECUTE),
+        lambda ctx: tag(create_monitor_process_tool(), Capability.EXECUTE),
     )
     host.add_toolset_factory(lambda ctx: load_mcp_config())
     host.add_tool_guidance(*_STATIC_TOOL_GUIDANCE)

@@ -238,7 +238,7 @@ def system_context(
         parts.append(f"- Project: {', '.join(found_markers)}")
     if active_wt:
         parts.append(
-            f"- Active worktree: {active_wt} (pass as cwd to Bash; use absolute paths for Read/Write/Edit/Grep)"
+            f"- Active worktree: {active_wt} (pass as cwd to Shell/Bash; use absolute paths for Read/Write/Edit/Grep)"
         )
     mode_line = _format_mode_line()
     if mode_line:

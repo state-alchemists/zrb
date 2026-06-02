@@ -240,3 +240,59 @@ def test_docstring_filters_denied_agent(two_agent_manager):
 
     assert "explorer" in tool.__doc__
     assert "builder" not in tool.__doc__
+
+
+# ── Parallel delegate tests ────────────────────────────────────────────
+
+
+def test_parallel_delegate_name(two_agent_manager):
+    from zrb.llm.tool.delegate import create_parallel_delegate_tool
+
+    tool = create_parallel_delegate_tool(two_agent_manager)
+    assert tool.__name__ == "DelegateToAgentsParallel"
+    assert getattr(tool, "zrb_is_delegate_tool", False) is True
+
+
+def test_parallel_delegate_is_tagged(two_agent_manager):
+    from zrb.llm.permission import Capability, tool_capability
+    from zrb.llm.tool.delegate import create_parallel_delegate_tool
+
+    tool = create_parallel_delegate_tool(two_agent_manager)
+    assert tool_capability(tool) == Capability.DELEGATE
+
+
+def test_parallel_delegate_docstring(two_agent_manager):
+    from zrb.llm.tool.delegate import create_parallel_delegate_tool
+
+    tool = create_parallel_delegate_tool(two_agent_manager)
+    assert "See DelegateToAgent" in tool.__doc__
+
+
+@pytest.mark.asyncio
+async def test_parallel_delegate_empty_tasks(two_agent_manager):
+    from zrb.llm.tool.delegate import create_parallel_delegate_tool
+
+    tool = create_parallel_delegate_tool(two_agent_manager)
+    result = await tool([])
+    assert "No tasks provided." in result
+
+
+@pytest.mark.asyncio
+async def test_parallel_delegate_missing_keys(two_agent_manager):
+    from zrb.llm.tool.delegate import create_parallel_delegate_tool
+
+    tool = create_parallel_delegate_tool(two_agent_manager)
+    result = await tool([{"agent_name": "explorer"}])
+    assert "missing required keys" in result
+
+
+@pytest.mark.asyncio
+async def test_parallel_delegate_validates_all_tasks(two_agent_manager):
+    from zrb.llm.tool.delegate import create_parallel_delegate_tool
+
+    tool = create_parallel_delegate_tool(two_agent_manager)
+    result = await tool([
+        {"agent_name": "explorer", "deliverable": "x", "task": "y", "non_goals": []},
+        {"agent_name": "builder"},
+    ])
+    assert "tasks[1]" in result

@@ -250,6 +250,100 @@ def _delegatable_agents(sub_agent_manager: SubAgentManager) -> list:
     ]
 
 
+def create_parallel_delegate_tool(
+    sub_agent_manager: SubAgentManager | None = None,
+):
+    """Create a tool for delegating tasks to multiple agents in parallel.
+
+    Runs all sub-agents concurrently and waits for every result.
+    Compared to calling ``DelegateToAgentBackground`` N times and collecting
+    handles later, this tool is a single atomic call — useful for models
+    that cannot reliably sequence N tool-call rounds.
+    """
+    # lazy: permission is a leaf module.
+    from zrb.llm.permission import Capability, tag
+
+    if sub_agent_manager is None:
+        sub_agent_manager = default_sub_agent_manager
+
+    async def parallel_delegate_to_agents(
+        tasks: list[dict[str, Any]],
+    ) -> str:
+        """
+        Delegates multiple tasks to subagents in parallel.
+        Each entry in `tasks` must have `agent_name`, `deliverable`, `task`,
+        and `non_goals`. `additional_context` is optional.
+        Apply Scope independently per task — each gets its own clamp.
+        """
+        if not tasks:
+            return "No tasks provided."
+        required = ("agent_name", "deliverable", "task", "non_goals")
+        for idx, spec in enumerate(tasks):
+            missing = [k for k in required if k not in spec]
+            if missing:
+                return (
+                    f"Error: tasks[{idx}] missing required keys: {missing}. "
+                    "[SYSTEM SUGGESTION]: every task needs agent_name, "
+                    "deliverable, task, and non_goals (list; [] allowed)."
+                )
+
+        parent_ui = get_current_ui() or StdUI()
+        ui_lock = asyncio.Lock()
+
+        async def run_single_agent(task_spec: dict[str, Any]) -> AgentTaskResult:
+            agent_name = task_spec.get("agent_name", "")
+            deliverable = task_spec.get("deliverable", "")
+            task = task_spec.get("task", "")
+            non_goals = task_spec.get("non_goals", []) or []
+            additional_context = task_spec.get("additional_context", "")
+            unique_id = get_random_name(separator="-", add_random_digit=True)
+            prefix = f"[{agent_name}:{unique_id}] "
+            buffered_ui = BufferedUI(parent_ui, prefix=prefix, shared_lock=ui_lock)
+
+            result = await _run_agent_task(
+                agent_name=agent_name,
+                deliverable=deliverable,
+                non_goals=non_goals,
+                task=task,
+                additional_context=additional_context,
+                sub_agent_manager=sub_agent_manager,
+                ui=buffered_ui,
+                flush_ui=False,
+                yolo=None,
+            )
+            async with ui_lock:
+                buffered_ui.flush_to_parent()
+            return AgentTaskResult(
+                f"{agent_name}:{unique_id}",
+                result.result,
+                result.error,
+            )
+
+        results = await asyncio.gather(*[run_single_agent(t) for t in tasks])
+
+        combined_results = []
+        for r in results:
+            if not r.success:
+                combined_results.append(f"[{r.agent_name}] Error: {r.error}")
+            else:
+                indented_result = "\n".join(
+                    ["  " + line for line in r.result.splitlines()]
+                )
+                combined_results.append(
+                    f"[{r.agent_name}] completed:\n{indented_result}"
+                )
+        return "\n\n".join(combined_results)
+
+    parallel_delegate_to_agents.zrb_is_delegate_tool = True
+    parallel_delegate_to_agents.__name__ = "DelegateToAgentsParallel"
+    parallel_delegate_to_agents.__doc__ = (
+        "Delegates multiple tasks to subagents in parallel. "
+        "See DelegateToAgent for the list of available agents."
+    )
+    tag(parallel_delegate_to_agents, Capability.DELEGATE)
+    return parallel_delegate_to_agents
+
+
 def create_delegate_to_agent_tool(
     sub_agent_manager: SubAgentManager | None = None,
 ):
@@ -313,4 +407,8 @@ def create_delegate_to_agent_tool(
         "- additional_context: any extra context the sub-agent needs.\n\n"
         f"AVAILABLE AGENTS:\n{agent_doc_section}"
     )
+    # lazy: permission is a leaf module.
+    from zrb.llm.permission import Capability, tag
+
+    tag(delegate_to_agent, Capability.DELEGATE)
     return delegate_to_agent
