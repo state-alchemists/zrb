@@ -21,7 +21,7 @@ When an agent is in Plan Mode, it is restricted by the `PLAN_MODE_POLICY`. This 
 
 This ensures that the agent can read files, search the internet, and analyze code, but cannot:
 -   Write or Edit files
--   Execute shell commands (`Bash`)
+-   Execute shell commands (`Shell` / `Bash`)
 -   Run Zrb tasks
 -   Spawn sub-agents
 

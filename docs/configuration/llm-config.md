@@ -24,7 +24,8 @@ Zrb uses `pydantic-ai` to interface with a wide array of Large Language Models, 
 - [Interval & Delay Configuration](#14-interval--delay-configuration)
 - [Size & Limit Configuration](#15-size--limit-configuration)
 - [Retry Configuration](#16-retry-configuration)
-- [Pagination Configuration](#17-pagination-configuration)
+- [Slash Command Aliases](#17-slash-command-aliases)
+- [Pagination Configuration](#18-pagination-configuration)
 
 ---
 
@@ -39,6 +40,7 @@ These variables define which LLM Zrb uses for its primary reasoning and how it c
 | `ZRB_LLM_MULTIMODAL_MODEL` | Model for multimodal tasks (image analysis) | Falls back to `ZRB_LLM_MODEL` |
 | `ZRB_LLM_API_KEY` | API key for your LLM provider | None |
 | `ZRB_LLM_BASE_URL` | Custom endpoint URL | None |
+| `ZRB_LLM_PERMISSIONS` | Tool permission ruleset. Empty keeps legacy yolo behavior. Accepts a shorthand (`allow`/`ask`/`deny`) or a comma-separated `key:action` list (e.g. `edit:deny,Bash:ask,*:allow`). First match wins. | (empty) |
 
 ### Supported Providers
 
@@ -476,6 +478,7 @@ All interval and delay values are in **milliseconds**.
 |----------|-------------|---------|
 | `ZRB_LLM_MAX_COMPLETION_FILES` | Maximum files scanned for path autocompletion | `5000` |
 | `ZRB_LLM_MAX_OUTPUT_CHARS` | Maximum characters returned by shell command and file read tools | `100000` |
+| `ZRB_LLM_MAX_TOOL_RESULT_CHARS` | Global backstop cap (characters) on every tool's model-facing result, applied after the tool runs. Catches outputs not already capped by a tool (Grep, AnalyzeCode, web, MCP). `0` disables it. | `100000` |
 | `ZRB_LLM_FILE_READ_LINES` | Lines to preserve at head and tail when truncating file reads | `1000` |
 | `ZRB_LLM_HISTORY_MAX_DISPLAY_CHARS` | Maximum characters shown by the `/history` command | `5000` |
 | `ZRB_LLM_HISTORY_TRUNCATE_LENGTH` | Maximum chars per field when formatting history entries | `100` |
@@ -499,7 +502,19 @@ All interval and delay values are in **milliseconds**.
 
 ---
 
-## 17. Pagination Configuration
+## 17. Slash Command Aliases
+
+These variables let you customize the slash tokens that trigger built-in UI commands.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_LLM_UI_COMMAND_PLAN_TOGGLE` | Slash command to toggle Plan Mode | `/plan` |
+
+All other slash commands (`/yolo`, `/exit`, `/save`, `/load`, etc.) share the same pattern — prefix `ZRB_LLM_UI_COMMAND_` + the uppercase command name, with a comma-separated list of alias tokens as the value.
+
+---
+
+## 18. Pagination Configuration
 
 | Variable | Description | Default |
 |----------|-------------|---------|

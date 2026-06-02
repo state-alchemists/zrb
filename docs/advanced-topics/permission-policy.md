@@ -50,7 +50,7 @@ Tools are tagged with capabilities in `src/zrb/llm/permission/capability.py`:
 |------------|-------------|---------------|
 | `READ` | Pure-read operations | `Read`, `LS`, `Glob`, `Grep` |
 | `EDIT` | Filesystem mutation | `Write`, `Edit`, `RM`, `MV` |
-| `EXECUTE` | Arbitrary side effects | `Bash`, `RunZrbTask` |
+| `EXECUTE` | Arbitrary side effects | `Shell`, `Bash`, `RunZrbTask` |
 | `NETWORK` | Outbound network access | `SearchInternet`, `OpenWebPage` |
 | `DELEGATE` | Spawning sub-agents | `DelegateToAgent` |
 | `META` | Harness control | `WriteTodos`, `AskUserQuestion` |
@@ -72,8 +72,9 @@ my_policy = PermissionPolicy((
     # Allow all reads
     Rule(Capability.READ, ALLOW),
     
-    # Force confirmation for all shell commands
+    # Force confirmation for all shell commands (both tool names)
     Rule("Bash", ASK),
+    Rule("Shell", ASK),
     
     # Deny everything else by default
     Rule("*", DENY)
@@ -83,7 +84,7 @@ my_policy = PermissionPolicy((
 ### Rule Matching
 
 Rules can match on:
-1.  **Exact Tool Name:** e.g., `"Bash"`, `"Write"`.
+1.  **Exact Tool Name:** e.g., `"Shell"`, `"Bash"`, `"Write"`.
 2.  **Capability:** e.g., `Capability.EDIT`.
 3.  **Wildcard:** `"*"` matches everything.
 4.  **Arg Pattern:** An optional glob pattern matched against salient arguments (like `path` or `command`).

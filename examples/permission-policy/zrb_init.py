@@ -15,8 +15,9 @@ my_policy = PermissionPolicy(
         Rule("Edit", DENY, arg_pattern="**/.env"),
         # Allow all read operations
         Rule(Capability.READ, ALLOW),
-        # Force confirmation for all shell commands
+        # Force confirmation for all shell commands (both tool names)
         Rule("Bash", ASK),
+        Rule("Shell", ASK),
         # Deny everything else by default
         Rule("*", DENY),
     )

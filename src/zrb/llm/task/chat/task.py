@@ -572,7 +572,7 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
             "plan": (
                 self._ui_plan_commands
                 if self._ui_plan_commands
-                else CFG.LLM_UI_COMMAND_PLAN
+                else CFG.LLM_UI_COMMAND_PLAN_TOGGLE
             ),
         }
 
