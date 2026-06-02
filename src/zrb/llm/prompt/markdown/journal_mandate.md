@@ -8,7 +8,7 @@ If the user's request touches anything you have worked on before, run `SearchJou
 
 ## Write — calibrate ceremony to value
 
-Not every turn deserves a journal entry, and not every finding deserves an insight note. Two levels:
+Not every turn deserves a journal entry, and not every finding deserves an insight note. Two levels. **When in doubt, log as activity** — an activity line costs one line and can be promoted to an insight note later; a missing entry cannot be recovered.
 
 **Activity line** (light) — append one line to `activity-log/YYYY/YYYY-MM/YYYY-MM-DD.md` when the turn edited files, made a significant decision, diagnosed a bug, or completed a user-requested task:
 

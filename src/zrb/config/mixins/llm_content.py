@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from typing import TYPE_CHECKING, Protocol
 
 from zrb.config.helper import (
     get_env,
@@ -11,14 +12,19 @@ from zrb.config.helper import (
 )
 from zrb.util.string.conversion import to_boolean
 
+if TYPE_CHECKING:
+
+    class _LLMContentHost(Protocol):
+        """Attributes this mixin expects from the composed Config class."""
+
+        ENV_PREFIX: str
+        ROOT_GROUP_NAME: str
+        LLM_MAX_TOKEN_PER_MINUTE: int
+        LLM_MAX_TOKEN_PER_REQUEST: int
+
 
 class LLMContentMixin:
-    ENV_PREFIX: str
-    ROOT_GROUP_NAME: str
-    LLM_MAX_TOKEN_PER_MINUTE: int
-    LLM_MAX_TOKEN_PER_REQUEST: int
-
-    def __init__(self):
+    def __init__(self) -> None:
         self.DEFAULT_LLM_HISTORY_DIR: str = ""
         self.DEFAULT_LLM_HISTORY_BACKUP_RETAIN: str = "3"
         self.DEFAULT_LLM_ENABLE_REWIND: str = "off"
@@ -36,12 +42,12 @@ class LLMContentMixin:
         self.DEFAULT_LLM_FILE_READ_LINES: str = "1000"
         super().__init__()
 
-    def _get_max_threshold(self, factor: float) -> int:
+    def _get_max_threshold(self: _LLMContentHost, factor: float) -> int:
         return get_max_token_threshold(
             factor, self.LLM_MAX_TOKEN_PER_MINUTE, self.LLM_MAX_TOKEN_PER_REQUEST
         )
 
-    def _safe_int_from_env(self, key: str, default: str) -> int:
+    def _safe_int_from_env(self: _LLMContentHost, key: str, default: str) -> int:
         """Read an env var as int, falling back to *default* if unset or unparseable."""
         try:
             return int(get_env(key, default, self.ENV_PREFIX))
@@ -52,7 +58,7 @@ class LLMContentMixin:
                 return 0
 
     @property
-    def LLM_HISTORY_DIR(self) -> str:
+    def LLM_HISTORY_DIR(self: _LLMContentHost) -> str:
         default = self.DEFAULT_LLM_HISTORY_DIR
         if default == "":
             default = os.path.expanduser(
@@ -61,11 +67,11 @@ class LLMContentMixin:
         return get_env("LLM_HISTORY_DIR", default, self.ENV_PREFIX)
 
     @LLM_HISTORY_DIR.setter
-    def LLM_HISTORY_DIR(self, value: str):
+    def LLM_HISTORY_DIR(self: _LLMContentHost, value: str) -> None:
         os.environ[f"{self.ENV_PREFIX}_LLM_HISTORY_DIR"] = value
 
     @property
-    def LLM_HISTORY_BACKUP_RETAIN(self) -> int:
+    def LLM_HISTORY_BACKUP_RETAIN(self: _LLMContentHost) -> int:
         """Number of timestamped history backups to keep per conversation.
 
         ``0`` disables backup writes entirely. ``-1`` keeps every backup
@@ -78,11 +84,11 @@ class LLMContentMixin:
         )
 
     @LLM_HISTORY_BACKUP_RETAIN.setter
-    def LLM_HISTORY_BACKUP_RETAIN(self, value: int):
+    def LLM_HISTORY_BACKUP_RETAIN(self: _LLMContentHost, value: int) -> None:
         os.environ[f"{self.ENV_PREFIX}_LLM_HISTORY_BACKUP_RETAIN"] = str(value)
 
     @property
-    def LLM_ENABLE_REWIND(self) -> bool:
+    def LLM_ENABLE_REWIND(self: _LLMContentHost) -> bool:
         return to_boolean(
             get_env(
                 "LLM_ENABLE_REWIND", self.DEFAULT_LLM_ENABLE_REWIND, self.ENV_PREFIX
@@ -90,11 +96,11 @@ class LLMContentMixin:
         )
 
     @LLM_ENABLE_REWIND.setter
-    def LLM_ENABLE_REWIND(self, value: bool):
+    def LLM_ENABLE_REWIND(self: _LLMContentHost, value: bool) -> None:
         os.environ[f"{self.ENV_PREFIX}_LLM_ENABLE_REWIND"] = "on" if value else "off"
 
     @property
-    def LLM_SNAPSHOT_DIR(self) -> str:
+    def LLM_SNAPSHOT_DIR(self: _LLMContentHost) -> str:
         default = self.DEFAULT_LLM_SNAPSHOT_DIR
         if default == "":
             default = os.path.expanduser(
@@ -103,11 +109,11 @@ class LLMContentMixin:
         return get_env("LLM_SNAPSHOT_DIR", default, self.ENV_PREFIX)
 
     @LLM_SNAPSHOT_DIR.setter
-    def LLM_SNAPSHOT_DIR(self, value: str):
+    def LLM_SNAPSHOT_DIR(self: _LLMContentHost, value: str) -> None:
         os.environ[f"{self.ENV_PREFIX}_LLM_SNAPSHOT_DIR"] = value
 
     @property
-    def LLM_JOURNAL_DIR(self) -> str:
+    def LLM_JOURNAL_DIR(self: _LLMContentHost) -> str:
         default = self.DEFAULT_LLM_JOURNAL_DIR
         if default == "":
             default = os.path.expanduser(
@@ -116,11 +122,11 @@ class LLMContentMixin:
         return get_env("LLM_JOURNAL_DIR", default, self.ENV_PREFIX)
 
     @LLM_JOURNAL_DIR.setter
-    def LLM_JOURNAL_DIR(self, value: str):
+    def LLM_JOURNAL_DIR(self: _LLMContentHost, value: str) -> None:
         os.environ[f"{self.ENV_PREFIX}_LLM_JOURNAL_DIR"] = value
 
     @property
-    def LLM_JOURNAL_INDEX_FILE(self) -> str:
+    def LLM_JOURNAL_INDEX_FILE(self: _LLMContentHost) -> str:
         return get_env(
             "LLM_JOURNAL_INDEX_FILE",
             self.DEFAULT_LLM_JOURNAL_INDEX_FILE,
@@ -128,22 +134,24 @@ class LLMContentMixin:
         )
 
     @LLM_JOURNAL_INDEX_FILE.setter
-    def LLM_JOURNAL_INDEX_FILE(self, value: str):
+    def LLM_JOURNAL_INDEX_FILE(self: _LLMContentHost, value: str) -> None:
         os.environ[f"{self.ENV_PREFIX}_LLM_JOURNAL_INDEX_FILE"] = value
 
     @property
-    def LLM_HISTORY_SUMMARIZATION_WINDOW(self) -> int:
+    def LLM_HISTORY_SUMMARIZATION_WINDOW(self: _LLMContentHost) -> int:
         return self._safe_int_from_env(
             "LLM_HISTORY_SUMMARIZATION_WINDOW",
             self.DEFAULT_LLM_HISTORY_SUMMARIZATION_WINDOW,
         )
 
     @LLM_HISTORY_SUMMARIZATION_WINDOW.setter
-    def LLM_HISTORY_SUMMARIZATION_WINDOW(self, value: int):
+    def LLM_HISTORY_SUMMARIZATION_WINDOW(self: _LLMContentHost, value: int) -> None:
         os.environ[f"{self.ENV_PREFIX}_LLM_HISTORY_SUMMARIZATION_WINDOW"] = str(value)
 
     @property
-    def LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD(self) -> int:
+    def LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD(
+        self: _LLMContentHost,
+    ) -> int:
         default = self.DEFAULT_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD
         if default == "":
             default = str(self._get_max_threshold(0.6))
@@ -162,13 +170,15 @@ class LLMContentMixin:
         )
 
     @LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD.setter
-    def LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD(self, value: int):
+    def LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD(
+        self: _LLMContentHost, value: int
+    ) -> None:
         os.environ[
             f"{self.ENV_PREFIX}_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD"
         ] = str(value)
 
     @property
-    def LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD(self) -> int:
+    def LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD(self: _LLMContentHost) -> int:
         default = self.DEFAULT_LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD
         if default == "":
             default = str(self.LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD // 2)
@@ -187,13 +197,17 @@ class LLMContentMixin:
         )
 
     @LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD.setter
-    def LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD(self, value: int):
+    def LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD(
+        self: _LLMContentHost, value: int
+    ) -> None:
         os.environ[f"{self.ENV_PREFIX}_LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD"] = (
             str(value)
         )
 
     @property
-    def LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD(self) -> int:
+    def LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD(
+        self: _LLMContentHost,
+    ) -> int:
         default = self.DEFAULT_LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD
         if default == "":
             default = str(self._get_max_threshold(0.4))
@@ -212,13 +226,17 @@ class LLMContentMixin:
         )
 
     @LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD.setter
-    def LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD(self, value: int):
+    def LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD(
+        self: _LLMContentHost, value: int
+    ) -> None:
         os.environ[
             f"{self.ENV_PREFIX}_LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD"
         ] = str(value)
 
     @property
-    def LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD(self) -> int:
+    def LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD(
+        self: _LLMContentHost,
+    ) -> int:
         default = self.DEFAULT_LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD
         if default == "":
             default = str(self._get_max_threshold(0.4))
@@ -237,13 +255,15 @@ class LLMContentMixin:
         )
 
     @LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD.setter
-    def LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD(self, value: int):
+    def LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD(
+        self: _LLMContentHost, value: int
+    ) -> None:
         os.environ[
             f"{self.ENV_PREFIX}_LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD"
         ] = str(value)
 
     @property
-    def LLM_FILE_ANALYSIS_TOKEN_THRESHOLD(self) -> int:
+    def LLM_FILE_ANALYSIS_TOKEN_THRESHOLD(self: _LLMContentHost) -> int:
         default = self.DEFAULT_LLM_FILE_ANALYSIS_TOKEN_THRESHOLD
         if default == "":
             default = str(self._get_max_threshold(0.4))
@@ -262,11 +282,11 @@ class LLMContentMixin:
         )
 
     @LLM_FILE_ANALYSIS_TOKEN_THRESHOLD.setter
-    def LLM_FILE_ANALYSIS_TOKEN_THRESHOLD(self, value: int):
+    def LLM_FILE_ANALYSIS_TOKEN_THRESHOLD(self: _LLMContentHost, value: int) -> None:
         os.environ[f"{self.ENV_PREFIX}_LLM_FILE_ANALYSIS_TOKEN_THRESHOLD"] = str(value)
 
     @property
-    def LLM_HISTORY_MAX_DISPLAY_CHARS(self) -> int:
+    def LLM_HISTORY_MAX_DISPLAY_CHARS(self: _LLMContentHost) -> int:
         """Maximum characters to display in history."""
         return self._safe_int_from_env(
             "LLM_HISTORY_MAX_DISPLAY_CHARS",
@@ -274,11 +294,11 @@ class LLMContentMixin:
         )
 
     @LLM_HISTORY_MAX_DISPLAY_CHARS.setter
-    def LLM_HISTORY_MAX_DISPLAY_CHARS(self, value: int):
+    def LLM_HISTORY_MAX_DISPLAY_CHARS(self: _LLMContentHost, value: int) -> None:
         os.environ[f"{self.ENV_PREFIX}_LLM_HISTORY_MAX_DISPLAY_CHARS"] = str(value)
 
     @property
-    def LLM_HISTORY_TRUNCATE_LENGTH(self) -> int:
+    def LLM_HISTORY_TRUNCATE_LENGTH(self: _LLMContentHost) -> int:
         """Character length for history truncation."""
         return self._safe_int_from_env(
             "LLM_HISTORY_TRUNCATE_LENGTH",
@@ -286,11 +306,11 @@ class LLMContentMixin:
         )
 
     @LLM_HISTORY_TRUNCATE_LENGTH.setter
-    def LLM_HISTORY_TRUNCATE_LENGTH(self, value: int):
+    def LLM_HISTORY_TRUNCATE_LENGTH(self: _LLMContentHost, value: int) -> None:
         os.environ[f"{self.ENV_PREFIX}_LLM_HISTORY_TRUNCATE_LENGTH"] = str(value)
 
     @property
-    def LLM_FILE_READ_LINES(self) -> int:
+    def LLM_FILE_READ_LINES(self: _LLMContentHost) -> int:
         """Default number of lines to read from files (head/tail)."""
         return self._safe_int_from_env(
             "LLM_FILE_READ_LINES",
@@ -298,5 +318,5 @@ class LLMContentMixin:
         )
 
     @LLM_FILE_READ_LINES.setter
-    def LLM_FILE_READ_LINES(self, value: int):
+    def LLM_FILE_READ_LINES(self: _LLMContentHost, value: int) -> None:
         os.environ[f"{self.ENV_PREFIX}_LLM_FILE_READ_LINES"] = str(value)

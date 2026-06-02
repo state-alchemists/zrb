@@ -3,17 +3,23 @@
 from __future__ import annotations
 
 import os
+from typing import TYPE_CHECKING, Protocol
 
 from zrb.config.env_field import EnvField
 from zrb.config.helper import get_env
 
+if TYPE_CHECKING:
+
+    class _LLMUIStylesHost(Protocol):
+        """Attributes this mixin expects from the composed Config class."""
+
+        ENV_PREFIX: str
+        ROOT_GROUP_NAME: str
+        ROOT_GROUP_DESCRIPTION: str
+
 
 class LLMUIStylesMixin:
-    ENV_PREFIX: str
-    ROOT_GROUP_NAME: str
-    ROOT_GROUP_DESCRIPTION: str
-
-    def __init__(self):
+    def __init__(self) -> None:
         self.DEFAULT_LLM_ASSISTANT_NAME: str = "Zrb"
         self.DEFAULT_LLM_ASSISTANT_ASCII_ART: str = "default"
         self.DEFAULT_LLM_ASSISTANT_JARGON: str = ""
@@ -38,7 +44,7 @@ class LLMUIStylesMixin:
     # Hand-written: falls back to ROOT_GROUP_NAME and capitalizes the first
     # letter (preserving the rest), which EnvField's plain read cannot express.
     @property
-    def LLM_ASSISTANT_NAME(self) -> str:
+    def LLM_ASSISTANT_NAME(self: _LLMUIStylesHost) -> str:
         default = self.DEFAULT_LLM_ASSISTANT_NAME
         if default == "":
             default = self.ROOT_GROUP_NAME
@@ -48,7 +54,7 @@ class LLMUIStylesMixin:
         return raw[0].upper() + raw[1:] if raw else raw
 
     @LLM_ASSISTANT_NAME.setter
-    def LLM_ASSISTANT_NAME(self, value: str):
+    def LLM_ASSISTANT_NAME(self: _LLMUIStylesHost, value: str) -> None:
         os.environ[f"{self.ENV_PREFIX}_LLM_ASSISTANT_NAME"] = value
 
     LLM_ASSISTANT_ASCII_ART = EnvField(str)

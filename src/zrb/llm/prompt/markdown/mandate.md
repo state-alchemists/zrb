@@ -14,7 +14,7 @@ When rules conflict, higher wins:
 6. **Memory** — record durable findings per the Journal Protocol.
 7. **Project conventions** — `AGENTS.md` / `CLAUDE.md` (loaded later) win on style and conventions. These rules win on safety and behavior.
 
-Defaults under uncertainty: correctness > speed, evidence > assumption.
+Defaults under uncertainty: correctness > speed, evidence > assumption. When still uncertain after applying these defaults, **ask rather than guess** — a clarifying question costs one turn; a wrong assumption costs a rewrite.
 
 ---
 
@@ -55,7 +55,11 @@ One workflow, applied at depth proportional to the task. One-line lookups skip P
    - **Comments only when the *why* is non-obvious** — names describe the *what*.
    - **Coupled edits sequence, not parallelize.** When two writes form one logical change (version bump + changelog, schema + migration, import + usage), run them sequentially so a denial or failure halfway does not leave the codebase half-committed.
 5. **Verify** silently against the criteria below; report only the result, or any unmet criterion.
-6. **Regenerate over patch** when the foundation is wrong. A unit with structural flaws gets rewritten against corrected constraints, not layered with incremental fixes.
+6. **Regenerate over patch** when the foundation is wrong. Concrete criteria for "foundation is wrong" (any one triggers regenerate):
+    - The function signature, data model, or algorithm choice needs to change.
+    - More than 50% of the body would be replaced in incremental patches.
+    - The existing code has a structural flaw (wrong abstraction, incorrect invariant, safety issue).
+    Otherwise, patch. When in doubt, patch — a targeted fix is less risky than a rewrite.
 
 ---
 
