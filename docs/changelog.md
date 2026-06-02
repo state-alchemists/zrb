@@ -1,6 +1,39 @@
 🔖 [Documentation Home](../README.md)
 
 
+## 2.32.0a2 (June 2, 2026)
+
+- **Improvement: Prompt quality and journaling workflow**:
+  - `persona.md`: Consolidated conciseness guidance into a single "be concise per phase" rule; removed redundant preamble/narration prescriptions.
+  - `mandate.md`: Added "ask rather than guess" principle when defaults under uncertainty are insufficient. Refined regenerate-vs-patch criteria with concrete triggers (signature change, >50% replacement, structural flaw).
+  - `journal_mandate.md`: Restructured to clearly separate activity (what was done) from insight (what was learned); added explicit "activate `core-journaling`" instruction before writing; removed `[[wikilinks]]`; reordered skip/order-of-operations for clarity.
+  - New `core-journaling/templates/insight-note.md`: Standardized insight note format with frontmatter `slug`, backlinks protocol, and rules.
+  - `core-journaling/SKILL.md`: Added insight-note template reference; fixed `Bash`→`Shell` tool reference; emphasized markdown links over `[[wikilinks]]`.
+
+- **Fix: Config mixin type safety**:
+  - `llm_content.py` and `llm_ui_styles.py`: Added `Protocol` host-class in `TYPE_CHECKING` block with explicit type annotations on all `self` parameters, enabling static analysis to verify attribute access between mixin and composed Config class.
+
+- **Fix: Documentation accuracy** (27 files, 284 insertions, 157 deletions):
+  - Maintainer guide: llm-challenges section now points to `github.com/state-alchemists/llm-challenges` with updated clone commands and output paths. Added one-on-one LLM session section (`zrb chat "What is your honest analysis..."`).
+  - Permission policy docs: Removed aspirational `RM`/`MV` tools from EDIT capability; fixed `ZRB_LLM_PERMISSIONS` env var example casing (`READ`→`read`); replaced non-existent `permissions=my_policy` on `LLMChatTask` with correct hook factory pattern.
+  - `llmchat-task.md` constructor signature: Removed `dynamic_yolo` and `hook_manager` params (do not exist on `LLMChatTask`); added `render_system_prompt` and `ui_factory`; fixed `summarize_command`→`ui_summarize_commands`, `retries` default `2→0`; corrected `add_tool_guidance_factory` availability (available on both `LLMChatTask` and `LLMTask`).
+  - Config docs: Fixed `ZRB_LLM_MODEL` default (`openai-chat:gpt-4o`), `ZRB_LLM_MULTIMODAL_MODEL` behavior (returns `None`, not a fallback), `ZRB_LLM_ASSISTANT_NAME` default (`"Zrb"`).
+  - Hook docs: Added `.claude/hooks/` directory variants and plugin dirs to search path table; replaced broken `examples/hooks/` reference with `llm-hooks` example.
+  - Fixed broken link in tasks-and-lifecycle.md (`./custom-tasks.md`→`../task-types/custom-tasks.md`).
+  - Removed non-existent ULID tasks from builtin-helpers.md.
+
+- **Fix: Example code accuracy**:
+  - `permission-policy/` and `plan-mode/`: Rewrote from `permissions=my_policy` (non-existent param) to hook factory pattern using `set_current_permission_policy()`. Fixed README `--init` flag usage.
+  - `web-auth/`: Replaced broken `@Task(...)` decorator with `@make_task(...)`.
+  - `cmd-task/`: Fixed `retry`→`retries`, `retry_interval`→`retry_period`, removed non-existent `done_callback`.
+  - `async-task/`: Fixed `retry=3`→`retries=3`.
+  - `chat-minimal-ui/`, `chat-sse/`, `chat-telegram/`: Fixed import paths `zrb.llm.ui.simple_ui`→`zrb.llm.ui`.
+  - `llm-hooks/`: Fixed `from zrb import llm_chat`→`from zrb.builtin.llm.chat import llm_chat`.
+  - `chat-minimal-ui/README.md`: Updated 5× stale `examples/telegram-cli/`→`examples/chat-telegram/` references.
+  - `cmd-task/README.md`: Fixed options table `retry`/`retry_interval`.
+
+- **Tests**: No new tests (documentation and example fixes only).
+
 ## 2.32.0a1 (June 2, 2026)
 
 - **Feature: Permission policy system (`PermissionPolicy`)**:
