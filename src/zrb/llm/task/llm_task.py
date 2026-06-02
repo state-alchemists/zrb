@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING, Any, Callable
 
 from zrb.attr.type import BoolAttr, StrAttr, StrListAttr, fstring
 from zrb.config.config import CFG
-from zrb.llm.permission import resolve_policy
 from zrb.context.any_context import AnyContext
 from zrb.context.print_fn import PrintFn
 from zrb.env.any_env import AnyEnv
@@ -21,6 +20,7 @@ from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.history_manager.file_history_manager import FileHistoryManager
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
+from zrb.llm.permission import resolve_policy
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.prompt.tool_guidance import ToolGuidance
 from zrb.llm.summarizer import (
@@ -466,7 +466,7 @@ class LLMTask(BaseTask):
 
             def _default_yolo(tool_def=None):
                 # lazy: permission is a leaf module.
-                from zrb.llm.permission import ALLOW, DENY, get_effective_policy
+                from zrb.llm.permission import ALLOW, ASK, DENY, get_effective_policy
                 from zrb.llm.permission.capability import Capability
 
                 policy = get_effective_policy()
@@ -481,7 +481,8 @@ class LLMTask(BaseTask):
                         return True
                     if result == DENY:
                         return True  # auto-approved (gate blocks at execution)
-                    # ASK → fall through to yolo
+                    if result == ASK:
+                        return False  # explicit policy ASK is a 'hard ask'
                 return yolo_bool
 
             yolo = _default_yolo

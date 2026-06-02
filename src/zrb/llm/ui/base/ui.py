@@ -168,6 +168,8 @@ class BaseUI(CommandsMixin):
         set_model_commands: list[str] = [],
         exec_commands: list[str] = [],
         btw_commands: list[str] = [],
+        plan_commands: list[str] = [],
+        build_commands: list[str] = [],
         custom_commands: list[AnyCustomCommand] = [],
         model: "Model | str | None" = None,
         enable_rewind: bool = False,
@@ -199,7 +201,10 @@ class BaseUI(CommandsMixin):
         self._set_model_commands = set_model_commands
         self._exec_commands = exec_commands
         self._btw_commands = btw_commands
+        self._plan_commands = plan_commands
+        self._build_commands = build_commands
         self._custom_commands = custom_commands
+        self._plan_mode_active = False
         self._trigger_tasks: list[asyncio.Task] = []
         self._message_queue: asyncio.Queue = asyncio.Queue()
         self._process_messages_task: asyncio.Task | None = None
@@ -807,10 +812,26 @@ class BaseUI(CommandsMixin):
             # Run the task with stdout/stderr redirected to UI
             self.append_to_output(stylize_faint("\n  🔢 Streaming response..."))
 
+            # Sync plan mode to the shared mutable state before the LLM run
+            # so the agent inherits the mode set by /plan.
+            from zrb.llm.permission.state import (
+                AgentMode,
+                get_current_agent_mode,
+                set_current_agent_mode,
+            )
+
+            set_current_agent_mode(
+                AgentMode.PLAN if self._plan_mode_active else AgentMode.BUILD
+            )
+
             # Set UI for tool confirmation
             llm_task.set_ui(self)
             llm_task.tool_confirmation = self._confirm_tool_execution
             result_data = await llm_task.async_run(session)
+
+            # Sync plan mode after LLM response (tools like EnterPlanMode set the
+            # ContextVar which is visible here in the same Task context).
+            self._plan_mode_active = get_current_agent_mode() == AgentMode.PLAN
 
             # Check for final text output
             if result_data is not None:

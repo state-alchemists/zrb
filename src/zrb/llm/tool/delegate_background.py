@@ -23,7 +23,9 @@ from __future__ import annotations
 import asyncio
 
 from zrb.llm.agent.run.runtime_state import get_current_ui
-from zrb.llm.agent.subagent.manager.manager import SubAgentManager
+from zrb.llm.agent.subagent.manager.manager import (
+    SubAgentManager,
+)
 from zrb.llm.agent.subagent.manager.manager import (
     sub_agent_manager as default_sub_agent_manager,
 )
@@ -54,17 +56,22 @@ class _BackgroundRegistry:
             )
         if not task.done():
             return f"Background agent '{handle}' is still running. Poll again later."
+
         # Consume the handle once collected.
         self._tasks.pop(handle, None)
         buffered = self._buffers.pop(handle, None)
         output = buffered.get_buffered_output() if buffered is not None else ""
+        prefix = f"{output}\n" if output else ""
+
         try:
             result = task.result()
+            body = result.result if result.success else f"Error: {result.error}"
+            status = "completed"
         except Exception as e:  # noqa: BLE001
-            return f"[{handle}] failed: {e}"
-        body = result.result if result.success else f"Error: {result.error}"
-        prefix = f"{output}\n" if output else ""
-        return f"[{handle}] completed:\n\n{prefix}{body}"
+            body = f"failed: {e}"
+            status = "failed"
+
+        return f"[{handle}] {status}:\n\n{prefix}{body}"
 
     def cancel_all(self) -> None:
         """Cancel any outstanding background tasks (e.g. at session teardown)."""

@@ -138,7 +138,7 @@ class BufferedUI(UIProtocol):
 
 def _format_envelope(
     deliverable: str,
-    non_goals: list[str],
+    non_goals: list[str] | str,
     task: str,
     additional_context: str,
 ) -> str:
@@ -148,8 +148,10 @@ def _format_envelope(
     are intentionally uppercase and structural so a sub-agent cannot miss the
     fence while parsing free-form prose.
     """
-    if non_goals:
+    if isinstance(non_goals, list) and non_goals:
         non_goals_block = "\n".join(f"  - {item}" for item in non_goals)
+    elif isinstance(non_goals, str) and non_goals.strip():
+        non_goals_block = f"  - {non_goals.strip()}"
     else:
         non_goals_block = "  - (none declared)"
     context_block = additional_context.strip() if additional_context else "(none)"

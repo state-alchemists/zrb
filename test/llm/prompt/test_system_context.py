@@ -277,11 +277,15 @@ class TestSystemContext:
 
     def test_system_context_includes_plan_mode_line(self):
         """Entering plan mode surfaces a read-only mode line in the prompt."""
-        from zrb.llm.permission.state import AgentMode, current_agent_mode
+        from zrb.llm.permission.state import (
+            AgentMode,
+            AgentModeState,
+            current_agent_mode,
+        )
 
         received = []
         ctx = MagicMock(spec=AnyContext)
-        token = current_agent_mode.set(AgentMode.PLAN)
+        token = current_agent_mode.set(AgentModeState(mode=AgentMode.PLAN))
         try:
             system_context(ctx, "test", lambda c, p: received.append(p))
         finally:

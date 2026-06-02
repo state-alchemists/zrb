@@ -295,7 +295,16 @@ def apply_common_tools(host: CommonToolHost) -> None:
     # ultimately re-enters this function. By that time the re-export
     # names (``analyze_file``, etc.) aren't yet bound on ``zrb.llm.tool``.
     # lazy: zrb internal (heavy via transitive / circular)
+    # Register the 8 LSP tools only when a language server is actually installed
+    # — their own guidance already says to fall back to Read + Grep when none is
+    # available, so advertising them in a server-less repo is pure prompt weight.
+    # detect_available_lsp_servers() is a cheap shutil.which scan (no startup).
+    # lazy: zrb internal (heavy via transitive / circular)
+    from zrb.llm.lsp.configs import detect_available_lsp_servers
     from zrb.llm.lsp.tools import create_lsp_tools
+
+    # lazy: permission is a leaf module.
+    from zrb.llm.permission import Capability, tag
     from zrb.llm.tool.ask import ask_user_question
     from zrb.llm.tool.bash import run_shell_command
     from zrb.llm.tool.code import analyze_code
@@ -322,16 +331,6 @@ def apply_common_tools(host: CommonToolHost) -> None:
         create_run_zrb_task_tool,
     )
 
-    # lazy: permission is a leaf module.
-    from zrb.llm.permission import Capability, tag
-
-    # Register the 8 LSP tools only when a language server is actually installed
-    # — their own guidance already says to fall back to Read + Grep when none is
-    # available, so advertising them in a server-less repo is pure prompt weight.
-    # detect_available_lsp_servers() is a cheap shutil.which scan (no startup).
-    # lazy: zrb internal (heavy via transitive / circular)
-    from zrb.llm.lsp.configs import detect_available_lsp_servers
-
     lsp_tools = create_lsp_tools() if detect_available_lsp_servers() else []
     # WriteTodos replaces the whole list by default, so it subsumes the former
     # UpdateTodo (rewrite with one status changed) and ClearTodos (write []).
@@ -340,11 +339,25 @@ def apply_common_tools(host: CommonToolHost) -> None:
     # Tag each tool with its capability so the permission policy / plan mode can
     # reason about it. Untagged tools resolve to UNKNOWN (denied in plan mode),
     # so tagging the read-only ones explicitly keeps discovery working.
-    for _fn in (list_files, glob_files, read_file, search_files, analyze_file,
-                analyze_code, search_journal, list_worktrees):
+    for _fn in (
+        list_files,
+        glob_files,
+        read_file,
+        search_files,
+        analyze_file,
+        analyze_code,
+        search_journal,
+        list_worktrees,
+    ):
         tag(_fn, Capability.READ)
-    for _fn in (write_file, replace_in_file, remove_file, move_file,
-                enter_worktree, exit_worktree):
+    for _fn in (
+        write_file,
+        replace_in_file,
+        remove_file,
+        move_file,
+        enter_worktree,
+        exit_worktree,
+    ):
         tag(_fn, Capability.EDIT)
     tag(run_shell_command, Capability.EXECUTE)
     for _fn in (search_internet, open_web_page):

@@ -11,7 +11,6 @@ from zrb.llm.permission import (
     resolve_policy,
 )
 
-
 # --- decide(): matching precedence and fallthrough -----------------------
 
 
@@ -21,9 +20,7 @@ def test_first_match_wins():
 
 
 def test_exact_tool_match_before_capability():
-    policy = PermissionPolicy(
-        (Rule("Write", ASK), Rule(Capability.EDIT.value, DENY))
-    )
+    policy = PermissionPolicy((Rule("Write", ASK), Rule(Capability.EDIT.value, DENY)))
     assert policy.decide("Write", Capability.EDIT, {}) == ASK
 
 
@@ -37,9 +34,9 @@ def test_wildcard_match():
     assert policy.decide("Anything", Capability.UNKNOWN, {}) == ALLOW
 
 
-def test_unmatched_falls_through_to_ask():
+def test_unmatched_falls_through_to_none():
     policy = PermissionPolicy((Rule("Bash", ALLOW),))
-    assert policy.decide("Read", Capability.READ, {}) == ASK
+    assert policy.decide("Read", Capability.READ, {}) is None
 
 
 def test_arg_pattern_matches_path():
@@ -54,10 +51,11 @@ def test_arg_pattern_matches_command():
     policy = PermissionPolicy(
         (Rule("Bash", DENY, arg_pattern="*--force*"), Rule("Bash", ALLOW))
     )
-    assert policy.decide("Bash", Capability.EXECUTE,
-                         {"command": "git push --force"}) == DENY
-    assert policy.decide("Bash", Capability.EXECUTE,
-                         {"command": "git status"}) == ALLOW
+    assert (
+        policy.decide("Bash", Capability.EXECUTE, {"command": "git push --force"})
+        == DENY
+    )
+    assert policy.decide("Bash", Capability.EXECUTE, {"command": "git status"}) == ALLOW
 
 
 # --- from_yolo(): the characterization of today's truth table ------------

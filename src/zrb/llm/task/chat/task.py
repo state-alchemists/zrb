@@ -37,8 +37,9 @@ from zrb.llm.history_manager.file_history_manager import FileHistoryManager
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.permission import (
     ALLOW,
-    Capability,
+    ASK,
     DENY,
+    Capability,
     get_effective_policy,
     tool_capability,
 )
@@ -182,6 +183,8 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
         ui_set_model_commands: list[str] | None = None,
         ui_exec_commands: list[str] | None = None,
         ui_btw_commands: list[str] | None = None,
+        ui_plan_commands: list[str] | None = None,
+        ui_build_commands: list[str] | None = None,
         custom_commands: (
             list[
                 AnyCustomCommand
@@ -340,6 +343,12 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
             ui_exec_commands if ui_exec_commands is not None else []
         )
         self._ui_btw_commands = ui_btw_commands if ui_btw_commands is not None else []
+        self._ui_plan_commands = (
+            ui_plan_commands if ui_plan_commands is not None else []
+        )
+        self._ui_build_commands = (
+            ui_build_commands if ui_build_commands is not None else []
+        )
         self._custom_commands = custom_commands if custom_commands is not None else []
         self._ui_greeting = ui_greeting
         self._render_ui_greeting = render_ui_greeting
@@ -564,6 +573,16 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
                 if self._ui_btw_commands
                 else CFG.LLM_UI_COMMAND_BTW
             ),
+            "plan": (
+                self._ui_plan_commands
+                if self._ui_plan_commands
+                else CFG.LLM_UI_COMMAND_PLAN
+            ),
+            "build": (
+                self._ui_build_commands
+                if self._ui_build_commands
+                else CFG.LLM_UI_COMMAND_BUILD
+            ),
         }
 
     def _create_llm_task_core(
@@ -633,11 +652,14 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
                 )
                 cap = cap_by_name.get(tool_name, Capability.UNKNOWN)
                 result = policy.decide(tool_name, cap, {})
-                if result == ALLOW:
-                    return True   # unconditional auto-approve
-                if result == DENY:
-                    return True   # auto-approved (gate blocks at execution)
-                # ASK → fall through to tool-policy / yolo cascade
+                if result is not None:
+                    if result == ALLOW:
+                        return True  # unconditional auto-approve
+                    if result == DENY:
+                        return True  # auto-approved (gate blocks at execution)
+                    if result == ASK:
+                        return False  # explicit policy ASK is a 'hard ask'
+                # fallback to YOLO only if policy has no matching rule
             if self._yolo_xcom_key not in ctx.xcom:
                 return False
             yolo_value = ctx.xcom[self._yolo_xcom_key].get(False)

@@ -129,9 +129,11 @@ llm_chat.add_tool_policy(
     # sub-agent's own tool calls still route their approvals to the user.
     auto_approve("DelegateToAgentBackground"),
     auto_approve("GetDelegationResult"),
-    # Plan-mode toggles only flip a read-only flag — no external side effects.
+    # EnterPlanMode only restricts the model further, safe to auto-approve.
     auto_approve("EnterPlanMode"),
-    auto_approve("ExitPlanMode"),
+    # ExitPlanMode switches from PLAN to BUILD — requires user confirmation
+    # via the permission policy (PLAN_MODE_POLICY sets it to ASK) so the user
+    # must approve the plan before execution resumes.
     # LSP tools - read-only, safe to auto-approve
     auto_approve("LspFindDefinition"),
     auto_approve("LspFindReferences"),

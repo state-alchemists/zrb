@@ -11,6 +11,8 @@ Zrb comes with a powerful, built-in AI assistant that can understand your codeba
 - [Interactive Chat](#interactive-chat-zrb-llm-chat)
 - [Programmatic Usage](#programmatic-usage-llmtask-and-llmchattask)
 - [Built-in LLM Tools](#built-in-llm-tools)
+- [Permission Policy System](./permission-policy.md)
+- [Plan Mode](./plan-mode.md)
 - [Custom Tools and Sub-agents](#custom-tools-and-sub-agents)
 - [Model Capabilities](#model-capabilities)
 - [Context Management](#context-management)
@@ -47,13 +49,15 @@ This launches a full-screen chat application where you can have a conversation w
 
 ### Approval Policies
 
-By default, Zrb prompts for confirmation before executing most tools. This is controlled by YOLO mode:
+By default, Zrb prompts for confirmation before executing most tools. This is controlled by YOLO mode and the [Permission Policy](./permission-policy.md) system:
 
 | Mode | Behavior |
 |------|----------|
 | **YOLO off** | All tools require confirmation |
 | **YOLO on** | All tools auto-approved |
 | **Selective YOLO** | Only specified tools auto-approved (e.g., `/yolo Write,Edit`) |
+| **Permission Policy** | Fine-grained `ALLOW`/`DENY`/`ASK` rules that can override YOLO |
+| **Plan Mode** | Strict read-only mode for discovery. See [Plan Mode](./plan-mode.md) |
 
 **Safe Command Policy:** The `Bash` tool automatically approves known-safe read-only commands (e.g., `ls`, `git status`, `cat`, `grep`) without requiring YOLO mode. Commands with dangerous shell metacharacters (`>`, `|`, `;`, `&&`) always require explicit approval.
 

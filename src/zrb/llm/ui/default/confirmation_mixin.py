@@ -98,9 +98,17 @@ class ConfirmationMixin:
         # (including the transition back to "working" or "ready" when queue empties).
         get_app().invalidate()
 
-    def _cancel_pending_confirmations(self):
-        """Cancel pending confirmations so blocked `ask_user` calls release."""
-        self._flush_confirmation_buffer()
+    def _cancel_pending_confirmations(self, flush: bool = True):
+        """Cancel pending confirmations so blocked `ask_user` calls release.
+
+        Args:
+            flush: Whether to flush the confirmation output buffer first.
+                Pass ``False`` from the Ctrl+C / exit path (the app is about
+                to exit, so writing buffered tokens is wasted work and adds
+                latency to the abort).
+        """
+        if flush:
+            self._flush_confirmation_buffer()
         for future, _ in self._confirmation_queue:
             if not future.done():
                 future.cancel()

@@ -12,7 +12,7 @@ from zrb.llm.permission import (
     get_effective_policy,
     tag,
 )
-
+from zrb.llm.permission.state import AgentModeState
 
 # --- get_effective_policy ------------------------------------------------
 
@@ -38,7 +38,7 @@ def test_public_setters_and_getters_round_trip():
         assert get_current_agent_mode() == AgentMode.PLAN
     finally:
         set_current_permission_policy(None)
-        set_current_agent_mode(AgentMode.DEFAULT)
+        set_current_agent_mode(AgentMode.BUILD)
 
 
 def test_explicit_policy_is_returned():
@@ -55,7 +55,7 @@ def test_plan_mode_overrides_explicit_policy():
 
     policy = PermissionPolicy((Rule("*", "allow"),))
     t1 = current_permission_policy.set(policy)
-    t2 = current_agent_mode.set(AgentMode.PLAN)
+    t2 = current_agent_mode.set(AgentModeState(mode=AgentMode.PLAN))
     try:
         assert get_effective_policy() is PLAN_MODE_POLICY
     finally:
@@ -100,9 +100,7 @@ async def test_gate_allows_non_denied_tool():
     tag(read, Capability.READ)
     wrapped = create_safe_wrapper(read)
 
-    policy = PermissionPolicy(
-        (Rule(Capability.EDIT.value, "deny"), Rule("*", "allow"))
-    )
+    policy = PermissionPolicy((Rule(Capability.EDIT.value, "deny"), Rule("*", "allow")))
     token = current_permission_policy.set(policy)
     try:
         result = await wrapped(path="x.txt")

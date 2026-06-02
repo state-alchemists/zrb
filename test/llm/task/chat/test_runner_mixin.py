@@ -106,6 +106,8 @@ async def test_run_interactive_session_basic(runner):
             "redirect_output",
             "exec",
             "btw",
+            "plan",
+            "build",
         ]
     }
 
@@ -152,6 +154,8 @@ async def test_run_interactive_session_with_factories_and_multiplex(runner):
             "redirect_output",
             "exec",
             "btw",
+            "plan",
+            "build",
         ]
     }
 

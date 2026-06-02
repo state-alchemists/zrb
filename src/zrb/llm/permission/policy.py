@@ -52,11 +52,12 @@ class PermissionPolicy:
 
     def decide(
         self, tool_name: str, capability: Capability, args: dict | None = None
-    ) -> str:
+    ) -> str | None:
         """Resolve the action for a tool call. First matching rule wins.
 
-        Unmatched calls fall through to ``"ask"`` (the conservative default,
-        equal to today's no-yolo behavior)."""
+        Returns the action (``"allow"``, ``"ask"``, ``"deny"``) or ``None`` if
+        no rule matched.
+        """
         args = args or {}
         for rule in self.rules:
             if not _key_matches(rule.key, tool_name, capability):
@@ -64,7 +65,7 @@ class PermissionPolicy:
             if rule.arg_pattern and not _arg_matches(rule.arg_pattern, args):
                 continue
             return rule.action
-        return ASK
+        return None
 
 
 def _key_matches(key: str, tool_name: str, capability: Capability) -> bool:
@@ -143,6 +144,9 @@ def resolve_policy(raw) -> "PermissionPolicy | None":
 PLAN_MODE_POLICY = PermissionPolicy(
     (
         Rule(Capability.READ.value, ALLOW),
+        # ExitPlanMode presents the plan for user approval before execution
+        # resumes — always require confirmation rather than auto-allow META.
+        Rule("ExitPlanMode", ASK),
         Rule(Capability.META.value, ALLOW),
         Rule(Capability.NETWORK.value, ALLOW),
         Rule(Capability.EDIT.value, DENY),

@@ -42,6 +42,9 @@ class CommandsMixin:
         # Command lists (set in `BaseUI.__init__`)
         _attach_commands: list[str]
         _btw_commands: list[str]
+        _plan_commands: list[str]
+        _build_commands: list[str]
+        _plan_mode_active: bool
         _custom_commands: list["AnyCustomCommand"]
         _exec_commands: list[str]
         _exit_commands: list[str]
@@ -109,6 +112,8 @@ class CommandsMixin:
         """
         return [
             (self._handle_btw_command, self._btw_commands, True, True),
+            (self._handle_plan_mode_command, self._plan_commands, False, False),
+            (self._handle_build_mode_command, self._build_commands, False, False),
             # prefix=True: `/yolo` toggles, `/yolo Write,Edit` sets selective yolo.
             (self._handle_toggle_yolo, self._yolo_toggle_commands, True, True),
             (self._handle_exit_command, self._exit_commands, False, False),
@@ -498,6 +503,47 @@ class CommandsMixin:
                 return True
         return False
 
+    def _handle_plan_mode_command(self, text: str) -> bool:
+        stripped = text.strip()
+        for cmd in self._plan_commands:
+            if stripped.lower() == cmd.lower():
+                from zrb.llm.permission.state import (
+                    AgentMode,
+                    set_current_agent_mode,
+                )
+                from zrb.util.cli.style import stylize_faint
+
+                set_current_agent_mode(AgentMode.PLAN)
+                self._plan_mode_active = True
+                self.append_to_output(
+                    stylize_faint(
+                        "\n  📋 Switched to PLAN mode (read-only). "
+                        "Use /build to resume.\n"
+                    )
+                )
+                self.invalidate_ui()
+                return True
+        return False
+
+    def _handle_build_mode_command(self, text: str) -> bool:
+        stripped = text.strip()
+        for cmd in self._build_commands:
+            if stripped.lower() == cmd.lower():
+                from zrb.llm.permission.state import (
+                    AgentMode,
+                    set_current_agent_mode,
+                )
+                from zrb.util.cli.style import stylize_faint
+
+                set_current_agent_mode(AgentMode.BUILD)
+                self._plan_mode_active = False
+                self.append_to_output(
+                    stylize_faint("\n  ▶ Exited PLAN mode — back to BUILD.\n")
+                )
+                self.invalidate_ui()
+                return True
+        return False
+
     def _handle_set_model_command(self, text: str) -> bool:
         text = text.strip()
         for cmd in self._set_model_commands:
@@ -544,6 +590,7 @@ class CommandsMixin:
         self._is_thinking = True
         self.invalidate_ui()
         timestamp = datetime.now().strftime("%H:%M")
+        process = None
 
         try:
             self.append_to_output(f"\n💻 {timestamp} >> {cmd}\n")
@@ -583,6 +630,15 @@ class CommandsMixin:
 
         except asyncio.CancelledError:
             self.append_to_output("\n[Cancelled]\n")
+            if process is not None and process.returncode is None:
+                try:
+                    process.terminate()
+                    await asyncio.wait_for(process.wait(), timeout=1.0)
+                except Exception:
+                    try:
+                        process.kill()
+                    except Exception:
+                        pass
             raise  # Re-raise to allow proper task cancellation
         except Exception as e:
             self.append_to_output(f"\n[Error: {e}]\n")
@@ -734,6 +790,8 @@ class CommandsMixin:
             self._btw_commands,
             "Ask a side question without saving to history (usage: {cmd} <question>)",
         )
+        add_cmd_help(self._plan_commands, "Enter PLAN mode (read-only)")
+        add_cmd_help(self._build_commands, "Enter BUILD mode")
         for custom_cmd in self._custom_commands:
             raw_lines.append((custom_cmd.command, custom_cmd.description))
 

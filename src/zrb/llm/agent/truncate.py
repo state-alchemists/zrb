@@ -22,9 +22,7 @@ def _human_size(num_chars: int) -> str:
     return f"{kb / 1024:.1f} MB"
 
 
-def truncate_tool_content(
-    content: str, *, limit: int | None
-) -> tuple[str, bool]:
+def truncate_tool_content(content: str, *, limit: int | None) -> tuple[str, bool]:
     """Return ``(possibly-truncated content, was_truncated)``.
 
     ``limit`` is the maximum number of characters in the model-facing string.

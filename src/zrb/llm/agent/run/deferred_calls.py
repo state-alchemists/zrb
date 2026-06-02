@@ -145,43 +145,32 @@ async def _resolve_approval(
     """Run the approval cascade for a single deferred call.
 
     Approval precedence chain (ADR-0055):
-      1. Permission policy   — allow→auto-approve, deny→block, ask→defer
-         (checked at check_yolo time; deny pre-checked again before prompting)
-      2. Tool policy         — allow→auto-approve, deny→block, no-opinion→defer
-         Priority 1: checked first. Permission policy was already checked in
-         check_yolo (allow→returned True, deny→returned True for gate,
-         ask→deferred). If we reach here, it was ask or no policy — now check
-         tool-level rules.
-      3. Yolo                — True→auto-approve, False→continue
-         Priority 2: auto-approve if yolo says so, otherwise prompt.
-         Only reached when tool policy had no opinion.
-      4. Approval channel    — remote / multi-channel; first response wins
-      5. CLI fallback        — prompt the user
-         Priority 3 before prompt: permission policy pre-check.
-         Catches the case where check_yolo was a plain bool (no policy-aware
-         callable) and a deny rule exists. Checked here rather than in the gate
-         so the user never sees a wasted approval prompt for a denied tool.
+      1. Tool policy (Pre-confirmation)
+      2. Permission policy (Strict mode: ALLOW→Approve, DENY→Deny, ASK→Force Ask)
+      3. YOLO (Only if no strict policy opinion AND YOLO is explicitly True)
+      4. Approval channel (Multi-channel)
+      5. CLI fallback (User prompt)
     """
 
+    # Priority 1: Tool policies from ToolCallHandler (Middleware)
     if isinstance(effective_tool_confirmation, ToolCallHandler):
         policy_result = await effective_tool_confirmation.check_policies(ui, call)
         if policy_result is not None:
             return policy_result
 
-    # lazy: runtime_state is a thin re-export of runner ContextVars.
-    from zrb.llm.agent.run.runtime_state import get_current_yolo
-
-    yolo_val = get_current_yolo()
-    if yolo_val:
-        from pydantic_ai import ToolApproved
-
-        return ToolApproved("auto-approved by yolo")
-
     # lazy: permission is a leaf module.
-    from zrb.llm.permission import DENY, get_effective_policy, tool_capability
+    from zrb.llm.permission import (
+        ALLOW,
+        ASK,
+        DENY,
+        get_effective_policy,
+        tool_capability,
+    )
 
-    deny_policy = get_effective_policy()
-    if deny_policy is not None:
+    # Priority 2: Permission policy (Ruleset)
+    policy = get_effective_policy()
+    policy_decision: str | None = None
+    if policy is not None:
         cap = tool_capability(call)
         raw_args = getattr(call, "args", None) or {}
         if isinstance(raw_args, str):
@@ -189,10 +178,29 @@ async def _resolve_approval(
                 raw_args = json.loads(raw_args)
             except json.JSONDecodeError:
                 raw_args = {}
-        if deny_policy.decide(call.tool_name, cap, raw_args) == DENY:
+        policy_decision = policy.decide(call.tool_name, cap, raw_args)
+
+        if policy_decision == ALLOW:
+            from pydantic_ai import ToolApproved
+
+            return ToolApproved()
+        if policy_decision == DENY:
             from pydantic_ai import ToolDenied
 
             return ToolDenied("Blocked by permission policy")
+
+        # if policy_decision == ASK, we continue but skip Priority 3 (YOLO).
+
+    # Priority 3: YOLO (Auto-approve)
+    # lazy: runtime_state is a thin re-export of runner ContextVars.
+    from zrb.llm.agent.run.runtime_state import get_current_yolo
+
+    yolo_val = get_current_yolo()
+    # Explicit policy ASK is a 'hard ask' that bypasses YOLO.
+    if yolo_val is True and policy_decision != ASK:
+        from pydantic_ai import ToolApproved
+
+        return ToolApproved()
 
     # Priority 4: Approval channel (multi-channel, first response wins)
     if approval_channel is not None:
@@ -231,4 +239,12 @@ async def _resolve_approval(
             res = await res
         CFG.LOGGER.debug(f"CLI callable returned: {res}")
         return res
+    # Fallthrough: no approval mechanism configured.  If the policy said ASK we
+    # must not silently approve — deny instead.
+    if policy_decision == ASK:
+        from pydantic_ai import ToolDenied
+
+        return ToolDenied(
+            "Policy requires approval but no approval channel is configured"
+        )
     return None

@@ -41,7 +41,7 @@ def _wrap_tool(tool: "Tool | ToolFuncEither") -> "Tool | ToolFuncEither":
 
         # It is a Tool instance
         original_func = tool.function
-        safe_func = create_safe_wrapper(original_func)
+        safe_func = create_safe_wrapper(original_func, name=tool.name)
         if isinstance(tool, PydanticTool):
             return PydanticTool(
                 safe_func,
@@ -89,7 +89,7 @@ def _permission_gate(tool_name: str, capability: Any, args: dict[str, Any]) -> A
     """Return a blocked ``ToolReturn`` if the in-force policy denies this call.
 
     Returns ``None`` when nothing denies it (the default — no policy and
-    ``AgentMode.DEFAULT`` → always ``None``, so the synchronous path is
+    ``AgentMode.BUILD`` → always ``None``, so the synchronous path is
     unchanged). Enforces the *deny* outcome that the approval layer (allow/ask)
     cannot express, without touching the deferred-request machinery.
     """
@@ -112,7 +112,7 @@ def _permission_gate(tool_name: str, capability: Any, args: dict[str, Any]) -> A
             f"permission policy (mode: {mode}). "
             "[SYSTEM SUGGESTION]: this is a read-only / restricted context. "
             "Finish discovery, then call ExitPlanMode (if in plan mode) to "
-            "present your plan for approval before making changes."
+            "present your plan for approval before making changes."  # fmt: skip
         ),
         metadata={"blocked": True},
     )
@@ -137,7 +137,7 @@ def _truncated_content(content: str) -> tuple[str, dict[str, Any]]:
     return truncated, {"truncated": True, "original_chars": len(content)}
 
 
-def create_safe_wrapper(func: Callable) -> Callable:
+def create_safe_wrapper(func: Callable, name: str | None = None) -> Callable:
     """Create a wrapper that catches exceptions and returns ToolReturn objects."""
     # lazy: heavy third-party
     from pydantic_ai import ToolReturn
@@ -147,11 +147,12 @@ def create_safe_wrapper(func: Callable) -> Callable:
     from zrb.llm.permission import tool_capability
 
     capability = tool_capability(func)
+    tool_name = name or func.__name__
 
     @wraps(func)
     async def wrapper(*args, **kwargs):
         try:
-            blocked = _permission_gate(func.__name__, capability, kwargs)
+            blocked = _permission_gate(tool_name, capability, kwargs)
             if blocked is not None:
                 return blocked
 
@@ -197,9 +198,7 @@ def _wrap_toolset(toolset: "AbstractToolset[None]") -> "AbstractToolset[None]":
             self, name: str, tool_args: dict[str, Any], ctx: Any, tool: Any
         ) -> Any:
             try:
-                blocked = _permission_gate(
-                    name, tool_capability(tool), tool_args or {}
-                )
+                blocked = _permission_gate(name, tool_capability(tool), tool_args or {})
                 if blocked is not None:
                     return blocked
                 result = await super().call_tool(name, tool_args, ctx, tool)

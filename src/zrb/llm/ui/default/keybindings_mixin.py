@@ -67,10 +67,12 @@ class KeybindingsMixin:
                     event.app.clipboard.set_data(data)
                 buffer.exit_selection()
                 return
-            if buffer.text != "":
+            if buffer.text.strip() != "":
                 buffer.reset()
                 return
-            self._cancel_pending_confirmations()
+            # Don't flush the confirmation buffer: the app is exiting, so
+            # writing buffered tokens is wasted work and adds latency.
+            self._cancel_pending_confirmations(flush=False)
             if self._running_llm_task and not self._running_llm_task.done():
                 self._running_llm_task.cancel()
                 self.append_to_output("\n<Esc> Canceled")
@@ -79,6 +81,14 @@ class KeybindingsMixin:
                 {"reason": "ctrl_c", "session": self._conversation_session_name},
             )
             event.app.exit()
+
+        @app_keybindings.add("c-d")
+        def _(event):
+            if event.app.current_buffer.text == "":
+                self._cancel_pending_confirmations(flush=False)
+                if self._running_llm_task and not self._running_llm_task.done():
+                    self._running_llm_task.cancel()
+                event.app.exit()
 
         @app_keybindings.add("c-v")
         @app_keybindings.add("escape", "v")

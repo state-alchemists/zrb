@@ -253,6 +253,8 @@ All task types available in Zrb, from basic to advanced.
 
 ### III. LLM & AI Integration
 - [LLM Assistant & AI Tasks](docs/advanced-topics/llm-integration.md) — `LLMTask`, tools, sub-agents, context management
+- [Permission Policy System](docs/advanced-topics/permission-policy.md) — fine-grained tool control & security gates
+- [Plan Mode](docs/advanced-topics/plan-mode.md) — read-only discovery & strategy phase
 - [LLMChatTask API Reference](docs/task-types/llmchat-task.md) — builder API, TUI configuration
 - [LLM Chat Request Lifecycle](docs/advanced-topics/llm-chat-lifecycle.md) — end-to-end tour: CLI → agent run → UI → history persistence
 - [Hook System (Claude Code Compatible)](docs/advanced-topics/hooks.md)

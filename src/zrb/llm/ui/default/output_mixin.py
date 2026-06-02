@@ -204,14 +204,15 @@ class OutputMixin:
         else:
             yolo_text = "<style color='ansigreen'>OFF</style>"
 
-        line1_html = (
-            f" 🤖 <b>Model:</b> {model_name} "
-            f"| 💬 <b>Session:</b> {self._conversation_session_name} "
-            f"| 🤠 <b>YOLO:</b> {yolo_text}"
+        plan_text = (
+            "<style color='ansiblue'><b>PLAN </b></style>"
+            if getattr(self, "_plan_mode_active", False)
+            else "<style color='ansigreen'>BUILD</style>"
         )
-        line2_html = (
-            f" 📂 <b>Dir:</b> {self._cwd} " f"| 🌿 <b>Git:</b> {self._git_info}"
-        )
+
+        line1_html = f" 🤖 <b>Model:</b> {model_name} | 💬 <b>Session:</b> {self._conversation_session_name} "
+        line2_html = f" 📋 <b>Mode:</b> {plan_text} | 🤠 <b>YOLO:</b> {yolo_text} "
+        line3_html = f" 📂 <b>Dir:</b> {self._cwd} | 🌿 <b>Git:</b> {self._git_info} "
 
         total_cols = get_terminal_size().columns
 
@@ -223,7 +224,13 @@ class OutputMixin:
                 " " * padding + html_text + " " * (total_cols - visible_width - padding)
             )
 
-        return HTML(center_line(line1_html) + "\n" + center_line(line2_html))
+        return HTML(
+            center_line(line1_html)
+            + "\n"
+            + center_line(line2_html)
+            + "\n"
+            + center_line(line3_html)
+        )
 
     def get_status_bar_text(self) -> "AnyFormattedText":
         if self.current_confirmation is not None:

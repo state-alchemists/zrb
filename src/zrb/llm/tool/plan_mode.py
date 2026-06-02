@@ -2,17 +2,16 @@
 
 In PLAN mode the execution gate (``agent/common.py``) denies edit, execute, and
 delegate tools via ``PLAN_MODE_POLICY``, leaving reads, research, and harness
-controls available. ``EnterPlanMode`` / ``ExitPlanMode`` are tagged ``META`` so
-they are always permitted — you must be able to leave the mode you entered.
+controls available.
 
-The mode lives in a ``ContextVar`` (``current_agent_mode``), so sub-agents
-inherit it exactly like the active worktree.
+The mode lives in a **mutable** ``AgentModeState`` (see ``state.py``) so that
+pydantic-ai's per-tool task snapshots all see the same value.
 """
 
 from __future__ import annotations
 
 from zrb.llm.permission import Capability, tag
-from zrb.llm.permission.state import AgentMode, current_agent_mode
+from zrb.llm.permission.state import AgentMode, set_current_agent_mode
 from zrb.llm.tool.wrapper import tool_safe_async
 
 
@@ -28,7 +27,7 @@ async def enter_plan_mode(reason: str = "") -> str:
 
     `reason` optionally records why you entered plan mode.
     """
-    current_agent_mode.set(AgentMode.PLAN)
+    set_current_agent_mode(AgentMode.PLAN)
     suffix = f" Reason: {reason}" if reason else ""
     return (
         "Entered PLAN mode (read-only): edits, shell, and delegation are "
@@ -45,11 +44,8 @@ async def exit_plan_mode(plan: str) -> str:
     `plan` is the concrete, ordered change list (what changes land where and
     why) shown to the user for approval before any edits are made.
     """
-    current_agent_mode.set(AgentMode.DEFAULT)
-    return (
-        "Exited PLAN mode; resuming DEFAULT mode. Proposed plan:\n\n"
-        f"{plan}"
-    )
+    set_current_agent_mode(AgentMode.BUILD)
+    return "Exited PLAN mode; resuming BUILD mode. Proposed plan:\n\n" f"{plan}"
 
 
 enter_plan_mode.__name__ = "EnterPlanMode"

@@ -42,12 +42,12 @@ from zrb.llm.agent.run.session_extension import (
     resolve_extended_return,
 )
 from zrb.llm.approval.approval_channel import ApprovalChannel, current_approval_channel
-from zrb.llm.permission.state import current_permission_policy
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.message import ensure_alternating_roles
+from zrb.llm.permission.state import current_permission_policy
 from zrb.llm.tool_call.handler import ToolCallHandler
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 from zrb.llm.util.prompt import expand_prompt
