@@ -1,6 +1,77 @@
 🔖 [Documentation Home](../README.md)
 
 
+## 2.32.0 (June 2, 2026)
+
+- **Feature: Permission policy system (`PermissionPolicy`)**:
+  - New `zrb/llm/permission/` package: `capability.py` (tool capability tags: `READ`, `EDIT`, `EXECUTE`, `NETWORK`, `DELEGATE`, `META`), `policy.py` (ordered first-match-wins `Rule`s with `allow`/`ask`/`deny` actions + `arg_pattern` glob), `state.py` (`current_permission_policy` + `current_agent_mode` `ContextVar`s).
+  - `yolo` is now expressed as a `PermissionPolicy` via `from_yolo()` — characterization-test parity preserved.
+  - Tools tagged centrally in `common_tools.py` via `zrb_capability`; untagged tools resolve to `UNKNOWN`.
+
+- **Feature: Plan mode (read-only discovery)**:
+  - New `plan_mode.py` tool (`EnterPlanMode`/`ExitPlanMode`, tagged `META`).
+  - Plan mode is a preset `PermissionPolicy` (READ/NETWORK/META allow, EDIT/EXECUTE/DELEGATE deny).
+  - Enforced by the execution gate in `agent/common.py` — same gate as the permission system.
+  - System context line advertises active mode.
+  - Examples in `examples/plan-mode/`.
+
+- **Feature: Background subagents (`DelegateToAgentBackground`)**:
+  - New `delegate_background.py` tool spawns a detached `asyncio` task; `GetDelegationResult(handle)` polls for completion.
+  - Background tasks inherit the parent's permission policy and route approval requests to the parent UI's confirmation queue — no deadlocks, no silent auto-approve.
+  - `BufferedUI` forwards approval requests under a lock; the default UI's `ask_user` is a confirmation queue.
+  - Fan-out: start multiple background agents in parallel.
+
+- **Feature: Shell tool replaces Bash as primary execution tool**:
+  - New `shell.py`: `run_shell_command()` with streaming stdout/stderr, configurable truncation, timeout.
+  - `Bash` (in `bash.py`) is now a thin backward-compat alias for `Shell`.
+  - New `shell_background.py`: non-blocking shell execution with polling handle.
+  - Background shell routes approvals through the same queue as background delegates.
+
+- **Feature: Approval precedence chain**:
+  - Clear delegation: `permission_policy → tool_policy → yolo`.
+  - `deny` stops at the execution gate (no wasted prompts); `allow` bypasses all lower checks.
+  - `LLMChatTask` and bare `LLMTask` converge on the same chain.
+  - Background subagents auto-approve at the yolo level (never block the main agent), but `deny` rules still block.
+  - Background yolo override in `subagent/yolo.py`.
+
+- **Feature: Tool-output truncation backstop**:
+  - Global cap (`LLM_MAX_TOOL_RESULT_CHARS`, default 100k) applied in tool wrappers.
+  - Truncates model-facing `content` (head+tail with re-fetch hint); preserves structured `return_value`.
+  - Config in `llm_limits.py`, implementation in `truncate.py`.
+
+- **Improvement: Config system simplified with `EnvField` descriptor**:
+  - New `config/env_field.py`: `EnvField` data descriptor replaces 700+ lines of repetitive `@property` getter/setter/`get_env`/`cast` boilerplate across all config mixins.
+  - Config mixins (`llm_core`, `llm_limits`, `llm_prompt`, `llm_search`, `llm_ui_commands`, `llm_ui_runtime`, `llm_ui_styles`, `rag`, `task_runtime`, `web`, `hooks`, `internet_search`) migrated.
+  - `contextvars.py` established as the canonical index of every `ContextVar` — three ownership homes, re-exported wrappers.
+
+- **Improvement: UI enhancements**:
+  - Confirmation queue in `default/confirmation_mixin.py` serializes concurrent `ask_user` calls.
+  - `BufferedUI` for sub-agents (output buffered until flush/approval/completion).
+  - Main agent output buffered during parallel operations; parallel agent approvals wait for user action.
+
+- **Improvement: Dynamic, permission-filtered tool descriptions**:
+  - `DelegateToAgent`'s agent roster is filtered by the active policy at render time.
+  - No policy → full roster, byte-identical to before.
+
+- **Improvement: Permission examples**:
+  - `examples/permission-policy/` with `zrb_init.py` demonstrating `allow`, `deny`, and `ask` rules with arg patterns.
+
+- **Chore: Removed redundant tools and `read_bool`**:
+  - `tool/read_bool.py` removed (functionality subsumed by `ask_user_question`).
+  - Dead/duplicate tool entries cleaned up.
+
+- **Documentation: ADRs for permission, plan mode, truncation, background agents, approval precedence**:
+  - `docs/adr/07-llm-extension.md`: ADR-0049 (capability tags), ADR-0050 (permission rulesets), ADR-0051 (plan mode), ADR-0052 (truncation backstop), ADR-0053 (filtered tool descriptions), ADR-0054 (background subagents), ADR-0055 (approval precedence), ADR-0056 (Shell as primary execution tool).
+
+- **Tests**:
+  - New: `test/llm/permission/test_capability.py`, `test_policy.py`, `test_state_and_gate.py`.
+  - New: `test/llm/tool/test_plan_mode.py`, `test_shell.py`, `test_shell_background.py`, `test_delegate_background.py`.
+  - New: `test/llm/agent/test_agent_truncate.py`.
+  - New: `test/config/test_env_field.py`.
+  - New: `test/llm/test_factory_resolver.py`.
+  - Extended: `test/llm/tool/test_bash.py` (alias), `test_delegate_tool.py` (permission filtering), `test_plan.py`.
+  - Extended: `test/llm/ui/base/test_commands_mixin.py`, `test/llm/ui/default/test_confirmation_mixin.py`, `test_keybindings_mixin.py`, `test/llm/ui/test_ui.py`.
+
 ## 2.31.0 (May 29, 2026)
 
 - **Feature: Command lifecycle hooks (`PreCommand` / `PostCommand`)**:

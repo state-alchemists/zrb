@@ -14,7 +14,10 @@ from zrb.llm.hook.journal import create_journaling_hook_factory
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.skill.manager import skill_manager
 from zrb.llm.task.chat.task import LLMChatTask
-from zrb.llm.tool.delegate import create_delegate_to_agent_tool, create_parallel_delegate_tool
+from zrb.llm.tool.delegate import (
+    create_delegate_to_agent_tool,
+    create_parallel_delegate_tool,
+)
 from zrb.llm.tool.delegate_background import (
     create_background_delegate_tool,
     create_get_delegation_result_tool,

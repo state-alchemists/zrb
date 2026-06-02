@@ -96,3 +96,4 @@ deleting it — the history is the point.
 - **ADR-0053** — Dynamic, permission-filtered tool descriptions
 - **ADR-0054** — Background subagents: inherit permissions and interrupt to ask
 - **ADR-0055** — Approval precedence: permission policy → tool policy → yolo
+- **ADR-0056** — Shell as primary execution tool, Bash as backward-compat alias

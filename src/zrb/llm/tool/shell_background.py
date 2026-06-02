@@ -35,9 +35,7 @@ class _ShellBackgroundRegistry:
     def __init__(self) -> None:
         self._procs: dict[str, _BackgroundProcess] = {}
 
-    async def start(
-        self, command: str, cwd: str, description: str
-    ) -> str:
+    async def start(self, command: str, cwd: str, description: str) -> str:
         handle = get_random_name(separator="-", add_random_digit=True)
         proc = await asyncio.create_subprocess_shell(
             command,
@@ -46,9 +44,7 @@ class _ShellBackgroundRegistry:
             cwd=cwd or os.getcwd(),
             preexec_fn=os.setsid,
         )
-        bp = _BackgroundProcess(
-            process=proc, description=description or command
-        )
+        bp = _BackgroundProcess(process=proc, description=description or command)
         self._procs[handle] = bp
         # Start readers in the background.
         asyncio.ensure_future(self._read_stdout(handle, proc))
@@ -56,9 +52,7 @@ class _ShellBackgroundRegistry:
         asyncio.ensure_future(self._wait_exit(handle, proc))
         return handle
 
-    async def _read_stdout(
-        self, handle: str, proc: asyncio.subprocess.Process
-    ) -> None:
+    async def _read_stdout(self, handle: str, proc: asyncio.subprocess.Process) -> None:
         while proc.stdout and not proc.stdout.at_eof():
             line = await proc.stdout.readline()
             if not line:
@@ -74,9 +68,7 @@ class _ShellBackgroundRegistry:
                 if bp is not None:
                     bp.stdout_lines.append(remaining.decode(errors="replace"))
 
-    async def _read_stderr(
-        self, handle: str, proc: asyncio.subprocess.Process
-    ) -> None:
+    async def _read_stderr(self, handle: str, proc: asyncio.subprocess.Process) -> None:
         while proc.stderr and not proc.stderr.at_eof():
             line = await proc.stderr.readline()
             if not line:
@@ -91,9 +83,7 @@ class _ShellBackgroundRegistry:
                 if bp is not None:
                     bp.stderr_lines.append(remaining.decode(errors="replace"))
 
-    async def _wait_exit(
-        self, handle: str, proc: asyncio.subprocess.Process
-    ) -> None:
+    async def _wait_exit(self, handle: str, proc: asyncio.subprocess.Process) -> None:
         rc = await proc.wait()
         bp = self._procs.get(handle)
         if bp is not None:
@@ -118,9 +108,7 @@ class _ShellBackgroundRegistry:
             f"Stderr:\n{stderr.strip() or '(empty)'}",
         ]
         if bp.returncode is not None:
-            lines.append(
-                "The handle has been consumed — the process has finished."
-            )
+            lines.append("The handle has been consumed — the process has finished.")
         return "\n".join(lines)
 
     async def kill(self, handle: str) -> str:
@@ -128,7 +116,9 @@ class _ShellBackgroundRegistry:
         if bp is None:
             return f"Unknown handle '{handle}'."
         if bp.process.returncode is not None:
-            return f"Process '{handle}' has already exited (code {bp.process.returncode})."
+            return (
+                f"Process '{handle}' has already exited (code {bp.process.returncode})."
+            )
         try:
             os.killpg(os.getpgid(bp.process.pid), signal.SIGTERM)
             await asyncio.wait_for(

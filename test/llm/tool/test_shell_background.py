@@ -39,6 +39,7 @@ async def test_shell_background_returns_handle(tmp_path):
     registry = get_shell_background_registry()
     # Let it finish
     import time
+
     await asyncio.sleep(0.5)
     result = registry.poll(handle)
     assert "hello" in result or "exited" in result or "running" in result

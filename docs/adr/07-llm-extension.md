@@ -495,3 +495,58 @@ callable for bare LLMTask); `src/zrb/llm/agent/run/deferred_calls.py`
 layer); `src/zrb/llm/tool/delegate_background.py` (passes `yolo=True`).
 **[INFERRED]** `src/zrb/llm/agent/common.py` (`_permission_gate` enforces
 deny at execution time).
+
+---
+
+## ADR-0056 — Shell as primary execution tool, Bash as backward-compat alias
+
+**Status:** Accepted
+
+**Context.** The `Bash` tool (`run_shell_command`) was zrb's only shell execution
+tool, but its name and docstring were Claude/ChatGPT-specific — the model's
+strong prior for "Bash" is a Bourne-again shell on Linux, while the tool
+actually ran any command the host shell supported. The name also carried no
+semantic distinction between interactive and background execution, and the
+single monolithic function mixed concerns (streaming, truncation, timeout,
+approval).
+
+**Decision.** Three-way decomposition:
+
+1. **`Shell`** (`shell.py`) — the primary execution tool. Takes `command`, `cwd`,
+   `timeout`, and truncation params. Streams stdout/stderr live and returns
+   truncated output. Named generically so it works regardless of the host shell
+   (bash, zsh, PowerShell, cmd).
+2. **`Bash`** (`bash.py`) — reduced to a thin backward-compat alias that imports
+   and re-exports `run_shell_command` from `shell.py` under `__name__ = "Bash"`.
+   The model sees Bash and Shell as separate tools; both resolve to the same
+   implementation, so existing agent conversations that call `Bash` keep working.
+3. **`ShellBackground`** (`shell_background.py`) — non-blocking variant that
+   returns a handle; `GetDelegationResult(handle)` polls for completion. Shares
+   the same execution core but runs in a background task and routes approval
+   through the confirmation queue (ADR-0054).
+
+The capabilities are: `Bash` → `EXECUTE`, `Shell` → `EXECUTE`,
+`ShellBackground` → `EXECUTE`.
+
+**Consequences.** Clear naming that matches the model's expectations regardless
+of host OS; backward compatibility via the alias; background execution gets its
+own tool rather than an ad-hoc parameter. Cost: the model sees two tools
+(Bash + Shell) that do the same thing, which may cause redundant choices —
+mitigated by tool guidance that clarifies "Bash is an alias; prefer Shell."
+
+**Alternatives rejected.**
+1. **Rename Bash in-place** — would break existing agent sessions mid-conversation
+   (the model's prior turn mentioned `Bash`; the next turn would get
+   `ToolUnknownError`).
+2. **Single tool with a `background` parameter** — pydantic-ai's tool schema
+   can't express "call this, get a handle, call that to poll" as one tool; the
+   polling pattern needs a separate tool.
+3. **Keep Bash as-is** — the name mismatch persists; no background execution path.
+
+**Evidence.** **[DOCUMENTED]** `src/zrb/llm/tool/shell.py` (new primary
+implementation, 281 lines); `src/zrb/llm/tool/bash.py` (alias, 10 lines);
+`src/zrb/llm/tool/shell_background.py` (background variant, 204 lines);
+`common_tools.py` (Bash/Shell/ShellBackground capability tags + guidance).
+`test/llm/tool/test_bash.py` (alias assertions);
+`test/llm/tool/test_shell.py` (19 lines);
+`test/llm/tool/test_shell_background.py` (79 lines).

@@ -514,9 +514,7 @@ class CommandsMixin:
             AgentMode.PLAN if self._plan_mode_active else AgentMode.BUILD
         )
         status = "On" if self._plan_mode_active else "Off"
-        self.append_to_output(
-            stylize_faint(f"\n  📋 PLAN MODE: {status}\n")
-        )
+        self.append_to_output(stylize_faint(f"\n  📋 PLAN MODE: {status}\n"))
         self.invalidate_ui()
 
     def _handle_toggle_plan(self, text: str) -> bool:

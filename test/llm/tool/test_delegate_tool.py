@@ -291,8 +291,15 @@ async def test_parallel_delegate_validates_all_tasks(two_agent_manager):
     from zrb.llm.tool.delegate import create_parallel_delegate_tool
 
     tool = create_parallel_delegate_tool(two_agent_manager)
-    result = await tool([
-        {"agent_name": "explorer", "deliverable": "x", "task": "y", "non_goals": []},
-        {"agent_name": "builder"},
-    ])
+    result = await tool(
+        [
+            {
+                "agent_name": "explorer",
+                "deliverable": "x",
+                "task": "y",
+                "non_goals": [],
+            },
+            {"agent_name": "builder"},
+        ]
+    )
     assert "tasks[1]" in result
