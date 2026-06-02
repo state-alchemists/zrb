@@ -35,9 +35,9 @@ These variables define which LLM Zrb uses for its primary reasoning and how it c
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_MODEL` | Primary LLM model (`provider:model-name`) | `openai:gpt-4o` (if unset) |
+| `ZRB_LLM_MODEL` | Primary LLM model (`provider:model-name`) | `openai-chat:gpt-4o` (if unset) |
 | `ZRB_LLM_SMALL_MODEL` | Faster model for background tasks | Falls back to `ZRB_LLM_MODEL` |
-| `ZRB_LLM_MULTIMODAL_MODEL` | Model for multimodal tasks (image analysis) | Falls back to `ZRB_LLM_MODEL` |
+| `ZRB_LLM_MULTIMODAL_MODEL` | Model for multimodal tasks (image analysis) | `None` (no fallback) |
 | `ZRB_LLM_API_KEY` | API key for your LLM provider | None |
 | `ZRB_LLM_BASE_URL` | Custom endpoint URL | None |
 | `ZRB_LLM_PERMISSIONS` | Tool permission ruleset. Empty keeps legacy yolo behavior. Accepts a shorthand (`allow`/`ask`/`deny`) or a comma-separated `key:action` list (e.g. `edit:deny,Bash:ask,*:allow`). First match wins. | (empty) |
@@ -138,7 +138,7 @@ You can heavily customize the LLM's behavior and identity by overriding its syst
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_ASSISTANT_NAME` | Display name for AI assistant | Root group name |
+| `ZRB_LLM_ASSISTANT_NAME` | Display name for AI assistant | `Zrb` |
 | `ZRB_LLM_ASSISTANT_JARGON` | Tagline or motto | Root group description |
 | `ZRB_LLM_ASSISTANT_ASCII_ART` | ASCII banner art name | `default` (built-in) |
 | `ZRB_ASCII_ART_DIR` | Directory for custom ASCII art files | `.zrb/ascii-art` |

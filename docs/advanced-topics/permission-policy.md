@@ -49,7 +49,7 @@ Tools are tagged with capabilities in `src/zrb/llm/permission/capability.py`:
 | Capability | Description | Example Tools |
 |------------|-------------|---------------|
 | `READ` | Pure-read operations | `Read`, `LS`, `Glob`, `Grep` |
-| `EDIT` | Filesystem mutation | `Write`, `Edit`, `RM`, `MV` |
+| `EDIT` | Filesystem mutation | `Write`, `Edit` |
 | `EXECUTE` | Arbitrary side effects | `Shell`, `Bash`, `RunZrbTask` |
 | `NETWORK` | Outbound network access | `SearchInternet`, `OpenWebPage` |
 | `DELEGATE` | Spawning sub-agents | `DelegateToAgent` |
@@ -118,20 +118,50 @@ You can set the default policy globally or per-task.
 ### Global Configuration
 
 ```bash
-export ZRB_LLM_PERMISSIONS="READ:allow,EDIT:ask,EXECUTE:ask,*:deny"
+export ZRB_LLM_PERMISSIONS="read:allow,edit:ask,execute:ask,*:deny"
 ```
 
 ### Per-Task Configuration
 
+For `LLMTask`, pass the policy directly:
+
 ```python
-from zrb import LLMChatTask, cli
+from zrb import LLMTask, cli
 
 safe_task = cli.add_task(
-    LLMChatTask(
-        name="safe-chat",
-        permissions=my_policy # Use the policy object defined above
+    LLMTask(
+        name="safe-single-shot",
+        permissions=my_policy
     )
 )
+```
+
+For `LLMChatTask`, set the policy via environment variable:
+
+```bash
+export ZRB_LLM_PERMISSIONS="read:allow,edit:ask,execute:ask,*:deny"
+zrb llm chat
+```
+
+Or set it programmatically at session start via a hook:
+
+```python
+from zrb import LLMChatTask, cli
+from zrb.llm.permission.state import set_current_permission_policy
+
+my_policy = PermissionPolicy(...)
+
+def apply_policy(manager):
+    set_current_permission_policy(my_policy)
+    return manager
+
+safe_chat = cli.add_task(
+    LLMChatTask(
+        name="safe-chat",
+        ui_greeting="I'm operating under a strict permission policy.",
+    )
+)
+safe_chat.add_hook_factory(apply_policy)
 ```
 
 ---

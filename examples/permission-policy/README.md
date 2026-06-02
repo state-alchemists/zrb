@@ -15,7 +15,8 @@ In this example, we define a policy that:
 ## Running the example
 
 ```bash
-zrb llm chat --init examples/permission-policy/zrb_init.py "safe-chat"
+cd examples/permission-policy
+zrb llm chat
 ```
 
 Try asking the assistant to:

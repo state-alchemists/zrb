@@ -80,7 +80,7 @@ class MyTask(BaseTask):
 cli.add_task(MyTask(name="complex-job"))
 ```
 
-> 📖 **Guide:** For detailed patterns — async subclassing, custom constructors, and reusable task types — see [Custom Tasks (Subclassing)](./custom-tasks.md).
+> 📖 **Guide:** For detailed patterns — async subclassing, custom constructors, and reusable task types — see [Custom Tasks (Subclassing)](../task-types/custom-tasks.md).
 
 ### Task Appearance: `color` and `icon`
 

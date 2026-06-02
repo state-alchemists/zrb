@@ -18,7 +18,8 @@ When Plan Mode is active, the info bar displays `PLAN MODE: On` (blue).
 ## Running the example
 
 ```bash
-zrb llm chat --init examples/plan-mode/zrb_init.py "safe-explorer"
+cd examples/plan-mode
+zrb llm chat
 ```
 
 Try:

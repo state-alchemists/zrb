@@ -37,7 +37,7 @@ from telegram.ext import (
 
 from zrb.builtin.llm.chat import llm_chat
 from zrb.llm.approval import ApprovalChannel, ApprovalContext, ApprovalResult
-from zrb.llm.ui.simple_ui import BufferedOutputMixin, EventDrivenUI
+from zrb.llm.ui import BufferedOutputMixin, EventDrivenUI
 from zrb.util.cli.style import remove_style
 
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
@@ -338,7 +338,7 @@ if BOT_TOKEN and CHAT_ID:
         initial_yolo,
         initial_attachments,
     ):
-        from zrb.llm.ui.simple_ui import UIConfig
+        from zrb.llm.ui import UIConfig
 
         cfg = UIConfig.default()
         if ui_commands:

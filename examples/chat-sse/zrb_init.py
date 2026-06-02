@@ -65,7 +65,7 @@ from aiohttp import web
 
 from zrb.builtin.llm.chat import llm_chat
 from zrb.llm.approval import ApprovalChannel, ApprovalContext, ApprovalResult
-from zrb.llm.ui.simple_ui import EventDrivenUI
+from zrb.llm.ui import EventDrivenUI
 from zrb.llm.util.history_formatter import format_history_as_text
 from zrb.util.cli.style import remove_style
 
@@ -650,7 +650,7 @@ def sse_ui_factory(
     initial_yolo,
     initial_attachments,
 ):
-    from zrb.llm.ui.simple_ui import UIConfig
+    from zrb.llm.ui import UIConfig
 
     cfg = UIConfig.default()
     if ui_commands:

@@ -57,7 +57,7 @@ llm_chat.set_ui_factory(create_ui)
 # User runs: zrb llm chat
 ```
 
-This is exactly how `examples/telegram-cli/` works - it sets a custom UI factory on `llm_chat`, so when you run `zrb llm chat`, it uses the custom UI.
+This is exactly how `examples/chat-telegram/` works - it sets a custom UI factory on `llm_chat`, so when you run `zrb llm chat`, it uses the custom UI.
 
 ## Quick Start
 
@@ -184,7 +184,7 @@ class WebSocketUI(BaseUI):
 
 ### Telegram Bot (Event-Driven Pattern)
 
-For a complete Telegram implementation, see `examples/telegram-cli/zrb_init.py`.
+For a complete Telegram implementation, see `examples/chat-telegram/zrb_init.py`.
 
 Key pattern: Unlike request-response backends (WebSocket), Telegram requires:
 1. Bot polling setup
@@ -192,7 +192,7 @@ Key pattern: Unlike request-response backends (WebSocket), Telegram requires:
 3. Callback query handling for approvals
 
 ```python
-# See examples/telegram-cli/ for full implementation
+# See examples/chat-telegram/ for full implementation
 # Key difference: Event-driven, not request-response
 ```
 
@@ -217,13 +217,13 @@ You can also override these methods:
 | Discord | **Event-driven** | Need message routing and `ask_user` queue |
 | WhatsApp | **Event-driven** | Need message routing and `ask_user` queue |
 
-For event-driven backends, see `examples/telegram-cli/` for the complete pattern.
+For event-driven backends, see `examples/chat-telegram/` for the complete pattern.
 
 ## Related Files
 
 - `src/zrb/llm/ui/base_ui.py` - BaseUI base class
 - `src/zrb/llm/ui/default_ui.py` - Terminal UI implementation (full TUI)
-- `examples/telegram-cli/zrb_init.py` - Telegram multiplexer example
+- `examples/chat-telegram/zrb_init.py` - Telegram multiplexer example
 - `src/zrb/llm/approval/` - Multi-channel approval system
 
 ## Further Reading

@@ -83,11 +83,12 @@ When writing a specific kind of entry, Read the matching template from this skil
 
 | Writing | Template |
 |---------|----------|
+| An insight note (`user/`, `preferences/`, `projects/`, `technical/`) | `templates/insight-note.md` |
 | A day's activity log entry | `templates/activity-entry.md` |
 
 ## Companion Tools
 
-- `tools/journal-lint.py` — validates backlinks, finds orphans, reports broken paths. Run via `Bash` periodically and after structural changes:
+- `tools/journal-lint.py` — validates backlinks, finds orphans, reports broken paths. Run via `Shell` periodically and after structural changes:
   ```
   python <skill-dir>/tools/journal-lint.py <journal-root>
   ```
@@ -95,7 +96,7 @@ When writing a specific kind of entry, Read the matching template from this skil
 ## Writing an Insight Note (Step-by-Step)
 
 1. Decide the file path under `user/`, `preferences/`, `projects/`, or `technical/` (atomic — one concept per file).
-2. Write the note body.
+2. Write the note body using the format in `templates/insight-note.md`.
 3. Add forward markdown links to related notes throughout the body.
 4. Add a `## Backlinks` section at the bottom (initially empty, or pre-populated if you know who will link here).
 5. For each forward link you added, open the target file and append this note to its `## Backlinks` section.
@@ -107,7 +108,7 @@ When writing a specific kind of entry, Read the matching template from this skil
 1. Compute today's path: `activity-log/YYYY/YYYY-MM/YYYY-MM-DD.md`.
 2. If the file does not exist, create it with an `# YYYY-MM-DD` heading. Then create or update the month index, year index, and `activity-log/index.md` as needed.
 3. Append a new section using the format in `templates/activity-entry.md`.
-4. Cross-link from the entry to any insight notes touched (`[[technical/<topic>]]`, `[[projects/<project>]]`) — and back from those notes to this entry's path under `## Backlinks` if the link is durable (not for trivial mentions).
+4. Cross-link from the entry to any insight notes touched (`[technical/<topic>](technical/<topic>.md)`, `[projects/<project>](projects/<project>.md)`) — and back from those notes to this entry's path under `## Backlinks` if the link is durable (not for trivial mentions). Use markdown links, never `[[wikilinks]]`.
 
 ## Maintenance
 

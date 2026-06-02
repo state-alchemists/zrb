@@ -4,7 +4,7 @@ Web Auth Example
 Shows how to configure web authentication for Zrb's web UI.
 """
 
-from zrb import Task, User, cli
+from zrb import StrInput, User, cli, make_task
 from zrb.config.web_auth_config import web_auth_config
 
 # =============================================================================
@@ -47,7 +47,7 @@ web_auth_config.guest_accessible_tasks = ["hello"]  # Only "hello" is public
 # =============================================================================
 
 
-@Task(name="hello", action=lambda ctx: "Hello, World!")
+@make_task(name="hello")
 def hello(ctx):
     return "Hello, World!"
 
@@ -55,7 +55,7 @@ def hello(ctx):
 cli.add_task(hello)
 
 
-@Task(name="greet", input=[{"name": "name", "default": "Friend"}])
+@make_task(name="greet", input=[StrInput(name="name", default="Friend")])
 def greet(ctx):
     return f"Greetings, {ctx.input.name}!"
 
@@ -64,7 +64,7 @@ cli.add_task(greet)
 
 
 # Admin-only task
-@Task(name="admin-only")
+@make_task(name="admin-only")
 def admin_task(ctx):
     ctx.print("This is an admin-only task")
     return "Admin action completed"

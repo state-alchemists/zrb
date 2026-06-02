@@ -13,6 +13,7 @@ This guide is for developers who contribute to or maintain the Zrb project itsel
 - [Profiling Zrb](#profiling-zrb)
 - [Testing Strategies](#testing-strategies)
 - [Evaluating the LLM Agent](#evaluating-and-improving-the-llm-agent)
+  - [One-on-One LLM Session](#one-on-one-llm-session)
 - [Architecture & Philosophy](#architecture--philosophy)
 - [Context Propagation Internals](#context-propagation-internals)
 - [LLM History Sanitization Layer](#llm-history-sanitization-layer)
@@ -109,22 +110,23 @@ Refer to existing tests in the `test/` directory for examples.
 
 ## Evaluating and Improving the LLM Agent
 
-To maintain and improve the quality of the Zrb LLM agent, the project uses a set of automated evaluation challenges located in the `llm-challenges/` directory.
+To maintain and improve the quality of the Zrb LLM agent, the project uses automated evaluation challenges hosted in a separate repository: [github.com/state-alchemists/llm-challenges](https://github.com/state-alchemists/llm-challenges).
 
-> 💡 **See:** `llm-challenges/AGENTS.md` for full evaluation protocol instructions.
+> 💡 **See:** the [llm-challenges README](https://github.com/state-alchemists/llm-challenges) for full evaluation protocol instructions.
 
 ### Process Overview
 
 | Step | Action |
 |------|--------|
 | 1. Execute | Run challenges for all model combinations |
-| 2. Analyze | Review generated REPORT.md for failures |
+| 2. Analyze | Review generated `REPORT.md` for failures |
 | 3. Optimize | Refactor prompts or tools |
 | 4. Verify | Re-run challenges to confirm improvements |
 
 ### Running Challenges
 
 ```bash
+git clone https://github.com/state-alchemists/llm-challenges.git
 cd llm-challenges/
 
 # Quick verification test
@@ -138,8 +140,18 @@ python runner.py --timeout 3600 --parallelism 12 --verbose --models <model-list>
 
 | Output | Location |
 |--------|----------|
-| Report | `llm-challenges/experiment/REPORT.md` |
-| Results | `llm-challenges/experiment/results.json` |
+| Report | `experiment/REPORT.md` |
+| Results | `experiment/results.json` |
+
+### One-on-One LLM Session
+
+Beyond automated challenges, run a one-on-one session to understand how ergonomic the prompt feels to the LLM itself:
+
+```bash
+zrb chat "What is your honest analysis about your current system prompt/instruction. How helpful/effective/efficient is it? How easy/difficult is it for you to follow the instruction. Is that ergonomics? Give scores (1-10) for each aspect"
+```
+
+This surfaces friction that automated metrics miss — ask the model to rate helpfulness, effectiveness, efficiency, and ease of following the system prompt.
 
 ### Optimization Targets
 
@@ -406,6 +418,7 @@ The handler sits **last** in the retry chain in `handle_stream_error`, so it onl
 | Generate profile | `python -m cProfile -o .cprofile.prof -m zrb --help` |
 | Visualize (snakeviz) | `snakeviz .cprofile.prof` |
 | Visualize (flame) | `flameprof .cprofile.prof > flamegraph.svg` |
-| Run LLM challenges | `python runner.py --models <list> --verbose` |
+| Clone + run LLM challenges | `git clone https://github.com/state-alchemists/llm-challenges && cd llm-challenges && python runner.py --models <list> --verbose` |
+| Run one-on-one LLM session | `zrb chat "What is your honest analysis about your current system prompt..."` |
 
 ---

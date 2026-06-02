@@ -100,7 +100,7 @@ Hashing utilities.
 | `autocomplete-zsh` | Generate zsh completion script |
 | `autocomplete-powershell` | Generate PowerShell completion script |
 
-### 🆔 UUID & ULID (`uuid`, `ulid`)
+### 🆔 UUID (`uuid`)
 
 Identifier generation and validation.
 
@@ -108,8 +108,6 @@ Identifier generation and validation.
 |------|-------------|
 | UUID v1/v3/v4/v5 generate | Create UUIDs of various versions |
 | UUID validate | Check UUID validity |
-| ULID generate | Create ULID identifiers |
-| ULID validate | Check ULID validity |
 
 ---
 

@@ -15,7 +15,7 @@ Hook Events:
 - PRE_COMPACT: Fired before history compaction
 """
 
-from zrb import llm_chat
+from zrb.builtin.llm.chat import llm_chat
 from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
 from zrb.llm.hook.types import HookEvent
 
