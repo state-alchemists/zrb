@@ -351,7 +351,6 @@ class IntegrationUI(KeybindingsMixin, CommandsMixin):
         self._exec_commands = ["/exec"]
         self._btw_commands = ["/btw"]
         self._plan_commands = ["/plan"]
-        self._build_commands = ["/build"]
         self._summarize_commands = ["/summarize"]
         self._custom_commands = []
         self._is_thinking = False

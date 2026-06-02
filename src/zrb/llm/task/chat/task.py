@@ -184,7 +184,6 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
         ui_exec_commands: list[str] | None = None,
         ui_btw_commands: list[str] | None = None,
         ui_plan_commands: list[str] | None = None,
-        ui_build_commands: list[str] | None = None,
         custom_commands: (
             list[
                 AnyCustomCommand
@@ -345,9 +344,6 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
         self._ui_btw_commands = ui_btw_commands if ui_btw_commands is not None else []
         self._ui_plan_commands = (
             ui_plan_commands if ui_plan_commands is not None else []
-        )
-        self._ui_build_commands = (
-            ui_build_commands if ui_build_commands is not None else []
         )
         self._custom_commands = custom_commands if custom_commands is not None else []
         self._ui_greeting = ui_greeting
@@ -577,11 +573,6 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
                 self._ui_plan_commands
                 if self._ui_plan_commands
                 else CFG.LLM_UI_COMMAND_PLAN
-            ),
-            "build": (
-                self._ui_build_commands
-                if self._ui_build_commands
-                else CFG.LLM_UI_COMMAND_BUILD
             ),
         }
 

@@ -106,7 +106,6 @@ class SimpleUI(BaseUI):
             set_model_commands=self._config.set_model_commands,
             exec_commands=self._config.exec_commands,
             plan_commands=self._config.plan_commands,
-            build_commands=self._config.build_commands,
             model=model,
         )
 

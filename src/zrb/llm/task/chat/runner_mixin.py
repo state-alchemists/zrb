@@ -223,7 +223,6 @@ class RunnerMixin:
             "exec_commands": ui_commands["exec"],
             "btw_commands": ui_commands["btw"],
             "plan_commands": ui_commands["plan"],
-            "build_commands": ui_commands["build"],
             "custom_commands": resolved_custom_commands,
             "model": self._get_model(ctx),
             "custom_model_names": resolved_custom_model_names,

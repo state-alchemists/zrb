@@ -26,7 +26,6 @@ class LLMUICommandsMixin:
         self.DEFAULT_LLM_UI_COMMAND_SET_MODEL: str = "/model"
         self.DEFAULT_LLM_UI_COMMAND_BTW: str = "/btw"
         self.DEFAULT_LLM_UI_COMMAND_PLAN: str = "/plan"
-        self.DEFAULT_LLM_UI_COMMAND_BUILD: str = "/build"
         super().__init__()
 
     LLM_UI_COMMAND_SUMMARIZE = EnvField(comma_list, serialize=comma_join)
@@ -54,5 +53,3 @@ class LLMUICommandsMixin:
     LLM_UI_COMMAND_BTW = EnvField(comma_list, serialize=comma_join)
 
     LLM_UI_COMMAND_PLAN = EnvField(comma_list, serialize=comma_join)
-
-    LLM_UI_COMMAND_BUILD = EnvField(comma_list, serialize=comma_join)

@@ -1437,7 +1437,7 @@ class TestBaseUICommandHandlers:
         ui._set_model_commands = []
         ui._exec_commands = []
         ui._plan_commands = []
-        ui._build_commands = []
+        ui._plan_commands = []
         ui._custom_commands = []
 
         help_text = ui._get_help_text()

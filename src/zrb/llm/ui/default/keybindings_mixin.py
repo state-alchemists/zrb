@@ -47,6 +47,10 @@ class KeybindingsMixin:
 
         def _submit_user_message(self, llm_task: "AnyTask", text: str) -> None: ...
 
+        def toggle_plan(self) -> None: ...
+
+        def toggle_yolo(self) -> None: ...
+
     def setup_app_keybindings(
         self, app_keybindings: "KeyBindings", llm_task: "AnyTask"
     ):
@@ -208,6 +212,10 @@ class KeybindingsMixin:
             buff.append_to_history()
             self._submit_user_message(llm_task, text)
             buff.reset()
+
+        @app_keybindings.add("c-p")
+        def _(event):
+            self.toggle_plan()
 
         @app_keybindings.add("c-y")
         def _(event):

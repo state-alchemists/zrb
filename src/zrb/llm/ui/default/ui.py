@@ -81,7 +81,6 @@ class UI(
         exec_commands: list[str] = [],
         btw_commands: list[str] = [],
         plan_commands: list[str] = [],
-        build_commands: list[str] = [],
         custom_commands: list[AnyCustomCommand] = [],
         model: "Model | str | None" = None,
         custom_model_names: list[str] = [],
@@ -120,7 +119,6 @@ class UI(
             exec_commands=exec_commands,
             btw_commands=btw_commands,
             plan_commands=plan_commands,
-            build_commands=build_commands,
             custom_commands=custom_commands,
             model=model,
             enable_rewind=enable_rewind,
@@ -153,7 +151,6 @@ class UI(
             set_model_commands=self._set_model_commands,
             exec_commands=self._exec_commands,
             plan_commands=self._plan_commands,
-            build_commands=self._build_commands,
             custom_commands=self._custom_commands,
             history=self._input_history,
             custom_model_names=custom_model_names,
@@ -161,7 +158,7 @@ class UI(
             show_pydantic_ai_models=show_pydantic_ai_models,
         )
 
-        help_text = self._get_help_text(limit=15, max_length=75)
+        help_text = self._get_help_text(limit=20, max_length=75)
         full_greeting = create_banner(
             self._ascii_art,
             f"{greeting}\n{help_text}",

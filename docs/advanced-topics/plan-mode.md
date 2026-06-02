@@ -10,8 +10,7 @@ Plan Mode is a read-only discovery state that allows LLM agents to safely explor
 
 - [Overview](#overview)
 - [How it Works](#how-it-works)
-- [Entering Plan Mode](#entering-plan-mode)
-- [Exiting Plan Mode](#exiting-plan-mode)
+- [Toggling Plan Mode](#toggling-plan-mode)
 - [Security: The Strict ASK Gate](#security-the-strict-ask-gate)
 
 ---
@@ -34,23 +33,18 @@ Plan Mode is an ambient state propagated via `ContextVars`. When active, `get_ef
 
 ---
 
-## Entering Plan Mode
+## Toggling Plan Mode
 
-You can trigger Plan Mode in two ways:
+You can toggle Plan Mode on/off in two ways:
 
-1.  **Slash Command:** Type `/plan` in the chat UI.
-2.  **Tool Call:** The LLM can call the `EnterPlanMode` tool when it determines a task is complex or risky.
+1.  **Slash Command:** Type `/plan` in the chat UI. The command toggles — type `/plan` once to enter Plan Mode, again to exit.
+2.  **Keyboard Shortcut:** Press `Ctrl+P` to toggle Plan Mode at any time.
 
-Once entered, the UI status bar will reflect the active mode:
-`[Active mode: PLAN (read-only)]`
+When Plan Mode is active, the info bar displays `PLAN MODE: On` (blue). When off, it displays `PLAN MODE: Off` (green).
 
----
+### Tool Call
 
-## Exiting Plan Mode
-
-To exit Plan Mode and resume normal operation (BUILD mode), the LLM must call the `ExitPlanMode` tool and provide a concrete **Plan**.
-
-The plan should be a bulleted list of proposed changes (e.g., "Add user authentication logic to src/auth.py", "Update unit tests").
+The LLM can also toggle Plan Mode via the `EnterPlanMode` and `ExitPlanMode` tools. These set the mode programmatically (non-toggling).
 
 ---
 
@@ -64,4 +58,5 @@ Exiting Plan Mode is a high-risk transition because it opens the execution gate.
 -   The user has the opportunity to review the proposed plan before any execution begins.
 
 ---
+
 🔖 [Home](../../README.md) > [Advanced Topics](./) > Plan Mode

@@ -205,13 +205,13 @@ class OutputMixin:
             yolo_text = "<style color='ansigreen'>OFF</style>"
 
         plan_text = (
-            "<style color='ansiblue'><b>PLAN </b></style>"
+            "<style color='ansiblue'><b>On </b></style>"
             if getattr(self, "_plan_mode_active", False)
-            else "<style color='ansigreen'>BUILD</style>"
+            else "<style color='ansigreen'>Off</style>"
         )
 
         line1_html = f" 🤖 <b>Model:</b> {model_name} | 💬 <b>Session:</b> {self._conversation_session_name} "
-        line2_html = f" 📋 <b>Mode:</b> {plan_text} | 🤠 <b>YOLO:</b> {yolo_text} "
+        line2_html = f" 📋 <b>Plan Mode:</b> {plan_text} | 🤠 <b>YOLO:</b> {yolo_text} "
         line3_html = f" 📂 <b>Dir:</b> {self._cwd} | 🌿 <b>Git:</b> {self._git_info} "
 
         total_cols = get_terminal_size().columns
