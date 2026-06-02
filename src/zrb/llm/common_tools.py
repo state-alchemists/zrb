@@ -7,7 +7,7 @@ conforms to ``CommonToolHost`` — used by both ``LLMChatTask`` (main
 agent), ``LLMTask`` (programmatic agents), and ``SubAgentManager``
 (sub-agents) so they share the same tool surface and guidance.
 
-Delegate tools (``DelegateToAgent`` / ``DelegateToAgentsParallel``) are
+Delegate tools (``DelegateToAgent`` / ``DelegateToAgentsParallel`` / ``DelegateToAgentBackground``) are
 intentionally NOT registered here — they're main-agent-only and sub-agents
 filter them out via ``zrb_is_delegate_tool``. Tool policies, argument
 formatters, and response handlers are also out of scope: those live on
@@ -116,9 +116,22 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
     # Execution
     ToolGuidance(
         group_name="Execution",
-        tool_name="Bash",
-        key_rule="For file I/O, use Read/Write/Edit/Grep/RM/MV — not Bash. "
+        tool_name="Shell",
+        when_to_use="Running any shell command (alias: Bash)",
+        key_rule="For file I/O, use Read/Write/Edit/Grep/RM/MV — not Shell. "
         "System Context already lists time, OS, CWD, and available tools — read from there before running commands to discover them.",
+    ),
+    ToolGuidance(
+        group_name="Execution",
+        tool_name="ShellBackground",
+        when_to_use="Long-running processes (dev servers, watchers, builds) that should not block the conversation",
+        key_rule="Returns a handle immediately. Poll with MonitorProcess(handle) to see incremental output. Kill with MonitorProcess(handle, kill=True).",
+    ),
+    ToolGuidance(
+        group_name="Execution",
+        tool_name="MonitorProcess",
+        when_to_use="Check status or kill a background process started by ShellBackground",
+        key_rule="Without kill=True, returns stdout/stderr so far. With kill=True, terminates the process group.",
     ),
     # Analysis
     ToolGuidance(
@@ -186,7 +199,23 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
         group_name="Git Worktrees",
         tool_name="EnterWorktree",
         when_to_use="Isolated branch for experimental changes",
-        key_rule="ListWorktrees first. Pass the returned path as the `cwd` argument to Bash.",
+        key_rule="ListWorktrees first. Pass the returned path as the `cwd` argument to Shell/Bash.",
+    ),
+    # Plan Mode
+    ToolGuidance(
+        group_name="Plan Mode",
+        tool_name="EnterPlanMode",
+        when_to_use=(
+            "Before a risky or multi-file change, to investigate read-only "
+            "first (edits/shell/delegation are blocked until you exit)"
+        ),
+        key_rule="Do discovery, then ExitPlanMode with a concrete plan.",
+    ),
+    ToolGuidance(
+        group_name="Plan Mode",
+        tool_name="ExitPlanMode",
+        when_to_use="When discovery is done and you have a concrete change plan",
+        key_rule="Pass the ordered change list; it is shown to the user for approval.",
     ),
     # LSP
     ToolGuidance(
@@ -211,8 +240,8 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
 # Factories so ``CFG.ROOT_GROUP_NAME`` is re-read at exec time (e.g. tool
 # names change if the user customizes the root group). The delegate-tool
 # guidance below is registered on every host, but only the main agent can
-# actually call DelegateToAgent / DelegateToAgentsParallel; sub-agents lack
-# the tool, so the runtime ``tool_names`` filter drops the guidance for them.
+# actually call the delegate tools; sub-agents lack them, so the runtime
+# ``tool_names`` filter drops the guidance for them.
 
 _DYNAMIC_TOOL_GUIDANCE_FACTORIES: "list[Callable[[AnyContext], ToolGuidance]]" = [
     lambda ctx: ToolGuidance(
@@ -247,11 +276,34 @@ _DYNAMIC_TOOL_GUIDANCE_FACTORIES: "list[Callable[[AnyContext], ToolGuidance]]" =
     ),
     lambda ctx: ToolGuidance(
         group_name="Delegation",
+        tool_name="DelegateToAgentBackground",
+        when_to_use="Long, independent work you do NOT need before continuing "
+        "(e.g. speculative research, generating a file). Returns a handle "
+        "immediately. To fan out, start several and collect each handle later.",
+        key_rule="Same scope clamp as DelegateToAgent. Collect with "
+        "GetDelegationResult(handle). Runs autonomously — its tool calls are "
+        "auto-approved (a configured permission policy still applies), so only "
+        "delegate work you're fine running without per-step approval. Use "
+        "synchronous DelegateToAgent when you need the result now.",
+    ),
+    lambda ctx: ToolGuidance(
+        group_name="Delegation",
         tool_name="DelegateToAgentsParallel",
-        when_to_use="Two or more independent sub-tasks that do not depend on each other's output. "
-        "Prefer this over sequential DelegateToAgent calls whenever tasks can run concurrently.",
-        key_rule="Each task dict needs its own deliverable and non_goals — apply the scope clamp per task, not once for the batch. "
-        "Sub-tasks share no state; each one runs blind to the others.",
+        when_to_use="Two or more independent sub-tasks specified at once, when "
+        "you want them all to run concurrently and return together. "
+        "Prefer this over N sequential DelegateToAgentBackground calls when "
+        "you know all the tasks up front — some models handle a single "
+        "list[dict] better than iterating N tool calls.",
+        key_rule="Each task dict needs its own deliverable and non_goals — "
+        "apply the scope clamp per task, not once for the batch. "
+        "Sub-tasks share no state; each runs blind to the others.",
+    ),
+    lambda ctx: ToolGuidance(
+        group_name="Delegation",
+        tool_name="GetDelegationResult",
+        when_to_use="Collect the result of a DelegateToAgentBackground handle",
+        key_rule="Returns 'still running' until done; the handle is consumed once "
+        "a completed result is collected.",
     ),
 ]
 
@@ -268,9 +320,18 @@ def apply_common_tools(host: CommonToolHost) -> None:
     # ultimately re-enters this function. By that time the re-export
     # names (``analyze_file``, etc.) aren't yet bound on ``zrb.llm.tool``.
     # lazy: zrb internal (heavy via transitive / circular)
+    # Register the 8 LSP tools only when a language server is actually installed
+    # — their own guidance already says to fall back to Read + Grep when none is
+    # available, so advertising them in a server-less repo is pure prompt weight.
+    # detect_available_lsp_servers() is a cheap shutil.which scan (no startup).
+    # lazy: zrb internal (heavy via transitive / circular)
+    from zrb.llm.lsp.configs import detect_available_lsp_servers
     from zrb.llm.lsp.tools import create_lsp_tools
+
+    # lazy: permission is a leaf module.
+    from zrb.llm.permission import Capability, tag
     from zrb.llm.tool.ask import ask_user_question
-    from zrb.llm.tool.bash import run_shell_command
+    from zrb.llm.tool.bash import run_shell_command as bash_cmd
     from zrb.llm.tool.code import analyze_code
     from zrb.llm.tool.file import (
         analyze_file,
@@ -285,7 +346,13 @@ def apply_common_tools(host: CommonToolHost) -> None:
     )
     from zrb.llm.tool.journal import search_journal
     from zrb.llm.tool.mcp import load_mcp_config
-    from zrb.llm.tool.plan import clear_todos, get_todos, update_todo, write_todos
+    from zrb.llm.tool.plan import get_todos, write_todos
+    from zrb.llm.tool.plan_mode import enter_plan_mode, exit_plan_mode
+    from zrb.llm.tool.shell import run_shell_command
+    from zrb.llm.tool.shell_background import (
+        create_monitor_process_tool,
+        create_shell_background_tool,
+    )
     from zrb.llm.tool.skill import create_activate_skill_tool
     from zrb.llm.tool.web import open_web_page, search_internet
     from zrb.llm.tool.worktree import enter_worktree, exit_worktree, list_worktrees
@@ -294,10 +361,47 @@ def apply_common_tools(host: CommonToolHost) -> None:
         create_run_zrb_task_tool,
     )
 
-    lsp_tools = create_lsp_tools()
-    plan_tools = [write_todos, get_todos, update_todo, clear_todos]
+    lsp_tools = create_lsp_tools() if detect_available_lsp_servers() else []
+    # WriteTodos replaces the whole list by default, so it subsumes the former
+    # UpdateTodo (rewrite with one status changed) and ClearTodos (write []).
+    plan_tools = [write_todos, get_todos]
+
+    # Tag each tool with its capability so the permission policy / plan mode can
+    # reason about it. Untagged tools resolve to UNKNOWN (denied in plan mode),
+    # so tagging the read-only ones explicitly keeps discovery working.
+    for _fn in (
+        list_files,
+        glob_files,
+        read_file,
+        search_files,
+        analyze_file,
+        analyze_code,
+        search_journal,
+        list_worktrees,
+    ):
+        tag(_fn, Capability.READ)
+    for _fn in (
+        write_file,
+        replace_in_file,
+        remove_file,
+        move_file,
+        enter_worktree,
+        exit_worktree,
+    ):
+        tag(_fn, Capability.EDIT)
+    tag(run_shell_command, Capability.EXECUTE)
+    tag(bash_cmd, Capability.EXECUTE)
+    for _fn in (search_internet, open_web_page):
+        tag(_fn, Capability.NETWORK)
+    for _fn in plan_tools + [ask_user_question]:
+        tag(_fn, Capability.META)
+    for _tool in lsp_tools:
+        _name = getattr(_tool, "__name__", "") or getattr(_tool, "name", "")
+        tag(_tool, Capability.EDIT if "Rename" in _name else Capability.READ)
+
     host.add_tool(
         run_shell_command,
+        bash_cmd,
         analyze_code,
         list_files,
         glob_files,
@@ -315,13 +419,17 @@ def apply_common_tools(host: CommonToolHost) -> None:
         enter_worktree,
         exit_worktree,
         list_worktrees,
+        enter_plan_mode,
+        exit_plan_mode,
         *lsp_tools,
         *plan_tools,
     )
     host.add_tool_factory(
-        lambda ctx: create_list_zrb_task_tool(),
-        lambda ctx: create_run_zrb_task_tool(),
-        lambda ctx: create_activate_skill_tool(),
+        lambda ctx: tag(create_list_zrb_task_tool(), Capability.READ),
+        lambda ctx: tag(create_run_zrb_task_tool(), Capability.EXECUTE),
+        lambda ctx: tag(create_activate_skill_tool(), Capability.META),
+        lambda ctx: tag(create_shell_background_tool(), Capability.EXECUTE),
+        lambda ctx: tag(create_monitor_process_tool(), Capability.EXECUTE),
     )
     host.add_toolset_factory(lambda ctx: load_mcp_config())
     host.add_tool_guidance(*_STATIC_TOOL_GUIDANCE)

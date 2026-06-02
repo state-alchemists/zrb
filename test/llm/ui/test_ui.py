@@ -1436,6 +1436,8 @@ class TestBaseUICommandHandlers:
         ui._yolo_toggle_commands = []
         ui._set_model_commands = []
         ui._exec_commands = []
+        ui._plan_commands = []
+        ui._plan_commands = []
         ui._custom_commands = []
 
         help_text = ui._get_help_text()

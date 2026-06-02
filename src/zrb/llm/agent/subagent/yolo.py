@@ -29,7 +29,30 @@ def make_yolo_inheritance_checker() -> Callable[..., bool]:
     # lazy: zrb internal (heavy via transitive / circular)
     from zrb.llm.agent.run.runtime_state import get_current_ui, get_current_yolo
 
+    # lazy: permission is a leaf; kept local to mirror get_current_* deferral
+    # and so tests patching either layer take effect inside the closure.
+    from zrb.llm.permission import ALLOW, ASK, DENY, Capability, get_effective_policy
+
     def check_yolo_inheritance(tool_def: Any = None) -> bool:
+        # Approval precedence (matches chat/task.py check_yolo):
+        #   perm_policy: allow→auto-approve, deny→auto-approve (gate blocks),
+        #                ask→defer to tool-policy / yolo cascade
+        #   tool_policy: handled in _resolve_approval
+        #   yolo:        handled in _resolve_approval
+        policy = get_effective_policy()
+        if policy is not None:
+            tool_name = (
+                getattr(tool_def, "name", str(tool_def)) if tool_def is not None else ""
+            )
+            result = policy.decide(tool_name, Capability.UNKNOWN, {})
+            if result is not None:
+                if result == ALLOW:
+                    return True
+                if result == DENY:
+                    return True  # auto-approved (gate blocks at execution)
+                if result == ASK:
+                    return False  # explicit policy ASK is a 'hard ask'
+            # fallback to YOLO only if policy has no matching rule
         yolo_val = get_current_yolo()
         if isinstance(yolo_val, bool):
             if yolo_val:

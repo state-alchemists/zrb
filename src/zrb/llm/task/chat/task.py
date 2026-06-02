@@ -35,6 +35,14 @@ from zrb.llm.factory_resolver import resolve_factory_items
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.history_manager.file_history_manager import FileHistoryManager
 from zrb.llm.hook.manager import HookManager
+from zrb.llm.permission import (
+    ALLOW,
+    ASK,
+    DENY,
+    Capability,
+    get_effective_policy,
+    tool_capability,
+)
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.prompt.tool_guidance import ToolGuidance
 from zrb.llm.summarizer import (
@@ -175,6 +183,7 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
         ui_set_model_commands: list[str] | None = None,
         ui_exec_commands: list[str] | None = None,
         ui_btw_commands: list[str] | None = None,
+        ui_plan_commands: list[str] | None = None,
         custom_commands: (
             list[
                 AnyCustomCommand
@@ -333,6 +342,9 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
             ui_exec_commands if ui_exec_commands is not None else []
         )
         self._ui_btw_commands = ui_btw_commands if ui_btw_commands is not None else []
+        self._ui_plan_commands = (
+            ui_plan_commands if ui_plan_commands is not None else []
+        )
         self._custom_commands = custom_commands if custom_commands is not None else []
         self._ui_greeting = ui_greeting
         self._render_ui_greeting = render_ui_greeting
@@ -557,6 +569,11 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
                 if self._ui_btw_commands
                 else CFG.LLM_UI_COMMAND_BTW
             ),
+            "plan": (
+                self._ui_plan_commands
+                if self._ui_plan_commands
+                else CFG.LLM_UI_COMMAND_PLAN_TOGGLE
+            ),
         }
 
     def _create_llm_task_core(
@@ -604,7 +621,36 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
                 ui = StdUI()
             # tool_confirmation = None (let UI handle it via approval_channel)
 
+        # Capability lookup for the resolved tool surface, used only when a
+        # permission policy is in force (keyed by the LLM-visible tool name).
+        cap_by_name = {
+            (getattr(t, "name", None) or getattr(t, "__name__", "")): tool_capability(t)
+            for t in resolved_tools
+        }
+
         def check_yolo(tool_def=None):
+            # Approval precedence chain:
+            #   perm_policy: allow→auto-approve, deny→auto-approve (gate blocks),
+            #                ask→defer to tool_policy cascade
+            #   tool_policy: handled in _resolve_approval (deferred_calls.py)
+            #   yolo:        handled in _resolve_approval (deferred_calls.py)
+            policy = get_effective_policy()
+            if policy is not None:
+                tool_name = (
+                    getattr(tool_def, "name", str(tool_def))
+                    if tool_def is not None
+                    else ""
+                )
+                cap = cap_by_name.get(tool_name, Capability.UNKNOWN)
+                result = policy.decide(tool_name, cap, {})
+                if result is not None:
+                    if result == ALLOW:
+                        return True  # unconditional auto-approve
+                    if result == DENY:
+                        return True  # auto-approved (gate blocks at execution)
+                    if result == ASK:
+                        return False  # explicit policy ASK is a 'hard ask'
+                # fallback to YOLO only if policy has no matching rule
             if self._yolo_xcom_key not in ctx.xcom:
                 return False
             yolo_value = ctx.xcom[self._yolo_xcom_key].get(False)

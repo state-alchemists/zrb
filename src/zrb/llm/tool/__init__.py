@@ -1,4 +1,4 @@
-from zrb.llm.tool.bash import run_shell_command
+from zrb.llm.tool.bash import run_shell_command as run_bash_command
 from zrb.llm.tool.code import analyze_code
 from zrb.llm.tool.delegate import (
     create_delegate_to_agent_tool,
@@ -25,6 +25,11 @@ from zrb.llm.tool.plan import (
     write_todos,
 )
 from zrb.llm.tool.rag import create_rag_from_directory
+from zrb.llm.tool.shell import run_shell_command
+from zrb.llm.tool.shell_background import (
+    create_monitor_process_tool,
+    create_shell_background_tool,
+)
 from zrb.llm.tool.skill import create_activate_skill_tool
 from zrb.llm.tool.web import open_web_page, search_internet
 from zrb.llm.tool.zrb_task import create_list_zrb_task_tool, create_run_zrb_task_tool
@@ -33,6 +38,7 @@ search_journal.__name__ = "SearchJournal"
 
 __all__ = [
     "run_shell_command",
+    "run_bash_command",
     "analyze_code",
     "glob_files",
     "list_files",
@@ -53,6 +59,8 @@ __all__ = [
     "create_run_zrb_task_tool",
     "create_delegate_to_agent_tool",
     "create_parallel_delegate_tool",
+    "create_shell_background_tool",
+    "create_monitor_process_tool",
     # Planning tools
     "create_plan_tools",
     "write_todos",

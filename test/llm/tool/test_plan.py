@@ -510,17 +510,16 @@ class TestUtilityFunctions:
         assert "Auto-session task" in result
 
     def test_create_plan_tools(self):
-        """Test create_plan_tools returns the expected tools."""
+        """Agent-facing plan tools are WriteTodos + GetTodos.
+
+        WriteTodos replaces the list by default, so it subsumes UpdateTodo and
+        ClearTodos; those remain importable for direct use but are not exposed
+        to the model.
+        """
         tools = create_plan_tools()
 
-        assert len(tools) == 4
-
-        # Check function names
         names = [t.__name__ for t in tools]
-        assert "WriteTodos" in names
-        assert "GetTodos" in names
-        assert "UpdateTodo" in names
-        assert "ClearTodos" in names
+        assert names == ["WriteTodos", "GetTodos"]
 
     def test_todo_manager_instance(self):
         """Test that todo_manager is a TodoManager instance."""

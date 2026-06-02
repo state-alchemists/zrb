@@ -20,6 +20,7 @@ from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.history_manager.file_history_manager import FileHistoryManager
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
+from zrb.llm.permission import resolve_policy
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.prompt.tool_guidance import ToolGuidance
 from zrb.llm.summarizer import (
@@ -97,6 +98,7 @@ class LLMTask(BaseTask):
         ui: UIProtocol | None = None,
         yolo: BoolAttr = False,
         dynamic_yolo: Callable[..., bool] | None = None,
+        permissions: Any = None,
         approval_channel: ApprovalChannel | None = None,
         summarize_command: list[str] | None = None,
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
@@ -181,6 +183,7 @@ class LLMTask(BaseTask):
         self._yolo = yolo
         self._ui_factories: list[Callable[..., UIProtocol]] = []
         self._dynamic_yolo = dynamic_yolo
+        self._permissions = permissions
         self._approval_channel = approval_channel
         self._summarize_command = (
             summarize_command if summarize_command is not None else []
@@ -386,6 +389,13 @@ class LLMTask(BaseTask):
                 if callable(self._dynamic_yolo)
                 else get_bool_attr(ctx, self._yolo, False)
             )
+            # Resolve the permission policy from the explicit task param, else
+            # global config. None → run_agent keeps legacy/inherited behavior.
+            permission_policy = resolve_policy(
+                self._permissions
+                if self._permissions is not None
+                else CFG.LLM_PERMISSIONS
+            )
             CFG.LOGGER.debug("llm_task Calling run_agent with:")
             CFG.LOGGER.debug(f"  tool_confirmation: {self._tool_confirmation}")
             CFG.LOGGER.debug(f"  approval_channel: {self._approval_channel}")
@@ -403,6 +413,7 @@ class LLMTask(BaseTask):
                 yolo=yolo_value,
                 approval_channel=self._approval_channel,
                 system_prompt=system_prompt,
+                permission_policy=permission_policy,
             )
         except asyncio.CancelledError:
             self._save_cancelled_history(
@@ -444,11 +455,37 @@ class LLMTask(BaseTask):
         return False
 
     def _create_agent(self, ctx: AnyContext, system_prompt: str | None = None) -> Any:
-        yolo = (
-            self._dynamic_yolo
-            if self._dynamic_yolo is not None
-            else get_bool_attr(ctx, self._yolo, False)
-        )
+        if self._dynamic_yolo is not None:
+            yolo = self._dynamic_yolo
+        else:
+            # Default policy-aware callable (bare LLMTask without dynamic_yolo).
+            # Follows the same precedence chain as chat/task.py check_yolo.
+            # Caching the yolo value at closure-creation time is fine — bare
+            # LLMTask yolo is a BoolAttr, not a live xcom like LLMChatTask.
+            yolo_bool = get_bool_attr(ctx, self._yolo, False)
+
+            def _default_yolo(tool_def=None):
+                # lazy: permission is a leaf module.
+                from zrb.llm.permission import ALLOW, ASK, DENY, get_effective_policy
+                from zrb.llm.permission.capability import Capability
+
+                policy = get_effective_policy()
+                if policy is not None:
+                    tool_name = (
+                        getattr(tool_def, "name", str(tool_def))
+                        if tool_def is not None
+                        else ""
+                    )
+                    result = policy.decide(tool_name, Capability.UNKNOWN, {})
+                    if result == ALLOW:
+                        return True
+                    if result == DENY:
+                        return True  # auto-approved (gate blocks at execution)
+                    if result == ASK:
+                        return False  # explicit policy ASK is a 'hard ask'
+                return yolo_bool
+
+            yolo = _default_yolo
         if system_prompt is None:
             system_prompt = self.get_system_prompt(ctx)
         ctx.log_debug(f"SYSTEM PROMPT: {system_prompt}")

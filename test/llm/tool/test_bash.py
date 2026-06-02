@@ -6,6 +6,10 @@ import pytest
 from zrb.llm.tool.bash import run_shell_command
 
 
+def test_bash_name():
+    assert run_shell_command.__name__ == "Bash"
+
+
 @pytest.mark.asyncio
 async def test_run_shell_command_success():
     res = await run_shell_command("echo hello")

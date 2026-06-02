@@ -1,7 +1,7 @@
 """Ambient state for tool calls — active worktree, current tool session.
 
 These `ContextVar`s are set by tools like `EnterWorktree` or by the prompt
-middleware, and read by other tools (e.g. `Bash`, `DelegateToAgent`, the todo
+middleware, and read by other tools (e.g. `Shell`/`Bash`, `DelegateToAgent`, the todo
 tools) that need to know "what worktree are we in" or "which session's todos".
 
 The underlying `ContextVar`s stay where their owning tools define them. This

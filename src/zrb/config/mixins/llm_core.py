@@ -17,6 +17,7 @@ class LLMCoreMixin:
         self.DEFAULT_LLM_API_KEY: str = ""
         self.DEFAULT_LLM_SHOW_OLLAMA_MODELS: str = "on"
         self.DEFAULT_LLM_SHOW_PYDANTIC_AI_MODELS: str = "on"
+        self.DEFAULT_LLM_PERMISSIONS: str = ""
         super().__init__()
 
     LLM_MODEL = EnvField(str, nullable=True)
@@ -41,5 +42,19 @@ class LLMCoreMixin:
         doc=(
             "Enable/disable showing pydantic-ai KnownModelName models in model "
             "completion."
+        ),
+    )
+
+    LLM_PERMISSIONS = EnvField(
+        str,
+        nullable=True,
+        doc=(
+            "Tool permission ruleset. Empty (default) keeps legacy yolo "
+            "behavior. Accepts a shorthand ('allow'/'ask'/'deny') or a "
+            "comma-separated 'key:action' list where key is a tool name, a "
+            "capability (read/edit/execute/network/delegate/meta), or '*', "
+            "e.g. 'edit:deny,Bash:ask,*:allow'. First match wins; 'deny' is "
+            "enforced before the tool runs, 'allow' skips approval, 'ask' "
+            "prompts."
         ),
     )

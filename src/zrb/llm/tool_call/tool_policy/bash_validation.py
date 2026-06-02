@@ -117,7 +117,7 @@ def bash_safe_command_policy() -> ToolPolicy:
         # lazy: heavy third-party
         from pydantic_ai import ToolApproved
 
-        if call.tool_name != "Bash":
+        if call.tool_name not in ("Shell", "Bash"):
             return await next_handler(ui, call)
 
         try:

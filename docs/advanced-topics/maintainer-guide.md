@@ -158,9 +158,9 @@ To understand Zrb's core design decisions (such as the strict use of `asyncio`, 
 
 ## Context Propagation Internals
 
-Zrb uses Python's `contextvars.ContextVar` to thread execution state through async coroutines without explicit parameter passing. There are eight `ContextVar` instances across the codebase, split into three layers. The single source of truth is `src/zrb/contextvars.py` (a re-export index); update this section whenever you add, remove, or rename a `ContextVar`.
+Zrb uses Python's `contextvars.ContextVar` to thread execution state through async coroutines without explicit parameter passing. There are twelve `ContextVar` instances across the codebase, split into four layers. The single source of truth is `src/zrb/contextvars.py` (a re-export index); update this section whenever you add, remove, or rename a `ContextVar`.
 
-### The Three Layers
+### The Four Layers
 
 **Layer 1 — Task execution** (`src/zrb/context/any_context.py`):
 
@@ -181,7 +181,14 @@ Holds the active `Context` for the currently executing task. Set at the start of
 
 All four are set at the start of `run_agent()` and reset in its `finally` block.
 
-**Layer 3 — Tool ambient state** (`src/zrb/llm/tool/worktree.py`, `src/zrb/llm/tool/plan.py`, `src/zrb/llm/tool/ask.py`):
+**Layer 3 — Permission state** (`src/zrb/llm/permission/state.py`):
+
+| Variable | Type | Purpose |
+|---|---|---|
+| `current_permission_policy` | `PermissionPolicy \| None` | In-force tool ruleset (`None` = legacy yolo behavior). Set by `run_agent()` from the explicit arg or inherited from a parent run; reset in its `finally` block. |
+| `current_agent_mode` | `AgentMode` | `DEFAULT` or `PLAN` (read-only). Set by the `EnterPlanMode` / `ExitPlanMode` tools; `PLAN` makes `get_effective_policy()` return the read-only `PLAN_MODE_POLICY`. |
+
+**Layer 4 — Tool ambient state** (`src/zrb/llm/tool/worktree.py`, `src/zrb/llm/tool/plan.py`, `src/zrb/llm/tool/ask.py`):
 
 | Variable | Type | Purpose |
 |---|---|---|

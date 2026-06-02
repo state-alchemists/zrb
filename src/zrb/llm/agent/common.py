@@ -41,7 +41,7 @@ def _wrap_tool(tool: "Tool | ToolFuncEither") -> "Tool | ToolFuncEither":
 
         # It is a Tool instance
         original_func = tool.function
-        safe_func = create_safe_wrapper(original_func)
+        safe_func = create_safe_wrapper(original_func, name=tool.name)
         if isinstance(tool, PydanticTool):
             return PydanticTool(
                 safe_func,
@@ -85,29 +85,95 @@ def safe_copy_result(result: Any) -> Any:
         return result
 
 
-def create_safe_wrapper(func: Callable) -> Callable:
+def _permission_gate(tool_name: str, capability: Any, args: dict[str, Any]) -> Any:
+    """Return a blocked ``ToolReturn`` if the in-force policy denies this call.
+
+    Returns ``None`` when nothing denies it (the default — no policy and
+    ``AgentMode.BUILD`` → always ``None``, so the synchronous path is
+    unchanged). Enforces the *deny* outcome that the approval layer (allow/ask)
+    cannot express, without touching the deferred-request machinery.
+    """
+    # lazy: circular — common is imported by the runner; permission is a leaf,
+    # but keep the read local so the policy is re-resolved per call.
+    from pydantic_ai import ToolReturn
+
+    from zrb.llm.permission import DENY, get_current_agent_mode, get_effective_policy
+
+    policy = get_effective_policy()
+    if policy is None:
+        return None
+    if policy.decide(tool_name, capability, args) != DENY:
+        return None
+    mode = get_current_agent_mode().value
+    return ToolReturn(
+        return_value=None,
+        content=(
+            f"Blocked: '{tool_name}' is not permitted under the current "
+            f"permission policy (mode: {mode}). "
+            "[SYSTEM SUGGESTION]: this is a read-only / restricted context. "
+            "Finish discovery, then call ExitPlanMode (if in plan mode) to "
+            "present your plan for approval before making changes."  # fmt: skip
+        ),
+        metadata={"blocked": True},
+    )
+
+
+def _truncated_content(content: str) -> tuple[str, dict[str, Any]]:
+    """Apply the global tool-result size backstop to a model-facing string.
+
+    Returns ``(content, metadata)``. The cap (``CFG.LLM_MAX_TOOL_RESULT_CHARS``)
+    is high enough that typical output is untouched; ``0`` disables it. Only the
+    text shown to the model is affected — never a tool's structured return value.
+    """
+    # lazy: circular — common → truncate is fine, but keep CFG read local so
+    # the cap is re-read per call (tests may patch it) and import stays cheap.
+    from zrb.llm.agent.truncate import truncate_tool_content
+
+    truncated, was_truncated = truncate_tool_content(
+        content, limit=CFG.LLM_MAX_TOOL_RESULT_CHARS
+    )
+    if not was_truncated:
+        return content, {}
+    return truncated, {"truncated": True, "original_chars": len(content)}
+
+
+def create_safe_wrapper(func: Callable, name: str | None = None) -> Callable:
     """Create a wrapper that catches exceptions and returns ToolReturn objects."""
     # lazy: heavy third-party
     from pydantic_ai import ToolReturn
 
+    # lazy: circular — permission is a leaf module; capability is read at wrap
+    # time (cheap) so the per-call gate need not re-import it.
+    from zrb.llm.permission import tool_capability
+
+    capability = tool_capability(func)
+    tool_name = name or func.__name__
+
     @wraps(func)
     async def wrapper(*args, **kwargs):
         try:
+            blocked = _permission_gate(tool_name, capability, kwargs)
+            if blocked is not None:
+                return blocked
+
             if inspect.iscoroutinefunction(func):
                 result = await func(*args, **kwargs)
             else:
                 result = func(*args, **kwargs)
 
-            # If result is already a ToolReturn, return it as-is
+            # If result is already a ToolReturn, return it as-is. The tool framed
+            # its own content (possibly truncated deliberately) — respect it.
             if isinstance(result, ToolReturn):
                 return result
 
             # Create a safe copy to prevent mutation by pydantic-ai
             safe_result = safe_copy_result(result)
 
-            # Otherwise wrap successful result in ToolReturn
+            # Otherwise wrap successful result in ToolReturn, applying the global
+            # content-size backstop (return_value is left whole).
+            content, metadata = _truncated_content(to_string(safe_result))
             return ToolReturn(
-                return_value=safe_result, content=to_string(safe_result), metadata={}
+                return_value=safe_result, content=content, metadata=metadata
             )
         except Exception as e:
             error_msg = f"Error executing tool {func.__name__}: {e}"
@@ -124,21 +190,28 @@ def _wrap_toolset(toolset: "AbstractToolset[None]") -> "AbstractToolset[None]":
     from pydantic_ai import ToolReturn
     from pydantic_ai.toolsets import WrapperToolset
 
+    # lazy: circular — permission is a leaf module.
+    from zrb.llm.permission import tool_capability
+
     class SafeToolsetWrapper(WrapperToolset):
         async def call_tool(
             self, name: str, tool_args: dict[str, Any], ctx: Any, tool: Any
         ) -> Any:
             try:
+                blocked = _permission_gate(name, tool_capability(tool), tool_args or {})
+                if blocked is not None:
+                    return blocked
                 result = await super().call_tool(name, tool_args, ctx, tool)
                 # If result is already a ToolReturn, return it as-is
                 if isinstance(result, ToolReturn):
                     return result
                 # Create a safe copy to prevent mutation by pydantic-ai
                 safe_result = safe_copy_result(result)
+                content, metadata = _truncated_content(to_string(safe_result))
                 return ToolReturn(
                     return_value=safe_result,
-                    content=to_string(safe_result),
-                    metadata={},
+                    content=content,
+                    metadata=metadata,
                 )
             except Exception as e:
                 error_msg = f"Error executing tool {name}: {e}"

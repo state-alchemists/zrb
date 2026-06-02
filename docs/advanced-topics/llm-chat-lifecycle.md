@@ -86,7 +86,7 @@ src/zrb/llm/agent/run/runner.py :: run_agent()
 
 `LLMTask._exec_action()` resolves dynamic attributes (model, system prompt, message), calls `create_agent()` to build a `pydantic_ai.Agent`, then enters `run_agent()`.
 
-`run_agent()` is where the four agent-level `ContextVar`s get bound: `current_ui`, `current_tool_confirmation`, `current_yolo`, `current_approval_channel`. They're reset in the matching `finally`. See [maintainer-guide.md#context-propagation-internals](./maintainer-guide.md#context-propagation-internals) for the full ContextVar map.
+`run_agent()` is where the six agent and permission `ContextVar`s get bound: `current_ui`, `current_tool_confirmation`, `current_yolo`, `current_approval_channel`, `current_permission_policy`, and `current_agent_mode`. They're reset in the matching `finally`. See [maintainer-guide.md#context-propagation-internals](./maintainer-guide.md#context-propagation-internals) for the full ContextVar map.
 
 ---
 
@@ -181,6 +181,7 @@ Control returns up through `LLMChatTask._exec_action` → `run_task_async` → `
 | HTTP chat UI | `src/zrb/runner/chat/http_ui.py` + SSE backend |
 | Hooks | `src/zrb/llm/hook/manager/manager.py`, `hook_creators.py`, `matcher.py` |
 | Sub-agents | `src/zrb/llm/agent/subagent/manager/` |
+| Permission policy | `src/zrb/llm/permission/` |
 | Persistence | `src/zrb/llm/history_manager/file_history_manager.py` |
 | Snapshots | `src/zrb/llm/snapshot/manager.py` |
 | ContextVars index | `src/zrb/contextvars.py` |

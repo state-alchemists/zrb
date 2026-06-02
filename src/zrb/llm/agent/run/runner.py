@@ -47,6 +47,7 @@ from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.message import ensure_alternating_roles
+from zrb.llm.permission.state import current_permission_policy
 from zrb.llm.tool_call.handler import ToolCallHandler
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 from zrb.llm.util.prompt import expand_prompt
@@ -93,6 +94,7 @@ async def run_agent(
     yolo: bool = False,
     approval_channel: "ApprovalChannel | None" = None,
     system_prompt: str = "",
+    permission_policy: Any = None,
 ) -> tuple[Any, list[Any]]:
     """
     Runs the agent with rate limiting, history management, and optional CLI confirmation loop.
@@ -120,10 +122,19 @@ async def run_agent(
         effective_approval_channel,
     )
 
+    # Set the policy from the explicit arg, else keep whatever a parent run set
+    # (sub-agent inheritance), else None (legacy: nothing constrained).
+    effective_policy = (
+        permission_policy
+        if permission_policy is not None
+        else current_permission_policy.get()
+    )
+
     token_ui = current_ui.set(effective_ui)
     token_confirmation = current_tool_confirmation.set(effective_tool_confirmation)
     token_yolo = current_yolo.set(effective_yolo)
     token_approval_channel = current_approval_channel.set(effective_approval_channel)
+    token_policy = current_permission_policy.set(effective_policy)
 
     try:
         effective_print_fn, effective_event_handler = _setup_print_and_events(
@@ -173,6 +184,7 @@ async def run_agent(
         current_tool_confirmation.reset(token_confirmation)
         current_yolo.reset(token_yolo)
         current_approval_channel.reset(token_approval_channel)
+        current_permission_policy.reset(token_policy)
 
 
 def _resolve_context_dependencies(

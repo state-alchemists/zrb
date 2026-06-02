@@ -42,6 +42,8 @@ class CommandsMixin:
         # Command lists (set in `BaseUI.__init__`)
         _attach_commands: list[str]
         _btw_commands: list[str]
+        _plan_commands: list[str]
+        _plan_mode_active: bool
         _custom_commands: list["AnyCustomCommand"]
         _exec_commands: list[str]
         _exit_commands: list[str]
@@ -109,6 +111,7 @@ class CommandsMixin:
         """
         return [
             (self._handle_btw_command, self._btw_commands, True, True),
+            (self._handle_toggle_plan, self._plan_commands, True, True),
             # prefix=True: `/yolo` toggles, `/yolo Write,Edit` sets selective yolo.
             (self._handle_toggle_yolo, self._yolo_toggle_commands, True, True),
             (self._handle_exit_command, self._exit_commands, False, False),
@@ -498,6 +501,30 @@ class CommandsMixin:
                 return True
         return False
 
+    def toggle_plan(self):
+        """Toggle plan mode on/off and force refresh."""
+        self._plan_mode_active = not self._plan_mode_active
+        from zrb.llm.permission.state import (
+            AgentMode,
+            set_current_agent_mode,
+        )
+        from zrb.util.cli.style import stylize_faint
+
+        set_current_agent_mode(
+            AgentMode.PLAN if self._plan_mode_active else AgentMode.BUILD
+        )
+        status = "On" if self._plan_mode_active else "Off"
+        self.append_to_output(stylize_faint(f"\n  📋 PLAN MODE: {status}\n"))
+        self.invalidate_ui()
+
+    def _handle_toggle_plan(self, text: str) -> bool:
+        stripped = text.strip()
+        for cmd in self._plan_commands:
+            if stripped.lower() == cmd.lower():
+                self.toggle_plan()
+                return True
+        return False
+
     def _handle_set_model_command(self, text: str) -> bool:
         text = text.strip()
         for cmd in self._set_model_commands:
@@ -544,6 +571,7 @@ class CommandsMixin:
         self._is_thinking = True
         self.invalidate_ui()
         timestamp = datetime.now().strftime("%H:%M")
+        process = None
 
         try:
             self.append_to_output(f"\n💻 {timestamp} >> {cmd}\n")
@@ -583,6 +611,15 @@ class CommandsMixin:
 
         except asyncio.CancelledError:
             self.append_to_output("\n[Cancelled]\n")
+            if process is not None and process.returncode is None:
+                try:
+                    process.terminate()
+                    await asyncio.wait_for(process.wait(), timeout=1.0)
+                except Exception:
+                    try:
+                        process.kill()
+                    except Exception:
+                        pass
             raise  # Re-raise to allow proper task cancellation
         except Exception as e:
             self.append_to_output(f"\n[Error: {e}]\n")
@@ -734,6 +771,7 @@ class CommandsMixin:
             self._btw_commands,
             "Ask a side question without saving to history (usage: {cmd} <question>)",
         )
+        add_cmd_help(self._plan_commands, "Toggle PLAN mode (read-only) on/off")
         for custom_cmd in self._custom_commands:
             raw_lines.append((custom_cmd.command, custom_cmd.description))
 
@@ -760,6 +798,7 @@ class CommandsMixin:
             ("Tab / Shift+Tab", "Move focus between input and output"),
             ("F6", "Toggle focus between input and output"),
             ("Esc", "Cancel running task or clear input"),
+            ("Ctrl+P", "Toggle PLAN mode"),
             ("Ctrl+Y", "Toggle YOLO mode"),
             ("Ctrl+C", "Copy selection, clear input, or exit"),
             ("↑ / ↓", "Navigate input history"),
