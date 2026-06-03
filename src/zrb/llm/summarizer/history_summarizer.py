@@ -126,7 +126,10 @@ def create_summarizer_history_processor(
                 )
             else:
                 zrb_print(
-                    stylize_error("  Cannot compress conversation..."), plain=True
+                    stylize_yellow(
+                        "  Conversation compression produced no change (API error or empty input)"
+                    ),
+                    plain=True,
                 )
             return result
         except Exception as e:
