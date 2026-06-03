@@ -274,6 +274,85 @@ def set_current_session(session_name: str) -> None:
         _current_session.set(session_name)
 
 
+# ── Progress visualization ─────────────────────────────────────────────────
+
+
+_STATUS_ICONS = {
+    "completed": "✅",
+    "in_progress": "▶️",
+    "pending": "  ",
+    "cancelled": "✗",
+}
+
+
+def _render_todo_progress(
+    todo_data: dict[str, Any],
+    change_description: str = "",
+) -> str:
+    """Render the full todo list for UI display.
+
+    Shows what changed (if anything), a progress summary, and every todo item
+    with its status icon.  Ends with a ``~DATA~`` line carrying structured JSON
+    for the web frontend.
+    """
+    total = todo_data["total"]
+    done = todo_data["completed"]
+    pct = f"{int((done / total) * 100)}%" if total > 0 else ""
+
+    parts = []
+    if todo_data["completed"]:
+        parts.append(f"✅ {todo_data['completed']} completed")
+    if todo_data["in_progress"]:
+        parts.append(f"▶️ {todo_data['in_progress']} in progress")
+    if todo_data["pending"]:
+        parts.append(f"☐ {todo_data['pending']} pending")
+    if todo_data.get("cancelled", 0):
+        parts.append(f"✗ {todo_data['cancelled']} cancelled")
+    summary = "  ".join(parts)
+
+    lines = []
+    if change_description:
+        lines.append(change_description)
+        lines.append("")
+    if total > 0:
+        header = f"📋 Todo List ({done}/{total}"
+        if pct:
+            header += f", {pct}"
+        if summary:
+            header += f", {summary}"
+        header += ")"
+        lines.append(header)
+        for todo in todo_data["todos"]:
+            icon = _STATUS_ICONS.get(todo["status"], "  ")
+            lines.append(f"  {icon} [{todo['id']}] {todo['content']}")
+    else:
+        lines.append("📋 Todo list is empty")
+    lines.append(
+        f'~DATA~{{"total":{total},"completed":{todo_data["completed"]},'
+        f'"in_progress":{todo_data["in_progress"]},'
+        f'"pending":{todo_data["pending"]}}}'
+    )
+    return "\n".join(lines)
+
+
+def _broadcast_todo_progress(
+    todo_data: dict[str, Any],
+    change_description: str = "",
+) -> None:
+    """Push the full todo list to the active UI (if any).
+
+    ``change_description`` is a one-liner about what just happened, shown
+    above the list (e.g. ``"✅ Completed: [1] Fix login bug"``).
+    """
+    text = _render_todo_progress(todo_data, change_description)
+    # lazy: circular — tool → ui → llm_task → here
+    from zrb.llm.agent.run.runtime_state import get_current_ui
+
+    ui = get_current_ui()
+    if ui is not None:
+        ui.append_to_output(text, kind="todo_progress")
+
+
 # Tool functions for LLM integration
 
 
@@ -309,6 +388,10 @@ async def write_todos(
         "(it replaces by default); `get_todos` to check state."
     )
 
+    _broadcast_todo_progress(
+        result,
+        change_description=f"📋 Todo list {'updated' if replace else 'merged'} ({len(todos)} items)",
+    )
     return "\n".join(lines)
 
 
@@ -412,6 +495,9 @@ async def update_todo(
             "Pending: " + ", ".join(f"[{t['id']}] {t['content']}" for t in pending)
         )
 
+    status_icon = _STATUS_ICONS.get(status or "", "  ")
+    change_line = f"{status_icon} [{todo_id}] {updated_todo['content']} → {updated_todo['status']}"
+    _broadcast_todo_progress(result, change_description=change_line)
     return "\n".join(lines)
 
 
@@ -424,6 +510,16 @@ async def clear_todos(session: str = "") -> str:
     success = todo_manager.clear_todos(session_name)
 
     if success:
+        _broadcast_todo_progress(
+            {
+                "total": 0,
+                "completed": 0,
+                "in_progress": 0,
+                "pending": 0,
+                "cancelled": 0,
+            },
+            change_description="🗑 All todos cleared",
+        )
         return f"Cleared all todos for session '{session_name}'."
     return f"No todos to clear for session '{session_name}'."
 

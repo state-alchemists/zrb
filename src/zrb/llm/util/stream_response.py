@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, Callable, Literal
 if TYPE_CHECKING:
     from pydantic_ai import AgentStreamEvent
 
-PrintKind = Literal["text", "streaming", "progress", "tool_call", "usage", "thinking"]
+PrintKind = Literal["text", "streaming", "progress", "tool_call", "usage", "thinking", "todo_progress"]
 
 
 class StreamEventHandler:

@@ -54,7 +54,7 @@ class StdUI:
         """Print output to stderr."""
 
         content = sep.join(str(v) for v in values) + end
-        if kind != "text":
+        if kind not in ("text", "todo_progress"):
             content = stylize_faint(content)
         sys.stderr.write(content)
         if flush:

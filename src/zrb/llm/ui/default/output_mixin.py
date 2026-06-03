@@ -112,7 +112,7 @@ class OutputMixin:
             self._schedule_invalidate()
             return
 
-        if kind != "text":
+        if kind not in ("text", "todo_progress"):
 
             content = stylize_faint(content)
 
