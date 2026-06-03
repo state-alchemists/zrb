@@ -515,6 +515,8 @@ async def _execution_loop(
                     raise stream_error
                 current_history = outcome.new_history
                 current_message = outcome.new_message
+                if outcome.clear_results:
+                    current_results = None
                 continue
 
             if isinstance(result_output, DeferredToolRequests):
@@ -540,9 +542,19 @@ async def _execution_loop(
 
                 current_results = rebuild_for_denials(current_results)
                 current_message = None
-                current_history = await _apply_history_processors(
-                    run_history, history_processors
-                )
+                # Skip history processors when pending deferred results exist:
+                # they can orphan the ModelResponse whose tool_calls are
+                # expected by _handle_deferred_tool_results in the next stream
+                # iteration.  Processor effects are already applied in
+                # _prepare_history before the first stream call.
+                if current_results and (
+                    getattr(current_results, "calls", None) or getattr(current_results, "approvals", None)
+                ):
+                    current_history = run_history
+                else:
+                    current_history = await _apply_history_processors(
+                        run_history, history_processors
+                    )
                 CFG.LOGGER.debug("Continuing to next iteration with current_results")
                 continue
 

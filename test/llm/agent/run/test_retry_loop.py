@@ -272,3 +272,60 @@ async def test_handle_stream_error_unknown_exception():
     )
 
     assert outcome.should_retry is False
+
+
+@pytest.mark.asyncio
+async def test_handle_stream_error_deferred_mismatch():
+    """UserError about unprocessed tool calls retries with intact run_history."""
+    from pydantic_ai.exceptions import UserError as PydanticUserError
+
+    state = RetryState(deferred_mismatch_retry_done=False)
+    exc = PydanticUserError(
+        "Tool call results were provided, but the message history "
+        "does not contain any unprocessed tool calls."
+    )
+    run_history = ["intact-message"]
+    print_fn = MagicMock()
+
+    outcome = await handle_stream_error(
+        state, exc, [], None, run_history, print_fn
+    )
+
+    assert outcome.should_retry is True
+    assert outcome.clear_results is True
+    # Must hand back the intact history, not None — the runner feeds
+    # new_history straight into sanitize_history, which raises on None.
+    assert outcome.new_history == run_history
+    assert outcome.new_message is None
+    assert state.deferred_mismatch_retry_done is True
+    print_fn.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_handle_stream_error_deferred_mismatch_only_once():
+    """Second UserError with deferred_mismatch_retry_done=True does NOT retry."""
+    from pydantic_ai.exceptions import UserError as PydanticUserError
+
+    state = RetryState(deferred_mismatch_retry_done=True)
+    exc = PydanticUserError("message history does not contain any unprocessed tool calls")
+    print_fn = MagicMock()
+
+    outcome = await handle_stream_error(state, exc, [], None, [], print_fn)
+
+    assert outcome.should_retry is False
+    print_fn.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_handle_stream_error_user_error_other_message():
+    """Non-matching UserError is not caught by deferred mismatch handler."""
+    from pydantic_ai.exceptions import UserError as PydanticUserError
+
+    state = RetryState()
+    exc = PydanticUserError("Some other user error")
+    print_fn = MagicMock()
+
+    outcome = await handle_stream_error(state, exc, [], None, [], print_fn)
+
+    assert outcome.should_retry is False
+    print_fn.assert_not_called()
