@@ -267,16 +267,20 @@ class InputCompleter(Completer):
                     # Completing first arg: subcommand or model name
                     if "small".startswith(sub):
                         yield Completion(
-                            "small ", start_position=-len(parts[1]),
+                            "small ",
+                            start_position=-len(parts[1]),
                             display_meta="Set small/fast model",
                         )
                     if "multimodal".startswith(sub):
                         yield Completion(
-                            "multimodal ", start_position=-len(parts[1]),
+                            "multimodal ",
+                            start_position=-len(parts[1]),
                             display_meta="Set multimodal model",
                         )
                     yield from self._get_fuzzy_completions(
-                        parts[1], model_options, only_files=False,
+                        parts[1],
+                        model_options,
+                        only_files=False,
                         display_meta="Model Name",
                     )
             elif len(parts) == 3 and not text_before_cursor.endswith(" "):
@@ -284,7 +288,9 @@ class InputCompleter(Completer):
                 sub = parts[1].lower()
                 if sub in ("small", "multimodal"):
                     yield from self._get_fuzzy_completions(
-                        parts[2], model_options, only_files=False,
+                        parts[2],
+                        model_options,
+                        only_files=False,
                         display_meta="Model Name",
                     )
             return

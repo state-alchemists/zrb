@@ -546,9 +546,7 @@ class CommandsMixin:
                     self._small_model = model_name
                     _llm_config.small_model = model_name
                     self.append_to_output(
-                        stylize_faint(
-                            f"\n  🤖 Small model switched to: {model_name}\n"
-                        )
+                        stylize_faint(f"\n  🤖 Small model switched to: {model_name}\n")
                     )
                 elif arg.lower().startswith("multimodal "):
                     model_name = arg[11:].strip()

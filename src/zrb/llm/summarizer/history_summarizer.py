@@ -53,6 +53,7 @@ def create_summarizer_history_processor(
         message_token_threshold = CFG.LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD
     if summary_window is None:
         summary_window = CFG.LLM_HISTORY_SUMMARIZATION_WINDOW
+
     async def process_history(
         messages: "list[ModelMessage]", system_prompt_overhead: int = 0
     ) -> "list[ModelMessage]":
