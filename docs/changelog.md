@@ -1,6 +1,14 @@
 🔖 [Documentation Home](../README.md)
 
 
+## 2.32.0b1 (June 3, 2026)
+
+- **Feature: Todo progress visualization in the UI**:
+  - `write_todos`, `update_todo`, and `clear_todos` now push a styled progress card to the active UI (TUI, StdUI, web) after every change, showing the updated todo list with per-item status icons and a progress bar.
+  - Web frontend (`chat.js`/`chat.css`): new SSE handler and styles for `todo_progress` kind — renders a card with change banner, progress bar, stats, and full item list.
+  - TUI/StdUI: `todo_progress` kind rendered at full opacity (no `stylize_faint`).
+  - New ADR-0057 documenting the design: side-channel via `current_ui`, fire-and-forget, no tool contract changes.
+
 ## 2.32.0a2 (June 2, 2026)
 
 - **Improvement: Prompt quality and journaling workflow**:
