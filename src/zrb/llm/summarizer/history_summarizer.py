@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
 from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
-from zrb.llm.agent.run.history_utils import sanitize_history
 from zrb.llm.agent.summarizer import (
     create_conversational_summarizer_agent,
     create_message_summarizer_agent,
@@ -11,6 +10,7 @@ from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.config.limiter import llm_limiter as default_llm_limiter
 from zrb.llm.message import (
     ensure_alternating_roles,
+    strip_orphaned_returns,
     validate_tool_pair_integrity,
 )
 from zrb.llm.summarizer.chunk_processor import (
@@ -53,20 +53,21 @@ def create_summarizer_history_processor(
         message_token_threshold = CFG.LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD
     if summary_window is None:
         summary_window = CFG.LLM_HISTORY_SUMMARIZATION_WINDOW
-    # Pre-create agents when provided so they are consistent
-    if conversational_agent is None:
-        conversational_agent = create_conversational_summarizer_agent()
-    if message_agent is None:
-        message_agent = create_message_summarizer_agent()
-
     async def process_history(
         messages: "list[ModelMessage]", system_prompt_overhead: int = 0
     ) -> "list[ModelMessage]":
+        # Create fresh summarizer agents each call so model changes
+        # from /model small take effect immediately.
+        active_message_agent = message_agent or create_message_summarizer_agent()
+        active_conversational_agent = (
+            conversational_agent or create_conversational_summarizer_agent()
+        )
+
         # 1. Summarize individual fat messages first
         try:
             messages = await summarize_messages(
                 messages,
-                agent=message_agent,
+                agent=active_message_agent,
                 limiter=llm_limiter,
                 message_token_threshold=message_token_threshold,
                 conversational_token_threshold=conversational_token_threshold,
@@ -110,7 +111,7 @@ def create_summarizer_history_processor(
             )
             result = await summarize_history(
                 messages,
-                agent=conversational_agent or agent,
+                agent=active_conversational_agent,
                 summary_window=summary_window,
                 limiter=llm_limiter,
                 conversational_token_threshold=adjusted_threshold,
@@ -256,7 +257,7 @@ async def summarize_history(
                 ),
                 plain=True,
             )
-            to_keep = sanitize_history(to_keep)
+            to_keep = strip_orphaned_returns(to_keep)
 
         return ensure_alternating_roles([summary_message] + to_keep)
     except Exception as e:

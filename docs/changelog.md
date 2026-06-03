@@ -1,6 +1,22 @@
 🔖 [Documentation Home](../README.md)
 
 
+## 2.32.0b2 (June 3, 2026)
+
+- **Feature: `/model` subcommand for switching small and multimodal models**:
+  - UI now supports `/model small <name>` and `/model multimodal <name>` in addition to `/model <name>`.
+  - Tab-completion suggests subcommands and model names; setting the small/multimodal model updates `llm_config` instantly.
+  - Summarizer agents are now created fresh per `process_history` call so `/model small` changes take effect immediately without a restart.
+
+- **Improvement: Retry logic for summarization API errors**:
+  - `text_summarizer.py`: All summarization calls (`summarize_short_text`, `summarize_long_text`, `summarize_text`) now retry transient API errors (5xx, 429) using `LLM_API_MAX_RETRIES` and `LLM_API_MAX_WAIT`, matching the retry behavior in the main agent loop.
+
+- **Improvement: Targeted history sanitization after summarization**:
+  - `message.py`: New `strip_orphaned_returns()` removes `ToolReturnPart`s whose matching `ToolCallPart` was dropped during summarization, while leaving pending calls intact.
+  - `history_summarizer.py`: Replaced wholesale `sanitize_history()` after summarization with `strip_orphaned_returns()` — preserves the fix (removes orphaned returns) without re-running heavy sanitization passes unnecessarily.
+
+- **Tests**: 3090 passed (no regression).
+
 ## 2.32.0b1 (June 3, 2026)
 
 - **Feature: Todo progress visualization in the UI**:

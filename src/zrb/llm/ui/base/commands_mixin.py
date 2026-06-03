@@ -12,6 +12,7 @@ import os
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from zrb.llm.config.config import llm_config as _llm_config
 from zrb.llm.custom_command.resolver import resolve_custom_command
 from zrb.llm.hook.types import HookEvent
 from zrb.util.cli.markdown import render_markdown
@@ -64,6 +65,8 @@ class CommandsMixin:
         _markdown_theme: "Theme | None"
         _message_queue: asyncio.Queue
         _model: "Model | str | None"
+        _small_model: "Model | str | None"
+        _multimodal_model: "Model | str | None"
         _pending_attachments: list["UserContent"]
         _running_llm_task: asyncio.Task | None
         _snapshot_manager: "SnapshotManager | None"
@@ -532,17 +535,43 @@ class CommandsMixin:
             if text.lower().startswith(prefix):
                 if self._is_thinking:
                     return False
-                model_name = text[len(prefix) :].strip()
-                if not model_name:
+                arg = text[len(prefix) :].strip()
+                if not arg:
                     continue
-                self._model = model_name
-                try:
-                    self._llm_task.prompt_manager.model = model_name
-                except Exception:
-                    pass
-                self.append_to_output(
-                    stylize_faint(f"\n  🤖 Model switched to: {model_name}\n")
-                )
+
+                if arg.lower().startswith("small "):
+                    model_name = arg[6:].strip()
+                    if not model_name:
+                        continue
+                    self._small_model = model_name
+                    _llm_config.small_model = model_name
+                    self.append_to_output(
+                        stylize_faint(
+                            f"\n  🤖 Small model switched to: {model_name}\n"
+                        )
+                    )
+                elif arg.lower().startswith("multimodal "):
+                    model_name = arg[11:].strip()
+                    if not model_name:
+                        continue
+                    self._multimodal_model = model_name
+                    _llm_config.multimodal_model = model_name
+                    self.append_to_output(
+                        stylize_faint(
+                            f"\n  🤖 Multimodal model switched to: {model_name}\n"
+                        )
+                    )
+                else:
+                    # Main model — existing behavior unchanged
+                    model_name = arg
+                    self._model = model_name
+                    try:
+                        self._llm_task.prompt_manager.model = model_name
+                    except Exception:
+                        pass
+                    self.append_to_output(
+                        stylize_faint(f"\n  🤖 Model switched to: {model_name}\n")
+                    )
                 return True
         return False
 
@@ -763,7 +792,10 @@ class CommandsMixin:
         )
         add_cmd_help(self._summarize_commands, "Summarize conversation history")
         add_cmd_help(self._yolo_toggle_commands, "Toggle YOLO mode")
-        add_cmd_help(self._set_model_commands, "Set model (usage: {cmd} <model-name>)")
+        add_cmd_help(
+            self._set_model_commands,
+            "Set model (usage: {cmd} <model-name>, {cmd} small <model-name>, {cmd} multimodal <model-name>)",
+        )
         add_cmd_help(
             self._exec_commands, "Execute shell command (usage: {cmd} <command>)"
         )

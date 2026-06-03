@@ -123,6 +123,43 @@ def sanitize_orphaned_tool_calls(messages: list[Any]) -> list[Any]:
     return result
 
 
+def strip_orphaned_returns(messages: list[Any]) -> list[Any]:
+    """Remove ToolReturnParts whose matching ToolCallPart is not in *messages*.
+
+    Unlike sanitize_orphaned_tool_calls, this does NOT remove orphaned
+    ToolCallParts — they may be pending deferred tool results from the
+    model's most recent turn.  Only ToolReturnParts whose calls were in
+    the summarised (dropped) portion are stripped.
+    """
+    # lazy: heavy third-party
+    from pydantic_ai.messages import (
+        ModelRequest,
+        ToolReturnPart,
+    )
+
+    call_ids: set[str] = set()
+    return_ids: set[str] = set()
+    for _msg_idx, tool_call_id, kind in _iter_tool_events(messages):
+        if kind == "call":
+            call_ids.add(tool_call_id)
+        else:
+            return_ids.add(tool_call_id)
+
+    orphaned_returns = return_ids - call_ids
+    if not orphaned_returns:
+        return messages
+
+    result: list[Any] = []
+    for msg in messages:
+        if isinstance(msg, ModelRequest) and orphaned_returns:
+            patched = _strip_orphaned_parts(msg, orphaned_returns, ToolReturnPart)
+            if patched is not None:
+                result.append(patched)
+        else:
+            result.append(msg)
+    return result
+
+
 def get_tool_pairs(messages: list[Any]) -> dict[str, dict[str, int | None]]:
     """
     Extract tool call/return pairs from messages.

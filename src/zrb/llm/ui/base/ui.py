@@ -186,6 +186,8 @@ class BaseUI(CommandsMixin):
         if not self._conversation_session_name:
             self._conversation_session_name = get_random_name()
         self._model = model
+        self._small_model = None
+        self._multimodal_model = None
         self._triggers = triggers
         self._markdown_theme = markdown_theme
         self._summarize_commands = summarize_commands
@@ -326,6 +328,26 @@ class BaseUI(CommandsMixin):
     def model(self, value: Any):
         """Set the model."""
         self._model = value
+
+    @property
+    def small_model(self) -> Any:
+        """Get the current small model."""
+        return self._small_model
+
+    @small_model.setter
+    def small_model(self, value: Any):
+        """Set the small model."""
+        self._small_model = value
+
+    @property
+    def multimodal_model(self) -> Any:
+        """Get the current multimodal model."""
+        return self._multimodal_model
+
+    @multimodal_model.setter
+    def multimodal_model(self, value: Any):
+        """Set the multimodal model."""
+        self._multimodal_model = value
 
     @property
     def conversation_session_name(self) -> str:
