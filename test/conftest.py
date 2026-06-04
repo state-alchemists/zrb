@@ -24,14 +24,18 @@ import os
 
 import pytest
 
-# Non-secret placeholders. "gpt-4o*" resolve to an OpenAI model, which the
-# dummy OPENAI_API_KEY is enough to construct (real calls are mocked).
+# Non-secret placeholders. The "openai-chat:" prefix is explicit on purpose:
+# a bare "gpt-4o" makes pydantic-ai emit a "no provider prefix" deprecation and
+# then a second warning about "openai:" defaulting to the Responses API in v2.0.
+# "openai-chat:" pins the Chat Completions OpenAIModel (which the tests that
+# patch pydantic_ai.models.openai.OpenAIModel expect) and silences both. The
+# dummy OPENAI_API_KEY is enough to construct it (real calls are mocked).
 _TEST_ENV = {
     "OPENAI_API_KEY": "test-openai-key",
     "BRAVE_API_KEY": "test-brave-key",
     "SERPAPI_KEY": "test-serpapi-key",
-    "ZRB_LLM_MODEL": "gpt-4o",
-    "ZRB_LLM_SMALL_MODEL": "gpt-4o-mini",
+    "ZRB_LLM_MODEL": "openai-chat:gpt-4o",
+    "ZRB_LLM_SMALL_MODEL": "openai-chat:gpt-4o-mini",
 }
 
 
