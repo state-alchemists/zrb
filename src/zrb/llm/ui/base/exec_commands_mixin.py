@@ -71,7 +71,7 @@ class ExecCommandsMixin:
         for cmd in self._exec_commands:
             prefix = f"{cmd} "
             if text.strip().lower().startswith(prefix):
-                shell_cmd = text.strip()[len(prefix):].strip()
+                shell_cmd = text.strip()[len(prefix) :].strip()
                 if not shell_cmd:
                     return True
 
@@ -157,7 +157,7 @@ class ExecCommandsMixin:
         for cmd in self._btw_commands:
             prefix = f"{cmd} "
             if text.lower().startswith(prefix):
-                question = text[len(prefix):].strip()
+                question = text[len(prefix) :].strip()
                 if not question:
                     continue
 

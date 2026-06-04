@@ -40,7 +40,7 @@ class SystemInfoMixin:
         cwd = os.getcwd()
         home = os.path.expanduser("~")
         if cwd.startswith(home):
-            return "~" + cwd[len(home):]
+            return "~" + cwd[len(home) :]
         return cwd
 
     async def _get_git_info(self) -> tuple[str, str]:

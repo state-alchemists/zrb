@@ -79,7 +79,7 @@ class ConversationCommandsMixin:
         for cmd in self._save_commands:
             prefix = f"{cmd} "
             if text.lower().startswith(prefix):
-                name = text[len(prefix):].strip()
+                name = text[len(prefix) :].strip()
                 if not name:
                     continue
                 try:
@@ -103,7 +103,7 @@ class ConversationCommandsMixin:
         for cmd in self._load_commands:
             prefix = f"{cmd} "
             if text.lower().startswith(prefix):
-                name = text[len(prefix):].strip()
+                name = text[len(prefix) :].strip()
                 if not name:
                     continue
                 self._conversation_session_name = name
@@ -132,7 +132,7 @@ class ConversationCommandsMixin:
                 or text.lower().startswith(cmd.lower() + " ")
             ):
                 continue
-            arg = text[len(cmd):].strip()
+            arg = text[len(cmd) :].strip()
             if arg:
                 snapshots = self._snapshot_manager.list_snapshots()
                 sha: str | None = None
@@ -222,7 +222,7 @@ class ConversationCommandsMixin:
         for cmd in self._redirect_output_commands:
             prefix = f"{cmd} "
             if text.lower().startswith(prefix):
-                path = text[len(prefix):].strip()
+                path = text[len(prefix) :].strip()
                 if not path:
                     continue
 
@@ -254,7 +254,7 @@ class ConversationCommandsMixin:
         for cmd in self._attach_commands:
             prefix = f"{cmd} "
             if text.lower().startswith(prefix):
-                path = text[len(prefix):].strip()
+                path = text[len(prefix) :].strip()
                 self._submit_attachment(path)
                 return True
         return False

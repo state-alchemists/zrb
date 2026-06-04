@@ -1,6 +1,31 @@
 🔖 [Documentation Home](../README.md)
 
 
+## 2.32.0b4 (June 4, 2026)
+
+- **Fix: Stale prompt replacements from an incomplete cache key**:
+  - `llm/prompt/prompt.py`: `_get_prompt_replacements_cached` was `@lru_cache`d on the journal index file's *mtime* alone, but its output also depends on `LLM_JOURNAL_DIR`, `LLM_JOURNAL_INDEX_FILE`, `ENV_PREFIX`, `ROOT_GROUP_NAME`, and `LLM_ASSISTANT_NAME`. When the journal index file is missing (mtime falls back to `0.0`), changing the journal dir returned stale replacements — e.g. a `{CFG_LLM_JOURNAL_DIR}` placeholder rendered with the previous directory. The cache is now keyed on all of these inputs.
+
+- **Refactor: BaseUI / command-dispatch decomposition (ADR-0060)**:
+  - Split the two largest UI files into cohesive mixins composed onto `BaseUI`, with no public-API or behavior change. `ui.py` 1019→858: extracted `HistoryReplayMixin` (`replay_mixin.py`) and `SystemInfoMixin` (`system_info_mixin.py`). `commands_mixin.py` 907→417 (now pure dispatch + help + module helpers): the `_handle_*` handlers moved into `ConversationCommandsMixin`, `ModelCommandsMixin`, and `ExecCommandsMixin`. Each new mixin carries a `TYPE_CHECKING` host-contract block, mirroring the existing `CommandsMixin` pattern.
+
+- **Improvement: Surface silently-skipped files in search/analysis tools**:
+  - `file_search.py`: files that cannot be read mid-scan (permission/encoding/removed) are now counted and reported via a `warning` ("N file(s) were skipped … results may be incomplete") on both the ripgrep and os.walk paths, instead of a silent `except: pass`; each skip is logged at debug.
+  - `code.py` (`analyze_code`): LSP-fallback read failures now log at debug instead of silently passing.
+  - `shell.py`: a failed `killpg` SIGKILL during process-group teardown now logs a warning (orphaned process groups were previously swallowed); benign `ProcessLookupError` is still ignored.
+
+- **Improvement: Exception-safe run-scoped ContextVars**:
+  - `agent/run/runner.py`: `run_agent` now binds `current_ui` / `current_tool_confirmation` / `current_yolo` / `current_approval_channel` / `current_permission_policy` through an `ExitStack` (`_bind_contextvar`) so set/reset is symmetric — a failure mid-bind no longer resets tokens that were never set. The process-wide `_openai_patched` guard is now documented.
+
+- **Improvement: Public accessor for MultiUI children**:
+  - `ui/multi_ui.py`: added a public `children` property; `runner.py` uses it instead of reaching into the private `_uis` list when selecting a UI for the terminal approval channel.
+
+- **CI: the test suite now runs on every push/PR**:
+  - Added `.github/workflows/test.yml`, which runs `flake8 src/zrb --select=F` and the full pytest suite with coverage on push/PR to `main` across Python 3.11–3.13 (installs ripgrep; builds `README.pypi.md` before `poetry install`). Previously no GitHub Actions workflow ran the tests.
+
+- **Test: hermetic test environment**:
+  - Added `test/conftest.py`: an autouse fixture providing deterministic, non-secret env defaults (so agent/client construction never depends on the developer's ambient shell — `OPENAI_API_KEY`, `BRAVE_API_KEY`, `SERPAPI_KEY`, `ZRB_LLM_MODEL`, …) and snapshotting/restoring `os.environ` per test to prevent cross-test leakage via `CFG`'s env-writing setters. Resolves ~30 tests that only passed when those variables happened to be exported.
+
 ## 2.32.0b3 (June 4, 2026)
 
 - **Fix: History summarizer orphaning deferred-tool metadata (ADR-0058)**:

@@ -66,7 +66,7 @@ class ModelCommandsMixin:
                 return True
             if stripped.lower().startswith(cmd.lower() + " "):
                 # /yolo Write,Edit — activate selective yolo for those tools
-                tools_str = stripped[len(cmd):].strip()
+                tools_str = stripped[len(cmd) :].strip()
                 tools = frozenset(t.strip() for t in tools_str.split(",") if t.strip())
                 if tools:
                     self.yolo = tools
@@ -106,7 +106,7 @@ class ModelCommandsMixin:
             if text.lower().startswith(prefix):
                 if self._is_thinking:
                     return False
-                arg = text[len(prefix):].strip()
+                arg = text[len(prefix) :].strip()
                 if not arg:
                     continue
 
