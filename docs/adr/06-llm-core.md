@@ -265,3 +265,77 @@ in the deferred-tool branch of `_execution_loop`),
 (`test_run_agent_deferred_skips_processors_when_calls_pending`,
 `test_run_agent_deferred_runs_processors_when_no_pending`,
 `test_run_agent_deferred_mismatch_recovers_without_crash`).
+
+---
+
+## ADR-0059 — Degenerate model output must not corrupt the conversation: scoped placeholder + empty-completion guard
+
+**Status:** Accepted
+
+**Context.** Weak / overloaded models (observed: `deepseek-v4-flash` on ollama)
+expose two coupled failure modes:
+
+1. They emit assistant turns with **no text** — narration goes into a
+   `ThinkingPart` and a tool call, leaving `content` empty. `filter_nil_content`
+   injected a `TextPart("(tool call)")` whenever a `ModelResponse` had no text,
+   *including* tool-call-bearing turns. That placeholder is stored in history,
+   re-sent every turn, and the model **learns to imitate it** — emitting
+   `"(tool call)"` (or the truncated `"(tool call"`) as literal output. (One
+   production transcript: 29 placeholder turns, then 3 model-emitted imitations.)
+2. Under load / context pressure the stream **succeeds** but returns an empty
+   completion (zero output tokens, no tool call, no real text). The agent loop
+   accepted it and surfaced the `"(tool call)"` placeholder to the user as the
+   final answer.
+
+The placeholder injection's own comment said it was for responses with "no text
+**and** no tool calls" — but the code fired on "no text" alone, over-injecting.
+
+**Decision.** Two scoped defenses:
+
+1. **Scope the placeholder (`history_utils.py::filter_nil_content`).** Inject
+   `TextPart("(tool call)")` only when a `ModelResponse` has **neither** text
+   **nor** tool calls (the truly-empty turn providers reject). A tool-call-only
+   turn is left text-less — every provider accepts it and `openai_patch` already
+   omits the `content` field — so nothing imitable enters history. This aligns
+   the code with its own documented intent.
+2. **Empty-completion guard (`runner.py::_execution_loop`).** After the stream
+   (post-`DeferredToolRequests`, pre-`SESSION_END`), `_is_empty_completion` flags
+   a blank-or-placeholder **str** output. On a hit the turn is regenerated —
+   `_history_without_trailing_response` drops the degenerate trailing
+   `ModelResponse` (keeping tool returns, so the deferred-resume case works),
+   results/message reset to `None` — bounded by
+   `RetryState.max_empty_completion_retries` (default 2), then a clear
+   `RuntimeError` rather than surfacing the placeholder or looping forever.
+
+**Consequences.** The imitation feedback loop is cut at the source (1) and the
+degenerate terminal output is never shown (2). A genuine answer is always
+non-empty prose, so the guard never rejects real output; structured (non-str)
+outputs and `DeferredToolRequests` are excluded by construction. Cost: one extra
+post-stream check and a small retry counter.
+
+**Alternatives rejected.**
+- Keep injecting and make the placeholder "non-imitable" — fragile; any visible
+  marker in history is imitable.
+- Drop the placeholder entirely (even for text-less + tool-less turns) — those
+  turns are genuinely rejected by Bedrock/OpenAI; the placeholder is still needed
+  there.
+- Surface the empty output as the answer — silent wrong result that also poisons
+  the next turn's history.
+- Treat empty completion as a stream error in `handle_stream_error` — it is not
+  an exception; the stream succeeds, so it belongs in the runner loop.
+
+**Evidence.** **[DOCUMENTED]** `src/zrb/llm/agent/run/history_utils.py`
+(`filter_nil_content` `has_tool_call` guard),
+`src/zrb/llm/agent/run/runner.py` (`_is_empty_completion`,
+`_history_without_trailing_response`, `_EMPTY_COMPLETION_MARKERS`, the loop
+guard), `src/zrb/llm/agent/run/retry_loop.py`
+(`empty_completion_retry_count` / `max_empty_completion_retries`),
+`docs/advanced-topics/maintainer-guide.md` (sanitization table row + "The
+Empty-Completion Guard"). Tests: `test/llm/agent/run/test_history_utils.py`
+(`test_filter_nil_content`,
+`test_filter_nil_content_injects_placeholder_when_no_text_and_no_tool_call`,
+`test_filter_nil_content_no_placeholder_for_tool_call_only`),
+`test/llm/agent/run/test_runner.py`
+(`test_run_agent_retries_empty_completion_then_succeeds`,
+`test_run_agent_retries_tool_call_placeholder_leak`,
+`test_run_agent_empty_completion_raises_after_retries`).

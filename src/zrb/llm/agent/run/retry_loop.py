@@ -49,12 +49,17 @@ class RetryState:
     missing_reasoning_retry_done: bool = False
     opaque_retry_done: bool = False
     deferred_mismatch_retry_done: bool = False
+    empty_completion_retry_count: int = 0
     max_context_retries: int = field(
         default_factory=lambda: CFG.LLM_MAX_CONTEXT_RETRIES
     )
     max_transient_retries: int = field(
         default_factory=lambda: max(0, CFG.LLM_API_MAX_RETRIES - 1)
     )
+    # An empty/placeholder completion is usually a transient provider hiccup, so
+    # retry a couple of times; if it persists (e.g. context exceeds the model's
+    # window) the loop raises a clear error rather than surfacing the placeholder.
+    max_empty_completion_retries: int = 2
 
 
 @dataclass

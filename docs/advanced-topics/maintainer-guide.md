@@ -329,7 +329,7 @@ Zrb applies `sanitize_history()` at three points:
 
 | Step | Function | What it fixes |
 |------|----------|---------------|
-| 1 | `filter_nil_content` | `None`/`""` content in any part type (replaced with `"(empty)"`, or `"null"` for `ToolReturnPart`); injects `TextPart("(tool call)")` in `ModelResponse` when no text part exists but tool calls do |
+| 1 | `filter_nil_content` | `None`/`""` content in any part type (replaced with `"(empty)"`, or `"null"` for `ToolReturnPart`); injects `TextPart("(tool call)")` only in a `ModelResponse` that has **neither** text **nor** tool calls. A tool-call-only response is left text-less (every provider accepts it; `openai_patch` omits the `content` field) — injecting a placeholder there leaks `"(tool call)"` into history, which weaker models then echo back as literal output. |
 | 2 | `sanitize_orphaned_tool_calls` | Removes unmatched `ToolCallPart`/`ToolReturnPart` pairs; patches text-less messages left behind |
 | 3 | Drop empty messages | Removes `ModelRequest`/`ModelResponse` objects that have no parts remaining after steps 1–2 |
 | 4 | `ensure_alternating_roles` | Merges consecutive same-role messages by concatenating their `parts` lists (prevents back-to-back assistant or user messages) |
@@ -416,6 +416,14 @@ Two defenses cover this (see ADR-0058):
    ```
 
 2. **Recovery (`retry_loop.py`, `handle_stream_error`)** — a one-shot handler (gated by `deferred_mismatch_retry_done`) catches the `UserError`, clears the stale `current_results` via `RetryOutcome.clear_results`, and retries so the model generates fresh tool calls. It hands back the **intact `run_history`** (not `None`) as `new_history`: the runner assigns `outcome.new_history` to `current_history` unconditionally and the next iteration feeds it straight into `sanitize_history`, which raises `TypeError` on `None`.
+
+### The Empty-Completion Guard
+
+The sanitization and retry layers above all handle *errors* (exceptions). A weak or overloaded provider has a quieter failure mode: the stream **succeeds** but the final turn carries no real content — zero output tokens, no tool call, and either empty text or just the `"(tool call)"` placeholder (injected by `filter_nil_content`, or echoed by a model that learned to imitate it). Left unguarded, that placeholder is surfaced to the user as the answer.
+
+`_execution_loop` (`runner.py`) checks `_is_empty_completion(result_output)` after the stream, *after* the `DeferredToolRequests` branch (a deferred result is a legitimate tool-call outcome, never "empty") and *before* the `SESSION_END` hooks. `_is_empty_completion` returns `True` only for a **str** output that is blank or one of `_EMPTY_COMPLETION_MARKERS` (`"(tool call)"` and the bare `"(tool call"` imitation) — structured outputs are never caught.
+
+On a hit it regenerates the turn rather than returning it: `_history_without_trailing_response(run_history)` drops the degenerate trailing `ModelResponse` (keeping any tool returns, so the deferred-resume case is handled too), `current_message`/`current_results` are reset to `None`, and the loop re-requests. This is bounded by `RetryState.max_empty_completion_retries` (default 2); once exhausted the loop raises a clear `RuntimeError` ("Model returned an empty response …") instead of looping forever or surfacing the placeholder. A legitimate answer is always non-empty prose, so this never rejects real output.
 
 ### File Map
 

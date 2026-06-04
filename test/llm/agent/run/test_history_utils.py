@@ -128,13 +128,39 @@ def test_filter_nil_content():
     assert len(m2.parts) == 6
     assert m2.parts[0].content == "(empty)"
 
-    # Check msg3
+    # Check msg3 — a tool-call-only response is valid without text, so NO
+    # "(tool call)" placeholder is injected (it would otherwise leak into
+    # history and get imitated by weaker models).
     m3 = filtered[2]
     assert isinstance(m3, ModelResponse)
-    assert len(m3.parts) == 2
-    assert isinstance(m3.parts[0], TextPart)
-    assert m3.parts[0].content == "(tool call)"
-    assert isinstance(m3.parts[1], ToolCallPart)
+    assert len(m3.parts) == 1
+    assert isinstance(m3.parts[0], ToolCallPart)
+    assert not any(
+        isinstance(p, TextPart) and p.content == "(tool call)" for p in m3.parts
+    )
+
+
+def test_filter_nil_content_injects_placeholder_when_no_text_and_no_tool_call():
+    """A response with neither text nor tool calls (e.g. thinking-only) still
+    gets the "(tool call)" placeholder — providers reject a truly empty turn."""
+    msg = ModelResponse(parts=[ThinkingPart(content="reasoning only")])
+
+    filtered = filter_nil_content([msg])
+
+    out = filtered[0]
+    assert isinstance(out, ModelResponse)
+    assert isinstance(out.parts[0], TextPart)
+    assert out.parts[0].content == "(tool call)"
+
+
+def test_filter_nil_content_no_placeholder_for_tool_call_only():
+    """Tool-call-only response is left untouched: no placeholder TextPart."""
+    msg = ModelResponse(parts=[ToolCallPart(tool_name="t", args="{}")])
+
+    filtered = filter_nil_content([msg])
+
+    out = filtered[0]
+    assert [type(p).__name__ for p in out.parts] == ["ToolCallPart"]
 
 
 def test_filter_nil_content_preserves_builtin_tool_call_part():

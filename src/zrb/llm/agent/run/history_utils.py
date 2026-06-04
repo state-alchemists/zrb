@@ -92,7 +92,7 @@ def sanitize_history(
     """Comprehensive history sanitization applied before every model call.
 
     Applies fixes in a fixed order so each step's output is valid input for the next:
-    1. filter_nil_content         — fix None/empty part content; inject "(tool call)" placeholder
+    1. filter_nil_content         — fix None/empty part content; inject "(tool call)" placeholder only when a response has neither text nor tool calls
     2. sanitize_orphaned_tool_calls — remove unmatched ToolCallPart/ToolReturnPart pairs
        (skipped when allow_orphaned_tool_calls=True, i.e. when deferred_tool_results is set:
         ToolCallParts in history legitimately have no matching return in that path)
@@ -131,12 +131,19 @@ def filter_nil_content(messages: list[Any]) -> list[Any]:
     Fixes applied in one pass:
     - None/empty/whitespace content → "(empty)" (or "null" for ToolReturnPart)
     - ToolCallPart with no tool_name → dropped
-    - ModelResponse with no text but with tool calls → TextPart("(tool call)") injected
+    - ModelResponse with NEITHER text NOR tool calls → TextPart("(tool call)")
+      injected (a tool-call-only response is left text-less — see below)
 
     Bedrock rejects blank text fields, OpenAI rejects null content.
     The "(empty)" / "(tool call)" forms are self-describing so the model
     can distinguish a missing payload from a real terse response and
     avoid imitating a literal "." in its next turn.
+
+    A response that *has* tool calls is valid without any text part — every
+    provider accepts a tool-call-only assistant turn (openai_patch omits the
+    content field for it). We deliberately do NOT inject a placeholder there:
+    a visible "(tool call)" baked into history is something weaker models
+    learn to echo back as literal output text.
     """
 
     from pydantic_ai.messages import (  # lazy: heavy third-party
@@ -171,17 +178,27 @@ def filter_nil_content(messages: list[Any]) -> list[Any]:
 
         valid_parts = []
         has_text = False
+        has_tool_call = False
         for part in msg.parts:
             if isinstance(part, ToolCallPart):
                 if part.tool_name:
                     valid_parts.append(part)
+                    has_tool_call = True
             else:
                 valid_parts.append(_sanitize(part))
                 if isinstance(part, TextPart):
                     has_text = True
 
-        # Providers reject assistant messages with no text and no tool calls
-        if isinstance(msg, ModelResponse) and not has_text and valid_parts:
+        # Providers reject an assistant turn with no text AND no tool calls.
+        # A tool-call-only turn is fine, so only patch the genuinely-empty case;
+        # injecting "(tool call)" when tool calls exist leaks the placeholder
+        # into history where weaker models imitate it as output.
+        if (
+            isinstance(msg, ModelResponse)
+            and not has_text
+            and not has_tool_call
+            and valid_parts
+        ):
             valid_parts.insert(0, TextPart(content=TOOL_CALL_PLACEHOLDER))
 
         if valid_parts:

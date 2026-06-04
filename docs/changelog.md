@@ -1,6 +1,54 @@
 🔖 [Documentation Home](../README.md)
 
 
+## 2.32.0b3 (June 4, 2026)
+
+- **Fix: History summarizer orphaning deferred-tool metadata (ADR-0058)**:
+  - Deferred tool results (`_handle_deferred_tool_results`) could raise `UserError` when the summarizer compressed away the `ModelResponse` whose `tool_calls` matched `current_results` — causing an infinite retry death spiral. Two defences: (1) `retry_loop.py` catches the specific `UserError`, clears stale `current_results`, and retries with intact history; (2) `runner.py` skips the summarizer between deferred-tool iterations when pending results exist.
+  - Changelog note for summarization fixes between b2 and b3 see full ADR-0058 in `docs/adr/06-llm-core.md`.
+
+- **Fix: `_merge_consecutive_messages` in-place history mutation**:
+  - `runner.py`: `_merge_consecutive_messages` appended `UserPromptPart` directly to `current_history[-1]`, which was aliased to `FileHistoryManager`'s cached list — grafting the turn's prompt onto stored history for duplication on the next save/cancel path. Now builds a new `ModelRequest` via `replace()`.
+
+- **Fix: History file corruption recovery**:
+  - `file_history_manager.py` `_clean_*` methods now preserve unknown fields via `**data` (was dropping `ThinkingPart.signature`, `RetryPromptPart.tool_name`/`tool_call_id`, etc.).
+
+- **Fix: Model callback double-firing**:
+  - `create_agent` in `agent/common.py` gained `resolve_model=False`. Callers that already resolved the model (LLMTask, SubAgentManager, summarizer, code tools, multimodal describer) now pass the flag to prevent `model_getter`/`model_renderer` from firing twice on an already-resolved value.
+
+- **Fix: OpenAI content:null patch silently failing**:
+  - `openai_patch.py` now verifies the target attribute exists before patching, and logs a `CFG.LOGGER.warning` (instead of `pass`) when pydantic-ai internals change — making DeepSeek/OpenAI-compatible provider regressions diagnosable.
+
+- **Fix: `filter_nil_content` over-injecting `"(tool call)"` placeholder (ADR-0059)**:
+  - Previously injected a `TextPart("(tool call)")` into *any* text-less `ModelResponse`, including tool-call-only turns. That placeholder leaked into history, and weaker models (observed: `deepseek-v4-flash` on ollama) learned to imitate `"(tool call)"` as literal output — one transcript had 29 placeholder turns then 3 imitation emissions. Now the placeholder is injected only when a `ModelResponse` has **neither** text **nor** tool calls. A tool-call-only turn is valid without text (every provider accepts it; `openai_patch` omits the `content` field), so no placeholder is needed.
+
+- **Fix: Empty/placeholder completions no longer surfaced as final answer**:
+  - `runner.py`: New `_is_empty_completion` guard catches blank strings and leaked `"(tool call)"` / `"(tool call"` output after the stream. On detection, `_history_without_trailing_response` drops the degenerate trailing `ModelResponse` and the turn is regenerated (bounded by `max_empty_completion_retries=2`). After exhaustion, raises a clear `RuntimeError` instead of showing the placeholder or looping forever. Structured outputs and `DeferredToolRequests` bypass the guard by construction.
+
+- **Improvement: Tool error messages with actionable guidance**:
+  - `file_read.py`, `file_edit.py`, `shell.py`: all error return paths now include a `[SYSTEM SUGGESTION]` prefix directing the model to the likely fix (check path, permissions, syntax, etc.).
+
+- **Improvement: Summarizer safety and reliability**:
+  - `chunk_processor.py`: `consolidate_summaries` accepts explicit `limiter` parameter.
+  - `history_summarizer.py`: Uses `strip_orphaned_returns` (targeted removal) instead of wholesale `sanitize_history` after compression; passes `limiter` through to consolidation.
+  - `message_processor.py`: Deduplicated safe-copy logic via `safe_copy_result` from `agent/common.py`.
+
+- **Improvement: Cold-start optimization**:
+  - Added `# lazy:` annotations to in-function imports across `commands_mixin.py`, `ui.py`, `deferred_calls.py`, `post_write_check.py`, `retry_loop.py`.
+
+- **Improvement: tiktoken robustness**:
+  - `limiter.py`: Broader `except Exception` (not just `ImportError`) in token counting and truncation — prevents tiktoken encoding/BPE failures from crashing the history pipeline before every model call.
+
+- **Improvement: Content placeholders centralized**:
+  - `message.py`: Introduced `TOOL_CALL_PLACEHOLDER`, `EMPTY_CONTENT_PLACEHOLDER`, `TOOL_RETURN_NULL_PLACEHOLDER` constants; all history-utils layers now reference these instead of scattered string literals.
+
+- **Tests**: 3104 passed (no regression).
+
+- **Documentation**:
+  - ADR-0058 and ADR-0059 in `docs/adr/06-llm-core.md`.
+  - Maintainer guide: new patterns (`resolve_model=False`, lazy import conventions) and "The Empty-Completion Guard" section.
+  - AGENTS.md: `run_agent.py` → `agent/run/runner.py` reference fix.
+
 ## 2.32.0b2 (June 3, 2026)
 
 - **Feature: `/model` subcommand for switching small and multimodal models**:

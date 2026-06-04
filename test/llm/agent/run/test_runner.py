@@ -431,6 +431,147 @@ async def test_run_agent_deferred_mismatch_recovers_without_crash():
 
 
 @pytest.mark.asyncio
+async def test_run_agent_retries_empty_completion_then_succeeds():
+    """An empty-string completion is regenerated, not surfaced as the answer."""
+    agent = MagicMock()
+    empty = MagicMock()
+    empty.output = ""
+    empty.all_messages.return_value = []
+    good = MagicMock()
+    good.output = "Real answer"
+    good.all_messages.return_value = []
+
+    call_count = 0
+
+    async def _gen(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        yield AgentRunResultEvent(result=empty if call_count == 1 else good)
+
+    agent.run_stream_events = _stream_from(_gen)
+
+    result, _ = await run_agent(
+        agent=agent, message="Hi", message_history=[], limiter=LLMLimiter()
+    )
+
+    assert result == "Real answer"
+    assert call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_run_agent_retries_tool_call_placeholder_leak():
+    """The '(tool call)' placeholder leaking as output is treated as empty."""
+    agent = MagicMock()
+    leak = MagicMock()
+    leak.output = "(tool call)"
+    leak.all_messages.return_value = []
+    good = MagicMock()
+    good.output = "Done"
+    good.all_messages.return_value = []
+
+    call_count = 0
+
+    async def _gen(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        yield AgentRunResultEvent(result=leak if call_count == 1 else good)
+
+    agent.run_stream_events = _stream_from(_gen)
+
+    result, _ = await run_agent(
+        agent=agent, message="Hi", message_history=[], limiter=LLMLimiter()
+    )
+
+    assert result == "Done"
+    assert call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_run_agent_empty_completion_retry_trims_trailing_response():
+    """On retry the degenerate trailing ModelResponse is dropped from history."""
+    from pydantic_ai.messages import ModelRequest, ModelResponse, TextPart, UserPromptPart
+
+    agent = MagicMock()
+    empty = MagicMock()
+    empty.output = ""
+    empty.all_messages.return_value = [
+        ModelRequest(parts=[UserPromptPart(content="Hi")]),
+        ModelResponse(parts=[TextPart(content="")]),  # the degenerate turn
+    ]
+    good = MagicMock()
+    good.output = "Recovered"
+    good.all_messages.return_value = []
+
+    call_count = 0
+    histories = []
+
+    async def _gen(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        histories.append(kwargs.get("message_history"))
+        yield AgentRunResultEvent(result=empty if call_count == 1 else good)
+
+    agent.run_stream_events = _stream_from(_gen)
+
+    result, _ = await run_agent(
+        agent=agent, message="Hi", message_history=[], limiter=LLMLimiter()
+    )
+
+    assert result == "Recovered"
+    # Second request's history had the trailing (empty) ModelResponse trimmed,
+    # leaving only the ModelRequest.
+    second = histories[1]
+    assert [type(m).__name__ for m in second] == ["ModelRequest"]
+
+
+@pytest.mark.asyncio
+async def test_run_agent_structured_output_bypasses_empty_guard():
+    """A non-str (structured) output is never treated as an empty completion."""
+    agent = MagicMock()
+    structured = {"answer": 42}
+    result_obj = MagicMock()
+    result_obj.output = structured
+    result_obj.all_messages.return_value = []
+
+    async def _gen(*args, **kwargs):
+        yield AgentRunResultEvent(result=result_obj)
+
+    agent.run_stream_events = _stream_from(_gen)
+
+    result, _ = await run_agent(
+        agent=agent, message="Hi", message_history=[], limiter=LLMLimiter()
+    )
+
+    assert result == structured
+
+
+@pytest.mark.asyncio
+async def test_run_agent_empty_completion_raises_after_retries():
+    """A persistently empty completion raises a clear error (bounded retries)."""
+    agent = MagicMock()
+    empty = MagicMock()
+    empty.output = ""
+    empty.all_messages.return_value = []
+
+    call_count = 0
+
+    async def _gen(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        yield AgentRunResultEvent(result=empty)
+
+    agent.run_stream_events = _stream_from(_gen)
+
+    with pytest.raises(RuntimeError, match="empty response"):
+        await run_agent(
+            agent=agent, message="Hi", message_history=[], limiter=LLMLimiter()
+        )
+
+    # 1 original attempt + max_empty_completion_retries (2) = 3 stream calls.
+    assert call_count == 3
+
+
+@pytest.mark.asyncio
 async def test_run_agent_session_end_replace_response_false():
     """Test SESSION_END hook with replace_response=False returns original response."""
     agent = MagicMock()
