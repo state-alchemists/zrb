@@ -115,46 +115,61 @@ def _read_package_prompt(name: str) -> str:
 
 
 def _get_prompt_replacements() -> dict[str, str]:
-    """Return replacement dict, re-computed only when the journal index changes."""
+    """Return replacement dict, re-computed only when an input changes."""
+    journal_dir = CFG.LLM_JOURNAL_DIR
+    journal_index_name = CFG.LLM_JOURNAL_INDEX_FILE
     journal_index_file = os.path.abspath(
-        os.path.expanduser(
-            os.path.join(CFG.LLM_JOURNAL_DIR, CFG.LLM_JOURNAL_INDEX_FILE),
-        )
+        os.path.expanduser(os.path.join(journal_dir, journal_index_name))
     )
     try:
         mtime = os.path.getmtime(journal_index_file)
     except OSError:
         mtime = 0.0
-    return dict(_get_prompt_replacements_cached(mtime))
-
-
-@lru_cache(maxsize=4)
-def _get_prompt_replacements_cached(journal_mtime: float) -> dict[str, str]:
-    """Compute all prompt replacements; keyed by journal index mtime so it
-    refreshes automatically whenever the user updates their journal."""
-    replacements: dict[str, str] = {}
-    cfg_attributes = [
-        "LLM_JOURNAL_DIR",
-        "LLM_JOURNAL_INDEX_FILE",
-        "ROOT_GROUP_NAME",
-        "LLM_ASSISTANT_NAME",
-        "ENV_PREFIX",
-    ]
-    for attr in cfg_attributes:
-        if hasattr(CFG, attr):
-            value = getattr(CFG, attr)
-            if value is not None:
-                placeholder = f"{{CFG_{attr}}}"
-                replacements[placeholder] = str(value)
-
-    journal_dir = os.path.abspath(os.path.expanduser(CFG.LLM_JOURNAL_DIR))
-    journal_index_file = os.path.abspath(
-        os.path.expanduser(
-            os.path.join(CFG.LLM_JOURNAL_DIR, CFG.LLM_JOURNAL_INDEX_FILE),
+    # Key the cache by every value the result depends on, not just mtime: a
+    # missing index file always reports mtime 0.0, so keying on mtime alone
+    # returned stale replacements after the journal dir (or any other config
+    # value) changed without the index file's mtime changing.
+    return dict(
+        _get_prompt_replacements_cached(
+            journal_dir,
+            journal_index_name,
+            CFG.ROOT_GROUP_NAME,
+            CFG.LLM_ASSISTANT_NAME,
+            CFG.ENV_PREFIX,
+            mtime,
         )
     )
+
+
+@lru_cache(maxsize=8)
+def _get_prompt_replacements_cached(
+    journal_dir: str,
+    journal_index_name: str,
+    root_group_name: str,
+    assistant_name: str,
+    env_prefix: str,
+    journal_mtime: float,
+) -> dict[str, str]:
+    """Compute all prompt replacements; cached on every input so it refreshes
+    when the journal index changes (mtime) or any config value changes."""
+    replacements: dict[str, str] = {}
+    cfg_values = {
+        "LLM_JOURNAL_DIR": journal_dir,
+        "LLM_JOURNAL_INDEX_FILE": journal_index_name,
+        "ROOT_GROUP_NAME": root_group_name,
+        "LLM_ASSISTANT_NAME": assistant_name,
+        "ENV_PREFIX": env_prefix,
+    }
+    for attr, value in cfg_values.items():
+        if value is not None:
+            replacements[f"{{CFG_{attr}}}"] = str(value)
+
+    journal_dir_abs = os.path.abspath(os.path.expanduser(journal_dir))
+    journal_index_file = os.path.abspath(
+        os.path.expanduser(os.path.join(journal_dir, journal_index_name))
+    )
     replacements["{CFG_LLM_JOURNAL_DIR_STATUS}"] = (
-        "exists" if os.path.exists(journal_dir) else "inexist"
+        "exists" if os.path.exists(journal_dir_abs) else "inexist"
     )
     replacements["{CFG_LLM_JOURNAL_INDEX_FILE_STATUS}"] = (
         "exists" if os.path.isfile(journal_index_file) else "inexist"
