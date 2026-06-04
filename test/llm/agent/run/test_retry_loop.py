@@ -313,9 +313,7 @@ async def test_handle_stream_error_deferred_mismatch():
     run_history = ["intact-message"]
     print_fn = MagicMock()
 
-    outcome = await handle_stream_error(
-        state, exc, [], None, run_history, print_fn
-    )
+    outcome = await handle_stream_error(state, exc, [], None, run_history, print_fn)
 
     assert outcome.should_retry is True
     assert outcome.clear_results is True
@@ -333,7 +331,9 @@ async def test_handle_stream_error_deferred_mismatch_only_once():
     from pydantic_ai.exceptions import UserError as PydanticUserError
 
     state = RetryState(deferred_mismatch_retry_done=True)
-    exc = PydanticUserError("message history does not contain any unprocessed tool calls")
+    exc = PydanticUserError(
+        "message history does not contain any unprocessed tool calls"
+    )
     print_fn = MagicMock()
 
     outcome = await handle_stream_error(state, exc, [], None, [], print_fn)
