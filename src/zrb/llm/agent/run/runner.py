@@ -19,6 +19,7 @@ docs/advanced-topics/maintainer-guide.md#llm-history-sanitization-layer.
 from __future__ import annotations
 
 import asyncio
+from contextlib import ExitStack
 from contextvars import ContextVar
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, TypeAlias
@@ -78,6 +79,10 @@ current_tool_confirmation: ContextVar[AnyToolConfirmation] = ContextVar(
 )
 current_yolo: ContextVar[bool] = ContextVar("current_yolo", default=False)
 
+# Process-wide guard: the OpenAI serialization patch is global and idempotent,
+# so it only needs to run once per process. The check-then-set is safe under
+# CPython's GIL for this single-process, asyncio (single-thread) usage; re-running
+# the patch would be harmless anyway.
 _openai_patched = False
 
 
@@ -131,13 +136,18 @@ async def run_agent(
         else current_permission_policy.get()
     )
 
-    token_ui = current_ui.set(effective_ui)
-    token_confirmation = current_tool_confirmation.set(effective_tool_confirmation)
-    token_yolo = current_yolo.set(effective_yolo)
-    token_approval_channel = current_approval_channel.set(effective_approval_channel)
-    token_policy = current_permission_policy.set(effective_policy)
-
+    # Bind the run-scoped ContextVars through an ExitStack so set/reset stays
+    # symmetric and exception-safe: if a later bind raises, the vars already
+    # bound are still reset on close (the old per-token finally reset tokens
+    # that may never have been set).
+    stack = ExitStack()
     try:
+        _bind_contextvar(stack, current_ui, effective_ui)
+        _bind_contextvar(stack, current_tool_confirmation, effective_tool_confirmation)
+        _bind_contextvar(stack, current_yolo, effective_yolo)
+        _bind_contextvar(stack, current_approval_channel, effective_approval_channel)
+        _bind_contextvar(stack, current_permission_policy, effective_policy)
+
         effective_print_fn, effective_event_handler = _setup_print_and_events(
             print_fn, event_handler, effective_ui
         )
@@ -181,11 +191,16 @@ async def run_agent(
             effective_approval_channel=effective_approval_channel,
         )
     finally:
-        current_ui.reset(token_ui)
-        current_tool_confirmation.reset(token_confirmation)
-        current_yolo.reset(token_yolo)
-        current_approval_channel.reset(token_approval_channel)
-        current_permission_policy.reset(token_policy)
+        stack.close()
+
+
+def _bind_contextvar(stack: ExitStack, var: ContextVar, value: Any) -> None:
+    """Set `var` to `value` and register its reset on the stack.
+
+    Keeps ContextVar set/reset symmetric and exception-safe across the run.
+    """
+    token = var.set(value)
+    stack.callback(var.reset, token)
 
 
 def _resolve_context_dependencies(
@@ -229,8 +244,9 @@ def _resolve_context_dependencies(
 
         if not isinstance(effective_approval_channel, MultiplexApprovalChannel):
             ui_for_terminal = effective_ui
-            if hasattr(effective_ui, "_uis") and effective_ui._uis:
-                ui_for_terminal = effective_ui._uis[0]
+            children = getattr(effective_ui, "children", None)
+            if children:
+                ui_for_terminal = children[0]
             CFG.LOGGER.debug(
                 f"Creating TerminalApprovalChannel with UI: {ui_for_terminal}"
             )

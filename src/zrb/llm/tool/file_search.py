@@ -169,6 +169,22 @@ def _build_search_output(
     }
 
 
+def _merge_skipped_warning(warning: str | None, skipped_count: int) -> str | None:
+    """Fold a 'files skipped' notice into the existing warning, if any.
+
+    Surfaces silently-unreadable files so partial results are never presented
+    as complete.
+    """
+    if skipped_count <= 0:
+        return warning
+    notice = (
+        f"{skipped_count} file(s) were skipped because they could not be read "
+        f"(permission denied, encoding error, or removed mid-scan); "
+        f"results may be incomplete."
+    )
+    return f"{warning} {notice}" if warning else notice
+
+
 def _search_with_ripgrep(
     pattern: "re.Pattern",
     regex: str,
@@ -209,6 +225,7 @@ def _search_with_ripgrep(
     result_entries: list[Any] = []
     match_count = 0
     file_match_count = 0
+    skipped_count = 0
 
     for file_path in matching_files:
         rel_file_path = os.path.relpath(file_path, os.getcwd())
@@ -226,8 +243,9 @@ def _search_with_ripgrep(
                 result_entries.append(
                     _build_file_match_entry(rel_file_path, matches, files_only)
                 )
-        except Exception:
-            pass
+        except Exception as e:
+            skipped_count += 1
+            CFG.LOGGER.debug(f"file_search: skipped unreadable file {file_path}: {e}")
 
     return _build_search_output(
         result_entries=result_entries,
@@ -236,6 +254,7 @@ def _search_with_ripgrep(
         searched_file_count=None,
         regex=regex,
         path=abs_path,
+        warning=_merge_skipped_warning(None, skipped_count),
         auto_truncate=auto_truncate,
         preserved_head_lines=preserved_head_lines,
         preserved_tail_lines=preserved_tail_lines,
@@ -261,6 +280,7 @@ def _search_with_os_walk(
     match_count = 0
     searched_file_count = 0
     file_match_count = 0
+    skipped_count = 0
     warning: str | None = None
 
     for root, dirs, files in os.walk(abs_path):
@@ -303,8 +323,11 @@ def _search_with_os_walk(
                     result_entries.append(
                         _build_file_match_entry(rel_file_path, matches, files_only)
                     )
-            except Exception:
-                pass
+            except Exception as e:
+                skipped_count += 1
+                CFG.LOGGER.debug(
+                    f"file_search: skipped unreadable file {file_path}: {e}"
+                )
 
     return _build_search_output(
         result_entries=result_entries,
@@ -317,7 +340,7 @@ def _search_with_os_walk(
         preserved_head_lines=preserved_head_lines,
         preserved_tail_lines=preserved_tail_lines,
         files_only=files_only,
-        warning=warning,
+        warning=_merge_skipped_warning(warning, skipped_count),
     )
 
 
