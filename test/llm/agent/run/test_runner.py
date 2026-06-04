@@ -489,7 +489,12 @@ async def test_run_agent_retries_tool_call_placeholder_leak():
 @pytest.mark.asyncio
 async def test_run_agent_empty_completion_retry_trims_trailing_response():
     """On retry the degenerate trailing ModelResponse is dropped from history."""
-    from pydantic_ai.messages import ModelRequest, ModelResponse, TextPart, UserPromptPart
+    from pydantic_ai.messages import (
+        ModelRequest,
+        ModelResponse,
+        TextPart,
+        UserPromptPart,
+    )
 
     agent = MagicMock()
     empty = MagicMock()

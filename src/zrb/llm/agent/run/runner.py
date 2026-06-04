@@ -31,7 +31,6 @@ from zrb.llm.agent.run.deferred_calls import (
     rebuild_for_denials,
 )
 from zrb.llm.agent.run.history_utils import sanitize_history
-from zrb.llm.message import TOOL_CALL_PLACEHOLDER
 from zrb.llm.agent.run.hook_result_extractor import (
     extract_additional_context,
 )
@@ -48,7 +47,7 @@ from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
 from zrb.llm.hook.types import HookEvent
-from zrb.llm.message import ensure_alternating_roles
+from zrb.llm.message import TOOL_CALL_PLACEHOLDER, ensure_alternating_roles
 from zrb.llm.permission.state import current_permission_policy
 from zrb.llm.tool_call.handler import ToolCallHandler
 from zrb.llm.tool_call.ui_protocol import UIProtocol
