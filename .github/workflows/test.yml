@@ -31,7 +31,14 @@ jobs:
       - name: Install Poetry
         run: pipx install poetry
 
+      - name: Install ripgrep
+        # file_search and the journal tool prefer `rg`; one test exercises the
+        # ripgrep path directly and needs the binary present.
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
+
       - name: Build README.pypi.md
+        # README.pypi.md is the readme Poetry packages (it is gitignored), so it
+        # must be generated before `poetry install` reads pyproject.
         run: python scripts/build_pypi_readme.py
 
       - name: Cache Poetry virtualenv
@@ -44,14 +51,6 @@ jobs:
         run: |
           poetry install --all-extras --no-interaction
 
-      - name: Lint (pyflakes-class) and run tests with coverage
-        run: |
-          poetry run flake8 src/zrb --select=F
-          poetry run pytest \
-            --ignore-glob="**/template/**" \
-            --ignore-glob="**/fastapp_template/**" \
-            --ignore="playground" \
-            --ignore="llm-challenges" \
-            --cov=zrb \
-            --cov-config=".coveragerc" \
-            --cov-report="term-missing:skip-covered"
+      - name: Lint and run tests with coverage
+        # Single source of truth: the same script developers run locally.
+        run: poetry run bash zrb-test.sh
