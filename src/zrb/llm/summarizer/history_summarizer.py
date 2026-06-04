@@ -237,6 +237,7 @@ async def summarize_history(
                 summarizer_agent,
                 conversational_token_threshold,
                 has_multiple_snapshots,
+                limiter=llm_limiter,
             )
         # 4. Create Result
         summary_message = _create_summary_model_request(summary_text)
@@ -244,10 +245,15 @@ async def summarize_history(
             return messages
         if not to_keep:
             return [summary_message]
-        # Fix orphaned tool call/return pairs before returning.
-        # Compression can leave ToolCallParts whose returns were in the summarised
-        # portion, or ToolReturnParts whose calls were dropped.  Providers like
-        # Bedrock reject such history with ValidationException.
+        # Fix orphaned tool RETURNS before returning. split_history never
+        # separates a *complete* call/return pair, so the only orphan compression
+        # can introduce into `to_keep` is a ToolReturnPart whose matching call was
+        # summarised away. strip_orphaned_returns removes exactly those. Orphaned
+        # ToolCallParts (a call with no return) are left intact — they may be
+        # legitimately pending deferred results — and the run loop's
+        # sanitize_orphaned_tool_calls is the backstop for any that must not
+        # survive. Providers like Bedrock reject orphaned returns with
+        # ValidationException.
         is_valid, problems = validate_tool_pair_integrity(to_keep)
         if not is_valid and problems:
             zrb_print(

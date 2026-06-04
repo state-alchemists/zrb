@@ -46,7 +46,7 @@ User-added prompts follow. Override via the `include_sections` constructor param
 Canonical index in `src/zrb/contextvars.py` — every var, its owning module, and its typed wrapper.
 
 - **Reading:** prefer the wrapper.
-- **Scoped writes:** use the underlying `ContextVar` (`token = var.set(...)` then `var.reset(token)`). Canonical pattern in `run_agent.py`.
+- **Scoped writes:** use the underlying `ContextVar` (`token = var.set(...)` then `var.reset(token)`). Canonical pattern in `agent/run/runner.py`.
 
 ### Worktree Storage
 

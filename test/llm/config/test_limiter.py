@@ -1,11 +1,36 @@
 import asyncio
 import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 from pydantic_ai.messages import ModelRequest, UserPromptPart
 
 from zrb.llm.config.limiter import LLMLimiter, is_turn_start
+
+
+@pytest.mark.asyncio
+async def test_count_tokens_falls_back_when_tiktoken_raises_non_import_error():
+    """A tiktoken failure that is NOT ImportError (bad encoding name,
+    corrupt/unfetchable BPE cache) must degrade to the char/4 approximation
+    rather than propagating and crashing the history pipeline."""
+    limiter = LLMLimiter()
+    with patch.object(
+        LLMLimiter, "use_tiktoken", new_callable=PropertyMock, return_value=True
+    ), patch("tiktoken.get_encoding", side_effect=ValueError("unknown encoding")):
+        # Must not raise; falls back to len(text) // 4.
+        assert limiter.count_tokens("A" * 40) == 10
+
+
+@pytest.mark.asyncio
+async def test_truncate_text_falls_back_when_tiktoken_raises_non_import_error():
+    """B1 companion: truncate_text already tolerated broad failures; confirm it
+    still degrades gracefully (no crash) on a non-ImportError."""
+    limiter = LLMLimiter()
+    with patch.object(
+        LLMLimiter, "use_tiktoken", new_callable=PropertyMock, return_value=True
+    ), patch("tiktoken.get_encoding", side_effect=ValueError("unknown encoding")):
+        truncated = limiter.truncate_text("A" * 40, 5)
+        assert truncated == "A" * 20  # char/4 fallback: 5 tokens * 4 chars
 
 
 @pytest.mark.asyncio

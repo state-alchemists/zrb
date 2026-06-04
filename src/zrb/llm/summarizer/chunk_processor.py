@@ -93,6 +93,7 @@ async def consolidate_summaries(
     agent: Any,
     conversational_token_threshold: int,
     has_multiple_snapshots: bool,
+    limiter: "LLMLimiter | None" = None,
 ) -> str:
     if has_multiple_snapshots:
         zrb_print(stylize_yellow("  Consolidating multiple snapshots..."), plain=True)
@@ -103,6 +104,7 @@ async def consolidate_summaries(
         )
 
     # Use summarize_text_plain to safely consolidate even a large block of summaries
+    llm_limiter = limiter or default_llm_limiter
     prompt = (
         "Consolidate the following conversation state snapshots into a single, cohesive "
         "<state_snapshot>.\n"
@@ -111,5 +113,5 @@ async def consolidate_summaries(
         f"{summary_text}"
     )
     return await summarize_text_plain(
-        prompt, agent, default_llm_limiter, conversational_token_threshold
+        prompt, agent, llm_limiter, conversational_token_threshold
     )

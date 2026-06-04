@@ -86,7 +86,7 @@ src/zrb/llm/agent/run/runner.py :: run_agent()
 
 `LLMTask._exec_action()` resolves dynamic attributes (model, system prompt, message), calls `create_agent()` to build a `pydantic_ai.Agent`, then enters `run_agent()`.
 
-`run_agent()` is where the six agent and permission `ContextVar`s get bound: `current_ui`, `current_tool_confirmation`, `current_yolo`, `current_approval_channel`, `current_permission_policy`, and `current_agent_mode`. They're reset in the matching `finally`. See [maintainer-guide.md#context-propagation-internals](./maintainer-guide.md#context-propagation-internals) for the full ContextVar map.
+`run_agent()` is where five agent and permission `ContextVar`s get bound: `current_ui`, `current_tool_confirmation`, `current_yolo`, `current_approval_channel`, and `current_permission_policy`. They're reset in the matching `finally`. (`current_agent_mode` is *not* bound here — it is set by the plan-mode tools.) See [maintainer-guide.md#context-propagation-internals](./maintainer-guide.md#context-propagation-internals) for the full ContextVar map.
 
 ---
 
@@ -111,7 +111,7 @@ This is the heart. Every turn:
 3. **Classify exceptions** (`error_classifier.py`) and decide whether to retry, strip thinking parts, or give up (`retry_loop.py`).
 4. **Sanitize the result history** after a successful turn so the next call sees a provider-clean message list.
 
-If the loop hits compression because the conversation exceeded `LLM_MAX_HISTORY_TOKENS`, control transfers to:
+If the loop hits compression because the conversation exceeded `LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD` (or the message count exceeded `LLM_HISTORY_SUMMARIZATION_WINDOW`), control transfers to:
 
 ```
 src/zrb/llm/summarizer/history_summarizer.py :: summarize_history()
@@ -154,7 +154,7 @@ src/zrb/llm/history_manager/file_history_manager.py :: save()
 After the loop terminates (success, error, or user exit):
 - The final history is sanitized one more time and persisted by the active `HistoryManager`.
 - If snapshot/rewind is enabled, `SnapshotManager` writes a checkpoint.
-- The four agent-level `ContextVar`s reset (their `finally` block in `run_agent()`).
+- The five agent-level `ContextVar`s reset (their `finally` block in `run_agent()`).
 - Background tasks (refresh loop, system-info loop, message queue, triggers) are cancelled and awaited (`UI.cleanup_background_tasks()` in `default/lifecycle_mixin.py`).
 
 Control returns up through `LLMChatTask._exec_action` → `run_task_async` → `cli.run` → `serve_cli` → process exit.

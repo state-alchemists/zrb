@@ -29,8 +29,8 @@ web_auth_config.guest_accessible_tasks = ["public-task"]
 ```bash
 cd examples/web-auth
 
-# Start web UI
-zrb serve --port 8000
+# Start web UI (port defaults to 21213; override with ZRB_WEB_HTTP_PORT)
+ZRB_WEB_HTTP_PORT=8000 zrb server start
 
 # Access http://localhost:8000
 ```

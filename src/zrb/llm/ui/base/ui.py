@@ -834,6 +834,8 @@ class BaseUI(CommandsMixin):
 
             # Sync plan mode to the shared mutable state before the LLM run
             # so the agent inherits the mode set by /plan.
+            # lazy: circular — permission.state transitively imports zrb.llm.ui,
+            # so hoisting this to module level re-enters ui mid-load.
             from zrb.llm.permission.state import (
                 AgentMode,
                 get_current_agent_mode,

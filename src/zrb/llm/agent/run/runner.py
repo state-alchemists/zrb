@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 from contextvars import ContextVar
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, TypeAlias
 
 from zrb.config.config import CFG
@@ -30,6 +31,7 @@ from zrb.llm.agent.run.deferred_calls import (
     rebuild_for_denials,
 )
 from zrb.llm.agent.run.history_utils import sanitize_history
+from zrb.llm.message import TOOL_CALL_PLACEHOLDER
 from zrb.llm.agent.run.hook_result_extractor import (
     extract_additional_context,
 )
@@ -408,11 +410,16 @@ def _merge_consecutive_messages(current_history, current_message):
         current_history
         and isinstance(current_history[-1], ModelRequest)
         and current_message is not None
+        and isinstance(current_message, (str, list))
     ):
-        if isinstance(current_message, str):
-            current_history[-1].parts.append(UserPromptPart(content=current_message))
-        elif isinstance(current_message, list):
-            current_history[-1].parts.append(UserPromptPart(content=current_message))
+        # Build a NEW ModelRequest rather than appending to the existing one's
+        # parts in place. current_history[-1] is aliased to the caller's loaded
+        # history (and to FileHistoryManager's cached list, which load() returns
+        # by reference), so an in-place append would graft this turn's prompt
+        # onto the stored message — duplicating it on the next save/cancel path.
+        last_msg = current_history[-1]
+        merged_parts = list(last_msg.parts) + [UserPromptPart(content=current_message)]
+        current_history[-1] = replace(last_msg, parts=merged_parts)
         return None
     return current_message
 
@@ -436,6 +443,48 @@ async def _apply_history_processors(
         except Exception as e:
             CFG.LOGGER.warning(f"History processor failed between tool calls: {e}")
     return ensure_alternating_roles(processed)
+
+
+# Placeholder strings that signal a degenerate completion rather than a real
+# answer: the "(tool call)" history placeholder injected by filter_nil_content,
+# and the bare "(tool call" that weaker models emit when imitating it.
+_EMPTY_COMPLETION_MARKERS = frozenset(
+    {TOOL_CALL_PLACEHOLDER, TOOL_CALL_PLACEHOLDER.rstrip(")")}
+)
+
+
+def _is_empty_completion(result_output: Any) -> bool:
+    """True when the model's final text output carries no real content.
+
+    Two degenerate cases seen in production with weak/overloaded models:
+    an empty/whitespace completion (provider returned nothing), and the
+    "(tool call)" placeholder leaking out as the answer (injected into history
+    by filter_nil_content, then echoed by the model). Structured (non-str)
+    outputs and DeferredToolRequests are never "empty" in this sense, so they
+    are excluded by the isinstance check.
+    """
+    if not isinstance(result_output, str):
+        return False
+    stripped = result_output.strip()
+    return not stripped or stripped in _EMPTY_COMPLETION_MARKERS
+
+
+def _history_without_trailing_response(run_history: list[Any]) -> list[Any]:
+    """Drop the trailing assistant ModelResponse so it can be regenerated.
+
+    Used when retrying an empty completion: ``result.all_messages()`` ends with
+    the degenerate response, and re-requesting must not feed it back. Works for
+    both the simple-turn case (history then empty response) and the
+    deferred-resume case (history, tool returns, then empty response) — in both
+    the trailing response is dropped while the tool returns stay in history.
+    """
+    from pydantic_ai.messages import ModelResponse  # lazy: heavy third-party
+
+    if run_history and isinstance(run_history[-1], ModelResponse):
+        trimmed = run_history[:-1]
+        if trimmed:
+            return trimmed
+    return run_history
 
 
 async def _execution_loop(
@@ -515,6 +564,8 @@ async def _execution_loop(
                     raise stream_error
                 current_history = outcome.new_history
                 current_message = outcome.new_message
+                if outcome.clear_results:
+                    current_results = None
                 continue
 
             if isinstance(result_output, DeferredToolRequests):
@@ -540,11 +591,53 @@ async def _execution_loop(
 
                 current_results = rebuild_for_denials(current_results)
                 current_message = None
-                current_history = await _apply_history_processors(
-                    run_history, history_processors
-                )
+                # Skip history processors when pending deferred results exist:
+                # they can orphan the ModelResponse whose tool_calls are
+                # expected by _handle_deferred_tool_results in the next stream
+                # iteration.  Processor effects are already applied in
+                # _prepare_history before the first stream call.
+                if current_results and (
+                    getattr(current_results, "calls", None)
+                    or getattr(current_results, "approvals", None)
+                ):
+                    current_history = run_history
+                else:
+                    current_history = await _apply_history_processors(
+                        run_history, history_processors
+                    )
                 CFG.LOGGER.debug("Continuing to next iteration with current_results")
                 continue
+
+            # Empty/placeholder completion guard: a weak or overloaded provider
+            # sometimes returns no real text (and no tool call). Don't surface the
+            # "(tool call)" placeholder as the answer — regenerate the turn a
+            # bounded number of times, then raise a clear error.
+            if _is_empty_completion(result_output):
+                if (
+                    retry_state.empty_completion_retry_count
+                    < retry_state.max_empty_completion_retries
+                ):
+                    retry_state.empty_completion_retry_count += 1
+                    print_fn(
+                        "\n[SYSTEM] Model returned an empty response — retrying "
+                        f"(attempt {retry_state.empty_completion_retry_count}/"
+                        f"{retry_state.max_empty_completion_retries})..."
+                    )
+                    CFG.LOGGER.debug(
+                        f"Empty completion (output={result_output!r}); "
+                        "dropping the empty turn and regenerating"
+                    )
+                    current_history = _history_without_trailing_response(run_history)
+                    current_message = None
+                    current_results = None
+                    result_output = None
+                    continue
+                raise RuntimeError(
+                    "Model returned an empty response "
+                    f"{retry_state.empty_completion_retry_count + 1} times. The "
+                    "provider may be overloaded, or the conversation may exceed "
+                    "the model's context window."
+                )
 
             session_end_results = await effective_hook_manager.execute_hooks(
                 HookEvent.SESSION_END,

@@ -266,8 +266,11 @@ async def _summarize_web_content(markdown_content: str, url: str) -> str:
     """Summarize web content using an agent while preserving references."""
     # Create the summarization agent
     agent = create_agent(
+        # Already resolved here; resolve_model=False stops create_agent from
+        # firing model_getter/model_renderer a second time.
         model=llm_config.resolve_model(),
         system_prompt=get_prompt("web_summarizer"),
+        resolve_model=False,
     )
 
     # Prepare the prompt data

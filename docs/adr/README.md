@@ -79,6 +79,8 @@ deleting it — the history is the point.
 - **ADR-0038** — Model capability registry + provider constraints
 - **ADR-0039** — Markdown journal (dir + index) for long-term memory
 - **ADR-0040** — Provider-agnostic, multi-vendor LLM support
+- **ADR-0058** — History summarizer between deferred-tool iterations must not orphan tool-call metadata
+- **ADR-0059** — Degenerate model output must not corrupt the conversation: scoped placeholder + empty-completion guard
 
 ### LLM extension surface — [07-llm-extension.md](07-llm-extension.md)
 - **ADR-0041** — Tools as plain functions with PascalCase `__name__`

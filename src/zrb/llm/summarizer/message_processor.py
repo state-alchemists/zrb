@@ -1,9 +1,9 @@
-import copy
 import json
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
 from zrb.context.any_context import zrb_print
+from zrb.llm.agent.common import safe_copy_result
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.summarizer.text_summarizer import summarize_text_plain
 from zrb.util.cli.style import stylize_error, stylize_yellow
@@ -49,26 +49,6 @@ async def process_message_for_summarization(
     return msg
 
 
-def _safe_copy_for_summarization(content: Any) -> Any:
-    """Create a safe copy of content for summarization to prevent mutation.
-
-    Deep copies mutable objects but returns immutable objects as-is.
-    This prevents pydantic-ai from modifying original tool results.
-    """
-    if content is None:
-        return None
-    if isinstance(content, (str, int, float, bool)):
-        return content
-    if isinstance(content, (list, dict, set)):
-        return copy.deepcopy(content)
-    # For other types, try deep copy
-    try:
-        return copy.deepcopy(content)
-    except Exception:
-        # If deepcopy fails, return as-is
-        return content
-
-
 async def process_tool_return_part(
     part: Any,
     agent: Any,
@@ -99,7 +79,7 @@ async def process_tool_return_part(
         return part, False
 
     # Create a safe copy to prevent mutation during processing
-    safe_content = _safe_copy_for_summarization(original_content)
+    safe_content = safe_copy_result(original_content)
 
     # Convert non-string content to string for summarization
     content_is_string = isinstance(safe_content, str)

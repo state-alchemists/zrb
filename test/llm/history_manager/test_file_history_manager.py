@@ -41,6 +41,51 @@ def test_file_history_manager_save_load(temp_history_dir):
     assert loaded[0].parts[0].content == "hello"
 
 
+def test_clean_corrupted_content_preserves_structural_fields(temp_history_dir):
+    """The content cleaners must NOT drop fields they do not normalize.
+
+    Previously each cleaner rebuilt parts from a fixed key allowlist, silently
+    stripping a ThinkingPart's `signature`/`id` (Anthropic validates replayed
+    thinking blocks with it) and a RetryPromptPart's `tool_name`/`tool_call_id`
+    (its tool linkage). Both must survive a disk round-trip.
+    """
+    from pydantic_ai.messages import (
+        ModelRequest,
+        ModelResponse,
+        RetryPromptPart,
+        ThinkingPart,
+    )
+
+    messages = [
+        ModelResponse(
+            parts=[ThinkingPart(content="reasoning", signature="sig-abc", id="th-1")]
+        ),
+        ModelRequest(
+            parts=[
+                RetryPromptPart(
+                    content="bad", tool_name="mytool", tool_call_id="call-9"
+                )
+            ]
+        ),
+    ]
+
+    manager = FileHistoryManager(temp_history_dir)
+    manager.update("structural", messages)
+    manager.save("structural")
+
+    # Fresh instance forces a real load through _clean_corrupted_content.
+    loaded = FileHistoryManager(temp_history_dir).load("structural")
+
+    thinking = loaded[0].parts[0]
+    assert thinking.content == "reasoning"
+    assert thinking.signature == "sig-abc"
+    assert thinking.id == "th-1"
+
+    retry = loaded[1].parts[0]
+    assert retry.tool_name == "mytool"
+    assert retry.tool_call_id == "call-9"
+
+
 def test_file_history_manager_search(temp_history_dir):
     manager = FileHistoryManager(temp_history_dir)
     # Create some dummy files

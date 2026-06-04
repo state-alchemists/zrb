@@ -17,9 +17,12 @@ def create_summarizer_agent(
     if model is None:
         model = default_llm_config.small_model
     final_model = default_llm_config.resolve_model(model)
+    # Already resolved here; resolve_model=False avoids a second
+    # model_getter/model_renderer pass inside create_agent.
     return create_agent(
         model=final_model,
         system_prompt=effective_system_prompt,
+        resolve_model=False,
     )
 
 

@@ -29,13 +29,21 @@ async def replace_in_file(
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
-        return f"Error: File not found: {path}"
+        return (
+            f"Error: File not found: {path}. "
+            "[SYSTEM SUGGESTION]: Check the path, or use Write to create the "
+            "file if it should not exist yet."
+        )
 
     try:
         with open(abs_path, "r", encoding="utf-8") as f:
             content = f.read()
     except Exception as e:
-        return f"Error: Cannot read file {path}: {e}"
+        return (
+            f"Error: Cannot read file {path}: {e}. "
+            "[SYSTEM SUGGESTION]: Verify the path and your read permissions, "
+            "then retry."
+        )
 
     # Exact match
     actual_old = old_text if old_text in content else None
@@ -83,7 +91,11 @@ async def replace_in_file(
         with open(abs_path, "w", encoding="utf-8") as f:
             f.write(new_content)
     except Exception as e:
-        return f"Error: Cannot write file {path}: {e}"
+        return (
+            f"Error: Cannot write file {path}: {e}. "
+            "[SYSTEM SUGGESTION]: Verify the path and your write permissions, "
+            "then retry."
+        )
 
     replacements = match_count if count == -1 else min(match_count, count)
     diag_suffix = await format_post_write_diagnostics(abs_path)

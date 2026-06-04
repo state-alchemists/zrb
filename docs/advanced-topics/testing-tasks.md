@@ -136,7 +136,8 @@ For more realistic tests that exercise the full session/context wiring, create a
 ```python
 import pytest
 from unittest.mock import MagicMock, AsyncMock
-from zrb.context.any_context import AnyContext, DotDict
+from zrb.context.any_context import AnyContext
+from zrb.dot_dict.dot_dict import DotDict
 from zrb.session.session import Session
 
 def create_test_context(task, inputs=None, envs=None):

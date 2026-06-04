@@ -195,3 +195,147 @@ provider abstraction (duplicates pydantic-ai).
 **Evidence.** **[DOCUMENTED]** `docs/configuration/llm-config.md`,
 `docs/advanced-topics/llm-integration.md`, `pyproject.toml` (optional provider
 extras). **[INFERRED]** `src/zrb/config/mixins/llm_core.py`.
+
+---
+
+## ADR-0058 — History summarizer between deferred-tool iterations must not orphan tool-call metadata
+
+**Status:** Accepted
+
+**Context.** After a deferred tool is approved or denied, the agent loop iterates:
+it calls `_process_deferred_requests`, then re-enters
+`agent.run_stream_events()` with the resolved `DeferredToolResults`. Between
+these iterations, `_apply_history_processors` runs the summarizer, which can
+compress old messages enough that the `ModelResponse` whose `tool_calls` match
+`current_results` is dropped from `to_keep`. When `_handle_deferred_tool_results`
+(pydantic-ai) next looks for the last `ModelResponse` with tool calls, it finds
+none and raises `UserError("does not contain any unprocessed tool calls")`.
+
+This error is not handled by any existing retry strategy, so it propagates to
+`_handle_run_error`, which injects `[SYSTEM] Error occurred:` into history —
+poisoning every subsequent task-level retry with the same corrupted state. The
+result is an infinite retry death spiral.
+
+**Decision.** Two defences, one tactical and one strategic:
+
+1. **Fix A — `handle_stream_error` catch (retry_loop.py):** A new handler
+   catches `UserError("does not contain any unprocessed tool calls"...)`
+   before the final fallthrough to `should_retry=False`. It clears stale
+   `current_results` via `RetryOutcome.clear_results` and returns
+   `should_retry=True` together with `new_history=run_history` (the intact
+   conversation history), allowing the model to generate fresh tool calls.
+   Returning the intact history is load-bearing: the runner assigns
+   `outcome.new_history` to `current_history` unconditionally, and the next
+   loop iteration feeds it straight into `sanitize_history`, which raises
+   `TypeError` on `None` — so a `None` here would convert the death spiral
+   into a hard crash on the very path this handler exists to rescue. A
+   one-shot gate (`deferred_mismatch_retry_done`) prevents re-entering this
+   handler on a second retry of the same poisoned state.
+
+2. **Fix B — suppress summarizer between iterations (runner.py):** A condition
+   guard checks whether `current_results` has pending `calls` or `approvals`
+   before calling `_apply_history_processors` in the deferred-tool branch of
+   `_execution_loop`. When pending results exist, `current_history` is set
+   directly to `run_history` without processor application. The summarizer
+   still runs in `_prepare_history` before the first stream call and on all
+   non-deferred iterations.
+
+**Consequences.** The death spiral is broken at both the symptom (Fix A) and
+root cause (Fix B). Fix A also serves as a safety net for any future scenario
+where deferred-tool metadata and history are similarly mismatched. Cost: a
+small complexity increment in the retry state machine and execution loop.
+
+**Alternatives rejected.**
+- Increase summarizer `to_keep` size — risks context-window overflow; only
+  probabilistically avoids the race.
+- Disable the summarizer entirely — undermines ADR-0036's compression benefit.
+- Patch pydantic-ai's `_handle_deferred_tool_results` — vendor dependency;
+  breaks on update.
+- `history_processors` on every iteration — defeats the guard's purpose (Fix B
+  *removes* a call).
+
+**Evidence.** **[DOCUMENTED]** `src/zrb/llm/agent/run/retry_loop.py` (Fix A:
+`deferred_mismatch_retry_done` flag, `clear_results`, UserError handler before
+final return), `src/zrb/llm/agent/run/runner.py` (Fix B: pending-results guard
+in the deferred-tool branch of `_execution_loop`),
+`test/llm/agent/run/test_retry_loop.py`
+(`test_handle_stream_error_deferred_mismatch*`,
+`test_handle_stream_error_user_error_other_message`),
+`test/llm/agent/run/test_runner.py`
+(`test_run_agent_deferred_skips_processors_when_calls_pending`,
+`test_run_agent_deferred_runs_processors_when_no_pending`,
+`test_run_agent_deferred_mismatch_recovers_without_crash`).
+
+---
+
+## ADR-0059 — Degenerate model output must not corrupt the conversation: scoped placeholder + empty-completion guard
+
+**Status:** Accepted
+
+**Context.** Weak / overloaded models (observed: `deepseek-v4-flash` on ollama)
+expose two coupled failure modes:
+
+1. They emit assistant turns with **no text** — narration goes into a
+   `ThinkingPart` and a tool call, leaving `content` empty. `filter_nil_content`
+   injected a `TextPart("(tool call)")` whenever a `ModelResponse` had no text,
+   *including* tool-call-bearing turns. That placeholder is stored in history,
+   re-sent every turn, and the model **learns to imitate it** — emitting
+   `"(tool call)"` (or the truncated `"(tool call"`) as literal output. (One
+   production transcript: 29 placeholder turns, then 3 model-emitted imitations.)
+2. Under load / context pressure the stream **succeeds** but returns an empty
+   completion (zero output tokens, no tool call, no real text). The agent loop
+   accepted it and surfaced the `"(tool call)"` placeholder to the user as the
+   final answer.
+
+The placeholder injection's own comment said it was for responses with "no text
+**and** no tool calls" — but the code fired on "no text" alone, over-injecting.
+
+**Decision.** Two scoped defenses:
+
+1. **Scope the placeholder (`history_utils.py::filter_nil_content`).** Inject
+   `TextPart("(tool call)")` only when a `ModelResponse` has **neither** text
+   **nor** tool calls (the truly-empty turn providers reject). A tool-call-only
+   turn is left text-less — every provider accepts it and `openai_patch` already
+   omits the `content` field — so nothing imitable enters history. This aligns
+   the code with its own documented intent.
+2. **Empty-completion guard (`runner.py::_execution_loop`).** After the stream
+   (post-`DeferredToolRequests`, pre-`SESSION_END`), `_is_empty_completion` flags
+   a blank-or-placeholder **str** output. On a hit the turn is regenerated —
+   `_history_without_trailing_response` drops the degenerate trailing
+   `ModelResponse` (keeping tool returns, so the deferred-resume case works),
+   results/message reset to `None` — bounded by
+   `RetryState.max_empty_completion_retries` (default 2), then a clear
+   `RuntimeError` rather than surfacing the placeholder or looping forever.
+
+**Consequences.** The imitation feedback loop is cut at the source (1) and the
+degenerate terminal output is never shown (2). A genuine answer is always
+non-empty prose, so the guard never rejects real output; structured (non-str)
+outputs and `DeferredToolRequests` are excluded by construction. Cost: one extra
+post-stream check and a small retry counter.
+
+**Alternatives rejected.**
+- Keep injecting and make the placeholder "non-imitable" — fragile; any visible
+  marker in history is imitable.
+- Drop the placeholder entirely (even for text-less + tool-less turns) — those
+  turns are genuinely rejected by Bedrock/OpenAI; the placeholder is still needed
+  there.
+- Surface the empty output as the answer — silent wrong result that also poisons
+  the next turn's history.
+- Treat empty completion as a stream error in `handle_stream_error` — it is not
+  an exception; the stream succeeds, so it belongs in the runner loop.
+
+**Evidence.** **[DOCUMENTED]** `src/zrb/llm/agent/run/history_utils.py`
+(`filter_nil_content` `has_tool_call` guard),
+`src/zrb/llm/agent/run/runner.py` (`_is_empty_completion`,
+`_history_without_trailing_response`, `_EMPTY_COMPLETION_MARKERS`, the loop
+guard), `src/zrb/llm/agent/run/retry_loop.py`
+(`empty_completion_retry_count` / `max_empty_completion_retries`),
+`docs/advanced-topics/maintainer-guide.md` (sanitization table row + "The
+Empty-Completion Guard"). Tests: `test/llm/agent/run/test_history_utils.py`
+(`test_filter_nil_content`,
+`test_filter_nil_content_injects_placeholder_when_no_text_and_no_tool_call`,
+`test_filter_nil_content_no_placeholder_for_tool_call_only`),
+`test/llm/agent/run/test_runner.py`
+(`test_run_agent_retries_empty_completion_then_succeeds`,
+`test_run_agent_retries_tool_call_placeholder_leak`,
+`test_run_agent_empty_completion_raises_after_retries`).

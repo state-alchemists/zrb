@@ -181,10 +181,12 @@ async def _resolve_approval(
         policy_decision = policy.decide(call.tool_name, cap, raw_args)
 
         if policy_decision == ALLOW:
+            # lazy: heavy third-party
             from pydantic_ai import ToolApproved
 
             return ToolApproved()
         if policy_decision == DENY:
+            # lazy: heavy third-party
             from pydantic_ai import ToolDenied
 
             return ToolDenied("Blocked by permission policy")
@@ -198,6 +200,7 @@ async def _resolve_approval(
     yolo_val = get_current_yolo()
     # Explicit policy ASK is a 'hard ask' that bypasses YOLO.
     if yolo_val is True and policy_decision != ASK:
+        # lazy: heavy third-party
         from pydantic_ai import ToolApproved
 
         return ToolApproved()
@@ -242,6 +245,7 @@ async def _resolve_approval(
     # Fallthrough: no approval mechanism configured.  If the policy said ASK we
     # must not silently approve — deny instead.
     if policy_decision == ASK:
+        # lazy: heavy third-party
         from pydantic_ai import ToolDenied
 
         return ToolDenied(

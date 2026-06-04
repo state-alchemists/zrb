@@ -301,8 +301,11 @@ async def _extract_info(
     token_limit: int,
 ) -> list[str]:
     agent = create_agent(
+        # Already resolved here; resolve_model=False avoids a second
+        # model_getter/model_renderer pass inside create_agent.
         model=llm_config.resolve_model(),
         system_prompt=get_prompt("repo_extractor"),
+        resolve_model=False,
     )
 
     extracted_infos = []
@@ -358,8 +361,11 @@ async def _summarize_info(
     token_limit: int,
 ) -> list[str]:
     agent = create_agent(
+        # Already resolved here; resolve_model=False avoids a second
+        # model_getter/model_renderer pass inside create_agent.
         model=llm_config.resolve_model(),
         system_prompt=get_prompt("repo_summarizer"),
+        resolve_model=False,
     )
 
     summarized_infos = []

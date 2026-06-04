@@ -305,6 +305,9 @@ class SubAgentManager(LoaderMixin, SearchMixin):
             parts.append(guidance_prompt)
         effective_system_prompt = "\n\n".join(parts).strip()
 
+        # resolve_model=False: definition.model was already resolved into
+        # final_model above (so section factories could use it). Re-resolving
+        # inside create_agent would double-fire model_getter/model_renderer.
         return create_agent(
             model=final_model,
             system_prompt=effective_system_prompt,
@@ -312,6 +315,7 @@ class SubAgentManager(LoaderMixin, SearchMixin):
             toolsets=resolved_toolsets,
             history_processors=[create_summarizer_history_processor()],
             yolo=effective_yolo,
+            resolve_model=False,
         )
 
     def _build_inherited_prompt(
