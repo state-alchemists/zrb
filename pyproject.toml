@@ -104,10 +104,11 @@ pyasn1 = {version = ">=0.6.3", optional = true}
 # We pin >=2.20.0 to ensure the patched version is used.
 pygments = ">=2.20.0"
 
-# Security fix: CVE-2026-34516 - aiohttp vulnerability
+# Security fix: GHSA-hg6j-4rv6-33pg (CVE-2026-47265) - cross-origin redirect
+# sends per-request cookies to attacker-controlled origins.
 # aiohttp is a transitive dependency via voyageai and xai-sdk.
-# We pin >=3.13.4 to ensure the patched version is used.
-aiohttp = {version = ">=3.13.4", optional = true}
+# We pin >=3.14.0 to ensure the patched version is used.
+aiohttp = {version = ">=3.14.0", optional = true}
 
 # Security fix: CVE-2026-39892
 # cryptography is a transitive dependency via pdfminer-six (pulled in by pdfplumber) and google-auth.
