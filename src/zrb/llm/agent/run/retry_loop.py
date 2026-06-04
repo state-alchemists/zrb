@@ -48,6 +48,7 @@ class RetryState:
     invalid_tool_retry_done: bool = False
     missing_reasoning_retry_done: bool = False
     opaque_retry_done: bool = False
+    deferred_mismatch_retry_done: bool = False
     max_context_retries: int = field(
         default_factory=lambda: CFG.LLM_MAX_CONTEXT_RETRIES
     )
@@ -63,6 +64,7 @@ class RetryOutcome:
     should_retry: bool
     new_history: list[Any] | None = None
     new_message: Any = None
+    clear_results: bool = False
 
 
 async def handle_stream_error(
@@ -231,6 +233,34 @@ async def handle_stream_error(
                 should_retry=True,
                 new_history=sanitized,
                 new_message=fallback_message,
+            )
+
+    # Deferred-tool-results mismatch after history compression.
+    # The history summarizer ran between deferred tool iterations and removed
+    # the ModelResponse whose tool_calls matched current_results.  pydantic-ai's
+    # _handle_deferred_tool_results raises UserError because the last ModelResponse
+    # no longer has any ToolCallParts.  Clearing current_results lets the model
+    # generate fresh tool calls on the next iteration.  We must hand back the
+    # intact ``run_history`` (not ``None``) — the runner assigns ``new_history``
+    # to ``current_history`` unconditionally, and the next loop iteration feeds
+    # it straight into ``sanitize_history``, which raises on ``None``.
+    if not state.deferred_mismatch_retry_done:
+        # lazy: heavy third-party — pydantic_ai pulls in OpenAI/Anthropic SDKs.
+        from pydantic_ai.exceptions import UserError as PydanticUserError
+
+        if isinstance(exc, PydanticUserError) and (
+            "does not contain any unprocessed tool calls" in str(exc)
+            or "does not contain a `ModelResponse`" in str(exc)
+        ):
+            state.deferred_mismatch_retry_done = True
+            print_fn(
+                "\n[SYSTEM] Deferred tool results reference stale history — "
+                "clearing pending results and retrying..."
+            )
+            return RetryOutcome(
+                should_retry=True,
+                new_history=run_history,
+                clear_results=True,
             )
 
     return RetryOutcome(should_retry=False)

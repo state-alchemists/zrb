@@ -195,3 +195,73 @@ provider abstraction (duplicates pydantic-ai).
 **Evidence.** **[DOCUMENTED]** `docs/configuration/llm-config.md`,
 `docs/advanced-topics/llm-integration.md`, `pyproject.toml` (optional provider
 extras). **[INFERRED]** `src/zrb/config/mixins/llm_core.py`.
+
+---
+
+## ADR-0058 — History summarizer between deferred-tool iterations must not orphan tool-call metadata
+
+**Status:** Accepted
+
+**Context.** After a deferred tool is approved or denied, the agent loop iterates:
+it calls `_process_deferred_requests`, then re-enters
+`agent.run_stream_events()` with the resolved `DeferredToolResults`. Between
+these iterations, `_apply_history_processors` runs the summarizer, which can
+compress old messages enough that the `ModelResponse` whose `tool_calls` match
+`current_results` is dropped from `to_keep`. When `_handle_deferred_tool_results`
+(pydantic-ai) next looks for the last `ModelResponse` with tool calls, it finds
+none and raises `UserError("does not contain any unprocessed tool calls")`.
+
+This error is not handled by any existing retry strategy, so it propagates to
+`_handle_run_error`, which injects `[SYSTEM] Error occurred:` into history —
+poisoning every subsequent task-level retry with the same corrupted state. The
+result is an infinite retry death spiral.
+
+**Decision.** Two defences, one tactical and one strategic:
+
+1. **Fix A — `handle_stream_error` catch (retry_loop.py):** A new handler
+   catches `UserError("does not contain any unprocessed tool calls"...)`
+   before the final fallthrough to `should_retry=False`. It clears stale
+   `current_results` via `RetryOutcome.clear_results` and returns
+   `should_retry=True` together with `new_history=run_history` (the intact
+   conversation history), allowing the model to generate fresh tool calls.
+   Returning the intact history is load-bearing: the runner assigns
+   `outcome.new_history` to `current_history` unconditionally, and the next
+   loop iteration feeds it straight into `sanitize_history`, which raises
+   `TypeError` on `None` — so a `None` here would convert the death spiral
+   into a hard crash on the very path this handler exists to rescue. A
+   one-shot gate (`deferred_mismatch_retry_done`) prevents re-entering this
+   handler on a second retry of the same poisoned state.
+
+2. **Fix B — suppress summarizer between iterations (runner.py):** A condition
+   guard checks whether `current_results` has pending `calls` or `approvals`
+   before calling `_apply_history_processors` in the deferred-tool branch of
+   `_execution_loop`. When pending results exist, `current_history` is set
+   directly to `run_history` without processor application. The summarizer
+   still runs in `_prepare_history` before the first stream call and on all
+   non-deferred iterations.
+
+**Consequences.** The death spiral is broken at both the symptom (Fix A) and
+root cause (Fix B). Fix A also serves as a safety net for any future scenario
+where deferred-tool metadata and history are similarly mismatched. Cost: a
+small complexity increment in the retry state machine and execution loop.
+
+**Alternatives rejected.**
+- Increase summarizer `to_keep` size — risks context-window overflow; only
+  probabilistically avoids the race.
+- Disable the summarizer entirely — undermines ADR-0036's compression benefit.
+- Patch pydantic-ai's `_handle_deferred_tool_results` — vendor dependency;
+  breaks on update.
+- `history_processors` on every iteration — defeats the guard's purpose (Fix B
+  *removes* a call).
+
+**Evidence.** **[DOCUMENTED]** `src/zrb/llm/agent/run/retry_loop.py` (Fix A:
+`deferred_mismatch_retry_done` flag, `clear_results`, UserError handler before
+final return), `src/zrb/llm/agent/run/runner.py` (Fix B: pending-results guard
+in the deferred-tool branch of `_execution_loop`),
+`test/llm/agent/run/test_retry_loop.py`
+(`test_handle_stream_error_deferred_mismatch*`,
+`test_handle_stream_error_user_error_other_message`),
+`test/llm/agent/run/test_runner.py`
+(`test_run_agent_deferred_skips_processors_when_calls_pending`,
+`test_run_agent_deferred_runs_processors_when_no_pending`,
+`test_run_agent_deferred_mismatch_recovers_without_crash`).

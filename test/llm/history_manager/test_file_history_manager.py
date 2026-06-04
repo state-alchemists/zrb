@@ -42,7 +42,7 @@ def test_file_history_manager_save_load(temp_history_dir):
 
 
 def test_clean_corrupted_content_preserves_structural_fields(temp_history_dir):
-    """B2: the content cleaners must NOT drop fields they do not normalize.
+    """The content cleaners must NOT drop fields they do not normalize.
 
     Previously each cleaner rebuilt parts from a fixed key allowlist, silently
     stripping a ThinkingPart's `signature`/`id` (Anthropic validates replayed

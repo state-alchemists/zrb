@@ -394,7 +394,28 @@ Rather than catalog every variant, `retry_loop.py` has a catch-all that fires **
 
 This is deliberately provider-agnostic. Text in the form `{"role": "user", "content": "..."}` / `{"role": "assistant", "content": "..."}` is the lowest common denominator that every text-generation provider accepts. The handler is gated on `current_message is not None` (it does not fire during tool-loop iterations with deferred results, where stripping structure could orphan tool call/return pairs).
 
-The handler sits **last** in the retry chain in `handle_stream_error`, so it only fires when all other handlers (transient, prompt-too-long, missing-reasoning, invalid-tool-call) have given up. This guarantees that the existing one-shot DeepSeek path fires first and the nuclear option is truly a last resort.
+The handler sits **last among the HTTP-400 handlers** in `handle_stream_error`, so it only fires when all other status-code handlers (transient, prompt-too-long, missing-reasoning, invalid-tool-call) have given up. This guarantees that the existing one-shot DeepSeek path fires first and the nuclear option is truly a last resort. (The deferred-mismatch handler below fires after it textually but is gated on a pydantic `UserError`, not an HTTP 400, so the two are mutually exclusive — ordering between them is immaterial.)
+
+### The Deferred-Results-After-Summarization Recovery
+
+The sanitization layer and `allow_orphaned_tool_calls` above protect against a tool **call/return pair** being split by compression. A different failure mode arises specifically *between* deferred-tool iterations: after a deferred tool is approved or denied, the loop re-enters `agent.run_stream_events()` with the resolved `DeferredToolResults`. Between iterations, `_apply_history_processors` runs the summarizer, which can compress the kept slice enough that the **entire `ModelResponse` whose `tool_calls` match `current_results`** is dropped. `allow_orphaned_tool_calls` does not help here — there is no orphaned *part* to preserve; the whole response carrying the tool calls is gone. pydantic-ai's `_handle_deferred_tool_results` then raises `UserError("does not contain any unprocessed tool calls")` (or `"does not contain a \`ModelResponse\`"`).
+
+Two defenses cover this (see ADR-0058):
+
+1. **Prevention (`runner.py`, `_execution_loop`)** — in the deferred-tool branch, `_apply_history_processors` is **skipped** when `current_results` still has pending `calls` or `approvals`; `current_history` is set directly to `run_history`. Processor effects are already applied in `_prepare_history` before the first stream call, and the summarizer still runs on every non-deferred iteration.
+
+   ```python
+   # runner.py — _execution_loop, deferred-tool branch
+   if current_results and (
+       getattr(current_results, "calls", None)
+       or getattr(current_results, "approvals", None)
+   ):
+       current_history = run_history          # skip summarizer mid-deferral
+   else:
+       current_history = await _apply_history_processors(run_history, history_processors)
+   ```
+
+2. **Recovery (`retry_loop.py`, `handle_stream_error`)** — a one-shot handler (gated by `deferred_mismatch_retry_done`) catches the `UserError`, clears the stale `current_results` via `RetryOutcome.clear_results`, and retries so the model generates fresh tool calls. It hands back the **intact `run_history`** (not `None`) as `new_history`: the runner assigns `outcome.new_history` to `current_history` unconditionally and the next iteration feeds it straight into `sanitize_history`, which raises `TypeError` on `None`.
 
 ### File Map
 
@@ -404,7 +425,8 @@ The handler sits **last** in the retry chain in `handle_stream_error`, so it onl
 | `src/zrb/llm/message.py` | `sanitize_orphaned_tool_calls()`, `ensure_alternating_roles()`, `validate_tool_pair_integrity()` |
 | `src/zrb/llm/agent/run/openai_patch.py` | Monkey-patch for `content: null` serialization |
 | `src/zrb/llm/agent/run/error_classifier.py` | `is_missing_reasoning_content_error()`, `is_opaque_validation_error()`, `is_invalid_tool_call_error()` |
-| `src/zrb/llm/agent/run/retry_loop.py` | Retry decisions including `strip_thinking_parts` and the opaque-400 fallback |
+| `src/zrb/llm/agent/run/retry_loop.py` | Retry decisions including `strip_thinking_parts`, the opaque-400 fallback, and the deferred-mismatch recovery (`deferred_mismatch_retry_done` / `clear_results`) |
+| `src/zrb/llm/agent/run/runner.py` | `_execution_loop`: skips history processors mid-deferral when `current_results` has pending calls/approvals |
 | `src/zrb/llm/summarizer/history_summarizer.py` | Calls `sanitize_history()` on the kept slice after compression |
 
 ---

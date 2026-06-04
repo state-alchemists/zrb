@@ -267,7 +267,7 @@ def test_create_agent_uses_default_model_when_none():
 
 
 def test_create_agent_resolves_model_once_by_default():
-    """B3: with the default resolve_model=True, create_agent runs the config's
+    """With the default resolve_model=True, create_agent runs the config's
     resolve_model (model_getter/model_renderer) exactly once."""
     from unittest.mock import MagicMock, patch
 
@@ -284,7 +284,7 @@ def test_create_agent_resolves_model_once_by_default():
 
 
 def test_create_agent_skips_resolution_when_resolve_model_false():
-    """B3: resolve_model=False means the caller already resolved the model, so
+    """Resolve_model=False means the caller already resolved the model, so
     create_agent must NOT call resolve_model again (which would double-fire
     model_getter/model_renderer, potentially feeding a Model object into a
     getter that expects a tier string)."""

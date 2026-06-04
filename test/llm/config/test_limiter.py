@@ -10,7 +10,7 @@ from zrb.llm.config.limiter import LLMLimiter, is_turn_start
 
 @pytest.mark.asyncio
 async def test_count_tokens_falls_back_when_tiktoken_raises_non_import_error():
-    """B1: a tiktoken failure that is NOT ImportError (bad encoding name,
+    """A tiktoken failure that is NOT ImportError (bad encoding name,
     corrupt/unfetchable BPE cache) must degrade to the char/4 approximation
     rather than propagating and crashing the history pipeline."""
     limiter = LLMLimiter()
