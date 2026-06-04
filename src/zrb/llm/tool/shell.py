@@ -161,8 +161,16 @@ async def _terminate_process(process: asyncio.subprocess.Process, is_windows: bo
         if not is_windows:
             try:
                 os.killpg(os.getpgid(process.pid), signal.SIGKILL)
-            except Exception:
+            except ProcessLookupError:
+                # Process group already gone — nothing to clean up.
                 pass
+            except Exception as e:
+                # Don't crash teardown, but make a failed kill visible: a
+                # silently-orphaned process group is a real leak.
+                CFG.LOGGER.warning(
+                    f"shell: failed to SIGKILL process group for pid "
+                    f"{process.pid}: {e}"
+                )
         else:
             process.kill()
 

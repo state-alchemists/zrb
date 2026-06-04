@@ -76,6 +76,15 @@ class MultiUI:
         self._approval_channel = channel
 
     @property
+    def children(self) -> list[Any]:
+        """Public view of the wrapped child UIs.
+
+        Lets collaborators (e.g. the agent runner) pick a concrete child UI
+        without reaching into the private `_uis` list.
+        """
+        return list(self._uis)
+
+    @property
     def _main_ui(self) -> Any:
         return self._uis[self._main_ui_index] if self._uis else None
 
