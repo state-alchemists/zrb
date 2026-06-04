@@ -79,7 +79,11 @@ async def run_shell_command(
 
     except Exception as e:
         _cleanup_temp_file(temp_pid_file)
-        return f"Error executing command: {e}"
+        return (
+            f"Error executing command: {e}. "
+            "[SYSTEM SUGGESTION]: Check the command syntax and that any "
+            "referenced files or programs exist, then retry."
+        )
 
 
 def _prepare_command(command: str, is_windows: bool) -> tuple[str, str | None]:

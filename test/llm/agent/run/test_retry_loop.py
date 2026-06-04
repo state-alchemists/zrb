@@ -54,6 +54,32 @@ async def test_handle_stream_error_prompt_too_long():
 
 
 @pytest.mark.asyncio
+async def test_prompt_too_long_does_not_reset_transient_counter():
+    """B7: a context-length prune must NOT refresh the transient (429/5xx)
+    budget. The transient cap is global across the whole run."""
+    state = RetryState(
+        context_retry_count=0,
+        max_context_retries=2,
+        transient_retry_count=2,
+        max_transient_retries=3,
+    )
+    exc = Exception("Prompt too long")
+    print_fn = MagicMock()
+
+    with patch(
+        "zrb.llm.agent.run.retry_loop.drop_oldest_turn", return_value=["turn2_user"]
+    ):
+        outcome = await handle_stream_error(
+            state, exc, ["a", "b"], "hello", [], print_fn
+        )
+
+    assert outcome.should_retry is True
+    assert state.context_retry_count == 1
+    # The transient counter is preserved, not zeroed.
+    assert state.transient_retry_count == 2
+
+
+@pytest.mark.asyncio
 async def test_handle_stream_error_invalid_tool_call_with_string_message():
     state = RetryState(invalid_tool_retry_done=False)
     exc = Exception("Unknown tool")

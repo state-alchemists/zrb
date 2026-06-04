@@ -507,11 +507,12 @@ class CommandsMixin:
     def toggle_plan(self):
         """Toggle plan mode on/off and force refresh."""
         self._plan_mode_active = not self._plan_mode_active
+        # lazy: circular — permission.state transitively imports zrb.llm.ui,
+        # so hoisting this to module level re-enters ui mid-load.
         from zrb.llm.permission.state import (
             AgentMode,
             set_current_agent_mode,
         )
-        from zrb.util.cli.style import stylize_faint
 
         set_current_agent_mode(
             AgentMode.PLAN if self._plan_mode_active else AgentMode.BUILD

@@ -19,6 +19,9 @@ from typing import Any
 from zrb.config.config import CFG
 from zrb.llm.config.limiter import is_turn_start
 from zrb.llm.message import (
+    EMPTY_CONTENT_PLACEHOLDER,
+    TOOL_CALL_PLACEHOLDER,
+    TOOL_RETURN_NULL_PLACEHOLDER,
     ensure_alternating_roles,
     sanitize_orphaned_tool_calls,
     validate_tool_pair_integrity,
@@ -74,9 +77,9 @@ def strip_thinking_parts(messages: list[Any]) -> list[Any]:
             continue
         new_parts = [p for p in msg.parts if not isinstance(p, ThinkingPart)]
         if not new_parts:
-            new_parts = [TextPart(content="(tool call)")]
+            new_parts = [TextPart(content=TOOL_CALL_PLACEHOLDER)]
         elif not any(isinstance(p, TextPart) and p.content for p in new_parts):
-            new_parts.insert(0, TextPart(content="(tool call)"))
+            new_parts.insert(0, TextPart(content=TOOL_CALL_PLACEHOLDER))
 
         result.append(replace(msg, parts=new_parts))
     return result
@@ -152,7 +155,11 @@ def filter_nil_content(messages: list[Any]) -> list[Any]:
             return part
         content = part.content
         if content is None or (isinstance(content, str) and not content.strip()):
-            placeholder = "null" if isinstance(part, BaseToolReturnPart) else "(empty)"
+            placeholder = (
+                TOOL_RETURN_NULL_PLACEHOLDER
+                if isinstance(part, BaseToolReturnPart)
+                else EMPTY_CONTENT_PLACEHOLDER
+            )
             return replace(part, content=placeholder)
         return part
 
@@ -175,7 +182,7 @@ def filter_nil_content(messages: list[Any]) -> list[Any]:
 
         # Providers reject assistant messages with no text and no tool calls
         if isinstance(msg, ModelResponse) and not has_text and valid_parts:
-            valid_parts.insert(0, TextPart(content="(tool call)"))
+            valid_parts.insert(0, TextPart(content=TOOL_CALL_PLACEHOLDER))
 
         if valid_parts:
             filtered.append(replace(msg, parts=valid_parts))
@@ -281,7 +288,7 @@ def strip_to_text_only(history: list[Any]) -> list[Any]:
         if hasattr(part, "content"):
             content = part.content
             if content is None or (isinstance(content, str) and not content.strip()):
-                return replace(part, content="(empty)")
+                return replace(part, content=EMPTY_CONTENT_PLACEHOLDER)
         return part
 
     def _normalize_for_response(part: Any) -> Any:
@@ -314,7 +321,7 @@ def strip_to_text_only(history: list[Any]) -> list[Any]:
             parts = [_normalize_for_response(p) for p in msg.parts]
             has_text = any(isinstance(p, TextPart) and p.content for p in parts)
             if not has_text:
-                parts.insert(0, TextPart(content="(tool call)"))
+                parts.insert(0, TextPart(content=TOOL_CALL_PLACEHOLDER))
             if parts:
                 result.append(replace(msg, parts=parts))
         else:
@@ -371,7 +378,7 @@ def _thinking_part_content(part: Any) -> str:
     if not isinstance(part, ThinkingPart):
         return ""
     content = part.content if hasattr(part, "content") else ""
-    return str(content) if content else "(empty)"
+    return str(content) if content else EMPTY_CONTENT_PLACEHOLDER
 
 
 def _retry_prompt_to_text(part: Any) -> str:

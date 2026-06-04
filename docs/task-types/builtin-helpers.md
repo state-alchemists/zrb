@@ -118,18 +118,18 @@ To use a built-in task, import it from `zrb.builtin` and add it to your CLI or a
 ```python
 from zrb import cli, Group
 from zrb.builtin import (
-    encode_base64_task, 
-    decode_base64_task,
-    git_commit_task
+    encode_base64,
+    decode_base64,
+    git_commit,
 )
 
 # Add directly to root
-cli.add_task(git_commit_task)
+cli.add_task(git_commit)
 
 # Or group utilities together
 crypto_group = cli.add_group(Group(name="crypto"))
-crypto_group.add_task(encode_base64_task)
-crypto_group.add_task(decode_base64_task)
+crypto_group.add_task(encode_base64)
+crypto_group.add_task(decode_base64)
 ```
 
 Now you can run:
@@ -144,7 +144,7 @@ zrb crypto encode-base64 --string "Hello World"
 ## Quick Reference
 
 ```python
-from zrb.builtin import encode_base64_task, git_commit_task, http_request_task
+from zrb.builtin import encode_base64, git_commit, http_request
 
 # Import what you need
 # Then add to CLI: cli.add_task(task_name)
@@ -152,14 +152,14 @@ from zrb.builtin import encode_base64_task, git_commit_task, http_request_task
 
 | Module | Import Example |
 |--------|---------------|
-| base64 | `from zrb.builtin import encode_base64_task` |
-| git | `from zrb.builtin import git_commit_task` |
-| http | `from zrb.builtin import http_request_task` |
-| jwt | `from zrb.builtin import encode_jwt_task` |
-| md5 | `from zrb.builtin import hash_md5_task` |
-| python | `from zrb.builtin import format_python_task` |
-| random | `from zrb.builtin import throw_dice_task` |
-| shell | `from zrb.builtin import autocomplete_bash_task, autocomplete_powershell_task, autocomplete_zsh_task` |
-| uuid | `from zrb.builtin import uuid_v4_task` |
+| base64 | `from zrb.builtin import encode_base64` |
+| git | `from zrb.builtin import git_commit` |
+| http | `from zrb.builtin import http_request` |
+| jwt | `from zrb.builtin import encode_jwt` |
+| md5 | `from zrb.builtin import hash_md5` |
+| python | `from zrb.builtin import format_python_code` |
+| random | `from zrb.builtin import throw_dice` |
+| shell | `from zrb.builtin import make_bash_autocomplete, make_powershell_autocomplete, make_zsh_autocomplete` |
+| uuid | `from zrb.builtin import generate_uuid_v4` |
 
 ---

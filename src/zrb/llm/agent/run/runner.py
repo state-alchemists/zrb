@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 from contextvars import ContextVar
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, TypeAlias
 
 from zrb.config.config import CFG
@@ -408,11 +409,16 @@ def _merge_consecutive_messages(current_history, current_message):
         current_history
         and isinstance(current_history[-1], ModelRequest)
         and current_message is not None
+        and isinstance(current_message, (str, list))
     ):
-        if isinstance(current_message, str):
-            current_history[-1].parts.append(UserPromptPart(content=current_message))
-        elif isinstance(current_message, list):
-            current_history[-1].parts.append(UserPromptPart(content=current_message))
+        # Build a NEW ModelRequest rather than appending to the existing one's
+        # parts in place. current_history[-1] is aliased to the caller's loaded
+        # history (and to FileHistoryManager's cached list, which load() returns
+        # by reference), so an in-place append would graft this turn's prompt
+        # onto the stored message — duplicating it on the next save/cancel path.
+        last_msg = current_history[-1]
+        merged_parts = list(last_msg.parts) + [UserPromptPart(content=current_message)]
+        current_history[-1] = replace(last_msg, parts=merged_parts)
         return None
     return current_message
 

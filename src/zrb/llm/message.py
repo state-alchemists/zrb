@@ -2,6 +2,17 @@ from collections.abc import Generator
 from dataclasses import replace
 from typing import Any
 
+# Self-describing placeholders injected when a part would otherwise be empty or
+# text-less. Centralised here (the lowest-level history module) so every layer
+# that has to patch history for provider compatibility uses the same literals.
+# They are deliberately human-readable so the model can tell a missing payload
+# from a real terse response and not imitate a literal "." in its next turn.
+TOOL_CALL_PLACEHOLDER = "(tool call)"
+EMPTY_CONTENT_PLACEHOLDER = "(empty)"
+# ToolReturnParts use "null" (not "(empty)") because some providers special-case
+# a literal null tool result.
+TOOL_RETURN_NULL_PLACEHOLDER = "null"
+
 
 def ensure_alternating_roles(messages: list[Any]) -> list[Any]:
     """
@@ -51,7 +62,8 @@ def _strip_orphaned_parts(
     """Return *msg* with parts matching *orphaned_ids* removed, or ``None`` if empty.
 
     When *ensure_text* is ``True`` and the result has no ``TextPart`` with
-    content, a ``"(tool call)"`` text part is prepended so the message stays valid.
+    content, a ``TOOL_CALL_PLACEHOLDER`` text part is prepended so the message
+    stays valid.
     """
     # lazy: heavy third-party
     from pydantic_ai.messages import TextPart
@@ -70,7 +82,7 @@ def _strip_orphaned_parts(
         if ensure_text and not any(
             isinstance(p, TextPart) and p.content for p in new_parts
         ):
-            new_parts.insert(0, TextPart(content="(tool call)"))
+            new_parts.insert(0, TextPart(content=TOOL_CALL_PLACEHOLDER))
         return replace(msg, parts=new_parts)
     return msg
 

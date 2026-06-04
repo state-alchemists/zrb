@@ -77,7 +77,7 @@ cli.add_task(admin_task)
 # =============================================================================
 
 # After setting up authentication, start the web UI:
-# zrb serve --port 8000
+# ZRB_WEB_HTTP_PORT=8000 zrb server start
 
 # Access http://localhost:8000
 # - Guest: Can only access "hello"

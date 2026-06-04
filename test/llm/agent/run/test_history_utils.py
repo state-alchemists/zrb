@@ -14,6 +14,7 @@ from pydantic_ai.messages import (
 from zrb.llm.agent.run.history_utils import (
     drop_oldest_turn,
     filter_nil_content,
+    sanitize_history,
     strip_to_text_only,
 )
 
@@ -463,3 +464,81 @@ def test_strip_to_text_only_parallel_tool_calls():
     assert "c" in contents[0] and "rc" in contents[0]
     assert "a" in contents[1] and "ra" in contents[1]
     assert "b" in contents[2] and "rb" in contents[2]
+
+
+def test_sanitize_history_chains_all_steps():
+    """The orchestrator runs before EVERY model call; verify the three steps
+    compose: nil content is patched, orphaned returns are stripped, complete
+    tool pairs survive, and consecutive same-role messages are merged."""
+    messages = [
+        ModelResponse(
+            parts=[
+                TextPart(content="calling"),
+                ToolCallPart(tool_name="x", args={}, tool_call_id="A"),
+            ]
+        ),
+        ModelRequest(
+            parts=[ToolReturnPart(content="result", tool_name="x", tool_call_id="A")]
+        ),
+        # Orphaned return (no matching call) — must be removed.
+        ModelRequest(
+            parts=[ToolReturnPart(content="orphan", tool_name="z", tool_call_id="Z")]
+        ),
+        # Nil content — must be patched, not dropped.
+        ModelRequest(parts=[UserPromptPart(content="")]),
+    ]
+
+    result = sanitize_history(messages, allow_orphaned_tool_calls=False)
+
+    # msg1 + msg3 (both ModelRequest, after the orphan msg2 is dropped) merge.
+    assert len(result) == 2
+    assert isinstance(result[0], ModelResponse)
+    # Complete pair A survives the orphan sweep.
+    call_ids = [getattr(p, "tool_call_id", None) for p in result[0].parts]
+    assert "A" in call_ids
+    # No orphaned return Z anywhere in the result.
+    all_ids = [getattr(p, "tool_call_id", None) for msg in result for p in msg.parts]
+    assert "Z" not in all_ids
+    # The empty UserPromptPart was patched to a placeholder, not dropped.
+    user_parts = [p for p in result[1].parts if isinstance(p, UserPromptPart)]
+    assert len(user_parts) == 1
+    assert user_parts[0].content == "(empty)"
+    # And the complete pair's return is still present in the merged request.
+    return_ids = [
+        getattr(p, "tool_call_id", None)
+        for p in result[1].parts
+        if isinstance(p, ToolReturnPart)
+    ]
+    assert "A" in return_ids
+
+
+def test_sanitize_history_allow_orphaned_tool_calls_keeps_pending_call():
+    """With allow_orphaned_tool_calls=True (deferred-results path) a tool call
+    with no return is legitimately pending and must be preserved."""
+    messages = [
+        ModelResponse(
+            parts=[
+                TextPart(content="t"),
+                ToolCallPart(tool_name="x", args={}, tool_call_id="A"),
+            ]
+        ),
+    ]
+
+    kept = sanitize_history(messages, allow_orphaned_tool_calls=True)
+    kept_call_ids = [
+        getattr(p, "tool_call_id", None)
+        for msg in kept
+        for p in msg.parts
+        if isinstance(p, ToolCallPart)
+    ]
+    assert "A" in kept_call_ids
+
+    # Default path strips the orphaned call (it has no matching return).
+    stripped = sanitize_history(messages, allow_orphaned_tool_calls=False)
+    stripped_call_ids = [
+        getattr(p, "tool_call_id", None)
+        for msg in stripped
+        for p in msg.parts
+        if isinstance(p, ToolCallPart)
+    ]
+    assert "A" not in stripped_call_ids

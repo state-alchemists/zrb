@@ -164,12 +164,12 @@ class FileHistoryManager(AnyHistoryManager):
             if not filename.endswith(".json"):
                 continue
 
-            # Remove extension to get session name
-            session_name = filename[:-5]
+            # Remove extension to get the conversation name
+            conversation_name = filename[:-5]
 
-            is_match, score = fuzzy_match(session_name, keyword)
+            is_match, score = fuzzy_match(conversation_name, keyword)
             if is_match:
-                matches.append((session_name, score))
+                matches.append((conversation_name, score))
 
         # Sort by score (lower is better)
         matches.sort(key=lambda x: x[1])
@@ -180,6 +180,12 @@ class FileHistoryManager(AnyHistoryManager):
     # Part-cleaner helpers for _clean_corrupted_content
     # ------------------------------------------------------------------
 
+    # Each cleaner starts from a copy of the original part and only normalizes
+    # the field(s) that can be corrupted (chiefly ``content``). Fields the
+    # cleaner does not understand are preserved verbatim — dropping them would
+    # silently strip structurally-significant data such as a ThinkingPart's
+    # ``signature`` (Anthropic uses it to validate replayed thinking blocks) or
+    # a RetryPromptPart's ``tool_name``/``tool_call_id`` (its tool linkage).
     def _clean_user_prompt_part(self, data: dict[str, Any]) -> dict[str, Any]:
         content = data.get("content")
         if content is None:
@@ -189,7 +195,7 @@ class FileHistoryManager(AnyHistoryManager):
                 content = to_string(content)
         elif not isinstance(content, str):
             content = to_string(content)
-        return {"part_kind": "user-prompt", "content": content}
+        return {**data, "part_kind": "user-prompt", "content": content}
 
     def _clean_text_like_part(
         self, part_kind: str, data: dict[str, Any]
@@ -197,34 +203,32 @@ class FileHistoryManager(AnyHistoryManager):
         content = data.get("content")
         if not isinstance(content, str):
             content = to_string(content) if content is not None else ""
-        return {"part_kind": part_kind, "content": content}
+        return {**data, "part_kind": part_kind, "content": content}
 
     def _clean_tool_return_part(self, data: dict[str, Any]) -> dict[str, Any]:
         content = data.get("content")
         if content is None:
             content = ""
-        res = {
-            "part_kind": "tool-return",
-            "content": content,
-            "tool_name": data.get("tool_name", "unknown"),
-        }
-        if data.get("tool_call_id"):
-            res["tool_call_id"] = data["tool_call_id"]
-        if data.get("timestamp"):
-            res["timestamp"] = data["timestamp"]
+        res = {**data, "part_kind": "tool-return", "content": content}
+        if not res.get("tool_name"):
+            res["tool_name"] = "unknown"
+        # Drop null/empty correlation fields that would fail provider validation,
+        # while leaving any genuine value (and all other fields) untouched.
+        if not res.get("tool_call_id"):
+            res.pop("tool_call_id", None)
+        if not res.get("timestamp"):
+            res.pop("timestamp", None)
         return res
 
     def _clean_tool_call_part(self, data: dict[str, Any]) -> dict[str, Any] | None:
         tool_name = data.get("tool_name")
         if tool_name is None:
             return None
-        res = {
-            "part_kind": "tool-call",
-            "tool_name": tool_name,
-            "args": data.get("args") if data.get("args") is not None else {},
-        }
-        if data.get("tool_call_id"):
-            res["tool_call_id"] = data["tool_call_id"]
+        res = {**data, "part_kind": "tool-call", "tool_name": tool_name}
+        if res.get("args") is None:
+            res["args"] = {}
+        if not res.get("tool_call_id"):
+            res.pop("tool_call_id", None)
         return res
 
     def _clean_corrupted_content(self, data: Any) -> Any:

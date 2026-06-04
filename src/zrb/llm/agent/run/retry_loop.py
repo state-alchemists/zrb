@@ -105,7 +105,11 @@ async def handle_stream_error(
         and state.context_retry_count < state.max_context_retries
     ):
         state.context_retry_count += 1
-        state.transient_retry_count = 0
+        # transient_retry_count is intentionally NOT reset here: the transient
+        # (429/5xx) budget derived from LLM_API_MAX_RETRIES is a global cap for
+        # the whole run. A context-length prune is a different failure class and
+        # must not refresh that budget, or a session alternating between the two
+        # error types could retry transiently far more than configured.
         new_history = drop_oldest_turn(current_history, min_turns=min_turns)
         print_fn(
             f"\n[SYSTEM] Context too long, retrying with reduced history"

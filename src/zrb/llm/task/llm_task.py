@@ -501,6 +501,9 @@ class LLMTask(BaseTask):
             if hasattr(ui, "model"):
                 ui.model = final_model
 
+        # Pass resolve_model=False: we already ran model_getter/model_renderer
+        # above. Letting create_agent resolve again would double-fire those
+        # callbacks on the already-resolved model.
         return create_agent(
             model=final_model,
             system_prompt=system_prompt,
@@ -510,6 +513,7 @@ class LLMTask(BaseTask):
             history_processors=self._history_processors,
             capabilities=self._capabilities,
             yolo=yolo,
+            resolve_model=False,
         )
 
     def _get_effective_prompt(

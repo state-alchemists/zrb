@@ -585,3 +585,9 @@ async def test_run_agent_merge_consecutive_model_requests():
         assert passed_history[0].parts[-1].content == "Hi"
         # current_message should be None
         assert mock_run.call_args[0][0] is None
+        # B4: the merge must NOT mutate the caller's original message object in
+        # place. The loaded ModelRequest is aliased to the caller's history (and
+        # to FileHistoryManager's cached list); an in-place append would graft
+        # this turn's prompt onto the stored message and duplicate it on the next
+        # save/cancel path. The original object's parts must stay empty.
+        assert history[0].parts == []

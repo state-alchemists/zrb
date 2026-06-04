@@ -233,6 +233,7 @@ def create_agent(
     output_type: "OutputSpec[OutputDataT]" = str,
     retries: int | None = None,
     yolo: bool | Callable[[Any, Any, dict[str, Any]], bool] = False,
+    resolve_model: bool = True,
 ) -> "Agent[None, Any]":
     # lazy: heavy third-party
     from pydantic_ai import Agent, DeferredToolRequests
@@ -269,7 +270,11 @@ def create_agent(
     if model is None:
         model = default_llm_config.model
 
-    final_model = default_llm_config.resolve_model(model)
+    # Resolve through model_getter/model_renderer here unless the caller already
+    # did so (resolve_model=False). Resolving a second time would re-fire those
+    # callbacks on an already-resolved value — which can feed a Model object into
+    # a getter that expects a tier string. See LLMTask._create_agent.
+    final_model = default_llm_config.resolve_model(model) if resolve_model else model
     effective_retries = retries if retries is not None else CFG.LLM_TOOL_MAX_RETRIES
     effective_model_settings = _apply_capability_constraints(
         model, final_model, model_settings

@@ -127,7 +127,7 @@ You can customize the visual styling of the Web UI using environment variables.
 | Command | Description |
 |---------|-------------|
 | `zrb server start` | Start web server |
-| `zrb server start --port 8000` | Start on custom port |
+| `ZRB_WEB_HTTP_PORT=8000 zrb server start` | Start on custom port |
 
 | Variable | Default | Description |
 |----------|---------|-------------|

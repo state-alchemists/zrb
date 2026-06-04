@@ -54,17 +54,32 @@ def read_file(
         return f"{header}{content}"
 
     except UnicodeDecodeError:
-        return f"Error: File {path} appears to be binary or non-UTF-8."
+        return (
+            f"Error: File {path} appears to be binary or non-UTF-8. "
+            "[SYSTEM SUGGESTION]: This tool only reads UTF-8 text. Skip this "
+            "file or use a tool suited to binary content."
+        )
     except Exception as e:
-        return f"Error reading file {path}: {e}"
+        return (
+            f"Error reading file {path}: {e}. "
+            "[SYSTEM SUGGESTION]: Verify the path and your read permissions, "
+            "then retry."
+        )
 
 
 def _validate_path_for_reading(abs_path: str) -> str | None:
     """Validates if the path exists and is a file."""
     if not os.path.exists(abs_path):
-        return f"Error: File not found: {abs_path}"
+        return (
+            f"Error: File not found: {abs_path}. "
+            "[SYSTEM SUGGESTION]: Check the path; use List to see what exists "
+            "in the directory."
+        )
     if os.path.isdir(abs_path):
-        return f"Error: {abs_path} is a directory."
+        return (
+            f"Error: {abs_path} is a directory. "
+            "[SYSTEM SUGGESTION]: Use List to view directory contents."
+        )
     return None
 
 
