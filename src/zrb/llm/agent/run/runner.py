@@ -145,9 +145,7 @@ async def run_agent(
         _bind_contextvar(stack, current_ui, effective_ui)
         _bind_contextvar(stack, current_tool_confirmation, effective_tool_confirmation)
         _bind_contextvar(stack, current_yolo, effective_yolo)
-        _bind_contextvar(
-            stack, current_approval_channel, effective_approval_channel
-        )
+        _bind_contextvar(stack, current_approval_channel, effective_approval_channel)
         _bind_contextvar(stack, current_permission_policy, effective_policy)
 
         effective_print_fn, effective_event_handler = _setup_print_and_events(
