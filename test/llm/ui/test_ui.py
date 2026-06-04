@@ -1568,7 +1568,8 @@ class TestLoadCommandReplay:
         )
 
         with patch(
-            "zrb.llm.ui.base.ui.render_markdown", return_value="RENDERED MARKDOWN"
+            "zrb.llm.ui.base.replay_mixin.render_markdown",
+            return_value="RENDERED MARKDOWN",
         ) as render:
             assert ui._handle_load_command("/load my-session") is True
 
