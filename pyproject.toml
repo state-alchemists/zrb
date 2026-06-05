@@ -43,7 +43,7 @@ black = "^26.3.1"
 isort = "^7.0.0"
 beautifulsoup4 = "^4.14.2"
 pdfplumber = "^0.11.7"
-fastapi = {extras = ["standard"], version = "^0.123.10"}
+fastapi = {extras = ["standard"], version = "^0.136.3"}
 jinja2 = "^3.1.0"
 PyJWT = "^2.12.0"
 ulid-py = "^1.1.0"
@@ -51,7 +51,7 @@ psutil = "^7.0.0"
 
 # NOTE: Look at https://github.com/pydantic/pydantic-ai/blob/main/pydantic_ai_slim/pyproject.toml
 # The `mcp` extra pulls `fastmcp-slim[client]`, required by `MCPToolset`.
-pydantic-ai-slim = {version = "~1.101.0", extras = ["mcp"]}
+pydantic-ai-slim = {version = "~1.106.0", extras = ["mcp"]}
 
 
 # NOTE: Make sure the following dependencies are not conflicting with pydantic-ai-slim
@@ -74,8 +74,8 @@ chromadb = {version = "^1.3.5", optional = true}
 cohere = {version = ">=5.20.6", optional = true}
 google-auth = {version = ">=2.36.0", optional = true}
 google-genai = {version = ">=1.70.0", optional = true}
-anthropic = {version = ">=0.96.0", optional = true}
-xai-sdk = {version = ">=1.5.0", optional = true}
+anthropic = {version = ">=0.105.0", optional = true}
+xai-sdk = {version = ">=1.12.2", optional = true}
 groq = {version = ">=0.25.0", optional = true}
 # mistralai = {version = ">=2.0.0", optional = true}
 boto3 = {version = ">=1.42.63", optional = true}
@@ -120,6 +120,12 @@ cryptography = ">=46.0.7"
 # python-multipart is a transitive dependency via mcp.
 # We pin >=0.0.27 to ensure the patched version is used.
 python-multipart = ">=0.0.27"
+
+# Security fix: GHSA-86qp-5c8j-p5mr (CVE-2026-48710) - Missing Host header validation poisons
+# request.url.path, bypassing path-based security checks.
+# starlette is a dependency of fastapi.
+# We pin >=1.0.1 to ensure the patched version is used.
+starlette = ">=1.0.1"
 
 # Security fix: GHSA-fv5p-p927-qmxr - SSRF via redirect bypass in HTMLHeaderTextSplitter.split_text_from_url().
 # langchain-text-splitters is a transitive dependency via voyageai.
