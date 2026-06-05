@@ -168,6 +168,52 @@ def test_glob_files_skips_hidden_path_components(tmp_path):
     assert any("visible.txt" in f for f in files)
 
 
+def test_glob_files_include_hidden_surfaces_hidden_path_components(tmp_path):
+    hidden_dir = tmp_path / ".hidden"
+    hidden_dir.mkdir()
+    (hidden_dir / "secret.txt").write_text("secret")
+    (tmp_path / ".dotfile.txt").write_text("dot")
+    (tmp_path / "visible.txt").write_text("visible")
+
+    res = glob_files("**/*.txt", path=str(tmp_path), include_hidden=True)
+    files = res.get("files", [])
+    assert any(os.path.join(".hidden", "secret.txt") == f for f in files)
+    assert ".dotfile.txt" in files
+    assert "visible.txt" in files
+
+
+def test_glob_files_include_hidden_still_honors_exclude_patterns(tmp_path):
+    git_dir = tmp_path / ".git"
+    git_dir.mkdir()
+    (git_dir / "config").write_text("[core]")
+    (tmp_path / ".keep.txt").write_text("keep")
+
+    # Default DEFAULT_EXCLUDED_PATTERNS still drops .git even with include_hidden.
+    res = glob_files("**/*", path=str(tmp_path), include_hidden=True)
+    files = res.get("files", [])
+    assert not any(".git" in f.split(os.sep) for f in files)
+    assert ".keep.txt" in files
+
+
+def test_list_files_include_hidden(tmp_path):
+    (tmp_path / ".dotfile.txt").write_text("dot")
+    hidden_dir = tmp_path / ".config"
+    hidden_dir.mkdir()
+    (hidden_dir / "inner.txt").write_text("inner")
+    (tmp_path / "visible.txt").write_text("visible")
+
+    default_res = list_files(str(tmp_path))
+    default_files = default_res.get("files", [])
+    assert ".dotfile.txt" not in default_files
+    assert not any(".config" in f.split(os.sep) for f in default_files)
+
+    res = list_files(str(tmp_path), include_hidden=True)
+    files = res.get("files", [])
+    assert ".dotfile.txt" in files
+    assert any(os.path.join(".config", "inner.txt") == f for f in files)
+    assert "visible.txt" in files
+
+
 def test_glob_files_excluded_patterns(tmp_path):
     (tmp_path / "keep.txt").write_text("keep")
     (tmp_path / "skip.log").write_text("skip")
