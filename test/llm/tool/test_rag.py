@@ -154,9 +154,7 @@ class TestRAGFactory:
     async def test_create_rag_default_file_reader_not_shared(self):
         # B13 (rag.py:42): mutable default must be replaced with None sentinel;
         # the factory must still work when file_reader is omitted.
-        retrieve = create_rag_from_directory(
-            tool_name="MyRAG", tool_description="desc"
-        )
+        retrieve = create_rag_from_directory(tool_name="MyRAG", tool_description="desc")
         assert inspect.iscoroutinefunction(retrieve)
 
     @pytest.mark.asyncio

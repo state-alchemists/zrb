@@ -126,9 +126,7 @@ class TestRunZrbTaskTool:
             command = mock_run.call_args.args[0]
             # The injected metacharacters must be neutralized via quoting.
             assert "rm -rf /'" in command or "'hello world; rm -rf /'" in command
-            assert "; rm -rf /" not in command.replace(
-                "'hello world; rm -rf /'", ""
-            )
+            assert "; rm -rf /" not in command.replace("'hello world; rm -rf /'", "")
 
     @pytest.mark.asyncio
     async def test_run_task_default_args_not_shared(self):

@@ -4,8 +4,8 @@ from pathlib import Path
 
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.custom_command.custom_command import CustomCommand
-from zrb.llm.skill.util import format_companion_file_lines
 from zrb.llm.skill.manager import SkillManager
+from zrb.llm.skill.util import format_companion_file_lines
 
 
 def get_skill_custom_command(

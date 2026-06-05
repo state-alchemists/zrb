@@ -108,9 +108,7 @@ async def run_chat_session(
                     )
                     try:
                         llm_task = asyncio.create_task(
-                            run_llm_message(
-                                session_obj, CFG.LLM_REQUEST_TIMEOUT / 1000
-                            )
+                            run_llm_message(session_obj, CFG.LLM_REQUEST_TIMEOUT / 1000)
                         )
                         await llm_task
                         CFG.LOGGER.info("LLM task completed")

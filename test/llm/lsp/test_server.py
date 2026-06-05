@@ -131,7 +131,13 @@ def test_path_to_uri_encodes_special_characters(lsp_server):
     """B26: path_to_uri must quote #/?/%/non-ASCII, matching protocol encoder."""
     from zrb.llm.lsp.protocol import LSPProtocol
 
-    for path in ["/tmp/a b.py", "/tmp/c#d.py", "/tmp/e?f.py", "/tmp/h%i.py", "/tmp/ünî.py"]:
+    for path in [
+        "/tmp/a b.py",
+        "/tmp/c#d.py",
+        "/tmp/e?f.py",
+        "/tmp/h%i.py",
+        "/tmp/ünî.py",
+    ]:
         uri = lsp_server._path_to_uri(path)
         expected = LSPProtocol.create_text_document_identifier(path)["uri"]
         assert uri == expected

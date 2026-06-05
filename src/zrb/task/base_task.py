@@ -164,7 +164,11 @@ class BaseTask(AnyTask):
 
     @property
     def readiness_failure_threshold(self) -> int:
-        return self._readiness_failure_threshold if self._readiness_failure_threshold else 1
+        return (
+            self._readiness_failure_threshold
+            if self._readiness_failure_threshold
+            else 1
+        )
 
     @property
     def readiness_timeout(self) -> float:

@@ -480,9 +480,7 @@ class TestMultiUI:
     def test_clear_pending_confirmations_skips_exception(self):
         """Test _clear_pending_confirmations_except handles exceptions."""
         mock_ui1 = MagicMock()
-        mock_ui1.cancel_pending_confirmations = MagicMock(
-            side_effect=Exception("Test")
-        )
+        mock_ui1.cancel_pending_confirmations = MagicMock(side_effect=Exception("Test"))
         mock_ui2 = MagicMock()
         mock_ui2.cancel_pending_confirmations = MagicMock()
         multi_ui = MultiUI([mock_ui1, mock_ui2])

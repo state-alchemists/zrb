@@ -302,9 +302,7 @@ def test_sub_agent_manager_factory_guidance_not_accumulated():
 
     manager.add_tool_guidance_factory(changing_factory)
     manager.add_agent(
-        SubAgentDefinition(
-            name="a", path=".", description="d", system_prompt="prompt"
-        )
+        SubAgentDefinition(name="a", path=".", description="d", system_prompt="prompt")
     )
 
     with patch("zrb.llm.agent.subagent.manager.manager.create_agent") as mock_create:
