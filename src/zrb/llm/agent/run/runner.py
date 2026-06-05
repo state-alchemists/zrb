@@ -369,7 +369,7 @@ async def _prepare_history(
     print_fn,
     effective_hook_manager,
 ):
-    history_processors = list(getattr(agent, "_zrb_history_processors", None) or [])
+    history_processors = list(getattr(agent, "zrb_history_processors", None) or [])
 
     # Count system prompt tokens BEFORE running processors so the summarizer
     # can account for them in its threshold comparison (the "Total" shown in
@@ -533,7 +533,7 @@ async def _execution_loop(
     # (unsummarized) content. We hold a reference to the processors here so we
     # can apply them ourselves to persist their effects between tool call
     # iterations.
-    history_processors = list(getattr(agent, "_zrb_history_processors", None) or [])
+    history_processors = list(getattr(agent, "zrb_history_processors", None) or [])
 
     try:
         while True:

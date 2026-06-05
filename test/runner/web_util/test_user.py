@@ -75,7 +75,7 @@ class TestGetUserFromRequest:
     ):
         mock_web_auth_config.enable_auth = True
         token = jwt.encode(
-            {"sub": "testuser", "exp": 9999999999},
+            {"sub": "testuser", "exp": 9999999999, "type": "access"},
             mock_web_auth_config.secret_key,
             algorithm="HS256",
         )
@@ -115,7 +115,7 @@ class TestGetUserFromRequest:
     async def test_get_user_from_request_with_valid_cookie(self, mock_web_auth_config):
         mock_web_auth_config.enable_auth = True
         token = jwt.encode(
-            {"sub": "testuser", "exp": 9999999999},
+            {"sub": "testuser", "exp": 9999999999, "type": "access"},
             mock_web_auth_config.secret_key,
             algorithm="HS256",
         )

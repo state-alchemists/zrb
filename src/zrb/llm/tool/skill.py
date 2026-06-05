@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from zrb.llm.skill._util import discover_companion_files, format_companion_file_lines
+from zrb.llm.skill.util import discover_companion_files, format_companion_file_lines
 from zrb.llm.skill.manager import SkillManager
 from zrb.llm.skill.manager import skill_manager as default_skill_manager
 

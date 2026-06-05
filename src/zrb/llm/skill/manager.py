@@ -7,7 +7,7 @@ import yaml
 
 from zrb.config.config import CFG
 from zrb.llm.hook.manager import hook_manager
-from zrb.llm.skill._util import discover_companion_files
+from zrb.llm.skill.util import discover_companion_files
 from zrb.util.asset_scanner import IGNORE_DIRS, scan_files
 from zrb.util.dir_search import get_upward_dirs, scan_plugin_dirs
 from zrb.util.load import load_module_from_path

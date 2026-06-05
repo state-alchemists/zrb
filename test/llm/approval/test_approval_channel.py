@@ -360,7 +360,7 @@ class TestTerminalApprovalChannelWithHandler:
         mock_handler._argument_formatters = ["formatter1", "formatter2"]
         mock_handler.format_approval_message = AsyncMock(return_value="Confirm message")
         mock_handler.get_response_handlers = MagicMock(return_value=[])
-        mock_ui._tool_call_handler = mock_handler
+        mock_ui.tool_call_handler = mock_handler
 
         channel = TerminalApprovalChannel(ui=mock_ui)
         context = ApprovalContext(
@@ -391,7 +391,7 @@ class TestTerminalApprovalChannelWithHandler:
             return_value=[mock_response_handler]
         )
         mock_handler.format_approval_message = AsyncMock(return_value="Confirm message")
-        mock_ui._tool_call_handler = mock_handler
+        mock_ui.tool_call_handler = mock_handler
 
         channel = TerminalApprovalChannel(ui=mock_ui)
         context = ApprovalContext(
@@ -675,9 +675,9 @@ class TestMultiplexApprovalChannel:
         )
 
         # Mock shutdown requested
-        original = getattr(sys, "_zrb_shutdown_requested", False)
+        original = getattr(sys, "zrb_shutdown_requested", False)
         try:
-            setattr(sys, "_zrb_shutdown_requested", True)
+            setattr(sys, "zrb_shutdown_requested", True)
 
             mock_channel = MagicMock(spec=ApprovalChannel)
             mock_channel.request_approval = AsyncMock(
@@ -698,7 +698,7 @@ class TestMultiplexApprovalChannel:
             # Should not call the channel
             mock_channel.request_approval.assert_not_called()
         finally:
-            setattr(sys, "_zrb_shutdown_requested", original)
+            setattr(sys, "zrb_shutdown_requested", original)
 
     @pytest.mark.asyncio
     async def test_multiplex_notify_shutdown(self):
@@ -708,9 +708,9 @@ class TestMultiplexApprovalChannel:
         from zrb.llm.approval.multiplex_approval_channel import MultiplexApprovalChannel
 
         # Mock shutdown requested
-        original = getattr(sys, "_zrb_shutdown_requested", False)
+        original = getattr(sys, "zrb_shutdown_requested", False)
         try:
-            setattr(sys, "_zrb_shutdown_requested", True)
+            setattr(sys, "zrb_shutdown_requested", True)
 
             mock_channel = MagicMock(spec=ApprovalChannel)
             mock_channel.notify = AsyncMock()
@@ -727,7 +727,7 @@ class TestMultiplexApprovalChannel:
             # Should not call notify on the channel
             mock_channel.notify.assert_not_called()
         finally:
-            setattr(sys, "_zrb_shutdown_requested", original)
+            setattr(sys, "zrb_shutdown_requested", original)
 
     @pytest.mark.asyncio
     async def test_multiplex_notify_without_context(self, mock_channel):
@@ -820,19 +820,19 @@ class TestMultiplexApprovalChannel:
         from zrb.llm.approval.multiplex_approval_channel import is_shutdown_requested
 
         # Default should be False
-        original = getattr(sys, "_zrb_shutdown_requested", False)
+        original = getattr(sys, "zrb_shutdown_requested", False)
         try:
             # Test default
-            if hasattr(sys, "_zrb_shutdown_requested"):
-                delattr(sys, "_zrb_shutdown_requested")
+            if hasattr(sys, "zrb_shutdown_requested"):
+                delattr(sys, "zrb_shutdown_requested")
             assert is_shutdown_requested() is False
 
             # Test set to True
-            setattr(sys, "_zrb_shutdown_requested", True)
+            setattr(sys, "zrb_shutdown_requested", True)
             assert is_shutdown_requested() is True
 
             # Test set to False
-            setattr(sys, "_zrb_shutdown_requested", False)
+            setattr(sys, "zrb_shutdown_requested", False)
             assert is_shutdown_requested() is False
         finally:
-            setattr(sys, "_zrb_shutdown_requested", original)
+            setattr(sys, "zrb_shutdown_requested", original)

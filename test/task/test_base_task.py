@@ -102,14 +102,14 @@ def test_base_task_properties():
 def test_base_task_envs_property(mock_get_combined_envs):
     task = BaseTask(name="test_task")
     task.envs
-    mock_get_combined_envs.assert_called_once_with(task)
+    mock_get_combined_envs.assert_called_once_with(task, task_envs=None)
 
 
 @patch("zrb.task.base_task.get_combined_inputs")
 def test_base_task_inputs_property(mock_get_combined_inputs):
     task = BaseTask(name="test_task")
     task.inputs
-    mock_get_combined_inputs.assert_called_once_with(task)
+    mock_get_combined_inputs.assert_called_once_with(task, task_inputs=None)
 
 
 def test_base_task_fallbacks_property():

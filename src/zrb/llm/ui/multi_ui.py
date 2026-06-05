@@ -113,10 +113,14 @@ class MultiUI:
             except Exception:
                 pass
 
+    def replay_history(self, messages: list) -> None:
+        """Replay loaded history on every child UI that supports it."""
+        self._replay_history(messages)
+
     def _replay_history(self, messages: list) -> None:
         """Replay loaded history on every child UI that supports it."""
         for ui in self._uis:
-            replay = getattr(ui, "_replay_history", None)
+            replay = getattr(ui, "replay_history", None)
             if callable(replay):
                 try:
                     replay(messages)
@@ -236,6 +240,10 @@ class MultiUI:
             return await self._uis[0].tool_call_handler.handle(self, call)
 
         raise RuntimeError("No UI available for tool confirmation")
+
+    def submit_user_message(self, llm_task: Any, user_message: str):
+        """Submit user message through the shared queue."""
+        self._submit_user_message(llm_task, user_message)
 
     def _submit_user_message(self, llm_task: Any, user_message: str):
         """Submit user message to shared queue.
@@ -452,4 +460,4 @@ class MultiUI:
 
 
 def is_shutdown_requested() -> bool:
-    return getattr(sys, "_zrb_shutdown_requested", False)
+    return getattr(sys, "zrb_shutdown_requested", False)

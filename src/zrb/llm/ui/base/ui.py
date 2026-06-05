@@ -705,7 +705,7 @@ class BaseUI(CommandsMixin, HistoryReplayMixin, SystemInfoMixin):
         parent_multi_ui = self.multi_ui_parent
         if parent_multi_ui is not None:
             # Route through parent MultiUI - this broadcasts to ALL UIs
-            parent_multi_ui._submit_user_message(llm_task, user_message)
+            parent_multi_ui.submit_user_message(llm_task, user_message)
             return
 
         # No parent - process locally (original behavior)
