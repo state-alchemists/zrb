@@ -1,6 +1,19 @@
 🔖 [Documentation Home](../README.md)
 
 
+## 2.32.0 (June 5, 2026)
+
+Stable release consolidating the `2.32.0a1`–`2.32.0b5` line (permission policy, plan mode, background subagents, `Shell` as primary execution tool, configurable LSP preference, and the web/task-engine correctness and security fixes documented in the pre-release entries below). Final polish before the tag:
+
+- **Fix: stale LLM tool-guidance references**:
+  - `UpdateTodo` / `ClearTodos` were folded into `WriteTodos` (replace-by-default) but several references to them lingered, including one the runtime name-filter could not catch: `WriteTodos`'s own `key_rule` told the agent to "use UpdateTodo to change a single item's status," directing it to a tool that is no longer registered. The `key_rule` now describes re-calling `WriteTodos` with the updated list. Removed the orphaned `UpdateTodo` / `ClearTodos` `ToolGuidance` entries (`common_tools.py`), their dead `auto_approve(...)` policy entries (`builtin/llm/chat.py`), their declarations in the `generalist` / `code-reviewer` / `researcher` agent `tools:` lists, and corrected the `system_context.py` docstring (the importable `update_todo` / `clear_todos` helpers remain for programmatic use).
+  - `generalist.agent.md`: dropped the hardcoded `ListZrbTasks` / `RunZrbTask` from its `tools:` list — these names are derived from `CFG.ROOT_GROUP_NAME` at runtime and already reach the agent through the config-aware tool factory, so hardcoding them was redundant and broke under a customized root-group name.
+
+- **Improvement: more authoritative skill catalogue prompt**:
+  - `prompt/claude.py`: the `Available Skills` section now imperatively instructs the agent to consult the catalogue at the start of every task and activate a matching skill *before* proceeding, with activated-skill instructions treated as authoritative for that task. Kept MECE — the rule lives only in the skills section (the `ActivateSkill` tool-guidance still solely owns the re-activation-after-summarization rule). Also fixed a stray trailing `_` markdown artifact in the section header text.
+
+- **Tests**: 3149 passed, 90.40% coverage (no regression).
+
 ## 2.32.0b5 (June 5, 2026)
 
 - **Feature: configurable LSP server preference (`ZRB_LLM_LSP_PREFERRED_SERVERS`)**:
