@@ -10,8 +10,7 @@ tools: [
   LspFindDefinition, LspFindReferences, LspGetDiagnostics,
   LspGetDocumentSymbols, LspGetWorkspaceSymbols, LspGetHoverInfo,
   LspRenameSymbol, LspListServers,
-  WriteTodos, GetTodos, UpdateTodo, ClearTodos,
-  ListZrbTasks, RunZrbTask,
+  WriteTodos, GetTodos,
   ActivateSkill
 ]
 inherit_sections: [persona, mandate, git_mandate, system_context, project_context, claude_skills]

@@ -6,10 +6,9 @@ assembly to ambient runtime state:
 
 1. **Session wiring** — reads ``ctx.input.session`` and calls
    ``set_current_tool_session()`` (``zrb.llm.tool.ambient_state``). The
-   resulting ``ContextVar`` is what the four todo tools (``WriteTodos``,
-   ``GetTodos``, ``UpdateTodo``, ``ClearTodos``) read when called without an
-   explicit ``session=`` argument, so they always target the active
-   conversation.
+   resulting ``ContextVar`` is what the todo tools (``WriteTodos``,
+   ``GetTodos``) read when called without an explicit ``session=`` argument,
+   so they always target the active conversation.
 
 2. **Active worktree** — if ``EnterWorktree`` was called, the path is rendered
    as ``- Active worktree: <path>`` in every subsequent system prompt and

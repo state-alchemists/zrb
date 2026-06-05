@@ -171,23 +171,12 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
         group_name="Planning",
         tool_name="WriteTodos",
         when_to_use="Planning a multi-step task",
-        key_rule="Seed the full list up front; use UpdateTodo to change a single item's status afterward.",
-    ),
-    ToolGuidance(
-        group_name="Planning",
-        tool_name="UpdateTodo",
-        when_to_use="Advancing a todo's status as work progresses",
-        key_rule="Mark `in_progress` before starting and `completed` immediately after — one status change per call.",
+        key_rule="Seed the full list up front; to advance or change an item's status, call WriteTodos again with the updated list (it replaces the list by default).",
     ),
     ToolGuidance(
         group_name="Planning",
         tool_name="GetTodos",
         when_to_use="Resuming work — check the current plan before proceeding",
-    ),
-    ToolGuidance(
-        group_name="Planning",
-        tool_name="ClearTodos",
-        when_to_use="Discarding a completed or abandoned plan",
     ),
     # Git Worktrees
     ToolGuidance(

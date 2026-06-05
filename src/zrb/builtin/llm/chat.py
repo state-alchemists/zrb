@@ -153,8 +153,6 @@ llm_chat.add_tool_policy(
     # Planning tools - safe to auto-approve (just state management)
     auto_approve("WriteTodos"),
     auto_approve("GetTodos"),
-    auto_approve("UpdateTodo"),
-    auto_approve("ClearTodos"),
     # Note: LspRenameSymbol uses dry_run by default, but requires user approval
     # when dry_run=False (actual file modifications)
     # Worktree tools - listing is safe; create/remove require approval

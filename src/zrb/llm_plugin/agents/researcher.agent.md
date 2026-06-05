@@ -9,7 +9,7 @@ tools: [
   LspFindDefinition, LspFindReferences, LspGetDiagnostics,
   LspGetDocumentSymbols, LspGetWorkspaceSymbols, LspGetHoverInfo,
   LspListServers,
-  WriteTodos, GetTodos, UpdateTodo, ClearTodos,
+  WriteTodos, GetTodos,
   ActivateSkill
 ]
 inherit_sections: [persona, mandate, system_context, project_context, claude_skills]
