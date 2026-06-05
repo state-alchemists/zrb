@@ -128,7 +128,6 @@ def show_todo(ctx: AnyContext):
 
     todo_file_path = os.path.join(CFG.TODO_DIR, "todo.txt")
     todo_list: list[TodoTaskModel] = []
-    todo_list: list[TodoTaskModel] = []
     if os.path.isfile(todo_file_path):
         todo_list = load_todo_list(todo_file_path)
     # Get todo task
@@ -175,8 +174,9 @@ def complete_todo(ctx: AnyContext):
         return get_visual_todo_list(todo_list, filter=ctx.input.filter)
     # Update todo task
     todo_task = cascade_todo_task(todo_task)
-    if todo_task.creation_date is not None:
-        todo_task.completion_date = datetime.date.today()
+    # cascade_todo_task guarantees creation_date is set, so completion_date
+    # can always be recorded here.
+    todo_task.completion_date = datetime.date.today()
     todo_task.completed = True
     # Save todo list
     save_todo_list(todo_file_path, todo_list)

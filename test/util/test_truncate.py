@@ -32,6 +32,34 @@ def test_truncate_output_basic_line_removal():
     assert info["omitted_lines"] > 0
 
 
+def test_truncate_output_omitted_metrics_exclude_marker():
+    """B24: on the line-removal path, omitted_lines/omitted_chars must reflect
+    ACTUAL omitted content and not be skewed by the injected
+    "...[TRUNCATED N lines]..." marker line.
+
+    20 fixed-width lines (8 chars each = 160 chars). head=2/tail=2 with
+    max_chars=60 removes the 16 middle lines via the line path. Retained
+    content is exactly the 4 boundary lines (= 32 chars); but here it settles
+    on 3 retained content lines (24 chars). The reported counts must measure
+    the retained content (marker excluded), so omitted = original - retained.
+    """
+    lines = [f"line{i:03d}\n" for i in range(1, 21)]
+    text = "".join(lines)
+    result, info = truncate_output(text, head_lines=2, tail_lines=2, max_chars=60)
+
+    assert info["truncation_type"] == "lines"
+    assert "TRUNCATED" in result
+    retained_chars = info["truncated_chars"]
+    # The injected marker "\n...[TRUNCATED N lines]...\n\n" is ~30 chars and is
+    # present in `result`; the retained content metric must exclude it, so it
+    # stays far below len(result).
+    assert retained_chars < len(result)
+    assert info["omitted_lines"] == info["original_lines"] - info["truncated_lines"]
+    assert info["omitted_chars"] == info["original_chars"] - retained_chars
+    # Sanity: retained content + omitted = original (marker not double-counted).
+    assert info["truncated_chars"] + info["omitted_chars"] == info["original_chars"]
+
+
 def test_truncate_output_with_head_and_tail():
     """Test truncate_output preserves head and tail lines."""
     lines = [f"line{i}\n" for i in range(1, 11)]

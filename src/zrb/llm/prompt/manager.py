@@ -37,6 +37,17 @@ def _render_persona_prompt(assistant_name: str | None) -> str:
 
 
 class PromptManager:
+    """Assembles the LLM system prompt from ordered, MECE sections.
+
+    Sections are emitted in the order given by ``include_sections`` (default in
+    ``config/mixins/llm_prompt.py``: persona → mandate → git_mandate →
+    journal_mandate → system_context → project_context → tool_guidance →
+    claude_skills), followed by any user-added prompts. ``tool_names`` and
+    ``tool_guidance`` are resolved at runtime to filter per-tool guidance to the
+    tools actually available; ``model`` and ``assistant_name`` may be callables
+    resolved against the active context. See AGENTS.md ("LLM Prompt System").
+    """
+
     def __init__(
         self,
         prompts: list[PromptMiddleware | str] | None = None,

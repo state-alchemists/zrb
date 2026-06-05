@@ -81,7 +81,6 @@ class Location:
         )
 
 
-@dataclass
 class DiagnosticSeverity(Enum):
     """Diagnostic severity levels."""
 
@@ -115,7 +114,6 @@ class Diagnostic:
         )
 
 
-@dataclass
 class SymbolKind(Enum):
     """Symbol kinds from LSP."""
 

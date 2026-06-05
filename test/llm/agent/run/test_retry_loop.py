@@ -80,6 +80,39 @@ async def test_prompt_too_long_does_not_reset_transient_counter():
 
 
 @pytest.mark.asyncio
+async def test_prompt_too_long_no_progress_does_not_retry():
+    """When drop_oldest_turn cannot shrink the history (e.g. a single turn with
+    deferred results pending, min_turns=1), the prompt-too-long path must NOT
+    retry. Retrying an identical request reproduces the error and re-executes
+    any pending side-effecting tool, so the handler falls through instead."""
+    state = RetryState(context_retry_count=0, max_context_retries=5)
+    exc = Exception("Prompt too long")
+    current_history = ["only_turn_user", "only_turn_model"]
+    print_fn = MagicMock()
+
+    # drop_oldest_turn returns the history unchanged (no turn to drop).
+    with patch(
+        "zrb.llm.agent.run.retry_loop.drop_oldest_turn",
+        return_value=current_history,
+    ):
+        outcome = await handle_stream_error(
+            state,
+            exc,
+            current_history,
+            None,
+            current_history,
+            print_fn,
+            min_turns=1,
+        )
+
+    # No progress possible: do not consume a retry on this path, and do not
+    # claim a context-too-long retry. The exception is non-400, so the handler
+    # exhausts the remaining branches and declines to retry.
+    assert outcome.should_retry is False
+    assert state.context_retry_count == 0
+
+
+@pytest.mark.asyncio
 async def test_handle_stream_error_invalid_tool_call_with_string_message():
     state = RetryState(invalid_tool_retry_done=False)
     exc = Exception("Unknown tool")

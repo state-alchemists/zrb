@@ -1,3 +1,5 @@
+import secrets
+
 from pydantic import BaseModel, ConfigDict
 
 from zrb.group.any_group import AnyGroup
@@ -14,7 +16,11 @@ class User(BaseModel):
     accessible_tasks: list[AnyTask | str] = []
 
     def is_password_match(self, password: str) -> bool:
-        return self.password == password
+        # Constant-time compare to avoid a timing side-channel on the password.
+        # Encode to bytes so non-ASCII passwords compare safely (secrets.compare_digest
+        # rejects non-ASCII str). Passwords are still configured in plaintext by the
+        # host app — hashing them at rest would change that public config contract.
+        return secrets.compare_digest(self.password.encode(), password.encode())
 
     def can_access_group(self, group: AnyGroup) -> bool:
         if self.is_super_admin:

@@ -31,6 +31,10 @@ class HistoryReplayMixin:
 
         def _get_output_field_width(self) -> int | None: ...
 
+    def replay_history(self, messages: list) -> None:
+        """Public entry point for replaying loaded conversation history."""
+        return self._replay_history(messages)
+
     def _replay_history(self, messages: list) -> None:
         """Render loaded conversation history through live-message paths.
 

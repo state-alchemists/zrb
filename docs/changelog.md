@@ -1,6 +1,49 @@
 🔖 [Documentation Home](../README.md)
 
 
+## 2.32.0b5 (June 5, 2026)
+
+- **Feature: configurable LSP server preference (`ZRB_LLM_LSP_PREFERRED_SERVERS`)**:
+  - New comma-separated, ordered config (`CFG.LLM_LSP_PREFERRED_SERVERS`) naming the LSP servers the agent should prefer when several installed servers match a file (e.g. `pyright,gopls`). `LSPManager.get_server` now defaults its `preferred_servers` from this config when a caller doesn't pass one, so the agent's LSP tools honor it without code changes; an explicit per-call list still overrides. Names that don't match a given file are skipped, so one flat list covers multiple languages. Empty (default) keeps the previous installation/registry-order behavior. See `docs/advanced-topics/lsp-support.md`.
+
+- **Security: web authentication hardening**:
+  - `runner/web_util/user.py`: the access path (`_get_user_from_token`) now requires the JWT `type == "access"` claim — a *refresh* token (signed with the same secret, also carrying `sub`/`exp`) can no longer be used as an access token.
+  - `runner/web_util/cookie.py`: auth cookies are now issued with `Secure` and `SameSite=Lax` (in addition to `HttpOnly`). `http://localhost` is a browser secure context so local dev is unaffected; non-localhost deployments must terminate TLS.
+  - `runner/web_schema/user.py`: `is_password_match` now uses `secrets.compare_digest` (constant-time) instead of `==`.
+  - `llm/tool/zrb_task.py`: `run_zrb_task` now `shlex.quote`s each argument, preventing word-splitting / shell injection from arg values.
+
+- **Fix: task-engine correctness**:
+  - `task/cmd_task.py`: a process killed by a signal (negative return code) is now correctly treated as failure (`return_code != 0`, was `> 0`).
+  - `task/base_trigger.py`: `readiness_checks` memoizes a single default check task instead of minting a fresh `BaseTask` on every access (status tracking for default triggers now works).
+  - `task/tcp_check.py`: the probe writer is now closed (no socket leak) and the action returns `True` (was leaking the `(reader, writer)` tuple); a close error no longer re-triggers the retry loop.
+  - `task/http_check.py`: the blocking `requests.request` call now runs via `asyncio.to_thread` (no longer blocks the event loop); the dead `except asyncio.TimeoutError` is removed.
+  - `session/session.py`: coroutines deferred after `terminate()` are now cancelled instead of outliving the session. `task/base/lifecycle.py`: a cleanup handler no longer references a possibly-unbound `ctx`.
+  - Mutable default arguments (`= []` / `= {}`) replaced with `None` sentinels in `scheduler.py`, `base_trigger.py`, `scaffolder.py`, `config/web_auth_config.py`, `llm/tool/zrb_task.py`, `llm/tool/rag.py`, and `tool_call/tool_policy/auto_approve.py`.
+
+- **Fix: LLM tooling & infrastructure correctness**:
+  - `llm/lsp/server.py` + `manager/query_mixin.py`: `LspRenameSymbol` with `dry_run=False` now actually applies the workspace edit to disk and reports an honest `applied` flag (was a TODO that returned the edit unapplied while reporting success). `protocol.py`: removed no-op `@dataclass` on the `Enum` types; unified the path→URI encoder with `quote()` so diagnostics URIs match for paths with special characters.
+  - `llm/tool/web.py`: fixed an `IndexError` on empty Brave `extra_snippets` and made the result `page` reflect the requested page (was hardcoded to 1).
+  - `llm/config/limiter.py`: a configured limit of `0` now blocks (previously the first request/batch slipped through).
+  - `llm/agent/run/runner.py`: SESSION_START hook context is grafted via `replace()` instead of mutating the cached history list in place (no more per-turn re-injection).
+  - `llm/history_manager/file_history_manager.py`: the load cache is now invalidated by file mtime, so out-of-band changes are picked up.
+  - `tool_call/tool_policy/replace_in_file_validation.py`: the `Edit` precondition now defers to the tool's fuzzy matcher instead of denying on an exact-substring miss.
+  - `llm/ui/buffered_output_mixin.py`: the auto-flush task is retained (no GC mid-flush) and a prior flush loop is cancelled before a new one starts.
+  - `llm/agent/subagent/manager/manager.py`: per-agent dynamic tool guidance no longer permanently mutates the shared `sub_agent_manager` singleton.
+  - Smaller fixes: honest truncated-file header (`file_read.py`), accurate `TruncationInfo` metrics (`util/truncate.py`), detached reader tasks cancelled on teardown (`shell_background.py`), duplicate-line cleanup (`builtin/todo.py`).
+
+- **Fix: concurrent SSE chat sessions no longer clobber each other**:
+  - `runner/chat/`: multiple SSE sessions share one `LLMChatTask`; each message now configures and runs it under `ChatSessionManager.task_lock` (snapshot → apply → run → restore), so a concurrent session can no longer overwrite an in-flight run's UI/approval/history wiring.
+
+- **Refactor: encapsulation — cross-module private access replaced with public accessors**:
+  - `BaseTask` now exposes read-only properties (`retries`, `retry_period`, `readiness_check_delay`, `readiness_check_period`, `readiness_failure_threshold`, `readiness_timeout`, `monitor_readiness`, `action`, `execute_condition`) and a public `exec_action()` wrapper; the `task/base/*` modules use these instead of `_`-prefixed attrs.
+  - `BaseUI` gains public `multi_ui_parent`, `take_pending_attachments()`, and `output_field_width`; `MultiUI`, `TerminalApprovalChannel`, the diff formatter, and `SkillManager` now use these (and the hook manager's new public `parse_claude_format` / `parse_and_register`) instead of reaching into other objects' privates.
+
+- **Improvement: async hygiene**:
+  - Replaced deprecated `asyncio.get_event_loop().create_task(...)` with `asyncio.create_task(...)` across the UI mixins; the message-queue worker now awaits the prior task instead of polling in a 0.1s spin-loop.
+
+- **CI: the documented ≥90% coverage bar is now enforced**:
+  - `zrb-test.sh` adds `--cov-fail-under=90` on a full run (scoped single-file/dir runs are exempt so they don't fail a global threshold).
+
 ## 2.32.0b4 (June 4, 2026)
 
 - **Fix: Stale prompt replacements from an incomplete cache key**:

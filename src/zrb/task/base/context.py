@@ -102,7 +102,10 @@ def combine_envs(
                 existing_envs.append(env)
 
 
-def get_combined_envs(task: "BaseTask") -> list[AnyEnv]:
+def get_combined_envs(
+    task: "BaseTask",
+    task_envs: list[AnyEnv | None] | AnyEnv | None = None,
+) -> list[AnyEnv]:
     """
     Aggregates environment variables from the task and its upstreams.
     """
@@ -110,12 +113,16 @@ def get_combined_envs(task: "BaseTask") -> list[AnyEnv]:
     for upstream in task.upstreams:
         combine_envs(envs, upstream.envs)
 
-    combine_envs(envs, task._envs)
+    if task_envs is not None:
+        combine_envs(envs, task_envs)
 
     return envs
 
 
-def get_combined_inputs(task: "BaseTask") -> list[AnyInput]:
+def get_combined_inputs(
+    task: "BaseTask",
+    task_inputs: list[AnyInput | None] | AnyInput | None = None,
+) -> list[AnyInput]:
     """
     Aggregates inputs from the task and its upstreams, avoiding duplicates.
     """
@@ -123,8 +130,6 @@ def get_combined_inputs(task: "BaseTask") -> list[AnyInput]:
     for upstream in task.upstreams:
         combine_inputs(inputs, upstream.inputs)
 
-    # Access _inputs directly as task is BaseTask
-    task_inputs: list[AnyInput | None] | AnyInput | None = task._inputs
     if task_inputs is not None:
         combine_inputs(inputs, task_inputs)
 

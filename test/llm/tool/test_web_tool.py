@@ -4,7 +4,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from zrb.config.config import CFG
-from zrb.llm.tool.web import open_web_page, search_internet
+from zrb.llm.tool.web import (
+    normalize_search_result,
+    open_web_page,
+    search_internet,
+)
 
 
 @pytest.fixture
@@ -72,6 +76,62 @@ async def test_search_internet_default_fallback(mock_google_rss):
     with patch.dict(os.environ, {f"{CFG.ENV_PREFIX}_SEARCH_INTERNET_METHOD": "other"}):
         await search_internet("query")
         mock_google_rss.assert_called_once()
+
+
+def test_normalize_brave_empty_extra_snippets():
+    # B8: extra_snippets present but empty must not raise IndexError.
+    raw = {
+        "query": "q",
+        "web": {
+            "results": [
+                {"title": "t", "url": "u", "description": "", "extra_snippets": []}
+            ]
+        },
+    }
+    result = normalize_search_result(raw, "brave")
+    assert result["error"] is None
+    assert result["results"][0]["snippet"] == ""
+
+
+def test_normalize_brave_uses_first_extra_snippet():
+    raw = {
+        "query": "q",
+        "web": {
+            "results": [
+                {"title": "t", "url": "u", "description": "", "extra_snippets": ["fb"]}
+            ]
+        },
+    }
+    result = normalize_search_result(raw, "brave")
+    assert result["results"][0]["snippet"] == "fb"
+
+
+def test_normalize_brave_echoes_page():
+    # B9: page must reflect the requested page, not a hardcoded 1.
+    raw = {"query": "q", "web": {"results": []}}
+    result = normalize_search_result(raw, "brave", page=3)
+    assert result["page"] == 3
+
+
+def test_normalize_serpapi_echoes_page():
+    # B9: page must reflect the requested page, not a hardcoded 1.
+    raw = {"query": "q", "organic_results": []}
+    result = normalize_search_result(raw, "serpapi", page=4)
+    assert result["page"] == 4
+
+
+@pytest.mark.asyncio
+async def test_search_internet_brave_threads_page(mock_brave):
+    mock_brave.return_value = {"query": "q", "web": {"results": []}}
+    with patch.dict(
+        os.environ,
+        {
+            f"{CFG.ENV_PREFIX}_SEARCH_INTERNET_METHOD": "brave",
+            "BRAVE_API_KEY": "fake-key",
+        },
+    ):
+        result = await search_internet("q", page=2)
+        assert result["page"] == 2
 
 
 @pytest.mark.asyncio

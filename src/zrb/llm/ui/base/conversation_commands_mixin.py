@@ -191,7 +191,7 @@ class ConversationCommandsMixin:
                         self._is_thinking = False
                         self.invalidate_ui()
 
-                task = asyncio.get_event_loop().create_task(do_restore())
+                task = asyncio.create_task(do_restore())
                 self._background_tasks.add(task)
                 task.add_done_callback(self._background_tasks.discard)
             else:

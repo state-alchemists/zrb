@@ -149,4 +149,4 @@ class MultiplexApprovalChannel(ApprovalChannel):
 
 
 def is_shutdown_requested() -> bool:
-    return getattr(sys, "_zrb_shutdown_requested", False)
+    return getattr(sys, "zrb_shutdown_requested", False)

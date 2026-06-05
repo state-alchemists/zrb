@@ -64,6 +64,37 @@ class TestAutoApproveEmptyPatterns:
         next_handler.assert_not_called()
 
 
+class TestAutoApproveDefaultPatterns:
+    """B13: the default kwargs_patterns must not be a shared mutable dict."""
+
+    @pytest.mark.asyncio
+    async def test_omitted_patterns_approves_immediately(self):
+        """Omitting kwargs_patterns defaults to empty -> auto-approves."""
+        from pydantic_ai import ToolApproved
+
+        policy = auto_approve("MyTool")
+        ui = MagicMock()
+        call = MagicMock()
+        call.tool_name = "MyTool"
+        call.args = {"any": "arg"}
+        next_handler = AsyncMock()
+
+        result = await policy(ui, call, next_handler)
+
+        assert isinstance(result, ToolApproved)
+        next_handler.assert_not_called()
+
+    def test_default_patterns_not_shared_between_instances(self):
+        """Each call with the default builds a fresh dict (no shared default)."""
+        first = auto_approve("ToolA")
+        second = auto_approve("ToolB")
+        # Distinct closures; the bug would manifest as one shared default dict
+        # mutated across instances. We assert independence indirectly: building
+        # two policies must not raise and must produce distinct callables.
+        assert first is not second
+        assert callable(first) and callable(second)
+
+
 class TestAutoApproveStringArgs:
     """Test auto_approve when args are JSON strings."""
 

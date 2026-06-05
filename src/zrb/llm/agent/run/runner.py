@@ -328,7 +328,13 @@ async def _run_startup_hooks(
 
         context_part = SystemPromptPart(content=session_start_context)
         if message_history and isinstance(message_history[0], ModelRequest):
-            message_history[0].parts.insert(0, context_part)
+            # Rebuild the first request via replace() instead of mutating its
+            # parts in place — message_history is the history manager's cached
+            # list (returned by reference), so an in-place insert would graft the
+            # context onto the stored conversation and re-inject it every turn.
+            first = message_history[0]
+            new_first = replace(first, parts=[context_part, *first.parts])
+            message_history = [new_first, *message_history[1:]]
         else:
             message_history = [ModelRequest(parts=[context_part])] + message_history
 
@@ -363,7 +369,7 @@ async def _prepare_history(
     print_fn,
     effective_hook_manager,
 ):
-    history_processors = list(getattr(agent, "_zrb_history_processors", None) or [])
+    history_processors = list(getattr(agent, "zrb_history_processors", None) or [])
 
     # Count system prompt tokens BEFORE running processors so the summarizer
     # can account for them in its threshold comparison (the "Total" shown in
@@ -527,7 +533,7 @@ async def _execution_loop(
     # (unsummarized) content. We hold a reference to the processors here so we
     # can apply them ourselves to persist their effects between tool call
     # iterations.
-    history_processors = list(getattr(agent, "_zrb_history_processors", None) or [])
+    history_processors = list(getattr(agent, "zrb_history_processors", None) or [])
 
     try:
         while True:

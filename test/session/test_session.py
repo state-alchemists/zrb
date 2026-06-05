@@ -186,6 +186,58 @@ async def test_defer_coro_and_wait(session):
     await session.wait_deferred()
 
 
+@pytest.mark.asyncio
+async def test_defer_coro_after_terminate_is_cancelled():
+    """Coros deferred after terminate() are cancelled, not run (regression)."""
+    from zrb.context.shared_context import SharedContext
+
+    shared_ctx = SharedContext()
+    session = Session(shared_ctx=shared_ctx)
+    session.terminate()
+
+    ran = False
+
+    async def sample():
+        nonlocal ran
+        ran = True
+
+    session.defer_coro(sample())
+    await session.wait_deferred()
+    # Yield to let any (incorrectly) scheduled task run before asserting.
+    await asyncio.sleep(0)
+    assert ran is False
+
+
+@pytest.mark.asyncio
+async def test_defer_action_after_terminate_is_cancelled():
+    """Actions deferred after terminate() are cancelled, not run (regression)."""
+    from zrb.context.shared_context import SharedContext
+
+    shared_ctx = SharedContext()
+    session = Session(shared_ctx=shared_ctx)
+    session.terminate()
+
+    task = MagicMock(spec=AnyTask)
+    task.name = "task"
+    task.readiness_checks = []
+    task.successors = []
+    task.fallbacks = []
+    task.upstreams = []
+    task.color = None
+    task.icon = None
+
+    ran = False
+
+    async def sample():
+        nonlocal ran
+        ran = True
+
+    session.defer_action(task, sample())
+    await session.wait_deferred()
+    await asyncio.sleep(0)
+    assert ran is False
+
+
 def test_context_creation(session):
     task = MagicMock(spec=AnyTask)
     task.name = "task"

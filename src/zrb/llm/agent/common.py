@@ -294,7 +294,7 @@ def create_agent(
         capabilities=capabilities or [],
         retries={"tools": effective_retries},
     )
-    agent._zrb_history_processors = history_processors or []  # type: ignore[attr-defined]
+    agent.zrb_history_processors = history_processors or []  # type: ignore[attr-defined]
     return agent
 
 

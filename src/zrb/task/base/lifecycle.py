@@ -30,6 +30,7 @@ async def run_and_cleanup(
         run_task_async(task, session, print_fn, str_kwargs, kwargs)
     )
 
+    ctx = None
     try:
         result = await main_task_coro
         return result
@@ -64,9 +65,11 @@ async def run_and_cleanup(
                     pass
                 except Exception as cleanup_exc:
                     # Log errors during cleanup if necessary
-                    ctx.log_warning(f"Error during task cleanup: {cleanup_exc}")
+                    if ctx is not None:
+                        ctx.log_warning(f"Error during task cleanup: {cleanup_exc}")
         except RuntimeError as cleanup_exc:
-            ctx.log_warning(f"Error during task cleanup: {cleanup_exc}")
+            if ctx is not None:
+                ctx.log_warning(f"Error during task cleanup: {cleanup_exc}")
 
 
 async def run_task_async(

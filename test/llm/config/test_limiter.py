@@ -86,6 +86,34 @@ async def test_llm_limiter_acquire():
     assert not notifier.called
 
 
+@pytest.mark.asyncio
+async def test_llm_limiter_zero_request_limit_blocks_first_request():
+    """B10: a request budget of 0 must block even the very first request.
+
+    Previously the empty-log guard let the first request through. ``acquire``
+    should now loop indefinitely, so ``wait_for`` must time out.
+    """
+    limiter = LLMLimiter()
+    limiter.max_request_per_minute = 0
+    limiter.max_token_per_minute = 1000
+    limiter.throttle_check_interval = 0.01
+
+    with pytest.raises(asyncio.TimeoutError):
+        await asyncio.wait_for(limiter.acquire("hello"), timeout=0.1)
+
+
+@pytest.mark.asyncio
+async def test_llm_limiter_zero_token_limit_blocks_positive_tokens():
+    """B10: a token budget of 0 must reject any request that needs tokens."""
+    limiter = LLMLimiter()
+    limiter.max_request_per_minute = 100
+    limiter.max_token_per_minute = 0
+    limiter.throttle_check_interval = 0.01
+
+    with pytest.raises(asyncio.TimeoutError):
+        await asyncio.wait_for(limiter.acquire("hello world"), timeout=0.1)
+
+
 def test_llm_limiter_properties():
     """Test limiter property getters and setters."""
     limiter = LLMLimiter()

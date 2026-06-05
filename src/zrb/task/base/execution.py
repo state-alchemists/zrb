@@ -60,7 +60,7 @@ def check_execute_condition(task: "BaseTask", session: AnySession) -> bool:
     """
     ctx = task.get_ctx(session)
     execute_condition_attr = (
-        task._execute_condition if task._execute_condition is not None else True
+        task.execute_condition if task.execute_condition is not None else True
     )
     return get_bool_attr(ctx, execute_condition_attr, True, auto_render=True)
 
@@ -72,13 +72,11 @@ async def execute_action_until_ready(task: "BaseTask", session: AnySession):
     ctx = task.get_ctx(session)
     readiness_checks = task.readiness_checks
     readiness_check_delay = (
-        task._readiness_check_delay
-        if task._readiness_check_delay is not None
+        task.readiness_check_delay
+        if task.readiness_check_delay is not None
         else CFG.TASK_READINESS_DELAY / 1000
     )
-    monitor_readiness = (
-        task._monitor_readiness if task._monitor_readiness is not None else False
-    )
+    monitor_readiness = bool(task.monitor_readiness)
 
     if not readiness_checks:  # Simplified check for empty list
         ctx.log_info("No readiness checks")
@@ -159,8 +157,8 @@ async def execute_action_with_retry(task: "BaseTask", session: AnySession) -> An
     handling success (triggering successors) and failure (triggering fallbacks).
     """
     ctx = task.get_ctx(session)
-    retries = task._retries if task._retries is not None else 2
-    retry_period = task._retry_period if task._retry_period is not None else 0
+    retries = task.retries
+    retry_period = task.retry_period
     max_attempt = retries + 1
     ctx.set_max_attempt(max_attempt)
 
@@ -175,8 +173,8 @@ async def execute_action_with_retry(task: "BaseTask", session: AnySession) -> An
             session.get_task_status(task).mark_as_started()
 
             # Execute the underlying action (which might be overridden in subclasses)
-            # We call the task's _exec_action method directly here.
-            result = await run_async(task._exec_action(ctx))
+            # We call the task's exec_action method directly here.
+            result = await run_async(task.exec_action(ctx))
 
             ctx.log_info("Marked as completed")
             session.get_task_status(task).mark_as_completed()
@@ -222,7 +220,7 @@ async def run_default_action(task: "BaseTask", ctx: AnyContext) -> Any:
     This is the default implementation called by BaseTask._exec_action.
     Subclasses like LLMTask override _exec_action with their own logic.
     """
-    action = task._action
+    action = task.action
     if action is None:
         ctx.log_debug("No action defined for this task.")
         return None

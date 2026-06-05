@@ -1,7 +1,7 @@
 """System-context middleware: runs once per prompt build.
 
 Beyond rendering environment facts (OS, cwd, git status, project type, tool
-availability), this module performs three auto-injections that bridge prompt
+availability), this module performs four auto-injections that bridge prompt
 assembly to ambient runtime state:
 
 1. **Session wiring** — reads ``ctx.input.session`` and calls

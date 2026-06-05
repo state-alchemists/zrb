@@ -11,6 +11,7 @@ import asyncio
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from zrb.config.config import CFG
 from zrb.llm.lsp.server import (
     LSPServer,
     detect_available_lsp_servers,
@@ -94,7 +95,14 @@ class LifecycleMixin:
         file_path: str,
         preferred_servers: list[str] | None = None,
     ) -> LSPServer | None:
-        """Get or lazily start an LSP server for `file_path`. None if unavailable."""
+        """Get or lazily start an LSP server for `file_path`. None if unavailable.
+
+        When `preferred_servers` is not given, fall back to the configured
+        `CFG.LLM_LSP_PREFERRED_SERVERS` so the agent path (whose LSP tools call this
+        without an explicit list) honors the user's preference.
+        """
+        if preferred_servers is None:
+            preferred_servers = CFG.LLM_LSP_PREFERRED_SERVERS or None
         config = get_lsp_config_for_file(file_path, preferred_servers)
         if config is None:
             return None

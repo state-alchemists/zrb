@@ -143,12 +143,52 @@ class BaseTask(AnyTask):
         return self._cli_only
 
     @property
+    def execute_condition(self):
+        return self._execute_condition
+
+    @property
+    def retries(self) -> int:
+        return self._retries if self._retries is not None else 2
+
+    @property
+    def retry_period(self) -> float:
+        return self._retry_period if self._retry_period is not None else 0
+
+    @property
+    def readiness_check_delay(self) -> float:
+        return self._readiness_check_delay
+
+    @property
+    def readiness_check_period(self) -> float:
+        return self._readiness_check_period if self._readiness_check_period else 5.0
+
+    @property
+    def readiness_failure_threshold(self) -> int:
+        return (
+            self._readiness_failure_threshold
+            if self._readiness_failure_threshold
+            else 1
+        )
+
+    @property
+    def readiness_timeout(self) -> float:
+        return self._readiness_timeout if self._readiness_timeout else 60
+
+    @property
+    def monitor_readiness(self) -> bool:
+        return self._monitor_readiness if self._monitor_readiness is not None else False
+
+    @property
+    def action(self):
+        return self._action
+
+    @property
     def envs(self) -> list[AnyEnv]:
-        return get_combined_envs(self)
+        return get_combined_envs(self, task_envs=self._envs)
 
     @property
     def inputs(self) -> list[AnyInput]:
-        return get_combined_inputs(self)
+        return get_combined_inputs(self, task_inputs=self._inputs)
 
     def _append_unique_tasks(
         self, items: "AnyTask | list[AnyTask]", target: "list[AnyTask]"
@@ -253,6 +293,10 @@ class BaseTask(AnyTask):
 
     async def exec(self, session: AnySession):
         return await execute_task_action(self, session)
+
+    async def exec_action(self, ctx: AnyContext) -> Any:
+        """Public wrapper around _exec_action for cross-module callers."""
+        return await self._exec_action(ctx)
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
         """

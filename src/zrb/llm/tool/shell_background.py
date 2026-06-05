@@ -27,6 +27,7 @@ class _BackgroundProcess:
     stderr_lines: list[str] = field(default_factory=list)
     description: str = ""
     returncode: int | None = None
+    tasks: list[asyncio.Task] = field(default_factory=list)
 
 
 class _ShellBackgroundRegistry:
@@ -46,10 +47,13 @@ class _ShellBackgroundRegistry:
         )
         bp = _BackgroundProcess(process=proc, description=description or command)
         self._procs[handle] = bp
-        # Start readers in the background.
-        asyncio.ensure_future(self._read_stdout(handle, proc))
-        asyncio.ensure_future(self._read_stderr(handle, proc))
-        asyncio.ensure_future(self._wait_exit(handle, proc))
+        # Start readers in the background and track them so cancel_all() /
+        # kill() can stop them — otherwise they leak past the process exit.
+        bp.tasks = [
+            asyncio.ensure_future(self._read_stdout(handle, proc)),
+            asyncio.ensure_future(self._read_stderr(handle, proc)),
+            asyncio.ensure_future(self._wait_exit(handle, proc)),
+        ]
         return handle
 
     async def _read_stdout(self, handle: str, proc: asyncio.subprocess.Process) -> None:
@@ -130,6 +134,7 @@ class _ShellBackgroundRegistry:
                 os.killpg(os.getpgid(bp.process.pid), signal.SIGKILL)
             except Exception:
                 pass
+        _cancel_tasks(bp)
         self._procs.pop(handle, None)
         return f"Killed process '{handle}'."
 
@@ -140,7 +145,16 @@ class _ShellBackgroundRegistry:
                     os.killpg(os.getpgid(bp.process.pid), signal.SIGKILL)
                 except Exception:
                     pass
+            _cancel_tasks(bp)
         self._procs.clear()
+
+
+def _cancel_tasks(bp: _BackgroundProcess) -> None:
+    """Cancel the detached reader/wait tasks attached to a background process."""
+    for task in bp.tasks:
+        if not task.done():
+            task.cancel()
+    bp.tasks = []
 
 
 _registry = _ShellBackgroundRegistry()

@@ -255,6 +255,21 @@ class BaseUI(CommandsMixin, HistoryReplayMixin, SystemInfoMixin):
         return self._tool_call_handler
 
     @property
+    def multi_ui_parent(self) -> Any:
+        """The MultiUI this UI is a child of, or None when standalone."""
+        return getattr(self, "_multi_ui_parent", None)
+
+    @multi_ui_parent.setter
+    def multi_ui_parent(self, parent: Any) -> None:
+        self._multi_ui_parent = parent
+
+    def take_pending_attachments(self) -> "list[UserContent]":
+        """Return and clear this UI's pending attachments (public accessor)."""
+        attachments = list(self._pending_attachments)
+        self._pending_attachments.clear()
+        return attachments
+
+    @property
     def llm_task(self) -> Any:
         """Get the LLM task."""
         return self._llm_task
@@ -614,6 +629,16 @@ class BaseUI(CommandsMixin, HistoryReplayMixin, SystemInfoMixin):
         """
         pass
 
+    @property
+    def output_field_width(self) -> int | None:
+        """Public width accessor — delegates to the `_get_output_field_width()`
+        override hook so callers (e.g. the diff formatter) read width through a
+        public name. Concrete UIs with their own terminal-derived width (the
+        default TUI via `OutputMixin`) override this property directly, winning
+        by MRO; custom `BaseUI` subclasses just override `_get_output_field_width`.
+        """
+        return self._get_output_field_width()
+
     def _get_output_field_width(self) -> int | None:
         """[OPTIONAL] Get the width for text output formatting.
 
@@ -631,12 +656,19 @@ class BaseUI(CommandsMixin, HistoryReplayMixin, SystemInfoMixin):
             try:
                 job = await self._message_queue.get()
 
-                # Wait if there is a running task (e.g. from previous iteration just finishing cleanup)
-                while (
+                # Wait for any still-running task from a previous iteration to
+                # finish. Await it directly instead of polling — this removes the
+                # busy-wait and the check-then-act race between done() and the
+                # next assignment. Swallow its outcome (incl. cancellation); this
+                # loop only needs it to be settled before starting the next job.
+                if (
                     self._running_llm_task is not None
                     and not self._running_llm_task.done()
                 ):
-                    await asyncio.sleep(0.1)
+                    try:
+                        await self._running_llm_task
+                    except (asyncio.CancelledError, Exception):
+                        pass
 
                 # Create task for current job
                 current_task = asyncio.create_task(job())
@@ -680,10 +712,10 @@ class BaseUI(CommandsMixin, HistoryReplayMixin, SystemInfoMixin):
 
     def _submit_user_message(self, llm_task: AnyTask, user_message: str):
         # Check if we have a parent MultiUI to route through
-        parent_multi_ui = getattr(self, "_multi_ui_parent", None)
+        parent_multi_ui = self.multi_ui_parent
         if parent_multi_ui is not None:
             # Route through parent MultiUI - this broadcasts to ALL UIs
-            parent_multi_ui._submit_user_message(llm_task, user_message)
+            parent_multi_ui.submit_user_message(llm_task, user_message)
             return
 
         # No parent - process locally (original behavior)
@@ -691,8 +723,7 @@ class BaseUI(CommandsMixin, HistoryReplayMixin, SystemInfoMixin):
         # 1. Render User Message
         self.append_to_output(f"\n💬 {timestamp} >> {user_message.strip()}\n")
         # 2. Trigger AI Response
-        attachments = list(self._pending_attachments)
-        self._pending_attachments.clear()
+        attachments = self.take_pending_attachments()
 
         async def job():
             await self._stream_ai_response(llm_task, user_message, attachments)

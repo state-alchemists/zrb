@@ -113,13 +113,13 @@ class CmdTask(BaseTask):
         self._is_interactive = is_interactive
 
     async def _exec_action(self, ctx: AnyContext) -> CmdResult:
-        """Turn _cmd attribute into subprocess.Popen and execute it as task's action.
+        """Run the configured command as a subprocess and return its result.
 
         Args:
-            session (AnySession): The shared session.
+            ctx (AnyContext): The task execution context.
 
         Returns:
-            Any: The result of the action execution.
+            CmdResult: The captured stdout/stderr and exit code.
         """
         cmd_script = self._get_cmd_script(ctx)
         ctx.log_debug(f"Script: {self.__get_multiline_repr(cmd_script)}")
@@ -151,7 +151,7 @@ class CmdTask(BaseTask):
             is_interactive=self._is_interactive,
         )
         # Check for errors
-        if return_code > 0:
+        if return_code != 0:
             raise Exception(f"Process {self._name} exited ({return_code})")
         ctx.log_info(f"Exit status: {return_code}")
         return cmd_result

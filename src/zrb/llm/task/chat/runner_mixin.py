@@ -300,7 +300,7 @@ class RunnerMixin:
             history = history_manager.load(conversation_name)
             if not history:
                 return
-            replay = getattr(ui, "_replay_history", None)
+            replay = getattr(ui, "replay_history", None)
             if callable(replay):
                 replay(history)
             else:

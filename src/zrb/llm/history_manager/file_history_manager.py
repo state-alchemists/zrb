@@ -28,6 +28,11 @@ class FileHistoryManager(AnyHistoryManager):
     def __init__(self, history_dir: str):
         self._history_dir = os.path.expanduser(history_dir)
         self._cache: "dict[str, list[ModelMessage]]" = {}
+        # mtime of the on-disk file at the time the cache entry was last synced
+        # with disk. Used to invalidate the cache when the file changes out-of-band
+        # (a second manager instance, an external edit, a name that collides on one
+        # file). `None` means "no file on disk at sync time".
+        self._cache_mtime: dict[str, float | None] = {}
         if not os.path.exists(self._history_dir):
             os.makedirs(self._history_dir, exist_ok=True)
 
@@ -36,10 +41,18 @@ class FileHistoryManager(AnyHistoryManager):
         from pydantic import ValidationError
         from pydantic_ai.messages import ModelMessagesTypeAdapter
 
-        if conversation_name in self._cache:
+        file_path = self._get_file_path(conversation_name)
+        current_mtime = self._file_mtime(file_path)
+
+        # Serve from cache only while the on-disk file hasn't changed since we
+        # last synced. A differing mtime (incl. the file appearing/disappearing)
+        # means the cache is stale and we must re-read.
+        if (
+            conversation_name in self._cache
+            and self._cache_mtime.get(conversation_name) == current_mtime
+        ):
             return self._cache[conversation_name]
 
-        file_path = self._get_file_path(conversation_name)
         if not os.path.exists(file_path):
             return []
 
@@ -63,6 +76,7 @@ class FileHistoryManager(AnyHistoryManager):
                 # Validate the cleaned and filtered data
                 messages = ModelMessagesTypeAdapter.validate_python(filtered_data)
                 self._cache[conversation_name] = messages
+                self._cache_mtime[conversation_name] = current_mtime
                 return messages
 
         except ValidationError as e:
@@ -84,6 +98,19 @@ class FileHistoryManager(AnyHistoryManager):
 
     def update(self, conversation_name: str, messages: "list[ModelMessage]"):
         self._cache[conversation_name] = messages
+        # Record the current file mtime as the sync point so a subsequent load()
+        # against an unchanged file returns this in-memory update rather than
+        # re-reading stale disk content.
+        self._cache_mtime[conversation_name] = self._file_mtime(
+            self._get_file_path(conversation_name)
+        )
+
+    @staticmethod
+    def _file_mtime(file_path: str) -> float | None:
+        try:
+            return os.path.getmtime(file_path)
+        except OSError:
+            return None
 
     def save(self, conversation_name: str):
         # lazy: heavy third-party
@@ -125,6 +152,9 @@ class FileHistoryManager(AnyHistoryManager):
 
             # Save the main history file
             self._save_data_to_file(file_path, filtered_data)
+            # Refresh the sync point so our own write doesn't look like an
+            # out-of-band change on the next load().
+            self._cache_mtime[conversation_name] = self._file_mtime(file_path)
 
             # Create a timestamped backup, then enforce retention.
             # Retention is controlled by LLM_HISTORY_BACKUP_RETAIN:

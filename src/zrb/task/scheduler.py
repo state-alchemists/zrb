@@ -29,7 +29,7 @@ class Scheduler(BaseTrigger):
         schedule: StrAttr | None = None,
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
         queue_name: fstring | None = None,
-        callback: list[AnyCallback] | AnyCallback = [],
+        callback: list[AnyCallback] | AnyCallback | None = None,
         retries: int = 2,
         retry_period: float = 0,
         readiness_check: list[AnyTask] | AnyTask | None = None,

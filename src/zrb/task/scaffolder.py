@@ -31,11 +31,11 @@ class Scaffolder(BaseTask):
         render_source_path: bool = True,
         destination_path: StrAttr | None = None,
         render_destination_path: bool = True,
-        transform_path: TransformConfig = {},
+        transform_path: TransformConfig | None = None,
         render_transform_path: bool = True,
         transform_content: (
-            list[AnyContentTransformer] | AnyContentTransformer | TransformConfig
-        ) = [],
+            list[AnyContentTransformer] | AnyContentTransformer | TransformConfig | None
+        ) = None,
         render_transform_content: bool = True,
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
         retries: int = 2,
@@ -77,9 +77,11 @@ class Scaffolder(BaseTask):
         self._render_source_path = render_source_path
         self._destination_path = destination_path
         self._render_destination_path = render_destination_path
-        self._content_transformers = transform_content
+        self._content_transformers = (
+            transform_content if transform_content is not None else []
+        )
         self._render_content_transformers = render_transform_content
-        self._path_transformer = transform_path
+        self._path_transformer = transform_path if transform_path is not None else {}
         self._render_path_transformer = render_transform_path
 
     def _get_source_path(self, ctx: AnyContext) -> str:

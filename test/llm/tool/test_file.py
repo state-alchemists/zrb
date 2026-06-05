@@ -247,6 +247,25 @@ def test_read_file_truncation_header(tmp_path):
     assert ("[File:" in result and "truncated" in result.lower()) or "File:" in result
 
 
+def test_read_file_truncation_header_reports_middle_elided(tmp_path):
+    # B21: when head+tail are kept and the middle is elided, the header must
+    # NOT claim a contiguous "lines X-Y" range. It should say first/last.
+    # Needs both line count > head+tail (2*1000) AND chars > 100k to trigger
+    # middle elision.
+    file_path = tmp_path / "many_lines.txt"
+    line = "x" * 110
+    content = "\n".join(line for _ in range(3000))
+    file_path.write_text(content)
+
+    result = read_file(str(file_path))
+    header = result.split("---CONTENT---")[0]
+    assert "middle elided" in header
+    assert "showing first" in header
+    assert "and last" in header
+    # The misleading contiguous "lines 1-N" range must be gone.
+    assert "lines 1–" not in header
+
+
 def test_read_file_non_utf8(tmp_path):
     file_path = tmp_path / "latin1.txt"
     # Write latin-1 encoded bytes that are not valid UTF-8

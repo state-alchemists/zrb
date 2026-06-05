@@ -111,25 +111,34 @@ async def handle_stream_error(
         is_prompt_too_long_error(exc)
         and state.context_retry_count < state.max_context_retries
     ):
-        state.context_retry_count += 1
-        # transient_retry_count is intentionally NOT reset here: the transient
-        # (429/5xx) budget derived from LLM_API_MAX_RETRIES is a global cap for
-        # the whole run. A context-length prune is a different failure class and
-        # must not refresh that budget, or a session alternating between the two
-        # error types could retry transiently far more than configured.
         new_history = drop_oldest_turn(current_history, min_turns=min_turns)
-        print_fn(
-            f"\n[SYSTEM] Context too long, retrying with reduced history"
-            f" (attempt {state.context_retry_count}/{state.max_context_retries})..."
-        )
-        CFG.LOGGER.debug(
-            f"Prompt too long: retrying with {len(new_history)} history messages"
-        )
-        return RetryOutcome(
-            should_retry=True,
-            new_history=new_history,
-            new_message=current_message,
-        )
+        # Only take the prune-and-retry path when it actually shrinks the
+        # request. drop_oldest_turn returns the history unchanged when there is
+        # nothing left to drop (a single turn, or min_turns already reached).
+        # Retrying with an identical history reproduces the same error and —
+        # when deferred tool results are pending (min_turns=1) — re-executes the
+        # approved, side-effecting tool on every attempt. When pruning can make
+        # no progress, fall through to the text-only collapse below, which
+        # truncates oversized tool results instead of looping uselessly.
+        if len(new_history) < len(current_history):
+            state.context_retry_count += 1
+            # transient_retry_count is intentionally NOT reset here: the transient
+            # (429/5xx) budget derived from LLM_API_MAX_RETRIES is a global cap for
+            # the whole run. A context-length prune is a different failure class and
+            # must not refresh that budget, or a session alternating between the two
+            # error types could retry transiently far more than configured.
+            print_fn(
+                f"\n[SYSTEM] Context too long, retrying with reduced history"
+                f" (attempt {state.context_retry_count}/{state.max_context_retries})..."
+            )
+            CFG.LOGGER.debug(
+                f"Prompt too long: retrying with {len(new_history)} history messages"
+            )
+            return RetryOutcome(
+                should_retry=True,
+                new_history=new_history,
+                new_message=current_message,
+            )
 
     if (
         is_missing_reasoning_content_error(exc)
