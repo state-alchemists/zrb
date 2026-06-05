@@ -26,6 +26,7 @@ Zrb uses `pydantic-ai` to interface with a wide array of Large Language Models, 
 - [Retry Configuration](#16-retry-configuration)
 - [Slash Command Aliases](#17-slash-command-aliases)
 - [Pagination Configuration](#18-pagination-configuration)
+- [LSP Server Selection](#19-lsp-server-selection)
 
 ---
 
@@ -521,5 +522,30 @@ All other slash commands (`/yolo`, `/exit`, `/save`, `/load`, etc.) share the sa
 | `ZRB_WEB_SESSION_PAGE_SIZE` | Default page size for chat session listings | `20` |
 | `ZRB_WEB_API_PAGE_SIZE` | Default page size for generic API list endpoints | `20` |
 | `ZRB_WEB_TASK_SESSION_PAGE_SIZE` | Default page size for task session listings | `10` |
+
+---
+
+## 19. LSP Server Selection
+
+The LSP-backed code tools (`AnalyzeCode`, the `Lsp*` tools) auto-pick a language
+server for each file: your configured preference first, then the first *installed*
+server (command on `PATH`) whose config matches the file's extension.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_LLM_LSP_PREFERRED_SERVERS` | Ordered, comma-separated LSP server names the agent prefers when multiple installed servers match a file (e.g. `pyright,gopls`). Names not matching a file are skipped, so one flat list can cover several languages. | (empty) |
+
+```bash
+export ZRB_LLM_LSP_PREFERRED_SERVERS="pyright,gopls"
+```
+
+```python
+from zrb import CFG
+CFG.LLM_LSP_PREFERRED_SERVERS = ["pyright", "gopls"]
+```
+
+Empty (default) keeps the previous installation/registry-order behavior. See
+[LSP Support](../advanced-topics/lsp-support.md) for the full selection rules and a
+per-call programmatic override.
 
 ---

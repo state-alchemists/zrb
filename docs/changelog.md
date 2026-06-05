@@ -1,7 +1,10 @@
 🔖 [Documentation Home](../README.md)
 
 
-## 2.32.0b4 (June 4–5, 2026)
+## 2.32.0b5 (June 5, 2026)
+
+- **Feature: configurable LSP server preference (`ZRB_LLM_LSP_PREFERRED_SERVERS`)**:
+  - New comma-separated, ordered config (`CFG.LLM_LSP_PREFERRED_SERVERS`) naming the LSP servers the agent should prefer when several installed servers match a file (e.g. `pyright,gopls`). `LSPManager.get_server` now defaults its `preferred_servers` from this config when a caller doesn't pass one, so the agent's LSP tools honor it without code changes; an explicit per-call list still overrides. Names that don't match a given file are skipped, so one flat list covers multiple languages. Empty (default) keeps the previous installation/registry-order behavior. See `docs/advanced-topics/lsp-support.md`.
 
 - **Security: web authentication hardening**:
   - `runner/web_util/user.py`: the access path (`_get_user_from_token`) now requires the JWT `type == "access"` claim — a *refresh* token (signed with the same secret, also carrying `sub`/`exp`) can no longer be used as an access token.
@@ -40,6 +43,8 @@
 
 - **CI: the documented ≥90% coverage bar is now enforced**:
   - `zrb-test.sh` adds `--cov-fail-under=90` on a full run (scoped single-file/dir runs are exempt so they don't fail a global threshold).
+
+## 2.32.0b4 (June 4, 2026)
 
 - **Fix: Stale prompt replacements from an incomplete cache key**:
   - `llm/prompt/prompt.py`: `_get_prompt_replacements_cached` was `@lru_cache`d on the journal index file's *mtime* alone, but its output also depends on `LLM_JOURNAL_DIR`, `LLM_JOURNAL_INDEX_FILE`, `ENV_PREFIX`, `ROOT_GROUP_NAME`, and `LLM_ASSISTANT_NAME`. When the journal index file is missing (mtime falls back to `0.0`), changing the journal dir returned stale replacements — e.g. a `{CFG_LLM_JOURNAL_DIR}` placeholder rendered with the previous directory. The cache is now keyed on all of these inputs.

@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from zrb.config.config import CFG
 from zrb.llm.lsp.manager import LSPManager, lsp_manager
 from zrb.llm.lsp.protocol import SymbolKind
 from zrb.llm.lsp.server import LSPServer
@@ -132,6 +133,38 @@ class TestLspManagerLifecycle:
 
             await manager.shutdown_all()
             mock_server.stop.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_get_server_uses_cfg_preferred_servers(self, manager):
+        """No explicit preference → CFG.LLM_LSP_PREFERRED_SERVERS is threaded in."""
+        mock_server = AsyncMock(spec=LSPServer)
+        mock_server.is_alive = True
+        mock_server.start.return_value = True
+        CFG.LLM_LSP_PREFERRED_SERVERS = ["pyright", "pylsp"]
+        with patch(
+            "zrb.llm.lsp.manager.lifecycle_mixin.get_lsp_config_for_file"
+        ) as mock_get_cfg, patch(
+            "zrb.llm.lsp.manager.lifecycle_mixin.LSPServer", return_value=mock_server
+        ):
+            mock_get_cfg.return_value = MagicMock(language_ids=["python"])
+            await manager.get_server("test.py")
+            mock_get_cfg.assert_called_once_with("test.py", ["pyright", "pylsp"])
+
+    @pytest.mark.asyncio
+    async def test_get_server_explicit_preference_overrides_cfg(self, manager):
+        """An explicit preferred_servers list wins over the CFG default."""
+        mock_server = AsyncMock(spec=LSPServer)
+        mock_server.is_alive = True
+        mock_server.start.return_value = True
+        CFG.LLM_LSP_PREFERRED_SERVERS = ["pyright"]
+        with patch(
+            "zrb.llm.lsp.manager.lifecycle_mixin.get_lsp_config_for_file"
+        ) as mock_get_cfg, patch(
+            "zrb.llm.lsp.manager.lifecycle_mixin.LSPServer", return_value=mock_server
+        ):
+            mock_get_cfg.return_value = MagicMock(language_ids=["python"])
+            await manager.get_server("test.py", preferred_servers=["gopls"])
+            mock_get_cfg.assert_called_once_with("test.py", ["gopls"])
 
     @pytest.mark.asyncio
     async def test_get_server_lifecycle(self, manager, tmp_path):

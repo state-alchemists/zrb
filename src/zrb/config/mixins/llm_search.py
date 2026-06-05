@@ -1,4 +1,5 @@
-"""LLM discovery/search: plugin/skill/agent dirs, project & home search toggles, config dir names."""
+"""LLM discovery/search: plugin/skill/agent dirs, project & home search toggles,
+config dir names, and LSP server preference."""
 
 from __future__ import annotations
 
@@ -6,6 +7,8 @@ from zrb.config.env_field import (
     EnvField,
     colon_join,
     colon_list,
+    comma_join,
+    comma_list,
     expanduser_colon_list,
     on_off,
 )
@@ -24,9 +27,21 @@ class LLMSearchMixin:
         self.DEFAULT_LLM_EXTRA_SKILL_DIRS: str = ""
         self.DEFAULT_LLM_EXTRA_AGENT_DIRS: str = ""
         self.DEFAULT_LLM_PLUGIN_DIRS: str = ""
+        self.DEFAULT_LLM_LSP_PREFERRED_SERVERS: str = ""
         super().__init__()
 
     LLM_PLUGIN_DIRS = EnvField(expanduser_colon_list, serialize=colon_join)
+
+    LLM_LSP_PREFERRED_SERVERS = EnvField(
+        comma_list,
+        serialize=comma_join,
+        doc=(
+            "Ordered, comma-separated LSP server names the agent prefers when "
+            "multiple installed servers match a file (e.g. 'pyright,gopls'). The "
+            "manager tries these first; names that don't match a given file are "
+            "skipped. Empty (default) = use installation/registry order."
+        ),
+    )
 
     LLM_SEARCH_PROJECT = EnvField(
         to_boolean,
