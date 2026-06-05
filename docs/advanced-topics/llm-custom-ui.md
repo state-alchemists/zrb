@@ -875,7 +875,7 @@ flowchart TB
 | `invalidate_ui()` | No-op | Redraw/refresh UI |
 | `on_exit()` | No-op | Cleanup on shutdown |
 | `stream_to_parent()` | Calls `append_to_output` | For multiplexed UIs |
-| `_get_output_field_width()` | None | Custom text width for formatting |
+| `_get_output_field_width()` | None | Custom text width for formatting (exposed publicly as the `output_field_width` property, which is what the diff/markdown formatters read) |
 
 ---
 

@@ -307,18 +307,36 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"rootUri":"file://
 
 **Symptom:** Wrong LSP server is used for a file.
 
-**Solution:** Pass preferred servers per call when acquiring a server. Preference
-is a per-request argument, not a global attribute:
+**How selection works.** When the agent uses an LSP tool, the manager picks the
+**first *installed* server whose config matches the file's extension**, in the order
+the servers are declared in the built-in registry (`LSP_SERVER_CONFIGS` in
+`src/zrb/llm/lsp/configs.py`). "Installed" means the server's command is found on
+`PATH` (`detect_available_lsp_servers()` uses `shutil.which`). There is currently
+**no environment variable or config setting** to express a per-language preference
+on the agent-driven path.
+
+**Solution (control what's installed).** Because the agent path takes no preference
+argument, the practical lever is which servers are on `PATH`: install only the server
+you want for a given language (e.g. install `pyright` but not `pylsp`), so it's the
+only match. If two servers for the same language are both installed, the one declared
+earlier in the registry wins.
+
+**Programmatic override (non-agent callers only).** If you call the manager yourself,
+you can pass an explicit preference — but note the LLM's LSP *tools* do not expose
+this, so it only affects your own code:
 
 ```python
 from zrb.llm.lsp.manager import lsp_manager
 
-# Prefer pyright over pylsp for a specific Python file
+# Honored only for this direct call; the agent's LSP tools don't pass it.
 server = await lsp_manager.get_server(
     "src/zrb/example.py",
     preferred_servers=["pyright", "pylsp", "jedi-language-server"],
 )
 ```
+
+> A first-class config knob (e.g. `ZRB_LLM_LSP_PREFERRED_SERVERS`) for the
+> agent path does not exist yet — see the maintainability analysis.
 
 ---
 

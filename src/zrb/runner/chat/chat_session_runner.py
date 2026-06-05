@@ -50,8 +50,8 @@ async def run_chat_session(
 
     # The per-session UI factory / approval channel are independent objects — safe
     # to build once. The shared LLMChatTask is configured + driven under
-    # `session_manager.task_lock` per message (see _drive_shared_task) so concurrent
-    # sessions never clobber each other's wiring mid-run.
+    # `session_manager.task_lock` per message (snapshot → apply → run → restore via
+    # the helpers below) so concurrent sessions never clobber each other's wiring.
     approval_channel = session.approval_channel
     http_ui_factory = create_http_ui_factory(
         session_manager,

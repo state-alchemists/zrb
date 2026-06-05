@@ -629,6 +629,16 @@ class BaseUI(CommandsMixin, HistoryReplayMixin, SystemInfoMixin):
         """
         pass
 
+    @property
+    def output_field_width(self) -> int | None:
+        """Public width accessor — delegates to the `_get_output_field_width()`
+        override hook so callers (e.g. the diff formatter) read width through a
+        public name. Concrete UIs with their own terminal-derived width (the
+        default TUI via `OutputMixin`) override this property directly, winning
+        by MRO; custom `BaseUI` subclasses just override `_get_output_field_width`.
+        """
+        return self._get_output_field_width()
+
     def _get_output_field_width(self) -> int | None:
         """[OPTIONAL] Get the width for text output formatting.
 
