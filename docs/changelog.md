@@ -1,6 +1,14 @@
 🔖 [Documentation Home](../README.md)
 
 
+## 2.32.2 (June 6, 2026)
+
+- **Feature: `include_hidden` parameter for `LS` and `Glob` tools**:
+  - Both `list_files` (`LS` tool) and `glob_files` (`Glob` tool) now accept an optional `include_hidden: bool = False` parameter. When `True`, dotfiles and dot-directories are surfaced instead of skipped during directory traversal and glob matching — while still honoring `exclude_patterns` (`.git`, `node_modules`, etc. remain excluded by default even with `include_hidden=True`). Default `False` preserves full backward compatibility (`src/zrb/llm/tool/file_list.py`).
+  - `glob_files` also passes `include_hidden` through to `glob.glob()` so the filesystem-level hidden filter matches the application-level one, and gates the manual hidden-path-component filter on `not include_hidden`.
+
+- **Tests**: 3 new tests in `test/llm/tool/test_file.py`: `test_glob_files_include_hidden_surfaces_hidden_path_components`, `test_glob_files_include_hidden_still_honors_exclude_patterns`, `test_list_files_include_hidden`.
+
 ## 2.32.1 (June 5, 2026)
 
 - **Fix: orphaned LSP subprocesses and hook-executor threads at process exit**:
