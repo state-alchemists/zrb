@@ -1,6 +1,15 @@
 🔖 [Documentation Home](../README.md)
 
 
+## 2.32.1 (June 5, 2026)
+
+- **Fix: orphaned LSP subprocesses and hook-executor threads at process exit**:
+  - Interactive chat sessions and agent LSP tools left two process-global resources running at shutdown: LSP language-server subprocesses started during a session (only the one-off `analyze_code` tool tore down its own usage — nothing cleaned up servers started mid-chat), and the hook executor's **non-daemon** worker threads (which can keep the interpreter alive at exit). A two-tier cleanup now closes both leaks:
+    - **Graceful, in-loop**: `LLMChatTask` wraps the interactive session in `try/finally` and calls a new `_teardown_interactive_resources()` — it `shutdown_all()`s LSP servers (proper LSP `shutdown/exit`, process reaped) and `shutdown_hook_executor(wait=False)` while the event loop is still alive. Runs on normal exit, `/exit`, EOF, and Ctrl+C. **Gated to the interactive path on purpose**: the non-interactive path is reused per-message by the web/SSE runner, where tearing servers down would restart them on every message.
+    - **`atexit` backstop**: `LSPManager.force_kill_all()` (new) synchronously `SIGKILL`s any survivor whose owning event loop is already closed — `os.kill(pid)` is loop-independent, where the async `shutdown_all` can no longer run. Registered alongside `shutdown_hook_executor(False)` at interpreter exit. Both are idempotent no-ops once the graceful path has run (servers cleared / executor nulled).
+
+- **Tests**: extended `test/llm/lsp/manager/test_lsp_manager.py` with `force_kill_all` coverage (empty no-op, SIGKILL of a running server, skip of an already-exited server, error-swallowing, and post-kill idempotency).
+
 ## 2.32.0 (June 5, 2026)
 
 Stable release consolidating the `2.32.0a1`–`2.32.0b5` line (permission policy, plan mode, background subagents, `Shell` as primary execution tool, configurable LSP preference, and the web/task-engine correctness and security fixes documented in the pre-release entries below). Final polish before the tag:

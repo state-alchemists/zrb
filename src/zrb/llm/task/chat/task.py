@@ -485,18 +485,50 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
                 initial_attachments=initial_attachments,
             )
 
-        return await self._run_interactive_session(
-            ctx=ctx,
-            llm_task_core=llm_task_core,
-            history_manager=history_manager,
-            ui_commands=ui_commands,
-            initial_message=initial_message,
-            initial_conversation_name=initial_conversation_name,
-            initial_yolo=initial_yolo,
-            initial_attachments=initial_attachments,
-            enable_rewind=effective_enable_rewind,
-            snapshot_dir=effective_snapshot_dir,
-        )
+        try:
+            return await self._run_interactive_session(
+                ctx=ctx,
+                llm_task_core=llm_task_core,
+                history_manager=history_manager,
+                ui_commands=ui_commands,
+                initial_message=initial_message,
+                initial_conversation_name=initial_conversation_name,
+                initial_yolo=initial_yolo,
+                initial_attachments=initial_attachments,
+                enable_rewind=effective_enable_rewind,
+                snapshot_dir=effective_snapshot_dir,
+            )
+        finally:
+            await self._teardown_interactive_resources()
+
+    async def _teardown_interactive_resources(self) -> None:
+        """Release process-global resources when an interactive chat ends.
+
+        Runs on normal exit, ``/exit``, EOF, or Ctrl+C (the ``finally`` fires on
+        ``KeyboardInterrupt``). Stops LSP language-server subprocesses gracefully
+        while the event loop is still alive — the ``atexit`` backstops only run
+        once the loop is gone, when graceful async shutdown is no longer possible.
+
+        Gated to the interactive session on purpose: the non-interactive path is
+        reused per-message by the web/SSE runner, where tearing servers down
+        would restart them on every message. Each step is guarded so teardown
+        never raises; a second ``KeyboardInterrupt`` still propagates.
+        """
+        # lazy: circular — chat task → lsp manager → server → (back to llm); and
+        # avoids paying the import on the non-interactive/web path.
+        try:
+            from zrb.llm.lsp.manager.manager import lsp_manager
+
+            await lsp_manager.shutdown_all()
+        except Exception:
+            pass
+        # lazy: only needed at session end; keeps the hook import off hot paths.
+        try:
+            from zrb.llm.hook.executor import shutdown_hook_executor
+
+            shutdown_hook_executor(wait=False)
+        except Exception:
+            pass
 
     def _get_all_tools(self, ctx: AnyContext) -> list[Tool | ToolFuncEither]:
         """Get all tools including those resolved from factories using parent context."""

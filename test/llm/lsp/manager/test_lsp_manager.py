@@ -1,7 +1,7 @@
 """Tests for LSP manager functionality."""
 
 import asyncio
-from pathlib import Path
+import signal
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -133,6 +133,54 @@ class TestLspManagerLifecycle:
 
             await manager.shutdown_all()
             mock_server.stop.assert_called_once()
+
+    async def _seed_server(self, manager, *, pid, returncode):
+        """Register one running mock server via the public get_server path."""
+        mock_server = AsyncMock(spec=LSPServer)
+        mock_server.is_alive = True
+        mock_server.process = MagicMock(pid=pid, returncode=returncode)
+        with patch(
+            "zrb.llm.lsp.manager.lifecycle_mixin.get_lsp_config_for_file"
+        ) as mock_get_cfg, patch(
+            "zrb.llm.lsp.manager.lifecycle_mixin.LSPServer", return_value=mock_server
+        ):
+            mock_get_cfg.return_value = MagicMock(language_ids=["python"])
+            await manager.get_server("test.py")
+        return mock_server
+
+    @pytest.mark.asyncio
+    async def test_force_kill_all_empty_is_noop(self, manager):
+        with patch("zrb.llm.lsp.manager.lifecycle_mixin.os.kill") as mock_kill:
+            manager.force_kill_all()
+            mock_kill.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_force_kill_all_sigkills_running_server(self, manager):
+        await self._seed_server(manager, pid=4321, returncode=None)
+        with patch("zrb.llm.lsp.manager.lifecycle_mixin.os.kill") as mock_kill:
+            manager.force_kill_all()
+            mock_kill.assert_called_once_with(4321, signal.SIGKILL)
+        # Servers are forgotten, so a second pass (e.g. atexit) does nothing.
+        with patch("zrb.llm.lsp.manager.lifecycle_mixin.os.kill") as mock_kill2:
+            manager.force_kill_all()
+            mock_kill2.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_force_kill_all_skips_already_exited_server(self, manager):
+        await self._seed_server(manager, pid=4321, returncode=0)
+        with patch("zrb.llm.lsp.manager.lifecycle_mixin.os.kill") as mock_kill:
+            manager.force_kill_all()
+            mock_kill.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_force_kill_all_swallows_kill_errors(self, manager):
+        await self._seed_server(manager, pid=99, returncode=None)
+        with patch(
+            "zrb.llm.lsp.manager.lifecycle_mixin.os.kill",
+            side_effect=ProcessLookupError,
+        ):
+            # Must not raise — it is an atexit handler.
+            manager.force_kill_all()
 
     @pytest.mark.asyncio
     async def test_get_server_uses_cfg_preferred_servers(self, manager):

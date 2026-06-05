@@ -4,6 +4,7 @@ Implements Claude Code compatible execution patterns.
 """
 
 import asyncio
+import atexit
 import logging
 import threading
 from concurrent.futures import ThreadPoolExecutor
@@ -311,3 +312,9 @@ def shutdown_hook_executor(wait: bool = True):
         if _hook_executor is not None:
             _hook_executor.shutdown(wait=wait)
             _hook_executor = None
+
+
+# Release the worker pool at interpreter shutdown so its non-daemon worker
+# threads can't keep the process alive. ``wait=False`` — never block exit
+# waiting on an in-flight hook. No-op when the executor was never started.
+atexit.register(shutdown_hook_executor, False)

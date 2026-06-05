@@ -8,6 +8,8 @@ methods that read/mutate them.
 from __future__ import annotations
 
 import asyncio
+import os
+import signal
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -134,6 +136,25 @@ class LifecycleMixin:
                     pass
             self._servers.clear()
             self._project_roots.clear()
+
+    def force_kill_all(self) -> None:
+        """Synchronously SIGKILL any running LSP server processes.
+
+        A loop-free backstop for interpreter shutdown (``atexit``): by then the
+        event loop that owns the subprocess transports may already be closed, so
+        the async ``shutdown_all`` can no longer run and ``Process.terminate()``
+        would fail. ``os.kill`` on the pid is loop-independent. Best-effort —
+        never raises — so it is safe to register as an ``atexit`` handler.
+        """
+        for server in list(self._servers.values()):
+            process = getattr(server, "process", None)
+            if process is None or process.returncode is not None:
+                continue
+            try:
+                os.kill(process.pid, signal.SIGKILL)
+            except (ProcessLookupError, PermissionError, OSError):
+                pass
+        self._servers.clear()
 
     async def shutdown_idle(self):
         """Shutdown servers that have been idle for too long.
