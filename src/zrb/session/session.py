@@ -218,16 +218,18 @@ class Session(AnySession):
         self, task: AnyTask, coro: Coroutine[Any, Any, Any] | asyncio.Task[Any]
     ):
         self._register_single_task(task)
-        if isinstance(coro, asyncio.Task):
-            self._action_coros[task] = coro
-        else:
-            self._action_coros[task] = asyncio.create_task(coro)
+        scheduled = coro if isinstance(coro, asyncio.Task) else asyncio.create_task(coro)
+        if self._is_terminated:
+            scheduled.cancel()
+            return
+        self._action_coros[task] = scheduled
 
     def defer_coro(self, coro: Coroutine[Any, Any, Any] | asyncio.Task[Any]):
-        if isinstance(coro, asyncio.Task):
-            self._coros.append(coro)
-        else:
-            self._coros.append(asyncio.create_task(coro))
+        scheduled = coro if isinstance(coro, asyncio.Task) else asyncio.create_task(coro)
+        if self._is_terminated:
+            scheduled.cancel()
+            return
+        self._coros.append(scheduled)
         self._coros = [
             existing_coro for existing_coro in self._coros if not existing_coro.done()
         ]

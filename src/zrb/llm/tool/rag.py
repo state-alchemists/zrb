@@ -39,7 +39,7 @@ def create_rag_from_directory(
     chunk_size: int | None = None,
     overlap: int | None = None,
     max_result_count: int | None = None,
-    file_reader: list[RAGFileReader] = [],
+    file_reader: list[RAGFileReader] | None = None,
     model_api_key: str | None = None,
     model_base_url: str | None = None,
     model_name: str | None = None,
@@ -55,6 +55,7 @@ def create_rag_from_directory(
     The generated tool is ideal for answering questions based on a specific set of documents,
     such as project documentation or internal wikis.
     """
+    readers = file_reader if file_reader is not None else []
 
     async def retrieve(
         query: str,
@@ -148,9 +149,12 @@ def create_rag_from_directory(
                 try:
                     relative_path = os.path.relpath(file_path, document_dir_path)
                     collection.delete(where={"file_path": relative_path})
-                    content = _read_txt_content(file_path, file_reader)
+                    content = _read_txt_content(file_path, readers)
                     file_id = ulid.new().str
-                    for i in range(0, len(content), chunk_size_val - overlap_val):
+                    # Guard against overlap >= chunk_size, which would make the
+                    # range step zero or negative (infinite loop / ValueError).
+                    step = max(1, chunk_size_val - overlap_val)
+                    for i in range(0, len(content), step):
                         chunk = content[i : i + chunk_size_val]
                         if chunk:
                             chunk_id = ulid.new().str

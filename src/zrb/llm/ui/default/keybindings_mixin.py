@@ -152,7 +152,7 @@ class KeybindingsMixin:
                             clipboard.get_data()
                         )
 
-            task = asyncio.get_event_loop().create_task(_handle_paste())
+            task = asyncio.create_task(_handle_paste())
             self._background_tasks.add(task)
             task.add_done_callback(self._background_tasks.discard)
 

@@ -73,6 +73,32 @@ async def test_replace_in_file_validation_text_not_found(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_replace_in_file_validation_fuzzy_match_passes_through(tmp_path):
+    """B17: a whitespace-divergent old_text that exact-match misses but the
+    tool's fuzzy matcher would accept must NOT be denied; it passes through to
+    the handler so the tool can apply its fuzzy replacement.
+    """
+    test_file = tmp_path / "test.py"
+    # File has trailing whitespace the model's old_text lacks.
+    test_file.write_text("def foo():   \n    return 1   \n")
+
+    ui = MagicMock()
+    call = MagicMock()
+    call.tool_name = "Edit"
+    call.args = {
+        "path": str(test_file),
+        "old_text": "def foo():\n    return 1",
+        "new_text": "def foo():\n    return 2",
+    }
+    next_handler = AsyncMock(return_value="success")
+
+    result = await replace_in_file_validation_policy(ui, call, next_handler)
+
+    assert result == "success"
+    next_handler.assert_called_once()
+
+
+@pytest.mark.asyncio
 async def test_replace_in_file_validation_success(tmp_path):
     test_file = tmp_path / "test.txt"
     test_file.write_text("hello world")

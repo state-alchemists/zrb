@@ -174,7 +174,7 @@ Ask the assistant to use LSP:
 Where is the LSPManager class defined?
 
 # Show file structure
-Show me all symbols in src/zrb/llm/lsp/manager.py
+Show me all symbols in src/zrb/llm/lsp/manager/manager.py
 
 # Get diagnostics
 Are there any errors in server.py?
@@ -307,15 +307,17 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"rootUri":"file://
 
 **Symptom:** Wrong LSP server is used for a file.
 
-**Solution:** Set preferred servers in your code:
+**Solution:** Pass preferred servers per call when acquiring a server. Preference
+is a per-request argument, not a global attribute:
 
 ```python
 from zrb.llm.lsp.manager import lsp_manager
 
-# Prefer pyright over pylsp for Python
-lsp_manager.PREFERRED_SERVERS = {
-    '.py': ['pyright', 'pylsp', 'jedi-language-server'],
-}
+# Prefer pyright over pylsp for a specific Python file
+server = await lsp_manager.get_server(
+    "src/zrb/example.py",
+    preferred_servers=["pyright", "pylsp", "jedi-language-server"],
+)
 ```
 
 ---

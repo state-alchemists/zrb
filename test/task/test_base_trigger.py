@@ -57,6 +57,13 @@ class TestBaseTriggerProperties:
         assert isinstance(checks[0], BaseTask)
         assert checks[0].name == "test_trigger-check"
 
+    def test_readiness_checks_default_is_memoized(self):
+        """Default readiness check is the same object across reads (regression)."""
+        trigger = BaseTrigger(name="test_trigger")
+        first = trigger.readiness_checks
+        second = trigger.readiness_checks
+        assert first[0] is second[0]
+
     def test_readiness_checks_with_provided(self):
         """Test readiness_checks returns provided checks."""
         check_task = BaseTask(name="check_task")

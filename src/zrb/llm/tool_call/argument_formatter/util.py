@@ -18,14 +18,12 @@ def get_terminal_width(default: int = 80, ui: Any | None = None) -> int:
     """
     # First, try to get width from UI object if provided
     if ui is not None:
-        # Try common methods that might exist on UI objects
+        # Prefer the public `output_field_width` property (the output field is
+        # rendered at terminal width - 4, so add the padding back for full width).
         try:
-            # Check if ui has a method to get output field width
-            if hasattr(ui, "_get_output_field_width"):
-                width = ui._get_output_field_width()
-                if width is not None and width > 0:
-                    # _get_output_field_width returns width - 4, so add it back
-                    return width + 4
+            width = getattr(ui, "output_field_width", None)
+            if width is not None and width > 0:
+                return width + 4
         except Exception:
             pass
 

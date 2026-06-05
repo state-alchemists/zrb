@@ -101,6 +101,65 @@ class TestRAGFactory:
                 assert mock_collection.query.called
 
     @pytest.mark.asyncio
+    async def test_retrieve_overlap_ge_chunk_size_does_not_hang(self, tmp_path):
+        # B13 (rag.py:153): overlap >= chunk_size must not cause a zero/negative
+        # range step (infinite loop / ValueError) during chunking.
+        doc_dir = tmp_path / "docs"
+        doc_dir.mkdir()
+        (doc_dir / "test.txt").write_text("some knowledge content for chunking")
+
+        db_dir = tmp_path / "chroma"
+        db_dir.mkdir()
+
+        retrieve = create_rag_from_directory(
+            tool_name="MyRAG",
+            tool_description="desc",
+            document_dir_path=str(doc_dir),
+            vector_db_path=str(db_dir),
+            chunk_size=10,
+            overlap=20,  # overlap > chunk_size
+        )
+
+        mock_chroma = MagicMock()
+        mock_chroma_config = MagicMock()
+        mock_openai = MagicMock()
+        with patch.dict(
+            "sys.modules",
+            {
+                "chromadb": mock_chroma,
+                "chromadb.config": mock_chroma_config,
+                "openai": mock_openai,
+            },
+        ):
+            with patch("zrb.llm.tool.rag.CFG") as mock_cfg:
+                mock_cfg.RAG_MAX_RESULT_COUNT = 5
+                mock_cfg.RAG_EMBEDDING_API_KEY = "dummy"
+                mock_cfg.RAG_EMBEDDING_MODEL = "text-embedding-3-small"
+                mock_cfg.RAG_EMBEDDING_BASE_URL = None
+
+                mock_collection = MagicMock()
+                mock_chroma.PersistentClient.return_value.get_or_create_collection.return_value = (
+                    mock_collection
+                )
+                mock_openai_inst = mock_openai.OpenAI.return_value
+                mock_openai_inst.embeddings.create.return_value = MagicMock(
+                    data=[MagicMock(embedding=[0.1, 0.2])]
+                )
+                mock_collection.query.return_value = {"ids": [["id1"]]}
+
+                result = await retrieve(query="test query")
+                assert "ids" in result
+
+    @pytest.mark.asyncio
+    async def test_create_rag_default_file_reader_not_shared(self):
+        # B13 (rag.py:42): mutable default must be replaced with None sentinel;
+        # the factory must still work when file_reader is omitted.
+        retrieve = create_rag_from_directory(
+            tool_name="MyRAG", tool_description="desc"
+        )
+        assert inspect.iscoroutinefunction(retrieve)
+
+    @pytest.mark.asyncio
     async def test_retrieve_error_missing_key(self, tmp_path):
         retrieve = create_rag_from_directory(tool_name="MyRAG", tool_description="desc")
 

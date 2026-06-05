@@ -78,3 +78,47 @@ async def test_cancel_all_clears(tmp_path):
     monitor = create_monitor_process_tool()
     result = await monitor(handle)
     assert "Unknown handle" in result
+
+
+def _reader_task_count() -> int:
+    # Count still-pending detached reader/wait tasks spawned by the registry.
+    return sum(
+        1
+        for t in asyncio.all_tasks()
+        if not t.done()
+        and any(
+            name in repr(t.get_coro())
+            for name in ("_read_stdout", "_read_stderr", "_wait_exit")
+        )
+    )
+
+
+@pytest.mark.asyncio
+async def test_cancel_all_cancels_reader_tasks(tmp_path):
+    # B27: cancel_all() must cancel the detached reader/wait tasks, not just
+    # kill the process and leave them leaking.
+    tool = create_shell_background_tool()
+    await tool("sleep 30", "", str(tmp_path))
+    await asyncio.sleep(0.1)
+    assert _reader_task_count() > 0
+
+    registry = get_shell_background_registry()
+    registry.cancel_all()
+    # Allow the event loop to process the cancellations.
+    await asyncio.sleep(0.1)
+    assert _reader_task_count() == 0
+
+
+@pytest.mark.asyncio
+async def test_kill_cancels_reader_tasks(tmp_path):
+    # B27: kill() must also cancel the detached reader/wait tasks.
+    tool = create_shell_background_tool()
+    msg = await tool("sleep 30", "", str(tmp_path))
+    handle = msg.split("Handle:")[1].split(".")[0].strip()
+    await asyncio.sleep(0.1)
+    assert _reader_task_count() > 0
+
+    monitor = create_monitor_process_tool()
+    await monitor(handle, kill=True)
+    await asyncio.sleep(0.1)
+    assert _reader_task_count() == 0

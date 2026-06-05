@@ -166,7 +166,7 @@ class ExecCommandsMixin:
 
                 # Bypass the serializing message queue — run as an independent
                 # background task so it executes in parallel with the main LLM.
-                task = asyncio.get_event_loop().create_task(job())
+                task = asyncio.create_task(job())
                 self._background_tasks.add(task)
                 task.add_done_callback(self._background_tasks.discard)
                 return True

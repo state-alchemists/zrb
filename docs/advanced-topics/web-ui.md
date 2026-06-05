@@ -102,6 +102,13 @@ web_auth_config.guest_accessible_tasks = ["throw-dice"]
 | `ZRB_WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES` | Access token validity |
 | `ZRB_WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES` | Refresh token validity |
 
+> 🔒 **Cookie security.** Auth cookies are issued with `HttpOnly`, `Secure`, and
+> `SameSite=Lax`. The `Secure` flag means browsers only send them over HTTPS
+> (modern browsers treat `http://localhost` as a secure context, so local
+> development is unaffected) — terminate TLS in front of Zrb for any non-localhost
+> deployment. Only access tokens authenticate a request; a refresh token can only
+> be exchanged at the refresh endpoint, never used directly as an access token.
+
 ---
 
 ## 4. Customizing Web UI Appearance

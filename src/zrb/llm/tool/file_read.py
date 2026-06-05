@@ -42,15 +42,20 @@ def read_file(
                 CFG.LLM_FILE_READ_LINES,
                 max_chars,
             )
-            start_idx = 0
-            end_idx = truncation_info["truncated_lines"]
+            shown_lines = truncation_info["truncated_lines"]
             truncated = truncation_info["truncation_type"] != "none"
         else:
-            start_idx = 0
-            end_idx = total_lines
+            shown_lines = total_lines
             truncated = False
 
-        header = _format_read_header(path, start_idx, end_idx, total_lines, truncated)
+        header = _format_read_header(
+            path,
+            shown_lines,
+            total_lines,
+            truncated,
+            preserved_head_lines,
+            preserved_tail_lines,
+        )
         return f"{header}{content}"
 
     except UnicodeDecodeError:
@@ -106,7 +111,12 @@ def _check_file_safety(abs_path: str) -> str | None:
 
 
 def _format_read_header(
-    path: str, start_idx: int, end_idx: int, total_lines: int, truncated: bool
+    path: str,
+    shown_lines: int,
+    total_lines: int,
+    truncated: bool,
+    head_lines: int,
+    tail_lines: int,
 ) -> str:
     """
     Formats the header information for the read content.
@@ -114,12 +124,25 @@ def _format_read_header(
     Uses a clear delimiter so the LLM can unambiguously distinguish
     metadata from file content. The content below ---CONTENT---
     is the actual file content; everything above is NOT part of the file.
+
+    When truncation elides the middle of the file (head + tail kept), the
+    shown lines are NOT a contiguous range, so the header honestly reports
+    the first/last split rather than a misleading ``lines X–Y`` range.
     """
-    if truncated:
+    if not truncated:
+        return f"[File: {path} | {total_lines} lines]\n---CONTENT---\n"
+
+    # Middle elided only when the file is longer than the kept head+tail window.
+    middle_elided = total_lines > head_lines + tail_lines
+    if middle_elided:
         meta = (
-            f"[File: {path} | lines {start_idx + 1}–{end_idx} of {total_lines} shown | "
+            f"[File: {path} | showing first {head_lines} and last {tail_lines} "
+            f"of {total_lines} lines (middle elided) | "
             f"truncated — use Grep to locate sections, then Read again]"
         )
     else:
-        meta = f"[File: {path} | {total_lines} lines]"
+        meta = (
+            f"[File: {path} | {shown_lines} of {total_lines} lines shown | "
+            f"truncated — use Grep to locate sections, then Read again]"
+        )
     return f"{meta}\n---CONTENT---\n"

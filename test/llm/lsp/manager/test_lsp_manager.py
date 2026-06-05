@@ -306,6 +306,35 @@ class TestLspPublicAPI:
             assert "changes" in result
 
     @pytest.mark.asyncio
+    async def test_rename_symbol_apply_reports_applied(self, manager):
+        mock_server = AsyncMock(spec=LSPServer)
+        mock_server.rename.return_value = {
+            "changes": {"file://1": [{"newText": "new", "range": {}}]},
+            "applied": True,
+        }
+        with patch.object(manager, "get_server", return_value=mock_server):
+            result = await manager.rename_symbol(
+                "old", "new", "file.py", line=1, character=0, dry_run=False
+            )
+            assert result["success"] is True
+            assert result["changes"] == "Applied"
+
+    @pytest.mark.asyncio
+    async def test_rename_symbol_not_applied_is_honest(self, manager):
+        mock_server = AsyncMock(spec=LSPServer)
+        mock_server.rename.return_value = {
+            "changes": {"file://1": [{"newText": "new", "range": {}}]},
+            "applied": False,
+        }
+        with patch.object(manager, "get_server", return_value=mock_server):
+            result = await manager.rename_symbol(
+                "old", "new", "file.py", line=1, character=0, dry_run=False
+            )
+            # Never claim success when nothing was written.
+            assert result["success"] is False
+            assert result["changes"] == "not_applied"
+
+    @pytest.mark.asyncio
     async def test_find_definition_not_found(self, manager):
         with patch.object(manager, "get_server", return_value=None):
             result = await manager.find_definition("sym", "file.py")

@@ -191,9 +191,7 @@ class CommandsMixin(ConversationCommandsMixin, ModelCommandsMixin, ExecCommandsM
                 )
                 return
             self._command_in_flight = True
-        task = asyncio.get_event_loop().create_task(
-            self.dispatch_command(text, guarded=guarded)
-        )
+        task = asyncio.create_task(self.dispatch_command(text, guarded=guarded))
         self._background_tasks.add(task)
         task.add_done_callback(self._on_command_done)
 

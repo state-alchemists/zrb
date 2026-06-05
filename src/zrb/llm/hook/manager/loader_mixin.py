@@ -140,6 +140,18 @@ class HookLoaderMixin:
         except Exception as e:
             logger.error(f"Failed to load hooks from {file_path}: {e}")
 
+    def parse_claude_format(self, data: dict, source: str) -> None:
+        """Public: parse a Claude-nested hook config and register its hooks.
+
+        Used by external loaders (e.g. skill frontmatter) so they don't reach
+        into the private `_parse_claude_format`.
+        """
+        self._parse_claude_format(data, source)
+
+    def parse_and_register(self, data: dict, source: str) -> None:
+        """Public: parse one flat (Zrb-format) hook entry and register it."""
+        self._parse_and_register(data, source)
+
     def _parse_claude_format(self, data: dict, source: str) -> None:
         """Parse Claude Code's nested hook format.
 

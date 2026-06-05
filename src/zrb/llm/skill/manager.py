@@ -362,13 +362,13 @@ class SkillManager:
                             if hooks_data:
                                 if isinstance(hooks_data, dict):
                                     # Claude nested format
-                                    hook_manager._parse_claude_format(
+                                    hook_manager.parse_claude_format(
                                         {"hooks": hooks_data}, full_path
                                     )
                                 elif isinstance(hooks_data, list):
                                     # Zrb flat format
                                     for hook_item in hooks_data:
-                                        hook_manager._parse_and_register(
+                                        hook_manager.parse_and_register(
                                             hook_item, full_path
                                         )
 

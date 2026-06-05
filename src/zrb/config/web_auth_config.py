@@ -17,7 +17,7 @@ class WebAuthConfig:
         super_admin_username: str | None = None,
         super_admin_password: str | None = None,
         guest_username: str | None = None,
-        guest_accessible_tasks: list[AnyTask | str] = [],
+        guest_accessible_tasks: list[AnyTask | str] | None = None,
         find_user_by_username: Callable[[str], "User | None"] | None = None,
     ):
         self._secret_key = secret_key
@@ -30,7 +30,9 @@ class WebAuthConfig:
         self._super_admin_password = super_admin_password
         self._guest_username = guest_username
         self._user_list: list["User"] = []
-        self._guest_accessible_tasks = guest_accessible_tasks
+        self._guest_accessible_tasks = (
+            guest_accessible_tasks if guest_accessible_tasks is not None else []
+        )
         self._find_user_by_username = find_user_by_username
 
     @property

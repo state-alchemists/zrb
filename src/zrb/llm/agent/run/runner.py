@@ -328,7 +328,13 @@ async def _run_startup_hooks(
 
         context_part = SystemPromptPart(content=session_start_context)
         if message_history and isinstance(message_history[0], ModelRequest):
-            message_history[0].parts.insert(0, context_part)
+            # Rebuild the first request via replace() instead of mutating its
+            # parts in place — message_history is the history manager's cached
+            # list (returned by reference), so an in-place insert would graft the
+            # context onto the stored conversation and re-inject it every turn.
+            first = message_history[0]
+            new_first = replace(first, parts=[context_part, *first.parts])
+            message_history = [new_first, *message_history[1:]]
         else:
             message_history = [ModelRequest(parts=[context_part])] + message_history
 

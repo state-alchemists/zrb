@@ -364,9 +364,18 @@ async def write_todos(
     """
     Creates or replaces the todo list for the current session.
 
+    Each todo is a dict with keys:
+      - content (str): what the task is
+      - status  (str, optional): "pending", "in_progress", "completed", "cancelled" (default: "pending")
+      - id      (str, optional): unique identifier (auto-assigned if omitted)
+
     With `replace=True` (default), all existing todos are overwritten. Pass `replace=False` to merge.
     """
     session_name = session or get_current_context_session()
+
+    error = _validate_todo_keys(todos)
+    if error:
+        return error
 
     result = todo_manager.write_todos(session_name, todos, replace)
 
@@ -393,6 +402,45 @@ async def write_todos(
         change_description=f"📋 Todo list {'updated' if replace else 'merged'} ({len(todos)} items)",
     )
     return "\n".join(lines)
+
+
+def _validate_todo_keys(todos: list[dict[str, Any]]) -> str | None:
+    """Check every todo for unknown keys. Return an error string or None."""
+    _VALID_TODO_KEYS = frozenset({"id", "content", "status"})
+    _COMMON_MISTAKES: dict[str, str] = {
+        "description": "content",
+        "title": "content",
+        "name": "content",
+        "task": "content",
+        "summary": "content",
+        "text": "content",
+    }
+    for i, todo in enumerate(todos):
+        unknown = set(todo) - _VALID_TODO_KEYS
+        if not unknown:
+            continue
+        hints = []
+        for bad_key in sorted(unknown):
+            suggestion = _COMMON_MISTAKES.get(bad_key)
+            if suggestion:
+                hints.append(f"  - '{bad_key}' should be '{suggestion}'")
+            else:
+                hints.append(f"  - '{bad_key}' is not a recognized key")
+        lines = [
+            f"Error: Todo #{i + 1} contains invalid key(s):",
+            *hints,
+            "",
+            "Each todo is a dict with these keys:",
+            "  - content (str): description of the task",
+            "  - status  (str): pending | in_progress | completed | cancelled",
+            "  - id      (str, optional): unique identifier (auto-assigned if omitted)",
+            "",
+            "[SYSTEM SUGGESTION]: Use the exact keys above. Example:",
+            '  write_todos(todos=[{"content": "Fix login bug", "status": "pending"},',
+            '              {"content": "Add tests", "status": "pending"}])',
+        ]
+        return "\n".join(lines)
+    return None
 
 
 async def get_todos(session: str = "") -> str:

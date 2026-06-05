@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 def auto_approve(
     tool_name: str,
-    kwargs_patterns: dict[str, str] | Callable[[dict[str, Any]], bool] = {},
+    kwargs_patterns: dict[str, str] | Callable[[dict[str, Any]], bool] | None = None,
 ) -> ToolPolicy:
     """
     Returns a ToolPolicy that automatically approves tool execution
@@ -19,6 +19,8 @@ def auto_approve(
     - kwargs_patterns: A dictionary mapping argument names to regex patterns.
     :return: A ToolPolicy function.
     """
+    if kwargs_patterns is None:
+        kwargs_patterns = {}
 
     async def approve_tool_call_policy(
         ui: UIProtocol,
