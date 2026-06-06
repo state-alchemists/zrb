@@ -70,7 +70,9 @@ deploy_app = CmdTask(
 )
 
 # 2. Register tasks to the main 'cli' object so Zrb knows about them
-cli.add_task(prepare_env, build_app, deploy_app)
+cli.add_task(prepare_env)
+cli.add_task(build_app)
+cli.add_task(deploy_app)
 
 # 3. Define the execution order (The Directed Acyclic Graph - DAG)
 # prepare-env runs first, then build-app, then deploy-app

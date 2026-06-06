@@ -17,7 +17,6 @@ uuid_v1_group = uuid_group.add_group(Group(name="v1", description="UUID V1 opera
 uuid_v3_group = uuid_group.add_group(Group(name="v3", description="UUID V3 operations"))
 uuid_v4_group = uuid_group.add_group(Group(name="v4", description="UUID V4 operations"))
 uuid_v5_group = uuid_group.add_group(Group(name="v5", description="UUID V5 operations"))
-ulid_group = _maybe_add_group(Group(name="ulid", description="🔢 ULID operations"))
 jwt_group = _maybe_add_group(Group(name="jwt", description="🔒 JWT encode/decode"))
 http_group = _maybe_add_group(
     Group(name="http", description="🌐 HTTP request operations")
@@ -43,16 +42,6 @@ shell_group = _maybe_add_group(
 )
 shell_autocomplete_group = shell_group.add_group(
     Group(name="autocomplete", description="⌨️ Shell autocomplete related commands")
-)
-
-project_group = _maybe_add_group(
-    Group(name="project", description="📁 Project related commands")
-)
-add_to_project_group = project_group.add_group(
-    Group(name="add", description="➕ Add things to project")
-)
-add_fastapp_to_project_group = add_to_project_group.add_group(
-    Group(name="fastapp", description="🚀 Add Fastapp resources")
 )
 
 setup_group = _maybe_add_group(Group(name="setup", description="🔧 Setup"))

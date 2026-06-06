@@ -44,8 +44,14 @@ This launches a full-screen chat application where you can have a conversation w
 | `/attach <file_path>` | Attach a file to next message |
 | `>` or `/redirect <file_path>` | Save last response to file |
 | `!` or `/exec <shell_cmd>` | Execute shell command |
+| `/btw <text>` | Inject a side note for the next turn without sending it as a message (runs while the assistant is thinking) |
+| `/plan` | Toggle [Plan Mode](./plan-mode.md) (read-only discovery) |
+| `/rewind [n\|sha]` | List or restore filesystem + history [snapshots](../configuration/llm-config.md#6-rewind--snapshots) (requires `ZRB_LLM_ENABLE_REWIND`) |
 
 > 💡 **Tip:** Any `/command` that matches a loaded skill will be executed as a skill.
+>
+> The token(s) that trigger each command are configurable — see
+> [Slash Command Aliases](../configuration/llm-config.md#17-slash-command-aliases).
 
 ### Approval Policies
 

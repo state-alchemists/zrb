@@ -27,6 +27,7 @@ Zrb uses `pydantic-ai` to interface with a wide array of Large Language Models, 
 - [Slash Command Aliases](#17-slash-command-aliases)
 - [Pagination Configuration](#18-pagination-configuration)
 - [LSP Server Selection](#19-lsp-server-selection)
+- [TUI Color Styles](#20-tui-color-styles)
 
 ---
 
@@ -129,6 +130,16 @@ Zrb automatically triggers background summarization agents when conversation his
 | `ZRB_LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD` | Token count triggering individual message summarization | 50% of conversational threshold |
 | `ZRB_LLM_HISTORY_SUMMARIZATION_WINDOW` | Recent messages to keep verbatim | `100` |
 
+The same mechanism guards repository- and file-analysis tools so a single large
+read can't blow the context window. Each is clamped to a fraction of
+`MAX_TOKEN_PER_REQUEST`:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD` | Token count above which repo-analysis content is extracted in chunks | 40% of `MAX_TOKEN_PER_REQUEST` |
+| `ZRB_LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD` | Token count triggering summarization of repo-analysis results | 40% of `MAX_TOKEN_PER_REQUEST` |
+| `ZRB_LLM_FILE_ANALYSIS_TOKEN_THRESHOLD` | Token count above which a single file's analysis is summarized | 40% of `MAX_TOKEN_PER_REQUEST` |
+
 ---
 
 ## 4. System Prompts & Identity
@@ -201,6 +212,71 @@ export ZRB_LLM_INCLUDE_SECTIONS="persona,mandate"
 ```
 
 To toggle a single section programmatically, mutate `CFG.LLM_INCLUDE_SECTIONS` directly (it is a `list[str]`).
+
+The section names above are the **built-ins**. Any other name in the list resolves
+as a *custom* section — see [Programmatic Prompt Customization](#programmatic-prompt-customization) below.
+
+### Programmatic Prompt Customization
+
+Beyond editing prompt files and env vars, each task exposes its `PromptManager` via
+the public `task.prompt_manager` property. It offers three programmatic ways to shape
+the system prompt, in increasing power.
+
+**1. Append custom instructions** — `add_prompt()` (alias `append_prompt()`) adds
+content that is emitted **after** all built-in sections. Accepts a static string, a
+`Callable[[AnyContext], str]` for runtime-dynamic text, or a *full middleware*
+`Callable[[ctx, current_prompt, next], str]` that can rewrite the entire assembled
+prompt before passing it on (middleware is detected by arity — 3+ parameters):
+
+```python
+from zrb import LLMChatTask
+
+task = LLMChatTask(name="chat")
+
+# Static text
+task.prompt_manager.add_prompt("Always answer in British English.")
+
+# Dynamic text — receives the active context
+import datetime
+def date_note(ctx) -> str:
+    return f"Today's date is {datetime.date.today():%Y-%m-%d}."
+task.prompt_manager.add_prompt(date_note)
+
+# Full middleware — `current_prompt` is everything assembled so far
+def strip_blank_lines(ctx, current_prompt, nxt):
+    cleaned = "\n".join(line for line in current_prompt.splitlines() if line.strip())
+    return nxt(ctx, cleaned)
+task.prompt_manager.add_prompt(strip_blank_lines)
+```
+
+**2. Register a dynamic, positioned section** — `register_section(name, provider)`
+registers a `Callable[[AnyContext], str]` that is composed *at the position* its
+`name` occupies in `include_sections` (not pinned to the end like `add_prompt`). Use
+it for always-on content that must reflect live state. Return `""` to emit nothing:
+
+```python
+task.prompt_manager.register_section(
+    "company_context",
+    lambda ctx: f"Deploy target: {resolve_target()}",
+)
+task.prompt_manager.include_sections = [
+    "persona", "mandate", "company_context", "system_context", "tool_guidance",
+]
+```
+
+**3. File-backed custom section** — if a name in `include_sections` is neither a
+built-in nor a registered provider, it loads `<name>.md` through the same override
+hierarchy as built-in prompts (project dir → `ZRB_LLM_PROMPT_<NAME>` → base dir →
+package), with `{PLACEHOLDER}` substitution. No Python required:
+
+```bash
+# Loads company_context.md and places it after `mandate`.
+export ZRB_LLM_INCLUDE_SECTIONS="persona,mandate,company_context,tool_guidance,claude_skills"
+```
+
+> **Resolution precedence** for a section name is **built-in > registered provider >
+> markdown file**. A missing markdown file resolves to `""` (a harmless no-op — so a
+> misspelled name silently emits nothing). See ADR-0061 and AGENTS.md ("LLM Prompt System").
 
 ### Tool Guidance
 
@@ -372,7 +448,7 @@ No additional configuration needed.
 |----------|-------------|---------|
 | `ZRB_SEARXNG_PORT` | Port | `8080` |
 | `ZRB_SEARXNG_BASE_URL` | Base URL | `http://localhost:8080` |
-| `ZRB_SEARXNG_LANG` | Language | `en` |
+| `ZRB_SEARXNG_LANG` | Language | `en-US` |
 | `ZRB_SEARXNG_SAFE` | Safe search | `0` |
 
 ---
@@ -385,6 +461,7 @@ No additional configuration needed.
 | `ZRB_HOOKS_DIRS` | Additional hook directories (colon-separated) | (empty) |
 | `ZRB_HOOKS_TIMEOUT` | Default timeout for hook execution (ms) | `30000` |
 | `ZRB_HOOKS_LOG_LEVEL` | Logging level for hooks | `INFO` |
+| `ZRB_HOOKS_DEBUG` | Emit verbose hook diagnostics (matching, dispatch, results) | `off` |
 
 ---
 
@@ -547,5 +624,33 @@ CFG.LLM_LSP_PREFERRED_SERVERS = ["pyright", "gopls"]
 Empty (default) keeps the previous installation/registry-order behavior. See
 [LSP Support](../advanced-topics/lsp-support.md) for the full selection rules and a
 per-call programmatic override.
+
+---
+
+## 20. TUI Color Styles
+
+These variables override the colors used by the interactive `zrb llm chat` terminal
+UI. Each value is a [prompt_toolkit style string](https://python-prompt-toolkit.readthedocs.io/en/master/pages/advanced_topics/styling.html)
+— a hex color (`#ffcc00`), an ANSI name (`ansigreen`, `ansiyellow`), and/or
+attributes like `bold`. The special value `noinherit` resets to terminal defaults.
+
+| Variable | Styles | Default |
+|----------|--------|---------|
+| `ZRB_LLM_UI_STYLE_TITLE_BAR` | Top title bar | `#ffffff` |
+| `ZRB_LLM_UI_STYLE_INFO_BAR` | Info/header bar | `#ffffff` |
+| `ZRB_LLM_UI_STYLE_FRAME` | Frame borders | `#888888` |
+| `ZRB_LLM_UI_STYLE_FRAME_LABEL` | Frame labels | `#ffff00` |
+| `ZRB_LLM_UI_STYLE_INPUT_FRAME` | Input box border | `#888888` |
+| `ZRB_LLM_UI_STYLE_THINKING` | "Thinking…" indicator | `ansigreen` |
+| `ZRB_LLM_UI_STYLE_CONFIRMATION` | Tool-confirmation prompt | `ansiyellow` |
+| `ZRB_LLM_UI_STYLE_FAINT` | De-emphasized text | `#888888` |
+| `ZRB_LLM_UI_STYLE_OUTPUT_FIELD` | Output area text | `#eeeeee` |
+| `ZRB_LLM_UI_STYLE_INPUT_FIELD` | Input area text | `#eeeeee` |
+| `ZRB_LLM_UI_STYLE_TEXT` | General body text | `#eeeeee` |
+| `ZRB_LLM_UI_STYLE_STATUS` | Status bar text | `ansiwhite` |
+| `ZRB_LLM_UI_STYLE_BOTTOM_TOOLBAR` | Bottom toolbar | `noinherit` |
+
+> Assistant identity (`ZRB_LLM_ASSISTANT_NAME`, `ZRB_LLM_ASSISTANT_ASCII_ART`,
+> `ZRB_LLM_ASSISTANT_JARGON`) is covered in [System Prompts & Identity](#4-system-prompts--identity).
 
 ---

@@ -13,6 +13,12 @@
 
 - **Documentation**: AGENTS.md ("LLM Prompt System") documents the custom-section precedence chain and `register_section`; ADR-0061 records the decision (refines ADR-0035, mirrors ADR-0043, contrasts ADR-0044).
 
+- **Documentation: docs/examples accuracy sweep**:
+  - Fixed broken snippets: `cli.add_task(...)` quickstart in `README.md`/`README.pypi.md` (one task per call); `@make_task(retry=…)`→`retries=` in `examples/async-task/`; removed the non-existent `Env(is_secret=…)` argument (Env has no such parameter — use a default and/or `PasswordInput`) across `make-task.md`, `basic-tasks.md`, `custom-tasks.md`, `file-ops.md`; added the missing `make_task` import and corrected `ctx.render()` to single-brace f-string syntax (it is not Jinja2) in `session-and-context.md` and `xcom-deep-dive.md`.
+  - Corrected documented defaults: `ZRB_SEARXNG_LANG` (`en`→`en-US`), `ZRB_WEB_COLOR` (`amber`→empty). Bumped stale Docker image tags `2.26.8`→`2.33.0` in `installation.md` and `ci-cd.md`. Rewrote `examples/chat-minimal-ui/README.md` to match the actual `SimpleUI` implementation (was describing `BaseUI`).
+  - Documented previously-undocumented config: TUI color styles (`ZRB_LLM_UI_STYLE_*`), `ZRB_HOOKS_DEBUG`, the repo/file-analysis token thresholds, and the `/btw`, `/plan`, `/rewind` chat commands.
+  - Added a "Programmatic Prompt Customization" subsection to `llm-config.md` §4 covering the three previously user-undocumented `PromptManager` hooks (`add_prompt`/`append_prompt` middleware chain, `register_section`, and file-backed custom sections) — previously only in AGENTS.md/ADR-0061.
+
 ## 2.32.2 (June 6, 2026)
 
 - **Feature: `include_hidden` parameter for `LS` and `Glob` tools**:

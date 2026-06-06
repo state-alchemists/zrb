@@ -135,7 +135,7 @@ from zrb import make_task, cli, StrInput, Env
     name="deploy",
     group=cli,
     input=StrInput(name="version", description="Release version"),
-    env=Env(name="DEPLOY_KEY", is_secret=True),
+    env=Env(name="DEPLOY_KEY", default=""),
     upstream=[build_task, test_task],
     execute_condition=lambda ctx: ctx.env.ENVIRONMENT == "staging",
     retries=1,

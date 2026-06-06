@@ -49,12 +49,12 @@ The context holds information aggregated from the task and all its upstreams:
 | `ctx.print(*values)` | Formatted printing (includes task's color and name) |
 | `ctx.log_info(msg)` | Log info message to session log |
 | `ctx.log_error(msg)` | Log error message to session log |
-| `ctx.render(template)` | Render a Jinja2 template against context variables |
+| `ctx.render(template)` | Render an f-string-style template (single `{}`, evaluated against `ctx` and helpers) |
 
 ### Example
 
 ```python
-from zrb import Task, cli, StrInput
+from zrb import make_task, cli, StrInput
 
 @make_task(name="context-demo", group=cli, input=StrInput(name="user", default="Zrb"))
 def demo(ctx):
@@ -62,7 +62,7 @@ def demo(ctx):
     ctx.log_info("Task started")
     
     # Rendering
-    rendered = ctx.render("Hello {{ctx.input.user}}!")
+    rendered = ctx.render("Hello {ctx.input.user}!")
     
     # Printing
     ctx.print(rendered)
