@@ -684,3 +684,56 @@ ExecCommandsMixin)` + host-contract block); `replay_mixin.py`,
 `system_info_mixin.py`, `conversation_commands_mixin.py`,
 `model_commands_mixin.py`, `exec_commands_mixin.py` (each with a
 `TYPE_CHECKING` host contract).
+
+---
+
+## ADR-0061 — Config-positioned custom prompt sections (registered provider or markdown file)
+
+**Status:** Accepted
+
+**Context.** ADR-0035 fixed the system prompt as ordered, MECE sections, but the
+ordered set was closed: the only downstream extension point (`add_prompt` /
+`prompts=`) always lands **last**, after the built-ins. Downstreams that need
+an always-on section *positioned among* the built-ins (e.g. company context
+before `tool_guidance`, or a live deploy-status block) had no declarative way to
+do it. Some such sections are static text; others must reflect runtime state.
+
+**Decision.** A name in `include_sections` (or `ZRB_LLM_INCLUDE_SECTIONS`) that
+is not a built-in resolves as a custom section, composed at its configured
+position. Resolution precedence is **built-in > registered provider > markdown
+file**:
+- `register_section(name, provider)` registers a `Callable[[AnyContext], str]`,
+  composed by calling it with the active context at compose time — for
+  runtime-dynamic content. A built-in name is never shadowed.
+- Otherwise the name resolves via `get_prompt(name)` (project-override → env →
+  base-prompt-dir → package), with `{PLACEHOLDER}` substitution. A missing file
+  resolves to `""`.
+
+Ordering is declarative in config; dynamic *behavior* is registered explicitly
+in Python (typically `zrb_init.py`) — config never names a file to execute.
+
+**Consequences.** Downstreams add positioned sections — static or dynamic —
+without editing `PromptManager`. The registry mirrors ADR-0043's
+`add_tool_guidance` pattern (config selects/orders, code supplies behavior), so
+the extension surface stays consistent. Cost: an unknown/misspelled section name
+silently resolves to `""` (no error) — a typo'd built-in is an invisible
+dropped section.
+
+**Alternatives rejected.**
+1. **Exec a `.py` file named by the section** (resolve `company_context.py` and
+   run it) — rejected: turns a declarative, widely-copied config string
+   (`ZRB_LLM_INCLUDE_SECTIONS`) into a code-execution trigger, with the file
+   sourced via `get_prompt`'s parent-directory walk. Couples "what to include"
+   to "what code runs." The `SKILL.md`/`.py` precedent (ADR-0044) is
+   defensible only because skills resolve from a project-controlled dir with a
+   fixed entrypoint; not worth that machinery here when a registry suffices.
+2. **Markdown-only custom sections** — rejected: cannot express runtime state
+   (current sprint, live schema), the motivating case.
+3. **Keep `add_prompt` (last-position only)** — rejected: position is the whole
+   point; "always last" cannot sit before `tool_guidance`.
+
+**Evidence.** **[DOCUMENTED]** `AGENTS.md` ("LLM Prompt System");
+`src/zrb/llm/prompt/manager.py` (`register_section`, `_section_providers`, the
+provider-vs-`get_prompt` branch in `_get_composed_middlewares`);
+`test/llm/prompt/test_manager.py` (registered-section + custom-file-backed
+tests). Refines ADR-0035; mirrors ADR-0043; contrasts ADR-0044.

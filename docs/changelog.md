@@ -1,6 +1,18 @@
 🔖 [Documentation Home](../README.md)
 
 
+## 2.33.0 (June 6, 2026)
+
+- **Feature: config-positioned custom prompt sections (ADR-0061)**:
+  - A section name in `include_sections` (or the `ZRB_LLM_INCLUDE_SECTIONS` env var) that is **not** a built-in now resolves as a custom section composed at its configured position — letting downstreams add always-on, ordered sections without editing `PromptManager`. Resolution precedence is **built-in > registered provider > markdown file** (`src/zrb/llm/prompt/manager.py`).
+  - New `PromptManager.register_section(name, provider)` registers a dynamic `Callable[[AnyContext], str]`, composed by calling it with the active context at compose time — for content that must reflect runtime state (current sprint, deploy target, live schema). A built-in name is never shadowed; re-registering a name overwrites the previous provider; return `""` to emit nothing. Mirrors the `add_tool_guidance` registration pattern (config selects/orders, code supplies behavior).
+  - When no provider is registered, an unknown name resolves via `get_prompt(name)` (project-override → env → base-prompt-dir → package) with `{PLACEHOLDER}` substitution, so e.g. `company_context` loads `company_context.md`. A missing file resolves to `""` (harmless no-op — note an unknown/misspelled name is therefore silently empty).
+  - Deliberately rejected resolving-and-exec'ing a `.py` file named by the section: it would turn a declarative, widely-copied config string into a code-execution trigger. Dynamic behavior is registered explicitly in Python; config only names and orders. See ADR-0061 (`docs/adr/07-llm-extension.md`).
+
+- **Tests**: 6 new tests in `test/llm/prompt/test_manager.py` covering registered sections (dynamic composition, include-order positioning, precedence over a same-named markdown file, context pass-through, re-registration overwrite, and that a built-in name is never shadowed).
+
+- **Documentation**: AGENTS.md ("LLM Prompt System") documents the custom-section precedence chain and `register_section`; ADR-0061 records the decision (refines ADR-0035, mirrors ADR-0043, contrasts ADR-0044).
+
 ## 2.32.2 (June 6, 2026)
 
 - **Feature: `include_hidden` parameter for `LS` and `Glob` tools**:
