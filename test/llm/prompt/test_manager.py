@@ -207,9 +207,7 @@ def test_unknown_section_loads_via_get_prompt():
 
 def test_custom_section_follows_include_order():
     """A custom section appears at its configured position, not last."""
-    manager = PromptManager(
-        include_sections=["persona", "company_context", "mandate"]
-    )
+    manager = PromptManager(include_sections=["persona", "company_context", "mandate"])
     ctx = SharedContext()
     with patch(
         "zrb.llm.prompt.manager.get_prompt",
@@ -254,9 +252,7 @@ def test_registered_section_is_composed_dynamically():
 
 def test_registered_section_follows_include_order():
     """A registered section appears at its configured position, not last."""
-    manager = PromptManager(
-        include_sections=["persona", "live_status", "mandate"]
-    )
+    manager = PromptManager(include_sections=["persona", "live_status", "mandate"])
     manager.register_section("live_status", lambda ctx: "# Live Status")
     ctx = SharedContext()
     with patch(
