@@ -1,4 +1,4 @@
-from zrb.llm.tool.bash import run_shell_command as run_bash_command
+from zrb.llm.tool.bash import run_bash_command as run_bash_command
 from zrb.llm.tool.code import analyze_code
 from zrb.llm.tool.delegate import (
     create_delegate_to_agent_tool,

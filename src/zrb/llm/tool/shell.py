@@ -2,12 +2,12 @@ import asyncio
 import os
 import platform
 import re
-import signal
 import tempfile
 
 from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
 from zrb.util.cli.style import stylize_faint
+from zrb.util.cmd.command import resolve_shell, terminate_process
 from zrb.util.truncate import truncate_output
 
 
@@ -18,6 +18,7 @@ async def run_shell_command(
     preserved_head_lines: int = 500,
     preserved_tail_lines: int = 500,
     max_chars: int | None = None,
+    shell: str = "",
 ) -> str:
     """
     Executes a non-interactive shell command. Streams stdout/stderr live and returns truncated output.
@@ -31,16 +32,24 @@ async def run_shell_command(
     to set the working directory without leaving shell-state side-effects in this call.
 
     Default `timeout` is 120 seconds; timed-out processes may continue in the background.
+
+    Args:
+        shell: The shell to use (e.g., "bash", "zsh", "sh"). Empty string uses
+            the default shell.
     """
     if max_chars is None:
         max_chars = CFG.LLM_MAX_OUTPUT_CHARS
     cwd = cwd or os.getcwd()
-    is_windows = platform.system() == "Windows"
+    resolved_shell, shell_flag = resolve_shell(shell)
+    # Background-PID discovery relies on POSIX process groups + pgrep/ps, so it
+    # only applies to a POSIX `-c` shell on a POSIX OS. Windows and language
+    # runtimes (node/php/powershell) skip the wrapper.
+    use_pid_tracking = platform.system() != "Windows" and shell_flag == "-c"
 
-    wrapper_command, temp_pid_file = _prepare_command(command, is_windows)
+    wrapper_command, temp_pid_file = _prepare_command(command, use_pid_tracking)
 
     try:
-        process = await _start_process(wrapper_command, is_windows, cwd)
+        process = await _start_process(resolved_shell, shell_flag, wrapper_command, cwd)
 
         stdout_lines = []
         stderr_lines = []
@@ -57,7 +66,11 @@ async def run_shell_command(
             )
         except asyncio.TimeoutError:
             timed_out = True
-            await _terminate_process(process, is_windows)
+            await terminate_process(
+                process,
+                CFG.LLM_SHELL_KILL_WAIT_TIMEOUT / 1000,
+                print_method=CFG.LOGGER.warning,
+            )
 
         stdout_str = "".join(stdout_lines)
         stderr_str = "".join(stderr_lines)
@@ -86,9 +99,9 @@ async def run_shell_command(
         )
 
 
-def _prepare_command(command: str, is_windows: bool) -> tuple[str, str | None]:
-    """Prepares the command for execution, handling PID tracking on non-Windows systems."""
-    if is_windows:
+def _prepare_command(command: str, use_pid_tracking: bool) -> tuple[str, str | None]:
+    """Wrap the command to capture background PIDs when on a POSIX shell."""
+    if not use_pid_tracking:
         return command, None
 
     fd, temp_pid_file = tempfile.mkstemp(prefix="zrb_pids_")
@@ -106,18 +119,23 @@ def _prepare_command(command: str, is_windows: bool) -> tuple[str, str | None]:
 
 
 async def _start_process(
-    command: str, is_windows: bool, cwd: str
+    shell: str, shell_flag: str, command: str, cwd: str
 ) -> asyncio.subprocess.Process:
     """Starts the subprocess with appropriate settings."""
-    # start_new_session=True (via os.setsid) ensures the shell gets its own process group,
-    # allowing us to use `pgrep -g` effectively to find all processes
-    # in this tool's execution scope.
-    return await asyncio.create_subprocess_shell(
+    # start_new_session=True puts the shell in its own session/process group
+    # (setsid on POSIX, ignored on Windows). This lets `pgrep -g` find spawned
+    # processes and lets terminate/kill target the whole tree.
+    # stdin is DEVNULL so a command that reads stdin fails fast instead of
+    # hanging until the timeout.
+    return await asyncio.create_subprocess_exec(
+        shell,
+        shell_flag,
         command,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
+        stdin=asyncio.subprocess.DEVNULL,
         cwd=cwd,
-        preexec_fn=os.setsid if not is_windows else None,
+        start_new_session=True,
     )
 
 
@@ -140,39 +158,6 @@ async def _read_stream(stream: asyncio.StreamReader, lines_list: list[str]):
             shown = stylize_faint(stripped)
             zrb_print(f"  {shown}", end="", plain=True)  # Stream to console
             lines_list.append(stripped)
-
-
-async def _terminate_process(process: asyncio.subprocess.Process, is_windows: bool):
-    """Terminates the process and its process group if possible."""
-    if process.returncode is not None:
-        return
-
-    try:
-        # Kill the whole process group
-        if not is_windows:
-            os.killpg(os.getpgid(process.pid), signal.SIGTERM)
-        else:
-            process.terminate()
-
-        await asyncio.wait_for(
-            process.wait(), timeout=CFG.LLM_SHELL_KILL_WAIT_TIMEOUT / 1000
-        )
-    except (ProcessLookupError, asyncio.TimeoutError):
-        if not is_windows:
-            try:
-                os.killpg(os.getpgid(process.pid), signal.SIGKILL)
-            except ProcessLookupError:
-                # Process group already gone — nothing to clean up.
-                pass
-            except Exception as e:
-                # Don't crash teardown, but make a failed kill visible: a
-                # silently-orphaned process group is a real leak.
-                CFG.LOGGER.warning(
-                    f"shell: failed to SIGKILL process group for pid "
-                    f"{process.pid}: {e}"
-                )
-        else:
-            process.kill()
 
 
 def _collect_background_pids(temp_pid_file: str | None, process_pid: int) -> list[int]:

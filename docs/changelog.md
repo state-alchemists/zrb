@@ -1,6 +1,25 @@
 🔖 [Documentation Home](../README.md)
 
 
+## 2.33.2a1 (June 7, 2026)
+
+> Pre-release. The Windows shell paths below are unit-tested with mocks and reasoned from documented `cmd.exe` / PowerShell / `psutil` behavior, but **not yet verified on a real Windows host** — hence the alpha tag.
+
+- **Fix: cross-platform shell execution for `Shell` / `Bash` / `ShellBackground`**:
+  - The three LLM execution tools each maintained a separate, POSIX-only subprocess stack (`os.setsid` via `preexec_fn`, `os.killpg`, a `pgrep -g` PID-tracking wrapper). `ShellBackground` was outright broken on Windows — `preexec_fn=os.setsid` raises on the first call since `os.setsid` doesn't exist there. All three now converge on shared, cross-platform primitives in `util/cmd/command.py`: `start_new_session=True` (setsid on POSIX, ignored on Windows), `psutil`-based `terminate_process` / `kill_pid` for whole-tree teardown (replacing `os.killpg`), and a new `resolve_shell()` for shell+flag selection. `stdin` is now `DEVNULL`, so a command that reads stdin fails fast instead of hanging until the timeout.
+  - `terminate_process` snapshots the process tree **before** signalling (children are reparented once the shell exits), sends a graceful terminate, waits a grace window, then force-kills survivors — so a child that outlives its shell is no longer leaked.
+
+- **Fix: `Bash` now actually runs bash; `Shell` uses the configured shell**:
+  - `Bash` (`bash.py`) had become a behavioral duplicate of `Shell` — it ran `/bin/sh` (POSIX) / `cmd.exe` (Windows), never bash. It now executes under `bash`, matching Claude Code's Bash-tool semantics (git-bash on Windows); many Claude skills assume a `Bash` tool by name. `Shell` now defaults to `CFG.SHELL` (the user's configured shell via `ZRB_SHELL` / `DEFAULT_SHELL`, else the detected current shell) and also accepts an explicit `shell=` argument. `resolve_shell` resolves the shell+flag once; since `get_current_shell()` is now existence-checked (below), this is safe on minimal/Windows hosts.
+
+- **Fix: `get_current_shell()` resolves only to shells that actually exist** (`config/helper.py`):
+  - It previously returned a hardcoded `"bash"` on POSIX (broken on a minimal Alpine image where only busybox `sh` exists) and an unconditional `"PowerShell"` on Windows. Now every candidate is verified with `shutil.which`: POSIX honors `$SHELL`-is-zsh only when zsh is installed, otherwise probes `bash` → `sh`; Windows prefers `pwsh` → `powershell`, falling back to `cmd`. This also fixes `CmdTask`, which derives its shell from `CFG.SHELL` → `get_current_shell()`.
+  - Corrected the shell→flag maps in both `resolve_shell` (`command.py`) and `CmdTask._get_shell_flag` (`cmd_task.py`): `powershell` / `pwsh` use `-Command` (was the cmd.exe `/c`, which PowerShell rejects), and `cmd` uses `/c`.
+
+- **Fix: package import `NameError`** (`common_tools.py`): a half-applied `run_shell_command` → `run_bash_command` rename left a dangling `bash_cmd` reference that broke importing `zrb`.
+
+- **Tests**: new coverage in `test/util/cmd/test_command.py` (`resolve_shell`, `terminate_process`), `test/config/test_config.py` (Alpine `sh` fallback, Windows `pwsh`/`powershell`/`cmd` resolution, zsh-requested-but-absent fallback), and `test/llm/tool/test_shell.py` (OS-default path, a real bash-only `[[ … ]]` bashism, background-PID reporting, stdin-no-hang); `test/llm/tool/test_bash.py` updated for the bash-backed tool.
+
 ## 2.33.1 (June 7, 2026)
 
 - **Feature: ULID built-in tasks**:
