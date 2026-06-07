@@ -482,6 +482,7 @@ def test_copy_text_falls_back_to_osc52(clean_env):
     assert result is True
     # OSC 52 sequence written to stdout
     import base64
+
     encoded = base64.b64encode(b"hello").decode("ascii")
     written = "".join(c for c in mock_stdout.write.call_args[0][0] if c.isprintable())
     assert encoded in written

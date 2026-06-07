@@ -9,6 +9,7 @@ This guide is for developers who contribute to or maintain the Zrb project itsel
 ## Table of Contents
 
 - [Publishing Zrb](#publishing-zrb)
+- [Changelog](#changelog)
 - [Inspecting Import Performance](#inspecting-import-performance)
 - [Profiling Zrb](#profiling-zrb)
 - [Testing Strategies](#testing-strategies)
@@ -67,6 +68,80 @@ Two places already generate it for you:
 If you ever invoke `poetry build` / `poetry publish` directly (bypassing the `zrb publish pip` task), run `python scripts/build_pypi_readme.py` first or Poetry will fail with "readme not found."
 
 > ⚠️ **Tag format.** Zrb's release tags are bare `major.minor.patch` (e.g. `2.25.3`), no `v` prefix. The script generates `/blob/2.25.3/...` accordingly — keep this convention if you ever need to rewrite the URL template.
+
+---
+
+## Changelog
+
+The changelog lives in three files under `docs/`, newest-first within each:
+
+| File | Scope |
+|------|-------|
+| `changelog.md` | **Active** changelog — recent releases at full detail. |
+| `changelog-v2.md` | Archive of the 2.x line. |
+| `changelog-v1.md` | Archive of the 1.x line (and the 1.0.0 rewrite from 0.x). |
+
+### Writing an entry
+
+Each release is a `## <version> (<Month D, YYYY>)` heading followed by themed
+bullets, with one blank line between entries:
+
+```markdown
+## 2.33.0 (June 6, 2026)
+
+- **Feature: <Title>**:
+  - <detail referencing a concrete symbol/path/env var>
+- **Fix: <Title>**:
+  - <detail>
+```
+
+Use `- **<Category>: <Title>**:` with nested `  - <detail>` sub-bullets.
+Categories are free-form but conventionally `Feature` / `Improvement` / `Fix` /
+`Reliability` / `Security` / `Refactor` / `Performance` / `Chore` /
+`Documentation` / `Tests`. Write past-tense and factual, and anchor each point
+to something locatable (`module.py`, `ClassName`, an env var, `ADR-NNNN`).
+
+### Collapsing (compaction)
+
+To keep the changelog readable as it grows, old entries are periodically
+compacted. **Keep only two entries per minor version** — the minor bump and its
+final revision — producing this retained sequence:
+
+```
+x.y.0  →  x.y.z (latest revision of x.y)  →  x.y+1.0  →  x.y+1.w  →  …
+```
+
+Worked example (`changelog.md`, 2.31–2.33):
+
+```
+2.31.0  →  2.32.0  →  2.32.2  →  2.33.0  →  2.33.2
+```
+
+Here `2.31` had no patches; `2.32` collapsed `2.32.1` into `2.32.2` and its
+`2.32.0a1`–`b5` pre-releases into `2.32.0`; `2.33` (once it ages out) collapses
+`2.33.1` into `2.33.2`. **The newest minor stays at full per-patch detail** in
+the active `changelog.md` until a later minor opens — so in practice the tail of
+`changelog.md` is compacted while the head is not.
+
+Rules for the surviving entries — they must not lose the dropped history:
+
+- The kept **`x.y.z` (latest)** entry **summarizes the cumulative changes** of
+  every dropped patch `x.y.1`–`x.y.z`, not merely its own.
+- The kept **`x.y.0`** entry **absorbs its pre-releases** (`x.y.0a*`/`x.y.0b*`).
+  The headline features usually land in the pre-release entries (the stable
+  `.0` note often just says "consolidating the pre-release line below"), so
+  dropping them without folding loses the real content.
+- Mark a rolled-up entry with a one-line italic note directly under the heading:
+  `_Cumulative summary of the X.Y.1–X.Y.Z patch line._`
+- **Summarize, don't concatenate.** A 24-patch line becomes one
+  release-note-sized entry grouped by theme; drop version-bump noise and
+  test-only churn (one "expanded test coverage" mention suffices).
+- Preserve the file's preamble and trailing `🔖` breadcrumb, and keep entries in
+  descending version order.
+
+Dropped content stays recoverable from git, so compaction is reversible — but
+the goal is that the compacted file still conveys what happened across each
+minor without it.
 
 ---
 

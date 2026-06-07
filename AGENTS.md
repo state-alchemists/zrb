@@ -109,6 +109,42 @@ Every ADR uses this shape:
 One decision per record. If the decision is still being discussed, mark it
 **Evolving** and note open questions as `@<owner> please decide` tags.
 
+## Changelog
+
+Three files under `docs/`, newest-first within each:
+
+- `changelog.md` — the **active** changelog: recent releases at full detail.
+- `changelog-v2.md` — archive of the 2.x line.
+- `changelog-v1.md` — archive of the 1.x line (and the 1.0.0 rewrite from 0.x).
+
+### Entry format
+
+Each release is a `## <version> (<Month D, YYYY>)` heading followed by themed
+bullets. One blank line between entries. Use `- **<Category>: <Title>**:` with
+nested `  - <detail>` sub-bullets; categories are free-form but conventionally
+`Feature` / `Improvement` / `Fix` / `Reliability` / `Security` / `Refactor` /
+`Performance` / `Chore` / `Documentation` / `Tests`. Write past-tense and
+factual, and reference concrete symbols/paths (`module.py`, `ClassName`, env
+vars, ADR-NNNN) so a reader can locate the change.
+
+### Collapsing (compaction)
+
+Old entries are periodically compacted so each minor keeps only two entries —
+the minor bump and its final revision — giving the retained sequence:
+
+```
+x.y.0  →  x.y.z (latest revision of x.y)  →  x.y+1.0  →  …
+```
+
+The kept `x.y.z` **summarizes** the dropped patches `x.y.1`–`x.y.z`, and `x.y.0`
+**absorbs** its pre-releases (`x.y.0a*`/`x.y.0b*`) — never just dropped, since
+the real features usually live there. Rolled-up entries get a
+`_Cumulative summary of the X.Y.1–X.Y.Z patch line._` note. The newest minor in
+`changelog.md` stays at full per-patch detail until it ages out.
+
+Full procedure, rationale, and a worked example:
+[Maintainer Guide → Changelog](docs/advanced-topics/maintainer-guide.md#changelog).
+
 ## Development Conventions
 
 ### Code Style

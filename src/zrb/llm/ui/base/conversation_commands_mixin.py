@@ -245,9 +245,7 @@ class ConversationCommandsMixin:
                 content = self._last_ai_response()
                 if not content:
                     self.append_to_output(
-                        stylize_error(
-                            "\n  ❌ No AI response available to copy.\n"
-                        )
+                        stylize_error("\n  ❌ No AI response available to copy.\n")
                     )
                     return True
                 # lazy: tests patch clipboard.copy_text; hoisting bypasses the mock
@@ -255,15 +253,11 @@ class ConversationCommandsMixin:
 
                 if copy_text(content):
                     self.append_to_output(
-                        stylize_faint(
-                            "\n  📋 Last output copied to clipboard.\n"
-                        )
+                        stylize_faint("\n  📋 Last output copied to clipboard.\n")
                     )
                 else:
                     self.append_to_output(
-                        stylize_error(
-                            "\n  ❌ Failed to copy to clipboard.\n"
-                        )
+                        stylize_error("\n  ❌ Failed to copy to clipboard.\n")
                     )
                 return True
 
@@ -310,9 +304,7 @@ class ConversationCommandsMixin:
                     )
                     if not messages:
                         self.append_to_output(
-                            stylize_error(
-                                "\n  ❌ No conversation history to copy.\n"
-                            )
+                            stylize_error("\n  ❌ No conversation history to copy.\n")
                         )
                         return True
                     # lazy: tests patch copy_text/format_history; hoisting bypasses mocks
@@ -330,9 +322,7 @@ class ConversationCommandsMixin:
                         )
                     else:
                         self.append_to_output(
-                            stylize_error(
-                                "\n  ❌ Failed to copy to clipboard.\n"
-                            )
+                            stylize_error("\n  ❌ Failed to copy to clipboard.\n")
                         )
                 except Exception as e:
                     self.append_to_output(
@@ -352,9 +342,7 @@ class ConversationCommandsMixin:
                     )
                     if not messages:
                         self.append_to_output(
-                            stylize_error(
-                                "\n  ❌ No conversation history to save.\n"
-                            )
+                            stylize_error("\n  ❌ No conversation history to save.\n")
                         )
                         return True
                     # lazy: tests patch format_history_as_text; hoisting bypasses the mock
@@ -368,9 +356,7 @@ class ConversationCommandsMixin:
                     with open(expanded_path, "w", encoding="utf-8") as f:
                         f.write(transcript)
                     self.append_to_output(
-                        stylize_faint(
-                            f"\n  📝 Transcript saved to: {path}\n"
-                        )
+                        stylize_faint(f"\n  📝 Transcript saved to: {path}\n")
                     )
                 except Exception as e:
                     self.append_to_output(

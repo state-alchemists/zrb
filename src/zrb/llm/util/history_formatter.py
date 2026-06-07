@@ -259,9 +259,7 @@ def _format_tool_return(
     return lines
 
 
-def _indent_lines(
-    text: str, indent: int = 2, max_lines: int | None = 50
-) -> list[str]:
+def _indent_lines(text: str, indent: int = 2, max_lines: int | None = 50) -> list[str]:
     """Indent each line of text with proper truncation.
 
     Args:

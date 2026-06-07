@@ -209,7 +209,9 @@ class TestExtractLastResponseText:
         """A trailing tool-call-only response is skipped for the last text."""
         messages = [
             ModelResponse(parts=[TextPart(content="answer")]),
-            ModelResponse(parts=[ToolCallPart(tool_name="t", args={}, tool_call_id="1")]),
+            ModelResponse(
+                parts=[ToolCallPart(tool_name="t", args={}, tool_call_id="1")]
+            ),
         ]
         assert extract_last_response_text(messages) == "answer"
 

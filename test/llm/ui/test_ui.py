@@ -1328,9 +1328,7 @@ class TestBaseUICommandHandlers:
         )
         ui.append_to_output = MagicMock()
 
-        with patch(
-            "zrb.llm.util.clipboard.copy_text", return_value=True
-        ) as mock_copy:
+        with patch("zrb.llm.util.clipboard.copy_text", return_value=True) as mock_copy:
             with patch(
                 "zrb.llm.util.history_formatter.format_history_as_text",
                 return_value="transcript",
@@ -1379,7 +1377,9 @@ class TestBaseUICommandHandlers:
         assert result is True
         ui.append_to_output.assert_called()  # Error shown
 
-    def test_handle_copy_command_trailing_space_strips_to_bare(self, simple_ui_instance):
+    def test_handle_copy_command_trailing_space_strips_to_bare(
+        self, simple_ui_instance
+    ):
         """Test /copy with a trailing space strips to the bare command (clipboard copy)."""
         ui = simple_ui_instance
         ui._copy_commands = ["/copy"]
