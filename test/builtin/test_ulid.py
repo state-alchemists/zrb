@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock
 
-import ulid
 import pytest
+import ulid
 
 from zrb.builtin.ulid import generate_ulid, validate_ulid
 from zrb.context.shared_context import SharedContext

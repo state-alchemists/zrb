@@ -23,7 +23,7 @@ slug: <short-kebab>
 - **One concept per file.** If a note grows past ~80 lines or covers two ideas, split it.
 - **Frontmatter `slug`** is a short kebab-case identifier, independent of the filename.
 - **Every note carries a `## Backlinks` section.** When you add a forward link in the body, immediately append a reciprocal backlink in the target file (see the Graph Protocol in `SKILL.md`).
-- **Links are standard markdown** `[text](path.md)` relative to the journal root — never `[[wikilinks]]`. The journal-lint tool only recognizes markdown links.
+- **Links are standard markdown** `[text](path.md)` relative to the file that contains the link (use `../` to climb out of a subdirectory) — never `[[wikilinks]]`. The journal-lint tool only recognizes markdown links.
 - **Durable only.** Reserve insight notes for root causes, architectural choices, project conventions, user preferences, external-API quirks, or recurring blockers. Routine task logs belong in the activity log, not here.
 
 ## After Writing

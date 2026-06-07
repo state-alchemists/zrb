@@ -50,19 +50,24 @@ Both apply the graph protocol below. Both can cross-link to each other.
 
 ### Link Convention
 
-Use standard markdown links for all internal references. All paths are **relative to the journal root**:
+Use standard markdown links for all internal references. **Paths are relative to the file that contains the link** (standard markdown semantics) — climb out of a subdirectory with `../`:
 
-- `[asyncio patterns](technical/python-asyncio.md)`
-- `[projects index](projects/index.md)`
+- From the root `index.md`: `[asyncio patterns](technical/python-asyncio.md)`
+- From `projects/my-app.md` to a technical note: `[jwt notes](../technical/jwt.md)`
+- From an `activity-log/YYYY/YYYY-MM/` day file to a project note: `[zrb project](../../../projects/zrb.md)`
+
+`journal-lint.py` resolves links this way. A link written relative to the journal root resolves correctly only from the root `index.md`; from any other file it is flagged as a broken link.
 
 ### Backlink Rule (Non-negotiable)
 
-Every note (except `index.md` files) **must** have a `## Backlinks` section at the bottom. When you create a forward link, immediately append a backlink to the target.
+Every note (except `index.md` files) **must** have a `## Backlinks` section at the bottom. When you create a forward link, immediately append a backlink to the target. Backlink paths are file-relative too — written from the note that holds them.
+
+For example, inside `technical/jwt.md`:
 
 ````markdown
 ## Backlinks
-- [projects/my-app](projects/my-app.md) — referenced for auth architecture
-- [technical/jwt](technical/jwt.md) — related algorithm
+- [my-app project](../projects/my-app.md) — referenced for auth architecture
+- [2026-06-02 log](../activity-log/2026/2026-06/2026-06-02.md) — algorithm chosen here
 ````
 
 Rules:
@@ -108,7 +113,7 @@ When writing a specific kind of entry, Read the matching template from this skil
 1. Compute today's path: `activity-log/YYYY/YYYY-MM/YYYY-MM-DD.md`.
 2. If the file does not exist, create it with an `# YYYY-MM-DD` heading. Then create or update the month index, year index, and `activity-log/index.md` as needed.
 3. Append a new section using the format in `templates/activity-entry.md`.
-4. Cross-link from the entry to any insight notes touched (`[technical/<topic>](technical/<topic>.md)`, `[projects/<project>](projects/<project>.md)`) — and back from those notes to this entry's path under `## Backlinks` if the link is durable (not for trivial mentions). Use markdown links, never `[[wikilinks]]`.
+4. Cross-link from the entry to any insight notes touched — a day file sits three levels deep, so climb out: `[<topic>](../../../technical/<topic>.md)`, `[<project>](../../../projects/<project>.md)`. Add the reverse backlink from those notes to this entry's path under `## Backlinks` if the link is durable (not for trivial mentions). Use markdown links, never `[[wikilinks]]`.
 
 ## Maintenance
 

@@ -1,5 +1,4 @@
 from zrb.builtin.base64 import decode_base64, encode_base64, validate_base64
-from zrb.builtin.ulid import generate_ulid, validate_ulid
 from zrb.builtin.git import (
     get_git_diff,
     git_commit,
@@ -33,6 +32,7 @@ from zrb.builtin.todo import (
     log_todo,
     show_todo,
 )
+from zrb.builtin.ulid import generate_ulid, validate_ulid
 from zrb.builtin.uuid import (
     generate_uuid_v1,
     generate_uuid_v3,

@@ -1,6 +1,23 @@
 🔖 [Documentation Home](../README.md)
 
 
+## 2.33.1 (June 7, 2026)
+
+- **Feature: ULID built-in tasks**:
+  - New `zrb ulid generate` and `zrb ulid validate <id>` tasks (`src/zrb/builtin/ulid.py`), mirroring the existing `uuid` helpers. `generate-ulid` prints and returns a fresh ULID; `validate-ulid` reports whether its `id` input parses. Both are exported from `zrb.builtin` (`generate_ulid`, `validate_ulid`) for programmatic use, and the `ulid` group is documented in `builtin-helpers.md`. The `ulid` package is imported lazily inside each task (`# lazy: heavy third-party`).
+
+- **Fix: `AnyContext` abstraction was missing `print_err`**:
+  - `print_err` is implemented by the concrete context but was absent from the `AnyContext` abstract base, so it was invisible to type-checkers and to code written against the interface. Added the matching `@abstractmethod` signature (`stderr` default, `flush=True`) to `src/zrb/context/any_context.py`.
+
+- **Fix: journal link convention is file-relative, not journal-root-relative**:
+  - `core-journaling` documented links as "relative to the journal root", but `journal-lint.py` and the template examples already resolved them relative to the **containing file** (standard markdown semantics) — so a root-relative link like `technical/jwt.md` written from `projects/my-app.md` was silently flagged broken. Aligned the docs on the file-relative convention with correct `../`-climbing examples (`SKILL.md`, `templates/insight-note.md`, `templates/activity-entry.md`), and corrected a day-file backlink that pointed to the year index instead of the sibling month index.
+  - `journal-lint.py`: documented the file-relative resolution rule, and broken-link errors now emit a hint suggesting the correct file-relative path when the target would have resolved under the old root-relative rule (e.g. `-> technical/jwt.md (target missing) — did you mean (../technical/jwt.md)?`).
+
+- **Chore: removed dead group placeholders**:
+  - `builtin/group.py`: dropped the unused `project` / `project add` / `project add fastapp` group placeholders (no remaining references; fastapp scaffolding registers its own entry points). Tidied the `ulid` group emoji (`🔢`→`🆔`).
+
+- **Tests**: new `test/builtin/test_ulid.py` covering ULID generation and valid/invalid validation.
+
 ## 2.33.0 (June 6, 2026)
 
 - **Feature: config-positioned custom prompt sections (ADR-0061)**:

@@ -12,7 +12,7 @@ A single day's file (`activity-log/YYYY/YYYY-MM/YYYY-MM-DD.md`) holds *multiple*
 - <significant change — file path, command, or decision>
 - <another>
 **Outcome**: <completed | blocked: <reason> | awaiting user: <on what>>
-**Cross-links**: [technical/<topic>](technical/<topic>.md) · [projects/<project>](projects/<project>.md)    <!-- omit line if no cross-links -->
+**Cross-links**: [<topic>](../../../technical/<topic>.md) · [<project>](../../../projects/<project>.md)    <!-- file-relative: a day file is 3 levels deep; omit line if no cross-links -->
 ````
 
 ## File-Level Boilerplate
@@ -29,10 +29,10 @@ The day file as a whole:
 ...
 
 ## Backlinks
-- [activity-log/YYYY/YYYY-MM](../index.md)
+- [month index](index.md)
 ````
 
-The `## Backlinks` section at the bottom of the day file points to the parent month index. Insight notes that cross-link to a day file should append the day file's path under their own `## Backlinks` section (per the graph protocol).
+The `## Backlinks` section at the bottom of the day file points to the month index, which sits in the same directory as the day files (hence a bare `index.md`). Insight notes that cross-link to a day file should append the day file's path under their own `## Backlinks` section (per the graph protocol).
 
 ## What Counts as a "Significant Task"
 
@@ -67,5 +67,5 @@ Past tense, terse, factual. Treat it as evidence for your future self — not na
 - Rewrote 4 top-level skill SKILL.md files as thin user wrappers
 - Removed `research-and-plan/`, added `research/SKILL.md`
 **Outcome**: completed; 1,621 LLM tests pass
-**Cross-links**: [projects/zrb](projects/zrb.md) · [technical/skill-architecture](technical/skill-architecture.md)
+**Cross-links**: [zrb](../../../projects/zrb.md) · [skill-architecture](../../../technical/skill-architecture.md)
 ````
