@@ -109,6 +109,15 @@ Identifier generation and validation.
 | UUID v1/v3/v4/v5 generate | Create UUIDs of various versions |
 | UUID validate | Check UUID validity |
 
+### 🆔 ULID (`ulid`)
+
+Universally Unique Lexicographically Sortable Identifier generation and validation.
+
+| Task | Description |
+|------|-------------|
+| ULID generate | Create a ULID |
+| ULID validate | Check ULID validity |
+
 ---
 
 ## How to Use Built-in Tasks
@@ -160,6 +169,7 @@ from zrb.builtin import encode_base64, git_commit, http_request
 | python | `from zrb.builtin import format_python_code` |
 | random | `from zrb.builtin import throw_dice` |
 | shell | `from zrb.builtin import make_bash_autocomplete, make_powershell_autocomplete, make_zsh_autocomplete` |
+| ulid | `from zrb.builtin import generate_ulid` |
 | uuid | `from zrb.builtin import generate_uuid_v4` |
 
 ---
