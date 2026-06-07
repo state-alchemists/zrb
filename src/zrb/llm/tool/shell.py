@@ -50,9 +50,7 @@ async def run_shell_command(
     wrapper_command, temp_pid_file = _prepare_command(command, use_pid_tracking)
 
     try:
-        process = await _start_process(
-            resolved_shell, shell_flag, wrapper_command, cwd
-        )
+        process = await _start_process(resolved_shell, shell_flag, wrapper_command, cwd)
 
         stdout_lines = []
         stderr_lines = []
@@ -102,9 +100,7 @@ async def run_shell_command(
         )
 
 
-def _prepare_command(
-    command: str, use_pid_tracking: bool
-) -> tuple[str, str | None]:
+def _prepare_command(command: str, use_pid_tracking: bool) -> tuple[str, str | None]:
     """Wrap the command to capture background PIDs when on a POSIX shell."""
     if not use_pid_tracking:
         return command, None
