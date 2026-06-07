@@ -1,9 +1,15 @@
 🔖 [Documentation Home](../README.md)
 
 
-## 2.33.2a1 (June 7, 2026)
+## 2.33.2 (June 7, 2026)
 
-> Pre-release. The Windows shell paths below are unit-tested with mocks and reasoned from documented `cmd.exe` / PowerShell / `psutil` behavior, but **not yet verified on a real Windows host** — hence the alpha tag.
+> Note: the Windows shell paths below are unit-tested with mocks and reasoned from documented `cmd.exe` / PowerShell / `psutil` behavior, but **not yet verified on a real Windows host**.
+
+- **Feature: copy / export conversation transcript**:
+  - New `/copy` chat command: bare copies the full conversation transcript to the system clipboard; with a path argument it writes the transcript to a file. `/redirect` (bare) now copies the last AI response to the clipboard (previously file-only), while `/redirect <file>` keeps its save-to-file behavior.
+  - New `copy_text()` in `llm/util/clipboard.py` uses the existing `pyperclip` backend with an **OSC 52** terminal-escape fallback (works over SSH; wraps the sequence for tmux/screen passthrough).
+  - `history_formatter.py` gains a `full=True` export mode (no per-message/tool/arg truncation) and `extract_last_response_text()`, which recovers the last assistant response from replayed history — so `/copy` and bare `/redirect` work on a freshly loaded `chat --session <name>` before any live turn.
+  - Tab-completion suggests `response-<timestamp>.txt` for `/redirect` and `transcript-<timestamp>.txt` for `/copy`. The command is configurable via `ZRB_LLM_UI_COMMAND_COPY` (`DEFAULT_LLM_UI_COMMAND_COPY` = `/copy`).
 
 - **Fix: cross-platform shell execution for `Shell` / `Bash` / `ShellBackground`**:
   - The three LLM execution tools each maintained a separate, POSIX-only subprocess stack (`os.setsid` via `preexec_fn`, `os.killpg`, a `pgrep -g` PID-tracking wrapper). `ShellBackground` was outright broken on Windows — `preexec_fn=os.setsid` raises on the first call since `os.setsid` doesn't exist there. All three now converge on shared, cross-platform primitives in `util/cmd/command.py`: `start_new_session=True` (setsid on POSIX, ignored on Windows), `psutil`-based `terminate_process` / `kill_pid` for whole-tree teardown (replacing `os.killpg`), and a new `resolve_shell()` for shell+flag selection. `stdin` is now `DEVNULL`, so a command that reads stdin fails fast instead of hanging until the timeout.
@@ -18,7 +24,7 @@
 
 - **Fix: package import `NameError`** (`common_tools.py`): a half-applied `run_shell_command` → `run_bash_command` rename left a dangling `bash_cmd` reference that broke importing `zrb`.
 
-- **Tests**: new coverage in `test/util/cmd/test_command.py` (`resolve_shell`, `terminate_process`), `test/config/test_config.py` (Alpine `sh` fallback, Windows `pwsh`/`powershell`/`cmd` resolution, zsh-requested-but-absent fallback), and `test/llm/tool/test_shell.py` (OS-default path, a real bash-only `[[ … ]]` bashism, background-PID reporting, stdin-no-hang); `test/llm/tool/test_bash.py` updated for the bash-backed tool.
+- **Tests**: new coverage in `test/util/cmd/test_command.py` (`resolve_shell`, `terminate_process`), `test/config/test_config.py` (Alpine `sh` fallback, Windows `pwsh`/`powershell`/`cmd` resolution, zsh-requested-but-absent fallback), and `test/llm/tool/test_shell.py` (OS-default path, a real bash-only `[[ … ]]` bashism, background-PID reporting, stdin-no-hang); `test/llm/tool/test_bash.py` updated for the bash-backed tool. For the copy/export feature: `test/llm/util/test_clipboard.py` (`copy_text` success, OSC 52 fallback, tmux passthrough, no-tty failure), `test/llm/util/test_history_formatter.py` (`full=True` disables truncation, `extract_last_response_text`), `test/llm/app/completion/` (response/transcript filename suggestions), and `test/llm/ui/base/test_commands_mixin.py` + `test/llm/ui/test_ui.py` (bare/path `/copy` and bare `/redirect` handlers).
 
 ## 2.33.1 (June 7, 2026)
 
