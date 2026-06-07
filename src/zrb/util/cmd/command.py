@@ -55,6 +55,105 @@ def check_unrecommended_commands(cmd_script: str) -> dict[str, str]:
     return violations
 
 
+def resolve_shell(shell: str = "") -> tuple[str, str]:
+    """Resolve a shell name into a ``(shell, flag)`` pair.
+
+    Resolution order for an empty ``shell``: explicit ``{PREFIX}_SHELL`` env var,
+    then ``CFG.DEFAULT_SHELL``. If neither is set the result is the sentinel
+    ``("", "")``, meaning "use the OS default shell" — callers should fall back
+    to ``create_subprocess_shell`` (``/bin/sh`` on POSIX, ``cmd.exe`` on
+    Windows), which is always present. This keeps the robust default while still
+    letting a user opt into a specific shell (e.g. git-bash on Windows via
+    ``ZRB_SHELL=bash``).
+
+    The flag is the "run this string" switch for the interpreter (``-c`` for
+    POSIX shells, ``-Command`` for PowerShell, ``-e``/``-r`` for runtimes).
+
+    Args:
+        shell (str): The shell/interpreter to use. Empty resolves as above.
+
+    Returns:
+        tuple[str, str]: The resolved shell and its command flag, or
+            ``("", "")`` to signal the OS default.
+    """
+    shell = shell or os.getenv(f"{CFG.ENV_PREFIX}_SHELL", "") or CFG.DEFAULT_SHELL
+    if not shell:
+        return "", ""
+    flags = {
+        "node": "-e",
+        "ruby": "-e",
+        "php": "-r",
+        "pwsh": "-Command",
+        "powershell": "-Command",
+        "cmd": "/c",
+    }
+    return shell, flags.get(shell.lower(), "-c")
+
+
+def _process_tree_pids(pid: int) -> list[int]:
+    """Snapshot a process and its descendants' PIDs (best effort)."""
+    try:
+        parent = psutil.Process(pid)
+        return [pid] + [child.pid for child in parent.children(recursive=True)]
+    except psutil.NoSuchProcess:
+        return [pid]
+
+
+async def terminate_process(
+    process: asyncio.subprocess.Process,
+    grace_seconds: float,
+    print_method: Callable[..., None] | None = None,
+) -> None:
+    """Gracefully terminate an asyncio subprocess tree, then force-kill survivors.
+
+    The tree is snapshotted *before* signalling, because once the shell exits its
+    children are reparented and can no longer be reached via the shell PID. After
+    a SIGTERM-equivalent and a grace window, any snapshotted PID still alive is
+    force-killed. Cross-platform via ``psutil``.
+
+    Args:
+        process (asyncio.subprocess.Process): The process to terminate.
+        grace_seconds (float): How long to wait for graceful exit before forcing.
+        print_method (Callable[..., None] | None): Status printer for kills.
+    """
+    if process.returncode is not None:
+        return
+    pids = _process_tree_pids(process.pid)
+    terminate_pid(process.pid, print_method=print_method)
+    try:
+        await asyncio.wait_for(process.wait(), timeout=grace_seconds)
+    except asyncio.TimeoutError:
+        pass
+    for pid in pids:
+        if psutil.pid_exists(pid):
+            kill_pid(pid, print_method=print_method)
+
+
+def terminate_pid(pid: int, print_method: Callable[..., None] | None = None) -> None:
+    """Gracefully terminate a process and its children (SIGTERM-equivalent).
+
+    Cross-platform via ``psutil`` — unlike ``os.killpg`` this works on Windows.
+    Pair with ``kill_pid`` to force-kill survivors after a grace period.
+
+    Args:
+        pid (int): The parent process ID.
+        print_method (Callable[..., None] | None): Status printer. Defaults to
+            the built-in ``print``.
+    """
+    actual_print_method = print_method if print_method is not None else print
+    try:
+        parent = psutil.Process(pid)
+    except psutil.NoSuchProcess:
+        return
+    for proc in parent.children(recursive=True) + [parent]:
+        try:
+            proc.terminate()
+        except psutil.NoSuchProcess:
+            pass
+        except Exception as e:
+            actual_print_method(f"Failed to terminate process {proc.pid}: {e}")
+
+
 async def run_command(
     cmd: list[str],
     cwd: str | None = None,

@@ -117,7 +117,7 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
     ToolGuidance(
         group_name="Execution",
         tool_name="Shell",
-        when_to_use="Running any shell command (alias: Bash)",
+        when_to_use="Running any shell command (Bash runs the same under bash)",
         key_rule="For file I/O, use Read/Write/Edit/Grep/RM/MV — not Shell. "
         "System Context already lists time, OS, CWD, and available tools — read from there before running commands to discover them.",
     ),
@@ -320,7 +320,7 @@ def apply_common_tools(host: CommonToolHost) -> None:
     # lazy: permission is a leaf module.
     from zrb.llm.permission import Capability, tag
     from zrb.llm.tool.ask import ask_user_question
-    from zrb.llm.tool.bash import run_shell_command as bash_cmd
+    from zrb.llm.tool.bash import run_bash_command
     from zrb.llm.tool.code import analyze_code
     from zrb.llm.tool.file import (
         analyze_file,
@@ -379,7 +379,7 @@ def apply_common_tools(host: CommonToolHost) -> None:
     ):
         tag(_fn, Capability.EDIT)
     tag(run_shell_command, Capability.EXECUTE)
-    tag(bash_cmd, Capability.EXECUTE)
+    tag(run_bash_command, Capability.EXECUTE)
     for _fn in (search_internet, open_web_page):
         tag(_fn, Capability.NETWORK)
     for _fn in plan_tools + [ask_user_question]:
@@ -390,7 +390,7 @@ def apply_common_tools(host: CommonToolHost) -> None:
 
     host.add_tool(
         run_shell_command,
-        bash_cmd,
+        run_bash_command,
         analyze_code,
         list_files,
         glob_files,

@@ -185,7 +185,9 @@ class CmdTask(BaseTask):
             "node": "-e",
             "ruby": "-e",
             "php": "-r",
-            "powershell": "/c",
+            "pwsh": "-Command",
+            "powershell": "-Command",
+            "cmd": "/c",
         }
         default_shell_flag = default_shell_flags.get(self._get_shell(ctx).lower(), "-c")
         return get_str_attr(

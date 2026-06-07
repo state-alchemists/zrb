@@ -12,11 +12,11 @@ from __future__ import annotations
 
 import asyncio
 import os
-import signal
 from dataclasses import dataclass, field
 
 from zrb.config.config import CFG
 from zrb.llm.permission import Capability, tag
+from zrb.util.cmd.command import kill_pid, resolve_shell, terminate_process
 from zrb.util.string.name import get_random_name
 
 
@@ -36,15 +36,28 @@ class _ShellBackgroundRegistry:
     def __init__(self) -> None:
         self._procs: dict[str, _BackgroundProcess] = {}
 
-    async def start(self, command: str, cwd: str, description: str) -> str:
+    async def start(
+        self, command: str, cwd: str, description: str, shell: str = ""
+    ) -> str:
         handle = get_random_name(separator="-", add_random_digit=True)
-        proc = await asyncio.create_subprocess_shell(
-            command,
+        resolved_shell, shell_flag = resolve_shell(shell)
+        # start_new_session=True isolates the process group (setsid on POSIX,
+        # ignored on Windows). stdin=DEVNULL prevents hangs on stdin reads.
+        # An empty shell (OS-default sentinel) runs via the always-present
+        # /bin/sh or cmd.exe; an explicit shell runs via create_subprocess_exec.
+        kwargs = dict(
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            stdin=asyncio.subprocess.DEVNULL,
             cwd=cwd or os.getcwd(),
-            preexec_fn=os.setsid,
+            start_new_session=True,
         )
+        if resolved_shell:
+            proc = await asyncio.create_subprocess_exec(
+                resolved_shell, shell_flag, command, **kwargs
+            )
+        else:
+            proc = await asyncio.create_subprocess_shell(command, **kwargs)
         bp = _BackgroundProcess(process=proc, description=description or command)
         self._procs[handle] = bp
         # Start readers in the background and track them so cancel_all() /
@@ -123,17 +136,11 @@ class _ShellBackgroundRegistry:
             return (
                 f"Process '{handle}' has already exited (code {bp.process.returncode})."
             )
-        try:
-            os.killpg(os.getpgid(bp.process.pid), signal.SIGTERM)
-            await asyncio.wait_for(
-                bp.process.wait(),
-                timeout=CFG.LLM_SHELL_KILL_WAIT_TIMEOUT / 1000,
-            )
-        except (ProcessLookupError, asyncio.TimeoutError):
-            try:
-                os.killpg(os.getpgid(bp.process.pid), signal.SIGKILL)
-            except Exception:
-                pass
+        await terminate_process(
+            bp.process,
+            CFG.LLM_SHELL_KILL_WAIT_TIMEOUT / 1000,
+            print_method=CFG.LOGGER.warning,
+        )
         _cancel_tasks(bp)
         self._procs.pop(handle, None)
         return f"Killed process '{handle}'."
@@ -141,10 +148,7 @@ class _ShellBackgroundRegistry:
     def cancel_all(self) -> None:
         for handle, bp in list(self._procs.items()):
             if bp.process.returncode is None:
-                try:
-                    os.killpg(os.getpgid(bp.process.pid), signal.SIGKILL)
-                except Exception:
-                    pass
+                kill_pid(bp.process.pid, print_method=CFG.LOGGER.warning)
             _cancel_tasks(bp)
         self._procs.clear()
 
@@ -169,6 +173,7 @@ def create_shell_background_tool():
         command: str,
         description: str = "",
         cwd: str = "",
+        shell: str = "",
     ) -> str:
         """Start a shell command in the BACKGROUND and return a handle immediately.
 
@@ -177,8 +182,11 @@ def create_shell_background_tool():
         with MonitorProcess(handle, kill=True).
 
         For short commands whose output you need now, use Shell instead.
+
+        `shell` selects the interpreter (e.g. "bash"); empty uses the default
+        shell.
         """
-        handle = await _registry.start(command, cwd, description)
+        handle = await _registry.start(command, cwd, description, shell)
         return (
             f"Started background process. Handle: {handle}. "
             "Call MonitorProcess with this handle to check status."
