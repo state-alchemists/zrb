@@ -1,4 +1,4 @@
-"""LLM UI slash-command aliases (14 command-list properties).
+"""LLM UI slash-command aliases (15 command-list properties).
 
 Each property reads a comma-separated env value and returns a parsed list.
 Setters serialize back to comma-separated form.
@@ -26,6 +26,7 @@ class LLMUICommandsMixin:
         self.DEFAULT_LLM_UI_COMMAND_SET_MODEL: str = "/model"
         self.DEFAULT_LLM_UI_COMMAND_BTW: str = "/btw"
         self.DEFAULT_LLM_UI_COMMAND_PLAN_TOGGLE: str = "/plan"
+        self.DEFAULT_LLM_UI_COMMAND_COPY: str = "/copy"
         super().__init__()
 
     LLM_UI_COMMAND_SUMMARIZE = EnvField(comma_list, serialize=comma_join)
@@ -53,3 +54,5 @@ class LLMUICommandsMixin:
     LLM_UI_COMMAND_BTW = EnvField(comma_list, serialize=comma_join)
 
     LLM_UI_COMMAND_PLAN_TOGGLE = EnvField(comma_list, serialize=comma_join)
+
+    LLM_UI_COMMAND_COPY = EnvField(comma_list, serialize=comma_join)

@@ -1,7 +1,7 @@
 """Conversation slash-commands for `BaseUI`.
 
-Exit, help, save/load, rewind (snapshot restore), redirect-output, and
-attach. Split out of `commands_mixin.py` to keep that file focused on
+Exit, help, save/load, rewind (snapshot restore), redirect-output, copy,
+and attach. Split out of `commands_mixin.py` to keep that file focused on
 dispatch; the handlers run on the composed `BaseUI` instance (see the
 host-class contract below), mirroring `CommandsMixin`.
 
@@ -34,6 +34,7 @@ class ConversationCommandsMixin:
     # so type checkers can verify accesses; the block does not run at runtime.
     if TYPE_CHECKING:
         _attach_commands: list[str]
+        _copy_commands: list[str]
         _exit_commands: list[str]
         _info_commands: list[str]
         _load_commands: list[str]
@@ -217,16 +218,57 @@ class ConversationCommandsMixin:
 
     # --- redirect / attach ------------------------------------------------
 
+    def _last_ai_response(self) -> str:
+        """Last AI response text: the live one, else the latest from history.
+
+        ``last_output`` is only populated after a live turn this run. On a
+        freshly loaded ``chat --session ...`` the transcript is replayed from
+        disk, so fall back to the most recent assistant message in history.
+        """
+        content = self.last_output
+        if content:
+            return content
+        try:
+            messages = self._history_manager.load(self._conversation_session_name)
+        except Exception:
+            return ""
+        # lazy: tests patch extract_last_response_text; hoisting bypasses the mock
+        from zrb.llm.util.history_formatter import extract_last_response_text
+
+        return extract_last_response_text(messages)
+
     def _handle_redirect_command(self, text: str) -> bool:
         text = text.strip()
         for cmd in self._redirect_output_commands:
+            # Bare command → copy last output to clipboard.
+            if text.lower() == cmd.lower():
+                content = self._last_ai_response()
+                if not content:
+                    self.append_to_output(
+                        stylize_error("\n  ❌ No AI response available to copy.\n")
+                    )
+                    return True
+                # lazy: tests patch clipboard.copy_text; hoisting bypasses the mock
+                from zrb.llm.util.clipboard import copy_text
+
+                if copy_text(content):
+                    self.append_to_output(
+                        stylize_faint("\n  📋 Last output copied to clipboard.\n")
+                    )
+                else:
+                    self.append_to_output(
+                        stylize_error("\n  ❌ Failed to copy to clipboard.\n")
+                    )
+                return True
+
+            # Command with arg → redirect to file (existing behaviour).
             prefix = f"{cmd} "
             if text.lower().startswith(prefix):
                 path = text[len(prefix) :].strip()
                 if not path:
                     continue
 
-                content = self.last_output
+                content = self._last_ai_response()
                 if not content:
                     self.append_to_output(
                         stylize_error("\n  ❌ No AI response available to redirect.\n")
@@ -246,6 +288,80 @@ class ConversationCommandsMixin:
                         stylize_error(f"\n  ❌ Failed to redirect output: {e}\n")
                     )
 
+                return True
+        return False
+
+    # --- copy --------------------------------------------------------------
+
+    def _handle_copy_command(self, text: str) -> bool:
+        text = text.strip()
+        for cmd in self._copy_commands:
+            # Bare command → copy full transcript to clipboard.
+            if text.lower() == cmd.lower():
+                try:
+                    messages = self._history_manager.load(
+                        self._conversation_session_name
+                    )
+                    if not messages:
+                        self.append_to_output(
+                            stylize_error("\n  ❌ No conversation history to copy.\n")
+                        )
+                        return True
+                    # lazy: tests patch copy_text/format_history; hoisting bypasses mocks
+                    from zrb.llm.util.clipboard import copy_text
+                    from zrb.llm.util.history_formatter import (
+                        format_history_as_text,
+                    )
+
+                    transcript = format_history_as_text(messages, full=True)
+                    if copy_text(transcript):
+                        self.append_to_output(
+                            stylize_faint(
+                                "\n  📋 Full transcript copied to clipboard.\n"
+                            )
+                        )
+                    else:
+                        self.append_to_output(
+                            stylize_error("\n  ❌ Failed to copy to clipboard.\n")
+                        )
+                except Exception as e:
+                    self.append_to_output(
+                        stylize_error(f"\n  ❌ Failed to copy transcript: {e}\n")
+                    )
+                return True
+
+            # Command with arg → write transcript to file.
+            prefix = f"{cmd} "
+            if text.lower().startswith(prefix):
+                path = text[len(prefix) :].strip()
+                if not path:
+                    continue
+                try:
+                    messages = self._history_manager.load(
+                        self._conversation_session_name
+                    )
+                    if not messages:
+                        self.append_to_output(
+                            stylize_error("\n  ❌ No conversation history to save.\n")
+                        )
+                        return True
+                    # lazy: tests patch format_history_as_text; hoisting bypasses the mock
+                    from zrb.llm.util.history_formatter import (
+                        format_history_as_text,
+                    )
+
+                    transcript = format_history_as_text(messages, full=True)
+                    expanded_path = os.path.abspath(os.path.expanduser(path))
+                    os.makedirs(os.path.dirname(expanded_path), exist_ok=True)
+                    with open(expanded_path, "w", encoding="utf-8") as f:
+                        f.write(transcript)
+                    self.append_to_output(
+                        stylize_faint(f"\n  📝 Transcript saved to: {path}\n")
+                    )
+                except Exception as e:
+                    self.append_to_output(
+                        stylize_error(f"\n  ❌ Failed to save transcript: {e}\n")
+                    )
                 return True
         return False
 

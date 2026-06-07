@@ -199,6 +199,57 @@ async def _run(cmd: list[str]) -> bytes | None:
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Clipboard writing
+# ---------------------------------------------------------------------------
+
+
+def copy_text(text: str) -> bool:
+    """Copy text to system clipboard.
+
+    Uses ``pyperclip`` (the project's existing clipboard backend) when
+    available, with an OSC 52 terminal-escape fallback that works over
+    SSH. Returns ``True`` if the text was successfully placed on the
+    clipboard.
+    """
+    try:
+        # lazy: heavy third-party
+        import pyperclip  # type: ignore[import]
+
+        pyperclip.copy(text)
+        return True
+    except Exception:
+        # OSC 52 fallback — works over SSH when the terminal emulator
+        # (iTerm2, GNOME Terminal, etc.) supports it.
+        if sys.stdout.isatty():
+            try:
+                _write_osc52(text)
+                return True
+            except Exception:
+                pass
+        return False
+
+
+def _write_osc52(text: str) -> None:
+    """Send clipboard content via OSC 52 escape sequence.
+
+    The terminal emulator on the *local* machine handles the clipboard,
+    so this works over SSH. Tmux and screen need a passthrough wrapper.
+    """
+    import base64
+
+    encoded = base64.b64encode(text.encode("utf-8")).decode("ascii")
+    tmux = os.environ.get("TMUX")
+    screen = os.environ.get("TERM") == "screen"
+    if tmux:
+        sys.stdout.write(f"\x1bPtmux;\x1b\x1b]52;c;{encoded}\x07\x1b\\")
+    elif screen:
+        sys.stdout.write(f"\x1bP\x1b]52;c;{encoded}\x07\x1b\\")
+    else:
+        sys.stdout.write(f"\x1b]52;c;{encoded}\x07")
+    sys.stdout.flush()
+
+
 def missing_tool_hint() -> str:
     """Return a short help string when clipboard image reading fails on Linux."""
     if sys.platform not in ("linux", "linux2"):

@@ -4,7 +4,7 @@ Routes recognized commands to handlers and fires PreCommand/PostCommand
 hooks. The concrete `_handle_*` handlers live in sibling mixins that this
 class composes (so the dispatch table and the handlers share one `self`):
 
-  conversation_commands_mixin.py - exit/info/save/load/rewind/redirect/attach
+  conversation_commands_mixin.py - exit/info/save/load/rewind/redirect/copy/attach
   model_commands_mixin.py        - yolo/plan toggles + model switching
   exec_commands_mixin.py         - shell exec, /btw side questions, custom cmds
 
@@ -50,6 +50,7 @@ class CommandsMixin(ConversationCommandsMixin, ModelCommandsMixin, ExecCommandsM
         # Command lists (set in `BaseUI.__init__`)
         _attach_commands: list[str]
         _btw_commands: list[str]
+        _copy_commands: list[str]
         _plan_commands: list[str]
         _plan_mode_active: bool
         _custom_commands: list["AnyCustomCommand"]
@@ -138,6 +139,7 @@ class CommandsMixin(ConversationCommandsMixin, ModelCommandsMixin, ExecCommandsM
             (self._handle_attach_command, self._attach_commands, True, False),
             (self._handle_set_model_command, self._set_model_commands, True, False),
             (self._handle_exec_command, self._exec_commands, True, False),
+            (self._handle_copy_command, self._copy_commands, True, False),
         ]
 
     def classify_input(self, text: str) -> str:
@@ -295,7 +297,11 @@ class CommandsMixin(ConversationCommandsMixin, ModelCommandsMixin, ExecCommandsM
             )
         add_cmd_help(
             self._redirect_output_commands,
-            "Save last output to file (usage: {cmd} <file>)",
+            "Copy last output to clipboard (bare), or save to file (usage: {cmd} <file>)",
+        )
+        add_cmd_help(
+            self._copy_commands,
+            "Copy full transcript to clipboard (bare), or save to file (usage: {cmd} <file>)",
         )
         add_cmd_help(self._summarize_commands, "Summarize conversation history")
         add_cmd_help(self._yolo_toggle_commands, "Toggle YOLO mode")

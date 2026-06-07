@@ -166,6 +166,7 @@ class BaseUI(CommandsMixin, HistoryReplayMixin, SystemInfoMixin):
         exec_commands: list[str] = [],
         btw_commands: list[str] = [],
         plan_commands: list[str] = [],
+        copy_commands: list[str] = [],
         custom_commands: list[AnyCustomCommand] = [],
         model: "Model | str | None" = None,
         enable_rewind: bool = False,
@@ -200,6 +201,7 @@ class BaseUI(CommandsMixin, HistoryReplayMixin, SystemInfoMixin):
         self._exec_commands = exec_commands
         self._btw_commands = btw_commands
         self._plan_commands = plan_commands
+        self._copy_commands = copy_commands
         self._custom_commands = custom_commands
         self._plan_mode_active = False
         self._trigger_tasks: list[asyncio.Task] = []

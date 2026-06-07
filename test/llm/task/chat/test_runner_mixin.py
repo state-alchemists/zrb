@@ -107,6 +107,7 @@ async def test_run_interactive_session_basic(runner):
             "exec",
             "btw",
             "plan",
+            "copy",
             "build",
         ]
     }
@@ -155,6 +156,7 @@ async def test_run_interactive_session_with_factories_and_multiplex(runner):
             "exec",
             "btw",
             "plan",
+            "copy",
             "build",
         ]
     }

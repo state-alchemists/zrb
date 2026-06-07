@@ -28,6 +28,7 @@ def completer(mock_history_manager):
         save_commands=["/save"],
         load_commands=["/load"],
         redirect_output_commands=["/out"],
+        copy_commands=["/copy"],
         summarize_commands=["/sum"],
     )
 
@@ -59,7 +60,17 @@ def test_redirect_completion(mock_datetime, completer, complete_event):
 
     doc = Document(text="/out ", cursor_position=5)
     completions = list(completer.get_completions(doc, complete_event))
-    assert any(c.text == "2023-10-27-12-30.txt" for c in completions)
+    assert any(c.text == "response-2023-10-27-12-30.txt" for c in completions)
+
+
+@patch("zrb.llm.app.completion.args.datetime")
+def test_copy_completion(mock_datetime, completer, complete_event):
+    """Typing '/copy ' suggests a transcript-<timestamp>.txt filename."""
+    mock_datetime.now.return_value = datetime(2023, 10, 27, 12, 30)
+
+    doc = Document(text="/copy ", cursor_position=6)
+    completions = list(completer.get_completions(doc, complete_event))
+    assert any(c.text == "transcript-2023-10-27-12-30.txt" for c in completions)
 
 
 def test_load_completion(completer, complete_event):

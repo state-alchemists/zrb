@@ -27,6 +27,7 @@ class UIConfig:
     load_commands: list[str] = field(default_factory=lambda: ["/load"])
     attach_commands: list[str] = field(default_factory=lambda: ["/attach"])
     redirect_output_commands: list[str] = field(default_factory=lambda: ["/redirect"])
+    copy_commands: list[str] = field(default_factory=lambda: ["/copy"])
     yolo_toggle_commands: list[str] = field(default_factory=lambda: ["/yolo"])
     set_model_commands: list[str] = field(default_factory=lambda: ["/model"])
     exec_commands: list[str] = field(default_factory=lambda: ["/exec"])
@@ -56,6 +57,7 @@ class UIConfig:
             load_commands=[],
             attach_commands=[],
             redirect_output_commands=[],
+            copy_commands=[],
             yolo_toggle_commands=[],
             set_model_commands=[],
             exec_commands=[],
@@ -86,6 +88,7 @@ class UIConfig:
             set_model_commands=ui_commands.get("set_model", self.set_model_commands),
             exec_commands=ui_commands.get("exec", self.exec_commands),
             plan_commands=ui_commands.get("plan", self.plan_commands),
+            copy_commands=ui_commands.get("copy", self.copy_commands),
             summarize_commands=self.summarize_commands,
             assistant_name=self.assistant_name,
             is_yolo=self.is_yolo,
