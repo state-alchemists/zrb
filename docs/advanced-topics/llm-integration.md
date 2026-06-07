@@ -42,7 +42,10 @@ This launches a full-screen chat application where you can have a conversation w
 | `/load <name>` | Load a named session |
 | `/save <name>` | Save current session |
 | `/attach <file_path>` | Attach a file to next message |
-| `>` or `/redirect <file_path>` | Save last response to file |
+| `>` or `/redirect` (bare) | Copy last AI response to clipboard |
+| `>` or `/redirect <file_path>` | Save last AI response to a file |
+| `/copy` (bare) | Copy full conversation transcript to clipboard |
+| `/copy <file_path>` | Save full conversation transcript to file |
 | `!` or `/exec <shell_cmd>` | Execute shell command |
 | `/btw <text>` | Inject a side note for the next turn without sending it as a message (runs while the assistant is thinking) |
 | `/plan` | Toggle [Plan Mode](./plan-mode.md) (read-only discovery) |

@@ -11,6 +11,7 @@ from prompt_toolkit.document import Document
 
 from zrb.config.config import CFG
 from zrb.llm.app.completion.args import (
+    complete_copy_arg,
     complete_exec_arg,
     complete_load_arg,
     complete_redirect_arg,
@@ -41,6 +42,7 @@ class InputCompleter(Completer):
         set_model_commands: list[str] = [],
         exec_commands: list[str] = [],
         plan_commands: list[str] = [],
+        copy_commands: list[str] = [],
         custom_commands: list[AnyCustomCommand] = [],
         custom_model_names: list[str] = [],
         show_ollama_models: bool = True,
@@ -61,6 +63,7 @@ class InputCompleter(Completer):
         self._set_model_commands = set_model_commands
         self._exec_commands = exec_commands
         self._plan_commands = plan_commands
+        self._copy_commands = copy_commands
         self._custom_commands = custom_commands
         self._custom_model_names = custom_model_names
         self._show_ollama_models = show_ollama_models
@@ -129,6 +132,7 @@ class InputCompleter(Completer):
             + self._set_model_commands
             + self._exec_commands
             + self._plan_commands
+            + self._copy_commands
         )
         return all_commands + [cc.command for cc in self._custom_commands]
 
@@ -196,6 +200,10 @@ class InputCompleter(Completer):
                 lambda cmd: f"Execute CLI command (i.e., {cmd} <command>)",
             ),
             (self._plan_commands, "Toggle PLAN mode (read-only) on/off"),
+            (
+                self._copy_commands,
+                lambda cmd: f"Copy transcript to clipboard (bare) or to file (i.e., {cmd} <path>)",
+            ),
         ]
         for cmds, meta in groups:
             yield from self._yield_command_completions(
@@ -308,6 +316,8 @@ class InputCompleter(Completer):
             yield from complete_save_arg(single_arg, self._history_manager)
         elif self._is_command(cmd, self._redirect_output_commands):
             yield from complete_redirect_arg(single_arg)
+        elif self._is_command(cmd, self._copy_commands):
+            yield from complete_copy_arg(single_arg)
         elif self._is_command(cmd, self._load_commands):
             yield from complete_load_arg(single_arg, self._history_manager)
         elif self._is_command(cmd, self._attach_commands):

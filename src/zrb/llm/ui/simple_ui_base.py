@@ -102,6 +102,7 @@ class SimpleUI(BaseUI):
             save_commands=self._config.save_commands,
             load_commands=self._config.load_commands,
             redirect_output_commands=self._config.redirect_output_commands,
+            copy_commands=self._config.copy_commands,
             yolo_toggle_commands=self._config.yolo_toggle_commands,
             set_model_commands=self._config.set_model_commands,
             exec_commands=self._config.exec_commands,

@@ -10,8 +10,32 @@ if TYPE_CHECKING:
     from pydantic_ai import ModelMessage
 
 
+def extract_last_response_text(messages: "list[ModelMessage]") -> str:
+    """Return the text of the most recent assistant response, or ``""``.
+
+    Scans messages newest-first and returns the joined ``TextPart`` contents
+    of the first ModelResponse that has any text (skipping tool-call-only
+    responses). Used to recover the "last AI response" for export when no
+    live response exists yet — e.g. a freshly loaded ``chat --session`` whose
+    history was replayed from disk rather than produced this run.
+    """
+    for msg in reversed(messages):
+        if getattr(msg, "kind", None) != "response":
+            continue
+        parts = getattr(msg, "parts", [])
+        texts = [
+            str(getattr(p, "content", ""))
+            for p in parts
+            if getattr(p, "part_kind", None) == "text"
+        ]
+        text = "\n".join(t for t in texts if t)
+        if text.strip():
+            return text
+    return ""
+
+
 def format_history_as_text(
-    messages: "list[ModelMessage]", max_length: int | None = None
+    messages: "list[ModelMessage]", max_length: int | None = None, *, full: bool = False
 ) -> str:
     """Format pydantic-ai conversation history as human-readable text.
 
@@ -24,7 +48,11 @@ def format_history_as_text(
     Args:
         messages: List of ModelMessage (ModelRequest or ModelResponse)
         max_length: Maximum length of output text (truncated if exceeded).
-                    Defaults to CFG.LLM_HISTORY_MAX_DISPLAY_CHARS.
+                    Defaults to CFG.LLM_HISTORY_MAX_DISPLAY_CHARS. Ignored
+                    when ``full`` is True.
+        full: When True, emit the complete transcript with no truncation —
+              neither the overall length cap nor the per-message/tool/arg
+              limits. Used for export (copy/save) rather than display.
 
     Returns:
         Human-readable string representation of the conversation
@@ -44,14 +72,14 @@ def format_history_as_text(
         kind = getattr(msg, "kind", "unknown")
 
         if kind == "request":
-            lines.extend(_format_request(msg, i, pending_tool_calls))
+            lines.extend(_format_request(msg, i, pending_tool_calls, full))
         elif kind == "response":
-            lines.extend(_format_response(msg, i, pending_tool_calls))
+            lines.extend(_format_response(msg, i, pending_tool_calls, full))
 
     result = "\n".join(lines)
 
-    # Truncate if too long
-    if len(result) > max_length:
+    # Truncate if too long (skipped entirely for a full export)
+    if not full and len(result) > max_length:
         truncate_msg = (
             f"\n... (truncated, showing {max_length} of {len(result)} characters)"
         )
@@ -60,7 +88,9 @@ def format_history_as_text(
     return result
 
 
-def _format_request(msg, index: int, pending_tool_calls: dict[str, str]) -> list[str]:
+def _format_request(
+    msg, index: int, pending_tool_calls: dict[str, str], full: bool = False
+) -> list[str]:
     """Format a ModelRequest message.
 
     ModelRequest can contain:
@@ -92,13 +122,16 @@ def _format_request(msg, index: int, pending_tool_calls: dict[str, str]) -> list
 
     # Show tool returns first (they're feedback from tool execution)
     for part in tool_return_parts:
-        lines.extend(_format_tool_return(part, pending_tool_calls))
+        lines.extend(_format_tool_return(part, pending_tool_calls, full))
 
     # Show user prompt(s)
     for part in user_prompt_parts:
         content = getattr(part, "content", "")
         ts_display = f"{timestamp} " if timestamp else ""
-        lines.append(f"💬 {ts_display}>> {truncate(str(content), 500)}")
+        text = str(content) if full else truncate(str(content), 500)
+        lines.append(f"💬 {ts_display}>> {text}")
+
+    indent_max = None if full else 50
 
     # System prompts (rarely in history)
     for part in system_prompt_parts:
@@ -107,7 +140,7 @@ def _format_request(msg, index: int, pending_tool_calls: dict[str, str]) -> list
         lines.append("📋 System Prompt:")
         if dynamic_ref:
             lines.append(f"  Ref: {dynamic_ref}")
-        lines.extend(_indent_lines(str(content), 2))
+        lines.extend(_indent_lines(str(content), 2, max_lines=indent_max))
 
     # Retry prompts
     for part in retry_parts:
@@ -116,12 +149,14 @@ def _format_request(msg, index: int, pending_tool_calls: dict[str, str]) -> list
         lines.append("🔄 Retry Prompt:")
         if tool_name:
             lines.append(f"  Tool: {tool_name}")
-        lines.extend(_indent_lines(str(content), 2))
+        lines.extend(_indent_lines(str(content), 2, max_lines=indent_max))
 
     return lines
 
 
-def _format_response(msg, index: int, pending_tool_calls: dict[str, str]) -> list[str]:
+def _format_response(
+    msg, index: int, pending_tool_calls: dict[str, str], full: bool = False
+) -> list[str]:
     """Format a ModelResponse message.
 
     ModelResponse can contain:
@@ -143,18 +178,18 @@ def _format_response(msg, index: int, pending_tool_calls: dict[str, str]) -> lis
     for part in thinking_parts:
         content = getattr(part, "content", "")
         lines.append("  💭 Thinking:")
-        lines.extend(_indent_lines(str(content), 4, max_lines=10))
+        lines.extend(_indent_lines(str(content), 4, max_lines=None if full else 10))
 
     # Then show text content
     text_parts = [p for p in parts if getattr(p, "part_kind", None) == "text"]
     for part in text_parts:
         content = getattr(part, "content", "")
-        lines.extend(_indent_lines(str(content), 2))
+        lines.extend(_indent_lines(str(content), 2, max_lines=None if full else 50))
 
     # Then show tool calls (mimicking streaming style with 🧰)
     tool_call_parts = [p for p in parts if getattr(p, "part_kind", None) == "tool-call"]
     for part in tool_call_parts:
-        lines.extend(_format_tool_call(part, pending_tool_calls))
+        lines.extend(_format_tool_call(part, pending_tool_calls, full))
 
     if model_name:
         lines.append(f"  🎯 Model: {model_name}")
@@ -162,7 +197,9 @@ def _format_response(msg, index: int, pending_tool_calls: dict[str, str]) -> lis
     return lines
 
 
-def _format_tool_call(part, pending_tool_calls: dict[str, str]) -> list[str]:
+def _format_tool_call(
+    part, pending_tool_calls: dict[str, str], full: bool = False
+) -> list[str]:
     """Format a ToolCallPart.
 
     Mimics the streaming style:
@@ -177,7 +214,7 @@ def _format_tool_call(part, pending_tool_calls: dict[str, str]) -> list[str]:
     if tool_call_id and tool_name:
         pending_tool_calls[tool_call_id] = tool_name
 
-    args_str = format_args(args)
+    args_str = format_args(args, full=full)
     id_display = tool_call_id or "?"
     name_display = tool_name or "unknown"
 
@@ -185,7 +222,9 @@ def _format_tool_call(part, pending_tool_calls: dict[str, str]) -> list[str]:
     return lines
 
 
-def _format_tool_return(part, pending_tool_calls: dict[str, str]) -> list[str]:
+def _format_tool_return(
+    part, pending_tool_calls: dict[str, str], full: bool = False
+) -> list[str]:
     """Format a ToolReturnPart.
 
     Mimics the streaming style:
@@ -211,22 +250,24 @@ def _format_tool_return(part, pending_tool_calls: dict[str, str]) -> list[str]:
         name_display = "unknown"
 
     content_str = str(content) if content else ""
-    truncated = truncate(content_str, 200)
+    shown = content_str if full else truncate(content_str, 200)
 
     lines.append(f"  🔠 {id_display} | {name_display} {status_icon}")
-    if truncated.strip():
-        lines.extend(_indent_lines(truncated, 4, max_lines=3))
+    if shown.strip():
+        lines.extend(_indent_lines(shown, 4, max_lines=None if full else 3))
 
     return lines
 
 
-def _indent_lines(text: str, indent: int = 2, max_lines: int = 50) -> list[str]:
+def _indent_lines(
+    text: str, indent: int = 2, max_lines: int | None = 50
+) -> list[str]:
     """Indent each line of text with proper truncation.
 
     Args:
         text: Text to format
         indent: Number of spaces for indentation
-        max_lines: Maximum number of lines to show
+        max_lines: Maximum number of lines to show, or None for no limit
 
     Returns:
         List of indented lines
@@ -235,10 +276,11 @@ def _indent_lines(text: str, indent: int = 2, max_lines: int = 50) -> list[str]:
     lines = []
     text_lines = text.split("\n")
 
-    for i, line in enumerate(text_lines[:max_lines]):
+    limit = len(text_lines) if max_lines is None else max_lines
+    for line in text_lines[:limit]:
         lines.append(f"{indent_str}{line}")
 
-    if len(text_lines) > max_lines:
+    if max_lines is not None and len(text_lines) > max_lines:
         remaining = len(text_lines) - max_lines
         lines.append(f"{indent_str}... ({remaining} more lines)")
 
@@ -255,8 +297,12 @@ def truncate(text: str, max_length: int | None = None) -> str:
     return text[: max_length - 3] + "..."
 
 
-def format_args(args) -> str:
-    """Format tool call arguments for display."""
+def format_args(args, full: bool = False) -> str:
+    """Format tool call arguments for display.
+
+    When ``full`` is True, argument values are emitted in full (no per-value
+    truncation) for an export transcript.
+    """
 
     if args is None:
         return "{}"
@@ -266,22 +312,22 @@ def format_args(args) -> str:
         try:
             obj = json.loads(args)
             if isinstance(obj, dict):
-                return _truncate_kwargs(obj)
+                return _truncate_kwargs(obj, full=full)
         except (json.JSONDecodeError, TypeError):
-            return truncate(args, 50)
+            return args if full else truncate(args, 50)
     if isinstance(args, dict):
         # Remove 'dummy' key if present (schema sanitization artifact)
         args_clean = {k: v for k, v in args.items() if k != "dummy"}
-        return _truncate_kwargs(args_clean)
-    return truncate(str(args), 50)
+        return _truncate_kwargs(args_clean, full=full)
+    return str(args) if full else truncate(str(args), 50)
 
 
-def _truncate_kwargs(kwargs: dict, max_length: int = 30) -> str:
-    """Truncate keyword arguments for display."""
+def _truncate_kwargs(kwargs: dict, max_length: int = 30, full: bool = False) -> str:
+    """Truncate keyword arguments for display (no truncation when ``full``)."""
 
     truncated = {}
     for key, val in kwargs.items():
-        if isinstance(val, str) and len(val) > max_length:
+        if not full and isinstance(val, str) and len(val) > max_length:
             truncated[key] = f"{val[:max_length-3]}..."
         else:
             truncated[key] = val

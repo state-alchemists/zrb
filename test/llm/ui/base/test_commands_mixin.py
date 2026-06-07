@@ -21,6 +21,7 @@ class MockUI(CommandsMixin):
         self._btw_commands = ["/btw"]
         self._plan_commands = ["/plan"]
         self._summarize_commands = ["/summarize"]
+        self._copy_commands = []
         self._custom_commands = []
 
         self.execute_hook = MagicMock()
@@ -128,6 +129,98 @@ def test_handle_redirect_command(ui, tmp_path):
     assert ui._handle_redirect_command(f"/redirect {out_file}") is True
     assert out_file.read_text() == "some ai output"
     assert "redirected" in "".join(ui.outputs)
+
+
+def test_handle_redirect_command_bare(ui):
+    """Bare /redirect copies last_output to clipboard."""
+    ui._redirect_output_commands = ["/redirect"]
+    ui.last_output = "clipboard content"
+    with patch("zrb.llm.util.clipboard.copy_text", return_value=True) as mock_copy:
+        result = ui._handle_redirect_command("/redirect")
+
+    assert result is True
+    mock_copy.assert_called_once_with("clipboard content")
+
+
+def test_handle_redirect_command_bare_falls_back_to_history(ui):
+    """Bare /redirect uses the last history response when no live output exists.
+
+    Reproduces `chat --session <name>`: history is replayed but last_output
+    is empty until a live turn runs.
+    """
+    ui._redirect_output_commands = ["/redirect"]
+    ui.last_output = ""
+    ui._history_manager.load.return_value = [{"role": "assistant", "content": "x"}]
+    with patch("zrb.llm.util.clipboard.copy_text", return_value=True) as mock_copy:
+        with patch(
+            "zrb.llm.util.history_formatter.extract_last_response_text",
+            return_value="from history",
+        ):
+            result = ui._handle_redirect_command("/redirect")
+
+    assert result is True
+    mock_copy.assert_called_once_with("from history")
+
+
+def test_handle_redirect_command_bare_no_output_no_history(ui):
+    """Bare /redirect errors when neither live output nor history text exists."""
+    ui._redirect_output_commands = ["/redirect"]
+    ui.last_output = ""
+    ui._history_manager.load.return_value = []
+    with patch("zrb.llm.util.clipboard.copy_text") as mock_copy:
+        with patch(
+            "zrb.llm.util.history_formatter.extract_last_response_text",
+            return_value="",
+        ):
+            result = ui._handle_redirect_command("/redirect")
+
+    assert result is True
+    mock_copy.assert_not_called()
+    assert any("no ai response" in o.lower() for o in ui.outputs)
+
+
+def test_handle_copy_command(ui):
+    """Bare /copy copies full transcript to clipboard."""
+    ui._copy_commands = ["/copy"]
+    ui._history_manager.load.return_value = [{"role": "user", "content": "hi"}]
+
+    with patch("zrb.llm.util.clipboard.copy_text", return_value=True) as mock_copy:
+        with patch(
+            "zrb.llm.util.history_formatter.format_history_as_text",
+            return_value="copy text",
+        ):
+            result = ui._handle_copy_command("/copy")
+
+    assert result is True
+    mock_copy.assert_called_once_with("copy text")
+
+
+def test_handle_copy_command_to_file(ui, tmp_path):
+    """Copy with path writes transcript to file."""
+    ui._copy_commands = ["/copy"]
+    ui._history_manager.load.return_value = [{"role": "assistant", "content": "msg"}]
+    out_file = tmp_path / "transcript.txt"
+
+    with patch(
+        "zrb.llm.util.history_formatter.format_history_as_text",
+        return_value="file content",
+    ):
+        result = ui._handle_copy_command(f"/copy {out_file}")
+
+    assert result is True
+    assert out_file.read_text() == "file content"
+    assert any("saved" in o.lower() for o in ui.outputs)
+
+
+def test_handle_copy_command_no_history(ui):
+    """Copy shows error when no history."""
+    ui._copy_commands = ["/copy"]
+    ui._history_manager.load.return_value = []
+
+    result = ui._handle_copy_command("/copy")
+
+    assert result is True
+    assert any("no conversation" in o.lower() for o in ui.outputs)
 
 
 def test_handle_attach_command(ui, tmp_path):

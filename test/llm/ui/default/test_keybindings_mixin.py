@@ -352,6 +352,7 @@ class IntegrationUI(KeybindingsMixin, CommandsMixin):
         self._btw_commands = ["/btw"]
         self._plan_commands = ["/plan"]
         self._summarize_commands = ["/summarize"]
+        self._copy_commands = []
         self._custom_commands = []
         self._is_thinking = False
         self._background_tasks = set()

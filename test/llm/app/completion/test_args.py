@@ -3,6 +3,7 @@
 from unittest.mock import MagicMock
 
 from zrb.llm.app.completion.args import (
+    complete_copy_arg,
     complete_exec_arg,
     complete_load_arg,
     complete_redirect_arg,
@@ -32,11 +33,25 @@ def test_complete_redirect_arg_silent_when_prefix_doesnt_match_timestamp():
     assert results == []
 
 
-def test_complete_redirect_arg_yields_timestamp_for_empty_prefix():
-    """Empty prefix matches the timestamp prefix and a single suggestion is emitted."""
+def test_complete_redirect_arg_yields_response_prefixed_timestamp():
+    """Empty prefix yields a single response-<timestamp>.txt suggestion."""
     results = list(complete_redirect_arg(""))
     assert len(results) == 1
-    # Should end in .txt
+    assert results[0].text.startswith("response-")
+    assert results[0].text.endswith(".txt")
+
+
+def test_complete_copy_arg_silent_when_prefix_doesnt_match():
+    """If prefix is 'zzz', the copy suggestion is suppressed."""
+    results = list(complete_copy_arg("zzz"))
+    assert results == []
+
+
+def test_complete_copy_arg_yields_transcript_prefixed_timestamp():
+    """Empty prefix yields a single transcript-<timestamp>.txt suggestion."""
+    results = list(complete_copy_arg(""))
+    assert len(results) == 1
+    assert results[0].text.startswith("transcript-")
     assert results[0].text.endswith(".txt")
 
 
