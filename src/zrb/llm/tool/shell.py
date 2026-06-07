@@ -41,11 +41,10 @@ async def run_shell_command(
         max_chars = CFG.LLM_MAX_OUTPUT_CHARS
     cwd = cwd or os.getcwd()
     resolved_shell, shell_flag = resolve_shell(shell)
-    # Background-PID discovery relies on POSIX process groups + pgrep/ps. It
-    # applies to POSIX `sh`-family shells (`-c`) and the OS default on POSIX
-    # (empty flag -> /bin/sh). Windows and language runtimes (node/php/
-    # powershell) skip the wrapper.
-    use_pid_tracking = platform.system() != "Windows" and shell_flag in ("", "-c")
+    # Background-PID discovery relies on POSIX process groups + pgrep/ps, so it
+    # only applies to a POSIX `-c` shell on a POSIX OS. Windows and language
+    # runtimes (node/php/powershell) skip the wrapper.
+    use_pid_tracking = platform.system() != "Windows" and shell_flag == "-c"
 
     wrapper_command, temp_pid_file = _prepare_command(command, use_pid_tracking)
 
@@ -122,29 +121,22 @@ def _prepare_command(command: str, use_pid_tracking: bool) -> tuple[str, str | N
 async def _start_process(
     shell: str, shell_flag: str, command: str, cwd: str
 ) -> asyncio.subprocess.Process:
-    """Starts the subprocess with appropriate settings.
-
-    An empty ``shell`` (the OS-default sentinel from ``resolve_shell``) runs via
-    ``create_subprocess_shell`` — ``/bin/sh`` on POSIX, ``cmd.exe`` on Windows —
-    which is always present. An explicit shell runs via ``create_subprocess_exec``.
-    """
+    """Starts the subprocess with appropriate settings."""
     # start_new_session=True puts the shell in its own session/process group
     # (setsid on POSIX, ignored on Windows). This lets `pgrep -g` find spawned
     # processes and lets terminate/kill target the whole tree.
     # stdin is DEVNULL so a command that reads stdin fails fast instead of
     # hanging until the timeout.
-    kwargs = dict(
+    return await asyncio.create_subprocess_exec(
+        shell,
+        shell_flag,
+        command,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
         stdin=asyncio.subprocess.DEVNULL,
         cwd=cwd,
         start_new_session=True,
     )
-    if shell:
-        return await asyncio.create_subprocess_exec(
-            shell, shell_flag, command, **kwargs
-        )
-    return await asyncio.create_subprocess_shell(command, **kwargs)
 
 
 async def _read_stream(stream: asyncio.StreamReader, lines_list: list[str]):

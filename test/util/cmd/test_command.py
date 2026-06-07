@@ -17,11 +17,13 @@ from zrb.util.cmd.command import (
 from zrb.util.cmd.remote import get_remote_cmd_script
 
 
-def test_resolve_shell_empty_is_os_default(monkeypatch):
-    # No explicit shell -> sentinel ("", "") meaning "use the OS default shell".
+def test_resolve_shell_empty_uses_cfg_shell(monkeypatch):
+    # No explicit shell -> fall back to CFG.SHELL.
     monkeypatch.delenv(f"{CFG.ENV_PREFIX}_SHELL", raising=False)
-    monkeypatch.setattr(CFG, "DEFAULT_SHELL", "")
-    assert resolve_shell("") == ("", "")
+    monkeypatch.setattr(CFG, "DEFAULT_SHELL", "bash")
+    sh, flag = resolve_shell("")
+    assert sh == CFG.SHELL == "bash"
+    assert flag == "-c"
 
 
 def test_resolve_shell_env_opt_in(monkeypatch):

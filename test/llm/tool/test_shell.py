@@ -9,9 +9,8 @@ def test_shell_name():
 
 
 @pytest.mark.asyncio
-async def test_run_shell_command_uses_os_default_shell(monkeypatch):
-    # With no configured shell, Shell must fall back to the always-present OS
-    # default (/bin/sh, cmd.exe) rather than a possibly-absent bash/zsh.
+async def test_run_shell_command_default_shell(monkeypatch):
+    # With no explicit shell, Shell runs under CFG.SHELL (the detected shell).
     monkeypatch.delenv(f"{CFG.ENV_PREFIX}_SHELL", raising=False)
     monkeypatch.setattr(CFG, "DEFAULT_SHELL", "")
     res = await run_shell_command("echo default-shell")

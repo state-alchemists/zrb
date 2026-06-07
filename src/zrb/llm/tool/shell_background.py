@@ -43,21 +43,16 @@ class _ShellBackgroundRegistry:
         resolved_shell, shell_flag = resolve_shell(shell)
         # start_new_session=True isolates the process group (setsid on POSIX,
         # ignored on Windows). stdin=DEVNULL prevents hangs on stdin reads.
-        # An empty shell (OS-default sentinel) runs via the always-present
-        # /bin/sh or cmd.exe; an explicit shell runs via create_subprocess_exec.
-        kwargs = dict(
+        proc = await asyncio.create_subprocess_exec(
+            resolved_shell,
+            shell_flag,
+            command,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             stdin=asyncio.subprocess.DEVNULL,
             cwd=cwd or os.getcwd(),
             start_new_session=True,
         )
-        if resolved_shell:
-            proc = await asyncio.create_subprocess_exec(
-                resolved_shell, shell_flag, command, **kwargs
-            )
-        else:
-            proc = await asyncio.create_subprocess_shell(command, **kwargs)
         bp = _BackgroundProcess(process=proc, description=description or command)
         self._procs[handle] = bp
         # Start readers in the background and track them so cancel_all() /

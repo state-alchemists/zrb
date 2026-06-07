@@ -58,27 +58,21 @@ def check_unrecommended_commands(cmd_script: str) -> dict[str, str]:
 def resolve_shell(shell: str = "") -> tuple[str, str]:
     """Resolve a shell name into a ``(shell, flag)`` pair.
 
-    Resolution order for an empty ``shell``: explicit ``{PREFIX}_SHELL`` env var,
-    then ``CFG.DEFAULT_SHELL``. If neither is set the result is the sentinel
-    ``("", "")``, meaning "use the OS default shell" — callers should fall back
-    to ``create_subprocess_shell`` (``/bin/sh`` on POSIX, ``cmd.exe`` on
-    Windows), which is always present. This keeps the robust default while still
-    letting a user opt into a specific shell (e.g. git-bash on Windows via
-    ``ZRB_SHELL=bash``).
+    An empty ``shell`` falls back to ``CFG.SHELL`` — the user's configured shell
+    (``ZRB_SHELL`` / ``CFG.DEFAULT_SHELL``), or the detected current shell
+    (``get_current_shell()``, which only ever returns a shell that exists).
 
     The flag is the "run this string" switch for the interpreter (``-c`` for
-    POSIX shells, ``-Command`` for PowerShell, ``-e``/``-r`` for runtimes).
+    POSIX shells, ``-Command`` for PowerShell, ``/c`` for cmd, ``-e``/``-r`` for
+    runtimes).
 
     Args:
-        shell (str): The shell/interpreter to use. Empty resolves as above.
+        shell (str): The shell/interpreter to use. Empty uses ``CFG.SHELL``.
 
     Returns:
-        tuple[str, str]: The resolved shell and its command flag, or
-            ``("", "")`` to signal the OS default.
+        tuple[str, str]: The resolved shell and its command flag.
     """
-    shell = shell or os.getenv(f"{CFG.ENV_PREFIX}_SHELL", "") or CFG.DEFAULT_SHELL
-    if not shell:
-        return "", ""
+    shell = shell or CFG.SHELL
     flags = {
         "node": "-e",
         "ruby": "-e",
