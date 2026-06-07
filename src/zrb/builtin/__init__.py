@@ -1,4 +1,5 @@
 from zrb.builtin.base64 import decode_base64, encode_base64, validate_base64
+from zrb.builtin.ulid import generate_ulid, validate_ulid
 from zrb.builtin.git import (
     get_git_diff,
     git_commit,
@@ -85,6 +86,8 @@ __all__ = [
     "list_todo",
     "log_todo",
     "show_todo",
+    "generate_ulid",
+    "validate_ulid",
     "generate_uuid_v1",
     "generate_uuid_v3",
     "generate_uuid_v4",
