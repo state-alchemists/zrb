@@ -73,7 +73,13 @@ class HttpCheck(BaseTask):
         http_method = self._get_http_method(ctx)
         while True:
             try:
-                response = await asyncio.to_thread(requests.request, http_method, url)
+                # Bound each probe so a half-open endpoint can't hang the worker
+                # thread forever (to_thread can't cancel a blocking request). The
+                # request should never outlive the polling interval; a timeout is
+                # just another transient error and is retried below.
+                response = await asyncio.to_thread(
+                    requests.request, http_method, url, timeout=self._interval
+                )
                 if response.status_code == 200:
                     return response
                 ctx.log_info(f"HTTP Status code: {response.status_code}")

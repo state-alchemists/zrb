@@ -86,6 +86,49 @@ def test_register_task_with_dependencies(session):
     # So roots of 'task' should be ['upstream'].
 
 
+def _mk_task(name):
+    t = MagicMock(spec=AnyTask)
+    t.name = name
+    t.readiness_checks = []
+    t.successors = []
+    t.fallbacks = []
+    t.upstreams = []
+    t.color = None
+    t.icon = None
+    return t
+
+
+def test_register_task_detects_circular_dependency(session):
+    """Mutually-upstream tasks must fail fast, not recurse forever."""
+    a = _mk_task("a")
+    b = _mk_task("b")
+    a.upstreams = [b]
+    b.upstreams = [a]
+
+    with pytest.raises(ValueError, match="Circular task dependency"):
+        session.register_task(a)
+
+
+def test_register_task_diamond_links_shared_upstream_once(session):
+    """A diamond (shared upstream reached via two branches) registers cleanly."""
+    root = _mk_task("root")
+    left = _mk_task("left")
+    right = _mk_task("right")
+    sink = _mk_task("sink")
+    left.upstreams = [root]
+    right.upstreams = [root]
+    sink.upstreams = [left, right]
+
+    session.register_task(sink)
+
+    for name in ("root", "left", "right", "sink"):
+        assert name in session.task_names
+    # The shared upstream's downstreams contain both branches exactly once.
+    assert session.get_next_tasks(root) == [left, right]
+    # sink's root is the shared upstream.
+    assert session.get_root_tasks(sink) == [root]
+
+
 def test_is_allowed_to_run(session):
     task = MagicMock(spec=AnyTask)
     task.name = "task"

@@ -1,6 +1,36 @@
 🔖 [Documentation Home](../README.md)
 
 
+## 2.33.3 (June 8, 2026)
+
+- **Fix: empty env var reaches typed cast and crashes** (`env_field.py`): An explicitly empty env var (e.g. `export ZRB_WEB_HTTP_PORT=`) would reach `int("")`/`to_boolean("")` and raise an opaque error. Empty is now treated the same as unset, falling back to the resolved default.
+
+- **Fix: fnmatch pattern always matched basename against full path** (`content_transformer.py`): A bare pattern like `*.txt` was matched as `fnmatch(file_path, basename(file_path))`, comparing the full path against its basename, which always passed. Now correctly matches `basename(file_path) against the pattern.
+
+- **Fix: concurrent agent runs share and clobber each other's plan/build mode** (`runner.py`, `state.py`): Without per-run ContextVar isolation, every run mutated the single import-time default `AgentModeState`, so concurrent web chat sessions and parallel sub-agents overwrote each other's mode. `enter_agent_mode_scope`/`exit_agent_mode_scope` now bind a fresh run-local state per run, with the final mode propagated back to the caller so in-run `/plan` switches persist.
+
+- **Fix: backup rotation deletes the live history file** (`file_history_manager.py`): When a conversation name carries a timestamp suffix (e.g. `session-2024-03-18-10-30`), the main file matches the backup filename pattern and rotation sorts it oldest and deletes the live history. The main file is now excluded from backup rotation.
+
+- **Fix: empty `old_text` in `replace_in_file` corrupts the file** (`file_edit.py`): `"" in content` is always `True`, so `str.replace` with an empty `old_text` inserts `new_text` between every character. Now rejected with a clear error message directing the user to `Write` instead.
+
+- **Fix: bash validation misses multi-command injection vectors** (`bash_validation.py`): Bare `&` (covering `&&` too) was missing from dangerous substrings, so `ls & rm -rf x` auto-approved. Newlines and carriage returns were also missing, so multi-line payloads bypassed approval. Additionally, `env` was removed from safe prefixes since `env FOO=1 rm -rf x` runs an arbitrary command; only `printenv` remains allowlisted.
+
+- **Fix: chat API routes skip authorization for `llm chat` access** (`chat_api_route.py`): Every chat API route authenticated the user but skipped the `can_access_task` gate that other task API routes enforce, letting unauthorized users reach the most powerful surface (tool/shell execution). Added `_forbid_if_unauthorized` guard to all routes.
+
+- **Fix: `Session.result` returns stale value from first push** (`session.py`): Used `xcom.peek()` (queue front, oldest) instead of `xcom.get()` (latest), so a readiness-monitored re-execution returned the first run's result instead of the current one.
+
+- **Fix: circular task dependency causes unbounded recursion** (`session.py`): `register_task` recursed through readiness checks, successors, fallbacks, and upstreams without cycle detection. Added path-scoped ancestor tracking that fails fast with a clear message on circular dependencies.
+
+- **Fix: `HttpCheck` probe hangs forever on half-open endpoint** (`http_check.py`): `requests.request` was called without a timeout, so a TCP connection that opens but never responds would block the `to_thread` worker indefinitely. Now bound with `timeout=self._interval`.
+
+- **Fix: SSH command injection via unsanitized interpolations** (`util/cmd/remote.py`): Password, host, user, port, and SSH key paths were double-quoted but not `shlex.quote`d, so any field containing `"`, `` ` ``, or `$(…)` could break out and inject arbitrary shell commands. All interpolated fields now use `shlex.quote`.
+
+- **Fix: cron weekday mismatch between Python and cron conventions** (`util/cron.py`): Python's `weekday()` maps Monday=0..Sunday=6, while cron uses Sunday=0..Saturday=6, causing day-of-week scheduling off-by-one errors. Converted via `isoweekday() % 7`. Also fixed day-of-month/weekday semantics: when both fields are restricted cron uses OR; when one is wildcard the fields are ANDed.
+
+- **Fix: `Xcom.get()` returns same value as `peek()` (oldest, not latest)** (`xcom.py`): `get()` used `self[0]` (queue front, same as `peek()`) instead of `self[-1]` (most recently pushed), so single-variable semantics returned stale values after readiness-monitored re-execution.
+
+- **Tests**: new/expanded coverage in `test_env_field.py`, `test_content_transformer.py`, `test_file_history_manager.py`, `test_state_and_gate.py`, `test_file.py`, `test_bash_validation.py`, `test_chat_api.py`, `test_session.py`, `test_http_check.py`, `test_command.py`, `test_util_cron.py`, `test_xcom.py`.
+
 ## 2.33.2 (June 7, 2026)
 
 > Note: the Windows shell paths below are unit-tested with mocks and reasoned from documented `cmd.exe` / PowerShell / `psutil` behavior, but **not yet verified on a real Windows host**.

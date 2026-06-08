@@ -169,7 +169,11 @@ class FileHistoryManager(AnyHistoryManager):
                 if backup_path:
                     self._save_data_to_file(backup_path, filtered_data)
                     if backup_retain > 0:
-                        self._rotate_backups(base_name, keep=backup_retain)
+                        self._rotate_backups(
+                            base_name,
+                            keep=backup_retain,
+                            main_file_name=os.path.basename(file_path),
+                        )
 
         except ValidationError as e:
             # If validation fails even after cleaning, log and don't save
@@ -392,12 +396,20 @@ class FileHistoryManager(AnyHistoryManager):
             zrb_print(f"Error: Failed to save history to {file_path}: {e}", plain=True)
             return False
 
-    def _rotate_backups(self, base_name: str, keep: int) -> None:
+    def _rotate_backups(
+        self, base_name: str, keep: int, main_file_name: str | None = None
+    ) -> None:
         """Delete older timestamped backups, keeping the *keep* most recent.
 
         A no-op when *keep* is negative (unlimited retention) or zero (backups
         disabled — no rotation needed because none are written). Errors during
         cleanup are swallowed; backup hygiene must not break a successful save.
+
+        *main_file_name* (the live conversation file's basename) is always
+        excluded: when a conversation name itself carries a timestamp suffix
+        (e.g. ``session-2024-03-18-10-30``), the main file matches the backup
+        filename pattern with the same base, and rotation would otherwise sort
+        it oldest and delete the live history.
         """
         if keep < 0:
             return
@@ -407,6 +419,8 @@ class FileHistoryManager(AnyHistoryManager):
             return
         backups: list[str] = []
         for name in entries:
+            if main_file_name is not None and name == main_file_name:
+                continue
             match = _BACKUP_FILENAME_PATTERN.match(name)
             if match and match.group("base") == base_name:
                 backups.append(name)

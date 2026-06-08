@@ -192,7 +192,7 @@ def test_get_remote_cmd_script_basic():
     """Test basic SSH command generation."""
     cmd = "ls -la"
     result = get_remote_cmd_script(cmd, host="example.com", port=22, user="user")
-    assert 'ssh -t -p "22" "user@example.com" \'ls -la\'' in result
+    assert "ssh -t -p 22 user@example.com 'ls -la'" in result
 
 
 def test_get_remote_cmd_script_with_ssh_key():
@@ -201,7 +201,7 @@ def test_get_remote_cmd_script_with_ssh_key():
     result = get_remote_cmd_script(
         cmd, host="example.com", port=22, user="user", ssh_key="/path/to/key"
     )
-    assert 'ssh -t -p "22" -i "/path/to/key" "user@example.com" \'ls -la\'' in result
+    assert "ssh -t -p 22 -i /path/to/key user@example.com 'ls -la'" in result
 
 
 def test_get_remote_cmd_script_with_password():
@@ -215,7 +215,7 @@ def test_get_remote_cmd_script_with_password():
         password="pass123",
         use_password=True,
     )
-    assert 'sshpass -p "pass123" ssh -t -p "22" "user@example.com" \'ls -la\'' in result
+    assert "sshpass -p pass123 ssh -t -p 22 user@example.com 'ls -la'" in result
 
 
 def test_get_remote_cmd_script_with_ssh_key_and_password():
@@ -231,7 +231,7 @@ def test_get_remote_cmd_script_with_ssh_key_and_password():
         ssh_key="/path/to/key",
     )
     assert (
-        'sshpass -p "pass123" ssh -t -p "22" -i "/path/to/key" "user@example.com" \'ls -la\''
+        "sshpass -p pass123 ssh -t -p 22 -i /path/to/key user@example.com 'ls -la'"
         in result
     )
 
@@ -240,7 +240,27 @@ def test_get_remote_cmd_script_custom_port():
     """Test SSH command generation with custom port."""
     cmd = "ls -la"
     result = get_remote_cmd_script(cmd, host="example.com", port=2222, user="user")
-    assert 'ssh -t -p "2222" "user@example.com" \'ls -la\'' in result
+    assert "ssh -t -p 2222 user@example.com 'ls -la'" in result
+
+
+def test_get_remote_cmd_script_quotes_injection_in_credentials():
+    """Credential fields with shell metacharacters must be safely quoted."""
+    import shlex
+
+    result = get_remote_cmd_script(
+        "ls",
+        host="example.com",
+        port=22,
+        user="user",
+        password='p"$(touch /tmp/pwn)`',
+        use_password=True,
+    )
+    # The malicious password is shlex-quoted as a single literal token, so the
+    # command substitution can never reach the shell.
+    assert shlex.quote('p"$(touch /tmp/pwn)`') in result
+    assert "$(touch /tmp/pwn)" not in result.replace(
+        shlex.quote('p"$(touch /tmp/pwn)`'), ""
+    )
 
 
 def test_check_unrecommended_commands_process_substitution():

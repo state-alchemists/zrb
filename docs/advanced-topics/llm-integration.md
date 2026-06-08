@@ -68,7 +68,7 @@ By default, Zrb prompts for confirmation before executing most tools. This is co
 | **Permission Policy** | Fine-grained `ALLOW`/`DENY`/`ASK` rules that can override YOLO |
 | **Plan Mode** | Strict read-only mode for discovery. See [Plan Mode](./plan-mode.md) |
 
-**Safe Command Policy:** Both `Shell` and `Bash` tools automatically approve known-safe read-only commands (e.g., `ls`, `git status`, `cat`, `grep`) without requiring YOLO mode. Commands with dangerous shell metacharacters (`>`, `|`, `;`, `&&`) always require explicit approval.
+**Safe Command Policy:** Both `Shell` and `Bash` tools automatically approve known-safe read-only commands (e.g., `ls`, `git status`, `cat`, `grep`) without requiring YOLO mode. Commands with dangerous shell metacharacters (`>`, `|`, `;`, `&`, `` ` ``, `$()`, `\n`, `\r`) always require explicit approval. Known-safe prefixes include `ls`, `cat`, `grep`, `git status`, `printenv`, and similar read-only commands — note that bare `env` is intentionally excluded as `env FOO=1 rm -rf x` can execute arbitrary commands.
 
 ---
 

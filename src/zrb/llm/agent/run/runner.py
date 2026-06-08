@@ -49,7 +49,11 @@ from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.message import TOOL_CALL_PLACEHOLDER, ensure_alternating_roles
-from zrb.llm.permission.state import current_permission_policy
+from zrb.llm.permission.state import (
+    current_permission_policy,
+    enter_agent_mode_scope,
+    exit_agent_mode_scope,
+)
 from zrb.llm.tool_call.handler import ToolCallHandler
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 from zrb.llm.util.prompt import expand_prompt
@@ -147,6 +151,11 @@ async def run_agent(
         _bind_contextvar(stack, current_yolo, effective_yolo)
         _bind_contextvar(stack, current_approval_channel, effective_approval_channel)
         _bind_contextvar(stack, current_permission_policy, effective_policy)
+        # Isolate agent mode per run so concurrent runs don't share/clobber each
+        # other's plan/build state; the final mode is propagated back to the
+        # caller on close so an in-run mode switch persists (e.g. sticky /plan).
+        mode_token, mode_parent = enter_agent_mode_scope()
+        stack.callback(exit_agent_mode_scope, mode_token, mode_parent)
 
         effective_print_fn, effective_event_handler = _setup_print_and_events(
             print_fn, event_handler, effective_ui

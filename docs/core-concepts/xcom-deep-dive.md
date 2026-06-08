@@ -37,7 +37,7 @@ Each queue supports four operations:
 | `.push(value)` | Add a value to the end of the queue | `None` |
 | `.pop()` | Remove and return the oldest item | The value |
 | `.peek()` | View the oldest item without removing | The value |
-| `.get()` | Safe pop that returns `None` if empty | Value or `None` |
+| `.get()` | Read latest value without removing; returns `None` if empty | Value or `None` |
 
 ---
 
@@ -235,7 +235,7 @@ ctx.xcom["task-name"].push(value)
 # Pop (raises IndexError if empty)
 value = ctx.xcom["task-name"].pop()
 
-# Safe pop (returns None if empty)
+# Read latest value (returns None if empty)
 value = ctx.xcom["task-name"].get()
 
 # Peek (view without removing)

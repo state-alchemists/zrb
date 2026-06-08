@@ -27,6 +27,16 @@ async def replace_in_file(
     Any errors detected are appended to the return value as a `[DIAGNOSTIC]`
     section — investigate and fix before continuing.
     """
+    if old_text == "":
+        # `"" in content` is always True, so an empty old_text would make
+        # str.replace insert new_text between every character and corrupt the
+        # file. Reject it outright — there is no sensible "replace nothing".
+        return (
+            f"Error: old_text is empty for {path}. "
+            "[SYSTEM SUGGESTION]: old_text must be a non-empty snippet copied "
+            "verbatim from the file. To create or fully overwrite a file, use "
+            "Write instead."
+        )
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
         return (

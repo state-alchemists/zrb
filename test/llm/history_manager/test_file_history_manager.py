@@ -342,6 +342,36 @@ def test_save_with_timestamped_session_name(temp_history_dir):
     assert len(main_files) == 2, f"Expected 2 files (main + backup), found: {files}"
 
 
+def test_rotation_never_deletes_timestamped_main_file(temp_history_dir, monkeypatch):
+    """A conversation whose name carries a timestamp must survive rotation.
+
+    Regression test: the main file matches the backup filename pattern, so
+    without an explicit exclusion `_rotate_backups` would sort it oldest and
+    delete the live history once enough backups accumulate.
+    """
+    from pydantic_ai.messages import (
+        ModelRequest,
+        ModelResponse,
+        TextPart,
+        UserPromptPart,
+    )
+
+    monkeypatch.setenv("ZRB_LLM_HISTORY_BACKUP_RETAIN", "2")
+    manager = FileHistoryManager(temp_history_dir)
+    name = "my-session-2024-03-18-10-30-00"
+    main_file = os.path.join(temp_history_dir, f"{name}.json")
+
+    for i in range(5):
+        messages = [
+            ModelRequest(parts=[UserPromptPart(content=f"hello {i}")]),
+            ModelResponse(parts=[TextPart(content=f"hi {i}")]),
+        ]
+        manager.update(name, messages)
+        manager.save(name)
+        # The live conversation file must exist after every save+rotate cycle.
+        assert os.path.exists(main_file), f"Main file deleted after save #{i}"
+
+
 # ---------------------------------------------------------------------------
 # Additional tests to cover missing lines
 # ---------------------------------------------------------------------------

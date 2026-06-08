@@ -130,6 +130,21 @@ def test_nullable_set_value_then_clear(host):
     assert host.NULLABLE is None
 
 
+def test_empty_env_var_falls_back_to_default_for_typed_field(host, monkeypatch):
+    """An explicitly empty env var must not crash a typed (non-nullable) cast."""
+    monkeypatch.setenv("TESTCFG_PLAIN", "")
+    # Without the guard this would raise ValueError from int("").
+    assert host.PLAIN == 7
+    monkeypatch.setenv("TESTCFG_EXPLICIT_DEFAULT", "")
+    assert host.EXPLICIT_DEFAULT == 42
+
+
+def test_empty_env_var_falls_back_to_default_for_bool_field(host, monkeypatch):
+    monkeypatch.setenv("TESTCFG_FLAG", "")
+    # Without the guard this would raise from to_boolean("").
+    assert host.FLAG is False
+
+
 def test_class_access_returns_descriptor():
     assert isinstance(_Host.PLAIN, EnvField)
 

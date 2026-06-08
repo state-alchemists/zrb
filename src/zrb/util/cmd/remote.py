@@ -25,11 +25,18 @@ def get_remote_cmd_script(
     Returns:
         str: The generated SSH command script.
     """
+    # Quote every interpolated field, not just the script: a password, host,
+    # user, port or key path containing `"`, `` ` `` or `$(…)` would otherwise
+    # break out of the double quotes and inject/execute shell.
     quoted_script = shlex.quote(cmd_script)
+    quoted_password = shlex.quote(password)
+    quoted_port = shlex.quote(str(port))
+    quoted_ssh_key = shlex.quote(ssh_key)
+    quoted_user_host = shlex.quote(f"{user}@{host}")
     if ssh_key != "" and use_password:
-        return f'sshpass -p "{password}" ssh -t -p "{port}" -i "{ssh_key}" "{user}@{host}" {quoted_script}'  # noqa
+        return f"sshpass -p {quoted_password} ssh -t -p {quoted_port} -i {quoted_ssh_key} {quoted_user_host} {quoted_script}"  # noqa
     if ssh_key != "":
-        return f'ssh -t -p "{port}" -i "{ssh_key}" "{user}@{host}" {quoted_script}'
+        return f"ssh -t -p {quoted_port} -i {quoted_ssh_key} {quoted_user_host} {quoted_script}"  # noqa
     if use_password:
-        return f'sshpass -p "{password}" ssh -t -p "{port}" "{user}@{host}" {quoted_script}'  # noqa
-    return f'ssh -t -p "{port}" "{user}@{host}" {quoted_script}'
+        return f"sshpass -p {quoted_password} ssh -t -p {quoted_port} {quoted_user_host} {quoted_script}"  # noqa
+    return f"ssh -t -p {quoted_port} {quoted_user_host} {quoted_script}"

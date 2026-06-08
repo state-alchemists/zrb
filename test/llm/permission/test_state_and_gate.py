@@ -50,6 +50,73 @@ def test_explicit_policy_is_returned():
         current_permission_policy.reset(token)
 
 
+@pytest.mark.asyncio
+async def test_agent_mode_is_isolated_per_run():
+    """Concurrent runs must not share agent mode (regression for H11).
+
+    Each run binds its own ``AgentModeState`` via ``enter_agent_mode_scope`` and
+    mutates only that instance, so one conversation switching to BUILD cannot
+    flip another that is in PLAN.
+    """
+    import asyncio
+
+    from zrb.llm.permission.state import (
+        enter_agent_mode_scope,
+        exit_agent_mode_scope,
+        get_current_agent_mode,
+        set_current_agent_mode,
+    )
+
+    started = asyncio.Event()
+
+    async def run_in_plan():
+        token, parent = enter_agent_mode_scope()
+        try:
+            set_current_agent_mode(AgentMode.PLAN)
+            started.set()
+            await asyncio.sleep(0.05)
+            # Must stay PLAN even though the sibling run flips to BUILD.
+            assert get_current_agent_mode() == AgentMode.PLAN
+        finally:
+            exit_agent_mode_scope(token, parent)
+
+    async def run_in_build():
+        await started.wait()
+        token, parent = enter_agent_mode_scope()
+        try:
+            set_current_agent_mode(AgentMode.BUILD)
+            assert get_current_agent_mode() == AgentMode.BUILD
+        finally:
+            exit_agent_mode_scope(token, parent)
+
+    try:
+        await asyncio.gather(run_in_plan(), run_in_build())
+    finally:
+        # The write-back leaves the shared default mutated; reset for other tests.
+        set_current_agent_mode(AgentMode.BUILD)
+
+
+def test_in_run_mode_switch_propagates_to_caller():
+    """An in-run ExitPlanMode persists for the caller after the scope closes."""
+    from zrb.llm.permission.state import (
+        enter_agent_mode_scope,
+        exit_agent_mode_scope,
+        get_current_agent_mode,
+        set_current_agent_mode,
+    )
+
+    set_current_agent_mode(AgentMode.PLAN)
+    try:
+        token, parent = enter_agent_mode_scope()
+        assert get_current_agent_mode() == AgentMode.PLAN  # inherited
+        set_current_agent_mode(AgentMode.BUILD)  # e.g. ExitPlanMode mid-run
+        exit_agent_mode_scope(token, parent)
+        # Caller observes the final in-run mode (sticky across turns).
+        assert get_current_agent_mode() == AgentMode.BUILD
+    finally:
+        set_current_agent_mode(AgentMode.BUILD)
+
+
 def test_plan_mode_overrides_explicit_policy():
     from zrb.llm.permission import PLAN_MODE_POLICY
 

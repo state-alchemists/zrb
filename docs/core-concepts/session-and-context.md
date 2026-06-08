@@ -110,7 +110,7 @@ You can manually interact with XCom queues within a Python task:
 | `ctx.xcom['task-name'].push(val)` | Add to the queue |
 | `ctx.xcom['task-name'].pop()` | Remove and return oldest item |
 | `ctx.xcom['task-name'].peek()` | Look at oldest item without removing |
-| `ctx.xcom['task-name'].get()` | Safe retrieval; returns `None` if empty |
+| `ctx.xcom['task-name'].get()` | Read latest value without removing; returns `None` if empty |
 
 ### Example: Manual Transfer
 

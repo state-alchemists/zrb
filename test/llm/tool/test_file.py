@@ -344,6 +344,19 @@ def test_replace_in_file_nonexistent_file(tmp_path):
     assert "not found" in result.lower()
 
 
+def test_replace_in_file_empty_old_text_is_rejected(tmp_path):
+    """An empty old_text must be rejected, not inserted between every char."""
+    file_path = tmp_path / "test.txt"
+    original = "hello world"
+    file_path.write_text(original)
+
+    result = _r(str(file_path), "", "X")
+    assert "Error" in result
+    assert "empty" in result.lower()
+    # The file must be left untouched (no character-by-character corruption).
+    assert file_path.read_text() == original
+
+
 def test_replace_in_file_text_not_found(tmp_path):
     file_path = tmp_path / "test.txt"
     file_path.write_text("hello world")
