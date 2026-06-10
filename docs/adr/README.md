@@ -102,3 +102,4 @@ deleting it — the history is the point.
 - **ADR-0057** — Post-todo-change progress visualization in the UI
 - **ADR-0060** — `BaseUI` composed from concern mixins (shared-`self` contract)
 - **ADR-0061** — Config-positioned custom prompt sections (registered provider or markdown file)
+- **ADR-0062** — Intrinsic always-auto-approve for interaction tools (AskUserQuestion)
