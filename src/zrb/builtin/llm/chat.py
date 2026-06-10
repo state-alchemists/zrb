@@ -126,8 +126,10 @@ llm_chat.add_tool_policy(
     auto_approve("SearchInternet"),
     auto_approve("OpenWebPage"),
     auto_approve("ActivateSkill"),
-    # AskUserQuestion blocks on stdin only when interactive; no side effects.
-    auto_approve("AskUserQuestion"),
+    # AskUserQuestion is auto-approved intrinsically (it registers itself via
+    # register_always_auto_approve in zrb.llm.tool.ask), so the cascade approves
+    # it in every path — main agent, sub-agents, web — not just here. See
+    # ADR-0062. No entry needed in this list.
     auto_approve("DelegateToAgent"),
     auto_approve("DelegateToAgentsParallel"),
     # Starting a background delegation and polling its result are harmless; the

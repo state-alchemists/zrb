@@ -1,8 +1,10 @@
 """Deferred-tool-call processing for `run_agent`.
 
 When pydantic-ai produces a `DeferredToolRequests`, we route each call
-through the approval precedence chain (ADR-0055):
+through the approval precedence chain (ADR-0055, ADR-0062):
 
+0. Always-approve      — tools that ARE the interaction (e.g. AskUserQuestion);
+   auto-approve in every path, independent of any policy list
 1. Permission policy   — allow→auto-approve, deny→block, ask→defer
    (checked at check_yolo time; deny pre-checked again before prompting)
 2. Tool policy         — allow→auto-approve, deny→block, no-opinion→defer
@@ -25,6 +27,7 @@ from zrb.config.config import CFG
 from zrb.llm.approval.approval_channel import ApprovalContext
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
+from zrb.llm.tool_call.always_approve import is_always_auto_approve
 from zrb.llm.tool_call.handler import ToolCallHandler
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 
@@ -144,13 +147,24 @@ async def _resolve_approval(
 ):
     """Run the approval cascade for a single deferred call.
 
-    Approval precedence chain (ADR-0055):
+    Approval precedence chain (ADR-0055, ADR-0062):
+      0. Always-approve (intrinsically interactive tools, e.g. AskUserQuestion)
       1. Tool policy (Pre-confirmation)
       2. Permission policy (Strict mode: ALLOW→Approve, DENY→Deny, ASK→Force Ask)
       3. YOLO (Only if no strict policy opinion AND YOLO is explicitly True)
       4. Approval channel (Multi-channel)
       5. CLI fallback (User prompt)
     """
+
+    # Priority 0: Intrinsically auto-approved tools. These ARE the user
+    # interaction (e.g. AskUserQuestion), so a separate approval prompt is
+    # redundant and would render before the question itself. Approve in every
+    # path, independent of any per-runner policy list. See ADR-0062.
+    if is_always_auto_approve(call.tool_name):
+        # lazy: heavy third-party
+        from pydantic_ai import ToolApproved
+
+        return ToolApproved()
 
     # Priority 1: Tool policies from ToolCallHandler (Middleware)
     if isinstance(effective_tool_confirmation, ToolCallHandler):

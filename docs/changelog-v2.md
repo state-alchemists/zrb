@@ -1,15 +1,5 @@
 🔖 [Documentation Home](../README.md)
 
-## Unreleased
-
-- **Feature: opt-in filesystem sandbox for LLM tool calls (ADR-0062)**:
-  - New `zrb/llm/sandbox/` package: one `SandboxPolicy` drives two enforcement layers — a Python-level FS gate (`_sandbox_gate` in `agent/common.py`, right after `_permission_gate`) that blocks writes outside the writable roots (`EDIT`/`UNKNOWN` tools) and reads of credential directories (all tools), and an OS-level wrapper for `Shell`/`Bash`/`ShellBackground` (`sandbox-exec` + generated SBPL on macOS, `bwrap` on Linux). Network stays open in v1; off by default (`ZRB_LLM_SANDBOX_ENABLED=false`).
-  - Config: `ZRB_LLM_SANDBOX_ENABLED` / `OS_SHELL` / `WRITABLE_PATHS` / `DENY_READ_PATHS` / `FALLBACK` / `ALLOW_ESCAPE` (new `LLMSandboxMixin`). Where no OS mechanism exists (Windows, Linux without bwrap), `FALLBACK=warn` runs unsandboxed with a visible warning, `deny` refuses — never silent.
-  - Escape hatch: `dangerously_skip_sandbox` on the shell tools — never auto-approved (`bash_validation`/`auto_approve` always route it to a human), blockable via `ALLOW_ESCAPE=false`.
-  - Plumbing mirrors permissions: `LLMTask(sandbox=...)`, `run_agent(sandbox_policy=...)`, `current_sandbox_policy` ContextVar (sub-agent inheritance).
-  - Shell PID-tracking wrapper now falls back to `$$` when `ps` is unavailable (macOS Seatbelt cannot exec setuid binaries) and records the shell's own PID for exclusion under wrappers.
-  - Docs: `docs/advanced-topics/sandbox.md`, sandbox section in `docs/configuration/llm-config.md`, ADR-0062. Tests: `test/llm/sandbox/` incl. platform-conditional integration tests (real Seatbelt/bwrap runs).
-
 ## 2.32.2 (June 6, 2026)
 
 _Cumulative summary of the 2.32.1–2.32.2 patch line._

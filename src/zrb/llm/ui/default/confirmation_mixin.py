@@ -35,9 +35,16 @@ class ConfirmationMixin:
         self._confirmation_queue.append((future, prompt))
 
         if self._current_confirmation is None:
-            self._current_confirmation = future
+            # Render the prompt BEFORE marking a confirmation pending. Order is
+            # load-bearing: `append_to_output` buffers anything appended while
+            # `_current_confirmation` is set and the agent is still thinking, so
+            # main-agent tokens don't interleave with a prompt. Setting it first
+            # would route this very prompt into that buffer — it would never show,
+            # leaving the user at "waiting for confirmation" with no question
+            # (e.g. AskUserQuestion, whose whole prompt arrives via `ask_user`).
             if prompt:
                 self.append_to_output(prompt, end="")
+            self._current_confirmation = future
             get_app().invalidate()
 
         try:
@@ -90,9 +97,11 @@ class ConfirmationMixin:
 
         if self._confirmation_queue and self._current_confirmation is None:
             future, prompt = self._confirmation_queue[0]
-            self._current_confirmation = future
+            # Same ordering contract as ask_user(): render before marking
+            # pending, else append_to_output's buffer guard swallows the prompt.
             if prompt:
                 self.append_to_output(prompt, end="")
+            self._current_confirmation = future
 
         # Always refresh so the status bar reflects the new confirmation state
         # (including the transition back to "working" or "ready" when queue empties).

@@ -740,7 +740,69 @@ tests). Refines ADR-0035; mirrors ADR-0043; contrasts ADR-0044.
 
 ---
 
-## ADR-0062 — Opt-in two-layer filesystem sandbox (Python FS gate + OS shell wrapper)
+## ADR-0062 — Intrinsic always-auto-approve for interaction tools (AskUserQuestion)
+
+**Status:** Accepted
+
+**Context.** `AskUserQuestion` *is* the user interaction: the model proposes a
+multiple-choice question and the tool renders it via `ui.ask_user`, blocking
+until the user answers. Yet, like every tool, it was a *deferred* tool subject
+to the approval cascade (ADR-0055). Approving it is meaningless — the user is
+asked "Allow tool execution?" *before* the question they would approve has
+rendered. The `🎰 Executing tool 'AskUserQuestion'? (Y/n/e)` banner shows only
+the raw `questions:` YAML; the formatted question appears only *after* approval.
+
+It was kept tolerable in the builtin CLI by a single `auto_approve(
+"AskUserQuestion")` entry in `builtin/llm/chat.py`'s tool-policy list. But that
+list is per-runner: delegated sub-agents, the web/API runner, and any bare
+`LLMTask` built without those policies still gated the question behind a
+redundant approval prompt — or, worse, left the question un-surfaced after the
+deferred round-trip. The auto-approval did not travel with the tool.
+
+**Decision.** Make auto-approval *intrinsic to the tool*. A dependency-free leaf
+registry (`src/zrb/llm/tool_call/always_approve.py`) exposes
+`register_always_auto_approve(*names)` / `is_always_auto_approve(name)`. The
+tool registers its own LLM-visible name at definition time
+(`zrb.llm.tool.ask` calls `register_always_auto_approve("AskUserQuestion")`).
+The approval cascade consults this set as **Priority 0** in `_resolve_approval`
+(`agent/run/deferred_calls.py`), before the tool-policy check — and since
+`_resolve_approval` is the single choke point for *every* path (main agent,
+sub-agents, web), the guarantee holds everywhere. The now-redundant
+`auto_approve("AskUserQuestion")` is removed from `chat.py` (single source of
+truth). The non-interactive guard inside the tool still short-circuits with a
+`[SYSTEM SUGGESTION]` so it never blocks on stdin when there is no user.
+
+**Consequences.** AskUserQuestion never renders an approval prompt; the question
+surfaces directly, in any runner. Auto-approval is discoverable next to the tool
+and immune to a per-runner policy list omitting it. Cost: a tool that
+self-registers bypasses *all* approval layers including an explicit `deny`
+permission policy — acceptable because an interaction tool has no external side
+effect and self-disables when non-interactive. The registry is global process
+state (a module-level set), so registration is idempotent and order-independent.
+
+**Alternatives rejected.**
+1. **Keep relying on `chat.py`'s `auto_approve("AskUserQuestion")`** — rejected:
+   it is per-runner and silently absent for sub-agents / web / bare `LLMTask`,
+   which is exactly the reported bug.
+2. **Auto-approve the whole `META` capability** (AskUserQuestion is tagged
+   `META`) — rejected: too broad; `ExitPlanMode` is also harness-control but
+   must stay `ASK` (PLAN_MODE_POLICY). Per-tool opt-in is precise.
+3. **Render the formatted question inside the approval banner** — rejected:
+   still asks the user to approve a question they then answer anyway (two
+   interactions for one), and does not fix the missing-question case in
+   non-CLI runners.
+
+**Evidence.** **[DOCUMENTED]** `src/zrb/llm/tool_call/always_approve.py`;
+`src/zrb/llm/tool/ask.py` (self-registration); `src/zrb/llm/agent/run/deferred_calls.py`
+(`_resolve_approval` Priority 0); `src/zrb/builtin/llm/chat.py` (entry removed,
+comment added); `test/llm/tool_call/test_always_approve.py`,
+`test/llm/tool/test_ask.py`, `test/llm/agent/run/test_deferred_calls.py`
+(`test_process_deferred_requests_always_auto_approve_bypasses_handler`).
+Refines ADR-0055.
+
+---
+
+## ADR-0063 — Opt-in two-layer filesystem sandbox (Python FS gate + OS shell wrapper)
 
 **Status:** Accepted
 

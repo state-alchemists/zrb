@@ -28,6 +28,18 @@ def test_tool_name_matches_llm_visible_name():
     assert ask_user_question.__name__ == "AskUserQuestion"
 
 
+def test_ask_user_question_registers_itself_as_always_auto_approve():
+    """Importing the tool self-registers it as intrinsically auto-approved.
+
+    This is what frees AskUserQuestion from relying on a per-runner policy list
+    (e.g. the builtin chat's auto_approve registrations) — the approval cascade
+    approves it in every path. See ADR-0062.
+    """
+    from zrb.llm.tool_call.always_approve import is_always_auto_approve
+
+    assert is_always_auto_approve("AskUserQuestion") is True
+
+
 @pytest.mark.asyncio
 async def test_short_circuits_in_non_interactive_mode():
     set_interactive_mode(False)

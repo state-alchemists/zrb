@@ -1,5 +1,20 @@
 🔖 [Documentation Home](../README.md)
 
+## Unreleased
+
+- **Feature: opt-in filesystem sandbox for LLM tool calls (ADR-0063)**:
+  - New `zrb/llm/sandbox/` package: one `SandboxPolicy` drives two enforcement layers — a Python-level FS gate (`_sandbox_gate` in `agent/common.py`, right after `_permission_gate`) that blocks writes outside the writable roots (`EDIT`/`UNKNOWN` tools) and reads of credential directories (all tools), and an OS-level wrapper for `Shell`/`Bash`/`ShellBackground` (`sandbox-exec` + generated SBPL on macOS, `bwrap` on Linux). Network stays open in v1; off by default (`ZRB_LLM_SANDBOX_ENABLED=false`).
+  - Config: `ZRB_LLM_SANDBOX_ENABLED` / `OS_SHELL` / `WRITABLE_PATHS` / `DENY_READ_PATHS` / `FALLBACK` / `ALLOW_ESCAPE` (new `LLMSandboxMixin`). Where no OS mechanism exists (Windows, Linux without bwrap), `FALLBACK=warn` runs unsandboxed with a visible warning, `deny` refuses — never silent.
+  - Escape hatch: `dangerously_skip_sandbox` on the shell tools — never auto-approved (`bash_validation`/`auto_approve` always route it to a human), blockable via `ALLOW_ESCAPE=false`.
+  - Plumbing mirrors permissions: `LLMTask(sandbox=...)`, `run_agent(sandbox_policy=...)`, `current_sandbox_policy` ContextVar (sub-agent inheritance).
+  - Shell PID-tracking wrapper now falls back to `$$` when `ps` is unavailable (macOS Seatbelt cannot exec setuid binaries) and records the shell's own PID for exclusion under wrappers.
+  - Docs: `docs/advanced-topics/sandbox.md`, sandbox section in `docs/configuration/llm-config.md`, ADR-0063. Tests: `test/llm/sandbox/` incl. platform-conditional integration tests (real Seatbelt/bwrap runs).
+
+## 2.33.4 (June 10, 2026)
+
+- **Fix: AskUserQuestion prompt never rendered (stuck at "waiting for confirmation")** (`ui/default/confirmation_mixin.py`): `ask_user` set `_current_confirmation` *before* appending the prompt, so the prompt hit `OutputMixin.append_to_output`'s buffer guard (pending-confirmation + thinking → buffer to avoid interleaving main-agent tokens) and was buffered away instead of shown. The user saw the `🧰` tool-call line and "waiting for confirmation" but no question. The prompt is now appended *before* marking the confirmation pending, in both `ask_user` and `_activate_next_confirmation`.
+
+- **Fix: AskUserQuestion gated behind a redundant approval prompt** (`tool/ask.py`, `tool_call/always_approve.py`, `agent/run/deferred_calls.py`, ADR-0062): `AskUserQuestion` *is* the user interaction, but as a deferred tool it went through the approval cascade — asking "Allow tool execution?" before the question itself rendered. Auto-approval was only wired via a single `auto_approve("AskUserQuestion")` entry in `builtin/llm/chat.py`, so delegated sub-agents, the web/API runner, and bare `LLMTask`s still prompted (or left the question un-surfaced). Auto-approval is now **intrinsic to the tool**: it self-registers via `register_always_auto_approve("AskUserQuestion")`, and `_resolve_approval` honors that registry as Priority 0 in every path. The redundant `chat.py` entry was removed (single source of truth).
 
 ## 2.33.3 (June 8, 2026)
 
