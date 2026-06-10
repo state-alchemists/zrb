@@ -2,9 +2,9 @@
 
 > **Purpose**: Identify every Claude Code feature, assess Zrb's current coverage, quantify the gap, and outline the effort required to make Zrb a superset of Claude Code.
 >
-> **Methodology**: Claude Code features sourced from official docs (code.claude.com/docs) and the public CHANGELOG, fetched May 2026. Zrb features sourced from full codebase exploration of `src/zrb/` at v2.31.0 plus the changelog (`docs/changelog-v2.md`).
+> **Methodology**: Claude Code features sourced from official docs (code.claude.com/docs) and the public CHANGELOG (through v2.1.170, June 9, 2026), fetched June 2026. Zrb features sourced from full codebase exploration of `src/zrb/` at v2.34.0 plus the changelog (`docs/changelog.md`, `docs/changelog-v2.md`).
 >
-> **Zrb version**: 2.31.0 (May 2026)
+> **Zrb version**: 2.34.0 (June 10, 2026)
 >
 > **Legend**:
 > - ✅ **Fully supported** — identical or functionally equivalent
@@ -67,8 +67,9 @@ Comprehensive CLI with 70+ flags across 30+ subcommands. Highlights (May 2026):
 - `--worktree`/`-w`, `--tmux`, `--effort` (low/medium/high/xhigh/max), `--fork-session`, `--fallback-model`
 - `--bare`, `--no-session-persistence`, `--json-schema`, `--include-partial-messages`, `--include-hook-events`
 - `--channels`, `--chrome`/`--no-chrome`, `--remote`, `--remote-control`/`--rc`, `--teleport`, `--teammate-mode`
-- `--plugin-dir` (now accepts `.zip`), **`--plugin-url`** (fetch plugins from archives — new), `--from-pr`
-- Subcommands: `claude agents` (now `--json`, `--cwd`), `claude auto-mode defaults`, `claude auth`, `claude mcp`, `claude plugin` (now `init`/`validate`), `claude setup-token`, `claude update`, **`claude ultrareview`** (non-interactive code review for CI — new), `claude remote-control`
+- `--plugin-dir` (now accepts `.zip`), **`--plugin-url`** (fetch plugins from archives), `--from-pr`
+- **`--safe-mode`** / `CLAUDE_CODE_SAFE_MODE` (v2.1.169 — start with ALL customizations disabled: CLAUDE.md, plugins, skills, hooks, MCP), `--fallback-model` now applies to interactive sessions too
+- Subcommands: `claude agents` (now `--json --all`, `id`/`state`/`waitingFor` fields, `--agent <name>`, `--cwd`), `claude auto-mode defaults`, `claude auth`, `claude mcp`, `claude plugin` (now `init`/`validate`/`list`), `claude setup-token`, `claude update`, `claude ultrareview` (non-interactive code review for CI), `claude remote-control`
 
 ### Zrb
 
@@ -82,7 +83,7 @@ Comprehensive CLI with 70+ flags across 30+ subcommands. Highlights (May 2026):
 
 **Status**: 🟡 **Partially supported**
 
-**Gap**: Unchanged structurally since v2.22.6 — still 6 inputs against Claude Code's 70+ flags. Critical missing: `--permission-mode`, `--max-turns`, `--max-budget-usd`, `--output-format json/stream-json`, `--system-prompt`, `--add-dir`, `--worktree`, `--bare`, `--no-session-persistence`, `--effort`, `--fork-session`, `--fallback-model`, `--resume`, `--name`, `--agents`, `--plugin-dir`, `--remote-control`, `--channels`. The underlying infra (rate limiting, session management, YOLO, snapshots) exists; only the surface is missing.
+**Gap**: Unchanged structurally since v2.22.6 — still 6 inputs against Claude Code's 70+ flags. Critical missing: `--permission-mode`, `--max-turns`, `--max-budget-usd`, `--output-format json/stream-json`, `--system-prompt`, `--add-dir`, `--worktree`, `--bare`, `--no-session-persistence`, `--effort`, `--fork-session`, `--fallback-model`, `--resume`, `--name`, `--agents`, `--plugin-dir`, `--remote-control`, `--channels`, `--safe-mode`. The underlying infra (rate limiting, session management, YOLO, snapshots, permission policies, sandbox) exists; only the surface is missing — and the gap is now *more* glaring because plan mode and the sandbox exist internally but have no CLI switch (`--permission-mode plan` / sandbox toggles are env-var-only).
 
 **Effort to close**: **Medium** (2–3 weeks) — map each flag to existing Zrb config and expose as CLI inputs on `LLMChatTask`.
 
@@ -101,6 +102,7 @@ Rich interactive TUI:
 - `/btw` side questions, image paste (Ctrl+V/Cmd+V; WSL screenshot paste on Win 11 — new)
 - Prompt suggestions from git history, transcript viewer, color themes (custom theme editing — new), configurable status line
 - Terminal progress bar, spinner tips, reduced motion, deep links, **`/scroll-speed`** (new), `CLAUDE_CODE_HIDE_CWD` (new)
+- **`/cd`** — change working directory mid-session without breaking prompt cache (v2.1.169); autocomplete click-to-fill; Remote Control footer pill (v2.1.162)
 
 ### Zrb
 
@@ -110,18 +112,20 @@ Rich interactive TUI:
 - **`!` bash prefix** — `! cmd` / `/exec cmd` runs shell and injects output
 - **`@` file mention** with autocomplete (`completion.py`)
 - **`/` slash-command palette** — full built-in set + custom skill commands
-- `/attach`, `/model`, `/yolo` (full + selective), `/save` / `/load`, `/compress` / `/compact`, `>` / `/redirect`, `/btw`, `/rewind`
+- `/attach`, `/model` (now with `small <name>` / `multimodal <name>` subcommands + tab-completion, v2.32.0), `/yolo` (full + selective), `/plan` (toggle plan mode, v2.32.0), `/save` / `/load`, `/compress` / `/compact`, `>` / `/redirect` (bare → clipboard), `/copy` (transcript → clipboard or file, OSC 52 fallback for SSH/tmux, v2.33.2), `/btw`, `/rewind`
 - **Image clipboard paste** — Ctrl+V and **Alt+V** ✅
+- **Arrow-key selection UI for `AskUserQuestion`** ✅ **NEW (v2.34.0, ADR-0064)**: ↑/↓ + Enter, Space toggle for multi-select, synthetic "Type my own answer…" row; in-layout `Float` widget; non-terminal UIs fall back to numbered text via the optional `ask_user_choice` protocol method
 - **MultiUI** — broadcast to multiple channels (terminal + Telegram + web), first-response-wins
 - **Animated thinking / confirmation indicators** ✅ (v2.26.x): adaptive refresh loop, debounced invalidation (33–100× fewer redraws)
+- **Todo progress cards** ✅ (v2.32.0, ADR-0057): styled progress card pushed to the active UI (TUI, StdUI, web SSE) after every todo change
 - **`/help` keyboard-shortcut reference + width-guarded welcome banner** ✅ (v2.28.4–5)
 - Git branch + dirty status, active worktree, pending todos, recent commits all shown in context
 
 **Status**: 🟡 **Partially supported**
 
-**Gap**: Zrb has `!`, `@`, `/`, `/btw`, image paste (incl. Alt+V), MultiUI, animated status. Still missing: Vim mode, voice input, permission-mode cycling (Shift+Tab — no named modes to cycle), extended-thinking toggle, background bash (Ctrl+B), task-list toggle (Ctrl+T), Esc+Esc rewind shortcut, git-history prompt suggestions, transcript viewer, color themes, configurable status line, session branching.
+**Gap**: Zrb has `!`, `@`, `/`, `/btw`, image paste (incl. Alt+V), MultiUI, animated status, arrow-key question widgets, todo cards, transcript copy/export. Background shell now exists as a *tool* (`ShellBackground`, §12) but there is no Ctrl+B-style UI affordance. Still missing: Vim mode, voice input, permission-mode cycling (Shift+Tab — plan/build modes now exist but only toggle via `/plan`), extended-thinking toggle, task-list toggle (Ctrl+T), Esc+Esc rewind shortcut, git-history prompt suggestions, transcript viewer, color themes, configurable status line, session branching, `/cd` mid-session cwd change.
 
-**Effort to close**: **Medium** (3–5 weeks): Shift+Tab cycling (needs named modes first), background bash (~1wk), prompt suggestions (~1wk), Vim mode (2–3wk), themes (1–2d), voice (2–3wk).
+**Effort to close**: **Medium** (3–5 weeks): Shift+Tab cycling over plan/build/yolo (2–3d now that modes exist), prompt suggestions (~1wk), Vim mode (2–3wk), themes (1–2d), voice (2–3wk).
 
 ---
 
@@ -129,7 +133,7 @@ Rich interactive TUI:
 
 ### Claude Code
 
-**Built-in commands** (~55+): `/clear`, `/compact`, `/config`, `/model`, `/vim`, `/memory`, `/mcp`, `/hooks`, `/diff`, `/plan`, `/rewind`, `/branch`, `/export`, `/context`, `/help`, `/ide`, `/init`, `/skills`, `/btw`, `/tasks`, `/permissions`, `/security-review`, `/theme`, `/voice`, `/agents`, `/rename`, `/schedule`, `/effort`, `/desktop`, `/fast`, `/statusline`, **`/goal`** (work until conditions met — new), **`/usage`** (merged `/cost`+`/stats` — new), **`/code-review`** (was `/simplify`; `--fix` applies findings — new), **`/reload-skills`** (new), **`/scroll-speed`** (new).
+**Built-in commands** (~57+): `/clear`, `/compact`, `/config`, `/model`, `/vim`, `/memory`, `/mcp`, `/hooks`, `/diff`, `/plan`, `/rewind`, `/branch`, `/export`, `/context`, `/help`, `/ide`, `/init`, `/skills`, `/btw` (now with "c to copy" raw markdown), `/tasks`, `/permissions`, `/security-review`, `/theme`, `/voice`, `/agents`, `/rename`, `/schedule`, `/effort`, `/desktop`, `/fast`, `/statusline`, `/goal` (work until conditions met), `/usage` (merged `/cost`+`/stats`), `/code-review` (was `/simplify`; `--fix` applies findings), `/reload-skills`, `/scroll-speed`, **`/cd`** (mid-session cwd change — new v2.1.169), **`/plugin list`** (with `--enabled`/`--disabled` — new v2.1.163), `/workflows`.
 
 Bundled skills as commands: `/batch`, `/claude-api`, `/debug`, `/loop`, `/simplify`→`/code-review`. Custom skills become slash commands automatically. MCP prompts become `/mcp__<server>__<prompt>`. Argument interpolation (`$ARGUMENTS`, `$N`), dynamic context (`` !`command` ``), `--disable-slash-commands`.
 
@@ -140,13 +144,13 @@ Custom commands via `CustomCommand` class:
 - Skill-based commands via `get_skill_custom_command()`; skills become slash commands from `name` metadata
 - Skill slash-command stubs delegate to core-skill companion files (`/debug`, `/testing`, `/review`, `/refactor`, `/research`)
 
-Built-in slash commands: `/compress` / `/compact`, `/attach`, `/q` `/bye` `/quit` `/exit`, `/info` `/help`, `/save` `/load`, `/yolo [tools]`, `>` `/redirect`, `!` `/exec`, `/model`, `/btw`, `/rewind`.
+Built-in slash commands: `/compress` / `/compact`, `/attach`, `/q` `/bye` `/quit` `/exit`, `/info` `/help`, `/save` `/load`, `/yolo [tools]`, `/plan` ✅ **NEW (v2.32.0)**, `>` `/redirect` (bare → clipboard), `/copy [file]` ✅ **NEW (v2.33.2)**, `!` `/exec`, `/model [small|multimodal] <name>`, `/btw`, `/rewind`. Command names are configurable via `ZRB_LLM_UI_COMMAND_*` env vars.
 
 **`PRE_COMMAND` / `POST_COMMAND` hooks** ✅ **NEW (v2.31.0)**: hooks fire before/after slash-command dispatch; can block a command, and can **rewrite command arguments on-the-fly** (e.g. `/model opus` → `/model sonnet`) via the hook result's `command_args` (`commands_mixin.py::_command_arg_override`).
 
 **Status**: 🟡 **Partially supported**
 
-**Gap**: Core command infra plus skill-derived commands and command hooks. Missing: ~40 built-in management commands (`/clear`, `/config`, `/diff`, `/branch`, `/export`, `/usage`, `/context`, `/mcp`, `/hooks`, `/permissions`, `/theme`, `/security-review`, `/voice`, `/vim`, `/ide`, `/init`, `/tasks`, `/agents`, `/schedule`, `/effort`, `/goal`, `/rename`, `/statusline`), MCP prompts as commands, bundled utility skills (`/batch`, `/loop`).
+**Gap**: Core command infra plus skill-derived commands and command hooks; `/plan` and `/copy` (≈`/export`) newly closed. Missing: ~38 built-in management commands (`/clear`, `/config`, `/diff`, `/branch`, `/usage`, `/context`, `/mcp`, `/hooks`, `/permissions`, `/theme`, `/security-review`, `/voice`, `/vim`, `/ide`, `/init`, `/tasks`, `/agents`, `/schedule`, `/effort`, `/goal`, `/rename`, `/statusline`, `/cd`), MCP prompts as commands, bundled utility skills (`/batch`, `/loop`).
 
 **Effort to close**: **Medium** (3–5 weeks). Most built-in commands wrap existing functionality.
 
@@ -191,7 +195,7 @@ Built-in slash commands: `/compress` / `/compact`, `/attach`, `/q` `/bye` `/quit
 
 **5 handler types**: `command`, `http`, `mcp_tool`, `prompt`, `agent`.
 
-**Capabilities**: universal `continue`/`stopReason`/`suppressOutput`/`systemMessage`/`terminalSequence`; `additionalContext` injection; `decision: block`; PreToolUse `permissionDecision` (allow/deny/ask/defer) + `updatedInput`; PermissionRequest `behavior` + `permissionRule`; PermissionDenied `retry`; MessageDisplay `displayContent`; SessionStart `reloadSkills`/`sessionTitle`/`watchPaths`/`initialUserMessage`. Conditional `if`, `async`, `once`, `statusMessage`, `CLAUDE_ENV_FILE`, `allowedHttpHookUrls`, `disableAllHooks`, `/hooks` UI, plugin `monitors`.
+**Capabilities**: universal `continue`/`stopReason`/`suppressOutput`/`systemMessage`/`terminalSequence`; `additionalContext` injection; `decision: block`; PreToolUse `permissionDecision` (allow/deny/ask/defer) + `updatedInput`; PermissionRequest `behavior` + `permissionRule`; PermissionDenied `retry`; MessageDisplay `displayContent`; SessionStart `reloadSkills`/`sessionTitle`/`watchPaths`/`initialUserMessage`; **Stop/SubagentStop can return `hookSpecificOutput.additionalContext`** to feed Claude feedback and keep the turn going (new v2.1.163). Conditional `if`, `async`, `once`, `statusMessage`, `CLAUDE_ENV_FILE`, `allowedHttpHookUrls`, `disableAllHooks`, `/hooks` UI, plugin `monitors`; self-hosted runner `post-session` lifecycle hook (v2.1.169).
 
 ### Zrb
 
@@ -261,15 +265,17 @@ Declarative subagents via markdown + YAML frontmatter (`.claude/agents/`, `~/.cl
 **Delegation tools**:
 - `create_delegate_to_agent_tool()` → `DelegateToAgent(agent_name, deliverable, task, non_goals, additional_context)` — single sub-agent, scope-clamped via DELIVERABLE/NON-GOALS/TASK/CONTEXT envelope
 - `create_parallel_delegate_tool()` → `DelegateToAgentsParallel(tasks)` — concurrent multi-agent, shared UI lock for sequential approvals
+- **`DelegateToAgentBackground` + `GetDelegationResult`** ✅ **NEW (v2.32.0, ADR-0054)** — background sub-agents as detached `asyncio` tasks; inherit the parent's permission policy / YOLO / agent mode via ContextVar copy; approvals route to the parent UI's confirmation queue (interrupt-to-ask, no silent auto-approve); `BufferedUI` holds output until flush; results polled by handle; multiple can run concurrently — parity with Claude Code's foreground/background subagents (minus the Ctrl+B UI)
+- **Permission-filtered roster** ✅ (v2.32.0, ADR-0053): `DelegateToAgent`'s agent roster is filtered by the active permission policy at render time; delegation is tagged `DELEGATE` and denied in plan mode
 - `SubAgentManager` (nested `manager/` package) with lazy filesystem loading; uses `LLMConfig.resolve_model()` so sub-agents respect the global model pipeline
 - **YOLO inheritance** ✅ (v2.28.0): full and selective YOLO propagate to sub-agents
 - **Tool-guidance propagation** ✅ (v2.22.8): sub-agents receive the same `# Tool Usage Guide`
 
 **Status**: 🟡 **Partially supported**
 
-**Gap**: File-based definitions and delegation work, but invocation is via the `DelegateToAgent` tool — no `@-mention`, no natural-language auto-delegation, no `/agents` UI. Frontmatter lacks `permissionMode`, `maxTurns`, `mcpServers`, `hooks`, `memory`, `isolation: worktree`, `initialPrompt`, `color`, `disallowedTools`. No persistent agent memory directory, no managed subagents.
+**Gap**: File-based definitions, foreground/parallel/background delegation, and permission inheritance all work, but invocation is via the `DelegateToAgent` tool — no `@-mention`, no natural-language auto-delegation, no `/agents` UI. Frontmatter lacks `permissionMode`, `maxTurns`, `mcpServers`, `hooks`, `memory`, `isolation: worktree`, `initialPrompt`, `color`, `disallowedTools`. No persistent agent memory directory, no managed subagents.
 
-**Effort to close**: **High** (5–7 weeks): `@-mention` + typeahead (3–4d), auto-delegation (3–4d), per-agent permissionMode/maxTurns/memory (~1wk), subagent-scoped MCP (~1wk), worktree isolation (1–2wk), `/agents` UI (3–4d).
+**Effort to close**: **Medium-High** (4–6 weeks): `@-mention` + typeahead (3–4d), auto-delegation (3–4d), per-agent permissionMode/maxTurns/memory (~1wk), subagent-scoped MCP (~1wk), worktree isolation (1–2wk), `/agents` UI (3–4d).
 
 ---
 
@@ -278,15 +284,15 @@ Declarative subagents via markdown + YAML frontmatter (`.claude/agents/`, `~/.cl
 ### Claude Code
 
 - **Agent Teams**: multiple Claude Code instances cooperating; shared task list with self-coordination; inter-agent `SendMessage`; display modes (in-process or split tmux via `--teammate-mode`); `TeamCreate`/`TeamDelete`; file locking; task dependencies; hooks (`TeammateIdle`, `TaskCreated`, `TaskCompleted`); storage `~/.claude/teams/`, `~/.claude/tasks/`; non-ASCII team names (new).
-- **Dynamic Workflows** (new, v2.1.154): orchestrate "tens to hundreds of agents in the background"; deterministic JS scripts that fan out/pipeline subagents; structured-output schemas; budget-aware loops.
+- **Dynamic Workflows** (v2.1.154): orchestrate "tens to hundreds of agents in the background"; deterministic JS scripts that fan out/pipeline subagents; structured-output schemas; budget-aware loops. Trigger keyword renamed `workflow` → **`ultracode`** (v2.1.160); fan-out `done/total` progress in `claude agents` (v2.1.161); `SendMessage` relays from other sessions now de-privileged (prompt-injection hardening, v2.1.166).
 
 ### Zrb
 
-`create_parallel_delegate_tool()`: concurrent multi-agent execution, aggregated results, shared rate limiter + UI lock, per-agent error handling. No persistent team lifecycle, no inter-agent messaging, no shared task list with dependencies, no script-orchestrated fan-out to hundreds of agents.
+`create_parallel_delegate_tool()`: concurrent multi-agent execution, aggregated results, shared rate limiter + UI lock, per-agent error handling. **Background subagents** (v2.32.0): `DelegateToAgentBackground` spawns detached agents that run while the main conversation continues — a real building block toward background orchestration. Still no persistent team lifecycle, no inter-agent messaging, no shared task list with dependencies, no script-orchestrated fan-out to hundreds of agents.
 
-**Status**: ❌ **Not supported** (parallel delegation exists, but not teams or scripted dynamic workflows)
+**Status**: ❌ **Not supported** (parallel + background delegation exist, but not teams or scripted dynamic workflows)
 
-**Gap**: Zrb's parallel delegation is a single tool call returning aggregated results — not persistent coordinated agents nor a deterministic orchestration runtime. Missing: team lifecycle, inter-agent messaging, shared task list with dependencies, tmux display, file locking, `TeamCreate`/`TeamDelete`, dynamic-workflow scripting.
+**Gap**: Zrb's delegation returns results to one parent — not persistent coordinated agents nor a deterministic orchestration runtime. Missing: team lifecycle, inter-agent messaging, shared task list with dependencies, tmux display, file locking, `TeamCreate`/`TeamDelete`, dynamic-workflow scripting.
 
 **Effort to close**: **Very High** (8–12 weeks) — fundamentally different architecture. Zrb's existing DAG task engine + parallel delegate are partial building blocks for the dynamic-workflow side.
 
@@ -325,24 +331,25 @@ Comprehensive skill system (`src/zrb/llm/skill/`):
 
 ### Claude Code
 
-**6 permission modes**: `default`, `acceptEdits`, `plan`, `auto` (background safety classifier; now on Bedrock/Vertex/Foundry for Opus 4.7/4.8), `bypassPermissions`, `dontAsk`. Shift+Tab cycling; `--permission-mode`; `defaultMode`. Permission rules `Tool`/`Tool(specifier)`/globs/domains/MCP patterns; evaluation deny > ask > allow; config managed > CLI > local > project > user; **`hard_deny`** unconditional rules (new); `PermissionRequest`/`PermissionDenied` hooks.
+**6 permission modes**: `default`, `acceptEdits`, `plan`, `auto` (background safety classifier; now on Bedrock/Vertex/Foundry for Opus 4.7/4.8), `bypassPermissions`, `dontAsk`. Shift+Tab cycling; `--permission-mode`; `defaultMode`. Permission rules `Tool`/`Tool(specifier)`/globs/domains/MCP patterns; evaluation deny > ask > allow; config managed > CLI > local > project > user; `hard_deny` unconditional rules; glob in the tool-name position of deny rules incl. `"*"` (v2.1.166); `PermissionRequest`/`PermissionDenied` hooks; `acceptEdits` now prompts before writing code-execution-granting configs (`.npmrc`, `.pre-commit-config.yaml`, `.devcontainer/`, shell startup files — v2.1.160).
 
 ### Zrb
 
-**Tool approval system** (`chat_tool_policy.py`, `tool_call/tool_policy/`):
-- YOLO mode = full `bypassPermissions`; **selective YOLO** (`--yolo "Write,Edit"` / `/yolo Write,Edit`) — `frozenset` of names auto-approved
-- **YOLO propagates to sub-agents** ✅ (v2.28.0), including selective sets
-- `auto_approve()` predicates: `approve_if_path_inside_cwd`, `approve_if_path_inside_journal_dir`, **`approve_if_path_inside_skill_or_plugin_dir`** ✅ (v2.28.0), `approve_if_mv_inside_journal_dir`
-- Per-tool validation: `replace_in_file_validation_policy`, `read_file_validation_policy`
-- **`bash_safe_command_policy`**: auto-approves read-only commands (git status/diff/log, ls, cat, grep/rg, version queries…); rejects dangerous metacharacters (`>`, `|`, `;`, `&&`, `` ` ``, `$(`)
-- Read/LS/Glob/Grep/AnalyzeFile auto-approved inside cwd / journal / skill+plugin dirs; read-only LSP, todo, `ListWorktrees`, `AskUserQuestion`, `Delegate*`, `ActivateSkill`, web tools auto-approved
+**Permission policy system** ✅ **NEW (v2.32.0, ADR-0049–0055)** (`src/zrb/llm/permission/`):
+- **Capability tags**: every tool is tagged `READ` / `EDIT` / `EXECUTE` / `NETWORK` / `DELEGATE` / `META` (untagged → conservative `UNKNOWN`) centrally in `common_tools.py`
+- **`PermissionPolicy`**: ordered, first-match-wins `Rule`s with `allow` / `ask` / `deny` actions; rules match by tool name or capability tag, plus **`arg_pattern` fnmatch globs** over salient args (path, command, url, agent_name, …) — the analog of Claude Code's `Bash(npm run *)` specifier syntax, expressed in Python
+- **Plan mode** ✅: `EnterPlanMode` / `ExitPlanMode` tools (tagged `META`) + `/plan` UI toggle; a preset read-only policy (READ/NETWORK/META allow; EDIT/EXECUTE/DELEGATE deny); enforced by the execution gate in `agent/common.py`; `ExitPlanMode` requires user approval; per-run `AgentModeState` isolation so concurrent sessions/sub-agents don't clobber each other's mode (v2.33.3)
+- **Approval precedence chain** (ADR-0055): intrinsic always-auto-approve (Priority 0, e.g. `AskUserQuestion`) → `permission_policy` → `tool_policy` → `yolo`; `deny` stops at the gate, `allow` bypasses lower checks; YOLO is re-expressed as a `PermissionPolicy` via `from_yolo()`
+- **Policy inheritance**: `LLMTask(permission_policy=…)`, `current_permission_policy` ContextVar → sub-agents (incl. background) inherit automatically
+- YOLO mode = full `bypassPermissions`; **selective YOLO** (`--yolo "Write,Edit"` / `/yolo Write,Edit`); propagates to sub-agents (v2.28.0)
+- `auto_approve()` predicates: cwd / journal / skill+plugin dir scoping; `bash_validation` auto-approves read-only commands and rejects dangerous metacharacters — **hardened v2.33.3**: bare `&`, newlines/CR now rejected; `env` removed from safe prefixes
 - `ApprovalChannel` + `MultiplexApprovalChannel` (first-response-wins across channels); override tool args at approval time (`ApprovalResult.override_args`)
 
-**Status**: 🟡 **Partially supported**
+**Status**: 🟡 **Mostly supported** (major upgrade from "no named modes")
 
-**Gap**: YOLO (full + selective) and rich per-tool auto-approval. Still **no named permission modes** — no `plan`, `acceptEdits`, `dontAsk`, `auto`; no Shift+Tab cycling; no permission-rule config syntax (`Bash(npm run *)`, domain restricts); no deny>ask>allow rule engine; no `PermissionRequest`/`PermissionDenied` hooks; no admin-managed policies.
+**Gap**: Zrb now has a real rule engine (capability tags + ordered allow/ask/deny rules + arg globs), plan mode, and a defined precedence chain. Missing: `acceptEdits` and `dontAsk` modes (only PLAN/BUILD + YOLO), `auto` classifier mode, Shift+Tab cycling, *declarative* permission-rule config (rules are Python objects, not `settings.json` strings), deny>ask>allow cross-source evaluation with managed/enterprise layers, `PermissionRequest`/`PermissionDenied` hooks.
 
-**Effort to close**: **Medium-High** (4–6 weeks): mode enum + state (1d), `plan` enforcement (3–4d), `acceptEdits` (1d), `dontAsk` (2d), rule-syntax parser (1wk), rule engine (3–4d), Shift+Tab cycling (1d), permission hooks (2d).
+**Effort to close**: **Medium** (2–3 weeks): `acceptEdits` preset policy (1–2d), `dontAsk` (1–2d), Shift+Tab cycling (1–2d), declarative rule syntax parser → `PermissionPolicy` (1wk), permission hooks (2d).
 
 ---
 
@@ -350,11 +357,11 @@ Comprehensive skill system (`src/zrb/llm/skill/`):
 
 ### Claude Code
 
-4 scopes: managed > user (`~/.claude/settings.json`) > project (`.claude/settings.json`) > local (`.claude/settings.local.json`). JSON schema for autocomplete. `/config` tabbed UI. Global `~/.claude.json` (`editorMode`, `autoConnectIde`, `teammateMode`, …). Server-managed settings (claude.ai admin, MDM/OS policies, `managed-settings.json` + `managed-settings.d/`).
+4 scopes: managed > user (`~/.claude/settings.json`) > project (`.claude/settings.json`) > local (`.claude/settings.local.json`). JSON schema for autocomplete. `/config` tabbed UI. Global `~/.claude.json` (`editorMode`, `autoConnectIde`, `teammateMode`, …). Server-managed settings (claude.ai admin, MDM/OS policies, `managed-settings.json` + `managed-settings.d/`). New: `requiredMinimumVersion`/`requiredMaximumVersion` managed settings (v2.1.163), `fallbackModel` (up to 3, ordered, v2.1.166), `disableBundledSkills` (v2.1.169).
 
 ### Zrb
 
-**Single config source**: `CFG` singleton (`src/zrb/config/`), env vars (prefix `ZRB_`), composed from **15 mixins** under `_mixins/`: `foundation`, `web`, `llm_core`, `llm_ui` (+ `llm_ui_commands`/`llm_ui_runtime`/`llm_ui_styles`), `llm_limits`, `llm_content`, `llm_prompt`, `llm_search`, `rag`, `internet_search`, `hooks`, `task_runtime`. `CFG.FOO` access stays flat regardless of owning mixin.
+**Single config source**: `CFG` singleton (`src/zrb/config/`), env vars (prefix `ZRB_`), composed from mixins under `mixins/` (incl. the new `LLMSandboxMixin`). `CFG.FOO` access stays flat regardless of owning mixin. **`EnvField` data descriptor** ✅ (v2.32.0) replaced 700+ lines of getter/cast boilerplate; mixins gained `TYPE_CHECKING` `Protocol` host-classes for static checking; empty env vars now fall back to defaults instead of crashing typed casts (v2.33.3).
 
 - All magic numbers configurable (timeouts/intervals/sizes/retries) since v2.20.0
 - **Tool Guidance System** (v2.21.0): `ToolGuidance` dataclass, `add_tool_guidance()` / `add_tool_guidance_factory()`, `CFG.LLM_INCLUDE_TOOL_GUIDANCE`; consolidated into `apply_common_tools()` (v2.28.6) shared across `LLMChatTask`/`LLMTask`/`SubAgentManager`
@@ -379,25 +386,26 @@ Comprehensive skill system (`src/zrb/llm/skill/`):
 | `Read` | ✅ `read_file` |
 | `Write` | ✅ `write_file` (post-write LSP/static diagnostics v2.30) |
 | `Edit` | ✅ `replace_in_file` (fuzzy match + post-edit diagnostics) |
-| `Bash` | ✅ `run_shell_command` (120s default, actionable suggestions) |
-| `Glob` | ✅ `glob_files` |
+| `Bash` | ✅ `Shell` (primary, runs configured shell) + `Bash` (always real bash — matches Claude Code semantics, v2.33.2) — streaming, cross-platform (`psutil` tree teardown, `start_new_session`), stdin=DEVNULL fail-fast |
+| `Bash` background (`run_in_background`) | ✅ **`ShellBackground`** + **`MonitorProcess`** (poll status / kill) — **NEW (v2.32.0)** |
+| `Glob` | ✅ `glob_files` (+ `include_hidden`, v2.32.2) |
 | `Grep` | ✅ `search_files` (ripgrep acceleration) |
-| `Agent` (spawn subagent) | 🟡 `DelegateToAgent` / `DelegateToAgentsParallel` (file-based defs, tool-invoked) |
+| `Agent` (spawn subagent) | 🟡 `DelegateToAgent` / `DelegateToAgentsParallel` / **`DelegateToAgentBackground` + `GetDelegationResult`** (v2.32.0) (file-based defs, tool-invoked) |
 | `WebFetch` | ✅ `open_web_page` (`OpenWebPage`) |
 | `WebSearch` | ✅ `search_internet` (Google News RSS default, SearXNG/Brave/SerpAPI) |
-| `AskUserQuestion` | ✅ **`AskUserQuestion`** (`ask_user_question`) — **NEW (v2.30)**; short-circuits in non-interactive mode |
+| `AskUserQuestion` | ✅ `AskUserQuestion` — arrow-key selection UI + multi-select (v2.34.0); intrinsically auto-approved in every path (ADR-0062); short-circuits in non-interactive mode |
 | `NotebookEdit` | ❌ Not implemented |
-| `LSP` (code intelligence) | ✅ Full suite incl. `LspRenameSymbol` (8 tools) |
-| `TaskCreate/Get/List/Update/Stop` | ✅ `write_todos`/`get_todos`/`update_todo`/`clear_todos` (system-context integration) |
+| `LSP` (code intelligence) | ✅ Full suite incl. `LspRenameSymbol` (8 tools); `ZRB_LLM_LSP_PREFERRED_SERVERS` + per-server config (v2.32.0) |
+| `TaskCreate/Get/List/Update/Stop` | ✅ `write_todos`/`get_todos`/`update_todo`/`clear_todos` (system-context integration + UI progress cards, ADR-0057) |
 | `CronCreate/Delete/List` | ❌ Not LLM tools (Zrb `Scheduler` exists at task level) |
-| `EnterPlanMode` / `ExitPlanMode` | 🟡 todo/plan tools exist; no plan-mode enforcement |
+| `EnterPlanMode` / `ExitPlanMode` | ✅ **`EnterPlanMode`/`ExitPlanMode` with enforced read-only policy** — **NEW (v2.32.0, ADR-0051)** |
 | `EnterWorktree` / `ExitWorktree` | ✅ `enter_worktree`/`exit_worktree`/`list_worktrees` (ContextVar tracking) |
-| `Monitor` (stream background events) | ❌ Not implemented |
+| `Monitor` (stream background events) | 🟡 `MonitorProcess` polls background shell processes; no unified event stream across task types |
 | `SendMessage` (agent teams) | ❌ Teams not implemented |
 | `TeamCreate` / `TeamDelete` | ❌ Teams not implemented |
 | `ToolSearch` (deferred tools) | ❌ Not implemented |
 | `ListMcpResourcesTool` / `ReadMcpResourceTool` | ❌ Not implemented |
-| `PowerShell` | ❌ Not implemented (Windows) |
+| `PowerShell` | 🟡 No dedicated tool, but `Shell` resolves `pwsh` → `powershell` → `cmd` on Windows with correct flags (v2.33.2; unit-tested, not yet verified on real Windows) |
 | `Skill` (invoke skills) | ✅ `ActivateSkill` (returns companion files) |
 | `RemoteTrigger` / `PushNotification` | ❌ Not implemented |
 
@@ -411,13 +419,15 @@ Comprehensive skill system (`src/zrb/llm/skill/`):
 
 > **Removed (v2.28.0)**: `read_files`/`write_files` (ReadMany/WriteMany) — `Read`/`Write` now handle multiples via parallel calls.
 
-**Post-write/edit diagnostics** ✅ **NEW (v2.30)** (`src/zrb/llm/tool/post_write_check.py`): after `write_file`/`replace_in_file`, runs LSP `get_diagnostics()` + static checks (Python `ast.parse` + `pyflakes`); appends a `[DIAGNOSTIC]` block (up to 5 errors) to the tool result. Mirrors Claude Code's post-edit type-error reporting.
+**Post-write/edit diagnostics** ✅ (v2.30) (`src/zrb/llm/tool/post_write_check.py`): after `write_file`/`replace_in_file`, runs LSP `get_diagnostics()` + static checks (Python `ast.parse` + `pyflakes`); appends a `[DIAGNOSTIC]` block (up to 5 errors) to the tool result. Mirrors Claude Code's post-edit type-error reporting.
 
-**Status**: 🟡 **Partially supported**
+**Tool-output truncation backstop** ✅ **NEW (v2.32.0, ADR-0052)**: global `LLM_MAX_TOOL_RESULT_CHARS` cap (default 100k) truncates model-facing content head+tail with a re-fetch hint, preserving structured `return_value`.
 
-**Gap**: Core file/shell/web/worktree/LSP/todo tools well-covered; `AskUserQuestion` now closed. Missing: `NotebookEdit`, `CronCreate/Delete/List`, `Monitor`, `SendMessage`, `TeamCreate`/`TeamDelete`, `ToolSearch`, MCP resource tools, `RemoteTrigger`/`PushNotification`, `PowerShell`.
+**Status**: 🟡 **Mostly supported**
 
-**Effort to close**: **Medium** (2–3 weeks): `NotebookEdit` (3–4d), Cron tools (3–4d, reuse `Scheduler`), `ToolSearch` deferred loading (1wk), `Monitor` (2–3d).
+**Gap**: Core file/shell/web/worktree/LSP/todo tools well-covered; background shell + plan-mode tools + background delegation newly closed. Missing: `NotebookEdit`, `CronCreate/Delete/List`, unified `Monitor` event stream, `SendMessage`, `TeamCreate`/`TeamDelete`, `ToolSearch` (deferred tools), MCP resource tools, `RemoteTrigger`/`PushNotification`.
+
+**Effort to close**: **Medium** (2–3 weeks): `NotebookEdit` (3–4d), Cron tools (3–4d, reuse `Scheduler`), `ToolSearch` deferred loading (1wk), unified `Monitor` (2–3d).
 
 ---
 
@@ -451,12 +461,14 @@ Checkpointing: auto checkpoint before every edit and per prompt; 30-day retentio
 - **SQLite-backed sessions** via `ChatSessionManager` for the web UI
 - **Snapshot / rewind** ✅: `SnapshotManager` (shadow git repos); `/rewind` picker; 3 restore modes; incremental sync + `DEFAULT_IGNORE_DIRS` (`.venv`, `node_modules`, …) for sub-second backup/restore (v2.26.8/2.28.0); `LLM_ENABLE_REWIND`, `LLM_SNAPSHOT_DIR`
 - **Escape preserves history** ✅ (v2.28.0): interrupting a response saves the user message + `[SYSTEM: Response was interrupted]` so the next turn continues from context
+- **Transcript export** ✅ **NEW (v2.33.2)**: `/copy` copies the full transcript to clipboard (OSC 52 fallback over SSH/tmux) or writes it to a file (untruncated `full=True` mode); bare `/redirect` copies the last AI response; both work on freshly loaded sessions via `extract_last_response_text()`
+- Backup rotation no longer deletes live history files with timestamp-suffixed names (v2.33.3)
 
 **Status**: 🟡 **Partially supported**
 
-**Gap**: Rewind/snapshot + ephemeral sessions + interrupt-preserving history. Missing: rewind is opt-in (not automatic); no Esc+Esc shortcut; no session branching/forking; no resume-by-id picker; no startup `--name`; no `/export`; no session stats; no `--from-pr`.
+**Gap**: Rewind/snapshot + ephemeral sessions + interrupt-preserving history + transcript export. Missing: rewind is opt-in (not automatic); no Esc+Esc shortcut; no session branching/forking; no resume-by-id picker; no startup `--name`; no session stats; no `--from-pr`.
 
-**Effort to close**: **Medium** (3–4 weeks): enable rewind by default (1d), Esc+Esc (1–2d), branching (1wk), resume picker (2–3d), `--name` (1d), export (1d), stats (2–3d).
+**Effort to close**: **Medium** (2–3 weeks): enable rewind by default (1d), Esc+Esc (1–2d), branching (1wk), resume picker (2–3d), `--name` (1d), stats (2–3d).
 
 ---
 
@@ -482,7 +494,7 @@ Background classifier reviews each action before execution; sees user messages +
 
 ### Zrb
 
-No equivalent safety classifier. YOLO bypasses all confirmations; non-YOLO requires approval (with the rich auto-approve predicates of §10).
+No equivalent safety classifier. YOLO bypasses all confirmations; non-YOLO requires approval (with the permission policies and auto-approve predicates of §10). Partial mitigations now exist — plan mode (read-only enforcement), the opt-in sandbox (§18), and hardened `bash_validation` (v2.33.3: bare `&`, newlines, `env` prefix all rejected) — but none is an LLM-based pre-action classifier.
 
 **Status**: ❌ **Not supported**
 
@@ -514,11 +526,18 @@ OS-level Bash sandboxing: `sandbox.enabled`, `failIfUnavailable`, `excludedComma
 
 ### Zrb
 
-No OS-level sandboxing. Permission/approval system + `bash_safe_command_policy` metacharacter rejection only.
+**Opt-in two-layer filesystem sandbox** ✅ **NEW (v2.34.0, ADR-0063)** (`src/zrb/llm/sandbox/`):
+- One `SandboxPolicy` drives two enforcement layers: a **Python-level FS gate** (`_sandbox_gate` in `agent/common.py`, right after the permission gate) blocking writes outside writable roots (EDIT/UNKNOWN tools) and reads of credential dirs (all tools), and an **OS-level wrapper** for `Shell`/`Bash`/`ShellBackground` — `sandbox-exec` + generated SBPL on macOS, `bwrap` on Linux
+- Config: `ZRB_LLM_SANDBOX_ENABLED` (default **off**), `OS_SHELL` (auto/off), `WRITABLE_PATHS` (default cwd + temp), `DENY_READ_PATHS` (default credential dirs: `~/.ssh`, `~/.aws`, …), `FALLBACK` (`warn` runs unsandboxed with visible warning / `deny` refuses — never silent), `ALLOW_ESCAPE`
+- Escape hatch: `dangerously_skip_sandbox` on shell tools — never auto-approved, always routed to a human; blockable via `ALLOW_ESCAPE=false`
+- Plumbing mirrors permissions: `LLMTask(sandbox=…)`, `current_sandbox_policy` ContextVar → sub-agent inheritance
+- Network stays **open** in v1
 
-**Status**: ❌ **Not supported**
+**Status**: 🟡 **Partially supported** (was ❌)
 
-**Effort to close**: **High** (3–5 weeks, platform-dependent): macOS `sandbox-exec` (1–2wk), Linux `seccomp`/`bubblewrap` (1–2wk), Docker-based alternative (1wk).
+**Gap**: FS containment on macOS/Linux now real. Missing: network domain allow/deny lists (open in v1), Windows mechanism (falls back to warn/deny), `excludedCommands`-style granularity, default-on posture, `failIfUnavailable` per-command semantics.
+
+**Effort to close**: **Medium** (2–3 weeks): network filtering via proxy or bwrap `--unshare-net` + allowlist (1–2wk), per-command exclusions (2–3d), Windows AppContainer/Job-object research (open-ended).
 
 ---
 
@@ -560,7 +579,7 @@ Install from marketplace or local dir; `--plugin-dir` (now `.zip`), `--plugin-ur
 
 ### Claude Code
 
-`--max-budget-usd`, `/usage` (merged cost+stats; category breakdown), rate-limit status in footer, `--fallback-model`, per-turn token usage.
+`--max-budget-usd`, `/usage` (merged cost+stats; category breakdown), rate-limit status in footer, `--fallback-model` (now interactive too; `fallbackModel` setting accepts up to 3 ordered fallbacks — v2.1.166), automatic one-time retry on fallback model for unexpected API errors, per-turn token usage.
 
 ### Zrb
 
@@ -588,7 +607,7 @@ macOS (Intel + Apple Silicon, Homebrew, Desktop), Linux (native, Docker), Window
 
 - macOS: ✅ Full
 - Linux: ✅ Full
-- Windows: 🟡 Partial (pip works; PowerShell autocomplete + clipboard; no native installer)
+- Windows: 🟡 Partial, improved (pip works; PowerShell autocomplete + clipboard; cross-platform shell stack v2.33.2 — `psutil` process teardown, `pwsh`/`powershell`/`cmd` resolution with correct flags, `ShellBackground` no longer broken; unit-tested but not yet verified on a real Windows host; no native installer)
 - Docker: 🔵 images available
 - Android/Termux: 🔵 documented (cold-import optimized — lazy `prompt_toolkit`, ~250ms saved on phone)
 - Browser: 🔵 web UI via `zrb server start`
@@ -605,7 +624,7 @@ Built-in LSP tool: post-edit type errors/warnings; `find_definition`, `find_refe
 
 ### Zrb
 
-🔵 **Zrb advantage**: `LSPManager` singleton (lazy startup, 300s idle timeout); symbol-based API; full suite (`find_definition`, `find_references`, `get_diagnostics`, `get_document_symbols`, `get_workspace_symbols`, `get_hover_info`, **`rename_symbol`** with dry-run, `list_available_servers`); auto-detect servers (pyright, gopls, tsserver, rust-analyzer…); project-root detection; all LSP tools auto-approved. **Post-write/edit diagnostics** now feed LSP results back into tool results (§12).
+🔵 **Zrb advantage**: `LSPManager` singleton (lazy startup, 300s idle timeout); symbol-based API; full suite (`find_definition`, `find_references`, `get_diagnostics`, `get_document_symbols`, `get_workspace_symbols`, `get_hover_info`, **`rename_symbol`** with dry-run + honest `applied` flag, `list_available_servers`); 18-server config catalog with per-server `initialization_options` + **`ZRB_LLM_LSP_PREFERRED_SERVERS`** ordered preference (v2.32.0); project-root detection; all LSP tools auto-approved. **Post-write/edit diagnostics** feed LSP results back into tool results (§12). Clean shutdown: graceful in-loop teardown + `atexit` `force_kill_all()` backstop so no orphaned language servers (v2.32.2).
 
 **Status**: ✅ **Fully supported** (Zrb arguably broader — `rename_symbol`, workspace symbols).
 
@@ -689,7 +708,7 @@ No interactive diff viewer. Changes applied directly; git diff via `run_shell_co
 
 ### Zrb
 
-🔵 **Zrb advantage**: `TodoManager` with persistent JSON (`~/.zrb/todos/{session}.json`); states `pending`/`in_progress`/`completed`/`cancelled`; auto IDs, timestamps, progress; `write_todos`/`get_todos`/`update_todo`/`clear_todos`; session isolation + ContextVar wiring (no explicit `session=`); archive on retention; **pending todos rendered into every system prompt** (LLM never starts blind). Plus 🔵 the full task-automation framework (`CmdTask`, `LLMTask`, DAG, dependencies, retries, scheduling).
+🔵 **Zrb advantage**: `TodoManager` with persistent JSON (`~/.zrb/todos/{session}.json`); states `pending`/`in_progress`/`completed`/`cancelled`; auto IDs, timestamps, progress; `write_todos`/`get_todos`/`update_todo`/`clear_todos`; session isolation + ContextVar wiring (no explicit `session=`); archive on retention; **pending todos rendered into every system prompt** (LLM never starts blind); **styled progress card pushed to the active UI after every change** (TUI/StdUI/web SSE, v2.32.0, ADR-0057). Plus 🔵 the full task-automation framework (`CmdTask`, `LLMTask`, DAG, dependencies, retries, scheduling — circular-dependency detection added v2.33.3).
 
 **Status**: ✅ **Fully supported** (Zrb advantage on persistence + system-context integration).
 
@@ -769,6 +788,8 @@ Single primary provider (Anthropic) with `--fallback-model` on overload; Bedrock
   - Bedrock nil-content → `"."` placeholder (not `""`)
   - Invalid-tool-call detection requires entity + problem keyword (avoids false positives); body-message extraction from `e.body`
 - **Parallel-tool-call guard**: `model_capabilities` injects `parallel_tool_calls=False` for known-malforming models (minimax, glm-4.7); mandate wording softened to cue-framing so weak models don't over-batch
+- **Empty-completion guard** ✅ (v2.32.0, ADR-0059): blank / leaked `"(tool call)"` completions regenerated instead of surfaced; placeholder no longer injected into tool-call-only turns (weak models had learned to imitate it)
+- **Summarizer hardening** ✅ (v2.32.0, ADR-0058): deferred-tool death-spiral fixed; summarization calls retry transient 5xx/429; targeted `strip_orphaned_returns`; no retry on too-long prompts
 - `request_limit=None` overrides pydantic-ai's 50-request tool-loop cap; `create_agent` uses `tool_retries`
 
 **Status**: 🔵 **Zrb advantage** — far broader provider coverage and resilience than the Claude Code CLI exposes.
@@ -807,82 +828,84 @@ Remote Control (control a session from claude.ai/app; `--remote-control`/`--rc`,
 
 ## 35. Summary & Roadmap
 
-### Changes Since v2.22.6 (the prior analysis baseline)
+### Changes Since v2.31.0 (the prior analysis baseline, 2026-05-30)
 
-#### Zrb improvements (v2.22.7 → v2.31.0)
+#### Zrb improvements (v2.31.0 → v2.34.0)
 
 | Feature | Old Status | New Status | Details |
 |---------|-----------|-----------|---------|
-| `AskUserQuestion` tool | ❌ (gap) | ✅ | Structured mid-turn questions; non-interactive short-circuit (v2.30) |
-| `RM` / `MV` / `SearchJournal` tools | ❌ | 🔵 | File delete/move + journal search (v2.24.0) |
-| Post-write/edit diagnostics | ❌ | ✅ | LSP + `ast`/`pyflakes` checks appended to tool result (v2.30) |
-| Hook events | 9 | 11 | Added `PRE_COMMAND`/`POST_COMMAND` (slash-command bracketing, v2.31.0) |
-| Hook param mutation | ❌ | ✅ | `updated_input` (tool params) + `command_args` (slash-command args) (v2.31.0) |
-| MCP HTTP transport | ❌ (stdio/sse) | ✅ | `stdio` + `http` via `fastmcp` |
-| Multimodal pipeline | ❌ | 🔵 | Vision-model fallback, image scaling, audio describe (v2.26.0) |
-| Provider resilience | partial | 🔵 | 4-stage sanitization, opaque-400 retry, GLM-5/DeepSeek/Bedrock handling, parallel-tool guard (v2.23–2.28) |
-| 5-core skill architecture | 10 flat skills | ✅ | core-coding/research/design/writing/journaling + companions (v2.27.0) |
-| Skill hooks frontmatter | ❌ | ✅ | Skills can define hooks |
-| YOLO → sub-agents | ❌ | ✅ | Full + selective YOLO propagate (v2.28.0) |
-| Prompt sections | per-section flags | ✅ | Single `include_sections` / `CFG.LLM_INCLUDE_SECTIONS` (v2.28.0) |
-| Model capability registry | ❌ | 🔵 | `model_capabilities.register(...)` per-model (v2.28.2) |
-| `apply_common_tools()` | scattered | ✅ | One registration path for chat/LLMTask/SubAgentManager (v2.28.6) |
-| `fit_context_window` | O(n²) | ✅ | O(n), ~46× faster at 320 turns (v2.24.1) |
-| Escape preserves history | ❌ | ✅ | Interrupted turns continue from context (v2.28.0) |
-| History backup rotation | ❌ | ✅ | `LLM_HISTORY_BACKUP_RETAIN` (v2.28.0) |
-| System-context perf | recompute/turn | ✅ | `@lru_cache` per-CWD; ThreadPoolExecutor 16→4 (v2.25.2) |
-| Google News RSS search | ❌ | 🔵 | Zero-setup default backend (v2.25.2) |
-| ReadMany/WriteMany | present | removed | `Read`/`Write` handle multiples via parallel calls (v2.28.0) |
+| **Permission policy system** | ❌ (no rule engine) | ✅ | Capability tags (READ/EDIT/EXECUTE/NETWORK/DELEGATE/META), ordered allow/ask/deny rules + `arg_pattern` globs, precedence chain permission_policy → tool_policy → yolo (v2.32.0, ADR-0049/0050/0055) |
+| **Plan mode** | ❌ (no named modes) | ✅ | `EnterPlanMode`/`ExitPlanMode` tools + `/plan` toggle; enforced read-only preset; per-run mode isolation (v2.32.0–2.33.3, ADR-0051) |
+| **Sandbox** | ❌ | 🟡 | Two-layer: Python FS gate + OS wrapper (`sandbox-exec`/`bwrap`); credential-dir read denial; never-auto-approved escape hatch (v2.34.0, ADR-0063) |
+| **Background shell** | ❌ | ✅ | `ShellBackground` + `MonitorProcess` (poll/kill) (v2.32.0) |
+| **Background subagents** | ❌ | ✅ | `DelegateToAgentBackground` + `GetDelegationResult`; inherit permissions; interrupt-to-ask via parent UI (v2.32.0, ADR-0054) |
+| **`Shell`/`Bash` tools** | one POSIX-only `run_shell_command` | ✅ | `Shell` (configured shell) + `Bash` (real bash, Claude Code semantics); cross-platform `psutil` stack; Windows `pwsh`/`powershell`/`cmd` (v2.32.0–2.33.2, ADR-0056) |
+| **Transcript export** | ❌ (no `/export`) | ✅ | `/copy` clipboard (OSC 52) / file; bare `/redirect` → clipboard (v2.33.2) |
+| **AskUserQuestion UX** | type-a-number | ✅ | Arrow-key selection widget, multi-select, free-text row; intrinsic always-auto-approve in every path (v2.33.4–2.34.0, ADR-0062/0064) |
+| **Plan-mode tools** | 🟡 (no enforcement) | ✅ | Execution gate denies EDIT/EXECUTE/DELEGATE in plan mode (v2.32.0) |
+| Tool-output truncation backstop | ❌ | ✅ | `LLM_MAX_TOOL_RESULT_CHARS` 100k head+tail cap (v2.32.0, ADR-0052) |
+| Custom prompt sections | code-only | ✅ | Config-positioned: `register_section()` provider or markdown file (v2.33.0, ADR-0061) |
+| Todo progress cards | ❌ | 🔵 | Styled card to TUI/StdUI/web SSE after every change (v2.32.0, ADR-0057) |
+| `/model small\|multimodal` | ❌ | ✅ | Runtime switching of summarizer/vision models (v2.32.0) |
+| LSP server config | auto-detect only | 🔵 | `ZRB_LLM_LSP_PREFERRED_SERVERS`, per-server init options, clean shutdown + `atexit` backstop (v2.32.0–2.32.2) |
+| `include_hidden` for LS/Glob | ❌ | ✅ | Dotfiles surfaced on request (v2.32.2) |
+| Web auth hardening | partial | ✅ | JWT `type` claim check, Secure/SameSite cookies, constant-time compare, chat-API `can_access_task` gate (v2.32.0–2.33.3) |
+| Empty-completion guard | ❌ | ✅ | Degenerate model output regenerated, not surfaced (v2.32.0, ADR-0059) |
+| `EnvField` config descriptor | boilerplate | ✅ | 700+ lines of getter/cast code replaced; `contextvars.py` canonical index (v2.32.0) |
+| CI workflow | ❌ | ✅ | GitHub Actions: flake8 F + pytest, coverage ≥90%, Python 3.11–3.13 (v2.32.0) |
 
-#### New Claude Code features since the prior analysis
+#### New Claude Code features since the prior analysis (v2.1.154 → v2.1.170)
 
 | Feature | Impact on Gap |
 |---------|--------------|
-| Hook events 27 → **30** (`Setup`, `MessageDisplay`, plus prior new ones) | Gap widened (§5) |
-| `/goal`, `/usage` (merged cost+stats), `/code-review` (was `/simplify`), `/reload-skills`, `/scroll-speed` | Gap widened (§3) |
-| `claude ultrareview` (non-interactive CI review) | Gap widened (§17) |
-| **Dynamic workflows** (orchestrate hundreds of agents) | New large gap (§8) |
-| Opus 4.8, fast mode, effort high-default + `xhigh`, `${CLAUDE_EFFORT}` | Minor gaps (§1, §9) |
-| Auto mode on Bedrock/Vertex/Foundry; `hard_deny`; exfiltration detection | Gap widened (§16) |
-| Plugin `--plugin-url`/`.zip`, `init`/`validate`, `defaultEnabled`, dependency enforcement | Gap widened (§20) |
-| Vim visual mode; custom theme editing | Minor gaps (§25, §2) |
+| **Claude Fable 5** ("Mythos-class" flagship, v2.1.170) | Neutral for Zrb — multi-provider support means Zrb users get it via API too |
+| `--safe-mode` / `CLAUDE_CODE_SAFE_MODE` (all customizations off) | Minor gap (§1) |
+| `/cd` mid-session cwd change (cache-preserving) | Minor gap (§3) |
+| `fallbackModel` up to 3 ordered fallbacks; interactive `--fallback-model` | Gap widened slightly (§21) |
+| Stop/SubagentStop `additionalContext` continuation | Gap widened slightly (§5) |
+| Dynamic-workflow keyword renamed `ultracode`; fan-out progress; relay de-privileging | Hardening of existing gap (§8) |
+| Marketplace-free plugins from `.claude/skills` + `claude plugin init`/`list` | Gap widened (§20) |
+| `requiredMin/MaximumVersion`, `disableBundledSkills` managed settings | Gap widened slightly (§11) |
+| Deny-rule glob in tool-name position (`"*"`); `acceptEdits` config-file prompts | Minor (§10) |
+| Auto mode opt-in on Bedrock/Vertex/Foundry (`CLAUDE_CODE_ENABLE_AUTO_MODE=1`) | Unchanged gap (§16) |
+| MCP secret redaction; stable session ID on resume | Minor (§6) |
 
 ### Overall Coverage Assessment
 
-| Category | Status | Change vs v2.22.6 |
+| Category | Status | Change vs v2.31.0 |
 |----------|--------|-----------------|
-| CLI Flags | 🟡 ~22% | = (CC added more) |
-| Interactive TUI | 🟡 ~68% | ↑ (multimodal paste, animated status) |
-| Slash Commands | 🟡 ~45% | ↑ (command hooks, skill stubs) |
-| Memory/CLAUDE.md | 🟡 ~72% | ↑ (journal graph, caching, RTK.md) |
-| Hooks | 🟡 ~37% (11/30) | ↑ (param mutation, +2 events) but CC +3 events |
-| MCP | 🟡 ~58% | ↑ (HTTP transport) |
-| Subagents | 🟡 ~50% | ↑ (file-based + YOLO/guidance propagation) |
-| Agent Teams & Dynamic Workflows | ❌ 0% | ↓ (CC added dynamic workflows) |
-| Skills | ✅ ~85% | ↑ (5-core architecture, hooks, companions) |
-| Permission Modes | 🟡 ~35% | ↑ (YOLO inheritance, more predicates) |
-| Settings System | 🟡 ~35% | ↑ (model capability registry, common_tools) |
-| Built-in Tools | 🟡 ~78% | ↑ (AskUserQuestion, RM/MV, post-write diag) |
+| CLI Flags | 🟡 ~20% | ↓ slightly (CC added `--safe-mode` etc.; Zrb surface unchanged) |
+| Interactive TUI | 🟡 ~72% | ↑ (arrow-key widgets, /copy, /plan, todo cards) |
+| Slash Commands | 🟡 ~50% | ↑ (/plan, /copy, /model subcommands) |
+| Memory/CLAUDE.md | 🟡 ~72% | = |
+| Hooks | 🟡 ~37% (11/30) | = (CC added protocol depth, no new events) |
+| MCP | 🟡 ~58% | = |
+| Subagents | 🟡 ~60% | ↑ (background delegation, permission inheritance/filtering) |
+| Agent Teams & Dynamic Workflows | ❌ ~10% | ↑ (background subagents as building block) |
+| Skills | ✅ ~85% | = |
+| Permission Modes | 🟡 ~60% | ↑↑ (policy engine, plan mode, precedence chain) |
+| Settings System | 🟡 ~35% | ↑ (EnvField; still env-var only) |
+| Built-in Tools | 🟡 ~85% | ↑ (ShellBackground/MonitorProcess, plan-mode tools, Bash semantics, truncation backstop) |
 | IDE Integrations | ❌ 0% | = |
-| Session/Checkpoint | 🟡 ~58% | ↑ (backup rotation, escape-preserve) |
-| Web UI | 🔵 advantage | = |
-| Auto Mode | ❌ 0% | = |
-| GitHub/CI Integration | ❌ 0% | = |
-| Sandboxing | ❌ 0% | = |
+| Session/Checkpoint | 🟡 ~65% | ↑ (/copy export, backup-rotation fix) |
+| Web UI | 🔵 advantage | ↑ (auth hardening, chat-API authorization) |
+| Auto Mode | ❌ 0% | = (plan mode + sandbox are mitigations, not a classifier) |
+| GitHub/CI Integration | ❌ ~5% | ↑ (Zrb itself gained CI; no product integration) |
+| Sandboxing | 🟡 ~55% | ↑↑ (two-layer FS sandbox; network still open) |
 | Remote/Cloud | 🟡 different | = |
-| Plugins | 🟡 ~38% | ↑ (manifest discovery) |
-| Rate Limiting | 🟡 ~78% | ↑ (O(n) context fit) |
-| Platform Support | 🟡 ~82% | = |
-| LSP | ✅ advantage | ↑ (post-write diagnostics) |
-| Context Compaction | 🟡 ~84% | ↑ (PreCompact fires, system-prompt-aware) |
+| Plugins | 🟡 ~38% | = (CC widened with marketplace-free loading) |
+| Rate Limiting | 🟡 ~75% | = (CC added multi-fallback) |
+| Platform Support | 🟡 ~85% | ↑ (cross-platform shell stack) |
+| LSP | ✅ advantage | ↑ (server config, preferred servers, clean shutdown) |
+| Context Compaction | 🟡 ~84% | ↑ (summarizer hardening ADR-0058/0059) |
 | Vim Mode | ❌ 0% | = |
 | Voice Input | ❌ 0% | = |
 | Diff Viewer | ❌ 0% | = |
-| Task/Todo | ✅ advantage | = |
+| Task/Todo | ✅ advantage | ↑ (progress cards) |
 | Scheduling | 🟡 ~40% | = |
-| Worktree Isolation | 🟡 ~65% | ↑ (stale guard) |
-| Multimodal & Attachments | ✅ / 🔵 advantage | ↑↑ (new pipeline) |
-| Provider Resilience & Multi-Model | 🔵 advantage | ↑↑ (major resilience work) |
+| Worktree Isolation | 🟡 ~65% | = |
+| Multimodal & Attachments | ✅ / 🔵 advantage | = |
+| Provider Resilience & Multi-Model | 🔵 advantage | ↑ (empty-completion guard, summarizer retry) |
 | Side Questions (`/btw`) | ✅ 100% | = |
 | Channels & Remote Control | 🟡 ~25% | = |
 
@@ -911,45 +934,48 @@ Remote Control (control a session from claude.ai/app; `--remote-control`/`--rc`,
 21. 🔵 **White-labeling**: build custom CLIs via Zrb's framework
 22. 🔵 **Selective YOLO** (`--yolo "Write,Edit"`) with sub-agent inheritance
 23. 🔵 **Inherit-sections sub-agents**: sub-agents inherit named prompt sections from the main agent
+24. 🔵 **Programmable permission policies**: capability-tagged tools + ordered Python `Rule` objects with arg globs — embeddable in any `LLMTask`, not just an interactive CLI (v2.32.0)
+25. 🔵 **Config-positioned custom prompt sections**: `register_section()` dynamic providers or plain markdown files slotted anywhere in the system-prompt order (v2.33.0, ADR-0061)
+26. 🔵 **OSC 52 clipboard fallback**: `/copy` works over SSH and inside tmux/screen (v2.33.2)
 
 ### Recommended Implementation Priority
 
 #### Phase 1: High-Impact, Lower Effort (4–6 weeks)
 
-1. **Named permission modes** (`plan`, `acceptEdits`, `dontAsk`) + Shift+Tab cycling (1–1.5wk)
-2. **Extended CLI flags**: `--permission-mode`, `--max-turns`, `--system-prompt`, `--resume`, `--output-format json`, `--name`, `--effort` (1wk)
+1. ~~Named permission modes (`plan`)~~ ✅ **Done v2.32.0** — remaining: `acceptEdits` + `dontAsk` presets + Shift+Tab cycling (3–5d, presets over the existing policy engine)
+2. **Extended CLI flags**: `--permission-mode`, `--max-turns`, `--system-prompt`, `--resume`, `--output-format json`, `--name`, `--effort`, sandbox toggles (1wk)
 3. **JSON settings files** with scope hierarchy (user/project/local) (1wk)
 4. **`/usage`/`/cost` + budget tracking** (3–5d)
-5. **More missing hook events**: `PostCompact`, `SubagentStart/Stop`, `PostToolUseFailure` already present — add `UserPromptExpansion`, `PostToolBatch`, `SessionStart` extras (3–4d)
-6. **Additional built-in slash commands**: `/clear`, `/config`, `/export`, `/permissions`, `/diff` (1wk)
+5. **More missing hook events**: `PostCompact`, `SubagentStart/Stop` — add `UserPromptExpansion`, `PostToolBatch`, `SessionStart` extras (3–4d)
+6. **Additional built-in slash commands**: `/clear`, `/config`, `/permissions`, `/diff`, `/cd` (1wk) — ~~`/export`~~ ✅ done as `/copy` (v2.33.2)
 7. **`/compress [focus]`** focus instructions (1–2d)
 8. **MCP prompts as slash commands** (3d)
 9. **`--worktree` CLI flag** (1–2d)
 10. **CLAUDE.local.md** + `@import` (3–4d)
 11. **Enable rewind by default** + Esc+Esc shortcut (2–3d)
-12. **`Monitor` tool** + `NotebookEdit` tool (1wk)
+12. **`NotebookEdit` tool** (3–4d) — ~~`Monitor`~~ 🟡 mostly done as `MonitorProcess` (v2.32.0)
+13. **Declarative permission rules** — parse a `settings.json`-style rule list into `PermissionPolicy` (1wk)
 
 #### Phase 2: Medium-Impact, Medium Effort (6–10 weeks)
 
-13. **Full worktree isolation** — `isolation: worktree` in agent defs + `/batch` (2–3wk)
-14. **`@-mention` + auto-delegation** for file-based agents + `/agents` UI (2–3wk)
-15. **Per-agent frontmatter**: `permissionMode`, `maxTurns`, `mcpServers`, `hooks`, `memory` (1–2wk)
-16. **GitHub CI/CD templates** + `/security-review` from `review` skill (1wk)
-17. **Plugin packaging format** + `zrb plugin add` (1–2wk)
-18. **MCP `ws`/`sse` + OAuth + resources tools** (2–3wk)
-19. **`http` + `mcp_tool` hook handler types** (1wk)
-20. **Permission rules config syntax** + deny>ask>allow engine (1.5wk)
+14. **Full worktree isolation** — `isolation: worktree` in agent defs + `/batch` (2–3wk)
+15. **`@-mention` + auto-delegation** for file-based agents + `/agents` UI (2–3wk)
+16. **Per-agent frontmatter**: `permissionMode`, `maxTurns`, `mcpServers`, `hooks`, `memory` (1–2wk)
+17. **GitHub CI/CD templates** + `/security-review` from `review` skill (1wk)
+18. **Plugin packaging format** + `zrb plugin add` (1–2wk)
+19. **MCP `ws`/`sse` + OAuth + resources tools** (2–3wk)
+20. **`http` + `mcp_tool` hook handler types** (1wk)
 21. **Skill enhancements**: `paths`, `shell`, `disallowed-tools`, `` !`command` `` injection (1wk)
 22. **Cron tools** (`CronCreate/Delete/List`) wrapping `Scheduler` (3d)
+23. **Sandbox v2**: network domain allow/deny lists, per-command exclusions (1–2wk) — base sandbox ✅ done v2.34.0
 
 #### Phase 3: Lower-Priority, Higher Effort (3–6 months)
 
-23. **Auto mode safety classifier** (4–6wk)
-24. **Dynamic workflows runtime** (script-orchestrated fan-out to many agents) (6–10wk)
-25. **Agent Teams** — persistent coordinated agents (2–3mo)
-26. **IDE integrations** (VS Code, JetBrains) (3–4mo)
-27. **Vim mode** in TUI (2–3wk)
-28. **OS-level sandboxing** (3–5wk)
+24. **Auto mode safety classifier** (4–6wk)
+25. **Dynamic workflows runtime** (script-orchestrated fan-out to many agents) (6–10wk) — `DelegateToAgentBackground` is now a building block
+26. **Agent Teams** — persistent coordinated agents (2–3mo)
+27. **IDE integrations** (VS Code, JetBrains) (3–4mo)
+28. **Vim mode** in TUI (2–3wk)
 29. **Voice input** (2–3wk)
 30. **Desktop app** (Electron/Tauri) (4–6wk)
 31. **Cloud scheduled tasks** (requires cloud infra)
@@ -961,8 +987,8 @@ Remote Control (control a session from claude.ai/app; `--remote-control`/`--rc`,
 - **Phase 3** (specialized features): ~4–6 months, dedicated teams per feature
 - **Total for complete superset**: ~8–12 months with 2–3 developers
 
-> **Net assessment**: From v2.22.6 → v2.31.0 Zrb closed several real gaps — `AskUserQuestion`, post-write diagnostics, hook parameter mutation, slash-command hooks, MCP HTTP transport, file-move/delete tools — and **widened its lead on the "quality of execution" axis**: a multimodal-fallback pipeline, a provider-resilience layer (4-stage sanitization + opaque-400 recovery across DeepSeek/GLM-5/Bedrock), a per-model capability registry, the 5-core skill architecture, and O(n) context fitting. Meanwhile Claude Code expanded breadth: hooks 27→30 events, **dynamic workflows orchestrating hundreds of agents**, `/goal`/`/usage`/`/code-review`/`ultrareview`, Opus 4.8 + fast mode + effort tiers, and auto mode on more platforms. The structural gaps that remain are the same ones — named permission modes, agent teams/dynamic workflows, IDE/desktop, auto-mode classifier, sandboxing, cloud sessions — and they are exactly the items requiring net-new architecture rather than surface wiring. Zrb's 23 unique advantages (multi-model, provider resilience, local web UI, multi-channel, task automation, RAG, richer LSP, tool guidance) make it a genuine superset in the self-hosted / multi-provider / automation dimensions even as Claude Code remains ahead on managed-cloud orchestration and IDE depth.
+> **Net assessment**: The v2.31.0 → v2.34.0 window was Zrb's most structural sprint yet: **three of the six long-standing "requires net-new architecture" gaps got real implementations** — a capability-tagged permission policy engine with enforced **plan mode** (ADR-0049–0055), an opt-in two-layer **sandbox** (Python FS gate + `sandbox-exec`/`bwrap`, ADR-0063), and **background execution** at both the shell level (`ShellBackground`/`MonitorProcess`) and the agent level (`DelegateToAgentBackground` with permission inheritance and interrupt-to-ask approvals, ADR-0054). Add `/copy` transcript export, the arrow-key `AskUserQuestion` widget, true `Bash` semantics with a cross-platform process stack, and web-auth hardening, and the remaining structural gaps shrink to: **agent teams / dynamic workflows, IDE/desktop integration, the auto-mode classifier, and cloud sessions** — plus the perennial surface gap (CLI flags, settings files, management slash commands) where the infrastructure exists but isn't exposed. Claude Code's window was comparatively incremental for the CLI (Fable 5 — which Zrb users also get via multi-provider support — `--safe-mode`, `/cd`, multi-fallback models, hardening of the dynamic-workflows launch). Zrb's 26 unique advantages (multi-model, provider resilience, local web UI, multi-channel, task automation, RAG, richer LSP, programmable permission policies) keep it a genuine superset in the self-hosted / multi-provider / automation dimensions, while Claude Code remains ahead on managed-cloud orchestration, IDE depth, and safety automation.
 
 ---
 
-*Analysis updated: 2026-05-30 | Claude Code docs: code.claude.com/docs (fetched May 2026) | Zrb version: 2.31.0*
+*Analysis updated: 2026-06-10 | Claude Code: CHANGELOG through v2.1.170 (June 9, 2026) + code.claude.com/docs | Zrb version: 2.34.0*
