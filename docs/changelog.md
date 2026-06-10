@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **Feature: arrow-key selection UI for AskUserQuestion**:
+  - The default full-screen chat UI and `StdUI` now render `AskUserQuestion` as an interactive, arrow-key-selectable list (↑/↓ to move, Enter to confirm) instead of requiring the user to type an option number. Multi-select questions use Space to toggle; a synthetic "✎ Type my own answer…" row drops to free-text, and in multi-select the typed text is appended to the already-checked options.
+  - New optional `UIProtocol.ask_user_choice(spec: ChoiceSpec)` method (`tool_call/ui_protocol.py`). `BaseUI.ask_user_choice` provides a default that formats the spec as numbered text and delegates to `ask_user`, so the web/`SimpleUI`/`MultiUI`/sub-agent paths keep the existing type-a-number behavior unchanged.
+  - Default UI: new `SelectionMixin` (`ui/default/selection_mixin.py`) renders the widget as an in-layout `Float` (no nested prompt-toolkit `Application`); `ConfirmationMixin`'s queue was generalized to `(future, prompt, spec)` so text confirmations and choices share one serialization path. `tool/ask.py` builds a `ChoiceSpec` per question and routes through `ask_user_choice` (falling back to `ask_user` for UIs that predate it).
+  - Presentation: the streamed `🧰` tool-call line suppresses `AskUserQuestion`'s (large) args payload (`util/stream_response.py`) since the widget renders it; the float is full-width with an opaque panel background and a highlight bar on the cursor row (`app/style.py`) so the streaming output behind it no longer bleeds through; the question is echoed into scrollback with its answer only on resolve (no duplicate while the widget is open).
+  - Tests: `test/llm/ui/default/test_selection_mixin.py`, plus extended `test/llm/ui/test_std_ui.py`, `test/llm/tool/test_ask.py`, and `test/llm/util/test_stream_response.py`.
+
 - **Feature: opt-in filesystem sandbox for LLM tool calls (ADR-0063)**:
   - New `zrb/llm/sandbox/` package: one `SandboxPolicy` drives two enforcement layers — a Python-level FS gate (`_sandbox_gate` in `agent/common.py`, right after `_permission_gate`) that blocks writes outside the writable roots (`EDIT`/`UNKNOWN` tools) and reads of credential directories (all tools), and an OS-level wrapper for `Shell`/`Bash`/`ShellBackground` (`sandbox-exec` + generated SBPL on macOS, `bwrap` on Linux). Network stays open in v1; off by default (`ZRB_LLM_SANDBOX_ENABLED=false`).
   - Config: `ZRB_LLM_SANDBOX_ENABLED` / `OS_SHELL` / `WRITABLE_PATHS` / `DENY_READ_PATHS` / `FALLBACK` / `ALLOW_ESCAPE` (new `LLMSandboxMixin`). Where no OS mechanism exists (Windows, Linux without bwrap), `FALLBACK=warn` runs unsandboxed with a visible warning, `deny` refuses — never silent.

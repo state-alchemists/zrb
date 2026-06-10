@@ -36,9 +36,7 @@ def test_argv_structure(tmp_path):
     # Deny-read dir masked with tmpfs; deny-read file masked with /dev/null.
     assert "--tmpfs" in argv
     assert argv[argv.index("--tmpfs") + 1] == os.path.realpath(str(secrets))
-    null_binds = [
-        argv[i + 1 : i + 3] for i, a in enumerate(argv) if a == "--ro-bind"
-    ]
+    null_binds = [argv[i + 1 : i + 3] for i, a in enumerate(argv) if a == "--ro-bind"]
     assert ["/dev/null", os.path.realpath(str(secret_file))] in null_binds
     # Ends with the argv separator.
     assert argv[-1] == "--"

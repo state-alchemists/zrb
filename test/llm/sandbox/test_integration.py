@@ -52,7 +52,9 @@ def outside_dir():
     import shutil as _shutil
     import uuid
 
-    path = os.path.join(os.path.expanduser("~"), f".zrb-sandbox-test-{uuid.uuid4().hex[:8]}")
+    path = os.path.join(
+        os.path.expanduser("~"), f".zrb-sandbox-test-{uuid.uuid4().hex[:8]}"
+    )
     os.makedirs(path, exist_ok=True)
     try:
         yield path

@@ -58,6 +58,8 @@ if TYPE_CHECKING:
     from pydantic_ai.models import Model
     from rich.theme import Theme
 
+    from zrb.llm.tool_call.ui_protocol import ChoiceSpec
+
 logger = logging.getLogger(__name__)
 
 
@@ -233,8 +235,10 @@ class BaseUI(CommandsMixin, HistoryReplayMixin, SystemInfoMixin):
             argument_formatters=argument_formatters,
             response_handlers=response_handlers + [default_response_handler],
         )
-        # Queue for pending confirmation requests to handle parallel tool approvals
-        self._confirmation_queue: list[tuple[asyncio.Future[str], str]] = []
+        # Queue for pending confirmation requests to handle parallel tool
+        # approvals. Each entry is (future, prompt, spec); spec is a ChoiceSpec
+        # for AskUserQuestion-style requests, else None for plain text.
+        self._confirmation_queue: list[tuple[asyncio.Future[str], str, Any]] = []
         self._current_confirmation: asyncio.Future[str] | None = None
         # Buffer for main-agent output during confirmation (avoids interleaving)
         self._confirmation_output_buffer: list[str] = []
@@ -514,6 +518,22 @@ class BaseUI(CommandsMixin, HistoryReplayMixin, SystemInfoMixin):
         raise NotImplementedError(
             f"{self.__class__.__name__} must implement ask_user()"
         )
+
+    async def ask_user_choice(self, spec: "ChoiceSpec") -> str:
+        """[OPTIONAL] Ask a structured multiple-choice question.
+
+        Default implementation formats the spec as numbered text and delegates
+        to `ask_user`, so any UI that only implements `ask_user` keeps working
+        (the user types a number or free text). Terminal UIs override this to
+        render an arrow-key-selectable widget.
+
+        Returns the chosen option label(s) — comma-joined for multi-select — or
+        the user's free-form text verbatim.
+        """
+        # lazy: circular — base.ui -> tool.ask -> ... -> base.ui
+        from zrb.llm.tool.ask import format_choice_spec
+
+        return await self.ask_user(format_choice_spec(spec))
 
     async def run_interactive_command(
         self, cmd: str | list[str], shell: bool = False

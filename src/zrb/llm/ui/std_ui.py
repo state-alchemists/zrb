@@ -1,10 +1,39 @@
 import asyncio
 import subprocess
 import sys
-from typing import Any, TextIO
+from typing import TYPE_CHECKING, Any, TextIO
 
 from zrb.config.config import CFG
 from zrb.util.cli.style import stylize_faint
+
+if TYPE_CHECKING:
+    from zrb.llm.tool_call.ui_protocol import ChoiceSpec
+
+# Sentinel value for the synthetic "type my own answer" option.
+_FREE_TEXT = "__zrb_free_text__"
+
+
+def _option_text(opt: dict) -> str:
+    label = opt.get("label", "")
+    desc = opt.get("description", "")
+    return f"{label} — {desc}" if desc else label
+
+
+def resolve_choice_selection(spec: "ChoiceSpec", selection: Any) -> str:
+    """Map a widget selection back to a label string (public, pure helper).
+
+    `selection` is either a single option index, a list of indices
+    (multi-select), or the `_FREE_TEXT` sentinel. Returns the joined label(s);
+    free-text is handled by the caller before this point.
+    """
+    options = spec.get("options", [])
+    indices = selection if isinstance(selection, list) else [selection]
+    labels = [
+        options[i].get("label", str(i))
+        for i in indices
+        if isinstance(i, int) and 0 <= i < len(options)
+    ]
+    return ", ".join(labels)
 
 
 class StdUI:
@@ -41,6 +70,49 @@ class StdUI:
             raise
         except EOFError:
             return ""
+
+    async def ask_user_choice(self, spec: "ChoiceSpec") -> str:
+        """Render an arrow-key-selectable multiple-choice dialog."""
+        # lazy: heavy third-party
+        from prompt_toolkit import PromptSession
+        from prompt_toolkit.output import create_output
+        from prompt_toolkit.shortcuts import checkboxlist_dialog, radiolist_dialog
+
+        options = spec.get("options", [])
+        if not options:
+            return ""
+
+        multi = bool(spec.get("multi_select"))
+        idx, total = spec.get("index", 1), spec.get("total", 1)
+        counter = f" ({idx}/{total})" if total > 1 else ""
+        title = f"{spec.get('header', 'Question')}{counter}"
+        values = [(i, _option_text(opt)) for i, opt in enumerate(options)]
+        values.append((_FREE_TEXT, "✎ Type my own answer…"))
+
+        dialog_factory = checkboxlist_dialog if multi else radiolist_dialog
+        dialog = dialog_factory(
+            title=title, text=spec.get("question", ""), values=values
+        )
+        # Route the transient full-screen dialog to stderr, matching ask_user.
+        dialog.output = create_output(stdout=sys.stderr)
+        selection = await dialog.run_async()
+
+        if selection is None:
+            # User cancelled (Esc / Cancel button).
+            raise KeyboardInterrupt
+        if selection == []:
+            return "(no answer)"
+        wants_free_text = selection == _FREE_TEXT or (multi and _FREE_TEXT in selection)
+        if wants_free_text:
+            session = PromptSession(output=create_output(stdout=sys.stderr))
+            typed = (await session.prompt_async("Your answer: ")).strip()
+            if multi:
+                # Combine the checked options with the typed answer.
+                checked = [i for i in selection if i != _FREE_TEXT]
+                prefix = resolve_choice_selection(spec, checked)
+                return ", ".join(part for part in (prefix, typed) if part)
+            return typed
+        return resolve_choice_selection(spec, selection)
 
     def append_to_output(
         self,

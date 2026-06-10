@@ -169,9 +169,7 @@ def _build_sandboxed_shell_argv(
     return build_sandboxed_argv(shell, shell_flag, command, cwd, policy, skip=skip)
 
 
-async def _start_process(
-    argv: list[str], cwd: str
-) -> asyncio.subprocess.Process:
+async def _start_process(argv: list[str], cwd: str) -> asyncio.subprocess.Process:
     """Starts the subprocess with appropriate settings."""
     # start_new_session=True puts the shell in its own session/process group
     # (setsid on POSIX, ignored on Windows). This lets `pgrep -g` find spawned

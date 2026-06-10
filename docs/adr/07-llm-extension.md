@@ -856,3 +856,68 @@ os_sandbox, seatbelt, bwrap, state); `_sandbox_gate` in
 `test/llm/sandbox/` (incl. platform-conditional integration tests asserting
 write containment, deny-read, escape hatch, timeout-kill survival, and
 PID-tracking under the wrapper).
+
+## ADR-0064 — Optional `ask_user_choice` protocol method with text fallback for arrow-key AskUserQuestion
+
+**Status.** Accepted
+
+**Context.** `AskUserQuestion` rendered each question as numbered text and read
+the answer through `UIProtocol.ask_user(prompt: str) -> str` — the user typed a
+number or free text. We wanted Claude-Code-style arrow-key selection (↑/↓ to
+move, Enter to confirm, Space to toggle in multi-select) in the terminal UIs.
+Two forces constrained the design: (1) `ask_user` has six implementers
+(`StdUI`, the default full-screen `UI`, `MultiUI`, `SimpleUI`/web, the
+sub-agent delegate, and a base test stub) and is *also* used for tool-approval
+and sub-agent prompts — its `-> str` contract must not move; (2) the default UI
+is a single `full_screen=True` prompt-toolkit `Application`, and prompt-toolkit
+does not support running a nested `Application` (a `radiolist_dialog`) inside
+the running one — only one owns the terminal/event loop.
+
+**Decision.** Add one *optional* protocol method,
+`ask_user_choice(spec: ChoiceSpec) -> str`, alongside the unchanged `ask_user`.
+`BaseUI.ask_user_choice` provides a default that formats the spec as the same
+numbered text and delegates to `self.ask_user`, so every non-terminal
+implementer keeps working untouched; `tool/ask.py` routes through
+`ask_user_choice` (guarded by `hasattr` for UIs predating it). Terminal UIs
+override it: `StdUI` uses prompt-toolkit's `radiolist_dialog`/
+`checkboxlist_dialog` (it has no running `Application`); the default UI renders
+an in-layout `Float` driven by a new `SelectionMixin` — **not** a nested
+`Application`. To keep one serialization path, `ConfirmationMixin`'s queue was
+generalized from `(future, prompt)` to `(future, prompt, spec)`: a `None` spec
+renders as text (existing behavior), a `ChoiceSpec` renders the widget, and
+both share the single `_current_confirmation` active slot so a parallel
+sub-agent's text confirmation and a choice never contend for input. A synthetic
+"type my own answer" row drops to free-text via the existing input field; in
+multi-select the checked option labels are carried as a prefix and combined
+with the typed text.
+
+**Consequences.** Arrow-key selection in both terminal UIs with zero changes to
+web/`SimpleUI`/`MultiUI`/sub-agent paths (they inherit the text fallback). The
+`ChoiceSpec` is a plain `TypedDict` and the return stays a `str`, so
+`tool/ask.py`'s existing `_resolve_answer` (number→label) still applies and a
+widget that returns a label is idempotent through it. Costs: the delicate
+`ConfirmationMixin` ordering contract (render before marking pending, else the
+output buffer guard swallows the prompt) now also governs choice rendering; the
+default UI's app-level Enter/newline keybindings are gated by a
+`has_active_choice` filter so the widget's own bindings own those keys while a
+choice is shown; the free-text combine path overrides `_handle_confirmation` in
+`SelectionMixin` (ahead of `ConfirmationMixin` in the MRO).
+
+**Alternatives rejected.** Nested `radiolist_dialog` in the default UI (fights
+the running `Application` for the terminal — unsupported); overloading
+`ask_user` to accept structured input (breaks the `-> str` text contract relied
+on by tool-approval/sub-agent callers, and forces all six implementers to
+branch); a separate `_choice_queue` independent of the confirmation queue (two
+competing "active input" states could contend when a parallel sub-agent's
+approval prompt coincides with a choice); a single multi-question panel like
+Claude Code (higher effort and edge cases — questions render sequentially,
+reusing the existing per-question loop).
+
+**Evidence.** **[DOCUMENTED]** `ask_user_choice` + `ChoiceSpec` in
+`src/zrb/llm/tool_call/ui_protocol.py`; default fallback in
+`src/zrb/llm/ui/base/ui.py`; `src/zrb/llm/ui/default/selection_mixin.py`;
+generalized queue in `src/zrb/llm/ui/default/confirmation_mixin.py`;
+`StdUI.ask_user_choice` in `src/zrb/llm/ui/std_ui.py`; keybinding gating in
+`src/zrb/llm/ui/default/keybindings_mixin.py`; `tool/ask.py` routing. Tests:
+`test/llm/ui/default/test_selection_mixin.py`, `test/llm/ui/test_std_ui.py`,
+`test/llm/tool/test_ask.py`.

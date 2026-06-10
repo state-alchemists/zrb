@@ -25,6 +25,7 @@ from zrb.llm.ui.default.confirmation_mixin import ConfirmationMixin
 from zrb.llm.ui.default.keybindings_mixin import KeybindingsMixin
 from zrb.llm.ui.default.lifecycle_mixin import LifecycleMixin
 from zrb.llm.ui.default.output_mixin import OutputMixin
+from zrb.llm.ui.default.selection_mixin import SelectionMixin
 from zrb.util.ascii_art.banner import create_banner
 from zrb.util.cli.terminal import get_terminal_size
 
@@ -44,6 +45,7 @@ logger = logging.getLogger(__name__)
 class UI(
     LifecycleMixin,
     KeybindingsMixin,
+    SelectionMixin,
     ConfirmationMixin,
     OutputMixin,
     BaseUI,
@@ -172,6 +174,10 @@ class UI(
             full_greeting, output_lexer, key_bindings=custom_output_kb
         )
 
+        # AskUserQuestion selection widget (hidden until a choice is active).
+        self._init_selection_state()
+        choice_float = self._create_choice_float()
+
         self._layout = create_layout(
             title=self._assistant_name,
             jargon=self._jargon,
@@ -179,6 +185,7 @@ class UI(
             output_field=self._output_field,
             info_bar_text=self.get_info_bar_text,
             status_bar_text=self.get_status_bar_text,
+            extra_floats=[choice_float],
         )
 
         # lazy: heavy third-party
@@ -212,6 +219,29 @@ class UI(
     @property
     def application(self) -> "Application":
         return self._application
+
+    def _create_choice_float(self):
+        """Float hosting the AskUserQuestion widget, shown only when active."""
+        # lazy: heavy third-party
+        from prompt_toolkit.filters import Condition
+        from prompt_toolkit.layout.containers import ConditionalContainer, Float
+        from prompt_toolkit.widgets import Frame
+
+        framed = Frame(
+            self._choice_window,
+            title="Select an answer",
+            style="class:choice-frame",
+        )
+        # Full-width (left=right=0): a narrower float leaves side margins where the
+        # streaming output behind it bleeds through. Anchored just above the input.
+        return Float(
+            bottom=4,
+            left=0,
+            right=0,
+            content=ConditionalContainer(
+                content=framed, filter=Condition(self.has_active_choice)
+            ),
+        )
 
     def _create_application(
         self,

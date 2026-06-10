@@ -155,18 +155,21 @@ class StreamEventHandler:
                 self._was_tool_call_start = False
 
     def _handle_tool_call(self, event: "AgentStreamEvent"):
-        args = _get_truncated_event_part_args(event)
         if self._was_tool_call_delta and not self._show_tool_call_detail:
             self._print_fn("\r", "progress")
 
         tool_call_id = event.part.tool_call_id
+        tool_name = event.part.tool_name
         if tool_call_id not in self._printed_tool_ids:
             self._printed_tool_ids.add(tool_call_id)
-            self._fprint(
-                f"{self._event_prefix}🧰 {tool_call_id} | {event.part.tool_name} {args}\n",
-                preserve_leading_newline=True,
-                kind="tool_call",
-            )
+            # AskUserQuestion renders its (large) question/options payload in the
+            # interactive selection widget; echoing the raw args here is just noise.
+            if tool_name == "AskUserQuestion":
+                line = f"{self._event_prefix}🧰 {tool_call_id} | {tool_name}\n"
+            else:
+                args = _get_truncated_event_part_args(event)
+                line = f"{self._event_prefix}🧰 {tool_call_id} | {tool_name} {args}\n"
+            self._fprint(line, preserve_leading_newline=True, kind="tool_call")
         self._was_tool_call_delta = False
 
     def _handle_tool_result(self, event: "AgentStreamEvent"):

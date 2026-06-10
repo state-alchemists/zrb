@@ -104,3 +104,4 @@ deleting it — the history is the point.
 - **ADR-0061** — Config-positioned custom prompt sections (registered provider or markdown file)
 - **ADR-0062** — Intrinsic always-auto-approve for interaction tools (AskUserQuestion)
 - **ADR-0063** — Opt-in two-layer filesystem sandbox (Python FS gate + OS shell wrapper)
+- **ADR-0064** — Optional `ask_user_choice` protocol method with text fallback for arrow-key AskUserQuestion
