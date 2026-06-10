@@ -24,7 +24,11 @@ Zrb uses `pydantic-ai` to interface with a wide array of Large Language Models, 
 - [Interval & Delay Configuration](#14-interval--delay-configuration)
 - [Size & Limit Configuration](#15-size--limit-configuration)
 - [Retry Configuration](#16-retry-configuration)
-- [Pagination Configuration](#17-pagination-configuration)
+- [Slash Command Aliases](#17-slash-command-aliases)
+- [Pagination Configuration](#18-pagination-configuration)
+- [LSP Server Selection](#19-lsp-server-selection)
+- [TUI Color Styles](#20-tui-color-styles)
+- [Sandbox Configuration](#21-sandbox-configuration)
 
 ---
 
@@ -34,11 +38,12 @@ These variables define which LLM Zrb uses for its primary reasoning and how it c
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_MODEL` | Primary LLM model (`provider:model-name`) | `openai:gpt-4o` (if unset) |
+| `ZRB_LLM_MODEL` | Primary LLM model (`provider:model-name`) | `openai-chat:gpt-4o` (if unset) |
 | `ZRB_LLM_SMALL_MODEL` | Faster model for background tasks | Falls back to `ZRB_LLM_MODEL` |
-| `ZRB_LLM_MULTIMODAL_MODEL` | Model for multimodal tasks (image analysis) | Falls back to `ZRB_LLM_MODEL` |
+| `ZRB_LLM_MULTIMODAL_MODEL` | Model for multimodal tasks (image analysis) | `None` (no fallback) |
 | `ZRB_LLM_API_KEY` | API key for your LLM provider | None |
 | `ZRB_LLM_BASE_URL` | Custom endpoint URL | None |
+| `ZRB_LLM_PERMISSIONS` | Tool permission ruleset. Empty keeps legacy yolo behavior. Accepts a shorthand (`allow`/`ask`/`deny`) or a comma-separated `key:action` list (e.g. `edit:deny,Bash:ask,*:allow`). First match wins. | (empty) |
 
 ### Supported Providers
 
@@ -126,6 +131,16 @@ Zrb automatically triggers background summarization agents when conversation his
 | `ZRB_LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD` | Token count triggering individual message summarization | 50% of conversational threshold |
 | `ZRB_LLM_HISTORY_SUMMARIZATION_WINDOW` | Recent messages to keep verbatim | `100` |
 
+The same mechanism guards repository- and file-analysis tools so a single large
+read can't blow the context window. Each is clamped to a fraction of
+`MAX_TOKEN_PER_REQUEST`:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD` | Token count above which repo-analysis content is extracted in chunks | 40% of `MAX_TOKEN_PER_REQUEST` |
+| `ZRB_LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD` | Token count triggering summarization of repo-analysis results | 40% of `MAX_TOKEN_PER_REQUEST` |
+| `ZRB_LLM_FILE_ANALYSIS_TOKEN_THRESHOLD` | Token count above which a single file's analysis is summarized | 40% of `MAX_TOKEN_PER_REQUEST` |
+
 ---
 
 ## 4. System Prompts & Identity
@@ -136,7 +151,7 @@ You can heavily customize the LLM's behavior and identity by overriding its syst
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_ASSISTANT_NAME` | Display name for AI assistant | Root group name |
+| `ZRB_LLM_ASSISTANT_NAME` | Display name for AI assistant | `Zrb` |
 | `ZRB_LLM_ASSISTANT_JARGON` | Tagline or motto | Root group description |
 | `ZRB_LLM_ASSISTANT_ASCII_ART` | ASCII banner art name | `default` (built-in) |
 | `ZRB_ASCII_ART_DIR` | Directory for custom ASCII art files | `.zrb/ascii-art` |
@@ -198,6 +213,71 @@ export ZRB_LLM_INCLUDE_SECTIONS="persona,mandate"
 ```
 
 To toggle a single section programmatically, mutate `CFG.LLM_INCLUDE_SECTIONS` directly (it is a `list[str]`).
+
+The section names above are the **built-ins**. Any other name in the list resolves
+as a *custom* section — see [Programmatic Prompt Customization](#programmatic-prompt-customization) below.
+
+### Programmatic Prompt Customization
+
+Beyond editing prompt files and env vars, each task exposes its `PromptManager` via
+the public `task.prompt_manager` property. It offers three programmatic ways to shape
+the system prompt, in increasing power.
+
+**1. Append custom instructions** — `add_prompt()` (alias `append_prompt()`) adds
+content that is emitted **after** all built-in sections. Accepts a static string, a
+`Callable[[AnyContext], str]` for runtime-dynamic text, or a *full middleware*
+`Callable[[ctx, current_prompt, next], str]` that can rewrite the entire assembled
+prompt before passing it on (middleware is detected by arity — 3+ parameters):
+
+```python
+from zrb import LLMChatTask
+
+task = LLMChatTask(name="chat")
+
+# Static text
+task.prompt_manager.add_prompt("Always answer in British English.")
+
+# Dynamic text — receives the active context
+import datetime
+def date_note(ctx) -> str:
+    return f"Today's date is {datetime.date.today():%Y-%m-%d}."
+task.prompt_manager.add_prompt(date_note)
+
+# Full middleware — `current_prompt` is everything assembled so far
+def strip_blank_lines(ctx, current_prompt, nxt):
+    cleaned = "\n".join(line for line in current_prompt.splitlines() if line.strip())
+    return nxt(ctx, cleaned)
+task.prompt_manager.add_prompt(strip_blank_lines)
+```
+
+**2. Register a dynamic, positioned section** — `register_section(name, provider)`
+registers a `Callable[[AnyContext], str]` that is composed *at the position* its
+`name` occupies in `include_sections` (not pinned to the end like `add_prompt`). Use
+it for always-on content that must reflect live state. Return `""` to emit nothing:
+
+```python
+task.prompt_manager.register_section(
+    "company_context",
+    lambda ctx: f"Deploy target: {resolve_target()}",
+)
+task.prompt_manager.include_sections = [
+    "persona", "mandate", "company_context", "system_context", "tool_guidance",
+]
+```
+
+**3. File-backed custom section** — if a name in `include_sections` is neither a
+built-in nor a registered provider, it loads `<name>.md` through the same override
+hierarchy as built-in prompts (project dir → `ZRB_LLM_PROMPT_<NAME>` → base dir →
+package), with `{PLACEHOLDER}` substitution. No Python required:
+
+```bash
+# Loads company_context.md and places it after `mandate`.
+export ZRB_LLM_INCLUDE_SECTIONS="persona,mandate,company_context,tool_guidance,claude_skills"
+```
+
+> **Resolution precedence** for a section name is **built-in > registered provider >
+> markdown file**. A missing markdown file resolves to `""` (a harmless no-op — so a
+> misspelled name silently emits nothing). See ADR-0061 and AGENTS.md ("LLM Prompt System").
 
 ### Tool Guidance
 
@@ -369,7 +449,7 @@ No additional configuration needed.
 |----------|-------------|---------|
 | `ZRB_SEARXNG_PORT` | Port | `8080` |
 | `ZRB_SEARXNG_BASE_URL` | Base URL | `http://localhost:8080` |
-| `ZRB_SEARXNG_LANG` | Language | `en` |
+| `ZRB_SEARXNG_LANG` | Language | `en-US` |
 | `ZRB_SEARXNG_SAFE` | Safe search | `0` |
 
 ---
@@ -382,6 +462,7 @@ No additional configuration needed.
 | `ZRB_HOOKS_DIRS` | Additional hook directories (colon-separated) | (empty) |
 | `ZRB_HOOKS_TIMEOUT` | Default timeout for hook execution (ms) | `30000` |
 | `ZRB_HOOKS_LOG_LEVEL` | Logging level for hooks | `INFO` |
+| `ZRB_HOOKS_DEBUG` | Emit verbose hook diagnostics (matching, dispatch, results) | `off` |
 
 ---
 
@@ -476,6 +557,7 @@ All interval and delay values are in **milliseconds**.
 |----------|-------------|---------|
 | `ZRB_LLM_MAX_COMPLETION_FILES` | Maximum files scanned for path autocompletion | `5000` |
 | `ZRB_LLM_MAX_OUTPUT_CHARS` | Maximum characters returned by shell command and file read tools | `100000` |
+| `ZRB_LLM_MAX_TOOL_RESULT_CHARS` | Global backstop cap (characters) on every tool's model-facing result, applied after the tool runs. Catches outputs not already capped by a tool (Grep, AnalyzeCode, web, MCP). `0` disables it. | `100000` |
 | `ZRB_LLM_FILE_READ_LINES` | Lines to preserve at head and tail when truncating file reads | `1000` |
 | `ZRB_LLM_HISTORY_MAX_DISPLAY_CHARS` | Maximum characters shown by the `/history` command | `5000` |
 | `ZRB_LLM_HISTORY_TRUNCATE_LENGTH` | Maximum chars per field when formatting history entries | `100` |
@@ -499,12 +581,94 @@ All interval and delay values are in **milliseconds**.
 
 ---
 
-## 17. Pagination Configuration
+## 17. Slash Command Aliases
+
+These variables let you customize the slash tokens that trigger built-in UI commands.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_LLM_UI_COMMAND_PLAN_TOGGLE` | Slash command to toggle Plan Mode | `/plan` |
+
+All other slash commands (`/yolo`, `/exit`, `/save`, `/load`, etc.) share the same pattern — prefix `ZRB_LLM_UI_COMMAND_` + the uppercase command name, with a comma-separated list of alias tokens as the value.
+
+---
+
+## 18. Pagination Configuration
 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ZRB_WEB_SESSION_PAGE_SIZE` | Default page size for chat session listings | `20` |
 | `ZRB_WEB_API_PAGE_SIZE` | Default page size for generic API list endpoints | `20` |
 | `ZRB_WEB_TASK_SESSION_PAGE_SIZE` | Default page size for task session listings | `10` |
+
+---
+
+## 19. LSP Server Selection
+
+The LSP-backed code tools (`AnalyzeCode`, the `Lsp*` tools) auto-pick a language
+server for each file: your configured preference first, then the first *installed*
+server (command on `PATH`) whose config matches the file's extension.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_LLM_LSP_PREFERRED_SERVERS` | Ordered, comma-separated LSP server names the agent prefers when multiple installed servers match a file (e.g. `pyright,gopls`). Names not matching a file are skipped, so one flat list can cover several languages. | (empty) |
+
+```bash
+export ZRB_LLM_LSP_PREFERRED_SERVERS="pyright,gopls"
+```
+
+```python
+from zrb import CFG
+CFG.LLM_LSP_PREFERRED_SERVERS = ["pyright", "gopls"]
+```
+
+Empty (default) keeps the previous installation/registry-order behavior. See
+[LSP Support](../advanced-topics/lsp-support.md) for the full selection rules and a
+per-call programmatic override.
+
+---
+
+## 20. TUI Color Styles
+
+These variables override the colors used by the interactive `zrb llm chat` terminal
+UI. Each value is a [prompt_toolkit style string](https://python-prompt-toolkit.readthedocs.io/en/master/pages/advanced_topics/styling.html)
+— a hex color (`#ffcc00`), an ANSI name (`ansigreen`, `ansiyellow`), and/or
+attributes like `bold`. The special value `noinherit` resets to terminal defaults.
+
+| Variable | Styles | Default |
+|----------|--------|---------|
+| `ZRB_LLM_UI_STYLE_TITLE_BAR` | Top title bar | `#ffffff` |
+| `ZRB_LLM_UI_STYLE_INFO_BAR` | Info/header bar | `#ffffff` |
+| `ZRB_LLM_UI_STYLE_FRAME` | Frame borders | `#888888` |
+| `ZRB_LLM_UI_STYLE_FRAME_LABEL` | Frame labels | `#ffff00` |
+| `ZRB_LLM_UI_STYLE_INPUT_FRAME` | Input box border | `#888888` |
+| `ZRB_LLM_UI_STYLE_THINKING` | "Thinking…" indicator | `ansigreen` |
+| `ZRB_LLM_UI_STYLE_CONFIRMATION` | Tool-confirmation prompt | `ansiyellow` |
+| `ZRB_LLM_UI_STYLE_FAINT` | De-emphasized text | `#888888` |
+| `ZRB_LLM_UI_STYLE_OUTPUT_FIELD` | Output area text | `#eeeeee` |
+| `ZRB_LLM_UI_STYLE_INPUT_FIELD` | Input area text | `#eeeeee` |
+| `ZRB_LLM_UI_STYLE_TEXT` | General body text | `#eeeeee` |
+| `ZRB_LLM_UI_STYLE_STATUS` | Status bar text | `ansiwhite` |
+| `ZRB_LLM_UI_STYLE_BOTTOM_TOOLBAR` | Bottom toolbar | `noinherit` |
+
+> Assistant identity (`ZRB_LLM_ASSISTANT_NAME`, `ZRB_LLM_ASSISTANT_ASCII_ART`,
+> `ZRB_LLM_ASSISTANT_JARGON`) is covered in [System Prompts & Identity](#4-system-prompts--identity).
+
+---
+
+## 21. Sandbox Configuration
+
+Opt-in filesystem containment for LLM tool calls — see
+[Sandbox](../advanced-topics/sandbox.md) for the full model (two enforcement
+layers, platform matrix, escape hatch).
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_LLM_SANDBOX_ENABLED` | Master switch for the sandbox (Python FS gate + OS shell wrapper). | `false` |
+| `ZRB_LLM_SANDBOX_OS_SHELL` | `auto` wraps shell commands with `sandbox-exec` (macOS) / `bwrap` (Linux); `off` keeps only the Python FS gate. | `auto` |
+| `ZRB_LLM_SANDBOX_WRITABLE_PATHS` | Colon-separated writable roots. Empty = automatic (cwd + system temp dir). | (empty) |
+| `ZRB_LLM_SANDBOX_DENY_READ_PATHS` | Colon-separated never-read paths (credential stores). Setting it replaces the built-in default list. | built-in list |
+| `ZRB_LLM_SANDBOX_FALLBACK` | `warn` runs unsandboxed with a visible warning when no OS mechanism exists (Windows, Linux without bwrap); `deny` refuses. | `warn` |
+| `ZRB_LLM_SANDBOX_ALLOW_ESCAPE` | Whether the `dangerously_skip_sandbox` tool argument is honored. Set `false` for CI / non-interactive deployments. | `true` |
 
 ---

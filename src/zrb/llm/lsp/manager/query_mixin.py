@@ -316,23 +316,49 @@ class QueryMixin:
                 file_path, line, character, new_name, dry_run=dry_run
             )
             if result:
-                changes = result.get("documentChanges") or result.get("changes", {})
+                changes = result.get("changes") or {}
                 total_edits = 0
                 files_affected = []
 
+                # Count edits from both `changes` (uri -> [TextEdit]) and the
+                # newer `documentChanges` (list of TextDocumentEdit) shapes.
                 for uri, edits in changes.items():
                     if isinstance(edits, list):
                         total_edits += len(edits)
                         files_affected.append(uri_to_path(uri))
+                for doc_edit in result.get("documentChanges") or []:
+                    if not isinstance(doc_edit, dict):
+                        continue
+                    edits = doc_edit.get("edits")
+                    uri = (doc_edit.get("textDocument") or {}).get("uri")
+                    if uri and isinstance(edits, list):
+                        total_edits += len(edits)
+                        files_affected.append(uri_to_path(uri))
 
+                if dry_run:
+                    return {
+                        "success": True,
+                        "symbol": symbol_name,
+                        "new_name": new_name,
+                        "dry_run": True,
+                        "files_affected": len(files_affected),
+                        "total_edits": total_edits,
+                        "changes": changes or result.get("documentChanges"),
+                    }
+
+                # Non-dry-run: trust the server's `applied` flag rather than
+                # claiming success unconditionally. If edits were returned but
+                # not written, report that honestly so callers don't believe a
+                # write happened when nothing changed on disk.
+                applied = result.get("applied", False)
                 return {
-                    "success": True,
+                    "success": bool(applied),
                     "symbol": symbol_name,
                     "new_name": new_name,
-                    "dry_run": dry_run,
+                    "dry_run": False,
                     "files_affected": len(files_affected),
                     "total_edits": total_edits,
-                    "changes": changes if dry_run else "Applied",
+                    "changes": "Applied" if applied else "not_applied",
                 }
         except Exception:
             pass

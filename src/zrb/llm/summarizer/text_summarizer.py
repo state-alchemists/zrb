@@ -1,9 +1,40 @@
+import asyncio
 import re
 from typing import Any
 
+from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
+from zrb.llm.agent.run.error_classifier import (
+    get_retry_wait,
+    is_retryable_error,
+)
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.util.cli.style import stylize_error
+
+
+async def _run_agent_with_retry(agent: Any, text: str) -> Any:
+    """Run ``agent.run(text)`` with retry for transient API errors (5xx, 429)."""
+    max_retries = CFG.LLM_API_MAX_RETRIES
+    max_wait = CFG.LLM_API_MAX_WAIT
+    last_error = None
+    for attempt in range(max_retries + 1):
+        try:
+            return await agent.run(text)
+        except Exception as e:
+            last_error = e
+            if attempt < max_retries and is_retryable_error(e):
+                wait = get_retry_wait(e, attempt + 1, max_wait)
+                zrb_print(
+                    stylize_error(
+                        f"  Retrying summarization after {wait:.0f}s"
+                        f" (attempt {attempt + 1}/{max_retries})..."
+                    ),
+                    plain=True,
+                )
+                await asyncio.sleep(wait)
+            else:
+                raise
+    raise last_error
 
 
 async def summarize_text_plain(
@@ -29,7 +60,7 @@ async def summarize_short_text(
     text: str, agent: Any, limiter: LLMLimiter, threshold: int
 ) -> str:
     try:
-        result = await agent.run(text)
+        result = await _run_agent_with_retry(agent, text)
         summary = getattr(result, "output", "")
         if not isinstance(summary, str):
             summary = str(summary) if summary is not None else ""
@@ -58,7 +89,9 @@ async def summarize_long_text(
     while remaining_text:
         chunk = limiter.truncate_text(remaining_text, chunk_limit)
         try:
-            result = await agent.run(f"Summarize this part of a document:\n\n{chunk}")
+            result = await _run_agent_with_retry(
+                agent, f"Summarize this part of a document:\n\n{chunk}"
+            )
             chunk_summary = getattr(result, "output", "")
             if not isinstance(chunk_summary, str):
                 chunk_summary = str(chunk_summary) if chunk_summary is not None else ""
@@ -96,7 +129,7 @@ async def summarize_long_text(
                     "Consolidate these partial summaries into a single, cohesive summary:\n\n"
                     f"{summaries_text}"
                 )
-                consolidated = await agent.run(prompt)
+                consolidated = await _run_agent_with_retry(agent, prompt)
                 final_summary = getattr(consolidated, "output", "")
                 if not isinstance(final_summary, str):
                     final_summary = (
@@ -122,7 +155,7 @@ async def summarize_text(text: str, agent: Any, partial: bool = False) -> str:
     )
 
     try:
-        result = await agent.run(f"{prompt_prefix}{text}")
+        result = await _run_agent_with_retry(agent, f"{prompt_prefix}{text}")
         output = getattr(result, "output", "")
         if not isinstance(output, str):
             output = str(output) if output is not None else ""

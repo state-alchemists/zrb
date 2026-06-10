@@ -3,15 +3,23 @@
 from __future__ import annotations
 
 import os
+from typing import TYPE_CHECKING, Protocol
 
+from zrb.config.env_field import EnvField
 from zrb.config.helper import get_env
+
+if TYPE_CHECKING:
+
+    class _LLMUIStylesHost(Protocol):
+        """Attributes this mixin expects from the composed Config class."""
+
+        ENV_PREFIX: str
+        ROOT_GROUP_NAME: str
+        ROOT_GROUP_DESCRIPTION: str
 
 
 class LLMUIStylesMixin:
-    ENV_PREFIX: str
-    ROOT_GROUP_NAME: str
-
-    def __init__(self):
+    def __init__(self) -> None:
         self.DEFAULT_LLM_ASSISTANT_NAME: str = "Zrb"
         self.DEFAULT_LLM_ASSISTANT_ASCII_ART: str = "default"
         self.DEFAULT_LLM_ASSISTANT_JARGON: str = ""
@@ -33,8 +41,10 @@ class LLMUIStylesMixin:
         self.DEFAULT_LLM_UI_STYLE_BOTTOM_TOOLBAR: str = "noinherit"
         super().__init__()
 
+    # Hand-written: falls back to ROOT_GROUP_NAME and capitalizes the first
+    # letter (preserving the rest), which EnvField's plain read cannot express.
     @property
-    def LLM_ASSISTANT_NAME(self) -> str:
+    def LLM_ASSISTANT_NAME(self: _LLMUIStylesHost) -> str:
         default = self.DEFAULT_LLM_ASSISTANT_NAME
         if default == "":
             default = self.ROOT_GROUP_NAME
@@ -44,172 +54,40 @@ class LLMUIStylesMixin:
         return raw[0].upper() + raw[1:] if raw else raw
 
     @LLM_ASSISTANT_NAME.setter
-    def LLM_ASSISTANT_NAME(self, value: str):
+    def LLM_ASSISTANT_NAME(self: _LLMUIStylesHost, value: str) -> None:
         os.environ[f"{self.ENV_PREFIX}_LLM_ASSISTANT_NAME"] = value
 
-    @property
-    def LLM_ASSISTANT_ASCII_ART(self) -> str:
-        return get_env(
-            "LLM_ASSISTANT_ASCII_ART",
-            self.DEFAULT_LLM_ASSISTANT_ASCII_ART,
-            self.ENV_PREFIX,
-        )
+    LLM_ASSISTANT_ASCII_ART = EnvField(str)
 
-    @LLM_ASSISTANT_ASCII_ART.setter
-    def LLM_ASSISTANT_ASCII_ART(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_LLM_ASSISTANT_ASCII_ART"] = value
+    LLM_ASSISTANT_JARGON = EnvField(
+        str,
+        default_factory=lambda cfg: (
+            cfg.DEFAULT_LLM_ASSISTANT_JARGON or cfg.ROOT_GROUP_DESCRIPTION
+        ),
+    )
 
-    @property
-    def LLM_ASSISTANT_JARGON(self) -> str:
-        default = self.DEFAULT_LLM_ASSISTANT_JARGON
-        if default == "":
-            default = self.ROOT_GROUP_DESCRIPTION
-        return get_env("LLM_ASSISTANT_JARGON", default, self.ENV_PREFIX)
+    LLM_UI_STYLE_TITLE_BAR = EnvField(str)
 
-    @LLM_ASSISTANT_JARGON.setter
-    def LLM_ASSISTANT_JARGON(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_LLM_ASSISTANT_JARGON"] = value
+    LLM_UI_STYLE_INFO_BAR = EnvField(str)
 
-    @property
-    def LLM_UI_STYLE_TITLE_BAR(self) -> str:
-        return get_env(
-            "LLM_UI_STYLE_TITLE_BAR",
-            self.DEFAULT_LLM_UI_STYLE_TITLE_BAR,
-            self.ENV_PREFIX,
-        )
+    LLM_UI_STYLE_FRAME = EnvField(str)
 
-    @LLM_UI_STYLE_TITLE_BAR.setter
-    def LLM_UI_STYLE_TITLE_BAR(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_LLM_UI_STYLE_TITLE_BAR"] = value
+    LLM_UI_STYLE_FRAME_LABEL = EnvField(str)
 
-    @property
-    def LLM_UI_STYLE_INFO_BAR(self) -> str:
-        return get_env(
-            "LLM_UI_STYLE_INFO_BAR", self.DEFAULT_LLM_UI_STYLE_INFO_BAR, self.ENV_PREFIX
-        )
+    LLM_UI_STYLE_INPUT_FRAME = EnvField(str)
 
-    @LLM_UI_STYLE_INFO_BAR.setter
-    def LLM_UI_STYLE_INFO_BAR(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_LLM_UI_STYLE_INFO_BAR"] = value
+    LLM_UI_STYLE_THINKING = EnvField(str)
 
-    @property
-    def LLM_UI_STYLE_FRAME(self) -> str:
-        return get_env(
-            "LLM_UI_STYLE_FRAME", self.DEFAULT_LLM_UI_STYLE_FRAME, self.ENV_PREFIX
-        )
+    LLM_UI_STYLE_CONFIRMATION = EnvField(str)
 
-    @LLM_UI_STYLE_FRAME.setter
-    def LLM_UI_STYLE_FRAME(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_LLM_UI_STYLE_FRAME"] = value
+    LLM_UI_STYLE_FAINT = EnvField(str)
 
-    @property
-    def LLM_UI_STYLE_FRAME_LABEL(self) -> str:
-        return get_env(
-            "LLM_UI_STYLE_FRAME_LABEL",
-            self.DEFAULT_LLM_UI_STYLE_FRAME_LABEL,
-            self.ENV_PREFIX,
-        )
+    LLM_UI_STYLE_OUTPUT_FIELD = EnvField(str)
 
-    @LLM_UI_STYLE_FRAME_LABEL.setter
-    def LLM_UI_STYLE_FRAME_LABEL(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_LLM_UI_STYLE_FRAME_LABEL"] = value
+    LLM_UI_STYLE_INPUT_FIELD = EnvField(str)
 
-    @property
-    def LLM_UI_STYLE_INPUT_FRAME(self) -> str:
-        return get_env(
-            "LLM_UI_STYLE_INPUT_FRAME",
-            self.DEFAULT_LLM_UI_STYLE_INPUT_FRAME,
-            self.ENV_PREFIX,
-        )
+    LLM_UI_STYLE_TEXT = EnvField(str)
 
-    @LLM_UI_STYLE_INPUT_FRAME.setter
-    def LLM_UI_STYLE_INPUT_FRAME(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_LLM_UI_STYLE_INPUT_FRAME"] = value
+    LLM_UI_STYLE_STATUS = EnvField(str)
 
-    @property
-    def LLM_UI_STYLE_THINKING(self) -> str:
-        return get_env(
-            "LLM_UI_STYLE_THINKING", self.DEFAULT_LLM_UI_STYLE_THINKING, self.ENV_PREFIX
-        )
-
-    @LLM_UI_STYLE_THINKING.setter
-    def LLM_UI_STYLE_THINKING(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_LLM_UI_STYLE_THINKING"] = value
-
-    @property
-    def LLM_UI_STYLE_CONFIRMATION(self) -> str:
-        return get_env(
-            "LLM_UI_STYLE_CONFIRMATION",
-            self.DEFAULT_LLM_UI_STYLE_CONFIRMATION,
-            self.ENV_PREFIX,
-        )
-
-    @LLM_UI_STYLE_CONFIRMATION.setter
-    def LLM_UI_STYLE_CONFIRMATION(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_LLM_UI_STYLE_CONFIRMATION"] = value
-
-    @property
-    def LLM_UI_STYLE_FAINT(self) -> str:
-        return get_env(
-            "LLM_UI_STYLE_FAINT", self.DEFAULT_LLM_UI_STYLE_FAINT, self.ENV_PREFIX
-        )
-
-    @LLM_UI_STYLE_FAINT.setter
-    def LLM_UI_STYLE_FAINT(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_LLM_UI_STYLE_FAINT"] = value
-
-    @property
-    def LLM_UI_STYLE_OUTPUT_FIELD(self) -> str:
-        return get_env(
-            "LLM_UI_STYLE_OUTPUT_FIELD",
-            self.DEFAULT_LLM_UI_STYLE_OUTPUT_FIELD,
-            self.ENV_PREFIX,
-        )
-
-    @LLM_UI_STYLE_OUTPUT_FIELD.setter
-    def LLM_UI_STYLE_OUTPUT_FIELD(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_LLM_UI_STYLE_OUTPUT_FIELD"] = value
-
-    @property
-    def LLM_UI_STYLE_INPUT_FIELD(self) -> str:
-        return get_env(
-            "LLM_UI_STYLE_INPUT_FIELD",
-            self.DEFAULT_LLM_UI_STYLE_INPUT_FIELD,
-            self.ENV_PREFIX,
-        )
-
-    @LLM_UI_STYLE_INPUT_FIELD.setter
-    def LLM_UI_STYLE_INPUT_FIELD(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_LLM_UI_STYLE_INPUT_FIELD"] = value
-
-    @property
-    def LLM_UI_STYLE_TEXT(self) -> str:
-        return get_env(
-            "LLM_UI_STYLE_TEXT", self.DEFAULT_LLM_UI_STYLE_TEXT, self.ENV_PREFIX
-        )
-
-    @LLM_UI_STYLE_TEXT.setter
-    def LLM_UI_STYLE_TEXT(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_LLM_UI_STYLE_TEXT"] = value
-
-    @property
-    def LLM_UI_STYLE_STATUS(self) -> str:
-        return get_env(
-            "LLM_UI_STYLE_STATUS", self.DEFAULT_LLM_UI_STYLE_STATUS, self.ENV_PREFIX
-        )
-
-    @LLM_UI_STYLE_STATUS.setter
-    def LLM_UI_STYLE_STATUS(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_LLM_UI_STYLE_STATUS"] = value
-
-    @property
-    def LLM_UI_STYLE_BOTTOM_TOOLBAR(self) -> str:
-        return get_env(
-            "LLM_UI_STYLE_BOTTOM_TOOLBAR",
-            self.DEFAULT_LLM_UI_STYLE_BOTTOM_TOOLBAR,
-            self.ENV_PREFIX,
-        )
-
-    @LLM_UI_STYLE_BOTTOM_TOOLBAR.setter
-    def LLM_UI_STYLE_BOTTOM_TOOLBAR(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_LLM_UI_STYLE_BOTTOM_TOOLBAR"] = value
+    LLM_UI_STYLE_BOTTOM_TOOLBAR = EnvField(str)

@@ -44,6 +44,9 @@ class BufferedOutputMixin:
         )
         self._flush_task: asyncio.Task | None = None
         self._flush_lock = asyncio.Lock()
+        # Retained references to fire-and-forget flush tasks so they are not
+        # garbage-collected mid-flush (asyncio only holds weak references).
+        self._pending_flushes: set[asyncio.Task] = set()
 
     @property
     def buffer(self) -> list[str]:
@@ -61,7 +64,17 @@ class BufferedOutputMixin:
         return self._flush_task is not None
 
     async def start_flush_loop(self):
-        """Start the periodic flush task. Call this in run_async()."""
+        """Start the periodic flush task. Call this in run_async().
+
+        Cancels any existing flush loop first so a second call does not orphan
+        the prior task (which would keep running and double-flush).
+        """
+        if self._flush_task is not None:
+            self._flush_task.cancel()
+            try:
+                await self._flush_task
+            except asyncio.CancelledError:
+                pass
         self._flush_task = asyncio.create_task(self._flush_loop())
 
     async def stop_flush_loop(self):
@@ -72,6 +85,7 @@ class BufferedOutputMixin:
                 await self._flush_task
             except asyncio.CancelledError:
                 pass
+            self._flush_task = None
         await self._flush_buffer()
 
     def buffer_output(self, text: str):
@@ -114,10 +128,14 @@ class BufferedOutputMixin:
 
         self._buffer.append(text)
 
-        # Auto-flush when buffer is large
+        # Auto-flush when buffer is large. Retain the task reference (asyncio
+        # only keeps a weak reference) so it cannot be GC'd mid-flush; the
+        # done-callback clears it once complete.
         total_size = sum(len(s) for s in self._buffer)
         if total_size > self._max_buffer_size:
-            asyncio.create_task(self._flush_buffer())
+            task = asyncio.create_task(self._flush_buffer())
+            self._pending_flushes.add(task)
+            task.add_done_callback(self._pending_flushes.discard)
 
     async def _flush_buffer(self):
         """Send buffered content to user."""

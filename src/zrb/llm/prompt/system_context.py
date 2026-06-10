@@ -1,15 +1,14 @@
 """System-context middleware: runs once per prompt build.
 
 Beyond rendering environment facts (OS, cwd, git status, project type, tool
-availability), this module performs three auto-injections that bridge prompt
+availability), this module performs four auto-injections that bridge prompt
 assembly to ambient runtime state:
 
 1. **Session wiring** — reads ``ctx.input.session`` and calls
    ``set_current_tool_session()`` (``zrb.llm.tool.ambient_state``). The
-   resulting ``ContextVar`` is what the four todo tools (``WriteTodos``,
-   ``GetTodos``, ``UpdateTodo``, ``ClearTodos``) read when called without an
-   explicit ``session=`` argument, so they always target the active
-   conversation.
+   resulting ``ContextVar`` is what the todo tools (``WriteTodos``,
+   ``GetTodos``) read when called without an explicit ``session=`` argument,
+   so they always target the active conversation.
 
 2. **Active worktree** — if ``EnterWorktree`` was called, the path is rendered
    as ``- Active worktree: <path>`` in every subsequent system prompt and
@@ -238,8 +237,11 @@ def system_context(
         parts.append(f"- Project: {', '.join(found_markers)}")
     if active_wt:
         parts.append(
-            f"- Active worktree: {active_wt} (pass as cwd to Bash; use absolute paths for Read/Write/Edit/Grep)"
+            f"- Active worktree: {active_wt} (pass as cwd to Shell/Bash; use absolute paths for Read/Write/Edit/Grep)"
         )
+    mode_line = _format_mode_line()
+    if mode_line:
+        parts.append(mode_line)
     if interactive_bool:
         parts.append("- Interactive: yes (AskUserQuestion is available)")
     else:
@@ -255,6 +257,23 @@ def system_context(
 
     context_block = "# System Context\n" + "\n".join(parts)
     return next_handler(ctx, f"{current_prompt}\n\n{context_block}")
+
+
+def _format_mode_line() -> str | None:
+    """Render the agent-mode line, or None in the default mode.
+
+    Only emits when a non-default mode (e.g. PLAN) is active, so the section is
+    byte-identical to before unless plan mode is explicitly entered.
+    """
+    # lazy: permission is a leaf module.
+    from zrb.llm.permission.state import AgentMode, get_current_agent_mode
+
+    if get_current_agent_mode() != AgentMode.PLAN:
+        return None
+    return (
+        "- Active mode: PLAN (read-only — edits, shell, and delegation are "
+        "blocked). Investigate, then call ExitPlanMode with your plan to resume."
+    )
 
 
 def _format_model_line(model: "Any") -> str | None:

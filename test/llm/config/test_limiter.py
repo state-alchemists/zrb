@@ -1,11 +1,36 @@
 import asyncio
 import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 from pydantic_ai.messages import ModelRequest, UserPromptPart
 
 from zrb.llm.config.limiter import LLMLimiter, is_turn_start
+
+
+@pytest.mark.asyncio
+async def test_count_tokens_falls_back_when_tiktoken_raises_non_import_error():
+    """A tiktoken failure that is NOT ImportError (bad encoding name,
+    corrupt/unfetchable BPE cache) must degrade to the char/4 approximation
+    rather than propagating and crashing the history pipeline."""
+    limiter = LLMLimiter()
+    with patch.object(
+        LLMLimiter, "use_tiktoken", new_callable=PropertyMock, return_value=True
+    ), patch("tiktoken.get_encoding", side_effect=ValueError("unknown encoding")):
+        # Must not raise; falls back to len(text) // 4.
+        assert limiter.count_tokens("A" * 40) == 10
+
+
+@pytest.mark.asyncio
+async def test_truncate_text_falls_back_when_tiktoken_raises_non_import_error():
+    """B1 companion: truncate_text already tolerated broad failures; confirm it
+    still degrades gracefully (no crash) on a non-ImportError."""
+    limiter = LLMLimiter()
+    with patch.object(
+        LLMLimiter, "use_tiktoken", new_callable=PropertyMock, return_value=True
+    ), patch("tiktoken.get_encoding", side_effect=ValueError("unknown encoding")):
+        truncated = limiter.truncate_text("A" * 40, 5)
+        assert truncated == "A" * 20  # char/4 fallback: 5 tokens * 4 chars
 
 
 @pytest.mark.asyncio
@@ -59,6 +84,34 @@ async def test_llm_limiter_acquire():
     notifier = MagicMock()
     await limiter.acquire("Short message", notifier=notifier)
     assert not notifier.called
+
+
+@pytest.mark.asyncio
+async def test_llm_limiter_zero_request_limit_blocks_first_request():
+    """B10: a request budget of 0 must block even the very first request.
+
+    Previously the empty-log guard let the first request through. ``acquire``
+    should now loop indefinitely, so ``wait_for`` must time out.
+    """
+    limiter = LLMLimiter()
+    limiter.max_request_per_minute = 0
+    limiter.max_token_per_minute = 1000
+    limiter.throttle_check_interval = 0.01
+
+    with pytest.raises(asyncio.TimeoutError):
+        await asyncio.wait_for(limiter.acquire("hello"), timeout=0.1)
+
+
+@pytest.mark.asyncio
+async def test_llm_limiter_zero_token_limit_blocks_positive_tokens():
+    """B10: a token budget of 0 must reject any request that needs tokens."""
+    limiter = LLMLimiter()
+    limiter.max_request_per_minute = 100
+    limiter.max_token_per_minute = 0
+    limiter.throttle_check_interval = 0.01
+
+    with pytest.raises(asyncio.TimeoutError):
+        await asyncio.wait_for(limiter.acquire("hello world"), timeout=0.1)
 
 
 def test_llm_limiter_properties():

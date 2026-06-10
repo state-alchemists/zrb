@@ -32,6 +32,12 @@ class ChatSessionManager:
         self._sessions: dict[str, ChatSession] = {}
         self._history_manager = FileHistoryManager(history_dir=CFG.LLM_HISTORY_DIR)
         self._init_coros: list[asyncio.Task] = []
+        # Serializes drives of the single shared LLMChatTask. Multiple SSE sessions
+        # share one task instance whose ui_factories/approval_channels/history_manager
+        # are read at run time; without this, a second session's config would clobber
+        # an in-flight run. Held per message (not per session) so sessions still
+        # coexist — they just don't drive the shared task simultaneously.
+        self._task_lock = asyncio.Lock()
 
     @classmethod
     async def get_instance(cls) -> "ChatSessionManager":
@@ -46,6 +52,11 @@ class ChatSessionManager:
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance
+
+    @property
+    def task_lock(self) -> asyncio.Lock:
+        """Lock serializing drives of the shared LLMChatTask (see __init__)."""
+        return self._task_lock
 
     @property
     def history_manager(self) -> FileHistoryManager:

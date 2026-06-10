@@ -54,8 +54,8 @@ zrb capture
 | `cmd` | Command to run |
 | `cwd` | Working directory |
 | `env` | Environment variables |
-| `retry` | Number of retries on failure |
-| `retry_interval` | Seconds between retries |
+| `retries` | Number of retries on failure |
+| `retry_period` | Seconds between retries |
 
 ## Example: Git Status
 

@@ -174,7 +174,7 @@ Ask the assistant to use LSP:
 Where is the LSPManager class defined?
 
 # Show file structure
-Show me all symbols in src/zrb/llm/lsp/manager.py
+Show me all symbols in src/zrb/llm/lsp/manager/manager.py
 
 # Get diagnostics
 Are there any errors in server.py?
@@ -307,15 +307,47 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"rootUri":"file://
 
 **Symptom:** Wrong LSP server is used for a file.
 
-**Solution:** Set preferred servers in your code:
+**How selection works.** When the agent uses an LSP tool, the manager picks a server
+for the file in this order:
+
+1. **Your configured preference** — `ZRB_LLM_LSP_PREFERRED_SERVERS` (see below), tried
+   in order; names that don't match the file's language are skipped.
+2. **First *installed* server matching the file's extension**, in the order the servers
+   are declared in the built-in registry (`LSP_SERVER_CONFIGS` in
+   `src/zrb/llm/lsp/configs.py`).
+
+"Installed" means the server's command is on `PATH` (`detect_available_lsp_servers()`
+uses `shutil.which`).
+
+**Solution — set `ZRB_LLM_LSP_PREFERRED_SERVERS`.** A comma-separated, ordered list of
+server names the agent should prefer. It applies to the agent's LSP tools (and any
+other caller) without code changes:
+
+```bash
+# Prefer pyright over pylsp for Python; gopls is used for Go (non-matching names skip)
+export ZRB_LLM_LSP_PREFERRED_SERVERS="pyright,gopls"
+```
+
+```python
+# or programmatically
+from zrb import CFG
+CFG.LLM_LSP_PREFERRED_SERVERS = ["pyright", "gopls"]
+```
+
+Names that don't match a given file are ignored, so one flat list can cover several
+languages. Anything not listed falls back to installation/registry order. Installing
+only the server you want for a language still works as a coarser lever.
+
+**Per-call override (programmatic callers).** A direct `get_server` call may pass an
+explicit list, which overrides both the env var and the default ordering:
 
 ```python
 from zrb.llm.lsp.manager import lsp_manager
 
-# Prefer pyright over pylsp for Python
-lsp_manager.PREFERRED_SERVERS = {
-    '.py': ['pyright', 'pylsp', 'jedi-language-server'],
-}
+server = await lsp_manager.get_server(
+    "src/zrb/example.py",
+    preferred_servers=["pyright", "pylsp", "jedi-language-server"],
+)
 ```
 
 ---

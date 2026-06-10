@@ -54,10 +54,46 @@ def test_content_transformer_match_fnmatch():
         match="*.txt",
         transform={"old": "new"},
     )
-    # Pattern without path separator should use fnmatch
-    result = transformer.match(ctx, "/path/to/file.txt")
-    # The fnmatch path logic is internal, check it doesn't crash
-    assert isinstance(result, bool)
+    # Pattern without path separator should match against the basename.
+    assert transformer.match(ctx, "/path/to/file.txt") is True
+
+
+def test_content_transformer_match_fnmatch_respects_pattern():
+    """A glob pattern must only match files it actually describes."""
+    ctx = MagicMock(spec=AnyContext)
+    transformer = ContentTransformer(
+        name="test",
+        match="*.txt",
+        transform={"old": "new"},
+    )
+    # A .py file must NOT match a *.txt transformer (the old bug matched everything).
+    assert transformer.match(ctx, "/path/to/file.py") is False
+    assert transformer.match(ctx, "notes.txt") is True
+
+
+def test_content_transformer_match_path_glob():
+    """A pattern carrying a path separator matches the full path via fnmatch."""
+    ctx = MagicMock(spec=AnyContext)
+    transformer = ContentTransformer(
+        name="test",
+        match="src/*.py",
+        transform={"old": "new"},
+    )
+    assert transformer.match(ctx, "src/main.py") is True
+    assert transformer.match(ctx, "test/main.py") is False
+
+
+def test_content_transformer_match_multiple_patterns():
+    """All configured patterns are considered, not just the first."""
+    ctx = MagicMock(spec=AnyContext)
+    transformer = ContentTransformer(
+        name="test",
+        match=["*.md", "*.rst"],
+        transform={"old": "new"},
+    )
+    assert transformer.match(ctx, "readme.md") is True
+    assert transformer.match(ctx, "readme.rst") is True
+    assert transformer.match(ctx, "readme.txt") is False
 
 
 def test_content_transformer_transform_file_dict():

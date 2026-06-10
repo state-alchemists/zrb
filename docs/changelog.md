@@ -1,187 +1,117 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.34.0 (June 10, 2026)
 
-## 2.31.0 (May 29, 2026)
+- **Feature: arrow-key selection UI for AskUserQuestion**:
+  - The default full-screen chat UI and `StdUI` now render `AskUserQuestion` as an interactive, arrow-key-selectable list (↑/↓ to move, Enter to confirm) instead of requiring the user to type an option number. Multi-select questions use Space to toggle; a synthetic "✎ Type my own answer…" row drops to free-text, and in multi-select the typed text is appended to the already-checked options.
+  - New optional `UIProtocol.ask_user_choice(spec: ChoiceSpec)` method (`tool_call/ui_protocol.py`). `BaseUI.ask_user_choice` provides a default that formats the spec as numbered text and delegates to `ask_user`, so the web/`SimpleUI`/`MultiUI`/sub-agent paths keep the existing type-a-number behavior unchanged.
+  - Default UI: new `SelectionMixin` (`ui/default/selection_mixin.py`) renders the widget as an in-layout `Float` (no nested prompt-toolkit `Application`); `ConfirmationMixin`'s queue was generalized to `(future, prompt, spec)` so text confirmations and choices share one serialization path. `tool/ask.py` builds a `ChoiceSpec` per question and routes through `ask_user_choice` (falling back to `ask_user` for UIs that predate it).
+  - Presentation: the streamed `🧰` tool-call line suppresses `AskUserQuestion`'s (large) args payload (`util/stream_response.py`) since the widget renders it; the float is full-width with an opaque panel background and a highlight bar on the cursor row (`app/style.py`) so the streaming output behind it no longer bleeds through; the question is echoed into scrollback with its answer only on resolve (no duplicate while the widget is open).
+  - Tests: `test/llm/ui/default/test_selection_mixin.py`, plus extended `test/llm/ui/test_std_ui.py`, `test/llm/tool/test_ask.py`, and `test/llm/util/test_stream_response.py`.
 
-- **Feature: Command lifecycle hooks (`PreCommand` / `PostCommand`)**:
-  - Two new `HookEvent` members (`hook/types.py`) fire in the interactive chat TUI when the user runs a command. `PreCommand` fires before the command runs and **can block it** (exit code 2 / `{"decision":"block"}` / `deny`); `PostCommand` fires after a recognized command completes. Plain chat messages do not fire these events.
-  - **`PreCommand` can rewrite a command's argument on the fly** by returning a `command_args` value (Python `HookResult(modifications={"command_args": ...})`, or `{"command_args": ...}` JSON from a shell hook). The command token is preserved, the argument swapped — e.g. transparently downgrade `/model opus` to `/model sonnet`. Highest-priority hook wins.
-  - `HookContext` gained `command_name` / `command_args` / `command_handled` (`hook/interface.py`), surfaced to shell command-hooks as `CLAUDE_COMMAND_NAME` / `CLAUDE_COMMAND_ARGS` env vars (`hook/hook_creators.py`).
-  - Command dispatch is **recognition-based, not prefix-based**: `commands_mixin.py` gained `classify_input` + a single-source `_command_table` so any configured token routes correctly — built-ins (`/save`, `/exit`), a user-configured `>` redirect, and skill slash-commands (`/debug`, …) all fire the hooks; tokens need not start with `/`. Model-driven skill activation continues to fire `PreToolUse` (`ActivateSkill`).
-  - Dispatch now runs as a background task (required for the async hook pipeline), serialized by an in-flight guard so a second command can't race a prior `/save`/`/load`/`/exit`; run-while-thinking commands (`/btw`, YOLO toggle, incl. selective `/yolo Write,Edit`) are exempt and run independently, as before.
+- **Feature: opt-in filesystem sandbox for LLM tool calls (ADR-0063)**:
+  - New `zrb/llm/sandbox/` package: one `SandboxPolicy` drives two enforcement layers — a Python-level FS gate (`_sandbox_gate` in `agent/common.py`, right after `_permission_gate`) that blocks writes outside the writable roots (`EDIT`/`UNKNOWN` tools) and reads of credential directories (all tools), and an OS-level wrapper for `Shell`/`Bash`/`ShellBackground` (`sandbox-exec` + generated SBPL on macOS, `bwrap` on Linux). Network stays open in v1; off by default (`ZRB_LLM_SANDBOX_ENABLED=false`).
+  - Config: `ZRB_LLM_SANDBOX_ENABLED` / `OS_SHELL` / `WRITABLE_PATHS` / `DENY_READ_PATHS` / `FALLBACK` / `ALLOW_ESCAPE` (new `LLMSandboxMixin`). Where no OS mechanism exists (Windows, Linux without bwrap), `FALLBACK=warn` runs unsandboxed with a visible warning, `deny` refuses — never silent.
+  - Escape hatch: `dangerously_skip_sandbox` on the shell tools — never auto-approved (`bash_validation`/`auto_approve` always route it to a human), blockable via `ALLOW_ESCAPE=false`.
+  - Plumbing mirrors permissions: `LLMTask(sandbox=...)`, `run_agent(sandbox_policy=...)`, `current_sandbox_policy` ContextVar (sub-agent inheritance).
+  - Shell PID-tracking wrapper now falls back to `$$` when `ps` is unavailable (macOS Seatbelt cannot exec setuid binaries) and records the shell's own PID for exclusion under wrappers.
+  - Docs: `docs/advanced-topics/sandbox.md`, sandbox section in `docs/configuration/llm-config.md`, ADR-0063. Tests: `test/llm/sandbox/` incl. platform-conditional integration tests (real Seatbelt/bwrap runs).
 
-- **Feature: `AskUserQuestion` tool + interactive mode**:
-  - New `ask_user_question` tool (`tool/ask.py`, LLM-visible name `AskUserQuestion`) lets the model pose structured multiple-choice questions mid-turn and read the answers. Use it only when a choice is non-obvious and the wrong pick wastes significant work.
-  - Interactive state flows through an `interactive_mode` `ContextVar` set by `system_context` from `ctx.input.interactive`. In non-interactive runs (`zrb llm chat --interactive false`) the tool short-circuits with a `[SYSTEM SUGGESTION]` instead of blocking on stdin; the System Context block advertises availability.
+## 2.33.4 (June 10, 2026)
 
-- **Bug Fix: `Grep` tool parameter renamed `regex` → `pattern`**:
-  - `search_files` (`file_search.py`) exposed its first argument as `regex`, but the tool is named `Grep` — and the model's strong prior (Claude Code's `Grep`, and zrb's own `Glob`) is a `pattern` argument. Agents called `Grep(pattern=...)`, which failed schema validation. The parameter is now `pattern`; the docstring disambiguates it from `Glob` ("a regular expression, NOT a glob"). All callers used positional args, so nothing else changed.
+- **Fix: AskUserQuestion prompt never rendered (stuck at "waiting for confirmation")** (`ui/default/confirmation_mixin.py`): `ask_user` set `_current_confirmation` *before* appending the prompt, so the prompt hit `OutputMixin.append_to_output`'s buffer guard (pending-confirmation + thinking → buffer to avoid interleaving main-agent tokens) and was buffered away instead of shown. The user saw the `🧰` tool-call line and "waiting for confirmation" but no question. The prompt is now appended *before* marking the confirmation pending, in both `ask_user` and `_activate_next_confirmation`.
 
-- **Improvement: Prompt and guidance consistency**:
-  - `journal_mandate.md`: switched from `[[wikilinks]]` to standard markdown links plus a `## Backlinks` section, matching `core-journaling` and the `journal-lint` tool (which only recognizes markdown links). `activity-entry.md` template fixed likewise.
-  - `core-research.md` / `research` skill: corrected a dangling reference (the non-existent "Task Handling" rule → the Working Loop's Frame step) and dropped a `DelegateToAgent` mention that doesn't apply when the skill runs in a no-delegate sub-agent.
-  - `git_mandate.md`: documented that worktree creation (`EnterWorktree`) is exempt from the git approval gate (it builds an isolated tree without touching the current tree/index/branches).
-  - `common_tools.py`: added an `UpdateTodo` guidance entry (and moved the "one status change per call" rule onto it); corrected the misleading delegate-guidance comment. "Journaling Protocol" → "Journal Protocol" naming unified.
+- **Fix: AskUserQuestion gated behind a redundant approval prompt** (`tool/ask.py`, `tool_call/always_approve.py`, `agent/run/deferred_calls.py`, ADR-0062): `AskUserQuestion` *is* the user interaction, but as a deferred tool it went through the approval cascade — asking "Allow tool execution?" before the question itself rendered. Auto-approval was only wired via a single `auto_approve("AskUserQuestion")` entry in `builtin/llm/chat.py`, so delegated sub-agents, the web/API runner, and bare `LLMTask`s still prompted (or left the question un-surfaced). Auto-approval is now **intrinsic to the tool**: it self-registers via `register_always_auto_approve("AskUserQuestion")`, and `_resolve_approval` honors that registry as Priority 0 in every path. The redundant `chat.py` entry was removed (single source of truth).
 
-- **Chore: Version bumped to 2.31.0**:
-  - `pyproject.toml`: `2.30.2a1` → `2.31.0`.
+## 2.33.3 (June 8, 2026)
 
-- **Tests**:
-  - New: `test/llm/tool/test_ask.py` (217 lines), `test/llm/tool/test_ambient_state.py`.
-  - Extended: `test_commands_mixin.py` and `test_keybindings_mixin.py` (command classification, dispatch, blocking, arg-rewrite, in-flight guard, plus end-to-end integration tests driving the real keybinding with configured tokens incl. `>`); `test_hook_manager.py` (command env injection); `test_interface.py` (command context fields); `test_file.py` (`Grep` `pattern` keyword); `test_system_context.py` / `test_base_ui.py` (interactive mode, blocking hook execution).
+- **Fix: empty env var reaches typed cast and crashes** (`env_field.py`): An explicitly empty env var (e.g. `export ZRB_WEB_HTTP_PORT=`) would reach `int("")`/`to_boolean("")` and raise an opaque error. Empty is now treated the same as unset, falling back to the resolved default.
 
-## 2.30.2a1 (May 28, 2026)
+- **Fix: fnmatch pattern always matched basename against full path** (`content_transformer.py`): A bare pattern like `*.txt` was matched as `fnmatch(file_path, basename(file_path))`, comparing the full path against its basename, which always passed. Now correctly matches `basename(file_path) against the pattern.
 
-- **Feature: Post-write/post-edit diagnostics**:
-  - New `src/zrb/llm/tool/post_write_check.py`: `format_post_write_diagnostics()` runs `ast.parse` + `pyflakes` on Python files after Write/Edit tool calls, surfacing syntax errors and undefined names inline in the tool result. Non-Python files and error-free files produce no output.
-  - `write_file()` (`file_write.py`) and `replace_in_file()` (`file_edit.py`) are now `async` and append a `[DIAGNOSTIC]` section to their return value when errors are detected — the model sees errors immediately and can fix them in the same turn.
+- **Fix: concurrent agent runs share and clobber each other's plan/build mode** (`runner.py`, `state.py`): Without per-run ContextVar isolation, every run mutated the single import-time default `AgentModeState`, so concurrent web chat sessions and parallel sub-agents overwrote each other's mode. `enter_agent_mode_scope`/`exit_agent_mode_scope` now bind a fresh run-local state per run, with the final mode propagated back to the caller so in-run `/plan` switches persist.
 
-- **Feature: LSP push-diagnostics plumbing**:
-  - `LSPServer` (`lsp/server.py`) gained `did_open_text_document()` and `did_change_text_document()` with full `didOpen`/`didChange` state tracking per URI. `get_diagnostics()` now synchronizes the file with the server via `didOpen`/`didChange`, then polls for `textDocument/publishDiagnostics` push notifications (50ms interval, 1.5s timeout), falling back to LSP 3.17 pull-diagnostics. Incoming `publishDiagnostics` notifications are cached in `self._diagnostics`.
-  - Test updated to assert against the push-notification path instead of the pull-diagnostics response.
+- **Fix: backup rotation deletes the live history file** (`file_history_manager.py`): When a conversation name carries a timestamp suffix (e.g. `session-2024-03-18-10-30`), the main file matches the backup filename pattern and rotation sorts it oldest and deletes the live history. The main file is now excluded from backup rotation.
 
-- **Feature: Installer LSP server setup**:
-  - `install.sh` and `install.ps1` both gained `install_lsps()`: installs `python-lsp-server[all]` unconditionally, then optionally installs `typescript-language-server` (JS/TS), `gopls` (Go), and `rust-analyzer` (Rust) when their toolchains are present. Users are prompted during installation.
+- **Fix: empty `old_text` in `replace_in_file` corrupts the file** (`file_edit.py`): `"" in content` is always `True`, so `str.replace` with an empty `old_text` inserts `new_text` between every character. Now rejected with a clear error message directing the user to `Write` instead.
 
-- **Improvement: Prompt and tool guidance deduplication**:
-  - `common_tools.py`: Redundant tool guidance entries removed — Read's `old_text` note, Write's overwrite warning, Edit's read-first rule, Grep's truncation note — these are already documented in the tool docstrings themselves.
-  - `lsp/tools.py`: MANDATES sections removed from all 8 LSP tool docstrings. The usage rules remain in `tool_guidance.py` (the single source of truth).
-  - `rag.py`: MANDATES removed from RAG tool docstring; replaced with a one-line usage instruction.
-  - `tool_guidance.py`: Parallel-tool-call sections rewritten in plain language — no emoji, no ALL-CAPS, no concatenated-tool-name examples. Heading normalized to `## Tool Call Parallelism` for both supported and unsupported models.
+- **Fix: bash validation misses multi-command injection vectors** (`bash_validation.py`): Bare `&` (covering `&&` too) was missing from dangerous substrings, so `ls & rm -rf x` auto-approved. Newlines and carriage returns were also missing, so multi-line payloads bypassed approval. Additionally, `env` was removed from safe prefixes since `env FOO=1 rm -rf x` runs an arbitrary command; only `printenv` remains allowlisted.
 
-- **Improvement: Mandate.md strengthened**:
-  - Destructive action rule expanded: `package downgrades`, `CI/CD changes`, `posts to Slack/email/PRs` added. New clause: investigate unfamiliar state (unexpected files, branches, stashes, lock files) before destroying — `--no-verify`, `rm -rf`, `git reset --hard` are not shortcuts.
-  - Scope rule promoted above Memory (priority 6 → 5). Added scope-scoping rules: approved edit to file X ≠ approval to refactor file Y; approval is one-shot per action.
-  - Understand step: hypothesis threshold softened from "3+ tool calls" to "two distinct hypotheses failed".
-  - Plan step: explicitly states it describes *what changes where*, not a preamble.
-  - Execute step: broken into sub-bullets; `DelegateToAgent` gate removed (moved to tool guidance).
+- **Fix: chat API routes skip authorization for `llm chat` access** (`chat_api_route.py`): Every chat API route authenticated the user but skipped the `can_access_task` gate that other task API routes enforce, letting unauthorized users reach the most powerful surface (tool/shell execution). Added `_forbid_if_unauthorized` guard to all routes.
 
-- **Improvement: Persona.md tightened**:
-  - Removed "Your context window is a budget" line (covered by mandate completeness rule).
-  - Source citation format expanded: `file:line-range` and `file:symbol` added alongside existing `file:line`.
+- **Fix: `Session.result` returns stale value from first push** (`session.py`): Used `xcom.peek()` (queue front, oldest) instead of `xcom.get()` (latest), so a readiness-monitored re-execution returned the first run's result instead of the current one.
 
-- **Improvement: Tool docstring refinements**:
-  - `file_rm.py`: Clarified irreversibility ("there is no trash; the bytes are gone").
-  - `file_mv.py`: Added overwrite warning and path-confirmation guidance.
-  - `file_search.py`: Uses "regex" instead of "pattern" in no-match message.
-  - `worktree.py`: Entry message simplifies to path + branch only; exit message clarifies `keep_branch=False` is irreversible.
-  - `delegate.py`: Worktree line in sub-agent envelope shortened.
+- **Fix: circular task dependency causes unbounded recursion** (`session.py`): `register_task` recursed through readiness checks, successors, fallbacks, and upstreams without cycle detection. Added path-scoped ancestor tracking that fails fast with a clear message on circular dependencies.
 
-- **Improvement: System context token-limit line removed**:
-  - `system_context.py`: Token-limit-per-request line removed, dropping the `CFG` import. Token limits are model-specific; the model itself already knows its own context window.
+- **Fix: `HttpCheck` probe hangs forever on half-open endpoint** (`http_check.py`): `requests.request` was called without a timeout, so a TCP connection that opens but never responds would block the `to_thread` worker indefinitely. Now bound with `timeout=self._interval`.
 
-- **Chore: Version bumped to 2.30.2a1**:
-  - `pyproject.toml`: `2.30.1` → `2.30.2a1`.
+- **Fix: SSH command injection via unsanitized interpolations** (`util/cmd/remote.py`): Password, host, user, port, and SSH key paths were double-quoted but not `shlex.quote`d, so any field containing `"`, `` ` ``, or `$(…)` could break out and inject arbitrary shell commands. All interpolated fields now use `shlex.quote`.
 
-- **Tests**:
-  - `test/llm/lsp/test_server.py`: `get_diagnostics` test rewritten to assert against `textDocument/publishDiagnostics` push notification instead of pull-diagnostics response.
-  - `test/llm/prompt/test_tool_guidance.py`: Assertions updated for plain-language section headings and no-emoji output.
-  - `test/llm/tool/test_file.py`: All `write_file`/`replace_in_file` calls wrapped in `asyncio.run()` via `_w`/`_r` helpers.
-  - `test/llm/tool/test_rag.py`: Assertion updated for new docstring format.
+- **Fix: cron weekday mismatch between Python and cron conventions** (`util/cron.py`): Python's `weekday()` maps Monday=0..Sunday=6, while cron uses Sunday=0..Saturday=6, causing day-of-week scheduling off-by-one errors. Converted via `isoweekday() % 7`. Also fixed day-of-month/weekday semantics: when both fields are restricted cron uses OR; when one is wildcard the fields are ANDed.
 
-## 2.30.1 (May 25, 2026)
+- **Fix: `Xcom.get()` returns same value as `peek()` (oldest, not latest)** (`xcom.py`): `get()` used `self[0]` (queue front, same as `peek()`) instead of `self[-1]` (most recently pushed), so single-variable semantics returned stale values after readiness-monitored re-execution.
 
-- **Chore: LLM challenges extracted to separate repo**:
-  - `llm-challenges/` directory removed from the zrb repository. The evaluation framework (challenge definitions, experiment data, results, report) now lives in its own repository.
+- **Tests**: new/expanded coverage in `test_env_field.py`, `test_content_transformer.py`, `test_file_history_manager.py`, `test_state_and_gate.py`, `test_file.py`, `test_bash_validation.py`, `test_chat_api.py`, `test_session.py`, `test_http_check.py`, `test_command.py`, `test_util_cron.py`, `test_xcom.py`.
 
-- **Improvement: Mandate completeness rule tightened**:
-  - `mandate.md`: "Completeness" now explicitly requires deliverable files to land on disk via a Write or Edit tool call — printing content into chat, even in a fenced block, does not count.
+## 2.33.2 (June 7, 2026)
 
-- **Improvement: `file_edit.py` docstring**:
-  - `replace_in_file()` gained a docstring documenting the post-edit validity requirement: if the change would leave the file malformed (broken indent, missing import, dangling brace), the caller should widen `old_text` or use Write to re-emit the whole file.
+> Note: the Windows shell paths below are unit-tested with mocks and reasoned from documented `cmd.exe` / PowerShell / `psutil` behavior, but **not yet verified on a real Windows host**.
 
-- **Documentation: Changelog history backfilled**:
-  - `docs/changelog-v2.md`: Added changelog entries for versions 2.28.0 through 2.28.6 — these were previously omitted from the v2 changelog.
+- **Feature: copy / export conversation transcript**:
+  - New `/copy` chat command: bare copies the full conversation transcript to the system clipboard; with a path argument it writes the transcript to a file. `/redirect` (bare) now copies the last AI response to the clipboard (previously file-only), while `/redirect <file>` keeps its save-to-file behavior.
+  - New `copy_text()` in `llm/util/clipboard.py` uses the existing `pyperclip` backend with an **OSC 52** terminal-escape fallback (works over SSH; wraps the sequence for tmux/screen passthrough).
+  - `history_formatter.py` gains a `full=True` export mode (no per-message/tool/arg truncation) and `extract_last_response_text()`, which recovers the last assistant response from replayed history — so `/copy` and bare `/redirect` work on a freshly loaded `chat --session <name>` before any live turn.
+  - Tab-completion suggests `response-<timestamp>.txt` for `/redirect` and `transcript-<timestamp>.txt` for `/copy`. The command is configurable via `ZRB_LLM_UI_COMMAND_COPY` (`DEFAULT_LLM_UI_COMMAND_COPY` = `/copy`).
 
-## 2.30.0 (May 24, 2026)
+- **Fix: cross-platform shell execution for `Shell` / `Bash` / `ShellBackground`**:
+  - The three LLM execution tools each maintained a separate, POSIX-only subprocess stack (`os.setsid` via `preexec_fn`, `os.killpg`, a `pgrep -g` PID-tracking wrapper). `ShellBackground` was outright broken on Windows — `preexec_fn=os.setsid` raises on the first call since `os.setsid` doesn't exist there. All three now converge on shared, cross-platform primitives in `util/cmd/command.py`: `start_new_session=True` (setsid on POSIX, ignored on Windows), `psutil`-based `terminate_process` / `kill_pid` for whole-tree teardown (replacing `os.killpg`), and a new `resolve_shell()` for shell+flag selection. `stdin` is now `DEVNULL`, so a command that reads stdin fails fast instead of hanging until the timeout.
+  - `terminate_process` snapshots the process tree **before** signalling (children are reparented once the shell exits), sends a graceful terminate, waits a grace window, then force-kills survivors — so a child that outlives its shell is no longer leaked.
 
-- **Breaking: `DelegateToAgent` / `DelegateToAgentsParallel` signature change**:
-  - `delegate_to_agent` now requires `deliverable: str` and `non_goals: list[str]` in addition to `agent_name` and `task`. The parallel variant requires the same keys per task dict; missing keys short-circuit with a clear schema error before any sub-agent runs.
-  - Sub-agent messages are now wrapped in a structured envelope (`DELIVERABLE` / `NON-GOALS` / `TASK` / `CONTEXT` / `BEFORE RETURNING`) so the scope clamp is the first thing the sub-agent reads, not free-form context.
-  - Rationale: with the previous free-form `task` arg, parent agents passed fuzzy specs and sub-agents over-produced. The required fields force the parent to articulate the deliverable and adjacent work to avoid; schema is enforcement, prompt rules were not.
-  - Migration: any custom code calling `delegate_to_agent(agent_name, task, ...)` positionally must add `deliverable` and `non_goals`. Pass `non_goals=[]` only when scope expansion is genuinely impossible.
+- **Fix: `Bash` now actually runs bash; `Shell` uses the configured shell**:
+  - `Bash` (`bash.py`) had become a behavioral duplicate of `Shell` — it ran `/bin/sh` (POSIX) / `cmd.exe` (Windows), never bash. It now executes under `bash`, matching Claude Code's Bash-tool semantics (git-bash on Windows); many Claude skills assume a `Bash` tool by name. `Shell` now defaults to `CFG.SHELL` (the user's configured shell via `ZRB_SHELL` / `DEFAULT_SHELL`, else the detected current shell) and also accepts an explicit `shell=` argument. `resolve_shell` resolves the shell+flag once; since `get_current_shell()` is now existence-checked (below), this is safe on minimal/Windows hosts.
 
-- **Improvement: Delegation tool guidance rewritten**:
-  - `common_tools.py` `DelegateToAgent` / `DelegateToAgentsParallel` `ToolGuidance` entries reframed affirmatively ("Delegate only when ALL apply…") with a fidelity rationale replacing the previous context-budget rationale.
-  - `mandate.md` Working Loop step 4 gained a one-sentence delegation gate so the whether-to-delegate decision lives in the same MECE section as the rest of execution discipline.
+- **Fix: `get_current_shell()` resolves only to shells that actually exist** (`config/helper.py`):
+  - It previously returned a hardcoded `"bash"` on POSIX (broken on a minimal Alpine image where only busybox `sh` exists) and an unconditional `"PowerShell"` on Windows. Now every candidate is verified with `shutil.which`: POSIX honors `$SHELL`-is-zsh only when zsh is installed, otherwise probes `bash` → `sh`; Windows prefers `pwsh` → `powershell`, falling back to `cmd`. This also fixes `CmdTask`, which derives its shell from `CFG.SHELL` → `get_current_shell()`.
+  - Corrected the shell→flag maps in both `resolve_shell` (`command.py`) and `CmdTask._get_shell_flag` (`cmd_task.py`): `powershell` / `pwsh` use `-Command` (was the cmd.exe `/c`, which PowerShell rejects), and `cmd` uses `/c`.
 
-- **Improvement: AGENTS.md restructured**:
-  - Project structure tables condensed into prose (was 175 lines of tables, now ~98 lines of concise bulleted walkthrough). Core Framework, LLM Integration, and Test Locations tables replaced with self-describing `ls src/zrb/` guidance plus per-module docstrings as the source of truth. Key Task Types table simplified.
-  - LLM Prompt System section rewritten with MECE section semantics, ContextVar reference pointing to `src/zrb/contextvars.py`, and new lazy-import policy documentation.
+- **Fix: package import `NameError`** (`common_tools.py`): a half-applied `run_shell_command` → `run_bash_command` rename left a dangling `bash_cmd` reference that broke importing `zrb`.
 
-- **Feature: `custom_command/resolver.py`**:
-  - Command resolution extracted from `custom_command/__init__.py` into its own module. No behavior change — cleaner module boundary.
+- **Tests**: new coverage in `test/util/cmd/test_command.py` (`resolve_shell`, `terminate_process`), `test/config/test_config.py` (Alpine `sh` fallback, Windows `pwsh`/`powershell`/`cmd` resolution, zsh-requested-but-absent fallback), and `test/llm/tool/test_shell.py` (OS-default path, a real bash-only `[[ … ]]` bashism, background-PID reporting, stdin-no-hang); `test/llm/tool/test_bash.py` updated for the bash-backed tool. For the copy/export feature: `test/llm/util/test_clipboard.py` (`copy_text` success, OSC 52 fallback, tmux passthrough, no-tty failure), `test/llm/util/test_history_formatter.py` (`full=True` disables truncation, `extract_last_response_text`), `test/llm/app/completion/` (response/transcript filename suggestions), and `test/llm/ui/base/test_commands_mixin.py` + `test/llm/ui/test_ui.py` (bare/path `/copy` and bare `/redirect` handlers).
 
-- **Feature: `BaseUI` extracted in `ui/base/ui.py`**:
-  - New base class (+107 lines) factors shared UI logic out of `commands_mixin.py`. `MultiUI` support added (+10 lines). Reduces `commands_mixin.py` by ~47 lines.
+## 2.33.1 (June 7, 2026)
 
-- **Improvement: Prompts overhauled**:
-  - `persona.md`, `mandate.md`, `journal_mandate.md` — tightened, deduplicated, softened rigid phrasing (cue-framing replaces hard prohibitions). Consistent with the 2.28.2a1 mandate refactor pass.
+- **Feature: ULID built-in tasks**:
+  - New `zrb ulid generate` and `zrb ulid validate <id>` tasks (`src/zrb/builtin/ulid.py`), mirroring the existing `uuid` helpers. `generate-ulid` prints and returns a fresh ULID; `validate-ulid` reports whether its `id` input parses. Both are exported from `zrb.builtin` (`generate_ulid`, `validate_ulid`) for programmatic use, and the `ulid` group is documented in `builtin-helpers.md`. The `ulid` package is imported lazily inside each task (`# lazy: heavy third-party`).
 
-- **Improvement: History formatter refinements**:
-  - `history_formatter.py`: format stability improvements for multi-turn conversations.
-  - `runner_mixin.py`: Better retry handling when skill is passed as a message parameter.
+- **Fix: `AnyContext` abstraction was missing `print_err`**:
+  - `print_err` is implemented by the concrete context but was absent from the `AnyContext` abstract base, so it was invisible to type-checkers and to code written against the interface. Added the matching `@abstractmethod` signature (`stderr` default, `flush=True`) to `src/zrb/context/any_context.py`.
 
-- **Improvement: Sub-agent manager improvements**:
-  - `loader_mixin.py`: New `_load_*` helpers (+16 lines) for cleaner skill/plugin resolution.
-  - `manager.py`: Tool registration and delegation flow streamlined (+75/−?).
+- **Fix: journal link convention is file-relative, not journal-root-relative**:
+  - `core-journaling` documented links as "relative to the journal root", but `journal-lint.py` and the template examples already resolved them relative to the **containing file** (standard markdown semantics) — so a root-relative link like `technical/jwt.md` written from `projects/my-app.md` was silently flagged broken. Aligned the docs on the file-relative convention with correct `../`-climbing examples (`SKILL.md`, `templates/insight-note.md`, `templates/activity-entry.md`), and corrected a day-file backlink that pointed to the year index instead of the sibling month index.
+  - `journal-lint.py`: documented the file-relative resolution rule, and broken-link errors now emit a hint suggesting the correct file-relative path when the target would have resolved under the old root-relative rule (e.g. `-> technical/jwt.md (target missing) — did you mean (../technical/jwt.md)?`).
 
-- **Improvement: Tool refinements**:
-  - `bash.py`: Better error messaging for failed commands.
-  - `file_read.py`: Improved path validation for edge cases.
+- **Chore: removed dead group placeholders**:
+  - `builtin/group.py`: dropped the unused `project` / `project add` / `project add fastapp` group placeholders (no remaining references; fastapp scaffolding registers its own entry points). Tidied the `ulid` group emoji (`🔢`→`🆔`).
 
-- **Improvement: Agent skill definitions**:
-  - `code-reviewer.agent.md`, `generalist.agent.md`, `researcher.agent.md` — each gained `disable-model-invocation: true` so they only fire when the user explicitly calls `/delegate-to`.
+- **Tests**: new `test/builtin/test_ulid.py` covering ULID generation and valid/invalid validation.
 
-- **Bug Fix: Function definition removed from `custom_command/__init__.py`**:
-  - Moved command resolution logic to `resolver.py` — `__init__.py` now only re-exports. Prevents accidental import cycles.
+## 2.33.0 (June 6, 2026)
 
-- **Bug Fix: `Claude` prompt section loading**:
-  - `prompt/claude.py`: Fixed section-ordering edge case when project-context files are missing.
+- **Feature: config-positioned custom prompt sections (ADR-0061)**:
+  - A section name in `include_sections` (or the `ZRB_LLM_INCLUDE_SECTIONS` env var) that is **not** a built-in now resolves as a custom section composed at its configured position — letting downstreams add always-on, ordered sections without editing `PromptManager`. Resolution precedence is **built-in > registered provider > markdown file** (`src/zrb/llm/prompt/manager.py`).
+  - New `PromptManager.register_section(name, provider)` registers a dynamic `Callable[[AnyContext], str]`, composed by calling it with the active context at compose time — for content that must reflect runtime state (current sprint, deploy target, live schema). A built-in name is never shadowed; re-registering a name overwrites the previous provider; return `""` to emit nothing. Mirrors the `add_tool_guidance` registration pattern (config selects/orders, code supplies behavior).
+  - When no provider is registered, an unknown name resolves via `get_prompt(name)` (project-override → env → base-prompt-dir → package) with `{PLACEHOLDER}` substitution, so e.g. `company_context` loads `company_context.md`. A missing file resolves to `""` (harmless no-op — note an unknown/misspelled name is therefore silently empty).
+  - Deliberately rejected resolving-and-exec'ing a `.py` file named by the section: it would turn a declarative, widely-copied config string into a code-execution trigger. Dynamic behavior is registered explicitly in Python; config only names and orders. See ADR-0061 (`docs/adr/07-llm-extension.md`).
 
-- **Tests**:
-  - New: `test/llm/agent/subagent/test_loader_mixin.py` (52 lines), `test_subagent_manager.py` (147 lines).
-  - New: `test/llm/prompt/test_claude.py` (67 lines) — project-context loading edge cases.
-  - New: `test/llm/task/chat/test_runner_mixin.py` (60 lines) — runner retry/message handling.
-  - New: `test/llm/ui/test_ui.py` (244 lines) — base UI and multi-UI coverage.
-  - Extended: `test/llm/util/test_history_formatter.py` (+60 lines), `test_history_utils.py` (+18 lines).
+- **Tests**: 6 new tests in `test/llm/prompt/test_manager.py` covering registered sections (dynamic composition, include-order positioning, precedence over a same-named markdown file, context pass-through, re-registration overwrite, and that a built-in name is never shadowed).
 
-- **Documentation**:
-  - `AGENTS.md`: Fully restructured (see above).
-  - `CLAUDE.md`: Minor update.
-  - `docs/advanced-topics/maintainer-guide.md`: Updated to match the new AGENTS.md structure.
+- **Documentation**: AGENTS.md ("LLM Prompt System") documents the custom-section precedence chain and `register_section`; ADR-0061 records the decision (refines ADR-0035, mirrors ADR-0043, contrasts ADR-0044).
 
-## 2.29.0 (May 22, 2026)
-
-- **Dependency: `pydantic-ai-slim` upgraded `~1.93.0` → `~1.101.0`, now installed with the `[mcp]` extra**:
-  - The `[mcp]` extra pulls `fastmcp-slim[client]>=3.3.0`, required by the new `MCPToolset`. This is a new transitive install dependency.
-  - All deprecation warnings from the eight intervening minor versions are silenced — `pytest -W error::DeprecationWarning` runs clean across the suite.
-
-- **Breaking-ish: `LLM_MODEL` default switched from `"openai:gpt-4o"` to `"openai-chat:gpt-4o"`**:
-  - pydantic-ai 1.x warns that bare `openai:` will resolve to the Responses API in v2; `openai-chat:` pins the current Chat Completions behavior. Users with an explicit `LLM_MODEL` env var are unaffected. The `LLMConfig.small_model` default docstring was updated similarly.
-  - Completion-fallback known-model list in `llm/app/completion/completer.py` likewise refreshed: `openai:` → `openai-chat:`, `google-vertex:` → `google-cloud:` (per pydantic-ai's provider rename in #5336).
-
-- **Breaking-ish: `load_mcp_config()` now returns `pydantic_ai.mcp.MCPToolset` instances**:
-  - `src/zrb/llm/tool/mcp.py` rewritten to use `MCPToolset` + `fastmcp.client.transports.StdioTransport` instead of the deprecated `MCPServerStdio` / `MCPServerSSE`. Behavior preserved (no automatic tool-name prefixing, same env-var expansion syntax). `_expand_env_vars` reimplemented locally so zrb no longer depends on a private `pydantic_ai.mcp._expand_env_vars` symbol.
-
-- **Deprecation cleanup (pydantic-ai 1.x → v2 prep)**:
-  - `Agent(tool_retries=N)` → `Agent(retries={"tools": N})` in `llm/agent/common.py` (per pydantic-ai #5500).
-  - `event.result.usage()` → `event.result.usage` in `llm/util/stream_response.py` (method-style usage accessor deprecated in #5263).
-  - `pydantic_ai.messages.BuiltinTool*Part` → `NativeTool*Part` references in `llm/agent/run/history_utils.py` (per the built-in → native tools rename in #5338).
-  - `HistoryProcessor` type-hint import moved off the internal `pydantic_ai._agent_graph` path. The type alias has no public re-export in v1.101, so zrb now defines its own `Callable[..., Awaitable[list[ModelMessage]]]` alias in `llm/agent/common.py` (more accurate to zrb's actual usage, which passes extra positional args at one call site) and the task modules import it from there. Removes the last `pydantic_ai._*` import from `src/zrb`.
-
-- **Hygiene: `zrb.util.todo` re-export shim trimmed**:
-  - Removed cargo-cult `read_file, write_file` re-export (no patches targeting `zrb.util.todo.read_file`/`.write_file` in tree, no external callers).
-  - Removed `_parse_date` and `_get_minimum_width` from the re-exports — private symbols had no external callers.
-  - Replaced bare `# noqa: F401` markers with an explicit `__all__` so the re-export contract is documented. Callers reaching for these names through `zrb.util.todo` are unaffected; anything importing the removed names should switch to `zrb.util.todo_parser` / `zrb.util.todo_render` / `zrb.util.file` directly.
-
-- **Hygiene: AGENTS.md `# lazy:` import-comment sweep**:
-  - 145 in-function imports across 81 files now carry the `# lazy: <reason>` justification comment mandated by AGENTS.md. Two stock reasons used: `# lazy: heavy third-party` (pydantic_ai, fastapi, prompt_toolkit, mcp, etc.) and `# lazy: zrb internal (heavy via transitive / circular)` for `zrb.*` imports. Behavior unchanged — the imports were already lazy; only the comments were missing.
-
-- **Tests**:
-  - `test/llm/tool/test_mcp.py` rewritten to assert against `MCPToolset` + `StdioTransport` instead of `MCPServerStdio` / `MCPServerSSE`.
-  - `test/llm/agent/test_common.py`, `test/llm/util/test_stream_response.py`, `test/llm/agent/run/test_history_utils.py`, `test/llm/agent/run/test_runner.py` updated to match the deprecation cleanup above.
-  - Full suite: 2819 passing, no deprecation warnings.
+- **Documentation: docs/examples accuracy sweep**:
+  - Fixed broken snippets: `cli.add_task(...)` quickstart in `README.md`/`README.pypi.md` (one task per call); `@make_task(retry=…)`→`retries=` in `examples/async-task/`; removed the non-existent `Env(is_secret=…)` argument (Env has no such parameter — use a default and/or `PasswordInput`) across `make-task.md`, `basic-tasks.md`, `custom-tasks.md`, `file-ops.md`; added the missing `make_task` import and corrected `ctx.render()` to single-brace f-string syntax (it is not Jinja2) in `session-and-context.md` and `xcom-deep-dive.md`.
+  - Corrected documented defaults: `ZRB_SEARXNG_LANG` (`en`→`en-US`), `ZRB_WEB_COLOR` (`amber`→empty). Bumped stale Docker image tags `2.26.8`→`2.33.0` in `installation.md` and `ci-cd.md`. Rewrote `examples/chat-minimal-ui/README.md` to match the actual `SimpleUI` implementation (was describing `BaseUI`).
+  - Documented previously-undocumented config: TUI color styles (`ZRB_LLM_UI_STYLE_*`), `ZRB_HOOKS_DEBUG`, the repo/file-analysis token thresholds, and the `/btw`, `/plan`, `/rewind` chat commands.
+  - Added a "Programmatic Prompt Customization" subsection to `llm-config.md` §4 covering the three previously user-undocumented `PromptManager` hooks (`add_prompt`/`append_prompt` middleware chain, `register_section`, and file-backed custom sections) — previously only in AGENTS.md/ADR-0061.
 
 # Older Changelog
 

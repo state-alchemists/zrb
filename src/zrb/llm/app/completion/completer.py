@@ -11,6 +11,7 @@ from prompt_toolkit.document import Document
 
 from zrb.config.config import CFG
 from zrb.llm.app.completion.args import (
+    complete_copy_arg,
     complete_exec_arg,
     complete_load_arg,
     complete_redirect_arg,
@@ -40,6 +41,8 @@ class InputCompleter(Completer):
         summarize_commands: list[str] = [],
         set_model_commands: list[str] = [],
         exec_commands: list[str] = [],
+        plan_commands: list[str] = [],
+        copy_commands: list[str] = [],
         custom_commands: list[AnyCustomCommand] = [],
         custom_model_names: list[str] = [],
         show_ollama_models: bool = True,
@@ -59,6 +62,8 @@ class InputCompleter(Completer):
         self._summarize_commands = summarize_commands
         self._set_model_commands = set_model_commands
         self._exec_commands = exec_commands
+        self._plan_commands = plan_commands
+        self._copy_commands = copy_commands
         self._custom_commands = custom_commands
         self._custom_model_names = custom_model_names
         self._show_ollama_models = show_ollama_models
@@ -126,6 +131,8 @@ class InputCompleter(Completer):
             + self._redirect_output_commands
             + self._set_model_commands
             + self._exec_commands
+            + self._plan_commands
+            + self._copy_commands
         )
         return all_commands + [cc.command for cc in self._custom_commands]
 
@@ -192,6 +199,11 @@ class InputCompleter(Completer):
                 self._exec_commands,
                 lambda cmd: f"Execute CLI command (i.e., {cmd} <command>)",
             ),
+            (self._plan_commands, "Toggle PLAN mode (read-only) on/off"),
+            (
+                self._copy_commands,
+                lambda cmd: f"Copy transcript to clipboard (bare) or to file (i.e., {cmd} <path>)",
+            ),
         ]
         for cmds, meta in groups:
             yield from self._yield_command_completions(
@@ -242,6 +254,55 @@ class InputCompleter(Completer):
             yield from complete_exec_arg(arg_prefix, self._cmd_history)
             return
 
+        if self._is_command(cmd, self._set_model_commands):
+            # /model supports subcommands: /model <name>, /model small <name>, /model multimodal <name>
+            model_options = self._resolve_set_model_options()
+            if len(parts) == 1:
+                # "/model " — suggest subcommands and model names
+                yield Completion("small ", display_meta="Set small/fast model")
+                yield Completion("multimodal ", display_meta="Set multimodal model")
+                yield from self._get_fuzzy_completions(
+                    "", model_options, only_files=False, display_meta="Model Name"
+                )
+            elif len(parts) == 2:
+                sub = parts[1].lower()
+                if text_before_cursor.endswith(" "):
+                    # "/model small " or "/model multimodal " — complete model name
+                    yield from self._get_fuzzy_completions(
+                        "", model_options, only_files=False, display_meta="Model Name"
+                    )
+                else:
+                    # Completing first arg: subcommand or model name
+                    if "small".startswith(sub):
+                        yield Completion(
+                            "small ",
+                            start_position=-len(parts[1]),
+                            display_meta="Set small/fast model",
+                        )
+                    if "multimodal".startswith(sub):
+                        yield Completion(
+                            "multimodal ",
+                            start_position=-len(parts[1]),
+                            display_meta="Set multimodal model",
+                        )
+                    yield from self._get_fuzzy_completions(
+                        parts[1],
+                        model_options,
+                        only_files=False,
+                        display_meta="Model Name",
+                    )
+            elif len(parts) == 3 and not text_before_cursor.endswith(" "):
+                # "/model small gp" — completing model name after subcommand
+                sub = parts[1].lower()
+                if sub in ("small", "multimodal"):
+                    yield from self._get_fuzzy_completions(
+                        parts[2],
+                        model_options,
+                        only_files=False,
+                        display_meta="Model Name",
+                    )
+            return
+
         # Other commands take a single token argument.
         if not (
             (len(parts) == 1 and text_before_cursor.endswith(" "))
@@ -255,13 +316,8 @@ class InputCompleter(Completer):
             yield from complete_save_arg(single_arg, self._history_manager)
         elif self._is_command(cmd, self._redirect_output_commands):
             yield from complete_redirect_arg(single_arg)
-        elif self._is_command(cmd, self._set_model_commands):
-            yield from self._get_fuzzy_completions(
-                single_arg,
-                self._resolve_set_model_options(),
-                only_files=False,
-                display_meta="Model Name",
-            )
+        elif self._is_command(cmd, self._copy_commands):
+            yield from complete_copy_arg(single_arg)
         elif self._is_command(cmd, self._load_commands):
             yield from complete_load_arg(single_arg, self._history_manager)
         elif self._is_command(cmd, self._attach_commands):

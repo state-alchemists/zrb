@@ -8,9 +8,12 @@ methods that read/mutate them.
 from __future__ import annotations
 
 import asyncio
+import os
+import signal
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from zrb.config.config import CFG
 from zrb.llm.lsp.server import (
     LSPServer,
     detect_available_lsp_servers,
@@ -94,7 +97,14 @@ class LifecycleMixin:
         file_path: str,
         preferred_servers: list[str] | None = None,
     ) -> LSPServer | None:
-        """Get or lazily start an LSP server for `file_path`. None if unavailable."""
+        """Get or lazily start an LSP server for `file_path`. None if unavailable.
+
+        When `preferred_servers` is not given, fall back to the configured
+        `CFG.LLM_LSP_PREFERRED_SERVERS` so the agent path (whose LSP tools call this
+        without an explicit list) honors the user's preference.
+        """
+        if preferred_servers is None:
+            preferred_servers = CFG.LLM_LSP_PREFERRED_SERVERS or None
         config = get_lsp_config_for_file(file_path, preferred_servers)
         if config is None:
             return None
@@ -126,6 +136,25 @@ class LifecycleMixin:
                     pass
             self._servers.clear()
             self._project_roots.clear()
+
+    def force_kill_all(self) -> None:
+        """Synchronously SIGKILL any running LSP server processes.
+
+        A loop-free backstop for interpreter shutdown (``atexit``): by then the
+        event loop that owns the subprocess transports may already be closed, so
+        the async ``shutdown_all`` can no longer run and ``Process.terminate()``
+        would fail. ``os.kill`` on the pid is loop-independent. Best-effort —
+        never raises — so it is safe to register as an ``atexit`` handler.
+        """
+        for server in list(self._servers.values()):
+            process = getattr(server, "process", None)
+            if process is None or process.returncode is not None:
+                continue
+            try:
+                os.kill(process.pid, signal.SIGKILL)
+            except (ProcessLookupError, PermissionError, OSError):
+                pass
+        self._servers.clear()
 
     async def shutdown_idle(self):
         """Shutdown servers that have been idle for too long.

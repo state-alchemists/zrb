@@ -18,6 +18,7 @@ from contextvars import ContextVar
 from typing import Any
 
 from zrb.llm.tool.wrapper import tool_safe_async
+from zrb.llm.tool_call.always_approve import register_always_auto_approve
 
 interactive_mode: ContextVar[bool] = ContextVar("zrb_interactive_mode", default=True)
 
@@ -88,11 +89,16 @@ async def ask_user_question(questions: list[dict[str, Any]]) -> str:
                 "[SYSTEM SUGGESTION]: provide at least two options or do not ask."
             )
 
+    total = len(questions)
     answers: list[str] = []
     for idx, q in enumerate(questions, start=1):
-        prompt = _format_question(idx, q)
+        spec = _build_choice_spec(idx, total, q)
         try:
-            raw = await ui.ask_user(prompt)
+            if hasattr(ui, "ask_user_choice"):
+                raw = await ui.ask_user_choice(spec)
+            else:
+                # Custom UI predating ask_user_choice — fall back to text.
+                raw = await ui.ask_user(format_choice_spec(spec))
         except (KeyboardInterrupt, EOFError):
             return (
                 "[SYSTEM SUGGESTION]: User cancelled the question prompt. "
@@ -104,10 +110,26 @@ async def ask_user_question(questions: list[dict[str, Any]]) -> str:
     return "\n".join(answers)
 
 
-def _format_question(idx: int, q: dict[str, Any]) -> str:
-    multi = bool(q.get("multi_select"))
-    lines: list[str] = [f"\n[Q{idx}] {q['question']}"]
-    for i, opt in enumerate(q["options"], start=1):
+def _build_choice_spec(idx: int, total: int, q: dict[str, Any]) -> dict[str, Any]:
+    header = q.get("header") or q.get("question", "").strip().rstrip("?")[:40]
+    return {
+        "question": q["question"],
+        "options": q["options"],
+        "multi_select": bool(q.get("multi_select")),
+        "header": header,
+        "index": idx,
+        "total": total,
+    }
+
+
+def format_choice_spec(spec: dict[str, Any]) -> str:
+    """Render a `ChoiceSpec` as numbered text (fallback for non-widget UIs)."""
+    multi = bool(spec.get("multi_select"))
+    idx = spec.get("index", 1)
+    total = spec.get("total", 1)
+    counter = f"{idx}/{total}" if total > 1 else f"{idx}"
+    lines: list[str] = [f"\n[Q{counter}] {spec['question']}"]
+    for i, opt in enumerate(spec.get("options", []), start=1):
         label = opt.get("label", f"Option {i}")
         desc = opt.get("description", "")
         suffix = f" — {desc}" if desc else ""
@@ -148,3 +170,10 @@ def _resolve_answer(q: dict[str, Any], raw: str) -> str:
 
 
 ask_user_question.__name__ = "AskUserQuestion"
+
+# AskUserQuestion *is* the user interaction — gating it behind a separate
+# tool-approval prompt is meaningless and renders before the question itself.
+# Auto-approve intrinsically, in every path (main agent, sub-agents, web), so
+# the question surfaces directly. The non-interactive guard above already
+# prevents the tool from blocking on stdin when there is no user to answer.
+register_always_auto_approve("AskUserQuestion")

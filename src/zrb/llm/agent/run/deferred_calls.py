@@ -1,11 +1,16 @@
 """Deferred-tool-call processing for `run_agent`.
 
 When pydantic-ai produces a `DeferredToolRequests`, we route each call
-through three approval strategies in priority order:
+through the approval precedence chain (ADR-0055, ADR-0062):
 
-1. Tool policy via `ToolCallHandler.check_policies` (auto approve/deny)
-2. Approval channel (remote / multi-channel; first response wins)
-3. CLI fallback via the tool confirmation handler
+0. Always-approve      — tools that ARE the interaction (e.g. AskUserQuestion);
+   auto-approve in every path, independent of any policy list
+1. Permission policy   — allow→auto-approve, deny→block, ask→defer
+   (checked at check_yolo time; deny pre-checked again before prompting)
+2. Tool policy         — allow→auto-approve, deny→block, no-opinion→defer
+3. Yolo                — True→auto-approve, False→continue
+4. Approval channel    — remote / multi-channel; first response wins
+5. CLI fallback        — prompt the user
 
 After the loop we rebuild `current_results` with `calls={}` if any tool was
 denied, so pydantic-ai does not execute denied calls. Returns `None` if
@@ -22,6 +27,7 @@ from zrb.config.config import CFG
 from zrb.llm.approval.approval_channel import ApprovalContext
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
+from zrb.llm.tool_call.always_approve import is_always_auto_approve
 from zrb.llm.tool_call.handler import ToolCallHandler
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 
@@ -139,15 +145,81 @@ async def _resolve_approval(
     effective_tool_confirmation: Any,
     approval_channel: "ApprovalChannel | None",
 ):
-    """Run the three-tier approval cascade for a single deferred call."""
+    """Run the approval cascade for a single deferred call.
 
-    # Priority 1: Tool policy (automatic approval based on rules)
+    Approval precedence chain (ADR-0055, ADR-0062):
+      0. Always-approve (intrinsically interactive tools, e.g. AskUserQuestion)
+      1. Tool policy (Pre-confirmation)
+      2. Permission policy (Strict mode: ALLOW→Approve, DENY→Deny, ASK→Force Ask)
+      3. YOLO (Only if no strict policy opinion AND YOLO is explicitly True)
+      4. Approval channel (Multi-channel)
+      5. CLI fallback (User prompt)
+    """
+
+    # Priority 0: Intrinsically auto-approved tools. These ARE the user
+    # interaction (e.g. AskUserQuestion), so a separate approval prompt is
+    # redundant and would render before the question itself. Approve in every
+    # path, independent of any per-runner policy list. See ADR-0062.
+    if is_always_auto_approve(call.tool_name):
+        # lazy: heavy third-party
+        from pydantic_ai import ToolApproved
+
+        return ToolApproved()
+
+    # Priority 1: Tool policies from ToolCallHandler (Middleware)
     if isinstance(effective_tool_confirmation, ToolCallHandler):
         policy_result = await effective_tool_confirmation.check_policies(ui, call)
         if policy_result is not None:
             return policy_result
 
-    # Priority 2: Approval channel (multi-channel, first response wins)
+    # lazy: permission is a leaf module.
+    from zrb.llm.permission import (
+        ALLOW,
+        ASK,
+        DENY,
+        get_effective_policy,
+        tool_capability,
+    )
+
+    # Priority 2: Permission policy (Ruleset)
+    policy = get_effective_policy()
+    policy_decision: str | None = None
+    if policy is not None:
+        cap = tool_capability(call)
+        raw_args = getattr(call, "args", None) or {}
+        if isinstance(raw_args, str):
+            try:
+                raw_args = json.loads(raw_args)
+            except json.JSONDecodeError:
+                raw_args = {}
+        policy_decision = policy.decide(call.tool_name, cap, raw_args)
+
+        if policy_decision == ALLOW:
+            # lazy: heavy third-party
+            from pydantic_ai import ToolApproved
+
+            return ToolApproved()
+        if policy_decision == DENY:
+            # lazy: heavy third-party
+            from pydantic_ai import ToolDenied
+
+            return ToolDenied("Blocked by permission policy")
+
+        # if policy_decision == ASK, we continue but skip Priority 3 (YOLO).
+
+    # Priority 3: YOLO (Auto-approve)
+    # lazy: runtime_state is a thin re-export of runner ContextVars.
+    from zrb.llm.agent.run.runtime_state import get_current_yolo
+
+    yolo_val = get_current_yolo()
+    # Explicit policy ASK is a 'hard ask' that bypasses YOLO.
+    if yolo_val is True and policy_decision != ASK:
+        # lazy: heavy third-party
+        from pydantic_ai import ToolApproved
+
+        return ToolApproved()
+
+    # Priority 4: Approval channel (multi-channel, first response wins)
     if approval_channel is not None:
         CFG.LOGGER.debug(f"Using approval channel for {call.tool_name}")
         args: dict = {}
@@ -172,7 +244,7 @@ async def _resolve_approval(
         )
         return approval_result.to_pydantic_result()
 
-    # Priority 3: CLI fallback via tool confirmation
+    # Priority 5: CLI fallback via tool confirmation
     CFG.LOGGER.debug(f"Using CLI fallback for {call.tool_name}")
     if isinstance(effective_tool_confirmation, ToolCallHandler):
         result = await effective_tool_confirmation.handle(ui, call)
@@ -184,4 +256,13 @@ async def _resolve_approval(
             res = await res
         CFG.LOGGER.debug(f"CLI callable returned: {res}")
         return res
+    # Fallthrough: no approval mechanism configured.  If the policy said ASK we
+    # must not silently approve — deny instead.
+    if policy_decision == ASK:
+        # lazy: heavy third-party
+        from pydantic_ai import ToolDenied
+
+        return ToolDenied(
+            "Policy requires approval but no approval channel is configured"
+        )
     return None

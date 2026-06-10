@@ -38,7 +38,7 @@ class BaseTrigger(BaseTask):
         action: fstring | Callable[[AnyContext], Any] | None = None,
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
         queue_name: fstring | None = None,
-        callback: list[AnyCallback] | AnyCallback = [],
+        callback: list[AnyCallback] | AnyCallback | None = None,
         retries: int = 2,
         retry_period: float = 0,
         readiness_check: list[AnyTask] | AnyTask | None = None,
@@ -106,8 +106,9 @@ class BaseTrigger(BaseTask):
             successor=successor,
             print_fn=print_fn,
         )
-        self._callbacks = callback
+        self._callbacks = callback if callback is not None else []
         self._queue_name = queue_name
+        self._default_readiness_check: AnyTask | None = None
 
     @property
     def queue_name(self) -> str:
@@ -120,7 +121,11 @@ class BaseTrigger(BaseTask):
         readiness_checks = super().readiness_checks
         if len(readiness_checks) > 0:
             return readiness_checks
-        return [BaseTask(name=f"{self.name}-check", action=lambda _: True)]
+        if self._default_readiness_check is None:
+            self._default_readiness_check = BaseTask(
+                name=f"{self.name}-check", action=lambda _: True
+            )
+        return [self._default_readiness_check]
 
     @property
     def callbacks(self) -> list[AnyCallback]:

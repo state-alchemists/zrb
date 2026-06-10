@@ -48,15 +48,10 @@ class TerminalApprovalChannel:
             tool_call_id=context.tool_call_id,
         )
 
-        # Use the UI's handler if available (has formatters), otherwise create new one
-        handler = None
-        if (
-            hasattr(self._ui, "_tool_call_handler")
-            and self._ui._tool_call_handler is not None
-        ):
-            handler = self._ui._tool_call_handler
-        else:
-            handler = ToolCallHandler()
+        # Use the UI's handler if available (has formatters), otherwise create new one.
+        # `tool_call_handler` is the public accessor on BaseUI/MultiUI.
+        ui_handler = getattr(self._ui, "tool_call_handler", None)
+        handler = ui_handler if ui_handler is not None else ToolCallHandler()
 
         # Use public method for approval message with custom instruction
         message = await handler.format_approval_message(self._ui, call)

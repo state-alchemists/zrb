@@ -146,3 +146,39 @@ def test_match_cron_invalid_pattern():
     dt = datetime.datetime(2025, 5, 10, 10, 30)
     with pytest.raises(ValueError):
         match_cron("invalid cron pattern", dt)
+
+
+def test_match_cron_day_of_week_only_fires_on_that_day():
+    """`0 0 * * 1` ("Mondays at midnight") must fire only on Mondays.
+
+    Regression test for the always-OR + DOW off-by-one bug, where a wildcard
+    day-of-month made the schedule fire every day.
+    """
+    monday = datetime.datetime(2024, 5, 13, 0, 0)  # Monday
+    tuesday = datetime.datetime(2024, 5, 14, 0, 0)  # Tuesday
+    assert match_cron("0 0 * * 1", monday) is True
+    assert match_cron("0 0 * * 1", tuesday) is False
+
+
+def test_match_cron_day_of_week_convention():
+    """Cron DOW uses Sunday=0..Saturday=6, independent of Python's weekday()."""
+    sunday = datetime.datetime(2024, 5, 12, 0, 0)  # Sunday
+    saturday = datetime.datetime(2024, 5, 18, 0, 0)  # Saturday
+    assert match_cron("0 0 * * 0", sunday) is True
+    assert match_cron("0 0 * * 0", saturday) is False
+    # Cron also accepts 7 for Sunday.
+    assert match_cron("0 0 * * 7", sunday) is True
+
+
+def test_match_cron_day_of_month_and_dow_both_restricted_is_or():
+    """When both day fields are restricted, the task fires if EITHER matches."""
+    # 2024-05-13 is a Monday and the 13th.
+    monday_13th = datetime.datetime(2024, 5, 13, 0, 0)
+    # 2024-05-15 is a Wednesday and the 15th.
+    wednesday_15th = datetime.datetime(2024, 5, 15, 0, 0)
+    # day-of-month 15 OR day-of-week Monday(1)
+    assert match_cron("0 0 15 * 1", monday_13th) is True  # matches Monday
+    assert match_cron("0 0 15 * 1", wednesday_15th) is True  # matches the 15th
+    # A Tuesday that is not the 15th matches neither.
+    tuesday_14th = datetime.datetime(2024, 5, 14, 0, 0)
+    assert match_cron("0 0 15 * 1", tuesday_14th) is False

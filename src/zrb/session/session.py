@@ -127,10 +127,10 @@ class Session(AnySession):
         if self._main_task is None:
             return None
         xcom: Xcom = self.shared_ctx.xcom[self._main_task.name]
-        try:
-            return xcom.peek()
-        except IndexError:
-            return None
+        # Use get() (single-variable, latest value) rather than peek() (queue
+        # front, oldest): the final result is the main task's most recent run,
+        # not a stale first push from a readiness-monitored re-execution.
+        return xcom.get()
 
     @property
     def state_logger(self) -> AnySessionStateLogger:
@@ -218,16 +218,22 @@ class Session(AnySession):
         self, task: AnyTask, coro: Coroutine[Any, Any, Any] | asyncio.Task[Any]
     ):
         self._register_single_task(task)
-        if isinstance(coro, asyncio.Task):
-            self._action_coros[task] = coro
-        else:
-            self._action_coros[task] = asyncio.create_task(coro)
+        scheduled = (
+            coro if isinstance(coro, asyncio.Task) else asyncio.create_task(coro)
+        )
+        if self._is_terminated:
+            scheduled.cancel()
+            return
+        self._action_coros[task] = scheduled
 
     def defer_coro(self, coro: Coroutine[Any, Any, Any] | asyncio.Task[Any]):
-        if isinstance(coro, asyncio.Task):
-            self._coros.append(coro)
-        else:
-            self._coros.append(asyncio.create_task(coro))
+        scheduled = (
+            coro if isinstance(coro, asyncio.Task) else asyncio.create_task(coro)
+        )
+        if self._is_terminated:
+            scheduled.cancel()
+            return
+        self._coros.append(scheduled)
         self._coros = [
             existing_coro for existing_coro in self._coros if not existing_coro.done()
         ]
@@ -250,15 +256,29 @@ class Session(AnySession):
         await asyncio.gather(*task_coros)
 
     def register_task(self, task: AnyTask):
+        self._register_task_graph(task, set())
+
+    def _register_task_graph(self, task: AnyTask, ancestors: set[int]) -> None:
+        # `ancestors` holds the ids of tasks on the current traversal path. A
+        # task that reappears in its own ancestor chain is a circular dependency
+        # (a task that waits on itself) — fail fast with a clear message instead
+        # of recursing forever (RecursionError / hang). The set is path-scoped,
+        # so legitimate diamonds (a shared upstream reached via two branches)
+        # still register and link correctly.
+        if id(task) in ancestors:
+            raise ValueError(
+                f"Circular task dependency detected involving '{task.name}'"
+            )
         self._register_single_task(task)
+        next_ancestors = ancestors | {id(task)}
         for readiness_check in task.readiness_checks:
-            self.register_task(readiness_check)
+            self._register_task_graph(readiness_check, next_ancestors)
         for successor in task.successors:
-            self.register_task(successor)
+            self._register_task_graph(successor, next_ancestors)
         for fallback in task.fallbacks:
-            self.register_task(fallback)
+            self._register_task_graph(fallback, next_ancestors)
         for upstream in task.upstreams:
-            self.register_task(upstream)
+            self._register_task_graph(upstream, next_ancestors)
             if task not in self._downstreams[upstream]:
                 self._downstreams[upstream].append(task)
             if upstream not in self._upstreams[task]:

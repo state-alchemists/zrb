@@ -29,14 +29,22 @@ class Xcom(deque):
         return value
 
     def peek(self):
+        # Queue semantics: non-destructive `pop`. `pop()`/`popleft()` remove
+        # from the left (oldest first), so `peek()` returns that same front
+        # element without removing it.
         if len(self) > 0:
             return self[0]
         else:
             raise IndexError("Xcom is empty")
 
     def get(self, default_value: Any = None) -> Any:
+        # Single-variable semantics (paired with `set()`): return the current
+        # value, i.e. the most recently pushed one. `set()` keeps only the
+        # latest, so for set-based usage this is that single element; for a
+        # plain-push task that ran more than once (readiness-monitored re-exec)
+        # it is the latest result, not a stale earlier one.
         if len(self) > 0:
-            return self[0]
+            return self[-1]
         return default_value
 
     def set(self, new_value: Any):

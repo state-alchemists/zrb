@@ -55,6 +55,99 @@ def check_unrecommended_commands(cmd_script: str) -> dict[str, str]:
     return violations
 
 
+def resolve_shell(shell: str = "") -> tuple[str, str]:
+    """Resolve a shell name into a ``(shell, flag)`` pair.
+
+    An empty ``shell`` falls back to ``CFG.SHELL`` — the user's configured shell
+    (``ZRB_SHELL`` / ``CFG.DEFAULT_SHELL``), or the detected current shell
+    (``get_current_shell()``, which only ever returns a shell that exists).
+
+    The flag is the "run this string" switch for the interpreter (``-c`` for
+    POSIX shells, ``-Command`` for PowerShell, ``/c`` for cmd, ``-e``/``-r`` for
+    runtimes).
+
+    Args:
+        shell (str): The shell/interpreter to use. Empty uses ``CFG.SHELL``.
+
+    Returns:
+        tuple[str, str]: The resolved shell and its command flag.
+    """
+    shell = shell or CFG.SHELL
+    flags = {
+        "node": "-e",
+        "ruby": "-e",
+        "php": "-r",
+        "pwsh": "-Command",
+        "powershell": "-Command",
+        "cmd": "/c",
+    }
+    return shell, flags.get(shell.lower(), "-c")
+
+
+def _process_tree_pids(pid: int) -> list[int]:
+    """Snapshot a process and its descendants' PIDs (best effort)."""
+    try:
+        parent = psutil.Process(pid)
+        return [pid] + [child.pid for child in parent.children(recursive=True)]
+    except psutil.NoSuchProcess:
+        return [pid]
+
+
+async def terminate_process(
+    process: asyncio.subprocess.Process,
+    grace_seconds: float,
+    print_method: Callable[..., None] | None = None,
+) -> None:
+    """Gracefully terminate an asyncio subprocess tree, then force-kill survivors.
+
+    The tree is snapshotted *before* signalling, because once the shell exits its
+    children are reparented and can no longer be reached via the shell PID. After
+    a SIGTERM-equivalent and a grace window, any snapshotted PID still alive is
+    force-killed. Cross-platform via ``psutil``.
+
+    Args:
+        process (asyncio.subprocess.Process): The process to terminate.
+        grace_seconds (float): How long to wait for graceful exit before forcing.
+        print_method (Callable[..., None] | None): Status printer for kills.
+    """
+    if process.returncode is not None:
+        return
+    pids = _process_tree_pids(process.pid)
+    terminate_pid(process.pid, print_method=print_method)
+    try:
+        await asyncio.wait_for(process.wait(), timeout=grace_seconds)
+    except asyncio.TimeoutError:
+        pass
+    for pid in pids:
+        if psutil.pid_exists(pid):
+            kill_pid(pid, print_method=print_method)
+
+
+def terminate_pid(pid: int, print_method: Callable[..., None] | None = None) -> None:
+    """Gracefully terminate a process and its children (SIGTERM-equivalent).
+
+    Cross-platform via ``psutil`` — unlike ``os.killpg`` this works on Windows.
+    Pair with ``kill_pid`` to force-kill survivors after a grace period.
+
+    Args:
+        pid (int): The parent process ID.
+        print_method (Callable[..., None] | None): Status printer. Defaults to
+            the built-in ``print``.
+    """
+    actual_print_method = print_method if print_method is not None else print
+    try:
+        parent = psutil.Process(pid)
+    except psutil.NoSuchProcess:
+        return
+    for proc in parent.children(recursive=True) + [parent]:
+        try:
+            proc.terminate()
+        except psutil.NoSuchProcess:
+            pass
+        except Exception as e:
+            actual_print_method(f"Failed to terminate process {proc.pid}: {e}")
+
+
 async def run_command(
     cmd: list[str],
     cwd: str | None = None,

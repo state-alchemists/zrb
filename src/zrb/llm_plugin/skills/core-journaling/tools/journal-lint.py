@@ -7,6 +7,14 @@ Checks (from core-journaling/SKILL.md):
   - INDEX COVERAGE — every non-leaf directory has an index.md
   - PATH HEALTH    — no broken internal links (link target exists)
 
+Link resolution:
+  Internal link targets are resolved RELATIVE TO THE FILE that contains the
+  link (standard markdown semantics), not relative to the journal root. From a
+  file in a subdirectory, climb out with `../` (e.g. from projects/my-app.md,
+  link a technical note as `../technical/jwt.md`). A link written relative to
+  the journal root resolves correctly only from the root index.md; elsewhere it
+  is reported as a broken link, with a hint suggesting the file-relative form.
+
 Usage:
   python journal-lint.py <journal-root>            # human-readable output
   python journal-lint.py <journal-root> --json     # machine-readable output
@@ -25,6 +33,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 from collections import defaultdict
@@ -69,7 +78,9 @@ def _is_internal(target: str) -> bool:
 def _normalize_target(file_path: Path, root: Path, target: str) -> Path | None:
     """Resolve a markdown link target to an absolute path within the journal.
 
-    Assumes root and file_path are already resolved (real paths).
+    Targets are resolved RELATIVE TO THE CONTAINING FILE (standard markdown
+    semantics), not relative to the journal root. Assumes root and file_path
+    are already resolved (real paths).
     """
     target = target.split("#", 1)[0].strip()  # strip anchor
     if not target:
@@ -80,6 +91,32 @@ def _normalize_target(file_path: Path, root: Path, target: str) -> Path | None:
     except ValueError:
         return None  # link points outside the journal — ignore
     return candidate
+
+
+def _root_relative_hint(
+    file_path: Path, root: Path, target: str, resolved: Path
+) -> str:
+    """Hint for a broken link that would resolve under the old root-relative rule.
+
+    If `target` is a dead file-relative link but resolves to a real file when
+    treated as journal-root-relative, the author likely used the deprecated
+    convention. Suggest the correct file-relative path.
+    """
+    cleaned = target.split("#", 1)[0].strip()
+    if not cleaned:
+        return ""
+    root_candidate = (root / cleaned).resolve()
+    try:
+        root_candidate.relative_to(root)
+    except ValueError:
+        return ""
+    if root_candidate.exists() and root_candidate != resolved:
+        rel = os.path.relpath(root_candidate, file_path.parent)
+        return (
+            f" — did you mean ({rel})? Links are relative to this file, "
+            "not the journal root"
+        )
+    return ""
 
 
 def _is_date_leaf_dir(path: Path, root: Path) -> bool:
@@ -141,11 +178,12 @@ def lint(root: Path) -> LintReport:
             if resolved is None:
                 continue
             if not resolved.exists():
+                hint = _root_relative_hint(f, root, target, resolved)
                 report.issues.append(
                     JournalIssue(
                         "broken-link",
                         str(f.relative_to(root)),
-                        f"-> {target} (target missing)",
+                        f"-> {target} (target missing){hint}",
                     )
                 )
                 continue

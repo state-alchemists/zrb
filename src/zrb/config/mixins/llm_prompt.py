@@ -4,8 +4,12 @@ from __future__ import annotations
 
 import os
 
-from zrb.config.helper import get_env
+from zrb.config.env_field import EnvField, comma_list, on_off
 from zrb.util.string.conversion import to_boolean
+
+
+def _include_sections_serialize(value: list[str] | str) -> str:
+    return ",".join(value) if isinstance(value, list) else value
 
 
 class LLMPromptMixin:
@@ -32,93 +36,28 @@ class LLMPromptMixin:
         self.DEFAULT_LLM_INCLUDE_JOURNAL_REMINDER: str = "off"
         super().__init__()
 
-    @property
-    def LLM_PROMPT_DIR(self) -> str:
-        default = self.DEFAULT_LLM_PROMPT_DIR
-        if default == "":
-            default = os.path.join(f".{self.ROOT_GROUP_NAME}", "llm", "prompt")
-        return get_env("LLM_PROMPT_DIR", default, self.ENV_PREFIX)
+    LLM_PROMPT_DIR = EnvField(
+        str,
+        default_factory=lambda cfg: (
+            cfg.DEFAULT_LLM_PROMPT_DIR
+            or os.path.join(f".{cfg.ROOT_GROUP_NAME}", "llm", "prompt")
+        ),
+    )
 
-    @LLM_PROMPT_DIR.setter
-    def LLM_PROMPT_DIR(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_LLM_PROMPT_DIR"] = value
+    LLM_BASE_PROMPT_DIR = EnvField(str)
 
-    @property
-    def LLM_BASE_PROMPT_DIR(self) -> str:
-        return get_env(
-            "LLM_BASE_PROMPT_DIR",
-            self.DEFAULT_LLM_BASE_PROMPT_DIR,
-            self.ENV_PREFIX,
-        )
+    LLM_SHOW_TOOL_CALL_DETAIL = EnvField(to_boolean, serialize=on_off)
 
-    @LLM_BASE_PROMPT_DIR.setter
-    def LLM_BASE_PROMPT_DIR(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_LLM_BASE_PROMPT_DIR"] = value
+    LLM_SHOW_TOOL_CALL_RESULT = EnvField(to_boolean, serialize=on_off)
 
-    @property
-    def LLM_SHOW_TOOL_CALL_DETAIL(self) -> bool:
-        return to_boolean(
-            get_env(
-                "LLM_SHOW_TOOL_CALL_DETAIL",
-                self.DEFAULT_LLM_SHOW_TOOL_CALL_DETAIL,
-                self.ENV_PREFIX,
-            )
-        )
+    LLM_INCLUDE_SECTIONS = EnvField(
+        comma_list,
+        serialize=_include_sections_serialize,
+        doc=(
+            "Order-sensitive list of prompt sections to include.\n\n"
+            "Read from ZRB_LLM_INCLUDE_SECTIONS (comma-separated). Falls back "
+            "to the default in DEFAULT_LLM_INCLUDE_SECTIONS."
+        ),
+    )
 
-    @LLM_SHOW_TOOL_CALL_DETAIL.setter
-    def LLM_SHOW_TOOL_CALL_DETAIL(self, value: bool):
-        os.environ[f"{self.ENV_PREFIX}_LLM_SHOW_TOOL_CALL_DETAIL"] = (
-            "on" if value else "off"
-        )
-
-    @property
-    def LLM_SHOW_TOOL_CALL_RESULT(self) -> bool:
-        return to_boolean(
-            get_env(
-                "LLM_SHOW_TOOL_CALL_RESULT",
-                self.DEFAULT_LLM_SHOW_TOOL_CALL_RESULT,
-                self.ENV_PREFIX,
-            )
-        )
-
-    @LLM_SHOW_TOOL_CALL_RESULT.setter
-    def LLM_SHOW_TOOL_CALL_RESULT(self, value: bool):
-        os.environ[f"{self.ENV_PREFIX}_LLM_SHOW_TOOL_CALL_RESULT"] = (
-            "on" if value else "off"
-        )
-
-    @property
-    def LLM_INCLUDE_SECTIONS(self) -> list[str]:
-        """Order-sensitive list of prompt sections to include.
-
-        Read from ZRB_LLM_INCLUDE_SECTIONS (comma-separated). Falls back to
-        the default in DEFAULT_LLM_INCLUDE_SECTIONS.
-        """
-        raw = get_env(
-            "LLM_INCLUDE_SECTIONS",
-            self.DEFAULT_LLM_INCLUDE_SECTIONS,
-            self.ENV_PREFIX,
-        )
-        return [s.strip() for s in raw.split(",") if s.strip()]
-
-    @LLM_INCLUDE_SECTIONS.setter
-    def LLM_INCLUDE_SECTIONS(self, value: list[str] | str):
-        if isinstance(value, list):
-            value = ",".join(value)
-        os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_SECTIONS"] = value
-
-    @property
-    def LLM_INCLUDE_JOURNAL_REMINDER(self) -> bool:
-        return to_boolean(
-            get_env(
-                "LLM_INCLUDE_JOURNAL_REMINDER",
-                self.DEFAULT_LLM_INCLUDE_JOURNAL_REMINDER,
-                self.ENV_PREFIX,
-            )
-        )
-
-    @LLM_INCLUDE_JOURNAL_REMINDER.setter
-    def LLM_INCLUDE_JOURNAL_REMINDER(self, value: bool):
-        os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_JOURNAL_REMINDER"] = (
-            "on" if value else "off"
-        )
+    LLM_INCLUDE_JOURNAL_REMINDER = EnvField(to_boolean, serialize=on_off)

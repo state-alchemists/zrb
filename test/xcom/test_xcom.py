@@ -70,6 +70,18 @@ def test_xcom_get():
     assert xcom.get("default") == "default"
 
 
+def test_xcom_get_returns_newest_after_multiple_pushes():
+    # `get()` is the single-variable accessor: a task that pushes more than once
+    # (e.g. a readiness-monitored re-exec) must report its latest result, not the
+    # stale first one. `peek()` keeps its queue-front (oldest) semantics.
+    xcom = Xcom([])
+    xcom.push("first")
+    xcom.push("second")
+    xcom.push("third")
+    assert xcom.get() == "third"
+    assert xcom.peek() == "first"
+
+
 def test_xcom_set():
     xcom = Xcom(["a", "b"])
     xcom.set("c")

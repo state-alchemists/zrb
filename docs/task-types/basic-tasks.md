@@ -110,7 +110,7 @@ from zrb import CmdTask, Env, cli
 api_call_task = cli.add_task(
     CmdTask(
         name="api-call",
-        env=[Env(name="API_KEY", is_secret=True)],  # Will prompt if not in OS
+        env=[Env(name="API_KEY", default="")],  # Reads $API_KEY from the OS, "" if unset
         # The curl command can access $API_KEY directly from the shell environment
         cmd='curl -H "Authorization: Bearer $API_KEY" https://api.example.com/data'
     )

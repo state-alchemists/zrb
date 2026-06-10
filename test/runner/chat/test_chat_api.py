@@ -213,6 +213,60 @@ async def test_post_message_dict_is_json_serialized(client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_routes_forbid_user_without_task_access(client: AsyncClient):
+    """With a resolvable chat task, a user who can't access it gets 403.
+
+    Regression test for C1: the chat routes previously discarded the user and
+    never called `can_access_task`, so an unauthorized client could reach the
+    `llm chat` agent (tool/shell execution).
+    """
+    no_access_user = MagicMock()
+    no_access_user.can_access_task.return_value = False
+    mock_task = MagicMock()
+
+    with patch(
+        "zrb.runner.chat.chat_api_route.get_user_from_request",
+        new=AsyncMock(return_value=no_access_user),
+    ), patch(
+        "zrb.runner.chat.chat_api_route._get_llm_chat_task",
+        new=AsyncMock(return_value=mock_task),
+    ):
+        endpoints = [
+            ("get", "/api/v1/chat/sessions"),
+            ("post", "/api/v1/chat/sessions"),
+            ("delete", "/api/v1/chat/sessions/test"),
+            ("get", "/api/v1/chat/sessions/test/messages"),
+            ("post", "/api/v1/chat/sessions/test/messages"),
+            ("get", "/api/v1/chat/sessions/test/approval"),
+            ("get", "/api/v1/chat/sessions/test/streaming"),
+            ("get", "/api/v1/chat/sessions/test/status"),
+        ]
+        for method, url in endpoints:
+            call = getattr(client, method)
+            response = await call(url) if method != "post" else await call(url, json={})
+            assert response.status_code == 403, f"{method} {url} was not forbidden"
+
+
+@pytest.mark.asyncio
+async def test_routes_allow_user_with_task_access(client: AsyncClient):
+    """A user who can access the chat task is allowed through (no 403)."""
+    ok_user = MagicMock()
+    ok_user.can_access_task.return_value = True
+    mock_task = MagicMock()
+    _mock_sm.get_session.return_value = None
+
+    with patch(
+        "zrb.runner.chat.chat_api_route.get_user_from_request",
+        new=AsyncMock(return_value=ok_user),
+    ), patch(
+        "zrb.runner.chat.chat_api_route._get_llm_chat_task",
+        new=AsyncMock(return_value=mock_task),
+    ):
+        response = await client.get("/api/v1/chat/sessions/test/status")
+        assert response.status_code == 200
+
+
+@pytest.mark.asyncio
 async def test_get_llm_chat_task_returns_none_when_missing():
     """Internal helper returns None when the chat node isn't registered."""
     from zrb.runner.chat.chat_api_route import _get_llm_chat_task

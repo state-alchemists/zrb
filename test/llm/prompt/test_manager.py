@@ -188,6 +188,143 @@ def test_section_order_follows_include_sections():
     assert persona_pos2 < mandate_pos2
 
 
+# ── Custom file-backed sections ───────────────────────────────────────────────
+
+
+def test_unknown_section_loads_via_get_prompt():
+    """An unknown section name is resolved as a file-backed custom section."""
+    manager = PromptManager(include_sections=["persona", "company_context"])
+    ctx = SharedContext()
+    with patch(
+        "zrb.llm.prompt.manager.get_prompt",
+        side_effect=lambda name, **kw: (
+            "# Company Context" if name == "company_context" else f"# {name}"
+        ),
+    ):
+        composed = manager.compose_prompt()(ctx)
+    assert "# Company Context" in composed
+
+
+def test_custom_section_follows_include_order():
+    """A custom section appears at its configured position, not last."""
+    manager = PromptManager(include_sections=["persona", "company_context", "mandate"])
+    ctx = SharedContext()
+    with patch(
+        "zrb.llm.prompt.manager.get_prompt",
+        side_effect=lambda name, **kw: (
+            "# Company Context"
+            if name == "company_context"
+            else ("# Identity" if name == "persona" else "# Operating Rules")
+        ),
+    ):
+        composed = manager.compose_prompt()(ctx)
+    assert (
+        composed.index("# Identity")
+        < composed.index("# Company Context")
+        < composed.index("# Operating Rules")
+    )
+
+
+def test_missing_custom_section_is_harmless():
+    """A custom section with no backing file resolves to empty (no crash)."""
+    manager = PromptManager(include_sections=["does_not_exist"])
+    ctx = SharedContext()
+    with patch("zrb.llm.prompt.manager.get_prompt", return_value=""):
+        composed = manager.compose_prompt()(ctx)
+    assert composed.strip() == ""
+
+
+# ── Registered dynamic sections ───────────────────────────────────────────────
+
+
+def test_registered_section_is_composed_dynamically():
+    """A registered provider is composed by calling it with the context."""
+    manager = PromptManager(include_sections=["persona", "live_status"])
+    manager.register_section("live_status", lambda ctx: "# Live Status")
+    ctx = SharedContext()
+    with patch(
+        "zrb.llm.prompt.manager.get_prompt",
+        side_effect=lambda name, **kw: f"# {name}",
+    ):
+        composed = manager.compose_prompt()(ctx)
+    assert "# Live Status" in composed
+
+
+def test_registered_section_follows_include_order():
+    """A registered section appears at its configured position, not last."""
+    manager = PromptManager(include_sections=["persona", "live_status", "mandate"])
+    manager.register_section("live_status", lambda ctx: "# Live Status")
+    ctx = SharedContext()
+    with patch(
+        "zrb.llm.prompt.manager.get_prompt",
+        side_effect=lambda name, **kw: (
+            "# Identity" if name == "persona" else "# Operating Rules"
+        ),
+    ):
+        composed = manager.compose_prompt()(ctx)
+    assert (
+        composed.index("# Identity")
+        < composed.index("# Live Status")
+        < composed.index("# Operating Rules")
+    )
+
+
+def test_registered_section_takes_precedence_over_markdown_file():
+    """A registered provider shadows a same-named markdown file."""
+    manager = PromptManager(include_sections=["live_status"])
+    manager.register_section("live_status", lambda ctx: "# From Provider")
+    ctx = SharedContext()
+    with patch(
+        "zrb.llm.prompt.manager.get_prompt",
+        side_effect=lambda name, **kw: "# From File",
+    ):
+        composed = manager.compose_prompt()(ctx)
+    assert "# From Provider" in composed
+    assert "# From File" not in composed
+
+
+def test_registered_section_receives_context():
+    """The provider is invoked with the active context."""
+    seen = {}
+
+    def provider(ctx):
+        seen["ctx"] = ctx
+        return "# Dynamic"
+
+    manager = PromptManager(include_sections=["live_status"])
+    manager.register_section("live_status", provider)
+    ctx = SharedContext()
+    with patch("zrb.llm.prompt.manager.get_prompt", return_value=""):
+        manager.compose_prompt()(ctx)
+    assert seen["ctx"] is ctx
+
+
+def test_register_section_overwrites_previous_provider():
+    """Re-registering the same name replaces the earlier provider."""
+    manager = PromptManager(include_sections=["live_status"])
+    manager.register_section("live_status", lambda ctx: "# First")
+    manager.register_section("live_status", lambda ctx: "# Second")
+    ctx = SharedContext()
+    with patch("zrb.llm.prompt.manager.get_prompt", return_value=""):
+        composed = manager.compose_prompt()(ctx)
+    assert "# Second" in composed
+    assert "# First" not in composed
+
+
+def test_builtin_section_not_shadowed_by_registered_provider():
+    """A provider registered under a built-in name never shadows the built-in."""
+    manager = PromptManager(include_sections=["mandate"])
+    manager.register_section("mandate", lambda ctx: "# Hijacked")
+    ctx = SharedContext()
+    with patch(
+        "zrb.llm.prompt.manager.get_prompt",
+        side_effect=lambda name, **kw: f"# Builtin {name}",
+    ):
+        composed = manager.compose_prompt()(ctx)
+    assert "# Builtin mandate" in composed
+    assert "# Hijacked" not in composed
+
+
 # ── Tool guidance ─────────────────────────────────────────────────────────────
 
 

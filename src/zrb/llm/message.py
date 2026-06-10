@@ -2,6 +2,17 @@ from collections.abc import Generator
 from dataclasses import replace
 from typing import Any
 
+# Self-describing placeholders injected when a part would otherwise be empty or
+# text-less. Centralised here (the lowest-level history module) so every layer
+# that has to patch history for provider compatibility uses the same literals.
+# They are deliberately human-readable so the model can tell a missing payload
+# from a real terse response and not imitate a literal "." in its next turn.
+TOOL_CALL_PLACEHOLDER = "(tool call)"
+EMPTY_CONTENT_PLACEHOLDER = "(empty)"
+# ToolReturnParts use "null" (not "(empty)") because some providers special-case
+# a literal null tool result.
+TOOL_RETURN_NULL_PLACEHOLDER = "null"
+
 
 def ensure_alternating_roles(messages: list[Any]) -> list[Any]:
     """
@@ -51,7 +62,8 @@ def _strip_orphaned_parts(
     """Return *msg* with parts matching *orphaned_ids* removed, or ``None`` if empty.
 
     When *ensure_text* is ``True`` and the result has no ``TextPart`` with
-    content, a ``"(tool call)"`` text part is prepended so the message stays valid.
+    content, a ``TOOL_CALL_PLACEHOLDER`` text part is prepended so the message
+    stays valid.
     """
     # lazy: heavy third-party
     from pydantic_ai.messages import TextPart
@@ -70,7 +82,7 @@ def _strip_orphaned_parts(
         if ensure_text and not any(
             isinstance(p, TextPart) and p.content for p in new_parts
         ):
-            new_parts.insert(0, TextPart(content="(tool call)"))
+            new_parts.insert(0, TextPart(content=TOOL_CALL_PLACEHOLDER))
         return replace(msg, parts=new_parts)
     return msg
 
@@ -115,6 +127,43 @@ def sanitize_orphaned_tool_calls(messages: list[Any]) -> list[Any]:
             if patched is not None:
                 result.append(patched)
         elif isinstance(msg, ModelRequest) and orphaned_returns:
+            patched = _strip_orphaned_parts(msg, orphaned_returns, ToolReturnPart)
+            if patched is not None:
+                result.append(patched)
+        else:
+            result.append(msg)
+    return result
+
+
+def strip_orphaned_returns(messages: list[Any]) -> list[Any]:
+    """Remove ToolReturnParts whose matching ToolCallPart is not in *messages*.
+
+    Unlike sanitize_orphaned_tool_calls, this does NOT remove orphaned
+    ToolCallParts — they may be pending deferred tool results from the
+    model's most recent turn.  Only ToolReturnParts whose calls were in
+    the summarised (dropped) portion are stripped.
+    """
+    # lazy: heavy third-party
+    from pydantic_ai.messages import (
+        ModelRequest,
+        ToolReturnPart,
+    )
+
+    call_ids: set[str] = set()
+    return_ids: set[str] = set()
+    for _msg_idx, tool_call_id, kind in _iter_tool_events(messages):
+        if kind == "call":
+            call_ids.add(tool_call_id)
+        else:
+            return_ids.add(tool_call_id)
+
+    orphaned_returns = return_ids - call_ids
+    if not orphaned_returns:
+        return messages
+
+    result: list[Any] = []
+    for msg in messages:
+        if isinstance(msg, ModelRequest) and orphaned_returns:
             patched = _strip_orphaned_parts(msg, orphaned_returns, ToolReturnPart)
             if patched is not None:
                 result.append(patched)

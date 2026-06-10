@@ -8,7 +8,10 @@ if TYPE_CHECKING:
 
 # Shell metacharacters that could indicate state-changing operations.
 # Checked as plain substrings (conservative: even inside quotes triggers approval).
-_DANGEROUS_SUBSTRINGS = (">", "|", ";", "&&", "`", "$(")
+# A bare "&" (covering "&&" too) catches command chaining/backgrounding such as
+# `ls & rm -rf x`, and newline/carriage-return catch multi-command payloads like
+# `ls\nrm x` — both would otherwise auto-approve.
+_DANGEROUS_SUBSTRINGS = (">", "|", ";", "&", "`", "$(", "\n", "\r")
 
 # Command prefixes that are always read-only (no state changes possible).
 # A command is safe only if it starts with one of these prefixes (case-insensitive,
@@ -52,7 +55,8 @@ _SAFE_PREFIXES = (
     "type",
     "whereis",
     "pwd",
-    "env",
+    # NOTE: bare "env" is intentionally NOT safe — `env FOO=1 rm -rf x` runs an
+    # arbitrary command. Only "printenv" (pure read) is allowlisted.
     "printenv",
     # Count / sort (safe without redirect)
     "wc",
@@ -117,7 +121,7 @@ def bash_safe_command_policy() -> ToolPolicy:
         # lazy: heavy third-party
         from pydantic_ai import ToolApproved
 
-        if call.tool_name != "Bash":
+        if call.tool_name not in ("Shell", "Bash"):
             return await next_handler(ui, call)
 
         try:
@@ -130,6 +134,11 @@ def bash_safe_command_policy() -> ToolPolicy:
             if not isinstance(command, str):
                 return await next_handler(ui, call)
         except (json.JSONDecodeError, ValueError):
+            return await next_handler(ui, call)
+
+        # A sandbox-escape request must always reach a human, no matter how
+        # read-only the command looks.
+        if args.get("dangerously_skip_sandbox"):
             return await next_handler(ui, call)
 
         if _is_safe_command(command):

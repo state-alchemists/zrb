@@ -1,9 +1,9 @@
-"""Tests for llm/skill/_util.py - Shared skill utilities."""
+"""Tests for llm/skill/util.py - Shared skill utilities."""
 
 import tempfile
 from pathlib import Path
 
-from zrb.llm.skill._util import discover_companion_files, format_companion_file_lines
+from zrb.llm.skill.util import discover_companion_files, format_companion_file_lines
 
 
 class TestDiscoverCompanionFiles:

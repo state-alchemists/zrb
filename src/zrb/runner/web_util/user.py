@@ -60,6 +60,12 @@ def _get_user_from_token(
             algorithms=["HS256"],
             options={"require": ["exp", "sub"]},
         )
+        # Only access tokens authenticate a request. Refresh tokens are signed
+        # with the same secret and also carry `sub`/`exp`, so without this check a
+        # refresh token would be accepted as an access token (privilege/lifetime
+        # confusion). `regenerate_tokens` enforces the symmetric `refresh` check.
+        if payload.get("type") != "access":
+            return None
         username: str | None = payload.get("sub")
         if username is None:
             return None

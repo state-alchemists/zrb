@@ -81,20 +81,7 @@ flaky_task = cli.add_task(
         name="flaky",
         description="A command that might fail",
         cmd="exit 1",  # Always fails
-        retry=3,  # Retry 3 times
-        retry_interval=1,  # Wait 1 second between retries
-    )
-)
-
-# =============================================================================
-# CmdTask capturing Output
-# =============================================================================
-
-capture_task = cli.add_task(
-    CmdTask(
-        name="capture",
-        description="Capture command output",
-        cmd="echo 'captured output'",
-        done_callback=lambda ctx: ctx.print(f"Got: {ctx.xcom['capture'].pop()}"),
+        retries=3,  # Retry 3 times
+        retry_period=1,  # Wait 1 second between retries
     )
 )

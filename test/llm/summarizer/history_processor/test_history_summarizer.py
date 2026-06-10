@@ -295,8 +295,13 @@ async def test_create_summarizer_history_processor_flow():
     # it falls back to summarizing everything.
     assert len(new_history) == 1
     assert "Automated Context Restoration" in message_to_text(new_history[0])
-    # active turn is summarized into "conv summary"
-    assert "conv summary" in message_to_text(new_history[0])
+    # The active turn is summarized into "conv summary". With the artificially
+    # tiny threshold (10) and MockLimiter (1 char == 1 token), the consolidation
+    # step truncates that summary to the threshold using the SAME limiter that
+    # was threaded through summarize_history — so the surviving prefix is
+    # "conv summa". (Before consolidate_summaries accepted a limiter argument it
+    # silently used the lenient default singleton and left the text untruncated.)
+    assert "conv summa" in message_to_text(new_history[0])
     assert msg_agent.run.called
     assert conv_agent.run.called
 

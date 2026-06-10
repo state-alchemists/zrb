@@ -1,74 +1,266 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.32.2 (June 6, 2026)
+
+_Cumulative summary of the 2.32.1–2.32.2 patch line._
+
+- **Feature: `include_hidden` parameter for `LS` and `Glob` tools**:
+  - `list_files` (`LS`) and `glob_files` (`Glob`) accept an optional `include_hidden: bool = False`. When `True`, dotfiles and dot-directories are surfaced instead of skipped — while still honoring `exclude_patterns`, so `.git`/`node_modules` remain excluded by default. `glob_files` also passes the flag through to `glob.glob()`. Default `False` preserves backward compatibility (`llm/tool/file_list.py`).
+
+- **Fix: orphaned LSP subprocesses and hook-executor threads at process exit**:
+  - Interactive chat sessions leaked two process-global resources at shutdown: mid-chat LSP language-server subprocesses (only the one-off `analyze_code` tore down its own) and the hook executor's non-daemon worker threads (which could keep the interpreter alive). A two-tier cleanup closes both — a graceful in-loop `_teardown_interactive_resources()` (`shutdown_all()` on LSP servers + `shutdown_hook_executor(wait=False)`), gated to the interactive path so the web/SSE runner isn't disrupted, plus an `atexit` backstop `LSPManager.force_kill_all()` that `SIGKILL`s any survivor whose event loop is already closed. Both are idempotent once the graceful path runs.
+
+- **Tests**: `include_hidden` coverage in `test/llm/tool/test_file.py`; `force_kill_all` coverage in `test/llm/lsp/manager/test_lsp_manager.py`.
+
+## 2.32.0 (June 5, 2026)
+
+_Cumulative summary of the 2.32.0 line (`2.32.0a1`–`2.32.0b5` pre-releases consolidated). 3149 tests passing at 90.40% coverage._
+
+- **Feature: permission policy system, plan mode, and approval precedence**:
+  - New `zrb/llm/permission/` package: capability tags (`READ`, `EDIT`, `EXECUTE`, `NETWORK`, `DELEGATE`, `META`), ordered first-match-wins `Rule`s with `allow`/`ask`/`deny` actions + `arg_pattern` globs, and `current_permission_policy` / `current_agent_mode` `ContextVar`s. Tools are tagged centrally in `common_tools.py`; `yolo` is re-expressed as a `PermissionPolicy` via `from_yolo()`.
+  - Plan mode (`EnterPlanMode`/`ExitPlanMode`, tagged `META`) is a preset read-only policy (READ/NETWORK/META allow, EDIT/EXECUTE/DELEGATE deny), enforced by the execution gate in `agent/common.py`.
+  - A single approval precedence chain — `permission_policy → tool_policy → yolo` — where `deny` stops at the gate and `allow` bypasses lower checks. `DelegateToAgent`'s roster is filtered by the active policy at render time. ADR-0049–0053, 0055.
+
+- **Feature: `Shell` as primary execution tool + background agents**:
+  - New `shell.py` (`run_shell_command`, streaming stdout/stderr, configurable truncation/timeout) replaces `Bash`, which becomes a thin backward-compat alias; `shell_background.py` adds non-blocking execution with a polling handle.
+  - Background subagents (`DelegateToAgentBackground` + `GetDelegationResult`) spawn detached `asyncio` tasks that inherit the parent policy and route approvals to the parent UI's confirmation queue (no deadlocks, no silent auto-approve); multiple can run in parallel.
+  - Tool-output truncation backstop: a global `LLM_MAX_TOOL_RESULT_CHARS` cap (default 100k) truncates model-facing `content` (head+tail with re-fetch hint) while preserving structured `return_value`. ADR-0054, 0056, 0052.
+
+- **Feature: interactive UX**:
+  - `/model` gained `small <name>` and `multimodal <name>` subcommands (with tab-completion); summarizer agents are recreated per call so changes take effect immediately.
+  - Todo progress visualization: `write_todos`/`update_todo`/`clear_todos` push a styled progress card to the active UI (TUI, StdUI, web SSE `todo_progress` kind) after every change. ADR-0057.
+  - Confirmation queue serializes concurrent `ask_user` calls; `BufferedUI` buffers sub-agent output until flush/approval/completion.
+
+- **Improvement: config system & LSP preference**:
+  - New `EnvField` data descriptor replaces 700+ lines of getter/setter/cast boilerplate across all config mixins; `contextvars.py` becomes the canonical index of every `ContextVar`. Config mixins gained `TYPE_CHECKING` `Protocol` host-classes for static attribute checking.
+  - New `ZRB_LLM_LSP_PREFERRED_SERVERS` (ordered, comma-separated) lets the agent prefer specific LSP servers when several match a file; `LSPManager.get_server` defaults to it.
+
+- **Reliability: LLM history, summarizer, and agent correctness**:
+  - New empty-completion guard regenerates blank / leaked `"(tool call)"` completions instead of surfacing them, and `filter_nil_content` no longer injects the `"(tool call)"` placeholder into tool-call-only turns (which weak models had learned to imitate). ADR-0059.
+  - Fixed a deferred-tool summarizer death-spiral (`UserError` retry loop) by clearing stale `current_results` and skipping the summarizer between deferred-tool iterations. ADR-0058.
+  - Fixed `_merge_consecutive_messages` mutating cached history in place; history-file corruption recovery preserves unknown fields; `create_agent` gained `resolve_model=False` to stop model-callback double-firing; the OpenAI `content:null` patch verifies its target and warns on pydantic-ai drift.
+  - Summarization calls retry transient 5xx/429 errors and use targeted `strip_orphaned_returns` instead of wholesale sanitization; tiktoken failures are caught broadly; tool error paths carry a `[SYSTEM SUGGESTION]` prefix; message placeholders centralized as constants.
+
+- **Security: web authentication hardening**:
+  - The access path requires the JWT `type == "access"` claim (a refresh token can no longer be used as an access token); auth cookies are issued `Secure` + `SameSite=Lax` (plus `HttpOnly`); `is_password_match` uses constant-time `secrets.compare_digest`; `run_zrb_task` `shlex.quote`s each argument against shell injection.
+
+- **Fix: task-engine & infrastructure correctness**:
+  - Signal-killed processes (negative return code) are now treated as failure; `readiness_checks` memoizes its default check task; `tcp_check`/`http_check` no longer leak sockets or block the event loop; deferred coroutines are cancelled on session `terminate()`; a sweep replaced mutable default arguments with `None` sentinels.
+  - `LspRenameSymbol(dry_run=False)` actually writes the edit and reports an honest `applied` flag; web search reflects the requested page and survives empty Brave snippets; a configured limiter of `0` now blocks; concurrent SSE chat sessions no longer clobber each other's UI/approval/history wiring (`ChatSessionManager.task_lock`).
+
+- **Refactor: encapsulation & UI decomposition**:
+  - `BaseUI` and the command-dispatch file were split into cohesive mixins (`HistoryReplayMixin`, `SystemInfoMixin`, `ConversationCommandsMixin`, `ModelCommandsMixin`, `ExecCommandsMixin`) with no behavior change (ADR-0060). Cross-module private access was replaced with public accessors/properties on `BaseTask`, `BaseUI`, `MultiUI`, and the hook manager. Run-scoped `ContextVar`s bind through an `ExitStack` for symmetric set/reset; deprecated `get_event_loop().create_task` calls were modernized.
+
+- **Improvement: prompts, skills, and documentation**:
+  - Refined `persona`/`mandate`/`journal_mandate` (conciseness, "ask rather than guess", activity-vs-insight journaling, new insight-note template); made the skill catalogue prompt more authoritative; removed the now-redundant `read_bool` tool. Large docs/example accuracy sweeps fixed constructor signatures, env-var defaults, import paths, and broken snippets across the guide and `examples/`.
+
+- **CI & tests**:
+  - Added `.github/workflows/test.yml` (flake8 `F` + full pytest with coverage on Python 3.11–3.13) and a hermetic `test/conftest.py` (deterministic env defaults + per-test `os.environ` snapshot/restore); `zrb-test.sh` enforces `--cov-fail-under=90` on full runs.
+
+## 2.31.0 (May 29, 2026)
+
+- **Feature: Command lifecycle hooks (`PreCommand` / `PostCommand`)**:
+  - Two new `HookEvent` members (`hook/types.py`) fire in the interactive chat TUI when the user runs a command. `PreCommand` fires before the command runs and **can block it** (exit code 2 / `{"decision":"block"}` / `deny`); `PostCommand` fires after a recognized command completes. Plain chat messages do not fire these events.
+  - **`PreCommand` can rewrite a command's argument on the fly** by returning a `command_args` value (Python `HookResult(modifications={"command_args": ...})`, or `{"command_args": ...}` JSON from a shell hook). The command token is preserved, the argument swapped — e.g. transparently downgrade `/model opus` to `/model sonnet`. Highest-priority hook wins.
+  - `HookContext` gained `command_name` / `command_args` / `command_handled` (`hook/interface.py`), surfaced to shell command-hooks as `CLAUDE_COMMAND_NAME` / `CLAUDE_COMMAND_ARGS` env vars (`hook/hook_creators.py`).
+  - Command dispatch is **recognition-based, not prefix-based**: `commands_mixin.py` gained `classify_input` + a single-source `_command_table` so any configured token routes correctly — built-ins (`/save`, `/exit`), a user-configured `>` redirect, and skill slash-commands (`/debug`, …) all fire the hooks; tokens need not start with `/`. Model-driven skill activation continues to fire `PreToolUse` (`ActivateSkill`).
+  - Dispatch now runs as a background task (required for the async hook pipeline), serialized by an in-flight guard so a second command can't race a prior `/save`/`/load`/`/exit`; run-while-thinking commands (`/btw`, YOLO toggle, incl. selective `/yolo Write,Edit`) are exempt and run independently, as before.
+
+- **Feature: `AskUserQuestion` tool + interactive mode**:
+  - New `ask_user_question` tool (`tool/ask.py`, LLM-visible name `AskUserQuestion`) lets the model pose structured multiple-choice questions mid-turn and read the answers. Use it only when a choice is non-obvious and the wrong pick wastes significant work.
+  - Interactive state flows through an `interactive_mode` `ContextVar` set by `system_context` from `ctx.input.interactive`. In non-interactive runs (`zrb llm chat --interactive false`) the tool short-circuits with a `[SYSTEM SUGGESTION]` instead of blocking on stdin; the System Context block advertises availability.
+
+- **Bug Fix: `Grep` tool parameter renamed `regex` → `pattern`**:
+  - `search_files` (`file_search.py`) exposed its first argument as `regex`, but the tool is named `Grep` — and the model's strong prior (Claude Code's `Grep`, and zrb's own `Glob`) is a `pattern` argument. Agents called `Grep(pattern=...)`, which failed schema validation. The parameter is now `pattern`; the docstring disambiguates it from `Glob` ("a regular expression, NOT a glob"). All callers used positional args, so nothing else changed.
+
+- **Improvement: Prompt and guidance consistency**:
+  - `journal_mandate.md`: switched from `[[wikilinks]]` to standard markdown links plus a `## Backlinks` section, matching `core-journaling` and the `journal-lint` tool (which only recognizes markdown links). `activity-entry.md` template fixed likewise.
+  - `core-research.md` / `research` skill: corrected a dangling reference (the non-existent "Task Handling" rule → the Working Loop's Frame step) and dropped a `DelegateToAgent` mention that doesn't apply when the skill runs in a no-delegate sub-agent.
+  - `git_mandate.md`: documented that worktree creation (`EnterWorktree`) is exempt from the git approval gate (it builds an isolated tree without touching the current tree/index/branches).
+  - `common_tools.py`: added an `UpdateTodo` guidance entry (and moved the "one status change per call" rule onto it); corrected the misleading delegate-guidance comment. "Journaling Protocol" → "Journal Protocol" naming unified.
+
+- **Chore: Version bumped to 2.31.0**:
+  - `pyproject.toml`: `2.30.2a1` → `2.31.0`.
+
+- **Tests**:
+  - New: `test/llm/tool/test_ask.py` (217 lines), `test/llm/tool/test_ambient_state.py`.
+  - Extended: `test_commands_mixin.py` and `test_keybindings_mixin.py` (command classification, dispatch, blocking, arg-rewrite, in-flight guard, plus end-to-end integration tests driving the real keybinding with configured tokens incl. `>`); `test_hook_manager.py` (command env injection); `test_interface.py` (command context fields); `test_file.py` (`Grep` `pattern` keyword); `test_system_context.py` / `test_base_ui.py` (interactive mode, blocking hook execution).
+
+
+## 2.30.2a1 (May 28, 2026)
+_Cumulative summary of the 2.30.1–2.30.2a1 patch line._
+
+> Pre-release: 2.30.2a1 is an alpha.
+
+- **Feature: Post-write/post-edit diagnostics**:
+  - New `src/zrb/llm/tool/post_write_check.py`: `format_post_write_diagnostics()` runs `ast.parse` + `pyflakes` on Python files after Write/Edit tool calls, surfacing syntax errors and undefined names inline in the tool result. Non-Python files and error-free files produce no output.
+  - `write_file()` (`file_write.py`) and `replace_in_file()` (`file_edit.py`) became `async` and append a `[DIAGNOSTIC]` section to their return value when errors are detected — the model sees errors immediately and can fix them in the same turn.
+
+- **Feature: LSP push-diagnostics plumbing**:
+  - `LSPServer` (`lsp/server.py`) gained `did_open_text_document()` and `did_change_text_document()` with full `didOpen`/`didChange` state tracking per URI. `get_diagnostics()` now synchronizes the file with the server via `didOpen`/`didChange`, then polls for `textDocument/publishDiagnostics` push notifications (50ms interval, 1.5s timeout), falling back to LSP 3.17 pull-diagnostics. Incoming `publishDiagnostics` notifications are cached in `self._diagnostics`.
+
+- **Feature: Installer LSP server setup**:
+  - `install.sh` and `install.ps1` both gained `install_lsps()`: installs `python-lsp-server[all]` unconditionally, then optionally installs `typescript-language-server` (JS/TS), `gopls` (Go), and `rust-analyzer` (Rust) when their toolchains are present. Users are prompted during installation.
+
+- **Improvement: Prompt and tool guidance deduplication**:
+  - `common_tools.py`: Redundant tool guidance entries removed — Read's `old_text` note, Write's overwrite warning, Edit's read-first rule, Grep's truncation note — these are already documented in the tool docstrings themselves.
+  - `lsp/tools.py`: MANDATES sections removed from all 8 LSP tool docstrings. The usage rules remain in `tool_guidance.py` (the single source of truth).
+  - `rag.py`: MANDATES removed from RAG tool docstring; replaced with a one-line usage instruction.
+  - `tool_guidance.py`: Parallel-tool-call sections rewritten in plain language — no emoji, no ALL-CAPS, no concatenated-tool-name examples. Heading normalized to `## Tool Call Parallelism` for both supported and unsupported models.
+
+- **Improvement: Mandate.md strengthened**:
+  - "Completeness" now explicitly requires deliverable files to land on disk via a Write or Edit tool call — printing content into chat, even in a fenced block, does not count.
+  - Destructive action rule expanded: `package downgrades`, `CI/CD changes`, `posts to Slack/email/PRs` added. New clause: investigate unfamiliar state (unexpected files, branches, stashes, lock files) before destroying — `--no-verify`, `rm -rf`, `git reset --hard` are not shortcuts.
+  - Scope rule promoted above Memory (priority 6 → 5). Added scope-scoping rules: approved edit to file X ≠ approval to refactor file Y; approval is one-shot per action.
+  - Understand step: hypothesis threshold softened from "3+ tool calls" to "two distinct hypotheses failed".
+  - Plan step: explicitly states it describes *what changes where*, not a preamble.
+  - Execute step: broken into sub-bullets; `DelegateToAgent` gate removed (moved to tool guidance).
+
+- **Improvement: Persona.md tightened**:
+  - Removed "Your context window is a budget" line (covered by mandate completeness rule).
+  - Source citation format expanded: `file:line-range` and `file:symbol` added alongside existing `file:line`.
+
+- **Improvement: Tool docstring refinements**:
+  - `file_edit.py`: `replace_in_file()` gained a docstring documenting the post-edit validity requirement: if the change would leave the file malformed (broken indent, missing import, dangling brace), the caller should widen `old_text` or use Write to re-emit the whole file.
+  - `file_rm.py`: Clarified irreversibility ("there is no trash; the bytes are gone").
+  - `file_mv.py`: Added overwrite warning and path-confirmation guidance.
+  - `file_search.py`: Uses "regex" instead of "pattern" in no-match message.
+  - `worktree.py`: Entry message simplifies to path + branch only; exit message clarifies `keep_branch=False` is irreversible.
+  - `delegate.py`: Worktree line in sub-agent envelope shortened.
+
+- **Improvement: System context token-limit line removed**:
+  - `system_context.py`: Token-limit-per-request line removed, dropping the `CFG` import. Token limits are model-specific; the model itself already knows its own context window.
+
+- **Chore: LLM challenges extracted to separate repo**:
+  - `llm-challenges/` directory removed from the zrb repository. The evaluation framework (challenge definitions, experiment data, results, report) now lives in its own repository.
+
+- **Documentation: Changelog history backfilled**:
+  - `docs/changelog-v2.md`: Added changelog entries for versions 2.28.0 through 2.28.6 — these were previously omitted from the v2 changelog.
+
+## 2.30.0 (May 24, 2026)
+
+- **Breaking: `DelegateToAgent` / `DelegateToAgentsParallel` signature change**:
+  - `delegate_to_agent` now requires `deliverable: str` and `non_goals: list[str]` in addition to `agent_name` and `task`. The parallel variant requires the same keys per task dict; missing keys short-circuit with a clear schema error before any sub-agent runs.
+  - Sub-agent messages are now wrapped in a structured envelope (`DELIVERABLE` / `NON-GOALS` / `TASK` / `CONTEXT` / `BEFORE RETURNING`) so the scope clamp is the first thing the sub-agent reads, not free-form context.
+  - Rationale: with the previous free-form `task` arg, parent agents passed fuzzy specs and sub-agents over-produced. The required fields force the parent to articulate the deliverable and adjacent work to avoid; schema is enforcement, prompt rules were not.
+  - Migration: any custom code calling `delegate_to_agent(agent_name, task, ...)` positionally must add `deliverable` and `non_goals`. Pass `non_goals=[]` only when scope expansion is genuinely impossible.
+
+- **Improvement: Delegation tool guidance rewritten**:
+  - `common_tools.py` `DelegateToAgent` / `DelegateToAgentsParallel` `ToolGuidance` entries reframed affirmatively ("Delegate only when ALL apply…") with a fidelity rationale replacing the previous context-budget rationale.
+  - `mandate.md` Working Loop step 4 gained a one-sentence delegation gate so the whether-to-delegate decision lives in the same MECE section as the rest of execution discipline.
+
+- **Improvement: AGENTS.md restructured**:
+  - Project structure tables condensed into prose (was 175 lines of tables, now ~98 lines of concise bulleted walkthrough). Core Framework, LLM Integration, and Test Locations tables replaced with self-describing `ls src/zrb/` guidance plus per-module docstrings as the source of truth. Key Task Types table simplified.
+  - LLM Prompt System section rewritten with MECE section semantics, ContextVar reference pointing to `src/zrb/contextvars.py`, and new lazy-import policy documentation.
+
+- **Feature: `custom_command/resolver.py`**:
+  - Command resolution extracted from `custom_command/__init__.py` into its own module. No behavior change — cleaner module boundary.
+
+- **Feature: `BaseUI` extracted in `ui/base/ui.py`**:
+  - New base class (+107 lines) factors shared UI logic out of `commands_mixin.py`. `MultiUI` support added (+10 lines). Reduces `commands_mixin.py` by ~47 lines.
+
+- **Improvement: Prompts overhauled**:
+  - `persona.md`, `mandate.md`, `journal_mandate.md` — tightened, deduplicated, softened rigid phrasing (cue-framing replaces hard prohibitions). Consistent with the 2.28.2a1 mandate refactor pass.
+
+- **Improvement: History formatter refinements**:
+  - `history_formatter.py`: format stability improvements for multi-turn conversations.
+  - `runner_mixin.py`: Better retry handling when skill is passed as a message parameter.
+
+- **Improvement: Sub-agent manager improvements**:
+  - `loader_mixin.py`: New `_load_*` helpers (+16 lines) for cleaner skill/plugin resolution.
+  - `manager.py`: Tool registration and delegation flow streamlined (+75/−?).
+
+- **Improvement: Tool refinements**:
+  - `bash.py`: Better error messaging for failed commands.
+  - `file_read.py`: Improved path validation for edge cases.
+
+- **Improvement: Agent skill definitions**:
+  - `code-reviewer.agent.md`, `generalist.agent.md`, `researcher.agent.md` — each gained `disable-model-invocation: true` so they only fire when the user explicitly calls `/delegate-to`.
+
+- **Bug Fix: Function definition removed from `custom_command/__init__.py`**:
+  - Moved command resolution logic to `resolver.py` — `__init__.py` now only re-exports. Prevents accidental import cycles.
+
+- **Bug Fix: `Claude` prompt section loading**:
+  - `prompt/claude.py`: Fixed section-ordering edge case when project-context files are missing.
+
+- **Tests**:
+  - New: `test/llm/agent/subagent/test_loader_mixin.py` (52 lines), `test_subagent_manager.py` (147 lines).
+  - New: `test/llm/prompt/test_claude.py` (67 lines) — project-context loading edge cases.
+  - New: `test/llm/task/chat/test_runner_mixin.py` (60 lines) — runner retry/message handling.
+  - New: `test/llm/ui/test_ui.py` (244 lines) — base UI and multi-UI coverage.
+  - Extended: `test/llm/util/test_history_formatter.py` (+60 lines), `test_history_utils.py` (+18 lines).
+
+- **Documentation**:
+  - `AGENTS.md`: Fully restructured (see above).
+  - `CLAUDE.md`: Minor update.
+  - `docs/advanced-topics/maintainer-guide.md`: Updated to match the new AGENTS.md structure.
+
+## 2.29.0 (May 22, 2026)
+
+- **Dependency: `pydantic-ai-slim` upgraded `~1.93.0` → `~1.101.0`, now installed with the `[mcp]` extra**:
+  - The `[mcp]` extra pulls `fastmcp-slim[client]>=3.3.0`, required by the new `MCPToolset`. This is a new transitive install dependency.
+  - All deprecation warnings from the eight intervening minor versions are silenced — `pytest -W error::DeprecationWarning` runs clean across the suite.
+
+- **Breaking-ish: `LLM_MODEL` default switched from `"openai:gpt-4o"` to `"openai-chat:gpt-4o"`**:
+  - pydantic-ai 1.x warns that bare `openai:` will resolve to the Responses API in v2; `openai-chat:` pins the current Chat Completions behavior. Users with an explicit `LLM_MODEL` env var are unaffected. The `LLMConfig.small_model` default docstring was updated similarly.
+  - Completion-fallback known-model list in `llm/app/completion/completer.py` likewise refreshed: `openai:` → `openai-chat:`, `google-vertex:` → `google-cloud:` (per pydantic-ai's provider rename in #5336).
+
+- **Breaking-ish: `load_mcp_config()` now returns `pydantic_ai.mcp.MCPToolset` instances**:
+  - `src/zrb/llm/tool/mcp.py` rewritten to use `MCPToolset` + `fastmcp.client.transports.StdioTransport` instead of the deprecated `MCPServerStdio` / `MCPServerSSE`. Behavior preserved (no automatic tool-name prefixing, same env-var expansion syntax). `_expand_env_vars` reimplemented locally so zrb no longer depends on a private `pydantic_ai.mcp._expand_env_vars` symbol.
+
+- **Deprecation cleanup (pydantic-ai 1.x → v2 prep)**:
+  - `Agent(tool_retries=N)` → `Agent(retries={"tools": N})` in `llm/agent/common.py` (per pydantic-ai #5500).
+  - `event.result.usage()` → `event.result.usage` in `llm/util/stream_response.py` (method-style usage accessor deprecated in #5263).
+  - `pydantic_ai.messages.BuiltinTool*Part` → `NativeTool*Part` references in `llm/agent/run/history_utils.py` (per the built-in → native tools rename in #5338).
+  - `HistoryProcessor` type-hint import moved off the internal `pydantic_ai._agent_graph` path. The type alias has no public re-export in v1.101, so zrb now defines its own `Callable[..., Awaitable[list[ModelMessage]]]` alias in `llm/agent/common.py` (more accurate to zrb's actual usage, which passes extra positional args at one call site) and the task modules import it from there. Removes the last `pydantic_ai._*` import from `src/zrb`.
+
+- **Hygiene: `zrb.util.todo` re-export shim trimmed**:
+  - Removed cargo-cult `read_file, write_file` re-export (no patches targeting `zrb.util.todo.read_file`/`.write_file` in tree, no external callers).
+  - Removed `_parse_date` and `_get_minimum_width` from the re-exports — private symbols had no external callers.
+  - Replaced bare `# noqa: F401` markers with an explicit `__all__` so the re-export contract is documented. Callers reaching for these names through `zrb.util.todo` are unaffected; anything importing the removed names should switch to `zrb.util.todo_parser` / `zrb.util.todo_render` / `zrb.util.file` directly.
+
+- **Hygiene: AGENTS.md `# lazy:` import-comment sweep**:
+  - 145 in-function imports across 81 files now carry the `# lazy: <reason>` justification comment mandated by AGENTS.md. Two stock reasons used: `# lazy: heavy third-party` (pydantic_ai, fastapi, prompt_toolkit, mcp, etc.) and `# lazy: zrb internal (heavy via transitive / circular)` for `zrb.*` imports. Behavior unchanged — the imports were already lazy; only the comments were missing.
+
+- **Tests**:
+  - `test/llm/tool/test_mcp.py` rewritten to assert against `MCPToolset` + `StdioTransport` instead of `MCPServerStdio` / `MCPServerSSE`.
+  - `test/llm/agent/test_common.py`, `test/llm/util/test_stream_response.py`, `test/llm/agent/run/test_history_utils.py`, `test/llm/agent/run/test_runner.py` updated to match the deprecation cleanup above.
+  - Full suite: 2819 passing, no deprecation warnings.
+
 ## 2.28.6 (May 22, 2026)
 
-- **Refactoring: Consolidated tool/guidance registration into `apply_common_tools()`**:
-  - New `src/zrb/llm/common_tools.py` exposes `apply_common_tools(host)` and a `CommonToolHost` `Protocol` satisfied by `LLMChatTask`, `LLMTask`, and `SubAgentManager`. Registers the zrb-shipped default tools (file/bash/code/web/lsp/plan/worktree/skill/zrb-task), the MCP toolset factory, the static `ToolGuidance` catalogue, the dynamic guidance factories (config-dependent names like `RunZrbTask`/`ListZrbTasks`/`ActivateSkill`/`DelegateToAgent*`), and the model-aware parallel-tool-call section factory.
-  - `src/zrb/builtin/llm/chat.py` shrunk from 440 lines to 152: imports, factories, static guidance, dynamic factories, and parallel-section wiring all delegated to `apply_common_tools(llm_chat)`. Only chat-specific config remains (delegate tool factories, tool policies, argument formatters, response handlers, custom commands, hook factories).
-  - `src/zrb/llm/agent/subagent/manager/manager.py` now calls `apply_common_tools(sub_agent_manager)` at module bottom. The old `src/zrb/llm/agent/subagent/default_tools.py` — which held a near-duplicate of chat.py's tool list — is deleted.
-  - `LLMTask` gained `add_tool_guidance_factory()` and `add_tool_guidance_section_factory()` (matching `LLMChatTask` / `SubAgentManager`), plus a private `_resolve_tool_guidance_factories()` called in `_exec_action_inner` before `get_system_prompt()`, so programmatic `LLMTask` users can register dynamic guidance the same way the main chat task does.
-  - Heavy `zrb.llm.tool.*` imports inside `apply_common_tools` are lazy and sourced directly from submodules (not the `zrb.llm.tool` re-export) to sidestep the existing `delegate.py` → `subagent.manager` circular-load cycle.
-
-- **Documentation: AGENTS.md + integration docs refreshed**:
-  - New `llm/common_tools.py` row in the LLM Integration table.
-  - Fixed stale references: `register_model_capabilities` → `model_capabilities.register()`; the `subagent/` layout description updated to reflect the nested `manager/` subpackage; `PromptManager` toggle description corrected from individual `include_*` flags (removed in 2.28.0) to the consolidated `include_sections: list[str] | None` parameter / `CFG.LLM_INCLUDE_SECTIONS` env var.
-  - `docs/advanced-topics/llm-integration.md`: the "`add_tool_guidance_factory` is only available on `LLMChatTask`, not `LLMTask`" note replaced with a statement that all three `CommonToolHost`s now support both factory APIs.
-
-- **Improvement: `_get_help_text` formatting cleanup**:
-  - `src/zrb/llm/ui/base/commands_mixin.py`: long single-line signatures and ternary expressions reflowed across multiple lines for readability. No behavior change.
-
-## 2.28.5 (May 21, 2026)
-
-- **Improvement: Welcome banner help-text truncation**:
-  - `commands_mixin.py`: `_get_help_text()` gained a `max_length` parameter. When set, long command descriptions (e.g. `"List snapshots or restore one (usage: /rewind [<n>|<sha>])"`) are truncated with ` ...` at the character cap, preventing them from overflowing the welcome banner on narrow terminals.
-  - `ui.py`: The `/info` and welcome-banner help render now passes `max_length=75`, so descriptions stay within typical terminal widths. Follow-up to the 2.28.4 banner width-guard — handles the description-text side of the same overflow problem.
-
-## 2.28.4 (May 21, 2026)
-
-- **Security Fix: `idna` bumped to `>=3.15` (GHSA-65pc-fj4g-8rjx / CVE-2026-45409)**:
-  - `idna<3.15` is vulnerable to a DoS where crafted inputs (e.g. `"٠" * N`, `"・" * N + "漢"`) hit `valid_contexto` before length validation, consuming significant CPU. `idna` is a transitive dependency via `requests`, `httpx`, and `anyio`.
-  - Added explicit `idna = ">=3.15"` floor in `pyproject.toml`; `poetry.lock` updated from `idna==3.11` to `idna==3.15`.
-
-- **Improvement: LLM chat TUI touch-up**:
-  - `layout.py`: shrunk the input frame title from `"CTRL+j for newline, Alt+V to paste, ESC to cancel"` to `"Ctrl+J newline · Ctrl+V/Alt+V paste · ESC cancel · /help"` — full key reference is now under `/help` (or `/info`).
-  - `commands_mixin.py`: `/help` output now includes a "Keyboard Shortcuts" section (Ctrl+J, Ctrl+V/Alt+V, Tab/Shift+Tab, F6, Esc, Ctrl+Y, Ctrl+C, ↑/↓). Custom commands now render their `description` field rather than a synthesized `cmd <arg>` usage string. Welcome-screen help limit lowered from 25 to 15 commands so the shortcuts block fits without growing the banner.
-  - `banner.py`: `create_banner()` now accepts an optional `max_width`. When `art_width + 2 + text_width` exceeds it, the ASCII logo is dropped and only the text is rendered — prevents the welcome banner from wrapping into a mess on narrow terminals.
-  - `ui.py`: passes `max_width=get_terminal_size().columns` into the banner so logo suppression is automatic.
-
-## 2.28.3 (May 18, 2026)
-
-- **Improvement: Mandate tightened with production-readiness rules**:
-  - **New "Completion requires producing the expected output" rule** in Task Handling: reading instructions and context files is preparation, not completion — if the task asks for a file, write it.
-  - **New "Run generated code" rule** in Engineering Standards: after writing or refactoring, always execute it to verify it runs without errors.
-  - **New "Meet all stated criteria" rule** in Engineering Standards: when a task lists explicit requirements beyond basic correctness (e.g., "use a Lock", "use environment variables"), verify every one is met, not just the functional minimum.
-  - **"Repeated failures" recovery refined**: now explicitly catches the pattern of running the same unchanged script/command 3+ times without modifying source code — stop, read the code, understand why it's failing, then continue the protocol (3 distinct approach failures → pause and surface).
-
-## 2.28.2a1 (May 15, 2026)
-
-- **Improvement: Journal mandate wording tightened + rationale added**:
-  - `journal_mandate.md`: Changed "decided between approaches" to "created significant decision" in the activity-log trigger — more precise about what warrants a log entry (decisions that change direction, not every binary choice).
-  - Added a "Why 'before reply'?" section explaining that a finding not logged before replying is lost if the session closes. Deferring is equivalent to discarding.
+_Cumulative summary of the 2.28.1–2.28.6 patch line._
 
 - **Feature: Per-model capability registry (`zrb.llm.util.capabilities`)**:
-  - New `ModelCapabilityRegistry` class with module-level singleton `model_capabilities`. Tracks `supports_image_input`, `supports_audio_input`, `supports_video_input`, and tri-state `supports_parallel_tool_calls` (`None` unknown, `False` known-malforms) per model. Field names follow LiteLLM conventions.
-  - Built-in pattern table seeded from the previous `modality.py` entries (GPT-4o/4.1/5, Claude 3/4, Gemini, Llava, Pixtral, …) plus deny entries for `minimax-m2.7` and `glm-4.7` whose providers emit malformed concatenated tool calls when asked to batch.
-  - User-extensible from `zrb_init.py`: `model_capabilities.register("pattern", **overrides)` — most-recent-registered wins on match; unknown field names raise `TypeError`.
-  - `create_agent()` consults the registry: when `supports_parallel_tool_calls is False`, injects `parallel_tool_calls=False` into pydantic-ai `ModelSettings`. Caller-supplied settings always win.
-  - **Internal rename**: `src/zrb/llm/util/modality.py` removed; replaced by `src/zrb/llm/util/capabilities.py`. The module was not part of the public API, but `multimodal_describe.py` (the only consumer) was updated to use `model_capabilities.supports_modality(...)`.
-  - Docs: new "Model Capabilities" section in `docs/advanced-topics/llm-integration.md`.
+  - New `ModelCapabilityRegistry` with `model_capabilities` singleton tracking image/audio/video input and tri-state `supports_parallel_tool_calls` per model, with field names following LiteLLM conventions.
+  - Built-in pattern table covers GPT-4o/4.1/5, Claude 3/4, Gemini, Llava, Pixtral, plus deny entries for `minimax-m2.7` and `glm-4.7`, which emit malformed concatenated tool calls when batching.
+  - User-extensible via `model_capabilities.register("pattern", **overrides)` from `zrb_init.py`; `create_agent()` consults it and injects `parallel_tool_calls=False` for known-malforming models (caller settings always win).
+  - Replaced the internal `modality.py`; `multimodal_describe.py` now uses `model_capabilities.supports_modality(...)`.
 
-- **Improvement: Mandate refactor — MECE pass + softer rule wording**:
-  - `mandate.md`: dropped redundant "same turn" phrasing from line 27 (covered by line 42 post-activation rule); removed `Strategic re-evaluation` bullet from `Engineering Standards` (Recovery section's `Repeated failures` is the better home).
-  - Softened post-activation directive: `"…is an incomplete turn"` → `"…that's a cue to make the next tool call instead"`. Softened communication directive: `"the same turn must include the tool call"` → `"that's a cue to call the tool"`. Hard-prohibition phrasing was triggering aggressive batching attempts in weaker/non-parallel-capable models (glm-4.7 collapsed across 4 challenges); cue-framing preserves the signal for capable models while removing the trap.
-  - Softened parallelize rule: `"Parallelize independent calls"` → `"Parallelize when your runtime supports it. If your tool-call format permits multiple calls in one response, issue independent calls together. Otherwise call them sequentially — correctness over batching."`
+- **Refactoring: Consolidated tool/guidance registration into `apply_common_tools()`**:
+  - New `src/zrb/llm/common_tools.py` exposes `apply_common_tools(host)` and a `CommonToolHost` Protocol satisfied by `LLMChatTask`, `LLMTask`, and `SubAgentManager`, registering shipped default tools, the MCP toolset factory, static and dynamic tool guidance, and the model-aware parallel-tool-call section factory.
+  - `builtin/llm/chat.py` shrank from 440 to 152 lines by delegating to `apply_common_tools`; `SubAgentManager` now calls it, and the duplicated `subagent/default_tools.py` was deleted.
+  - `LLMTask` gained `add_tool_guidance_factory()` and `add_tool_guidance_section_factory()` (matching the other hosts) so programmatic users can register dynamic guidance.
+  - Tool imports inside `apply_common_tools` are lazy and sourced from submodules to avoid the `delegate.py` → `subagent.manager` circular-load cycle.
 
-- **Improvement: Invalid-tool-call retry message covers both failure modes**:
-  - `retry_loop.py`: the corrective message injected when a model emits an invalid tool name now addresses both possibilities (invented name vs. concatenation of valid names like `ReadRead`) and gives a positive instruction ("emit exactly ONE tool call per response; the next call comes in your next response").
+- **Improvement: Prompt mandate refinements**:
+  - Journal mandate tightened to "created significant decision" and gained a "Why 'before reply'?" rationale (a finding not logged before replying is lost).
+  - Mandate refactored for MECE; post-activation and communication directives softened from hard prohibitions to cue-framing (hard wording triggered aggressive batching in weaker models like glm-4.7), and the parallelize rule reworded to favor correctness over batching where the runtime doesn't support multiple calls.
+  - Added production-readiness rules: completion requires producing the expected output, run generated code to verify, meet all stated criteria, and a refined "repeated failures" recovery that catches re-running unchanged commands 3+ times.
 
-## 2.28.1 (May 15, 2026)
+- **Improvement: Invalid-tool-call retry messaging**:
+  - The corrective message for invalid tool names now addresses both invented names and concatenations (e.g. `ReadRead`), instructing the model to emit exactly one tool call per response.
+
+- **Security Fix: `idna` bumped to `>=3.15` (GHSA-65pc-fj4g-8rjx / CVE-2026-45409)**:
+  - `idna<3.15` is vulnerable to a DoS via crafted inputs hitting `valid_contexto` before length validation; it is transitive via `requests`, `httpx`, and `anyio`. Added an explicit floor in `pyproject.toml` and updated the lockfile from `3.11` to `3.15`.
+
+- **Improvement: LLM chat TUI touch-ups**:
+  - Shrank the input-frame title to a compact key reference and moved the full reference under `/help` (or `/info`), which now includes a "Keyboard Shortcuts" section and renders custom commands' `description`.
+  - `create_banner()` accepts `max_width` and drops the ASCII logo when it would overflow narrow terminals, wired to the live terminal width.
+  - Help-text descriptions gained `max_length` truncation (rendered at `max_length=75`) to prevent welcome-banner overflow.
 
 - **Bug Fix: `[build-system]` typo in `pyproject.toml`**:
-  - Key `build-system` inside the `[build-system]` table renamed to `build-backend` per PEP 517 spec. This was causing `BuildSystemTableValidationError` when installing the package via Poetry/pip.
+  - Renamed the `build-system` key to `build-backend` per PEP 517, fixing a `BuildSystemTableValidationError` on install via Poetry/pip.
 
 ## 2.28.0 (May 15, 2026)
 
@@ -157,7 +349,6 @@
 - **Bug Fix: Typo `notify_throtling` → `notify_throttling`**:
   - `llm/agent/run/runner.py:_acquire_rate_limit`: inner closure name corrected. Pure rename — no behavior change.
 
-
 ## 2.27.0 (May 14, 2026)
 
 - **Feature: New skill architecture — 5 core skills with companion files**:
@@ -220,136 +411,41 @@
   - `companion_files` attribute added to `Skill` mocks in `test_skill.py` (2 tests) and `test_skill_command_factory.py` (3 tests) to match the new `Skill` class interface.
   - New `test/llm/skill/test__util.py`: 8 tests covering `discover_companion_files` (flat file, SKILL.md, SKILL.py, missing directory) and `format_companion_file_lines` (empty, standalone, grouped, mixed).
 
-
 ## 2.26.8 (May 13, 2026)
+_Cumulative summary of the 2.26.1–2.26.8 patch line._
 
-- **Bug Fix: `SnapshotManager` skips large regenerable directories**:
-  - New `DEFAULT_IGNORE_DIRS` frozenset (`src/zrb/llm/snapshot/manager.py:44`) covers Python (`.venv`, `venv`, `__pycache__`, `.pytest_cache`, `.mypy_cache`, `.ruff_cache`, `.tox`, `.eggs`), Node/JS (`node_modules`, `.next`, `.nuxt`, `.turbo`, `.parcel-cache`), and generic caches (`.cache`). Skipping them reduces backup/restore from multi-second to sub-second on large projects.
-  - `_sync_dirs()` gains an `ignore_dirs` parameter; the `_prune()` helper is applied symmetrically in both `os.walk` passes (copy and delete). Empty-directory cleanup also respects ignored paths.
-  - `SnapshotManager.__init__()` accepts optional `ignore_dirs` (defaults to `DEFAULT_IGNORE_DIRS`). All three call sites (`backup`, `restore`, `init`) pass `self._ignore_dirs` through.
+- **Reliability: Robust LLM error handling and retries**:
+  - Added a provider-agnostic opaque-400 retry: unclassified HTTP 400 errors trigger a single retry that collapses history through `strip_to_text_only()`, which normalizes all message content to plain text. Works across GLM-5 on Bedrock, local, and future providers without per-provider string matching, and sits last in the retry chain.
+  - `strip_to_text_only` evolved to convert tool parts (`ToolCallPart`, `BaseToolReturnPart`) and `ThinkingPart` into descriptive `TextPart` content, truncating large tool results to 500 chars and labeling unnamed tool calls.
+  - Removed the `current_message is not None` guard so the text-only fallback also fires during tool-call iterations and outer-retry resume, injecting a `[SYSTEM]` fallback prompt when no message is pending.
+  - Fixed `is_invalid_tool_call_error` false-positives by reading the provider message from `e.body` instead of `str(e)`.
+  - Fixed `create_agent` to pass `tool_retries` (pydantic-ai renamed it from `retries`); tool-retry config was previously silently ignored.
 
-- **Bug Fix: `ZRB_LLM_PLUGIN_DIRS` tilde expansion**:
-  - `LLMSearchMixin.LLM_PLUGIN_DIRS` (`src/zrb/config/mixins/llm_search.py:35`) now passes each path through `os.path.expanduser()` so values like `~/.bsim-ai-workflow` resolve to the absolute home path. Previously `~` was treated as a literal directory name.
-  - Test: `test_llm_plugin_dirs_tilde_expansion` added in `test/config/test_config.py`.
+- **Performance: Faster UI and snapshots**:
+  - New `_schedule_invalidate()` coalesces rapid output appends into a single invalidation per ~16ms frame (33–100x fewer `invalidate_ui()` calls), with a synchronous fallback when run outside an async context.
+  - `SnapshotManager` now skips large regenerable directories via a `DEFAULT_IGNORE_DIRS` frozenset (`.venv`, `node_modules`, caches, etc.), cutting backup/restore from multi-second to sub-second on large projects.
+  - Adaptive UI refresh loop: idle 3.0s, thinking/confirmation fast-poll at 0.25s.
 
-- **Refactoring: `OutputMixin` exposes `is_thinking`/`current_confirmation` as properties**:
-  - `OutputMixin` (`src/zrb/llm/ui/default/output_mixin.py`) now defines `is_thinking` and `current_confirmation` as proper `@property` pairs with getters and setters. All internal access and test code (`test_output_mixin.py`) updated to use the public property names instead of private `_is_thinking`/`_current_confirmation`.
+- **UI: Status bar and assistant naming**:
+  - Animated thinking indicator (`Zrb is working.` → `..` → `...`).
+  - Status bar styling moved to inline `CFG.LLM_UI_STYLE_*` strings using pure ANSI codes (compatible with all terminals including tmux); bottom toolbar set to `noinherit`.
+  - Assistant name now auto-capitalizes its first letter (`"zrb"` → `"Zrb"`) across UI, prompt, and persona, preserving remaining casing; `StdUI` accepts a configurable `assistant_name`.
 
-- **Documentation: Updated stale version references and task-subclass docs**:
-  - `docs/installation/installation.md` and `docs/advanced-topics/ci-cd.md`: Docker image tags and version references updated from `2.0.0` to `2.26.8`.
-  - `docs/core-concepts/tasks-and-lifecycle.md` and `docs/task-types/custom-tasks.md`: All code examples updated from `Task`/`run()`/`async_run()` to `BaseTask`/`_exec_action()`. Added warning against overriding `run()` directly. Added `Retry Behavior` section. Removed separate "Async Tasks" heading.
+- **Resource safety: Stream cleanup**:
+  - Stream consumption switched to `async with agent.run_stream_events(...)` to guarantee cleanup and fix a leak during cancellation.
 
-- **Test Infrastructure: Test files relocated**:
-  - `test/util/llm/*` → `test/llm/util/*` (7 files relocated — `test_attachment.py`, `test_clipboard.py`, `test_image_scale.py`, `test_modality.py`, `test_multimodal_describe.py`, `test_prompt.py`, `test_prompt_util.py`).
+- **Prompt & mandate refinements**:
+  - Added a rule-priority hierarchy (`AGENTS.md`/`CLAUDE.md` win on style/conventions; base rules win on safety), split new-code-vs-existing-code guidance, cross-referenced git rules, consolidated testing rules, and removed redundant sections.
+  - Clarified tool docstrings and deduplicated tool guidance; relaxed the git diff-sharing threshold.
 
+- **Security**:
+  - Pinned `urllib3 >=2.7.0` (CVE-2026-44432, HTTPS→HTTP redirect cookie leakage).
+  - Removed the quarantined `mistralai` optional dependency and purged it from the lockfile (no source imports, no breaking change).
 
-## 2.26.7 (May 12, 2026)
-
-- **Security: Removed `mistralai` optional dependency**:
-  - `mistralai` package was quarantined on PyPI (pydantic-ai [#5382](https://github.com/pydantic/pydantic-ai/issues/5382), [#5384](https://github.com/pydantic/pydantic-ai/pull/5384)). The optional dependency declaration in `pyproject.toml:79` is now commented out to prevent installation failures.
-  - `"mistral"` removed from the `all` extras list (`pyproject.toml:158`) — was a dangling reference to the now-commented `mistral` extras group.
-  - `poetry.lock` regenerated; `mistralai` v2.2.0 and its transitive deps (`eval-type-backport`, `jsonpath-python`) purged from the lockfile.
-  - No source-level imports of `mistralai` exist in the codebase — clean removal with no breaking changes.
-
-
-## 2.25.0 (May 12, 2026)
-
-- **Improvement: Assistant Name Auto-Capitalization**:
-  - `LLM_ASSISTANT_NAME` first letter is now automatically capitalized in `llm_ui_styles.py`, `prompt.py`, `base/ui.py`, and `std_ui.py`. Preserves existing casing on the remainder (e.g. `"zrb"` → `"Zrb"`, `"customAssistant"` → `"CustomAssistant"`).
-  - `get_persona_prompt()` in `prompt.py` now also capitalizes the `{ASSISTANT_NAME}` placeholder.
-  - `BaseUI.__init__` in `base/ui.py`: falls back to `CFG.LLM_ASSISTANT_NAME` when `assistant_name` is empty/`None` (was left as `""`, which could produce empty assistant labels).
-  - `StdUI` now accepts a new `assistant_name` constructor parameter and uses the configured name instead of the hardcoded `"Zrb"` for the confirmation waiting indicator message.
-
-- **Bug Fix: Opaque 400 Retry Skipped During Tool-Call Iterations**:
-  - `retry_loop.py`: Removed the `current_message is not None` guard from the generic opaque-400 handler. During tool-call iterations and outer-retry resume, `_merge_consecutive_messages` merges the user message into a previous `ModelRequest`, making `current_message` `None`. Previously this skipped the text-only fallback entirely. Now injects a `[SYSTEM]` fallback prompt into the sanitized history when no message is pending, prompting a plain-text continuation instead of re-entering the tool-calling flow that triggered the rejection.
-  - Test: `test_handle_stream_error_opaque_400_skipped_when_no_message` renamed to `test_handle_stream_error_opaque_400_with_no_message`; now asserts `should_retry is True` and verifies the injected fallback prompt.
-
-- **Improvement: `strip_to_text_only` Converts `ThinkingPart`**:
-  - `history_utils.py`: `strip_to_text_only` now also converts `ThinkingPart` → `TextPart` with its text content preserved (new `_thinking_part_content` helper). Previously thinking parts were left intact for the `is_missing_reasoning_content_error` handler, but if that handler already fired (or was inapplicable), the opaque-400 text-only fallback could still fail on reasoning content. Now the text-only fallback is truly text-only.
-  - Test: `test_strip_to_text_only_converts_tool_parts_keeps_thinking` renamed to `test_strip_to_text_only_converts_all_non_text_parts`; now asserts `ThinkingPart` is converted to `TextPart`.
-
-
-## 2.26.4 (May 12, 2026)
-
-- **Bug Fix: `create_agent` uses `tool_retries` (was `retries`)**:
-  - pydantic-ai renamed the `Agent` constructor parameter from `retries` to `tool_retries`. `common.py:202` updated to match — this was silently ignored; tool retries fell back to the default (1) regardless of configuration.
-  - Test assertion in `test_common.py` updated to check `tool_retries` instead of `retries`.
-
-- **Bug Fix: `is_invalid_tool_call_error` false-positives from wrapper metadata**:
-  - New `_get_body_message()` in `error_classifier.py` extracts the provider's error message from `e.body` dict (not `str(e)`). The `str(e)` path was matching against wrapper metadata like `{'type': 'invalid_request_error'}` — the string `"request_error"` does not contain entity words but the dict's value or JSON representation could trigger spurious entity-keyword matches. Using the body's `message` field directly eliminates the false-positive surface.
-  - All existing entity + problem keyword matching logic is preserved.
-
-- **Bug Fix: `strip_to_text_only` converts tool parts to descriptive text**:
-   - `ToolCallPart` → `TextPart("[Tool: <name>(<args>)]")`, `BaseToolReturnPart` → `TextPart("[Result (<name>): <content>]")` (was `UserPromptPart`). Both `ModelRequest` and `ModelResponse` accept `TextPart`, so the part type no longer changes with the container. Descriptive text preserves semantic context without provider-specific struct requirements.
-   - `ThinkingPart` is now preserved — `is_missing_reasoning_content_error` in `retry_loop` handles the DeepSeek-style `reasoning_content` rejection upstream, so the opaque-400 fallback can safely keep all information.
-   - Large tool results truncated to 500 chars to prevent context-window overflow during last-resort retry.
-   - Empty `ToolCallPart` (no `tool_name`) now labelled as `[Tool: (unnamed)(<args>)]` instead of being dropped.
-   - Nil/empty content in non-tool parts still normalised to `"."`.
-   - Internal refactor: helpers extracted (`_tool_call_to_text`, `_tool_return_to_text`); `_normalize_content` no longer returns `None`, removing the downstream `None`-filter pass; redundant `has_tool` fallback branch simplified away.
-
-- **Bug Fix: Stream context manager (resource leak fix)**:
-  - `runner.py`: Changed from manual `stream = agent.run_stream_events(...)` + `finally: await stream.aclose()` to `async with agent.run_stream_events(...) as stream:`. The manual pattern held a reference across the event loop; if `aclose()` wasn't reached (e.g. during cancellation), the stream was leaked. The context manager guarantees cleanup.
-  - Removed stale `stream = None` initialiser.
-
-- **Test Infrastructure: `_stream_from` helper for async-with mocks**:
-  - `test_runner.py`: All 14 `mock_run_stream_events` async generators replaced with `_stream_from()` that wraps the generator in `AgentEventStream`, matching the new context-manager interface. Two `side_effect=` assignments in `patch.object` calls (session_start and user_prompt tests) fixed — the old pattern assigned the generator directly to `side_effect` but `patch.object` creates a new mock, so the `side_effect` was set on the mock rather than on the original. Now `mock_run.side_effect = _stream_from(_gen)` sets it correctly on the mock returned by the context manager.
-
-
-## 2.26.3 (May 11, 2026)
-
-- **Bug Fix: Generic Opaque-400 Retry for Multi-Turn Format Rejection**:
-  - New `strip_to_text_only()` in `src/zrb/llm/agent/run/history_utils.py` — normalises all message content to non-null, non-empty text strings; strips `ThinkingPart` (source of `reasoning_content` serialisation issues); preserves `ToolCallPart`, `ToolReturnPart`, `UserPromptPart`, and `TextPart` structure intact.
-  - New `opaque_retry_done` flag in `RetryState` — fires a single retry for any unclassified HTTP 400 by collapsing history through `strip_to_text_only()`. Provider-agnostic: works for GLM-5 on Bedrock, local models, future providers — no per-provider error-string matching.
-  - New `is_opaque_validation_error()` in `error_classifier.py` — documents the empty-`ValidationException` pattern (GLM-5 on Bedrock) for logging/metrics without coupling the retry loop to any specific provider.
-  - The existing `is_missing_reasoning_content_error` + `strip_thinking_parts` path (DeepSeek) is preserved unchanged. The opaque handler sits last in the retry chain, so it only fires when all other handlers have given up.
-
-- **New Tests**: 10 new test cases covering `strip_to_text_only` (structure preservation, null normalisation, empty guard, multi-turn flow, empty tool-call drop), opaque retry (fires once, skipped on second call, gated on `current_message`, gated on status 400), and `is_opaque_validation_error` (GLM-5 match, non-opaque ValidationException, DeepSeek non-match).
-
-- **UI: Status Bar Styling Refactored to Inline CFG Styles**:
-  - `get_status_bar_text()` now returns inline style strings from `CFG.LLM_UI_STYLE_STATUS`/`THINKING`/`CONFIRMATION` instead of CSS class names (`class:status`, etc.). Bypasses prompt_toolkit CSS class resolution — the style string goes directly to `_parse_style_str`.
-  - `DEFAULT_LLM_UI_STYLE_BOTTOM_TOOLBAR` set to `"noinherit"` so the toolbar has no background/foreground/bold of its own. Only the fragment's ANSI color applies to the text glyphs.
-  - Defaults: STATUS=`ansiwhite`, THINKING=`ansigreen`, CONFIRMATION=`ansiyellow`. All pure ANSI SGR codes (97/32/33) — no hex, no 24-bit, compatible with all terminals including tmux.
-
-- **UI: Assistant Name Capitalized**:
-  - `DEFAULT_LLM_ASSISTANT_NAME` changed from `""` (falls back to `ROOT_GROUP_NAME` → `"zrb"`) to `"Zrb"`. The name now shows as "Zrb" in the status bar and persona prompt.
-
-- **UI: Smoother Status Bar Animations**:
-  - `_refresh_loop` thinking sleep reduced from 0.5s → 0.25s for smoother dot animation.
-  - Confirmation state now also triggers fast-poll (0.25s) when `_current_confirmation is not None`, matching the thinking pattern.
-
-- **Security: urllib3 pinned to `>=2.7.0` (CVE-2026-44432)**:
-  - urllib3 is a transitive dependency via requests and boto3. The vulnerability allowed cookie leakage on HTTPS → HTTP redirect. Pin added in pyproject.toml with advisory comment.
-
-
-## 2.26.2 (May 11, 2026)
-
-- **Performance: Debounced UI Invalidation**:
-  - New `_schedule_invalidate()` in `OutputMixin` coalesces rapid `append_to_output` calls (e.g. streaming tool results) into a single invalidation per ~16ms frame. Previously every chunk triggered an immediate `invalidate_ui()` call.
-  - Benchmarked reduction: **33–100× fewer** `invalidate_ui()` calls depending on streaming pattern — 100 rapid calls coalesce into 1; realistic bursts of 20 with 10ms gaps coalesce into 3.
-  - `RuntimeError` fallback: when called outside an async context, `_schedule_invalidate()` catches the error and falls back to synchronous `invalidate_ui()` — no crash, no behaviour change.
-  - `OutputMixin._schedule_invalidate()` and `UI._schedule_invalidate()` both carry the same debounce logic (via MRO precedence).
-
-- **Improvement: Animated Thinking Indicator**:
-  - Status bar now shows an animated dots sequence (`⏳ Zrb is working.` → `⏳ Zrb is working..` → `⏳ Zrb is working...`) instead of a static `⏳ ... is working...`.
-  - Driven by `_thinking_dots` counter in `get_status_bar_text()`, advanced on every render call.
-
-- **Improvement: Adaptive UI Refresh Loop**:
-  - `LifecycleMixin._refresh_loop()` interval reduced from fixed 5.0s to 3.0s (idle) / 0.5s (thinking), enabling smooth dot animation without wasting CPU when idle.
-
-## 2.26.1 (May 10, 2026)
-
-- **Improvement: Prompt & Mandate Refinements**:
-  - **Rule priority hierarchy** added (new rule #5): `AGENTS.md`/`CLAUDE.md` override on style/conventions; base operating rules override on safety. Resolves ambiguity between project-specific docs and the general mandate.
-  - **"New code vs existing code" split**: previously the mandate said "prefer idiomatic code over existing style" (aggressive — would override local conventions). Now: idiomatic patterns for new code; match local style for existing code.
-  - **Cross-reference to git rules** added in general mandate so the "Git Rules" section isn't discoverable only from `git_mandate.md`.
-  - **Testing rules consolidated**: three separate bullets (Tests Are Integral, Testing Standards, Test File Conventions) merged into one dense bullet. Zero content loss.
-  - **Removed redundant sections**: "Context & Token Efficiency" (covered by persona's Response Calibration), "activate core-coding skill first" (a tool-time decision), "Review Your Own Code" (implicit in Engineering Discipline).
-  - `persona.md`: "One sentence before tools" → **"Pre-tool narration"**; "Reference code" → **"Cite code"** — clearer naming.
-  - `git_mandate.md`: Diff threshold relaxed from `~100 lines` to **"too large to be useful inline"** with added **offer-to-share specific files** behavior.
-  - `chat.py`: Tool guidance for `SearchJournal` and `SearchInternet` deduplicated — removed return-type schemas and config details that are already in the tool's own pydantic docstrings.
-
-- **Improvement: Tool Docstring Clarity**:
-  - `search_journal()`: "text pattern" → "regex pattern across all journal files in the configured journal directory" — more precise about scope and pattern type.
+- **Config & docs**:
+  - `ZRB_LLM_PLUGIN_DIRS` now expands `~` via `os.path.expanduser()`.
+  - `OutputMixin` exposes `is_thinking`/`current_confirmation` as public properties.
+  - Docs updated: version references bumped to 2.26.8, and task examples migrated to `BaseTask`/`_exec_action()` with retry-behavior guidance and a warning against overriding `run()`.
 
 ## 2.26.0 (May 10, 2026)
 
@@ -377,105 +473,47 @@
 
 - **Tests**: 100% coverage for `src/zrb/llm/util/clipboard.py` (was 17%) and full coverage for the three new multimodal modules.
 
-
 ## 2.25.3 (May 8, 2026)
 
-- **Bug Fix: `filter_nil_content` Crashed on `BuiltinToolCallPart`**:
-  - `_sanitize()` in `src/zrb/llm/agent/run/history_utils.py` called `dataclasses.replace(part, content=...)` on dataclass parts that have no `content` field (e.g. `BuiltinToolCallPart`, used for provider-side tools like Anthropic web_search). The `getattr(part, "content", None)` returned `None`, the code thought the content was nil, and `replace()` raised `TypeError: __init__() got an unexpected keyword argument 'content'`. Hit on every model call when builtin tools were enabled.
-  - Fixed by gating the replace on `hasattr(part, "content")` before treating missing content as nil.
-  - Refined the placeholder check to use `BaseToolReturnPart` (parent class) so `BuiltinToolReturnPart` also gets `"null"` instead of `"."` when its content is nil.
-  - New regression tests: `test_filter_nil_content_preserves_builtin_tool_call_part` and `test_filter_nil_content_uses_null_for_builtin_tool_return`.
+_Cumulative summary of the 2.25.1–2.25.3 patch line._
 
-- **Bug Fix: GLM-5 / Bedrock `ValidationException` Detection**:
-  - `is_missing_reasoning_content_error()` in `src/zrb/llm/agent/run/error_classifier.py` now also matches Bedrock `ValidationException` responses with an empty `Error.Message` field — the pattern produced by GLM-5 on Bedrock when it rejects `ThinkingPart` entries in echoed history. Previously these slipped through and surfaced as opaque 400s; now they trigger the existing `strip_thinking_parts` retry path.
+- **Feature: Zero-Setup Internet Search**:
+  - New Google News RSS backend (`llm/tool/search/google_rss.py`) implements `SearchInternet` via the Google News RSS feed — free, no API key, no Docker. It is now the default (`DEFAULT_SEARCH_INTERNET_METHOD` changed from `serpapi`/`searxng` to `google_rss`); SearXNG is only used when `ZRB_SEARCH_INTERNET_METHOD=searxng` is explicitly set.
+  - Fixed the SearXNG Docker setup: config copied to the correct `~/.config/searxng/settings.yml` path, corrected volume mount, pinned image (`2026.5.6-36bcd6b55`) to fix a Wikidata `KeyError`, per-run secret key via `secrets.token_hex(32)`, added `limiter.toml`, and a canonical `settings.yml` (added `json` format, removed Tor-only `ahmia`/`torch` engines).
 
-- **Bug Fix: Self-Import in `attachment.py`**:
-  - `normalize_attachments()` in `src/zrb/llm/util/attachment.py` had `from zrb.llm.util.attachment import get_media_type` — a self-import working around the function being defined later in the same file. Removed; `get_media_type` is in scope at call time.
+- **Bug Fix: Agent Run Robustness**:
+  - `filter_nil_content` no longer crashes on dataclass parts without a `content` field (e.g. `BuiltinToolCallPart` from provider-side tools like Anthropic web_search) — the replace is now gated on `hasattr(part, "content")`, and nil placeholder handling uses `BaseToolReturnPart` so builtin returns get `"null"`. This was hit on every model call with builtin tools enabled.
+  - GLM-5 / Bedrock `ValidationException` responses with an empty `Error.Message` are now detected as missing-reasoning-content errors, triggering the existing `strip_thinking_parts` retry instead of surfacing as opaque 400s.
+  - Removed a self-import in `attachment.py` and fixed a `default_llm_limitter` → `default_llm_limiter` typo throughout `llm_task.py`.
 
-- **Bug Fix: Dead `mock.patch` Sites in Hook Tests**:
-  - Six tests across `test/llm/hook/{test_matchers,test_hook_result_processing}.py` and `test/llm/hook/manager/test_hook_manager.py` patched `zrb.llm.hook.manager.manager.CFG` even though `manager.py` never read `CFG`. The patches were no-ops — the tests passed only because the *other* patch in the same `with` block (`zrb.llm.hook.journal.CFG`) did the real work. Removed the dead patches and the corresponding dead `mock_mgr_cfg.*` attribute assignments.
+- **Performance: Session-Lifetime Caching**:
+  - System context detection (project type, infrastructure, marker scanning, `which()` tool availability) is now `@lru_cache`d per-CWD, with the ThreadPoolExecutor reduced from 16 to 4 workers (only git status/log and todos stay dynamic); `is_inside_git_dir()` caches its `git rev-parse` check.
+  - Prompt loading (`_find_custom_prompt`, search paths, package prompt reads) is `@lru_cache`d, and prompt replacements are keyed by journal index mtime so they only rebuild when the journal changes.
+  - `LLMTask.get_system_prompt()` is now computed once and reused across `_create_agent()` and `run_agent()`, avoiding a second expensive rebuild per turn.
 
-- **Refactoring: Sub-Agent Manager Nested Layout**:
-  - `src/zrb/llm/agent/subagent/{manager,loader_mixin,search_mixin}.py` moved to `src/zrb/llm/agent/subagent/manager/` to match the `hook/manager/` and `lsp/manager/` layouts. `subagent/manager/__init__.py` re-exports `SubAgentManager`, `SubAgentDefinition`, and `sub_agent_manager` so external imports continue to work.
-  - `src/zrb/llm/tool/delegate.py` now imports directly from `zrb.llm.agent.subagent.manager.manager` (the inner module) to avoid a circular import: the package `__init__.py` triggers `register_default_tools()` mid-load, which transitively pulls `tool/delegate.py` before `__init__.py` has finished re-exporting `SubAgentManager`.
-  - Six `unittest.mock.patch("zrb.llm.agent.subagent.manager.create_agent")` sites updated to `...manager.manager.create_agent` (where `create_agent` actually lives post-migration).
+- **Improvement: Journaling Prompt Restructure**:
+  - `ZRB_LLM_INCLUDE_JOURNAL_REMINDER` now defaults to `off` independently of the `ZRB_LLM_INCLUDE_JOURNAL` master switch (which still guards it).
+  - The journal mandate gained an autonomous-journaling directive and a "how to scan for journal-worthy content" guide, while the reminder was slimmed to a single lightweight `[SYSTEM REMINDER]` nudge.
 
-- **Refactoring: Typed Mixin Contracts**:
-  - All eight mixin pairs in scope now declare host-class attributes via `if TYPE_CHECKING:` annotation blocks. Static type checkers see the required interface; runtime sees nothing (zero attribute leaks confirmed by `dir()`). Renaming a host attribute now produces a static type error in every mixin that reads it.
-  - Updated: `agent/subagent/manager/{loader_mixin,search_mixin}.py`, `lsp/manager/lifecycle_mixin.py`, `ui/default/{confirmation,output,keybindings,lifecycle}_mixin.py`, `ui/base/commands_mixin.py`, `hook/manager/loader_mixin.py`. The previously docstring-only contracts in `commands_mixin.py` and `hook/manager/loader_mixin.py` were converted to typed annotations and the now-redundant docstring lists removed.
+- **Improvement: UI Confirmation Indicator**:
+  - The status bar now shows a waiting-for-confirmation indicator (`👋 <name> is waiting for confirmation`) via the new `LLM_UI_STYLE_CONFIRMATION` style; `StdUI` shows an equivalent message on stderr, and the app invalidates unconditionally so the bar reflects transitions back to working/ready.
 
-- **Refactoring: Lazy-Import Sweep + Documented Policy**:
-  - All 60 stdlib in-function imports (uuid, json, re, os, dataclasses, traceback, base64, pathlib, etc.) hoisted to module top across 30 files — stdlib is fast and rarely participates in zrb's circular graphs.
-  - 30 internal `zrb.*` in-function imports hoisted where safe (verified by per-file `python -c "import <module>"` smoke check).
-  - 13 internal in-function imports kept lazy with explicit `# lazy: <reason>` comments — categorized as: (a) circular avoidance, (b) transitively heavy via internal (e.g. `zrb.llm.agent` pulls `pydantic_ai`), or (c) test patch seam (tests patch the source path; hoisting binds the name at consumer-load and bypasses the mock).
-  - New `Imports` section in `AGENTS.md` documents the four lazy-import categories and the `# lazy:` tagging convention.
+- **Refactoring: Structure, Typing, and Imports**:
+  - The sub-agent manager moved to a nested `agent/subagent/manager/` package (matching `hook/manager/` and `lsp/manager/`), with `__init__.py` re-exporting the public names; `tool/delegate.py` imports the inner module directly to avoid a circular import.
+  - All eight in-scope mixin pairs now declare host-class attributes via `if TYPE_CHECKING:` blocks for static interface checking with zero runtime attribute leaks.
+  - A lazy-import sweep hoisted all 60 stdlib and 30 safe internal in-function imports to module top, keeping 13 genuinely-lazy imports tagged with `# lazy: <reason>`; the four lazy-import categories are now documented in a new `Imports` section of `AGENTS.md`.
 
-- **Improvement: Dead Code Removal + Lint Enforcement**:
-  - `flake8 src/zrb --select=F` now runs as part of `./zrb-test.sh` (gated before pytest). Catches unused imports, redefinitions, and undefined names; respects `# noqa: F401` on intentional re-exports.
-  - Removed `zrb.util.callable.get_callable_name` and `zrb.util.truncate.truncate_str` (tested but never called from production code) plus their test files.
-  - Eight unused imports removed across `llm/app/keybinding.py`, `llm/ui/simple_ui_base.py`, `llm/util/stream_response.py`, `runner/chat/chat_session_manager.py`, `runner/web_route/login_page/login_page_route.py`, etc.
+- **Improvement: Lint Enforcement and Dead Code Removal**:
+  - `flake8 src/zrb --select=F` now runs (gated before pytest) in `./zrb-test.sh`, catching unused imports and undefined names.
+  - Removed unused utilities (`get_callable_name`, `truncate_str`) and eight stray unused imports.
 
 - **Improvement: PyPI README Single-Source**:
-  - `README.md` is now the single source of truth and uses **relative** `docs/X` links (works locally and on GitHub).
-  - New `scripts/build_pypi_readme.py` rewrites those relative links to absolute, **version-tagged** GitHub URLs and writes `README.pypi.md` (the file Poetry packages, configured via `[tool.poetry] readme = "README.pypi.md"`).
-  - The `publish-zrb-to-pip` task in `zrb_init.py` runs the script before `poetry publish`, so each PyPI release links to the matching version's docs (e.g. v2.25.3 links to `/blob/v2.25.3/...`) — old release pages stay correct even when files reorganise on `main`.
+  - `README.md` is now the single source of truth using relative `docs/X` links; a new `scripts/build_pypi_readme.py` rewrites them to absolute, version-tagged GitHub URLs into `README.pypi.md` (the packaged file), run by `publish-zrb-to-pip` so each release links to its matching version's docs.
 
-- **Improvement: Module Docstrings on Heavy Files**:
-  - Six high-traffic files now lead with a short docstring describing what the module owns, who its key collaborators are, and a doc pointer for the *why*: `llm/agent/run/{runner,history_utils,openai_patch}.py`, `llm/task/chat/task.py`, `llm/ui/base/ui.py`, `llm/hook/manager/manager.py`.
-
-- **Documentation: New LLM Chat Lifecycle Tour**:
-  - `docs/advanced-topics/llm-chat-lifecycle.md` — a single-page narrative walking `zrb llm chat "..."` through every stage from CLI bootstrap to history persistence, with file paths at each step. Linked from the README doc index, AGENTS.md, and the Maintainer Guide TOC.
-
-- **Documentation: ContextVar Count Reconciled**:
-  - The codebase has **seven** `ContextVar` instances; `architecture.md` and `maintainer-guide.md` previously said "five." Both updated. `maintainer-guide.md` now documents three layers (task / agent / tool) instead of two, with a new table for `active_worktree` and `_current_session`.
-  - Added a maintenance note in `src/zrb/contextvars.py`'s docstring listing the three docs that must be updated when the list changes, to prevent future drift.
-
-## 2.25.2 (May 6, 2026)
-
-- **Feature: Google News RSS as Default Search Backend**:
-  - New `src/zrb/llm/tool/search/google_rss.py` implements `SearchInternet` via the Google News RSS feed (`https://news.google.com/rss/search`). Free, no API key, no Docker required.
-  - `web.py`: SearXNG is now only invoked when `ZRB_SEARCH_INTERNET_METHOD=searxng` is explicitly set. Google News RSS is the new default fallback when no other method matches.
-  - Added `_normalize_google_rss()` normalizer and wired it into `normalize_search_result()`.
-  - `InternetSearchMixin`: `DEFAULT_SEARCH_INTERNET_METHOD` changed from `serpapi` to `google_rss`.
-  - `docs/configuration/llm-config.md`: Added "Google News RSS (Default)" section; updated `ZRB_SEARCH_INTERNET_METHOD` options and default.
-  - `docs/advanced-topics/llm-integration.md`: Updated `SearchInternet` tool description to reflect zero-setup default.
-
-- **Fix: SearXNG Docker Setup**:
-  - `start.py`: Config is now copied to `~/.config/searxng/settings.yml` (was incorrectly placed at `~/.config/searxng/settings.yml.new`). Docker volume mount corrected from `./config/` to `./.config/searxng/`. `SEARXNG_LIMITER=false` passed as env var to suppress limiter startup noise. Docker image pinned to `docker.io/searxng/searxng:2026.5.6-36bcd6b55` (fixes Wikidata `KeyError: 'name'` present in older versions). Secret key is now generated with `secrets.token_hex(32)` at copy time instead of using the hardcoded `"ultrasecretkey"` default (which causes SearXNG to refuse to start).
-  - New `config/limiter.toml`: Copied alongside `settings.yml` to silence the "missing limiter config" warning at startup.
-  - `config/settings.yml.new`: Replaced with the canonical `settings.yml` extracted directly from the pinned Docker image. Changes from the upstream default: added `json` to `formats` (required for the JSON API); removed `ahmia` and `torch` engine entries entirely (both require Tor and cannot be safely disabled via `disabled: true`); added `base_url: [https://yacy.searchlab.eu]` to the `yacy images` entry.
-
-- **Performance: System Context Caching**:
-  - `system_context.py`: Project type detection, infrastructure detection, marker scanning, and tool availability (`which()`) are now `@lru_cache`d per-CWD. These were previously recomputed on every turn despite being stable for the lifetime of a session.
-  - ThreadPoolExecutor reduced from 16 workers to 4 — only git status/log and todo fetching remain dynamic.
-  - `git.py`: `is_inside_git_dir()` now wraps an `@lru_cache`d `_check_git_dir(cwd)` to avoid repeated `git rev-parse` subprocess calls.
-
-- **Performance: Prompt Loading Caching**:
-  - `prompt.py`: `_find_custom_prompt()`, `_get_default_prompt_search_path()`, and `_read_package_prompt()` are now `@lru_cache`d. Prompt file search paths and bundled markdown files are computed once per CWD/name combination.
-  - `_get_prompt_replacements()` now keyed by journal index file mtime — only recomputes when the journal actually changes (previously rebuilt on every turn).
-
-- **Performance: LLMTask System Prompt Deduplication**:
-  - `llm_task.py`: `get_system_prompt()` now called once and reused for both `_create_agent()` and `run_agent()`, avoiding rebuilding the prompt (including expensive system context I/O) a second time per turn.
-
-- **Improvement: UI Confirmation Waiting Indicator**:
-  - Status bar now shows a waiting-for-confirmation indicator (`👋 <name> is waiting for confirmation`) when a tool confirmation is pending, using new `LLM_UI_STYLE_CONFIRMATION` style (default: `ansiyellow bold`).
-  - `StdUI`: Shows "👋 Zrb is waiting for confirmation" on stderr when no explicit prompt is given for tool-confirmation requests.
-  - `ConfirmationMixin`: `get_app().invalidate()` now called unconditionally (not just when prompt text is non-empty) so the status bar reflects state transitions back to "working" or "ready" when the confirmation queue empties.
-
-## 2.25.1 (May 6, 2026)
-
-- **Bug Fix: Typo in `llm_task.py`**:
-  - Fixed `default_llm_limitter` → `default_llm_limiter` (triple `t` → double `t` in variable name) in import alias and all references (`self._llm_limitter` → `self._llm_limiter`, property accessor).
-
-- **Improvement: Journal Reminder Decoupled from Master Switch**:
-  - `ZRB_LLM_INCLUDE_JOURNAL_REMINDER` now defaults to `off` independently, instead of falling back to `ZRB_LLM_INCLUDE_JOURNAL` (which defaults to `on`). Setting `ZRB_LLM_INCLUDE_JOURNAL=off` still disables the reminder as a guard.
-  - `LLMPromptMixin` in `llm_prompt.py`: Added `DEFAULT_LLM_INCLUDE_JOURNAL_REMINDER: str = "off"`; updated `LLM_INCLUDE_JOURNAL_REMINDER` property to use `get_env()` with the independent default and a master-switch guard.
-  - `llm-config.md`: Updated config table defaults from `1`/`0` to `on`/`off` for all prompt flags; documented `ZRB_LLM_INCLUDE_JOURNAL_REMINDER` as default `off` with conditional on master switch.
-
-- **Improvement: Journal Mandate Expanded, Reminder Slimmed**:
-  - `journal_mandate.md`: Added "Journal autonomously — do not wait for reminders" directive at the top of the When to Write section. Added "How to scan for journal-worthy content" subsection with step-by-step instructions (scan from last journal write, use `SearchJournal` to deduplicate, activate `core-journaling` skill for structural guidance).
-  - `journal_reminder.md`: Replaced the detailed multi-line reminder with a single lightweight `[SYSTEM REMINDER]` nudge. The detailed what/how guidance now lives exclusively in the journal mandate (which is always in the system prompt), making the reminder a minimal prompt to act.
-  - `journal.py`: Updated `_build_reminder()` docstring to reflect the lightweight-nudge role.
+- **Documentation**:
+  - New `docs/advanced-topics/llm-chat-lifecycle.md` narrates `zrb llm chat "..."` end-to-end from CLI bootstrap to history persistence.
+  - Reconciled the `ContextVar` count to seven across `architecture.md` and `maintainer-guide.md`, with a maintenance note added to `contextvars.py` to prevent drift.
+  - Added short module docstrings to six high-traffic files.
 
 ## 2.25.0 (May 5, 2026)
 
@@ -513,76 +551,32 @@
   - New `test/util/test_truncate.py`: 75 lines for truncation logic tests.
   - New `test/util/test_yaml.py`: 57 lines for YAML utility tests.
 
-
-
 ## 2.24.4 (May 3, 2026)
 
-- **Maintenance: Dependency Update**:
-  - Updated `google-genai` from `>=1.66.0` to `>=1.70.0`.
-  - Updated `poetry.lock` to match.
+_Cumulative summary of the 2.24.1–2.24.4 patch line._
 
-## 2.24.3 (May 3, 2026)
+- **Bug Fix: History & Summarization Reliability**:
+  - `drop_oldest_turn()` now honors a `min_turns` parameter and refuses to prune below it; `_execution_loop` passes `min_turns=1` when deferred tool results are pending, preventing history from being pruned to zero turns mid-tool-call and the resulting unrecoverable context-too-long failures.
+  - The history summarizer now deducts the system prompt's token cost when comparing against `conversational_token_threshold`. `_prepare_history` counts system prompt tokens and passes them as a `system_prompt_overhead` argument; `create_summarizer_history_processor` computes an `adjusted_threshold`, replacing a prior side-channel attribute hack — so summarization triggers at the intended point.
 
-- **Improvement: LLM Prompt & Skill Verbosity Audit**:
-  - Comprehensive word-level audit across all prompt components, skills, and agent definitions. Every retained word was justified; any word whose removal would not degrade agent behavior was cut (~25–30% reduction overall).
-  - `mandate.md`: Rewritten for conciseness — tightened all sections, made idiom rules language-agnostic (replaced JS-specific "composition over complex inheritance" with "never mutate or annotate objects you don't own"), quantified "when unclear" priority as `correctness > speed, brevity > completeness, action > analysis`, collapsed redundant scope rules.
-  - `persona.md`: Removed "Strategic Orchestrator" framing; simplified to "Lead Engineer" identity with "context window is precious; delegate complex or repetitive work."
-  - `journal_reminder.md`: Rewrote to prevent re-scanning already-journaled items — now instructs scanning from the turn after the last journal write, not the full session history.
-  - `journal_mandate.md`: Condensed write criteria to one directive line.
-  - `git_mandate.md`: Added "If the diff exceeds ~100 lines, show a per-file summary instead" rule.
-  - `conversational_summarizer.md`: Added `[BLOCKED: reason]` status for goals that become impossible; clarified "fully analyzed" definition (role, key functions/classes, and dependencies understood).
-  - `web_summarizer.md`: Marketing claims now rated `LOW (Omit unless directly answering the query)`.
-  - `file_extractor.md`: Extended file type coverage: `.sh`/`.bash`/`.ps1` (Scripts), `.sql` (Database), `.ts`/`.rs`/`.java` (Source), `.ini`/`.env` (Configuration), `.rst` (Documentation).
+- **Performance: Token Counting**:
+  - `LLMLimiter.fit_context_window` pruning reduced from O(n²) to O(n) by precomputing per-message body token counts and a backward-scanned last-instruction index, then subtracting costs incrementally. Measured ~5× speedup at 40 turns up to ~46× at 320 turns.
+  - `_prepare_history` now computes the token count once and reuses it when no history processors are registered, saving one O(n) traversal per chat turn.
 
-- **Improvement: Skill Rewrites**:
-  - `core-coding/SKILL.md`: Added Supplementary Skill Gates table at top (testing / debug / refactor / review trigger conditions); added Language & Framework Idioms rule to Strategy phase; added reference-check mandate for signature changes (`LspFindReferences`) and file moves/removes (`Grep`).
-  - `debug/SKILL.md`: Removed persona intro; added multi-language root causes (Rust/C++ ownership, JS coercion alongside Python); specified instrumentation placement ("at failure points: entry/exit, before/after suspect operations").
-  - `testing/SKILL.md`: Removed Testing Specialist persona; tightened mode descriptions; mock threshold now `~1 second per test`.
-  - `refactor/SKILL.md`: Removed Refactoring Mode intro; renamed table column "When to Apply" → "Trigger" with tighter descriptions; removed verbose code smell examples.
-  - `review/SKILL.md`: Removed Auditor Mode intro; removed path traversal example; large diff threshold defined as `>10 changed files or >500 total changed lines`.
-  - `research-and-plan/SKILL.md`: Removed Architect/Analyst Mode intro; condensed clarification rules and delegate shorthand.
-  - `core-journaling/SKILL.md`: Trimmed "Core Philosophy" header and opening.
-  - `init/SKILL.md`: Specified representative file selection: "main entry point, one domain model or core service, and one test file."
+- **Improvement: Prompt & Skill Verbosity Audit**:
+  - Word-level audit across all prompt components, skills, and agent definitions cut ~25–30% overall while justifying every retained word.
+  - Prompts tightened: `mandate.md` made idiom rules language-agnostic and quantified priorities (`correctness > speed, brevity > completeness, action > analysis`); `persona.md` simplified to a "Lead Engineer" identity; `journal_reminder.md` now scans only from the last journal write forward; `git_mandate.md` adds a per-file summary rule for diffs over ~100 lines; summarizer/extractor prompts gained `[BLOCKED]` status, marketing-claim handling, and broader file-type coverage.
+  - Skills rewritten: dropped persona intros and added concrete triggers/thresholds across `core-coding`, `debug`, `testing`, `refactor`, `review`, `research-and-plan`, `core-journaling`, and `init` — including multi-language guidance, reference-check mandates, and quantified mock/large-diff thresholds.
 
-- **Improvement: Agent Definition Updates**:
-  - `generalist.agent.md`: Removed persona fluff (Polymath Executor / Swiss Army Knife); removed duplicated "Available Tools" section (frontmatter is canonical); added `RM`, `MV`, `SearchJournal`, worktree tools (`EnterWorktree`, `ExitWorktree`, `ListWorktrees`), and all LSP tools.
-  - `code-reviewer.agent.md`: Removed "Code Auditor" persona section; added `SearchJournal`; added language/framework idiom check to Maintainability dimension; condensed test-run section.
-  - `researcher.agent.md`: Added `SearchJournal` + full LSP tool suite (`LspFindDefinition`, `LspFindReferences`, `LspGetDiagnostics`, `LspGetDocumentSymbols`, `LspGetWorkspaceSymbols`, `LspGetHoverInfo`, `LspListServers`) to tool list.
+- **Improvement: Agent Definitions & Tooling**:
+  - Agent definitions (`generalist`, `code-reviewer`, `researcher`) lost persona fluff and gained `SearchJournal`, worktree tools, and the full LSP tool suite.
+  - RM tool guidance in `chat.py` now reads "use Grep (or LspFindReferences)" for consistency with MV.
 
 - **Improvement: `AGENTS.md` Accuracy**:
-  - Removed stale `llm/chat/` row (directory is empty; `LLMChatTask` lives in `llm/task/chat/`).
-  - Fixed ambient state paths: `run_agent.py` → `agent/run/runner.py`; `runtime_state.py` → `agent/run/runtime_state.py`.
-  - Updated `llm_plugin/` description to name `skills/` and `agents/` subdirectories explicitly.
+  - Removed the stale `llm/chat/` row, corrected ambient-state paths (`agent/run/runner.py`, `agent/run/runtime_state.py`), and named the `llm_plugin/` `skills/` and `agents/` subdirectories explicitly.
 
-- **Improvement: RM Tool Guidance**:
-  - `chat.py`: RM reference-check now reads "use Grep (or LspFindReferences)" to match MV guidance consistency.
-
-- **Maintenance: Remove Stale FastApp Images**:
-  - Deleted unused `_images/fastapp/` image assets no longer referenced.
-
-## 2.24.2 (May 3, 2026)
-
-- **Bug Fix: Summarizer Token Threshold Now Accounts for System Prompt**:
-  - The history summarizer was comparing message-history token count against `conversational_token_threshold` without deducting the system prompt's token cost, causing summarization to trigger later than intended (the usage indicator's "Total" includes the system prompt).
-  - `_prepare_history` in `runner.py` now counts system prompt tokens before invoking history processors and passes the count as a `system_prompt_overhead` argument directly to each processor.
-  - `create_summarizer_history_processor` inner function `process_history` accepts `system_prompt_overhead: int = 0` and computes `adjusted_threshold = conversational_token_threshold - system_prompt_overhead` for all threshold comparisons.
-  - Replaces the previous hacky side-channel that set `processor._system_prompt_overhead` as an attribute on the callable.
-
-## 2.24.1 (May 3, 2026)
-
-- **Bug Fix: Consecutive Failure When Reducing History**:
-  - `drop_oldest_turn()` in `history_utils.py` now accepts a `min_turns` parameter and refuses to drop a turn when doing so would leave fewer turns than the minimum.
-  - `_execution_loop` passes `min_turns=1` to `handle_stream_error` when deferred tool results are pending, preventing the history from being pruned down to zero turns mid-tool-call — which caused consecutive context-too-long failures with no recovery path.
-
-- **Performance: `fit_context_window` O(n²) → O(n)**:
-  - The pruning loop in `LLMLimiter.fit_context_window` previously called `_count_tokens(pruned_history)` on every iteration, re-stringifying the entire remaining history each time — O(n²) across all pruning steps.
-  - Now precomputes per-message body token counts and a backward-scanned `last_instr_from[]` index in one O(n) pass. The pruning loop subtracts costs incrementally and updates the active instruction cost in O(1) per step, giving O(n) total.
-  - Correctly replicates `_to_str`'s list-level semantics: message bodies are counted with `skip_instructions=True` and only the last instruction in the remaining window is counted once.
-  - Measured speedup: ~5× at 40 turns, ~11× at 80 turns, ~22× at 160 turns, ~46× at 320 turns.
-
-- **Performance: Deduplicated Token Count in `_prepare_history`**:
-  - `_prepare_history` previously called `limiter.count_tokens(message_history)` twice per turn — once for the `PRE_COMPACT` hook payload and once for the context-limit check — even though both operate on the same content when no history processors are registered.
-  - The count is now computed once and reused when `history_processors` is empty (the common case), saving one O(n) traversal per chat turn.
+- **Maintenance**:
+  - Updated `google-genai` from `>=1.66.0` to `>=1.70.0` (with `poetry.lock`) and removed unused `_images/fastapp/` assets.
 
 ## 2.24.0 (May 1, 2026)
 
@@ -691,239 +685,61 @@
   - Added new tests for `create_agent()` retries in `test/llm/agent/test_common.py`.
   - Cleaned up test coverage in `test/llm/task/` and `test/llm/history_processor/` to match the simplified API surface.
 
-
 ## 2.22.8 (April 26, 2026)
 
-- **Feature: Tool Guidance Propagation to Sub-Agents**:
-  - Tool guidance now registered on both `llm_chat` (main agent) and `sub_agent_manager` (sub-agents) in `src/zrb/builtin/llm/chat.py`.
-  - Refactored static tool guidance from individual `llm_chat.add_tool_guidance(...)` calls to a shared `_static_tool_guidance` list broadcast to both agents.
-  - Sub-agents now receive the same tool usage guidance as the main agent, improving delegation consistency.
+_Cumulative summary of the 2.22.1–2.22.8 patch line._
 
-- **Feature: `add_tool_guidance()` on `SubAgentManager`**:
-  - New `add_tool_guidance()` and `add_tool_group()` methods on `SubAgentManager` (`src/zrb/llm/agent/subagent/manager.py`).
-  - `create_agent()` now appends tool guidance prompt to sub-agent system prompts via `get_tool_guidance_prompt()`.
-  - Ensures delegated sub-agents have tool usage instructions in their system context.
+- **Prompt System: Mandate, Persona & Guidance Refinements**:
+  - `mandate.md` restructured across the line: added Pre-Task Clarity (later "Inquiries vs. Directives & Pre-Task Clarity"), Execution Loop ("Path to Finality" with Empirical Reproduction, Mandatory Verification, and a 3-strike Strategic Re-evaluation), Scope & Simplicity, Technical Integrity & Standards, and Context & Token Efficiency sections.
+  - `persona.md` reframed identity as "Lead Engineer and Strategic Orchestrator" treating the context window as a precious resource; "Calibrate depth" → "Depth matches content"; added "Push back" rule and "One sentence before tools" calibration.
+  - Reordered journal reminder for clearer journaling decisions.
 
-- **Improvement: Mandate Refinements**:
-  - Renamed "Pre-Task Clarity" to "Inquiries vs. Directives & Pre-Task Clarity" with explicit distinction between inquiry vs. directive user intent.
-  - New "Technical Integrity & Standards" section: no hacks, idiomatic code, verify dependencies.
-  - New "Context & Token Efficiency" section: parallelism guidance for independent tool calls.
-  - Renamed "Execution Loop" to "Execution Loop (Path to Finality)" with structured phases: Empirical Reproduction, Mandatory Verification, Strategic Re-evaluation (3-strike rule).
-  - Removed redundant "Ask the user only when genuine ambiguity remains after step 1."
+- **System Context: Richer Runtime Awareness**:
+  - Session identity now wired via a `ContextVar` (`set_current_session()`), so all four todo tools resolve session in async contexts; replaced the broken `threading.local` approach.
+  - System prompt now injects active (pending/in_progress) todos, last 5 git commits, active worktree path, expanded infra detection (Terraform, Kubernetes, AWS, GCP, Azure), more utility tools (`jq`, `curl`, `gh`, `make`, `rg`, `rtk`), CLI preference hints, and the token limit.
+  - `EnterWorktree`/`ExitWorktree` now track the active worktree via `ContextVar` and auto-add `.zrb/worktree/` to `.gitignore`.
 
-- **Improvement: Persona Refinements**:
-  - Identity now describes the LLM as "Lead Engineer and Strategic Orchestrator" with context window as precious resource.
-  - "No preamble" replaced with more specific "One sentence before tools" calibration.
-  - Added periods at end of all bullet points for consistency.
+- **Skills & Delegation**:
+  - `ActivateSkill` now returns the skill directory path and companion file listing alongside content.
+  - Tool guidance now propagates to sub-agents: a shared `_static_tool_guidance` list is broadcast to both the main agent and `SubAgentManager`, which gained `add_tool_guidance()`/`add_tool_group()`; `create_agent()` appends guidance to sub-agent system prompts.
+  - Refined `DelegateToAgent`/`DelegateToAgentsParallel` guidance (parallel preferred for independent concurrent work; delegate heavy/repetitive work to keep main history lean).
 
-- **Improvement: DelegateToAgent Guidance Refined**:
-  - Updated `DelegateToAgent` guidance to emphasize delegating heavy/repetitive work while keeping the main session history lean.
+- **Agent Resilience: Provider Error Handling & Retries**:
+  - Transient provider errors (HTTP 429, 5xx) now retry with exponential backoff honoring `Retry-After`, capped by `LLM_API_MAX_WAIT` (default 60s) and `LLM_API_MAX_RETRIES` (default 3).
+  - Invalid/unknown tool-name errors (HTTP 400, e.g. Ollama) trigger a one-time corrective `[SYSTEM]` message and retry.
+  - Nil tool-call responses (e.g. DeepSeek via Cloudflare) now insert an empty `TextPart("")` before tool calls to satisfy API contracts.
+  - Normalized all system messages to a consistent `[SYSTEM]` prefix; passed `request_limit=None` to lift pydantic-ai's 50-request tool-loop cap.
 
-## 2.22.7 (April 26, 2026)
+- **Tools: File Search, Editing & Bash**:
+  - `search_files` now tries `rg --files-with-matches` first, falling back to Python `os.walk` and handling missing/erroring ripgrep gracefully.
+  - `replace_in_file` gained whitespace-tolerant and indentation-flexible fuzzy matching, reporting normalization and fixing replacement-count reporting.
+  - Bash default timeout raised 30s → 120s; added actionable `[SYSTEM SUGGESTION]` hints for common failures (port in use, command/module not found, connection refused); added a rule against querying state already in System Context.
 
-- **Refactoring: Config Extract-Mixin**:
-  - `Config` class reduced from ~2435 lines to 59 lines by splitting into 12 focused mixin modules under `src/zrb/config/_mixins/`.
-  - The thin shell composes all mixins; public access stays flat (`CFG.WEB_HTTP_PORT`, `CFG.LLM_MODEL`) — no external changes needed.
-  - New mixins: `foundation.py`, `web.py`, `llm_core.py`, `llm_ui.py`, `llm_limits.py`, `llm_content.py`, `llm_prompt.py`, `llm_search.py`, `rag.py`, `internet_search.py`, `hooks.py`, `task_runtime.py`.
+- **Web Frontend**:
+  - Adopted Jinja2 templating with a centralized `get_jinja_env()`, bundled a local `mermaid.min.js` (removing the external CDN dependency), and improved theme switching, layout, and chat-interface styling.
+  - Server shutdown timeout made configurable via `CFG.WEB_SHUTDOWN_TIMEOUT` (in milliseconds).
 
-- **Refactoring: HookManager Extract-Mixin**:
-  - Extracted `_loader_mixin.py` (filesystem traversal and format parsing) and `matcher.py` from `manager.py`.
-  - `HookManager` now focused on registration, execution, and type-specific hook factories.
+- **Configuration**:
+  - New `ZRB_LLM_INCLUDE_JOURNAL_MANDATE` and `ZRB_LLM_INCLUDE_JOURNAL_REMINDER` env vars give independent control over journal sections, both defaulting to `ZRB_LLM_INCLUDE_JOURNAL` (backwards compatible).
 
-- **Refactoring: LLMChatTask Extract-Mixin**:
-  - Extracted `_chat_builder_mixin.py` (all `set_*`/`add_*`/`append_*`/`prepend_*` methods) and `_chat_runner_mixin.py` (interactive/non-interactive session runners).
-  - `llm_chat_task.py` now focused on `__init__` and `_exec_action` orchestration.
+- **Refactoring: Extract-Mixin Across Core Classes**:
+  - `Config` reduced from ~2435 to 59 lines, split into 12 focused mixins under `src/zrb/config/_mixins/`; public flat access unchanged.
+  - `HookManager`, `LLMChatTask`, and `BaseUI` similarly split into focused mixins.
+  - New `src/zrb/contextvars.py` centralizes the `ContextVar` index, with `runtime_state.py` (agent-run state) and `ambient_state.py` (tool-scoped state).
+  - Broadened public API surface on `LLMChatTask`, `DefaultUI` mixins, `ChatSessionManager`, and `HttpUI`, replacing private-attribute access.
 
-- **Refactoring: BaseUI Extract-Mixin**:
-  - Extracted `_commands_mixin.py` (slash-command handlers and shell command execution) from `base_ui.py`.
+- **Security & Dependencies**:
+  - Bumped `pydantic-ai-slim` (→ `~1.86.1`, with `AbstractCapability`/`capabilities` support), `anthropic` (→ `>=0.96.0`), and `boto3` (→ `>=1.42.63`).
+  - Added security pins for transitive deps: `python-multipart >=0.0.26` (CVE-2026-40347 DoS), `langchain-text-splitters >=1.1.2` (SSRF), `langsmith >=0.7.31` (output-redaction bypass).
 
-- **Improvement: ContextVar Discoverability**:
-  - New `src/zrb/contextvars.py` serves as a centralized index of every `ContextVar` in the runtime.
-  - New `runtime_state.py` for agent-run ambient state (UI, YOLO, approval channel).
-  - New `ambient_state.py` for tool-scoped ambient state (worktree, session).
-  - Each re-exports typed wrappers from their owning modules for discoverability.
+- **Bug Fixes**:
+  - `SubAgentManager` now only treats `.md` files directly inside an `agents/` directory as agent definitions.
+  - Fixed `os.make_dirs` → `os.makedirs` typo in `archive_todo` that caused `FileNotFoundError`.
+  - RAG `_load_hash_file()` now catches and logs errors instead of crashing on a corrupt hash file.
+  - YOLO inheritance check now reads `ui.yolo` directly; fixed mutable default arguments in `get_group_subcommands()`.
 
-- **Improvement: Public API Surface Documentation**:
-  - `src/zrb/__init__.py` reorganized with section comments grouping imports by concern.
-  - `Config` class now explicitly exported.
-
-- **Improvement: Public Properties on `LLMChatTask`**:
-  - Added public `history_manager`, `ui_factories`, `approval_channels`, and `include_default_ui` properties with setters.
-  - `chat_session_runner.py` now accesses these through the public API instead of private attributes.
-
-- **Improvement: Public API on `DefaultUI` Mixins**:
-  - `ConfirmationMixin`: new `submit_user_answer()` and `cancel_pending_confirmations()` methods.
-  - `LifecycleMixin`: extracted `cleanup_background_tasks()` and `handle_first_render()` as public methods.
-  - `OutputMixin`: new `output_text` and `output_field_width` properties.
-
-- **Improvement: Public API on `ChatSessionManager`**:
-  - Added `history_manager` property, `set_history_manager()`, `has_session()`, and `sessions` property.
-
-- **Improvement: Public `handle_incoming_message()` on `HttpUI`**:
-  - Exposed `handle_incoming_message()` as a public method instead of direct `_input_queue` access.
-
-- **Bug Fix: Nil Tool Call Response**:
-  - Fixed `_filter_nil_content()` in `run_agent.py` for providers (e.g., DeepSeek via Cloudflare) that reject `null` content when the response contains only tool calls.
-  - Empty `TextPart("")` is now inserted before tool call parts to satisfy API contract.
-  - Refined `_is_invalid_tool_call_error()`: removed overly broad "invalid" keyword to reduce false positives.
-
-- **Bug Fix: `os.makedirs` Typo in `todo.py`**:
-  - Fixed `os.make_dirs` → `os.makedirs` in `archive_todo`; the archive directory was never created, causing a `FileNotFoundError`.
-
-- **Bug Fix: RAG Hash File Error Handling**:
-  - `_load_hash_file()` now catches and logs exceptions instead of propagating them, preventing crashes when the hash file is corrupted or unreadable.
-
-- **Bug Fix: YOLO Inheritance Check Simplified**:
-  - `make_yolo_inheritance_checker()` now reads `ui.yolo` directly instead of reaching into `ui._ctx.xcom["yolo"]`, removing the fragile private-attribute access.
-
-- **Bug Fix: Mutable Default Arguments in `get_group_subcommands()`**:
-  - Fixed `previous_path=[]` and `subcommands=[]` mutable defaults in `src/zrb/util/cli/subcommand.py`; replaced with `None` and proper initialization guards.
-
-- **Tests: Coverage Expansion**:
-  - New `test/test_contextvars_index.py`: verifies the context vars index imports correctly.
-  - New `test/llm/agent/test_runtime_state.py`: tests for agent runtime state management.
-  - New `test/llm/tool/test_ambient_state.py`: tests for tool-scoped ambient state.
-  - Extensive new tests for agent run submodules (`deferred_calls`, `error_classifier`, `openai_patch`, `retry_loop`, `runner`), subagent manager, UI mixins, chat session runner, HTTP UI, web routes, LSP server, RAG tool, code tool, file tool, and CLI utilities.
-
-## 2.22.6 (April 25, 2026)
-
-- **Improvement: Granular Journal Config**:
-  - New `ZRB_LLM_INCLUDE_JOURNAL_MANDATE` env var controls whether the journal mandate section appears in the system prompt independently of the reminder.
-  - New `ZRB_LLM_INCLUDE_JOURNAL_REMINDER` env var controls whether the end-of-session journaling reminder fires.
-  - Both default to `ZRB_LLM_INCLUDE_JOURNAL` when unset — fully backwards compatible.
-  - `PromptManager` gains a matching `include_journal_mandate` property; `include_journal` kept as an alias.
-
-- **Improvement: Fuzzy Matching in `replace_in_file`**:
-  - Tries exact match first, then falls back to trailing-whitespace-tolerant and indentation-flexible fuzzy matching.
-  - Fuzzy matches are reported in the success message so callers know normalization occurred.
-  - Fixed replacement count reporting when `count != -1` (now reports `min(match_count, count)` instead of total occurrences).
-
-- **Improvement: Bash Tool Enhancements**:
-  - Default `timeout` increased from 30 s to 120 s for long-running commands.
-  - New actionable `[SYSTEM SUGGESTION]` messages for common failure patterns: port already in use, command not found, Python module not found, connection refused.
-
-- **Improvement: Tool Guidance Refinements**:
-  - Clarified `DelegateToAgent` guidance: when-to-use now explicitly mentions `DelegateToAgentsParallel` as the preferred choice for independent concurrent sub-tasks.
-  - Clarified `DelegateToAgentsParallel` guidance: concurrency preference and full-context requirement stated more precisely.
-
-- **Feature: Transient Provider Error Retry**:
-  - New `_is_retryable_error()` and `_get_retry_wait()` in `run_agent.py` detect transient provider errors (HTTP 429, 5xx) and retry with exponential backoff.
-  - Honors `Retry-After` response header when present, caps wait time at configurable `LLM_API_MAX_WAIT` (default: 60s).
-  - New `LLM_API_MAX_RETRIES` config (default: 3) controls total retry attempts; set to `1` to disable.
-  - Works alongside existing context-length and invalid-tool retry loops — each error type has independent counters.
-  - Documented in `docs/configuration/llm-config.md` under retry configuration.
-
-- **Improvement: System Message Consistency and Tool Cleanup**:
-  - Normalized all system messages from mixed `[System]`/`[SYSTEM]` to consistent `[SYSTEM]` prefix across `run_agent.py` and `llm_task.py`.
-  - Removed unused sync `tool_safe` decorator from `_wrapper.py` (redundant with `_create_safe_wrapper` in `create_agent()`).
-  - Passed `request_limit=None` to `run_stream_events` to override pydantic-ai's default 50-request cap on tool-use loops.
-
-- **Maintenance: Dependency Update**:
-  - Updated `pydantic-ai-slim` from `~1.85.0` to `~1.86.1`.
-  - Added `AbstractCapability` support: new `capabilities` parameter threaded through `LLMTask` → `LLMChatTask` → `create_agent()` for pydantic-ai 1.86.x compatibility.
-
-## 2.22.5 (April 24, 2026)
-
-- **Bug Fix: More Resilient Tool Call Error Handling**:
-  - New `_is_invalid_tool_call_error()` in `run_agent.py` detects HTTP 400 errors caused by invalid or unknown tool names.
-  - Some model APIs (e.g., Ollama) reject responses referencing unregistered tools with HTTP 400 instead of handling gracefully.
-  - On first occurrence, injects a corrective `[SYSTEM]` message asking the model to use only exact available tool names, then retries.
-  - One-time retry via `_invalid_tool_retry_done` flag prevents infinite loops.
-
-- **Improvement: Challenge Runner Verification Priority**:
-  - Verification result strings (`VERIFICATION_RESULT: EXCELLENT/PASS/FAIL`) now take priority over execution status.
-  - Handles models that complete work correctly but exit with non-zero codes due to unrelated framework exceptions.
-  - Fallback to exit code only when no `VERIFICATION_RESULT` marker is present.
-
-- **Maintenance: Updated Challenge Results**:
-  - Updated `llm-challenges/experiment/` results across all model providers.
-
-## 2.22.4 (April 22, 2026)
-
-- **Security: Dependency Vulnerability Patches**:
-  - Updated `pydantic-ai-slim` from `~1.80.0` to `~1.85.0`.
-  - Updated `anthropic` from `>=0.80.0` to `>=0.96.0`.
-  - Updated `boto3` from `>=1.42.14` to `>=1.42.63`.
-  - Added `jinja2` dependency for improved web templating.
-  - Added security pins for transitive dependencies:
-    - `python-multipart >=0.0.26` (CVE-2026-40347: DoS via crafted multipart/form-data)
-    - `langchain-text-splitters >=1.1.2` (GHSA-fv5p-p927-qmxr: SSRF via redirect bypass)
-    - `langsmith >=0.7.31` (GHSA-rr7j-v2q5-chgv: Streaming token events bypass output redaction)
-  - Updated `voyageai` extra to include new security dependencies.
-
-- **Improvement: Web Frontend Enhancements**:
-  - Added `jinja2` templating engine with centralized `get_jinja_env()` function for consistent template rendering.
-  - Added local `mermaid.min.js` (3.2MB) for diagram rendering in web UI, removing external CDN dependency.
-  - Improved web route templates with better theme switching, layout, and styling.
-  - Enhanced chat interface with better CSS and JavaScript organization.
-  - Updated all web route handlers to use new Jinja2 environment for template rendering.
-
-- **Improvement: Server Configuration**:
-  - Changed server shutdown timeout from hardcoded `SHUTDOWN_TIMEOUT` to configurable `CFG.WEB_SHUTDOWN_TIMEOUT`.
-  - Server now uses milliseconds for timeout configuration (consistent with other timeout settings).
-
-- **Maintenance: Dependency Updates**:
-  - Updated `poetry.lock` with latest compatible versions.
-  - Minor cleanup in web route imports and template loading.
-
-## 2.22.3 (April 20, 2026)
-
-- **Improvement: Session Wiring via ContextVar**:
-  - `system_context` middleware now calls `set_current_session()` with `ctx.input.session`, wiring a `ContextVar` that all four todo tools (`WriteTodos`, `GetTodos`, `UpdateTodo`, `ClearTodos`) read automatically.
-  - Replaces the broken `threading.local` approach in `get_current_context_session()`. Async contexts now correctly resolve session identity without explicit `session=` arguments.
-
-- **Improvement: Active Worktree Tracking**:
-  - `EnterWorktree` now sets an `active_worktree` `ContextVar`; `ExitWorktree` clears it.
-  - The active worktree path is injected into every system context (`- Active worktree: <path>`) and delegate messages, reminding the LLM to pass `cwd` to `Bash` and use absolute paths for file tools.
-  - `EnterWorktree` now auto-adds `.zrb/worktree/` to the repo's `.gitignore` via `_ensure_gitignore()`.
-
-- **Improvement: Pending Todos in System Context**:
-  - Active (pending/in_progress) todos are now rendered into the system prompt every turn, so the LLM never starts blind.
-  - Completed and cancelled items are omitted; the section is suppressed entirely when no active todos exist.
-
-- **Improvement: Recent Commits in System Context**:
-  - Last 5 git log entries are now shown in system context (`- Recent commits:`), giving the LLM visibility into recent activity without an explicit `Bash` call.
-
-- **Bug Fix: Agent .md File Filtering**:
-  - Fixed `SubAgentManager` incorrectly treating any `.md` file as an agent definition. Now only `.md` files directly inside an `agents/` directory (case-insensitive parent check) are recognized as agents.
-
-- **Improvement: Ripgrep Acceleration for File Search**:
-  - `search_files` now tries `rg --files-with-matches` first and falls back to Python `os.walk` if `rg` is unavailable.
-  - Gracefully handles `rg` errors (exit code 2) and environments without ripgrep installed.
-
-## 2.22.2 (April 19, 2026)
-
-- **Improvement: Bash Tool Guidance Enhancement**:
-  - Added "Never use to query state already in System Context (Time, OS, CWD, available tools)" rule to Bash tool guidance.
-  - Prevents redundant system queries when information is already available in the system context.
-
-- **Improvement: Journal Reminder Reordering**:
-  - Moved "If nothing is worth journaling" before skill guidance in `journal_reminder.md` for better logical flow.
-  - Improves clarity when deciding whether to journal.
-
-- **Improvement: Mandate Simplification**:
-  - Consolidated 5-step pre-task clarity into 3 steps in `mandate.md`.
-  - Removed redundant "Context Before Action" section.
-  - Streamlined guidance for better readability and focus.
-
-## 2.22.1 (April 18, 2026)
-
-- **Improvement: Skill Activation Returns Companion Files**:
-  - `ActivateSkill` tool now returns the skill's directory path and companion file listing alongside the skill content.
-  - New `_get_companion_files()` helper identifies companion files for skills in dedicated directories (`SKILL.md`/`SKILL.py`).
-  - Available Skills section in Claude prompt now mentions companion files.
-
-- **Improvement: System Context Detection Expanded**:
-  - New `_detect_infra_types()` function detects Terraform, Kubernetes, AWS, GCP, and Azure from project markers and home config directories.
-  - Added utility tools to detection: `jq`, `curl`, `gh`, `make`, `rg`, `rtk`.
-  - Added CLI hints for tool preferences (e.g., `rg` over `grep`, `jq` for JSON extraction).
-  - Token limit now shown in system context.
-  - Deduplication of tool labels to avoid repeated entries.
-
-- **Improvement: Prompt Refinements**:
-  - `persona.md`: "Calibrate depth" → "Depth matches content"; added "Push back" rule.
-  - `mandate.md`: Major restructure — added Pre-Task Clarity, Execution Loop, Scope & Simplicity sections; expanded edge case guidance; reorganized rule priorities.
-  - Updated tool guidance in `chat.py` for `ActivateSkill`, `DelegateToAgent`, `DelegateToAgentsParallel`, and `Bash`.
+- **Challenge Runner**:
+  - `VERIFICATION_RESULT` markers now take priority over exit codes, handling models that finish work but exit non-zero due to unrelated framework exceptions.
 
 ## 2.22.0 (April 16, 2026)
 
@@ -970,7 +786,6 @@
   - Enhanced `test/llm/history_processor/test_history_summarizer.py`: Getter/renderer parameter tests (+35 lines).
   - Enhanced `test/llm/task/test_llm_chat_task.py`: Config-level fallback tests (+35 lines).
   - Enhanced `test/llm/task/test_llm_task.py`: Model pipeline resolution tests (+68 lines).
-
 
 ## 2.21.1 (April 16, 2026)
 
@@ -1035,67 +850,19 @@
 
 ## 2.20.2 (April 15, 2026)
 
+_Cumulative summary of the 2.20.1–2.20.2 patch line._
+
 - **Security: Dependency Vulnerability Patches**:
   - Updated `Pillow` from `>=10.0.0` to `>=12.2.0` (CVE-2026-40192: decompression bomb via unlimited GZIP read in FITS decoding).
   - Updated `pytest` from `^8.3.5` to `>=9.0.3` (CVE-2025-71176: local privilege escalation via `/tmp/pytest-of-{user}` directories).
 
-- **Bug Fix: SharedContext Mutable Default Arguments**:
-  - `SharedContext.__init__` changed mutable defaults (`={}`, `=[]`) to `None` with proper initialization, preventing shared state between instances.
-
-- **Bug Fix: Session.get_root_tasks() Infinite Recursion**:
-  - Replaced recursive `get_root_tasks()` with iterative traversal using a visited set to prevent infinite loops with cyclic task graphs.
-
-- **Bug Fix: Session.terminate() Mutation During Iteration**:
-  - Wrapped `dict.values()` and `list` iterations with `list()` to prevent "dictionary changed size during iteration" errors during session termination.
-
-- **Bug Fix: State Logger CPU Consumption**:
-  - Changed state logger sleep from `asyncio.sleep(0)` to `asyncio.sleep(0.1)`, capping writes at ~10 per second instead of spinning at full CPU.
-
-- **Bug Fix: Builtin Plugin Path Resolution**:
-  - Fixed `Path(os.path.dirname(__file__)).parent` to `Path(__file__).parent.parent.parent` for correct builtin path in `SkillManager`, `HookManager`, and `SubAgentManager`.
-
-- **Refactoring: Modernize Type Annotations**:
-  - Replaced `Optional[X]` → `X | None`, `Union[X, Y]` → `X | Y`, `Dict` → `dict`, `List` → `list`, `Tuple` → `tuple` across LSP, agent, prompt, and tool modules.
-
-- **Refactoring: Path Handling Migration**:
-  - Replaced `os.path.dirname(__file__)` + `os.path.join` with `Path(__file__).parent` / path operations across all web route modules and prompt loading.
-
-- **Refactoring: Deduplicate Agent Search Directory Logic**:
-  - Extracted `_add_agents_from_root()` method in `SubAgentManager` to eliminate repeated directory scanning code across user home, project, and base search sections.
-
-- **Refactoring: Deduplicate Task Group Execution**:
-  - Extracted `_execute_task_group()` and `_skip_task_group()` helper functions in `execution.py` to reduce duplication in successor/fallback execute and skip logic.
-
-- **Refactoring: Deduplicate BaseTask Append Methods**:
-  - Extracted `_append_unique_tasks()` method in `BaseTask` to consolidate `append_fallback`, `append_successor`, `append_readiness_check`, and `append_upstream`.
-
-- **Refactoring: Deduplicate File List Truncation**:
-  - Extracted `_truncate_file_list()` helper in `file.py` to share truncation logic between `list_files()` and `glob_files()`.
-
-- **Documentation: New and Expanded Docs**:
-  - New `docs/advanced-topics/mcp-support.md`: MCP server configuration and discovery guide.
-  - Expanded `docs/advanced-topics/llm-integration.md`: Added "Built-in LLM Tools" reference section covering all built-in tool categories.
-  - Expanded `docs/advanced-topics/maintainer-guide.md`: Added "Context Propagation Internals" section documenting `ContextVar` usage patterns.
-  - Expanded `docs/advanced-topics/upgrading-guide.md`: Added "Upgrading from 1.x.x to 2.x.x" section with migration table.
-  - Expanded `docs/core-concepts/session-and-context.md`: Added "Ambient Context" section documenting `get_current_ctx()` and `zrb_print()`.
-
-- **Tests: Coverage Expansion**:
-  - New `test/llm/lsp/test_lsp_protocol.py`: LSP protocol data structures (+345 lines).
-  - New `test/llm/prompt/test_system_context.py`: System context prompt generation (+228 lines).
-  - New `test/llm/tool_call/test_read_file_validation.py`: Read file validation (+48 lines).
-  - New `test/llm/tool_call/test_replace_in_file_validation.py`: Replace-in-file validation (+96 lines).
-  - New `test/llm/tool_call/tool_policy/test_auto_approve.py`: Auto-approve policy (+221 lines).
-  - New `test/task/base/test_monitoring.py`: Task monitoring (+437 lines).
-  - New `test/session/test_session.py`: Session lifecycle and root task detection (+145 lines).
-  - Enhanced `test/task/base/test_execution.py`: Execution helpers and task group logic (+222 lines).
-  - Enhanced `test/task/test_lifecycle.py`: State logger timing and lifecycle (+177 lines).
-  - New `test/builtin/llm/test_chat_tool_policy.py`: Chat tool policy (+131 lines).
-  - New `test/runner/web_route/test_task_input_api.py`, `test_logout_api_route.py`, `test/runner/web_schema/test_web_user_schema.py`, `test/llm/agent/test_common.py`, `test/util/test_util_group.py`, `test/input/test_base_input.py`.
-
-- **Maintenance: Dependency Updates**:
-  - Updated `poetry.lock` with latest compatible versions.
-
-## 2.20.1 (April 13, 2026)
+- **Feature: Bidirectional Journal Graph**:
+  - Journal restructured as a bidirectional graph with a backlinks protocol.
+  - Every forward link must have a backlink entry in the target note's `## Backlinks` section.
+  - New Link Convention with relative paths from the journal root.
+  - Step-by-step guide for creating new notes with proper backlink maintenance.
+  - Updated `journal_mandate.md` with embedded index context and retrieval guidance.
+  - Updated `core-journaling` skill with backlink protocol, maintenance rules, and ~50-line file limit guidance.
 
 - **Improvement: Parallel Chunk Summarization**:
   - `chunk_and_summarize()` now runs all chunks concurrently via `asyncio.gather` instead of sequentially.
@@ -1109,23 +876,15 @@
   - Providers that don't stream (e.g., Ollama) leave the static line visible for better feedback.
   - New `was_tool_call_start` flag ensures clean transitions between static and animated states.
 
-- **Improvement: Worktree Repo-Local Storage**:
-  - Worktrees now placed inside the repo under `.{ROOT_GROUP_NAME}/worktree/` instead of system temp directory.
-  - Uses `git rev-parse --show-toplevel` to resolve the git repo root.
-  - Keeps worktrees co-located with the repository they belong to.
-
-- **Feature: Bidirectional Journal Graph**:
-  - Journal restructured as a bidirectional graph with a backlinks protocol.
-  - Every forward link must have a backlink entry in the target note's `## Backlinks` section.
-  - New Link Convention with relative paths from the journal root.
-  - Step-by-step guide for creating new notes with proper backlink maintenance.
-  - Updated `journal_mandate.md` with embedded index context and retrieval guidance.
-  - Updated `core-journaling` skill with backlink protocol, maintenance rules, and ~50-line file limit guidance.
-
 - **Improvement: Active Skills Tracking in Summarizer**:
   - New `<active_skills>` section in the `conversational_summarizer.md` state snapshot XML.
   - Skills activated via `ActivateSkill` are now tracked and restored on context recovery.
   - Restored agent re-activates skills if the task still requires that domain expertise.
+
+- **Improvement: Worktree Repo-Local Storage**:
+  - Worktrees now placed inside the repo under `.{ROOT_GROUP_NAME}/worktree/` instead of the system temp directory.
+  - Uses `git rev-parse --show-toplevel` to resolve the git repo root.
+  - Keeps worktrees co-located with the repository they belong to.
 
 - **Improvement: Mandate Updates**:
   - Added "Memory Operations" as rule priority #4: journaling and skill activation are autonomous; exempt from Scope Discipline.
@@ -1136,6 +895,36 @@
 - **Improvement: Tool Docstring Updates**:
   - `WriteTodos`: Replaced "Create todos before starting complex multi-step tasks" mandate with "Call `GetTodos` before each subtask to check current state".
   - `OpenWebPage`: Reformatted `MANDATE` to `MANDATES` with bulleted guidance.
+
+- **Bug Fix: Session and Context Stability**:
+  - `SharedContext.__init__` changed mutable defaults (`={}`, `=[]`) to `None` with proper initialization, preventing shared state between instances.
+  - Replaced recursive `Session.get_root_tasks()` with iterative traversal using a visited set to prevent infinite loops with cyclic task graphs.
+  - Wrapped `dict.values()` and `list` iterations with `list()` in `Session.terminate()` to prevent "dictionary changed size during iteration" errors.
+
+- **Bug Fix: State Logger CPU Consumption**:
+  - Changed state logger sleep from `asyncio.sleep(0)` to `asyncio.sleep(0.1)`, capping writes at ~10 per second instead of spinning at full CPU.
+
+- **Bug Fix: Builtin Plugin Path Resolution**:
+  - Fixed `Path(os.path.dirname(__file__)).parent` to `Path(__file__).parent.parent.parent` for correct builtin path in `SkillManager`, `HookManager`, and `SubAgentManager`.
+
+- **Refactoring: Modernize Type Annotations**:
+  - Replaced `Optional[X]` → `X | None`, `Union[X, Y]` → `X | Y`, `Dict` → `dict`, `List` → `list`, `Tuple` → `tuple` across LSP, agent, prompt, and tool modules.
+
+- **Refactoring: Path Handling Migration**:
+  - Replaced `os.path.dirname(__file__)` + `os.path.join` with `Path(__file__).parent` / path operations across all web route modules and prompt loading.
+
+- **Refactoring: Deduplicate Repeated Logic**:
+  - Extracted `_add_agents_from_root()` in `SubAgentManager` to eliminate repeated directory scanning across user home, project, and base search sections.
+  - Extracted `_execute_task_group()` and `_skip_task_group()` helpers in `execution.py` to reduce duplication in successor/fallback execute and skip logic.
+  - Extracted `_append_unique_tasks()` in `BaseTask` to consolidate `append_fallback`, `append_successor`, `append_readiness_check`, and `append_upstream`.
+  - Extracted `_truncate_file_list()` helper in `file.py` to share truncation logic between `list_files()` and `glob_files()`.
+
+- **Documentation: New and Expanded Docs**:
+  - New `docs/advanced-topics/mcp-support.md`: MCP server configuration and discovery guide.
+  - Expanded `docs/advanced-topics/llm-integration.md`: Added "Built-in LLM Tools" reference section covering all built-in tool categories.
+  - Expanded `docs/advanced-topics/maintainer-guide.md`: Added "Context Propagation Internals" section documenting `ContextVar` usage patterns.
+  - Expanded `docs/advanced-topics/upgrading-guide.md`: Added "Upgrading from 1.x.x to 2.x.x" section with migration table.
+  - Expanded `docs/core-concepts/session-and-context.md`: Added "Ambient Context" section documenting `get_current_ctx()` and `zrb_print()`.
 
 - **Maintenance: Dependency Updates**:
   - Updated `pydantic-ai-slim` from `~1.76.0` to `~1.80.0`.
@@ -1505,347 +1294,23 @@
   - New `test/llm/ui/` test suite for SimpleUI and MultiUI.
   - Enhanced existing UI and agent tests.
 
-
-## 2.19.1 (April 10, 2026)
-
-- **Security: Dependency Vulnerability Patches**:
-  - Updated `langchain-core` from `>=1.2.22` to `>=1.2.28` (CVE-2026-34070).
-  - Added `cryptography >=46.0.7` requirement (CVE-2026-39892).
-  - Maintained existing security pins: `pygments >=2.20.0`, `aiohttp >=3.13.4`, `pyasn1 >=0.6.3`.
-
-- **Feature: Bash Tool Working Directory Support**:
-  - Added `cwd` parameter to `run_shell_command()` for setting working directory.
-  - Required for proper operation inside worktrees and different project directories.
-  - Backward compatible: defaults to current directory if not specified.
-
-- **Improvement: Code Analysis Tool**:
-  - Changed `file_pattern` parameter default from `None` to empty string for consistency.
-  - Added guidance for writing specific queries (e.g., "how is auth implemented?") vs vague ones.
-
-- **Improvement: LSP Tools Parameter Handling**:
-  - Fixed `symbol_kind` parameter handling in `find_definition()` to properly convert empty string to `None`.
-  - Ensures compatibility with LSP manager expectations.
-
-- **Maintenance: Dependency Updates**:
-  - Updated `poetry.lock` with latest compatible versions.
-  - Minor cleanup in LLM tool imports and parameter defaults.
-
-## 2.19.0 (April 9, 2026)
-
-- **Feature: Model Tiering and Transform Pipeline**:
-  - New `custom_model_names` parameter on `LLMTask` and `LLMChatTask` for custom model name registration.
-  - New `model_getter` callable: transforms model before UI display (e.g., show tier name instead of actual model).
-  - New `model_renderer` callable: transforms model before API call (e.g., map tier name to actual model).
-  - Enables advanced use cases: model tiering, cost optimization, fallback strategies.
-  - Pipeline: base model → `model_getter` (active, shown in UI) → `model_renderer` (final for pydantic_ai).
-
-- **Feature: Custom Model Autocomplete**:
-  - `InputCompleter` now accepts `custom_model_names` for autocomplete suggestions.
-  - Custom model names appear with highest priority in `/model` command completions.
-
-- **Documentation: Model Tiering Example**:
-  - New `examples/model-tiering/` directory with complete working example.
-  - Demonstrates automatic model downgrading based on request count.
-  - Shows tier schedule: requests 1-3 → pro, 4-6 → flash, 7+ → flash-lite.
-
-- **Tests: New Coverage**:
-  - `test/llm/task/test_llm_task.py`: Added tests for model getter/renderer pipeline (+130 lines).
-  - `test/llm/task/test_llm_chat_task.py`: Added tests for `LLMChatTask` model params (+53 lines).
-  - `test/llm/app/test_completion.py`: Added tests for custom model autocomplete (+28 lines).
-
-## 2.18.1 (April 8, 2026)
-
-- **Improvement: Journaling Hook Behavior**:
-  - Journaling reminders now fire after every response instead of only at session end.
-  - LLM now decides whether any content from the turn is worth noting.
-  - Simplified hook state management and improved anti-recursion protection.
-  - Journaling prompt now uses a configurable template (`journal_reminder.md`).
-
-- **Feature: Robust Cross-platform Clipboard**:
-  - Added native WSL support via PowerShell for reliable Windows clipboard access.
-  - Enhanced Wayland support with multi-type MIME fallback (BMP, JPEG, TIFF) and auto-conversion to PNG.
-  - Improved "missing tool" hints with environment-aware suggestions.
-
-- **Improvement: LLM App Layout and UI**:
-  - Refined layout and keybindings for the LLM application.
-  - Improved `DefaultUI` and `MultiUI` event handling and response capture.
-  - Slimmed down prompt definitions and improved template loading.
-
-- **Tests: Coverage Expansion**:
-  - New `test/runner/chat/test_chat_api.py` for comprehensive API testing.
-  - New `test/llm/hook/test_matchers.py` and expanded hook processing tests.
-  - Verified behavioral changes in journaling and clipboard logic.
-
-## 2.18.0 (April 5, 2026)
-
-- **Feature: Hook System SESSION_END Extensions**:
-  - `HookResult.with_system_message()` now accepts `replace_response` parameter.
-  - `replace_response=False` (default): Extended session runs for side effects, original response returned.
-  - `replace_response=True`: Extended session's response replaces original.
-  - Enables use cases like: journaling (side effects), summarization (replace response), transformation pipelines.
-  - `HookExecutionResult` adds `replace_response` field for result processing.
-  - New helper functions: `_extract_system_message()`, `_extract_replace_response()`, `_extract_additional_context()`.
-
-- **Feature: Hook Factory Registration**:
-  - New `HookManager.add_hook_factory()` method for dynamic hook registration.
-  - Factories are called during hook loading to conditionally register hooks based on config.
-  - Enables config-driven hook enabling/disabling without code changes.
-  - Built-in journaling hook uses this pattern to respect `CFG.LLM_INCLUDE_JOURNAL`.
-
-- **Feature: Built-in Journaling Hook**:
-  - New `src/zrb/llm/hook/journal.py` with `JournalingHookHandler` class.
-  - Tracks session activity via `POST_TOOL_USE` events.
-  - Sends journal reminder at `SESSION_END` if session had meaningful activity.
-  - Anti-recursion protection: only fires reminder once per session.
-  - Auto-registered when `LLM_INCLUDE_JOURNAL=on`.
-
-- **Refactoring: Hook Event Cleanup**:
-  - Removed 5 unhandled events from `HookEvent` enum: `PERMISSION_REQUEST`, `SUBAGENT_START`, `SUBAGENT_STOP`, `TEAMMATE_IDLE`, `TASK_COMPLETED`.
-  - Reduced from 14 events to 9 events (all now actually fired in code).
-  - Updated `CLAUDE_EVENT_MATCHER_FIELDS` mapping in `manager.py`.
-  - Updated documentation and examples to reflect actual events.
-
-- **Bug Fix: SESSION_END Response Handling**:
-  - Fixed bug where `original_output` was overwritten on each loop iteration in `run_agent.py`.
-  - Now captures `_original_output` and `_original_history` only when session extension is triggered.
-  - Ensures correct response returned whether using `replace_response=True` or `False`.
-
-- **Improvement: Context Window Management**:
-  - New `_filter_nil_content()` function filters None/nil content from messages.
-  - Prevents "invalid message content type: <nil>" errors from OpenAI-compatible APIs.
-  - New `_is_prompt_too_long_error()` helper detects context length errors.
-  - New `_drop_oldest_turn()` function removes oldest conversation turn for context compaction.
-
-- **Feature: Selective YOLO Mode**:
-  - YOLO input now accepts comma-separated tool names for selective auto-approval.
-  - Example: `--yolo "Write,Edit"` auto-approves only Write and Edit tools.
-  - UI displays selective YOLO as `[Write,Edit]` in yellow.
-  - Runtime command: `/yolo Write,Edit` to enable selective mode.
-  - New `_parse_yolo_value()` function with full test coverage.
-
-- **Feature: Bash Safe Command Policy**:
-  - Auto-approves known-safe read-only commands (`ls`, `git status`, `cat`, `echo`, etc.).
-  - Rejects commands with dangerous shell metacharacters (`>`, `|`, `;`, `&&`, `` ` ``, `$()`).
-  - Conservative allowlist approach: only explicitly safe commands auto-approved.
-  - Full test suite for policy validation (268 lines).
-
-- **Bug Fix: Reserved Token Accounting**:
-  - System prompt tokens now properly reserved in context window calculations.
-  - Added `reserved_tokens` parameter to `run_agent()` and `fit_context_window()`.
-  - Prevents context window overflow when system prompts are large.
-
-- **Refactoring: Config Value Normalization**:
-  - Standardized boolean config defaults: `"1"`/`"0"` → `"on"`/`"off"`.
-  - Affects: `LOAD_BUILTIN`, `WEB_ENABLE_AUTH`, `HOOKS_ENABLED`, `HOOKS_DEBUG`, all `LLM_INCLUDE_*` flags.
-
-- **Improvement: Prompt Documentation Slimming**:
-  - `git_mandate.md`: Simplified from detailed tables to compact bullet lists.
-  - `mandate.md`: Condensed sections, streamlined tool selection guidance.
-  - Reduces token usage in prompts.
-
-- **Improvement: Tool Docstring Simplification**:
-  - Shortened docstrings across most LLM tools.
-  - Removed verbose MANDATES sections, kept essential guidance.
-  - Affected tools: `Bash`, `AnalyzeCode`, `LS`, `Glob`, `Read`, `ReadMany`, `Write`, `WriteMany`, `Edit`, `Grep`, `AnalyzeFile`, `WriteTodos`, `GetTodos`, `UpdateTodo`, `ClearTodos`, `OpenWebPage`, `SearchInternet`, `EnterWorktree`, `ExitWorktree`, `ListWorktrees`.
-
-- **Documentation: Hooks Documentation**:
-  - Expanded `docs/advanced-topics/hooks.md` with SESSION_END system messages section.
-  - Added examples for both `replace_response=False` (side effects) and `replace_response=True` (transformation).
-  - New `examples/llm-hooks/` directory with comprehensive hook examples.
-  - Examples include: session tracking, permission control, journal reminder, response transformation.
-
-- **Tests: New Coverage**:
-  - `test/llm/hook/test_hook_result_processing.py`: Hook result extraction and journaling hook tests.
-  - `test/llm/agent/test_run_agent.py`: Added `replace_response` functionality tests.
-  - `test/llm/tool_call/tool_policy/test_bash_validation.py`: Comprehensive policy tests.
-  - `test/llm/task/test_llm_chat_task.py`: Added `TestParseYoloValue` class.
-  - Updated limiter tests for robustness (less brittle assertions).
-
-## 2.17.0 (April 3, 2026)
-
-- **Feature: Git Worktree Integration**:
-  - New `Worktree` tools for isolated development: `EnterWorktree`, `ExitWorktree`, and `ListWorktrees`.
-  - Enables safe experimentation and parallel work without affecting the main working tree.
-
-- **Feature: Clipboard Utility**:
-  - Added specialized clipboard handling in `src/zrb/llm/util/clipboard.py`.
-
-- **Feature: Non-Persistent History**:
-  - Added `NoSaveHistoryManager` for session-only history.
-
-- **Feature: UI Improvements**:
-  - Enhanced `BaseUI` and `DefaultUI` with more properties and better state management.
-
-- **Improvement: Significant Test Coverage Expansion**:
-  - Added extensive test suites for:
-    - LSP tools (`test/llm/lsp/test_lsp_tools.py`)
-    - Search tools (`test/llm/tool/search/test_search.py`)
-    - Git Worktree (`test/llm/tool/test_worktree.py`)
-    - JWT and Token management (`test/builtin/test_jwt.py`, `test/runner/web_util/test_token.py`)
-    - Approval channels (`test/llm/approval/test_approval_channel.py`)
-    - Rate limiting (`test/llm/config/test_limiter.py`)
-    - Chat session management (`test/runner/chat/test_chat_session_manager.py`)
-
-- **Improvement: LLM Tool Enhancements**:
-  - Refactored `PlanTool`, `RagTool`, and `DelegateTool` for better reliability and error handling.
-  - Improved search tool integration (Brave, Searxng, SerpApi).
-
-- **Bug Fixes and Stability**:
-  - Fixed agent execution logic in `src/zrb/llm/agent/run_agent.py`.
-  - Safer command execution and string utility improvements.
-
-## 2.16.0 (April 3, 2026)
-
-- **Feature: Flexible Skill/Agent Search Configuration**:
-  - New environment variables for configuring skill and agent search paths:
-    - `ZRB_LLM_SEARCH_PROJECT` - Enable project directory traversal
-    - `ZRB_LLM_SEARCH_HOME` - Search home directory (`~/.claude/`, `~/.zrb/`)
-    - `ZRB_LLM_CONFIG_DIR_NAMES` - Config subdirectory names (`.claude:.zrb`)
-    - `ZRB_LLM_BASE_SEARCH_DIRS` - Explicit base directories
-    - `ZRB_LLM_EXTRA_SKILL_DIRS` / `ZRB_LLM_EXTRA_AGENT_DIRS` - Additional directories
-    - `ZRB_LLM_PLUGIN_DIRS` - Plugin directories
-  - Search priority: User Home → Project Traversal → Plugins → Base Dirs → Extra Dirs → Builtin
-  - Enhanced `AgentManager` and `SkillManager` with flexible search capabilities.
-
-- **Feature: Conversation Session Display**:
-  - CLI now displays conversation name at the end of LLM chat task execution.
-  - Session name retrieved from `__conversation_name__` in shared context XCom.
-
-- **Enhancement: Env Class Properties**:
-  - Added `name`, `default`, `auto_render`, `link_to_os`, `os_name` properties to `Env` class.
-
-- **Enhancement: BaseUI Command Properties**:
-  - Added properties: `assistant_name`, `initial_message`, `exit_commands`, `info_commands`, `save_commands`, `load_commands`, `attach_commands`, `redirect_output_commands`, `yolo_toggle_commands`, `set_model_commands`, `exec_commands`, `custom_commands`, `summarize_commands`.
-
-- **Bug Fix: Command Handling**:
-  - Fixed `/compress` and `/compact` commands.
-  - Fixed test for hook manager.
-
-- **Improvement: Testing**:
-  - Removed private functions from coverage requirements.
-  - Updated pytest configuration.
-
-- **Security: Dependency Updates**:
-  - Upgraded dependencies due to security concerns.
-
-- **Code Quality**:
-  - Safer `git branch prune` operation with better validation.
-  - Better naming conventions across LLM modules.
-  - Code formatting improvements.
-
-## 2.15.1 (April 2, 2026)
-
-- **Enhancement: New Skills for Development Workflow**:
-  - `debug` skill: Systematic diagnosis for build failures and behavioral issues.
-  - `refactor` skill: Safe structural refactoring preserving behavior.
-  - `testing` skill: Comprehensive TDD workflow (RED→GREEN→REFACTOR).
-  - Deprecated `quality-assurance` skill (replaced by specialized skills).
-
-- **Enhancement: Improved init Skill**:
-  - Now generates universal `AGENTS.md` (works with any LLM: Claude, Gemini, GPT).
-  - Systematic codebase analysis with exact command extraction.
-  - Convention extraction from actual code patterns.
-
-- **Enhancement: New Agents**:
-  - `code-reviewer.agent.md`: Read-only code review specialist with severity-rated findings.
-  - `researcher.agent.md`: Web and codebase research agent for deep investigation.
-
-- **Improvement: Prompt Documentation**:
-  - `mandate.md`: Added Scope Discipline, Verification, Security, and Confirmation sections.
-  - `persona.md`: Simplified to essentials.
-  - `journal_mandate.md`: Added tiered protocol (Tier 1 direct write, Tier 2 full protocol).
-
-- **Improvement: Tool Docstrings**:
-  - Enhanced documentation for `Bash`, `Write`, `WriteMany`, `Edit` tools.
-  - Clearer mandates for file operations and command execution.
-
-- **Improvement: review Skill**:
-  - Added OWASP Top 10 security checklist integration.
-  - Severity ratings (CRITICAL → HIGH → MEDIUM → LOW → INFO).
-  - Structured output format with findings and verdicts.
-
-- **Improvement: core-coding Skill**:
-  - Integration signals for `testing`, `debug`, `refactor`, and `review` skills.
-  - Test-First workflow guidance for new behavior.
-
-## 2.15.0 (April 1, 2026)
-
-- **Feature: HTTP Chat API**:
-  - New `/api/v1/chat/` endpoints for programmatic chat access.
-  - `GET /api/v1/chat/sessions` - List chat sessions with pagination.
-  - `POST /api/v1/chat/sessions` - Create new session.
-  - `DELETE /api/v1/chat/sessions/{session_id}` - Delete session.
-  - `GET /api/v1/chat/sessions/{session_id}/messages` - Get session messages.
-  - `POST /api/v1/chat/sessions/{session_id}/messages` - Send message to session.
-  - `GET /api/v1/chat/sessions/{session_id}/stream` - SSE stream for real-time responses.
-  - `GET /api/v1/chat/sessions/{session_id}/history` - Get conversation history.
-  - `DELETE /api/v1/chat/sessions/{session_id}/history` - Clear session history.
-  - `GET /api/v1/chat/sessions/{session_id}/yolo` - Get YOLO mode status.
-  - `POST /api/v1/chat/sessions/{session_id}/yolo` - Toggle YOLO mode.
-  - Requires web auth configuration.
-
-- **Feature: Chat Session Management**:
-  - `ChatSessionManager` provides persistent session storage with SQLite.
-  - Sessions store: session_id, session_name, created_at, updated_at.
-  - Messages stored with: role, content, tool_calls, timestamp.
-  - Page/limit pagination support for session and message listing.
-
-- **Feature: Web Chat UI**:
-  - New `/chat/` web route with full interactive chat interface.
-  - Modern JavaScript-based UI with real-time streaming.
-  - Session management (create, delete, switch).
-  - Message history with tool call visualization.
-  - YOLO mode toggle.
-  - Styled with CSS for responsive design.
-
-- **Feature: Stream Response Handling**:
-  - Improved `StreamResponseHandler` in `src/zrb/llm/util/stream_response.py`.
-  - Better handling of tool calls during streaming.
-  - Proper message part accumulation for complex responses.
-
-- **Refactoring: UI Module Cleanup**:
-  - Removed unused `is_model_auto_stop` parameter from multiple UI classes.
-  - Simplified `BaseUI`, `SimpleUI`, `DefaultUI`, `StdUI` constructors.
-  - Deprecated unused `input_queue` property in favor of `handle_incoming_message()`.
-
-- **Refactoring: LLM Task Improvements**:
-  - `LLMChatTask` and `LLMTask` now support `None` values for optional parameters.
-  - Better default handling for `timeout` and `model` parameters.
-  - Removed deprecated `llm_task_core` parameter from various methods.
-
-- **Bug Fix: Delegate Tool Error Handling**:
-  - Fixed `DelegateTool` to properly return error messages instead of raising exceptions.
-
-- **Documentation: LLM Custom UI Guide**:
-  - Updated `docs/advanced-topics/llm-custom-ui.md` with new patterns and examples.
-
-- **Tests: Comprehensive Coverage**:
-  - New `test/runner/chat/` test suite for HTTP Chat API.
-  - New `test/llm/ui/` test suite for SimpleUI and MultiUI.
-  - Enhanced existing UI and agent tests.
-
-
-
 ## 2.14.2 (March 29, 2026)
 
-- **Bug Fix: Type Annotation Correction**:
-  - Fixed `dict[str, any]` → `dict[str, Any]` in `chat_tool_policy.py`.
-  - Added missing `from typing import Any` import.
-
-- **Code Cleanup**:
-  - Removed unused `import sys` from `terminal_approval_channel.py`.
-
-- **Security: Dependency Updates**:
-  - Pinned `cryptography = "^46.0.6"` to address CVE-2026-34073 (transitive dependency via PyJWT).
-  - Updated `langchain-core >= 1.2.22` constraint for CVE-2026-34070.
-
-## 2.14.1 (March 28, 2026)
+_Cumulative summary of the 2.14.1–2.14.2 patch line._
 
 - **Enhancement: Improved LLM Prompt Guidelines**:
-  - `journal_mandate.md`: Restructured journaling triggers with clearer examples and conditions.
-  - Added mandatory `core-journaling` skill activation before writing journal entries.
-  - `mandate.md`: Added "Software Engineering" section requiring `core-coding` skill activation for coding tasks.
-  - `persona.md`: Simplified response style guidance for better clarity.
+  - Restructured journaling triggers in `journal_mandate.md` with clearer examples and conditions.
+  - Required mandatory `core-journaling` skill activation before writing journal entries.
+  - Added a "Software Engineering" section to `mandate.md` requiring `core-coding` skill activation for coding tasks.
+  - Simplified response style guidance in `persona.md` for better clarity.
+- **Bug Fix: Type Annotation Correction**:
+  - Fixed `dict[str, any]` to `dict[str, Any]` in `chat_tool_policy.py`.
+  - Added the missing `from typing import Any` import.
+- **Code Cleanup**:
+  - Removed an unused `import sys` from `terminal_approval_channel.py`.
+- **Security: Dependency Updates**:
+  - Pinned `cryptography = "^46.0.6"` to address CVE-2026-34073 (transitive dependency via PyJWT).
+  - Updated the `langchain-core >= 1.2.22` constraint for CVE-2026-34070.
 
 ## 2.14.0 (March 28, 2026)
 
@@ -2038,98 +1503,39 @@
   - Added `test/llm/approval/test_approval_channel.py` with comprehensive tests for `ApprovalChannel` protocol, `ApprovalContext`, `ApprovalResult`, and channel implementations.
   - Added `test/llm/task/test_llm_chat_task.py` for UI factory and approval channel integration.
 
-
-
 ## 2.10.4 (March 19, 2026)
 
-- **Fix: WriteMany Tool Permission Check**:
-  - Fixed `chat_tool_policy.py` to properly validate paths for `WriteMany` tool calls.
-  - The permission check now inspects the `files` parameter (list of dicts with `path` key) in addition to `path` and `paths`.
-  - Previously, WriteMany calls to journal directories would fail auto-approval because only `path`/`paths` were checked.
+_Cumulative summary of the 2.10.1–2.10.4 patch line._
 
-- **Fix: Event Loop Closure During Shutdown**:
-  - Fixed `RuntimeError` exceptions when the UI event loop closes during shutdown.
-  - All `asyncio.sleep()` calls in `_scroll_output_loop`, `_process_messages_loop`, and `_trigger_loop` now catch `RuntimeError` and break cleanly.
-  - Prevents "Event loop is closed" errors when exiting the application.
-
-- **Refactor: Remove Unused Imports**:
-  - Removed unused `warnings` and `AsyncExitStack` imports from `llm_chat_task.py`.
-
-## 2.10.3 (March 18, 2026)
-
-- **Feature: Conversation History Display on Load**:
-  - Added `history_formatter.py` utility to format pydantic-ai conversation history as human-readable text.
-  - `/load` command now displays loaded conversation history in the UI, matching the streaming style (💬/🤖 icons with timestamps).
-  - Format: User messages show `💬 {time} >> {content}`, assistant messages show `🤖 {time} >>` with indented content.
-  - Tool calls/returns shown inline with 🧰/🔠 icons.
-
-- **Feature: Timestamped Session Backups**:
-  - `FileHistoryManager.save()` now creates timestamped backup files in addition to the main session file.
-  - Backup naming: `<session-name>-YYYY-MM-DD-HH-MM-SS.json` (with sequence numbers for conflicts).
-  - Session names with existing timestamps are normalized (base name extracted) for cleaner backup file names.
-
-- **Feature: Save Command Autocomplete**:
-  - `/save` command autocomplete now shows existing session names (labeled "Existing Session") for easy overwriting.
-  - Also shows timestamp-based name (labeled "New Session") for creating new sessions.
-
-- **Security: CVE-2026-23491 (pyasn1 DoS Vulnerability)**:
-  - Fixed uncontrolled recursion vulnerability in `pyasn1` (transitive dependency via `google-auth`).
-  - Added explicit `pyasn1 >= 0.6.3` constraint to enforce patched version.
-  - Vulnerability: Crafted ASN.1 payloads could cause DoS via recursion crash or OOM.
-
-- **Refactor: Improved Test Coverage**:
-  - Added comprehensive tests for `history_formatter.py`, `file_history_manager.py` backup functionality, and LSP manager.
-  - Reorganized test file naming for clarity (removed `_coverage` suffix from test files).
-
-## 2.10.2 (March 15, 2026)
-
-- **Fix: Ctrl+C Cancellation Propagation**:
-  - Fixed issue where pressing Ctrl+C required multiple presses to cancel running tasks.
-  - The `c-c` keybinding in `ui.py` now cancels `_running_llm_task` before calling `event.app.exit()`, matching the Escape key behavior.
-  - Eliminates "Task was destroyed but it is pending!" errors when cancelling LLM operations.
-
-- **Fix: Task Cancellation Cleanup**:
-  - Added double-await pattern in `_process_messages_loop` to ensure cancelled tasks complete before continuing.
-  - Re-raises `CancelledError` in `_stream_ai_response` and `_run_shell_command` for proper cancellation propagation.
-  - Added explicit `stream.aclose()` in `run_agent.py` finally block to close async generators on cancellation.
+- **Feature: Conversation History & Session Management**:
+  - Added `history_formatter.py` to render pydantic-ai conversation history as human-readable text; `/load` now displays loaded history in the streaming style (💬/🤖 icons with timestamps, inline 🧰/🔠 tool calls/returns).
+  - `FileHistoryManager.save()` now writes timestamped backup files (`<session-name>-YYYY-MM-DD-HH-MM-SS.json`) alongside the main session, normalizing names that already carry timestamps.
+  - `/save` autocomplete now lists existing session names (for overwrite) plus a timestamp-based new-session name.
 
 - **Feature: Subagent Status Streaming**:
-  - Added `stream_to_parent` method to `UIProtocol` interface for bypassing BufferedUI buffer during subagent execution.
-  - Implemented `stream_to_parent` in `UI`, `StdUI`, and `BufferedUI` classes.
-  - Updated `create_event_handler` in `stream_response.py` with `status_event` parameter for tool call/result notifications.
-  - Subagent tool calls and results now display immediately in parent UI instead of waiting for task completion.
+  - Added `stream_to_parent` to `UIProtocol` and implemented it across `UI`, `StdUI`, and `BufferedUI` to bypass the BufferedUI buffer during subagent execution.
+  - Subagent tool calls and results now display immediately in the parent UI via a `status_event` parameter in `stream_response.py`, instead of waiting for task completion.
 
-- **Fix: Duplicate Tool Call Display in Deferred Tool Flow**:
-  - Fixed issue where tool call notifications (e.g., `🧰 call_xxx | DelegateToAgent...`) appeared twice in output when using deferred tool approvals.
-  - Root cause: pydantic-ai fires `FunctionToolCallEvent` twice with identical `tool_call_id` - once when tool is deferred, once when executed.
-  - Added `printed_tool_call_ids: set[str]` tracking in `create_event_handler()` to deduplicate prints.
-  - Tool call/result events now use `status_fn` (bypasses buffer) for immediate visibility in subagent output.
+- **Fix: Cancellation & Event Loop Robustness**:
+  - Ctrl+C now cancels `_running_llm_task` before exiting, so a single press cancels running tasks and eliminates "Task was destroyed but it is pending!" errors.
+  - Added double-await cleanup in `_process_messages_loop`, re-raised `CancelledError` in `_stream_ai_response`/`_run_shell_command`, and explicit `stream.aclose()` in `run_agent.py` for proper cancellation propagation.
+  - All `asyncio.sleep()` calls in the scroll/process/trigger loops now catch `RuntimeError` and break cleanly, preventing "Event loop is closed" errors on shutdown.
 
-## 2.10.1 (March 14, 2026)
+- **Fix: Tool Display & Permissions**:
+  - Deduplicated duplicate tool-call notifications in the deferred-tool flow (pydantic-ai fires `FunctionToolCallEvent` twice per `tool_call_id`) via `printed_tool_call_ids` tracking.
+  - `chat_tool_policy.py` now inspects the `files` parameter for `WriteMany` calls so journal-directory writes are correctly auto-approved.
 
 - **Refactor: Streamlined Prompt System**:
-  - Converted `mandate.md` and `journal_mandate.md` to concise table-based formats, reducing visual noise while preserving all rules.
-  - Added explicit "Decision Flow" section to mandate with ordered delegation check, skill activation, and execution steps.
-  - Added tier-aligned journal scope: Tier 1 skips journaling entirely, Tier 2 journals only on discoveries.
-  - Condensed project context rules in `claude.py` from 25 lines to 10 lines with clear documentation hierarchy.
+  - Converted `mandate.md` and `journal_mandate.md` to concise table-based formats, added an ordered "Decision Flow" section to the mandate, and introduced tier-aligned journal scope (Tier 1 skips journaling, Tier 2 journals only on discoveries).
+  - Condensed project-context rules in `claude.py` (25 → 10 lines) and unified delegate-tool docs (`subagent` terminology, USAGE bullets referencing the mandate).
+  - Corrected persona delegation wording to "Delegate when context isolation is beneficial."
 
-- **Refactor: Improved Delegate Tool Documentation**:
-  - Unified terminology: `subagent` instead of `sub-agent` throughout tool docstrings.
-  - Simplified docstring format with "USAGE" bullets pointing to mandate for delegation rules.
-  - Reference to mandate Section 5 for "WHEN TO USE" guidance.
+- **Refactor: Lazy Initialization & Agent Naming**:
+  - Removed `SkillManager`'s `auto_load` parameter in favor of a lazy `_ensure_scanned()` on first access, reducing startup overhead.
+  - Renamed the `subagent` agent to `generalist` (file `subagent.agent.md` → `generalist.agent.md`).
 
-- **Refactor: Lazy Skill Manager Initialization**:
-  - Removed `auto_load` parameter from `SkillManager.__init__`.
-  - Added `_ensure_scanned()` method for lazy initialization on first access.
-  - Reduces startup overhead when skills aren't immediately needed.
-
-- **Refactor: Agent Naming**:
-  - Renamed agent from `subagent` to `generalist` for clearer semantic meaning.
-  - File renamed from `subagent.agent.md` to `generalist.agent.md`.
-
-- **Fix: Persona Delegation Wording**:
-  - Updated "Delegate only for exceptional scale" to "Delegate when context isolation is beneficial."
-  - Corrects overly narrow guidance about when to delegate.
+- **Security: CVE-2026-23491 (pyasn1 DoS)**:
+  - Pinned `pyasn1 >= 0.6.3` (transitive via `google-auth`) to fix an uncontrolled-recursion vulnerability where crafted ASN.1 payloads could cause DoS via recursion crash or OOM.
 
 ## 2.10.0 (March 12, 2026)
 
@@ -2155,24 +1561,22 @@
   - Applied consistent code formatting across multiple files.
   - Added extensive test coverage for callbacks, commands, input handling, LLM agents, and delegate tools.
 
-
 ## 2.9.2 (March 10, 2026)
 
-- **Fix: Strengthen LLM System Prompt Mandates**:
-  - **journal_mandate.md**: Added explicit "When to Write (Examples)" section with concrete triggers (user preferences, decisions, errors, session insights) and clear "Do NOT write for trivial queries" prohibition. This fixes regression from 2.7.x where the condensed version lost actionable examples.
-  - **git_mandate.md**: Added explicit list of state-changing commands requiring approval and more read-only commands. Changed protocol from `git add <files>` to generic `git <command> <args>` pattern.
-
-## 2.9.1 (March 10, 2026)
+_Cumulative summary of the 2.9.1–2.9.2 patch line._
 
 - **Refactor: LLM System Prompt Architecture**:
-  - **MECE Compliance**: Restructured prompt files to be Mutually Exclusive, Collectively Exhaustive with zero conflicts and no ambiguity.
-  - **mandate.md**: Simplified skill protocol, removed redundant conditions, clarified activation pattern.
-  - **journal_mandate.md**: Restructured to Protocol/Prohibitions/Hierarchy format (consistent with git_mandate.md), clarified hierarchy scope.
-  - **git_mandate.md**: Already had correct structure (Prohibitions/Protocol/Violation).
-  - **Documentation**: Moved older changelog entries (2.8.x) to `docs/changelog-v2.md`.
+  - Restructured prompt files to be Mutually Exclusive, Collectively Exhaustive (MECE) with zero conflicts and no ambiguity.
+  - Simplified the skill protocol in `mandate.md`, removed redundant conditions, and clarified the activation pattern.
+  - Confirmed `git_mandate.md` already followed the correct Prohibitions/Protocol/Violation structure.
 
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.9.1 in `pyproject.toml`.
+- **Fix: Strengthen LLM System Prompt Mandates**:
+  - Restructured `journal_mandate.md` to the Protocol/Prohibitions/Hierarchy format (consistent with `git_mandate.md`) and clarified the hierarchy scope.
+  - Added an explicit "When to Write (Examples)" section to `journal_mandate.md` with concrete triggers (user preferences, decisions, errors, session insights) and a clear "Do NOT write for trivial queries" prohibition, fixing a regression from 2.7.x where the condensed version lost actionable examples.
+  - Added an explicit list of state-changing commands requiring approval and more read-only commands to `git_mandate.md`, and changed the protocol from `git add <files>` to the generic `git <command> <args>` pattern.
+
+- **Documentation**:
+  - Moved older changelog entries (2.8.x) to `docs/changelog-v2.md`.
 
 ## 2.9.0 (March 10, 2026)
 
@@ -2221,74 +1625,24 @@
 - **Maintenance**:
   - **Version Bump**: Updated to version 2.9.0 in `pyproject.toml`.
 
-
 ## 2.8.4 (March 10, 2026)
 
-- **Fix: Windows Encoding Error in Journal Index Reading**:
-  - **UTF-8 Encoding Fix**: Added explicit `encoding="utf-8"` to journal index file reading in `src/zrb/llm/prompt/prompt.py` to prevent `UnicodeDecodeError` on Windows where the default encoding is `cp1252`.
-  - **Shell History Encoding**: Added explicit `encoding="utf-8"` to shell history file reading in `src/zrb/llm/app/completion.py` for consistent cross-platform behavior.
+_Cumulative summary of the 2.8.1–2.8.4 patch line._
 
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.8.4 in `pyproject.toml`.
+- **Fix: LLM History Model Compatibility**:
+  - Added `_filter_empty_responses()` to `FileHistoryManager` to strip responses with empty or `None` parts during history loading and saving, preventing "invalid message content type: <nil>" errors with models like GLM-5 via Ollama.
 
-
-## 2.8.3 (March 10, 2026)
-
-- **Fix: Windows Terminal Size Detection**:
-  - **Robust Terminal Size Utility**: Added `src/zrb/util/cli/terminal.py` with `get_terminal_size()` function that gracefully handles terminal size detection across platforms, especially Windows where standard methods fail when stdout is redirected.
-  - **Windows CONOUT$ Support**: Enhanced `get_original_stdout()` in `src/zrb/llm/app/redirection.py` to use Windows `CONOUT$` device for more reliable terminal access when file descriptors are redirected.
-  - **UI Crash Prevention**: Wrapped `output.get_size()` in `src/zrb/llm/app/ui.py` with a robust fallback that prevents crashes on Windows when prompt_toolkit cannot detect console dimensions.
-  - **Multi-Method Detection**: Terminal size detection now tries `sys.__stdout__`, `sys.__stderr__`, `sys.__stdin__`, Windows `CONOUT$`, and finally falls back to `shutil.get_terminal_size()` with environment variable support.
-
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.8.3 in `pyproject.toml`.
-
-
-## 2.8.2 (March 7, 2026)
-
-- **Documentation: Configuration Default Value Corrections**:
-  - **Environment Variable Defaults**: Fixed incorrect default values in configuration documentation:
-    - `ZRB_WARN_UNRECOMMENDED_COMMAND`: Corrected default from `"1"` to `"on"` (true)
-    - `ZRB_USE_TIKTOKEN`: Corrected default from `"1"` to `"off"` (false)
-    - `ZRB_LLM_MODEL`: Clarified default is `"openai:gpt-4o"` when unset (via `llm_config.py`)
-    - `ZRB_LLM_SMALL_MODEL`: Updated to indicate it falls back to main model instead of `"gpt-4o-mini"`
-  - **ASCII Art Configuration**: Clarified that `ZRB_LLM_ASSISTANT_ASCII_ART` refers to the ASCII art name, not the content itself.
+- **Fix: Windows Cross-Platform Robustness**:
+  - Added `src/zrb/util/cli/terminal.py` with `get_terminal_size()` for reliable terminal size detection across platforms, with Windows `CONOUT$` support in `get_original_stdout()` and a fallback around `output.get_size()` to prevent UI crashes when console dimensions cannot be detected.
+  - Detection tries `sys.__stdout__`, `sys.__stderr__`, `sys.__stdin__`, Windows `CONOUT$`, then `shutil.get_terminal_size()` with env var support.
+  - Added explicit `encoding="utf-8"` to journal index reading (`prompt.py`) and shell history reading (`completion.py`) to avoid `UnicodeDecodeError` on Windows (default `cp1252`).
 
 - **Configuration: ASCII Art Directory Rename**:
-  - **Directory Path Change**: Renamed default `ASCII_ART_DIR` from `.zrb/llm/prompt` to `.zrb/ascii-art` to avoid confusion with `LLM_PROMPT_DIR`.
-  - **Code Update**: Modified `src/zrb/config/config.py` to use the new directory path for ASCII art file storage.
-  - **Documentation Sync**: Updated `docs/configuration/llm-config.md` to reflect the new default directory location.
+  - Renamed default `ASCII_ART_DIR` from `.zrb/llm/prompt` to `.zrb/ascii-art` to avoid confusion with `LLM_PROMPT_DIR`, updating `src/zrb/config/config.py` and docs accordingly.
 
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.8.2 in `pyproject.toml`.
-
-
-## 2.8.1 (March 7, 2026)
-
-- **Fix: Empty Response Filtering for Model Compatibility**:
-  - **Empty Response Filter**: Added `_filter_empty_responses()` method to `FileHistoryManager` in `src/zrb/llm/history_manager/file_history_manager.py` to filter out responses with empty or `None` parts from conversation history before loading and saving.
-  - **GLM-5 Compatibility**: Empty responses were causing "invalid message content type: <nil>" errors with certain models like GLM-5 via Ollama when the conversation history was sent to the model. This filter prevents those errors by removing empty responses during history loading and saving operations.
-  - **Test Coverage**: Added comprehensive test `test_file_history_manager_filter_empty_responses()` in `test/llm/history_manager/test_file_history_manager.py` covering empty responses, `None` parts, and nested structures.
-
-- **Documentation: Comprehensive Documentation Overhaul**:
-  - **Table of Contents**: Added navigable Table of Contents to all 19 documentation files with anchor links for improved discoverability.
-  - **Quick Reference Tables**: Added quick reference summary tables at the end of each documentation file for fast lookups.
-  - **Consistent Navigation**: Added breadcrumb navigation headers (🔖 Documentation Home > Section > Topic) to all documentation pages.
-  - **Better Structure**: Reorganized documentation with clearer section hierarchies and improved visual formatting.
-  - **Callout Boxes**: Added 💡 Tip and ⚠️ Warning callout boxes throughout documentation to highlight important information.
-  - **Enhanced Tables**: Converted dense bullet-point lists to scannable tables in configuration and API reference documents.
-  - **Files Updated**:
-    - Core Concepts: `cli-and-groups.md`, `inputs.md`, `environments.md`, `session-and-context.md`, `tasks-and-lifecycle.md`
-    - Task Types: `basic-tasks.md`, `builtin-helpers.md`, `file-ops.md`, `readiness-checks.md`, `triggers-and-schedulers.md`
-    - Advanced Topics: `hooks.md`, `web-ui.md`, `white-labeling.md`, `ci-cd.md`, `claude-compatibility.md`, `llm-integration.md`, `upgrading-guide.md`, `maintainer-guide.md`
-    - Configuration: `env-vars.md`, `llm-config.md`
-    - Technical Specs: `llm-context.md`
-    - Installation: `installation.md`
-    - Root: `README.md`
-
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.8.1 in `pyproject.toml`.
-
+- **Documentation: Overhaul and Default-Value Corrections**:
+  - Added navigable Tables of Contents, quick-reference tables, breadcrumb navigation, callout boxes (Tip/Warning), clearer hierarchies, and table-based config/API references across all 19 documentation files.
+  - Corrected environment variable defaults: `ZRB_WARN_UNRECOMMENDED_COMMAND` (`"on"`), `ZRB_USE_TIKTOKEN` (`"off"`), `ZRB_LLM_MODEL` (`"openai:gpt-4o"` when unset), `ZRB_LLM_SMALL_MODEL` (falls back to main model), and clarified `ZRB_LLM_ASSISTANT_ASCII_ART` refers to the art name, not its content.
 
 ## 2.8.0 (March 6, 2026)
 
@@ -2327,43 +1681,23 @@
 - **Maintenance**:
   - **Version Bump**: Updated to version 2.8.0 in `pyproject.toml`.
 
-
 ## 2.7.2 (March 6, 2026)
-
-- **Compatibility: Cross-Platform UTF-8 Encoding**:
-  - **Explicit UTF-8 Encoding**: Added `encoding="utf-8"` parameter to all file operations across the codebase to ensure consistent behavior across different operating systems, particularly Windows where the default encoding is cp1252.
-  - **Files Updated**:
-    - `src/zrb/util/file.py`: Core file writing utility
-    - `src/zrb/llm/tool/rag.py`: RAG hash file operations (both read and write)
-    - `src/zrb/llm/tool/bash.py`: Background PID collection
-    - `src/zrb/llm/hook/manager.py`: Hook configuration file loading
-    - `src/zrb/llm/tool_call/response_handler/default.py`: Content editor response handler
-    - `src/zrb/llm/tool_call/response_handler/replace_in_file_response_handler.py`: Replace-in-file response handler
-    - `llm-challenges/runner.py`: Log file writing
-
-- **Testing: Unicode and Emoji Support**:
-  - **New Test Coverage**: Added `test_write_file_unicode_emoji()` to verify that `write_file()` properly handles unicode characters, emoji, and special characters (e.g., café, naïve, résumé, 🐭, 🎉, 你好世界).
-  - **Test Modernization**: Updated existing `test_write_file_mode()` to use explicit UTF-8 encoding for consistency.
-
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.7.2 in `pyproject.toml`.
-
-
-## 2.7.1 (March 6, 2026)
+_Cumulative summary of the 2.7.1–2.7.2 patch line._
 
 - **Performance: Battery Drain Reduction & UI Optimization**:
-  - **Reduced CPU Usage**: Significantly decreased UI refresh frequency from 0.05s to 0.5s (`refresh_interval=0.5`) in `src/zrb/llm/app/ui.py`, reducing continuous CPU consumption during idle periods.
-  - **Optimized System Info Updates**: Changed system information (CWD and Git status) update frequency from every 2 seconds to every 60 seconds, eliminating unnecessary background polling.
-  - **Improved Output Scrolling**: Reduced output scrolling check frequency from 0.1s to 5.0s, minimizing UI thread activity.
-  - **Refactored Update Logic**: Extracted system info update into dedicated `_update_system_info()` method and added initial update on UI startup for better responsiveness.
+  - Reduced CPU usage by decreasing UI refresh frequency from 0.05s to 0.5s (`refresh_interval=0.5`) in `src/zrb/llm/app/ui.py`, cutting continuous CPU consumption during idle periods.
+  - Changed system information (CWD and Git status) update frequency from every 2 seconds to every 60 seconds, eliminating unnecessary background polling.
+  - Reduced output scrolling check frequency from 0.1s to 5.0s, minimizing UI thread activity.
+  - Refactored update logic by extracting system info updates into a dedicated `_update_system_info()` method, with an initial update on UI startup for better responsiveness.
 
 - **Reliability: Tool Call & MCP Server Retry Mechanisms**:
-  - **Function Toolset Retry**: Added `max_retries=3` parameter to `FunctionToolset` initialization in `src/zrb/llm/agent/common.py` to handle transient tool execution failures gracefully.
-  - **MCP Server Retry Support**: Enhanced MCP server creation in `src/zrb/llm/tool/mcp.py` with retry capabilities:
-    - Added `max_retries=3` to `MCPServerStdio` instances for stdio-based servers
-    - Added `max_retries=3` to `MCPServerSSE` instances for SSE-based servers
-  - **Post-Task System Updates**: Added `await self._update_system_info()` calls after LLM task completion to ensure UI reflects current system state.
+  - Added `max_retries=3` to `FunctionToolset` initialization in `src/zrb/llm/agent/common.py` to handle transient tool execution failures gracefully.
+  - Enhanced MCP server creation in `src/zrb/llm/tool/mcp.py` with `max_retries=3` for both `MCPServerStdio` (stdio-based) and `MCPServerSSE` (SSE-based) servers.
+  - Added `await self._update_system_info()` calls after LLM task completion to ensure the UI reflects current system state.
 
+- **Compatibility: Cross-Platform UTF-8 Encoding**:
+  - Added `encoding="utf-8"` to file operations across the codebase for consistent behavior across operating systems, particularly Windows where the default encoding is cp1252.
+  - Updated `src/zrb/util/file.py` (core file writing), `src/zrb/llm/tool/rag.py` (RAG hash file read and write), `src/zrb/llm/tool/bash.py` (background PID collection), `src/zrb/llm/hook/manager.py` (hook configuration loading), `src/zrb/llm/tool_call/response_handler/default.py` (content editor response handler), `src/zrb/llm/tool_call/response_handler/replace_in_file_response_handler.py` (replace-in-file response handler), and `llm-challenges/runner.py` (log file writing).
 
 ## 2.7.0 (March 5, 2026)
 
@@ -2389,446 +1723,50 @@
 - **Maintenance**:
   - **Version Bump**: Updated to version 2.7.0 in `pyproject.toml`, marking a significant release with major prompt system improvements.
 
-
 ## 2.6.24 (March 3, 2026)
 
-- **Fix: LLM Tool API Breakage & Mandate Improvements**:
-  - **API Breakage Resolution**: Fixed `analyze_file` API breakage by adding `auto_truncate: bool = True` parameter. The function was calling `read_file()` without the required `auto_truncate` parameter after recent file tool simplifications. Maintains backward compatibility with sensible default.
-  - **Tool Mandate Rewrite**: Rewrote tool mandates in `src/zrb/llm/tool/file.py` and `src/zrb/llm/tool/code.py` to provide LLM usage guidance instead of implementation details. Mandates now focus on when/how to use tools (general exploration, targeted discovery, etc.) rather than describing internal implementation. Mandates are included in prompts via pydantic-ai and should guide LLM usage.
-  - **Flexible Exclusion Control**: Added `exclude_patterns` parameter to `list_files`, `glob_files`, `search_files`, and `analyze_code` functions. Users can pass `[]` to include all files or custom patterns to override default exclusions. Maintains `DEFAULT_EXCLUDED_PATTERNS` as sensible default while providing flexibility for `.venv` and other directory inclusion.
-  - **Enhanced Git Mandate**: Updated `src/zrb/llm/prompt/markdown/git_mandate.md` with assertive language to prevent violations. Added 🚨 visual alert, explicitly calls out `git add` as "STAGING - this is a state change!", clarifies "EACH operation requires SEPARATE approval", and provides concrete examples of what doesn't count as approval ("Stage files" ≠ permission to commit, "Update code" ≠ permission to stage).
+_Cumulative summary of the 2.6.1–2.6.24 patch line._
 
-- **Test Verification**:
-  - **Comprehensive Test Suite**: All 37 tool-related tests pass with updated architecture.
-  - **Backward Compatibility**: All changes maintain backward compatibility with sensible defaults (`auto_truncate=True`, `exclude_patterns=None` defaults to `DEFAULT_EXCLUDED_PATTERNS`).
+- **Features: New Configuration & Integration Surface**:
+  - Added 8 `LLM_INCLUDE_*` config properties (persona, mandate, git_mandate, system_context, journal, claude_skills, cli_skills, project_context) controlling PromptManager components, all settable via `ZRB_LLM_INCLUDE_*` env vars with `None` falling back to defaults; later exposed matching property getters/setters for dynamic configuration.
+  - Introduced a four-level prompt override hierarchy (`ZRB_LLM_PROMPT_DIR` > direct env override > new org-wide `ZRB_LLM_BASE_PROMPT_DIR` > package default).
+  - Made `FileSessionStateLogger.session_log_dir` accept a callable for dynamic runtime resolution while preserving string support.
+  - Added Ollama model auto-completion to the UI, fetching local models via `ollama ls` (30s cached) formatted as `ollama:<model-name>`.
+  - Added a git-aware system context: new `is_inside_git_dir()` utility so the git mandate is only included inside git repositories.
 
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.6.24 in `pyproject.toml`.
+- **LLM: Message Safety & History Summarization**:
+  - Centralized LLM message logic in `src/zrb/llm/message.py`, enforcing strict role alternation (merging consecutive same-role messages immutably) and tool call/return pair integrity across history processing and summarization.
+  - Overhauled the history summarizer with a four-phase splitting strategy and scoring-based best-effort splits, with robust handling of orphaned returns and incomplete tool pairs.
+  - Added deep-copy protection for mutable tool results and a centralized `to_string()` utility for safe (JSON-aware) conversion of tool return content, replacing brittle string-prefix detection with type-based detection (`ToolDenied`/`ToolApproved`); standardized `SUMMARY_PREFIX`/`TRUNCATED_PREFIX` constants.
+  - Proactively cleaned corrupted (boolean/number/dict/list/None) content in `FileHistoryManager` on both load and save to prevent pydantic-ai serialization issues.
+  - Fixed PRE_COMPACT hook to fire before summarization with richer context (token_count, message_count, has_history_processors).
 
-## 2.6.23 (March 2, 2026)
+- **LLM: Tooling, Truncation & Prompt System**:
+  - Centralized output truncation in `src/zrb/util/truncate.py` (`truncate_output`), adopted by Bash, Read/file, and Grep tools; added a multi-stage character-limit algorithm with head/tail/middle preservation and accurate `TruncationInfo` metadata, and enforced a 1,000-char per-line cap to prevent minified/single-line files from bloating history.
+  - Added `auto_truncate` and `exclude_patterns` parameters across file tools (`list_files`, `glob_files`, `search_files`, `read_files`, `analyze_code`) for flexible exclusion control over `DEFAULT_EXCLUDED_PATTERNS`.
+  - Standardized tool docstrings to a concise usage-focused MANDATES format across bash, file, code, web, and related tools, including non-interactive-flag and timeout guidance.
+  - Refactored core prompts (persona, mandate, git_mandate, journal_mandate) for token efficiency (~7K to ~5.8K tokens) while strengthening directives; restructured AGENTS.md as a practical guide.
+  - Improved token estimation accuracy (char/3 to char/4 fallback) and dictionary token counting.
+  - Strengthened the git mandate with assertive ABSOLUTE RULES, visual alerts, and per-operation separate-approval requirements; added a task-cancellation protocol mandating immediate cessation of tool calls.
 
-- **Fix: Missing `_remove_lines_from_middle` Function in Truncation Algorithm**:
-  - **Bug Resolution**: Added the missing `_remove_lines_from_middle()` function to `src/zrb/util/truncate.py` that was being called at line 91 but never defined. The function properly removes lines from the middle section when content exceeds head+tail line limits.
-  - **Truncation Algorithm Completion**: The multi-stage truncation algorithm now has all required helper functions: `_remove_lines_from_middle`, `_remove_lines_from_tail`, and `_remove_lines_from_head` for complete head-tail preservation logic.
-  - **Test Verification**: Verified the fix works correctly with test cases showing proper head lines, truncation message, and tail lines in output.
+- **LLM: Skills & Agents**:
+  - Consolidated and renamed skills (e.g. `core_journal`→`core-journaling`, `test`→`quality-assurance`, `research`→`research-and-plan`), migrated all skill names to kebab-case, and removed redundant skills; folded the multiple specialized sub-agents into a single general `subagent.agent.md`.
+  - Enhanced `ActivateSkill` with a RELOAD REQUIRED directive so summarized conversations can re-load skill instructions.
 
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.6.23 in `pyproject.toml`.
+- **Fixes: Compatibility & Interaction**:
+  - Fixed pydantic-ai toolset integration by aligning `SafeToolsetWrapper.call_tool()` with the `WrapperToolset` base signature (pydantic-ai 1.60.0), restoring MCP toolset loading; consistently wrapped tool/toolset results and errors in `ToolReturn` objects.
+  - Fixed `analyze_file` API breakage by adding `auto_truncate=True`, and fixed a missing `_remove_lines_from_middle()` helper in the truncation algorithm.
+  - Fixed non-interactive edit confirmation by using `ToolCallHandler` (policies, formatters, response handlers, including the 'e' edit option).
+  - Made interactive input thread-safe via `prompt_toolkit` async prompting, handling Ctrl+C and EOF gracefully instead of hanging.
+  - Buffered captured stdout/stderr until the UI closes and cleared the buffer after tool confirmation to prevent output leakage; preserved full user rejection reasons (removed the 500-char truncation cap).
+  - Made hook execution sequential with proper error propagation and blocking behavior.
 
-## 2.6.22 (March 2, 2026)
-
-- **Documentation Enhancement: Summarization Logic Documentation**:
-  - **Cost-Benefit Optimization**: Added documentation explaining that summarization is skipped if tokens are within threshold AND the portion to summarize is less than 30% of the conversational token threshold. Prevents unnecessary summarization when little context would be saved.
-  - **Configuration Clarity**: Updated configuration section with default values (60% of max context window for conversational threshold, 50% of conversational threshold for message threshold, 100 for summary window) and clarified that environment variables are accessed in code via `CFG.LLM_*` properties.
-  - **Constants Documentation**: Added section documenting `SUMMARY_PREFIX` and `TRUNCATED_PREFIX` constants used in the summarization system.
-  - **Message Conversion Details**: Added section explaining how different message parts (ImageUrl, BinaryContent, AudioUrl, ToolCallPart, ToolReturnPart) are converted to text representations for summarization.
-  - **Safety Mechanisms**: Documented safety mechanisms including safe copy for mutable content, tool response skipping for ToolDenied/ToolApproved messages, depth limiting (max 5), and backward compatibility support.
-
-- **Improvement: Ollama Model Auto-Completion**:
-  - **Ollama Integration**: Added Ollama model auto-completion to zrb UI, enabling users to select from locally available Ollama models.
-  - **Dynamic Model Fetching**: Created `_get_ollama_models()` method that dynamically fetches available models via `ollama ls` command with 30-second caching to avoid repeated shell calls.
-  - **Pydantic-AI Compatibility**: Models are formatted as `ollama:<model-name>` for seamless compatibility with pydantic-ai's Ollama integration.
-
-- **Improvement: PromptManager Enhancement**:
-  - **Property Accessors**: Added property getters and setters for `include_persona`, `include_mandate`, `include_git_mandate`, `include_system_context`, `include_journal`, `include_claude_skills`, and `include_cli_skills` to enable dynamic configuration of prompt components.
-
-- **Improvement: Tool Docstring MANDATES Enhancement**:
-  - **Bash Tool**: Enhanced with timeout guidance (default 30s, max 10min), truncation notice, and batch command optimization tips.
-  - **AnalyzeCode Tool**: Clarified as LLM sub-agent with resource-intensity warnings and guidance for single file vs directory analysis.
-  - **File Tools Comprehensive MANDATES**: Added detailed MANDATES sections to all file tools:
-    - **LS**: Depth limiting, excluded patterns, truncation controls, Glob preference guidance.
-    - **Glob**: Pattern syntax, result truncation, LS alternative guidance.
-    - **Read**: Line range selection, pagination, truncation limits, ReadMany preference.
-    - **ReadMany**: Error handling, batch processing, efficiency guidance.
-    - **Write**: Directory creation, mode usage, Edit preference, verification steps.
-    - **WriteMany**: File dict format, mode defaults, batch efficiency.
-    - **Edit**: Context verification, count parameter, error handling, Write alternative.
-    - **Grep**: Python regex syntax, file_pattern restrictions, truncation, alternative tools.
-    - **AnalyzeFile**: Resource intensity, truncation, Read/AnalyzeCode alternatives.
-  - **Web Tools MANDATES**: Enhanced OpenWebPage with summarization behavior and links documentation; enhanced SearchInternet with API key requirements, pagination, and configuration options.
+- **Web UI / Infrastructure**:
+  - Standardized web auth env vars (`ZRB_WEB_SECRET`→`ZRB_WEB_SECRET_KEY`, plus `ZRB_WEB_AUTH_*_TOKEN_EXPIRE_MINUTES`) with backward-compatible mapping.
+  - Refactored SearxNG configuration to auto-copy settings into `~/.config/searxng/` via a `copy_searxng_setting` task wired as an upstream dependency of `start-searxng`.
 
 - **Maintenance**:
-  - **Version Bump**: Updated to version 2.6.22 in `pyproject.toml`.
-
-## 2.6.21 (February 28, 2026)
-
-- **Improvement: Skill Naming Convention Standardization**:
-  - **Snake Case to Kebab Case Migration**: Standardized all skill names from snake_case to kebab-case format for consistency across the system: `core_coding` → `core-coding`, `core_journaling` → `core-journaling`, `git_summary` → `git-summary`, `quality_assurance` → `quality-assurance`, `research_and_plan` → `research-and-plan`.
-  - **Directory Structure Updates**: Updated skill directory names to match new kebab-case naming convention, ensuring file system consistency with skill activation references.
-  - **Cross-Reference Updates**: Updated all references to skill names in mandate files (`mandate.md`, `journal_mandate.md`), agent definitions (`subagent.agent.md`), and skill creator documentation to reflect new naming convention.
-
-- **Improvement: Skill Activation Tool Enhancement**:
-  - **RELOAD REQUIRED Directive**: Added explicit guidance to `ActivateSkill` tool description in `src/zrb/llm/tool/skill.py` noting that long conversations with history summarization may cause skill instruction details to be forgotten, requiring tool re-invocation to reload instructions into context.
-  - **Proactive Skill Management**: Enhanced tool documentation to encourage proactive skill reloading when users feel they have lost exact details of an active skill, improving reliability of skill-based workflows.
-
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.6.21 in `pyproject.toml`.
-
-## 2.6.20 (February 28, 2026)
-
-- **Improvement: Enhanced Truncation Algorithm with Character Limit Support**:
-  - **Multi-Stage Truncation Algorithm**: Enhanced `truncate_output` function in `src/zrb/util/truncate.py` with comprehensive character limit support following a multi-stage algorithm: (1) If content ≤ max_chars, return as-is; (2) Apply max_line_length truncation to all lines first; (3) If still > max_chars and line count > head_lines + tail_lines, remove lines from middle; (4) If still > max_chars, remove lines from tail (from top of tail section); (5) If still > max_chars, remove lines from head (from bottom of head section); (6) Insert truncation message only at end at location of removed lines.
-  - **Character Truncation as Last Resort**: Added character-level truncation as final fallback with proper size accounting (available_for_content = max_chars - message_size) and edge case handling for very small max_chars (<15) returning minimal "..." indicator.
-  - **Accurate Truncation Metadata**: Enhanced function to return tuple `(truncated_string, TruncationInfo)` with accurate truncation metrics (original/truncated lines/chars, omitted lines/chars, truncation_type) for precise truncation notices in tool outputs.
-  - **Refactored for Maintainability**: Broke down 200+ line monolithic function into 7 focused helper functions (`_truncate_line`, `_apply_line_length_truncation`, `_remove_lines_from_middle`, `_remove_lines_from_tail`, `_remove_lines_from_head`, `_build_result_with_truncation_message`, `_apply_character_truncation`) while preserving exact algorithm and public API.
-
-- **Improvement: Web Authentication Configuration Standardization**:
-  - **Environment Variable Consistency**: Standardized web authentication environment variables: `ZRB_WEB_SECRET` → `ZRB_WEB_SECRET_KEY`, `ZRB_WEB_ACCESS_TOKEN_EXPIRE_MINUTES` → `ZRB_WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES`, `ZRB_WEB_REFRESH_TOKEN_EXPIRE_MINUTES` → `ZRB_WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES`.
-  - **Configuration Property Updates**: Updated `Config` class properties and setters in `src/zrb/config/config.py` to match new environment variable names while maintaining backward compatibility through proper environment variable mapping.
-  - **Documentation Updates**: Updated configuration documentation in `docs/installation-and-configuration/configuration/README.md`, `docs/installation-and-configuration/configuration/llm-integration.md`, and `docs/installation-and-configuration/configuration/web-auth-config.md` to reflect new variable names and provide clearer guidance.
-
-- **Improvement: Enhanced Prompt Customization Hierarchy**:
-  - **Multi-Level Prompt Override System**: Enhanced prompt loading in `src/zrb/llm/prompt/prompt.py` with four-level hierarchy: (1) `ZRB_LLM_PROMPT_DIR` (highest priority), (2) Environment variable direct override (`ZRB_LLM_PROMPT_{name}`), (3) `ZRB_LLM_BASE_PROMPT_DIR` (organization-wide), (4) Package default (lowest priority).
-  - **New Configuration Option**: Added `ZRB_LLM_BASE_PROMPT_DIR` environment variable and `Config.LLM_BASE_PROMPT_DIR` property for organization-wide prompt overrides that apply across multiple projects.
-  - **Documentation Enhancement**: Updated LLM integration documentation with clear search order explanation and examples for multi-level prompt customization.
-
-- **Improvement: Core Mandate & Skill System Refinements**:
-  - **Mandate Restructuring**: Reorganized `mandate.md` with clearer Universal Principles (Structured Thinking, Context-First, No Destructive Assumptions) and Absolute Directives focusing on secret protection and self-correction.
-  - **Git Mandate Strengthening**: Enhanced `git_mandate.md` with "ABSOLUTE RULES" format, explicit prohibition examples, and strict approval protocol emphasizing "Assist, don't autonomously manage git."
-  - **Skill System Consolidation**: Consolidated and renamed skills for better clarity: `core_journal` → `core_journaling`, `test` → `quality_assurance`, `research` → `research_and_plan`, `debug` → integrated into `quality_assurance`, removed redundant skills (`commit`, `core_mandate_brownfield`, `core_mandate_documentation`, `plan`, `pr`).
-  - **Agent Simplification**: Consolidated multiple specialized agents into single `subagent.agent.md` for general delegation tasks, removing `coder.agent.md`, `explorer.agent.md`, `planner.agent.md`, `researcher.agent.md`, `reviewer.agent.md`.
-
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.6.20 in `pyproject.toml`.
-  - **Test Updates**: Updated `test/config/test_config.py` to reflect new environment variable names for web authentication configuration.
-
-## 2.6.19 (February 27, 2026)
-
-- **Improvement: Reusable Truncation Logic**:
-  - **Centralized Logic**: Extracted line-length limit and head/tail preservation logic into `truncate_output` in `src/zrb/util/truncate.py`.
-  - **Tool Consolidation**: Refactored `Grep`, `Read`, and `Bash` tools to import and use this shared utility, ensuring consistent and robust output truncation across the system.
-
-- **Fix: Unbounded Line Lengths in Tool Outputs**:
-  - **Grep Tool Truncation**: Addressed issue where matching against massive single-line files (e.g., minified JS or JSON dumps) would return megabytes of data. `_get_file_matches` in `src/zrb/llm/tool/file.py` now enforces a 1,000-character limit per line.
-  - **Bash Tool Truncation**: Similarly updated `src/zrb/llm/tool/bash.py` to prevent giant single-line outputs from bloating the history.
-  - **Read Tool Truncation**: Updated `read_file` to ensure individual lines are safely truncated when returning specific file line ranges.
-
-- **Fix: Tool Execution Rejection Reason Truncation**:
-  - **Preserved User Context**: Removed the hardcoded 500-character truncation limit for user rejection reasons in `src/zrb/llm/tool_call/handler.py`. Detailed feedback and code snippets provided during tool execution rejection are now passed to the AI exactly as is.
-
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.6.19 in `pyproject.toml`.
-
-## 2.6.18 (February 27, 2026)
-
-- **Optimization: System Prompt Token Efficiency & Directive Strength**:
-  - **Comprehensive Prompt Optimization**: Reduced system prompt from ~7K to ~5.8K tokens (17% overall reduction) while maintaining all critical directives and enforcement strength.
-  - **Mandate.md Optimization**: Reduced from ~1,500 to ~800 tokens (47% reduction) by removing redundancies, tightening language, and eliminating filler while preserving Brownfield Protocol, Execution Framework, and safety directives.
-  - **Persona.md Optimization**: Reduced from ~300 to ~200 tokens (33% reduction) with concise phrasing while maintaining "Brownfield Specialist" and "Pragmatic Doer" core identity.
-  - **Journal Mandate Optimization**: Reduced from ~500 to ~350 tokens (30% reduction) by removing redundant phrasing and tightening "When to Read/Update" sections while keeping critical timing rules.
-  - **Git Mandate Optimization**: Reduced from ~400 to ~280 tokens (30% reduction) by shortening verbose operation lists and consolidating "Core Principles" with tighter phrasing.
-  - **Brownfield Protocol Analysis**: Documented AI's "knowing-doing gap" violation of mandate 2.2 (not activating core_mandate_brownfield before codebase work) and strengthened enforcement language.
-
-- **Improvement: Token Estimation Accuracy**:
-  - **Char-to-Token Ratio Correction**: Updated fallback token estimation from `char // 3` to `char // 4` in `LLMLimiter._count_tokens()` for more accurate token counting when tiktoken is not available.
-  - **Truncation Logic Update**: Changed `truncate_text()` fallback from `max_tokens * 3` to `max_tokens * 4` to match the improved character-to-token ratio.
-  - **Test Updates**: Updated test expectations in `test_limiter_coverage.py` and `test_limiter_explosion.py` to reflect the more accurate token estimation.
-
-- **Improvement: Sequential Execution Enforcement**:
-  - **Strategic Tool Selection**: Emphasized surgical tool usage with conservative limits and scopes for better context efficiency.
-
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.6.18 in `pyproject.toml`.
-
-## 2.6.17 (February 26, 2026)
-
-- **Fix: Summarizer Brittle String Prefix Detection & Tool Denial Leakage**:
-  - **Robust Type-Based Detection**: Replaced brittle string prefix checking in `src/zrb/llm/summarizer/message_processor.py` with type-based detection using `isinstance(safe_content, (ToolDenied, ToolApproved))` from pydantic_ai. This prevents summarization failures when tool denial/approval message wording changes.
-  - **Module-Level Constants**: Added `SUMMARY_PREFIX = "SUMMARY OF TOOL RESULT:"` and `TRUNCATED_PREFIX = "TRUNCATED TOOL RESULT:"` as module-level constants, eliminating hardcoded string matching and ensuring consistent prefix usage across generation and detection.
-  - **Tool Denial Message Handling**: Enhanced summarizer to skip processing for tool denial/approval messages, preventing wasted processing time on non-tool-result content.
-  - **Uppercase Prefix Standardization**: Updated all prefix strings to uppercase format for consistency and clarity.
-
-- **Fix: Tool Confirmation Output Leakage Prevention**:
-  - **Buffer Clearance After Tool Confirmation**: Added `self._capture.clear_buffer()` in a `finally` block in `UI.confirm_tool_call()` (`src/zrb/llm/app/ui.py`) to prevent captured stdout from previous operations leaking into future tool results.
-  - **User Response Truncation**: Added 500-character limit for user responses in tool confirmation prompts (`src/zrb/llm/tool_call/handler.py`) with truncation notification to prevent excessively long responses from overwhelming the system.
-
-- **Improvement: Core Mandate Task Cancellation Protocol**:
-  - **Explicit Cancellation Rules**: Added Task Cancellation section to `mandate.md` with clear rules: (1) Stop when user asks to cancel, (2) Immediate cessation of all tool calls and task execution, (3) No persistence with verification or completion attempts after cancellation.
-  - **Tool Denial Response Enforcement**: Enhanced journal documentation with explicit "Tool Denial Response" preference requiring immediate cessation of tool calls when user denies execution with any message.
-
-- **Test Updates**:
-  - **Prefix Consistency**: Updated test expectations in `test/llm/summarizer/test_dual_threshold.py` and `test/llm/history_processor/test_history_summarizer.py` to expect uppercase prefixes (`SUMMARY OF TOOL RESULT:` instead of `SUMMARY of tool result:`).
-  - **Comprehensive Validation**: All 49 summarizer-related tests pass with updated architecture.
-
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.6.17 in `pyproject.toml`.
-
-## 2.6.16 (February 26, 2026)
-
-- **Fix: Thread-Safe Interactive Input Handling**:
-  - **Graceful Interruption**: Refactored `StdUI.ask_user()` in `src/zrb/llm/agent/std_ui.py` to use `prompt_toolkit.PromptSession().prompt_async()` instead of `asyncio.to_thread(input)`. This prevents the application from hanging indefinitely when a user presses `Ctrl+C` (KeyboardInterrupt) during non-interactive mode tool confirmations. The previous thread-based implementation swallowed signals and blocked the shutdown process.
-  - **EOF Error Handling**: Added proper handling for `EOFError` during input, returning an empty string to allow graceful fallback instead of crashing the process.
-
-- **Test Infrastructure Updates**:
-  - **Model Mocking**: Fixed an integration test that relied on live API calls by properly mocking the model `openai:gpt-4o-mini` to `test` in `test_tool_policy_integration.py`, preventing timeout errors on network interruptions.
-  - **Assertion Resilience**: Updated assertions in `test_llm_task_tool_confirmation.py` to correctly evaluate dynamically wrapped callbacks during tool confirmation tests.
-
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.6.16 in `pyproject.toml`.
-
-## 2.6.15 (February 26, 2026)
-
-- **Improvement: Core Prompt Refinements & Agent Identity Enhancement**:
-  - **Mandate Restructuring**: Updated `mandate.md` with clearer CONTEXT EFFICIENCY principles, better distinction between Directives (action requests) and Inquiries (analysis requests), and improved Execution Framework with explicit Research → Strategy → Execution flow.
-  - **Persona Enhancement**: Enhanced `persona.md` with "interactive CLI agent" identity, added High-Signal Output principles (avoid conversational filler, focus on intent), Concise & Direct communication style (aim for <3 lines per response), and Explain Before Acting requirement for state-modifying actions.
-  - **Journal Mandate Clarification**: Improved `journal_mandate.md` with clearer guidance on when to read/update journal, emphasis on state snapshots and active constraints, and refined journal curation principles.
-
-- **Improvement: Skill System Overhaul with Validation-First Philosophy**:
-  - **Test Skill Enhancement**: Major overhaul of test skill with emphasis on "Validation is the only path to finality" mandate. Added detailed Environment & Pattern Audit workflow, comprehensive test generation guidelines, and Exhaustive Verification requirements (build, lint, type-check in addition to tests).
-  - **Debug Skill Refinement**: Enhanced debug skill with Empirical Reproduction First mandate, structured scientific workflow, and improved debugging checklist focusing on empirical verification and surgical fixes.
-  - **Brownfield Skill Updates**: Various refinements to core_mandate_brownfield skill for better discovery and execution protocols.
-
-- **Improvement: Tool Safety & Non-Interactive Execution**:
-  - **Bash Tool Safety Enhancement**: Added mandate to ALWAYS prefer non-interactive flags (`-y`, `--yes`, `--watch=false`, `CI=true`) for scaffolding tools or test runners to avoid persistent watch modes hanging execution.
-  - **Improved Timeout Guidance**: Enhanced timeout error messages with specific guidance on using non-interactive flags to prevent background process issues.
-
-- **Improvement: Agent Guidance Refinements**:
-  - **Coder Agent Updates**: Enhanced guidance for safe integration into complex legacy codebases with emphasis on pattern matching and surgical changes.
-  - **Generalist & Researcher Agent Refinements**: Updated agent guidance with improved workflow patterns and context efficiency principles.
-
-- **Dependency Updates**:
-  - **Core Framework**: pydantic-ai-slim updated from 1.62.0 to 1.63.0.
-  - **LLM Providers**: anthropic (>=0.78.0 → >=0.80.0), cohere (>=5.18.0 → >=5.20.6), huggingface-hub (>=0.33.5,<1.0.0 → >=1.3.4,<2.0.0), voyageai (>=0.3.2 → >=0.3.7).
-  - **Various transitive dependencies** updated for security and compatibility.
-
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.6.15 in `pyproject.toml`.
-
-
-## 2.6.14 (February 26, 2026)
-
-- **Fix: Non-Interactive UI Tool Confirmation for Edit Command**:
-  - **ToolCallHandler Integration**: Fixed editing in non-interactive mode by replacing simple policy checker with `ToolCallHandler` in `LLMChatTask._create_llm_task_core()`. The previous implementation used `check_tool_policies()` which only handled tool policies, not response handlers or argument formatters.
-  - **Complete Tool Handling**: The fix switches to `ToolCallHandler` which properly handles all three components (tool policies, argument formatters, response handlers) and includes the 'e' (edit) option in the confirmation prompt.
-  - **Key Change**: In `src/zrb/llm/task/llm_chat_task.py`, non-interactive mode now uses `ToolCallHandler(tool_policies=self._tool_policies, argument_formatters=self._argument_formatters, response_handlers=self._response_handlers)` instead of a simple async wrapper around `check_tool_policies()`.
-
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.6.14 in `pyproject.toml`.
-
-## 2.6.13 (February 25, 2026)
-
-- **Improvement: SearxNG Configuration Refactoring & Automatic Management**:
-  - **Streamlined Configuration File**: Remove `settings.yml` searxng file.
-  - **Automatic Configuration Setup**: Added `copy_searxng_setting` task that automatically copies SearxNG configuration to `~/.config/searxng/` directory if it doesn't exist, ensuring proper configuration management without manual intervention.
-  - **Improved Docker Volume Mounting**: Changed working directory from project directory to user home directory (`os.path.expanduser("~")`) for better Docker volume mounting compatibility, allowing the `./config/` volume to correctly map to the user's configuration directory.
-  - **Task Integration**: Made `copy_searxng_setting` an upstream dependency of the `start-searxng` task, ensuring configuration is always available before starting the SearxNG container.
-
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.6.13 in `pyproject.toml`.
-
-## 2.6.12 (February 24, 2026)
-
-- **Improvement: UI Output Redirection Buffering**:
-  - **Buffered Stream Capture**: Modified `GlobalStreamCapture` in `src/zrb/llm/app/redirection.py` to buffer stdout/stderr output instead of immediately sending to UI via `ui_callback`. Added `_buffer` list, `get_buffered_output()`, and `clear_buffer()` methods for controlled output management.
-  - **Delayed Output Display**: Updated `run_async()` in `src/zrb/llm/app/ui.py` to print buffered output after UI closes (`self._capture.stop()`), providing cleaner UI experience with output appearing after interaction completion.
-  - **Tool Streaming Preservation**: Bash tool output continues to stream to UI in real-time via `zrb_print(..., plain=True)` → `append_to_output` direct path (bypasses capture), maintaining responsive tool feedback while buffering library `print()` output.
-
-- **Fix: Hook System Error Handling & Sequential Execution**:
-  - **Proper Error Propagation**: Updated `_parse_hook_result()` in `src/zrb/llm/hook/executor.py` to set `error=result.output` and `exit_code=1` when `success=False`, ensuring proper error reporting for failed hook executions.
-  - **Sequential Hook Execution**: Changed `execute_hooks()` in `src/zrb/llm/hook/manager.py` from concurrent (`asyncio.gather`) to sequential execution, enabling proper blocking behavior and `continue_execution=False` logic to work correctly.
-  - **Enhanced Hook Result Processing**: Improved error handling with proper exception wrapping and continuation logic for failed hooks, maintaining Claude Code compatibility with exit code 2 for blocking decisions.
-
-- **Test Infrastructure: Comprehensive Test Suites**:
-  - **OptionInput Test Coverage**: Created comprehensive test suite for `OptionInput` in `test/input/test_option_input.py` with 7 test cases covering public API (initialization, HTML generation, default values, context updates), improving coverage from 25% to 40%.
-  - **Lexer ANSI Escape Testing**: Added comprehensive test suite for `CLIStyleLexer` in `test/llm/app/test_lexer.py` with 13 tests covering ANSI escape sequence tokenization (colors, bold, background colors, reset sequences, literal escapes).
-  - **Redirection Buffer Testing**: Created comprehensive test suite for `GlobalStreamCapture` in `test/llm/app/test_redirection.py` with 8 test cases covering public API (initialization, start/stop lifecycle, buffer management, pause context manager, original stdout retrieval).
-  - **Hook Manager Comprehensive Coverage**: Added extensive test suite in `test/llm/hook/test_manager_comprehensive_coverage.py` with 49 tests covering edge cases, error handling, blocking logic, timeout scenarios, and Claude Code compatibility.
-
-- **Test Results**: All 866 tests pass with 31% overall coverage. Hook test suite passes 49/49 tests after fixes.
-
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.6.12 in `pyproject.toml`.
-
-## 2.6.11 (February 24, 2026)
-
-- **Refactor: Centralized String Conversion Utility**:
-  - **Shared to_string() Function**: Created centralized `to_string()` utility in `src/zrb/util/string/conversion.py` to handle complex data structure conversion to strings with proper JSON serialization for dictionaries and lists.
-  - **Eliminated Code Duplication**: Removed `FileHistoryManager._convert_to_string()` method and replaced all `str()` calls in tool return content with `to_string()` for consistent string conversion behavior.
-  - **Enhanced Tool Return Safety**: Updated `_create_safe_wrapper()` and `_wrap_toolset()` in `src/zrb/llm/agent/common.py` to use `to_string()` for tool return content, ensuring proper handling of non-string tool results.
-  - **Proactive Content Cleaning**: Enhanced `FileHistoryManager._clean_corrupted_content()` to use centralized `to_string()` utility, maintaining proactive cleaning of boolean, number, dict, list, and None values before validation.
-  - **JSON Serialization Safety**: The new utility safely handles dictionaries and lists via `json.dumps()` with proper error fallback to `str()` for serialization failures.
-
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.6.11 in `pyproject.toml`.
-
-
-## 2.6.10 (February 24, 2026)
-
-- **Fix: PRE_COMPACT Hook Timing**:
-  - **Correct Hook Invocation**: Fixed `run_agent.py` to invoke PRE_COMPACT hook BEFORE history summarization/processing, not after agent execution. Hook now receives comprehensive context: `token_count` (calculated via limiter), `message_count`, and `has_history_processors` flag.
-  - **Removed Simplistic Check**: Eliminated simplistic message count check (`len(run_history) > 10`) and moved hook invocation to history processing section where it belongs.
-  - **Claude Code Compatibility**: Aligns with Claude Code compatibility for hook events, ensuring hooks can prepare/modify history before summarization occurs.
-  - **Comprehensive Testing**: All 265 LLM tests pass including 33 hook tests, verifying the fix maintains system stability.
-
-- **Fix: Pydantic AI Boolean Content Corruption**:
-  - **Proactive Content Cleaning**: Enhanced `FileHistoryManager` to proactively clean corrupted content (boolean, number, dict, list, None) before validation, not just on ValidationError. Updated `_clean_corrupted_content()` to handle all part types with content fields and added proper None handling (convert to empty string).
-  - **Always Clean Strategy**: Implemented "always clean" approach: always clean in `load()` before validation, always clean in `save()` before validation/saving. This prevents boolean corruption issues where pydantic-ai validation might allow boolean values that later cause serialization problems.
-  - **Comprehensive Test Updates**: Updated test descriptions from "ValidationError triggers auto-recovery" to "proactively cleaned to string" to reflect new proactive cleaning behavior. Added comprehensive test for None, list, float, and boolean False content conversion.
-  - **Test Verification**: All 822 tests pass including comprehensive tests for file history manager corruption handling.
-
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.6.10 in `pyproject.toml`.
-
-## 2.6.9 (February 23, 2026)
-
-- **Improvement: History Summarizer Algorithm Overhaul**:
-  - **Four-Phase Splitting Strategy**: Complete rewrite of `split_history()` in `src/zrb/llm/summarizer/history_splitter.py` with sophisticated 4-phase approach: (1) Search backwards from target window, (2) Search forwards for any safe split, (3) Find largest safe split under 80% token threshold, (4) Best-effort scoring-based approach.
-  - **Enhanced Tool Pair Safety**: New `is_split_safe()` function with detailed logic for complete pairs (must stay together), incomplete calls (can be summarized), and orphaned returns (must not be kept). Replaces simpler `validate_tool_pair_integrity`.
-  - **Best-Effort Scoring**: `find_best_effort_split()` now uses scoring system to minimize damage to incomplete tool pairs while never breaking complete pairs.
-  - **Comprehensive Test Coverage**: Added `test/llm/summarizer/test_summarizer_history_splitter.py` with tests for safe split detection, best-effort splitting, and window-based splitting.
-
-- **Fix: Message Merging Immutability**:
-  - **Immutable Message Creation**: Updated `ensure_alternating_roles()` in `src/zrb/llm/message.py` to create new message objects instead of mutating existing ones: `ModelRequest(parts=list(last_msg.parts) + list(msg.parts))` for user messages and `dataclasses.replace()` for assistant messages.
-  - **Tool Pair Detection**: Enhanced `get_tool_pairs()` to accurately identify tool call/return relationships for safe split validation.
-
-- **Improvement: File Tool Truncation System**:
-  - **Unified Truncation Logic**: Extended head/tail truncation mechanism from `bash.py` to all file tools (`list_files`, `glob_files`, `read_file`, `search_files`, `read_files`) with consistent `preserved_head_lines` and `preserved_tail_lines` parameters.
-  - **Intelligent Defaults**: Defaults: 100+150 lines for read operations, 50+50 for search matches, 100+100 for file listings. Search truncation applies at both file-level and within-file matches.
-  - **Critical Fix**: Files are now sorted BEFORE truncating (not after) to ensure consistent head/tail selection across executions.
-
-- **Documentation Updates**:
-  - **Summarization Logic Documentation**: Updated `docs/core-concepts/summarization-logic.md` to reflect new 4-phase splitting strategy, tool pair safety logic, and immutable message merging.
-  - **AGENTS.md Corrections**: Fixed development setup commands and testing guidelines.
-
-- **Test Infrastructure**:
-  - **Pytest Output Format**: Simplified `zrb-test.sh` output to `--cov-report="term-missing:skip-covered"` for cleaner test reporting.
-  - **Enhanced File History Tests**: Expanded `test_file_history_manager.py` with comprehensive auto-recovery validation tests.
-
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.6.9 in `pyproject.toml`.
-
-## 2.6.8 (February 22, 2026)
-
-- **Fix: Summarizer Deep Copy Protection & Mutation Prevention**:
-  - **Tool Result Safety**: Added `_safe_copy_result()` function in `src/zrb/llm/agent/common.py` to create deep copies of mutable tool results (lists, dicts, sets) while returning immutable objects (strings, numbers, None) as-is, preventing pydantic-ai from modifying original tool results during processing.
-  - **ToolReturn Wrapper Enhancement**: Updated `_create_safe_wrapper()` and `_wrap_toolset()` to use safe copies when creating `ToolReturn` objects, ensuring tool results remain immutable throughout agent execution.
-  - **Summarization Safety**: Added `_safe_copy_for_summarization()` function in `src/zrb/llm/summarizer/message_processor.py` to create safe copies of content before summarization processing, preventing mutation during JSON serialization and string conversion.
-  - **Debug Logging**: Added comprehensive debug logging for large content (>10000 tokens) to help diagnose summarization issues with detailed type information and content samples.
-
-- **Fix: History Splitter Orphaned Return Handling**:
-  - **Orphaned Return Logic**: Fixed `find_best_effort_split()` in `src/zrb/llm/summarizer/history_splitter.py` to properly handle orphaned returns (returns without corresponding calls) by rejecting splits that would keep orphaned returns in the history, ensuring Pydantic AI requirements are met.
-  - **Pair Integrity Enforcement**: Enhanced logic to detect when orphaned returns would be preserved after a split and reject such splits to maintain tool call/return pair integrity.
-
-- **Improvement: Token Counting Accuracy for Dictionaries**:
-  - **Enhanced Dict Processing**: Updated `_to_str()` method in `src/zrb/llm/config/limiter.py` to join key-value pairs with spaces (`"key: value"`) instead of concatenation, improving token counting accuracy for dictionary content.
-  - **Better Token Estimation**: The new format provides more realistic token counts for structured data, ensuring rate limiting and context window management work correctly with complex tool results.
-
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.6.8 in `pyproject.toml`.
-
-## 2.6.7 (February 22, 2026)
-
-- **Improvement: Enhanced Agent Tool Safety & Error Handling**:
-  - **Robust ToolReturn Wrapping**: Updated `_create_safe_wrapper()` in `src/zrb/llm/agent/common.py` to consistently return proper `ToolReturn` objects for both successful executions and errors, ensuring compatibility with pydantic-ai's structured response handling.
-  - **Toolset Error Consistency**: Enhanced `_wrap_toolset()` to wrap toolset errors in `ToolReturn` objects with error metadata, maintaining consistent error reporting across all tool execution paths.
-  - **Backward Compatibility**: Successful tool results are automatically wrapped in `ToolReturn` objects when not already wrapped, while preserving existing `ToolReturn` instances.
-
-- **Improvement: Mandate Refinement & Operational Rigor**:
-  - **System Awareness Directive**: Added explicit "System Awareness" principle to CONTEXT-FIRST mandate, requiring agents to discover existing similar functionality before creating new mechanisms, preventing redundant implementations.
-  - **Pattern Recognition Principle**: Added "Pattern Recognition" directive mandating agents to identify and follow existing system patterns, avoiding introduction of new patterns without explicit approval.
-  - **Discovery First Protocol**: Enhanced Brownfield Protocol to explicitly require "Discovery First" approach, forbidding implementation without empirical verification of system behavior.
-  - **Assumption Checking Standard**: Added "Assumption Checking" to Implementation Standards, requiring verification of naming patterns, file locations, and system behavior through code path tracing.
-  - **Verification & Completion Mandate**: Introduced new Section 7 with four core principles: No Premature Completion, Empirical Verification, Assumption Validation, and Solution Testing, ensuring rigorous validation before task completion.
-
-- **Test Improvement: Pydantic-AI Type Safety**:
-  - **Real Callable Functions**: Updated `test_llm_chat_task_coverage.py` to use real async callable functions instead of `MagicMock` objects, preventing pydantic-ai type inspection errors and improving test reliability.
-  - **Tool Factory Testing**: Enhanced tool factory tests to work with actual function objects rather than mocks, ensuring proper tool resolution during agent execution.
-
-## 2.6.6 (February 22, 2026)
-
-- **Architectural: Modular Core Mandate Skills**:
-  - **Brownfield Protocol Skill**: Extracted detailed brownfield discovery and execution protocol from the main mandate into `core_mandate_brownfield` skill, providing step-by-step guidance for safe codebase modifications.
-  - **Documentation Skill**: Created `core_mandate_documentation` skill encapsulating documentation-as-code principles, ensuring documentation stays synchronized with code changes.
-  - **Mandate Streamlining**: Simplified main mandate to reference skills instead of containing verbose protocols, improving token efficiency while maintaining functionality.
-
-- **Documentation: AGENTS.md Complete Restructuring**:
-  - **Practical Guide Focus**: Transformed from detailed technical documentation to concise, actionable development guide with clear "What the Project Is", "Development Setup", and "Where to Find Files" sections.
-  - **Removed Redundant Sections**: Eliminated verbose LLM-specific technical details (summarization system, message safety) that are better covered in code or specialized skills.
-  - **Enhanced Readability**: Organized into logical sections with improved navigation and clearer development conventions.
-
-- **Tool Documentation Standardization**:
-  - **Consistent MANDATES Format**: Updated all LLM tool docstrings (`bash.py`, `code.py`, `file.py`, `web.py`, `delegate.py`, `skill.py`, `zrb_task.py`) to use concise "MANDATES:" format instead of verbose operational guidance.
-  - **Improved Clarity**: Each tool now has clear, scannable mandates that communicate essential constraints without overwhelming detail.
-  - **Backward Compatibility**: Maintains full functionality while improving agent comprehension and token efficiency.
-
-- **Agent System Refinements**:
-  - **Enhanced Agent Descriptions**: Added "Delegate to this agent for..." context to all agent definitions (`coder`, `explorer`, `generalist`, `planner`, `researcher`, `reviewer`) for clearer delegation guidance.
-  - **Note Tool Removal**: Removed deprecated note tools (`ReadContextualNote`, `WriteContextualNote`, `ReadLongTermNote`, `WriteLongTermNote`) from agent tool lists, aligning with journal-based context management.
-  - **Skill Description Improvements**: Added "Use when..." context to all skill descriptions for better user guidance.
-
-- **Configuration & Bug Fixes**:
-  - **Tool Policy Fix**: Fixed `_approve_if_path_inside_parent` in `chat_tool_policy.py` to return `True` when no path is found, preventing unnecessary denials.
-  - **PromptManager Enhancement**: Updated to properly handle `include_claude_skills` parameter and filter core mandate skills appropriately.
-  - **Code Cleanup**: Removed redundant comments and simplified `SubAgentManager` initialization logic.
-
-- **Test Updates**:
-  - **Simplified Prompt Tests**: Removed path-specific warning tests from `test_prompt_util.py` as warnings are now handled at the skill level.
-  - **Maintenance**: Updated test expectations to align with new tool documentation format.
-
-## 2.6.5 (February 21, 2026)
-
-- **Refactor: Centralized LLM Message Safety**:
-  - **Unified Message Logic**: Created `src/zrb/llm/message.py` to centralize message validation and manipulation logic, removing duplication across the codebase.
-  - **Strict Role Alternation**: Implemented `ensure_alternating_roles` to automatically merge consecutive messages of the same role (e.g., User -> User), ensuring strict compliance with LLM API requirements (especially Anthropic).
-  - **Tool Pair Integrity**: Centralized `get_tool_pairs` and `validate_tool_pair_integrity` to ensure `ToolCall` and `ToolReturn` messages are never separated during history processing or summarization.
-  - **Workflow Integration**: Integrated these safety checks directly into `run_agent` and `history_summarizer` to prevent API errors at the source.
-
-- **Cleanup & Optimization**:
-  - **Codebase cleanup**: Removed unused imports and redundant logic in `message_processor.py` and `history_splitter.py`.
-  - **Test Suite Optimization**: Removed obsolete `test_role_alternation.py` in favor of comprehensive new tests in `test/llm/test_message.py`.
-  - **Documentation**: Updated `AGENTS.md` with a new "LLM Message Safety" section detailing the core principles of role alternation and tool integrity.
-
-## 2.6.4 (February 21, 2026)
-
-- **Feature: PromptManager Configuration Defaults**:
-  - **Configurable Prompt Components**: Added 8 new configuration properties to `CFG` for controlling PromptManager behavior: `LLM_INCLUDE_PERSONA`, `LLM_INCLUDE_MANDATE`, `LLM_INCLUDE_GIT_MANDATE`, `LLM_INCLUDE_SYSTEM_CONTEXT`, `LLM_INCLUDE_JOURNAL`, `LLM_INCLUDE_CLAUDE_SKILLS`, `LLM_INCLUDE_CLI_SKILLS`, `LLM_INCLUDE_PROJECT_CONTEXT`.
-  - **Flexible Parameter Handling**: Updated `PromptManager.__init__()` to accept `None` for boolean parameters, allowing them to fall back to configuration defaults while preserving explicit override capability.
-  - **Backward Compatibility**: Maintains full compatibility with existing code - explicit `True`/`False` values continue to work as before.
-  - **Environment Variable Support**: All properties can be configured via environment variables (e.g., `ZRB_LLM_INCLUDE_PERSONA=0`) using standard "1"/"0" or "on"/"off" string format.
-
-- **Improvement: Documentation as Code**:
-  - **Updated Mandate**: Added "Documentation as Code" section to mandate, requiring documentation to be treated as first-class code that must be updated when code changes.
-  - **Configuration Documentation**: Added new configuration options to official documentation with clear defaults and usage examples.
-  - **Customization Guide Update**: Enhanced customizing AI assistant documentation with information about PromptManager configuration defaults.
-
-## 2.6.3 (February 19, 2026)
-
-- **Feature: Dynamic Session Log Directory Resolution**:
-  - **Flexible Directory Configuration**: Enhanced `FileSessionStateLogger` to accept both string and callable for `session_log_dir` parameter, enabling dynamic directory resolution at runtime.
-  - **Backward Compatibility**: Maintained full backward compatibility with existing string inputs while adding support for callable functions that return directory paths.
-  - **Factory Integration**: Updated `session_state_logger_factory.py` to use lambda wrapper for `CFG.SESSION_LOG_DIR`, demonstrating callable usage pattern.
-  - **Clean Abstraction**: Added `_get_session_log_dir()` method to abstract evaluation logic, ensuring consistent path resolution throughout the class.
-
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.6.3 in `pyproject.toml`.
-
-## 2.6.2 (February 19, 2026)
-
-- **Improvement: Enhanced Prompt Expansion with Path-Specific Warnings**:
-  - **Modular Refactoring**: Refactored `expand_prompt()` utility into modular functions (`_get_path_references`, `_process_path_reference`, `_create_appendix_entry`, `_create_appendix_header`) for better maintainability and testability.
-  - **Path-Specific Warnings**: Added intelligent warning messages that differentiate between file and directory references. File references now warn against using `read_file`, while directory references warn against using `list_files`, improving agent guidance.
-  - **Comprehensive Testing**: Added 6 new test cases (`test/util/llm/test_prompt_util.py`) covering file-specific warnings, directory-specific warnings, mixed references, and edge cases.
-
-- **Improvement: Streamlined Documentation & Prompt Refinements**:
-  - **Concise Documentation Summaries**: Reduced maximum summary length from 10,000 to 5,000 characters in `create_project_context_prompt()` and simplified warning text for better clarity.
-  - **Mandate Simplification**: Streamlined strategic reasoning section and added "In-Place Refactoring" principle emphasizing direct file modification over creating new files.
-  - **Persona Refinement**: Condensed persona description for better token efficiency while maintaining core identity as "Brownfield Specialist" and "Pragmatic Doer".
-  - **Journal System Enhancement**: Renamed to "Journal System: The Polymath's Codex" with emphasis on "Rhizomatic Linking" and proactive knowledge capture as a "Living Knowledge Base".
-
-- **Feature: Git-Aware System Context**:
-  - **New Git Utility**: Added `is_inside_git_dir()` function in `src/zrb/llm/util/git.py` for checking git repository status without redundant subprocess calls.
-  - **Conditional Git Mandate**: Updated `PromptManager` to only include git mandate when inside a git repository, preventing unnecessary content in non-git contexts.
-  - **Optimized System Context**: Enhanced `system_context.py` to use new git utility and improve file categorization logic.
-
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.6.2 in `pyproject.toml`.
-
-## 2.6.1 (February 18, 2026)
-
-- **Fix: Pydantic-AI Toolset Integration Compatibility**:
-  - **Signature Mismatch Resolution**: Fixed `TypeError` when adding MCP toolsets to `llm_chat` by updating `SafeToolsetWrapper.call_tool()` signature to match pydantic-ai's `WrapperToolset` base class (version 1.60.0).
-  - **Parameter Alignment**: Changed signature from `(self, tool_name: str, tool_input: Any, ctx: Any) → ToolReturn` to `(self, name: str, tool_args: dict[str, Any], ctx: Any, tool: Any) → Any`.
-  - **MCP Toolset Support**: Resolves errors when loading MCP toolsets via `load_mcp_config()` and adding them to LLM chat sessions, ensuring proper forwarding of all arguments to parent toolset implementations.
+  - Updated core dependencies (pydantic-ai-slim, anthropic, cohere, huggingface-hub, voyageai) and expanded test coverage across the LLM, hook, summarizer, and tool subsystems.
 
 ## 2.6.0 (February 18, 2026)
 
@@ -2844,43 +1782,29 @@
 
 ## 2.5.3 (February 17, 2026)
 
+_Cumulative summary of the 2.5.1–2.5.3 patch line._
+
+- **Feature: SubAgentManager API Consistency**:
+  - Added `append_tool()` and `append_tool_factory()` to `SubAgentManager` to match the `LLMTask` pattern.
+  - Added toolset management (`append_toolset()`, `append_toolset_factory()`, `_get_all_toolsets()`) for better toolset integration.
+  - Refactored existing `add_tool()`/`add_tool_factory()` to delegate to their `append_*` counterparts, preserving backward compatibility.
+  - Exported `create_delegate_to_agent_tool` from `src/zrb/llm/tool/__init__.py`.
+
+- **Fix: Circular Dependency in LLM Tool Imports**:
+  - Reorganized LLM tool imports in `src/zrb/llm/agent/manager.py` from a flat structure into specialized modules (`zrb.llm.tool.code`, `.file`, `.bash`, `.web`) to break import cycles while maintaining full functionality.
+
 - **Refactor: Journal Prompt System Migration to Markdown Templates**:
-  - **Static Template Replacement**: Replaced dynamic `create_journal_prompt()` function with static `journal.md` markdown template, aligning with existing prompt system pattern (persona.md, mandate.md).
-  - **Prompt Manager Update**: Updated `PromptManager` to use `get_journal_prompt()` instead of middleware factory, simplifying journal prompt implementation.
-  - **Enhanced Tool Policies**: Added auto-approve policies for Write, WriteMany, and Edit tools when operating within journal directory, enabling seamless journal maintenance.
-  - **Persona Refinement**: Updated "Polymath Executor" persona with stronger emphasis on hands-on, brownfield development expertise and reduced strategic delegation bias.
-  - **Test Migration**: Migrated journal prompt tests from `test_journal.py` to `test_prompt_journal.py` with comprehensive coverage for new markdown-based implementation.
-
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.5.3 in `pyproject.toml`.
-
-## 2.5.2 (February 17, 2026)
-
-- **Fix: Circular Dependency Resolution in LLM Tool Imports**:
-  - **Circular Dependency Elimination**: Reorganized LLM tool imports in `src/zrb/llm/agent/manager.py` to resolve circular dependency issues by moving tools from a flat import structure to specialized modules:
-    - `analyze_code` → `zrb.llm.tool.code`
-    - File-related tools (`analyze_file`, `glob_files`, `list_files`, `read_file`, `read_files`, `replace_in_file`, `search_files`, `write_file`, `write_files`) → `zrb.llm.tool.file`
-    - `run_shell_command` → `zrb.llm.tool.bash`
-    - `open_web_page` and `search_internet` → `zrb.llm.tool.web`
-  - **Backward Compatibility**: Maintained full functionality while preventing import cycles that could cause runtime errors.
-
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.5.2 in `pyproject.toml`.
-
-## 2.5.1 (February 17, 2026)
-
-- **Feature: Enhanced SubAgentManager API Consistency**:
-  - **append_tool Methods**: Added `append_tool()` and `append_tool_factory()` methods to `SubAgentManager` to match the `LLMTask` pattern, ensuring API consistency across the codebase.
-  - **Toolset Support**: Enhanced `SubAgentManager` with comprehensive toolset management including `append_toolset()`, `append_toolset_factory()`, and `_get_all_toolsets()` methods for better toolset integration.
-  - **Backward Compatibility**: Refactored existing `add_tool()` and `add_tool_factory()` methods to delegate to their `append_*` counterparts, maintaining full backward compatibility.
-  - **Delegate Tool Export**: Added `create_delegate_to_agent_tool` to public exports in `src/zrb/llm/tool/__init__.py` for easier access.
+  - Replaced the dynamic `create_journal_prompt()` function with a static `journal.md` template, aligning with the existing prompt pattern (persona.md, mandate.md).
+  - Updated `PromptManager` to use `get_journal_prompt()` instead of the middleware factory.
+  - Added auto-approve policies for Write, WriteMany, and Edit tools when operating within the journal directory.
 
 - **Improvement: Persona Refinement**:
-  - **Typo Fix**: Corrected "Orchstrator" to "Orchestrator" in the agent persona for better professionalism and clarity.
+  - Fixed "Orchstrator" → "Orchestrator" typo in the agent persona.
+  - Updated the "Polymath Executor" persona with stronger emphasis on hands-on, brownfield development and reduced strategic delegation bias.
 
 - **Maintenance**:
-  - **Version Bump**: Updated to version 2.5.1 in `pyproject.toml`.
-  - **Dependency Updates**: Updated poetry.lock with Poetry 2.3.1 and minor dependency specifier changes for consistency.
+  - Version bumped to 2.5.3 in `pyproject.toml`.
+  - Updated poetry.lock with Poetry 2.3.1 and minor dependency specifier changes.
 
 ## 2.5.0 (February 16, 2026)
 
@@ -2903,48 +1827,32 @@
   3. Update environment variables to remove deprecated `LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD`.
 
 ## 2.4.2 (February 16, 2026)
-
-- **Improvement: LLM Limiter Token Counting Optimization**:
-  - **Performance Enhancement**: Refactored `LLMLimiter._to_str()` method to avoid JSON serialization overhead for large collections, implementing direct string concatenation for lists and dictionaries.
-  - **Memory Efficiency**: Added `skip_instructions` parameter to align with Pydantic AI's behavior of only counting current instructions (historical instructions are not replayed to the model).
-  - **Reduced Overhead**: Updated test expectations to reflect reduced string length from ~20k to <10k characters for nested structures, demonstrating significant performance improvement.
-  - **Better Pydantic AI Integration**: Enhanced handling of complex message structures with separate processing for parts, instructions, content, and args fields.
-
-- **Improvement: Agent Delegation & Operational Clarity**:
-  - **Enhanced Persona**: Updated agent persona from "Polymath Agent" to "Lead Architect and Polymath Orchestrator" with stronger emphasis on strategic command and surgical delegation.
-  - **Refined Mandate**: Clarified DEEP PATH delegation with explicit "SURGICAL SCOPE" directive, requiring narrow, atomic tasks for sub-agents and prohibiting "explore and fix" patterns.
-  - **Improved Recovery Protocol**: Enhanced delegation failure handling with better context management and redundant history purging during forced execution.
-
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.4.2 in `pyproject.toml`.
-  - **Dependency Normalization**: Minor version format updates in `poetry.lock` for consistency.
-
-## 2.4.1 (February 16, 2026)
+_Cumulative summary of the 2.4.1–2.4.2 patch line._
 
 - **Feature: Robust LLM Summarization & History Management**:
-  - **Dual-Threshold Summarization Logic**: Implemented separate thresholds for individual large messages and total conversational history to prevent context window overflows and "insanity" during long sessions.
-  - **Role Alternation Enforcement**: Added `_ensure_alternating_roles` to the history processor, ensuring that the conversation history always follows the User -> Assistant pattern required by LLM providers.
-  - **Recursive Guard & Loop Prevention**: Added a recursion depth guard (max 5) and progress verification to `summarize_long_text` to prevent infinite summarization loops.
-  - **Safe Tool-Call Splitting**: Enhanced history splitting logic to ensure tool call/result pairs are never orphaned, maintaining the integrity of Pydantic AI message sequences.
+  - Implemented dual-threshold summarization logic with separate thresholds for individual large messages and total conversational history to prevent context window overflows during long sessions.
+  - Added `_ensure_alternating_roles` to the history processor, enforcing the User -> Assistant pattern required by LLM providers.
+  - Added a recursion depth guard (max 5) and progress verification to `summarize_long_text` to prevent infinite summarization loops.
+  - Enhanced history splitting so tool call/result pairs are never orphaned, maintaining the integrity of Pydantic AI message sequences.
 
-- **Improvement: Token Counting Efficiency & Performance**:
-  - **Fixed O(N²) Token Counting**: Refactored `LLMLimiter._to_str` to use `json.dumps` for collections, resolving a critical performance bottleneck that caused exponential latency as history grew.
-  - **Accurate Token Estimation**: Improved handling of complex message structures to ensure rate limiting remains precise even with large tool outputs.
+- **Improvement: LLM Limiter Token Counting Optimization**:
+  - Refactored `LLMLimiter._to_str` to use direct string concatenation for lists and dictionaries, avoiding JSON serialization overhead and resolving an O(N²) performance bottleneck that caused exponential latency as history grew.
+  - Added a `skip_instructions` parameter to align with Pydantic AI's behavior of only counting current instructions, since historical instructions are not replayed to the model.
+  - Reduced string length for nested structures from ~20k to <10k characters.
+  - Enhanced handling of complex message structures with separate processing for parts, instructions, content, and args fields, keeping rate limiting precise even with large tool outputs.
 
 - **Refinement: Summarizer Prompt & State Logic**:
-  - **Goal Evolution System**: Updated `summarizer.md` with logic to detect when objectives are met and pivot the agent's focus, preventing "conclusion loops."
-  - **XML Safety & Formatting**: Wrapped state snapshot components in CDATA sections to prevent XML parsing errors and ensured "Silent Thinking" for more reliable structured output.
-  - **Explicit Security Rules**: Hardened the summarizer prompt against adversarial content and formatting distractions within the history.
+  - Updated `summarizer.md` with a goal evolution system that detects when objectives are met and pivots the agent's focus, preventing conclusion loops.
+  - Wrapped state snapshot components in CDATA sections to prevent XML parsing errors and ensured "Silent Thinking" for more reliable structured output.
+  - Hardened the summarizer prompt against adversarial content and formatting distractions within the history.
 
-- **Maintenance & Test Infrastructure**:
-  - **Expanded Coverage**: Added 4 new specialized test suites:
-    - `test_dual_threshold.py`: Verifies message-level vs context-level summarization.
-    - `test_sequence_alternation.py`: Confirms role-alternation compliance.
-    - `test_integration_summarization.py`: Validates end-to-end history distilling.
-    - `test_limiter_explosion.py`: Stress-tests the token counting performance fix.
-  - **Agent Guide Update**: Updated `AGENTS.md` (Section 6) with detailed technical documentation of the summarization system.
-  - **Version Bump**: Updated to version 2.4.1 in `pyproject.toml`.
-  - **Stabilized Config Tests**: Fixed stale tests in `test/config/test_config.py` related to journal directory settings.
+- **Improvement: Agent Delegation & Operational Clarity**:
+  - Updated the agent persona from "Polymath Agent" to "Lead Architect and Polymath Orchestrator" with stronger emphasis on strategic command and surgical delegation.
+  - Clarified DEEP PATH delegation with an explicit "SURGICAL SCOPE" directive, requiring narrow, atomic tasks for sub-agents and prohibiting "explore and fix" patterns.
+  - Enhanced delegation failure handling with better context management and redundant history purging during forced execution.
+
+- **Documentation**:
+  - Updated `AGENTS.md` (Section 6) with detailed technical documentation of the summarization system.
 
 ## 2.4.0 (February 16, 2026)
 
@@ -3005,125 +1913,47 @@
   - **Consistent Singleton Pattern**: Updated AGENTS.md to reflect `Hook` instead of `Note` as module-level singleton
 
 ## 2.3.5 (February 15, 2026)
+_Cumulative summary of the 2.3.1–2.3.5 patch line._
 
-- **Feature: Enhanced Agent System with Comprehensive Test Coverage**:
-  - **Agent Manager Improvements**: 
-    - Integrated history summarization processor into agent creation for better context management
-    - Added proper context initialization for sub-agents with SharedContext support
-    - Fixed import ordering and type hinting issues for better code organization
-  - **Summarizer Enhancements**:
-    - Added default configuration handling for summary window parameter
-    - Improved token threshold logic for conversational summarization with proper fallback to configuration defaults
-  - **Mandate Documentation Refinement**:
-    - Clarified FAST PATH vs DEEP PATH delegation criteria with explicit context saturation risk assessment
-    - Added recovery protocol for failed delegation scenarios to prevent brute-force execution
-    - Emphasized user visibility awareness for sub-agent outputs with clear reporting requirements
-  - **Comprehensive Test Coverage Expansion**:
-    - Added 20+ new test files across all major components (1329 insertions, 31 deletions)
-    - Extensive coverage for agent manager, run agent, history processors, hooks, prompts, and tools
-    - Resilience tests for summarizer functionality with edge case handling
-    - Coverage for config, input, runner, and utility modules ensuring system-wide stability
-  - **Minor Documentation Updates**:
-    - Refined persona and summarizer prompt templates for better agent guidance
-    - Updated tool delegation with proper imports and error handling
+- **Prompt System: Assertive Operational Mandates**:
+  - Rebuilt `persona.md` and `mandate.md` around strict **MUST ALWAYS** / **NEVER** directives, shifting from descriptive guidance to non-negotiable engineering mandates.
+  - Mandated a strict tool discovery hierarchy (`Read` > `Glob` > `LS`) to eliminate redundant token use and prevent blind exploration of known paths.
+  - Upgraded implementation into a mandatory **Plan -> Act -> Validate** cycle, forbidding assumed success without test/linter verification.
+  - Clarified FAST PATH vs DEEP PATH delegation criteria with context saturation risk assessment, added a recovery protocol for failed delegation, and emphasized user visibility of sub-agent outputs.
 
-## 2.3.4 (February 15, 2026)
-
-- **Bug Fix: Token Counting Robustness for Complex Message Structures**:
-  - **Enhanced `_to_str()` Method**: Refactored `LLMLimiter._to_str()` in `src/zrb/llm/config/limiter.py` to handle complex Pydantic AI message structures more robustly:
-    - Added proper handling for basic types (int, float, bool, None)
-    - Used `getattr()` with safe defaults instead of direct attribute access
-    - Added recursive dictionary handling for nested structures
-    - Improved resilience against malformed or unexpected message formats
-  - **Token Estimation Stability**: Fixed potential token counting inaccuracies when processing tool calls, tool returns, and complex message parts, ensuring more accurate rate limiting and context window management.
-
-- **Improvement: Test Code Quality & Formatting**:
-  - **Enhanced Retry Test Suite**: Updated `test_llm_task_retry.py` with improved imports, better formatting, and more comprehensive assertions for error handling scenarios.
-  - **Code Style Consistency**: Applied consistent formatting across test files (`test_config.py`, `test_history_summarizer.py`) with proper line breaks and import organization.
-  - **Test Coverage Validation**: Added property access tests in `test_config.py` to ensure all configuration properties are accessible without errors.
-
-## 2.3.3 (February 15, 2026)
+- **Memory & Context Management**:
+  - Introduced "high-signal" memory: save only small, rarely-changing architectural facts or user preferences via `WriteContextualNote` and `WriteLongTermNote`.
+  - Mandated a read-before-write workflow to avoid context loss and duplication, and improved state snapshots to prioritize evidence-backed insights over raw history.
 
 - **Feature: LLM Task Error Retry with History Preservation**:
-  - **Error History Attachment**: Modified `run_agent()` to attach conversation history (`zrb_history`) to exceptions, enabling retry attempts with full context preservation.
-  - **LLMTask Retry Logic**: Enhanced `LLMTask._exec_action()` to:
-    - Save error details to history before raising exceptions
-    - Include retry attempt count in subsequent prompts (`[System] This is retry attempt N`)
-    - Maintain conversation continuity across retries
-    - Detect duplicate user messages in history to avoid repetition
-  - **Automatic Error Handling**: Added `_handle_run_error()` method to automatically append tool return results and error messages to conversation history for recovery.
-  - **Context Attempt Property**: Added `attempt` property to `AnyContext` and `Context` classes for tracking retry attempts.
+  - `run_agent()` attaches conversation history (`zrb_history`) to exceptions and wraps its execution loop in try-except so retries keep full context.
+  - `LLMTask` saves error details to history, includes a retry attempt count in subsequent prompts (`[System] This is retry attempt N`), maintains conversation continuity, and detects duplicate user messages.
+  - Added `_handle_run_error()` for automatic error/tool-return recovery and an `attempt` property on `AnyContext` / `Context`.
 
-- **Improvement: Code Refactoring & Modularization**:
-  - **LLMTask Method Extraction**: Refactored monolithic `_exec_action()` into modular methods:
-    - `_get_history_manager()` - History manager initialization
-    - `_should_summarize()` - Conversation summarization logic
-    - `_create_agent()` - Agent creation
-    - `_create_event_handler()` - Event handler setup
-    - `_get_effective_prompt()` - Retry-aware prompt generation
-    - `_handle_run_error()` - Error history processing
-    - `_post_process_output()` - Output cleanup
-  - **Enhanced Run Agent Safety**: Wrapped `run_agent()` execution loop in try-except to ensure history attachment to exceptions.
+- **Specialized Agent System**:
+  - Redefined the coder agent as a "Senior Staff Engineer and Brownfield Expert" for safe, zero-regression legacy integration.
+  - Added an Explorer agent (read-only codebase mapping) and a Generalist agent (polymath executor for complex multi-step tasks); enhanced planner, researcher, and reviewer agents.
+  - Integrated the history summarization processor into agent creation, with proper SharedContext-based context initialization for sub-agents.
 
-- **Improvement: Test Consolidation & Coverage**:
-  - **New Retry Test Suite**: Added comprehensive `test_llm_task_retry.py` verifying:
-    - Error history preservation and attachment
-    - Automatic history saving on failures
-    - Retry attempt tracking in prompts
-    - Conversation continuity across retries
-  - **Test File Consolidation**:
-    - Renamed `test_summarizer_comprehensive.py` → `test_history_summarizer.py`
-    - Renamed `test_hook_manager_comprehensive.py` → `test_hook_manager.py`
-    - Removed redundant `test_summarizer_logic.py`, `test_config_extended.py`, `test_cli_extended.py`
-  - **Enhanced Test Coverage**: Updated existing test files (`test_config.py`, `test_cli.py`) with improved assertions and edge case handling.
+- **Tooling & Optimization**:
+  - Enhanced `AnalyzeCode` with an `include_patterns` parameter and mandated `extensions`/glob patterns to limit search space; tightened `search_files` (Grep) and `analyze_file` docstrings.
+  - Enforced an "OpenWebPage Mandate" requiring full content verification of search snippets and citation of verified sources.
+  - Improved summarizer defaults (summary window handling, token threshold logic with config fallback).
 
-- **Improvement: Core Prompt Refinements**:
-  - **Updated Mandate & Persona**: Minor refinements to `mandate.md` and `persona.md` for clearer operational directives and improved agent behavior guidelines.
-  - **Note Tool Enhancement**: Updated `note.py` tool with improved error handling and user feedback.
+- **Bug Fix: Token Counting Robustness**:
+  - Refactored `LLMLimiter._to_str()` to handle complex Pydantic AI message structures: basic-type handling, safe `getattr()` defaults, and recursive dict traversal, fixing token-estimation inaccuracies for tool calls/returns and improving rate-limiting and context-window accuracy.
 
-## 2.3.2
+- **TUI & UX Refinement**:
+  - Added F6 to toggle focus between input and output fields and removed redundant TAB hints.
+  - Implemented smarter scrolling that keeps latest content in view, and raised the UI refresh rate to `0.1s` for smoother streaming with fewer artifacts.
 
-- **Feature: Enhanced LLM Challenge Framework**:
-  - **New Integration-Bug Challenge**: Added comprehensive "integration-bug" challenge type with banking system scenario to test agent ability to identify and fix integration issues between multiple components.
-  - **Modular Feature Challenge Architecture**: Refactored feature challenge from monolithic `todo_app.py` to proper FastAPI application structure (`app/database.py`, `app/models.py`, `app/main.py`) for more realistic development testing.
-  - **Standardized Verification Scripts**: Updated all challenge verification scripts for consistency and improved error handling across bug-fix, feature, refactor, and research challenge types.
+- **LLM Challenge Framework & Evaluation**:
+  - Added an "integration-bug" challenge (banking-system scenario) and refactored the feature challenge into a realistic FastAPI app structure; standardized verification scripts across challenge types.
+  - Expanded benchmarking across 10+ LLM providers with updated `REPORT.md` metrics and standardized baseline experiment directories.
 
-- **Improvement: Specialized Agent System**:
-  - **Coder Agent Redefinition**: Transformed coder agent into "Senior Staff Engineer and Brownfield Expert" with focus on safe legacy integration and zero-regression modifications.
-  - **New Explorer Agent**: Added discovery specialist for rapid, read-only mapping of unfamiliar codebases and system structures.
-  - **New Generalist Agent**: Created polymath executor capable of direct action across all domains for complex multi-step tasks.
-  - **Enhanced Planner, Researcher & Reviewer Agents**: Updated directives and tooling for improved architectural planning, evidence-based research, and rigorous code review.
-
-- **Improvement: LLM Evaluation & Benchmarking**:
-  - **Expanded Experiment Results**: Updated comprehensive evaluation across 10+ LLM providers (DeepSeek, Google Gemini variants, OpenAI GPT variants, Ollama models) with latest performance metrics.
-  - **Enhanced Reporting**: Updated `REPORT.md` with detailed timing, tool usage, and success rates for all challenge types including new integration-bug category.
-  - **Baseline Experiment Directories**: Added standardized experiment directories for bug-fix, feature, refactor, and research challenges to facilitate consistent benchmarking.
-
-- **Improvement: Core Prompt Refinements**:
-  - **Updated Mandate & Persona**: Refined `mandate.md` and `persona.md` with clearer operational directives and improved agent behavior guidelines.
-  - **Structured Agent Definitions**: Enhanced agent markdown files with more specific tool sets, operational mandates, and specialized personas.
-
-## 2.3.1
-
-- **Improvement: Assertive Operational Mandates**:
-  - **Imperative Prompting**: Rebuilt core persona (`persona.md`) and mandate (`mandate.md`) using strict **MUST ALWAYS** and **NEVER** directives, transitioning from descriptive guidance to non-negotiable engineering mandates.
-  - **Tool Selection Hierarchy**: Mandated a strict discovery hierarchy (`Read` > `Glob` > `LS`) to eliminate redundant token consumption and prevent "blind exploration" when paths are already known.
-  - **Verification Loop**: Upgraded implementation steps into a mandatory **Plan -> Act -> Validate** cycle, forbidding assumed success without test/linter verification.
-
-- **Feature: "High-Signal" Memory Management**:
-  - **Atomic Note Mandate**: Strictly instructed the agent to save only small, high-signal, and rarely-changing architectural facts or user preferences to `WriteContextualNote` and `WriteLongTermNote`.
-  - **Read-before-Write Workflow**: Mandated checking existing notes before updates to prevent context loss or redundant duplication.
-  - **Context Restoration**: Improved state snapshots to prioritize evidence-backed insights over raw history preservation.
-
-- **Improvement: Technical Tool Optimization**:
-  - **Enhanced AnalyzeCode**: Added `include_patterns` parameter for granular search control and mandated the use of `extensions` and glob patterns to limit search space.
-  - **Refined Search Tools**: Updated `search_files` (Grep) and `analyze_file` docstrings with strict efficiency mandates and usage warnings.
-  - **Research Rigor**: Enforced an "OpenWebPage Mandate" for research tasks, requiring full content verification of all search snippets and mandatory citation of verified sources.
-
-- **Improvement: TUI & UX Refinement**:
-  - **Focus & Navigation**: Added F6 key to toggle focus between input and output fields and removed redundant TAB navigation hints.
-  - **Smooth Scrolling**: Implemented smarter scrolling logic that keeps the latest content in view when the input field is focused or when already at the bottom of the buffer.
-  - **Refresh Stability**: Increased UI refresh rate to `0.1s` for smoother streaming and reduced visual artifacts during reasoning.
+- **Refactoring & Test Coverage**:
+  - Decomposed the monolithic `LLMTask._exec_action()` into focused helpers (history manager, summarization check, agent/event-handler creation, retry-aware prompt, error handling, output post-processing).
+  - Added a retry test suite plus 20+ new test files spanning agent manager, run agent, history processors, hooks, prompts, tools, config, and utilities, with summarizer resilience/edge-case tests.
 
 ## 2.3.0
 
@@ -3153,229 +1983,51 @@
 
 ## 2.2.15
 
-- **Feature: Tool Call Validation Policies**:
-  - **Read File Validation**: Added `read_file_validation_policy` to automatically reject `Read` tool calls if the target file does not exist, providing immediate feedback to the agent.
-  - **Read Many Files Validation**: Added `read_files_validation_policy` to reject `ReadMany` tool calls if none of the specified files are found on the system.
-  - **Edit Validation**: Added `replace_in_file_validation_policy` that proactively rejects `Edit` tool calls if:
-    - `old_text` and `new_text` are identical.
-    - The target file does not exist.
-    - The `old_text` to be replaced is not found in the file content.
+_Cumulative summary of the 2.2.1–2.2.15 patch line._
 
-- **Improvement: LLM Chat Reliability**:
-  - **Integrated Validation**: Automatically applied the new validation policies to the built-in `llm_chat` task, reducing failed tool executions and improving agent recovery.
-
-- **Refactor: Tool Call Component Organization**:
-  - **Standardized Naming**: Renamed tool call components for better clarity and consistency:
-    - `replace_in_file.py` → `replace_in_file_formatter.py` (Argument Formatter)
-    - `write_file.py` → `write_file_formatter.py` (Argument Formatter)
-    - `replace_in_file.py` → `replace_in_file_response_handler.py` (Response Handler)
-
-- **Maintenance: Comprehensive Testing**:
-  - Added new test suites in `test/llm/tool_call/` for all new validation policies (`test_read_file_validation.py`, `test_read_files_validation.py`, `test_replace_in_file_validation.py`).
-
-## 2.2.14
-
-- **Improvement: Enhanced LLM Chat UI/UX**:
-  - **Improved Clipboard Handling**: Added robust fallback to in-memory clipboard when `pyperclip` is unavailable, preventing crashes on systems without clipboard support.
-  - **Better Navigation Controls**: Added F6 key to toggle focus between input and output fields, and improved Tab/Shift+Tab navigation between UI elements.
-  - **Enhanced Output Field Scrolling**: Implemented proper cursor position preservation during content updates, ensuring smooth scrolling experience.
-  - **Prevent Interruptions During Thinking**: Blocked new messages, custom commands, and execution commands while the LLM is processing, preventing state corruption.
-
-- **Improvement: Keybinding & Input Refinements**:
-  - **Smart Focus Management**: Modified printable character redirection to only occur when no text is selected in the output field, allowing text copying without losing selection.
-  - **Better History Navigation**: Restricted Up/Down arrow history navigation to only work when no completion menu is visible, preventing conflicts with autocomplete.
-  - **Enhanced Multiline Handling**: Improved handling of multiline inputs with trailing backslashes and better Enter key behavior.
-
-- **Bug Fix: ANSI Escape Sequence Handling**:
-  - **Robust Lexer Updates**: Enhanced the CLI style lexer to properly handle both real ESC characters (`\x1B`) and literal string representations (`\033`) in ANSI escape sequences.
-  - **Accurate Banner Width Calculation**: Updated ASCII art banner generation to correctly calculate visible length excluding ANSI escape codes, ensuring proper alignment.
-
-- **Improvement: ASCII Art & Visual Presentation**:
-  - **Proper ANSI-Aware Padding**: Modified banner padding logic to account for ANSI escape sequences when calculating visual width, preventing misaligned ASCII art displays.
-  - **Consistent Output Formatting**: Added global line prefix function to ensure consistent indentation of command outputs in the chat history.
-
-## 2.2.13
-
-- **Bug Fix: Robust Thinking Tag Removal**:
-  - **Nested Tag Handling**: Fixed critical bug in thinking tag removal logic that incorrectly handled nested `<thinking>` tags. The original regex-based approach matched from the first opening tag to the first closing tag, causing nested content to be incorrectly preserved.
-  - **New Utility Module**: Created `src/zrb/util/string/thinking.py` with `remove_thinking_tags()` function that uses a stack-based parser to properly handle nested tags, unclosed tags, and mixed `<thinking>`/`<thought>` tags.
-  - **Comprehensive Testing**: Added 12 test cases covering all edge cases including nested tags, malformed XML, legitimate tag text in content, and performance with large text.
-  - **Backward Compatibility**: Maintained existing behavior while fixing the core issue, ensuring all existing tests continue to pass.
-
-- **Improvement: Summarizer Refactoring & Tool Pair Safety**:
-  - **Modular Architecture**: Refactored monolithic `summarizer.py` (600+ lines) into a clean modular structure in `src/zrb/llm/summarizer/` with separate modules for chunk processing, history splitting, message conversion, message processing, and text summarization.
-  - **Tool Pair Integrity**: Enhanced history splitting logic to NEVER break complete tool call/return pairs (Pydantic AI requirement). Added `validate_tool_pair_integrity()` function to detect and warn about broken tool pairs.
-  - **Best-Effort Splitting**: When no perfect split exists, the system now uses a best-effort approach that minimizes damage while respecting Pydantic AI constraints.
-  - **Increased Default Window**: Raised default `ZRB_LLM_HISTORY_SUMMARIZATION_WINDOW` from 30 to 100 messages for better context preservation.
-
-## 2.2.12
-
-- **Bug Fix: Corrupted Mandate Restoration**:
-  - **Mandate.md Corruption Fix**: Restored missing content in `src/zrb/llm/prompt/markdown/mandate.md` that was corrupted by placeholder text ("...") in commit c8e077e6 ("Add feature/fix bug").
-  - **Complete Section Restoration**: Recovered detailed thought block instructions and systematic workflow guidance from tag 2.2.9, merging them with improved delegation rules and examples from the current version.
-
-## 2.2.11
-
-- **Improvement: Thinking Tag Removal & Summarizer Robustness**:
-  - **Robust Thinking Tag Removal**: Enhanced the thinking tag removal logic in `llm_task.py` to strip ANSI escape codes before removing `<thinking>` tags, ensuring reliable cleanup of internal reasoning blocks from agent responses.
-  - **Summarizer Default Value Fix**: Added proper default value assignment for `summary_window` parameter in `summarizer.py`, preventing potential `None` value errors and improving stability of history summarization.
-  - **Default Summarization Windows**: Change default summarization from 12 to 30
-
-## 2.2.10
-
-- **Improvement: Summarization & History Processing**:
-  - **Robust Summarizer**: Major refactoring of the history summarization logic to improve stability and context retention.
-  - **Stream Response Handling**: Enhanced handling of streaming responses during summarization to prevent interruptions.
-
-- **Improvement: UI/UX & Visualization**:
-  - **Enhanced Tool Visualization**: Improved the visual presentation of file operations (`write_file`, `replace_in_file`) in the chat interface, making code changes easier to review.
-  - **Completion Rendering**: Refined the completion rendering logic in `completion.py` for a smoother user experience.
-  - **Prompt Tweaks**: Minor updates to core prompts and mandates to align with visual improvements.
-
-## 2.2.9
-
-- **Feature: Enhanced Two-Tier Summarization System**:
-  - **Conversational Summarizer**: Introduced a specialized agent for distilling entire conversation history into structured XML `<state_snapshot>` format, preserving critical context while dramatically reducing token usage.
-  - **Message Summarizer**: Added a dedicated agent for summarizing individual large tool call results and messages, preventing token overflow from verbose tool outputs.
-  - **Structured State Snapshots**: Implemented comprehensive XML-based state tracking with sections for goals, constraints, knowledge, reasoning summaries, artifact trails, and task states.
-
-- **Improvement: Configuration Refinement**:
-  - **Token Property Standardization**: Renamed token-related configuration properties from plural to singular for consistency (`LLM_MAX_TOKENS_PER_MINUTE` → `LLM_MAX_TOKEN_PER_MINUTE`, `LLM_MAX_TOKENS_PER_REQUEST` → `LLM_MAX_TOKEN_PER_REQUEST`).
-  - **Granular Summarization Thresholds**: Added separate configuration options for conversational summarization (`LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD`) and message summarization (`LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD`).
-  - **Increased History Window**: Raised default history summarization window from 5 to 12 messages for better context preservation.
-
-- **Improvement: History Processing & Stability**:
-  - **Emergency Failsafe**: Added robust handling for cases where summarization fails to reduce history size below API limits, with automatic pruning to prevent crashes.
-  - **Smart Message Merging**: Implemented safety checks to merge consecutive `ModelRequest` messages when appropriate, improving conversation flow.
-  - **Enhanced Chunking Logic**: Added intelligent text chunking for extremely large tool results, ensuring reliable summarization of massive outputs.
-
-- **Security & Reliability**:
-  - **Prompt Injection Defense**: Added explicit security rules to summarizer prompts to ignore adversarial content and formatting instructions within chat history.
-  - **Token Budget Enforcement**: Implemented strict token budget constraints for state snapshots (target <2000 tokens) to prevent system loops.
-  - **Backward Compatibility**: Maintained support for legacy environment variable names while preferring new standardized forms.
-
-## 2.2.8
-
-- **Improvement: Enhanced Agent Reasoning & Planning**:
-  - **Structured Thought Process**: Added mandatory `<thought>...</thought>` tags for internal reasoning before every response and tool call, improving transparency and decision-making quality.
-  - **Systematic Workflow Refinement**: Enhanced the DEEP PATH workflow with explicit RESEARCH, STRATEGY, EXECUTION, and FINALITY phases for complex tasks.
-  - **Bug Fix Methodology**: Added requirement to empirically reproduce failures with tests or scripts before applying fixes.
-
-- **Improvement: Core Prompt Refinements**:
-  - **Mandate Restructuring**: Reorganized mandate into logical sections: Internal Reasoning & Planning, Systematic Workflow, Communication & Delegation, Maintenance & Errors, and Context & Safety.
-  - **Persona Enhancement**: Updated Senior Staff Engineer persona to prioritize maintainability over cleverness and always look for the "Standard Way" before inventing new solutions.
-  - **Summarizer Enhancement**: Added `<reasoning_summary>` section to capture key logical deductions and architectural decisions from thought blocks.
-
-- **Improvement: Operational Attitude**:
-  - **Logical & Proactive Approach**: Added emphasis on thinking through architecture, identifying edge cases, and potential regressions before implementation.
-  - **Security Emphasis**: Added explicit protection for `.env` and `.git` folders in security guidelines.
-  - **Error Recovery**: Enhanced error handling with backtracking to Research or Strategy phase when a path fails.
-
-## 2.2.7
-
-- **Feature: Comprehensive Skill System**:
-  - **Specialized Skill Definitions**: Added comprehensive skill definitions for common workflows including `commit`, `debug`, `init`, `plan`, `pr`, `research`, `review`, `skill-creator`, and `test`.
-  - **Structured Workflows**: Each skill provides detailed, step-by-step guidance for executing specific tasks with proper verification and quality standards.
-  - **User-Invocable Commands**: Skills are configured as user-invocable slash commands for direct access in the chat interface.
-
-- **Improvement: Agent Delegation Protocol**:
-  - **Enhanced Context Requirements**: Updated delegate tool documentation to emphasize that sub-agents are blank slates requiring full context (file contents, architectural details, environment info).
-  - **Clearer Instructions**: Added explicit guidance for providing highly specific instructions when delegating to sub-agents.
-  - **Mandate Alignment**: Updated core mandate to reflect the improved delegation protocol.
-
-- **Refinement: Agent Definitions**:
-  - **Coder Agent Enhancement**: Redefined as "Senior Software Engineer" with focus on code quality, safety, and rigorous verification. Added explicit "Read Before Writing" directive and improved Edit-Test-Fix loop guidance.
-  - **Planner Agent Enhancement**: Redefined as "Systems Architect" with improved discovery phase guidance, risk analysis, and structured roadmap communication.
-  - **Researcher & Reviewer Updates**: Enhanced agent descriptions and directives for better clarity and effectiveness.
-
-- **Improvement: Documentation & Configuration**:
-  - **LLM Integration Docs**: Updated configuration documentation for better clarity on LLM integration and rate limiting.
-  - **Minor UI Tweaks**: Small improvements to TUI interface for better user experience.
-
-## 2.2.6
-
-- **Refactor: LLM Tool Standardization**:
-  - **PascalCase Tool Names**: Renamed all LLM tools to use PascalCase aliases matching Claude standard conventions (e.g., `read_file` → `Read`, `write_file` → `Write`, `replace_in_file` → `Edit`).
-  - **Tool Registry Cleanup**: Removed aliases and custom names from LLM tool registry, simplifying tool loading logic and improving consistency.
-  - **Claude Compatibility**: Updated tool names to match Claude Code conventions for better interoperability.
-
-- **Improvement: Core Documentation Restructuring**:
-  - **Mandate Reorganization**: Completely restructured `mandate.md` with clearer organization into Context & Safety, Systematic Workflow, Communication & Delegation, and Maintenance & Errors sections.
-  - **AGENTS.md Simplification**: Streamlined the agent guide to focus on practical development conventions and directory navigation.
-  - **Enhanced Readability**: Improved documentation structure for better clarity and maintainability.
-
-- **Dependency Management**:
-  - **Termux Compatibility**: Limited `griffe` dependency to version < 2.0 for Termux compatibility, ensuring broader platform support.
-  - **Dependency Updates**: Updated poetry.lock with refreshed dependency resolutions.
-
-- **Configuration Updates**:
-  - **Tool Policy Alignment**: Updated tool policies to match new PascalCase tool names.
-  - **Agent Definition Updates**: Revised agent definitions to reference updated tool names and conventions.
-
-## 2.2.5
+- **Feature: Hook System**:
+  - Added a robust, Claude Code-compatible declarative hook system with 100% event parity, a thread-safe `HookExecutor` with configurable timeouts, and advanced field matchers (regex, glob, contains).
+  - Supported `Command`, `Prompt`, and `Agent` hook types with automatic environment injection, plus new Hook System and Quick Start guides.
 
 - **Feature: Extended LLM Provider Support**:
-  - **xAI Integration**: Added native support for xAI models via the new `xai` extra, providing access to Grok models through the official `xai-sdk`.
-  - **Voyage AI Integration**: Added comprehensive support for Voyage AI embeddings and RAG capabilities via the new `voyageai` extra, including automatic dependency management.
-  - **Dependency Updates**: Upgraded `pydantic-ai-slim` to `1.57.0` and `anthropic` to `>=0.78.0` for latest features and stability.
-  - **Python Version Support**: Updated Python constraint to `<3.14.0` for forward compatibility.
+  - Added native xAI (Grok) support via the `xai` extra and `xai-sdk`, plus Voyage AI embeddings/RAG via the `voyageai` extra with automatic dependency management.
+  - Added environment variable configuration for xAI and Voyage AI API keys and base URLs, and upgraded `pydantic-ai-slim` and `anthropic`.
 
-- **Improvement: TUI Stability & Concurrency**:
-  - **Message Queue System**: Implemented a robust job queue (`_message_queue`) to prevent overlapping AI responses and shell command execution, eliminating race conditions.
-  - **Sequential Processing**: Ensures only one LLM task or shell command runs at a time, improving UI responsiveness and preventing state corruption.
-  - **Better Trigger Handling**: Enhanced async iterator handling for external triggers with proper error isolation.
+- **Feature: Skill System**:
+  - Added comprehensive skill definitions for common workflows (`commit`, `debug`, `init`, `plan`, `pr`, `research`, `review`, `skill-creator`, `test`), exposed as user-invocable slash commands with structured, step-by-step guidance.
 
-- **Improvement: Configuration & Performance**:
-  - **Increased Token Limits**: Raised default `LLM_MAX_TOKENS_PER_MINUTE` from 120,000 to 128,000 to better accommodate modern model contexts.
-  - **Extended Provider Configuration**: Added environment variable support for xAI and Voyage AI API keys and base URLs.
+- **Feature: Tool Call Validation Policies**:
+  - Added validation policies that proactively reject invalid tool calls: `Read` on a missing file, `ReadMany` when no files are found, and `Edit` when `old_text`/`new_text` are identical, the file is missing, or `old_text` is not present.
+  - Integrated these policies into the built-in `llm_chat` task to reduce failed tool executions and improve agent recovery.
 
-- **Refinement: Core Prompts & Agent Behavior**:
-  - **Enhanced Persona**: Redefined as a "Polymath AI Assistant" with fluid expertise, adapting to coding (Senior Staff Engineer), writing (Creative Author), and research (Rigorous Analyst) contexts.
-  - **Mandate Precision**: Added explicit style mimicry guidelines for both code (indentation, naming) and prose (tone, formatting).
-  - **Knowledge Stewardship**: Mandated proactive use of note tools (`write_contextual_note`, `write_long_term_note`) to preserve learned patterns and preferences.
-  - **Planning Rigor**: Expanded implementation guidance with context precision, import safety, and proofreading requirements.
+- **Improvement: Summarization & History Processing**:
+  - Introduced a two-tier summarization system: a conversational summarizer producing structured XML `<state_snapshot>` output (goals, constraints, knowledge, reasoning, artifacts, task states) and a message summarizer for large individual tool results.
+  - Refactored the monolithic `summarizer.py` into a modular `src/zrb/llm/summarizer/` package, added an emergency failsafe with automatic pruning, smart merging of consecutive `ModelRequest` messages, intelligent chunking of huge outputs, and tool call/return pair integrity guarantees with best-effort splitting.
+  - Raised the default history summarization window over the line (5 → 12 → 30 → 100 messages) and added granular conversational/message summarization token thresholds.
 
-- **Bug Fixes & Maintenance**:
-  - **UI Cleanup**: Fixed resource cleanup on exit, properly cancelling message processor and ensuring queue drainage.
-  - **Trigger Reliability**: Improved error handling in trigger loops to prevent cascading failures.
-  - **Dependency Alignment**: Synchronized extras markers across `poetry.lock` for consistent optional dependency resolution.
+- **Improvement: Agent Prompts & Behavior**:
+  - Redefined the persona as a "Polymath AI Assistant" adapting across coding, writing, and research contexts, with explicit code/prose style mimicry and a preference for maintainability and the "Standard Way."
+  - Added mandatory `<thought>` reasoning before responses and tool calls, a structured DEEP PATH workflow (RESEARCH, STRATEGY, EXECUTION, FINALITY), empirical bug reproduction before fixing, and error-recovery backtracking.
+  - Restructured the mandate and agent definitions (Coder as "Senior Software Engineer," Planner as "Systems Architect"), strengthened the sub-agent delegation protocol to require full context, and mandated proactive note-taking for knowledge stewardship.
 
-## 2.2.4
+- **Improvement: TUI / UX**:
+  - Redesigned the main layout to remove redundant framing and maximize vertical space, added a dynamically-sized multi-line input (up to 10 lines), and refined Title/Info/Status bars to reduce flickering.
+  - Improved navigation and keybindings (F6 focus toggle, Tab/Shift+Tab, smarter history navigation and printable-character redirection), enhanced output-field scrolling with cursor preservation, and added robust clipboard fallback when `pyperclip` is unavailable.
+  - Added a message queue ensuring only one LLM task or shell command runs at a time, blocked new input while the LLM is processing, and improved tool-call visualization for file operations.
 
-- **Feature: Robust Hook System**:
-  - **Claude Compatibility**: Full support for Claude Code-style declarative hooks with 100% event parity.
-  - **Thread-Safe Execution**: Implemented a dedicated `HookExecutor` with built-in thread-safety and configurable timeouts for background operations.
-  - **Advanced Matchers**: Added support for complex hook filtering using field matchers with multiple operators (regex, glob, contains, etc.).
-  - **Expanded Hook Types**: Support for `Command`, `Prompt`, and `Agent` hooks with automatic environment injection.
-  - **Comprehensive Documentation**: Added new guides for [Hook System](./hook-system.md) and [Quick Start](./hook-quickstart.md).
-- **Improvement: TUI & UX Refinement**:
-  - **Fluid Input**: The chat interface now supports empty inputs and better multi-line handling.
-  - **Dynamic Keybindings**: Improved keybinding management and added new shortcuts for session control.
-  - **Visual Stability**: Refined the main layout and UI components to prevent flickering and improve responsiveness.
-- **Improvement: Agent Intelligence**:
-  - **Context-Aware Summarization**: Optimized the history summarization agent to better preserve critical session details while reducing token usage.
-  - **Extensible Tooling**: Enhanced the tool registry and delegate tool system to support more complex multi-agent workflows.
+- **Refactor: Tool Standardization**:
+  - Renamed all LLM tools to PascalCase Claude-standard aliases (`read_file` → `Read`, `write_file` → `Write`, `replace_in_file` → `Edit`), cleaned up the tool registry, and aligned tool policies and agent definitions accordingly.
+  - Standardized tool-call component file naming (e.g. `*_formatter.py`, `*_response_handler.py`).
+
 - **Bug Fixes**:
-  - **Hook Reliability**: Resolved thread-safety issues in hook execution that previously caused intermittent TUI hangs.
-  - **Summarization Fixes**: Corrected an issue where the summarization agent would occasionally lose context in long sessions.
-  - **Claude Compatibility**: Fixed several edge cases in the Claude hook compatibility layer.
+  - Fixed `ToolDenied` attribute access to use `message` instead of a non-existent `reason`.
+  - Resolved a TUI broken-pipe regression from async hook calls in background threads and added explicit error reporting for external triggers.
+  - Reworked thinking-tag removal into a stack-based parser (`util/string/thinking.py`) that correctly handles nested, unclosed, and mixed `<thinking>`/`<thought>` tags, stripping ANSI codes first.
+  - Restored mandate.md content corrupted by placeholder text, and fixed ANSI-aware banner width/padding for correctly aligned ASCII art.
 
-## 2.2.3
-
-- **Bug Fix: TUI Broken Pipe**: Resolved a critical regression where asynchronous hook calls from background threads (e.g., stream capture) would crash the UI and cause `Broken pipe` errors.
-- **Improvement: Trigger Visibility**: Added explicit error reporting and validation for external triggers (e.g., voice listen), ensuring that failures are no longer silently swallowed.
-
-## 2.2.2
-
-- **Feature: Dynamic Input Field**: The chat input area now dynamically adjusts its height based on the content (up to 10 lines), improving visibility for multi-line messages.
-- **Improvement: TUI Layout Optimization**:
-  - Redesigned the main interface to remove redundant framing around history, maximizing vertical space.
-  - Enhanced scrolling logic to ensure the latest conversation markers are always correctly positioned.
-  - Improved visual spacing and structural padding across the Title Bar, Info Bar, and Status Bar for a more modern, polished feel.
-
-## 2.2.1
-
-- **Bug Fix: ToolDenied Attribute Error**: Fixed an issue where the agent incorrectly attempted to access a non-existent `reason` property on `pydantic_ai.ToolDenied` objects. It now correctly uses the `message` attribute when executing `PostToolUseFailure` hooks.
+- **Security & Configuration**:
+  - Added prompt-injection defenses to summarizer prompts, strict token-budget enforcement for state snapshots, and explicit `.env`/`.git` protections.
+  - Standardized token config property names (e.g. `LLM_MAX_TOKENS_PER_MINUTE` → `LLM_MAX_TOKEN_PER_MINUTE`) with backward compatibility, raised the default per-minute token limit, and constrained `griffe` for Termux compatibility.
 
 ## 2.2.0
 
@@ -3426,225 +2078,54 @@
 
 ## 2.0.19
 
-- **Feature: Active Skills Support in LLM Tasks**:
-  - **PromptManager Update**: Added `active_skills` (`StrListAttr`) and `render_active_skills` parameters to `PromptManager` for better control over which skills are loaded into the system prompt.
-  - **LLMTask & LLMChatTask Update**: Added `active_skills` and `render_active_skills` parameters. These tasks now automatically instantiate a `PromptManager` if these parameters are provided, simplifying task configuration.
-  - **Dynamic Resolution**: `PromptManager` now dynamically resolves `active_skills` from the context during prompt composition, allowing for conditional or dynamic pre-loading of skill content.
+_Cumulative summary of the 2.0.1–2.0.19 patch line._
 
-## 2.0.18
-
-- **Feature: Sub-Agent Detection & Delegation**:
-  - **Enhanced Delegation**: Implemented a robust `delegate_to_agent` tool and logic in `AgentManager` to improve how the main agent hands off tasks to specialized sub-agents.
-  - **Smart Detection**: improved logic to detect when a sub-agent should be invoked based on task complexity or specificity.
-- **Refactor: Agent & Prompt Organization**:
-  - **Plugin-Based Agents**: Moved built-in agent definitions (Coder, Planner, Researcher, Reviewer) from general prompt directories to a dedicated `src/zrb/llm_plugin/agents/` structure, treating them more like plugins.
-  - **Prompt Manager Updates**: Refactored `PromptManager` to align with the new agent plugin structure.
-- **Refinement: Core Prompts & Mandates**:
-  - **Strict Verification**: Updated `mandate.md` to explicitly require checks for keywords, structure, and citations in text and research tasks.
-  - **Loop Prevention**: Added explicit loop prevention and stop condition directives to the `Coder` agent to reduce redundant tool calls.
-  - **Planning Rigor**: Updated the `Planner` agent to explicitly list required artifacts, keywords, and format constraints during the requirements phase.
-  - **Research Standards**: Mandated the inclusion of a "References" section for the `Researcher` agent.
-- **Improvement: LLM Challenges**:
-  - **Updated Benchmarks**: Refreshed runner scripts and experiment results to reflect the improved agent behaviors.
-
-## 2.0.17
-
-- **Feature: Enhanced Prompt Management & Active Skills**:
-  - **Active Skills Support**: Added `active_skills` parameter to `PromptManager` and `create_claude_skills_prompt` to allow pre-loading skill content directly into system prompts.
-  - **Project Context Separation**: Split `create_claude_skills_prompt` into two functions: `create_claude_skills_prompt` (skill management) and `create_project_context_prompt` (CLAUDE.md/AGENTS.md loading).
-  - **Configurable Project Context**: Added `include_project_context` parameter to `PromptManager` to control whether project documentation is included.
-- **Improvement: Tool Safety Wrapper Centralization**:
-  - **Moved Safety Logic**: Consolidated tool error handling from `LLMTask` into `create_agent` function in `common.py` for consistent safety across all agent usage.
-  - **Robust Error Handling**: Tools and toolsets are now automatically wrapped with error handling to prevent agent crashes from faulty tool calls.
-- **Refinement: Core Prompts & Code Quality**:
-  - **Updated Mandate**: Refined communication protocol in `mandate.md` for clearer guidance on when to be concise vs. provide detailed explanations.
-  - **Import Cleanup**: Streamlined import statements in `llm_chat_task.py` and `llm_task.py` for better code organization.
-  - **Type Hint Improvements**: Enhanced type annotations throughout the prompt management system.
-
-## 2.0.16
-
-- **Fix: Fix Zrb skill directory path**: The Zrb skill directory path is now `~/.zrb/skills`
-
-## 2.0.15
-
-- **Fix: LLM Configuration & Task Handling**:
-  - **Empty Model Name Handling**: Fixed an issue in `LLMChatTask` and `LLMTask` where empty string model names were not correctly treated as `None`, potentially causing model resolution failures.
-- **Feature: LLM Chat Enhancements**:
-  - **Model Input Support**: The built-in `llm_chat` task now accepts a `model` input argument, allowing for dynamic model selection during task execution.
-- **Refinement: Runner & Documentation**:
-  - **Model Naming Convention**: Updated `llm-challenges` runner script and documentation to support and encourage specific model naming (e.g., `google-gla:gemini-2.5-flash`) for better clarity and compatibility.
-  - **Updated Dependencies**: Bumped version to `2.0.15`.
-
-## 2.0.14
-
-- **Fix: LLM Configuration & Custom Provider Support**:
-  - **Model Resolution**: Fixed a bug where custom `Model` objects (e.g., for DeepSeek or OpenAI-compatible proxies) were being stringified when passed to sub-tasks, causing "Unknown model" errors.
-  - **Provider Intelligence**: Enhanced `LLMConfig` to intelligently resolve providers based on model names, ensuring custom `base_url` and `api_key` are correctly applied to OpenAI-compatible models while maintaining compatibility with native providers like Anthropic and Google.
-- **Fix: Robustness & Stability**:
-  - **Serialization Safety**: Implemented input sanitization in `Session.as_state_log()` to prevent `PydanticSerializationError` when task inputs contain non-serializable objects (like LLM clients or models).
-  - **CLI Entry Point**: Added a proper `if __name__ == "__main__":` block to `src/zrb/__main__.py` to ensure the CLI executes correctly when run as a module via `python -m zrb`.
-
-## 2.0.13
-
-- **Feature: Dynamic YOLO & Model Switching**:
-  - **Runtime YOLO Toggle**: Added ability to toggle "YOLO mode" (skipping tool approval) dynamically while the agent is running using `/yolo` or `Ctrl+Y`.
-  - **Model Switching**: Introduced `/model <name>` command to switch LLM models on the fly.
-  - **Enhanced Autocompletion**: Implemented VS Code-style fuzzy completion for commands and model names, including a programmatically generated list of supported models from `pydantic-ai`.
-- **Improvement: Robustness & Safety**:
-  - **Safe Toolset Execution**: Wrapped `AbstractToolset` execution to catch and report errors gracefully to the LLM, preventing agent crashes from faulty tool calls.
-  - **Expanded Skill Discovery**: Updated `SkillManager` to look for skills in `.zrb/skill` (or configured root group name) in addition to the standard `.claude/skills` directory.
-- **Refinement: Core Logic**:
-  - **Prompt Manager**: Enhanced `PromptManager` to accept raw strings as prompts, automatically wrapping them with context rendering logic.
-  - **XCom Usage**: Refined `LLMChatTask` and `UI` to use `Xcom` objects for shared state management (YOLO mode), ensuring proper synchronization.
-  - **Prompt Accuracy**: Merged improvements for better prompt accuracy and challenge handling.
-
-## 2.0.12
-
-- **Feature: LLM Challenge Suite**: Added a comprehensive suite of challenges in `llm-challenges/` for benchmarking AI agent performance in scenarios like bug fixing, refactoring, and copywriting.
-- **Refinement: Core Prompts**:
-  - **Updated Mandate & Persona**: Refined `mandate.md` and `persona.md` to ensure better alignment with the agent's operating directives and persona.
-  - **Renamed Compatibility Module**: Renamed `claude_compatibility.py` to `claude.py` for better clarity.
-- **Documentation**:
-  - **Updated Agent Guide**: Comprehensive update to `AGENTS.md` to provide clearer context and guidelines for LLMs working with the Zrb project.
-- **Remove CI_TOOLS argument from Dockerfile**
-
-## 2.0.11
-
-- **Fix: Exclude `.claude` directory from code analysis**
-
-## 2.0.10
-
-- **Feature: Structured History Summarization**:
-  - **XML State Snapshot**: Overhauled the summarizer prompt to generate structured `<state_snapshot>` XML (Goals, Constraints, Knowledge, Artifacts, Tasks) instead of unstructured text, improving the agent's long-term memory and context retention.
-  - **Iterative Chunking**: Implemented smart history splitting to process large conversations in manageable chunks, preventing context window overflows.
-  - **Recursive Compression**: Added logic to recursively re-summarize content if the aggregated summary remains too large.
-- **Improvement: Rate Limiting & Safety**:
-  - **Token-Aware Truncation**: Added `truncate_text` to `LLMLimiter` with `tiktoken` support (and fallback) to safely handle massive message blocks during summarization.
-  - **Prompt Injection Defense**: Added explicit security rules to the summarizer system prompt to ignore adversarial content within the chat history.
-- **Refinement: Core Prompts**:
-  - **Mandate & Persona**: Polished `mandate.md` and `persona.md` for better clarity and stricter adherence to safety and convention guidelines.
-- **Maintenance**:
-  - Updated dependencies (`poetry.lock`, `pyproject.toml`).
-
-## 2.0.9
-
-- **Fix: CFG.LLM_ASSISTANT_NAME lazy load**
-
-## 2.0.8
-
-- **Fix: Art resolution** Fixing art resolution in case of user provided the file
-
-## 2.0.7
-
-- **Update: ASCII Art Collection**:
-  - Added new ASCII art files: `batman.txt`, `butterfly.txt`, `clover.txt`, `hello-kitty.txt`, and `star.txt` under `src/zrb/util/ascii_art/art/`.
-  - Updated banner ASCII art format in `src/zrb/util/ascii_art/banner.py`.
-  
-- **Enhancement: LLM Prompt Management**:
-  - Added new markdown-based prompts for various roles such as `executor`, `orchestrator`, `planner`, `researcher`, and `reviewer` under `src/zrb/llm/prompt/markdown/`.
-
-- **Improvement: LLM Configuration**:
-  - Reviewed and possibly updated configurations related to LLM management in `src/zrb/config/config.py`.
-  - The default configuration for web components and token thresholds is now more flexible.
-  
-- **Minor Fixes & Adjustments**:
-  - Increased readability of the `Config` class with comprehensive property management.
-  - `src/zrb/builtin/llm/chat.py` adapted to improve task and tool management for LLM operations.
-
-## 2.0.6
-
-- **Feature: Hierarchical Prompt Configuration**:
-  - **Recursive Prompt Discovery**: Updated `get_default_prompt` to traverse up the directory tree (up to the home directory) when searching for custom prompt overrides.
-  - **Improved Search Logic**: Implemented `_get_default_prompt_search_path` to intelligently identify search paths only when the current directory is within the home directory.
-- **Improvement: LLM History Management**:
-  - **Lazy Initialization Fix**: Refactored `LLMTask` and `LLMChatTask` to ensure `FileHistoryManager` is properly initialized before use, preventing potential `AttributeError`.
-- **Bug Fixes & Refinements**:
-  - **Fixed Test Integration**: Updated `test_tool_policy_integration.py` to ensure `test_print` accepts arbitrary keyword arguments, maintaining compatibility with internal streaming response utilities.
-- **Testing**:
-  - **New Prompt Traversal Tests**: Added comprehensive unit tests in `test/llm/prompt/test_default_prompt.py` to validate hierarchical prompt discovery.
-  - **Updated Task Tests**: Enhanced `test/llm/task/test_llm_task_tool_confirmation.py` with mock history managers to ensure stability.
-
-## 2.0.5
-
-- **Feature: Enhanced Context Management**:
-  - **Global ContextVar System**: Introduced `current_ctx` ContextVar and `zrb_print()` function for consistent, context-aware printing throughout the codebase.
-  - **Task Execution Context**: Added proper context management to task execution, ensuring context variables are properly set and reset during task runs.
-  - **Tool Factory Support**: Added `tool_factories` and `toolset_factories` parameters to `LLMChatTask`, enabling dynamic tool resolution based on runtime context.
-- **Improvement: Configuration Consistency**:
-  - **Standardized Config Property Names**: Updated `LLM_MAX_REQUESTS_PER_MINUTE` to `LLM_MAX_REQUEST_PER_MINUTE` (singular) for consistency with other config properties.
-  - **Backward Compatibility**: Maintained support for old environment variable names (`LLM_MAX_REQUESTS_PER_MINUTE`) while preferring the new singular form.
-- **Improvement: Rate Limiting & Token Management**:
-  - **Enhanced Token Counting**: Improved token estimation with better fallback approximation (char/3 instead of char/4) and 95% buffer for context window management.
-  - **Better Rate Limit Notifications**: Added cyan styling to rate limit messages and improved notification clearing mechanism.
-  - **Smarter Throttling**: Enhanced `_can_proceed()` logic to handle empty logs more gracefully.
-- **Improvement: UI/UX Enhancements**:
-  - **Consistent Styling**: Applied `stylize_faint()` and `stylize_error()` to UI messages for better visual hierarchy.
-  - **Improved Command Display**: Streamlined command output formatting with timestamps inline.
-  - **Better Error Feedback**: Enhanced error messages with proper styling throughout the TUI.
-- **Improvement: History & Conversation Management**:
-  - **Summarization Feedback**: Added progress notifications when compressing conversations due to token threshold limits.
-  - **Consistent Printing**: Updated `FileHistoryManager` to use `zrb_print()` for consistent error/warning messages.
-- **Bug Fixes & Refinements**:
-  - **Fixed Tool Name Assignment**: Removed explicit `__name__` assignment from note tools as pydantic-ai handles this automatically.
-  - **Improved Tool Resolution**: Enhanced `LLMChatTask` to properly resolve tools from factories during execution.
-  - **Better Async Context Management**: Added proper async context stack management for toolsets with `__aenter__` support.
-  - **Fixed Test Compatibility**: Updated tests to pass context to `_create_llm_task_core()` method.
-- **Code Quality**:
-  - **Consistent Printing**: Replaced direct `print()` calls with `zrb_print()` throughout LLM tools (bash, code, mcp, rag, note).
-  - **Prompt Manager Reset**: Added `reset()` method to `PromptManager` for easier testing and reinitialization.
-  - **Type Safety**: Cleaned up imports and type annotations in agent common module.
-
-## 2.0.3
-
-- **Feature: Context-Aware LLM Agent Execution**:
-  - **UI & Tool Confirmation Inheritance**: Introduced `ContextVar`-based context management for UI and tool confirmation settings, allowing sub-agents to automatically inherit parent agent configurations.
-  - **Improved Event Handling**: Enhanced streaming response management with better UI integration and configurable event handlers.
-  - **Enhanced Rate Limiting**: Updated rate limiter to accept message/history context for more accurate token estimation and throttling.
-- **Improvement: Skill Command System**:
-  - **Fixed Skill Command Factory**: Resolved function signature issue by removing unnecessary splat operator and implementing proper factory pattern for dynamic skill command loading.
-  - **Enhanced Custom Command Resolution**: Improved LLM chat task to support both direct commands and factory functions for custom command registration.
-- **Improvement: History Summarization**:
-  - **Better Message Representation**: Added `message_to_text()` function to convert pydantic_ai messages into readable text for more accurate history summarization.
-  - **Default Summarizer**: LLM chat tasks now automatically include a summarizer history processor by default to manage long conversation histories.
-- **Bug Fixes & Refinements**:
-  - **Fixed Faint Printer**: Corrected `create_faint_printer()` to accept a print function instead of context, resolving compatibility issues with streaming responses.
-  - **Improved Argument Extraction**: Fixed typo in `_extract_args()` function parameter name for consistency.
-  - **Enhanced Sub-Agent Tool**: Updated sub-agent tool to leverage automatic UI and tool confirmation inheritance via context variables.
-- **Code Quality**:
-  - **Clean Architecture**: Improved separation of concerns in agent execution with proper context management and cleanup.
-  - **Type Safety**: Enhanced type annotations and error handling throughout the LLM module.
-
-## 2.0.2
-
-- **Improvement: Enhanced Skill Management**:
-  - **Depth-Controlled Scanning**: Added `max_depth` parameter to `SkillManager` to control recursive directory scanning depth, improving performance for large projects.
-  - **Customizable Ignore Patterns**: Introduced `ignore_dirs` parameter allowing users to customize which directories to skip during skill discovery.
-  - **Refined Directory Ignore List**: Updated default ignore patterns to be more focused on build artifacts and less on IDE-specific directories.
-  - **Improved Error Handling**: Added robust try-catch blocks to gracefully handle permission errors and inaccessible directories during skill scanning.
-- **Code Quality & Maintenance**:
-  - **Cleanup**: Removed unused import (`ToolCallHandler`) from `llm_chat_task.py` to reduce code clutter.
-  - **Naming Consistency**: Refactored `IGNORE_DIRS` constant to `_IGNORE_DIRS` following Python convention for module-private variables.
-- **Testing**:
-  - **Comprehensive Depth Testing**: Added thorough unit tests for the new `max_depth` functionality, ensuring skill discovery respects depth limits.
-  - **Edge Case Coverage**: Enhanced test suite to validate skill manager behavior with deeply nested directory structures.
-
-## 2.0.1
-
-- **Feature: Enhanced LLM Interaction**:
-  - **Slash Commands for Skills**: Automatically converted user-invocable Claude skills into executable slash commands (e.g., `/<skill-name>`) within the chat TUI.
-  - **Dynamic Argument Extraction**: Implemented automatic argument detection and parsing for skill-based slash commands.
-  - **Safer Tool Policies**: Improved `auto_approve` tool policy with directory-aware checks, automatically approving read operations only within the current working directory.
-- **Improvement: LLM Prompt & Mandate**:
-  - **Assertive Mandate**: Updated the core mandate to be more assertive, explicitly requiring the AI to check the provided system context before using discovery tools.
-  - **Streamlined System Context**: Flattened the system context structure to remove redundant headers and improve token efficiency.
-  - **Anti-Hallucination Measures**: Added explicit instructions to prevent the AI from defaulting to "You are absolutely right" and instead focus on reasoned explanations.
-- **Documentation**:
-  - **New Guide**: Added [Customizing the AI Assistant](./advanced-topics/customizing-ai-assistant.md) guide.
-  - **Updated Docs**: Comprehensive updates to task type documentation, configuration guides, and architectural overviews to match the 2.0 architecture.
-- **Bug Fixes & Refinement**:
-  - Fixed argument residue handling in custom chat commands.
-  - Improved autocompletion metadata for custom commands in the TUI.
-  - Refined skill management to distinguish between model-invocable and user-invocable skills.
+- **Feature: Skills as slash commands & active skills**:
+  - Auto-converted user-invocable Claude skills into executable `/<skill-name>` slash commands in the chat TUI, with dynamic argument detection and parsing.
+  - Distinguished model-invocable from user-invocable skills.
+  - Added `active_skills` and `render_active_skills` parameters to `PromptManager`, `LLMTask`, and `LLMChatTask` to pre-load skill content into system prompts, dynamically resolved from context at compose time; tasks auto-instantiate a `PromptManager` when these are provided.
+- **Feature: Skill discovery & management**:
+  - Added `max_depth` recursive scan control and customizable `ignore_dirs` to `SkillManager`, with robust handling of permission errors and inaccessible directories.
+  - Expanded discovery to look in `.zrb/skill` (configured root group) alongside `.claude/skills`; standardized the Zrb skill directory to `~/.zrb/skills`.
+- **Feature: Runtime model & YOLO control**:
+  - Added `/yolo` and `Ctrl+Y` to toggle tool-approval skipping at runtime, and `/model <name>` to switch models on the fly.
+  - VS Code-style fuzzy autocompletion for commands and model names, including a generated list of supported models from pydantic-ai.
+  - The built-in `llm_chat` task accepts a `model` input for dynamic selection.
+- **Feature: Context-aware agent execution**:
+  - Introduced `ContextVar`-based context management (`current_ctx`, `zrb_print()`) so sub-agents inherit parent UI and tool-confirmation settings, with consistent context-aware printing across the codebase and proper context set/reset during task runs.
+  - Added `tool_factories`/`toolset_factories` to `LLMChatTask` for runtime tool resolution; used `Xcom` for shared state (YOLO mode) synchronization.
+- **Feature: Structured history summarization**:
+  - Overhauled the summarizer to emit a structured `<state_snapshot>` XML (Goals, Constraints, Knowledge, Artifacts, Tasks) instead of free text.
+  - Added iterative chunking and recursive re-compression to handle large conversations without context-window overflow.
+  - Added `message_to_text()` for readable history; LLM chat tasks now include a summarizer history processor by default.
+  - Added prompt-injection defenses instructing the summarizer to ignore adversarial chat content.
+- **Feature: Sub-agent delegation & plugin agents**:
+  - Implemented a `delegate_to_agent` tool with smarter detection of when to hand off to specialized sub-agents.
+  - Moved built-in agent definitions (Coder, Planner, Researcher, Reviewer) into a dedicated `src/zrb/llm_plugin/agents/` plugin structure, with `PromptManager` refactored to match.
+- **Feature: LLM challenge suite**: Added benchmarking challenges under `llm-challenges/` (bug fixing, refactoring, copywriting) with runner scripts and experiment results refreshed to track improved agent behavior.
+- **Improvement: Prompt management**:
+  - Hierarchical prompt discovery now traverses up the directory tree (to home) for custom overrides.
+  - Added markdown role prompts (executor, orchestrator, planner, researcher, reviewer) and let `PromptManager` accept raw strings, auto-wrapping them with context rendering.
+  - Split skills prompt into `create_claude_skills_prompt` and `create_project_context_prompt`, with an `include_project_context` toggle.
+  - Polished `mandate.md`/`persona.md`: more assertive mandate requiring system-context checks before discovery tools, stricter verification (keywords, structure, citations), anti-hallucination guidance, clearer concise-vs-detailed protocol, plus loop-prevention for Coder, planning rigor for Planner, and a mandated References section for Researcher.
+- **Improvement: Rate limiting & token management**:
+  - Rate limiter accepts message/history context for more accurate estimation; improved token counting (char/3 fallback, 95% buffer) and graceful empty-log throttling.
+  - Added token-aware `truncate_text` to `LLMLimiter` (tiktoken with fallback) and clearer, styled rate-limit notifications.
+- **Improvement: Tool safety & robustness**:
+  - Centralized tool/toolset error-handling wrappers into `create_agent` so faulty tool calls report gracefully instead of crashing the agent.
+  - Safer `auto_approve` policy with directory-aware checks (auto-approving reads only within the working directory).
+- **Improvement: Config consistency**: Renamed `LLM_MAX_REQUESTS_PER_MINUTE` to singular `LLM_MAX_REQUEST_PER_MINUTE` (old env var still honored); more flexible defaults for web components and token thresholds.
+- **Improvement: UI/UX**: Consistent faint/error styling, inline timestamps, streamlined command display, and summarization progress notifications.
+- **Bug Fixes**:
+  - Resolved "Unknown model" errors by preventing custom `Model` objects from being stringified when passed to sub-tasks; `LLMConfig` now resolves providers by model name so custom `base_url`/`api_key` apply to OpenAI-compatible models while native Anthropic/Google providers still work.
+  - Treated empty-string model names as `None` to avoid resolution failures.
+  - Sanitized `Session.as_state_log()` inputs to prevent `PydanticSerializationError` on non-serializable objects.
+  - Added `if __name__ == "__main__":` to `__main__.py` for correct `python -m zrb` execution.
+  - Ensured `FileHistoryManager` is initialized before use; fixed lazy load of `CFG.LLM_ASSISTANT_NAME`.
+  - Fixed skill command factory signature and custom-command resolution; corrected `create_faint_printer()` and argument-extraction handling.
+  - Excluded the `.claude` directory from code analysis and fixed ASCII art resolution for user-provided files.
+- **Documentation**: Added the "Customizing the AI Assistant" guide, updated `AGENTS.md`, and refreshed task-type, configuration, and architecture docs for the 2.0 architecture.
+- **Update: ASCII art**: Added new art (`batman`, `butterfly`, `clover`, `hello-kitty`, `star`) and updated the banner format.
 
 ## 2.0.0
 

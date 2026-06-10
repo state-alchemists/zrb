@@ -71,6 +71,31 @@ async def test_cmd_task_exec_failure(mock_session):
 
 
 @pytest.mark.asyncio
+async def test_cmd_task_exec_signal_killed(mock_session):
+    """Negative return code (signal-killed) must raise (regression)."""
+    mock_cmd_result = CmdResult(output="", error="killed", display="")
+
+    def mock_run_command(*args, **kwargs):
+        async def _coro():
+            return (mock_cmd_result, -9)
+
+        return _coro()
+
+    import zrb.task.cmd_task
+
+    original_run_command = zrb.task.cmd_task.run_command
+    zrb.task.cmd_task.run_command = mock_run_command
+    try:
+        task = CmdTask(name="test_cmd_killed", cmd="sleep 100")
+        mock_session.register_task(task)
+
+        with pytest.raises(Exception, match="Process test_cmd_killed exited \\(-9\\)"):
+            await task.exec(mock_session)
+    finally:
+        zrb.task.cmd_task.run_command = original_run_command
+
+
+@pytest.mark.asyncio
 async def test_cmd_task_exec_plain_print(mock_session):
     """Test plain_print=True via exec."""
     mock_cmd_result = CmdResult(output="output", error="", display="output")

@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import os
-
-from zrb.config.helper import get_env
+from zrb.config.env_field import EnvField
 
 
 class LLMLimitsMixin:
@@ -29,6 +27,7 @@ class LLMLimitsMixin:
         self.DEFAULT_LLM_MODEL_FETCH_TIMEOUT: str = "5000"
         self.DEFAULT_LLM_GIT_CMD_TIMEOUT: str = "1000"
         self.DEFAULT_LLM_MAX_OUTPUT_CHARS: str = "100000"
+        self.DEFAULT_LLM_MAX_TOOL_RESULT_CHARS: str = "100000"
         self.DEFAULT_LLM_PROJECT_DOC_MAX_CHARS: str = "8000"
         self.DEFAULT_LLM_MAX_COMPLETION_FILES: str = "5000"
         # Image scaling — 1568px is Anthropic's no-extra-cost tier; JPEG q85 is
@@ -37,344 +36,127 @@ class LLMLimitsMixin:
         self.DEFAULT_LLM_IMAGE_JPEG_QUALITY: str = "85"
         super().__init__()
 
-    @property
-    def LLM_MAX_REQUEST_PER_MINUTE(self) -> int:
-        """Maximum number of LLM requests allowed per minute.
+    LLM_MAX_REQUEST_PER_MINUTE = EnvField(
+        int,
+        aliases=["LLM_MAX_REQUEST_PER_MINUTE", "LLM_MAX_REQUESTS_PER_MINUTE"],
+        doc=(
+            "Maximum number of LLM requests allowed per minute.\n\n"
+            "Default is conservative to accommodate free-tier LLM providers."
+        ),
+    )
 
-        Default is conservative to accommodate free-tier LLM providers.
-        """
-        return int(
-            get_env(
-                ["LLM_MAX_REQUEST_PER_MINUTE", "LLM_MAX_REQUESTS_PER_MINUTE"],
-                self.DEFAULT_LLM_MAX_REQUEST_PER_MINUTE,
-                self.ENV_PREFIX,
-            )
-        )
+    # Reads either alias; setter writes the plural TOKENS_ form (kept for
+    # backward compatibility with previously written env vars).
+    LLM_MAX_TOKEN_PER_MINUTE = EnvField(
+        int,
+        aliases=["LLM_MAX_TOKEN_PER_MINUTE", "LLM_MAX_TOKENS_PER_MINUTE"],
+        write_key="LLM_MAX_TOKENS_PER_MINUTE",
+        doc=(
+            "Maximum number of LLM tokens allowed per minute.\n\n"
+            "Default is conservative to accommodate free-tier LLM providers."
+        ),
+    )
 
-    @LLM_MAX_REQUEST_PER_MINUTE.setter
-    def LLM_MAX_REQUEST_PER_MINUTE(self, value: int):
-        os.environ[f"{self.ENV_PREFIX}_LLM_MAX_REQUEST_PER_MINUTE"] = str(value)
+    LLM_MAX_TOKEN_PER_REQUEST = EnvField(
+        int,
+        aliases=["LLM_MAX_TOKEN_PER_REQUEST", "LLM_MAX_TOKENS_PER_REQUEST"],
+        write_key="LLM_MAX_TOKENS_PER_REQUEST",
+        doc="Maximum number of tokens allowed per individual LLM request.",
+    )
 
-    @property
-    def LLM_MAX_TOKEN_PER_MINUTE(self) -> int:
-        """Maximum number of LLM tokens allowed per minute.
-
-        Default is conservative to accommodate free-tier LLM providers.
-        """
-        return int(
-            get_env(
-                ["LLM_MAX_TOKEN_PER_MINUTE", "LLM_MAX_TOKENS_PER_MINUTE"],
-                self.DEFAULT_LLM_MAX_TOKEN_PER_MINUTE,
-                self.ENV_PREFIX,
-            )
-        )
-
-    @LLM_MAX_TOKEN_PER_MINUTE.setter
-    def LLM_MAX_TOKEN_PER_MINUTE(self, value: int):
-        os.environ[f"{self.ENV_PREFIX}_LLM_MAX_TOKENS_PER_MINUTE"] = str(value)
-
-    @property
-    def LLM_MAX_TOKEN_PER_REQUEST(self) -> int:
-        """Maximum number of tokens allowed per individual LLM request."""
-        return int(
-            get_env(
-                ["LLM_MAX_TOKEN_PER_REQUEST", "LLM_MAX_TOKENS_PER_REQUEST"],
-                self.DEFAULT_LLM_MAX_TOKEN_PER_REQUEST,
-                self.ENV_PREFIX,
-            )
-        )
-
-    @LLM_MAX_TOKEN_PER_REQUEST.setter
-    def LLM_MAX_TOKEN_PER_REQUEST(self, value: int):
-        os.environ[f"{self.ENV_PREFIX}_LLM_MAX_TOKENS_PER_REQUEST"] = str(value)
-
-    @property
-    def LLM_THROTTLE_SLEEP(self) -> float:
-        """Number of seconds to sleep when throttling is required."""
-        return float(
-            get_env(
-                "LLM_THROTTLE_SLEEP",
-                self.DEFAULT_LLM_THROTTLE_SLEEP,
-                self.ENV_PREFIX,
-            )
-        )
-
-    @LLM_THROTTLE_SLEEP.setter
-    def LLM_THROTTLE_SLEEP(self, value: float):
-        os.environ[f"{self.ENV_PREFIX}_LLM_THROTTLE_SLEEP"] = str(value)
+    LLM_THROTTLE_SLEEP = EnvField(
+        float,
+        doc="Number of seconds to sleep when throttling is required.",
+    )
 
     # --- Retries ----------------------------------------------------------
 
-    @property
-    def LLM_MAX_CONTEXT_RETRIES(self) -> int:
-        """Maximum retries for context-related errors."""
-        return int(
-            get_env(
-                "LLM_MAX_CONTEXT_RETRIES",
-                self.DEFAULT_LLM_MAX_CONTEXT_RETRIES,
-                self.ENV_PREFIX,
-            )
-        )
+    LLM_MAX_CONTEXT_RETRIES = EnvField(
+        int, doc="Maximum retries for context-related errors."
+    )
 
-    @LLM_MAX_CONTEXT_RETRIES.setter
-    def LLM_MAX_CONTEXT_RETRIES(self, value: int):
-        os.environ[f"{self.ENV_PREFIX}_LLM_MAX_CONTEXT_RETRIES"] = str(value)
+    LLM_TOOL_MAX_RETRIES = EnvField(int, doc="Maximum retries for tool calls.")
 
-    @property
-    def LLM_TOOL_MAX_RETRIES(self) -> int:
-        """Maximum retries for tool calls."""
-        return int(
-            get_env(
-                "LLM_TOOL_MAX_RETRIES",
-                self.DEFAULT_LLM_TOOL_MAX_RETRIES,
-                self.ENV_PREFIX,
-            )
-        )
+    LLM_MCP_MAX_RETRIES = EnvField(
+        int, doc="Maximum retries for MCP server connections."
+    )
 
-    @LLM_TOOL_MAX_RETRIES.setter
-    def LLM_TOOL_MAX_RETRIES(self, value: int):
-        os.environ[f"{self.ENV_PREFIX}_LLM_TOOL_MAX_RETRIES"] = str(value)
+    LLM_API_MAX_RETRIES = EnvField(
+        int,
+        doc=(
+            "Max retries for transient provider errors (429, 5xx). "
+            "0 or 1 disables retrying."
+        ),
+    )
 
-    @property
-    def LLM_MCP_MAX_RETRIES(self) -> int:
-        """Maximum retries for MCP server connections."""
-        return int(
-            get_env(
-                "LLM_MCP_MAX_RETRIES",
-                self.DEFAULT_LLM_MCP_MAX_RETRIES,
-                self.ENV_PREFIX,
-            )
-        )
-
-    @LLM_MCP_MAX_RETRIES.setter
-    def LLM_MCP_MAX_RETRIES(self, value: int):
-        os.environ[f"{self.ENV_PREFIX}_LLM_MCP_MAX_RETRIES"] = str(value)
-
-    @property
-    def LLM_API_MAX_RETRIES(self) -> int:
-        """Max retries for transient provider errors (429, 5xx). 0 or 1 disables retrying."""
-        return int(
-            get_env(
-                "LLM_API_MAX_RETRIES",
-                self.DEFAULT_LLM_API_MAX_RETRIES,
-                self.ENV_PREFIX,
-            )
-        )
-
-    @LLM_API_MAX_RETRIES.setter
-    def LLM_API_MAX_RETRIES(self, value: int):
-        os.environ[f"{self.ENV_PREFIX}_LLM_API_MAX_RETRIES"] = str(value)
-
-    @property
-    def LLM_API_MAX_WAIT(self) -> int:
-        """Maximum seconds to wait between retries (honors Retry-After header)."""
-        return int(
-            get_env(
-                "LLM_API_MAX_WAIT",
-                self.DEFAULT_LLM_API_MAX_WAIT,
-                self.ENV_PREFIX,
-            )
-        )
-
-    @LLM_API_MAX_WAIT.setter
-    def LLM_API_MAX_WAIT(self, value: int):
-        os.environ[f"{self.ENV_PREFIX}_LLM_API_MAX_WAIT"] = str(value)
+    LLM_API_MAX_WAIT = EnvField(
+        int,
+        doc="Maximum seconds to wait between retries (honors Retry-After header).",
+    )
 
     # --- Timeouts ---------------------------------------------------------
 
-    @property
-    def LLM_SSE_KEEPALIVE_TIMEOUT(self) -> int:
-        """Timeout in milliseconds for SSE keepalive messages."""
-        return int(
-            get_env(
-                "LLM_SSE_KEEPALIVE_TIMEOUT",
-                self.DEFAULT_LLM_SSE_KEEPALIVE_TIMEOUT,
-                self.ENV_PREFIX,
-            )
-        )
+    LLM_SSE_KEEPALIVE_TIMEOUT = EnvField(
+        int, doc="Timeout in milliseconds for SSE keepalive messages."
+    )
 
-    @LLM_SSE_KEEPALIVE_TIMEOUT.setter
-    def LLM_SSE_KEEPALIVE_TIMEOUT(self, value: int):
-        os.environ[f"{self.ENV_PREFIX}_LLM_SSE_KEEPALIVE_TIMEOUT"] = str(value)
+    LLM_REQUEST_TIMEOUT = EnvField(
+        int, doc="Default timeout in milliseconds for LLM requests."
+    )
 
-    @property
-    def LLM_REQUEST_TIMEOUT(self) -> int:
-        """Default timeout in milliseconds for LLM requests."""
-        return int(
-            get_env(
-                "LLM_REQUEST_TIMEOUT",
-                self.DEFAULT_LLM_REQUEST_TIMEOUT,
-                self.ENV_PREFIX,
-            )
-        )
+    LLM_INPUT_QUEUE_TIMEOUT = EnvField(
+        int, doc="Timeout in milliseconds for polling the input queue."
+    )
 
-    @LLM_REQUEST_TIMEOUT.setter
-    def LLM_REQUEST_TIMEOUT(self, value: int):
-        os.environ[f"{self.ENV_PREFIX}_LLM_REQUEST_TIMEOUT"] = str(value)
+    LLM_SHELL_KILL_WAIT_TIMEOUT = EnvField(
+        int, doc="Timeout in milliseconds to wait after killing a shell process."
+    )
 
-    @property
-    def LLM_INPUT_QUEUE_TIMEOUT(self) -> int:
-        """Timeout in milliseconds for polling the input queue."""
-        return int(
-            get_env(
-                "LLM_INPUT_QUEUE_TIMEOUT",
-                self.DEFAULT_LLM_INPUT_QUEUE_TIMEOUT,
-                self.ENV_PREFIX,
-            )
-        )
+    LLM_WEB_PAGE_TIMEOUT = EnvField(
+        int, doc="Timeout in milliseconds for web page loading (Playwright)."
+    )
 
-    @LLM_INPUT_QUEUE_TIMEOUT.setter
-    def LLM_INPUT_QUEUE_TIMEOUT(self, value: int):
-        os.environ[f"{self.ENV_PREFIX}_LLM_INPUT_QUEUE_TIMEOUT"] = str(value)
+    LLM_WEB_HTTP_TIMEOUT = EnvField(
+        int, doc="Timeout in milliseconds for HTTP requests."
+    )
 
-    @property
-    def LLM_SHELL_KILL_WAIT_TIMEOUT(self) -> int:
-        """Timeout in milliseconds to wait after killing a shell process."""
-        return int(
-            get_env(
-                "LLM_SHELL_KILL_WAIT_TIMEOUT",
-                self.DEFAULT_LLM_SHELL_KILL_WAIT_TIMEOUT,
-                self.ENV_PREFIX,
-            )
-        )
+    LLM_MODEL_FETCH_TIMEOUT = EnvField(
+        int, doc="Timeout in milliseconds for fetching model lists."
+    )
 
-    @LLM_SHELL_KILL_WAIT_TIMEOUT.setter
-    def LLM_SHELL_KILL_WAIT_TIMEOUT(self, value: int):
-        os.environ[f"{self.ENV_PREFIX}_LLM_SHELL_KILL_WAIT_TIMEOUT"] = str(value)
-
-    @property
-    def LLM_WEB_PAGE_TIMEOUT(self) -> int:
-        """Timeout in milliseconds for web page loading (Playwright)."""
-        return int(
-            get_env(
-                "LLM_WEB_PAGE_TIMEOUT",
-                self.DEFAULT_LLM_WEB_PAGE_TIMEOUT,
-                self.ENV_PREFIX,
-            )
-        )
-
-    @LLM_WEB_PAGE_TIMEOUT.setter
-    def LLM_WEB_PAGE_TIMEOUT(self, value: int):
-        os.environ[f"{self.ENV_PREFIX}_LLM_WEB_PAGE_TIMEOUT"] = str(value)
-
-    @property
-    def LLM_WEB_HTTP_TIMEOUT(self) -> int:
-        """Timeout in milliseconds for HTTP requests."""
-        return int(
-            get_env(
-                "LLM_WEB_HTTP_TIMEOUT",
-                self.DEFAULT_LLM_WEB_HTTP_TIMEOUT,
-                self.ENV_PREFIX,
-            )
-        )
-
-    @LLM_WEB_HTTP_TIMEOUT.setter
-    def LLM_WEB_HTTP_TIMEOUT(self, value: int):
-        os.environ[f"{self.ENV_PREFIX}_LLM_WEB_HTTP_TIMEOUT"] = str(value)
-
-    @property
-    def LLM_MODEL_FETCH_TIMEOUT(self) -> int:
-        """Timeout in milliseconds for fetching model lists."""
-        return int(
-            get_env(
-                "LLM_MODEL_FETCH_TIMEOUT",
-                self.DEFAULT_LLM_MODEL_FETCH_TIMEOUT,
-                self.ENV_PREFIX,
-            )
-        )
-
-    @LLM_MODEL_FETCH_TIMEOUT.setter
-    def LLM_MODEL_FETCH_TIMEOUT(self, value: int):
-        os.environ[f"{self.ENV_PREFIX}_LLM_MODEL_FETCH_TIMEOUT"] = str(value)
-
-    @property
-    def LLM_GIT_CMD_TIMEOUT(self) -> int:
-        """Timeout in milliseconds for git commands."""
-        return int(
-            get_env(
-                "LLM_GIT_CMD_TIMEOUT",
-                self.DEFAULT_LLM_GIT_CMD_TIMEOUT,
-                self.ENV_PREFIX,
-            )
-        )
-
-    @LLM_GIT_CMD_TIMEOUT.setter
-    def LLM_GIT_CMD_TIMEOUT(self, value: int):
-        os.environ[f"{self.ENV_PREFIX}_LLM_GIT_CMD_TIMEOUT"] = str(value)
+    LLM_GIT_CMD_TIMEOUT = EnvField(int, doc="Timeout in milliseconds for git commands.")
 
     # --- Size caps --------------------------------------------------------
 
-    @property
-    def LLM_MAX_OUTPUT_CHARS(self) -> int:
-        """Maximum characters for tool output (shell commands, file reads)."""
-        return int(
-            get_env(
-                "LLM_MAX_OUTPUT_CHARS",
-                self.DEFAULT_LLM_MAX_OUTPUT_CHARS,
-                self.ENV_PREFIX,
-            )
-        )
+    LLM_MAX_OUTPUT_CHARS = EnvField(
+        int,
+        doc="Maximum characters for tool output (shell commands, file reads).",
+    )
 
-    @LLM_MAX_OUTPUT_CHARS.setter
-    def LLM_MAX_OUTPUT_CHARS(self, value: int):
-        os.environ[f"{self.ENV_PREFIX}_LLM_MAX_OUTPUT_CHARS"] = str(value)
+    LLM_MAX_TOOL_RESULT_CHARS = EnvField(
+        int,
+        doc=(
+            "Global backstop cap (characters) on every tool's model-facing "
+            "result, applied after the tool runs. Catches outputs not already "
+            "capped by a tool (Grep, AnalyzeCode, web, MCP). 0 disables it; "
+            "only the model-facing text is affected, not structured returns."
+        ),
+    )
 
-    @property
-    def LLM_MAX_IMAGE_DIMENSION(self) -> int:
-        """Longest-edge cap (pixels) applied to attached images before send."""
-        return int(
-            get_env(
-                "LLM_MAX_IMAGE_DIMENSION",
-                self.DEFAULT_LLM_MAX_IMAGE_DIMENSION,
-                self.ENV_PREFIX,
-            )
-        )
+    LLM_MAX_IMAGE_DIMENSION = EnvField(
+        int,
+        doc="Longest-edge cap (pixels) applied to attached images before send.",
+    )
 
-    @LLM_MAX_IMAGE_DIMENSION.setter
-    def LLM_MAX_IMAGE_DIMENSION(self, value: int):
-        os.environ[f"{self.ENV_PREFIX}_LLM_MAX_IMAGE_DIMENSION"] = str(value)
+    LLM_IMAGE_JPEG_QUALITY = EnvField(
+        int,
+        doc="JPEG quality (1-95) used when re-encoding photos. Ignored for PNGs.",
+    )
 
-    @property
-    def LLM_IMAGE_JPEG_QUALITY(self) -> int:
-        """JPEG quality (1-95) used when re-encoding photos. Ignored for PNGs."""
-        return int(
-            get_env(
-                "LLM_IMAGE_JPEG_QUALITY",
-                self.DEFAULT_LLM_IMAGE_JPEG_QUALITY,
-                self.ENV_PREFIX,
-            )
-        )
+    LLM_PROJECT_DOC_MAX_CHARS = EnvField(
+        int, doc="Maximum characters for project documentation."
+    )
 
-    @LLM_IMAGE_JPEG_QUALITY.setter
-    def LLM_IMAGE_JPEG_QUALITY(self, value: int):
-        os.environ[f"{self.ENV_PREFIX}_LLM_IMAGE_JPEG_QUALITY"] = str(value)
-
-    @property
-    def LLM_PROJECT_DOC_MAX_CHARS(self) -> int:
-        """Maximum characters for project documentation."""
-        return int(
-            get_env(
-                "LLM_PROJECT_DOC_MAX_CHARS",
-                self.DEFAULT_LLM_PROJECT_DOC_MAX_CHARS,
-                self.ENV_PREFIX,
-            )
-        )
-
-    @LLM_PROJECT_DOC_MAX_CHARS.setter
-    def LLM_PROJECT_DOC_MAX_CHARS(self, value: int):
-        os.environ[f"{self.ENV_PREFIX}_LLM_PROJECT_DOC_MAX_CHARS"] = str(value)
-
-    @property
-    def LLM_MAX_COMPLETION_FILES(self) -> int:
-        """Maximum number of files for completion."""
-        return int(
-            get_env(
-                "LLM_MAX_COMPLETION_FILES",
-                self.DEFAULT_LLM_MAX_COMPLETION_FILES,
-                self.ENV_PREFIX,
-            )
-        )
-
-    @LLM_MAX_COMPLETION_FILES.setter
-    def LLM_MAX_COMPLETION_FILES(self, value: int):
-        os.environ[f"{self.ENV_PREFIX}_LLM_MAX_COMPLETION_FILES"] = str(value)
+    LLM_MAX_COMPLETION_FILES = EnvField(
+        int, doc="Maximum number of files for completion."
+    )

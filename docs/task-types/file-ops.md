@@ -102,8 +102,8 @@ deploy_remote = cli.add_task(
         remote_ssh_key="~/.ssh/id_rsa_deploy",
         exclude_from=".rsyncignore",
         
-        # Password auth (SSHPASS is picked up by rsync)
-        env=[Env(name="SSHPASS", is_secret=True)] 
+        # Password auth (SSHPASS is read from the OS env and picked up by rsync)
+        env=[Env(name="SSHPASS", default="")] 
     )
 )
 ```

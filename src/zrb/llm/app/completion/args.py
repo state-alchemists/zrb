@@ -51,8 +51,19 @@ def complete_load_arg(
 
 
 def complete_redirect_arg(arg_prefix: str) -> Iterable[Completion]:
-    """A single timestamp.txt suggestion for redirecting last response to file."""
-    ts = datetime.now().strftime("%Y-%m-%d-%H-%M.txt")
+    """A single response-<timestamp>.txt suggestion for redirecting output."""
+    ts = datetime.now().strftime("response-%Y-%m-%d-%H-%M.txt")
+    if ts.startswith(arg_prefix):
+        yield Completion(
+            ts,
+            start_position=-len(arg_prefix),
+            display_meta="File Name",
+        )
+
+
+def complete_copy_arg(arg_prefix: str) -> Iterable[Completion]:
+    """A single transcript-<timestamp>.txt suggestion for copying transcript."""
+    ts = datetime.now().strftime("transcript-%Y-%m-%d-%H-%M.txt")
     if ts.startswith(arg_prefix):
         yield Completion(
             ts,

@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 def auto_approve(
     tool_name: str,
-    kwargs_patterns: dict[str, str] | Callable[[dict[str, Any]], bool] = {},
+    kwargs_patterns: dict[str, str] | Callable[[dict[str, Any]], bool] | None = None,
 ) -> ToolPolicy:
     """
     Returns a ToolPolicy that automatically approves tool execution
@@ -19,6 +19,8 @@ def auto_approve(
     - kwargs_patterns: A dictionary mapping argument names to regex patterns.
     :return: A ToolPolicy function.
     """
+    if kwargs_patterns is None:
+        kwargs_patterns = {}
 
     async def approve_tool_call_policy(
         ui: UIProtocol,
@@ -32,23 +34,28 @@ def auto_approve(
         if call.tool_name != tool_name:
             return await next_handler(ui, call)
 
+        # Parse arguments (best effort) — needed for the sandbox-escape check
+        # even when no kwargs_patterns are configured.
+        args = call.args
+        if isinstance(args, str):
+            try:
+                args = json.loads(args)
+            except (json.JSONDecodeError, ValueError):
+                args = None
+
+        # A sandbox-escape request must always reach a human, regardless of
+        # any auto-approval configuration.
+        if isinstance(args, dict) and args.get("dangerously_skip_sandbox"):
+            return await next_handler(ui, call)
+
         # If kwargs_patterns is empty or None, approve
         if not kwargs_patterns:
             return ToolApproved()
 
-        # Parse arguments
-        try:
-            args = call.args
-            if isinstance(args, str):
-                args = json.loads(args)
-
-            if not isinstance(args, dict):
-                # If args is not a dict (e.g. primitive), and kwargs_patterns is not empty,
-                # we assume it doesn't match complex constraints (or we can't check keys).
-                # So we delegate to the next handler.
-                return await next_handler(ui, call)
-
-        except (json.JSONDecodeError, ValueError):
+        if not isinstance(args, dict):
+            # If args is not a dict (e.g. primitive), and kwargs_patterns is not empty,
+            # we assume it doesn't match complex constraints (or we can't check keys).
+            # So we delegate to the next handler.
             return await next_handler(ui, call)
 
         # Check constraints

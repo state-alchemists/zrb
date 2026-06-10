@@ -110,3 +110,42 @@ class TestRunZrbTaskTool:
         # Since task doesn't exist, it will fail but should accept timeout
         result = await func(task_name="test_task", timeout=10)
         assert isinstance(result, str)
+
+    @pytest.mark.asyncio
+    async def test_run_task_quotes_args_with_spaces(self):
+        """B16: arg values with spaces/metacharacters must be shell-quoted."""
+        func = create_run_zrb_task_tool()
+        with patch(
+            "zrb.llm.tool.zrb_task.run_shell_command", new_callable=AsyncMock
+        ) as mock_run:
+            mock_run.return_value = "ok"
+            await func(
+                task_name="my task",
+                args={"name": "hello world; rm -rf /"},
+            )
+            command = mock_run.call_args.args[0]
+            # The injected metacharacters must be neutralized via quoting.
+            assert "rm -rf /'" in command or "'hello world; rm -rf /'" in command
+            assert "; rm -rf /" not in command.replace("'hello world; rm -rf /'", "")
+
+    @pytest.mark.asyncio
+    async def test_run_task_default_args_not_shared(self):
+        """B13: mutable default arg must not leak state between calls."""
+        func = create_run_zrb_task_tool()
+        with patch(
+            "zrb.llm.tool.zrb_task.run_shell_command", new_callable=AsyncMock
+        ) as mock_run:
+            mock_run.return_value = "ok"
+            # Two calls with no args should both produce a bare command.
+            await func(task_name="task_a")
+            first = mock_run.call_args.args[0]
+            await func(task_name="task_b")
+            second = mock_run.call_args.args[0]
+            assert "--" not in first
+            assert "--" not in second
+
+    def test_list_tasks_invalid_group_has_system_suggestion(self):
+        """Group-not-found error must carry actionable [SYSTEM SUGGESTION]."""
+        func = create_list_zrb_task_tool()
+        result = func(group_name="nonexistent_invalid_group_xyz")
+        assert "[SYSTEM SUGGESTION]" in result

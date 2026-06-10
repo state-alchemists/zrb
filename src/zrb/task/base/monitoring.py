@@ -147,7 +147,7 @@ def _get_readiness_config(task: BaseTask) -> tuple[list[BaseTask], float, int, f
     """Extract readiness check parameters from task, falling back to defaults."""
     return (
         task.readiness_checks,
-        task._readiness_check_period if task._readiness_check_period else 5.0,
-        task._readiness_failure_threshold if task._readiness_failure_threshold else 1,
-        task._readiness_timeout if task._readiness_timeout else 60,
+        task.readiness_check_period,
+        task.readiness_failure_threshold,
+        task.readiness_timeout,
     )

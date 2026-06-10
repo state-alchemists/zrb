@@ -29,8 +29,8 @@ web_auth_config.guest_accessible_tasks = ["public-task"]
 ```bash
 cd examples/web-auth
 
-# Start web UI
-zrb serve --port 8000
+# Start web UI (port defaults to 21213; override with ZRB_WEB_HTTP_PORT)
+ZRB_WEB_HTTP_PORT=8000 zrb server start
 
 # Access http://localhost:8000
 ```
@@ -110,4 +110,12 @@ web_auth_config.append_user(
 )
 ```
 
-4. **HTTPS** is recommended for production
+4. **HTTPS is required for non-localhost.** Auth cookies are issued with
+   `HttpOnly`, `Secure`, and `SameSite=Lax`. The `Secure` flag means browsers
+   only send them over HTTPS — modern browsers treat `http://localhost` as a
+   secure context (so local dev works), but any non-localhost deployment must
+   terminate TLS in front of Zrb or cookie-based login will silently fail.
+5. **Tokens.** Only *access* tokens authenticate a request; a *refresh* token is
+   accepted solely at the refresh endpoint. Passwords are compared in constant
+   time, but are stored as configured (plaintext) — keep them in env vars / a
+   secret store, never in source.

@@ -76,9 +76,12 @@ async def describe_binary_attachment(
 
     try:
         agent = create_agent(
+            # Already resolved here; resolve_model=False avoids a second
+            # model_getter/model_renderer pass inside create_agent.
             model=llm_config.resolve_model(multimodal_model),
             system_prompt=system_prompt,
             yolo=True,  # no tools, no approvals needed
+            resolve_model=False,
         )
         result, _ = await run_agent(
             agent=agent,

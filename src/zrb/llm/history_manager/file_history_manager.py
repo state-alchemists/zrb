@@ -28,6 +28,11 @@ class FileHistoryManager(AnyHistoryManager):
     def __init__(self, history_dir: str):
         self._history_dir = os.path.expanduser(history_dir)
         self._cache: "dict[str, list[ModelMessage]]" = {}
+        # mtime of the on-disk file at the time the cache entry was last synced
+        # with disk. Used to invalidate the cache when the file changes out-of-band
+        # (a second manager instance, an external edit, a name that collides on one
+        # file). `None` means "no file on disk at sync time".
+        self._cache_mtime: dict[str, float | None] = {}
         if not os.path.exists(self._history_dir):
             os.makedirs(self._history_dir, exist_ok=True)
 
@@ -36,10 +41,18 @@ class FileHistoryManager(AnyHistoryManager):
         from pydantic import ValidationError
         from pydantic_ai.messages import ModelMessagesTypeAdapter
 
-        if conversation_name in self._cache:
+        file_path = self._get_file_path(conversation_name)
+        current_mtime = self._file_mtime(file_path)
+
+        # Serve from cache only while the on-disk file hasn't changed since we
+        # last synced. A differing mtime (incl. the file appearing/disappearing)
+        # means the cache is stale and we must re-read.
+        if (
+            conversation_name in self._cache
+            and self._cache_mtime.get(conversation_name) == current_mtime
+        ):
             return self._cache[conversation_name]
 
-        file_path = self._get_file_path(conversation_name)
         if not os.path.exists(file_path):
             return []
 
@@ -63,6 +76,7 @@ class FileHistoryManager(AnyHistoryManager):
                 # Validate the cleaned and filtered data
                 messages = ModelMessagesTypeAdapter.validate_python(filtered_data)
                 self._cache[conversation_name] = messages
+                self._cache_mtime[conversation_name] = current_mtime
                 return messages
 
         except ValidationError as e:
@@ -84,6 +98,19 @@ class FileHistoryManager(AnyHistoryManager):
 
     def update(self, conversation_name: str, messages: "list[ModelMessage]"):
         self._cache[conversation_name] = messages
+        # Record the current file mtime as the sync point so a subsequent load()
+        # against an unchanged file returns this in-memory update rather than
+        # re-reading stale disk content.
+        self._cache_mtime[conversation_name] = self._file_mtime(
+            self._get_file_path(conversation_name)
+        )
+
+    @staticmethod
+    def _file_mtime(file_path: str) -> float | None:
+        try:
+            return os.path.getmtime(file_path)
+        except OSError:
+            return None
 
     def save(self, conversation_name: str):
         # lazy: heavy third-party
@@ -125,6 +152,9 @@ class FileHistoryManager(AnyHistoryManager):
 
             # Save the main history file
             self._save_data_to_file(file_path, filtered_data)
+            # Refresh the sync point so our own write doesn't look like an
+            # out-of-band change on the next load().
+            self._cache_mtime[conversation_name] = self._file_mtime(file_path)
 
             # Create a timestamped backup, then enforce retention.
             # Retention is controlled by LLM_HISTORY_BACKUP_RETAIN:
@@ -139,7 +169,11 @@ class FileHistoryManager(AnyHistoryManager):
                 if backup_path:
                     self._save_data_to_file(backup_path, filtered_data)
                     if backup_retain > 0:
-                        self._rotate_backups(base_name, keep=backup_retain)
+                        self._rotate_backups(
+                            base_name,
+                            keep=backup_retain,
+                            main_file_name=os.path.basename(file_path),
+                        )
 
         except ValidationError as e:
             # If validation fails even after cleaning, log and don't save
@@ -164,12 +198,12 @@ class FileHistoryManager(AnyHistoryManager):
             if not filename.endswith(".json"):
                 continue
 
-            # Remove extension to get session name
-            session_name = filename[:-5]
+            # Remove extension to get the conversation name
+            conversation_name = filename[:-5]
 
-            is_match, score = fuzzy_match(session_name, keyword)
+            is_match, score = fuzzy_match(conversation_name, keyword)
             if is_match:
-                matches.append((session_name, score))
+                matches.append((conversation_name, score))
 
         # Sort by score (lower is better)
         matches.sort(key=lambda x: x[1])
@@ -180,6 +214,12 @@ class FileHistoryManager(AnyHistoryManager):
     # Part-cleaner helpers for _clean_corrupted_content
     # ------------------------------------------------------------------
 
+    # Each cleaner starts from a copy of the original part and only normalizes
+    # the field(s) that can be corrupted (chiefly ``content``). Fields the
+    # cleaner does not understand are preserved verbatim — dropping them would
+    # silently strip structurally-significant data such as a ThinkingPart's
+    # ``signature`` (Anthropic uses it to validate replayed thinking blocks) or
+    # a RetryPromptPart's ``tool_name``/``tool_call_id`` (its tool linkage).
     def _clean_user_prompt_part(self, data: dict[str, Any]) -> dict[str, Any]:
         content = data.get("content")
         if content is None:
@@ -189,7 +229,7 @@ class FileHistoryManager(AnyHistoryManager):
                 content = to_string(content)
         elif not isinstance(content, str):
             content = to_string(content)
-        return {"part_kind": "user-prompt", "content": content}
+        return {**data, "part_kind": "user-prompt", "content": content}
 
     def _clean_text_like_part(
         self, part_kind: str, data: dict[str, Any]
@@ -197,34 +237,32 @@ class FileHistoryManager(AnyHistoryManager):
         content = data.get("content")
         if not isinstance(content, str):
             content = to_string(content) if content is not None else ""
-        return {"part_kind": part_kind, "content": content}
+        return {**data, "part_kind": part_kind, "content": content}
 
     def _clean_tool_return_part(self, data: dict[str, Any]) -> dict[str, Any]:
         content = data.get("content")
         if content is None:
             content = ""
-        res = {
-            "part_kind": "tool-return",
-            "content": content,
-            "tool_name": data.get("tool_name", "unknown"),
-        }
-        if data.get("tool_call_id"):
-            res["tool_call_id"] = data["tool_call_id"]
-        if data.get("timestamp"):
-            res["timestamp"] = data["timestamp"]
+        res = {**data, "part_kind": "tool-return", "content": content}
+        if not res.get("tool_name"):
+            res["tool_name"] = "unknown"
+        # Drop null/empty correlation fields that would fail provider validation,
+        # while leaving any genuine value (and all other fields) untouched.
+        if not res.get("tool_call_id"):
+            res.pop("tool_call_id", None)
+        if not res.get("timestamp"):
+            res.pop("timestamp", None)
         return res
 
     def _clean_tool_call_part(self, data: dict[str, Any]) -> dict[str, Any] | None:
         tool_name = data.get("tool_name")
         if tool_name is None:
             return None
-        res = {
-            "part_kind": "tool-call",
-            "tool_name": tool_name,
-            "args": data.get("args") if data.get("args") is not None else {},
-        }
-        if data.get("tool_call_id"):
-            res["tool_call_id"] = data["tool_call_id"]
+        res = {**data, "part_kind": "tool-call", "tool_name": tool_name}
+        if res.get("args") is None:
+            res["args"] = {}
+        if not res.get("tool_call_id"):
+            res.pop("tool_call_id", None)
         return res
 
     def _clean_corrupted_content(self, data: Any) -> Any:
@@ -358,12 +396,20 @@ class FileHistoryManager(AnyHistoryManager):
             zrb_print(f"Error: Failed to save history to {file_path}: {e}", plain=True)
             return False
 
-    def _rotate_backups(self, base_name: str, keep: int) -> None:
+    def _rotate_backups(
+        self, base_name: str, keep: int, main_file_name: str | None = None
+    ) -> None:
         """Delete older timestamped backups, keeping the *keep* most recent.
 
         A no-op when *keep* is negative (unlimited retention) or zero (backups
         disabled — no rotation needed because none are written). Errors during
         cleanup are swallowed; backup hygiene must not break a successful save.
+
+        *main_file_name* (the live conversation file's basename) is always
+        excluded: when a conversation name itself carries a timestamp suffix
+        (e.g. ``session-2024-03-18-10-30``), the main file matches the backup
+        filename pattern with the same base, and rotation would otherwise sort
+        it oldest and delete the live history.
         """
         if keep < 0:
             return
@@ -373,6 +419,8 @@ class FileHistoryManager(AnyHistoryManager):
             return
         backups: list[str] = []
         for name in entries:
+            if main_file_name is not None and name == main_file_name:
+                continue
             match = _BACKUP_FILENAME_PATTERN.match(name)
             if match and match.group("base") == base_name:
                 backups.append(name)

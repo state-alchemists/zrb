@@ -168,6 +168,52 @@ def test_glob_files_skips_hidden_path_components(tmp_path):
     assert any("visible.txt" in f for f in files)
 
 
+def test_glob_files_include_hidden_surfaces_hidden_path_components(tmp_path):
+    hidden_dir = tmp_path / ".hidden"
+    hidden_dir.mkdir()
+    (hidden_dir / "secret.txt").write_text("secret")
+    (tmp_path / ".dotfile.txt").write_text("dot")
+    (tmp_path / "visible.txt").write_text("visible")
+
+    res = glob_files("**/*.txt", path=str(tmp_path), include_hidden=True)
+    files = res.get("files", [])
+    assert any(os.path.join(".hidden", "secret.txt") == f for f in files)
+    assert ".dotfile.txt" in files
+    assert "visible.txt" in files
+
+
+def test_glob_files_include_hidden_still_honors_exclude_patterns(tmp_path):
+    git_dir = tmp_path / ".git"
+    git_dir.mkdir()
+    (git_dir / "config").write_text("[core]")
+    (tmp_path / ".keep.txt").write_text("keep")
+
+    # Default DEFAULT_EXCLUDED_PATTERNS still drops .git even with include_hidden.
+    res = glob_files("**/*", path=str(tmp_path), include_hidden=True)
+    files = res.get("files", [])
+    assert not any(".git" in f.split(os.sep) for f in files)
+    assert ".keep.txt" in files
+
+
+def test_list_files_include_hidden(tmp_path):
+    (tmp_path / ".dotfile.txt").write_text("dot")
+    hidden_dir = tmp_path / ".config"
+    hidden_dir.mkdir()
+    (hidden_dir / "inner.txt").write_text("inner")
+    (tmp_path / "visible.txt").write_text("visible")
+
+    default_res = list_files(str(tmp_path))
+    default_files = default_res.get("files", [])
+    assert ".dotfile.txt" not in default_files
+    assert not any(".config" in f.split(os.sep) for f in default_files)
+
+    res = list_files(str(tmp_path), include_hidden=True)
+    files = res.get("files", [])
+    assert ".dotfile.txt" in files
+    assert any(os.path.join(".config", "inner.txt") == f for f in files)
+    assert "visible.txt" in files
+
+
 def test_glob_files_excluded_patterns(tmp_path):
     (tmp_path / "keep.txt").write_text("keep")
     (tmp_path / "skip.log").write_text("skip")
@@ -247,6 +293,25 @@ def test_read_file_truncation_header(tmp_path):
     assert ("[File:" in result and "truncated" in result.lower()) or "File:" in result
 
 
+def test_read_file_truncation_header_reports_middle_elided(tmp_path):
+    # B21: when head+tail are kept and the middle is elided, the header must
+    # NOT claim a contiguous "lines X-Y" range. It should say first/last.
+    # Needs both line count > head+tail (2*1000) AND chars > 100k to trigger
+    # middle elision.
+    file_path = tmp_path / "many_lines.txt"
+    line = "x" * 110
+    content = "\n".join(line for _ in range(3000))
+    file_path.write_text(content)
+
+    result = read_file(str(file_path))
+    header = result.split("---CONTENT---")[0]
+    assert "middle elided" in header
+    assert "showing first" in header
+    assert "and last" in header
+    # The misleading contiguous "lines 1-N" range must be gone.
+    assert "lines 1–" not in header
+
+
 def test_read_file_non_utf8(tmp_path):
     file_path = tmp_path / "latin1.txt"
     # Write latin-1 encoded bytes that are not valid UTF-8
@@ -277,6 +342,19 @@ def test_replace_in_file_nonexistent_file(tmp_path):
     result = _r(str(tmp_path / "ghost.txt"), "old", "new")
     assert "Error" in result
     assert "not found" in result.lower()
+
+
+def test_replace_in_file_empty_old_text_is_rejected(tmp_path):
+    """An empty old_text must be rejected, not inserted between every char."""
+    file_path = tmp_path / "test.txt"
+    original = "hello world"
+    file_path.write_text(original)
+
+    result = _r(str(file_path), "", "X")
+    assert "Error" in result
+    assert "empty" in result.lower()
+    # The file must be left untouched (no character-by-character corruption).
+    assert file_path.read_text() == original
 
 
 def test_replace_in_file_text_not_found(tmp_path):

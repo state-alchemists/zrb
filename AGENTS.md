@@ -30,6 +30,12 @@ The tree is self-describing — `ls src/zrb/` plus each module's docstring cover
 
 User-added prompts follow. Override via the `include_sections` constructor parameter or the `ZRB_LLM_INCLUDE_SECTIONS` env var (comma-separated, order-sensitive).
 
+A section name that is **not** a built-in resolves as a custom, config-positioned section (precedence: built-in > registered provider > markdown file):
+- **Registered provider** — `prompt_manager.register_section("company_context", lambda ctx: ...)` registers a dynamic provider, composed by calling it with the active context at compose time. Use for always-on content that reflects runtime state (current sprint, deploy target, live schema). Return `""` to emit nothing.
+- **Markdown file** — otherwise the name resolves via `get_prompt(name)` (project-override → env → base-prompt-dir → package), so `company_context` loads `company_context.md` with the usual `{PLACEHOLDER}` substitution. Missing files resolve to `""` (harmless no-op — note an unknown/misspelled name is therefore silently empty).
+
+Either way, downstreams add ordered sections without editing `PromptManager`. See ADR-0061.
+
 **Each section is MECE — a single behavior lives in exactly one section.** Adding a rule: pick the smallest-scope section that owns the concept.
 
 - `persona` — identity + response style
@@ -46,7 +52,7 @@ User-added prompts follow. Override via the `include_sections` constructor param
 Canonical index in `src/zrb/contextvars.py` — every var, its owning module, and its typed wrapper.
 
 - **Reading:** prefer the wrapper.
-- **Scoped writes:** use the underlying `ContextVar` (`token = var.set(...)` then `var.reset(token)`). Canonical pattern in `run_agent.py`.
+- **Scoped writes:** use the underlying `ContextVar` (`token = var.set(...)` then `var.reset(token)`). Canonical pattern in `agent/run/runner.py`.
 
 ### Worktree Storage
 
@@ -64,6 +70,80 @@ prompt_manager.add_tool_guidance(group="My Tools", name="MyTool",
 `add_tool_group` is called automatically when the group does not yet exist.
 
 `LLMChatTask._exec_action` sets `prompt_manager.tool_names` from the resolved tool list at runtime; guidance for unregistered tools is suppressed. **For factory-created tools whose Python function names differ from their LLM-visible names**, register an `add_tool_guidance()` entry explicitly — otherwise the runtime-name filter drops them.
+
+## Architecture Decision Records (ADRs)
+
+Significant design decisions are recorded as ADRs in `docs/adr/`. Each ADR
+captures context, decision, consequences, alternatives rejected, and evidence
+(cross-references to code/docs). The index at `docs/adr/README.md` lists every
+record.
+
+### When to write one
+
+Write an ADR when a decision is:
+- **Non-trivial** — a reasonable developer could pick a different path.
+- **Consequential** — affects how other parts of the system work or how users
+  interact with it.
+- **Persistent** — the decision is expected to last (not a quick hack).
+
+### How to add one
+
+1. Find the next free `ADR-NNNN` in the index.
+2. Append to the relevant thematic file under `docs/adr/`.
+3. Add a row to the index in `docs/adr/README.md`.
+4. If the decision reverses or refines an old ADR, mark the old one
+   `Superseded by ADR-NNNN` — preserve the history.
+
+### Format
+
+Every ADR uses this shape:
+
+- **Status** — Accepted / Superseded / Evolving
+- **Context** — the forces and problem that prompted the decision
+- **Decision** — what was chosen, concretely
+- **Consequences** — what this buys and what it costs
+- **Alternatives rejected** — and why
+- **Evidence** — file/doc pointers; tag each rationale `[DOCUMENTED]` (stated
+  in code/docs) or `[INFERRED]` (deduced from code structure)
+
+One decision per record. If the decision is still being discussed, mark it
+**Evolving** and note open questions as `@<owner> please decide` tags.
+
+## Changelog
+
+Three files under `docs/`, newest-first within each:
+
+- `changelog.md` — the **active** changelog: recent releases at full detail.
+- `changelog-v2.md` — archive of the 2.x line.
+- `changelog-v1.md` — archive of the 1.x line (and the 1.0.0 rewrite from 0.x).
+
+### Entry format
+
+Each release is a `## <version> (<Month D, YYYY>)` heading followed by themed
+bullets. One blank line between entries. Use `- **<Category>: <Title>**:` with
+nested `  - <detail>` sub-bullets; categories are free-form but conventionally
+`Feature` / `Improvement` / `Fix` / `Reliability` / `Security` / `Refactor` /
+`Performance` / `Chore` / `Documentation` / `Tests`. Write past-tense and
+factual, and reference concrete symbols/paths (`module.py`, `ClassName`, env
+vars, ADR-NNNN) so a reader can locate the change.
+
+### Collapsing (compaction)
+
+Old entries are periodically compacted so each minor keeps only two entries —
+the minor bump and its final revision — giving the retained sequence:
+
+```
+x.y.0  →  x.y.z (latest revision of x.y)  →  x.y+1.0  →  …
+```
+
+The kept `x.y.z` **summarizes** the dropped patches `x.y.1`–`x.y.z`, and `x.y.0`
+**absorbs** its pre-releases (`x.y.0a*`/`x.y.0b*`) — never just dropped, since
+the real features usually live there. Rolled-up entries get a
+`_Cumulative summary of the X.Y.1–X.Y.Z patch line._` note. The newest minor in
+`changelog.md` stays at full per-patch detail until it ages out.
+
+Full procedure, rationale, and a worked example:
+[Maintainer Guide → Changelog](docs/advanced-topics/maintainer-guide.md#changelog).
 
 ## Development Conventions
 

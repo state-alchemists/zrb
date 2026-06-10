@@ -41,6 +41,51 @@ def test_file_history_manager_save_load(temp_history_dir):
     assert loaded[0].parts[0].content == "hello"
 
 
+def test_clean_corrupted_content_preserves_structural_fields(temp_history_dir):
+    """The content cleaners must NOT drop fields they do not normalize.
+
+    Previously each cleaner rebuilt parts from a fixed key allowlist, silently
+    stripping a ThinkingPart's `signature`/`id` (Anthropic validates replayed
+    thinking blocks with it) and a RetryPromptPart's `tool_name`/`tool_call_id`
+    (its tool linkage). Both must survive a disk round-trip.
+    """
+    from pydantic_ai.messages import (
+        ModelRequest,
+        ModelResponse,
+        RetryPromptPart,
+        ThinkingPart,
+    )
+
+    messages = [
+        ModelResponse(
+            parts=[ThinkingPart(content="reasoning", signature="sig-abc", id="th-1")]
+        ),
+        ModelRequest(
+            parts=[
+                RetryPromptPart(
+                    content="bad", tool_name="mytool", tool_call_id="call-9"
+                )
+            ]
+        ),
+    ]
+
+    manager = FileHistoryManager(temp_history_dir)
+    manager.update("structural", messages)
+    manager.save("structural")
+
+    # Fresh instance forces a real load through _clean_corrupted_content.
+    loaded = FileHistoryManager(temp_history_dir).load("structural")
+
+    thinking = loaded[0].parts[0]
+    assert thinking.content == "reasoning"
+    assert thinking.signature == "sig-abc"
+    assert thinking.id == "th-1"
+
+    retry = loaded[1].parts[0]
+    assert retry.tool_name == "mytool"
+    assert retry.tool_call_id == "call-9"
+
+
 def test_file_history_manager_search(temp_history_dir):
     manager = FileHistoryManager(temp_history_dir)
     # Create some dummy files
@@ -295,6 +340,36 @@ def test_save_with_timestamped_session_name(temp_history_dir):
 
     # There should be exactly 2 files: main (with timestamp in name) and backup (with new timestamp)
     assert len(main_files) == 2, f"Expected 2 files (main + backup), found: {files}"
+
+
+def test_rotation_never_deletes_timestamped_main_file(temp_history_dir, monkeypatch):
+    """A conversation whose name carries a timestamp must survive rotation.
+
+    Regression test: the main file matches the backup filename pattern, so
+    without an explicit exclusion `_rotate_backups` would sort it oldest and
+    delete the live history once enough backups accumulate.
+    """
+    from pydantic_ai.messages import (
+        ModelRequest,
+        ModelResponse,
+        TextPart,
+        UserPromptPart,
+    )
+
+    monkeypatch.setenv("ZRB_LLM_HISTORY_BACKUP_RETAIN", "2")
+    manager = FileHistoryManager(temp_history_dir)
+    name = "my-session-2024-03-18-10-30-00"
+    main_file = os.path.join(temp_history_dir, f"{name}.json")
+
+    for i in range(5):
+        messages = [
+            ModelRequest(parts=[UserPromptPart(content=f"hello {i}")]),
+            ModelResponse(parts=[TextPart(content=f"hi {i}")]),
+        ]
+        manager.update(name, messages)
+        manager.save(name)
+        # The live conversation file must exist after every save+rotate cycle.
+        assert os.path.exists(main_file), f"Main file deleted after save #{i}"
 
 
 # ---------------------------------------------------------------------------

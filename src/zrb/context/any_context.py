@@ -91,6 +91,28 @@ class AnyContext(AnySharedContext):
         pass
 
     @abstractmethod
+    def print_err(
+        self,
+        *values: object,
+        sep: str | None = " ",
+        end: str | None = "\n",
+        file: TextIO | None = sys.stderr,
+        flush: bool = True,
+        plain: bool = False,
+    ):
+        """Prints error values to the specified output stream.
+
+        Args:
+            *values (object): The values to be printed.
+            sep (str, optional): Separator to use between values. Defaults to a space.
+            end (str, optional): String appended after the last value. Defaults to a newline.
+            file (TextIO, optional): The output stream to print to. Defaults to sys.stderr.
+            flush (bool, optional): Whether to flush the output stream. Defaults to True.
+            plain (bool, optional): Whether to use plain text. Defaults to False.
+        """
+        pass
+
+    @abstractmethod
     def log_debug(
         self,
         *values: object,

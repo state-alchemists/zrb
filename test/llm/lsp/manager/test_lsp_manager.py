@@ -1,11 +1,12 @@
 """Tests for LSP manager functionality."""
 
 import asyncio
-from pathlib import Path
+import signal
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from zrb.config.config import CFG
 from zrb.llm.lsp.manager import LSPManager, lsp_manager
 from zrb.llm.lsp.protocol import SymbolKind
 from zrb.llm.lsp.server import LSPServer
@@ -132,6 +133,86 @@ class TestLspManagerLifecycle:
 
             await manager.shutdown_all()
             mock_server.stop.assert_called_once()
+
+    async def _seed_server(self, manager, *, pid, returncode):
+        """Register one running mock server via the public get_server path."""
+        mock_server = AsyncMock(spec=LSPServer)
+        mock_server.is_alive = True
+        mock_server.process = MagicMock(pid=pid, returncode=returncode)
+        with patch(
+            "zrb.llm.lsp.manager.lifecycle_mixin.get_lsp_config_for_file"
+        ) as mock_get_cfg, patch(
+            "zrb.llm.lsp.manager.lifecycle_mixin.LSPServer", return_value=mock_server
+        ):
+            mock_get_cfg.return_value = MagicMock(language_ids=["python"])
+            await manager.get_server("test.py")
+        return mock_server
+
+    @pytest.mark.asyncio
+    async def test_force_kill_all_empty_is_noop(self, manager):
+        with patch("zrb.llm.lsp.manager.lifecycle_mixin.os.kill") as mock_kill:
+            manager.force_kill_all()
+            mock_kill.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_force_kill_all_sigkills_running_server(self, manager):
+        await self._seed_server(manager, pid=4321, returncode=None)
+        with patch("zrb.llm.lsp.manager.lifecycle_mixin.os.kill") as mock_kill:
+            manager.force_kill_all()
+            mock_kill.assert_called_once_with(4321, signal.SIGKILL)
+        # Servers are forgotten, so a second pass (e.g. atexit) does nothing.
+        with patch("zrb.llm.lsp.manager.lifecycle_mixin.os.kill") as mock_kill2:
+            manager.force_kill_all()
+            mock_kill2.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_force_kill_all_skips_already_exited_server(self, manager):
+        await self._seed_server(manager, pid=4321, returncode=0)
+        with patch("zrb.llm.lsp.manager.lifecycle_mixin.os.kill") as mock_kill:
+            manager.force_kill_all()
+            mock_kill.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_force_kill_all_swallows_kill_errors(self, manager):
+        await self._seed_server(manager, pid=99, returncode=None)
+        with patch(
+            "zrb.llm.lsp.manager.lifecycle_mixin.os.kill",
+            side_effect=ProcessLookupError,
+        ):
+            # Must not raise — it is an atexit handler.
+            manager.force_kill_all()
+
+    @pytest.mark.asyncio
+    async def test_get_server_uses_cfg_preferred_servers(self, manager):
+        """No explicit preference → CFG.LLM_LSP_PREFERRED_SERVERS is threaded in."""
+        mock_server = AsyncMock(spec=LSPServer)
+        mock_server.is_alive = True
+        mock_server.start.return_value = True
+        CFG.LLM_LSP_PREFERRED_SERVERS = ["pyright", "pylsp"]
+        with patch(
+            "zrb.llm.lsp.manager.lifecycle_mixin.get_lsp_config_for_file"
+        ) as mock_get_cfg, patch(
+            "zrb.llm.lsp.manager.lifecycle_mixin.LSPServer", return_value=mock_server
+        ):
+            mock_get_cfg.return_value = MagicMock(language_ids=["python"])
+            await manager.get_server("test.py")
+            mock_get_cfg.assert_called_once_with("test.py", ["pyright", "pylsp"])
+
+    @pytest.mark.asyncio
+    async def test_get_server_explicit_preference_overrides_cfg(self, manager):
+        """An explicit preferred_servers list wins over the CFG default."""
+        mock_server = AsyncMock(spec=LSPServer)
+        mock_server.is_alive = True
+        mock_server.start.return_value = True
+        CFG.LLM_LSP_PREFERRED_SERVERS = ["pyright"]
+        with patch(
+            "zrb.llm.lsp.manager.lifecycle_mixin.get_lsp_config_for_file"
+        ) as mock_get_cfg, patch(
+            "zrb.llm.lsp.manager.lifecycle_mixin.LSPServer", return_value=mock_server
+        ):
+            mock_get_cfg.return_value = MagicMock(language_ids=["python"])
+            await manager.get_server("test.py", preferred_servers=["gopls"])
+            mock_get_cfg.assert_called_once_with("test.py", ["gopls"])
 
     @pytest.mark.asyncio
     async def test_get_server_lifecycle(self, manager, tmp_path):
@@ -304,6 +385,35 @@ class TestLspPublicAPI:
             assert result["success"] is True
             assert result["total_edits"] == 1
             assert "changes" in result
+
+    @pytest.mark.asyncio
+    async def test_rename_symbol_apply_reports_applied(self, manager):
+        mock_server = AsyncMock(spec=LSPServer)
+        mock_server.rename.return_value = {
+            "changes": {"file://1": [{"newText": "new", "range": {}}]},
+            "applied": True,
+        }
+        with patch.object(manager, "get_server", return_value=mock_server):
+            result = await manager.rename_symbol(
+                "old", "new", "file.py", line=1, character=0, dry_run=False
+            )
+            assert result["success"] is True
+            assert result["changes"] == "Applied"
+
+    @pytest.mark.asyncio
+    async def test_rename_symbol_not_applied_is_honest(self, manager):
+        mock_server = AsyncMock(spec=LSPServer)
+        mock_server.rename.return_value = {
+            "changes": {"file://1": [{"newText": "new", "range": {}}]},
+            "applied": False,
+        }
+        with patch.object(manager, "get_server", return_value=mock_server):
+            result = await manager.rename_symbol(
+                "old", "new", "file.py", line=1, character=0, dry_run=False
+            )
+            # Never claim success when nothing was written.
+            assert result["success"] is False
+            assert result["changes"] == "not_applied"
 
     @pytest.mark.asyncio
     async def test_find_definition_not_found(self, manager):

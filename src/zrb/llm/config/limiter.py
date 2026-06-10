@@ -229,8 +229,9 @@ class LLMLimiter:
                     truncated_tokens = tokens[:max_tokens]
                     return enc.decode(truncated_tokens)
                 return text
-            except (ImportError, Exception):
-                # Fallback if tiktoken fails for any reason
+            except Exception:
+                # Fallback if tiktoken fails for any reason (missing package,
+                # unknown encoding name, corrupt/unfetchable BPE cache, …)
                 pass
         # Fallback approximation (char/4) for when tiktoken is not used or fails
         estimated_chars = max_tokens * 4
@@ -249,7 +250,11 @@ class LLMLimiter:
 
                 enc = tiktoken.get_encoding(self.tiktoken_encoding)
                 return len(enc.encode(text))
-            except ImportError:
+            except Exception:
+                # Fallback to the char/4 approximation if tiktoken fails for
+                # any reason (missing package, unknown encoding name, corrupt
+                # or unfetchable BPE cache). Counting must never crash the
+                # history pipeline — it runs before every model call.
                 pass
         # Fallback approximation (char/4)
         return len(text) // 4
@@ -333,14 +338,12 @@ class LLMLimiter:
             self._token_log.popleft()
 
     def _can_proceed(self, tokens: int) -> bool:
-        requests_ok = True
-        if len(self._request_log) > 0:
-            requests_ok = len(self._request_log) < self.max_request_per_minute
+        # A limit of 0 blocks everything: a request budget of 0 never admits
+        # any request, and a token budget of 0 rejects any positive token ask.
+        requests_ok = len(self._request_log) < self.max_request_per_minute
 
-        tokens_ok = True
-        if len(self._token_log) > 0:
-            current_tokens = sum(t for _, t in self._token_log)
-            tokens_ok = (current_tokens + tokens) <= self.max_token_per_minute
+        current_tokens = sum(t for _, t in self._token_log)
+        tokens_ok = (current_tokens + tokens) <= self.max_token_per_minute
 
         return requests_ok and tokens_ok
 
@@ -354,10 +357,13 @@ class LLMLimiter:
         # Default wait
         wait = 1.0
 
-        # If request limit hit, wait until oldest request expires
+        # If request limit hit, wait until oldest request expires. With a
+        # request budget of 0 the log can be empty while still over-limit, so
+        # only read the oldest entry when one exists.
         if len(self._request_log) >= self.max_request_per_minute:
-            oldest = self._request_log[0]
-            wait = max(0.1, 60 - (now - oldest))
+            if self._request_log:
+                oldest = self._request_log[0]
+                wait = max(0.1, 60 - (now - oldest))
 
         # If token limit hit, wait until enough tokens expire
         current_tokens = sum(t for _, t in self._token_log)

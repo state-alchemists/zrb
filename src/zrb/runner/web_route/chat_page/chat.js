@@ -219,16 +219,53 @@ function connectSSE() {
                 row.appendChild(content);
                 messagesDiv.appendChild(row);
 
-            } else if (kind === 'progress') {
-                // Ephemeral spinner — replaced in place
-                let spinner = document.getElementById('sse-progress');
-                if (!spinner) {
-                    spinner = document.createElement('div');
-                    spinner.id = 'sse-progress';
-                    spinner.className = 'message activity';
-                    messagesDiv.appendChild(spinner);
+            } else if (kind === 'todo_progress') {
+                const row = document.createElement('div');
+                row.className = 'message todo-progress';
+                // Parse ~DATA~ line for structured stats
+                const dataMatch = data.text.match(/~DATA~(\{.*\})/);
+                let stats = {total: 0, completed: 0, in_progress: 0, pending: 0};
+                if (dataMatch) {
+                    try { stats = JSON.parse(dataMatch[1]); } catch(e) {}
                 }
-                spinner.textContent = data.text;
+                const pct = stats.total > 0 ? Math.round(stats.completed / stats.total * 100) : 0;
+                // Extract change description (first line before blank) and todo items
+                const cleanText = data.text.replace(/~DATA~.*/, '').trim();
+                const lines = cleanText.split('\n');
+                const changeLine = lines.length > 1 && lines[1] === '' ? lines[0] : '';
+                // Build HTML: change banner + progress bar + todo items
+                let html = '';
+                if (changeLine) {
+                    html += `<div class="todo-change">${escapeHtml(changeLine)}</div>`;
+                }
+                if (stats.total > 0) {
+                    html += `
+                        <div class="todo-progress-bar">
+                            <div class="todo-progress-fill" style="width:${pct}%"></div>
+                        </div>
+                        <div class="todo-progress-stats">
+                            <span class="todo-stat done">✅ ${stats.completed}</span>
+                            <span class="todo-stat total">${stats.completed}/${stats.total}</span>
+                            <span class="todo-stat pct">${pct}%</span>
+                            ${stats.in_progress > 0 ? `<span class="todo-stat progress">▶️ ${stats.in_progress}</span>` : ''}
+                            ${stats.pending > 0 ? `<span class="todo-stat pending">☐ ${stats.pending}</span>` : ''}
+                        </div>
+                    `;
+                    // Render the todo list items
+                    const itemLines = lines.filter(l => l.match(/^\s{2}[✅▶️✗]|^\s{2}\s{2}/));
+                    if (itemLines.length > 0) {
+                        html += '<div class="todo-items">';
+                        for (const item of itemLines) {
+                            const trimmed = item.replace(/^\s+/, '');
+                            html += `<div class="todo-item">${escapeHtml(trimmed)}</div>`;
+                        }
+                        html += '</div>';
+                    }
+                } else {
+                    html += '<div class="todo-empty">Todo list is empty</div>';
+                }
+                row.innerHTML = html;
+                messagesDiv.appendChild(row);
 
             } else {
                 // kind === 'text' or unknown: normal assistant message

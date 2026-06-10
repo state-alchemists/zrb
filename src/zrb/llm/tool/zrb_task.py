@@ -1,5 +1,7 @@
+import shlex
+
 from zrb.config.config import CFG
-from zrb.llm.tool.bash import run_shell_command
+from zrb.llm.tool.shell import run_shell_command
 from zrb.runner.cli import cli
 
 
@@ -11,7 +13,12 @@ def create_list_zrb_task_tool():
             for part in parts:
                 next_group = target_group.get_group_by_alias(part)
                 if not next_group:
-                    return f"Error: Group '{part}' not found in '{group_name}'."
+                    return (
+                        f"Error: Group '{part}' not found in '{group_name}'. "
+                        "[SYSTEM SUGGESTION]: List available groups first (call "
+                        "this tool with an empty group_name) to discover valid "
+                        "group aliases, then retry."
+                    )
                 target_group = next_group
         output = [f"Tasks in '{target_group.name}':"]
         # Subgroups
@@ -34,10 +41,13 @@ def create_list_zrb_task_tool():
 
 def create_run_zrb_task_tool():
     async def run_zrb_task(
-        task_name: str, args: dict[str, str] = {}, timeout: int = 30
+        task_name: str, args: dict[str, str] | None = None, timeout: int = 30
     ) -> str:
-        """ """
-        # Construct command
+        """Run a zrb automation task by name with optional --key value args."""
+        if args is None:
+            args = {}
+        # Construct command, quoting every part so values containing spaces
+        # or shell metacharacters cannot be word-split or injected.
         zrb_cmd = CFG.ROOT_GROUP_NAME
         cmd_parts = [zrb_cmd] + task_name.split()
 
@@ -45,7 +55,7 @@ def create_run_zrb_task_tool():
             cmd_parts.append(f"--{key}")
             cmd_parts.append(str(val))
 
-        command = " ".join(cmd_parts)
+        command = " ".join(shlex.quote(part) for part in cmd_parts)
         return await run_shell_command(command, timeout=timeout)
 
     zrb_cmd = CFG.ROOT_GROUP_NAME

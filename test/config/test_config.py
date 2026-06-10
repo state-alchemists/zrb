@@ -49,11 +49,33 @@ def test_default_shell_env_var_set(monkeypatch):
     assert config.SHELL == "my-shell"
 
 
+def _which(*present):
+    """A shutil.which stub that 'finds' only the named executables."""
+    return lambda candidate: f"/usr/bin/{candidate}" if candidate in present else None
+
+
 @mock.patch("platform.system", return_value="Windows")
 def test_default_shell_windows(mock_platform_system, monkeypatch):
     monkeypatch.delenv("ZRB_SHELL", raising=False)
     config = Config()
-    assert config.SHELL == "PowerShell"
+    with mock.patch("shutil.which", side_effect=_which("powershell")):
+        assert config.SHELL == "powershell"
+        assert get_current_shell() == "powershell"
+
+
+@mock.patch("platform.system", return_value="Windows")
+def test_default_shell_windows_prefers_pwsh(mock_platform_system, monkeypatch):
+    monkeypatch.delenv("ZRB_SHELL", raising=False)
+    with mock.patch("shutil.which", side_effect=_which("pwsh", "powershell")):
+        assert get_current_shell() == "pwsh"
+
+
+@mock.patch("platform.system", return_value="Windows")
+def test_default_shell_windows_falls_back_to_cmd(mock_platform_system, monkeypatch):
+    monkeypatch.delenv("ZRB_SHELL", raising=False)
+    # Neither pwsh nor powershell present -> cmd, which always exists on Windows.
+    with mock.patch("shutil.which", side_effect=_which()):
+        assert get_current_shell() == "cmd"
 
 
 @mock.patch("platform.system", return_value="Linux")
@@ -61,9 +83,9 @@ def test_default_shell_zsh(mock_platform_system, monkeypatch):
     monkeypatch.delenv("ZRB_SHELL", raising=False)
     monkeypatch.setenv("SHELL", "/bin/zsh")
     config = Config()
-    assert config.SHELL == "zsh"
-    # Test helper directly
-    assert get_current_shell() == "zsh"
+    with mock.patch("shutil.which", side_effect=_which("zsh", "bash", "sh")):
+        assert config.SHELL == "zsh"
+        assert get_current_shell() == "zsh"
 
 
 @mock.patch("platform.system", return_value="Linux")
@@ -71,9 +93,27 @@ def test_default_shell_bash(mock_platform_system, monkeypatch):
     monkeypatch.delenv("ZRB_SHELL", raising=False)
     monkeypatch.setenv("SHELL", "/bin/bash")
     config = Config()
-    assert config.SHELL == "bash"
-    # Test helper directly
-    assert get_current_shell() == "bash"
+    with mock.patch("shutil.which", side_effect=_which("bash", "sh")):
+        assert config.SHELL == "bash"
+        assert get_current_shell() == "bash"
+
+
+@mock.patch("platform.system", return_value="Linux")
+def test_default_shell_alpine_falls_back_to_sh(mock_platform_system, monkeypatch):
+    # Alpine: $SHELL unset and bash not installed -> must resolve to sh, not bash.
+    monkeypatch.delenv("ZRB_SHELL", raising=False)
+    monkeypatch.setenv("SHELL", "")
+    with mock.patch("shutil.which", side_effect=_which("sh")):
+        assert get_current_shell() == "sh"
+
+
+@mock.patch("platform.system", return_value="Linux")
+def test_default_shell_zsh_requested_but_absent(mock_platform_system, monkeypatch):
+    # $SHELL says zsh but it isn't installed -> fall back to an existing shell.
+    monkeypatch.delenv("ZRB_SHELL", raising=False)
+    monkeypatch.setenv("SHELL", "/bin/zsh")
+    with mock.patch("shutil.which", side_effect=_which("bash", "sh")):
+        assert get_current_shell() == "bash"
 
 
 def test_default_editor(monkeypatch):

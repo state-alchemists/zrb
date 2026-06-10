@@ -230,7 +230,7 @@ class TestFormatDiff:
     def test_format_diff_with_ui_parameter(self):
         """Test format_diff with UI parameter for width detection."""
         ui = Mock()
-        ui._get_output_field_width = Mock(return_value=76)  # Returns 80 total
+        ui.output_field_width = 76
 
         old_content = "hello"
         new_content = "world"
@@ -238,8 +238,6 @@ class TestFormatDiff:
 
         assert "```diff" in result
         assert "```" in result
-        # UI mock should have been called
-        ui._get_output_field_width.assert_called()
 
     def test_format_diff_empty_file_addition(self):
         """Test format_diff when adding content to empty file."""

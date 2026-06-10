@@ -282,6 +282,41 @@ def test_sub_agent_manager_add_tool_guidance_factory_multiple():
         assert "Verify first" in system_prompt
 
 
+def test_sub_agent_manager_factory_guidance_not_accumulated():
+    """B19: per-agent factory guidance must not permanently mutate shared
+    instance state. A factory whose output differs per call must not leak the
+    previous call's tool into a later agent's prompt.
+    """
+    manager = SubAgentManager()
+
+    calls = {"n": 0}
+
+    def changing_factory(ctx):
+        calls["n"] += 1
+        return ToolGuidance(
+            group_name="Dynamic",
+            tool_name=f"Tool{calls['n']}",
+            when_to_use="use",
+            key_rule="rule",
+        )
+
+    manager.add_tool_guidance_factory(changing_factory)
+    manager.add_agent(
+        SubAgentDefinition(name="a", path=".", description="d", system_prompt="prompt")
+    )
+
+    with patch("zrb.llm.agent.subagent.manager.manager.create_agent") as mock_create:
+        manager.create_agent("a")
+        first_prompt = mock_create.call_args.kwargs["system_prompt"]
+        manager.create_agent("a")
+        second_prompt = mock_create.call_args.kwargs["system_prompt"]
+
+    assert "**Tool1**" in first_prompt
+    # The second agent must only see its own factory output, not Tool1.
+    assert "**Tool2**" in second_prompt
+    assert "**Tool1**" not in second_prompt
+
+
 def test_sub_agent_manager_add_tool_guidance_section_factory():
     manager = SubAgentManager()
 

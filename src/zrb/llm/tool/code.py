@@ -273,8 +273,10 @@ async def _get_file_metadatas_with_lsp(
                         errors="ignore",
                     ) as f:
                         metadata_list.append({"path": rel_path, "content": f.read()})
-                except Exception:
-                    pass
+                except Exception as e:
+                    CFG.LOGGER.debug(
+                        f"analyze_code: skipped unreadable file {rel_path}: {e}"
+                    )
             elif lsp_result and lsp_result.get("lsp_symbols"):
                 # Use LSP context (more token-efficient for structure queries)
                 metadata_list.append(lsp_result)
@@ -288,8 +290,10 @@ async def _get_file_metadatas_with_lsp(
                         errors="ignore",
                     ) as f:
                         metadata_list.append({"path": rel_path, "content": f.read()})
-                except Exception:
-                    pass
+                except Exception as e:
+                    CFG.LOGGER.debug(
+                        f"analyze_code: skipped unreadable file {rel_path}: {e}"
+                    )
 
     metadata_list.sort(key=lambda m: m["path"])
     return metadata_list
@@ -301,8 +305,11 @@ async def _extract_info(
     token_limit: int,
 ) -> list[str]:
     agent = create_agent(
+        # Already resolved here; resolve_model=False avoids a second
+        # model_getter/model_renderer pass inside create_agent.
         model=llm_config.resolve_model(),
         system_prompt=get_prompt("repo_extractor"),
+        resolve_model=False,
     )
 
     extracted_infos = []
@@ -358,8 +365,11 @@ async def _summarize_info(
     token_limit: int,
 ) -> list[str]:
     agent = create_agent(
+        # Already resolved here; resolve_model=False avoids a second
+        # model_getter/model_renderer pass inside create_agent.
         model=llm_config.resolve_model(),
         system_prompt=get_prompt("repo_summarizer"),
+        resolve_model=False,
     )
 
     summarized_infos = []

@@ -37,6 +37,25 @@ def _render_persona_prompt(assistant_name: str | None) -> str:
 
 
 class PromptManager:
+    """Assembles the LLM system prompt from ordered, MECE sections.
+
+    Sections are emitted in the order given by ``include_sections`` (default in
+    ``config/mixins/llm_prompt.py``: persona → mandate → git_mandate →
+    journal_mandate → system_context → project_context → tool_guidance →
+    claude_skills), followed by any user-added prompts. A section name that is
+    not one of the built-ins resolves as a custom section: a provider registered
+    via ``register_section`` (composed by calling it with the active context, for
+    runtime-dynamic content) takes precedence, otherwise the content is loaded
+    via ``get_prompt(name)`` (so ``"company_context"`` resolves
+    ``company_context.md`` through the usual project-override → env →
+    base-prompt-dir → package lookup). Either way downstreams add always-on,
+    config-positioned sections without touching this class. ``tool_names`` and
+    ``tool_guidance`` are resolved at runtime to
+    filter per-tool guidance to the tools actually available; ``model`` and
+    ``assistant_name`` may be callables resolved against the active context. See
+    AGENTS.md ("LLM Prompt System").
+    """
+
     def __init__(
         self,
         prompts: list[PromptMiddleware | str] | None = None,
@@ -62,6 +81,11 @@ class PromptManager:
         self._active_skills = active_skills
         self._render_active_skills = render_active_skills
         self._render = render
+        # Dynamic providers for config-positioned custom sections, keyed by the
+        # name used in ``include_sections``. A registered provider is composed
+        # by calling ``provider(ctx)`` at compose time; it takes precedence over
+        # a same-named markdown file. See ``register_section``.
+        self._section_providers: dict[str, SimplePrompt] = {}
         # Resolved current model — used by the system_context section to
         # surface model-specific capabilities (e.g. parallel tool call
         # support). Set by the task runner before each compose_prompt(),
@@ -154,6 +178,23 @@ class PromptManager:
                 if name not in members:
                     members.append(name)
                 break
+
+    def register_section(self, name: str, provider: SimplePrompt) -> None:
+        """Register a dynamic provider for a config-positioned custom section.
+
+        Once registered, *name* may appear in ``include_sections`` (or the
+        ``ZRB_LLM_INCLUDE_SECTIONS`` env var) and is composed at that position
+        by calling ``provider(ctx)`` at compose time, so the content reflects
+        live runtime state. *provider* must accept the active context and return
+        a string (``Callable[[AnyContext], str]``); return ``""`` to emit
+        nothing.
+
+        Resolution precedence for a section name is built-in > registered
+        provider > markdown file: a registered provider shadows a same-named
+        ``get_prompt(name)`` file but never a built-in section. Re-registering
+        the same name overwrites the previous provider.
+        """
+        self._section_providers[name] = provider
 
     def reset(self):
         self._middlewares = []
@@ -268,6 +309,19 @@ class PromptManager:
                     middlewares.append(
                         create_claude_skills_prompt(_skill_mgr, active_skills)
                     )
+            elif section in self._section_providers:
+                # Registered dynamic section -> composed by calling the
+                # provider with the active context at compose time. Takes
+                # precedence over a same-named markdown file. Registered via
+                # register_section(); see AGENTS.md ("LLM Prompt System").
+                middlewares.append(self._section_providers[section])
+            else:
+                # Unknown name -> file-backed custom section, resolved via
+                # get_prompt(name) (project override -> env -> base prompt dir
+                # -> package default). Lets downstreams add always-on, ordered
+                # sections through include_sections + a markdown file, with no
+                # code change. Missing files resolve to "" (harmless no-op).
+                middlewares.append(new_prompt(lambda n=section: get_prompt(n)))
 
         # User custom prompts always last
         middlewares.extend(self._middlewares)

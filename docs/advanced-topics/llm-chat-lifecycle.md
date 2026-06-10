@@ -86,7 +86,7 @@ src/zrb/llm/agent/run/runner.py :: run_agent()
 
 `LLMTask._exec_action()` resolves dynamic attributes (model, system prompt, message), calls `create_agent()` to build a `pydantic_ai.Agent`, then enters `run_agent()`.
 
-`run_agent()` is where the four agent-level `ContextVar`s get bound: `current_ui`, `current_tool_confirmation`, `current_yolo`, `current_approval_channel`. They're reset in the matching `finally`. See [maintainer-guide.md#context-propagation-internals](./maintainer-guide.md#context-propagation-internals) for the full ContextVar map.
+`run_agent()` is where five agent and permission `ContextVar`s get bound: `current_ui`, `current_tool_confirmation`, `current_yolo`, `current_approval_channel`, and `current_permission_policy`. They're reset in the matching `finally`. (`current_agent_mode` is *not* bound here — it is set by the plan-mode tools.) See [maintainer-guide.md#context-propagation-internals](./maintainer-guide.md#context-propagation-internals) for the full ContextVar map.
 
 ---
 
@@ -111,7 +111,7 @@ This is the heart. Every turn:
 3. **Classify exceptions** (`error_classifier.py`) and decide whether to retry, strip thinking parts, or give up (`retry_loop.py`).
 4. **Sanitize the result history** after a successful turn so the next call sees a provider-clean message list.
 
-If the loop hits compression because the conversation exceeded `LLM_MAX_HISTORY_TOKENS`, control transfers to:
+If the loop hits compression because the conversation exceeded `LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD` (or the message count exceeded `LLM_HISTORY_SUMMARIZATION_WINDOW`), control transfers to:
 
 ```
 src/zrb/llm/summarizer/history_summarizer.py :: summarize_history()
@@ -134,6 +134,7 @@ events ─┬─→ stream_response.create_event_handler()  ─→ UI.append_to_
 ```
 
 Tool approval flow:
+- If the tool is intrinsically interactive (e.g. `AskUserQuestion`, registered via `register_always_auto_approve`), it is auto-approved first — a separate prompt would render before the question itself (ADR-0062).
 - If `current_yolo` is `True` (or the tool is in the selective YOLO set), the tool runs immediately.
 - Otherwise the call goes through `current_tool_confirmation` (terminal) or `current_approval_channel` (remote). For HTTP chat, `MultiplexApprovalChannel` lets the SSE backend handle the prompt.
 
@@ -154,7 +155,7 @@ src/zrb/llm/history_manager/file_history_manager.py :: save()
 After the loop terminates (success, error, or user exit):
 - The final history is sanitized one more time and persisted by the active `HistoryManager`.
 - If snapshot/rewind is enabled, `SnapshotManager` writes a checkpoint.
-- The four agent-level `ContextVar`s reset (their `finally` block in `run_agent()`).
+- The five agent-level `ContextVar`s reset (their `finally` block in `run_agent()`).
 - Background tasks (refresh loop, system-info loop, message queue, triggers) are cancelled and awaited (`UI.cleanup_background_tasks()` in `default/lifecycle_mixin.py`).
 
 Control returns up through `LLMChatTask._exec_action` → `run_task_async` → `cli.run` → `serve_cli` → process exit.
@@ -181,6 +182,7 @@ Control returns up through `LLMChatTask._exec_action` → `run_task_async` → `
 | HTTP chat UI | `src/zrb/runner/chat/http_ui.py` + SSE backend |
 | Hooks | `src/zrb/llm/hook/manager/manager.py`, `hook_creators.py`, `matcher.py` |
 | Sub-agents | `src/zrb/llm/agent/subagent/manager/` |
+| Permission policy | `src/zrb/llm/permission/` |
 | Persistence | `src/zrb/llm/history_manager/file_history_manager.py` |
 | Snapshots | `src/zrb/llm/snapshot/manager.py` |
 | ContextVars index | `src/zrb/contextvars.py` |

@@ -7,7 +7,7 @@ import yaml
 
 from zrb.config.config import CFG
 from zrb.llm.hook.manager import hook_manager
-from zrb.llm.skill._util import discover_companion_files
+from zrb.llm.skill.util import discover_companion_files
 from zrb.util.asset_scanner import IGNORE_DIRS, scan_files
 from zrb.util.dir_search import get_upward_dirs, scan_plugin_dirs
 from zrb.util.load import load_module_from_path
@@ -362,13 +362,13 @@ class SkillManager:
                             if hooks_data:
                                 if isinstance(hooks_data, dict):
                                     # Claude nested format
-                                    hook_manager._parse_claude_format(
+                                    hook_manager.parse_claude_format(
                                         {"hooks": hooks_data}, full_path
                                     )
                                 elif isinstance(hooks_data, list):
                                     # Zrb flat format
                                     for hook_item in hooks_data:
-                                        hook_manager._parse_and_register(
+                                        hook_manager.parse_and_register(
                                             hook_item, full_path
                                         )
 

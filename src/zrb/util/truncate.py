@@ -114,11 +114,6 @@ def truncate_output(
             _apply_character_truncation(kept_lines, max_chars)
         )
 
-    # Calculate metrics
-    result_lines_count = result.count("\n") + (
-        1 if result and not result.endswith("\n") else 0
-    )
-
     # Determine truncation type
     truncation_type = "none"
     if character_truncation_happened:
@@ -132,13 +127,26 @@ def truncate_output(
     elif line_length_truncated:
         truncation_type = "line_length"
 
+    # Calculate metrics against the ACTUAL retained content (kept_lines),
+    # excluding the injected "...[TRUNCATED N lines]..." marker line so the
+    # reported omitted counts are not skewed by the message size. On the
+    # character-truncation path the marker lives inside `result` itself, so
+    # fall back to measuring `result` there.
+    if character_truncation_happened:
+        retained_content = result
+    else:
+        retained_content = "".join(kept_lines)
+    retained_lines_count = retained_content.count("\n") + (
+        1 if retained_content and not retained_content.endswith("\n") else 0
+    )
+
     info = {
         "original_lines": original_lines,
         "original_chars": original_chars,
-        "truncated_lines": result_lines_count,
-        "truncated_chars": len(result),
-        "omitted_lines": original_lines - result_lines_count,
-        "omitted_chars": original_chars - len(result),
+        "truncated_lines": retained_lines_count,
+        "truncated_chars": len(retained_content),
+        "omitted_lines": original_lines - retained_lines_count,
+        "omitted_chars": original_chars - len(retained_content),
         "truncation_type": truncation_type,
     }
 

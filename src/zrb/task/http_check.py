@@ -66,20 +66,25 @@ class HttpCheck(BaseTask):
     def _get_http_method(self, ctx: AnyContext) -> str:
         return get_str_attr(ctx, self._http_method, "GET", auto_render=True).upper()
 
-    async def _exec_action(self, ctx: AnyContext) -> "bool | Response":
-        # lazy: heavy third-party
-        import requests
+    async def _exec_action(self, ctx: AnyContext) -> "Response":
+        import requests  # lazy: heavy third-party
 
         url = self._get_url(ctx)
         http_method = self._get_http_method(ctx)
         while True:
             try:
-                response = requests.request(http_method, url)
+                # Bound each probe so a half-open endpoint can't hang the worker
+                # thread forever (to_thread can't cancel a blocking request). The
+                # request should never outlive the polling interval; a timeout is
+                # just another transient error and is retried below.
+                response = await asyncio.to_thread(
+                    requests.request, http_method, url, timeout=self._interval
+                )
                 if response.status_code == 200:
                     return response
                 ctx.log_info(f"HTTP Status code: {response.status_code}")
-            except asyncio.TimeoutError as e:
-                ctx.log_info(f"Timeout error {e}")
             except Exception as e:
+                # Readiness probes retry on any error (DNS, refused, timeout, …)
+                # until the endpoint comes up or the surrounding monitor stops us.
                 ctx.log_info(f"Error: {e}")
             await asyncio.sleep(self._interval)
