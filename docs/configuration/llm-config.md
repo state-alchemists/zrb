@@ -28,6 +28,7 @@ Zrb uses `pydantic-ai` to interface with a wide array of Large Language Models, 
 - [Pagination Configuration](#18-pagination-configuration)
 - [LSP Server Selection](#19-lsp-server-selection)
 - [TUI Color Styles](#20-tui-color-styles)
+- [Sandbox Configuration](#21-sandbox-configuration)
 
 ---
 
@@ -652,5 +653,22 @@ attributes like `bold`. The special value `noinherit` resets to terminal default
 
 > Assistant identity (`ZRB_LLM_ASSISTANT_NAME`, `ZRB_LLM_ASSISTANT_ASCII_ART`,
 > `ZRB_LLM_ASSISTANT_JARGON`) is covered in [System Prompts & Identity](#4-system-prompts--identity).
+
+---
+
+## 21. Sandbox Configuration
+
+Opt-in filesystem containment for LLM tool calls — see
+[Sandbox](../advanced-topics/sandbox.md) for the full model (two enforcement
+layers, platform matrix, escape hatch).
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_LLM_SANDBOX_ENABLED` | Master switch for the sandbox (Python FS gate + OS shell wrapper). | `false` |
+| `ZRB_LLM_SANDBOX_OS_SHELL` | `auto` wraps shell commands with `sandbox-exec` (macOS) / `bwrap` (Linux); `off` keeps only the Python FS gate. | `auto` |
+| `ZRB_LLM_SANDBOX_WRITABLE_PATHS` | Colon-separated writable roots. Empty = automatic (cwd + system temp dir). | (empty) |
+| `ZRB_LLM_SANDBOX_DENY_READ_PATHS` | Colon-separated never-read paths (credential stores). Setting it replaces the built-in default list. | built-in list |
+| `ZRB_LLM_SANDBOX_FALLBACK` | `warn` runs unsandboxed with a visible warning when no OS mechanism exists (Windows, Linux without bwrap); `deny` refuses. | `warn` |
+| `ZRB_LLM_SANDBOX_ALLOW_ESCAPE` | Whether the `dangerously_skip_sandbox` tool argument is honored. Set `false` for CI / non-interactive deployments. | `true` |
 
 ---

@@ -118,6 +118,71 @@ def _permission_gate(tool_name: str, capability: Any, args: dict[str, Any]) -> A
     )
 
 
+# Argument keys the sandbox gate treats as filesystem paths (subset of the
+# permission layer's _SALIENT_ARG_KEYS). Reads check every path-like arg;
+# writes additionally check them for EDIT/UNKNOWN tools ("src" is write-checked
+# because move_file deletes it; "dst" because it gets overwritten).
+_SANDBOX_READ_KEYS = ("path", "file_path", "file", "filename", "src")
+_SANDBOX_WRITE_KEYS = ("path", "file_path", "file", "filename", "src", "dst")
+
+
+def _sandbox_gate(tool_name: str, capability: Any, args: dict[str, Any]) -> Any:
+    """Return a blocked ``ToolReturn`` if the sandbox FS policy denies this call.
+
+    Returns ``None`` when the sandbox is disabled (the default — zero-cost
+    path) or no path argument violates the policy. EXECUTE tools are not
+    path-checked here: shell commands are contained by the OS-level sandbox
+    layer, not by argument inspection.
+    """
+    # lazy: heavy third-party / leaf module read per call so tests and
+    # downstream CFG overrides are honored.
+    from pydantic_ai import ToolReturn
+
+    from zrb.llm.permission import Capability
+    from zrb.llm.sandbox import check_read, check_write, get_effective_sandbox_policy
+
+    policy = get_effective_sandbox_policy()
+    if not policy.enabled:
+        return None
+
+    def _blocked(reason: str) -> Any:
+        return ToolReturn(
+            return_value=None,
+            content=(
+                f"Blocked by sandbox policy: {reason}. "
+                "[SYSTEM SUGGESTION]: work within the project directory, or "
+                "ask the user to extend the sandbox writable paths "
+                "(LLM_SANDBOX_WRITABLE_PATHS) / adjust the deny list "
+                "(LLM_SANDBOX_DENY_READ_PATHS)."
+            ),
+            metadata={"blocked": True},
+        )
+
+    if not policy.allow_escape and args.get("dangerously_skip_sandbox"):
+        return _blocked(
+            "dangerously_skip_sandbox was requested but escaping the sandbox "
+            "is disabled in this deployment (LLM_SANDBOX_ALLOW_ESCAPE=false)"
+        )
+
+    cap_value = getattr(capability, "value", capability)
+    if cap_value == Capability.EXECUTE.value:
+        return None
+    for key in _SANDBOX_READ_KEYS:
+        value = args.get(key)
+        if isinstance(value, str):
+            error = check_read(value, policy)
+            if error is not None:
+                return _blocked(error)
+    if cap_value in (Capability.EDIT.value, Capability.UNKNOWN.value):
+        for key in _SANDBOX_WRITE_KEYS:
+            value = args.get(key)
+            if isinstance(value, str):
+                error = check_write(value, policy)
+                if error is not None:
+                    return _blocked(error)
+    return None
+
+
 def _truncated_content(content: str) -> tuple[str, dict[str, Any]]:
     """Apply the global tool-result size backstop to a model-facing string.
 
@@ -153,6 +218,9 @@ def create_safe_wrapper(func: Callable, name: str | None = None) -> Callable:
     async def wrapper(*args, **kwargs):
         try:
             blocked = _permission_gate(tool_name, capability, kwargs)
+            if blocked is not None:
+                return blocked
+            blocked = _sandbox_gate(tool_name, capability, kwargs)
             if blocked is not None:
                 return blocked
 
@@ -199,6 +267,9 @@ def _wrap_toolset(toolset: "AbstractToolset[None]") -> "AbstractToolset[None]":
         ) -> Any:
             try:
                 blocked = _permission_gate(name, tool_capability(tool), tool_args or {})
+                if blocked is not None:
+                    return blocked
+                blocked = _sandbox_gate(name, tool_capability(tool), tool_args or {})
                 if blocked is not None:
                     return blocked
                 result = await super().call_tool(name, tool_args, ctx, tool)

@@ -54,6 +54,7 @@ from zrb.llm.permission.state import (
     enter_agent_mode_scope,
     exit_agent_mode_scope,
 )
+from zrb.llm.sandbox.state import current_sandbox_policy
 from zrb.llm.tool_call.handler import ToolCallHandler
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 from zrb.llm.util.prompt import expand_prompt
@@ -105,6 +106,7 @@ async def run_agent(
     approval_channel: "ApprovalChannel | None" = None,
     system_prompt: str = "",
     permission_policy: Any = None,
+    sandbox_policy: Any = None,
 ) -> tuple[Any, list[Any]]:
     """
     Runs the agent with rate limiting, history management, and optional CLI confirmation loop.
@@ -139,6 +141,12 @@ async def run_agent(
         if permission_policy is not None
         else current_permission_policy.get()
     )
+    # Same inheritance rule for the sandbox: explicit arg wins, else keep the
+    # parent run's policy (sub-agents), else None (resolved from CFG at the
+    # gate / shell tool — off unless the deployment opted in).
+    effective_sandbox = (
+        sandbox_policy if sandbox_policy is not None else current_sandbox_policy.get()
+    )
 
     # Bind the run-scoped ContextVars through an ExitStack so set/reset stays
     # symmetric and exception-safe: if a later bind raises, the vars already
@@ -151,6 +159,7 @@ async def run_agent(
         _bind_contextvar(stack, current_yolo, effective_yolo)
         _bind_contextvar(stack, current_approval_channel, effective_approval_channel)
         _bind_contextvar(stack, current_permission_policy, effective_policy)
+        _bind_contextvar(stack, current_sandbox_policy, effective_sandbox)
         # Isolate agent mode per run so concurrent runs don't share/clobber each
         # other's plan/build state; the final mode is propagated back to the
         # caller on close so an in-run mode switch persists (e.g. sticky /plan).

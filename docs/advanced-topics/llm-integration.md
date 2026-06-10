@@ -12,6 +12,7 @@ Zrb comes with a powerful, built-in AI assistant that can understand your codeba
 - [Programmatic Usage](#programmatic-usage-llmtask-and-llmchattask)
 - [Built-in LLM Tools](#built-in-llm-tools)
 - [Permission Policy System](./permission-policy.md)
+- [Sandbox (Filesystem Containment)](./sandbox.md)
 - [Plan Mode](./plan-mode.md)
 - [Custom Tools and Sub-agents](#custom-tools-and-sub-agents)
 - [Model Capabilities](#model-capabilities)
