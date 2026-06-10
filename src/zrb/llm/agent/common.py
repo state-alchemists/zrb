@@ -118,14 +118,6 @@ def _permission_gate(tool_name: str, capability: Any, args: dict[str, Any]) -> A
     )
 
 
-# Argument keys the sandbox gate treats as filesystem paths (subset of the
-# permission layer's _SALIENT_ARG_KEYS). Reads check every path-like arg;
-# writes additionally check them for EDIT/UNKNOWN tools ("src" is write-checked
-# because move_file deletes it; "dst" because it gets overwritten).
-_SANDBOX_READ_KEYS = ("path", "file_path", "file", "filename", "src")
-_SANDBOX_WRITE_KEYS = ("path", "file_path", "file", "filename", "src", "dst")
-
-
 def _sandbox_gate(tool_name: str, capability: Any, args: dict[str, Any]) -> Any:
     """Return a blocked ``ToolReturn`` if the sandbox FS policy denies this call.
 
@@ -140,6 +132,13 @@ def _sandbox_gate(tool_name: str, capability: Any, args: dict[str, Any]) -> Any:
 
     from zrb.llm.permission import Capability
     from zrb.llm.sandbox import check_read, check_write, get_effective_sandbox_policy
+
+    # Argument keys the sandbox gate treats as filesystem paths (subset of the
+    # permission layer's _SALIENT_ARG_KEYS). Reads check every path-like arg;
+    # writes additionally check them for EDIT/UNKNOWN tools ("src" is write-checked
+    # because move_file deletes it; "dst" because it gets overwritten).
+    _SANDBOX_READ_KEYS = ("path", "file_path", "file", "filename", "src")
+    _SANDBOX_WRITE_KEYS = ("path", "file_path", "file", "filename", "src", "dst")
 
     policy = get_effective_sandbox_policy()
     if not policy.enabled:
