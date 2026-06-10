@@ -54,6 +54,16 @@ class KeybindingsMixin:
     def setup_app_keybindings(
         self, app_keybindings: "KeyBindings", llm_task: "AnyTask"
     ):
+        # lazy: heavy third-party
+        from prompt_toolkit.filters import Condition
+
+        # While the AskUserQuestion selection widget is active it owns Enter and
+        # newline keys (its own control bindings handle them); suppress the
+        # app-level handlers so they don't double-fire / resolve with stale text.
+        no_active_choice = Condition(
+            lambda: not getattr(self, "has_active_choice", lambda: False)()
+        )
+
         @app_keybindings.add("f6")
         def _(event):
             if event.app.layout.has_focus(self._input_field):
@@ -170,7 +180,7 @@ class KeybindingsMixin:
                 )
                 self.append_to_output("\n<Esc> Canceled")
 
-        @app_keybindings.add("enter")
+        @app_keybindings.add("enter", filter=no_active_choice)
         def _(event):
             if self._handle_multiline(event):
                 return
@@ -221,8 +231,8 @@ class KeybindingsMixin:
         def _(event):
             self.toggle_yolo()
 
-        @app_keybindings.add("c-j")  # Ctrl+J / Ctrl+Enter (Linefeed)
-        @app_keybindings.add("c-space")  # Ctrl+Space (Fallback)
+        @app_keybindings.add("c-j", filter=no_active_choice)  # Ctrl+J / Ctrl+Enter
+        @app_keybindings.add("c-space", filter=no_active_choice)  # Ctrl+Space fallback
         def _(event):
             event.current_buffer.insert_text("\n")
 

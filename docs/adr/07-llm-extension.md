@@ -738,6 +738,8 @@ provider-vs-`get_prompt` branch in `_get_composed_middlewares`);
 `test/llm/prompt/test_manager.py` (registered-section + custom-file-backed
 tests). Refines ADR-0035; mirrors ADR-0043; contrasts ADR-0044.
 
+---
+
 ## ADR-0062 — Intrinsic always-auto-approve for interaction tools (AskUserQuestion)
 
 **Status:** Accepted
@@ -797,3 +799,125 @@ comment added); `test/llm/tool_call/test_always_approve.py`,
 `test/llm/tool/test_ask.py`, `test/llm/agent/run/test_deferred_calls.py`
 (`test_process_deferred_requests_always_auto_approve_bypasses_handler`).
 Refines ADR-0055.
+
+---
+
+## ADR-0063 — Opt-in two-layer filesystem sandbox (Python FS gate + OS shell wrapper)
+
+**Status:** Accepted
+
+**Context.** The permission layer (ADR-0049–0055) controls *intent* — which
+tool calls a human approves — but nothing enforces *blast radius*: an approved
+or allowlist-auto-approved shell command, and every in-process file tool, can
+touch anything the user can. Downstream products need containment
+against prompt injection and model mistakes, across macOS/Linux/Windows. The
+file tools cannot be OS-sandboxed: they run inside the agent process, which
+needs the network for the LLM loop and broad read access for discovery.
+
+**Decision.** One opt-in `SandboxPolicy` (`zrb/llm/sandbox/`, off by default —
+same default-off invariant as the permission package) drives two enforcement
+layers. (1) A Python-level FS gate (`_sandbox_gate` in `agent/common.py`,
+immediately after `_permission_gate`) realpaths salient path arguments and
+blocks writes outside the writable roots for `EDIT`/`UNKNOWN` tools and reads
+inside a credential deny-list for all tools, returning the same blocked
+`ToolReturn` shape the model already knows. (2) An OS wrapper for shell
+subprocesses: `sandbox-exec -p <generated SBPL>` on macOS, `bwrap` (ro-bind
+root, rw-bind writable roots, tmpfs/`/dev/null` masks over deny-read paths) on
+Linux — no PID/network unsharing, so both wrappers exec in place and the
+process-group/timeout/PID-tracking machinery survives. Network stays open in
+v1. Where no mechanism exists (Windows, Linux without bwrap) the policy's
+`fallback` applies — `warn` (run + visible warning in the tool output) or
+`deny` — never a silent passthrough. Escape hatch:
+`dangerously_skip_sandbox` on the shell tools, never auto-approved
+(`bash_validation`/`auto_approve` route it to a human) and disableable via
+`LLM_SANDBOX_ALLOW_ESCAPE=false`. Policy flows like permissions: explicit
+`LLMTask(sandbox=...)` arg → `current_sandbox_policy` ContextVar (sub-agent
+inheritance) → `CFG.LLM_SANDBOX_*`.
+
+**Consequences.** Approved-but-injected commands cannot write outside the
+workspace or read `~/.ssh`-class secrets on macOS/Linux; MCP/unknown tools get
+write checks by default. Costs: the Python layer has check-to-use TOCTOU (the
+OS layer does not); Seatbelt-sandboxed processes cannot exec set[ug]id
+binaries (notably `/bin/ps` — the PID-tracking wrapper grew an `|| echo $$`
+fallback, and `sudo` is unavailable by construction); `sandbox-exec` is
+deprecated-but-functional (Chrome/Bazel/Codex precedent); Windows gets no
+OS-level shell isolation in v1.
+
+**Alternatives rejected.** Sandboxing the whole agent process (kills the LLM
+network loop and read-everything discovery); Landlock on Linux (kernel ≥5.13 +
+extra dependency + `preexec_fn` plumbing — deferred as a follow-up, bwrap is
+ubiquitous via flatpak); Docker/WSL2 on Windows (install burden incompatible
+with the deployment constraints); per-tool path checks instead of a central
+gate (touches every tool, misses future/MCP tools).
+
+**Evidence.** **[DOCUMENTED]** `src/zrb/llm/sandbox/` (policy, fs_policy,
+os_sandbox, seatbelt, bwrap, state); `_sandbox_gate` in
+`src/zrb/llm/agent/common.py`; `docs/advanced-topics/sandbox.md`;
+`test/llm/sandbox/` (incl. platform-conditional integration tests asserting
+write containment, deny-read, escape hatch, timeout-kill survival, and
+PID-tracking under the wrapper).
+
+## ADR-0064 — Optional `ask_user_choice` protocol method with text fallback for arrow-key AskUserQuestion
+
+**Status.** Accepted
+
+**Context.** `AskUserQuestion` rendered each question as numbered text and read
+the answer through `UIProtocol.ask_user(prompt: str) -> str` — the user typed a
+number or free text. We wanted Claude-Code-style arrow-key selection (↑/↓ to
+move, Enter to confirm, Space to toggle in multi-select) in the terminal UIs.
+Two forces constrained the design: (1) `ask_user` has six implementers
+(`StdUI`, the default full-screen `UI`, `MultiUI`, `SimpleUI`/web, the
+sub-agent delegate, and a base test stub) and is *also* used for tool-approval
+and sub-agent prompts — its `-> str` contract must not move; (2) the default UI
+is a single `full_screen=True` prompt-toolkit `Application`, and prompt-toolkit
+does not support running a nested `Application` (a `radiolist_dialog`) inside
+the running one — only one owns the terminal/event loop.
+
+**Decision.** Add one *optional* protocol method,
+`ask_user_choice(spec: ChoiceSpec) -> str`, alongside the unchanged `ask_user`.
+`BaseUI.ask_user_choice` provides a default that formats the spec as the same
+numbered text and delegates to `self.ask_user`, so every non-terminal
+implementer keeps working untouched; `tool/ask.py` routes through
+`ask_user_choice` (guarded by `hasattr` for UIs predating it). Terminal UIs
+override it: `StdUI` uses prompt-toolkit's `radiolist_dialog`/
+`checkboxlist_dialog` (it has no running `Application`); the default UI renders
+an in-layout `Float` driven by a new `SelectionMixin` — **not** a nested
+`Application`. To keep one serialization path, `ConfirmationMixin`'s queue was
+generalized from `(future, prompt)` to `(future, prompt, spec)`: a `None` spec
+renders as text (existing behavior), a `ChoiceSpec` renders the widget, and
+both share the single `_current_confirmation` active slot so a parallel
+sub-agent's text confirmation and a choice never contend for input. A synthetic
+"type my own answer" row drops to free-text via the existing input field; in
+multi-select the checked option labels are carried as a prefix and combined
+with the typed text.
+
+**Consequences.** Arrow-key selection in both terminal UIs with zero changes to
+web/`SimpleUI`/`MultiUI`/sub-agent paths (they inherit the text fallback). The
+`ChoiceSpec` is a plain `TypedDict` and the return stays a `str`, so
+`tool/ask.py`'s existing `_resolve_answer` (number→label) still applies and a
+widget that returns a label is idempotent through it. Costs: the delicate
+`ConfirmationMixin` ordering contract (render before marking pending, else the
+output buffer guard swallows the prompt) now also governs choice rendering; the
+default UI's app-level Enter/newline keybindings are gated by a
+`has_active_choice` filter so the widget's own bindings own those keys while a
+choice is shown; the free-text combine path overrides `_handle_confirmation` in
+`SelectionMixin` (ahead of `ConfirmationMixin` in the MRO).
+
+**Alternatives rejected.** Nested `radiolist_dialog` in the default UI (fights
+the running `Application` for the terminal — unsupported); overloading
+`ask_user` to accept structured input (breaks the `-> str` text contract relied
+on by tool-approval/sub-agent callers, and forces all six implementers to
+branch); a separate `_choice_queue` independent of the confirmation queue (two
+competing "active input" states could contend when a parallel sub-agent's
+approval prompt coincides with a choice); a single multi-question panel like
+Claude Code (higher effort and edge cases — questions render sequentially,
+reusing the existing per-question loop).
+
+**Evidence.** **[DOCUMENTED]** `ask_user_choice` + `ChoiceSpec` in
+`src/zrb/llm/tool_call/ui_protocol.py`; default fallback in
+`src/zrb/llm/ui/base/ui.py`; `src/zrb/llm/ui/default/selection_mixin.py`;
+generalized queue in `src/zrb/llm/ui/default/confirmation_mixin.py`;
+`StdUI.ask_user_choice` in `src/zrb/llm/ui/std_ui.py`; keybinding gating in
+`src/zrb/llm/ui/default/keybindings_mixin.py`; `tool/ask.py` routing. Tests:
+`test/llm/ui/default/test_selection_mixin.py`, `test/llm/ui/test_std_ui.py`,
+`test/llm/tool/test_ask.py`.

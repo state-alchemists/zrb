@@ -136,6 +136,11 @@ def bash_safe_command_policy() -> ToolPolicy:
         except (json.JSONDecodeError, ValueError):
             return await next_handler(ui, call)
 
+        # A sandbox-escape request must always reach a human, no matter how
+        # read-only the command looks.
+        if args.get("dangerously_skip_sandbox"):
+            return await next_handler(ui, call)
+
         if _is_safe_command(command):
             return ToolApproved()
 

@@ -245,9 +245,9 @@ To understand Zrb's core design decisions (such as the strict use of `asyncio`, 
 
 ## Context Propagation Internals
 
-Zrb uses Python's `contextvars.ContextVar` to thread execution state through async coroutines without explicit parameter passing. There are ten `ContextVar` instances across the codebase, split into four layers. The single source of truth is `src/zrb/contextvars.py` (a re-export index); update this section whenever you add, remove, or rename a `ContextVar`.
+Zrb uses Python's `contextvars.ContextVar` to thread execution state through async coroutines without explicit parameter passing. There are eleven `ContextVar` instances across the codebase, split into five layers. The single source of truth is `src/zrb/contextvars.py` (a re-export index); update this section whenever you add, remove, or rename a `ContextVar`.
 
-### The Four Layers
+### The Five Layers
 
 **Layer 1 — Task execution** (`src/zrb/context/any_context.py`):
 
@@ -275,7 +275,13 @@ All four are set at the start of `run_agent()` and reset in its `finally` block.
 | `current_permission_policy` | `PermissionPolicy \| None` | In-force tool ruleset (`None` = legacy yolo behavior). Set by `run_agent()` from the explicit arg or inherited from a parent run; reset in its `finally` block. |
 | `current_agent_mode` | `AgentMode` | `DEFAULT` or `PLAN` (read-only). Set by the `EnterPlanMode` / `ExitPlanMode` tools; `PLAN` makes `get_effective_policy()` return the read-only `PLAN_MODE_POLICY`. |
 
-**Layer 4 — Tool ambient state** (`src/zrb/llm/tool/worktree.py`, `src/zrb/llm/tool/plan.py`, `src/zrb/llm/tool/ask.py`):
+**Layer 4 — Sandbox state** (`src/zrb/llm/sandbox/state.py`):
+
+| Variable | Type | Purpose |
+|---|---|---|
+| `current_sandbox_policy` | `SandboxPolicy \| None` | In-force filesystem-containment policy (`None` = resolve from `CFG.LLM_SANDBOX_*`, which is disabled unless the deployment opted in). Set by `run_agent()` from the explicit arg or inherited from a parent run; reset in its `finally` block. Consumed by the `_sandbox_gate` in `agent/common.py` and the shell tools' OS-sandbox wrapper. |
+
+**Layer 5 — Tool ambient state** (`src/zrb/llm/tool/worktree.py`, `src/zrb/llm/tool/plan.py`, `src/zrb/llm/tool/ask.py`):
 
 | Variable | Type | Purpose |
 |---|---|---|

@@ -23,6 +23,7 @@ from zrb.llm.hook.manager import hook_manager as default_hook_manager
 from zrb.llm.permission import resolve_policy
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.prompt.tool_guidance import ToolGuidance
+from zrb.llm.sandbox import coerce_sandbox
 from zrb.llm.summarizer import (
     summarize_history,
 )
@@ -99,6 +100,7 @@ class LLMTask(BaseTask):
         yolo: BoolAttr = False,
         dynamic_yolo: Callable[..., bool] | None = None,
         permissions: Any = None,
+        sandbox: Any = None,
         approval_channel: ApprovalChannel | None = None,
         summarize_command: list[str] | None = None,
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
@@ -184,6 +186,7 @@ class LLMTask(BaseTask):
         self._ui_factories: list[Callable[..., UIProtocol]] = []
         self._dynamic_yolo = dynamic_yolo
         self._permissions = permissions
+        self._sandbox = sandbox
         self._approval_channel = approval_channel
         self._summarize_command = (
             summarize_command if summarize_command is not None else []
@@ -396,6 +399,10 @@ class LLMTask(BaseTask):
                 if self._permissions is not None
                 else CFG.LLM_PERMISSIONS
             )
+            # Resolve the sandbox policy from the explicit task param. None →
+            # run_agent keeps inherited/ambient behavior (CFG fallback at the
+            # enforcement sites — disabled unless the deployment opted in).
+            sandbox_policy = coerce_sandbox(self._sandbox)
             CFG.LOGGER.debug("llm_task Calling run_agent with:")
             CFG.LOGGER.debug(f"  tool_confirmation: {self._tool_confirmation}")
             CFG.LOGGER.debug(f"  approval_channel: {self._approval_channel}")
@@ -414,6 +421,7 @@ class LLMTask(BaseTask):
                 approval_channel=self._approval_channel,
                 system_prompt=system_prompt,
                 permission_policy=permission_policy,
+                sandbox_policy=sandbox_policy,
             )
         except asyncio.CancelledError:
             self._save_cancelled_history(

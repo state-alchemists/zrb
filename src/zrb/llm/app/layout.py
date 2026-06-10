@@ -185,6 +185,7 @@ def create_layout(
     output_field: TextArea,
     info_bar_text: Callable[[], AnyFormattedText],
     status_bar_text: Callable[[], AnyFormattedText],
+    extra_floats: list[Float] | None = None,
 ) -> Layout:
     title_bar_text = HTML(
         f" <style bg='ansipurple' color='white'><b> {title} </b></style> "
@@ -233,6 +234,7 @@ def create_layout(
                     ycursor=True,
                     content=CompletionsMenu(max_height=16, scroll_offset=1),
                 ),
+                *(extra_floats or []),
             ],
         ),
         focused_element=input_field,

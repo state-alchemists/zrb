@@ -37,23 +37,42 @@ class _ShellBackgroundRegistry:
         self._procs: dict[str, _BackgroundProcess] = {}
 
     async def start(
-        self, command: str, cwd: str, description: str, shell: str = ""
+        self,
+        command: str,
+        cwd: str,
+        description: str,
+        shell: str = "",
+        dangerously_skip_sandbox: bool = False,
     ) -> str:
+        # lazy: leaf module; policy re-resolved per call (ContextVar / CFG).
+        from zrb.llm.sandbox import build_sandboxed_argv, get_effective_sandbox_policy
+
         handle = get_random_name(separator="-", add_random_digit=True)
         resolved_shell, shell_flag = resolve_shell(shell)
-        # start_new_session=True isolates the process group (setsid on POSIX,
-        # ignored on Windows). stdin=DEVNULL prevents hangs on stdin reads.
-        proc = await asyncio.create_subprocess_exec(
+        effective_cwd = cwd or os.getcwd()
+        # Raises SandboxUnavailableError in fallback="deny" mode — surfaced by
+        # the tool as an explanatory error.
+        argv, sandbox_note = build_sandboxed_argv(
             resolved_shell,
             shell_flag,
             command,
+            effective_cwd,
+            get_effective_sandbox_policy(),
+            skip=dangerously_skip_sandbox,
+        )
+        # start_new_session=True isolates the process group (setsid on POSIX,
+        # ignored on Windows). stdin=DEVNULL prevents hangs on stdin reads.
+        proc = await asyncio.create_subprocess_exec(
+            *argv,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             stdin=asyncio.subprocess.DEVNULL,
-            cwd=cwd or os.getcwd(),
+            cwd=effective_cwd,
             start_new_session=True,
         )
         bp = _BackgroundProcess(process=proc, description=description or command)
+        if sandbox_note:
+            bp.stderr_lines.append(f"{sandbox_note}\n")
         self._procs[handle] = bp
         # Start readers in the background and track them so cancel_all() /
         # kill() can stop them — otherwise they leak past the process exit.
@@ -169,6 +188,7 @@ def create_shell_background_tool():
         description: str = "",
         cwd: str = "",
         shell: str = "",
+        dangerously_skip_sandbox: bool = False,
     ) -> str:
         """Start a shell command in the BACKGROUND and return a handle immediately.
 
@@ -179,9 +199,22 @@ def create_shell_background_tool():
         For short commands whose output you need now, use Shell instead.
 
         `shell` selects the interpreter (e.g. "bash"); empty uses the default
-        shell.
+        shell. `dangerously_skip_sandbox` runs the command outside the OS-level
+        sandbox (when one is active) and always requires explicit user approval.
         """
-        handle = await _registry.start(command, cwd, description, shell)
+        # lazy: leaf module
+        from zrb.llm.sandbox import SandboxUnavailableError
+
+        try:
+            handle = await _registry.start(
+                command, cwd, description, shell, dangerously_skip_sandbox
+            )
+        except SandboxUnavailableError as e:
+            return (
+                f"Command refused by sandbox policy: {e}. "
+                "[SYSTEM SUGGESTION]: this deployment requires OS-level "
+                "sandboxing for shell commands (LLM_SANDBOX_FALLBACK=deny)."
+            )
         return (
             f"Started background process. Handle: {handle}. "
             "Call MonitorProcess with this handle to check status."

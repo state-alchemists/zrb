@@ -13,6 +13,7 @@ To find a setting:
 - LLM throttle/retry/timeout/size caps       -> _mixins/llm_limits.py
 - LLM history/journal/snapshot/summarization -> _mixins/llm_content.py
 - LLM prompt dirs/INCLUDE_* toggles          -> _mixins/llm_prompt.py
+- LLM sandbox (FS gate, shell wrapper)       -> _mixins/llm_sandbox.py
 - LLM plugin/skill/agent search dirs         -> _mixins/llm_search.py
 - RAG embedding/chunking                     -> _mixins/rag.py
 - Internet search (SerpAPI/Brave/SearXNG)    -> _mixins/internet_search.py
@@ -27,6 +28,7 @@ from zrb.config.mixins.llm_content import LLMContentMixin
 from zrb.config.mixins.llm_core import LLMCoreMixin
 from zrb.config.mixins.llm_limits import LLMLimitsMixin
 from zrb.config.mixins.llm_prompt import LLMPromptMixin
+from zrb.config.mixins.llm_sandbox import LLMSandboxMixin
 from zrb.config.mixins.llm_search import LLMSearchMixin
 from zrb.config.mixins.llm_ui import LLMUIMixin
 from zrb.config.mixins.rag import RAGMixin
@@ -42,6 +44,7 @@ class Config(
     LLMLimitsMixin,
     LLMContentMixin,
     LLMPromptMixin,
+    LLMSandboxMixin,
     LLMSearchMixin,
     RAGMixin,
     InternetSearchMixin,

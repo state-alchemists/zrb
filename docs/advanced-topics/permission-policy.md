@@ -4,6 +4,12 @@
 
 Zrb includes a robust, first-match-wins permission system designed to provide fine-grained control over which tools an LLM agent can call. This system acts as a security gate, ensuring that agents operate within safe boundaries even when YOLO mode is enabled.
 
+> **Permission vs. sandbox.** The permission policy controls *intent* — which
+> tool calls the user agrees to. The opt-in [sandbox](sandbox.md) controls
+> *blast radius* — what an approved call can actually touch on the filesystem.
+> At execution time the two gates run back-to-back in `agent/common.py`:
+> `_permission_gate` first, then `_sandbox_gate`.
+
 ---
 
 ## Table of Contents

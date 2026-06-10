@@ -15,10 +15,17 @@ async def run_bash_command(
     preserved_head_lines: int = 500,
     preserved_tail_lines: int = 500,
     max_chars: int | None = None,
+    dangerously_skip_sandbox: bool = False,
 ) -> str:
     """
     Executes a non-interactive shell command under bash. Streams stdout/stderr
     live and returns truncated output.
+
+    Args:
+        dangerously_skip_sandbox: Run this command OUTSIDE the OS-level sandbox
+            (when one is active). Only set it when a command genuinely needs to
+            write outside the workspace; it always requires explicit user
+            approval.
     """
     return await _shell_cmd(
         command=command,
@@ -28,6 +35,7 @@ async def run_bash_command(
         preserved_tail_lines=preserved_tail_lines,
         max_chars=max_chars,
         shell="bash",
+        dangerously_skip_sandbox=dangerously_skip_sandbox,
     )
 
 

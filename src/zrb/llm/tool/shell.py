@@ -6,6 +6,7 @@ import tempfile
 
 from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
+from zrb.llm.sandbox.os_sandbox import SandboxUnavailableError
 from zrb.util.cli.style import stylize_faint
 from zrb.util.cmd.command import resolve_shell, terminate_process
 from zrb.util.truncate import truncate_output
@@ -19,6 +20,7 @@ async def run_shell_command(
     preserved_tail_lines: int = 500,
     max_chars: int | None = None,
     shell: str = "",
+    dangerously_skip_sandbox: bool = False,
 ) -> str:
     """
     Executes a non-interactive shell command. Streams stdout/stderr live and returns truncated output.
@@ -36,6 +38,10 @@ async def run_shell_command(
     Args:
         shell: The shell to use (e.g., "bash", "zsh", "sh"). Empty string uses
             the default shell.
+        dangerously_skip_sandbox: Run this command OUTSIDE the OS-level sandbox
+            (when one is active). Only set it when a command genuinely needs to
+            write outside the workspace; it always requires explicit user
+            approval.
     """
     if max_chars is None:
         max_chars = CFG.LLM_MAX_OUTPUT_CHARS
@@ -49,7 +55,25 @@ async def run_shell_command(
     wrapper_command, temp_pid_file = _prepare_command(command, use_pid_tracking)
 
     try:
-        process = await _start_process(resolved_shell, shell_flag, wrapper_command, cwd)
+        argv, sandbox_note = _build_sandboxed_shell_argv(
+            resolved_shell,
+            shell_flag,
+            wrapper_command,
+            cwd,
+            dangerously_skip_sandbox,
+        )
+    except SandboxUnavailableError as e:
+        _cleanup_temp_file(temp_pid_file)
+        return (
+            f"Command refused by sandbox policy: {e}. "
+            "[SYSTEM SUGGESTION]: this deployment requires OS-level sandboxing "
+            "for shell commands (LLM_SANDBOX_FALLBACK=deny). Use the in-process "
+            "file tools instead, or ask the user to adjust the sandbox "
+            "configuration."
+        )
+
+    try:
+        process = await _start_process(argv, cwd)
 
         stdout_lines = []
         stderr_lines = []
@@ -76,7 +100,7 @@ async def run_shell_command(
         stderr_str = "".join(stderr_lines)
         bg_pids = _collect_background_pids(temp_pid_file, process.pid)
 
-        return _format_output(
+        result = _format_output(
             command,
             cwd,
             stdout_str,
@@ -89,6 +113,9 @@ async def run_shell_command(
             preserved_tail_lines,
             max_chars,
         )
+        if sandbox_note:
+            result = f"{sandbox_note}\n{result}"
+        return result
 
     except Exception as e:
         _cleanup_temp_file(temp_pid_file)
@@ -109,28 +136,50 @@ def _prepare_command(command: str, use_pid_tracking: bool) -> tuple[str, str | N
 
     # Logic to capture background PIDs
     # We use `pgrep -g` to find processes in the current process group.
-    # `$(ps -o pgid= -p $$)` gets the PGID of the shell executing the command.
+    # `$(ps -o pgid= -p $$)` gets the PGID of the shell executing the command;
+    # `|| echo $$` covers macOS Seatbelt, where /bin/ps is setuid root and a
+    # sandboxed shell cannot exec it — there the shell IS the group leader
+    # (start_new_session=True + the sandbox wrappers exec in place), so $$ is
+    # the PGID. The shell's own PID ($$) is written first so
+    # _collect_background_pids can exclude it even when a wrapper makes
+    # process.pid != $$.
     wrapper_command = (
+        f"echo $$ > {temp_pid_file}; "
         f"{{ {command} ; }}; __code=$?; "
-        f"pgrep -g $(ps -o pgid= -p $$) > {temp_pid_file} 2>/dev/null; "
+        f"pgrep -g $(ps -o pgid= -p $$ 2>/dev/null || echo $$) "
+        f">> {temp_pid_file} 2>/dev/null; "
         f"exit $__code"
     )
     return wrapper_command, temp_pid_file
 
 
-async def _start_process(
-    shell: str, shell_flag: str, command: str, cwd: str
-) -> asyncio.subprocess.Process:
+def _build_sandboxed_shell_argv(
+    shell: str, shell_flag: str, command: str, cwd: str, skip: bool
+) -> tuple[list[str], str | None]:
+    """Wrap the shell invocation per the in-force sandbox policy.
+
+    Returns ``(argv, note)``; with the sandbox disabled (the default) this is
+    a passthrough. Raises ``SandboxUnavailableError`` in fallback="deny" mode.
+    """
+    # lazy: leaf module; policy is re-resolved per call so ContextVar binding
+    # and CFG overrides are honored.
+    from zrb.llm.sandbox import build_sandboxed_argv, get_effective_sandbox_policy
+
+    policy = get_effective_sandbox_policy()
+    return build_sandboxed_argv(shell, shell_flag, command, cwd, policy, skip=skip)
+
+
+async def _start_process(argv: list[str], cwd: str) -> asyncio.subprocess.Process:
     """Starts the subprocess with appropriate settings."""
     # start_new_session=True puts the shell in its own session/process group
     # (setsid on POSIX, ignored on Windows). This lets `pgrep -g` find spawned
-    # processes and lets terminate/kill target the whole tree.
+    # processes and lets terminate/kill target the whole tree. The sandbox
+    # wrappers (sandbox-exec/bwrap) exec the shell in place, so these
+    # semantics survive wrapping.
     # stdin is DEVNULL so a command that reads stdin fails fast instead of
     # hanging until the timeout.
     return await asyncio.create_subprocess_exec(
-        shell,
-        shell_flag,
-        command,
+        *argv,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
         stdin=asyncio.subprocess.DEVNULL,
@@ -161,18 +210,21 @@ async def _read_stream(stream: asyncio.StreamReader, lines_list: list[str]):
 
 
 def _collect_background_pids(temp_pid_file: str | None, process_pid: int) -> list[int]:
-    """Reads background PIDs from the temp file and cleans it up."""
+    """Reads background PIDs from the temp file and cleans it up.
+
+    The first line is the wrapper shell's own ``$$`` (see ``_prepare_command``)
+    — excluded along with ``process_pid``, which can differ from ``$$`` when a
+    sandbox wrapper sits between the spawned process and the shell.
+    """
     bg_pids = []
     if temp_pid_file and os.path.exists(temp_pid_file):
         try:
             with open(temp_pid_file, "r", encoding="utf-8") as f:
-                for line in f:
-                    clean_line = line.strip()
-                    if clean_line.isdigit():
-                        pid = int(clean_line)
-                        # Exclude the wrapper shell PID and our process PID
-                        if pid != process_pid and pid != os.getpid():
-                            bg_pids.append(pid)
+                pids = [int(ln.strip()) for ln in f if ln.strip().isdigit()]
+            shell_pid = pids[0] if pids else -1
+            for pid in pids[1:]:
+                if pid not in (process_pid, shell_pid, os.getpid()):
+                    bg_pids.append(pid)
             os.remove(temp_pid_file)
         except Exception:
             pass
