@@ -747,7 +747,7 @@ tests). Refines ADR-0035; mirrors ADR-0043; contrasts ADR-0044.
 **Context.** The permission layer (ADR-0049–0055) controls *intent* — which
 tool calls a human approves — but nothing enforces *blast radius*: an approved
 or allowlist-auto-approved shell command, and every in-process file tool, can
-touch anything the user can. Downstream products (bankai) need containment
+touch anything the user can. Downstream products need containment
 against prompt injection and model mistakes, across macOS/Linux/Windows. The
 file tools cannot be OS-sandboxed: they run inside the agent process, which
 needs the network for the LLM loop and broad read access for discovery.
