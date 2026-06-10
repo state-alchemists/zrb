@@ -18,6 +18,7 @@ from contextvars import ContextVar
 from typing import Any
 
 from zrb.llm.tool.wrapper import tool_safe_async
+from zrb.llm.tool_call.always_approve import register_always_auto_approve
 
 interactive_mode: ContextVar[bool] = ContextVar("zrb_interactive_mode", default=True)
 
@@ -148,3 +149,10 @@ def _resolve_answer(q: dict[str, Any], raw: str) -> str:
 
 
 ask_user_question.__name__ = "AskUserQuestion"
+
+# AskUserQuestion *is* the user interaction — gating it behind a separate
+# tool-approval prompt is meaningless and renders before the question itself.
+# Auto-approve intrinsically, in every path (main agent, sub-agents, web), so
+# the question surfaces directly. The non-interactive guard above already
+# prevents the tool from blocking on stdin when there is no user to answer.
+register_always_auto_approve("AskUserQuestion")

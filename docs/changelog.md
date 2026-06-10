@@ -1,6 +1,12 @@
 🔖 [Documentation Home](../README.md)
 
 
+## 2.33.4 (June 10, 2026)
+
+- **Fix: AskUserQuestion prompt never rendered (stuck at "waiting for confirmation")** (`ui/default/confirmation_mixin.py`): `ask_user` set `_current_confirmation` *before* appending the prompt, so the prompt hit `OutputMixin.append_to_output`'s buffer guard (pending-confirmation + thinking → buffer to avoid interleaving main-agent tokens) and was buffered away instead of shown. The user saw the `🧰` tool-call line and "waiting for confirmation" but no question. The prompt is now appended *before* marking the confirmation pending, in both `ask_user` and `_activate_next_confirmation`.
+
+- **Fix: AskUserQuestion gated behind a redundant approval prompt** (`tool/ask.py`, `tool_call/always_approve.py`, `agent/run/deferred_calls.py`, ADR-0062): `AskUserQuestion` *is* the user interaction, but as a deferred tool it went through the approval cascade — asking "Allow tool execution?" before the question itself rendered. Auto-approval was only wired via a single `auto_approve("AskUserQuestion")` entry in `builtin/llm/chat.py`, so delegated sub-agents, the web/API runner, and bare `LLMTask`s still prompted (or left the question un-surfaced). Auto-approval is now **intrinsic to the tool**: it self-registers via `register_always_auto_approve("AskUserQuestion")`, and `_resolve_approval` honors that registry as Priority 0 in every path. The redundant `chat.py` entry was removed (single source of truth).
+
 ## 2.33.3 (June 8, 2026)
 
 - **Fix: empty env var reaches typed cast and crashes** (`env_field.py`): An explicitly empty env var (e.g. `export ZRB_WEB_HTTP_PORT=`) would reach `int("")`/`to_boolean("")` and raise an opaque error. Empty is now treated the same as unset, falling back to the resolved default.
