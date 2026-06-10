@@ -1,6 +1,6 @@
 🔖 [Documentation Home](../README.md)
 
-## Unreleased
+## 2.34.0 (June 10, 2026)
 
 - **Feature: arrow-key selection UI for AskUserQuestion**:
   - The default full-screen chat UI and `StdUI` now render `AskUserQuestion` as an interactive, arrow-key-selectable list (↑/↓ to move, Enter to confirm) instead of requiring the user to type an option number. Multi-select questions use Space to toggle; a synthetic "✎ Type my own answer…" row drops to free-text, and in multi-select the typed text is appended to the already-checked options.
