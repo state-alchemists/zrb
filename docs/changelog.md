@@ -1,5 +1,30 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.34.1 (June 11, 2026)
+
+- **Fix: history manager memory leak** (`file_history_manager.py`): The in-RAM conversation cache grew unboundedly across a session. Added an LRU eviction cap (`_MAX_CACHED_CONVERSATIONS = 8`) with dirty-entry tracking so unsaved updates are never dropped. The `_dirty` set is cleared on `save()`; clean entries reload losslessly from disk on next access.
+
+- **Fix: LSP project root cache unbounded growth** (`lifecycle_mixin.py`): The per-file project-root directory walk cache had no size bound. Added `_MAX_PROJECT_ROOT_CACHE = 4096` with oldest-entry eviction. Precision doesn't matter at this level — unboundedness does.
+
+- **Fix: denial reason accepts arbitrarily large payloads** (`handler.py`, `response_handler/default.py`, `truncate.py`): A mis-submitted input (whole screen buffer, pasted document) entered the conversation history as a tool result. Added `truncate_chars(text, 500)` with a `...[TRUNCATED N chars]` marker in `src/zrb/util/truncate.py`, applied in both the inline approval handler and the default response handler.
+
+- **Fix: Enter key with focus on output pane submits pane content** (`keybindings_mixin.py`): Tab/F6 puts focus on the read-only output buffer. Enter there would resolve a pending confirmation or submit the entire pane content (banner, help, transcript) as user input. Enter now unconditionally refocuses the input field when focus is elsewhere.
+
+- **Feature: logged warning for empty custom prompt sections** (`manager.py`): When a name in `include_sections` / `ZRB_LLM_INCLUDE_SECTIONS` resolves as neither built-in, registered provider, nor existing markdown file, the section is now composed as empty (instead of the previous silent no-op) and a warning is logged or printed at compose time — so a misspelled section name is diagnosable.
+
+- **Improvement: prompt system weight reduction** (30 files across `prompt/`, `tool/`, `tool_call/`, `common_tools.py`, `llm_plugin/agents/`, `llm_plugin/skills/`, `AGENTS.md`):
+  - Stripped redundant usage instructions from tool docstrings and tool guidance that duplicate the Tool Usage Guide.
+  - Shifted Skill Activation policy and authority rules from the skills catalogue into the centralized Operating Rules section (single source of truth).
+  - Standardized activation language across all sub-agent definitions (code-reviewer, generalist, researcher) to reference the Operating Rules table rather than restating per-agent rules.
+  - Removed duplicative `when_to_use`/`key_rule` entries where the tool name is self-describing; tightened remaining guidance to cross-tool choice logic only.
+  - Replaced "activate before X" phrasing with "activate when the deliverable is X" across all skill descriptions, matching the Skill Activation table semantics.
+  - Stripped "Deliver complete outputs" from persona (implied by the quality rules), "Wait for agreement" from persona (covered by the Working Loop Frame step), and other weight lines.
+  - Removed obsolete `__doc__` reassignment in `delegate.py` (the docstring is already on the function) and outdated `Mandates` section in `code.py` (redundant with tool guidance).
+  - Tightened delegation guidance: removed motivational framing around fidelity/cost; kept only the scope-clamp rule.
+  - Clarified that `core-coding` companions are defaults, not absolutes — explicit project guidelines override them.
+  - Updated `git-summary/SKILL.md` to: default to drafting only, commit/PR only on explicit request.
+  - Reduced total prompt weight by ~143 lines (net diff: +253 -143).
+
 ## 2.34.0 (June 10, 2026)
 
 - **Feature: arrow-key selection UI for AskUserQuestion**:
