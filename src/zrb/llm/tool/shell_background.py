@@ -139,7 +139,18 @@ class _ShellBackgroundRegistry:
             f"Stderr:\n{stderr.strip() or '(empty)'}",
         ]
         if bp.returncode is not None:
-            lines.append("The handle has been consumed — the process has finished.")
+            if all(task.done() for task in bp.tasks):
+                # Output fully drained: release the entry so finished
+                # processes (and their output buffers) don't accumulate in
+                # the registry for the rest of the session.
+                lines.append("The handle has been consumed — the process has finished.")
+                _cancel_tasks(bp)
+                self._procs.pop(handle, None)
+            else:
+                lines.append(
+                    "The process has finished; output is still being "
+                    "collected — poll once more for the final output."
+                )
         return "\n".join(lines)
 
     async def kill(self, handle: str) -> str:
