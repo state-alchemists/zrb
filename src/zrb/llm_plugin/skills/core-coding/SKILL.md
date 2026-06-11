@@ -1,6 +1,6 @@
 ---
 name: core-coding
-description: "Activate when the turn's deliverable is source, test, or config files — editing or creating code. Provides the Research → Strategy → Execution workflow, the complexity budget, and specialised deep-dive companions (testing, debug, refactor, review)."
+description: "Activate when the turn's deliverable is source, test, code analysis, or config files — editing or creating code. Provides the Research → Strategy → Execution workflow, the complexity budget, and specialised deep-dive companions (testing, debug, refactor, review)."
 user-invocable: false
 ---
 # Skill: core-coding
