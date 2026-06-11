@@ -105,10 +105,7 @@ def create_background_delegate_tool(
     ) -> str:
         """Start a subagent in the BACKGROUND and return a handle immediately.
 
-        Poll with GetDelegationResult(handle) to collect the result later. Use
-        for long, independent work you do not need before continuing (e.g.
-        speculative research, generating a file). For work whose result you need
-        now, use the synchronous DelegateToAgent instead.
+        Poll with GetDelegationResult(handle) to collect the result later.
 
         The background agent inherits the main agent's permissions and yolo
         setting. If one of its tool calls needs approval, the request interrupts

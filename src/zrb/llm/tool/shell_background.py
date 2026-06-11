@@ -192,11 +192,8 @@ def create_shell_background_tool():
     ) -> str:
         """Start a shell command in the BACKGROUND and return a handle immediately.
 
-        Use for long-running processes (dev servers, watchers, builds). Poll
-        with MonitorProcess(handle) to see incremental stdout/stderr. Kill
-        with MonitorProcess(handle, kill=True).
-
-        For short commands whose output you need now, use Shell instead.
+        Poll with MonitorProcess(handle) to see incremental stdout/stderr;
+        kill with MonitorProcess(handle, kill=True).
 
         `shell` selects the interpreter (e.g. "bash"); empty uses the default
         shell. `dangerously_skip_sandbox` runs the command outside the OS-level

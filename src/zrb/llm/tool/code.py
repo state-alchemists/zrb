@@ -88,8 +88,6 @@ async def analyze_code(
     uses LSP for more token-efficient semantic pre-analysis on supported file types.
 
     MANDATES:
-    - For single-file analysis, use `AnalyzeFile` instead.
-    - For simple file listing, use `Glob` or `LS`.
     - Use `file_pattern` to limit scope (e.g., `*.py`).
     - Write specific queries (e.g., "how is auth implemented?") not vague ones (e.g., "explain this code").
     """

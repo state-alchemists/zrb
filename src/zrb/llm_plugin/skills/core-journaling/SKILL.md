@@ -1,13 +1,13 @@
 ---
 name: core-journaling
-description: "Activate before every journal write — new entry, edit, restructure, or activity log append. Provides the graph protocol (bidirectional links, indexes), the directory layout, and the activity log format that keep the journal consistent."
+description: "Ensure this skill is active before every journal write — new entry, edit, restructure, or activity log append. Provides the graph protocol (bidirectional links, indexes), the directory layout, and the activity log format that keep the journal consistent."
 user-invocable: false
 ---
 # Skill: core-journaling
 
 The Journal is a bidirectional graph knowledge base plus a chronological log book. Every note links to related notes; every link has a reverse (backlink). The root `index.md` is your Heads-Up Display. The `activity-log/` subtree records what was done over time.
 
-**Activate this skill on every journal write.** Skipping it on "small" writes is how the journal becomes a half-graph: some notes linked, others orphaned. The graph protocol IS the routine — not a special mode.
+**Ensure this skill is active before every journal write** — once activated it stays loaded for the session, so checking costs nothing (the System Context shows active skills). Skipping the protocol on "small" writes is how the journal becomes a half-graph: some notes linked, others orphaned. The graph protocol IS the routine — not a special mode.
 
 ## Directory Structure
 
