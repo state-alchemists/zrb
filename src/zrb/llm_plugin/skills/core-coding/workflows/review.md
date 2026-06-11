@@ -2,7 +2,7 @@
 
 Do not modify code during review — produce findings and let the user decide what to fix.
 
-For large diffs (more than 10 changed files or more than 500 total changed lines), delegate to the `code-reviewer` agent instead: `DelegateToAgent('code-reviewer', 'Review the recent changes', '<context>')`.
+For large diffs (more than 10 changed files or more than 500 total changed lines), delegate to the `code-reviewer` agent instead — if you have the `DelegateToAgent` tool. Example: `DelegateToAgent(agent_name='code-reviewer', deliverable='A severity-rated review of the recent changes with a verdict', task='Review the diff of <base>..<head>', non_goals=['do not modify code'])`. Sub-agents have no delegate tools — if you are one, review inline regardless of diff size.
 
 ---
 
@@ -90,7 +90,7 @@ Work through each category for every changed file that touches user input, auth,
 
 ## Step 5 — Verification
 
-Run the test suite with `Bash`. A review is incomplete without knowing tests pass.
+Run the test suite with `Shell`. A review is incomplete without knowing tests pass.
 
 ---
 

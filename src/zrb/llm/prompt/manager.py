@@ -4,7 +4,7 @@ from typing import Any, Callable
 
 from zrb.attr.type import StrListAttr
 from zrb.config.config import CFG
-from zrb.context.any_context import AnyContext
+from zrb.context.any_context import AnyContext, zrb_print
 from zrb.llm.prompt.claude import (
     create_claude_skills_prompt,
     create_project_context_prompt,
@@ -320,12 +320,43 @@ class PromptManager:
                 # get_prompt(name) (project override -> env -> base prompt dir
                 # -> package default). Lets downstreams add always-on, ordered
                 # sections through include_sections + a markdown file, with no
-                # code change. Missing files resolve to "" (harmless no-op).
-                middlewares.append(new_prompt(lambda n=section: get_prompt(n)))
+                # code change. Missing files resolve to "" (harmless no-op)
+                # and log a warning so a misspelled name is diagnosable.
+                middlewares.append(self._new_file_section_middleware(section))
 
         # User custom prompts always last
         middlewares.extend(self._middlewares)
         return middlewares
+
+    def _new_file_section_middleware(self, name: str) -> FullMiddleware:
+        """Middleware for a file-backed custom section.
+
+        Resolves *name* via ``get_prompt`` at compose time. When nothing
+        resolves (no registered provider, no markdown file), the section is
+        empty — a warning is logged so a misspelled name in
+        ``include_sections`` / ``ZRB_LLM_INCLUDE_SECTIONS`` is diagnosable
+        instead of silently dropped.
+        """
+
+        def file_section_middleware(
+            ctx: AnyContext, current: str, next_fn: Callable[[AnyContext, str], str]
+        ) -> str:
+            content = get_prompt(name)
+            if not content:
+                message = (
+                    f"Prompt section '{name}' is not a built-in, has no "
+                    "registered provider, and no markdown file resolves for "
+                    "it — the section is empty. Check include_sections / "
+                    "ZRB_LLM_INCLUDE_SECTIONS for a typo."
+                )
+                log_warning = getattr(ctx, "log_warning", None)
+                if callable(log_warning):
+                    log_warning(message)
+                else:
+                    zrb_print(f"Warning: {message}", plain=True)
+            return next_fn(ctx, f"{current}\n{content}")
+
+        return file_section_middleware
 
     def _is_full_middleware(self, prompt: PromptMiddleware | str) -> bool:
         """Check if prompt is a full middleware (accepts next param) or simple callable."""

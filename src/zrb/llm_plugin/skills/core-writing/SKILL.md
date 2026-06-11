@@ -1,6 +1,6 @@
 ---
 name: core-writing
-description: "Activate before any substantial writing — docs, copy, proposals, feedback, commit messages, or UI text. Provides copywriting frameworks, tone guidance, and editing workflow for clear, persuasive, polished output."
+description: "Activate when the turn's deliverable is substantial prose — docs, copy, proposals, feedback, commit/PR text, or UI strings. Provides copywriting frameworks, tone guidance, and editing workflow for clear, persuasive, polished output."
 user-invocable: false
 ---
 # Skill: core-writing

@@ -125,19 +125,19 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
         group_name="Execution",
         tool_name="ShellBackground",
         when_to_use="Long-running processes (dev servers, watchers, builds) that should not block the conversation",
-        key_rule="Returns a handle immediately. Poll with MonitorProcess(handle) to see incremental output. Kill with MonitorProcess(handle, kill=True).",
+        key_rule="For short commands whose output you need now, use Shell. Pair with MonitorProcess to poll or kill.",
     ),
     ToolGuidance(
         group_name="Execution",
         tool_name="MonitorProcess",
         when_to_use="Check status or kill a background process started by ShellBackground",
-        key_rule="Without kill=True, returns stdout/stderr so far. With kill=True, terminates the process group.",
     ),
     # Analysis
     ToolGuidance(
         group_name="Analysis",
         tool_name="AnalyzeCode",
-        key_rule="Slow. Use Read + Grep first; reach for AnalyzeCode only when those are insufficient for the question.",
+        key_rule="Slow. Use Read + Grep first; AnalyzeFile for a single file; "
+        "Glob or LS for a simple listing.",
     ),
     ToolGuidance(
         group_name="Analysis",
@@ -171,7 +171,7 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
         group_name="Planning",
         tool_name="WriteTodos",
         when_to_use="Planning a multi-step task",
-        key_rule="Seed the full list up front; to advance or change an item's status, call WriteTodos again with the updated list (it replaces the list by default).",
+        key_rule="Seed the full list up front; advance items by calling WriteTodos again with the updated list.",
     ),
     ToolGuidance(
         group_name="Planning",
@@ -187,7 +187,8 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
     ToolGuidance(
         group_name="Git Worktrees",
         tool_name="EnterWorktree",
-        when_to_use="Isolated branch for experimental changes",
+        when_to_use="Isolated branch for risky experiments, parallel "
+        "approaches, or staging changes before merging",
         key_rule="ListWorktrees first. Pass the returned path as the `cwd` argument to Shell/Bash.",
     ),
     # Plan Mode
@@ -204,7 +205,6 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
         group_name="Plan Mode",
         tool_name="ExitPlanMode",
         when_to_use="When discovery is done and you have a concrete change plan",
-        key_rule="Pass the ordered change list; it is shown to the user for approval.",
     ),
     # LSP
     ToolGuidance(
@@ -221,7 +221,7 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
     ToolGuidance(
         group_name="LSP",
         tool_name="LspRenameSymbol",
-        key_rule="Run with `dry_run=True` first; apply only after user approval.",
+        key_rule="Apply (`dry_run=False`) only after user approval; preview first (the default).",
     ),
 ]
 
@@ -248,9 +248,7 @@ _DYNAMIC_TOOL_GUIDANCE_FACTORIES: "list[Callable[[AnyContext], ToolGuidance]]" =
         group_name="Delegation",
         tool_name="ActivateSkill",
         when_to_use="Loading domain-specific protocols for specialized work (see Skill Activation table)",
-        key_rule="Re-activate after long conversations or summarization if context feels lost. "
-        "Skill directories may include companion resources (scripts, docs, data) — "
-        "use Glob in the skill directory or check the listing shown when activated.",
+        key_rule="Re-activate after summarization if skill context was lost.",
     ),
     lambda ctx: ToolGuidance(
         group_name="Delegation",
@@ -259,33 +257,27 @@ _DYNAMIC_TOOL_GUIDANCE_FACTORIES: "list[Callable[[AnyContext], ToolGuidance]]" =
         "(b) it spans >3 files OR requires speculative exploration, "
         "(c) you cannot already write the exact edits. "
         "Do the work yourself for ≤2 files, one-line changes, or any edit whose content you already know.",
-        key_rule="Required args (deliverable, non_goals) are the scope clamp — articulate them concretely. "
-        "Delegation costs fidelity: sub-agents over-produce against fuzzy specs, so name exact files / functions / "
-        "decisions in deliverable and list adjacent work to avoid in non_goals.",
+        key_rule="deliverable and non_goals are the scope clamp — make them concrete; "
+        "sub-agents over-produce against fuzzy specs.",
     ),
     lambda ctx: ToolGuidance(
         group_name="Delegation",
         tool_name="DelegateToAgentBackground",
         when_to_use="Long, independent work you do NOT need before continuing "
-        "(e.g. speculative research, generating a file). Returns a handle "
-        "immediately. To fan out, start several and collect each handle later.",
-        key_rule="Same scope clamp as DelegateToAgent. Collect with "
-        "GetDelegationResult(handle). Runs autonomously — its tool calls are "
-        "auto-approved (a configured permission policy still applies), so only "
-        "delegate work you're fine running without per-step approval. Use "
-        "synchronous DelegateToAgent when you need the result now.",
+        "(e.g. speculative research, generating a file). To fan out, start "
+        "several and collect the handles later.",
+        key_rule="Same scope clamp as DelegateToAgent. Need the result now? "
+        "Use DelegateToAgent.",
     ),
     lambda ctx: ToolGuidance(
         group_name="Delegation",
         tool_name="DelegateToAgentsParallel",
-        when_to_use="Two or more independent sub-tasks specified at once, when "
-        "you want them all to run concurrently and return together. "
-        "Prefer this over N sequential DelegateToAgentBackground calls when "
-        "you know all the tasks up front — some models handle a single "
-        "list[dict] better than iterating N tool calls.",
-        key_rule="Each task dict needs its own deliverable and non_goals — "
-        "apply the scope clamp per task, not once for the batch. "
-        "Sub-tasks share no state; each runs blind to the others.",
+        when_to_use="Two or more independent sub-tasks known up front, run "
+        "concurrently and returned together (prefer over N separate "
+        "DelegateToAgentBackground calls).",
+        key_rule="Each task dict needs its own deliverable and non_goals "
+        "(scope clamp per task). Sub-tasks share no state; each runs blind "
+        "to the others.",
     ),
     lambda ctx: ToolGuidance(
         group_name="Delegation",

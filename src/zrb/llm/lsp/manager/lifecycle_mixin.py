@@ -20,6 +20,11 @@ from zrb.llm.lsp.server import (
     get_lsp_config_for_file,
 )
 
+# Bound on the per-file project-root cache. The cache only saves a directory
+# walk, so a plain size cap (drop oldest insertion) is enough — precision
+# doesn't matter, unboundedness does.
+_MAX_PROJECT_ROOT_CACHE = 4096
+
 _PROJECT_MARKERS = [
     ".git",
     "pyproject.toml",
@@ -78,16 +83,20 @@ class LifecycleMixin:
             for marker in _PROJECT_MARKERS:
                 if marker.startswith("*"):
                     if list(current.glob(marker)):
-                        self._project_roots[file_path] = str(current)
-                        return str(current)
+                        return self._cache_project_root(file_path, str(current))
                 else:
                     if (current / marker).exists():
-                        self._project_roots[file_path] = str(current)
-                        return str(current)
+                        return self._cache_project_root(file_path, str(current))
             current = current.parent
 
-        self._project_roots[file_path] = str(path)
-        return str(path)
+        return self._cache_project_root(file_path, str(path))
+
+    def _cache_project_root(self, file_path: str, root: str) -> str:
+        """Cache `file_path → root`, dropping the oldest entry at the bound."""
+        if len(self._project_roots) >= _MAX_PROJECT_ROOT_CACHE:
+            self._project_roots.pop(next(iter(self._project_roots)))
+        self._project_roots[file_path] = root
+        return root
 
     def _get_server_key(self, language: str, root_path: str) -> str:
         return f"{language}:{root_path}"

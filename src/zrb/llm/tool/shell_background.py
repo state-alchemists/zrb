@@ -125,7 +125,8 @@ class _ShellBackgroundRegistry:
         if bp is None:
             return (
                 f"Unknown handle '{handle}'. "
-                "[SYSTEM SUGGESTION]: use ShellBackground to start a process."
+                "[SYSTEM SUGGESTION]: use ShellBackground to start a process; "
+                "a finished handle is consumed by the poll that reports its exit."
             )
         stdout = "".join(bp.stdout_lines)
         stderr = "".join(bp.stderr_lines)
@@ -143,7 +144,9 @@ class _ShellBackgroundRegistry:
                 # Output fully drained: release the entry so finished
                 # processes (and their output buffers) don't accumulate in
                 # the registry for the rest of the session.
-                lines.append("The handle has been consumed — the process has finished.")
+                lines.append(
+                    "The handle has been consumed — the process has finished."
+                )
                 _cancel_tasks(bp)
                 self._procs.pop(handle, None)
             else:
@@ -203,15 +206,13 @@ def create_shell_background_tool():
     ) -> str:
         """Start a shell command in the BACKGROUND and return a handle immediately.
 
-        Use for long-running processes (dev servers, watchers, builds). Poll
-        with MonitorProcess(handle) to see incremental stdout/stderr. Kill
-        with MonitorProcess(handle, kill=True).
+        Poll with MonitorProcess(handle) to see incremental stdout/stderr;
+        kill with MonitorProcess(handle, kill=True).
 
-        For short commands whose output you need now, use Shell instead.
-
-        `shell` selects the interpreter (e.g. "bash"); empty uses the default
-        shell. `dangerously_skip_sandbox` runs the command outside the OS-level
-        sandbox (when one is active) and always requires explicit user approval.
+        `shell` selects the shell or interpreter (e.g. "bash", "pwsh", "node");
+        empty uses the user's default shell. `dangerously_skip_sandbox` runs the
+        command outside the OS-level sandbox (when one is active) and always
+        requires explicit user approval.
         """
         # lazy: leaf module
         from zrb.llm.sandbox import SandboxUnavailableError

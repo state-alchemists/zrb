@@ -16,7 +16,7 @@ Use when: the compiler, type-checker, or linter is failing and you need green fa
 
 ### A1 — Read the Full Error Output
 
-Run the failing command with `Bash`. Capture complete output — later errors are often caused by earlier ones. Fix the first error first.
+Run the failing command with `Shell`. Capture complete output — later errors are often caused by earlier ones. Fix the first error first.
 
 Common commands: `make build`, `tsc`, `mypy .`, `go build ./...`, `cargo build`, `mvn compile`
 

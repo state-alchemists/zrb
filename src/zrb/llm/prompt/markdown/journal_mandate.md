@@ -15,23 +15,22 @@ Two kinds of write, distinguished by what they capture:
 
 **When in doubt, log an activity entry.** It is cheap and can be promoted to an insight note later; a missing entry cannot be recovered. Reserve insight notes for the durable findings above — not routine task logs.
 
-**Before writing any entry, activate `core-journaling`.** It carries the required directory layout, entry formats, and backlink protocol — skipping it produces malformed, orphaned entries. The skill is the single source of truth for journal mechanics.
+**Before writing any entry, ensure `core-journaling` is active** — activate it if the System Context does not already show it as active; once activated it stays loaded for the session. It carries the required directory layout, entry formats, and backlink protocol — writing without it produces malformed, orphaned entries. The skill is the single source of truth for journal mechanics.
 
 ## Skip
 
 - Single-call lookups with no finding
 - Greetings, clarifying questions, refusals
 - Anything already in the journal — extend the existing note instead
+- Rules or constraints the system prompt, an active skill, or project docs (`AGENTS.md`/`CLAUDE.md`) already state — the journal records what is *not* already in context
 
 ## Order of operations
 
-Search → work → log → reply. The journal write is part of the turn, not an afterthought.
-
-**Why "before reply"?** The session may close (`/q`) after any response. A finding not logged before replying can be lost permanently.
+Search → work → log → reply. Log before replying — the session may close after any response, and an unlogged finding is lost permanently.
 
 **Writes are silent.** Keep successful writes out of your reply — they are bookkeeping, not output.
 
-**If the write fails** (permission, disk, dead session): surface the failure. Include what you would have written in your reply, prefixed with the literal tag `[journal-fallback]`, and ask the user to record it manually. The tag tells the user this content belongs in the journal but the agent could not store it.
+**If the write fails**: include what you would have written in your reply under the literal tag `[journal-fallback]` and ask the user to record it manually.
 
 ---
 

@@ -446,8 +446,6 @@ def _validate_todo_keys(todos: list[dict[str, Any]]) -> str | None:
 async def get_todos(session: str = "") -> str:
     """
     Returns the current todo list and progress summary.
-
-    Check before starting a subtask and before declaring work done.
     """
     session_name = session or get_current_context_session()
 

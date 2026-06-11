@@ -9,7 +9,9 @@ def read_file(
     auto_truncate: bool = True,
 ) -> str:
     """
-    Reads a file's full content. Truncates at 1000 head/tail lines or 100k chars.
+    Reads a file's full content. Long files are truncated to the configured
+    limits (default: first/last 1000 lines, 100k chars); the header reports
+    exactly what was kept.
 
     Output format: a metadata header line (`[File: ... | N lines]`) followed by a
     `---CONTENT---` delimiter, then the file body. When copying text for Edit's

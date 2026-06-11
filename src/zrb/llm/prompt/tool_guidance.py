@@ -40,8 +40,10 @@ def get_tool_guidance_prompt(
     :func:`get_parallel_tool_call_section`).
 
     Only emits guidance for tools that are both in `tool_names` and `catalogue`.
-    If a tool has only `use_when` (no `key_rule`), it is omitted unless the
-    `use_when` contains non-obvious behavior worth noting.
+    Entries with neither `use_when` nor `key_rule` are skipped. (Authoring
+    note: register an entry only when it answers a cross-tool choice or
+    carries a non-obvious rule — anything else is prompt weight; per-tool
+    intrinsics belong in the tool docstring.)
     """
     sections: list[str] = []
     if extra_sections:

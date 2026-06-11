@@ -38,10 +38,6 @@ async def ask_user_question(questions: list[dict[str, Any]]) -> str:
     """
     Ask the user one or more structured multiple-choice questions and return the answers.
 
-    Use ONLY when the choice is non-obvious AND the wrong choice would waste
-    significant work. Do not ask for permission to do obvious things — decide
-    and proceed.
-
     Each entry in `questions` must have:
       - `question` (str): the question text.
       - `options` (list[dict]): each with `label` (str) and optional `description` (str).

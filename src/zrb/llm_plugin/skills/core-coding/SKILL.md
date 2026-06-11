@@ -1,6 +1,6 @@
 ---
 name: core-coding
-description: "Activate before any coding task — reading, editing, or creating code files. Provides the mandatory Research → Strategy → Execution workflow plus the complexity budget and specialised deep-dive companions (testing, debug, refactor, review)."
+description: "Activate when the turn's deliverable is source, test, code analysis, or config files — editing or creating code. Provides the Research → Strategy → Execution workflow, the complexity budget, and specialised deep-dive companions (testing, debug, refactor, review)."
 user-invocable: false
 ---
 # Skill: core-coding
@@ -20,7 +20,7 @@ When the current step matches a trigger below, `Read` the named companion from t
 | Code touches user input, auth, file I/O, or sensitive data | `workflows/review.md` (security audit checklist) |
 | First substantial edit in a project — identify the language from the manifest | `languages/<lang>.md` (one of `python`, `typescript`, `go`, `rust`, `java`, `ruby`, `php`) |
 
-If the user has provided custom guidelines for any of the above (in CLAUDE.md, AGENTS.md, their own skills, or project files), prefer those over the core companion. Core companions fill in the gaps.
+Everything in this skill and its companions is a **default**: explicit user instructions and project guidelines (CLAUDE.md, AGENTS.md, custom skills, project files) override it wherever they conflict. Core guidance fills in the gaps.
 
 ## PHASE 1: RESEARCH & DISCOVERY
 
@@ -50,9 +50,9 @@ Follow the **Scientific Method**: form a hypothesis → test it → analyze resu
 - **Apply SOLID and DRY.** One reason to change per function and class.
 - **No magic numbers, strings, or unexplained constants.** Name every value that carries meaning.
 
-### d.  **Complexity Budget (non-negotiable hard limits):**
+### d.  **Complexity Budget (default hard limits):**
 
-Exceeding any limit is a design defect — restructure before continuing.
+Exceeding a limit is a design defect — restructure before continuing. Project guidelines may set different limits; they win.
 
 | Metric | Limit | Remedy when exceeded |
 |--------|-------|----------------------|
@@ -79,7 +79,7 @@ Exceeding any limit is a design defect — restructure before continuing.
 ### f.  **Act (Surgical Implementation):**
 
 - Minimal, precise edits only. One logical change per task (atomic). Use existing libraries and patterns.
-- Keep functions focused (~30-50 lines). Place helpers below callers.
+- Keep functions within the Complexity Budget. Place helpers below callers.
 - **Strangler Pattern:** when replacing a component, keep codebase runnable at every step: new alongside old → update references → remove old.
 - **Out-of-scope structural problems:** report them. If they block this task, Read `workflows/refactor.md` and address atomically.
 - **Code Smell Reporting:** report poorly structured code you encounter — don't silently fix it.
@@ -94,4 +94,4 @@ Exceeding any limit is a design defect — restructure before continuing.
 
 ### h.  **Synthesis:**
 
-journal non-trivial discoveries per the Journal Protocol. For user-facing output (docs, error messages, commit messages), apply writing quality standards from `core-writing`.
+For user-facing output (docs, error messages, commit messages), apply writing quality standards from `core-writing`.
