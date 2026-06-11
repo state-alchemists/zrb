@@ -1,8 +1,15 @@
-"""System-context middleware: runs once per prompt build.
+"""System context, split into a stable half and a volatile half.
 
-Beyond rendering environment facts (OS, cwd, git status, project type, tool
-availability), this module performs four auto-injections that bridge prompt
-assembly to ambient runtime state:
+``system_context`` renders only session-invariant facts (OS, cwd, detected
+project markers, available tools, model identity) into the system prompt, so
+the composed prompt stays byte-identical across turns and the cacheable prefix
+survives. ``render_live_context`` renders the per-turn volatile state and is
+injected into the latest user turn (wrapped as ``<live-context>`` by
+``PromptManager.create_live_context``) rather than the system prompt — this is
+what makes prompt caching work even though the live state changes every turn.
+
+``render_live_context`` also performs the per-turn auto-injections that bridge
+prompt assembly to ambient runtime state:
 
 1. **Session wiring** — reads ``ctx.input.session`` and calls
    ``set_current_tool_session()`` (``zrb.llm.tool.ambient_state``). The
@@ -11,15 +18,15 @@ assembly to ambient runtime state:
    so they always target the active conversation.
 
 2. **Active worktree** — if ``EnterWorktree`` was called, the path is rendered
-   as ``- Active worktree: <path>`` in every subsequent system prompt and
-   reminds the LLM to pass it as ``cwd`` to ``Bash``. Cleared automatically
-   when ``ExitWorktree`` is called. Read via ``get_active_worktree()`` from
+   as ``- Active worktree: <path>`` in the live-context block and reminds the
+   LLM to pass it as ``cwd`` to ``Bash``. Cleared automatically when
+   ``ExitWorktree`` is called. Read via ``get_active_worktree()`` from
    ``zrb.llm.tool.ambient_state``. If the path no longer exists on disk, the
    stale value is cleared on the spot.
 
 3. **Pending todos** — pending and in-progress todos from the current session
-   are rendered into the system context so the LLM sees them at the start of
-   every turn without needing to call ``GetTodos`` first. Completed and
+   are rendered into the live-context block so the LLM sees them at the start
+   of every turn without needing to call ``GetTodos`` first. Completed and
    cancelled items are omitted.
 
 4. **Interactive mode** — reads ``ctx.input.interactive`` and calls
@@ -175,12 +182,74 @@ def _format_todo_lines(todos_data: "dict[str, Any]") -> list[str]:
     return lines
 
 
+# Anchors the <live-context> contract in the cached system prompt. Stable text
+# — costs nothing per turn and never invalidates the cacheable prefix — while
+# telling any model (not just ones that learned <system-reminder>) what the
+# block is and that the most recent one wins.
+_LIVE_CONTEXT_ANCHOR = (
+    "Each user turn ends with a <live-context> block describing current runtime "
+    "state (time, git, todos, worktree, mode). It is injected automatically — "
+    "not written by the user. Treat the most recent <live-context> as "
+    "authoritative; earlier ones are stale snapshots from when that turn was "
+    "sent."
+)
+
+
 def system_context(
     ctx: AnyContext,
     current_prompt: str,
     next_handler: Callable[[AnyContext, str], str],
     model: "Any" = None,
 ) -> str:
+    """Render the *stable*, session-invariant facts into the system prompt.
+
+    Only content that does not change within a session lives here (OS, CWD,
+    detected project markers, available tools, the model identity line), so the
+    composed system prompt stays byte-identical across turns and the cacheable
+    prefix survives. Volatile per-turn state (time, git, todos, worktree, mode)
+    is rendered by ``render_live_context`` and injected into the latest user
+    turn instead — see ``PromptManager.create_live_context``.
+    """
+    cwd = os.getcwd()
+    home = os.path.expanduser("~")
+
+    # --- Cached per CWD: project/tool detection ---
+    project_types = _detect_project_types(cwd)
+    infra_types = _detect_infra_types(cwd, home)
+    found_markers = list(_detect_project_markers(cwd))
+    found_tools = _resolve_available_tools(project_types, infra_types)
+
+    parts: list[str] = [
+        f"- OS: {platform.platform()}",
+        f"- CWD: {cwd}",
+    ]
+    model_line = _format_model_line(model)
+    if model_line:
+        parts.append(model_line)
+    if found_tools:
+        parts.append(f"- Tools: {', '.join(found_tools)}")
+    if found_markers:
+        parts.append(f"- Project: {', '.join(found_markers)}")
+
+    context_block = "# System Context\n" + "\n".join(parts)
+    context_block += "\n\n" + _LIVE_CONTEXT_ANCHOR
+    return next_handler(ctx, f"{current_prompt}\n\n{context_block}")
+
+
+def render_live_context(ctx: AnyContext, model: "Any" = None) -> str:
+    """Render the volatile per-turn runtime state for ``<live-context>``.
+
+    Performs the per-turn ambient-state wiring as a side effect — session
+    binding (so todo tools target the active conversation), interactive-mode
+    binding (consulted by ``ask_user_question``), and stale-worktree cleanup —
+    then returns the dynamic lines (time, git, worktree, mode, interactivity,
+    pending todos). ``PromptManager.create_live_context`` wraps the result and
+    the runner appends it to the latest user turn, keeping the system prompt
+    byte-stable so prompt caching survives across turns.
+
+    The ``model`` argument is accepted for parity with ``system_context`` but is
+    not currently rendered here (the model identity line is a stable fact).
+    """
     # lazy: zrb internal (heavy via transitive / circular)
     from zrb.llm.tool.ambient_state import (
         get_active_worktree,
@@ -203,15 +272,6 @@ def system_context(
         interactive_bool = True
     set_interactive_mode(interactive_bool)
 
-    cwd = os.getcwd()
-    home = os.path.expanduser("~")
-
-    # --- Cached per CWD: project/tool detection ---
-    project_types = _detect_project_types(cwd)
-    infra_types = _detect_infra_types(cwd, home)
-    found_markers = list(_detect_project_markers(cwd))
-    found_tools = _resolve_available_tools(project_types, infra_types)
-
     # --- Dynamic: git and todos ---
     git_lines, todos_data = _collect_git_info(todo_manager, session_name)
 
@@ -221,20 +281,10 @@ def system_context(
         set_active_worktree("")
         active_wt = ""
 
-    # --- Assemble context block ---
     parts: list[str] = [
         f"- Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-        f"- OS: {platform.platform()}",
-        f"- CWD: {cwd}",
     ]
-    model_line = _format_model_line(model)
-    if model_line:
-        parts.append(model_line)
-    if found_tools:
-        parts.append(f"- Tools: {', '.join(found_tools)}")
     parts.extend(git_lines)
-    if found_markers:
-        parts.append(f"- Project: {', '.join(found_markers)}")
     if active_wt:
         parts.append(
             f"- Active worktree: {active_wt} (pass as cwd to Shell/Bash; use absolute paths for Read/Write/Edit/Grep)"
@@ -255,8 +305,7 @@ def system_context(
         except Exception:
             pass
 
-    context_block = "# System Context\n" + "\n".join(parts)
-    return next_handler(ctx, f"{current_prompt}\n\n{context_block}")
+    return "\n".join(parts)
 
 
 def _format_mode_line() -> str | None:

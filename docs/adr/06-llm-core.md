@@ -339,3 +339,96 @@ Empty-Completion Guard"). Tests: `test/llm/agent/run/test_history_utils.py`
 (`test_run_agent_retries_empty_completion_then_succeeds`,
 `test_run_agent_retries_tool_call_placeholder_leak`,
 `test_run_agent_empty_completion_raises_after_retries`).
+
+## ADR-0065 — Split volatile runtime state out of the system prompt into a per-turn `<live-context>` block to preserve prompt caching
+
+**Status.** Accepted.
+
+**Context.** The system prompt is composed once per turn and handed to
+pydantic-ai as `instructions`, which pydantic-ai places at the very front of
+the message list — ahead of the conversation history. Every provider that
+caches (DeepSeek/OpenAI automatic prefix caching; Anthropic explicit
+breakpoints) requires the *leading bytes of the request to be byte-identical*
+across turns for a cache hit. The `system_context` section sat at position 5 of
+8 and opened with `- Time: <HH:MM:SS>` — a second-resolution timestamp — plus
+git status, pending todos, active worktree, and interactive flag, all of which
+change between turns. Because that volatile block preceded the conversation
+history in the request, **the prefix diverged on essentially every turn and
+nothing cached — not even the (growing, expensive) history.** Observed:
+`prompt_cache_hit_tokens: 0` on a DeepSeek-family model. The runtime facts are
+*expected* to update continuously, so the only way to keep them fresh AND
+cacheable is to move them off the stable prefix.
+
+**Decision.** Split `system_context` into two halves by lifecycle:
+
+- **Stable** (`system_context`, `src/zrb/llm/prompt/system_context.py`) — only
+  session-invariant facts (OS, CWD, detected project markers, available tools,
+  model identity). Stays in the composed system prompt so the cacheable prefix
+  is byte-stable across a session. It also carries a stable *anchor* line that
+  explains the `<live-context>` contract to the model.
+- **Volatile** (`render_live_context`) — the per-turn lines (time, git, todos,
+  worktree, mode, interactivity) plus the per-turn ambient-state side effects
+  (session binding, interactive-mode binding, stale-worktree cleanup, which
+  must run every turn). `PromptManager.create_live_context` wraps the body in
+  `<live-context>…</live-context>`; `LLMTask.get_live_context` calls it and
+  `run_agent(live_context=…)` appends it to the **end of the current user
+  turn** (`_append_live_context`, handling str / list[UserContent] / None).
+
+The block is **append-only** — frozen into history once written — which is
+precisely what keeps the prefix stable: each new turn only appends, so the
+system prompt + all prior turns remain a byte-identical prefix and cache.
+The tag name is self-describing rather than `<system-reminder>` because zrb is
+provider-agnostic and cannot rely on a model-specific learned prior; the
+in-prompt anchor supplies the meaning portably.
+
+Sub-agents are single-turn (one `run_agent`, empty history), so the cross-turn
+caching rationale does not apply to them. They keep the full block *in* their
+inherited system prompt: `_build_inherited_prompt` folds `create_live_context`
+back in when the agent inherits `system_context`, preserving prior behavior.
+
+**Consequences.**
+- The full cacheable prefix — system prompt *and* conversation history — now
+  survives across turns; cache hits scale with conversation length (the bulk of
+  the cost in a long chat).
+- The latest user turn always reflects current state; **older turns carry
+  historical snapshots** (turn 3's block still shows turn-3's time/todos at turn
+  9). This is more faithful (it records what state *was*) and matches how
+  harness `<system-reminder>` injection already works, but it does grow history
+  by one small block per turn. Stripping prior blocks was rejected — it would
+  rewrite history and re-invalidate the prefix.
+- A second behavior wrinkle: per-turn ambient wiring now fires from
+  `render_live_context` rather than `system_context` composition. Both run once
+  per turn before the agent runs, so timing is preserved; the wiring no longer
+  fires from a sub-agent's throwaway-context prompt build (an incidental
+  improvement — the parent's real session binding is no longer clobbered).
+- `model` switching still breaks the cache once (the identity line is stable
+  per-session but changes on `/model`); accepted as rare.
+
+**Alternatives rejected.**
+- *Coarsen the timestamp / reorder `system_context` to the end* — recovers
+  caching of static sections but still mutates the instructions block ahead of
+  history, so the history never caches. Half the win, none of the hard part.
+- *Anthropic `cache_control` breakpoints only* — orthogonal: prefix stability is
+  a prerequisite for every provider; breakpoints help only after the prefix is
+  stable, and the active provider here caches automatically.
+- *Strip stale blocks from history before send* — rewrites the prefix every
+  turn, defeating the purpose.
+
+**Evidence.** **[DOCUMENTED]** `src/zrb/llm/prompt/system_context.py`
+(`system_context` stable half + `_LIVE_CONTEXT_ANCHOR`, `render_live_context`
+volatile half), `src/zrb/llm/prompt/manager.py` (`create_live_context`),
+`src/zrb/llm/task/llm_task.py` (`get_live_context`, `run_agent(live_context=…)`
+call), `src/zrb/llm/agent/run/runner.py` (`live_context` param,
+`_append_live_context`), `src/zrb/llm/agent/subagent/manager/manager.py`
+(`_build_inherited_prompt` fold-back). Tests:
+`test/llm/prompt/test_system_context.py` (`TestSystemContext` stable +
+`TestRenderLiveContext` volatile, including the cache-regression guards
+`test_system_context_excludes_volatile_state` /
+`test_render_live_context_excludes_stable_facts`),
+`test/llm/prompt/test_manager.py`
+(`test_create_live_context_wraps_volatile_state_in_tags`),
+`test/llm/agent/run/test_runner.py`
+(`test_run_agent_appends_live_context_to_user_turn`,
+`test_run_agent_without_live_context_leaves_message_unchanged`),
+`test/llm/tool/test_worktree.py`
+(`test_enter_and_exit_worktree_reflected_in_live_context`).

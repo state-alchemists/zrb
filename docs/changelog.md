@@ -1,5 +1,13 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.34.2 (June 11, 2026)
+
+- **Performance: prompt caching restored via stable system prompt + per-turn `<live-context>`** (`prompt/system_context.py`, `prompt/manager.py`, `task/llm_task.py`, `agent/run/runner.py`, `agent/subagent/manager/manager.py`; ADR-0065):
+  - The system prompt is sent ahead of the conversation history, so its bytes must be identical across turns for any provider's prefix cache to hit. The `system_context` section opened with a second-resolution `- Time:` line plus git status / pending todos / active worktree, all of which change every turn — diverging the prefix and forcing a full cache miss on every request (observed `prompt_cache_hit_tokens: 0`), including the growing conversation history.
+  - Split `system_context` by lifecycle: it now renders only session-invariant facts (OS, CWD, project markers, tools, model identity) into the cached system prompt, plus a stable anchor explaining the `<live-context>` contract. The volatile per-turn state (time, git, todos, worktree, mode, interactivity) and the per-turn ambient-state wiring (session / interactive / stale-worktree) moved to a new `render_live_context()`.
+  - `PromptManager.create_live_context()` wraps that body as `<live-context>…</live-context>`; `LLMTask.get_live_context()` renders it and `run_agent(live_context=…)` appends it to the end of the current user turn (`_append_live_context`, handling text / multimodal / empty turns). The block is append-only and frozen into history, so the system-prompt-plus-history prefix stays byte-stable and caches across turns.
+  - Sub-agents are single-turn, so the block is folded back into their inherited system prompt (`_build_inherited_prompt`) when they inherit `system_context` — preserving prior behavior with no caching downside.
+
 ## 2.34.1 (June 11, 2026)
 
 - **Fix: history manager memory leak** (`file_history_manager.py`): The in-RAM conversation cache grew unboundedly across a session. Added an LRU eviction cap (`_MAX_CACHED_CONVERSATIONS = 8`) with dirty-entry tracking so unsaved updates are never dropped. The `_dirty` set is cleared on `save()`; clean entries reload losslessly from disk on next access.

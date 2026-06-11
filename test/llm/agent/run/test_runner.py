@@ -114,6 +114,73 @@ async def test_run_agent_passes_system_prompt_overhead_to_processors():
 
 
 @pytest.mark.asyncio
+async def test_run_agent_appends_live_context_to_user_turn():
+    """A non-empty live_context is appended to the end of the user turn.
+
+    This is what keeps the system prompt byte-stable for caching — the volatile
+    block rides in the user message, not the instructions.
+    """
+    from zrb.llm.agent.common import create_agent
+
+    agent = create_agent(
+        model="openai-chat:gpt-4o-mini", system_prompt="test", yolo=True
+    )
+
+    seen = {}
+    mock_result = MagicMock()
+    mock_result.output = "ok"
+    mock_result.all_messages.return_value = []
+
+    async def _gen(current_message, *args, **kwargs):
+        seen["message"] = current_message
+        yield AgentRunResultEvent(result=mock_result)
+
+    agent.run_stream_events = _stream_from(_gen)
+
+    live = "<live-context>\n- Time: 2026-01-01 00:00:00\n</live-context>"
+    await run_agent(
+        agent=agent,
+        message="Hello",
+        message_history=[],
+        limiter=LLMLimiter(),
+        live_context=live,
+    )
+
+    assert "Hello" in seen["message"]
+    assert "<live-context>" in seen["message"]
+    # Live block trails the user's text (recency).
+    assert seen["message"].index("Hello") < seen["message"].index("<live-context>")
+
+
+@pytest.mark.asyncio
+async def test_run_agent_without_live_context_leaves_message_unchanged():
+    """The default empty live_context is a no-op — legacy behaviour preserved."""
+    from zrb.llm.agent.common import create_agent
+
+    agent = create_agent(
+        model="openai-chat:gpt-4o-mini", system_prompt="test", yolo=True
+    )
+
+    seen = {}
+    mock_result = MagicMock()
+    mock_result.output = "ok"
+    mock_result.all_messages.return_value = []
+
+    async def _gen(current_message, *args, **kwargs):
+        seen["message"] = current_message
+        yield AgentRunResultEvent(result=mock_result)
+
+    agent.run_stream_events = _stream_from(_gen)
+
+    await run_agent(
+        agent=agent, message="Hello", message_history=[], limiter=LLMLimiter()
+    )
+
+    assert seen["message"] == "Hello"
+    assert "<live-context>" not in seen["message"]
+
+
+@pytest.mark.asyncio
 async def test_run_agent_without_history_processors_does_not_crash():
     """An agent created without history_processors must still run."""
     from zrb.llm.agent.common import create_agent

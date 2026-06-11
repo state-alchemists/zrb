@@ -105,6 +105,7 @@ async def run_agent(
     yolo: bool = False,
     approval_channel: "ApprovalChannel | None" = None,
     system_prompt: str = "",
+    live_context: str = "",
     permission_policy: Any = None,
     sandbox_policy: Any = None,
 ) -> tuple[Any, list[Any]]:
@@ -184,6 +185,11 @@ async def run_agent(
         prompt_content = await _apply_multimodal_fallback(
             prompt_content, agent, effective_print_fn
         )
+        # Append the volatile <live-context> block to the user turn. Injected
+        # here rather than into the system prompt so the system prompt stays
+        # byte-stable across turns and the cacheable prefix survives; the block
+        # is frozen into history once written (older turns are stale snapshots).
+        prompt_content = _append_live_context(prompt_content, live_context)
 
         current_history = await _prepare_history(
             agent,
@@ -439,6 +445,27 @@ async def _prepare_history(
     return await _acquire_rate_limit(
         limiter, prompt_content, processed_history, print_fn, reserved_tokens
     )
+
+
+def _append_live_context(prompt_content: Any, live_context: str) -> Any:
+    """Append the ``<live-context>`` block to the end of the current user turn.
+
+    Handles all three ``prompt_content`` shapes produced by
+    ``get_prompt_content``: ``str`` (text-only), ``list[UserContent]``
+    (multimodal — a trailing text element is added, keeping the block last for
+    recency), and ``None`` (empty turn — the block becomes the content). A
+    falsy ``live_context`` is a no-op, so callers that pass nothing keep the
+    legacy behaviour.
+    """
+    if not live_context:
+        return prompt_content
+    if prompt_content is None:
+        return live_context
+    if isinstance(prompt_content, str):
+        return f"{prompt_content}\n\n{live_context}"
+    if isinstance(prompt_content, list):
+        return [*prompt_content, live_context]
+    return prompt_content
 
 
 def _merge_consecutive_messages(current_history, current_message):

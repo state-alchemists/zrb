@@ -10,7 +10,7 @@ from zrb.llm.prompt.claude import (
     create_project_context_prompt,
 )
 from zrb.llm.prompt.prompt import get_prompt
-from zrb.llm.prompt.system_context import system_context
+from zrb.llm.prompt.system_context import render_live_context, system_context
 from zrb.llm.prompt.tool_guidance import (
     ToolCatalogue,
     ToolGroups,
@@ -204,6 +204,24 @@ class PromptManager:
 
     def append_prompt(self, *middleware: PromptMiddleware | str):
         self._middlewares.extend(middleware)
+
+    def create_live_context(self, ctx: AnyContext) -> str:
+        """Render the per-turn volatile runtime state as a ``<live-context>``
+        block for injection into the latest user message.
+
+        Kept out of the system prompt on purpose: the block changes every turn
+        (time, git, todos, …), so embedding it in the cached prefix would defeat
+        prompt caching. Injecting it into the user turn instead keeps the system
+        prompt byte-stable while still surfacing live state, and freezes a
+        snapshot into history (older turns show what state *was*; the most
+        recent block is authoritative — anchored in the system prompt). Returns
+        ``""`` when there is nothing to report. See AGENTS.md ("LLM Prompt
+        System") and ``render_live_context``.
+        """
+        body = render_live_context(ctx, self._model)
+        if not body.strip():
+            return ""
+        return f"<live-context>\n{body}\n</live-context>"
 
     def compose_prompt(self) -> Callable[[AnyContext], str]:
         """

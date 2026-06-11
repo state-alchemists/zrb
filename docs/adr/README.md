@@ -105,3 +105,4 @@ deleting it — the history is the point.
 - **ADR-0062** — Intrinsic always-auto-approve for interaction tools (AskUserQuestion)
 - **ADR-0063** — Opt-in two-layer filesystem sandbox (Python FS gate + OS shell wrapper)
 - **ADR-0064** — Optional `ask_user_choice` protocol method with text fallback for arrow-key AskUserQuestion
+- **ADR-0065** — Split volatile runtime state into a per-turn `<live-context>` block (injected into the user turn) to keep the system-prompt prefix cacheable
