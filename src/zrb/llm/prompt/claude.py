@@ -218,13 +218,12 @@ def _get_skills_section(
     # Add available skills (just metadata)
     skills_context.append(
         "## Available Skills\n"
-        "Consult this catalogue at the start of every task — it is not optional "
-        "reference. If a skill's description matches the work you are about to do, "
-        "activate it with `ActivateSkill` BEFORE you begin; an activated skill's "
-        "instructions are authoritative for that task and supersede your default "
-        "approach to it. When several skills match, activate the most specific. "
-        "Skills may include companion files (scripts, docs, data); activating one "
-        "reveals its directory path and companion file listing."
+        "Activation is mandatory; the policy and authority rules live in "
+        "Operating Rules → Skill Activation — this catalogue only lists what is "
+        "available. If a skill's description matches the work you are about to "
+        "do, activate it with `ActivateSkill` BEFORE you begin. Skills may "
+        "include companion files (scripts, docs, data); activating one reveals "
+        "its directory path and companion file listing."
     )
     for skill in skills:
         if skill.model_invocable:

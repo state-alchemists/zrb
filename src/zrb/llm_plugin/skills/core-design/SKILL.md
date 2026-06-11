@@ -1,6 +1,6 @@
 ---
 name: core-design
-description: "Activate before any design work — system architecture, API design, data modeling, component decomposition, or trade-off analysis. Provides the Constraints → Explore → Decide → Specify → Plan workflow for sound, well-reasoned designs."
+description: "Activate when the turn's deliverable is a design — system architecture, API contract, data model, component decomposition, or trade-off analysis. Provides the Constraints → Explore → Decide → Specify → Plan workflow for sound, well-reasoned designs."
 user-invocable: false
 ---
 # Skill: core-design
@@ -52,7 +52,7 @@ When the current step matches a trigger below, `Read` the named companion from t
 ## Safety Rules
 
 - **No premature implementation**: During steps 1-4, do not write or modify any code. Design decisions come before implementation.
-- **Approval gate**: You must obtain explicit user approval of the design and plan before starting implementation.
+- **Approval gate**: You must obtain explicit user approval of the design and plan before starting implementation. This overrides the Working Loop's Frame step, which would otherwise work autonomously on directives.
 
 ## Output Standards
 

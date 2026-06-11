@@ -125,13 +125,12 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
         group_name="Execution",
         tool_name="ShellBackground",
         when_to_use="Long-running processes (dev servers, watchers, builds) that should not block the conversation",
-        key_rule="Returns a handle immediately. Poll with MonitorProcess(handle) to see incremental output. Kill with MonitorProcess(handle, kill=True).",
+        key_rule="For short commands whose output you need now, use Shell. Pair with MonitorProcess to poll or kill.",
     ),
     ToolGuidance(
         group_name="Execution",
         tool_name="MonitorProcess",
         when_to_use="Check status or kill a background process started by ShellBackground",
-        key_rule="Without kill=True, returns stdout/stderr so far. With kill=True, terminates the process group.",
     ),
     # Analysis
     ToolGuidance(
@@ -171,7 +170,7 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
         group_name="Planning",
         tool_name="WriteTodos",
         when_to_use="Planning a multi-step task",
-        key_rule="Seed the full list up front; to advance or change an item's status, call WriteTodos again with the updated list (it replaces the list by default).",
+        key_rule="Seed the full list up front; advance items by calling WriteTodos again with the updated list.",
     ),
     ToolGuidance(
         group_name="Planning",
@@ -221,7 +220,7 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
     ToolGuidance(
         group_name="LSP",
         tool_name="LspRenameSymbol",
-        key_rule="Run with `dry_run=True` first; apply only after user approval.",
+        key_rule="Apply (`dry_run=False`) only after user approval; preview first (the default).",
     ),
 ]
 

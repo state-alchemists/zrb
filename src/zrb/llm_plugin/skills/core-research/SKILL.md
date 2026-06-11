@@ -1,6 +1,6 @@
 ---
 name: core-research
-description: "Activate before any deep investigation — answering questions, analyzing unfamiliar code, exploring new domains, or creating complex plans. Provides the systematic Scope → Discover → Synthesize → Plan workflow."
+description: "Activate when the turn's deliverable is findings, comparisons, recommendations, or an investigation-backed plan — answering questions, analyzing unfamiliar code, exploring new domains. Provides the systematic Scope → Discover → Synthesize → Plan workflow."
 user-invocable: false
 ---
 # Skill: core-research

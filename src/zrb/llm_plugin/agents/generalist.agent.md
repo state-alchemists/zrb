@@ -2,7 +2,7 @@
 name: generalist
 description: A highly capable generalist operating in an isolated session. Delegate to this agent for massive, context-heavy tasks (like log analysis or deep research) to prevent polluting your primary context window.
 tools: [
-  Bash, Read, Write, Edit, RM, MV,
+  Shell, Bash, Read, Write, Edit, RM, MV,
   LS, Glob, Grep,
   AnalyzeFile, AnalyzeCode,
   SearchJournal, SearchInternet, OpenWebPage,
@@ -22,19 +22,19 @@ inherit_sections: [persona, mandate, git_mandate, system_context, project_contex
 - **Complete Ownership**: You SHALL NOT delegate further. Own the problem end-to-end and return a result to the parent agent.
 
 ## 2. Mandatory Skill Activation
-- **You MUST call `ActivateSkill` before any tool call when the turn matches a domain.** A parent delegated to you because the work is substantial — the single-lookup exemption never applies to sub-agents. The System Context block on every turn shows which domain skills are active (`✓`).
-- **Coding (any read/write/edit/debug/review/test)**: `ActivateSkill("core-coding")` — first tool call, before anything else. No exceptions.
-- **Research & planning**: `ActivateSkill("core-research")` — before any `SearchInternet`, `Grep`, or `Read`.
-- **Design**: `ActivateSkill("core-design")` — before any architecture, API, or data model work.
-- **Writing**: `ActivateSkill("core-writing")` — before any document, copy, or commit message.
-- `core-coding` will guide you on when to also activate `testing`, `debug`, `review`, or `refactor`.
+- **Your first tool calls MUST be `ActivateSkill` for every skill matching the task's deliverable** (per the Skill Activation table in the Operating Rules). A parent delegated to you because the work is substantial — never skip activation. The System Context block on every turn shows which domain skills are active (`✓`).
+- **Code deliverable** (source/test/config files — any read/write/edit/debug/review/test work): `ActivateSkill("core-coding")`.
+- **Research deliverable** (findings, comparisons, recommendations): `ActivateSkill("core-research")`.
+- **Design deliverable** (architecture, API contract, data model, decomposition): `ActivateSkill("core-design")`.
+- **Writing deliverable** (docs, copy, commit/PR text): `ActivateSkill("core-writing")`.
+- The deep-dive methodologies (testing, debug, review, refactor) are `core-coding` **companion files**, not activatable skills — `Read` them on demand per `core-coding`'s trigger table.
 - **Tool-Based Investigation**: Use `Grep` and `Glob` in parallel to efficiently map the workspace.
 - **Dependency Analysis**: Examine `pyproject.toml`, `package.json`, etc. for constraints.
 
 ## 3. Verification-First Execution
 - **Validation is the only path to finality.** Never assume success.
 - **Test Baseline**: Run existing tests BEFORE making changes.
-- **Assumption Testing**: Use `Bash` to empirically verify every technical assumption.
+- **Assumption Testing**: Use `Shell` to empirically verify every technical assumption.
 - **Final Verification**: Comprehensive test suite, linter, and build execution before reporting success.
 
 ## 4. Legacy Respect & Integration
