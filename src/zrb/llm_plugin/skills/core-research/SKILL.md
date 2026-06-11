@@ -18,6 +18,7 @@ Follow **Scope → Discover → Synthesize → Plan** for every research task.
 ### 2. Discovery & Evidence Gathering
 
 - **Codebase**: Use `Grep`, `Glob`, and parallel `Read` calls to map relevant code.
+- **Deep code comprehension**: when the investigation requires understanding or evaluating code in depth (not just locating it or running analysis tools), also activate `core-coding` for its code-reading workflow and language companions.
 - **Web**: Use `SearchInternet` → `OpenWebPage` for current docs and solutions.
 - **Journal**: Use `SearchJournal` to check past findings.
 - **Context efficiency**: Batch reads to keep context lean. Offload massive or speculative exploration to an isolated sub-agent when delegation is available, so the main context stays focused.

@@ -18,8 +18,19 @@ async def run_bash_command(
     dangerously_skip_sandbox: bool = False,
 ) -> str:
     """
-    Executes a non-interactive shell command under bash. Streams stdout/stderr
-    live and returns truncated output.
+    Executes a non-interactive command under bash (git-bash on Windows).
+    Streams stdout/stderr live and returns truncated output.
+
+    Commands must be fully non-interactive: pass `-y`, `--yes`, `CI=true`, or
+    equivalent auto-confirmation flags so the process never waits for stdin —
+    stdin is closed, and interactive prompts hang until the timeout.
+
+    Batch independent commands with `&&` to avoid extra round-trips
+    (e.g. `pytest && flake8 src`). Use the `cwd` parameter instead of
+    `cd <dir> && ...` to set the working directory.
+
+    Default `timeout` is 120 seconds; timed-out processes may continue in the
+    background.
 
     Args:
         dangerously_skip_sandbox: Run this command OUTSIDE the OS-level sandbox

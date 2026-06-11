@@ -23,21 +23,24 @@ async def run_shell_command(
     dangerously_skip_sandbox: bool = False,
 ) -> str:
     """
-    Executes a non-interactive shell command. Streams stdout/stderr live and returns truncated output.
+    Executes a non-interactive command in a shell or interpreter. Streams stdout/stderr
+    live and returns truncated output.
 
-    Commands must be fully non-interactive: pass `-y`, `--yes`, `CI=true`, or equivalent
-    auto-confirmation flags so the process never waits for stdin — interactive prompts will
-    hang until the timeout.
+    Commands must be fully non-interactive: pass auto-confirmation flags (e.g. `-y`,
+    `--yes`) or set the equivalent environment variables so the process never waits
+    for stdin — stdin is closed, and interactive prompts hang until the timeout.
 
-    Batch independent commands with `&&` to avoid extra round-trips
-    (e.g. `pytest && flake8 src`). Use the `cwd` parameter instead of `cd <dir> && ...`
-    to set the working directory without leaving shell-state side-effects in this call.
+    Batch independent commands into one call where the interpreter supports chaining
+    (e.g. `pytest && flake8 src` in a POSIX shell) to avoid extra round-trips. Use the
+    `cwd` parameter instead of a `cd` command to set the working directory.
 
     Default `timeout` is 120 seconds; timed-out processes may continue in the background.
 
     Args:
-        shell: The shell to use (e.g., "bash", "zsh", "sh"). Empty string uses
-            the default shell.
+        shell: The shell or interpreter to run the command with — a POSIX shell
+            ("bash", "zsh", "sh"), a Windows shell ("pwsh", "powershell", "cmd"),
+            or a language runtime ("node", "ruby", "php" — `command` is then
+            source code). Empty string uses the user's default shell.
         dangerously_skip_sandbox: Run this command OUTSIDE the OS-level sandbox
             (when one is active). Only set it when a command genuinely needs to
             write outside the workspace; it always requires explicit user

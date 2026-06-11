@@ -270,9 +270,11 @@ def create_parallel_delegate_tool(
         tasks: list[dict[str, Any]],
     ) -> str:
         """
-        Delegates multiple tasks to subagents in parallel.
+        Delegates multiple tasks to subagents in parallel. See DelegateToAgent
+        for the list of available agents.
+
         Each entry in `tasks` must have `agent_name`, `deliverable`, `task`,
-        and `non_goals`. `additional_context` is optional.
+        and `non_goals` (list; [] allowed). `additional_context` is optional.
         Apply Scope independently per task — each gets its own clamp.
         """
         if not tasks:
@@ -336,10 +338,6 @@ def create_parallel_delegate_tool(
 
     parallel_delegate_to_agents.zrb_is_delegate_tool = True
     parallel_delegate_to_agents.__name__ = "DelegateToAgentsParallel"
-    parallel_delegate_to_agents.__doc__ = (
-        "Delegates multiple tasks to subagents in parallel. "
-        "See DelegateToAgent for the list of available agents."
-    )
     tag(parallel_delegate_to_agents, Capability.DELEGATE)
     return parallel_delegate_to_agents
 

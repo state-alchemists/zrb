@@ -182,6 +182,15 @@ class KeybindingsMixin:
 
         @app_keybindings.add("enter", filter=no_active_choice)
         def _(event):
+            # Enter only ever acts on the input field. With focus on the
+            # read-only output pane (Tab/F6), event.current_buffer is the
+            # output buffer — resolving a confirmation or submitting from it
+            # would send the entire pane content (banner, help, transcript)
+            # as user input. Refocus the input field instead.
+            if not event.app.layout.has_focus(self._input_field):
+                event.app.layout.focus(self._input_field)
+                return
+
             if self._handle_multiline(event):
                 return
 

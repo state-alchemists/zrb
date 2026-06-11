@@ -2,6 +2,7 @@ import json
 import os
 import re
 import warnings
+from collections import OrderedDict
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
@@ -23,16 +24,27 @@ _BACKUP_FILENAME_PATTERN = re.compile(
     r"^(?P<base>.+)-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}(?:-\d{2})?(?:-\d+)?\.json$"
 )
 
+# In-RAM cache bound: the most-recently-used conversations kept in memory.
+# Evicted entries reload losslessly from disk on next access, so the bound
+# only trades a re-read for memory in long sessions that touch many
+# conversations.
+_MAX_CACHED_CONVERSATIONS = 8
+
 
 class FileHistoryManager(AnyHistoryManager):
     def __init__(self, history_dir: str):
         self._history_dir = os.path.expanduser(history_dir)
-        self._cache: "dict[str, list[ModelMessage]]" = {}
+        # LRU-ordered: most recently used entries at the end (see _evict_lru).
+        self._cache: "OrderedDict[str, list[ModelMessage]]" = OrderedDict()
         # mtime of the on-disk file at the time the cache entry was last synced
         # with disk. Used to invalidate the cache when the file changes out-of-band
         # (a second manager instance, an external edit, a name that collides on one
         # file). `None` means "no file on disk at sync time".
         self._cache_mtime: dict[str, float | None] = {}
+        # Conversations updated in memory but not yet persisted by save().
+        # Dirty entries are never evicted — dropping them would lose data
+        # that exists only in RAM.
+        self._dirty: set[str] = set()
         if not os.path.exists(self._history_dir):
             os.makedirs(self._history_dir, exist_ok=True)
 
@@ -51,6 +63,7 @@ class FileHistoryManager(AnyHistoryManager):
             conversation_name in self._cache
             and self._cache_mtime.get(conversation_name) == current_mtime
         ):
+            self._cache.move_to_end(conversation_name)
             return self._cache[conversation_name]
 
         if not os.path.exists(file_path):
@@ -76,7 +89,9 @@ class FileHistoryManager(AnyHistoryManager):
                 # Validate the cleaned and filtered data
                 messages = ModelMessagesTypeAdapter.validate_python(filtered_data)
                 self._cache[conversation_name] = messages
+                self._cache.move_to_end(conversation_name)
                 self._cache_mtime[conversation_name] = current_mtime
+                self._evict_lru()
                 return messages
 
         except ValidationError as e:
@@ -98,12 +113,29 @@ class FileHistoryManager(AnyHistoryManager):
 
     def update(self, conversation_name: str, messages: "list[ModelMessage]"):
         self._cache[conversation_name] = messages
+        self._cache.move_to_end(conversation_name)
+        self._dirty.add(conversation_name)
         # Record the current file mtime as the sync point so a subsequent load()
         # against an unchanged file returns this in-memory update rather than
         # re-reading stale disk content.
         self._cache_mtime[conversation_name] = self._file_mtime(
             self._get_file_path(conversation_name)
         )
+        self._evict_lru()
+
+    def _evict_lru(self):
+        """Drop least-recently-used clean cache entries beyond the bound.
+
+        Dirty entries (updated but not yet saved) are skipped: their content
+        exists only in memory, so evicting them would lose data. Clean
+        entries reload losslessly from disk on next access.
+        """
+        while len(self._cache) > _MAX_CACHED_CONVERSATIONS:
+            victim = next((k for k in self._cache if k not in self._dirty), None)
+            if victim is None:
+                return
+            self._cache.pop(victim, None)
+            self._cache_mtime.pop(victim, None)
 
     @staticmethod
     def _file_mtime(file_path: str) -> float | None:
@@ -155,6 +187,8 @@ class FileHistoryManager(AnyHistoryManager):
             # Refresh the sync point so our own write doesn't look like an
             # out-of-band change on the next load().
             self._cache_mtime[conversation_name] = self._file_mtime(file_path)
+            # Disk now matches the cache: the entry is evictable again.
+            self._dirty.discard(conversation_name)
 
             # Create a timestamped backup, then enforce retention.
             # Retention is controlled by LLM_HISTORY_BACKUP_RETAIN:
