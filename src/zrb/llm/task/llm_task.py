@@ -380,6 +380,11 @@ class LLMTask(BaseTask):
         # This avoids rebuilding the prompt (including expensive system_context I/O)
         # a second time inside _create_agent.
         system_prompt = self.get_system_prompt(ctx)
+        # Render the volatile per-turn state separately and inject it into the
+        # user turn (not the system prompt) so the cacheable prefix stays
+        # byte-stable. This call also performs per-turn ambient-state wiring
+        # (session/interactive/worktree) — it must run every turn.
+        live_context = self.get_live_context(ctx)
         agent = self._create_agent(ctx, system_prompt=system_prompt)
         effective_message, effective_attachments = self._get_effective_prompt(
             ctx, user_message, user_attachments, message_history
@@ -420,6 +425,7 @@ class LLMTask(BaseTask):
                 yolo=yolo_value,
                 approval_channel=self._approval_channel,
                 system_prompt=system_prompt,
+                live_context=live_context,
                 permission_policy=permission_policy,
                 sandbox_policy=sandbox_policy,
             )
@@ -705,6 +711,13 @@ class LLMTask(BaseTask):
             return ""
         compose_prompt = self._prompt_manager.compose_prompt()
         return compose_prompt(ctx)
+
+    def get_live_context(self, ctx: AnyContext) -> str:
+        """Render the per-turn ``<live-context>`` block injected into the user
+        turn. Empty string when there is no prompt manager (nothing to wire)."""
+        if self._prompt_manager is None:
+            return ""
+        return self._prompt_manager.create_live_context(ctx)
 
     def _get_conversation_name(self, ctx: AnyContext) -> str:
         conversation_name = str(

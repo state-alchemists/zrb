@@ -371,7 +371,19 @@ class SubAgentManager(LoaderMixin, SearchMixin):
         # (if any) render unfiltered rather than against the parent's tools.
         pm.tool_names = None
         try:
-            return pm.compose_prompt()(ctx).strip()
+            composed = pm.compose_prompt()(ctx).strip()
+            # Sub-agents are single-turn (one run_agent, empty history), so the
+            # cross-turn caching reason for keeping volatile state out of the
+            # system prompt does not apply. Fold the <live-context> block back
+            # into the inherited prompt so an agent that inherits system_context
+            # still sees the per-turn state (time, git, …) it saw before the
+            # main-chat split — the main chat injects it into the user turn
+            # instead, via run_agent's live_context.
+            if "system_context" in sections:
+                live = pm.create_live_context(ctx)
+                if live:
+                    composed = f"{composed}\n\n{live}".strip()
+            return composed
         except Exception:
             # Don't fail agent creation on inheritance issues — surface as no
             # inheritance so the sub-agent still runs.

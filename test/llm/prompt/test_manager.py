@@ -128,6 +128,22 @@ def test_prompt_manager_threads_model_into_system_context():
     assert "CRITICAL" not in rendered
 
 
+def test_create_live_context_wraps_volatile_state_in_tags():
+    """create_live_context returns the per-turn block wrapped as <live-context>."""
+    manager = PromptManager(include_sections=[])
+    ctx = MagicMock()
+    ctx.input.session = "live-ctx-test"
+
+    with patch("zrb.llm.tool.plan.todo_manager") as mock_tm:
+        mock_tm.get_todos.return_value = None
+        rendered = manager.create_live_context(ctx)
+
+    assert rendered.startswith("<live-context>")
+    assert rendered.rstrip().endswith("</live-context>")
+    # Volatile content lives here, not in the cached system prompt.
+    assert "Time:" in rendered
+
+
 def test_prompt_manager_tool_guidance_sections_injected_before_catalogue():
     """`tool_guidance_sections` content appears in the Tool Usage Guide output."""
     manager = PromptManager(include_sections=["tool_guidance"])
