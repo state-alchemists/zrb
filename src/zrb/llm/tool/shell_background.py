@@ -144,9 +144,7 @@ class _ShellBackgroundRegistry:
                 # Output fully drained: release the entry so finished
                 # processes (and their output buffers) don't accumulate in
                 # the registry for the rest of the session.
-                lines.append(
-                    "The handle has been consumed — the process has finished."
-                )
+                lines.append("The handle has been consumed — the process has finished.")
                 _cancel_tasks(bp)
                 self._procs.pop(handle, None)
             else:
