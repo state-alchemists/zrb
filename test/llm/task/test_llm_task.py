@@ -32,9 +32,12 @@ class TestLLMTaskPublicAPI:
 
         # Act & Assert
         # We mock create_agent to see if our tool was passed to it during execution
-        with patch("zrb.llm.task.llm_task.create_agent") as mock_create_agent, patch(
-            "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
-        ) as mock_run_agent:
+        with (
+            patch("zrb.llm.task.llm_task.create_agent") as mock_create_agent,
+            patch(
+                "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
+            ) as mock_run_agent,
+        ):
 
             mock_run_agent.return_value = ("Response", [])
             await task.async_run(session)
@@ -51,9 +54,12 @@ class TestLLMTaskPublicAPI:
         task.set_ui(ui)
 
         # Act & Assert
-        with patch("zrb.llm.task.llm_task.create_agent"), patch(
-            "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
-        ) as mock_run_agent:
+        with (
+            patch("zrb.llm.task.llm_task.create_agent"),
+            patch(
+                "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
+            ) as mock_run_agent,
+        ):
 
             mock_run_agent.return_value = ("Response", [])
             await task.async_run(session)
@@ -100,9 +106,12 @@ class TestLLMTaskPublicAPI:
         config.model_getter = getter
         task = LLMTask(name="test-task", message="hello", llm_config=config)
 
-        with patch("zrb.llm.task.llm_task.create_agent") as mock_create_agent, patch(
-            "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
-        ) as mock_run_agent:
+        with (
+            patch("zrb.llm.task.llm_task.create_agent") as mock_create_agent,
+            patch(
+                "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
+            ) as mock_run_agent,
+        ):
             mock_run_agent.return_value = ("Response", [])
             await task.async_run(session)
 
@@ -129,9 +138,12 @@ class TestLLMTaskPublicAPI:
             llm_config=config,
         )
 
-        with patch("zrb.llm.task.llm_task.create_agent") as mock_create_agent, patch(
-            "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
-        ) as mock_run_agent:
+        with (
+            patch("zrb.llm.task.llm_task.create_agent") as mock_create_agent,
+            patch(
+                "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
+            ) as mock_run_agent,
+        ):
             mock_run_agent.return_value = ("Response", [])
             await task.async_run(session)
 
@@ -155,9 +167,12 @@ class TestLLMTaskPublicAPI:
         )
         task.set_ui(ui)
 
-        with patch("zrb.llm.task.llm_task.create_agent"), patch(
-            "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
-        ) as mock_run_agent:
+        with (
+            patch("zrb.llm.task.llm_task.create_agent"),
+            patch(
+                "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
+            ) as mock_run_agent,
+        ):
             mock_run_agent.return_value = ("Response", [])
             await task.async_run(session)
 
@@ -178,9 +193,12 @@ class TestLLMTaskPublicAPI:
             llm_config=config,
         )
 
-        with patch("zrb.llm.task.llm_task.create_agent") as mock_create_agent, patch(
-            "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
-        ) as mock_run_agent:
+        with (
+            patch("zrb.llm.task.llm_task.create_agent") as mock_create_agent,
+            patch(
+                "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
+            ) as mock_run_agent,
+        ):
             mock_run_agent.return_value = ("Response", [])
             await task.async_run(session)
 
@@ -214,9 +232,12 @@ class TestLLMTaskPublicAPI:
         task.add_tool_factory(factory)
 
         # Act & Assert
-        with patch("zrb.llm.task.llm_task.create_agent"), patch(
-            "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
-        ) as mock_run_agent:
+        with (
+            patch("zrb.llm.task.llm_task.create_agent"),
+            patch(
+                "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
+            ) as mock_run_agent,
+        ):
 
             mock_run_agent.return_value = ("Response", [])
             await task.async_run(session)

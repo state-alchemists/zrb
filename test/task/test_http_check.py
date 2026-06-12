@@ -50,9 +50,12 @@ async def test_http_check_retry_and_succeed(mock_session):
         sleep_called.append(delay)
         return None
 
-    with patch(
-        "requests.request", side_effect=[mock_response_fail, mock_response_success]
-    ) as mock_request, patch("asyncio.sleep", side_effect=mock_sleep):
+    with (
+        patch(
+            "requests.request", side_effect=[mock_response_fail, mock_response_success]
+        ) as mock_request,
+        patch("asyncio.sleep", side_effect=mock_sleep),
+    ):
         http_check = HttpCheck(name="test_http_check")
         mock_session.register_task(http_check)
 

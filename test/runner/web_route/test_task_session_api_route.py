@@ -33,13 +33,16 @@ def mock_user():
 def test_create_new_task_session_api_not_found_node(app_deps, mock_user):
     client, root_group, _, _, _ = app_deps
 
-    with patch(
-        "zrb.runner.web_route.task_session_api_route.get_user_from_request",
-        new_callable=AsyncMock,
-        return_value=mock_user,
-    ), patch(
-        "zrb.runner.web_route.task_session_api_route.extract_node_from_args",
-        side_effect=NodeNotFoundError,
+    with (
+        patch(
+            "zrb.runner.web_route.task_session_api_route.get_user_from_request",
+            new_callable=AsyncMock,
+            return_value=mock_user,
+        ),
+        patch(
+            "zrb.runner.web_route.task_session_api_route.extract_node_from_args",
+            side_effect=NodeNotFoundError,
+        ),
     ):
 
         response = client.post("/api/v1/task-sessions/my/task", json={})
@@ -54,13 +57,16 @@ def test_create_new_task_session_api_forbidden(app_deps, mock_user):
 
     mock_task = MagicMock(spec=AnyTask)
 
-    with patch(
-        "zrb.runner.web_route.task_session_api_route.get_user_from_request",
-        new_callable=AsyncMock,
-        return_value=mock_user,
-    ), patch(
-        "zrb.runner.web_route.task_session_api_route.extract_node_from_args",
-        return_value=(mock_task, MagicMock(), ["sess1"]),
+    with (
+        patch(
+            "zrb.runner.web_route.task_session_api_route.get_user_from_request",
+            new_callable=AsyncMock,
+            return_value=mock_user,
+        ),
+        patch(
+            "zrb.runner.web_route.task_session_api_route.extract_node_from_args",
+            return_value=(mock_task, MagicMock(), ["sess1"]),
+        ),
     ):
 
         response = client.post("/api/v1/task-sessions/my/task/sess1", json={})
@@ -75,16 +81,18 @@ def test_create_new_task_session_api_success(app_deps, mock_user):
     mock_task = MagicMock(spec=AnyTask)
     mock_task.async_run = AsyncMock()
 
-    with patch(
-        "zrb.runner.web_route.task_session_api_route.get_user_from_request",
-        new_callable=AsyncMock,
-        return_value=mock_user,
-    ), patch(
-        "zrb.runner.web_route.task_session_api_route.extract_node_from_args",
-        return_value=(mock_task, MagicMock(), []),
-    ), patch(
-        "asyncio.create_task"
-    ) as mock_create_task:
+    with (
+        patch(
+            "zrb.runner.web_route.task_session_api_route.get_user_from_request",
+            new_callable=AsyncMock,
+            return_value=mock_user,
+        ),
+        patch(
+            "zrb.runner.web_route.task_session_api_route.extract_node_from_args",
+            return_value=(mock_task, MagicMock(), []),
+        ),
+        patch("asyncio.create_task") as mock_create_task,
+    ):
 
         mock_coro = MagicMock()
         mock_create_task.return_value = mock_coro
@@ -102,13 +110,16 @@ def test_create_new_task_session_api_success(app_deps, mock_user):
 def test_create_new_task_session_api_not_task(app_deps, mock_user):
     client, root_group, _, _, _ = app_deps
 
-    with patch(
-        "zrb.runner.web_route.task_session_api_route.get_user_from_request",
-        new_callable=AsyncMock,
-        return_value=mock_user,
-    ), patch(
-        "zrb.runner.web_route.task_session_api_route.extract_node_from_args",
-        return_value=(MagicMock(), MagicMock(), []),
+    with (
+        patch(
+            "zrb.runner.web_route.task_session_api_route.get_user_from_request",
+            new_callable=AsyncMock,
+            return_value=mock_user,
+        ),
+        patch(
+            "zrb.runner.web_route.task_session_api_route.extract_node_from_args",
+            return_value=(MagicMock(), MagicMock(), []),
+        ),
     ):
 
         response = client.post("/api/v1/task-sessions/my/group", json={})
@@ -128,16 +139,20 @@ def test_get_task_session_api_list(app_deps, mock_user):
     mock_list = SessionStateLogList(total=0, data=[])
     session_state_logger.list.return_value = mock_list
 
-    with patch(
-        "zrb.runner.web_route.task_session_api_route.get_user_from_request",
-        new_callable=AsyncMock,
-        return_value=mock_user,
-    ), patch(
-        "zrb.runner.web_route.task_session_api_route.extract_node_from_args",
-        return_value=(mock_task, MagicMock(), ["list"]),
-    ), patch(
-        "zrb.runner.web_route.task_session_api_route.get_node_path",
-        return_value="my.task",
+    with (
+        patch(
+            "zrb.runner.web_route.task_session_api_route.get_user_from_request",
+            new_callable=AsyncMock,
+            return_value=mock_user,
+        ),
+        patch(
+            "zrb.runner.web_route.task_session_api_route.extract_node_from_args",
+            return_value=(mock_task, MagicMock(), ["list"]),
+        ),
+        patch(
+            "zrb.runner.web_route.task_session_api_route.get_node_path",
+            return_value="my.task",
+        ),
     ):
 
         response = client.get("/api/v1/task-sessions/my/task/list")
@@ -168,13 +183,16 @@ def test_get_task_session_api_read(app_deps, mock_user):
     )
     session_state_logger.read.return_value = mock_log
 
-    with patch(
-        "zrb.runner.web_route.task_session_api_route.get_user_from_request",
-        new_callable=AsyncMock,
-        return_value=mock_user,
-    ), patch(
-        "zrb.runner.web_route.task_session_api_route.extract_node_from_args",
-        return_value=(mock_task, MagicMock(), ["sess1"]),
+    with (
+        patch(
+            "zrb.runner.web_route.task_session_api_route.get_user_from_request",
+            new_callable=AsyncMock,
+            return_value=mock_user,
+        ),
+        patch(
+            "zrb.runner.web_route.task_session_api_route.extract_node_from_args",
+            return_value=(mock_task, MagicMock(), ["sess1"]),
+        ),
     ):
 
         response = client.get("/api/v1/task-sessions/my/task/sess1")
@@ -190,13 +208,16 @@ def test_get_task_session_api_forbidden(app_deps, mock_user):
 
     mock_task = MagicMock(spec=AnyTask)
 
-    with patch(
-        "zrb.runner.web_route.task_session_api_route.get_user_from_request",
-        new_callable=AsyncMock,
-        return_value=mock_user,
-    ), patch(
-        "zrb.runner.web_route.task_session_api_route.extract_node_from_args",
-        return_value=(mock_task, MagicMock(), ["sess1"]),
+    with (
+        patch(
+            "zrb.runner.web_route.task_session_api_route.get_user_from_request",
+            new_callable=AsyncMock,
+            return_value=mock_user,
+        ),
+        patch(
+            "zrb.runner.web_route.task_session_api_route.extract_node_from_args",
+            return_value=(mock_task, MagicMock(), ["sess1"]),
+        ),
     ):
 
         response = client.get("/api/v1/task-sessions/my/task/sess1")
@@ -206,13 +227,16 @@ def test_get_task_session_api_forbidden(app_deps, mock_user):
 def test_get_task_session_api_not_found(app_deps, mock_user):
     client, root_group, _, _, _ = app_deps
 
-    with patch(
-        "zrb.runner.web_route.task_session_api_route.get_user_from_request",
-        new_callable=AsyncMock,
-        return_value=mock_user,
-    ), patch(
-        "zrb.runner.web_route.task_session_api_route.extract_node_from_args",
-        side_effect=NodeNotFoundError,
+    with (
+        patch(
+            "zrb.runner.web_route.task_session_api_route.get_user_from_request",
+            new_callable=AsyncMock,
+            return_value=mock_user,
+        ),
+        patch(
+            "zrb.runner.web_route.task_session_api_route.extract_node_from_args",
+            side_effect=NodeNotFoundError,
+        ),
     ):
 
         response = client.get("/api/v1/task-sessions/my/task/sess1")
@@ -222,13 +246,16 @@ def test_get_task_session_api_not_found(app_deps, mock_user):
 def test_get_task_session_api_not_task(app_deps, mock_user):
     client, root_group, _, _, _ = app_deps
 
-    with patch(
-        "zrb.runner.web_route.task_session_api_route.get_user_from_request",
-        new_callable=AsyncMock,
-        return_value=mock_user,
-    ), patch(
-        "zrb.runner.web_route.task_session_api_route.extract_node_from_args",
-        return_value=(MagicMock(), MagicMock(), ["sess1"]),
+    with (
+        patch(
+            "zrb.runner.web_route.task_session_api_route.get_user_from_request",
+            new_callable=AsyncMock,
+            return_value=mock_user,
+        ),
+        patch(
+            "zrb.runner.web_route.task_session_api_route.extract_node_from_args",
+            return_value=(MagicMock(), MagicMock(), ["sess1"]),
+        ),
     ):
 
         response = client.get("/api/v1/task-sessions/my/group/sess1")

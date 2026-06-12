@@ -1,5 +1,15 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.34.3 (June 12, 2026)
+
+- **Build: migrate `pyproject.toml` to the PEP 621 `[project]` table** (`pyproject.toml`, `scripts/build_pypi_readme.py`, `zrb_init.py`):
+  - Moved package metadata, runtime `dependencies`, `optional-dependencies` (extras), `scripts`, and `urls` out of `[tool.poetry.*]` into the standard `[project]` table. Only Poetry-specific keys (`exclude`, the `dev` dependency group, `build-system`) remain under `[tool.poetry]`. The two in-repo version readers were repointed from `["tool"]["poetry"]` to `["project"]`: `zrb_init.py` (`_VERSION`) and `scripts/build_pypi_readme.py` (which now also reads `["project"]["urls"]["repository"]`).
+  - **Removed the aggregate `all` extra.** Under legacy `[tool.poetry.extras]` it referenced *extra names* (`bedrock`, `huggingface`, `xai`, `voyageai`) that Poetry silently ignored, so `pip install zrb[all]` never pulled boto3/botocore (the AWS SDK) and other extra-only packages; rewriting it as explicit requirements would just duplicate — and risk drifting from — every version pin (it had already lost the `langchain-core>=1.3.3` security floor). Since `poetry install --all-extras` installs every extra without a meta-extra and `install.sh` installs zrb with no extras, `all` was dropped entirely. pip users enumerate the extras they want (`pip install "zrb[rag,...,voyageai]"`).
+  - Relocated the centralized security-pin comment block onto the transitive dependency that carries each pin, inline within its owning extra (`pyasn1` in `vertexai`; `aiohttp` in `xai`/`voyageai`; `langchain-core`/`langchain-text-splitters`/`langsmith` in `voyageai`).
+
+- **Improvement: gate `poetry lock` on consistency in `project.sh`**:
+  - `project.sh` ran a bare `poetry lock` on every shell `source`, which re-resolves the whole dependency graph from PyPI even when `poetry.lock` is already consistent — a multi-minute cost, made heavier by the now-complete `all` extra. The lock step now runs only when the fast hash-compare reports drift (`poetry check --lock >/dev/null 2>&1 || poetry lock`), so an unchanged setup skips the re-resolve entirely. The companion `~/borg/init-borg.sh` install step was given the same guard.
+
 ## 2.34.2 (June 11, 2026)
 
 - **Performance: prompt caching restored via stable system prompt + per-turn `<live-context>`** (`prompt/system_context.py`, `prompt/manager.py`, `task/llm_task.py`, `agent/run/runner.py`, `agent/subagent/manager/manager.py`; ADR-0065):

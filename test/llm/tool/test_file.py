@@ -577,8 +577,9 @@ class TestSearchFilesFallback:
         import time
         from unittest.mock import patch
 
-        with patch("shutil.which", return_value=None), patch(
-            "time.time", side_effect=[0, 100]
+        with (
+            patch("shutil.which", return_value=None),
+            patch("time.time", side_effect=[0, 100]),
         ):  # Fake immediate timeout
             result = search_files("hello", path=temp_search_dir, timeout=0.1)
             assert "warning" in result
@@ -594,8 +595,9 @@ class TestFileSearchTruncation:
 
         from unittest.mock import patch
 
-        with patch("zrb.llm.tool.file_search.CFG") as mock_cfg, patch(
-            "shutil.which", return_value=None
+        with (
+            patch("zrb.llm.tool.file_search.CFG") as mock_cfg,
+            patch("shutil.which", return_value=None),
         ):
             mock_cfg.LLM_FILE_READ_LINES = 20
 
@@ -610,9 +612,10 @@ class TestFileSearchTruncation:
     def test_search_files_python_fallback_truncation(self, tmp_path):
         from unittest.mock import patch
 
-        with patch("shutil.which", return_value=None), patch(
-            "zrb.llm.tool.file_search.CFG"
-        ) as mock_cfg:
+        with (
+            patch("shutil.which", return_value=None),
+            patch("zrb.llm.tool.file_search.CFG") as mock_cfg,
+        ):
 
             # Create many matching files
             for i in range(20):

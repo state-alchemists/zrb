@@ -34,9 +34,11 @@ class MockDeferredToolResults:
 
 @pytest.fixture(autouse=True)
 def mock_pydantic_ai_imports():
-    with patch("pydantic_ai.DeferredToolResults", MockDeferredToolResults), patch(
-        "pydantic_ai.ToolApproved", MockToolApproved
-    ), patch("pydantic_ai.ToolDenied", MockToolDenied):
+    with (
+        patch("pydantic_ai.DeferredToolResults", MockDeferredToolResults),
+        patch("pydantic_ai.ToolApproved", MockToolApproved),
+        patch("pydantic_ai.ToolDenied", MockToolDenied),
+    ):
         yield
 
 

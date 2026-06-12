@@ -110,11 +110,12 @@ def test_rg_subprocess_timeout_returns_error(journal_with_entries):
     """If rg times out, the helper surfaces an error instead of crashing."""
     with patch("zrb.llm.tool.journal.CFG") as mock_cfg:
         mock_cfg.LLM_JOURNAL_DIR = journal_with_entries
-        with patch(
-            "zrb.llm.tool.journal.shutil.which", return_value="/usr/bin/rg"
-        ), patch(
-            "zrb.llm.tool.journal.subprocess.run",
-            side_effect=subprocess.TimeoutExpired(cmd="rg", timeout=30),
+        with (
+            patch("zrb.llm.tool.journal.shutil.which", return_value="/usr/bin/rg"),
+            patch(
+                "zrb.llm.tool.journal.subprocess.run",
+                side_effect=subprocess.TimeoutExpired(cmd="rg", timeout=30),
+            ),
         ):
             result = search_journal("database")
     assert "error" in result
@@ -129,9 +130,10 @@ def test_rg_returncode_2_surfaces_stderr(journal_with_entries):
         completed.returncode = 2
         completed.stderr = "regex parse failure"
         completed.stdout = ""
-        with patch(
-            "zrb.llm.tool.journal.shutil.which", return_value="/usr/bin/rg"
-        ), patch("zrb.llm.tool.journal.subprocess.run", return_value=completed):
+        with (
+            patch("zrb.llm.tool.journal.shutil.which", return_value="/usr/bin/rg"),
+            patch("zrb.llm.tool.journal.subprocess.run", return_value=completed),
+        ):
             result = search_journal("database")
     assert "error" in result
     assert "regex parse failure" in result["error"]
@@ -166,8 +168,9 @@ def test_python_search_swallows_file_open_errors(journal_dir):
 
     with patch("zrb.llm.tool.journal.CFG") as mock_cfg:
         mock_cfg.LLM_JOURNAL_DIR = journal_dir
-        with patch("zrb.llm.tool.journal.shutil.which", return_value=None), patch(
-            "builtins.open", side_effect=fake_open
+        with (
+            patch("zrb.llm.tool.journal.shutil.which", return_value=None),
+            patch("builtins.open", side_effect=fake_open),
         ):
             result = search_journal("findme")
     # No crash; just no matches

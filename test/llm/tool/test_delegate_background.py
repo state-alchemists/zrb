@@ -51,10 +51,13 @@ async def test_returns_handle_immediately_without_blocking(manager):
         return AgentTaskResult("agent", "done work", None)
 
     delegate = create_background_delegate_tool(manager)
-    with patch(
-        "zrb.llm.tool.delegate_background._run_agent_task", side_effect=slow_task
-    ), patch(
-        "zrb.llm.tool.delegate_background.get_current_ui", return_value=MagicMock()
+    with (
+        patch(
+            "zrb.llm.tool.delegate_background._run_agent_task", side_effect=slow_task
+        ),
+        patch(
+            "zrb.llm.tool.delegate_background.get_current_ui", return_value=MagicMock()
+        ),
     ):
         msg = await delegate("agent", "deliver", "do it", [])
         # The sub-agent has started but not completed.
@@ -89,10 +92,11 @@ async def test_failed_subagent_surfaces_error(manager):
         raise RuntimeError("kaboom")
 
     delegate = create_background_delegate_tool(manager)
-    with patch(
-        "zrb.llm.tool.delegate_background._run_agent_task", side_effect=boom
-    ), patch(
-        "zrb.llm.tool.delegate_background.get_current_ui", return_value=MagicMock()
+    with (
+        patch("zrb.llm.tool.delegate_background._run_agent_task", side_effect=boom),
+        patch(
+            "zrb.llm.tool.delegate_background.get_current_ui", return_value=MagicMock()
+        ),
     ):
         msg = await delegate("agent", "deliver", "do it", [])
         handle = msg.split("Handle:")[1].split(".")[0].strip()
@@ -124,10 +128,15 @@ async def test_background_inherits_parent_permission_context(manager):
     set_interactive_mode(True)
     try:
         delegate = create_background_delegate_tool(manager)
-        with patch(
-            "zrb.llm.tool.delegate_background._run_agent_task", side_effect=capture_env
-        ), patch(
-            "zrb.llm.tool.delegate_background.get_current_ui", return_value=MagicMock()
+        with (
+            patch(
+                "zrb.llm.tool.delegate_background._run_agent_task",
+                side_effect=capture_env,
+            ),
+            patch(
+                "zrb.llm.tool.delegate_background.get_current_ui",
+                return_value=MagicMock(),
+            ),
         ):
             await delegate("agent", "deliver", "do it", [])
             for _ in range(5):
@@ -149,10 +158,11 @@ async def test_cancel_all_clears_running_tasks(manager):
         return AgentTaskResult("agent", "x", None)
 
     delegate = create_background_delegate_tool(manager)
-    with patch(
-        "zrb.llm.tool.delegate_background._run_agent_task", side_effect=slow
-    ), patch(
-        "zrb.llm.tool.delegate_background.get_current_ui", return_value=MagicMock()
+    with (
+        patch("zrb.llm.tool.delegate_background._run_agent_task", side_effect=slow),
+        patch(
+            "zrb.llm.tool.delegate_background.get_current_ui", return_value=MagicMock()
+        ),
     ):
         msg = await delegate("agent", "deliver", "do it", [])
     handle = msg.split("Handle:")[1].split(".")[0].strip()
@@ -171,10 +181,13 @@ async def test_handle_consumed_after_collection(manager):
 
     delegate = create_background_delegate_tool(manager)
     get_result = create_get_delegation_result_tool()
-    with patch(
-        "zrb.llm.tool.delegate_background._run_agent_task", side_effect=quick_task
-    ), patch(
-        "zrb.llm.tool.delegate_background.get_current_ui", return_value=MagicMock()
+    with (
+        patch(
+            "zrb.llm.tool.delegate_background._run_agent_task", side_effect=quick_task
+        ),
+        patch(
+            "zrb.llm.tool.delegate_background.get_current_ui", return_value=MagicMock()
+        ),
     ):
         msg = await delegate("agent", "deliver", "do it", [])
         handle = msg.split("Handle:")[1].split(".")[0].strip()

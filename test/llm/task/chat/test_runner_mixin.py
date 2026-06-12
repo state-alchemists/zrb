@@ -165,8 +165,9 @@ async def test_run_interactive_session_with_factories_and_multiplex(runner):
     mock_multi.run_async = AsyncMock(return_value="MultiResult")
     mock_multi.last_output = "MultiResult"
 
-    with patch("zrb.llm.ui.multi_ui.MultiUI", return_value=mock_multi), patch(
-        "zrb.llm.approval.multiplex_approval_channel.MultiplexApprovalChannel"
+    with (
+        patch("zrb.llm.ui.multi_ui.MultiUI", return_value=mock_multi),
+        patch("zrb.llm.approval.multiplex_approval_channel.MultiplexApprovalChannel"),
     ):
         res = await runner._run_interactive_session(
             ctx=ctx,

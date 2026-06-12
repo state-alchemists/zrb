@@ -193,9 +193,10 @@ async def test_handle_stream_error_invalid_tool_call_without_string_message():
     print_fn = MagicMock()
 
     # We need to mock ModelRequest and UserPromptPart
-    with patch("pydantic_ai.messages.ModelRequest") as mock_req, patch(
-        "pydantic_ai.messages.UserPromptPart"
-    ) as mock_part:
+    with (
+        patch("pydantic_ai.messages.ModelRequest") as mock_req,
+        patch("pydantic_ai.messages.UserPromptPart") as mock_part,
+    ):
 
         outcome = await handle_stream_error(
             state, exc, current_history, current_message, run_history, print_fn

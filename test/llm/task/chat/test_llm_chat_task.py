@@ -312,11 +312,15 @@ async def test_llm_chat_task_passes_getter_renderer_to_summarizer():
         interactive=False,
     )
 
-    with patch(
-        "zrb.llm.task.chat.task.create_summarizer_history_processor"
-    ) as mock_create_proc, patch("zrb.llm.task.llm_task.create_agent"), patch(
-        "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
-    ) as mock_run_agent:
+    with (
+        patch(
+            "zrb.llm.task.chat.task.create_summarizer_history_processor"
+        ) as mock_create_proc,
+        patch("zrb.llm.task.llm_task.create_agent"),
+        patch(
+            "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
+        ) as mock_run_agent,
+    ):
         mock_proc = MagicMock()
         mock_proc.return_value = AsyncMock(return_value=[])
         mock_create_proc.return_value = mock_proc
