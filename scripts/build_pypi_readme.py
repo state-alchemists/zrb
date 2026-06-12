@@ -29,9 +29,10 @@ PYPROJECT = ROOT / "pyproject.toml"
 
 
 def main() -> int:
-    metadata = tomllib.loads(PYPROJECT.read_text())["tool"]["poetry"]
-    version = metadata["version"]
-    repo_url = metadata["repository"].rstrip("/")
+    data = tomllib.loads(PYPROJECT.read_text())
+    project = data["project"]
+    version = project["version"]
+    repo_url = project["urls"]["repository"].rstrip("/")
     base = f"{repo_url}/blob/{version}"
 
     text = SRC.read_text()
