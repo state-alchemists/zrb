@@ -305,8 +305,9 @@ class TestChatSessionManager:
         history_file = history_dir / "test-session-2024-01-15-10-30.json"
         history_file.write_text("[]")
 
-        with patch("zrb.runner.chat.chat_session_manager.CFG") as mock_cfg, patch(
-            "os.path.getmtime", return_value=123456789.0
+        with (
+            patch("zrb.runner.chat.chat_session_manager.CFG") as mock_cfg,
+            patch("os.path.getmtime", return_value=123456789.0),
         ):
             mock_cfg.LLM_HISTORY_DIR = str(history_dir)
             mock_cfg.WEB_SESSION_PAGE_SIZE = 10

@@ -106,6 +106,9 @@ async def test_run_interactive_session_basic(runner):
             "redirect_output",
             "exec",
             "btw",
+            "plan",
+            "copy",
+            "build",
         ]
     }
 
@@ -152,6 +155,9 @@ async def test_run_interactive_session_with_factories_and_multiplex(runner):
             "redirect_output",
             "exec",
             "btw",
+            "plan",
+            "copy",
+            "build",
         ]
     }
 
@@ -159,8 +165,9 @@ async def test_run_interactive_session_with_factories_and_multiplex(runner):
     mock_multi.run_async = AsyncMock(return_value="MultiResult")
     mock_multi.last_output = "MultiResult"
 
-    with patch("zrb.llm.ui.multi_ui.MultiUI", return_value=mock_multi), patch(
-        "zrb.llm.approval.multiplex_approval_channel.MultiplexApprovalChannel"
+    with (
+        patch("zrb.llm.ui.multi_ui.MultiUI", return_value=mock_multi),
+        patch("zrb.llm.approval.multiplex_approval_channel.MultiplexApprovalChannel"),
     ):
         res = await runner._run_interactive_session(
             ctx=ctx,
@@ -178,21 +185,21 @@ async def test_run_interactive_session_with_factories_and_multiplex(runner):
 
 
 def test_load_session_history_uses_replay_when_available(runner):
-    """When a UI exposes _replay_history, it must be used to render loaded history."""
+    """When a UI exposes replay_history, it must be used to render loaded history."""
     history_manager = MagicMock()
     history_manager.load.return_value = ["msg1", "msg2"]
 
-    ui = MagicMock(spec=["_replay_history", "append_to_output"])
-    ui._replay_history = MagicMock()
+    ui = MagicMock(spec=["replay_history", "append_to_output"])
+    ui.replay_history = MagicMock()
 
     runner._load_session_history(ui, history_manager, "sess1")
 
-    ui._replay_history.assert_called_once_with(["msg1", "msg2"])
+    ui.replay_history.assert_called_once_with(["msg1", "msg2"])
     ui.append_to_output.assert_not_called()
 
 
 def test_load_session_history_falls_back_to_text_dump(runner):
-    """UIs without _replay_history fall back to append_to_output with formatted text."""
+    """UIs without replay_history fall back to append_to_output with formatted text."""
     history_manager = MagicMock()
     history_manager.load.return_value = ["msg1"]
 

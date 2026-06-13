@@ -6,7 +6,6 @@ Handles starting, stopping, and communicating with Language Server Protocol serv
 
 import asyncio
 import json
-from pathlib import Path
 from urllib.parse import unquote, urlparse
 
 from zrb.config.config import CFG
@@ -189,9 +188,15 @@ class LSPServer:
         return self.request_id
 
     def _path_to_uri(self, path: str) -> str:
-        """Convert file path to URI."""
-        abs_path = Path(path).absolute()
-        return "file://" + str(abs_path).replace(" ", "%20")
+        """Convert file path to URI.
+
+        Delegates to the canonical encoder in ``LSPProtocol`` so the URIs we
+        send in didOpen/didChange match the ones used for diagnostics lookups
+        and query results. A bespoke ``replace(" ", "%20")`` only handled
+        spaces and left ``#``/``?``/``%``/non-ASCII characters unescaped,
+        causing URI mismatches.
+        """
+        return LSPProtocol.create_text_document_identifier(path)["uri"]
 
     def _uri_to_path(self, uri: str) -> str:
         """Convert URI to file path."""
@@ -595,7 +600,89 @@ class LSPServer:
             workspace_edit = result
             if dry_run:
                 return workspace_edit  # Return the edit without applying
-            else:
-                # TODO: Apply the workspace edit
-                return workspace_edit
+            # Option (a): actually apply the WorkspaceEdit to disk. We parse
+            # the LSP ``changes`` / ``documentChanges`` payload and write the
+            # text edits ourselves. ``applied`` flags whether every edit
+            # landed so callers never report success for an unwritten edit.
+            applied = self._apply_workspace_edit(workspace_edit)
+            return {**workspace_edit, "applied": applied}
         return None
+
+    def _apply_workspace_edit(self, workspace_edit: dict) -> bool:
+        """Apply an LSP ``WorkspaceEdit`` to the files on disk.
+
+        Handles both the ``changes`` map ({uri: [TextEdit]}) and the newer
+        ``documentChanges`` list of ``TextDocumentEdit`` objects. Returns True
+        only if every file edit was written successfully.
+        """
+        edits_by_uri = self._collect_text_edits(workspace_edit)
+        if not edits_by_uri:
+            return False
+        success = True
+        for uri, edits in edits_by_uri.items():
+            if not self._apply_text_edits_to_file(uri, edits):
+                success = False
+        return success
+
+    @staticmethod
+    def _collect_text_edits(workspace_edit: dict) -> dict[str, list[dict]]:
+        """Normalize ``changes`` / ``documentChanges`` into {uri: [TextEdit]}."""
+        edits_by_uri: dict[str, list[dict]] = {}
+        document_changes = workspace_edit.get("documentChanges")
+        if isinstance(document_changes, list):
+            for doc_edit in document_changes:
+                if not isinstance(doc_edit, dict):
+                    continue
+                uri = (doc_edit.get("textDocument") or {}).get("uri")
+                edits = doc_edit.get("edits")
+                if uri and isinstance(edits, list):
+                    edits_by_uri.setdefault(uri, []).extend(edits)
+        changes = workspace_edit.get("changes")
+        if isinstance(changes, dict):
+            for uri, edits in changes.items():
+                if isinstance(edits, list):
+                    edits_by_uri.setdefault(uri, []).extend(edits)
+        return edits_by_uri
+
+    def _apply_text_edits_to_file(self, uri: str, edits: list[dict]) -> bool:
+        """Apply a list of LSP ``TextEdit``s to a single file."""
+        path = self._uri_to_path(uri)
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                lines = f.read().splitlines(keepends=True)
+            offsets = self._line_start_offsets(lines)
+            text = "".join(lines)
+            # Apply from last edit to first so earlier offsets stay valid.
+            for edit in sorted(
+                edits,
+                key=lambda e: self._range_to_offsets(e["range"], offsets)[0],
+                reverse=True,
+            ):
+                start, end = self._range_to_offsets(edit["range"], offsets)
+                text = text[:start] + edit.get("newText", "") + text[end:]
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(text)
+            return True
+        except Exception as e:
+            zrb_print(f"  LSP rename apply error for {uri}: {e}", plain=True)
+            return False
+
+    @staticmethod
+    def _line_start_offsets(lines: list[str]) -> list[int]:
+        """Character offset at the start of each line (plus a trailing entry)."""
+        offsets = [0]
+        for line in lines:
+            offsets.append(offsets[-1] + len(line))
+        return offsets
+
+    @staticmethod
+    def _range_to_offsets(rng: dict, offsets: list[int]) -> tuple[int, int]:
+        """Convert an LSP ``Range`` to (start, end) character offsets."""
+
+        def pos_to_offset(pos: dict) -> int:
+            line = pos.get("line", 0)
+            character = pos.get("character", 0)
+            base = offsets[min(line, len(offsets) - 1)]
+            return base + character
+
+        return pos_to_offset(rng["start"]), pos_to_offset(rng["end"])

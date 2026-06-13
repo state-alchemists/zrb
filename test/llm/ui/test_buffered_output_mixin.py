@@ -83,6 +83,41 @@ async def test_flush_loop_and_stop():
 
 
 @pytest.mark.asyncio
+async def test_start_flush_loop_cancels_prior_loop():
+    """B18: a second start_flush_loop must cancel the first so only one loop
+    runs — otherwise the orphaned loop would double-flush each interval.
+
+    Observed publicly: with two starts and one buffered item, the item is
+    flushed exactly once (a single send), not twice.
+    """
+    ui = MockBufferedUI(flush_interval=0.01)
+
+    await ui.start_flush_loop()
+    await ui.start_flush_loop()  # must cancel the first loop
+    assert ui.has_flush_task
+
+    ui.buffer_output("hello")
+    await asyncio.sleep(0.03)  # several intervals elapse
+
+    await ui.stop_flush_loop()
+    # Exactly one send: a leaked second loop would have flushed an empty buffer
+    # harmlessly, but the single buffered item must appear exactly once.
+    assert ui.sent == ["hello"]
+
+
+@pytest.mark.asyncio
+async def test_stop_flush_loop_clears_flush_task():
+    """B18: after stopping, has_flush_task reports no active loop."""
+    ui = MockBufferedUI(flush_interval=0.01)
+
+    await ui.start_flush_loop()
+    assert ui.has_flush_task
+
+    await ui.stop_flush_loop()
+    assert not ui.has_flush_task
+
+
+@pytest.mark.asyncio
 async def test_send_buffered_not_implemented():
     class IncompleteUI(BufferedOutputMixin):
         pass

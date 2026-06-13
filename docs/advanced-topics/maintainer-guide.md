@@ -9,10 +9,12 @@ This guide is for developers who contribute to or maintain the Zrb project itsel
 ## Table of Contents
 
 - [Publishing Zrb](#publishing-zrb)
+- [Changelog](#changelog)
 - [Inspecting Import Performance](#inspecting-import-performance)
 - [Profiling Zrb](#profiling-zrb)
 - [Testing Strategies](#testing-strategies)
 - [Evaluating the LLM Agent](#evaluating-and-improving-the-llm-agent)
+  - [One-on-One LLM Session](#one-on-one-llm-session)
 - [Architecture & Philosophy](#architecture--philosophy)
 - [Context Propagation Internals](#context-propagation-internals)
 - [LLM History Sanitization Layer](#llm-history-sanitization-layer)
@@ -69,6 +71,80 @@ If you ever invoke `poetry build` / `poetry publish` directly (bypassing the `zr
 
 ---
 
+## Changelog
+
+The changelog lives in three files under `docs/`, newest-first within each:
+
+| File | Scope |
+|------|-------|
+| `changelog.md` | **Active** changelog — recent releases at full detail. |
+| `changelog-v2.md` | Archive of the 2.x line. |
+| `changelog-v1.md` | Archive of the 1.x line (and the 1.0.0 rewrite from 0.x). |
+
+### Writing an entry
+
+Each release is a `## <version> (<Month D, YYYY>)` heading followed by themed
+bullets, with one blank line between entries:
+
+```markdown
+## 2.33.0 (June 6, 2026)
+
+- **Feature: <Title>**:
+  - <detail referencing a concrete symbol/path/env var>
+- **Fix: <Title>**:
+  - <detail>
+```
+
+Use `- **<Category>: <Title>**:` with nested `  - <detail>` sub-bullets.
+Categories are free-form but conventionally `Feature` / `Improvement` / `Fix` /
+`Reliability` / `Security` / `Refactor` / `Performance` / `Chore` /
+`Documentation` / `Tests`. Write past-tense and factual, and anchor each point
+to something locatable (`module.py`, `ClassName`, an env var, `ADR-NNNN`).
+
+### Collapsing (compaction)
+
+To keep the changelog readable as it grows, old entries are periodically
+compacted. **Keep only two entries per minor version** — the minor bump and its
+final revision — producing this retained sequence:
+
+```
+x.y.0  →  x.y.z (latest revision of x.y)  →  x.y+1.0  →  x.y+1.w  →  …
+```
+
+Worked example (`changelog.md`, 2.31–2.33):
+
+```
+2.31.0  →  2.32.0  →  2.32.2  →  2.33.0  →  2.33.2
+```
+
+Here `2.31` had no patches; `2.32` collapsed `2.32.1` into `2.32.2` and its
+`2.32.0a1`–`b5` pre-releases into `2.32.0`; `2.33` (once it ages out) collapses
+`2.33.1` into `2.33.2`. **The newest minor stays at full per-patch detail** in
+the active `changelog.md` until a later minor opens — so in practice the tail of
+`changelog.md` is compacted while the head is not.
+
+Rules for the surviving entries — they must not lose the dropped history:
+
+- The kept **`x.y.z` (latest)** entry **summarizes the cumulative changes** of
+  every dropped patch `x.y.1`–`x.y.z`, not merely its own.
+- The kept **`x.y.0`** entry **absorbs its pre-releases** (`x.y.0a*`/`x.y.0b*`).
+  The headline features usually land in the pre-release entries (the stable
+  `.0` note often just says "consolidating the pre-release line below"), so
+  dropping them without folding loses the real content.
+- Mark a rolled-up entry with a one-line italic note directly under the heading:
+  `_Cumulative summary of the X.Y.1–X.Y.Z patch line._`
+- **Summarize, don't concatenate.** A 24-patch line becomes one
+  release-note-sized entry grouped by theme; drop version-bump noise and
+  test-only churn (one "expanded test coverage" mention suffices).
+- Preserve the file's preamble and trailing `🔖` breadcrumb, and keep entries in
+  descending version order.
+
+Dropped content stays recoverable from git, so compaction is reversible — but
+the goal is that the compacted file still conveys what happened across each
+minor without it.
+
+---
+
 ## Inspecting Import Performance
 
 To inspect import performance and decide if a module should be lazy-loaded:
@@ -109,22 +185,23 @@ Refer to existing tests in the `test/` directory for examples.
 
 ## Evaluating and Improving the LLM Agent
 
-To maintain and improve the quality of the Zrb LLM agent, the project uses a set of automated evaluation challenges located in the `llm-challenges/` directory.
+To maintain and improve the quality of the Zrb LLM agent, the project uses automated evaluation challenges hosted in a separate repository: [github.com/state-alchemists/llm-challenges](https://github.com/state-alchemists/llm-challenges).
 
-> 💡 **See:** `llm-challenges/AGENTS.md` for full evaluation protocol instructions.
+> 💡 **See:** the [llm-challenges README](https://github.com/state-alchemists/llm-challenges) for full evaluation protocol instructions.
 
 ### Process Overview
 
 | Step | Action |
 |------|--------|
 | 1. Execute | Run challenges for all model combinations |
-| 2. Analyze | Review generated REPORT.md for failures |
+| 2. Analyze | Review generated `REPORT.md` for failures |
 | 3. Optimize | Refactor prompts or tools |
 | 4. Verify | Re-run challenges to confirm improvements |
 
 ### Running Challenges
 
 ```bash
+git clone https://github.com/state-alchemists/llm-challenges.git
 cd llm-challenges/
 
 # Quick verification test
@@ -138,8 +215,18 @@ python runner.py --timeout 3600 --parallelism 12 --verbose --models <model-list>
 
 | Output | Location |
 |--------|----------|
-| Report | `llm-challenges/experiment/REPORT.md` |
-| Results | `llm-challenges/experiment/results.json` |
+| Report | `experiment/REPORT.md` |
+| Results | `experiment/results.json` |
+
+### One-on-One LLM Session
+
+Beyond automated challenges, run a one-on-one session to understand how ergonomic the prompt feels to the LLM itself:
+
+```bash
+zrb chat "What is your honest analysis about your current system prompt/instruction. How helpful/effective/efficient is it? How easy/difficult is it for you to follow the instruction. Is that ergonomics? Give scores (1-10) for each aspect"
+```
+
+This surfaces friction that automated metrics miss — ask the model to rate helpfulness, effectiveness, efficiency, and ease of following the system prompt.
 
 ### Optimization Targets
 
@@ -158,9 +245,9 @@ To understand Zrb's core design decisions (such as the strict use of `asyncio`, 
 
 ## Context Propagation Internals
 
-Zrb uses Python's `contextvars.ContextVar` to thread execution state through async coroutines without explicit parameter passing. There are eight `ContextVar` instances across the codebase, split into three layers. The single source of truth is `src/zrb/contextvars.py` (a re-export index); update this section whenever you add, remove, or rename a `ContextVar`.
+Zrb uses Python's `contextvars.ContextVar` to thread execution state through async coroutines without explicit parameter passing. There are eleven `ContextVar` instances across the codebase, split into five layers. The single source of truth is `src/zrb/contextvars.py` (a re-export index); update this section whenever you add, remove, or rename a `ContextVar`.
 
-### The Three Layers
+### The Five Layers
 
 **Layer 1 — Task execution** (`src/zrb/context/any_context.py`):
 
@@ -181,7 +268,20 @@ Holds the active `Context` for the currently executing task. Set at the start of
 
 All four are set at the start of `run_agent()` and reset in its `finally` block.
 
-**Layer 3 — Tool ambient state** (`src/zrb/llm/tool/worktree.py`, `src/zrb/llm/tool/plan.py`, `src/zrb/llm/tool/ask.py`):
+**Layer 3 — Permission state** (`src/zrb/llm/permission/state.py`):
+
+| Variable | Type | Purpose |
+|---|---|---|
+| `current_permission_policy` | `PermissionPolicy \| None` | In-force tool ruleset (`None` = legacy yolo behavior). Set by `run_agent()` from the explicit arg or inherited from a parent run; reset in its `finally` block. |
+| `current_agent_mode` | `AgentMode` | `DEFAULT` or `PLAN` (read-only). Set by the `EnterPlanMode` / `ExitPlanMode` tools; `PLAN` makes `get_effective_policy()` return the read-only `PLAN_MODE_POLICY`. |
+
+**Layer 4 — Sandbox state** (`src/zrb/llm/sandbox/state.py`):
+
+| Variable | Type | Purpose |
+|---|---|---|
+| `current_sandbox_policy` | `SandboxPolicy \| None` | In-force filesystem-containment policy (`None` = resolve from `CFG.LLM_SANDBOX_*`, which is disabled unless the deployment opted in). Set by `run_agent()` from the explicit arg or inherited from a parent run; reset in its `finally` block. Consumed by the `_sandbox_gate` in `agent/common.py` and the shell tools' OS-sandbox wrapper. |
+
+**Layer 5 — Tool ambient state** (`src/zrb/llm/tool/worktree.py`, `src/zrb/llm/tool/plan.py`, `src/zrb/llm/tool/ask.py`):
 
 | Variable | Type | Purpose |
 |---|---|---|
@@ -310,7 +410,7 @@ Zrb applies `sanitize_history()` at three points:
 
 | Step | Function | What it fixes |
 |------|----------|---------------|
-| 1 | `filter_nil_content` | `None`/`""` content in any part type (replaced with `"(empty)"`, or `"null"` for `ToolReturnPart`); injects `TextPart("(tool call)")` in `ModelResponse` when no text part exists but tool calls do |
+| 1 | `filter_nil_content` | `None`/`""` content in any part type (replaced with `"(empty)"`, or `"null"` for `ToolReturnPart`); injects `TextPart("(tool call)")` only in a `ModelResponse` that has **neither** text **nor** tool calls. A tool-call-only response is left text-less (every provider accepts it; `openai_patch` omits the `content` field) — injecting a placeholder there leaks `"(tool call)"` into history, which weaker models then echo back as literal output. |
 | 2 | `sanitize_orphaned_tool_calls` | Removes unmatched `ToolCallPart`/`ToolReturnPart` pairs; patches text-less messages left behind |
 | 3 | Drop empty messages | Removes `ModelRequest`/`ModelResponse` objects that have no parts remaining after steps 1–2 |
 | 4 | `ensure_alternating_roles` | Merges consecutive same-role messages by concatenating their `parts` lists (prevents back-to-back assistant or user messages) |
@@ -375,7 +475,36 @@ Rather than catalog every variant, `retry_loop.py` has a catch-all that fires **
 
 This is deliberately provider-agnostic. Text in the form `{"role": "user", "content": "..."}` / `{"role": "assistant", "content": "..."}` is the lowest common denominator that every text-generation provider accepts. The handler is gated on `current_message is not None` (it does not fire during tool-loop iterations with deferred results, where stripping structure could orphan tool call/return pairs).
 
-The handler sits **last** in the retry chain in `handle_stream_error`, so it only fires when all other handlers (transient, prompt-too-long, missing-reasoning, invalid-tool-call) have given up. This guarantees that the existing one-shot DeepSeek path fires first and the nuclear option is truly a last resort.
+The handler sits **last among the HTTP-400 handlers** in `handle_stream_error`, so it only fires when all other status-code handlers (transient, prompt-too-long, missing-reasoning, invalid-tool-call) have given up. This guarantees that the existing one-shot DeepSeek path fires first and the nuclear option is truly a last resort. (The deferred-mismatch handler below fires after it textually but is gated on a pydantic `UserError`, not an HTTP 400, so the two are mutually exclusive — ordering between them is immaterial.)
+
+### The Deferred-Results-After-Summarization Recovery
+
+The sanitization layer and `allow_orphaned_tool_calls` above protect against a tool **call/return pair** being split by compression. A different failure mode arises specifically *between* deferred-tool iterations: after a deferred tool is approved or denied, the loop re-enters `agent.run_stream_events()` with the resolved `DeferredToolResults`. Between iterations, `_apply_history_processors` runs the summarizer, which can compress the kept slice enough that the **entire `ModelResponse` whose `tool_calls` match `current_results`** is dropped. `allow_orphaned_tool_calls` does not help here — there is no orphaned *part* to preserve; the whole response carrying the tool calls is gone. pydantic-ai's `_handle_deferred_tool_results` then raises a `UserError` whose message contains *"does not contain any unprocessed tool calls"* (or *"does not contain a `ModelResponse`"*).
+
+Two defenses cover this (see ADR-0058):
+
+1. **Prevention (`runner.py`, `_execution_loop`)** — in the deferred-tool branch, `_apply_history_processors` is **skipped** when `current_results` still has pending `calls` or `approvals`; `current_history` is set directly to `run_history`. Processor effects are already applied in `_prepare_history` before the first stream call, and the summarizer still runs on every non-deferred iteration.
+
+   ```python
+   # runner.py — _execution_loop, deferred-tool branch
+   if current_results and (
+       getattr(current_results, "calls", None)
+       or getattr(current_results, "approvals", None)
+   ):
+       current_history = run_history          # skip summarizer mid-deferral
+   else:
+       current_history = await _apply_history_processors(run_history, history_processors)
+   ```
+
+2. **Recovery (`retry_loop.py`, `handle_stream_error`)** — a one-shot handler (gated by `deferred_mismatch_retry_done`) catches the `UserError`, clears the stale `current_results` via `RetryOutcome.clear_results`, and retries so the model generates fresh tool calls. It hands back the **intact `run_history`** (not `None`) as `new_history`: the runner assigns `outcome.new_history` to `current_history` unconditionally and the next iteration feeds it straight into `sanitize_history`, which raises `TypeError` on `None`.
+
+### The Empty-Completion Guard
+
+The sanitization and retry layers above all handle *errors* (exceptions). A weak or overloaded provider has a quieter failure mode: the stream **succeeds** but the final turn carries no real content — zero output tokens, no tool call, and either empty text or just the `"(tool call)"` placeholder (injected by `filter_nil_content`, or echoed by a model that learned to imitate it). Left unguarded, that placeholder is surfaced to the user as the answer.
+
+`_execution_loop` (`runner.py`) checks `_is_empty_completion(result_output)` after the stream, *after* the `DeferredToolRequests` branch (a deferred result is a legitimate tool-call outcome, never "empty") and *before* the `SESSION_END` hooks. `_is_empty_completion` returns `True` only for a **str** output that is blank or one of `_EMPTY_COMPLETION_MARKERS` (`"(tool call)"` and the bare `"(tool call"` imitation) — structured outputs are never caught.
+
+On a hit it regenerates the turn rather than returning it: `_history_without_trailing_response(run_history)` drops the degenerate trailing `ModelResponse` (keeping any tool returns, so the deferred-resume case is handled too), `current_message`/`current_results` are reset to `None`, and the loop re-requests. This is bounded by `RetryState.max_empty_completion_retries` (default 2); once exhausted the loop raises a clear `RuntimeError` ("Model returned an empty response …") instead of looping forever or surfacing the placeholder. A legitimate answer is always non-empty prose, so this never rejects real output.
 
 ### File Map
 
@@ -385,7 +514,8 @@ The handler sits **last** in the retry chain in `handle_stream_error`, so it onl
 | `src/zrb/llm/message.py` | `sanitize_orphaned_tool_calls()`, `ensure_alternating_roles()`, `validate_tool_pair_integrity()` |
 | `src/zrb/llm/agent/run/openai_patch.py` | Monkey-patch for `content: null` serialization |
 | `src/zrb/llm/agent/run/error_classifier.py` | `is_missing_reasoning_content_error()`, `is_opaque_validation_error()`, `is_invalid_tool_call_error()` |
-| `src/zrb/llm/agent/run/retry_loop.py` | Retry decisions including `strip_thinking_parts` and the opaque-400 fallback |
+| `src/zrb/llm/agent/run/retry_loop.py` | Retry decisions including `strip_thinking_parts`, the opaque-400 fallback, and the deferred-mismatch recovery (`deferred_mismatch_retry_done` / `clear_results`) |
+| `src/zrb/llm/agent/run/runner.py` | `_execution_loop`: skips history processors mid-deferral when `current_results` has pending calls/approvals |
 | `src/zrb/llm/summarizer/history_summarizer.py` | Calls `sanitize_history()` on the kept slice after compression |
 
 ---
@@ -399,6 +529,7 @@ The handler sits **last** in the retry chain in `handle_stream_error`, so it onl
 | Generate profile | `python -m cProfile -o .cprofile.prof -m zrb --help` |
 | Visualize (snakeviz) | `snakeviz .cprofile.prof` |
 | Visualize (flame) | `flameprof .cprofile.prof > flamegraph.svg` |
-| Run LLM challenges | `python runner.py --models <list> --verbose` |
+| Clone + run LLM challenges | `git clone https://github.com/state-alchemists/llm-challenges && cd llm-challenges && python runner.py --models <list> --verbose` |
+| Run one-on-one LLM session | `zrb chat "What is your honest analysis about your current system prompt..."` |
 
 ---

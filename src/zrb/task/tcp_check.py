@@ -57,7 +57,7 @@ class TcpCheck(BaseTask):
     def _get_host(self, ctx: AnyContext) -> str:
         return get_str_attr(ctx, self._host, "localhost", auto_render=self._render_host)
 
-    def _get_port(self, ctx: AnyContext) -> str:
+    def _get_port(self, ctx: AnyContext) -> int:
         return get_int_attr(ctx, self._port, 80, auto_render=True)
 
     async def _exec_action(self, ctx: AnyContext) -> bool:
@@ -66,9 +66,17 @@ class TcpCheck(BaseTask):
         while True:
             try:
                 ctx.log_info(f"Checking TCP connection on {host}:{port}")
-                result = await asyncio.open_connection(host, port)
+                _, writer = await asyncio.open_connection(host, port)
+                # The successful connection is the readiness signal. Close the
+                # writer to avoid leaking the socket, but a cleanup error must not
+                # flip success back into a retry.
+                try:
+                    writer.close()
+                    await writer.wait_closed()
+                except Exception as close_error:
+                    ctx.log_info(f"Error closing probe connection: {close_error}")
                 ctx.log_info(f"Connection to {host}:{port} established successfully")
-                return result
+                return True
             except asyncio.TimeoutError as e:
                 ctx.log_info(f"Timeout error {e}")
             except Exception as e:

@@ -34,7 +34,7 @@ async def test_tcp_check_success(mock_session):
     finally:
         asyncio.open_connection = original_open_connection
 
-    assert result == (mock_reader, mock_writer)
+    assert result is True
 
 
 @pytest.mark.asyncio
@@ -70,7 +70,7 @@ async def test_tcp_check_retry_and_succeed(mock_session):
         asyncio.open_connection = original_open_connection
         asyncio.sleep = original_sleep
 
-    assert result == (mock_reader, mock_writer)
+    assert result is True
     assert call_count == 2
 
 

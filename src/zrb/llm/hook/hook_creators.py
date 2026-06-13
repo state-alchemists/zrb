@@ -123,7 +123,7 @@ def create_command_hook(config: CommandHookConfig) -> HookCallable:
                     data = json.loads(output)
                     if isinstance(data, dict):
                         modifications = data
-                except Exception:
+                except json.JSONDecodeError:
                     # Not JSON, treat as plain output
                     pass
 
@@ -192,16 +192,18 @@ def create_prompt_hook(config: PromptHookConfig) -> HookCallable:
 
             # Parse the result for modifications
             modifications = {}
+            # str() is kept outside the try so the narrowed JSONDecodeError
+            # catch covers exactly the json.loads call and nothing else.
+            output_text = str(result.output)
             try:
                 # Try to parse as JSON if it looks like JSON
-                output_text = str(result.output)
                 if output_text.strip().startswith("{") and output_text.strip().endswith(
                     "}"
                 ):
                     parsed = json.loads(output_text)
                     if isinstance(parsed, dict):
                         modifications = parsed
-            except Exception:
+            except json.JSONDecodeError:
                 # Not JSON, use as plain output
                 pass
 
@@ -263,16 +265,18 @@ def create_agent_hook(config: AgentHookConfig) -> HookCallable:
 
             # Parse the result for modifications
             modifications = {}
+            # str() is kept outside the try so the narrowed JSONDecodeError
+            # catch covers exactly the json.loads call and nothing else.
+            output_text = str(result.output)
             try:
                 # Try to parse as JSON if it looks like JSON
-                output_text = str(result.output)
                 if output_text.strip().startswith("{") and output_text.strip().endswith(
                     "}"
                 ):
                     parsed = json.loads(output_text)
                     if isinstance(parsed, dict):
                         modifications = parsed
-            except Exception:
+            except json.JSONDecodeError:
                 # Not JSON, use as plain output
                 pass
 

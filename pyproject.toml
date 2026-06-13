@@ -1,14 +1,110 @@
-[tool.poetry]
+[project]
 name = "zrb"
-version = "2.31.0"
+version = "2.34.3"
 description = "Your Automation Powerhouse"
-authors = ["Go Frendi Gunawan <gofrendiasgard@gmail.com>"]
+authors = [{name = "Go Frendi Gunawan", email = "gofrendiasgard@gmail.com"}]
 license = "AGPL-3.0-or-later"
 readme = "README.pypi.md"
+keywords = ["Automation", "Task Runner", "Code Generator", "Monorepo", "Low Code"]
+requires-python = ">=3.11.0,<3.15.0"
+dependencies = [
+    "python-dotenv>=1.1.1,<2.0.0",
+    "black>=26.3.1,<27.0.0",
+    "isort>=7.0.0,<8.0.0",
+    "beautifulsoup4>=4.14.2,<5.0.0",
+    "pdfplumber>=0.11.7,<0.12.0",
+    "fastapi[standard]>=0.136.3,<0.137.0",
+    "jinja2>=3.1.0,<4.0.0",
+    # PyJWT and pyjwt normalize to the same distribution; consolidated to the
+    # stricter pin so PEP-621 does not see a duplicate dependency.
+    "PyJWT>=2.12.1,<3.0.0",
+    "ulid-py>=1.1.0,<2.0.0",
+    "psutil>=7.0.0,<8.0.0",
+    # NOTE: Look at https://github.com/pydantic/pydantic-ai/blob/main/pydantic_ai_slim/pyproject.toml
+    # The `mcp` extra pulls `fastmcp-slim[client]`, required by `MCPToolset`.
+    "pydantic-ai-slim[mcp]>=1.106.0,<1.107.0",
+    # NOTE: Make sure the following dependencies are not conflicting with pydantic-ai-slim
+    "openai>=2.29.0",
+    "prompt-toolkit>=3",
+    "rich>=13",
+    "mcp>1.25.0,<2.0",
+    "requests>=2.33.0,<3.0.0",
+    "tiktoken>=0.12.0,<0.13.0",
+    "markdownify>=1.2.2,<2.0.0",
+    "pyyaml>=6.0.3,<7.0.0",
+    "pyperclip>=1.11.0,<2.0.0",
+    # Security fix: CVE-2026-40192 - Decompression bomb via unlimited GZIP read in FITS decoding.
+    # Pillow is a transitive dependency via pdfplumber. We pin >=12.2.0 to ensure the patched version is used.
+    "Pillow>=12.2.0",
+    # Security fix: CVE-2026-4539 - ReDoS vulnerability in AdlLexer (GUID regex).
+    # pygments is a transitive dependency via rich and pytest. We pin >=2.20.0.
+    "pygments>=2.20.0",
+    # Security fix: CVE-2026-39892 - cryptography is a transitive dependency via pdfminer-six
+    # (pulled in by pdfplumber) and google-auth. We pin >=46.0.7.
+    "cryptography>=46.0.7",
+    # Security fix: CVE-2026-42561 (GHSA-pp6c-gr5w-3c5g) - CPU exhaustion via unlimited multipart
+    # header count and size in form-data submissions. python-multipart is transitive via mcp. We pin >=0.0.27.
+    "python-multipart>=0.0.27",
+    # Security fix: GHSA-86qp-5c8j-p5mr (CVE-2026-48710) - Missing Host header validation poisons
+    # request.url.path, bypassing path-based security checks. starlette is a dependency of fastapi. We pin >=1.0.1.
+    "starlette>=1.0.1",
+    # Security fix: CVE-2026-44432 - urllib3 does not strip cookies on HTTP redirect from HTTPS.
+    # urllib3 is transitive via requests and boto3. We pin >=2.7.0.
+    "urllib3>=2.7.0",
+    # Security fix: GHSA-65pc-fj4g-8rjx (CVE-2026-45409) - DoS via crafted input to idna.encode().
+    # idna is transitive via requests, httpx, anyio (pydantic-ai). We pin >=3.15.
+    "idna>=3.15",
+]
+
+[project.urls]
 homepage = "https://github.com/state-alchemists/zrb"
 repository = "https://github.com/state-alchemists/zrb"
 documentation = "https://github.com/state-alchemists/zrb"
-keywords = ["Automation", "Task Runner", "Code Generator", "Monorepo", "Low Code"]
+
+[project.optional-dependencies]
+# Install all extras:
+# - poetry install --all-extras
+# - pip install "zrb[rag,playwright,cohere,vertexai,google,anthropic,groq,xai,bedrock,huggingface,voyageai]"
+# Install a specific extra:
+# - poetry install -E rag
+# - pip install "zrb[rag]"
+#
+# NOTE: Make sure these dependencies do not conflict with pydantic-ai-slim. Security
+# pins on transitive packages are annotated inline on the dependency that carries them.
+rag = ["chromadb>=1.3.5,<2.0.0"]
+playwright = ["playwright>=1.56.0,<2.0.0"]
+cohere = ["cohere>=5.20.6"]
+vertexai = [
+    "google-auth>=2.36.0",
+    # Security fix: CVE-2026-23491 - DoS via uncontrolled recursion in ASN.1 decoding (via google-auth).
+    "pyasn1>=0.6.3",
+]
+google = ["google-genai>=1.70.0"]
+anthropic = ["anthropic>=0.105.0"]
+groq = ["groq>=0.25.0"]
+xai = [
+    "xai-sdk>=1.12.2",
+    # Security fix: GHSA-hg6j-4rv6-33pg (CVE-2026-47265) - cross-origin redirect leaks per-request cookies.
+    "aiohttp>=3.14.0",
+]
+bedrock = ["boto3>=1.42.63"]
+huggingface = ["huggingface-hub[inference]>=1.3.4,<2.0.0"]
+voyageai = [
+    "voyageai>=0.3.7 ; python_version < '3.14'",
+    # Security fix: CVE-2026-34070, CVE-2026-44843 (GHSA-pjwx-r37v-7724) - unsafe deserialization.
+    "langchain-core>=1.3.3",
+    # Security fix: GHSA-hg6j-4rv6-33pg (CVE-2026-47265) - cross-origin redirect leaks per-request cookies.
+    "aiohttp>=3.14.0",
+    # Security fix: GHSA-fv5p-p927-qmxr - SSRF via redirect bypass in HTMLHeaderTextSplitter.split_text_from_url().
+    "langchain-text-splitters>=1.1.2",
+    # Security fix: GHSA-3644-q5cj-c5c7 (CVE-2026-45134) - unsafe prompt-manifest deserialization.
+    "langsmith>=0.8.0",
+]
+
+[project.scripts]
+zrb = "zrb.__main__:serve_cli"
+
+[tool.poetry]
 exclude = [
     "__pycache__",
     "_images",
@@ -36,137 +132,6 @@ exclude = [
     "zrb_init.py"
 ]
 
-[tool.poetry.dependencies]
-python = ">=3.11.0,<3.15.0"
-python-dotenv = "^1.1.1"
-black = "^26.3.1"
-isort = "^7.0.0"
-beautifulsoup4 = "^4.14.2"
-pdfplumber = "^0.11.7"
-fastapi = {extras = ["standard"], version = "^0.123.10"}
-jinja2 = "^3.1.0"
-PyJWT = "^2.12.0"
-ulid-py = "^1.1.0"
-psutil = "^7.0.0"
-
-# NOTE: Look at https://github.com/pydantic/pydantic-ai/blob/main/pydantic_ai_slim/pyproject.toml
-# The `mcp` extra pulls `fastmcp-slim[client]`, required by `MCPToolset`.
-pydantic-ai-slim = {version = "~1.101.0", extras = ["mcp"]}
-
-
-# NOTE: Make sure the following dependencies are not conflicting with pydantic-ai-slim
-openai = ">=2.29.0"
-prompt-toolkit = ">=3"
-rich = ">=13"
-mcp = ">1.25.0,<2.0"
-requests = "^2.33.0"
-
-tiktoken = "^0.12.0"
-markdownify = "^1.2.2"
-pyjwt = "^2.12.1"
-pyyaml = "^6.0.3"
-
-# Optional packages
-playwright = {version = "^1.56.0", optional = true}
-chromadb = {version = "^1.3.5", optional = true}
-
-# NOTE: Make sure the following dependencies are not conflicting with pydantic-ai-slim
-cohere = {version = ">=5.20.6", optional = true}
-google-auth = {version = ">=2.36.0", optional = true}
-google-genai = {version = ">=1.70.0", optional = true}
-anthropic = {version = ">=0.96.0", optional = true}
-xai-sdk = {version = ">=1.5.0", optional = true}
-groq = {version = ">=0.25.0", optional = true}
-# mistralai = {version = ">=2.0.0", optional = true}
-boto3 = {version = ">=1.42.63", optional = true}
-huggingface-hub = {version = ">=1.3.4,<2.0.0", extras = ["inference"], optional = true}
-voyageai = {version = ">=0.3.7", optional = true, python = "<3.14"}
-
-pyperclip = "^1.11.0"
-# Security fix: CVE-2026-40192 - Decompression bomb via unlimited GZIP read in FITS decoding.
-# Pillow is a transitive dependency via pdfplumber.
-# We pin >=12.2.0 to ensure the patched version is used.
-Pillow = ">=12.2.0"
-
-# Security fix: CVE-2026-34070 and CVE-2026-44843 (GHSA-pjwx-r37v-7724) - deserialization
-# uses overly broad object allowlists, enabling prompt injection / credential disclosure
-# via attacker-controlled structured input. langchain-core is a transitive dependency via voyageai.
-# We pin >=1.3.3 to cover both advisories.
-langchain-core = {version = ">=1.3.3", optional = true}
-
-# Security fix: CVE-2026-23491 - DoS via uncontrolled recursion in ASN.1 decoding
-# pyasn1 is a transitive dependency via google-auth -> pyasn1-modules and google-auth -> rsa.
-# We pin >=0.6.3 to ensure the patched version is used.
-pyasn1 = {version = ">=0.6.3", optional = true}
-
-# Security fix: CVE-2026-4539 - ReDoS vulnerability in AdlLexer (GUID regex)
-# pygments is a transitive dependency via rich and pytest.
-# We pin >=2.20.0 to ensure the patched version is used.
-pygments = ">=2.20.0"
-
-# Security fix: CVE-2026-34516 - aiohttp vulnerability
-# aiohttp is a transitive dependency via voyageai and xai-sdk.
-# We pin >=3.13.4 to ensure the patched version is used.
-aiohttp = {version = ">=3.13.4", optional = true}
-
-# Security fix: CVE-2026-39892
-# cryptography is a transitive dependency via pdfminer-six (pulled in by pdfplumber) and google-auth.
-# We pin >=46.0.7 to ensure the patched version is used.
-cryptography = ">=46.0.7"
-
-# Security fix: CVE-2026-42561 (GHSA-pp6c-gr5w-3c5g) - CPU exhaustion via unlimited
-# multipart header count and size in form-data submissions.
-# python-multipart is a transitive dependency via mcp.
-# We pin >=0.0.27 to ensure the patched version is used.
-python-multipart = ">=0.0.27"
-
-# Security fix: GHSA-fv5p-p927-qmxr - SSRF via redirect bypass in HTMLHeaderTextSplitter.split_text_from_url().
-# langchain-text-splitters is a transitive dependency via voyageai.
-# We pin >=1.1.2 to ensure the patched version is used.
-langchain-text-splitters = {version = ">=1.1.2", optional = true}
-
-# Security fix: CVE-2026-44432 - urllib3 does not strip cookies on HTTP redirect from HTTPS,
-# allowing cookie leakage to a same-hostname HTTP server via redirect.
-# urllib3 is a transitive dependency via requests and boto3.
-# We pin >=2.7.0 to ensure the patched version is used.
-urllib3 = ">=2.7.0"
-
-# Security fix: GHSA-3644-q5cj-c5c7 (CVE-2026-45134) - Public prompt pull deserializes
-# untrusted manifests without trust boundary warning, enabling SSRF / LLM traffic
-# redirection / prompt injection via attacker-controlled prompt manifests.
-# langsmith is a transitive dependency via langchain-core (pulled in by voyageai).
-# We pin >=0.8.0 to ensure the patched version is used.
-langsmith = {version = ">=0.8.0", optional = true}
-
-# Security fix: GHSA-65pc-fj4g-8rjx (CVE-2026-45409) - DoS via crafted input to
-# idna.encode() bypassing the CVE-2024-3651 fix; payloads like "٠" * N
-# exploit valid_contexto before length validation, consuming significant CPU.
-# idna is a transitive dependency via requests, httpx, anyio (pydantic-ai).
-# We pin >=3.15 to ensure the patched version is used.
-idna = ">=3.15"
-
-[tool.poetry.extras]
-# Install all extras:
-# - poetry install --all-extras
-# - pip install zrb[all]
-# Install specific extra:
-# - poetry install -E rag
-# - pip install zrb[rag]
-
-rag = ["chromadb"]
-playwright = ["playwright"]
-cohere = ["cohere"]
-vertexai = ["google-auth", "pyasn1"]
-google = ["google-genai"]
-anthropic = ["anthropic"]
-groq = ["groq"]
-xai = ["xai-sdk", "aiohttp"]
-# mistral = ["mistralai"]
-bedrock = ["boto3"]
-huggingface = ["huggingface-hub"]
-voyageai = ["voyageai", "langchain-core", "aiohttp", "langchain-text-splitters", "langsmith"]
-all = ["chromadb", "playwright", "cohere", "google-auth", "google-genai", "anthropic", "groq", "bedrock", "huggingface", "xai", "voyageai", "aiohttp", "pyasn1", "langchain-text-splitters", "langsmith"]
-
 [tool.poetry.group.dev.dependencies]
 autopep8 = "^2.3.2"
 flake8 = "^7.2.0"
@@ -179,9 +144,6 @@ tomlkit = "^0.13.3"
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "function"
 norecursedirs = "playground src/zrb/builtin/project/add/fastapp/fastapp_template"
-
-[tool.poetry.scripts]
-zrb = "zrb.__main__:serve_cli"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

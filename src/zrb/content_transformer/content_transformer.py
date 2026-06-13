@@ -44,9 +44,13 @@ class ContentTransformer(AnyContentTransformer):
             if os.sep not in pattern and (
                 os.altsep is None or os.altsep not in pattern
             ):
-                # Pattern like "*.txt" – match only the basename.
-                return fnmatch.fnmatch(file_path, os.path.basename(file_path))
-            return fnmatch.fnmatch(file_path, file_path)
+                # Pattern like "*.txt" – match against the basename only.
+                if fnmatch.fnmatch(os.path.basename(file_path), pattern):
+                    return True
+            elif fnmatch.fnmatch(file_path, pattern):
+                # Pattern carries a path separator – match the full path.
+                return True
+        return False
 
     def transform_file(self, ctx: AnyContext, file_path: str):
         if callable(self._transform_file):

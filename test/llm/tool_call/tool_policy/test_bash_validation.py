@@ -60,6 +60,26 @@ class TestIsSafeCommand:
         """Test that && is rejected."""
         assert _is_safe_command("ls && echo done") is False
 
+    def test_unsafe_command_with_single_ampersand(self):
+        """Test that a single & (backgrounding/chaining) is rejected."""
+        assert _is_safe_command("ls & rm -rf x") is False
+        assert _is_safe_command("ls &") is False
+
+    def test_unsafe_command_with_newline(self):
+        """Test that newline/carriage-return separated commands are rejected."""
+        assert _is_safe_command("ls\nrm x") is False
+        assert _is_safe_command("ls\r\nrm x") is False
+
+    def test_unsafe_command_env_runs_arbitrary_command(self):
+        """`env` is not safe: `env FOO=1 rm -rf x` executes an arbitrary command."""
+        assert _is_safe_command("env FOO=1 rm -rf x") is False
+        assert _is_safe_command("env rm -rf x") is False
+
+    def test_safe_command_printenv_still_allowed(self):
+        """printenv is a pure read and remains allowlisted."""
+        assert _is_safe_command("printenv") is True
+        assert _is_safe_command("printenv PATH") is True
+
     def test_unsafe_command_with_backtick(self):
         """Test that backticks are rejected."""
         assert _is_safe_command("echo `date`") is False

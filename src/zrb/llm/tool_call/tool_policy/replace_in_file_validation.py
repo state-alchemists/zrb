@@ -54,11 +54,17 @@ async def replace_in_file_validation_policy(
     if not os.path.exists(abs_path):
         return ToolDenied(f"File not found: {path}")
 
-    # 3. Check if old_text is in file
+    # 3. Check if old_text is in file. Accept either an exact substring match
+    #    or a fuzzy match (whitespace/indentation tolerant), mirroring the
+    #    replace_in_file tool's own matching so we don't deny edits the tool
+    #    would actually be able to apply.
+    # lazy: circular — file_edit pulls in post_write_check → llm tool stack
+    from zrb.llm.tool.file_edit import _find_fuzzy_match
+
     try:
         with open(abs_path, "r", encoding="utf-8") as f:
             content = f.read()
-        if old_text not in content:
+        if old_text not in content and _find_fuzzy_match(content, old_text) is None:
             return ToolDenied(
                 f"Old text not found in {path}. Please read the file first."
             )

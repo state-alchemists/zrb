@@ -40,12 +40,15 @@ async def analyze_file(path: str, query: str, auto_truncate: bool = True) -> str
     system_prompt = get_prompt("file_extractor")
 
     agent = create_agent(
+        # Already resolved here; resolve_model=False avoids a second
+        # model_getter/model_renderer pass inside create_agent.
         model=llm_config.resolve_model(),
         system_prompt=system_prompt,
         tools=[
             read_file,
             search_files,
         ],
+        resolve_model=False,
     )
 
     user_message = f"""

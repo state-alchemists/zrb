@@ -12,6 +12,7 @@ from zrb.llm.agent.subagent.manager.loader_mixin import LoaderMixin
 from zrb.llm.agent.subagent.manager.search_mixin import SearchMixin
 from zrb.llm.agent.subagent.yolo import make_yolo_inheritance_checker
 from zrb.llm.config.config import llm_config as default_llm_config
+from zrb.llm.factory_resolver import resolve_factory_items
 from zrb.llm.prompt.tool_guidance import (
     ToolCatalogue,
     ToolGroups,
@@ -250,7 +251,7 @@ class SubAgentManager(LoaderMixin, SearchMixin):
 
         # YOLO: explicit True wins; otherwise return a checker that reads the
         # live parent state on each invocation (so toggles propagate).
-        effective_yolo: bool | Callable
+        effective_yolo: bool | Callable[..., bool]
         if yolo is True:
             effective_yolo = True
         else:
@@ -259,10 +260,12 @@ class SubAgentManager(LoaderMixin, SearchMixin):
         # Resolve model so section factories can use it
         final_model = default_llm_config.resolve_model(definition.model)
 
-        # Resolve guidance factories for dynamically-named tools
-        for factory in self._tool_guidance_factories:
-            guidance = factory(ctx)
-            self.add_tool_guidance(guidance)
+        # Resolve guidance factories for dynamically-named tools into a
+        # per-agent throwaway copy. Mutating ``self._tool_guidance`` /
+        # ``self._tool_groups`` directly would permanently accumulate guidance
+        # on the process-wide ``sub_agent_manager`` singleton across unrelated
+        # ``create_agent`` calls.
+        local_guidance, local_groups = self._build_local_guidance(ctx)
 
         # Resolve section factories for model-aware guidance sections
         section_strings: list[str] = []
@@ -281,8 +284,8 @@ class SubAgentManager(LoaderMixin, SearchMixin):
                 resolved_tool_names.add(tname)
         guidance_prompt = get_tool_guidance_prompt(
             resolved_tool_names or None,
-            self._tool_guidance,
-            self._tool_groups,
+            local_guidance,
+            local_groups,
             extra_sections=section_strings if section_strings else None,
         )
 
@@ -304,6 +307,9 @@ class SubAgentManager(LoaderMixin, SearchMixin):
             parts.append(guidance_prompt)
         effective_system_prompt = "\n\n".join(parts).strip()
 
+        # resolve_model=False: definition.model was already resolved into
+        # final_model above (so section factories could use it). Re-resolving
+        # inside create_agent would double-fire model_getter/model_renderer.
         return create_agent(
             model=final_model,
             system_prompt=effective_system_prompt,
@@ -311,7 +317,27 @@ class SubAgentManager(LoaderMixin, SearchMixin):
             toolsets=resolved_toolsets,
             history_processors=[create_summarizer_history_processor()],
             yolo=effective_yolo,
+            resolve_model=False,
         )
+
+    def _build_local_guidance(
+        self, ctx: AnyContext
+    ) -> "tuple[ToolCatalogue, ToolGroups]":
+        """Build a per-agent guidance catalogue without mutating shared state.
+
+        Copies the registered base guidance/groups, then layers in the
+        dynamically-named factory guidance for this one agent. The originals
+        on ``self`` are never modified, so repeated ``create_agent`` calls do
+        not accumulate guidance on the singleton.
+        """
+        local_guidance: ToolCatalogue = dict(self._tool_guidance)
+        local_groups: ToolGroups = [
+            (label, list(members)) for label, members in self._tool_groups
+        ]
+        for factory in self._tool_guidance_factories:
+            guidance = factory(ctx)
+            _merge_guidance(local_guidance, local_groups, guidance)
+        return local_guidance, local_groups
 
     def _build_inherited_prompt(
         self,
@@ -345,7 +371,19 @@ class SubAgentManager(LoaderMixin, SearchMixin):
         # (if any) render unfiltered rather than against the parent's tools.
         pm.tool_names = None
         try:
-            return pm.compose_prompt()(ctx).strip()
+            composed = pm.compose_prompt()(ctx).strip()
+            # Sub-agents are single-turn (one run_agent, empty history), so the
+            # cross-turn caching reason for keeping volatile state out of the
+            # system prompt does not apply. Fold the <live-context> block back
+            # into the inherited prompt so an agent that inherits system_context
+            # still sees the per-turn state (time, git, …) it saw before the
+            # main-chat split — the main chat injects it into the user turn
+            # instead, via run_agent's live_context.
+            if "system_context" in sections:
+                live = pm.create_live_context(ctx)
+                if live:
+                    composed = f"{composed}\n\n{live}".strip()
+            return composed
         except Exception:
             # Don't fail agent creation on inheritance issues — surface as no
             # inheritance so the sub-agent still runs.
@@ -370,14 +408,27 @@ class SubAgentManager(LoaderMixin, SearchMixin):
 
     def _get_all_toolsets(self, ctx: AnyContext) -> list[AbstractToolset[None]]:
         """All toolsets including those resolved from factories."""
-        all_toolsets = list(self._toolsets)
-        for factory in self._toolset_factories:
-            toolset = factory(ctx)
-            if isinstance(toolset, list):
-                all_toolsets.extend(toolset)
-            else:
-                all_toolsets.append(toolset)
-        return all_toolsets
+        return resolve_factory_items(self._toolsets, self._toolset_factories, ctx)
+
+
+def _merge_guidance(
+    guidance: "ToolCatalogue",
+    groups: "ToolGroups",
+    g: ToolGuidance,
+) -> None:
+    """Insert a single ToolGuidance into the given catalogue/groups in place.
+
+    Mirrors ``SubAgentManager.add_tool_guidance`` but targets caller-provided
+    (typically throwaway) structures instead of the shared instance state.
+    """
+    if not any(label == g.group_name for label, _ in groups):
+        groups.append((g.group_name, []))
+    guidance[g.tool_name] = (g.when_to_use, g.key_rule)
+    for label, members in groups:
+        if label == g.group_name:
+            if g.tool_name not in members:
+                members.append(g.tool_name)
+            break
 
 
 # Module-level singleton - lightweight, agents loaded on first access

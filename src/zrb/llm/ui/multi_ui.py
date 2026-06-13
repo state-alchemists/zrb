@@ -56,7 +56,7 @@ class MultiUI:
         )
         # Set parent reference on all child UIs so they route messages through MultiUI
         for ui in self._uis:
-            ui._multi_ui_parent = self
+            ui.multi_ui_parent = self
 
     def set_tool_call_handler(self, handler: Any):
         """Set the tool call handler with formatters/policies.
@@ -74,6 +74,15 @@ class MultiUI:
     def set_approval_channel(self, channel: Any):
         """Set the approval channel for tool confirmations."""
         self._approval_channel = channel
+
+    @property
+    def children(self) -> list[Any]:
+        """Public view of the wrapped child UIs.
+
+        Lets collaborators (e.g. the agent runner) pick a concrete child UI
+        without reaching into the private `_uis` list.
+        """
+        return list(self._uis)
 
     @property
     def _main_ui(self) -> Any:
@@ -104,10 +113,14 @@ class MultiUI:
             except Exception:
                 pass
 
+    def replay_history(self, messages: list) -> None:
+        """Replay loaded history on every child UI that supports it."""
+        self._replay_history(messages)
+
     def _replay_history(self, messages: list) -> None:
         """Replay loaded history on every child UI that supports it."""
         for ui in self._uis:
-            replay = getattr(ui, "_replay_history", None)
+            replay = getattr(ui, "replay_history", None)
             if callable(replay):
                 try:
                     replay(messages)
@@ -207,8 +220,9 @@ class MultiUI:
 
         # Try winning UI's handler
         winning_ui = getattr(self, "_last_winning_ui", None)
-        if winning_ui is not None and hasattr(winning_ui, "_tool_call_handler"):
-            return await winning_ui._tool_call_handler.handle(self, call)
+        winning_handler = getattr(winning_ui, "tool_call_handler", None)
+        if winning_handler is not None:
+            return await winning_handler.handle(self, call)
 
         # Fall back to approval channel (e.g., Telegram buttons)
         if hasattr(self, "_approval_channel") and self._approval_channel is not None:
@@ -227,6 +241,10 @@ class MultiUI:
 
         raise RuntimeError("No UI available for tool confirmation")
 
+    def submit_user_message(self, llm_task: Any, user_message: str):
+        """Submit user message through the shared queue."""
+        self._submit_user_message(llm_task, user_message)
+
     def _submit_user_message(self, llm_task: Any, user_message: str):
         """Submit user message to shared queue.
 
@@ -240,9 +258,8 @@ class MultiUI:
         # via Ctrl+V in the default terminal UI) and clear their queues.
         attachments = []
         for ui in self._uis:
-            if hasattr(ui, "_pending_attachments"):
-                attachments.extend(ui._pending_attachments)
-                ui._pending_attachments.clear()
+            if hasattr(ui, "take_pending_attachments"):
+                attachments.extend(ui.take_pending_attachments())
 
         async def job():
             await self._stream_ai_response(llm_task, user_message, attachments)
@@ -341,8 +358,8 @@ class MultiUI:
             if i == except_index:
                 continue
             try:
-                if hasattr(ui, "_cancel_pending_confirmations"):
-                    ui._cancel_pending_confirmations()
+                if hasattr(ui, "cancel_pending_confirmations"):
+                    ui.cancel_pending_confirmations()
             except Exception:
                 pass
 
@@ -443,4 +460,4 @@ class MultiUI:
 
 
 def is_shutdown_requested() -> bool:
-    return getattr(sys, "_zrb_shutdown_requested", False)
+    return getattr(sys, "zrb_shutdown_requested", False)

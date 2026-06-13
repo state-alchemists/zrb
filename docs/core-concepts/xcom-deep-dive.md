@@ -12,7 +12,7 @@ XCom (Cross-Communication) is Zrb's built-in mechanism for passing data between 
 - [Automatic Data Flow](#automatic-data-flow)
 - [Manual XCom Manipulation](#manual-xcom-manipulation)
 - [XCom with CmdTask](#xcom-with-cmdtask)
-- [XCom in Jinja Templates](#xcom-in-jinja-templates)
+- [XCom in F-String Templates](#xcom-in-f-string-templates)
 - [Common Patterns](#common-patterns)
 - [Edge Cases & Pitfalls](#edge-cases--pitfalls)
 
@@ -37,7 +37,7 @@ Each queue supports four operations:
 | `.push(value)` | Add a value to the end of the queue | `None` |
 | `.pop()` | Remove and return the oldest item | The value |
 | `.peek()` | View the oldest item without removing | The value |
-| `.get()` | Safe pop that returns `None` if empty | Value or `None` |
+| `.get()` | Read latest value without removing; returns `None` if empty | Value or `None` |
 
 ---
 
@@ -46,6 +46,8 @@ Each queue supports four operations:
 The return value of a task's action function is **automatically pushed** to its XCom queue:
 
 ```python
+from zrb import make_task, cli
+
 @make_task(name="producer", group=cli)
 def produce(ctx):
     return {"status": "ok", "data": [1, 2, 3]}  # Auto-pushed to ctx.xcom["producer"]
@@ -98,7 +100,7 @@ def inspect(ctx):
 
 ## XCom with CmdTask
 
-For `CmdTask`, use Jinja templating to access XCom directly in shell commands:
+For `CmdTask`, use f-string-style templating (single `{}`) to access XCom directly in shell commands:
 
 ```python
 from zrb import cli, CmdTask
@@ -119,7 +121,7 @@ consumer = cli.add_task(
 
 ---
 
-## XCom in Jinja Templates
+## XCom in F-String Templates
 
 XCom values can be used in any `{ }` expression within task parameters, not just `CmdTask` commands:
 
@@ -233,7 +235,7 @@ ctx.xcom["task-name"].push(value)
 # Pop (raises IndexError if empty)
 value = ctx.xcom["task-name"].pop()
 
-# Safe pop (returns None if empty)
+# Read latest value (returns None if empty)
 value = ctx.xcom["task-name"].get()
 
 # Peek (view without removing)
@@ -246,6 +248,6 @@ ctx.xcom[ctx.task_name].push(value)
 def my_task(ctx):
     return value  # Auto-pushed to ctx.xcom["my-task"]
 
-# In CmdTask / Jinja templates (escape quotes for hyphens)
+# In CmdTask / f-string templates (escape quotes for hyphens)
 # {ctx.xcom["my-task"].pop()}
 ```

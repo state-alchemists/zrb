@@ -38,8 +38,8 @@ def multi_ui(child_ui_1, child_ui_2):
 
 
 def test_multi_ui_init(multi_ui, child_ui_1, child_ui_2):
-    assert child_ui_1._multi_ui_parent is multi_ui
-    assert child_ui_2._multi_ui_parent is multi_ui
+    assert child_ui_1.multi_ui_parent is multi_ui
+    assert child_ui_2.multi_ui_parent is multi_ui
     # multi_ui._main_ui is a property
     assert multi_ui._main_ui is child_ui_1
 

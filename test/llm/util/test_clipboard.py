@@ -11,11 +11,11 @@ from __future__ import annotations
 import builtins
 import io
 import os
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from zrb.llm.util.clipboard import get_clipboard_image, missing_tool_hint
+from zrb.llm.util.clipboard import copy_text, get_clipboard_image, missing_tool_hint
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -450,3 +450,70 @@ def test_missing_tool_hint_silent_when_xclip_present(clean_env):
     with patch("zrb.llm.util.clipboard.shutil.which", return_value="/usr/bin/xclip"):
 
         assert missing_tool_hint() == ""
+
+
+# ---------------------------------------------------------------------------
+# copy_text
+# ---------------------------------------------------------------------------
+
+
+def test_copy_text_success(clean_env):
+    """copy_text returns True when pyperclip.copy succeeds."""
+    fake_pyperclip = MagicMock()
+
+    with patch.dict("sys.modules", {"pyperclip": fake_pyperclip}):
+        result = copy_text("hello world")
+
+    assert result is True
+    fake_pyperclip.copy.assert_called_once_with("hello world")
+
+
+def test_copy_text_falls_back_to_osc52(clean_env):
+    """copy_text uses OSC 52 when pyperclip.copy fails and stdout is a tty."""
+    mock_stdout = MagicMock()
+    mock_stdout.isatty.return_value = True
+    clean_env.setattr("sys.stdout", mock_stdout)
+
+    mock_pyperclip = MagicMock()
+    mock_pyperclip.copy.side_effect = Exception("clipboard unavailable")
+    with patch.dict("sys.modules", {"pyperclip": mock_pyperclip}):
+        result = copy_text("hello")
+
+    assert result is True
+    # OSC 52 sequence written to stdout
+    import base64
+
+    encoded = base64.b64encode(b"hello").decode("ascii")
+    written = "".join(c for c in mock_stdout.write.call_args[0][0] if c.isprintable())
+    assert encoded in written
+
+
+def test_copy_text_osc52_tmux_passthrough(clean_env):
+    """OSC 52 is wrapped for tmux passthrough."""
+    mock_stdout = MagicMock()
+    mock_stdout.isatty.return_value = True
+    clean_env.setattr("sys.stdout", mock_stdout)
+    clean_env.setenv("TMUX", "/tmp/tmux-1000/default")
+
+    mock_pyperclip = MagicMock()
+    mock_pyperclip.copy.side_effect = Exception("clipboard unavailable")
+    with patch.dict("sys.modules", {"pyperclip": mock_pyperclip}):
+        result = copy_text("test")
+
+    assert result is True
+    # Writes the tmux passthrough prefix
+    assert "\x1bPtmux;\x1b\x1b]52;c;" in mock_stdout.write.call_args[0][0]
+
+
+def test_copy_text_fails_when_no_tty_and_no_pyperclip(clean_env):
+    """copy_text returns False when pyperclip fails and not a tty."""
+    mock_stdout = MagicMock()
+    mock_stdout.isatty.return_value = False
+    clean_env.setattr("sys.stdout", mock_stdout)
+
+    mock_pyperclip = MagicMock()
+    mock_pyperclip.copy.side_effect = Exception("clipboard unavailable")
+    with patch.dict("sys.modules", {"pyperclip": mock_pyperclip}):
+        result = copy_text("hello")
+
+    assert result is False

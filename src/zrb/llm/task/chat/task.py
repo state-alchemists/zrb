@@ -31,9 +31,18 @@ from zrb.llm.config.config import LLMConfig
 from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
+from zrb.llm.factory_resolver import resolve_factory_items
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.history_manager.file_history_manager import FileHistoryManager
 from zrb.llm.hook.manager import HookManager
+from zrb.llm.permission import (
+    ALLOW,
+    ASK,
+    DENY,
+    Capability,
+    get_effective_policy,
+    tool_capability,
+)
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.prompt.tool_guidance import ToolGuidance
 from zrb.llm.summarizer import (
@@ -174,6 +183,8 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
         ui_set_model_commands: list[str] | None = None,
         ui_exec_commands: list[str] | None = None,
         ui_btw_commands: list[str] | None = None,
+        ui_plan_commands: list[str] | None = None,
+        ui_copy_commands: list[str] | None = None,
         custom_commands: (
             list[
                 AnyCustomCommand
@@ -332,6 +343,12 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
             ui_exec_commands if ui_exec_commands is not None else []
         )
         self._ui_btw_commands = ui_btw_commands if ui_btw_commands is not None else []
+        self._ui_plan_commands = (
+            ui_plan_commands if ui_plan_commands is not None else []
+        )
+        self._ui_copy_commands = (
+            ui_copy_commands if ui_copy_commands is not None else []
+        )
         self._custom_commands = custom_commands if custom_commands is not None else []
         self._ui_greeting = ui_greeting
         self._render_ui_greeting = render_ui_greeting
@@ -472,40 +489,58 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
                 initial_attachments=initial_attachments,
             )
 
-        return await self._run_interactive_session(
-            ctx=ctx,
-            llm_task_core=llm_task_core,
-            history_manager=history_manager,
-            ui_commands=ui_commands,
-            initial_message=initial_message,
-            initial_conversation_name=initial_conversation_name,
-            initial_yolo=initial_yolo,
-            initial_attachments=initial_attachments,
-            enable_rewind=effective_enable_rewind,
-            snapshot_dir=effective_snapshot_dir,
-        )
+        try:
+            return await self._run_interactive_session(
+                ctx=ctx,
+                llm_task_core=llm_task_core,
+                history_manager=history_manager,
+                ui_commands=ui_commands,
+                initial_message=initial_message,
+                initial_conversation_name=initial_conversation_name,
+                initial_yolo=initial_yolo,
+                initial_attachments=initial_attachments,
+                enable_rewind=effective_enable_rewind,
+                snapshot_dir=effective_snapshot_dir,
+            )
+        finally:
+            await self._teardown_interactive_resources()
+
+    async def _teardown_interactive_resources(self) -> None:
+        """Release process-global resources when an interactive chat ends.
+
+        Runs on normal exit, ``/exit``, EOF, or Ctrl+C (the ``finally`` fires on
+        ``KeyboardInterrupt``). Stops LSP language-server subprocesses gracefully
+        while the event loop is still alive — the ``atexit`` backstops only run
+        once the loop is gone, when graceful async shutdown is no longer possible.
+
+        Gated to the interactive session on purpose: the non-interactive path is
+        reused per-message by the web/SSE runner, where tearing servers down
+        would restart them on every message. Each step is guarded so teardown
+        never raises; a second ``KeyboardInterrupt`` still propagates.
+        """
+        # lazy: circular — chat task → lsp manager → server → (back to llm); and
+        # avoids paying the import on the non-interactive/web path.
+        try:
+            from zrb.llm.lsp.manager.manager import lsp_manager
+
+            await lsp_manager.shutdown_all()
+        except Exception:
+            pass
+        # lazy: only needed at session end; keeps the hook import off hot paths.
+        try:
+            from zrb.llm.hook.executor import shutdown_hook_executor
+
+            shutdown_hook_executor(wait=False)
+        except Exception:
+            pass
 
     def _get_all_tools(self, ctx: AnyContext) -> list[Tool | ToolFuncEither]:
         """Get all tools including those resolved from factories using parent context."""
-        all_tools = list(self._tools)
-        for factory in self._tool_factories:
-            tool = factory(ctx)
-            if isinstance(tool, list):
-                all_tools.extend(tool)
-            else:
-                all_tools.append(tool)
-        return all_tools
+        return resolve_factory_items(self._tools, self._tool_factories, ctx)
 
     def _get_all_toolsets(self, ctx: AnyContext) -> list[AbstractToolset[None]]:
         """Get all toolsets including those resolved from factories using parent context."""
-        all_toolsets = list(self._toolsets)
-        for factory in self._toolset_factories:
-            toolset = factory(ctx)
-            if isinstance(toolset, list):
-                all_toolsets.extend(toolset)
-            else:
-                all_toolsets.append(toolset)
-        return all_toolsets
+        return resolve_factory_items(self._toolsets, self._toolset_factories, ctx)
 
     def _get_ui_commands(self) -> dict[str, list[str]]:
         """Resolve all UI commands from attributes or CFG defaults."""
@@ -570,6 +605,16 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
                 if self._ui_btw_commands
                 else CFG.LLM_UI_COMMAND_BTW
             ),
+            "plan": (
+                self._ui_plan_commands
+                if self._ui_plan_commands
+                else CFG.LLM_UI_COMMAND_PLAN_TOGGLE
+            ),
+            "copy": (
+                self._ui_copy_commands
+                if self._ui_copy_commands
+                else CFG.LLM_UI_COMMAND_COPY
+            ),
         }
 
     def _create_llm_task_core(
@@ -617,7 +662,36 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
                 ui = StdUI()
             # tool_confirmation = None (let UI handle it via approval_channel)
 
+        # Capability lookup for the resolved tool surface, used only when a
+        # permission policy is in force (keyed by the LLM-visible tool name).
+        cap_by_name = {
+            (getattr(t, "name", None) or getattr(t, "__name__", "")): tool_capability(t)
+            for t in resolved_tools
+        }
+
         def check_yolo(tool_def=None):
+            # Approval precedence chain:
+            #   perm_policy: allow→auto-approve, deny→auto-approve (gate blocks),
+            #                ask→defer to tool_policy cascade
+            #   tool_policy: handled in _resolve_approval (deferred_calls.py)
+            #   yolo:        handled in _resolve_approval (deferred_calls.py)
+            policy = get_effective_policy()
+            if policy is not None:
+                tool_name = (
+                    getattr(tool_def, "name", str(tool_def))
+                    if tool_def is not None
+                    else ""
+                )
+                cap = cap_by_name.get(tool_name, Capability.UNKNOWN)
+                result = policy.decide(tool_name, cap, {})
+                if result is not None:
+                    if result == ALLOW:
+                        return True  # unconditional auto-approve
+                    if result == DENY:
+                        return True  # auto-approved (gate blocks at execution)
+                    if result == ASK:
+                        return False  # explicit policy ASK is a 'hard ask'
+                # fallback to YOLO only if policy has no matching rule
             if self._yolo_xcom_key not in ctx.xcom:
                 return False
             yolo_value = ctx.xcom[self._yolo_xcom_key].get(False)

@@ -54,8 +54,11 @@ Hooks are discovered automatically in these locations (in order of precedence):
 | `~/.zrb/hooks/*.json` | User-level hooks directory |
 | `./.zrb/hooks.json` | Project-specific hooks (single file) |
 | `./.zrb/hooks/*.json` | Project-specific hooks directory |
-| `~/.claude/hooks.json` | Claude Code compatibility |
-| `./.claude/hooks.json` | Claude Code compatibility (project) |
+| `~/.claude/hooks.json` | Claude Code compatibility (single file) |
+| `~/.claude/hooks/*.json` | Claude Code compatibility (directory) |
+| `./.claude/hooks.json` | Claude Code compatibility, project (single file) |
+| `./.claude/hooks/*.json` | Claude Code compatibility, project (directory) |
+| Plugin `hooks/` dirs | Inside `ZRB_LLM_PLUGIN_DIRS` entries |
 
 ---
 
@@ -559,14 +562,12 @@ hook_manager.register(
 
 ## Examples
 
-Example hook configurations are available in [examples/hooks/](../../examples/hooks/):
+Example hook configurations are in the `llm-hooks` example:
 
-| File | Description |
-|------|-------------|
-| `basic-command-hook.json` | Simple command hooks for logging and notifications |
-| `security-hook.json` | Security checks and approval workflows |
-| `prompt-review-hook.json` | LLM-based prompt safety review |
-| `logging-hook.json` | Audit logging and analytics |
+```bash
+# See examples/llm-hooks/.zrb/hooks.json for JSON-based hooks
+# See examples/llm-hooks/.zrb/hooks.yaml for YAML-based hooks
+```
 
 ### Example: Simple Logging Hook
 

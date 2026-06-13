@@ -1,281 +1,53 @@
-import asyncio
-import os
-import platform
-import re
-import signal
-import tempfile
+"""Bash tool — runs commands under bash (Claude compatibility).
 
-from zrb.config.config import CFG
-from zrb.context.any_context import zrb_print
-from zrb.util.cli.style import stylize_faint
-from zrb.util.truncate import truncate_output
+Distinct from ``Shell`` (which uses the default shell): ``Bash`` always
+executes under ``bash``, matching Claude Code's Bash tool semantics (git-bash
+on Windows). Many Claude skills assume a ``Bash`` tool by name.
+"""
+
+from zrb.llm.tool.shell import run_shell_command as _shell_cmd
 
 
-async def run_shell_command(
+async def run_bash_command(
     command: str,
     cwd: str = "",
     timeout: int = 120,
     preserved_head_lines: int = 500,
     preserved_tail_lines: int = 500,
     max_chars: int | None = None,
+    dangerously_skip_sandbox: bool = False,
 ) -> str:
     """
-    Executes a non-interactive shell command. Streams stdout/stderr live and returns truncated output.
+    Executes a non-interactive command under bash (git-bash on Windows).
+    Streams stdout/stderr live and returns truncated output.
 
-    Commands must be fully non-interactive: pass `-y`, `--yes`, `CI=true`, or equivalent
-    auto-confirmation flags so the process never waits for stdin — interactive prompts will
-    hang until the timeout.
+    Commands must be fully non-interactive: pass `-y`, `--yes`, `CI=true`, or
+    equivalent auto-confirmation flags so the process never waits for stdin —
+    stdin is closed, and interactive prompts hang until the timeout.
 
     Batch independent commands with `&&` to avoid extra round-trips
-    (e.g. `pytest && flake8 src`). Use the `cwd` parameter instead of `cd <dir> && ...`
-    to set the working directory without leaving shell-state side-effects in this call.
+    (e.g. `pytest && flake8 src`). Use the `cwd` parameter instead of
+    `cd <dir> && ...` to set the working directory.
 
-    Default `timeout` is 120 seconds; timed-out processes may continue in the background.
+    Default `timeout` is 120 seconds; timed-out processes may continue in the
+    background.
+
+    Args:
+        dangerously_skip_sandbox: Run this command OUTSIDE the OS-level sandbox
+            (when one is active). Only set it when a command genuinely needs to
+            write outside the workspace; it always requires explicit user
+            approval.
     """
-    if max_chars is None:
-        max_chars = CFG.LLM_MAX_OUTPUT_CHARS
-    cwd = cwd or os.getcwd()
-    is_windows = platform.system() == "Windows"
-
-    wrapper_command, temp_pid_file = _prepare_command(command, is_windows)
-
-    try:
-        process = await _start_process(wrapper_command, is_windows, cwd)
-
-        stdout_lines = []
-        stderr_lines = []
-
-        timed_out = False
-        try:
-            await asyncio.wait_for(
-                asyncio.gather(
-                    _read_stream(process.stdout, stdout_lines),
-                    _read_stream(process.stderr, stderr_lines),
-                    process.wait(),
-                ),
-                timeout=timeout,
-            )
-        except asyncio.TimeoutError:
-            timed_out = True
-            await _terminate_process(process, is_windows)
-
-        stdout_str = "".join(stdout_lines)
-        stderr_str = "".join(stderr_lines)
-        bg_pids = _collect_background_pids(temp_pid_file, process.pid)
-
-        return _format_output(
-            command,
-            cwd,
-            stdout_str,
-            stderr_str,
-            process.returncode,
-            bg_pids,
-            timed_out,
-            timeout,
-            preserved_head_lines,
-            preserved_tail_lines,
-            max_chars,
-        )
-
-    except Exception as e:
-        _cleanup_temp_file(temp_pid_file)
-        return f"Error executing command: {e}"
-
-
-def _prepare_command(command: str, is_windows: bool) -> tuple[str, str | None]:
-    """Prepares the command for execution, handling PID tracking on non-Windows systems."""
-    if is_windows:
-        return command, None
-
-    fd, temp_pid_file = tempfile.mkstemp(prefix="zrb_pids_")
-    os.close(fd)
-
-    # Logic to capture background PIDs
-    # We use `pgrep -g` to find processes in the current process group.
-    # `$(ps -o pgid= -p $$)` gets the PGID of the shell executing the command.
-    wrapper_command = (
-        f"{{ {command} ; }}; __code=$?; "
-        f"pgrep -g $(ps -o pgid= -p $$) > {temp_pid_file} 2>/dev/null; "
-        f"exit $__code"
-    )
-    return wrapper_command, temp_pid_file
-
-
-async def _start_process(
-    command: str, is_windows: bool, cwd: str
-) -> asyncio.subprocess.Process:
-    """Starts the subprocess with appropriate settings."""
-    # start_new_session=True (via os.setsid) ensures the shell gets its own process group,
-    # allowing us to use `pgrep -g` effectively to find all processes
-    # in this tool's execution scope.
-    return await asyncio.create_subprocess_shell(
-        command,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
+    return await _shell_cmd(
+        command=command,
         cwd=cwd,
-        preexec_fn=os.setsid if not is_windows else None,
+        timeout=timeout,
+        preserved_head_lines=preserved_head_lines,
+        preserved_tail_lines=preserved_tail_lines,
+        max_chars=max_chars,
+        shell="bash",
+        dangerously_skip_sandbox=dangerously_skip_sandbox,
     )
 
 
-async def _read_stream(stream: asyncio.StreamReader, lines_list: list[str]):
-    """Reads from a stream line by line, printing to console and appending to list."""
-    if not stream:
-        return
-    ANSI_ESCAPE = re.compile(
-        r"(?:\x1B\[[0-?]*[ -/]*[@-~])|"  # CSI (Control Sequence Introducer)
-        r"(?:\x1B\][^\a\x1b]*[\a\x1b])|"  # OSC (Operating System Command)
-        r"(?:\x1B[0-9=>])"  # Simple 2-byte (DECSC, DECRC, etc.)
-    )
-    while True:
-        line = await stream.readline()
-        if not line:
-            break
-        decoded = line.decode(errors="replace")
-        if decoded:
-            stripped = ANSI_ESCAPE.sub("", decoded)
-            shown = stylize_faint(stripped)
-            zrb_print(f"  {shown}", end="", plain=True)  # Stream to console
-            lines_list.append(stripped)
-
-
-async def _terminate_process(process: asyncio.subprocess.Process, is_windows: bool):
-    """Terminates the process and its process group if possible."""
-    if process.returncode is not None:
-        return
-
-    try:
-        # Kill the whole process group
-        if not is_windows:
-            os.killpg(os.getpgid(process.pid), signal.SIGTERM)
-        else:
-            process.terminate()
-
-        await asyncio.wait_for(
-            process.wait(), timeout=CFG.LLM_SHELL_KILL_WAIT_TIMEOUT / 1000
-        )
-    except (ProcessLookupError, asyncio.TimeoutError):
-        if not is_windows:
-            try:
-                os.killpg(os.getpgid(process.pid), signal.SIGKILL)
-            except Exception:
-                pass
-        else:
-            process.kill()
-
-
-def _collect_background_pids(temp_pid_file: str | None, process_pid: int) -> list[int]:
-    """Reads background PIDs from the temp file and cleans it up."""
-    bg_pids = []
-    if temp_pid_file and os.path.exists(temp_pid_file):
-        try:
-            with open(temp_pid_file, "r", encoding="utf-8") as f:
-                for line in f:
-                    clean_line = line.strip()
-                    if clean_line.isdigit():
-                        pid = int(clean_line)
-                        # Exclude the wrapper shell PID and our process PID
-                        if pid != process_pid and pid != os.getpid():
-                            bg_pids.append(pid)
-            os.remove(temp_pid_file)
-        except Exception:
-            pass
-    return bg_pids
-
-
-def _cleanup_temp_file(temp_pid_file: str | None):
-    """Safely removes the temp file if it exists."""
-    if temp_pid_file and os.path.exists(temp_pid_file):
-        try:
-            os.remove(temp_pid_file)
-        except Exception:
-            pass
-
-
-def _format_output(
-    command: str,
-    cwd: str,
-    stdout_str: str,
-    stderr_str: str,
-    returncode: int | None,
-    bg_pids: list[int],
-    timed_out: bool,
-    timeout: int,
-    preserved_head_lines: int,
-    preserved_tail_lines: int,
-    max_chars: int,
-) -> str:
-    """Formats the command execution result into a readable string."""
-    exit_code_str = str(returncode) if returncode is not None else "(none)"
-    if timed_out:
-        exit_code_str = "(timed out)"
-        stderr_str += f"\nError: Command timed out after {timeout} seconds."
-
-    stdout_str, _ = truncate_output(
-        stdout_str, preserved_head_lines, preserved_tail_lines, 1000, max_chars
-    )
-    stderr_str, _ = truncate_output(
-        stderr_str, preserved_head_lines, preserved_tail_lines, 1000, max_chars
-    )
-
-    # Analyze for suggestions
-    suggestion = ""
-    combined_output = (stdout_str + stderr_str).lower()
-    if timed_out:
-        suggestion = (
-            "[SYSTEM SUGGESTION]: The command timed out. "
-            "This often means the process is still running in the background. "
-            "Use 'ps aux | grep <process_name>' to check its status "
-            "before retrying or killing it. Next time ensure you use non-interactive flags like '-y' or 'CI=true'."
-        )
-    elif "lock" in combined_output and (
-        "apt" in command or "brew" in command or "dpkg" in command
-    ):
-        suggestion = (
-            "[SYSTEM SUGGESTION]: A package manager lock was detected. "
-            "Another installation process might be running. "
-            "Do NOT force kill it immediately. Wait a moment and check running processes."
-        )
-    elif "permission denied" in combined_output:
-        suggestion = (
-            "[SYSTEM SUGGESTION]: Permission denied. "
-            "Consider if this command requires 'sudo' (if available) or check file permissions."
-        )
-    elif "address already in use" in combined_output or "eaddrinuse" in combined_output:
-        suggestion = (
-            "[SYSTEM SUGGESTION]: A port is already in use. "
-            "Find the holder with 'lsof -i :<port>' or 'ss -tlnp | grep <port>' "
-            "before killing or choosing a different port."
-        )
-    elif "command not found" in combined_output:
-        suggestion = (
-            "[SYSTEM SUGGESTION]: Command not found. "
-            "Check that the tool is installed and on PATH. "
-            "If using a virtualenv or nvm/pyenv, verify it is activated."
-        )
-    elif (
-        "no module named" in combined_output or "modulenotfounderror" in combined_output
-    ):
-        suggestion = (
-            "[SYSTEM SUGGESTION]: Python module not found. "
-            "Verify the virtualenv is activated and run 'pip install <package>' if missing."
-        )
-    elif "econnrefused" in combined_output or "connection refused" in combined_output:
-        suggestion = (
-            "[SYSTEM SUGGESTION]: Connection refused. "
-            "The target service may not be running. "
-            "Check with 'ps aux | grep <service>' or 'docker ps' before retrying."
-        )
-    output_parts = [
-        f"Command: {command}",
-        f"Directory: {cwd}",
-        f"Stdout:\n{stdout_str.strip() or '(empty)'}",
-        f"Stderr:\n{stderr_str.strip() or '(empty)'}",
-        f"Exit Code: {exit_code_str}",
-        f"Background PIDs: {', '.join(map(str, bg_pids)) if bg_pids else '(none)'}",
-    ]
-    if suggestion:
-        output_parts.append(f"\n{suggestion}")
-    return "\n".join(output_parts)
-
-
-run_shell_command.__name__ = "Bash"
+run_bash_command.__name__ = "Bash"

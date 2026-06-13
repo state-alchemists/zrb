@@ -274,6 +274,85 @@ def set_current_session(session_name: str) -> None:
         _current_session.set(session_name)
 
 
+# ── Progress visualization ─────────────────────────────────────────────────
+
+
+_STATUS_ICONS = {
+    "completed": "✅",
+    "in_progress": "▶️",
+    "pending": "  ",
+    "cancelled": "✗",
+}
+
+
+def _render_todo_progress(
+    todo_data: dict[str, Any],
+    change_description: str = "",
+) -> str:
+    """Render the full todo list for UI display.
+
+    Shows what changed (if anything), a progress summary, and every todo item
+    with its status icon.  Ends with a ``~DATA~`` line carrying structured JSON
+    for the web frontend.
+    """
+    total = todo_data["total"]
+    done = todo_data["completed"]
+    pct = f"{int((done / total) * 100)}%" if total > 0 else ""
+
+    parts = []
+    if todo_data["completed"]:
+        parts.append(f"✅ {todo_data['completed']} completed")
+    if todo_data["in_progress"]:
+        parts.append(f"▶️ {todo_data['in_progress']} in progress")
+    if todo_data["pending"]:
+        parts.append(f"☐ {todo_data['pending']} pending")
+    if todo_data.get("cancelled", 0):
+        parts.append(f"✗ {todo_data['cancelled']} cancelled")
+    summary = "  ".join(parts)
+
+    lines = []
+    if change_description:
+        lines.append(change_description)
+        lines.append("")
+    if total > 0:
+        header = f"📋 Todo List ({done}/{total}"
+        if pct:
+            header += f", {pct}"
+        if summary:
+            header += f", {summary}"
+        header += ")"
+        lines.append(header)
+        for todo in todo_data["todos"]:
+            icon = _STATUS_ICONS.get(todo["status"], "  ")
+            lines.append(f"  {icon} [{todo['id']}] {todo['content']}")
+    else:
+        lines.append("📋 Todo list is empty")
+    lines.append(
+        f'~DATA~{{"total":{total},"completed":{todo_data["completed"]},'
+        f'"in_progress":{todo_data["in_progress"]},'
+        f'"pending":{todo_data["pending"]}}}'
+    )
+    return "\n".join(lines)
+
+
+def _broadcast_todo_progress(
+    todo_data: dict[str, Any],
+    change_description: str = "",
+) -> None:
+    """Push the full todo list to the active UI (if any).
+
+    ``change_description`` is a one-liner about what just happened, shown
+    above the list (e.g. ``"✅ Completed: [1] Fix login bug"``).
+    """
+    text = _render_todo_progress(todo_data, change_description)
+    # lazy: circular — tool → ui → llm_task → here
+    from zrb.llm.agent.run.runtime_state import get_current_ui
+
+    ui = get_current_ui()
+    if ui is not None:
+        ui.append_to_output(text, kind="todo_progress")
+
+
 # Tool functions for LLM integration
 
 
@@ -285,9 +364,18 @@ async def write_todos(
     """
     Creates or replaces the todo list for the current session.
 
+    Each todo is a dict with keys:
+      - content (str): what the task is
+      - status  (str, optional): "pending", "in_progress", "completed", "cancelled" (default: "pending")
+      - id      (str, optional): unique identifier (auto-assigned if omitted)
+
     With `replace=True` (default), all existing todos are overwritten. Pass `replace=False` to merge.
     """
     session_name = session or get_current_context_session()
+
+    error = _validate_todo_keys(todos)
+    if error:
+        return error
 
     result = todo_manager.write_todos(session_name, todos, replace)
 
@@ -304,16 +392,60 @@ async def write_todos(
         }.get(todo["status"], "[?]")
         lines.append(f"  {status_char} [{todo['id']}] {todo['content']}")
 
-    lines.append("\nUse `update_todo` to change status; `get_todos` to check state.")
+    lines.append(
+        "\nCall `write_todos` again with the full list to change status "
+        "(it replaces by default); `get_todos` to check state."
+    )
 
+    _broadcast_todo_progress(
+        result,
+        change_description=f"📋 Todo list {'updated' if replace else 'merged'} ({len(todos)} items)",
+    )
     return "\n".join(lines)
+
+
+def _validate_todo_keys(todos: list[dict[str, Any]]) -> str | None:
+    """Check every todo for unknown keys. Return an error string or None."""
+    _VALID_TODO_KEYS = frozenset({"id", "content", "status"})
+    _COMMON_MISTAKES: dict[str, str] = {
+        "description": "content",
+        "title": "content",
+        "name": "content",
+        "task": "content",
+        "summary": "content",
+        "text": "content",
+    }
+    for i, todo in enumerate(todos):
+        unknown = set(todo) - _VALID_TODO_KEYS
+        if not unknown:
+            continue
+        hints = []
+        for bad_key in sorted(unknown):
+            suggestion = _COMMON_MISTAKES.get(bad_key)
+            if suggestion:
+                hints.append(f"  - '{bad_key}' should be '{suggestion}'")
+            else:
+                hints.append(f"  - '{bad_key}' is not a recognized key")
+        lines = [
+            f"Error: Todo #{i + 1} contains invalid key(s):",
+            *hints,
+            "",
+            "Each todo is a dict with these keys:",
+            "  - content (str): description of the task",
+            "  - status  (str): pending | in_progress | completed | cancelled",
+            "  - id      (str, optional): unique identifier (auto-assigned if omitted)",
+            "",
+            "[SYSTEM SUGGESTION]: Use the exact keys above. Example:",
+            '  write_todos(todos=[{"content": "Fix login bug", "status": "pending"},',
+            '              {"content": "Add tests", "status": "pending"}])',
+        ]
+        return "\n".join(lines)
+    return None
 
 
 async def get_todos(session: str = "") -> str:
     """
     Returns the current todo list and progress summary.
-
-    Check before starting a subtask and before declaring work done.
     """
     session_name = session or get_current_context_session()
 
@@ -409,6 +541,9 @@ async def update_todo(
             "Pending: " + ", ".join(f"[{t['id']}] {t['content']}" for t in pending)
         )
 
+    status_icon = _STATUS_ICONS.get(status or "", "  ")
+    change_line = f"{status_icon} [{todo_id}] {updated_todo['content']} → {updated_todo['status']}"
+    _broadcast_todo_progress(result, change_description=change_line)
     return "\n".join(lines)
 
 
@@ -421,6 +556,16 @@ async def clear_todos(session: str = "") -> str:
     success = todo_manager.clear_todos(session_name)
 
     if success:
+        _broadcast_todo_progress(
+            {
+                "total": 0,
+                "completed": 0,
+                "in_progress": 0,
+                "pending": 0,
+                "cancelled": 0,
+            },
+            change_description="🗑 All todos cleared",
+        )
         return f"Cleared all todos for session '{session_name}'."
     return f"No todos to clear for session '{session_name}'."
 
@@ -433,5 +578,10 @@ clear_todos.__name__ = "ClearTodos"
 
 
 def create_plan_tools() -> list:
-    """Create planning tools for registration with LLM agent."""
-    return [write_todos, get_todos, update_todo, clear_todos]
+    """Create planning tools for registration with the LLM agent.
+
+    Only WriteTodos (replace-by-default) and GetTodos are exposed: WriteTodos
+    subsumes per-item status changes and clearing. ``update_todo`` / ``clear_todos``
+    remain importable for direct/programmatic use.
+    """
+    return [write_todos, get_todos]

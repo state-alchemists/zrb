@@ -63,7 +63,7 @@ async def search_internet(
             raw = serpapi_search(query, page=page)
         except Exception as e:  # noqa: BLE001
             return _error_result(query, page, str(e), "serpapi")
-        return normalize_search_result(raw, "serpapi")
+        return normalize_search_result(raw, "serpapi", page=page)
 
     if method == "brave" and CFG.BRAVE_API_KEY:
         # lazy: zrb internal (heavy via transitive / circular)
@@ -73,7 +73,7 @@ async def search_internet(
             raw = brave_search(query, page=page)
         except Exception as e:  # noqa: BLE001
             return _error_result(query, page, str(e), "brave")
-        return normalize_search_result(raw, "brave")
+        return normalize_search_result(raw, "brave", page=page)
 
     if method == "searxng":
         # lazy: zrb internal (heavy via transitive / circular)
@@ -96,15 +96,15 @@ async def search_internet(
     return normalize_search_result(raw, "google_rss")
 
 
-def normalize_search_result(raw: dict, backend: str) -> dict:
+def normalize_search_result(raw: dict, backend: str, page: int = 1) -> dict:
     """Normalize search results from any backend into a consistent schema."""
     if "error" in raw:
         return raw
     query = raw.get("query", "")
     if backend == "brave":
-        return _normalize_brave(raw, query)
+        return _normalize_brave(raw, query, page)
     if backend == "serpapi":
-        return _normalize_serpapi(raw, query)
+        return _normalize_serpapi(raw, query, page)
     if backend == "searxng":
         return _normalize_searxng(raw, query)
     if backend == "google_rss":
@@ -112,16 +112,16 @@ def normalize_search_result(raw: dict, backend: str) -> dict:
     return raw
 
 
-def _normalize_brave(raw: dict, query: str) -> dict:
+def _normalize_brave(raw: dict, query: str, page: int = 1) -> dict:
     web_results = raw.get("web", {}).get("results", [])
     results = []
     for item in web_results[:10]:
+        extra = item.get("extra_snippets") or []
         results.append(
             {
                 "title": item.get("title", ""),
                 "url": item.get("url", ""),
-                "snippet": item.get("description", "")
-                or item.get("extra_snippets", [""])[0],
+                "snippet": item.get("description", "") or (extra[0] if extra else ""),
                 "source": "brave",
             }
         )
@@ -129,12 +129,12 @@ def _normalize_brave(raw: dict, query: str) -> dict:
         "query": query,
         "results": results,
         "total": len(results),
-        "page": 1,
+        "page": page,
         "error": None,
     }
 
 
-def _normalize_serpapi(raw: dict, query: str) -> dict:
+def _normalize_serpapi(raw: dict, query: str, page: int = 1) -> dict:
     organic = raw.get("organic_results", [])
     results = []
     for item in organic[:10]:
@@ -150,7 +150,7 @@ def _normalize_serpapi(raw: dict, query: str) -> dict:
         "query": query,
         "results": results,
         "total": len(results),
-        "page": 1,
+        "page": page,
         "error": None,
     }
 
@@ -266,8 +266,11 @@ async def _summarize_web_content(markdown_content: str, url: str) -> str:
     """Summarize web content using an agent while preserving references."""
     # Create the summarization agent
     agent = create_agent(
+        # Already resolved here; resolve_model=False stops create_agent from
+        # firing model_getter/model_renderer a second time.
         model=llm_config.resolve_model(),
         system_prompt=get_prompt("web_summarizer"),
+        resolve_model=False,
     )
 
     # Prepare the prompt data

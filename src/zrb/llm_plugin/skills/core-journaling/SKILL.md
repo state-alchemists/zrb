@@ -1,13 +1,13 @@
 ---
 name: core-journaling
-description: "Activate before every journal write — new entry, edit, restructure, or activity log append. Provides the graph protocol (bidirectional links, indexes), the directory layout, and the activity log format that keep the journal consistent."
+description: "Ensure this skill is active before every journal write — new entry, edit, restructure, or activity log append. Provides the graph protocol (bidirectional links, indexes), the directory layout, and the activity log format that keep the journal consistent."
 user-invocable: false
 ---
 # Skill: core-journaling
 
 The Journal is a bidirectional graph knowledge base plus a chronological log book. Every note links to related notes; every link has a reverse (backlink). The root `index.md` is your Heads-Up Display. The `activity-log/` subtree records what was done over time.
 
-**Activate this skill on every journal write.** Skipping it on "small" writes is how the journal becomes a half-graph: some notes linked, others orphaned. The graph protocol IS the routine — not a special mode.
+**Ensure this skill is active before every journal write** — once activated it stays loaded for the session, so checking costs nothing (the System Context shows active skills). Skipping the protocol on "small" writes is how the journal becomes a half-graph: some notes linked, others orphaned. The graph protocol IS the routine — not a special mode.
 
 ## Directory Structure
 
@@ -50,19 +50,24 @@ Both apply the graph protocol below. Both can cross-link to each other.
 
 ### Link Convention
 
-Use standard markdown links for all internal references. All paths are **relative to the journal root**:
+Use standard markdown links for all internal references. **Paths are relative to the file that contains the link** (standard markdown semantics) — climb out of a subdirectory with `../`:
 
-- `[asyncio patterns](technical/python-asyncio.md)`
-- `[projects index](projects/index.md)`
+- From the root `index.md`: `[asyncio patterns](technical/python-asyncio.md)`
+- From `projects/my-app.md` to a technical note: `[jwt notes](../technical/jwt.md)`
+- From an `activity-log/YYYY/YYYY-MM/` day file to a project note: `[zrb project](../../../projects/zrb.md)`
+
+`journal-lint.py` resolves links this way. A link written relative to the journal root resolves correctly only from the root `index.md`; from any other file it is flagged as a broken link.
 
 ### Backlink Rule (Non-negotiable)
 
-Every note (except `index.md` files) **must** have a `## Backlinks` section at the bottom. When you create a forward link, immediately append a backlink to the target.
+Every note (except `index.md` files) **must** have a `## Backlinks` section at the bottom. When you create a forward link, immediately append a backlink to the target. Backlink paths are file-relative too — written from the note that holds them.
+
+For example, inside `technical/jwt.md`:
 
 ````markdown
 ## Backlinks
-- [projects/my-app](projects/my-app.md) — referenced for auth architecture
-- [technical/jwt](technical/jwt.md) — related algorithm
+- [my-app project](../projects/my-app.md) — referenced for auth architecture
+- [2026-06-02 log](../activity-log/2026/2026-06/2026-06-02.md) — algorithm chosen here
 ````
 
 Rules:
@@ -83,11 +88,12 @@ When writing a specific kind of entry, Read the matching template from this skil
 
 | Writing | Template |
 |---------|----------|
+| An insight note (`user/`, `preferences/`, `projects/`, `technical/`) | `templates/insight-note.md` |
 | A day's activity log entry | `templates/activity-entry.md` |
 
 ## Companion Tools
 
-- `tools/journal-lint.py` — validates backlinks, finds orphans, reports broken paths. Run via `Bash` periodically and after structural changes:
+- `tools/journal-lint.py` — validates backlinks, finds orphans, reports broken paths. Run via `Shell` periodically and after structural changes:
   ```
   python <skill-dir>/tools/journal-lint.py <journal-root>
   ```
@@ -95,7 +101,7 @@ When writing a specific kind of entry, Read the matching template from this skil
 ## Writing an Insight Note (Step-by-Step)
 
 1. Decide the file path under `user/`, `preferences/`, `projects/`, or `technical/` (atomic — one concept per file).
-2. Write the note body.
+2. Write the note body using the format in `templates/insight-note.md`.
 3. Add forward markdown links to related notes throughout the body.
 4. Add a `## Backlinks` section at the bottom (initially empty, or pre-populated if you know who will link here).
 5. For each forward link you added, open the target file and append this note to its `## Backlinks` section.
@@ -107,7 +113,7 @@ When writing a specific kind of entry, Read the matching template from this skil
 1. Compute today's path: `activity-log/YYYY/YYYY-MM/YYYY-MM-DD.md`.
 2. If the file does not exist, create it with an `# YYYY-MM-DD` heading. Then create or update the month index, year index, and `activity-log/index.md` as needed.
 3. Append a new section using the format in `templates/activity-entry.md`.
-4. Cross-link from the entry to any insight notes touched (`[[technical/<topic>]]`, `[[projects/<project>]]`) — and back from those notes to this entry's path under `## Backlinks` if the link is durable (not for trivial mentions).
+4. Cross-link from the entry to any insight notes touched — a day file sits three levels deep, so climb out: `[<topic>](../../../technical/<topic>.md)`, `[<project>](../../../projects/<project>.md)`. Add the reverse backlink from those notes to this entry's path under `## Backlinks` if the link is durable (not for trivial mentions). Use markdown links, never `[[wikilinks]]`.
 
 ## Maintenance
 

@@ -34,9 +34,11 @@ class MockDeferredToolResults:
 
 @pytest.fixture(autouse=True)
 def mock_pydantic_ai_imports():
-    with patch("pydantic_ai.DeferredToolResults", MockDeferredToolResults), patch(
-        "pydantic_ai.ToolApproved", MockToolApproved
-    ), patch("pydantic_ai.ToolDenied", MockToolDenied):
+    with (
+        patch("pydantic_ai.DeferredToolResults", MockDeferredToolResults),
+        patch("pydantic_ai.ToolApproved", MockToolApproved),
+        patch("pydantic_ai.ToolDenied", MockToolDenied),
+    ):
         yield
 
 
@@ -220,6 +222,47 @@ async def test_process_deferred_requests_cli_fallback_callable():
 
     assert result.approvals["call_1"] == cli_result
     effective_tool_confirmation.assert_called_once_with(call)
+
+
+@pytest.mark.asyncio
+async def test_process_deferred_requests_always_auto_approve_bypasses_handler():
+    """Priority 0: intrinsically auto-approved tools never reach the handler.
+
+    AskUserQuestion *is* the user interaction; a separate approval prompt is
+    redundant. The cascade must approve it before any tool-policy check or CLI
+    fallback, in every path. See ADR-0062.
+    """
+    from zrb.llm.tool_call.always_approve import register_always_auto_approve
+
+    register_always_auto_approve("MyInteractiveTool")
+
+    ui = MagicMock(spec=UIProtocol)
+    hook_manager = MagicMock(spec=HookManager)
+    hook_manager.execute_hooks = AsyncMock(return_value=[])
+
+    # A handler that would *deny* if consulted — proves Priority 0 short-circuits.
+    tool_handler = MagicMock(spec=ToolCallHandler)
+    tool_handler.check_policies = AsyncMock(
+        return_value=MockToolDenied("should not run")
+    )
+    tool_handler.handle = AsyncMock(return_value=MockToolDenied("should not run"))
+
+    call = MagicMock()
+    call.tool_name = "MyInteractiveTool"
+    call.args = {"questions": []}
+    call.tool_call_id = "call_1"
+
+    result_output = MagicMock()
+    result_output.calls = [call]
+    result_output.approvals = []
+
+    result = await process_deferred_requests(
+        result_output, tool_handler, ui, hook_manager
+    )
+
+    assert isinstance(result.approvals["call_1"], MockToolApproved)
+    tool_handler.check_policies.assert_not_called()
+    tool_handler.handle.assert_not_called()
 
 
 def test_rebuild_for_denials_no_denials():

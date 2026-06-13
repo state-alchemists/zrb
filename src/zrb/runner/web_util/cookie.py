@@ -17,6 +17,8 @@ def set_auth_cookie(web_auth_config: WebAuthConfig, response: "Response", token:
         key=web_auth_config.access_token_cookie_name,
         value=token.access_token,
         httponly=True,
+        secure=True,
+        samesite="lax",
         max_age=access_token_max_age,
         expires=now + timedelta(seconds=access_token_max_age),
     )
@@ -24,6 +26,8 @@ def set_auth_cookie(web_auth_config: WebAuthConfig, response: "Response", token:
         key=web_auth_config.refresh_token_cookie_name,
         value=token.refresh_token,
         httponly=True,
+        secure=True,
+        samesite="lax",
         max_age=refresh_token_max_age,
         expires=now + timedelta(seconds=refresh_token_max_age),
     )

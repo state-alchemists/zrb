@@ -222,6 +222,8 @@ class RunnerMixin:
             "redirect_output_commands": ui_commands["redirect_output"],
             "exec_commands": ui_commands["exec"],
             "btw_commands": ui_commands["btw"],
+            "plan_commands": ui_commands["plan"],
+            "copy_commands": ui_commands["copy"],
             "custom_commands": resolved_custom_commands,
             "model": self._get_model(ctx),
             "custom_model_names": resolved_custom_model_names,
@@ -299,7 +301,7 @@ class RunnerMixin:
             history = history_manager.load(conversation_name)
             if not history:
                 return
-            replay = getattr(ui, "_replay_history", None)
+            replay = getattr(ui, "replay_history", None)
             if callable(replay):
                 replay(history)
             else:

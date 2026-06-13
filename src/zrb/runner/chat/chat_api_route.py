@@ -33,6 +33,23 @@ def serve_chat_api(
 
     session_manager = ChatSessionManager.get_instance_sync()
 
+    async def _forbid_if_unauthorized(request: Request) -> "JSONResponse | None":
+        """Authorize the requester against the ``llm chat`` task.
+
+        The chat surface drives the single most powerful task (tool/shell
+        execution), so every route must gate on it — mirroring the
+        ``can_access_task`` check in ``task_session_api_route.py``. Returns a
+        403 response to short-circuit the route, or ``None`` when access is
+        allowed. When the chat task isn't registered there is nothing to
+        protect, so the request passes through (the route then surfaces the
+        missing-task condition itself).
+        """
+        user = await get_user_from_request(web_auth_config, request)
+        llm_chat = await _get_llm_chat_task(root_group)
+        if llm_chat is not None and not user.can_access_task(llm_chat):
+            return JSONResponse(content={"detail": "Forbidden"}, status_code=403)
+        return None
+
     @app.get("/api/v1/chat/sessions")
     async def list_chat_sessions(
         request: Request,
@@ -41,7 +58,9 @@ def serve_chat_api(
     ) -> JSONResponse:
         if limit is None:
             limit = CFG.WEB_API_PAGE_SIZE
-        await get_user_from_request(web_auth_config, request)
+        forbidden = await _forbid_if_unauthorized(request)
+        if forbidden is not None:
+            return forbidden
         sessions = session_manager.get_sessions(page=page, limit=limit)
         total = session_manager.get_sessions_count()
         return JSONResponse(
@@ -56,7 +75,9 @@ def serve_chat_api(
 
     @app.post("/api/v1/chat/sessions")
     async def create_chat_session(request: Request) -> JSONResponse:
-        await get_user_from_request(web_auth_config, request)
+        forbidden = await _forbid_if_unauthorized(request)
+        if forbidden is not None:
+            return forbidden
         data = await request.json() if request.method == "POST" else {}
         session_id = data.get("session_id")
         session_name = data.get("session_name")
@@ -75,7 +96,9 @@ def serve_chat_api(
         session_id: str,
         request: Request,
     ) -> JSONResponse:
-        await get_user_from_request(web_auth_config, request)
+        forbidden = await _forbid_if_unauthorized(request)
+        if forbidden is not None:
+            return forbidden
         removed = await session_manager.remove_session(session_id)
         if removed:
             return JSONResponse(content={"success": True})
@@ -86,7 +109,9 @@ def serve_chat_api(
         session_id: str,
         request: Request,
     ) -> JSONResponse:
-        await get_user_from_request(web_auth_config, request)
+        forbidden = await _forbid_if_unauthorized(request)
+        if forbidden is not None:
+            return forbidden
         messages = session_manager.get_messages(session_id)
         serializable_messages = []
         for msg in messages:
@@ -104,7 +129,9 @@ def serve_chat_api(
         session_id: str,
         request: Request,
     ) -> JSONResponse:
-        await get_user_from_request(web_auth_config, request)
+        forbidden = await _forbid_if_unauthorized(request)
+        if forbidden is not None:
+            return forbidden
         data = await request.json()
         message = data.get("message", "")
         is_approval_action = data.get("isApprovalAction", False)
@@ -169,7 +196,9 @@ def serve_chat_api(
         session_id: str,
         request: Request,
     ) -> JSONResponse:
-        await get_user_from_request(web_auth_config, request)
+        forbidden = await _forbid_if_unauthorized(request)
+        if forbidden is not None:
+            return forbidden
         pending = session_manager.get_pending_approvals(session_id)
         is_waiting_edit = session_manager.is_waiting_for_edit(session_id)
         editing_args = (
@@ -191,7 +220,9 @@ def serve_chat_api(
         session_id: str,
         request: Request,
     ) -> SSEStreamResponse:
-        await get_user_from_request(web_auth_config, request)
+        forbidden = await _forbid_if_unauthorized(request)
+        if forbidden is not None:
+            return forbidden
         session = session_manager.get_session(session_id)
         if session is None:
             session = await session_manager.create_session(session_id=session_id)
@@ -224,7 +255,9 @@ def serve_chat_api(
         session_id: str,
         request: Request,
     ) -> JSONResponse:
-        await get_user_from_request(web_auth_config, request)
+        forbidden = await _forbid_if_unauthorized(request)
+        if forbidden is not None:
+            return forbidden
         session = session_manager.get_session(session_id)
         if session is None:
             return JSONResponse(content={"exists": False})

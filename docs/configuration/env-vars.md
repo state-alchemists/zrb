@@ -24,13 +24,13 @@ Zrb can be heavily customized using environment variables. These control everyth
 |----------|-------------|---------|
 | `ZRB_SHELL` | Shell used by `CmdTask` | Auto-detected (`zsh`, `bash`, `PowerShell`) |
 | `ZRB_EDITOR` | Default text editor for interactive prompts | `nano` |
-| `ZRB_LOGGING_LEVEL` | Verbosity of Zrb's internal logs | `WARNING` |
+| [`ZRB_LOGGING_LEVEL`](../advanced-topics/logging.md) | Verbosity of Zrb's internal logs | `WARNING` |
 | `ZRB_BANNER` | Custom ASCII art or text displayed at CLI start | Standard Zrb ASCII art |
 | `ZRB_ROOT_GROUP_NAME` | Name of root command group in help menus | `zrb` |
 | `ZRB_ROOT_GROUP_DESCRIPTION` | Description for root command group | `Your Automation Powerhouse` |
 | `_ZRB_CUSTOM_VERSION` | Overrides displayed version string (internal) | — |
 
-> 💡 **Logging Levels:** `CRITICAL`, `ERROR`, `WARN`, `WARNING`, `INFO`, `DEBUG`, `NOTSET`
+> 💡 **Logging Levels:** See the [Logging Guide](../advanced-topics/logging.md) for details. `CRITICAL`, `ERROR`, `WARN`, `WARNING`, `INFO`, `DEBUG`, `NOTSET`
 
 > 💡 **Banner Formatting:** Supports f-string formatting with `{VERSION}`
 
@@ -52,7 +52,7 @@ Zrb can be heavily customized using environment variables. These control everyth
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_SESSION_LOG_DIR` | Directory for session-specific logs and history | `~/.zrb/session` |
+| [`ZRB_SESSION_LOG_DIR`](../advanced-topics/logging.md#session-log-directory) | Directory for session-specific logs and history | `~/.zrb/session` |
 | `ZRB_TODO_DIR` | Directory for `todo.txt` file | `~/todo` |
 
 ### Todo List Settings

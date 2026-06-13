@@ -19,7 +19,9 @@ docs/advanced-topics/maintainer-guide.md#llm-history-sanitization-layer.
 from __future__ import annotations
 
 import asyncio
+from contextlib import ExitStack
 from contextvars import ContextVar
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, TypeAlias
 
 from zrb.config.config import CFG
@@ -46,7 +48,13 @@ from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
 from zrb.llm.hook.types import HookEvent
-from zrb.llm.message import ensure_alternating_roles
+from zrb.llm.message import TOOL_CALL_PLACEHOLDER, ensure_alternating_roles
+from zrb.llm.permission.state import (
+    current_permission_policy,
+    enter_agent_mode_scope,
+    exit_agent_mode_scope,
+)
+from zrb.llm.sandbox.state import current_sandbox_policy
 from zrb.llm.tool_call.handler import ToolCallHandler
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 from zrb.llm.util.prompt import expand_prompt
@@ -76,6 +84,10 @@ current_tool_confirmation: ContextVar[AnyToolConfirmation] = ContextVar(
 )
 current_yolo: ContextVar[bool] = ContextVar("current_yolo", default=False)
 
+# Process-wide guard: the OpenAI serialization patch is global and idempotent,
+# so it only needs to run once per process. The check-then-set is safe under
+# CPython's GIL for this single-process, asyncio (single-thread) usage; re-running
+# the patch would be harmless anyway.
 _openai_patched = False
 
 
@@ -93,6 +105,9 @@ async def run_agent(
     yolo: bool = False,
     approval_channel: "ApprovalChannel | None" = None,
     system_prompt: str = "",
+    live_context: str = "",
+    permission_policy: Any = None,
+    sandbox_policy: Any = None,
 ) -> tuple[Any, list[Any]]:
     """
     Runs the agent with rate limiting, history management, and optional CLI confirmation loop.
@@ -120,12 +135,38 @@ async def run_agent(
         effective_approval_channel,
     )
 
-    token_ui = current_ui.set(effective_ui)
-    token_confirmation = current_tool_confirmation.set(effective_tool_confirmation)
-    token_yolo = current_yolo.set(effective_yolo)
-    token_approval_channel = current_approval_channel.set(effective_approval_channel)
+    # Set the policy from the explicit arg, else keep whatever a parent run set
+    # (sub-agent inheritance), else None (legacy: nothing constrained).
+    effective_policy = (
+        permission_policy
+        if permission_policy is not None
+        else current_permission_policy.get()
+    )
+    # Same inheritance rule for the sandbox: explicit arg wins, else keep the
+    # parent run's policy (sub-agents), else None (resolved from CFG at the
+    # gate / shell tool — off unless the deployment opted in).
+    effective_sandbox = (
+        sandbox_policy if sandbox_policy is not None else current_sandbox_policy.get()
+    )
 
+    # Bind the run-scoped ContextVars through an ExitStack so set/reset stays
+    # symmetric and exception-safe: if a later bind raises, the vars already
+    # bound are still reset on close (the old per-token finally reset tokens
+    # that may never have been set).
+    stack = ExitStack()
     try:
+        _bind_contextvar(stack, current_ui, effective_ui)
+        _bind_contextvar(stack, current_tool_confirmation, effective_tool_confirmation)
+        _bind_contextvar(stack, current_yolo, effective_yolo)
+        _bind_contextvar(stack, current_approval_channel, effective_approval_channel)
+        _bind_contextvar(stack, current_permission_policy, effective_policy)
+        _bind_contextvar(stack, current_sandbox_policy, effective_sandbox)
+        # Isolate agent mode per run so concurrent runs don't share/clobber each
+        # other's plan/build state; the final mode is propagated back to the
+        # caller on close so an in-run mode switch persists (e.g. sticky /plan).
+        mode_token, mode_parent = enter_agent_mode_scope()
+        stack.callback(exit_agent_mode_scope, mode_token, mode_parent)
+
         effective_print_fn, effective_event_handler = _setup_print_and_events(
             print_fn, event_handler, effective_ui
         )
@@ -144,6 +185,11 @@ async def run_agent(
         prompt_content = await _apply_multimodal_fallback(
             prompt_content, agent, effective_print_fn
         )
+        # Append the volatile <live-context> block to the user turn. Injected
+        # here rather than into the system prompt so the system prompt stays
+        # byte-stable across turns and the cacheable prefix survives; the block
+        # is frozen into history once written (older turns are stale snapshots).
+        prompt_content = _append_live_context(prompt_content, live_context)
 
         current_history = await _prepare_history(
             agent,
@@ -169,10 +215,16 @@ async def run_agent(
             effective_approval_channel=effective_approval_channel,
         )
     finally:
-        current_ui.reset(token_ui)
-        current_tool_confirmation.reset(token_confirmation)
-        current_yolo.reset(token_yolo)
-        current_approval_channel.reset(token_approval_channel)
+        stack.close()
+
+
+def _bind_contextvar(stack: ExitStack, var: ContextVar, value: Any) -> None:
+    """Set `var` to `value` and register its reset on the stack.
+
+    Keeps ContextVar set/reset symmetric and exception-safe across the run.
+    """
+    token = var.set(value)
+    stack.callback(var.reset, token)
 
 
 def _resolve_context_dependencies(
@@ -216,8 +268,9 @@ def _resolve_context_dependencies(
 
         if not isinstance(effective_approval_channel, MultiplexApprovalChannel):
             ui_for_terminal = effective_ui
-            if hasattr(effective_ui, "_uis") and effective_ui._uis:
-                ui_for_terminal = effective_ui._uis[0]
+            children = getattr(effective_ui, "children", None)
+            if children:
+                ui_for_terminal = children[0]
             CFG.LOGGER.debug(
                 f"Creating TerminalApprovalChannel with UI: {ui_for_terminal}"
             )
@@ -299,7 +352,13 @@ async def _run_startup_hooks(
 
         context_part = SystemPromptPart(content=session_start_context)
         if message_history and isinstance(message_history[0], ModelRequest):
-            message_history[0].parts.insert(0, context_part)
+            # Rebuild the first request via replace() instead of mutating its
+            # parts in place — message_history is the history manager's cached
+            # list (returned by reference), so an in-place insert would graft the
+            # context onto the stored conversation and re-inject it every turn.
+            first = message_history[0]
+            new_first = replace(first, parts=[context_part, *first.parts])
+            message_history = [new_first, *message_history[1:]]
         else:
             message_history = [ModelRequest(parts=[context_part])] + message_history
 
@@ -334,7 +393,7 @@ async def _prepare_history(
     print_fn,
     effective_hook_manager,
 ):
-    history_processors = list(getattr(agent, "_zrb_history_processors", None) or [])
+    history_processors = list(getattr(agent, "zrb_history_processors", None) or [])
 
     # Count system prompt tokens BEFORE running processors so the summarizer
     # can account for them in its threshold comparison (the "Total" shown in
@@ -388,6 +447,27 @@ async def _prepare_history(
     )
 
 
+def _append_live_context(prompt_content: Any, live_context: str) -> Any:
+    """Append the ``<live-context>`` block to the end of the current user turn.
+
+    Handles all three ``prompt_content`` shapes produced by
+    ``get_prompt_content``: ``str`` (text-only), ``list[UserContent]``
+    (multimodal — a trailing text element is added, keeping the block last for
+    recency), and ``None`` (empty turn — the block becomes the content). A
+    falsy ``live_context`` is a no-op, so callers that pass nothing keep the
+    legacy behaviour.
+    """
+    if not live_context:
+        return prompt_content
+    if prompt_content is None:
+        return live_context
+    if isinstance(prompt_content, str):
+        return f"{prompt_content}\n\n{live_context}"
+    if isinstance(prompt_content, list):
+        return [*prompt_content, live_context]
+    return prompt_content
+
+
 def _merge_consecutive_messages(current_history, current_message):
     # lazy: heavy third-party
     from pydantic_ai.messages import ModelRequest, UserPromptPart
@@ -396,11 +476,16 @@ def _merge_consecutive_messages(current_history, current_message):
         current_history
         and isinstance(current_history[-1], ModelRequest)
         and current_message is not None
+        and isinstance(current_message, (str, list))
     ):
-        if isinstance(current_message, str):
-            current_history[-1].parts.append(UserPromptPart(content=current_message))
-        elif isinstance(current_message, list):
-            current_history[-1].parts.append(UserPromptPart(content=current_message))
+        # Build a NEW ModelRequest rather than appending to the existing one's
+        # parts in place. current_history[-1] is aliased to the caller's loaded
+        # history (and to FileHistoryManager's cached list, which load() returns
+        # by reference), so an in-place append would graft this turn's prompt
+        # onto the stored message — duplicating it on the next save/cancel path.
+        last_msg = current_history[-1]
+        merged_parts = list(last_msg.parts) + [UserPromptPart(content=current_message)]
+        current_history[-1] = replace(last_msg, parts=merged_parts)
         return None
     return current_message
 
@@ -424,6 +509,48 @@ async def _apply_history_processors(
         except Exception as e:
             CFG.LOGGER.warning(f"History processor failed between tool calls: {e}")
     return ensure_alternating_roles(processed)
+
+
+# Placeholder strings that signal a degenerate completion rather than a real
+# answer: the "(tool call)" history placeholder injected by filter_nil_content,
+# and the bare "(tool call" that weaker models emit when imitating it.
+_EMPTY_COMPLETION_MARKERS = frozenset(
+    {TOOL_CALL_PLACEHOLDER, TOOL_CALL_PLACEHOLDER.rstrip(")")}
+)
+
+
+def _is_empty_completion(result_output: Any) -> bool:
+    """True when the model's final text output carries no real content.
+
+    Two degenerate cases seen in production with weak/overloaded models:
+    an empty/whitespace completion (provider returned nothing), and the
+    "(tool call)" placeholder leaking out as the answer (injected into history
+    by filter_nil_content, then echoed by the model). Structured (non-str)
+    outputs and DeferredToolRequests are never "empty" in this sense, so they
+    are excluded by the isinstance check.
+    """
+    if not isinstance(result_output, str):
+        return False
+    stripped = result_output.strip()
+    return not stripped or stripped in _EMPTY_COMPLETION_MARKERS
+
+
+def _history_without_trailing_response(run_history: list[Any]) -> list[Any]:
+    """Drop the trailing assistant ModelResponse so it can be regenerated.
+
+    Used when retrying an empty completion: ``result.all_messages()`` ends with
+    the degenerate response, and re-requesting must not feed it back. Works for
+    both the simple-turn case (history then empty response) and the
+    deferred-resume case (history, tool returns, then empty response) — in both
+    the trailing response is dropped while the tool returns stay in history.
+    """
+    from pydantic_ai.messages import ModelResponse  # lazy: heavy third-party
+
+    if run_history and isinstance(run_history[-1], ModelResponse):
+        trimmed = run_history[:-1]
+        if trimmed:
+            return trimmed
+    return run_history
 
 
 async def _execution_loop(
@@ -451,7 +578,7 @@ async def _execution_loop(
     # (unsummarized) content. We hold a reference to the processors here so we
     # can apply them ourselves to persist their effects between tool call
     # iterations.
-    history_processors = list(getattr(agent, "_zrb_history_processors", None) or [])
+    history_processors = list(getattr(agent, "zrb_history_processors", None) or [])
 
     try:
         while True:
@@ -503,6 +630,8 @@ async def _execution_loop(
                     raise stream_error
                 current_history = outcome.new_history
                 current_message = outcome.new_message
+                if outcome.clear_results:
+                    current_results = None
                 continue
 
             if isinstance(result_output, DeferredToolRequests):
@@ -528,11 +657,53 @@ async def _execution_loop(
 
                 current_results = rebuild_for_denials(current_results)
                 current_message = None
-                current_history = await _apply_history_processors(
-                    run_history, history_processors
-                )
+                # Skip history processors when pending deferred results exist:
+                # they can orphan the ModelResponse whose tool_calls are
+                # expected by _handle_deferred_tool_results in the next stream
+                # iteration.  Processor effects are already applied in
+                # _prepare_history before the first stream call.
+                if current_results and (
+                    getattr(current_results, "calls", None)
+                    or getattr(current_results, "approvals", None)
+                ):
+                    current_history = run_history
+                else:
+                    current_history = await _apply_history_processors(
+                        run_history, history_processors
+                    )
                 CFG.LOGGER.debug("Continuing to next iteration with current_results")
                 continue
+
+            # Empty/placeholder completion guard: a weak or overloaded provider
+            # sometimes returns no real text (and no tool call). Don't surface the
+            # "(tool call)" placeholder as the answer — regenerate the turn a
+            # bounded number of times, then raise a clear error.
+            if _is_empty_completion(result_output):
+                if (
+                    retry_state.empty_completion_retry_count
+                    < retry_state.max_empty_completion_retries
+                ):
+                    retry_state.empty_completion_retry_count += 1
+                    print_fn(
+                        "\n[SYSTEM] Model returned an empty response — retrying "
+                        f"(attempt {retry_state.empty_completion_retry_count}/"
+                        f"{retry_state.max_empty_completion_retries})..."
+                    )
+                    CFG.LOGGER.debug(
+                        f"Empty completion (output={result_output!r}); "
+                        "dropping the empty turn and regenerating"
+                    )
+                    current_history = _history_without_trailing_response(run_history)
+                    current_message = None
+                    current_results = None
+                    result_output = None
+                    continue
+                raise RuntimeError(
+                    "Model returned an empty response "
+                    f"{retry_state.empty_completion_retry_count + 1} times. The "
+                    "provider may be overloaded, or the conversation may exceed "
+                    "the model's context window."
+                )
 
             session_end_results = await effective_hook_manager.execute_hooks(
                 HookEvent.SESSION_END,

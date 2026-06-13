@@ -20,7 +20,7 @@ class TestPrintFnProtocol:
             sep: str = " ",
             end: str = "\n",
             file: TextIO | None = None,
-            flush: bool = False
+            flush: bool = False,
         ) -> None:
             pass
 
@@ -38,7 +38,7 @@ class TestPrintFnProtocol:
             sep: str = " ",
             end: str = "\n",
             file: TextIO | None = None,
-            flush: bool = False
+            flush: bool = False,
         ) -> None:
             target = file if file is not None else sys.stdout
             target.write(sep.join(str(v) for v in values) + end)
@@ -58,7 +58,7 @@ class TestPrintFnProtocol:
             sep: str = " ",
             end: str = "\n",
             file: TextIO | None = None,
-            flush: bool = False
+            flush: bool = False,
         ) -> None:
             target = file if file is not None else sys.stdout
             target.write(sep.join(str(v) for v in values) + end)
@@ -77,7 +77,7 @@ class TestPrintFnProtocol:
             sep: str = " ",
             end: str = "\n",
             file: TextIO | None = None,
-            flush: bool = False
+            flush: bool = False,
         ) -> None:
             target = file if file is not None else sys.stdout
             target.write(sep.join(str(v) for v in values) + end)

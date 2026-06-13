@@ -206,6 +206,27 @@ class TestStreamEventHandlerToolCall:
         handler._handle_tool_call(mock_event)
         print_fn.assert_called()
 
+    def test_handle_tool_call_suppresses_ask_user_question_args(self):
+        """AskUserQuestion's large payload is shown in the widget, not dumped here."""
+        print_fn = MagicMock()
+        handler = StreamEventHandler(print_fn=print_fn)
+        from pydantic_ai import ToolCallPart
+
+        mock_event = MagicMock()
+        mock_event.part = ToolCallPart(
+            tool_name="AskUserQuestion",
+            args={"questions": [{"question": "Pick?", "options": [{"label": "A"}]}]},
+            tool_call_id="call_abc",
+        )
+        handler._handle_tool_call(mock_event)
+
+        printed = "".join(str(c.args[0]) for c in print_fn.call_args_list if c.args)
+        assert "AskUserQuestion" in printed
+        assert "call_abc" in printed
+        # The questions/options payload must not be echoed.
+        assert "options" not in printed
+        assert "Pick?" not in printed
+
 
 class TestStreamEventHandlerToolResult:
     def test_handle_tool_result_show_result(self):

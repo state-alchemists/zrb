@@ -26,12 +26,16 @@ def session(mock_print):
 @pytest.fixture
 def mock_git_commit_upstream():
     """Mocks the git operations performed by the upstream git-commit task."""
-    with mock.patch(
-        "zrb.builtin.git.add", new=mock.MagicMock(side_effect=lambda *a, **k: _coro())
-    ) as mock_add, mock.patch(
-        "zrb.builtin.git.commit",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro()),
-    ) as mock_commit:
+    with (
+        mock.patch(
+            "zrb.builtin.git.add",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro()),
+        ) as mock_add,
+        mock.patch(
+            "zrb.builtin.git.commit",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro()),
+        ) as mock_commit,
+    ):
         yield mock_add, mock_commit
 
 
@@ -47,13 +51,16 @@ async def test_git_add_subtree_success(session, mock_print, mock_git_commit_upst
     repo_prefix = "src/libs"
     mock_add, mock_commit = mock_git_commit_upstream
 
-    with mock.patch(
-        "zrb.builtin.git_subtree.get_repo_dir",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
-    ), mock.patch(
-        "zrb.builtin.git_subtree.add_subtree",
-        new=mock.Mock(side_effect=lambda *a, **k: _coro()),
-    ) as mock_add_subtree:
+    with (
+        mock.patch(
+            "zrb.builtin.git_subtree.get_repo_dir",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
+        ),
+        mock.patch(
+            "zrb.builtin.git_subtree.add_subtree",
+            new=mock.Mock(side_effect=lambda *a, **k: _coro()),
+        ) as mock_add_subtree,
+    ):
 
         # Get the task object
         add_subtree_task = git_subtree_module.git_add_subtree
@@ -96,16 +103,20 @@ async def test_git_pull_subtree_success(session, mock_print, mock_git_commit_ups
     subtree_config = SubTreeConfig(data=config_data)
     mock_add, mock_commit = mock_git_commit_upstream
 
-    with mock.patch(
-        "zrb.builtin.git_subtree.get_repo_dir",
-        new=mock.Mock(side_effect=lambda *a, **k: _coro("/fake/repo")),
-    ), mock.patch(
-        "zrb.builtin.git_subtree.load_config",
-        return_value=subtree_config,
-    ) as mock_load_config, mock.patch(
-        "zrb.builtin.git_subtree.pull_subtree",
-        new=mock.Mock(side_effect=lambda *a, **k: _coro()),
-    ) as mock_pull_subtree:
+    with (
+        mock.patch(
+            "zrb.builtin.git_subtree.get_repo_dir",
+            new=mock.Mock(side_effect=lambda *a, **k: _coro("/fake/repo")),
+        ),
+        mock.patch(
+            "zrb.builtin.git_subtree.load_config",
+            return_value=subtree_config,
+        ) as mock_load_config,
+        mock.patch(
+            "zrb.builtin.git_subtree.pull_subtree",
+            new=mock.Mock(side_effect=lambda *a, **k: _coro()),
+        ) as mock_pull_subtree,
+    ):
 
         # Get the task object
         pull_subtree_task = git_subtree_module.git_pull_subtree
@@ -142,16 +153,20 @@ async def test_git_pull_subtree_no_config(
     subtree_config = SubTreeConfig(data={})
     mock_add, mock_commit = mock_git_commit_upstream
 
-    with mock.patch(
-        "zrb.builtin.git_subtree.get_repo_dir",
-        new=mock.Mock(side_effect=lambda *a, **k: _coro("/fake/repo")),
-    ), mock.patch(
-        "zrb.builtin.git_subtree.load_config",
-        return_value=subtree_config,
-    ) as mock_load_config, mock.patch(
-        "zrb.builtin.git_subtree.pull_subtree",
-        new=mock.Mock(side_effect=lambda *a, **k: _coro()),
-    ) as mock_pull_subtree:
+    with (
+        mock.patch(
+            "zrb.builtin.git_subtree.get_repo_dir",
+            new=mock.Mock(side_effect=lambda *a, **k: _coro("/fake/repo")),
+        ),
+        mock.patch(
+            "zrb.builtin.git_subtree.load_config",
+            return_value=subtree_config,
+        ) as mock_load_config,
+        mock.patch(
+            "zrb.builtin.git_subtree.pull_subtree",
+            new=mock.Mock(side_effect=lambda *a, **k: _coro()),
+        ) as mock_pull_subtree,
+    ):
 
         # Get the task object
         pull_subtree_task = git_subtree_module.git_pull_subtree
@@ -181,15 +196,19 @@ async def test_git_pull_subtree_handles_error(
     async def _fail(*a, **k):
         raise Exception("Pull failed")
 
-    with mock.patch(
-        "zrb.builtin.git_subtree.get_repo_dir",
-        new=mock.Mock(side_effect=lambda *a, **k: _coro("/fake/repo")),
-    ), mock.patch(
-        "zrb.builtin.git_subtree.load_config",
-        return_value=subtree_config,
-    ), mock.patch(
-        "zrb.builtin.git_subtree.pull_subtree", new=mock.Mock(side_effect=_fail)
-    ) as mock_pull_subtree:
+    with (
+        mock.patch(
+            "zrb.builtin.git_subtree.get_repo_dir",
+            new=mock.Mock(side_effect=lambda *a, **k: _coro("/fake/repo")),
+        ),
+        mock.patch(
+            "zrb.builtin.git_subtree.load_config",
+            return_value=subtree_config,
+        ),
+        mock.patch(
+            "zrb.builtin.git_subtree.pull_subtree", new=mock.Mock(side_effect=_fail)
+        ) as mock_pull_subtree,
+    ):
 
         # Get the task object
         pull_subtree_task = git_subtree_module.git_pull_subtree
@@ -219,16 +238,20 @@ async def test_git_push_subtree_success(session, mock_print, mock_git_commit_ups
     subtree_config = SubTreeConfig(data=config_data)
     mock_add, mock_commit = mock_git_commit_upstream
 
-    with mock.patch(
-        "zrb.builtin.git_subtree.get_repo_dir",
-        new=mock.Mock(side_effect=lambda *a, **k: _coro("/fake/repo")),
-    ), mock.patch(
-        "zrb.builtin.git_subtree.load_config",
-        return_value=subtree_config,
-    ) as mock_load_config, mock.patch(
-        "zrb.builtin.git_subtree.push_subtree",
-        new=mock.Mock(side_effect=lambda *a, **k: _coro()),
-    ) as mock_push_subtree:
+    with (
+        mock.patch(
+            "zrb.builtin.git_subtree.get_repo_dir",
+            new=mock.Mock(side_effect=lambda *a, **k: _coro("/fake/repo")),
+        ),
+        mock.patch(
+            "zrb.builtin.git_subtree.load_config",
+            return_value=subtree_config,
+        ) as mock_load_config,
+        mock.patch(
+            "zrb.builtin.git_subtree.push_subtree",
+            new=mock.Mock(side_effect=lambda *a, **k: _coro()),
+        ) as mock_push_subtree,
+    ):
 
         # Get the task object
         push_subtree_task = git_subtree_module.git_push_subtree
@@ -265,16 +288,20 @@ async def test_git_push_subtree_no_config(
     subtree_config = SubTreeConfig(data={})
     mock_add, mock_commit = mock_git_commit_upstream
 
-    with mock.patch(
-        "zrb.builtin.git_subtree.get_repo_dir",
-        new=mock.Mock(side_effect=lambda *a, **k: _coro("/fake/repo")),
-    ), mock.patch(
-        "zrb.builtin.git_subtree.load_config",
-        return_value=subtree_config,
-    ) as mock_load_config, mock.patch(
-        "zrb.builtin.git_subtree.push_subtree",
-        new=mock.Mock(side_effect=lambda *a, **k: _coro()),
-    ) as mock_push_subtree:
+    with (
+        mock.patch(
+            "zrb.builtin.git_subtree.get_repo_dir",
+            new=mock.Mock(side_effect=lambda *a, **k: _coro("/fake/repo")),
+        ),
+        mock.patch(
+            "zrb.builtin.git_subtree.load_config",
+            return_value=subtree_config,
+        ) as mock_load_config,
+        mock.patch(
+            "zrb.builtin.git_subtree.push_subtree",
+            new=mock.Mock(side_effect=lambda *a, **k: _coro()),
+        ) as mock_push_subtree,
+    ):
 
         # Get the task object
         push_subtree_task = git_subtree_module.git_push_subtree
@@ -304,15 +331,19 @@ async def test_git_push_subtree_handles_error(
     async def _fail(*a, **k):
         raise Exception("Push failed")
 
-    with mock.patch(
-        "zrb.builtin.git_subtree.get_repo_dir",
-        new=mock.Mock(side_effect=lambda *a, **k: _coro("/fake/repo")),
-    ), mock.patch(
-        "zrb.builtin.git_subtree.load_config",
-        return_value=subtree_config,
-    ), mock.patch(
-        "zrb.builtin.git_subtree.push_subtree", new=mock.Mock(side_effect=_fail)
-    ) as mock_push_subtree:
+    with (
+        mock.patch(
+            "zrb.builtin.git_subtree.get_repo_dir",
+            new=mock.Mock(side_effect=lambda *a, **k: _coro("/fake/repo")),
+        ),
+        mock.patch(
+            "zrb.builtin.git_subtree.load_config",
+            return_value=subtree_config,
+        ),
+        mock.patch(
+            "zrb.builtin.git_subtree.push_subtree", new=mock.Mock(side_effect=_fail)
+        ) as mock_push_subtree,
+    ):
 
         # Get the task object
         push_subtree_task = git_subtree_module.git_push_subtree

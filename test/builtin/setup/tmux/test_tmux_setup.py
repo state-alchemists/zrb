@@ -10,13 +10,14 @@ def test_setup_tmux_new_file():
     ctx = MagicMock()
     ctx.input = {"tmux-config": "/tmp/.tmux.conf"}
 
-    with patch(
-        "zrb.builtin.setup.tmux.tmux.read_file", side_effect=["SKILL_CONTENT", ""]
-    ), patch("os.path.expanduser", return_value="/tmp/.tmux.conf"), patch(
-        "os.path.isfile", return_value=False
-    ), patch(
-        "zrb.builtin.setup.tmux.tmux.write_file"
-    ) as mock_write:
+    with (
+        patch(
+            "zrb.builtin.setup.tmux.tmux.read_file", side_effect=["SKILL_CONTENT", ""]
+        ),
+        patch("os.path.expanduser", return_value="/tmp/.tmux.conf"),
+        patch("os.path.isfile", return_value=False),
+        patch("zrb.builtin.setup.tmux.tmux.write_file") as mock_write,
+    ):
 
         setup_tmux._action(ctx)
 
@@ -30,13 +31,15 @@ def test_setup_tmux_existing_config():
     ctx.input = {"tmux-config": "/tmp/.tmux.conf"}
 
     # Simulate config already in file
-    with patch(
-        "zrb.builtin.setup.tmux.tmux.read_file", side_effect=["MY_CONFIG", "MY_CONFIG"]
-    ), patch("os.path.expanduser", return_value="/tmp/.tmux.conf"), patch(
-        "os.path.isfile", return_value=True
-    ), patch(
-        "zrb.builtin.setup.tmux.tmux.write_file"
-    ) as mock_write:
+    with (
+        patch(
+            "zrb.builtin.setup.tmux.tmux.read_file",
+            side_effect=["MY_CONFIG", "MY_CONFIG"],
+        ),
+        patch("os.path.expanduser", return_value="/tmp/.tmux.conf"),
+        patch("os.path.isfile", return_value=True),
+        patch("zrb.builtin.setup.tmux.tmux.write_file") as mock_write,
+    ):
 
         setup_tmux._action(ctx)
 

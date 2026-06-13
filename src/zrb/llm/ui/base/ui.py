@@ -42,12 +42,9 @@ from zrb.llm.tool_call import (
     default_response_handler,
 )
 from zrb.llm.ui.base.commands_mixin import CommandsMixin
+from zrb.llm.ui.base.replay_mixin import HistoryReplayMixin
+from zrb.llm.ui.base.system_info_mixin import SystemInfoMixin
 from zrb.llm.ui.multi_ui import MultiUI
-from zrb.llm.util.history_formatter import (
-    format_args,
-    format_timestamp,
-    truncate,
-)
 from zrb.session.any_session import AnySession
 from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
@@ -61,10 +58,12 @@ if TYPE_CHECKING:
     from pydantic_ai.models import Model
     from rich.theme import Theme
 
+    from zrb.llm.tool_call.ui_protocol import ChoiceSpec
+
 logger = logging.getLogger(__name__)
 
 
-class BaseUI(CommandsMixin):
+class BaseUI(CommandsMixin, HistoryReplayMixin, SystemInfoMixin):
     """Base class for LLM Chat UI implementations.
 
     This class provides the core chat functionality (message handling, command
@@ -168,6 +167,8 @@ class BaseUI(CommandsMixin):
         set_model_commands: list[str] = [],
         exec_commands: list[str] = [],
         btw_commands: list[str] = [],
+        plan_commands: list[str] = [],
+        copy_commands: list[str] = [],
         custom_commands: list[AnyCustomCommand] = [],
         model: "Model | str | None" = None,
         enable_rewind: bool = False,
@@ -185,6 +186,8 @@ class BaseUI(CommandsMixin):
         if not self._conversation_session_name:
             self._conversation_session_name = get_random_name()
         self._model = model
+        self._small_model = None
+        self._multimodal_model = None
         self._triggers = triggers
         self._markdown_theme = markdown_theme
         self._summarize_commands = summarize_commands
@@ -199,7 +202,10 @@ class BaseUI(CommandsMixin):
         self._set_model_commands = set_model_commands
         self._exec_commands = exec_commands
         self._btw_commands = btw_commands
+        self._plan_commands = plan_commands
+        self._copy_commands = copy_commands
         self._custom_commands = custom_commands
+        self._plan_mode_active = False
         self._trigger_tasks: list[asyncio.Task] = []
         self._message_queue: asyncio.Queue = asyncio.Queue()
         self._process_messages_task: asyncio.Task | None = None
@@ -229,9 +235,13 @@ class BaseUI(CommandsMixin):
             argument_formatters=argument_formatters,
             response_handlers=response_handlers + [default_response_handler],
         )
-        # Queue for pending confirmation requests to handle parallel tool approvals
-        self._confirmation_queue: list[tuple[asyncio.Future[str], str]] = []
+        # Queue for pending confirmation requests to handle parallel tool
+        # approvals. Each entry is (future, prompt, spec); spec is a ChoiceSpec
+        # for AskUserQuestion-style requests, else None for plain text.
+        self._confirmation_queue: list[tuple[asyncio.Future[str], str, Any]] = []
         self._current_confirmation: asyncio.Future[str] | None = None
+        # Buffer for main-agent output during confirmation (avoids interleaving)
+        self._confirmation_output_buffer: list[str] = []
 
         # Track background tasks to prevent garbage collection
         self._background_tasks: set[asyncio.Task] = set()
@@ -249,6 +259,21 @@ class BaseUI(CommandsMixin):
     def tool_call_handler(self) -> Any:
         """Get the tool call handler for this UI."""
         return self._tool_call_handler
+
+    @property
+    def multi_ui_parent(self) -> Any:
+        """The MultiUI this UI is a child of, or None when standalone."""
+        return getattr(self, "_multi_ui_parent", None)
+
+    @multi_ui_parent.setter
+    def multi_ui_parent(self, parent: Any) -> None:
+        self._multi_ui_parent = parent
+
+    def take_pending_attachments(self) -> "list[UserContent]":
+        """Return and clear this UI's pending attachments (public accessor)."""
+        attachments = list(self._pending_attachments)
+        self._pending_attachments.clear()
+        return attachments
 
     @property
     def llm_task(self) -> Any:
@@ -321,6 +346,26 @@ class BaseUI(CommandsMixin):
     def model(self, value: Any):
         """Set the model."""
         self._model = value
+
+    @property
+    def small_model(self) -> Any:
+        """Get the current small model."""
+        return self._small_model
+
+    @small_model.setter
+    def small_model(self, value: Any):
+        """Set the small model."""
+        self._small_model = value
+
+    @property
+    def multimodal_model(self) -> Any:
+        """Get the current multimodal model."""
+        return self._multimodal_model
+
+    @multimodal_model.setter
+    def multimodal_model(self, value: Any):
+        """Set the multimodal model."""
+        self._multimodal_model = value
 
     @property
     def conversation_session_name(self) -> str:
@@ -474,6 +519,22 @@ class BaseUI(CommandsMixin):
             f"{self.__class__.__name__} must implement ask_user()"
         )
 
+    async def ask_user_choice(self, spec: "ChoiceSpec") -> str:
+        """[OPTIONAL] Ask a structured multiple-choice question.
+
+        Default implementation formats the spec as numbered text and delegates
+        to `ask_user`, so any UI that only implements `ask_user` keeps working
+        (the user types a number or free text). Terminal UIs override this to
+        render an arrow-key-selectable widget.
+
+        Returns the chosen option label(s) — comma-joined for multi-select — or
+        the user's free-form text verbatim.
+        """
+        # lazy: circular — base.ui -> tool.ask -> ... -> base.ui
+        from zrb.llm.tool.ask import format_choice_spec
+
+        return await self.ask_user(format_choice_spec(spec))
+
     async def run_interactive_command(
         self, cmd: str | list[str], shell: bool = False
     ) -> Any:
@@ -590,6 +651,16 @@ class BaseUI(CommandsMixin):
         """
         pass
 
+    @property
+    def output_field_width(self) -> int | None:
+        """Public width accessor — delegates to the `_get_output_field_width()`
+        override hook so callers (e.g. the diff formatter) read width through a
+        public name. Concrete UIs with their own terminal-derived width (the
+        default TUI via `OutputMixin`) override this property directly, winning
+        by MRO; custom `BaseUI` subclasses just override `_get_output_field_width`.
+        """
+        return self._get_output_field_width()
+
     def _get_output_field_width(self) -> int | None:
         """[OPTIONAL] Get the width for text output formatting.
 
@@ -607,12 +678,19 @@ class BaseUI(CommandsMixin):
             try:
                 job = await self._message_queue.get()
 
-                # Wait if there is a running task (e.g. from previous iteration just finishing cleanup)
-                while (
+                # Wait for any still-running task from a previous iteration to
+                # finish. Await it directly instead of polling — this removes the
+                # busy-wait and the check-then-act race between done() and the
+                # next assignment. Swallow its outcome (incl. cancellation); this
+                # loop only needs it to be settled before starting the next job.
+                if (
                     self._running_llm_task is not None
                     and not self._running_llm_task.done()
                 ):
-                    await asyncio.sleep(0.1)
+                    try:
+                        await self._running_llm_task
+                    except (asyncio.CancelledError, Exception):
+                        pass
 
                 # Create task for current job
                 current_task = asyncio.create_task(job())
@@ -650,114 +728,16 @@ class BaseUI(CommandsMixin):
                     # Event loop closed - exit
                     break
 
-    def _replay_history(self, messages: list) -> None:
-        """Render loaded conversation history through live-message paths.
-
-        Replays each ModelMessage so loaded sessions visually match a fresh
-        conversation: user lines and assistant headers render normally,
-        assistant text goes through markdown rendering, and tool calls/returns
-        use the same faint style as while streaming.
-        """
-        if not messages:
-            return
-        pending_tool_calls: dict[str, str] = {}
-        for msg in messages:
-            kind = getattr(msg, "kind", None)
-            timestamp = format_timestamp(getattr(msg, "timestamp", None))
-            ts_display = f"{timestamp} " if timestamp else ""
-            parts = getattr(msg, "parts", []) or []
-            if kind == "request":
-                self._replay_request_parts(parts, ts_display, pending_tool_calls)
-            elif kind == "response":
-                self.append_to_output(f"\n🤖 {ts_display}>>\n")
-                self._replay_response_parts(parts, pending_tool_calls)
-
-    def _replay_request_parts(
-        self,
-        parts: list,
-        ts_display: str,
-        pending_tool_calls: dict[str, str],
-    ) -> None:
-        """Render parts of a replayed ModelRequest (user/tool-return/retry)."""
-        for part in parts:
-            pkind = getattr(part, "part_kind", None)
-            if pkind == "tool-return":
-                self._replay_tool_return(part, pending_tool_calls)
-            elif pkind == "user-prompt":
-                content = str(getattr(part, "content", "") or "")
-                self.append_to_output(f"\n💬 {ts_display}>> {content.strip()}\n")
-            elif pkind == "retry-prompt":
-                content = str(getattr(part, "content", "") or "")
-                self.append_to_output(
-                    f"\n  🔄 Retry: {truncate(content, 200)}\n",
-                    kind="tool_call",
-                )
-            # system-prompt parts are skipped during replay
-
-    def _replay_response_parts(
-        self,
-        parts: list,
-        pending_tool_calls: dict[str, str],
-    ) -> None:
-        """Render parts of a replayed ModelResponse (thinking/text/tool-call)."""
-        width = self._get_output_field_width()
-        for part in parts:
-            pkind = getattr(part, "part_kind", None)
-            if pkind == "thinking":
-                content = str(getattr(part, "content", "") or "")
-                if content.strip():
-                    self.append_to_output(
-                        f"  💭 {truncate(content, 500)}", kind="thinking"
-                    )
-            elif pkind == "text":
-                content = str(getattr(part, "content", "") or "")
-                if content.strip():
-                    self.append_to_output("\n")
-                    self.append_to_output(
-                        render_markdown(
-                            content, width=width, theme=self._markdown_theme
-                        )
-                    )
-            elif pkind == "tool-call":
-                self._replay_tool_call(part, pending_tool_calls)
-
-    def _replay_tool_call(self, part, pending_tool_calls: dict[str, str]) -> None:
-        """Render a single replayed tool call."""
-        tool_name = getattr(part, "tool_name", None) or "unknown"
-        tool_call_id = getattr(part, "tool_call_id", None) or "?"
-        args_str = format_args(getattr(part, "args", None))
-        if tool_call_id and tool_name:
-            pending_tool_calls[tool_call_id] = tool_name
-        self.append_to_output(
-            f"  🧰 {tool_call_id} | {tool_name} {args_str}", kind="tool_call"
-        )
-
-    def _replay_tool_return(self, part, pending_tool_calls: dict[str, str]) -> None:
-        """Render a single replayed tool return."""
-        tool_call_id = getattr(part, "tool_call_id", None) or "?"
-        tool_name = (
-            getattr(part, "tool_name", None)
-            or pending_tool_calls.get(tool_call_id)
-            or "unknown"
-        )
-        outcome = getattr(part, "outcome", "success")
-        status_icon = "✅" if str(outcome) == "success" else "❌"
-        content = str(getattr(part, "content", "") or "")
-        self.append_to_output(
-            f"\n  🔠 {tool_call_id} | {tool_name} {status_icon}",
-            kind="tool_call",
-        )
-        body = truncate(content, 200)
-        if body.strip():
-            for line in body.split("\n")[:3]:
-                self.append_to_output(f"    {line}", kind="tool_call")
+    # History-replay rendering lives in HistoryReplayMixin (replay_mixin.py):
+    # _replay_history, _replay_request_parts, _replay_response_parts,
+    # _replay_tool_call, _replay_tool_return are inherited.
 
     def _submit_user_message(self, llm_task: AnyTask, user_message: str):
         # Check if we have a parent MultiUI to route through
-        parent_multi_ui = getattr(self, "_multi_ui_parent", None)
+        parent_multi_ui = self.multi_ui_parent
         if parent_multi_ui is not None:
             # Route through parent MultiUI - this broadcasts to ALL UIs
-            parent_multi_ui._submit_user_message(llm_task, user_message)
+            parent_multi_ui.submit_user_message(llm_task, user_message)
             return
 
         # No parent - process locally (original behavior)
@@ -765,8 +745,7 @@ class BaseUI(CommandsMixin):
         # 1. Render User Message
         self.append_to_output(f"\n💬 {timestamp} >> {user_message.strip()}\n")
         # 2. Trigger AI Response
-        attachments = list(self._pending_attachments)
-        self._pending_attachments.clear()
+        attachments = self.take_pending_attachments()
 
         async def job():
             await self._stream_ai_response(llm_task, user_message, attachments)
@@ -805,10 +784,28 @@ class BaseUI(CommandsMixin):
             # Run the task with stdout/stderr redirected to UI
             self.append_to_output(stylize_faint("\n  🔢 Streaming response..."))
 
+            # Sync plan mode to the shared mutable state before the LLM run
+            # so the agent inherits the mode set by /plan.
+            # lazy: circular — permission.state transitively imports zrb.llm.ui,
+            # so hoisting this to module level re-enters ui mid-load.
+            from zrb.llm.permission.state import (
+                AgentMode,
+                get_current_agent_mode,
+                set_current_agent_mode,
+            )
+
+            set_current_agent_mode(
+                AgentMode.PLAN if self._plan_mode_active else AgentMode.BUILD
+            )
+
             # Set UI for tool confirmation
             llm_task.set_ui(self)
             llm_task.tool_confirmation = self._confirm_tool_execution
             result_data = await llm_task.async_run(session)
+
+            # Sync plan mode after LLM response (tools like EnterPlanMode set the
+            # ContextVar which is visible here in the same Task context).
+            self._plan_mode_active = get_current_agent_mode() == AgentMode.PLAN
 
             # Check for final text output
             if result_data is not None:
@@ -873,69 +870,9 @@ class BaseUI(CommandsMixin):
             ui, call
         )  # --- SYSTEM INFO / TRIGGERS (Moved from UI) ---
 
-    async def _update_system_info(self):
-        """Update CWD and Git info."""
-        self._cwd = self._get_cwd_display()
-        branch, status = await self._get_git_info()
-        if branch:
-            self._git_info = f"{branch}{status}"
-        else:
-            self._git_info = "Not a git repo"
-        self.invalidate_ui()
-
-    def _get_cwd_display(self) -> str:
-        cwd = os.getcwd()
-        home = os.path.expanduser("~")
-        if cwd.startswith(home):
-            return "~" + cwd[len(home) :]
-        return cwd
-
-    async def _get_git_info(self) -> tuple[str, str]:
-        """Returns (branch_name, status_symbol)"""
-        try:
-            # Check branch
-            proc = await asyncio.create_subprocess_exec(
-                "git",
-                "rev-parse",
-                "--abbrev-ref",
-                "HEAD",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            stdout, _ = await proc.communicate()
-            if proc.returncode != 0:
-                return "", ""
-            branch = stdout.decode().strip()
-
-            # Check status (dirty or clean)
-            proc = await asyncio.create_subprocess_exec(
-                "git",
-                "status",
-                "--porcelain",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            stdout, _ = await proc.communicate()
-            is_dirty = bool(stdout.strip())
-
-            return branch, "*" if is_dirty else ""
-        except Exception:
-            return "", ""
-
-    async def _update_system_info_loop(self):
-        """Periodically update CWD and Git info."""
-        while True:
-            try:
-                await self._update_system_info()
-            except asyncio.CancelledError:
-                break
-            except Exception:
-                pass
-            try:
-                await asyncio.sleep(CFG.LLM_UI_LONG_STATUS_INTERVAL / 1000)
-            except RuntimeError:
-                # Event loop closed during shutdown
-                break
+    # System-info status (cwd/git) lives in SystemInfoMixin
+    # (system_info_mixin.py): _update_system_info, _get_cwd_display,
+    # _get_git_info, _update_system_info_loop are inherited.
 
     async def _trigger_loop(
         self,

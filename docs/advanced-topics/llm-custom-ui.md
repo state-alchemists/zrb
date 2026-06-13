@@ -61,7 +61,7 @@ The simplest way to create a custom UI:
 
 ```python
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.ui.simple_ui import SimpleUI, create_ui_factory
+from zrb.llm.ui import SimpleUI, create_ui_factory
 
 class MyUI(SimpleUI):
     async def print(self, text: str, kind: str = "text") -> None:
@@ -175,7 +175,7 @@ llm_chat.append_approval_channel(TelegramApprovalChannel(bot, chat_id))
 ```python
 import asyncio
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.ui.simple_ui import SimpleUI, create_ui_factory
+from zrb.llm.ui import SimpleUI, create_ui_factory
 
 class CLI(SimpleUI):
     """Minimal CLI implementation."""
@@ -195,7 +195,7 @@ llm_chat.set_ui_factory(create_ui_factory(CLI))
 import asyncio
 from pathlib import Path
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.ui.simple_ui import SimpleUI, create_ui_factory
+from zrb.llm.ui import SimpleUI, create_ui_factory
 
 class LoggingUI(SimpleUI):
     """Logs all output to file, CLI for input."""
@@ -227,7 +227,7 @@ import asyncio
 import json
 from datetime import datetime
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.ui.simple_ui import SimpleUI, create_ui_factory
+from zrb.llm.ui import SimpleUI, create_ui_factory
 
 class StructuredLogUI(SimpleUI):
     """Outputs structured JSON for each message."""
@@ -306,7 +306,7 @@ async def on_telegram_message(update, context):
 import asyncio
 from telegram.ext import Application, MessageHandler, filters
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.ui.simple_ui import EventDrivenUI, create_ui_factory
+from zrb.llm.ui import EventDrivenUI, create_ui_factory
 
 class TelegramUI(EventDrivenUI):
     """Telegram bot using EventDrivenUI."""
@@ -372,7 +372,7 @@ llm_chat.set_ui_factory(
 import asyncio
 import discord
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.ui.simple_ui import EventDrivenUI, create_ui_factory
+from zrb.llm.ui import EventDrivenUI, create_ui_factory
 
 class DiscordUI(EventDrivenUI):
     """Discord bot using EventDrivenUI."""
@@ -444,7 +444,7 @@ flowchart TB
 ### Minimal Implementation
 
 ```python
-from zrb.llm.ui.simple_ui import PollingUI
+from zrb.llm.ui import PollingUI
 
 class APIUI(PollingUI):
     """HTTP/WebSocket API using PollingUI's queues."""
@@ -461,7 +461,7 @@ import asyncio
 import uuid
 from aiohttp import web
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.ui.simple_ui import PollingUI, create_ui_factory
+from zrb.llm.ui import PollingUI, create_ui_factory
 
 # Session storage
 sessions: dict[str, PollingUI] = {}
@@ -654,7 +654,7 @@ flowchart LR
 ### Usage Pattern
 
 ```python
-from zrb.llm.ui.simple_ui import EventDrivenUI, BufferedOutputMixin
+from zrb.llm.ui import EventDrivenUI, BufferedOutputMixin
 
 class TelegramUI(EventDrivenUI, BufferedOutputMixin):
     """Telegram UI with output buffering to avoid rate limits."""
@@ -733,7 +733,7 @@ def __init__(
 ### The Solution: UIConfig Dataclass
 
 ```python
-from zrb.llm.ui.simple_ui import UIConfig, create_ui_factory
+from zrb.llm.ui import UIConfig, create_ui_factory
 
 # Bundle all configuration in one object
 config = UIConfig(
@@ -808,7 +808,7 @@ llm_chat.set_ui_factory(create_my_ui)
 ### The Solution: Automatic Parameter Handling
 
 ```python
-from zrb.llm.ui.simple_ui import create_ui_factory, UIConfig
+from zrb.llm.ui import create_ui_factory, UIConfig
 
 # One-line registration with automatic parameter mapping
 config = UIConfig(assistant_name="MyBot", yolo=True)
@@ -875,7 +875,7 @@ flowchart TB
 | `invalidate_ui()` | No-op | Redraw/refresh UI |
 | `on_exit()` | No-op | Cleanup on shutdown |
 | `stream_to_parent()` | Calls `append_to_output` | For multiplexed UIs |
-| `_get_output_field_width()` | None | Custom text width for formatting |
+| `_get_output_field_width()` | None | Custom text width for formatting (exposed publicly as the `output_field_width` property, which is what the diff/markdown formatters read) |
 
 ---
 

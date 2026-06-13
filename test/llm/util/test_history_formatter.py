@@ -17,6 +17,7 @@ from pydantic_ai.messages import (
 
 from zrb.llm.util.history_formatter import (
     _indent_lines,
+    extract_last_response_text,
     format_args,
     format_history_as_text,
     format_timestamp,
@@ -146,6 +147,28 @@ class TestFormatHistoryAsText:
         assert len(result) <= 150  # Allow some margin for truncation message
         assert "truncated" in result
 
+    def test_full_disables_overall_truncation(self):
+        """full=True emits the whole transcript with no overall length cap."""
+        long_content = "x" * 1000
+        messages = [
+            ModelRequest(parts=[UserPromptPart(content=long_content)]),
+        ]
+
+        result = format_history_as_text(messages, max_length=100, full=True)
+        assert "truncated" not in result
+        assert long_content in result
+
+    def test_full_disables_per_message_truncation(self):
+        """full=True keeps a >500-char user prompt intact (no per-part cap)."""
+        long_content = "y" * 800
+        messages = [ModelRequest(parts=[UserPromptPart(content=long_content)])]
+
+        truncated = format_history_as_text(messages)
+        full = format_history_as_text(messages, full=True)
+
+        assert long_content not in truncated  # default path clips at 500
+        assert long_content in full
+
     def test_multiline_content(self):
         """Test formatting multiline content."""
         messages = [
@@ -166,6 +189,35 @@ class TestFormatHistoryAsText:
 
         assert "Model:" in result
         assert "gpt-4" in result
+
+
+class TestExtractLastResponseText:
+    """Tests for extract_last_response_text function."""
+
+    def test_empty(self):
+        assert extract_last_response_text([]) == ""
+
+    def test_returns_latest_response_text(self):
+        messages = [
+            ModelResponse(parts=[TextPart(content="first")]),
+            ModelRequest(parts=[UserPromptPart(content="hi")]),
+            ModelResponse(parts=[TextPart(content="latest")]),
+        ]
+        assert extract_last_response_text(messages) == "latest"
+
+    def test_skips_tool_call_only_response(self):
+        """A trailing tool-call-only response is skipped for the last text."""
+        messages = [
+            ModelResponse(parts=[TextPart(content="answer")]),
+            ModelResponse(
+                parts=[ToolCallPart(tool_name="t", args={}, tool_call_id="1")]
+            ),
+        ]
+        assert extract_last_response_text(messages) == "answer"
+
+    def test_no_response_messages(self):
+        messages = [ModelRequest(parts=[UserPromptPart(content="hi")])]
+        assert extract_last_response_text(messages) == ""
 
 
 class TestFormatTimestamp:

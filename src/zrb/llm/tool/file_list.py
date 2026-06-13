@@ -48,12 +48,15 @@ def list_files(
     path: str = ".",
     auto_truncate: bool = True,
     exclude_patterns: list[str] | None = None,
+    include_hidden: bool = False,
 ) -> dict[str, Any]:
     """
     Recursively lists files up to 3 levels deep.
 
     Auto-excludes `.git`, `node_modules`, `__pycache__`, etc. Sorted alphabetically.
-    Pass `exclude_patterns=[]` to include all files.
+    Pass `exclude_patterns=[]` to include all files. By default, dotfiles and
+    dot-directories are skipped; pass `include_hidden=True` to surface them
+    (still subject to `exclude_patterns`).
     """
     all_files: list[str] = []
     abs_path = os.path.abspath(os.path.expanduser(path))
@@ -74,13 +77,14 @@ def list_files(
         dirs[:] = [
             d
             for d in dirs
-            if not d.startswith(".") and not is_path_excluded(d, patterns_to_exclude)
+            if (include_hidden or not d.startswith("."))
+            and not is_path_excluded(d, patterns_to_exclude)
         ]
 
         for filename in files:
-            if not filename.startswith(".") and not is_path_excluded(
-                filename, patterns_to_exclude
-            ):
+            if (
+                include_hidden or not filename.startswith(".")
+            ) and not is_path_excluded(filename, patterns_to_exclude):
                 full_path = os.path.join(root, filename)
                 rel_full_path = os.path.relpath(full_path, abs_path)
                 if not is_path_excluded(rel_full_path, patterns_to_exclude):
@@ -105,12 +109,15 @@ def glob_files(
     path: str = ".",
     auto_truncate: bool = True,
     exclude_patterns: list[str] | None = None,
+    include_hidden: bool = False,
 ) -> dict[str, Any]:
     """
     Finds files matching glob patterns (e.g., `**/*.py`). Supports `**` for recursive search.
 
     Auto-excludes `.git`, `node_modules`, `__pycache__`, etc. Sorted alphabetically.
-    Pass `exclude_patterns=[]` to include all files.
+    Pass `exclude_patterns=[]` to include all files. By default, dotfiles and
+    paths under dot-directories are skipped; pass `include_hidden=True` to match
+    them (still subject to `exclude_patterns`).
     """
     found_files = []
     abs_path = os.path.abspath(os.path.expanduser(path))
@@ -122,7 +129,9 @@ def glob_files(
     )
 
     search_pattern = os.path.join(abs_path, pattern)
-    candidates = glob.glob(search_pattern, recursive=True)
+    candidates = glob.glob(
+        search_pattern, recursive=True, include_hidden=include_hidden
+    )
 
     for candidate in candidates:
         if os.path.isdir(candidate):
@@ -130,7 +139,9 @@ def glob_files(
 
         rel_path = os.path.relpath(candidate, abs_path)
 
-        if any(part.startswith(".") for part in rel_path.split(os.sep)):
+        if not include_hidden and any(
+            part.startswith(".") for part in rel_path.split(os.sep)
+        ):
             continue
 
         if is_path_excluded(rel_path, patterns_to_exclude):

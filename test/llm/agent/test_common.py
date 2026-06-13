@@ -266,6 +266,48 @@ def test_create_agent_uses_default_model_when_none():
     _ = mock_config.model
 
 
+def test_create_agent_resolves_model_once_by_default():
+    """With the default resolve_model=True, create_agent runs the config's
+    resolve_model (model_getter/model_renderer) exactly once."""
+    from unittest.mock import MagicMock, patch
+
+    from zrb.llm.agent.common import create_agent
+
+    mock_config = MagicMock()
+    mock_config.resolve_model.return_value = "resolved-model"
+
+    with patch("zrb.llm.agent.common.default_llm_config", mock_config):
+        with patch("pydantic_ai.Agent", MagicMock()):
+            create_agent(model="base-model", system_prompt="test", yolo=True)
+
+    mock_config.resolve_model.assert_called_once_with("base-model")
+
+
+def test_create_agent_skips_resolution_when_resolve_model_false():
+    """Resolve_model=False means the caller already resolved the model, so
+    create_agent must NOT call resolve_model again (which would double-fire
+    model_getter/model_renderer, potentially feeding a Model object into a
+    getter that expects a tier string)."""
+    from unittest.mock import MagicMock, patch
+
+    from zrb.llm.agent.common import create_agent
+
+    mock_config = MagicMock()
+
+    with patch("zrb.llm.agent.common.default_llm_config", mock_config):
+        with patch("pydantic_ai.Agent", MagicMock()) as mock_agent_class:
+            create_agent(
+                model="already-resolved",
+                system_prompt="test",
+                yolo=True,
+                resolve_model=False,
+            )
+
+    mock_config.resolve_model.assert_not_called()
+    # The pre-resolved model is passed straight through to the Agent.
+    assert mock_agent_class.call_args.kwargs["model"] == "already-resolved"
+
+
 def test_create_agent_with_callable_yolo():
     """Test create_agent with callable yolo."""
     from unittest.mock import MagicMock, patch

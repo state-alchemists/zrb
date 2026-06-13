@@ -32,9 +32,9 @@ The UI classes were moved from `zrb.llm.app` to `zrb.llm.ui`.
 
 | 1.x.x import | 2.x.x import |
 |---|---|
-| `from zrb.llm.app import SimpleUI` | `from zrb.llm.ui.simple_ui import SimpleUI` |
-| `from zrb.llm.app import EventDrivenUI` | `from zrb.llm.ui.simple_ui import EventDrivenUI` |
-| `from zrb.llm.app import PollingUI` | `from zrb.llm.ui.simple_ui import PollingUI` |
+| `from zrb.llm.app import SimpleUI` | `from zrb.llm.ui import SimpleUI` |
+| `from zrb.llm.app import EventDrivenUI` | `from zrb.llm.ui import EventDrivenUI` |
+| `from zrb.llm.app import PollingUI` | `from zrb.llm.ui import PollingUI` |
 
 If you only interact with the built-in `llm_chat` task (i.e. you don't subclass or import UI classes directly), no change is needed.
 

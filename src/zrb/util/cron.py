@@ -98,8 +98,21 @@ def match_cron(cron_pattern: str, dt: datetime.datetime):
     days = parse_cron_field(day, 1, 31)
     months = parse_cron_field(month, 1, 12)
     days_of_week = parse_cron_field(day_of_week, 0, 6)
-    # Match with standard cron behavior (day OR day_of_week must match)
-    day_match = dt.day in days or dt.weekday() in days_of_week
+    # Convert Python's weekday (Mon=0..Sun=6) to cron's convention (Sun=0..Sat=6).
+    # `isoweekday() % 7` maps Sun(7)->0, Mon(1)->1, ..., Sat(6)->6. Cron also
+    # accepts 7 for Sunday, so treat it as equivalent to 0.
+    cron_dow = dt.isoweekday() % 7
+    day_of_month_match = dt.day in days
+    weekday_match = cron_dow in days_of_week or (cron_dow == 0 and 7 in days_of_week)
+    # Standard cron day semantics: when BOTH day-of-month and day-of-week are
+    # restricted, the task runs if EITHER matches (OR). When at least one field
+    # is the bare wildcard `*`, the fields are intersected (AND) — i.e. only the
+    # restricted field constrains the schedule. Using AND here is correct because
+    # a `*` field's membership test is always True, so it never narrows the match.
+    if day == "*" or day_of_week == "*":
+        day_match = day_of_month_match and weekday_match
+    else:
+        day_match = day_of_month_match or weekday_match
     return (
         dt.minute in minutes and dt.hour in hours and dt.month in months and day_match
     )

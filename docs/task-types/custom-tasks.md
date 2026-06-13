@@ -172,9 +172,9 @@ class ApiCallTask(BaseTask):
                 default="{}",
             ),
         ]
-        # Define env vars (prompted if not in OS)
+        # Define env vars (read from the OS, falling back to the default)
         envs = [
-            Env(name="API_KEY", is_secret=True),
+            Env(name="API_KEY", default=""),
         ]
         super().__init__(
             name=name,

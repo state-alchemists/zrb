@@ -1,6 +1,7 @@
 import logging
 import os
 import platform
+import shutil
 
 
 def get_env(env_name: str | list[str], default: str = "", prefix: str = "ZRB") -> str:
@@ -13,12 +14,25 @@ def get_env(env_name: str | list[str], default: str = "", prefix: str = "ZRB") -
 
 
 def get_current_shell() -> str:
+    """Return the name of a shell that actually exists on this system.
+
+    Every returned name is verified with ``shutil.which`` so callers never get a
+    shell that isn't installed (e.g. ``bash`` on a minimal Alpine image, or
+    PowerShell on a stripped-down Windows). Final fallbacks (``sh`` / ``cmd``)
+    are effectively always present on their respective platforms.
+    """
     if platform.system() == "Windows":
-        return "PowerShell"
+        for candidate in ("pwsh", "powershell"):
+            if shutil.which(candidate):
+                return candidate
+        return "cmd"
     current_shell = os.getenv("SHELL", "")
-    if current_shell.endswith("zsh"):
+    if current_shell.endswith("zsh") and shutil.which("zsh"):
         return "zsh"
-    return "bash"
+    for candidate in ("bash", "sh"):
+        if shutil.which(candidate):
+            return candidate
+    return "sh"
 
 
 def get_default_diff_edit_command(editor: str) -> str:

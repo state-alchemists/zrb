@@ -65,10 +65,10 @@ class TestMultiUI:
         ui = MagicMock()
         ui.append_to_output = MagicMock()
         ui.ask_user = AsyncMock(return_value="y")
-        ui._tool_call_handler = MagicMock()
-        ui._tool_call_handler._argument_formatters = ["formatter1"]
-        ui._tool_call_handler.check_policies = AsyncMock(return_value=None)
-        ui._tool_call_handler.handle = AsyncMock(return_value=MagicMock(approved=True))
+        ui.tool_call_handler = MagicMock()
+        ui.tool_call_handler._argument_formatters = ["formatter1"]
+        ui.tool_call_handler.check_policies = AsyncMock(return_value=None)
+        ui.tool_call_handler.handle = AsyncMock(return_value=MagicMock(approved=True))
         return ui
 
     def test_multi_ui_creation(self, mock_child_ui):
@@ -81,8 +81,8 @@ class TestMultiUI:
     def test_multi_ui_sets_parent_reference(self, mock_child_ui):
         """Test that MultiUI sets _multi_ui_parent on child UIs."""
         multi_ui = MultiUI([mock_child_ui])
-        assert hasattr(mock_child_ui, "_multi_ui_parent")
-        assert mock_child_ui._multi_ui_parent is multi_ui
+        assert hasattr(mock_child_ui, "multi_ui_parent")
+        assert mock_child_ui.multi_ui_parent is multi_ui
 
     def test_set_tool_call_handler(self, mock_child_ui):
         """Test set_tool_call_handler method."""
@@ -171,11 +171,11 @@ class TestMultiUI:
         mock_call.tool_name = "Write"
         mock_call.args = {}
 
-        mock_child_ui._tool_call_handler.handle.return_value = MagicMock(approved=True)
+        mock_child_ui.tool_call_handler.handle.return_value = MagicMock(approved=True)
 
         result = await multi_ui._confirm_tool_execution(mock_call)
 
-        mock_child_ui._tool_call_handler.handle.assert_called_once()
+        mock_child_ui.tool_call_handler.handle.assert_called_once()
 
     def test_submit_user_message_queues_job(self, mock_child_ui):
         """Test _submit_user_message queues a job."""
@@ -200,12 +200,12 @@ class TestMultiUI:
     def test_clear_pending_confirmations_except(self, mock_child_ui):
         """Test _clear_pending_confirmations_except cancels non-winning UIs."""
         other_ui = MagicMock()
-        other_ui._cancel_pending_confirmations = MagicMock()
+        other_ui.cancel_pending_confirmations = MagicMock()
         multi_ui = MultiUI([mock_child_ui, other_ui])
 
         multi_ui._clear_pending_confirmations_except(0)
 
-        other_ui._cancel_pending_confirmations.assert_called_once()
+        other_ui.cancel_pending_confirmations.assert_called_once()
 
     def test_last_output_tracks_output(self, mock_child_ui):
         """Test last_output property."""
@@ -480,20 +480,18 @@ class TestMultiUI:
     def test_clear_pending_confirmations_skips_exception(self):
         """Test _clear_pending_confirmations_except handles exceptions."""
         mock_ui1 = MagicMock()
-        mock_ui1._cancel_pending_confirmations = MagicMock(
-            side_effect=Exception("Test")
-        )
+        mock_ui1.cancel_pending_confirmations = MagicMock(side_effect=Exception("Test"))
         mock_ui2 = MagicMock()
-        mock_ui2._cancel_pending_confirmations = MagicMock()
+        mock_ui2.cancel_pending_confirmations = MagicMock()
         multi_ui = MultiUI([mock_ui1, mock_ui2])
 
         # Should not raise when skipping index 0
         multi_ui._clear_pending_confirmations_except(0)
 
         # ui2 (index 1) should be called
-        mock_ui2._cancel_pending_confirmations.assert_called_once()
+        mock_ui2.cancel_pending_confirmations.assert_called_once()
         # ui1 (index 0) should NOT be called because we're skipping it
-        mock_ui1._cancel_pending_confirmations.assert_not_called()
+        mock_ui1.cancel_pending_confirmations.assert_not_called()
 
 
 class TestUIConfig:
@@ -1286,12 +1284,118 @@ class TestBaseUICommandHandlers:
         assert result is True
         ui.append_to_output.assert_called()  # Error message shown
 
-    def test_handle_redirect_command_no_path(self, simple_ui_instance):
-        """Test _handle_redirect_command with no path provided."""
+    def test_handle_redirect_command_clipboard(self, simple_ui_instance):
+        """Test _handle_redirect_command bare command copies output to clipboard."""
+        from unittest.mock import patch
+
         ui = simple_ui_instance
         ui._redirect_output_commands = ["/redirect"]
+        ui._last_result_data = "Test AI output"
+        ui.append_to_output = MagicMock()
 
-        result = ui._handle_redirect_command("/redirect")
+        with patch("zrb.llm.util.clipboard.copy_text", return_value=True) as mock_copy:
+            result = ui._handle_redirect_command("/redirect")
+
+        assert result is True
+        mock_copy.assert_called_once_with("Test AI output")
+
+    def test_handle_redirect_command_bare_no_output(self, simple_ui_instance):
+        """Test bare /redirect shows error when no output available."""
+        from unittest.mock import patch
+
+        ui = simple_ui_instance
+        ui._redirect_output_commands = ["/redirect"]
+        ui._last_result_data = None
+        ui.append_to_output = MagicMock()
+
+        with patch("zrb.llm.util.clipboard.copy_text") as mock_copy:
+            result = ui._handle_redirect_command("/redirect")
+
+        assert result is True
+        mock_copy.assert_not_called()
+        ui.append_to_output.assert_called()  # Error shown
+
+    # --- copy command --------------------------------------------------------
+
+    def test_handle_copy_command(self, simple_ui_instance):
+        """Test bare /copy copies full transcript to clipboard."""
+        from unittest.mock import patch
+
+        ui = simple_ui_instance
+        ui._copy_commands = ["/copy"]
+        ui._history_manager.load = MagicMock(
+            return_value=[{"role": "user", "content": "hi"}]
+        )
+        ui.append_to_output = MagicMock()
+
+        with patch("zrb.llm.util.clipboard.copy_text", return_value=True) as mock_copy:
+            with patch(
+                "zrb.llm.util.history_formatter.format_history_as_text",
+                return_value="transcript",
+            ):
+                result = ui._handle_copy_command("/copy")
+
+        assert result is True
+        mock_copy.assert_called_once_with("transcript")
+
+    def test_handle_copy_command_to_file(self, simple_ui_instance):
+        """Test /copy with path writes transcript to file."""
+        import os
+        import tempfile
+
+        ui = simple_ui_instance
+        ui._copy_commands = ["/copy"]
+        ui._history_manager.load = MagicMock(
+            return_value=[{"role": "user", "content": "hi"}]
+        )
+        ui.append_to_output = MagicMock()
+
+        with patch(
+            "zrb.llm.util.history_formatter.format_history_as_text",
+            return_value="transcript content",
+        ):
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as f:
+                temp_path = f.name
+
+            try:
+                result = ui._handle_copy_command(f"/copy {temp_path}")
+                assert result is True
+                with open(temp_path) as f:
+                    assert f.read() == "transcript content"
+            finally:
+                os.unlink(temp_path)
+
+    def test_handle_copy_command_no_history(self, simple_ui_instance):
+        """Test /copy shows error when no history."""
+        ui = simple_ui_instance
+        ui._copy_commands = ["/copy"]
+        ui._history_manager.load = MagicMock(return_value=[])
+        ui.append_to_output = MagicMock()
+
+        result = ui._handle_copy_command("/copy")
+
+        assert result is True
+        ui.append_to_output.assert_called()  # Error shown
+
+    def test_handle_copy_command_trailing_space_strips_to_bare(
+        self, simple_ui_instance
+    ):
+        """Test /copy with a trailing space strips to the bare command (clipboard copy)."""
+        ui = simple_ui_instance
+        ui._copy_commands = ["/copy"]
+        ui._history_manager.load = MagicMock(return_value=[])
+        ui.append_to_output = MagicMock()
+
+        result = ui._handle_copy_command("/copy ")
+
+        assert result is True  # stripped to bare /copy
+
+    def test_handle_copy_command_unrecognized(self, simple_ui_instance):
+        """Test /copy with an unrecognized command returns False."""
+        ui = simple_ui_instance
+        ui._copy_commands = ["/copy"]
+
+        result = ui._handle_copy_command("/notcopy")
 
         assert result is False
 
@@ -1436,6 +1540,8 @@ class TestBaseUICommandHandlers:
         ui._yolo_toggle_commands = []
         ui._set_model_commands = []
         ui._exec_commands = []
+        ui._plan_commands = []
+        ui._copy_commands = []
         ui._custom_commands = []
 
         help_text = ui._get_help_text()
@@ -1566,7 +1672,8 @@ class TestLoadCommandReplay:
         )
 
         with patch(
-            "zrb.llm.ui.base.ui.render_markdown", return_value="RENDERED MARKDOWN"
+            "zrb.llm.ui.base.replay_mixin.render_markdown",
+            return_value="RENDERED MARKDOWN",
         ) as render:
             assert ui._handle_load_command("/load my-session") is True
 
@@ -1714,19 +1821,19 @@ class TestMultiUIReplayHistory:
     """Tests for MultiUI broadcasting replay to child UIs."""
 
     def test_replay_history_broadcasts_to_children(self):
-        """MultiUI._replay_history must call _replay_history on every child."""
+        """MultiUI.replay_history must call replay_history on every child."""
         child_a = MagicMock()
         child_b = MagicMock()
         multi_ui = MultiUI([child_a, child_b])
 
         messages = ["m1", "m2"]
-        multi_ui._replay_history(messages)
+        multi_ui.replay_history(messages)
 
-        child_a._replay_history.assert_called_once_with(messages)
-        child_b._replay_history.assert_called_once_with(messages)
+        child_a.replay_history.assert_called_once_with(messages)
+        child_b.replay_history.assert_called_once_with(messages)
 
     def test_replay_history_skips_children_without_method(self):
-        """Children missing _replay_history are silently skipped."""
+        """Children missing replay_history are silently skipped."""
 
         class NoReplayChild:
             def __init__(self):
@@ -1739,11 +1846,11 @@ class TestMultiUIReplayHistory:
     def test_replay_history_swallows_child_errors(self):
         """A child raising must not break the broadcast to other children."""
         bad_child = MagicMock()
-        bad_child._replay_history.side_effect = RuntimeError("bad")
+        bad_child.replay_history.side_effect = RuntimeError("bad")
         good_child = MagicMock()
 
         multi_ui = MultiUI([bad_child, good_child])
         # Should not raise even though bad_child throws
-        multi_ui._replay_history(["m1"])
+        multi_ui.replay_history(["m1"])
 
-        good_child._replay_history.assert_called_once_with(["m1"])
+        good_child.replay_history.assert_called_once_with(["m1"])

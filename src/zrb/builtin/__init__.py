@@ -32,6 +32,7 @@ from zrb.builtin.todo import (
     log_todo,
     show_todo,
 )
+from zrb.builtin.ulid import generate_ulid, validate_ulid
 from zrb.builtin.uuid import (
     generate_uuid_v1,
     generate_uuid_v3,
@@ -85,6 +86,8 @@ __all__ = [
     "list_todo",
     "log_todo",
     "show_todo",
+    "generate_ulid",
+    "validate_ulid",
     "generate_uuid_v1",
     "generate_uuid_v3",
     "generate_uuid_v4",

@@ -15,12 +15,15 @@ from zrb.llm.config.config import LLMConfig
 from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.config.limiter import llm_limiter as default_llm_limiter
+from zrb.llm.factory_resolver import resolve_factory_items
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.history_manager.file_history_manager import FileHistoryManager
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
+from zrb.llm.permission import resolve_policy
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.prompt.tool_guidance import ToolGuidance
+from zrb.llm.sandbox import coerce_sandbox
 from zrb.llm.summarizer import (
     summarize_history,
 )
@@ -96,6 +99,8 @@ class LLMTask(BaseTask):
         ui: UIProtocol | None = None,
         yolo: BoolAttr = False,
         dynamic_yolo: Callable[..., bool] | None = None,
+        permissions: Any = None,
+        sandbox: Any = None,
         approval_channel: ApprovalChannel | None = None,
         summarize_command: list[str] | None = None,
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
@@ -180,6 +185,8 @@ class LLMTask(BaseTask):
         self._yolo = yolo
         self._ui_factories: list[Callable[..., UIProtocol]] = []
         self._dynamic_yolo = dynamic_yolo
+        self._permissions = permissions
+        self._sandbox = sandbox
         self._approval_channel = approval_channel
         self._summarize_command = (
             summarize_command if summarize_command is not None else []
@@ -337,25 +344,11 @@ class LLMTask(BaseTask):
 
     def _get_all_tools(self, ctx: AnyContext) -> list[Tool | ToolFuncEither]:
         """Get all tools including those resolved from factories."""
-        all_tools = list(self._tools)
-        for factory in self._tool_factories:
-            tool = factory(ctx)
-            if isinstance(tool, list):
-                all_tools.extend(tool)
-            else:
-                all_tools.append(tool)
-        return all_tools
+        return resolve_factory_items(self._tools, self._tool_factories, ctx)
 
     def _get_all_toolsets(self, ctx: AnyContext) -> list[AbstractToolset[None]]:
         """Get all toolsets including those resolved from factories."""
-        all_toolsets = list(self._toolsets)
-        for factory in self._toolset_factories:
-            toolset = factory(ctx)
-            if isinstance(toolset, list):
-                all_toolsets.extend(toolset)
-            else:
-                all_toolsets.append(toolset)
-        return all_toolsets
+        return resolve_factory_items(self._toolsets, self._toolset_factories, ctx)
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
         async with AsyncExitStack() as stack:
@@ -387,6 +380,11 @@ class LLMTask(BaseTask):
         # This avoids rebuilding the prompt (including expensive system_context I/O)
         # a second time inside _create_agent.
         system_prompt = self.get_system_prompt(ctx)
+        # Render the volatile per-turn state separately and inject it into the
+        # user turn (not the system prompt) so the cacheable prefix stays
+        # byte-stable. This call also performs per-turn ambient-state wiring
+        # (session/interactive/worktree) — it must run every turn.
+        live_context = self.get_live_context(ctx)
         agent = self._create_agent(ctx, system_prompt=system_prompt)
         effective_message, effective_attachments = self._get_effective_prompt(
             ctx, user_message, user_attachments, message_history
@@ -399,6 +397,17 @@ class LLMTask(BaseTask):
                 if callable(self._dynamic_yolo)
                 else get_bool_attr(ctx, self._yolo, False)
             )
+            # Resolve the permission policy from the explicit task param, else
+            # global config. None → run_agent keeps legacy/inherited behavior.
+            permission_policy = resolve_policy(
+                self._permissions
+                if self._permissions is not None
+                else CFG.LLM_PERMISSIONS
+            )
+            # Resolve the sandbox policy from the explicit task param. None →
+            # run_agent keeps inherited/ambient behavior (CFG fallback at the
+            # enforcement sites — disabled unless the deployment opted in).
+            sandbox_policy = coerce_sandbox(self._sandbox)
             CFG.LOGGER.debug("llm_task Calling run_agent with:")
             CFG.LOGGER.debug(f"  tool_confirmation: {self._tool_confirmation}")
             CFG.LOGGER.debug(f"  approval_channel: {self._approval_channel}")
@@ -416,6 +425,9 @@ class LLMTask(BaseTask):
                 yolo=yolo_value,
                 approval_channel=self._approval_channel,
                 system_prompt=system_prompt,
+                live_context=live_context,
+                permission_policy=permission_policy,
+                sandbox_policy=sandbox_policy,
             )
         except asyncio.CancelledError:
             self._save_cancelled_history(
@@ -457,11 +469,37 @@ class LLMTask(BaseTask):
         return False
 
     def _create_agent(self, ctx: AnyContext, system_prompt: str | None = None) -> Any:
-        yolo = (
-            self._dynamic_yolo
-            if self._dynamic_yolo is not None
-            else get_bool_attr(ctx, self._yolo, False)
-        )
+        if self._dynamic_yolo is not None:
+            yolo = self._dynamic_yolo
+        else:
+            # Default policy-aware callable (bare LLMTask without dynamic_yolo).
+            # Follows the same precedence chain as chat/task.py check_yolo.
+            # Caching the yolo value at closure-creation time is fine — bare
+            # LLMTask yolo is a BoolAttr, not a live xcom like LLMChatTask.
+            yolo_bool = get_bool_attr(ctx, self._yolo, False)
+
+            def _default_yolo(tool_def=None):
+                # lazy: permission is a leaf module.
+                from zrb.llm.permission import ALLOW, ASK, DENY, get_effective_policy
+                from zrb.llm.permission.capability import Capability
+
+                policy = get_effective_policy()
+                if policy is not None:
+                    tool_name = (
+                        getattr(tool_def, "name", str(tool_def))
+                        if tool_def is not None
+                        else ""
+                    )
+                    result = policy.decide(tool_name, Capability.UNKNOWN, {})
+                    if result == ALLOW:
+                        return True
+                    if result == DENY:
+                        return True  # auto-approved (gate blocks at execution)
+                    if result == ASK:
+                        return False  # explicit policy ASK is a 'hard ask'
+                return yolo_bool
+
+            yolo = _default_yolo
         if system_prompt is None:
             system_prompt = self.get_system_prompt(ctx)
         ctx.log_debug(f"SYSTEM PROMPT: {system_prompt}")
@@ -477,6 +515,9 @@ class LLMTask(BaseTask):
             if hasattr(ui, "model"):
                 ui.model = final_model
 
+        # Pass resolve_model=False: we already ran model_getter/model_renderer
+        # above. Letting create_agent resolve again would double-fire those
+        # callbacks on the already-resolved model.
         return create_agent(
             model=final_model,
             system_prompt=system_prompt,
@@ -486,6 +527,7 @@ class LLMTask(BaseTask):
             history_processors=self._history_processors,
             capabilities=self._capabilities,
             yolo=yolo,
+            resolve_model=False,
         )
 
     def _get_effective_prompt(
@@ -621,8 +663,9 @@ class LLMTask(BaseTask):
 
         Constructs a synthetic history containing the original history, the
         user's message, and a cancellation marker so the next turn can build
-        on context rather than starting fresh.  Best-effort: failures are
-        silently swallowed.
+        on context rather than starting fresh.  Best-effort: a failure must not
+        crash the interrupt path, but it is logged so silent history loss is
+        diagnosable.
         """
         try:
             # lazy: heavy third-party
@@ -646,8 +689,8 @@ class LLMTask(BaseTask):
             )
             history_manager.update(conversation_name, partial_history)
             history_manager.save(conversation_name)
-        except Exception:
-            pass
+        except Exception as e:
+            CFG.LOGGER.warning(f"Failed to save cancelled history: {e}")
 
     def _post_process_output(self, output: Any) -> Any:
         if isinstance(output, str):
@@ -668,6 +711,13 @@ class LLMTask(BaseTask):
             return ""
         compose_prompt = self._prompt_manager.compose_prompt()
         return compose_prompt(ctx)
+
+    def get_live_context(self, ctx: AnyContext) -> str:
+        """Render the per-turn ``<live-context>`` block injected into the user
+        turn. Empty string when there is no prompt manager (nothing to wire)."""
+        if self._prompt_manager is None:
+            return ""
+        return self._prompt_manager.create_live_context(ctx)
 
     def _get_conversation_name(self, ctx: AnyContext) -> str:
         conversation_name = str(

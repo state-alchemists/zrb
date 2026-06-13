@@ -291,6 +291,54 @@ class TestAsyncFunctions:
     """Test async todo functions."""
 
     @pytest.mark.asyncio
+    async def test_write_todos_unknown_keys(self, tmp_path):
+        """write_todos rejects unknown keys with a SYSTEM SUGGESTION error."""
+        manager = TodoManager()
+        manager._todo_dir = tmp_path
+        manager._todos = {}
+
+        result = await write_todos(
+            [{"description": "Fix bug"}, {"content": "Valid task"}],
+            session="key_check",
+        )
+
+        assert "Error" in result
+        assert "description" in result
+        assert "content" in result
+        assert "SYSTEM SUGGESTION" in result
+        assert "todo #1" in result.lower() or "Todo #1" in result
+
+    @pytest.mark.asyncio
+    async def test_write_todos_multiple_unknown_keys(self, tmp_path):
+        """Lists every invalid key, not just the first."""
+        result = await write_todos(
+            [{"title": "A", "summary": "B"}], session="multi_key"
+        )
+
+        assert "title" in result
+        assert "summary" in result
+        assert "SYSTEM SUGGESTION" in result
+
+    @pytest.mark.asyncio
+    async def test_write_todos_valid_keys_pass(self, tmp_path):
+        """Valid keys like content, status, id should not trigger errors."""
+        manager = TodoManager()
+        manager._todo_dir = tmp_path
+        manager._todos = {}
+
+        result = await write_todos(
+            [
+                {"content": "Real task", "status": "pending"},
+                {"content": "Another", "id": "x1"},
+            ],
+            session="good_keys",
+        )
+
+        assert "Error" not in result
+        assert "Real task" in result
+        assert "Another" in result
+
+    @pytest.mark.asyncio
     async def test_write_todos_async(self, tmp_path):
         """Test write_todos async function."""
         manager = TodoManager()
@@ -510,17 +558,16 @@ class TestUtilityFunctions:
         assert "Auto-session task" in result
 
     def test_create_plan_tools(self):
-        """Test create_plan_tools returns the expected tools."""
+        """Agent-facing plan tools are WriteTodos + GetTodos.
+
+        WriteTodos replaces the list by default, so it subsumes UpdateTodo and
+        ClearTodos; those remain importable for direct use but are not exposed
+        to the model.
+        """
         tools = create_plan_tools()
 
-        assert len(tools) == 4
-
-        # Check function names
         names = [t.__name__ for t in tools]
-        assert "WriteTodos" in names
-        assert "GetTodos" in names
-        assert "UpdateTodo" in names
-        assert "ClearTodos" in names
+        assert names == ["WriteTodos", "GetTodos"]
 
     def test_todo_manager_instance(self):
         """Test that todo_manager is a TodoManager instance."""

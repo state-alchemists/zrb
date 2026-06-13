@@ -47,9 +47,23 @@ class KeybindingsMixin:
 
         def _submit_user_message(self, llm_task: "AnyTask", text: str) -> None: ...
 
+        def toggle_plan(self) -> None: ...
+
+        def toggle_yolo(self) -> None: ...
+
     def setup_app_keybindings(
         self, app_keybindings: "KeyBindings", llm_task: "AnyTask"
     ):
+        # lazy: heavy third-party
+        from prompt_toolkit.filters import Condition
+
+        # While the AskUserQuestion selection widget is active it owns Enter and
+        # newline keys (its own control bindings handle them); suppress the
+        # app-level handlers so they don't double-fire / resolve with stale text.
+        no_active_choice = Condition(
+            lambda: not getattr(self, "has_active_choice", lambda: False)()
+        )
+
         @app_keybindings.add("f6")
         def _(event):
             if event.app.layout.has_focus(self._input_field):
@@ -67,10 +81,12 @@ class KeybindingsMixin:
                     event.app.clipboard.set_data(data)
                 buffer.exit_selection()
                 return
-            if buffer.text != "":
+            if buffer.text.strip() != "":
                 buffer.reset()
                 return
-            self._cancel_pending_confirmations()
+            # Don't flush the confirmation buffer: the app is exiting, so
+            # writing buffered tokens is wasted work and adds latency.
+            self._cancel_pending_confirmations(flush=False)
             if self._running_llm_task and not self._running_llm_task.done():
                 self._running_llm_task.cancel()
                 self.append_to_output("\n<Esc> Canceled")
@@ -79,6 +95,14 @@ class KeybindingsMixin:
                 {"reason": "ctrl_c", "session": self._conversation_session_name},
             )
             event.app.exit()
+
+        @app_keybindings.add("c-d")
+        def _(event):
+            if event.app.current_buffer.text == "":
+                self._cancel_pending_confirmations(flush=False)
+                if self._running_llm_task and not self._running_llm_task.done():
+                    self._running_llm_task.cancel()
+                event.app.exit()
 
         @app_keybindings.add("c-v")
         @app_keybindings.add("escape", "v")
@@ -138,7 +162,7 @@ class KeybindingsMixin:
                             clipboard.get_data()
                         )
 
-            task = asyncio.get_event_loop().create_task(_handle_paste())
+            task = asyncio.create_task(_handle_paste())
             self._background_tasks.add(task)
             task.add_done_callback(self._background_tasks.discard)
 
@@ -156,8 +180,17 @@ class KeybindingsMixin:
                 )
                 self.append_to_output("\n<Esc> Canceled")
 
-        @app_keybindings.add("enter")
+        @app_keybindings.add("enter", filter=no_active_choice)
         def _(event):
+            # Enter only ever acts on the input field. With focus on the
+            # read-only output pane (Tab/F6), event.current_buffer is the
+            # output buffer — resolving a confirmation or submitting from it
+            # would send the entire pane content (banner, help, transcript)
+            # as user input. Refocus the input field instead.
+            if not event.app.layout.has_focus(self._input_field):
+                event.app.layout.focus(self._input_field)
+                return
+
             if self._handle_multiline(event):
                 return
 
@@ -199,12 +232,16 @@ class KeybindingsMixin:
             self._submit_user_message(llm_task, text)
             buff.reset()
 
+        @app_keybindings.add("c-p")
+        def _(event):
+            self.toggle_plan()
+
         @app_keybindings.add("c-y")
         def _(event):
             self.toggle_yolo()
 
-        @app_keybindings.add("c-j")  # Ctrl+J / Ctrl+Enter (Linefeed)
-        @app_keybindings.add("c-space")  # Ctrl+Space (Fallback)
+        @app_keybindings.add("c-j", filter=no_active_choice)  # Ctrl+J / Ctrl+Enter
+        @app_keybindings.add("c-space", filter=no_active_choice)  # Ctrl+Space fallback
         def _(event):
             event.current_buffer.insert_text("\n")
 

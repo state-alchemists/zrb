@@ -18,8 +18,9 @@ def test_get_group_subcommands_empty():
     mock_group = MagicMock()
     mock_group.name = "root"
 
-    with patch("zrb.util.cli.subcommand.get_subtasks", return_value=[]), patch(
-        "zrb.util.cli.subcommand.get_non_empty_subgroups", return_value={}
+    with (
+        patch("zrb.util.cli.subcommand.get_subtasks", return_value=[]),
+        patch("zrb.util.cli.subcommand.get_non_empty_subgroups", return_value={}),
     ):
         subcommands = get_group_subcommands(mock_group)
         assert subcommands == []
@@ -31,9 +32,10 @@ def test_get_group_subcommands_with_tasks():
     mock_group.name = "root"
 
     # Mock get_subtasks to return task aliases
-    with patch(
-        "zrb.util.cli.subcommand.get_subtasks", return_value=["task1", "task2"]
-    ), patch("zrb.util.cli.subcommand.get_non_empty_subgroups", return_value={}):
+    with (
+        patch("zrb.util.cli.subcommand.get_subtasks", return_value=["task1", "task2"]),
+        patch("zrb.util.cli.subcommand.get_non_empty_subgroups", return_value={}),
+    ):
 
         # Pass empty subcommands list to ensure isolation if fix was missing
         subcommands = get_group_subcommands(mock_group, subcommands=[])
@@ -63,11 +65,14 @@ def test_get_group_subcommands_with_subgroups():
         return {}
 
     # Mock get_subtasks and get_non_empty_subgroups
-    with patch(
-        "zrb.util.cli.subcommand.get_subtasks", side_effect=get_subtasks_side_effect
-    ), patch(
-        "zrb.util.cli.subcommand.get_non_empty_subgroups",
-        side_effect=get_non_empty_subgroups_side_effect,
+    with (
+        patch(
+            "zrb.util.cli.subcommand.get_subtasks", side_effect=get_subtasks_side_effect
+        ),
+        patch(
+            "zrb.util.cli.subcommand.get_non_empty_subgroups",
+            side_effect=get_non_empty_subgroups_side_effect,
+        ),
     ):
 
         subcommands = get_group_subcommands(root_group, subcommands=[])

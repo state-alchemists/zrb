@@ -71,7 +71,8 @@ def _search_with_python(
                         if pattern.search(line):
                             rel = os.path.relpath(file_path, abs_dir)
                             raw_lines.append(f"{rel}:{line_num}:{line.rstrip()}")
-            except Exception:
+            except OSError:
+                # Unreadable file (permissions, race) — skip it, keep scanning.
                 pass
     return _format_results(raw_lines, abs_dir)
 

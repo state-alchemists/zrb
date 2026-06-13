@@ -8,6 +8,7 @@ class itself owns the singleton instance and the per-key cache state.
 from __future__ import annotations
 
 import asyncio
+import atexit
 
 from zrb.llm.lsp.manager.lifecycle_mixin import LifecycleMixin
 from zrb.llm.lsp.manager.query_mixin import QueryMixin
@@ -44,3 +45,10 @@ class LSPManager(LifecycleMixin, QueryMixin):
 
 # Singleton instance
 lsp_manager = LSPManager()
+
+# Backstop: a chat/agent run that used LSP tools starts language-server
+# subprocesses that nothing else tears down at process exit. At interpreter
+# shutdown the owning event loop may already be closed, so the async
+# ``shutdown_all`` can no longer run — force-kill survivors synchronously so
+# they can't be orphaned or hold the process open. No-op when no servers run.
+atexit.register(lsp_manager.force_kill_all)

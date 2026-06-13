@@ -101,7 +101,7 @@ async def fetch_all(ctx: AnyContext):
 @make_task(
     name="retry-task",
     description="Task with retry logic",
-    retry=3,
+    retries=3,
 )
 async def retry_task(ctx: AnyContext):
     """A task that might fail but retries."""

@@ -6,7 +6,7 @@
 
 **Before making any structural change, you MUST have a passing test suite.**
 
-1. Run the existing tests with `Bash`. Confirm they pass.
+1. Run the existing tests with `Shell`. Confirm they pass.
 2. If test coverage is insufficient for the code you intend to refactor, **stop and write characterization tests first** (see `testing.md` in this directory).
    - A characterization test captures what the code currently does so you can detect unintended changes.
    - Coverage is sufficient when all public methods and their key branches (happy path + primary error path) have at least one test each. 100% line coverage is not required, but the refactoring target must be covered.
@@ -30,7 +30,7 @@
 
 Apply one refactoring technique at a time. After each:
 - Use `Edit` (not `Write`) for surgical changes.
-- Run the full test suite with `Bash`.
+- Run the full test suite with `Shell`.
 - If any test fails: **revert immediately** and diagnose. Do not proceed.
 
 **Common refactoring techniques:**

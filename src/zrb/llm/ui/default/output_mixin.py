@@ -37,6 +37,7 @@ class OutputMixin:
         _assistant_name: str
         _conversation_session_name: str
         _current_confirmation: asyncio.Future[str] | None
+        _confirmation_output_buffer: list[str]
         _cwd: str
         _git_info: str
         _is_thinking: bool
@@ -103,7 +104,15 @@ class OutputMixin:
         should_scroll_to_end = is_input_focused or is_at_last_line
 
         content = sep.join([str(value) for value in values]) + end
-        if kind != "text":
+
+        # Buffer main-agent output while a confirmation is pending during
+        # streaming, so the confirmation prompt is not interleaved with tokens.
+        if self._current_confirmation is not None and self._is_thinking:
+            self._confirmation_output_buffer.append(content)
+            self._schedule_invalidate()
+            return
+
+        if kind not in ("text", "todo_progress"):
 
             content = stylize_faint(content)
 
@@ -195,14 +204,15 @@ class OutputMixin:
         else:
             yolo_text = "<style color='ansigreen'>OFF</style>"
 
-        line1_html = (
-            f" 🤖 <b>Model:</b> {model_name} "
-            f"| 💬 <b>Session:</b> {self._conversation_session_name} "
-            f"| 🤠 <b>YOLO:</b> {yolo_text}"
+        plan_text = (
+            "<style color='ansiblue'><b>On </b></style>"
+            if getattr(self, "_plan_mode_active", False)
+            else "<style color='ansigreen'>Off</style>"
         )
-        line2_html = (
-            f" 📂 <b>Dir:</b> {self._cwd} " f"| 🌿 <b>Git:</b> {self._git_info}"
-        )
+
+        line1_html = f" 🤖 <b>Model:</b> {model_name} | 💬 <b>Session:</b> {self._conversation_session_name} "
+        line2_html = f" 📋 <b>Plan Mode:</b> {plan_text} | 🤠 <b>YOLO:</b> {yolo_text} "
+        line3_html = f" 📂 <b>Dir:</b> {self._cwd} | 🌿 <b>Git:</b> {self._git_info} "
 
         total_cols = get_terminal_size().columns
 
@@ -214,7 +224,13 @@ class OutputMixin:
                 " " * padding + html_text + " " * (total_cols - visible_width - padding)
             )
 
-        return HTML(center_line(line1_html) + "\n" + center_line(line2_html))
+        return HTML(
+            center_line(line1_html)
+            + "\n"
+            + center_line(line2_html)
+            + "\n"
+            + center_line(line3_html)
+        )
 
     def get_status_bar_text(self) -> "AnyFormattedText":
         if self.current_confirmation is not None:

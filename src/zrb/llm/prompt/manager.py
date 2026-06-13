@@ -4,13 +4,13 @@ from typing import Any, Callable
 
 from zrb.attr.type import StrListAttr
 from zrb.config.config import CFG
-from zrb.context.any_context import AnyContext
+from zrb.context.any_context import AnyContext, zrb_print
 from zrb.llm.prompt.claude import (
     create_claude_skills_prompt,
     create_project_context_prompt,
 )
 from zrb.llm.prompt.prompt import get_prompt
-from zrb.llm.prompt.system_context import system_context
+from zrb.llm.prompt.system_context import render_live_context, system_context
 from zrb.llm.prompt.tool_guidance import (
     ToolCatalogue,
     ToolGroups,
@@ -37,6 +37,25 @@ def _render_persona_prompt(assistant_name: str | None) -> str:
 
 
 class PromptManager:
+    """Assembles the LLM system prompt from ordered, MECE sections.
+
+    Sections are emitted in the order given by ``include_sections`` (default in
+    ``config/mixins/llm_prompt.py``: persona → mandate → git_mandate →
+    journal_mandate → system_context → project_context → tool_guidance →
+    claude_skills), followed by any user-added prompts. A section name that is
+    not one of the built-ins resolves as a custom section: a provider registered
+    via ``register_section`` (composed by calling it with the active context, for
+    runtime-dynamic content) takes precedence, otherwise the content is loaded
+    via ``get_prompt(name)`` (so ``"company_context"`` resolves
+    ``company_context.md`` through the usual project-override → env →
+    base-prompt-dir → package lookup). Either way downstreams add always-on,
+    config-positioned sections without touching this class. ``tool_names`` and
+    ``tool_guidance`` are resolved at runtime to
+    filter per-tool guidance to the tools actually available; ``model`` and
+    ``assistant_name`` may be callables resolved against the active context. See
+    AGENTS.md ("LLM Prompt System").
+    """
+
     def __init__(
         self,
         prompts: list[PromptMiddleware | str] | None = None,
@@ -62,6 +81,11 @@ class PromptManager:
         self._active_skills = active_skills
         self._render_active_skills = render_active_skills
         self._render = render
+        # Dynamic providers for config-positioned custom sections, keyed by the
+        # name used in ``include_sections``. A registered provider is composed
+        # by calling ``provider(ctx)`` at compose time; it takes precedence over
+        # a same-named markdown file. See ``register_section``.
+        self._section_providers: dict[str, SimplePrompt] = {}
         # Resolved current model — used by the system_context section to
         # surface model-specific capabilities (e.g. parallel tool call
         # support). Set by the task runner before each compose_prompt(),
@@ -155,6 +179,23 @@ class PromptManager:
                     members.append(name)
                 break
 
+    def register_section(self, name: str, provider: SimplePrompt) -> None:
+        """Register a dynamic provider for a config-positioned custom section.
+
+        Once registered, *name* may appear in ``include_sections`` (or the
+        ``ZRB_LLM_INCLUDE_SECTIONS`` env var) and is composed at that position
+        by calling ``provider(ctx)`` at compose time, so the content reflects
+        live runtime state. *provider* must accept the active context and return
+        a string (``Callable[[AnyContext], str]``); return ``""`` to emit
+        nothing.
+
+        Resolution precedence for a section name is built-in > registered
+        provider > markdown file: a registered provider shadows a same-named
+        ``get_prompt(name)`` file but never a built-in section. Re-registering
+        the same name overwrites the previous provider.
+        """
+        self._section_providers[name] = provider
+
     def reset(self):
         self._middlewares = []
 
@@ -163,6 +204,24 @@ class PromptManager:
 
     def append_prompt(self, *middleware: PromptMiddleware | str):
         self._middlewares.extend(middleware)
+
+    def create_live_context(self, ctx: AnyContext) -> str:
+        """Render the per-turn volatile runtime state as a ``<live-context>``
+        block for injection into the latest user message.
+
+        Kept out of the system prompt on purpose: the block changes every turn
+        (time, git, todos, …), so embedding it in the cached prefix would defeat
+        prompt caching. Injecting it into the user turn instead keeps the system
+        prompt byte-stable while still surfacing live state, and freezes a
+        snapshot into history (older turns show what state *was*; the most
+        recent block is authoritative — anchored in the system prompt). Returns
+        ``""`` when there is nothing to report. See AGENTS.md ("LLM Prompt
+        System") and ``render_live_context``.
+        """
+        body = render_live_context(ctx, self._model)
+        if not body.strip():
+            return ""
+        return f"<live-context>\n{body}\n</live-context>"
 
     def compose_prompt(self) -> Callable[[AnyContext], str]:
         """
@@ -268,10 +327,54 @@ class PromptManager:
                     middlewares.append(
                         create_claude_skills_prompt(_skill_mgr, active_skills)
                     )
+            elif section in self._section_providers:
+                # Registered dynamic section -> composed by calling the
+                # provider with the active context at compose time. Takes
+                # precedence over a same-named markdown file. Registered via
+                # register_section(); see AGENTS.md ("LLM Prompt System").
+                middlewares.append(self._section_providers[section])
+            else:
+                # Unknown name -> file-backed custom section, resolved via
+                # get_prompt(name) (project override -> env -> base prompt dir
+                # -> package default). Lets downstreams add always-on, ordered
+                # sections through include_sections + a markdown file, with no
+                # code change. Missing files resolve to "" (harmless no-op)
+                # and log a warning so a misspelled name is diagnosable.
+                middlewares.append(self._new_file_section_middleware(section))
 
         # User custom prompts always last
         middlewares.extend(self._middlewares)
         return middlewares
+
+    def _new_file_section_middleware(self, name: str) -> FullMiddleware:
+        """Middleware for a file-backed custom section.
+
+        Resolves *name* via ``get_prompt`` at compose time. When nothing
+        resolves (no registered provider, no markdown file), the section is
+        empty — a warning is logged so a misspelled name in
+        ``include_sections`` / ``ZRB_LLM_INCLUDE_SECTIONS`` is diagnosable
+        instead of silently dropped.
+        """
+
+        def file_section_middleware(
+            ctx: AnyContext, current: str, next_fn: Callable[[AnyContext, str], str]
+        ) -> str:
+            content = get_prompt(name)
+            if not content:
+                message = (
+                    f"Prompt section '{name}' is not a built-in, has no "
+                    "registered provider, and no markdown file resolves for "
+                    "it — the section is empty. Check include_sections / "
+                    "ZRB_LLM_INCLUDE_SECTIONS for a typo."
+                )
+                log_warning = getattr(ctx, "log_warning", None)
+                if callable(log_warning):
+                    log_warning(message)
+                else:
+                    zrb_print(f"Warning: {message}", plain=True)
+            return next_fn(ctx, f"{current}\n{content}")
+
+        return file_section_middleware
 
     def _is_full_middleware(self, prompt: PromptMiddleware | str) -> bool:
         """Check if prompt is a full middleware (accepts next param) or simple callable."""

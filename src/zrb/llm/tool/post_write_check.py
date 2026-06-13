@@ -115,6 +115,8 @@ def _python_static_errors(abs_path: str) -> list[tuple[int, str]]:
         return [(line, f"SyntaxError: {e.msg}")]
 
     try:
+        # lazy: heavy third-party — pyflakes is an optional dependency; the
+        # surrounding try/except degrades gracefully when it is not installed.
         from pyflakes import checker as _pyflakes_checker
         from pyflakes.messages import UndefinedExport, UndefinedLocal, UndefinedName
     except Exception:

@@ -18,6 +18,10 @@ from zrb.llm.tool.delegate import (
     create_delegate_to_agent_tool,
     create_parallel_delegate_tool,
 )
+from zrb.llm.tool.delegate_background import (
+    create_background_delegate_tool,
+    create_get_delegation_result_tool,
+)
 from zrb.llm.tool_call import (
     auto_approve,
     bash_safe_command_policy,
@@ -82,6 +86,8 @@ apply_common_tools(llm_chat)
 llm_chat.add_tool_factory(
     lambda ctx: create_delegate_to_agent_tool(),
     lambda ctx: create_parallel_delegate_tool(),
+    lambda ctx: create_background_delegate_tool(),
+    lambda ctx: create_get_delegation_result_tool(),
 )
 
 # Add argument formatter (show arguments when asking for user confirmation)
@@ -120,10 +126,24 @@ llm_chat.add_tool_policy(
     auto_approve("SearchInternet"),
     auto_approve("OpenWebPage"),
     auto_approve("ActivateSkill"),
-    # AskUserQuestion blocks on stdin only when interactive; no side effects.
-    auto_approve("AskUserQuestion"),
+    # AskUserQuestion is auto-approved intrinsically (it registers itself via
+    # register_always_auto_approve in zrb.llm.tool.ask), so the cascade approves
+    # it in every path — main agent, sub-agents, web — not just here. See
+    # ADR-0062. No entry needed in this list.
     auto_approve("DelegateToAgent"),
     auto_approve("DelegateToAgentsParallel"),
+    # Starting a background delegation and polling its result are harmless; the
+    # sub-agent's own tool calls still route their approvals to the user.
+    auto_approve("DelegateToAgentBackground"),
+    auto_approve("GetDelegationResult"),
+    # EnterPlanMode only restricts the model further, safe to auto-approve.
+    auto_approve("EnterPlanMode"),
+    # ExitPlanMode switches from PLAN to BUILD — requires user confirmation
+    # via the permission policy (PLAN_MODE_POLICY sets it to ASK) so the user
+    # must approve the plan before execution resumes.
+    # Background shell commands are harmless to start; MonitorProcess is read-only
+    auto_approve("ShellBackground"),
+    auto_approve("MonitorProcess"),
     # LSP tools - read-only, safe to auto-approve
     auto_approve("LspFindDefinition"),
     auto_approve("LspFindReferences"),
@@ -135,8 +155,6 @@ llm_chat.add_tool_policy(
     # Planning tools - safe to auto-approve (just state management)
     auto_approve("WriteTodos"),
     auto_approve("GetTodos"),
-    auto_approve("UpdateTodo"),
-    auto_approve("ClearTodos"),
     # Note: LspRenameSymbol uses dry_run by default, but requires user approval
     # when dry_run=False (actual file modifications)
     # Worktree tools - listing is safe; create/remove require approval

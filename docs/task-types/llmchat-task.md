@@ -32,6 +32,7 @@ chat = LLMChatTask(
     message: StrAttr | None = None,
     render_message: bool = True,
     system_prompt: str | None = None,
+    render_system_prompt: bool = False,
     prompt_manager: PromptManager | None = None,
     active_skills: StrListAttr | None = None,
     render_active_skills: bool = True,
@@ -55,17 +56,15 @@ chat = LLMChatTask(
     # Tool confirmation & approval
     tool_confirmation: AnyToolConfirmation = None,
     yolo: BoolAttr = False,
-    dynamic_yolo: Callable | None = None,
     approval_channel: ApprovalChannel | None = None,
     # UI
     ui: UIProtocol | None = None,
-    # Hooks
-    hook_manager: HookManager | None = None,
+    ui_factory: Callable | None = None,
     # Summarization
-    summarize_command: list[str] | None = None,
+    ui_summarize_commands: list[str] | None = None,
     # Flow control (inherited from BaseTask)
     execute_condition: bool | str | Callable = True,
-    retries: int = 2,
+    retries: int = 0,
     retry_period: float = 0,
     upstream: list[AnyTask] | AnyTask | None = None,
     fallback: list[AnyTask] | AnyTask | None = None,
@@ -122,7 +121,7 @@ chat.add_tool_guidance_factory(
 )
 ```
 
-> **Note:** `add_tool_guidance_factory` is only available on `LLMChatTask`, not `LLMTask`.
+> **Note:** `add_tool_guidance_factory` is available on both `LLMChatTask` and `LLMTask`.
 
 ### History Processors
 
@@ -172,7 +171,7 @@ chat.set_history_manager(FileHistoryManager(history_dir="./my-history/"))
 | **Use case** | Interactive conversation | Single-shot processing |
 | **Conversation history** | Persistent across turns | None (one request) |
 | **TUI** | Full-screen terminal UI | No TUI (programmatic only) |
-| **`add_tool_guidance_factory`** | Yes | No |
+| **`add_tool_guidance_factory`** | Yes | Yes |
 | **Custom commands** | Yes | No |
 | **Triggers (async iterables)** | Yes | No |
 | **Response handlers** | Yes | No |

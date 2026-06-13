@@ -27,7 +27,13 @@ async def test_http_check_success(mock_session):
         result = await http_check.exec(mock_session)
 
         assert result == mock_response
-        mock_request.assert_called_once_with("GET", "http://localhost")
+        # The probe is bounded by a timeout so a half-open endpoint can't hang
+        # the worker thread; the default equals the polling interval.
+        from zrb.config.config import CFG
+
+        mock_request.assert_called_once_with(
+            "GET", "http://localhost", timeout=CFG.HTTP_CHECK_INTERVAL / 1000
+        )
 
 
 @pytest.mark.asyncio
@@ -44,9 +50,12 @@ async def test_http_check_retry_and_succeed(mock_session):
         sleep_called.append(delay)
         return None
 
-    with patch(
-        "requests.request", side_effect=[mock_response_fail, mock_response_success]
-    ) as mock_request, patch("asyncio.sleep", side_effect=mock_sleep):
+    with (
+        patch(
+            "requests.request", side_effect=[mock_response_fail, mock_response_success]
+        ) as mock_request,
+        patch("asyncio.sleep", side_effect=mock_sleep),
+    ):
         http_check = HttpCheck(name="test_http_check")
         mock_session.register_task(http_check)
 

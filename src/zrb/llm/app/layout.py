@@ -37,6 +37,8 @@ def create_input_field(
     summarize_commands: list[str] = [],
     set_model_commands: list[str] = [],
     exec_commands: list[str] = [],
+    plan_commands: list[str] = [],
+    copy_commands: list[str] = [],
     custom_commands: list[AnyCustomCommand] = [],
     history: History | None = None,
     custom_model_names: list[str] = [],
@@ -97,6 +99,8 @@ def create_input_field(
             summarize_commands=summarize_commands,
             set_model_commands=set_model_commands,
             exec_commands=exec_commands,
+            plan_commands=plan_commands,
+            copy_commands=copy_commands,
             custom_commands=custom_commands,
             custom_model_names=custom_model_names,
             show_ollama_models=show_ollama_models,
@@ -181,6 +185,7 @@ def create_layout(
     output_field: TextArea,
     info_bar_text: Callable[[], AnyFormattedText],
     status_bar_text: Callable[[], AnyFormattedText],
+    extra_floats: list[Float] | None = None,
 ) -> Layout:
     title_bar_text = HTML(
         f" <style bg='ansipurple' color='white'><b> {title} </b></style> "
@@ -229,6 +234,7 @@ def create_layout(
                     ycursor=True,
                     content=CompletionsMenu(max_height=16, scroll_offset=1),
                 ),
+                *(extra_floats or []),
             ],
         ),
         focused_element=input_field,

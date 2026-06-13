@@ -48,12 +48,18 @@ class RetryState:
     invalid_tool_retry_done: bool = False
     missing_reasoning_retry_done: bool = False
     opaque_retry_done: bool = False
+    deferred_mismatch_retry_done: bool = False
+    empty_completion_retry_count: int = 0
     max_context_retries: int = field(
         default_factory=lambda: CFG.LLM_MAX_CONTEXT_RETRIES
     )
     max_transient_retries: int = field(
         default_factory=lambda: max(0, CFG.LLM_API_MAX_RETRIES - 1)
     )
+    # An empty/placeholder completion is usually a transient provider hiccup, so
+    # retry a couple of times; if it persists (e.g. context exceeds the model's
+    # window) the loop raises a clear error rather than surfacing the placeholder.
+    max_empty_completion_retries: int = 2
 
 
 @dataclass
@@ -63,6 +69,7 @@ class RetryOutcome:
     should_retry: bool
     new_history: list[Any] | None = None
     new_message: Any = None
+    clear_results: bool = False
 
 
 async def handle_stream_error(
@@ -104,21 +111,34 @@ async def handle_stream_error(
         is_prompt_too_long_error(exc)
         and state.context_retry_count < state.max_context_retries
     ):
-        state.context_retry_count += 1
-        state.transient_retry_count = 0
         new_history = drop_oldest_turn(current_history, min_turns=min_turns)
-        print_fn(
-            f"\n[SYSTEM] Context too long, retrying with reduced history"
-            f" (attempt {state.context_retry_count}/{state.max_context_retries})..."
-        )
-        CFG.LOGGER.debug(
-            f"Prompt too long: retrying with {len(new_history)} history messages"
-        )
-        return RetryOutcome(
-            should_retry=True,
-            new_history=new_history,
-            new_message=current_message,
-        )
+        # Only take the prune-and-retry path when it actually shrinks the
+        # request. drop_oldest_turn returns the history unchanged when there is
+        # nothing left to drop (a single turn, or min_turns already reached).
+        # Retrying with an identical history reproduces the same error and —
+        # when deferred tool results are pending (min_turns=1) — re-executes the
+        # approved, side-effecting tool on every attempt. When pruning can make
+        # no progress, fall through to the text-only collapse below, which
+        # truncates oversized tool results instead of looping uselessly.
+        if len(new_history) < len(current_history):
+            state.context_retry_count += 1
+            # transient_retry_count is intentionally NOT reset here: the transient
+            # (429/5xx) budget derived from LLM_API_MAX_RETRIES is a global cap for
+            # the whole run. A context-length prune is a different failure class and
+            # must not refresh that budget, or a session alternating between the two
+            # error types could retry transiently far more than configured.
+            print_fn(
+                f"\n[SYSTEM] Context too long, retrying with reduced history"
+                f" (attempt {state.context_retry_count}/{state.max_context_retries})..."
+            )
+            CFG.LOGGER.debug(
+                f"Prompt too long: retrying with {len(new_history)} history messages"
+            )
+            return RetryOutcome(
+                should_retry=True,
+                new_history=new_history,
+                new_message=current_message,
+            )
 
     if (
         is_missing_reasoning_content_error(exc)
@@ -227,6 +247,34 @@ async def handle_stream_error(
                 should_retry=True,
                 new_history=sanitized,
                 new_message=fallback_message,
+            )
+
+    # Deferred-tool-results mismatch after history compression.
+    # The history summarizer ran between deferred tool iterations and removed
+    # the ModelResponse whose tool_calls matched current_results.  pydantic-ai's
+    # _handle_deferred_tool_results raises UserError because the last ModelResponse
+    # no longer has any ToolCallParts.  Clearing current_results lets the model
+    # generate fresh tool calls on the next iteration.  We must hand back the
+    # intact ``run_history`` (not ``None``) — the runner assigns ``new_history``
+    # to ``current_history`` unconditionally, and the next loop iteration feeds
+    # it straight into ``sanitize_history``, which raises on ``None``.
+    if not state.deferred_mismatch_retry_done:
+        # lazy: heavy third-party — pydantic_ai pulls in OpenAI/Anthropic SDKs.
+        from pydantic_ai.exceptions import UserError as PydanticUserError
+
+        if isinstance(exc, PydanticUserError) and (
+            "does not contain any unprocessed tool calls" in str(exc)
+            or "does not contain a `ModelResponse`" in str(exc)
+        ):
+            state.deferred_mismatch_retry_done = True
+            print_fn(
+                "\n[SYSTEM] Deferred tool results reference stale history — "
+                "clearing pending results and retrying..."
+            )
+            return RetryOutcome(
+                should_retry=True,
+                new_history=run_history,
+                clear_results=True,
             )
 
     return RetryOutcome(should_retry=False)

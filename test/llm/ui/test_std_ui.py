@@ -1,13 +1,16 @@
 """Tests for StdUI class."""
 
-import asyncio
-import sys
 from io import StringIO
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from zrb.llm.ui.std_ui import StdUI
+from zrb.llm.ui.std_ui import (
+    _FREE_TEXT,
+    StdUI,
+    _option_text,
+    resolve_choice_selection,
+)
 
 
 def test_stdui_append_to_output():
@@ -157,3 +160,120 @@ def test_stdui_stream_to_parent_writes_like_append(capsys):
     ui.stream_to_parent("streamed", flush=True, kind="text")
     captured = capsys.readouterr()
     assert "streamed" in captured.err
+
+
+# --- ask_user_choice ----------------------------------------------------
+
+
+def _spec(options, multi=False, index=1, total=1):
+    return {
+        "question": "Pick?",
+        "options": options,
+        "multi_select": multi,
+        "header": "Pick",
+        "index": index,
+        "total": total,
+    }
+
+
+def _patch_dialog(selection, multi=False):
+    """Patch the relevant dialog factory to return a dialog yielding `selection`."""
+    dialog = MagicMock()
+    dialog.run_async = AsyncMock(return_value=selection)
+    factory = MagicMock(return_value=dialog)
+    target = (
+        "prompt_toolkit.shortcuts.checkboxlist_dialog"
+        if multi
+        else "prompt_toolkit.shortcuts.radiolist_dialog"
+    )
+    return patch(target, factory), dialog
+
+
+def test_option_text_with_and_without_description():
+    assert _option_text({"label": "A", "description": "d"}) == "A — d"
+    assert _option_text({"label": "B"}) == "B"
+
+
+def test_resolve_choice_selection_single_and_multi():
+    spec = _spec([{"label": "A"}, {"label": "B"}, {"label": "C"}])
+    assert resolve_choice_selection(spec, 1) == "B"
+    assert resolve_choice_selection(spec, [0, 2]) == "A, C"
+    # Out-of-range indices are dropped.
+    assert resolve_choice_selection(spec, [0, 99]) == "A"
+
+
+@pytest.mark.asyncio
+async def test_ask_user_choice_empty_options_returns_empty():
+    ui = StdUI()
+    assert await ui.ask_user_choice(_spec([])) == ""
+
+
+@pytest.mark.asyncio
+async def test_ask_user_choice_single_select_returns_label():
+    ui = StdUI()
+    dlg_patch, _ = _patch_dialog(selection=1)
+    with dlg_patch, patch("prompt_toolkit.output.create_output", MagicMock()):
+        result = await ui.ask_user_choice(_spec([{"label": "A"}, {"label": "B"}]))
+    assert result == "B"
+
+
+@pytest.mark.asyncio
+async def test_ask_user_choice_multi_select_joins_labels():
+    ui = StdUI()
+    dlg_patch, _ = _patch_dialog(selection=[0, 2], multi=True)
+    with dlg_patch, patch("prompt_toolkit.output.create_output", MagicMock()):
+        result = await ui.ask_user_choice(
+            _spec([{"label": "A"}, {"label": "B"}, {"label": "C"}], multi=True)
+        )
+    assert result == "A, C"
+
+
+@pytest.mark.asyncio
+async def test_ask_user_choice_cancel_raises_keyboard_interrupt():
+    ui = StdUI()
+    dlg_patch, _ = _patch_dialog(selection=None)
+    with dlg_patch, patch("prompt_toolkit.output.create_output", MagicMock()):
+        with pytest.raises(KeyboardInterrupt):
+            await ui.ask_user_choice(_spec([{"label": "A"}]))
+
+
+@pytest.mark.asyncio
+async def test_ask_user_choice_nothing_selected_returns_no_answer():
+    ui = StdUI()
+    dlg_patch, _ = _patch_dialog(selection=[], multi=True)
+    with dlg_patch, patch("prompt_toolkit.output.create_output", MagicMock()):
+        result = await ui.ask_user_choice(_spec([{"label": "A"}], multi=True))
+    assert result == "(no answer)"
+
+
+@pytest.mark.asyncio
+async def test_ask_user_choice_free_text_prompts_for_input():
+    ui = StdUI()
+    dlg_patch, _ = _patch_dialog(selection=_FREE_TEXT)
+    mock_session = MagicMock()
+    mock_session.prompt_async = AsyncMock(return_value="my own answer  ")
+    with (
+        dlg_patch,
+        patch("prompt_toolkit.output.create_output", MagicMock()),
+        patch("prompt_toolkit.PromptSession", create=True, return_value=mock_session),
+    ):
+        result = await ui.ask_user_choice(_spec([{"label": "A"}]))
+    assert result == "my own answer"
+
+
+@pytest.mark.asyncio
+async def test_ask_user_choice_multi_free_text_combines_checked_and_typed():
+    """Multi-select + 'type my own' → checked options plus the typed answer."""
+    ui = StdUI()
+    dlg_patch, _ = _patch_dialog(selection=[0, 2, _FREE_TEXT], multi=True)
+    mock_session = MagicMock()
+    mock_session.prompt_async = AsyncMock(return_value="custom")
+    with (
+        dlg_patch,
+        patch("prompt_toolkit.output.create_output", MagicMock()),
+        patch("prompt_toolkit.PromptSession", create=True, return_value=mock_session),
+    ):
+        result = await ui.ask_user_choice(
+            _spec([{"label": "A"}, {"label": "B"}, {"label": "C"}], multi=True)
+        )
+    assert result == "A, C, custom"

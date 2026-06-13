@@ -82,9 +82,11 @@ class TestHookManagerLifecycle:
         (root / ".zrb" / "hooks").mkdir(parents=True)
         (leaf / ".claude" / "hooks").mkdir(parents=True)
 
-        with patch("os.getcwd", return_value=str(leaf)), patch(
-            "pathlib.Path.cwd", return_value=leaf
-        ), patch.dict(os.environ, {"ZRB_ROOT_GROUP_NAME": "zrb"}):
+        with (
+            patch("os.getcwd", return_value=str(leaf)),
+            patch("pathlib.Path.cwd", return_value=leaf),
+            patch.dict(os.environ, {"ZRB_ROOT_GROUP_NAME": "zrb"}),
+        ):
             dirs = manager.get_search_directories()
             assert any("root/.zrb/hooks" in str(d) for d in dirs)
             assert any("leaf/.claude/hooks" in str(d) for d in dirs)
@@ -484,8 +486,9 @@ class TestHookManagerHookTypes:
             coro.close()
             return MagicMock()  # Return a mock task
 
-        with patch("asyncio.create_subprocess_shell"), patch(
-            "asyncio.create_task", side_effect=mock_create_task
+        with (
+            patch("asyncio.create_subprocess_shell"),
+            patch("asyncio.create_task", side_effect=mock_create_task),
         ):
             manager.scan(search_dirs=[str(tmp_path)])
             results = await manager.execute_hooks(HookEvent.SESSION_START, {})
@@ -514,8 +517,9 @@ class TestHookManagerHookTypes:
         mock_agent = MagicMock()
         mock_agent.run = AsyncMock(return_value=MagicMock(output='{"res": "ok"}'))
 
-        with patch("pydantic_ai.Agent", return_value=mock_agent), patch(
-            "pydantic_ai.models.openai.OpenAIModel", return_value=MagicMock()
+        with (
+            patch("pydantic_ai.Agent", return_value=mock_agent),
+            patch("pydantic_ai.models.openai.OpenAIModel", return_value=MagicMock()),
         ):
             manager.scan(search_dirs=[str(tmp_path)])
             results = await manager.execute_hooks(
@@ -544,8 +548,9 @@ class TestHookManagerHookTypes:
         mock_agent = MagicMock()
         mock_agent.run = AsyncMock(return_value=MagicMock(output="agent output"))
 
-        with patch("pydantic_ai.Agent", return_value=mock_agent), patch(
-            "pydantic_ai.models.openai.OpenAIModel", return_value=MagicMock()
+        with (
+            patch("pydantic_ai.Agent", return_value=mock_agent),
+            patch("pydantic_ai.models.openai.OpenAIModel", return_value=MagicMock()),
         ):
             manager.scan(search_dirs=[str(tmp_path)])
             results = await manager.execute_hooks(HookEvent.SESSION_START, "some input")
