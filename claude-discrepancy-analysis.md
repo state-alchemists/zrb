@@ -416,7 +416,7 @@ Comprehensive skill system (`src/zrb/llm/skill/`):
 
 **Post-write/edit diagnostics** ✅ (`tool/post_write_check.py`): after `write_file`/`replace_in_file`, runs LSP `get_diagnostics()` + static checks (Python `ast.parse` + `pyflakes`); appends a `[DIAGNOSTIC]` block.
 
-**Status**: 🟡 **Partially supported**
+**Tool-output truncation backstop** ✅ **NEW (v2.32.0, ADR-0052)**: global `LLM_MAX_TOOL_RESULT_CHARS` cap (default 100k) truncates model-facing content head+tail with a re-fetch hint, preserving structured `return_value`.
 
 **Gap**: Core file/shell/web/worktree/LSP/todo/plan-mode/background tools well-covered. Missing: `NotebookEdit`, `CronCreate/Delete/List`, general `Monitor` event stream, `ToolSearch`, MCP resource tools, `SendMessage`/`TeamCreate`/`TeamDelete`, `Workflow`, `RemoteTrigger`/`PushNotification`/`ScheduleWakeup`, dedicated `PowerShell` tool.
 
