@@ -492,8 +492,11 @@ class TestHookManagerHookTypes:
         ):
             manager.scan(search_dirs=[str(tmp_path)])
             results = await manager.execute_hooks(HookEvent.SESSION_START, {})
-            assert "Async execution started" in results[0].message
+            # Async command hooks are dispatched fire-and-forget on the running
+            # loop: a task is spawned and no result is collected (they cannot
+            # block or contribute context).
             assert len(created_tasks) == 1
+            assert results == []
 
     @pytest.mark.asyncio
     async def test_prompt_hook(self, manager, tmp_path):

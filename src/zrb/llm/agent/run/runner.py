@@ -724,6 +724,19 @@ async def _execution_loop(
                 current_results = None
                 continue
 
+            # Natural end of the agent's turn. zrb fires SESSION_END once per
+            # completed turn, but Claude-Code-compatible consumers put the
+            # per-turn "done" signal on Stop (completion sounds, desktop
+            # notifications, e.g. peon-ping). Fire it here — once, and only when
+            # we are actually handing control back to the user, not on the
+            # deferred-wait path above. Manual interrupts raise CancelledError
+            # before reaching here, where the TUI fires its own Stop, so the two
+            # paths never double-fire.
+            await effective_hook_manager.execute_hooks(
+                HookEvent.STOP,
+                {"output": result_output, "history": run_history},
+                stop_hook_active=False,
+            )
             return resolve_extended_return(extension_state, result_output, run_history)
     except asyncio.CancelledError:
         raise

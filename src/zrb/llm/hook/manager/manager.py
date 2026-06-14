@@ -43,6 +43,14 @@ logger = logging.getLogger(__name__)
 
 _IGNORE_DIRS: list[str] = []
 
+# Bound fire-and-forget command hooks. A high-frequency event must not spawn an
+# unbounded pile of subprocesses: that exhausted file descriptors ([Errno 24])
+# and, when a serialized external tool (e.g. peon-ping) backed up, produced a
+# timeout storm. The semaphore caps concurrent subprocesses; the pending ceiling
+# sheds load by dropping new hooks once the backlog is full.
+_MAX_CONCURRENT_BG_HOOKS = 4
+_MAX_PENDING_BG_HOOKS = 64
+
 
 class HookManager(HookLoaderMixin):
     def __init__(
@@ -64,6 +72,12 @@ class HookManager(HookLoaderMixin):
         self._ignore_dirs = _IGNORE_DIRS if ignore_dirs is None else ignore_dirs
         self._search_dirs: list[str | Path] | None = search_dirs
         self._loaded: bool = False  # Track if hooks have been loaded
+        # Strong refs to fire-and-forget async hook tasks so the event loop
+        # doesn't GC them mid-run (asyncio only keeps weak references).
+        self._background_tasks: set[asyncio.Task] = set()
+        # Bounds concurrent fire-and-forget subprocesses. Created lazily inside
+        # the running loop (see _run_background_hook).
+        self._bg_semaphore: asyncio.Semaphore | None = None
 
     def _ensure_loaded(self):
         """Lazy load hooks on first access. No-op if already loaded."""
@@ -176,10 +190,27 @@ class HookManager(HookLoaderMixin):
         # Execute hooks sequentially to support blocking/continue logic
         for i, hook in enumerate(hooks_to_run):
             # Get timeout from config if available
-            timeout = None
-            if hook in self._hook_to_config:
-                config = self._hook_to_config[hook]
-                timeout = config.timeout
+            config = self._hook_to_config.get(hook)
+            timeout = config.timeout if config else None
+
+            # Async command hooks are fire-and-forget: spawn them on the current
+            # (persistent) event loop and DON'T await. Awaiting them through the
+            # thread executor would block here until the hook's subprocess — and
+            # any child it forks, e.g. peon-ping's audio player — exits or the
+            # timeout fires, defeating the whole point of `async` and stalling
+            # the agent on every event (a per-output-chunk Notification hook
+            # alone would add a multi-second wait per chunk). They cannot block
+            # or contribute additionalContext, so omitting their result is
+            # correct.
+            if (
+                config is not None
+                and config.is_async
+                and config.type == (HookType.COMMAND)
+            ):
+                if self._spawn_background_hook(hook, context):
+                    continue
+                # No running loop (rare sync caller) — fall through to the
+                # executor so the hook still runs, just synchronously.
 
             try:
                 result = await self._executor.execute_hook(
@@ -210,6 +241,44 @@ class HookManager(HookLoaderMixin):
                 return results
 
         return results
+
+    def _spawn_background_hook(self, hook: HookCallable, context: HookContext) -> bool:
+        """Fire an async command hook without awaiting it.
+
+        Returns False when there is no running loop (a rare synchronous caller),
+        signalling the caller to run the hook through the executor instead. When
+        the backlog is already at its ceiling the hook is dropped (the event is
+        advisory — a sound/notification — so shedding is safe) and True is still
+        returned so the caller does not also run it synchronously.
+        """
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return False
+        if len(self._background_tasks) >= _MAX_PENDING_BG_HOOKS:
+            logger.debug(
+                "Dropping background hook; %d already pending",
+                len(self._background_tasks),
+            )
+            return True
+        task = loop.create_task(self._run_background_hook(hook, context))
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)
+        return True
+
+    async def _run_background_hook(
+        self, hook: HookCallable, context: HookContext
+    ) -> None:
+        """Run a fire-and-forget hook under the concurrency semaphore."""
+        if self._bg_semaphore is None:
+            # Safe to create here: we are on the running loop and there is no
+            # await between the check and the assignment.
+            self._bg_semaphore = asyncio.Semaphore(_MAX_CONCURRENT_BG_HOOKS)
+        async with self._bg_semaphore:
+            try:
+                await hook(context)
+            except Exception:
+                logger.debug("Background hook raised", exc_info=True)
 
     async def execute_hooks_simple(
         self,
@@ -309,7 +378,7 @@ class HookManager(HookLoaderMixin):
         """
         # Create the actual hook callable
         if config.type == HookType.COMMAND:
-            inner_hook = self._create_command_hook(config.config)
+            inner_hook = self._create_command_hook(config.config, config.timeout)
         elif config.type == HookType.PROMPT:
             inner_hook = self._create_prompt_hook(config.config)
         elif config.type == HookType.AGENT:
@@ -327,7 +396,11 @@ class HookManager(HookLoaderMixin):
         # Store config for debugging and timeout lookup
         self._hook_configs[config.name] = config
 
-        # Create wrapper that evaluates matchers
+        # Create wrapper that evaluates matchers. Async fire-and-forget is NOT
+        # handled here: this wrapper runs inside the thread executor's
+        # short-lived `asyncio.run` loop, which would cancel a task spawned here
+        # the moment it returns. `execute_hooks` dispatches async command hooks
+        # on the persistent main loop instead (see there).
         async def hook_with_matchers(context: HookContext) -> HookResult:
             # Evaluate matchers first
             if not evaluate_matchers(config.matchers, context):
@@ -337,20 +410,15 @@ class HookManager(HookLoaderMixin):
                 # Return a neutral result (not an error, just didn't run)
                 return HookResult(success=True, output="Skipped due to matchers")
 
-            # Handle Async execution
-            if config.is_async and config.type == HookType.COMMAND:
-                logger.debug(f"Executing async hook '{config.name}'")
-                # Fire and forget
-                asyncio.create_task(inner_hook(context))
-                return HookResult(success=True, output="Async execution started")
-
             # Execute the actual hook
             return await inner_hook(context)
 
         return hook_with_matchers
 
-    def _create_command_hook(self, config: CommandHookConfig) -> HookCallable:
-        return create_command_hook(config)
+    def _create_command_hook(
+        self, config: CommandHookConfig, timeout: float | None = None
+    ) -> HookCallable:
+        return create_command_hook(config, timeout)
 
     def _create_prompt_hook(self, config: PromptHookConfig) -> HookCallable:
         return create_prompt_hook(config)

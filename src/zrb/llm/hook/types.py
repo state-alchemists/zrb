@@ -14,6 +14,10 @@ class HookEvent(str, Enum):
     PRE_TOOL_USE = "PreToolUse"
     POST_TOOL_USE = "PostToolUse"
     POST_TOOL_USE_FAILURE = "PostToolUseFailure"
+    # Fired when the agent blocks waiting for the user to approve a tool call
+    # (the approval cascade reached an interactive prompt). Consumers use it for
+    # "needs your attention" notifications/sounds (e.g. peon-ping).
+    PERMISSION_REQUEST = "PermissionRequest"
     NOTIFICATION = "Notification"
     STOP = "Stop"
     PRE_COMPACT = "PreCompact"

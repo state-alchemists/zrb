@@ -34,7 +34,30 @@ def get_search_directories() -> list[str | Path]:
     dirs.extend(_get_home_hook_dirs())
     dirs.extend(_get_project_hook_dirs())
     dirs.extend(_get_custom_hook_dirs())
-    return dirs
+    return _dedup_paths(dirs)
+
+
+def _dedup_paths(paths: list[str | Path]) -> list[str | Path]:
+    """Drop duplicate paths, keeping the first (highest-precedence) occurrence.
+
+    ``$HOME`` is searched by both the home tier and the project upward-walk
+    whenever cwd is under ``$HOME``, so without this every ``~/.claude`` hook
+    would be discovered — and registered, and fired — twice. Dedup by resolved
+    path so symlinked aliases collapse too.
+    """
+    seen: set[str] = set()
+    unique: list[str | Path] = []
+    for path in paths:
+        try:
+            key = str(Path(path).resolve())
+        except Exception:
+            # Unresolvable path (broken symlink, permission): fall back to the
+            # literal string so it still dedups against an identical literal.
+            key = str(path)
+        if key not in seen:
+            seen.add(key)
+            unique.append(path)
+    return unique
 
 
 def _collect_hook_paths(base_dir: Path) -> list[str | Path]:
@@ -48,6 +71,16 @@ def _collect_hook_paths(base_dir: Path) -> list[str | Path]:
     claude_dir = base_dir / ".claude" / "hooks"
     if claude_dir.exists() and claude_dir.is_dir():
         paths.append(claude_dir)
+
+    # Claude Code registers hooks inside settings.json / settings.local.json
+    # under a nested "hooks" block — NOT in hooks.json. Drop-in tools like
+    # peon-ping install themselves there, so we read those files too. The
+    # nested block is parsed by HookLoaderMixin._parse_claude_format; any other
+    # settings keys (model, env, permissions, …) are ignored.
+    for settings_name in ("settings.json", "settings.local.json"):
+        settings_file = base_dir / ".claude" / settings_name
+        if settings_file.exists() and settings_file.is_file():
+            paths.append(settings_file)
 
     zrb_file = base_dir / _zrb_dir_name() / "hooks.json"
     if zrb_file.exists() and zrb_file.is_file():
