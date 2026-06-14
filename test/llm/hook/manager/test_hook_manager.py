@@ -444,9 +444,7 @@ class TestHookManagerHookTypes:
         mock_process.returncode = 0
         mock_process.communicate.return_value = (b"", b"")
 
-        with patch(
-            "subprocess.Popen", return_value=mock_process
-        ) as mock_popen:
+        with patch("subprocess.Popen", return_value=mock_process) as mock_popen:
             manager.scan(search_dirs=[str(tmp_path)])
             await manager.execute_hooks(
                 HookEvent.PRE_COMMAND,
@@ -491,9 +489,7 @@ class TestHookManagerHookTypes:
             for task in manager._background_tasks:
                 task.cancel()
             if manager._background_tasks:
-                await asyncio.gather(
-                    *manager._background_tasks, return_exceptions=True
-                )
+                await asyncio.gather(*manager._background_tasks, return_exceptions=True)
 
     @pytest.mark.asyncio
     async def test_prompt_hook(self, manager, tmp_path):

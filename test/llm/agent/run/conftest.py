@@ -4,6 +4,7 @@ Prevents the module-level default_hook_manager (which scans the user's
 filesystem for peon-ping hooks) from loading in tests, avoiding background
 subprocess creation that can hang during event-loop cleanup.
 """
+
 from unittest.mock import patch
 
 import pytest

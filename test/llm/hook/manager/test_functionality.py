@@ -206,7 +206,8 @@ async def test_async_command_hook_is_non_blocking():
         task.cancel()
     if manager._background_tasks:
         await asyncio.wait(
-            manager._background_tasks, timeout=2.0,
+            manager._background_tasks,
+            timeout=2.0,
             return_when=asyncio.ALL_COMPLETED,
         )
 

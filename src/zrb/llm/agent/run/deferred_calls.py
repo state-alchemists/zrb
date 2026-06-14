@@ -175,10 +175,8 @@ async def _resolve_approval(
     _tch = None
     if isinstance(effective_tool_confirmation, ToolCallHandler):
         _tch = effective_tool_confirmation
-    elif (
-        bound := getattr(effective_tool_confirmation, '__self__', None)
-    ) is not None:
-        _tch = getattr(bound, 'tool_call_handler', None)
+    elif (bound := getattr(effective_tool_confirmation, "__self__", None)) is not None:
+        _tch = getattr(bound, "tool_call_handler", None)
     if isinstance(_tch, ToolCallHandler):
         policy_result = await _tch.check_policies(ui, call)
         if policy_result is not None:

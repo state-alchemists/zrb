@@ -72,4 +72,3 @@ def _disable_real_filesystem_hooks():
     hook_manager._search_dirs = []  # backing field of the search_dirs ctor arg
     hook_manager.reload()  # reset registrations + reload from [] → no fs hooks
     yield
-
