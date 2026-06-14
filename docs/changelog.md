@@ -1,5 +1,26 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.35.0 (June 14, 2026)
+
+- **Feature: new built-in developer-utility task groups** (`builtin/hash.py`, `builtin/datetime.py`, `builtin/url.py`, `builtin/json.py`, `builtin/case.py`, `builtin/cron.py`, `builtin/hex.py`, `builtin/number.py`, registered in `builtin/group.py` and `builtin/__init__.py`):
+  - `hash` — `hash` (text), `sum` (file, streamed in 8 KiB chunks), and `hmac`, each over `sha256`/`sha1`/`sha224`/`sha384`/`sha512`/`md5` via `hashlib.new`. Generalizes the existing md5-only group.
+  - `time` — `now`, `to-iso` (epoch→ISO 8601), and `to-epoch` (ISO 8601→epoch); naive ISO datetimes are interpreted as UTC.
+  - `url` — `encode`/`decode` (percent-encoding) and `parse` (URL split into a JSON object of scheme/host/port/path/query/fragment).
+  - `json` — `format`, `minify`, `validate`, `get` (dotted-path extraction, e.g. `user.roles[0]`), plus `to-yaml`/`from-yaml`.
+  - `case` — `convert` (snake/camel/pascal/kebab/constant/title) and `slugify` (accent-stripping, URL-friendly).
+  - `cron` — `parse` validates an expression and lists upcoming run times, reusing `zrb.util.cron.match_cron` (no new dependency).
+  - `hex` — `encode`/`decode` (ASCII↔hex, tolerating spaces and a `0x` prefix) and `dump` (offset + hex + ASCII hexdump).
+  - `number` — `convert` between bases 2/8/10/16.
+  - All new tasks are stdlib/`pyyaml`-only, so no new runtime dependency was added.
+
+- **Feature: secure random generators** (`builtin/random.py`): added `random password`, `random token` (`secrets.token_urlsafe`), and `random string`, all backed by the `secrets` module.
+
+- **Improvement: JWT decode without a secret** (`builtin/jwt.py`): `jwt decode` now defaults to inspect-without-verify (the jwt.io workflow) — paste a token and read its claims with no secret. Pass `--verify` to check the signature. Well-known timestamp claims (`exp`/`iat`/`nbf`/`auth_time`) are printed in human-readable UTC alongside their raw values.
+
+- **Improvement: `http request` returns a pipe-friendly body** (`builtin/http.py`): the task now returns `response.text` (was a `requests.Response`, which printed as `<Response [200]>` on stdout), so `zrb http request ... | jq` works. Decorations stay on stderr. Added `body-format` (`json`/`form`/`raw`), `params` (query string as JSON), and `timeout` inputs; `HEAD`/`OPTIONS` added to the method list.
+
+- **Improvement: Base64 URL-safe alphabet and correct validation** (`builtin/base64.py`): `encode`/`decode`/`validate` accept `--url-safe` (`-_` alphabet). `validate` now checks true base64 well-formedness with `validate=True` instead of requiring the payload to be UTF-8 text, so base64 of binary data (images, gzipped blobs) validates correctly.
+
 ## 2.34.3 (June 12, 2026)
 
 - **Build: migrate `pyproject.toml` to the PEP 621 `[project]` table** (`pyproject.toml`, `scripts/build_pypi_readme.py`, `zrb_init.py`):
