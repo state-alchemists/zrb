@@ -49,3 +49,27 @@ def _hermetic_environment():
     finally:
         os.environ.clear()
         os.environ.update(saved)
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _disable_real_filesystem_hooks():
+    """Keep the process-wide ``hook_manager`` singleton from discovering the
+    developer's real ``~/.claude`` hooks (e.g. peon-ping) during the suite.
+
+    The singleton is imported under one shared object by the runner, llm_task,
+    ui, skill manager and the ask tool. Once command hooks began loading from
+    ``settings.json``, any test that emits a hook event — ``ask_user_question``'s
+    ``Notification``, the runner's ``Stop`` — spawned the user's real async hook
+    subprocesses (peon-ping's ``peon.sh``). With no audio device (CI/WSL) those
+    linger and hang asyncio's subprocess-transport teardown when the per-test
+    event loop closes, making the suite crawl and eventually time out.
+
+    Pinning the singleton's search dirs to ``[]`` and reloading keeps it inert;
+    tests that need hook behaviour build their own ``HookManager(search_dirs=[])``.
+    """
+    from zrb.llm.hook.manager import hook_manager
+
+    hook_manager._search_dirs = []  # backing field of the search_dirs ctor arg
+    hook_manager.reload()  # reset registrations + reload from [] → no fs hooks
+    yield
+

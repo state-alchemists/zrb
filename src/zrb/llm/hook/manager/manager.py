@@ -277,6 +277,8 @@ class HookManager(HookLoaderMixin):
         async with self._bg_semaphore:
             try:
                 await hook(context)
+            except asyncio.CancelledError:
+                pass
             except Exception:
                 logger.debug("Background hook raised", exc_info=True)
 

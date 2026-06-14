@@ -235,6 +235,45 @@ async def test_permission_request_not_fired_when_auto_approved():
 
 
 @pytest.mark.asyncio
+async def test_permission_request_not_fired_when_auto_approved_via_bound_method():
+    """Interactive mode: BaseUI._confirm_tool_execution wraps a ToolCallHandler.
+    When the underlying handler auto-approves, PermissionRequest must NOT fire
+    even though effective_tool_confirmation is a bound method, not a
+    ToolCallHandler directly."""
+    ui = MagicMock(spec=UIProtocol)
+    hook_manager = MagicMock(spec=HookManager)
+    hook_manager.execute_hooks = AsyncMock(return_value=[])
+
+    # Simulate BaseUI with tool_call_handler property
+    tool_handler = MagicMock(spec=ToolCallHandler)
+    tool_handler.check_policies = AsyncMock(return_value=MockToolApproved("ok"))
+
+    class _FakeBaseUI:
+        tool_call_handler = tool_handler
+
+    bound_ui = _FakeBaseUI()
+
+    # bound method: __self__ points to the FakeBaseUI instance
+    async def _confirm(call):
+        return await bound_ui.tool_call_handler.handle(ui, call)
+
+    _confirm.__self__ = bound_ui
+
+    call = MagicMock()
+    call.tool_name = "test_tool"
+    call.args = {"arg1": "val1"}
+    call.tool_call_id = "call_1"
+
+    result_output = MagicMock()
+    result_output.calls = [call]
+    result_output.approvals = []
+
+    await process_deferred_requests(result_output, _confirm, ui, hook_manager)
+
+    assert _permission_request_calls(hook_manager) == []
+
+
+@pytest.mark.asyncio
 async def test_process_deferred_requests_cli_fallback_handler():
     ui = MagicMock(spec=UIProtocol)
     hook_manager = MagicMock(spec=HookManager)

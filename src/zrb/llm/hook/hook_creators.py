@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import os
+import subprocess
 
 from zrb.config.config import CFG
 from zrb.llm.config.config import llm_config
@@ -114,23 +115,35 @@ def create_command_hook(
                 hook_cwd = expanded
 
         try:
-            # Run command with timeout
-            process = await asyncio.create_subprocess_shell(
-                config.command,
-                stdin=asyncio.subprocess.PIPE,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=hook_cwd,
-                env=env,
+            # Run command with timeout.
+            #
+            # Use subprocess.Popen in a thread executor instead of
+            # asyncio.create_subprocess_shell.  The asyncio subprocess API
+            # creates transport/protocol pairs via _make_subprocess_transport
+            # / _connect_pipes, which can leave _pipes entries as None if
+            # cancelled mid-init.  _try_finish then skips _call_connection_lost
+            # and _wait() hangs forever (CPython bug).  A plain subprocess.Popen
+            # has no asyncio transport objects, so task cancellation cannot
+            # trigger that hang path.
+            loop = asyncio.get_running_loop()
+            process = await loop.run_in_executor(
+                None,
+                lambda: subprocess.Popen(
+                    config.command,
+                    shell=True,
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    cwd=hook_cwd,
+                    env=env,
+                ),
             )
             try:
-                # Enforce the timeout here, where the subprocess handle is in
-                # scope. The thread-pool executor wraps the hook in wait_for too,
-                # but that can't interrupt a blocked worker thread — a hook (or a
-                # child it forks) that hangs would block well past its timeout.
-                # Killing the process is the only reliable cap.
                 stdout, stderr = await asyncio.wait_for(
-                    process.communicate(input=stdin_payload), timeout=timeout
+                    loop.run_in_executor(
+                        None, lambda: process.communicate(input=stdin_payload)
+                    ),
+                    timeout=timeout,
                 )
             except asyncio.TimeoutError:
                 try:
@@ -146,6 +159,12 @@ def create_command_hook(
                     success=False,
                     output=f"Command hook timed out after {timeout}s",
                 )
+            except asyncio.CancelledError:
+                try:
+                    process.kill()
+                except ProcessLookupError:
+                    pass
+                raise
 
             output = stdout.decode().strip()
             stderr_output = stderr.decode().strip()

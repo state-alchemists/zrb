@@ -720,7 +720,7 @@ async def test_run_agent_session_end_replace_response_false():
                     )
             return HookResult()
 
-    manager = HookManager()
+    manager = HookManager(search_dirs=[])
     manager.register(OnceHook(), events=[HookEvent.SESSION_END])
 
     result, history = await run_agent(
@@ -777,7 +777,7 @@ async def test_run_agent_session_end_replace_response_true():
                     )
             return HookResult()
 
-    manager = HookManager()
+    manager = HookManager(search_dirs=[])
     manager.register(OnceHook(), events=[HookEvent.SESSION_END])
 
     result, history = await run_agent(
@@ -807,7 +807,7 @@ async def test_run_agent_session_start_context_prepending():
 
     agent.run_stream_events = _stream_from(_gen)
 
-    manager = HookManager()
+    manager = HookManager(search_dirs=[])
 
     async def session_start_hook(ctx):
         return HookResult.with_additional_context("INIT_CONTEXT")
@@ -851,7 +851,7 @@ async def test_run_agent_user_prompt_context_prepending():
 
     agent.run_stream_events = _stream_from(_gen)
 
-    manager = HookManager()
+    manager = HookManager(search_dirs=[])
 
     async def prompt_hook(ctx):
         return HookResult.with_additional_context("PROMPT_CONTEXT")

@@ -80,7 +80,7 @@ async def test_hook_registration():
     """Test hook registration."""
     print_section("Test 2: Hook Registration")
 
-    manager = HookManager()
+    manager = HookManager(search_dirs=[])
 
     # Track calls
     calls = []
@@ -128,7 +128,7 @@ async def test_hook_matchers():
 
     from zrb.llm.hook.schema import CommandHookConfig, HookConfig, MatcherConfig
 
-    manager = HookManager()
+    manager = HookManager(search_dirs=[])
 
     # Hook that only matches Bash tool
     async def bash_only_hook(context: HookContext) -> HookResult:
@@ -174,7 +174,7 @@ async def test_stateful_hook():
     """Test stateful hook."""
     print_section("Test 4: Stateful Hook")
 
-    manager = HookManager()
+    manager = HookManager(search_dirs=[])
 
     class StatefulHook:
         def __init__(self):
@@ -213,7 +213,7 @@ async def test_blocking_hook():
     """Test blocking hook."""
     print_section("Test 5: Blocking Hook")
 
-    manager = HookManager()
+    manager = HookManager(search_dirs=[])
 
     async def blocking_hook(context: HookContext) -> HookResult:
         if context.tool_name == "Bash":
@@ -246,7 +246,7 @@ async def test_session_end_system_message():
     """Test SESSION_END system message with replace_response."""
     print_section("Test 6: SESSION_END System Message")
 
-    manager = HookManager()
+    manager = HookManager(search_dirs=[])
 
     class JournalHook:
         """Simulates journaling hook that extends session."""
@@ -289,7 +289,7 @@ async def test_session_end_system_message():
             )
 
     transform_hook = TransformHook()
-    manager2 = HookManager()
+    manager2 = HookManager(search_dirs=[])
     manager2.register(transform_hook, events=[HookEvent.SESSION_END])
 
     results2 = await manager2.execute_hooks(
@@ -305,7 +305,7 @@ async def test_additional_context():
     """Test additional context injection."""
     print_section("Test 7: Additional Context")
 
-    manager = HookManager()
+    manager = HookManager(search_dirs=[])
 
     async def context_hook(context: HookContext) -> HookResult:
         return HookResult.with_additional_context("User preference: concise responses")

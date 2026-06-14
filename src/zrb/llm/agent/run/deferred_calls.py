@@ -168,9 +168,19 @@ async def _resolve_approval(
 
         return ToolApproved()
 
-    # Priority 1: Tool policies from ToolCallHandler (Middleware)
+    # Priority 1: Tool policies (Pre-confirmation). Auto-approved tools skip
+    # the PermissionRequest hook entirely. The effective_tool_confirmation may
+    # be a ToolCallHandler directly (non-interactive) or wrapped by a BaseUI
+    # bound method (interactive) — unwrap either.
+    _tch = None
     if isinstance(effective_tool_confirmation, ToolCallHandler):
-        policy_result = await effective_tool_confirmation.check_policies(ui, call)
+        _tch = effective_tool_confirmation
+    elif (
+        bound := getattr(effective_tool_confirmation, '__self__', None)
+    ) is not None:
+        _tch = getattr(bound, 'tool_call_handler', None)
+    if isinstance(_tch, ToolCallHandler):
+        policy_result = await _tch.check_policies(ui, call)
         if policy_result is not None:
             return policy_result
 

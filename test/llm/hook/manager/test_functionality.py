@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import time
@@ -11,7 +12,7 @@ from zrb.llm.hook.types import HookEvent, HookType
 
 @pytest.mark.asyncio
 async def test_python_hook_execution():
-    manager = HookManager()
+    manager = HookManager(search_dirs=[])
     executed = []
 
     async def my_hook(context: HookContext) -> HookResult:
@@ -62,7 +63,7 @@ async def test_config_file_loading_and_hydration(tmp_path):
 
 @pytest.mark.asyncio
 async def test_pre_tool_use_modification():
-    manager = HookManager()
+    manager = HookManager(search_dirs=[])
 
     async def modifier_hook(context: HookContext) -> HookResult:
         if context.event_data.get("tool") == "my_tool":
@@ -194,6 +195,20 @@ async def test_async_command_hook_is_non_blocking():
 
     assert elapsed < 1.0, f"async hook blocked for {elapsed:.2f}s"
     assert results == []  # fire-and-forget contributes no result
+
+    # Clean up: the background "sleep 5" subprocess must be killed before the
+    # test ends, otherwise it leaks across tests.  Cancel the background task,
+    # then wait with a short timeout — the CancelledError handler in the hook
+    # kills the subprocess, but CPython's _make_subprocess_transport._wait()
+    # can hang if cancellation hits mid-transport-init.  The timeout prevents
+    # this hang from blocking the run.
+    for task in manager._background_tasks:
+        task.cancel()
+    if manager._background_tasks:
+        await asyncio.wait(
+            manager._background_tasks, timeout=2.0,
+            return_when=asyncio.ALL_COMPLETED,
+        )
 
 
 @pytest.mark.asyncio
