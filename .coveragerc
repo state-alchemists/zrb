@@ -4,6 +4,9 @@ omit =
     src/zrb/__main__.py
     **/any_*.py
     **/__init__.py
+    # Skill tool scripts are shipped agent-runtime content (run via the skill's
+    # Shell instructions), not unit-tested library code.
+    **/llm_plugin/skills/**/tools/*.py
 
 [report]
 show_missing = True

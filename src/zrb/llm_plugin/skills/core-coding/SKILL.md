@@ -14,7 +14,8 @@ When the current step matches a trigger below, `Read` the named companion from t
 | Trigger | Companion |
 |---------|-----------|
 | About to write, modify, or audit a test | `workflows/testing.md` |
-| Something is broken and root cause is unclear | `workflows/debug.md` |
+| Something is broken locally (build error, failing test, wrong output) and root cause is unclear | `workflows/debug.md` |
+| A **running or deployed** system is failing and you can't reproduce it locally — crash/core dump, memory/heap dump, OOM, or diagnosis via `kubectl` / Grafana / Prometheus / Elasticsearch | `workflows/observability.md` (helper scripts in `tools/`) |
 | Code structure needs improvement (complexity, duplication) | `workflows/refactor.md` |
 | Reviewing changes for correctness, security, or quality | `workflows/review.md` |
 | Code touches user input, auth, file I/O, or sensitive data | `workflows/review.md` (security audit checklist) |

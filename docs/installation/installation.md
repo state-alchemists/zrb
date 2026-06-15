@@ -168,7 +168,7 @@ Zrb provides container images for sandboxed, reproducible, and portable executio
 **Standard Image** (general-purpose automation):
 
 ```bash
-docker run -v ${HOME}:/zrb-home -it --rm stalchmst/zrb:2.33.0 zrb
+docker run -v ${HOME}:/zrb-home -it --rm stalchmst/zrb:2.35.0 zrb
 ```
 
 **DIND (Docker-in-Docker) Image** (for tasks that need Docker commands):
@@ -177,7 +177,7 @@ docker run -v ${HOME}:/zrb-home -it --rm stalchmst/zrb:2.33.0 zrb
 docker run \
     -v ${HOME}:/zrb-home \
     -v /var/run/docker.sock:/var/run/docker.sock \
-    -it --rm stalchmst/zrb:2.33.0-dind docker ps
+    -it --rm stalchmst/zrb:2.35.0-dind docker ps
 ```
 
 <details>
@@ -190,13 +190,13 @@ docker run \
 | `--rm` | Remove container on exit |
 | `-v /var/run/docker.sock:...` | Enable Docker-in-Docker functionality |
 
-> 💡 **Tip:** Always pin to a specific version (e.g., `2.33.0`) for reproducibility.
+> 💡 **Tip:** Always pin to a specific version (e.g., `2.35.0`) for reproducibility.
 
 </details>
 
 > ⚠️ **Apple Silicon:** Use `--platform linux/amd64` if you encounter architecture issues:
 > ```bash
-> docker run --platform linux/amd64 -v ${HOME}:/zrb-home -it --rm stalchmst/zrb:2.33.0 zrb
+> docker run --platform linux/amd64 -v ${HOME}:/zrb-home -it --rm stalchmst/zrb:2.35.0 zrb
 > ```
 
 ### Running Zrb on Android (via Termux and Proot)
@@ -329,7 +329,7 @@ pip install --upgrade --pre zrb
 
 Pull the latest image:
 ```bash
-docker pull stalchmst/zrb:2.33.0
+docker pull stalchmst/zrb:2.35.0
 # Or for latest:
 docker pull stalchmst/zrb:latest
 ```

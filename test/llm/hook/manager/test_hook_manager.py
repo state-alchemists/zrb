@@ -28,7 +28,7 @@ def manager():
     mock_cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
 
     with patch("zrb.llm.hook.journal.CFG", mock_cfg):
-        yield HookManager()
+        yield HookManager(search_dirs=[])
 
 
 class TestHookManagerLifecycle:
@@ -389,9 +389,9 @@ class TestHookManagerHookTypes:
 
         mock_process = MagicMock()
         mock_process.returncode = 2
-        mock_process.communicate = AsyncMock(return_value=(b"blocked", b""))
+        mock_process.communicate.return_value = (b"blocked", b"")
 
-        with patch("asyncio.create_subprocess_shell", return_value=mock_process):
+        with patch("subprocess.Popen", return_value=mock_process):
             manager.scan(search_dirs=[str(tmp_path)])
             results = await manager.execute_hooks(HookEvent.SESSION_START, {})
             assert results[0].blocked is True
@@ -415,9 +415,9 @@ class TestHookManagerHookTypes:
 
         mock_process = MagicMock()
         mock_process.returncode = 0
-        mock_process.communicate = AsyncMock(return_value=(b'{"k": "v"}', b""))
+        mock_process.communicate.return_value = (b'{"k": "v"}', b"")
 
-        with patch("asyncio.create_subprocess_shell", return_value=mock_process):
+        with patch("subprocess.Popen", return_value=mock_process):
             manager.scan(search_dirs=[str(tmp_path)])
             results = await manager.execute_hooks(HookEvent.SESSION_START, {})
             assert results[0].data["k"] == "v"
@@ -442,11 +442,9 @@ class TestHookManagerHookTypes:
 
         mock_process = MagicMock()
         mock_process.returncode = 0
-        mock_process.communicate = AsyncMock(return_value=(b"", b""))
+        mock_process.communicate.return_value = (b"", b"")
 
-        with patch(
-            "asyncio.create_subprocess_shell", return_value=mock_process
-        ) as mock_shell:
+        with patch("subprocess.Popen", return_value=mock_process) as mock_popen:
             manager.scan(search_dirs=[str(tmp_path)])
             await manager.execute_hooks(
                 HookEvent.PRE_COMMAND,
@@ -455,7 +453,7 @@ class TestHookManagerHookTypes:
                 command_args="my-session",
             )
 
-        env = mock_shell.call_args.kwargs["env"]
+        env = mock_popen.call_args.kwargs["env"]
         assert env["CLAUDE_COMMAND_NAME"] == "/save"
         assert env["CLAUDE_COMMAND_ARGS"] == "my-session"
 
@@ -476,24 +474,22 @@ class TestHookManagerHookTypes:
             )
         )
 
-        # Track that create_task was called and properly close the coroutine
-        # to avoid "coroutine was never awaited" warning
-        created_tasks = []
+        loop = asyncio.get_running_loop()
+        original_create_task = loop.create_task
 
-        def mock_create_task(coro):
-            created_tasks.append(coro)
-            # Close the coroutine to suppress the warning
-            coro.close()
-            return MagicMock()  # Return a mock task
-
-        with (
-            patch("asyncio.create_subprocess_shell"),
-            patch("asyncio.create_task", side_effect=mock_create_task),
-        ):
+        with patch("subprocess.Popen"):
             manager.scan(search_dirs=[str(tmp_path)])
             results = await manager.execute_hooks(HookEvent.SESSION_START, {})
-            assert "Async execution started" in results[0].message
-            assert len(created_tasks) == 1
+            # Async command hooks are dispatched fire-and-forget on the running
+            # loop: a task is spawned and no result is collected (they cannot
+            # block or contribute context).
+            assert len(manager._background_tasks) == 1
+            assert results == []
+            # Clean up: cancel the background task so it doesn't leak
+            for task in manager._background_tasks:
+                task.cancel()
+            if manager._background_tasks:
+                await asyncio.gather(*manager._background_tasks, return_exceptions=True)
 
     @pytest.mark.asyncio
     async def test_prompt_hook(self, manager, tmp_path):

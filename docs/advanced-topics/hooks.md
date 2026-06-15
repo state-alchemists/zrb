@@ -56,9 +56,17 @@ Hooks are discovered automatically in these locations (in order of precedence):
 | `./.zrb/hooks/*.json` | Project-specific hooks directory |
 | `~/.claude/hooks.json` | Claude Code compatibility (single file) |
 | `~/.claude/hooks/*.json` | Claude Code compatibility (directory) |
+| `~/.claude/settings.json` | Claude Code compatibility — the nested `hooks` block |
+| `~/.claude/settings.local.json` | Claude Code compatibility — the nested `hooks` block |
 | `./.claude/hooks.json` | Claude Code compatibility, project (single file) |
 | `./.claude/hooks/*.json` | Claude Code compatibility, project (directory) |
+| `./.claude/settings.json` | Claude Code compatibility, project — the nested `hooks` block |
+| `./.claude/settings.local.json` | Claude Code compatibility, project — the nested `hooks` block |
 | Plugin `hooks/` dirs | Inside `ZRB_LLM_PLUGIN_DIRS` entries |
+
+Hooks Claude Code (and drop-in tools like [peon-ping](https://peonping.com)) register
+inside `settings.json`/`settings.local.json` are picked up automatically — only the
+nested `hooks` block is read; other settings keys are ignored.
 
 ---
 
@@ -76,8 +84,9 @@ Hooks can attach to these lifecycle events:
 | `PreToolUse` | Before a tool executes | **Yes** |
 | `PostToolUse` | After tool succeeds | No |
 | `PostToolUseFailure` | After tool fails | No |
-| `Notification` | System notifications | No |
-| `Stop` | When execution stops | No |
+| `PermissionRequest` | A tool call reaches an interactive approval prompt (fires only when the user is actually asked — not for auto-approved/YOLO/policy-allowed calls) | No |
+| `Notification` | System notifications. `AskUserQuestion` fires one with `notification_type='elicitation_dialog'` when it blocks for an answer | No |
+| `Stop` | A turn finishes and control returns to the user (natural completion or manual interrupt) | No |
 | `PreCompact` | Before history summarization | No |
 
 `PreCommand` / `PostCommand` fire in the interactive chat TUI when the user
@@ -187,6 +196,17 @@ Execute shell commands or scripts.
 | `command` | string | Shell command to execute |
 | `shell` | boolean | Use shell interpreter (default: true) |
 | `working_dir` | string | Working directory (optional) |
+
+**Input: env vars _and_ stdin.** A command hook receives its event two ways, so it
+works with both styles of Claude-Code hook. The `CLAUDE_*` [environment
+variables](#environment-variables) are set, and the full Claude-Code event payload
+is also written to the command's **stdin** as JSON (`hook_event_name`, `session_id`,
+`cwd`, `tool_name`, …). Stdin-driven hooks read it like:
+
+```bash
+event=$(cat)                                    # read the JSON payload from stdin
+name=$(echo "$event" | jq -r .hook_event_name)  # e.g. "Stop"
+```
 
 ### 2. Prompt Hooks
 

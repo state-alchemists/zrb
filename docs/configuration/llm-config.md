@@ -458,7 +458,7 @@ No additional configuration needed.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_HOOKS_ENABLED` | Enable hook system globally | `1` |
+| `ZRB_HOOKS_ENABLED` | Enable the hook system globally; set `off` to disable all hooks (none load or fire) | `on` |
 | `ZRB_HOOKS_DIRS` | Additional hook directories (colon-separated) | (empty) |
 | `ZRB_HOOKS_TIMEOUT` | Default timeout for hook execution (ms) | `30000` |
 | `ZRB_HOOKS_LOG_LEVEL` | Logging level for hooks | `INFO` |

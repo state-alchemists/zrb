@@ -45,14 +45,18 @@ async def test_executor_timeout():
     executor = ThreadPoolHookExecutor(default_timeout=1)
     executor.start()
 
+    # Keep the durations small: wait_for trips the timeout, but the hook runs in
+    # a non-cancellable worker thread, so shutdown(wait=True) below must join the
+    # still-sleeping worker. A 0.3s sleep keeps the test meaningful without the
+    # ~2s wall-time a longer sleep would cost.
     async def slow_hook(ctx):
-        await asyncio.sleep(2)
+        await asyncio.sleep(0.3)
         return HookResult(success=True)
 
     ctx = HookContext(
         event=HookEvent.SESSION_START, event_data={}, hook_event_name="start"
     )
-    result = await executor.execute_hook(slow_hook, ctx, timeout=1)
+    result = await executor.execute_hook(slow_hook, ctx, timeout=0.05)
 
     assert result.success is False
     assert result.exit_code == 124

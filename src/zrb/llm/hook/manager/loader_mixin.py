@@ -170,7 +170,14 @@ class HookLoaderMixin:
             try:
                 event = HookEvent.from_claude_string(event_name)
             except ValueError:
-                logger.warning(f"Unknown event in Claude config: {event_name}")
+                # Claude Code configs (e.g. peon-ping's settings.json) legitimately
+                # register events zrb does not emit — SubagentStart/Stop, etc.
+                # Skip them quietly, the same way Claude Code ignores hook events
+                # it doesn't recognize. debug-level keeps this diagnosable without
+                # spamming a warning on every load.
+                logger.debug(
+                    f"Skipping unsupported event in Claude config: {event_name}"
+                )
                 continue
 
             if not isinstance(matcher_groups, list):
