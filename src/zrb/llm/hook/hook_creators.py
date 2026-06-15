@@ -148,7 +148,11 @@ def create_command_hook(
             except asyncio.TimeoutError:
                 try:
                     process.kill()
-                    await process.wait()
+                    # process is a sync subprocess.Popen, so .wait() returns an
+                    # int — awaiting it raises "'int' object can't be awaited",
+                    # which previously swallowed this TimeoutError and left the
+                    # subprocess unreaped. Reap in the executor instead.
+                    await loop.run_in_executor(None, process.wait)
                 except ProcessLookupError:
                     pass
                 logger.warning(

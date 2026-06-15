@@ -199,7 +199,11 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
             "Before a risky or multi-file change, to investigate read-only "
             "first (edits/shell/delegation are blocked until you exit)"
         ),
-        key_rule="Do discovery, then ExitPlanMode with a concrete plan.",
+        key_rule=(
+            "Do discovery, then ExitPlanMode with a concrete plan. Skip plan "
+            "mode when non-interactive (no user to approve): present the plan "
+            "inline in your reply and proceed directly to the edits."
+        ),
     ),
     ToolGuidance(
         group_name="Plan Mode",

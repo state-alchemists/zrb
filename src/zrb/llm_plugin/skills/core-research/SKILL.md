@@ -40,7 +40,7 @@ Follow **Scope → Discover → Synthesize → Plan** for every research task.
 ## Safety Rules
 
 - **No premature modification**: During Scope and Discovery phases, do not modify any files. Investigation comes before action.
-- **Approval gate**: You must obtain explicit user approval of plans before implementing. This overrides the Working Loop's Frame step, which would otherwise work autonomously on directives.
+- **Approval gate**: When running interactively, obtain explicit user approval of plans before implementing — this overrides the Working Loop's Frame step, which would otherwise work autonomously on directives. When running non-interactively (no user to approve), do not block on approval: present the plan inline and then proceed.
 
 ## Output Standards
 

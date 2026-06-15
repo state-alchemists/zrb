@@ -1,5 +1,13 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.35.1 (June 15, 2026)
+
+- **Fix: `zrb chat --interactive false` no longer hangs on the plan-mode approval gate** (`llm/agent/run/deferred_calls.py`, ADR-0067):
+  - `PLAN_MODE_POLICY` pins `ExitPlanMode` to a hard ASK (`llm/permission/policy.py`). In a non-interactive run the approval cascade still fell through to the `StdUI` stdin prompt (`tool_call/handler.py` → `ui/std_ui.py`) and blocked until the process timed out. `_resolve_approval` now resolves a hard ASK deterministically when `get_interactive_mode()` is `False`: auto-approve `ExitPlanMode` (the plan gate is a no-op without a user to read the plan — mirrors AskUserQuestion / ADR-0062) and deny any other approval-gated tool with an actionable message instead of blocking.
+- **Improvement: plan mode is interactive-aware (defense in depth)**: the `EnterPlanMode` tool guidance (`llm/common_tools.py`), the `Interactive: no` system-context line (`llm/prompt/system_context.py`), and the "approval gate" rules in the `core-research`, `core-design`, and `research` skills (`llm_plugin/skills/`) now tell the model to skip plan mode and present the plan inline when there is no user to approve it — so a well-behaved model never reaches the gate.
+- **Fix: command-hook timeout path no longer raises `'int' object can't be awaited`** (`llm/hook/hook_creators.py`): the timeout-kill branch did `await process.wait()` on a synchronous `subprocess.Popen`, whose `.wait()` returns an `int`; awaiting it raised `TypeError`, swallowed the original `TimeoutError`, and left the subprocess unreaped. It now reaps via `loop.run_in_executor(None, process.wait)`.
+- **Performance: throttle the "Prepare tool parameters" spinner** (`llm/util/stream_response.py`): a slow model streaming thousands of tool-argument deltas previously repainted the spinner once per delta, flooding stdout (observed: 9k+ frames / 500 KB per turn) and adding per-frame write-syscall latency. The repaint is now capped at ~10×/sec via a monotonic-clock throttle; the carriage-return cleanup still fires on every delta.
+
 ## 2.35.0 (June 15, 2026)
 
 - **Feature: new built-in developer-utility task groups** (`builtin/hash.py`, `builtin/datetime.py`, `builtin/url.py`, `builtin/json.py`, `builtin/case.py`, `builtin/cron.py`, `builtin/hex.py`, `builtin/number.py`, registered in `builtin/group.py` and `builtin/__init__.py`):
