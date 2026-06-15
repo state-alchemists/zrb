@@ -2,6 +2,8 @@
 
 Find root cause before fixing. A fix without understanding the root cause creates new bugs.
 
+> Debugging a **running or deployed** system you can't reproduce locally (a crashing pod, an OOM, a production latency spike)? The root-cause loop below still applies, but the evidence comes from dumps and observability tools — read `workflows/observability.md` for core/heap dumps, `kubectl`, Grafana/Prometheus, and Elasticsearch.
+
 **First, determine the failure type:**
 - **Build/compilation failure** (type error, missing import, undefined symbol) → follow [Section A](#section-a-build-failures)
 - **Behavioral failure** (wrong output, crash, test failure, unexpected behavior) → follow [Section B](#section-b-behavioral-failures)
