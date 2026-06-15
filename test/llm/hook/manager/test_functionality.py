@@ -29,6 +29,30 @@ async def test_python_hook_execution():
 
 
 @pytest.mark.asyncio
+async def test_hooks_globally_disabled_by_config(monkeypatch):
+    """ZRB_HOOKS_ENABLED=off is a global kill-switch: no registered hook fires."""
+    monkeypatch.setenv("ZRB_HOOKS_ENABLED", "off")
+    manager = HookManager(search_dirs=[])
+    fired = []
+
+    async def my_hook(context: HookContext) -> HookResult:
+        fired.append(context.event.value)
+        return HookResult(success=True)
+
+    manager.register(my_hook, events=[HookEvent.SESSION_START])
+
+    results = await manager.execute_hooks(HookEvent.SESSION_START, {})
+    assert results == []
+    assert fired == []
+
+    # Flipping it back on (default) re-enables firing on the same manager.
+    monkeypatch.setenv("ZRB_HOOKS_ENABLED", "on")
+    results = await manager.execute_hooks(HookEvent.SESSION_START, {})
+    assert len(results) == 1
+    assert fired == ["SessionStart"]
+
+
+@pytest.mark.asyncio
 async def test_config_file_loading_and_hydration(tmp_path):
     # Create a dummy hook config file
     hook_config = {

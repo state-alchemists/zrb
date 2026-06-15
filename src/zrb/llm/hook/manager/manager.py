@@ -17,6 +17,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any, Callable
 
+from zrb.config.config import CFG
 from zrb.llm.hook.executor import (
     HookExecutionResult,
     ThreadPoolHookExecutor,
@@ -141,6 +142,12 @@ class HookManager(HookLoaderMixin):
         Execute all hooks registered for the given event with thread safety.
         Returns a list of HookExecutionResult objects with Claude Code compatibility.
         """
+        # Global kill-switch (ZRB_HOOKS_ENABLED). When off, no hook fires and the
+        # filesystem is never scanned — execute_hooks_simple delegates here, so
+        # this one guard disables every firing path.
+        if not CFG.HOOKS_ENABLED:
+            return []
+
         # Lazy load hooks on first execution
         self._ensure_loaded()
 
