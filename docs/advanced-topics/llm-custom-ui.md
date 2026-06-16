@@ -1106,7 +1106,7 @@ llm_chat.set_ui_factory(create_ui_factory(MyUI, config=config))
 | Example | Location | Level | Pattern |
 |---------|----------|-------|---------|
 | Minimal CLI | `examples/chat-minimal-ui/` | 1 | SimpleUI |
-| Telegram Bot | `examples/chat-telegram/` | 2 | EventDrivenUI |
+| Telegram Bot | `examples/chat-telegram/` | 2 | EventDrivenUI + BufferedOutputMixin |
 | Telegram + CLI | `examples/chat-telegram/` | 2+ | Multi-UI (multiple channels) |
 | HTTP API | `examples/chat-sse/` | 3 | PollingUI |
 
@@ -1120,8 +1120,8 @@ llm_chat.set_ui_factory(create_ui_factory(MyUI, config=config))
 |--------------|-------------------|-----|
 | CLI / Terminal | `SimpleUI` | You control input flow |
 | File logger | `SimpleUI` | Sequential writes |
-| Telegram Bot | `EventDrivenUI` | Callbacks + rate limits |
-| Discord Bot | `EventDrivenUI` | Callbacks + rate limits |
+| Telegram Bot | `EventDrivenUI` + `BufferedOutputMixin` | Callbacks + rate limits |
+| Discord Bot | `EventDrivenUI` + `BufferedOutputMixin` | Callbacks + rate limits |
 | WhatsApp | `EventDrivenUI` | Webhook callbacks |
 | HTTP API | `PollingUI` | External polling |
 | WebSocket Server | `PollingUI` | External reads/writes |
@@ -1136,6 +1136,7 @@ llm_chat.set_ui_factory(create_ui_factory(MyUI, config=config))
 | External polling | `PollingUI` |
 | Custom event loop | `BaseUI` |
 | Multi-channel input | Use `append_ui()` and `append_approval_channel()` |
+| Rate limit protection | Add `BufferedOutputMixin` |
 
 ---
 

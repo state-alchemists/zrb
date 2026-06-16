@@ -108,4 +108,4 @@ deleting it — the history is the point.
 - **ADR-0065** — Split volatile runtime state into a per-turn `<live-context>` block (injected into the user turn) to keep the system-prompt prefix cacheable
 - **ADR-0066** — Command hooks receive the event payload on stdin; `settings.json` is a hook source (refines ADR-0047)
 - **ADR-0067** — Non-interactive runs resolve hard-ASK approvals deterministically: approve the plan gate (`ExitPlanMode`), deny the rest (extends ADR-0055, ADR-0062)
-- **ADR-0068** — Dead-code removal: `register_section` provider, `update_todo`/`clear_todos`, `from_yolo`, and 30+ unused symbols (supersedes provider path of ADR-0061; refines ADR-0050, ADR-0057)
+- **ADR-0068** — Dead-code removal: `update_todo`/`clear_todos`, `from_yolo`, and 30+ unused symbols (refines ADR-0050, ADR-0057; `register_section` considered but kept)
