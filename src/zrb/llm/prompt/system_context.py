@@ -296,8 +296,10 @@ def render_live_context(ctx: AnyContext, model: "Any" = None) -> str:
         parts.append("- Interactive: yes (AskUserQuestion is available)")
     else:
         parts.append(
-            "- Interactive: no — do not call AskUserQuestion or wait on user "
-            "input mid-turn; decide based on the conversation and continue."
+            "- Interactive: no — do not call AskUserQuestion, EnterPlanMode, or "
+            "ExitPlanMode, and do not wait on user input mid-turn; there is no "
+            "user to answer or approve a plan. Present any plan inline and "
+            "proceed: decide based on the conversation and continue."
         )
     if todos_data:
         try:

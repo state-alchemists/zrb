@@ -116,10 +116,6 @@ class TestLspManagerLifecycle:
         await manager.shutdown_all()
 
     @pytest.mark.asyncio
-    async def test_shutdown_idle(self, manager):
-        await manager.shutdown_idle()
-
-    @pytest.mark.asyncio
     async def test_shutdown_all_with_servers(self, manager):
         mock_server = AsyncMock(spec=LSPServer)
         mock_server.is_alive = True

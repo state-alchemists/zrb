@@ -31,7 +31,6 @@ class LSPManager(LifecycleMixin, QueryMixin):
     _servers: dict[str, LSPServer]  # key: "language:root_path"
     _lock: asyncio.Lock | None
     _project_roots: dict[str, str]  # file_path -> detected root
-    _idle_tasks: dict[str, asyncio.Task]
 
     def __new__(cls):
         if cls._instance is None:
@@ -39,7 +38,6 @@ class LSPManager(LifecycleMixin, QueryMixin):
             cls._instance._servers = {}
             cls._instance._lock = None  # Initialize lazily
             cls._instance._project_roots = {}
-            cls._instance._idle_tasks = {}
         return cls._instance
 
 

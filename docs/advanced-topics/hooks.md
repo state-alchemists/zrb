@@ -433,7 +433,7 @@ SESSION_END hooks can extend the session by returning a system message. This all
 
 ### Two Modes
 
-When a SESSION_END hook returns `HookResult.with_system_message()`, there are two modes:
+When a SESSION_END hook returns a result with a `systemMessage` modification, there are two modes:
 
 | Mode | `replace_response` | Behavior |
 |------|-------------------|----------|
@@ -450,9 +450,12 @@ async def journal_hook(context: HookContext) -> HookResult:
     if context.event == HookEvent.SESSION_END:
         # Extended session runs for journaling
         # User receives the ORIGINAL response, not the journal acknowledgment
-        return HookResult.with_system_message(
-            "Review session for learnings worth documenting."
-            # replace_response=False is implicit
+        return HookResult(
+            success=True,
+            modifications={
+                "systemMessage": "Review session for learnings worth documenting.",
+                # replace_response=False is the default
+            },
         )
     return HookResult()
 ```
@@ -470,9 +473,12 @@ async def summarize_hook(context: HookContext) -> HookResult:
         output = context.event_data.get("output", "")
         if len(str(output)) > 1000:
             # Extended session's response replaces original
-            return HookResult.with_system_message(
-                f"Summarize this response under 500 chars: {output[:500]}",
-                replace_response=True
+            return HookResult(
+                success=True,
+                modifications={
+                    "systemMessage": f"Summarize this response under 500 chars: {output[:500]}",
+                    "replaceResponse": True,
+                },
             )
     return HookResult()
 ```
@@ -481,7 +487,7 @@ async def summarize_hook(context: HookContext) -> HookResult:
 
 ### How It Works
 
-1. Hook returns `with_system_message(msg)` at SESSION_END
+1. Hook returns `HookResult(success=True, modifications={"systemMessage": msg})` at SESSION_END
 2. Session extends with that message as a new user prompt
 3. LLM processes the message (e.g., writes journal, summarizes)
 4. If `replace_response=False`: Original response returned
@@ -659,9 +665,9 @@ Example hook configurations are in the `llm-hooks` example:
 | HookResult Method | Effect |
 |-------------------|--------|
 | `HookResult()` | No effect, continue normally |
-| `HookResult.with_system_message(msg)` | Extend session, original response returned |
-| `HookResult.with_system_message(msg, replace_response=True)` | Extend session, extended response returned |
+| `HookResult(success=True, modifications={"systemMessage": msg})` | Extend session, original response returned |
+| `HookResult(success=True, modifications={"systemMessage": msg, "replaceResponse": True})` | Extend session, extended response returned |
 | `HookResult.block(reason)` | Block execution (exit code 2) |
-| `HookResult.allow()` | Allow tool execution |
-| `HookResult.deny(reason)` | Deny tool execution |
-| `HookResult.ask(reason)` | Ask user for permission |
+| `HookResult(success=True, modifications={"permissionDecision": "allow", ...})` | Allow tool execution |
+| `HookResult(success=True, modifications={"permissionDecision": "deny", ...})` | Deny tool execution |
+| `HookResult(success=True, modifications={"permissionDecision": "ask", ...})` | Ask user for permission |

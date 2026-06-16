@@ -63,7 +63,13 @@ class JournalingHookHandler:
             if self._session_end_fired:
                 return HookResult()
             self._session_end_fired = True
-            return HookResult.with_system_message(self._build_reminder())
+            return HookResult(
+                success=True,
+                modifications={
+                    "systemMessage": self._build_reminder(),
+                    "replaceResponse": False,
+                },
+            )
 
         return HookResult()
 

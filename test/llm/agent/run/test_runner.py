@@ -715,8 +715,12 @@ async def test_run_agent_session_end_replace_response_false():
             if context.event == HookEvent.SESSION_END:
                 if not self.fired:
                     self.fired = True
-                    return HookResult.with_system_message(
-                        "Side effect message", replace_response=False
+                    return HookResult(
+                        success=True,
+                        modifications={
+                            "systemMessage": "Side effect message",
+                            "replaceResponse": False,
+                        },
                     )
             return HookResult()
 
@@ -772,8 +776,12 @@ async def test_run_agent_session_end_replace_response_true():
             if context.event == HookEvent.SESSION_END:
                 if not self.fired:
                     self.fired = True
-                    return HookResult.with_system_message(
-                        "Summarize the above.", replace_response=True
+                    return HookResult(
+                        success=True,
+                        modifications={
+                            "systemMessage": "Summarize the above.",
+                            "replaceResponse": True,
+                        },
                     )
             return HookResult()
 
@@ -810,7 +818,9 @@ async def test_run_agent_session_start_context_prepending():
     manager = HookManager(search_dirs=[])
 
     async def session_start_hook(ctx):
-        return HookResult.with_additional_context("INIT_CONTEXT")
+        return HookResult(
+            success=True, modifications={"additionalContext": "INIT_CONTEXT"}
+        )
 
     manager.register(session_start_hook, events=[HookEvent.SESSION_START])
 
@@ -854,7 +864,9 @@ async def test_run_agent_user_prompt_context_prepending():
     manager = HookManager(search_dirs=[])
 
     async def prompt_hook(ctx):
-        return HookResult.with_additional_context("PROMPT_CONTEXT")
+        return HookResult(
+            success=True, modifications={"additionalContext": "PROMPT_CONTEXT"}
+        )
 
     manager.register(prompt_hook, events=[HookEvent.USER_PROMPT_SUBMIT])
 

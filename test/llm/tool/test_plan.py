@@ -11,13 +11,11 @@ import pytest
 
 from zrb.llm.tool.plan import (
     TodoManager,
-    clear_todos,
     create_plan_tools,
     get_current_context_session,
     get_todos,
     set_current_session,
     todo_manager,
-    update_todo,
     write_todos,
 )
 
@@ -147,91 +145,6 @@ class TestTodoManager:
         assert result["completed"] == 1
         assert result["in_progress"] == 1
         assert result["cancelled"] == 1
-
-    def test_update_todo_status(self, tmp_path):
-        """Test updating todo status."""
-        manager = TodoManager()
-        manager._todo_dir = tmp_path
-        manager._todos = {}
-
-        # Create initial todos
-        todos = [
-            {"content": "Task 1"},
-            {"content": "Task 2"},
-        ]
-        manager.write_todos("test_session", todos)
-
-        # Update status
-        result = manager.update_todo("test_session", "1", status="completed")
-
-        assert result is not None
-        assert result["completed"] == 1
-        task1 = next(t for t in result["todos"] if t["id"] == "1")
-        assert task1["status"] == "completed"
-
-    def test_update_todo_content(self, tmp_path):
-        """Test updating todo content."""
-        manager = TodoManager()
-        manager._todo_dir = tmp_path
-        manager._todos = {}
-
-        todos = [{"content": "Original content"}]
-        manager.write_todos("test_session", todos)
-
-        result = manager.update_todo("test_session", "1", content="New content")
-
-        assert result is not None
-        task1 = next(t for t in result["todos"] if t["id"] == "1")
-        assert task1["content"] == "New content"
-
-    def test_update_todo_nonexistent(self, tmp_path):
-        """Test updating non-existent todo."""
-        manager = TodoManager()
-        manager._todo_dir = tmp_path
-        manager._todos = {}
-
-        todos = [{"content": "Task 1"}]
-        manager.write_todos("test_session", todos)
-
-        result = manager.update_todo("test_session", "999", status="completed")
-        assert result is None
-
-    def test_update_todo_no_todos(self, tmp_path):
-        """Test updating when no todos exist."""
-        manager = TodoManager()
-        manager._todo_dir = tmp_path
-        manager._todos = {}
-
-        result = manager.update_todo("test_session", "1", status="completed")
-        assert result is None
-
-    def test_clear_todos(self, tmp_path):
-        """Test clearing todos."""
-        manager = TodoManager()
-        manager._todo_dir = tmp_path
-        manager._todos = {}
-
-        # Create some todos
-        todos = [{"content": "Task 1"}]
-        manager.write_todos("test_session", todos)
-
-        # Clear
-        result = manager.clear_todos("test_session")
-        assert result is True
-
-        # Verify cleared
-        loaded = manager._load_todos("test_session")
-        assert loaded is None
-
-    def test_clear_todos_nonexistent(self, tmp_path):
-        """Test clearing non-existent todos."""
-        manager = TodoManager()
-        manager._todo_dir = tmp_path
-        manager._todos = {}
-
-        result = manager.clear_todos("nonexistent_session")
-        # Should return True even if nothing to clear
-        assert result is True
 
     def test_sort_todos_numeric_ids(self, tmp_path):
         """Test that todos are sorted correctly with numeric IDs."""
@@ -427,91 +340,6 @@ class TestAsyncFunctions:
         assert "Task 2" in result
         assert "Progress:" in result
 
-    @pytest.mark.asyncio
-    async def test_update_todo_async(self, tmp_path):
-        """Test update_todo async function."""
-        manager = TodoManager()
-        manager._todo_dir = tmp_path
-        manager._todos = {}
-
-        await write_todos(
-            [{"content": "Task 1", "status": "pending"}], session="update_session"
-        )
-
-        result = await update_todo("1", status="completed", session="update_session")
-
-        assert "[update_session]" in result
-        assert "completed" in result
-
-    @pytest.mark.asyncio
-    async def test_update_todo_content(self, tmp_path):
-        """Test update_todo with content change."""
-        manager = TodoManager()
-        manager._todo_dir = tmp_path
-        manager._todos = {}
-
-        await write_todos([{"content": "Original"}], session="content_session")
-
-        result = await update_todo(
-            "1", content="Updated content", session="content_session"
-        )
-
-        assert "[content_session]" in result
-        assert "Updated content" in result
-
-    @pytest.mark.asyncio
-    async def test_update_todo_error_no_updates(self, tmp_path):
-        """Test update_todo with no status or content."""
-        result = await update_todo("1", session="any_session")
-
-        assert "Error" in result
-        assert "Must provide" in result
-
-    @pytest.mark.asyncio
-    async def test_update_todo_not_found(self, tmp_path):
-        """Test update_todo with non-existent ID."""
-        manager = TodoManager()
-        manager._todo_dir = tmp_path
-        manager._todos = {}
-
-        # Create some todos
-        await write_todos([{"content": "Task 1"}], session="notfound_session")
-
-        # Try to update non-existent
-        result = await update_todo(
-            "999", status="completed", session="notfound_session"
-        )
-
-        assert "Error" in result
-        assert "not found" in result
-
-    @pytest.mark.asyncio
-    async def test_clear_todos_async(self, tmp_path):
-        """Test clear_todos async function."""
-        manager = TodoManager()
-        manager._todo_dir = tmp_path
-        manager._todos = {}
-
-        # Create todos
-        await write_todos([{"content": "Task 1"}], session="clear_session")
-
-        # Clear
-        result = await clear_todos(session="clear_session")
-
-        assert "Cleared" in result
-
-    @pytest.mark.asyncio
-    async def test_clear_todos_no_todos(self, tmp_path):
-        """Test clear_todos when no todos exist."""
-        manager = TodoManager()
-        manager._todo_dir = tmp_path
-        manager._todos = {}
-
-        result = await clear_todos(session="nonexistent_clear_session")
-
-        # Should still succeed
-        assert "todos" in result.lower() or "Cleared" in result or "No todos" in result
-
 
 class TestUtilityFunctions:
     """Test utility functions."""
@@ -560,9 +388,8 @@ class TestUtilityFunctions:
     def test_create_plan_tools(self):
         """Agent-facing plan tools are WriteTodos + GetTodos.
 
-        WriteTodos replaces the list by default, so it subsumes UpdateTodo and
-        ClearTodos; those remain importable for direct use but are not exposed
-        to the model.
+        WriteTodos replaces the list by default, so it subsumes the former
+        per-item update and clear operations.
         """
         tools = create_plan_tools()
 

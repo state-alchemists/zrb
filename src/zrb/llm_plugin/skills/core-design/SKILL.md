@@ -52,7 +52,7 @@ When the current step matches a trigger below, `Read` the named companion from t
 ## Safety Rules
 
 - **No premature implementation**: During steps 1-4, do not write or modify any code. Design decisions come before implementation.
-- **Approval gate**: You must obtain explicit user approval of the design and plan before starting implementation. This overrides the Working Loop's Frame step, which would otherwise work autonomously on directives.
+- **Approval gate**: When running interactively, obtain explicit user approval of the design and plan before starting implementation — this overrides the Working Loop's Frame step, which would otherwise work autonomously on directives. When running non-interactively (no user to approve), do not block on approval: present the design and plan inline and then proceed.
 
 ## Output Standards
 

@@ -513,7 +513,7 @@ On a hit it regenerates the turn rather than returning it: `_history_without_tra
 | `src/zrb/llm/agent/run/history_utils.py` | `sanitize_history()`, `filter_nil_content()`, `strip_thinking_parts()`, `strip_to_text_only()` |
 | `src/zrb/llm/message.py` | `sanitize_orphaned_tool_calls()`, `ensure_alternating_roles()`, `validate_tool_pair_integrity()` |
 | `src/zrb/llm/agent/run/openai_patch.py` | Monkey-patch for `content: null` serialization |
-| `src/zrb/llm/agent/run/error_classifier.py` | `is_missing_reasoning_content_error()`, `is_opaque_validation_error()`, `is_invalid_tool_call_error()` |
+| `src/zrb/llm/agent/run/error_classifier.py` | `is_missing_reasoning_content_error()`, `is_invalid_tool_call_error()` |
 | `src/zrb/llm/agent/run/retry_loop.py` | Retry decisions including `strip_thinking_parts`, the opaque-400 fallback, and the deferred-mismatch recovery (`deferred_mismatch_retry_done` / `clear_results`) |
 | `src/zrb/llm/agent/run/runner.py` | `_execution_loop`: skips history processors mid-deferral when `current_results` has pending calls/approvals |
 | `src/zrb/llm/summarizer/history_summarizer.py` | Calls `sanitize_history()` on the kept slice after compression |

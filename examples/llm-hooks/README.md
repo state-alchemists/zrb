@@ -28,7 +28,7 @@ from zrb.llm.hook.types import HookEvent
 
 async def my_hook(context: HookContext) -> HookResult:
     if context.event == HookEvent.SESSION_END:
-        return HookResult.with_system_message("Don't forget to journal!")
+        return HookResult(success=True, modifications={"systemMessage": "Don't forget to journal!"})
     return HookResult()
 
 def register_hooks(hook_manager):
@@ -82,25 +82,25 @@ Hooks return `HookResult` with these effects:
 | Method | Effect |
 |--------|--------|
 | `HookResult()` | No effect, continue normally |
-| `HookResult.with_system_message(msg)` | Inject message into conversation, return original response |
-| `HookResult.with_system_message(msg, replace_response=True)` | Inject message, return extended session's response |
+| `HookResult(success=True, modifications={"systemMessage": msg})` | Inject message into conversation, return original response |
+| `HookResult(success=True, modifications={"systemMessage": msg, "replaceResponse": True})` | Inject message, return extended session's response |
 | `HookResult.block(reason, context)` | Block execution (exit code 2) |
-| `HookResult.allow(decision, reason)` | Allow tool execution |
-| `HookResult.deny(reason)` | Deny tool execution |
-| `HookResult.ask(reason)` | Ask user for permission |
+| `HookResult(success=True, modifications={"permissionDecision": "allow", ...})` | Allow tool execution |
+| `HookResult(success=True, modifications={"permissionDecision": "deny", ...})` | Deny tool execution |
+| `HookResult(success=True, modifications={"permissionDecision": "ask", ...})` | Ask user for permission |
 
 ### SESSION_END System Messages
 
-When a SESSION_END hook returns `with_system_message()`, the session extends with that message:
+When a SESSION_END hook returns a `systemMessage` modification, the session extends with that message:
 
 ```python
 # Side effects only (default) - extended session invisible to user
 # Use for logging, journaling, notifications
-return HookResult.with_system_message("Do something in background")
+return HookResult(success=True, modifications={"systemMessage": "Do something in background"})
 
 # Replace response - extended session's response becomes the final response
 # Use for post-processing, summarization, transformation
-return HookResult.with_system_message("Summarize the conversation.", replace_response=True)
+return HookResult(success=True, modifications={"systemMessage": "Summarize the conversation.", "replaceResponse": True})
 ```
 
 ## Example Files

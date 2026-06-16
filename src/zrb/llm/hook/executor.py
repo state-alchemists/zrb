@@ -250,43 +250,6 @@ class ThreadPoolHookExecutor:
 
         return exec_result
 
-    def create_claude_compatible_result(
-        self,
-        success: bool = True,
-        blocked: bool = False,
-        message: str | None = None,
-        decision: str | None = None,
-        reason: str | None = None,
-        permission_decision: str | None = None,
-        permission_decision_reason: str | None = None,
-        additional_context: str | None = None,
-        updated_input: dict[str, Any] | None = None,
-        system_message: str | None = None,
-        continue_execution: bool = True,
-        suppress_output: bool = False,
-        exit_code: int = 0,
-    ) -> HookExecutionResult:
-        """
-        Create a Claude Code compatible hook result.
-
-        This is a helper for hook implementations to ensure compatibility.
-        """
-        return HookExecutionResult(
-            success=success,
-            blocked=blocked,
-            message=message,
-            decision=decision,
-            reason=reason,
-            permission_decision=permission_decision,
-            permission_decision_reason=permission_decision_reason,
-            additional_context=additional_context,
-            updated_input=updated_input,
-            system_message=system_message,
-            continue_execution=continue_execution,
-            suppress_output=suppress_output,
-            exit_code=exit_code,
-        )
-
 
 # Singleton instance and lock for free-threaded Python (no-GIL) safety
 _hook_executor: ThreadPoolHookExecutor | None = None

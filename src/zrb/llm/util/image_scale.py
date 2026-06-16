@@ -24,7 +24,6 @@ class ScaleResult:
     original_bytes: int
     final_bytes: int
     scaled: bool
-    note: str = ""
 
     @property
     def saved_bytes(self) -> int:
@@ -58,20 +57,18 @@ def scale_image_bytes(
             original_bytes=original_size,
             final_bytes=original_size,
             scaled=False,
-            note="Pillow not installed; image not scaled.",
         )
 
     try:
         img = Image.open(io.BytesIO(data))
         img.load()
-    except Exception as exc:
+    except Exception:
         return ScaleResult(
             data=data,
             media_type=media_type,
             original_bytes=original_size,
             final_bytes=original_size,
             scaled=False,
-            note=f"Could not decode image ({exc}); sending as-is.",
         )
 
     width, height = img.size

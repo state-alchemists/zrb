@@ -2,7 +2,6 @@ import pytest
 
 from zrb.util.string.conversion import (
     double_quote,
-    pluralize,
     to_boolean,
     to_camel_case,
     to_human_case,
@@ -70,37 +69,3 @@ def test_to_human_case():
     assert to_human_case("hello_world") == "hello world"
     assert to_human_case("HelloWorld") == "hello world"
     assert to_human_case(None) == ""
-
-
-def test_pluralize():
-    assert pluralize("foot") == "feet"
-    assert pluralize("tooth") == "teeth"
-    assert pluralize("child") == "children"
-    assert pluralize("person") == "people"
-    assert pluralize("man") == "men"
-    assert pluralize("woman") == "women"
-    assert pluralize("mouse") == "mice"
-    assert pluralize("goose") == "geese"
-    assert pluralize("ox") == "oxen"
-    assert pluralize("cactus") == "cacti"
-    assert pluralize("focus") == "foci"
-    assert pluralize("fungus") == "fungi"
-    assert pluralize("nucleus") == "nuclei"
-    assert pluralize("syllabus") == "syllabi"
-    assert pluralize("analysis") == "analyses"
-    assert pluralize("diagnosis") == "diagnoses"
-    assert pluralize("thesis") == "theses"
-    assert pluralize("crisis") == "crises"
-    assert pluralize("phenomenon") == "phenomena"
-    assert pluralize("criterion") == "criteria"
-    assert pluralize("cat") == "cats"
-    assert pluralize("dog") == "dogs"
-    assert pluralize("bus") == "buses"
-    assert pluralize("box") == "boxes"
-    assert pluralize("buzz") == "buzzes"
-    assert pluralize("church") == "churches"
-    assert pluralize("bush") == "bushes"
-    assert pluralize("wolf") == "wolves"
-    assert pluralize("knife") == "knives"
-    assert pluralize("baby") == "babies"
-    assert pluralize("toy") == "toys"

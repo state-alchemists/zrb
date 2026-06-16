@@ -18,10 +18,8 @@ from zrb.llm.tool.file import (
 from zrb.llm.tool.journal import search_journal
 from zrb.llm.tool.mcp import load_mcp_config
 from zrb.llm.tool.plan import (
-    clear_todos,
     create_plan_tools,
     get_todos,
-    update_todo,
     write_todos,
 )
 from zrb.llm.tool.rag import create_rag_from_directory
@@ -65,6 +63,4 @@ __all__ = [
     "create_plan_tools",
     "write_todos",
     "get_todos",
-    "update_todo",
-    "clear_todos",
 ]

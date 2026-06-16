@@ -217,6 +217,28 @@ async def _resolve_approval(
 
         # if policy_decision == ASK, we continue but skip Priority 3 (YOLO).
 
+    # Priority 2b: Non-interactive hard-ASK resolution. With no human to
+    # confirm, a hard ASK can neither be prompted nor overridden by YOLO, so it
+    # would otherwise fall through to the stdin prompt at Priority 5 and block
+    # forever (the root cause of the --interactive false plan-mode hang).
+    # Resolve it deterministically instead: auto-approve the plan gate
+    # (ExitPlanMode's approval is a no-op without a user to read the plan —
+    # mirrors AskUserQuestion / ADR-0062) and deny any other approval-gated
+    # tool rather than running it unattended. See ADR-0067.
+    # lazy: circular — run-loop approval path ↔ zrb.llm.tool.ask
+    from zrb.llm.tool.ask import get_interactive_mode
+
+    if policy_decision == ASK and not get_interactive_mode():
+        # lazy: heavy third-party
+        from pydantic_ai import ToolApproved, ToolDenied
+
+        if call.tool_name == "ExitPlanMode":
+            return ToolApproved()
+        return ToolDenied(
+            "Non-interactive mode: approval-gated tool blocked (no user to "
+            "confirm). Re-run with --interactive true to approve interactively."
+        )
+
     # Priority 3: YOLO (Auto-approve)
     # lazy: runtime_state is a thin re-export of runner ContextVars.
     from zrb.llm.agent.run.runtime_state import get_current_yolo

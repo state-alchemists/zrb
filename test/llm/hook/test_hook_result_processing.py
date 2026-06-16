@@ -110,7 +110,10 @@ class TestHookResultProcessing:
 
             # First SESSION_END call returns systemMessage
             if context.event == HookEvent.SESSION_END and call_count == 1:
-                return HookResult.with_system_message("Test reminder message")
+                return HookResult(
+                    success=True,
+                    modifications={"systemMessage": "Test reminder message"},
+                )
             # Subsequent calls return nothing
             return HookResult()
 
@@ -139,7 +142,9 @@ class TestHookResultProcessing:
         from zrb.llm.hook.manager import HookManager
 
         async def context_hook(context):
-            return HookResult.with_additional_context("Injected context")
+            return HookResult(
+                success=True, modifications={"additionalContext": "Injected context"}
+            )
 
         manager = HookManager(search_dirs=[])
         manager.register(context_hook, events=[HookEvent.SESSION_START])
@@ -158,7 +163,10 @@ class TestHookResultProcessing:
         from zrb.llm.hook.manager import HookManager
 
         async def context_hook(context):
-            return HookResult.with_additional_context("Extra context for prompt")
+            return HookResult(
+                success=True,
+                modifications={"additionalContext": "Extra context for prompt"},
+            )
 
         manager = HookManager(search_dirs=[])
         manager.register(context_hook, events=[HookEvent.USER_PROMPT_SUBMIT])
