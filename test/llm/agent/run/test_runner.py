@@ -225,6 +225,42 @@ async def test_run_agent_basic():
 
 
 @pytest.mark.asyncio
+async def test_run_agent_fires_stop_on_natural_completion():
+    """A completed turn fires HookEvent.STOP — the per-turn "done" signal that
+    Claude-Code-compatible consumers (completion sounds, desktop notifications,
+    e.g. peon-ping) listen on, not just the manual-interrupt path in the TUI."""
+    fired: list[HookEvent] = []
+
+    async def record(context: HookContext) -> HookResult:
+        fired.append(context.event)
+        return HookResult(success=True)
+
+    manager = HookManager(search_dirs=[])
+    manager.register(record, events=[HookEvent.STOP])
+
+    agent = MagicMock()
+    mock_result = MagicMock()
+    mock_result.output = "done"
+    mock_result.all_messages.return_value = []
+
+    async def _gen(*args, **kwargs):
+        yield AgentRunResultEvent(result=mock_result)
+
+    agent.run_stream_events = _stream_from(_gen)
+
+    result, _ = await run_agent(
+        agent=agent,
+        message="Hi",
+        message_history=[],
+        limiter=LLMLimiter(),
+        hook_manager=manager,
+    )
+
+    assert result == "done"
+    assert HookEvent.STOP in fired
+
+
+@pytest.mark.asyncio
 async def test_run_agent_with_attachments():
     """Test run_agent with attachments (BinaryContent)."""
     agent = MagicMock()
@@ -679,12 +715,16 @@ async def test_run_agent_session_end_replace_response_false():
             if context.event == HookEvent.SESSION_END:
                 if not self.fired:
                     self.fired = True
-                    return HookResult.with_system_message(
-                        "Side effect message", replace_response=False
+                    return HookResult(
+                        success=True,
+                        modifications={
+                            "systemMessage": "Side effect message",
+                            "replaceResponse": False,
+                        },
                     )
             return HookResult()
 
-    manager = HookManager()
+    manager = HookManager(search_dirs=[])
     manager.register(OnceHook(), events=[HookEvent.SESSION_END])
 
     result, history = await run_agent(
@@ -736,12 +776,16 @@ async def test_run_agent_session_end_replace_response_true():
             if context.event == HookEvent.SESSION_END:
                 if not self.fired:
                     self.fired = True
-                    return HookResult.with_system_message(
-                        "Summarize the above.", replace_response=True
+                    return HookResult(
+                        success=True,
+                        modifications={
+                            "systemMessage": "Summarize the above.",
+                            "replaceResponse": True,
+                        },
                     )
             return HookResult()
 
-    manager = HookManager()
+    manager = HookManager(search_dirs=[])
     manager.register(OnceHook(), events=[HookEvent.SESSION_END])
 
     result, history = await run_agent(
@@ -771,10 +815,12 @@ async def test_run_agent_session_start_context_prepending():
 
     agent.run_stream_events = _stream_from(_gen)
 
-    manager = HookManager()
+    manager = HookManager(search_dirs=[])
 
     async def session_start_hook(ctx):
-        return HookResult.with_additional_context("INIT_CONTEXT")
+        return HookResult(
+            success=True, modifications={"additionalContext": "INIT_CONTEXT"}
+        )
 
     manager.register(session_start_hook, events=[HookEvent.SESSION_START])
 
@@ -815,10 +861,12 @@ async def test_run_agent_user_prompt_context_prepending():
 
     agent.run_stream_events = _stream_from(_gen)
 
-    manager = HookManager()
+    manager = HookManager(search_dirs=[])
 
     async def prompt_hook(ctx):
-        return HookResult.with_additional_context("PROMPT_CONTEXT")
+        return HookResult(
+            success=True, modifications={"additionalContext": "PROMPT_CONTEXT"}
+        )
 
     manager.register(prompt_hook, events=[HookEvent.USER_PROMPT_SUBMIT])
 

@@ -1,4 +1,5 @@
 import json
+import time
 from typing import TYPE_CHECKING, Any, Callable, Literal
 
 if TYPE_CHECKING:
@@ -7,6 +8,12 @@ if TYPE_CHECKING:
 PrintKind = Literal[
     "text", "streaming", "progress", "tool_call", "usage", "thinking", "todo_progress"
 ]
+
+# Minimum seconds between "Prepare tool parameters" spinner repaints. The
+# spinner is cosmetic; a slow model streaming thousands of tool-arg deltas would
+# otherwise flood stdout (observed: 9k+ frames / 500KB) and the per-frame write
+# syscalls add real latency to high-tool-call turns. Repaint at most ~10x/sec.
+_PROGRESS_REPAINT_INTERVAL = 0.1
 
 
 class StreamEventHandler:
@@ -26,6 +33,7 @@ class StreamEventHandler:
 
         self._progress_chars = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
         self._progress_idx = 0
+        self._last_progress_time = 0.0
         self._was_tool_call_delta = False
         self._was_tool_call_start = False
         self._event_prefix = self._indentation
@@ -141,18 +149,25 @@ class StreamEventHandler:
                 self._was_tool_call_delta = True
                 self._was_tool_call_start = False
             else:
-                progress_char = self._progress_chars[self._progress_idx]
                 if not self._was_tool_call_delta and not self._was_tool_call_start:
                     self._fprint("\n", kind="progress")
+                # Set state before the throttle check so the carriage-return
+                # cleanup in _handle_tool_call still fires even on a throttled
+                # delta.
+                self._was_tool_call_delta = True
+                self._was_tool_call_start = False
+                now = time.monotonic()
+                if now - self._last_progress_time < _PROGRESS_REPAINT_INTERVAL:
+                    return
+                self._last_progress_time = now
+                progress_char = self._progress_chars[self._progress_idx]
                 self._print_fn(
                     f"\r{self._indentation}🔄 Prepare tool parameters {progress_char}",
                     "progress",
                 )
-                self._progress_idx += 1
-                if self._progress_idx >= len(self._progress_chars):
-                    self._progress_idx = 0
-                self._was_tool_call_delta = True
-                self._was_tool_call_start = False
+                self._progress_idx = (self._progress_idx + 1) % len(
+                    self._progress_chars
+                )
 
     def _handle_tool_call(self, event: "AgentStreamEvent"):
         if self._was_tool_call_delta and not self._show_tool_call_detail:

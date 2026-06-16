@@ -50,6 +50,21 @@ async def test_decode_jwt():
 
 
 @pytest.mark.asyncio
+async def test_decode_jwt_without_secret():
+    # The jwt.io use case: inspect claims with no secret (verify defaults to False).
+    s1 = Session(shared_ctx=SharedContext(), state_logger=MagicMock())
+    token = await encode_jwt.async_run(
+        session=s1,
+        kwargs={"secret": "secret", "payload": '{"foo": "bar"}', "algorithm": "HS256"},
+    )
+    s2 = Session(shared_ctx=SharedContext(), state_logger=MagicMock())
+    payload = await decode_jwt.async_run(
+        session=s2, kwargs={"token": token, "secret": "", "algorithm": "HS256"}
+    )
+    assert payload == {"foo": "bar"}
+
+
+@pytest.mark.asyncio
 async def test_validate_jwt():
     secret = "secret"
     algorithm = "HS256"
@@ -115,6 +130,7 @@ class TestJwtErrorHandling:
                 session=session,
                 kwargs={
                     "token": token,
+                    "verify": True,
                     "secret": "wrong_secret",
                     "algorithm": "HS256",
                 },
@@ -180,6 +196,7 @@ class TestJwtErrorHandling:
                 session=session,
                 kwargs={
                     "token": expired_token,
+                    "verify": True,
                     "secret": "secret",
                     "algorithm": "HS256",
                 },

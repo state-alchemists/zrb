@@ -1,4 +1,7 @@
 from zrb.builtin.base64 import decode_base64, encode_base64, validate_base64
+from zrb.builtin.case import convert_case, slugify
+from zrb.builtin.cron import parse_cron
+from zrb.builtin.datetime import epoch_to_iso, iso_to_epoch, now
 from zrb.builtin.git import (
     get_git_diff,
     git_commit,
@@ -7,12 +10,29 @@ from zrb.builtin.git import (
     prune_local_branches,
 )
 from zrb.builtin.git_subtree import git_add_subtree, git_pull_subtree, git_push_subtree
+from zrb.builtin.hash import hash_file, hash_hmac, hash_text
+from zrb.builtin.hex import decode_hex, dump_hex, encode_hex
 from zrb.builtin.http import generate_curl, http_request
+from zrb.builtin.json import (
+    format_json,
+    get_json,
+    json_to_yaml,
+    minify_json,
+    validate_json,
+    yaml_to_json,
+)
 from zrb.builtin.jwt import decode_jwt, encode_jwt, validate_jwt
 from zrb.builtin.llm.chat import llm_chat
 from zrb.builtin.md5 import hash_md5, sum_md5, validate_md5
+from zrb.builtin.number import convert_base
 from zrb.builtin.python import format_python_code
-from zrb.builtin.random import shuffle_values, throw_dice
+from zrb.builtin.random import (
+    generate_password,
+    generate_string,
+    generate_token,
+    shuffle_values,
+    throw_dice,
+)
 from zrb.builtin.searxng.start import start_searxng
 from zrb.builtin.setup.asdf.asdf import setup_asdf
 from zrb.builtin.setup.latex.ubuntu import setup_latex_on_ubuntu
@@ -33,6 +53,7 @@ from zrb.builtin.todo import (
     show_todo,
 )
 from zrb.builtin.ulid import generate_ulid, validate_ulid
+from zrb.builtin.url import decode_url, encode_url, parse_url
 from zrb.builtin.uuid import (
     generate_uuid_v1,
     generate_uuid_v3,
@@ -49,6 +70,12 @@ __all__ = [
     "decode_base64",
     "encode_base64",
     "validate_base64",
+    "convert_case",
+    "slugify",
+    "parse_cron",
+    "epoch_to_iso",
+    "iso_to_epoch",
+    "now",
     "get_git_diff",
     "git_commit",
     "git_pull",
@@ -57,8 +84,20 @@ __all__ = [
     "git_add_subtree",
     "git_pull_subtree",
     "git_push_subtree",
+    "hash_file",
+    "hash_hmac",
+    "hash_text",
+    "decode_hex",
+    "dump_hex",
+    "encode_hex",
     "generate_curl",
     "http_request",
+    "format_json",
+    "get_json",
+    "json_to_yaml",
+    "minify_json",
+    "validate_json",
+    "yaml_to_json",
     "decode_jwt",
     "encode_jwt",
     "validate_jwt",
@@ -66,7 +105,11 @@ __all__ = [
     "hash_md5",
     "sum_md5",
     "validate_md5",
+    "convert_base",
     "format_python_code",
+    "generate_password",
+    "generate_string",
+    "generate_token",
     "shuffle_values",
     "throw_dice",
     "start_searxng",
@@ -88,6 +131,9 @@ __all__ = [
     "show_todo",
     "generate_ulid",
     "validate_ulid",
+    "decode_url",
+    "encode_url",
+    "parse_url",
     "generate_uuid_v1",
     "generate_uuid_v3",
     "generate_uuid_v4",

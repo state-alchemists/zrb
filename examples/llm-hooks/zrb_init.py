@@ -110,30 +110,59 @@ async def permission_hook(context: HookContext) -> HookResult:
         safe_patterns = ["ls", "cat", "grep", "find", "git status", "git log"]
         if any(cmd in command for cmd in safe_patterns):
             print(f"[PERMISSION] Allowing safe Bash: {command[:50]}")
-            return HookResult.allow(
-                permission_decision="allow", reason="Command appears to be read-only"
+            return HookResult(
+                success=True,
+                modifications={
+                    "permissionDecision": "allow",
+                    "exit_code": 0,
+                    "permissionDecisionReason": "Command appears to be read-only",
+                },
             )
 
         # Block dangerous patterns
         dangerous_patterns = ["rm ", "rmdir", "sudo", "chmod", "chown", ">"]
         if any(pat in command for pat in dangerous_patterns):
             print(f"[PERMISSION] Blocking dangerous Bash: {command[:50]}")
-            return HookResult.deny(
-                reason=f"Command contains dangerous pattern: {command}"
+            return HookResult(
+                success=True,
+                modifications={
+                    "permissionDecision": "deny",
+                    "exit_code": 0,
+                    "permissionDecisionReason": f"Command contains dangerous pattern: {command}",
+                },
             )
 
         # Ask for everything else
         print(f"[PERMISSION] Asking about Bash: {command[:50]}")
-        return HookResult.ask(reason=f"Please confirm: {command}")
+        return HookResult(
+            success=True,
+            modifications={
+                "permissionDecision": "ask",
+                "exit_code": 0,
+                "permissionDecisionReason": f"Please confirm: {command}",
+            },
+        )
 
     if tool_name in SAFE_TOOLS:
         print(f"[PERMISSION] Auto-allowing safe tool: {tool_name}")
-        return HookResult.allow(
-            permission_decision="allow", reason=f"{tool_name} is a safe read-only tool"
+        return HookResult(
+            success=True,
+            modifications={
+                "permissionDecision": "allow",
+                "exit_code": 0,
+                "permissionDecisionReason": f"{tool_name} is a safe read-only tool",
+            },
         )
 
     # Unknown tool - ask
-    return HookResult.ask(reason=f"Unknown tool: {tool_name}")
+    return HookResult(
+        success=True,
+        modifications={
+            "permissionDecision": "ask",
+            "exit_code": 0,
+            "permissionDecisionReason": f"Unknown tool: {tool_name}",
+        },
+    )
 
 
 # =============================================================================
@@ -160,9 +189,15 @@ class JournalReminderHook:
         if context.event == HookEvent.SESSION_END:
             if self.had_activity and not self.reminder_sent:
                 self.reminder_sent = True
-                return HookResult.with_system_message(
-                    "Before ending, consider: Did you learn anything worth documenting? "
-                    "If so, update the project notes."
+                return HookResult(
+                    success=True,
+                    modifications={
+                        "systemMessage": (
+                            "Before ending, consider: Did you learn anything worth documenting? "
+                            "If so, update the project notes."
+                        ),
+                        "replaceResponse": False,
+                    },
                 )
 
         return HookResult()
@@ -221,11 +256,16 @@ class ResponseTransformerHook:
             print(
                 f"[TRANSFORM] Response #{self.response_count} is {len(str(output))} chars, summarizing..."
             )
-            return HookResult.with_system_message(
-                f"The previous response was too long ({len(str(output))} chars). "
-                f"Please provide a concise summary under {self.max_length} characters "
-                f"while preserving key information.",
-                replace_response=True,  # Extended session's response replaces original
+            return HookResult(
+                success=True,
+                modifications={
+                    "systemMessage": (
+                        f"The previous response was too long ({len(str(output))} chars). "
+                        f"Please provide a concise summary under {self.max_length} characters "
+                        f"while preserving key information."
+                    ),
+                    "replaceResponse": True,
+                },
             )
 
         return HookResult()
@@ -306,22 +346,22 @@ llm_chat.add_hook_factory(register_hooks)
 
 # Hook Results:
 # - HookResult(): Continue normally
-# - HookResult.with_system_message(msg): Inject message, return original response
-# - HookResult.with_system_message(msg, replace_response=True): Inject message, return extended response
+# - HookResult(success=True, modifications={"systemMessage": msg}): Inject message, return original response
+# - HookResult(success=True, modifications={"systemMessage": msg, "replaceResponse": True}): Inject message, return extended response
 # - HookResult.block(reason): Block execution (exit code 2)
-# - HookResult.allow(decision, reason): Allow tool use
-# - HookResult.deny(reason): Deny tool use
-# - HookResult.ask(reason): Ask user for permission
+# - HookResult(success=True, modifications={"permissionDecision": "allow", ...}): Allow tool use
+# - HookResult(success=True, modifications={"permissionDecision": "deny", ...}): Deny tool use
+# - HookResult(success=True, modifications={"permissionDecision": "ask", ...}): Ask user for permission
 
 # SESSION_END System Messages:
-# When a SESSION_END hook returns with_system_message(), the session extends:
+# When a SESSION_END hook returns a systemMessage, the session extends:
 #
 #   # Side effects only (default) - journaling, notifications
-#   return HookResult.with_system_message("Journal this")
+#   return HookResult(success=True, modifications={"systemMessage": "Journal this"})
 #   # → Extended session runs, ORIGINAL response returned to user
 #
 #   # Replace response - summarization, transformation
-#   return HookResult.with_system_message("Summarize", replace_response=True)
+#   return HookResult(success=True, modifications={"systemMessage": "Summarize", "replaceResponse": True})
 #   # → Extended session response becomes the FINAL response
 
 # Match Matchers:

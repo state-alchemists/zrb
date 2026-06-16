@@ -24,7 +24,7 @@ def _create_mock_cfg():
 def hook_manager():
     mock_cfg = _create_mock_cfg()
     with patch("zrb.llm.hook.journal.CFG", mock_cfg):
-        return HookManager()
+        return HookManager(search_dirs=[])
 
 
 async def check_match(tmp_path, matchers, context_data):
@@ -51,7 +51,7 @@ async def check_match(tmp_path, matchers, context_data):
 
     mock_cfg = _create_mock_cfg()
     with patch("zrb.llm.hook.journal.CFG", mock_cfg):
-        manager = HookManager()
+        manager = HookManager(search_dirs=[])
         manager.scan(search_dirs=[str(hook_dir)])
 
         # Extract event_data if present, otherwise use None

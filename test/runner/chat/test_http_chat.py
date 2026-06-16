@@ -142,18 +142,6 @@ class TestHTTPChatApprovalChannelWithData:
         assert channel.has_pending_approvals() is False
 
 
-class TestCreateHttpChatUiFactory:
-    def test_create_http_chat_ui_factory(self):
-        from zrb.runner.chat.http_chat import create_http_chat_ui_factory
-
-        mock_manager = MagicMock()
-        factory = create_http_chat_ui_factory(
-            session_manager=mock_manager,
-            session_id="test-session",
-        )
-        assert callable(factory)
-
-
 class TestHTTPChatApprovalChannelMore:
     @pytest.fixture
     def mock_session_manager(self):

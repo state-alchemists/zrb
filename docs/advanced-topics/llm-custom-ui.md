@@ -1134,9 +1134,9 @@ llm_chat.set_ui_factory(create_ui_factory(MyUI, config=config))
 | Standard CLI | `SimpleUI` |
 | Event-driven messaging | `EventDrivenUI` |
 | External polling | `PollingUI` |
-| Rate limit protection | Add `BufferedOutputMixin` |
 | Custom event loop | `BaseUI` |
 | Multi-channel input | Use `append_ui()` and `append_approval_channel()` |
+| Rate limit protection | Add `BufferedOutputMixin` |
 
 ---
 

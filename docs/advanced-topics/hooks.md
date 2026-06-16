@@ -56,9 +56,17 @@ Hooks are discovered automatically in these locations (in order of precedence):
 | `./.zrb/hooks/*.json` | Project-specific hooks directory |
 | `~/.claude/hooks.json` | Claude Code compatibility (single file) |
 | `~/.claude/hooks/*.json` | Claude Code compatibility (directory) |
+| `~/.claude/settings.json` | Claude Code compatibility — the nested `hooks` block |
+| `~/.claude/settings.local.json` | Claude Code compatibility — the nested `hooks` block |
 | `./.claude/hooks.json` | Claude Code compatibility, project (single file) |
 | `./.claude/hooks/*.json` | Claude Code compatibility, project (directory) |
+| `./.claude/settings.json` | Claude Code compatibility, project — the nested `hooks` block |
+| `./.claude/settings.local.json` | Claude Code compatibility, project — the nested `hooks` block |
 | Plugin `hooks/` dirs | Inside `ZRB_LLM_PLUGIN_DIRS` entries |
+
+Hooks Claude Code (and drop-in tools like [peon-ping](https://peonping.com)) register
+inside `settings.json`/`settings.local.json` are picked up automatically — only the
+nested `hooks` block is read; other settings keys are ignored.
 
 ---
 
@@ -76,8 +84,9 @@ Hooks can attach to these lifecycle events:
 | `PreToolUse` | Before a tool executes | **Yes** |
 | `PostToolUse` | After tool succeeds | No |
 | `PostToolUseFailure` | After tool fails | No |
-| `Notification` | System notifications | No |
-| `Stop` | When execution stops | No |
+| `PermissionRequest` | A tool call reaches an interactive approval prompt (fires only when the user is actually asked — not for auto-approved/YOLO/policy-allowed calls) | No |
+| `Notification` | System notifications. `AskUserQuestion` fires one with `notification_type='elicitation_dialog'` when it blocks for an answer | No |
+| `Stop` | A turn finishes and control returns to the user (natural completion or manual interrupt) | No |
 | `PreCompact` | Before history summarization | No |
 
 `PreCommand` / `PostCommand` fire in the interactive chat TUI when the user
@@ -187,6 +196,17 @@ Execute shell commands or scripts.
 | `command` | string | Shell command to execute |
 | `shell` | boolean | Use shell interpreter (default: true) |
 | `working_dir` | string | Working directory (optional) |
+
+**Input: env vars _and_ stdin.** A command hook receives its event two ways, so it
+works with both styles of Claude-Code hook. The `CLAUDE_*` [environment
+variables](#environment-variables) are set, and the full Claude-Code event payload
+is also written to the command's **stdin** as JSON (`hook_event_name`, `session_id`,
+`cwd`, `tool_name`, …). Stdin-driven hooks read it like:
+
+```bash
+event=$(cat)                                    # read the JSON payload from stdin
+name=$(echo "$event" | jq -r .hook_event_name)  # e.g. "Stop"
+```
 
 ### 2. Prompt Hooks
 
@@ -413,7 +433,7 @@ SESSION_END hooks can extend the session by returning a system message. This all
 
 ### Two Modes
 
-When a SESSION_END hook returns `HookResult.with_system_message()`, there are two modes:
+When a SESSION_END hook returns a result with a `systemMessage` modification, there are two modes:
 
 | Mode | `replace_response` | Behavior |
 |------|-------------------|----------|
@@ -430,9 +450,12 @@ async def journal_hook(context: HookContext) -> HookResult:
     if context.event == HookEvent.SESSION_END:
         # Extended session runs for journaling
         # User receives the ORIGINAL response, not the journal acknowledgment
-        return HookResult.with_system_message(
-            "Review session for learnings worth documenting."
-            # replace_response=False is implicit
+        return HookResult(
+            success=True,
+            modifications={
+                "systemMessage": "Review session for learnings worth documenting.",
+                # replace_response=False is the default
+            },
         )
     return HookResult()
 ```
@@ -450,9 +473,12 @@ async def summarize_hook(context: HookContext) -> HookResult:
         output = context.event_data.get("output", "")
         if len(str(output)) > 1000:
             # Extended session's response replaces original
-            return HookResult.with_system_message(
-                f"Summarize this response under 500 chars: {output[:500]}",
-                replace_response=True
+            return HookResult(
+                success=True,
+                modifications={
+                    "systemMessage": f"Summarize this response under 500 chars: {output[:500]}",
+                    "replaceResponse": True,
+                },
             )
     return HookResult()
 ```
@@ -461,7 +487,7 @@ async def summarize_hook(context: HookContext) -> HookResult:
 
 ### How It Works
 
-1. Hook returns `with_system_message(msg)` at SESSION_END
+1. Hook returns `HookResult(success=True, modifications={"systemMessage": msg})` at SESSION_END
 2. Session extends with that message as a new user prompt
 3. LLM processes the message (e.g., writes journal, summarizes)
 4. If `replace_response=False`: Original response returned
@@ -639,9 +665,9 @@ Example hook configurations are in the `llm-hooks` example:
 | HookResult Method | Effect |
 |-------------------|--------|
 | `HookResult()` | No effect, continue normally |
-| `HookResult.with_system_message(msg)` | Extend session, original response returned |
-| `HookResult.with_system_message(msg, replace_response=True)` | Extend session, extended response returned |
+| `HookResult(success=True, modifications={"systemMessage": msg})` | Extend session, original response returned |
+| `HookResult(success=True, modifications={"systemMessage": msg, "replaceResponse": True})` | Extend session, extended response returned |
 | `HookResult.block(reason)` | Block execution (exit code 2) |
-| `HookResult.allow()` | Allow tool execution |
-| `HookResult.deny(reason)` | Deny tool execution |
-| `HookResult.ask(reason)` | Ask user for permission |
+| `HookResult(success=True, modifications={"permissionDecision": "allow", ...})` | Allow tool execution |
+| `HookResult(success=True, modifications={"permissionDecision": "deny", ...})` | Deny tool execution |
+| `HookResult(success=True, modifications={"permissionDecision": "ask", ...})` | Ask user for permission |

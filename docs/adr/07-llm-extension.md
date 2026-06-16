@@ -243,7 +243,7 @@ tagging), `agent/common.py` (`tool_capability` lookup).
 
 ## ADR-0050 — Permission rulesets (Primitive B)
 
-**Status:** Accepted
+**Status:** Accepted (the `from_yolo()` helper removed in ADR-0068; the ruleset system is unchanged)
 
 **Context.** Approval was effectively binary (`yolo` = auto-approve vs ask), with
 no hard-deny and no per-argument granularity.
@@ -555,7 +555,7 @@ implementation, 281 lines); `src/zrb/llm/tool/bash.py` (alias, 10 lines);
 
 ## ADR-0057 — Post-todo-change progress visualization in the UI
 
-**Status:** Accepted
+**Status:** Accepted (`update_todo` and `clear_todos` tools removed in ADR-0068; `write_todos` subsumes their functionality, progress visualization unchanged)
 
 **Context.** After every `WriteTodos`, `UpdateTodo`, or `ClearTodos` call, the
 user has no immediate visual feedback about overall todo progress — the tool
@@ -689,7 +689,7 @@ ExecCommandsMixin)` + host-contract block); `replay_mixin.py`,
 
 ## ADR-0061 — Config-positioned custom prompt sections (registered provider or markdown file)
 
-**Status:** Accepted
+**Status:** Accepted (provider path superseded by ADR-0068; file-backed custom sections remain)
 
 **Context.** ADR-0035 fixed the system prompt as ordered, MECE sections, but the
 ordered set was closed: the only downstream extension point (`add_prompt` /
@@ -921,3 +921,243 @@ generalized queue in `src/zrb/llm/ui/default/confirmation_mixin.py`;
 `src/zrb/llm/ui/default/keybindings_mixin.py`; `tool/ask.py` routing. Tests:
 `test/llm/ui/default/test_selection_mixin.py`, `test/llm/ui/test_std_ui.py`,
 `test/llm/tool/test_ask.py`.
+
+---
+
+## ADR-0066 — Command hooks receive the event payload on stdin; `settings.json` is a hook source
+
+**Status:** Accepted (refines ADR-0047)
+
+**Context.** ADR-0047 made hooks Claude-Code-compatible, but two gaps stopped
+real-world drop-in tools (e.g. peon-ping, a notification-sound hook) from
+working under `zrb llm chat`. (1) Such tools read their event from **stdin**
+(`json.load(sys.stdin)["hook_event_name"]`) and ignore env vars, yet
+`create_command_hook` spawned the subprocess with `CLAUDE_*` env vars only and
+never wrote to stdin — so the hook parsed empty input and bailed. (2) Claude
+Code (and these tools) register hooks inside `.claude/settings.json`, but the
+loader only scanned `hooks.json` / `hooks/`. (3) zrb fired `SESSION_END` per
+completed turn but never `Stop`, so completion-driven consumers (the "done"
+chime) had no signal on a normal turn — `Stop` only fired on manual interrupt.
+
+**Decision.**
+- **Stdin payload.** `create_command_hook` writes `HookContext.to_claude_json()`
+  to the subprocess' stdin via `communicate(input=…)`. Env vars are retained
+  (additive). On a serialization failure it falls back to a minimal
+  `{"hook_event_name": …}` so routing still works. The cwd is `expanduser`-ed
+  and falls back to the inherited cwd when missing, so a display-formatted path
+  (`~/zrb`) no longer crashes the subprocess with `[Errno 2]`.
+- **`settings.json` as a hook source.** `_collect_hook_paths` also reads
+  `.claude/settings.json` and `.claude/settings.local.json` (home + project).
+  The nested `hooks` block is parsed by the existing `_parse_claude_format`;
+  other settings keys are ignored. Unknown events in such a config are skipped
+  at `debug` level (zrb does not yet emit `SubagentStart/Stop`).
+- **Natural `Stop`.** `run_agent` fires `HookEvent.STOP` once when a turn
+  completes and control returns to the user (not on the deferred-wait path).
+  Manual interrupts still fire `Stop` from the TUI — the paths are mutually
+  exclusive (an interrupt raises `CancelledError` before the natural fire), so
+  no double-fire.
+- **Async command hooks are fire-and-forget on the persistent loop.**
+  `execute_hooks` dispatches `async` command hooks as detached tasks on the
+  running event loop, never awaiting them. The previous design created the task
+  inside the executor's short-lived `asyncio.run` worker loop (which cancelled
+  it on return) and then *awaited* the subprocess — so a per-chunk `Notification`
+  hook stalled every turn up to its timeout. The timeout itself is now enforced
+  by `kill()`ing the subprocess in `create_command_hook` (the executor's
+  `wait_for` cannot interrupt a blocked worker thread).
+- **Attention events when the agent blocks on the user.** A new
+  `HookEvent.PERMISSION_REQUEST` fires from the approval cascade
+  (`_resolve_approval`) at the moment a tool call reaches an interactive prompt
+  — after every auto-resolve path (always-approve, tool/permission policy,
+  YOLO), so it never false-positives on allowed tools. `AskUserQuestion` is
+  auto-approved (ADR-0062) and so bypasses that path; it fires a `Notification`
+  with `notification_type='elicitation_dialog'` from `ask_user_question`
+  instead. Both map to the "needs your input" sound in consumers like peon-ping.
+- **Flood control.** Once command hooks actually ran, high-frequency events
+  could spawn an unbounded pile of subprocesses, exhausting file descriptors
+  (`[Errno 24]`) and backing a serialized tool into a timeout storm. Three
+  guards: fire-and-forget hooks run under a concurrency semaphore with a
+  backlog ceiling (excess shed); injected `CLAUDE_*` env values are size-capped
+  so a large `event_data` can't overflow the exec arg/env limit (`[Errno 7]`,
+  the full payload is still on stdin); and the UI no longer fires a
+  `Notification` per streamed output chunk — that conflated "output produced"
+  with the attention-oriented `Notification` event.
+
+**Consequences.** Unmodified Claude-Code command hooks work under zrb with no
+translation. `Stop` now carries the per-turn "done" semantics consumers expect,
+while `SESSION_END` keeps its existing session-extension role. Tool-approval and
+question prompts ring an attention sound, and a misbehaving or high-volume hook
+can no longer exhaust resources or stall the agent. zrb still does not emit
+`SubagentStart/Stop`; wiring those is follow-up work.
+
+**Alternatives rejected.** Translate peon-ping's config into zrb's flat
+`hooks.json` by hand (per-user, brittle, defeats "drop-in"); pass the payload
+only via env vars (stdin-only tools never see it); rename `SESSION_END` to
+`Stop` (breaks the session-extension contract built on `SESSION_END`); fire
+`Stop` next to `SESSION_END` before the extension decision (would fire
+prematurely on the extend path).
+
+**Evidence.** **[DOCUMENTED]** `docs/advanced-topics/hooks.md`. **[INFERRED]**
+`HookContext.to_claude_json` in `src/zrb/llm/hook/interface.py`; stdin write in
+`src/zrb/llm/hook/hook_creators.py`; `_collect_hook_paths` in
+`src/zrb/llm/hook/hook_loader.py`; `_parse_claude_format` in
+`src/zrb/llm/hook/manager/loader_mixin.py`; natural `Stop` in
+`src/zrb/llm/agent/run/runner.py`. Tests:
+`test/llm/hook/manager/test_functionality.py`,
+`test/llm/agent/run/test_runner.py`.
+
+## ADR-0067 — Non-interactive runs resolve hard-ASK approvals deterministically (approve the plan gate, deny the rest)
+
+**Status:** Accepted (extends ADR-0055, ADR-0062)
+
+**Context.** The approval cascade (ADR-0055) lets a permission policy return a
+*hard ASK* — an approval that even YOLO cannot override (`deferred_calls.py`
+Priority 2/3). `PLAN_MODE_POLICY` uses exactly one such rule,
+`Rule("ExitPlanMode", ASK)` (`permission/policy.py`), so leaving PLAN mode
+always asks the user to approve the plan. Under `zrb chat --interactive false`
+the chat task still wires a `StdUI`/`ToolCallHandler` confirmation
+(`task/chat/task.py`), so a hard ASK falls through the entire cascade to the CLI
+prompt (Priority 5) and blocks on `prompt_async` waiting for a "Y" that never
+arrives — a 600s hang. In an 8-model benchmark this single interaction caused 16
+of 21 timeouts: every model that activated `core-research` (whose "approval
+gate" rule nudges it toward plan mode) and then called `ExitPlanMode` hung. The
+cascade already had a safe "deny if ASK and no approval mechanism" fallthrough,
+but the StdUI branch never reached it. AskUserQuestion hit the identical
+"blocks on stdin when no one is there" problem and was fixed by ADR-0062
+(auto-approve, since the tool *is* the interaction).
+
+**Decision.** In `_resolve_approval`, before the YOLO/channel/CLI tail, when the
+permission policy returned ASK **and** `get_interactive_mode()` is `False`,
+resolve the call deterministically instead of prompting:
+- **`ExitPlanMode` → approve.** The plan gate's only purpose is to show a plan to
+  a human; with no human it is a no-op, so PLAN→BUILD proceeds (mirrors
+  ADR-0062's treatment of AskUserQuestion).
+- **Any other hard-ASK tool → deny** with an explanatory message ("re-run with
+  `--interactive true`"). This preserves the hard-ASK safety intent (a genuinely
+  sensitive tool is never silently auto-run unattended) while guaranteeing the
+  cascade can no longer block on stdin in non-interactive mode. It generalizes
+  the pre-existing no-mechanism fallthrough to the StdUI-wired branch.
+
+The guard keys off the `interactive_mode` ContextVar (`tool/ask.py`), already set
+per turn from `ctx.input.interactive` (`prompt/system_context.py`) and already
+trusted by AskUserQuestion during tool execution, so it is reliably readable
+inside the cascade. Defense in depth (prompt side): the `EnterPlanMode` tool
+guidance (`common_tools.py`), the `Interactive: no` line (`system_context.py`),
+and the "approval gate" rules in the `core-research`, `core-design`, and
+`research` skills now tell the model to skip plan mode / present the plan inline
+when non-interactive — so a well-behaved model never reaches the gate, and the
+cascade guard is the backstop for when it does.
+
+**Consequences.**
+- `--interactive false` runs can no longer hang on the plan-mode (or any other)
+  approval prompt; the benchmark's 16 plan-gate timeouts become completions and
+  the two "BROKEN" model×challenge cells become viable.
+- A non-`ExitPlanMode` hard-ASK in a non-interactive run is denied rather than
+  prompted. Callers needing such a tool to run unattended must make the policy
+  ALLOW it (or run interactively).
+- The approve-set is scoped to the symptom-bearing tool by name; should other
+  always-meaningful-without-a-user gates appear, they can be added (or
+  generalized to `Capability.META`).
+
+**Alternatives rejected.**
+- **Auto-approve every ASK when non-interactive** — defeats the hard-ASK
+  override of YOLO for sensitive tools; `--interactive false` is not an
+  authorization to run anything.
+- **Install `NullApprovalChannel` in the non-interactive branch** — localized but
+  carries the same blanket auto-approve semantics.
+- **Fix only the skill text** — necessary but insufficient; any other prompt that
+  nudges a model toward `ExitPlanMode` would still hang. The mechanical guard is
+  the load-bearing fix.
+- **Guard inside `exit_plan_mode` itself** — too late: the approval prompt fires
+  in the cascade *before* the tool body runs.
+
+**Evidence.** Cascade guard: `_resolve_approval` (Priority 2b) in
+`src/zrb/llm/agent/run/deferred_calls.py` [DOCUMENTED]. Hard-ASK rule:
+`PLAN_MODE_POLICY` in `src/zrb/llm/permission/policy.py` [DOCUMENTED].
+Interactive flag: `interactive_mode` in `src/zrb/llm/tool/ask.py`, set in
+`src/zrb/llm/prompt/system_context.py` [DOCUMENTED]. Prompt-side backstops:
+`src/zrb/llm/common_tools.py`,
+`src/zrb/llm_plugin/skills/{core-research,core-design,research}/SKILL.md`
+[DOCUMENTED]. Tests: `test/llm/agent/run/test_deferred_calls.py`
+(`test_noninteractive_exit_plan_mode_is_auto_approved` and the deny /
+interactive-still-prompts siblings) [DOCUMENTED].
+
+---
+
+## ADR-0068 — Dead-code removal: `update_todo`/`clear_todos`, `from_yolo`, and 30+ unused symbols
+
+**Status:** Accepted (refines ADR-0050, ADR-0057)
+
+**Context.** A systematic caller-count audit across `src/` and `test/` identified
+~50 symbols with zero production callers — functions, classes, methods,
+parameters, and constants that were defined, exported, and tested but never
+invoked by any production code path. Two of these were architecturally
+significant (documented in prior ADRs); the rest were trivial dead weight.
+
+The two architecturally significant removals:
+
+1. **`update_todo` / `clear_todos` tool functions** (ADR-0057). The todo
+   progress visualization system was designed around three tools:
+   `write_todos`, `update_todo`, and `clear_todos`. In practice, `write_todos`
+   (with `replace=True` by default) subsumed both per-item status changes and
+   clearing — the model writes the full list each time. `update_todo` and
+   `clear_todos` had zero production callers; the progress visualization
+   (ADR-0057) continues to work through `write_todos` alone.
+
+2. **`from_yolo()` helper** (ADR-0050). The permission policy system expressed
+   legacy yolo values as `PermissionPolicy` rules via `from_yolo()`, used only
+   in characterization tests for parity. The live yolo path uses a separate
+   predicate in the approval cascade; `from_yolo()` was never called in
+   production.
+
+The `register_section` provider mechanism (ADR-0061) was considered for removal
+— the initial audit found zero production callers — but was **kept** when a
+downstream client confirmed during the release cycle that they depend on it for
+runtime-dynamic positioned sections.
+
+**Decision.** Remove the dead symbols. For the two architecturally significant
+ones:
+
+- **`update_todo` / `clear_todos`**: the async tool functions, their
+  `TodoManager` methods (`update_todo`, `clear_todos`), and their `__all__`
+  exports are removed. `create_plan_tools()` returns only `[write_todos,
+  get_todos]`. The progress visualization side-channel (ADR-0057) is unchanged
+  — `write_todos` still fires it.
+
+- **`from_yolo()`**: the function and its `__all__` export are removed. The
+  permission policy system (ADR-0050) is unchanged; yolo→policy conversion
+  was never needed in production.
+
+The remaining ~30 removals are trivial dead code: unused color constants,
+classmethods only called by their own tests, no-op stubs, dead parameters,
+unreachable branches, and one-line wrappers. See the commit diff for the full
+list.
+
+**Consequences.**
+- ~520 lines removed from `src/`, ~2,600 from `test/` (tests of dead symbols).
+- Todo tools are simpler (two tools instead of four).
+- Permission policy module is smaller (no unused conversion helper).
+- `BufferedOutputMixin` was initially deleted but reverted: it has zero
+  production inheritors but is used by `examples/chat-telegram/` and
+  recommended in `docs/advanced-topics/llm-custom-ui.md` — it serves a
+  documented, demonstrated use case (spinner-noise filtering + output batching
+  for event-driven UIs) that hasn't been adopted in production yet.
+- `register_section` was kept — the provider path remains available for
+  downstreams that need runtime-dynamic positioned sections.
+
+**Alternatives rejected.**
+1. **Keep everything** — dead code accumulates, confuses readers, and adds
+   maintenance burden (tests must be kept passing, imports must stay valid).
+2. **Delete `BufferedOutputMixin`** — initially done, reverted: the examples
+   are the project's tutorial; breaking them is worse than keeping ~160 lines
+   of working, tested infrastructure.
+3. **Mark symbols deprecated first** — unnecessary ceremony for symbols with
+   literally zero callers; no one to warn.
+4. **Delete `register_section` too** — the initial audit showed zero callers,
+   but a downstream client confirmed they use it. The cost of keeping ~30 lines
+   of tested infrastructure is negligible; removing it would break a real user.
+
+**Evidence.** **[DOCUMENTED]** `src/zrb/llm/tool/plan.py`
+(`update_todo`/`clear_todos` + `TodoManager.update_todo`/`clear_todos`
+removed); `src/zrb/llm/permission/policy.py` (`from_yolo` removed).
+**[INFERRED]** Full caller-count audit via `grep` across `src/` and `test/`
+for each symbol.

@@ -193,10 +193,6 @@ class SubAgentManager(LoaderMixin, SearchMixin):
         """Manually register a sub-agent definition."""
         self._agents[definition.name] = definition
 
-    def set_tool_registry(self, tool_registry: dict[str, Callable]):
-        """Update the tool registry used by sub-agents."""
-        self._tool_registry = tool_registry
-
     def get_agent_definition(self, name: str) -> SubAgentDefinition | None:
         self._ensure_loaded()
         agent = self._agents.get(name)

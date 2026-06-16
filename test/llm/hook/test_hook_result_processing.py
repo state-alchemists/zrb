@@ -110,11 +110,14 @@ class TestHookResultProcessing:
 
             # First SESSION_END call returns systemMessage
             if context.event == HookEvent.SESSION_END and call_count == 1:
-                return HookResult.with_system_message("Test reminder message")
+                return HookResult(
+                    success=True,
+                    modifications={"systemMessage": "Test reminder message"},
+                )
             # Subsequent calls return nothing
             return HookResult()
 
-        manager = HookManager()
+        manager = HookManager(search_dirs=[])
         manager.register(
             tracking_hook,
             events=[
@@ -139,9 +142,11 @@ class TestHookResultProcessing:
         from zrb.llm.hook.manager import HookManager
 
         async def context_hook(context):
-            return HookResult.with_additional_context("Injected context")
+            return HookResult(
+                success=True, modifications={"additionalContext": "Injected context"}
+            )
 
-        manager = HookManager()
+        manager = HookManager(search_dirs=[])
         manager.register(context_hook, events=[HookEvent.SESSION_START])
 
         results = await manager.execute_hooks(
@@ -158,9 +163,12 @@ class TestHookResultProcessing:
         from zrb.llm.hook.manager import HookManager
 
         async def context_hook(context):
-            return HookResult.with_additional_context("Extra context for prompt")
+            return HookResult(
+                success=True,
+                modifications={"additionalContext": "Extra context for prompt"},
+            )
 
-        manager = HookManager()
+        manager = HookManager(search_dirs=[])
         manager.register(context_hook, events=[HookEvent.USER_PROMPT_SUBMIT])
 
         results = await manager.execute_hooks(
@@ -339,7 +347,7 @@ class TestJournalingHookAntiRecursion:
             mock_cfg.LLM_INCLUDE_JOURNAL_REMINDER = True
 
             factory = create_journaling_hook_factory()
-            manager = HookManager()
+            manager = HookManager(search_dirs=[])
             factory(manager)
 
             # Hook should be registered for SESSION_END
@@ -359,7 +367,7 @@ class TestJournalingHookAntiRecursion:
             mock_cfg.LLM_INCLUDE_JOURNAL_REMINDER = False
 
             factory = create_journaling_hook_factory()
-            manager = HookManager()
+            manager = HookManager(search_dirs=[])
             factory(manager)
 
             # No hooks should be registered

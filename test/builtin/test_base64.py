@@ -46,3 +46,37 @@ async def test_validate_base64():
     s2 = Session(shared_ctx=SharedContext(), state_logger=mock.MagicMock())
     await task.async_run(session=s2, kwargs={"text": "invalid!!!"})
     assert s2.final_result is False
+
+
+@pytest.mark.asyncio
+async def test_encode_decode_base64_url_safe(session):
+    # Bytes whose standard base64 contains + and / use -, _ in URL-safe mode.
+    encoded = await base64_module.encode_base64.async_run(
+        session=session, kwargs={"text": "<<???>>", "url_safe": True}
+    )
+    assert "+" not in encoded and "/" not in encoded
+    decoded = await base64_module.decode_base64.async_run(
+        session=Session(shared_ctx=SharedContext(), state_logger=mock.MagicMock()),
+        kwargs={"text": encoded, "url_safe": True},
+    )
+    assert decoded == "<<???>>"
+
+
+@pytest.mark.asyncio
+async def test_decode_base64_invalid_raises_clear_error():
+    s = Session(shared_ctx=SharedContext(), state_logger=mock.MagicMock())
+    with pytest.raises(ValueError, match="Invalid base64 input"):
+        await base64_module.decode_base64.async_run(
+            session=s, kwargs={"text": "!!!notb64"}
+        )
+
+
+@pytest.mark.asyncio
+async def test_validate_base64_of_binary():
+    # Base64 of non-UTF-8 binary must validate (the old text-only check failed here).
+    import base64 as _b64
+
+    blob = _b64.b64encode(bytes([0xFF, 0xFE, 0x00, 0x80])).decode()
+    s = Session(shared_ctx=SharedContext(), state_logger=mock.MagicMock())
+    await base64_module.validate_base64.async_run(session=s, kwargs={"text": blob})
+    assert s.final_result is True

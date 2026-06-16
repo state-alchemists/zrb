@@ -164,11 +164,3 @@ class LifecycleMixin:
             except (ProcessLookupError, PermissionError, OSError):
                 pass
         self._servers.clear()
-
-    async def shutdown_idle(self):
-        """Shutdown servers that have been idle for too long.
-
-        Stub: idle tracking is not yet implemented. Kept as a no-op so callers
-        can schedule periodic cleanup without checking for the method.
-        """
-        return None

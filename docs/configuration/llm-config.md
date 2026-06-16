@@ -265,10 +265,11 @@ task.prompt_manager.include_sections = [
 ]
 ```
 
-**3. File-backed custom section** — if a name in `include_sections` is neither a
-built-in nor a registered provider, it loads `<name>.md` through the same override
-hierarchy as built-in prompts (project dir → `ZRB_LLM_PROMPT_<NAME>` → base dir →
-package), with `{PLACEHOLDER}` substitution. No Python required:
+**3. File-backed custom section** — any name in `include_sections` that is not a
+built-in (and has no registered provider) resolves as a file-backed custom section.
+It loads `<name>.md` through the same override hierarchy as built-in prompts (project
+dir → `ZRB_LLM_PROMPT_<NAME>` → base dir → package), with `{PLACEHOLDER}`
+substitution. No Python required:
 
 ```bash
 # Loads company_context.md and places it after `mandate`.
@@ -277,7 +278,8 @@ export ZRB_LLM_INCLUDE_SECTIONS="persona,mandate,company_context,tool_guidance,c
 
 > **Resolution precedence** for a section name is **built-in > registered provider >
 > markdown file**. A missing markdown file resolves to `""` (a harmless no-op — so a
-> misspelled name silently emits nothing). See ADR-0061 and AGENTS.md ("LLM Prompt System").
+> misspelled name silently emits nothing). See ADR-0061 and AGENTS.md ("LLM Prompt
+> System").
 
 ### Tool Guidance
 
@@ -458,7 +460,7 @@ No additional configuration needed.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_HOOKS_ENABLED` | Enable hook system globally | `1` |
+| `ZRB_HOOKS_ENABLED` | Enable the hook system globally; set `off` to disable all hooks (none load or fire) | `on` |
 | `ZRB_HOOKS_DIRS` | Additional hook directories (colon-separated) | (empty) |
 | `ZRB_HOOKS_TIMEOUT` | Default timeout for hook execution (ms) | `30000` |
 | `ZRB_HOOKS_LOG_LEVEL` | Logging level for hooks | `INFO` |

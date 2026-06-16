@@ -170,6 +170,109 @@ async def test_process_deferred_requests_approval_channel():
     assert context.tool_args == {"arg1": "val1"}
 
 
+def _permission_request_calls(hook_manager):
+    return [
+        c
+        for c in hook_manager.execute_hooks.call_args_list
+        if c.args and c.args[0] == HookEvent.PERMISSION_REQUEST
+    ]
+
+
+@pytest.mark.asyncio
+async def test_permission_request_fired_when_user_is_prompted():
+    """Reaching an interactive approval (here, the approval channel) fires
+    PermissionRequest so input-required hooks/sounds ring."""
+    ui = MagicMock(spec=UIProtocol)
+    hook_manager = MagicMock(spec=HookManager)
+    hook_manager.execute_hooks = AsyncMock(return_value=[])
+
+    approval_channel = MagicMock()
+    channel_result = MagicMock()
+    channel_result.to_pydantic_result.return_value = MockToolApproved("ok")
+    approval_channel.request_approval = AsyncMock(return_value=channel_result)
+
+    call = MagicMock()
+    call.tool_name = "run_shell_command"
+    call.args = {"cmd": "ls"}
+    call.tool_call_id = "call_1"
+
+    result_output = MagicMock()
+    result_output.calls = [call]
+    result_output.approvals = []
+
+    await process_deferred_requests(
+        result_output, None, ui, hook_manager, approval_channel=approval_channel
+    )
+
+    perm_calls = _permission_request_calls(hook_manager)
+    assert len(perm_calls) == 1
+    assert perm_calls[0].args[1]["tool"] == "run_shell_command"
+
+
+@pytest.mark.asyncio
+async def test_permission_request_not_fired_when_auto_approved():
+    """An auto-approved call (tool policy) never prompts, so PermissionRequest
+    must NOT fire — no false "needs approval" ding."""
+    ui = MagicMock(spec=UIProtocol)
+    hook_manager = MagicMock(spec=HookManager)
+    hook_manager.execute_hooks = AsyncMock(return_value=[])
+
+    tool_handler = MagicMock(spec=ToolCallHandler)
+    tool_handler.check_policies = AsyncMock(return_value=MockToolApproved("ok"))
+
+    call = MagicMock()
+    call.tool_name = "test_tool"
+    call.args = {"arg1": "val1"}
+    call.tool_call_id = "call_1"
+
+    result_output = MagicMock()
+    result_output.calls = [call]
+    result_output.approvals = []
+
+    await process_deferred_requests(result_output, tool_handler, ui, hook_manager)
+
+    assert _permission_request_calls(hook_manager) == []
+
+
+@pytest.mark.asyncio
+async def test_permission_request_not_fired_when_auto_approved_via_bound_method():
+    """Interactive mode: BaseUI._confirm_tool_execution wraps a ToolCallHandler.
+    When the underlying handler auto-approves, PermissionRequest must NOT fire
+    even though effective_tool_confirmation is a bound method, not a
+    ToolCallHandler directly."""
+    ui = MagicMock(spec=UIProtocol)
+    hook_manager = MagicMock(spec=HookManager)
+    hook_manager.execute_hooks = AsyncMock(return_value=[])
+
+    # Simulate BaseUI with tool_call_handler property
+    tool_handler = MagicMock(spec=ToolCallHandler)
+    tool_handler.check_policies = AsyncMock(return_value=MockToolApproved("ok"))
+
+    class _FakeBaseUI:
+        tool_call_handler = tool_handler
+
+    bound_ui = _FakeBaseUI()
+
+    # bound method: __self__ points to the FakeBaseUI instance
+    async def _confirm(call):
+        return await bound_ui.tool_call_handler.handle(ui, call)
+
+    _confirm.__self__ = bound_ui
+
+    call = MagicMock()
+    call.tool_name = "test_tool"
+    call.args = {"arg1": "val1"}
+    call.tool_call_id = "call_1"
+
+    result_output = MagicMock()
+    result_output.calls = [call]
+    result_output.approvals = []
+
+    await process_deferred_requests(result_output, _confirm, ui, hook_manager)
+
+    assert _permission_request_calls(hook_manager) == []
+
+
 @pytest.mark.asyncio
 async def test_process_deferred_requests_cli_fallback_handler():
     ui = MagicMock(spec=UIProtocol)
@@ -326,3 +429,120 @@ async def test_process_deferred_requests_denied_removes_from_calls():
         HookEvent.POST_TOOL_USE_FAILURE,
         {"tool": "test_tool", "args": {"arg1": "val1"}, "error": "Denied"},
     )
+
+
+def _ask_policy():
+    """A permission policy that returns ASK for any tool (the 'hard ask')."""
+    from zrb.llm.permission import ASK
+
+    policy = MagicMock()
+    policy.decide.return_value = ASK
+    return policy
+
+
+@pytest.mark.asyncio
+async def test_noninteractive_exit_plan_mode_is_auto_approved():
+    """Non-interactive + hard-ASK on ExitPlanMode auto-approves instead of
+    blocking on a stdin prompt no one can answer. The plan gate is a no-op
+    without a user to read the plan. See ADR-0067."""
+    ui = MagicMock(spec=UIProtocol)
+    hook_manager = MagicMock(spec=HookManager)
+    hook_manager.execute_hooks = AsyncMock(return_value=[])
+
+    # A CLI handler that would (wrongly) run if reached — proves we short-circuit.
+    tool_handler = MagicMock(spec=ToolCallHandler)
+    tool_handler.check_policies = AsyncMock(return_value=None)
+    tool_handler.handle = AsyncMock(return_value=MockToolDenied("should not reach"))
+
+    call = MagicMock()
+    call.tool_name = "ExitPlanMode"
+    call.args = {"plan": "do the thing"}
+    call.tool_call_id = "call_1"
+
+    result_output = MagicMock()
+    result_output.calls = [call]
+    result_output.approvals = []
+
+    with (
+        patch("zrb.llm.permission.get_effective_policy", return_value=_ask_policy()),
+        patch("zrb.llm.permission.tool_capability", return_value=None),
+        patch("zrb.llm.tool.ask.get_interactive_mode", return_value=False),
+    ):
+        result = await process_deferred_requests(
+            result_output, tool_handler, ui, hook_manager
+        )
+
+    assert isinstance(result.approvals["call_1"], MockToolApproved)
+    tool_handler.handle.assert_not_called()
+    # The gate auto-resolves, so it must not ding a "needs approval" hook.
+    assert _permission_request_calls(hook_manager) == []
+
+
+@pytest.mark.asyncio
+async def test_noninteractive_other_ask_tool_is_denied():
+    """Non-interactive + hard-ASK on a non-plan tool denies rather than running
+    it unattended (preserving the hard-ASK safety design) or blocking forever.
+    See ADR-0067."""
+    ui = MagicMock(spec=UIProtocol)
+    hook_manager = MagicMock(spec=HookManager)
+    hook_manager.execute_hooks = AsyncMock(return_value=[])
+
+    tool_handler = MagicMock(spec=ToolCallHandler)
+    tool_handler.check_policies = AsyncMock(return_value=None)
+    tool_handler.handle = AsyncMock(return_value=MockToolApproved("should not reach"))
+
+    call = MagicMock()
+    call.tool_name = "run_shell_command"
+    call.args = {"cmd": "rm -rf /"}
+    call.tool_call_id = "call_1"
+
+    result_output = MagicMock()
+    result_output.calls = [call]
+    result_output.approvals = []
+
+    with (
+        patch("zrb.llm.permission.get_effective_policy", return_value=_ask_policy()),
+        patch("zrb.llm.permission.tool_capability", return_value=None),
+        patch("zrb.llm.tool.ask.get_interactive_mode", return_value=False),
+    ):
+        result = await process_deferred_requests(
+            result_output, tool_handler, ui, hook_manager
+        )
+
+    assert isinstance(result.approvals["call_1"], MockToolDenied)
+    tool_handler.handle.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_interactive_exit_plan_mode_still_prompts():
+    """Interactive mode must NOT short-circuit the plan gate: ExitPlanMode's
+    ASK still flows to the CLI confirmation handler so the user can approve."""
+    ui = MagicMock(spec=UIProtocol)
+    hook_manager = MagicMock(spec=HookManager)
+    hook_manager.execute_hooks = AsyncMock(return_value=[])
+
+    tool_handler = MagicMock(spec=ToolCallHandler)
+    tool_handler.check_policies = AsyncMock(return_value=None)
+    cli_result = MockToolApproved("user approved")
+    tool_handler.handle = AsyncMock(return_value=cli_result)
+
+    call = MagicMock()
+    call.tool_name = "ExitPlanMode"
+    call.args = {"plan": "do the thing"}
+    call.tool_call_id = "call_1"
+
+    result_output = MagicMock()
+    result_output.calls = [call]
+    result_output.approvals = []
+
+    with (
+        patch("zrb.llm.permission.get_effective_policy", return_value=_ask_policy()),
+        patch("zrb.llm.permission.tool_capability", return_value=None),
+        patch("zrb.llm.tool.ask.get_interactive_mode", return_value=True),
+    ):
+        result = await process_deferred_requests(
+            result_output, tool_handler, ui, hook_manager
+        )
+
+    assert result.approvals["call_1"] == cli_result
+    tool_handler.handle.assert_called_once()

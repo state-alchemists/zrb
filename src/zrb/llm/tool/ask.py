@@ -85,6 +85,12 @@ async def ask_user_question(questions: list[dict[str, Any]]) -> str:
                 "[SYSTEM SUGGESTION]: provide at least two options or do not ask."
             )
 
+    # Notify that the agent is now blocking on a user question so "needs your
+    # input" notifications/sounds (e.g. peon-ping) ring. AskUserQuestion is
+    # auto-approved (ADR-0062), so it never reaches the PermissionRequest path
+    # in the approval cascade — this is its only attention signal.
+    await _notify_question_pending(questions)
+
     total = len(questions)
     answers: list[str] = []
     for idx, q in enumerate(questions, start=1):
@@ -104,6 +110,29 @@ async def ask_user_question(questions: list[dict[str, Any]]) -> str:
         header = q.get("header") or q.get("question", "").strip().rstrip("?")[:40]
         answers.append(f"Q{idx} ({header}): {resolved}")
     return "\n".join(answers)
+
+
+async def _notify_question_pending(questions: list[dict[str, Any]]) -> None:
+    """Fire a Notification so input-required hooks ring while a question is open.
+
+    Uses ``notification_type='elicitation_dialog'`` — the type Claude-compatible
+    consumers (peon-ping) map to "question pending" / input required; a generic
+    notification with no type is suppressed as unknown. Best-effort: a hook
+    failure must never break the prompt.
+    """
+    try:
+        # lazy: circular — tool → hook.manager → llm internals → tool
+        from zrb.llm.hook.manager import hook_manager
+        from zrb.llm.hook.types import HookEvent
+
+        await hook_manager.execute_hooks(
+            HookEvent.NOTIFICATION,
+            {"questions": questions},
+            message="Waiting for your answer to a question",
+            notification_type="elicitation_dialog",
+        )
+    except Exception:
+        pass
 
 
 def _build_choice_spec(idx: int, total: int, q: dict[str, Any]) -> dict[str, Any]:

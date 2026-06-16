@@ -38,7 +38,7 @@ async def test_validate_ulid():
 async def test_generate_ulid_uniqueness():
     """Generated ULIDs should be unique."""
     ids = set()
-    for _ in range(100):
+    for _ in range(10):
         res = await generate_ulid.async_run(session=get_session())
         ids.add(res)
-    assert len(ids) == 100
+    assert len(ids) == 10

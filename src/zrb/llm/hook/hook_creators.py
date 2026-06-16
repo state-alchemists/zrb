@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import os
+import subprocess
 
 from zrb.config.config import CFG
 from zrb.llm.config.config import llm_config
@@ -10,8 +11,16 @@ from zrb.llm.hook.schema import AgentHookConfig, CommandHookConfig, PromptHookCo
 
 logger = logging.getLogger(__name__)
 
+# Per-value cap for injected CLAUDE_* env vars. The OS rejects an exec whose
+# combined args+environment exceed ARG_MAX (and a single var over MAX_ARG_STRLEN,
+# ~128 KiB). event_data can carry the whole message history, so we cap well
+# under that; the full payload is always available on stdin.
+_MAX_HOOK_ENV_BYTES = 16384
 
-def create_command_hook(config: CommandHookConfig) -> HookCallable:
+
+def create_command_hook(
+    config: CommandHookConfig, timeout: float | None = None
+) -> HookCallable:
     async def command_hook(context: HookContext) -> HookResult:
         # Prepare environment with Claude Code context variables
         env = os.environ.copy()
@@ -34,16 +43,26 @@ def create_command_hook(config: CommandHookConfig) -> HookCallable:
         if context.metadata.get("remote"):
             env["CLAUDE_CODE_REMOTE"] = "true"
 
+        # Inject context as env vars, but bound each value's size. event_data
+        # for SessionStart/Stop/SessionEnd carries the whole message history;
+        # serialized into the environment that overflows the OS exec arg+env
+        # limit (E2BIG: "Argument list too long"). Hooks get the full structured
+        # payload on stdin, so oversized env values are safe to drop.
+        def _set_bounded_env(key: str, value: str) -> None:
+            if len(value) <= _MAX_HOOK_ENV_BYTES:
+                env[key] = value
+            # else: omit — the stdin payload carries the data.
+
         # Inject event-specific data as JSON
         try:
             # Try to serialize event_data, fall back to string representation
             if context.event_data is not None:
-                env["CLAUDE_EVENT_DATA"] = json.dumps(context.event_data)
+                _set_bounded_env("CLAUDE_EVENT_DATA", json.dumps(context.event_data))
             else:
                 env["CLAUDE_EVENT_DATA"] = "null"
         except (TypeError, ValueError):
             # If not JSON serializable, use string representation
-            env["CLAUDE_EVENT_DATA"] = str(context.event_data)
+            _set_bounded_env("CLAUDE_EVENT_DATA", str(context.event_data))
 
         # Add context fields to environment
         for field in [
@@ -63,20 +82,93 @@ def create_command_hook(config: CommandHookConfig) -> HookCallable:
             value = getattr(context, field, None)
             if value is not None:
                 if isinstance(value, dict):
-                    env[f"CLAUDE_{field.upper()}"] = json.dumps(value)
+                    _set_bounded_env(f"CLAUDE_{field.upper()}", json.dumps(value))
                 else:
-                    env[f"CLAUDE_{field.upper()}"] = str(value)
+                    _set_bounded_env(f"CLAUDE_{field.upper()}", str(value))
+
+        # Claude-Code-compatible hooks read their event payload from stdin as
+        # JSON (e.g. peon-ping does `json.load(sys.stdin)["hook_event_name"]`)
+        # and ignore the env vars entirely. Feed them the same Claude-shaped
+        # payload on stdin so those hooks fire; the env vars above remain for
+        # hooks that prefer them.
+        claude_payload = context.to_claude_json()
+        try:
+            stdin_payload = json.dumps(claude_payload).encode()
+        except (TypeError, ValueError):
+            # Tool args/results may carry non-serializable objects. Fall back to
+            # a minimal payload so stdin-driven hooks can still route on event.
+            stdin_payload = json.dumps(
+                {"hook_event_name": claude_payload.get("hook_event_name")}
+            ).encode()
+
+        # Resolve the working directory defensively. A hook must not fail just
+        # because the cwd carries a "~" (the OS does not expand it, unlike a
+        # shell) or no longer exists — that turned every UI-fired hook into a
+        # `[Errno 2] No such file or directory: '~/...'` once the cwd came from
+        # a display-formatted path. Expand "~" and fall back to inheriting our
+        # own cwd when the target is missing.
+        raw_cwd = config.working_dir or context.cwd
+        hook_cwd = None
+        if raw_cwd:
+            expanded = os.path.expanduser(raw_cwd)
+            if os.path.isdir(expanded):
+                hook_cwd = expanded
 
         try:
-            # Run command with timeout
-            process = await asyncio.create_subprocess_shell(
-                config.command,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=config.working_dir or context.cwd,
-                env=env,
+            # Run command with timeout.
+            #
+            # Use subprocess.Popen in a thread executor instead of
+            # asyncio.create_subprocess_shell.  The asyncio subprocess API
+            # creates transport/protocol pairs via _make_subprocess_transport
+            # / _connect_pipes, which can leave _pipes entries as None if
+            # cancelled mid-init.  _try_finish then skips _call_connection_lost
+            # and _wait() hangs forever (CPython bug).  A plain subprocess.Popen
+            # has no asyncio transport objects, so task cancellation cannot
+            # trigger that hang path.
+            loop = asyncio.get_running_loop()
+            process = await loop.run_in_executor(
+                None,
+                lambda: subprocess.Popen(
+                    config.command,
+                    shell=True,
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    cwd=hook_cwd,
+                    env=env,
+                ),
             )
-            stdout, stderr = await process.communicate()
+            try:
+                stdout, stderr = await asyncio.wait_for(
+                    loop.run_in_executor(
+                        None, lambda: process.communicate(input=stdin_payload)
+                    ),
+                    timeout=timeout,
+                )
+            except asyncio.TimeoutError:
+                try:
+                    process.kill()
+                    # process is a sync subprocess.Popen, so .wait() returns an
+                    # int — awaiting it raises "'int' object can't be awaited",
+                    # which previously swallowed this TimeoutError and left the
+                    # subprocess unreaped. Reap in the executor instead.
+                    await loop.run_in_executor(None, process.wait)
+                except ProcessLookupError:
+                    pass
+                logger.warning(
+                    f"Command hook timed out after {timeout}s and was killed: "
+                    f"{config.command[:60]}"
+                )
+                return HookResult(
+                    success=False,
+                    output=f"Command hook timed out after {timeout}s",
+                )
+            except asyncio.CancelledError:
+                try:
+                    process.kill()
+                except ProcessLookupError:
+                    pass
+                raise
 
             output = stdout.decode().strip()
             stderr_output = stderr.decode().strip()

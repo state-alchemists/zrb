@@ -13,7 +13,6 @@ import re
 from typing import TYPE_CHECKING, TextIO
 
 from zrb.config.config import CFG
-from zrb.llm.hook.interface import HookEvent
 from zrb.util.cli.style import stylize_faint
 from zrb.util.cli.terminal import get_terminal_size
 
@@ -131,15 +130,13 @@ class OutputMixin:
         else:
             new_text = current_text + content
 
-        try:
-            self.execute_hook(
-                HookEvent.NOTIFICATION,
-                {"content": content, "session": self._conversation_session_name},
-                session_id=self._conversation_session_name,
-                cwd=self._cwd,
-            )
-        except Exception as e:
-            logger.error(f"Failed to trigger notification hook: {e}")
+        # NB: we deliberately do NOT fire a Notification hook per output chunk.
+        # The Claude-Code `Notification` event means "the agent needs your
+        # attention" (permission/idle), not "output was produced"; firing it per
+        # streamed chunk spawned a command-hook subprocess per chunk, which under
+        # a real hook like peon-ping exhausted file descriptors and timed out.
+        # Genuine attention notifications fire at the right moments instead
+        # (PermissionRequest on approval; elicitation_dialog on AskUserQuestion).
 
         new_cursor_position = (
             len(new_text)

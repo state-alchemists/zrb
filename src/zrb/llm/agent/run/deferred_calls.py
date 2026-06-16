@@ -82,6 +82,7 @@ async def process_deferred_requests(
             ui,
             effective_tool_confirmation,
             approval_channel,
+            hook_manager,
         )
         current_results.approvals[call.tool_call_id] = result
 
@@ -144,6 +145,7 @@ async def _resolve_approval(
     ui: UIProtocol,
     effective_tool_confirmation: Any,
     approval_channel: "ApprovalChannel | None",
+    hook_manager: "HookManager | None" = None,
 ):
     """Run the approval cascade for a single deferred call.
 
@@ -166,9 +168,17 @@ async def _resolve_approval(
 
         return ToolApproved()
 
-    # Priority 1: Tool policies from ToolCallHandler (Middleware)
+    # Priority 1: Tool policies (Pre-confirmation). Auto-approved tools skip
+    # the PermissionRequest hook entirely. The effective_tool_confirmation may
+    # be a ToolCallHandler directly (non-interactive) or wrapped by a BaseUI
+    # bound method (interactive) — unwrap either.
+    _tch = None
     if isinstance(effective_tool_confirmation, ToolCallHandler):
-        policy_result = await effective_tool_confirmation.check_policies(ui, call)
+        _tch = effective_tool_confirmation
+    elif (bound := getattr(effective_tool_confirmation, "__self__", None)) is not None:
+        _tch = getattr(bound, "tool_call_handler", None)
+    if isinstance(_tch, ToolCallHandler):
+        policy_result = await _tch.check_policies(ui, call)
         if policy_result is not None:
             return policy_result
 
@@ -207,6 +217,28 @@ async def _resolve_approval(
 
         # if policy_decision == ASK, we continue but skip Priority 3 (YOLO).
 
+    # Priority 2b: Non-interactive hard-ASK resolution. With no human to
+    # confirm, a hard ASK can neither be prompted nor overridden by YOLO, so it
+    # would otherwise fall through to the stdin prompt at Priority 5 and block
+    # forever (the root cause of the --interactive false plan-mode hang).
+    # Resolve it deterministically instead: auto-approve the plan gate
+    # (ExitPlanMode's approval is a no-op without a user to read the plan —
+    # mirrors AskUserQuestion / ADR-0062) and deny any other approval-gated
+    # tool rather than running it unattended. See ADR-0067.
+    # lazy: circular — run-loop approval path ↔ zrb.llm.tool.ask
+    from zrb.llm.tool.ask import get_interactive_mode
+
+    if policy_decision == ASK and not get_interactive_mode():
+        # lazy: heavy third-party
+        from pydantic_ai import ToolApproved, ToolDenied
+
+        if call.tool_name == "ExitPlanMode":
+            return ToolApproved()
+        return ToolDenied(
+            "Non-interactive mode: approval-gated tool blocked (no user to "
+            "confirm). Re-run with --interactive true to approve interactively."
+        )
+
     # Priority 3: YOLO (Auto-approve)
     # lazy: runtime_state is a thin re-export of runner ContextVars.
     from zrb.llm.agent.run.runtime_state import get_current_yolo
@@ -218,6 +250,20 @@ async def _resolve_approval(
         from pydantic_ai import ToolApproved
 
         return ToolApproved()
+
+    # We've exhausted every auto-resolve path (always-approve, tool/permission
+    # policy, YOLO): the call WILL block on an interactive prompt below. Fire
+    # PermissionRequest so "needs your approval" notifications/sounds (e.g.
+    # peon-ping) ring exactly when the user is asked — not for auto-approved
+    # calls. Fired here, after the cascade decides to ask, so it never
+    # false-positives on allowed tools.
+    if hook_manager is not None:
+        await hook_manager.execute_hooks(
+            HookEvent.PERMISSION_REQUEST,
+            {"tool": call.tool_name, "args": getattr(call, "args", None)},
+            tool_name=call.tool_name,
+            message=f"Approval requested to run {call.tool_name}",
+        )
 
     # Priority 4: Approval channel (multi-channel, first response wins)
     if approval_channel is not None:
