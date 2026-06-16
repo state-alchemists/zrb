@@ -26,7 +26,6 @@ from zrb.llm.summarizer.message_processor import (
 )
 from zrb.llm.summarizer.text_summarizer import (
     summarize_long_text,
-    summarize_text,
     summarize_text_plain,
 )
 
@@ -46,6 +45,5 @@ __all__ = [
     "process_message_for_summarization",
     "process_tool_return_part",
     "summarize_long_text",
-    "summarize_text",
     "summarize_text_plain",
 ]

@@ -7,7 +7,6 @@ from zrb.llm.permission import (
     Capability,
     PermissionPolicy,
     Rule,
-    from_yolo,
     resolve_policy,
 )
 
@@ -56,42 +55,6 @@ def test_arg_pattern_matches_command():
         == DENY
     )
     assert policy.decide("Bash", Capability.EXECUTE, {"command": "git status"}) == ALLOW
-
-
-# --- from_yolo(): the characterization of today's truth table ------------
-
-
-def test_from_yolo_true_allows_everything():
-    policy = from_yolo(True)
-    assert policy.decide("Anything", Capability.UNKNOWN, {}) == ALLOW
-
-
-def test_from_yolo_false_asks_everything():
-    policy = from_yolo(False)
-    assert policy.decide("Anything", Capability.UNKNOWN, {}) == ASK
-
-
-def test_from_yolo_frozenset_selective():
-    policy = from_yolo(frozenset({"Write", "Edit"}))
-    assert policy.decide("Write", Capability.EDIT, {}) == ALLOW
-    assert policy.decide("Edit", Capability.EDIT, {}) == ALLOW
-    assert policy.decide("Bash", Capability.EXECUTE, {}) == ASK
-
-
-def test_from_yolo_unrecognized_returns_none():
-    assert from_yolo("nonsense") is None
-
-
-def test_yolo_parity_auto_approve_boolean():
-    """auto-approve == (decide == ALLOW), matching check_yolo's contract."""
-    # True → every tool auto-approved
-    assert (from_yolo(True).decide("X", Capability.UNKNOWN, {}) == ALLOW) is True
-    # False → no tool auto-approved
-    assert (from_yolo(False).decide("X", Capability.UNKNOWN, {}) == ALLOW) is False
-    # frozenset → only named tools auto-approved
-    sel = from_yolo(frozenset({"Read"}))
-    assert (sel.decide("Read", Capability.READ, {}) == ALLOW) is True
-    assert (sel.decide("Bash", Capability.EXECUTE, {}) == ALLOW) is False
 
 
 # --- resolve_policy(): config surface ------------------------------------

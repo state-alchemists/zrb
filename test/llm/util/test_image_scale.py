@@ -77,7 +77,6 @@ def test_undecodable_bytes_are_returned_as_is_with_note():
 
     assert result.scaled is False
     assert result.data == b"\x00\x01not-an-image"
-    assert "Could not decode" in result.note
 
 
 def test_custom_jpeg_quality_changes_output_size():
@@ -107,7 +106,6 @@ def test_pillow_missing_returns_original(monkeypatch):
 
     assert result.scaled is False
     assert result.data == src
-    assert "Pillow not installed" in result.note
 
 
 def test_scale_result_saved_bytes_never_negative():

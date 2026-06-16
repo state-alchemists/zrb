@@ -177,10 +177,8 @@ The assistant comes with a rich set of built-in tools. These are automatically a
 
 | Tool | Function | Description |
 |------|----------|-------------|
-| `WriteTodos` | `write_todos` | Create or replace the session todo list (persisted to `~/.zrb/todos/<session>.json`). |
+| `WriteTodos` | `write_todos` | Create or replace the session todo list (persisted to `~/.zrb/todos/<session>.json`). Replacing the full list subsumes per-item status updates and clearing. |
 | `GetTodos` | `get_todos` | Get the current todo list and progress summary. |
-| `UpdateTodo` | `update_todo` | Update the status of a single todo item (`pending` → `in_progress` → `completed`). |
-| `ClearTodos` | `clear_todos` | Discard the entire current todo list. |
 
 ### Knowledge Base (RAG)
 

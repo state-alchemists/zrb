@@ -21,7 +21,6 @@ class LSPServerConfig:
     file_extensions: list[str]
     initialization_options: dict | None = None
     timeout: int = 30  # seconds
-    restart_interval: int | None = None  # minutes, for auto-restart
 
     def matches_file(self, file_path: str) -> bool:
         """Check if this server handles the given file."""

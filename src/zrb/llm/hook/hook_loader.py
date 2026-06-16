@@ -2,14 +2,6 @@ import logging
 from pathlib import Path
 
 from zrb.config.config import CFG
-from zrb.llm.hook.schema import (
-    AgentHookConfig,
-    CommandHookConfig,
-    HookConfig,
-    MatcherConfig,
-    PromptHookConfig,
-)
-from zrb.llm.hook.types import HookEvent, HookType, MatcherOperator
 from zrb.util.dir_search import get_upward_dirs
 
 logger = logging.getLogger(__name__)
@@ -150,62 +142,3 @@ def _get_project_hook_dirs() -> list[str | Path]:
 def _get_custom_hook_dirs() -> list[str | Path]:
     """Custom directories from ``CFG.HOOKS_DIRS``."""
     return [Path(d) for d in CFG.HOOKS_DIRS]
-
-
-def parse_hook_config(data: dict) -> HookConfig:
-    # Manual parsing because we are not using Pydantic BaseModel
-    name = data["name"]
-    events = [HookEvent(e) for e in data["events"]]
-    hook_type = HookType(data["type"])
-
-    raw_config = data["config"]
-    default_timeout = 30
-    if hook_type == HookType.COMMAND:
-        config = CommandHookConfig(
-            command=raw_config["command"],
-            shell=raw_config.get("shell", True),
-            working_dir=raw_config.get("working_dir"),
-        )
-        default_timeout = 600
-    elif hook_type == HookType.PROMPT:
-        config = PromptHookConfig(
-            user_prompt_template=raw_config["user_prompt_template"],
-            system_prompt=raw_config.get("system_prompt"),
-            model=raw_config.get("model"),
-            temperature=raw_config.get("temperature", 0.0),
-        )
-        default_timeout = 30
-    elif hook_type == HookType.AGENT:
-        config = AgentHookConfig(
-            system_prompt=raw_config["system_prompt"],
-            tools=raw_config.get("tools"),
-            model=raw_config.get("model"),
-        )
-        default_timeout = 60
-    else:
-        raise ValueError(f"Unknown hook type: {hook_type}")
-
-    matchers = []
-    for m in data.get("matchers", []):
-        matchers.append(
-            MatcherConfig(
-                field=m["field"],
-                operator=MatcherOperator(m["operator"]),
-                value=m["value"],
-                case_sensitive=m.get("case_sensitive", True),
-            )
-        )
-
-    return HookConfig(
-        name=name,
-        events=events,
-        type=hook_type,
-        config=config,
-        description=data.get("description"),
-        matchers=matchers,
-        is_async=data.get("async", False),
-        enabled=data.get("enabled", True),
-        timeout=data.get("timeout", default_timeout),
-        env=data.get("env"),
-        priority=data.get("priority", 0),
-    )

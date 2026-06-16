@@ -213,9 +213,6 @@ class LLMTask(BaseTask):
     def append_ui(self, ui: UIProtocol) -> None:
         self._uis.append(ui)
 
-    def get_uis(self) -> list[UIProtocol]:
-        return list(self._uis)
-
     @property
     def tool_confirmation(self) -> AnyToolConfirmation:
         return self._tool_confirmation

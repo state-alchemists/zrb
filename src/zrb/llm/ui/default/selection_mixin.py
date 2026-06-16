@@ -53,10 +53,6 @@ class SelectionMixin:
         """Whether a choice widget is currently being shown (public API)."""
         return self._active_choice is not None
 
-    @property
-    def choice_window(self) -> "Window":
-        return self._choice_window
-
     # --- hooks called by ConfirmationMixin -------------------------------
 
     def _begin_choice(self, spec: dict) -> None:

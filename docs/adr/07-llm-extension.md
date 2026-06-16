@@ -243,7 +243,7 @@ tagging), `agent/common.py` (`tool_capability` lookup).
 
 ## ADR-0050 — Permission rulesets (Primitive B)
 
-**Status:** Accepted
+**Status:** Accepted (the `from_yolo()` helper removed in ADR-0068; the ruleset system is unchanged)
 
 **Context.** Approval was effectively binary (`yolo` = auto-approve vs ask), with
 no hard-deny and no per-argument granularity.
@@ -555,7 +555,7 @@ implementation, 281 lines); `src/zrb/llm/tool/bash.py` (alias, 10 lines);
 
 ## ADR-0057 — Post-todo-change progress visualization in the UI
 
-**Status:** Accepted
+**Status:** Accepted (`update_todo` and `clear_todos` tools removed in ADR-0068; `write_todos` subsumes their functionality, progress visualization unchanged)
 
 **Context.** After every `WriteTodos`, `UpdateTodo`, or `ClearTodos` call, the
 user has no immediate visual feedback about overall todo progress — the tool
@@ -689,7 +689,7 @@ ExecCommandsMixin)` + host-contract block); `replay_mixin.py`,
 
 ## ADR-0061 — Config-positioned custom prompt sections (registered provider or markdown file)
 
-**Status:** Accepted
+**Status:** Accepted (provider path superseded by ADR-0068; file-backed custom sections remain)
 
 **Context.** ADR-0035 fixed the system prompt as ordered, MECE sections, but the
 ordered set was closed: the only downstream extension point (`add_prompt` /
@@ -1080,3 +1080,95 @@ Interactive flag: `interactive_mode` in `src/zrb/llm/tool/ask.py`, set in
 [DOCUMENTED]. Tests: `test/llm/agent/run/test_deferred_calls.py`
 (`test_noninteractive_exit_plan_mode_is_auto_approved` and the deny /
 interactive-still-prompts siblings) [DOCUMENTED].
+
+---
+
+## ADR-0068 — Dead-code removal: `register_section` provider, `update_todo`/`clear_todos`, `from_yolo`, and 30+ unused symbols
+
+**Status:** Accepted (supersedes the provider path of ADR-0061; refines ADR-0050, ADR-0057)
+
+**Context.** A systematic caller-count audit across `src/` and `test/` identified
+~50 symbols with zero production callers — functions, classes, methods,
+parameters, and constants that were defined, exported, and tested but never
+invoked by any production code path. Three of these were architecturally
+significant (documented in prior ADRs); the rest were trivial dead weight.
+
+The three architecturally significant removals:
+
+1. **`register_section` provider mechanism** (ADR-0061). The `PromptManager`
+   exposed `register_section(name, provider)` for registering a
+   `Callable[[AnyContext], str]` composed at a configurable position in the
+   system prompt. Zero production callers existed — every downstream used the
+   file-backed path (`get_prompt(name)` → `<name>.md`) instead. The provider
+   registry (`_section_providers` dict, the provider-vs-file branch in
+   `_get_composed_middlewares`) was dead infrastructure.
+
+2. **`update_todo` / `clear_todos` tool functions** (ADR-0057). The todo
+   progress visualization system was designed around three tools:
+   `write_todos`, `update_todo`, and `clear_todos`. In practice, `write_todos`
+   (with `replace=True` by default) subsumed both per-item status changes and
+   clearing — the model writes the full list each time. `update_todo` and
+   `clear_todos` had zero production callers; the progress visualization
+   (ADR-0057) continues to work through `write_todos` alone.
+
+3. **`from_yolo()` helper** (ADR-0050). The permission policy system expressed
+   legacy yolo values as `PermissionPolicy` rules via `from_yolo()`, used only
+   in characterization tests for parity. The live yolo path uses a separate
+   predicate in the approval cascade; `from_yolo()` was never called in
+   production.
+
+**Decision.** Remove the dead symbols. For the three architecturally significant
+ones:
+
+- **`register_section`**: the provider mechanism is removed. Custom positioned
+  sections remain supported via the file-backed path (`get_prompt` →
+  `<name>.md`). The resolution precedence simplifies to **built-in > markdown
+  file**. The `PromptManager._section_providers` dict and the provider branch in
+  `_get_composed_middlewares` are deleted. `docs/configuration/llm-config.md`
+  updated to document only the file-backed path.
+
+- **`update_todo` / `clear_todos`**: the async tool functions, their
+  `TodoManager` methods (`update_todo`, `clear_todos`), and their `__all__`
+  exports are removed. `create_plan_tools()` returns only `[write_todos,
+  get_todos]`. The progress visualization side-channel (ADR-0057) is unchanged
+  — `write_todos` still fires it.
+
+- **`from_yolo()`**: the function and its `__all__` export are removed. The
+  permission policy system (ADR-0050) is unchanged; yolo→policy conversion
+  was never needed in production.
+
+The remaining ~30 removals are trivial dead code: unused color constants,
+classmethods only called by their own tests, no-op stubs, dead parameters,
+unreachable branches, and one-line wrappers. See the commit diff for the full
+list.
+
+**Consequences.**
+- ~550 lines removed from `src/`, ~2,600 from `test/` (tests of dead symbols).
+- `PromptManager`'s custom-section surface is simpler (file-backed only).
+- Todo tools are simpler (two tools instead of four).
+- Permission policy module is smaller (no unused conversion helper).
+- `BufferedOutputMixin` was initially deleted but reverted: it has zero
+  production inheritors but is used by `examples/chat-telegram/` and
+  recommended in `docs/advanced-topics/llm-custom-ui.md` — it serves a
+  documented, demonstrated use case (spinner-noise filtering + output batching
+  for event-driven UIs) that hasn't been adopted in production yet.
+- Cost: the `register_section` provider path is gone; downstreams that need
+  runtime-dynamic positioned sections must use `add_prompt` (always-last) or
+  file-backed sections (static). No known downstream used the provider path.
+
+**Alternatives rejected.**
+1. **Keep everything** — dead code accumulates, confuses readers, and adds
+   maintenance burden (tests must be kept passing, imports must stay valid).
+2. **Delete `BufferedOutputMixin`** — initially done, reverted: the examples
+   are the project's tutorial; breaking them is worse than keeping ~160 lines
+   of working, tested infrastructure.
+3. **Mark symbols deprecated first** — unnecessary ceremony for symbols with
+   literally zero callers; no one to warn.
+
+**Evidence.** **[DOCUMENTED]** `src/zrb/llm/prompt/manager.py`
+(`_section_providers` + provider branch removed); `src/zrb/llm/tool/plan.py`
+(`update_todo`/`clear_todos` + `TodoManager.update_todo`/`clear_todos`
+removed); `src/zrb/llm/permission/policy.py` (`from_yolo` removed);
+`docs/configuration/llm-config.md` (provider subsection removed).
+**[INFERRED]** Full caller-count audit via `grep` across `src/` and `test/`
+for each symbol.

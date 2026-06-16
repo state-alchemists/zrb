@@ -11,7 +11,6 @@ Storage:
 Usage:
 - write_todos: Create/replace todo list for planning
 - get_todos: Get current todo list and progress
-- update_todo: Update status of a single todo item
 """
 
 from __future__ import annotations
@@ -105,73 +104,6 @@ class TodoManager:
             Todo list with metadata, or None if no todos exist
         """
         return self._load_todos(session_name)
-
-    def update_todo(
-        self,
-        session_name: str,
-        todo_id: str,
-        status: TodoStatus | None = None,
-        content: str | None = None,
-    ) -> dict[str, Any] | None:
-        """
-        Update a single todo item.
-
-        Returns:
-            The updated todo list, or None if not found
-        """
-        todos_data = self._load_todos(session_name)
-        if not todos_data:
-            return None
-
-        now = datetime.now().isoformat()
-        found = False
-
-        for todo in todos_data.get("todos", []):
-            if todo["id"] == todo_id:
-                if status is not None:
-                    todo["status"] = status
-                if content is not None:
-                    todo["content"] = content
-                todo["updated_at"] = now
-                found = True
-                break
-
-        if not found:
-            return None
-
-        # Update counts
-        todos_data["completed"] = sum(
-            1 for t in todos_data["todos"] if t["status"] == "completed"
-        )
-        todos_data["in_progress"] = sum(
-            1 for t in todos_data["todos"] if t["status"] == "in_progress"
-        )
-        todos_data["pending"] = sum(
-            1 for t in todos_data["todos"] if t["status"] == "pending"
-        )
-        todos_data["cancelled"] = sum(
-            1 for t in todos_data["todos"] if t["status"] == "cancelled"
-        )
-        todos_data["updated_at"] = now
-
-        self._todos[session_name] = todos_data
-        self._save_todos(session_name)
-
-        return todos_data
-
-    def clear_todos(self, session_name: str) -> bool:
-        """Clear todos for a session."""
-        if session_name in self._todos:
-            del self._todos[session_name]
-
-        todo_file = self._get_todo_file(session_name)
-        if todo_file.exists():
-            try:
-                todo_file.unlink()
-                return True
-            except Exception:
-                return False
-        return True
 
     def _get_todo_file(self, session_name: str) -> Path:
         """Get the file path for a session's todos."""
@@ -479,109 +411,15 @@ async def get_todos(session: str = "") -> str:
     return "\n".join(lines)
 
 
-async def update_todo(
-    todo_id: str,
-    status: TodoStatus | None = None,
-    content: str | None = None,
-    session: str = "",
-) -> str:
-    """
-    Updates the status or content of a single todo item.
-
-    Status values: "pending", "in_progress", "completed", "cancelled".
-    Mark "in_progress" before starting work, "completed" after finishing.
-    """
-    session_name = session or get_current_context_session()
-
-    if status is None and content is None:
-        return (
-            "Error: Must provide 'status' and/or 'content' to update.\n"
-            "[SYSTEM SUGGESTION]: Provide at least one of status "
-            "(pending/in_progress/completed/cancelled) or content."
-        )
-
-    result = todo_manager.update_todo(session_name, todo_id, status, content)
-
-    if not result:
-        return (
-            f"Error: Todo '{todo_id}' not found in session '{session_name}'.\n"
-            f"[SYSTEM SUGGESTION]: Use `get_todos` to see valid todo IDs."
-        )
-
-    # Find the updated todo
-    updated_todo = None
-    for todo in result["todos"]:
-        if todo["id"] == todo_id:
-            updated_todo = todo
-            break
-
-    if not updated_todo:
-        return f"Error: Todo '{todo_id}' not found. Use `get_todos` to see valid IDs."
-
-    # Compact format
-    lines = [
-        f"[{session_name}] Updated: [{todo_id}] {updated_todo['content']} -> {updated_todo['status']}"
-    ]
-    lines.append(
-        f"Progress: {result['completed']}/{result['total']} done, {result['in_progress']} in progress"
-    )
-
-    # Show remaining tasks compactly
-    pending = [t for t in result["todos"] if t["status"] == "pending"]
-    in_progress = [t for t in result["todos"] if t["status"] == "in_progress"]
-
-    if in_progress:
-        lines.append(
-            "In progress: "
-            + ", ".join(f"[{t['id']}] {t['content']}" for t in in_progress)
-        )
-
-    if pending:
-        lines.append(
-            "Pending: " + ", ".join(f"[{t['id']}] {t['content']}" for t in pending)
-        )
-
-    status_icon = _STATUS_ICONS.get(status or "", "  ")
-    change_line = f"{status_icon} [{todo_id}] {updated_todo['content']} → {updated_todo['status']}"
-    _broadcast_todo_progress(result, change_description=change_line)
-    return "\n".join(lines)
-
-
-async def clear_todos(session: str = "") -> str:
-    """
-    Clears all todos for the current session. Use only when starting a completely new plan.
-    """
-    session_name = session or get_current_context_session()
-
-    success = todo_manager.clear_todos(session_name)
-
-    if success:
-        _broadcast_todo_progress(
-            {
-                "total": 0,
-                "completed": 0,
-                "in_progress": 0,
-                "pending": 0,
-                "cancelled": 0,
-            },
-            change_description="🗑 All todos cleared",
-        )
-        return f"Cleared all todos for session '{session_name}'."
-    return f"No todos to clear for session '{session_name}'."
-
-
 # Export tool functions with proper names for LLM
 write_todos.__name__ = "WriteTodos"
 get_todos.__name__ = "GetTodos"
-update_todo.__name__ = "UpdateTodo"
-clear_todos.__name__ = "ClearTodos"
 
 
 def create_plan_tools() -> list:
     """Create planning tools for registration with the LLM agent.
 
     Only WriteTodos (replace-by-default) and GetTodos are exposed: WriteTodos
-    subsumes per-item status changes and clearing. ``update_todo`` / ``clear_todos``
-    remain importable for direct/programmatic use.
+    subsumes per-item status changes and clearing.
     """
     return [write_todos, get_todos]

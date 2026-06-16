@@ -632,85 +632,6 @@ async def main():
 
 ---
 
-## BufferedOutputMixin (Rate-Limited Backends)
-
-For backends with **rate limits on message frequency** (Telegram: ~30 messages/sec, Discord: ~5 messages/sec), use `BufferedOutputMixin` to batch output and avoid API throttling.
-
-### Why Buffering?
-
-```mermaid
-flowchart LR
-    subgraph Without["Without buffering (fragmented)"]
-        LLM1["LLM streams"] --> S1["H → send"] --> S2["e → send"] --> S3["l → send"] --> S4["l → send"] --> S5["o → send"]
-        Result1["5 API calls, hits rate limits"]
-    end
-
-    subgraph With["With buffering"]
-        LLM2["LLM streams"] --> B1["H → buffer"] --> B2["e → buffer"] --> B3["l → buffer"] --> B4["l → buffer"] --> B5["o → buffer"] --> Flush["0.5s: flush → send 'Hello'"]
-        Result2["1 API call"]
-    end
-```
-
-### Usage Pattern
-
-```python
-from zrb.llm.ui import EventDrivenUI, BufferedOutputMixin
-
-class TelegramUI(EventDrivenUI, BufferedOutputMixin):
-    """Telegram UI with output buffering to avoid rate limits."""
-
-    def __init__(self, bot_token: str, chat_id: int, **kwargs):
-        # Initialize EventDrivenUI
-        EventDrivenUI.__init__(self, **kwargs)
-        # Initialize buffering (0.3s interval, 3000 char max)
-        BufferedOutputMixin.__init__(self, flush_interval=0.3, max_buffer_size=3000)
-
-        self.bot_token = bot_token
-        self.chat_id = chat_id
-        self._app = None
-
-    async def print(self, text: str, kind: str = "text") -> None:
-        """Buffer output instead of sending immediately."""
-        self.buffer_output(text)
-
-    async def _send_buffered(self, text: str) -> None:
-        """Called automatically when buffer flushes."""
-        if self._app:
-            await self._app.bot.send_message(self.chat_id, text)
-
-    async def start_event_loop(self) -> None:
-        # Start bot
-        self._app = Application.builder().token(self.bot_token).build()
-
-        async def handle(update, context):
-            self.handle_incoming_message(update.message.text)
-
-        self._app.add_handler(MessageHandler(filters.TEXT, handle))
-        await self._app.initialize()
-        await self._app.start()
-        await self._app.updater.start_polling()
-
-        # Start periodic flush
-        await self.start_flush_loop()
-
-        # Keep running
-        while True:
-            await asyncio.sleep(1)
-
-    async def on_exit(self):
-        """Clean shutdown - flush remaining buffer."""
-        await self.stop_flush_loop()
-```
-
-### Parameters
-
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `flush_interval` | 0.5 | Seconds between flushes |
-| `max_buffer_size` | 2000 | Characters before forced flush |
-
----
-
 ## UIConfig: Cleaner Configuration
 
 ### The Problem: BaseUI Has 25+ `__init__` Parameters
@@ -1106,7 +1027,7 @@ llm_chat.set_ui_factory(create_ui_factory(MyUI, config=config))
 | Example | Location | Level | Pattern |
 |---------|----------|-------|---------|
 | Minimal CLI | `examples/chat-minimal-ui/` | 1 | SimpleUI |
-| Telegram Bot | `examples/chat-telegram/` | 2 | EventDrivenUI + BufferedOutputMixin |
+| Telegram Bot | `examples/chat-telegram/` | 2 | EventDrivenUI |
 | Telegram + CLI | `examples/chat-telegram/` | 2+ | Multi-UI (multiple channels) |
 | HTTP API | `examples/chat-sse/` | 3 | PollingUI |
 
@@ -1120,8 +1041,8 @@ llm_chat.set_ui_factory(create_ui_factory(MyUI, config=config))
 |--------------|-------------------|-----|
 | CLI / Terminal | `SimpleUI` | You control input flow |
 | File logger | `SimpleUI` | Sequential writes |
-| Telegram Bot | `EventDrivenUI` + `BufferedOutputMixin` | Callbacks + rate limits |
-| Discord Bot | `EventDrivenUI` + `BufferedOutputMixin` | Callbacks + rate limits |
+| Telegram Bot | `EventDrivenUI` | Callbacks + rate limits |
+| Discord Bot | `EventDrivenUI` | Callbacks + rate limits |
 | WhatsApp | `EventDrivenUI` | Webhook callbacks |
 | HTTP API | `PollingUI` | External polling |
 | WebSocket Server | `PollingUI` | External reads/writes |
@@ -1134,7 +1055,6 @@ llm_chat.set_ui_factory(create_ui_factory(MyUI, config=config))
 | Standard CLI | `SimpleUI` |
 | Event-driven messaging | `EventDrivenUI` |
 | External polling | `PollingUI` |
-| Rate limit protection | Add `BufferedOutputMixin` |
 | Custom event loop | `BaseUI` |
 | Multi-channel input | Use `append_ui()` and `append_approval_channel()` |
 

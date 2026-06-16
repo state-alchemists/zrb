@@ -15,7 +15,6 @@ from zrb.llm.summarizer.history_summarizer import summarize_history, summarize_m
 from zrb.llm.summarizer.text_summarizer import (
     summarize_long_text,
     summarize_short_text,
-    summarize_text,
     summarize_text_plain,
 )
 
@@ -45,18 +44,6 @@ async def test_summarize_history_handles_none():
     limiter = MockLimiter()
     result = await summarize_history(None, limiter=limiter)
     assert result is None
-
-
-@pytest.mark.asyncio
-async def test_summarize_text_extracts_snapshot():
-    # Verify behavioral snapshot extraction
-    agent = MagicMock()
-    mock_result = MagicMock()
-    mock_result.output = "Intro <state_snapshot>Important State</state_snapshot> Outro"
-    agent.run = AsyncMock(return_value=mock_result)
-
-    result = await summarize_text("history", agent)
-    assert result == "<state_snapshot>Important State</state_snapshot>"
 
 
 @pytest.mark.asyncio
@@ -167,55 +154,6 @@ class TestSummarizeLongText:
         # Depth > 5 returns truncated text
         result = await summarize_long_text("Long text", agent, limiter, 100, depth=6)
         assert result == "Long text"[:100]
-
-
-class TestSummarizeText:
-    """Test summarize_text through public API."""
-
-    @pytest.mark.asyncio
-    async def test_summarize_text_partial_flag(self):
-        """Test summarize_text with partial flag."""
-        agent = MagicMock()
-        mock_result = MagicMock()
-        mock_result.output = "Partial summary"
-        agent.run = AsyncMock(return_value=mock_result)
-
-        result = await summarize_text("history", agent, partial=True)
-        assert result == "Partial summary"
-        # Verify the prompt includes "partial conversation"
-        call_args = agent.run.call_args[0][0]
-        assert "partial conversation" in call_args.lower()
-
-    @pytest.mark.asyncio
-    async def test_summarize_text_non_string_output(self):
-        """Test summarize_text with non-string output."""
-        agent = MagicMock()
-        mock_result = MagicMock()
-        mock_result.output = 12345
-        agent.run = AsyncMock(return_value=mock_result)
-
-        result = await summarize_text("history", agent)
-        assert result == "12345"
-
-    @pytest.mark.asyncio
-    async def test_summarize_text_none_output(self):
-        """Test summarize_text with None output."""
-        agent = MagicMock()
-        mock_result = MagicMock()
-        mock_result.output = None
-        agent.run = AsyncMock(return_value=mock_result)
-
-        result = await summarize_text("history", agent)
-        assert result == ""
-
-    @pytest.mark.asyncio
-    async def test_summarize_text_raises_on_error(self):
-        """Test summarize_text raises errors."""
-        agent = MagicMock()
-        agent.run = AsyncMock(side_effect=RuntimeError("Error"))
-
-        with pytest.raises(RuntimeError):
-            await summarize_text("history", agent)
 
 
 class TestSummarizeTextPlain:
