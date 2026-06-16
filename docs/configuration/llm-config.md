@@ -250,19 +250,36 @@ def strip_blank_lines(ctx, current_prompt, nxt):
 task.prompt_manager.add_prompt(strip_blank_lines)
 ```
 
-**2. File-backed custom section** — any name in `include_sections` that is not a
-built-in resolves as a file-backed custom section. It loads `<name>.md` through the
-same override hierarchy as built-in prompts (project dir → `ZRB_LLM_PROMPT_<NAME>` →
-base dir → package), with `{PLACEHOLDER}` substitution. No Python required:
+**2. Register a dynamic, positioned section** — `register_section(name, provider)`
+registers a `Callable[[AnyContext], str]` that is composed *at the position* its
+`name` occupies in `include_sections` (not pinned to the end like `add_prompt`). Use
+it for always-on content that must reflect live state. Return `""` to emit nothing:
+
+```python
+task.prompt_manager.register_section(
+    "company_context",
+    lambda ctx: f"Deploy target: {resolve_target()}",
+)
+task.prompt_manager.include_sections = [
+    "persona", "mandate", "company_context", "system_context", "tool_guidance",
+]
+```
+
+**3. File-backed custom section** — any name in `include_sections` that is not a
+built-in (and has no registered provider) resolves as a file-backed custom section.
+It loads `<name>.md` through the same override hierarchy as built-in prompts (project
+dir → `ZRB_LLM_PROMPT_<NAME>` → base dir → package), with `{PLACEHOLDER}`
+substitution. No Python required:
 
 ```bash
 # Loads company_context.md and places it after `mandate`.
 export ZRB_LLM_INCLUDE_SECTIONS="persona,mandate,company_context,tool_guidance,claude_skills"
 ```
 
-> **Resolution precedence** for a section name is **built-in > markdown file**. A
-> missing markdown file resolves to `""` (a harmless no-op — so a misspelled name
-> silently emits nothing). See ADR-0061 and AGENTS.md ("LLM Prompt System").
+> **Resolution precedence** for a section name is **built-in > registered provider >
+> markdown file**. A missing markdown file resolves to `""` (a harmless no-op — so a
+> misspelled name silently emits nothing). See ADR-0061 and AGENTS.md ("LLM Prompt
+> System").
 
 ### Tool Guidance
 

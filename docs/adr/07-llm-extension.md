@@ -1085,7 +1085,7 @@ interactive-still-prompts siblings) [DOCUMENTED].
 
 ## ADR-0068 — Dead-code removal: `register_section` provider, `update_todo`/`clear_todos`, `from_yolo`, and 30+ unused symbols
 
-**Status:** Accepted (supersedes the provider path of ADR-0061; refines ADR-0050, ADR-0057)
+**Status:** Partially superseded — `register_section` reverted in 2.35.1 (a downstream client needed it); other removals stand
 
 **Context.** A systematic caller-count audit across `src/` and `test/` identified
 ~50 symbols with zero production callers — functions, classes, methods,
@@ -1118,14 +1118,14 @@ The three architecturally significant removals:
    production.
 
 **Decision.** Remove the dead symbols. For the three architecturally significant
-ones:
+ones (note: `register_section` was restored in 2.35.1):
 
-- **`register_section`**: the provider mechanism is removed. Custom positioned
-  sections remain supported via the file-backed path (`get_prompt` →
-  `<name>.md`). The resolution precedence simplifies to **built-in > markdown
-  file**. The `PromptManager._section_providers` dict and the provider branch in
-  `_get_composed_middlewares` are deleted. `docs/configuration/llm-config.md`
-  updated to document only the file-backed path.
+- **`register_section`**: initially removed; **restored in 2.35.1** because a
+  downstream client needs runtime-dynamic positioned sections. The full provider
+  mechanism (`_section_providers` dict, the provider branch in
+  `_get_composed_middlewares`, the `register_section()` method) was reverted
+  byte-for-byte. The resolution precedence stays **built-in > registered
+  provider > markdown file**.
 
 - **`update_todo` / `clear_todos`**: the async tool functions, their
   `TodoManager` methods (`update_todo`, `clear_todos`), and their `__all__`
@@ -1144,7 +1144,7 @@ list.
 
 **Consequences.**
 - ~550 lines removed from `src/`, ~2,600 from `test/` (tests of dead symbols).
-- `PromptManager`'s custom-section surface is simpler (file-backed only).
+- `PromptManager`'s custom-section surface supports both registered providers (runtime-dynamic) and file-backed sections (static).
 - Todo tools are simpler (two tools instead of four).
 - Permission policy module is smaller (no unused conversion helper).
 - `BufferedOutputMixin` was initially deleted but reverted: it has zero
@@ -1152,9 +1152,7 @@ list.
   recommended in `docs/advanced-topics/llm-custom-ui.md` — it serves a
   documented, demonstrated use case (spinner-noise filtering + output batching
   for event-driven UIs) that hasn't been adopted in production yet.
-- Cost: the `register_section` provider path is gone; downstreams that need
-  runtime-dynamic positioned sections must use `add_prompt` (always-last) or
-  file-backed sections (static). No known downstream used the provider path.
+- Cost: the `register_section` provider path adds ~30 lines of infrastructure and one branch in `_get_composed_middlewares`. A downstream client now uses it.
 
 **Alternatives rejected.**
 1. **Keep everything** — dead code accumulates, confuses readers, and adds
@@ -1166,7 +1164,8 @@ list.
    literally zero callers; no one to warn.
 
 **Evidence.** **[DOCUMENTED]** `src/zrb/llm/prompt/manager.py`
-(`_section_providers` + provider branch removed); `src/zrb/llm/tool/plan.py`
+(`_section_providers` + provider branch removed in initial commit, restored in
+2.35.1); `src/zrb/llm/tool/plan.py`
 (`update_todo`/`clear_todos` + `TodoManager.update_todo`/`clear_todos`
 removed); `src/zrb/llm/permission/policy.py` (`from_yolo` removed);
 `docs/configuration/llm-config.md` (provider subsection removed).
