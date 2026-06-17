@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../README.md) > [Advanced Topics](README.md)
+🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > Sandbox
 
 # Sandbox: Filesystem Containment for LLM Tool Calls
 

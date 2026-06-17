@@ -2149,4 +2149,4 @@ _Cumulative summary of the 2.0.1–2.0.19 patch line._
 - **Testing**:
   - **Updated Test Suite**: Completely refactored the test suite to align with the new architecture, ensuring high coverage and stability for the 2.0 release.
 
-🔖 [Home](../../../README.md) > [Documentation](../../README.md) > [Changelog v2](README.md)
+🔖 [Documentation Home](../README.md) > Changelog v2
