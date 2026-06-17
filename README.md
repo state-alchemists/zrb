@@ -17,6 +17,7 @@ Whether you're running tasks from the terminal or a sleek web UI, Zrb streamline
 - [🚀 Quickstart Part 2: AI-Powered Workflow](#-quickstart-part-2-your-first-ai-powered-workflow-in--5-minutes)
 - [🖥️ Try the Web UI](#️-try-the-web-ui)
 - [💬 Interact with an LLM Directly](#-interact-with-an-llm-directly)
+- [🧩 Program Your AI Agent](#-program-your-ai-agent)
 - [⚙️ Installation & Configuration](#️-installation--configuration)
 - [🤝 CI/CD Integration](#-cicd-integration)
 - [🗺️ Documentation Directory](#️-documentation-directory)
@@ -30,7 +31,7 @@ Whether you're running tasks from the terminal or a sleek web UI, Zrb streamline
 
 Zrb is designed to be powerful yet intuitive, offering a unique blend of features:
 
--   🤖 **Built-in LLM Integration:** Go beyond simple automation. Leverage Large Language Models to generate code, create diagrams, produce documentation, and more.
+-   🤖 **A Coding Agent You Program in Python:** Zrb ships a turnkey AI coding assistant (`zrb llm chat`), but its behavior is yours to shape in pure Python — custom tools, lifecycle hooks, dynamic prompts, permission policies, and history processors are all just code. And the agent drops straight into your task pipelines as a first-class node.
 -   🐍 **Pure Python:** Write your tasks in Python. No complex DSLs or YAML configurations to learn.
 -   🔗 **Smart Task Chaining:** Define dependencies between tasks to build sophisticated, ordered workflows.
 -   💻 **Dual-Mode Execution:** Run tasks from the command line for speed or use the built-in web UI for a more visual experience.
@@ -214,6 +215,47 @@ zrb llm chat
 
 ---
 
+## 🧩 Program Your AI Agent
+
+`zrb llm chat` works out of the box — but the moment you need it to do something specific, you don't reach for a config file or a separate SDK. You write Python, in the same file where you define the rest of your automation.
+
+Every part of the agent is a value you can supply or a callable you can register:
+
+| You want to… | You write a… |
+|---|---|
+| Give the agent abilities | **custom tool** — a plain Python function it can call in-process |
+| React to what it does | **lifecycle hook** — fires on tool calls, prompts, session start/end |
+| Gate dangerous actions | **permission policy** / async **approval channel** |
+| Inject live context into the prompt | **dynamic prompt section** — a `lambda ctx: ...` evaluated per request |
+| Keep long conversations affordable | **history processor** — prune, redact, or summarize the message history |
+| Route by cost or task | a **model callable** — pick the model per request |
+
+### Example: a custom tool the agent calls in-process
+
+```python
+from zrb import cli, LLMChatTask
+
+# A normal Python function becomes a tool — typed args + docstring are the spec.
+async def get_open_incidents(team: str) -> str:
+    """Return the current open incidents for a given team."""
+    return my_oncall_db.query(team)  # your code, running in-process
+
+chat = LLMChatTask(name="ops-chat", tools=[get_open_incidents])
+cli.add_task(chat)
+```
+
+### The part nothing else does: the agent *is* a pipeline node
+
+Because an `LLMTask` is just a Zrb task, you can wire it between deterministic steps. Its answer flows downstream through [XCom](docs/core-concepts/session-and-context.md), and your tools can call straight into your codebase:
+
+```python
+fetch_ticket >> triage_with_llm >> route_to_team
+```
+
+👉 Full walkthrough and every hook in one place: **[Programming the Agent](docs/advanced-topics/programming-the-agent.md)**. Runnable example: **[`examples/agent-in-pipeline`](examples/agent-in-pipeline)**.
+
+---
+
 ## ⚙️ Installation & Configuration
 
 Ready to dive deeper into getting Zrb set up and customized? Our comprehensive guides cover everything you need:
@@ -254,6 +296,7 @@ All task types available in Zrb, from basic to advanced.
 - [Built-in Helper Tasks](docs/task-types/builtin-helpers.md) (Git, Base64, UUID, HTTP, etc.)
 
 ### III. LLM & AI Integration
+- [Programming the Agent](docs/advanced-topics/programming-the-agent.md) — the overview: every way to shape agent behavior in Python (tools, hooks, dynamic prompts, history processors, agent-as-pipeline-node)
 - [LLM Assistant & AI Tasks](docs/advanced-topics/llm-integration.md) — `LLMTask`, tools, sub-agents, context management
 - [Permission Policy System](docs/advanced-topics/permission-policy.md) — fine-grained tool control & security gates
 - [Plan Mode](docs/advanced-topics/plan-mode.md) — read-only discovery & strategy phase
