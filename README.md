@@ -268,7 +268,7 @@ Ready to dive deeper into getting Zrb set up and customized? Our comprehensive g
 
 ## 🤝 CI/CD Integration
 
-Integrate Zrb into your Continuous Integration/Continuous Deployment pipelines for robust, automated workflows. See the [CI/CD Integration Guide](./advanced-topics/ci-cd.md) for examples with GitHub Actions, GitLab CI, and Bitbucket Pipelines.
+Integrate Zrb into your Continuous Integration/Continuous Deployment pipelines for robust, automated workflows. See the [CI/CD Integration Guide](docs/advanced-topics/ci-cd.md) for examples with GitHub Actions, GitLab CI, and Bitbucket Pipelines.
 
 ---
 
