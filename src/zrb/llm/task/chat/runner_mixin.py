@@ -69,6 +69,7 @@ class RunnerMixin:
             "yolo": bool(initial_yolo),  # inner task uses dynamic_yolo; just pass bool
             "attachments": initial_attachments,
             "model": self._get_model(ctx),
+            "interactive": False,
         }
         shared_ctx = SharedContext(
             input=session_input,

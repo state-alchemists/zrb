@@ -1,5 +1,10 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.35.2 (June 17, 2026)
+
+- **Fix: non-interactive sessions defaulted to interactive-mode ContextVar, leaving the plan-mode gate un-gated** (`llm/task/chat/runner_mixin.py`, ADR-0067):
+  - The 2.35.1 plan-mode hang fix (`llm/agent/run/deferred_calls.py:231`) guards hard-ASK resolution with `not get_interactive_mode()`, but `get_interactive_mode()` reads a `ContextVar` set by `system_context.py:270` from `ctx.input.interactive`. In `_run_non_interactive_session`, `session_input` carried `message`, `session`, `yolo`, `attachments`, and `model` — but not `interactive` — so `getattr(ctx.input, "interactive", True)` fell back to `True` and the guard never activated, leaving non-interactive sessions still hanging on hard-ASK approval gates (e.g. `ExitPlanMode`). `session_input` now includes `"interactive": False`, closing the gap.
+
 ## 2.35.1 (June 16, 2026)
 
 - **Fix: `zrb chat --interactive false` no longer hangs on the plan-mode approval gate** (`llm/agent/run/deferred_calls.py`, ADR-0067):
