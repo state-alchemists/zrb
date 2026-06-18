@@ -17,7 +17,8 @@ dependencies = [
     "jinja2>=3.1.0,<4.0.0",
     # PyJWT and pyjwt normalize to the same distribution; consolidated to the
     # stricter pin so PEP-621 does not see a duplicate dependency.
-    "PyJWT>=2.12.1,<3.0.0",
+    # Security fix: GHSA-xgmm-8j9v-c9wx (CVE-2026-48526) - JWT forgery via JWK-as-HMAC-secret confusion.
+    "PyJWT>=2.13.0,<3.0.0",
     "ulid-py>=1.1.0,<2.0.0",
     "psutil>=7.0.0,<8.0.0",
     # NOTE: Look at https://github.com/pydantic/pydantic-ai/blob/main/pydantic_ai_slim/pyproject.toml
@@ -41,14 +42,20 @@ dependencies = [
     "pygments>=2.20.0",
     # Security fix: CVE-2026-39892 - cryptography is a transitive dependency via pdfminer-six
     # (pulled in by pdfplumber) and google-auth. We pin >=46.0.7.
-    "cryptography>=46.0.7",
+    # Security fix: GHSA-537c-gmf6-5ccf - Out-of-bounds read via statically linked OpenSSL. We pin >=48.0.1.
+    "cryptography>=48.0.1",
     # Security fix: CVE-2026-42561 (GHSA-pp6c-gr5w-3c5g) - CPU exhaustion via unlimited multipart
     # header count and size in form-data submissions. python-multipart is transitive via mcp. We pin >=0.0.27.
-    "python-multipart>=0.0.27",
+    # Security fix: GHSA-5rvq-cxj2-64vf (CVE-2026-53539) - quadratic-time DoS via ; separators in url-encoded bodies. We pin >=0.0.30.
+    "python-multipart>=0.0.30",
     # Security fix: GHSA-86qp-5c8j-p5mr (CVE-2026-48710) - Missing Host header validation poisons
     # request.url.path, bypassing path-based security checks. starlette is a dependency of fastapi. We pin >=1.0.1.
+<<<<<<< Updated upstream
     # Security fix: GHSA-82w8-qh3p-5jfq (CVE-2026-54283) - request.form() limits silently ignored
     # for application/x-www-form-urlencoded, enabling DoS. We pin >=1.3.1.
+=======
+    # Security fix: GHSA-82w8-qh3p-5jfq (CVE-2026-54283) - url-encoded form parsing ignores max_fields/max_part_size. We pin >=1.3.1.
+>>>>>>> Stashed changes
     "starlette>=1.3.1",
     # Security fix: CVE-2026-44432 - urllib3 does not strip cookies on HTTP redirect from HTTPS.
     # urllib3 is transitive via requests and boto3. We pin >=2.7.0.
@@ -87,7 +94,8 @@ groq = ["groq>=0.25.0"]
 xai = [
     "xai-sdk>=1.12.2",
     # Security fix: GHSA-hg6j-4rv6-33pg (CVE-2026-47265) - cross-origin redirect leaks per-request cookies.
-    "aiohttp>=3.14.0",
+    # Security fix: GHSA-xcgm-r5h9-7989 (CVE-2026-54274) - incomplete WebSocket frame payloads bypass memory limits. We pin >=3.14.1.
+    "aiohttp>=3.14.1",
 ]
 bedrock = ["boto3>=1.42.63"]
 huggingface = ["huggingface-hub[inference]>=1.3.4,<2.0.0"]
@@ -96,7 +104,8 @@ voyageai = [
     # Security fix: CVE-2026-34070, CVE-2026-44843 (GHSA-pjwx-r37v-7724) - unsafe deserialization.
     "langchain-core>=1.3.3",
     # Security fix: GHSA-hg6j-4rv6-33pg (CVE-2026-47265) - cross-origin redirect leaks per-request cookies.
-    "aiohttp>=3.14.0",
+    # Security fix: GHSA-xcgm-r5h9-7989 (CVE-2026-54274) - incomplete WebSocket frame payloads bypass memory limits. We pin >=3.14.1.
+    "aiohttp>=3.14.1",
     # Security fix: GHSA-fv5p-p927-qmxr - SSRF via redirect bypass in HTMLHeaderTextSplitter.split_text_from_url().
     "langchain-text-splitters>=1.1.2",
     # Security fix: GHSA-3644-q5cj-c5c7 (CVE-2026-45134) - unsafe prompt-manifest deserialization.
