@@ -22,7 +22,7 @@ dependencies = [
     "psutil>=7.0.0,<8.0.0",
     # NOTE: Look at https://github.com/pydantic/pydantic-ai/blob/main/pydantic_ai_slim/pyproject.toml
     # The `mcp` extra pulls `fastmcp-slim[client]`, required by `MCPToolset`.
-    "pydantic-ai-slim[mcp]>=1.106.0,<1.107.0",
+    "pydantic-ai-slim[mcp]>=1.106.0,<1.108.0",
     # NOTE: Make sure the following dependencies are not conflicting with pydantic-ai-slim
     "openai>=2.29.0",
     "prompt-toolkit>=3",
@@ -47,7 +47,9 @@ dependencies = [
     "python-multipart>=0.0.27",
     # Security fix: GHSA-86qp-5c8j-p5mr (CVE-2026-48710) - Missing Host header validation poisons
     # request.url.path, bypassing path-based security checks. starlette is a dependency of fastapi. We pin >=1.0.1.
-    "starlette>=1.0.1",
+    # Security fix: GHSA-82w8-qh3p-5jfq (CVE-2026-54283) - request.form() limits silently ignored
+    # for application/x-www-form-urlencoded, enabling DoS. We pin >=1.3.1.
+    "starlette>=1.3.1",
     # Security fix: CVE-2026-44432 - urllib3 does not strip cookies on HTTP redirect from HTTPS.
     # urllib3 is transitive via requests and boto3. We pin >=2.7.0.
     "urllib3>=2.7.0",
@@ -80,7 +82,7 @@ vertexai = [
     "pyasn1>=0.6.3",
 ]
 google = ["google-genai>=1.70.0"]
-anthropic = ["anthropic>=0.105.0"]
+anthropic = ["anthropic>=0.108.0"]
 groq = ["groq>=0.25.0"]
 xai = [
     "xai-sdk>=1.12.2",
