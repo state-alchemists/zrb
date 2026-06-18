@@ -22,6 +22,7 @@ class LLMLimitsMixin:
         self.DEFAULT_LLM_REQUEST_TIMEOUT: str = "300000"
         self.DEFAULT_LLM_INPUT_QUEUE_TIMEOUT: str = "500"
         self.DEFAULT_LLM_SHELL_KILL_WAIT_TIMEOUT: str = "5000"
+        self.DEFAULT_LLM_BACKGROUND_WAIT_MAX: str = "300"
         self.DEFAULT_LLM_WEB_PAGE_TIMEOUT: str = "30000"
         self.DEFAULT_LLM_WEB_HTTP_TIMEOUT: str = "30000"
         self.DEFAULT_LLM_MODEL_FETCH_TIMEOUT: str = "5000"
@@ -110,6 +111,15 @@ class LLMLimitsMixin:
 
     LLM_SHELL_KILL_WAIT_TIMEOUT = EnvField(
         int, doc="Timeout in milliseconds to wait after killing a shell process."
+    )
+
+    LLM_BACKGROUND_WAIT_MAX = EnvField(
+        int,
+        doc=(
+            "Maximum seconds a single GetDelegationResult/MonitorProcess `wait` "
+            "call may block before returning a 'still running' status. This one "
+            "is in SECONDS (LLM-facing), unlike the millisecond timeouts above."
+        ),
     )
 
     LLM_WEB_PAGE_TIMEOUT = EnvField(

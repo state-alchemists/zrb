@@ -13,7 +13,7 @@ def test_web_auth_config_defaults():
     )
     assert config.access_token_cookie_name == CFG.WEB_ACCESS_TOKEN_COOKIE_NAME
     assert config.refresh_token_cookie_name == CFG.WEB_REFRESH_TOKEN_COOKIE_NAME
-    assert config.enable_auth == CFG.WEB_ENABLE_AUTH
+    assert config.enable_auth == CFG.WEB_AUTH_ENABLED
     assert config.super_admin_username == CFG.WEB_SUPER_ADMIN_USERNAME
     assert config.super_admin_password == CFG.WEB_SUPER_ADMIN_PASSWORD
     assert config.guest_username == CFG.WEB_GUEST_USERNAME

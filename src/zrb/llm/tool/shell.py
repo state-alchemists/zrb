@@ -21,6 +21,8 @@ async def run_shell_command(
     max_chars: int | None = None,
     shell: str = "",
     dangerously_skip_sandbox: bool = False,
+    background: bool = False,
+    description: str = "",
 ) -> str:
     """
     Executes a non-interactive command in a shell or interpreter. Streams stdout/stderr
@@ -45,7 +47,31 @@ async def run_shell_command(
             (when one is active). Only set it when a command genuinely needs to
             write outside the workspace; it always requires explicit user
             approval.
+        background: Start the command in the BACKGROUND and return a handle
+            immediately instead of blocking (use for long-running processes —
+            dev servers, watchers, builds). Poll incremental output, wait, or
+            kill it with MonitorProcess(handle). `timeout` is not applied.
+        description: Optional human-readable label for a background process,
+            shown by MonitorProcess.
     """
+    if background:
+        # lazy: keep the background registry off the hot foreground path.
+        from zrb.llm.tool.shell_background import get_shell_background_registry
+
+        try:
+            handle = await get_shell_background_registry().start(
+                command, cwd, description, shell, dangerously_skip_sandbox
+            )
+        except SandboxUnavailableError as e:
+            return (
+                f"Command refused by sandbox policy: {e}. "
+                "[SYSTEM SUGGESTION]: this deployment requires OS-level "
+                "sandboxing for shell commands (LLM_SANDBOX_FALLBACK=deny)."
+            )
+        return (
+            f"Started background process. Handle: {handle}. "
+            "Call MonitorProcess with this handle to check status."
+        )
     if max_chars is None:
         max_chars = CFG.LLM_MAX_OUTPUT_CHARS
     cwd = cwd or os.getcwd()

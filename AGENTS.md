@@ -16,7 +16,7 @@ The tree is self-describing — `ls src/zrb/` plus each module's docstring cover
 - `src/zrb/config/` — `CFG` singleton, composed from mixins under `_mixins/`. **`CFG.FOO` access stays flat** regardless of which mixin owns the attribute.
 - `src/zrb/task/` — task engine: `BaseTask`, `Task`, `CmdTask`, `HttpCheck`, `TcpCheck`, `Scheduler` (extends `BaseTrigger`), `Scaffolder`, `RsyncTask`. Plus the `make_task` decorator (wraps a plain function into a `BaseTask`).
 - `src/zrb/llm/` — LLM integration. `task/llm_task.py` (`LLMTask`) and `task/chat/task.py` (`LLMChatTask`) are `BaseTask` subclasses that create pydantic-ai agents internally. `prompt/` composes the system prompt; `tool/` ships agent-callable tools; `agent/subagent/` handles delegation; `common_tools.py` registers the shared baseline used by `LLMChatTask`, `LLMTask`, and `SubAgentManager`.
-- `src/zrb/llm_plugin/` — built-in skills (`skills/`) and sub-agent definitions (`agents/`). Each skill is `SKILL.md` or `SKILL.py`; each agent is `*.agent.md`.
+- `src/zrb/llm_plugin/` — built-in LLM plugin, split into three categories: `core_skills/` (always-on methodology baseline the utility skills delegate into), `skills/` (utility skills, gated by `CFG.LLM_ENABLE_BUILTIN_SKILLS`), and `agents/` (sub-agents, gated by `CFG.LLM_ENABLE_BUILTIN_AGENTS`). Each skill is `SKILL.md` or `SKILL.py`; each agent is `*.agent.md`. The toggles suppress only built-in content — user/project/plugin skills and agents always load. See ADR-0069.
 - `test/` — mirrors `src/` hierarchy
 - `llm-challenges/runner.py` — agent framework evaluation
 
@@ -151,6 +151,15 @@ Full procedure, rationale, and a worked example:
 - Follow existing project conventions (formatting, naming, typing)
 - **Modularity:** functions ~30–50 lines; helpers placed below their callers
 - **Error handling:** LLM tool errors include a `[SYSTEM SUGGESTION]` prefix with actionable guidance
+
+### Config Conventions
+
+Boolean `CFG`/env knobs follow a naming rule (ADR-0073):
+
+- **`<NAMESPACE>_ENABLED`** (state-last) when the toggle is the master switch of a namespace that has *other* settings, so it groups with its siblings — e.g. `WEB_AUTH_ENABLED` (alongside `WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES`), `LLM_SANDBOX_ENABLED`, `HOOKS_ENABLED`.
+- **Verb-first** (`ENABLE_`/`SHOW_`/`SEARCH_`/`INCLUDE_`/`ALLOW_`) for a standalone on/off behavior with no sub-config namespace — e.g. `LLM_ENABLE_BUILTIN_SKILLS`, `LLM_SEARCH_PROJECT`, `LLM_SHOW_TOOL_CALL_DETAIL`.
+
+When **renaming** a knob, keep the old env key working: `EnvField(aliases=[new, old], write_key=new)` reads either and writes the new form, so existing `ZRB_*` configs don't break.
 
 ### Imports
 

@@ -109,3 +109,8 @@ deleting it — the history is the point.
 - **ADR-0066** — Command hooks receive the event payload on stdin; `settings.json` is a hook source (refines ADR-0047)
 - **ADR-0067** — Non-interactive runs resolve hard-ASK approvals deterministically: approve the plan gate (`ExitPlanMode`), deny the rest (extends ADR-0055, ADR-0062)
 - **ADR-0068** — Dead-code removal: `update_todo`/`clear_todos`, `from_yolo`, and 30+ unused symbols (refines ADR-0050, ADR-0057; `register_section` considered but kept)
+- **ADR-0069** — Built-in LLM plugin split into governable core-skills / skills / agents (refines ADR-0044)
+- **ADR-0070** — Fold `DelegateToAgentsParallel` into a `tasks=` arg on `DelegateToAgent`
+- **ADR-0071** — Fold `ShellBackground` into a `background=True` parameter on `Shell`/`Bash` (supersedes ADR-0056 point 3)
+- **ADR-0072** — Bounded `wait=`/`kill=` on background result-collection tools (refines ADR-0054)
+- **ADR-0073** — Boolean config naming: verb-first for standalone toggles, `<namespace>_ENABLED` for namespace master-switches

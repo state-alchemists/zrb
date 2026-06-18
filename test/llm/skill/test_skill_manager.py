@@ -391,3 +391,67 @@ def test_skill_manager_scan_permission_error(skill_manager, tmp_path):
     with patch("pathlib.Path.iterdir", side_effect=PermissionError):
         skills = skill_manager.scan(search_dirs=[tmp_path])
         assert len(skills) == 0
+
+
+# --- Builtin Category Split & Toggle Tests ---
+
+
+def _builtin_mock_cfg(mock_cfg, *, enable_builtin_skills, extra_skill_dirs=None):
+    """Configure a mocked CFG that disables home/project search so only the
+    builtin (and any extra) directories drive discovery."""
+    mock_cfg.ROOT_GROUP_NAME = "zrb"
+    mock_cfg.LLM_SEARCH_HOME = False
+    mock_cfg.LLM_SEARCH_PROJECT = False
+    mock_cfg.LLM_CONFIG_DIR_NAMES = [".claude", ".zrb"]
+    mock_cfg.LLM_PLUGIN_DIRS = []
+    mock_cfg.LLM_BASE_SEARCH_DIRS = []
+    mock_cfg.LLM_EXTRA_SKILL_DIRS = extra_skill_dirs or []
+    mock_cfg.LLM_ENABLE_BUILTIN_SKILLS = enable_builtin_skills
+
+
+def test_builtin_core_skills_dir_always_in_search_dirs(tmp_path):
+    """core_skills/ is searched even when builtin utility skills are disabled."""
+    manager = SkillManager(root_dir=str(tmp_path))
+    with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
+        _builtin_mock_cfg(mock_cfg, enable_builtin_skills=False)
+        dirs = [str(d).replace("\\", "/") for d in manager.get_search_directories()]
+    assert any(d.endswith("llm_plugin/core_skills") for d in dirs)
+    assert not any(d.endswith("llm_plugin/skills") for d in dirs)
+
+
+def test_builtin_skills_dir_present_when_enabled(tmp_path):
+    manager = SkillManager(root_dir=str(tmp_path))
+    with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
+        _builtin_mock_cfg(mock_cfg, enable_builtin_skills=True)
+        dirs = [str(d).replace("\\", "/") for d in manager.get_search_directories()]
+    assert any(d.endswith("llm_plugin/core_skills") for d in dirs)
+    assert any(d.endswith("llm_plugin/skills") for d in dirs)
+
+
+def test_builtin_skills_toggle_off_keeps_core_drops_utility(tmp_path):
+    """Disabling builtin skills suppresses utility skills but never core skills,
+    and leaves user/extra-dir skills untouched (scope = builtin only)."""
+    extra = tmp_path / "extra_skills"
+    (extra / "my-extra").mkdir(parents=True)
+    (extra / "my-extra" / "SKILL.md").write_text(
+        "---\nname: my-extra\ndescription: custom\n---\n# Extra\n",
+        encoding="utf-8",
+    )
+    manager = SkillManager(root_dir=str(tmp_path))
+    with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
+        _builtin_mock_cfg(
+            mock_cfg, enable_builtin_skills=False, extra_skill_dirs=[str(extra)]
+        )
+        names = [s.name for s in manager.scan()]
+    assert "core-coding" in names  # core skill always loads
+    assert "init" not in names  # utility skill suppressed
+    assert "my-extra" in names  # user/extra skill unaffected
+
+
+def test_builtin_skills_toggle_on_loads_core_and_utility(tmp_path):
+    manager = SkillManager(root_dir=str(tmp_path))
+    with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
+        _builtin_mock_cfg(mock_cfg, enable_builtin_skills=True)
+        names = [s.name for s in manager.scan()]
+    assert "core-coding" in names
+    assert "init" in names

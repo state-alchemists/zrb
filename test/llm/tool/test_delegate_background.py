@@ -1,7 +1,7 @@
 """Tests for background subagent delegation."""
 
 import asyncio
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -172,6 +172,118 @@ async def test_cancel_all_clears_running_tasks(manager):
     result = await create_get_delegation_result_tool()(handle)
     assert "Unknown handle" in result
     release.set()
+
+
+@pytest.mark.asyncio
+async def test_get_result_wait_returns_on_completion(manager):
+    """wait=N returns the instant the agent finishes, not after the full N."""
+    release = asyncio.Event()
+
+    async def gated(*args, **kwargs):
+        await release.wait()
+        return AgentTaskResult("agent", "finished payload", None)
+
+    delegate = create_background_delegate_tool(manager)
+    get_result = create_get_delegation_result_tool()
+    with (
+        patch("zrb.llm.tool.delegate_background._run_agent_task", side_effect=gated),
+        patch(
+            "zrb.llm.tool.delegate_background.get_current_ui", return_value=MagicMock()
+        ),
+    ):
+        msg = await delegate("agent", "deliver", "do it", [])
+        handle = msg.split("Handle:")[1].split(".")[0].strip()
+
+        # Release shortly after starting the wait; a 5s budget should return
+        # as soon as the task completes.
+        async def _release_soon():
+            await asyncio.sleep(0.05)
+            release.set()
+
+        asyncio.ensure_future(_release_soon())
+        result = await asyncio.wait_for(get_result(handle, wait=5), timeout=2)
+    assert "finished payload" in result
+
+
+@pytest.mark.asyncio
+async def test_get_result_wait_times_out_still_running(manager):
+    release = asyncio.Event()
+
+    async def gated(*args, **kwargs):
+        await release.wait()
+        return AgentTaskResult("agent", "x", None)
+
+    delegate = create_background_delegate_tool(manager)
+    get_result = create_get_delegation_result_tool()
+    with (
+        patch("zrb.llm.tool.delegate_background._run_agent_task", side_effect=gated),
+        patch(
+            "zrb.llm.tool.delegate_background.get_current_ui", return_value=MagicMock()
+        ),
+    ):
+        msg = await delegate("agent", "deliver", "do it", [])
+        handle = msg.split("Handle:")[1].split(".")[0].strip()
+        result = await get_result(handle, wait=0.1)
+        assert "still running" in result.lower()
+        release.set()
+
+
+@pytest.mark.asyncio
+async def test_get_result_kill_cancels_and_consumes(manager):
+    release = asyncio.Event()
+
+    async def gated(*args, **kwargs):
+        await release.wait()
+        return AgentTaskResult("agent", "never", None)
+
+    delegate = create_background_delegate_tool(manager)
+    get_result = create_get_delegation_result_tool()
+    with (
+        patch("zrb.llm.tool.delegate_background._run_agent_task", side_effect=gated),
+        patch(
+            "zrb.llm.tool.delegate_background.get_current_ui", return_value=MagicMock()
+        ),
+    ):
+        msg = await delegate("agent", "deliver", "do it", [])
+        handle = msg.split("Handle:")[1].split(".")[0].strip()
+        killed = await get_result(handle, kill=True)
+        assert "Killed" in killed
+        # Handle is consumed after kill.
+        gone = await get_result(handle)
+        assert "Unknown handle" in gone
+
+
+@pytest.mark.asyncio
+async def test_approval_prompt_surfaces_during_wait(manager):
+    """While GetDelegationResult(wait=N) is parked, a background sub-agent that
+    needs approval must still reach the parent UI (the wait is async, so the
+    event loop is free to service the prompt)."""
+    parent_ui = MagicMock()
+    parent_ui.ask_user = AsyncMock(return_value="yes")
+
+    async def needs_approval(*args, **kwargs):
+        # Routed through BufferedUI → parent_ui.ask_user.
+        answer = await kwargs["ui"].ask_user("approve?")
+        return AgentTaskResult("agent", f"approved={answer}", None)
+
+    delegate = create_background_delegate_tool(manager)
+    get_result = create_get_delegation_result_tool()
+    with (
+        patch(
+            "zrb.llm.tool.delegate_background._run_agent_task",
+            side_effect=needs_approval,
+        ),
+        patch(
+            "zrb.llm.tool.delegate_background.get_current_ui", return_value=parent_ui
+        ),
+    ):
+        msg = await delegate("agent", "deliver", "do it", [])
+        handle = msg.split("Handle:")[1].split(".")[0].strip()
+        # The sub-agent has not run yet; the prompt must surface inside this wait.
+        result = await asyncio.wait_for(get_result(handle, wait=5), timeout=2)
+
+    parent_ui.ask_user.assert_awaited()  # the prompt surfaced during the wait
+    assert "approved=yes" in result
 
 
 @pytest.mark.asyncio

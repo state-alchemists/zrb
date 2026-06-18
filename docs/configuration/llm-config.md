@@ -470,12 +470,14 @@ No additional configuration needed.
 
 ## 12. Skill & Agent Search Configuration
 
-These variables control where Zrb searches for skills and agents.
+These variables control where Zrb searches for skills and agents, and whether the built-in ones are loaded.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ZRB_LLM_SEARCH_PROJECT` | Search project dirs (filesystem root → cwd) for config dir names | `on` |
 | `ZRB_LLM_SEARCH_HOME` | Search home directory (`~/.claude/`, `~/.zrb/`) | `on` |
+| `ZRB_LLM_ENABLE_BUILTIN_SKILLS` | Load the built-in utility skills (`llm_plugin/skills`). Core skills (`core_skills/`) are always on; user/project/plugin skills are unaffected | `on` |
+| `ZRB_LLM_ENABLE_BUILTIN_AGENTS` | Load the built-in sub-agents (`llm_plugin/agents`). User/project/plugin agents are unaffected | `on` |
 | `ZRB_LLM_CONFIG_DIR_NAMES` | Config subdirectory names to look for in each dir (colon-separated) | `.claude:.zrb` |
 | `ZRB_LLM_BASE_SEARCH_DIRS` | Explicit base dirs containing `skills/`, `agents/`, `plugins/` | (empty) |
 | `ZRB_LLM_EXTRA_SKILL_DIRS` | Additional direct skill directories | (empty) |
@@ -519,7 +521,7 @@ Zrb searches for skills/agents in this order (highest to lowest priority):
 
 ## 13. Timeout Configuration
 
-All timeout values are in **milliseconds**. Divide by 1000 to convert to seconds.
+All timeout values are in **milliseconds** unless the row says otherwise. Divide by 1000 to convert to seconds.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -528,6 +530,7 @@ All timeout values are in **milliseconds**. Divide by 1000 to convert to seconds
 | `ZRB_LLM_REQUEST_TIMEOUT` | Maximum time to wait for an LLM response (ms) | `300000` |
 | `ZRB_LLM_INPUT_QUEUE_TIMEOUT` | Polling interval for the chat input queue (ms) | `500` |
 | `ZRB_LLM_SHELL_KILL_WAIT_TIMEOUT` | Time to wait for a shell process to exit after SIGTERM before SIGKILL (ms) | `5000` |
+| `ZRB_LLM_BACKGROUND_WAIT_MAX` | Max time a single `GetDelegationResult`/`MonitorProcess` `wait=` call may block before returning "still running" (**seconds**, not ms) | `300` |
 | `ZRB_LLM_WEB_PAGE_TIMEOUT` | Playwright page load timeout (ms) | `30000` |
 | `ZRB_LLM_WEB_HTTP_TIMEOUT` | HTTP request timeout for web tools and search (ms) | `30000` |
 | `ZRB_LLM_MODEL_FETCH_TIMEOUT` | Timeout for fetching Ollama model list (ms) | `5000` |

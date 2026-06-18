@@ -16,6 +16,8 @@ async def run_bash_command(
     preserved_tail_lines: int = 500,
     max_chars: int | None = None,
     dangerously_skip_sandbox: bool = False,
+    background: bool = False,
+    description: str = "",
 ) -> str:
     """
     Executes a non-interactive command under bash (git-bash on Windows).
@@ -37,6 +39,10 @@ async def run_bash_command(
             (when one is active). Only set it when a command genuinely needs to
             write outside the workspace; it always requires explicit user
             approval.
+        background: Start the command in the BACKGROUND and return a handle
+            immediately instead of blocking (long-running processes). Poll, wait,
+            or kill it with MonitorProcess(handle); `timeout` is not applied.
+        description: Optional human-readable label for a background process.
     """
     return await _shell_cmd(
         command=command,
@@ -47,6 +53,8 @@ async def run_bash_command(
         max_chars=max_chars,
         shell="bash",
         dangerously_skip_sandbox=dangerously_skip_sandbox,
+        background=background,
+        description=description,
     )
 
 

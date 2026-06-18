@@ -1,5 +1,31 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.36.0 (June 18, 2026)
+
+- **Improvement: agent uses `WriteTodos` for multi-step work** (`src/zrb/llm/common_tools.py`, `src/zrb/llm/prompt/markdown/mandate.md`):
+  - The `WriteTodos` tool guidance gained a quantified trigger (≥3 steps, multiple files, or multi-turn work — seed the list before the first edit) mirroring the `DelegateToAgent` style, replacing the vague "Planning a multi-step task". `GetTodos` guidance now also covers re-checking the plan after summarization.
+  - The Working Loop's Plan step in `mandate.md` now wires the tool in explicitly: multi-step work externalizes its plan with `WriteTodos` rather than inline prose. Prompt-only; no tool/registration change.
+
+- **Refactor: `DelegateToAgentsParallel` folded into `DelegateToAgent`** (`src/zrb/llm/tool/delegate.py`, ADR-0070):
+  - `DelegateToAgent` gained an optional `tasks: list[dict]` argument; a non-empty list runs every entry concurrently (former parallel `asyncio.gather` path, now the module-level `_run_parallel` helper) and returns combined results, while the flat single-task call is unchanged. The standalone `DelegateToAgentsParallel` tool and `create_parallel_delegate_tool` factory are removed (also from `common_tools.py` guidance, `chat.py` factory/auto-approve, and `tool/__init__.py` exports).
+
+- **Refactor: `ShellBackground` folded into `Shell`/`Bash` `background=True`** (`src/zrb/llm/tool/shell.py`, `bash.py`, `shell_background.py`, ADR-0071, supersedes ADR-0056 point 3):
+  - `Shell`/`Bash` gained `background: bool = False` and `description: str = ""`; with `background=True` the call returns a handle immediately via the existing `_ShellBackgroundRegistry` (no timeout/streaming). The `ShellBackground` entry tool and `create_shell_background_tool` factory are removed; the registry and `MonitorProcess` are kept. Background launches now route through `bash_safe_command_policy` like any other shell call (the `auto_approve("ShellBackground")` entry is dropped).
+
+- **Improvement: bounded `wait=`/`kill=` on background result-collection tools** (`src/zrb/llm/tool/delegate_background.py`, `shell_background.py`, `src/zrb/config/mixins/llm_limits.py`, ADR-0072, refines ADR-0054):
+  - `GetDelegationResult` and `MonitorProcess` accept `wait: float = 0` — block up to `min(wait, CFG.LLM_BACKGROUND_WAIT_MAX)` seconds via `asyncio.wait` (which does not cancel on timeout), returning the instant the work finishes; on timeout they return a "still running — call again with wait=N or kill=True" status. `GetDelegationResult` also gained `kill: bool = False` for symmetry with `MonitorProcess`. New env var `LLM_BACKGROUND_WAIT_MAX` (`ZRB_LLM_BACKGROUND_WAIT_MAX`, default 300; in seconds, unlike the millisecond timeouts). A regression test confirms a background sub-agent's approval prompt still surfaces while a `wait=` call is parked.
+
+- **Refactor: boolean config naming convention + `WEB_ENABLE_AUTH` → `WEB_AUTH_ENABLED`** (`src/zrb/config/mixins/web.py`, ADR-0073):
+  - Codified the rule for boolean `CFG` knobs: `<namespace>_ENABLED` (state-last) for the master switch of a multi-setting namespace (groups with siblings like `WEB_AUTH_*`, `LLM_SANDBOX_*`, `HOOKS_*`); verb-first (`ENABLE_`/`SHOW_`/`SEARCH_`/`INCLUDE_`/`ALLOW_`) for standalone toggles (`LLM_ENABLE_BUILTIN_SKILLS`, `LLM_SEARCH_PROJECT`). Documented in `AGENTS.md` (Config Conventions) and ADR-0073.
+  - `WEB_ENABLE_AUTH` was the lone violation (auth is a `WEB_AUTH_*` namespace) and is renamed to `WEB_AUTH_ENABLED`. The old `ZRB_WEB_ENABLE_AUTH` env key still works (read alias via `EnvField(aliases=[...], write_key="WEB_AUTH_ENABLED")`); writes use the new key. Docs and env-var tables updated with the legacy-alias note.
+
+- **Feature: built-in LLM plugin split into governable categories** (`src/zrb/llm_plugin/`, ADR-0069):
+  - The flat `llm_plugin/skills/` directory is split into `core_skills/` (the five `core-*` methodology skills the utility skills delegate into) and `skills/` (the eight utility skills). `agents/` is unchanged. Skills moved verbatim — frontmatter `name:` fields and `/slash-command` names are unchanged, so cross-references (e.g. `/testing` → `core-coding`'s testing companion) keep working.
+  - **Core skills are always loaded and have no toggle** — disabling them would silently break the utility skills that depend on them.
+  - Two new CFG booleans (default `on`) gate the optional built-in content: `LLM_ENABLE_BUILTIN_SKILLS` (`ZRB_LLM_ENABLE_BUILTIN_SKILLS`) and `LLM_ENABLE_BUILTIN_AGENTS` (`ZRB_LLM_ENABLE_BUILTIN_AGENTS`), added to `LLMSearchMixin` (`src/zrb/config/mixins/llm_search.py`) following the existing `LLM_SEARCH_PROJECT`/`LLM_SEARCH_HOME` pattern.
+  - The toggles suppress **only built-in content** — user/project/plugin/extra skills and agents always load. `SkillManager._get_builtin_dir()` becomes `_get_builtin_dirs()` (CFG-filtered list); the agent `SearchMixin` wraps its built-in append in the agent toggle.
+  - **Considered and rejected:** adding `dangerously_skip_sandbox` to the file tools (Read/Write/Edit/…). Claude Code keeps sandbox-escape a Bash-only concept and governs file access via the permission layer with no per-call bypass; zrb already mirrors this (escape stays on the OS-sandboxed shell tools; the Python FS gate from ADR-0063 has no escape, preserving credential deny-read protection).
+
 ## 2.35.3 (June 18, 2026)
 
 - **Security: bumped 5 transitive dependency pins for GHSA advisories** (`pyproject.toml`):

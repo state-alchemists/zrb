@@ -28,6 +28,8 @@ class LLMSearchMixin:
         self.DEFAULT_LLM_EXTRA_AGENT_DIRS: str = ""
         self.DEFAULT_LLM_PLUGIN_DIRS: str = ""
         self.DEFAULT_LLM_LSP_PREFERRED_SERVERS: str = ""
+        self.DEFAULT_LLM_ENABLE_BUILTIN_SKILLS: str = "on"
+        self.DEFAULT_LLM_ENABLE_BUILTIN_AGENTS: str = "on"
         super().__init__()
 
     LLM_PLUGIN_DIRS = EnvField(expanduser_colon_list, serialize=colon_join)
@@ -89,4 +91,23 @@ class LLMSearchMixin:
         colon_list,
         serialize=colon_join,
         doc="Additional direct agent directories (colon-separated).",
+    )
+
+    LLM_ENABLE_BUILTIN_SKILLS = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc=(
+            "Enable/disable the builtin utility skills (src/zrb/llm_plugin/skills). "
+            "Core skills (core_skills/) are always enabled and have no toggle. "
+            "User/project/plugin skills are unaffected."
+        ),
+    )
+
+    LLM_ENABLE_BUILTIN_AGENTS = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc=(
+            "Enable/disable the builtin sub-agents (src/zrb/llm_plugin/agents). "
+            "User/project/plugin agents are unaffected."
+        ),
     )

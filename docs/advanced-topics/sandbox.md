@@ -26,8 +26,9 @@ One `SandboxPolicy` (`zrb/llm/sandbox/`) drives two enforcement layers:
      `~/.ssh`, `~/.aws`, `~/.kube`) for every tool.
    A blocked call returns a `ToolReturn` with `metadata={"blocked": True}` and
    a `[SYSTEM SUGGESTION]`, so the model can adapt instead of crashing.
-2. **OS-level shell wrapper** (macOS, Linux). `Shell`/`Bash`/`ShellBackground`
-   subprocesses are spawned through a kernel-enforced sandbox, immune to `cd`,
+2. **OS-level shell wrapper** (macOS, Linux). `Shell`/`Bash` subprocesses
+   (foreground or `background=True`) are spawned through a kernel-enforced
+   sandbox, immune to `cd`,
    symlink tricks, and check-then-use races:
    - **macOS** — `sandbox-exec -p <generated SBPL profile>` (Seatbelt).
      Deprecated-but-functional; Chrome, Bazel, and Codex still ship on it.
@@ -84,7 +85,7 @@ ContextVar, exactly like the permission policy.
 
 ## Escape Hatch
 
-`Shell`, `Bash`, and `ShellBackground` accept
+`Shell` and `Bash` (foreground or `background=True`) accept
 `dangerously_skip_sandbox: bool = False`. A truthy value:
 
 - is **never auto-approved** — `bash_safe_command_policy` and `auto_approve`

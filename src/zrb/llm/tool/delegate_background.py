@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import asyncio
 
+from zrb.config.config import CFG
 from zrb.llm.agent.run.runtime_state import get_current_ui
 from zrb.llm.agent.subagent.manager.manager import (
     SubAgentManager,
@@ -46,6 +47,32 @@ class _BackgroundRegistry:
         self._tasks[handle] = asyncio.ensure_future(coro)
         self._buffers[handle] = buffered_ui
 
+    async def collect(self, handle: str, wait: float = 0.0) -> str:
+        """Poll a handle, optionally blocking up to ``wait`` seconds for it.
+
+        Returns the instant the agent finishes; on timeout falls through to the
+        synchronous ``poll`` (which reports "still running"). ``asyncio.wait``
+        does not cancel the task on timeout, so the work keeps running.
+        """
+        task = self._tasks.get(handle)
+        if task is not None and not task.done() and wait > 0:
+            capped = min(wait, CFG.LLM_BACKGROUND_WAIT_MAX)
+            await asyncio.wait({task}, timeout=capped)
+        return self.poll(handle)
+
+    async def cancel(self, handle: str) -> str:
+        """Cancel an outstanding background agent and consume its handle."""
+        task = self._tasks.pop(handle, None)
+        self._buffers.pop(handle, None)
+        if task is None:
+            return (
+                f"Unknown handle '{handle}'. [SYSTEM SUGGESTION]: it may have "
+                "already been collected or killed, or never existed."
+            )
+        if not task.done():
+            task.cancel()
+        return f"Killed background agent '{handle}'."
+
     def poll(self, handle: str) -> str:
         task = self._tasks.get(handle)
         if task is None:
@@ -55,7 +82,11 @@ class _BackgroundRegistry:
                 "by DelegateToAgentBackground."
             )
         if not task.done():
-            return f"Background agent '{handle}' is still running. Poll again later."
+            return (
+                f"Background agent '{handle}' is still running. Call "
+                "GetDelegationResult again with wait=N to block up to N seconds, "
+                "or kill=True to stop it."
+            )
 
         # Consume the handle once collected.
         self._tasks.pop(handle, None)
@@ -151,10 +182,22 @@ def create_background_delegate_tool(
 
 
 def create_get_delegation_result_tool():
-    async def get_delegation_result(handle: str) -> str:
+    async def get_delegation_result(
+        handle: str,
+        wait: float = 0,
+        kill: bool = False,
+    ) -> str:
         """Return the result of a background delegation, or a 'still running'
-        status. Once a completed result is collected, the handle is consumed."""
-        return _registry.poll(handle)
+        status. Once a completed result is collected, the handle is consumed.
+
+        Pass `wait=N` to block up to N seconds (capped by LLM_BACKGROUND_WAIT_MAX),
+        returning the instant the agent finishes; on timeout it returns the
+        'still running' status so you can call again with another `wait`, or stop
+        the work with `kill=True`.
+        """
+        if kill:
+            return await _registry.cancel(handle)
+        return await _registry.collect(handle, wait)
 
     get_delegation_result.__name__ = "GetDelegationResult"
     tag(get_delegation_result, Capability.META)
