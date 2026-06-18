@@ -4,15 +4,18 @@ LLM Hook Examples
 This demonstrates various ways to use hooks with zrb's LLM chat.
 
 Hook Events:
-- SESSION_START: Fired when a session begins
-- SESSION_END: Fired before a session ends (can extend session)
-- USER_PROMPT_SUBMIT: Fired when user submits a prompt
-- PRE_TOOL_USE: Fired before tool execution (can block/deny)
-- POST_TOOL_USE: Fired after successful tool execution
-- POST_TOOL_USE_FAILURE: Fired after failed tool execution
-- NOTIFICATION: Fired on system notifications
-- STOP: Fired when session is stopped (Ctrl+C)
-- PRE_COMPACT: Fired before history compaction
+- SESSION_START: Chat session begins. source is startup (fresh) or resume (continued)
+- USER_PROMPT_SUBMIT: Before the LLM processes text (can block)
+- PRE_COMMAND: Before a UI command runs (can block)
+- POST_COMMAND: After a UI command runs
+- PRE_TOOL_USE: Before every tool call (can deny, allow, rewrite args)
+- POST_TOOL_USE: After a tool succeeds (can block, replace output)
+- POST_TOOL_USE_FAILURE: After a tool raises
+- PERMISSION_REQUEST: Tool reaches interactive approval (can auto-resolve)
+- NOTIFICATION: System notifications
+- STOP: Turn finishes — per-turn extension and block-to-continue point
+- PRE_COMPACT: Before history summarization
+- SESSION_END: Terminal — fires once when chat session ends
 """
 
 from zrb.builtin.llm.chat import llm_chat
@@ -27,14 +30,14 @@ from zrb.llm.hook.types import HookEvent
 async def logging_hook(context: HookContext) -> HookResult:
     """Log all hook events to console.
 
-    This is a "global" hook - runs on all events.
+    This is a "global" hook — runs on all events.
     """
     print(f"[LOG] Event: {context.event.value}")
     if context.tool_name:
         print(f"[LOG]   Tool: {context.tool_name}")
     if context.prompt:
         print(f"[LOG]   Prompt: {context.prompt[:100]}...")
-    return HookResult()  # No modification, just logging
+    return HookResult()
 
 
 # =============================================================================
@@ -80,31 +83,29 @@ class SessionTrackerHook:
 
 
 # =============================================================================
-# Example 3: Tool Permission Hook
+# Example 3: Tool Permission Hook (PreToolUse)
 # =============================================================================
 
 
 async def permission_hook(context: HookContext) -> HookResult:
-    """Control tool permissions.
+    """Control tool permissions via PreToolUse.
 
-    Demonstrates PRE_TOOL_USE hook that can allow/deny/ask.
+    Demonstrates:
+    - Denying dangerous tools
+    - Auto-allowing safe tools
+    - Rewriting tool arguments via updatedInput
     """
     if context.event != HookEvent.PRE_TOOL_USE:
         return HookResult()
 
-    # Tool name is available in context.tool_name
     tool_name = context.tool_name or ""
 
-    # Dangerous tools - always deny
-    DANGEROUS_TOOLS = {"Bash"}  # Add more as needed
-
-    # Safe tools - always allow
-    SAFE_TOOLS = {"Read", "Glob", "LS", "Grep"}
+    SAFE_TOOLS = {"Read", "Glob", "Grep", "LS", "LspListServers"}
+    DANGEROUS_TOOLS = {"Bash", "RunShellCommand"}
 
     if tool_name in DANGEROUS_TOOLS:
-        # Check if command looks safe
         tool_input = context.tool_input or {}
-        command = tool_input.get("command", "")
+        command = str(tool_input.get("command", tool_input.get("cmd", "")))
 
         # Allow read-only commands
         safe_patterns = ["ls", "cat", "grep", "find", "git status", "git log"]
@@ -112,129 +113,109 @@ async def permission_hook(context: HookContext) -> HookResult:
             print(f"[PERMISSION] Allowing safe Bash: {command[:50]}")
             return HookResult(
                 success=True,
-                modifications={
-                    "permissionDecision": "allow",
-                    "exit_code": 0,
-                    "permissionDecisionReason": "Command appears to be read-only",
-                },
+                modifications={"permissionDecision": "allow"},
             )
 
-        # Block dangerous patterns
+        # Deny dangerous patterns
         dangerous_patterns = ["rm ", "rmdir", "sudo", "chmod", "chown", ">"]
         if any(pat in command for pat in dangerous_patterns):
             print(f"[PERMISSION] Blocking dangerous Bash: {command[:50]}")
             return HookResult(
                 success=True,
-                modifications={
-                    "permissionDecision": "deny",
-                    "exit_code": 0,
-                    "permissionDecisionReason": f"Command contains dangerous pattern: {command}",
-                },
+                modifications={"permissionDecision": "deny"},
             )
 
-        # Ask for everything else
-        print(f"[PERMISSION] Asking about Bash: {command[:50]}")
-        return HookResult(
-            success=True,
-            modifications={
-                "permissionDecision": "ask",
-                "exit_code": 0,
-                "permissionDecisionReason": f"Please confirm: {command}",
-            },
-        )
+        # For everything else, let the normal approval flow handle it
+        return HookResult()
 
     if tool_name in SAFE_TOOLS:
         print(f"[PERMISSION] Auto-allowing safe tool: {tool_name}")
         return HookResult(
             success=True,
-            modifications={
-                "permissionDecision": "allow",
-                "exit_code": 0,
-                "permissionDecisionReason": f"{tool_name} is a safe read-only tool",
-            },
+            modifications={"permissionDecision": "allow"},
         )
 
-    # Unknown tool - ask
-    return HookResult(
-        success=True,
-        modifications={
-            "permissionDecision": "ask",
-            "exit_code": 0,
-            "permissionDecisionReason": f"Unknown tool: {tool_name}",
-        },
-    )
+    return HookResult()
 
 
 # =============================================================================
-# Example 4: Journal Reminder Hook
+# Example 4: Argument Rewriting Hook (PreToolUse)
+# =============================================================================
+
+
+async def arg_rewrite_hook(context: HookContext) -> HookResult:
+    """Rewrite tool arguments before execution.
+
+    Demonstrates updatedInput — the tool sees the rewritten args,
+    not the original ones.
+    """
+    if context.event != HookEvent.PRE_TOOL_USE:
+        return HookResult()
+
+    tool_name = context.tool_name or ""
+
+    # Always scope Grep/LS to the project root
+    if tool_name in {"Grep", "LS"}:
+        tool_input = context.tool_input or {}
+        if "path" in tool_input and tool_input["path"] in {"", ".", "/"}:
+            print(f"[REWRITE] Scoping {tool_name} to current directory")
+            return HookResult(
+                success=True,
+                modifications={
+                    "updatedInput": {"path": "."},
+                },
+            )
+
+    return HookResult()
+
+
+# =============================================================================
+# Example 5: Journal Reminder Hook (Stop — turn extension)
 # =============================================================================
 
 
 class JournalReminderHook:
-    """Remind LLM to journal at session end.
+    """Remind LLM to journal at each turn end.
 
-    Similar to the built-in journaling hook.
+    Uses Stop (not SessionEnd — SessionEnd is now terminal, fires once).
+    systemMessage turn-extension with replace_response=False (default)
+    means the user sees the original response; journaling is a side effect.
     """
 
     def __init__(self):
         self.had_activity = False
-        self.reminder_sent = False
 
     async def __call__(self, context: HookContext) -> HookResult:
-        # Track activity
         if context.event == HookEvent.POST_TOOL_USE:
             self.had_activity = True
 
-        # Send reminder at session end
-        if context.event == HookEvent.SESSION_END:
-            if self.had_activity and not self.reminder_sent:
-                self.reminder_sent = True
-                return HookResult(
-                    success=True,
-                    modifications={
-                        "systemMessage": (
-                            "Before ending, consider: Did you learn anything worth documenting? "
-                            "If so, update the project notes."
-                        ),
-                        "replaceResponse": False,
-                    },
-                )
+        if context.event == HookEvent.STOP and self.had_activity:
+            self.had_activity = False
+            return HookResult(
+                success=True,
+                modifications={
+                    "systemMessage": (
+                        "Review the turn for learnings worth documenting. "
+                        "Update any relevant notes."
+                    ),
+                },
+            )
 
         return HookResult()
 
 
 # =============================================================================
-# Example 5: Command Hook (via JSON/YAML)
-# =============================================================================
-
-# Command hooks are defined in hooks.json or hooks.yaml
-# They run shell commands and parse JSON output.
-#
-# See .zrb/hooks.json for examples:
-# - Block dangerous Bash commands
-# - Log all tool usage
-# - Send notifications on errors
-
-
-# =============================================================================
-# Example 6: Response Transformation Hook (replace_response=True)
+# Example 6: Response Transformation Hook (Stop — replace_response=True)
 # =============================================================================
 
 
 class ResponseTransformerHook:
-    """Transform the final response at session end.
+    """Transform long responses at turn end using Stop.
 
-    Demonstrates replace_response=True - the extended session's response
-    replaces the original response.
+    Demonstrates replace_response=True — the extended turn's response
+    replaces the original.
 
-    Use cases:
-    - Summarize long responses
-    - Add metadata or formatting
-    - Clean up or sanitize output
-
-    Contrast with journal_reminder (replace_response=False):
-    - journal_reminder: Extended session for side effects, original response returned
-    - ResponseTransformer: Extended session's response becomes final response
+    Must be on Stop (SessionEnd is terminal; it only fires at chat exit).
     """
 
     def __init__(self, max_length: int = 500):
@@ -242,26 +223,27 @@ class ResponseTransformerHook:
         self.response_count = 0
 
     async def __call__(self, context: HookContext) -> HookResult:
-        if context.event != HookEvent.SESSION_END:
+        if context.event != HookEvent.STOP:
             return HookResult()
 
-        # Get the session output from context
         output = context.event_data.get("output", "")
         if not output:
             return HookResult()
 
-        # Only transform long responses
         if len(str(output)) > self.max_length:
             self.response_count += 1
             print(
-                f"[TRANSFORM] Response #{self.response_count} is {len(str(output))} chars, summarizing..."
+                f"[TRANSFORM] Response #{self.response_count} is "
+                f"{len(str(output))} chars, summarizing..."
             )
             return HookResult(
                 success=True,
                 modifications={
                     "systemMessage": (
-                        f"The previous response was too long ({len(str(output))} chars). "
-                        f"Please provide a concise summary under {self.max_length} characters "
+                        f"The previous response was too long "
+                        f"({len(str(output))} chars). "
+                        f"Please provide a concise summary under "
+                        f"{self.max_length} characters "
                         f"while preserving key information."
                     ),
                     "replaceResponse": True,
@@ -269,6 +251,236 @@ class ResponseTransformerHook:
             )
 
         return HookResult()
+
+
+# =============================================================================
+# Example 7: PostToolUse — Block or Replace Tool Results
+# =============================================================================
+
+
+async def tool_result_hook(context: HookContext) -> HookResult:
+    """Inspect and optionally block or rewrite tool results.
+
+    Demonstrates PostToolUse blocking and updatedToolOutput.
+    """
+    if context.event == HookEvent.POST_TOOL_USE:
+        tool_name = context.tool_name or ""
+        tool_result = context.event_data.get("result", {})
+
+        # Block empty search results — let the model know
+        if tool_name in {"Grep", "SearchFiles"}:
+            result_content = str(tool_result.get("content", ""))
+            if "no matches" in result_content.lower() or not result_content.strip():
+                return HookResult.block(reason="No results found, try a broader query")
+
+        # Redact sensitive patterns from file reads
+        if tool_name == "Read":
+            result_content = str(tool_result.get("content", ""))
+            if any(
+                sensitive in result_content
+                for sensitive in ["API_KEY", "PASSWORD", "SECRET"]
+            ):
+                censored = result_content
+                for word in ["API_KEY", "PASSWORD", "SECRET"]:
+                    censored = censored.replace(word, "[REDACTED]")
+                return HookResult(
+                    success=True,
+                    modifications={
+                        "hookSpecificOutput": {
+                            "updatedToolOutput": censored,
+                        },
+                    },
+                )
+
+    return HookResult()
+
+
+# =============================================================================
+# Example 8: UserPromptSubmit — Block Inappropriate Prompts
+# =============================================================================
+
+
+async def prompt_gate_hook(context: HookContext) -> HookResult:
+    """Block prompts that match certain patterns.
+
+    UserPromptSubmit hooks fire before the LLM processes text.
+    A block returns the reason to the user without invoking the model.
+    """
+    if context.event != HookEvent.USER_PROMPT_SUBMIT:
+        return HookResult()
+
+    prompt = context.prompt or ""
+
+    blocked_patterns = [
+        "delete everything",
+        "remove all files",
+    ]
+    for pattern in blocked_patterns:
+        if pattern in prompt.lower():
+            print(f"[GATE] Blocked prompt containing: {pattern}")
+            return HookResult.block(reason=f"Prompt blocked: contains '{pattern}'")
+
+    return HookResult()
+
+
+# =============================================================================
+# Example 9: PreCompact — Inject Context Before Summarization
+# =============================================================================
+
+
+async def precompact_hook(context: HookContext) -> HookResult:
+    """Inject context before history summarization.
+
+    PreCompact fires with trigger="auto" before zrb summarizes
+    old turns. This hook can inject additionalContext to preserve
+    important information the model might otherwise lose.
+    """
+    if context.event != HookEvent.PRE_COMPACT:
+        return HookResult()
+
+    token_count = context.event_data.get("token_count", 0)
+    message_count = context.event_data.get("message_count", 0)
+    print(f"[COMPACT] About to compact {message_count} msgs ({token_count} tokens)")
+
+    # Example: preserve deployment instructions when compacting
+    return HookResult(
+        success=True,
+        modifications={
+            "hookSpecificOutput": {
+                "additionalContext": (
+                    "Preserve these project conventions: "
+                    "Python 3.14, async/await, pytest."
+                ),
+            },
+        },
+    )
+
+
+# =============================================================================
+# Example 10: PreCommand — Rewrite Command Arguments
+# =============================================================================
+
+
+async def command_rewrite_hook(context: HookContext) -> HookResult:
+    """Rewrite or block UI commands before they execute.
+
+    Demonstrates PreCommand argument rewriting via updatedInput.
+    """
+    if context.event != HookEvent.PRE_COMMAND:
+        return HookResult()
+
+    cmd_name = context.command_name or ""
+    cmd_args = context.command_args or ""
+
+    # Always redirect /help to the topic form
+    if cmd_name == "/help" and not cmd_args:
+        print("[CMD] Rewriting bare /help to /help hooks")
+        return HookResult(
+            success=True,
+            modifications={"command_args": "hooks"},
+        )
+
+    return HookResult()
+
+
+# =============================================================================
+# Example 11: PostCommand — Observe Command Results
+# =============================================================================
+
+
+async def command_audit_hook(context: HookContext) -> HookResult:
+    """Audit UI command execution.
+
+    PostCommand fires after a command completes. command_handled
+    indicates whether zrb processed it or passed it to the model.
+    """
+    if context.event != HookEvent.POST_COMMAND:
+        return HookResult()
+
+    cmd_name = context.command_name or ""
+    cmd_handled = context.event_data.get("command_handled", False)
+
+    print(f"[AUDIT] Command: {cmd_name}, handled: {cmd_handled}")
+
+    return HookResult()
+
+
+# =============================================================================
+# Example 12: PostToolUseFailure — Handle Tool Errors
+# =============================================================================
+
+
+async def error_log_hook(context: HookContext) -> HookResult:
+    """Log and handle tool execution failures.
+
+    PostToolUseFailure fires when a tool raises. The error context
+    field contains the exception message.
+    """
+    if context.event != HookEvent.POST_TOOL_USE_FAILURE:
+        return HookResult()
+
+    tool_name = context.tool_name or ""
+    error = context.event_data.get("error", str(context.error or ""))
+
+    print(f"[ERROR] Tool {tool_name} failed: {error}")
+
+    return HookResult()
+
+
+# =============================================================================
+# Example 13: PermissionRequest — Auto-Resolve Approval
+# =============================================================================
+
+
+async def auto_approve_hook(context: HookContext) -> HookResult:
+    """Auto-approve or auto-deny permission requests.
+
+    PermissionRequest fires when a tool reaches interactive approval.
+    Resolve via hookSpecificOutput.decision.behavior.
+    """
+    if context.event != HookEvent.PERMISSION_REQUEST:
+        return HookResult()
+
+    tool_name = context.tool_name or ""
+    suggestions = context.event_data.get("permission_suggestions", "")
+
+    # Auto-approve known safe operations
+    SAFE_PATTERNS = ["git status", "git log", "ls -la"]
+    if any(p in suggestions for p in SAFE_PATTERNS):
+        print(f"[APPROVE] Auto-approving: {tool_name}")
+        return HookResult(
+            success=True,
+            modifications={
+                "hookSpecificOutput": {
+                    "decision": {"behavior": "allow"},
+                },
+            },
+        )
+
+    # Let everything else go to interactive approval
+    return HookResult()
+
+
+# =============================================================================
+# Example 14: Notification — Handle LLM Notifications
+# =============================================================================
+
+
+async def notification_handler_hook(context: HookContext) -> HookResult:
+    """Handle notifications from the LLM.
+
+    Notifications carry message, title, and notification_type.
+    They are informational only and cannot be blocked.
+    """
+    if context.event != HookEvent.NOTIFICATION:
+        return HookResult()
+
+    msg = context.event_data.get("message", "")
+    title = context.event_data.get("title", "")
+    ntype = context.event_data.get("notification_type", "")
+    print(f"[NOTIFY] {title} ({ntype}): {msg}")
+
+    return HookResult()
 
 
 # =============================================================================
@@ -286,7 +498,7 @@ def register_hooks(manager):
 
     Called automatically by add_hook_factory().
     """
-    # Register session tracker for multiple events
+    # Session tracker — observe multiple events
     manager.register(
         session_tracker,
         events=[
@@ -297,26 +509,51 @@ def register_hooks(manager):
         ],
     )
 
-    # Register permission hook for PRE_TOOL_USE only
+    # Permission gate — PreToolUse only
     manager.register(permission_hook, events=[HookEvent.PRE_TOOL_USE])
 
-    # Register journal reminder for activity tracking and session end
-    # Uses replace_response=False (default) - side effects only
+    # Arg rewriting — PreToolUse only
+    manager.register(arg_rewrite_hook, events=[HookEvent.PRE_TOOL_USE])
+
+    # Journal reminder — uses Stop (per-turn), not SessionEnd (terminal)
     manager.register(
         journal_reminder,
         events=[
             HookEvent.POST_TOOL_USE,
-            HookEvent.SESSION_END,
+            HookEvent.STOP,
         ],
     )
 
-    # Register response transformer for SESSION_END
-    # Uses replace_response=True - transforms the final response
+    # Response transformer — uses Stop
     # Uncomment to enable:
     # manager.register(
     #     response_transformer,
-    #     events=[HookEvent.SESSION_END]
+    #     events=[HookEvent.STOP],
     # )
+
+    # Tool result blocking/redaction — PostToolUse
+    manager.register(tool_result_hook, events=[HookEvent.POST_TOOL_USE])
+
+    # Prompt gate — UserPromptSubmit
+    manager.register(prompt_gate_hook, events=[HookEvent.USER_PROMPT_SUBMIT])
+
+    # Pre-compact context injection
+    manager.register(precompact_hook, events=[HookEvent.PRE_COMPACT])
+
+    # Command rewriting — PreCommand only
+    manager.register(command_rewrite_hook, events=[HookEvent.PRE_COMMAND])
+
+    # Command auditing — PostCommand only
+    manager.register(command_audit_hook, events=[HookEvent.POST_COMMAND])
+
+    # Error logging — PostToolUseFailure only
+    manager.register(error_log_hook, events=[HookEvent.POST_TOOL_USE_FAILURE])
+
+    # Auto-approval — PermissionRequest only
+    manager.register(auto_approve_hook, events=[HookEvent.PERMISSION_REQUEST])
+
+    # Notification handling — Notification only
+    manager.register(notification_handler_hook, events=[HookEvent.NOTIFICATION])
 
 
 # Register hooks with llm_chat task
@@ -332,7 +569,7 @@ llm_chat.add_hook_factory(register_hooks)
 # from zrb.llm.hook.manager import hook_manager
 #
 # hook_manager.register(logging_hook, events=None)  # Global hook (all events)
-# hook_manager.register(my_hook, events=[HookEvent.SESSION_END])
+# hook_manager.register(my_hook, events=[HookEvent.STOP])
 
 # =============================================================================
 # Notes
@@ -344,49 +581,40 @@ llm_chat.add_hook_factory(register_hooks)
 # 3. If a hook returns should_stop=True, remaining hooks are skipped
 # 4. If a hook returns block(), execution is blocked
 
-# Hook Results:
-# - HookResult(): Continue normally
-# - HookResult(success=True, modifications={"systemMessage": msg}): Inject message, return original response
-# - HookResult(success=True, modifications={"systemMessage": msg, "replaceResponse": True}): Inject message, return extended response
-# - HookResult.block(reason): Block execution (exit code 2)
-# - HookResult(success=True, modifications={"permissionDecision": "allow", ...}): Allow tool use
-# - HookResult(success=True, modifications={"permissionDecision": "deny", ...}): Deny tool use
-# - HookResult(success=True, modifications={"permissionDecision": "ask", ...}): Ask user for permission
+# Hook Results quick reference:
+# - HookResult()                                           Continue
+# - HookResult.block(reason)                               Block (exit code 2)
+# - HookResult(success=True, modifications={"systemMessage": msg})
+#                     Stop: Extend turn, original response returned
+# - HookResult(success=True, modifications={"systemMessage": msg,
+#                                           "replaceResponse": True})
+#                     Stop: Extend turn, new response replaces original
+# - HookResult(success=True, modifications={"permissionDecision": "allow"})
+#                     PreToolUse: Auto-allow tool
+# - HookResult(success=True, modifications={"permissionDecision": "deny"})
+#                     PreToolUse: Auto-deny tool
+# - HookResult(success=True, modifications={"updatedInput": {...}})
+#                     PreToolUse: Rewrite tool args
+# - HookResult(success=True, modifications={
+#     "hookSpecificOutput": {"updatedToolOutput": "..."}})
+#                     PostToolUse: Replace tool result
+# - HookResult(success=True, modifications={"command_args": "..."})
+#                     PreCommand: Rewrite command arguments
+# - HookResult(success=True, modifications={
+#     "hookSpecificOutput": {"additionalContext": "..."}})
+#                     SessionStart/UserPromptSubmit/PreCompact:
+#                     Inject additional context
+# - HookResult(success=True, modifications={
+#     "hookSpecificOutput": {"decision": {"behavior": "allow"}}})
+#                     PermissionRequest: Auto-allow approval
+# - HookResult(success=True, modifications={
+#     "hookSpecificOutput": {"decision": {"behavior": "deny"}}})
+#                     PermissionRequest: Auto-deny approval
 
-# SESSION_END System Messages:
-# When a SESSION_END hook returns a systemMessage, the session extends:
-#
-#   # Side effects only (default) - journaling, notifications
-#   return HookResult(success=True, modifications={"systemMessage": "Journal this"})
-#   # → Extended session runs, ORIGINAL response returned to user
-#
-#   # Replace response - summarization, transformation
-#   return HookResult(success=True, modifications={"systemMessage": "Summarize", "replaceResponse": True})
-#   # → Extended session response becomes the FINAL response
-
-# Match Matchers:
-# You can filter hooks using matchers:
-#
-# from zrb.llm.hook.schema import MatcherConfig, HookConfig
-#
-# hook_config = HookConfig(
-#     name="block-bash-rm",
-#     events=[HookEvent.PRE_TOOL_USE],
-#     type=HookType.COMMAND,
-#     config=CommandHookConfig(command="echo 'denied'"),
-#     matchers=[
-#         MatcherConfig(
-#             field="tool_name",
-#             operator=MatcherOperator.EQUALS,
-#             value="Bash"
-#         ),
-#         MatcherConfig(
-#             field="tool_input.command",
-#             operator=MatcherOperator.CONTAINS,
-#             value="rm "
-#         )
-#     ]
-# )
+# STOP vs SESSION_END:
+# - Stop fires per-turn — use for journaling, summarization, block-to-continue
+# - SessionEnd is terminal — fires once on chat exit (/exit, EOF, Ctrl+C)
+# If migrating from SessionEnd, move per-turn hooks to Stop.
 
 # See also:
 # - .zrb/hooks.json for JSON-based command hooks

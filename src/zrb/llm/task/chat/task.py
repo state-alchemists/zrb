@@ -35,6 +35,7 @@ from zrb.llm.factory_resolver import resolve_factory_items
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.history_manager.file_history_manager import FileHistoryManager
 from zrb.llm.hook.manager import HookManager
+from zrb.llm.hook.types import HookEvent
 from zrb.llm.permission import (
     ALLOW,
     ASK,
@@ -281,6 +282,9 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
             toolset_factories if toolset_factories is not None else []
         )
         self._hook_factories: list[Callable[[HookManager], None]] = []
+        # Set per execution in _create_llm_task_core; the interactive teardown
+        # fires the terminal SESSION_END on it.
+        self._active_hook_manager: HookManager | None = None
         self._message = message
         self._render_message = render_message
         self._attachment = attachment
@@ -518,6 +522,19 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
         would restart them on every message. Each step is guarded so teardown
         never raises; a second ``KeyboardInterrupt`` still propagates.
         """
+        # Terminal SESSION_END: the interactive chat session is ending (normal
+        # exit, /exit, EOF, or Ctrl+C). Claude Code fires SessionEnd once per
+        # session, not per turn — run_agent fires only STOP per turn. Guarded so
+        # a misbehaving hook never blocks resource teardown.
+        if self._active_hook_manager is not None:
+            try:
+                await self._active_hook_manager.execute_hooks(
+                    HookEvent.SESSION_END,
+                    {"reason": "exit"},
+                )
+            except Exception:
+                CFG.LOGGER.debug("SESSION_END hook raised at teardown", exc_info=True)
+
         # lazy: circular — chat task → lsp manager → server → (back to llm); and
         # avoids paying the import on the non-interactive/web path.
         try:
@@ -726,6 +743,10 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
         # Apply all hook factories
         for factory in self._hook_factories:
             factory(hook_manager)
+        # Hold a reference so the interactive teardown can fire the terminal
+        # SESSION_END on this exact manager (run_agent fires per-turn STOP, not
+        # SESSION_END — SESSION_END is once-per-session, like Claude Code).
+        self._active_hook_manager = hook_manager
 
         # Pass resolved tools/toolsets to LLMTask (no factories needed since already resolved)
         return LLMTask(

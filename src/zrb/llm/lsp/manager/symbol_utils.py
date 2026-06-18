@@ -15,13 +15,31 @@ def uri_to_path(uri: str) -> str:
 
 
 def format_document_symbols(symbols: list, depth: int = 0) -> list[dict]:
-    """Flatten LSP DocumentSymbol nodes into a list with hierarchy depth."""
+    """Flatten LSP document symbols into a list with hierarchy depth.
+
+    Handles both response shapes ``textDocument/documentSymbol`` may return:
+
+    * **DocumentSymbol** (hierarchical; pyright, gopls, …) — position in
+      ``range``/``selectionRange``, with nested ``children``.
+    * **SymbolInformation** (flat; pylsp, …) — position in ``location.range``,
+      no children.
+
+    Reading positions from the wrong field yielded ``line=1, character=0`` for
+    every SymbolInformation symbol, which corrupted symbol-position lookups
+    (``find_definition`` / ``find_references`` resolved nothing on pylsp).
+    """
     results: list[dict] = []
     for sym in symbols:
         if not isinstance(sym, dict):
             continue
-        range_info = sym.get("range", {})
-        selection_range = sym.get("selectionRange", {})
+        if "location" in sym:
+            # SymbolInformation: position lives under location.range.
+            range_info = sym.get("location", {}).get("range", {})
+            selection_range = range_info
+        else:
+            # DocumentSymbol: full range + a selectionRange on the name.
+            range_info = sym.get("range", {})
+            selection_range = sym.get("selectionRange", range_info)
         results.append(
             {
                 "name": sym.get("name", ""),

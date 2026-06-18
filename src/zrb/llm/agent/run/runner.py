@@ -34,13 +34,14 @@ from zrb.llm.agent.run.deferred_calls import (
 from zrb.llm.agent.run.history_utils import sanitize_history
 from zrb.llm.agent.run.hook_result_extractor import (
     extract_additional_context,
+    extract_block_decision,
 )
 from zrb.llm.agent.run.openai_patch import patch_openai_model_response_serialization
 from zrb.llm.agent.run.prompt_content import get_prompt_content as _get_prompt_content
 from zrb.llm.agent.run.retry_loop import RetryState, handle_stream_error
 from zrb.llm.agent.run.session_extension import (
     ExtensionState,
-    apply_session_end_extension,
+    apply_turn_end_extension,
     resolve_extended_return,
 )
 from zrb.llm.approval.approval_channel import ApprovalChannel, current_approval_channel
@@ -173,13 +174,17 @@ async def run_agent(
 
         effective_message = expand_prompt(message) if message else message
 
-        effective_message, message_history = await _run_startup_hooks(
+        effective_message, message_history, block_reason = await _run_startup_hooks(
             message,
             message_history,
             attachments,
             effective_hook_manager,
             effective_message,
         )
+        if block_reason is not None:
+            # A UserPromptSubmit hook blocked the prompt: end the turn before the
+            # model runs, surfacing the reason as the turn's output.
+            return block_reason, message_history
 
         prompt_content = _get_prompt_content(effective_message, attachments, print_fn)
         prompt_content = await _apply_multimodal_fallback(
@@ -340,6 +345,9 @@ async def _run_startup_hooks(
             "history": message_history,
             "attachments": attachments,
         },
+        # Claude's startup/resume matcher: an empty history is a fresh start, a
+        # populated one is a resumed/continued conversation.
+        source="resume" if message_history else "startup",
     )
 
     session_start_context = extract_additional_context(session_start_results)
@@ -371,6 +379,18 @@ async def _run_startup_hooks(
         },
     )
 
+    # Claude-compatible: a UserPromptSubmit hook may block the prompt (exit 2 /
+    # decision="block"). When blocked, the turn ends before the model is called
+    # and the reason is surfaced to the user.
+    block = extract_block_decision(user_prompt_results)
+    if block.blocked:
+        CFG.LOGGER.debug(f"USER_PROMPT_SUBMIT hook blocked the prompt: {block.reason}")
+        return (
+            effective_message,
+            message_history,
+            block.reason or "Prompt blocked by hook",
+        )
+
     prompt_context = extract_additional_context(user_prompt_results)
     if prompt_context:
         CFG.LOGGER.debug(
@@ -381,7 +401,7 @@ async def _run_startup_hooks(
         else:
             effective_message = prompt_context
 
-    return effective_message, message_history
+    return effective_message, message_history, None
 
 
 async def _prepare_history(
@@ -404,7 +424,7 @@ async def _prepare_history(
     # Count tokens once here so we can pass it to the hook without an extra O(n) call.
     pre_process_tokens = limiter.count_tokens(message_history)
 
-    await effective_hook_manager.execute_hooks(
+    precompact_results = await effective_hook_manager.execute_hooks(
         HookEvent.PRE_COMPACT,
         {
             "history": message_history,
@@ -412,7 +432,21 @@ async def _prepare_history(
             "message_count": len(message_history),
             "has_history_processors": bool(history_processors),
         },
+        # zrb compaction is threshold-driven; Claude's manual/auto matcher reads
+        # this. "auto" is the only trigger today.
+        trigger="auto",
     )
+    # Claude-compatible: a PreCompact hook may inject additionalContext (e.g.
+    # "preserve the deployment steps") ahead of summarization.
+    precompact_context = extract_additional_context(precompact_results)
+    if precompact_context:
+        # lazy: heavy third-party
+        from pydantic_ai.messages import ModelRequest, SystemPromptPart
+
+        message_history = [
+            ModelRequest(parts=[SystemPromptPart(content=precompact_context)]),
+            *message_history,
+        ]
 
     processed_history = message_history
     for processor in history_processors:
@@ -649,10 +683,10 @@ async def _execution_loop(
                     f"process_deferred_requests returned: {current_results}"
                 )
                 if current_results is None:
-                    await effective_hook_manager.execute_hooks(
-                        HookEvent.SESSION_END,
-                        {"reason": "deferred_wait", "history": run_history},
-                    )
+                    # Approval is pending out-of-band: the turn suspends and
+                    # control returns to the user. This is neither a turn end nor
+                    # a session end, so no STOP/SESSION_END fires here; the turn
+                    # resumes when the approval arrives.
                     return result_output, run_history
 
                 current_results = rebuild_for_denials(current_results)
@@ -705,38 +739,33 @@ async def _execution_loop(
                     "the model's context window."
                 )
 
-            session_end_results = await effective_hook_manager.execute_hooks(
-                HookEvent.SESSION_END,
+            # Natural end of the agent's turn. STOP is the per-turn "done" signal
+            # that Claude-Code-compatible consumers listen on (completion sounds,
+            # desktop notifications, e.g. peon-ping). It is ALSO the
+            # block-to-continue + systemMessage extension point: a blocking STOP
+            # hook re-runs the agent with its reason injected; a systemMessage
+            # hook (e.g. journaling) runs one more turn. SESSION_END is NOT fired
+            # here — it is terminal, fired once when the chat session ends.
+            # Manual interrupts raise CancelledError before reaching here, where
+            # the TUI fires its own Stop, so the two paths never double-fire.
+            stop_results = await effective_hook_manager.execute_hooks(
+                HookEvent.STOP,
                 {"output": result_output, "history": run_history},
+                stop_hook_active=extension_state.block_count > 0,
             )
-
-            ext_outcome = apply_session_end_extension(
-                session_end_results,
+            stop_outcome = apply_turn_end_extension(
+                stop_results,
                 extension_state,
                 result_output,
                 run_history,
                 print_fn,
             )
-            if ext_outcome.should_continue:
-                current_message = ext_outcome.new_message
-                current_history = ext_outcome.new_history
+            if stop_outcome.should_continue:
+                current_message = stop_outcome.new_message
+                current_history = stop_outcome.new_history
                 result_output = None
                 current_results = None
                 continue
-
-            # Natural end of the agent's turn. zrb fires SESSION_END once per
-            # completed turn, but Claude-Code-compatible consumers put the
-            # per-turn "done" signal on Stop (completion sounds, desktop
-            # notifications, e.g. peon-ping). Fire it here — once, and only when
-            # we are actually handing control back to the user, not on the
-            # deferred-wait path above. Manual interrupts raise CancelledError
-            # before reaching here, where the TUI fires its own Stop, so the two
-            # paths never double-fire.
-            await effective_hook_manager.execute_hooks(
-                HookEvent.STOP,
-                {"output": result_output, "history": run_history},
-                stop_hook_active=False,
-            )
             return resolve_extended_return(extension_state, result_output, run_history)
     except asyncio.CancelledError:
         raise

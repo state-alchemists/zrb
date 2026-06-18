@@ -10,14 +10,14 @@
     },
     "enabled": true
   },
-  
+
   {
     "name": "block-dangerous-bash",
     "description": "Block dangerous Bash commands (rm, sudo, etc.)",
     "events": ["PreToolUse"],
     "type": "command",
     "config": {
-      "command": "echo '{\"decision\": \"block\", \"reason\": \"Dangerous command blocked by security policy\"}'",
+      "command": "echo '{\"decision\": \"block\", \"reason\": \"Dangerous command blocked\"}'",
       "shell": true
     },
     "matchers": [
@@ -28,9 +28,9 @@
       }
     ],
     "enabled": false,
-    "comment": "Disabled by default - enable for production use"
+    "comment": "Disabled by default — enable for production use"
   },
-  
+
   {
     "name": "notify-on-error",
     "description": "Send notification when tool execution fails",
@@ -41,16 +41,114 @@
       "shell": true
     },
     "enabled": false,
-    "comment": "Disabled by default - enable for production monitoring"
+    "comment": "Disabled by default — enable for production monitoring"
   },
-  
+
   {
     "name": "session-end-summary",
-    "description": "Print session summary at end",
+    "description": "Print session summary at end (SessionEnd is terminal — fires once on chat exit)",
     "events": ["SessionEnd"],
     "type": "command",
     "config": {
       "command": "echo '[Session End] Thank you for using zrb!'",
+      "shell": true
+    },
+    "enabled": true
+  },
+
+  {
+    "name": "session-start-log",
+    "description": "Log session start",
+    "events": ["SessionStart"],
+    "type": "command",
+    "config": {
+      "command": "echo \"[Session Start] $(date)\"",
+      "shell": true
+    },
+    "enabled": true
+  },
+
+  {
+    "name": "audit-prompts",
+    "description": "Audit user prompts (UserPromptSubmit)",
+    "events": ["UserPromptSubmit"],
+    "type": "command",
+    "config": {
+      "command": "echo \"[PROMPT] logged\"",
+      "shell": true
+    },
+    "enabled": true
+  },
+
+  {
+    "name": "pre-command-rewrite",
+    "description": "Rewrite /help to /help hooks",
+    "events": ["PreCommand"],
+    "type": "command",
+    "config": {
+      "command": "echo '{\"command_args\": \"hooks\"}'",
+      "shell": true
+    },
+    "matchers": [
+      {
+        "field": "command_name",
+        "operator": "equals",
+        "value": "/help"
+      }
+    ],
+    "enabled": false
+  },
+
+  {
+    "name": "post-command-audit",
+    "description": "Audit completed commands",
+    "events": ["PostCommand"],
+    "type": "command",
+    "config": {
+      "command": "echo \"[CMD-DONE] $CLAUDE_COMMAND_NAME\"",
+      "shell": true
+    },
+    "enabled": true
+  },
+
+  {
+    "name": "auto-allow-dev",
+    "description": "Auto-allow permission requests for Bash in dev mode",
+    "events": ["PermissionRequest"],
+    "type": "command",
+    "config": {
+      "command": "echo '{\"hookSpecificOutput\": {\"decision\": {\"behavior\": \"allow\"}}}'",
+      "shell": true
+    },
+    "matchers": [
+      {
+        "field": "tool_name",
+        "operator": "equals",
+        "value": "Bash"
+      }
+    ],
+    "enabled": false
+  },
+
+  {
+    "name": "log-notifications",
+    "description": "Log LLM notifications",
+    "events": ["Notification"],
+    "type": "command",
+    "config": {
+      "command": "echo \"[NOTIFY] notification received\"",
+      "shell": true
+    },
+    "enabled": true
+  },
+
+  {
+    "name": "log-compaction",
+    "description": "Log conversation compaction",
+    "events": ["PreCompact"],
+    "type": "command",
+    "config": {
+      "command": "echo \"[COMPACT] Compacting conversation\"",
       "shell": true
     },
     "enabled": true

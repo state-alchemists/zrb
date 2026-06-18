@@ -27,8 +27,10 @@ def test_matches_file():
 @patch("shutil.which")
 def test_detect_available_lsp_servers(mock_which):
     def which_side_effect(cmd):
-        if cmd == "pyright":
-            return "/usr/bin/pyright"
+        # pyright's LSP server binary is `pyright-langserver`, not `pyright`
+        # (the latter is the CLI type-checker). Detection keys off command[0].
+        if cmd == "pyright-langserver":
+            return "/usr/bin/pyright-langserver"
         if cmd == "pylsp":
             return "/usr/bin/pylsp"
         return None
@@ -38,7 +40,7 @@ def test_detect_available_lsp_servers(mock_which):
     available = detect_available_lsp_servers()
 
     assert "pyright" in available
-    assert available["pyright"] == "/usr/bin/pyright"
+    assert available["pyright"] == "/usr/bin/pyright-langserver"
     assert "pylsp" in available
     assert available["pylsp"] == "/usr/bin/pylsp"
     assert "jedi" not in available

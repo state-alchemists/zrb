@@ -11,6 +11,10 @@ import pytest
 
 from zrb.llm.agent.run.hook_result_extractor import (
     extract_additional_context,
+    extract_block_decision,
+    extract_permission_decision,
+    extract_post_tool_decision,
+    extract_pre_tool_decision,
     extract_system_message,
 )
 from zrb.llm.hook.executor import HookExecutionResult
@@ -85,17 +89,132 @@ class TestExtractAdditionalContext:
         assert extract_additional_context(results) == "found it"
 
 
+class TestExtractBlockDecision:
+    """Tests for extract_block_decision (UserPromptSubmit / Stop)."""
+
+    def test_no_block(self):
+        decision = extract_block_decision([HookExecutionResult(success=True)])
+        assert decision.blocked is False
+
+    def test_blocked_via_exit_code(self):
+        results = [HookExecutionResult(success=False, blocked=True, reason="stop it")]
+        decision = extract_block_decision(results)
+        assert decision.blocked is True
+        assert decision.reason == "stop it"
+
+    def test_blocked_via_decision_field(self):
+        results = [HookExecutionResult(success=True, decision="block", reason="no")]
+        assert extract_block_decision(results).blocked is True
+
+    def test_additional_context_without_block(self):
+        results = [HookExecutionResult(success=True, additional_context="note")]
+        decision = extract_block_decision(results)
+        assert decision.blocked is False
+        assert decision.additional_context == "note"
+
+
+class TestExtractPreToolDecision:
+    """Tests for extract_pre_tool_decision (PreToolUse)."""
+
+    def test_deny_via_permission_decision(self):
+        results = [
+            HookExecutionResult(
+                success=True,
+                permission_decision="deny",
+                permission_decision_reason="blocked",
+            )
+        ]
+        decision = extract_pre_tool_decision(results)
+        assert decision.deny is True
+        assert decision.reason == "blocked"
+
+    def test_allow_via_nested_hook_specific_output(self):
+        results = [
+            HookExecutionResult(
+                success=True,
+                hook_specific_output={"permissionDecision": "allow"},
+            )
+        ]
+        decision = extract_pre_tool_decision(results)
+        assert decision.allow is True
+        assert decision.deny is False
+
+    def test_updated_input_first_wins(self):
+        results = [
+            HookExecutionResult(success=True, updated_input={"a": 1}),
+            HookExecutionResult(success=True, updated_input={"a": 2}),
+        ]
+        assert extract_pre_tool_decision(results).updated_input == {"a": 1}
+
+    def test_no_decision(self):
+        decision = extract_pre_tool_decision([HookExecutionResult(success=True)])
+        assert decision.deny is False and decision.allow is False
+
+
+class TestExtractPostToolDecision:
+    """Tests for extract_post_tool_decision (PostToolUse)."""
+
+    def test_block(self):
+        results = [HookExecutionResult(success=True, decision="block", reason="bad")]
+        decision = extract_post_tool_decision(results)
+        assert decision.block is True
+        assert decision.reason == "bad"
+
+    def test_updated_output(self):
+        results = [
+            HookExecutionResult(
+                success=True, hook_specific_output={"updatedToolOutput": "X"}
+            )
+        ]
+        assert extract_post_tool_decision(results).updated_output == "X"
+
+    def test_none(self):
+        assert extract_post_tool_decision([]).block is False
+
+
+class TestExtractPermissionDecision:
+    """Tests for extract_permission_decision (PermissionRequest)."""
+
+    def test_nested_behavior_allow(self):
+        results = [
+            HookExecutionResult(
+                success=True, hook_specific_output={"decision": {"behavior": "allow"}}
+            )
+        ]
+        assert extract_permission_decision(results) == "allow"
+
+    def test_flat_permission_decision_deny(self):
+        results = [HookExecutionResult(success=True, permission_decision="deny")]
+        assert extract_permission_decision(results) == "deny"
+
+    def test_none_when_observe_only(self):
+        assert extract_permission_decision([HookExecutionResult(success=True)]) is None
+
+
+class TestExtractAdditionalContextNested:
+    """additionalContext is read from hookSpecificOutput too (Claude shape)."""
+
+    def test_nested_additional_context(self):
+        results = [
+            HookExecutionResult(
+                success=True,
+                hook_specific_output={"additionalContext": "nested ctx"},
+            )
+        ]
+        assert extract_additional_context(results) == "nested ctx"
+
+
 class TestHookResultProcessing:
     """Tests for hook result processing in run_agent flow."""
 
     @pytest.mark.asyncio
-    async def test_session_end_with_system_message_continues_session(self):
-        """Verify that SESSION_END hook returning systemMessage continues the session.
+    async def test_stop_with_system_message_continues_session(self):
+        """Verify that a STOP hook returning systemMessage continues the turn.
 
         This is the critical path for journaling:
-        1. Hook returns systemMessage at SESSION_END
+        1. Hook returns systemMessage at STOP
         2. run_agent sees it and continues with that message
-        3. LLM responds, then SESSION_END fires again
+        3. LLM responds, then STOP fires again
         4. Hook returns nothing (preventing infinite loop)
         """
         from zrb.llm.hook.interface import HookResult
@@ -109,7 +228,7 @@ class TestHookResultProcessing:
             call_count += 1
 
             # First SESSION_END call returns systemMessage
-            if context.event == HookEvent.SESSION_END and call_count == 1:
+            if context.event == HookEvent.STOP and call_count == 1:
                 return HookResult(
                     success=True,
                     modifications={"systemMessage": "Test reminder message"},
@@ -122,13 +241,13 @@ class TestHookResultProcessing:
             tracking_hook,
             events=[
                 HookEvent.SESSION_START,
-                HookEvent.SESSION_END,
+                HookEvent.STOP,
             ],
         )
 
         # Execute hooks and check results
         results = await manager.execute_hooks(
-            HookEvent.SESSION_END, {"output": "test output", "history": []}
+            HookEvent.STOP, {"output": "test output", "history": []}
         )
 
         # Verify systemMessage was extracted
@@ -200,7 +319,7 @@ class TestJournalingHookAntiRecursion:
 
         handler = JournalingHookHandler()
 
-        context = HookContext(event=HookEvent.SESSION_END, event_data={})
+        context = HookContext(event=HookEvent.STOP, event_data={})
 
         # First SESSION_END call should return systemMessage
         result1 = await handler.handle_event(context)
@@ -215,17 +334,17 @@ class TestJournalingHookAntiRecursion:
         )
 
     @pytest.mark.asyncio
-    async def test_journaling_hook_fires_at_session_end(self):
-        """Verify journaling hook fires at SESSION_END."""
+    async def test_journaling_hook_fires_at_stop(self):
+        """Verify journaling hook fires at STOP (the per-turn end signal)."""
         from zrb.llm.hook.interface import HookContext
         from zrb.llm.hook.journal import JournalingHookHandler
 
         handler = JournalingHookHandler()
 
-        context = HookContext(event=HookEvent.SESSION_END, event_data={})
+        context = HookContext(event=HookEvent.STOP, event_data={})
         result = await handler.handle_event(context)
 
-        # Hook should always fire at SESSION_END (LLM decides if anything is worth noting)
+        # Hook should always fire at STOP (LLM decides if anything is worth noting)
         assert result.modifications is not None
         assert "systemMessage" in result.modifications
 
@@ -237,7 +356,7 @@ class TestJournalingHookAntiRecursion:
 
         handler = JournalingHookHandler()
 
-        context_end = HookContext(event=HookEvent.SESSION_END, event_data={})
+        context_end = HookContext(event=HookEvent.STOP, event_data={})
 
         # Fire once - sets the anti-recursion flag
         result1 = await handler.handle_event(context_end)
@@ -270,7 +389,7 @@ class TestJournalingHookAntiRecursion:
         with patch("zrb.llm.hook.journal.CFG") as mock_cfg:
             mock_cfg.LLM_INCLUDE_JOURNAL_REMINDER = False
             handler = JournalingHookHandler()
-            context = HookContext(event=HookEvent.SESSION_END, event_data={})
+            context = HookContext(event=HookEvent.STOP, event_data={})
             result = await handler.handle_event(context)
 
         assert result.modifications is None or "systemMessage" not in (
@@ -286,7 +405,7 @@ class TestJournalingHookAntiRecursion:
         handler = JournalingHookHandler()
 
         # Fire SESSION_END first
-        end_ctx = HookContext(event=HookEvent.SESSION_END, event_data={})
+        end_ctx = HookContext(event=HookEvent.STOP, event_data={})
         result1 = await handler.handle_event(end_ctx)
         assert result1.modifications is not None
         assert "systemMessage" in result1.modifications
@@ -330,7 +449,7 @@ class TestJournalingHookAntiRecursion:
         assert callable(hook)
 
         # The returned callable should work as a hook
-        context = HookContext(event=HookEvent.SESSION_END, event_data={})
+        context = HookContext(event=HookEvent.STOP, event_data={})
         result = await hook(context)
         assert result.modifications is not None
         assert "systemMessage" in result.modifications
@@ -351,7 +470,7 @@ class TestJournalingHookAntiRecursion:
             factory(manager)
 
             # Hook should be registered for SESSION_END
-            results = await manager.execute_hooks(HookEvent.SESSION_END, {})
+            results = await manager.execute_hooks(HookEvent.STOP, {})
             system_msg = extract_system_message(results)
             assert system_msg is not None
 
@@ -371,6 +490,6 @@ class TestJournalingHookAntiRecursion:
             factory(manager)
 
             # No hooks should be registered
-            results = await manager.execute_hooks(HookEvent.SESSION_END, {})
+            results = await manager.execute_hooks(HookEvent.STOP, {})
             system_msg = extract_system_message(results)
             assert system_msg is None
