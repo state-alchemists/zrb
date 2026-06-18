@@ -571,11 +571,7 @@ async def block_production_writes(context: HookContext) -> HookResult:
     if context.event_data.get("tool") == "write_file":
         path = context.event_data.get("path", "")
         if "prod_config" in path:
-            return HookResult(
-                success=False,
-                blocked=True,
-                reason="Cannot modify production config."
-            )
+            return HookResult.block("Cannot modify production config.")
     return HookResult(success=True)
 
 # Register the hook
@@ -664,18 +660,26 @@ Example hook configurations are in the `llm-hooks` example:
 
 | Event | When It Fires | Can Block? | Special |
 |-------|---------------|------------|---------|
-| `PreToolUse` | Before every tool execution | Yes | `updatedInput` rewrites args; `permissionDecision` allow/deny |
+| `SessionStart` | Chat session begins | No | Can inject `additionalContext`; `source` startup/resume; `model` |
+| `UserPromptSubmit` | Before LLM processes text | Yes | Can inject `additionalContext`; `prompt` field |
+| `PreCommand` | Before command processing | No | `command_args` rewriting via `updatedInput` |
+| `PostCommand` | After command completes | No | `command_handled` field |
+| `PreToolUse` | Before every tool execution | Yes | `updatedInput` rewrites args; `permissionDecision` allow/deny + reason |
 | `PostToolUse` | After tool success | Yes | `updatedToolOutput` replaces the result |
-| `PostToolUseFailure` | After tool failure | No | - |
-| `SessionStart` | Chat session begins | No | Can inject `additionalContext`; `source` startup/resume |
-| `SessionEnd` | Chat session ends (terminal, once) | No | - |
-| `UserPromptSubmit` | Before LLM processes text | Yes | Can inject `additionalContext` |
-| `Stop` | Turn finishes (per-turn signal) | Yes | Block-to-continue; `systemMessage` turn-extension |
+| `PostToolUseFailure` | After tool failure | No | `error` context field |
+| `PermissionRequest` | LLM requests auto-permission | Yes | Resolve via `hookSpecificOutput.decision.behavior` |
+| `Notification` | LLM sends notification to UI | No | `message`, `title`, `notification_type` |
+| `Stop` | Turn finishes (per-turn signal) | Yes | Block-to-continue; `systemMessage` turn-extension; `replaceResponse` |
+| `PreCompact` | Before conversation compact | No | Can inject `additionalContext`; `trigger` auto/manual |
+| `SessionEnd` | Chat session ends (terminal, once) | No | `reason` context field |
 
 | Matcher Operator | Description |
 |------------------|-------------|
 | `equals` | Exact match |
+| `not_equals` | Negated exact match |
 | `contains` | Substring match |
+| `starts_with` | Prefix match |
+| `ends_with` | Suffix match |
 | `regex` | Regular expression |
 | `glob` | Glob pattern |
 
@@ -685,7 +689,11 @@ Example hook configurations are in the `llm-hooks` example:
 | `HookResult(success=True, modifications={"systemMessage": msg})` | (Stop) Extend turn, original response returned |
 | `HookResult(success=True, modifications={"systemMessage": msg, "replaceResponse": True})` | (Stop) Extend turn, extended response returned |
 | `HookResult.block(reason)` | Block execution (exit code 2); on `Stop`, continue the turn with `reason` |
+| `HookResult.block(reason, additional_context=...)` | Block with additional context |
 | `HookResult(success=True, modifications={"permissionDecision": "allow", ...})` | (PreToolUse) Allow tool execution |
-| `HookResult(success=True, modifications={"permissionDecision": "deny", ...})` | (PreToolUse) Deny tool execution |
+| `HookResult(success=True, modifications={"permissionDecision": "deny", "permissionDecisionReason": "..."})` | (PreToolUse) Deny tool execution with reason |
 | `HookResult(success=True, modifications={"updatedInput": {...}})` | (PreToolUse) Rewrite tool arguments |
+| `HookResult(success=True, modifications={"command_args": "..."})` | (PreCommand) Rewrite command arguments |
+| `HookResult(success=True, modifications={"hookSpecificOutput": {"additionalContext": "..."}})` | (SessionStart/UserPromptSubmit/PreCompact) Inject additional context |
 | `HookResult(success=True, modifications={"hookSpecificOutput": {"updatedToolOutput": "..."}})` | (PostToolUse) Replace the tool result |
+| `HookResult(success=True, modifications={"hookSpecificOutput": {"decision": {"behavior": "allow"/"deny"}}})` | (PermissionRequest) Auto-resolve permission |

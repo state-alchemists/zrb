@@ -1,7 +1,7 @@
 # YAML Hook Configuration Examples
 # These demonstrate various hook patterns
 
-# Example 1: Simple logging hook
+# Example 1: Simple logging hook (PostToolUse)
 - name: log-tool-usage
   description: Log all tool usage to console
   events:
@@ -13,7 +13,7 @@
   enabled: true
   priority: 0
 
-# Example 2: Block specific commands
+# Example 2: Block specific commands (PreToolUse)
 - name: block-rm-commands
   description: Block rm commands in Bash
   events:
@@ -31,35 +31,20 @@
     - field: tool_name
       operator: equals
       value: Bash
-  enabled: false  # Enable for production
+  enabled: false
 
-# Example 3: Notify on session end
+# Example 3: Notify on session end (SessionEnd is terminal — fires once)
 - name: session-end-notification
-  description: Send notification at session end
+  description: Send notification when chat session ends
   events:
     - SessionEnd
   type: command
   config:
-    command: 'notify-send "zrb session ended" "Session complete" || true'
+    command: 'echo "zrb chat session ended"'
     shell: true
-  enabled: false  # Only works on Linux with notify-send
+  enabled: false
 
-# Example 4: Track task completion
-- name: task-completion-tracker
-  description: Log when tasks are completed
-  events:
-    - TaskCompleted
-  type: command
-  config:
-    command: 'echo "[TASK] Completed: $CLAUDE_TASK_ID" >> /tmp/zrb-tasks.log'
-    shell: true
-  enabled: true
-
-# Example 5: Audit chat commands (PreCommand)
-# Fires when the user runs any chat command — /save, /exit, or a custom token
-# like a ">" redirect. CLAUDE_COMMAND_NAME / CLAUDE_COMMAND_ARGS carry the
-# parsed command. A PreCommand hook can also block: print
-# {"decision": "block", "reason": "..."} and exit 2.
+# Example 4: Audit chat commands (PreCommand)
 - name: audit-commands
   description: Log every chat command the user runs
   events:
@@ -70,6 +55,98 @@
     shell: true
   enabled: true
 
-# Example 6: Claude Code compatible format
-# This format allows matching patterns
-# Note: This is automatically converted to zrb format
+# Example 5: Per-turn journaling via Stop (block-to-continue)
+- name: journal-reminder
+  description: Remind the model to journal at each turn end using block-to-continue
+  events:
+    - Stop
+  type: command
+  config:
+    command: |
+      cat <<'EOF'
+      {"decision": "block", "reason": "Pause to consider if anything from this turn is worth documenting."}
+      EOF
+    shell: true
+  enabled: false
+
+# Example 6: PostToolUseFailure — Log errors
+- name: log-tool-errors
+  description: Log tool execution failures
+  events:
+    - PostToolUseFailure
+  type: command
+  config:
+    command: 'echo "[ERROR] $CLAUDE_TOOL_NAME failed: $CLAUDE_ERROR" >&2'
+    shell: true
+  enabled: true
+
+# Example 7: SessionStart — Log session start
+- name: session-start-log
+  description: Log when session starts
+  events:
+    - SessionStart
+  type: command
+  config:
+    command: 'echo "[SESSION] Started at $(date)"'
+    shell: true
+  enabled: true
+
+# Example 8: UserPromptSubmit — Log prompts
+- name: log-prompt
+  description: Log user prompts
+  events:
+    - UserPromptSubmit
+  type: command
+  config:
+    command: 'echo "[PROMPT] logged"'
+    shell: true
+  enabled: true
+
+# Example 9: PostCommand — Log command results
+- name: post-command-log
+  description: Log completed commands
+  events:
+    - PostCommand
+  type: command
+  config:
+    command: 'echo "[CMD-DONE] $CLAUDE_COMMAND_NAME"'
+    shell: true
+  enabled: true
+
+# Example 10: PermissionRequest — Auto-allow in dev
+- name: auto-allow-dev
+  description: Auto-allow permission requests in dev mode
+  events:
+    - PermissionRequest
+  type: command
+  config:
+    command: |
+      echo '{"hookSpecificOutput": {"decision": {"behavior": "allow"}}}'
+    shell: true
+  matchers:
+    - field: tool_name
+      operator: equals
+      value: Bash
+  enabled: false
+
+# Example 11: Notification — Log notifications
+- name: log-notifications
+  description: Log LLM notifications
+  events:
+    - Notification
+  type: command
+  config:
+    command: 'echo "[NOTIFY] notification received"'
+    shell: true
+  enabled: true
+
+# Example 12: PreCompact — Log compaction events
+- name: log-compaction
+  description: Log when conversation compacts
+  events:
+    - PreCompact
+  type: command
+  config:
+    command: 'echo "[COMPACT] Compacting conversation"'
+    shell: true
+  enabled: true
