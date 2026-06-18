@@ -350,6 +350,83 @@ class TestLspPublicAPI:
             assert result["kind"] == "function"
 
     @pytest.mark.asyncio
+    async def test_find_definition_uses_goto_definition(self, manager, tmp_path):
+        """find_definition resolves via textDocument/definition at the identifier's
+        column (not workspace/symbol), which works on every LSP server."""
+        f = tmp_path / "mod.py"
+        f.write_text("class Foo:\n    pass\n")  # 'Foo' is at line 0, char 6
+
+        mock_server = AsyncMock(spec=LSPServer)
+        mock_server.document_symbols.return_value = []  # force regex column lookup
+        mock_server.goto_definition.return_value = [
+            {"uri": "file:///x/foo_def.py", "range": {"start": {"line": 2}}}
+        ]
+
+        with patch.object(manager, "get_server", return_value=mock_server):
+            result = await manager.find_definition("Foo", str(f))
+
+        assert result["found"] is True
+        assert result["path"].endswith("foo_def.py")
+        # Position passed to goto_definition must sit ON the identifier (col 6).
+        line, char = mock_server.goto_definition.call_args.args[1:3]
+        assert (line, char) == (0, 6)
+        mock_server.workspace_symbols.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_find_definition_falls_back_to_workspace_symbols(
+        self, manager, tmp_path
+    ):
+        """When textDocument/definition yields nothing, fall back to a
+        workspace/symbol search (servers that support it)."""
+        f = tmp_path / "mod.py"
+        f.write_text("Foo()\n")
+
+        mock_server = AsyncMock(spec=LSPServer)
+        mock_server.document_symbols.return_value = []
+        mock_server.goto_definition.return_value = None
+        mock_server.workspace_symbols.return_value = [
+            {
+                "name": "Foo",
+                "kind": SymbolKind.CLASS.value,
+                "location": {"uri": "file:///ws/foo.py", "range": {}},
+            }
+        ]
+
+        with patch.object(manager, "get_server", return_value=mock_server):
+            result = await manager.find_definition("Foo", str(f))
+
+        assert result["found"] is True
+        assert result["path"].endswith("foo.py")
+
+    @pytest.mark.asyncio
+    async def test_get_workspace_symbols_file_fallback(self, manager, tmp_path):
+        """When the server can't do workspace/symbol (pylsp Method Not Found, or
+        pyright empty), fall back to the seed file's symbols filtered by query."""
+        f = tmp_path / "mod.py"
+        f.write_text("class LLMTask:\n    pass\n")
+
+        mock_server = AsyncMock(spec=LSPServer)
+        # Simulate an unsupported workspace/symbol.
+        mock_server.workspace_symbols.side_effect = Exception("Method Not Found")
+        mock_server.document_symbols.return_value = [
+            {
+                "name": "LLMTask",
+                "kind": SymbolKind.CLASS.value,
+                "location": {
+                    "uri": "file:///x/mod.py",
+                    "range": {"start": {"line": 0, "character": 6}},
+                },
+            }
+        ]
+
+        with patch.object(manager, "get_server", return_value=mock_server):
+            result = await manager.get_workspace_symbols("LLMTask", str(f))
+
+        assert result["found"] is True
+        assert result["scope"] == "file"
+        assert any(s["name"] == "LLMTask" for s in result["symbols"])
+
+    @pytest.mark.asyncio
     async def test_find_references_no_pos(self, manager, tmp_path):
         mock_server = AsyncMock(spec=LSPServer)
         mock_server.find_references.return_value = [

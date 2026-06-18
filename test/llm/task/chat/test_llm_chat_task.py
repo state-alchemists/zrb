@@ -99,6 +99,40 @@ class TestParseYoloValue:
 
 
 @pytest.mark.asyncio
+async def test_interactive_teardown_fires_terminal_session_end():
+    """SESSION_END fires once when the interactive chat session tears down
+    (Claude-compatible: terminal, not per-turn)."""
+    from zrb.llm.hook.interface import HookContext, HookResult
+    from zrb.llm.hook.manager import HookManager
+    from zrb.llm.hook.types import HookEvent
+
+    fired: list[str] = []
+
+    async def record(context: HookContext) -> HookResult:
+        fired.append(context.event.value)
+        return HookResult()
+
+    manager = HookManager(search_dirs=[])
+    manager.register(record, events=[HookEvent.SESSION_END])
+
+    task = LLMChatTask(name="teardown-task")
+    task._active_hook_manager = manager
+
+    await task._teardown_interactive_resources()
+
+    assert fired == ["SessionEnd"]
+
+
+@pytest.mark.asyncio
+async def test_interactive_teardown_without_hook_manager_is_safe():
+    """Teardown must not raise when no hook manager was set (e.g. session never
+    reached _create_llm_task_core)."""
+    task = LLMChatTask(name="teardown-task-none")
+    # _active_hook_manager defaults to None; teardown should be a no-op.
+    await task._teardown_interactive_resources()
+
+
+@pytest.mark.asyncio
 async def test_llm_chat_task_non_interactive_run():
     """Test LLMChatTask in non-interactive mode."""
     with patch(

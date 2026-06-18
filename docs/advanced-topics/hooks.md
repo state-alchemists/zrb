@@ -76,18 +76,18 @@ Hooks can attach to these lifecycle events:
 
 | Event | Description | Can Block? |
 |-------|-------------|------------|
-| `SessionStart` | Session begins | No |
-| `SessionEnd` | Session ends | No |
-| `UserPromptSubmit` | Before LLM processes text | No |
+| `SessionStart` | Chat session begins. `source` is `startup` (fresh history) or `resume` (continued). Can inject `additionalContext` | No |
+| `SessionEnd` | **Terminal** — fires once when the chat session ends (`/exit`, EOF, Ctrl+C), not per turn. Use `Stop` for per-turn work | No |
+| `UserPromptSubmit` | Before the LLM processes text. Can inject `additionalContext` | **Yes** |
 | `PreCommand` | Before a UI command runs (chat TUI) | **Yes** |
 | `PostCommand` | After a recognized UI command runs | No |
-| `PreToolUse` | Before a tool executes | **Yes** |
-| `PostToolUse` | After tool succeeds | No |
-| `PostToolUseFailure` | After tool fails | No |
-| `PermissionRequest` | A tool call reaches an interactive approval prompt (fires only when the user is actually asked — not for auto-approved/YOLO/policy-allowed calls) | No |
+| `PreToolUse` | Before a tool executes (**every** tool call). Can deny (`permissionDecision: "deny"`), auto-allow, or rewrite args (`updatedInput`) | **Yes** |
+| `PostToolUse` | After a tool succeeds. Can block the result (`decision: "block"`) or replace it (`updatedToolOutput`) | **Yes** |
+| `PostToolUseFailure` | After a tool raises | No |
+| `PermissionRequest` | A tool call reaches an interactive approval prompt (fires only when the user is actually asked — not for auto-approved/YOLO/policy-allowed calls). Can auto-resolve via `decision.behavior` (`allow`/`deny`) | No |
 | `Notification` | System notifications. `AskUserQuestion` fires one with `notification_type='elicitation_dialog'` when it blocks for an answer | No |
-| `Stop` | A turn finishes and control returns to the user (natural completion or manual interrupt) | No |
-| `PreCompact` | Before history summarization | No |
+| `Stop` | A turn finishes and control returns to the user. The per-turn "done" signal. Can **block-to-continue** (`decision: "block"` + `reason`) to force another turn, and carries the `systemMessage` turn-extension (e.g. journaling) | **Yes** |
+| `PreCompact` | Before history summarization (`trigger: "auto"`). Can inject `additionalContext` | No |
 
 `PreCommand` / `PostCommand` fire in the interactive chat TUI when the user
 runs a built-in or custom command (any configured token — `/save`, `/exit`, a
@@ -427,18 +427,26 @@ This hook triggers before every tool call, asking for user approval. The `block`
 
 ---
 
-## Extending Sessions with System Messages
+## Extending a Turn with System Messages (Stop)
 
-SESSION_END hooks can extend the session by returning a system message. This allows hooks to trigger additional LLM actions before the session ends.
+`Stop` hooks can extend a turn by returning a system message. This lets hooks
+trigger additional LLM actions when a turn finishes (e.g. journaling). It fires
+on **`Stop`**, the per-turn signal — not on `SessionEnd`, which is terminal.
+
+> **Migrating from `SessionEnd`:** before, this extension and the built-in
+> journaling reminder lived on `SessionEnd` (which used to fire per turn). They
+> now live on `Stop`. If you wrote a journaling/summarization hook keyed on
+> `SessionEnd`, move it to `Stop`. `SessionEnd` now fires once, when the chat
+> session ends.
 
 ### Two Modes
 
-When a SESSION_END hook returns a result with a `systemMessage` modification, there are two modes:
+When a `Stop` hook returns a result with a `systemMessage` modification, there are two modes:
 
 | Mode | `replace_response` | Behavior |
 |------|-------------------|----------|
-| **Side Effects** | `False` (default) | Extended session runs, original response returned to user |
-| **Transform** | `True` | Extended session's response becomes the final response |
+| **Side Effects** | `False` (default) | Extended turn runs, original response returned to user |
+| **Transform** | `True` | Extended turn's response becomes the final response |
 
 ### Side Effects Mode (Default)
 
@@ -447,13 +455,13 @@ Use for actions that should happen invisibly to the user:
 ```python
 async def journal_hook(context: HookContext) -> HookResult:
     """Remind LLM to journal - user sees original response."""
-    if context.event == HookEvent.SESSION_END:
-        # Extended session runs for journaling
+    if context.event == HookEvent.STOP:
+        # Extended turn runs for journaling
         # User receives the ORIGINAL response, not the journal acknowledgment
         return HookResult(
             success=True,
             modifications={
-                "systemMessage": "Review session for learnings worth documenting.",
+                "systemMessage": "Review the turn for learnings worth documenting.",
                 # replace_response=False is the default
             },
         )
@@ -469,10 +477,10 @@ Use when you want to modify the final response:
 ```python
 async def summarize_hook(context: HookContext) -> HookResult:
     """Summarize long responses - user sees the summary."""
-    if context.event == HookEvent.SESSION_END:
+    if context.event == HookEvent.STOP:
         output = context.event_data.get("output", "")
         if len(str(output)) > 1000:
-            # Extended session's response replaces original
+            # Extended turn's response replaces original
             return HookResult(
                 success=True,
                 modifications={
@@ -485,20 +493,28 @@ async def summarize_hook(context: HookContext) -> HookResult:
 
 **Use cases:** Summarization, formatting, sanitization, post-processing
 
+### Block-to-continue (Claude-compatible)
+
+A `Stop` command hook can also force another turn the Claude way — exit 2 (or
+`decision: "block"`) with a `reason`. The reason is injected as the next prompt
+and the agent runs again. A consecutive-block cap (8) prevents infinite loops;
+`stop_hook_active` is set on the payload once a continuation is in progress so
+the hook can detect it.
+
 ### How It Works
 
-1. Hook returns `HookResult(success=True, modifications={"systemMessage": msg})` at SESSION_END
-2. Session extends with that message as a new user prompt
-3. LLM processes the message (e.g., writes journal, summarizes)
+1. Hook returns `systemMessage` (or `decision: "block"` + `reason`) at `Stop`
+2. The turn extends with that message as a new user prompt
+3. LLM processes the message (e.g., writes journal, summarizes, continues)
 4. If `replace_response=False`: Original response returned
-5. If `replace_response=True`: Extended response returned
+5. If `replace_response=True` (and always for block-to-continue): Extended response returned
 
 ### JSON Configuration
 
 ```json
 {
-  "name": "session-summary",
-  "events": ["SessionEnd"],
+  "name": "turn-summary",
+  "events": ["Stop"],
   "type": "prompt",
   "config": {
     "user_prompt_template": "Summarize the key points from: {{output}}",
@@ -648,12 +664,13 @@ Example hook configurations are in the `llm-hooks` example:
 
 | Event | When It Fires | Can Block? | Special |
 |-------|---------------|------------|---------|
-| `PreToolUse` | Before tool execution | Yes | - |
-| `PostToolUse` | After tool success | No | - |
+| `PreToolUse` | Before every tool execution | Yes | `updatedInput` rewrites args; `permissionDecision` allow/deny |
+| `PostToolUse` | After tool success | Yes | `updatedToolOutput` replaces the result |
 | `PostToolUseFailure` | After tool failure | No | - |
-| `SessionStart` | Session begins | No | Can inject `additionalContext` |
-| `SessionEnd` | Session ends | No | Can extend with `systemMessage` |
-| `UserPromptSubmit` | Before LLM processes text | No | Can inject `additionalContext` |
+| `SessionStart` | Chat session begins | No | Can inject `additionalContext`; `source` startup/resume |
+| `SessionEnd` | Chat session ends (terminal, once) | No | - |
+| `UserPromptSubmit` | Before LLM processes text | Yes | Can inject `additionalContext` |
+| `Stop` | Turn finishes (per-turn signal) | Yes | Block-to-continue; `systemMessage` turn-extension |
 
 | Matcher Operator | Description |
 |------------------|-------------|
@@ -665,9 +682,10 @@ Example hook configurations are in the `llm-hooks` example:
 | HookResult Method | Effect |
 |-------------------|--------|
 | `HookResult()` | No effect, continue normally |
-| `HookResult(success=True, modifications={"systemMessage": msg})` | Extend session, original response returned |
-| `HookResult(success=True, modifications={"systemMessage": msg, "replaceResponse": True})` | Extend session, extended response returned |
-| `HookResult.block(reason)` | Block execution (exit code 2) |
-| `HookResult(success=True, modifications={"permissionDecision": "allow", ...})` | Allow tool execution |
-| `HookResult(success=True, modifications={"permissionDecision": "deny", ...})` | Deny tool execution |
-| `HookResult(success=True, modifications={"permissionDecision": "ask", ...})` | Ask user for permission |
+| `HookResult(success=True, modifications={"systemMessage": msg})` | (Stop) Extend turn, original response returned |
+| `HookResult(success=True, modifications={"systemMessage": msg, "replaceResponse": True})` | (Stop) Extend turn, extended response returned |
+| `HookResult.block(reason)` | Block execution (exit code 2); on `Stop`, continue the turn with `reason` |
+| `HookResult(success=True, modifications={"permissionDecision": "allow", ...})` | (PreToolUse) Allow tool execution |
+| `HookResult(success=True, modifications={"permissionDecision": "deny", ...})` | (PreToolUse) Deny tool execution |
+| `HookResult(success=True, modifications={"updatedInput": {...}})` | (PreToolUse) Rewrite tool arguments |
+| `HookResult(success=True, modifications={"hookSpecificOutput": {"updatedToolOutput": "..."}})` | (PostToolUse) Replace the tool result |

@@ -33,7 +33,7 @@ LSP_SERVER_CONFIGS: dict[str, LSPServerConfig] = {
     # Python servers
     "pyright": LSPServerConfig(
         name="pyright",
-        command=["pyright", "--stdio"],
+        command=["pyright-langserver", "--stdio"],
         language_ids=["python"],
         file_extensions=[".py", ".pyi", ".pyw"],
         initialization_options=None,

@@ -37,6 +37,33 @@ class QueryMixin:
                 extra_hint="[SUGGESTION]: Install an LSP server for this language.",
             )
 
+        # Primary path: textDocument/definition at an occurrence of the symbol in
+        # `file_path`. This is how editors implement "go to definition" and works
+        # on every LSP server. The previous workspace/symbol-only approach failed
+        # on pyright (returns nothing without indexing) and pylsp (doesn't
+        # implement workspace/symbol at all).
+        try:
+            position = await self._find_symbol_position(file_path, symbol_name)
+            if position:
+                line, character = position
+                locations = await server.goto_definition(file_path, line, character)
+                if locations:
+                    loc = locations[0]
+                    # Location uses uri/range; LocationLink uses target*.
+                    uri = loc.get("uri") or loc.get("targetUri", "")
+                    rng = loc.get("range") or loc.get("targetRange", {})
+                    return {
+                        "found": True,
+                        "symbol": symbol_name,
+                        "uri": uri,
+                        "path": uri_to_path(uri),
+                        "range": rng,
+                    }
+        except Exception:
+            pass
+
+        # Fallback: workspace symbol search, for servers that support it well
+        # (gopls, rust-analyzer, typescript-language-server, clangd, jdtls).
         try:
             symbols = await server.workspace_symbols(symbol_name)
             if symbols:
@@ -59,6 +86,7 @@ class QueryMixin:
                         "symbol": best.get("name"),
                         "kind": SymbolKind.name_for_kind(best.get("kind", 0)),
                         "uri": location.get("uri", ""),
+                        "path": uri_to_path(location.get("uri", "")),
                         "range": location.get("range", {}),
                         "container": best.get("containerName", ""),
                     }
@@ -216,38 +244,75 @@ class QueryMixin:
         }
 
     async def get_workspace_symbols(self, query: str, file_path: str) -> dict:
-        """Search for symbols across the workspace."""
+        """Search for symbols across the workspace.
+
+        ``workspace/symbol`` support varies wildly: gopls / rust-analyzer /
+        typescript-language-server / clangd / jdtls implement it well; pyright
+        returns nothing unless workspace indexing is enabled; pylsp does not
+        implement it at all (responds Method Not Found). When the server can't
+        satisfy a workspace search, we fall back to the symbols of ``file_path``
+        filtered by the query so the tool still returns something useful.
+        """
         server = await self.get_server(file_path)
         if server is None:
             return no_server_error(file_path, self.list_available_servers)
 
         try:
             symbols = await server.workspace_symbols(query)
-            if symbols:
-                results = []
-                for sym in symbols[:50]:
-                    location = sym.get("location", {})
-                    results.append(
-                        {
-                            "name": sym.get("name", ""),
-                            "kind": SymbolKind.name_for_kind(sym.get("kind", 0)),
-                            "uri": location.get("uri", ""),
-                            "path": uri_to_path(location.get("uri", "")),
-                            "container": sym.get("containerName", ""),
-                        }
-                    )
-                return {
-                    "found": True,
-                    "query": query,
-                    "count": len(results),
-                    "symbols": results,
-                }
         except Exception:
-            pass
+            # Server doesn't support workspace/symbol (e.g. pylsp).
+            symbols = None
+
+        if symbols:
+            results = []
+            for sym in symbols[:50]:
+                location = sym.get("location", {})
+                results.append(
+                    {
+                        "name": sym.get("name", ""),
+                        "kind": SymbolKind.name_for_kind(sym.get("kind", 0)),
+                        "uri": location.get("uri", ""),
+                        "path": uri_to_path(location.get("uri", "")),
+                        "container": sym.get("containerName", ""),
+                    }
+                )
+            return {
+                "found": True,
+                "query": query,
+                "count": len(results),
+                "symbols": results,
+            }
+
+        # Fallback: filter the seed file's document symbols by the query.
+        if file_path and file_path != ".":
+            doc = await self.get_document_symbols(file_path)
+            if doc.get("found"):
+                q = query.lower()
+                matches = [
+                    s
+                    for s in doc.get("symbols", [])
+                    if not query or q in s.get("name", "").lower()
+                ]
+                if matches:
+                    return {
+                        "found": True,
+                        "query": query,
+                        "count": len(matches),
+                        "scope": "file",
+                        "symbols": matches[:50],
+                        "note": (
+                            "Workspace-wide symbol search is unavailable for this "
+                            "server; results are limited to the given file. "
+                            "[SUGGESTION]: use Grep for a project-wide search."
+                        ),
+                    }
 
         return {
             "found": False,
-            "error": f"No symbols found matching '{query}'.",
+            "error": (
+                f"No symbols found matching '{query}'. [SUGGESTION]: this server "
+                "may not support workspace symbol search — use Grep instead."
+            ),
         }
 
     async def get_hover_info(
@@ -375,32 +440,42 @@ class QueryMixin:
     async def _find_symbol_position(
         self, file_path: str, symbol_name: str
     ) -> tuple[int, int] | None:
-        """Locate a symbol via document symbols, falling back to a regex grep."""
+        """Locate a symbol as ``(line, character)`` positioned ON the identifier.
+
+        ``textDocument/definition`` / ``references`` require the cursor to sit on
+        the identifier itself. Document-symbol ranges are unreliable for this:
+        SymbolInformation (pylsp) reports the symbol's whole range starting at
+        column 0 (the ``class``/``def`` keyword or an import line), not the name.
+        So we use document symbols only to pick the best *line*, then resolve the
+        exact *column* by finding the identifier within the file text.
+        """
+        ident = re.compile(rf"\b{re.escape(symbol_name)}\b")
+
+        # 1. Prefer the line where the symbol is defined (from document symbols).
+        candidate_line: int | None = None
         try:
             symbols = await self.get_document_symbols(file_path)
             if symbols.get("found"):
                 for sym in symbols.get("symbols", []):
                     if sym.get("name") == symbol_name:
-                        return (sym.get("line", 1) - 1, sym.get("character", 0))
-                    for child in sym.get("children", []):
-                        if child.get("name") == symbol_name:
-                            return (child.get("line", 1) - 1, child.get("character", 0))
+                        candidate_line = sym.get("line", 1) - 1
+                        break
         except Exception:
             pass
 
+        # 2. Resolve the exact column on the identifier. Try the candidate line
+        #    first, then fall back to the first occurrence anywhere in the file.
         try:
-
             with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-                for i, line in enumerate(f):
-                    patterns = [
-                        rf"^(def|class|func|fn|function|const|let|var)\s+{re.escape(symbol_name)}\b",
-                        rf"\b{re.escape(symbol_name)}\s*=",
-                        rf"\b{re.escape(symbol_name)}\b",
-                    ]
-                    for pattern in patterns:
-                        match = re.search(pattern, line)
-                        if match:
-                            return (i, match.start())
+                lines = f.read().splitlines()
+            if candidate_line is not None and 0 <= candidate_line < len(lines):
+                match = ident.search(lines[candidate_line])
+                if match:
+                    return (candidate_line, match.start())
+            for i, line in enumerate(lines):
+                match = ident.search(line)
+                if match:
+                    return (i, match.start())
         except Exception:
             pass
 

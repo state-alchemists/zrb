@@ -235,6 +235,190 @@ async def test_wrap_toolset_error():
         assert res.metadata["error"] is True
 
 
+def _route_hooks(mapping):
+    """An execute_hooks mock that returns per-event HookExecutionResult lists."""
+
+    async def _execute(event, data, *args, **kwargs):
+        return mapping.get(event, [])
+
+    return AsyncMock(side_effect=_execute)
+
+
+@pytest.mark.asyncio
+async def test_call_tool_pretooluse_deny_blocks():
+    """A PreToolUse hook returning permissionDecision="deny" blocks the call and
+    the underlying tool never runs."""
+    from pydantic_ai import ToolReturn
+    from pydantic_ai.toolsets import FunctionToolset
+
+    from zrb.llm.agent.common import _wrap_toolset
+    from zrb.llm.hook.executor import HookExecutionResult
+    from zrb.llm.hook.types import HookEvent
+
+    wrapped_ts = _wrap_toolset(FunctionToolset(tools=[]))
+    deny = HookExecutionResult(
+        success=True, permission_decision="deny", permission_decision_reason="nope"
+    )
+    with (
+        patch(
+            "zrb.llm.hook.manager.hook_manager.execute_hooks",
+            _route_hooks({HookEvent.PRE_TOOL_USE: [deny]}),
+        ),
+        patch(
+            "pydantic_ai.toolsets.WrapperToolset.call_tool", new_callable=AsyncMock
+        ) as mock_super,
+    ):
+        res = await wrapped_ts.call_tool("t", {"a": 1}, None, None)
+
+    assert isinstance(res, ToolReturn)
+    assert res.metadata.get("blocked") is True
+    assert "nope" in res.content
+    mock_super.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_call_tool_pretooluse_updated_input_rewrites_args():
+    """A PreToolUse hook returning updatedInput rewrites the args passed to the
+    underlying tool."""
+    from pydantic_ai.toolsets import FunctionToolset
+
+    from zrb.llm.agent.common import _wrap_toolset
+    from zrb.llm.hook.executor import HookExecutionResult
+    from zrb.llm.hook.types import HookEvent
+
+    wrapped_ts = _wrap_toolset(FunctionToolset(tools=[]))
+    rewrite = HookExecutionResult(success=True, updated_input={"a": 99})
+    with (
+        patch(
+            "zrb.llm.hook.manager.hook_manager.execute_hooks",
+            _route_hooks({HookEvent.PRE_TOOL_USE: [rewrite]}),
+        ),
+        patch(
+            "pydantic_ai.toolsets.WrapperToolset.call_tool", new_callable=AsyncMock
+        ) as mock_super,
+    ):
+        mock_super.return_value = "ok"
+        await wrapped_ts.call_tool("t", {"a": 1}, None, None)
+
+    assert mock_super.call_args.args[1] == {"a": 99}
+
+
+@pytest.mark.asyncio
+async def test_call_tool_pretooluse_skipped_when_approved():
+    """PreToolUse does not fire in call_tool when the call already went through
+    the deferred-approval path (ctx.tool_call_approved=True) — no double-fire."""
+    from types import SimpleNamespace
+
+    from pydantic_ai.toolsets import FunctionToolset
+
+    from zrb.llm.agent.common import _wrap_toolset
+    from zrb.llm.hook.types import HookEvent
+
+    wrapped_ts = _wrap_toolset(FunctionToolset(tools=[]))
+    execute = _route_hooks({})
+    ctx = SimpleNamespace(tool_call_approved=True, tool_call_id="c1")
+    with (
+        patch("zrb.llm.hook.manager.hook_manager.execute_hooks", execute),
+        patch(
+            "pydantic_ai.toolsets.WrapperToolset.call_tool", new_callable=AsyncMock
+        ) as mock_super,
+    ):
+        mock_super.return_value = "ok"
+        await wrapped_ts.call_tool("t", {"a": 1}, ctx, None)
+
+    fired = [c.args[0] for c in execute.call_args_list]
+    assert HookEvent.PRE_TOOL_USE not in fired
+    assert HookEvent.POST_TOOL_USE in fired
+
+
+@pytest.mark.asyncio
+async def test_call_tool_posttooluse_block():
+    """A PostToolUse hook with decision="block" discards the tool result."""
+    from pydantic_ai import ToolReturn
+    from pydantic_ai.toolsets import FunctionToolset
+
+    from zrb.llm.agent.common import _wrap_toolset
+    from zrb.llm.hook.executor import HookExecutionResult
+    from zrb.llm.hook.types import HookEvent
+
+    wrapped_ts = _wrap_toolset(FunctionToolset(tools=[]))
+    block = HookExecutionResult(success=True, decision="block", reason="bad output")
+    with (
+        patch(
+            "zrb.llm.hook.manager.hook_manager.execute_hooks",
+            _route_hooks({HookEvent.POST_TOOL_USE: [block]}),
+        ),
+        patch(
+            "pydantic_ai.toolsets.WrapperToolset.call_tool", new_callable=AsyncMock
+        ) as mock_super,
+    ):
+        mock_super.return_value = "secret"
+        res = await wrapped_ts.call_tool("t", {}, None, None)
+
+    assert isinstance(res, ToolReturn)
+    assert res.metadata.get("blocked") is True
+    assert "bad output" in res.content
+
+
+@pytest.mark.asyncio
+async def test_call_tool_posttooluse_updated_output_replaces_content():
+    """A PostToolUse hook with updatedToolOutput replaces the model-facing
+    content while preserving the structured return value."""
+    from pydantic_ai import ToolReturn
+    from pydantic_ai.toolsets import FunctionToolset
+
+    from zrb.llm.agent.common import _wrap_toolset
+    from zrb.llm.hook.executor import HookExecutionResult
+    from zrb.llm.hook.types import HookEvent
+
+    wrapped_ts = _wrap_toolset(FunctionToolset(tools=[]))
+    transform = HookExecutionResult(
+        success=True, hook_specific_output={"updatedToolOutput": "REDACTED"}
+    )
+    with (
+        patch(
+            "zrb.llm.hook.manager.hook_manager.execute_hooks",
+            _route_hooks({HookEvent.POST_TOOL_USE: [transform]}),
+        ),
+        patch(
+            "pydantic_ai.toolsets.WrapperToolset.call_tool", new_callable=AsyncMock
+        ) as mock_super,
+    ):
+        mock_super.return_value = "original"
+        res = await wrapped_ts.call_tool("t", {}, None, None)
+
+    assert isinstance(res, ToolReturn)
+    assert res.content == "REDACTED"
+    assert res.return_value == "original"
+
+
+@pytest.mark.asyncio
+async def test_call_tool_posttooluse_failure_fires_on_exception():
+    """When the underlying tool raises, PostToolUseFailure fires and a safe
+    error ToolReturn is surfaced."""
+    from pydantic_ai import ToolReturn
+    from pydantic_ai.toolsets import FunctionToolset
+
+    from zrb.llm.agent.common import _wrap_toolset
+    from zrb.llm.hook.types import HookEvent
+
+    wrapped_ts = _wrap_toolset(FunctionToolset(tools=[]))
+    execute = _route_hooks({})
+    with (
+        patch("zrb.llm.hook.manager.hook_manager.execute_hooks", execute),
+        patch(
+            "pydantic_ai.toolsets.WrapperToolset.call_tool",
+            side_effect=ValueError("boom"),
+        ),
+    ):
+        res = await wrapped_ts.call_tool("t", {"a": 1}, None, None)
+
+    assert isinstance(res, ToolReturn)
+    assert res.metadata.get("error") is True
+    fired = [c.args[0] for c in execute.call_args_list]
+    assert HookEvent.POST_TOOL_USE_FAILURE in fired
+
+
 def testcreate_safe_wrapper_preserves_function_name():
     """Test create_safe_wrapper preserves function name."""
 

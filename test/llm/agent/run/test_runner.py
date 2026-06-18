@@ -680,8 +680,8 @@ async def test_run_agent_empty_completion_raises_after_retries():
 
 
 @pytest.mark.asyncio
-async def test_run_agent_session_end_replace_response_false():
-    """Test SESSION_END hook with replace_response=False returns original response."""
+async def test_run_agent_stop_replace_response_false():
+    """Test STOP hook with replace_response=False returns original response."""
     agent = MagicMock()
 
     # Original response from LLM
@@ -712,7 +712,7 @@ async def test_run_agent_session_end_replace_response_false():
             self.fired = False
 
         async def __call__(self, context: HookContext) -> HookResult:
-            if context.event == HookEvent.SESSION_END:
+            if context.event == HookEvent.STOP:
                 if not self.fired:
                     self.fired = True
                     return HookResult(
@@ -725,7 +725,7 @@ async def test_run_agent_session_end_replace_response_false():
             return HookResult()
 
     manager = HookManager(search_dirs=[])
-    manager.register(OnceHook(), events=[HookEvent.SESSION_END])
+    manager.register(OnceHook(), events=[HookEvent.STOP])
 
     result, history = await run_agent(
         agent=agent,
@@ -741,8 +741,8 @@ async def test_run_agent_session_end_replace_response_false():
 
 
 @pytest.mark.asyncio
-async def test_run_agent_session_end_replace_response_true():
-    """Test SESSION_END hook with replace_response=True returns extended response."""
+async def test_run_agent_stop_replace_response_true():
+    """Test STOP hook with replace_response=True returns extended response."""
     agent = MagicMock()
 
     # Original response from LLM
@@ -773,7 +773,7 @@ async def test_run_agent_session_end_replace_response_true():
             self.fired = False
 
         async def __call__(self, context: HookContext) -> HookResult:
-            if context.event == HookEvent.SESSION_END:
+            if context.event == HookEvent.STOP:
                 if not self.fired:
                     self.fired = True
                     return HookResult(
@@ -786,7 +786,7 @@ async def test_run_agent_session_end_replace_response_true():
             return HookResult()
 
     manager = HookManager(search_dirs=[])
-    manager.register(OnceHook(), events=[HookEvent.SESSION_END])
+    manager.register(OnceHook(), events=[HookEvent.STOP])
 
     result, history = await run_agent(
         agent=agent,
@@ -799,6 +799,202 @@ async def test_run_agent_session_end_replace_response_true():
     # Should return TRANSFORMED response (replace_response=True)
     assert result == "Transformed response"
     assert call_count == 2
+
+
+def _single_turn_agent(output="ok"):
+    """A mock agent whose stream yields one result and then ends."""
+    agent = MagicMock()
+    result = MagicMock()
+    result.output = output
+    result.all_messages.return_value = []
+
+    async def _gen(*args, **kwargs):
+        yield AgentRunResultEvent(result=result)
+
+    agent.run_stream_events = _stream_from(_gen)
+    return agent
+
+
+@pytest.mark.asyncio
+async def test_session_start_source_startup_vs_resume():
+    """SESSION_START reports source=startup for a fresh history and resume for a
+    populated one, so Claude-style startup/resume matchers work."""
+    captured: list[str] = []
+
+    async def rec(context: HookContext) -> HookResult:
+        if context.event == HookEvent.SESSION_START:
+            captured.append(context.source)
+        return HookResult()
+
+    manager = HookManager(search_dirs=[])
+    manager.register(rec, events=[HookEvent.SESSION_START])
+
+    await run_agent(
+        agent=_single_turn_agent(),
+        message="hi",
+        message_history=[],
+        limiter=LLMLimiter(),
+        hook_manager=manager,
+    )
+    await run_agent(
+        agent=_single_turn_agent(),
+        message="again",
+        message_history=["prior turn"],
+        limiter=LLMLimiter(),
+        hook_manager=manager,
+    )
+
+    assert captured == ["startup", "resume"]
+
+
+@pytest.mark.asyncio
+async def test_pre_compact_trigger_and_additional_context():
+    """PRE_COMPACT fires with trigger=auto and its additionalContext is injected
+    ahead of summarization."""
+    captured: dict = {}
+
+    async def rec(context: HookContext) -> HookResult:
+        if context.event == HookEvent.PRE_COMPACT:
+            captured["trigger"] = context.trigger
+            return HookResult(
+                success=True, modifications={"additionalContext": "keep the steps"}
+            )
+        return HookResult()
+
+    manager = HookManager(search_dirs=[])
+    manager.register(rec, events=[HookEvent.PRE_COMPACT])
+
+    await run_agent(
+        agent=_single_turn_agent(),
+        message="hi",
+        message_history=[],
+        limiter=LLMLimiter(),
+        hook_manager=manager,
+    )
+
+    assert captured.get("trigger") == "auto"
+
+
+@pytest.mark.asyncio
+async def test_run_agent_user_prompt_submit_block_ends_turn():
+    """A UserPromptSubmit hook that blocks ends the turn before the model runs;
+    the reason is surfaced as the output."""
+    agent = MagicMock()
+    agent.run_stream_events = MagicMock(
+        side_effect=AssertionError("model must not run when prompt is blocked")
+    )
+
+    async def blocking_hook(context: HookContext) -> HookResult:
+        if context.event == HookEvent.USER_PROMPT_SUBMIT:
+            return HookResult.block("policy violation")
+        return HookResult()
+
+    manager = HookManager(search_dirs=[])
+    manager.register(blocking_hook, events=[HookEvent.USER_PROMPT_SUBMIT])
+
+    result, history = await run_agent(
+        agent=agent,
+        message="do something",
+        message_history=[],
+        limiter=LLMLimiter(),
+        hook_manager=manager,
+    )
+
+    assert result == "policy violation"
+
+
+@pytest.mark.asyncio
+async def test_run_agent_stop_block_continues_turn():
+    """A STOP hook returning decision=block re-runs the agent with the reason
+    injected; the continued response is returned."""
+    agent = MagicMock()
+    first = MagicMock()
+    first.output = "first answer"
+    first.all_messages.return_value = []
+    second = MagicMock()
+    second.output = "continued answer"
+    second.all_messages.return_value = []
+
+    call_count = 0
+
+    async def _gen(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        yield AgentRunResultEvent(result=first if call_count == 1 else second)
+
+    agent.run_stream_events = _stream_from(_gen)
+
+    class BlockOnce:
+        def __init__(self):
+            self.fired = False
+
+        async def __call__(self, context: HookContext) -> HookResult:
+            if context.event == HookEvent.STOP and not self.fired:
+                self.fired = True
+                return HookResult(
+                    success=False,
+                    should_stop=True,
+                    modifications={"decision": "block", "reason": "keep going"},
+                )
+            return HookResult()
+
+    manager = HookManager(search_dirs=[])
+    manager.register(BlockOnce(), events=[HookEvent.STOP])
+
+    result, history = await run_agent(
+        agent=agent,
+        message="hi",
+        message_history=[],
+        limiter=LLMLimiter(),
+        hook_manager=manager,
+    )
+
+    assert result == "continued answer"
+    assert call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_run_agent_stop_block_cap_prevents_infinite_loop():
+    """A STOP hook that always blocks is overridden after the block cap so the
+    agent cannot loop forever."""
+    from zrb.llm.agent.run.session_extension import STOP_HOOK_BLOCK_CAP
+
+    agent = MagicMock()
+
+    call_count = 0
+
+    async def _gen(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        result = MagicMock()
+        result.output = f"turn {call_count}"
+        result.all_messages.return_value = []
+        yield AgentRunResultEvent(result=result)
+
+    agent.run_stream_events = _stream_from(_gen)
+
+    async def always_block(context: HookContext) -> HookResult:
+        if context.event == HookEvent.STOP:
+            return HookResult(
+                success=False,
+                should_stop=True,
+                modifications={"decision": "block", "reason": "more"},
+            )
+        return HookResult()
+
+    manager = HookManager(search_dirs=[])
+    manager.register(always_block, events=[HookEvent.STOP])
+
+    result, history = await run_agent(
+        agent=agent,
+        message="hi",
+        message_history=[],
+        limiter=LLMLimiter(),
+        hook_manager=manager,
+    )
+
+    # First turn + STOP_HOOK_BLOCK_CAP continuations, then the cap forces a stop.
+    assert call_count == STOP_HOOK_BLOCK_CAP + 1
 
 
 @pytest.mark.asyncio

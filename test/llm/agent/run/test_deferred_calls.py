@@ -7,7 +7,7 @@ from zrb.llm.agent.run.deferred_calls import (
     process_deferred_requests,
     rebuild_for_denials,
 )
-from zrb.llm.hook.interface import HookResult
+from zrb.llm.hook.executor import HookExecutionResult
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.tool_call.handler import ToolCallHandler
@@ -83,17 +83,22 @@ async def test_process_deferred_requests_approved_by_policy():
         HookEvent.PRE_TOOL_USE,
         {"tool": "test_tool", "args": {"arg1": "val1"}, "call_id": "call_1"},
     )
-    hook_manager.execute_hooks.assert_any_call(
-        HookEvent.POST_TOOL_USE,
-        {"tool": "test_tool", "args": {"arg1": "val1"}, "result": approved_result},
-    )
+    # PostToolUse no longer fires from the approval path — it fires at execution
+    # time in SafeToolsetWrapper.call_tool. So only PRE_TOOL_USE is seen here.
+    fired_events = [c.args[0] for c in hook_manager.execute_hooks.call_args_list]
+    assert HookEvent.POST_TOOL_USE not in fired_events
 
 
 @pytest.mark.asyncio
 async def test_process_deferred_requests_denied_by_hook():
+    """A PreToolUse hook with permissionDecision="deny" cancels the call."""
     ui = MagicMock(spec=UIProtocol)
     hook_manager = MagicMock(spec=HookManager)
-    hook_result = HookResult(modifications={"cancel_tool": True})
+    hook_result = HookExecutionResult(
+        success=True,
+        permission_decision="deny",
+        permission_decision_reason="blocked by policy",
+    )
     hook_manager.execute_hooks = AsyncMock(return_value=[hook_result])
 
     call = MagicMock()
@@ -108,14 +113,44 @@ async def test_process_deferred_requests_denied_by_hook():
     result = await process_deferred_requests(result_output, None, ui, hook_manager)
 
     assert isinstance(result.approvals["call_1"], MockToolDenied)
-    assert result.approvals["call_1"].message == "Tool execution cancelled by hook"
+    assert result.approvals["call_1"].message == "blocked by policy"
+
+
+@pytest.mark.asyncio
+async def test_process_deferred_requests_allowed_by_hook():
+    """A PreToolUse hook with permissionDecision="allow" skips the approval
+    cascade entirely (the tool handler is never consulted)."""
+    ui = MagicMock(spec=UIProtocol)
+    hook_manager = MagicMock(spec=HookManager)
+    hook_result = HookExecutionResult(success=True, permission_decision="allow")
+    hook_manager.execute_hooks = AsyncMock(return_value=[hook_result])
+
+    tool_handler = MagicMock(spec=ToolCallHandler)
+    tool_handler.check_policies = AsyncMock(return_value=MockToolDenied("would deny"))
+
+    call = MagicMock()
+    call.tool_name = "test_tool"
+    call.args = {"arg1": "val1"}
+    call.tool_call_id = "call_1"
+
+    result_output = MagicMock()
+    result_output.calls = [call]
+    result_output.approvals = []
+
+    result = await process_deferred_requests(
+        result_output, tool_handler, ui, hook_manager
+    )
+
+    assert isinstance(result.approvals["call_1"], MockToolApproved)
+    tool_handler.check_policies.assert_not_called()
 
 
 @pytest.mark.asyncio
 async def test_process_deferred_requests_modified_by_hook():
+    """A PreToolUse hook with updatedInput rewrites the tool arguments."""
     ui = MagicMock(spec=UIProtocol)
     hook_manager = MagicMock(spec=HookManager)
-    hook_result = HookResult(modifications={"tool_args": {"arg1": "modified"}})
+    hook_result = HookExecutionResult(success=True, updated_input={"arg1": "modified"})
     hook_manager.execute_hooks = AsyncMock(side_effect=[[hook_result], []])
 
     tool_handler = MagicMock(spec=ToolCallHandler)
@@ -232,6 +267,79 @@ async def test_permission_request_not_fired_when_auto_approved():
     await process_deferred_requests(result_output, tool_handler, ui, hook_manager)
 
     assert _permission_request_calls(hook_manager) == []
+
+
+def _route_execute_hooks(mapping):
+    async def _execute(event, data, *args, **kwargs):
+        return mapping.get(event, [])
+
+    return AsyncMock(side_effect=_execute)
+
+
+@pytest.mark.asyncio
+async def test_permission_request_hook_auto_allows():
+    """A PermissionRequest hook returning decision.behavior="allow" approves the
+    call without consulting the interactive approval channel."""
+    ui = MagicMock(spec=UIProtocol)
+    hook_manager = MagicMock(spec=HookManager)
+    allow = HookExecutionResult(
+        success=True, hook_specific_output={"decision": {"behavior": "allow"}}
+    )
+    hook_manager.execute_hooks = _route_execute_hooks(
+        {HookEvent.PERMISSION_REQUEST: [allow]}
+    )
+
+    approval_channel = MagicMock()
+    approval_channel.request_approval = AsyncMock()
+
+    call = MagicMock()
+    call.tool_name = "test_tool"
+    call.args = {"arg1": "val1"}
+    call.tool_call_id = "call_1"
+
+    result_output = MagicMock()
+    result_output.calls = [call]
+    result_output.approvals = []
+
+    result = await process_deferred_requests(
+        result_output, None, ui, hook_manager, approval_channel=approval_channel
+    )
+
+    assert isinstance(result.approvals["call_1"], MockToolApproved)
+    approval_channel.request_approval.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_permission_request_hook_auto_denies():
+    """A PermissionRequest hook returning decision.behavior="deny" denies the
+    call without consulting the interactive approval channel."""
+    ui = MagicMock(spec=UIProtocol)
+    hook_manager = MagicMock(spec=HookManager)
+    deny = HookExecutionResult(
+        success=True, hook_specific_output={"decision": {"behavior": "deny"}}
+    )
+    hook_manager.execute_hooks = _route_execute_hooks(
+        {HookEvent.PERMISSION_REQUEST: [deny]}
+    )
+
+    approval_channel = MagicMock()
+    approval_channel.request_approval = AsyncMock()
+
+    call = MagicMock()
+    call.tool_name = "test_tool"
+    call.args = {"arg1": "val1"}
+    call.tool_call_id = "call_1"
+
+    result_output = MagicMock()
+    result_output.calls = [call]
+    result_output.approvals = []
+
+    result = await process_deferred_requests(
+        result_output, None, ui, hook_manager, approval_channel=approval_channel
+    )
+
+    assert isinstance(result.approvals["call_1"], MockToolDenied)
+    approval_channel.request_approval.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -420,15 +528,11 @@ async def test_process_deferred_requests_denied_removes_from_calls():
         )
 
     assert isinstance(result.approvals["call_1"], MockToolDenied)
-    # Note: process_deferred_requests only deletes from calls if it was already there.
-    # But current_results starts empty. Wait, if it's a DeferredToolResults,
-    # usually pydantic-ai might have populated it?
-    # Actually process_deferred_requests creates a NEW DeferredToolResults.
-
-    hook_manager.execute_hooks.assert_any_call(
-        HookEvent.POST_TOOL_USE_FAILURE,
-        {"tool": "test_tool", "args": {"arg1": "val1"}, "error": "Denied"},
-    )
+    # PostToolUseFailure no longer fires from the approval path: a denied call is
+    # a permission outcome, not an execution failure. It fires only when a tool
+    # actually raises, in SafeToolsetWrapper.call_tool.
+    fired_events = [c.args[0] for c in hook_manager.execute_hooks.call_args_list]
+    assert HookEvent.POST_TOOL_USE_FAILURE not in fired_events
 
 
 def _ask_policy():

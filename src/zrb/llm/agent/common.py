@@ -265,6 +265,9 @@ def _wrap_toolset(toolset: "AbstractToolset[None]") -> "AbstractToolset[None]":
             self, name: str, tool_args: dict[str, Any], ctx: Any, tool: Any
         ) -> Any:
             try:
+                tool_args = await _fire_pre_tool_use(name, tool_args, ctx)
+                if isinstance(tool_args, ToolReturn):
+                    return tool_args  # PreToolUse hook denied the call
                 blocked = _permission_gate(name, tool_capability(tool), tool_args or {})
                 if blocked is not None:
                     return blocked
@@ -272,24 +275,123 @@ def _wrap_toolset(toolset: "AbstractToolset[None]") -> "AbstractToolset[None]":
                 if blocked is not None:
                     return blocked
                 result = await super().call_tool(name, tool_args, ctx, tool)
-                # If result is already a ToolReturn, return it as-is
+                # If result is already a ToolReturn, respect its framing; a
+                # PostToolUse hook may still block it or replace its content.
                 if isinstance(result, ToolReturn):
-                    return result
+                    return await _fire_post_tool_use(name, tool_args, result)
                 # Create a safe copy to prevent mutation by pydantic-ai
                 safe_result = safe_copy_result(result)
                 content, metadata = _truncated_content(to_string(safe_result))
-                return ToolReturn(
+                wrapped = ToolReturn(
                     return_value=safe_result,
                     content=content,
                     metadata=metadata,
                 )
+                return await _fire_post_tool_use(name, tool_args, wrapped)
             except Exception as e:
+                await _fire_post_tool_use_failure(name, tool_args, e)
                 error_msg = f"Error executing tool {name}: {e}"
                 return ToolReturn(
                     return_value=None, content=error_msg, metadata={"error": True}
                 )
 
     return SafeToolsetWrapper(toolset)
+
+
+async def _fire_pre_tool_use(name: str, tool_args: dict[str, Any], ctx: Any) -> Any:
+    """Fire PreToolUse for a tool about to execute (Claude-compatible).
+
+    Skipped when ``ctx.tool_call_approved`` is True: that call came through the
+    deferred-approval path, where PreToolUse already fired pre-approval (see
+    ``deferred_calls.process_deferred_requests``). Returns the (possibly
+    rewritten) ``tool_args`` to use, or a blocking ``ToolReturn`` if a hook denied
+    the call.
+    """
+    # lazy: circular — common ← runner ← deferred_calls; hook manager + extractor
+    # read at call time to avoid an import cycle.
+    from pydantic_ai import ToolReturn
+
+    from zrb.llm.agent.run.hook_result_extractor import extract_pre_tool_decision
+    from zrb.llm.hook.manager import hook_manager
+    from zrb.llm.hook.types import HookEvent
+
+    if getattr(ctx, "tool_call_approved", False):
+        return tool_args
+    results = await hook_manager.execute_hooks(
+        HookEvent.PRE_TOOL_USE,
+        {
+            "tool": name,
+            "args": tool_args,
+            "call_id": getattr(ctx, "tool_call_id", None),
+        },
+    )
+    decision = extract_pre_tool_decision(results)
+    if decision.deny:
+        return ToolReturn(
+            return_value=None,
+            content=(
+                f"Blocked by PreToolUse hook: "
+                f"{decision.reason or 'tool call denied'}"
+            ),
+            metadata={"blocked": True},
+        )
+    if decision.updated_input and isinstance(tool_args, dict):
+        return {**tool_args, **decision.updated_input}
+    return tool_args
+
+
+async def _fire_post_tool_use(name: str, tool_args: dict[str, Any], result: Any) -> Any:
+    """Fire PostToolUse after a successful tool call (Claude-compatible).
+
+    A hook may block the result (discard it, feed the reason to the model) or
+    replace the model-facing content via ``updatedToolOutput``. Returns the
+    ``ToolReturn`` to surface.
+    """
+    # lazy: circular — see _fire_pre_tool_use.
+    from pydantic_ai import ToolReturn
+
+    from zrb.llm.agent.run.hook_result_extractor import extract_post_tool_decision
+    from zrb.llm.hook.manager import hook_manager
+    from zrb.llm.hook.types import HookEvent
+
+    results = await hook_manager.execute_hooks(
+        HookEvent.POST_TOOL_USE,
+        {"tool": name, "args": tool_args, "result": result},
+    )
+    decision = extract_post_tool_decision(results)
+    if decision.block:
+        return ToolReturn(
+            return_value=None,
+            content=(
+                f"Tool result blocked by PostToolUse hook: " f"{decision.reason or ''}"
+            ),
+            metadata={"blocked": True},
+        )
+    if decision.updated_output is not None and isinstance(result, ToolReturn):
+        return ToolReturn(
+            return_value=result.return_value,
+            content=decision.updated_output,
+            metadata=result.metadata,
+        )
+    return result
+
+
+async def _fire_post_tool_use_failure(
+    name: str, tool_args: dict[str, Any], error: Exception
+) -> None:
+    """Fire PostToolUseFailure after a tool raised (observe-only, never raises)."""
+    # lazy: circular — see _fire_pre_tool_use.
+    from zrb.llm.hook.manager import hook_manager
+    from zrb.llm.hook.types import HookEvent
+
+    try:
+        await hook_manager.execute_hooks(
+            HookEvent.POST_TOOL_USE_FAILURE,
+            {"tool": name, "args": tool_args, "error": str(error)},
+        )
+    except Exception:
+        # A misbehaving failure hook must not mask the original tool error.
+        CFG.LOGGER.debug("PostToolUseFailure hook raised", exc_info=True)
 
 
 def create_agent(
@@ -319,8 +421,13 @@ def create_agent(
     final_output_type = output_type
     effective_toolsets = list(safe_toolsets)
     if safe_tools:
+        # Wrap the function toolset too, so SafeToolsetWrapper.call_tool is the
+        # single chokepoint every tool call passes through (free functions and
+        # toolset tools alike). This is where PreToolUse/PostToolUse fire.
         effective_toolsets.append(
-            FunctionToolset(tools=safe_tools, max_retries=CFG.LLM_TOOL_MAX_RETRIES)
+            _wrap_toolset(
+                FunctionToolset(tools=safe_tools, max_retries=CFG.LLM_TOOL_MAX_RETRIES)
+            )
         )
 
     if yolo is not True:

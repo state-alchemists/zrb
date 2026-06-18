@@ -1352,3 +1352,85 @@ the turn).
 (`LLM_BACKGROUND_WAIT_MAX`); `test/llm/tool/test_delegate_background.py`,
 `test/llm/tool/test_shell_background.py` (wait/kill + approval-during-wait
 tests).
+
+## ADR-0074 — Hook capability parity with Claude Code (tool gates, turn control, terminal SessionEnd)
+
+**Status:** Accepted (refines ADR-0047, ADR-0066)
+
+**Context.** ADR-0047/0066 made zrb's hooks structurally Claude-compatible
+(event names, discovery, command-hook stdin/exit-2 I/O). A gap analysis found the
+events *fired* but several Claude *control* capabilities were not honored, so
+drop-in Claude hooks observed but could not act:
+- **PreToolUse** fired only for approval-gated (deferred) tool calls and the
+  consumer read zrb-proprietary keys (`tool_args`, `cancel_tool`) off
+  `hr.modifications` — a field absent from `HookExecutionResult` (the actual
+  return type), so the path was exercised only by mistyped test mocks. Claude's
+  `permissionDecision: "deny"` / exit-2 / `updatedInput` were ignored.
+- **PostToolUse/PostToolUseFailure** fired on approval outcome, not real
+  execution, and could not block (`decision: "block"`) or transform
+  (`updatedToolOutput`).
+- **UserPromptSubmit** and **Stop** were observe-only (Claude lets them block /
+  block-to-continue). **PermissionRequest** could not auto-resolve. **PreCompact**
+  could not inject context; **SessionStart** had no `source` matcher.
+- **SessionEnd** fired once *per turn* (and per sub-agent run), so Claude
+  consumers expecting a terminal signal got a false one every turn.
+
+**Decision.**
+- **Single tool chokepoint.** `create_agent` wraps the function-tools
+  `FunctionToolset` with `SafeToolsetWrapper` too, so `call_tool` is the one
+  method *every* tool call passes through. PreToolUse fires there for tool calls
+  that did not already fire it pre-approval, guarded by pydantic-ai's
+  `ctx.tool_call_approved` (True only for deferred-then-approved calls). The
+  deferred path keeps its pre-approval PreToolUse fire (so a hook can deny before
+  the user is prompted). PostToolUse fires after a successful `call_tool`,
+  PostToolUseFailure in its `except` branch — both removed from the approval path.
+- **Claude protocol honored, legacy keys dropped.** New
+  `extract_pre_tool_decision` / `extract_post_tool_decision` /
+  `extract_permission_decision` / `extract_block_decision` helpers read
+  `HookExecutionResult` fields and Claude's nested `hookSpecificOutput`. PreToolUse
+  honors `permissionDecision` allow/deny and `updatedInput`; PostToolUse honors
+  `decision: "block"` and `updatedToolOutput`; PermissionRequest honors
+  `decision.behavior`. The proprietary `tool_args`/`cancel_tool` keys are removed.
+- **Turn control.** UserPromptSubmit may block (turn ends before the model runs,
+  reason surfaced). **`Stop` is the per-turn block-to-continue + extension point**:
+  a blocking `Stop` re-runs the agent with `reason` injected (capped at 8
+  consecutive blocks, mirroring `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP`), and the
+  `systemMessage` turn-extension (journaling/summarization) moved here from
+  SessionEnd. `apply_session_end_extension` became `apply_turn_end_extension`.
+- **SessionEnd is terminal.** It no longer fires inside `run_agent`; it fires once
+  at interactive chat teardown (`_teardown_interactive_resources`). The built-in
+  journaling reminder moved from `SessionEnd` to `Stop`. The execution model stays
+  zrb's sequential-by-priority, first-decisive-result-wins (not Claude's parallel
+  most-restrictive merge).
+- **Smaller parity.** PreCompact injects `additionalContext` and carries
+  `trigger="auto"`; SessionStart carries `source` (`startup`/`resume`).
+
+**Consequences.** Drop-in Claude PreToolUse/PostToolUse/UserPromptSubmit/Stop hooks
+now actually gate, rewrite, and continue. SessionEnd consumers get one terminal
+event instead of a per-turn false positive. **Breaking:** hooks relying on
+`tool_args`/`cancel_tool` must use `updatedInput`/`permissionDecision`; journaling
+or turn-extension hooks keyed on `SessionEnd` must move to `Stop`. Not adopted:
+parallel hook execution + most-restrictive merge, and `http`/`mcp_tool` handler
+types (separate axis).
+
+**Alternatives rejected.** Fire PreToolUse only in `call_tool` (loses pre-approval
+denial for deferred tools — a hook would block *after* the user already approved);
+a dedicated `TurnEnd` event (Claude has none — `Stop` is the turn-end signal, so a
+new event would diverge, not converge); keeping both legacy and Claude keys (the
+user chose a clean Claude-only surface); relocating SessionStart too (out of scope;
+left per-turn).
+
+**Evidence.** **[DOCUMENTED]** `src/zrb/llm/agent/common.py`
+(`SafeToolsetWrapper.call_tool`, `_fire_pre_tool_use`/`_fire_post_tool_use`/
+`_fire_post_tool_use_failure`, `create_agent` toolset wrap);
+`src/zrb/llm/agent/run/hook_result_extractor.py` (extractors);
+`src/zrb/llm/agent/run/deferred_calls.py` (PreToolUse + PermissionRequest);
+`src/zrb/llm/agent/run/session_extension.py` (`apply_turn_end_extension`,
+`STOP_HOOK_BLOCK_CAP`); `src/zrb/llm/agent/run/runner.py` (UserPromptSubmit block,
+STOP extension, PreCompact/SessionStart fields); `src/zrb/llm/hook/journal.py`
+(SESSION_END→STOP); `src/zrb/llm/task/chat/task.py`
+(`_teardown_interactive_resources` terminal SESSION_END);
+`docs/advanced-topics/hooks.md`. **[DOCUMENTED]** tests:
+`test/llm/agent/test_common.py`, `test/llm/agent/run/test_deferred_calls.py`,
+`test/llm/agent/run/test_runner.py`, `test/llm/hook/test_hook_result_processing.py`,
+`test/llm/task/chat/test_llm_chat_task.py`.

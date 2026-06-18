@@ -24,6 +24,10 @@ import json
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
+from zrb.llm.agent.run.hook_result_extractor import (
+    extract_permission_decision,
+    extract_pre_tool_decision,
+)
 from zrb.llm.approval.approval_channel import ApprovalContext
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
@@ -55,7 +59,12 @@ async def process_deferred_requests(
     current_results = DeferredToolResults()
 
     for call in all_requests:
-        # Hook: PreToolUse — hooks may modify args or cancel the call entirely.
+        # Hook: PreToolUse (pre-approval). Claude-compatible: a hook may deny the
+        # call, auto-allow it, or rewrite its arguments (`updatedInput`). This is
+        # the pre-approval fire for tools that require approval; auto-approved
+        # tools (which never reach here) fire PreToolUse at execution time in
+        # SafeToolsetWrapper.call_tool, guarded by ctx.tool_call_approved so the
+        # two paths never double-fire.
         hook_results = await hook_manager.execute_hooks(
             HookEvent.PRE_TOOL_USE,
             {
@@ -64,26 +73,31 @@ async def process_deferred_requests(
                 "call_id": call.tool_call_id,
             },
         )
-        cancelled_by_hook = False
-        for hr in hook_results:
-            if hr.modifications.get("tool_args") and isinstance(call.args, dict):
-                call.args.update(hr.modifications["tool_args"])
-            if hr.modifications.get("cancel_tool"):
-                current_results.approvals[call.tool_call_id] = ToolDenied(
-                    "Tool execution cancelled by hook"
-                )
-                cancelled_by_hook = True
-                break
-        if cancelled_by_hook:
+        pre = extract_pre_tool_decision(hook_results)
+        if pre.updated_input and isinstance(call.args, dict):
+            call.args.update(pre.updated_input)
+        if pre.deny:
+            current_results.approvals[call.tool_call_id] = ToolDenied(
+                pre.reason or "Tool execution blocked by PreToolUse hook"
+            )
+            if (
+                hasattr(current_results, "calls")
+                and call.tool_call_id in current_results.calls
+            ):
+                del current_results.calls[call.tool_call_id]
             continue
 
-        result = await _resolve_approval(
-            call,
-            ui,
-            effective_tool_confirmation,
-            approval_channel,
-            hook_manager,
-        )
+        if pre.allow:
+            # permissionDecision="allow" skips the approval prompt entirely.
+            result: Any = ToolApproved()
+        else:
+            result = await _resolve_approval(
+                call,
+                ui,
+                effective_tool_confirmation,
+                approval_channel,
+                hook_manager,
+            )
         current_results.approvals[call.tool_call_id] = result
 
         if isinstance(result, ToolDenied):
@@ -95,21 +109,9 @@ async def process_deferred_requests(
                 del current_results.calls[call.tool_call_id]
             CFG.LOGGER.debug("Tool denied, removed from calls")
 
-        # Hook: PostToolUse / PostToolUseFailure
-        if isinstance(result, ToolApproved):
-            await hook_manager.execute_hooks(
-                HookEvent.POST_TOOL_USE,
-                {"tool": call.tool_name, "args": call.args, "result": result},
-            )
-        elif isinstance(result, ToolDenied):
-            await hook_manager.execute_hooks(
-                HookEvent.POST_TOOL_USE_FAILURE,
-                {
-                    "tool": call.tool_name,
-                    "args": call.args,
-                    "error": result.message,
-                },
-            )
+        # PostToolUse / PostToolUseFailure are NOT fired here: approval is not
+        # execution. They fire from SafeToolsetWrapper.call_tool once the tool
+        # actually runs (success) or raises (failure), matching Claude Code.
 
     return current_results
 
@@ -258,12 +260,25 @@ async def _resolve_approval(
     # calls. Fired here, after the cascade decides to ask, so it never
     # false-positives on allowed tools.
     if hook_manager is not None:
-        await hook_manager.execute_hooks(
+        perm_results = await hook_manager.execute_hooks(
             HookEvent.PERMISSION_REQUEST,
             {"tool": call.tool_name, "args": getattr(call, "args", None)},
             tool_name=call.tool_name,
             message=f"Approval requested to run {call.tool_name}",
         )
+        # Claude-compatible: a PermissionRequest hook may auto-resolve the prompt
+        # via hookSpecificOutput.decision.behavior ("allow"/"deny").
+        perm_decision = extract_permission_decision(perm_results)
+        if perm_decision == "allow":
+            # lazy: heavy third-party
+            from pydantic_ai import ToolApproved
+
+            return ToolApproved()
+        if perm_decision == "deny":
+            # lazy: heavy third-party
+            from pydantic_ai import ToolDenied
+
+            return ToolDenied("Denied by PermissionRequest hook")
 
     # Priority 4: Approval channel (multi-channel, first response wins)
     if approval_channel is not None:
