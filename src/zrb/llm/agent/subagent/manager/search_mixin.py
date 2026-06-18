@@ -60,11 +60,14 @@ class SearchMixin:
             if dir_path.exists() and dir_path.is_dir():
                 search_dirs.append(dir_path)
 
-        builtin_path = (
-            Path(__file__).parent.parent.parent.parent.parent / "llm_plugin" / "agents"
-        )
-        if builtin_path.exists() and builtin_path.is_dir():
-            search_dirs.append(builtin_path)
+        if CFG.LLM_ENABLE_BUILTIN_AGENTS:
+            builtin_path = (
+                Path(__file__).parent.parent.parent.parent.parent
+                / "llm_plugin"
+                / "agents"
+            )
+            if builtin_path.exists() and builtin_path.is_dir():
+                search_dirs.append(builtin_path)
 
         search_dirs.append(Path(self._root_dir))
         return search_dirs

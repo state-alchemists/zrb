@@ -1,5 +1,14 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.36.0 (June 18, 2026)
+
+- **Feature: built-in LLM plugin split into governable categories** (`src/zrb/llm_plugin/`, ADR-0069):
+  - The flat `llm_plugin/skills/` directory is split into `core_skills/` (the five `core-*` methodology skills the utility skills delegate into) and `skills/` (the eight utility skills). `agents/` is unchanged. Skills moved verbatim — frontmatter `name:` fields and `/slash-command` names are unchanged, so cross-references (e.g. `/testing` → `core-coding`'s testing companion) keep working.
+  - **Core skills are always loaded and have no toggle** — disabling them would silently break the utility skills that depend on them.
+  - Two new CFG booleans (default `on`) gate the optional built-in content: `LLM_ENABLE_BUILTIN_SKILLS` (`ZRB_LLM_ENABLE_BUILTIN_SKILLS`) and `LLM_ENABLE_BUILTIN_AGENTS` (`ZRB_LLM_ENABLE_BUILTIN_AGENTS`), added to `LLMSearchMixin` (`src/zrb/config/mixins/llm_search.py`) following the existing `LLM_SEARCH_PROJECT`/`LLM_SEARCH_HOME` pattern.
+  - The toggles suppress **only built-in content** — user/project/plugin/extra skills and agents always load. `SkillManager._get_builtin_dir()` becomes `_get_builtin_dirs()` (CFG-filtered list); the agent `SearchMixin` wraps its built-in append in the agent toggle.
+  - **Considered and rejected:** adding `dangerously_skip_sandbox` to the file tools (Read/Write/Edit/…). Claude Code keeps sandbox-escape a Bash-only concept and governs file access via the permission layer with no per-call bypass; zrb already mirrors this (escape stays on the OS-sandboxed shell tools; the Python FS gate from ADR-0063 has no escape, preserving credential deny-read protection).
+
 ## 2.35.3 (June 18, 2026)
 
 - **Security: bumped 5 transitive dependency pins for GHSA advisories** (`pyproject.toml`):

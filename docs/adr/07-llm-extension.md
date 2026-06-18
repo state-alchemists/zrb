@@ -1161,3 +1161,78 @@ list.
 removed); `src/zrb/llm/permission/policy.py` (`from_yolo` removed).
 **[INFERRED]** Full caller-count audit via `grep` across `src/` and `test/`
 for each symbol.
+
+## ADR-0069 — Built-in LLM plugin split into governable core-skills / skills / agents
+
+**Status:** Accepted (refines ADR-0044)
+
+**Context.** The built-in LLM plugin (`src/zrb/llm_plugin/`) shipped all 13
+built-in skills in one flat `skills/` directory alongside `agents/`. Five of
+those (`core-*`) are the agent's methodology baseline — `core-coding`,
+`core-research`, `core-writing`, `core-design`, `core-journaling` — that the
+remaining utility skills delegate into (e.g. `/testing`, `/debug`, `/refactor`,
+`/review` all defer to `core-coding`'s companion deep-dives). The loader treated
+every built-in skill identically (ADR-0044): one builtin search directory,
+lowest precedence. There was no way for a deployment to slim the built-in
+surface — disable the opinionated utility commands or the built-in sub-agents —
+without forking the package, and no structural signal distinguishing the
+load-bearing core from the optional extras.
+
+**Decision.** Split the built-in plugin into three physically separate
+categories and govern the optional two with CFG toggles:
+
+- **`core_skills/`** — the five `core-*` skills, moved verbatim (names and
+  cross-references unchanged, since skill names derive from frontmatter, not
+  path). **Always loaded; no toggle** — disabling them would silently break the
+  utility skills that delegate into them.
+- **`skills/`** — the eight utility skills, gated by
+  `CFG.LLM_ENABLE_BUILTIN_SKILLS` (default `on`).
+- **`agents/`** — the built-in sub-agents, gated by
+  `CFG.LLM_ENABLE_BUILTIN_AGENTS` (default `on`).
+
+The toggles suppress **only built-in content**. The skill/agent search order is
+unchanged (home → project → plugins → base → extra → built-in → root); the
+toggles only decide which built-in directories are appended, so
+user/project/plugin/extra skills and agents always load regardless. Both
+built-in skill dirs remain lowest-precedence; relative order is irrelevant since
+skill names are unique. `SkillManager._get_builtin_dir()` becomes
+`_get_builtin_dirs()` (returns the CFG-filtered list); the agent
+`SearchMixin.get_search_directories()` wraps its built-in append in the agent
+toggle. `reload()` re-scans, so toggle changes take effect on the next scan.
+
+**Consequences.**
+- Deployments can trim the built-in surface (`ZRB_LLM_ENABLE_BUILTIN_SKILLS=off`,
+  `ZRB_LLM_ENABLE_BUILTIN_AGENTS=off`) without losing their own skills/agents.
+- The `core_skills/` vs `skills/` split makes "always-on baseline" vs
+  "optional extras" structurally obvious.
+- Core skills are deliberately non-disableable — there is no toggle to misuse in
+  a way that breaks the utility skills.
+- One new mixin owns two flat booleans following the existing
+  `LLM_SEARCH_PROJECT`/`LLM_SEARCH_HOME` pattern.
+
+**Alternatives rejected.**
+1. **A third toggle for core skills** — rejected: the utility skills hard-depend
+   on the core skills; a per-deployment switch to break that dependency is a
+   footgun with no real use case.
+2. **One master switch over all discovery (built-in + user/project)** — rejected:
+   disabling "skills" would also drop a user's own custom skills, conflating
+   "trim the built-ins" with "turn the feature off." The toggles are scoped to
+   built-in content only.
+3. **A single comma-list (`LLM_BUILTIN_CATEGORIES=skills,agents`)** — rejected:
+   less discoverable and inconsistent with the existing boolean search toggles.
+4. **Keep one flat `skills/` dir and tag skills by metadata** — rejected: a
+   physical split is self-documenting and lets the loader gate by directory
+   rather than per-skill inspection.
+
+**Note (considered, not adopted here).** Adding `dangerously_skip_sandbox` to the
+file tools (Read/Write/Edit/…) was raised alongside this work and **rejected**:
+Claude Code keeps sandbox-escape a Bash-only concept and governs file access via
+the permission layer with no per-call bypass. zrb already mirrors this — the
+escape flag stays on the OS-sandboxed shell tools only; the Python FS gate
+(ADR-0063) has no escape, preserving the credential deny-read protection.
+
+**Evidence.** **[DOCUMENTED]** `src/zrb/llm/skill/manager.py`
+(`_get_builtin_dirs`); `src/zrb/llm/agent/subagent/manager/search_mixin.py`
+(built-in agents gate); `src/zrb/config/mixins/llm_search.py`
+(`LLM_ENABLE_BUILTIN_SKILLS`, `LLM_ENABLE_BUILTIN_AGENTS`); directory layout
+`src/zrb/llm_plugin/{core_skills,skills,agents}/`.

@@ -97,3 +97,29 @@ def test_get_search_directories_walks_project_hierarchy(manager, tmp_path):
     assert any(".zrb/agents" in d for d in dirs)
     # And the plugin under .zrb/plugins
     assert any(".zrb/plugins/p1/agents" in d for d in dirs)
+
+
+def test_get_search_directories_includes_builtin_agents_when_enabled(manager):
+    with patch("zrb.llm.agent.subagent.manager.search_mixin.CFG") as cfg:
+        cfg.LLM_SEARCH_HOME = False
+        cfg.LLM_SEARCH_PROJECT = False
+        cfg.LLM_CONFIG_DIR_NAMES = [".zrb"]
+        cfg.LLM_PLUGIN_DIRS = []
+        cfg.LLM_BASE_SEARCH_DIRS = []
+        cfg.LLM_EXTRA_AGENT_DIRS = []
+        cfg.LLM_ENABLE_BUILTIN_AGENTS = True
+        dirs = [str(d) for d in manager.get_search_directories()]
+    assert any(d.replace("\\", "/").endswith("llm_plugin/agents") for d in dirs)
+
+
+def test_get_search_directories_excludes_builtin_agents_when_disabled(manager):
+    with patch("zrb.llm.agent.subagent.manager.search_mixin.CFG") as cfg:
+        cfg.LLM_SEARCH_HOME = False
+        cfg.LLM_SEARCH_PROJECT = False
+        cfg.LLM_CONFIG_DIR_NAMES = [".zrb"]
+        cfg.LLM_PLUGIN_DIRS = []
+        cfg.LLM_BASE_SEARCH_DIRS = []
+        cfg.LLM_EXTRA_AGENT_DIRS = []
+        cfg.LLM_ENABLE_BUILTIN_AGENTS = False
+        dirs = [str(d) for d in manager.get_search_directories()]
+    assert not any(d.replace("\\", "/").endswith("llm_plugin/agents") for d in dirs)
