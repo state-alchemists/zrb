@@ -131,8 +131,9 @@ The assistant comes with a rich set of built-in tools. These are automatically a
 
 | Tool | Function | Description |
 |------|----------|-------------|
-| `Shell` | `run_shell_command` | Execute non-interactive shell commands. Streams output live and truncates large results. Always requires non-interactive flags (e.g., `-y`). |
-| `Bash` | `run_shell_command` | Alias for `Shell` (Claude compatibility). Same behavior and arguments. |
+| `Shell` | `run_shell_command` | Execute non-interactive shell commands. Streams output live and truncates large results. Always requires non-interactive flags (e.g., `-y`). Pass `background=True` for long-running processes (dev servers, watchers) to get a handle immediately instead of blocking. |
+| `Bash` | `run_shell_command` | Alias for `Shell` (Claude compatibility). Same behavior and arguments (incl. `background=True`). |
+| `MonitorProcess` | `monitor_process` | Check, wait on, or kill a background process started with `Shell`/`Bash` `background=True`. Pass `wait=N` to block up to N seconds (returns early on exit), or `kill=True` to terminate. |
 
 ### File System
 
