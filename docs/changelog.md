@@ -1,5 +1,27 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.35.3 (June 18, 2026)
+
+- **Security: bumped 5 transitive dependency pins for GHSA advisories** (`pyproject.toml`):
+  - PyJWT: `>=2.12.1` → `>=2.13.0` — **GHSA-xgmm-8j9v-c9wx** (CVE-2026-48526): JWT forgery via JWK-as-HMAC-secret confusion in multi-algorithm verifiers.
+  - cryptography: `>=46.0.7` → `>=48.0.1` — **GHSA-537c-gmf6-5ccf**: out-of-bounds read via statically linked OpenSSL in pre-built wheels.
+  - python-multipart: `>=0.0.27` → `>=0.0.30` — **GHSA-5rvq-cxj2-64vf** (CVE-2026-53539): quadratic-time DoS via `;` separators in `application/x-www-form-urlencoded` bodies.
+  - starlette: `>=1.0.1` → `>=1.3.1` — **GHSA-82w8-qh3p-5jfq** (CVE-2026-54283): `request.form()` silently ignores `max_fields`/`max_part_size` for url-encoded bodies, enabling DoS.
+  - aiohttp: `>=3.14.0` → `>=3.14.1` in `xai` and `voyageai` extras — **GHSA-xcgm-r5h9-7989** (CVE-2026-54274): incomplete WebSocket frame payloads bypass memory size limits.
+
+- **Dependency: bumped pydantic-ai-slim upper bound and anthropic floor** (`pyproject.toml`):
+  - pydantic-ai-slim: `<1.107.0` → `<1.108.0` (no API breakage in this range).
+  - anthropic (extra): `>=0.105.0` → `>=0.108.0` (matches pydantic-ai-slim 1.107+ requirement).
+
+- **Documentation: new "Programming the Agent" guide and `agent-in-pipeline` example**:
+  - `docs/advanced-topics/programming-the-agent.md` — the map of every Python hook the agent exposes: custom tools, lifecycle hooks, permission policies, approval channels, model routing, dynamic prompt sections, history processors, and agent-as-pipeline-node. Dynamic prompt sections and history processors are documented in full (no other home).
+  - `examples/agent-in-pipeline/` — runnable end-to-end example of an `LLMTask` wired between deterministic pipeline steps with an in-process custom tool.
+  - `README.md` updated with a "Program Your AI Agent" section and restored `docs/` prefix on the CI/CD link.
+
+- **Fix: `examples/web-auth` username clash with built-in super-admin** (`examples/web-auth/zrb_init.py`): renamed the demo "admin" user to "boss" to avoid colliding with the built-in `admin` super-admin that auto-creates when auth is enabled.
+
+- **Documentation: breadcrumb and link fixes** (`docs/changelog-v1.md`, `docs/changelog-v2.md`, `docs/advanced-topics/sandbox.md`): corrected stale relative paths in breadcrumb footers.
+
 ## 2.35.2 (June 17, 2026)
 
 - **Fix: non-interactive sessions defaulted to interactive-mode ContextVar, leaving the plan-mode gate un-gated** (`llm/task/chat/runner_mixin.py`, ADR-0067):
