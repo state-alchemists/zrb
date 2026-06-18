@@ -152,6 +152,15 @@ Full procedure, rationale, and a worked example:
 - **Modularity:** functions ~30–50 lines; helpers placed below their callers
 - **Error handling:** LLM tool errors include a `[SYSTEM SUGGESTION]` prefix with actionable guidance
 
+### Config Conventions
+
+Boolean `CFG`/env knobs follow a naming rule (ADR-0073):
+
+- **`<NAMESPACE>_ENABLED`** (state-last) when the toggle is the master switch of a namespace that has *other* settings, so it groups with its siblings — e.g. `WEB_AUTH_ENABLED` (alongside `WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES`), `LLM_SANDBOX_ENABLED`, `HOOKS_ENABLED`.
+- **Verb-first** (`ENABLE_`/`SHOW_`/`SEARCH_`/`INCLUDE_`/`ALLOW_`) for a standalone on/off behavior with no sub-config namespace — e.g. `LLM_ENABLE_BUILTIN_SKILLS`, `LLM_SEARCH_PROJECT`, `LLM_SHOW_TOOL_CALL_DETAIL`.
+
+When **renaming** a knob, keep the old env key working: `EnvField(aliases=[new, old], write_key=new)` reads either and writes the new form, so existing `ZRB_*` configs don't break.
+
 ### Imports
 
 Default to module-level imports. An in-function import must justify itself with a `# lazy: <reason>` comment matching one of:

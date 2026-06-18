@@ -348,10 +348,17 @@ def test_web_secret_key(monkeypatch):
     assert config.WEB_SECRET_KEY == "my-secret"
 
 
-def test_web_enable_auth(monkeypatch):
+def test_web_auth_enabled(monkeypatch):
+    monkeypatch.setenv("ZRB_WEB_AUTH_ENABLED", "1")
+    config = Config()
+    assert config.WEB_AUTH_ENABLED
+
+
+def test_web_auth_enabled_legacy_alias(monkeypatch):
+    # Back-compat: the pre-rename env key still reads.
     monkeypatch.setenv("ZRB_WEB_ENABLE_AUTH", "1")
     config = Config()
-    assert config.WEB_ENABLE_AUTH
+    assert config.WEB_AUTH_ENABLED
 
 
 def test_web_auth_access_token_expire_minutes(monkeypatch):
@@ -634,7 +641,7 @@ def test_config_properties_access():
     _ = CFG.WEB_ACCESS_TOKEN_COOKIE_NAME
     _ = CFG.WEB_REFRESH_TOKEN_COOKIE_NAME
     _ = CFG.WEB_SECRET_KEY
-    _ = CFG.WEB_ENABLE_AUTH
+    _ = CFG.WEB_AUTH_ENABLED
     _ = CFG.WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES
     _ = CFG.WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES
     _ = CFG.WEB_TITLE
@@ -846,10 +853,10 @@ class TestConfigSetters:
         config.WEB_SECRET_KEY = "secret"
         assert os.environ["ZRB_WEB_SECRET_KEY"] == "secret"
 
-    def test_web_enable_auth_setter(self, monkeypatch):
+    def test_web_auth_enabled_setter(self, monkeypatch):
         config = Config()
-        config.WEB_ENABLE_AUTH = True
-        assert os.environ["ZRB_WEB_ENABLE_AUTH"] == "on"
+        config.WEB_AUTH_ENABLED = True
+        assert os.environ["ZRB_WEB_AUTH_ENABLED"] == "on"
 
     def test_web_auth_access_token_expire_setter(self, monkeypatch):
         config = Config()

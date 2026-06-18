@@ -61,7 +61,7 @@ Zrb's Web UI includes an experimental authentication system. By default, it's di
 ### Enabling Authentication
 
 ```bash
-export ZRB_WEB_ENABLE_AUTH=1
+export ZRB_WEB_AUTH_ENABLED=1
 zrb server start
 ```
 
@@ -139,7 +139,7 @@ You can customize the visual styling of the Web UI using environment variables.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `ZRB_WEB_HTTP_PORT` | `21213` | Server port |
-| `ZRB_WEB_ENABLE_AUTH` | `0` | Enable authentication |
+| `ZRB_WEB_AUTH_ENABLED` | `0` | Enable authentication (legacy alias: `ZRB_WEB_ENABLE_AUTH`) |
 | `ZRB_WEB_COLOR` | `` (empty) | Theme color |
 
 ---

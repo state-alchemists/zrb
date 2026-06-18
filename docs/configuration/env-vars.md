@@ -75,7 +75,7 @@ Zrb's experimental Web UI has dedicated configuration options.
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ZRB_WEB_HTTP_PORT` | Port for Web UI server | `21213` |
-| `ZRB_WEB_ENABLE_AUTH` | Enable username/password authentication | `0` (false) |
+| `ZRB_WEB_AUTH_ENABLED` | Enable username/password authentication (legacy alias: `ZRB_WEB_ENABLE_AUTH`) | `0` (false) |
 | `ZRB_WEB_SECRET_KEY` | Secret key for authentication tokens ⚠️ **Change for production!** | `zrb` |
 
 ### Authentication Tokens
@@ -136,7 +136,7 @@ export ZRB_EDITOR=nvim                  # Use neovim for editing
 export ZRB_INIT_FILE_NAME=tasks.py      # Use custom init file name
 
 # Web UI (production)
-export ZRB_WEB_ENABLE_AUTH=1
+export ZRB_WEB_AUTH_ENABLED=1
 export ZRB_WEB_SECRET_KEY="your-secure-secret-key"
 export ZRB_WEB_SUPER_ADMIN_PASSWORD="secure-password"
 

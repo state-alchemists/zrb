@@ -89,7 +89,7 @@ class WebAuthConfig:
     def enable_auth(self) -> bool:
         if self._enable_auth is not None:
             return self._enable_auth
-        return CFG.WEB_ENABLE_AUTH
+        return CFG.WEB_AUTH_ENABLED
 
     @enable_auth.setter
     def enable_auth(self, enable: bool):

@@ -113,3 +113,4 @@ deleting it — the history is the point.
 - **ADR-0070** — Fold `DelegateToAgentsParallel` into a `tasks=` arg on `DelegateToAgent`
 - **ADR-0071** — Fold `ShellBackground` into a `background=True` parameter on `Shell`/`Bash` (supersedes ADR-0056 point 3)
 - **ADR-0072** — Bounded `wait=`/`kill=` on background result-collection tools (refines ADR-0054)
+- **ADR-0073** — Boolean config naming: verb-first for standalone toggles, `<namespace>_ENABLED` for namespace master-switches

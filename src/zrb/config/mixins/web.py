@@ -21,7 +21,7 @@ class WebMixin:
         self.DEFAULT_WEB_ACCESS_TOKEN_COOKIE_NAME: str = "access_token"
         self.DEFAULT_WEB_REFRESH_TOKEN_COOKIE_NAME: str = "refresh_token"
         self.DEFAULT_WEB_SECRET_KEY: str = "zrb"
-        self.DEFAULT_WEB_ENABLE_AUTH: str = "off"
+        self.DEFAULT_WEB_AUTH_ENABLED: str = "off"
         self.DEFAULT_WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES: str = "30"
         self.DEFAULT_WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES: str = "60"
         self.DEFAULT_WEB_TITLE: str = "Zrb"
@@ -55,7 +55,15 @@ class WebMixin:
 
     WEB_SECRET_KEY = EnvField(str)
 
-    WEB_ENABLE_AUTH = EnvField(to_boolean, serialize=on_off)
+    # Reads either alias; setter writes the new `WEB_AUTH_ENABLED` form. The old
+    # `WEB_ENABLE_AUTH` key is kept for backward compatibility with previously
+    # written env vars (renamed to the `<NAMESPACE>_ENABLED` convention — see ADR).
+    WEB_AUTH_ENABLED = EnvField(
+        to_boolean,
+        serialize=on_off,
+        aliases=["WEB_AUTH_ENABLED", "WEB_ENABLE_AUTH"],
+        write_key="WEB_AUTH_ENABLED",
+    )
 
     WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES = EnvField(int)
 
