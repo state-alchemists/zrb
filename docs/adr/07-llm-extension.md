@@ -345,7 +345,8 @@ any policy is set (loses context); no filtering (confusing).
 
 ## ADR-0054 — Background subagents: inherit permissions and interrupt to ask
 
-**Status:** Accepted (after two rejected iterations — recorded below)
+**Status:** Accepted (after two rejected iterations — recorded below); polling
+refined by ADR-0072 (bounded `wait=`/`kill=` on `GetDelegationResult`)
 
 **Context.** Long, independent work (research, file generation) shouldn't block
 the main agent. But a detached agent has no obvious way to get tool approval,
@@ -500,7 +501,9 @@ deny at execution time).
 
 ## ADR-0056 — Shell as primary execution tool, Bash as backward-compat alias
 
-**Status:** Accepted
+**Status:** Accepted; the separate `ShellBackground` tool (point 3 below) was
+superseded by ADR-0071, which folds background launches into a `background=True`
+parameter on `Shell`/`Bash`
 
 **Context.** The `Bash` tool (`run_shell_command`) was zrb's only shell execution
 tool, but its name and docstring were Claude/ChatGPT-specific — the model's
@@ -1236,3 +1239,116 @@ escape flag stays on the OS-sandboxed shell tools only; the Python FS gate
 (built-in agents gate); `src/zrb/config/mixins/llm_search.py`
 (`LLM_ENABLE_BUILTIN_SKILLS`, `LLM_ENABLE_BUILTIN_AGENTS`); directory layout
 `src/zrb/llm_plugin/{core_skills,skills,agents}/`.
+
+---
+
+## ADR-0070 — Fold `DelegateToAgentsParallel` into `DelegateToAgent`
+
+**Status:** Accepted (supersedes the separate `DelegateToAgentsParallel` tool)
+
+**Context.** Three delegate tools — `DelegateToAgent` (one, sync),
+`DelegateToAgentsParallel` (many, sync), `DelegateToAgentBackground` (one,
+background) — differed on only two axes: one-vs-many and sync-vs-background.
+`DelegateToAgentsParallel` is just "delegate with N items," yet it forced the
+model to pick a distinct tool name and a list-of-dicts shape for the multi case.
+
+**Decision.** `DelegateToAgent` gains an optional `tasks: list[dict] | None`
+parameter. A non-empty `tasks` runs every entry concurrently (the former
+parallel `asyncio.gather` path, now a module-level `_run_parallel` helper) and
+returns the combined results; otherwise the flat single-task args run as before.
+The single-task call stays ergonomic (no list wrapping) and the fan-out
+capability is a parameter, not a second tool. `DelegateToAgentsParallel` and its
+factory `create_parallel_delegate_tool` are removed.
+
+**Consequences.** Smaller tool surface; one mental model ("delegate, optionally
+to several"). The shared `BufferedUI` lock still serializes fan-out approval
+prompts (ADR-0046). Cost: the model must learn the `tasks` arg — mitigated by a
+"FAN OUT" docstring note and updated tool guidance.
+
+**Alternatives rejected.** Always-require-a-list (verbose for the common single
+case); keep the three tools (redundant surface); a `background` flag *also* on
+this tool (background's handle+poll lifecycle is genuinely different — kept as
+`DelegateToAgentBackground`).
+
+**Evidence.** **[DOCUMENTED]** `src/zrb/llm/tool/delegate.py` (`_run_parallel`,
+`delegate_to_agent` `tasks` arg); `src/zrb/llm/common_tools.py` (guidance);
+`src/zrb/builtin/llm/chat.py` (factory/auto-approve removal);
+`test/llm/tool/test_delegate_tool.py` (fan-out tests).
+
+---
+
+## ADR-0071 — Fold `ShellBackground` into a `background=True` parameter on `Shell`/`Bash`
+
+**Status:** Accepted (supersedes point 3 of ADR-0056)
+
+**Context.** ADR-0056 made background shell execution its own tool,
+`ShellBackground`, rejecting a `background` parameter on the grounds that
+"call this, get a handle, call that to poll" can't be one tool. But that
+reasoning conflates *launch* with *poll*: only the poll step needs a separate
+tool (`MonitorProcess`). The launch can be a flag, and a distinct
+`ShellBackground` tool is one more name the model must disambiguate from
+`Shell`/`Bash`.
+
+**Decision.** `Shell`/`Bash` gain `background: bool = False` and an optional
+`description`. With `background=True` the call short-circuits to the existing
+`_ShellBackgroundRegistry.start()` and returns a handle immediately (no timeout,
+no foreground streaming); `MonitorProcess(handle)` still polls/waits/kills. The
+registry, `get_shell_background_registry`, and `MonitorProcess` are unchanged;
+only the `ShellBackground` *entry tool* and its factory are removed.
+
+**Consequences.** One fewer tool; matches the common mental model that a shell
+tool "can run in the background." Background launches now flow through the same
+`bash_safe_command_policy` approval path as any other `Shell`/`Bash` call (the
+old `auto_approve("ShellBackground")` is dropped). Cost: a boolean flag is
+selected marginally less reliably than a distinct tool name — accepted as the
+symmetric counterpart to ADR-0070.
+
+**Alternatives rejected.** Keep `ShellBackground` (redundant surface, the
+ADR-0056 rationale doesn't hold for the launch step); a single tool that also
+polls (the poll genuinely needs its own tool — `MonitorProcess` stays).
+
+**Evidence.** **[DOCUMENTED]** `src/zrb/llm/tool/shell.py` (`background` branch),
+`src/zrb/llm/tool/bash.py` (pass-through), `src/zrb/llm/tool/shell_background.py`
+(`create_shell_background_tool` removed; registry kept); `common_tools.py`,
+`chat.py`; `test/llm/tool/test_shell_background.py` (launch via
+`run_shell_command(background=True)`).
+
+---
+
+## ADR-0072 — Bounded `wait=`/`kill=` on background result-collection tools
+
+**Status:** Accepted (refines ADR-0054)
+
+**Context.** `GetDelegationResult` and `MonitorProcess` returned instantly. To
+learn whether background work had finished, the model had to re-poll, and each
+poll is a full model round-trip (tokens + latency). It either busy-polled or
+slept too long; there was no way to say "block until done, but not forever."
+
+**Decision.** Both tools gain `wait: float = 0` (and `GetDelegationResult` also
+gains `kill: bool = False`, matching `MonitorProcess`). With `wait>0` the tool
+blocks up to `min(wait, CFG.LLM_BACKGROUND_WAIT_MAX)` seconds via
+`asyncio.wait({task}, timeout=...)` (which does **not** cancel on timeout, so the
+work keeps running), returning the instant the work finishes; on timeout it
+returns the existing "still running" status so the model can wait again or
+`kill`. `LLM_BACKGROUND_WAIT_MAX` defaults to 300s and is the only CFG timeout in
+seconds (LLM-facing) rather than milliseconds.
+
+**Consequences.** N polling round-trips collapse into one bounded call that
+early-returns. Because the wait is `async`, the event loop stays free — a
+background sub-agent that needs approval still surfaces its prompt through the
+parent UI's confirmation queue (ADR-0046, ADR-0054) while the main loop is parked
+in the wait (covered by a regression test). Cost: a runaway `wait` is capped, not
+unbounded; the cap is configurable.
+
+**Alternatives rejected.** Push-notification on completion (lifecycle surgery,
+already rejected in ADR-0054); `asyncio.wait_for` (cancels the task on timeout —
+wrong, the work must continue); unbounded `wait` (a single tool call could hang
+the turn).
+
+**Evidence.** **[DOCUMENTED]** `src/zrb/llm/tool/delegate_background.py`
+(`_BackgroundRegistry.collect`/`cancel`, `get_delegation_result`);
+`src/zrb/llm/tool/shell_background.py` (`_ShellBackgroundRegistry.collect`,
+`monitor_process`); `src/zrb/config/mixins/llm_limits.py`
+(`LLM_BACKGROUND_WAIT_MAX`); `test/llm/tool/test_delegate_background.py`,
+`test/llm/tool/test_shell_background.py` (wait/kill + approval-during-wait
+tests).

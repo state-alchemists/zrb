@@ -2,6 +2,19 @@
 
 ## 2.36.0 (June 18, 2026)
 
+- **Improvement: agent uses `WriteTodos` for multi-step work** (`src/zrb/llm/common_tools.py`, `src/zrb/llm/prompt/markdown/mandate.md`):
+  - The `WriteTodos` tool guidance gained a quantified trigger (≥3 steps, multiple files, or multi-turn work — seed the list before the first edit) mirroring the `DelegateToAgent` style, replacing the vague "Planning a multi-step task". `GetTodos` guidance now also covers re-checking the plan after summarization.
+  - The Working Loop's Plan step in `mandate.md` now wires the tool in explicitly: multi-step work externalizes its plan with `WriteTodos` rather than inline prose. Prompt-only; no tool/registration change.
+
+- **Refactor: `DelegateToAgentsParallel` folded into `DelegateToAgent`** (`src/zrb/llm/tool/delegate.py`, ADR-0070):
+  - `DelegateToAgent` gained an optional `tasks: list[dict]` argument; a non-empty list runs every entry concurrently (former parallel `asyncio.gather` path, now the module-level `_run_parallel` helper) and returns combined results, while the flat single-task call is unchanged. The standalone `DelegateToAgentsParallel` tool and `create_parallel_delegate_tool` factory are removed (also from `common_tools.py` guidance, `chat.py` factory/auto-approve, and `tool/__init__.py` exports).
+
+- **Refactor: `ShellBackground` folded into `Shell`/`Bash` `background=True`** (`src/zrb/llm/tool/shell.py`, `bash.py`, `shell_background.py`, ADR-0071, supersedes ADR-0056 point 3):
+  - `Shell`/`Bash` gained `background: bool = False` and `description: str = ""`; with `background=True` the call returns a handle immediately via the existing `_ShellBackgroundRegistry` (no timeout/streaming). The `ShellBackground` entry tool and `create_shell_background_tool` factory are removed; the registry and `MonitorProcess` are kept. Background launches now route through `bash_safe_command_policy` like any other shell call (the `auto_approve("ShellBackground")` entry is dropped).
+
+- **Improvement: bounded `wait=`/`kill=` on background result-collection tools** (`src/zrb/llm/tool/delegate_background.py`, `shell_background.py`, `src/zrb/config/mixins/llm_limits.py`, ADR-0072, refines ADR-0054):
+  - `GetDelegationResult` and `MonitorProcess` accept `wait: float = 0` — block up to `min(wait, CFG.LLM_BACKGROUND_WAIT_MAX)` seconds via `asyncio.wait` (which does not cancel on timeout), returning the instant the work finishes; on timeout they return a "still running — call again with wait=N or kill=True" status. `GetDelegationResult` also gained `kill: bool = False` for symmetry with `MonitorProcess`. New env var `LLM_BACKGROUND_WAIT_MAX` (`ZRB_LLM_BACKGROUND_WAIT_MAX`, default 300; in seconds, unlike the millisecond timeouts). A regression test confirms a background sub-agent's approval prompt still surfaces while a `wait=` call is parked.
+
 - **Feature: built-in LLM plugin split into governable categories** (`src/zrb/llm_plugin/`, ADR-0069):
   - The flat `llm_plugin/skills/` directory is split into `core_skills/` (the five `core-*` methodology skills the utility skills delegate into) and `skills/` (the eight utility skills). `agents/` is unchanged. Skills moved verbatim — frontmatter `name:` fields and `/slash-command` names are unchanged, so cross-references (e.g. `/testing` → `core-coding`'s testing companion) keep working.
   - **Core skills are always loaded and have no toggle** — disabling them would silently break the utility skills that depend on them.

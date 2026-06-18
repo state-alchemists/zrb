@@ -14,10 +14,7 @@ from zrb.llm.hook.journal import create_journaling_hook_factory
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.skill.manager import skill_manager
 from zrb.llm.task.chat.task import LLMChatTask
-from zrb.llm.tool.delegate import (
-    create_delegate_to_agent_tool,
-    create_parallel_delegate_tool,
-)
+from zrb.llm.tool.delegate import create_delegate_to_agent_tool
 from zrb.llm.tool.delegate_background import (
     create_background_delegate_tool,
     create_get_delegation_result_tool,
@@ -85,7 +82,6 @@ apply_common_tools(llm_chat)
 # the prompt mentions them in both places consistently.
 llm_chat.add_tool_factory(
     lambda ctx: create_delegate_to_agent_tool(),
-    lambda ctx: create_parallel_delegate_tool(),
     lambda ctx: create_background_delegate_tool(),
     lambda ctx: create_get_delegation_result_tool(),
 )
@@ -131,7 +127,6 @@ llm_chat.add_tool_policy(
     # it in every path — main agent, sub-agents, web — not just here. See
     # ADR-0062. No entry needed in this list.
     auto_approve("DelegateToAgent"),
-    auto_approve("DelegateToAgentsParallel"),
     # Starting a background delegation and polling its result are harmless; the
     # sub-agent's own tool calls still route their approvals to the user.
     auto_approve("DelegateToAgentBackground"),
@@ -141,8 +136,9 @@ llm_chat.add_tool_policy(
     # ExitPlanMode switches from PLAN to BUILD — requires user confirmation
     # via the permission policy (PLAN_MODE_POLICY sets it to ASK) so the user
     # must approve the plan before execution resumes.
-    # Background shell commands are harmless to start; MonitorProcess is read-only
-    auto_approve("ShellBackground"),
+    # MonitorProcess is read-only (poll/wait); kill still routes through the user.
+    # Starting a background command goes through Shell/Bash (background=True), which
+    # is gated by bash_safe_command_policy like any other shell call.
     auto_approve("MonitorProcess"),
     # LSP tools - read-only, safe to auto-approve
     auto_approve("LspFindDefinition"),
