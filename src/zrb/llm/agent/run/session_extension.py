@@ -23,6 +23,7 @@ from typing import Any, Callable
 from zrb.config.config import CFG
 from zrb.llm.agent.run.hook_result_extractor import (
     extract_block_decision,
+    extract_continue_decision,
     extract_replace_response,
     extract_system_message,
 )
@@ -76,6 +77,15 @@ def apply_turn_end_extension(
     print_fn: Callable[[str], Any],
 ) -> ExtensionOutcome:
     """Inspect STOP hook results and decide whether to extend the turn."""
+    # 0. continue: false is an explicit "stop all processing" request. It is
+    # unconditional and overrides any block-to-continue or systemMessage
+    # extension below — the turn ends now and stopReason is shown to the user.
+    cont = extract_continue_decision(stop_results)
+    if cont.stop:
+        if cont.reason:
+            print_fn(f"\n[SYSTEM] {cont.reason}\n")
+        return ExtensionOutcome(should_continue=False)
+
     # 1. Claude-style block-to-continue.
     block = extract_block_decision(stop_results)
     if block.blocked:

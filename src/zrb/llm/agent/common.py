@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import inspect
+import json
 from collections.abc import Callable
 from functools import wraps
 from typing import TYPE_CHECKING, Any
@@ -324,6 +325,11 @@ async def _fire_pre_tool_use(name: str, tool_args: dict[str, Any], ctx: Any) -> 
             "args": tool_args,
             "call_id": getattr(ctx, "tool_call_id", None),
         },
+        # Claude-standard context fields: a hook reads `tool_name`/`tool_input`
+        # from stdin and tool-name matchers filter on `tool_name`. Without these
+        # the matcher sees None and the hook silently never fires.
+        tool_name=name,
+        tool_input=tool_args,
     )
     decision = extract_pre_tool_decision(results)
     if decision.deny:
@@ -335,9 +341,39 @@ async def _fire_pre_tool_use(name: str, tool_args: dict[str, Any], ctx: Any) -> 
             ),
             metadata={"blocked": True},
         )
+    # Limitation: this is the execution-time path for tools that don't require
+    # approval (no interactive prompt to show here), so a hook's
+    # permissionDecision="ask" cannot force a prompt — it degrades to proceed.
+    # "ask" is honored on the deferred-approval path (deferred_calls._resolve_approval).
+    if decision.force_prompt:
+        CFG.LOGGER.debug(
+            f"PreToolUse hook requested 'ask' for {name} on the execution-time "
+            "path (no prompt mechanism); proceeding."
+        )
     if decision.updated_input and isinstance(tool_args, dict):
         return {**tool_args, **decision.updated_input}
     return tool_args
+
+
+def _tool_response_payload(result: Any) -> dict[str, Any]:
+    """Best-effort Claude-shaped ``tool_response``: a JSON-serializable dict.
+
+    Claude's PostToolUse payload carries the tool's output under ``tool_response``.
+    The result here may be a pydantic-ai ``ToolReturn`` (use its model-facing
+    ``content``), a plain dict, or an arbitrary value. Wrap non-dicts under a
+    ``content`` key and stringify anything that won't serialize so the stdin
+    payload never falls back to the minimal event-only form.
+    """
+    content = getattr(result, "content", result)
+    if isinstance(content, dict):
+        payload = content
+    else:
+        payload = {"content": content}
+    try:
+        json.dumps(payload)
+        return payload
+    except (TypeError, ValueError):
+        return {"content": str(content)}
 
 
 async def _fire_post_tool_use(name: str, tool_args: dict[str, Any], result: Any) -> Any:
@@ -357,6 +393,12 @@ async def _fire_post_tool_use(name: str, tool_args: dict[str, Any], result: Any)
     results = await hook_manager.execute_hooks(
         HookEvent.POST_TOOL_USE,
         {"tool": name, "args": tool_args, "result": result},
+        # Claude-standard context fields (see _fire_pre_tool_use). PostToolUse
+        # additionally carries `tool_response`; coerce to a JSON-safe dict so the
+        # stdin payload and CLAUDE_TOOL_RESPONSE env var serialize cleanly.
+        tool_name=name,
+        tool_input=tool_args,
+        tool_response=_tool_response_payload(result),
     )
     decision = extract_post_tool_decision(results)
     if decision.block:
@@ -388,6 +430,10 @@ async def _fire_post_tool_use_failure(
         await hook_manager.execute_hooks(
             HookEvent.POST_TOOL_USE_FAILURE,
             {"tool": name, "args": tool_args, "error": str(error)},
+            # Claude-standard context fields so tool-name matchers and stdin
+            # reads work on the failure path too (see _fire_pre_tool_use).
+            tool_name=name,
+            tool_input=tool_args,
         )
     except Exception:
         # A misbehaving failure hook must not mask the original tool error.

@@ -92,6 +92,7 @@ CLAUDE_EVENT_MATCHER_FIELDS: dict[HookEvent, str] = {
     HookEvent.PERMISSION_REQUEST: "tool_name",
     HookEvent.USER_PROMPT_SUBMIT: "prompt",
     HookEvent.SESSION_START: "source",
+    HookEvent.SESSION_END: "source",
     HookEvent.NOTIFICATION: "message",
     HookEvent.SUBAGENT_START: "agent_type",
     HookEvent.SUBAGENT_STOP: "agent_type",

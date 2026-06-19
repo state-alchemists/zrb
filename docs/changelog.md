@@ -10,6 +10,15 @@
 
 - **Fix: `UserPromptSubmit` populates the `prompt` field** (`agent/run/runner.py`): the fire now passes `prompt=`, so UserPromptSubmit matchers (mapped to `prompt`), the `CLAUDE_PROMPT` env var, and the stdin payload see the submitted text — previously `None`.
 
+- **Fix: close Claude-Code hook contract gaps for overlapping events** (`src/zrb/llm/agent/common.py`, `agent/run/deferred_calls.py`, `agent/run/runner.py`, `agent/run/session_extension.py`, `agent/run/hook_result_extractor.py`, `hook/hook_creators.py`, `hook/manager/manager.py`, `hook/types.py`, `hook/matcher.py`, `task/chat/task.py`; refines ADR-0074):
+  - **`PreToolUse`/`PostToolUse`/`PostToolUseFailure` now carry the Claude-standard tool fields.** The fire sites pass `tool_name`/`tool_input` (and `tool_response` on `PostToolUse`, coerced to a JSON-safe dict by `_tool_response_payload`) as context kwargs. Previously these lived only in `event_data`, so the stdin payload omitted them — tool-name matchers (e.g. `{"matcher": "Bash"}`) silently never matched and hooks reading `tool_input` saw nothing.
+  - **`exit 2` / `decision:"block"` only halts the hook chain for blocking-capable events** (new `BLOCKING_EVENTS` set in `types.py`). A block from a non-blocking event (e.g. `Notification`, `SessionStart`) no longer suppresses the remaining hooks for that event. `continue:false` still halts unconditionally.
+  - **`PreCompact` can block compaction.** `_prepare_history` now checks `extract_block_decision` on the `PreCompact` results and skips the history processors (summarization) when blocked; the hard context-window prune still runs as a safety net.
+  - **Raw stdout becomes `additionalContext` for `SessionStart`/`UserPromptSubmit`.** A command hook emitting unstructured stdout (not the JSON control protocol) has it injected as context, matching Claude; a JSON object is still respected verbatim.
+  - **`PreToolUse` `permissionDecision: "ask"`/`"defer"` honored.** `"ask"` forces the interactive approval prompt (new `PreToolDecision.force_prompt` → `_resolve_approval(force_ask=…)`, overriding tool-policy/permission ALLOW and YOLO while still honoring an explicit DENY); `"defer"` is an explicit no-op. On the execution-time path (no prompt mechanism) `"ask"` degrades to proceed.
+  - **`SessionEnd` gains matcher support and a real `source`.** `CLAUDE_EVENT_MATCHER_FIELDS` maps `SessionEnd` → `source`; the teardown fire passes `source="other"` (the single teardown point can't yet distinguish logout/prompt_input_exit).
+  - **`continue:false` halts the `run_agent` turn loop.** New `extract_continue_decision`; `UserPromptSubmit` ends the turn before the model runs, and `Stop` ends it overriding any block-to-continue/`systemMessage` extension.
+
 ## 2.37.0 (June 19, 2026)
 
 - **Fix: LSP tools now work with pyright and document-open-required servers** (`src/zrb/llm/lsp/server.py`, `manager/query_mixin.py`, `manager/symbol_utils.py`):

@@ -8,8 +8,17 @@ from zrb.config.config import CFG
 from zrb.llm.config.config import llm_config
 from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
 from zrb.llm.hook.schema import AgentHookConfig, CommandHookConfig, PromptHookConfig
+from zrb.llm.hook.types import HookEvent
 
 logger = logging.getLogger(__name__)
+
+# Events for which Claude Code injects a command hook's plain stdout into the
+# model context. For these, when a hook emits unstructured text (not the JSON
+# control protocol), we treat that text as additionalContext so a simple
+# `echo "..."` hook behaves the same as in Claude Code.
+_STDOUT_CONTEXT_EVENTS = frozenset(
+    {HookEvent.SESSION_START, HookEvent.USER_PROMPT_SUBMIT}
+)
 
 # Per-value cap for injected CLAUDE_* env vars. The OS rejects an exec whose
 # combined args+environment exceed ARG_MAX (and a single var over MAX_ARG_STRLEN,
@@ -218,6 +227,18 @@ def create_command_hook(
                 except json.JSONDecodeError:
                     # Not JSON, treat as plain output
                     pass
+
+                # Claude-compatible stdout-as-context: for SessionStart /
+                # UserPromptSubmit, unstructured stdout (the hook did not use the
+                # JSON control protocol) is injected as additionalContext. When the
+                # hook DID emit a JSON object we respect it verbatim — it may carry
+                # its own additionalContext or a decision — and do not override.
+                if (
+                    output
+                    and not modifications
+                    and context.event in _STDOUT_CONTEXT_EVENTS
+                ):
+                    modifications = {"additionalContext": output}
 
                 return HookResult(
                     success=True, output=output, modifications=modifications

@@ -107,9 +107,7 @@ async def test_delegate_fires_subagent_start_stop(mock_sub_agent_manager):
             "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
         ) as mock_run_agent:
             mock_run_agent.return_value = ("ok", [])
-            await tool(
-                agent_name="test-agent", deliverable="d", task="t", non_goals=[]
-            )
+            await tool(agent_name="test-agent", deliverable="d", task="t", non_goals=[])
     finally:
         current_hook_manager.reset(token)
 

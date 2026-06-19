@@ -38,7 +38,7 @@ from zrb.llm.hook.schema import (
     HookConfig,
     PromptHookConfig,
 )
-from zrb.llm.hook.types import HookEvent, HookType
+from zrb.llm.hook.types import BLOCKING_EVENTS, HookEvent, HookType
 
 logger = logging.getLogger(__name__)
 
@@ -235,14 +235,24 @@ class HookManager(HookLoaderMixin):
                 # Continue to next hook even if this one failed
                 continue
 
-            # Check for blocking decisions (exit code 2)
+            # Check for blocking decisions (exit code 2). A block only halts the
+            # chain for events that can actually be blocked; for any other event
+            # the block is a no-op signal, so we keep running the remaining hooks
+            # (Claude-compatible — exit 2 is meaningful only where the lifecycle
+            # can be stopped).
             if results[-1].blocked or results[-1].exit_code == 2:
-                logger.info(
-                    f"Hook blocked execution. Stopping further hooks for event {event}."
+                if event in BLOCKING_EVENTS:
+                    logger.info(
+                        f"Hook blocked execution. Stopping further hooks for event {event}."
+                    )
+                    return results
+                logger.debug(
+                    f"Hook returned a block for non-blocking event {event}; "
+                    "ignoring block and continuing remaining hooks."
                 )
-                return results
 
-            # Check for continue=false
+            # Check for continue=false (an explicit "stop all processing" request,
+            # honored for every event regardless of whether it can be blocked).
             if not results[-1].continue_execution:
                 logger.info(f"Hook requested stop of all processing for event {event}.")
                 return results

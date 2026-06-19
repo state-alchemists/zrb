@@ -150,3 +150,65 @@
     command: 'echo "[COMPACT] Compacting conversation"'
     shell: true
   enabled: true
+
+# Example 13: PreToolUse — Force the approval prompt (permissionDecision: ask).
+# "ask" overrides a tool-policy/YOLO auto-approve; an explicit DENY still wins.
+- name: ask-before-bash
+  description: Force manual approval for Bash even if it would be auto-approved
+  events:
+    - PreToolUse
+  type: command
+  config:
+    command: |
+      echo '{"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "ask", "permissionDecisionReason": "Manual approval required for Bash"}}'
+    shell: true
+  matchers:
+    - field: tool_name
+      operator: equals
+      value: Bash
+  enabled: false
+
+# Example 14: PreCompact — Block compaction (skip summarization this turn).
+- name: block-compaction
+  description: Preserve full history by blocking compaction
+  events:
+    - PreCompact
+  type: command
+  config:
+    command: |
+      echo '{"decision": "block", "reason": "Preserve full history"}'
+      exit 2
+    shell: true
+  enabled: false
+
+# Example 15: UserPromptSubmit — Halt the whole run with continue=false.
+# Distinct from a block: continue=false stops ALL processing for the run.
+- name: halt-on-stop-keyword
+  description: Halt the run when the prompt is exactly "/stop"
+  events:
+    - UserPromptSubmit
+  type: command
+  config:
+    command: |
+      echo '{"continue": false, "stopReason": "Halted by /stop keyword"}'
+    shell: true
+  matchers:
+    - field: prompt
+      operator: equals
+      value: /stop
+  enabled: false
+
+# Example 16: SessionEnd — matcher on the `source` field (zrb emits "other" today).
+- name: session-end-on-other
+  description: Run only when SessionEnd source matches
+  events:
+    - SessionEnd
+  type: command
+  config:
+    command: 'echo "[Session End] source matched"'
+    shell: true
+  matchers:
+    - field: source
+      operator: equals
+      value: other
+  enabled: false

@@ -526,11 +526,19 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
         # exit, /exit, EOF, or Ctrl+C). Claude Code fires SessionEnd once per
         # session, not per turn — run_agent fires only STOP per turn. Guarded so
         # a misbehaving hook never blocks resource teardown.
+        #
+        # `source` is the Claude-compatible matcher field for SessionEnd. This
+        # single teardown point cannot distinguish the exit cause (normal /
+        # /exit / EOF / Ctrl+C all funnel through the same `finally`) without
+        # threading the reason through the chat loop, so we report the Claude
+        # catch-all "other"; finer values (logout / prompt_input_exit) are a
+        # follow-up. `reason` stays in event_data for the CLAUDE_* env vars.
         if self._active_hook_manager is not None:
             try:
                 await self._active_hook_manager.execute_hooks(
                     HookEvent.SESSION_END,
                     {"reason": "exit"},
+                    source="other",
                 )
             except Exception:
                 CFG.LOGGER.debug("SESSION_END hook raised at teardown", exc_info=True)

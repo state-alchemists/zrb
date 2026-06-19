@@ -7,8 +7,6 @@ from typing import Any, TextIO
 
 from zrb.llm.agent.run.runner import run_agent
 from zrb.llm.agent.run.runtime_state import get_current_hook_manager, get_current_ui
-from zrb.llm.hook.manager import hook_manager as default_hook_manager
-from zrb.llm.hook.types import HookEvent
 
 # Import directly from the inner module to avoid a circular import: the
 # subagent package's __init__ triggers `apply_common_tools`, which loads
@@ -21,6 +19,8 @@ from zrb.llm.agent.subagent.manager.manager import (
     sub_agent_manager as default_sub_agent_manager,
 )
 from zrb.llm.config.limiter import llm_limiter
+from zrb.llm.hook.manager import hook_manager as default_hook_manager
+from zrb.llm.hook.types import HookEvent
 from zrb.llm.tool.ambient_state import get_active_worktree
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 from zrb.llm.ui.std_ui import StdUI

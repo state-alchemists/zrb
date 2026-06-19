@@ -69,6 +69,52 @@ async def test_run_agent_runs_history_processors_before_pruning():
 
 
 @pytest.mark.asyncio
+async def test_run_agent_precompact_block_skips_history_processors():
+    """A PreCompact hook returning decision=block skips summarization (the
+    history processors) for the turn — Claude-compatible blocking PreCompact."""
+    from zrb.llm.agent.common import create_agent
+
+    calls = []
+
+    async def p1(msgs, system_prompt_overhead: int = 0):
+        calls.append("p1")
+        return msgs
+
+    agent = create_agent(
+        model="openai-chat:gpt-4o-mini",
+        system_prompt="test",
+        history_processors=[p1],
+        yolo=True,
+    )
+
+    mock_result = MagicMock()
+    mock_result.output = "AI result"
+    mock_result.all_messages.return_value = []
+
+    async def _gen(*args, **kwargs):
+        yield AgentRunResultEvent(result=mock_result)
+
+    agent.run_stream_events = _stream_from(_gen)
+
+    async def blocking_precompact(ctx):
+        return HookResult.block("preserve everything")
+
+    manager = HookManager(search_dirs=[])
+    manager.register(blocking_precompact, events=[HookEvent.PRE_COMPACT])
+
+    result, _ = await run_agent(
+        agent=agent,
+        message="Hi",
+        message_history=[],
+        limiter=LLMLimiter(),
+        hook_manager=manager,
+    )
+    assert result == "AI result"
+    # The processor never ran because PreCompact blocked compaction.
+    assert calls == []
+
+
+@pytest.mark.asyncio
 async def test_run_agent_passes_system_prompt_overhead_to_processors():
     """run_agent passes system-prompt token count as system_prompt_overhead to each processor."""
     from zrb.llm.agent.common import create_agent

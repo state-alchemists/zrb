@@ -152,5 +152,75 @@
       "shell": true
     },
     "enabled": true
+  },
+
+  {
+    "name": "ask-before-bash",
+    "description": "Force the approval prompt for Bash (permissionDecision: ask) even if a policy/YOLO would auto-approve",
+    "events": ["PreToolUse"],
+    "type": "command",
+    "config": {
+      "command": "echo '{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"permissionDecision\": \"ask\", \"permissionDecisionReason\": \"Manual approval required for Bash\"}}'",
+      "shell": true
+    },
+    "matchers": [
+      {
+        "field": "tool_name",
+        "operator": "equals",
+        "value": "Bash"
+      }
+    ],
+    "enabled": false
+  },
+
+  {
+    "name": "block-compaction",
+    "description": "Block compaction (skip summarization this turn) — preserves full history",
+    "events": ["PreCompact"],
+    "type": "command",
+    "config": {
+      "command": "echo '{\"decision\": \"block\", \"reason\": \"Preserve full history\"}'; exit 2",
+      "shell": true
+    },
+    "enabled": false,
+    "comment": "Disabled by default — blocking compaction can grow the context window"
+  },
+
+  {
+    "name": "halt-on-stop-keyword",
+    "description": "Halt the whole run (continue: false) when the prompt is exactly '/stop'",
+    "events": ["UserPromptSubmit"],
+    "type": "command",
+    "config": {
+      "command": "echo '{\"continue\": false, \"stopReason\": \"Halted by /stop keyword\"}'",
+      "shell": true
+    },
+    "matchers": [
+      {
+        "field": "prompt",
+        "operator": "equals",
+        "value": "/stop"
+      }
+    ],
+    "enabled": false
+  },
+
+  {
+    "name": "session-end-on-other",
+    "description": "SessionEnd matcher on the `source` field (zrb emits source=\"other\" today)",
+    "events": ["SessionEnd"],
+    "type": "command",
+    "config": {
+      "command": "echo '[Session End] source matched'",
+      "shell": true
+    },
+    "matchers": [
+      {
+        "field": "source",
+        "operator": "equals",
+        "value": "other"
+      }
+    ],
+    "enabled": false
   }
 ]

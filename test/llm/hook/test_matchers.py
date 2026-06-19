@@ -84,6 +84,23 @@ async def test_evaluate_matchers_equals(tmp_path):
     )
 
 
+def test_session_end_matcher_field_is_source():
+    """SessionEnd gains Claude-compatible matcher support, filtering on `source`."""
+    from zrb.llm.hook.matcher import CLAUDE_EVENT_MATCHER_FIELDS
+    from zrb.llm.hook.types import HookEvent
+
+    assert CLAUDE_EVENT_MATCHER_FIELDS[HookEvent.SESSION_END] == "source"
+
+
+@pytest.mark.asyncio
+async def test_evaluate_matchers_source_field(tmp_path):
+    """A matcher on the `source` field (used by SessionStart/SessionEnd) selects
+    by the populated source value."""
+    matchers = [{"field": "source", "operator": "equals", "value": "other"}]
+    assert await check_match(tmp_path, matchers, {"source": "other"}) is True
+    assert await check_match(tmp_path, matchers, {"source": "logout"}) is False
+
+
 @pytest.mark.asyncio
 async def test_evaluate_matchers_not_equals(tmp_path):
     # Match

@@ -45,6 +45,23 @@ class HookEvent(str, Enum):
             raise ValueError(f"Unknown hook event: {value}")
 
 
+# Events where an exit-2 / decision="block" result is meaningful and should halt
+# the remaining hooks for that event. For every other event a block is ignored
+# (Claude-compatible: exit 2 is only a blocking signal where the lifecycle can
+# actually be stopped), so the rest of the chain still runs.
+BLOCKING_EVENTS: "frozenset[HookEvent]" = frozenset(
+    {
+        HookEvent.USER_PROMPT_SUBMIT,
+        HookEvent.PRE_COMMAND,
+        HookEvent.PRE_TOOL_USE,
+        HookEvent.POST_TOOL_USE,
+        HookEvent.PERMISSION_REQUEST,
+        HookEvent.STOP,
+        HookEvent.PRE_COMPACT,
+    }
+)
+
+
 class HookType(str, Enum):
     COMMAND = "command"
     PROMPT = "prompt"

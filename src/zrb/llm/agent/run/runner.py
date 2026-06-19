@@ -31,14 +31,15 @@ from zrb.llm.agent.run.deferred_calls import (
 from zrb.llm.agent.run.deferred_calls import (
     rebuild_for_denials,
 )
+from zrb.llm.agent.run.error_classifier import classify_error_type
 from zrb.llm.agent.run.history_utils import sanitize_history
 from zrb.llm.agent.run.hook_result_extractor import (
     extract_additional_context,
     extract_block_decision,
+    extract_continue_decision,
 )
 from zrb.llm.agent.run.openai_patch import patch_openai_model_response_serialization
 from zrb.llm.agent.run.prompt_content import get_prompt_content as _get_prompt_content
-from zrb.llm.agent.run.error_classifier import classify_error_type
 from zrb.llm.agent.run.retry_loop import RetryState, handle_stream_error
 from zrb.llm.agent.run.session_extension import (
     ExtensionState,
@@ -391,8 +392,8 @@ async def _run_startup_hooks(
     )
 
     # Claude-compatible: a UserPromptSubmit hook may block the prompt (exit 2 /
-    # decision="block"). When blocked, the turn ends before the model is called
-    # and the reason is surfaced to the user.
+    # decision="block") or halt all processing (continue=false). Either way the
+    # turn ends before the model is called and the reason is surfaced to the user.
     block = extract_block_decision(user_prompt_results)
     if block.blocked:
         CFG.LOGGER.debug(f"USER_PROMPT_SUBMIT hook blocked the prompt: {block.reason}")
@@ -400,6 +401,14 @@ async def _run_startup_hooks(
             effective_message,
             message_history,
             block.reason or "Prompt blocked by hook",
+        )
+    cont = extract_continue_decision(user_prompt_results)
+    if cont.stop:
+        CFG.LOGGER.debug(f"USER_PROMPT_SUBMIT hook halted the run: {cont.reason}")
+        return (
+            effective_message,
+            message_history,
+            cont.reason or "Stopped by hook (continue=false)",
         )
 
     prompt_context = extract_additional_context(user_prompt_results)
@@ -459,9 +468,21 @@ async def _prepare_history(
             *message_history,
         ]
 
+    # Claude-compatible: a PreCompact hook may block compaction (exit 2 /
+    # decision="block"). When blocked we skip the history processors
+    # (summarization) entirely. The force-prune below is a separate context-window
+    # safety net — it still runs, since an over-limit request cannot be sent to
+    # the model regardless of the hook's preference.
+    precompact_block = extract_block_decision(precompact_results)
+    if precompact_block.blocked:
+        CFG.LOGGER.debug(
+            f"PRE_COMPACT hook blocked compaction: {precompact_block.reason}"
+        )
+
     processed_history = message_history
-    for processor in history_processors:
-        processed_history = await processor(processed_history, reserved_tokens)
+    if not precompact_block.blocked:
+        for processor in history_processors:
+            processed_history = await processor(processed_history, reserved_tokens)
 
     processed_history = ensure_alternating_roles(processed_history)
 

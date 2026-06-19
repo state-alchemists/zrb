@@ -1445,3 +1445,33 @@ parent observes its subagents (Claude semantics). Still **not** emitted:
 `MessageDisplay`, `CwdChanged`, `FileChanged`, `Elicitation*`, `ConfigChange`,
 `Task*`, `TeammateIdle`, `Setup`; and `http`/`mcp_tool` handler types and the
 parallel/most-restrictive-merge execution model remain out of scope.
+
+**Addendum (2.38.0 — contract-gap fixes).** A second gap analysis against the
+overlapping events found cases where the parity above was incomplete. Mostly
+bug fixes (no new architecture); one small design choice:
+- **Tool identity fields.** `PreToolUse`/`PostToolUse`/`PostToolUseFailure` now
+  pass `tool_name`/`tool_input` (and `tool_response` on Post, JSON-coerced) as
+  context kwargs. They previously lived only in `event_data`, so `to_claude_json`
+  omitted them — tool-name matchers silently never matched and stdin reads of
+  `tool_input` were empty. This was the headline gap: the protocol from the first
+  addendum was honored, but the inputs the matcher/hook needed weren't populated.
+- **Selective exit-2 (the one design choice).** A new `BLOCKING_EVENTS` set in
+  `hook/types.py` means `manager.execute_hooks` halts the chain on exit-2 /
+  `decision:"block"` only for blocking-capable events; a block on an observe-only
+  event (e.g. `Notification`) is ignored and the remaining hooks still run.
+  `continue: false` remains an unconditional halt for all events.
+- **`PreCompact` can block compaction** (`runner._prepare_history` checks
+  `extract_block_decision` and skips the history processors); added to
+  `BLOCKING_EVENTS`.
+- **`permissionDecision: "ask"`/`"defer"`** honored (`PreToolDecision.force_prompt`
+  → `_resolve_approval(force_ask=…)`, overriding tool-policy/permission ALLOW and
+  YOLO but not an explicit DENY; `"ask"` degrades to proceed on the execution-time
+  path that has no prompt).
+- **`continue: false` halts the `run_agent` turn loop** (new
+  `extract_continue_decision`): ends the turn on `UserPromptSubmit`/`Stop`.
+- **Stdout-as-context** for `SessionStart`/`UserPromptSubmit`: a command hook's
+  unstructured stdout is injected as `additionalContext` (Claude behavior).
+- **`SessionEnd` matcher support**: `CLAUDE_EVENT_MATCHER_FIELDS[SESSION_END] =
+  "source"`; teardown passes `source="other"` (the single teardown point can't yet
+  distinguish `logout`/`prompt_input_exit` — a follow-up). See `docs/changelog.md`
+  (2.38.0) and `docs/advanced-topics/hooks.md` for the user-facing contract.

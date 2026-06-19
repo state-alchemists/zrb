@@ -82,6 +82,8 @@ async def test_process_deferred_requests_approved_by_policy():
     hook_manager.execute_hooks.assert_any_call(
         HookEvent.PRE_TOOL_USE,
         {"tool": "test_tool", "args": {"arg1": "val1"}, "call_id": "call_1"},
+        tool_name="test_tool",
+        tool_input={"arg1": "val1"},
     )
     # PostToolUse no longer fires from the approval path — it fires at execution
     # time in SafeToolsetWrapper.call_tool. So only PRE_TOOL_USE is seen here.
@@ -615,6 +617,43 @@ async def test_noninteractive_other_ask_tool_is_denied():
 
     assert isinstance(result.approvals["call_1"], MockToolDenied)
     tool_handler.handle.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_pretooluse_ask_forces_prompt_over_auto_approve():
+    """A PreToolUse hook returning permissionDecision="ask" forces the interactive
+    prompt even when a tool policy would otherwise auto-approve the call."""
+    ui = MagicMock(spec=UIProtocol)
+    hook_manager = MagicMock(spec=HookManager)
+    ask = HookExecutionResult(success=True, permission_decision="ask")
+    hook_manager.execute_hooks = _route_execute_hooks({HookEvent.PRE_TOOL_USE: [ask]})
+
+    # Tool policy WOULD auto-approve, but the hook's "ask" must override it and
+    # route to the interactive CLI handler.
+    tool_handler = MagicMock(spec=ToolCallHandler)
+    tool_handler.check_policies = AsyncMock(return_value=MockToolApproved("auto"))
+    cli_result = MockToolApproved("user approved")
+    tool_handler.handle = AsyncMock(return_value=cli_result)
+
+    call = MagicMock()
+    call.tool_name = "run_shell_command"
+    call.args = {"cmd": "ls"}
+    call.tool_call_id = "call_1"
+
+    result_output = MagicMock()
+    result_output.calls = [call]
+    result_output.approvals = []
+
+    with (
+        patch("zrb.llm.permission.get_effective_policy", return_value=None),
+        patch("zrb.llm.tool.ask.get_interactive_mode", return_value=True),
+    ):
+        result = await process_deferred_requests(
+            result_output, tool_handler, ui, hook_manager
+        )
+
+    assert result.approvals["call_1"] == cli_result
+    tool_handler.handle.assert_called_once()
 
 
 @pytest.mark.asyncio

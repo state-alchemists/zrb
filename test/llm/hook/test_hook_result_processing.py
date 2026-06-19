@@ -12,6 +12,7 @@ import pytest
 from zrb.llm.agent.run.hook_result_extractor import (
     extract_additional_context,
     extract_block_decision,
+    extract_continue_decision,
     extract_permission_decision,
     extract_post_tool_decision,
     extract_pre_tool_decision,
@@ -149,6 +150,72 @@ class TestExtractPreToolDecision:
     def test_no_decision(self):
         decision = extract_pre_tool_decision([HookExecutionResult(success=True)])
         assert decision.deny is False and decision.allow is False
+
+    def test_ask_forces_prompt(self):
+        results = [HookExecutionResult(success=True, permission_decision="ask")]
+        decision = extract_pre_tool_decision(results)
+        assert decision.force_prompt is True
+        assert decision.deny is False and decision.allow is False
+
+    def test_ask_nested_in_hook_specific_output(self):
+        results = [
+            HookExecutionResult(
+                success=True, hook_specific_output={"permissionDecision": "ask"}
+            )
+        ]
+        assert extract_pre_tool_decision(results).force_prompt is True
+
+    def test_defer_is_no_opinion(self):
+        results = [HookExecutionResult(success=True, permission_decision="defer")]
+        decision = extract_pre_tool_decision(results)
+        assert decision.deny is False
+        assert decision.allow is False
+        assert decision.force_prompt is False
+
+    def test_deny_wins_over_later_ask(self):
+        results = [
+            HookExecutionResult(success=True, permission_decision="deny"),
+            HookExecutionResult(success=True, permission_decision="ask"),
+        ]
+        decision = extract_pre_tool_decision(results)
+        assert decision.deny is True
+        assert decision.force_prompt is False
+
+
+class TestExtractContinueDecision:
+    """Tests for extract_continue_decision (continue=false halts the run)."""
+
+    def test_no_halt_by_default(self):
+        assert (
+            extract_continue_decision([HookExecutionResult(success=True)]).stop is False
+        )
+
+    def test_halt_with_stop_reason(self):
+        results = [
+            HookExecutionResult(
+                success=True,
+                continue_execution=False,
+                data={"stopReason": "policy gate"},
+            )
+        ]
+        decision = extract_continue_decision(results)
+        assert decision.stop is True
+        assert decision.reason == "policy gate"
+
+    def test_halt_default_reason_when_unspecified(self):
+        results = [HookExecutionResult(success=True, continue_execution=False)]
+        decision = extract_continue_decision(results)
+        assert decision.stop is True
+        assert "continue=false" in decision.reason
+
+    def test_first_halt_wins(self):
+        results = [
+            HookExecutionResult(success=True),
+            HookExecutionResult(
+                success=True, continue_execution=False, data={"stopReason": "second"}
+            ),
+        ]
+        assert extract_continue_decision(results).reason == "second"
 
 
 class TestExtractPostToolDecision:

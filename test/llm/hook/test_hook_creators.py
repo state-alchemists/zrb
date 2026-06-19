@@ -25,3 +25,49 @@ async def test_command_hook_timeout_returns_clean_result():
     assert "timed out" in (result.output or "")
     # The bug surfaced as this message via the outer exception handler.
     assert "can't be awaited" not in (result.output or "")
+
+
+@pytest.mark.asyncio
+async def test_command_hook_stdout_becomes_context_for_session_start():
+    """Claude-compatible: a SessionStart hook's plain stdout is injected as
+    additionalContext (so a simple `echo` hook works like in Claude Code)."""
+    hook = create_command_hook(CommandHookConfig(command="echo hello-context"))
+    context = HookContext(event=HookEvent.SESSION_START, event_data={})
+
+    result = await hook(context)
+
+    assert result.success is True
+    assert result.modifications.get("additionalContext") == "hello-context"
+
+
+@pytest.mark.asyncio
+async def test_command_hook_stdout_becomes_context_for_user_prompt_submit():
+    hook = create_command_hook(CommandHookConfig(command="echo extra"))
+    context = HookContext(event=HookEvent.USER_PROMPT_SUBMIT, event_data={})
+
+    result = await hook(context)
+
+    assert result.modifications.get("additionalContext") == "extra"
+
+
+@pytest.mark.asyncio
+async def test_command_hook_stdout_not_context_for_other_events():
+    """Plain stdout is NOT injected for events Claude doesn't treat that way."""
+    hook = create_command_hook(CommandHookConfig(command="echo noise"))
+    context = HookContext(event=HookEvent.NOTIFICATION, event_data={})
+
+    result = await hook(context)
+
+    assert "additionalContext" not in result.modifications
+
+
+@pytest.mark.asyncio
+async def test_command_hook_json_stdout_respected_over_raw_context():
+    """A SessionStart hook emitting a JSON control object keeps it verbatim; the
+    raw-stdout fallback only applies to unstructured output."""
+    hook = create_command_hook(CommandHookConfig(command='echo \'{"foo": "bar"}\''))
+    context = HookContext(event=HookEvent.SESSION_START, event_data={})
+
+    result = await hook(context)
+
+    assert result.modifications == {"foo": "bar"}

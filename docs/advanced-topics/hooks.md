@@ -77,18 +77,18 @@ Hooks can attach to these lifecycle events:
 | Event | Description | Can Block? |
 |-------|-------------|------------|
 | `SessionStart` | Chat session begins. `source` is `startup` (fresh history) or `resume` (continued). Can inject `additionalContext` | No |
-| `SessionEnd` | **Terminal** — fires once when the chat session ends (`/exit`, EOF, Ctrl+C), not per turn. Use `Stop` for per-turn work | No |
-| `UserPromptSubmit` | Before the LLM processes text. Can inject `additionalContext` | **Yes** |
+| `SessionEnd` | **Terminal** — fires once when the chat session ends (`/exit`, EOF, Ctrl+C), not per turn. Use `Stop` for per-turn work. Matches on `source` | No |
+| `UserPromptSubmit` | Before the LLM processes text. Can inject `additionalContext`; can halt the turn (`continue: false`) | **Yes** |
 | `PreCommand` | Before a UI command runs (chat TUI) | **Yes** |
 | `PostCommand` | After a recognized UI command runs | No |
-| `PreToolUse` | Before a tool executes (**every** tool call). Can deny (`permissionDecision: "deny"`), auto-allow, or rewrite args (`updatedInput`) | **Yes** |
+| `PreToolUse` | Before a tool executes (**every** tool call). `permissionDecision` is `deny` (block), `allow` (auto-approve), `ask` (force the approval prompt), or `defer` (no opinion); can also rewrite args (`updatedInput`) | **Yes** |
 | `PostToolUse` | After a tool succeeds. Can block the result (`decision: "block"`) or replace it (`updatedToolOutput`) | **Yes** |
 | `PostToolUseFailure` | After a tool raises | No |
 | `PermissionRequest` | A tool call reaches an interactive approval prompt (fires only when the user is actually asked — not for auto-approved/YOLO/policy-allowed calls). Can auto-resolve via `decision.behavior` (`allow`/`deny`) | No |
 | `Notification` | System notifications. `AskUserQuestion` fires one with `notification_type='elicitation_dialog'` when it blocks for an answer | No |
 | `Stop` | A turn finishes and control returns to the user. The per-turn "done" signal. Can **block-to-continue** (`decision: "block"` + `reason`) to force another turn, and carries the `systemMessage` turn-extension (e.g. journaling) | **Yes** |
 | `StopFailure` | A turn ends on an unrecoverable API error. Observe-only; matches on `error_type` (`rate_limit`, `overloaded`, `server_error`, `context_length`, `authentication_failed`, `invalid_request`, `model_not_found`, `unknown`) | No |
-| `PreCompact` | Before history summarization (`trigger: "auto"`). Can inject `additionalContext` | No |
+| `PreCompact` | Before history summarization (`trigger: "auto"`). Can inject `additionalContext`; can **block** compaction (`decision: "block"` / exit 2) to skip summarization for the turn | **Yes** |
 | `PostCompact` | After history summarization completes (`trigger: "auto"`). Can inject `additionalContext` | No |
 | `SubagentStart` | A sub-agent (delegation) begins. Matches on `agent_type` (the delegated agent's name); also carries `agent_id` | No |
 | `SubagentStop` | A sub-agent finishes (success or error). Same `agent_type`/`agent_id` as its `SubagentStart` | No |
@@ -205,12 +205,20 @@ Execute shell commands or scripts.
 works with both styles of Claude-Code hook. The `CLAUDE_*` [environment
 variables](#environment-variables) are set, and the full Claude-Code event payload
 is also written to the command's **stdin** as JSON (`hook_event_name`, `session_id`,
-`cwd`, `tool_name`, …). Stdin-driven hooks read it like:
+`cwd`, …). Tool events carry `tool_name` and `tool_input` (and `tool_response`
+on `PostToolUse`), so both stdin reads and `tool_name` matchers work. Stdin-driven
+hooks read it like:
 
 ```bash
 event=$(cat)                                    # read the JSON payload from stdin
 name=$(echo "$event" | jq -r .hook_event_name)  # e.g. "Stop"
 ```
+
+**Output: stdout.** A command hook controls behavior by printing a JSON object
+on stdout (`{"decision": ...}`, `{"permissionDecision": ...}`, etc.). For
+`SessionStart` and `UserPromptSubmit`, **plain (non-JSON) stdout is injected as
+`additionalContext`** — so a simple `echo "Current branch: $(git branch --show-current)"`
+hook adds that line to the model's context, matching Claude Code.
 
 ### 2. Prompt Hooks
 
@@ -395,6 +403,26 @@ echo '{"decision": "block", "reason": "Dangerous operation blocked"}'
 exit 2
 ```
 
+Exit 2 (and `decision: "block"`) is honored only for the **blocking-capable**
+events — those marked **Yes** in the [lifecycle table](#lifecycle-events)
+(`UserPromptSubmit`, `PreCommand`, `PreToolUse`, `PostToolUse`,
+`PermissionRequest`, `Stop`, `PreCompact`). On an observe-only event (e.g.
+`Notification`, `SessionStart`, `SubagentStop`) a block is ignored and the
+remaining hooks for that event still run.
+
+### Halting the run (`continue: false`)
+
+Distinct from a per-event block, `continue: false` is an unconditional request
+to stop all processing. Return it (with an optional `stopReason`) to end the run
+regardless of event:
+
+```bash
+echo '{"continue": false, "stopReason": "Quota exhausted"}'
+```
+
+On `UserPromptSubmit` the turn ends before the model runs; on `Stop` it ends the
+turn, overriding any block-to-continue or `systemMessage` extension.
+
 ### JSON Output
 
 Output JSON with `"decision": "block"`:
@@ -406,13 +434,21 @@ Output JSON with `"decision": "block"`:
 }
 ```
 
-### Blocking Decisions
+### `PreToolUse` permission decisions
 
-| Decision | Description |
-|----------|-------------|
-| `block` | Stop execution, show reason to user |
-| `ask` | Prompt user for approval |
-| `allow` | Continue execution (implicit) |
+`PreToolUse` hooks control a tool call via `permissionDecision` (top-level or
+nested under `hookSpecificOutput`):
+
+| `permissionDecision` | Description |
+|----------------------|-------------|
+| `deny` | Block the call; show `permissionDecisionReason` to the model |
+| `allow` | Auto-approve; skip the approval prompt entirely |
+| `ask` | Force the interactive approval prompt, overriding any tool-policy/permission ALLOW or YOLO auto-approve (an explicit DENY still wins) |
+| `defer` | No opinion — let the normal approval flow decide |
+
+> `ask` forces the prompt only on the deferred-approval path (tools that go
+> through the approval cascade). On the direct execution-time path there is no
+> prompt to show, so `ask` degrades to proceed.
 
 ### Permission / Approval Hook Example
 
@@ -422,12 +458,12 @@ Output JSON with `"decision": "block"`:
   "events": ["PreToolUse"],
   "type": "command",
   "config": {
-    "command": "echo '{\"decision\": \"ask\", \"reason\": \"Requires manual approval\"}'"
+    "command": "echo '{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"permissionDecision\": \"ask\", \"permissionDecisionReason\": \"Requires manual approval\"}}'"
   }
 }
 ```
 
-This hook triggers before every tool call, asking for user approval. The `block`, `ask`, and `allow` decisions above work with any `PreToolUse` hook.
+This hook triggers before every tool call, forcing user approval.
 
 ---
 
@@ -665,21 +701,21 @@ Example hook configurations are in the `llm-hooks` example:
 | Event | When It Fires | Can Block? | Special |
 |-------|---------------|------------|---------|
 | `SessionStart` | Chat session begins | No | Can inject `additionalContext`; `source` startup/resume |
-| `UserPromptSubmit` | Before LLM processes text | Yes | Can inject `additionalContext`; matches on the `prompt` field |
+| `UserPromptSubmit` | Before LLM processes text | Yes | Can inject `additionalContext`; matches on the `prompt` field; `continue:false` halts the turn |
 | `PreCommand` | Before command processing | Yes | Blocks the command; rewrite the argument by returning `command_args` |
 | `PostCommand` | After command completes | No | `command_handled` field |
-| `PreToolUse` | Before every tool execution | Yes | `updatedInput` rewrites args; `permissionDecision` allow/deny + reason |
+| `PreToolUse` | Before every tool execution | Yes | `updatedInput` rewrites args; `permissionDecision` allow/deny/ask/defer + reason |
 | `PostToolUse` | After tool success | Yes | `updatedToolOutput` replaces the result |
 | `PostToolUseFailure` | After tool failure | No | `error` context field |
 | `PermissionRequest` | LLM requests auto-permission | Yes | Resolve via `hookSpecificOutput.decision.behavior` |
 | `Notification` | LLM sends notification to UI | No | `message`, `title`, `notification_type` |
-| `Stop` | Turn finishes (per-turn signal) | Yes | Block-to-continue; `systemMessage` turn-extension; `replaceResponse` |
+| `Stop` | Turn finishes (per-turn signal) | Yes | Block-to-continue; `systemMessage` turn-extension; `replaceResponse`; `continue:false` ends the turn |
 | `StopFailure` | Turn ends on an unrecoverable API error | No | observe-only; `error_type` matcher |
-| `PreCompact` | Before conversation compact | No | Can inject `additionalContext`; `trigger` matcher |
+| `PreCompact` | Before conversation compact | Yes | Can inject `additionalContext`; can block compaction; `trigger` matcher |
 | `PostCompact` | After conversation compact | No | Can inject `additionalContext`; `trigger` matcher |
 | `SubagentStart` | A delegated sub-agent begins | No | observe-only; `agent_type`/`agent_id` |
 | `SubagentStop` | A delegated sub-agent finishes | No | observe-only; `agent_type`/`agent_id` |
-| `SessionEnd` | Chat session ends (terminal, once) | No | `reason` context field |
+| `SessionEnd` | Chat session ends (terminal, once) | No | `reason` context field; matches on `source` |
 
 | Matcher Operator | Description |
 |------------------|-------------|
@@ -698,8 +734,10 @@ Example hook configurations are in the `llm-hooks` example:
 | `HookResult(success=True, modifications={"systemMessage": msg, "replaceResponse": True})` | (Stop) Extend turn, extended response returned |
 | `HookResult.block(reason)` | Block execution (exit code 2); on `Stop`, continue the turn with `reason` |
 | `HookResult.block(reason, additional_context=...)` | Block with additional context |
+| `HookResult(success=True, modifications={"continue": False, "stopReason": "..."})` | Halt the whole run (any event); ends the turn on `UserPromptSubmit`/`Stop` |
 | `HookResult(success=True, modifications={"permissionDecision": "allow", ...})` | (PreToolUse) Allow tool execution |
 | `HookResult(success=True, modifications={"permissionDecision": "deny", "permissionDecisionReason": "..."})` | (PreToolUse) Deny tool execution with reason |
+| `HookResult(success=True, modifications={"permissionDecision": "ask"})` | (PreToolUse) Force the approval prompt; `"defer"` = no opinion |
 | `HookResult(success=True, modifications={"updatedInput": {...}})` | (PreToolUse) Rewrite tool arguments |
 | `HookResult(success=True, modifications={"command_args": "..."})` | (PreCommand) Rewrite command arguments |
 | `HookResult(success=True, modifications={"hookSpecificOutput": {"additionalContext": "..."}})` | (SessionStart/UserPromptSubmit/PreCompact) Inject additional context |
