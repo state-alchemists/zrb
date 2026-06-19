@@ -848,6 +848,31 @@ async def test_session_start_source_startup_vs_resume():
 
 
 @pytest.mark.asyncio
+async def test_user_prompt_submit_populates_prompt_field():
+    """UserPromptSubmit must populate context.prompt so matchers (mapped to the
+    `prompt` field) and the CLAUDE_PROMPT env var see the submitted text."""
+    captured: dict = {}
+
+    async def rec(context: HookContext) -> HookResult:
+        if context.event == HookEvent.USER_PROMPT_SUBMIT:
+            captured["prompt"] = context.prompt
+        return HookResult()
+
+    manager = HookManager(search_dirs=[])
+    manager.register(rec, events=[HookEvent.USER_PROMPT_SUBMIT])
+
+    await run_agent(
+        agent=_single_turn_agent(),
+        message="hello world",
+        message_history=[],
+        limiter=LLMLimiter(),
+        hook_manager=manager,
+    )
+
+    assert captured.get("prompt") == "hello world"
+
+
+@pytest.mark.asyncio
 async def test_pre_compact_trigger_and_additional_context():
     """PRE_COMPACT fires with trigger=auto and its additionalContext is injected
     ahead of summarization."""
@@ -873,6 +898,69 @@ async def test_pre_compact_trigger_and_additional_context():
     )
 
     assert captured.get("trigger") == "auto"
+
+
+@pytest.mark.asyncio
+async def test_post_compact_fires_after_processing():
+    """POST_COMPACT fires (mirror of PreCompact) with trigger=auto once history
+    processing has run."""
+    captured: dict = {}
+
+    async def rec(context: HookContext) -> HookResult:
+        if context.event == HookEvent.POST_COMPACT:
+            captured["trigger"] = context.trigger
+            captured["fired"] = True
+        return HookResult()
+
+    manager = HookManager(search_dirs=[])
+    manager.register(rec, events=[HookEvent.POST_COMPACT])
+
+    await run_agent(
+        agent=_single_turn_agent(),
+        message="hi",
+        message_history=[],
+        limiter=LLMLimiter(),
+        hook_manager=manager,
+    )
+
+    assert captured.get("fired") is True
+    assert captured.get("trigger") == "auto"
+
+
+@pytest.mark.asyncio
+async def test_stop_failure_fires_on_unrecoverable_error():
+    """When a turn ends on an unrecoverable error, STOP_FAILURE fires with a
+    classified error_type and the original exception still propagates."""
+    captured: dict = {}
+
+    async def rec(context: HookContext) -> HookResult:
+        if context.event == HookEvent.STOP_FAILURE:
+            captured["error_type"] = context.error_type
+            captured["error"] = context.error
+        return HookResult()
+
+    manager = HookManager(search_dirs=[])
+    manager.register(rec, events=[HookEvent.STOP_FAILURE])
+
+    agent = MagicMock()
+
+    async def _gen(*args, **kwargs):
+        raise ValueError("bad request")
+        yield  # pragma: no cover — marks this a generator
+
+    agent.run_stream_events = _stream_from(_gen)
+
+    with pytest.raises(ValueError):
+        await run_agent(
+            agent=agent,
+            message="hi",
+            message_history=[],
+            limiter=LLMLimiter(),
+            hook_manager=manager,
+        )
+
+    assert captured.get("error_type") == "unknown"
+    assert "bad request" in (captured.get("error") or "")
 
 
 @pytest.mark.asyncio

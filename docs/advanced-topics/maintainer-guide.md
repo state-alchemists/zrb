@@ -265,8 +265,9 @@ Holds the active `Context` for the currently executing task. Set at the start of
 | `current_tool_confirmation` | `AnyToolConfirmation` | Tool approval policy |
 | `current_yolo` | `bool` | Auto-approve all tool calls |
 | `current_approval_channel` | `ApprovalChannel \| None` | Remote approval handler |
+| `current_hook_manager` | `HookManager \| None` | Hook manager for the run; nested tools (e.g. delegate) fire SubagentStart/Stop on it |
 
-All four are set at the start of `run_agent()` and reset in its `finally` block.
+All five are set at the start of `run_agent()` and reset in its `finally` block.
 
 **Layer 3 — Permission state** (`src/zrb/llm/permission/state.py`):
 

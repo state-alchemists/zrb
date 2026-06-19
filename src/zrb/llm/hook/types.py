@@ -20,8 +20,15 @@ class HookEvent(str, Enum):
     PERMISSION_REQUEST = "PermissionRequest"
     NOTIFICATION = "Notification"
     STOP = "Stop"
+    # Fired when a turn ends on an unrecoverable API error (observe-only).
+    STOP_FAILURE = "StopFailure"
     PRE_COMPACT = "PreCompact"
+    # Fired after history summarization completes (mirror of PreCompact).
+    POST_COMPACT = "PostCompact"
     SESSION_END = "SessionEnd"
+    # Fired around sub-agent delegation, on the parent run's hook manager.
+    SUBAGENT_START = "SubagentStart"
+    SUBAGENT_STOP = "SubagentStop"
 
     # Claude Code compatibility mapping
     @classmethod

@@ -38,6 +38,7 @@ from zrb.llm.agent.run.hook_result_extractor import (
 )
 from zrb.llm.agent.run.openai_patch import patch_openai_model_response_serialization
 from zrb.llm.agent.run.prompt_content import get_prompt_content as _get_prompt_content
+from zrb.llm.agent.run.error_classifier import classify_error_type
 from zrb.llm.agent.run.retry_loop import RetryState, handle_stream_error
 from zrb.llm.agent.run.session_extension import (
     ExtensionState,
@@ -84,6 +85,11 @@ current_tool_confirmation: ContextVar[AnyToolConfirmation] = ContextVar(
     "current_tool_confirmation", default=None
 )
 current_yolo: ContextVar[bool] = ContextVar("current_yolo", default=False)
+# The hook manager active for the current run. Read by nested tools (e.g. the
+# delegate tool fires SubagentStart/Stop on the parent run's manager).
+current_hook_manager: ContextVar[HookManager | None] = ContextVar(
+    "current_hook_manager", default=None
+)
 
 # Process-wide guard: the OpenAI serialization patch is global and idempotent,
 # so it only needs to run once per process. The check-then-set is safe under
@@ -159,6 +165,7 @@ async def run_agent(
         _bind_contextvar(stack, current_ui, effective_ui)
         _bind_contextvar(stack, current_tool_confirmation, effective_tool_confirmation)
         _bind_contextvar(stack, current_yolo, effective_yolo)
+        _bind_contextvar(stack, current_hook_manager, effective_hook_manager)
         _bind_contextvar(stack, current_approval_channel, effective_approval_channel)
         _bind_contextvar(stack, current_permission_policy, effective_policy)
         _bind_contextvar(stack, current_sandbox_policy, effective_sandbox)
@@ -377,6 +384,10 @@ async def _run_startup_hooks(
             "expanded_message": effective_message,
             "attachments": attachments,
         },
+        # Populate the `prompt` context field so UserPromptSubmit matchers (which
+        # map to `prompt`), the CLAUDE_PROMPT env var, and the stdin payload all
+        # see the submitted text — Claude-compatible.
+        prompt=effective_message if effective_message is not None else message,
     )
 
     # Claude-compatible: a UserPromptSubmit hook may block the prompt (exit 2 /
@@ -453,6 +464,35 @@ async def _prepare_history(
         processed_history = await processor(processed_history, reserved_tokens)
 
     processed_history = ensure_alternating_roles(processed_history)
+
+    # PostCompact mirrors PreCompact, firing once the history processors have run.
+    # A hook may inject additionalContext (prepended to the processed history) the
+    # same way PreCompact does. Token count is reused from the pre-pass when no
+    # processors ran (they're the only thing that changes the content).
+    post_process_tokens = (
+        limiter.count_tokens(processed_history)
+        if history_processors
+        else pre_process_tokens
+    )
+    postcompact_results = await effective_hook_manager.execute_hooks(
+        HookEvent.POST_COMPACT,
+        {
+            "history": processed_history,
+            "token_count": post_process_tokens,
+            "message_count": len(processed_history),
+            "has_history_processors": bool(history_processors),
+        },
+        trigger="auto",
+    )
+    postcompact_context = extract_additional_context(postcompact_results)
+    if postcompact_context:
+        # lazy: heavy third-party
+        from pydantic_ai.messages import ModelRequest, SystemPromptPart
+
+        processed_history = [
+            ModelRequest(parts=[SystemPromptPart(content=postcompact_context)]),
+            *processed_history,
+        ]
 
     effective_limit = max(0, limiter.max_token_per_request - reserved_tokens)
     # Reuse the token count from the hook when no processors ran — they are the only
@@ -661,6 +701,18 @@ async def _execution_loop(
                     min_turns=1 if current_results is not None else 0,
                 )
                 if not outcome.should_retry:
+                    # StopFailure: the turn is ending on an unrecoverable API
+                    # error. Observe-only; guarded so a hook can never mask the
+                    # original exception.
+                    try:
+                        await effective_hook_manager.execute_hooks(
+                            HookEvent.STOP_FAILURE,
+                            {"error": str(stream_error), "history": run_history},
+                            error=str(stream_error),
+                            error_type=classify_error_type(stream_error),
+                        )
+                    except Exception:
+                        CFG.LOGGER.debug("StopFailure hook raised", exc_info=True)
                     raise stream_error
                 current_history = outcome.new_history
                 current_message = outcome.new_message

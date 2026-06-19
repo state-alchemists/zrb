@@ -1434,3 +1434,14 @@ STOP extension, PreCompact/SessionStart fields); `src/zrb/llm/hook/journal.py`
 `test/llm/agent/test_common.py`, `test/llm/agent/run/test_deferred_calls.py`,
 `test/llm/agent/run/test_runner.py`, `test/llm/hook/test_hook_result_processing.py`,
 `test/llm/task/chat/test_llm_chat_task.py`.
+
+**Addendum (2.38.0).** Four more Claude events were added — no new decision, the
+same fire-and-observe pattern: `PostCompact` (mirror of `PreCompact`),
+`StopFailure` (unrecoverable API error, with a `classify_error_type` token),
+and `SubagentStart`/`SubagentStop` around delegation. The subagent pair fires on
+the parent run's hook manager via a new `current_hook_manager` ContextVar so the
+parent observes its subagents (Claude semantics). Still **not** emitted:
+`PermissionDenied`, `InstructionsLoaded`, `UserPromptExpansion`, `PostToolBatch`,
+`MessageDisplay`, `CwdChanged`, `FileChanged`, `Elicitation*`, `ConfigChange`,
+`Task*`, `TeammateIdle`, `Setup`; and `http`/`mcp_tool` handler types and the
+parallel/most-restrictive-merge execution model remain out of scope.

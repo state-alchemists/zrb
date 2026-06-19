@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import uuid
 from dataclasses import dataclass
 from typing import Any, TextIO
 
 from zrb.llm.agent.run.runner import run_agent
-from zrb.llm.agent.run.runtime_state import get_current_ui
+from zrb.llm.agent.run.runtime_state import get_current_hook_manager, get_current_ui
+from zrb.llm.hook.manager import hook_manager as default_hook_manager
+from zrb.llm.hook.types import HookEvent
 
 # Import directly from the inner module to avoid a circular import: the
 # subagent package's __init__ triggers `apply_common_tools`, which loads
@@ -201,6 +204,10 @@ async def _run_agent_task(
 
     full_message = _format_envelope(deliverable, non_goals, task, additional_context)
 
+    # SubagentStart/Stop fire on the parent run's hook manager (Claude semantics:
+    # the parent observes its subagents). agent_type is the delegated agent's name.
+    agent_id = uuid.uuid4().hex[:8]
+    await _fire_subagent_hook(HookEvent.SUBAGENT_START, agent_name, agent_id)
     try:
         result, _ = await run_agent(
             agent=sub_agent,
@@ -225,6 +232,23 @@ async def _run_agent_task(
         )
     except Exception as e:  # noqa: BLE001
         return AgentTaskResult(agent_name, None, str(e))
+    finally:
+        await _fire_subagent_hook(HookEvent.SUBAGENT_STOP, agent_name, agent_id)
+
+
+async def _fire_subagent_hook(event: HookEvent, agent_name: str, agent_id: str) -> None:
+    """Fire SubagentStart/Stop (observe-only) on the parent run's hook manager,
+    falling back to the module singleton. Never raises."""
+    manager = get_current_hook_manager() or default_hook_manager
+    try:
+        await manager.execute_hooks(
+            event,
+            {"agent_type": agent_name, "agent_id": agent_id},
+            agent_type=agent_name,
+            agent_id=agent_id,
+        )
+    except Exception:
+        pass
 
 
 def _delegatable_agents(sub_agent_manager: SubAgentManager) -> list:

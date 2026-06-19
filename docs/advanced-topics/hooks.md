@@ -87,7 +87,11 @@ Hooks can attach to these lifecycle events:
 | `PermissionRequest` | A tool call reaches an interactive approval prompt (fires only when the user is actually asked — not for auto-approved/YOLO/policy-allowed calls). Can auto-resolve via `decision.behavior` (`allow`/`deny`) | No |
 | `Notification` | System notifications. `AskUserQuestion` fires one with `notification_type='elicitation_dialog'` when it blocks for an answer | No |
 | `Stop` | A turn finishes and control returns to the user. The per-turn "done" signal. Can **block-to-continue** (`decision: "block"` + `reason`) to force another turn, and carries the `systemMessage` turn-extension (e.g. journaling) | **Yes** |
+| `StopFailure` | A turn ends on an unrecoverable API error. Observe-only; matches on `error_type` (`rate_limit`, `overloaded`, `server_error`, `context_length`, `authentication_failed`, `invalid_request`, `model_not_found`, `unknown`) | No |
 | `PreCompact` | Before history summarization (`trigger: "auto"`). Can inject `additionalContext` | No |
+| `PostCompact` | After history summarization completes (`trigger: "auto"`). Can inject `additionalContext` | No |
+| `SubagentStart` | A sub-agent (delegation) begins. Matches on `agent_type` (the delegated agent's name); also carries `agent_id` | No |
+| `SubagentStop` | A sub-agent finishes (success or error). Same `agent_type`/`agent_id` as its `SubagentStart` | No |
 
 `PreCommand` / `PostCommand` fire in the interactive chat TUI when the user
 runs a built-in or custom command (any configured token — `/save`, `/exit`, a
@@ -660,9 +664,9 @@ Example hook configurations are in the `llm-hooks` example:
 
 | Event | When It Fires | Can Block? | Special |
 |-------|---------------|------------|---------|
-| `SessionStart` | Chat session begins | No | Can inject `additionalContext`; `source` startup/resume; `model` |
-| `UserPromptSubmit` | Before LLM processes text | Yes | Can inject `additionalContext`; `prompt` field |
-| `PreCommand` | Before command processing | No | `command_args` rewriting via `updatedInput` |
+| `SessionStart` | Chat session begins | No | Can inject `additionalContext`; `source` startup/resume |
+| `UserPromptSubmit` | Before LLM processes text | Yes | Can inject `additionalContext`; matches on the `prompt` field |
+| `PreCommand` | Before command processing | Yes | Blocks the command; rewrite the argument by returning `command_args` |
 | `PostCommand` | After command completes | No | `command_handled` field |
 | `PreToolUse` | Before every tool execution | Yes | `updatedInput` rewrites args; `permissionDecision` allow/deny + reason |
 | `PostToolUse` | After tool success | Yes | `updatedToolOutput` replaces the result |
@@ -670,7 +674,11 @@ Example hook configurations are in the `llm-hooks` example:
 | `PermissionRequest` | LLM requests auto-permission | Yes | Resolve via `hookSpecificOutput.decision.behavior` |
 | `Notification` | LLM sends notification to UI | No | `message`, `title`, `notification_type` |
 | `Stop` | Turn finishes (per-turn signal) | Yes | Block-to-continue; `systemMessage` turn-extension; `replaceResponse` |
-| `PreCompact` | Before conversation compact | No | Can inject `additionalContext`; `trigger` auto/manual |
+| `StopFailure` | Turn ends on an unrecoverable API error | No | observe-only; `error_type` matcher |
+| `PreCompact` | Before conversation compact | No | Can inject `additionalContext`; `trigger` matcher |
+| `PostCompact` | After conversation compact | No | Can inject `additionalContext`; `trigger` matcher |
+| `SubagentStart` | A delegated sub-agent begins | No | observe-only; `agent_type`/`agent_id` |
+| `SubagentStop` | A delegated sub-agent finishes | No | observe-only; `agent_type`/`agent_id` |
 | `SessionEnd` | Chat session ends (terminal, once) | No | `reason` context field |
 
 | Matcher Operator | Description |

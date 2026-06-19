@@ -1,5 +1,15 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.38.0 (June 19, 2026)
+
+- **Feature: four more Claude-Code hook events** (`src/zrb/llm/hook/types.py`, `agent/run/runner.py`, `agent/run/error_classifier.py`, `tool/delegate.py`, ADR-0074):
+  - **`PostCompact`** — fires after history summarization in `_prepare_history` (mirror of `PreCompact`), with `trigger="auto"`; honors `additionalContext`.
+  - **`StopFailure`** — fires when a turn ends on an unrecoverable API error (before the exception propagates), observe-only. New `classify_error_type()` maps the exception to an `error_type` matcher token (`rate_limit`, `overloaded`, `server_error`, `context_length`, `authentication_failed`, `invalid_request`, `model_not_found`, `unknown`); new `HookContext.error_type` field.
+  - **`SubagentStart` / `SubagentStop`** — fire around sub-agent delegation in `delegate.py::_run_agent_task` (both single and parallel paths; Stop fires in a `finally`), with `agent_type` (the delegated agent's name) and a shared `agent_id`. They fire on the **parent run's** hook manager via a new `current_hook_manager` ContextVar (set in `run_agent`, exposed by `runtime_state.get_current_hook_manager`, registered in `src/zrb/contextvars.py`), falling back to the module singleton.
+  - Matcher fields added (`CLAUDE_EVENT_MATCHER_FIELDS`): `SubagentStart`/`SubagentStop` → `agent_type`, `StopFailure` → `error_type`, `PreCompact`/`PostCompact` → `trigger`. Claude `settings.json` configs using these events now register instead of being skipped as unknown.
+
+- **Fix: `UserPromptSubmit` populates the `prompt` field** (`agent/run/runner.py`): the fire now passes `prompt=`, so UserPromptSubmit matchers (mapped to `prompt`), the `CLAUDE_PROMPT` env var, and the stdin payload see the submitted text — previously `None`.
+
 ## 2.37.0 (June 19, 2026)
 
 - **Fix: LSP tools now work with pyright and document-open-required servers** (`src/zrb/llm/lsp/server.py`, `manager/query_mixin.py`, `manager/symbol_utils.py`):

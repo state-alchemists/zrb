@@ -28,7 +28,8 @@ class HookContext:
     tool_input: dict[str, Any] | None = None
     tool_response: dict[str, Any] | None = None
     tool_use_id: str | None = None
-    error: str | None = None  # PostToolUseFailure
+    error: str | None = None  # PostToolUseFailure, StopFailure
+    error_type: str | None = None  # StopFailure — classified category token
     is_interrupt: bool | None = None
     message: str | None = None  # Notification
     title: str | None = None
@@ -60,6 +61,7 @@ class HookContext:
         "tool_response",
         "tool_use_id",
         "error",
+        "error_type",
         "is_interrupt",
         "message",
         "title",

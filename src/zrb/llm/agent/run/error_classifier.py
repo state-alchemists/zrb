@@ -91,6 +91,38 @@ def is_retryable_error(e: Exception) -> bool:
     )
 
 
+def classify_error_type(e: Exception) -> str:
+    """Classify an exception into a coarse category token for StopFailure.
+
+    Mirrors Claude Code's StopFailure error-type matcher values where they map
+    cleanly onto provider errors. Best-effort — falls back to "unknown".
+    """
+    status_code = getattr(e, "status_code", None)
+    if status_code is None:
+        response = getattr(e, "response", None)
+        status_code = getattr(response, "status_code", None)
+    msg = str(e).lower()
+    if is_prompt_too_long_error(e):
+        return "context_length"
+    if status_code == 429:
+        return "rate_limit"
+    if status_code in (401, 403):
+        return "authentication_failed"
+    if status_code == 404:
+        return "model_not_found"
+    if status_code == 400:
+        return "invalid_request"
+    if status_code is not None and status_code >= 500:
+        if status_code == 529 or "overloaded" in msg:
+            return "overloaded"
+        return "server_error"
+    if "overloaded" in msg or "529" in msg:
+        return "overloaded"
+    if "rate limit" in msg or "rate_limit" in msg:
+        return "rate_limit"
+    return "unknown"
+
+
 def get_retry_wait(e: Exception, attempt: int, max_wait: float) -> float:
     """Exponential backoff, honoring Retry-After header when present."""
     response = getattr(e, "response", None)
