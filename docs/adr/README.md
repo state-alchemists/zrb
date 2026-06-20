@@ -115,3 +115,4 @@ deleting it — the history is the point.
 - **ADR-0072** — Bounded `wait=`/`kill=` on background result-collection tools (refines ADR-0054)
 - **ADR-0073** — Boolean config naming: verb-first for standalone toggles, `<namespace>_ENABLED` for namespace master-switches
 - **ADR-0074** — Hook capability parity with Claude Code: tool gates via the single `call_tool` chokepoint, `Stop` block-to-continue + turn-extension, terminal `SessionEnd` (refines ADR-0047, ADR-0066)
+- **ADR-0075** — Shift+Tab mode cycle (normal → auto-accept-edits → plan), reusing plan mode + selective yolo with a persistent status-bar badge (refines ADR-0051, ADR-0055)

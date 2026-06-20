@@ -24,6 +24,22 @@ if TYPE_CHECKING:
     from zrb.llm.task.llm_task import LLMTask
 
 
+# Ordered modes cycled by Shift+Tab (mirrors Claude Code: normal → auto-accept
+# edits → plan → normal). Each maps onto zrb's two orthogonal stores — plan mode
+# (the AgentModeState ContextVar) and yolo (xcom) — which the cycle keeps
+# mutually exclusive so a single keystroke always lands on a well-defined state.
+# Auto-accept-edits reuses selective yolo over the LLM-visible edit-tool names
+# (`write_file.__name__ == "Write"`, `replace_in_file.__name__ == "Edit"`), so it
+# auto-approves file writes while every other tool still prompts. See ADR-0075.
+_AUTO_EDIT_TOOLS = frozenset({"Write", "Edit"})
+_MODE_CYCLE = ("normal", "accept_edits", "plan")
+_MODE_BANNERS = {
+    "normal": "🛠️  NORMAL MODE: tool approvals on",
+    "accept_edits": "✏️  AUTO-ACCEPT EDITS: Write/Edit auto-approved, other tools ask",
+    "plan": "📋 PLAN MODE: read-only discovery",
+}
+
+
 class ModelCommandsMixin:
     """YOLO / PLAN / model-switch slash commands for BaseUI."""
 
@@ -98,6 +114,52 @@ class ModelCommandsMixin:
                 self.toggle_plan()
                 return True
         return False
+
+    # --- Shift+Tab mode cycle ---------------------------------------------
+
+    def current_cycle_mode(self) -> str:
+        """Name of the mode the UI is in, derived from live state.
+
+        Returns a cycle member (``normal`` / ``accept_edits`` / ``plan``), or an
+        off-cycle label (``yolo`` / ``custom``) when yolo was set outside the
+        Shift+Tab cycle (e.g. ``/yolo`` or ``/yolo Read,Bash`` / Ctrl+Y). Plan
+        mode takes precedence so the label never misreports a read-only run.
+        """
+        if getattr(self, "_plan_mode_active", False):
+            return "plan"
+        yolo = self.yolo
+        if yolo is True:
+            return "yolo"
+        if isinstance(yolo, frozenset) and yolo:
+            return "accept_edits" if yolo == _AUTO_EDIT_TOOLS else "custom"
+        return "normal"
+
+    def cycle_mode(self) -> None:
+        """Advance to the next Shift+Tab mode and refresh the UI.
+
+        Off-cycle states (full or custom yolo) re-enter the cycle at ``normal``
+        so the gesture stays predictable regardless of how yolo was last set.
+        """
+        current = self.current_cycle_mode()
+        if current in _MODE_CYCLE:
+            nxt = _MODE_CYCLE[(_MODE_CYCLE.index(current) + 1) % len(_MODE_CYCLE)]
+        else:
+            nxt = "normal"
+        self._apply_cycle_mode(nxt)
+
+    def _apply_cycle_mode(self, name: str) -> None:
+        # lazy: circular — permission.state transitively imports zrb.llm.ui,
+        # so hoisting this to module level re-enters ui mid-load.
+        from zrb.llm.permission.state import AgentMode, set_current_agent_mode
+
+        is_plan = name == "plan"
+        self._plan_mode_active = is_plan
+        set_current_agent_mode(AgentMode.PLAN if is_plan else AgentMode.BUILD)
+        # Cycle states are mutually exclusive: leaving accept-edits (or any
+        # other state) clears yolo so plan and auto-approve never stack.
+        self.yolo = _AUTO_EDIT_TOOLS if name == "accept_edits" else False
+        self.append_to_output(stylize_faint(f"\n  {_MODE_BANNERS[name]}\n"))
+        self.invalidate_ui()
 
     def _handle_set_model_command(self, text: str) -> bool:
         text = text.strip()

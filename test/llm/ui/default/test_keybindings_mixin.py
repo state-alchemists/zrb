@@ -26,6 +26,7 @@ class MockUI(KeybindingsMixin):
         self.append_to_output = MagicMock(side_effect=lambda x: self.outputs.append(x))
         self.invalidate_ui = MagicMock()
         self.toggle_yolo = MagicMock()
+        self.cycle_mode = MagicMock()
         self._submit_user_message = MagicMock()
         self.schedule_command = MagicMock()
         self.classify_input = MagicMock(return_value="message")
@@ -172,6 +173,12 @@ def test_ctrl_y_binding(mock_ui, setup_bindings):
     event = create_mock_event()
     trigger_binding(setup_bindings, "c-y", event)
     mock_ui.toggle_yolo.assert_called_once()
+
+
+def test_shift_tab_cycles_mode(mock_ui, setup_bindings):
+    event = create_mock_event()
+    trigger_binding(setup_bindings, "s-tab", event)
+    mock_ui.cycle_mode.assert_called_once()
 
 
 def test_ctrl_j_binding(mock_ui, setup_bindings):

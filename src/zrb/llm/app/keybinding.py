@@ -9,7 +9,6 @@ if TYPE_CHECKING:
 def create_output_keybindings(input_field: "TextArea") -> "KeyBindings":
     # lazy: heavy third-party
     from prompt_toolkit.application import get_app
-    from prompt_toolkit.filters import has_completions
     from prompt_toolkit.key_binding import KeyBindings
 
     kb = KeyBindings()
@@ -31,14 +30,9 @@ def create_output_keybindings(input_field: "TextArea") -> "KeyBindings":
     def _(event):
         event.current_buffer.cursor_up(count=event.app.output.get_size().rows - 4)
 
-    # Tab navigation
-    @kb.add("tab", filter=~has_completions)
-    def _(event):
-        event.app.layout.focus_next()
-
-    @kb.add("s-tab", filter=~has_completions)
-    def _(event):
-        event.app.layout.focus_previous()
+    # Focus traversal is handled by F6 (and Escape returns to input). Tab and
+    # Shift+Tab are intentionally not bound here so Shift+Tab can cycle modes at
+    # the app level. See ADR-0075.
 
     # Only redirect printable characters when output field is focused
     # and no text is selected (to allow copying)

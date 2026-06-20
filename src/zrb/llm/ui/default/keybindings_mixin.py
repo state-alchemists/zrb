@@ -51,6 +51,8 @@ class KeybindingsMixin:
 
         def toggle_yolo(self) -> None: ...
 
+        def cycle_mode(self) -> None: ...
+
     def setup_app_keybindings(
         self, app_keybindings: "KeyBindings", llm_task: "AnyTask"
     ):
@@ -64,6 +66,10 @@ class KeybindingsMixin:
             lambda: not getattr(self, "has_active_choice", lambda: False)()
         )
 
+        # F6 toggles focus between the input and output panes. This is the sole
+        # focus-switch binding: the input/output controls' own Tab/Shift+Tab
+        # focus traversal was removed (see app/layout.py, app/keybinding.py) so
+        # Shift+Tab is free to cycle modes (below). See ADR-0075.
         @app_keybindings.add("f6")
         def _(event):
             if event.app.layout.has_focus(self._input_field):
@@ -232,13 +238,19 @@ class KeybindingsMixin:
             self._submit_user_message(llm_task, text)
             buff.reset()
 
-        @app_keybindings.add("c-p")
-        def _(event):
-            self.toggle_plan()
-
         @app_keybindings.add("c-y")
         def _(event):
             self.toggle_yolo()
+
+        # Shift+Tab — cycle normal → accept-edits → plan (plan mode is reachable
+        # here, so there is no Ctrl+P; /plan and /yolo remain for web/MultiUI).
+        # Gated so a completion menu keeps Shift+Tab for previous-completion and a
+        # choice widget keeps its own back-tab navigation.
+        from prompt_toolkit.filters import has_completions
+
+        @app_keybindings.add("s-tab", filter=no_active_choice & ~has_completions)
+        def _(event):
+            self.cycle_mode()
 
         @app_keybindings.add("c-j", filter=no_active_choice)  # Ctrl+J / Ctrl+Enter
         @app_keybindings.add("c-space", filter=no_active_choice)  # Ctrl+Space fallback

@@ -340,10 +340,9 @@ class CommandsMixin(ConversationCommandsMixin, ModelCommandsMixin, ExecCommandsM
         shortcuts: list[tuple[str, str]] = [
             ("Ctrl+J", "Insert a newline (multi-line input)"),
             ("Ctrl+V / Alt+V", "Paste text or image from clipboard"),
-            ("Tab / Shift+Tab", "Move focus between input and output"),
             ("F6", "Toggle focus between input and output"),
+            ("Shift+Tab", "Cycle mode: normal -> accept-edits -> plan"),
             ("Esc", "Cancel running task or clear input"),
-            ("Ctrl+P", "Toggle PLAN mode"),
             ("Ctrl+Y", "Toggle YOLO mode"),
             ("Ctrl+C", "Copy selection, clear input, or exit"),
             ("↑ / ↓", "Navigate input history"),

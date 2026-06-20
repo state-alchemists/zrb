@@ -139,14 +139,9 @@ def create_input_field(
     def _(event):
         event.current_buffer.history_forward()
 
-    # Tab navigation
-    @kb.add("tab", filter=~has_completions)
-    def _(event):
-        event.app.layout.focus_next()
-
-    @kb.add("s-tab", filter=~has_completions)
-    def _(event):
-        event.app.layout.focus_previous()
+    # Focus traversal is handled by F6 at the app level; Tab and Shift+Tab are
+    # intentionally not bound on this control so Shift+Tab can cycle modes. Tab
+    # still drives completion-menu navigation when a menu is open. See ADR-0075.
 
     return text_area
 
