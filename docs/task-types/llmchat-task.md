@@ -184,3 +184,5 @@ chat.set_history_manager(FileHistoryManager(history_dir="./my-history/"))
 ---
 
 > **Tip:** Use `LLMTask` for automated pipelines where you need the LLM as a processing step. Use `LLMChatTask` when you want an interactive assistant that users can converse with.
+
+🔖 [Documentation Home](../../README.md) > [Task Types](./) > LLMChatTask API

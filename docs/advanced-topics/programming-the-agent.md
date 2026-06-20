@@ -1,3 +1,5 @@
+🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > Programming the Agent
+
 # Programming the Agent
 
 `zrb llm chat` is a turnkey AI coding assistant — file tools, an interactive TUI, permission prompts, and conversation history all work out of the box. But Zrb does not stop at configuration. Every behavior of the agent is a value you can supply or a Python callable you can register, **in the same file where you define the rest of your automation** — no separate SDK, no plugin runtime, no JSON schema.
@@ -127,3 +129,5 @@ Combine that with a custom tool that calls into your codebase, and the agent bec
 - [LLMChatTask API Reference](../task-types/llmchat-task.md) — the full builder API
 - [LLM Chat Request Lifecycle](llm-chat-lifecycle.md) — how a turn flows end to end
 - [Hook System](hooks.md) · [Permission Policy](permission-policy.md) · [Custom UI](llm-custom-ui.md)
+
+🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > Programming the Agent

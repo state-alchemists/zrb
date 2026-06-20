@@ -377,3 +377,5 @@ server = await lsp_manager.get_server(
 | `from zrb.llm.lsp.server import detect_available_lsp_servers` | Detection check |
 
 ---
+
+🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > LSP Support

@@ -127,3 +127,5 @@ cli.remove_group("old-tools")
 | Remove group | `cli.remove_group("group-name")` |
 
 ---
+
+🔖 [Documentation Home](../../README.md) > [Core Concepts](./) > CLI & Groups

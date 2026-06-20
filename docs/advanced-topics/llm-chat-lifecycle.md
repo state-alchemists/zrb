@@ -196,3 +196,5 @@ Control returns up through `LLMChatTask._exec_action` → `run_task_async` → `
 - [LLM Integration](./llm-integration.md) — public-facing usage of `LLMTask` / `LLMChatTask`
 - [Tasks & Execution Lifecycle](../core-concepts/tasks-and-lifecycle.md) — the generic task lifecycle this doc layers on top of
 - [Hooks](./hooks.md), [LLM Custom UI](./llm-custom-ui.md), [LSP Support](./lsp-support.md), [MCP Support](./mcp-support.md) — extension points
+
+🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > LLM Chat Request Lifecycle

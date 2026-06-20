@@ -142,3 +142,5 @@ start_server = CmdTask(
 | **Best for** | Complex logic, APIs | External tools, scripts |
 
 ---
+
+🔖 [Documentation Home](../../README.md) > [Task Types](./) > Basic Tasks

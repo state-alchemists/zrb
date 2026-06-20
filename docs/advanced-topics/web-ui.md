@@ -143,3 +143,5 @@ You can customize the visual styling of the Web UI using environment variables.
 | `ZRB_WEB_COLOR` | `` (empty) | Theme color |
 
 ---
+
+🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > Web UI

@@ -83,3 +83,5 @@ When an exception occurs deep within `asyncio.gather`, standard tracebacks are o
 ### F-String and Jinja Rendering
 We defer execution of dynamic parameters. Many attributes accept `fstring` or strings containing `Jinja2` syntax. 
 * **Convention:** Never trust a string property as static. Pass it through `ctx.render(task.property)` immediately before execution to ensure the most up-to-date Environment Variables or XCom data is populated.
+
+🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > Architecture, Philosophy, & Conventions

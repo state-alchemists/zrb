@@ -1,82 +1,46 @@
 🔖 [Documentation Home](../README.md)
 
-## 2.38.0 (June 19, 2026)
+# Changelog
 
-- **Feature: Shift+Tab cycles interaction modes** (`src/zrb/llm/ui/base/model_commands_mixin.py`, `src/zrb/llm/ui/default/keybindings_mixin.py`, `src/zrb/llm/ui/default/output_mixin.py`, `src/zrb/llm/ui/base/commands_mixin.py`, `src/zrb/llm/app/layout.py`, `src/zrb/llm/app/keybinding.py`, ADR-0075): a single `Shift+Tab` keystroke in the default chat UI now cycles `normal -> auto-accept-edits -> plan -> normal`, mirroring Claude Code. The new **auto-accept-edits** mode reuses selective yolo over the LLM-visible edit tools (`frozenset({"Write", "Edit"})`) — file writes auto-approve while shell, delegation, and fetch still prompt. The status bar shows a persistent mode badge (`normal`/`accept-edits`/`plan`, plus `yolo`/`custom-yolo` for off-cycle yolo) and a `shift+tab to cycle` hint. State is derived from the existing plan-mode (`AgentModeState`) and yolo (xcom) stores via `current_cycle_mode()`/`cycle_mode()`, which keep the two mutually exclusive; off-cycle full/custom yolo re-enters the cycle at `normal`. CLI-only for now (the prompt-toolkit Application); web/MultiUI keep using `/plan` and `/yolo Write,Edit` — a `/mode` command for parity is a noted follow-up.
-  - **Freed Shift+Tab from focus traversal:** the input and output controls previously bound `Tab`/`Shift+Tab` to focus-next/focus-previous (`app/layout.py`, `app/keybinding.py`) at control level — the highest binding-precedence layer — which shadowed any app-level `Shift+Tab`. Those two control bindings were removed; **`F6` is now the sole focus toggle** (Escape also returns focus to input), `Tab` is freed (it still drives completion-menu navigation when a menu is open), and the app-level `Shift+Tab` cycles modes (gated so a completion menu keeps previous-completion and an `AskUserQuestion` choice widget keeps its back-tab navigation).
-  - **Retired `Ctrl+P`:** the cycle reaches plan mode, so the redundant `Ctrl+P` plan toggle was removed. `/plan` and `/yolo` are kept (the only way to reach these modes in the web UI / MultiUI, plus scriptable); `Ctrl+Y`, `EnterPlanMode`/`ExitPlanMode` are unchanged. The `/help` shortcut list reflects all of the above.
+- [2.38.0](changelog-v2/2.38.0.md) — June 19, 2026
+- [2.37.0](changelog-v2/2.37.0.md) — June 19, 2026
+- [2.36.0](changelog-v2/2.36.0.md) — June 18, 2026
+- [2.35.0-2.35.3](changelog-v2/2.35.0-2.35.3.md) — June 15, 2026–June 18, 2026
+- [2.34.0-2.34.3](changelog-v2/2.34.0-2.34.3.md) — June 10, 2026–June 12, 2026
+- [2.33.0-2.33.4](changelog-v2/2.33.0-2.33.4.md) — June 6, 2026–June 10, 2026
+- [2.32.0-2.32.2](changelog-v2/2.32.0-2.32.2.md) — June 5, 2026–June 6, 2026
+- [2.31.0](changelog-v2/2.31.0.md) — May 29, 2026
+- [2.30.0-2.30.2a1](changelog-v2/2.30.0-2.30.2a1.md) — May 24, 2026–May 28, 2026
+- [2.29.0](changelog-v2/2.29.0.md) — May 22, 2026
+- [2.28.0-2.28.6](changelog-v2/2.28.0-2.28.6.md) — May 15, 2026–May 22, 2026
+- [2.27.0-2.27.1](changelog-v2/2.27.0-2.27.1.md) — May 14, 2026
+- [2.26.0-2.26.8](changelog-v2/2.26.0-2.26.8.md) — May 10, 2026–May 13, 2026
+- [2.25.0-2.25.3](changelog-v2/2.25.0-2.25.3.md) — May 5, 2026–May 8, 2026
+- [2.24.0-2.24.4](changelog-v2/2.24.0-2.24.4.md) — May 1, 2026–May 3, 2026
+- [2.23.0-2.23.1](changelog-v2/2.23.0-2.23.1.md) — April 27, 2026–April 28, 2026
+- [2.22.0-2.22.8](changelog-v2/2.22.0-2.22.8.md) — April 16, 2026–April 26, 2026
+- [2.21.0-2.21.1](changelog-v2/2.21.0-2.21.1.md) — April 16, 2026
+- [2.20.0-2.20.2](changelog-v2/2.20.0-2.20.2.md) — April 12, 2026–April 15, 2026
+- [2.19.0-2.19.1](changelog-v2/2.19.0-2.19.1.md) — April 9, 2026–April 10, 2026
+- [2.18.0-2.18.1](changelog-v2/2.18.0-2.18.1.md) — April 5, 2026–April 8, 2026
+- [2.17.0](changelog-v2/2.17.0.md) — April 3, 2026
+- [2.16.0](changelog-v2/2.16.0.md) — April 3, 2026
+- [2.15.0-2.15.1](changelog-v2/2.15.0-2.15.1.md) — April 1, 2026–April 2, 2026
+- [2.14.0-2.14.2](changelog-v2/2.14.0-2.14.2.md) — March 28, 2026–March 29, 2026
+- [2.13.0](changelog-v2/2.13.0.md) — March 24, 2026
+- [2.12.0-2.12.1](changelog-v2/2.12.0-2.12.1.md) — March 23, 2026
+- [2.11.0](changelog-v2/2.11.0.md) — March 21, 2026
+- [2.10.0-2.10.4](changelog-v2/2.10.0-2.10.4.md) — March 12, 2026–March 19, 2026
+- [2.9.0-2.9.2](changelog-v2/2.9.0-2.9.2.md) — March 10, 2026
+- [2.8.0-2.8.4](changelog-v2/2.8.0-2.8.4.md) — March 6, 2026–March 10, 2026
+- [2.7.0-2.7.2](changelog-v2/2.7.0-2.7.2.md) — March 5, 2026–March 6, 2026
+- [2.6.0-2.6.24](changelog-v2/2.6.0-2.6.24.md) — February 18, 2026–March 3, 2026
+- [2.5.0-2.5.3](changelog-v2/2.5.0-2.5.3.md) — February 16, 2026–February 17, 2026
+- [2.4.0-2.4.2](changelog-v2/2.4.0-2.4.2.md) — February 16, 2026
+- [2.3.0-2.3.5](changelog-v2/2.3.0-2.3.5.md) — February 15, 2026
+- [2.2.0-2.2.15](changelog-v2/2.2.0-2.2.15.md)
+- [2.1.0](changelog-v2/2.1.0.md)
+- [2.0.0-2.0.19](changelog-v2/2.0.0-2.0.19.md)
+- [Changelog v1](changelog-v1.md)
 
-- **Fix: close three more Claude-Code hook contract gaps** (`src/zrb/llm/hook/hook_creators.py`, `src/zrb/llm/agent/common.py`, `src/zrb/llm/hook/matcher.py`):
-  - **`exit 2` block reason is read from stderr** (the Claude convention), not only stdout. The `exit_code == 2` branch in `create_command_hook` now resolves the reason in precedence order: an explicit `reason` in a stdout JSON control object → stderr → plain stdout → `"Blocked by hook"`. A Claude-style `echo "reason" >&2; exit 2` previously blocked but lost its reason (it fell back to the default); existing stdout-based hooks are unaffected.
-  - **`PostToolUse` `additionalContext` is honored.** `_fire_post_tool_use` previously extracted it and dropped it. It is now appended to the model-facing tool result (new `_append_tool_context` / `_merge_content` helpers, preserving string/sequence content shape), mirroring Claude injecting it into context after the tool runs.
-  - **`Notification` matchers filter on `notification_type`**, not the free-form `message` text (`CLAUDE_EVENT_MATCHER_FIELDS`). A Claude matcher keyed on a notification type (e.g. `elicitation_dialog`) now matches. The firing conditions still differ — zrb emits a Notification only for elicitation (the ask/question tool), not for permission prompts (which route to `PermissionRequest`) or a 60s idle timer.
-
-- **Documentation: hooks guide states the Claude-Code incompatibilities explicitly** (`docs/advanced-topics/hooks.md`): dropped the "100% compatible with Claude Code hooks" claim and added a [Differences from Claude Code](advanced-topics/hooks.md#differences-from-claude-code) section covering the behavioral divergences that change outcomes (sequential+priority vs parallel+most-restrictive execution, first-only `additionalContext`, `PostToolUse` block discarding the result, `ask` degrading on the execution path, observe-only `SubagentStop`, `Notification` firing scope, ignored legacy `decision:"approve"`), matcher-value coverage gaps, and the events/types zrb does not implement.
-
-- **Feature: four more Claude-Code hook events** (`src/zrb/llm/hook/types.py`, `agent/run/runner.py`, `agent/run/error_classifier.py`, `tool/delegate.py`, ADR-0074):
-  - **`PostCompact`** — fires after history summarization in `_prepare_history` (mirror of `PreCompact`), with `trigger="auto"`; honors `additionalContext`.
-  - **`StopFailure`** — fires when a turn ends on an unrecoverable API error (before the exception propagates), observe-only. New `classify_error_type()` maps the exception to an `error_type` matcher token (`rate_limit`, `overloaded`, `server_error`, `context_length`, `authentication_failed`, `invalid_request`, `model_not_found`, `unknown`); new `HookContext.error_type` field.
-  - **`SubagentStart` / `SubagentStop`** — fire around sub-agent delegation in `delegate.py::_run_agent_task` (both single and parallel paths; Stop fires in a `finally`), with `agent_type` (the delegated agent's name) and a shared `agent_id`. They fire on the **parent run's** hook manager via a new `current_hook_manager` ContextVar (set in `run_agent`, exposed by `runtime_state.get_current_hook_manager`, registered in `src/zrb/contextvars.py`), falling back to the module singleton.
-  - Matcher fields added (`CLAUDE_EVENT_MATCHER_FIELDS`): `SubagentStart`/`SubagentStop` → `agent_type`, `StopFailure` → `error_type`, `PreCompact`/`PostCompact` → `trigger`. Claude `settings.json` configs using these events now register instead of being skipped as unknown.
-
-- **Fix: `UserPromptSubmit` populates the `prompt` field** (`agent/run/runner.py`): the fire now passes `prompt=`, so UserPromptSubmit matchers (mapped to `prompt`), the `CLAUDE_PROMPT` env var, and the stdin payload see the submitted text — previously `None`.
-
-- **Fix: close Claude-Code hook contract gaps for overlapping events** (`src/zrb/llm/agent/common.py`, `agent/run/deferred_calls.py`, `agent/run/runner.py`, `agent/run/session_extension.py`, `agent/run/hook_result_extractor.py`, `hook/hook_creators.py`, `hook/manager/manager.py`, `hook/types.py`, `hook/matcher.py`, `task/chat/task.py`; refines ADR-0074):
-  - **`PreToolUse`/`PostToolUse`/`PostToolUseFailure` now carry the Claude-standard tool fields.** The fire sites pass `tool_name`/`tool_input` (and `tool_response` on `PostToolUse`, coerced to a JSON-safe dict by `_tool_response_payload`) as context kwargs. Previously these lived only in `event_data`, so the stdin payload omitted them — tool-name matchers (e.g. `{"matcher": "Bash"}`) silently never matched and hooks reading `tool_input` saw nothing.
-  - **`exit 2` / `decision:"block"` only halts the hook chain for blocking-capable events** (new `BLOCKING_EVENTS` set in `types.py`). A block from a non-blocking event (e.g. `Notification`, `SessionStart`) no longer suppresses the remaining hooks for that event. `continue:false` still halts unconditionally.
-  - **`PreCompact` can block compaction.** `_prepare_history` now checks `extract_block_decision` on the `PreCompact` results and skips the history processors (summarization) when blocked; the hard context-window prune still runs as a safety net.
-  - **Raw stdout becomes `additionalContext` for `SessionStart`/`UserPromptSubmit`.** A command hook emitting unstructured stdout (not the JSON control protocol) has it injected as context, matching Claude; a JSON object is still respected verbatim.
-  - **`PreToolUse` `permissionDecision: "ask"`/`"defer"` honored.** `"ask"` forces the interactive approval prompt (new `PreToolDecision.force_prompt` → `_resolve_approval(force_ask=…)`, overriding tool-policy/permission ALLOW and YOLO while still honoring an explicit DENY); `"defer"` is an explicit no-op. On the execution-time path (no prompt mechanism) `"ask"` degrades to proceed.
-  - **`SessionEnd` gains matcher support and a real `source`.** `CLAUDE_EVENT_MATCHER_FIELDS` maps `SessionEnd` → `source`; the teardown fire passes `source="other"` (the single teardown point can't yet distinguish logout/prompt_input_exit).
-  - **`continue:false` halts the `run_agent` turn loop.** New `extract_continue_decision`; `UserPromptSubmit` ends the turn before the model runs, and `Stop` ends it overriding any block-to-continue/`systemMessage` extension.
-
-- **Improvement: Claude tool-name aliases for hook matchers** (`src/zrb/llm/hook/matcher.py`): zrb's built-in tools already expose Claude-compatible names via `func.__name__` (`Read`, `Write`, `Edit`, `Grep`, `Glob`, `LS`, `Bash`, `WebFetch`, `WebSearch`, `TodoWrite`, `TodoRead`, …), so most Claude hook matchers keyed on a tool name match directly. For the few zrb tools whose name still differs, a new `CLAUDE_TOOL_ALIASES` map lets a tool-name matcher also accept the Claude name: `Shell` → also matches `Bash`, and `DelegateToAgent`/`DelegateToAgentBackground` → also match `Task`. `evaluate_matchers` tests the value plus its aliases and passes if any matches; `not_equals` stays 1:1 so an exclusion filter is never widened by an alias.
-
-- **Fix: a hook command killed by a signal is no longer logged as a failure** (`src/zrb/llm/hook/hook_creators.py`): on Ctrl+C the terminal delivers `SIGINT` to the whole process group, so a running command hook's subprocess exits with a negative return code (`-2`). That fell into the generic error branch and surfaced as a spurious `ERROR: Command hook failed: Command failed with exit code -2` during normal interrupt/teardown. Signal deaths (`exit_code < 0`) are now handled as a quiet, debug-level non-failure that names the signal (e.g. `SIGINT`).
-
-## 2.37.0 (June 19, 2026)
-
-- **Fix: LSP tools now work with pyright and document-open-required servers** (`src/zrb/llm/lsp/server.py`, `manager/query_mixin.py`, `manager/symbol_utils.py`):
-  - **Byte-accurate message framing** (`LSPServer._read_loop`): the read loop buffered a decoded `str` and sliced it by `Content-Length` (a *byte* count), and decoded each 4096-byte chunk individually. Any response containing non-ASCII (e.g. an em-dash in a diagnostic) or splitting a multi-byte char across a read boundary mis-framed or raised `UnicodeDecodeError`, killing the read loop and hanging every request — the root cause of pyright appearing to "not work." The loop now buffers bytes and decodes only complete message bodies.
-  - **Documents are opened before file-scoped queries** (`LSPServer._ensure_open`): `goto_definition`, `find_references`, `document_symbols`, `hover`, and `rename` now `didOpen`/`didChange` the file (and wait briefly for initial analysis on first open) before issuing the request. Previously only `get_diagnostics` did this, so pyright/gopls/etc. returned empty for the others.
-  - **`find_definition` uses `textDocument/definition`** instead of `workspace/symbol`: it locates the identifier's exact position and jumps to the definition — working on every server. `workspace/symbol` was unusable here (pyright returns nothing without indexing; pylsp doesn't implement it).
-  - **`SymbolInformation` positions fixed** (`format_document_symbols`): flat `SymbolInformation` (pylsp) carries its position under `location.range`, not `range`/`selectionRange`. Reading the wrong field reported `line 1, col 0` for every symbol, breaking position lookups; both shapes are now handled. Symbol-position resolution also targets the identifier column, not column 0.
-  - **`get_workspace_symbols` degrades gracefully**: when a server can't do a workspace-wide search it now falls back to the seed file's symbols filtered by the query (`scope: "file"`) instead of erroring.
-  - **stderr is drained** so a verbose server (node/pyright) can't fill its stderr pipe and stall. Verified end-to-end against real pyright, pylsp, and gopls.
-
-- **Feature: hook capability parity with Claude Code** (`src/zrb/llm/agent/common.py`, `src/zrb/llm/agent/run/`, `src/zrb/llm/hook/journal.py`, `src/zrb/llm/task/chat/task.py`, ADR-0074, refines ADR-0047/0066):
-  - **Tool gates now fire for every tool call and honor the Claude protocol.** `create_agent` wraps the function-tools `FunctionToolset` so `SafeToolsetWrapper.call_tool` is the single chokepoint all tool calls pass through. `PreToolUse` fires there (guarded by pydantic-ai's `ctx.tool_call_approved` so deferred-then-approved calls don't double-fire) and honors `permissionDecision: "deny"` / exit-2 / `updatedInput` (arg rewrite); `PostToolUse` honors `decision: "block"` and `updatedToolOutput`; `PostToolUseFailure` fires when a tool raises. New extractors in `hook_result_extractor.py` (`extract_pre_tool_decision`, `extract_post_tool_decision`, `extract_permission_decision`, `extract_block_decision`) read `HookExecutionResult` and Claude's nested `hookSpecificOutput`.
-  - **Turn control.** `UserPromptSubmit` can block a prompt (turn ends before the model runs). `Stop` is now the per-turn block-to-continue + extension point: a blocking `Stop` re-runs the agent with `reason` injected, capped at 8 consecutive blocks (mirrors `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP`); the `systemMessage` turn-extension moved here from `SessionEnd` (`apply_session_end_extension` → `apply_turn_end_extension`).
-  - **`PermissionRequest`** can auto-resolve an approval prompt via `decision.behavior` (`allow`/`deny`). **`PreCompact`** injects `additionalContext` and carries `trigger="auto"`. **`SessionStart`** carries `source` (`startup`/`resume`) for matchers.
-  - **Breaking — `SessionEnd` is now terminal.** It fires once when the interactive chat session ends (`_teardown_interactive_resources`), not per turn. The built-in journaling reminder moved from `SessionEnd` to `Stop`. **Migration:** hooks that did journaling/summarization/turn-extension on `SessionEnd` must move to `Stop`; the proprietary `tool_args`/`cancel_tool` PreToolUse keys are removed in favor of `updatedInput`/`permissionDecision`.
-
-## 2.36.0 (June 18, 2026)
-
-- **Improvement: agent uses `WriteTodos` for multi-step work** (`src/zrb/llm/common_tools.py`, `src/zrb/llm/prompt/markdown/mandate.md`):
-  - The `WriteTodos` tool guidance gained a quantified trigger (≥3 steps, multiple files, or multi-turn work — seed the list before the first edit) mirroring the `DelegateToAgent` style, replacing the vague "Planning a multi-step task". `GetTodos` guidance now also covers re-checking the plan after summarization.
-  - The Working Loop's Plan step in `mandate.md` now wires the tool in explicitly: multi-step work externalizes its plan with `WriteTodos` rather than inline prose. Prompt-only; no tool/registration change.
-
-- **Refactor: `DelegateToAgentsParallel` folded into `DelegateToAgent`** (`src/zrb/llm/tool/delegate.py`, ADR-0070):
-  - `DelegateToAgent` gained an optional `tasks: list[dict]` argument; a non-empty list runs every entry concurrently (former parallel `asyncio.gather` path, now the module-level `_run_parallel` helper) and returns combined results, while the flat single-task call is unchanged. The standalone `DelegateToAgentsParallel` tool and `create_parallel_delegate_tool` factory are removed (also from `common_tools.py` guidance, `chat.py` factory/auto-approve, and `tool/__init__.py` exports).
-
-- **Refactor: `ShellBackground` folded into `Shell`/`Bash` `background=True`** (`src/zrb/llm/tool/shell.py`, `bash.py`, `shell_background.py`, ADR-0071, supersedes ADR-0056 point 3):
-  - `Shell`/`Bash` gained `background: bool = False` and `description: str = ""`; with `background=True` the call returns a handle immediately via the existing `_ShellBackgroundRegistry` (no timeout/streaming). The `ShellBackground` entry tool and `create_shell_background_tool` factory are removed; the registry and `MonitorProcess` are kept. Background launches now route through `bash_safe_command_policy` like any other shell call (the `auto_approve("ShellBackground")` entry is dropped).
-
-- **Improvement: bounded `wait=`/`kill=` on background result-collection tools** (`src/zrb/llm/tool/delegate_background.py`, `shell_background.py`, `src/zrb/config/mixins/llm_limits.py`, ADR-0072, refines ADR-0054):
-  - `GetDelegationResult` and `MonitorProcess` accept `wait: float = 0` — block up to `min(wait, CFG.LLM_BACKGROUND_WAIT_MAX)` seconds via `asyncio.wait` (which does not cancel on timeout), returning the instant the work finishes; on timeout they return a "still running — call again with wait=N or kill=True" status. `GetDelegationResult` also gained `kill: bool = False` for symmetry with `MonitorProcess`. New env var `LLM_BACKGROUND_WAIT_MAX` (`ZRB_LLM_BACKGROUND_WAIT_MAX`, default 300; in seconds, unlike the millisecond timeouts). A regression test confirms a background sub-agent's approval prompt still surfaces while a `wait=` call is parked.
-
-- **Refactor: boolean config naming convention + `WEB_ENABLE_AUTH` → `WEB_AUTH_ENABLED`** (`src/zrb/config/mixins/web.py`, ADR-0073):
-  - Codified the rule for boolean `CFG` knobs: `<namespace>_ENABLED` (state-last) for the master switch of a multi-setting namespace (groups with siblings like `WEB_AUTH_*`, `LLM_SANDBOX_*`, `HOOKS_*`); verb-first (`ENABLE_`/`SHOW_`/`SEARCH_`/`INCLUDE_`/`ALLOW_`) for standalone toggles (`LLM_ENABLE_BUILTIN_SKILLS`, `LLM_SEARCH_PROJECT`). Documented in `AGENTS.md` (Config Conventions) and ADR-0073.
-  - `WEB_ENABLE_AUTH` was the lone violation (auth is a `WEB_AUTH_*` namespace) and is renamed to `WEB_AUTH_ENABLED`. The old `ZRB_WEB_ENABLE_AUTH` env key still works (read alias via `EnvField(aliases=[...], write_key="WEB_AUTH_ENABLED")`); writes use the new key. Docs and env-var tables updated with the legacy-alias note.
-
-- **Feature: built-in LLM plugin split into governable categories** (`src/zrb/llm_plugin/`, ADR-0069):
-  - The flat `llm_plugin/skills/` directory is split into `core_skills/` (the five `core-*` methodology skills the utility skills delegate into) and `skills/` (the eight utility skills). `agents/` is unchanged. Skills moved verbatim — frontmatter `name:` fields and `/slash-command` names are unchanged, so cross-references (e.g. `/testing` → `core-coding`'s testing companion) keep working.
-  - **Core skills are always loaded and have no toggle** — disabling them would silently break the utility skills that depend on them.
-  - Two new CFG booleans (default `on`) gate the optional built-in content: `LLM_ENABLE_BUILTIN_SKILLS` (`ZRB_LLM_ENABLE_BUILTIN_SKILLS`) and `LLM_ENABLE_BUILTIN_AGENTS` (`ZRB_LLM_ENABLE_BUILTIN_AGENTS`), added to `LLMSearchMixin` (`src/zrb/config/mixins/llm_search.py`) following the existing `LLM_SEARCH_PROJECT`/`LLM_SEARCH_HOME` pattern.
-  - The toggles suppress **only built-in content** — user/project/plugin/extra skills and agents always load. `SkillManager._get_builtin_dir()` becomes `_get_builtin_dirs()` (CFG-filtered list); the agent `SearchMixin` wraps its built-in append in the agent toggle.
-  - **Considered and rejected:** adding `dangerously_skip_sandbox` to the file tools (Read/Write/Edit/…). Claude Code keeps sandbox-escape a Bash-only concept and governs file access via the permission layer with no per-call bypass; zrb already mirrors this (escape stays on the OS-sandboxed shell tools; the Python FS gate from ADR-0063 has no escape, preserving credential deny-read protection).
-
-# Older Changelog
-
-- [Changelog v2](./changelog-v2.md)
-- [Changelog v1](./changelog-v1.md)
+🔖 [Documentation Home](../README.md)

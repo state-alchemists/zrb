@@ -402,3 +402,5 @@ For persistent, long-term memory, Zrb uses a journal system—a directory of Mar
 | `LLMChatTask` | `from zrb import LLMChatTask` | Interactive chat |
 
 ---
+
+🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > LLM Integration

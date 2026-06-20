@@ -73,12 +73,12 @@ If you ever invoke `poetry build` / `poetry publish` directly (bypassing the `zr
 
 ## Changelog
 
-The changelog lives in three files under `docs/`, newest-first within each:
+The changelog lives in index and directory under `docs/`:
 
-| File | Scope |
+| Path | Scope |
 |------|-------|
-| `changelog.md` | **Active** changelog — recent releases at full detail. |
-| `changelog-v2.md` | Archive of the 2.x line. |
+| `changelog.md` | Index page listing every minor version with links. |
+| `changelog-v2/` | Directory of per-minor-version files (e.g. `2.38.0.md`, `2.35.0-2.35.3.md`). |
 | `changelog-v1.md` | Archive of the 1.x line (and the 1.0.0 rewrite from 0.x). |
 
 ### Writing an entry
@@ -104,24 +104,25 @@ to something locatable (`module.py`, `ClassName`, an env var, `ADR-NNNN`).
 ### Collapsing (compaction)
 
 To keep the changelog readable as it grows, old entries are periodically
-compacted. **Keep only two entries per minor version** — the minor bump and its
-final revision — producing this retained sequence:
+compacted. Each minor version has its own file under `changelog-v2/`. **Keep
+only two entries per minor version** — the minor bump and its final revision —
+producing this retained sequence:
 
 ```
 x.y.0  →  x.y.z (latest revision of x.y)  →  x.y+1.0  →  x.y+1.w  →  …
 ```
 
-Worked example (`changelog.md`, 2.31–2.33):
+Worked example (2.31–2.33):
 
 ```
-2.31.0  →  2.32.0  →  2.32.2  →  2.33.0  →  2.33.2
+changelog-v2/2.31.0.md  →  changelog-v2/2.32.0-2.32.2.md  →  changelog-v2/2.33.0-2.33.2.md
 ```
 
-Here `2.31` had no patches; `2.32` collapsed `2.32.1` into `2.32.2` and its
-`2.32.0a1`–`b5` pre-releases into `2.32.0`; `2.33` (once it ages out) collapses
-`2.33.1` into `2.33.2`. **The newest minor stays at full per-patch detail** in
-the active `changelog.md` until a later minor opens — so in practice the tail of
-`changelog.md` is compacted while the head is not.
+Here `2.31` had no patches (stays as `2.31.0.md`); `2.32` collapsed `2.32.1`
+into `2.32.2` and its `2.32.0a1`–`b5` pre-releases into `2.32.0`; `2.33` (once
+it ages out) collapses `2.33.1` into `2.33.2` and the file gets compacted to
+`2.33.0-2.33.2.md`. **The newest minor stays at full per-patch detail** as an
+uncollapsed file (e.g. `2.38.0.md`) until a later minor opens.
 
 Rules for the surviving entries — they must not lose the dropped history:
 
@@ -136,8 +137,7 @@ Rules for the surviving entries — they must not lose the dropped history:
 - **Summarize, don't concatenate.** A 24-patch line becomes one
   release-note-sized entry grouped by theme; drop version-bump noise and
   test-only churn (one "expanded test coverage" mention suffices).
-- Preserve the file's preamble and trailing `🔖` breadcrumb, and keep entries in
-  descending version order.
+- Update `changelog.md` when renaming a file (e.g. `2.38.0.md` → `2.38.0-2.38.3.md`) so the link stays current.
 
 Dropped content stays recoverable from git, so compaction is reversible — but
 the goal is that the compacted file still conveys what happened across each
@@ -534,3 +534,5 @@ On a hit it regenerates the turn rather than returning it: `_history_without_tra
 | Run one-on-one LLM session | `zrb chat "What is your honest analysis about your current system prompt..."` |
 
 ---
+
+🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > Maintainer Guide
