@@ -426,13 +426,21 @@ class LLMTask(BaseTask):
                 permission_policy=permission_policy,
                 sandbox_policy=sandbox_policy,
             )
-        except asyncio.CancelledError:
+        except asyncio.CancelledError as ce:
+            partial_run = getattr(ce, "zrb_partial_run", None)
             self._save_cancelled_history(
-                history_manager, conversation_name, message_history, user_message
+                history_manager,
+                conversation_name,
+                message_history,
+                user_message,
+                partial_run=partial_run,
             )
             raise
         except Exception as e:
-            self._handle_run_error(ctx, history_manager, conversation_name, e)
+            partial_run = getattr(e, "zrb_partial_run", None)
+            self._handle_run_error(
+                ctx, history_manager, conversation_name, e, partial_run=partial_run
+            )
             raise e
 
         history_manager.update(conversation_name, new_history)
@@ -603,6 +611,7 @@ class LLMTask(BaseTask):
         history_manager: AnyHistoryManager,
         conversation_name: str,
         error: Exception,
+        partial_run: Any = None,
     ):
         # lazy: heavy third-party
         from pydantic_ai.messages import (
@@ -646,6 +655,10 @@ class LLMTask(BaseTask):
         # 2. Append general error information
         error_msg = f"[SYSTEM] Error occurred: {str(error)}"
         new_history.append(ModelRequest(parts=[UserPromptPart(content=error_msg)]))
+        # 3. Append partial run summary if available and meaningful
+        if partial_run is not None and partial_run._completed_tools:
+            summary = partial_run.build_summary()
+            new_history.append(ModelRequest(parts=[UserPromptPart(content=summary)]))
         history_manager.update(conversation_name, new_history)
         history_manager.save(conversation_name)
 
@@ -655,6 +668,7 @@ class LLMTask(BaseTask):
         conversation_name: str,
         message_history: list[Any],
         user_message: Any,
+        partial_run: Any = None,
     ) -> None:
         """Save partial history when a run is cancelled by the user (e.g. Escape).
 
@@ -684,6 +698,11 @@ class LLMTask(BaseTask):
                     ]
                 )
             )
+            if partial_run is not None and partial_run._completed_tools:
+                summary = partial_run.build_summary()
+                partial_history.append(
+                    ModelRequest(parts=[UserPromptPart(content=summary)])
+                )
             history_manager.update(conversation_name, partial_history)
             history_manager.save(conversation_name)
         except Exception as e:

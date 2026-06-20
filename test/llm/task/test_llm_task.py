@@ -127,7 +127,9 @@ class TestLLMTaskPublicAPI:
         from zrb.llm.config.config import LLMConfig
 
         sentinel = MagicMock()
-        renderer = lambda m: sentinel
+
+        def renderer(_m):
+            return sentinel
 
         config = LLMConfig()
         config.model_renderer = renderer
@@ -244,3 +246,127 @@ class TestLLMTaskPublicAPI:
 
             # Factory should have been called with context
             factory.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_save_cancelled_history_with_partial_run(self):
+        """PartialRunAccumulator summary is appended when tools were completed."""
+        from pydantic_ai.messages import ModelRequest, UserPromptPart
+
+        from zrb.llm.agent.run.partial_run import PartialRunAccumulator
+
+        partial_run = PartialRunAccumulator()
+        partial_run._completed_tools.append(
+            ("search_files", '{"query": "main.py"}', "Found main.py")
+        )
+
+        history_manager = MagicMock()
+        task = LLMTask(name="test-task")
+        task._save_cancelled_history(
+            history_manager,
+            "test-convo",
+            [],
+            "hello",
+            partial_run=partial_run,
+        )
+
+        assert history_manager.update.called
+        assert history_manager.save.called
+        saved = history_manager.update.call_args[0][1]
+        assert len(saved) == 3  # user msg + cancelled marker + partial summary
+        assert isinstance(saved[-1], ModelRequest)
+        assert isinstance(saved[-1].parts[0], UserPromptPart)
+        assert "search_files" in saved[-1].parts[0].content
+        assert "Found main.py" in saved[-1].parts[0].content
+
+    @pytest.mark.asyncio
+    async def test_save_cancelled_history_without_partial_run(self):
+        """Backward compat: no partial_run means no summary appended."""
+
+        history_manager = MagicMock()
+        task = LLMTask(name="test-task")
+        task._save_cancelled_history(
+            history_manager,
+            "test-convo",
+            [],
+            "hello",
+        )
+
+        saved = history_manager.update.call_args[0][1]
+        assert len(saved) == 2  # user msg + cancelled marker only
+
+    @pytest.mark.asyncio
+    async def test_save_cancelled_history_skips_summary_when_no_tools(self):
+        """When partial_run has no completed tools, no summary is appended."""
+        from zrb.llm.agent.run.partial_run import PartialRunAccumulator
+
+        partial_run = PartialRunAccumulator()
+        partial_run.is_interrupted = True
+
+        history_manager = MagicMock()
+        task = LLMTask(name="test-task")
+        task._save_cancelled_history(
+            history_manager,
+            "test-convo",
+            [],
+            "hello",
+            partial_run=partial_run,
+        )
+
+        saved = history_manager.update.call_args[0][1]
+        assert (
+            len(saved) == 2
+        )  # user msg + cancelled marker only — no tools to summarize
+
+    @pytest.mark.asyncio
+    async def test_handle_run_error_appends_partial_summary(self):
+        """PartialRunAccumulator summary is appended when error has zrb_history."""
+        from pydantic_ai.messages import ModelRequest, UserPromptPart
+
+        from zrb.llm.agent.run.partial_run import PartialRunAccumulator
+
+        partial_run = PartialRunAccumulator()
+        partial_run._completed_tools.append(("search", "{}", "Found foo.py"))
+
+        error = ValueError("API error")
+        error.zrb_history = [
+            ModelRequest(parts=[UserPromptPart(content="user msg")]),
+        ]
+
+        history_manager = MagicMock()
+        ctx = MagicMock()
+        task = LLMTask(name="test-task")
+        task._handle_run_error(
+            ctx, history_manager, "test-convo", error, partial_run=partial_run
+        )
+
+        saved = history_manager.update.call_args[0][1]
+        assert len(saved) == 3  # original + error + partial summary
+
+        # Last message should be the partial summary
+        last = saved[-1]
+        assert isinstance(last, ModelRequest)
+        content = last.parts[0].content
+        assert "search" in content
+        assert "Found foo.py" in content
+
+    @pytest.mark.asyncio
+    async def test_handle_run_error_skips_partial_summary_on_context_length(self):
+        """Partial summary is not appended when error is context-length (no history growth)."""
+        from zrb.llm.agent.run.partial_run import PartialRunAccumulator
+
+        partial_run = PartialRunAccumulator()
+        partial_run._completed_tools.append(("search", "{}", "Found foo.py"))
+
+        error = ValueError("prompt too long")
+        error.zrb_history = []
+
+        history_manager = MagicMock()
+        ctx = MagicMock()
+        task = LLMTask(name="test-task")
+        task._handle_run_error(
+            ctx, history_manager, "test-convo", error, partial_run=partial_run
+        )
+
+        # Context-length error saves the history as-is without growing it
+        saved = history_manager.update.call_args[0][1]
+        assert saved == []  # Not grown

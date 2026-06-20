@@ -39,6 +39,7 @@ from zrb.llm.agent.run.hook_result_extractor import (
     extract_continue_decision,
 )
 from zrb.llm.agent.run.openai_patch import patch_openai_model_response_serialization
+from zrb.llm.agent.run.partial_run import PartialRunAccumulator
 from zrb.llm.agent.run.prompt_content import get_prompt_content as _get_prompt_content
 from zrb.llm.agent.run.retry_loop import RetryState, handle_stream_error
 from zrb.llm.agent.run.session_extension import (
@@ -667,6 +668,7 @@ async def _execution_loop(
     retry_state = RetryState()
     extension_state = ExtensionState()
     current_results = None
+    partial_run = PartialRunAccumulator()
     # pydantic-ai's before_model_request runs history processors on a shallow
     # copy of ctx.state.message_history, so any summarization it does is never
     # written back. result.all_messages() therefore always returns the original
@@ -706,6 +708,7 @@ async def _execution_loop(
                                     result_output, DeferredToolRequests
                                 ),
                             )
+                        partial_run.record_event(event)
                         if effective_event_handler:
                             await effective_event_handler(event)
             except Exception as _stream_exc:
@@ -844,9 +847,13 @@ async def _execution_loop(
                 current_results = None
                 continue
             return resolve_extended_return(extension_state, result_output, run_history)
-    except asyncio.CancelledError:
+    except asyncio.CancelledError as ce:
+        partial_run.is_interrupted = True
+        setattr(ce, "zrb_partial_run", partial_run)
         raise
     except Exception as e:
+        partial_run.error = str(e)
+        setattr(e, "zrb_partial_run", partial_run)
         if not hasattr(e, "zrb_history"):
             setattr(e, "zrb_history", run_history)
         raise e

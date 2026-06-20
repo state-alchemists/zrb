@@ -7,9 +7,21 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from zrb.config.config import CFG
+from zrb.llm.lsp.configs import LSPServerConfig, lsp_server_configs
 from zrb.llm.lsp.manager import LSPManager, lsp_manager
 from zrb.llm.lsp.protocol import SymbolKind
 from zrb.llm.lsp.server import LSPServer
+
+
+@pytest.fixture(autouse=True)
+def _cleanup_registry():
+    """Clear user-registered LSP server configs between tests.
+
+    Tests that call ``register_lsp_server`` write to the module-level
+    ``lsp_server_configs`` singleton. Clearing before each test prevents
+    cross-test pollution of the global config registry.
+    """
+    lsp_server_configs.clear()
 
 
 @pytest.fixture
@@ -43,6 +55,36 @@ class TestLspManagerInit:
         lock1 = manager.lock
         lock2 = manager.lock
         assert lock1 is lock2
+
+    def test_register_lsp_server_stores_config(self, manager):
+        config = LSPServerConfig(
+            name="test-lsp",
+            command=["test-lsp"],
+            language_ids=["test"],
+            file_extensions=[".test"],
+        )
+        manager.register_lsp_server("test-lsp", config)
+        from zrb.llm.lsp.configs import lsp_server_configs
+
+        stored = lsp_server_configs.get("test-lsp")
+        assert stored is not None
+        assert stored.name == "test-lsp"
+        assert stored.command == ["test-lsp"]
+
+    def test_register_lsp_server_overrides_builtin(self, manager):
+        override = LSPServerConfig(
+            name="override-pyright",
+            command=["override-pyright"],
+            language_ids=["python"],
+            file_extensions=[".py"],
+        )
+        manager.register_lsp_server("pyright", override)
+        from zrb.llm.lsp.configs import lsp_server_configs
+
+        stored = lsp_server_configs.get("pyright")
+        assert stored is not None
+        assert stored.name == "override-pyright"
+        assert stored.command == ["override-pyright"]
 
 
 class TestDetectProjectRoot:
