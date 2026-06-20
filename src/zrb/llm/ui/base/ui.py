@@ -22,7 +22,7 @@ import logging
 import os
 from collections.abc import AsyncIterable, Callable
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, TextIO
+from typing import TYPE_CHECKING, Any, TextIO, cast
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
@@ -748,7 +748,9 @@ class BaseUI(CommandsMixin, HistoryReplayMixin, SystemInfoMixin):
         attachments = self.take_pending_attachments()
 
         async def job():
-            await self._stream_ai_response(llm_task, user_message, attachments)
+            await self._stream_ai_response(
+                cast(LLMTask, llm_task), user_message, attachments
+            )
 
         self._message_queue.put_nowait(job)
 
@@ -800,7 +802,7 @@ class BaseUI(CommandsMixin, HistoryReplayMixin, SystemInfoMixin):
 
             # Set UI for tool confirmation
             llm_task.set_ui(self)
-            llm_task.tool_confirmation = self._confirm_tool_execution
+            llm_task.tool_confirmation = cast(Any, self._confirm_tool_execution)
             result_data = await llm_task.async_run(session)
 
             # Sync plan mode after LLM response (tools like EnterPlanMode set the

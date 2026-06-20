@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from typing import Any, Callable
 
 from zrb.context.any_context import AnyContext
@@ -12,4 +13,4 @@ FloatAttr = float | fstring | Callable[[AnyContext | AnySharedContext], float | 
 StrDictAttr = (
     dict[str, StrAttr] | Callable[[AnyContext | AnySharedContext], dict[str, Any]]
 )
-StrListAttr = list[StrAttr] | Callable[[AnyContext | AnySharedContext], list[str]]
+StrListAttr = Sequence[StrAttr] | Callable[[AnyContext | AnySharedContext], list[str]]

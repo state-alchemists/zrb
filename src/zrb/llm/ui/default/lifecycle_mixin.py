@@ -14,12 +14,13 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterable, Callable
-    from typing import Any
+    from typing import Any, TextIO
 
     from prompt_toolkit import Application
 
     from zrb.llm.snapshot.manager import SnapshotManager
     from zrb.llm.task.llm_task import LLMTask
+    from zrb.task.any_task import AnyTask
 
 
 class LifecycleMixin:
@@ -45,6 +46,33 @@ class LifecycleMixin:
         _input_field: Any
         _output_field: Any
         _refresh_task: asyncio.Task | None
+
+        # From BaseUI
+        async def _process_messages_loop(self) -> None: ...
+
+        async def _trigger_loop(
+            self, trigger_factory: "Callable[[], AsyncIterable[Any]]"
+        ) -> None: ...
+
+        def _submit_user_message(
+            self, llm_task: "AnyTask", user_message: str
+        ) -> None: ...
+
+        # From SystemInfoMixin
+        async def _update_system_info(self) -> None: ...
+
+        async def _update_system_info_loop(self) -> None: ...
+
+        # From OutputMixin
+        def append_to_output(
+            self,
+            *values: object,
+            sep: str = " ",
+            end: str = "\n",
+            file: "TextIO | None" = None,
+            flush: bool = False,
+            kind: str = "text",
+        ) -> None: ...
 
     async def cleanup_background_tasks(self):
         """Cancel and clean up all background tasks."""

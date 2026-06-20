@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from pydantic_ai.models import Model
 
-ToolCatalogue = dict[str, tuple[str, str | None]]
+ToolCatalogue = dict[str, tuple[str | None, str | None]]
 ToolGroups = list[tuple[str, list[str]]]
 
 

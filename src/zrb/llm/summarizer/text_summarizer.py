@@ -33,7 +33,9 @@ async def _run_agent_with_retry(agent: Any, text: str) -> Any:
                 await asyncio.sleep(wait)
             else:
                 raise
-    raise last_error
+    # Only reachable if the loop never ran (max_retries < 0); last_error is then
+    # None, so raise a concrete error rather than `raise None`.
+    raise last_error or RuntimeError("Summarization failed without an error")
 
 
 async def summarize_text_plain(

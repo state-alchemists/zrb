@@ -129,10 +129,14 @@ class LLMConfig:
     ):
         self._model_renderer = value
 
-    def resolve_model(self, base_model: "str | Model | None" = None) -> "str | Model":
+    def resolve_model(
+        self, base_model: "str | Model | None" = None
+    ) -> "str | Model | None":
         """Apply model_getter then model_renderer to produce the final model.
 
         If *base_model* is ``None`` the config's default ``model`` is used.
+        The user-supplied ``model_getter``/``model_renderer`` may return ``None``
+        (e.g. to defer to pydantic-ai's default), so the result is optional.
         """
         if base_model is None:
             base_model = self.model
@@ -209,7 +213,9 @@ class LLMConfig:
         if provider_name not in cache:
             try:
                 # lazy: heavy third-party
-                from pydantic_ai.models import infer_provider_class
+                from pydantic_ai.models import (  # type: ignore[attr-defined]  # noqa: E501
+                    infer_provider_class,
+                )
 
                 infer_provider_class(provider_name)
                 cache[provider_name] = True

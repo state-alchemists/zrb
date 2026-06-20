@@ -53,7 +53,7 @@ class ThreadPoolHookExecutor:
     - Exit code handling (0=success, 2=block)
     """
 
-    def __init__(self, max_workers: int = 10, default_timeout: int | None = None):
+    def __init__(self, max_workers: int = 10, default_timeout: float | None = None):
         self.max_workers = max_workers
         self.default_timeout = (
             default_timeout if default_timeout is not None else CFG.HOOKS_TIMEOUT / 1000
@@ -95,7 +95,7 @@ class ThreadPoolHookExecutor:
         self,
         hook: HookCallable,
         context: HookContext,
-        timeout: int | None = None,
+        timeout: float | None = None,
     ) -> HookExecutionResult:
         """
         Execute a hook with timeout and proper error handling.

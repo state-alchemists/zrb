@@ -36,6 +36,7 @@ if TYPE_CHECKING:
     from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
     from zrb.llm.snapshot.manager import SnapshotManager
     from zrb.llm.task.llm_task import LLMTask
+    from zrb.task.any_task import AnyTask
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +83,7 @@ class CommandsMixin(ConversationCommandsMixin, ModelCommandsMixin, ExecCommandsM
         # Methods/properties provided by the host class (subclass of BaseUI).
         last_output: Any
 
-        def append_to_output(self, text: str, end: str = "\n") -> None: ...
+        def append_to_output(self, *values: Any, **kwargs: Any) -> None: ...
 
         def execute_hook(self, event: Any, event_data: Any, **kwargs) -> None: ...
 
@@ -94,16 +95,21 @@ class CommandsMixin(ConversationCommandsMixin, ModelCommandsMixin, ExecCommandsM
 
         def on_exit(self) -> None: ...
 
-        def _submit_user_message(self, llm_task: "LLMTask", text: str) -> None: ...
+        def _submit_user_message(
+            self, llm_task: "AnyTask", user_message: str
+        ) -> None: ...
 
         def _replay_history(self, messages: list) -> None: ...
 
-        def _update_system_info(self) -> None: ...
+        async def _update_system_info(self) -> None: ...
 
-        def _get_output_field_width(self) -> int: ...
+        def _get_output_field_width(self) -> int | None: ...
 
         @property
-        def yolo(self) -> bool: ...
+        def yolo(self) -> bool | frozenset: ...
+
+        @yolo.setter
+        def yolo(self, value: bool | frozenset) -> None: ...
 
     # --- command dispatch (with hooks) ------------------------------------
 
@@ -329,9 +335,8 @@ class CommandsMixin(ConversationCommandsMixin, ModelCommandsMixin, ExecCommandsM
             if limit is not None and i >= limit:
                 help_lines.append("  ... and more")
                 break
-            if max_length is None:
-                capped_desc = desc
-            elif max_length > 4:
+            capped_desc = desc
+            if max_length is not None and max_length > 4:
                 capped_desc = (
                     desc if len(desc) <= max_length else f"{desc[:max_length - 4]} ..."
                 )

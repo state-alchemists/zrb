@@ -55,7 +55,9 @@ llm_chat = LLMChatTask(
             always_prompt=False,
         ),
     ],
-    model="{ctx.input.model}",
+    # fstring template (StrAttr); LLMChatTask.model omits bare str from its
+    # annotation but renders it at run time via get_attr in _get_model.
+    model="{ctx.input.model}",  # type: ignore[arg-type]
     yolo="{ctx.input.yolo}",
     message="{ctx.input.message}",
     conversation_name="{ctx.input.session}",

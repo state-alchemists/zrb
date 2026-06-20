@@ -156,13 +156,16 @@ class ConversationCommandsMixin:
                             break
 
                 async def do_restore(s=sha, mc=message_count):
+                    snapshot_manager = self._snapshot_manager
+                    if snapshot_manager is None:
+                        return
                     self._is_thinking = True
                     self.invalidate_ui()
                     try:
                         self.append_to_output(
                             stylize_faint(f"\n  ⏪ Restoring snapshot {s[:8]}...\n")
                         )
-                        ok = await self._snapshot_manager.restore_snapshot(s)
+                        ok = await snapshot_manager.restore_snapshot(s)
                         if ok:
                             if mc is not None:
                                 try:

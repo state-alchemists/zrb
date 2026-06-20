@@ -27,7 +27,7 @@ def serve_task_input_api(
         path: str,
         request: Request,
         query: str = Query("{}", description="JSON encoded inputs"),
-    ) -> dict[str, str]:
+    ) -> "dict[str, str]":
         """
         Getting input completion for path
         """
@@ -36,13 +36,13 @@ def serve_task_input_api(
         try:
             task, _, _ = extract_node_from_args(root_group, args)
         except NodeNotFoundError:
-            return JSONResponse(content={"detail": "Not found"}, status_code=404)
+            return JSONResponse(content={"detail": "Not found"}, status_code=404)  # type: ignore[return-value]
         if isinstance(task, AnyTask):
             if not user.can_access_task(task):
-                return JSONResponse(content={"detail": "Forbidden"}, status_code=403)
+                return JSONResponse(content={"detail": "Forbidden"}, status_code=403)  # type: ignore[return-value]
             str_kwargs = json.loads(query)
             task_str_kwargs = get_task_str_kwargs(
                 task=task, str_args=[], str_kwargs=str_kwargs, cli_mode=False
             )
             return task_str_kwargs
-        return JSONResponse(content={"detail": "Not found"}, status_code=404)
+        return JSONResponse(content={"detail": "Not found"}, status_code=404)  # type: ignore[return-value]

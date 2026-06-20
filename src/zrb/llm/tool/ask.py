@@ -15,10 +15,13 @@ ContextVar's asyncio-task semantics.
 from __future__ import annotations
 
 from contextvars import ContextVar
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from zrb.llm.tool.wrapper import tool_safe_async
 from zrb.llm.tool_call.always_approve import register_always_auto_approve
+
+if TYPE_CHECKING:
+    from zrb.llm.tool_call.ui_protocol import ChoiceSpec
 
 interactive_mode: ContextVar[bool] = ContextVar("zrb_interactive_mode", default=True)
 
@@ -147,7 +150,7 @@ def _build_choice_spec(idx: int, total: int, q: dict[str, Any]) -> dict[str, Any
     }
 
 
-def format_choice_spec(spec: dict[str, Any]) -> str:
+def format_choice_spec(spec: "ChoiceSpec | dict[str, Any]") -> str:
     """Render a `ChoiceSpec` as numbered text (fallback for non-widget UIs)."""
     multi = bool(spec.get("multi_select"))
     idx = spec.get("index", 1)

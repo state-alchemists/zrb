@@ -1,4 +1,4 @@
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Any
 
 from zrb.context.any_context import AnyContext
@@ -16,8 +16,8 @@ def make_task(
     icon: str | None = None,
     description: str | None = None,
     cli_only: bool = False,
-    input: list[AnyInput | None] | AnyInput | None = None,
-    env: list[AnyEnv | None] | AnyEnv | None = None,
+    input: Sequence[AnyInput | None] | AnyInput | None = None,
+    env: Sequence[AnyEnv | None] | AnyEnv | None = None,
     execute_condition: bool | str | Callable[[AnyContext], bool] = True,
     retries: int = 2,
     retry_period: float = 0,

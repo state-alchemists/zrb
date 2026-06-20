@@ -5,7 +5,7 @@ import inspect
 import json
 from collections.abc import Callable
 from functools import wraps
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from zrb.config.config import CFG
 from zrb.llm.config.config import llm_config as default_llm_config
@@ -41,8 +41,8 @@ def _wrap_tool(tool: "Tool | ToolFuncEither") -> "Tool | ToolFuncEither":
         from pydantic_ai import Tool as PydanticTool
 
         # It is a Tool instance
-        original_func = tool.function
-        safe_func = create_safe_wrapper(original_func, name=tool.name)
+        original_func = getattr(tool, "function")
+        safe_func = create_safe_wrapper(original_func, name=getattr(tool, "name"))
         if isinstance(tool, PydanticTool):
             return PydanticTool(
                 safe_func,
@@ -59,8 +59,8 @@ def _wrap_tool(tool: "Tool | ToolFuncEither") -> "Tool | ToolFuncEither":
             )
         return tool
     else:
-        # It is a callable
-        return create_safe_wrapper(tool)
+        # It is a callable (hasattr(tool, "function") is False, so not a Tool).
+        return create_safe_wrapper(cast("Callable", tool))
 
 
 def safe_copy_result(result: Any) -> Any:
@@ -491,7 +491,7 @@ def create_agent(
     capabilities: "list[AbstractCapability[Any]] | None" = None,
     output_type: "OutputSpec[OutputDataT]" = str,
     retries: int | None = None,
-    yolo: bool | Callable[[Any, Any, dict[str, Any]], bool] = False,
+    yolo: bool | Callable[[Any], bool] = False,
     resolve_model: bool = True,
 ) -> "Agent[None, Any]":
     # lazy: heavy third-party
@@ -546,7 +546,9 @@ def create_agent(
 
     agent = Agent(
         model=final_model,
-        output_type=final_output_type,
+        # final_output_type may be `output_type | DeferredToolRequests`, a union
+        # pydantic-ai accepts at runtime but its OutputSpec param type doesn't model.
+        output_type=cast("OutputSpec[Any]", final_output_type),
         instructions=effective_system_prompt,
         toolsets=effective_toolsets,
         model_settings=effective_model_settings,

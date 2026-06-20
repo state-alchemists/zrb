@@ -46,7 +46,8 @@ async def _macos() -> bytes | None:
         from PIL import ImageGrab  # type: ignore[import]
 
         img = await asyncio.to_thread(ImageGrab.grabclipboard)
-        if img is None:
+        # grabclipboard() returns an Image, a list of file paths, or None.
+        if img is None or isinstance(img, list):
             return None
         buf = io.BytesIO()
         img.save(buf, format="PNG")
@@ -100,7 +101,8 @@ def _windows() -> bytes | None:
         from PIL import ImageGrab  # type: ignore[import]
 
         img = ImageGrab.grabclipboard()
-        if img is None:
+        # grabclipboard() returns an Image, a list of file paths, or None.
+        if img is None or isinstance(img, list):
             return None
         buf = io.BytesIO()
         img.save(buf, format="PNG")

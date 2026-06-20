@@ -7,7 +7,7 @@ error_hint appended to the error message.
 """
 
 import functools
-from typing import Any, Callable, ParamSpec, TypeVar
+from typing import Any, Awaitable, Callable, ParamSpec, TypeVar, cast
 
 P = ParamSpec("P")
 T = TypeVar("T")
@@ -58,7 +58,9 @@ def tool_safe_async(
         @functools.wraps(fn)
         async def wrapper(*args: P.args, **kwargs: P.kwargs) -> object:
             try:
-                return await fn(*args, **kwargs)
+                # fn is an async tool; its return value (T) is the coroutine to
+                # await. The generic T isn't bound to Awaitable, so narrow it.
+                return await cast(Awaitable[object], fn(*args, **kwargs))
             except Exception as e:  # noqa: BLE001
                 hint = _get_hint(error_hint, args, kwargs, e)
                 return _format_error(fn.__name__, args, kwargs, e, hint)

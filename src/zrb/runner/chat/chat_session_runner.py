@@ -29,6 +29,8 @@ async def run_chat_session(
 ) -> None:
     """Drive an SSE chat session through `llm_chat_task` until cancelled."""
     current_task = asyncio.current_task()
+    # Always set: this coroutine is itself running on an asyncio task.
+    assert current_task is not None
 
     async def run_llm_message(session_obj: Any, timeout: float) -> None:
         try:

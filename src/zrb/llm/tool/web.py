@@ -242,9 +242,9 @@ async def _fetch_page_content(url: str) -> tuple:
         response.raise_for_status()
         soup = BeautifulSoup(response.text, "html.parser")
         links = [
-            urljoin(url, a["href"])
+            urljoin(url, str(a["href"]))
             for a in soup.find_all("a", href=True)
-            if not a["href"].startswith("#")
+            if not str(a["href"]).startswith("#")
         ]
         return response.text, links
 

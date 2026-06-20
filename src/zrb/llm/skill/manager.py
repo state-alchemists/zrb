@@ -95,7 +95,7 @@ class SkillManager:
         # Scan in order of precedence: global -> project
         # We iterate in normal order to allow later skills (project) to override earlier ones (global)
         for search_dir in target_search_dirs:
-            self._scan_dir(search_dir, max_depth=self._max_depth)
+            self._scan_dir(Path(search_dir), max_depth=self._max_depth)
         self._scanned = True
         return list(self._skills.values())
 

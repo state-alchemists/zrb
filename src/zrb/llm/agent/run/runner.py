@@ -110,7 +110,7 @@ async def run_agent(
     tool_confirmation: AnyToolConfirmation = None,
     ui: UIProtocol | list[UIProtocol] | None = None,
     hook_manager: HookManager | None = None,
-    yolo: bool = False,
+    yolo: bool | None = False,
     approval_channel: "ApprovalChannel | None" = None,
     system_prompt: str = "",
     live_context: str = "",

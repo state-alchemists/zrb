@@ -42,6 +42,33 @@ if TYPE_CHECKING:
 class BuilderMixin:
     """Post-construction configuration API for LLMChatTask."""
 
+    if TYPE_CHECKING:
+        # Attributes supplied by sibling classes on the composed LLMChatTask
+        # (BaseTask, or set in LLMChatTask.__init__).
+        name: str  # BaseTask
+        _prompt_manager: PromptManager | None
+        _pending_tool_guidance: list[ToolGuidance]
+        _uis: list[UIProtocol]
+        _ui_factories: list[Callable[..., UIProtocol]]
+        _history_manager: AnyHistoryManager | None
+        _custom_model_names: StrListAttr | None
+        _approval_channels: list[ApprovalChannel]
+        _tools: list[Tool | ToolFuncEither]
+        _tool_factories: list[Callable[[AnyContext], Tool | ToolFuncEither]]
+        _toolsets: list[AbstractToolset[None]]
+        _toolset_factories: list[Callable[[AnyContext], AbstractToolset[None]]]
+        _tool_guidance_factories: list[Callable[[AnyContext], ToolGuidance]]
+        _tool_guidance_section_factories: list[Callable[[AnyContext, Any], str | None]]
+        _hook_factories: list[Callable[[HookManager], None]]
+        _history_processors: list[HistoryProcessor]
+        _response_handlers: list[ResponseHandler]
+        _tool_policies: list[ToolPolicy]
+        _argument_formatters: list[ArgumentFormatter]
+        _triggers: list[Callable[[], AsyncIterable[Any]]]
+        _custom_commands: list[
+            AnyCustomCommand | Callable[[], AnyCustomCommand | list[AnyCustomCommand]]
+        ]
+
     @property
     def prompt_manager(self) -> PromptManager:
         if self._prompt_manager is None:

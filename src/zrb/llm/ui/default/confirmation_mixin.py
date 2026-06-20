@@ -17,6 +17,9 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any
 
+if TYPE_CHECKING:
+    from typing import TextIO
+
 
 class ConfirmationMixin:
     """Per-request confirmation queue used by `ask_user`/`ask_user_choice`."""
@@ -28,6 +31,17 @@ class ConfirmationMixin:
         _confirmation_queue: list[tuple[asyncio.Future[str], str, Any]]
         _confirmation_output_buffer: list[str]
         _current_confirmation: asyncio.Future[str] | None
+
+        # From OutputMixin
+        def append_to_output(
+            self,
+            *values: object,
+            sep: str = " ",
+            end: str = "\n",
+            file: "TextIO | None" = None,
+            flush: bool = False,
+            kind: str = "text",
+        ) -> None: ...
 
     # Choice-widget hooks. No-ops by default; `SelectionMixin` overrides them
     # (it precedes this mixin in the default `UI` MRO) to render the widget.

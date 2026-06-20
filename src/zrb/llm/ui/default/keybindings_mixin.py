@@ -15,7 +15,7 @@ from zrb.llm.hook.interface import HookEvent
 from zrb.llm.util.image_scale import scale_image_bytes
 
 if TYPE_CHECKING:
-    from typing import Any
+    from typing import Any, TextIO
 
     from prompt_toolkit.key_binding import KeyBindings
     from pydantic_ai.messages import UserContent
@@ -45,13 +45,39 @@ class KeybindingsMixin:
 
         def schedule_command(self, text: str, *, guarded: bool = True) -> None: ...
 
-        def _submit_user_message(self, llm_task: "AnyTask", text: str) -> None: ...
+        def _submit_user_message(
+            self, llm_task: "AnyTask", user_message: str
+        ) -> None: ...
 
         def toggle_plan(self) -> None: ...
 
         def toggle_yolo(self) -> None: ...
 
         def cycle_mode(self) -> None: ...
+
+        # From BaseUI
+        def execute_hook(
+            self, event: "HookEvent", event_data: Any, **kwargs: Any
+        ) -> None: ...
+
+        # From OutputMixin
+        def append_to_output(
+            self,
+            *values: object,
+            sep: str = " ",
+            end: str = "\n",
+            file: "TextIO | None" = None,
+            flush: bool = False,
+            kind: str = "text",
+        ) -> None: ...
+
+        # From LifecycleMixin
+        def invalidate_ui(self) -> None: ...
+
+        # From ConfirmationMixin
+        def _cancel_pending_confirmations(self, flush: bool = True) -> None: ...
+
+        def _handle_confirmation(self, event: Any) -> bool: ...
 
     def setup_app_keybindings(
         self, app_keybindings: "KeyBindings", llm_task: "AnyTask"

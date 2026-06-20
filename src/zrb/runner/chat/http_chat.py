@@ -106,6 +106,8 @@ class HTTPChatApprovalChannel(ApprovalChannel):
         if tool_call_id not in self._pending:
             return
         context = self._pending_context.get(tool_call_id)
+        if context is None:
+            return
         new_args = self._parse_edited_content(response)
         future = self._pending.pop(tool_call_id)
         del self._pending_context[tool_call_id]
@@ -138,6 +140,8 @@ class HTTPChatApprovalChannel(ApprovalChannel):
         if tool_call_id not in self._pending:
             return
         context = self._pending_context.get(tool_call_id)
+        if context is None:
+            return
         future = self._pending.pop(tool_call_id)
         del self._pending_context[tool_call_id]
         asyncio.create_task(
@@ -224,10 +228,10 @@ class HTTPChatApprovalChannel(ApprovalChannel):
             return None
         except json.JSONDecodeError:
             pass
-        try:
-            # lazy: heavy third-party
-            import yaml
+        # lazy: heavy third-party
+        import yaml
 
+        try:
             result = yaml.safe_load(content)
             if isinstance(result, dict):
                 return result

@@ -3,7 +3,10 @@ from __future__ import annotations
 import asyncio
 import uuid
 from dataclasses import dataclass
-from typing import Any, TextIO
+from typing import TYPE_CHECKING, Any, TextIO
+
+if TYPE_CHECKING:
+    from zrb.llm.tool_call.ui_protocol import ChoiceSpec
 
 from zrb.llm.agent.run.runner import run_agent
 from zrb.llm.agent.run.runtime_state import get_current_hook_manager, get_current_ui
@@ -81,10 +84,19 @@ class BufferedUI(UIProtocol):
         text = sep.join(str(v) for v in values) + end
         self._buffer.append(text)
 
+    async def ask_user_choice(self, spec: ChoiceSpec) -> str:
+        # Mirrors ask_user: serialize parent interaction and flush first.
+        async with self._lock:
+            self.flush_to_parent()
+            return await self._wrapped.ask_user_choice(spec)
+
     async def run_interactive_command(
         self, cmd: str | list[str], shell: bool = False
     ) -> Any:
         return await self._wrapped.run_interactive_command(cmd, shell)
+
+    async def run_async(self) -> Any:
+        return await self._wrapped.run_async()
 
     def get_buffered_output(self) -> str:
         """Get all buffered output."""
@@ -112,7 +124,7 @@ class BufferedUI(UIProtocol):
     def yolo(self) -> bool | frozenset:
         """Delegate YOLO mode to the wrapped parent UI."""
         if hasattr(self._wrapped, "yolo"):
-            return self._wrapped.yolo
+            return getattr(self._wrapped, "yolo")
         return False
 
     def stream_to_parent(
@@ -219,7 +231,7 @@ async def _run_agent_task(
         )
 
         if flush_ui and hasattr(ui, "flush_to_parent"):
-            ui.flush_to_parent()
+            getattr(ui, "flush_to_parent")()
 
         return AgentTaskResult(agent_name, result, None)
 
@@ -333,7 +345,9 @@ async def _run_parallel(
         if not r.success:
             combined_results.append(f"[{r.agent_name}] Error: {r.error}")
         else:
-            indented_result = "\n".join(["  " + line for line in r.result.splitlines()])
+            indented_result = "\n".join(
+                ["  " + line for line in (r.result or "").splitlines()]
+            )
             combined_results.append(f"[{r.agent_name}] completed:\n{indented_result}")
     return "\n\n".join(combined_results)
 
@@ -408,7 +422,7 @@ def create_delegate_to_agent_tool(
         # Return result with unique identifier for traceability
         return f"[{agent_name}:{unique_id}] completed:\n\n{task_result.result}"
 
-    delegate_to_agent.zrb_is_delegate_tool = True
+    delegate_to_agent.zrb_is_delegate_tool = True  # type: ignore[attr-defined]
     delegate_to_agent.__name__ = "DelegateToAgent"
     delegate_to_agent.__doc__ = (
         "Delegates a task to a named subagent for isolated execution.\n\n"

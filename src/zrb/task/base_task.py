@@ -1,9 +1,9 @@
 import asyncio
 import inspect
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Any, overload
 
-from zrb.attr.type import fstring
+from zrb.attr.type import BoolAttr, fstring
 from zrb.context.any_context import AnyContext
 from zrb.context.print_fn import PrintFn
 from zrb.context.shared_context import SharedContext
@@ -55,10 +55,10 @@ class BaseTask(AnyTask):
         icon: str | None = None,
         description: str | None = None,
         cli_only: bool = False,
-        input: list[AnyInput | None] | AnyInput | None = None,
-        env: list[AnyEnv | None] | AnyEnv | None = None,
+        input: Sequence[AnyInput | None] | AnyInput | None = None,
+        env: Sequence[AnyEnv | None] | AnyEnv | None = None,
         action: fstring | Callable[[AnyContext], Any] | None = None,
-        execute_condition: bool | str | Callable[[AnyContext], bool] = True,
+        execute_condition: BoolAttr = True,
         retries: int = 2,
         retry_period: float = 0,
         readiness_check: list[AnyTask] | AnyTask | None = None,
@@ -345,7 +345,7 @@ class BaseTask(AnyTask):
             return self.run(session=session, kwargs=task_kwargs)
 
         task_runner_fn.__doc__ = self._create_fn_docstring()
-        task_runner_fn.__signature__ = self._create_fn_signature()
+        task_runner_fn.__signature__ = self._create_fn_signature()  # type: ignore[attr-defined]
         task_runner_fn.__name__ = self.name
         return task_runner_fn
 

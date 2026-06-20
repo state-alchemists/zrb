@@ -29,7 +29,11 @@ install_asdf_prerequisites = CmdTask(
 download_asdf = CmdTask(
     name="download-asdf",
     cmd="git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v0.14.1",
-    execute_condition=check_inexist_asdf_dir,
+    # check_inexist_asdf_dir is typed (AnyContext) -> bool; the BoolAttr slot
+    # accepts (AnyContext | AnySharedContext) -> bool | None. AnyContext is the
+    # narrower subclass, so the contravariant param trips pyright. Safe at run
+    # time — the task layer always passes an AnyContext.
+    execute_condition=check_inexist_asdf_dir,  # type: ignore[arg-type]
 )
 install_asdf_prerequisites >> download_asdf
 

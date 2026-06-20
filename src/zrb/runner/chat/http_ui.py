@@ -48,9 +48,9 @@ def create_http_ui_factory(
                     self._session_id, clean, kind=kind
                 )
 
-        def handle_incoming_message(self, message: str) -> None:
+        def handle_incoming_message(self, text: str) -> None:
             """Put an incoming message into the input queue."""
-            self._input_queue.put_nowait(message)
+            self._input_queue.put_nowait(text)
 
         async def get_input(self, prompt: str) -> str:
             if prompt:
@@ -78,7 +78,7 @@ def create_http_ui_factory(
             # No-op: `_run_loop` is overridden directly.
             pass
 
-        async def _run_loop(self) -> None:
+        async def _run_loop(self):
             """Process one message then return; multi-turn handled by session runner."""
             # Block until every submitted user message has been task_done()'d.
             await self._message_queue.join()

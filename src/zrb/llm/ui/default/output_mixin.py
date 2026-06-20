@@ -10,7 +10,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-from typing import TYPE_CHECKING, TextIO
+from typing import TYPE_CHECKING, TextIO, cast
 
 from zrb.config.config import CFG
 from zrb.util.cli.style import stylize_faint
@@ -63,6 +63,16 @@ class OutputMixin:
         # importing heavyweight modules at type-check time).
         _input_field: Any
         _output_field: Any
+        # From default UI (`UI.__init__`)
+        _pending_invalidate: bool
+        _invalidate_task: asyncio.Task | None
+
+        # From BaseUI
+        @property
+        def yolo(self) -> bool | frozenset: ...
+
+        # From LifecycleMixin
+        def invalidate_ui(self) -> None: ...
 
     @property
     def is_thinking(self) -> bool:
@@ -274,7 +284,7 @@ class OutputMixin:
         # near the prompt). `current_cycle_mode` lives on ModelCommandsMixin;
         # guard for lightweight UIs/mocks that don't compose it. See ADR-0075.
         get_mode = getattr(self, "current_cycle_mode", None)
-        mode = get_mode() if callable(get_mode) else "normal"
+        mode = cast(str, get_mode()) if callable(get_mode) else "normal"
         return [
             (CFG.LLM_UI_STYLE_STATUS, " 🚀 Ready "),
             (
