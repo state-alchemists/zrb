@@ -25,6 +25,8 @@ async def replace_in_file_formatter(
         args = call.args
         if isinstance(args, str):
             args = json.loads(args)
+        if not isinstance(args, dict):
+            return None
 
         path = args.get("path")
         old_text = args.get("old_text")

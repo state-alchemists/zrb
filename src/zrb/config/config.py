@@ -36,7 +36,7 @@ from zrb.config.mixins.task_runtime import TaskRuntimeMixin
 from zrb.config.mixins.web import WebMixin
 
 
-class Config(
+class Config(  # type: ignore[misc]  # noqa: E501  # Sibling mixins TYPE_CHECKING-declare ENV_PREFIX/ROOT_GROUP_* (FoundationMixin read-write properties) as attrs for self-access; pyright flags the property-vs-attr composition as an incompatible override (false positive — all expose the same str type).
     FoundationMixin,
     WebMixin,
     LLMCoreMixin,

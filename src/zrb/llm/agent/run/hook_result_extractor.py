@@ -108,6 +108,35 @@ def extract_block_decision(hook_results: list[HookExecutionResult]) -> BlockDeci
     return BlockDecision(blocked=False, additional_context=additional_context)
 
 
+@dataclass
+class ContinueDecision:
+    """A hook's request to halt all processing via ``continue: false``."""
+
+    stop: bool = False
+    reason: str | None = None
+
+
+def extract_continue_decision(
+    hook_results: list[HookExecutionResult],
+) -> ContinueDecision:
+    """Detect a hook requesting the run halt entirely via ``continue: false``.
+
+    Claude-compatible: ``continue: false`` stops all further processing regardless
+    of event, and ``stopReason`` is the message surfaced to the user. zrb runs
+    hooks sequentially by priority; the first halt wins. This is distinct from a
+    per-event ``decision: "block"`` — ``continue: false`` is unconditional.
+    """
+    for result in hook_results:
+        if not result.continue_execution:
+            reason = (
+                (result.data or {}).get("stopReason")
+                or result.reason
+                or "Stopped by hook (continue=false)"
+            )
+            return ContinueDecision(stop=True, reason=reason)
+    return ContinueDecision()
+
+
 def extract_permission_decision(
     hook_results: list[HookExecutionResult],
 ) -> str | None:
@@ -138,6 +167,7 @@ class PreToolDecision:
 
     deny: bool = False
     allow: bool = False
+    force_prompt: bool = False
     reason: str | None = None
     updated_input: dict | None = None
     additional_context: str | None = None
@@ -151,9 +181,13 @@ def extract_pre_tool_decision(
     Honors (top level or nested in ``hookSpecificOutput``):
     - ``permissionDecision: "deny"`` / exit-2 / ``decision: "block"`` → deny.
     - ``permissionDecision: "allow"`` → allow (auto-approve, skip the prompt).
+    - ``permissionDecision: "ask"`` → force the interactive approval prompt,
+      overriding any lower-priority auto-approve.
+    - ``permissionDecision: "defer"`` → no opinion (explicit no-op; the normal
+      approval flow decides).
     - ``updatedInput`` → argument rewrite (first non-empty wins).
 
-    zrb runs hooks sequentially by priority; the first decisive deny/allow wins.
+    zrb runs hooks sequentially by priority; the first decisive deny/allow/ask wins.
     """
     updated_input: dict | None = None
     additional_context: str | None = None
@@ -179,6 +213,13 @@ def extract_pre_tool_decision(
             additional_context = result.additional_context or hso.get(
                 "additionalContext"
             )
+        if permission == "ask":
+            return PreToolDecision(
+                force_prompt=True,
+                reason=reason,
+                updated_input=updated_input,
+                additional_context=additional_context,
+            )
         if permission == "allow":
             return PreToolDecision(
                 allow=True,
@@ -186,6 +227,8 @@ def extract_pre_tool_decision(
                 updated_input=updated_input,
                 additional_context=additional_context,
             )
+        # permission == "defer" (or any unrecognized value) is no opinion: keep
+        # scanning, then fall through to the normal approval flow.
     return PreToolDecision(
         updated_input=updated_input, additional_context=additional_context
     )

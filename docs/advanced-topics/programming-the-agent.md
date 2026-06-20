@@ -1,3 +1,5 @@
+🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > Programming the Agent
+
 # Programming the Agent
 
 `zrb llm chat` is a turnkey AI coding assistant — file tools, an interactive TUI, permission prompts, and conversation history all work out of the box. But Zrb does not stop at configuration. Every behavior of the agent is a value you can supply or a Python callable you can register, **in the same file where you define the rest of your automation** — no separate SDK, no plugin runtime, no JSON schema.
@@ -75,6 +77,18 @@ chat = LLMChatTask(name="sprint-chat", prompt_manager=pm)
 
 The provider runs at prompt-compose time, every request, so the section always reflects current state. If a name in `include_sections` has no registered provider, Zrb looks for a `<name>.md` prompt file instead (project override → env → package), so static and dynamic sections share one ordering mechanism. See the *LLM Prompt System* notes in `AGENTS.md` and ADR-0061 for the full resolution order.
 
+### Per-turn live context providers
+
+Where `register_section` adds content to the **cached system prompt**, `add_live_context` injects volatile per-turn state into the ` <live-context>` block — the block appended to every user message that carries time, git status, todos, and worktree state. Use it for runtime data that changes every turn and should not invalidate the cacheable prefix:
+
+```python
+pm.add_live_context("deploy_info", lambda ctx: f"- Deploy target: {ctx.env.DEPLOY_TARGET}")
+```
+
+The provider receives the active `AnyContext` and returns a string (or `None`/`""` to emit nothing). Providers run in registration order after the built-in live context lines (time, git, worktree, mode, todos). Re-registering the same name replaces the previous provider.
+
+👉 Runnable end-to-end example: [`examples/live-context`](../../examples/live-context).
+
 ## History processors
 
 A history processor is an async callable that receives the running message history and returns a (possibly modified) one. They run between tool-call iterations — use them to keep the context window affordable, strip sensitive data, or inject retrieved context.
@@ -127,3 +141,5 @@ Combine that with a custom tool that calls into your codebase, and the agent bec
 - [LLMChatTask API Reference](../task-types/llmchat-task.md) — the full builder API
 - [LLM Chat Request Lifecycle](llm-chat-lifecycle.md) — how a turn flows end to end
 - [Hook System](hooks.md) · [Permission Policy](permission-policy.md) · [Custom UI](llm-custom-ui.md)
+
+🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > Programming the Agent

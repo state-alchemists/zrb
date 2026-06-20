@@ -116,3 +116,5 @@ security boundary in v1. Known limits, by design:
 
 See ADR-0063 in [docs/adr/07-llm-extension.md](../adr/07-llm-extension.md)
 for the full design rationale.
+
+🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > Sandbox

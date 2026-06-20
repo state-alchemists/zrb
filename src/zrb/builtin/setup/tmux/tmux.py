@@ -25,6 +25,7 @@ install_tmux = CmdTask(
         prompt="Tmux config file",
         default="~/.tmux.conf",
     ),
+    upstream=install_tmux,
     description="📺 Setup `tmux`.",
     group=setup_group,
     alias="tmux",
@@ -41,6 +42,3 @@ def setup_tmux(ctx: AnyContext):
     # Write config
     write_file(tmux_config_file, [content, tmux_config, ""])
     ctx.print("Setup complete, restart your terminal to continue")
-
-
-install_tmux >> setup_tmux

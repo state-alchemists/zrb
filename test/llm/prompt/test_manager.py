@@ -144,6 +144,76 @@ def test_create_live_context_wraps_volatile_state_in_tags():
     assert "Time:" in rendered
 
 
+def test_add_live_context_appends_custom_content():
+    """Custom live context providers extend the <live-context> block."""
+    manager = PromptManager(include_sections=[])
+    manager.add_live_context("test_provider", lambda ctx: "- Custom: hello")
+
+    ctx = MagicMock()
+    ctx.input.session = "add-live-ctx-test"
+
+    with patch("zrb.llm.tool.plan.todo_manager") as mock_tm:
+        mock_tm.get_todos.return_value = None
+        rendered = manager.create_live_context(ctx)
+
+    assert "Custom: hello" in rendered
+
+
+def test_add_live_context_overwrites_same_name():
+    """Re-registering the same name replaces the previous provider."""
+    manager = PromptManager(include_sections=[])
+    manager.add_live_context("dup", lambda ctx: "- First")
+    manager.add_live_context("dup", lambda ctx: "- Second")
+
+    ctx = MagicMock()
+    ctx.input.session = "overwrite-test"
+
+    with patch("zrb.llm.tool.plan.todo_manager") as mock_tm:
+        mock_tm.get_todos.return_value = None
+        rendered = manager.create_live_context(ctx)
+
+    assert "Second" in rendered
+    assert "First" not in rendered
+
+
+def test_add_live_context_handles_none_return():
+    """A provider returning None/empty string is safely skipped."""
+    manager = PromptManager(include_sections=[])
+    manager.add_live_context("skip", lambda ctx: None)
+    manager.add_live_context("also_skip", lambda ctx: "")
+
+    ctx = MagicMock()
+    ctx.input.session = "none-test"
+
+    with patch("zrb.llm.tool.plan.todo_manager") as mock_tm:
+        mock_tm.get_todos.return_value = None
+        rendered = manager.create_live_context(ctx)
+
+    assert "Time:" in rendered
+
+
+def test_add_live_context_does_not_swallow_exceptions_quietly():
+    """A broken provider does not crash the whole block."""
+    manager = PromptManager(include_sections=[])
+
+    def broken(_ctx):
+        raise RuntimeError("boom")
+
+    manager.add_live_context("broken", broken)
+
+    ctx = MagicMock()
+    ctx.input.session = "exception-test"
+
+    with patch("zrb.llm.tool.plan.todo_manager") as mock_tm:
+        mock_tm.get_todos.return_value = None
+        rendered = manager.create_live_context(ctx)
+
+    # Built-in content still renders
+    assert "Time:" in rendered
+    # Broken provider is silently skipped
+    assert "boom" not in rendered
+
+
 def test_prompt_manager_tool_guidance_sections_injected_before_catalogue():
     """`tool_guidance_sections` content appears in the Tool Usage Guide output."""
     manager = PromptManager(include_sections=["tool_guidance"])

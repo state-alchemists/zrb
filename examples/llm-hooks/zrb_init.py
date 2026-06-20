@@ -8,18 +8,21 @@ Hook Events:
 - USER_PROMPT_SUBMIT: Before the LLM processes text (can block)
 - PRE_COMMAND: Before a UI command runs (can block)
 - POST_COMMAND: After a UI command runs
-- PRE_TOOL_USE: Before every tool call (can deny, allow, rewrite args)
+- PRE_TOOL_USE: Before every tool call (permissionDecision deny/allow/ask/defer; rewrite args)
 - POST_TOOL_USE: After a tool succeeds (can block, replace output)
 - POST_TOOL_USE_FAILURE: After a tool raises
 - PERMISSION_REQUEST: Tool reaches interactive approval (can auto-resolve)
 - NOTIFICATION: System notifications
 - STOP: Turn finishes — per-turn extension and block-to-continue point
-- PRE_COMPACT: Before history summarization
-- SESSION_END: Terminal — fires once when chat session ends
+- PRE_COMPACT: Before history summarization (can inject context OR block compaction)
+- SESSION_END: Terminal — fires once when chat session ends (matches on `source`)
+
+Any event can also request `continue: false` to halt the whole run (distinct
+from a per-event block); on UserPromptSubmit/Stop it ends the turn.
 """
 
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
+from zrb.llm.hook.interface import HookContext, HookResult
 from zrb.llm.hook.types import HookEvent
 
 # =============================================================================
@@ -74,7 +77,8 @@ class SessionTrackerHook:
             print(f"[SESSION] Tool #{len(self.tool_calls)}: {context.tool_name}")
 
         elif context.event == HookEvent.SESSION_END:
-            print(f"[SESSION] Ended: {self.session_id}")
+            # `source` is the Claude-compatible matcher field for SessionEnd.
+            print(f"[SESSION] Ended: {self.session_id} (source={context.source})")
             print(f"[SESSION]   Prompts: {len(self.prompts)}")
             print(f"[SESSION]   Tool calls: {len(self.tool_calls)}")
             print(f"[SESSION]   Tools used: {set(self.tool_calls)}")
@@ -90,10 +94,13 @@ class SessionTrackerHook:
 async def permission_hook(context: HookContext) -> HookResult:
     """Control tool permissions via PreToolUse.
 
-    Demonstrates:
-    - Denying dangerous tools
-    - Auto-allowing safe tools
-    - Rewriting tool arguments via updatedInput
+    Demonstrates all four `permissionDecision` values:
+    - "deny"  — block dangerous tools
+    - "allow" — auto-approve safe tools (skip the prompt)
+    - "ask"   — force the interactive prompt, overriding any tool-policy/YOLO
+                auto-approve (an explicit DENY still wins)
+    - "defer" — no opinion; let the normal approval flow decide (== HookResult())
+    Plus rewriting tool arguments via updatedInput (see arg_rewrite_hook).
     """
     if context.event != HookEvent.PRE_TOOL_USE:
         return HookResult()
@@ -125,8 +132,21 @@ async def permission_hook(context: HookContext) -> HookResult:
                 modifications={"permissionDecision": "deny"},
             )
 
-        # For everything else, let the normal approval flow handle it
-        return HookResult()
+        # Medium-risk commands: force a prompt even if a tool policy or YOLO
+        # would otherwise auto-approve. "ask" overrides those auto-allows.
+        ask_patterns = ["git push", "npm install", "pip install", "git commit"]
+        if any(pat in command for pat in ask_patterns):
+            print(f"[PERMISSION] Forcing prompt for: {command[:50]}")
+            return HookResult(
+                success=True,
+                modifications={"permissionDecision": "ask"},
+            )
+
+        # Everything else: defer (no opinion) — equivalent to HookResult().
+        return HookResult(
+            success=True,
+            modifications={"permissionDecision": "defer"},
+        )
 
     if tool_name in SAFE_TOOLS:
         print(f"[PERMISSION] Auto-allowing safe tool: {tool_name}")
@@ -342,7 +362,12 @@ async def precompact_hook(context: HookContext) -> HookResult:
     message_count = context.event_data.get("message_count", 0)
     print(f"[COMPACT] About to compact {message_count} msgs ({token_count} tokens)")
 
-    # Example: preserve deployment instructions when compacting
+    # PreCompact can also BLOCK compaction — skip summarization for this turn so
+    # the full history is preserved (the hard context-window prune still applies
+    # as a safety net). Uncomment to enable:
+    #   return HookResult.block(reason="Preserve full history this turn")
+
+    # Otherwise: inject context to preserve before summarization.
     return HookResult(
         success=True,
         modifications={
@@ -484,6 +509,34 @@ async def notification_handler_hook(context: HookContext) -> HookResult:
 
 
 # =============================================================================
+# Example 15: continue=false — Halt the Whole Run
+# =============================================================================
+
+
+async def killswitch_hook(context: HookContext) -> HookResult:
+    """Halt all processing with `continue: false`.
+
+    Distinct from a per-event block: `continue: false` is unconditional and ends
+    the run. On UserPromptSubmit it ends the turn before the model runs; the
+    `stopReason` is surfaced to the user. Here it acts as a "/stop" killswitch.
+    """
+    if context.event != HookEvent.USER_PROMPT_SUBMIT:
+        return HookResult()
+
+    if (context.prompt or "").strip().lower() == "/stop":
+        print("[KILLSWITCH] Halting run via continue=false")
+        return HookResult(
+            success=True,
+            modifications={
+                "continue": False,
+                "stopReason": "Halted by killswitch hook.",
+            },
+        )
+
+    return HookResult()
+
+
+# =============================================================================
 # Register Hooks
 # =============================================================================
 
@@ -537,6 +590,9 @@ def register_hooks(manager):
     # Prompt gate — UserPromptSubmit
     manager.register(prompt_gate_hook, events=[HookEvent.USER_PROMPT_SUBMIT])
 
+    # Killswitch — UserPromptSubmit (continue=false halts the whole run)
+    manager.register(killswitch_hook, events=[HookEvent.USER_PROMPT_SUBMIT])
+
     # Pre-compact context injection
     manager.register(precompact_hook, events=[HookEvent.PRE_COMPACT])
 
@@ -584,15 +640,23 @@ llm_chat.add_hook_factory(register_hooks)
 # Hook Results quick reference:
 # - HookResult()                                           Continue
 # - HookResult.block(reason)                               Block (exit code 2)
+# - HookResult(success=True, modifications={"continue": False,
+#                                           "stopReason": "..."})
+#                     Any: Halt the whole run (ends the turn on
+#                     UserPromptSubmit/Stop)
 # - HookResult(success=True, modifications={"systemMessage": msg})
 #                     Stop: Extend turn, original response returned
 # - HookResult(success=True, modifications={"systemMessage": msg,
 #                                           "replaceResponse": True})
 #                     Stop: Extend turn, new response replaces original
 # - HookResult(success=True, modifications={"permissionDecision": "allow"})
-#                     PreToolUse: Auto-allow tool
+#                     PreToolUse: Auto-allow tool (skip the prompt)
 # - HookResult(success=True, modifications={"permissionDecision": "deny"})
 #                     PreToolUse: Auto-deny tool
+# - HookResult(success=True, modifications={"permissionDecision": "ask"})
+#                     PreToolUse: Force the approval prompt
+# - HookResult(success=True, modifications={"permissionDecision": "defer"})
+#                     PreToolUse: No opinion (== HookResult())
 # - HookResult(success=True, modifications={"updatedInput": {...}})
 #                     PreToolUse: Rewrite tool args
 # - HookResult(success=True, modifications={

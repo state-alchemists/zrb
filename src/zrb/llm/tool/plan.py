@@ -412,14 +412,14 @@ async def get_todos(session: str = "") -> str:
 
 
 # Export tool functions with proper names for LLM
-write_todos.__name__ = "WriteTodos"
-get_todos.__name__ = "GetTodos"
+write_todos.__name__ = "TodoWrite"
+get_todos.__name__ = "TodoRead"
 
 
 def create_plan_tools() -> list:
     """Create planning tools for registration with the LLM agent.
 
-    Only WriteTodos (replace-by-default) and GetTodos are exposed: WriteTodos
+    Only TodoWrite (replace-by-default) and TodoRead are exposed: TodoWrite
     subsumes per-item status changes and clearing.
     """
     return [write_todos, get_todos]

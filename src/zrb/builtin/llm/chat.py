@@ -55,7 +55,9 @@ llm_chat = LLMChatTask(
             always_prompt=False,
         ),
     ],
-    model="{ctx.input.model}",
+    # fstring template (StrAttr); LLMChatTask.model omits bare str from its
+    # annotation but renders it at run time via get_attr in _get_model.
+    model="{ctx.input.model}",  # type: ignore[arg-type]
     yolo="{ctx.input.yolo}",
     message="{ctx.input.message}",
     conversation_name="{ctx.input.session}",
@@ -119,8 +121,8 @@ llm_chat.add_tool_policy(
     auto_approve("RM", approve_if_path_inside_journal_dir),
     auto_approve("MV", approve_if_mv_inside_journal_dir),
     auto_approve("SearchJournal"),
-    auto_approve("SearchInternet"),
-    auto_approve("OpenWebPage"),
+    auto_approve("WebSearch"),
+    auto_approve("WebFetch"),
     auto_approve("ActivateSkill"),
     # AskUserQuestion is auto-approved intrinsically (it registers itself via
     # register_always_auto_approve in zrb.llm.tool.ask), so the cascade approves
@@ -149,8 +151,8 @@ llm_chat.add_tool_policy(
     auto_approve("LspGetHoverInfo"),
     auto_approve("LspListServers"),
     # Planning tools - safe to auto-approve (just state management)
-    auto_approve("WriteTodos"),
-    auto_approve("GetTodos"),
+    auto_approve("TodoWrite"),
+    auto_approve("TodoRead"),
     # Note: LspRenameSymbol uses dry_run by default, but requires user approval
     # when dry_run=False (actual file modifications)
     # Worktree tools - listing is safe; create/remove require approval

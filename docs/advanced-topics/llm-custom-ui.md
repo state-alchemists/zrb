@@ -1247,3 +1247,5 @@ Use `create_ui_factory()` to handle this automatically.
 | `BaseUI` | `__init__`, `append_to_output()`, `ask_user()`, `run_interactive_command()`, `run_async()` | Custom architectures | High |
 
 **Start with `SimpleUI`**. Upgrade only when your backend requires it.
+
+🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > Custom UI

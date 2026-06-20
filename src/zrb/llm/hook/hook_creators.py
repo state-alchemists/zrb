@@ -2,14 +2,24 @@ import asyncio
 import json
 import logging
 import os
+import signal
 import subprocess
 
 from zrb.config.config import CFG
 from zrb.llm.config.config import llm_config
 from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
 from zrb.llm.hook.schema import AgentHookConfig, CommandHookConfig, PromptHookConfig
+from zrb.llm.hook.types import HookEvent
 
 logger = logging.getLogger(__name__)
+
+# Events for which Claude Code injects a command hook's plain stdout into the
+# model context. For these, when a hook emits unstructured text (not the JSON
+# control protocol), we treat that text as additionalContext so a simple
+# `echo "..."` hook behaves the same as in Claude Code.
+_STDOUT_CONTEXT_EVENTS = frozenset(
+    {HookEvent.SESSION_START, HookEvent.USER_PROMPT_SUBMIT}
+)
 
 # Per-value cap for injected CLAUDE_* env vars. The OS rejects an exec whose
 # combined args+environment exceed ARG_MAX (and a single var over MAX_ARG_STRLEN,
@@ -178,21 +188,34 @@ def create_command_hook(
             exit_code = process.returncode
 
             if exit_code == 2:
-                # Blocking decision - parse output for reason
+                # Blocking decision. Claude Code feeds the block reason back from
+                # STDERR on exit 2; zrb historically read it from stdout. Accept
+                # both, in this precedence: an explicit `reason` in a stdout JSON
+                # control object > stderr (the Claude convention) > plain stdout
+                # text > a default. This keeps existing stdout-based hooks working
+                # while making a Claude-style `echo "reason" >&2; exit 2` carry its
+                # reason instead of silently falling back to the default.
                 modifications = {}
-                reason = "Blocked by hook"
+                json_reason: str | None = None
+                stdout_is_json = False
 
                 try:
                     data = json.loads(output)
                     if isinstance(data, dict):
                         # Claude Code format: {"decision": "block", "reason": "...", ...}
                         modifications = data
-                        if "reason" in data:
-                            reason = data["reason"]
+                        stdout_is_json = True
+                        json_reason = data.get("reason")
                 except Exception:
-                    # If not JSON, use output as reason
-                    if output:
-                        reason = output
+                    # Not JSON; the plain-stdout fallback below handles it.
+                    pass
+
+                # Only treat stdout as the reason when it was NOT a JSON control
+                # object (a JSON object without a reason key keeps the default).
+                plain_stdout = None if stdout_is_json else (output or None)
+                reason = (
+                    json_reason or stderr_output or plain_stdout or "Blocked by hook"
+                )
 
                 # Merge provided modifications with blocking modifications
                 blocking_modifications = {
@@ -219,8 +242,39 @@ def create_command_hook(
                     # Not JSON, treat as plain output
                     pass
 
+                # Claude-compatible stdout-as-context: for SessionStart /
+                # UserPromptSubmit, unstructured stdout (the hook did not use the
+                # JSON control protocol) is injected as additionalContext. When the
+                # hook DID emit a JSON object we respect it verbatim — it may carry
+                # its own additionalContext or a decision — and do not override.
+                if (
+                    output
+                    and not modifications
+                    and context.event in _STDOUT_CONTEXT_EVENTS
+                ):
+                    modifications = {"additionalContext": output}
+
                 return HookResult(
                     success=True, output=output, modifications=modifications
+                )
+            elif exit_code is not None and exit_code < 0:
+                # Negative return code: the child was killed by a signal
+                # (POSIX reports -N for signal N). This is almost always the
+                # terminal delivering SIGINT (-2, Ctrl+C) or SIGTERM (-15) to
+                # the whole process group during interrupt/teardown — not a
+                # hook bug. Treat it as a quiet non-failure so a normal Ctrl+C
+                # does not emit a scary "Command hook failed" error.
+                sig_num = -exit_code
+                try:
+                    sig_name = signal.Signals(sig_num).name
+                except ValueError:
+                    sig_name = f"signal {sig_num}"
+                logger.debug(
+                    f"Command hook interrupted by {sig_name}: " f"{config.command[:60]}"
+                )
+                return HookResult(
+                    success=False,
+                    output=f"Command hook interrupted by {sig_name}",
                 )
             else:
                 # Error case

@@ -22,8 +22,23 @@ if TYPE_CHECKING:
     from prompt_toolkit.formatted_text import StyleAndTextTuples
     from prompt_toolkit.layout import Window
 
+    class _ConfirmationContract:
+        """Static stub for the base `_handle_confirmation` reached via `super()`.
 
-class SelectionMixin:
+        `ConfirmationMixin` (next in the default `UI` MRO after this mixin)
+        supplies the real method at runtime; declaring it here as a typed base
+        lets static checkers resolve `super()._handle_confirmation(...)`. This
+        class is never instantiated and does not exist at runtime.
+        """
+
+        def _handle_confirmation(self, event: Any) -> bool: ...
+
+    _SelectionMixinBase = _ConfirmationContract
+else:
+    _SelectionMixinBase = object
+
+
+class SelectionMixin(_SelectionMixinBase):
     """In-layout selection widget; pairs with `ConfirmationMixin`."""
 
     # Host-class contract: `_input_field`/`append_to_output` come from the

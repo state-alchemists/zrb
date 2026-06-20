@@ -251,3 +251,5 @@ def my_task(ctx):
 # In CmdTask / f-string templates (escape quotes for hyphens)
 # {ctx.xcom["my-task"].pop()}
 ```
+
+🔖 [Documentation Home](../../README.md) > [Core Concepts](./) > XCom Deep Dive

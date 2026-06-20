@@ -16,6 +16,7 @@ from zrb.llm.lsp.configs import (
     detect_available_lsp_servers,
     detect_language_from_file,
     get_lsp_config_for_file,
+    lsp_server_configs,
 )
 from zrb.llm.lsp.protocol import (
     JSONRPCMessage,
@@ -31,6 +32,7 @@ __all__ = [
     "detect_available_lsp_servers",
     "detect_language_from_file",
     "get_lsp_config_for_file",
+    "lsp_server_configs",
 ]
 
 

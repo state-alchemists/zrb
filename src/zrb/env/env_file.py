@@ -1,7 +1,7 @@
 from dotenv import dotenv_values
 
 from zrb.attr.type import StrAttr
-from zrb.context.shared_context import SharedContext
+from zrb.context.any_shared_context import AnySharedContext
 from zrb.env.env_map import EnvMap
 from zrb.util.attr import get_str_attr
 
@@ -19,6 +19,10 @@ class EnvFile(EnvMap):
         )
         self._file_path = path
 
-    def _get_env_map(self, shared_ctx: SharedContext) -> dict[str, str]:
+    def _get_env_map(self, shared_ctx: AnySharedContext) -> dict[str, str]:
         file_path = get_str_attr(shared_ctx, self._file_path, ".env", self._auto_render)
-        return dotenv_values(file_path)
+        return {
+            key: value
+            for key, value in dotenv_values(file_path).items()
+            if value is not None
+        }

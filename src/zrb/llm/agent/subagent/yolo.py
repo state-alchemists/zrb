@@ -65,7 +65,7 @@ def make_yolo_inheritance_checker() -> Callable[..., bool]:
         try:
             ui = get_current_ui()
             if ui is not None and hasattr(ui, "yolo"):
-                return bool(ui.yolo)
+                return bool(getattr(ui, "yolo"))
         except Exception:
             pass
         return False

@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import asyncio
+import uuid
 from dataclasses import dataclass
-from typing import Any, TextIO
+from typing import TYPE_CHECKING, Any, TextIO
+
+if TYPE_CHECKING:
+    from zrb.llm.tool_call.ui_protocol import ChoiceSpec
 
 from zrb.llm.agent.run.runner import run_agent
-from zrb.llm.agent.run.runtime_state import get_current_ui
+from zrb.llm.agent.run.runtime_state import get_current_hook_manager, get_current_ui
 
 # Import directly from the inner module to avoid a circular import: the
 # subagent package's __init__ triggers `apply_common_tools`, which loads
@@ -18,6 +22,8 @@ from zrb.llm.agent.subagent.manager.manager import (
     sub_agent_manager as default_sub_agent_manager,
 )
 from zrb.llm.config.limiter import llm_limiter
+from zrb.llm.hook.manager import hook_manager as default_hook_manager
+from zrb.llm.hook.types import HookEvent
 from zrb.llm.tool.ambient_state import get_active_worktree
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 from zrb.llm.ui.std_ui import StdUI
@@ -78,10 +84,19 @@ class BufferedUI(UIProtocol):
         text = sep.join(str(v) for v in values) + end
         self._buffer.append(text)
 
+    async def ask_user_choice(self, spec: ChoiceSpec) -> str:
+        # Mirrors ask_user: serialize parent interaction and flush first.
+        async with self._lock:
+            self.flush_to_parent()
+            return await self._wrapped.ask_user_choice(spec)
+
     async def run_interactive_command(
         self, cmd: str | list[str], shell: bool = False
     ) -> Any:
         return await self._wrapped.run_interactive_command(cmd, shell)
+
+    async def run_async(self) -> Any:
+        return await self._wrapped.run_async()
 
     def get_buffered_output(self) -> str:
         """Get all buffered output."""
@@ -109,7 +124,7 @@ class BufferedUI(UIProtocol):
     def yolo(self) -> bool | frozenset:
         """Delegate YOLO mode to the wrapped parent UI."""
         if hasattr(self._wrapped, "yolo"):
-            return self._wrapped.yolo
+            return getattr(self._wrapped, "yolo")
         return False
 
     def stream_to_parent(
@@ -201,6 +216,10 @@ async def _run_agent_task(
 
     full_message = _format_envelope(deliverable, non_goals, task, additional_context)
 
+    # SubagentStart/Stop fire on the parent run's hook manager (Claude semantics:
+    # the parent observes its subagents). agent_type is the delegated agent's name.
+    agent_id = uuid.uuid4().hex[:8]
+    await _fire_subagent_hook(HookEvent.SUBAGENT_START, agent_name, agent_id)
     try:
         result, _ = await run_agent(
             agent=sub_agent,
@@ -212,7 +231,7 @@ async def _run_agent_task(
         )
 
         if flush_ui and hasattr(ui, "flush_to_parent"):
-            ui.flush_to_parent()
+            getattr(ui, "flush_to_parent")()
 
         return AgentTaskResult(agent_name, result, None)
 
@@ -225,6 +244,23 @@ async def _run_agent_task(
         )
     except Exception as e:  # noqa: BLE001
         return AgentTaskResult(agent_name, None, str(e))
+    finally:
+        await _fire_subagent_hook(HookEvent.SUBAGENT_STOP, agent_name, agent_id)
+
+
+async def _fire_subagent_hook(event: HookEvent, agent_name: str, agent_id: str) -> None:
+    """Fire SubagentStart/Stop (observe-only) on the parent run's hook manager,
+    falling back to the module singleton. Never raises."""
+    manager = get_current_hook_manager() or default_hook_manager
+    try:
+        await manager.execute_hooks(
+            event,
+            {"agent_type": agent_name, "agent_id": agent_id},
+            agent_type=agent_name,
+            agent_id=agent_id,
+        )
+    except Exception:
+        pass
 
 
 def _delegatable_agents(sub_agent_manager: SubAgentManager) -> list:
@@ -309,7 +345,9 @@ async def _run_parallel(
         if not r.success:
             combined_results.append(f"[{r.agent_name}] Error: {r.error}")
         else:
-            indented_result = "\n".join(["  " + line for line in r.result.splitlines()])
+            indented_result = "\n".join(
+                ["  " + line for line in (r.result or "").splitlines()]
+            )
             combined_results.append(f"[{r.agent_name}] completed:\n{indented_result}")
     return "\n\n".join(combined_results)
 
@@ -384,7 +422,7 @@ def create_delegate_to_agent_tool(
         # Return result with unique identifier for traceability
         return f"[{agent_name}:{unique_id}] completed:\n\n{task_result.result}"
 
-    delegate_to_agent.zrb_is_delegate_tool = True
+    delegate_to_agent.zrb_is_delegate_tool = True  # type: ignore[attr-defined]
     delegate_to_agent.__name__ = "DelegateToAgent"
     delegate_to_agent.__doc__ = (
         "Delegates a task to a named subagent for isolated execution.\n\n"

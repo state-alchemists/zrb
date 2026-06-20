@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import copy
 import inspect
+import json
 from collections.abc import Callable
 from functools import wraps
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from zrb.config.config import CFG
 from zrb.llm.config.config import llm_config as default_llm_config
@@ -40,8 +41,8 @@ def _wrap_tool(tool: "Tool | ToolFuncEither") -> "Tool | ToolFuncEither":
         from pydantic_ai import Tool as PydanticTool
 
         # It is a Tool instance
-        original_func = tool.function
-        safe_func = create_safe_wrapper(original_func, name=tool.name)
+        original_func = getattr(tool, "function")
+        safe_func = create_safe_wrapper(original_func, name=getattr(tool, "name"))
         if isinstance(tool, PydanticTool):
             return PydanticTool(
                 safe_func,
@@ -58,8 +59,8 @@ def _wrap_tool(tool: "Tool | ToolFuncEither") -> "Tool | ToolFuncEither":
             )
         return tool
     else:
-        # It is a callable
-        return create_safe_wrapper(tool)
+        # It is a callable (hasattr(tool, "function") is False, so not a Tool).
+        return create_safe_wrapper(cast("Callable", tool))
 
 
 def safe_copy_result(result: Any) -> Any:
@@ -324,6 +325,11 @@ async def _fire_pre_tool_use(name: str, tool_args: dict[str, Any], ctx: Any) -> 
             "args": tool_args,
             "call_id": getattr(ctx, "tool_call_id", None),
         },
+        # Claude-standard context fields: a hook reads `tool_name`/`tool_input`
+        # from stdin and tool-name matchers filter on `tool_name`. Without these
+        # the matcher sees None and the hook silently never fires.
+        tool_name=name,
+        tool_input=tool_args,
     )
     decision = extract_pre_tool_decision(results)
     if decision.deny:
@@ -335,9 +341,39 @@ async def _fire_pre_tool_use(name: str, tool_args: dict[str, Any], ctx: Any) -> 
             ),
             metadata={"blocked": True},
         )
+    # Limitation: this is the execution-time path for tools that don't require
+    # approval (no interactive prompt to show here), so a hook's
+    # permissionDecision="ask" cannot force a prompt — it degrades to proceed.
+    # "ask" is honored on the deferred-approval path (deferred_calls._resolve_approval).
+    if decision.force_prompt:
+        CFG.LOGGER.debug(
+            f"PreToolUse hook requested 'ask' for {name} on the execution-time "
+            "path (no prompt mechanism); proceeding."
+        )
     if decision.updated_input and isinstance(tool_args, dict):
         return {**tool_args, **decision.updated_input}
     return tool_args
+
+
+def _tool_response_payload(result: Any) -> dict[str, Any]:
+    """Best-effort Claude-shaped ``tool_response``: a JSON-serializable dict.
+
+    Claude's PostToolUse payload carries the tool's output under ``tool_response``.
+    The result here may be a pydantic-ai ``ToolReturn`` (use its model-facing
+    ``content``), a plain dict, or an arbitrary value. Wrap non-dicts under a
+    ``content`` key and stringify anything that won't serialize so the stdin
+    payload never falls back to the minimal event-only form.
+    """
+    content = getattr(result, "content", result)
+    if isinstance(content, dict):
+        payload = content
+    else:
+        payload = {"content": content}
+    try:
+        json.dumps(payload)
+        return payload
+    except (TypeError, ValueError):
+        return {"content": str(content)}
 
 
 async def _fire_post_tool_use(name: str, tool_args: dict[str, Any], result: Any) -> Any:
@@ -357,6 +393,12 @@ async def _fire_post_tool_use(name: str, tool_args: dict[str, Any], result: Any)
     results = await hook_manager.execute_hooks(
         HookEvent.POST_TOOL_USE,
         {"tool": name, "args": tool_args, "result": result},
+        # Claude-standard context fields (see _fire_pre_tool_use). PostToolUse
+        # additionally carries `tool_response`; coerce to a JSON-safe dict so the
+        # stdin payload and CLAUDE_TOOL_RESPONSE env var serialize cleanly.
+        tool_name=name,
+        tool_input=tool_args,
+        tool_response=_tool_response_payload(result),
     )
     decision = extract_post_tool_decision(results)
     if decision.block:
@@ -368,12 +410,53 @@ async def _fire_post_tool_use(name: str, tool_args: dict[str, Any], result: Any)
             metadata={"blocked": True},
         )
     if decision.updated_output is not None and isinstance(result, ToolReturn):
-        return ToolReturn(
+        result = ToolReturn(
             return_value=result.return_value,
             content=decision.updated_output,
             metadata=result.metadata,
         )
+    # Claude injects a PostToolUse hook's additionalContext into the model's
+    # context after the tool result; render it by appending to the model-facing
+    # content (the only post-tool injection point available here).
+    if decision.additional_context:
+        result = _append_tool_context(result, decision.additional_context)
     return result
+
+
+def _append_tool_context(result: Any, extra: str) -> Any:
+    """Append a PostToolUse hook's additionalContext to the model-facing output.
+
+    Extends the ``ToolReturn`` content so the model sees the tool result followed
+    by the hook's context. A non-``ToolReturn`` result is wrapped, preserving the
+    original value for the model while surfacing the context.
+    """
+    # lazy: heavy third-party
+    from pydantic_ai import ToolReturn
+
+    if isinstance(result, ToolReturn):
+        content = result.content
+        return ToolReturn(
+            return_value=result.return_value,
+            content=_merge_content(content, extra),
+            metadata=result.metadata,
+        )
+    return ToolReturn(return_value=result, content=_merge_content(result, extra))
+
+
+def _merge_content(content: Any, extra: str) -> Any:
+    """Append ``extra`` to existing tool content, preserving its shape.
+
+    Strings are concatenated; sequence content (pydantic-ai allows a list of
+    content parts) gets ``extra`` appended as a new part; anything else is paired
+    with ``extra`` in a list so neither value is stringified away.
+    """
+    if content is None or content == "":
+        return extra
+    if isinstance(content, str):
+        return f"{content}\n\n{extra}"
+    if isinstance(content, (list, tuple)):
+        return [*content, extra]
+    return [content, extra]
 
 
 async def _fire_post_tool_use_failure(
@@ -388,6 +471,10 @@ async def _fire_post_tool_use_failure(
         await hook_manager.execute_hooks(
             HookEvent.POST_TOOL_USE_FAILURE,
             {"tool": name, "args": tool_args, "error": str(error)},
+            # Claude-standard context fields so tool-name matchers and stdin
+            # reads work on the failure path too (see _fire_pre_tool_use).
+            tool_name=name,
+            tool_input=tool_args,
         )
     except Exception:
         # A misbehaving failure hook must not mask the original tool error.
@@ -404,7 +491,7 @@ def create_agent(
     capabilities: "list[AbstractCapability[Any]] | None" = None,
     output_type: "OutputSpec[OutputDataT]" = str,
     retries: int | None = None,
-    yolo: bool | Callable[[Any, Any, dict[str, Any]], bool] = False,
+    yolo: bool | Callable[[Any], bool] = False,
     resolve_model: bool = True,
 ) -> "Agent[None, Any]":
     # lazy: heavy third-party
@@ -459,7 +546,9 @@ def create_agent(
 
     agent = Agent(
         model=final_model,
-        output_type=final_output_type,
+        # final_output_type may be `output_type | DeferredToolRequests`, a union
+        # pydantic-ai accepts at runtime but its OutputSpec param type doesn't model.
+        output_type=cast("OutputSpec[Any]", final_output_type),
         instructions=effective_system_prompt,
         toolsets=effective_toolsets,
         model_settings=effective_model_settings,

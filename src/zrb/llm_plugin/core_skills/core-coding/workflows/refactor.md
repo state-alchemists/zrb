@@ -22,7 +22,7 @@
 
 1. **Read the code to be refactored thoroughly** using `Read` (call in parallel for several files at once).
 2. **Identify the code smell or structural problem** you are targeting. Be specific (name the metric or symptom).
-3. **Plan atomic steps.** Each step should be small enough that a failing test immediately identifies the problematic change. Write the plan as todos using `WriteTodos`.
+3. **Plan atomic steps.** Each step should be small enough that a failing test immediately identifies the problematic change. Write the plan as todos using `TodoWrite`.
 
 ---
 

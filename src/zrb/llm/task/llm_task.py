@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import AsyncExitStack
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, cast
 
 from zrb.attr.type import BoolAttr, StrAttr, StrListAttr, fstring
 from zrb.config.config import CFG
@@ -230,6 +230,42 @@ class LLMTask(BaseTask):
         self._approval_channel = value
 
     @property
+    def history_manager(self) -> AnyHistoryManager | None:
+        return self._history_manager
+
+    @history_manager.setter
+    def history_manager(self, value: AnyHistoryManager | None):
+        self._history_manager = value
+
+    def add_hook_factory(self, *factory: Callable[[HookManager], None]):
+        """Register one or more hook factories on this task's hook manager.
+
+        Each factory receives the ``HookManager`` and registers hooks on it (it
+        is applied immediately — the factory typically calls
+        ``manager.register(hook, events=[...])``). Mirrors
+        ``LLMChatTask.add_hook_factory``.
+
+        Isolation by default: a task starts on the shared global hook manager,
+        but the first ``add_hook_factory`` call swaps in a fresh per-task
+        ``HookManager`` so these hooks do not leak into other tasks. To opt into
+        the global manager (or any specific one) instead, pass ``hook_manager=``
+        at construction — an explicitly provided manager is never replaced.
+        """
+        self.append_hook_factory(*factory)
+
+    def append_hook_factory(self, *factory: Callable[[HookManager], None]):
+        for f in factory:
+            self._ensure_task_local_hook_manager()
+            f(self._hook_manager)
+
+    def _ensure_task_local_hook_manager(self) -> None:
+        # Swap the shared global default for a fresh per-task manager on first
+        # registration, so task-level hooks stay isolated. A manager passed
+        # explicitly at construction is left untouched.
+        if self._hook_manager is default_hook_manager:
+            self._hook_manager = HookManager()
+
+    @property
     def custom_model_names(self) -> StrListAttr | None:
         return self._custom_model_names
 
@@ -360,7 +396,7 @@ class LLMTask(BaseTask):
         conversation_name = self._get_conversation_name(ctx)
         history_manager = self._get_history_manager(ctx)
         message_history = history_manager.load(conversation_name)
-        user_message = get_attr(ctx, self._message, "", self._render_message)
+        user_message = cast(str, get_attr(ctx, self._message, "", self._render_message))
         user_attachments = get_attachments(ctx, self._attachment)
 
         if await self._handle_summarization(
@@ -426,13 +462,21 @@ class LLMTask(BaseTask):
                 permission_policy=permission_policy,
                 sandbox_policy=sandbox_policy,
             )
-        except asyncio.CancelledError:
+        except asyncio.CancelledError as ce:
+            partial_run = getattr(ce, "zrb_partial_run", None)
             self._save_cancelled_history(
-                history_manager, conversation_name, message_history, user_message
+                history_manager,
+                conversation_name,
+                message_history,
+                user_message,
+                partial_run=partial_run,
             )
             raise
         except Exception as e:
-            self._handle_run_error(ctx, history_manager, conversation_name, e)
+            partial_run = getattr(e, "zrb_partial_run", None)
+            self._handle_run_error(
+                ctx, history_manager, conversation_name, e, partial_run=partial_run
+            )
             raise e
 
         history_manager.update(conversation_name, new_history)
@@ -510,7 +554,7 @@ class LLMTask(BaseTask):
 
         for ui in self._uis:
             if hasattr(ui, "model"):
-                ui.model = final_model
+                setattr(ui, "model", final_model)
 
         # Pass resolve_model=False: we already ran model_getter/model_renderer
         # above. Letting create_agent resolve again would double-fire those
@@ -603,6 +647,7 @@ class LLMTask(BaseTask):
         history_manager: AnyHistoryManager,
         conversation_name: str,
         error: Exception,
+        partial_run: Any = None,
     ):
         # lazy: heavy third-party
         from pydantic_ai.messages import (
@@ -646,6 +691,10 @@ class LLMTask(BaseTask):
         # 2. Append general error information
         error_msg = f"[SYSTEM] Error occurred: {str(error)}"
         new_history.append(ModelRequest(parts=[UserPromptPart(content=error_msg)]))
+        # 3. Append partial run summary if available and meaningful
+        if partial_run is not None and partial_run.completed_tools:
+            summary = partial_run.build_summary()
+            new_history.append(ModelRequest(parts=[UserPromptPart(content=summary)]))
         history_manager.update(conversation_name, new_history)
         history_manager.save(conversation_name)
 
@@ -655,6 +704,7 @@ class LLMTask(BaseTask):
         conversation_name: str,
         message_history: list[Any],
         user_message: Any,
+        partial_run: Any = None,
     ) -> None:
         """Save partial history when a run is cancelled by the user (e.g. Escape).
 
@@ -684,6 +734,11 @@ class LLMTask(BaseTask):
                     ]
                 )
             )
+            if partial_run is not None and partial_run.completed_tools:
+                summary = partial_run.build_summary()
+                partial_history.append(
+                    ModelRequest(parts=[UserPromptPart(content=summary)])
+                )
             history_manager.update(conversation_name, partial_history)
             history_manager.save(conversation_name)
         except Exception as e:

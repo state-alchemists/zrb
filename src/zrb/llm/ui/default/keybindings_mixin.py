@@ -15,7 +15,7 @@ from zrb.llm.hook.interface import HookEvent
 from zrb.llm.util.image_scale import scale_image_bytes
 
 if TYPE_CHECKING:
-    from typing import Any
+    from typing import Any, TextIO
 
     from prompt_toolkit.key_binding import KeyBindings
     from pydantic_ai.messages import UserContent
@@ -45,11 +45,39 @@ class KeybindingsMixin:
 
         def schedule_command(self, text: str, *, guarded: bool = True) -> None: ...
 
-        def _submit_user_message(self, llm_task: "AnyTask", text: str) -> None: ...
+        def _submit_user_message(
+            self, llm_task: "AnyTask", user_message: str
+        ) -> None: ...
 
         def toggle_plan(self) -> None: ...
 
         def toggle_yolo(self) -> None: ...
+
+        def cycle_mode(self) -> None: ...
+
+        # From BaseUI
+        def execute_hook(
+            self, event: "HookEvent", event_data: Any, **kwargs: Any
+        ) -> None: ...
+
+        # From OutputMixin
+        def append_to_output(
+            self,
+            *values: object,
+            sep: str = " ",
+            end: str = "\n",
+            file: "TextIO | None" = None,
+            flush: bool = False,
+            kind: str = "text",
+        ) -> None: ...
+
+        # From LifecycleMixin
+        def invalidate_ui(self) -> None: ...
+
+        # From ConfirmationMixin
+        def _cancel_pending_confirmations(self, flush: bool = True) -> None: ...
+
+        def _handle_confirmation(self, event: Any) -> bool: ...
 
     def setup_app_keybindings(
         self, app_keybindings: "KeyBindings", llm_task: "AnyTask"
@@ -64,6 +92,10 @@ class KeybindingsMixin:
             lambda: not getattr(self, "has_active_choice", lambda: False)()
         )
 
+        # F6 toggles focus between the input and output panes. This is the sole
+        # focus-switch binding: the input/output controls' own Tab/Shift+Tab
+        # focus traversal was removed (see app/layout.py, app/keybinding.py) so
+        # Shift+Tab is free to cycle modes (below). See ADR-0075.
         @app_keybindings.add("f6")
         def _(event):
             if event.app.layout.has_focus(self._input_field):
@@ -232,13 +264,19 @@ class KeybindingsMixin:
             self._submit_user_message(llm_task, text)
             buff.reset()
 
-        @app_keybindings.add("c-p")
-        def _(event):
-            self.toggle_plan()
-
         @app_keybindings.add("c-y")
         def _(event):
             self.toggle_yolo()
+
+        # Shift+Tab — cycle normal → accept-edits → plan (plan mode is reachable
+        # here, so there is no Ctrl+P; /plan and /yolo remain for web/MultiUI).
+        # Gated so a completion menu keeps Shift+Tab for previous-completion and a
+        # choice widget keeps its own back-tab navigation.
+        from prompt_toolkit.filters import has_completions
+
+        @app_keybindings.add("s-tab", filter=no_active_choice & ~has_completions)
+        def _(event):
+            self.cycle_mode()
 
         @app_keybindings.add("c-j", filter=no_active_choice)  # Ctrl+J / Ctrl+Enter
         @app_keybindings.add("c-space", filter=no_active_choice)  # Ctrl+Space fallback

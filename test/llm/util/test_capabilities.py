@@ -115,9 +115,7 @@ def test_get_returns_defaults_for_none_and_empty():
 
 def test_supports_modality_returns_false_for_unknown_modality_string():
     # An unknown modality argument returns False (defensive).
-    assert (
-        model_capabilities.supports_modality("openai:gpt-4o", "lidar") is False  # type: ignore[arg-type]
-    )
+    assert model_capabilities.supports_modality("openai:gpt-4o", "lidar") is False
 
 
 def test_supports_modality_dispatches_per_modality():

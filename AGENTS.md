@@ -89,7 +89,7 @@ Write an ADR when a decision is:
 ### How to add one
 
 1. Find the next free `ADR-NNNN` in the index.
-2. Append to the relevant thematic file under `docs/adr/`.
+2. Create a new file `docs/adr/adr-NNNN.md` with the ADR content.
 3. Add a row to the index in `docs/adr/README.md`.
 4. If the decision reverses or refines an old ADR, mark the old one
    `Superseded by ADR-NNNN` — preserve the history.
@@ -111,10 +111,10 @@ One decision per record. If the decision is still being discussed, mark it
 
 ## Changelog
 
-Three files under `docs/`, newest-first within each:
+Index and directory under `docs/`:
 
-- `changelog.md` — the **active** changelog: recent releases at full detail.
-- `changelog-v2.md` — archive of the 2.x line.
+- `changelog.md` — index page listing every minor version with links.
+- `changelog-v2/` — directory of per-minor-version files (e.g. `2.38.0.md`, `2.35.0-2.35.3.md`).
 - `changelog-v1.md` — archive of the 1.x line (and the 1.0.0 rewrite from 0.x).
 
 ### Entry format
@@ -139,8 +139,9 @@ x.y.0  →  x.y.z (latest revision of x.y)  →  x.y+1.0  →  …
 The kept `x.y.z` **summarizes** the dropped patches `x.y.1`–`x.y.z`, and `x.y.0`
 **absorbs** its pre-releases (`x.y.0a*`/`x.y.0b*`) — never just dropped, since
 the real features usually live there. Rolled-up entries get a
-`_Cumulative summary of the X.Y.1–X.Y.Z patch line._` note. The newest minor in
-`changelog.md` stays at full per-patch detail until it ages out.
+`_Cumulative summary of the X.Y.1–X.Y.Z patch line._` note. The newest minor
+stays at full per-patch detail (uncollapsed file in `changelog-v2/`) until it
+ages out.
 
 Full procedure, rationale, and a worked example:
 [Maintainer Guide → Changelog](docs/advanced-topics/maintainer-guide.md#changelog).

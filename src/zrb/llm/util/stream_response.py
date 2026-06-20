@@ -3,7 +3,14 @@ import time
 from typing import TYPE_CHECKING, Any, Callable, Literal
 
 if TYPE_CHECKING:
-    from pydantic_ai import AgentStreamEvent
+    from pydantic_ai import (
+        AgentRunResultEvent,
+        AgentStreamEvent,
+        FunctionToolCallEvent,
+        FunctionToolResultEvent,
+        PartDeltaEvent,
+        PartStartEvent,
+    )
 
 PrintKind = Literal[
     "text", "streaming", "progress", "tool_call", "usage", "thinking", "todo_progress"
@@ -91,7 +98,7 @@ class StreamEventHandler:
         if not skip_prefix_update:
             self._event_prefix = f"\n{self._indentation}"
 
-    def _handle_part_start(self, event: "AgentStreamEvent") -> bool:
+    def _handle_part_start(self, event: "PartStartEvent") -> bool:
         # lazy: heavy third-party
         from pydantic_ai import ToolCallPart
         from pydantic_ai.messages import TextPart
@@ -131,7 +138,7 @@ class StreamEventHandler:
         self._was_tool_call_start = False
         return False
 
-    def _handle_part_delta(self, event: "AgentStreamEvent"):
+    def _handle_part_delta(self, event: "PartDeltaEvent"):
         # lazy: heavy third-party
         from pydantic_ai import TextPartDelta, ThinkingPartDelta, ToolCallPartDelta
 
@@ -169,7 +176,7 @@ class StreamEventHandler:
                     self._progress_chars
                 )
 
-    def _handle_tool_call(self, event: "AgentStreamEvent"):
+    def _handle_tool_call(self, event: "FunctionToolCallEvent"):
         if self._was_tool_call_delta and not self._show_tool_call_detail:
             self._print_fn("\r", "progress")
 
@@ -187,7 +194,7 @@ class StreamEventHandler:
             self._fprint(line, preserve_leading_newline=True, kind="tool_call")
         self._was_tool_call_delta = False
 
-    def _handle_tool_result(self, event: "AgentStreamEvent"):
+    def _handle_tool_result(self, event: "FunctionToolResultEvent"):
         if self._show_tool_result:
             self._fprint(
                 f"{self._event_prefix}🔠 {event.tool_call_id} | Return {event.result.content}\n",
@@ -202,7 +209,7 @@ class StreamEventHandler:
             )
         self._was_tool_call_delta = False
 
-    def _handle_run_result(self, event: "AgentStreamEvent"):
+    def _handle_run_result(self, event: "AgentRunResultEvent"):
         usage = event.result.usage
         usage_msg = " ".join(
             [

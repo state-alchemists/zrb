@@ -393,6 +393,39 @@ async def test_call_tool_posttooluse_updated_output_replaces_content():
 
 
 @pytest.mark.asyncio
+async def test_call_tool_posttooluse_additional_context_appended():
+    """A PostToolUse hook's additionalContext is appended to the model-facing
+    content (Claude injects it into context after the tool result)."""
+    from pydantic_ai import ToolReturn
+    from pydantic_ai.toolsets import FunctionToolset
+
+    from zrb.llm.agent.common import _wrap_toolset
+    from zrb.llm.hook.executor import HookExecutionResult
+    from zrb.llm.hook.types import HookEvent
+
+    wrapped_ts = _wrap_toolset(FunctionToolset(tools=[]))
+    add_ctx = HookExecutionResult(
+        success=True,
+        hook_specific_output={"additionalContext": "note: linter passed"},
+    )
+    with (
+        patch(
+            "zrb.llm.hook.manager.hook_manager.execute_hooks",
+            _route_hooks({HookEvent.POST_TOOL_USE: [add_ctx]}),
+        ),
+        patch(
+            "pydantic_ai.toolsets.WrapperToolset.call_tool", new_callable=AsyncMock
+        ) as mock_super,
+    ):
+        mock_super.return_value = "original"
+        res = await wrapped_ts.call_tool("t", {}, None, None)
+
+    assert isinstance(res, ToolReturn)
+    assert res.content == "original\n\nnote: linter passed"
+    assert res.return_value == "original"
+
+
+@pytest.mark.asyncio
 async def test_call_tool_posttooluse_failure_fires_on_exception():
     """When the underlying tool raises, PostToolUseFailure fires and a safe
     error ToolReturn is surfaced."""
@@ -417,6 +450,67 @@ async def test_call_tool_posttooluse_failure_fires_on_exception():
     assert res.metadata.get("error") is True
     fired = [c.args[0] for c in execute.call_args_list]
     assert HookEvent.POST_TOOL_USE_FAILURE in fired
+
+
+@pytest.mark.asyncio
+async def test_call_tool_passes_claude_tool_identity_fields():
+    """Pre/PostToolUse fire with Claude-standard tool_name/tool_input (and
+    tool_response on Post) so tool-name matchers and stdin reads work."""
+    from pydantic_ai.toolsets import FunctionToolset
+
+    from zrb.llm.agent.common import _wrap_toolset
+    from zrb.llm.hook.types import HookEvent
+
+    wrapped_ts = _wrap_toolset(FunctionToolset(tools=[]))
+    execute = _route_hooks({})
+    with (
+        patch("zrb.llm.hook.manager.hook_manager.execute_hooks", execute),
+        patch(
+            "pydantic_ai.toolsets.WrapperToolset.call_tool", new_callable=AsyncMock
+        ) as mock_super,
+    ):
+        mock_super.return_value = "ok"
+        await wrapped_ts.call_tool("Bash", {"command": "ls"}, None, None)
+
+    pre = next(c for c in execute.call_args_list if c.args[0] == HookEvent.PRE_TOOL_USE)
+    assert pre.kwargs["tool_name"] == "Bash"
+    assert pre.kwargs["tool_input"] == {"command": "ls"}
+
+    post = next(
+        c for c in execute.call_args_list if c.args[0] == HookEvent.POST_TOOL_USE
+    )
+    assert post.kwargs["tool_name"] == "Bash"
+    assert post.kwargs["tool_input"] == {"command": "ls"}
+    # A plain-string tool result is wrapped under "content" for a JSON-safe payload.
+    assert post.kwargs["tool_response"] == {"content": "ok"}
+
+
+@pytest.mark.asyncio
+async def test_posttooluse_failure_passes_claude_tool_identity_fields():
+    """PostToolUseFailure carries tool_name/tool_input too."""
+    from pydantic_ai.toolsets import FunctionToolset
+
+    from zrb.llm.agent.common import _wrap_toolset
+    from zrb.llm.hook.types import HookEvent
+
+    wrapped_ts = _wrap_toolset(FunctionToolset(tools=[]))
+    execute = _route_hooks({})
+    with (
+        patch("zrb.llm.hook.manager.hook_manager.execute_hooks", execute),
+        patch(
+            "pydantic_ai.toolsets.WrapperToolset.call_tool",
+            side_effect=ValueError("boom"),
+        ),
+    ):
+        await wrapped_ts.call_tool("Bash", {"command": "ls"}, None, None)
+
+    fail = next(
+        c
+        for c in execute.call_args_list
+        if c.args[0] == HookEvent.POST_TOOL_USE_FAILURE
+    )
+    assert fail.kwargs["tool_name"] == "Bash"
+    assert fail.kwargs["tool_input"] == {"command": "ls"}
 
 
 def testcreate_safe_wrapper_preserves_function_name():

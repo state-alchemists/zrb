@@ -175,7 +175,7 @@ def create_background_delegate_tool(
             "Call GetDelegationResult with this handle to collect the result."
         )
 
-    delegate_to_agent_background.zrb_is_delegate_tool = True
+    delegate_to_agent_background.zrb_is_delegate_tool = True  # type: ignore[attr-defined]
     delegate_to_agent_background.__name__ = "DelegateToAgentBackground"
     tag(delegate_to_agent_background, Capability.DELEGATE)
     return delegate_to_agent_background

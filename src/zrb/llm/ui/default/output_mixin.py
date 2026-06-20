@@ -10,7 +10,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-from typing import TYPE_CHECKING, TextIO
+from typing import TYPE_CHECKING, TextIO, cast
 
 from zrb.config.config import CFG
 from zrb.util.cli.style import stylize_faint
@@ -23,6 +23,24 @@ if TYPE_CHECKING:
     from pydantic_ai.models import Model
 
 logger = logging.getLogger(__name__)
+
+# Short labels + styles for the status-bar Shift+Tab mode badge. Keys match
+# `ModelCommandsMixin.current_cycle_mode()` (cycle members plus the off-cycle
+# yolo/custom states). See ADR-0075.
+_MODE_STATUS_LABELS = {
+    "normal": "normal",
+    "accept_edits": "accept-edits",
+    "plan": "plan",
+    "yolo": "yolo",
+    "custom": "custom-yolo",
+}
+_MODE_STATUS_STYLE = {
+    "normal": "fg:ansigreen",
+    "accept_edits": "fg:ansiyellow bold",
+    "plan": "fg:ansiblue bold",
+    "yolo": "fg:ansired bold",
+    "custom": "fg:ansiyellow bold",
+}
 
 
 class OutputMixin:
@@ -45,6 +63,16 @@ class OutputMixin:
         # importing heavyweight modules at type-check time).
         _input_field: Any
         _output_field: Any
+        # From default UI (`UI.__init__`)
+        _pending_invalidate: bool
+        _invalidate_task: asyncio.Task | None
+
+        # From BaseUI
+        @property
+        def yolo(self) -> bool | frozenset: ...
+
+        # From LifecycleMixin
+        def invalidate_ui(self) -> None: ...
 
     @property
     def is_thinking(self) -> bool:
@@ -252,4 +280,16 @@ class OutputMixin:
                     f" ⏳ {self._assistant_name} is working{dot_str} ",
                 ),
             ]
-        return [(CFG.LLM_UI_STYLE_STATUS, " 🚀 Ready ")]
+        # Persistent Shift+Tab mode indicator (mirrors Claude Code's mode badge
+        # near the prompt). `current_cycle_mode` lives on ModelCommandsMixin;
+        # guard for lightweight UIs/mocks that don't compose it. See ADR-0075.
+        get_mode = getattr(self, "current_cycle_mode", None)
+        mode = cast(str, get_mode()) if callable(get_mode) else "normal"
+        return [
+            (CFG.LLM_UI_STYLE_STATUS, " 🚀 Ready "),
+            (
+                _MODE_STATUS_STYLE.get(mode, ""),
+                f" {_MODE_STATUS_LABELS.get(mode, mode)} ",
+            ),
+            ("fg:ansibrightblack", "shift+tab to cycle "),
+        ]

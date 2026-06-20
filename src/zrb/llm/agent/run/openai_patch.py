@@ -15,6 +15,8 @@ docs/advanced-topics/maintainer-guide.md#the-openai-serializer-patch
 for the full picture (and why both layers exist).
 """
 
+from typing import Any
+
 
 def patch_openai_model_response_serialization():
     """Monkey-patch pydantic-ai's OpenAI model to omit ``content: null`` in assistant messages with tool calls.
@@ -47,7 +49,7 @@ def patch_openai_model_response_serialization():
             return
 
         def _patched_into_message_param(self):
-            message_param = {"role": "assistant"}
+            message_param: dict[str, Any] = {"role": "assistant"}
             if self.thinkings:
                 for field_name, contents in self.thinkings.items():
                     message_param[field_name] = "\n\n".join(contents)

@@ -39,7 +39,7 @@ Execution is highly abstracted and deeply nested to handle DAG (Directed Acyclic
 Instead of threading `session`, `logger`, or `env` through every single function signature, Zrb relies on `contextvars` (specifically `current_ctx`).
 * **Why:** In deeply nested task execution, passing context variables explicitly clutters the API and developer experience.
 * **How it works:** When a task begins execution, it binds its specific `AnyContext` to the `current_ctx`. `asyncio` natively propagates context variables to child coroutines. Functions deeper in the stack can retrieve the active context via `get_current_ctx()`.
-* **Discoverability:** `src/zrb/contextvars.py` is a re-export index of every `ContextVar` in the codebase (currently eleven, across task / agent / permission / sandbox / tool layers). Open that file when you need to know "what ambient state is in scope here?" — see the [Context Propagation Internals](./maintainer-guide.md#context-propagation-internals) section of the maintainer guide for the full picture.
+* **Discoverability:** `src/zrb/contextvars.py` is a re-export index of every `ContextVar` in the codebase (currently twelve, across task / agent / permission / sandbox / tool layers). Open that file when you need to know "what ambient state is in scope here?" — see the [Context Propagation Internals](./maintainer-guide.md#context-propagation-internals) section of the maintainer guide for the full picture.
 
 ### Ergonomic Data Access (`DotDict`)
 Zrb uses a custom dictionary subclass called `DotDict` for `ctx.env`, `ctx.input`, and `ctx.xcom`.
@@ -83,3 +83,5 @@ When an exception occurs deep within `asyncio.gather`, standard tracebacks are o
 ### F-String and Jinja Rendering
 We defer execution of dynamic parameters. Many attributes accept `fstring` or strings containing `Jinja2` syntax. 
 * **Convention:** Never trust a string property as static. Pass it through `ctx.render(task.property)` immediately before execution to ensure the most up-to-date Environment Variables or XCom data is populated.
+
+🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > Architecture, Philosophy, & Conventions

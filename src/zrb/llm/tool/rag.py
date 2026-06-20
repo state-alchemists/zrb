@@ -89,12 +89,11 @@ def create_rag_from_directory(
                 "error": "Embedding API key not configured. [SYSTEM SUGGESTION]: Ask the user for their embedding API provider key and pass it via the 'api_key' parameter. If using a non-OpenAI provider (e.g., Ollama, vLLM), also provide 'base_url' (e.g., 'http://localhost:11434') and 'embedding_model' name."
             }
 
-        client_args = {"api_key": api_key_val}
-        if base_url_val:
-            client_args["base_url"] = base_url_val
-
         try:
-            openai_client = OpenAI(**client_args)
+            if base_url_val:
+                openai_client = OpenAI(api_key=api_key_val, base_url=base_url_val)
+            else:
+                openai_client = OpenAI(api_key=api_key_val)
         except Exception as e:
             return {
                 "error": f"Failed to initialize embedding client: {e}. [SYSTEM SUGGESTION]: The 'base_url' may be unreachable or the 'api_key' invalid. Ask the user to verify their embedding provider URL and credentials, then retry with correct values."

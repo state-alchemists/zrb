@@ -763,6 +763,16 @@ class TestConfigSetters:
         config.LOAD_BUILTIN = True
         assert os.environ["ZRB_LOAD_BUILTIN"] == "on"
 
+    def test_llm_load_builtin_agents_setter(self, monkeypatch):
+        config = Config()
+        config.LLM_LOAD_BUILTIN_AGENTS = False
+        assert os.environ["ZRB_LLM_LOAD_BUILTIN_AGENTS"] == "off"
+
+    def test_llm_load_builtin_skills_setter(self, monkeypatch):
+        config = Config()
+        config.LLM_LOAD_BUILTIN_SKILLS = False
+        assert os.environ["ZRB_LLM_LOAD_BUILTIN_SKILLS"] == "off"
+
     def test_load_builtin_setter_false(self, monkeypatch):
         config = Config()
         config.LOAD_BUILTIN = False

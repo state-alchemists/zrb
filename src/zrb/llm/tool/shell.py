@@ -103,6 +103,9 @@ async def run_shell_command(
 
     try:
         process = await _start_process(argv, cwd)
+        # _start_process creates the subprocess with stdout/stderr=PIPE, so both
+        # readers are always present here (the type is StreamReader | None).
+        assert process.stdout is not None and process.stderr is not None
 
         stdout_lines = []
         stderr_lines = []

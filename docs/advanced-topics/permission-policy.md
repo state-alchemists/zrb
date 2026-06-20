@@ -57,9 +57,9 @@ Tools are tagged with capabilities in `src/zrb/llm/permission/capability.py`:
 | `READ` | Pure-read operations | `Read`, `LS`, `Glob`, `Grep` |
 | `EDIT` | Filesystem mutation | `Write`, `Edit` |
 | `EXECUTE` | Arbitrary side effects | `Shell`, `Bash`, `RunZrbTask` |
-| `NETWORK` | Outbound network access | `SearchInternet`, `OpenWebPage` |
+| `NETWORK` | Outbound network access | `WebSearch`, `WebFetch` |
 | `DELEGATE` | Spawning sub-agents | `DelegateToAgent` |
-| `META` | Harness control | `WriteTodos`, `AskUserQuestion` |
+| `META` | Harness control | `TodoWrite`, `AskUserQuestion` |
 
 ---
 

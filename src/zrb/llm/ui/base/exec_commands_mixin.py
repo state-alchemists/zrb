@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
     from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
     from zrb.llm.task.llm_task import LLMTask
+    from zrb.task.any_task import AnyTask
 
 
 class ExecCommandsMixin:
@@ -36,6 +37,7 @@ class ExecCommandsMixin:
     # Host-class contract: state and methods owned by `BaseUI`. Declared here
     # so type checkers can verify accesses; the block does not run at runtime.
     if TYPE_CHECKING:
+        _background_tasks: set[asyncio.Task]
         _btw_commands: list[str]
         _custom_commands: list["AnyCustomCommand"]
         _exec_commands: list[str]
@@ -59,7 +61,9 @@ class ExecCommandsMixin:
 
         def _get_output_field_width(self) -> int | None: ...
 
-        def _submit_user_message(self, llm_task: "LLMTask", text: str) -> None: ...
+        def _submit_user_message(
+            self, llm_task: "AnyTask", user_message: str
+        ) -> None: ...
 
     # --- exec (shell) -----------------------------------------------------
 

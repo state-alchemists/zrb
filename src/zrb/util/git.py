@@ -224,7 +224,7 @@ async def add(repo_dir: str, print_method: Callable[..., Any] = print):
 
 async def commit(
     repo_dir: str, message: str, print_method: Callable[..., Any] = print
-) -> str:
+) -> None:
     """
     Commit changes in the Git repository.
 
@@ -253,7 +253,7 @@ async def commit(
 
 async def pull(
     repo_dir: str, remote: str, branch: str, print_method: Callable[..., Any] = print
-) -> str:
+) -> None:
     """
     Pull changes from a remote repository and branch.
 
@@ -277,7 +277,7 @@ async def pull(
 
 async def push(
     repo_dir: str, remote: str, branch: str, print_method: Callable[..., Any] = print
-) -> str:
+) -> None:
     """
     Push changes to a remote repository and branch.
 

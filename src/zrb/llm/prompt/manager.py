@@ -9,8 +9,9 @@ from zrb.llm.prompt.claude import (
     create_claude_skills_prompt,
     create_project_context_prompt,
 )
+from zrb.llm.prompt.live_context import render_live_context
 from zrb.llm.prompt.prompt import get_prompt
-from zrb.llm.prompt.system_context import render_live_context, system_context
+from zrb.llm.prompt.system_context import system_context
 from zrb.llm.prompt.tool_guidance import (
     ToolCatalogue,
     ToolGroups,
@@ -22,7 +23,7 @@ from zrb.llm.util.git import is_inside_git_dir
 from zrb.util.attr import get_str_attr, get_str_list_attr
 
 # Simple prompt: just takes context and returns a string
-SimplePrompt = Callable[[AnyContext], str]
+SimplePrompt = Callable[[AnyContext], str | None]
 # Full middleware: takes context, current prompt, and next handler
 FullMiddleware = Callable[[AnyContext, str, Callable[[AnyContext, str], str]], str]
 # Flexible middleware: can be either simple or full
@@ -81,6 +82,9 @@ class PromptManager:
         self._active_skills = active_skills
         self._render_active_skills = render_active_skills
         self._render = render
+        # Live context providers: per-turn dynamic state injected into the
+        # <live-context> block after built-in rendering.
+        self._live_context_providers: list[tuple[str, SimplePrompt]] = []
         # Dynamic providers for config-positioned custom sections, keyed by the
         # name used in ``include_sections``. A registered provider is composed
         # by calling ``provider(ctx)`` at compose time; it takes precedence over
@@ -196,6 +200,20 @@ class PromptManager:
         """
         self._section_providers[name] = provider
 
+    def add_live_context(self, name: str, provider: "SimplePrompt") -> None:
+        """Register a dynamic per-turn live context provider.
+
+        Called every turn inside ``create_live_context``, after built-in
+        rendering. *provider* receives the active context and returns a string
+        (or ``None`` / ``""`` to emit nothing). Re-registering the same *name*
+        overwrites the previous provider.
+        """
+        for i, (existing_name, _) in enumerate(self._live_context_providers):
+            if existing_name == name:
+                self._live_context_providers[i] = (name, provider)
+                return
+        self._live_context_providers.append((name, provider))
+
     def reset(self):
         self._middlewares = []
 
@@ -215,10 +233,19 @@ class PromptManager:
         prompt byte-stable while still surfacing live state, and freezes a
         snapshot into history (older turns show what state *was*; the most
         recent block is authoritative — anchored in the system prompt). Returns
-        ``""`` when there is nothing to report. See AGENTS.md ("LLM Prompt
-        System") and ``render_live_context``.
+        ``""`` when there is nothing to report.
+
+        Custom providers registered via ``add_live_context`` are called after
+        the built-in rendering, in registration order.
         """
         body = render_live_context(ctx, self._model)
+        for name, provider in self._live_context_providers:
+            try:
+                extra = provider(ctx)
+                if extra:
+                    body += "\n" + extra
+            except Exception:
+                pass
         if not body.strip():
             return ""
         return f"<live-context>\n{body}\n</live-context>"

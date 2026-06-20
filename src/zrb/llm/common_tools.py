@@ -146,15 +146,15 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
     # Research & Web
     ToolGuidance(
         group_name="Research & Web",
-        tool_name="SearchInternet",
+        tool_name="WebSearch",
         when_to_use="Current information, recent docs, or events",
-        key_rule="Start broad with SearchInternet, then OpenWebPage on the most promising URL.",
+        key_rule="Start broad with WebSearch, then WebFetch on the most promising URL.",
     ),
     ToolGuidance(
         group_name="Research & Web",
-        tool_name="OpenWebPage",
+        tool_name="WebFetch",
         when_to_use="Fetching a known URL",
-        key_rule="When the URL is not known, SearchInternet first.",
+        key_rule="When the URL is not known, WebSearch first.",
     ),
     # User Interaction
     ToolGuidance(
@@ -168,15 +168,15 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
     # Planning
     ToolGuidance(
         group_name="Planning",
-        tool_name="WriteTodos",
+        tool_name="TodoWrite",
         when_to_use="Starting work with ≥3 distinct steps, spanning multiple files, "
         "or expected to run across multiple turns — seed the full list before the "
         "first edit. Skip for single-step or one-line changes.",
-        key_rule="Seed the full list up front; advance items by calling WriteTodos again with the updated list.",
+        key_rule="Seed the full list up front; advance items by calling TodoWrite again with the updated list.",
     ),
     ToolGuidance(
         group_name="Planning",
-        tool_name="GetTodos",
+        tool_name="TodoRead",
         when_to_use="Resuming work, or after summarization may have dropped the "
         "plan — check the current list before proceeding",
     ),
@@ -339,7 +339,7 @@ def apply_common_tools(host: CommonToolHost) -> None:
     )
 
     lsp_tools = create_lsp_tools() if detect_available_lsp_servers() else []
-    # WriteTodos replaces the whole list by default, so it subsumes the former
+    # TodoWrite replaces the whole list by default, so it subsumes the former
     # UpdateTodo (rewrite with one status changed) and ClearTodos (write []).
     plan_tools = [write_todos, get_todos]
 

@@ -85,7 +85,11 @@ class JSONRPCMessage:
         """Create a JSON-RPC request message."""
         if request_id is None:
             request_id = str(uuid.uuid4())
-        message = {"jsonrpc": "2.0", "id": request_id, "method": method}
+        message: dict[str, Any] = {
+            "jsonrpc": "2.0",
+            "id": request_id,
+            "method": method,
+        }
         if params is not None:
             message["params"] = params
         return json.dumps(message)
@@ -93,7 +97,7 @@ class JSONRPCMessage:
     @staticmethod
     def create_notification(method: str, params: dict | None = None) -> str:
         """Create a JSON-RPC notification message (no response expected)."""
-        message = {"jsonrpc": "2.0", "method": method}
+        message: dict[str, Any] = {"jsonrpc": "2.0", "method": method}
         if params is not None:
             message["params"] = params
         return json.dumps(message)

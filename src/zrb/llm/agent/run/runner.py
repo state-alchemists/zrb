@@ -31,12 +31,15 @@ from zrb.llm.agent.run.deferred_calls import (
 from zrb.llm.agent.run.deferred_calls import (
     rebuild_for_denials,
 )
+from zrb.llm.agent.run.error_classifier import classify_error_type
 from zrb.llm.agent.run.history_utils import sanitize_history
 from zrb.llm.agent.run.hook_result_extractor import (
     extract_additional_context,
     extract_block_decision,
+    extract_continue_decision,
 )
 from zrb.llm.agent.run.openai_patch import patch_openai_model_response_serialization
+from zrb.llm.agent.run.partial_run import PartialRunAccumulator
 from zrb.llm.agent.run.prompt_content import get_prompt_content as _get_prompt_content
 from zrb.llm.agent.run.retry_loop import RetryState, handle_stream_error
 from zrb.llm.agent.run.session_extension import (
@@ -84,6 +87,11 @@ current_tool_confirmation: ContextVar[AnyToolConfirmation] = ContextVar(
     "current_tool_confirmation", default=None
 )
 current_yolo: ContextVar[bool] = ContextVar("current_yolo", default=False)
+# The hook manager active for the current run. Read by nested tools (e.g. the
+# delegate tool fires SubagentStart/Stop on the parent run's manager).
+current_hook_manager: ContextVar[HookManager | None] = ContextVar(
+    "current_hook_manager", default=None
+)
 
 # Process-wide guard: the OpenAI serialization patch is global and idempotent,
 # so it only needs to run once per process. The check-then-set is safe under
@@ -103,7 +111,7 @@ async def run_agent(
     tool_confirmation: AnyToolConfirmation = None,
     ui: UIProtocol | list[UIProtocol] | None = None,
     hook_manager: HookManager | None = None,
-    yolo: bool = False,
+    yolo: bool | None = False,
     approval_channel: "ApprovalChannel | None" = None,
     system_prompt: str = "",
     live_context: str = "",
@@ -159,6 +167,7 @@ async def run_agent(
         _bind_contextvar(stack, current_ui, effective_ui)
         _bind_contextvar(stack, current_tool_confirmation, effective_tool_confirmation)
         _bind_contextvar(stack, current_yolo, effective_yolo)
+        _bind_contextvar(stack, current_hook_manager, effective_hook_manager)
         _bind_contextvar(stack, current_approval_channel, effective_approval_channel)
         _bind_contextvar(stack, current_permission_policy, effective_policy)
         _bind_contextvar(stack, current_sandbox_policy, effective_sandbox)
@@ -377,11 +386,15 @@ async def _run_startup_hooks(
             "expanded_message": effective_message,
             "attachments": attachments,
         },
+        # Populate the `prompt` context field so UserPromptSubmit matchers (which
+        # map to `prompt`), the CLAUDE_PROMPT env var, and the stdin payload all
+        # see the submitted text — Claude-compatible.
+        prompt=effective_message if effective_message is not None else message,
     )
 
     # Claude-compatible: a UserPromptSubmit hook may block the prompt (exit 2 /
-    # decision="block"). When blocked, the turn ends before the model is called
-    # and the reason is surfaced to the user.
+    # decision="block") or halt all processing (continue=false). Either way the
+    # turn ends before the model is called and the reason is surfaced to the user.
     block = extract_block_decision(user_prompt_results)
     if block.blocked:
         CFG.LOGGER.debug(f"USER_PROMPT_SUBMIT hook blocked the prompt: {block.reason}")
@@ -389,6 +402,14 @@ async def _run_startup_hooks(
             effective_message,
             message_history,
             block.reason or "Prompt blocked by hook",
+        )
+    cont = extract_continue_decision(user_prompt_results)
+    if cont.stop:
+        CFG.LOGGER.debug(f"USER_PROMPT_SUBMIT hook halted the run: {cont.reason}")
+        return (
+            effective_message,
+            message_history,
+            cont.reason or "Stopped by hook (continue=false)",
         )
 
     prompt_context = extract_additional_context(user_prompt_results)
@@ -448,11 +469,52 @@ async def _prepare_history(
             *message_history,
         ]
 
+    # Claude-compatible: a PreCompact hook may block compaction (exit 2 /
+    # decision="block"). When blocked we skip the history processors
+    # (summarization) entirely. The force-prune below is a separate context-window
+    # safety net — it still runs, since an over-limit request cannot be sent to
+    # the model regardless of the hook's preference.
+    precompact_block = extract_block_decision(precompact_results)
+    if precompact_block.blocked:
+        CFG.LOGGER.debug(
+            f"PRE_COMPACT hook blocked compaction: {precompact_block.reason}"
+        )
+
     processed_history = message_history
-    for processor in history_processors:
-        processed_history = await processor(processed_history, reserved_tokens)
+    if not precompact_block.blocked:
+        for processor in history_processors:
+            processed_history = await processor(processed_history, reserved_tokens)
 
     processed_history = ensure_alternating_roles(processed_history)
+
+    # PostCompact mirrors PreCompact, firing once the history processors have run.
+    # A hook may inject additionalContext (prepended to the processed history) the
+    # same way PreCompact does. Token count is reused from the pre-pass when no
+    # processors ran (they're the only thing that changes the content).
+    post_process_tokens = (
+        limiter.count_tokens(processed_history)
+        if history_processors
+        else pre_process_tokens
+    )
+    postcompact_results = await effective_hook_manager.execute_hooks(
+        HookEvent.POST_COMPACT,
+        {
+            "history": processed_history,
+            "token_count": post_process_tokens,
+            "message_count": len(processed_history),
+            "has_history_processors": bool(history_processors),
+        },
+        trigger="auto",
+    )
+    postcompact_context = extract_additional_context(postcompact_results)
+    if postcompact_context:
+        # lazy: heavy third-party
+        from pydantic_ai.messages import ModelRequest, SystemPromptPart
+
+        processed_history = [
+            ModelRequest(parts=[SystemPromptPart(content=postcompact_context)]),
+            *processed_history,
+        ]
 
     effective_limit = max(0, limiter.max_token_per_request - reserved_tokens)
     # Reuse the token count from the hook when no processors ran — they are the only
@@ -606,6 +668,7 @@ async def _execution_loop(
     retry_state = RetryState()
     extension_state = ExtensionState()
     current_results = None
+    partial_run = PartialRunAccumulator()
     # pydantic-ai's before_model_request runs history processors on a shallow
     # copy of ctx.state.message_history, so any summarization it does is never
     # written back. result.all_messages() therefore always returns the original
@@ -645,6 +708,7 @@ async def _execution_loop(
                                     result_output, DeferredToolRequests
                                 ),
                             )
+                        partial_run.record_event(event)
                         if effective_event_handler:
                             await effective_event_handler(event)
             except Exception as _stream_exc:
@@ -661,8 +725,20 @@ async def _execution_loop(
                     min_turns=1 if current_results is not None else 0,
                 )
                 if not outcome.should_retry:
+                    # StopFailure: the turn is ending on an unrecoverable API
+                    # error. Observe-only; guarded so a hook can never mask the
+                    # original exception.
+                    try:
+                        await effective_hook_manager.execute_hooks(
+                            HookEvent.STOP_FAILURE,
+                            {"error": str(stream_error), "history": run_history},
+                            error=str(stream_error),
+                            error_type=classify_error_type(stream_error),
+                        )
+                    except Exception:
+                        CFG.LOGGER.debug("StopFailure hook raised", exc_info=True)
                     raise stream_error
-                current_history = outcome.new_history
+                current_history = outcome.new_history or current_history
                 current_message = outcome.new_message
                 if outcome.clear_results:
                     current_results = None
@@ -672,6 +748,10 @@ async def _execution_loop(
                 CFG.LOGGER.debug(
                     "Got DeferredToolRequests, calling process_deferred_requests"
                 )
+                # effective_ui is typed as UIProtocol | None but by this point in
+                # the loop we are past all the setup guards; the function it is
+                # passed to expects a concrete UIProtocol.
+                assert effective_ui is not None
                 current_results = await _process_deferred_requests(
                     result_output,
                     effective_tool_confirmation,
@@ -762,14 +842,18 @@ async def _execution_loop(
             )
             if stop_outcome.should_continue:
                 current_message = stop_outcome.new_message
-                current_history = stop_outcome.new_history
+                current_history = stop_outcome.new_history or current_history
                 result_output = None
                 current_results = None
                 continue
             return resolve_extended_return(extension_state, result_output, run_history)
-    except asyncio.CancelledError:
+    except asyncio.CancelledError as ce:
+        partial_run.is_interrupted = True
+        setattr(ce, "zrb_partial_run", partial_run)
         raise
     except Exception as e:
+        partial_run.error = str(e)
+        setattr(e, "zrb_partial_run", partial_run)
         if not hasattr(e, "zrb_history"):
             setattr(e, "zrb_history", run_history)
         raise e

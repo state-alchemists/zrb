@@ -20,7 +20,7 @@ clamping in `llm_content`.
 from __future__ import annotations
 
 import os
-from typing import Any, Callable, Generic, TypeVar
+from typing import Any, Callable, Generic, TypeVar, overload
 
 from zrb.config.helper import get_env
 
@@ -123,6 +123,12 @@ class EnvField(Generic[T]):
         if self._default is not _UNSET:
             return self._default
         return getattr(obj, f"DEFAULT_{self._name}", "")
+
+    @overload
+    def __get__(self, obj: None, objtype: type | None = None) -> "EnvField[T]": ...
+
+    @overload
+    def __get__(self, obj: object, objtype: type | None = None) -> T: ...
 
     def __get__(self, obj: Any, objtype: type | None = None) -> Any:
         if obj is None:

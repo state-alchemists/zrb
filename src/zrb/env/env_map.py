@@ -1,14 +1,14 @@
 import os
 from collections.abc import Callable
 
-from zrb.context.shared_context import SharedContext
+from zrb.context.any_shared_context import AnySharedContext
 from zrb.env.any_env import AnyEnv
 
 
 class EnvMap(AnyEnv):
     def __init__(
         self,
-        vars: dict[str, str] | Callable[[SharedContext], dict[str, str]],
+        vars: dict[str, str] | Callable[[AnySharedContext], dict[str, str]],
         auto_render: bool = True,
         link_to_os: bool = True,
         os_prefix: str | None = None,
@@ -18,7 +18,7 @@ class EnvMap(AnyEnv):
         self._os_prefix = os_prefix
         self._auto_render = auto_render
 
-    def update_context(self, shared_ctx: SharedContext) -> dict[str, str]:
+    def update_context(self, shared_ctx: AnySharedContext) -> None:
         env_map = self._get_env_map(shared_ctx)
         for name, default_value in env_map.items():
             if self._link_to_os:
@@ -29,7 +29,7 @@ class EnvMap(AnyEnv):
                 value = default_value
             shared_ctx.env[name] = value
 
-    def _get_env_map(self, shared_ctx: SharedContext) -> dict[str, str]:
+    def _get_env_map(self, shared_ctx: AnySharedContext) -> dict[str, str]:
         if callable(self._env_map):
             return self._env_map(shared_ctx)
         return {key: shared_ctx.render(val) for key, val in self._env_map.items()}

@@ -9,14 +9,31 @@ flag. The `_find_symbol_position` helper bridges symbol names to
 from __future__ import annotations
 
 import re
+from typing import TYPE_CHECKING
 
 from zrb.llm.lsp.manager.symbol_utils import format_document_symbols, uri_to_path
 from zrb.llm.lsp.no_server_error import no_server_error
 from zrb.llm.lsp.protocol import SymbolKind
 
+if TYPE_CHECKING:
+    from zrb.llm.lsp.server import LSPServer
+
 
 class QueryMixin:
     """LSP query methods exposed on `LSPManager`."""
+
+    # Host-class contract: these are provided by `LifecycleMixin` on the
+    # composed `LSPManager`. Declared here so static type checkers can verify
+    # accesses; the block does not run at runtime.
+    if TYPE_CHECKING:
+
+        async def get_server(
+            self,
+            file_path: str,
+            preferred_servers: list[str] | None = None,
+        ) -> LSPServer | None: ...
+
+        def list_available_servers(self) -> dict[str, str]: ...
 
     async def find_definition(
         self,
