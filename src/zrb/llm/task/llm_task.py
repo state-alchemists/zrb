@@ -230,6 +230,42 @@ class LLMTask(BaseTask):
         self._approval_channel = value
 
     @property
+    def history_manager(self) -> AnyHistoryManager | None:
+        return self._history_manager
+
+    @history_manager.setter
+    def history_manager(self, value: AnyHistoryManager | None):
+        self._history_manager = value
+
+    def add_hook_factory(self, *factory: Callable[[HookManager], None]):
+        """Register one or more hook factories on this task's hook manager.
+
+        Each factory receives the ``HookManager`` and registers hooks on it (it
+        is applied immediately — the factory typically calls
+        ``manager.register(hook, events=[...])``). Mirrors
+        ``LLMChatTask.add_hook_factory``.
+
+        Isolation by default: a task starts on the shared global hook manager,
+        but the first ``add_hook_factory`` call swaps in a fresh per-task
+        ``HookManager`` so these hooks do not leak into other tasks. To opt into
+        the global manager (or any specific one) instead, pass ``hook_manager=``
+        at construction — an explicitly provided manager is never replaced.
+        """
+        self.append_hook_factory(*factory)
+
+    def append_hook_factory(self, *factory: Callable[[HookManager], None]):
+        for f in factory:
+            self._ensure_task_local_hook_manager()
+            f(self._hook_manager)
+
+    def _ensure_task_local_hook_manager(self) -> None:
+        # Swap the shared global default for a fresh per-task manager on first
+        # registration, so task-level hooks stay isolated. A manager passed
+        # explicitly at construction is left untouched.
+        if self._hook_manager is default_hook_manager:
+            self._hook_manager = HookManager()
+
+    @property
     def custom_model_names(self) -> StrListAttr | None:
         return self._custom_model_names
 
@@ -656,7 +692,7 @@ class LLMTask(BaseTask):
         error_msg = f"[SYSTEM] Error occurred: {str(error)}"
         new_history.append(ModelRequest(parts=[UserPromptPart(content=error_msg)]))
         # 3. Append partial run summary if available and meaningful
-        if partial_run is not None and partial_run._completed_tools:
+        if partial_run is not None and partial_run.completed_tools:
             summary = partial_run.build_summary()
             new_history.append(ModelRequest(parts=[UserPromptPart(content=summary)]))
         history_manager.update(conversation_name, new_history)
@@ -698,7 +734,7 @@ class LLMTask(BaseTask):
                     ]
                 )
             )
-            if partial_run is not None and partial_run._completed_tools:
+            if partial_run is not None and partial_run.completed_tools:
                 summary = partial_run.build_summary()
                 partial_history.append(
                     ModelRequest(parts=[UserPromptPart(content=summary)])

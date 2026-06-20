@@ -52,14 +52,10 @@ def test_records_tool_call_and_result():
     )
 
     acc.record_event(tool_call)
-    assert acc._current_tool_name == "search_files"
-    assert acc._current_tool_args is not None
-
     acc.record_event(tool_result)
-    assert acc._current_tool_name is None
-    assert len(acc._completed_tools) == 1
+    assert len(acc.completed_tools) == 1
 
-    name, args, result = acc._completed_tools[0]
+    name, args, result = acc.completed_tools[0]
     assert name == "search_files"
     assert "main.py" in result
 
@@ -92,8 +88,7 @@ def test_unmatched_tool_result_is_orphaned():
     acc.record_event(tool_call)
     acc.record_event(wrong_result)
     # The wrong tool name resets the pending state without recording
-    assert acc._current_tool_name is None
-    assert len(acc._completed_tools) == 0
+    assert len(acc.completed_tools) == 0
 
     summary = acc.build_summary()
     assert "search_files" not in summary
@@ -161,7 +156,7 @@ def test_multiple_tool_calls():
             )
         )
 
-    assert len(acc._completed_tools) == 2
+    assert len(acc.completed_tools) == 2
     summary = acc.build_summary()
     assert "search" in summary
     assert "read" in summary
@@ -189,7 +184,7 @@ def test_truncation_of_long_results():
         )
     )
 
-    name, args, result = acc._completed_tools[0]
+    name, args, result = acc.completed_tools[0]
     assert len(result) == 500 + 3  # truncated + "..."
     assert result.endswith("...")
 
@@ -230,8 +225,8 @@ def test_no_duplicate_tool_records():
     )
 
     # Only B should be recorded (A was orphaned by interleaving)
-    assert len(acc._completed_tools) == 1
-    assert acc._completed_tools[0][0] == "search"
+    assert len(acc.completed_tools) == 1
+    assert acc.completed_tools[0][0] == "search"
 
 
 def test_tool_orphaned_by_cancellation():
@@ -251,8 +246,9 @@ def test_tool_orphaned_by_cancellation():
         )
     )
 
-    assert acc._current_tool_name == "search_files"
-    assert len(acc._completed_tools) == 0
+    # The call was registered but never completed, so nothing is recorded and
+    # the orphaned tool does not appear in the summary.
+    assert len(acc.completed_tools) == 0
 
     summary = acc.build_summary()
     assert "search_files" not in summary

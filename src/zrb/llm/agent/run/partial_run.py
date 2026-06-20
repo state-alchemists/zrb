@@ -26,7 +26,10 @@ class PartialRunAccumulator:
     _current_tool_name: str | None = None
     _current_tool_args: str | None = None
     _current_tool_call_id: str | None = None
-    _completed_tools: list[tuple[str, str, str]] = field(default_factory=list)
+    # Public output: (tool_name, args_preview, result_preview) for each tool that
+    # completed before the run was interrupted. Read by ``build_summary()`` and by
+    # callers deciding whether a summary is worth appending.
+    completed_tools: list[tuple[str, str, str]] = field(default_factory=list)
     has_partial_text: bool = False
     is_interrupted: bool = False
     error: str = ""
@@ -56,7 +59,7 @@ class PartialRunAccumulator:
             tool_name = event.part.tool_name
             if tool_name is not None and tool_name == self._current_tool_name:
                 result_preview = self._truncate(str(event.part.content))
-                self._completed_tools.append(
+                self.completed_tools.append(
                     (tool_name, self._current_tool_args or "", result_preview)
                 )
             self._current_tool_name = None
@@ -73,9 +76,9 @@ class PartialRunAccumulator:
         if self.is_interrupted:
             lines.append("The previous attempt was interrupted before completing.")
 
-        if self._completed_tools:
+        if self.completed_tools:
             lines.append("Before failing, the agent made these tool calls:")
-            for name, args, result in self._completed_tools:
+            for name, args, result in self.completed_tools:
                 lines.append(f"  → {name}")
                 if args:
                     lines.append(f"    Args: {args}")

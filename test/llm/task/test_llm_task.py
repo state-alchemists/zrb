@@ -91,6 +91,54 @@ class TestLLMTaskPublicAPI:
         task.custom_model_names = ["updated-model"]
         assert task.custom_model_names == ["updated-model"]
 
+    def test_history_manager_property(self):
+        task = LLMTask(name="test-task")
+        assert task.history_manager is None
+        manager = MagicMock()
+        task.history_manager = manager
+        assert task.history_manager is manager
+
+    @pytest.mark.asyncio
+    async def test_add_hook_factory_isolates_and_reaches_runner(self, session):
+        """add_hook_factory must (a) register the hook so it fires, and (b) NOT
+        mutate the shared global manager — the first registration swaps in a
+        task-local manager, which is the one handed to the runner."""
+        from zrb.llm.hook.interface import HookContext, HookResult
+        from zrb.llm.hook.manager import hook_manager as global_manager
+        from zrb.llm.hook.types import HookEvent
+
+        fired: list[str] = []
+
+        async def my_hook(context: HookContext) -> HookResult:
+            fired.append(context.event.value)
+            return HookResult()
+
+        task = LLMTask(name="test-task", message="hello")
+        task.add_hook_factory(
+            lambda mgr: mgr.register(my_hook, events=[HookEvent.SESSION_START])
+        )
+
+        with (
+            patch("zrb.llm.task.llm_task.create_agent"),
+            patch(
+                "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
+            ) as mock_run_agent,
+        ):
+            mock_run_agent.return_value = ("Response", [])
+            await task.async_run(session)
+            _, kwargs = mock_run_agent.call_args
+            task_manager = kwargs["hook_manager"]
+
+        # The task got its own manager, not the shared global.
+        assert task_manager is not global_manager
+        # The hook fires on the task-local manager (behavioral, public API)...
+        await task_manager.execute_hooks(HookEvent.SESSION_START, {})
+        assert fired == ["SessionStart"]
+        # ...but the global manager was left untouched (no leak).
+        fired.clear()
+        await global_manager.execute_hooks(HookEvent.SESSION_START, {})
+        assert fired == []
+
     @pytest.mark.asyncio
     async def test_model_getter_is_called_with_base_model(self, session):
         # Arrange: getter receives the base model and returns a different one
@@ -255,7 +303,7 @@ class TestLLMTaskPublicAPI:
         from zrb.llm.agent.run.partial_run import PartialRunAccumulator
 
         partial_run = PartialRunAccumulator()
-        partial_run._completed_tools.append(
+        partial_run.completed_tools.append(
             ("search_files", '{"query": "main.py"}', "Found main.py")
         )
 
@@ -325,7 +373,7 @@ class TestLLMTaskPublicAPI:
         from zrb.llm.agent.run.partial_run import PartialRunAccumulator
 
         partial_run = PartialRunAccumulator()
-        partial_run._completed_tools.append(("search", "{}", "Found foo.py"))
+        partial_run.completed_tools.append(("search", "{}", "Found foo.py"))
 
         error = ValueError("API error")
         error.zrb_history = [
@@ -355,7 +403,7 @@ class TestLLMTaskPublicAPI:
         from zrb.llm.agent.run.partial_run import PartialRunAccumulator
 
         partial_run = PartialRunAccumulator()
-        partial_run._completed_tools.append(("search", "{}", "Found foo.py"))
+        partial_run.completed_tools.append(("search", "{}", "Found foo.py"))
 
         error = ValueError("prompt too long")
         error.zrb_history = []

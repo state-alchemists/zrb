@@ -118,5 +118,6 @@ per record. If a new decision reverses an old one, mark the old one
 - **ADR-0072** — Bounded `wait=`/`kill=` on background result-collection tools (refines ADR-0054) — [adr-0072.md](adr-0072.md)
 - **ADR-0074** — Hook capability parity with Claude Code: tool gates via the single `call_tool` chokepoint, `Stop` block-to-continue + turn-extension, terminal `SessionEnd` (refines ADR-0047, ADR-0066) — [adr-0074.md](adr-0074.md)
 - **ADR-0075** — Shift+Tab mode cycle (normal → auto-accept-edits → plan), reusing plan mode + selective yolo with a persistent status-bar badge (refines ADR-0051, ADR-0055) — [adr-0075.md](adr-0075.md)
+- **ADR-0076** — Uniform `add_hook_factory` for task-level hook registration on both `LLMTask` and `LLMChatTask` (task-local-by-default); adds `LLMTask.history_manager` (relates to ADR-0061, ADR-0074) — [adr-0076.md](adr-0076.md)
 
 🔖 [Documentation Home](../README.md)

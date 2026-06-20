@@ -87,6 +87,8 @@ pm.add_live_context("deploy_info", lambda ctx: f"- Deploy target: {ctx.env.DEPLO
 
 The provider receives the active `AnyContext` and returns a string (or `None`/`""` to emit nothing). Providers run in registration order after the built-in live context lines (time, git, worktree, mode, todos). Re-registering the same name replaces the previous provider.
 
+👉 Runnable end-to-end example: [`examples/live-context`](../../examples/live-context).
+
 ## History processors
 
 A history processor is an async callable that receives the running message history and returns a (possibly modified) one. They run between tool-call iterations — use them to keep the context window affordable, strip sensitive data, or inject retrieved context.
