@@ -393,6 +393,39 @@ async def test_call_tool_posttooluse_updated_output_replaces_content():
 
 
 @pytest.mark.asyncio
+async def test_call_tool_posttooluse_additional_context_appended():
+    """A PostToolUse hook's additionalContext is appended to the model-facing
+    content (Claude injects it into context after the tool result)."""
+    from pydantic_ai import ToolReturn
+    from pydantic_ai.toolsets import FunctionToolset
+
+    from zrb.llm.agent.common import _wrap_toolset
+    from zrb.llm.hook.executor import HookExecutionResult
+    from zrb.llm.hook.types import HookEvent
+
+    wrapped_ts = _wrap_toolset(FunctionToolset(tools=[]))
+    add_ctx = HookExecutionResult(
+        success=True,
+        hook_specific_output={"additionalContext": "note: linter passed"},
+    )
+    with (
+        patch(
+            "zrb.llm.hook.manager.hook_manager.execute_hooks",
+            _route_hooks({HookEvent.POST_TOOL_USE: [add_ctx]}),
+        ),
+        patch(
+            "pydantic_ai.toolsets.WrapperToolset.call_tool", new_callable=AsyncMock
+        ) as mock_super,
+    ):
+        mock_super.return_value = "original"
+        res = await wrapped_ts.call_tool("t", {}, None, None)
+
+    assert isinstance(res, ToolReturn)
+    assert res.content == "original\n\nnote: linter passed"
+    assert res.return_value == "original"
+
+
+@pytest.mark.asyncio
 async def test_call_tool_posttooluse_failure_fires_on_exception():
     """When the underlying tool raises, PostToolUseFailure fires and a safe
     error ToolReturn is surfaced."""

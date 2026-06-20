@@ -95,3 +95,59 @@ async def test_command_hook_json_stdout_respected_over_raw_context():
     result = await hook(context)
 
     assert result.modifications == {"foo": "bar"}
+
+
+@pytest.mark.asyncio
+async def test_command_hook_exit2_reason_from_stderr():
+    """Claude-compatible: on exit 2 the block reason is read from stderr."""
+    hook = create_command_hook(
+        CommandHookConfig(command='echo "denied by policy" >&2; exit 2')
+    )
+    context = HookContext(event=HookEvent.PRE_TOOL_USE, event_data={})
+
+    result = await hook(context)
+
+    assert result.success is False
+    assert result.should_stop is True
+    assert result.modifications.get("reason") == "denied by policy"
+
+
+@pytest.mark.asyncio
+async def test_command_hook_exit2_reason_from_stdout_plain_text():
+    """Legacy zrb behavior: a plain-stdout reason on exit 2 still works."""
+    hook = create_command_hook(
+        CommandHookConfig(command='echo "stdout reason"; exit 2')
+    )
+    context = HookContext(event=HookEvent.PRE_TOOL_USE, event_data={})
+
+    result = await hook(context)
+
+    assert result.modifications.get("reason") == "stdout reason"
+
+
+@pytest.mark.asyncio
+async def test_command_hook_exit2_json_reason_wins_over_stderr():
+    """An explicit `reason` in a stdout JSON control object takes precedence."""
+    hook = create_command_hook(
+        CommandHookConfig(
+            command='echo "stderr text" >&2; echo \'{"reason": "json wins"}\'; exit 2'
+        )
+    )
+    context = HookContext(event=HookEvent.PRE_TOOL_USE, event_data={})
+
+    result = await hook(context)
+
+    assert result.modifications.get("reason") == "json wins"
+
+
+@pytest.mark.asyncio
+async def test_command_hook_exit2_json_without_reason_keeps_default():
+    """A JSON control object with no reason and no stderr keeps the default."""
+    hook = create_command_hook(
+        CommandHookConfig(command='echo \'{"decision": "block"}\'; exit 2')
+    )
+    context = HookContext(event=HookEvent.PRE_TOOL_USE, event_data={})
+
+    result = await hook(context)
+
+    assert result.modifications.get("reason") == "Blocked by hook"

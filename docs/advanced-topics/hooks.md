@@ -4,13 +4,23 @@
 
 The Zrb Hook System provides a powerful way to intercept and modify the execution of LLM agents. You can execute shell commands, run LLM prompts, or trigger specific scripts at key lifecycle events.
 
-Zrb's hook system is **100% compatible with Claude Code hooks**.
+Zrb's hook system is **modeled on Claude Code hooks** and aims for drop-in
+compatibility: hooks register in the same files, read the same stdin payload and
+`CLAUDE_*` env vars, and use the same matcher/decision JSON. Most single-hook
+Claude configurations work unchanged.
+
+It is **not** a 100% reimplementation. Several behaviors diverge — most notably
+the multi-hook execution model and the `exit 2` feedback channel — and a Claude
+hook that relies on them will behave differently here. Read
+[Differences from Claude Code](#differences-from-claude-code) before porting a
+non-trivial hook.
 
 ---
 
 ## Table of Contents
 
 - [Quick Start](#quick-start)
+- [Differences from Claude Code](#differences-from-claude-code)
 - [Hook Locations](#hook-locations)
 - [Lifecycle Events](#lifecycle-events)
 - [Hook Configuration](#hook-configuration)
@@ -41,6 +51,69 @@ Create a hook file in `~/.zrb/hooks.json` or `./.zrb/hooks.json`:
   }
 ]
 ```
+
+---
+
+## Differences from Claude Code
+
+Zrb reads Claude's hook config and payload format, so most hooks port over. But
+the runtime is a separate implementation, and the differences below **change
+outcomes**, not just cosmetics. If you are porting a Claude hook that relies on
+any of these, adjust it.
+
+### Behavioral differences (these can change what a hook does)
+
+| # | Area | Claude Code | Zrb |
+|---|------|-------------|-----|
+| 1 | **Multi-hook execution** | All matching hooks run **in parallel**; identical commands are deduplicated | Hooks run **sequentially**, ordered by the zrb-only `priority` field |
+| 2 | **Conflict resolution** | **Most-restrictive wins** (`deny` > `defer` > `ask` > `allow`) regardless of order | **First decisive result wins** (highest priority first) |
+| 3 | **`additionalContext` from multiple hooks** | Merged from **all** hooks | Only the **first** non-empty value is used; the rest are dropped |
+| 4 | **`PostToolUse` block** | Tool already ran; block halts the turn and feeds the reason back — **the tool result stays** in context | Block **discards** the tool result and replaces it with a "Tool result blocked…" message |
+| 5 | **`PreToolUse` `permissionDecision: "ask"`** | Always shows the approval prompt | Forces the prompt **only on the approval path** (tools that require approval). For auto-approved tools it degrades to "proceed" — there is no prompt to show |
+| 6 | **`SubagentStop` blocking** | Supports `decision: "block"` to force the subagent to continue | **Observe-only** — a block is ignored |
+| 7 | **`Notification` firing** | Fires for permission prompts, 60s idle, auth, elicitation, etc. | Fires only for elicitation (`notification_type='elicitation_dialog'`, from the ask/question tool). No permission-prompt or idle notifications — permission prompts route to the `PermissionRequest` event instead, and there is no idle timer |
+| 8 | **Legacy `decision: "approve"`** | Auto-approves a `PreToolUse` call (deprecated form) | Ignored — auto-approve only via `permissionDecision: "allow"` |
+
+> The `exit 2` reason channel (stderr), `PostToolUse` `additionalContext`, and
+> the `Notification` matcher field (`notification_type`) **were** divergences and
+> are now Claude-compatible — see the [changelog](../changelog.md).
+
+### Matcher value coverage (matchers fire on a subset of Claude's values)
+
+| Event | Claude values | Zrb values |
+|-------|---------------|------------|
+| `SessionStart` (`source`) | `startup`, `resume`, `clear`, `compact` | `startup`, `resume` only |
+| `PreCompact` / `PostCompact` (`trigger`) | `manual`, `auto` | `auto` only |
+| `StopFailure` (`error_type`) | includes `max_output_tokens`, `oauth_org_not_allowed`, `billing_error` | uses `context_length` (not `max_output_tokens`); lacks `oauth_org_not_allowed` / `billing_error` |
+
+A matcher keyed on a value zrb never emits simply never fires.
+
+### Events and types zrb does not implement
+
+- **Claude-only events** (no zrb counterpart): `Setup`, `UserPromptExpansion`,
+  `PostToolBatch`, `PermissionDenied`, `TeammateIdle`, `Elicitation` /
+  `ElicitationResult`, `FileChanged`, `CwdChanged`, `ConfigChange`,
+  `InstructionsLoaded`, `TaskCreated` / `TaskCompleted`, `WorktreeCreate` /
+  `WorktreeRemove`, `MessageDisplay`.
+- **Claude-only hook types / options**: `http` and `mcp_tool` hook types, the
+  `if` argument-level filter (e.g. `Bash(git *)`), `async` / `asyncRewake` /
+  `once`, command exec-form `args`, and `disableAllHooks`. Zrb supports the
+  `command`, `prompt`, and `agent` types only.
+
+### Zrb-only events (no Claude counterpart)
+
+- `PreCommand` / `PostCommand` — bracket a UI command in the chat TUI (Claude's
+  nearest analogue is `UserPromptExpansion`, with a different contract).
+
+### What ports cleanly
+
+Single-hook configurations using the common contract behave the same in both:
+`PreToolUse` deny / allow / `updatedInput` / `permissionDecisionReason`,
+`UserPromptSubmit` block + `continue: false` + `additionalContext`,
+`SessionStart` `additionalContext` (including plain-stdout-as-context),
+`Stop` block-to-continue (8-block cap, `stop_hook_active`) and `systemMessage`
+extension, `PermissionRequest` `decision.behavior`, `PreCompact` block, and
+tool-name matchers (including the `Bash` / `Task` aliases).
 
 ---
 
@@ -420,6 +493,11 @@ Return exit code `2` to block:
 echo '{"decision": "block", "reason": "Dangerous operation blocked"}'
 exit 2
 ```
+
+> **Reason channel:** zrb accepts the block reason on **either** stream — an
+> explicit `reason` in a stdout JSON object, or stderr (the Claude convention,
+> e.g. `echo "reason" >&2; exit 2`), or plain stdout text — in that precedence.
+> Claude-style stderr hooks therefore carry their reason correctly.
 
 Exit 2 (and `decision: "block"`) is honored only for the **blocking-capable**
 events — those marked **Yes** in the [lifecycle table](#lifecycle-events)

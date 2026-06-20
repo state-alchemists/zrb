@@ -410,12 +410,53 @@ async def _fire_post_tool_use(name: str, tool_args: dict[str, Any], result: Any)
             metadata={"blocked": True},
         )
     if decision.updated_output is not None and isinstance(result, ToolReturn):
-        return ToolReturn(
+        result = ToolReturn(
             return_value=result.return_value,
             content=decision.updated_output,
             metadata=result.metadata,
         )
+    # Claude injects a PostToolUse hook's additionalContext into the model's
+    # context after the tool result; render it by appending to the model-facing
+    # content (the only post-tool injection point available here).
+    if decision.additional_context:
+        result = _append_tool_context(result, decision.additional_context)
     return result
+
+
+def _append_tool_context(result: Any, extra: str) -> Any:
+    """Append a PostToolUse hook's additionalContext to the model-facing output.
+
+    Extends the ``ToolReturn`` content so the model sees the tool result followed
+    by the hook's context. A non-``ToolReturn`` result is wrapped, preserving the
+    original value for the model while surfacing the context.
+    """
+    # lazy: heavy third-party
+    from pydantic_ai import ToolReturn
+
+    if isinstance(result, ToolReturn):
+        content = result.content
+        return ToolReturn(
+            return_value=result.return_value,
+            content=_merge_content(content, extra),
+            metadata=result.metadata,
+        )
+    return ToolReturn(return_value=result, content=_merge_content(result, extra))
+
+
+def _merge_content(content: Any, extra: str) -> Any:
+    """Append ``extra`` to existing tool content, preserving its shape.
+
+    Strings are concatenated; sequence content (pydantic-ai allows a list of
+    content parts) gets ``extra`` appended as a new part; anything else is paired
+    with ``extra`` in a list so neither value is stringified away.
+    """
+    if content is None or content == "":
+        return extra
+    if isinstance(content, str):
+        return f"{content}\n\n{extra}"
+    if isinstance(content, (list, tuple)):
+        return [*content, extra]
+    return [content, extra]
 
 
 async def _fire_post_tool_use_failure(

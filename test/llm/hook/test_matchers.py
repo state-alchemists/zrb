@@ -92,6 +92,15 @@ def test_session_end_matcher_field_is_source():
     assert CLAUDE_EVENT_MATCHER_FIELDS[HookEvent.SESSION_END] == "source"
 
 
+def test_notification_matcher_field_is_notification_type():
+    """Claude matches Notification hooks on `notification_type` (e.g.
+    `elicitation_dialog`), not the free-form `message` text."""
+    from zrb.llm.hook.matcher import CLAUDE_EVENT_MATCHER_FIELDS
+    from zrb.llm.hook.types import HookEvent
+
+    assert CLAUDE_EVENT_MATCHER_FIELDS[HookEvent.NOTIFICATION] == "notification_type"
+
+
 @pytest.mark.asyncio
 async def test_evaluate_matchers_source_field(tmp_path):
     """A matcher on the `source` field (used by SessionStart/SessionEnd) selects
