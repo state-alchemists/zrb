@@ -2,6 +2,13 @@
 
 ## 2.38.0 (June 19, 2026)
 
+- **Fix: close three more Claude-Code hook contract gaps** (`src/zrb/llm/hook/hook_creators.py`, `src/zrb/llm/agent/common.py`, `src/zrb/llm/hook/matcher.py`):
+  - **`exit 2` block reason is read from stderr** (the Claude convention), not only stdout. The `exit_code == 2` branch in `create_command_hook` now resolves the reason in precedence order: an explicit `reason` in a stdout JSON control object → stderr → plain stdout → `"Blocked by hook"`. A Claude-style `echo "reason" >&2; exit 2` previously blocked but lost its reason (it fell back to the default); existing stdout-based hooks are unaffected.
+  - **`PostToolUse` `additionalContext` is honored.** `_fire_post_tool_use` previously extracted it and dropped it. It is now appended to the model-facing tool result (new `_append_tool_context` / `_merge_content` helpers, preserving string/sequence content shape), mirroring Claude injecting it into context after the tool runs.
+  - **`Notification` matchers filter on `notification_type`**, not the free-form `message` text (`CLAUDE_EVENT_MATCHER_FIELDS`). A Claude matcher keyed on a notification type (e.g. `elicitation_dialog`) now matches. The firing conditions still differ — zrb emits a Notification only for elicitation (the ask/question tool), not for permission prompts (which route to `PermissionRequest`) or a 60s idle timer.
+
+- **Documentation: hooks guide states the Claude-Code incompatibilities explicitly** (`docs/advanced-topics/hooks.md`): dropped the "100% compatible with Claude Code hooks" claim and added a [Differences from Claude Code](advanced-topics/hooks.md#differences-from-claude-code) section covering the behavioral divergences that change outcomes (sequential+priority vs parallel+most-restrictive execution, first-only `additionalContext`, `PostToolUse` block discarding the result, `ask` degrading on the execution path, observe-only `SubagentStop`, `Notification` firing scope, ignored legacy `decision:"approve"`), matcher-value coverage gaps, and the events/types zrb does not implement.
+
 - **Feature: four more Claude-Code hook events** (`src/zrb/llm/hook/types.py`, `agent/run/runner.py`, `agent/run/error_classifier.py`, `tool/delegate.py`, ADR-0074):
   - **`PostCompact`** — fires after history summarization in `_prepare_history` (mirror of `PreCompact`), with `trigger="auto"`; honors `additionalContext`.
   - **`StopFailure`** — fires when a turn ends on an unrecoverable API error (before the exception propagates), observe-only. New `classify_error_type()` maps the exception to an `error_type` matcher token (`rate_limit`, `overloaded`, `server_error`, `context_length`, `authentication_failed`, `invalid_request`, `model_not_found`, `unknown`); new `HookContext.error_type` field.
