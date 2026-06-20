@@ -1,7 +1,7 @@
 import asyncio
 import inspect
 from collections.abc import Callable
-from typing import Any
+from typing import Any, overload
 
 from zrb.attr.type import fstring
 from zrb.context.any_context import AnyContext
@@ -115,6 +115,12 @@ class BaseTask(AnyTask):
 
     def __repr__(self):
         return f"<{self.__class__.__name__} name={self.name}>"
+
+    @overload
+    def __rshift__(self, other: AnyTask) -> AnyTask: ...
+
+    @overload
+    def __rshift__(self, other: list[AnyTask]) -> list[AnyTask]: ...
 
     def __rshift__(self, other: AnyTask | list[AnyTask]) -> AnyTask | list[AnyTask]:
         return handle_rshift(self, other)

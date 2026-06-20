@@ -1,7 +1,7 @@
 from __future__ import annotations  # Enables forward references
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, overload
 
 from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
@@ -35,6 +35,12 @@ class AnyTask(ABC):
     Concrete task classes (like `BaseTask`) inherit from `AnyTask` and provide
     the actual implementation for these abstract members.
     """
+
+    @overload
+    def __rshift__(self, other: "AnyTask") -> "AnyTask": ...
+
+    @overload
+    def __rshift__(self, other: "list[AnyTask]") -> "list[AnyTask]": ...
 
     @abstractmethod
     def __rshift__(self, other: "AnyTask | list[AnyTask]") -> "AnyTask | list[AnyTask]":
