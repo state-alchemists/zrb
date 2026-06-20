@@ -14,10 +14,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import is_dataclass, replace
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from typing import dataclass_transform
+from typing import Any
 
 from zrb.config.config import CFG
 from zrb.llm.config.limiter import is_turn_start
