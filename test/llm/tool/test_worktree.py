@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from zrb.llm.prompt.system_context import render_live_context
+from zrb.llm.prompt.live_context import render_live_context
 from zrb.llm.tool.worktree import enter_worktree, exit_worktree, list_worktrees
 
 

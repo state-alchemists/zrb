@@ -11,7 +11,8 @@ survives) and the stable content stays *out* of the live block.
 from unittest.mock import MagicMock, patch
 
 from zrb.context.any_context import AnyContext
-from zrb.llm.prompt.system_context import render_live_context, system_context
+from zrb.llm.prompt.live_context import render_live_context
+from zrb.llm.prompt.system_context import system_context
 from zrb.llm.tool.plan import get_current_context_session
 
 
