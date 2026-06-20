@@ -316,6 +316,24 @@ Fields can use dot notation to access nested context:
 }
 ```
 
+### Tool names (Claude-compatible)
+
+Zrb's built-in tools expose Claude-compatible names (`Read`, `Write`, `Edit`,
+`Grep`, `Glob`, `LS`, `Bash`, `WebFetch`, `WebSearch`, `TodoWrite`, `TodoRead`,
+…), so a Claude hook matcher keyed on a tool name — e.g. `{"matcher": "Edit"}`
+or a `tool_name` matcher — works as-is. A few zrb tools keep a name that
+differs from Claude's; for those, the Claude name is accepted as an **alias** on
+`tool_name` matchers:
+
+| zrb tool | also matches |
+|----------|--------------|
+| `Shell` (the default shell tool) | `Bash` |
+| `DelegateToAgent`, `DelegateToAgentBackground` | `Task` |
+
+Aliases apply to positive operators (`equals`, `regex`, `contains`, …); a
+`not_equals` matcher compares against the literal name only, so an exclusion is
+never silently widened.
+
 **Common Fields:**
 
 | Field | Description |

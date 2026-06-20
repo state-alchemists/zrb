@@ -292,6 +292,6 @@ async def _summarize_web_content(markdown_content: str, url: str) -> str:
     return str(result)
 
 
-search_internet.__name__ = "SearchInternet"
+search_internet.__name__ = "WebSearch"
 
-open_web_page.__name__ = "OpenWebPage"
+open_web_page.__name__ = "WebFetch"

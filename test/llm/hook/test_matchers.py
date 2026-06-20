@@ -216,6 +216,47 @@ async def test_evaluate_matchers_nested_field_missing(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_tool_name_alias_claude_name_matches_zrb_tool(tmp_path):
+    """A Claude-style matcher keyed on the Claude tool name fires on the zrb tool
+    whose name differs: "Bash" -> zrb's "Shell", "Task" -> the delegation tools."""
+    bash_matcher = [{"field": "tool_name", "operator": "equals", "value": "Bash"}]
+    assert await check_match(tmp_path, bash_matcher, {"tool_name": "Shell"}) is True
+
+    task_matcher = [{"field": "tool_name", "operator": "equals", "value": "Task"}]
+    assert (
+        await check_match(tmp_path, task_matcher, {"tool_name": "DelegateToAgent"})
+        is True
+    )
+    assert (
+        await check_match(
+            tmp_path, task_matcher, {"tool_name": "DelegateToAgentBackground"}
+        )
+        is True
+    )
+
+
+@pytest.mark.asyncio
+async def test_tool_name_alias_does_not_overmatch(tmp_path):
+    """The alias only adds the mapped Claude name(s); an unrelated tool name is
+    still rejected, and the canonical zrb name keeps matching."""
+    bash_matcher = [{"field": "tool_name", "operator": "equals", "value": "Bash"}]
+    assert await check_match(tmp_path, bash_matcher, {"tool_name": "Read"}) is False
+    # The canonical name continues to match directly.
+    assert await check_match(tmp_path, bash_matcher, {"tool_name": "Bash"}) is True
+
+
+@pytest.mark.asyncio
+async def test_tool_name_alias_ignored_for_not_equals(tmp_path):
+    """NOT_EQUALS is an exclusion filter, so the alias is not expanded: excluding
+    "Bash" must NOT also silently exclude the aliased "Shell" tool."""
+    matcher = [{"field": "tool_name", "operator": "not_equals", "value": "Bash"}]
+    # "Shell" is the alias of "Bash" but, since this is an exclusion, the hook
+    # still runs on "Shell" (it is not literally "Bash").
+    assert await check_match(tmp_path, matcher, {"tool_name": "Shell"}) is True
+    assert await check_match(tmp_path, matcher, {"tool_name": "Bash"}) is False
+
+
+@pytest.mark.asyncio
 async def test_evaluate_matchers_multiple(tmp_path):
     # All match
     matchers = [

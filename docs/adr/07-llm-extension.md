@@ -560,7 +560,7 @@ implementation, 281 lines); `src/zrb/llm/tool/bash.py` (alias, 10 lines);
 
 **Status:** Accepted (`update_todo` and `clear_todos` tools removed in ADR-0068; `write_todos` subsumes their functionality, progress visualization unchanged)
 
-**Context.** After every `WriteTodos`, `UpdateTodo`, or `ClearTodos` call, the
+**Context.** After every `TodoWrite`, `UpdateTodo`, or `ClearTodos` call, the
 user has no immediate visual feedback about overall todo progress — the tool
 result is consumed by the LLM and shown only as a terse `🔠 Executed` in the
 stream. Users reported wanting a persistent sense of progress (how many done,

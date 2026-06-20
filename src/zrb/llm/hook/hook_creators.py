@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import os
+import signal
 import subprocess
 
 from zrb.config.config import CFG
@@ -242,6 +243,25 @@ def create_command_hook(
 
                 return HookResult(
                     success=True, output=output, modifications=modifications
+                )
+            elif exit_code is not None and exit_code < 0:
+                # Negative return code: the child was killed by a signal
+                # (POSIX reports -N for signal N). This is almost always the
+                # terminal delivering SIGINT (-2, Ctrl+C) or SIGTERM (-15) to
+                # the whole process group during interrupt/teardown — not a
+                # hook bug. Treat it as a quiet non-failure so a normal Ctrl+C
+                # does not emit a scary "Command hook failed" error.
+                sig_num = -exit_code
+                try:
+                    sig_name = signal.Signals(sig_num).name
+                except ValueError:
+                    sig_name = f"signal {sig_num}"
+                logger.debug(
+                    f"Command hook interrupted by {sig_name}: " f"{config.command[:60]}"
+                )
+                return HookResult(
+                    success=False,
+                    output=f"Command hook interrupted by {sig_name}",
                 )
             else:
                 # Error case

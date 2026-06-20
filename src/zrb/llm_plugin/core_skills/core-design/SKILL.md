@@ -41,7 +41,7 @@ When the current step matches a trigger below, `Read` the named companion from t
 
 - Define precise contracts: interfaces, data flow, error modes, edge cases.
 - Be concrete enough that implementation is straightforward from the spec alone.
-- Use `WriteTodos` to capture loose ends or open questions.
+- Use `TodoWrite` to capture loose ends or open questions.
 
 ### 5. Implementation Plan
 

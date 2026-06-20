@@ -1,3 +1,5 @@
+import logging
+
 import pytest
 
 from zrb.llm.hook.hook_creators import create_command_hook
@@ -25,6 +27,28 @@ async def test_command_hook_timeout_returns_clean_result():
     assert "timed out" in (result.output or "")
     # The bug surfaced as this message via the outer exception handler.
     assert "can't be awaited" not in (result.output or "")
+
+
+@pytest.mark.asyncio
+async def test_command_hook_killed_by_signal_is_quiet_non_failure(caplog):
+    """A hook subprocess killed by a signal (POSIX returns -N) is interrupt/
+    teardown — e.g. the terminal delivering SIGINT (-2) on Ctrl+C to the whole
+    process group — not a hook bug. It must NOT log an error.
+
+    Regression: a normal Ctrl+C during `zrb chat` surfaced as a scary
+    `ERROR: Command hook failed: Command failed with exit code -2`.
+    """
+    # The shell kills itself with SIGINT, so Popen.returncode is -2.
+    hook = create_command_hook(CommandHookConfig(command="kill -INT $$"))
+    context = HookContext(event=HookEvent.SESSION_END, event_data={})
+
+    with caplog.at_level(logging.DEBUG, logger="zrb.llm.hook.hook_creators"):
+        result = await hook(context)
+
+    assert result.success is False
+    assert "SIGINT" in (result.output or "")
+    # Crucially, no ERROR was emitted for a normal interrupt.
+    assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
 
 
 @pytest.mark.asyncio

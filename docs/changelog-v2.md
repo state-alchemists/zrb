@@ -1,5 +1,73 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.35.3 (June 18, 2026)
+
+_Cumulative summary of the 2.35.1–2.35.3 patch line._
+
+- **Security: 5 transitive dependency pins bumped for GHSA advisories** (`pyproject.toml`): PyJWT `>=2.13.0` (GHSA-xgmm-8j9v-c9wx / CVE-2026-48526, JWT forgery via JWK-as-HMAC confusion), cryptography `>=48.0.1` (GHSA-537c-gmf6-5ccf, OOB read in statically-linked OpenSSL wheels), python-multipart `>=0.0.30` (CVE-2026-53539, quadratic-time form DoS), starlette `>=1.3.1` (CVE-2026-54283, ignored `max_fields`/`max_part_size`), aiohttp `>=3.14.1` in `xai`/`voyageai` (CVE-2026-54274, WebSocket size-limit bypass). Also bumped pydantic-ai-slim (`<1.108.0`) and the anthropic extra (`>=0.108.0`).
+
+- **Fix: non-interactive plan-mode approval gate no longer hangs** (`llm/agent/run/deferred_calls.py`, `llm/task/chat/runner_mixin.py`, ADR-0067): `PLAN_MODE_POLICY` pins `ExitPlanMode` to a hard ASK, which in a `--interactive false` run fell through to the `StdUI` stdin prompt and blocked until timeout. `_resolve_approval` now resolves a hard ASK deterministically when `get_interactive_mode()` is `False` — auto-approving `ExitPlanMode` (a no-op without a user) and denying other gated tools with an actionable message. The first fix was incomplete (`_run_non_interactive_session`'s `session_input` omitted `interactive`, so the gating ContextVar fell back to `True`); now set to `False`. Plan mode was also made interactive-aware in tool guidance, the system-context `Interactive: no` line, and the `core-research`/`core-design`/`research` skills (present the plan inline when there is no user to approve it).
+
+- **Fix: command-hook timeout path raised `'int' object can't be awaited`** (`llm/hook/hook_creators.py`): the timeout-kill branch did `await process.wait()` on a synchronous `subprocess.Popen` (whose `.wait()` returns an `int`), swallowing the `TimeoutError` and leaking the subprocess; it now reaps via `loop.run_in_executor(None, process.wait)`.
+
+- **Performance: throttle the "Prepare tool parameters" spinner** (`llm/util/stream_response.py`): the spinner repainted once per streamed tool-argument delta (observed 9k+ frames / 500 KB per turn); the repaint is now capped at ~10×/sec via a monotonic-clock throttle.
+
+- **Refactor: dead-code removal — ~50 zero-caller symbols** (ADR-0068): removed `update_todo`/`clear_todos` (subsumed by `write_todos` replacing the full list), `from_yolo`, the `HookResult.allow`/`deny`/`ask`/`with_*` convenience methods, `NoSaveHistoryManager`, and the unused LSP dataclasses, among others; all hook call sites moved to the inline `HookResult(success=True, modifications={...})` pattern. `register_section` (ADR-0061) and `BufferedOutputMixin` were flagged but **kept** (live downstream clients).
+
+- **Documentation: "Programming the Agent" guide + `agent-in-pipeline` example**: `docs/advanced-topics/programming-the-agent.md` maps every Python hook the agent exposes (custom tools, lifecycle hooks, permission policies, approval channels, model routing, dynamic prompt sections, history processors, agent-as-pipeline-node); `examples/agent-in-pipeline/` is a runnable `LLMTask`-between-pipeline-steps demo. Plus the `examples/web-auth` demo user renamed admin→boss (clashed with the built-in super-admin) and breadcrumb/link fixes.
+
+## 2.35.0 (June 15, 2026)
+
+- **Feature: new built-in developer-utility task groups** (`builtin/hash.py`, `datetime.py`, `url.py`, `json.py`, `case.py`, `cron.py`, `hex.py`, `number.py`): `hash` (`hash`/`sum`/`hmac` over the sha family + md5), `time` (`now`/`to-iso`/`to-epoch`), `url` (`encode`/`decode`/`parse`), `json` (`format`/`minify`/`validate`/`get` dotted-path/`to-yaml`/`from-yaml`), `case` (`convert`/`slugify`), `cron` (`parse`), `hex` (`encode`/`decode`/`dump`), `number` (base 2/8/10/16) — all stdlib/`pyyaml`-only. Added secure `random password`/`token`/`string` (`secrets`).
+
+- **Feature: `core-coding` gains a runtime-debugging / observability companion** (`llm_plugin/skills/core-coding/`): `workflows/observability.md` (core & heap dumps, `kubectl` triage with exit-code reading, Grafana/Prometheus PromQL, Elasticsearch/Kibana) plus two read-only stdlib helper tools (`k8s-triage.py`, `coredump-bt.py`), distinct from the local-failure `workflows/debug.md`.
+
+- **Improvement: built-in task UX** — `jwt decode` defaults to inspect-without-verify (the jwt.io workflow; `--verify` to check the signature); `http request` returns a pipe-friendly `response.text` and gains `body-format`/`params`/`timeout`/`HEAD`/`OPTIONS`; `base64` accepts `--url-safe` and validates true base64 well-formedness (binary payloads included).
+
+- **Improvement: Claude-Code command hooks (e.g. peon-ping) work end-to-end** (`llm/hook/*`, `llm/agent/run/runner.py`, ADR-0066): the event payload is now written to the subprocess' **stdin** as Claude-shaped JSON (`to_claude_json()`); `.claude/settings.json`/`settings.local.json` are read as hook sources; `Stop` fires on natural turn completion; new `PermissionRequest` event + `elicitation_dialog` `Notification` ring attention sounds at the right moments; `async` hooks are truly fire-and-forget (bounded by a concurrency semaphore + backlog ceiling); the cwd is `expanduser`'d with a fallback; search dirs are deduped (hooks no longer fire twice); injected `CLAUDE_*` env is size-capped (full payload still on stdin); and `ZRB_HOOKS_ENABLED` is honored as a global kill-switch.
+
+- **Tests**: coverage for every new built-in and the hook changes; a session-scoped autouse fixture pins the module-level `hook_manager` singleton to no search dirs so the suite never discovers and spawns the developer's real `~/.claude` hooks; `norecursedirs` now excludes `examples/`.
+
+## 2.34.3 (June 12, 2026)
+
+_Cumulative summary of the 2.34.1–2.34.3 patch line._
+
+- **Performance: prompt caching restored via a stable system prompt + per-turn `<live-context>`** (`prompt/system_context.py`, `prompt/manager.py`, `task/llm_task.py`, `agent/run/runner.py`, ADR-0065): the `system_context` section's volatile per-turn state (a second-resolution time line, git status, todos, worktree) diverged the cached prefix every turn (`prompt_cache_hit_tokens: 0`). It now renders only session-invariant facts (OS, CWD, project markers, tools, model) into the cached system prompt, with the volatile state moved to `render_live_context()` and appended to the user turn as an append-only `<live-context>…</live-context>` block frozen into history — keeping the prefix byte-stable. Sub-agents fold the block back into their inherited prompt.
+
+- **Fix: unbounded in-RAM caches** — the `FileHistoryManager` conversation cache gained an LRU cap (`_MAX_CACHED_CONVERSATIONS=8`) with dirty-tracking so unsaved updates are never dropped; the LSP per-file project-root walk cache was capped (`_MAX_PROJECT_ROOT_CACHE=4096`).
+
+- **Fix: input/output edge cases** — oversized tool-result denial reasons truncate to 500 chars with a marker (`util/truncate.py`); Enter with focus on the read-only output pane now refocuses the input field instead of submitting pane content; an unresolved `include_sections` name composes empty **and** logs a warning (was a silent no-op).
+
+- **Improvement: prompt-system weight reduction (~143 lines)** (30 files across `prompt/`, `tool/`, `tool_call/`, `llm_plugin/`): stripped tool-docstring/guidance duplication of the Tool Usage Guide, centralized Skill Activation policy into the Operating Rules, standardized sub-agent activation language, and adopted "activate when the deliverable is X" phrasing.
+
+- **Build: PEP 621 `[project]` migration** (`pyproject.toml`, `scripts/build_pypi_readme.py`, `zrb_init.py`): metadata, dependencies, extras, scripts, and urls moved out of `[tool.poetry.*]`; the in-repo version readers repointed to `["project"]`. Removed the broken aggregate `all` extra (it referenced extra names Poetry silently ignored, so `zrb[all]` never pulled boto3/etc.) — pip users now enumerate extras. `poetry lock` runs only on detected drift (`poetry check --lock || poetry lock`).
+
+## 2.34.0 (June 10, 2026)
+
+- **Feature: arrow-key selection UI for AskUserQuestion**: the default chat UI and `StdUI` render `AskUserQuestion` as an arrow-key-selectable list (Space toggles multi-select; a synthetic "✎ Type my own answer…" row drops to free-text) instead of requiring a typed option number. New optional `UIProtocol.ask_user_choice(spec: ChoiceSpec)` with a numbered-text `BaseUI` default (web/`SimpleUI`/`MultiUI`/sub-agent paths unchanged); the default UI renders an in-layout `Float` via the new `SelectionMixin`, sharing `ConfirmationMixin`'s serialization queue.
+
+- **Feature: opt-in filesystem sandbox for LLM tool calls (ADR-0063)**: new `zrb/llm/sandbox/` package where one `SandboxPolicy` drives two layers — a Python FS gate (`_sandbox_gate` in `agent/common.py`) blocking writes outside the writable roots and reads of credential dirs, and an OS wrapper for `Shell`/`Bash`/`ShellBackground` (`sandbox-exec`+SBPL on macOS, `bwrap` on Linux). Off by default (`ZRB_LLM_SANDBOX_ENABLED=false`); config knobs `OS_SHELL`/`WRITABLE_PATHS`/`DENY_READ_PATHS`/`FALLBACK`/`ALLOW_ESCAPE`; the `dangerously_skip_sandbox` escape hatch is never auto-approved. ContextVar inheritance for sub-agents; where no OS mechanism exists, `FALLBACK=warn` runs unsandboxed with a visible warning (never silent).
+
+## 2.33.4 (June 10, 2026)
+
+_Cumulative summary of the 2.33.1–2.33.4 patch line._
+
+- **Feature: copy / export conversation transcript**: new `/copy` command (bare → full transcript to the system clipboard; with a path → to a file), and bare `/redirect` now copies the last AI response. New `copy_text()` (`llm/util/clipboard.py`) uses `pyperclip` with an OSC 52 terminal-escape fallback (works over SSH; tmux/screen passthrough); `history_formatter` gains a `full=True` export mode and `extract_last_response_text()` so both work on a freshly loaded session.
+
+- **Feature: ULID built-in tasks** (`builtin/ulid.py`): `zrb ulid generate` / `validate`, mirroring the `uuid` helpers; exported as `generate_ulid`/`validate_ulid`.
+
+- **Fix: cross-platform shell execution + correct shells for `Shell`/`Bash`** (`util/cmd/command.py`, `tool/shell.py`, `bash.py`, `config/helper.py`): the three execution tools converge on shared primitives (`start_new_session=True`, `psutil`-based whole-tree `terminate_process`/`kill_pid`, `resolve_shell`, `stdin=DEVNULL`) — `ShellBackground` was outright broken on Windows (`preexec_fn=os.setsid`). `Bash` now actually runs bash (it had become a `/bin/sh` duplicate; matches Claude-Code Bash semantics, git-bash on Windows); `Shell` defaults to `CFG.SHELL`. `get_current_shell()` resolves only to shells that exist via `shutil.which` (Alpine `sh`, Windows `pwsh`→`powershell`→`cmd`); PowerShell uses `-Command`. Also fixed a package-import `NameError` from a half-applied `run_shell_command`→`run_bash_command` rename.
+
+- **Fix: AskUserQuestion rendering and approval** (`ui/default/confirmation_mixin.py`, `tool/ask.py`, `tool_call/always_approve.py`, ADR-0062): the prompt was buffered away before being shown (pending-confirmation was set *before* the prompt was appended) — it is now appended first; and `AskUserQuestion` auto-approval is now intrinsic to the tool via `register_always_auto_approve` (honored as Priority 0 in every path), so delegated sub-agents, the web/API runner, and bare `LLMTask`s no longer gate it behind a redundant "Allow tool execution?" prompt.
+
+- **Fix: correctness batch across the task engine and tooling** — per-run `AgentModeState` ContextVar isolation (concurrent web/sub-agent runs clobbered each other's plan/build mode); an empty env var is treated as unset (was `int("")`/`to_boolean("")`); `fnmatch` matches the basename against the pattern (was always-true); backup rotation excludes the live history file; an empty `old_text` in `replace_in_file` is rejected (was inserting between every character); bash validation catches bare `&`/newlines and drops `env` from safe prefixes; chat API routes enforce `can_access_task`; `Xcom.get()`/`Session.result` return the latest value (not the oldest); circular task-dependency cycle detection; `HttpCheck` probe timeout; SSH-field `shlex.quote` against injection; cron weekday via `isoweekday() % 7` with correct DOM/DOW OR-semantics. Plus an `AnyContext.print_err` abstractmethod and a file-relative journal-link convention (`journal-lint.py` hints the corrected path).
+
+## 2.33.0 (June 6, 2026)
+
+- **Feature: config-positioned custom prompt sections (ADR-0061)**: a section name in `include_sections` (or `ZRB_LLM_INCLUDE_SECTIONS`) that is **not** a built-in now resolves as a custom section composed at its configured position, with precedence **built-in > registered provider > markdown file** (`llm/prompt/manager.py`). New `PromptManager.register_section(name, provider)` registers a dynamic `Callable[[AnyContext], str]` composed against the active context at compose time (return `""` to emit nothing); otherwise an unknown name loads `<name>.md` via `get_prompt` (project-override → env → base-prompt-dir → package) with `{PLACEHOLDER}` substitution, a missing file resolving to `""`. Resolving-and-exec'ing a `.py` file named by the section was deliberately rejected — config stays declarative; dynamic behavior is registered in Python (mirrors the `add_tool_guidance` pattern).
+
+- **Documentation**: AGENTS.md documents the custom-section precedence chain and `register_section`; ADR-0061 records the decision (refines ADR-0035, mirrors ADR-0043); plus a docs/examples accuracy sweep (broken snippets, corrected env-var defaults, a "Programmatic Prompt Customization" subsection in `llm-config.md`).
+
 ## 2.32.2 (June 6, 2026)
 
 _Cumulative summary of the 2.32.1–2.32.2 patch line._

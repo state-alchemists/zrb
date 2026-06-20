@@ -13,8 +13,8 @@ prompt assembly to ambient runtime state:
 
 1. **Session wiring** — reads ``ctx.input.session`` and calls
    ``set_current_tool_session()`` (``zrb.llm.tool.ambient_state``). The
-   resulting ``ContextVar`` is what the todo tools (``WriteTodos``,
-   ``GetTodos``) read when called without an explicit ``session=`` argument,
+   resulting ``ContextVar`` is what the todo tools (``TodoWrite``,
+   ``TodoRead``) read when called without an explicit ``session=`` argument,
    so they always target the active conversation.
 
 2. **Active worktree** — if ``EnterWorktree`` was called, the path is rendered
@@ -26,7 +26,7 @@ prompt assembly to ambient runtime state:
 
 3. **Pending todos** — pending and in-progress todos from the current session
    are rendered into the live-context block so the LLM sees them at the start
-   of every turn without needing to call ``GetTodos`` first. Completed and
+   of every turn without needing to call ``TodoRead`` first. Completed and
    cancelled items are omitted.
 
 4. **Interactive mode** — reads ``ctx.input.interactive`` and calls
