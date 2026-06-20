@@ -144,7 +144,7 @@ async def analyze_code(
 
     extraction_token_threshold = CFG.LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD
     extracted_infos = await _extract_info(
-        file_metadatas=file_metadatas,
+        file_metadatas=file_metadatas,  # type: ignore[arg-type]
         query=query,
         token_limit=extraction_token_threshold,
     )
@@ -275,7 +275,7 @@ async def _get_file_metadatas_with_lsp(
                     CFG.LOGGER.debug(
                         f"analyze_code: skipped unreadable file {rel_path}: {e}"
                     )
-            elif lsp_result and lsp_result.get("lsp_symbols"):
+            elif not isinstance(lsp_result, BaseException) and lsp_result.get("lsp_symbols"):  # type: ignore[union-attr]
                 # Use LSP context (more token-efficient for structure queries)
                 metadata_list.append(lsp_result)
             else:

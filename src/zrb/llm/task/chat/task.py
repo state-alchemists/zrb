@@ -16,7 +16,7 @@ see docs/advanced-topics/llm-chat-lifecycle.md.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, AsyncIterable, Callable
+from typing import TYPE_CHECKING, Any, AsyncIterable, Callable, cast
 
 from zrb.attr.type import BoolAttr, StrAttr, StrListAttr, fstring
 from zrb.config.config import CFG
@@ -104,7 +104,7 @@ def parse_yolo_value(value: Any) -> "bool | frozenset[str]":
     return tools if tools else False
 
 
-class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
+class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):  # type: ignore[reportIncompatibleVariableOverride]
 
     def __init__(
         self,
@@ -766,7 +766,7 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
                 StrInput("attachments", "Attachments"),
                 StrInput("model", "Model"),
             ],
-            env=self.envs,
+            env=cast(list[AnyEnv | None], self.envs),
             system_prompt=self._system_prompt,
             render_system_prompt=self._render_system_prompt,
             prompt_manager=self._prompt_manager,
@@ -783,7 +783,7 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
             history_manager=history_manager,
             hook_manager=hook_manager,
             tool_confirmation=tool_confirmation,
-            ui=ui,
+            ui=cast("UIProtocol | None", ui),
             approval_channel=effective_approval_channel,
             message="{ctx.input.message}",
             conversation_name="{ctx.input.session}",

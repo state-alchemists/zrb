@@ -22,7 +22,7 @@ from zrb.llm.util.git import is_inside_git_dir
 from zrb.util.attr import get_str_attr, get_str_list_attr
 
 # Simple prompt: just takes context and returns a string
-SimplePrompt = Callable[[AnyContext], str]
+SimplePrompt = Callable[[AnyContext], str | None]
 # Full middleware: takes context, current prompt, and next handler
 FullMiddleware = Callable[[AnyContext, str, Callable[[AnyContext, str], str]], str]
 # Flexible middleware: can be either simple or full

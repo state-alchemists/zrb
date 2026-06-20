@@ -15,7 +15,7 @@ import logging
 import os
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, cast
 
 from zrb.config.config import CFG
 from zrb.llm.hook.executor import (
@@ -397,11 +397,15 @@ class HookManager(HookLoaderMixin):
         """
         # Create the actual hook callable
         if config.type == HookType.COMMAND:
-            inner_hook = self._create_command_hook(config.config, config.timeout)
+            inner_hook = self._create_command_hook(
+                cast("CommandHookConfig", config.config), config.timeout
+            )
         elif config.type == HookType.PROMPT:
-            inner_hook = self._create_prompt_hook(config.config)
+            inner_hook = self._create_prompt_hook(
+                cast("PromptHookConfig", config.config)
+            )
         elif config.type == HookType.AGENT:
-            inner_hook = self._create_agent_hook(config.config)
+            inner_hook = self._create_agent_hook(cast("AgentHookConfig", config.config))
         else:
 
             async def placeholder_hook(context: HookContext) -> HookResult:

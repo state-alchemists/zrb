@@ -735,7 +735,7 @@ async def _execution_loop(
                     except Exception:
                         CFG.LOGGER.debug("StopFailure hook raised", exc_info=True)
                     raise stream_error
-                current_history = outcome.new_history
+                current_history = outcome.new_history or current_history
                 current_message = outcome.new_message
                 if outcome.clear_results:
                     current_results = None
@@ -745,6 +745,10 @@ async def _execution_loop(
                 CFG.LOGGER.debug(
                     "Got DeferredToolRequests, calling process_deferred_requests"
                 )
+                # effective_ui is typed as UIProtocol | None but by this point in
+                # the loop we are past all the setup guards; the function it is
+                # passed to expects a concrete UIProtocol.
+                assert effective_ui is not None
                 current_results = await _process_deferred_requests(
                     result_output,
                     effective_tool_confirmation,
@@ -835,7 +839,7 @@ async def _execution_loop(
             )
             if stop_outcome.should_continue:
                 current_message = stop_outcome.new_message
-                current_history = stop_outcome.new_history
+                current_history = stop_outcome.new_history or current_history
                 result_output = None
                 current_results = None
                 continue

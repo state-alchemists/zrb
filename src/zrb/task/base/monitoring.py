@@ -145,8 +145,9 @@ async def _handle_threshold_reached(
 
 def _get_readiness_config(task: BaseTask) -> tuple[list[BaseTask], float, int, float]:
     """Extract readiness check parameters from task, falling back to defaults."""
+    checks: list[BaseTask] = task.readiness_checks  # type: ignore[assignment]
     return (
-        task.readiness_checks,
+        checks,
         task.readiness_check_period,
         task.readiness_failure_threshold,
         task.readiness_timeout,

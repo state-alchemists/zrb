@@ -126,7 +126,7 @@ def _is_date_leaf_dir(path: Path, root: Path) -> bool:
     except ValueError:
         return False
     parts = rel.parts
-    return (
+    return bool(
         len(parts) >= 3
         and parts[0] == "activity-log"
         and re.fullmatch(r"\d{4}", parts[1] or "")
@@ -265,7 +265,7 @@ def lint(root: Path) -> LintReport:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
+    parser = argparse.ArgumentParser(description=(__doc__ or "").split("\n", 1)[0])
     parser.add_argument("journal_root", help="Path to the journal root directory")
     parser.add_argument("--json", action="store_true", help="Emit JSON output")
     args = parser.parse_args()

@@ -360,7 +360,7 @@ class LLMTask(BaseTask):
         conversation_name = self._get_conversation_name(ctx)
         history_manager = self._get_history_manager(ctx)
         message_history = history_manager.load(conversation_name)
-        user_message = get_attr(ctx, self._message, "", self._render_message)
+        user_message: str = get_attr(ctx, self._message, "", self._render_message)  # type: ignore[assignment]
         user_attachments = get_attachments(ctx, self._attachment)
 
         if await self._handle_summarization(
@@ -510,7 +510,7 @@ class LLMTask(BaseTask):
 
         for ui in self._uis:
             if hasattr(ui, "model"):
-                ui.model = final_model
+                setattr(ui, "model", final_model)
 
         # Pass resolve_model=False: we already ran model_getter/model_renderer
         # above. Letting create_agent resolve again would double-fire those

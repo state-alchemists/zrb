@@ -94,11 +94,11 @@ class Scaffolder(BaseTask):
         if callable(self._content_transformers) or isinstance(
             self._content_transformers, dict
         ):
-            return [
+            return [  # type: ignore
                 ContentTransformer(
                     name="default-transform",
                     match=".*",
-                    transform=self._content_transformers,
+                    transform=self._content_transformers,  # type: ignore
                     auto_render=self._render_content_transformers,
                 )
             ]

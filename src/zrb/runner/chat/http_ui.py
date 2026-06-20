@@ -78,7 +78,7 @@ def create_http_ui_factory(
             # No-op: `_run_loop` is overridden directly.
             pass
 
-        async def _run_loop(self):
+        async def _run_loop(self) -> None:  # type: ignore[override]
             """Process one message then return; multi-turn handled by session runner."""
             # Block until every submitted user message has been task_done()'d.
             await self._message_queue.join()

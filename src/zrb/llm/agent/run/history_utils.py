@@ -160,14 +160,14 @@ def filter_nil_content(messages: list[Any]) -> list[Any]:
         # (e.g. NativeToolCallPart, which carries args instead of content).
         if not is_dataclass(part) or not hasattr(part, "content"):
             return part
-        content = part.content
+        content = part.content  # type: ignore[attr-defined]
         if content is None or (isinstance(content, str) and not content.strip()):
             placeholder = (
                 TOOL_RETURN_NULL_PLACEHOLDER
                 if isinstance(part, BaseToolReturnPart)
                 else EMPTY_CONTENT_PLACEHOLDER
             )
-            return replace(part, content=placeholder)
+            return replace(part, content=placeholder)  # type: ignore[arg-type]
         return part
 
     filtered = []

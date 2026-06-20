@@ -1,13 +1,13 @@
 """
 Tool wrapper utilities for consistent LLM tool behavior.
 
-Tools registered via create_agent() are already wrapped by _create_safe_wrapper
+Tools registered via create_agent() are already wrapped by _wrap_tool
 in zrb.llm.agent.common. Use tool_safe_async only when you want a custom
 error_hint appended to the error message.
 """
 
 import functools
-from typing import Any, Awaitable, Callable, ParamSpec, TypeVar, cast
+from typing import Any, Awaitable, Callable, ParamSpec, TypeVar, cast, overload
 
 P = ParamSpec("P")
 T = TypeVar("T")
@@ -47,11 +47,27 @@ def _format_error(
     return formatted
 
 
+@overload
+def tool_safe_async(
+    func: Callable[P, T],
+    *,
+    error_hint: str | Callable[..., str] | None = None,
+) -> Callable[P, T]: ...
+
+
+@overload
+def tool_safe_async(
+    func: None = None,
+    *,
+    error_hint: str | Callable[..., str] | None = None,
+) -> Callable[[Callable[P, T]], Callable[P, T]]: ...
+
+
 def tool_safe_async(
     func: Callable[P, T] | None = None,
     *,
     error_hint: str | Callable[..., str] | None = None,
-) -> Callable[[Callable[P, T]], Callable[P, T]]:
+) -> Callable[P, T] | Callable[[Callable[P, T]], Callable[P, T]]:
     """Wrap an async tool so exceptions become an error string for the LLM."""
 
     def decorator(fn: Callable[P, T]) -> Callable[P, T]:

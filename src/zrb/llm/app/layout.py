@@ -130,12 +130,12 @@ def create_input_field(
         )
 
     # Bind Up to history only if at first line and no completion menu is shown
-    @kb.add("up", filter=is_first_line & ~has_selection & ~has_completions)
+    @kb.add("up", filter=is_first_line & ~has_selection & ~has_completions)  # type: ignore[attr-defined]
     def _(event):
         event.current_buffer.history_backward()
 
     # Bind Down to history only if at last line and no completion menu is shown
-    @kb.add("down", filter=is_last_line & ~has_selection & ~has_completions)
+    @kb.add("down", filter=is_last_line & ~has_selection & ~has_completions)  # type: ignore[attr-defined]
     def _(event):
         event.current_buffer.history_forward()
 
