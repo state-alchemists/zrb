@@ -28,6 +28,7 @@ install_asdf_prerequisites = CmdTask(
 
 download_asdf = CmdTask(
     name="download-asdf",
+    upstream=install_asdf_prerequisites,
     cmd="git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v0.14.1",
     # check_inexist_asdf_dir is typed (AnyContext) -> bool; the BoolAttr slot
     # accepts (AnyContext | AnySharedContext) -> bool | None. AnyContext is the
@@ -35,7 +36,6 @@ download_asdf = CmdTask(
     # time — the task layer always passes an AnyContext.
     execute_condition=check_inexist_asdf_dir,  # type: ignore[arg-type]
 )
-install_asdf_prerequisites >> download_asdf
 
 
 @make_task(
@@ -76,6 +76,7 @@ def setup_asdf_on_powershell(ctx: AnyContext):
 @make_task(
     name="setup-asdf",
     description="🧰 Setup `asdf`.",
+    upstream=[setup_asdf_on_bash, setup_asdf_on_zsh, setup_asdf_on_powershell],
     group=setup_group,
     alias="asdf",
 )
@@ -86,6 +87,3 @@ def setup_asdf(ctx: AnyContext):
     ctx.print("- asdf list all python")
     ctx.print("- asdf install python 3.12.0")
     ctx.print("- asdf global python 3.12.0")
-
-
-setup_asdf << [setup_asdf_on_bash, setup_asdf_on_zsh, setup_asdf_on_powershell]

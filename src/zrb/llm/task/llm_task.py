@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import AsyncExitStack
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, cast
 
 from zrb.attr.type import BoolAttr, StrAttr, StrListAttr, fstring
 from zrb.config.config import CFG
@@ -360,7 +360,7 @@ class LLMTask(BaseTask):
         conversation_name = self._get_conversation_name(ctx)
         history_manager = self._get_history_manager(ctx)
         message_history = history_manager.load(conversation_name)
-        user_message: str = get_attr(ctx, self._message, "", self._render_message)  # type: ignore[assignment]
+        user_message = cast(str, get_attr(ctx, self._message, "", self._render_message))
         user_attachments = get_attachments(ctx, self._attachment)
 
         if await self._handle_summarization(

@@ -1,6 +1,7 @@
 import os
 import shutil
 from collections.abc import Callable
+from typing import cast
 
 from zrb.attr.type import StrAttr
 from zrb.content_transformer.any_content_transformer import AnyContentTransformer
@@ -14,6 +15,9 @@ from zrb.task.base_task import BaseTask
 from zrb.util.attr import get_str_attr
 from zrb.util.cli.style import stylize_faint
 
+_ContentTransformerTransform = (
+    dict[str, str | Callable[[AnyContext], str]] | Callable[[AnyContext, str], None]
+)
 TransformConfig = dict[str, str] | Callable[[AnyContext, str], str]
 
 
@@ -94,14 +98,20 @@ class Scaffolder(BaseTask):
         if callable(self._content_transformers) or isinstance(
             self._content_transformers, dict
         ):
-            return [  # type: ignore
-                ContentTransformer(
-                    name="default-transform",
-                    match=".*",
-                    transform=self._content_transformers,  # type: ignore
-                    auto_render=self._render_content_transformers,
-                )
-            ]
+            return cast(
+                list[AnyContentTransformer],
+                [
+                    ContentTransformer(
+                        name="default-transform",
+                        match=".*",
+                        transform=cast(
+                            _ContentTransformerTransform,
+                            self._content_transformers,
+                        ),
+                        auto_render=self._render_content_transformers,
+                    )
+                ],
+            )
         if isinstance(self._content_transformers, AnyContentTransformer):
             return [self._content_transformers]
         return self._content_transformers

@@ -213,9 +213,7 @@ class LLMConfig:
         if provider_name not in cache:
             try:
                 # lazy: heavy third-party
-                from pydantic_ai.models import (  # noqa: E501; type: ignore
-                    infer_provider_class,
-                )
+                from pydantic_ai.providers import infer_provider_class
 
                 infer_provider_class(provider_name)
                 cache[provider_name] = True

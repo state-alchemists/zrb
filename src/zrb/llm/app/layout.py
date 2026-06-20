@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, cast
 
 from prompt_toolkit.filters import (
     Condition,
@@ -118,6 +118,7 @@ def create_input_field(
     if kb is None:
         kb = KeyBindings()
         text_area.control.key_bindings = kb
+    kb = cast(KeyBindings, kb)
 
     @Condition
     def is_first_line() -> bool:
@@ -130,12 +131,12 @@ def create_input_field(
         )
 
     # Bind Up to history only if at first line and no completion menu is shown
-    @kb.add("up", filter=is_first_line & ~has_selection & ~has_completions)  # type: ignore[attr-defined]
+    @kb.add("up", filter=is_first_line & ~has_selection & ~has_completions)
     def _(event):
         event.current_buffer.history_backward()
 
     # Bind Down to history only if at last line and no completion menu is shown
-    @kb.add("down", filter=is_last_line & ~has_selection & ~has_completions)  # type: ignore[attr-defined]
+    @kb.add("down", filter=is_last_line & ~has_selection & ~has_completions)
     def _(event):
         event.current_buffer.history_forward()
 

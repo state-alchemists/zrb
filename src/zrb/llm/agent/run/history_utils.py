@@ -14,7 +14,10 @@ from __future__ import annotations
 
 import logging
 from dataclasses import is_dataclass, replace
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from typing import dataclass_transform
 
 from zrb.config.config import CFG
 from zrb.llm.config.limiter import is_turn_start
@@ -160,14 +163,15 @@ def filter_nil_content(messages: list[Any]) -> list[Any]:
         # (e.g. NativeToolCallPart, which carries args instead of content).
         if not is_dataclass(part) or not hasattr(part, "content"):
             return part
-        content = part.content  # type: ignore[attr-defined]
+        content = getattr(part, "content", None)
         if content is None or (isinstance(content, str) and not content.strip()):
             placeholder = (
                 TOOL_RETURN_NULL_PLACEHOLDER
                 if isinstance(part, BaseToolReturnPart)
                 else EMPTY_CONTENT_PLACEHOLDER
             )
-            return replace(part, content=placeholder)  # type: ignore[arg-type]
+            dc_part: Any = part
+            return replace(dc_part, content=placeholder)
         return part
 
     filtered = []

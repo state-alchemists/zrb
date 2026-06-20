@@ -1,6 +1,7 @@
 import asyncio
 
 from zrb.session.any_session import AnySession
+from zrb.task.any_task import AnyTask
 from zrb.task.base.execution import execute_action_with_retry
 from zrb.task.base_task import BaseTask
 from zrb.util.run import run_async
@@ -75,7 +76,7 @@ async def monitor_task_readiness(
 
 
 async def _reset_check_tasks(
-    session: AnySession, readiness_checks: list[BaseTask], ctx
+    session: AnySession, readiness_checks: list[AnyTask], ctx
 ) -> None:
     """Reset status and XCom data for readiness check tasks."""
     for check in readiness_checks:
@@ -88,7 +89,7 @@ async def _reset_check_tasks(
 
 async def _run_readiness_checks(
     session: AnySession,
-    readiness_checks: list[BaseTask],
+    readiness_checks: list[AnyTask],
     readiness_timeout: float,
 ) -> bool:
     """Run all readiness checks and return True if all completed successfully."""
@@ -143,9 +144,9 @@ async def _handle_threshold_reached(
     return new_action_coro
 
 
-def _get_readiness_config(task: BaseTask) -> tuple[list[BaseTask], float, int, float]:
+def _get_readiness_config(task: BaseTask) -> tuple[list[AnyTask], float, int, float]:
     """Extract readiness check parameters from task, falling back to defaults."""
-    checks: list[BaseTask] = task.readiness_checks  # type: ignore[assignment]
+    checks = task.readiness_checks
     return (
         checks,
         task.readiness_check_period,
