@@ -79,15 +79,8 @@ class WebMixin:
         str, doc="Secret key used to sign JWT tokens. Change this in production."
     )
 
-    # Reads either alias; setter writes the new `WEB_AUTH_ENABLED` form. The old
-    # `WEB_ENABLE_AUTH` key is kept for backward compatibility with previously
-    # written env vars (renamed to the `<NAMESPACE>_ENABLED` convention — see ADR).
     WEB_AUTH_ENABLED = EnvField(
-        to_boolean,
-        serialize=on_off,
-        aliases=["WEB_AUTH_ENABLED", "WEB_ENABLE_AUTH"],
-        write_key="WEB_AUTH_ENABLED",
-        doc="Enable/disable web authentication. Also readable as ZRB_WEB_ENABLE_AUTH (legacy alias).",
+        to_boolean, serialize=on_off, doc="Enable/disable web authentication."
     )
 
     WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES = EnvField(

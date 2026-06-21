@@ -160,7 +160,7 @@ Boolean `CFG`/env knobs follow a naming rule (ADR-0073):
 - **`<NAMESPACE>_ENABLED`** (state-last) when the toggle is the master switch of a namespace that has *other* settings, so it groups with its siblings — e.g. `WEB_AUTH_ENABLED` (alongside `WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES`), `LLM_SANDBOX_ENABLED`, `HOOKS_ENABLED`.
 - **Verb-first** (`ENABLE_`/`SHOW_`/`SEARCH_`/`INCLUDE_`/`ALLOW_`) for a standalone on/off behavior with no sub-config namespace — e.g. `LLM_ENABLE_BUILTIN_SKILLS`, `LLM_SEARCH_PROJECT`, `LLM_SHOW_TOOL_CALL_DETAIL`.
 
-When **renaming** a knob, keep the old env key working: `EnvField(aliases=[new, old], write_key=new)` reads either and writes the new form, so existing `ZRB_*` configs don't break.
+When **renaming** a released knob, preserve the old env key via `EnvField(aliases=[new, old], write_key=new)` (reads either, writes the new form) so existing `ZRB_*` configs don't break. A clean break (drop the old key) is only safe pre-release.
 
 ### Imports
 
