@@ -694,7 +694,7 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):  # type: ignore[reportIn
             for t in resolved_tools
         }
 
-        def check_yolo(tool_def=None):
+        def _should_skip_approval(tool_def=None):
             # Approval precedence chain:
             #   perm_policy: allow→auto-approve, deny→auto-approve (gate blocks),
             #                ask→defer to tool_policy cascade
@@ -788,7 +788,7 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):  # type: ignore[reportIn
             message="{ctx.input.message}",
             conversation_name="{ctx.input.session}",
             yolo="{ctx.input.yolo}",
-            dynamic_yolo=check_yolo,
+            dynamic_yolo=_should_skip_approval,
             attachment=lambda ctx: ctx.input.attachments,
             model=lambda ctx: ctx.input.get("model"),
             render_model=False,

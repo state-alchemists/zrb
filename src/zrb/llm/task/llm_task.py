@@ -519,7 +519,7 @@ class LLMTask(BaseTask):
             # LLMTask yolo is a BoolAttr, not a live xcom like LLMChatTask.
             yolo_bool = get_bool_attr(ctx, self._yolo, False)
 
-            def _default_yolo(tool_def=None):
+            def _should_skip_approval(tool_def=None):
                 # lazy: permission is a leaf module.
                 from zrb.llm.permission import ALLOW, ASK, DENY, get_effective_policy
                 from zrb.llm.permission.capability import Capability
@@ -540,7 +540,7 @@ class LLMTask(BaseTask):
                         return False  # explicit policy ASK is a 'hard ask'
                 return yolo_bool
 
-            yolo = _default_yolo
+            yolo = _should_skip_approval
         if system_prompt is None:
             system_prompt = self.get_system_prompt(ctx)
         ctx.log_debug(f"SYSTEM PROMPT: {system_prompt}")
