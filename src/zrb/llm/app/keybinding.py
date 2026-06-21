@@ -30,9 +30,10 @@ def create_output_keybindings(input_field: "TextArea") -> "KeyBindings":
     def _(event):
         event.current_buffer.cursor_up(count=event.app.output.get_size().rows - 4)
 
-    # Focus traversal is handled by F6 (and Escape returns to input). Tab and
-    # Shift+Tab are intentionally not bound here so Shift+Tab can cycle modes at
-    # the app level. See ADR-0075.
+    # Focus traversal is handled by Tab at the app level; Shift+Tab is
+    # intentionally not bound here so Shift+Tab can cycle modes at the app
+    # level. Tab still drives completion-menu navigation when a menu is open
+    # (the app-level binding is gated by ~has_completions). See ADR-0075.
 
     # Only redirect printable characters when output field is focused
     # and no text is selected (to allow copying)

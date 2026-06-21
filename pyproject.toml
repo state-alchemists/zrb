@@ -23,6 +23,9 @@ dependencies = [
     "psutil>=7.0.0,<8.0.0",
     # NOTE: Look at https://github.com/pydantic/pydantic-ai/blob/main/pydantic_ai_slim/pyproject.toml
     # The `mcp` extra pulls `fastmcp-slim[client]`, required by `MCPToolset`.
+    # Security fix: GHSA-4xgf-cpjx-pc3j - NestedSecretsSettingsSource follows symlinks outside secrets_dir.
+    # pydantic-settings is transitive via pydantic-ai-slim → fastmcp-slim → mcp. Pin >=2.14.2.
+    "pydantic-settings>=2.14.2",
     "pydantic-ai-slim[mcp]>=1.106.0,<1.108.0",
     # NOTE: Make sure the following dependencies are not conflicting with pydantic-ai-slim
     "openai>=2.29.0",
@@ -105,7 +108,8 @@ voyageai = [
     # Security fix: GHSA-fv5p-p927-qmxr - SSRF via redirect bypass in HTMLHeaderTextSplitter.split_text_from_url().
     "langchain-text-splitters>=1.1.2",
     # Security fix: GHSA-3644-q5cj-c5c7 (CVE-2026-45134) - unsafe prompt-manifest deserialization.
-    "langsmith>=0.8.0",
+    # Security fix: GHSA-f4xh-w4cj-qxq8 - TracingMiddleware arbitrary server-side file read.
+    "langsmith>=0.8.18",
 ]
 
 [project.scripts]
