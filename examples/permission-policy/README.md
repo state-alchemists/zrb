@@ -1,6 +1,6 @@
 # Permission Policy Example
 
-This example demonstrates how to configure a custom `PermissionPolicy` for an `LLMChatTask`.
+This example demonstrates how to configure a custom `PermissionPolicy` on the built-in `llm_chat` task (via `llm_chat.permissions`).
 
 A `PermissionPolicy` allows you to define fine-grained rules for tool execution based on **Capabilities** and **Tool Names**.
 

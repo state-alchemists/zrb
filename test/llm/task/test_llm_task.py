@@ -98,6 +98,38 @@ class TestLLMTaskPublicAPI:
         task.history_manager = manager
         assert task.history_manager is manager
 
+    def test_permissions_constructor_and_property(self):
+        from zrb.llm.permission import ALLOW, PermissionPolicy, Rule
+
+        policy = PermissionPolicy((Rule("*", ALLOW),))
+        task = LLMTask(name="test-task", permissions=policy)
+        assert task.permissions is policy
+
+    def test_permissions_setter(self):
+        from zrb.llm.permission import DENY, PermissionPolicy, Rule
+
+        policy = PermissionPolicy((Rule("*", DENY),))
+        task = LLMTask(name="test-task")
+        assert task.permissions is None
+        task.permissions = policy
+        assert task.permissions is policy
+
+    def test_sandbox_constructor_and_property(self):
+        from zrb.llm.sandbox import SandboxPolicy
+
+        policy = SandboxPolicy(enabled=True)
+        task = LLMTask(name="test-task", sandbox=policy)
+        assert task.sandbox is policy
+
+    def test_sandbox_setter(self):
+        from zrb.llm.sandbox import SandboxPolicy
+
+        policy = SandboxPolicy(enabled=True)
+        task = LLMTask(name="test-task")
+        assert task.sandbox is None
+        task.sandbox = policy
+        assert task.sandbox is policy
+
     @pytest.mark.asyncio
     async def test_add_hook_factory_isolates_and_reaches_runner(self, session):
         """add_hook_factory must (a) register the hook so it fires, and (b) NOT

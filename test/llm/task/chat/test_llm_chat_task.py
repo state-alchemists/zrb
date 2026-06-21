@@ -365,3 +365,91 @@ async def test_llm_chat_task_passes_getter_renderer_to_summarizer():
         await task.async_run(session)
 
     mock_create_proc.assert_called_once()
+
+
+def test_llm_chat_task_permissions_constructor_and_property():
+    from zrb.llm.permission import ALLOW, PermissionPolicy, Rule
+
+    policy = PermissionPolicy((Rule("*", ALLOW),))
+    task = LLMChatTask(name="test-task", permissions=policy)
+    assert task.permissions is policy
+
+
+def test_llm_chat_task_permissions_setter():
+    from zrb.llm.permission import DENY, PermissionPolicy, Rule
+
+    policy = PermissionPolicy((Rule("*", DENY),))
+    task = LLMChatTask(name="test-task")
+    assert task.permissions is None
+    task.permissions = policy
+    assert task.permissions is policy
+
+
+@pytest.mark.asyncio
+async def test_llm_chat_task_forwards_permissions_to_run_agent():
+    """The permissions policy reaches run_agent as permission_policy."""
+    from zrb.llm.permission import ASK, PermissionPolicy, Rule
+
+    policy = PermissionPolicy((Rule("Edit", ASK), Rule("*", ASK)))
+    task = LLMChatTask(
+        name="perm-forward-task",
+        message="Hello",
+        permissions=policy,
+        interactive=False,
+    )
+
+    with patch(
+        "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
+    ) as mock_run_agent:
+        mock_run_agent.return_value = ("Done", [])
+
+        shared_ctx = SharedContext()
+        session = Session(shared_ctx, state_logger=MagicMock())
+        await task.async_run(session)
+
+    assert mock_run_agent.called
+    assert mock_run_agent.call_args.kwargs["permission_policy"] is policy
+
+
+def test_llm_chat_task_sandbox_constructor_and_property():
+    from zrb.llm.sandbox import SandboxPolicy
+
+    policy = SandboxPolicy(enabled=True)
+    task = LLMChatTask(name="test-task", sandbox=policy)
+    assert task.sandbox is policy
+
+
+def test_llm_chat_task_sandbox_setter():
+    from zrb.llm.sandbox import SandboxPolicy
+
+    policy = SandboxPolicy(enabled=True)
+    task = LLMChatTask(name="test-task")
+    assert task.sandbox is None
+    task.sandbox = policy
+    assert task.sandbox is policy
+
+
+@pytest.mark.asyncio
+async def test_llm_chat_task_forwards_sandbox_to_run_agent():
+    """The sandbox policy reaches run_agent as sandbox_policy."""
+    from zrb.llm.sandbox import SandboxPolicy
+
+    policy = SandboxPolicy(enabled=True)
+    task = LLMChatTask(
+        name="sandbox-forward-task",
+        message="Hello",
+        sandbox=policy,
+        interactive=False,
+    )
+
+    with patch(
+        "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
+    ) as mock_run_agent:
+        mock_run_agent.return_value = ("Done", [])
+
+        shared_ctx = SharedContext()
+        session = Session(shared_ctx, state_logger=MagicMock())
+        await task.async_run(session)
+
+    assert mock_run_agent.called
+    assert mock_run_agent.call_args.kwargs["sandbox_policy"] is policy

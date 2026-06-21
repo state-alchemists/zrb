@@ -24,6 +24,7 @@ For "chat with my codebase," you never touch any of it. You reach for Python whe
 | Custom tools | `tools=[fn]` / `task.add_tool(fn)` — a plain Python function, in-process | [LLM Integration](llm-integration.md) |
 | Lifecycle hooks | `task.add_hook_factory(...)` — fire on tool calls, prompts, session start/end | [Hook System](hooks.md) |
 | Permission policy | `permissions=PermissionPolicy(...)` — allow / ask / deny per tool | [Permission Policy](permission-policy.md) |
+| Filesystem sandbox | `sandbox=SandboxPolicy(...)` (or `True`/`False`) — contain file/shell access | [Sandbox](sandbox.md) |
 | Approval channel | `task.append_approval_channel(...)` — async approval over any transport | [Permission Policy](permission-policy.md) |
 | Model routing | `model=lambda ctx: ...` — pick the model per request | [`examples/model-tiering`](../../examples/model-tiering) |
 | Dynamic prompt sections | `prompt_manager.register_section(name, provider)` | ↓ below |

@@ -78,6 +78,8 @@ if TYPE_CHECKING:
 
     from zrb.llm.agent.common import HistoryProcessor
     from zrb.llm.approval.approval_channel import ApprovalChannel
+    from zrb.llm.permission import PermissionPolicyInput
+    from zrb.llm.sandbox import SandboxInput
     from zrb.llm.tool_call.ui_protocol import UIProtocol
 
 
@@ -170,6 +172,8 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):  # type: ignore[reportIn
             | None
         ) = None,
         approval_channel: ApprovalChannel | None = None,
+        permissions: "PermissionPolicyInput" = None,
+        sandbox: "SandboxInput" = None,
         yolo: BoolAttr = False,
         yolo_xcom_key: str = "yolo",
         ui_summarize_commands: list[str] | None = None,
@@ -309,6 +313,8 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):  # type: ignore[reportIn
         self._approval_channels: list["ApprovalChannel"] = []
         if approval_channel is not None:
             self._approval_channels.append(approval_channel)
+        self._permissions = permissions
+        self._sandbox = sandbox
         self._yolo = yolo
         self._yolo_xcom_key = yolo_xcom_key
         self._ui_summarize_commands = (
@@ -388,6 +394,22 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):  # type: ignore[reportIn
     @property
     def llm_limiter(self) -> LLMLimiter | None:
         return self._llm_limiter
+
+    @property
+    def permissions(self) -> "PermissionPolicyInput":
+        return self._permissions
+
+    @permissions.setter
+    def permissions(self, value: "PermissionPolicyInput"):
+        self._permissions = value
+
+    @property
+    def sandbox(self) -> "SandboxInput":
+        return self._sandbox
+
+    @sandbox.setter
+    def sandbox(self, value: "SandboxInput"):
+        self._sandbox = value
 
     def get_system_prompt(self, ctx: AnyContext) -> str:
         if self._prompt_manager is None:
@@ -785,6 +807,8 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):  # type: ignore[reportIn
             tool_confirmation=tool_confirmation,
             ui=cast("UIProtocol | None", ui),
             approval_channel=effective_approval_channel,
+            permissions=self._permissions,
+            sandbox=self._sandbox,
             message="{ctx.input.message}",
             conversation_name="{ctx.input.session}",
             yolo="{ctx.input.yolo}",

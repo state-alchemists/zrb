@@ -24,6 +24,7 @@ from zrb.llm.sandbox.os_sandbox import (
 )
 from zrb.llm.sandbox.policy import (
     DEFAULT_DENY_READ_PATHS,
+    SandboxInput,
     SandboxPolicy,
     coerce_sandbox,
     resolve_sandbox_policy_from_config,
@@ -39,6 +40,7 @@ from zrb.llm.sandbox.state import (
 
 __all__ = [
     "DEFAULT_DENY_READ_PATHS",
+    "SandboxInput",
     "SandboxPolicy",
     "coerce_sandbox",
     "resolve_sandbox_policy_from_config",

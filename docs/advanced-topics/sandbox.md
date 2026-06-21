@@ -78,8 +78,9 @@ The system temp directory is **always writable**, even with explicit
 `WRITABLE_PATHS` — the shell tool's PID-tracking wrapper writes a temp file
 from inside the sandbox, and temp dirs are world-writable by design anyway.
 
-Python API: `LLMTask(..., sandbox=...)` accepts `True`/`False` (config-derived
-policy with `enabled` forced) or a `SandboxPolicy` instance. Sub-agents
+Python API: both `LLMTask(..., sandbox=...)` and `LLMChatTask(..., sandbox=...)`
+accept `True`/`False` (config-derived policy with `enabled` forced) or a
+`SandboxPolicy` instance; `sandbox` is also a read/write property on both. Sub-agents
 inherit the parent run's policy through the `current_sandbox_policy`
 ContextVar, exactly like the permission policy.
 

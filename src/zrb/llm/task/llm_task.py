@@ -20,10 +20,10 @@ from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.history_manager.file_history_manager import FileHistoryManager
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
-from zrb.llm.permission import resolve_policy
+from zrb.llm.permission import PermissionPolicyInput, resolve_policy
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.prompt.tool_guidance import ToolGuidance
-from zrb.llm.sandbox import coerce_sandbox
+from zrb.llm.sandbox import SandboxInput, coerce_sandbox
 from zrb.llm.summarizer import (
     summarize_history,
 )
@@ -99,8 +99,8 @@ class LLMTask(BaseTask):
         ui: UIProtocol | None = None,
         yolo: BoolAttr = False,
         dynamic_yolo: Callable[..., bool] | None = None,
-        permissions: Any = None,
-        sandbox: Any = None,
+        permissions: PermissionPolicyInput = None,
+        sandbox: SandboxInput = None,
         approval_channel: ApprovalChannel | None = None,
         summarize_command: list[str] | None = None,
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
@@ -236,6 +236,22 @@ class LLMTask(BaseTask):
     @history_manager.setter
     def history_manager(self, value: AnyHistoryManager | None):
         self._history_manager = value
+
+    @property
+    def permissions(self) -> PermissionPolicyInput:
+        return self._permissions
+
+    @permissions.setter
+    def permissions(self, value: PermissionPolicyInput):
+        self._permissions = value
+
+    @property
+    def sandbox(self) -> SandboxInput:
+        return self._sandbox
+
+    @sandbox.setter
+    def sandbox(self, value: SandboxInput):
+        self._sandbox = value
 
     def add_hook_factory(self, *factory: Callable[[HookManager], None]):
         """Register one or more hook factories on this task's hook manager.
@@ -511,13 +527,13 @@ class LLMTask(BaseTask):
 
     def _create_agent(self, ctx: AnyContext, system_prompt: str | None = None) -> Any:
         if self._dynamic_yolo is not None:
-            yolo = self._dynamic_yolo
+            should_skip_approval = self._dynamic_yolo
         else:
             # Default policy-aware callable (bare LLMTask without dynamic_yolo).
             # Follows the same precedence chain as chat/task.py check_yolo.
             # Caching the yolo value at closure-creation time is fine — bare
             # LLMTask yolo is a BoolAttr, not a live xcom like LLMChatTask.
-            yolo_bool = get_bool_attr(ctx, self._yolo, False)
+            should_skip_approval_bool = get_bool_attr(ctx, self._yolo, False)
 
             def _should_skip_approval(tool_def=None):
                 # lazy: permission is a leaf module.
@@ -538,9 +554,9 @@ class LLMTask(BaseTask):
                         return True  # auto-approved (gate blocks at execution)
                     if result == ASK:
                         return False  # explicit policy ASK is a 'hard ask'
-                return yolo_bool
+                return should_skip_approval_bool
 
-            yolo = _should_skip_approval
+            should_skip_approval = _should_skip_approval
         if system_prompt is None:
             system_prompt = self.get_system_prompt(ctx)
         ctx.log_debug(f"SYSTEM PROMPT: {system_prompt}")
@@ -567,7 +583,7 @@ class LLMTask(BaseTask):
             model_settings=self._get_model_settings(ctx),
             history_processors=self._history_processors,
             capabilities=self._capabilities,
-            yolo=yolo,
+            yolo=should_skip_approval,
             resolve_model=False,
         )
 
