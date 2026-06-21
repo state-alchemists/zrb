@@ -23,7 +23,6 @@ class LSPManager(LifecycleMixin, QueryMixin):
     - Lazy start (only start server when needed)
     - Auto-detect available LSP servers
     - One server instance per language per project root
-    - Idle shutdown to free resources
     - Symbol-based API (more LLM-friendly than position-based)
     - ``register_lsp_server()`` for user-extensible configs
     """

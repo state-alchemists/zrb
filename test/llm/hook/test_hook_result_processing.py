@@ -181,6 +181,37 @@ class TestExtractPreToolDecision:
         assert decision.deny is True
         assert decision.force_prompt is False
 
+    def test_allow_short_circuits_later_ask(self):
+        """Intentional 'first decisive wins' semantics: a higher-priority hook
+        returning 'allow' short-circuits a lower-priority hook's 'ask' (this is a
+        deliberate divergence from Claude's most-restrictive-wins; deny still wins
+        unconditionally because it is checked first each iteration)."""
+        results = [
+            HookExecutionResult(success=True, permission_decision="allow"),
+            HookExecutionResult(success=True, permission_decision="ask"),
+        ]
+        decision = extract_pre_tool_decision(results)
+        assert decision.allow is True
+        assert decision.force_prompt is False
+
+    def test_deny_carries_earlier_updated_input(self):
+        """updatedInput captured before a later deny is still surfaced (harmless,
+        since a denied tool never executes, but the contract is preserved)."""
+        results = [
+            HookExecutionResult(success=True, updated_input={"a": 1}),
+            HookExecutionResult(success=True, permission_decision="deny"),
+        ]
+        decision = extract_pre_tool_decision(results)
+        assert decision.deny is True
+        assert decision.updated_input == {"a": 1}
+
+    def test_blocked_flag_denies(self):
+        """A bare exit-2 block (blocked=True, no permission_decision) denies."""
+        results = [HookExecutionResult(success=False, blocked=True)]
+        decision = extract_pre_tool_decision(results)
+        assert decision.deny is True
+        assert decision.reason == "Blocked by PreToolUse hook"
+
 
 class TestExtractContinueDecision:
     """Tests for extract_continue_decision (continue=false halts the run)."""
@@ -235,6 +266,17 @@ class TestExtractPostToolDecision:
         ]
         assert extract_post_tool_decision(results).updated_output == "X"
 
+    def test_block_via_blocked_flag(self):
+        """A bare exit-2 block (blocked=True) blocks with the default reason."""
+        results = [HookExecutionResult(success=False, blocked=True)]
+        decision = extract_post_tool_decision(results)
+        assert decision.block is True
+        assert decision.reason == "Blocked by PostToolUse hook"
+
+    def test_additional_context_surfaced(self):
+        results = [HookExecutionResult(success=True, additional_context="note")]
+        assert extract_post_tool_decision(results).additional_context == "note"
+
     def test_none(self):
         assert extract_post_tool_decision([]).block is False
 
@@ -253,6 +295,22 @@ class TestExtractPermissionDecision:
     def test_flat_permission_decision_deny(self):
         results = [HookExecutionResult(success=True, permission_decision="deny")]
         assert extract_permission_decision(results) == "deny"
+
+    def test_nested_behavior_deny(self):
+        results = [
+            HookExecutionResult(
+                success=True, hook_specific_output={"decision": {"behavior": "deny"}}
+            )
+        ]
+        assert extract_permission_decision(results) == "deny"
+
+    def test_first_decisive_wins_skipping_observe_only(self):
+        """An observe-only (None) result is skipped; the first allow/deny wins."""
+        results = [
+            HookExecutionResult(success=True),
+            HookExecutionResult(success=True, permission_decision="allow"),
+        ]
+        assert extract_permission_decision(results) == "allow"
 
     def test_none_when_observe_only(self):
         assert extract_permission_decision([HookExecutionResult(success=True)]) is None

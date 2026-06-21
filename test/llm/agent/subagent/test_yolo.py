@@ -94,8 +94,12 @@ def test_yolo_inheritance_frozenset_no_tool_def():
         assert checker() is False
 
 
-def test_yolo_inheritance_frozenset_fallback_ui():
-    """Selective YOLO with no match but UI yolo is True → still approved via UI."""
+def test_yolo_inheritance_frozenset_is_definitive_over_ui():
+    """Selective YOLO is definitive: a tool absent from the frozenset is NOT
+    auto-approved even when the UI's `yolo` is truthy. A non-empty frozenset is
+    itself truthy, so falling through to the UI would auto-approve tools the
+    selection never listed (mirrors chat/task.py check_yolo, which has no UI
+    fallback for the frozenset case)."""
     with (
         patch(
             "zrb.llm.agent.run.runtime_state.get_current_yolo",
@@ -107,4 +111,4 @@ def test_yolo_inheritance_frozenset_fallback_ui():
         mock_get_ui.return_value = mock_ui
         checker = make_yolo_inheritance_checker()
         mock_tool = type("Tool", (), {"name": "Read"})()
-        assert checker(mock_tool) is True
+        assert checker(mock_tool) is False
