@@ -7,7 +7,7 @@ import tempfile
 from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
 from zrb.llm.sandbox.os_sandbox import SandboxUnavailableError
-from zrb.util.cli.style import stylize_faint
+from zrb.util.cli.style import stylize_muted
 from zrb.util.cmd.command import resolve_shell, terminate_process
 from zrb.util.truncate import truncate_output
 
@@ -236,7 +236,7 @@ async def _read_stream(stream: asyncio.StreamReader, lines_list: list[str]):
         decoded = line.decode(errors="replace")
         if decoded:
             stripped = ANSI_ESCAPE.sub("", decoded)
-            shown = stylize_faint(stripped)
+            shown = stylize_muted(stripped)
             zrb_print(f"  {shown}", end="", plain=True)  # Stream to console
             lines_list.append(stripped)
 

@@ -12,7 +12,7 @@ from zrb.context.shared_context import SharedContext
 from zrb.llm.approval.approval_channel import ApprovalContext
 from zrb.session.session import Session
 from zrb.util.cli.markdown import render_markdown
-from zrb.util.cli.style import stylize_faint
+from zrb.util.cli.style import stylize_muted
 
 
 class MultiUI:
@@ -142,7 +142,7 @@ class MultiUI:
         try:
             timestamp = datetime.now().strftime("%H:%M")
             self.append_to_output(f"\n🤖 {timestamp} >>\n")
-            self.append_to_output(stylize_faint("\n  🔢 Streaming response..."))
+            self.append_to_output(stylize_muted("\n  🔢 Streaming response..."))
 
             session = self._create_session_for_llm_task(user_message, attachments)
             llm_task.set_ui(self)

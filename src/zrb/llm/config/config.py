@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 class LLMConfig:
     """
-    Configuration provider for Pollux.
+    Configuration provider for LLM System.
     Allows runtime configuration while falling back to ZRB global settings.
     """
 

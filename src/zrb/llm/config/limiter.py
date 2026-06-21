@@ -4,7 +4,7 @@ from collections import deque
 from typing import Any, Callable
 
 from zrb.config.config import CFG
-from zrb.util.cli.style import stylize_cyan
+from zrb.util.cli.style import stylize_info
 
 
 def is_turn_start(msg: Any) -> bool:
@@ -198,7 +198,7 @@ class LLMLimiter:
             if notifier:
                 msg = f"Rate Limit reached: {reason}. Waiting {wait_time:.1f}s..."
                 # Only notify once or if status changes? Simple is better.
-                notifier(stylize_cyan(msg))
+                notifier(stylize_info(msg))
                 notified = True
 
             await asyncio.sleep(self.throttle_check_interval)

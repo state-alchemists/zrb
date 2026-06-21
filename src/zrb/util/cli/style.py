@@ -296,53 +296,127 @@ def stylize_bold_red(text: str):
     return stylize(text, color=RED, style=BOLD)
 
 
-def stylize_faint(text: str):
-    """
-    Stylize text with faint style.
+_COLOR_NAME_MAP: dict[str, int] = {
+    "black": BLACK,
+    "red": RED,
+    "green": GREEN,
+    "yellow": YELLOW,
+    "blue": BLUE,
+    "magenta": MAGENTA,
+    "cyan": CYAN,
+    "white": WHITE,
+    "bright_black": BRIGHT_BLACK,
+    "bright_red": BRIGHT_RED,
+    "bright_green": BRIGHT_GREEN,
+    "bright_yellow": BRIGHT_YELLOW,
+    "bright_blue": BRIGHT_BLUE,
+    "bright_magenta": BRIGHT_MAGENTA,
+    "bright_cyan": BRIGHT_CYAN,
+    "bright_white": BRIGHT_WHITE,
+}
 
-    Args:
-        text (str): The input string.
-
-    Returns:
-        str: The stylized string.
-    """
-    return stylize(text, style=FAINT)
-
-
-def stylize_log(text: str):
-    """
-    Stylize text for log messages (faint).
-
-    Args:
-        text (str): The input string.
-
-    Returns:
-        str: The stylized string.
-    """
-    return stylize_faint(text)
-
-
-def stylize_warning(text: str):
-    """
-    Stylize text for warning messages (bold yellow).
-
-    Args:
-        text (str): The input string.
-
-    Returns:
-        str: The stylized string.
-    """
-    return stylize_bold_yellow(text)
+_STYLE_NAME_MAP: dict[str, int] = {
+    "bold": BOLD,
+    "faint": FAINT,
+    "italic": ITALIC,
+    "underline": UNDERLINE,
+    "blink_slow": BLINK_SLOW,
+    "blink_fast": BLINK_FAST,
+    "reversed": REVERSED,
+    "hide": HIDE,
+    "crossed_out": CROSSED_OUT,
+}
 
 
-def stylize_error(text: str):
-    """
-    Stylize text for error messages (bold red).
+def _resolve_color(name: str) -> int | None:
+    return _COLOR_NAME_MAP.get(name.lower().strip()) if name else None
 
-    Args:
-        text (str): The input string.
 
-    Returns:
-        str: The stylized string.
-    """
-    return stylize_bold_red(text)
+def _resolve_style(name: str) -> int | None:
+    return _STYLE_NAME_MAP.get(name.lower().strip()) if name else None
+
+
+def stylize_muted(text: str) -> str:
+    from zrb.config.config import CFG  # lazy: defer CFG load
+
+    return stylize(
+        text,
+        color=_resolve_color(CFG.CLI_COLOR_MUTED),
+        style=_resolve_style(CFG.CLI_STYLE_MUTED),
+    )
+
+
+def stylize_faint(text: str) -> str:
+    return stylize_muted(text)
+
+
+def stylize_log(text: str) -> str:
+    return stylize_muted(text)
+
+
+def stylize_warning(text: str) -> str:
+    from zrb.config.config import CFG  # lazy: defer CFG load
+
+    return stylize(
+        text,
+        color=_resolve_color(CFG.CLI_COLOR_WARNING),
+        style=_resolve_style(CFG.CLI_STYLE_WARNING),
+    )
+
+
+def stylize_error(text: str) -> str:
+    from zrb.config.config import CFG  # lazy: defer CFG load
+
+    return stylize(
+        text,
+        color=_resolve_color(CFG.CLI_COLOR_ERROR),
+        style=_resolve_style(CFG.CLI_STYLE_ERROR),
+    )
+
+
+def stylize_success(text: str) -> str:
+    from zrb.config.config import CFG  # lazy: defer CFG load
+
+    return stylize(
+        text,
+        color=_resolve_color(CFG.CLI_COLOR_SUCCESS),
+        style=_resolve_style(CFG.CLI_STYLE_SUCCESS),
+    )
+
+
+def stylize_highlight(text: str) -> str:
+    from zrb.config.config import CFG  # lazy: defer CFG load
+
+    return stylize(
+        text,
+        color=_resolve_color(CFG.CLI_COLOR_HIGHLIGHT),
+        style=_resolve_style(CFG.CLI_STYLE_HIGHLIGHT),
+    )
+
+
+def stylize_info(text: str) -> str:
+    from zrb.config.config import CFG  # lazy: defer CFG load
+
+    return stylize(
+        text,
+        color=_resolve_color(CFG.CLI_COLOR_INFO),
+        style=_resolve_style(CFG.CLI_STYLE_INFO),
+    )
+
+
+def stylize_todo_project(text: str) -> str:
+    from zrb.config.config import CFG  # lazy: defer CFG load
+
+    return stylize(text, color=_resolve_color(CFG.CLI_COLOR_TODO_PROJECT))
+
+
+def stylize_todo_context(text: str) -> str:
+    from zrb.config.config import CFG  # lazy: defer CFG load
+
+    return stylize(text, color=_resolve_color(CFG.CLI_COLOR_TODO_CONTEXT))
+
+
+def stylize_todo_keyval(text: str) -> str:
+    from zrb.config.config import CFG  # lazy: defer CFG load
+
+    return stylize(text, color=_resolve_color(CFG.CLI_COLOR_TODO_KEYVAL))

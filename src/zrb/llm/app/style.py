@@ -2,13 +2,10 @@ from prompt_toolkit.styles import Style
 
 from zrb.config.config import CFG
 
-# Panel background for the AskUserQuestion selection widget, and the highlight
-# bar for the row under the cursor. Kept dark to read as a card over the chat.
-_CHOICE_BG = "#1f1f1f"
-_CHOICE_SELECTED_BG = "#264f78"
-
 
 def create_style() -> Style:
+    choice_bg = CFG.LLM_UI_STYLE_CHOICE_BG
+    choice_selected_bg = CFG.LLM_UI_STYLE_CHOICE_SELECTED_BG
     return Style.from_dict(
         {
             "title-bar": CFG.LLM_UI_STYLE_TITLE_BAR,
@@ -27,12 +24,12 @@ def create_style() -> Style:
             "bottom-toolbar": CFG.LLM_UI_STYLE_BOTTOM_TOOLBAR,
             # AskUserQuestion selection widget. An opaque panel background stops
             # the streaming output behind the float from showing through.
-            "choice-frame": f"bg:{_CHOICE_BG} {CFG.LLM_UI_STYLE_INPUT_FRAME}",
-            "choice": f"bg:{_CHOICE_BG}",
-            "choice.question": f"bg:{_CHOICE_BG} bold",
-            "choice.selected": f"bg:{_CHOICE_SELECTED_BG} #ffffff bold",
-            "choice.option": f"bg:{_CHOICE_BG}",
-            "choice.desc": f"bg:{_CHOICE_BG} #888888",
-            "choice.hint": f"bg:{_CHOICE_BG} #6c6c6c",
+            "choice-frame": f"bg:{choice_bg} {CFG.LLM_UI_STYLE_INPUT_FRAME}",
+            "choice": f"bg:{choice_bg}",
+            "choice.question": f"bg:{choice_bg} bold",
+            "choice.selected": f"bg:{choice_selected_bg} #ffffff bold",
+            "choice.option": f"bg:{choice_bg}",
+            "choice.desc": f"bg:{choice_bg} #888888",
+            "choice.hint": f"bg:{choice_bg} #6c6c6c",
         }
     )

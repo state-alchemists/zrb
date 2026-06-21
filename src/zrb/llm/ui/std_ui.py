@@ -4,7 +4,7 @@ import sys
 from typing import TYPE_CHECKING, Any, TextIO
 
 from zrb.config.config import CFG
-from zrb.util.cli.style import stylize_faint
+from zrb.util.cli.style import stylize_muted
 
 if TYPE_CHECKING:
     from zrb.llm.tool_call.ui_protocol import ChoiceOption, ChoiceSpec
@@ -131,7 +131,7 @@ class StdUI:
 
         content = sep.join(str(v) for v in values) + end
         if kind not in ("text", "todo_progress"):
-            content = stylize_faint(content)
+            content = stylize_muted(content)
         sys.stderr.write(content)
         if flush:
             sys.stderr.flush()

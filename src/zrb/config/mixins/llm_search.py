@@ -32,20 +32,10 @@ class LLMSearchMixin:
         self.DEFAULT_LLM_ENABLE_BUILTIN_AGENTS: str = "on"
         super().__init__()
 
-    LLM_PLUGIN_DIRS = EnvField(expanduser_colon_list, serialize=colon_join)
-
-    LLM_LOAD_BUILTIN_AGENTS = EnvField(
-        to_boolean,
-        serialize=on_off,
-        default_factory=lambda cfg: on_off(cfg.LOAD_BUILTIN),
-        doc="Enable/disable loading Zrb's builtin sub-agents.",
-    )
-
-    LLM_LOAD_BUILTIN_SKILLS = EnvField(
-        to_boolean,
-        serialize=on_off,
-        default_factory=lambda cfg: on_off(cfg.LOAD_BUILTIN),
-        doc="Enable/disable loading Zrb's builtin skills.",
+    LLM_PLUGIN_DIRS = EnvField(
+        expanduser_colon_list,
+        serialize=colon_join,
+        doc="Colon-separated directories to scan for LLM plugin packages (skills, agents).",
     )
 
     LLM_LSP_PREFERRED_SERVERS = EnvField(

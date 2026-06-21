@@ -3,7 +3,13 @@ from zrb.context.any_context import AnyContext
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
 from zrb.task.make_task import make_task
-from zrb.util.cli.style import stylize_faint, stylize_green, stylize_red, stylize_yellow
+from zrb.util.cli.style import (
+    stylize_green,
+    stylize_muted,
+    stylize_red,
+    stylize_warning,
+    stylize_yellow,
+)
 from zrb.util.git import (
     add,
     commit,
@@ -57,7 +63,7 @@ from zrb.util.git import (
     alias="diff",
 )
 async def get_git_diff(ctx: AnyContext):
-    ctx.print(stylize_faint("Get directory"))
+    ctx.print(stylize_muted("Get directory"))
     repo_dir = await get_repo_dir(print_method=ctx.print)
     diff = await get_diff(
         repo_dir, ctx.input.source, ctx.input.current, print_method=ctx.print
@@ -94,11 +100,11 @@ async def get_git_diff(ctx: AnyContext):
     alias="prune",
 )
 async def prune_local_branches(ctx: AnyContext):
-    ctx.print(stylize_faint("Get directory"))
+    ctx.print(stylize_muted("Get directory"))
     repo_dir = await get_repo_dir(print_method=ctx.print)
-    ctx.print(stylize_faint("Get existing branches"))
+    ctx.print(stylize_muted("Get existing branches"))
     branches = await get_branches(repo_dir, print_method=ctx.print)
-    ctx.print(stylize_faint("Get current branch"))
+    ctx.print(stylize_muted("Get current branch"))
     current_branch = await get_current_branch(repo_dir, print_method=ctx.print)
     preserved_branches = [
         branch.strip()
@@ -108,12 +114,12 @@ async def prune_local_branches(ctx: AnyContext):
     for branch in branches:
         if branch == current_branch or branch in preserved_branches:
             continue
-        ctx.print(stylize_faint(f"Checking if branch is merged to HEAD: {branch}"))
+        ctx.print(stylize_muted(f"Checking if branch is merged to HEAD: {branch}"))
         is_merged = await is_branch_merged(repo_dir, branch, print_method=ctx.print)
         if not is_merged:
-            ctx.print(stylize_yellow(f"Skipping non-merged branch: {branch}"))
+            ctx.print(stylize_warning(f"Skipping non-merged branch: {branch}"))
             continue
-        ctx.print(stylize_faint(f"Removing local branch: {branch}"))
+        ctx.print(stylize_muted(f"Removing local branch: {branch}"))
         try:
             await delete_branch(repo_dir, branch, print_method=ctx.print)
         except Exception as e:
@@ -133,11 +139,11 @@ async def prune_local_branches(ctx: AnyContext):
     alias="commit",
 )
 async def git_commit(ctx: AnyContext):
-    ctx.print(stylize_faint("Get directory"))
+    ctx.print(stylize_muted("Get directory"))
     repo_dir = await get_repo_dir(print_method=ctx.print)
-    ctx.print(stylize_faint("Add changes to staging"))
+    ctx.print(stylize_muted("Add changes to staging"))
     await add(repo_dir, print_method=ctx.print)
-    ctx.print(stylize_faint("Commit changes"))
+    ctx.print(stylize_muted("Commit changes"))
     await commit(repo_dir, ctx.input.message, print_method=ctx.print)
 
 
@@ -155,12 +161,12 @@ async def git_commit(ctx: AnyContext):
     alias="pull",
 )
 async def git_pull(ctx: AnyContext):
-    ctx.print(stylize_faint("Get directory"))
+    ctx.print(stylize_muted("Get directory"))
     repo_dir = await get_repo_dir(print_method=ctx.print)
-    ctx.print(stylize_faint("Get current branch"))
+    ctx.print(stylize_muted("Get current branch"))
     current_branch = await get_current_branch(repo_dir, print_method=ctx.print)
     remote = ctx.input.remote
-    ctx.print(stylize_faint(f"Pulling from {remote}/{current_branch}"))
+    ctx.print(stylize_muted(f"Pulling from {remote}/{current_branch}"))
     await pull(repo_dir, remote, current_branch, print_method=ctx.print)
 
 
@@ -179,8 +185,8 @@ async def git_pull(ctx: AnyContext):
 )
 async def git_push(ctx: AnyContext):
     repo_dir = await get_repo_dir(print_method=ctx.print)
-    ctx.print(stylize_faint("Get current branch"))
+    ctx.print(stylize_muted("Get current branch"))
     current_branch = await get_current_branch(repo_dir, print_method=ctx.print)
     remote = ctx.input.remote
-    ctx.print(stylize_faint(f"Pushing to {remote}/{current_branch}"))
+    ctx.print(stylize_muted(f"Pushing to {remote}/{current_branch}"))
     await push(repo_dir, remote, current_branch, print_method=ctx.print)

@@ -192,8 +192,8 @@ def test_add_live_context_handles_none_return():
     assert "Time:" in rendered
 
 
-def test_add_live_context_does_not_swallow_exceptions_quietly():
-    """A broken provider does not crash the whole block."""
+def test_add_live_context_swallows_provider_exceptions():
+    """A broken provider is isolated: it neither crashes the block nor leaks."""
     manager = PromptManager(include_sections=[])
 
     def broken(_ctx):

@@ -3,7 +3,7 @@ from typing import Any
 from zrb.context.any_context import zrb_print
 from zrb.llm.config.limiter import LLMLimiter, is_turn_start
 from zrb.llm.message import get_tool_pairs
-from zrb.util.cli.style import stylize_yellow
+from zrb.util.cli.style import stylize_warning
 
 
 def split_history(
@@ -202,7 +202,7 @@ def find_best_effort_split(
         to_keep = messages[best_split_idx:]
         if best_broken_incomplete_pairs > 0:
             zrb_print(
-                stylize_yellow(
+                stylize_warning(
                     f"  Warning: Best-effort split loses {best_broken_incomplete_pairs} incomplete tool call/return pair(s)"
                 ),
                 plain=True,
@@ -211,7 +211,7 @@ def find_best_effort_split(
     else:
         # Last resort: Summarize everything
         zrb_print(
-            stylize_yellow(
+            stylize_warning(
                 "  Warning: Could not find any split that preserves tool call/return pairs. Summarizing entire history."
             ),
             plain=True,

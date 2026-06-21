@@ -13,7 +13,7 @@ import re
 from typing import TYPE_CHECKING, TextIO, cast
 
 from zrb.config.config import CFG
-from zrb.util.cli.style import stylize_faint
+from zrb.util.cli.style import stylize_muted
 from zrb.util.cli.terminal import get_terminal_size
 
 if TYPE_CHECKING:
@@ -34,13 +34,22 @@ _MODE_STATUS_LABELS = {
     "yolo": "yolo",
     "custom": "custom-yolo",
 }
-_MODE_STATUS_STYLE = {
-    "normal": "fg:ansigreen",
-    "accept_edits": "fg:ansiyellow bold",
-    "plan": "fg:ansiblue bold",
-    "yolo": "fg:ansired bold",
-    "custom": "fg:ansiyellow bold",
-}
+
+
+def _get_mode_status_style(mode: str) -> str:
+    """Lazy lookup of the status-bar mode badge style from CFG.
+
+    Module-level dicts would evaluate CFG at import time, baking in the
+    values and defeating runtime reconfiguration. This function reads from
+    CFG on every call so env-var changes take effect without a restart.
+    """
+    return {
+        "normal": CFG.LLM_UI_STYLE_MODE_NORMAL,
+        "accept_edits": CFG.LLM_UI_STYLE_MODE_ACCEPT_EDITS,
+        "plan": CFG.LLM_UI_STYLE_MODE_PLAN,
+        "yolo": CFG.LLM_UI_STYLE_MODE_YOLO,
+        "custom": CFG.LLM_UI_STYLE_MODE_CUSTOM,
+    }.get(mode, "")
 
 
 class OutputMixin:
@@ -141,7 +150,7 @@ class OutputMixin:
 
         if kind not in ("text", "todo_progress"):
 
-            content = stylize_faint(content)
+            content = stylize_muted(content)
 
         # Handle carriage returns (\r) for status updates
         if "\r" in content:
@@ -208,7 +217,6 @@ class OutputMixin:
 
     def get_info_bar_text(self) -> "AnyFormattedText":
         # lazy: heavy third-party
-        from prompt_toolkit.formatted_text import HTML
         from prompt_toolkit.formatted_text.utils import fragment_list_width
 
         model_name = "Unknown"
@@ -220,42 +228,68 @@ class OutputMixin:
             else:
                 model_name = str(self._model)
 
+        # Build the bar as (style, text) fragments rather than HTML. This lets the
+        # INFO_* knobs hold full prompt_toolkit style strings (e.g. "ansired bold"),
+        # consistent with every other LLM_UI_STYLE_* field, and avoids embedding
+        # runtime strings (model/cwd/git) into HTML where '<'/'&' would break markup.
+        def _bold(style: str) -> str:
+            return f"{style} bold" if style else "bold"
+
         _yolo = self.yolo
         if _yolo is True:
-            yolo_text = "<style color='ansired'><b>ON </b></style>"
+            yolo_frag = (_bold(CFG.LLM_UI_STYLE_INFO_YOLO_ON), "ON ")
         elif isinstance(_yolo, frozenset) and _yolo:
             tools_str = ",".join(sorted(_yolo))
-            yolo_text = f"<style color='ansiyellow'><b>[{tools_str}]</b></style>"
+            yolo_frag = (_bold(CFG.LLM_UI_STYLE_INFO_YOLO_PARTIAL), f"[{tools_str}]")
         else:
-            yolo_text = "<style color='ansigreen'>OFF</style>"
+            yolo_frag = (CFG.LLM_UI_STYLE_INFO_YOLO_OFF, "OFF")
 
-        plan_text = (
-            "<style color='ansiblue'><b>On </b></style>"
-            if getattr(self, "_plan_mode_active", False)
-            else "<style color='ansigreen'>Off</style>"
-        )
+        if getattr(self, "_plan_mode_active", False):
+            plan_frag = (_bold(CFG.LLM_UI_STYLE_INFO_PLAN_ON), "On ")
+        else:
+            plan_frag = (CFG.LLM_UI_STYLE_INFO_PLAN_OFF, "Off")
 
-        line1_html = f" 🤖 <b>Model:</b> {model_name} | 💬 <b>Session:</b> {self._conversation_session_name} "
-        line2_html = f" 📋 <b>Plan Mode:</b> {plan_text} | 🤠 <b>YOLO:</b> {yolo_text} "
-        line3_html = f" 📂 <b>Dir:</b> {self._cwd} | 🌿 <b>Git:</b> {self._git_info} "
+        line1 = [
+            ("", " 🤖 "),
+            ("bold", "Model:"),
+            ("", f" {model_name} | 💬 "),
+            ("bold", "Session:"),
+            ("", f" {self._conversation_session_name} "),
+        ]
+        line2 = [
+            ("", " 📋 "),
+            ("bold", "Plan Mode:"),
+            ("", " "),
+            plan_frag,
+            ("", " | 🤠 "),
+            ("bold", "YOLO:"),
+            ("", " "),
+            yolo_frag,
+            ("", " "),
+        ]
+        line3 = [
+            ("", " 📂 "),
+            ("bold", "Dir:"),
+            ("", f" {self._cwd} | 🌿 "),
+            ("bold", "Git:"),
+            ("", f" {self._git_info} "),
+        ]
 
         total_cols = get_terminal_size().columns
 
-        def center_line(html_text: str) -> str:
-            fragments = HTML(html_text).__pt_formatted_text__()
+        def center_line(fragments: list) -> list:
             visible_width = fragment_list_width(fragments)
             padding = max(0, (total_cols - visible_width) // 2)
-            return (
-                " " * padding + html_text + " " * (total_cols - visible_width - padding)
-            )
+            trailing = max(0, total_cols - visible_width - padding)
+            return [("", " " * padding), *fragments, ("", " " * trailing)]
 
-        return HTML(
-            center_line(line1_html)
-            + "\n"
-            + center_line(line2_html)
-            + "\n"
-            + center_line(line3_html)
-        )
+        return [
+            *center_line(line1),
+            ("", "\n"),
+            *center_line(line2),
+            ("", "\n"),
+            *center_line(line3),
+        ]
 
     def get_status_bar_text(self) -> "AnyFormattedText":
         if self.current_confirmation is not None:
@@ -288,7 +322,7 @@ class OutputMixin:
         return [
             (CFG.LLM_UI_STYLE_STATUS, " 🚀 Ready "),
             (
-                _MODE_STATUS_STYLE.get(mode, ""),
+                _get_mode_status_style(mode),
                 f" {_MODE_STATUS_LABELS.get(mode, mode)} ",
             ),
             ("fg:ansibrightblack", "shift+tab to cycle "),

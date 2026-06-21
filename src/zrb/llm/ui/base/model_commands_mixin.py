@@ -14,7 +14,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from zrb.llm.config.config import llm_config as _llm_config
-from zrb.util.cli.style import stylize_faint
+from zrb.util.cli.style import stylize_muted
 
 if TYPE_CHECKING:
     from typing import Any
@@ -104,7 +104,7 @@ class ModelCommandsMixin:
             AgentMode.PLAN if self._plan_mode_active else AgentMode.BUILD
         )
         status = "On" if self._plan_mode_active else "Off"
-        self.append_to_output(stylize_faint(f"\n  📋 PLAN MODE: {status}\n"))
+        self.append_to_output(stylize_muted(f"\n  📋 PLAN MODE: {status}\n"))
         self.invalidate_ui()
 
     def _handle_toggle_plan(self, text: str) -> bool:
@@ -158,7 +158,7 @@ class ModelCommandsMixin:
         # Cycle states are mutually exclusive: leaving accept-edits (or any
         # other state) clears yolo so plan and auto-approve never stack.
         self.yolo = _AUTO_EDIT_TOOLS if name == "accept_edits" else False
-        self.append_to_output(stylize_faint(f"\n  {_MODE_BANNERS[name]}\n"))
+        self.append_to_output(stylize_muted(f"\n  {_MODE_BANNERS[name]}\n"))
         self.invalidate_ui()
 
     def _handle_set_model_command(self, text: str) -> bool:
@@ -179,7 +179,7 @@ class ModelCommandsMixin:
                     self._small_model = model_name
                     _llm_config.small_model = model_name
                     self.append_to_output(
-                        stylize_faint(f"\n  🤖 Small model switched to: {model_name}\n")
+                        stylize_muted(f"\n  🤖 Small model switched to: {model_name}\n")
                     )
                 elif arg.lower().startswith("multimodal "):
                     model_name = arg[11:].strip()
@@ -188,7 +188,7 @@ class ModelCommandsMixin:
                     self._multimodal_model = model_name
                     _llm_config.multimodal_model = model_name
                     self.append_to_output(
-                        stylize_faint(
+                        stylize_muted(
                             f"\n  🤖 Multimodal model switched to: {model_name}\n"
                         )
                     )
@@ -201,7 +201,7 @@ class ModelCommandsMixin:
                     except Exception:
                         pass
                     self.append_to_output(
-                        stylize_faint(f"\n  🤖 Model switched to: {model_name}\n")
+                        stylize_muted(f"\n  🤖 Model switched to: {model_name}\n")
                     )
                 return True
         return False

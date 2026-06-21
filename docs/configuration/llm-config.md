@@ -29,6 +29,7 @@ Zrb uses `pydantic-ai` to interface with a wide array of Large Language Models, 
 - [LSP Server Selection](#19-lsp-server-selection)
 - [TUI Color Styles](#20-tui-color-styles)
 - [Sandbox Configuration](#21-sandbox-configuration)
+- [CLI Semantic Colors](#22-cli-semantic-colors)
 
 ---
 
@@ -656,8 +657,65 @@ attributes like `bold`. The special value `noinherit` resets to terminal default
 | `ZRB_LLM_UI_STYLE_STATUS` | Status bar text | `ansiwhite` |
 | `ZRB_LLM_UI_STYLE_BOTTOM_TOOLBAR` | Bottom toolbar | `noinherit` |
 
+### Choice Widget (AskUserQuestion panel)
+
+| Variable | Styles | Default |
+|----------|--------|---------|
+| `ZRB_LLM_UI_STYLE_CHOICE_BG` | Panel background | `#1f1f1f` |
+| `ZRB_LLM_UI_STYLE_CHOICE_SELECTED_BG` | Selected row highlight | `#264f78` |
+
+### Mode Badge (status-bar Shift+Tab cycle indicator)
+
+| Variable | Styles | Default |
+|----------|--------|---------|
+| `ZRB_LLM_UI_STYLE_MODE_NORMAL` | `normal` mode badge | `fg:ansigreen` |
+| `ZRB_LLM_UI_STYLE_MODE_ACCEPT_EDITS` | `accept-edits` mode badge | `fg:ansiyellow bold` |
+| `ZRB_LLM_UI_STYLE_MODE_PLAN` | `plan` mode badge | `fg:ansiblue bold` |
+| `ZRB_LLM_UI_STYLE_MODE_YOLO` | `yolo` mode badge | `fg:ansired bold` |
+| `ZRB_LLM_UI_STYLE_MODE_CUSTOM` | `custom-yolo` mode badge | `fg:ansiyellow bold` |
+
+### Info-bar indicators
+
+| Variable | Styles | Default |
+|----------|--------|---------|
+| `ZRB_LLM_UI_STYLE_INFO_YOLO_ON` | Yolo = fully on | `ansired` |
+| `ZRB_LLM_UI_STYLE_INFO_YOLO_PARTIAL` | Yolo = tool subset active | `ansiyellow` |
+| `ZRB_LLM_UI_STYLE_INFO_YOLO_OFF` | Yolo = off | `ansigreen` |
+| `ZRB_LLM_UI_STYLE_INFO_PLAN_ON` | Plan mode = on | `ansiblue` |
+| `ZRB_LLM_UI_STYLE_INFO_PLAN_OFF` | Plan mode = off | `ansigreen` |
+
 > Assistant identity (`ZRB_LLM_ASSISTANT_NAME`, `ZRB_LLM_ASSISTANT_ASCII_ART`,
 > `ZRB_LLM_ASSISTANT_JARGON`) is covered in [System Prompts & Identity](#4-system-prompts--identity).
+
+### Theme Examples
+
+Example shell scripts are provided in `examples/themes/` to quickly switch
+between curated color palettes. Source one in your shell rc to apply it:
+
+```bash
+# ~/.zshrc or ~/.bashrc
+source /path/to/zrb/examples/themes/zrb-theme-dark.sh
+```
+
+Available themes:
+
+| File | Description |
+|------|-------------|
+| `zrb-theme-dark.sh` | Dark background (default — matches built-in defaults) |
+| `zrb-theme-light.sh` | Light background (dark text on light panels) |
+| `zrb-theme-high-contrast.sh` | Maximum contrast (pure black/white, bold throughout) |
+
+Each file defines a shell function (`zrb_theme_dark`, `zrb_theme_light`,
+`zrb_theme_high_contrast`) so you can switch themes mid-session:
+
+```bash
+zrb_theme_light    # switch to light theme
+zrb llm chat       # start a new session with the light theme
+```
+
+To create your own theme, copy one of the example files and adjust the
+`ZRB_LLM_UI_STYLE_*` values. The variables take effect on the next `zrb llm chat`
+session — no restart needed.
 
 ---
 
@@ -675,5 +733,31 @@ layers, platform matrix, escape hatch).
 | `ZRB_LLM_SANDBOX_DENY_READ_PATHS` | Colon-separated never-read paths (credential stores). Setting it replaces the built-in default list. | built-in list |
 | `ZRB_LLM_SANDBOX_FALLBACK` | `warn` runs unsandboxed with a visible warning when no OS mechanism exists (Windows, Linux without bwrap); `deny` refuses. | `warn` |
 | `ZRB_LLM_SANDBOX_ALLOW_ESCAPE` | Whether the `dangerously_skip_sandbox` tool argument is honored. Set `false` for CI / non-interactive deployments. | `true` |
+
+---
+
+## 22. CLI Semantic Colors
+
+These variables override the ANSI colors used for plain terminal output (outside the TUI). Each `_COLOR_*` value is a color name (`black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`, or their `bright_*` variants). Each `_STYLE_*` value is a style name (`bold`, `faint`, `italic`, `underline`, `blink_slow`, `blink_fast`, `reversed`, `hide`, `crossed_out`). Leave a variable unset (or set to `""`) to suppress that attribute.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_CLI_COLOR_MUTED` | Foreground color for de-emphasized output | _(none)_ |
+| `ZRB_CLI_STYLE_MUTED` | Style for de-emphasized output | `faint` |
+| `ZRB_CLI_COLOR_WARNING` | Foreground color for warning messages | `yellow` |
+| `ZRB_CLI_STYLE_WARNING` | Style for warning messages | `bold` |
+| `ZRB_CLI_COLOR_ERROR` | Foreground color for error messages | `red` |
+| `ZRB_CLI_STYLE_ERROR` | Style for error messages | `bold` |
+| `ZRB_CLI_COLOR_SUCCESS` | Foreground color for success messages | `green` |
+| `ZRB_CLI_STYLE_SUCCESS` | Style for success messages | _(none)_ |
+| `ZRB_CLI_COLOR_HIGHLIGHT` | Foreground color for highlighted text (session names, commands) | `yellow` |
+| `ZRB_CLI_STYLE_HIGHLIGHT` | Style for highlighted text | `bold` |
+| `ZRB_CLI_COLOR_INFO` | Foreground color for informational messages | `cyan` |
+| `ZRB_CLI_STYLE_INFO` | Style for informational messages | _(none)_ |
+| `ZRB_CLI_COLOR_TODO_PROJECT` | Color for todo project tags (`+project`) | `yellow` |
+| `ZRB_CLI_COLOR_TODO_CONTEXT` | Color for todo context tags (`@context`) | `cyan` |
+| `ZRB_CLI_COLOR_TODO_KEYVAL` | Color for todo key:value pairs | `magenta` |
+
+> These affect `stylize_warning`, `stylize_error`, `stylize_muted` (alias: `stylize_faint`/`stylize_log`), `stylize_highlight`, `stylize_info`, `stylize_success`, and the `stylize_todo_*` helpers. Physical helpers (`stylize_yellow`, `stylize_red`, etc.) are unaffected — they always produce their named color.
 
 ---

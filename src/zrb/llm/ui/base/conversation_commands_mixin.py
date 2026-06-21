@@ -16,7 +16,7 @@ import logging
 import os
 from typing import TYPE_CHECKING
 
-from zrb.util.cli.style import stylize_error, stylize_faint
+from zrb.util.cli.style import stylize_error, stylize_muted
 
 if TYPE_CHECKING:
     from typing import Any
@@ -69,7 +69,7 @@ class ConversationCommandsMixin:
 
     def _handle_info_command(self, text: str) -> bool:
         if text.strip().lower() in self._info_commands:
-            self.append_to_output(stylize_faint(self._get_help_text()))
+            self.append_to_output(stylize_muted(self._get_help_text()))
             return True
         return False
 
@@ -90,7 +90,7 @@ class ConversationCommandsMixin:
                     self._history_manager.update(name, history)
                     self._history_manager.save(name)
                     self.append_to_output(
-                        stylize_faint(f"\n  💾 Conversation saved as: {name}\n")
+                        stylize_muted(f"\n  💾 Conversation saved as: {name}\n")
                     )
                 except Exception as e:
                     self.append_to_output(
@@ -116,7 +116,7 @@ class ConversationCommandsMixin:
                         stylize_error(f"\n  ❌ Failed to load history: {e}\n")
                     )
                 self.append_to_output(
-                    stylize_faint(f"\n  📂 Conversation session switched to: {name}\n")
+                    stylize_muted(f"\n  📂 Conversation session switched to: {name}\n")
                 )
                 return True
         return False
@@ -163,7 +163,7 @@ class ConversationCommandsMixin:
                     self.invalidate_ui()
                     try:
                         self.append_to_output(
-                            stylize_faint(f"\n  ⏪ Restoring snapshot {s[:8]}...\n")
+                            stylize_muted(f"\n  ⏪ Restoring snapshot {s[:8]}...\n")
                         )
                         ok = await snapshot_manager.restore_snapshot(s)
                         if ok:
@@ -185,7 +185,7 @@ class ConversationCommandsMixin:
                                         f"Failed to rewind conversation history: {e}"
                                     )
                             self.append_to_output(
-                                stylize_faint(f"\n  ✅ Snapshot {s[:8]} restored.\n")
+                                stylize_muted(f"\n  ✅ Snapshot {s[:8]} restored.\n")
                             )
                         else:
                             self.append_to_output(
@@ -202,7 +202,7 @@ class ConversationCommandsMixin:
                 snapshots = self._snapshot_manager.list_snapshots()
                 if not snapshots:
                     self.append_to_output(
-                        stylize_faint(
+                        stylize_muted(
                             "\n  No snapshots yet. Snapshots are taken before each AI turn.\n"
                         )
                     )
@@ -215,7 +215,7 @@ class ConversationCommandsMixin:
                     lines.append(
                         f"\n  Use `{cmd} <number>` or `{cmd} <sha>` to restore.\n"
                     )
-                    self.append_to_output(stylize_faint("\n".join(lines)))
+                    self.append_to_output(stylize_muted("\n".join(lines)))
             return True
         return False
 
@@ -256,7 +256,7 @@ class ConversationCommandsMixin:
 
                 if copy_text(content):
                     self.append_to_output(
-                        stylize_faint("\n  📋 Last output copied to clipboard.\n")
+                        stylize_muted("\n  📋 Last output copied to clipboard.\n")
                     )
                 else:
                     self.append_to_output(
@@ -284,7 +284,7 @@ class ConversationCommandsMixin:
                     with open(expanded_path, "w", encoding="utf-8") as f:
                         f.write(content)
                     self.append_to_output(
-                        stylize_faint(f"\n  📝 Last output redirected to: {path}\n")
+                        stylize_muted(f"\n  📝 Last output redirected to: {path}\n")
                     )
                 except Exception as e:
                     self.append_to_output(
@@ -319,7 +319,7 @@ class ConversationCommandsMixin:
                     transcript = format_history_as_text(messages, full=True)
                     if copy_text(transcript):
                         self.append_to_output(
-                            stylize_faint(
+                            stylize_muted(
                                 "\n  📋 Full transcript copied to clipboard.\n"
                             )
                         )
@@ -359,7 +359,7 @@ class ConversationCommandsMixin:
                     with open(expanded_path, "w", encoding="utf-8") as f:
                         f.write(transcript)
                     self.append_to_output(
-                        stylize_faint(f"\n  📝 Transcript saved to: {path}\n")
+                        stylize_muted(f"\n  📝 Transcript saved to: {path}\n")
                     )
                 except Exception as e:
                     self.append_to_output(
@@ -380,13 +380,13 @@ class ConversationCommandsMixin:
 
     def _submit_attachment(self, path: str):
         # Validate path
-        self.append_to_output(stylize_faint(f"\n  🔢 Attach {path}...\n"))
+        self.append_to_output(stylize_muted(f"\n  🔢 Attach {path}...\n"))
         expanded_path = os.path.abspath(os.path.expanduser(path))
         if not os.path.exists(expanded_path):
             self.append_to_output(stylize_error(f"\n  ❌ File not found: {path}\n"))
             return
         if expanded_path not in self._pending_attachments:
             self._pending_attachments.append(expanded_path)
-            self.append_to_output(stylize_faint(f"\n  📎 Attached: {path}\n"))
+            self.append_to_output(stylize_muted(f"\n  📎 Attached: {path}\n"))
         else:
             self.append_to_output(stylize_error(f"\n  📎 Already attached: {path}\n"))

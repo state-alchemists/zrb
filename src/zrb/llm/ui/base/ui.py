@@ -49,7 +49,7 @@ from zrb.session.any_session import AnySession
 from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
 from zrb.util.cli.markdown import render_markdown
-from zrb.util.cli.style import stylize_error, stylize_faint
+from zrb.util.cli.style import stylize_error, stylize_muted
 from zrb.util.string.name import get_random_name
 from zrb.xcom.xcom import Xcom
 
@@ -488,7 +488,7 @@ class BaseUI(CommandsMixin, HistoryReplayMixin, SystemInfoMixin):
             def append_to_output(self, *values, sep=" ", end="\\n", kind="text", **kwargs):
                 text = sep.join(str(v) for v in values) + end
                 if kind != "text":
-                    text = stylize_faint(text)
+                    text = stylize_muted(text)
                 print(text, end="")
         """
         raise NotImplementedError(
@@ -784,7 +784,7 @@ class BaseUI(CommandsMixin, HistoryReplayMixin, SystemInfoMixin):
             session = self._create_sesion_for_llm_task(user_message, attachments)
 
             # Run the task with stdout/stderr redirected to UI
-            self.append_to_output(stylize_faint("\n  🔢 Streaming response..."))
+            self.append_to_output(stylize_muted("\n  🔢 Streaming response..."))
 
             # Sync plan mode to the shared mutable state before the LLM run
             # so the agent inherits the mode set by /plan.

@@ -154,7 +154,7 @@ class KeybindingsMixin:
                     get_clipboard_image,
                     missing_tool_hint,
                 )
-                from zrb.util.cli.style import stylize_error, stylize_faint
+                from zrb.util.cli.style import stylize_error, stylize_muted
 
                 img_bytes = await get_clipboard_image()
                 if img_bytes is not None:
@@ -175,7 +175,7 @@ class KeybindingsMixin:
                         )
                     else:
                         msg = f"\n  📸 Image pasted from clipboard ({size_kb:.1f} KB)\n"
-                    self.append_to_output(stylize_faint(msg))
+                    self.append_to_output(stylize_muted(msg))
                     self.invalidate_ui()
                 else:
                     hint = missing_tool_hint()

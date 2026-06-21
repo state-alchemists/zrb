@@ -23,7 +23,7 @@ from zrb.llm.hook.types import HookEvent
 from zrb.llm.ui.base.conversation_commands_mixin import ConversationCommandsMixin
 from zrb.llm.ui.base.exec_commands_mixin import ExecCommandsMixin
 from zrb.llm.ui.base.model_commands_mixin import ModelCommandsMixin
-from zrb.util.cli.style import stylize_faint
+from zrb.util.cli.style import stylize_muted
 
 if TYPE_CHECKING:
     from typing import Any, Callable
@@ -192,7 +192,7 @@ class CommandsMixin(ConversationCommandsMixin, ModelCommandsMixin, ExecCommandsM
         if guarded:
             if getattr(self, "_command_in_flight", False):
                 self.append_to_output(
-                    stylize_faint(
+                    stylize_muted(
                         "\n  ⏳ A command is already running — wait for it to "
                         "finish.\n"
                     )
@@ -237,7 +237,7 @@ class CommandsMixin(ConversationCommandsMixin, ModelCommandsMixin, ExecCommandsM
             if _command_blocked(pre_results):
                 reason = _command_block_reason(pre_results) or "blocked by hook"
                 self.append_to_output(
-                    stylize_faint(f"\n  ⛔ {name} blocked: {reason}\n")
+                    stylize_muted(f"\n  ⛔ {name} blocked: {reason}\n")
                 )
                 return
 

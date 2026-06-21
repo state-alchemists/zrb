@@ -72,3 +72,4 @@ setup_latex_group = setup_group.add_group(
 searxng_group = _maybe_add_group(
     Group(name="searxng", description="🔎 Searxng related command")
 )
+config_group = _maybe_add_group(Group(name="config", description="⚙️ Configuration"))

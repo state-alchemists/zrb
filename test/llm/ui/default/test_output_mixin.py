@@ -59,6 +59,43 @@ def test_get_info_bar_text_logic():
     assert res is not None
 
 
+def test_get_info_bar_text_accepts_style_strings_with_spaces():
+    """Regression: INFO_* knobs hold full prompt_toolkit style strings (e.g.
+    "ansired bold"). The old HTML-attribute path raised
+    '"fg" attribute contains a space.' on any multi-token value; the fragment-based
+    bar must render such values without error."""
+    from prompt_toolkit.formatted_text import to_formatted_text
+
+    ui = MockOutputUI()
+    ui.yolo = True
+
+    with patch("zrb.llm.ui.default.output_mixin.CFG") as mock_cfg:
+        mock_cfg.LLM_UI_STYLE_INFO_YOLO_ON = "ansired bold"
+        mock_cfg.LLM_UI_STYLE_INFO_YOLO_PARTIAL = "ansiyellow bold"
+        mock_cfg.LLM_UI_STYLE_INFO_YOLO_OFF = "ansigreen"
+        mock_cfg.LLM_UI_STYLE_INFO_PLAN_ON = "ansiblue bold"
+        mock_cfg.LLM_UI_STYLE_INFO_PLAN_OFF = "ansigreen"
+
+        res = ui.get_info_bar_text()
+        # Must not raise (the old HTML path crashed here on the space).
+        fragments = to_formatted_text(res)
+
+    styles = [style for style, _text, *_ in fragments]
+    assert any("ansired bold" in s for s in styles)
+
+
+def test_get_info_bar_text_partial_yolo_lists_tools():
+    """Selective YOLO renders the tool list with the PARTIAL style."""
+    from prompt_toolkit.formatted_text import to_formatted_text
+
+    ui = MockOutputUI()
+    ui.yolo = frozenset({"Read", "Write"})
+
+    res = ui.get_info_bar_text()
+    text = "".join(t for _style, t, *_ in to_formatted_text(res))
+    assert "[Read,Write]" in text
+
+
 def test_output_field_width_logic():
     ui = MockOutputUI()
     with patch("zrb.llm.ui.default.output_mixin.get_terminal_size") as mock_size:
