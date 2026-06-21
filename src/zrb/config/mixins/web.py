@@ -79,7 +79,9 @@ class WebMixin:
         str, doc="Secret key used to sign JWT tokens. Change this in production."
     )
 
-    WEB_AUTH_ENABLED = EnvField(to_boolean, serialize=on_off)
+    WEB_AUTH_ENABLED = EnvField(
+        to_boolean, serialize=on_off, doc="Enable/disable web authentication."
+    )
 
     WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES = EnvField(
         int, doc="Access token expiry duration in minutes."
