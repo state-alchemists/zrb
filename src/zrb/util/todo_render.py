@@ -7,11 +7,12 @@ import shutil
 from typing import TYPE_CHECKING
 
 from zrb.util.cli.style import (
-    stylize_bold_yellow,
-    stylize_cyan,
-    stylize_faint,
-    stylize_magenta,
-    stylize_yellow,
+    stylize_highlight,
+    stylize_info,
+    stylize_muted,
+    stylize_todo_context,
+    stylize_todo_keyval,
+    stylize_todo_project,
 )
 from zrb.util.todo_parser import line_to_todo_task
 
@@ -69,7 +70,7 @@ def get_visual_todo_list(todo_list: list["TodoTaskModel"], filter: str) -> str:
 
     terminal_width, _ = shutil.get_terminal_size()
     results = [
-        stylize_faint(
+        stylize_muted(
             get_visual_todo_header(
                 terminal_width, max_desc_length, max_additional_info_length
             )
@@ -121,21 +122,21 @@ def get_visual_todo_line(
     """Render a single todo task as a styled line."""
     completed = "[x]" if todo_task.completed else "[ ]"
     priority = "   " if todo_task.priority is None else f"({todo_task.priority})"
-    completed_at = stylize_yellow(date_to_str(todo_task.completion_date))
-    created_at = stylize_cyan(date_to_str(todo_task.creation_date))
+    completed_at = stylize_highlight(date_to_str(todo_task.completion_date))
+    created_at = stylize_info(date_to_str(todo_task.creation_date))
     description = todo_task.description
     if len(description) > max_desc_length:
         description = description[: max_desc_length - 4] + " ..."
     description = description.ljust(max_desc_length)
     description = description[:max_desc_length]
     if todo_task.completed:
-        description = stylize_faint(description)
+        description = stylize_muted(description)
     elif "duration" in todo_task.keyval:
-        description = stylize_bold_yellow(description)
+        description = stylize_highlight(description)
     additional_info = ", ".join(
-        [stylize_yellow(f"+{project}") for project in todo_task.projects]
-        + [stylize_cyan(f"@{context}") for context in todo_task.contexts]
-        + [stylize_magenta(f"{key}:{val}") for key, val in todo_task.keyval.items()]
+        [stylize_todo_project(f"+{project}") for project in todo_task.projects]
+        + [stylize_todo_context(f"@{context}") for context in todo_task.contexts]
+        + [stylize_todo_keyval(f"{key}:{val}") for key, val in todo_task.keyval.items()]
     )
     return get_line_str(
         terminal_width=terminal_width,
@@ -235,8 +236,8 @@ def get_visual_todo_card(
         [
             "  ".join(
                 [
-                    stylize_magenta(log_work.get("duration", "").strip().rjust(12)),
-                    stylize_cyan(log_work.get("start", "").strip().rjust(20)),
+                    stylize_todo_keyval(log_work.get("duration", "").strip().rjust(12)),
+                    stylize_todo_context(log_work.get("start", "").strip().rjust(20)),
                     log_work.get("log", "").strip(),
                 ]
             )
@@ -252,7 +253,7 @@ def get_visual_todo_card(
     ]
     if log_work_str != "":
         detail.append(
-            stylize_faint("  ".join(["Time Spent".rjust(12), "Start".rjust(20), "Log"]))
+            stylize_muted("  ".join(["Time Spent".rjust(12), "Start".rjust(20), "Log"]))
         )
         detail.append(log_work_str)
     return "\n".join(detail)

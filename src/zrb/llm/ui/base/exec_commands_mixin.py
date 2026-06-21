@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 
 from zrb.llm.custom_command.resolver import resolve_custom_command
 from zrb.util.cli.markdown import render_markdown
-from zrb.util.cli.style import stylize_error, stylize_faint
+from zrb.util.cli.style import stylize_error, stylize_muted
 
 if TYPE_CHECKING:
     from typing import Any
@@ -94,7 +94,7 @@ class ExecCommandsMixin:
 
         try:
             self.append_to_output(f"\n💻 {timestamp} >> {cmd}\n")
-            self.append_to_output(stylize_faint("\n  🔢 Executing...\n"))
+            self.append_to_output(stylize_muted("\n  🔢 Executing...\n"))
 
             process = await asyncio.create_subprocess_shell(
                 cmd,
@@ -119,7 +119,7 @@ class ExecCommandsMixin:
 
             if return_code == 0:
                 self.append_to_output(
-                    stylize_faint("\n  ✅ Command finished successfully.\n")
+                    stylize_muted("\n  ✅ Command finished successfully.\n")
                 )
             else:
                 self.append_to_output(
@@ -187,7 +187,7 @@ class ExecCommandsMixin:
             timestamp = datetime.now().strftime("%H:%M")
             self.append_to_output(f"\n💭 {timestamp} >> {question.strip()}\n")
             self.append_to_output(
-                stylize_faint("  (side question — not saved to history)\n")
+                stylize_muted("  (side question — not saved to history)\n")
             )
 
             # Load current history for context (read-only snapshot).

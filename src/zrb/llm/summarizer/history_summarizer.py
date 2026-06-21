@@ -21,7 +21,7 @@ from zrb.llm.summarizer.history_splitter import (
     split_history,
 )
 from zrb.llm.summarizer.message_processor import process_message_for_summarization
-from zrb.util.cli.style import stylize_error, stylize_yellow
+from zrb.util.cli.style import stylize_error, stylize_warning
 from zrb.util.markdown import make_markdown_section
 
 if TYPE_CHECKING:
@@ -102,7 +102,7 @@ def create_summarizer_history_processor(
                 return messages
 
             zrb_print(
-                stylize_yellow(
+                stylize_warning(
                     (
                         f"\n  History limits exceeded (tokens: {current_tokens}/{adjusted_threshold}, messages: {len(messages)}/{summary_window}). "
                         "Compressing conversation..."
@@ -120,7 +120,7 @@ def create_summarizer_history_processor(
             if result != messages:
                 new_tokens = llm_limiter.count_tokens(result)
                 zrb_print(
-                    stylize_yellow(
+                    stylize_warning(
                         f"  Conversation compressed "
                         f"({new_tokens}/{conversational_token_threshold})"
                     ),
@@ -128,7 +128,7 @@ def create_summarizer_history_processor(
                 )
             else:
                 zrb_print(
-                    stylize_yellow(
+                    stylize_warning(
                         "  Conversation compression produced no change (API error or empty input)"
                     ),
                     plain=True,
@@ -257,7 +257,7 @@ async def summarize_history(
         is_valid, problems = validate_tool_pair_integrity(to_keep)
         if not is_valid and problems:
             zrb_print(
-                stylize_yellow(
+                stylize_warning(
                     f"  Warning: Kept messages have tool pair issues: {', '.join(problems[:3])}"
                     + ("..." if len(problems) > 3 else "")
                     + " — sanitizing..."

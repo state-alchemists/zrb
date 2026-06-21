@@ -13,7 +13,7 @@ from zrb.input.any_input import AnyInput
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
 from zrb.util.attr import get_str_attr
-from zrb.util.cli.style import stylize_faint
+from zrb.util.cli.style import stylize_muted
 
 _ContentTransformerTransform = (
     dict[str, str | Callable[[AnyContext], str]] | Callable[[AnyContext, str], None]
@@ -126,7 +126,7 @@ class Scaffolder(BaseTask):
             for transformer in transformers:
                 if transformer.match(ctx, file_path):
                     try:
-                        ctx.print(stylize_faint(f"{transformer.name}: {file_path}"))
+                        ctx.print(stylize_muted(f"{transformer.name}: {file_path}"))
                         transformer.transform_file(ctx, file_path)
                     except UnicodeDecodeError:
                         pass

@@ -6,7 +6,7 @@ from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.config.limiter import llm_limiter as default_llm_limiter
 from zrb.llm.summarizer.message_converter import message_to_text
 from zrb.llm.summarizer.text_summarizer import summarize_text_plain
-from zrb.util.cli.style import stylize_error, stylize_yellow
+from zrb.util.cli.style import stylize_error, stylize_warning
 
 
 async def chunk_and_summarize(
@@ -52,7 +52,7 @@ async def chunk_and_summarize(
 
     async def _summarize_chunk(index: int, chunk: list[str]) -> str:
         zrb_print(
-            stylize_yellow(
+            stylize_warning(
                 f"  Compressing chunk {index + 1}/{total} ({len(chunk)} messages)..."
             ),
             plain=True,
@@ -96,10 +96,10 @@ async def consolidate_summaries(
     limiter: "LLMLimiter | None" = None,
 ) -> str:
     if has_multiple_snapshots:
-        zrb_print(stylize_yellow("  Consolidating multiple snapshots..."), plain=True)
+        zrb_print(stylize_warning("  Consolidating multiple snapshots..."), plain=True)
     else:
         zrb_print(
-            stylize_yellow("  Aggressively re-compressing summary..."),
+            stylize_warning("  Aggressively re-compressing summary..."),
             plain=True,
         )
 

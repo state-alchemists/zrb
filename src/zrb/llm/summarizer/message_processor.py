@@ -6,7 +6,7 @@ from zrb.context.any_context import zrb_print
 from zrb.llm.agent.common import safe_copy_result
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.summarizer.text_summarizer import summarize_text_plain
-from zrb.util.cli.style import stylize_error, stylize_yellow
+from zrb.util.cli.style import stylize_error, stylize_warning
 
 if TYPE_CHECKING:
     from pydantic_ai.messages import ModelMessage
@@ -96,7 +96,7 @@ async def process_tool_return_part(
         return part, False
 
     zrb_print(
-        stylize_yellow(f"  Summarizing fat tool result ({content_tokens} tokens)..."),
+        stylize_warning(f"  Summarizing fat tool result ({content_tokens} tokens)..."),
         plain=True,
     )
 
@@ -110,7 +110,7 @@ async def process_tool_return_part(
     # chunked summarization for messages that fit within history limits.
     if content_tokens > insanity_threshold:
         zrb_print(
-            stylize_yellow(
+            stylize_warning(
                 f"  Tool result is too large for efficient summarization ({content_tokens} tokens), truncating to {insanity_threshold} tokens first..."
             ),
             plain=True,

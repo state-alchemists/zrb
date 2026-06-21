@@ -10,7 +10,7 @@ import ulid
 
 from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
-from zrb.util.cli.style import stylize_error, stylize_faint
+from zrb.util.cli.style import stylize_error, stylize_muted
 from zrb.util.file import read_file
 
 
@@ -141,7 +141,7 @@ def create_rag_from_directory(
 
         if updated_files:
             zrb_print(
-                stylize_faint(f"Updating {len(updated_files)} changed files"),
+                stylize_muted(f"Updating {len(updated_files)} changed files"),
                 plain=True,
             )
             for file_path in updated_files:
@@ -158,7 +158,7 @@ def create_rag_from_directory(
                         if chunk:
                             chunk_id = ulid.new().str
                             zrb_print(
-                                stylize_faint(
+                                stylize_muted(
                                     f"Vectorizing {relative_path} chunk {chunk_id}"
                                 ),
                                 plain=True,
@@ -183,11 +183,11 @@ def create_rag_from_directory(
             _save_hashes(hash_file_path, current_hashes)
         else:
             zrb_print(
-                stylize_faint("No changes detected. Skipping database update."),
+                stylize_muted("No changes detected. Skipping database update."),
                 plain=True,
             )
 
-        zrb_print(stylize_faint("Vectorizing query"), plain=True)
+        zrb_print(stylize_muted("Vectorizing query"), plain=True)
 
         try:
             embedding_response = openai_client.embeddings.create(
@@ -209,7 +209,7 @@ def create_rag_from_directory(
                     "error": f"Failed to generate query embedding: {e}. [SYSTEM SUGGESTION]: The 'embedding_model' name may be invalid or the provider unreachable. Ask the user to verify the model name and base_url, then retry."
                 }
 
-        zrb_print(stylize_faint("Searching documents"), plain=True)
+        zrb_print(stylize_muted("Searching documents"), plain=True)
 
         try:
             results = collection.query(

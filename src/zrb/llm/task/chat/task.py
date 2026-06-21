@@ -63,7 +63,7 @@ from zrb.llm.util.attachment import get_attachments
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
 from zrb.util.attr import get_attr, get_bool_attr, get_str_attr
-from zrb.util.cli.style import stylize_bold_yellow, stylize_faint
+from zrb.util.cli.style import stylize_highlight, stylize_muted
 from zrb.util.string.name import get_random_name
 from zrb.xcom.xcom import Xcom
 
@@ -796,10 +796,10 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):  # type: ignore[reportIn
         )
 
     def _print_conversation_name(self, ctx: AnyContext, conversation_name: str):
-        stylized_label = stylize_faint("Session")
-        stylized_conversation_name = stylize_bold_yellow(conversation_name)
+        stylized_label = stylize_muted("Session")
+        stylized_conversation_name = stylize_highlight(conversation_name)
         ctx.print(
-            stylize_faint(f"{stylized_label}: {stylized_conversation_name}"), plain=True
+            stylize_muted(f"{stylized_label}: {stylized_conversation_name}"), plain=True
         )
 
     def _get_initial_conversation_name(self, ctx: AnyContext) -> str:

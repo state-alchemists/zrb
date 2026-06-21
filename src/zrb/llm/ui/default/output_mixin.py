@@ -13,7 +13,7 @@ import re
 from typing import TYPE_CHECKING, TextIO, cast
 
 from zrb.config.config import CFG
-from zrb.util.cli.style import stylize_faint
+from zrb.util.cli.style import stylize_muted
 from zrb.util.cli.terminal import get_terminal_size
 
 if TYPE_CHECKING:
@@ -150,7 +150,7 @@ class OutputMixin:
 
         if kind not in ("text", "todo_progress"):
 
-            content = stylize_faint(content)
+            content = stylize_muted(content)
 
         # Handle carriage returns (\r) for status updates
         if "\r" in content:
