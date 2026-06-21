@@ -42,13 +42,23 @@ class LLMPromptMixin:
             cfg.DEFAULT_LLM_PROMPT_DIR
             or os.path.join(f".{cfg.ROOT_GROUP_NAME}", "llm", "prompt")
         ),
+        doc="Directory for project-level prompt override files (.md or .py).",
     )
 
-    LLM_BASE_PROMPT_DIR = EnvField(str)
+    LLM_BASE_PROMPT_DIR = EnvField(
+        str,
+        doc="Base directory containing the built-in prompt templates. Overrides the package default.",
+    )
 
-    LLM_SHOW_TOOL_CALL_DETAIL = EnvField(to_boolean, serialize=on_off)
+    LLM_SHOW_TOOL_CALL_DETAIL = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc="Show tool call arguments in the UI alongside the tool name.",
+    )
 
-    LLM_SHOW_TOOL_CALL_RESULT = EnvField(to_boolean, serialize=on_off)
+    LLM_SHOW_TOOL_CALL_RESULT = EnvField(
+        to_boolean, serialize=on_off, doc="Show the full tool call result in the UI."
+    )
 
     LLM_INCLUDE_SECTIONS = EnvField(
         comma_list,
@@ -60,4 +70,8 @@ class LLMPromptMixin:
         ),
     )
 
-    LLM_INCLUDE_JOURNAL_REMINDER = EnvField(to_boolean, serialize=on_off)
+    LLM_INCLUDE_JOURNAL_REMINDER = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc="Inject a journaling reminder into the system prompt at each turn (separate from journal_mandate section).",
+    )

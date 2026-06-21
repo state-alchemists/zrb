@@ -32,7 +32,11 @@ class LLMSearchMixin:
         self.DEFAULT_LLM_ENABLE_BUILTIN_AGENTS: str = "on"
         super().__init__()
 
-    LLM_PLUGIN_DIRS = EnvField(expanduser_colon_list, serialize=colon_join)
+    LLM_PLUGIN_DIRS = EnvField(
+        expanduser_colon_list,
+        serialize=colon_join,
+        doc="Colon-separated directories to scan for LLM plugin packages (skills, agents).",
+    )
 
     LLM_LSP_PREFERRED_SERVERS = EnvField(
         comma_list,

@@ -28,14 +28,22 @@ Encode, decode, and validate base64 strings.
 | `decode-base64` | Decode base64 to string (`--url-safe` for the `-_` alphabet) |
 | `validate-base64` | Validate base64 string (accepts base64 of binary data, not only UTF-8 text) |
 
-### 🔀 Git (`git`)
+### ⚙️ Config (`config`)
+
+Inspect runtime configuration.
+
+| Task | Description |
+|------|-------------|
+| `explain` | Render all `EnvField`-backed config knobs as a markdown table (env var, current value, description). Accepts optional `--keyword` to filter. |
+
+### 🌱 Git (`git`)
 
 Standard git operations wrapped as Zrb tasks.
 
 | Task | Description |
 |------|-------------|
-| `git-diff` | Show git diff |
-| `git-commit` | Create a commit |
+| `get-git-diff` | Show git diff between two branches/commits |
+| `git-commit` | Stage all changes and create a commit |
 | `git-pull` | Pull from remote |
 | `git-push` | Push to remote |
 | `prune-local-git-branches` | Clean up merged/deleted local branches |
@@ -46,9 +54,9 @@ Manage git subtrees easily.
 
 | Task | Description |
 |------|-------------|
-| `add-git-subtree` | Add a git subtree |
-| `pull-git-subtree` | Pull from subtree |
-| `push-git-subtree` | Push to subtree |
+| `git-add-subtree` | Add a git subtree |
+| `git-pull-subtree` | Pull from subtree |
+| `git-push-subtree` | Push to subtree |
 
 ### 🌐 HTTP (`http`)
 
@@ -68,6 +76,14 @@ JSON Web Token operations.
 | `encode-jwt` | Create a JWT |
 | `decode-jwt` | Decode and inspect a JWT's claims (no signature check by default; pass `--verify` with a secret to verify) |
 | `validate-jwt` | Validate JWT signature |
+
+### 🤖 LLM (`llm`)
+
+AI assistant integration.
+
+| Task | Description |
+|------|-------------|
+| `chat` | Start an interactive chat session with the configured LLM assistant |
 
 ### 🔑 MD5 (`md5`)
 
@@ -161,13 +177,48 @@ Convert between Unix epoch timestamps and ISO 8601. `--timezone` accepts `utc` (
 | `generate-token` | Generate a secure URL-safe token |
 | `generate-string` | Generate a secure random alphanumeric string |
 
-### 💻 Shell (`shell`)
+### 🔎 SearXNG (`searxng`)
+
+Self-hosted meta search engine integration.
 
 | Task | Description |
 |------|-------------|
-| `autocomplete-bash` | Generate bash completion script |
-| `autocomplete-zsh` | Generate zsh completion script |
-| `autocomplete-powershell` | Generate PowerShell completion script |
+| `start-searxng` | Start a local SearXNG instance on `--port` (default: `ZRB_SEARXNG_PORT`) |
+
+### 🔧 Setup (`setup`)
+
+Bootstrap developer tools on a fresh machine.
+
+| Task | Description |
+|------|-------------|
+| `setup-ubuntu` | Install common Ubuntu developer packages |
+| `setup-asdf` | Install and configure `asdf` version manager |
+| `setup-latex-on-ubuntu` | Install LaTeX on Ubuntu |
+| `setup-tmux` | Install and configure `tmux` |
+| `setup-zsh` | Install and configure `zsh` with Oh My Zsh and zinit |
+
+### 💬 Shell (`shell`)
+
+| Task | Description |
+|------|-------------|
+| `make-bash-autocomplete` | Generate bash completion script |
+| `make-zsh-autocomplete` | Generate zsh completion script |
+| `make-powershell-autocomplete` | Generate PowerShell completion script |
+| `get-shell-subcommands` | List subcommands for shell completion |
+
+### ✅ Todo (`todo`)
+
+Todo.txt-compatible task management.
+
+| Task | Description |
+|------|-------------|
+| `add-todo` | Add a new todo item |
+| `list-todo` | List todo items |
+| `show-todo` | Search and display a todo item by keyword |
+| `complete-todo` | Mark a todo item as done |
+| `archive-todo` | Move completed items to archive |
+| `log-todo` | Log work time against a todo item |
+| `edit-todo` | Edit the raw todo.txt content |
 
 ### 🆔 UUID (`uuid`)
 
@@ -232,6 +283,7 @@ from zrb.builtin import encode_base64, git_commit, http_request
 |--------|---------------|
 | base64 | `from zrb.builtin import encode_base64` |
 | case | `from zrb.builtin import convert_case` |
+| config | `from zrb.builtin import explain_config` |
 | cron | `from zrb.builtin import parse_cron` |
 | git | `from zrb.builtin import git_commit` |
 | hash | `from zrb.builtin import hash_text` |
@@ -239,12 +291,16 @@ from zrb.builtin import encode_base64, git_commit, http_request
 | http | `from zrb.builtin import http_request` |
 | json | `from zrb.builtin import format_json` |
 | jwt | `from zrb.builtin import encode_jwt` |
+| llm | `from zrb.builtin import llm_chat` |
 | md5 | `from zrb.builtin import hash_md5` |
 | number | `from zrb.builtin import convert_base` |
 | python | `from zrb.builtin import format_python_code` |
 | random | `from zrb.builtin import throw_dice` |
-| shell | `from zrb.builtin import make_bash_autocomplete, make_powershell_autocomplete, make_zsh_autocomplete` |
+| searxng | `from zrb.builtin import start_searxng` |
+| setup | `from zrb.builtin import setup_ubuntu` |
+| shell | `from zrb.builtin import make_bash_autocomplete` |
 | time | `from zrb.builtin import epoch_to_iso` |
+| todo | `from zrb.builtin import add_todo` |
 | ulid | `from zrb.builtin import generate_ulid` |
 | url | `from zrb.builtin import encode_url` |
 | uuid | `from zrb.builtin import generate_uuid_v4` |

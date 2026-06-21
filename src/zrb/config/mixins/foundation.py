@@ -20,7 +20,7 @@ _DEFAULT_BANNER = """
    zzzzz rr rr  bb
      zz  rrr  r bbbbbb
     zz   rr     bb   bb
-   zzzzz rr     bbbbbb   {VERSION} Pollux
+   zzzzz rr     bbbbbb   {VERSION} Jinrui
    _ _ . .  . _ .  _ . . .
 Your Automation Powerhouse
 ☕ Donate at: https://stalchmst.com

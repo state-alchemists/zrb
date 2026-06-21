@@ -1,5 +1,6 @@
 from zrb.builtin.base64 import decode_base64, encode_base64, validate_base64
 from zrb.builtin.case import convert_case, slugify
+from zrb.builtin.config import explain_config
 from zrb.builtin.cron import parse_cron
 from zrb.builtin.datetime import epoch_to_iso, iso_to_epoch, now
 from zrb.builtin.git import (
@@ -67,6 +68,7 @@ from zrb.builtin.uuid import (
 )
 
 __all__ = [
+    "explain_config",
     "decode_base64",
     "encode_base64",
     "validate_base64",

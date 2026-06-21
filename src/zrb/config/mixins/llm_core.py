@@ -20,15 +20,35 @@ class LLMCoreMixin:
         self.DEFAULT_LLM_PERMISSIONS: str = ""
         super().__init__()
 
-    LLM_MODEL = EnvField(str, nullable=True)
+    LLM_MODEL = EnvField(
+        str,
+        nullable=True,
+        doc="Primary LLM model identifier (e.g. openai:gpt-4o). Unset uses the provider default.",
+    )
 
-    LLM_SMALL_MODEL = EnvField(str, nullable=True)
+    LLM_SMALL_MODEL = EnvField(
+        str,
+        nullable=True,
+        doc="Lightweight model for less demanding tasks. Falls back to LLM_MODEL when unset.",
+    )
 
-    LLM_MULTIMODAL_MODEL = EnvField(str, nullable=True)
+    LLM_MULTIMODAL_MODEL = EnvField(
+        str,
+        nullable=True,
+        doc="Multimodal model for image/file tasks. Falls back to LLM_MODEL when unset.",
+    )
 
-    LLM_BASE_URL = EnvField(str, nullable=True)
+    LLM_BASE_URL = EnvField(
+        str,
+        nullable=True,
+        doc="Custom base URL for the LLM API endpoint. Unset uses the provider default.",
+    )
 
-    LLM_API_KEY = EnvField(str, nullable=True)
+    LLM_API_KEY = EnvField(
+        str,
+        nullable=True,
+        doc="API key for the LLM provider. Unset defers to the provider's own env var (e.g. OPENAI_API_KEY).",
+    )
 
     LLM_SHOW_OLLAMA_MODELS = EnvField(
         to_boolean,

@@ -17,12 +17,24 @@ class HooksMixin:
         self.DEFAULT_HOOKS_LOG_LEVEL: str = "INFO"
         super().__init__()
 
-    HOOKS_ENABLED = EnvField(to_boolean, serialize=on_off)
+    HOOKS_ENABLED = EnvField(
+        to_boolean, serialize=on_off, doc="Enable/disable the hooks subsystem entirely."
+    )
 
-    HOOKS_DIRS = EnvField(colon_list, serialize=colon_join)
+    HOOKS_DIRS = EnvField(
+        colon_list,
+        serialize=colon_join,
+        doc="Colon-separated directories to scan for hook scripts.",
+    )
 
     HOOKS_TIMEOUT = EnvField(int, doc="Timeout in milliseconds for hook execution.")
 
-    HOOKS_DEBUG = EnvField(to_boolean, serialize=on_off)
+    HOOKS_DEBUG = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc="Enable/disable verbose debug output for hook execution.",
+    )
 
-    HOOKS_LOG_LEVEL = EnvField(str)
+    HOOKS_LOG_LEVEL = EnvField(
+        str, doc="Log level for hook execution (DEBUG, INFO, WARNING, ERROR)."
+    )
