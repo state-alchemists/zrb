@@ -100,18 +100,31 @@ def trigger_binding(key_bindings, key, event):
     return True
 
 
-def test_f6_binding_focus_output(mock_ui, setup_bindings):
+def test_ctrl_k_binding_focus_output(mock_ui, setup_bindings):
+    """Ctrl+K toggles focus to the output pane when input has focus."""
     event = create_mock_event()
     event.app.layout.has_focus.return_value = True
-    trigger_binding(setup_bindings, "f6", event)
+    trigger_binding(setup_bindings, "c-k", event)
     event.app.layout.focus.assert_called_with(mock_ui._output_field)
 
 
-def test_f6_binding_focus_input(mock_ui, setup_bindings):
+def test_ctrl_k_binding_focus_input(mock_ui, setup_bindings):
     event = create_mock_event()
     event.app.layout.has_focus.return_value = False
-    trigger_binding(setup_bindings, "f6", event)
+    trigger_binding(setup_bindings, "c-k", event)
     event.app.layout.focus.assert_called_with(mock_ui._input_field)
+
+
+def test_tab_cycles_mode(mock_ui, setup_bindings):
+    """Tab cycles the interaction mode.
+
+    prompt_toolkit normalizes ``"tab"`` to ``Keys.ControlI`` (``c-i``)
+    internally (Tab and Ctrl+I share the same terminal byte), so the
+    test triggers it as ``"c-i"``.
+    """
+    event = create_mock_event()
+    trigger_binding(setup_bindings, "c-i", event)
+    mock_ui.cycle_mode.assert_called_once()
 
 
 def test_ctrl_c_selection(mock_ui, setup_bindings):

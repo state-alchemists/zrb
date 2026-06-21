@@ -140,9 +140,10 @@ def create_input_field(
     def _(event):
         event.current_buffer.history_forward()
 
-    # Focus traversal is handled by F6 at the app level; Tab and Shift+Tab are
-    # intentionally not bound on this control so Shift+Tab can cycle modes. Tab
-    # still drives completion-menu navigation when a menu is open. See ADR-0075.
+    # Focus traversal is handled by Tab at the app level; Tab still drives
+    # completion-menu navigation when a menu is open (the app-level binding
+    # is gated by ~has_completions). Shift+Tab is deliberately unbound here
+    # so the app-level binding can cycle modes. See ADR-0075.
 
     return text_area
 

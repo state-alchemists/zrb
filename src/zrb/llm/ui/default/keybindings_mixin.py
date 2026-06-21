@@ -83,7 +83,7 @@ class KeybindingsMixin:
         self, app_keybindings: "KeyBindings", llm_task: "AnyTask"
     ):
         # lazy: heavy third-party
-        from prompt_toolkit.filters import Condition
+        from prompt_toolkit.filters import Condition, has_completions
 
         # While the AskUserQuestion selection widget is active it owns Enter and
         # newline keys (its own control bindings handle them); suppress the
@@ -92,11 +92,13 @@ class KeybindingsMixin:
             lambda: not getattr(self, "has_active_choice", lambda: False)()
         )
 
-        # F6 toggles focus between the input and output panes. This is the sole
-        # focus-switch binding: the input/output controls' own Tab/Shift+Tab
-        # focus traversal was removed (see app/layout.py, app/keybinding.py) so
-        # Shift+Tab is free to cycle modes (below). See ADR-0075.
-        @app_keybindings.add("f6")
+        # Ctrl+K toggles focus between the input and output panes. On Termux
+        # Tab and Shift+Tab produce the same byte (0x09), so Tab is used for
+        # mode cycling (below) and Ctrl+K is the sole focus-toggle binding.
+        # The input/output controls' own Tab/Shift+Tab focus traversal was
+        # removed (see app/layout.py, app/keybinding.py) so Tab and Shift+Tab
+        # are free to cycle modes.
+        @app_keybindings.add("c-k")
         def _(event):
             if event.app.layout.has_focus(self._input_field):
                 event.app.layout.focus(self._output_field)
@@ -215,10 +217,10 @@ class KeybindingsMixin:
         @app_keybindings.add("enter", filter=no_active_choice)
         def _(event):
             # Enter only ever acts on the input field. With focus on the
-            # read-only output pane (Tab/F6), event.current_buffer is the
-            # output buffer — resolving a confirmation or submitting from it
-            # would send the entire pane content (banner, help, transcript)
-            # as user input. Refocus the input field instead.
+            # read-only output pane (Ctrl+K), event.current_buffer is the output
+            # buffer — resolving a confirmation or submitting from it would send
+            # the entire pane content (banner, help, transcript) as user input.
+            # Refocus the input field instead.
             if not event.app.layout.has_focus(self._input_field):
                 event.app.layout.focus(self._input_field)
                 return
@@ -268,12 +270,14 @@ class KeybindingsMixin:
         def _(event):
             self.toggle_yolo()
 
-        # Shift+Tab — cycle normal → accept-edits → plan (plan mode is reachable
-        # here, so there is no Ctrl+P; /plan and /yolo remain for web/MultiUI).
-        # Gated so a completion menu keeps Shift+Tab for previous-completion and a
-        # choice widget keeps its own back-tab navigation.
-        from prompt_toolkit.filters import has_completions
+        # Tab / Shift+Tab — cycle normal → accept-edits → plan. On Termux both
+        # keys produce the same byte (0x09), so both route to the same handler.
+        # Shift+Tab is kept for desktop terminals where it's a distinct key.
+        # Gated so a completion menu keeps Tab for next-completion and Shift+Tab
+        # for previous-completion, and a choice widget keeps its own Tab/back-tab
+        # navigation.
 
+        @app_keybindings.add("tab", filter=no_active_choice & ~has_completions)
         @app_keybindings.add("s-tab", filter=no_active_choice & ~has_completions)
         def _(event):
             self.cycle_mode()
