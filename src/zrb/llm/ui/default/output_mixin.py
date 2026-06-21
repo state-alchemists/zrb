@@ -34,13 +34,22 @@ _MODE_STATUS_LABELS = {
     "yolo": "yolo",
     "custom": "custom-yolo",
 }
-_MODE_STATUS_STYLE = {
-    "normal": "fg:ansigreen",
-    "accept_edits": "fg:ansiyellow bold",
-    "plan": "fg:ansiblue bold",
-    "yolo": "fg:ansired bold",
-    "custom": "fg:ansiyellow bold",
-}
+
+
+def _get_mode_status_style(mode: str) -> str:
+    """Lazy lookup of the status-bar mode badge style from CFG.
+
+    Module-level dicts would evaluate CFG at import time, baking in the
+    values and defeating runtime reconfiguration. This function reads from
+    CFG on every call so env-var changes take effect without a restart.
+    """
+    return {
+        "normal": CFG.LLM_UI_STYLE_MODE_NORMAL,
+        "accept_edits": CFG.LLM_UI_STYLE_MODE_ACCEPT_EDITS,
+        "plan": CFG.LLM_UI_STYLE_MODE_PLAN,
+        "yolo": CFG.LLM_UI_STYLE_MODE_YOLO,
+        "custom": CFG.LLM_UI_STYLE_MODE_CUSTOM,
+    }.get(mode, "")
 
 
 class OutputMixin:
@@ -222,17 +231,19 @@ class OutputMixin:
 
         _yolo = self.yolo
         if _yolo is True:
-            yolo_text = "<style color='ansired'><b>ON </b></style>"
+            yolo_text = (
+                f"<style color='{CFG.LLM_UI_STYLE_INFO_YOLO_ON}'><b>ON </b></style>"
+            )
         elif isinstance(_yolo, frozenset) and _yolo:
             tools_str = ",".join(sorted(_yolo))
-            yolo_text = f"<style color='ansiyellow'><b>[{tools_str}]</b></style>"
+            yolo_text = f"<style color='{CFG.LLM_UI_STYLE_INFO_YOLO_PARTIAL}'><b>[{tools_str}]</b></style>"
         else:
-            yolo_text = "<style color='ansigreen'>OFF</style>"
+            yolo_text = f"<style color='{CFG.LLM_UI_STYLE_INFO_YOLO_OFF}'>OFF</style>"
 
         plan_text = (
-            "<style color='ansiblue'><b>On </b></style>"
+            f"<style color='{CFG.LLM_UI_STYLE_INFO_PLAN_ON}'><b>On </b></style>"
             if getattr(self, "_plan_mode_active", False)
-            else "<style color='ansigreen'>Off</style>"
+            else f"<style color='{CFG.LLM_UI_STYLE_INFO_PLAN_OFF}'>Off</style>"
         )
 
         line1_html = f" 🤖 <b>Model:</b> {model_name} | 💬 <b>Session:</b> {self._conversation_session_name} "
@@ -288,7 +299,7 @@ class OutputMixin:
         return [
             (CFG.LLM_UI_STYLE_STATUS, " 🚀 Ready "),
             (
-                _MODE_STATUS_STYLE.get(mode, ""),
+                _get_mode_status_style(mode),
                 f" {_MODE_STATUS_LABELS.get(mode, mode)} ",
             ),
             ("fg:ansibrightblack", "shift+tab to cycle "),

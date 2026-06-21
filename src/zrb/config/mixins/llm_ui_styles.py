@@ -1,4 +1,4 @@
-"""LLM UI style and assistant-identity settings (12 colour styles + 3 identity props)."""
+"""LLM UI style and assistant-identity settings (26 colour styles + 3 identity props)."""
 
 from __future__ import annotations
 
@@ -36,6 +36,21 @@ class LLMUIStylesMixin:
         # "noinherit" resets to terminal defaults (no fg/bg/bold) so only
         # fragment styles control the text color.
         self.DEFAULT_LLM_UI_STYLE_BOTTOM_TOOLBAR: str = "noinherit"
+        # Choice widget (AskUserQuestion selection panel)
+        self.DEFAULT_LLM_UI_STYLE_CHOICE_BG: str = "#1f1f1f"
+        self.DEFAULT_LLM_UI_STYLE_CHOICE_SELECTED_BG: str = "#264f78"
+        # Status-bar mode badge styles (Shift+Tab mode indicator)
+        self.DEFAULT_LLM_UI_STYLE_MODE_NORMAL: str = "fg:ansigreen"
+        self.DEFAULT_LLM_UI_STYLE_MODE_ACCEPT_EDITS: str = "fg:ansiyellow bold"
+        self.DEFAULT_LLM_UI_STYLE_MODE_PLAN: str = "fg:ansiblue bold"
+        self.DEFAULT_LLM_UI_STYLE_MODE_YOLO: str = "fg:ansired bold"
+        self.DEFAULT_LLM_UI_STYLE_MODE_CUSTOM: str = "fg:ansiyellow bold"
+        # Info-bar YOLO/Plan mode indicator colors
+        self.DEFAULT_LLM_UI_STYLE_INFO_YOLO_ON: str = "ansired"
+        self.DEFAULT_LLM_UI_STYLE_INFO_YOLO_PARTIAL: str = "ansiyellow"
+        self.DEFAULT_LLM_UI_STYLE_INFO_YOLO_OFF: str = "ansigreen"
+        self.DEFAULT_LLM_UI_STYLE_INFO_PLAN_ON: str = "ansiblue"
+        self.DEFAULT_LLM_UI_STYLE_INFO_PLAN_OFF: str = "ansigreen"
         super().__init__()
 
     # Hand-written: falls back to ROOT_GROUP_NAME and capitalizes the first
@@ -88,3 +103,30 @@ class LLMUIStylesMixin:
     LLM_UI_STYLE_STATUS = EnvField(str)
 
     LLM_UI_STYLE_BOTTOM_TOOLBAR = EnvField(str)
+
+    # Choice widget (AskUserQuestion selection panel)
+    LLM_UI_STYLE_CHOICE_BG = EnvField(str)
+
+    LLM_UI_STYLE_CHOICE_SELECTED_BG = EnvField(str)
+
+    # Status-bar mode badge styles (Shift+Tab mode indicator)
+    LLM_UI_STYLE_MODE_NORMAL = EnvField(str)
+
+    LLM_UI_STYLE_MODE_ACCEPT_EDITS = EnvField(str)
+
+    LLM_UI_STYLE_MODE_PLAN = EnvField(str)
+
+    LLM_UI_STYLE_MODE_YOLO = EnvField(str)
+
+    LLM_UI_STYLE_MODE_CUSTOM = EnvField(str)
+
+    # Info-bar YOLO/Plan mode indicator colors
+    LLM_UI_STYLE_INFO_YOLO_ON = EnvField(str)
+
+    LLM_UI_STYLE_INFO_YOLO_PARTIAL = EnvField(str)
+
+    LLM_UI_STYLE_INFO_YOLO_OFF = EnvField(str)
+
+    LLM_UI_STYLE_INFO_PLAN_ON = EnvField(str)
+
+    LLM_UI_STYLE_INFO_PLAN_OFF = EnvField(str)
