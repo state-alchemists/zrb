@@ -78,6 +78,8 @@ if TYPE_CHECKING:
 
     from zrb.llm.agent.common import HistoryProcessor
     from zrb.llm.approval.approval_channel import ApprovalChannel
+    from zrb.llm.permission import PermissionPolicyInput
+    from zrb.llm.sandbox import SandboxInput
     from zrb.llm.tool_call.ui_protocol import UIProtocol
 
 
@@ -170,6 +172,8 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):  # type: ignore[reportIn
             | None
         ) = None,
         approval_channel: ApprovalChannel | None = None,
+        permissions: "PermissionPolicyInput" = None,
+        sandbox: "SandboxInput" = None,
         yolo: BoolAttr = False,
         yolo_xcom_key: str = "yolo",
         ui_summarize_commands: list[str] | None = None,
@@ -309,6 +313,8 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):  # type: ignore[reportIn
         self._approval_channels: list["ApprovalChannel"] = []
         if approval_channel is not None:
             self._approval_channels.append(approval_channel)
+        self._permissions = permissions
+        self._sandbox = sandbox
         self._yolo = yolo
         self._yolo_xcom_key = yolo_xcom_key
         self._ui_summarize_commands = (
@@ -380,14 +386,6 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):  # type: ignore[reportIn
         self._interactive = interactive
         self._show_ollama_models = show_ollama_models
         self._show_pydantic_ai_models = show_pydantic_ai_models
-
-    @property
-    def llm_config(self) -> LLMConfig:
-        return self._llm_config
-
-    @property
-    def llm_limiter(self) -> LLMLimiter | None:
-        return self._llm_limiter
 
     def get_system_prompt(self, ctx: AnyContext) -> str:
         if self._prompt_manager is None:
@@ -694,7 +692,7 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):  # type: ignore[reportIn
             for t in resolved_tools
         }
 
-        def check_yolo(tool_def=None):
+        def _should_skip_approval(tool_def=None):
             # Approval precedence chain:
             #   perm_policy: allow→auto-approve, deny→auto-approve (gate blocks),
             #                ask→defer to tool_policy cascade
@@ -785,10 +783,12 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):  # type: ignore[reportIn
             tool_confirmation=tool_confirmation,
             ui=cast("UIProtocol | None", ui),
             approval_channel=effective_approval_channel,
+            permissions=self._permissions,
+            sandbox=self._sandbox,
             message="{ctx.input.message}",
             conversation_name="{ctx.input.session}",
             yolo="{ctx.input.yolo}",
-            dynamic_yolo=check_yolo,
+            dynamic_yolo=_should_skip_approval,
             attachment=lambda ctx: ctx.input.attachments,
             model=lambda ctx: ctx.input.get("model"),
             render_model=False,
@@ -829,43 +829,3 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):  # type: ignore[reportIn
         if rendered_model is not None:
             return rendered_model
         return self._llm_config.model
-
-    @property
-    def history_manager(self) -> AnyHistoryManager | None:
-        """Get the history manager."""
-        return self._history_manager
-
-    @history_manager.setter
-    def history_manager(self, value: AnyHistoryManager | None):
-        """Set the history manager."""
-        self._history_manager = value
-
-    @property
-    def ui_factories(self) -> list[Callable[..., "UIProtocol"]]:
-        """Get the UI factories."""
-        return self._ui_factories
-
-    @ui_factories.setter
-    def ui_factories(self, value: list[Callable[..., "UIProtocol"]]):
-        """Set the UI factories."""
-        self._ui_factories = value
-
-    @property
-    def approval_channels(self) -> list["ApprovalChannel"]:
-        """Get the approval channels."""
-        return self._approval_channels
-
-    @approval_channels.setter
-    def approval_channels(self, value: list["ApprovalChannel"]):
-        """Set the approval channels."""
-        self._approval_channels = value
-
-    @property
-    def include_default_ui(self) -> bool:
-        """Check if the default UI should be included."""
-        return self._include_default_ui
-
-    @include_default_ui.setter
-    def include_default_ui(self, value: bool):
-        """Set if the default UI should be included."""
-        self._include_default_ui = value

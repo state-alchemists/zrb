@@ -128,48 +128,68 @@ You can set the default policy globally or per-task.
 export ZRB_LLM_PERMISSIONS="read:allow,edit:ask,execute:ask,*:deny"
 ```
 
-### Per-Task Configuration
+### Gating the built-in `zrb llm chat`
 
-For `LLMTask`, pass the policy directly:
+To constrain the chat task that `zrb llm chat` runs, set `permissions` on the
+built-in `llm_chat` task in your `zrb_init.py`:
 
 ```python
-from zrb import LLMTask, cli
+from zrb.builtin.llm.chat import llm_chat
+
+llm_chat.permissions = my_policy
+```
+
+`permissions` is a read/write property, so this also works to change the policy
+after construction on any task.
+
+### Per-Task Configuration
+
+Both `LLMTask` and `LLMChatTask` accept a `permissions` argument — pass the
+policy directly when you define your own task:
+
+```python
+from zrb import LLMChatTask, LLMTask, cli
 
 safe_task = cli.add_task(
     LLMTask(
         name="safe-single-shot",
-        permissions=my_policy
+        permissions=my_policy,
+    )
+)
+
+safe_chat = cli.add_task(
+    LLMChatTask(
+        name="safe-chat",
+        permissions=my_policy,
+        ui_greeting="I'm operating under a strict permission policy.",
     )
 )
 ```
 
-For `LLMChatTask`, set the policy via environment variable:
+Run a custom task by its own name (`zrb safe-chat`), not `zrb llm chat` — the
+latter runs the built-in `llm_chat` covered above.
+
+Or set the default for every task via environment variable:
 
 ```bash
 export ZRB_LLM_PERMISSIONS="read:allow,edit:ask,execute:ask,*:deny"
 zrb llm chat
 ```
 
-Or set it programmatically at session start via a hook:
+**Precedence:** the explicit `permissions` argument wins over
+`ZRB_LLM_PERMISSIONS`, which wins over the ambient policy a parent run set (how
+sub-agents inherit their parent's policy). Plan Mode's read-only preset
+overrides all of them while it is active.
 
-```python
-from zrb import LLMChatTask, cli
-from zrb.llm.permission.state import set_current_permission_policy
+### Advanced: the ambient policy ContextVar
 
-my_policy = PermissionPolicy(...)
-
-def apply_policy(manager):
-    set_current_permission_policy(my_policy)
-    return manager
-
-safe_chat = cli.add_task(
-    LLMChatTask(
-        name="safe-chat",
-        ui_greeting="I'm operating under a strict permission policy.",
-    )
-)
-safe_chat.add_hook_factory(apply_policy)
-```
+Under the hood every policy resolves to the `current_permission_policy`
+ContextVar, which each tool call reads via `get_effective_policy()`. The
+`permissions=` argument is the normal way to set it. For dynamic cases — e.g.
+choosing a policy at runtime based on live state — you can set the ContextVar
+directly with `set_current_permission_policy(policy)` from
+`zrb.llm.permission.state`. The explicit `permissions=` argument, when given,
+takes precedence over a value set this way.
 
 ---
 🔖 [Home](../../README.md) > [Advanced Topics](./) > Permission Policy

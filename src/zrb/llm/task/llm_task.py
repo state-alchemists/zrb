@@ -1,3 +1,19 @@
+"""`LLMTask` — single-shot task that creates a pydantic-ai agent and runs it.
+
+This module is decomposed into mixins, mirroring `chat/task.py`:
+
+  builder_mixin.py  - post-construction config API (add/append/set), public
+                      properties, and agent/prompt assembly (tools, system
+                      prompt, model selection)
+  history_mixin.py  - conversation/history resolution + error & cancellation
+                      recovery
+
+The host class keeps `__init__` plus the execution core — `_exec_action`,
+`_exec_action_inner`, `_create_agent`, and `_handle_summarization`. Those own
+the `run_agent` / `create_agent` / `summarize_history` call sites, which tests
+patch at this module path (`zrb.llm.task.llm_task.*`), so they must stay here.
+"""
+
 from __future__ import annotations
 
 import asyncio
@@ -15,24 +31,22 @@ from zrb.llm.config.config import LLMConfig
 from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.config.limiter import llm_limiter as default_llm_limiter
-from zrb.llm.factory_resolver import resolve_factory_items
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
-from zrb.llm.history_manager.file_history_manager import FileHistoryManager
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
-from zrb.llm.permission import resolve_policy
+from zrb.llm.permission import PermissionPolicyInput, resolve_policy
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.prompt.tool_guidance import ToolGuidance
-from zrb.llm.sandbox import coerce_sandbox
+from zrb.llm.sandbox import SandboxInput, coerce_sandbox
 from zrb.llm.summarizer import (
     summarize_history,
 )
+from zrb.llm.task.builder_mixin import BuilderMixin
+from zrb.llm.task.history_mixin import HistoryMixin
 from zrb.llm.util.attachment import get_attachments
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
 from zrb.util.attr import get_attr, get_bool_attr
-from zrb.util.cli.style import remove_style
-from zrb.util.string.name import get_random_name
 
 if TYPE_CHECKING:
     from pydantic_ai import Tool, UserContent
@@ -47,7 +61,7 @@ if TYPE_CHECKING:
     from zrb.llm.tool_call.ui_protocol import UIProtocol
 
 
-class LLMTask(BaseTask):
+class LLMTask(BuilderMixin, HistoryMixin, BaseTask):  # type: ignore[reportIncompatibleVariableOverride]
 
     def __init__(
         self,
@@ -99,8 +113,8 @@ class LLMTask(BaseTask):
         ui: UIProtocol | None = None,
         yolo: BoolAttr = False,
         dynamic_yolo: Callable[..., bool] | None = None,
-        permissions: Any = None,
-        sandbox: Any = None,
+        permissions: PermissionPolicyInput = None,
+        sandbox: SandboxInput = None,
         approval_channel: ApprovalChannel | None = None,
         summarize_command: list[str] | None = None,
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
@@ -202,186 +216,12 @@ class LLMTask(BaseTask):
         ] = []
 
     @property
-    def prompt_manager(self) -> PromptManager:
-        if self._prompt_manager is None:
-            raise ValueError(f"Task {self.name} doesn't have prompt_manager")
-        return self._prompt_manager
-
-    def set_ui(self, ui: UIProtocol | None):
-        self._uis = [] if ui is None else [ui]
-
-    def append_ui(self, ui: UIProtocol) -> None:
-        self._uis.append(ui)
+    def llm_config(self) -> LLMConfig:
+        return self._llm_config
 
     @property
-    def tool_confirmation(self) -> AnyToolConfirmation:
-        return self._tool_confirmation
-
-    @tool_confirmation.setter
-    def tool_confirmation(self, value: AnyToolConfirmation):
-        self._tool_confirmation = value
-
-    @property
-    def approval_channel(self) -> ApprovalChannel | None:
-        return self._approval_channel
-
-    @approval_channel.setter
-    def approval_channel(self, value: ApprovalChannel | None):
-        self._approval_channel = value
-
-    @property
-    def history_manager(self) -> AnyHistoryManager | None:
-        return self._history_manager
-
-    @history_manager.setter
-    def history_manager(self, value: AnyHistoryManager | None):
-        self._history_manager = value
-
-    def add_hook_factory(self, *factory: Callable[[HookManager], None]):
-        """Register one or more hook factories on this task's hook manager.
-
-        Each factory receives the ``HookManager`` and registers hooks on it (it
-        is applied immediately — the factory typically calls
-        ``manager.register(hook, events=[...])``). Mirrors
-        ``LLMChatTask.add_hook_factory``.
-
-        Isolation by default: a task starts on the shared global hook manager,
-        but the first ``add_hook_factory`` call swaps in a fresh per-task
-        ``HookManager`` so these hooks do not leak into other tasks. To opt into
-        the global manager (or any specific one) instead, pass ``hook_manager=``
-        at construction — an explicitly provided manager is never replaced.
-        """
-        self.append_hook_factory(*factory)
-
-    def append_hook_factory(self, *factory: Callable[[HookManager], None]):
-        for f in factory:
-            self._ensure_task_local_hook_manager()
-            f(self._hook_manager)
-
-    def _ensure_task_local_hook_manager(self) -> None:
-        # Swap the shared global default for a fresh per-task manager on first
-        # registration, so task-level hooks stay isolated. A manager passed
-        # explicitly at construction is left untouched.
-        if self._hook_manager is default_hook_manager:
-            self._hook_manager = HookManager()
-
-    @property
-    def custom_model_names(self) -> StrListAttr | None:
-        return self._custom_model_names
-
-    @custom_model_names.setter
-    def custom_model_names(self, value: StrListAttr | None):
-        self._custom_model_names = value
-
-    def add_toolset(self, *toolset: AbstractToolset):
-        self.append_toolset(*toolset)
-
-    def append_toolset(self, *toolset: AbstractToolset):
-        self._toolsets += list(toolset)
-
-    def add_toolset_factory(
-        self, *factory: Callable[[AnyContext], AbstractToolset[None]]
-    ):
-        self.append_toolset_factory(*factory)
-
-    def append_toolset_factory(
-        self, *factory: Callable[[AnyContext], AbstractToolset[None]]
-    ):
-        self._toolset_factories += list(factory)
-
-    def add_tool(self, *tool: Tool | ToolFuncEither):
-        self.append_tool(*tool)
-
-    def append_tool(self, *tool: Tool | ToolFuncEither):
-        self._tools += list(tool)
-
-    def add_tool_factory(self, *factory: Callable[[AnyContext], Tool | ToolFuncEither]):
-        self.append_tool_factory(*factory)
-
-    def append_tool_factory(
-        self, *factory: Callable[[AnyContext], Tool | ToolFuncEither]
-    ):
-        self._tool_factories += list(factory)
-
-    def add_tool_guidance(self, *guidance: ToolGuidance):
-        self.append_tool_guidance(*guidance)
-
-    def append_tool_guidance(self, *guidance: ToolGuidance):
-        """Add tool guidance entries directly to the prompt manager."""
-        for g in guidance:
-            self._prompt_manager.add_tool_guidance(
-                group=g.group_name,
-                name=g.tool_name,
-                use_when=g.when_to_use,
-                key_rule=g.key_rule,
-            )
-
-    def add_tool_guidance_factory(self, *factory: Callable[[AnyContext], ToolGuidance]):
-        self.append_tool_guidance_factory(*factory)
-
-    def append_tool_guidance_factory(
-        self, *factory: Callable[[AnyContext], ToolGuidance]
-    ):
-        """Register guidance for dynamically-named factory tools.
-
-        Each factory is called per exec and returns a single ``ToolGuidance``
-        that gets added to ``prompt_manager`` before the system prompt is
-        composed.
-        """
-        self._tool_guidance_factories += list(factory)
-
-    def add_tool_guidance_section_factory(
-        self, *factory: Callable[[AnyContext, Any], "str | None"]
-    ):
-        self.append_tool_guidance_section_factory(*factory)
-
-    def append_tool_guidance_section_factory(
-        self, *factory: Callable[[AnyContext, Any], "str | None"]
-    ):
-        """Register a factory that renders a model-aware Tool Usage Guide section.
-
-        Each factory is called per exec with ``(ctx, resolved_model)`` and
-        returns a Markdown block (typically starting with ``## Heading``) or
-        ``None``/empty string to skip injection.
-        """
-        self._tool_guidance_section_factories += list(factory)
-
-    def _resolve_tool_guidance_factories(self, ctx: AnyContext) -> None:
-        """Resolve guidance + section factories into ``_prompt_manager``.
-
-        Called once per exec before ``get_system_prompt``.
-        """
-        if self._prompt_manager is None:
-            return
-        for guidance_factory in self._tool_guidance_factories:
-            guidance = guidance_factory(ctx)
-            self._prompt_manager.add_tool_guidance(
-                group=guidance.group_name,
-                name=guidance.tool_name,
-                use_when=guidance.when_to_use,
-                key_rule=guidance.key_rule,
-            )
-        resolved_model = self._get_model(ctx)
-        sections: list[str] = []
-        for section_factory in self._tool_guidance_section_factories:
-            rendered = section_factory(ctx, resolved_model)
-            if rendered:
-                sections.append(rendered)
-        self._prompt_manager.tool_guidance_sections = sections
-
-    def add_history_processor(self, *processor: HistoryProcessor):
-        self.append_history_processor(*processor)
-
-    def append_history_processor(self, *processor: HistoryProcessor):
-        self._history_processors += list(processor)
-
-    def _get_all_tools(self, ctx: AnyContext) -> list[Tool | ToolFuncEither]:
-        """Get all tools including those resolved from factories."""
-        return resolve_factory_items(self._tools, self._tool_factories, ctx)
-
-    def _get_all_toolsets(self, ctx: AnyContext) -> list[AbstractToolset[None]]:
-        """Get all toolsets including those resolved from factories."""
-        return resolve_factory_items(self._toolsets, self._toolset_factories, ctx)
+    def llm_limiter(self) -> LLMLimiter:
+        return self._llm_limiter
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
         async with AsyncExitStack() as stack:
@@ -485,11 +325,6 @@ class LLMTask(BaseTask):
 
         return self._post_process_output(output)
 
-    def _get_history_manager(self, ctx: AnyContext) -> AnyHistoryManager:
-        if self._history_manager is not None:
-            return self._history_manager
-        return FileHistoryManager(history_dir=CFG.LLM_HISTORY_DIR)
-
     async def _handle_summarization(
         self,
         ctx: AnyContext,
@@ -511,15 +346,15 @@ class LLMTask(BaseTask):
 
     def _create_agent(self, ctx: AnyContext, system_prompt: str | None = None) -> Any:
         if self._dynamic_yolo is not None:
-            yolo = self._dynamic_yolo
+            should_skip_approval = self._dynamic_yolo
         else:
             # Default policy-aware callable (bare LLMTask without dynamic_yolo).
             # Follows the same precedence chain as chat/task.py check_yolo.
             # Caching the yolo value at closure-creation time is fine — bare
             # LLMTask yolo is a BoolAttr, not a live xcom like LLMChatTask.
-            yolo_bool = get_bool_attr(ctx, self._yolo, False)
+            should_skip_approval_bool = get_bool_attr(ctx, self._yolo, False)
 
-            def _default_yolo(tool_def=None):
+            def _should_skip_approval(tool_def=None):
                 # lazy: permission is a leaf module.
                 from zrb.llm.permission import ALLOW, ASK, DENY, get_effective_policy
                 from zrb.llm.permission.capability import Capability
@@ -538,9 +373,9 @@ class LLMTask(BaseTask):
                         return True  # auto-approved (gate blocks at execution)
                     if result == ASK:
                         return False  # explicit policy ASK is a 'hard ask'
-                return yolo_bool
+                return should_skip_approval_bool
 
-            yolo = _default_yolo
+            should_skip_approval = _should_skip_approval
         if system_prompt is None:
             system_prompt = self.get_system_prompt(ctx)
         ctx.log_debug(f"SYSTEM PROMPT: {system_prompt}")
@@ -567,230 +402,6 @@ class LLMTask(BaseTask):
             model_settings=self._get_model_settings(ctx),
             history_processors=self._history_processors,
             capabilities=self._capabilities,
-            yolo=yolo,
+            yolo=should_skip_approval,
             resolve_model=False,
         )
-
-    def _get_effective_prompt(
-        self,
-        ctx: AnyContext,
-        user_message: str,
-        user_attachments: list[Any] | None,
-        message_history: list[Any],
-    ) -> tuple[str, list[Any] | None]:
-        # Detect retry and avoid duplicating the initial message if it's already in history
-        # Also, if it's a retry, we might want to inform the LLM about the previous failure.
-        if ctx.attempt > 1 and len(message_history) > 0:
-            # lazy: heavy third-party
-            from pydantic_ai.messages import ModelRequest, UserPromptPart
-
-            # Check if the last message (or one of the last few) is the user message
-            found_user_message = False
-            str_user_message = str(user_message)
-            for msg in reversed(message_history):
-                if isinstance(msg, ModelRequest):
-                    for part in msg.parts:
-                        if isinstance(part, UserPromptPart):
-                            # Handle both text-only and multimodal content
-                            # Multimodal: part.content is [text, BinaryContent(...)]
-                            # Text-only: part.content is a string
-                            part_text = ""
-                            if isinstance(part.content, str):
-                                part_text = part.content
-                            elif isinstance(part.content, list):
-                                # Extract text from multimodal content list
-                                for item in part.content:
-                                    if isinstance(item, str):
-                                        part_text = item
-                                        break
-                            if part_text == str_user_message:
-                                found_user_message = True
-                                break
-                if found_user_message:
-                    break
-
-            if found_user_message:
-                # User message is already in history, so we don't need to send it again.
-                # Instead, we send a retry notice.
-                # IMPORTANT: Preserve attachments on retry - they may still be needed
-                ctx.log_info("Initial message found in history, sending retry notice.")
-                return (
-                    f"[SYSTEM] This is retry attempt {ctx.attempt}. "
-                    "The previous attempt failed. Please review the history and continue.",
-                    user_attachments,  # Preserve attachments on retry
-                )
-        return user_message, user_attachments
-
-    def _is_context_length_error(self, error: Exception) -> bool:
-        """Return True when the error is a model context-length / prompt-too-long rejection."""
-        err_str = str(error).lower()
-        context_keywords = [
-            "prompt too long",
-            "context length",
-            "context window",
-            "max tokens",
-            "token limit",
-            "input too long",
-            "maximum context",
-        ]
-        if any(kw in err_str for kw in context_keywords):
-            return True
-        # pydantic_ai ModelHTTPError with status 400 and context-related body
-        status_code = getattr(error, "status_code", None)
-        if status_code == 400 and any(kw in err_str for kw in context_keywords):
-            return True
-        return False
-
-    def _handle_run_error(
-        self,
-        ctx: AnyContext,
-        history_manager: AnyHistoryManager,
-        conversation_name: str,
-        error: Exception,
-        partial_run: Any = None,
-    ):
-        # lazy: heavy third-party
-        from pydantic_ai.messages import (
-            ModelRequest,
-            ModelResponse,
-            ToolCallPart,
-            ToolReturnPart,
-            UserPromptPart,
-        )
-
-        new_history = getattr(error, "zrb_history", None)
-        if new_history is None:
-            return
-        # Do not append error info when the history is already too long — appending
-        # would make the next retry even longer and guarantee repeated failures.
-        if self._is_context_length_error(error):
-            ctx.log_warning(
-                "Context-length error detected; not growing history for retry."
-            )
-            history_manager.update(conversation_name, new_history)
-            history_manager.save(conversation_name)
-            return
-        # Append error information to history so it's available on next retry
-        # 1. Handle dangling tool calls if necessary
-        if len(new_history) > 0:
-            last_msg = new_history[-1]
-            if isinstance(last_msg, ModelResponse):
-                tool_returns = []
-                for part in last_msg.parts:
-                    if isinstance(part, ToolCallPart):
-                        tool_returns.append(
-                            ToolReturnPart(
-                                tool_name=part.tool_name,
-                                content=f"Error: {str(error)}",
-                                tool_call_id=part.tool_call_id,
-                            )
-                        )
-                if tool_returns:
-                    new_history.append(ModelRequest(parts=tool_returns))
-
-        # 2. Append general error information
-        error_msg = f"[SYSTEM] Error occurred: {str(error)}"
-        new_history.append(ModelRequest(parts=[UserPromptPart(content=error_msg)]))
-        # 3. Append partial run summary if available and meaningful
-        if partial_run is not None and partial_run.completed_tools:
-            summary = partial_run.build_summary()
-            new_history.append(ModelRequest(parts=[UserPromptPart(content=summary)]))
-        history_manager.update(conversation_name, new_history)
-        history_manager.save(conversation_name)
-
-    def _save_cancelled_history(
-        self,
-        history_manager: AnyHistoryManager,
-        conversation_name: str,
-        message_history: list[Any],
-        user_message: Any,
-        partial_run: Any = None,
-    ) -> None:
-        """Save partial history when a run is cancelled by the user (e.g. Escape).
-
-        Constructs a synthetic history containing the original history, the
-        user's message, and a cancellation marker so the next turn can build
-        on context rather than starting fresh.  Best-effort: a failure must not
-        crash the interrupt path, but it is logged so silent history loss is
-        diagnosable.
-        """
-        try:
-            # lazy: heavy third-party
-            from pydantic_ai.messages import (
-                ModelRequest,
-                ModelResponse,
-                TextPart,
-                UserPromptPart,
-            )
-
-            partial_history = list(message_history)
-            partial_history.append(
-                ModelRequest(parts=[UserPromptPart(content=str(user_message))])
-            )
-            partial_history.append(
-                ModelResponse(
-                    parts=[
-                        TextPart(content="[SYSTEM: Response was interrupted by user]")
-                    ]
-                )
-            )
-            if partial_run is not None and partial_run.completed_tools:
-                summary = partial_run.build_summary()
-                partial_history.append(
-                    ModelRequest(parts=[UserPromptPart(content=summary)])
-                )
-            history_manager.update(conversation_name, partial_history)
-            history_manager.save(conversation_name)
-        except Exception as e:
-            CFG.LOGGER.warning(f"Failed to save cancelled history: {e}")
-
-    def _post_process_output(self, output: Any) -> Any:
-        if isinstance(output, str):
-            # Remove ANSI escape codes first to ensure regex patterns work correctly
-            output = remove_style(output)
-        return output
-
-    @property
-    def llm_config(self) -> LLMConfig:
-        return self._llm_config
-
-    @property
-    def llm_limiter(self) -> LLMLimiter:
-        return self._llm_limiter
-
-    def get_system_prompt(self, ctx: AnyContext) -> str:
-        if self._prompt_manager is None:
-            return ""
-        compose_prompt = self._prompt_manager.compose_prompt()
-        return compose_prompt(ctx)
-
-    def get_live_context(self, ctx: AnyContext) -> str:
-        """Render the per-turn ``<live-context>`` block injected into the user
-        turn. Empty string when there is no prompt manager (nothing to wire)."""
-        if self._prompt_manager is None:
-            return ""
-        return self._prompt_manager.create_live_context(ctx)
-
-    def _get_conversation_name(self, ctx: AnyContext) -> str:
-        conversation_name = str(
-            get_attr(ctx, self._conversation_name, "", self._render_conversation_name)
-        )
-        if conversation_name.strip() == "":
-            conversation_name = get_random_name()
-        return conversation_name
-
-    def _get_model_settings(self, ctx: AnyContext) -> ModelSettings | None:
-        model_settings = self._model_settings
-        rendered_model_settings = get_attr(ctx, model_settings, None)
-        if rendered_model_settings is not None:
-            return rendered_model_settings
-        return self._llm_config.model_settings
-
-    def _get_model(self, ctx: AnyContext) -> str | Model:
-        model = self._model
-        rendered_model = get_attr(ctx, model, None, auto_render=self._render_model)
-        if isinstance(rendered_model, str) and rendered_model.strip() == "":
-            rendered_model = None
-        if rendered_model is not None:
-            return rendered_model
-        return self._llm_config.model

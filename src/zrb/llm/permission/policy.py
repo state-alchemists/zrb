@@ -13,6 +13,7 @@ and a ``frozenset`` of tool names selectively auto-approves.
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from fnmatch import fnmatch
 
@@ -86,7 +87,13 @@ def _arg_matches(pattern: str, args: dict) -> bool:
     return False
 
 
-def resolve_policy(raw) -> "PermissionPolicy | None":
+# The shapes ``resolve_policy`` (and therefore the ``permissions=`` task
+# argument) accepts: an already-built policy, a shorthand/list string, a
+# sequence of ``Rule``s or rule dicts, or ``None`` (legacy: nothing constrained).
+PermissionPolicyInput = PermissionPolicy | str | Sequence[Rule | dict] | None
+
+
+def resolve_policy(raw: "PermissionPolicyInput") -> "PermissionPolicy | None":
     """Build a policy from user config.
 
     Accepts ``None``/empty (→ ``None``, legacy behavior), a ``PermissionPolicy``,

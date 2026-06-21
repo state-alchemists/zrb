@@ -1,8 +1,8 @@
 """
 Permission Policy Example
 
-This example demonstrates how to define and apply a PermissionPolicy
-for LLMChatTask using a hook factory.
+Demonstrates applying a PermissionPolicy to the built-in `llm_chat` task
+(the one `zrb llm chat` runs) via its `permissions` property.
 
 Usage:
     cd examples/permission-policy
@@ -13,7 +13,7 @@ Alternatively, set the policy via environment variable:
     zrb llm chat
 """
 
-from zrb import LLMChatTask, cli
+from zrb.builtin.llm.chat import llm_chat
 from zrb.llm.permission import (
     ALLOW,
     ASK,
@@ -22,10 +22,9 @@ from zrb.llm.permission import (
     PermissionPolicy,
     Rule,
 )
-from zrb.llm.permission.state import set_current_permission_policy
 
-# 1. Define a custom permission policy
-my_policy = PermissionPolicy(
+# Apply a custom permission policy to the built-in chat task.
+llm_chat.permissions = PermissionPolicy(
     (
         # Deny editing any .env files
         Rule("Edit", DENY, arg_pattern="**/.env"),
@@ -38,19 +37,3 @@ my_policy = PermissionPolicy(
         Rule("*", DENY),
     )
 )
-
-
-# 2. Create a hook factory that applies the policy at session start
-def apply_policy(manager):
-    set_current_permission_policy(my_policy)
-    return manager
-
-
-# 3. Create an LLMChatTask with the policy hook
-safe_chat = LLMChatTask(
-    name="safe-chat",
-    ui_greeting="Hello! I'm operating under a strict permission policy. Try asking me to read files, edit .env, or run shell commands.",
-)
-
-safe_chat.add_hook_factory(apply_policy)
-cli.add_task(safe_chat)
