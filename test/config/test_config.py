@@ -354,13 +354,6 @@ def test_web_auth_enabled(monkeypatch):
     assert config.WEB_AUTH_ENABLED
 
 
-def test_web_auth_enabled_legacy_alias(monkeypatch):
-    # Back-compat: the pre-rename env key still reads.
-    monkeypatch.setenv("ZRB_WEB_ENABLE_AUTH", "1")
-    config = Config()
-    assert config.WEB_AUTH_ENABLED
-
-
 def test_web_auth_access_token_expire_minutes(monkeypatch):
     monkeypatch.setenv("ZRB_WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES", "60")
     config = Config()

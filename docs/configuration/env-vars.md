@@ -75,7 +75,7 @@ Zrb's experimental Web UI has dedicated configuration options.
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ZRB_WEB_HTTP_PORT` | Port for Web UI server | `21213` |
-| `ZRB_WEB_AUTH_ENABLED` | Enable username/password authentication (legacy alias: `ZRB_WEB_ENABLE_AUTH`) | `0` (false) |
+| `ZRB_WEB_AUTH_ENABLED` | Enable username/password authentication | `0` (false) |
 | `ZRB_WEB_SECRET_KEY` | Secret key for authentication tokens ⚠️ **Change for production!** | `zrb` |
 
 ### Authentication Tokens
