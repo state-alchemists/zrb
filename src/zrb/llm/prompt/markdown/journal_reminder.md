@@ -1,1 +1,1 @@
-[SYSTEM REMINDER] Consider whether anything from this turn is worth journaling per the Journal Protocol.
+[SYSTEM REMINDER] If this turn produced a durable, *verified* finding, log it per the Journal Protocol. Skip clarifying questions, refusals, and any claim you have not confirmed with a tool this turn. Do not log merely because this reminder fired.
