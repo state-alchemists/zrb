@@ -9,7 +9,7 @@ See ``zrb.llm.sandbox`` and docs/advanced-topics/sandbox.md.
 
 from __future__ import annotations
 
-from zrb.config.env_field import EnvField, expanduser_colon_list
+from zrb.config.env_field import EnvField, colon_join, expanduser_colon_list
 from zrb.util.string.conversion import to_boolean
 
 # Directories that commonly hold credentials. Defined here (config is a leaf
@@ -67,6 +67,7 @@ class LLMSandboxMixin:
 
     LLM_SANDBOX_WRITABLE_PATHS = EnvField(
         expanduser_colon_list,
+        serialize=colon_join,
         doc=(
             "Colon-separated directories LLM tool calls may write to. Empty "
             "(default) means automatic: the current working directory plus the "
@@ -76,6 +77,7 @@ class LLMSandboxMixin:
 
     LLM_SANDBOX_DENY_READ_PATHS = EnvField(
         expanduser_colon_list,
+        serialize=colon_join,
         doc=(
             "Colon-separated paths LLM tool calls may never read (credential "
             "stores). Setting this replaces the built-in default list."
