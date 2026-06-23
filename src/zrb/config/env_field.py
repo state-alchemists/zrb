@@ -12,9 +12,8 @@ descriptor exactly as a `@property` did, so no caller or test needs to change.
 
 Genuinely irregular knobs are intentionally NOT migrated and stay as
 hand-written properties: non-prefixed env keys (foundation's `ENV_PREFIX`,
-`VERSION`; search `BRAVE_API_KEY`/`SERPAPI_KEY`), values needing post-read
-transformation (`BANNER`, `LLM_ASSISTANT_NAME`), and the token-threshold
-clamping in `llm_content`.
+`VERSION`; search `BRAVE_API_KEY`/`SERPAPI_KEY`), and values needing
+post-read transformation (`BANNER`, `LLM_ASSISTANT_NAME`).
 """
 
 from __future__ import annotations
@@ -68,6 +67,11 @@ class EnvField(Generic[T]):
     cast:
         Callable applied to the raw string on read (e.g. ``int``, ``float``,
         ``to_boolean``, ``colon_list``). Defaults to ``str`` (identity).
+    transform:
+        Optional ``callable(value, host) -> value`` applied after ``cast``.
+        Receives the already-cast value and the host config object, enabling
+        post-read transformations that depend on sibling config (e.g. clamping
+        a token threshold against ``LLM_MAX_TOKEN_PER_MINUTE``).
     serialize:
         Callable applied to the value on write before storing in os.environ
         (e.g. ``on_off``, ``colon_join``). Defaults to ``str``.
@@ -84,6 +88,10 @@ class EnvField(Generic[T]):
         ``callable(host) -> str`` computing the fallback at read time (for
         defaults that depend on other config, e.g. a dir derived from
         ``ROOT_GROUP_NAME``). Highest precedence.
+    fallback:
+        Value returned when ``cast`` raises ``ValueError`` or ``TypeError``
+        (e.g. an env var set to ``"abc"`` with ``cast=int``). Lets fields
+        degrade gracefully instead of raising. Unset by default (re-raises).
     nullable:
         When ``True``, an unset/empty value reads as ``None`` and assigning
         ``None`` deletes the env var instead of writing ``"None"``.
@@ -95,20 +103,24 @@ class EnvField(Generic[T]):
         self,
         cast: Callable[[str], T] = str,  # type: ignore[assignment]
         *,
+        transform: Callable[[T, Any], T] | None = None,
         serialize: Callable[[Any], str] = str,
         aliases: list[str] | None = None,
         write_key: str | None = None,
         default: Any = _UNSET,
         default_factory: Callable[[Any], str] | None = None,
+        fallback: Any = _UNSET,
         nullable: bool = False,
         doc: str = "",
     ):
         self._cast = cast
+        self._transform = transform
         self._serialize = serialize
         self._aliases = aliases
         self._write_key = write_key
         self._default = default
         self._default_factory = default_factory
+        self._fallback = fallback
         self._nullable = nullable
         self.__doc__ = doc
 
@@ -144,7 +156,15 @@ class EnvField(Generic[T]):
             # already short-circuit above; a str-cast field with an empty default
             # is unaffected since str("") == "".)
             raw = self._resolve_default(obj)
-        return self._cast(raw)
+        try:
+            value = self._cast(raw)
+        except (ValueError, TypeError):
+            if self._fallback is not _UNSET:
+                return self._fallback
+            raise
+        if self._transform is not None:
+            value = self._transform(value, obj)
+        return value
 
     def __set__(self, obj: Any, value: Any) -> None:
         key = f"{obj.ENV_PREFIX}_{self._write_name}"
