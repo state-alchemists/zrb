@@ -85,8 +85,6 @@ class LLMContentMixin:
         doc="Enable/disable the rewind feature for LLM conversations.",
     )
 
-    # --- Group 1: lenient-int fields (fallback=0 on parse error) -----------
-
     LLM_HISTORY_BACKUP_RETAIN = EnvField(
         int,
         fallback=0,
@@ -125,8 +123,6 @@ class LLMContentMixin:
         default_factory=lambda cfg: cfg.DEFAULT_LLM_FILE_READ_LINES,
         doc="Default number of lines to read from files (head/tail).",
     )
-
-    # --- Group 2: token-threshold fields (post-read clamping via transform) -
 
     LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD = EnvField(
         int,
