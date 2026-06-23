@@ -73,84 +73,28 @@ prompt_manager.add_tool_guidance(group="My Tools", name="MyTool",
 
 ## Architecture Decision Records (ADRs)
 
-Significant design decisions are recorded as ADRs in `docs/adr/`. Each ADR
-captures context, decision, consequences, alternatives rejected, and evidence
-(cross-references to code/docs). The index at `docs/adr/README.md` lists every
-record.
+Record a decision as an ADR in `docs/adr/` when it is **non-trivial** (a
+reasonable developer could pick a different path), **consequential** (affects
+other parts of the system or how users interact with it), and **persistent**
+(meant to last, not a quick hack). One decision per record; mark a reversed
+decision `Superseded by ADR-NNNN` rather than deleting it.
 
-### When to write one
-
-Write an ADR when a decision is:
-- **Non-trivial** — a reasonable developer could pick a different path.
-- **Consequential** — affects how other parts of the system work or how users
-  interact with it.
-- **Persistent** — the decision is expected to last (not a quick hack).
-
-### How to add one
-
-1. Find the next free `ADR-NNNN` in the index.
-2. Create a new file `docs/adr/adr-NNNN.md` with the ADR content.
-3. Add a row to the index in `docs/adr/README.md`.
-4. If the decision reverses or refines an old ADR, mark the old one
-   `Superseded by ADR-NNNN` — preserve the history.
-
-### Format
-
-Every ADR uses this shape:
-
-- **Status** — Accepted / Superseded / Evolving
-- **Context** — the forces and problem that prompted the decision
-- **Decision** — what was chosen, concretely
-- **Consequences** — what this buys and what it costs
-- **Alternatives rejected** — and why
-- **Evidence** — file/doc pointers; tag each rationale `[DOCUMENTED]` (stated
-  in code/docs) or `[INFERRED]` (deduced from code structure)
-
-One decision per record. If the decision is still being discussed, mark it
-**Evolving** and note open questions as `@<owner> please decide` tags.
+Mechanics — numbering, file layout, and the
+Status/Context/Decision/Consequences/Alternatives/Evidence shape — live in
+[`docs/adr/README.md`](docs/adr/README.md).
 
 ## Changelog
 
-Index and directory under `docs/`:
-
-- `changelog.md` — index page listing every minor version with links.
-- `changelog-v2/` — directory of per-minor-version files (e.g. `2.38.0.md`, `2.35.0-2.35.3.md`).
-- `changelog-v1.md` — archive of the 1.x line (and the 1.0.0 rewrite from 0.x).
-
-### Entry format
-
-Each release is a `## <version> (<Month D, YYYY>)` heading followed by themed
-bullets. One blank line between entries. Use `- **<Category>: <Title>**:` with
-nested `  - <detail>` sub-bullets; categories are free-form but conventionally
-`Feature` / `Improvement` / `Fix` / `Reliability` / `Security` / `Refactor` /
-`Performance` / `Chore` / `Documentation` / `Tests`. Write past-tense and
-factual, and reference concrete symbols/paths (`module.py`, `ClassName`, env
-vars, ADR-NNNN) so a reader can locate the change.
-
-### Collapsing (compaction)
-
-Old entries are periodically compacted so each minor keeps only two entries —
-the minor bump and its final revision — giving the retained sequence:
-
-```
-x.y.0  →  x.y.z (latest revision of x.y)  →  x.y+1.0  →  …
-```
-
-The kept `x.y.z` **summarizes** the dropped patches `x.y.1`–`x.y.z`, and `x.y.0`
-**absorbs** its pre-releases (`x.y.0a*`/`x.y.0b*`) — never just dropped, since
-the real features usually live there. Rolled-up entries get a
-`_Cumulative summary of the X.Y.1–X.Y.Z patch line._` note. The newest minor
-stays at full per-patch detail (uncollapsed file in `changelog-v2/`) until it
-ages out.
-
-Full procedure, rationale, and a worked example:
+Lives under `docs/`: `changelog.md` (index), `changelog-v2/` (per-minor files,
+e.g. `2.38.0.md`, `2.35.0-2.35.3.md`), `changelog-v1.md` (1.x archive). Entry
+format and the compaction/collapsing procedure — with a worked example — are in
 [Maintainer Guide → Changelog](docs/advanced-topics/maintainer-guide.md#changelog).
 
 ## Development Conventions
 
 ### Code Style
 - Follow existing project conventions (formatting, naming, typing)
-- **Modularity:** functions ~30–50 lines; helpers placed below their callers
+- **Modularity:** functions ≤ 30 lines; helpers placed below their callers
 - **Error handling:** LLM tool errors include a `[SYSTEM SUGGESTION]` prefix with actionable guidance
 
 ### Config Conventions
