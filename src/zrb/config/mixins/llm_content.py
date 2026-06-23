@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING
 
+from zrb.config.env_field import EnvField, on_off
 from zrb.config.helper import (
     get_env,
     get_max_token_threshold,
@@ -39,6 +40,55 @@ class LLMContentMixin:
         self.DEFAULT_LLM_FILE_READ_LINES: str = "1000"
         super().__init__()
 
+    LLM_HISTORY_DIR = EnvField(
+        str,
+        default_factory=lambda cfg: (
+            cfg.DEFAULT_LLM_HISTORY_DIR
+            if cfg.DEFAULT_LLM_HISTORY_DIR
+            else os.path.expanduser(
+                os.path.join("~", f".{cfg.ROOT_GROUP_NAME}", "llm-history")
+            )
+        ),
+        doc="Directory for LLM conversation history files.",
+    )
+
+    LLM_SNAPSHOT_DIR = EnvField(
+        str,
+        default_factory=lambda cfg: (
+            cfg.DEFAULT_LLM_SNAPSHOT_DIR
+            if cfg.DEFAULT_LLM_SNAPSHOT_DIR
+            else os.path.expanduser(
+                os.path.join("~", f".{cfg.ROOT_GROUP_NAME}", "llm-snapshots")
+            )
+        ),
+        doc="Directory for LLM conversation snapshots.",
+    )
+
+    LLM_JOURNAL_DIR = EnvField(
+        str,
+        default_factory=lambda cfg: (
+            cfg.DEFAULT_LLM_JOURNAL_DIR
+            if cfg.DEFAULT_LLM_JOURNAL_DIR
+            else os.path.expanduser(
+                os.path.join("~", f".{cfg.ROOT_GROUP_NAME}", "llm-notes")
+            )
+        ),
+        doc="Directory for LLM journal/notes.",
+    )
+
+    LLM_JOURNAL_INDEX_FILE = EnvField(
+        str,
+        default_factory=lambda cfg: cfg.DEFAULT_LLM_JOURNAL_INDEX_FILE,
+        doc="Filename of the journal index file.",
+    )
+
+    LLM_ENABLE_REWIND = EnvField(
+        to_boolean,
+        serialize=on_off,
+        default_factory=lambda cfg: cfg.DEFAULT_LLM_ENABLE_REWIND,
+        doc="Enable/disable the rewind feature for LLM conversations.",
+    )
+
     def _get_max_threshold(self, factor: float) -> int:
         return get_max_token_threshold(
             factor, self.LLM_MAX_TOKEN_PER_MINUTE, self.LLM_MAX_TOKEN_PER_REQUEST
@@ -53,19 +103,6 @@ class LLMContentMixin:
                 return int(default)
             except (ValueError, TypeError):
                 return 0
-
-    @property
-    def LLM_HISTORY_DIR(self) -> str:
-        default = self.DEFAULT_LLM_HISTORY_DIR
-        if default == "":
-            default = os.path.expanduser(
-                os.path.join("~", f".{self.ROOT_GROUP_NAME}", "llm-history")
-            )
-        return get_env("LLM_HISTORY_DIR", default, self.ENV_PREFIX)
-
-    @LLM_HISTORY_DIR.setter
-    def LLM_HISTORY_DIR(self, value: str) -> None:
-        os.environ[f"{self.ENV_PREFIX}_LLM_HISTORY_DIR"] = value
 
     @property
     def LLM_HISTORY_BACKUP_RETAIN(self) -> int:
@@ -83,56 +120,6 @@ class LLMContentMixin:
     @LLM_HISTORY_BACKUP_RETAIN.setter
     def LLM_HISTORY_BACKUP_RETAIN(self, value: int) -> None:
         os.environ[f"{self.ENV_PREFIX}_LLM_HISTORY_BACKUP_RETAIN"] = str(value)
-
-    @property
-    def LLM_ENABLE_REWIND(self) -> bool:
-        return to_boolean(
-            get_env(
-                "LLM_ENABLE_REWIND", self.DEFAULT_LLM_ENABLE_REWIND, self.ENV_PREFIX
-            )
-        )
-
-    @LLM_ENABLE_REWIND.setter
-    def LLM_ENABLE_REWIND(self, value: bool) -> None:
-        os.environ[f"{self.ENV_PREFIX}_LLM_ENABLE_REWIND"] = "on" if value else "off"
-
-    @property
-    def LLM_SNAPSHOT_DIR(self) -> str:
-        default = self.DEFAULT_LLM_SNAPSHOT_DIR
-        if default == "":
-            default = os.path.expanduser(
-                os.path.join("~", f".{self.ROOT_GROUP_NAME}", "llm-snapshots")
-            )
-        return get_env("LLM_SNAPSHOT_DIR", default, self.ENV_PREFIX)
-
-    @LLM_SNAPSHOT_DIR.setter
-    def LLM_SNAPSHOT_DIR(self, value: str) -> None:
-        os.environ[f"{self.ENV_PREFIX}_LLM_SNAPSHOT_DIR"] = value
-
-    @property
-    def LLM_JOURNAL_DIR(self) -> str:
-        default = self.DEFAULT_LLM_JOURNAL_DIR
-        if default == "":
-            default = os.path.expanduser(
-                os.path.join("~", f".{self.ROOT_GROUP_NAME}", "llm-notes")
-            )
-        return get_env("LLM_JOURNAL_DIR", default, self.ENV_PREFIX)
-
-    @LLM_JOURNAL_DIR.setter
-    def LLM_JOURNAL_DIR(self, value: str) -> None:
-        os.environ[f"{self.ENV_PREFIX}_LLM_JOURNAL_DIR"] = value
-
-    @property
-    def LLM_JOURNAL_INDEX_FILE(self) -> str:
-        return get_env(
-            "LLM_JOURNAL_INDEX_FILE",
-            self.DEFAULT_LLM_JOURNAL_INDEX_FILE,
-            self.ENV_PREFIX,
-        )
-
-    @LLM_JOURNAL_INDEX_FILE.setter
-    def LLM_JOURNAL_INDEX_FILE(self, value: str) -> None:
-        os.environ[f"{self.ENV_PREFIX}_LLM_JOURNAL_INDEX_FILE"] = value
 
     @property
     def LLM_HISTORY_SUMMARIZATION_WINDOW(self) -> int:
