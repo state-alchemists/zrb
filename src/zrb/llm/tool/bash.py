@@ -14,7 +14,7 @@ async def run_bash_command(
     timeout: int = 120,
     preserved_head_lines: int = 500,
     preserved_tail_lines: int = 500,
-    max_chars: int | None = None,
+    max_chars: int = 0,
     dangerously_skip_sandbox: bool = False,
     background: bool = False,
     description: str = "",
