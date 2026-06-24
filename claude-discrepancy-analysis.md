@@ -2,9 +2,9 @@
 
 > **Purpose**: Identify every Claude Code feature, assess Zrb's current coverage, quantify the gap, and outline the effort required to make Zrb a superset of Claude Code.
 >
-> **Methodology**: Claude Code features sourced from official docs (code.claude.com/docs) and the public CHANGELOG (through v2.1.170, June 9, 2026), fetched June 2026. Zrb features sourced from full codebase exploration of `src/zrb/` at v2.34.0 plus the changelog (`docs/changelog.md`, `docs/changelog-v2.md`).
+> **Methodology**: Claude Code features sourced from official docs (code.claude.com/docs) and the public CHANGELOG, fetched June 2026. Zrb features sourced from full codebase exploration of `src/zrb/` plus the changelog (`docs/changelog.md`, `docs/changelog-v2/`).
 >
-> **Zrb version**: 2.34.0 (June 10, 2026)
+> **Zrb version**: 2.40.1 (June 23, 2026)
 >
 > **Legend**:
 > - ✅ **Fully supported** — identical or functionally equivalent
@@ -112,20 +112,22 @@ Rich interactive TUI:
 - **`!` bash prefix** — `! cmd` / `/exec cmd` runs shell and injects output
 - **`@` file mention** with autocomplete (`completion.py`)
 - **`/` slash-command palette** — full built-in set + custom skill commands
-- `/attach`, `/model` (now with `small <name>` / `multimodal <name>` subcommands + tab-completion, v2.32.0), `/yolo` (full + selective), `/plan` (toggle plan mode, v2.32.0), `/save` / `/load`, `/compress` / `/compact`, `>` / `/redirect` (bare → clipboard), `/copy` (transcript → clipboard or file, OSC 52 fallback for SSH/tmux, v2.33.2), `/btw`, `/rewind`
+- `/attach`, `/model` (with `small <name>` / `multimodal <name>` subcommands + tab-completion), `/yolo` (full + selective), `/plan` (toggle plan mode), `/save` / `/load`, `/compress` / `/compact`, `>` / `/redirect` (bare → clipboard), `/copy` (transcript → clipboard or file, OSC 52 fallback for SSH/tmux), `/btw`, `/rewind`
 - **Image clipboard paste** — Ctrl+V and **Alt+V** ✅
-- **Arrow-key selection UI for `AskUserQuestion`** ✅ **NEW (v2.34.0, ADR-0064)**: ↑/↓ + Enter, Space toggle for multi-select, synthetic "Type my own answer…" row; in-layout `Float` widget; non-terminal UIs fall back to numbered text via the optional `ask_user_choice` protocol method
+- **Arrow-key selection UI for `AskUserQuestion`** ✅ (ADR-0064): ↑/↓ + Enter, Space toggle for multi-select, synthetic "Type my own answer…" row; in-layout `Float` widget; non-terminal UIs fall back to numbered text via the optional `ask_user_choice` protocol method
+- **Shift+Tab interaction-mode cycling** ✅ **(ADR-0075)**: `normal → auto-accept-edits → plan → normal`, mirroring Claude Code; status-bar **mode badge** (`normal`/`accept-edits`/`plan`, plus `yolo`/`custom-yolo`) + `shift+tab to cycle` hint. `Tab` also cycles (Termux can't distinguish the two bytes). Auto-accept-edits = selective YOLO over `Write`/`Edit` (file writes auto-approve; shell/delegation/fetch still prompt)
+- **Configurable color themes** ✅ **(ADR-0077)**: a semantic CLI color layer (`stylize_warning`/`error`/`muted`/…) + TUI styles (mode badges, info-bar indicators, choice-widget bg) are all `ZRB_CLI_COLOR_*` / `ZRB_CLI_STYLE_*` / `ZRB_LLM_UI_STYLE_*` env-backed and take effect without restart; `examples/themes/` ships dark/light/high-contrast scripts
 - **MultiUI** — broadcast to multiple channels (terminal + Telegram + web), first-response-wins
-- **Animated thinking / confirmation indicators** ✅ (v2.26.x): adaptive refresh loop, debounced invalidation (33–100× fewer redraws)
-- **Todo progress cards** ✅ (v2.32.0, ADR-0057): styled progress card pushed to the active UI (TUI, StdUI, web SSE) after every todo change
-- **`/help` keyboard-shortcut reference + width-guarded welcome banner** ✅ (v2.28.4–5)
-- Git branch + dirty status, active worktree, pending todos, recent commits all shown in context
+- **Animated thinking / confirmation indicators** ✅: adaptive refresh loop, debounced invalidation (33–100× fewer redraws); the tool-arg spinner is throttled to ~10×/sec
+- **Todo progress cards** ✅ (ADR-0057): styled progress card pushed to the active UI (TUI, StdUI, web SSE) after every todo change
+- **`/help` keyboard-shortcut reference + width-guarded welcome banner** ✅
+- Git branch + dirty status, active worktree, pending todos, recent commits all surfaced via the per-turn `<live-context>` block (ADR-0065)
 
 **Status**: 🟡 **Partially supported**
 
-**Gap**: Zrb has `!`, `@`, `/`, `/btw`, image paste (incl. Alt+V), MultiUI, animated status, arrow-key question widgets, todo cards, transcript copy/export. Background shell now exists as a *tool* (`ShellBackground`, §12) but there is no Ctrl+B-style UI affordance. Still missing: Vim mode, voice input, permission-mode cycling (Shift+Tab — plan/build modes now exist but only toggle via `/plan`), extended-thinking toggle, task-list toggle (Ctrl+T), Esc+Esc rewind shortcut, git-history prompt suggestions, transcript viewer, color themes, configurable status line, session branching, `/cd` mid-session cwd change.
+**Gap**: Zrb now has `!`, `@`, `/`, `/btw`, image paste (incl. Alt+V), MultiUI, animated status, arrow-key question widgets, todo cards, transcript copy/export, **Shift+Tab mode cycling**, and **configurable color themes** — three formerly-missing items now closed. Background shell exists via `Shell`/`Bash` `background=True` (§12) but there is no Ctrl+B-style UI affordance. Still missing: Vim mode, voice input, extended-thinking toggle, task-list toggle (Ctrl+T), Esc+Esc rewind shortcut, git-history prompt suggestions, transcript viewer, configurable status line content, session branching, `/cd` mid-session cwd change.
 
-**Effort to close**: **Medium** (3–5 weeks): Shift+Tab cycling over plan/build/yolo (2–3d now that modes exist), prompt suggestions (~1wk), Vim mode (2–3wk), themes (1–2d), voice (2–3wk).
+**Effort to close**: **Medium** (3–5 weeks): prompt suggestions (~1wk), Vim mode (2–3wk), voice (2–3wk).
 
 ---
 
@@ -199,31 +201,33 @@ Built-in slash commands: `/compress` / `/compact`, `/attach`, `/q` `/bye` `/quit
 
 ### Zrb
 
-**11 hook events** (`src/zrb/llm/hook/types.py`, up from 9):
-- `SESSION_START`, `SESSION_END`, `USER_PROMPT_SUBMIT`
-- `PRE_TOOL_USE`, `POST_TOOL_USE`, `POST_TOOL_USE_FAILURE`
-- `NOTIFICATION`, `STOP`, `PRE_COMPACT`
-- **`PRE_COMMAND`, `POST_COMMAND`** ✅ **NEW (v2.31.0)** — slash-command bracketing (Zrb-specific naming; no direct Claude Code equivalent — closest to `UserPromptExpansion`)
+**16 hook events** (`src/zrb/llm/hook/types.py`):
+- `SESSION_START` (carries `source` = startup/resume), `SESSION_END` (now **terminal** — fires once at chat teardown, ADR-0074), `USER_PROMPT_SUBMIT` (carries `prompt`; can block the turn)
+- `PRE_TOOL_USE`, `POST_TOOL_USE`, `POST_TOOL_USE_FAILURE` (all carry Claude-standard `tool_name`/`tool_input`/`tool_response`)
+- `PERMISSION_REQUEST` (auto-resolve via `decision.behavior`), `NOTIFICATION` (matches on `notification_type`)
+- `STOP` (block-to-continue + turn-extension point, capped at 8 consecutive blocks), `STOP_FAILURE` (observe-only; `error_type` matcher token)
+- `PRE_COMPACT` (can **block** compaction; injects `additionalContext`), `POST_COMPACT`
+- `SUBAGENT_START`, `SUBAGENT_STOP` (fire around delegation with `agent_type`/`agent_id`; SubagentStop observe-only)
+- `PRE_COMMAND`, `POST_COMMAND` — slash-command bracketing (Zrb-specific; closest Claude analog `UserPromptExpansion`)
 
 **3 handler types**: `COMMAND` (shell), `PROMPT` (LLM eval), `AGENT` (sub-agent). No `http`, no `mcp_tool`.
 
 **7 matcher operators**: `EQUALS`, `NOT_EQUALS`, `CONTAINS`, `STARTS_WITH`, `ENDS_WITH`, `REGEX`, `GLOB`.
 
-**Capabilities**:
-- `HookResult` factories: `block`, `allow`, `ask`, `deny`, `with_system_message(replace_response=…)`, `with_additional_context`
-- **Tool-input mutation** ✅ **NEW (v2.31.0)**: `allow(updated_input=…)` merges into `hookSpecificOutput.updatedInput` — hooks can rewrite tool params before execution (parity with Claude Code's `updatedInput`)
-- **Command-arg mutation** ✅ **NEW (v2.31.0)**: `command_args` rewriting for slash commands
-- Async/sync with timeouts (`HOOKS_TIMEOUT`, default 30000ms)
-- Config tiers (high→low): plugins → user-home (`~/.claude/`, `~/.zrb/`) → project dirs → `CFG.HOOKS_DIRS`; formats JSON / YAML / `.hook.py` (`register(manager)`); Claude-style env vars (`CLAUDE_HOOK_EVENT`, `CLAUDE_CWD`, `CLAUDE_PERMISSION_MODE`, …)
-- Skill-frontmatter hook definitions; `add_hook_factory()`; built-in journaling hook fires reminder at `SESSION_END`
+**Claude-protocol parity** ✅ (ADR-0066/0074): every tool call flows through one chokepoint (`SafeToolsetWrapper.call_tool`), so hooks fire reliably and honor the Claude wire protocol:
+- **PreToolUse**: `permissionDecision` `deny`/`ask`/`defer`, `exit 2` block (reason read from **stderr**), `updatedInput` arg rewrite
+- **PostToolUse**: `decision: block`, `updatedToolOutput`, `additionalContext` (appended to the model-facing result)
+- **Turn control**: `UserPromptSubmit` / `Stop` can end or extend the turn; `continue:false` halts the `run_agent` loop; raw stdout from `SessionStart`/`UserPromptSubmit` becomes `additionalContext`
+- **Claude-shaped IO**: event payload written to the hook subprocess' **stdin** as `to_claude_json()`; reads `.claude/settings.json` / `settings.local.json` as hook sources; Claude-style env vars; **tool-name aliases** (`Shell`→`Bash`, `DelegateToAgent`→`Task`) so Claude matchers register; `ZRB_HOOKS_ENABLED` global kill-switch
+- Async hooks are true fire-and-forget (semaphore + backlog ceiling); skill-frontmatter hook definitions; `add_hook_factory()` on both `LLMChatTask` and `LLMTask` (ADR-0076)
 
 **Status**: 🟡 **Partially supported**
 
-**Gap**: 11 of 30 Claude Code events (~37%). Missing events: `Setup`, `InstructionsLoaded`, `UserPromptExpansion`, `PostToolBatch`, `MessageDisplay`, `StopFailure`, `CwdChanged`, `FileChanged`, `ConfigChange`, `PostCompact`, `Elicitation`/`ElicitationResult`, `WorktreeCreate`/`WorktreeRemove`, `SubagentStart`/`SubagentStop`, `TaskCreated`/`TaskCompleted`, `TeammateIdle`, `PermissionRequest`/`PermissionDenied`. Missing handler types: `http`, `mcp_tool`. Missing features: `CLAUDE_ENV_FILE`, `once`, `statusMessage`, `/hooks` UI, conditional `if`, `allowedHttpHookUrls`, `terminalSequence`.
+**Gap**: 16 of ~30 Claude Code events (~53%). Missing events: `Setup`, `InstructionsLoaded`, `UserPromptExpansion`, `PostToolBatch`, `MessageDisplay`, `CwdChanged`, `FileChanged`, `ConfigChange`, `Elicitation`/`ElicitationResult`, `WorktreeCreate`/`WorktreeRemove`, `TaskCreated`/`TaskCompleted`, `TeammateIdle`, `PermissionDenied`. Missing handler types: `http`, `mcp_tool`. Missing features: `CLAUDE_ENV_FILE`, `once`, `statusMessage`, `/hooks` UI, conditional `if`, `allowedHttpHookUrls`, `terminalSequence`.
 
-**Note**: tool-input and command-arg mutation (the most powerful PreToolUse capability) now reach parity. The remaining gap is breadth of lifecycle coverage, not depth of action.
+**Behavioral divergences** (documented in `docs/advanced-topics/hooks.md`): Zrb runs hooks **sequentially by priority** (not parallel + most-restrictive-wins); only the first `additionalContext` is used; a blocked `PostToolUse` discards the result; `ask` degrades to proceed on the execution-time path; `SubagentStop` is observe-only; `Notification` fires only for elicitation.
 
-**Effort to close**: **Medium-High** (4–5 weeks): add missing events + fire points (~1.5wk), `http` handler (2–3d), `mcp_tool` handler (2–3d), `if`/`once`/`statusMessage` (2–3d), security settings (2d), `/hooks` UI (2–3d).
+**Effort to close**: **Medium** (3–4 weeks): `http` handler (2–3d), `mcp_tool` handler (2–3d), remaining lifecycle events + fire points (~1wk), `if`/`once`/`statusMessage` (2–3d), `/hooks` UI (2–3d).
 
 ---
 
@@ -263,13 +267,13 @@ Declarative subagents via markdown + YAML frontmatter (`.claude/agents/`, `~/.cl
 - Built-in agents (`src/zrb/llm_plugin/agents/`): `generalist`, `researcher`, `code-reviewer`
 
 **Delegation tools**:
-- `create_delegate_to_agent_tool()` → `DelegateToAgent(agent_name, deliverable, task, non_goals, additional_context)` — single sub-agent, scope-clamped via DELIVERABLE/NON-GOALS/TASK/CONTEXT envelope
-- `create_parallel_delegate_tool()` → `DelegateToAgentsParallel(tasks)` — concurrent multi-agent, shared UI lock for sequential approvals
-- **`DelegateToAgentBackground` + `GetDelegationResult`** ✅ **NEW (v2.32.0, ADR-0054)** — background sub-agents as detached `asyncio` tasks; inherit the parent's permission policy / YOLO / agent mode via ContextVar copy; approvals route to the parent UI's confirmation queue (interrupt-to-ask, no silent auto-approve); `BufferedUI` holds output until flush; results polled by handle; multiple can run concurrently — parity with Claude Code's foreground/background subagents (minus the Ctrl+B UI)
-- **Permission-filtered roster** ✅ (v2.32.0, ADR-0053): `DelegateToAgent`'s agent roster is filtered by the active permission policy at render time; delegation is tagged `DELEGATE` and denied in plan mode
-- `SubAgentManager` (nested `manager/` package) with lazy filesystem loading; uses `LLMConfig.resolve_model()` so sub-agents respect the global model pipeline
-- **YOLO inheritance** ✅ (v2.28.0): full and selective YOLO propagate to sub-agents
-- **Tool-guidance propagation** ✅ (v2.22.8): sub-agents receive the same `# Tool Usage Guide`
+- `create_delegate_to_agent_tool()` → `DelegateToAgent(agent_name, deliverable, task, non_goals, additional_context, tasks=[])` — single sub-agent scope-clamped via a DELIVERABLE/NON-GOALS/TASK/CONTEXT envelope; passing a non-empty `tasks` list runs every entry **concurrently** (ADR-0070 folded the former standalone `DelegateToAgentsParallel` into this one argument)
+- **`DelegateToAgentBackground` + `GetDelegationResult`** ✅ (ADR-0054) — background sub-agents as detached `asyncio` tasks; inherit the parent's permission policy / YOLO / agent mode via ContextVar copy; approvals route to the parent UI's confirmation queue (interrupt-to-ask, no silent auto-approve); `BufferedUI` holds output until flush; `GetDelegationResult` accepts `wait=` (block up to `LLM_BACKGROUND_WAIT_MAX`, default 300s) and `kill=` (ADR-0072); multiple can run concurrently — parity with Claude Code's foreground/background subagents (minus the Ctrl+B UI)
+- **`SubagentStart`/`SubagentStop` hooks** ✅ (ADR-0074) fire around delegation on the parent run's hook manager (`agent_type`/`agent_id`)
+- **Permission-filtered roster** ✅ (ADR-0053): `DelegateToAgent`'s agent roster is filtered by the active permission policy at render time; delegation is tagged `DELEGATE` and denied in plan mode
+- `SubAgentManager` (nested `manager/` package) with lazy filesystem loading; uses `LLMConfig.resolve_model()` so sub-agents respect the global model pipeline; built-in agents gated by `LLM_ENABLE_BUILTIN_AGENTS` (ADR-0069)
+- **YOLO inheritance** ✅: full and selective YOLO propagate to sub-agents
+- **Tool-guidance propagation** ✅: sub-agents receive the same `# Tool Usage Guide`
 
 **Status**: 🟡 **Partially supported**
 
@@ -288,7 +292,7 @@ Declarative subagents via markdown + YAML frontmatter (`.claude/agents/`, `~/.cl
 
 ### Zrb
 
-`create_parallel_delegate_tool()`: concurrent multi-agent execution, aggregated results, shared rate limiter + UI lock, per-agent error handling. **Background subagents** (v2.32.0): `DelegateToAgentBackground` spawns detached agents that run while the main conversation continues — a real building block toward background orchestration. Still no persistent team lifecycle, no inter-agent messaging, no shared task list with dependencies, no script-orchestrated fan-out to hundreds of agents.
+`DelegateToAgent(tasks=[…])`: concurrent multi-agent execution, aggregated results, shared rate limiter + UI lock, per-agent error handling. **Background subagents**: `DelegateToAgentBackground` spawns detached agents that run while the main conversation continues, now with `wait=`/`kill=` collection (ADR-0072) and `SubagentStart`/`SubagentStop` lifecycle hooks (ADR-0074) — real building blocks toward background orchestration. Still no persistent team lifecycle, no inter-agent messaging, no shared task list with dependencies, no script-orchestrated fan-out to hundreds of agents.
 
 **Status**: ❌ **Not supported** (parallel + background delegation exist, but not teams or scripted dynamic workflows)
 
@@ -313,15 +317,16 @@ Comprehensive skill system (`src/zrb/llm/skill/`):
 - **Companion-file discovery** ✅: `ActivateSkill` returns the skill directory path + grouped companion-file listing; `discover_companion_files()` + `format_companion_file_lines()`
 - Lazy scan + content caching; factory-function skills; `get_skill_custom_command()`
 
-**Built-in skills** (`src/zrb/llm_plugin/skills/`, 13 total) — **new 5-core architecture (v2.27.0)**:
-- Core hubs: `core-coding`, `core-research`, `core-design`, `core-writing`, `core-journaling`
-- `core-coding` companions: `languages/` (python, typescript, go, rust, java, ruby, php) + `workflows/` (testing, debug, refactor, review)
-- Others: `debug`, `git-summary`, `init`, `refactor`, `research`, `review`, `skill-creator`, `testing`
-- Skill activation table in the mandate maps domain → core skill (auto-approved, silent, once per session/domain)
+**Built-in skills** — split into governable categories (ADR-0069):
+- `core_skills/` — five always-on methodology hubs (`core-coding`, `core-research`, `core-design`, `core-writing`, `core-journaling`); **no toggle** (disabling would break the utility skills that delegate into them)
+- `skills/` — eight utility skills (`debug`, `git-summary`, `init`, `refactor`, `research`, `review`, `skill-creator`, `testing`), gated by `LLM_ENABLE_BUILTIN_SKILLS` (default on)
+- `agents/` — sub-agents gated by `LLM_ENABLE_BUILTIN_AGENTS` (default on)
+- `core-coding` companions: `languages/` (python, typescript, go, rust, java, ruby, php) + `workflows/` (testing, debug, refactor, review, **observability** — core/heap dumps, `kubectl` triage, PromQL, Kibana, with read-only helper tools)
+- Both toggles suppress **only built-in content** — user/project/plugin/extra skills always load; this is Zrb's analog of Claude Code's `disableBundledSkills`. Skill activation table in the Operating Rules maps domain → core skill (auto-approved, silent, once per session/domain)
 
 **Status**: ✅ **Mostly supported** (with minor gaps)
 
-**Gap**: Very close. Missing: `effort` and `${CLAUDE_EFFORT}` (Zrb has no effort concept), `disallowed-tools`, `paths:` glob activation, `shell` field, `` !`command` `` dynamic injection, `$CLAUDE_SESSION_ID` / `$CLAUDE_SKILL_DIR` substitutions, bundled utility skills (`/batch`, `/loop`).
+**Gap**: Very close, and the built-in-content toggles now match `disableBundledSkills`. Missing: `effort` and `${CLAUDE_EFFORT}` (Zrb has no effort concept), `disallowed-tools`, `paths:` glob activation, `shell` field, `` !`command` `` dynamic injection, `$CLAUDE_SESSION_ID` / `$CLAUDE_SKILL_DIR` substitutions, bundled utility skills (`/batch`, `/loop`).
 
 **Effort to close**: **Low** (1–2 weeks): `paths`/`shell`/`disallowed-tools` frontmatter (2–3d), `` !`command` `` preprocessing (1–2d), `$CLAUDE_SESSION_ID`/`$CLAUDE_SKILL_DIR` (1d), `/loop` bundled skill (2–3d).
 
@@ -331,7 +336,7 @@ Comprehensive skill system (`src/zrb/llm/skill/`):
 
 ### Claude Code
 
-**6 permission modes**: `default`, `acceptEdits`, `plan`, `auto` (background safety classifier; now on Bedrock/Vertex/Foundry for Opus 4.7/4.8), `bypassPermissions`, `dontAsk`. Shift+Tab cycling; `--permission-mode`; `defaultMode`. Permission rules `Tool`/`Tool(specifier)`/globs/domains/MCP patterns; evaluation deny > ask > allow; config managed > CLI > local > project > user; `hard_deny` unconditional rules; glob in the tool-name position of deny rules incl. `"*"` (v2.1.166); `PermissionRequest`/`PermissionDenied` hooks; `acceptEdits` now prompts before writing code-execution-granting configs (`.npmrc`, `.pre-commit-config.yaml`, `.devcontainer/`, shell startup files — v2.1.160).
+**6 permission modes**: `default`, `acceptEdits` (auto-approves edits + common FS commands), `plan`, `auto` (background safety classifier; now blocks destructive `git reset --hard`/`clean -fd`/`stash drop`/`commit --amend` and `terraform`/`pulumi`/`cdk destroy` unless explicitly requested — v2.1.183), `bypassPermissions`, `dontAsk`. Shift+Tab cycling; `--permission-mode` (incl. `dontAsk`); `defaultMode`. Permission rules `Tool`/`Tool(specifier)`/**`Tool(param:value)` input-parameter matching** (v2.1.178, e.g. `Agent(model:opus)`)/globs/domains/MCP patterns; evaluation deny > ask > allow; config managed > CLI > local > project > user; `hard_deny` unconditional rules; glob in the tool-name position of deny rules incl. `"*"`; `PermissionRequest`/`PermissionDenied` hooks.
 
 ### Zrb
 
