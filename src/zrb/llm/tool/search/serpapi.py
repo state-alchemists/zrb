@@ -13,12 +13,8 @@ def search_internet(
     api_key: str = "",
 ) -> dict[str, Any]:
     """
-    Performs a live internet search using SerpApi (Google Search).
-
-    MANDATES:
-    - Use to retrieve the most relevant and current information from the web.
-    - When you need precise, high-quality search results from Google.
-    - To find the latest official documentation, technical articles, or community discussions.
+    Searches the web via SerpApi (Google). Use for high-quality current results —
+    documentation, technical articles, and community discussions.
     """
     if not safe_search:
         safe_search = CFG.SERPAPI_SAFE

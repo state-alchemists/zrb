@@ -9,9 +9,8 @@ from zrb.llm.prompt.prompt import get_prompt
 
 async def open_web_page(url: str, summarize: bool = True) -> dict:
     """
-    Fetches a web page and returns it as Markdown. Includes links found on the page.
-
-    When `summarize=True` (default), a sub-agent extracts high-signal info and reduces token usage.
+    Fetches a web page as Markdown, including links. With summarize=True (default),
+    a sub-agent extracts high-signal content to reduce token usage.
     """
     try:
         html_content, links = await _fetch_page_content(url)
@@ -41,14 +40,8 @@ async def search_internet(
     page: int = 1,
 ) -> dict:
     """
-    Performs an internet search. Returns a normalized dict with:
-        - query: the search query
-        - results: list of {title, url, snippet, source}
-        - total: number of results
-        - page: current page
-        - error: null on success, error string on failure
-
-    Requires SERPAPI_KEY, BRAVE_API_KEY, or SearXNG configuration.
+    Searches the internet. Returns {query, results: [{title, url, snippet, source}],
+    total, page, error}. Requires SERPAPI_KEY, BRAVE_API_KEY, or SearXNG configuration.
     """
     # lazy: backend modules are kept lazy so tests can patch
     # `zrb.llm.tool.search.<backend>.search_internet` at the source path

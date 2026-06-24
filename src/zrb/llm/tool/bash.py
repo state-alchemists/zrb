@@ -14,35 +14,20 @@ async def run_bash_command(
     timeout: int = 120,
     preserved_head_lines: int = 500,
     preserved_tail_lines: int = 500,
-    max_chars: int = 0,
+    max_chars: int = -1,
     dangerously_skip_sandbox: bool = False,
     background: bool = False,
     description: str = "",
 ) -> str:
     """
-    Executes a non-interactive command under bash (git-bash on Windows).
-    Streams stdout/stderr live and returns truncated output.
+    Like Shell but always runs under bash (git-bash on Windows). Use when a script
+    or skill assumes bash; otherwise prefer Shell with the user's default shell.
+    stdin is closed — prompts hang until timeout; pass `-y`, `--yes`, or `CI=true`.
+    Batch with `&&`; use `cwd` instead of `cd`. Timed-out processes may continue in background.
 
-    Commands must be fully non-interactive: pass `-y`, `--yes`, `CI=true`, or
-    equivalent auto-confirmation flags so the process never waits for stdin —
-    stdin is closed, and interactive prompts hang until the timeout.
-
-    Batch independent commands with `&&` to avoid extra round-trips
-    (e.g. `pytest && flake8 src`). Use the `cwd` parameter instead of
-    `cd <dir> && ...` to set the working directory.
-
-    Default `timeout` is 120 seconds; timed-out processes may continue in the
-    background.
-
-    Args:
-        dangerously_skip_sandbox: Run this command OUTSIDE the OS-level sandbox
-            (when one is active). Only set it when a command genuinely needs to
-            write outside the workspace; it always requires explicit user
-            approval.
-        background: Start the command in the BACKGROUND and return a handle
-            immediately instead of blocking (long-running processes). Poll, wait,
-            or kill it with MonitorProcess(handle); `timeout` is not applied.
-        description: Optional human-readable label for a background process.
+    background=True returns a handle for MonitorProcess (timeout not applied).
+    dangerously_skip_sandbox=True exits the OS sandbox — requires explicit user approval.
+    max_chars=-1 uses the configured output limit.
     """
     return await _shell_cmd(
         command=command,

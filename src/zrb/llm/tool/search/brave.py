@@ -13,13 +13,8 @@ def search_internet(
     api_key: str = "",
 ) -> dict[str, Any]:
     """
-    Performs a live internet search using Brave Search.
-
-    MANDATES:
-    - Use to retrieve up-to-date information, news, or documentation.
-    - To find the latest information on rapidly changing topics (e.g., library updates, current events).
-    - To search for documentation or examples not present in the local codebase.
-    - To verify facts or find external resources.
+    Searches the web via Brave Search. Use for current information, news, documentation,
+    and resources not in the local codebase.
     """
     if not safe_search:
         safe_search = CFG.BRAVE_API_SAFE

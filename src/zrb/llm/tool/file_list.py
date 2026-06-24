@@ -51,12 +51,9 @@ def list_files(
     include_hidden: bool = False,
 ) -> dict[str, Any]:
     """
-    Recursively lists files up to 3 levels deep.
-
-    Auto-excludes `.git`, `node_modules`, `__pycache__`, etc. Sorted alphabetically.
-    Pass `exclude_patterns=[]` to include all files. By default, dotfiles and
-    dot-directories are skipped; pass `include_hidden=True` to surface them
-    (still subject to `exclude_patterns`).
+    Recursively lists files up to 3 levels deep. Auto-excludes .git, node_modules,
+    __pycache__, etc. Pass exclude_patterns=[] to include all. Dotfiles are hidden
+    by default; use include_hidden=True to surface them.
     """
     all_files: list[str] = []
     abs_path = os.path.abspath(os.path.expanduser(path))
@@ -112,12 +109,9 @@ def glob_files(
     include_hidden: bool = False,
 ) -> dict[str, Any]:
     """
-    Finds files matching glob patterns (e.g., `**/*.py`). Supports `**` for recursive search.
-
-    Auto-excludes `.git`, `node_modules`, `__pycache__`, etc. Sorted alphabetically.
-    Pass `exclude_patterns=[]` to include all files. By default, dotfiles and
-    paths under dot-directories are skipped; pass `include_hidden=True` to match
-    them (still subject to `exclude_patterns`).
+    Finds files matching glob patterns (e.g. **/*.py). Auto-excludes .git, node_modules,
+    __pycache__, etc. Pass exclude_patterns=[] to include all. Dotfiles are hidden
+    by default; use include_hidden=True to match them.
     """
     found_files = []
     abs_path = os.path.abspath(os.path.expanduser(path))

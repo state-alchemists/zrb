@@ -29,12 +29,8 @@ def search_internet(
     language: str = "",
 ) -> dict[str, Any]:
     """
-    Performs a live internet search using SearXNG.
-
-    MANDATES:
-    - Use as an aggregator that combines results from multiple search engines.
-    - To gather diverse perspectives or information from across the web.
-    - To retrieve the latest data, documentation, or public resources.
+    Searches the web via SearXNG (aggregates multiple engines). Use for diverse
+    perspectives and public resources.
     """
     if safe_search is None:
         safe_search = CFG.SEARXNG_SAFE

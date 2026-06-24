@@ -370,9 +370,14 @@ def create_delegate_to_agent_tool(
         agent_name: str = "",
         deliverable: str = "",
         task: str = "",
-        non_goals: list[str] = [],
+        # Mutable defaults are intentional here: pydantic-ai builds a Pydantic v2
+        # model from this signature and internally converts mutable defaults to
+        # default_factory, so each tool call gets a fresh list. Using `= []`
+        # instead of `list[str] | None = None` keeps the JSON schema compact
+        # (avoids anyOf + null union that bloats every tool description sent to the LLM).
+        non_goals: list[str] = [],  # noqa: B006
         additional_context: str = "",
-        tasks: list[dict[str, Any]] = [],
+        tasks: list[dict[str, Any]] = [],  # noqa: B006
     ) -> str:
         """See module docstring; required-arg signature is the scope clamp."""
         # FAN OUT: a non-empty `tasks` list runs several sub-agents concurrently
@@ -424,21 +429,11 @@ def create_delegate_to_agent_tool(
     delegate_to_agent.__name__ = "DelegateToAgent"
     delegate_to_agent.__doc__ = (
         "Delegates a task to a named subagent for isolated execution.\n\n"
-        "REQUIRED ARGS:\n"
-        "- agent_name: which sub-agent to run.\n"
-        "- deliverable: one sentence stating what must exist when the sub-agent "
-        "returns. Be concrete — name the artifact (file, function, decision).\n"
-        "- task: how to produce the deliverable. Reference exact files, "
-        "line numbers, or commands when known.\n"
-        "- non_goals: list of adjacent things the sub-agent must NOT do "
-        "(e.g. 'do not modify other files', 'do not refactor', 'do not add tests'). "
-        "Pass [] only when you are certain no scope expansion risk exists.\n"
-        "- additional_context: any extra context the sub-agent needs.\n\n"
-        "FAN OUT: to run several independent sub-tasks concurrently in one call, "
-        "pass `tasks` as a list of dicts (each with its own agent_name, "
-        "deliverable, task, non_goals; additional_context optional) and omit the "
-        "flat args. Each task gets its own scope clamp and runs blind to the "
-        "others. Prefer this over N separate DelegateToAgentBackground calls.\n\n"
+        "- deliverable: concrete artifact that must exist on return (name the file, function, or decision).\n"
+        "- task: how to produce it — reference exact files, line numbers, or commands when known.\n"
+        "- non_goals: things the sub-agent must NOT do (scope clamp). Pass [] only when certain.\n\n"
+        "FAN OUT: pass tasks=[{agent_name, deliverable, task, non_goals, ...}, ...] to run multiple "
+        "sub-agents concurrently in one call. Flat args are ignored when tasks is non-empty.\n\n"
         f"AVAILABLE AGENTS:\n{agent_doc_section}"
     )
     # lazy: permission is a leaf module.

@@ -9,13 +9,11 @@ def read_file(
     auto_truncate: bool = True,
 ) -> str:
     """
-    Reads a file's full content. Long files are truncated to the configured
-    limits (default: first/last 1000 lines, 100k chars); the header reports
-    exactly what was kept.
+    Reads a file. Long files are truncated (default: first/last 1000 lines, 100k chars);
+    the header states what was kept.
 
-    Output format: a metadata header line (`[File: ... | N lines]`) followed by a
-    `---CONTENT---` delimiter, then the file body. When copying text for Edit's
-    `old_text`, take it from below the `---CONTENT---` marker only.
+    Output: `[File: ... | N lines]` header, then `---CONTENT---`, then the body.
+    When supplying old_text to Edit, copy only from below `---CONTENT---`.
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
 

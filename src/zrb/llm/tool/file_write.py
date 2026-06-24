@@ -5,14 +5,10 @@ from zrb.llm.tool.post_write_check import format_post_write_diagnostics
 
 async def write_file(path: str, content: str, mode: str = "w") -> str:
     """
-    Writes or appends content to a file. Creates the file and any missing parent directories.
+    Writes or appends to a file, creating it and any missing parent directories.
 
-    `mode="w"` (default) overwrites; `mode="a"` appends. For large content, write in chunks:
-    first chunk with mode="w", subsequent chunks with mode="a".
-
-    After a successful write, runs LSP and static checks on the file. Any
-    errors detected are appended to the return value as a `[DIAGNOSTIC]`
-    section — investigate and fix before continuing.
+    For large content, write in chunks: first with mode="w", subsequent with mode="a".
+    On success, runs LSP/static checks — errors appear as `[DIAGNOSTIC]` in the return value.
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     try:

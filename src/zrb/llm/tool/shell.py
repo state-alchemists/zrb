@@ -18,41 +18,22 @@ async def run_shell_command(
     timeout: int = 120,
     preserved_head_lines: int = 500,
     preserved_tail_lines: int = 500,
-    max_chars: int = 0,
+    max_chars: int = -1,
     shell: str = "",
     dangerously_skip_sandbox: bool = False,
     background: bool = False,
     description: str = "",
 ) -> str:
     """
-    Executes a non-interactive command in a shell or interpreter. Streams stdout/stderr
-    live and returns truncated output.
+    Executes a non-interactive command in a shell. Returns truncated stdout/stderr.
+    stdin is closed — prompts hang until timeout; pass `-y`, `--yes`, or `CI=true`.
+    Batch with `&&`; use `cwd` instead of `cd`. Timed-out processes may continue in background.
 
-    Commands must be fully non-interactive: pass auto-confirmation flags (e.g. `-y`,
-    `--yes`) or set the equivalent environment variables so the process never waits
-    for stdin — stdin is closed, and interactive prompts hang until the timeout.
-
-    Batch independent commands into one call where the interpreter supports chaining
-    (e.g. `pytest && flake8 src` in a POSIX shell) to avoid extra round-trips. Use the
-    `cwd` parameter instead of a `cd` command to set the working directory.
-
-    Default `timeout` is 120 seconds; timed-out processes may continue in the background.
-
-    Args:
-        shell: The shell or interpreter to run the command with — a POSIX shell
-            ("bash", "zsh", "sh"), a Windows shell ("pwsh", "powershell", "cmd"),
-            or a language runtime ("node", "ruby", "php" — `command` is then
-            source code). Empty string uses the user's default shell.
-        dangerously_skip_sandbox: Run this command OUTSIDE the OS-level sandbox
-            (when one is active). Only set it when a command genuinely needs to
-            write outside the workspace; it always requires explicit user
-            approval.
-        background: Start the command in the BACKGROUND and return a handle
-            immediately instead of blocking (use for long-running processes —
-            dev servers, watchers, builds). Poll incremental output, wait, or
-            kill it with MonitorProcess(handle). `timeout` is not applied.
-        description: Optional human-readable label for a background process,
-            shown by MonitorProcess.
+    shell: "bash"/"zsh"/"sh" (POSIX), "pwsh"/"cmd" (Windows), or "node"/"ruby"/"php"
+    (runtime — command treated as source code); empty = user's default shell.
+    background=True returns a handle for MonitorProcess (timeout not applied).
+    dangerously_skip_sandbox=True exits the OS sandbox — requires explicit user approval.
+    max_chars=-1 uses the configured output limit.
     """
     if background:
         # lazy: keep the background registry off the hot foreground path.
@@ -72,7 +53,7 @@ async def run_shell_command(
             f"Started background process. Handle: {handle}. "
             "Call MonitorProcess with this handle to check status."
         )
-    if not max_chars:
+    if max_chars < 0:
         max_chars = CFG.LLM_MAX_OUTPUT_CHARS
     cwd = cwd or os.getcwd()
     resolved_shell, shell_flag = resolve_shell(shell)
