@@ -39,7 +39,7 @@ Either way, downstreams add ordered sections without editing `PromptManager`. Se
 **Each section is MECE — a single behavior lives in exactly one section.** Adding a rule: pick the smallest-scope section that owns the concept.
 
 - `persona` — identity + response style
-- `mandate` — operating rules (no tool/git specifics) + the skill catalogue, injected via `{CORE_SKILLS}`/`{AVAILABLE_SKILLS}`/`{ACTIVE_SKILLS}` placeholders (`build_skill_replacements` in `prompt/claude.py`); core skills (`llm_plugin/core_skills/`) are listed separately from other model-invocable skills
+- `mandate` — operating rules (no tool/git specifics) + the skill catalogue, injected via `{CORE_SKILLS}`/`{AVAILABLE_SKILLS}`/`{PREACTIVATED_SKILLS}` placeholders (`build_skill_replacements` in `prompt/claude.py`); core skills (`llm_plugin/core_skills/`) are listed separately from other model-invocable skills
 - `git_mandate` — git approval rules
 - `journal_mandate` — memory protocol + index
 - `system_context` — runtime facts; auto-injects session wiring, active worktree, and pending todos so todo tools target the right conversation and stale state self-clears

@@ -15,13 +15,13 @@ def build_skill_replacements(
     Activation section, so the skill catalogue lives there instead of a separate
     ``claude_skills`` prompt section.
 
-    Returns ``{CORE_SKILLS}``, ``{AVAILABLE_SKILLS}``, ``{ACTIVE_SKILLS}``:
+    Returns ``{CORE_SKILLS}``, ``{AVAILABLE_SKILLS}``, ``{PREACTIVATED_SKILLS}``:
 
     - ``CORE_SKILLS`` — the always-on methodology baseline (built-in skills
       under ``llm_plugin/core_skills/``), as a bullet list.
     - ``AVAILABLE_SKILLS`` — every other model-invocable skill (user, project,
       plugin), as a bullet list.
-    - ``ACTIVE_SKILLS`` — full content of any pre-activated skills, loaded up
+    - ``PREACTIVATED_SKILLS`` — full content of any pre-activated skills, loaded up
       front; empty when none. Active skills are dropped from the two lists above
       so the model is not told to activate something already loaded.
     """
@@ -35,7 +35,7 @@ def build_skill_replacements(
     return {
         "CORE_SKILLS": _format_skill_list(core),
         "AVAILABLE_SKILLS": _format_skill_list(other) or "_(none registered)_",
-        "ACTIVE_SKILLS": _format_active_skills(skill_manager, active_skills),
+        "PREACTIVATED_SKILLS": _format_active_skills(skill_manager, active_skills),
     }
 
 

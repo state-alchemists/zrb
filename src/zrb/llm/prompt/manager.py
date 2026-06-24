@@ -37,7 +37,7 @@ class PromptManager:
     ``config/mixins/llm_prompt.py``: persona → mandate → git_mandate →
     journal_mandate → system_context → project_context → tool_guidance),
     followed by any user-added prompts. The skill catalogue is folded into the
-    mandate section via ``{CORE_SKILLS}``/``{AVAILABLE_SKILLS}``/``{ACTIVE_SKILLS}``
+    mandate section via ``{CORE_SKILLS}``/``{AVAILABLE_SKILLS}``/``{PREACTIVATED_SKILLS}``
     placeholders rather than a standalone section. A section name that is
     not one of the built-ins resolves as a custom section: a provider registered
     via ``register_section`` (composed by calling it with the active context, for
@@ -404,7 +404,7 @@ class PromptManager:
             else {}
         )
         # Skill catalogue lives in mandate.md via {CORE_SKILLS}/{AVAILABLE_SKILLS}
-        # /{ACTIVE_SKILLS} placeholders (no separate claude_skills section).
+        # /{PREACTIVATED_SKILLS} placeholders (no separate claude_skills section).
         if self._skill_manager:
             active_skills = get_str_list_attr(
                 ctx, self._active_skills, self._render_active_skills

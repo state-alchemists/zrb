@@ -202,7 +202,7 @@ Recognised section names:
 | `project_context` | Project docs (`AGENTS.md`, `CLAUDE.md`, `README.md`, …) |
 | `tool_guidance` | Per-tool usage guidance |
 
-> The skill catalogue (core skills, other available skills, and active-skill contents) is part of the `mandate` section, injected via `{CORE_SKILLS}`/`{AVAILABLE_SKILLS}`/`{ACTIVE_SKILLS}` placeholders — it is no longer a separate section.
+> The skill catalogue (core skills, other available skills, and active-skill contents) is part of the `mandate` section, injected via `{CORE_SKILLS}`/`{AVAILABLE_SKILLS}`/`{PREACTIVATED_SKILLS}` placeholders — it is no longer a separate section.
 
 Examples:
 

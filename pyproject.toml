@@ -1,6 +1,6 @@
 [project]
 name = "zrb"
-version = "2.42.0"
+version = "2.42.1"
 description = "Your Automation Powerhouse"
 authors = [{name = "Go Frendi Gunawan", email = "gofrendiasgard@gmail.com"}]
 license = "AGPL-3.0-or-later"

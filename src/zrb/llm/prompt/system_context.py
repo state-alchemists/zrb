@@ -28,6 +28,7 @@ _UTILITY_TOOLS: list[tuple[str, str]] = [
     ("jq", "jq"),
     ("curl", "curl"),
     ("gh", "gh"),
+    ("glab", "glab"),
     ("make", "make"),
     ("rg", "rg"),
     ("rtk", "rtk"),
@@ -67,9 +68,8 @@ _PROJECT_MARKERS: list[tuple[str, str]] = [
     ("CMakeLists.txt", "C/C++"),
     ("Dockerfile", "Docker"),
     ("docker-compose.yml", "Docker Compose"),
+    ("docker-compose.yaml", "Docker Compose"),
     ("Chart.yaml", "Helm"),
-    ("README.md", "Docs"),
-    ("AGENTS.md", "Agents"),
 ]
 
 

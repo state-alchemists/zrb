@@ -62,7 +62,7 @@ Tie-break by the **deliverable**, not the topic. Debugging an auth feature → `
 
 Missed an activation → activate next turn and continue. No apology.
 
-{ACTIVE_SKILLS}
+{PREACTIVATED_SKILLS}
 
 ---
 

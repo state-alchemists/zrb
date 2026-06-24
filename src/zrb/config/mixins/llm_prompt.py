@@ -28,7 +28,7 @@ class LLMPromptMixin:
         # journal_mandate=memory protocol, system_context=runtime facts,
         # project_context=AGENTS.md/CLAUDE.md, tool_guidance=per-tool rules.
         # The skill catalogue is injected into mandate via {CORE_SKILLS}/
-        # {AVAILABLE_SKILLS}/{ACTIVE_SKILLS} placeholders, not a separate section.
+        # {AVAILABLE_SKILLS}/{PREACTIVATED_SKILLS} placeholders, not a separate section.
         self.DEFAULT_LLM_INCLUDE_SECTIONS: str = (
             "persona,mandate,git_mandate,journal_mandate,system_context,"
             "project_context,tool_guidance"

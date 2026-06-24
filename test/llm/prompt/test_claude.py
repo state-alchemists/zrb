@@ -220,7 +220,7 @@ def test_build_skill_replacements_returns_all_placeholders(tmp_path):
 
     r = build_skill_replacements(sm)
 
-    assert set(r) == {"CORE_SKILLS", "AVAILABLE_SKILLS", "ACTIVE_SKILLS"}
+    assert set(r) == {"CORE_SKILLS", "AVAILABLE_SKILLS", "PREACTIVATED_SKILLS"}
 
 
 def test_build_skill_replacements_lists_available_skill(tmp_path):
@@ -272,8 +272,8 @@ def test_build_skill_replacements_active_skill_content_loaded(tmp_path):
 
     r = build_skill_replacements(_scan(tmp_path), active_skills=["deep-skill"])
 
-    assert "Deep skill body text" in r["ACTIVE_SKILLS"]
-    assert "Active Skills (Fully Loaded)" in r["ACTIVE_SKILLS"]
+    assert "Deep skill body text" in r["PREACTIVATED_SKILLS"]
+    assert "Active Skills (Fully Loaded)" in r["PREACTIVATED_SKILLS"]
 
 
 def test_build_skill_replacements_active_skill_excluded_from_lists(tmp_path):
@@ -288,14 +288,14 @@ def test_build_skill_replacements_active_skill_excluded_from_lists(tmp_path):
 
 
 def test_build_skill_replacements_no_active_skills_empty(tmp_path):
-    """ACTIVE_SKILLS is empty when nothing is pre-activated."""
+    """PREACTIVATED_SKILLS is empty when nothing is pre-activated."""
     (tmp_path / "test.skill.md").write_text(
         "---\nname: test-skill\ndescription: A test skill\n---\n# Content"
     )
 
     r = build_skill_replacements(_scan(tmp_path))
 
-    assert r["ACTIVE_SKILLS"] == ""
+    assert r["PREACTIVATED_SKILLS"] == ""
 
 
 def test_build_skill_replacements_missing_active_skill_does_not_crash(tmp_path):
@@ -305,7 +305,7 @@ def test_build_skill_replacements_missing_active_skill_does_not_crash(tmp_path):
 
     r = build_skill_replacements(sm, active_skills=["nonexistent-skill"])
 
-    assert r["ACTIVE_SKILLS"] == ""
+    assert r["PREACTIVATED_SKILLS"] == ""
 
 
 def test_build_skill_replacements_skips_non_invocable(tmp_path):
