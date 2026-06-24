@@ -89,8 +89,12 @@ class ConversationCommandsMixin:
                     )
                     self._history_manager.update(name, history)
                     self._history_manager.save(name)
+                    self._history_manager.load(name)
+                    self._conversation_session_name = name
                     self.append_to_output(
-                        stylize_muted(f"\n  💾 Conversation saved as: {name}\n")
+                        stylize_muted(
+                            f"\n  💾 Conversation saved and switched to: {name}\n"
+                        )
                     )
                 except Exception as e:
                     self.append_to_output(

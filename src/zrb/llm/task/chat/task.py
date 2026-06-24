@@ -63,6 +63,7 @@ from zrb.llm.util.attachment import get_attachments
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
 from zrb.util.attr import get_attr, get_bool_attr, get_str_attr
+from zrb.llm.sandbox import coerce_sandbox
 from zrb.util.cli.style import stylize_highlight, stylize_muted
 from zrb.util.string.name import get_random_name
 from zrb.xcom.xcom import Xcom
@@ -754,6 +755,11 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):  # type: ignore[reportIn
         # SESSION_END — SESSION_END is once-per-session, like Claude Code).
         self._active_hook_manager = hook_manager
 
+        # Resolve sandbox against the outer (LLMChatTask) context before passing
+        # to the inner LLMTask, whose own context does not carry a "sandbox" input
+        # (see _run_non_interactive_session / _run_interactive_session).
+        resolved_sandbox = coerce_sandbox(ctx, self._sandbox)
+
         # Pass resolved tools/toolsets to LLMTask (no factories needed since already resolved)
         return LLMTask(
             name=f"{self.name}-process",
@@ -784,7 +790,7 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):  # type: ignore[reportIn
             ui=cast("UIProtocol | None", ui),
             approval_channel=effective_approval_channel,
             permissions=self._permissions,
-            sandbox=self._sandbox,
+            sandbox=resolved_sandbox,
             message="{ctx.input.message}",
             conversation_name="{ctx.input.session}",
             yolo="{ctx.input.yolo}",

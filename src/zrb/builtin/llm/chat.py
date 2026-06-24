@@ -68,7 +68,7 @@ llm_chat = LLMChatTask(
     message="{ctx.input.message}",
     conversation_name="{ctx.input.session}",
     interactive="{ctx.input.interactive}",
-    sandbox=lambda ctx: None if ctx.input.sandbox == "" else ctx.input.sandbox,
+    sandbox=lambda ctx: ctx.input.get("sandbox") or None,
     history_processors=[],
     prompt_manager=PromptManager(
         assistant_name=lambda ctx: CFG.LLM_ASSISTANT_NAME,
