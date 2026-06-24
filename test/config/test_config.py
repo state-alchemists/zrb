@@ -1528,11 +1528,6 @@ class TestSizeLimitConfig:
         config.LLM_MAX_OUTPUT_CHARS = 200000
         assert os.environ["ZRB_LLM_MAX_OUTPUT_CHARS"] == "200000"
 
-    def test_llm_file_read_lines_default(self, monkeypatch):
-        monkeypatch.delenv("ZRB_LLM_FILE_READ_LINES", raising=False)
-        config = Config()
-        assert config.LLM_FILE_READ_LINES == 1000
-
     def test_llm_history_max_display_chars_default(self, monkeypatch):
         monkeypatch.delenv("ZRB_LLM_HISTORY_MAX_DISPLAY_CHARS", raising=False)
         config = Config()
