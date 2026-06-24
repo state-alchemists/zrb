@@ -110,11 +110,11 @@ class LLMTask(BuilderMixin, HistoryMixin, BaseTask):  # type: ignore[reportIncom
         render_conversation_name: bool = True,
         history_manager: AnyHistoryManager | None = None,
         tool_confirmation: AnyToolConfirmation = None,
-        ui: UIProtocol | None = None,
-        yolo: BoolAttr = False,
         dynamic_yolo: Callable[..., bool] | None = None,
         permissions: PermissionPolicyInput = None,
-        sandbox: SandboxInput = None,
+        sandbox: SandboxInput | BoolAttr = None,
+        yolo: BoolAttr = False,
+        ui: UIProtocol | None = None,
         approval_channel: ApprovalChannel | None = None,
         summarize_command: list[str] | None = None,
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
@@ -280,7 +280,7 @@ class LLMTask(BuilderMixin, HistoryMixin, BaseTask):  # type: ignore[reportIncom
             # Resolve the sandbox policy from the explicit task param. None →
             # run_agent keeps inherited/ambient behavior (CFG fallback at the
             # enforcement sites — disabled unless the deployment opted in).
-            sandbox_policy = coerce_sandbox(self._sandbox)
+            sandbox_policy = coerce_sandbox(ctx, self._sandbox)
             CFG.LOGGER.debug("llm_task Calling run_agent with:")
             CFG.LOGGER.debug(f"  tool_confirmation: {self._tool_confirmation}")
             CFG.LOGGER.debug(f"  approval_channel: {self._approval_channel}")

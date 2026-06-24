@@ -173,7 +173,7 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):  # type: ignore[reportIn
         ) = None,
         approval_channel: ApprovalChannel | None = None,
         permissions: "PermissionPolicyInput" = None,
-        sandbox: "SandboxInput" = None,
+        sandbox: "SandboxInput | BoolAttr" = None,
         yolo: BoolAttr = False,
         yolo_xcom_key: str = "yolo",
         ui_summarize_commands: list[str] | None = None,

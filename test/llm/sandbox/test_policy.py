@@ -6,6 +6,8 @@ import os
 import platform
 import tempfile
 
+import pytest
+
 from zrb.llm.sandbox import (
     DEFAULT_DENY_READ_PATHS,
     SandboxPolicy,
@@ -14,6 +16,20 @@ from zrb.llm.sandbox import (
     resolved_deny_read_roots,
     resolved_writable_roots,
 )
+
+
+class MockContext:
+    def __init__(self):
+        self.render_fn = lambda x: x
+
+    def render(self, x):
+        return self.render_fn(x)
+
+
+@pytest.fixture
+def mock_ctx():
+    return MockContext()
+
 
 # --- config resolution ----------------------------------------------------
 
@@ -54,22 +70,33 @@ def test_env_deny_read_paths_replaces_default(monkeypatch):
 # --- coerce_sandbox -------------------------------------------------------
 
 
-def test_coerce_none_is_none():
-    assert coerce_sandbox(None) is None
+def test_coerce_none_is_none(mock_ctx):
+    assert coerce_sandbox(mock_ctx, None) is None
 
 
-def test_coerce_instance_passthrough():
+def test_coerce_instance_passthrough(mock_ctx):
     policy = SandboxPolicy(enabled=True)
-    assert coerce_sandbox(policy) is policy
+    assert coerce_sandbox(mock_ctx, policy) is policy
 
 
-def test_coerce_bool_forces_enabled():
-    assert coerce_sandbox(True).enabled is True
-    assert coerce_sandbox(False).enabled is False
+def test_coerce_bool_forces_enabled(mock_ctx):
+    assert coerce_sandbox(mock_ctx, True).enabled is True
+    assert coerce_sandbox(mock_ctx, False).enabled is False
 
 
-def test_coerce_unrecognized_is_none():
-    assert coerce_sandbox("bogus") is None
+def test_coerce_bool_attr_string_true(mock_ctx):
+    assert coerce_sandbox(mock_ctx, "true").enabled is True
+    assert coerce_sandbox(mock_ctx, "false").enabled is False
+
+
+def test_coerce_bool_attr_callable(mock_ctx):
+    assert coerce_sandbox(mock_ctx, lambda ctx: True).enabled is True
+    assert coerce_sandbox(mock_ctx, lambda ctx: False).enabled is False
+
+
+def test_coerce_bool_attr_unrecognized_string_raises(mock_ctx):
+    with pytest.raises(Exception, match="Cannot infer boolean value"):
+        coerce_sandbox(mock_ctx, "bogus")
 
 
 # --- resolved_writable_roots ----------------------------------------------

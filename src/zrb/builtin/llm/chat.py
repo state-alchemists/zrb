@@ -54,6 +54,12 @@ llm_chat = LLMChatTask(
             allow_empty=True,
             always_prompt=False,
         ),
+        StrInput(
+            "sandbox",
+            "Sandbox Mode (true/false)",
+            allow_empty=True,
+            always_prompt=False,
+        ),
     ],
     # fstring template (StrAttr); LLMChatTask.model omits bare str from its
     # annotation but renders it at run time via get_attr in _get_model.
@@ -62,6 +68,7 @@ llm_chat = LLMChatTask(
     message="{ctx.input.message}",
     conversation_name="{ctx.input.session}",
     interactive="{ctx.input.interactive}",
+    sandbox=lambda ctx: None if ctx.input.sandbox == "" else ctx.input.sandbox,
     history_processors=[],
     prompt_manager=PromptManager(
         assistant_name=lambda ctx: CFG.LLM_ASSISTANT_NAME,
