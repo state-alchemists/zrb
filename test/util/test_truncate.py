@@ -27,6 +27,18 @@ def test_truncate_text_keep_tail():
     assert "line0\n" not in out
 
 
+def test_truncate_text_keep_tail_zero_max_chars():
+    out, truncated = truncate_text("a\nb\nc", 0, keep="tail")
+    assert truncated is True
+    assert out == "[TRUNCATED]...\n"
+
+
+def test_truncate_text_keep_tail_negative_max_chars():
+    out, truncated = truncate_text("a\nb\nc", -2, keep="tail")
+    assert truncated is True
+    assert out == "[TRUNCATED]...\n"
+
+
 def test_truncate_text_snaps_to_line_boundary_head():
     text = "aaaa\nbbbb\ncccc\n"
     out, _ = truncate_text(text, 6, keep="head")

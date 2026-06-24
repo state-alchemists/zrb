@@ -24,7 +24,9 @@ def truncate_text(text: str, max_chars: int, keep: str = "head") -> tuple[str, b
     if len(text) <= max_chars:
         return text, False
     if keep == "tail":
-        cut = text[-max_chars:]
+        cut = text[
+            len(text) - max_chars :
+        ]  # index form: max_chars<=0 -> empty, not whole text
         newline = cut.find("\n")
         if newline != -1:
             cut = cut[newline + 1 :]
