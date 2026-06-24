@@ -12,7 +12,7 @@ tools: [
   TodoWrite, TodoRead,
   ActivateSkill
 ]
-inherit_sections: [persona, mandate, system_context, project_context, claude_skills]
+inherit_sections: [persona, mandate, system_context, project_context]
 ---
 # Persona: The Research Specialist
 

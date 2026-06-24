@@ -121,5 +121,6 @@ per record. If a new decision reverses an old one, mark the old one
 - **ADR-0076** — Uniform `add_hook_factory` for task-level hook registration on both `LLMTask` and `LLMChatTask` (task-local-by-default); adds `LLMTask.history_manager` (relates to ADR-0061, ADR-0074) — [adr-0076.md](adr-0076.md)
 - **ADR-0077** — Configurable semantic CLI color layer (`CLIStyleMixin`): physical helpers unchanged, semantic helpers (`stylize_muted`, `stylize_warning`, `stylize_error`, `stylize_highlight`, etc.) backed by `ZRB_CLI_COLOR_*`/`ZRB_CLI_STYLE_*` env vars — [adr-0077.md](adr-0077.md)
 - **ADR-0078** — First-class `permissions` parameter/property on `LLMChatTask` (symmetric with `LLMTask`), forwarded to the inner task instead of smuggled through a hook factory + `current_permission_policy` ContextVar (refines ADR-0076) — [adr-0078.md](adr-0078.md)
+- **ADR-0079** — Fold the skill catalogue into the `mandate` section via `{CORE_SKILLS}`/`{AVAILABLE_SKILLS}`/`{ACTIVE_SKILLS}` placeholders; drop the `claude_skills` section (refines ADR-0035, ADR-0069) — [adr-0079.md](adr-0079.md)
 
 🔖 [Documentation Home](../README.md)

@@ -4,6 +4,7 @@ from typing import Any
 
 from zrb.config.config import CFG
 from zrb.util.file import is_path_excluded
+from zrb.util.truncate import truncate_items
 
 DEFAULT_EXCLUDED_PATTERNS = [
     "__pycache__",
@@ -32,21 +33,16 @@ def _truncate_file_list(
     sorted_files: list[str],
 ) -> tuple[list[str], int | None]:
     """
-    Truncates a sorted file list to head+tail using the configured line limit.
+    Keeps leading files within the output char budget (head-keep).
 
     Returns (files, omitted_count). If no truncation needed, omitted_count is None.
     """
-    head = tail = CFG.LLM_FILE_READ_LINES // 2
-    if len(sorted_files) > head + tail:
-        truncated = sorted_files[:head] + sorted_files[-tail:]
-        omitted = len(sorted_files) - head - tail
-        return truncated, omitted
-    return sorted_files, None
+    kept, omitted = truncate_items(sorted_files, CFG.LLM_MAX_OUTPUT_CHARS)
+    return kept, (omitted or None)
 
 
 def list_files(
     path: str = ".",
-    auto_truncate: bool = True,
     exclude_patterns: list[str] | None = None,
     include_hidden: bool = False,
 ) -> dict[str, Any]:
@@ -89,14 +85,15 @@ def list_files(
 
     sorted_files = sorted(all_files)
 
-    if auto_truncate:
-        truncated, omitted = _truncate_file_list(sorted_files)
-        if omitted is not None:
-            head = tail = CFG.LLM_FILE_READ_LINES // 2
-            return {
-                "files": truncated,
-                "truncation_notice": f"[TRUNCATED {omitted} files. Showing first {head} and last {tail} files.]",
-            }
+    truncated, omitted = _truncate_file_list(sorted_files)
+    if omitted is not None:
+        return {
+            "files": truncated,
+            "truncation_notice": (
+                f"[TRUNCATED {omitted} files. Showing first {len(truncated)} "
+                f"of {len(sorted_files)}.]"
+            ),
+        }
 
     return {"files": sorted_files}
 
@@ -104,7 +101,6 @@ def list_files(
 def glob_files(
     pattern: str,
     path: str = ".",
-    auto_truncate: bool = True,
     exclude_patterns: list[str] | None = None,
     include_hidden: bool = False,
 ) -> dict[str, Any]:
@@ -145,13 +141,14 @@ def glob_files(
 
     sorted_files = sorted(found_files)
 
-    if auto_truncate:
-        truncated, omitted = _truncate_file_list(sorted_files)
-        if omitted is not None:
-            head = tail = CFG.LLM_FILE_READ_LINES // 2
-            return {
-                "files": truncated,
-                "truncation_notice": f"[TRUNCATED {omitted} files. Showing first {head} and last {tail} files.]",
-            }
+    truncated, omitted = _truncate_file_list(sorted_files)
+    if omitted is not None:
+        return {
+            "files": truncated,
+            "truncation_notice": (
+                f"[TRUNCATED {omitted} files. Showing first {len(truncated)} "
+                f"of {len(sorted_files)}.]"
+            ),
+        }
 
     return {"files": sorted_files}

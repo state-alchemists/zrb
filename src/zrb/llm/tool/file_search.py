@@ -9,14 +9,18 @@ from typing import Any
 from zrb.config.config import CFG
 from zrb.llm.tool.file_list import DEFAULT_EXCLUDED_PATTERNS
 from zrb.util.file import is_path_excluded
-from zrb.util.truncate import truncate_output
+from zrb.util.truncate import truncate_items, truncate_text
+
+# Per-line snippet cap in search output (a single matched/context line).
+_MAX_LINE_LENGTH = 1000
+# Head-keep cap on the number of matches reported for one file.
+_MAX_MATCHES_PER_FILE = 100
 
 
 def search_files(
     pattern: str,
     path: str = ".",
     file_pattern: str = "",
-    auto_truncate: bool = True,
     exclude_patterns: list[str] | None = None,
     timeout: float = 30.0,
     context_lines: int = 2,
@@ -46,9 +50,6 @@ def search_files(
     if not os.path.exists(abs_path):
         return {"error": f"Path not found: {path}"}
 
-    preserved_head_lines = CFG.LLM_FILE_READ_LINES // 4
-    preserved_tail_lines = CFG.LLM_FILE_READ_LINES // 4
-
     patterns_to_exclude = (
         exclude_patterns if exclude_patterns is not None else DEFAULT_EXCLUDED_PATTERNS
     )
@@ -61,11 +62,8 @@ def search_files(
         case_sensitive=case_sensitive,
         context_lines=context_lines,
         files_only=files_only,
-        auto_truncate=auto_truncate,
         patterns_to_exclude=patterns_to_exclude,
         timeout=timeout,
-        preserved_head_lines=preserved_head_lines,
-        preserved_tail_lines=preserved_tail_lines,
     )
     if rg_result is not None:
         return rg_result
@@ -79,9 +77,6 @@ def search_files(
         start_time=start_time,
         context_lines=context_lines,
         files_only=files_only,
-        auto_truncate=auto_truncate,
-        preserved_head_lines=preserved_head_lines,
-        preserved_tail_lines=preserved_tail_lines,
     )
 
 
@@ -97,19 +92,19 @@ def _count_actual_matches(matches: list[dict[str, Any]]) -> int:
     return sum(1 for m in matches if m.get("line_number", 0) > 0)
 
 
-def _truncate_file_results(
-    results: list[Any], preserved_head_lines: int, preserved_tail_lines: int
-) -> tuple[list[Any], str | None]:
-    """Truncate results and return (truncated_list, truncation_notice)."""
-    if len(results) <= preserved_head_lines + preserved_tail_lines:
+def _truncate_file_results(results: list[Any]) -> tuple[list[Any], str | None]:
+    """Keep leading result files within the output char budget (head-keep).
+
+    Returns (truncated_list, truncation_notice).
+    """
+    kept, omitted = truncate_items(results, CFG.LLM_MAX_OUTPUT_CHARS)
+    if omitted == 0:
         return results, None
-    truncated = results[:preserved_head_lines] + results[-preserved_tail_lines:]
-    omitted = len(results) - preserved_head_lines - preserved_tail_lines
     notice = (
-        f"[TRUNCATED {omitted} result files. Showing first {preserved_head_lines}"
-        f" and last {preserved_tail_lines} files with matches.]"
+        f"[TRUNCATED {omitted} result files. Showing first {len(kept)} "
+        f"of {len(results)} files with matches.]"
     )
-    return truncated, notice
+    return kept, notice
 
 
 def _build_search_output(
@@ -119,9 +114,6 @@ def _build_search_output(
     searched_file_count: int | None,
     regex: str,
     path: str,
-    auto_truncate: bool,
-    preserved_head_lines: int,
-    preserved_tail_lines: int,
     files_only: bool,
     warning: str | None = None,
 ) -> dict[str, Any]:
@@ -129,12 +121,7 @@ def _build_search_output(
 
     Shared by both the ripgrep and the fallback os.walk code paths.
     """
-    results = result_entries
-    truncation_notice = None
-    if auto_truncate:
-        results, truncation_notice = _truncate_file_results(
-            results, preserved_head_lines, preserved_tail_lines
-        )
+    results, truncation_notice = _truncate_file_results(result_entries)
 
     if match_count == 0:
         searched = (
@@ -193,11 +180,8 @@ def _search_with_ripgrep(
     case_sensitive: bool,
     context_lines: int,
     files_only: bool,
-    auto_truncate: bool,
     patterns_to_exclude: list[str],
     timeout: float,
-    preserved_head_lines: int,
-    preserved_tail_lines: int,
 ) -> "dict[str, Any] | None":
     """Use ripgrep to find matching files, then extract matches via Python. Returns None on failure."""
     if not shutil.which("rg"):
@@ -234,8 +218,6 @@ def _search_with_ripgrep(
                 file_path,
                 pattern,
                 context_lines=context_lines,
-                preserved_head_lines=preserved_head_lines,
-                preserved_tail_lines=preserved_tail_lines,
             )
             if matches:
                 file_match_count += 1
@@ -255,9 +237,6 @@ def _search_with_ripgrep(
         regex=regex,
         path=abs_path,
         warning=_merge_skipped_warning(None, skipped_count),
-        auto_truncate=auto_truncate,
-        preserved_head_lines=preserved_head_lines,
-        preserved_tail_lines=preserved_tail_lines,
         files_only=files_only,
     )
 
@@ -271,9 +250,6 @@ def _search_with_os_walk(
     start_time: float,
     context_lines: int,
     files_only: bool,
-    auto_truncate: bool,
-    preserved_head_lines: int,
-    preserved_tail_lines: int,
 ) -> dict[str, Any]:
     """Fallback search via os.walk (used when ripgrep is unavailable)."""
     result_entries: list[Any] = []
@@ -314,8 +290,6 @@ def _search_with_os_walk(
                     file_path,
                     pattern,
                     context_lines=context_lines,
-                    preserved_head_lines=preserved_head_lines,
-                    preserved_tail_lines=preserved_tail_lines,
                 )
                 if matches:
                     file_match_count += 1
@@ -336,9 +310,6 @@ def _search_with_os_walk(
         searched_file_count=searched_file_count,
         regex=pattern.pattern,
         path=abs_path,
-        auto_truncate=auto_truncate,
-        preserved_head_lines=preserved_head_lines,
-        preserved_tail_lines=preserved_tail_lines,
         files_only=files_only,
         warning=_merge_skipped_warning(warning, skipped_count),
     )
@@ -348,28 +319,12 @@ def _get_file_matches(
     file_path: str,
     pattern: re.Pattern,
     context_lines: int = 2,
-    preserved_head_lines: int | None = None,
-    preserved_tail_lines: int | None = None,
-    max_line_length: int = 1000,
 ) -> list[dict[str, Any]]:
     """Search for regex matches in a file with context."""
-    if preserved_head_lines is None:
-        preserved_head_lines = CFG.LLM_FILE_READ_LINES // 4
-    if preserved_tail_lines is None:
-        preserved_tail_lines = CFG.LLM_FILE_READ_LINES // 4
 
     def _truncate(s: str) -> str:
-        # Use truncate_output directly for consistent truncation
-        # For a single line, we use head_lines=1, tail_lines=0
-        # and max_chars=max_line_length to ensure it's truncated properly
-        truncated_str, _ = truncate_output(
-            s.rstrip(),
-            head_lines=1,
-            tail_lines=0,
-            max_line_length=max_line_length,
-            max_chars=max_line_length,
-        )
-        return truncated_str
+        out, _ = truncate_text(s.rstrip(), _MAX_LINE_LENGTH, keep="head")
+        return out
 
     with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
         lines = f.readlines()
@@ -392,20 +347,21 @@ def _get_file_matches(
             }
             matches.append(match_data)
 
-    # Apply truncation to matches within a file if there are too many
-    if len(matches) > preserved_head_lines + preserved_tail_lines:
-        truncated_matches = (
-            matches[:preserved_head_lines] + matches[-preserved_tail_lines:]
+    # Cap matches per file (head-keep) so one busy file can't dominate output.
+    if len(matches) > _MAX_MATCHES_PER_FILE:
+        omitted = len(matches) - _MAX_MATCHES_PER_FILE
+        kept = matches[:_MAX_MATCHES_PER_FILE]
+        kept.append(
+            {
+                "line_number": 0,
+                "line_content": (
+                    f"[TRUNCATED {omitted} matches in this file. Showing first "
+                    f"{_MAX_MATCHES_PER_FILE}.]"
+                ),
+                "context_before": [],
+                "context_after": [],
+            }
         )
-        omitted = len(matches) - preserved_head_lines - preserved_tail_lines
-        # Add a truncation notice as a special match entry
-        truncation_notice = {
-            "line_number": 0,
-            "line_content": f"[TRUNCATED {omitted} matches in this file. Showing first {preserved_head_lines} and last {preserved_tail_lines} matches.]",
-            "context_before": [],
-            "context_after": [],
-        }
-        truncated_matches.append(truncation_notice)
-        return truncated_matches
+        return kept
 
     return matches

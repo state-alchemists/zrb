@@ -26,7 +26,7 @@ The journal is durable, so a wrong assertion silently misleads every future sess
 
 ## Order of operations
 
-Search → work (verify any claim you will record) → log → reply. Log your *verified* finding before replying — the session may close after any response, and an unlogged finding is lost permanently.
+Search → work (verify any claim you will record) → log → reply. Log *after* the work — an insight can't be recorded before it's earned. Log your *verified* finding before replying — the session may close after any response, and an unlogged finding is lost permanently.
 
 **Writes are silent.** Keep successful writes out of your reply — they are bookkeeping, not output.
 

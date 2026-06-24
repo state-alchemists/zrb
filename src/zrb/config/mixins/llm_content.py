@@ -33,7 +33,6 @@ class LLMContentMixin:
         self.DEFAULT_LLM_FILE_ANALYSIS_TOKEN_THRESHOLD: str = ""
         self.DEFAULT_LLM_HISTORY_MAX_DISPLAY_CHARS: str = "5000"
         self.DEFAULT_LLM_HISTORY_TRUNCATE_LENGTH: str = "100"
-        self.DEFAULT_LLM_FILE_READ_LINES: str = "1000"
         super().__init__()
 
     LLM_HISTORY_DIR = EnvField(
@@ -115,13 +114,6 @@ class LLMContentMixin:
         fallback=0,
         default_factory=lambda cfg: cfg.DEFAULT_LLM_HISTORY_TRUNCATE_LENGTH,
         doc="Character length for history truncation.",
-    )
-
-    LLM_FILE_READ_LINES = EnvField(
-        int,
-        fallback=0,
-        default_factory=lambda cfg: cfg.DEFAULT_LLM_FILE_READ_LINES,
-        doc="Default number of lines to read from files (head/tail).",
     )
 
     LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD = EnvField(
