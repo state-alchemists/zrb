@@ -1,26 +1,10 @@
-import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Callable
 
-from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.llm.skill.manager import SkillManager
 from zrb.util.markdown import make_markdown_section
-
-# A "stub" doc is one whose body is entirely whitespace plus one or more
-# `@path` references — e.g. CLAUDE.md = "@AGENTS.md". Loading such files as a
-# project-context section is double-counting: the system prompt's later
-# ``expand_prompt`` pass inlines the referenced file as an Appendix. Detecting
-# stubs here lets us list the path in "All Documentation Files" without
-# loading content that would be duplicated.
-_STUB_DOC_PATTERN = re.compile(r"\A\s*(?:@[\w~\-./\\]+\s*)+\Z")
-
-
-def _is_stub_doc(content: str) -> bool:
-    if not content:
-        return False
-    return bool(_STUB_DOC_PATTERN.match(content))
 
 
 def create_claude_skills_prompt(
@@ -50,32 +34,6 @@ def create_claude_skills_prompt(
     return claude_compatibility
 
 
-def _load_file_content(file_path: Path) -> tuple[str, str]:
-    """Load file content and return (content, status).
-
-    Cached by ``(path, mtime)`` so per-turn re-reads of unchanged AGENTS.md /
-    CLAUDE.md / etc. only pay a single stat call.
-    """
-    try:
-        mtime = file_path.stat().st_mtime
-    except OSError:
-        return "", "exists (unreadable)"
-    return _load_file_content_cached(str(file_path), mtime)
-
-
-@lru_cache(maxsize=64)
-def _load_file_content_cached(path_str: str, mtime: float) -> tuple[str, str]:
-    """Cached read. Key includes mtime so edits invalidate the cache."""
-    try:
-        with open(path_str, "r", encoding="utf-8") as f:
-            content = f.read()
-            if content.strip():
-                return content, "loaded"
-            return "", "exists (empty)"
-    except Exception:
-        return "", "exists (unreadable)"
-
-
 def create_project_context_prompt():
     def project_context(
         ctx: AnyContext,
@@ -84,67 +42,33 @@ def create_project_context_prompt():
     ) -> str:
         search_dirs = _get_search_directories()
 
-        # Find all doc files - collect all occurrences, not just first
-        doc_files = {
+        doc_files: dict[str, list[Path]] = {
             "AGENTS.md": [],
             "CLAUDE.md": [],
             "GEMINI.md": [],
             "README.md": [],
-            "RTK.md": [],
         }
 
         for directory in search_dirs:
             for filename in doc_files.keys():
                 file_path = directory / filename
                 if file_path.exists() and file_path.is_file():
-                    content, status = _load_file_content(file_path)
-                    doc_files[filename].append((file_path, content))
+                    doc_files[filename].append(file_path)
 
-        # Load content from most specific (closest to CWD = last in search_dirs)
-        loaded_docs: list[tuple[str, str]] = []  # (section header, content)
+        # Collect all found file paths, ordered least to most specific
         listed_files: list[str] = []
-
-        # README.md is a fallback — skip it when AGENTS.md is available
-        agents_has_content = bool(doc_files["AGENTS.md"])
-
         for filename in doc_files.keys():
-            if filename == "README.md" and agents_has_content:
-                continue
-            occurrences = doc_files[filename]
-            if not occurrences:
-                continue
+            for file_path in doc_files[filename]:
+                listed_files.append(f"- `{file_path}`")
 
-            # Load from most specific (last occurrence)
-            most_specific_path, content = occurrences[-1]
-            loaded_content = content[: CFG.LLM_PROJECT_DOC_MAX_CHARS] if content else ""
-
-            # Skip stub docs (pure ``@path`` pointers) — ``expand_prompt`` will
-            # inline the referenced files, so loading the stub body would
-            # duplicate that content.
-            if loaded_content and not _is_stub_doc(loaded_content):
-                loaded_docs.append((filename, loaded_content))
-
-            # List all occurrences
-            for path, _ in occurrences:
-                listed_files.append(f"- `{path}`")
-
-        if not loaded_docs and not listed_files:
+        if not listed_files:
             return next_handler(ctx, current_prompt)
 
-        # Build prompt
-        parts = []
-
-        if loaded_docs:
-            parts.append("## Project Documentation (Loaded)\n")
-            for filename, content in loaded_docs:
-                parts.append(f"### {filename}\n{content}\n")
-
-        if listed_files:
-            parts.append(
-                "## All Documentation Files\n" + "\n".join(listed_files) + "\n\n"
-                "**NOTE:** Only the most specific files above are loaded. "
-                "Read other files with `Read` tool when needed."
-            )
+        parts = [
+            "### Documentation Files Found",
+            "(See Operating Rules → Project Documentation for when to read these.)",
+            *listed_files,
+        ]
 
         context_message = "\n".join(parts)
         return next_handler(

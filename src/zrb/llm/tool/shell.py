@@ -18,7 +18,7 @@ async def run_shell_command(
     timeout: int = 120,
     preserved_head_lines: int = 500,
     preserved_tail_lines: int = 500,
-    max_chars: int | None = None,
+    max_chars: int = 0,
     shell: str = "",
     dangerously_skip_sandbox: bool = False,
     background: bool = False,
@@ -72,7 +72,7 @@ async def run_shell_command(
             f"Started background process. Handle: {handle}. "
             "Call MonitorProcess with this handle to check status."
         )
-    if max_chars is None:
+    if not max_chars:
         max_chars = CFG.LLM_MAX_OUTPUT_CHARS
     cwd = cwd or os.getcwd()
     resolved_shell, shell_flag = resolve_shell(shell)

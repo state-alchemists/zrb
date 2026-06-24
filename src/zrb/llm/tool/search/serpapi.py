@@ -8,9 +8,9 @@ from zrb.config.config import CFG
 def search_internet(
     query: str,
     page: int = 1,
-    safe_search: str | None = None,
-    language: str | None = None,
-    api_key: str | None = None,
+    safe_search: str = "",
+    language: str = "",
+    api_key: str = "",
 ) -> dict[str, Any]:
     """
     Performs a live internet search using SerpApi (Google Search).
@@ -20,12 +20,12 @@ def search_internet(
     - When you need precise, high-quality search results from Google.
     - To find the latest official documentation, technical articles, or community discussions.
     """
-    if safe_search is None:
+    if not safe_search:
         safe_search = CFG.SERPAPI_SAFE
-    if language is None:
+    if not language:
         language = CFG.SERPAPI_LANG
 
-    effective_api_key = api_key if api_key is not None else CFG.SERPAPI_KEY
+    effective_api_key = api_key or CFG.SERPAPI_KEY
 
     if not effective_api_key:
         raise Exception(

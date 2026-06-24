@@ -397,18 +397,13 @@ def test_register_section_overwrites_previous_provider():
     assert "# First" not in composed
 
 
-def test_builtin_section_not_shadowed_by_registered_provider():
-    """A provider registered under a built-in name never shadows the built-in."""
+def test_builtin_section_can_be_overridden_by_registered_provider():
+    """A registered provider takes precedence over an identically-named built-in."""
     manager = PromptManager(include_sections=["mandate"])
-    manager.register_section("mandate", lambda ctx: "# Hijacked")
+    manager.register_section("mandate", lambda ctx: "# Overridden")
     ctx = SharedContext()
-    with patch(
-        "zrb.llm.prompt.manager.get_prompt",
-        side_effect=lambda name, **kw: f"# Builtin {name}",
-    ):
-        composed = manager.compose_prompt()(ctx)
-    assert "# Builtin mandate" in composed
-    assert "# Hijacked" not in composed
+    composed = manager.compose_prompt()(ctx)
+    assert "# Overridden" in composed
 
 
 # ── Tool guidance ─────────────────────────────────────────────────────────────

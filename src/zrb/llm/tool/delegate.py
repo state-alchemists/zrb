@@ -370,9 +370,9 @@ def create_delegate_to_agent_tool(
         agent_name: str = "",
         deliverable: str = "",
         task: str = "",
-        non_goals: list[str] | None = None,
+        non_goals: list[str] = [],
         additional_context: str = "",
-        tasks: list[dict[str, Any]] | None = None,
+        tasks: list[dict[str, Any]] = [],
     ) -> str:
         """See module docstring; required-arg signature is the scope clamp."""
         # FAN OUT: a non-empty `tasks` list runs several sub-agents concurrently
@@ -380,8 +380,6 @@ def create_delegate_to_agent_tool(
         # ignored in that case.
         if tasks:
             return await _run_parallel(tasks, sub_agent_manager)
-        if non_goals is None:
-            non_goals = []
         missing = [
             name
             for name, value in (
