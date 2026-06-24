@@ -66,7 +66,7 @@ pm = PromptManager(
         "persona", "mandate", "git_mandate", "journal_mandate",
         "system_context", "project_context",
         "sprint_context",        # ← your section
-        "tool_guidance", "claude_skills",
+        "tool_guidance",
     ],
 )
 

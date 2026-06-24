@@ -26,7 +26,7 @@ The tree is self-describing — `ls src/zrb/` plus each module's docstring cover
 
 `PromptManager` (`src/zrb/llm/prompt/manager.py`) assembles the system prompt from ordered sections. Default order in `config/mixins/llm_prompt.py::DEFAULT_LLM_INCLUDE_SECTIONS`:
 
-`persona → mandate → git_mandate → journal_mandate → system_context → project_context → tool_guidance → claude_skills`
+`persona → mandate → git_mandate → journal_mandate → system_context → project_context → tool_guidance`
 
 User-added prompts follow. Override via the `include_sections` constructor parameter or the `ZRB_LLM_INCLUDE_SECTIONS` env var (comma-separated, order-sensitive).
 
@@ -39,13 +39,12 @@ Either way, downstreams add ordered sections without editing `PromptManager`. Se
 **Each section is MECE — a single behavior lives in exactly one section.** Adding a rule: pick the smallest-scope section that owns the concept.
 
 - `persona` — identity + response style
-- `mandate` — operating rules (no tool/git specifics)
+- `mandate` — operating rules (no tool/git specifics) + the skill catalogue, injected via `{CORE_SKILLS}`/`{AVAILABLE_SKILLS}`/`{ACTIVE_SKILLS}` placeholders (`build_skill_replacements` in `prompt/claude.py`); core skills (`llm_plugin/core_skills/`) are listed separately from other model-invocable skills
 - `git_mandate` — git approval rules
 - `journal_mandate` — memory protocol + index
 - `system_context` — runtime facts; auto-injects session wiring, active worktree, and pending todos so todo tools target the right conversation and stale state self-clears
 - `project_context` — AGENTS.md / CLAUDE.md project overrides
 - `tool_guidance` — per-tool when-to-use + key rules
-- `claude_skills` — skill catalogue
 
 ### Ambient State (`ContextVar`s)
 

@@ -33,7 +33,8 @@ def test_config_llm_include_sections_default():
     sections = CFG.LLM_INCLUDE_SECTIONS
     assert isinstance(sections, list)
     # Default order: persona, mandate, git_mandate, journal_mandate,
-    # system_context, project_context, tool_guidance, claude_skills.
+    # system_context, project_context, tool_guidance. The skill catalogue is
+    # folded into mandate via placeholders, so there is no claude_skills section.
     assert sections == [
         "persona",
         "mandate",
@@ -42,7 +43,6 @@ def test_config_llm_include_sections_default():
         "system_context",
         "project_context",
         "tool_guidance",
-        "claude_skills",
     ]
 
 

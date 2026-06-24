@@ -24,12 +24,14 @@ class LLMPromptMixin:
         # Comma-separated, order-sensitive list of prompt sections to include.
         # Order in the list determines the order they appear in the system prompt.
         # Each section is MECE (mutually exclusive in concern): persona=identity+priorities,
-        # mandate=operating rules, git_mandate=git approval, journal_mandate=memory protocol,
-        # system_context=runtime facts, project_context=AGENTS.md/CLAUDE.md,
-        # tool_guidance=per-tool rules, claude_skills=catalogue.
+        # mandate=operating rules + skill catalogue, git_mandate=git approval,
+        # journal_mandate=memory protocol, system_context=runtime facts,
+        # project_context=AGENTS.md/CLAUDE.md, tool_guidance=per-tool rules.
+        # The skill catalogue is injected into mandate via {CORE_SKILLS}/
+        # {AVAILABLE_SKILLS}/{ACTIVE_SKILLS} placeholders, not a separate section.
         self.DEFAULT_LLM_INCLUDE_SECTIONS: str = (
             "persona,mandate,git_mandate,journal_mandate,system_context,"
-            "project_context,tool_guidance,claude_skills"
+            "project_context,tool_guidance"
         )
         # Runtime journaling reminder — separate from the journal_mandate
         # prompt section, which is controlled by LLM_INCLUDE_SECTIONS.

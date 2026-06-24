@@ -1,13 +1,10 @@
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from zrb.llm.prompt.claude import (
-    create_claude_skills_prompt,
+    build_skill_replacements,
     create_project_context_prompt,
 )
-from zrb.llm.skill.manager import Skill, SkillManager
+from zrb.llm.skill.manager import SkillManager
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -206,123 +203,121 @@ def test_create_project_context_prompt_all_files_listed_without_read(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# create_claude_skills_prompt tests
+# build_skill_replacements tests
 # ---------------------------------------------------------------------------
 
 
-def test_create_claude_skills_prompt_no_skills(tmp_path):
-    """Empty skill manager: next_handler is still called."""
+def _scan(tmp_path):
     sm = SkillManager(root_dir=str(tmp_path))
-    sm.scan(search_dirs=[])  # no skills
-
-    handler = create_claude_skills_prompt(sm)
-    ctx = _make_ctx()
-    captured = []
-
-    def capture_next(c, p):
-        captured.append(p)
-        return p
-
-    result = handler(ctx, "base prompt", capture_next)
-
-    assert captured  # next_handler was called
-    assert result is not None
+    sm.scan(search_dirs=[tmp_path])
+    return sm
 
 
-def test_create_claude_skills_prompt_with_skills(tmp_path):
-    """Skills found by the manager appear in the returned prompt."""
-    skill_file = tmp_path / "test.skill.md"
-    skill_file.write_text(
+def test_build_skill_replacements_returns_all_placeholders(tmp_path):
+    """All three placeholders are always present, even with no skills."""
+    sm = SkillManager(root_dir=str(tmp_path))
+    sm.scan(search_dirs=[])
+
+    r = build_skill_replacements(sm)
+
+    assert set(r) == {"CORE_SKILLS", "AVAILABLE_SKILLS", "ACTIVE_SKILLS"}
+
+
+def test_build_skill_replacements_lists_available_skill(tmp_path):
+    """A non-core model-invocable skill lands in AVAILABLE_SKILLS."""
+    (tmp_path / "test.skill.md").write_text(
         "---\nname: test-skill\ndescription: A test skill\n---\n# Content"
     )
-    sm = SkillManager(root_dir=str(tmp_path))
-    sm.scan(search_dirs=[tmp_path])
 
-    handler = create_claude_skills_prompt(sm)
-    ctx = _make_ctx()
+    r = build_skill_replacements(_scan(tmp_path))
 
-    result = handler(ctx, "base prompt", _identity_next)
-
-    assert "test-skill" in result
+    assert "test-skill" in r["AVAILABLE_SKILLS"]
+    assert "A test skill" in r["AVAILABLE_SKILLS"]
+    assert "test-skill" not in r["CORE_SKILLS"]
 
 
-def test_create_claude_skills_prompt_with_active_skills(tmp_path):
-    """Active skills are fully loaded and listed under 'Active Skills'."""
-    skill_file = tmp_path / "active.skill.md"
-    skill_file.write_text(
-        "---\nname: active-skill\ndescription: Active skill\n---\nSkill content here"
+def test_build_skill_replacements_separates_core_from_other(tmp_path):
+    """A skill under a core_skills/ dir is classified as core, not available."""
+    core_dir = tmp_path / "core_skills" / "core-thing"
+    core_dir.mkdir(parents=True)
+    (core_dir / "SKILL.md").write_text(
+        "---\nname: core-thing\ndescription: A core skill\n---\n# Content"
     )
+    (tmp_path / "other.skill.md").write_text(
+        "---\nname: other\ndescription: Another skill\n---\n# Content"
+    )
+
+    r = build_skill_replacements(_scan(tmp_path))
+
+    assert "core-thing" in r["CORE_SKILLS"]
+    assert "core-thing" not in r["AVAILABLE_SKILLS"]
+    assert "other" in r["AVAILABLE_SKILLS"]
+
+
+def test_build_skill_replacements_available_empty_placeholder(tmp_path):
+    """AVAILABLE_SKILLS is a harmless placeholder string when empty."""
     sm = SkillManager(root_dir=str(tmp_path))
-    sm.scan(search_dirs=[tmp_path])
+    sm.scan(search_dirs=[])
 
-    handler = create_claude_skills_prompt(sm, active_skills=["active-skill"])
-    ctx = _make_ctx()
+    r = build_skill_replacements(sm)
 
-    result = handler(ctx, "base prompt", _identity_next)
-
-    assert "active-skill" in result
-    assert "Active Skills" in result
+    assert r["AVAILABLE_SKILLS"] == "_(none registered)_"
 
 
-def test_create_claude_skills_prompt_active_skill_content_loaded(tmp_path):
-    """Full content of an active skill is embedded in the prompt."""
-    skill_file = tmp_path / "deep.skill.md"
-    skill_file.write_text(
+def test_build_skill_replacements_active_skill_content_loaded(tmp_path):
+    """Active skills are rendered with their full content."""
+    (tmp_path / "deep.skill.md").write_text(
         "---\nname: deep-skill\ndescription: Deep skill\n---\nDeep skill body text"
     )
+
+    r = build_skill_replacements(_scan(tmp_path), active_skills=["deep-skill"])
+
+    assert "Deep skill body text" in r["ACTIVE_SKILLS"]
+    assert "Active Skills (Fully Loaded)" in r["ACTIVE_SKILLS"]
+
+
+def test_build_skill_replacements_active_skill_excluded_from_lists(tmp_path):
+    """An active skill is not also advertised in the catalogue lists."""
+    (tmp_path / "act.skill.md").write_text(
+        "---\nname: act\ndescription: Active one\n---\nbody"
+    )
+
+    r = build_skill_replacements(_scan(tmp_path), active_skills=["act"])
+
+    assert "act" not in r["AVAILABLE_SKILLS"]
+
+
+def test_build_skill_replacements_no_active_skills_empty(tmp_path):
+    """ACTIVE_SKILLS is empty when nothing is pre-activated."""
+    (tmp_path / "test.skill.md").write_text(
+        "---\nname: test-skill\ndescription: A test skill\n---\n# Content"
+    )
+
+    r = build_skill_replacements(_scan(tmp_path))
+
+    assert r["ACTIVE_SKILLS"] == ""
+
+
+def test_build_skill_replacements_missing_active_skill_does_not_crash(tmp_path):
+    """Requesting a non-existent active skill is ignored, not fatal."""
     sm = SkillManager(root_dir=str(tmp_path))
     sm.scan(search_dirs=[tmp_path])
 
-    handler = create_claude_skills_prompt(sm, active_skills=["deep-skill"])
-    ctx = _make_ctx()
+    r = build_skill_replacements(sm, active_skills=["nonexistent-skill"])
 
-    result = handler(ctx, "base prompt", _identity_next)
-
-    assert "Deep skill body text" in result
+    assert r["ACTIVE_SKILLS"] == ""
 
 
-def test_create_claude_skills_prompt_active_skill_missing(tmp_path):
-    """Requesting a non-existent active skill does not crash."""
-    sm = SkillManager(root_dir=str(tmp_path))
-    sm.scan(search_dirs=[tmp_path])
+def test_build_skill_replacements_skips_non_invocable(tmp_path):
+    """Skills with disable-model-invocation are not listed."""
+    (tmp_path / "hidden.skill.md").write_text(
+        "---\nname: hidden\ndescription: Hidden\n"
+        "disable-model-invocation: true\n---\n# Content"
+    )
 
-    handler = create_claude_skills_prompt(sm, active_skills=["nonexistent-skill"])
-    ctx = _make_ctx()
+    r = build_skill_replacements(_scan(tmp_path))
 
-    # Should not raise
-    result = handler(ctx, "base prompt", _identity_next)
-    assert result is not None
-
-
-def test_create_claude_skills_prompt_calls_next_handler(tmp_path):
-    """next_handler is always called exactly once."""
-    sm = SkillManager(root_dir=str(tmp_path))
-    sm.scan(search_dirs=[])
-
-    handler = create_claude_skills_prompt(sm)
-    ctx = _make_ctx()
-    calls = []
-
-    def counting_next(c, p):
-        calls.append(p)
-        return p
-
-    handler(ctx, "base prompt", counting_next)
-
-    assert len(calls) == 1
-
-
-def test_create_claude_skills_prompt_base_prompt_preserved(tmp_path):
-    """Base prompt text is always included in the forwarded prompt."""
-    sm = SkillManager(root_dir=str(tmp_path))
-    sm.scan(search_dirs=[])
-
-    handler = create_claude_skills_prompt(sm)
-    ctx = _make_ctx()
-
-    result = handler(ctx, "unique-base-content", _identity_next)
-
-    assert "unique-base-content" in result
+    assert "hidden" not in r["AVAILABLE_SKILLS"]
 
 
 # ---------------------------------------------------------------------------

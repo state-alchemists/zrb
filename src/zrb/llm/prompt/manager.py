@@ -6,7 +6,7 @@ from zrb.attr.type import StrListAttr
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext, zrb_print
 from zrb.llm.prompt.claude import (
-    create_claude_skills_prompt,
+    build_skill_replacements,
     create_project_context_prompt,
 )
 from zrb.llm.prompt.live_context import render_live_context
@@ -35,8 +35,10 @@ class PromptManager:
 
     Sections are emitted in the order given by ``include_sections`` (default in
     ``config/mixins/llm_prompt.py``: persona → mandate → git_mandate →
-    journal_mandate → system_context → project_context → tool_guidance →
-    claude_skills), followed by any user-added prompts. A section name that is
+    journal_mandate → system_context → project_context → tool_guidance),
+    followed by any user-added prompts. The skill catalogue is folded into the
+    mandate section via ``{CORE_SKILLS}``/``{AVAILABLE_SKILLS}``/``{ACTIVE_SKILLS}``
+    placeholders rather than a standalone section. A section name that is
     not one of the built-ins resolves as a custom section: a provider registered
     via ``register_section`` (composed by calling it with the active context, for
     runtime-dynamic content) takes precedence, otherwise the content is loaded
@@ -396,11 +398,18 @@ class PromptManager:
         effective = (
             assistant_name if assistant_name is not None else CFG.LLM_ASSISTANT_NAME
         )
-        _extra = (
+        _extra: dict[str, str] = (
             {"ASSISTANT_NAME": effective[0].upper() + effective[1:]}
             if effective
             else {}
         )
+        # Skill catalogue lives in mandate.md via {CORE_SKILLS}/{AVAILABLE_SKILLS}
+        # /{ACTIVE_SKILLS} placeholders (no separate claude_skills section).
+        if self._skill_manager:
+            active_skills = get_str_list_attr(
+                ctx, self._active_skills, self._render_active_skills
+            )
+            _extra.update(build_skill_replacements(self._skill_manager, active_skills))
         tool_names_value = (
             self._tool_names(ctx) if callable(self._tool_names) else self._tool_names
         )
@@ -408,12 +417,16 @@ class PromptManager:
         # Capture values to avoid late-binding in lambdas
         _catalogue = self._tool_guidance
         _groups = self._tool_groups
-        _skill_mgr = self._skill_manager
 
         middlewares: list[PromptMiddleware | str] = []
 
         for section in sections:
             if section == "git_mandate" and not is_inside_git_dir():
+                continue
+            if section == "claude_skills":
+                # Removed: the skill catalogue now lives in the mandate section.
+                # Silently skip so a pinned old DEFAULT_LLM_INCLUDE_SECTIONS
+                # doesn't emit a spurious "unknown section" warning.
                 continue
             if section == "system_context":
                 middlewares.append(self._create_system_context_middleware())
@@ -428,14 +441,6 @@ class PromptManager:
                 )
             elif section == "project_context":
                 middlewares.append(self._create_project_context_middleware())
-            elif section == "claude_skills":
-                if _skill_mgr:
-                    active_skills = get_str_list_attr(
-                        ctx, self._active_skills, self._render_active_skills
-                    )
-                    middlewares.append(
-                        create_claude_skills_prompt(_skill_mgr, active_skills)
-                    )
             elif section in self._section_providers:
                 # Registered dynamic section -> composed by calling the
                 # provider with the active context at compose time. Takes

@@ -13,7 +13,7 @@ tools: [
   TodoWrite, TodoRead,
   ActivateSkill
 ]
-inherit_sections: [persona, mandate, git_mandate, system_context, project_context, claude_skills]
+inherit_sections: [persona, mandate, git_mandate, system_context, project_context]
 ---
 # Mandate
 

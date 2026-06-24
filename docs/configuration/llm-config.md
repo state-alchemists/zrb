@@ -187,7 +187,7 @@ The system prompt is assembled from an **ordered list of sections**. The list is
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_INCLUDE_SECTIONS` | Comma-separated, order-sensitive list of sections to include | `persona,mandate,git_mandate,journal_mandate,system_context,project_context,tool_guidance,claude_skills` |
+| `ZRB_LLM_INCLUDE_SECTIONS` | Comma-separated, order-sensitive list of sections to include | `persona,mandate,git_mandate,journal_mandate,system_context,project_context,tool_guidance` |
 | `ZRB_LLM_INCLUDE_JOURNAL_REMINDER` | Append a journaling reminder at session end (runtime hook, not a prompt section) | `off` |
 
 Recognised section names:
@@ -201,13 +201,14 @@ Recognised section names:
 | `system_context` | OS / time / CWD / ambient state |
 | `project_context` | Project docs (`AGENTS.md`, `CLAUDE.md`, `README.md`, …) |
 | `tool_guidance` | Per-tool usage guidance |
-| `claude_skills` | Available skills index + active-skill contents |
+
+> The skill catalogue (core skills, other available skills, and active-skill contents) is part of the `mandate` section, injected via `{CORE_SKILLS}`/`{AVAILABLE_SKILLS}`/`{ACTIVE_SKILLS}` placeholders — it is no longer a separate section.
 
 Examples:
 
 ```bash
 # Strip the journaling mandate and project context (e.g. for benchmark runners).
-export ZRB_LLM_INCLUDE_SECTIONS="persona,mandate,git_mandate,system_context,tool_guidance,claude_skills"
+export ZRB_LLM_INCLUDE_SECTIONS="persona,mandate,git_mandate,system_context,tool_guidance"
 
 # Personality-only: just persona and mandate.
 export ZRB_LLM_INCLUDE_SECTIONS="persona,mandate"
@@ -274,7 +275,7 @@ substitution. No Python required:
 
 ```bash
 # Loads company_context.md and places it after `mandate`.
-export ZRB_LLM_INCLUDE_SECTIONS="persona,mandate,company_context,tool_guidance,claude_skills"
+export ZRB_LLM_INCLUDE_SECTIONS="persona,mandate,company_context,tool_guidance"
 ```
 
 > **Resolution precedence** for a section name is **built-in > registered provider >
