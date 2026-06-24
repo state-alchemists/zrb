@@ -250,7 +250,7 @@ class PromptManager:
         if not body.strip():
             return ""
         return f"<live-context>\n{body}\n</live-context>"
-    
+
     def add_system_context(self, name: str, provider: SimplePrompt) -> None:
         """Register a dynamic system context provider.
 
@@ -337,7 +337,7 @@ class PromptManager:
             return result
 
         return project_context_middleware
-    
+
     def compose_prompt(self) -> Callable[[AnyContext], str]:
         """
         Composes a list of prompt middlewares into a single prompt factory function.
@@ -393,7 +393,9 @@ class PromptManager:
         assistant_name = (
             get_str_attr(ctx, self._assistant_name) if self._assistant_name else None
         )
-        effective = assistant_name if assistant_name is not None else CFG.LLM_ASSISTANT_NAME
+        effective = (
+            assistant_name if assistant_name is not None else CFG.LLM_ASSISTANT_NAME
+        )
         _extra = (
             {"ASSISTANT_NAME": effective[0].upper() + effective[1:]}
             if effective
@@ -450,7 +452,9 @@ class PromptManager:
                 # Built-in sections like "mandate" and "journal_mandate" live
                 # here too, since _extra's {ASSISTANT_NAME} is harmless when a
                 # markdown file has no matching placeholder.
-                middlewares.append(self._file_section_middleware(section, extra_replacements=_extra))
+                middlewares.append(
+                    self._file_section_middleware(section, extra_replacements=_extra)
+                )
 
         # User custom prompts always last
         middlewares.extend(self._middlewares)

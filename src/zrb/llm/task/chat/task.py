@@ -46,6 +46,7 @@ from zrb.llm.permission import (
 )
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.prompt.tool_guidance import ToolGuidance
+from zrb.llm.sandbox import coerce_sandbox
 from zrb.llm.summarizer import (
     create_summarizer_history_processor,
 )
@@ -63,7 +64,6 @@ from zrb.llm.util.attachment import get_attachments
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
 from zrb.util.attr import get_attr, get_bool_attr, get_str_attr
-from zrb.llm.sandbox import coerce_sandbox
 from zrb.util.cli.style import stylize_highlight, stylize_muted
 from zrb.util.string.name import get_random_name
 from zrb.xcom.xcom import Xcom
