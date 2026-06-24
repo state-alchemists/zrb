@@ -46,7 +46,7 @@ def truncate_tool_content(content: str, *, limit: int | None) -> tuple[str, bool
     marker = (
         f"\n\n…[truncated: {_human_size(original_chars)} total across "
         f"~{total_lines} lines, kept first {head_len} and last {tail_len} "
-        "characters. Re-read a narrower slice: Read with offset/limit, a "
+        "characters. Re-read a narrower slice: Read with start_line/end_line, a "
         "tighter Grep pattern, or pipe through head/tail in Bash.]…\n\n"
     )
     return head + marker + tail, True
