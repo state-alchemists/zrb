@@ -1,4 +1,6 @@
 import random
+import secrets
+import string
 
 from zrb.builtin.group import random_group
 from zrb.context.any_context import AnyContext
@@ -59,3 +61,62 @@ def shuffle_values(ctx: AnyContext) -> str:
     ctx.print("Shuffling...")
     random.shuffle(shuffled)
     return "\n".join(shuffled)
+
+
+@make_task(
+    name="generate-password",
+    description="🔑 Generate a cryptographically secure password",
+    input=IntInput(
+        name="length",
+        description="Password length",
+        prompt="Length",
+        default=16,
+    ),
+    retries=0,
+    group=random_group,
+    alias="password",
+)
+def generate_password(ctx: AnyContext) -> str:
+    alphabet = string.ascii_letters + string.digits + string.punctuation
+    result = "".join(secrets.choice(alphabet) for _ in range(ctx.input.length))
+    ctx.print(result)
+    return result
+
+
+@make_task(
+    name="generate-token",
+    description="🎟️ Generate a secure URL-safe token",
+    input=IntInput(
+        name="bytes",
+        description="Number of random bytes (token is longer after encoding)",
+        prompt="Number of bytes",
+        default=32,
+    ),
+    retries=0,
+    group=random_group,
+    alias="token",
+)
+def generate_token(ctx: AnyContext) -> str:
+    result = secrets.token_urlsafe(ctx.input.bytes)
+    ctx.print(result)
+    return result
+
+
+@make_task(
+    name="generate-string",
+    description="🔤 Generate a secure random alphanumeric string",
+    input=IntInput(
+        name="length",
+        description="String length",
+        prompt="Length",
+        default=16,
+    ),
+    retries=0,
+    group=random_group,
+    alias="string",
+)
+def generate_string(ctx: AnyContext) -> str:
+    alphabet = string.ascii_letters + string.digits
+    result = "".join(secrets.choice(alphabet) for _ in range(ctx.input.length))
+    ctx.print(result)
+    return result

@@ -74,31 +74,6 @@ def is_missing_reasoning_content_error(e: Exception) -> bool:
     return False
 
 
-def is_opaque_validation_error(e: Exception) -> bool:
-    """Returns True for Bedrock's empty ValidationException (GLM-5 pattern).
-
-    Unlike `is_missing_reasoning_content_error` which also matches DeepSeek
-    string patterns, this detects the opaque catch-all ValidationException
-    that Bedrock returns when a non-Anthropic model (GLM-5, etc.) rejects
-    any structural aspect of the message history — nil content, orphaned
-    tool pairs, thinking parts, etc. The empty Message field means the
-    provider gave no specific reason, so a single fix (strip thinking parts)
-    is unlikely to suffice; callers should use a cascading strategy.
-    """
-    status_code = getattr(e, "status_code", None)
-    if status_code != 400:
-        return False
-    body = getattr(e, "body", None)
-    if isinstance(body, dict):
-        error = body.get("Error", {})
-        if isinstance(error, dict):
-            code = error.get("Code", "")
-            message = error.get("Message", "")
-            if code == "ValidationException" and not message:
-                return True
-    return False
-
-
 def is_retryable_error(e: Exception) -> bool:
     """Returns True for transient provider errors (429, 5xx) worth retrying."""
     status_code = getattr(e, "status_code", None)
@@ -114,6 +89,38 @@ def is_retryable_error(e: Exception) -> bool:
         k in msg
         for k in ("rate limit", "rate_limit", "529", "503", "502", "overloaded")
     )
+
+
+def classify_error_type(e: Exception) -> str:
+    """Classify an exception into a coarse category token for StopFailure.
+
+    Mirrors Claude Code's StopFailure error-type matcher values where they map
+    cleanly onto provider errors. Best-effort — falls back to "unknown".
+    """
+    status_code = getattr(e, "status_code", None)
+    if status_code is None:
+        response = getattr(e, "response", None)
+        status_code = getattr(response, "status_code", None)
+    msg = str(e).lower()
+    if is_prompt_too_long_error(e):
+        return "context_length"
+    if status_code == 429:
+        return "rate_limit"
+    if status_code in (401, 403):
+        return "authentication_failed"
+    if status_code == 404:
+        return "model_not_found"
+    if status_code == 400:
+        return "invalid_request"
+    if status_code is not None and status_code >= 500:
+        if status_code == 529 or "overloaded" in msg:
+            return "overloaded"
+        return "server_error"
+    if "overloaded" in msg or "529" in msg:
+        return "overloaded"
+    if "rate limit" in msg or "rate_limit" in msg:
+        return "rate_limit"
+    return "unknown"
 
 
 def get_retry_wait(e: Exception, attempt: int, max_wait: float) -> float:

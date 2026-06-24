@@ -16,7 +16,7 @@ see docs/advanced-topics/llm-chat-lifecycle.md.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, AsyncIterable, Callable
+from typing import TYPE_CHECKING, Any, AsyncIterable, Callable, cast
 
 from zrb.attr.type import BoolAttr, StrAttr, StrListAttr, fstring
 from zrb.config.config import CFG
@@ -35,6 +35,7 @@ from zrb.llm.factory_resolver import resolve_factory_items
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.history_manager.file_history_manager import FileHistoryManager
 from zrb.llm.hook.manager import HookManager
+from zrb.llm.hook.types import HookEvent
 from zrb.llm.permission import (
     ALLOW,
     ASK,
@@ -62,7 +63,7 @@ from zrb.llm.util.attachment import get_attachments
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
 from zrb.util.attr import get_attr, get_bool_attr, get_str_attr
-from zrb.util.cli.style import stylize_bold_yellow, stylize_faint
+from zrb.util.cli.style import stylize_highlight, stylize_muted
 from zrb.util.string.name import get_random_name
 from zrb.xcom.xcom import Xcom
 
@@ -77,6 +78,8 @@ if TYPE_CHECKING:
 
     from zrb.llm.agent.common import HistoryProcessor
     from zrb.llm.approval.approval_channel import ApprovalChannel
+    from zrb.llm.permission import PermissionPolicyInput
+    from zrb.llm.sandbox import SandboxInput
     from zrb.llm.tool_call.ui_protocol import UIProtocol
 
 
@@ -103,7 +106,7 @@ def parse_yolo_value(value: Any) -> "bool | frozenset[str]":
     return tools if tools else False
 
 
-class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
+class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):  # type: ignore[reportIncompatibleVariableOverride]
 
     def __init__(
         self,
@@ -169,6 +172,8 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
             | None
         ) = None,
         approval_channel: ApprovalChannel | None = None,
+        permissions: "PermissionPolicyInput" = None,
+        sandbox: "SandboxInput" = None,
         yolo: BoolAttr = False,
         yolo_xcom_key: str = "yolo",
         ui_summarize_commands: list[str] | None = None,
@@ -281,6 +286,9 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
             toolset_factories if toolset_factories is not None else []
         )
         self._hook_factories: list[Callable[[HookManager], None]] = []
+        # Set per execution in _create_llm_task_core; the interactive teardown
+        # fires the terminal SESSION_END on it.
+        self._active_hook_manager: HookManager | None = None
         self._message = message
         self._render_message = render_message
         self._attachment = attachment
@@ -305,6 +313,8 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
         self._approval_channels: list["ApprovalChannel"] = []
         if approval_channel is not None:
             self._approval_channels.append(approval_channel)
+        self._permissions = permissions
+        self._sandbox = sandbox
         self._yolo = yolo
         self._yolo_xcom_key = yolo_xcom_key
         self._ui_summarize_commands = (
@@ -376,14 +386,6 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
         self._interactive = interactive
         self._show_ollama_models = show_ollama_models
         self._show_pydantic_ai_models = show_pydantic_ai_models
-
-    @property
-    def llm_config(self) -> LLMConfig:
-        return self._llm_config
-
-    @property
-    def llm_limiter(self) -> LLMLimiter | None:
-        return self._llm_limiter
 
     def get_system_prompt(self, ctx: AnyContext) -> str:
         if self._prompt_manager is None:
@@ -518,6 +520,27 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
         would restart them on every message. Each step is guarded so teardown
         never raises; a second ``KeyboardInterrupt`` still propagates.
         """
+        # Terminal SESSION_END: the interactive chat session is ending (normal
+        # exit, /exit, EOF, or Ctrl+C). Claude Code fires SessionEnd once per
+        # session, not per turn — run_agent fires only STOP per turn. Guarded so
+        # a misbehaving hook never blocks resource teardown.
+        #
+        # `source` is the Claude-compatible matcher field for SessionEnd. This
+        # single teardown point cannot distinguish the exit cause (normal /
+        # /exit / EOF / Ctrl+C all funnel through the same `finally`) without
+        # threading the reason through the chat loop, so we report the Claude
+        # catch-all "other"; finer values (logout / prompt_input_exit) are a
+        # follow-up. `reason` stays in event_data for the CLAUDE_* env vars.
+        if self._active_hook_manager is not None:
+            try:
+                await self._active_hook_manager.execute_hooks(
+                    HookEvent.SESSION_END,
+                    {"reason": "exit"},
+                    source="other",
+                )
+            except Exception:
+                CFG.LOGGER.debug("SESSION_END hook raised at teardown", exc_info=True)
+
         # lazy: circular — chat task → lsp manager → server → (back to llm); and
         # avoids paying the import on the non-interactive/web path.
         try:
@@ -669,7 +692,7 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
             for t in resolved_tools
         }
 
-        def check_yolo(tool_def=None):
+        def _should_skip_approval(tool_def=None):
             # Approval precedence chain:
             #   perm_policy: allow→auto-approve, deny→auto-approve (gate blocks),
             #                ask→defer to tool_policy cascade
@@ -726,6 +749,10 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
         # Apply all hook factories
         for factory in self._hook_factories:
             factory(hook_manager)
+        # Hold a reference so the interactive teardown can fire the terminal
+        # SESSION_END on this exact manager (run_agent fires per-turn STOP, not
+        # SESSION_END — SESSION_END is once-per-session, like Claude Code).
+        self._active_hook_manager = hook_manager
 
         # Pass resolved tools/toolsets to LLMTask (no factories needed since already resolved)
         return LLMTask(
@@ -737,7 +764,7 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
                 StrInput("attachments", "Attachments"),
                 StrInput("model", "Model"),
             ],
-            env=self.envs,
+            env=cast(list[AnyEnv | None], self.envs),
             system_prompt=self._system_prompt,
             render_system_prompt=self._render_system_prompt,
             prompt_manager=self._prompt_manager,
@@ -754,12 +781,14 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
             history_manager=history_manager,
             hook_manager=hook_manager,
             tool_confirmation=tool_confirmation,
-            ui=ui,
+            ui=cast("UIProtocol | None", ui),
             approval_channel=effective_approval_channel,
+            permissions=self._permissions,
+            sandbox=self._sandbox,
             message="{ctx.input.message}",
             conversation_name="{ctx.input.session}",
             yolo="{ctx.input.yolo}",
-            dynamic_yolo=check_yolo,
+            dynamic_yolo=_should_skip_approval,
             attachment=lambda ctx: ctx.input.attachments,
             model=lambda ctx: ctx.input.get("model"),
             render_model=False,
@@ -767,10 +796,10 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
         )
 
     def _print_conversation_name(self, ctx: AnyContext, conversation_name: str):
-        stylized_label = stylize_faint("Session")
-        stylized_conversation_name = stylize_bold_yellow(conversation_name)
+        stylized_label = stylize_muted("Session")
+        stylized_conversation_name = stylize_highlight(conversation_name)
         ctx.print(
-            stylize_faint(f"{stylized_label}: {stylized_conversation_name}"), plain=True
+            stylize_muted(f"{stylized_label}: {stylized_conversation_name}"), plain=True
         )
 
     def _get_initial_conversation_name(self, ctx: AnyContext) -> str:
@@ -800,43 +829,3 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
         if rendered_model is not None:
             return rendered_model
         return self._llm_config.model
-
-    @property
-    def history_manager(self) -> AnyHistoryManager | None:
-        """Get the history manager."""
-        return self._history_manager
-
-    @history_manager.setter
-    def history_manager(self, value: AnyHistoryManager | None):
-        """Set the history manager."""
-        self._history_manager = value
-
-    @property
-    def ui_factories(self) -> list[Callable[..., "UIProtocol"]]:
-        """Get the UI factories."""
-        return self._ui_factories
-
-    @ui_factories.setter
-    def ui_factories(self, value: list[Callable[..., "UIProtocol"]]):
-        """Set the UI factories."""
-        self._ui_factories = value
-
-    @property
-    def approval_channels(self) -> list["ApprovalChannel"]:
-        """Get the approval channels."""
-        return self._approval_channels
-
-    @approval_channels.setter
-    def approval_channels(self, value: list["ApprovalChannel"]):
-        """Set the approval channels."""
-        self._approval_channels = value
-
-    @property
-    def include_default_ui(self) -> bool:
-        """Check if the default UI should be included."""
-        return self._include_default_ui
-
-    @include_default_ui.setter
-    def include_default_ui(self, value: bool):
-        """Set if the default UI should be included."""
-        self._include_default_ui = value

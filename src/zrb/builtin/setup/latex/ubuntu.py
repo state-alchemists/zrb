@@ -6,6 +6,7 @@ setup_latex_on_ubuntu = setup_latex_group.add_task(
     CmdTask(
         name="setup-latex-on-ubuntu",
         description="🐧 Setup LaTeX on Ubuntu",
+        upstream=setup_ubuntu,
         cmd=[
             "sudo apt install -y \\",
             "texlive-full texlive-latex-base texlive-fonts-recommended \\",
@@ -16,4 +17,3 @@ setup_latex_on_ubuntu = setup_latex_group.add_task(
     ),
     alias="ubuntu",
 )
-setup_ubuntu >> setup_latex_on_ubuntu

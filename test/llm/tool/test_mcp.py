@@ -49,8 +49,9 @@ def test_mcp_toolset_factory_instantiation(mock_fs):
         )
 
     # Mock os.path.expanduser and os.getcwd
-    with patch("os.path.expanduser", return_value=home_dir), patch(
-        "os.getcwd", return_value=sub_dir
+    with (
+        patch("os.path.expanduser", return_value=home_dir),
+        patch("os.getcwd", return_value=sub_dir),
     ):
 
         toolsets = load_mcp_config()
@@ -83,8 +84,9 @@ def test_mcp_toolset_factory_overrides(mock_fs):
     with open(os.path.join(project_dir, "mcp-config.json"), "w") as f:
         json.dump({"mcpServers": {"server1": {"command": "cmd2"}}}, f)
 
-    with patch("os.path.expanduser", return_value=home_dir), patch(
-        "os.getcwd", return_value=sub_dir
+    with (
+        patch("os.path.expanduser", return_value=home_dir),
+        patch("os.getcwd", return_value=sub_dir),
     ):
 
         toolsets = load_mcp_config()

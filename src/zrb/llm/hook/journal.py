@@ -11,7 +11,7 @@ The hook does NOT:
 - Parse or summarize (LLM's intelligence)
 
 The hook DOES:
-- Remind LLM at SESSION_END to consider journaling
+- Remind LLM at STOP (per-turn end) to consider journaling
 - Let LLM decide what's worth remembering (it will skip trivial exchanges)
 """
 
@@ -31,12 +31,12 @@ class JournalingHookHandler:
     - LLM uses its own intelligence + Write/Edit tools
 
     Anti-recursion protection:
-    - _session_end_fired: Set after reminder sent, prevents repeat firing within a turn
+    - _stop_fired: Set after reminder sent, prevents repeat firing within a turn
     - Reset at SESSION_START so the hook fires again on every new turn
     """
 
     def __init__(self):
-        self._session_end_fired: bool = False
+        self._stop_fired: bool = False
 
     def is_enabled(self) -> bool:
         """Check if journal reminder is enabled.
@@ -57,13 +57,21 @@ class JournalingHookHandler:
         if context.event == HookEvent.SESSION_START:
             self.reset()
 
-        # At SESSION_END, always remind — LLM decides whether anything is worth noting
-        if context.event == HookEvent.SESSION_END:
+        # At STOP (per-turn end), always remind — the LLM decides whether anything
+        # is worth noting. STOP is the Claude-compatible per-turn signal; the
+        # systemMessage extension re-runs the turn so the LLM can journal.
+        if context.event == HookEvent.STOP:
             # Prevent infinite recursion: only fire reminder once per turn
-            if self._session_end_fired:
+            if self._stop_fired:
                 return HookResult()
-            self._session_end_fired = True
-            return HookResult.with_system_message(self._build_reminder())
+            self._stop_fired = True
+            return HookResult(
+                success=True,
+                modifications={
+                    "systemMessage": self._build_reminder(),
+                    "replaceResponse": False,
+                },
+            )
 
         return HookResult()
 
@@ -78,7 +86,7 @@ class JournalingHookHandler:
 
     def reset(self) -> None:
         """Reset session state for new turn."""
-        self._session_end_fired = False
+        self._stop_fired = False
 
 
 # Factory function for hook registration
@@ -111,7 +119,7 @@ def create_journaling_hook_factory():
             journal_hook,
             events=[
                 HookEvent.SESSION_START,  # Reset state each turn
-                HookEvent.SESSION_END,  # Send reminder after every response
+                HookEvent.STOP,  # Send reminder after every response (per-turn)
             ],
         )
 

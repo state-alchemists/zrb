@@ -12,7 +12,7 @@ import atexit
 
 from zrb.llm.lsp.manager.lifecycle_mixin import LifecycleMixin
 from zrb.llm.lsp.manager.query_mixin import QueryMixin
-from zrb.llm.lsp.server import LSPServer
+from zrb.llm.lsp.server import LSPServer, LSPServerConfig
 
 
 class LSPManager(LifecycleMixin, QueryMixin):
@@ -23,15 +23,14 @@ class LSPManager(LifecycleMixin, QueryMixin):
     - Lazy start (only start server when needed)
     - Auto-detect available LSP servers
     - One server instance per language per project root
-    - Idle shutdown to free resources
     - Symbol-based API (more LLM-friendly than position-based)
+    - ``register_lsp_server()`` for user-extensible configs
     """
 
     _instance: "LSPManager | None" = None
     _servers: dict[str, LSPServer]  # key: "language:root_path"
     _lock: asyncio.Lock | None
     _project_roots: dict[str, str]  # file_path -> detected root
-    _idle_tasks: dict[str, asyncio.Task]
 
     def __new__(cls):
         if cls._instance is None:
@@ -39,8 +38,37 @@ class LSPManager(LifecycleMixin, QueryMixin):
             cls._instance._servers = {}
             cls._instance._lock = None  # Initialize lazily
             cls._instance._project_roots = {}
-            cls._instance._idle_tasks = {}
         return cls._instance
+
+    def register_lsp_server(self, name: str, config: LSPServerConfig) -> None:
+        """Register a user LSP server configuration.
+
+        Users call this from ``zrb_init.py`` to add support for languages
+        not in the built-in table::
+
+            from zrb.llm.lsp.configs import LSPServerConfig
+            from zrb.llm.lsp.manager import lsp_manager
+
+            lsp_manager.register_lsp_server(
+                "my-lang-lsp",
+                LSPServerConfig(
+                    name="my-lang-lsp",
+                    command=["my-lsp-server", "--stdio"],
+                    language_ids=["mylang"],
+                    file_extensions=[".my"],
+                ),
+            )
+
+        Args:
+            name: Unique key for this server (used for lookups / preferred lists)
+            config: The server configuration
+        """
+        # lazy: circular — ouroboros at module scope if configs import us back;
+        # import here instead, at the first call site (always runtime, never
+        # module-load), by which point all modules are fully loaded.
+        from zrb.llm.lsp.configs import lsp_server_configs
+
+        lsp_server_configs.register(name, config)
 
 
 # Singleton instance

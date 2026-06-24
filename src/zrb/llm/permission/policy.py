@@ -5,13 +5,15 @@ A ``PermissionPolicy`` is an ordered list of ``Rule``s evaluated first-match-win
 ``"*"``, optionally narrowed by a glob on a salient argument (path / command /
 url / agent_name). ``decide`` returns ``"allow"``, ``"ask"``, or ``"deny"``.
 
-A ``yolo`` value is a degenerate policy — see :func:`from_yolo` — which lets the
-existing yolo truth table be expressed (and characterization-tested) as rules.
+A ``yolo`` value is a degenerate policy expressed as rules via the legacy
+``check_yolo`` predicate — ``True`` allows everything, ``False`` asks,
+and a ``frozenset`` of tool names selectively auto-approves.
 """
 
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from fnmatch import fnmatch
 
@@ -85,23 +87,13 @@ def _arg_matches(pattern: str, args: dict) -> bool:
     return False
 
 
-def from_yolo(yolo) -> "PermissionPolicy | None":
-    """Express a ``yolo`` value as the equivalent ruleset.
-
-    Returns ``None`` for inputs that are not a recognized yolo shape, signalling
-    'use the legacy predicate unchanged'.
-    """
-    if yolo is True:
-        return PermissionPolicy((Rule("*", ALLOW),))
-    if yolo is False:
-        return PermissionPolicy((Rule("*", ASK),))
-    if isinstance(yolo, (set, frozenset)):
-        rules = tuple(Rule(name, ALLOW) for name in sorted(yolo)) + (Rule("*", ASK),)
-        return PermissionPolicy(rules)
-    return None
+# The shapes ``resolve_policy`` (and therefore the ``permissions=`` task
+# argument) accepts: an already-built policy, a shorthand/list string, a
+# sequence of ``Rule``s or rule dicts, or ``None`` (legacy: nothing constrained).
+PermissionPolicyInput = PermissionPolicy | str | Sequence[Rule | dict] | None
 
 
-def resolve_policy(raw) -> "PermissionPolicy | None":
+def resolve_policy(raw: "PermissionPolicyInput") -> "PermissionPolicy | None":
     """Build a policy from user config.
 
     Accepts ``None``/empty (→ ``None``, legacy behavior), a ``PermissionPolicy``,

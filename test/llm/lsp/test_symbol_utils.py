@@ -36,6 +36,32 @@ def test_format_document_symbols_flattens_top_level():
     assert out[0]["detail"] == "(x: int) -> int"
 
 
+def test_format_document_symbols_handles_symbol_information():
+    """SymbolInformation (flat; pylsp) carries its position under
+    location.range, not range/selectionRange. Reading the wrong field gave
+    line=1/character=0 for every symbol and broke position lookups."""
+    syms = [
+        {
+            "name": "LLMTask",
+            "kind": 5,  # Class
+            "location": {
+                "uri": "file:///x.py",
+                "range": {
+                    "start": {"line": 49, "character": 6},
+                    "end": {"line": 120, "character": 0},
+                },
+            },
+            "containerName": "",
+        },
+    ]
+    out = format_document_symbols(syms)
+    assert len(out) == 1
+    assert out[0]["name"] == "LLMTask"
+    assert out[0]["line"] == 50  # 0-based 49 → 1-based
+    assert out[0]["character"] == 6  # the name column, not 0
+    assert out[0]["end_line"] == 121
+
+
 def test_format_document_symbols_recurses_into_children():
     syms = [
         {

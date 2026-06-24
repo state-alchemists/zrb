@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 
 from zrb.llm.custom_command.resolver import resolve_custom_command
 from zrb.util.cli.markdown import render_markdown
-from zrb.util.cli.style import stylize_error, stylize_faint
+from zrb.util.cli.style import stylize_error, stylize_muted
 
 if TYPE_CHECKING:
     from typing import Any
@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
     from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
     from zrb.llm.task.llm_task import LLMTask
+    from zrb.task.any_task import AnyTask
 
 
 class ExecCommandsMixin:
@@ -36,6 +37,7 @@ class ExecCommandsMixin:
     # Host-class contract: state and methods owned by `BaseUI`. Declared here
     # so type checkers can verify accesses; the block does not run at runtime.
     if TYPE_CHECKING:
+        _background_tasks: set[asyncio.Task]
         _btw_commands: list[str]
         _custom_commands: list["AnyCustomCommand"]
         _exec_commands: list[str]
@@ -59,7 +61,9 @@ class ExecCommandsMixin:
 
         def _get_output_field_width(self) -> int | None: ...
 
-        def _submit_user_message(self, llm_task: "LLMTask", text: str) -> None: ...
+        def _submit_user_message(
+            self, llm_task: "AnyTask", user_message: str
+        ) -> None: ...
 
     # --- exec (shell) -----------------------------------------------------
 
@@ -90,7 +94,7 @@ class ExecCommandsMixin:
 
         try:
             self.append_to_output(f"\n💻 {timestamp} >> {cmd}\n")
-            self.append_to_output(stylize_faint("\n  🔢 Executing...\n"))
+            self.append_to_output(stylize_muted("\n  🔢 Executing...\n"))
 
             process = await asyncio.create_subprocess_shell(
                 cmd,
@@ -115,7 +119,7 @@ class ExecCommandsMixin:
 
             if return_code == 0:
                 self.append_to_output(
-                    stylize_faint("\n  ✅ Command finished successfully.\n")
+                    stylize_muted("\n  ✅ Command finished successfully.\n")
                 )
             else:
                 self.append_to_output(
@@ -183,7 +187,7 @@ class ExecCommandsMixin:
             timestamp = datetime.now().strftime("%H:%M")
             self.append_to_output(f"\n💭 {timestamp} >> {question.strip()}\n")
             self.append_to_output(
-                stylize_faint("  (side question — not saved to history)\n")
+                stylize_muted("  (side question — not saved to history)\n")
             )
 
             # Load current history for context (read-only snapshot).

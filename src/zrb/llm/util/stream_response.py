@@ -1,12 +1,26 @@
 import json
+import time
 from typing import TYPE_CHECKING, Any, Callable, Literal
 
 if TYPE_CHECKING:
-    from pydantic_ai import AgentStreamEvent
+    from pydantic_ai import (
+        AgentRunResultEvent,
+        AgentStreamEvent,
+        FunctionToolCallEvent,
+        FunctionToolResultEvent,
+        PartDeltaEvent,
+        PartStartEvent,
+    )
 
 PrintKind = Literal[
     "text", "streaming", "progress", "tool_call", "usage", "thinking", "todo_progress"
 ]
+
+# Minimum seconds between "Prepare tool parameters" spinner repaints. The
+# spinner is cosmetic; a slow model streaming thousands of tool-arg deltas would
+# otherwise flood stdout (observed: 9k+ frames / 500KB) and the per-frame write
+# syscalls add real latency to high-tool-call turns. Repaint at most ~10x/sec.
+_PROGRESS_REPAINT_INTERVAL = 0.1
 
 
 class StreamEventHandler:
@@ -26,6 +40,7 @@ class StreamEventHandler:
 
         self._progress_chars = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
         self._progress_idx = 0
+        self._last_progress_time = 0.0
         self._was_tool_call_delta = False
         self._was_tool_call_start = False
         self._event_prefix = self._indentation
@@ -83,7 +98,7 @@ class StreamEventHandler:
         if not skip_prefix_update:
             self._event_prefix = f"\n{self._indentation}"
 
-    def _handle_part_start(self, event: "AgentStreamEvent") -> bool:
+    def _handle_part_start(self, event: "PartStartEvent") -> bool:
         # lazy: heavy third-party
         from pydantic_ai import ToolCallPart
         from pydantic_ai.messages import TextPart
@@ -123,7 +138,7 @@ class StreamEventHandler:
         self._was_tool_call_start = False
         return False
 
-    def _handle_part_delta(self, event: "AgentStreamEvent"):
+    def _handle_part_delta(self, event: "PartDeltaEvent"):
         # lazy: heavy third-party
         from pydantic_ai import TextPartDelta, ThinkingPartDelta, ToolCallPartDelta
 
@@ -141,20 +156,27 @@ class StreamEventHandler:
                 self._was_tool_call_delta = True
                 self._was_tool_call_start = False
             else:
-                progress_char = self._progress_chars[self._progress_idx]
                 if not self._was_tool_call_delta and not self._was_tool_call_start:
                     self._fprint("\n", kind="progress")
+                # Set state before the throttle check so the carriage-return
+                # cleanup in _handle_tool_call still fires even on a throttled
+                # delta.
+                self._was_tool_call_delta = True
+                self._was_tool_call_start = False
+                now = time.monotonic()
+                if now - self._last_progress_time < _PROGRESS_REPAINT_INTERVAL:
+                    return
+                self._last_progress_time = now
+                progress_char = self._progress_chars[self._progress_idx]
                 self._print_fn(
                     f"\r{self._indentation}🔄 Prepare tool parameters {progress_char}",
                     "progress",
                 )
-                self._progress_idx += 1
-                if self._progress_idx >= len(self._progress_chars):
-                    self._progress_idx = 0
-                self._was_tool_call_delta = True
-                self._was_tool_call_start = False
+                self._progress_idx = (self._progress_idx + 1) % len(
+                    self._progress_chars
+                )
 
-    def _handle_tool_call(self, event: "AgentStreamEvent"):
+    def _handle_tool_call(self, event: "FunctionToolCallEvent"):
         if self._was_tool_call_delta and not self._show_tool_call_detail:
             self._print_fn("\r", "progress")
 
@@ -172,7 +194,7 @@ class StreamEventHandler:
             self._fprint(line, preserve_leading_newline=True, kind="tool_call")
         self._was_tool_call_delta = False
 
-    def _handle_tool_result(self, event: "AgentStreamEvent"):
+    def _handle_tool_result(self, event: "FunctionToolResultEvent"):
         if self._show_tool_result:
             self._fprint(
                 f"{self._event_prefix}🔠 {event.tool_call_id} | Return {event.result.content}\n",
@@ -187,7 +209,7 @@ class StreamEventHandler:
             )
         self._was_tool_call_delta = False
 
-    def _handle_run_result(self, event: "AgentStreamEvent"):
+    def _handle_run_result(self, event: "AgentRunResultEvent"):
         usage = event.result.usage
         usage_msg = " ".join(
             [

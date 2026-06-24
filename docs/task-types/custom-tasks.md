@@ -249,3 +249,5 @@ class MyCustomTask(BaseTask):
 # Register like any task
 cli.add_task(MyTask(name="my-task"))
 ```
+
+🔖 [Documentation Home](../../README.md) > [Task Types](./) > Custom Tasks

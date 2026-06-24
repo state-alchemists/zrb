@@ -5,59 +5,6 @@ import textwrap
 from typing import Any
 
 
-def get_terminal_width(default: int = 80, ui: Any | None = None) -> int:
-    """
-    Get terminal width, handling both CLI and prompt_toolkit contexts.
-
-    Args:
-        default: Default width to return if detection fails
-        ui: Optional UI object that might have terminal width information
-
-    Returns:
-        Terminal width in columns
-    """
-    # First, try to get width from UI object if provided
-    if ui is not None:
-        # Prefer the public `output_field_width` property (the output field is
-        # rendered at terminal width - 4, so add the padding back for full width).
-        try:
-            width = getattr(ui, "output_field_width", None)
-            if width is not None and width > 0:
-                return width + 4
-        except Exception:
-            pass
-
-        # Try other potential methods
-        for method_name in ["get_terminal_width", "terminal_width", "get_width"]:
-            try:
-                if hasattr(ui, method_name):
-                    width = getattr(ui, method_name)()
-                    if width is not None and width > 0:
-                        return width
-            except Exception:
-                pass
-
-    # Try prompt_toolkit (if we're in a UI context)
-    try:
-        # lazy: heavy third-party
-        from prompt_toolkit.application import get_app
-
-        app = get_app()
-        if hasattr(app, "output") and hasattr(app.output, "get_size"):
-            width = app.output.get_size().columns
-            if width > 0:
-                return width
-    except (ImportError, RuntimeError, AttributeError, Exception):
-        # Not in prompt_toolkit context or error occurred
-        pass
-
-    # Fall back to shutil
-    try:
-        return shutil.get_terminal_size().columns
-    except Exception:
-        return default
-
-
 def format_diff(
     old_content: str,
     new_content: str,
@@ -76,7 +23,7 @@ def format_diff(
         new_content: New file content
         path: File path (for display purposes)
         term_width: Optional terminal width (if known)
-        ui: Optional UI object that might have terminal width information
+        ui: Deprecated, kept for backward compatibility — no longer used.
     """
     diff_lines = list(
         difflib.unified_diff(
@@ -111,7 +58,7 @@ def format_diff(
         calculated_width = term_width - prefix_len - 10
     else:
         try:
-            term_width = get_terminal_width(ui=ui)
+            term_width = shutil.get_terminal_size().columns
             calculated_width = term_width - prefix_len - 10
         except Exception:
             # Default to 80 if terminal detection fails

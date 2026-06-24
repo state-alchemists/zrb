@@ -6,8 +6,8 @@ These tools provide IDE-like code intelligence capabilities to the LLM assistant
 
 from typing import Literal
 
+from zrb.llm.lsp.configs import lsp_server_configs
 from zrb.llm.lsp.manager import lsp_manager
-from zrb.llm.lsp.server import LSP_SERVER_CONFIGS
 
 
 async def find_definition(
@@ -130,7 +130,7 @@ async def list_available_servers() -> dict:
     language_support = {}
     for name, path in servers.items():
 
-        config = LSP_SERVER_CONFIGS.get(name)
+        config = lsp_server_configs.get(name)
         if config:
             for lang in config.language_ids:
                 if lang not in language_support:

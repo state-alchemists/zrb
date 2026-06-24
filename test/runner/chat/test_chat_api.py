@@ -19,9 +19,12 @@ _mock_sm = MagicMock()
 
 @pytest.fixture(autouse=True)
 def mock_heavy_runners():
-    with patch(
-        "zrb.runner.chat.chat_api_route._run_chat_session", new_callable=AsyncMock
-    ), patch("zrb.llm.agent.common.create_agent"):
+    with (
+        patch(
+            "zrb.runner.chat.chat_api_route._run_chat_session", new_callable=AsyncMock
+        ),
+        patch("zrb.llm.agent.common.create_agent"),
+    ):
         yield
 
 
@@ -224,12 +227,15 @@ async def test_routes_forbid_user_without_task_access(client: AsyncClient):
     no_access_user.can_access_task.return_value = False
     mock_task = MagicMock()
 
-    with patch(
-        "zrb.runner.chat.chat_api_route.get_user_from_request",
-        new=AsyncMock(return_value=no_access_user),
-    ), patch(
-        "zrb.runner.chat.chat_api_route._get_llm_chat_task",
-        new=AsyncMock(return_value=mock_task),
+    with (
+        patch(
+            "zrb.runner.chat.chat_api_route.get_user_from_request",
+            new=AsyncMock(return_value=no_access_user),
+        ),
+        patch(
+            "zrb.runner.chat.chat_api_route._get_llm_chat_task",
+            new=AsyncMock(return_value=mock_task),
+        ),
     ):
         endpoints = [
             ("get", "/api/v1/chat/sessions"),
@@ -255,12 +261,15 @@ async def test_routes_allow_user_with_task_access(client: AsyncClient):
     mock_task = MagicMock()
     _mock_sm.get_session.return_value = None
 
-    with patch(
-        "zrb.runner.chat.chat_api_route.get_user_from_request",
-        new=AsyncMock(return_value=ok_user),
-    ), patch(
-        "zrb.runner.chat.chat_api_route._get_llm_chat_task",
-        new=AsyncMock(return_value=mock_task),
+    with (
+        patch(
+            "zrb.runner.chat.chat_api_route.get_user_from_request",
+            new=AsyncMock(return_value=ok_user),
+        ),
+        patch(
+            "zrb.runner.chat.chat_api_route._get_llm_chat_task",
+            new=AsyncMock(return_value=mock_task),
+        ),
     ):
         response = await client.get("/api/v1/chat/sessions/test/status")
         assert response.status_code == 200

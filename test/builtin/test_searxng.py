@@ -16,13 +16,15 @@ def test_copy_searxng_setting(tmp_path):
 
     fake_content = '"ultrasecretkey"'
 
-    with patch("os.path.expanduser", return_value=mock_home), patch(
-        "os.path.isfile", return_value=False
-    ), patch("os.makedirs"), patch(
-        "zrb.builtin.searxng.start.open", mock_open(read_data=fake_content)
-    ) as mock_file, patch(
-        "shutil.copy"
-    ) as mock_copy:
+    with (
+        patch("os.path.expanduser", return_value=mock_home),
+        patch("os.path.isfile", return_value=False),
+        patch("os.makedirs"),
+        patch(
+            "zrb.builtin.searxng.start.open", mock_open(read_data=fake_content)
+        ) as mock_file,
+        patch("shutil.copy") as mock_copy,
+    ):
 
         copy_searxng_setting._action(ctx)
 

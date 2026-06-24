@@ -185,17 +185,13 @@ class SubAgentManager(LoaderMixin, SearchMixin):
                 else self.get_search_directories()
             )
         for search_dir in target_search_dirs:
-            self._scan_dir(search_dir, max_depth=self._max_depth)
+            self._scan_dir(Path(search_dir), max_depth=self._max_depth)
         self._loaded = True
         return list(self._agents.values())
 
     def add_agent(self, definition: SubAgentDefinition):
         """Manually register a sub-agent definition."""
         self._agents[definition.name] = definition
-
-    def set_tool_registry(self, tool_registry: dict[str, Callable]):
-        """Update the tool registry used by sub-agents."""
-        self._tool_registry = tool_registry
 
     def get_agent_definition(self, name: str) -> SubAgentDefinition | None:
         self._ensure_loaded()
@@ -371,7 +367,19 @@ class SubAgentManager(LoaderMixin, SearchMixin):
         # (if any) render unfiltered rather than against the parent's tools.
         pm.tool_names = None
         try:
-            return pm.compose_prompt()(ctx).strip()
+            composed = pm.compose_prompt()(ctx).strip()
+            # Sub-agents are single-turn (one run_agent, empty history), so the
+            # cross-turn caching reason for keeping volatile state out of the
+            # system prompt does not apply. Fold the <live-context> block back
+            # into the inherited prompt so an agent that inherits system_context
+            # still sees the per-turn state (time, git, …) it saw before the
+            # main-chat split — the main chat injects it into the user turn
+            # instead, via run_agent's live_context.
+            if "system_context" in sections:
+                live = pm.create_live_context(ctx)
+                if live:
+                    composed = f"{composed}\n\n{live}".strip()
+            return composed
         except Exception:
             # Don't fail agent creation on inheritance issues — surface as no
             # inheritance so the sub-agent still runs.
@@ -389,7 +397,7 @@ class SubAgentManager(LoaderMixin, SearchMixin):
         if target_search_dirs is None:
             target_search_dirs = self.get_search_directories()
         for search_dir in target_search_dirs:
-            self._scan_dir(search_dir, max_depth=self._max_depth)
+            self._scan_dir(Path(search_dir), max_depth=self._max_depth)
 
     def _get_tool_registry(self) -> dict[str, Callable]:
         return self._tool_registry

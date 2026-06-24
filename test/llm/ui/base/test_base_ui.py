@@ -143,9 +143,12 @@ async def test_execute_hook_blocking_returns_results(base_ui):
 @pytest.mark.asyncio
 async def test_update_system_info_loop(base_ui):
     """Test that the system info loop periodically calls update_system_info."""
-    with patch.object(
-        base_ui, "_update_system_info", new_callable=AsyncMock
-    ) as mock_update, patch("zrb.llm.ui.base.ui.CFG") as mock_cfg:
+    with (
+        patch.object(
+            base_ui, "_update_system_info", new_callable=AsyncMock
+        ) as mock_update,
+        patch("zrb.llm.ui.base.ui.CFG") as mock_cfg,
+    ):
 
         mock_cfg.LLM_UI_STATUS_INTERVAL = 1  # 1ms
         mock_cfg.LLM_UI_LONG_STATUS_INTERVAL = 1  # 1ms

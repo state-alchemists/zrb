@@ -22,7 +22,7 @@ import logging
 import os
 from collections.abc import AsyncIterable, Callable
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, TextIO
+from typing import TYPE_CHECKING, Any, TextIO, cast
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
@@ -49,7 +49,7 @@ from zrb.session.any_session import AnySession
 from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
 from zrb.util.cli.markdown import render_markdown
-from zrb.util.cli.style import stylize_error, stylize_faint
+from zrb.util.cli.style import stylize_error, stylize_muted
 from zrb.util.string.name import get_random_name
 from zrb.xcom.xcom import Xcom
 
@@ -488,7 +488,7 @@ class BaseUI(CommandsMixin, HistoryReplayMixin, SystemInfoMixin):
             def append_to_output(self, *values, sep=" ", end="\\n", kind="text", **kwargs):
                 text = sep.join(str(v) for v in values) + end
                 if kind != "text":
-                    text = stylize_faint(text)
+                    text = stylize_muted(text)
                 print(text, end="")
         """
         raise NotImplementedError(
@@ -748,7 +748,9 @@ class BaseUI(CommandsMixin, HistoryReplayMixin, SystemInfoMixin):
         attachments = self.take_pending_attachments()
 
         async def job():
-            await self._stream_ai_response(llm_task, user_message, attachments)
+            await self._stream_ai_response(
+                cast(LLMTask, llm_task), user_message, attachments
+            )
 
         self._message_queue.put_nowait(job)
 
@@ -782,7 +784,7 @@ class BaseUI(CommandsMixin, HistoryReplayMixin, SystemInfoMixin):
             session = self._create_sesion_for_llm_task(user_message, attachments)
 
             # Run the task with stdout/stderr redirected to UI
-            self.append_to_output(stylize_faint("\n  🔢 Streaming response..."))
+            self.append_to_output(stylize_muted("\n  🔢 Streaming response..."))
 
             # Sync plan mode to the shared mutable state before the LLM run
             # so the agent inherits the mode set by /plan.
@@ -800,7 +802,7 @@ class BaseUI(CommandsMixin, HistoryReplayMixin, SystemInfoMixin):
 
             # Set UI for tool confirmation
             llm_task.set_ui(self)
-            llm_task.tool_confirmation = self._confirm_tool_execution
+            llm_task.tool_confirmation = cast(Any, self._confirm_tool_execution)
             result_data = await llm_task.async_run(session)
 
             # Sync plan mode after LLM response (tools like EnterPlanMode set the

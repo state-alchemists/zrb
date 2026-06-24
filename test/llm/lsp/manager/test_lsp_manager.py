@@ -7,9 +7,21 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from zrb.config.config import CFG
+from zrb.llm.lsp.configs import LSPServerConfig, lsp_server_configs
 from zrb.llm.lsp.manager import LSPManager, lsp_manager
 from zrb.llm.lsp.protocol import SymbolKind
 from zrb.llm.lsp.server import LSPServer
+
+
+@pytest.fixture(autouse=True)
+def _cleanup_registry():
+    """Clear user-registered LSP server configs between tests.
+
+    Tests that call ``register_lsp_server`` write to the module-level
+    ``lsp_server_configs`` singleton. Clearing before each test prevents
+    cross-test pollution of the global config registry.
+    """
+    lsp_server_configs.clear()
 
 
 @pytest.fixture
@@ -43,6 +55,36 @@ class TestLspManagerInit:
         lock1 = manager.lock
         lock2 = manager.lock
         assert lock1 is lock2
+
+    def test_register_lsp_server_stores_config(self, manager):
+        config = LSPServerConfig(
+            name="test-lsp",
+            command=["test-lsp"],
+            language_ids=["test"],
+            file_extensions=[".test"],
+        )
+        manager.register_lsp_server("test-lsp", config)
+        from zrb.llm.lsp.configs import lsp_server_configs
+
+        stored = lsp_server_configs.get("test-lsp")
+        assert stored is not None
+        assert stored.name == "test-lsp"
+        assert stored.command == ["test-lsp"]
+
+    def test_register_lsp_server_overrides_builtin(self, manager):
+        override = LSPServerConfig(
+            name="override-pyright",
+            command=["override-pyright"],
+            language_ids=["python"],
+            file_extensions=[".py"],
+        )
+        manager.register_lsp_server("pyright", override)
+        from zrb.llm.lsp.configs import lsp_server_configs
+
+        stored = lsp_server_configs.get("pyright")
+        assert stored is not None
+        assert stored.name == "override-pyright"
+        assert stored.command == ["override-pyright"]
 
 
 class TestDetectProjectRoot:
@@ -116,17 +158,17 @@ class TestLspManagerLifecycle:
         await manager.shutdown_all()
 
     @pytest.mark.asyncio
-    async def test_shutdown_idle(self, manager):
-        await manager.shutdown_idle()
-
-    @pytest.mark.asyncio
     async def test_shutdown_all_with_servers(self, manager):
         mock_server = AsyncMock(spec=LSPServer)
         mock_server.is_alive = True
-        with patch(
-            "zrb.llm.lsp.manager.lifecycle_mixin.get_lsp_config_for_file"
-        ) as mock_get_cfg, patch(
-            "zrb.llm.lsp.manager.lifecycle_mixin.LSPServer", return_value=mock_server
+        with (
+            patch(
+                "zrb.llm.lsp.manager.lifecycle_mixin.get_lsp_config_for_file"
+            ) as mock_get_cfg,
+            patch(
+                "zrb.llm.lsp.manager.lifecycle_mixin.LSPServer",
+                return_value=mock_server,
+            ),
         ):
             mock_get_cfg.return_value = MagicMock(language_ids=["python"])
             await manager.get_server("test.py")
@@ -139,10 +181,14 @@ class TestLspManagerLifecycle:
         mock_server = AsyncMock(spec=LSPServer)
         mock_server.is_alive = True
         mock_server.process = MagicMock(pid=pid, returncode=returncode)
-        with patch(
-            "zrb.llm.lsp.manager.lifecycle_mixin.get_lsp_config_for_file"
-        ) as mock_get_cfg, patch(
-            "zrb.llm.lsp.manager.lifecycle_mixin.LSPServer", return_value=mock_server
+        with (
+            patch(
+                "zrb.llm.lsp.manager.lifecycle_mixin.get_lsp_config_for_file"
+            ) as mock_get_cfg,
+            patch(
+                "zrb.llm.lsp.manager.lifecycle_mixin.LSPServer",
+                return_value=mock_server,
+            ),
         ):
             mock_get_cfg.return_value = MagicMock(language_ids=["python"])
             await manager.get_server("test.py")
@@ -189,10 +235,14 @@ class TestLspManagerLifecycle:
         mock_server.is_alive = True
         mock_server.start.return_value = True
         CFG.LLM_LSP_PREFERRED_SERVERS = ["pyright", "pylsp"]
-        with patch(
-            "zrb.llm.lsp.manager.lifecycle_mixin.get_lsp_config_for_file"
-        ) as mock_get_cfg, patch(
-            "zrb.llm.lsp.manager.lifecycle_mixin.LSPServer", return_value=mock_server
+        with (
+            patch(
+                "zrb.llm.lsp.manager.lifecycle_mixin.get_lsp_config_for_file"
+            ) as mock_get_cfg,
+            patch(
+                "zrb.llm.lsp.manager.lifecycle_mixin.LSPServer",
+                return_value=mock_server,
+            ),
         ):
             mock_get_cfg.return_value = MagicMock(language_ids=["python"])
             await manager.get_server("test.py")
@@ -205,10 +255,14 @@ class TestLspManagerLifecycle:
         mock_server.is_alive = True
         mock_server.start.return_value = True
         CFG.LLM_LSP_PREFERRED_SERVERS = ["pyright"]
-        with patch(
-            "zrb.llm.lsp.manager.lifecycle_mixin.get_lsp_config_for_file"
-        ) as mock_get_cfg, patch(
-            "zrb.llm.lsp.manager.lifecycle_mixin.LSPServer", return_value=mock_server
+        with (
+            patch(
+                "zrb.llm.lsp.manager.lifecycle_mixin.get_lsp_config_for_file"
+            ) as mock_get_cfg,
+            patch(
+                "zrb.llm.lsp.manager.lifecycle_mixin.LSPServer",
+                return_value=mock_server,
+            ),
         ):
             mock_get_cfg.return_value = MagicMock(language_ids=["python"])
             await manager.get_server("test.py", preferred_servers=["gopls"])
@@ -220,10 +274,14 @@ class TestLspManagerLifecycle:
         mock_server.is_alive = True
         mock_server.start.return_value = True
 
-        with patch(
-            "zrb.llm.lsp.manager.lifecycle_mixin.get_lsp_config_for_file"
-        ) as mock_get_cfg, patch(
-            "zrb.llm.lsp.manager.lifecycle_mixin.LSPServer", return_value=mock_server
+        with (
+            patch(
+                "zrb.llm.lsp.manager.lifecycle_mixin.get_lsp_config_for_file"
+            ) as mock_get_cfg,
+            patch(
+                "zrb.llm.lsp.manager.lifecycle_mixin.LSPServer",
+                return_value=mock_server,
+            ),
         ):
 
             mock_get_cfg.return_value = MagicMock(language_ids=["python"])
@@ -293,10 +351,14 @@ class TestLspPublicAPI:
             ]
         )
 
-        with patch(
-            "zrb.llm.lsp.manager.lifecycle_mixin.get_lsp_config_for_file"
-        ) as mock_get_config, patch(
-            "zrb.llm.lsp.manager.lifecycle_mixin.LSPServer", return_value=mock_server
+        with (
+            patch(
+                "zrb.llm.lsp.manager.lifecycle_mixin.get_lsp_config_for_file"
+            ) as mock_get_config,
+            patch(
+                "zrb.llm.lsp.manager.lifecycle_mixin.LSPServer",
+                return_value=mock_server,
+            ),
         ):
             mock_get_config.return_value = MagicMock()
 
@@ -330,6 +392,83 @@ class TestLspPublicAPI:
             assert result["kind"] == "function"
 
     @pytest.mark.asyncio
+    async def test_find_definition_uses_goto_definition(self, manager, tmp_path):
+        """find_definition resolves via textDocument/definition at the identifier's
+        column (not workspace/symbol), which works on every LSP server."""
+        f = tmp_path / "mod.py"
+        f.write_text("class Foo:\n    pass\n")  # 'Foo' is at line 0, char 6
+
+        mock_server = AsyncMock(spec=LSPServer)
+        mock_server.document_symbols.return_value = []  # force regex column lookup
+        mock_server.goto_definition.return_value = [
+            {"uri": "file:///x/foo_def.py", "range": {"start": {"line": 2}}}
+        ]
+
+        with patch.object(manager, "get_server", return_value=mock_server):
+            result = await manager.find_definition("Foo", str(f))
+
+        assert result["found"] is True
+        assert result["path"].endswith("foo_def.py")
+        # Position passed to goto_definition must sit ON the identifier (col 6).
+        line, char = mock_server.goto_definition.call_args.args[1:3]
+        assert (line, char) == (0, 6)
+        mock_server.workspace_symbols.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_find_definition_falls_back_to_workspace_symbols(
+        self, manager, tmp_path
+    ):
+        """When textDocument/definition yields nothing, fall back to a
+        workspace/symbol search (servers that support it)."""
+        f = tmp_path / "mod.py"
+        f.write_text("Foo()\n")
+
+        mock_server = AsyncMock(spec=LSPServer)
+        mock_server.document_symbols.return_value = []
+        mock_server.goto_definition.return_value = None
+        mock_server.workspace_symbols.return_value = [
+            {
+                "name": "Foo",
+                "kind": SymbolKind.CLASS.value,
+                "location": {"uri": "file:///ws/foo.py", "range": {}},
+            }
+        ]
+
+        with patch.object(manager, "get_server", return_value=mock_server):
+            result = await manager.find_definition("Foo", str(f))
+
+        assert result["found"] is True
+        assert result["path"].endswith("foo.py")
+
+    @pytest.mark.asyncio
+    async def test_get_workspace_symbols_file_fallback(self, manager, tmp_path):
+        """When the server can't do workspace/symbol (pylsp Method Not Found, or
+        pyright empty), fall back to the seed file's symbols filtered by query."""
+        f = tmp_path / "mod.py"
+        f.write_text("class LLMTask:\n    pass\n")
+
+        mock_server = AsyncMock(spec=LSPServer)
+        # Simulate an unsupported workspace/symbol.
+        mock_server.workspace_symbols.side_effect = Exception("Method Not Found")
+        mock_server.document_symbols.return_value = [
+            {
+                "name": "LLMTask",
+                "kind": SymbolKind.CLASS.value,
+                "location": {
+                    "uri": "file:///x/mod.py",
+                    "range": {"start": {"line": 0, "character": 6}},
+                },
+            }
+        ]
+
+        with patch.object(manager, "get_server", return_value=mock_server):
+            result = await manager.get_workspace_symbols("LLMTask", str(f))
+
+        assert result["found"] is True
+        assert result["scope"] == "file"
+        assert any(s["name"] == "LLMTask" for s in result["symbols"])
+
+    @pytest.mark.asyncio
     async def test_find_references_no_pos(self, manager, tmp_path):
         mock_server = AsyncMock(spec=LSPServer)
         mock_server.find_references.return_value = [
@@ -339,9 +478,10 @@ class TestLspPublicAPI:
         file_path = tmp_path / "test.py"
         file_path.write_text("def my_func(): pass")
 
-        with patch.object(
-            manager, "get_server", return_value=mock_server
-        ), patch.object(manager, "_find_symbol_position", return_value=(0, 4)):
+        with (
+            patch.object(manager, "get_server", return_value=mock_server),
+            patch.object(manager, "_find_symbol_position", return_value=(0, 4)),
+        ):
             result = await manager.find_references("my_func", str(file_path))
             assert result["found"] is True
             assert result["count"] == 1
@@ -454,9 +594,10 @@ class TestLspPublicAPI:
     async def test_rename_symbol_failure(self, manager):
         mock_server = AsyncMock(spec=LSPServer)
         mock_server.rename.return_value = None
-        with patch.object(
-            manager, "get_server", return_value=mock_server
-        ), patch.object(manager, "_find_symbol_position", return_value=(0, 0)):
+        with (
+            patch.object(manager, "get_server", return_value=mock_server),
+            patch.object(manager, "_find_symbol_position", return_value=(0, 0)),
+        ):
             result = await manager.rename_symbol("old", "new", "file.py")
             assert result["success"] is False
             assert "Could not rename" in result["error"]
@@ -489,9 +630,10 @@ class TestLspPublicAPI:
         mock_server.rename.return_value = {
             "changes": {"file://path/to/file.py": [{"range": {}, "newText": "new"}]}
         }
-        with patch.object(
-            manager, "get_server", return_value=mock_server
-        ), patch.object(manager, "_find_symbol_position", return_value=(0, 0)):
+        with (
+            patch.object(manager, "get_server", return_value=mock_server),
+            patch.object(manager, "_find_symbol_position", return_value=(0, 0)),
+        ):
             result = await manager.rename_symbol("old", "new", "file.py")
             assert result["success"] is True
             assert result["files_affected"] == 1
@@ -509,9 +651,10 @@ class TestLspPublicAPI:
     async def test_find_references_error_handling(self, manager):
         mock_server = AsyncMock(spec=LSPServer)
         mock_server.find_references.side_effect = Exception("find_references error")
-        with patch.object(
-            manager, "get_server", return_value=mock_server
-        ), patch.object(manager, "_find_symbol_position", return_value=(0, 0)):
+        with (
+            patch.object(manager, "get_server", return_value=mock_server),
+            patch.object(manager, "_find_symbol_position", return_value=(0, 0)),
+        ):
             result = await manager.find_references("my_func", "file.py")
             assert result["found"] is False
             assert "No references found" in result["error"]
@@ -554,8 +697,9 @@ class TestLspPublicAPI:
     async def test_rename_symbol_error(self, manager):
         mock_server = AsyncMock(spec=LSPServer)
         mock_server.rename.side_effect = Exception("rename error")
-        with patch.object(
-            manager, "get_server", return_value=mock_server
-        ), patch.object(manager, "_find_symbol_position", return_value=(0, 0)):
+        with (
+            patch.object(manager, "get_server", return_value=mock_server),
+            patch.object(manager, "_find_symbol_position", return_value=(0, 0)),
+        ):
             result = await manager.rename_symbol("old", "new", "file.py")
             assert result["success"] is False

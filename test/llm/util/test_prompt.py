@@ -1,7 +1,6 @@
 from zrb.util.markdown import (
     demote_markdown_headers,
     make_markdown_section,
-    promote_markdown_headers,
 )
 
 
@@ -50,53 +49,6 @@ def test_demote_markdown_headers_mixed_content():
         "### Another Real Header"
     )
     assert demote_markdown_headers(content) == expected
-
-
-# Test cases for promote_markdown_headers
-def test_promote_markdown_headers_simple():
-    content = "## Header 1\n### Header 2"
-    expected = "# Header 1\n## Header 2"
-    assert promote_markdown_headers(content) == expected
-
-
-def test_promote_markdown_headers_no_headers():
-    content = "This is a simple text."
-    expected = "This is a simple text."
-    assert promote_markdown_headers(content) == expected
-
-
-def test_promote_markdown_headers_in_code_block():
-    content = "```\n## This is a header in a code block\n```"
-    expected = "```\n## This is a header in a code block\n```"
-    assert promote_markdown_headers(content) == expected
-
-
-def test_promote_markdown_headers_level_one():
-    content = "# Header 1"
-    expected = "# Header 1"
-    assert promote_markdown_headers(content) == expected
-
-
-def test_promote_markdown_headers_mixed_content():
-    content = (
-        "## Real Header\n"
-        "Some text\n"
-        "```python\n"
-        "### Not a real header\n"
-        "print('hello')\n"
-        "```\n"
-        "### Another Real Header"
-    )
-    expected = (
-        "# Real Header\n"
-        "Some text\n"
-        "```python\n"
-        "### Not a real header\n"
-        "print('hello')\n"
-        "```\n"
-        "## Another Real Header"
-    )
-    assert promote_markdown_headers(content) == expected
 
 
 # Test cases for make_prompt_section

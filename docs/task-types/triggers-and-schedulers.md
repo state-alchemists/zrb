@@ -290,3 +290,5 @@ Both `BaseTrigger` and `Scheduler` run as foreground daemon processes. To stop t
 - Use a readiness check on the daemon to confirm it's listening before proceeding
 
 ---
+
+🔖 [Documentation Home](../../README.md) > [Task Types](./) > Triggers & Schedulers

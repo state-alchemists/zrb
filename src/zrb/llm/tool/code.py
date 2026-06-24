@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+from typing import cast
 
 from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
@@ -88,8 +89,6 @@ async def analyze_code(
     uses LSP for more token-efficient semantic pre-analysis on supported file types.
 
     MANDATES:
-    - For single-file analysis, use `AnalyzeFile` instead.
-    - For simple file listing, use `Glob` or `LS`.
     - Use `file_pattern` to limit scope (e.g., `*.py`).
     - Write specific queries (e.g., "how is auth implemented?") not vague ones (e.g., "explain this code").
     """
@@ -146,7 +145,7 @@ async def analyze_code(
 
     extraction_token_threshold = CFG.LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD
     extracted_infos = await _extract_info(
-        file_metadatas=file_metadatas,
+        file_metadatas=cast(list[dict[str, str | dict]], file_metadatas),
         query=query,
         token_limit=extraction_token_threshold,
     )
@@ -277,7 +276,7 @@ async def _get_file_metadatas_with_lsp(
                     CFG.LOGGER.debug(
                         f"analyze_code: skipped unreadable file {rel_path}: {e}"
                     )
-            elif lsp_result and lsp_result.get("lsp_symbols"):
+            elif isinstance(lsp_result, dict) and lsp_result.get("lsp_symbols"):
                 # Use LSP context (more token-efficient for structure queries)
                 metadata_list.append(lsp_result)
             else:

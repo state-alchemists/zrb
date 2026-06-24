@@ -16,9 +16,10 @@ def temp_file(tmp_path):
 @pytest.mark.asyncio
 async def test_analyze_file_success(temp_file):
     # We must patch the source module because analyze_file does a local import
-    with patch("zrb.llm.agent.run_agent", new_callable=AsyncMock) as mock_run, patch(
-        "zrb.llm.agent.create_agent"
-    ) as mock_create:
+    with (
+        patch("zrb.llm.agent.run_agent", new_callable=AsyncMock) as mock_run,
+        patch("zrb.llm.agent.create_agent") as mock_create,
+    ):
 
         mock_run.return_value = ("Analysis result", [])
 
@@ -50,9 +51,11 @@ async def test_analyze_file_truncation(temp_file):
     with open(temp_file, "w") as f:
         f.write(content)
 
-    with patch("zrb.llm.agent.run_agent", new_callable=AsyncMock) as mock_run, patch(
-        "zrb.llm.agent.create_agent"
-    ) as mock_create, patch("zrb.llm.tool.file_analyze.CFG") as mock_cfg:
+    with (
+        patch("zrb.llm.agent.run_agent", new_callable=AsyncMock) as mock_run,
+        patch("zrb.llm.agent.create_agent") as mock_create,
+        patch("zrb.llm.tool.file_analyze.CFG") as mock_cfg,
+    ):
 
         mock_cfg.LLM_FILE_ANALYSIS_TOKEN_THRESHOLD = 10
         mock_cfg.LLM_FILE_READ_LINES = 5

@@ -242,6 +242,47 @@ def test_handle_toggle_yolo_selective(ui):
     assert ui.yolo == frozenset(["Write", "Edit"])
 
 
+def test_current_cycle_mode_reports_each_state(ui):
+    assert ui.current_cycle_mode() == "normal"
+    ui.yolo = frozenset(["Write", "Edit"])
+    assert ui.current_cycle_mode() == "accept_edits"
+    ui.yolo = frozenset(["Read", "Bash"])
+    assert ui.current_cycle_mode() == "custom"
+    ui.yolo = True
+    assert ui.current_cycle_mode() == "yolo"
+    ui.yolo = False
+    ui._plan_mode_active = True
+    # Plan takes precedence over any yolo value.
+    ui.yolo = frozenset(["Write", "Edit"])
+    assert ui.current_cycle_mode() == "plan"
+
+
+def test_cycle_mode_advances_normal_to_edits_to_plan_to_normal(ui):
+    ui.yolo = False
+    ui._plan_mode_active = False
+    assert ui.current_cycle_mode() == "normal"
+    ui.cycle_mode()
+    assert ui.current_cycle_mode() == "accept_edits"
+    assert ui.yolo == frozenset(["Write", "Edit"])
+    ui.cycle_mode()
+    assert ui.current_cycle_mode() == "plan"
+    assert ui._plan_mode_active is True
+    assert ui.yolo is False  # plan and yolo never stack
+    ui.cycle_mode()
+    assert ui.current_cycle_mode() == "normal"
+    assert ui._plan_mode_active is False
+    assert ui.yolo is False
+
+
+def test_cycle_mode_resets_off_cycle_yolo_into_cycle(ui):
+    # Full yolo (set via Ctrl+Y / /yolo) is off-cycle; Shift+Tab resets to normal.
+    ui.yolo = True
+    ui._plan_mode_active = False
+    ui.cycle_mode()
+    assert ui.current_cycle_mode() == "normal"
+    assert ui.yolo is False
+
+
 def test_handle_set_model_command(ui):
     assert ui._handle_set_model_command("/model gpt-4") is True
     assert ui._model == "gpt-4"

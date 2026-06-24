@@ -131,8 +131,9 @@ The assistant comes with a rich set of built-in tools. These are automatically a
 
 | Tool | Function | Description |
 |------|----------|-------------|
-| `Shell` | `run_shell_command` | Execute non-interactive shell commands. Streams output live and truncates large results. Always requires non-interactive flags (e.g., `-y`). |
-| `Bash` | `run_shell_command` | Alias for `Shell` (Claude compatibility). Same behavior and arguments. |
+| `Shell` | `run_shell_command` | Execute non-interactive shell commands. Streams output live and truncates large results. Always requires non-interactive flags (e.g., `-y`). Pass `background=True` for long-running processes (dev servers, watchers) to get a handle immediately instead of blocking. |
+| `Bash` | `run_shell_command` | Alias for `Shell` (Claude compatibility). Same behavior and arguments (incl. `background=True`). |
+| `MonitorProcess` | `monitor_process` | Check, wait on, or kill a background process started with `Shell`/`Bash` `background=True`. Pass `wait=N` to block up to N seconds (returns early on exit), or `kill=True` to terminate. |
 
 ### File System
 
@@ -149,8 +150,8 @@ The assistant comes with a rich set of built-in tools. These are automatically a
 
 | Tool | Function | Description |
 |------|----------|-------------|
-| `OpenWebPage` | `open_web_page` | Fetch a URL and return its content as Markdown. Optionally summarizes via a sub-agent to reduce token usage. |
-| `SearchInternet` | `search_internet` | Search the web by query string. Defaults to Google News RSS (free, no setup). Optionally use SerpAPI, Brave, or SearXNG via `ZRB_SEARCH_INTERNET_METHOD`. |
+| `WebFetch` | `open_web_page` | Fetch a URL and return its content as Markdown. Optionally summarizes via a sub-agent to reduce token usage. |
+| `WebSearch` | `search_internet` | Search the web by query string. Defaults to Google News RSS (free, no setup). Optionally use SerpAPI, Brave, or SearXNG via `ZRB_SEARCH_INTERNET_METHOD`. |
 
 ### User Interaction
 
@@ -177,10 +178,8 @@ The assistant comes with a rich set of built-in tools. These are automatically a
 
 | Tool | Function | Description |
 |------|----------|-------------|
-| `WriteTodos` | `write_todos` | Create or replace the session todo list (persisted to `~/.zrb/todos/<session>.json`). |
-| `GetTodos` | `get_todos` | Get the current todo list and progress summary. |
-| `UpdateTodo` | `update_todo` | Update the status of a single todo item (`pending` → `in_progress` → `completed`). |
-| `ClearTodos` | `clear_todos` | Discard the entire current todo list. |
+| `TodoWrite` | `write_todos` | Create or replace the session todo list (persisted to `~/.zrb/todos/<session>.json`). Replacing the full list subsumes per-item status updates and clearing. |
+| `TodoRead` | `get_todos` | Get the current todo list and progress summary. |
 
 ### Knowledge Base (RAG)
 
@@ -209,7 +208,7 @@ The assistant can connect to external MCP servers defined in `mcp-config.json`. 
 
 | Tool | Description |
 |------|-------------|
-| `DelegateToAgent` | Delegate a sub-task to a named sub-agent. Sub-agents are discovered from `agents/` directories. See sub-agents section below. |
+| `DelegateToAgent` | Delegate a sub-task to a named sub-agent (discovered from `agents/` directories). Pass `tasks=[{...}, ...]` to fan out several concurrently in one call. See sub-agents section below. |
 | `ActivateSkill` | Load a named skill (a set of prompts and tools) into the current session. |
 
 ### Git Worktrees
@@ -403,3 +402,5 @@ For persistent, long-term memory, Zrb uses a journal system—a directory of Mar
 | `LLMChatTask` | `from zrb import LLMChatTask` | Interactive chat |
 
 ---
+
+🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > LLM Integration

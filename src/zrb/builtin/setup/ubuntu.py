@@ -8,17 +8,18 @@ update_ubuntu = CmdTask(
     is_interactive=True,
 )
 
-upgrade_todo = CmdTask(
+upgrade_ubuntu = CmdTask(
     name="upgrade-ubuntu",
+    upstream=update_ubuntu,
     cmd="sudo apt upgrade -y",
     render_cmd=False,
     is_interactive=True,
 )
-update_ubuntu >> upgrade_todo
 
 setup_ubuntu = setup_group.add_task(
     CmdTask(
         name="setup-ubuntu",
+        upstream=upgrade_ubuntu,
         description="🐧 Setup ubuntu",
         cmd=[
             "sudo apt install -y \\",
@@ -34,4 +35,3 @@ setup_ubuntu = setup_group.add_task(
     ),
     alias="ubuntu",
 )
-upgrade_todo >> setup_ubuntu

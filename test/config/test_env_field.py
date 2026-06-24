@@ -34,6 +34,13 @@ class _Host:
     ITEMS = EnvField(colon_list, serialize=colon_join, default="")
     CMDS = EnvField(comma_list, serialize=comma_join, default="")
     NULLABLE = EnvField(str, nullable=True)
+    FALLBACK_INT = EnvField(int, fallback=0, default="42")
+    TRANSFORMED = EnvField(
+        int,
+        transform=lambda v, h: v * 2,
+        default="5",
+        doc="int doubled via transform",
+    )
 
 
 @pytest.fixture
@@ -143,6 +150,35 @@ def test_empty_env_var_falls_back_to_default_for_bool_field(host, monkeypatch):
     monkeypatch.setenv("TESTCFG_FLAG", "")
     # Without the guard this would raise from to_boolean("").
     assert host.FLAG is False
+
+
+def test_fallback_used_when_env_var_is_garbage(host, monkeypatch):
+    monkeypatch.setenv("TESTCFG_FALLBACK_INT", "not-a-number")
+    assert host.FALLBACK_INT == 0
+
+
+def test_fallback_not_used_when_env_var_is_valid(host, monkeypatch):
+    monkeypatch.setenv("TESTCFG_FALLBACK_INT", "99")
+    assert host.FALLBACK_INT == 99
+
+
+def test_fallback_not_used_when_env_var_is_unset(host):
+    assert host.FALLBACK_INT == 42
+
+
+def test_transform_applied_after_cast(host, monkeypatch):
+    monkeypatch.setenv("TESTCFG_TRANSFORMED", "7")
+    assert host.TRANSFORMED == 14
+
+
+def test_transform_applied_to_default(host):
+    assert host.TRANSFORMED == 10
+
+
+def test_transform_receives_host_object(host, monkeypatch):
+    # transform doubles the value; verify it's actually called.
+    monkeypatch.setenv("TESTCFG_TRANSFORMED", "3")
+    assert host.TRANSFORMED == 6
 
 
 def test_class_access_returns_descriptor():

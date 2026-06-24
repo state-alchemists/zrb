@@ -21,9 +21,7 @@ async def enter_plan_mode(reason: str = "") -> str:
     Switch to read-only PLAN mode for safe discovery.
 
     While in PLAN mode, file edits, shell commands, and delegation are blocked;
-    reading, searching, analysis, and web research stay available. Use it to
-    investigate before any risky or multi-file change, then call ExitPlanMode
-    to present your plan for approval before executing.
+    reading, searching, analysis, and web research stay available.
 
     `reason` optionally records why you entered plan mode.
     """

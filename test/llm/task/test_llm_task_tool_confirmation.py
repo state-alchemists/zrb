@@ -11,9 +11,12 @@ from zrb.session.session import Session
 @pytest.mark.asyncio
 async def test_llm_task_tool_confirmation_called():
     # Mock create_agent and run_agent in the module where LLMTask is defined
-    with patch("zrb.llm.task.llm_task.create_agent") as mock_create_agent, patch(
-        "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
-    ) as mock_run_agent:
+    with (
+        patch("zrb.llm.task.llm_task.create_agent") as mock_create_agent,
+        patch(
+            "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
+        ) as mock_run_agent,
+    ):
 
         mock_create_agent.return_value = "mock_agent"
         mock_run_agent.return_value = ("Done", [])

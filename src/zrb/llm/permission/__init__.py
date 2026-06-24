@@ -21,8 +21,8 @@ from zrb.llm.permission.policy import (
     DENY,
     PLAN_MODE_POLICY,
     PermissionPolicy,
+    PermissionPolicyInput,
     Rule,
-    from_yolo,
     resolve_policy,
 )
 from zrb.llm.permission.state import (
@@ -42,11 +42,11 @@ __all__ = [
     "tool_capability",
     "Rule",
     "PermissionPolicy",
+    "PermissionPolicyInput",
     "PLAN_MODE_POLICY",
     "ALLOW",
     "ASK",
     "DENY",
-    "from_yolo",
     "resolve_policy",
     "AgentMode",
     "current_permission_policy",

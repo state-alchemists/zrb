@@ -419,3 +419,50 @@ class TestGetEventPartContent:
         event.part.content = "Hello world"
         result = _get_event_part_content(event)
         assert result == "Hello world"
+
+
+def _spinner_calls(print_fn):
+    return [
+        c
+        for c in print_fn.call_args_list
+        if "Prepare tool parameters" in str(c.args[0])
+    ]
+
+
+class TestStreamEventHandlerSpinnerThrottle:
+    """The 'Prepare tool parameters' spinner must repaint at most ~10x/sec so a
+    slow model streaming thousands of tool-arg deltas can't flood stdout (the
+    observed 9k+ frames / 500KB) or add per-frame syscall latency."""
+
+    def test_spinner_repaint_throttled_within_one_instant(self):
+        print_fn = MagicMock()
+        handler = StreamEventHandler(print_fn=print_fn, show_tool_call_detail=False)
+        from pydantic_ai import ToolCallPartDelta
+
+        event = MagicMock()
+        event.delta = ToolCallPartDelta(args_delta='{"a":')
+
+        with patch("zrb.llm.util.stream_response.time.monotonic", return_value=100.0):
+            for _ in range(50):
+                handler._handle_part_delta(event)
+
+        # 50 deltas at the same instant collapse to a single repaint.
+        assert len(_spinner_calls(print_fn)) == 1
+        # State still flips so the carriage-return cleanup downstream fires.
+        assert handler._was_tool_call_delta is True
+
+    def test_spinner_repaints_after_interval(self):
+        print_fn = MagicMock()
+        handler = StreamEventHandler(print_fn=print_fn, show_tool_call_detail=False)
+        from pydantic_ai import ToolCallPartDelta
+
+        event = MagicMock()
+        event.delta = ToolCallPartDelta(args_delta="x")
+
+        # One monotonic() read per delta; the third is >interval after the first.
+        times = [100.0, 100.05, 100.5, 100.55]
+        with patch("zrb.llm.util.stream_response.time.monotonic", side_effect=times):
+            for _ in range(4):
+                handler._handle_part_delta(event)
+
+        assert len(_spinner_calls(print_fn)) == 2

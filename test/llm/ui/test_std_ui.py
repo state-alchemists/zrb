@@ -252,8 +252,10 @@ async def test_ask_user_choice_free_text_prompts_for_input():
     dlg_patch, _ = _patch_dialog(selection=_FREE_TEXT)
     mock_session = MagicMock()
     mock_session.prompt_async = AsyncMock(return_value="my own answer  ")
-    with dlg_patch, patch("prompt_toolkit.output.create_output", MagicMock()), patch(
-        "prompt_toolkit.PromptSession", create=True, return_value=mock_session
+    with (
+        dlg_patch,
+        patch("prompt_toolkit.output.create_output", MagicMock()),
+        patch("prompt_toolkit.PromptSession", create=True, return_value=mock_session),
     ):
         result = await ui.ask_user_choice(_spec([{"label": "A"}]))
     assert result == "my own answer"
@@ -266,8 +268,10 @@ async def test_ask_user_choice_multi_free_text_combines_checked_and_typed():
     dlg_patch, _ = _patch_dialog(selection=[0, 2, _FREE_TEXT], multi=True)
     mock_session = MagicMock()
     mock_session.prompt_async = AsyncMock(return_value="custom")
-    with dlg_patch, patch("prompt_toolkit.output.create_output", MagicMock()), patch(
-        "prompt_toolkit.PromptSession", create=True, return_value=mock_session
+    with (
+        dlg_patch,
+        patch("prompt_toolkit.output.create_output", MagicMock()),
+        patch("prompt_toolkit.PromptSession", create=True, return_value=mock_session),
     ):
         result = await ui.ask_user_choice(
             _spec([{"label": "A"}, {"label": "B"}, {"label": "C"}], multi=True)

@@ -34,7 +34,7 @@ def serve_task_session_api(
         path: str,
         request: Request,
         inputs: dict[str, Any],
-    ) -> NewSessionResponse:
+    ) -> "NewSessionResponse":
         """
         Creating new session
         """
@@ -43,10 +43,12 @@ def serve_task_session_api(
         try:
             task, _, residual_args = extract_node_from_args(root_group, args)
         except NodeNotFoundError:
-            return JSONResponse(content={"detail": "Not found"}, status_code=404)
+            # FastAPI returns the Response directly; the model annotation only
+            # drives response_model for the success path.
+            return JSONResponse(content={"detail": "Not found"}, status_code=404)  # type: ignore[return-value]
         if isinstance(task, AnyTask):
             if not user.can_access_task(task):
-                return JSONResponse(content={"detail": "Forbidden"}, status_code=403)
+                return JSONResponse(content={"detail": "Forbidden"}, status_code=403)  # type: ignore[return-value]
             session_name = residual_args[0] if residual_args else None
             if not session_name:
                 shared_ctx = SharedContext(is_web_mode=True)
@@ -55,7 +57,7 @@ def serve_task_session_api(
                 coroutines.append(coro)
                 coro.add_done_callback(lambda coro: coroutines.remove(coro))
                 return NewSessionResponse(session_name=session.name)
-        return JSONResponse(content={"detail": "Not found"}, status_code=404)
+        return JSONResponse(content={"detail": "Not found"}, status_code=404)  # type: ignore[return-value]
 
     @app.get(
         "/api/v1/task-sessions/{path:path}",
@@ -68,7 +70,7 @@ def serve_task_session_api(
         max_start_query: str = Query(default=None, alias="to"),
         page: int = Query(default=0, alias="page"),
         limit: int = Query(default=CFG.WEB_TASK_SESSION_PAGE_SIZE, alias="limit"),
-    ) -> SessionStateLog | SessionStateLogList:
+    ) -> "SessionStateLog | SessionStateLogList":
         """
         Getting existing session or sessions
         """
@@ -77,10 +79,10 @@ def serve_task_session_api(
         try:
             task, _, residual_args = extract_node_from_args(root_group, args)
         except NodeNotFoundError:
-            return JSONResponse(content={"detail": "Not found"}, status_code=404)
+            return JSONResponse(content={"detail": "Not found"}, status_code=404)  # type: ignore[return-value]
         if isinstance(task, AnyTask) and residual_args:
             if not user.can_access_task(task):
-                return JSONResponse(content={"detail": "Forbidden"}, status_code=403)
+                return JSONResponse(content={"detail": "Forbidden"}, status_code=403)  # type: ignore[return-value]
             if residual_args[0] == "list":
                 task_path = get_node_path(root_group, task)
                 max_start_time = (
@@ -96,14 +98,14 @@ def serve_task_session_api(
                 return sanitize_session_state_log_list(
                     task,
                     session_state_logger.list(
-                        task_path, min_start_time, max_start_time, page, limit
+                        task_path or [], min_start_time, max_start_time, page, limit
                     ),
                 )
             else:
                 return sanitize_session_state_log(
                     task, session_state_logger.read(residual_args[0])
                 )
-        return JSONResponse(content={"detail": "Not found"}, status_code=404)
+        return JSONResponse(content={"detail": "Not found"}, status_code=404)  # type: ignore[return-value]
 
 
 def sanitize_session_state_log_list(

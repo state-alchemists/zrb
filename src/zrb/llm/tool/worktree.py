@@ -14,8 +14,6 @@ async def enter_worktree(branch_name: str = "", cwd: str = "") -> str:
     """
     Creates an isolated git worktree on a new branch. Returns the path to the worktree directory.
 
-    Use for risky experiments, parallel approaches, or staging changes before merging.
-    Use `keep_branch=True` in `ExitWorktree` to preserve the branch for later merging.
     Use `cwd` to specify the repository root if the current directory is not the target repo.
     """
 

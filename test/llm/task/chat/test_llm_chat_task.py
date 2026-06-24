@@ -99,6 +99,40 @@ class TestParseYoloValue:
 
 
 @pytest.mark.asyncio
+async def test_interactive_teardown_fires_terminal_session_end():
+    """SESSION_END fires once when the interactive chat session tears down
+    (Claude-compatible: terminal, not per-turn)."""
+    from zrb.llm.hook.interface import HookContext, HookResult
+    from zrb.llm.hook.manager import HookManager
+    from zrb.llm.hook.types import HookEvent
+
+    fired: list[str] = []
+
+    async def record(context: HookContext) -> HookResult:
+        fired.append(context.event.value)
+        return HookResult()
+
+    manager = HookManager(search_dirs=[])
+    manager.register(record, events=[HookEvent.SESSION_END])
+
+    task = LLMChatTask(name="teardown-task")
+    task._active_hook_manager = manager
+
+    await task._teardown_interactive_resources()
+
+    assert fired == ["SessionEnd"]
+
+
+@pytest.mark.asyncio
+async def test_interactive_teardown_without_hook_manager_is_safe():
+    """Teardown must not raise when no hook manager was set (e.g. session never
+    reached _create_llm_task_core)."""
+    task = LLMChatTask(name="teardown-task-none")
+    # _active_hook_manager defaults to None; teardown should be a no-op.
+    await task._teardown_interactive_resources()
+
+
+@pytest.mark.asyncio
 async def test_llm_chat_task_non_interactive_run():
     """Test LLMChatTask in non-interactive mode."""
     with patch(
@@ -312,11 +346,15 @@ async def test_llm_chat_task_passes_getter_renderer_to_summarizer():
         interactive=False,
     )
 
-    with patch(
-        "zrb.llm.task.chat.task.create_summarizer_history_processor"
-    ) as mock_create_proc, patch("zrb.llm.task.llm_task.create_agent"), patch(
-        "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
-    ) as mock_run_agent:
+    with (
+        patch(
+            "zrb.llm.task.chat.task.create_summarizer_history_processor"
+        ) as mock_create_proc,
+        patch("zrb.llm.task.llm_task.create_agent"),
+        patch(
+            "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
+        ) as mock_run_agent,
+    ):
         mock_proc = MagicMock()
         mock_proc.return_value = AsyncMock(return_value=[])
         mock_create_proc.return_value = mock_proc
@@ -327,3 +365,91 @@ async def test_llm_chat_task_passes_getter_renderer_to_summarizer():
         await task.async_run(session)
 
     mock_create_proc.assert_called_once()
+
+
+def test_llm_chat_task_permissions_constructor_and_property():
+    from zrb.llm.permission import ALLOW, PermissionPolicy, Rule
+
+    policy = PermissionPolicy((Rule("*", ALLOW),))
+    task = LLMChatTask(name="test-task", permissions=policy)
+    assert task.permissions is policy
+
+
+def test_llm_chat_task_permissions_setter():
+    from zrb.llm.permission import DENY, PermissionPolicy, Rule
+
+    policy = PermissionPolicy((Rule("*", DENY),))
+    task = LLMChatTask(name="test-task")
+    assert task.permissions is None
+    task.permissions = policy
+    assert task.permissions is policy
+
+
+@pytest.mark.asyncio
+async def test_llm_chat_task_forwards_permissions_to_run_agent():
+    """The permissions policy reaches run_agent as permission_policy."""
+    from zrb.llm.permission import ASK, PermissionPolicy, Rule
+
+    policy = PermissionPolicy((Rule("Edit", ASK), Rule("*", ASK)))
+    task = LLMChatTask(
+        name="perm-forward-task",
+        message="Hello",
+        permissions=policy,
+        interactive=False,
+    )
+
+    with patch(
+        "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
+    ) as mock_run_agent:
+        mock_run_agent.return_value = ("Done", [])
+
+        shared_ctx = SharedContext()
+        session = Session(shared_ctx, state_logger=MagicMock())
+        await task.async_run(session)
+
+    assert mock_run_agent.called
+    assert mock_run_agent.call_args.kwargs["permission_policy"] is policy
+
+
+def test_llm_chat_task_sandbox_constructor_and_property():
+    from zrb.llm.sandbox import SandboxPolicy
+
+    policy = SandboxPolicy(enabled=True)
+    task = LLMChatTask(name="test-task", sandbox=policy)
+    assert task.sandbox is policy
+
+
+def test_llm_chat_task_sandbox_setter():
+    from zrb.llm.sandbox import SandboxPolicy
+
+    policy = SandboxPolicy(enabled=True)
+    task = LLMChatTask(name="test-task")
+    assert task.sandbox is None
+    task.sandbox = policy
+    assert task.sandbox is policy
+
+
+@pytest.mark.asyncio
+async def test_llm_chat_task_forwards_sandbox_to_run_agent():
+    """The sandbox policy reaches run_agent as sandbox_policy."""
+    from zrb.llm.sandbox import SandboxPolicy
+
+    policy = SandboxPolicy(enabled=True)
+    task = LLMChatTask(
+        name="sandbox-forward-task",
+        message="Hello",
+        sandbox=policy,
+        interactive=False,
+    )
+
+    with patch(
+        "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
+    ) as mock_run_agent:
+        mock_run_agent.return_value = ("Done", [])
+
+        shared_ctx = SharedContext()
+        session = Session(shared_ctx, state_logger=MagicMock())
+        await task.async_run(session)
+
+    assert mock_run_agent.called
+    assert mock_run_agent.call_args.kwargs["sandbox_policy"] is policy

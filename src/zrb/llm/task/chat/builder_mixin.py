@@ -36,11 +36,47 @@ if TYPE_CHECKING:
     from zrb.context.any_context import AnyContext
     from zrb.llm.agent.common import HistoryProcessor
     from zrb.llm.approval.approval_channel import ApprovalChannel
+    from zrb.llm.config.config import LLMConfig
+    from zrb.llm.config.limiter import LLMLimiter
+    from zrb.llm.permission import PermissionPolicyInput
+    from zrb.llm.sandbox import SandboxInput
     from zrb.llm.tool_call.ui_protocol import UIProtocol
 
 
 class BuilderMixin:
     """Post-construction configuration API for LLMChatTask."""
+
+    if TYPE_CHECKING:
+        # Attributes supplied by sibling classes on the composed LLMChatTask
+        # (BaseTask, or set in LLMChatTask.__init__).
+        name: str  # BaseTask
+        _prompt_manager: PromptManager | None
+        _pending_tool_guidance: list[ToolGuidance]
+        _uis: list[UIProtocol]
+        _ui_factories: list[Callable[..., UIProtocol]]
+        _history_manager: AnyHistoryManager | None
+        _custom_model_names: StrListAttr | None
+        _approval_channels: list[ApprovalChannel]
+        _llm_config: LLMConfig
+        _llm_limiter: LLMLimiter | None
+        _permissions: PermissionPolicyInput
+        _sandbox: SandboxInput
+        _include_default_ui: bool
+        _tools: list[Tool | ToolFuncEither]
+        _tool_factories: list[Callable[[AnyContext], Tool | ToolFuncEither]]
+        _toolsets: list[AbstractToolset[None]]
+        _toolset_factories: list[Callable[[AnyContext], AbstractToolset[None]]]
+        _tool_guidance_factories: list[Callable[[AnyContext], ToolGuidance]]
+        _tool_guidance_section_factories: list[Callable[[AnyContext, Any], str | None]]
+        _hook_factories: list[Callable[[HookManager], None]]
+        _history_processors: list[HistoryProcessor]
+        _response_handlers: list[ResponseHandler]
+        _tool_policies: list[ToolPolicy]
+        _argument_formatters: list[ArgumentFormatter]
+        _triggers: list[Callable[[], AsyncIterable[Any]]]
+        _custom_commands: list[
+            AnyCustomCommand | Callable[[], AnyCustomCommand | list[AnyCustomCommand]]
+        ]
 
     @property
     def prompt_manager(self) -> PromptManager:
@@ -246,3 +282,69 @@ class BuilderMixin:
         ),
     ):
         self._custom_commands += list(custom_command)
+
+    # --- Accessors --------------------------------------------------------
+
+    @property
+    def llm_config(self) -> "LLMConfig":
+        return self._llm_config
+
+    @property
+    def llm_limiter(self) -> "LLMLimiter | None":
+        return self._llm_limiter
+
+    @property
+    def permissions(self) -> "PermissionPolicyInput":
+        return self._permissions
+
+    @permissions.setter
+    def permissions(self, value: "PermissionPolicyInput"):
+        self._permissions = value
+
+    @property
+    def sandbox(self) -> "SandboxInput":
+        return self._sandbox
+
+    @sandbox.setter
+    def sandbox(self, value: "SandboxInput"):
+        self._sandbox = value
+
+    @property
+    def history_manager(self) -> "AnyHistoryManager | None":
+        """Get the history manager."""
+        return self._history_manager
+
+    @history_manager.setter
+    def history_manager(self, value: "AnyHistoryManager | None"):
+        """Set the history manager."""
+        self._history_manager = value
+
+    @property
+    def ui_factories(self) -> list[Callable[..., "UIProtocol"]]:
+        """Get the UI factories."""
+        return self._ui_factories
+
+    @ui_factories.setter
+    def ui_factories(self, value: list[Callable[..., "UIProtocol"]]):
+        """Set the UI factories."""
+        self._ui_factories = value
+
+    @property
+    def approval_channels(self) -> list["ApprovalChannel"]:
+        """Get the approval channels."""
+        return self._approval_channels
+
+    @approval_channels.setter
+    def approval_channels(self, value: list["ApprovalChannel"]):
+        """Set the approval channels."""
+        self._approval_channels = value
+
+    @property
+    def include_default_ui(self) -> bool:
+        """Check if the default UI should be included."""
+        return self._include_default_ui
+
+    @include_default_ui.setter
+    def include_default_ui(self, value: bool):
+        """Set if the default UI should be included."""
+        self._include_default_ui = value

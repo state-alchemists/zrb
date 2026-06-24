@@ -4,11 +4,12 @@ from typing import Any, Callable
 
 from zrb.attr.type import StrListAttr
 from zrb.config.config import CFG
-from zrb.context.any_context import AnyContext
+from zrb.context.any_context import AnyContext, zrb_print
 from zrb.llm.prompt.claude import (
     create_claude_skills_prompt,
     create_project_context_prompt,
 )
+from zrb.llm.prompt.live_context import render_live_context
 from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.prompt.system_context import system_context
 from zrb.llm.prompt.tool_guidance import (
@@ -22,7 +23,7 @@ from zrb.llm.util.git import is_inside_git_dir
 from zrb.util.attr import get_str_attr, get_str_list_attr
 
 # Simple prompt: just takes context and returns a string
-SimplePrompt = Callable[[AnyContext], str]
+SimplePrompt = Callable[[AnyContext], str | None]
 # Full middleware: takes context, current prompt, and next handler
 FullMiddleware = Callable[[AnyContext, str, Callable[[AnyContext, str], str]], str]
 # Flexible middleware: can be either simple or full
@@ -81,6 +82,9 @@ class PromptManager:
         self._active_skills = active_skills
         self._render_active_skills = render_active_skills
         self._render = render
+        # Live context providers: per-turn dynamic state injected into the
+        # <live-context> block after built-in rendering.
+        self._live_context_providers: list[tuple[str, SimplePrompt]] = []
         # Dynamic providers for config-positioned custom sections, keyed by the
         # name used in ``include_sections``. A registered provider is composed
         # by calling ``provider(ctx)`` at compose time; it takes precedence over
@@ -196,6 +200,20 @@ class PromptManager:
         """
         self._section_providers[name] = provider
 
+    def add_live_context(self, name: str, provider: "SimplePrompt") -> None:
+        """Register a dynamic per-turn live context provider.
+
+        Called every turn inside ``create_live_context``, after built-in
+        rendering. *provider* receives the active context and returns a string
+        (or ``None`` / ``""`` to emit nothing). Re-registering the same *name*
+        overwrites the previous provider.
+        """
+        for i, (existing_name, _) in enumerate(self._live_context_providers):
+            if existing_name == name:
+                self._live_context_providers[i] = (name, provider)
+                return
+        self._live_context_providers.append((name, provider))
+
     def reset(self):
         self._middlewares = []
 
@@ -204,6 +222,33 @@ class PromptManager:
 
     def append_prompt(self, *middleware: PromptMiddleware | str):
         self._middlewares.extend(middleware)
+
+    def create_live_context(self, ctx: AnyContext) -> str:
+        """Render the per-turn volatile runtime state as a ``<live-context>``
+        block for injection into the latest user message.
+
+        Kept out of the system prompt on purpose: the block changes every turn
+        (time, git, todos, …), so embedding it in the cached prefix would defeat
+        prompt caching. Injecting it into the user turn instead keeps the system
+        prompt byte-stable while still surfacing live state, and freezes a
+        snapshot into history (older turns show what state *was*; the most
+        recent block is authoritative — anchored in the system prompt). Returns
+        ``""`` when there is nothing to report.
+
+        Custom providers registered via ``add_live_context`` are called after
+        the built-in rendering, in registration order.
+        """
+        body = render_live_context(ctx, self._model)
+        for name, provider in self._live_context_providers:
+            try:
+                extra = provider(ctx)
+                if extra:
+                    body += "\n" + extra
+            except Exception:
+                pass
+        if not body.strip():
+            return ""
+        return f"<live-context>\n{body}\n</live-context>"
 
     def compose_prompt(self) -> Callable[[AnyContext], str]:
         """
@@ -320,12 +365,43 @@ class PromptManager:
                 # get_prompt(name) (project override -> env -> base prompt dir
                 # -> package default). Lets downstreams add always-on, ordered
                 # sections through include_sections + a markdown file, with no
-                # code change. Missing files resolve to "" (harmless no-op).
-                middlewares.append(new_prompt(lambda n=section: get_prompt(n)))
+                # code change. Missing files resolve to "" (harmless no-op)
+                # and log a warning so a misspelled name is diagnosable.
+                middlewares.append(self._new_file_section_middleware(section))
 
         # User custom prompts always last
         middlewares.extend(self._middlewares)
         return middlewares
+
+    def _new_file_section_middleware(self, name: str) -> FullMiddleware:
+        """Middleware for a file-backed custom section.
+
+        Resolves *name* via ``get_prompt`` at compose time. When nothing
+        resolves (no registered provider, no markdown file), the section is
+        empty — a warning is logged so a misspelled name in
+        ``include_sections`` / ``ZRB_LLM_INCLUDE_SECTIONS`` is diagnosable
+        instead of silently dropped.
+        """
+
+        def file_section_middleware(
+            ctx: AnyContext, current: str, next_fn: Callable[[AnyContext, str], str]
+        ) -> str:
+            content = get_prompt(name)
+            if not content:
+                message = (
+                    f"Prompt section '{name}' is not a built-in, has no "
+                    "registered provider, and no markdown file resolves for "
+                    "it — the section is empty. Check include_sections / "
+                    "ZRB_LLM_INCLUDE_SECTIONS for a typo."
+                )
+                log_warning = getattr(ctx, "log_warning", None)
+                if callable(log_warning):
+                    log_warning(message)
+                else:
+                    zrb_print(f"Warning: {message}", plain=True)
+            return next_fn(ctx, f"{current}\n{content}")
+
+        return file_section_middleware
 
     def _is_full_middleware(self, prompt: PromptMiddleware | str) -> bool:
         """Check if prompt is a full middleware (accepts next param) or simple callable."""

@@ -37,10 +37,6 @@ def demote_markdown_headers(md: str) -> str:
     return _adjust_markdown_headers(md, level_change=1)
 
 
-def promote_markdown_headers(md: str) -> str:
-    return _adjust_markdown_headers(md, level_change=-1)
-
-
 def make_markdown_section(header: str, content: str, as_code: bool = False) -> str:
     if content.strip() == "":
         return ""

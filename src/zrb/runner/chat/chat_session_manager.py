@@ -245,12 +245,11 @@ class ChatSessionManager:
             if hasattr(msg, "parts"):
                 for part in msg.parts:
                     if hasattr(part, "content"):
-                        if isinstance(part.content, str):
-                            content += part.content
+                        part_content = getattr(part, "content")
+                        if isinstance(part_content, str):
+                            content += part_content
                         else:
-                            content += str(part.content)
-                    elif hasattr(part, "content"):
-                        content = str(part.content)
+                            content += str(part_content)
             result.append(
                 {
                     "role": role,
@@ -306,7 +305,7 @@ class ChatSessionManager:
         return session.approval_channel.get_editing_args()
 
     def handle_approval_response(
-        self, session_id: str, response: str, is_json: bool = False
+        self, session_id: str, response: Any, is_json: bool = False
     ) -> dict[str, Any]:
         session = self._sessions.get(session_id)
         if session is None or session.approval_channel is None:

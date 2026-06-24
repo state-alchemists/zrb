@@ -7,7 +7,7 @@ import tempfile
 from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
 from zrb.llm.sandbox.os_sandbox import SandboxUnavailableError
-from zrb.util.cli.style import stylize_faint
+from zrb.util.cli.style import stylize_muted
 from zrb.util.cmd.command import resolve_shell, terminate_process
 from zrb.util.truncate import truncate_output
 
@@ -21,28 +21,57 @@ async def run_shell_command(
     max_chars: int | None = None,
     shell: str = "",
     dangerously_skip_sandbox: bool = False,
+    background: bool = False,
+    description: str = "",
 ) -> str:
     """
-    Executes a non-interactive shell command. Streams stdout/stderr live and returns truncated output.
+    Executes a non-interactive command in a shell or interpreter. Streams stdout/stderr
+    live and returns truncated output.
 
-    Commands must be fully non-interactive: pass `-y`, `--yes`, `CI=true`, or equivalent
-    auto-confirmation flags so the process never waits for stdin — interactive prompts will
-    hang until the timeout.
+    Commands must be fully non-interactive: pass auto-confirmation flags (e.g. `-y`,
+    `--yes`) or set the equivalent environment variables so the process never waits
+    for stdin — stdin is closed, and interactive prompts hang until the timeout.
 
-    Batch independent commands with `&&` to avoid extra round-trips
-    (e.g. `pytest && flake8 src`). Use the `cwd` parameter instead of `cd <dir> && ...`
-    to set the working directory without leaving shell-state side-effects in this call.
+    Batch independent commands into one call where the interpreter supports chaining
+    (e.g. `pytest && flake8 src` in a POSIX shell) to avoid extra round-trips. Use the
+    `cwd` parameter instead of a `cd` command to set the working directory.
 
     Default `timeout` is 120 seconds; timed-out processes may continue in the background.
 
     Args:
-        shell: The shell to use (e.g., "bash", "zsh", "sh"). Empty string uses
-            the default shell.
+        shell: The shell or interpreter to run the command with — a POSIX shell
+            ("bash", "zsh", "sh"), a Windows shell ("pwsh", "powershell", "cmd"),
+            or a language runtime ("node", "ruby", "php" — `command` is then
+            source code). Empty string uses the user's default shell.
         dangerously_skip_sandbox: Run this command OUTSIDE the OS-level sandbox
             (when one is active). Only set it when a command genuinely needs to
             write outside the workspace; it always requires explicit user
             approval.
+        background: Start the command in the BACKGROUND and return a handle
+            immediately instead of blocking (use for long-running processes —
+            dev servers, watchers, builds). Poll incremental output, wait, or
+            kill it with MonitorProcess(handle). `timeout` is not applied.
+        description: Optional human-readable label for a background process,
+            shown by MonitorProcess.
     """
+    if background:
+        # lazy: keep the background registry off the hot foreground path.
+        from zrb.llm.tool.shell_background import get_shell_background_registry
+
+        try:
+            handle = await get_shell_background_registry().start(
+                command, cwd, description, shell, dangerously_skip_sandbox
+            )
+        except SandboxUnavailableError as e:
+            return (
+                f"Command refused by sandbox policy: {e}. "
+                "[SYSTEM SUGGESTION]: this deployment requires OS-level "
+                "sandboxing for shell commands (LLM_SANDBOX_FALLBACK=deny)."
+            )
+        return (
+            f"Started background process. Handle: {handle}. "
+            "Call MonitorProcess with this handle to check status."
+        )
     if max_chars is None:
         max_chars = CFG.LLM_MAX_OUTPUT_CHARS
     cwd = cwd or os.getcwd()
@@ -74,6 +103,9 @@ async def run_shell_command(
 
     try:
         process = await _start_process(argv, cwd)
+        # _start_process creates the subprocess with stdout/stderr=PIPE, so both
+        # readers are always present here (the type is StreamReader | None).
+        assert process.stdout is not None and process.stderr is not None
 
         stdout_lines = []
         stderr_lines = []
@@ -204,7 +236,7 @@ async def _read_stream(stream: asyncio.StreamReader, lines_list: list[str]):
         decoded = line.decode(errors="replace")
         if decoded:
             stripped = ANSI_ESCAPE.sub("", decoded)
-            shown = stylize_faint(stripped)
+            shown = stylize_muted(stripped)
             zrb_print(f"  {shown}", end="", plain=True)  # Stream to console
             lines_list.append(stripped)
 

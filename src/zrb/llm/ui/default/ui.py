@@ -42,7 +42,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class UI(
+class UI(  # type: ignore[reportIncompatibleVariableOverride]
     LifecycleMixin,
     KeybindingsMixin,
     SelectionMixin,
@@ -133,7 +133,7 @@ class UI(
 
         self._refresh_task: asyncio.Task | None = None
 
-        self._capture = GlobalStreamCapture(self.append_to_output)
+        self._capture = GlobalStreamCapture()
         self._style = create_style()
 
         # lazy: heavy third-party

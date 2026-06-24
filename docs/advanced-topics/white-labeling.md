@@ -129,3 +129,5 @@ The terminal will display your custom "Acme" banner, the help menus will referen
 | `<PREFIX>_BANNER` | ASCII art banner |
 
 ---
+
+🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > White-labeling

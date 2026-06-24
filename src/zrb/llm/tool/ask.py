@@ -15,10 +15,13 @@ ContextVar's asyncio-task semantics.
 from __future__ import annotations
 
 from contextvars import ContextVar
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 from zrb.llm.tool.wrapper import tool_safe_async
 from zrb.llm.tool_call.always_approve import register_always_auto_approve
+
+if TYPE_CHECKING:
+    from zrb.llm.tool_call.ui_protocol import ChoiceSpec
 
 interactive_mode: ContextVar[bool] = ContextVar("zrb_interactive_mode", default=True)
 
@@ -37,10 +40,6 @@ def set_interactive_mode(value: bool) -> None:
 async def ask_user_question(questions: list[dict[str, Any]]) -> str:
     """
     Ask the user one or more structured multiple-choice questions and return the answers.
-
-    Use ONLY when the choice is non-obvious AND the wrong choice would waste
-    significant work. Do not ask for permission to do obvious things — decide
-    and proceed.
 
     Each entry in `questions` must have:
       - `question` (str): the question text.
@@ -89,13 +88,19 @@ async def ask_user_question(questions: list[dict[str, Any]]) -> str:
                 "[SYSTEM SUGGESTION]: provide at least two options or do not ask."
             )
 
+    # Notify that the agent is now blocking on a user question so "needs your
+    # input" notifications/sounds (e.g. peon-ping) ring. AskUserQuestion is
+    # auto-approved (ADR-0062), so it never reaches the PermissionRequest path
+    # in the approval cascade — this is its only attention signal.
+    await _notify_question_pending(questions)
+
     total = len(questions)
     answers: list[str] = []
     for idx, q in enumerate(questions, start=1):
         spec = _build_choice_spec(idx, total, q)
         try:
             if hasattr(ui, "ask_user_choice"):
-                raw = await ui.ask_user_choice(spec)
+                raw = await ui.ask_user_choice(cast("ChoiceSpec", spec))
             else:
                 # Custom UI predating ask_user_choice — fall back to text.
                 raw = await ui.ask_user(format_choice_spec(spec))
@@ -110,6 +115,29 @@ async def ask_user_question(questions: list[dict[str, Any]]) -> str:
     return "\n".join(answers)
 
 
+async def _notify_question_pending(questions: list[dict[str, Any]]) -> None:
+    """Fire a Notification so input-required hooks ring while a question is open.
+
+    Uses ``notification_type='elicitation_dialog'`` — the type Claude-compatible
+    consumers (peon-ping) map to "question pending" / input required; a generic
+    notification with no type is suppressed as unknown. Best-effort: a hook
+    failure must never break the prompt.
+    """
+    try:
+        # lazy: circular — tool → hook.manager → llm internals → tool
+        from zrb.llm.hook.manager import hook_manager
+        from zrb.llm.hook.types import HookEvent
+
+        await hook_manager.execute_hooks(
+            HookEvent.NOTIFICATION,
+            {"questions": questions},
+            message="Waiting for your answer to a question",
+            notification_type="elicitation_dialog",
+        )
+    except Exception:
+        pass
+
+
 def _build_choice_spec(idx: int, total: int, q: dict[str, Any]) -> dict[str, Any]:
     header = q.get("header") or q.get("question", "").strip().rstrip("?")[:40]
     return {
@@ -122,13 +150,13 @@ def _build_choice_spec(idx: int, total: int, q: dict[str, Any]) -> dict[str, Any
     }
 
 
-def format_choice_spec(spec: dict[str, Any]) -> str:
+def format_choice_spec(spec: "ChoiceSpec | dict[str, Any]") -> str:
     """Render a `ChoiceSpec` as numbered text (fallback for non-widget UIs)."""
     multi = bool(spec.get("multi_select"))
     idx = spec.get("index", 1)
     total = spec.get("total", 1)
     counter = f"{idx}/{total}" if total > 1 else f"{idx}"
-    lines: list[str] = [f"\n[Q{counter}] {spec['question']}"]
+    lines: list[str] = [f"\n[Q{counter}] {spec.get('question', '')}"]
     for i, opt in enumerate(spec.get("options", []), start=1):
         label = opt.get("label", f"Option {i}")
         desc = opt.get("description", "")
@@ -162,8 +190,9 @@ def _resolve_answer(q: dict[str, Any], raw: str) -> str:
     if multi:
         parts = [p for p in raw.split(",") if p.strip()]
         labels = [pick(p) for p in parts]
-        if labels and all(lbl is not None for lbl in labels):
-            return ", ".join(labels)
+        resolved = [lbl for lbl in labels if lbl is not None]
+        if resolved and len(resolved) == len(labels):
+            return ", ".join(resolved)
         return raw
     picked = pick(raw)
     return picked if picked is not None else raw

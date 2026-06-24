@@ -212,8 +212,9 @@ class TestOptionInputPromptCli:
 
         shared_ctx = SharedContext(env={})
 
-        with patch("sys.stdin.isatty", return_value=False), patch(
-            "builtins.input", return_value="red"
+        with (
+            patch("sys.stdin.isatty", return_value=False),
+            patch("builtins.input", return_value="red"),
         ):
             result = option_input.prompt_cli_str(shared_ctx)
             assert result == "red"
@@ -228,8 +229,9 @@ class TestOptionInputPromptCli:
 
         shared_ctx = SharedContext(env={})
 
-        with patch("sys.stdin.isatty", return_value=False), patch(
-            "builtins.input", return_value=""
+        with (
+            patch("sys.stdin.isatty", return_value=False),
+            patch("builtins.input", return_value=""),
         ):
             result = option_input.prompt_cli_str(shared_ctx)
             assert result == "green"
@@ -245,8 +247,9 @@ class TestOptionInputPromptCli:
         shared_ctx = SharedContext(env={})
 
         # First input is invalid, second is valid
-        with patch("sys.stdin.isatty", return_value=False), patch(
-            "builtins.input", side_effect=["yellow", "red"]
+        with (
+            patch("sys.stdin.isatty", return_value=False),
+            patch("builtins.input", side_effect=["yellow", "red"]),
         ):
             result = option_input.prompt_cli_str(shared_ctx)
             assert result == "red"
@@ -261,8 +264,9 @@ class TestOptionInputPromptCli:
 
         shared_ctx = SharedContext(env={})
 
-        with patch("sys.stdin.isatty", return_value=False), patch(
-            "builtins.input", return_value="  red  "
+        with (
+            patch("sys.stdin.isatty", return_value=False),
+            patch("builtins.input", return_value="  red  "),
         ):
             result = option_input.prompt_cli_str(shared_ctx)
             # Whitespace stripped value should match an option
@@ -279,8 +283,9 @@ class TestOptionInputPromptCli:
         shared_ctx = SharedContext(env={})
 
         # Multiple invalid inputs, then valid
-        with patch("sys.stdin.isatty", return_value=False), patch(
-            "builtins.input", side_effect=["yellow", "purple", "green"]
+        with (
+            patch("sys.stdin.isatty", return_value=False),
+            patch("builtins.input", side_effect=["yellow", "purple", "green"]),
         ):
             result = option_input.prompt_cli_str(shared_ctx)
             assert result == "green"
@@ -299,8 +304,9 @@ class TestOptionInputPromptCli:
         mock_session.prompt.return_value = "blue"
 
         # Mock sys.stdin.isatty to return True for TTY mode
-        with patch("sys.stdin.isatty", return_value=True), patch(
-            "prompt_toolkit.PromptSession", return_value=mock_session
+        with (
+            patch("sys.stdin.isatty", return_value=True),
+            patch("prompt_toolkit.PromptSession", return_value=mock_session),
         ):
             result = option_input.prompt_cli_str(shared_ctx)
             assert result == "blue"
@@ -321,8 +327,9 @@ class TestOptionInputPromptCli:
         shared_ctx = SharedContext(env={})
 
         # With allow_empty=True, empty input returns default (from parent loop)
-        with patch("sys.stdin.isatty", return_value=False), patch(
-            "builtins.input", return_value=""
+        with (
+            patch("sys.stdin.isatty", return_value=False),
+            patch("builtins.input", return_value=""),
         ):
             result = option_input.prompt_cli_str(shared_ctx)
             # Empty returns default
@@ -344,8 +351,9 @@ class TestOptionInputPromptCli:
             prompts_seen.append(prompt_msg)
             return "red"
 
-        with patch("sys.stdin.isatty", return_value=False), patch(
-            "builtins.input", side_effect=capture_input
+        with (
+            patch("sys.stdin.isatty", return_value=False),
+            patch("builtins.input", side_effect=capture_input),
         ):
             result = option_input.prompt_cli_str(shared_ctx)
             assert result == "red"

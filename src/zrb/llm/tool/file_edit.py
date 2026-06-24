@@ -87,8 +87,8 @@ async def replace_in_file(
                 )
         return (
             f"Error: '{_trunc(old_text, 80)}' not found in {path}.\n"
-            f"[SYSTEM SUGGESTION]: Use Read to get the exact content and copy old_text "
-            f"verbatim from below ---CONTENT---."
+            f"[SYSTEM SUGGESTION]: Use Read to get the exact file content, then copy "
+            f"old_text verbatim from it. Do not retry with guessed text."
         )
 
     match_count = content.count(actual_old)

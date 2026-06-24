@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 
 from zrb.llm.agent.run.runner import (
     AnyToolConfirmation,
+    current_hook_manager,
     current_tool_confirmation,
     current_ui,
     current_yolo,
@@ -25,6 +26,7 @@ from zrb.llm.approval.approval_channel import (
 )
 
 if TYPE_CHECKING:
+    from zrb.llm.hook.manager import HookManager
     from zrb.llm.tool_call.ui_protocol import UIProtocol
 
 
@@ -48,13 +50,20 @@ def get_current_approval_channel() -> "ApprovalChannel | None":
     return current_approval_channel.get()
 
 
+def get_current_hook_manager() -> "HookManager | None":
+    """Return the hook manager active for the current agent run, or None."""
+    return current_hook_manager.get()
+
+
 __all__ = [
     "current_ui",
     "current_tool_confirmation",
     "current_yolo",
     "current_approval_channel",
+    "current_hook_manager",
     "get_current_ui",
     "get_current_tool_confirmation",
     "get_current_yolo",
     "get_current_approval_channel",
+    "get_current_hook_manager",
 ]

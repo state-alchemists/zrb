@@ -16,16 +16,33 @@ async def run_bash_command(
     preserved_tail_lines: int = 500,
     max_chars: int | None = None,
     dangerously_skip_sandbox: bool = False,
+    background: bool = False,
+    description: str = "",
 ) -> str:
     """
-    Executes a non-interactive shell command under bash. Streams stdout/stderr
-    live and returns truncated output.
+    Executes a non-interactive command under bash (git-bash on Windows).
+    Streams stdout/stderr live and returns truncated output.
+
+    Commands must be fully non-interactive: pass `-y`, `--yes`, `CI=true`, or
+    equivalent auto-confirmation flags so the process never waits for stdin —
+    stdin is closed, and interactive prompts hang until the timeout.
+
+    Batch independent commands with `&&` to avoid extra round-trips
+    (e.g. `pytest && flake8 src`). Use the `cwd` parameter instead of
+    `cd <dir> && ...` to set the working directory.
+
+    Default `timeout` is 120 seconds; timed-out processes may continue in the
+    background.
 
     Args:
         dangerously_skip_sandbox: Run this command OUTSIDE the OS-level sandbox
             (when one is active). Only set it when a command genuinely needs to
             write outside the workspace; it always requires explicit user
             approval.
+        background: Start the command in the BACKGROUND and return a handle
+            immediately instead of blocking (long-running processes). Poll, wait,
+            or kill it with MonitorProcess(handle); `timeout` is not applied.
+        description: Optional human-readable label for a background process.
     """
     return await _shell_cmd(
         command=command,
@@ -36,6 +53,8 @@ async def run_bash_command(
         max_chars=max_chars,
         shell="bash",
         dangerously_skip_sandbox=dangerously_skip_sandbox,
+        background=background,
+        description=description,
     )
 
 

@@ -142,3 +142,5 @@ CFG.MCP_CONFIG_FILE = ".mcp.json"
 ```
 
 ---
+
+🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > MCP Support

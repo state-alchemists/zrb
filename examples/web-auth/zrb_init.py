@@ -27,10 +27,12 @@ web_auth_config.append_user(
     )
 )
 
+# Note: a built-in super-admin (username "admin") already exists when auth is
+# enabled, so we add a different full-access user here to avoid a name clash.
 web_auth_config.append_user(
     User(
-        username="admin",
-        password="admin123",
+        username="boss",
+        password="boss123",
         accessible_tasks=["*"],  # Can run ALL tasks
     )
 )
@@ -82,4 +84,5 @@ cli.add_task(admin_task)
 # Access http://localhost:8000
 # - Guest: Can only access "hello"
 # - Jack: Can access "hello" and "greet"
-# - Admin: Can access all tasks
+# - Boss: Can access all tasks
+# - Admin (built-in super-admin): Can access all tasks

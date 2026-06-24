@@ -4,16 +4,16 @@ import sys
 from typing import TYPE_CHECKING, Any, TextIO
 
 from zrb.config.config import CFG
-from zrb.util.cli.style import stylize_faint
+from zrb.util.cli.style import stylize_muted
 
 if TYPE_CHECKING:
-    from zrb.llm.tool_call.ui_protocol import ChoiceSpec
+    from zrb.llm.tool_call.ui_protocol import ChoiceOption, ChoiceSpec
 
 # Sentinel value for the synthetic "type my own answer" option.
 _FREE_TEXT = "__zrb_free_text__"
 
 
-def _option_text(opt: dict) -> str:
+def _option_text(opt: "ChoiceOption") -> str:
     label = opt.get("label", "")
     desc = opt.get("description", "")
     return f"{label} — {desc}" if desc else label
@@ -86,7 +86,9 @@ class StdUI:
         idx, total = spec.get("index", 1), spec.get("total", 1)
         counter = f" ({idx}/{total})" if total > 1 else ""
         title = f"{spec.get('header', 'Question')}{counter}"
-        values = [(i, _option_text(opt)) for i, opt in enumerate(options)]
+        values: list[tuple[int | str, str]] = [
+            (i, _option_text(opt)) for i, opt in enumerate(options)
+        ]
         values.append((_FREE_TEXT, "✎ Type my own answer…"))
 
         dialog_factory = checkboxlist_dialog if multi else radiolist_dialog
@@ -102,11 +104,13 @@ class StdUI:
             raise KeyboardInterrupt
         if selection == []:
             return "(no answer)"
-        wants_free_text = selection == _FREE_TEXT or (multi and _FREE_TEXT in selection)
+        wants_free_text = selection == _FREE_TEXT or (
+            isinstance(selection, list) and _FREE_TEXT in selection
+        )
         if wants_free_text:
             session = PromptSession(output=create_output(stdout=sys.stderr))
             typed = (await session.prompt_async("Your answer: ")).strip()
-            if multi:
+            if multi and isinstance(selection, list):
                 # Combine the checked options with the typed answer.
                 checked = [i for i in selection if i != _FREE_TEXT]
                 prefix = resolve_choice_selection(spec, checked)
@@ -127,7 +131,7 @@ class StdUI:
 
         content = sep.join(str(v) for v in values) + end
         if kind not in ("text", "todo_progress"):
-            content = stylize_faint(content)
+            content = stylize_muted(content)
         sys.stderr.write(content)
         if flush:
             sys.stderr.flush()
@@ -158,3 +162,12 @@ class StdUI:
             return subprocess.run(cmd, shell=shell)
 
         return await asyncio.to_thread(_run)
+
+    async def run_async(self) -> Any:
+        """No-op event loop for `UIProtocol` conformance.
+
+        `StdUI` is a non-interactive, stateless stdout/stderr adapter: it has no
+        persistent loop to run (unlike the full-screen interactive UIs). It is
+        used as a wrapped/fallback UI, so this is never the driving loop.
+        """
+        return None

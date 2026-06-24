@@ -186,9 +186,10 @@ class TestApproveIfPathInsideSkillOrPluginDir:
         plugin_dir.mkdir()
         child = str(plugin_dir / "my-plugin" / "config.yml")
 
-        with patch("zrb.llm.skill.manager.skill_manager") as mock_mgr, patch(
-            "zrb.builtin.llm.chat_tool_policy.CFG"
-        ) as mock_cfg:
+        with (
+            patch("zrb.llm.skill.manager.skill_manager") as mock_mgr,
+            patch("zrb.builtin.llm.chat_tool_policy.CFG") as mock_cfg,
+        ):
             mock_mgr.get_search_directories.return_value = []
             mock_cfg.LLM_PLUGIN_DIRS = [str(plugin_dir)]
             result = approve_if_path_inside_skill_or_plugin_dir({"path": child})
@@ -198,9 +199,10 @@ class TestApproveIfPathInsideSkillOrPluginDir:
         """Denies when path is outside all known dirs."""
         child = str(tmp_path / "random.txt")
 
-        with patch("zrb.llm.skill.manager.skill_manager") as mock_mgr, patch(
-            "zrb.builtin.llm.chat_tool_policy.CFG"
-        ) as mock_cfg:
+        with (
+            patch("zrb.llm.skill.manager.skill_manager") as mock_mgr,
+            patch("zrb.builtin.llm.chat_tool_policy.CFG") as mock_cfg,
+        ):
             mock_mgr.get_search_directories.return_value = []
             mock_cfg.LLM_PLUGIN_DIRS = []
             result = approve_if_path_inside_skill_or_plugin_dir({"path": child})

@@ -53,13 +53,16 @@ def test_logout_page_route(app_deps):
     mock_user = MagicMock()
     mock_user.username = "testuser"
 
-    with patch(
-        "zrb.runner.web_route.logout_page.logout_page_route.get_jinja_env",
-        return_value=mock_env,
-    ), patch(
-        "zrb.runner.web_route.logout_page.logout_page_route.get_user_from_request",
-        new_callable=AsyncMock,
-        return_value=mock_user,
+    with (
+        patch(
+            "zrb.runner.web_route.logout_page.logout_page_route.get_jinja_env",
+            return_value=mock_env,
+        ),
+        patch(
+            "zrb.runner.web_route.logout_page.logout_page_route.get_user_from_request",
+            new_callable=AsyncMock,
+            return_value=mock_user,
+        ),
     ):
         response = client.get("/logout")
         assert response.status_code == 200

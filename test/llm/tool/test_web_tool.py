@@ -163,10 +163,13 @@ async def test_open_web_page_playwright_success():
 @pytest.mark.asyncio
 async def test_open_web_page_requests_fallback():
     # Force playwright fail
-    with patch(
-        "playwright.async_api.async_playwright",
-        side_effect=ImportError("No playwright"),
-    ), patch("requests.get") as mock_get:
+    with (
+        patch(
+            "playwright.async_api.async_playwright",
+            side_effect=ImportError("No playwright"),
+        ),
+        patch("requests.get") as mock_get,
+    ):
 
         mock_response = MagicMock()
         mock_response.text = (
@@ -186,9 +189,12 @@ async def test_open_web_page_requests_fallback():
 
 @pytest.mark.asyncio
 async def test_open_web_page_error():
-    with patch(
-        "playwright.async_api.async_playwright", side_effect=Exception("Major fail")
-    ), patch("requests.get", side_effect=Exception("Requests fail")):
+    with (
+        patch(
+            "playwright.async_api.async_playwright", side_effect=Exception("Major fail")
+        ),
+        patch("requests.get", side_effect=Exception("Requests fail")),
+    ):
 
         result = await open_web_page("https://example.com")
         assert "error" in result
@@ -198,11 +204,11 @@ async def test_open_web_page_error():
 @pytest.mark.asyncio
 async def test_open_web_page_with_summarization():
     # Mock playwright and LLM orchestrators
-    with patch("playwright.async_api.async_playwright") as mock_playwright_ctx, patch(
-        "zrb.llm.tool.web.create_agent"
-    ) as mock_create_agent, patch(
-        "zrb.llm.tool.web.run_agent", new_callable=AsyncMock
-    ) as mock_run_agent:
+    with (
+        patch("playwright.async_api.async_playwright") as mock_playwright_ctx,
+        patch("zrb.llm.tool.web.create_agent") as mock_create_agent,
+        patch("zrb.llm.tool.web.run_agent", new_callable=AsyncMock) as mock_run_agent,
+    ):
 
         mock_p = AsyncMock()
         mock_browser = AsyncMock()

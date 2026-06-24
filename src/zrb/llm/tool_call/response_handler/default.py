@@ -4,7 +4,9 @@ import json
 from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
 from zrb.context.any_context import zrb_print
+from zrb.llm.tool_call.handler import MAX_DENIAL_REASON_CHARS
 from zrb.llm.tool_call.ui_protocol import UIProtocol
+from zrb.util.truncate import truncate_chars
 
 if TYPE_CHECKING:
     from pydantic_ai import ToolApproved, ToolCallPart, ToolDenied
@@ -63,6 +65,7 @@ async def default_response_handler(
             ui.append_to_output(f"\n❌ Error editing: {e}. ", end="")
             return None
     else:
+        reason = truncate_chars(user_response, MAX_DENIAL_REASON_CHARS)
         ui.append_to_output("\n🛑 Execution denied.")
-        ui.append_to_output(f"\n🛑 Reason: {user_response}")
-        return ToolDenied(f"User denied execution with message: {user_response}")
+        ui.append_to_output(f"\n🛑 Reason: {reason}")
+        return ToolDenied(f"User denied execution with message: {reason}")

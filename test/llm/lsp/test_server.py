@@ -127,6 +127,87 @@ async def test_lsp_server_queries(lsp_server):
         await lsp_server.stop()
 
 
+@pytest.mark.asyncio
+async def test_read_loop_handles_nonascii_split_across_reads(lsp_server):
+    """The read loop must frame by BYTES: Content-Length is a byte count, and a
+    multi-byte char (em-dash) can straddle a 4096-byte read boundary. Decoding
+    per-chunk or slicing a decoded str by byte length corrupts/loses messages
+    (the pyright hang)."""
+    with patch("asyncio.create_subprocess_exec") as mock_exec:
+        mock_proc = MagicMock()
+        mock_proc.returncode = None
+        mock_proc.stdout = AsyncMock()
+        mock_proc.stdin = MagicMock()
+        mock_proc.stdin.drain = AsyncMock()
+        mock_proc.wait = AsyncMock()
+        mock_proc.wait_closed = AsyncMock()
+        mock_exec.return_value = mock_proc
+
+        init_res = json.dumps(
+            {"jsonrpc": "2.0", "id": 1, "result": {"capabilities": {}}}
+        )
+        init_payload = f"Content-Length: {len(init_res)}\r\n\r\n{init_res}".encode()
+
+        # Response body contains an em-dash (3 UTF-8 bytes). Content-Length is the
+        # BYTE length; we feed the payload split *inside* the em-dash bytes.
+        # ensure_ascii=False so the em-dash is emitted as raw UTF-8 bytes (as real
+        # servers send it), not an escaped — sequence.
+        body = json.dumps(
+            {"jsonrpc": "2.0", "id": 2, "result": [{"name": "foo—bar"}]},
+            ensure_ascii=False,
+        )
+        body_bytes = body.encode("utf-8")
+        payload = f"Content-Length: {len(body_bytes)}\r\n\r\n".encode() + body_bytes
+        emdash_at = payload.index("—".encode("utf-8"))
+        chunk1, chunk2 = payload[: emdash_at + 1], payload[emdash_at + 1 :]
+
+        chunks = asyncio.Queue()
+        chunks.put_nowait(init_payload)
+
+        async def mock_read(n=-1):
+            return await chunks.get()
+
+        mock_proc.stdout.read.side_effect = mock_read
+        await lsp_server.start()
+
+        # Feed the symbol response split mid-em-dash, then mark it open so the
+        # query skips _ensure_open's sync.
+        lsp_server._open_files.add(lsp_server._path_to_uri("/test/file.py"))
+        chunks.put_nowait(chunk1)
+        chunks.put_nowait(chunk2)
+
+        res = await lsp_server.document_symbols("/test/file.py")
+        assert res == [{"name": "foo—bar"}]
+        await lsp_server.stop()
+
+
+@pytest.mark.asyncio
+async def test_query_opens_document_first(lsp_server, tmp_path):
+    """File-scoped queries must didOpen the document before requesting — most
+    servers (pyright/gopls/…) serve textDocument/* only for opened files."""
+    target = tmp_path / "mod.py"
+    target.write_text("class Foo:\n    pass\n")
+
+    lsp_server.initialized = True
+    lsp_server.writer = MagicMock()
+    # Pre-seed the diagnostics cache so the first-open readiness wait returns at
+    # once instead of polling for the full timeout.
+    lsp_server._diagnostics[lsp_server._path_to_uri(str(target))] = (None, [])
+    sent: list = []
+
+    async def fake_notify(message):
+        sent.append(json.loads(message))
+
+    with (
+        patch.object(lsp_server, "_send_notification_raw", side_effect=fake_notify),
+        patch.object(lsp_server, "_send_request_raw", AsyncMock(return_value=[])),
+    ):
+        await lsp_server.document_symbols(str(target))
+
+    methods = [m.get("method") for m in sent]
+    assert "textDocument/didOpen" in methods
+
+
 def test_path_to_uri_encodes_special_characters(lsp_server):
     """B26: path_to_uri must quote #/?/%/non-ASCII, matching protocol encoder."""
     from zrb.llm.lsp.protocol import LSPProtocol

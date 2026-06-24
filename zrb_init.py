@@ -28,7 +28,7 @@ from zrb.util.load import load_file
 _DIR = os.path.dirname(__file__)
 
 _PYPROJECT = tomlkit.loads(read_file(os.path.join(_DIR, "pyproject.toml")))
-_VERSION = _PYPROJECT["tool"]["poetry"]["version"]
+_VERSION = _PYPROJECT["project"]["version"]
 
 
 # TEST =======================================================================

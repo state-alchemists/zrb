@@ -242,9 +242,9 @@ async def _fetch_page_content(url: str) -> tuple:
         response.raise_for_status()
         soup = BeautifulSoup(response.text, "html.parser")
         links = [
-            urljoin(url, a["href"])
+            urljoin(url, str(a["href"]))
             for a in soup.find_all("a", href=True)
-            if not a["href"].startswith("#")
+            if not str(a["href"]).startswith("#")
         ]
         return response.text, links
 
@@ -292,6 +292,6 @@ async def _summarize_web_content(markdown_content: str, url: str) -> str:
     return str(result)
 
 
-search_internet.__name__ = "SearchInternet"
+search_internet.__name__ = "WebSearch"
 
-open_web_page.__name__ = "OpenWebPage"
+open_web_page.__name__ = "WebFetch"

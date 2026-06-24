@@ -1,5 +1,4 @@
 import asyncio
-import re
 from typing import Any
 
 from zrb.config.config import CFG
@@ -34,7 +33,9 @@ async def _run_agent_with_retry(agent: Any, text: str) -> Any:
                 await asyncio.sleep(wait)
             else:
                 raise
-    raise last_error
+    # Only reachable if the loop never ran (max_retries < 0); last_error is then
+    # None, so raise a concrete error rather than `raise None`.
+    raise last_error or RuntimeError("Summarization failed without an error")
 
 
 async def summarize_text_plain(
@@ -143,33 +144,3 @@ async def summarize_long_text(
     if final_tokens > threshold:
         final_summary = limiter.truncate_text(final_summary, threshold)
     return final_summary
-
-
-async def summarize_text(text: str, agent: Any, partial: bool = False) -> str:
-    """Helper to run the summarizer agent on a block of text."""
-
-    prompt_prefix = (
-        "Summarize this partial conversation history:\n"
-        if partial
-        else "Summarize this conversation history:\n"
-    )
-
-    try:
-        result = await _run_agent_with_retry(agent, f"{prompt_prefix}{text}")
-        output = getattr(result, "output", "")
-        if not isinstance(output, str):
-            output = str(output) if output is not None else ""
-
-        # Ensure output is a valid state snapshot (only if we didn't override prompt)
-        if "<state_snapshot>" in output and "</state_snapshot>" in output:
-            match = re.search(
-                r"(<state_snapshot>.*</state_snapshot>)",
-                output,
-                re.DOTALL | re.MULTILINE,
-            )
-            if match:
-                return match.group(1)
-        return output
-    except Exception as e:
-        zrb_print(stylize_error(f"  Error in _summarize_text: {e}"), plain=True)
-        raise e

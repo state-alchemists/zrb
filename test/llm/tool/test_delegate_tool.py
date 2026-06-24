@@ -81,6 +81,44 @@ async def test_delegate_tool_success(mock_sub_agent_manager):
 
 
 @pytest.mark.asyncio
+async def test_delegate_fires_subagent_start_stop(mock_sub_agent_manager):
+    """Delegation fires SubagentStart before and SubagentStop after the run, on
+    the parent run's hook manager, with a shared agent_id and agent_type=name."""
+    from zrb.llm.agent.run.runner import current_hook_manager
+    from zrb.llm.hook.interface import HookContext, HookResult
+    from zrb.llm.hook.manager import HookManager
+    from zrb.llm.hook.types import HookEvent
+
+    mock_sub_agent_manager.create_agent.return_value = MagicMock()
+
+    events: list = []
+
+    async def rec(context: HookContext) -> HookResult:
+        events.append((context.event, context.agent_type, context.agent_id))
+        return HookResult()
+
+    manager = HookManager(search_dirs=[])
+    manager.register(rec, events=[HookEvent.SUBAGENT_START, HookEvent.SUBAGENT_STOP])
+
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+    token = current_hook_manager.set(manager)
+    try:
+        with patch(
+            "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+        ) as mock_run_agent:
+            mock_run_agent.return_value = ("ok", [])
+            await tool(agent_name="test-agent", deliverable="d", task="t", non_goals=[])
+    finally:
+        current_hook_manager.reset(token)
+
+    assert events[0][0] == HookEvent.SUBAGENT_START
+    assert events[-1][0] == HookEvent.SUBAGENT_STOP
+    # agent_type is the delegated name; start and stop share one agent_id.
+    assert all(agent_type == "test-agent" for (_e, agent_type, _id) in events)
+    assert len({agent_id for (_e, _t, agent_id) in events}) == 1
+
+
+@pytest.mark.asyncio
 async def test_delegate_tool_empty_non_goals_renders_none_declared(
     mock_sub_agent_manager,
 ):
@@ -242,57 +280,36 @@ def test_docstring_filters_denied_agent(two_agent_manager):
     assert "builder" not in tool.__doc__
 
 
-# ── Parallel delegate tests ────────────────────────────────────────────
+# ── Fan-out (tasks=) tests — merged from the former DelegateToAgentsParallel ──
 
 
-def test_parallel_delegate_name(two_agent_manager):
-    from zrb.llm.tool.delegate import create_parallel_delegate_tool
-
-    tool = create_parallel_delegate_tool(two_agent_manager)
-    assert tool.__name__ == "DelegateToAgentsParallel"
-    assert getattr(tool, "zrb_is_delegate_tool", False) is True
-
-
-def test_parallel_delegate_is_tagged(two_agent_manager):
-    from zrb.llm.permission import Capability, tool_capability
-    from zrb.llm.tool.delegate import create_parallel_delegate_tool
-
-    tool = create_parallel_delegate_tool(two_agent_manager)
-    assert tool_capability(tool) == Capability.DELEGATE
-
-
-def test_parallel_delegate_docstring(two_agent_manager):
-    from zrb.llm.tool.delegate import create_parallel_delegate_tool
-
-    tool = create_parallel_delegate_tool(two_agent_manager)
-    assert "See DelegateToAgent" in tool.__doc__
+def test_delegate_docstring_mentions_fan_out(two_agent_manager):
+    tool = create_delegate_to_agent_tool(two_agent_manager)
+    assert "FAN OUT" in tool.__doc__
+    assert "tasks" in tool.__doc__
 
 
 @pytest.mark.asyncio
-async def test_parallel_delegate_empty_tasks(two_agent_manager):
-    from zrb.llm.tool.delegate import create_parallel_delegate_tool
-
-    tool = create_parallel_delegate_tool(two_agent_manager)
-    result = await tool([])
-    assert "No tasks provided." in result
+async def test_delegate_missing_args_without_tasks(mock_sub_agent_manager):
+    """No flat args and no tasks → actionable missing-args error."""
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+    result = await tool()
+    assert "missing required args" in result
+    assert "tasks=" in result
 
 
 @pytest.mark.asyncio
-async def test_parallel_delegate_missing_keys(two_agent_manager):
-    from zrb.llm.tool.delegate import create_parallel_delegate_tool
-
-    tool = create_parallel_delegate_tool(two_agent_manager)
-    result = await tool([{"agent_name": "explorer"}])
+async def test_delegate_fan_out_missing_keys(mock_sub_agent_manager):
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+    result = await tool(tasks=[{"agent_name": "explorer"}])
     assert "missing required keys" in result
 
 
 @pytest.mark.asyncio
-async def test_parallel_delegate_validates_all_tasks(two_agent_manager):
-    from zrb.llm.tool.delegate import create_parallel_delegate_tool
-
-    tool = create_parallel_delegate_tool(two_agent_manager)
+async def test_delegate_fan_out_validates_all_tasks(mock_sub_agent_manager):
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
     result = await tool(
-        [
+        tasks=[
             {
                 "agent_name": "explorer",
                 "deliverable": "x",
@@ -303,3 +320,36 @@ async def test_parallel_delegate_validates_all_tasks(two_agent_manager):
         ]
     )
     assert "tasks[1]" in result
+
+
+@pytest.mark.asyncio
+async def test_delegate_fan_out_runs_all_and_combines(mock_sub_agent_manager):
+    """tasks=[...] runs each sub-agent and returns their results together."""
+    mock_sub_agent_manager.create_agent.return_value = MagicMock()
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+
+    with patch(
+        "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+    ) as mock_run_agent:
+        mock_run_agent.side_effect = [("Result A", []), ("Result B", [])]
+        result = await tool(
+            tasks=[
+                {
+                    "agent_name": "test-agent",
+                    "deliverable": "a",
+                    "task": "ta",
+                    "non_goals": [],
+                },
+                {
+                    "agent_name": "test-agent",
+                    "deliverable": "b",
+                    "task": "tb",
+                    "non_goals": [],
+                },
+            ]
+        )
+
+    assert mock_run_agent.call_count == 2
+    assert "Result A" in result
+    assert "Result B" in result
+    assert result.count("completed:") == 2

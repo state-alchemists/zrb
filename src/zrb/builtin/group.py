@@ -23,6 +23,25 @@ http_group = _maybe_add_group(
     Group(name="http", description="🌐 HTTP request operations")
 )
 
+hash_group = _maybe_add_group(
+    Group(name="hash", description="🧩 Hash & HMAC operations")
+)
+time_group = _maybe_add_group(
+    Group(name="time", description="🕒 Time & epoch operations")
+)
+url_group = _maybe_add_group(
+    Group(name="url", description="🔗 URL encode/decode/parse")
+)
+json_group = _maybe_add_group(Group(name="json", description="📦 JSON operations"))
+case_group = _maybe_add_group(
+    Group(name="case", description="🔤 String case operations")
+)
+cron_group = _maybe_add_group(Group(name="cron", description="📅 Cron operations"))
+hex_group = _maybe_add_group(Group(name="hex", description="🔣 Hexadecimal operations"))
+number_group = _maybe_add_group(
+    Group(name="number", description="🔢 Number base operations")
+)
+
 random_group = _maybe_add_group(Group(name="random", description="🔀 Random operation"))
 git_group = _maybe_add_group(Group(name="git", description="🌱 Git related commands"))
 git_branch_group = git_group.add_group(
@@ -53,3 +72,4 @@ setup_latex_group = setup_group.add_group(
 searxng_group = _maybe_add_group(
     Group(name="searxng", description="🔎 Searxng related command")
 )
+config_group = _maybe_add_group(Group(name="config", description="⚙️ Configuration"))

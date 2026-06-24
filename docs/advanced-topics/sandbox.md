@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../README.md) > [Advanced Topics](README.md)
+🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > Sandbox
 
 # Sandbox: Filesystem Containment for LLM Tool Calls
 
@@ -26,8 +26,9 @@ One `SandboxPolicy` (`zrb/llm/sandbox/`) drives two enforcement layers:
      `~/.ssh`, `~/.aws`, `~/.kube`) for every tool.
    A blocked call returns a `ToolReturn` with `metadata={"blocked": True}` and
    a `[SYSTEM SUGGESTION]`, so the model can adapt instead of crashing.
-2. **OS-level shell wrapper** (macOS, Linux). `Shell`/`Bash`/`ShellBackground`
-   subprocesses are spawned through a kernel-enforced sandbox, immune to `cd`,
+2. **OS-level shell wrapper** (macOS, Linux). `Shell`/`Bash` subprocesses
+   (foreground or `background=True`) are spawned through a kernel-enforced
+   sandbox, immune to `cd`,
    symlink tricks, and check-then-use races:
    - **macOS** — `sandbox-exec -p <generated SBPL profile>` (Seatbelt).
      Deprecated-but-functional; Chrome, Bazel, and Codex still ship on it.
@@ -77,14 +78,15 @@ The system temp directory is **always writable**, even with explicit
 `WRITABLE_PATHS` — the shell tool's PID-tracking wrapper writes a temp file
 from inside the sandbox, and temp dirs are world-writable by design anyway.
 
-Python API: `LLMTask(..., sandbox=...)` accepts `True`/`False` (config-derived
-policy with `enabled` forced) or a `SandboxPolicy` instance. Sub-agents
+Python API: both `LLMTask(..., sandbox=...)` and `LLMChatTask(..., sandbox=...)`
+accept `True`/`False` (config-derived policy with `enabled` forced) or a
+`SandboxPolicy` instance; `sandbox` is also a read/write property on both. Sub-agents
 inherit the parent run's policy through the `current_sandbox_policy`
 ContextVar, exactly like the permission policy.
 
 ## Escape Hatch
 
-`Shell`, `Bash`, and `ShellBackground` accept
+`Shell` and `Bash` (foreground or `background=True`) accept
 `dangerously_skip_sandbox: bool = False`. A truthy value:
 
 - is **never auto-approved** — `bash_safe_command_policy` and `auto_approve`
@@ -115,3 +117,5 @@ security boundary in v1. Known limits, by design:
 
 See ADR-0063 in [docs/adr/07-llm-extension.md](../adr/07-llm-extension.md)
 for the full design rationale.
+
+🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > Sandbox

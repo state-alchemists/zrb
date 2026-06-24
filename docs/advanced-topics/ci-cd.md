@@ -23,7 +23,7 @@ The key principle is to leverage the official Zrb Docker image (`stalchmst/zrb`)
 
 The recommended way to run Zrb commands in a CI/CD environment is by using the official Docker image: `stalchmst/zrb`.
 
-> ⚠️ **Important:** Always specify a version tag (e.g., `stalchmst/zrb:2.33.0`) for reproducible builds, rather than using `latest`.
+> ⚠️ **Important:** Always specify a version tag (e.g., `stalchmst/zrb:2.35.0`) for reproducible builds, rather than using `latest`.
 
 Find available tags on [Docker Hub](https://hub.docker.com/r/stalchmst/zrb/tags).
 
@@ -53,7 +53,7 @@ jobs:
   run-zrb-tasks:
     runs-on: ubuntu-latest
     container:
-      image: stalchmst/zrb:2.33.0
+      image: stalchmst/zrb:2.35.0
 
     steps:
       - name: Check out repository code
@@ -94,7 +94,7 @@ GitLab CI/CD uses a `.gitlab-ci.yml` file in the root of your repository.
 ### Example Pipeline
 
 ```yaml
-image: stalchmst/zrb:2.33.0
+image: stalchmst/zrb:2.35.0
 
 stages:
   - setup
@@ -142,7 +142,7 @@ Bitbucket Pipelines uses a `bitbucket-pipelines.yml` file.
 ### Example Pipeline
 
 ```yaml
-image: stalchmst/zrb:2.33.0
+image: stalchmst/zrb:2.35.0
 
 pipelines:
   default:
@@ -183,7 +183,7 @@ pipelines:
 
 | Approach | Pros | Cons |
 |----------|------|------|
-| `stalchmst/zrb:2.33.0` | Reproducible builds | Manual updates needed |
+| `stalchmst/zrb:2.35.0` | Reproducible builds | Manual updates needed |
 | `stalchmst/zrb:latest` | Always newest | May break unexpectedly |
 
 Update the version tag deliberately when ready to adopt newer features or fixes.
@@ -199,3 +199,5 @@ Update the version tag deliberately when ready to adopt newer features or fixes.
 | Bitbucket | `bitbucket-pipelines.yml` | `stalchmst/zrb:VERSION` |
 
 ---
+
+🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > CI/CD Integration

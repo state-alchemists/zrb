@@ -13,6 +13,18 @@ class TruncationInfo(TypedDict):
     truncation_type: str  # "none", "lines", "chars", "both", "line_length"
 
 
+def truncate_chars(text: str, max_chars: int) -> str:
+    """Hard-cap a string at ``max_chars``, appending an omission marker.
+
+    For clamping single short values (e.g. free-text denial reasons) where
+    the line-based ``truncate_output`` is overkill.
+    """
+    if len(text) <= max_chars:
+        return text
+    omitted = len(text) - max_chars
+    return text[:max_chars] + f" ...[TRUNCATED {omitted} chars]"
+
+
 def truncate_output(
     text: str,
     head_lines: int,

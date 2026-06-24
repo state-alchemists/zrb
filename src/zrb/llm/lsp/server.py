@@ -16,6 +16,7 @@ from zrb.llm.lsp.configs import (
     detect_available_lsp_servers,
     detect_language_from_file,
     get_lsp_config_for_file,
+    lsp_server_configs,
 )
 from zrb.llm.lsp.protocol import (
     JSONRPCMessage,
@@ -31,6 +32,7 @@ __all__ = [
     "detect_available_lsp_servers",
     "detect_language_from_file",
     "get_lsp_config_for_file",
+    "lsp_server_configs",
 ]
 
 
@@ -51,6 +53,7 @@ class LSPServer:
         self.pending_requests: dict[str | int, asyncio.Future] = {}
         self.initialized = False
         self._read_task: asyncio.Task | None = None
+        self._stderr_task: asyncio.Task | None = None
         self._message_buffer = ""
         # Push-diagnostics state: most servers don't implement pull-diagnostics,
         # so we receive textDocument/publishDiagnostics notifications and cache
@@ -92,6 +95,10 @@ class LSPServer:
 
             # Start reading responses in background
             self._read_task = asyncio.create_task(self._read_loop())
+            # Drain stderr so a server that logs verbosely (e.g. node/pyright)
+            # can't fill the pipe buffer and block on its own stderr writes,
+            # which would stall every request.
+            self._stderr_task = asyncio.create_task(self._drain_stderr())
 
             # Initialize the server
             await self._initialize()
@@ -113,12 +120,13 @@ class LSPServer:
 
     async def stop(self):
         """Stop the LSP server process."""
-        if self._read_task:
-            self._read_task.cancel()
-            try:
-                await self._read_task
-            except asyncio.CancelledError:
-                pass
+        for task in (self._read_task, self._stderr_task):
+            if task:
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
 
         if self.process:
             try:
@@ -239,35 +247,48 @@ class LSPServer:
         await self.writer.drain()
 
     async def _read_loop(self):
-        """Background task to read responses from the server."""
+        """Background task to read responses from the server.
+
+        Works entirely in BYTES until a complete message body is sliced out,
+        then decodes that body. Two correctness requirements drove this:
+
+        * ``Content-Length`` is a **byte** count (LSP spec). Buffering a decoded
+          ``str`` and slicing by that count mis-frames any message containing
+          non-ASCII (e.g. an em-dash in a diagnostic) because byte length ≠
+          character length.
+        * Decoding each raw ``read()`` chunk individually raises
+          ``UnicodeDecodeError`` whenever a multi-byte sequence straddles a read
+          boundary — which killed the whole read loop, hanging every pending
+          request until timeout (the pyright symptom).
+        """
         if not self.reader:
             return
 
-        buffer = ""
+        buffer = b""
         while True:
             try:
                 data = await self.reader.read(4096)
                 if not data:
                     break
-                buffer += data.decode("utf-8")
+                buffer += data
 
                 # Process all complete messages in buffer
-                while "\r\n\r\n" in buffer:
-                    header_end = buffer.index("\r\n\r\n")
+                while b"\r\n\r\n" in buffer:
+                    header_end = buffer.index(b"\r\n\r\n")
                     header = buffer[:header_end]
                     body_start = header_end + 4
 
-                    # Parse content-length from header
+                    # Parse content-length (bytes) from header
                     content_length = 0
-                    for line in header.split("\r\n"):
-                        if line.startswith("Content-Length: "):
-                            content_length = int(line[16:])
+                    for line in header.split(b"\r\n"):
+                        if line.lower().startswith(b"content-length:"):
+                            content_length = int(line.split(b":", 1)[1].strip())
                             break
 
                     if len(buffer) >= body_start + content_length:
                         body = buffer[body_start : body_start + content_length]
                         buffer = buffer[body_start + content_length :]
-                        self._handle_message(body)
+                        self._handle_message(body.decode("utf-8"))
                     else:
                         break
 
@@ -275,6 +296,21 @@ class LSPServer:
                 break
             except Exception as e:
                 zrb_print(f"  LSP read error: {e}", plain=True)
+                break
+
+    async def _drain_stderr(self):
+        """Continuously discard the server's stderr so its pipe never fills."""
+        stderr = self.process.stderr if self.process else None
+        if stderr is None:
+            return
+        while True:
+            try:
+                data = await stderr.read(4096)
+                if not data:
+                    break
+            except asyncio.CancelledError:
+                break
+            except Exception:
                 break
 
     def _handle_message(self, body: str):
@@ -332,6 +368,7 @@ class LSPServer:
         """Go to definition for symbol at position."""
         if not self.initialized:
             return None
+        await self._ensure_open(file_path)
 
         request = JSONRPCMessage.create_request(
             "textDocument/definition",
@@ -363,6 +400,7 @@ class LSPServer:
         """Find all references to symbol at position."""
         if not self.initialized:
             return None
+        await self._ensure_open(file_path)
 
         request = JSONRPCMessage.create_request(
             "textDocument/references",
@@ -448,6 +486,39 @@ class LSPServer:
         )
         await self._send_notification_raw(notif)
 
+    async def _ensure_open(self, file_path: str, *, wait_ready: float = 2.0) -> None:
+        """Make sure the server has analyzed ``file_path`` before a query.
+
+        Most servers (pyright, gopls, rust-analyzer, …) serve ``textDocument/*``
+        requests ONLY for documents opened via ``didOpen`` — a request for an
+        unopened file returns null/empty. So every file-scoped query syncs the
+        document first (``didOpen`` on first contact, ``didChange`` thereafter).
+
+        On first open we also wait briefly for the server to finish its initial
+        analysis, using the first ``publishDiagnostics`` for this URI as a
+        readiness proxy (definition/hover/references return empty until analysis
+        completes). Bounded by ``wait_ready`` so servers that never publish
+        (or files with no diagnostics) don't stall the call.
+        """
+        if not self.initialized or not self.writer:
+            return
+        uri = self._path_to_uri(file_path)
+        first_open = uri not in self._open_files
+        if first_open:
+            await self.did_open_text_document(file_path)
+            # did_open is a no-op when the file can't be read; nothing to wait on.
+            if uri not in self._open_files:
+                return
+        else:
+            await self.did_change_text_document(file_path)
+        if not first_open or wait_ready <= 0:
+            return
+        deadline = asyncio.get_event_loop().time() + wait_ready
+        while asyncio.get_event_loop().time() < deadline:
+            if uri in self._diagnostics:
+                return
+            await asyncio.sleep(0.05)
+
     async def get_diagnostics(
         self, file_path: str, *, wait_for_publish: float = 1.5
     ) -> list[dict] | None:
@@ -516,6 +587,7 @@ class LSPServer:
         """Get all symbols in a document."""
         if not self.initialized:
             return None
+        await self._ensure_open(file_path)
 
         request = JSONRPCMessage.create_request(
             "textDocument/documentSymbol",
@@ -544,6 +616,7 @@ class LSPServer:
         """Get hover information at position."""
         if not self.initialized:
             return None
+        await self._ensure_open(file_path)
 
         request = JSONRPCMessage.create_request(
             "textDocument/hover",
@@ -568,6 +641,7 @@ class LSPServer:
         """Rename a symbol."""
         if not self.initialized:
             return None
+        await self._ensure_open(file_path)
 
         # Some servers support prepareRename
         try:

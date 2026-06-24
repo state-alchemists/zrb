@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from zrb.llm.prompt.system_context import system_context
+from zrb.llm.prompt.live_context import render_live_context
 from zrb.llm.tool.worktree import enter_worktree, exit_worktree, list_worktrees
 
 
@@ -167,19 +167,12 @@ async def test_list_worktrees_failure(mock_subprocess):
     assert "git repository" in res
 
 
-def _capture_system_context(ctx=None) -> str:
-    """Helper: run system_context and return the enriched prompt."""
+def _capture_live_context(ctx=None) -> str:
+    """Helper: render the live-context block (where worktree state now lives)."""
     if ctx is None:
         ctx = MagicMock()
         ctx.input.session = "test-session"
-    captured = []
-
-    def next_handler(c, p):
-        captured.append(p)
-        return "ok"
-
-    system_context(ctx, "", next_handler)
-    return captured[0]
+    return render_live_context(ctx)
 
 
 @pytest.mark.asyncio
@@ -237,8 +230,8 @@ async def test_enter_worktree_appends_to_existing_gitignore(mock_subprocess):
 
 
 @pytest.mark.asyncio
-async def test_enter_and_exit_worktree_reflected_in_system_context(mock_subprocess):
-    """EnterWorktree shows active worktree in system context; ExitWorktree clears it."""
+async def test_enter_and_exit_worktree_reflected_in_live_context(mock_subprocess):
+    """EnterWorktree shows active worktree in the live context; ExitWorktree clears it."""
     with tempfile.TemporaryDirectory() as tmpdir:
         worktree_path = os.path.join(tmpdir, ".zrb", "worktree", "sc-branch")
 
@@ -249,7 +242,7 @@ async def test_enter_and_exit_worktree_reflected_in_system_context(mock_subproce
         ]
         await enter_worktree(branch_name="sc-branch", cwd=tmpdir)
         os.makedirs(worktree_path, exist_ok=True)
-        assert "Active worktree:" in _capture_system_context()
+        assert "Active worktree:" in _capture_live_context()
 
         # Exit
         os.makedirs(worktree_path, exist_ok=True)
@@ -259,4 +252,4 @@ async def test_enter_and_exit_worktree_reflected_in_system_context(mock_subproce
             create_mock_process(returncode=0),
         ]
         await exit_worktree(worktree_path)
-        assert "Active worktree:" not in _capture_system_context()
+        assert "Active worktree:" not in _capture_live_context()

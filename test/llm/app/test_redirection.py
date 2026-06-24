@@ -11,10 +11,8 @@ from zrb.llm.app.redirection import GlobalStreamCapture
 
 def test_global_stream_capture_initialization():
     """Test GlobalStreamCapture initialization."""
-    mock_callback = MagicMock()
-    capture = GlobalStreamCapture(mock_callback)
+    capture = GlobalStreamCapture()
 
-    assert capture.ui_callback == mock_callback
     assert capture.capturing is False
     assert capture.thread is None
     assert capture.pipe_r is None
@@ -27,8 +25,7 @@ def test_global_stream_capture_initialization():
 
 def test_global_stream_capture_start_stop():
     """Test starting and stopping capture."""
-    mock_callback = MagicMock()
-    capture = GlobalStreamCapture(mock_callback)
+    capture = GlobalStreamCapture()
 
     # Start capture
     capture.start()
@@ -49,8 +46,7 @@ def test_global_stream_capture_start_stop():
 
 def test_global_stream_capture_double_start():
     """Test that calling start twice doesn't create issues."""
-    mock_callback = MagicMock()
-    capture = GlobalStreamCapture(mock_callback)
+    capture = GlobalStreamCapture()
 
     # First start
     capture.start()
@@ -69,8 +65,7 @@ def test_global_stream_capture_double_start():
 
 def test_global_stream_capture_double_stop():
     """Test that calling stop twice doesn't create issues."""
-    mock_callback = MagicMock()
-    capture = GlobalStreamCapture(mock_callback)
+    capture = GlobalStreamCapture()
 
     capture.start()
     capture.stop()
@@ -86,8 +81,7 @@ def test_global_stream_capture_double_stop():
 
 def test_global_stream_capture_buffer_output():
     """Test that output is buffered when capture is active."""
-    mock_callback = MagicMock()
-    capture = GlobalStreamCapture(mock_callback)
+    capture = GlobalStreamCapture()
 
     capture.start()
 
@@ -104,17 +98,12 @@ def test_global_stream_capture_buffer_output():
     assert "Test output 1" in buffered
     assert "Test output 2" in buffered
 
-    # Clear buffer
-    capture.clear_buffer()
-    assert capture.get_buffered_output() == ""
-
     capture.stop()
 
 
 def test_global_stream_capture_pause_context_manager():
     """Test the pause context manager."""
-    mock_callback = MagicMock()
-    capture = GlobalStreamCapture(mock_callback)
+    capture = GlobalStreamCapture()
 
     capture.start()
 
@@ -132,8 +121,7 @@ def test_global_stream_capture_pause_context_manager():
 
 def test_global_stream_capture_get_original_stdout():
     """Test getting original stdout file object."""
-    mock_callback = MagicMock()
-    capture = GlobalStreamCapture(mock_callback)
+    capture = GlobalStreamCapture()
 
     # Get original stdout before capture starts
     original_stdout = capture.get_original_stdout()
@@ -159,8 +147,7 @@ def test_global_stream_capture_get_original_stdout():
 
 def test_global_stream_capture_not_capturing_pause():
     """Test pause context manager when not capturing."""
-    mock_callback = MagicMock()
-    capture = GlobalStreamCapture(mock_callback)
+    capture = GlobalStreamCapture()
 
     # Should not raise error when not capturing
     with capture.pause():

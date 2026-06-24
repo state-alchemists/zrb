@@ -6,8 +6,7 @@ from typing import TextIO
 
 
 class GlobalStreamCapture:
-    def __init__(self, ui_callback):
-        self.ui_callback = ui_callback
+    def __init__(self):
         # Save original file descriptors once
         self.original_stdout_fd = os.dup(sys.stdout.fileno())
         self.original_stderr_fd = os.dup(sys.stderr.fileno())
@@ -121,7 +120,3 @@ class GlobalStreamCapture:
     def get_buffered_output(self) -> str:
         """Returns all buffered output as a single string."""
         return "".join(self._buffer)
-
-    def clear_buffer(self):
-        """Clears the buffer."""
-        self._buffer.clear()

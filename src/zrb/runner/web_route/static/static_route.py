@@ -37,7 +37,7 @@ def serve_static_resources(app: "FastAPI", web_auth_config: WebAuthConfig) -> No
         )
 
 
-def _get_refresh_token_js(refresh_interval_seconds: int):
+def _get_refresh_token_js(refresh_interval_seconds: float):
     return read_file(
         str(Path(__file__).parent / "refresh-token.template.js"),
         {"refreshIntervalSeconds": f"{refresh_interval_seconds}"},

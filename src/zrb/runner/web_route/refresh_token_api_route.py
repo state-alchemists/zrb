@@ -18,7 +18,7 @@ def serve_refresh_token_api(app: "FastAPI", web_auth_config: WebAuthConfig) -> N
     @app.post("/api/v1/refresh-token")
     async def refresh_token_api(
         response: Response,
-        body: RefreshTokenRequest = None,
+        body: RefreshTokenRequest | None = None,
         refresh_token_cookie: str = Cookie(
             None, alias=web_auth_config.refresh_token_cookie_name
         ),

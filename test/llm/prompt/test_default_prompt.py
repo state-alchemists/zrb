@@ -36,8 +36,9 @@ def test_get_default_prompt_traversal_to_home(mock_cfg, tmp_path):
     home_prompt_file = home_prompt_dir / "home_prompt.md"
     home_prompt_file.write_text("Home Prompt Content")
 
-    with patch("os.getcwd", return_value=str(subdir)), patch(
-        "os.path.expanduser", return_value=str(home)
+    with (
+        patch("os.getcwd", return_value=str(subdir)),
+        patch("os.path.expanduser", return_value=str(home)),
     ):
 
         # 1. Should find project prompt by traversing up from subdir
@@ -72,8 +73,9 @@ def test_get_default_prompt_outside_home_no_traversal(mock_cfg, tmp_path):
     home_prompt_file = home_prompt_dir / "home_prompt.md"
     home_prompt_file.write_text("Home Prompt Content")
 
-    with patch("os.getcwd", return_value=str(other)), patch(
-        "os.path.expanduser", return_value=str(home)
+    with (
+        patch("os.getcwd", return_value=str(other)),
+        patch("os.path.expanduser", return_value=str(home)),
     ):
 
         # 1. Should find other prompt in CWD
@@ -89,8 +91,9 @@ def test_get_default_prompt_outside_home_no_traversal(mock_cfg, tmp_path):
 
 def test_get_default_prompt_fallback_to_package_default(mock_cfg):
     # Persona is a built-in prompt (raw file contains {ASSISTANT_NAME} placeholder)
-    with patch("os.getcwd", return_value="/tmp/empty-dir"), patch(
-        "os.path.expanduser", return_value="/home/user"
+    with (
+        patch("os.getcwd", return_value="/tmp/empty-dir"),
+        patch("os.path.expanduser", return_value="/home/user"),
     ):
 
         content = get_default_prompt("persona")
@@ -103,8 +106,9 @@ def test_get_default_prompt_fallback_to_package_default(mock_cfg):
 def test_get_default_prompt_env_override(mock_cfg, monkeypatch):
     monkeypatch.setenv("ZRB_LLM_PROMPT_TEST_PROMPT", "Env Prompt Content")
 
-    with patch("os.getcwd", return_value="/tmp/empty-dir"), patch(
-        "os.path.expanduser", return_value="/home/user"
+    with (
+        patch("os.getcwd", return_value="/tmp/empty-dir"),
+        patch("os.path.expanduser", return_value="/home/user"),
     ):
 
         content = get_default_prompt("test_prompt")

@@ -169,3 +169,5 @@ export ZRB_LLM_PLUGIN_DIRS="/opt/zrb-plugins:/home/user/my-plugins"
 | Hooks | `hooks.json`, `*.json` | `hooks/` directories |
 
 ---
+
+🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > Claude Code Compatibility

@@ -22,10 +22,13 @@ def app_deps():
 def test_refresh_token_api_from_body(app_deps):
     client, web_auth_config = app_deps
 
-    with patch(
-        "zrb.runner.web_route.refresh_token_api_route.regenerate_tokens",
-        return_value={"access_token": "new", "refresh_token": "new_r"},
-    ), patch("zrb.runner.web_route.refresh_token_api_route.set_auth_cookie"):
+    with (
+        patch(
+            "zrb.runner.web_route.refresh_token_api_route.regenerate_tokens",
+            return_value={"access_token": "new", "refresh_token": "new_r"},
+        ),
+        patch("zrb.runner.web_route.refresh_token_api_route.set_auth_cookie"),
+    ):
 
         response = client.post(
             "/api/v1/refresh-token", json={"refresh_token": "body_token"}
@@ -38,10 +41,13 @@ def test_refresh_token_api_from_body(app_deps):
 def test_refresh_token_api_from_cookie(app_deps):
     client, web_auth_config = app_deps
 
-    with patch(
-        "zrb.runner.web_route.refresh_token_api_route.regenerate_tokens",
-        return_value={"access_token": "new", "refresh_token": "new_r"},
-    ), patch("zrb.runner.web_route.refresh_token_api_route.set_auth_cookie"):
+    with (
+        patch(
+            "zrb.runner.web_route.refresh_token_api_route.regenerate_tokens",
+            return_value={"access_token": "new", "refresh_token": "new_r"},
+        ),
+        patch("zrb.runner.web_route.refresh_token_api_route.set_auth_cookie"),
+    ):
 
         # Set cookie on the client instance to avoid DeprecationWarning
         client.cookies.set("refresh_token", "cookie_token")

@@ -286,8 +286,9 @@ class TestCaches:
     def test_load_cmd_history_exception(self):
         from zrb.llm.app.completion.caches import load_cmd_history
 
-        with patch("os.path.exists", return_value=True), patch(
-            "builtins.open", side_effect=Exception("Read error")
+        with (
+            patch("os.path.exists", return_value=True),
+            patch("builtins.open", side_effect=Exception("Read error")),
         ):
             history = load_cmd_history()
             assert history == []

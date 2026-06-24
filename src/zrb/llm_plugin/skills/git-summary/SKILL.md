@@ -25,4 +25,4 @@ When this skill is activated, you assist the user in drafting professional versi
     - **For PRs**: Create a comprehensive markdown description summarizing all modifications, impacts, and testing evidence.
 4.  **Refinement**: Ensure the message follows project standards.
 
-**Note**: Do not perform the commit or create the PR yourself; provide the draft and command for the user to review and execute.
+**Note**: Default to providing the draft and the exact command for the user to review and execute. Run the commit or create the PR yourself only when the user explicitly asks you to — and then follow the Git Rules: show `git status` + `git diff HEAD` and obtain approval first.

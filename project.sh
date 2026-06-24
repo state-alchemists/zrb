@@ -64,7 +64,10 @@ reload() {
     python "${PROJECT_DIR}/scripts/build_pypi_readme.py"
 
     log_info 'Install'
-    poetry lock
+    # Only re-lock when pyproject.toml drifted from poetry.lock; the bare
+    # `poetry lock` re-resolves the whole graph from PyPI (slow) even when the
+    # lock is already consistent, and project.sh is sourced on every shell.
+    poetry check --lock >/dev/null 2>&1 || poetry lock
     poetry install --all-extras
 
     if [ "$_IS_TERMUX" = "1" ]

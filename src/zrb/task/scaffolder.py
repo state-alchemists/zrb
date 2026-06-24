@@ -1,6 +1,7 @@
 import os
 import shutil
 from collections.abc import Callable
+from typing import cast
 
 from zrb.attr.type import StrAttr
 from zrb.content_transformer.any_content_transformer import AnyContentTransformer
@@ -12,8 +13,11 @@ from zrb.input.any_input import AnyInput
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
 from zrb.util.attr import get_str_attr
-from zrb.util.cli.style import stylize_faint
+from zrb.util.cli.style import stylize_muted
 
+_ContentTransformerTransform = (
+    dict[str, str | Callable[[AnyContext], str]] | Callable[[AnyContext, str], None]
+)
 TransformConfig = dict[str, str] | Callable[[AnyContext, str], str]
 
 
@@ -94,14 +98,20 @@ class Scaffolder(BaseTask):
         if callable(self._content_transformers) or isinstance(
             self._content_transformers, dict
         ):
-            return [
-                ContentTransformer(
-                    name="default-transform",
-                    match=".*",
-                    transform=self._content_transformers,
-                    auto_render=self._render_content_transformers,
-                )
-            ]
+            return cast(
+                list[AnyContentTransformer],
+                [
+                    ContentTransformer(
+                        name="default-transform",
+                        match=".*",
+                        transform=cast(
+                            _ContentTransformerTransform,
+                            self._content_transformers,
+                        ),
+                        auto_render=self._render_content_transformers,
+                    )
+                ],
+            )
         if isinstance(self._content_transformers, AnyContentTransformer):
             return [self._content_transformers]
         return self._content_transformers
@@ -116,7 +126,7 @@ class Scaffolder(BaseTask):
             for transformer in transformers:
                 if transformer.match(ctx, file_path):
                     try:
-                        ctx.print(stylize_faint(f"{transformer.name}: {file_path}"))
+                        ctx.print(stylize_muted(f"{transformer.name}: {file_path}"))
                         transformer.transform_file(ctx, file_path)
                     except UnicodeDecodeError:
                         pass

@@ -14,10 +14,21 @@ class HookEvent(str, Enum):
     PRE_TOOL_USE = "PreToolUse"
     POST_TOOL_USE = "PostToolUse"
     POST_TOOL_USE_FAILURE = "PostToolUseFailure"
+    # Fired when the agent blocks waiting for the user to approve a tool call
+    # (the approval cascade reached an interactive prompt). Consumers use it for
+    # "needs your attention" notifications/sounds (e.g. peon-ping).
+    PERMISSION_REQUEST = "PermissionRequest"
     NOTIFICATION = "Notification"
     STOP = "Stop"
+    # Fired when a turn ends on an unrecoverable API error (observe-only).
+    STOP_FAILURE = "StopFailure"
     PRE_COMPACT = "PreCompact"
+    # Fired after history summarization completes (mirror of PreCompact).
+    POST_COMPACT = "PostCompact"
     SESSION_END = "SessionEnd"
+    # Fired around sub-agent delegation, on the parent run's hook manager.
+    SUBAGENT_START = "SubagentStart"
+    SUBAGENT_STOP = "SubagentStop"
 
     # Claude Code compatibility mapping
     @classmethod
@@ -32,6 +43,23 @@ class HookEvent(str, Enum):
                 if event.value.upper() == upper_value:
                     return event
             raise ValueError(f"Unknown hook event: {value}")
+
+
+# Events where an exit-2 / decision="block" result is meaningful and should halt
+# the remaining hooks for that event. For every other event a block is ignored
+# (Claude-compatible: exit 2 is only a blocking signal where the lifecycle can
+# actually be stopped), so the rest of the chain still runs.
+BLOCKING_EVENTS: "frozenset[HookEvent]" = frozenset(
+    {
+        HookEvent.USER_PROMPT_SUBMIT,
+        HookEvent.PRE_COMMAND,
+        HookEvent.PRE_TOOL_USE,
+        HookEvent.POST_TOOL_USE,
+        HookEvent.PERMISSION_REQUEST,
+        HookEvent.STOP,
+        HookEvent.PRE_COMPACT,
+    }
+)
 
 
 class HookType(str, Enum):

@@ -13,8 +13,8 @@ from zrb.session_state_logger.session_state_logger_factory import session_state_
 from zrb.task.any_task import AnyTask
 from zrb.task.make_task import make_task
 from zrb.util.cli.style import (
-    stylize_bold_yellow,
-    stylize_faint,
+    stylize_highlight,
+    stylize_muted,
     stylize_section_header,
 )
 from zrb.util.group import extract_node_from_args, get_non_empty_subgroups, get_subtasks
@@ -66,8 +66,8 @@ class Cli(Group):
 
     def _print_run_command(self, run_command: str):
         print(
-            stylize_faint("To run again:"),
-            stylize_bold_yellow(run_command),
+            stylize_muted("To run again:"),
+            stylize_highlight(run_command),
             file=sys.stderr,
         )
 
@@ -81,10 +81,10 @@ class Cli(Group):
                 "__conversation_name__", None
             )
             if conversation_name:
-                stylized_label = stylize_faint("Session")
-                stylized_conversation_name = stylize_bold_yellow(conversation_name)
+                stylized_label = stylize_muted("Session")
+                stylized_conversation_name = stylize_highlight(conversation_name)
                 print(
-                    stylize_faint(f"{stylized_label}: {stylized_conversation_name}"),
+                    stylize_muted(f"{stylized_label}: {stylized_conversation_name}"),
                     file=sys.stderr,
                 )
         except (KeyError, AttributeError):

@@ -32,17 +32,20 @@ async def test_analyze_code_basic(temp_code_dir):
 async def test_analyze_code_with_lsp(temp_code_dir):
     from unittest.mock import AsyncMock, MagicMock, patch
 
-    with patch(
-        "zrb.llm.tool.code.run_agent", new_callable=AsyncMock
-    ) as mock_run, patch(
-        "zrb.llm.lsp.manager.lsp_manager.list_available_servers",
-        return_value={"python": "pylsp"},
-    ), patch(
-        "zrb.llm.lsp.manager.lsp_manager.get_document_symbols", new_callable=AsyncMock
-    ) as mock_sym, patch(
-        "zrb.llm.lsp.manager.lsp_manager.get_diagnostics", new_callable=AsyncMock
-    ) as mock_diag, patch(
-        "zrb.llm.lsp.manager.lsp_manager.shutdown_all", new_callable=AsyncMock
+    with (
+        patch("zrb.llm.tool.code.run_agent", new_callable=AsyncMock) as mock_run,
+        patch(
+            "zrb.llm.lsp.manager.lsp_manager.list_available_servers",
+            return_value={"python": "pylsp"},
+        ),
+        patch(
+            "zrb.llm.lsp.manager.lsp_manager.get_document_symbols",
+            new_callable=AsyncMock,
+        ) as mock_sym,
+        patch(
+            "zrb.llm.lsp.manager.lsp_manager.get_diagnostics", new_callable=AsyncMock
+        ) as mock_diag,
+        patch("zrb.llm.lsp.manager.lsp_manager.shutdown_all", new_callable=AsyncMock),
     ):
 
         mock_run.return_value = ("LSP Analysis result", [])
@@ -64,9 +67,10 @@ async def test_analyze_code_multi_chunk(temp_code_dir):
     from unittest.mock import AsyncMock, patch
 
     # Force multi-chunk by mocking CFG in the module
-    with patch(
-        "zrb.llm.tool.code.run_agent", new_callable=AsyncMock
-    ) as mock_run, patch("zrb.llm.tool.code.CFG") as mock_cfg:
+    with (
+        patch("zrb.llm.tool.code.run_agent", new_callable=AsyncMock) as mock_run,
+        patch("zrb.llm.tool.code.CFG") as mock_cfg,
+    ):
 
         mock_cfg.LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD = 10
         mock_cfg.LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD = 1000
@@ -84,11 +88,14 @@ async def test_analyze_code_summarization_loop(temp_code_dir):
     from unittest.mock import AsyncMock, patch
 
     # Mock extract_info to return multiple results, forcing summarization
-    with patch(
-        "zrb.llm.tool.code._extract_info", new_callable=AsyncMock
-    ) as mock_extract, patch(
-        "zrb.llm.tool.code._run_repo_agent", new_callable=AsyncMock
-    ) as mock_run_agent:
+    with (
+        patch(
+            "zrb.llm.tool.code._extract_info", new_callable=AsyncMock
+        ) as mock_extract,
+        patch(
+            "zrb.llm.tool.code._run_repo_agent", new_callable=AsyncMock
+        ) as mock_run_agent,
+    ):
 
         mock_extract.return_value = ["info1", "info2"]
         mock_run_agent.side_effect = lambda agent, q, content, key, out: out.append(

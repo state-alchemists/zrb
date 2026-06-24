@@ -648,7 +648,7 @@ async def test_consolidate_summaries_public():
 @pytest.mark.asyncio
 async def test_summarize_text_with_snapshot():
     """Test summarize_text handles state_snapshot tags correctly."""
-    from zrb.llm.summarizer.text_summarizer import summarize_text
+    from zrb.llm.summarizer.text_summarizer import summarize_text_plain
 
     agent = MagicMock()
     mock_result = MagicMock()
@@ -657,8 +657,8 @@ async def test_summarize_text_with_snapshot():
     )
     agent.run = AsyncMock(return_value=mock_result)
 
-    result = await summarize_text("history", agent)
-    assert result == "<state_snapshot>Important data</state_snapshot>"
+    result = await summarize_text_plain("history", agent, MockLimiter(), 1000)
+    assert "<state_snapshot>Important data</state_snapshot>" in result
 
 
 @pytest.mark.asyncio

@@ -21,7 +21,7 @@ class WebMixin:
         self.DEFAULT_WEB_ACCESS_TOKEN_COOKIE_NAME: str = "access_token"
         self.DEFAULT_WEB_REFRESH_TOKEN_COOKIE_NAME: str = "refresh_token"
         self.DEFAULT_WEB_SECRET_KEY: str = "zrb"
-        self.DEFAULT_WEB_ENABLE_AUTH: str = "off"
+        self.DEFAULT_WEB_AUTH_ENABLED: str = "off"
         self.DEFAULT_WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES: str = "30"
         self.DEFAULT_WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES: str = "60"
         self.DEFAULT_WEB_TITLE: str = "Zrb"
@@ -33,39 +33,73 @@ class WebMixin:
         self.DEFAULT_WEB_TASK_SESSION_PAGE_SIZE: str = "10"
         super().__init__()
 
-    WEB_CSS_PATH = EnvField(colon_list, serialize=colon_join)
+    WEB_CSS_PATH = EnvField(
+        colon_list,
+        serialize=colon_join,
+        doc="Colon-separated paths to additional CSS files injected into the web UI.",
+    )
 
-    WEB_JS_PATH = EnvField(colon_list, serialize=colon_join)
+    WEB_JS_PATH = EnvField(
+        colon_list,
+        serialize=colon_join,
+        doc="Colon-separated paths to additional JavaScript files injected into the web UI.",
+    )
 
-    WEB_FAVICON_PATH = EnvField(str)
+    WEB_FAVICON_PATH = EnvField(
+        str, doc="URL path to the favicon served by the web UI."
+    )
 
-    WEB_COLOR = EnvField(str)
+    WEB_COLOR = EnvField(
+        str, doc="Primary brand color for the web UI (CSS color value, e.g. #3b82f6)."
+    )
 
-    WEB_HTTP_PORT = EnvField(int)
+    WEB_HTTP_PORT = EnvField(int, doc="HTTP port the web server listens on.")
 
-    WEB_GUEST_USERNAME = EnvField(str)
+    WEB_GUEST_USERNAME = EnvField(
+        str, doc="Username for unauthenticated guest access when auth is disabled."
+    )
 
-    WEB_SUPER_ADMIN_USERNAME = EnvField(str)
+    WEB_SUPER_ADMIN_USERNAME = EnvField(
+        str, doc="Username for the built-in super-admin account."
+    )
 
-    WEB_SUPER_ADMIN_PASSWORD = EnvField(str)
+    WEB_SUPER_ADMIN_PASSWORD = EnvField(
+        str, doc="Password for the built-in super-admin account."
+    )
 
-    WEB_ACCESS_TOKEN_COOKIE_NAME = EnvField(str)
+    WEB_ACCESS_TOKEN_COOKIE_NAME = EnvField(
+        str, doc="Cookie name used to store the JWT access token."
+    )
 
-    WEB_REFRESH_TOKEN_COOKIE_NAME = EnvField(str)
+    WEB_REFRESH_TOKEN_COOKIE_NAME = EnvField(
+        str, doc="Cookie name used to store the JWT refresh token."
+    )
 
-    WEB_SECRET_KEY = EnvField(str)
+    WEB_SECRET_KEY = EnvField(
+        str, doc="Secret key used to sign JWT tokens. Change this in production."
+    )
 
-    WEB_ENABLE_AUTH = EnvField(to_boolean, serialize=on_off)
+    WEB_AUTH_ENABLED = EnvField(
+        to_boolean, serialize=on_off, doc="Enable/disable web authentication."
+    )
 
-    WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES = EnvField(int)
+    WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES = EnvField(
+        int, doc="Access token expiry duration in minutes."
+    )
 
-    WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES = EnvField(int)
+    WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES = EnvField(
+        int, doc="Refresh token expiry duration in minutes."
+    )
 
-    WEB_TITLE = EnvField(str)
+    WEB_TITLE = EnvField(
+        str, doc="Title shown in the web UI browser tab and page header."
+    )
 
-    WEB_JARGON = EnvField(str)
+    WEB_JARGON = EnvField(str, doc="Tagline displayed in the web UI.")
 
-    WEB_HOMEPAGE_INTRO = EnvField(str)
+    WEB_HOMEPAGE_INTRO = EnvField(
+        str, doc="Introductory text shown on the web UI homepage."
+    )
 
     WEB_SHUTDOWN_TIMEOUT = EnvField(
         int, doc="Graceful shutdown timeout in milliseconds for web server."

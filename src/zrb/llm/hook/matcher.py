@@ -84,14 +84,35 @@ MATCHER_OPERATORS: dict[MatcherOperator, Callable[[Any, Any], bool]] = {
 }
 
 
+# zrb names its built-in tools with Claude-compatible names via ``func.__name__``
+# (e.g. ``read_file`` -> "Read", ``write_file`` -> "Write"), so most Claude hook
+# matchers keyed on a tool name already match. A few zrb tools keep a name that
+# differs from Claude's, so a matcher written for the Claude name would miss
+# them. This maps the zrb tool name to the extra Claude name(s) a tool-name
+# matcher should also accept, e.g. ``{"matcher": "Bash"}`` fires on zrb's "Shell"
+# tool, and ``{"matcher": "Task"}`` fires on the delegation tools.
+CLAUDE_TOOL_ALIASES: dict[str, list[str]] = {
+    "Shell": ["Bash"],
+    "DelegateToAgent": ["Task"],
+    "DelegateToAgentBackground": ["Task"],
+}
+
+
 # Mapping from HookEvent to the field that Claude Code matchers apply to
 CLAUDE_EVENT_MATCHER_FIELDS: dict[HookEvent, str] = {
     HookEvent.PRE_TOOL_USE: "tool_name",
     HookEvent.POST_TOOL_USE: "tool_name",
     HookEvent.POST_TOOL_USE_FAILURE: "tool_name",
+    HookEvent.PERMISSION_REQUEST: "tool_name",
     HookEvent.USER_PROMPT_SUBMIT: "prompt",
     HookEvent.SESSION_START: "source",
-    HookEvent.NOTIFICATION: "message",
+    HookEvent.SESSION_END: "source",
+    HookEvent.NOTIFICATION: "notification_type",
+    HookEvent.SUBAGENT_START: "agent_type",
+    HookEvent.SUBAGENT_STOP: "agent_type",
+    HookEvent.STOP_FAILURE: "error_type",
+    HookEvent.PRE_COMPACT: "trigger",
+    HookEvent.POST_COMPACT: "trigger",
 }
 
 
@@ -129,30 +150,48 @@ def evaluate_matchers(matchers: list[MatcherConfig], context: HookContext) -> bo
     for matcher in matchers:
         value = get_field_value(context, matcher.field)
 
-        if not matcher.case_sensitive and isinstance(value, str):
-            value = value.lower()
-            matcher_value = (
-                matcher.value.lower()
-                if isinstance(matcher.value, str)
-                else matcher.value
-            )
-        else:
-            matcher_value = matcher.value
-
         evaluator = MATCHER_OPERATORS.get(matcher.operator)
         if evaluator is None:
             logger.warning(f"Unknown matcher operator: {matcher.operator}")
             return False
 
-        if not evaluator(value, matcher_value):
+        # A tool may answer to a Claude-compatible alias (e.g. "Shell" also
+        # matches "Bash"); test the value and any aliases, passing if any match.
+        # NOT_EQUALS is an exclusion — expanding it would let an alias slip past
+        # the filter — so it stays 1:1 on the raw value.
+        if matcher.operator is MatcherOperator.NOT_EQUALS:
+            candidates: list[Any] = [value]
+        else:
+            candidates = _tool_name_candidates(matcher.field, value)
+
+        matcher_value = matcher.value
+        if not matcher.case_sensitive:
+            candidates = [c.lower() if isinstance(c, str) else c for c in candidates]
+            if isinstance(matcher_value, str):
+                matcher_value = matcher_value.lower()
+
+        if not any(evaluator(candidate, matcher_value) for candidate in candidates):
             return False
 
     return True
 
 
+def _tool_name_candidates(field: str, value: Any) -> list[Any]:
+    """The matched value plus any Claude-compatible tool-name aliases for it.
+
+    Only the tool-name field is expanded; every other field yields just its own
+    value, so non-tool matchers are unaffected.
+    """
+    candidates: list[Any] = [value]
+    if field == "tool_name" and isinstance(value, str):
+        candidates.extend(CLAUDE_TOOL_ALIASES.get(value, []))
+    return candidates
+
+
 __all__ = [
     "MATCHER_OPERATORS",
     "CLAUDE_EVENT_MATCHER_FIELDS",
+    "CLAUDE_TOOL_ALIASES",
     "evaluate_matchers",
     "get_field_value",
 ]

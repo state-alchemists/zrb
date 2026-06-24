@@ -54,7 +54,13 @@ def resolve_sandbox_policy_from_config() -> SandboxPolicy:
     )
 
 
-def coerce_sandbox(raw: object) -> SandboxPolicy | None:
+# The shapes ``coerce_sandbox`` (and therefore the ``sandbox=`` task argument)
+# accepts: an already-built policy, a bool (config-derived policy with
+# ``enabled`` forced), or ``None`` (use ambient/CFG resolution).
+SandboxInput = SandboxPolicy | bool | None
+
+
+def coerce_sandbox(raw: "SandboxInput") -> SandboxPolicy | None:
     """Coerce a user-facing ``sandbox`` value into a policy.
 
     ``None`` → ``None`` (use ambient/CFG resolution), ``SandboxPolicy`` →

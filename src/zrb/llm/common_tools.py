@@ -7,9 +7,10 @@ conforms to ``CommonToolHost`` — used by both ``LLMChatTask`` (main
 agent), ``LLMTask`` (programmatic agents), and ``SubAgentManager``
 (sub-agents) so they share the same tool surface and guidance.
 
-Delegate tools (``DelegateToAgent`` / ``DelegateToAgentsParallel`` / ``DelegateToAgentBackground``) are
-intentionally NOT registered here — they're main-agent-only and sub-agents
-filter them out via ``zrb_is_delegate_tool``. Tool policies, argument
+Delegate tools (``DelegateToAgent`` — which also fans out via its ``tasks``
+arg — and ``DelegateToAgentBackground``) are intentionally NOT registered here
+— they're main-agent-only and sub-agents filter them out via
+``zrb_is_delegate_tool``. Tool policies, argument
 formatters, and response handlers are also out of scope: those live on
 ``LLMChatTask`` and propagate to sub-agents at runtime via the
 ``current_tool_confirmation`` ContextVar.
@@ -119,25 +120,23 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
         tool_name="Shell",
         when_to_use="Running any shell command (Bash runs the same under bash)",
         key_rule="For file I/O, use Read/Write/Edit/Grep/RM/MV — not Shell. "
-        "System Context already lists time, OS, CWD, and available tools — read from there before running commands to discover them.",
-    ),
-    ToolGuidance(
-        group_name="Execution",
-        tool_name="ShellBackground",
-        when_to_use="Long-running processes (dev servers, watchers, builds) that should not block the conversation",
-        key_rule="Returns a handle immediately. Poll with MonitorProcess(handle) to see incremental output. Kill with MonitorProcess(handle, kill=True).",
+        "System Context already lists time, OS, CWD, and available tools — read from there before running commands to discover them. "
+        "For long-running processes (dev servers, watchers, builds), pass background=True and poll with MonitorProcess instead of blocking.",
     ),
     ToolGuidance(
         group_name="Execution",
         tool_name="MonitorProcess",
-        when_to_use="Check status or kill a background process started by ShellBackground",
-        key_rule="Without kill=True, returns stdout/stderr so far. With kill=True, terminates the process group.",
+        when_to_use="Check status of, wait on, or kill a background process "
+        "started with Shell/Bash (background=True)",
+        key_rule="Pass wait=N to block up to N seconds (returns early when the "
+        "process exits) instead of busy-polling; kill=True terminates it.",
     ),
     # Analysis
     ToolGuidance(
         group_name="Analysis",
         tool_name="AnalyzeCode",
-        key_rule="Slow. Use Read + Grep first; reach for AnalyzeCode only when those are insufficient for the question.",
+        key_rule="Slow. Use Read + Grep first; AnalyzeFile for a single file; "
+        "Glob or LS for a simple listing.",
     ),
     ToolGuidance(
         group_name="Analysis",
@@ -147,15 +146,15 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
     # Research & Web
     ToolGuidance(
         group_name="Research & Web",
-        tool_name="SearchInternet",
+        tool_name="WebSearch",
         when_to_use="Current information, recent docs, or events",
-        key_rule="Start broad with SearchInternet, then OpenWebPage on the most promising URL.",
+        key_rule="Start broad with WebSearch, then WebFetch on the most promising URL.",
     ),
     ToolGuidance(
         group_name="Research & Web",
-        tool_name="OpenWebPage",
+        tool_name="WebFetch",
         when_to_use="Fetching a known URL",
-        key_rule="When the URL is not known, SearchInternet first.",
+        key_rule="When the URL is not known, WebSearch first.",
     ),
     # User Interaction
     ToolGuidance(
@@ -169,14 +168,17 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
     # Planning
     ToolGuidance(
         group_name="Planning",
-        tool_name="WriteTodos",
-        when_to_use="Planning a multi-step task",
-        key_rule="Seed the full list up front; to advance or change an item's status, call WriteTodos again with the updated list (it replaces the list by default).",
+        tool_name="TodoWrite",
+        when_to_use="Starting work with ≥3 distinct steps, spanning multiple files, "
+        "or expected to run across multiple turns — seed the full list before the "
+        "first edit. Skip for single-step or one-line changes.",
+        key_rule="Seed the full list up front; advance items by calling TodoWrite again with the updated list.",
     ),
     ToolGuidance(
         group_name="Planning",
-        tool_name="GetTodos",
-        when_to_use="Resuming work — check the current plan before proceeding",
+        tool_name="TodoRead",
+        when_to_use="Resuming work, or after summarization may have dropped the "
+        "plan — check the current list before proceeding",
     ),
     # Git Worktrees
     ToolGuidance(
@@ -187,7 +189,8 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
     ToolGuidance(
         group_name="Git Worktrees",
         tool_name="EnterWorktree",
-        when_to_use="Isolated branch for experimental changes",
+        when_to_use="Isolated branch for risky experiments, parallel "
+        "approaches, or staging changes before merging",
         key_rule="ListWorktrees first. Pass the returned path as the `cwd` argument to Shell/Bash.",
     ),
     # Plan Mode
@@ -198,13 +201,16 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
             "Before a risky or multi-file change, to investigate read-only "
             "first (edits/shell/delegation are blocked until you exit)"
         ),
-        key_rule="Do discovery, then ExitPlanMode with a concrete plan.",
+        key_rule=(
+            "Do discovery, then ExitPlanMode with a concrete plan. Skip plan "
+            "mode when non-interactive (no user to approve): present the plan "
+            "inline in your reply and proceed directly to the edits."
+        ),
     ),
     ToolGuidance(
         group_name="Plan Mode",
         tool_name="ExitPlanMode",
         when_to_use="When discovery is done and you have a concrete change plan",
-        key_rule="Pass the ordered change list; it is shown to the user for approval.",
     ),
     # LSP
     ToolGuidance(
@@ -221,7 +227,7 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
     ToolGuidance(
         group_name="LSP",
         tool_name="LspRenameSymbol",
-        key_rule="Run with `dry_run=True` first; apply only after user approval.",
+        key_rule="Apply (`dry_run=False`) only after user approval; preview first (the default).",
     ),
 ]
 
@@ -248,9 +254,7 @@ _DYNAMIC_TOOL_GUIDANCE_FACTORIES: "list[Callable[[AnyContext], ToolGuidance]]" =
         group_name="Delegation",
         tool_name="ActivateSkill",
         when_to_use="Loading domain-specific protocols for specialized work (see Skill Activation table)",
-        key_rule="Re-activate after long conversations or summarization if context feels lost. "
-        "Skill directories may include companion resources (scripts, docs, data) — "
-        "use Glob in the skill directory or check the listing shown when activated.",
+        key_rule="Re-activate after summarization if skill context was lost.",
     ),
     lambda ctx: ToolGuidance(
         group_name="Delegation",
@@ -258,41 +262,28 @@ _DYNAMIC_TOOL_GUIDANCE_FACTORIES: "list[Callable[[AnyContext], ToolGuidance]]" =
         when_to_use="Delegate only when ALL apply: (a) the work needs >5 tool calls, "
         "(b) it spans >3 files OR requires speculative exploration, "
         "(c) you cannot already write the exact edits. "
-        "Do the work yourself for ≤2 files, one-line changes, or any edit whose content you already know.",
-        key_rule="Required args (deliverable, non_goals) are the scope clamp — articulate them concretely. "
-        "Delegation costs fidelity: sub-agents over-produce against fuzzy specs, so name exact files / functions / "
-        "decisions in deliverable and list adjacent work to avoid in non_goals.",
+        "Do the work yourself for ≤2 files, one-line changes, or any edit whose content you already know. "
+        "To fan out, pass tasks=[{...}, ...] to run several concurrently in one call.",
+        key_rule="deliverable and non_goals are the scope clamp — make them concrete; "
+        "sub-agents over-produce against fuzzy specs. For fan-out, each task dict "
+        "carries its own clamp and runs blind to the others.",
     ),
     lambda ctx: ToolGuidance(
         group_name="Delegation",
         tool_name="DelegateToAgentBackground",
         when_to_use="Long, independent work you do NOT need before continuing "
-        "(e.g. speculative research, generating a file). Returns a handle "
-        "immediately. To fan out, start several and collect each handle later.",
-        key_rule="Same scope clamp as DelegateToAgent. Collect with "
-        "GetDelegationResult(handle). Runs autonomously — its tool calls are "
-        "auto-approved (a configured permission policy still applies), so only "
-        "delegate work you're fine running without per-step approval. Use "
-        "synchronous DelegateToAgent when you need the result now.",
-    ),
-    lambda ctx: ToolGuidance(
-        group_name="Delegation",
-        tool_name="DelegateToAgentsParallel",
-        when_to_use="Two or more independent sub-tasks specified at once, when "
-        "you want them all to run concurrently and return together. "
-        "Prefer this over N sequential DelegateToAgentBackground calls when "
-        "you know all the tasks up front — some models handle a single "
-        "list[dict] better than iterating N tool calls.",
-        key_rule="Each task dict needs its own deliverable and non_goals — "
-        "apply the scope clamp per task, not once for the batch. "
-        "Sub-tasks share no state; each runs blind to the others.",
+        "(e.g. speculative research, generating a file). To fan out, start "
+        "several and collect the handles later.",
+        key_rule="Same scope clamp as DelegateToAgent. Need the result now? "
+        "Use DelegateToAgent (pass tasks=[...] to run several at once).",
     ),
     lambda ctx: ToolGuidance(
         group_name="Delegation",
         tool_name="GetDelegationResult",
         when_to_use="Collect the result of a DelegateToAgentBackground handle",
-        key_rule="Returns 'still running' until done; the handle is consumed once "
-        "a completed result is collected.",
+        key_rule="Pass wait=N to block up to N seconds (returns early on finish) "
+        "instead of busy-polling; kill=True stops the agent. The handle is "
+        "consumed once a completed result is collected.",
     ),
 ]
 
@@ -338,10 +329,7 @@ def apply_common_tools(host: CommonToolHost) -> None:
     from zrb.llm.tool.plan import get_todos, write_todos
     from zrb.llm.tool.plan_mode import enter_plan_mode, exit_plan_mode
     from zrb.llm.tool.shell import run_shell_command
-    from zrb.llm.tool.shell_background import (
-        create_monitor_process_tool,
-        create_shell_background_tool,
-    )
+    from zrb.llm.tool.shell_background import create_monitor_process_tool
     from zrb.llm.tool.skill import create_activate_skill_tool
     from zrb.llm.tool.web import open_web_page, search_internet
     from zrb.llm.tool.worktree import enter_worktree, exit_worktree, list_worktrees
@@ -351,7 +339,7 @@ def apply_common_tools(host: CommonToolHost) -> None:
     )
 
     lsp_tools = create_lsp_tools() if detect_available_lsp_servers() else []
-    # WriteTodos replaces the whole list by default, so it subsumes the former
+    # TodoWrite replaces the whole list by default, so it subsumes the former
     # UpdateTodo (rewrite with one status changed) and ClearTodos (write []).
     plan_tools = [write_todos, get_todos]
 
@@ -417,7 +405,6 @@ def apply_common_tools(host: CommonToolHost) -> None:
         lambda ctx: tag(create_list_zrb_task_tool(), Capability.READ),
         lambda ctx: tag(create_run_zrb_task_tool(), Capability.EXECUTE),
         lambda ctx: tag(create_activate_skill_tool(), Capability.META),
-        lambda ctx: tag(create_shell_background_tool(), Capability.EXECUTE),
         lambda ctx: tag(create_monitor_process_tool(), Capability.EXECUTE),
     )
     host.add_toolset_factory(lambda ctx: load_mcp_config())

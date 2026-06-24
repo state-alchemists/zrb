@@ -202,3 +202,5 @@ def compute_value(ctx):
 ---
 
 > **Tip:** Use `@make_task` for 90% of your tasks. Reserve direct `Task()` instantiation for in-line lambda tasks and subclassing for reusable task types.
+
+🔖 [Documentation Home](../../README.md) > [Core Concepts](./) > The @make_task Decorator

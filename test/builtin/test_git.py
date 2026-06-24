@@ -27,12 +27,16 @@ def session(mock_print):
 @pytest.fixture
 def mock_git_commit_upstream():
     """Mocks the git operations performed by the upstream git-commit task."""
-    with mock.patch(
-        "zrb.builtin.git.add", new=mock.MagicMock(side_effect=lambda *a, **k: _coro())
-    ) as mock_add, mock.patch(
-        "zrb.builtin.git.commit",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro()),
-    ) as mock_commit:
+    with (
+        mock.patch(
+            "zrb.builtin.git.add",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro()),
+        ) as mock_add,
+        mock.patch(
+            "zrb.builtin.git.commit",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro()),
+        ) as mock_commit,
+    ):
         yield mock_add, mock_commit
 
 
@@ -46,13 +50,16 @@ async def test_get_git_diff_all_types(session, mock_print):
         created=["new.txt"], updated=["modified.py"], removed=["old.log"]
     )
 
-    with mock.patch(
-        "zrb.builtin.git.get_repo_dir",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
-    ), mock.patch(
-        "zrb.builtin.git.get_diff",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro(diff_result)),
-    ) as mock_get_diff:
+    with (
+        mock.patch(
+            "zrb.builtin.git.get_repo_dir",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
+        ),
+        mock.patch(
+            "zrb.builtin.git.get_diff",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro(diff_result)),
+        ) as mock_get_diff,
+    ):
 
         # Get the task object
         get_diff_task = git_module.get_git_diff
@@ -83,13 +90,16 @@ async def test_get_git_diff_only_created(session, mock_print):
         created=["new.txt"], updated=["modified.py"], removed=["old.log"]
     )
 
-    with mock.patch(
-        "zrb.builtin.git.get_repo_dir",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
-    ), mock.patch(
-        "zrb.builtin.git.get_diff",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro(diff_result)),
-    ) as mock_get_diff:
+    with (
+        mock.patch(
+            "zrb.builtin.git.get_repo_dir",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
+        ),
+        mock.patch(
+            "zrb.builtin.git.get_diff",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro(diff_result)),
+        ) as mock_get_diff,
+    ):
 
         # Get the task object
         get_diff_task = git_module.get_git_diff
@@ -118,13 +128,16 @@ async def test_get_git_diff_no_changes(session, mock_print):
     """Test get_git_diff when there are no changes."""
     diff_result = DiffResult(created=[], updated=[], removed=[])
 
-    with mock.patch(
-        "zrb.builtin.git.get_repo_dir",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
-    ), mock.patch(
-        "zrb.builtin.git.get_diff",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro(diff_result)),
-    ) as mock_get_diff:
+    with (
+        mock.patch(
+            "zrb.builtin.git.get_repo_dir",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
+        ),
+        mock.patch(
+            "zrb.builtin.git.get_diff",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro(diff_result)),
+        ) as mock_get_diff,
+    ):
 
         # Get the task object
         get_diff_task = git_module.get_git_diff
@@ -155,22 +168,28 @@ async def test_prune_local_branches_deletes_merged_non_protected(session, mock_p
     branches = ["main", "master", "current-branch", "feature-a", "fix-b"]
     current_branch = "current-branch"
 
-    with mock.patch(
-        "zrb.builtin.git.get_repo_dir",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
-    ), mock.patch(
-        "zrb.builtin.git.get_branches",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro(branches)),
-    ) as mock_get_branches, mock.patch(
-        "zrb.builtin.git.get_current_branch",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro(current_branch)),
-    ) as mock_get_current_branch, mock.patch(
-        "zrb.builtin.git.is_branch_merged",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro(True)),
-    ) as mock_is_branch_merged, mock.patch(
-        "zrb.builtin.git.delete_branch",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro()),
-    ) as mock_delete_branch:
+    with (
+        mock.patch(
+            "zrb.builtin.git.get_repo_dir",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
+        ),
+        mock.patch(
+            "zrb.builtin.git.get_branches",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro(branches)),
+        ) as mock_get_branches,
+        mock.patch(
+            "zrb.builtin.git.get_current_branch",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro(current_branch)),
+        ) as mock_get_current_branch,
+        mock.patch(
+            "zrb.builtin.git.is_branch_merged",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro(True)),
+        ) as mock_is_branch_merged,
+        mock.patch(
+            "zrb.builtin.git.delete_branch",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro()),
+        ) as mock_delete_branch,
+    ):
 
         # Get the task object
         prune_task = git_module.prune_local_branches
@@ -207,22 +226,28 @@ async def test_prune_local_branches_skips_non_merged(session, mock_print):
         # feature-a is merged, feature-b is not
         return branch_name == "feature-a"
 
-    with mock.patch(
-        "zrb.builtin.git.get_repo_dir",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
-    ), mock.patch(
-        "zrb.builtin.git.get_branches",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro(branches)),
-    ), mock.patch(
-        "zrb.builtin.git.get_current_branch",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro(current_branch)),
-    ), mock.patch(
-        "zrb.builtin.git.is_branch_merged",
-        new=mock.MagicMock(side_effect=_is_merged_side_effect),
-    ) as mock_is_branch_merged, mock.patch(
-        "zrb.builtin.git.delete_branch",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro()),
-    ) as mock_delete_branch:
+    with (
+        mock.patch(
+            "zrb.builtin.git.get_repo_dir",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
+        ),
+        mock.patch(
+            "zrb.builtin.git.get_branches",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro(branches)),
+        ),
+        mock.patch(
+            "zrb.builtin.git.get_current_branch",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro(current_branch)),
+        ),
+        mock.patch(
+            "zrb.builtin.git.is_branch_merged",
+            new=mock.MagicMock(side_effect=_is_merged_side_effect),
+        ) as mock_is_branch_merged,
+        mock.patch(
+            "zrb.builtin.git.delete_branch",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro()),
+        ) as mock_delete_branch,
+    ):
 
         # Get the task object
         prune_task = git_module.prune_local_branches
@@ -248,21 +273,27 @@ async def test_prune_local_branches_handles_delete_error(session, mock_print):
     async def _fail(*a, **k):
         raise Exception("Deletion failed")
 
-    with mock.patch(
-        "zrb.builtin.git.get_repo_dir",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
-    ), mock.patch(
-        "zrb.builtin.git.get_branches",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro(branches)),
-    ), mock.patch(
-        "zrb.builtin.git.get_current_branch",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro(current_branch)),
-    ), mock.patch(
-        "zrb.builtin.git.is_branch_merged",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro(True)),
-    ), mock.patch(
-        "zrb.builtin.git.delete_branch", new=mock.MagicMock(side_effect=_fail)
-    ) as mock_delete_branch:
+    with (
+        mock.patch(
+            "zrb.builtin.git.get_repo_dir",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
+        ),
+        mock.patch(
+            "zrb.builtin.git.get_branches",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro(branches)),
+        ),
+        mock.patch(
+            "zrb.builtin.git.get_current_branch",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro(current_branch)),
+        ),
+        mock.patch(
+            "zrb.builtin.git.is_branch_merged",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro(True)),
+        ),
+        mock.patch(
+            "zrb.builtin.git.delete_branch", new=mock.MagicMock(side_effect=_fail)
+        ) as mock_delete_branch,
+    ):
 
         # Get the task object
         prune_task = git_module.prune_local_branches
@@ -284,15 +315,20 @@ async def test_git_commit_success(session, mock_print):
     """Test git_commit calls add and commit with the correct message."""
     commit_message = "Test commit message"
 
-    with mock.patch(
-        "zrb.builtin.git.get_repo_dir",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
-    ), mock.patch(
-        "zrb.builtin.git.add", new=mock.MagicMock(side_effect=lambda *a, **k: _coro())
-    ) as mock_add, mock.patch(
-        "zrb.builtin.git.commit",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro()),
-    ) as mock_commit:
+    with (
+        mock.patch(
+            "zrb.builtin.git.get_repo_dir",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
+        ),
+        mock.patch(
+            "zrb.builtin.git.add",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro()),
+        ) as mock_add,
+        mock.patch(
+            "zrb.builtin.git.commit",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro()),
+        ) as mock_commit,
+    ):
 
         # Get the task object
         commit_task = git_module.git_commit
@@ -312,15 +348,19 @@ async def test_git_commit_add_fails(session, mock_print):
     async def _fail(*a, **k):
         raise Exception("Add failed")
 
-    with mock.patch(
-        "zrb.builtin.git.get_repo_dir",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
-    ), mock.patch(
-        "zrb.builtin.git.add", new=mock.MagicMock(side_effect=_fail)
-    ) as mock_add, mock.patch(
-        "zrb.builtin.git.commit",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro()),
-    ) as mock_commit:
+    with (
+        mock.patch(
+            "zrb.builtin.git.get_repo_dir",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
+        ),
+        mock.patch(
+            "zrb.builtin.git.add", new=mock.MagicMock(side_effect=_fail)
+        ) as mock_add,
+        mock.patch(
+            "zrb.builtin.git.commit",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro()),
+        ) as mock_commit,
+    ):
 
         # Get the task object
         commit_task = git_module.git_commit
@@ -342,14 +382,19 @@ async def test_git_commit_commit_fails(session, mock_print):
     async def _fail(*a, **k):
         raise Exception("Commit failed")
 
-    with mock.patch(
-        "zrb.builtin.git.get_repo_dir",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
-    ), mock.patch(
-        "zrb.builtin.git.add", new=mock.MagicMock(side_effect=lambda *a, **k: _coro())
-    ) as mock_add, mock.patch(
-        "zrb.builtin.git.commit", new=mock.MagicMock(side_effect=_fail)
-    ) as mock_commit:
+    with (
+        mock.patch(
+            "zrb.builtin.git.get_repo_dir",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
+        ),
+        mock.patch(
+            "zrb.builtin.git.add",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro()),
+        ) as mock_add,
+        mock.patch(
+            "zrb.builtin.git.commit", new=mock.MagicMock(side_effect=_fail)
+        ) as mock_commit,
+    ):
 
         # Get the task object
         commit_task = git_module.git_commit
@@ -373,15 +418,20 @@ async def test_git_pull_success(session, mock_print, mock_git_commit_upstream):
     branch_name = "main"
     mock_add, mock_commit = mock_git_commit_upstream
 
-    with mock.patch(
-        "zrb.builtin.git.get_repo_dir",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
-    ), mock.patch(
-        "zrb.builtin.git.get_current_branch",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro(branch_name)),
-    ) as mock_get_current_branch, mock.patch(
-        "zrb.builtin.git.pull", new=mock.MagicMock(side_effect=lambda *a, **k: _coro())
-    ) as mock_pull:
+    with (
+        mock.patch(
+            "zrb.builtin.git.get_repo_dir",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
+        ),
+        mock.patch(
+            "zrb.builtin.git.get_current_branch",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro(branch_name)),
+        ) as mock_get_current_branch,
+        mock.patch(
+            "zrb.builtin.git.pull",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro()),
+        ) as mock_pull,
+    ):
 
         # Get the task object
         pull_task = git_module.git_pull
@@ -409,15 +459,19 @@ async def test_git_pull_fails(session, mock_print, mock_git_commit_upstream):
     async def _fail(*a, **k):
         raise Exception("Pull failed")
 
-    with mock.patch(
-        "zrb.builtin.git.get_repo_dir",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
-    ), mock.patch(
-        "zrb.builtin.git.get_current_branch",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro(branch_name)),
-    ), mock.patch(
-        "zrb.builtin.git.pull", new=mock.MagicMock(side_effect=_fail)
-    ) as mock_pull:
+    with (
+        mock.patch(
+            "zrb.builtin.git.get_repo_dir",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
+        ),
+        mock.patch(
+            "zrb.builtin.git.get_current_branch",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro(branch_name)),
+        ),
+        mock.patch(
+            "zrb.builtin.git.pull", new=mock.MagicMock(side_effect=_fail)
+        ) as mock_pull,
+    ):
 
         # Get the task object
         pull_task = git_module.git_pull
@@ -444,15 +498,20 @@ async def test_git_push_success(session, mock_print, mock_git_commit_upstream):
     branch_name = "feature/new-thing"
     mock_add, mock_commit = mock_git_commit_upstream
 
-    with mock.patch(
-        "zrb.builtin.git.get_repo_dir",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
-    ), mock.patch(
-        "zrb.builtin.git.get_current_branch",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro(branch_name)),
-    ) as mock_get_current_branch, mock.patch(
-        "zrb.builtin.git.push", new=mock.MagicMock(side_effect=lambda *a, **k: _coro())
-    ) as mock_push:
+    with (
+        mock.patch(
+            "zrb.builtin.git.get_repo_dir",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
+        ),
+        mock.patch(
+            "zrb.builtin.git.get_current_branch",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro(branch_name)),
+        ) as mock_get_current_branch,
+        mock.patch(
+            "zrb.builtin.git.push",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro()),
+        ) as mock_push,
+    ):
 
         # Get the task object
         push_task = git_module.git_push
@@ -480,15 +539,19 @@ async def test_git_push_fails(session, mock_print, mock_git_commit_upstream):
     async def _fail(*a, **k):
         raise Exception("Push failed")
 
-    with mock.patch(
-        "zrb.builtin.git.get_repo_dir",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
-    ), mock.patch(
-        "zrb.builtin.git.get_current_branch",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro(branch_name)),
-    ), mock.patch(
-        "zrb.builtin.git.push", new=mock.MagicMock(side_effect=_fail)
-    ) as mock_push:
+    with (
+        mock.patch(
+            "zrb.builtin.git.get_repo_dir",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
+        ),
+        mock.patch(
+            "zrb.builtin.git.get_current_branch",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro(branch_name)),
+        ),
+        mock.patch(
+            "zrb.builtin.git.push", new=mock.MagicMock(side_effect=_fail)
+        ) as mock_push,
+    ):
 
         # Get the task object
         push_task = git_module.git_push

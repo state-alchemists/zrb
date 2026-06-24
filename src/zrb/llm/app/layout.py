@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, cast
 
 from prompt_toolkit.filters import (
     Condition,
@@ -118,6 +118,7 @@ def create_input_field(
     if kb is None:
         kb = KeyBindings()
         text_area.control.key_bindings = kb
+    kb = cast(KeyBindings, kb)
 
     @Condition
     def is_first_line() -> bool:
@@ -139,14 +140,10 @@ def create_input_field(
     def _(event):
         event.current_buffer.history_forward()
 
-    # Tab navigation
-    @kb.add("tab", filter=~has_completions)
-    def _(event):
-        event.app.layout.focus_next()
-
-    @kb.add("s-tab", filter=~has_completions)
-    def _(event):
-        event.app.layout.focus_previous()
+    # Focus traversal is handled by Tab at the app level; Tab still drives
+    # completion-menu navigation when a menu is open (the app-level binding
+    # is gated by ~has_completions). Shift+Tab is deliberately unbound here
+    # so the app-level binding can cycle modes. See ADR-0075.
 
     return text_area
 
