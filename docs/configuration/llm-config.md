@@ -564,7 +564,6 @@ All interval and delay values are in **milliseconds**.
 | `ZRB_LLM_MAX_COMPLETION_FILES` | Maximum files scanned for path autocompletion | `5000` |
 | `ZRB_LLM_MAX_OUTPUT_CHARS` | Maximum characters returned by shell command and file read tools | `100000` |
 | `ZRB_LLM_MAX_TOOL_RESULT_CHARS` | Global backstop cap (characters) on every tool's model-facing result, applied after the tool runs. Catches outputs not already capped by a tool (Grep, AnalyzeCode, web, MCP). `0` disables it. | `100000` |
-| `ZRB_LLM_FILE_READ_LINES` | Lines to preserve at head and tail when truncating file reads | `1000` |
 | `ZRB_LLM_HISTORY_MAX_DISPLAY_CHARS` | Maximum characters shown by the `/history` command | `5000` |
 | `ZRB_LLM_HISTORY_TRUNCATE_LENGTH` | Maximum chars per field when formatting history entries | `100` |
 | `ZRB_LLM_PROJECT_DOC_MAX_CHARS` | Maximum chars loaded from each project doc file (e.g. CLAUDE.md) | `8000` |

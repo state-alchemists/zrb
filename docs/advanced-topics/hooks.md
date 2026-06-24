@@ -341,7 +341,7 @@ Run agents with tools for complex analysis.
   "type": "agent",
   "config": {
     "system_prompt": "You are a security agent. Review tool calls for safety.",
-    "tools": ["file_read", "network_check"],
+    "tools": ["Read", "WebFetch"],
     "model": "openai:gpt-4o"
   }
 }
