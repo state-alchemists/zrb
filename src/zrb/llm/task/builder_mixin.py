@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Callable
 
+from zrb.attr.type import BoolAttr
 from zrb.llm.factory_resolver import resolve_factory_items
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
@@ -69,7 +70,7 @@ class BuilderMixin:
         _approval_channel: ApprovalChannel | None
         _history_manager: AnyHistoryManager | None
         _permissions: PermissionPolicyInput
-        _sandbox: SandboxInput
+        _sandbox: SandboxInput | BoolAttr
         _custom_model_names: StrListAttr | None
         _model: Any
         _render_model: bool
@@ -120,11 +121,11 @@ class BuilderMixin:
         self._permissions = value
 
     @property
-    def sandbox(self) -> SandboxInput:
+    def sandbox(self) -> SandboxInput | BoolAttr:
         return self._sandbox
 
     @sandbox.setter
-    def sandbox(self, value: SandboxInput):
+    def sandbox(self, value: SandboxInput | BoolAttr):
         self._sandbox = value
 
     def add_hook_factory(self, *factory: Callable[[HookManager], None]):

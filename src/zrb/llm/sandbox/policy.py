@@ -16,7 +16,10 @@ import os
 import tempfile
 from dataclasses import dataclass, replace
 
+from zrb.attr.type import BoolAttr
 from zrb.config.mixins.llm_sandbox import DEFAULT_LLM_SANDBOX_DENY_READ_PATHS
+from zrb.context.any_context import AnyContext
+from zrb.util.attr import get_bool_attr
 
 DEFAULT_DENY_READ_PATHS: tuple[str, ...] = DEFAULT_LLM_SANDBOX_DENY_READ_PATHS
 
@@ -60,7 +63,7 @@ def resolve_sandbox_policy_from_config() -> SandboxPolicy:
 SandboxInput = SandboxPolicy | bool | None
 
 
-def coerce_sandbox(raw: "SandboxInput") -> SandboxPolicy | None:
+def coerce_sandbox(ctx: AnyContext, raw: SandboxInput | BoolAttr) -> SandboxPolicy | None:
     """Coerce a user-facing ``sandbox`` value into a policy.
 
     ``None`` → ``None`` (use ambient/CFG resolution), ``SandboxPolicy`` →
@@ -71,9 +74,8 @@ def coerce_sandbox(raw: "SandboxInput") -> SandboxPolicy | None:
         return None
     if isinstance(raw, SandboxPolicy):
         return raw
-    if isinstance(raw, bool):
-        return replace(resolve_sandbox_policy_from_config(), enabled=raw)
-    return None
+    sandbox = get_bool_attr(ctx, raw) 
+    return replace(resolve_sandbox_policy_from_config(), enabled=sandbox)
 
 
 def _realpath(path: str) -> str:
