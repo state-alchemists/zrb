@@ -59,7 +59,7 @@ llm_chat = LLMChatTask(
             "Sandbox Mode (true/false)",
             allow_empty=True,
             always_prompt=False,
-        )
+        ),
     ],
     # fstring template (StrAttr); LLMChatTask.model omits bare str from its
     # annotation but renders it at run time via get_attr in _get_model.

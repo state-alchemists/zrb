@@ -63,7 +63,9 @@ def resolve_sandbox_policy_from_config() -> SandboxPolicy:
 SandboxInput = SandboxPolicy | bool | None
 
 
-def coerce_sandbox(ctx: AnyContext, raw: SandboxInput | BoolAttr) -> SandboxPolicy | None:
+def coerce_sandbox(
+    ctx: AnyContext, raw: SandboxInput | BoolAttr
+) -> SandboxPolicy | None:
     """Coerce a user-facing ``sandbox`` value into a policy.
 
     ``None`` → ``None`` (use ambient/CFG resolution), ``SandboxPolicy`` →
@@ -74,7 +76,7 @@ def coerce_sandbox(ctx: AnyContext, raw: SandboxInput | BoolAttr) -> SandboxPoli
         return None
     if isinstance(raw, SandboxPolicy):
         return raw
-    sandbox = get_bool_attr(ctx, raw) 
+    sandbox = get_bool_attr(ctx, raw)
     return replace(resolve_sandbox_policy_from_config(), enabled=sandbox)
 
 

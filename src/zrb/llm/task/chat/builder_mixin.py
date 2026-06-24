@@ -32,7 +32,7 @@ if TYPE_CHECKING:
     from pydantic_ai.tools import ToolFuncEither
     from pydantic_ai.toolsets import AbstractToolset
 
-    from zrb.attr.type import StrListAttr
+    from zrb.attr.type import BoolAttr, StrListAttr
     from zrb.context.any_context import AnyContext
     from zrb.llm.agent.common import HistoryProcessor
     from zrb.llm.approval.approval_channel import ApprovalChannel
@@ -60,7 +60,7 @@ class BuilderMixin:
         _llm_config: LLMConfig
         _llm_limiter: LLMLimiter | None
         _permissions: PermissionPolicyInput
-        _sandbox: SandboxInput
+        _sandbox: SandboxInput | BoolAttr
         _include_default_ui: bool
         _tools: list[Tool | ToolFuncEither]
         _tool_factories: list[Callable[[AnyContext], Tool | ToolFuncEither]]
@@ -302,11 +302,11 @@ class BuilderMixin:
         self._permissions = value
 
     @property
-    def sandbox(self) -> "SandboxInput":
+    def sandbox(self) -> "SandboxInput | BoolAttr":
         return self._sandbox
 
     @sandbox.setter
-    def sandbox(self, value: "SandboxInput"):
+    def sandbox(self, value: "SandboxInput | BoolAttr"):
         self._sandbox = value
 
     @property
