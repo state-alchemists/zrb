@@ -1,6 +1,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from prompt_toolkit.clipboard import ClipboardData
 from prompt_toolkit.key_binding import KeyBindings
 
 from zrb.llm.hook.interface import HookEvent
@@ -73,7 +74,9 @@ def create_mock_event(text=""):
 
     event.app.current_buffer.text = text
     event.app.current_buffer.selection_state = None
-    event.app.current_buffer.copy_selection = MagicMock(return_value="copied_text")
+    event.app.current_buffer.copy_selection = MagicMock(
+        return_value=ClipboardData("copied_text")
+    )
     event.app.current_buffer.exit_selection = MagicMock()
     event.app.current_buffer.reset = MagicMock()
     event.app.current_buffer.append_to_history = MagicMock()
@@ -131,9 +134,12 @@ def test_ctrl_c_selection(mock_ui, setup_bindings):
     event = create_mock_event()
     event.app.current_buffer.selection_state = True
     trigger_binding(setup_bindings, "c-c", event)
-    event.app.clipboard.set_data.assert_called_with("copied_text")
     event.app.current_buffer.exit_selection.assert_called_once()
     assert not mock_ui._cancel_pending_confirmations.called
+    # Clipboard receives the ClipboardData with ANSI styling stripped from text.
+    event.app.clipboard.set_data.assert_called_once()
+    (sent_data,) = event.app.clipboard.set_data.call_args.args
+    assert sent_data.text == "copied_text"
 
 
 def test_ctrl_c_text_present(mock_ui, setup_bindings):

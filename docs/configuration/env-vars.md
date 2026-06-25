@@ -40,9 +40,9 @@ Zrb can be heavily customized using environment variables. These control everyth
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_INIT_FILE_NAME` | Filename to search for (recursive up parent directories) | `zrb_init.py` |
-| `ZRB_INIT_SCRIPTS` | Colon-separated list of Python scripts to always load | — |
-| `ZRB_INIT_MODULES` | Colon-separated list of Python modules to force-load on startup | — |
+| `ZRB_INIT_FILE_NAME` | Name of the task-definition file zrb auto-loads. On startup zrb walks from the current directory up to the filesystem root and loads every file with this name it finds. | `zrb_init.py` |
+| `ZRB_INIT_SCRIPTS` | Colon-separated Python script paths zrb runs on startup (in addition to the discovered `ZRB_INIT_FILE_NAME` files) to register task definitions | — |
+| `ZRB_INIT_MODULES` | Comma-separated importable module names zrb imports on startup so their task definitions register (colon-separated still accepted) | — |
 | `ZRB_LOAD_BUILTIN` | Whether to load pre-packaged tasks (Git, UUID, base64, etc.) | `1` (true) |
 | `ZRB_WARN_UNRECOMMENDED_COMMAND` | Show warnings for potentially unsafe shell commands | `on` (true) |
 

@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import os
 from typing import TYPE_CHECKING
 
 from zrb.config.env_field import EnvField
-from zrb.config.helper import get_env
 
 
 class LLMUIStylesMixin:
@@ -53,21 +51,14 @@ class LLMUIStylesMixin:
         self.DEFAULT_LLM_UI_STYLE_INFO_PLAN_OFF: str = "ansigreen"
         super().__init__()
 
-    # Hand-written: falls back to ROOT_GROUP_NAME and capitalizes the first
-    # letter (preserving the rest), which EnvField's plain read cannot express.
-    @property
-    def LLM_ASSISTANT_NAME(self) -> str:
-        default = self.DEFAULT_LLM_ASSISTANT_NAME
-        if default == "":
-            default = self.ROOT_GROUP_NAME
-        raw = get_env("LLM_ASSISTANT_NAME", default, self.ENV_PREFIX)
-        # Capitalize first letter — preserves existing casing on the rest
-        # (e.g. "boom" → "Boom", "CustomAssistant" → "CustomAssistant")
-        return raw[0].upper() + raw[1:] if raw else raw
-
-    @LLM_ASSISTANT_NAME.setter
-    def LLM_ASSISTANT_NAME(self, value: str) -> None:
-        os.environ[f"{self.ENV_PREFIX}_LLM_ASSISTANT_NAME"] = value
+    # Falls back to ROOT_GROUP_NAME, then capitalizes the first letter while
+    # preserving the rest ("boom" → "Boom", "CustomAssistant" unchanged).
+    LLM_ASSISTANT_NAME = EnvField(
+        str,
+        default_factory=lambda c: c.DEFAULT_LLM_ASSISTANT_NAME or c.ROOT_GROUP_NAME,
+        transform=lambda v, c: (v[0].upper() + v[1:]) if v else v,
+        doc="Display name of the LLM assistant.",
+    )
 
     LLM_ASSISTANT_ASCII_ART = EnvField(
         str, doc="Name of the ASCII art variant displayed in the LLM UI title bar."

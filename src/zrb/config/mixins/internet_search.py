@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import os
-
 from zrb.config.env_field import EnvField
 
 
@@ -28,16 +26,12 @@ class InternetSearchMixin:
         str, doc="One of: google_rss (default), serpapi, brave, searxng."
     )
 
-    # BRAVE_API_KEY / SERPAPI_KEY use bare (un-prefixed) env vars by design, so
-    # they stay hand-written rather than going through EnvField (which always
-    # prefixes with ENV_PREFIX).
-    @property
-    def BRAVE_API_KEY(self) -> str:
-        return os.getenv("BRAVE_API_KEY", self.DEFAULT_BRAVE_API_KEY)
-
-    @BRAVE_API_KEY.setter
-    def BRAVE_API_KEY(self, value: str):
-        os.environ["BRAVE_API_KEY"] = value
+    # BRAVE_API_KEY / SERPAPI_KEY use bare (un-prefixed) env vars by design.
+    BRAVE_API_KEY = EnvField(
+        str,
+        no_prefix=True,
+        doc="API key for the Brave Search API (un-prefixed env var).",
+    )
 
     BRAVE_API_SAFE = EnvField(
         str, doc="Safe search filter for Brave API results (on/off)."
@@ -47,13 +41,9 @@ class InternetSearchMixin:
         str, doc="Language code for Brave search results (e.g. en)."
     )
 
-    @property
-    def SERPAPI_KEY(self) -> str:
-        return os.getenv("SERPAPI_KEY", self.DEFAULT_SERPAPI_KEY)
-
-    @SERPAPI_KEY.setter
-    def SERPAPI_KEY(self, value: str):
-        os.environ["SERPAPI_KEY"] = value
+    SERPAPI_KEY = EnvField(
+        str, no_prefix=True, doc="API key for SerpAPI (un-prefixed env var)."
+    )
 
     SERPAPI_SAFE = EnvField(str, doc="Safe search filter for SerpAPI results (on/off).")
 
