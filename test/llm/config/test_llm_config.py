@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from zrb.llm.config.config import LLMConfig
+from zrb.llm.config.config import LLMConfig, llm_config
 
 
 def test_llm_config_model_setter():
@@ -233,3 +233,364 @@ def test_llm_config_resolve_model_none_falls_back_to_default():
     config.model = "openai:gpt-4"
     config.model_getter = lambda m: f"got:{m}"
     assert config.resolve_model(None) == "got:openai:gpt-4"
+
+
+# --- merged: additional LLMConfig coverage ---
+# ---------------------------------------------------------------------------
+# Module-level singleton
+# ---------------------------------------------------------------------------
+
+
+def test_module_singleton_is_llm_config_instance():
+    """The module exposes a ready-to-use LLMConfig singleton."""
+    assert isinstance(llm_config, LLMConfig)
+
+
+# ---------------------------------------------------------------------------
+# model
+# ---------------------------------------------------------------------------
+
+
+def test_model_setter_and_getter():
+    config = LLMConfig()
+    config.model = "openai:gpt-4"
+    assert config.model == "openai:gpt-4"
+
+
+def test_model_default_from_cfg():
+    config = LLMConfig()
+    with patch("zrb.llm.config.config.CFG") as mock_cfg:
+        mock_cfg.LLM_MODEL = "openai:gpt-4o-custom"
+        mock_cfg.LLM_API_KEY = None
+        mock_cfg.LLM_BASE_URL = None
+        assert config.model == "openai:gpt-4o-custom"
+
+
+def test_model_default_fallback_when_cfg_empty():
+    config = LLMConfig()
+    with patch("zrb.llm.config.config.CFG") as mock_cfg:
+        mock_cfg.LLM_MODEL = ""
+        mock_cfg.LLM_API_KEY = None
+        mock_cfg.LLM_BASE_URL = None
+        # Falls back to the hardcoded default.
+        assert config.model == "openai-chat:gpt-4o"
+
+
+def test_model_native_provider_returned_as_is():
+    config = LLMConfig()
+    with patch("zrb.llm.config.config.CFG") as mock_cfg:
+        mock_cfg.LLM_MODEL = "anthropic:claude-3"
+        mock_cfg.LLM_API_KEY = None
+        mock_cfg.LLM_BASE_URL = None
+        assert config.model == "anthropic:claude-3"
+
+
+def test_model_unknown_provider_without_config_returned_as_is():
+    config = LLMConfig()
+    with patch("zrb.llm.config.config.CFG") as mock_cfg:
+        mock_cfg.LLM_MODEL = "totally-made-up:model"
+        mock_cfg.LLM_API_KEY = None
+        mock_cfg.LLM_BASE_URL = None
+        assert config.model == "totally-made-up:model"
+
+
+def test_model_openai_with_api_key_resolves_to_object():
+    config = LLMConfig()
+    config.api_key = "sk-test"
+    with patch("zrb.llm.config.config.CFG") as mock_cfg:
+        mock_cfg.LLM_MODEL = "openai:gpt-4"
+        mock_cfg.LLM_BASE_URL = None
+        result = config.model
+        # With an api_key, openai models get wrapped into an OpenAIChatModel.
+        assert result is not None
+        assert not isinstance(result, str)
+
+
+def test_model_unknown_provider_with_api_key_resolves():
+    config = LLMConfig()
+    config.api_key = "sk-test"
+    with patch("zrb.llm.config.config.CFG") as mock_cfg:
+        mock_cfg.LLM_MODEL = "made-up:model"
+        mock_cfg.LLM_BASE_URL = None
+        result = config.model
+        assert result is not None
+
+
+# ---------------------------------------------------------------------------
+# small_model
+# ---------------------------------------------------------------------------
+
+
+def test_small_model_setter_and_getter():
+    config = LLMConfig()
+    config.small_model = "openai:gpt-3.5-turbo"
+    assert config.small_model == "openai:gpt-3.5-turbo"
+
+
+def test_small_model_falls_back_to_cfg_string():
+    config = LLMConfig()
+    with patch("zrb.llm.config.config.CFG") as mock_cfg:
+        mock_cfg.LLM_SMALL_MODEL = "anthropic:claude-small"
+        mock_cfg.LLM_API_KEY = None
+        mock_cfg.LLM_BASE_URL = None
+        assert config.small_model == "anthropic:claude-small"
+
+
+def test_small_model_falls_back_to_main_model():
+    config = LLMConfig()
+    config.model = "anthropic:claude-3"
+    with patch("zrb.llm.config.config.CFG") as mock_cfg:
+        mock_cfg.LLM_SMALL_MODEL = ""
+        mock_cfg.LLM_API_KEY = None
+        mock_cfg.LLM_BASE_URL = None
+        # No small model configured -> uses the main model.
+        assert config.small_model == "anthropic:claude-3"
+
+
+def test_small_model_object_returned_as_is():
+    config = LLMConfig()
+    sentinel = object()
+    config.small_model = sentinel
+    assert config.small_model is sentinel
+
+
+def test_small_model_cfg_object_returned_as_is():
+    config = LLMConfig()
+    sentinel = object()
+    with patch("zrb.llm.config.config.CFG") as mock_cfg:
+        # A non-string Model object configured in CFG is returned unchanged.
+        mock_cfg.LLM_SMALL_MODEL = sentinel
+        assert config.small_model is sentinel
+
+
+# ---------------------------------------------------------------------------
+# multimodal_model
+# ---------------------------------------------------------------------------
+
+
+def test_multimodal_model_setter_and_getter():
+    config = LLMConfig()
+    config.multimodal_model = "openai:gpt-4o"
+    assert config.multimodal_model == "openai:gpt-4o"
+
+
+def test_multimodal_model_none_when_unset_and_cfg_empty():
+    config = LLMConfig()
+    with patch("zrb.llm.config.config.CFG") as mock_cfg:
+        mock_cfg.LLM_MULTIMODAL_MODEL = ""
+        assert config.multimodal_model is None
+
+
+def test_multimodal_model_from_cfg_string():
+    config = LLMConfig()
+    with patch("zrb.llm.config.config.CFG") as mock_cfg:
+        mock_cfg.LLM_MULTIMODAL_MODEL = "anthropic:claude-3"
+        mock_cfg.LLM_API_KEY = None
+        mock_cfg.LLM_BASE_URL = None
+        assert config.multimodal_model == "anthropic:claude-3"
+
+
+def test_multimodal_model_object_returned_as_is():
+    config = LLMConfig()
+    sentinel = object()
+    config.multimodal_model = sentinel
+    assert config.multimodal_model is sentinel
+
+
+def test_multimodal_model_cfg_object_returned_as_is():
+    config = LLMConfig()
+    sentinel = object()
+    with patch("zrb.llm.config.config.CFG") as mock_cfg:
+        # A non-string Model object configured in CFG is returned unchanged.
+        mock_cfg.LLM_MULTIMODAL_MODEL = sentinel
+        assert config.multimodal_model is sentinel
+
+
+# ---------------------------------------------------------------------------
+# model_settings
+# ---------------------------------------------------------------------------
+
+
+def test_model_settings_default_none():
+    config = LLMConfig()
+    assert config.model_settings is None
+
+
+def test_model_settings_setter_and_getter():
+    config = LLMConfig()
+    settings = {"temperature": 0.5}
+    config.model_settings = settings
+    assert config.model_settings == settings
+
+
+# ---------------------------------------------------------------------------
+# model_getter / model_renderer / resolve_model
+# ---------------------------------------------------------------------------
+
+
+def test_model_getter_default_none():
+    config = LLMConfig()
+    assert config.model_getter is None
+
+
+def test_model_renderer_default_none():
+    config = LLMConfig()
+    assert config.model_renderer is None
+
+
+def test_model_getter_setter():
+    config = LLMConfig()
+    getter = lambda m: m
+    config.model_getter = getter
+    assert config.model_getter is getter
+
+
+def test_model_renderer_setter():
+    config = LLMConfig()
+    renderer = lambda m: m
+    config.model_renderer = renderer
+    assert config.model_renderer is renderer
+
+
+def test_resolve_model_no_hooks_uses_default_model():
+    config = LLMConfig()
+    config.model = "openai:gpt-4"
+    assert config.resolve_model() == "openai:gpt-4"
+
+
+def test_resolve_model_explicit_base_overrides_default():
+    config = LLMConfig()
+    config.model = "openai:gpt-4"
+    assert config.resolve_model("anthropic:claude-3") == "anthropic:claude-3"
+
+
+def test_resolve_model_applies_getter():
+    config = LLMConfig()
+    config.model = "openai:gpt-4"
+    config.model_getter = lambda m: "from-getter"
+    assert config.resolve_model() == "from-getter"
+
+
+def test_resolve_model_applies_renderer():
+    config = LLMConfig()
+    config.model = "openai:gpt-4"
+    config.model_renderer = lambda m: f"rendered:{m}"
+    assert config.resolve_model() == "rendered:openai:gpt-4"
+
+
+def test_resolve_model_getter_then_renderer_chain():
+    config = LLMConfig()
+    config.model = "openai:gpt-4"
+    config.model_getter = lambda m: "mid"
+    config.model_renderer = lambda m: f"final:{m}"
+    assert config.resolve_model() == "final:mid"
+
+
+def test_resolve_model_none_base_uses_config_model():
+    config = LLMConfig()
+    config.model = "openai:gpt-4"
+    config.model_getter = lambda m: f"got:{m}"
+    assert config.resolve_model(None) == "got:openai:gpt-4"
+
+
+# ---------------------------------------------------------------------------
+# api_key / base_url
+# ---------------------------------------------------------------------------
+
+
+def test_api_key_setter_and_getter():
+    config = LLMConfig()
+    config.api_key = "my-key"
+    assert config.api_key == "my-key"
+
+
+def test_api_key_falls_back_to_cfg():
+    config = LLMConfig()
+    with patch("zrb.llm.config.config.CFG") as mock_cfg:
+        mock_cfg.LLM_API_KEY = "cfg-key"
+        assert config.api_key == "cfg-key"
+
+
+def test_base_url_setter_and_getter():
+    config = LLMConfig()
+    config.base_url = "https://api.example.com"
+    assert config.base_url == "https://api.example.com"
+
+
+def test_base_url_falls_back_to_cfg():
+    config = LLMConfig()
+    with patch("zrb.llm.config.config.CFG") as mock_cfg:
+        mock_cfg.LLM_BASE_URL = "https://cfg.example.com"
+        assert config.base_url == "https://cfg.example.com"
+
+
+# ---------------------------------------------------------------------------
+# provider
+# ---------------------------------------------------------------------------
+
+
+def test_provider_default_is_openai_string():
+    config = LLMConfig()
+    with patch("zrb.llm.config.config.CFG") as mock_cfg:
+        mock_cfg.LLM_API_KEY = None
+        mock_cfg.LLM_BASE_URL = None
+        assert config.provider == "openai"
+
+
+def test_provider_setter_and_getter():
+    config = LLMConfig()
+    config.provider = "anthropic"
+    assert config.provider == "anthropic"
+
+
+def test_provider_returns_openai_provider_object_when_api_key_set():
+    config = LLMConfig()
+    config.api_key = "sk-test"
+    with patch("zrb.llm.config.config.CFG") as mock_cfg:
+        mock_cfg.LLM_API_KEY = None
+        mock_cfg.LLM_BASE_URL = None
+        result = config.provider
+        # An OpenAI-compatible provider object is returned, not the string.
+        assert result != "openai"
+        assert not isinstance(result, str)
+
+
+def test_provider_returns_openai_provider_object_when_base_url_set():
+    config = LLMConfig()
+    config.base_url = "https://compat.example.com"
+    with patch("zrb.llm.config.config.CFG") as mock_cfg:
+        mock_cfg.LLM_API_KEY = None
+        mock_cfg.LLM_BASE_URL = None
+        result = config.provider
+        assert not isinstance(result, str)
+
+
+# ---------------------------------------------------------------------------
+# Model resolution through a string / object provider (resolve_model path)
+# ---------------------------------------------------------------------------
+
+
+def test_model_string_provider_prefix_rewrite():
+    """An unknown provider model + api_key + a string provider rewrites the
+    provider prefix on the model name."""
+    config = LLMConfig()
+    config.api_key = "sk-test"
+    config.provider = "anthropic"
+    with patch("zrb.llm.config.config.CFG") as mock_cfg:
+        mock_cfg.LLM_MODEL = "made-up:gpt-x"
+        mock_cfg.LLM_BASE_URL = None
+        # provider_name "made-up" is not native, api_key is set -> resolve through
+        # the string provider, which rewrites the prefix to "anthropic".
+        assert config.model == "anthropic:gpt-x"
+
+
+def test_model_unknown_object_provider_fallback():
+    """An unknown (non-OpenAI, non-string) provider object falls back to the
+    original model name."""
+    config = LLMConfig()
+    config.api_key = "sk-test"
+    config.provider = object()
+    with patch("zrb.llm.config.config.CFG") as mock_cfg:
+        mock_cfg.LLM_MODEL = "made-up:gpt-x"
+        mock_cfg.LLM_BASE_URL = None
+        assert config.model == "made-up:gpt-x"
