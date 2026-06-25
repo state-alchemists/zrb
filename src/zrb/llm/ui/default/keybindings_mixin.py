@@ -111,6 +111,11 @@ class KeybindingsMixin:
             buffer = event.app.current_buffer
             if buffer.selection_state:
                 data = buffer.copy_selection()
+                # The output buffer holds raw ANSI codes (e.g. muted tool-call
+                # detail); strip them so the clipboard gets plain text.
+                from zrb.util.cli.style import remove_style
+
+                data.text = remove_style(data.text)
                 if event.app.clipboard:
                     event.app.clipboard.set_data(data)
                 buffer.exit_selection()

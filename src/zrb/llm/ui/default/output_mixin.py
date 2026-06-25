@@ -116,28 +116,25 @@ class OutputMixin:
         kind: str = "text",
     ):
         # lazy: heavy third-party
-        from prompt_toolkit.application import get_app
         from prompt_toolkit.document import Document
 
         current_text = self._output_field.text
 
-        # Scroll to end when the input field is focused or we're already at the
-        # last line. Otherwise preserve the user's scroll position.
-        is_input_focused = False
-        try:
-            app = get_app()
-            is_input_focused = app.layout.has_focus(self._input_field)
-        except Exception:
-            pass
-
-        is_at_last_line = False
+        # The output window pins itself to the cursor, so follow-the-tail means
+        # "keep the cursor on the last line". While it is, new chunks scroll
+        # into view; the moment the user scrolls up (which moves the cursor up —
+        # see create_output_field's mouse handler / the output keybindings) the
+        # cursor leaves the last line and we freeze, preserving their position.
+        # Scrolling back down to the last line resumes following. Works
+        # regardless of which pane is focused, so the thinking process can be
+        # read mid-stream without first focusing the output pane (Ctrl+K).
+        is_at_last_line = True
         try:
             doc = self._output_field.buffer.document
             is_at_last_line = doc.cursor_position_row >= doc.line_count - 1
         except Exception:
             pass
-
-        should_scroll_to_end = is_input_focused or is_at_last_line
+        should_scroll_to_end = is_at_last_line
 
         content = sep.join([str(value) for value in values]) + end
 

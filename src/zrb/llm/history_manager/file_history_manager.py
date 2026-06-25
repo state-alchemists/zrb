@@ -237,10 +237,13 @@ class FileHistoryManager(AnyHistoryManager):
 
             is_match, score = fuzzy_match(conversation_name, keyword)
             if is_match:
-                matches.append((conversation_name, score))
+                mtime = self._file_mtime(os.path.join(self._history_dir, filename))
+                matches.append((conversation_name, score, mtime or 0.0))
 
-        # Sort by score (lower is better)
-        matches.sort(key=lambda x: x[1])
+        # Sort by fuzzy score (lower is better), then most-recently-modified
+        # first. With an empty keyword every score is 0.0, so the effective
+        # order is mtime-descending — recent sessions surface first in `/load`.
+        matches.sort(key=lambda x: (x[1], -x[2]))
 
         return [m[0] for m in matches]
 
