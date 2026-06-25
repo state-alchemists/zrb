@@ -97,6 +97,18 @@ def test_file_history_manager_search(temp_history_dir):
     assert "banana" not in results
 
 
+def test_file_history_manager_search_empty_orders_by_mtime_desc(temp_history_dir):
+    manager = FileHistoryManager(temp_history_dir)
+    for name in ("old", "mid", "new"):
+        open(os.path.join(temp_history_dir, f"{name}.json"), "w").close()
+    # Force a deterministic mtime order: old < mid < new
+    os.utime(os.path.join(temp_history_dir, "old.json"), (1000, 1000))
+    os.utime(os.path.join(temp_history_dir, "mid.json"), (2000, 2000))
+    os.utime(os.path.join(temp_history_dir, "new.json"), (3000, 3000))
+
+    assert manager.search("") == ["new", "mid", "old"]
+
+
 def test_file_history_manager_load_empty(temp_history_dir):
     manager = FileHistoryManager(temp_history_dir)
     file_path = os.path.join(temp_history_dir, "empty.json")

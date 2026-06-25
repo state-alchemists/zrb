@@ -10,10 +10,11 @@ writing ``None`` removes the var when `nullable` is set.
 Public access stays flat and unchanged: `CFG.LLM_MODEL` resolves through the
 descriptor exactly as a `@property` did, so no caller or test needs to change.
 
-Genuinely irregular knobs are intentionally NOT migrated and stay as
-hand-written properties: non-prefixed env keys (foundation's `ENV_PREFIX`,
-`VERSION`; search `BRAVE_API_KEY`/`SERPAPI_KEY`), and values needing
-post-read transformation (`BANNER`, `LLM_ASSISTANT_NAME`).
+`no_prefix=True` reads/writes the bare env name without the `ENV_PREFIX`,
+covering keys that live outside the namespace (`BRAVE_API_KEY`, `SERPAPI_KEY`)
+or use an internal name (`_ZRB_ENV_PREFIX`, `_ZRB_CUSTOM_VERSION`). Combined
+with `transform`/`default_factory`, this leaves only genuinely non-env values
+as hand-written properties (e.g. `LOGGER`, which is `logging.getLogger()`).
 """
 
 from __future__ import annotations
@@ -49,6 +50,13 @@ def expanduser_colon_list(raw: str) -> list[str]:
 def comma_list(raw: str) -> list[str]:
     """Parse a ``,``-delimited string, stripping and dropping empty segments."""
     return [part.strip() for part in raw.split(",") if part.strip() != ""]
+
+
+def comma_or_colon_list(raw: str) -> list[str]:
+    """Parse a ``,``- or ``:``-delimited string (e.g. module names, which never
+    contain either). Accepts both so a colon-separated value written before the
+    comma convention keeps working."""
+    return [part.strip() for part in raw.replace(":", ",").split(",") if part.strip()]
 
 
 def colon_join(value: list[str]) -> str:
@@ -95,6 +103,11 @@ class EnvField(Generic[T]):
     nullable:
         When ``True``, an unset/empty value reads as ``None`` and assigning
         ``None`` deletes the env var instead of writing ``"None"``.
+    no_prefix:
+        When ``True``, the env var is read and written under its bare name with
+        no ``ENV_PREFIX`` (e.g. ``BRAVE_API_KEY`` rather than ``ZRB_BRAVE_API_KEY``).
+        Pair with ``aliases``/``write_key`` for internal names such as
+        ``_ZRB_CUSTOM_VERSION``.
     doc:
         Docstring surfaced as the descriptor's ``__doc__``.
     """
@@ -111,6 +124,7 @@ class EnvField(Generic[T]):
         default_factory: Callable[[Any], str] | None = None,
         fallback: Any = _UNSET,
         nullable: bool = False,
+        no_prefix: bool = False,
         doc: str = "",
     ):
         self._cast = cast
@@ -122,12 +136,29 @@ class EnvField(Generic[T]):
         self._default_factory = default_factory
         self._fallback = fallback
         self._nullable = nullable
+        self._no_prefix = no_prefix
         self.__doc__ = doc
 
     def __set_name__(self, owner: type, name: str) -> None:
         self._name = name
         self._read_names = self._aliases if self._aliases is not None else [name]
         self._write_name = self._write_key if self._write_key is not None else name
+
+    def env_key(self, prefix: str) -> str:
+        """Full environment variable name this field writes to, given a prefix."""
+        if self._no_prefix:
+            return self._write_name
+        return f"{prefix}_{self._write_name}"
+
+    def _read_raw(self, obj: Any) -> str:
+        default = self._resolve_default(obj)
+        if not self._no_prefix:
+            return get_env(self._read_names, default, obj.ENV_PREFIX)
+        for name in self._read_names:
+            value = os.getenv(name, None)
+            if value is not None:
+                return value
+        return default
 
     def _resolve_default(self, obj: Any) -> str:
         if self._default_factory is not None:
@@ -145,7 +176,7 @@ class EnvField(Generic[T]):
     def __get__(self, obj: Any, objtype: type | None = None) -> Any:
         if obj is None:
             return self
-        raw = get_env(self._read_names, self._resolve_default(obj), obj.ENV_PREFIX)
+        raw = self._read_raw(obj)
         if self._nullable and not raw:
             return None
         if not raw:
@@ -167,7 +198,7 @@ class EnvField(Generic[T]):
         return value
 
     def __set__(self, obj: Any, value: Any) -> None:
-        key = f"{obj.ENV_PREFIX}_{self._write_name}"
+        key = self.env_key(obj.ENV_PREFIX)
         if value is None and self._nullable:
             os.environ.pop(key, None)
             return

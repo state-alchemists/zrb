@@ -41,6 +41,10 @@ class _Host:
         default="5",
         doc="int doubled via transform",
     )
+    BARE = EnvField(str, no_prefix=True, default="fallback")
+    BARE_ALIASED = EnvField(
+        str, no_prefix=True, aliases=["_INTERNAL_KEY"], write_key="_INTERNAL_KEY"
+    )
 
 
 @pytest.fixture
@@ -48,6 +52,9 @@ def host(monkeypatch):
     for key in list(os.environ):
         if key.startswith("TESTCFG_"):
             monkeypatch.delenv(key, raising=False)
+    # Bare (no_prefix) keys used by the no_prefix tests.
+    for key in ("BARE", "_INTERNAL_KEY"):
+        monkeypatch.delenv(key, raising=False)
     return _Host()
 
 
@@ -179,6 +186,35 @@ def test_transform_receives_host_object(host, monkeypatch):
     # transform doubles the value; verify it's actually called.
     monkeypatch.setenv("TESTCFG_TRANSFORMED", "3")
     assert host.TRANSFORMED == 6
+
+
+def test_no_prefix_reads_bare_env_name(host, monkeypatch):
+    assert host.BARE == "fallback"
+    # Read uses the bare name, NOT the prefixed one.
+    monkeypatch.setenv("TESTCFG_BARE", "prefixed")
+    assert host.BARE == "fallback"
+    monkeypatch.setenv("BARE", "bare-value")
+    assert host.BARE == "bare-value"
+
+
+def test_no_prefix_writes_bare_env_name(host, monkeypatch):
+    monkeypatch.delenv("BARE", raising=False)
+    host.BARE = "written"
+    assert os.environ["BARE"] == "written"
+    assert "TESTCFG_BARE" not in os.environ
+
+
+def test_no_prefix_honors_aliases_and_write_key(host, monkeypatch):
+    monkeypatch.setenv("_INTERNAL_KEY", "internal")
+    assert host.BARE_ALIASED == "internal"
+    host.BARE_ALIASED = "set"
+    assert os.environ["_INTERNAL_KEY"] == "set"
+
+
+def test_env_key_respects_prefix_and_no_prefix():
+    assert _Host.PLAIN.env_key("TESTCFG") == "TESTCFG_PLAIN"
+    assert _Host.BARE.env_key("TESTCFG") == "BARE"
+    assert _Host.BARE_ALIASED.env_key("TESTCFG") == "_INTERNAL_KEY"
 
 
 def test_class_access_returns_descriptor():

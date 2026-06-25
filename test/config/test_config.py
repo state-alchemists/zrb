@@ -143,6 +143,13 @@ def test_diff_edit_command():
 
 
 def test_init_modules(monkeypatch):
+    monkeypatch.setenv("ZRB_INIT_MODULES", "module1,module2")
+    config = Config()
+    assert config.INIT_MODULES == ["module1", "module2"]
+
+
+def test_init_modules_accepts_legacy_colon(monkeypatch):
+    # Colon-separated values written before the comma convention still parse.
     monkeypatch.setenv("ZRB_INIT_MODULES", "module1:module2")
     config = Config()
     assert config.INIT_MODULES == ["module1", "module2"]
@@ -719,7 +726,7 @@ class TestConfigSetters:
     def test_init_modules_setter(self, monkeypatch):
         config = Config()
         config.INIT_MODULES = ["mod1", "mod2"]
-        assert os.environ["ZRB_INIT_MODULES"] == "mod1:mod2"
+        assert os.environ["ZRB_INIT_MODULES"] == "mod1,mod2"
 
     def test_root_group_name_setter(self, monkeypatch):
         config = Config()

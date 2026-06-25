@@ -36,7 +36,7 @@ def _collect_entries(keyword: str) -> list[tuple[str, str, str]]:
             if not isinstance(attr_val, EnvField) or attr_name in seen:
                 continue
             seen.add(attr_name)
-            env_var = f"{CFG.ENV_PREFIX}_{attr_val._write_name}"
+            env_var = attr_val.env_key(CFG.ENV_PREFIX)
             try:
                 raw = getattr(CFG, attr_name)
                 value = "" if raw is None else attr_val._serialize(raw)
