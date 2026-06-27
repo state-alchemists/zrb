@@ -39,7 +39,7 @@
 21. [Rate Limiting & Budget Control](#21-rate-limiting--budget-control)
 22. [Platform Support](#22-platform-support)
 23. [LSP / Code Intelligence](#23-lsp--code-intelligence)
-24. [Context Compaction & Prompt Caching](#24-context-compaction--prompt-caching)
+24. [Context Compaction](#24-context-compaction)
 25. [Vim Mode & Editor Features](#25-vim-mode--editor-features)
 26. [Voice Input](#26-voice-input)
 27. [Diff Viewer](#27-diff-viewer)
@@ -87,7 +87,7 @@ Comprehensive CLI with 70+ flags across 30+ subcommands. Highlights:
 
 **Gap**: 7 inputs against Claude Code's 70+ flags. The *underlying infra* is now broad (permission policy + plan mode, sandbox, background delegation, prompt caching, rate limiting, snapshots, hooks) — but little of it is exposed as CLI flags. Only `--sandbox` has been added as a mode flag; plan mode and named permission modes are still toggled in-session / via env vars rather than a CLI flag. Critical missing surface: `--permission-mode`, `--max-turns`, `--max-budget-usd`, `--output-format json/stream-json`, `--system-prompt`, `--add-dir`, `--worktree`, `--bare`, `--no-session-persistence`, `--effort`, `--fork-session`, `--fallback-model`, `--resume`, `--name`, `--agents`, `--plugin-dir`, `--remote-control`, `--channels`.
 
-**Effort to close**: **Medium** (2–3 weeks) — map each flag to existing Zrb config and expose as CLI inputs on `LLMChatTask`. Most backing functionality now exists; this is surface wiring.
+**Effort to close**: **Medium** (2–3 weeks) — map each flag to existing Zrb config and expose as CLI inputs on `LLMChatTask`.
 
 ---
 
@@ -146,7 +146,7 @@ Custom commands via `CustomCommand` class:
 - Skill-based commands via `get_skill_custom_command()`; skills become slash commands from `name` metadata
 - Skill slash-command stubs delegate to core-skill companion files
 
-Built-in slash commands (dispatched via mixins in `src/zrb/llm/ui/base/`): `/compress` / `/compact`, `/attach`, `/exit` `/info` `/help`, `/save` `/load`, `/yolo [tools]`, `/plan`, `>` `/redirect`, `/copy`, `!` `/exec`, `/model` (+ `small` / `multimodal`), `/btw`, `/rewind`. All command tokens configurable via `ZRB_LLM_UI_COMMAND_*` env vars.
+Built-in slash commands: `/compress` / `/compact`, `/attach`, `/q` `/bye` `/quit` `/exit`, `/info` `/help`, `/save` `/load`, `/yolo [tools]`, `/plan` ✅ **NEW (v2.32.0)**, `>` `/redirect` (bare → clipboard), `/copy [file]` ✅ **NEW (v2.33.2)**, `!` `/exec`, `/model [small|multimodal] <name>`, `/btw`, `/rewind`. Command names are configurable via `ZRB_LLM_UI_COMMAND_*` env vars.
 
 **`PRE_COMMAND` / `POST_COMMAND` hooks** ✅: hooks fire before/after slash-command dispatch; can block a command and **rewrite command arguments on-the-fly** via the hook result's `command_args`.
 
@@ -242,17 +242,17 @@ Transports: `stdio`, `http`, `sse` (deprecated), `ws`. Config scopes: managed �
 
 ### Zrb
 
-- **Transports**: `stdio` + **`http`/URL** ✅ (via `fastmcp` / `pydantic_ai.mcp.MCPToolset`). No `sse`/`ws`.
-- Config: `mcp-config.json` (configurable via `MCP_CONFIG_FILE`), searched home → CWD hierarchy, all matching files merged
+- **Transports**: `stdio` + **`http`/URL** ✅ (now via `fastmcp`; the prior `sse`-only assessment is outdated)
+- Config: `mcp-config.json` (configurable via `MCP_CONFIG_FILE`), searched home → CWD hierarchy
 - **Env var expansion** with `${VAR}` / `${VAR:-default}` (recursive over command/args/env)
 - Retry via `LLM_MCP_MAX_RETRIES` (default 3)
-- Loaded via `load_mcp_config()` as a toolset factory in `LLMChatTask`
+- Loaded via `load_mcp_config()` in `LLMChatTask`
 
 **Status**: 🟡 **Partially supported**
 
 **Gap**: `stdio` + `http` work. Missing: `sse`/`ws` transports, `zrb mcp add` CLI, OAuth, MCP prompts → slash commands, MCP tool search / deferred loading (`ToolSearch`), MCP resource tools, subagent-scoped MCP, idle timeout, elicitation, `/mcp` UI, managed-only policy, registry/marketplace.
 
-**Effort to close**: **Medium** (3–4 weeks): `sse` (3–5d), `zrb mcp add` (2d), prompts→commands (3–4d), resource tools (2–3d), `/mcp` UI (2–3d), OAuth (1–2wk), deferred loading (1wk).
+**Effort to close**: **Medium** (3–4 weeks): `ws`/`sse` (3–5d), `zrb mcp add` (2d), prompts→commands (3–4d), resources tools (2–3d), `/mcp` UI (2–3d), OAuth (1–2wk), deferred loading (1wk).
 
 ---
 
@@ -299,7 +299,7 @@ Declarative subagents via markdown + YAML frontmatter (`.claude/agents/`, `~/.cl
 
 **Gap**: Zrb's delegation is single tool calls returning aggregated/polled results — not persistent coordinated agents nor a deterministic orchestration runtime. Background delegation is a partial building block toward the dynamic-workflow side. Missing: team lifecycle, inter-agent messaging, shared task list with dependencies, tmux/iterm2 display, `SendMessage`, JS dynamic-workflow scripting + `/workflows` UI + the `Workflow` tool.
 
-**Effort to close**: **Very High** (8–12 weeks) — fundamentally different architecture. Zrb's DAG task engine + parallel/background delegate are partial building blocks for the dynamic-workflow side.
+**Effort to close**: **Very High** (8–12 weeks) — fundamentally different architecture. Zrb's existing DAG task engine + parallel delegate are partial building blocks for the dynamic-workflow side.
 
 ---
 
@@ -314,8 +314,8 @@ File-based skills (`.claude/skills/<name>/SKILL.md` or `.claude/commands/<name>.
 Comprehensive skill system (`src/zrb/llm/skill/`):
 - File types: `.skill.md`, `.skill.py`, `SKILL.md`, `SKILL.py`
 - Scopes: default plugin > user plugins > global (`~/.claude/skills/`, `~/.zrb/skills/`) > project (`.claude/skills/`, `.zrb/skills/`)
-- Frontmatter: `name`, `description`, `argument-hint`, `disable-model-invocation`, `user-invocable`, `allowed-tools`, `model`, `context`, `agent`, **`hooks`** ✅
-- **Companion-file discovery** ✅: `ActivateSkill` returns the skill directory path + grouped companion-file listing
+- Frontmatter: `name`, `description`, `argument-hint`, `disable-model-invocation`, `user-invocable`, `allowed-tools`, `model`, `context`, `agent`, **`hooks`** ✅ (skill-defined hooks supported)
+- **Companion-file discovery** ✅: `ActivateSkill` returns the skill directory path + grouped companion-file listing; `discover_companion_files()` + `format_companion_file_lines()`
 - Lazy scan + content caching; factory-function skills; `get_skill_custom_command()`
 
 **Built-in plugin** (`src/zrb/llm_plugin/`) — three governable categories (ADR-0069):
@@ -411,7 +411,13 @@ Comprehensive skill system (`src/zrb/llm/skill/`):
 | `EnterWorktree` / `ExitWorktree` | ✅ `enter_worktree`/`exit_worktree`/`list_worktrees` (ContextVar tracking) |
 | `TaskCreate/Get/List/Update/Stop` | 🟡 `write_todos`/`get_todos` (system-context integration; `update`/`clear` folded into `write_todos`) |
 | `CronCreate/Delete/List` | ❌ Not LLM tools (Zrb `Scheduler` exists at task level) |
-| `ToolSearch` (deferred MCP tools) | ❌ Not implemented |
+| `EnterPlanMode` / `ExitPlanMode` | ✅ **`EnterPlanMode`/`ExitPlanMode` with enforced read-only policy** — **NEW (v2.32.0, ADR-0051)** |
+| `EnterWorktree` / `ExitWorktree` | ✅ `enter_worktree`/`exit_worktree`/`list_worktrees` (ContextVar tracking) |
+| `Monitor` (stream background events) | 🟡 `MonitorProcess` polls background shell processes; no unified event stream across task types |
+| `SendMessage` (agent teams) | ❌ Teams not implemented |
+| `Workflow` (script-orchestrated fan-out — v2.1.154) | ❌ Not implemented (`DelegateToAgentBackground` is a partial building block) |
+| `Artifact` (publish live web page to claude.ai) | ❌ Not implemented (Zrb has a local web UI instead) |
+| `ToolSearch` (deferred tools) | ❌ Not implemented |
 | `ListMcpResourcesTool` / `ReadMcpResourceTool` | ❌ Not implemented |
 | `SendMessage` / Agent Teams | ❌ Teams not implemented |
 | `Workflow` (dynamic workflows) | ❌ Not implemented |
@@ -426,8 +432,8 @@ Comprehensive skill system (`src/zrb/llm/skill/`):
 **Post-write/edit diagnostics** ✅ (`tool/post_write_check.py`): after `write_file`/`replace_in_file`, runs LSP `get_diagnostics()` + static checks (Python `ast.parse` + `pyflakes`); appends a `[DIAGNOSTIC]` block. File-tool errors attach `[SYSTEM SUGGESTION]` recovery hints.
 
 **Additional Zrb tools not in Claude Code** 🔵:
-- `RM` (`remove_file`), `MV` (`move_file`)
-- `SearchJournal`
+- `RM` (`remove_file`), `MV` (`move_file`) — **NEW (v2.24.0)**
+- `SearchJournal` — **NEW (v2.24.0)**
 - `AnalyzeFile` (AST-based), `AnalyzeCode` (LLM sub-agent analysis)
 - `create_rag_from_directory` (ChromaDB embeddings, semantic search)
 - `List{Root}Tasks` / `Run{Root}Task` (discover + run any Zrb task as a tool)
@@ -437,7 +443,9 @@ Comprehensive skill system (`src/zrb/llm/skill/`):
 
 **Gap**: Core file/shell/web/worktree/LSP/todo/plan-mode/background tools well-covered. Missing: `NotebookEdit`, `CronCreate/Delete/List`, general `Monitor` event stream, `ToolSearch`, MCP resource tools, `SendMessage`/Teams, `Workflow`, `RemoteTrigger`/`PushNotification`/`ScheduleWakeup`, `Artifact`, dedicated `PowerShell` tool.
 
-**Effort to close**: **Medium** (2–3 weeks): `NotebookEdit` (3–4d), Cron tools (3–4d, reuse `Scheduler`), `ToolSearch` deferred loading (1wk), MCP resource tools (2–3d).
+**Gap**: Core file/shell/web/worktree/LSP/todo tools well-covered; background shell, plan-mode tools, and background delegation all present. Missing: `NotebookEdit`, `CronCreate/Delete/List`/`ScheduleWakeup`, unified `Monitor` event stream, `SendMessage` (teams), the `Workflow` orchestration tool, `Artifact`, `ToolSearch` (deferred tools), MCP resource tools, `RemoteTrigger`/`PushNotification`.
+
+**Effort to close**: **Medium** (2–3 weeks): `NotebookEdit` (3–4d), Cron tools (3–4d, reuse `Scheduler`), `ToolSearch` deferred loading (1wk), unified `Monitor` (2–3d).
 
 ---
 
@@ -479,7 +487,7 @@ Checkpointing: auto checkpoint before every edit and per prompt (`fileCheckpoint
 
 **Gap**: Rewind/snapshot + ephemeral sessions + interrupt-preserving + partial-run retry + transcript copy/export. Missing: rewind is opt-in (not automatic); no Esc+Esc shortcut; no session branching/forking; no resume-by-id picker; no startup `--name`; no `/export` (but `/copy <file>` partially covers it); no session stats / `/usage`; no `--from-pr`; no `/search` over history.
 
-**Effort to close**: **Medium** (3–4 weeks): enable rewind by default (1d), Esc+Esc (1–2d), branching (1wk), resume picker (2–3d), `--name` (1d), stats (2–3d).
+**Effort to close**: **Medium** (2–3 weeks): enable rewind by default (1d), Esc+Esc (1–2d), branching (1wk), resume picker (2–3d), `--name` (1d), stats (2–3d).
 
 ---
 
@@ -511,7 +519,7 @@ Background classifier reviews each action before execution; sees user messages +
 
 No equivalent LLM-based safety classifier. The **permission policy engine** (§10) + `bash_safe_command_policy` metacharacter rejection + the **sandbox** (§18) provide rule-based and OS-level containment, but there is no model-in-the-loop pre-action classifier that reasons about intent. The `StopFailure` error-classification taxonomy (§5) provides a hookable substrate for retry/escalation logic but is not a pre-action classifier.
 
-**Status**: ❌ **Not supported** (rule-based + sandbox containment exist; no classifier)
+**Status**: ❌ **Not supported**
 
 **Effort to close**: **High** (4–6 weeks): pre-action classification hook (1wk), default block/allow rules (1wk), configurable rules layered onto the existing policy engine (1wk), fallback counter (2d), integration with permission modes (1wk). The policy engine and sandbox provide natural enforcement hooks for a classifier's verdicts.
 
@@ -521,7 +529,7 @@ No equivalent LLM-based safety classifier. The **permission policy engine** (§1
 
 ### Claude Code
 
-GitHub Actions (`@claude` mention triggers), GitLab CI, GitHub Code Review bot, `/install-github-app`, `--from-pr`, `/pr-comments`, PR status footer, `/security-review`, Slack integration, `/batch` (parallel worktree agents each opening a PR), `claude ultrareview` (non-interactive CI review), `/code-review --fix`.
+GitHub Actions (`@claude` mention triggers), GitLab CI, GitHub Code Review bot, `/install-github-app`, `--from-pr`, `/pr-comments`, PR status footer, `/security-review`, Slack integration, `/batch` (parallel worktree agents each opening a PR), **`claude ultrareview`** (non-interactive CI review — new), `/code-review --fix`.
 
 ### Zrb
 
@@ -558,7 +566,7 @@ OS-level Bash sandboxing (macOS Seatbelt, Linux/WSL bubblewrap): `sandbox.enable
 
 **Gap**: Zrb has FS-level (read+write) sandboxing on macOS (Seatbelt) and Linux (bwrap) plus credential-read denial, a `--sandbox` flag, first-class constructor args, and a safe fallback. Missing vs Claude Code: **network sandboxing** (allowed/denied domains, proxy — Zrb keeps network open in v1), `excludedCommands`/`allowUnsandboxedCommands` granularity, managed-read/domain-only enforcement, weaker-isolation toggles, a `/sandbox` UI command, and a dedicated Windows mechanism.
 
-**Effort to close**: **Medium-High** (3–4 weeks): network isolation via proxy (1–2wk), `excludedCommands` (2–3d), managed policy layer (depends on §11), `/sandbox` command (2–3d), Windows mechanism (1–2wk, platform-dependent).
+**Effort to close**: **Medium** (2–3 weeks): network filtering via proxy or bwrap `--unshare-net` + allowlist (1–2wk), per-command exclusions (2–3d), Windows AppContainer/Job-object research (open-ended).
 
 ---
 
@@ -574,7 +582,7 @@ OS-level Bash sandboxing (macOS Seatbelt, Linux/WSL bubblewrap): `sandbox.enable
 
 **Status**: 🟡 **Different approach** — local web server + multi-channel vs cloud infra.
 
-**Gap**: True cloud sessions need cloud infra. Channels partially bridged by MultiUI/MultiplexApprovalChannel + HTTP API but no drop-in Channels system.
+**Gap**: True cloud sessions need cloud infra. Channels (Telegram/Discord/iMessage/webhooks) partially bridged by MultiUI/MultiplexApprovalChannel + HTTP API but no drop-in Channels system.
 
 **Effort to close**: **Low–Medium** for remote API (web server already provides this); **Medium** (2–3 weeks) for WebSocket remote control + channel plugins; **Very High** for true cloud sessions.
 
@@ -622,7 +630,7 @@ Missing: per-session budget cap, `/usage`/`/cost`, cumulative spend, fallback mo
 
 ### Claude Code
 
-macOS (Intel + Apple Silicon, Homebrew, Desktop), Linux (native, Docker), Windows (WSL + native, PowerShell/WinGet, Desktop; WSL image/screenshot paste), iOS/Android (mobile app, Dispatch), browser (claude.ai/code).
+macOS (Intel + Apple Silicon, Homebrew, Desktop), Linux (native, Docker), Windows (WSL + native, PowerShell/WinGet, Desktop; WSL image/screenshot paste — new), iOS/Android (mobile app, Dispatch), browser (claude.ai/code).
 
 ### Zrb
 
@@ -655,7 +663,7 @@ Built-in LSP tool: post-edit type errors/warnings; `find_definition`, `find_refe
 
 ---
 
-## 24. Context Compaction & Prompt Caching
+## 24. Context Compaction
 
 ### Claude Code
 
@@ -665,7 +673,7 @@ Auto-compaction on limit; `/compact [instructions]`; `PreCompact`/`PostCompact` 
 
 Two-layer auto-summarization:
 - **Layer 1** — per-message: large tool results summarized in-place
-- **Layer 2** — conversational: triggers on message/token thresholds (system-prompt-aware); respects tool call/return pairs; chunk-and-summarize with `<state_snapshot>` consolidation; **parallel chunk summarization** (`asyncio.gather`); `<active_skills>` tracked + restored; summarizers use `LLMConfig.resolve_model()`; retry transient 5xx/429
+- **Layer 2** — conversational: triggers on message/token thresholds (now system-prompt-aware, v2.24.2); respects tool call/return pairs; chunk-and-summarize with `<state_snapshot>` consolidation; **parallel chunk summarization** (`asyncio.gather`); `<active_skills>` tracked + restored; all summarizer agents use `LLMConfig.resolve_model()`
 - Manual: `/compress` / `/compact`
 - **`PRE_COMPACT` and `POST_COMPACT` hooks fire** ✅; PreCompact can inject `additionalContext` and block compaction (§5)
 - **Partial-run retry context** ✅: failed/interrupted turns capture completed tool calls for the next attempt (§14)
@@ -720,7 +728,7 @@ No voice input.
 
 ### Claude Code
 
-`/diff` interactive viewer (uncommitted + per-turn; keyboard scrolling, GFM task-list rendering); IDE accept/reject hunks; checkpoint-based diff.
+`/diff` interactive viewer (uncommitted + per-turn; **keyboard scrolling**, GFM task-list rendering — new); IDE accept/reject hunks; checkpoint-based diff.
 
 ### Zrb
 
@@ -742,7 +750,7 @@ No interactive diff viewer. Changes applied directly; git diff via `run_shell_co
 
 🔵 **Zrb advantage**: `TodoManager` with persistent JSON (`~/.zrb/todos/{session}.json`); states `pending`/`in_progress`/`completed`/`cancelled`; auto IDs, timestamps, progress. Tool surface simplified to **`write_todos`** (replace-semantics, subsumes the old `update_todo`/`clear_todos`) + **`get_todos`** (ADR-0068); a quantified trigger seeds the list before the first edit when work spans ≥3 steps / multiple files / multiple turns. Session isolation + ContextVar wiring; **todo progress card pushed to the active UI** (TUI/StdUI/web SSE `todo_progress`) after every change; **pending todos rendered into the live context every turn**. Plus 🔵 the full task-automation framework (`CmdTask`, `LLMTask`, DAG, dependencies, retries, scheduling — with cycle detection).
 
-**Status**: ✅ **Fully supported** (Zrb advantage on persistence + system-context integration + progress visualization).
+**Status**: ✅ **Fully supported** (Zrb advantage on persistence + system-context integration).
 
 ---
 
@@ -750,7 +758,7 @@ No interactive diff viewer. Changes applied directly; git diff via `run_shell_co
 
 ### Claude Code
 
-`CronCreate/Delete/List` tools (in-session recurring/one-shot prompts); `ScheduleWakeup` (`/loop` interval); `/schedule` (cloud routines, Pro+); `/loop [interval] <prompt>`; Desktop scheduled tasks; cloud scheduled tasks (persist when machine off).
+`CronCreate/Delete/List` tools (in-session recurring/one-shot prompts); `/schedule` (cloud tasks); `/loop [interval] <prompt>`; Desktop scheduled tasks; cloud scheduled tasks (persist when machine off).
 
 ### Zrb
 
@@ -770,13 +778,13 @@ First-class: `--worktree`/`-w`, `--tmux`; `isolation: worktree` in agent frontma
 
 ### Zrb
 
-**Worktree tools** ✅ (`src/zrb/llm/tool/worktree.py`): `enter_worktree(branch_name)`, `exit_worktree(worktree_path, keep_branch)`, `list_worktrees()`; all wrapped in `tool_wrapper`.
-- **ContextVar tracking** ✅: `EnterWorktree` sets `active_worktree`; injected into the live context + delegate messages; auto-adds `.zrb/worktree/` to `.gitignore`; **stale-worktree guard** clears the var if the path no longer exists
+**Worktree tools** ✅ (`src/zrb/llm/tool/worktree.py`): `enter_worktree(branch_name)`, `exit_worktree(worktree_path, keep_branch)`, `list_worktrees()`; all wrapped in `tool_wrapper` (structured `{"error": …}`).
+- **ContextVar tracking** ✅: `EnterWorktree` sets `active_worktree`; injected into every system context + delegate messages; LLM reminded to pass `cwd`/absolute paths; auto-adds `.zrb/worktree/` to `.gitignore`; **stale-worktree guard** clears the var if the path no longer exists (v2.27.0)
 - Storage: `{git_root}/.zrb/worktree/{branch_name}`
 
 **Status**: 🟡 **Partially supported**
 
-**Gap**: Core tools + ContextVar tracking + stale guard. Missing: `--worktree`/`-w` CLI flag, `--tmux`, `isolation: worktree` in agent defs, `WorktreeCreate`/`WorktreeRemove` hooks, `/batch`, worktree settings (`symlinkDirectories`/`sparsePaths`/`baseRef`), auto-cleanup on session end, `.worktreeinclude`.
+**Gap**: Core tools + ContextVar tracking + stale guard. Missing: `--worktree`/`-w` CLI flag, `--tmux`, `isolation: worktree` in agent defs, `WorktreeCreate`/`WorktreeRemove` hooks, `/batch`, worktree settings (`symlinkDirectories`/`sparsePaths`), auto-cleanup of empty worktrees on session end, `.worktreeinclude`.
 
 **Effort to close**: **Medium** (2–3 weeks): `--worktree` flag (1–2d), `isolation: worktree` in agent defs (~1wk after agent-frontmatter work), worktree hooks (2d), auto-cleanup (2d), `/batch` (2–3wk).
 
@@ -790,10 +798,10 @@ Native image input on vision models; clipboard paste (Ctrl+V/Cmd+V; WSL screensh
 
 ### Zrb
 
-🔵 **Multimodal attachment pipeline** ✅ (`src/zrb/llm/util/`):
+🔵 **Multimodal attachment pipeline** ✅ **NEW (v2.26.0)** (`src/zrb/llm/util/`):
 - `LLM_MULTIMODAL_MODEL` — designate a vision model to describe attachments when the main model is text-only
-- `LLM_MAX_IMAGE_DIMENSION` (1568) + `LLM_IMAGE_JPEG_QUALITY` (85): pasted/`/attach`-ed images auto-scaled; opaque→JPEG, alpha→PNG
-- `runner._apply_multimodal_fallback`: if the main model can't consume an image/audio, the multimodal model describes it and substitutes text; otherwise dropped with a `⚠️ Dropped <modality>` warning (never silently sent to a rejecting provider)
+- `LLM_MAX_IMAGE_DIMENSION` (1568, Anthropic no-extra-cost tier) + `LLM_IMAGE_JPEG_QUALITY` (85): pasted/`/attach`-ed images auto-scaled; opaque→JPEG, alpha→PNG
+- `runner._apply_multimodal_fallback`: if the main model can't consume an image/audio, the multimodal model describes it and substitutes text; if none configured, the attachment is dropped with a `⚠️ Dropped <modality>` warning (never silently sent to a rejecting provider)
 - Audio: describe/transcribe fallback. Video: kept for Gemini-class, dropped-with-warning otherwise
 - Per-model capability registry (`model_capabilities`) drives support detection
 - Clipboard paste via Ctrl+V and Alt+V; `/model multimodal <name>` sets the vision model at runtime
@@ -810,7 +818,7 @@ Single primary provider (Anthropic) with `--fallback-model` chain on overload; B
 
 ### Zrb
 
-🔵 **Major Zrb advantage** — multi-provider robustness:
+🔵 **Major Zrb advantage** — multi-provider robustness (largely built v2.23–2.26):
 - Any model via Pydantic AI (OpenAI, Anthropic, Gemini, Ollama, xAI, Groq, HuggingFace, Cohere, Bedrock, …)
 - **4-stage history sanitization** (`sanitize_history`): filter nil content → strip orphaned tool calls → drop empty messages → ensure alternating roles
 - **Provider-specific 400 recovery**: DeepSeek `reasoning_content` rejection → `strip_thinking_parts` retry; GLM empty `ValidationException` retry; **generic opaque-400** → `strip_to_text_only()` collapse + single retry (provider-agnostic); Bedrock nil-content → `"."` placeholder; invalid-tool-call detection requires entity + problem keyword
@@ -831,7 +839,7 @@ Single primary provider (Anthropic) with `--fallback-model` chain on overload; B
 
 ### Zrb
 
-✅ **Fully implemented** (`_handle_btw_command`): `/btw <question>` answered in a temporary context (runs in parallel), not appended to history; shares conversation context for relevant answers.
+✅ **Fully implemented** (`_handle_btw_command` in `base_ui.py`): `/btw <question>` answered in a temporary context, not appended to history; shares conversation context for relevant answers.
 
 **Status**: ✅ **Fully supported**
 
@@ -896,8 +904,8 @@ Remote Control (control a session from claude.ai/app; `--remote-control`/`--rc`,
 
 ### Zrb Unique Advantages (Superset Features)
 
-1. 🔵 **Multi-model / any provider** via Pydantic AI
-2. 🔵 **Provider resilience layer**: 4-stage sanitization, provider-agnostic opaque-400 recovery, empty-completion guard, per-model parallel-tool-call guard
+1. 🔵 **Multi-model / any provider** via Pydantic AI (OpenAI, Anthropic, Gemini, Ollama, xAI, Groq, HuggingFace, Cohere, Bedrock…)
+2. 🔵 **Provider resilience layer**: 4-stage history sanitization, provider-agnostic opaque-400 recovery, DeepSeek/GLM-5/Bedrock-specific handling, per-model parallel-tool-call guard
 3. 🔵 **Multimodal fallback pipeline**: describe-then-substitute for text-only models, image auto-scaling, audio transcribe, explicit drop-with-warning
 4. 🔵 **Local Web UI** with hardened auth, streaming, task management, browser tool approval (edit-args)
 5. 🔵 **HTTP Chat API** (`/api/v1/chat/`, authorization-gated) for programmatic sessions/messages
@@ -926,7 +934,7 @@ Remote Control (control a session from claude.ai/app; `--remote-control`/`--rc`,
 
 ### Recommended Implementation Priority
 
-#### Phase 1: High-Impact, Lower Effort (3–5 weeks)
+#### Phase 1: High-Impact, Lower Effort (4–6 weeks)
 
 1. **Surface named permission modes on the CLI** — `dontAsk`/`bypassPermissions` presets + `--permission-mode` flag (the engine, plan, auto-accept-edits, and Shift+Tab cycling already exist) (3–5d)
 2. **Extended CLI flags**: `--max-turns`, `--system-prompt`, `--resume`, `--output-format json`, `--name`, `--worktree` (1wk)
@@ -936,8 +944,11 @@ Remote Control (control a session from claude.ai/app; `--remote-control`/`--rc`,
 6. **Additional built-in slash commands**: `/clear`, `/config`, `/export`, `/permissions`, `/diff`, `/sandbox`, `/mode` (1wk)
 7. **`/compress [focus]`** focus instructions (1–2d)
 8. **MCP prompts as slash commands** (3d)
-9. **CLAUDE.local.md** + `@import` (3–4d)
-10. **Cron tools** (`CronCreate/Delete/List`) wrapping `Scheduler` (3d)
+9. **`--worktree` CLI flag** (1–2d)
+10. **CLAUDE.local.md** + `@import` (3–4d)
+11. **Enable rewind by default** + Esc+Esc shortcut (2–3d)
+12. **`NotebookEdit` tool** (3–4d) — ~~`Monitor`~~ 🟡 mostly done as `MonitorProcess`
+13. **Declarative permission rules** — parse a `settings.json`-style rule list into `PermissionPolicy` (1wk); add `Tool(param:value)`-style matching
 
 #### Phase 2: Medium-Impact, Medium Effort (6–10 weeks)
 
@@ -954,21 +965,21 @@ Remote Control (control a session from claude.ai/app; `--remote-control`/`--rc`,
 
 #### Phase 3: Lower-Priority, Higher Effort (3–6 months)
 
-21. **Auto mode safety classifier** layered onto the policy engine + sandbox (4–6wk)
-22. **Dynamic workflows runtime** (script-orchestrated fan-out; background delegation is a building block) (6–10wk)
-23. **Agent Teams** — persistent coordinated agents + `SendMessage` (2–3mo)
-24. **IDE integrations** (VS Code, JetBrains) (3–4mo)
-25. **Vim mode** in TUI (2–3wk)
-26. **Voice input** (2–3wk)
-27. **Desktop app** (Electron/Tauri) (4–6wk)
-28. **Cloud scheduled tasks / sessions** (requires cloud infra)
+24. **Auto mode safety classifier** (4–6wk)
+25. **Dynamic workflows runtime** (script-orchestrated fan-out to many agents) (6–10wk) — `DelegateToAgentBackground` is now a building block
+26. **Agent Teams** — persistent coordinated agents (2–3mo)
+27. **IDE integrations** (VS Code, JetBrains) (3–4mo)
+28. **Vim mode** in TUI (2–3wk)
+29. **Voice input** (2–3wk)
+30. **Desktop app** (Electron/Tauri) (4–6wk)
+31. **Cloud scheduled tasks** (requires cloud infra)
 
 ### Estimated Total Effort to Full Parity
 
 - **Phase 1** (core feature parity): ~4–6 weeks, 1–2 developers
 - **Phase 2** (advanced features): ~8–12 weeks, 2–3 developers
 - **Phase 3** (specialized features): ~4–6 months, dedicated teams per feature
-- **Total for complete superset**: ~7–11 months with 2–3 developers
+- **Total for complete superset**: ~8–12 months with 2–3 developers
 
 > **Net assessment**: Zrb has closed most of its previously-largest structural gaps. **Permission/interaction modes** are now a full capability-tagged policy engine with a read-only **plan mode**, an **auto-accept-edits** mode, and **Shift+Tab cycling** over them, plus first-class `permissions=`/`sandbox=` constructor args. The **hooks system** went from observe-only to near-parity *control* — `PreToolUse`/`PostToolUse`/`Stop` can deny, rewrite tool input/output, and extend turns, and unmodified Claude Code `settings.json` command hooks run drop-in (16 events vs Claude Code's ~31, but the control surface for those events is largely at parity). **Sandboxing** is an opt-in two-layer FS+OS sandbox (Python gate + Seatbelt/bwrap) with credential-read denial, a `--sandbox` flag, and a safe fallback. Zrb is at **prompt-caching parity** (byte-stable prompt + `<live-context>` split), has **single/parallel/background delegation**, a **working LSP** wire protocol, transcript `/copy` export, an arrow-key `AskUserQuestion` UI, `config explain`, an LLM-driven changelog generator, and adaptive Termux keybindings. The remaining structural gaps are concentrated in: **agent teams / dynamic workflows**, **IDE & desktop integration**, the **auto-mode classifier**, **cloud sessions**, **network sandboxing**, JSON file-based settings, and the (large but mostly mechanical) **CLI-flag and built-in-command surface** — where Claude Code keeps widening its lead on managed-cloud orchestration (the `Workflow` tool, implicit Agent Teams, `/workflows`). Zrb's 27 unique advantages — multi-model, provider resilience, local web UI, multi-channel, task automation, RAG, richer LSP, the policy engine, prompt caching, the "program the agent" surface — keep it a genuine superset in the self-hosted / multi-provider / automation dimensions, while Claude Code remains ahead on managed-cloud orchestration and IDE depth.
 
