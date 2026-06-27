@@ -170,6 +170,7 @@ class BaseUI(PropertiesMixin, CommandsMixin, HistoryReplayMixin, SystemInfoMixin
         btw_commands: list[str] = [],
         plan_commands: list[str] = [],
         copy_commands: list[str] = [],
+        voice_commands: list[str] = [],
         custom_commands: list[AnyCustomCommand] = [],
         model: "Model | str | None" = None,
         enable_rewind: bool = False,
@@ -205,8 +206,13 @@ class BaseUI(PropertiesMixin, CommandsMixin, HistoryReplayMixin, SystemInfoMixin
         self._btw_commands = btw_commands
         self._plan_commands = plan_commands
         self._copy_commands = copy_commands
+        self._voice_commands = voice_commands
         self._custom_commands = custom_commands
         self._plan_mode_active = False
+        self._voice_mode_active = False
+        self._voice_recording_active = False
+        self._voice_task: asyncio.Task | None = None
+        self._voice_stop_event: asyncio.Event | None = None
         self._trigger_tasks: list[asyncio.Task] = []
         self._message_queue: asyncio.Queue = asyncio.Queue()
         self._process_messages_task: asyncio.Task | None = None

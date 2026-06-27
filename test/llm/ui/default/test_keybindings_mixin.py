@@ -389,6 +389,11 @@ class IntegrationUI(KeybindingsMixin, CommandsMixin):
         self._plan_commands = ["/plan"]
         self._summarize_commands = ["/summarize"]
         self._copy_commands = []
+        self._voice_commands = []
+        self._voice_mode_active = False
+        self._voice_recording_active = False
+        self._voice_task = None
+        self._voice_stop_event = None
         self._custom_commands = []
         self._is_thinking = False
         self._background_tasks = set()
