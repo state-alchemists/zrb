@@ -168,8 +168,11 @@ class TestVoiceEngine:
         stop_event = asyncio.Event()
         stop_event.set()
 
-        with patch.object(
-            engine, "_transcribe", new_callable=AsyncMock, return_value="result"
+        with (
+            patch.object(engine, "_record", new_callable=AsyncMock, return_value=b""),
+            patch.object(
+                engine, "_transcribe", new_callable=AsyncMock, return_value="result"
+            ),
         ):
             result = asyncio_run(engine.start_listening(stop_event))
             # With stop_event pre-set, no audio is captured -> empty
