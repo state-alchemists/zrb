@@ -32,7 +32,13 @@ from zrb.llm.agent.run.deferred_calls import (
     rebuild_for_denials,
 )
 from zrb.llm.agent.run.error_classifier import classify_error_type
-from zrb.llm.agent.run.history_utils import sanitize_history
+from zrb.llm.agent.run.history_utils import (
+    _append_live_context,
+    _history_without_trailing_response,
+    _is_empty_completion,
+    _merge_consecutive_messages,
+    sanitize_history,
+)
 from zrb.llm.agent.run.hook_result_extractor import (
     extract_additional_context,
     extract_block_decision,
@@ -47,12 +53,18 @@ from zrb.llm.agent.run.session_extension import (
     apply_turn_end_extension,
     resolve_extended_return,
 )
+from zrb.llm.agent.run.setup import (
+    _bind_contextvar,
+    _log_startup,
+    _resolve_context_dependencies,
+    _setup_print_and_events,
+)
 from zrb.llm.approval.approval_channel import ApprovalChannel, current_approval_channel
+from zrb.llm.config.config import llm_config
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.hook.manager import HookManager
-from zrb.llm.hook.manager import hook_manager as default_hook_manager
 from zrb.llm.hook.types import HookEvent
-from zrb.llm.message import TOOL_CALL_PLACEHOLDER, ensure_alternating_roles
+from zrb.llm.message import ensure_alternating_roles
 from zrb.llm.permission.state import (
     current_permission_policy,
     enter_agent_mode_scope,
@@ -230,118 +242,6 @@ async def run_agent(
         )
     finally:
         stack.close()
-
-
-def _bind_contextvar(stack: ExitStack, var: ContextVar, value: Any) -> None:
-    """Set `var` to `value` and register its reset on the stack.
-
-    Keeps ContextVar set/reset symmetric and exception-safe across the run.
-    """
-    token = var.set(value)
-    stack.callback(var.reset, token)
-
-
-def _resolve_context_dependencies(
-    ui, tool_confirmation, yolo, approval_channel, hook_manager
-):
-    # lazy: zrb.llm.ui.* and zrb.llm.approval.* are imported inside this
-    # function to break a circular import — zrb.llm.agent is loaded by
-    # those packages' init paths, so module-top imports here would re-enter
-    # zrb.llm.agent before its __init__ has finished.
-    # lazy: zrb internal (heavy via transitive / circular)
-    from zrb.llm.ui.std_ui import StdUI
-
-    ui_arg = ui if ui is not None else current_ui.get()
-    if ui_arg is None:
-        ui_arg = StdUI()
-
-    if isinstance(ui_arg, list):
-        if len(ui_arg) == 1:
-            effective_ui = ui_arg[0]
-        elif len(ui_arg) == 0:
-            effective_ui = StdUI()
-        else:
-            # lazy: zrb internal (heavy via transitive / circular)
-            from zrb.llm.ui.multi_ui import MultiUI
-
-            effective_ui = MultiUI(ui_arg)
-    else:
-        effective_ui = ui_arg
-
-    effective_tool_confirmation = tool_confirmation or current_tool_confirmation.get()
-    effective_hook_manager = hook_manager or default_hook_manager
-    effective_yolo = yolo or current_yolo.get()
-    effective_approval_channel = approval_channel or current_approval_channel.get()
-
-    if effective_approval_channel is not None and effective_ui is not None:
-        # lazy: zrb internal (heavy via transitive / circular)
-        from zrb.llm.approval.multiplex_approval_channel import (
-            MultiplexApprovalChannel,
-        )
-        from zrb.llm.approval.terminal_approval_channel import TerminalApprovalChannel
-
-        if not isinstance(effective_approval_channel, MultiplexApprovalChannel):
-            ui_for_terminal = effective_ui
-            children = getattr(effective_ui, "children", None)
-            if children:
-                ui_for_terminal = children[0]
-            CFG.LOGGER.debug(
-                f"Creating TerminalApprovalChannel with UI: {ui_for_terminal}"
-            )
-            terminal_channel = TerminalApprovalChannel(ui_for_terminal)
-            effective_approval_channel = MultiplexApprovalChannel(
-                [terminal_channel, effective_approval_channel]
-            )
-            CFG.LOGGER.debug("Wrapped approval channel: CLI first, then Telegram")
-
-    return (
-        effective_ui,
-        effective_tool_confirmation,
-        effective_yolo,
-        effective_approval_channel,
-        effective_hook_manager,
-    )
-
-
-def _log_startup(
-    tool_confirmation,
-    effective_tool_confirmation,
-    approval_channel,
-    effective_approval_channel,
-):
-    CFG.LOGGER.debug("run_agent === START ===")
-    CFG.LOGGER.debug(f"tool_confirmation param: {tool_confirmation}")
-    CFG.LOGGER.debug(
-        f"current_tool_confirmation.get(): {current_tool_confirmation.get()}"
-    )
-    CFG.LOGGER.debug(f"effective_tool_confirmation: {effective_tool_confirmation}")
-    CFG.LOGGER.debug(f"approval_channel param: {approval_channel}")
-    CFG.LOGGER.debug(
-        f"current_approval_channel.get(): {current_approval_channel.get()}"
-    )
-    CFG.LOGGER.debug(f"effective_approval_channel: {effective_approval_channel}")
-
-
-def _setup_print_and_events(print_fn, event_handler, effective_ui):
-    effective_print_fn = print_fn
-    if effective_print_fn == print and effective_ui:
-        effective_print_fn = effective_ui.append_to_output
-
-    effective_event_handler = event_handler
-    if effective_event_handler is None:
-        # lazy: zrb.llm.util.stream_response transitively pulls pydantic_ai;
-        # keeping this lazy preserves cold-start latency.
-        from zrb.llm.util.stream_response import create_event_handler
-
-        def _event_print_fn(text: str, kind: str) -> None:
-            effective_ui.append_to_output(text, end="", kind=kind)
-
-        effective_event_handler = create_event_handler(
-            _event_print_fn,
-            show_tool_call_detail=CFG.LLM_SHOW_TOOL_CALL_DETAIL,
-            show_tool_result=CFG.LLM_SHOW_TOOL_CALL_RESULT,
-        )
-    return effective_print_fn, effective_event_handler
 
 
 async def _run_startup_hooks(
@@ -543,49 +443,6 @@ async def _prepare_history(
     )
 
 
-def _append_live_context(prompt_content: Any, live_context: str) -> Any:
-    """Append the ``<live-context>`` block to the end of the current user turn.
-
-    Handles all three ``prompt_content`` shapes produced by
-    ``get_prompt_content``: ``str`` (text-only), ``list[UserContent]``
-    (multimodal — a trailing text element is added, keeping the block last for
-    recency), and ``None`` (empty turn — the block becomes the content). A
-    falsy ``live_context`` is a no-op, so callers that pass nothing keep the
-    legacy behaviour.
-    """
-    if not live_context:
-        return prompt_content
-    if prompt_content is None:
-        return live_context
-    if isinstance(prompt_content, str):
-        return f"{prompt_content}\n\n{live_context}"
-    if isinstance(prompt_content, list):
-        return [*prompt_content, live_context]
-    return prompt_content
-
-
-def _merge_consecutive_messages(current_history, current_message):
-    # lazy: heavy third-party
-    from pydantic_ai.messages import ModelRequest, UserPromptPart
-
-    if (
-        current_history
-        and isinstance(current_history[-1], ModelRequest)
-        and current_message is not None
-        and isinstance(current_message, (str, list))
-    ):
-        # Build a NEW ModelRequest rather than appending to the existing one's
-        # parts in place. current_history[-1] is aliased to the caller's loaded
-        # history (and to FileHistoryManager's cached list, which load() returns
-        # by reference), so an in-place append would graft this turn's prompt
-        # onto the stored message — duplicating it on the next save/cancel path.
-        last_msg = current_history[-1]
-        merged_parts = list(last_msg.parts) + [UserPromptPart(content=current_message)]
-        current_history[-1] = replace(last_msg, parts=merged_parts)
-        return None
-    return current_message
-
-
 async def _apply_history_processors(
     history: list[Any], processors: list[Any]
 ) -> list[Any]:
@@ -605,48 +462,6 @@ async def _apply_history_processors(
         except Exception as e:
             CFG.LOGGER.warning(f"History processor failed between tool calls: {e}")
     return ensure_alternating_roles(processed)
-
-
-# Placeholder strings that signal a degenerate completion rather than a real
-# answer: the "(tool call)" history placeholder injected by filter_nil_content,
-# and the bare "(tool call" that weaker models emit when imitating it.
-_EMPTY_COMPLETION_MARKERS = frozenset(
-    {TOOL_CALL_PLACEHOLDER, TOOL_CALL_PLACEHOLDER.rstrip(")")}
-)
-
-
-def _is_empty_completion(result_output: Any) -> bool:
-    """True when the model's final text output carries no real content.
-
-    Two degenerate cases seen in production with weak/overloaded models:
-    an empty/whitespace completion (provider returned nothing), and the
-    "(tool call)" placeholder leaking out as the answer (injected into history
-    by filter_nil_content, then echoed by the model). Structured (non-str)
-    outputs and DeferredToolRequests are never "empty" in this sense, so they
-    are excluded by the isinstance check.
-    """
-    if not isinstance(result_output, str):
-        return False
-    stripped = result_output.strip()
-    return not stripped or stripped in _EMPTY_COMPLETION_MARKERS
-
-
-def _history_without_trailing_response(run_history: list[Any]) -> list[Any]:
-    """Drop the trailing assistant ModelResponse so it can be regenerated.
-
-    Used when retrying an empty completion: ``result.all_messages()`` ends with
-    the degenerate response, and re-requesting must not feed it back. Works for
-    both the simple-turn case (history then empty response) and the
-    deferred-resume case (history, tool returns, then empty response) — in both
-    the trailing response is dropped while the tool returns stay in history.
-    """
-    from pydantic_ai.messages import ModelResponse  # lazy: heavy third-party
-
-    if run_history and isinstance(run_history[-1], ModelResponse):
-        trimmed = run_history[:-1]
-        if trimmed:
-            return trimmed
-    return run_history
 
 
 async def _execution_loop(
@@ -906,10 +721,6 @@ async def _apply_multimodal_fallback(
     with a warning rather than silently sent to a provider that will reject
     or ignore them.
     """
-    # lazy: util.multimodal_describe imports the agent stack; keeping it
-    # local avoids re-entering zrb.llm.agent during its own __init__ chain.
-    from zrb.llm.config.config import llm_config
-
     # lazy: zrb internal (heavy via transitive / circular)
     from zrb.llm.util.multimodal_describe import replace_unsupported_attachments
 

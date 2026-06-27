@@ -35,6 +35,7 @@ class PartialRunAccumulator:
     error: str = ""
 
     def record_event(self, event: Any) -> None:
+        # lazy: heavy third-party deferral
         from pydantic_ai import (
             FunctionToolCallEvent,
             FunctionToolResultEvent,

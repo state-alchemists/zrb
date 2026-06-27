@@ -34,7 +34,15 @@ from zrb.llm.config.limiter import llm_limiter as default_llm_limiter
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
-from zrb.llm.permission import PermissionPolicyInput, resolve_policy
+from zrb.llm.permission import (
+    ALLOW,
+    ASK,
+    DENY,
+    Capability,
+    PermissionPolicyInput,
+    get_effective_policy,
+    resolve_policy,
+)
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.prompt.tool_guidance import ToolGuidance
 from zrb.llm.sandbox import SandboxInput, coerce_sandbox
@@ -355,10 +363,6 @@ class LLMTask(BuilderMixin, HistoryMixin, BaseTask):  # type: ignore[reportIncom
             should_skip_approval_bool = get_bool_attr(ctx, self._yolo, False)
 
             def _should_skip_approval(tool_def=None):
-                # lazy: permission is a leaf module.
-                from zrb.llm.permission import ALLOW, ASK, DENY, get_effective_policy
-                from zrb.llm.permission.capability import Capability
-
                 policy = get_effective_policy()
                 if policy is not None:
                     tool_name = (

@@ -411,3 +411,88 @@ def _retry_prompt_to_text(part: Any) -> str:
     if len(content) > _TOOL_RESULT_MAX_CHARS:
         content = content[:_TOOL_RESULT_MAX_CHARS] + "..."
     return f'(sanitized-history) prior retry feedback for tool "{name}": ' f"{content}"
+
+
+def _append_live_context(prompt_content: Any, live_context: str) -> Any:
+    """Append the ``<live-context>`` block to the end of the current user turn.
+
+    Handles all three ``prompt_content`` shapes produced by
+    ``get_prompt_content``: ``str`` (text-only), ``list[UserContent]``
+    (multimodal — a trailing text element is added, keeping the block last for
+    recency), and ``None`` (empty turn — the block becomes the content). A
+    falsy ``live_context`` is a no-op, so callers that pass nothing keep the
+    legacy behaviour.
+    """
+    if not live_context:
+        return prompt_content
+    if prompt_content is None:
+        return live_context
+    if isinstance(prompt_content, str):
+        return f"{prompt_content}\n\n{live_context}"
+    if isinstance(prompt_content, list):
+        return [*prompt_content, live_context]
+    return prompt_content
+
+
+def _merge_consecutive_messages(current_history, current_message):
+    # lazy: heavy third-party
+    from pydantic_ai.messages import ModelRequest, UserPromptPart
+
+    if (
+        current_history
+        and isinstance(current_history[-1], ModelRequest)
+        and current_message is not None
+        and isinstance(current_message, (str, list))
+    ):
+        # Build a NEW ModelRequest rather than appending to the existing one's
+        # parts in place. current_history[-1] is aliased to the caller's loaded
+        # history (and to FileHistoryManager's cached list, which load() returns
+        # by reference), so an in-place append would graft this turn's prompt
+        # onto the stored message — duplicating it on the next save/cancel path.
+        last_msg = current_history[-1]
+        merged_parts = list(last_msg.parts) + [UserPromptPart(content=current_message)]
+        current_history[-1] = replace(last_msg, parts=merged_parts)
+        return None
+    return current_message
+
+
+# Placeholder strings that signal a degenerate completion rather than a real
+# answer: the "(tool call)" history placeholder injected by filter_nil_content,
+# and the bare "(tool call" that weaker models emit when imitating it.
+_EMPTY_COMPLETION_MARKERS = frozenset(
+    {TOOL_CALL_PLACEHOLDER, TOOL_CALL_PLACEHOLDER.rstrip(")")}
+)
+
+
+def _is_empty_completion(result_output: Any) -> bool:
+    """True when the model's final text output carries no real content.
+
+    Two degenerate cases seen in production with weak/overloaded models:
+    an empty/whitespace completion (provider returned nothing), and the
+    "(tool call)" placeholder leaking out as the answer (injected into history
+    by filter_nil_content, then echoed by the model). Structured (non-str)
+    outputs and DeferredToolRequests are never "empty" in this sense, so they
+    are excluded by the isinstance check.
+    """
+    if not isinstance(result_output, str):
+        return False
+    stripped = result_output.strip()
+    return not stripped or stripped in _EMPTY_COMPLETION_MARKERS
+
+
+def _history_without_trailing_response(run_history: list[Any]) -> list[Any]:
+    """Drop the trailing assistant ModelResponse so it can be regenerated.
+
+    Used when retrying an empty completion: ``result.all_messages()`` ends with
+    the degenerate response, and re-requesting must not feed it back. Works for
+    both the simple-turn case (history then empty response) and the
+    deferred-resume case (history, tool returns, then empty response) — in both
+    the trailing response is dropped while the tool returns stay in history.
+    """
+    from pydantic_ai.messages import ModelResponse  # lazy: heavy third-party
+
+    if run_history and isinstance(run_history[-1], ModelResponse):
+        trimmed = run_history[:-1]
+        if trimmed:
+            return trimmed
+    return run_history

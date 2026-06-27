@@ -16,7 +16,12 @@ async def write_file(path: str, content: str, mode: str = "w") -> str:
         with open(abs_path, mode, encoding="utf-8") as f:
             f.write(content)
     except Exception as e:
-        return f"Error writing to file {path}: {e}"
+        return (
+            f"Error writing to file {path}: {e}. "
+            "[SYSTEM SUGGESTION]: Check that the parent path is a directory (not a "
+            "file), that you have write permission, and that there is free disk "
+            "space, then retry."
+        )
 
     suffix = await format_post_write_diagnostics(abs_path)
     return f"Successfully wrote to {path}{suffix}"

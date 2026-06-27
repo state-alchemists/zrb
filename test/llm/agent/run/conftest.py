@@ -21,7 +21,7 @@ def _no_filesystem_hooks():
     the hooks they need.
     """
     patcher = patch(
-        "zrb.llm.agent.run.runner.default_hook_manager",
+        "zrb.llm.agent.run.setup.default_hook_manager",
         HookManager(search_dirs=[]),
     )
     patcher.start()

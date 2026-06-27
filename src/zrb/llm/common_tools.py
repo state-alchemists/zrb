@@ -310,6 +310,9 @@ def apply_common_tools(host: CommonToolHost) -> None:
 
     # lazy: permission is a leaf module.
     from zrb.llm.permission import Capability, tag
+
+    # lazy: zrb.llm.tool.* transitively load pydantic_ai; deferring keeps cold-start
+    # latency off the import path for callers that never apply common tools.
     from zrb.llm.tool.ask import ask_user_question
     from zrb.llm.tool.bash import run_bash_command
     from zrb.llm.tool.code import analyze_code
