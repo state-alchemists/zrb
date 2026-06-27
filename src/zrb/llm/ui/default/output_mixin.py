@@ -316,7 +316,7 @@ class OutputMixin:
         # guard for lightweight UIs/mocks that don't compose it. See ADR-0075.
         get_mode = getattr(self, "current_cycle_mode", None)
         mode = cast(str, get_mode()) if callable(get_mode) else "normal"
-        return [
+        result: list = [
             (CFG.LLM_UI_STYLE_STATUS, " 🚀 Ready "),
             (
                 _get_mode_status_style(mode),
@@ -324,3 +324,7 @@ class OutputMixin:
             ),
             ("fg:ansibrightblack", "shift+tab to cycle "),
         ]
+        # Voice mode indicator (see ADR-0081)
+        if getattr(self, "_voice_mode_active", False):
+            result.append((CFG.LLM_UI_STYLE_STATUS, " 🎤 VOICE "))
+        return result

@@ -169,6 +169,7 @@ class LLMChatTask(BuilderMixin, RunnerMixin, ExecMixin, BaseTask):  # type: igno
         ui_btw_commands: list[str] | None = None,
         ui_plan_commands: list[str] | None = None,
         ui_copy_commands: list[str] | None = None,
+        ui_voice_commands: list[str] | None = None,
         custom_commands: (
             list[
                 AnyCustomCommand
@@ -337,6 +338,9 @@ class LLMChatTask(BuilderMixin, RunnerMixin, ExecMixin, BaseTask):  # type: igno
         )
         self._ui_copy_commands = (
             ui_copy_commands if ui_copy_commands is not None else []
+        )
+        self._ui_voice_commands = (
+            ui_voice_commands if ui_voice_commands is not None else []
         )
         self._custom_commands = custom_commands if custom_commands is not None else []
         self._ui_greeting = ui_greeting

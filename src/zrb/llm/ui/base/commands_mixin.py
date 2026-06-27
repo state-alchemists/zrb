@@ -18,12 +18,13 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING
 
+from zrb.config.config import CFG
 from zrb.llm.custom_command.resolver import resolve_custom_command
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.ui.base.conversation_commands_mixin import ConversationCommandsMixin
 from zrb.llm.ui.base.exec_commands_mixin import ExecCommandsMixin
 from zrb.llm.ui.base.model_commands_mixin import ModelCommandsMixin
-from zrb.util.cli.style import stylize_muted
+from zrb.util.cli.style import stylize_muted, stylize_warning
 
 if TYPE_CHECKING:
     from typing import Any, Callable
@@ -54,6 +55,11 @@ class CommandsMixin(ConversationCommandsMixin, ModelCommandsMixin, ExecCommandsM
         _copy_commands: list[str]
         _plan_commands: list[str]
         _plan_mode_active: bool
+        _voice_commands: list[str]
+        _voice_mode_active: bool
+        _voice_recording_active: bool
+        _voice_stop_event: asyncio.Event | None
+        _voice_task: asyncio.Task | None
         _custom_commands: list["AnyCustomCommand"]
         _exec_commands: list[str]
         _exit_commands: list[str]
@@ -131,6 +137,7 @@ class CommandsMixin(ConversationCommandsMixin, ModelCommandsMixin, ExecCommandsM
             (self._handle_toggle_plan, self._plan_commands, True, True),
             # prefix=True: `/yolo` toggles, `/yolo Write,Edit` sets selective yolo.
             (self._handle_toggle_yolo, self._yolo_toggle_commands, True, True),
+            (self._handle_toggle_voice, self._voice_commands, False, True),
             (self._handle_exit_command, self._exit_commands, False, False),
             (self._handle_info_command, self._info_commands, False, False),
             (self._handle_save_command, self._save_commands, True, False),
@@ -279,6 +286,46 @@ class CommandsMixin(ConversationCommandsMixin, ModelCommandsMixin, ExecCommandsM
                 return True
         return self._handle_custom_command(text)
 
+    def _handle_toggle_voice(self, text: str) -> bool:
+        """Toggle voice dictation mode on/off.
+
+        ``/voice`` when OFF → enter voice mode (press space to record).
+        ``/voice`` when ON → exit voice mode without recording.
+        Voice mode also auto-exits after a recording completes.
+        """
+        if text.strip().lower() not in [c.lower() for c in self._voice_commands]:
+            return False
+        if not CFG.LLM_VOICE_ENABLED:
+            self.append_to_output(
+                stylize_warning(
+                    "\n  🎤 Voice dictation is not enabled.\n"
+                    "     Set ZRB_LLM_VOICE_ENABLED=on and restart.\n"
+                )
+            )
+            return True
+        if self._voice_mode_active:
+            self._exit_voice_mode()
+        else:
+            self._voice_mode_active = True
+            ptt_key = CFG.LLM_VOICE_PUSH_TO_TALK_KEY.strip()
+            self.append_to_output(
+                stylize_muted(
+                    f"\n  🎤 Voice dictation: ON — press [{ptt_key}] to record\n"
+                )
+            )
+        self.invalidate_ui()
+        return True
+
+    def _exit_voice_mode(self):
+        """Exit voice mode and stop any in-flight recording."""
+        self._voice_mode_active = False
+        self._voice_recording_active = False
+        if self._voice_stop_event is not None:
+            self._voice_stop_event.set()
+        self._voice_stop_event = None
+        self._voice_task = None
+        self.append_to_output(stylize_muted("\n  🎤 Voice dictation: OFF\n"))
+
     # --- help text --------------------------------------------------------
 
     def _get_help_text(
@@ -323,6 +370,7 @@ class CommandsMixin(ConversationCommandsMixin, ModelCommandsMixin, ExecCommandsM
             "Ask a side question without saving to history (usage: {cmd} <question>)",
         )
         add_cmd_help(self._plan_commands, "Toggle PLAN mode (read-only) on/off")
+        add_cmd_help(self._voice_commands, "Toggle voice dictation on/off")
         for custom_cmd in self._custom_commands:
             raw_lines.append((custom_cmd.command, custom_cmd.description))
 

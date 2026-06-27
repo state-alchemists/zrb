@@ -123,5 +123,6 @@ per record. If a new decision reverses an old one, mark the old one
 - **ADR-0078** — First-class `permissions` parameter/property on `LLMChatTask` (symmetric with `LLMTask`), forwarded to the inner task instead of smuggled through a hook factory + `current_permission_policy` ContextVar (refines ADR-0076) — [adr-0078.md](adr-0078.md)
 - **ADR-0079** — Fold the skill catalogue into the `mandate` section via `{CORE_SKILLS}`/`{AVAILABLE_SKILLS}`/`{PREACTIVATED_SKILLS}` placeholders; drop the `claude_skills` section (refines ADR-0035, ADR-0069) — [adr-0079.md](adr-0079.md)
 - **ADR-0080** — Mode cycle binds Shift+Tab only, with a Termux-detected (`CFG.IS_TERMUX`) plain-Tab fallback since Termux can't distinguish the two keys (refines ADR-0075) — [adr-0080.md](adr-0080.md)
+- **ADR-0081** — Voice dictation via `/voice` command with push-to-talk keybinding, opt-in behind `ZRB_LLM_VOICE_ENABLED` — [adr-0081.md](adr-0081.md)
 
 🔖 [Documentation Home](../README.md)
