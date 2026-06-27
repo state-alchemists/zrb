@@ -58,14 +58,19 @@ def make_yolo_inheritance_checker() -> Callable[..., bool]:
             if yolo_val:
                 return True
         elif isinstance(yolo_val, frozenset):
-            if tool_def is not None:
-                tool_name = getattr(tool_def, "name", str(tool_def))
-                if tool_name in yolo_val:
-                    return True
+            # Selective YOLO is definitive: only the named tools bypass
+            # approval. Return membership directly instead of falling through
+            # to the UI's `yolo` (a non-empty frozenset is truthy and would
+            # otherwise auto-approve tools the selection never listed). This
+            # mirrors chat/task.py check_yolo, which has no UI fallback.
+            if tool_def is None:
+                return False
+            tool_name = getattr(tool_def, "name", str(tool_def))
+            return tool_name in yolo_val
         try:
             ui = get_current_ui()
             if ui is not None and hasattr(ui, "yolo"):
-                return bool(ui.yolo)
+                return bool(getattr(ui, "yolo"))
         except Exception:
             pass
         return False

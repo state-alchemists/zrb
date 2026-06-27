@@ -6,11 +6,12 @@ from zrb.attr.type import StrListAttr
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext, zrb_print
 from zrb.llm.prompt.claude import (
-    create_claude_skills_prompt,
+    build_skill_replacements,
     create_project_context_prompt,
 )
+from zrb.llm.prompt.live_context import render_live_context
 from zrb.llm.prompt.prompt import get_prompt
-from zrb.llm.prompt.system_context import render_live_context, system_context
+from zrb.llm.prompt.system_context import system_context
 from zrb.llm.prompt.tool_guidance import (
     ToolCatalogue,
     ToolGroups,
@@ -22,18 +23,11 @@ from zrb.llm.util.git import is_inside_git_dir
 from zrb.util.attr import get_str_attr, get_str_list_attr
 
 # Simple prompt: just takes context and returns a string
-SimplePrompt = Callable[[AnyContext], str]
+SimplePrompt = Callable[[AnyContext], str | None]
 # Full middleware: takes context, current prompt, and next handler
 FullMiddleware = Callable[[AnyContext, str, Callable[[AnyContext, str], str]], str]
 # Flexible middleware: can be either simple or full
 PromptMiddleware = SimplePrompt | FullMiddleware
-
-
-def _render_persona_prompt(assistant_name: str | None) -> str:
-    """Render persona prompt with optional assistant name override."""
-    effective = assistant_name if assistant_name is not None else CFG.LLM_ASSISTANT_NAME
-    capitalized = effective[0].upper() + effective[1:] if effective else effective
-    return get_prompt("persona", ASSISTANT_NAME=capitalized)
 
 
 class PromptManager:
@@ -41,8 +35,10 @@ class PromptManager:
 
     Sections are emitted in the order given by ``include_sections`` (default in
     ``config/mixins/llm_prompt.py``: persona → mandate → git_mandate →
-    journal_mandate → system_context → project_context → tool_guidance →
-    claude_skills), followed by any user-added prompts. A section name that is
+    journal_mandate → system_context → project_context → tool_guidance),
+    followed by any user-added prompts. The skill catalogue is folded into the
+    mandate section via ``{CORE_SKILLS}``/``{AVAILABLE_SKILLS}``/``{PREACTIVATED_SKILLS}``
+    placeholders rather than a standalone section. A section name that is
     not one of the built-ins resolves as a custom section: a provider registered
     via ``register_section`` (composed by calling it with the active context, for
     runtime-dynamic content) takes precedence, otherwise the content is loaded
@@ -81,6 +77,17 @@ class PromptManager:
         self._active_skills = active_skills
         self._render_active_skills = render_active_skills
         self._render = render
+        # Live context providers: per-turn dynamic state injected into the
+        # <live-context> block after built-in rendering.
+        self._live_context_providers: list[tuple[str, SimplePrompt]] = []
+        # Project context providers: registered via add_project_context();
+        # composed into the project_context section alongside the built-in
+        # project documentation content.
+        self._project_context_providers: list[tuple[str, SimplePrompt]] = []
+        # System context providers: registered via add_system_context();
+        # composed into the system_context section alongside the built-in
+        # system context (OS, CWD, tools, etc.).
+        self._system_context_providers: list[tuple[str, SimplePrompt]] = []
         # Dynamic providers for config-positioned custom sections, keyed by the
         # name used in ``include_sections``. A registered provider is composed
         # by calling ``provider(ctx)`` at compose time; it takes precedence over
@@ -205,6 +212,20 @@ class PromptManager:
     def append_prompt(self, *middleware: PromptMiddleware | str):
         self._middlewares.extend(middleware)
 
+    def add_live_context(self, name: str, provider: SimplePrompt) -> None:
+        """Register a dynamic per-turn live context provider.
+
+        Called every turn inside ``create_live_context``, after built-in
+        rendering. *provider* receives the active context and returns a string
+        (or ``None`` / ``""`` to emit nothing). Re-registering the same *name*
+        overwrites the previous provider.
+        """
+        for i, (existing_name, _) in enumerate(self._live_context_providers):
+            if existing_name == name:
+                self._live_context_providers[i] = (name, provider)
+                return
+        self._live_context_providers.append((name, provider))
+
     def create_live_context(self, ctx: AnyContext) -> str:
         """Render the per-turn volatile runtime state as a ``<live-context>``
         block for injection into the latest user message.
@@ -215,13 +236,109 @@ class PromptManager:
         prompt byte-stable while still surfacing live state, and freezes a
         snapshot into history (older turns show what state *was*; the most
         recent block is authoritative — anchored in the system prompt). Returns
-        ``""`` when there is nothing to report. See AGENTS.md ("LLM Prompt
-        System") and ``render_live_context``.
+        ``""`` when there is nothing to report.
+
+        Custom providers registered via ``add_live_context`` are called after
+        the built-in rendering, in registration order.
         """
         body = render_live_context(ctx, self._model)
+        for name, provider in self._live_context_providers:
+            try:
+                extra = provider(ctx)
+                if extra:
+                    body += "\n" + extra
+            except Exception:
+                pass
         if not body.strip():
             return ""
         return f"<live-context>\n{body}\n</live-context>"
+
+    def add_system_context(self, name: str, provider: SimplePrompt) -> None:
+        """Register a dynamic system context provider.
+
+        Called every turn inside the ``system_context`` section, after the
+        built-in system context rendering (OS, CWD, tools, model, etc.).
+        *provider* receives the active context and returns a string (or
+        ``None`` / ``""`` to emit nothing). Re-registering the same *name*
+        overwrites the previous provider.
+        """
+        for i, (existing_name, _) in enumerate(self._system_context_providers):
+            if existing_name == name:
+                self._system_context_providers[i] = (name, provider)
+                return
+        self._system_context_providers.append((name, provider))
+
+    def _create_system_context_middleware(self) -> FullMiddleware:
+        """Build the system_context section middleware, including custom providers."""
+        _builtin = partial(system_context, model=self._model)
+        _providers = self._system_context_providers
+
+        def system_context_middleware(
+            ctx: AnyContext,
+            current_prompt: str,
+            next_handler: Callable[[AnyContext, str], str],
+        ) -> str:
+            result = _builtin(ctx, current_prompt, next_handler)
+            extra_parts: list[str] = []
+            for _name, provider in _providers:
+                try:
+                    extra = provider(ctx)
+                    if extra:
+                        extra_parts.append(extra)
+                except Exception:
+                    pass
+            if extra_parts:
+                result = next_handler(
+                    ctx,
+                    f"{result}\n\n" + "\n\n".join(extra_parts),
+                )
+            return result
+
+        return system_context_middleware
+
+    def add_project_context(self, name: str, provider: SimplePrompt) -> None:
+        """Register a dynamic project context provider.
+
+        Called every turn inside the ``project_context`` section, after the
+        built-in project documentation rendering. *provider* receives the
+        active context and returns a string (or ``None`` / ``""`` to emit
+        nothing). Re-registering the same *name* overwrites the previous
+        provider.
+        """
+        for i, (existing_name, _) in enumerate(self._project_context_providers):
+            if existing_name == name:
+                self._project_context_providers[i] = (name, provider)
+                return
+        self._project_context_providers.append((name, provider))
+
+    def _create_project_context_middleware(self) -> FullMiddleware:
+        """Build the project_context section middleware, including custom providers."""
+        _builtin = create_project_context_prompt()
+        _providers = self._project_context_providers
+
+        def project_context_middleware(
+            ctx: AnyContext,
+            current_prompt: str,
+            next_handler: Callable[[AnyContext, str], str],
+        ) -> str:
+            result = _builtin(ctx, current_prompt, next_handler)
+            extra_parts: list[str] = []
+            for _name, provider in _providers:
+                try:
+                    extra = provider(ctx)
+                    if extra:
+                        extra_parts.append(extra)
+                except Exception:
+                    pass
+            if extra_parts:
+                result = next_handler(
+                    ctx,
+                    f"{result}\n\n## Custom Project Context\n"
+                    + "\n\n".join(extra_parts),
+                )
+            return result
+
+        return project_context_middleware
 
     def compose_prompt(self) -> Callable[[AnyContext], str]:
         """
@@ -278,6 +395,21 @@ class PromptManager:
         assistant_name = (
             get_str_attr(ctx, self._assistant_name) if self._assistant_name else None
         )
+        effective = (
+            assistant_name if assistant_name is not None else CFG.LLM_ASSISTANT_NAME
+        )
+        _extra: dict[str, str] = (
+            {"ASSISTANT_NAME": effective[0].upper() + effective[1:]}
+            if effective
+            else {}
+        )
+        # Skill catalogue lives in mandate.md via {CORE_SKILLS}/{AVAILABLE_SKILLS}
+        # /{PREACTIVATED_SKILLS} placeholders (no separate claude_skills section).
+        if self._skill_manager:
+            active_skills = get_str_list_attr(
+                ctx, self._active_skills, self._render_active_skills
+            )
+            _extra.update(build_skill_replacements(self._skill_manager, active_skills))
         tool_names_value = (
             self._tool_names(ctx) if callable(self._tool_names) else self._tool_names
         )
@@ -285,27 +417,19 @@ class PromptManager:
         # Capture values to avoid late-binding in lambdas
         _catalogue = self._tool_guidance
         _groups = self._tool_groups
-        _skill_mgr = self._skill_manager
 
         middlewares: list[PromptMiddleware | str] = []
 
         for section in sections:
-            if section == "persona":
-                middlewares.append(
-                    new_prompt(lambda an=assistant_name: _render_persona_prompt(an))
-                )
-            elif section == "git_mandate":
-                middlewares.append(
-                    new_prompt(
-                        lambda: get_prompt("git_mandate") if is_inside_git_dir() else ""
-                    )
-                )
-            elif section == "system_context":
-                # Bind the resolved model so system_context can surface
-                # capability-driven notes (e.g. "no parallel tool calls").
-                middlewares.append(partial(system_context, model=self._model))
-            elif section == "mandate":
-                middlewares.append(new_prompt(lambda: get_prompt("mandate")))
+            if section == "git_mandate" and not is_inside_git_dir():
+                continue
+            if section == "claude_skills":
+                # Removed: the skill catalogue now lives in the mandate section.
+                # Silently skip so a pinned old DEFAULT_LLM_INCLUDE_SECTIONS
+                # doesn't emit a spurious "unknown section" warning.
+                continue
+            if section == "system_context":
+                middlewares.append(self._create_system_context_middleware())
             elif section == "tool_guidance":
                 _extra_sections = list(self._tool_guidance_sections)
                 middlewares.append(
@@ -315,18 +439,8 @@ class PromptManager:
                         )
                     )
                 )
-            elif section == "journal_mandate":
-                middlewares.append(new_prompt(lambda: get_prompt("journal_mandate")))
             elif section == "project_context":
-                middlewares.append(create_project_context_prompt())
-            elif section == "claude_skills":
-                if _skill_mgr:
-                    active_skills = get_str_list_attr(
-                        ctx, self._active_skills, self._render_active_skills
-                    )
-                    middlewares.append(
-                        create_claude_skills_prompt(_skill_mgr, active_skills)
-                    )
+                middlewares.append(self._create_project_context_middleware())
             elif section in self._section_providers:
                 # Registered dynamic section -> composed by calling the
                 # provider with the active context at compose time. Takes
@@ -334,19 +448,28 @@ class PromptManager:
                 # register_section(); see AGENTS.md ("LLM Prompt System").
                 middlewares.append(self._section_providers[section])
             else:
-                # Unknown name -> file-backed custom section, resolved via
-                # get_prompt(name) (project override -> env -> base prompt dir
-                # -> package default). Lets downstreams add always-on, ordered
-                # sections through include_sections + a markdown file, with no
-                # code change. Missing files resolve to "" (harmless no-op)
-                # and log a warning so a misspelled name is diagnosable.
-                middlewares.append(self._new_file_section_middleware(section))
+                # Unknown/file-backed custom section, resolved via
+                # get_prompt(name, **_extra) (project override -> env -> base
+                # prompt dir -> package default). Lets downstreams add always-on,
+                # ordered sections through include_sections + a markdown file,
+                # with no code change. Missing files resolve to "" (harmless
+                # no-op) and log a warning so a misspelled name is diagnosable.
+                # Built-in sections like "mandate" and "journal_mandate" live
+                # here too, since _extra's {ASSISTANT_NAME} is harmless when a
+                # markdown file has no matching placeholder.
+                middlewares.append(
+                    self._file_section_middleware(section, extra_replacements=_extra)
+                )
 
         # User custom prompts always last
         middlewares.extend(self._middlewares)
         return middlewares
 
-    def _new_file_section_middleware(self, name: str) -> FullMiddleware:
+    def _file_section_middleware(
+        self,
+        name: str,
+        extra_replacements: dict[str, str] | None = None,
+    ) -> FullMiddleware:
         """Middleware for a file-backed custom section.
 
         Resolves *name* via ``get_prompt`` at compose time. When nothing
@@ -354,12 +477,16 @@ class PromptManager:
         empty — a warning is logged so a misspelled name in
         ``include_sections`` / ``ZRB_LLM_INCLUDE_SECTIONS`` is diagnosable
         instead of silently dropped.
+
+        *extra_replacements* are forwarded to ``get_prompt`` as
+        ``**extra_replacements`` for ``{PLACEHOLDER}`` substitution.
         """
 
         def file_section_middleware(
             ctx: AnyContext, current: str, next_fn: Callable[[AnyContext, str], str]
         ) -> str:
-            content = get_prompt(name)
+            kwargs = extra_replacements or {}
+            content = get_prompt(name, **kwargs)
             if not content:
                 message = (
                     f"Prompt section '{name}' is not a built-in, has no "

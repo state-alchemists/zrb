@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../README.md)
+🔖 [Documentation Home](../README.md) > [Changelog](changelog.md)
 
 ## 1.21.43
 
@@ -82,4 +82,4 @@ Version 1.0.0 is a complete ground-up rewrite ("New Beginning") that supersedes 
 - **Removed: Legacy 0.x surface**:
   - Removed the YAML configuration layer and the `devtool install` suite (aws, gcloud, docker, helm, kubectl, pulumi, terraform, selenium, pyenv, nvm, gvm, sdkman, zsh, tmux, helix) along with the old `task_input/` classes and `action/runner.py`.
 
-🔖 [Home](../../../README.md) > [Documentation](../../README.md) > [Changelog v1](README.md)
+🔖 [Documentation Home](../README.md) > [Changelog](changelog.md)

@@ -57,6 +57,8 @@ chat = LLMChatTask(
     tool_confirmation: AnyToolConfirmation = None,
     yolo: BoolAttr = False,
     approval_channel: ApprovalChannel | None = None,
+    permissions: PermissionPolicyInput = None,
+    sandbox: SandboxInput = None,
     # UI
     ui: UIProtocol | None = None,
     ui_factory: Callable | None = None,
@@ -145,7 +147,12 @@ chat.append_approval_channel(channel)
 chat.add_tool_policy(policy)
 chat.add_response_handler(handler)
 chat.add_argument_formatter(formatter)
+chat.permissions = my_permission_policy  # read/write property; also a constructor arg
+chat.sandbox = my_sandbox_policy         # read/write property; also a constructor arg
 ```
+
+See [Permission Policy](../advanced-topics/permission-policy.md) and
+[Sandbox](../advanced-topics/sandbox.md) for the accepted policy shapes.
 
 ### Triggers & Custom Commands
 
@@ -176,6 +183,8 @@ chat.set_history_manager(FileHistoryManager(history_dir="./my-history/"))
 | **Triggers (async iterables)** | Yes | No |
 | **Response handlers** | Yes | No |
 | **Tool policies** | Yes | No |
+| **Permission policy** | `permissions=` (arg + property) | Same |
+| **Filesystem sandbox** | `sandbox=` (arg + property) | Same |
 | **Shared tool APIs** | `add_tool`, `add_toolset`, `add_tool_guidance` | Same |
 | **Hook system** | Full lifecycle hooks | Same |
 | **History processors** | `add_history_processor` | Same (via constructor) |
@@ -184,3 +193,5 @@ chat.set_history_manager(FileHistoryManager(history_dir="./my-history/"))
 ---
 
 > **Tip:** Use `LLMTask` for automated pipelines where you need the LLM as a processing step. Use `LLMChatTask` when you want an interactive assistant that users can converse with.
+
+🔖 [Documentation Home](../../README.md) > [Task Types](./) > LLMChatTask API

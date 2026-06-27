@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import os
-
 from zrb.config.env_field import EnvField
 
 
@@ -28,42 +26,45 @@ class InternetSearchMixin:
         str, doc="One of: google_rss (default), serpapi, brave, searxng."
     )
 
-    # BRAVE_API_KEY / SERPAPI_KEY use bare (un-prefixed) env vars by design, so
-    # they stay hand-written rather than going through EnvField (which always
-    # prefixes with ENV_PREFIX).
-    @property
-    def BRAVE_API_KEY(self) -> str:
-        return os.getenv("BRAVE_API_KEY", self.DEFAULT_BRAVE_API_KEY)
+    # BRAVE_API_KEY / SERPAPI_KEY use bare (un-prefixed) env vars by design.
+    BRAVE_API_KEY = EnvField(
+        str,
+        no_prefix=True,
+        doc="API key for the Brave Search API (un-prefixed env var).",
+    )
 
-    @BRAVE_API_KEY.setter
-    def BRAVE_API_KEY(self, value: str):
-        os.environ["BRAVE_API_KEY"] = value
+    BRAVE_API_SAFE = EnvField(
+        str, doc="Safe search filter for Brave API results (on/off)."
+    )
 
-    BRAVE_API_SAFE = EnvField(str)
+    BRAVE_API_LANG = EnvField(
+        str, doc="Language code for Brave search results (e.g. en)."
+    )
 
-    BRAVE_API_LANG = EnvField(str)
+    SERPAPI_KEY = EnvField(
+        str, no_prefix=True, doc="API key for SerpAPI (un-prefixed env var)."
+    )
 
-    @property
-    def SERPAPI_KEY(self) -> str:
-        return os.getenv("SERPAPI_KEY", self.DEFAULT_SERPAPI_KEY)
+    SERPAPI_SAFE = EnvField(str, doc="Safe search filter for SerpAPI results (on/off).")
 
-    @SERPAPI_KEY.setter
-    def SERPAPI_KEY(self, value: str):
-        os.environ["SERPAPI_KEY"] = value
+    SERPAPI_LANG = EnvField(
+        str, doc="Language code for SerpAPI search results (e.g. en)."
+    )
 
-    SERPAPI_SAFE = EnvField(str)
-
-    SERPAPI_LANG = EnvField(str)
-
-    SEARXNG_PORT = EnvField(int)
+    SEARXNG_PORT = EnvField(int, doc="Port for the locally-running SearXNG instance.")
 
     SEARXNG_BASE_URL = EnvField(
         str,
         default_factory=lambda cfg: (
             cfg.DEFAULT_SEARXNG_BASE_URL or f"http://localhost:{cfg.SEARXNG_PORT}"
         ),
+        doc="Base URL for the SearXNG instance. Defaults to http://localhost:<SEARXNG_PORT>.",
     )
 
-    SEARXNG_SAFE = EnvField(int)
+    SEARXNG_SAFE = EnvField(
+        int, doc="Safe search level for SearXNG (0=none, 1=moderate, 2=strict)."
+    )
 
-    SEARXNG_LANG = EnvField(str)
+    SEARXNG_LANG = EnvField(
+        str, doc="Language code for SearXNG search results (e.g. en-US)."
+    )

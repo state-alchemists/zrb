@@ -3,10 +3,10 @@ import os
 from zrb.config.config import CFG
 from zrb.llm.tool.file_read import read_file
 from zrb.llm.tool.file_search import search_files
-from zrb.util.truncate import truncate_output
+from zrb.util.truncate import truncate_text
 
 
-async def analyze_file(path: str, query: str, auto_truncate: bool = True) -> str:
+async def analyze_file(path: str, query: str) -> str:
     """
     Deep semantic analysis of a file via LLM sub-agent. Slow and resource-intensive.
     """
@@ -23,19 +23,14 @@ async def analyze_file(path: str, query: str, auto_truncate: bool = True) -> str
     if not os.path.exists(abs_path):
         return f"Error: File not found: {path}"
 
-    content = read_file(abs_path, auto_truncate=auto_truncate)
+    content = read_file(abs_path)
     if content.startswith("Error:"):
         return content
 
     token_threshold = CFG.LLM_FILE_ANALYSIS_TOKEN_THRESHOLD
     char_limit = token_threshold * 4
 
-    clipped_content, _ = truncate_output(
-        content,
-        head_lines=CFG.LLM_FILE_READ_LINES,
-        tail_lines=CFG.LLM_FILE_READ_LINES,
-        max_chars=char_limit,
-    )
+    clipped_content, _ = truncate_text(content, char_limit, keep="head")
 
     system_prompt = get_prompt("file_extractor")
 

@@ -2,12 +2,20 @@ from __future__ import annotations
 
 import copy
 import inspect
+import json
 from collections.abc import Callable
 from functools import wraps
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from zrb.config.config import CFG
+from zrb.llm.agent.gates import permission_gate, sandbox_gate
+from zrb.llm.agent.run.hook_result_extractor import (
+    extract_post_tool_decision,
+    extract_pre_tool_decision,
+)
 from zrb.llm.config.config import llm_config as default_llm_config
+from zrb.llm.hook.manager import hook_manager
+from zrb.llm.hook.types import HookEvent
 from zrb.llm.util.prompt import expand_prompt
 from zrb.util.string.conversion import to_string
 
@@ -40,8 +48,8 @@ def _wrap_tool(tool: "Tool | ToolFuncEither") -> "Tool | ToolFuncEither":
         from pydantic_ai import Tool as PydanticTool
 
         # It is a Tool instance
-        original_func = tool.function
-        safe_func = create_safe_wrapper(original_func, name=tool.name)
+        original_func = getattr(tool, "function")
+        safe_func = create_safe_wrapper(original_func, name=getattr(tool, "name"))
         if isinstance(tool, PydanticTool):
             return PydanticTool(
                 safe_func,
@@ -58,8 +66,8 @@ def _wrap_tool(tool: "Tool | ToolFuncEither") -> "Tool | ToolFuncEither":
             )
         return tool
     else:
-        # It is a callable
-        return create_safe_wrapper(tool)
+        # It is a callable (hasattr(tool, "function") is False, so not a Tool).
+        return create_safe_wrapper(cast("Callable", tool))
 
 
 def safe_copy_result(result: Any) -> Any:
@@ -83,103 +91,6 @@ def safe_copy_result(result: Any) -> Any:
         # If deepcopy fails (e.g., for complex objects), return as-is
         # This maintains backward compatibility while fixing the common cases
         return result
-
-
-def _permission_gate(tool_name: str, capability: Any, args: dict[str, Any]) -> Any:
-    """Return a blocked ``ToolReturn`` if the in-force policy denies this call.
-
-    Returns ``None`` when nothing denies it (the default — no policy and
-    ``AgentMode.BUILD`` → always ``None``, so the synchronous path is
-    unchanged). Enforces the *deny* outcome that the approval layer (allow/ask)
-    cannot express, without touching the deferred-request machinery.
-    """
-    # lazy: circular — common is imported by the runner; permission is a leaf,
-    # but keep the read local so the policy is re-resolved per call.
-    from pydantic_ai import ToolReturn
-
-    from zrb.llm.permission import DENY, get_current_agent_mode, get_effective_policy
-
-    policy = get_effective_policy()
-    if policy is None:
-        return None
-    if policy.decide(tool_name, capability, args) != DENY:
-        return None
-    mode = get_current_agent_mode().value
-    return ToolReturn(
-        return_value=None,
-        content=(
-            f"Blocked: '{tool_name}' is not permitted under the current "
-            f"permission policy (mode: {mode}). "
-            "[SYSTEM SUGGESTION]: this is a read-only / restricted context. "
-            "Finish discovery, then call ExitPlanMode (if in plan mode) to "
-            "present your plan for approval before making changes."  # fmt: skip
-        ),
-        metadata={"blocked": True},
-    )
-
-
-def _sandbox_gate(tool_name: str, capability: Any, args: dict[str, Any]) -> Any:
-    """Return a blocked ``ToolReturn`` if the sandbox FS policy denies this call.
-
-    Returns ``None`` when the sandbox is disabled (the default — zero-cost
-    path) or no path argument violates the policy. EXECUTE tools are not
-    path-checked here: shell commands are contained by the OS-level sandbox
-    layer, not by argument inspection.
-    """
-    # lazy: heavy third-party / leaf module read per call so tests and
-    # downstream CFG overrides are honored.
-    from pydantic_ai import ToolReturn
-
-    from zrb.llm.permission import Capability
-    from zrb.llm.sandbox import check_read, check_write, get_effective_sandbox_policy
-
-    # Argument keys the sandbox gate treats as filesystem paths (subset of the
-    # permission layer's _SALIENT_ARG_KEYS). Reads check every path-like arg;
-    # writes additionally check them for EDIT/UNKNOWN tools ("src" is write-checked
-    # because move_file deletes it; "dst" because it gets overwritten).
-    _SANDBOX_READ_KEYS = ("path", "file_path", "file", "filename", "src")
-    _SANDBOX_WRITE_KEYS = ("path", "file_path", "file", "filename", "src", "dst")
-
-    policy = get_effective_sandbox_policy()
-    if not policy.enabled:
-        return None
-
-    def _blocked(reason: str) -> Any:
-        return ToolReturn(
-            return_value=None,
-            content=(
-                f"Blocked by sandbox policy: {reason}. "
-                "[SYSTEM SUGGESTION]: work within the project directory, or "
-                "ask the user to extend the sandbox writable paths "
-                "(LLM_SANDBOX_WRITABLE_PATHS) / adjust the deny list "
-                "(LLM_SANDBOX_DENY_READ_PATHS)."
-            ),
-            metadata={"blocked": True},
-        )
-
-    if not policy.allow_escape and args.get("dangerously_skip_sandbox"):
-        return _blocked(
-            "dangerously_skip_sandbox was requested but escaping the sandbox "
-            "is disabled in this deployment (LLM_SANDBOX_ALLOW_ESCAPE=false)"
-        )
-
-    cap_value = getattr(capability, "value", capability)
-    if cap_value == Capability.EXECUTE.value:
-        return None
-    for key in _SANDBOX_READ_KEYS:
-        value = args.get(key)
-        if isinstance(value, str):
-            error = check_read(value, policy)
-            if error is not None:
-                return _blocked(error)
-    if cap_value in (Capability.EDIT.value, Capability.UNKNOWN.value):
-        for key in _SANDBOX_WRITE_KEYS:
-            value = args.get(key)
-            if isinstance(value, str):
-                error = check_write(value, policy)
-                if error is not None:
-                    return _blocked(error)
-    return None
 
 
 def _truncated_content(content: str) -> tuple[str, dict[str, Any]]:
@@ -216,10 +127,10 @@ def create_safe_wrapper(func: Callable, name: str | None = None) -> Callable:
     @wraps(func)
     async def wrapper(*args, **kwargs):
         try:
-            blocked = _permission_gate(tool_name, capability, kwargs)
+            blocked = permission_gate(tool_name, capability, kwargs)
             if blocked is not None:
                 return blocked
-            blocked = _sandbox_gate(tool_name, capability, kwargs)
+            blocked = sandbox_gate(tool_name, capability, kwargs)
             if blocked is not None:
                 return blocked
 
@@ -265,31 +176,206 @@ def _wrap_toolset(toolset: "AbstractToolset[None]") -> "AbstractToolset[None]":
             self, name: str, tool_args: dict[str, Any], ctx: Any, tool: Any
         ) -> Any:
             try:
-                blocked = _permission_gate(name, tool_capability(tool), tool_args or {})
+                tool_args = await _fire_pre_tool_use(name, tool_args, ctx)
+                if isinstance(tool_args, ToolReturn):
+                    return tool_args  # PreToolUse hook denied the call
+                blocked = permission_gate(name, tool_capability(tool), tool_args or {})
                 if blocked is not None:
                     return blocked
-                blocked = _sandbox_gate(name, tool_capability(tool), tool_args or {})
+                blocked = sandbox_gate(name, tool_capability(tool), tool_args or {})
                 if blocked is not None:
                     return blocked
                 result = await super().call_tool(name, tool_args, ctx, tool)
-                # If result is already a ToolReturn, return it as-is
+                # If result is already a ToolReturn, respect its framing; a
+                # PostToolUse hook may still block it or replace its content.
                 if isinstance(result, ToolReturn):
-                    return result
+                    return await _fire_post_tool_use(name, tool_args, result)
                 # Create a safe copy to prevent mutation by pydantic-ai
                 safe_result = safe_copy_result(result)
                 content, metadata = _truncated_content(to_string(safe_result))
-                return ToolReturn(
+                wrapped = ToolReturn(
                     return_value=safe_result,
                     content=content,
                     metadata=metadata,
                 )
+                return await _fire_post_tool_use(name, tool_args, wrapped)
             except Exception as e:
+                await _fire_post_tool_use_failure(name, tool_args, e)
                 error_msg = f"Error executing tool {name}: {e}"
                 return ToolReturn(
                     return_value=None, content=error_msg, metadata={"error": True}
                 )
 
     return SafeToolsetWrapper(toolset)
+
+
+async def _fire_pre_tool_use(name: str, tool_args: dict[str, Any], ctx: Any) -> Any:
+    """Fire PreToolUse for a tool about to execute (Claude-compatible).
+
+    Skipped when ``ctx.tool_call_approved`` is True: that call came through the
+    deferred-approval path, where PreToolUse already fired pre-approval (see
+    ``deferred_calls.process_deferred_requests``). Returns the (possibly
+    rewritten) ``tool_args`` to use, or a blocking ``ToolReturn`` if a hook denied
+    the call.
+    """
+    # lazy: heavy third-party deferral
+    from pydantic_ai import ToolReturn
+
+    if getattr(ctx, "tool_call_approved", False):
+        return tool_args
+    results = await hook_manager.execute_hooks(
+        HookEvent.PRE_TOOL_USE,
+        {
+            "tool": name,
+            "args": tool_args,
+            "call_id": getattr(ctx, "tool_call_id", None),
+        },
+        # Claude-standard context fields: a hook reads `tool_name`/`tool_input`
+        # from stdin and tool-name matchers filter on `tool_name`. Without these
+        # the matcher sees None and the hook silently never fires.
+        tool_name=name,
+        tool_input=tool_args,
+    )
+    decision = extract_pre_tool_decision(results)
+    if decision.deny:
+        return ToolReturn(
+            return_value=None,
+            content=(
+                f"Blocked by PreToolUse hook: "
+                f"{decision.reason or 'tool call denied'}"
+            ),
+            metadata={"blocked": True},
+        )
+    # Limitation: this is the execution-time path for tools that don't require
+    # approval (no interactive prompt to show here), so a hook's
+    # permissionDecision="ask" cannot force a prompt — it degrades to proceed.
+    # "ask" is honored on the deferred-approval path (deferred_calls._resolve_approval).
+    if decision.force_prompt:
+        CFG.LOGGER.debug(
+            f"PreToolUse hook requested 'ask' for {name} on the execution-time "
+            "path (no prompt mechanism); proceeding."
+        )
+    if decision.updated_input and isinstance(tool_args, dict):
+        return {**tool_args, **decision.updated_input}
+    return tool_args
+
+
+def _tool_response_payload(result: Any) -> dict[str, Any]:
+    """Best-effort Claude-shaped ``tool_response``: a JSON-serializable dict.
+
+    Claude's PostToolUse payload carries the tool's output under ``tool_response``.
+    The result here may be a pydantic-ai ``ToolReturn`` (use its model-facing
+    ``content``), a plain dict, or an arbitrary value. Wrap non-dicts under a
+    ``content`` key and stringify anything that won't serialize so the stdin
+    payload never falls back to the minimal event-only form.
+    """
+    content = getattr(result, "content", result)
+    if isinstance(content, dict):
+        payload = content
+    else:
+        payload = {"content": content}
+    try:
+        json.dumps(payload)
+        return payload
+    except (TypeError, ValueError):
+        return {"content": str(content)}
+
+
+async def _fire_post_tool_use(name: str, tool_args: dict[str, Any], result: Any) -> Any:
+    """Fire PostToolUse after a successful tool call (Claude-compatible).
+
+    A hook may block the result (discard it, feed the reason to the model) or
+    replace the model-facing content via ``updatedToolOutput``. Returns the
+    ``ToolReturn`` to surface.
+    """
+    # lazy: heavy third-party deferral
+    from pydantic_ai import ToolReturn
+
+    results = await hook_manager.execute_hooks(
+        HookEvent.POST_TOOL_USE,
+        {"tool": name, "args": tool_args, "result": result},
+        # Claude-standard context fields (see _fire_pre_tool_use). PostToolUse
+        # additionally carries `tool_response`; coerce to a JSON-safe dict so the
+        # stdin payload and CLAUDE_TOOL_RESPONSE env var serialize cleanly.
+        tool_name=name,
+        tool_input=tool_args,
+        tool_response=_tool_response_payload(result),
+    )
+    decision = extract_post_tool_decision(results)
+    if decision.block:
+        return ToolReturn(
+            return_value=None,
+            content=(
+                f"Tool result blocked by PostToolUse hook: " f"{decision.reason or ''}"
+            ),
+            metadata={"blocked": True},
+        )
+    if decision.updated_output is not None and isinstance(result, ToolReturn):
+        result = ToolReturn(
+            return_value=result.return_value,
+            content=decision.updated_output,
+            metadata=result.metadata,
+        )
+    # Claude injects a PostToolUse hook's additionalContext into the model's
+    # context after the tool result; render it by appending to the model-facing
+    # content (the only post-tool injection point available here).
+    if decision.additional_context:
+        result = _append_tool_context(result, decision.additional_context)
+    return result
+
+
+def _append_tool_context(result: Any, extra: str) -> Any:
+    """Append a PostToolUse hook's additionalContext to the model-facing output.
+
+    Extends the ``ToolReturn`` content so the model sees the tool result followed
+    by the hook's context. A non-``ToolReturn`` result is wrapped, preserving the
+    original value for the model while surfacing the context.
+    """
+    # lazy: heavy third-party
+    from pydantic_ai import ToolReturn
+
+    if isinstance(result, ToolReturn):
+        content = result.content
+        return ToolReturn(
+            return_value=result.return_value,
+            content=_merge_content(content, extra),
+            metadata=result.metadata,
+        )
+    return ToolReturn(return_value=result, content=_merge_content(result, extra))
+
+
+def _merge_content(content: Any, extra: str) -> Any:
+    """Append ``extra`` to existing tool content, preserving its shape.
+
+    Strings are concatenated; sequence content (pydantic-ai allows a list of
+    content parts) gets ``extra`` appended as a new part; anything else is paired
+    with ``extra`` in a list so neither value is stringified away.
+    """
+    if content is None or content == "":
+        return extra
+    if isinstance(content, str):
+        return f"{content}\n\n{extra}"
+    if isinstance(content, (list, tuple)):
+        return [*content, extra]
+    return [content, extra]
+
+
+async def _fire_post_tool_use_failure(
+    name: str, tool_args: dict[str, Any], error: Exception
+) -> None:
+    """Fire PostToolUseFailure after a tool raised (observe-only, never raises)."""
+    try:
+        await hook_manager.execute_hooks(
+            HookEvent.POST_TOOL_USE_FAILURE,
+            {"tool": name, "args": tool_args, "error": str(error)},
+            # Claude-standard context fields so tool-name matchers and stdin
+            # reads work on the failure path too (see _fire_pre_tool_use).
+            tool_name=name,
+            tool_input=tool_args,
+        )
+    except Exception:
+        # A misbehaving failure hook must not mask the original tool error.
+        CFG.LOGGER.debug("PostToolUseFailure hook raised", exc_info=True)
 
 
 def create_agent(
@@ -302,7 +388,7 @@ def create_agent(
     capabilities: "list[AbstractCapability[Any]] | None" = None,
     output_type: "OutputSpec[OutputDataT]" = str,
     retries: int | None = None,
-    yolo: bool | Callable[[Any, Any, dict[str, Any]], bool] = False,
+    yolo: bool | Callable[[Any], bool] = False,
     resolve_model: bool = True,
 ) -> "Agent[None, Any]":
     # lazy: heavy third-party
@@ -319,8 +405,13 @@ def create_agent(
     final_output_type = output_type
     effective_toolsets = list(safe_toolsets)
     if safe_tools:
+        # Wrap the function toolset too, so SafeToolsetWrapper.call_tool is the
+        # single chokepoint every tool call passes through (free functions and
+        # toolset tools alike). This is where PreToolUse/PostToolUse fire.
         effective_toolsets.append(
-            FunctionToolset(tools=safe_tools, max_retries=CFG.LLM_TOOL_MAX_RETRIES)
+            _wrap_toolset(
+                FunctionToolset(tools=safe_tools, max_retries=CFG.LLM_TOOL_MAX_RETRIES)
+            )
         )
 
     if yolo is not True:
@@ -352,7 +443,9 @@ def create_agent(
 
     agent = Agent(
         model=final_model,
-        output_type=final_output_type,
+        # final_output_type may be `output_type | DeferredToolRequests`, a union
+        # pydantic-ai accepts at runtime but its OutputSpec param type doesn't model.
+        output_type=cast("OutputSpec[Any]", final_output_type),
         instructions=effective_system_prompt,
         toolsets=effective_toolsets,
         model_settings=effective_model_settings,

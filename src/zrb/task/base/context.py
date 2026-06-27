@@ -1,4 +1,5 @@
 import os
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from zrb.context.any_context import AnyContext
@@ -61,7 +62,7 @@ def fill_shared_context_envs(shared_ctx: AnySharedContext):
 
 def combine_inputs(
     existing_inputs: list[AnyInput],
-    new_inputs: list[AnyInput | None] | AnyInput | None,
+    new_inputs: Sequence[AnyInput | None] | AnyInput | None,
 ):
     """
     Combines new inputs into an existing list, avoiding duplicates by name.
@@ -85,7 +86,7 @@ def combine_inputs(
 
 def combine_envs(
     existing_envs: list[AnyEnv],
-    new_envs: list[AnyEnv | None] | AnyEnv | None,
+    new_envs: Sequence[AnyEnv | None] | AnyEnv | None,
 ):
     """
     Combines new envs into an existing list.
@@ -104,7 +105,7 @@ def combine_envs(
 
 def get_combined_envs(
     task: "BaseTask",
-    task_envs: list[AnyEnv | None] | AnyEnv | None = None,
+    task_envs: Sequence[AnyEnv | None] | AnyEnv | None = None,
 ) -> list[AnyEnv]:
     """
     Aggregates environment variables from the task and its upstreams.
@@ -121,7 +122,7 @@ def get_combined_envs(
 
 def get_combined_inputs(
     task: "BaseTask",
-    task_inputs: list[AnyInput | None] | AnyInput | None = None,
+    task_inputs: Sequence[AnyInput | None] | AnyInput | None = None,
 ) -> list[AnyInput]:
     """
     Aggregates inputs from the task and its upstreams, avoiding duplicates.

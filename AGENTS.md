@@ -16,7 +16,7 @@ The tree is self-describing — `ls src/zrb/` plus each module's docstring cover
 - `src/zrb/config/` — `CFG` singleton, composed from mixins under `_mixins/`. **`CFG.FOO` access stays flat** regardless of which mixin owns the attribute.
 - `src/zrb/task/` — task engine: `BaseTask`, `Task`, `CmdTask`, `HttpCheck`, `TcpCheck`, `Scheduler` (extends `BaseTrigger`), `Scaffolder`, `RsyncTask`. Plus the `make_task` decorator (wraps a plain function into a `BaseTask`).
 - `src/zrb/llm/` — LLM integration. `task/llm_task.py` (`LLMTask`) and `task/chat/task.py` (`LLMChatTask`) are `BaseTask` subclasses that create pydantic-ai agents internally. `prompt/` composes the system prompt; `tool/` ships agent-callable tools; `agent/subagent/` handles delegation; `common_tools.py` registers the shared baseline used by `LLMChatTask`, `LLMTask`, and `SubAgentManager`.
-- `src/zrb/llm_plugin/` — built-in skills (`skills/`) and sub-agent definitions (`agents/`). Each skill is `SKILL.md` or `SKILL.py`; each agent is `*.agent.md`.
+- `src/zrb/llm_plugin/` — built-in LLM plugin, split into three categories: `core_skills/` (always-on methodology baseline the utility skills delegate into), `skills/` (utility skills, gated by `CFG.LLM_ENABLE_BUILTIN_SKILLS`), and `agents/` (sub-agents, gated by `CFG.LLM_ENABLE_BUILTIN_AGENTS`). Each skill is `SKILL.md` or `SKILL.py`; each agent is `*.agent.md`. The toggles suppress only built-in content — user/project/plugin skills and agents always load. See ADR-0069.
 - `test/` — mirrors `src/` hierarchy
 - `llm-challenges/runner.py` — agent framework evaluation
 
@@ -26,7 +26,7 @@ The tree is self-describing — `ls src/zrb/` plus each module's docstring cover
 
 `PromptManager` (`src/zrb/llm/prompt/manager.py`) assembles the system prompt from ordered sections. Default order in `config/mixins/llm_prompt.py::DEFAULT_LLM_INCLUDE_SECTIONS`:
 
-`persona → mandate → git_mandate → journal_mandate → system_context → project_context → tool_guidance → claude_skills`
+`persona → mandate → git_mandate → journal_mandate → system_context → project_context → tool_guidance`
 
 User-added prompts follow. Override via the `include_sections` constructor parameter or the `ZRB_LLM_INCLUDE_SECTIONS` env var (comma-separated, order-sensitive).
 
@@ -39,13 +39,12 @@ Either way, downstreams add ordered sections without editing `PromptManager`. Se
 **Each section is MECE — a single behavior lives in exactly one section.** Adding a rule: pick the smallest-scope section that owns the concept.
 
 - `persona` — identity + response style
-- `mandate` — operating rules (no tool/git specifics)
+- `mandate` — operating rules (no tool/git specifics) + the skill catalogue, injected via `{CORE_SKILLS}`/`{AVAILABLE_SKILLS}`/`{PREACTIVATED_SKILLS}` placeholders (`build_skill_replacements` in `prompt/claude.py`); core skills (`llm_plugin/core_skills/`) are listed separately from other model-invocable skills
 - `git_mandate` — git approval rules
 - `journal_mandate` — memory protocol + index
 - `system_context` — runtime facts; auto-injects session wiring, active worktree, and pending todos so todo tools target the right conversation and stale state self-clears
 - `project_context` — AGENTS.md / CLAUDE.md project overrides
 - `tool_guidance` — per-tool when-to-use + key rules
-- `claude_skills` — skill catalogue
 
 ### Ambient State (`ContextVar`s)
 
@@ -73,84 +72,38 @@ prompt_manager.add_tool_guidance(group="My Tools", name="MyTool",
 
 ## Architecture Decision Records (ADRs)
 
-Significant design decisions are recorded as ADRs in `docs/adr/`. Each ADR
-captures context, decision, consequences, alternatives rejected, and evidence
-(cross-references to code/docs). The index at `docs/adr/README.md` lists every
-record.
+Record a decision as an ADR in `docs/adr/` when it is **non-trivial** (a
+reasonable developer could pick a different path), **consequential** (affects
+other parts of the system or how users interact with it), and **persistent**
+(meant to last, not a quick hack). One decision per record; mark a reversed
+decision `Superseded by ADR-NNNN` rather than deleting it.
 
-### When to write one
-
-Write an ADR when a decision is:
-- **Non-trivial** — a reasonable developer could pick a different path.
-- **Consequential** — affects how other parts of the system work or how users
-  interact with it.
-- **Persistent** — the decision is expected to last (not a quick hack).
-
-### How to add one
-
-1. Find the next free `ADR-NNNN` in the index.
-2. Append to the relevant thematic file under `docs/adr/`.
-3. Add a row to the index in `docs/adr/README.md`.
-4. If the decision reverses or refines an old ADR, mark the old one
-   `Superseded by ADR-NNNN` — preserve the history.
-
-### Format
-
-Every ADR uses this shape:
-
-- **Status** — Accepted / Superseded / Evolving
-- **Context** — the forces and problem that prompted the decision
-- **Decision** — what was chosen, concretely
-- **Consequences** — what this buys and what it costs
-- **Alternatives rejected** — and why
-- **Evidence** — file/doc pointers; tag each rationale `[DOCUMENTED]` (stated
-  in code/docs) or `[INFERRED]` (deduced from code structure)
-
-One decision per record. If the decision is still being discussed, mark it
-**Evolving** and note open questions as `@<owner> please decide` tags.
+Mechanics — numbering, file layout, and the
+Status/Context/Decision/Consequences/Alternatives/Evidence shape — live in
+[`docs/adr/README.md`](docs/adr/README.md).
 
 ## Changelog
 
-Three files under `docs/`, newest-first within each:
-
-- `changelog.md` — the **active** changelog: recent releases at full detail.
-- `changelog-v2.md` — archive of the 2.x line.
-- `changelog-v1.md` — archive of the 1.x line (and the 1.0.0 rewrite from 0.x).
-
-### Entry format
-
-Each release is a `## <version> (<Month D, YYYY>)` heading followed by themed
-bullets. One blank line between entries. Use `- **<Category>: <Title>**:` with
-nested `  - <detail>` sub-bullets; categories are free-form but conventionally
-`Feature` / `Improvement` / `Fix` / `Reliability` / `Security` / `Refactor` /
-`Performance` / `Chore` / `Documentation` / `Tests`. Write past-tense and
-factual, and reference concrete symbols/paths (`module.py`, `ClassName`, env
-vars, ADR-NNNN) so a reader can locate the change.
-
-### Collapsing (compaction)
-
-Old entries are periodically compacted so each minor keeps only two entries —
-the minor bump and its final revision — giving the retained sequence:
-
-```
-x.y.0  →  x.y.z (latest revision of x.y)  →  x.y+1.0  →  …
-```
-
-The kept `x.y.z` **summarizes** the dropped patches `x.y.1`–`x.y.z`, and `x.y.0`
-**absorbs** its pre-releases (`x.y.0a*`/`x.y.0b*`) — never just dropped, since
-the real features usually live there. Rolled-up entries get a
-`_Cumulative summary of the X.Y.1–X.Y.Z patch line._` note. The newest minor in
-`changelog.md` stays at full per-patch detail until it ages out.
-
-Full procedure, rationale, and a worked example:
+Lives under `docs/`: `changelog.md` (index), `changelog-v2/` (per-minor files,
+e.g. `2.38.0.md`, `2.35.0-2.35.3.md`), `changelog-v1.md` (1.x archive). Entry
+format and the compaction/collapsing procedure — with a worked example — are in
 [Maintainer Guide → Changelog](docs/advanced-topics/maintainer-guide.md#changelog).
 
 ## Development Conventions
 
 ### Code Style
 - Follow existing project conventions (formatting, naming, typing)
-- **Modularity:** functions ~30–50 lines; helpers placed below their callers
+- **Modularity:** functions ≤ 30 lines; helpers placed below their callers
 - **Error handling:** LLM tool errors include a `[SYSTEM SUGGESTION]` prefix with actionable guidance
+
+### Config Conventions
+
+Boolean `CFG`/env knobs follow a naming rule (ADR-0073):
+
+- **`<NAMESPACE>_ENABLED`** (state-last) when the toggle is the master switch of a namespace that has *other* settings, so it groups with its siblings — e.g. `WEB_AUTH_ENABLED` (alongside `WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES`), `LLM_SANDBOX_ENABLED`, `HOOKS_ENABLED`.
+- **Verb-first** (`ENABLE_`/`SHOW_`/`SEARCH_`/`INCLUDE_`/`ALLOW_`) for a standalone on/off behavior with no sub-config namespace — e.g. `LLM_ENABLE_BUILTIN_SKILLS`, `LLM_SEARCH_PROJECT`, `LLM_SHOW_TOOL_CALL_DETAIL`.
+
+When **renaming** a released knob, preserve the old env key via `EnvField(aliases=[new, old], write_key=new)` (reads either, writes the new form) so existing `ZRB_*` configs don't break. A clean break (drop the old key) is only safe pre-release.
 
 ### Imports
 

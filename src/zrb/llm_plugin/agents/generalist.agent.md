@@ -5,15 +5,15 @@ tools: [
   Shell, Bash, Read, Write, Edit, RM, MV,
   LS, Glob, Grep,
   AnalyzeFile, AnalyzeCode,
-  SearchJournal, SearchInternet, OpenWebPage,
+  SearchJournal, WebSearch, WebFetch,
   EnterWorktree, ExitWorktree, ListWorktrees,
   LspFindDefinition, LspFindReferences, LspGetDiagnostics,
   LspGetDocumentSymbols, LspGetWorkspaceSymbols, LspGetHoverInfo,
   LspRenameSymbol, LspListServers,
-  WriteTodos, GetTodos,
+  TodoWrite, TodoRead,
   ActivateSkill
 ]
-inherit_sections: [persona, mandate, git_mandate, system_context, project_context, claude_skills]
+inherit_sections: [persona, mandate, git_mandate, system_context, project_context]
 ---
 # Mandate
 

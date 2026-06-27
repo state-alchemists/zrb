@@ -8,6 +8,7 @@ from prompt_toolkit.completion import CompleteEvent
 from prompt_toolkit.document import Document
 
 from zrb.llm.app.completion import InputCompleter
+from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 
 
@@ -267,6 +268,220 @@ def test_both_flags_false_only_custom_models(mock_history_manager, complete_even
     # They all have prefixes like "openai:", "anthropic:", etc.
     for completion in completion_texts:
         assert ":" not in completion or completion in ["model-a", "model-b"]
+
+
+def _make_custom_command(command, description):
+    cc = MagicMock(spec=AnyCustomCommand)
+    cc.command = command
+    cc.description = description
+    return cc
+
+
+def test_custom_command_name_completion(mock_history_manager, complete_event):
+    """Custom commands appear among command-name completions."""
+    cc = _make_custom_command("/deploy", "Deploy the app")
+    completer = InputCompleter(
+        history_manager=mock_history_manager,
+        custom_commands=[cc],
+    )
+    doc = Document(text="/de", cursor_position=3)
+    completions = list(completer.get_completions(doc, complete_event))
+    matched = [c for c in completions if c.text == "/deploy"]
+    assert matched
+    assert matched[0].display_meta_text == "Deploy the app"
+
+
+def test_custom_command_arg_completion(mock_history_manager, complete_event):
+    """Typing an arg after a custom command yields a description-only completion."""
+    cc = _make_custom_command("/deploy", "Deploy the app")
+    completer = InputCompleter(
+        history_manager=mock_history_manager,
+        custom_commands=[cc],
+    )
+    doc = Document(text="/deploy staging", cursor_position=15)
+    completions = list(completer.get_completions(doc, complete_event))
+    assert any(c.display_meta_text == "Deploy the app" for c in completions)
+
+
+def test_exec_command_arg_completion(mock_history_manager, complete_event):
+    """Exec command arg completion pulls from command history."""
+    completer = InputCompleter(
+        history_manager=mock_history_manager,
+        exec_commands=["/exec"],
+    )
+    completer._cmd_history = ["git status", "git commit", "ls"]
+    doc = Document(text="/exec git", cursor_position=9)
+    completions = list(completer.get_completions(doc, complete_event))
+    texts = [c.text for c in completions]
+    assert any("git status" in t for t in texts)
+
+
+def test_model_subcommands_suggested_on_bare_model(
+    mock_history_manager, complete_event
+):
+    """'/model ' suggests the small and multimodal subcommands."""
+    completer = InputCompleter(
+        history_manager=mock_history_manager,
+        set_model_commands=["/model"],
+        show_ollama_models=False,
+        show_pydantic_ai_models=False,
+        custom_model_names=["m1"],
+    )
+    doc = Document(text="/model ", cursor_position=7)
+    completions = list(completer.get_completions(doc, complete_event))
+    texts = [c.text for c in completions]
+    assert "small " in texts
+    assert "multimodal " in texts
+
+
+def test_model_subcommand_completing_first_arg(mock_history_manager, complete_event):
+    """'/model sm' completes the 'small' subcommand and matching model names."""
+    completer = InputCompleter(
+        history_manager=mock_history_manager,
+        set_model_commands=["/model"],
+        show_ollama_models=False,
+        show_pydantic_ai_models=False,
+        custom_model_names=["small-llm"],
+    )
+    doc = Document(text="/model sm", cursor_position=9)
+    completions = list(completer.get_completions(doc, complete_event))
+    texts = [c.text for c in completions]
+    assert "small " in texts
+
+
+def test_model_subcommand_multimodal_first_arg(mock_history_manager, complete_event):
+    """'/model mu' completes the 'multimodal' subcommand."""
+    completer = InputCompleter(
+        history_manager=mock_history_manager,
+        set_model_commands=["/model"],
+        show_ollama_models=False,
+        show_pydantic_ai_models=False,
+    )
+    doc = Document(text="/model mu", cursor_position=9)
+    completions = list(completer.get_completions(doc, complete_event))
+    texts = [c.text for c in completions]
+    assert "multimodal " in texts
+
+
+def test_model_subcommand_then_space_completes_model_name(
+    mock_history_manager, complete_event
+):
+    """'/model small ' completes model names for the chosen subcommand."""
+    completer = InputCompleter(
+        history_manager=mock_history_manager,
+        set_model_commands=["/model"],
+        show_ollama_models=False,
+        show_pydantic_ai_models=False,
+        custom_model_names=["fast-model"],
+    )
+    doc = Document(text="/model small ", cursor_position=13)
+    completions = list(completer.get_completions(doc, complete_event))
+    texts = [c.text for c in completions]
+    assert "fast-model" in texts
+
+
+def test_model_subcommand_third_part_completes_model_name(
+    mock_history_manager, complete_event
+):
+    """'/model small fa' completes model names after the subcommand."""
+    completer = InputCompleter(
+        history_manager=mock_history_manager,
+        set_model_commands=["/model"],
+        show_ollama_models=False,
+        show_pydantic_ai_models=False,
+        custom_model_names=["fast-model"],
+    )
+    doc = Document(text="/model small fa", cursor_position=15)
+    completions = list(completer.get_completions(doc, complete_event))
+    texts = [c.text for c in completions]
+    assert "fast-model" in texts
+
+
+def test_command_with_unsupported_arg_yields_nothing(
+    mock_history_manager, complete_event
+):
+    """A command that takes no extra args yields no completions for a 3rd token."""
+    completer = InputCompleter(
+        history_manager=mock_history_manager,
+        info_commands=["/info"],
+    )
+    doc = Document(text="/info one two", cursor_position=13)
+    completions = list(completer.get_completions(doc, complete_event))
+    assert completions == []
+
+
+def test_empty_text_yields_no_completions(completer, complete_event):
+    """An empty document is not a command and yields nothing."""
+    doc = Document(text="", cursor_position=0)
+    completions = list(completer.get_completions(doc, complete_event))
+    assert completions == []
+
+
+def test_attach_path_navigation_uses_path_completer(
+    mock_history_manager, complete_event, tmp_path
+):
+    """A path-style prefix (starts with './' etc.) defers to PathCompleter."""
+    (tmp_path / "alpha.txt").write_text("x")
+    completer = InputCompleter(
+        history_manager=mock_history_manager,
+        attach_commands=["/attach"],
+    )
+    target = str(tmp_path) + "/al"
+    doc = Document(text=f"/attach {target}", cursor_position=len(f"/attach {target}"))
+    completions = list(completer.get_completions(doc, complete_event))
+    assert any(c.display_text == "alpha.txt" for c in completions)
+    # only_files=True for attach -> path-style completion keeps File Path meta.
+    assert all(c.display_meta_text == "File Path" for c in completions)
+
+
+def test_file_at_prefix_path_navigation(mock_history_manager, complete_event, tmp_path):
+    """'@<abs-path>' triggers path-navigation completion (directories allowed)."""
+    (tmp_path / "beta").mkdir()
+    completer = InputCompleter(history_manager=mock_history_manager)
+    target = str(tmp_path) + "/be"
+    doc = Document(text=f"@{target}", cursor_position=len(f"@{target}"))
+    completions = list(completer.get_completions(doc, complete_event))
+    # @ completion is only_files=False, so the directory is offered.
+    assert any(c.display_text == "beta/" for c in completions)
+
+
+def test_fuzzy_walk_too_many_files_falls_back_to_path_completer(
+    mock_history_manager, complete_event, tmp_path, monkeypatch
+):
+    """When the recursive walk hits the file cap, completion defers to
+    PathCompleter instead of fuzzy matching."""
+    from zrb.llm.app.completion import completer as completer_mod
+
+    (tmp_path / "gamma.txt").write_text("x")
+    monkeypatch.chdir(tmp_path)
+    completer = InputCompleter(history_manager=mock_history_manager)
+    # Force the walk to "overflow" so the >= cap branch fires.
+    monkeypatch.setattr(
+        completer_mod, "walk_recursive_files", lambda *a, **k: ["a", "b"]
+    )
+    monkeypatch.setattr(completer_mod.CFG, "LLM_MAX_COMPLETION_FILES", 1)
+    doc = Document(text="@gam", cursor_position=4)
+    completions = list(completer.get_completions(doc, complete_event))
+    assert any(c.display_text == "gamma.txt" for c in completions)
+
+
+def test_known_models_fallback_on_exception(mock_history_manager, complete_event):
+    """If pydantic-ai's KnownModelName can't be introspected, a static fallback
+    list is used so /model completion still works."""
+    with patch(
+        "zrb.llm.app.completion.completer.get_args",
+        side_effect=Exception("boom"),
+    ):
+        completer = InputCompleter(
+            history_manager=mock_history_manager,
+            set_model_commands=["/model"],
+            show_ollama_models=False,
+            show_pydantic_ai_models=True,
+        )
+    doc = Document(text="/model ", cursor_position=7)
+    completions = list(completer.get_completions(doc, complete_event))
+    texts = [c.text for c in completions]
+    assert any(t.startswith("anthropic:") for t in texts)
 
 
 class TestCaches:

@@ -11,11 +11,13 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING
 
+from zrb.config.config import CFG
 from zrb.llm.hook.interface import HookEvent
 from zrb.llm.util.image_scale import scale_image_bytes
+from zrb.util.cli.style import remove_style
 
 if TYPE_CHECKING:
-    from typing import Any
+    from typing import Any, TextIO
 
     from prompt_toolkit.key_binding import KeyBindings
     from pydantic_ai.messages import UserContent
@@ -45,17 +47,45 @@ class KeybindingsMixin:
 
         def schedule_command(self, text: str, *, guarded: bool = True) -> None: ...
 
-        def _submit_user_message(self, llm_task: "AnyTask", text: str) -> None: ...
+        def _submit_user_message(
+            self, llm_task: "AnyTask", user_message: str
+        ) -> None: ...
 
         def toggle_plan(self) -> None: ...
 
         def toggle_yolo(self) -> None: ...
 
+        def cycle_mode(self) -> None: ...
+
+        # From BaseUI
+        def execute_hook(
+            self, event: "HookEvent", event_data: Any, **kwargs: Any
+        ) -> None: ...
+
+        # From OutputMixin
+        def append_to_output(
+            self,
+            *values: object,
+            sep: str = " ",
+            end: str = "\n",
+            file: "TextIO | None" = None,
+            flush: bool = False,
+            kind: str = "text",
+        ) -> None: ...
+
+        # From LifecycleMixin
+        def invalidate_ui(self) -> None: ...
+
+        # From ConfirmationMixin
+        def _cancel_pending_confirmations(self, flush: bool = True) -> None: ...
+
+        def _handle_confirmation(self, event: Any) -> bool: ...
+
     def setup_app_keybindings(
         self, app_keybindings: "KeyBindings", llm_task: "AnyTask"
     ):
         # lazy: heavy third-party
-        from prompt_toolkit.filters import Condition
+        from prompt_toolkit.filters import Condition, has_completions
 
         # While the AskUserQuestion selection widget is active it owns Enter and
         # newline keys (its own control bindings handle them); suppress the
@@ -64,7 +94,12 @@ class KeybindingsMixin:
             lambda: not getattr(self, "has_active_choice", lambda: False)()
         )
 
-        @app_keybindings.add("f6")
+        # Ctrl+K toggles focus between the input and output panes. The
+        # input/output controls' own Tab/Shift+Tab focus traversal was removed
+        # (see app/layout.py, app/keybinding.py) so Shift+Tab is free to cycle
+        # modes (below). Note: on Termux, Tab and Shift+Tab both produce byte
+        # 0x09, so mode cycling via Shift+Tab is unavailable there.
+        @app_keybindings.add("c-k")
         def _(event):
             if event.app.layout.has_focus(self._input_field):
                 event.app.layout.focus(self._output_field)
@@ -77,6 +112,9 @@ class KeybindingsMixin:
             buffer = event.app.current_buffer
             if buffer.selection_state:
                 data = buffer.copy_selection()
+                # The output buffer holds raw ANSI codes (e.g. muted tool-call
+                # detail); strip them so the clipboard gets plain text.
+                data.text = remove_style(data.text)
                 if event.app.clipboard:
                     event.app.clipboard.set_data(data)
                 buffer.exit_selection()
@@ -120,7 +158,7 @@ class KeybindingsMixin:
                     get_clipboard_image,
                     missing_tool_hint,
                 )
-                from zrb.util.cli.style import stylize_error, stylize_faint
+                from zrb.util.cli.style import stylize_error, stylize_muted
 
                 img_bytes = await get_clipboard_image()
                 if img_bytes is not None:
@@ -141,7 +179,7 @@ class KeybindingsMixin:
                         )
                     else:
                         msg = f"\n  📸 Image pasted from clipboard ({size_kb:.1f} KB)\n"
-                    self.append_to_output(stylize_faint(msg))
+                    self.append_to_output(stylize_muted(msg))
                     self.invalidate_ui()
                 else:
                     hint = missing_tool_hint()
@@ -183,10 +221,10 @@ class KeybindingsMixin:
         @app_keybindings.add("enter", filter=no_active_choice)
         def _(event):
             # Enter only ever acts on the input field. With focus on the
-            # read-only output pane (Tab/F6), event.current_buffer is the
-            # output buffer — resolving a confirmation or submitting from it
-            # would send the entire pane content (banner, help, transcript)
-            # as user input. Refocus the input field instead.
+            # read-only output pane (Ctrl+K), event.current_buffer is the output
+            # buffer — resolving a confirmation or submitting from it would send
+            # the entire pane content (banner, help, transcript) as user input.
+            # Refocus the input field instead.
             if not event.app.layout.has_focus(self._input_field):
                 event.app.layout.focus(self._input_field)
                 return
@@ -232,13 +270,24 @@ class KeybindingsMixin:
             self._submit_user_message(llm_task, text)
             buff.reset()
 
-        @app_keybindings.add("c-p")
-        def _(event):
-            self.toggle_plan()
-
         @app_keybindings.add("c-y")
         def _(event):
             self.toggle_yolo()
+
+        if CFG.IS_TERMUX:
+            # On Termux, Tab and Shift+Tab are indistinguishable (both byte 0x09),
+            # so Shift+Tab never arrives — bind plain Tab to mode cycling there.
+            @app_keybindings.add("tab", filter=no_active_choice & ~has_completions)
+            def _(event):
+                self.cycle_mode()
+
+        else:
+            # Shift+Tab — cycle normal → accept-edits → plan. Gated so a completion
+            # menu keeps Shift+Tab for previous-completion, and a choice widget keeps
+            # its own back-tab navigation.
+            @app_keybindings.add("s-tab", filter=no_active_choice & ~has_completions)
+            def _(event):
+                self.cycle_mode()
 
         @app_keybindings.add("c-j", filter=no_active_choice)  # Ctrl+J / Ctrl+Enter
         @app_keybindings.add("c-space", filter=no_active_choice)  # Ctrl+Space fallback

@@ -192,6 +192,8 @@ async def run_command(
     )
     if register_pid_method is not None:
         register_pid_method(cmd_process.pid)
+    # stdout/stderr are guaranteed non-None since the process is created with PIPE.
+    assert cmd_process.stdout is not None and cmd_process.stderr is not None
     # Use the new, simple, and correct stream reader.
     display_lines = deque(maxlen=max_display_line if max_display_line > 0 else 0)
     stdout_task = asyncio.create_task(

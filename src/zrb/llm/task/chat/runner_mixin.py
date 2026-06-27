@@ -21,7 +21,7 @@ Assumes the host class provides:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, AsyncIterable, Callable
 
 from zrb.config.config import CFG
 from zrb.context.shared_context import SharedContext
@@ -34,16 +34,55 @@ from zrb.util.attr import get_attr, get_str_attr
 
 if TYPE_CHECKING:
     from pydantic_ai import UserContent
+    from pydantic_ai.models import Model
+    from rich.theme import Theme
 
+    from zrb.attr.type import StrAttr, StrListAttr
     from zrb.context.any_context import AnyContext
+    from zrb.llm.approval.approval_channel import ApprovalChannel
     from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
     from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
     from zrb.llm.task.llm_task import LLMTask
+    from zrb.llm.tool_call import ArgumentFormatter, ResponseHandler, ToolPolicy
     from zrb.llm.tool_call.ui_protocol import UIProtocol
 
 
 class RunnerMixin:
     """Interactive + non-interactive session orchestration for LLMChatTask."""
+
+    if TYPE_CHECKING:
+        # Attributes/methods supplied by sibling classes on the composed
+        # LLMChatTask (BuilderMixin, BaseTask, or set in LLMChatTask.__init__).
+        _uis: list["UIProtocol"]
+        _ui_factories: list[Callable[..., "UIProtocol"]]
+        _include_default_ui: bool
+        _approval_channels: list["ApprovalChannel"]
+        _yolo_xcom_key: str
+        _triggers: list[Callable[[], AsyncIterable[Any]]]
+        _response_handlers: list["ResponseHandler"]
+        _tool_policies: list["ToolPolicy"]
+        _argument_formatters: list["ArgumentFormatter"]
+        _markdown_theme: "Theme | None"
+        _custom_commands: list[
+            "AnyCustomCommand | Callable[[], AnyCustomCommand | list[AnyCustomCommand]]"
+        ]
+        _custom_model_names: "StrListAttr | None"
+        _ui_greeting: "StrAttr | None"
+        _render_ui_greeting: bool
+        _ui_assistant_name: "StrAttr | None"
+        _render_ui_assistant_name: bool
+        _ui_jargon: "StrAttr | None"
+        _render_ui_jargon: bool
+        _ui_ascii_art_name: "StrAttr | None"
+        _render_ui_ascii_art_name: bool
+        _show_ollama_models: bool | None
+        _show_pydantic_ai_models: bool | None
+
+        def _get_model(self, ctx: "AnyContext") -> "str | Model": ...
+
+        def _get_ui_conversation_name(
+            self, ui: "UIProtocol", initial_conversation_name: str
+        ) -> str: ...
 
     async def _run_non_interactive_session(
         self,
@@ -69,6 +108,7 @@ class RunnerMixin:
             "yolo": bool(initial_yolo),  # inner task uses dynamic_yolo; just pass bool
             "attachments": initial_attachments,
             "model": self._get_model(ctx),
+            "interactive": False,
         }
         shared_ctx = SharedContext(
             input=session_input,
@@ -246,7 +286,7 @@ class RunnerMixin:
         if resolved_uis and not self._include_default_ui:
             if len(resolved_uis) == 1:
                 return resolved_uis[0]
-            ui: "UIProtocol" = MultiUI(resolved_uis)
+            ui = MultiUI(resolved_uis)
             # Set up approval channel for MultiUI
             if len(self._approval_channels) == 1:
                 ui.set_approval_channel(self._approval_channels[0])

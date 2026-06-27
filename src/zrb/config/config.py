@@ -19,8 +19,10 @@ To find a setting:
 - Internet search (SerpAPI/Brave/SearXNG)    -> _mixins/internet_search.py
 - Hooks                                      -> _mixins/hooks.py
 - Task runtime intervals/cmd buffer          -> _mixins/task_runtime.py
+- CLI semantic colors (warning/error/muted)  -> mixins/cli_style.py
 """
 
+from zrb.config.mixins.cli_style import CLIStyleMixin
 from zrb.config.mixins.foundation import FoundationMixin
 from zrb.config.mixins.hooks import HooksMixin
 from zrb.config.mixins.internet_search import InternetSearchMixin
@@ -36,7 +38,7 @@ from zrb.config.mixins.task_runtime import TaskRuntimeMixin
 from zrb.config.mixins.web import WebMixin
 
 
-class Config(
+class Config(  # type: ignore[misc]  # noqa: E501  # Sibling mixins TYPE_CHECKING-declare ENV_PREFIX/ROOT_GROUP_* (FoundationMixin read-write properties) as attrs for self-access; pyright flags the property-vs-attr composition as an incompatible override (false positive — all expose the same str type).
     FoundationMixin,
     WebMixin,
     LLMCoreMixin,
@@ -50,6 +52,7 @@ class Config(
     InternetSearchMixin,
     HooksMixin,
     TaskRuntimeMixin,
+    CLIStyleMixin,
 ):
     """Global runtime configuration.
 

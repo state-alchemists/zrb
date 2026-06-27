@@ -10,22 +10,14 @@ async def replace_in_file(
     count: int = -1,
 ) -> str:
     """
-    Replaces text sequences within a file. Always read the file with `Read` before calling this.
+    Replaces text in a file. Always Read the file first to get exact text.
 
-    Tries exact match first, then falls back to fuzzy matching (trailing-whitespace-tolerant,
-    indentation-flexible) so minor whitespace differences don't cause unnecessary failures.
+    Falls back to fuzzy matching (whitespace-tolerant) if exact match fails.
+    count=-1 replaces all occurrences; count=1 replaces only the first.
 
-    `count=-1` (default) replaces all occurrences; `count=1` replaces only the first.
-    Returns an error with near-miss hints if old_text cannot be matched.
-
-    The file after replacement must be valid in its own language — indentation,
-    imports, references, syntax, and structure all coherent. If the change
-    would leave it malformed (broken indent, missing import, dangling brace),
-    widen `old_text` or use Write to re-emit the whole file instead.
-
-    After a successful replacement, runs LSP and static checks on the file.
-    Any errors detected are appended to the return value as a `[DIAGNOSTIC]`
-    section — investigate and fix before continuing.
+    The result must stay structurally valid — if the change would break indentation,
+    imports, or syntax, widen old_text or use Write to rewrite the file instead.
+    On success, runs LSP/static checks — errors appear as `[DIAGNOSTIC]` in the return value.
     """
     if old_text == "":
         # `"" in content` is always True, so an empty old_text would make
@@ -87,8 +79,8 @@ async def replace_in_file(
                 )
         return (
             f"Error: '{_trunc(old_text, 80)}' not found in {path}.\n"
-            f"[SYSTEM SUGGESTION]: Use Read to get the exact content and copy old_text "
-            f"verbatim from below ---CONTENT---."
+            f"[SYSTEM SUGGESTION]: Use Read to get the exact file content, then copy "
+            f"old_text verbatim from it. Do not retry with guessed text."
         )
 
     match_count = content.count(actual_old)

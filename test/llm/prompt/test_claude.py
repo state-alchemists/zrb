@@ -1,13 +1,10 @@
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from zrb.llm.prompt.claude import (
-    create_claude_skills_prompt,
+    build_skill_replacements,
     create_project_context_prompt,
 )
-from zrb.llm.skill.manager import Skill, SkillManager
+from zrb.llm.skill.manager import SkillManager
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -48,10 +45,10 @@ def test_create_project_context_prompt_no_doc_files(tmp_path):
     assert result == "base prompt"
 
 
-def test_create_project_context_prompt_with_agents_md(tmp_path):
-    """AGENTS.md content is included in the returned prompt."""
+def test_create_project_context_prompt_lists_agents_md(tmp_path):
+    """AGENTS.md path is listed in All Documentation Files."""
     agents_md = tmp_path / "AGENTS.md"
-    agents_md.write_text("# Test Agents\nSome agent guidance here.")
+    agents_md.write_text("Some agent guidance here.")
 
     handler = create_project_context_prompt()
     ctx = _make_ctx()
@@ -61,13 +58,14 @@ def test_create_project_context_prompt_with_agents_md(tmp_path):
     ):
         result = handler(ctx, "base prompt", _identity_next)
 
-    assert "Test Agents" in result
+    assert str(agents_md) in result
+    assert "Documentation Files Found" in result
 
 
-def test_create_project_context_prompt_with_claude_md(tmp_path):
-    """CLAUDE.md content is included in the returned prompt."""
+def test_create_project_context_prompt_lists_claude_md(tmp_path):
+    """CLAUDE.md path is listed in All Documentation Files."""
     claude_md = tmp_path / "CLAUDE.md"
-    claude_md.write_text("Claude instructions content")
+    claude_md.write_text("Claude instructions")
 
     handler = create_project_context_prompt()
     ctx = _make_ctx()
@@ -77,13 +75,13 @@ def test_create_project_context_prompt_with_claude_md(tmp_path):
     ):
         result = handler(ctx, "base prompt", _identity_next)
 
-    assert "Claude instructions content" in result
+    assert str(claude_md) in result
 
 
 def test_create_project_context_prompt_with_empty_doc_file(tmp_path):
-    """An empty file is listed in All Documentation Files but not loaded."""
+    """An empty file is still listed."""
     readme = tmp_path / "README.md"
-    readme.write_text("")  # empty
+    readme.write_text("")
 
     handler = create_project_context_prompt()
     ctx = _make_ctx()
@@ -93,19 +91,18 @@ def test_create_project_context_prompt_with_empty_doc_file(tmp_path):
     ):
         result = handler(ctx, "base prompt", _identity_next)
 
-    # File is listed (exists) but no content is loaded
-    assert "README.md" in result
+    assert str(readme) in result
 
 
 def test_create_project_context_prompt_multiple_dirs(tmp_path):
-    """The most-specific (last) directory's content takes precedence."""
+    """All occurrences across directories are listed."""
     dir1 = tmp_path / "dir1"
     dir1.mkdir()
     (dir1 / "AGENTS.md").write_text("Content from dir1")
 
     dir2 = tmp_path / "dir2"
     dir2.mkdir()
-    (dir2 / "AGENTS.md").write_text("Content from dir2 - more specific")
+    (dir2 / "AGENTS.md").write_text("Content from dir2")
 
     handler = create_project_context_prompt()
     ctx = _make_ctx()
@@ -115,31 +112,13 @@ def test_create_project_context_prompt_multiple_dirs(tmp_path):
     ):
         result = handler(ctx, "base prompt", _identity_next)
 
-    # Most-specific (dir2) content must appear
-    assert "more specific" in result
-
-
-def test_create_project_context_prompt_truncates_large_content(tmp_path):
-    """Content exceeding MAX_PROJECT_DOC_CHARS (8000) is truncated."""
-    agents_md = tmp_path / "AGENTS.md"
-    agents_md.write_text("A" * 10000)
-
-    handler = create_project_context_prompt()
-    ctx = _make_ctx()
-
-    with patch(
-        "zrb.llm.prompt.claude._get_search_directories", return_value=[tmp_path]
-    ):
-        result = handler(ctx, "base prompt", _identity_next)
-
-    # Some content must appear
-    assert "A" * 100 in result
-    # But not all 10000 chars of 'A' in a single run beyond the limit
-    assert "A" * 9000 not in result
+    # Both paths are listed
+    assert str(dir1 / "AGENTS.md") in result
+    assert str(dir2 / "AGENTS.md") in result
 
 
 def test_create_project_context_prompt_listed_files_section(tmp_path):
-    """Files appear in the 'All Documentation Files' section."""
+    """Files appear in the 'Documentation Files Found' section."""
     (tmp_path / "AGENTS.md").write_text("Agent content")
 
     handler = create_project_context_prompt()
@@ -150,12 +129,11 @@ def test_create_project_context_prompt_listed_files_section(tmp_path):
     ):
         result = handler(ctx, "base prompt", _identity_next)
 
-    assert "All Documentation Files" in result
+    assert "Documentation Files Found" in result
 
 
-def test_create_project_context_prompt_three_doc_types_without_readme(tmp_path):
-    """AGENTS.md, CLAUDE.md, and GEMINI.md are all included; README.md is
-    skipped when AGENTS.md is present (README.md is a fallback)."""
+def test_create_project_context_prompt_all_doc_types_listed(tmp_path):
+    """All doc types are listed (no suppression)."""
     for name in ("AGENTS.md", "CLAUDE.md", "GEMINI.md", "README.md"):
         (tmp_path / name).write_text(f"Content of {name}")
 
@@ -167,42 +145,8 @@ def test_create_project_context_prompt_three_doc_types_without_readme(tmp_path):
     ):
         result = handler(ctx, "base prompt", _identity_next)
 
-    for name in ("AGENTS.md", "CLAUDE.md", "GEMINI.md"):
+    for name in ("AGENTS.md", "CLAUDE.md", "GEMINI.md", "README.md"):
         assert name in result
-    # README.md is suppressed because AGENTS.md is present
-    assert "Content of README.md" not in result
-
-
-def test_create_project_context_prompt_readme_skipped_when_agents_md_present(tmp_path):
-    """README.md content is not loaded when AGENTS.md is present."""
-    (tmp_path / "AGENTS.md").write_text("Agent guidance")
-    (tmp_path / "README.md").write_text("Readme content")
-
-    handler = create_project_context_prompt()
-    ctx = _make_ctx()
-
-    with patch(
-        "zrb.llm.prompt.claude._get_search_directories", return_value=[tmp_path]
-    ):
-        result = handler(ctx, "base prompt", _identity_next)
-
-    assert "Agent guidance" in result
-    assert "Readme content" not in result
-
-
-def test_create_project_context_prompt_readme_included_when_no_agents_md(tmp_path):
-    """README.md is included when no AGENTS.md is present (fallback)."""
-    (tmp_path / "README.md").write_text("Readme fallback content")
-
-    handler = create_project_context_prompt()
-    ctx = _make_ctx()
-
-    with patch(
-        "zrb.llm.prompt.claude._get_search_directories", return_value=[tmp_path]
-    ):
-        result = handler(ctx, "base prompt", _identity_next)
-
-    assert "Readme fallback content" in result
 
 
 def test_create_project_context_prompt_calls_next_handler(tmp_path):
@@ -238,41 +182,10 @@ def test_create_project_context_prompt_base_prompt_preserved(tmp_path):
     assert "base prompt" in result
 
 
-def test_create_project_context_prompt_unreadable_file(tmp_path):
-    """Unreadable files are silently skipped (handled by _load_file_content)."""
-    agents_md = tmp_path / "AGENTS.md"
-    agents_md.write_text("readable content")
-
-    handler = create_project_context_prompt()
-    ctx = _make_ctx()
-
-    # Simulate open() raising an exception for that file
-    original_open = open
-
-    def patched_open(path, *args, **kwargs):
-        if str(path) == str(agents_md):
-            raise PermissionError("no access")
-        return original_open(path, *args, **kwargs)
-
-    with patch(
-        "zrb.llm.prompt.claude._get_search_directories", return_value=[tmp_path]
-    ):
-        with patch("builtins.open", side_effect=patched_open):
-            result = handler(ctx, "base prompt", _identity_next)
-
-    # File is listed but not loaded; no crash
-    assert "AGENTS.md" in result
-
-
-def test_create_project_context_prompt_skips_stub_doc_pointer(tmp_path):
-    """A doc that is purely an `@reference` pointer is NOT loaded as a
-    section — expand_prompt will inline the referenced file later, so
-    loading the stub would double-count its content."""
-    # AGENTS.md has real content; CLAUDE.md is a stub pointer to it.
-    agents_md = tmp_path / "AGENTS.md"
-    agents_md.write_text("# Real Agents\nDetailed agent guidance here.")
-    claude_md = tmp_path / "CLAUDE.md"
-    claude_md.write_text("@AGENTS.md\n")
+def test_create_project_context_prompt_all_files_listed_without_read(tmp_path):
+    """All found files are listed; content is not loaded."""
+    for name in ("AGENTS.md", "CLAUDE.md"):
+        (tmp_path / name).write_text("Some content here")
 
     handler = create_project_context_prompt()
     ctx = _make_ctx()
@@ -282,173 +195,129 @@ def test_create_project_context_prompt_skips_stub_doc_pointer(tmp_path):
     ):
         result = handler(ctx, "base prompt", _identity_next)
 
-    # AGENTS.md content appears exactly once — the stub did not duplicate it.
-    assert result.count("Detailed agent guidance here.") == 1
-    # CLAUDE.md path is still listed for visibility, even though body wasn't loaded.
+    # Content is not embedded
+    assert "Some content here" not in result
+    # But both paths are listed
+    assert "AGENTS.md" in result
     assert "CLAUDE.md" in result
 
 
-def test_create_project_context_prompt_skips_multi_reference_stub(tmp_path):
-    """Stub detector accepts multiple @-references with surrounding whitespace."""
-    agents_md = tmp_path / "AGENTS.md"
-    agents_md.write_text("agents body")
-    rtk_md = tmp_path / "RTK.md"
-    rtk_md.write_text("rtk body")
-    claude_md = tmp_path / "CLAUDE.md"
-    claude_md.write_text("\n@AGENTS.md\n@RTK.md\n\n")
-
-    handler = create_project_context_prompt()
-    ctx = _make_ctx()
-    with patch(
-        "zrb.llm.prompt.claude._get_search_directories", return_value=[tmp_path]
-    ):
-        result = handler(ctx, "base prompt", _identity_next)
-
-    # CLAUDE.md body is not loaded as a section (stub).
-    assert "@AGENTS.md\n@RTK.md" not in result
-    # But the other docs are loaded.
-    assert "agents body" in result
-    assert "rtk body" in result
-
-
-def test_create_project_context_prompt_keeps_non_stub_with_references(tmp_path):
-    """A doc that mixes real content AND @-references is still loaded
-    (it's not a stub)."""
-    claude_md = tmp_path / "CLAUDE.md"
-    claude_md.write_text("# Claude additions\n@AGENTS.md\nSome extra rule.")
-    agents_md = tmp_path / "AGENTS.md"
-    agents_md.write_text("agents body")
-
-    handler = create_project_context_prompt()
-    ctx = _make_ctx()
-    with patch(
-        "zrb.llm.prompt.claude._get_search_directories", return_value=[tmp_path]
-    ):
-        result = handler(ctx, "base prompt", _identity_next)
-
-    # CLAUDE.md content IS loaded (mixed, not a pure stub).
-    assert "# Claude additions" in result
-    assert "Some extra rule." in result
-
-
 # ---------------------------------------------------------------------------
-# create_claude_skills_prompt tests
+# build_skill_replacements tests
 # ---------------------------------------------------------------------------
 
 
-def test_create_claude_skills_prompt_no_skills(tmp_path):
-    """Empty skill manager: next_handler is still called."""
+def _scan(tmp_path):
     sm = SkillManager(root_dir=str(tmp_path))
-    sm.scan(search_dirs=[])  # no skills
-
-    handler = create_claude_skills_prompt(sm)
-    ctx = _make_ctx()
-    captured = []
-
-    def capture_next(c, p):
-        captured.append(p)
-        return p
-
-    result = handler(ctx, "base prompt", capture_next)
-
-    assert captured  # next_handler was called
-    assert result is not None
+    sm.scan(search_dirs=[tmp_path])
+    return sm
 
 
-def test_create_claude_skills_prompt_with_skills(tmp_path):
-    """Skills found by the manager appear in the returned prompt."""
-    skill_file = tmp_path / "test.skill.md"
-    skill_file.write_text(
+def test_build_skill_replacements_returns_all_placeholders(tmp_path):
+    """All three placeholders are always present, even with no skills."""
+    sm = SkillManager(root_dir=str(tmp_path))
+    sm.scan(search_dirs=[])
+
+    r = build_skill_replacements(sm)
+
+    assert set(r) == {"CORE_SKILLS", "AVAILABLE_SKILLS", "PREACTIVATED_SKILLS"}
+
+
+def test_build_skill_replacements_lists_available_skill(tmp_path):
+    """A non-core model-invocable skill lands in AVAILABLE_SKILLS."""
+    (tmp_path / "test.skill.md").write_text(
         "---\nname: test-skill\ndescription: A test skill\n---\n# Content"
     )
-    sm = SkillManager(root_dir=str(tmp_path))
-    sm.scan(search_dirs=[tmp_path])
 
-    handler = create_claude_skills_prompt(sm)
-    ctx = _make_ctx()
+    r = build_skill_replacements(_scan(tmp_path))
 
-    result = handler(ctx, "base prompt", _identity_next)
-
-    assert "test-skill" in result
+    assert "test-skill" in r["AVAILABLE_SKILLS"]
+    assert "A test skill" in r["AVAILABLE_SKILLS"]
+    assert "test-skill" not in r["CORE_SKILLS"]
 
 
-def test_create_claude_skills_prompt_with_active_skills(tmp_path):
-    """Active skills are fully loaded and listed under 'Active Skills'."""
-    skill_file = tmp_path / "active.skill.md"
-    skill_file.write_text(
-        "---\nname: active-skill\ndescription: Active skill\n---\nSkill content here"
+def test_build_skill_replacements_separates_core_from_other(tmp_path):
+    """A skill under a core_skills/ dir is classified as core, not available."""
+    core_dir = tmp_path / "core_skills" / "core-thing"
+    core_dir.mkdir(parents=True)
+    (core_dir / "SKILL.md").write_text(
+        "---\nname: core-thing\ndescription: A core skill\n---\n# Content"
     )
+    (tmp_path / "other.skill.md").write_text(
+        "---\nname: other\ndescription: Another skill\n---\n# Content"
+    )
+
+    r = build_skill_replacements(_scan(tmp_path))
+
+    assert "core-thing" in r["CORE_SKILLS"]
+    assert "core-thing" not in r["AVAILABLE_SKILLS"]
+    assert "other" in r["AVAILABLE_SKILLS"]
+
+
+def test_build_skill_replacements_available_empty_placeholder(tmp_path):
+    """AVAILABLE_SKILLS is a harmless placeholder string when empty."""
     sm = SkillManager(root_dir=str(tmp_path))
-    sm.scan(search_dirs=[tmp_path])
+    sm.scan(search_dirs=[])
 
-    handler = create_claude_skills_prompt(sm, active_skills=["active-skill"])
-    ctx = _make_ctx()
+    r = build_skill_replacements(sm)
 
-    result = handler(ctx, "base prompt", _identity_next)
-
-    assert "active-skill" in result
-    assert "Active Skills" in result
+    assert r["AVAILABLE_SKILLS"] == "_(none registered)_"
 
 
-def test_create_claude_skills_prompt_active_skill_content_loaded(tmp_path):
-    """Full content of an active skill is embedded in the prompt."""
-    skill_file = tmp_path / "deep.skill.md"
-    skill_file.write_text(
+def test_build_skill_replacements_active_skill_content_loaded(tmp_path):
+    """Active skills are rendered with their full content."""
+    (tmp_path / "deep.skill.md").write_text(
         "---\nname: deep-skill\ndescription: Deep skill\n---\nDeep skill body text"
     )
+
+    r = build_skill_replacements(_scan(tmp_path), active_skills=["deep-skill"])
+
+    assert "Deep skill body text" in r["PREACTIVATED_SKILLS"]
+    assert "Active Skills (Fully Loaded)" in r["PREACTIVATED_SKILLS"]
+
+
+def test_build_skill_replacements_active_skill_excluded_from_lists(tmp_path):
+    """An active skill is not also advertised in the catalogue lists."""
+    (tmp_path / "act.skill.md").write_text(
+        "---\nname: act\ndescription: Active one\n---\nbody"
+    )
+
+    r = build_skill_replacements(_scan(tmp_path), active_skills=["act"])
+
+    assert "act" not in r["AVAILABLE_SKILLS"]
+
+
+def test_build_skill_replacements_no_active_skills_empty(tmp_path):
+    """PREACTIVATED_SKILLS is empty when nothing is pre-activated."""
+    (tmp_path / "test.skill.md").write_text(
+        "---\nname: test-skill\ndescription: A test skill\n---\n# Content"
+    )
+
+    r = build_skill_replacements(_scan(tmp_path))
+
+    assert r["PREACTIVATED_SKILLS"] == ""
+
+
+def test_build_skill_replacements_missing_active_skill_does_not_crash(tmp_path):
+    """Requesting a non-existent active skill is ignored, not fatal."""
     sm = SkillManager(root_dir=str(tmp_path))
     sm.scan(search_dirs=[tmp_path])
 
-    handler = create_claude_skills_prompt(sm, active_skills=["deep-skill"])
-    ctx = _make_ctx()
+    r = build_skill_replacements(sm, active_skills=["nonexistent-skill"])
 
-    result = handler(ctx, "base prompt", _identity_next)
-
-    assert "Deep skill body text" in result
+    assert r["PREACTIVATED_SKILLS"] == ""
 
 
-def test_create_claude_skills_prompt_active_skill_missing(tmp_path):
-    """Requesting a non-existent active skill does not crash."""
-    sm = SkillManager(root_dir=str(tmp_path))
-    sm.scan(search_dirs=[tmp_path])
+def test_build_skill_replacements_skips_non_invocable(tmp_path):
+    """Skills with disable-model-invocation are not listed."""
+    (tmp_path / "hidden.skill.md").write_text(
+        "---\nname: hidden\ndescription: Hidden\n"
+        "disable-model-invocation: true\n---\n# Content"
+    )
 
-    handler = create_claude_skills_prompt(sm, active_skills=["nonexistent-skill"])
-    ctx = _make_ctx()
+    r = build_skill_replacements(_scan(tmp_path))
 
-    # Should not raise
-    result = handler(ctx, "base prompt", _identity_next)
-    assert result is not None
-
-
-def test_create_claude_skills_prompt_calls_next_handler(tmp_path):
-    """next_handler is always called exactly once."""
-    sm = SkillManager(root_dir=str(tmp_path))
-    sm.scan(search_dirs=[])
-
-    handler = create_claude_skills_prompt(sm)
-    ctx = _make_ctx()
-    calls = []
-
-    def counting_next(c, p):
-        calls.append(p)
-        return p
-
-    handler(ctx, "base prompt", counting_next)
-
-    assert len(calls) == 1
-
-
-def test_create_claude_skills_prompt_base_prompt_preserved(tmp_path):
-    """Base prompt text is always included in the forwarded prompt."""
-    sm = SkillManager(root_dir=str(tmp_path))
-    sm.scan(search_dirs=[])
-
-    handler = create_claude_skills_prompt(sm)
-    ctx = _make_ctx()
-
-    result = handler(ctx, "unique-base-content", _identity_next)
-
-    assert "unique-base-content" in result
+    assert "hidden" not in r["AVAILABLE_SKILLS"]
 
 
 # ---------------------------------------------------------------------------

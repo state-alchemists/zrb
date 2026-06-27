@@ -18,10 +18,13 @@ def serve_default_404(
     # lazy: heavy third-party
     from fastapi import Request
     from fastapi.exception_handlers import http_exception_handler
-    from fastapi.responses import HTMLResponse
+    from fastapi.responses import HTMLResponse, Response
+    from starlette.exceptions import HTTPException
 
     @app.exception_handler(404)
-    async def default_404(request: Request, exc: Exception) -> HTMLResponse:
+    async def default_404(
+        request: Request, exc: HTTPException
+    ) -> "Response | HTMLResponse":
         if request.url.path.startswith("/api"):
             # Re-raise the exception to let FastAPI handle it
             return await http_exception_handler(request, exc)

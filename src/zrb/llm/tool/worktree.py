@@ -12,9 +12,8 @@ active_worktree: ContextVar[str] = ContextVar("zrb_active_worktree", default="")
 @tool_safe_async
 async def enter_worktree(branch_name: str = "", cwd: str = "") -> str:
     """
-    Creates an isolated git worktree on a new branch. Returns the path to the worktree directory.
-
-    Use `cwd` to specify the repository root if the current directory is not the target repo.
+    Creates an isolated git worktree on a new branch and returns its path.
+    Use cwd to specify the repo root if not the current directory.
     """
 
     cwd = cwd or os.getcwd()
@@ -76,11 +75,8 @@ async def enter_worktree(branch_name: str = "", cwd: str = "") -> str:
 @tool_safe_async
 async def exit_worktree(worktree_path: str, keep_branch: bool = False) -> str:
     """
-    Removes a git worktree created with `EnterWorktree`.
-
-    Default `keep_branch=False` deletes the branch along with all its commits — irreversible.
-    Pass `keep_branch=True` unless you have explicit approval to drop the work on that branch.
-    Always clean up worktrees after use.
+    Removes a worktree created with EnterWorktree. keep_branch=False (default) also
+    deletes the branch and all its commits — irreversible. Always clean up after use.
     """
     cwd = os.getcwd()
 

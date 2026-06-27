@@ -1,13 +1,13 @@
 """
 Tool wrapper utilities for consistent LLM tool behavior.
 
-Tools registered via create_agent() are already wrapped by _create_safe_wrapper
+Tools registered via create_agent() are already wrapped by _wrap_tool
 in zrb.llm.agent.common. Use tool_safe_async only when you want a custom
 error_hint appended to the error message.
 """
 
 import functools
-from typing import Any, Callable, ParamSpec, TypeVar
+from typing import Any, Awaitable, Callable, ParamSpec, TypeVar, cast, overload
 
 P = ParamSpec("P")
 T = TypeVar("T")
@@ -47,18 +47,36 @@ def _format_error(
     return formatted
 
 
+@overload
+def tool_safe_async(
+    func: Callable[P, T],
+    *,
+    error_hint: str | Callable[..., str] | None = None,
+) -> Callable[P, T]: ...
+
+
+@overload
+def tool_safe_async(
+    func: None = None,
+    *,
+    error_hint: str | Callable[..., str] | None = None,
+) -> Callable[[Callable[P, T]], Callable[P, T]]: ...
+
+
 def tool_safe_async(
     func: Callable[P, T] | None = None,
     *,
     error_hint: str | Callable[..., str] | None = None,
-) -> Callable[[Callable[P, T]], Callable[P, T]]:
+) -> Callable[P, T] | Callable[[Callable[P, T]], Callable[P, T]]:
     """Wrap an async tool so exceptions become an error string for the LLM."""
 
     def decorator(fn: Callable[P, T]) -> Callable[P, T]:
         @functools.wraps(fn)
         async def wrapper(*args: P.args, **kwargs: P.kwargs) -> object:
             try:
-                return await fn(*args, **kwargs)
+                # fn is an async tool; its return value (T) is the coroutine to
+                # await. The generic T isn't bound to Awaitable, so narrow it.
+                return await cast(Awaitable[object], fn(*args, **kwargs))
             except Exception as e:  # noqa: BLE001
                 hint = _get_hint(error_hint, args, kwargs, e)
                 return _format_error(fn.__name__, args, kwargs, e, hint)

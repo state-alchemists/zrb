@@ -2,14 +2,17 @@ import asyncio
 import logging
 import sys
 from datetime import datetime
-from typing import Any, TextIO
+from typing import TYPE_CHECKING, Any, TextIO
+
+if TYPE_CHECKING:
+    from zrb.llm.tool_call.ui_protocol import ChoiceSpec
 
 from zrb.config.config import CFG
 from zrb.context.shared_context import SharedContext
 from zrb.llm.approval.approval_channel import ApprovalContext
 from zrb.session.session import Session
 from zrb.util.cli.markdown import render_markdown
-from zrb.util.cli.style import stylize_faint
+from zrb.util.cli.style import stylize_muted
 
 
 class MultiUI:
@@ -139,7 +142,7 @@ class MultiUI:
         try:
             timestamp = datetime.now().strftime("%H:%M")
             self.append_to_output(f"\n🤖 {timestamp} >>\n")
-            self.append_to_output(stylize_faint("\n  🔢 Streaming response..."))
+            self.append_to_output(stylize_muted("\n  🔢 Streaming response..."))
 
             session = self._create_session_for_llm_task(user_message, attachments)
             llm_task.set_ui(self)
@@ -334,6 +337,53 @@ class MultiUI:
             winning_ui_index, winning_ui = pending_tasks[completed_task]
 
             # Store winning UI for use in tool confirmations
+            self._last_winning_ui = winning_ui
+
+            for task in pending:
+                task.cancel()
+
+            try:
+                result = completed_task.result()
+                self._clear_pending_confirmations_except(winning_ui_index)
+                return result
+            except Exception:
+                return ""
+        finally:
+            self._pending_input_tasks = []
+
+    async def ask_user_choice(self, spec: "ChoiceSpec") -> str:
+        """Race all UIs for a multiple-choice answer and return the first.
+
+        Mirrors `ask_user`: the first UI to answer wins, the others are
+        cancelled, and pending confirmations elsewhere are cleared to keep
+        each UI's confirmation queue in sync.
+        """
+        if is_shutdown_requested():
+            return ""
+
+        loop = asyncio.get_running_loop()
+        pending_tasks: dict[asyncio.Task, tuple[int, Any]] = {}
+
+        for i, ui in enumerate(self._uis):
+            try:
+                if hasattr(ui, "ask_user_choice"):
+                    task = loop.create_task(ui.ask_user_choice(spec))
+                    pending_tasks[task] = (i, ui)
+            except Exception:
+                pass
+
+        if not pending_tasks:
+            return ""
+
+        self._pending_input_tasks = list(pending_tasks.keys())
+
+        try:
+            done, pending = await asyncio.wait(
+                pending_tasks.keys(), return_when=asyncio.FIRST_COMPLETED
+            )
+
+            completed_task = done.pop()
+            winning_ui_index, winning_ui = pending_tasks[completed_task]
             self._last_winning_ui = winning_ui
 
             for task in pending:

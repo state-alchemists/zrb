@@ -50,6 +50,9 @@ git_branch_group = git_group.add_group(
 git_subtree_group = git_group.add_group(
     Group(name="subtree", description="🌳 Git subtree related commands")
 )
+git_changelog_group = git_group.add_group(
+    Group(name="changelog", description="📝 Git changelog related commands")
+)
 llm_group = _maybe_add_group(Group(name="llm", description="🤖 LLM operations"))
 md5_group = _maybe_add_group(Group(name="md5", description="🔢 Md5 operations"))
 python_group = _maybe_add_group(
@@ -72,3 +75,4 @@ setup_latex_group = setup_group.add_group(
 searxng_group = _maybe_add_group(
     Group(name="searxng", description="🔎 Searxng related command")
 )
+config_group = _maybe_add_group(Group(name="config", description="⚙️ Configuration"))

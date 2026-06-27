@@ -106,8 +106,12 @@ def get_json(ctx: AnyContext) -> str:
         is_index = token.startswith("[") and token.endswith("]")
         try:
             if is_index:
+                if not isinstance(current, (list, tuple)):
+                    raise TypeError
                 current = current[int(token[1:-1])]
             else:
+                if not isinstance(current, dict):
+                    raise TypeError
                 current = current[token]
         except (KeyError, IndexError, TypeError):
             location = f"'{traversed}'" if traversed else "the root"

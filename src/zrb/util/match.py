@@ -91,5 +91,8 @@ def _find_subsequence_range(
         i += 1
 
     if j == len(needle):
+        # needle is non-empty here (empty case returns early), so at least one
+        # character matched and first_pos is set.
+        assert first_pos is not None
         return first_pos, i
     return None

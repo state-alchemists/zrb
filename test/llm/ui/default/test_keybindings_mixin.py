@@ -1,6 +1,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from prompt_toolkit.clipboard import ClipboardData
 from prompt_toolkit.key_binding import KeyBindings
 
 from zrb.llm.hook.interface import HookEvent
@@ -26,6 +27,7 @@ class MockUI(KeybindingsMixin):
         self.append_to_output = MagicMock(side_effect=lambda x: self.outputs.append(x))
         self.invalidate_ui = MagicMock()
         self.toggle_yolo = MagicMock()
+        self.cycle_mode = MagicMock()
         self._submit_user_message = MagicMock()
         self.schedule_command = MagicMock()
         self.classify_input = MagicMock(return_value="message")
@@ -72,7 +74,9 @@ def create_mock_event(text=""):
 
     event.app.current_buffer.text = text
     event.app.current_buffer.selection_state = None
-    event.app.current_buffer.copy_selection = MagicMock(return_value="copied_text")
+    event.app.current_buffer.copy_selection = MagicMock(
+        return_value=ClipboardData("copied_text")
+    )
     event.app.current_buffer.exit_selection = MagicMock()
     event.app.current_buffer.reset = MagicMock()
     event.app.current_buffer.append_to_history = MagicMock()
@@ -99,27 +103,53 @@ def trigger_binding(key_bindings, key, event):
     return True
 
 
-def test_f6_binding_focus_output(mock_ui, setup_bindings):
+def test_ctrl_k_binding_focus_output(mock_ui, setup_bindings):
+    """Ctrl+K toggles focus to the output pane when input has focus."""
     event = create_mock_event()
     event.app.layout.has_focus.return_value = True
-    trigger_binding(setup_bindings, "f6", event)
+    trigger_binding(setup_bindings, "c-k", event)
     event.app.layout.focus.assert_called_with(mock_ui._output_field)
 
 
-def test_f6_binding_focus_input(mock_ui, setup_bindings):
+def test_ctrl_k_binding_focus_input(mock_ui, setup_bindings):
     event = create_mock_event()
     event.app.layout.has_focus.return_value = False
-    trigger_binding(setup_bindings, "f6", event)
+    trigger_binding(setup_bindings, "c-k", event)
     event.app.layout.focus.assert_called_with(mock_ui._input_field)
+
+
+def test_tab_does_not_cycle_mode_off_termux(mock_ui, setup_bindings):
+    """Off Termux, plain Tab is unbound and does not cycle the mode.
+
+    Only Shift+Tab cycles; Tab is left free for its default behavior.
+    prompt_toolkit normalizes ``"tab"`` to ``Keys.ControlI`` (``c-i``).
+    """
+    event = create_mock_event()
+    triggered = trigger_binding(setup_bindings, "c-i", event)
+    assert triggered is False
+    mock_ui.cycle_mode.assert_not_called()
+
+
+def test_tab_cycles_mode_on_termux(mock_ui, key_bindings, monkeypatch):
+    """On Termux, Shift+Tab is indistinguishable from Tab, so plain Tab
+    (``c-i``) is bound to mode cycling as a fallback."""
+    monkeypatch.setenv("ZRB_IS_TERMUX", "true")
+    mock_ui.setup_app_keybindings(key_bindings, MagicMock())
+    event = create_mock_event()
+    trigger_binding(key_bindings, "c-i", event)
+    mock_ui.cycle_mode.assert_called_once()
 
 
 def test_ctrl_c_selection(mock_ui, setup_bindings):
     event = create_mock_event()
     event.app.current_buffer.selection_state = True
     trigger_binding(setup_bindings, "c-c", event)
-    event.app.clipboard.set_data.assert_called_with("copied_text")
     event.app.current_buffer.exit_selection.assert_called_once()
     assert not mock_ui._cancel_pending_confirmations.called
+    # Clipboard receives the ClipboardData with ANSI styling stripped from text.
+    event.app.clipboard.set_data.assert_called_once()
+    (sent_data,) = event.app.clipboard.set_data.call_args.args
+    assert sent_data.text == "copied_text"
 
 
 def test_ctrl_c_text_present(mock_ui, setup_bindings):
@@ -172,6 +202,12 @@ def test_ctrl_y_binding(mock_ui, setup_bindings):
     event = create_mock_event()
     trigger_binding(setup_bindings, "c-y", event)
     mock_ui.toggle_yolo.assert_called_once()
+
+
+def test_shift_tab_cycles_mode(mock_ui, setup_bindings):
+    event = create_mock_event()
+    trigger_binding(setup_bindings, "s-tab", event)
+    mock_ui.cycle_mode.assert_called_once()
 
 
 def test_ctrl_j_binding(mock_ui, setup_bindings):

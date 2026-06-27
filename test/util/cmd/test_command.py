@@ -1,6 +1,7 @@
 import asyncio
 import os
 import subprocess
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import psutil
 import pytest
@@ -565,3 +566,216 @@ class TestReadStreamPrintFallback:
         # This should not raise even if print_method doesn't accept end=
         result, return_code = await run_command(cmd, print_method=print_no_kwargs)
         assert return_code == 0
+
+
+class TestTerminateProcessTree:
+    """Cover terminate_process branches that depend on psutil/process state."""
+
+    @pytest.mark.asyncio
+    async def test_terminate_process_pid_snapshot_no_such_process(self):
+        """If the process vanishes before snapshot, _process_tree_pids falls back to [pid]."""
+        proc = MagicMock()
+        proc.returncode = None
+        proc.pid = 4321
+        proc.wait = AsyncMock(return_value=0)
+
+        printed = []
+        with (
+            patch(
+                "zrb.util.cmd.command.psutil.Process",
+                side_effect=psutil.NoSuchProcess(4321),
+            ),
+            patch("zrb.util.cmd.command.psutil.pid_exists", return_value=False),
+            patch("zrb.util.cmd.command.terminate_pid") as term,
+        ):
+            await terminate_process(
+                proc, grace_seconds=0.1, print_method=printed.append
+            )
+        # terminate_pid was still attempted on the snapshotted single pid.
+        term.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_terminate_process_grace_timeout_then_force_kills_survivors(self):
+        """A process that won't exit within grace is force-killed via kill_pid (lines 119-123)."""
+        proc = MagicMock()
+        proc.returncode = None
+        proc.pid = 5555
+
+        async def never_returns():
+            await asyncio.sleep(10)
+
+        # wait() never completes within the grace window -> real wait_for times out.
+        proc.wait = never_returns
+
+        fake_parent = MagicMock()
+        fake_parent.children.return_value = []
+
+        with (
+            patch("zrb.util.cmd.command.psutil.Process", return_value=fake_parent),
+            patch("zrb.util.cmd.command.psutil.pid_exists", return_value=True),
+            patch("zrb.util.cmd.command.terminate_pid"),
+            patch("zrb.util.cmd.command.kill_pid") as kill,
+        ):
+            await terminate_process(proc, grace_seconds=0.01)
+        # The snapshotted pid was still alive after grace, so kill_pid ran.
+        kill.assert_called_once()
+
+
+class TestTerminatePidErrors:
+    """Cover the generic-exception branch in terminate_pid (lines 145-148)."""
+
+    def test_terminate_pid_reports_unexpected_termination_error(self):
+        """A non-NoSuchProcess error while terminating a child is reported, not raised."""
+        child = MagicMock()
+        child.pid = 777
+        child.terminate.side_effect = RuntimeError("permission denied")
+
+        parent = MagicMock()
+        parent.children.return_value = [child]
+        parent.terminate.return_value = None
+
+        printed = []
+        with patch("zrb.util.cmd.command.psutil.Process", return_value=parent):
+            terminate_pid(123, print_method=printed.append)
+
+        assert any("Failed to terminate process 777" in m for m in printed)
+
+    def test_terminate_pid_child_already_gone_is_ignored(self):
+        """A child that disappears mid-terminate (NoSuchProcess) is silently skipped (line 146)."""
+        child = MagicMock()
+        child.pid = 888
+        child.terminate.side_effect = psutil.NoSuchProcess(888)
+
+        parent = MagicMock()
+        parent.children.return_value = [child]
+        parent.terminate.return_value = None
+
+        printed = []
+        with patch("zrb.util.cmd.command.psutil.Process", return_value=parent):
+            terminate_pid(123, print_method=printed.append)
+
+        # No "Failed to terminate" message for a vanished child.
+        assert not any("Failed to terminate" in m for m in printed)
+
+
+class TestRunCommandKillFallbacks:
+    """Cover run_command cleanup branches (lines 230-237)."""
+
+    @pytest.mark.asyncio
+    async def test_timeout_killpg_then_force_kill(self):
+        """On timeout, a process that ignores SIGINT is force-killed via kill_pid."""
+        printed = []
+        # killpg succeeds, but wait_for on cleanup times out -> kill_pid path.
+        with (
+            patch("zrb.util.cmd.command.os.killpg") as killpg,
+            patch("zrb.util.cmd.command.kill_pid") as kill,
+        ):
+            # Patch only the cleanup wait_for, not the whole loop, by failing the
+            # graceful wait. Easiest reliable trigger: a real stubborn process.
+            cmd = [
+                "python3",
+                "-c",
+                (
+                    "import signal, time\n"
+                    "signal.signal(signal.SIGINT, signal.SIG_IGN)\n"
+                    "time.sleep(10)\n"
+                ),
+            ]
+            with pytest.raises(asyncio.TimeoutError):
+                await run_command(cmd, print_method=printed.append, timeout=0.3)
+        assert killpg.called
+        # The stubborn process forced the kill_pid fallback.
+        assert kill.called
+
+    @pytest.mark.asyncio
+    async def test_timeout_killpg_raises_is_swallowed(self):
+        """If os.killpg itself raises (e.g. process already gone), it is swallowed (line 236-237)."""
+        printed = []
+        with patch("zrb.util.cmd.command.os.killpg", side_effect=ProcessLookupError()):
+            cmd = ["sleep", "5"]
+            with pytest.raises(asyncio.TimeoutError):
+                await run_command(cmd, print_method=printed.append, timeout=0.3)
+
+
+class TestGetCmdStdinInteractive:
+    """Cover the interactive-stdin branch (line 247) via run_command."""
+
+    @pytest.mark.asyncio
+    async def test_interactive_uses_real_stdin_when_tty(self):
+        """When interactive and stdin is a tty, the child shares the real stdin."""
+        captured = {}
+
+        real_create = asyncio.create_subprocess_exec
+
+        async def fake_create(*args, **kwargs):
+            captured["stdin"] = kwargs.get("stdin")
+            return await real_create(*args, **kwargs)
+
+        with (
+            patch("zrb.util.cmd.command.sys.stdin") as fake_stdin,
+            patch(
+                "zrb.util.cmd.command.asyncio.create_subprocess_exec",
+                side_effect=fake_create,
+            ),
+        ):
+            fake_stdin.isatty.return_value = True
+            result, return_code = await run_command(
+                ["printf", "hi"], is_interactive=True
+            )
+
+        assert return_code == 0
+        # Interactive + tty resolves to the real sys.stdin object, not DEVNULL.
+        assert captured["stdin"] is fake_stdin
+
+
+class TestReadStreamErrorBranches:
+    """Cover __read_stream ValueError (line-too-long) and generic exception branches."""
+
+    @pytest.mark.asyncio
+    async def test_read_stream_line_too_long_emits_error(self):
+        """A ValueError from readline (memory-limit valve) emits the error sentinel."""
+        stream = MagicMock()
+        # First readline raises ValueError (line over the buffer limit).
+        stream.readline = AsyncMock(side_effect=ValueError("line too long"))
+
+        fake_proc = MagicMock()
+        fake_proc.pid = 999
+        fake_proc.returncode = 0
+        fake_proc.stdout = stream
+        fake_proc.stderr = stream
+        fake_proc.wait = AsyncMock(return_value=0)
+
+        printed = []
+        with patch(
+            "zrb.util.cmd.command.asyncio.create_subprocess_exec",
+            new=AsyncMock(return_value=fake_proc),
+        ):
+            result, return_code = await run_command(
+                ["irrelevant"], print_method=printed.append
+            )
+
+        assert any("too long to process" in m for m in printed)
+        assert "too long to process" in result.output
+
+    @pytest.mark.asyncio
+    async def test_read_stream_generic_exception_breaks_cleanly(self):
+        """A non-ValueError stream exception breaks the read loop without crashing."""
+        stream = MagicMock()
+        stream.readline = AsyncMock(side_effect=RuntimeError("boom"))
+
+        fake_proc = MagicMock()
+        fake_proc.pid = 999
+        fake_proc.returncode = 0
+        fake_proc.stdout = stream
+        fake_proc.stderr = stream
+        fake_proc.wait = AsyncMock(return_value=0)
+
+        with patch(
+            "zrb.util.cmd.command.asyncio.create_subprocess_exec",
+            new=AsyncMock(return_value=fake_proc),
+        ):
+            result, return_code = await run_command(["irrelevant"])
+
+        # The read loop swallowed the RuntimeError and produced empty output.
+        assert return_code == 0
+        assert result.output == ""

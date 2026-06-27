@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import asyncio
+import uuid
 from dataclasses import dataclass
-from typing import Any, TextIO
+from typing import TYPE_CHECKING, Any, TextIO
+
+if TYPE_CHECKING:
+    from zrb.llm.tool_call.ui_protocol import ChoiceSpec
 
 from zrb.llm.agent.run.runner import run_agent
-from zrb.llm.agent.run.runtime_state import get_current_ui
+from zrb.llm.agent.run.runtime_state import get_current_hook_manager, get_current_ui
 
 # Import directly from the inner module to avoid a circular import: the
 # subagent package's __init__ triggers `apply_common_tools`, which loads
@@ -18,6 +22,8 @@ from zrb.llm.agent.subagent.manager.manager import (
     sub_agent_manager as default_sub_agent_manager,
 )
 from zrb.llm.config.limiter import llm_limiter
+from zrb.llm.hook.manager import hook_manager as default_hook_manager
+from zrb.llm.hook.types import HookEvent
 from zrb.llm.tool.ambient_state import get_active_worktree
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 from zrb.llm.ui.std_ui import StdUI
@@ -78,10 +84,19 @@ class BufferedUI(UIProtocol):
         text = sep.join(str(v) for v in values) + end
         self._buffer.append(text)
 
+    async def ask_user_choice(self, spec: ChoiceSpec) -> str:
+        # Mirrors ask_user: serialize parent interaction and flush first.
+        async with self._lock:
+            self.flush_to_parent()
+            return await self._wrapped.ask_user_choice(spec)
+
     async def run_interactive_command(
         self, cmd: str | list[str], shell: bool = False
     ) -> Any:
         return await self._wrapped.run_interactive_command(cmd, shell)
+
+    async def run_async(self) -> Any:
+        return await self._wrapped.run_async()
 
     def get_buffered_output(self) -> str:
         """Get all buffered output."""
@@ -109,7 +124,7 @@ class BufferedUI(UIProtocol):
     def yolo(self) -> bool | frozenset:
         """Delegate YOLO mode to the wrapped parent UI."""
         if hasattr(self._wrapped, "yolo"):
-            return self._wrapped.yolo
+            return getattr(self._wrapped, "yolo")
         return False
 
     def stream_to_parent(
@@ -201,6 +216,10 @@ async def _run_agent_task(
 
     full_message = _format_envelope(deliverable, non_goals, task, additional_context)
 
+    # SubagentStart/Stop fire on the parent run's hook manager (Claude semantics:
+    # the parent observes its subagents). agent_type is the delegated agent's name.
+    agent_id = uuid.uuid4().hex[:8]
+    await _fire_subagent_hook(HookEvent.SUBAGENT_START, agent_name, agent_id)
     try:
         result, _ = await run_agent(
             agent=sub_agent,
@@ -212,7 +231,7 @@ async def _run_agent_task(
         )
 
         if flush_ui and hasattr(ui, "flush_to_parent"):
-            ui.flush_to_parent()
+            getattr(ui, "flush_to_parent")()
 
         return AgentTaskResult(agent_name, result, None)
 
@@ -225,6 +244,23 @@ async def _run_agent_task(
         )
     except Exception as e:  # noqa: BLE001
         return AgentTaskResult(agent_name, None, str(e))
+    finally:
+        await _fire_subagent_hook(HookEvent.SUBAGENT_STOP, agent_name, agent_id)
+
+
+async def _fire_subagent_hook(event: HookEvent, agent_name: str, agent_id: str) -> None:
+    """Fire SubagentStart/Stop (observe-only) on the parent run's hook manager,
+    falling back to the module singleton. Never raises."""
+    manager = get_current_hook_manager() or default_hook_manager
+    try:
+        await manager.execute_hooks(
+            event,
+            {"agent_type": agent_name, "agent_id": agent_id},
+            agent_type=agent_name,
+            agent_id=agent_id,
+        )
+    except Exception:
+        pass
 
 
 def _delegatable_agents(sub_agent_manager: SubAgentManager) -> list:
@@ -250,96 +286,70 @@ def _delegatable_agents(sub_agent_manager: SubAgentManager) -> list:
     ]
 
 
-def create_parallel_delegate_tool(
-    sub_agent_manager: SubAgentManager | None = None,
-):
-    """Create a tool for delegating tasks to multiple agents in parallel.
+async def _run_parallel(
+    tasks: list[dict[str, Any]],
+    sub_agent_manager: SubAgentManager,
+) -> str:
+    """Run several sub-agent tasks concurrently and return combined results.
 
-    Runs all sub-agents concurrently and waits for every result.
-    Compared to calling ``DelegateToAgentBackground`` N times and collecting
-    handles later, this tool is a single atomic call — useful for models
-    that cannot reliably sequence N tool-call rounds.
+    A single atomic call — useful for models that cannot reliably sequence N
+    tool-call rounds. Each task gets its own scope clamp and runs blind to the
+    others; a shared lock serializes any approval prompts back to the parent UI.
     """
-    # lazy: permission is a leaf module.
-    from zrb.llm.permission import Capability, tag
-
-    if sub_agent_manager is None:
-        sub_agent_manager = default_sub_agent_manager
-
-    async def parallel_delegate_to_agents(
-        tasks: list[dict[str, Any]],
-    ) -> str:
-        """
-        Delegates multiple tasks to subagents in parallel. See DelegateToAgent
-        for the list of available agents.
-
-        Each entry in `tasks` must have `agent_name`, `deliverable`, `task`,
-        and `non_goals` (list; [] allowed). `additional_context` is optional.
-        Apply Scope independently per task — each gets its own clamp.
-        """
-        if not tasks:
-            return "No tasks provided."
-        required = ("agent_name", "deliverable", "task", "non_goals")
-        for idx, spec in enumerate(tasks):
-            missing = [k for k in required if k not in spec]
-            if missing:
-                return (
-                    f"Error: tasks[{idx}] missing required keys: {missing}. "
-                    "[SYSTEM SUGGESTION]: every task needs agent_name, "
-                    "deliverable, task, and non_goals (list; [] allowed)."
-                )
-
-        parent_ui = get_current_ui() or StdUI()
-        ui_lock = asyncio.Lock()
-
-        async def run_single_agent(task_spec: dict[str, Any]) -> AgentTaskResult:
-            agent_name = task_spec.get("agent_name", "")
-            deliverable = task_spec.get("deliverable", "")
-            task = task_spec.get("task", "")
-            non_goals = task_spec.get("non_goals", []) or []
-            additional_context = task_spec.get("additional_context", "")
-            unique_id = get_random_name(separator="-", add_random_digit=True)
-            prefix = f"[{agent_name}:{unique_id}] "
-            buffered_ui = BufferedUI(parent_ui, prefix=prefix, shared_lock=ui_lock)
-
-            result = await _run_agent_task(
-                agent_name=agent_name,
-                deliverable=deliverable,
-                non_goals=non_goals,
-                task=task,
-                additional_context=additional_context,
-                sub_agent_manager=sub_agent_manager,
-                ui=buffered_ui,
-                flush_ui=False,
-                yolo=None,
-            )
-            async with ui_lock:
-                buffered_ui.flush_to_parent()
-            return AgentTaskResult(
-                f"{agent_name}:{unique_id}",
-                result.result,
-                result.error,
+    required = ("agent_name", "deliverable", "task", "non_goals")
+    for idx, spec in enumerate(tasks):
+        missing = [k for k in required if k not in spec]
+        if missing:
+            return (
+                f"Error: tasks[{idx}] missing required keys: {missing}. "
+                "[SYSTEM SUGGESTION]: every task needs agent_name, "
+                "deliverable, task, and non_goals (list; [] allowed)."
             )
 
-        results = await asyncio.gather(*[run_single_agent(t) for t in tasks])
+    parent_ui = get_current_ui() or StdUI()
+    ui_lock = asyncio.Lock()
 
-        combined_results = []
-        for r in results:
-            if not r.success:
-                combined_results.append(f"[{r.agent_name}] Error: {r.error}")
-            else:
-                indented_result = "\n".join(
-                    ["  " + line for line in r.result.splitlines()]
-                )
-                combined_results.append(
-                    f"[{r.agent_name}] completed:\n{indented_result}"
-                )
-        return "\n\n".join(combined_results)
+    async def run_single_agent(task_spec: dict[str, Any]) -> AgentTaskResult:
+        agent_name = task_spec.get("agent_name", "")
+        deliverable = task_spec.get("deliverable", "")
+        task = task_spec.get("task", "")
+        non_goals = task_spec.get("non_goals", []) or []
+        additional_context = task_spec.get("additional_context", "")
+        unique_id = get_random_name(separator="-", add_random_digit=True)
+        prefix = f"[{agent_name}:{unique_id}] "
+        buffered_ui = BufferedUI(parent_ui, prefix=prefix, shared_lock=ui_lock)
 
-    parallel_delegate_to_agents.zrb_is_delegate_tool = True
-    parallel_delegate_to_agents.__name__ = "DelegateToAgentsParallel"
-    tag(parallel_delegate_to_agents, Capability.DELEGATE)
-    return parallel_delegate_to_agents
+        result = await _run_agent_task(
+            agent_name=agent_name,
+            deliverable=deliverable,
+            non_goals=non_goals,
+            task=task,
+            additional_context=additional_context,
+            sub_agent_manager=sub_agent_manager,
+            ui=buffered_ui,
+            flush_ui=False,
+            yolo=None,
+        )
+        async with ui_lock:
+            buffered_ui.flush_to_parent()
+        return AgentTaskResult(
+            f"{agent_name}:{unique_id}",
+            result.result,
+            result.error,
+        )
+
+    results = await asyncio.gather(*[run_single_agent(t) for t in tasks])
+
+    combined_results = []
+    for r in results:
+        if not r.success:
+            combined_results.append(f"[{r.agent_name}] Error: {r.error}")
+        else:
+            indented_result = "\n".join(
+                ["  " + line for line in (r.result or "").splitlines()]
+            )
+            combined_results.append(f"[{r.agent_name}] completed:\n{indented_result}")
+    return "\n\n".join(combined_results)
 
 
 def create_delegate_to_agent_tool(
@@ -357,13 +367,39 @@ def create_delegate_to_agent_tool(
     )
 
     async def delegate_to_agent(
-        agent_name: str,
-        deliverable: str,
-        task: str,
-        non_goals: list[str],
+        agent_name: str = "",
+        deliverable: str = "",
+        task: str = "",
+        # Mutable defaults are intentional here: pydantic-ai builds a Pydantic v2
+        # model from this signature and internally converts mutable defaults to
+        # default_factory, so each tool call gets a fresh list. Using `= []`
+        # instead of `list[str] | None = None` keeps the JSON schema compact
+        # (avoids anyOf + null union that bloats every tool description sent to the LLM).
+        non_goals: list[str] = [],  # noqa: B006
         additional_context: str = "",
+        tasks: list[dict[str, Any]] = [],  # noqa: B006
     ) -> str:
         """See module docstring; required-arg signature is the scope clamp."""
+        # FAN OUT: a non-empty `tasks` list runs several sub-agents concurrently
+        # and returns their results together (one atomic call). Flat args are
+        # ignored in that case.
+        if tasks:
+            return await _run_parallel(tasks, sub_agent_manager)
+        missing = [
+            name
+            for name, value in (
+                ("agent_name", agent_name),
+                ("deliverable", deliverable),
+                ("task", task),
+            )
+            if not value
+        ]
+        if missing:
+            return (
+                f"Error: missing required args: {missing}. "
+                "[SYSTEM SUGGESTION]: provide agent_name, deliverable, and task "
+                "(non_goals defaults to []), or pass tasks=[...] to fan out."
+            )
         parent_ui = get_current_ui() or StdUI()
         # Generate unique identifier for this agent instance
         unique_id = get_random_name(separator="-", add_random_digit=True)
@@ -389,20 +425,15 @@ def create_delegate_to_agent_tool(
         # Return result with unique identifier for traceability
         return f"[{agent_name}:{unique_id}] completed:\n\n{task_result.result}"
 
-    delegate_to_agent.zrb_is_delegate_tool = True
+    delegate_to_agent.zrb_is_delegate_tool = True  # type: ignore[attr-defined]
     delegate_to_agent.__name__ = "DelegateToAgent"
     delegate_to_agent.__doc__ = (
         "Delegates a task to a named subagent for isolated execution.\n\n"
-        "REQUIRED ARGS:\n"
-        "- agent_name: which sub-agent to run.\n"
-        "- deliverable: one sentence stating what must exist when the sub-agent "
-        "returns. Be concrete — name the artifact (file, function, decision).\n"
-        "- task: how to produce the deliverable. Reference exact files, "
-        "line numbers, or commands when known.\n"
-        "- non_goals: list of adjacent things the sub-agent must NOT do "
-        "(e.g. 'do not modify other files', 'do not refactor', 'do not add tests'). "
-        "Pass [] only when you are certain no scope expansion risk exists.\n"
-        "- additional_context: any extra context the sub-agent needs.\n\n"
+        "- deliverable: concrete artifact that must exist on return (name the file, function, or decision).\n"
+        "- task: how to produce it — reference exact files, line numbers, or commands when known.\n"
+        "- non_goals: things the sub-agent must NOT do (scope clamp). Pass [] only when certain.\n\n"
+        "FAN OUT: pass tasks=[{agent_name, deliverable, task, non_goals, ...}, ...] to run multiple "
+        "sub-agents concurrently in one call. Flat args are ignored when tasks is non-empty.\n\n"
         f"AVAILABLE AGENTS:\n{agent_doc_section}"
     )
     # lazy: permission is a leaf module.

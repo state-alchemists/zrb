@@ -84,6 +84,32 @@ async def test_evaluate_matchers_equals(tmp_path):
     )
 
 
+def test_session_end_matcher_field_is_source():
+    """SessionEnd gains Claude-compatible matcher support, filtering on `source`."""
+    from zrb.llm.hook.matcher import CLAUDE_EVENT_MATCHER_FIELDS
+    from zrb.llm.hook.types import HookEvent
+
+    assert CLAUDE_EVENT_MATCHER_FIELDS[HookEvent.SESSION_END] == "source"
+
+
+def test_notification_matcher_field_is_notification_type():
+    """Claude matches Notification hooks on `notification_type` (e.g.
+    `elicitation_dialog`), not the free-form `message` text."""
+    from zrb.llm.hook.matcher import CLAUDE_EVENT_MATCHER_FIELDS
+    from zrb.llm.hook.types import HookEvent
+
+    assert CLAUDE_EVENT_MATCHER_FIELDS[HookEvent.NOTIFICATION] == "notification_type"
+
+
+@pytest.mark.asyncio
+async def test_evaluate_matchers_source_field(tmp_path):
+    """A matcher on the `source` field (used by SessionStart/SessionEnd) selects
+    by the populated source value."""
+    matchers = [{"field": "source", "operator": "equals", "value": "other"}]
+    assert await check_match(tmp_path, matchers, {"source": "other"}) is True
+    assert await check_match(tmp_path, matchers, {"source": "logout"}) is False
+
+
 @pytest.mark.asyncio
 async def test_evaluate_matchers_not_equals(tmp_path):
     # Match
@@ -196,6 +222,47 @@ async def test_evaluate_matchers_nested_field_missing(tmp_path):
         {"field": "event_data.missing_key", "operator": "equals", "value": "value"}
     ]
     assert await check_match(tmp_path, matchers, {"event_data": {}}) is False
+
+
+@pytest.mark.asyncio
+async def test_tool_name_alias_claude_name_matches_zrb_tool(tmp_path):
+    """A Claude-style matcher keyed on the Claude tool name fires on the zrb tool
+    whose name differs: "Bash" -> zrb's "Shell", "Task" -> the delegation tools."""
+    bash_matcher = [{"field": "tool_name", "operator": "equals", "value": "Bash"}]
+    assert await check_match(tmp_path, bash_matcher, {"tool_name": "Shell"}) is True
+
+    task_matcher = [{"field": "tool_name", "operator": "equals", "value": "Task"}]
+    assert (
+        await check_match(tmp_path, task_matcher, {"tool_name": "DelegateToAgent"})
+        is True
+    )
+    assert (
+        await check_match(
+            tmp_path, task_matcher, {"tool_name": "DelegateToAgentBackground"}
+        )
+        is True
+    )
+
+
+@pytest.mark.asyncio
+async def test_tool_name_alias_does_not_overmatch(tmp_path):
+    """The alias only adds the mapped Claude name(s); an unrelated tool name is
+    still rejected, and the canonical zrb name keeps matching."""
+    bash_matcher = [{"field": "tool_name", "operator": "equals", "value": "Bash"}]
+    assert await check_match(tmp_path, bash_matcher, {"tool_name": "Read"}) is False
+    # The canonical name continues to match directly.
+    assert await check_match(tmp_path, bash_matcher, {"tool_name": "Bash"}) is True
+
+
+@pytest.mark.asyncio
+async def test_tool_name_alias_ignored_for_not_equals(tmp_path):
+    """NOT_EQUALS is an exclusion filter, so the alias is not expanded: excluding
+    "Bash" must NOT also silently exclude the aliased "Shell" tool."""
+    matcher = [{"field": "tool_name", "operator": "not_equals", "value": "Bash"}]
+    # "Shell" is the alias of "Bash" but, since this is an exclusion, the hook
+    # still runs on "Shell" (it is not literally "Bash").
+    assert await check_match(tmp_path, matcher, {"tool_name": "Shell"}) is True
+    assert await check_match(tmp_path, matcher, {"tool_name": "Bash"}) is False
 
 
 @pytest.mark.asyncio

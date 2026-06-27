@@ -3,7 +3,7 @@ from zrb.builtin.group import git_subtree_group
 from zrb.context.any_context import AnyContext
 from zrb.input.str_input import StrInput
 from zrb.task.make_task import make_task
-from zrb.util.cli.style import stylize_faint
+from zrb.util.cli.style import stylize_muted
 from zrb.util.git import get_repo_dir
 from zrb.util.git_subtree import add_subtree, load_config, pull_subtree, push_subtree
 
@@ -34,9 +34,9 @@ from zrb.util.git_subtree import add_subtree, load_config, pull_subtree, push_su
     alias="add",
 )
 async def git_add_subtree(ctx: AnyContext):
-    ctx.print(stylize_faint("Get directory"))
+    ctx.print(stylize_muted("Get directory"))
     repo_dir = await get_repo_dir(print_method=ctx.print)
-    ctx.print(stylize_faint("Add subtree"))
+    ctx.print(stylize_muted("Add subtree"))
     await add_subtree(
         repo_dir=repo_dir,
         name=ctx.input.name,
@@ -55,7 +55,7 @@ async def git_add_subtree(ctx: AnyContext):
     alias="pull",
 )
 async def git_pull_subtree(ctx: AnyContext):
-    ctx.print(stylize_faint("Get directory"))
+    ctx.print(stylize_muted("Get directory"))
     repo_dir = await get_repo_dir(print_method=ctx.print)
     config = load_config(repo_dir)
     if not config.data:
@@ -63,7 +63,7 @@ async def git_pull_subtree(ctx: AnyContext):
     first_err: Exception | None = None
     for name, detail in config.data.items():
         try:
-            ctx.print(stylize_faint(f"Pull from subtree {name}"))
+            ctx.print(stylize_muted(f"Pull from subtree {name}"))
             await pull_subtree(
                 repo_dir=repo_dir,
                 prefix=detail.prefix,
@@ -87,7 +87,7 @@ async def git_pull_subtree(ctx: AnyContext):
     alias="push",
 )
 async def git_push_subtree(ctx: AnyContext):
-    ctx.print(stylize_faint("Get directory"))
+    ctx.print(stylize_muted("Get directory"))
     repo_dir = await get_repo_dir(print_method=ctx.print)
     config = load_config(repo_dir)
     if not config.data:
@@ -95,7 +95,7 @@ async def git_push_subtree(ctx: AnyContext):
     first_err: Exception | None = None
     for name, detail in config.data.items():
         try:
-            ctx.print(stylize_faint(f"Push to subtree {name}"))
+            ctx.print(stylize_muted(f"Push to subtree {name}"))
             await push_subtree(
                 repo_dir=repo_dir,
                 prefix=detail.prefix,

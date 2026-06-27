@@ -254,7 +254,7 @@ class TestHTTPChatApprovalChannelMore:
         await asyncio.sleep(0.01)
 
         # bypass the public string-only contract to exercise the defensive branch
-        channel.handle_response(42, "id1")  # type: ignore[arg-type]
+        channel.handle_response(42, "id1")
         res = await task
         assert res.approved is False
         assert "Invalid response type" in (res.message or "")

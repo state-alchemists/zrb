@@ -1,8 +1,10 @@
 """Background shell command execution.
 
-``ShellBackground`` starts a command in the background and returns a handle
-immediately. ``MonitorProcess(handle)`` polls the status, shows captured
-stdout/stderr incrementally, and optionally kills the process.
+``Shell``/``Bash`` with ``background=True`` start a command in the background
+and return a handle immediately (the registry below does the launching).
+``MonitorProcess(handle)`` polls the status, shows captured stdout/stderr
+incrementally, optionally waits up to N seconds for exit, and optionally kills
+the process.
 
 The registry is process- and event-loop-scoped — results do not persist
 across restarts.
@@ -120,13 +122,31 @@ class _ShellBackgroundRegistry:
         if bp is not None:
             bp.returncode = rc
 
+    async def collect(self, handle: str, wait: float = 0.0) -> str:
+        """Poll a handle, optionally blocking up to ``wait`` seconds for exit.
+
+        Waits until the process has exited AND its output is fully drained, or
+        the timeout elapses, then returns the synchronous ``poll``. The process
+        is not killed on timeout — it keeps running.
+        """
+        bp = self._procs.get(handle)
+        if bp is not None and bp.returncode is None and wait > 0:
+            capped = min(wait, CFG.LLM_BACKGROUND_WAIT_MAX)
+            await asyncio.wait(
+                set(bp.tasks),
+                timeout=capped,
+                return_when=asyncio.ALL_COMPLETED,
+            )
+        return self.poll(handle)
+
     def poll(self, handle: str) -> str:
         bp = self._procs.get(handle)
         if bp is None:
             return (
                 f"Unknown handle '{handle}'. "
-                "[SYSTEM SUGGESTION]: use ShellBackground to start a process; "
-                "a finished handle is consumed by the poll that reports its exit."
+                "[SYSTEM SUGGESTION]: start a process with Shell/Bash "
+                "(background=True); a finished handle is consumed by the poll "
+                "that reports its exit."
             )
         stdout = "".join(bp.stdout_lines)
         stderr = "".join(bp.stderr_lines)
@@ -194,60 +214,23 @@ def get_shell_background_registry() -> _ShellBackgroundRegistry:
     return _registry
 
 
-def create_shell_background_tool():
-    async def shell_background(
-        command: str,
-        description: str = "",
-        cwd: str = "",
-        shell: str = "",
-        dangerously_skip_sandbox: bool = False,
-    ) -> str:
-        """Start a shell command in the BACKGROUND and return a handle immediately.
-
-        Poll with MonitorProcess(handle) to see incremental stdout/stderr;
-        kill with MonitorProcess(handle, kill=True).
-
-        `shell` selects the shell or interpreter (e.g. "bash", "pwsh", "node");
-        empty uses the user's default shell. `dangerously_skip_sandbox` runs the
-        command outside the OS-level sandbox (when one is active) and always
-        requires explicit user approval.
-        """
-        # lazy: leaf module
-        from zrb.llm.sandbox import SandboxUnavailableError
-
-        try:
-            handle = await _registry.start(
-                command, cwd, description, shell, dangerously_skip_sandbox
-            )
-        except SandboxUnavailableError as e:
-            return (
-                f"Command refused by sandbox policy: {e}. "
-                "[SYSTEM SUGGESTION]: this deployment requires OS-level "
-                "sandboxing for shell commands (LLM_SANDBOX_FALLBACK=deny)."
-            )
-        return (
-            f"Started background process. Handle: {handle}. "
-            "Call MonitorProcess with this handle to check status."
-        )
-
-    shell_background.__name__ = "ShellBackground"
-    tag(shell_background, Capability.EXECUTE)
-    return shell_background
-
-
 def create_monitor_process_tool():
     async def monitor_process(
         handle: str,
         kill: bool = False,
+        wait: float = 0,
     ) -> str:
-        """Check or kill a background process started by ShellBackground.
+        """Check or kill a background process started with Shell/Bash
+        (background=True).
 
-        By default returns the current stdout/stderr and status.
-        Pass kill=True to terminate the process.
+        By default returns the current stdout/stderr and status. Pass `wait=N`
+        to block up to N seconds (capped by LLM_BACKGROUND_WAIT_MAX), returning
+        the instant the process exits; on timeout it returns the running status
+        so you can call again with another `wait`, or `kill=True` to terminate.
         """
         if kill:
             return await _registry.kill(handle)
-        return _registry.poll(handle)
+        return await _registry.collect(handle, wait)
 
     monitor_process.__name__ = "MonitorProcess"
     tag(monitor_process, Capability.EXECUTE)

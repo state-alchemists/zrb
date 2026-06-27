@@ -10,8 +10,11 @@ from pydantic_ai.messages import (
 )
 
 from zrb.llm.message import (
+    TOOL_CALL_PLACEHOLDER,
     ensure_alternating_roles,
     get_tool_pairs,
+    sanitize_orphaned_tool_calls,
+    strip_orphaned_returns,
     validate_tool_pair_integrity,
 )
 
@@ -208,3 +211,145 @@ def test_validate_tool_pair_integrity_orphaned_return():
 
     assert is_valid is False
     assert any("id-12" in p for p in problems)
+
+
+# ── sanitize_orphaned_tool_calls ────────────────────────────────────────────────
+
+
+def test_sanitize_orphaned_tool_calls_no_orphans_returns_input():
+    """When every call has a matching return, the original list is returned as-is."""
+    call_part = ToolCallPart(tool_name="t", args={}, tool_call_id="id-20")
+    return_part = ToolReturnPart(tool_name="t", content="res", tool_call_id="id-20")
+    res = ModelResponse(parts=[call_part], timestamp=datetime.now())
+    req = ModelRequest(parts=[return_part])
+    messages = [res, req]
+
+    result = sanitize_orphaned_tool_calls(messages)
+
+    assert result is messages
+
+
+def test_sanitize_orphaned_tool_calls_strips_orphaned_call_and_inserts_placeholder():
+    """An orphaned ToolCallPart is removed; a then text-less response gets a placeholder.
+
+    The response keeps a *paired* call so it does not collapse to empty, but has
+    no TextPart — so stripping the orphan must trigger the placeholder insertion.
+    """
+    orphan_call = ToolCallPart(tool_name="t", args={}, tool_call_id="orphan-call")
+    paired_call = ToolCallPart(tool_name="t", args={}, tool_call_id="paired")
+    paired_return = ToolReturnPart(tool_name="t", content="x", tool_call_id="paired")
+    res = ModelResponse(parts=[orphan_call, paired_call], timestamp=datetime.now())
+    req = ModelRequest(parts=[paired_return])
+
+    result = sanitize_orphaned_tool_calls([res, req])
+
+    parts = result[0].parts
+    # Orphaned call removed, paired call kept, placeholder text part prepended.
+    assert all(
+        not (isinstance(p, ToolCallPart) and p.tool_call_id == "orphan-call")
+        for p in parts
+    )
+    assert any(
+        isinstance(p, ToolCallPart) and p.tool_call_id == "paired" for p in parts
+    )
+    assert any(
+        isinstance(p, TextPart) and p.content == TOOL_CALL_PLACEHOLDER for p in parts
+    )
+
+
+def test_sanitize_orphaned_tool_calls_drops_empty_response():
+    """A response containing only orphaned calls (no need for text) collapses to None and is dropped."""
+    orphan_call = ToolCallPart(tool_name="t", args={}, tool_call_id="o1")
+    # Two orphaned calls in one response; once stripped the message is empty and dropped.
+    res = ModelResponse(
+        parts=[
+            ToolCallPart(tool_name="t", args={}, tool_call_id="o1"),
+            orphan_call,
+        ],
+        timestamp=datetime.now(),
+    )
+    # A valid pair so the function does not early-return.
+    paired_call = ToolCallPart(tool_name="t", args={}, tool_call_id="paired")
+    paired_return = ToolReturnPart(tool_name="t", content="x", tool_call_id="paired")
+    res2 = ModelResponse(parts=[paired_call], timestamp=datetime.now())
+    req2 = ModelRequest(parts=[paired_return])
+
+    result = sanitize_orphaned_tool_calls([res, res2, req2])
+
+    # The all-orphan response is dropped entirely.
+    assert res not in result
+    assert res2 in result
+    assert req2 in result
+
+
+def test_sanitize_orphaned_tool_calls_strips_orphaned_return():
+    """An orphaned ToolReturnPart in a ModelRequest is stripped."""
+    orphan_return = ToolReturnPart(
+        tool_name="t", content="r", tool_call_id="orphan-ret"
+    )
+    user = UserPromptPart(content="hi")
+    req = ModelRequest(parts=[orphan_return, user])
+    # Add a valid pair so the function proceeds past the early-return guard.
+    paired_call = ToolCallPart(tool_name="t", args={}, tool_call_id="p2")
+    paired_return = ToolReturnPart(tool_name="t", content="x", tool_call_id="p2")
+    res = ModelResponse(parts=[paired_call], timestamp=datetime.now())
+    req_ret = ModelRequest(parts=[paired_return])
+
+    result = sanitize_orphaned_tool_calls([req, res, req_ret])
+
+    # The orphaned return is gone but the user prompt survives.
+    surviving_req = result[0]
+    assert all(
+        not (isinstance(p, ToolReturnPart) and p.tool_call_id == "orphan-ret")
+        for p in surviving_req.parts
+    )
+    assert any(isinstance(p, UserPromptPart) for p in surviving_req.parts)
+
+
+# ── strip_orphaned_returns ──────────────────────────────────────────────────────
+
+
+def test_strip_orphaned_returns_no_orphans_returns_input():
+    """With no orphaned returns the input list is returned unchanged."""
+    call_part = ToolCallPart(tool_name="t", args={}, tool_call_id="id-30")
+    return_part = ToolReturnPart(tool_name="t", content="res", tool_call_id="id-30")
+    res = ModelResponse(parts=[call_part], timestamp=datetime.now())
+    req = ModelRequest(parts=[return_part])
+    messages = [res, req]
+
+    result = strip_orphaned_returns(messages)
+
+    assert result is messages
+
+
+def test_strip_orphaned_returns_strips_return_keeps_orphaned_call():
+    """Orphaned returns are removed but orphaned calls (pending deferred) are kept."""
+    orphan_return = ToolReturnPart(tool_name="t", content="r", tool_call_id="dropped")
+    orphan_call = ToolCallPart(tool_name="t", args={}, tool_call_id="pending")
+    req = ModelRequest(parts=[orphan_return, UserPromptPart(content="hi")])
+    res = ModelResponse(parts=[orphan_call], timestamp=datetime.now())
+
+    result = strip_orphaned_returns([req, res])
+
+    # The orphaned return is stripped from the request.
+    surviving_req = result[0]
+    assert all(
+        not (isinstance(p, ToolReturnPart) and p.tool_call_id == "dropped")
+        for p in surviving_req.parts
+    )
+    # The orphaned call survives untouched (it may be a pending deferred result).
+    surviving_res = result[1]
+    assert any(
+        isinstance(p, ToolCallPart) and p.tool_call_id == "pending"
+        for p in surviving_res.parts
+    )
+
+
+def test_strip_orphaned_returns_drops_emptied_request():
+    """A request that becomes empty after stripping its only (orphaned) return is dropped."""
+    orphan_return = ToolReturnPart(tool_name="t", content="r", tool_call_id="solo")
+    req = ModelRequest(parts=[orphan_return])
+
+    result = strip_orphaned_returns([req])
+
+    assert result == []

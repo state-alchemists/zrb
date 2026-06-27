@@ -1,79 +1,66 @@
-import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Callable
 
-from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
-from zrb.llm.skill.manager import SkillManager
+from zrb.llm.skill.manager import Skill, SkillManager
 from zrb.util.markdown import make_markdown_section
 
-# A "stub" doc is one whose body is entirely whitespace plus one or more
-# `@path` references — e.g. CLAUDE.md = "@AGENTS.md". Loading such files as a
-# project-context section is double-counting: the system prompt's later
-# ``expand_prompt`` pass inlines the referenced file as an Appendix. Detecting
-# stubs here lets us list the path in "All Documentation Files" without
-# loading content that would be duplicated.
-_STUB_DOC_PATTERN = re.compile(r"\A\s*(?:@[\w~\-./\\]+\s*)+\Z")
 
-
-def _is_stub_doc(content: str) -> bool:
-    if not content:
-        return False
-    return bool(_STUB_DOC_PATTERN.match(content))
-
-
-def create_claude_skills_prompt(
+def build_skill_replacements(
     skill_manager: SkillManager,
     active_skills: list[str] | None = None,
-):
-    def claude_compatibility(
-        ctx: AnyContext,
-        current_prompt: str,
-        next_handler: Callable[[AnyContext, str], str],
-    ) -> str:
-        search_dirs = _get_search_directories()
-        additional_context = []
+) -> dict[str, str]:
+    """Compute the placeholder values mandate.md substitutes into its Skill
+    Activation section, so the skill catalogue lives there instead of a separate
+    ``claude_skills`` prompt section.
 
-        # 1. Available Claude Skills
-        skills_section = _get_skills_section(
-            skill_manager,
-            search_dirs,
-            active_skills=active_skills,
-        )
-        if skills_section:
-            additional_context.append(skills_section)
+    Returns ``{CORE_SKILLS}``, ``{AVAILABLE_SKILLS}``, ``{PREACTIVATED_SKILLS}``:
 
-        new_section = "\n\n".join(additional_context)
-        return next_handler(ctx, f"{current_prompt}\n\n{new_section}")
-
-    return claude_compatibility
-
-
-def _load_file_content(file_path: Path) -> tuple[str, str]:
-    """Load file content and return (content, status).
-
-    Cached by ``(path, mtime)`` so per-turn re-reads of unchanged AGENTS.md /
-    CLAUDE.md / etc. only pay a single stat call.
+    - ``CORE_SKILLS`` — the always-on methodology baseline (built-in skills
+      under ``llm_plugin/core_skills/``), as a bullet list.
+    - ``AVAILABLE_SKILLS`` — every other model-invocable skill (user, project,
+      plugin), as a bullet list.
+    - ``PREACTIVATED_SKILLS`` — full content of any pre-activated skills, loaded up
+      front; empty when none. Active skills are dropped from the two lists above
+      so the model is not told to activate something already loaded.
     """
-    try:
-        mtime = file_path.stat().st_mtime
-    except OSError:
-        return "", "exists (unreadable)"
-    return _load_file_content_cached(str(file_path), mtime)
+    active = set(active_skills or [])
+    core: list[Skill] = []
+    other: list[Skill] = []
+    for skill in skill_manager.get_skills():
+        if not skill.model_invocable or skill.name in active:
+            continue
+        (core if _is_core_skill(skill) else other).append(skill)
+    return {
+        "CORE_SKILLS": _format_skill_list(core),
+        "AVAILABLE_SKILLS": _format_skill_list(other) or "_(none registered)_",
+        "PREACTIVATED_SKILLS": _format_active_skills(skill_manager, active_skills),
+    }
 
 
-@lru_cache(maxsize=64)
-def _load_file_content_cached(path_str: str, mtime: float) -> tuple[str, str]:
-    """Cached read. Key includes mtime so edits invalidate the cache."""
-    try:
-        with open(path_str, "r", encoding="utf-8") as f:
-            content = f.read()
-            if content.strip():
-                return content, "loaded"
-            return "", "exists (empty)"
-    except Exception:
-        return "", "exists (unreadable)"
+def _is_core_skill(skill: Skill) -> bool:
+    """A core skill is a built-in shipped under ``llm_plugin/core_skills/``."""
+    return "core_skills" in Path(skill.path).parts
+
+
+def _format_skill_list(skills: list[Skill]) -> str:
+    return "\n".join(f"- **{s.name}** — {s.description}" for s in skills)
+
+
+def _format_active_skills(
+    skill_manager: SkillManager, active_skills: list[str] | None
+) -> str:
+    if not active_skills:
+        return ""
+    parts: list[str] = []
+    for name in active_skills:
+        skill = skill_manager.get_skill(name)
+        if not (skill and skill.model_invocable):
+            continue
+        content = skill_manager.get_skill_content(name) or skill.description
+        parts.append(make_markdown_section(name, content))
+    return make_markdown_section("Active Skills (Fully Loaded)", "\n\n".join(parts))
 
 
 def create_project_context_prompt():
@@ -84,67 +71,33 @@ def create_project_context_prompt():
     ) -> str:
         search_dirs = _get_search_directories()
 
-        # Find all doc files - collect all occurrences, not just first
-        doc_files = {
+        doc_files: dict[str, list[Path]] = {
             "AGENTS.md": [],
             "CLAUDE.md": [],
             "GEMINI.md": [],
             "README.md": [],
-            "RTK.md": [],
         }
 
         for directory in search_dirs:
             for filename in doc_files.keys():
                 file_path = directory / filename
                 if file_path.exists() and file_path.is_file():
-                    content, status = _load_file_content(file_path)
-                    doc_files[filename].append((file_path, content))
+                    doc_files[filename].append(file_path)
 
-        # Load content from most specific (closest to CWD = last in search_dirs)
-        loaded_docs: list[tuple[str, str]] = []  # (section header, content)
+        # Collect all found file paths, ordered least to most specific
         listed_files: list[str] = []
-
-        # README.md is a fallback — skip it when AGENTS.md is available
-        agents_has_content = bool(doc_files["AGENTS.md"])
-
         for filename in doc_files.keys():
-            if filename == "README.md" and agents_has_content:
-                continue
-            occurrences = doc_files[filename]
-            if not occurrences:
-                continue
+            for file_path in doc_files[filename]:
+                listed_files.append(f"- `{file_path}`")
 
-            # Load from most specific (last occurrence)
-            most_specific_path, content = occurrences[-1]
-            loaded_content = content[: CFG.LLM_PROJECT_DOC_MAX_CHARS] if content else ""
-
-            # Skip stub docs (pure ``@path`` pointers) — ``expand_prompt`` will
-            # inline the referenced files, so loading the stub body would
-            # duplicate that content.
-            if loaded_content and not _is_stub_doc(loaded_content):
-                loaded_docs.append((filename, loaded_content))
-
-            # List all occurrences
-            for path, _ in occurrences:
-                listed_files.append(f"- `{path}`")
-
-        if not loaded_docs and not listed_files:
+        if not listed_files:
             return next_handler(ctx, current_prompt)
 
-        # Build prompt
-        parts = []
-
-        if loaded_docs:
-            parts.append("## Project Documentation (Loaded)\n")
-            for filename, content in loaded_docs:
-                parts.append(f"### {filename}\n{content}\n")
-
-        if listed_files:
-            parts.append(
-                "## All Documentation Files\n" + "\n".join(listed_files) + "\n\n"
-                "**NOTE:** Only the most specific files above are loaded. "
-                "Read other files with `Read` tool when needed."
-            )
+        parts = [
+            "### Documentation Files Found",
+            "(See Operating Rules → Project Documentation for when to read these.)",
+            *listed_files,
+        ]
 
         context_message = "\n".join(parts)
         return next_handler(
@@ -186,52 +139,3 @@ def _get_search_directories_cached(home_str: str, cwd_str: str) -> tuple[str, ..
             dirs.append(str(parent))
         dirs.append(str(cwd))
     return tuple(dirs)
-
-
-def _get_skills_section(
-    skill_manager: SkillManager,
-    search_dirs: list[Path],
-    active_skills: list[str] | None = None,
-) -> str | None:
-    skills = skill_manager.get_skills()
-    if not skills:
-        return None
-
-    skills_context = []
-
-    # Add active skills first (if any) with their full content
-    if active_skills:
-        skills_context.append("## Active Skills (Fully Loaded)")
-        for skill_name in active_skills:
-            skill_obj = skill_manager.get_skill(skill_name)
-            if skill_obj and skill_obj.model_invocable:
-                # Get the full skill content
-                skill_content = skill_manager.get_skill_content(skill_name)
-                if skill_content:
-                    skills_context.append(f"### {skill_name}")
-                    skills_context.append(skill_content)
-                else:
-                    # Fallback to description if content can't be loaded
-                    skills_context.append(f"- {skill_name}: {skill_obj.description}")
-        skills_context.append("")  # Add empty line for separation
-
-    # Add available skills (just metadata)
-    skills_context.append(
-        "## Available Skills\n"
-        "Activation is mandatory; the policy and authority rules live in "
-        "Operating Rules → Skill Activation — this catalogue only lists what is "
-        "available. If a skill's description matches the work you are about to "
-        "do, activate it with `ActivateSkill` BEFORE you begin. Skills may "
-        "include companion files (scripts, docs, data); activating one reveals "
-        "its directory path and companion file listing."
-    )
-    for skill in skills:
-        if skill.model_invocable:
-            # Skip skills that are already active
-            if active_skills and skill.name in active_skills:
-                continue
-            skills_context.append(f"- {skill.name}: {skill.description}")
-
-    return make_markdown_section(
-        "Available Skills (Claude Skills)", "\n".join(skills_context)
-    )

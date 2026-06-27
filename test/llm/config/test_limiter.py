@@ -8,6 +8,66 @@ from pydantic_ai.messages import ModelRequest, UserPromptPart
 from zrb.llm.config.limiter import LLMLimiter, is_turn_start
 
 
+def _fake_tiktoken(encode_len=None, decode_value="DECODED"):
+    """Build a fake ``tiktoken`` module whose encoder is controllable."""
+    enc = MagicMock()
+    if encode_len is not None:
+        enc.encode.return_value = list(range(encode_len))
+    enc.decode.return_value = decode_value
+    module = MagicMock()
+    module.get_encoding.return_value = enc
+    return module, enc
+
+
+@pytest.mark.asyncio
+async def test_count_tokens_uses_tiktoken_when_enabled():
+    """When tiktoken is enabled and importable, the encoder length is returned."""
+    limiter = LLMLimiter()
+    fake_module, enc = _fake_tiktoken(encode_len=7)
+    with (
+        patch.object(
+            LLMLimiter, "use_tiktoken", new_callable=PropertyMock, return_value=True
+        ),
+        patch.dict("sys.modules", {"tiktoken": fake_module}),
+    ):
+        assert limiter.count_tokens("anything") == 7
+    enc.encode.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_truncate_text_uses_tiktoken_when_over_limit():
+    """truncate_text decodes the truncated token slice when over the limit."""
+    limiter = LLMLimiter()
+    fake_module, enc = _fake_tiktoken(encode_len=20, decode_value="TRUNCATED")
+    with (
+        patch.object(
+            LLMLimiter, "use_tiktoken", new_callable=PropertyMock, return_value=True
+        ),
+        patch.dict("sys.modules", {"tiktoken": fake_module}),
+    ):
+        result = limiter.truncate_text("long text", 5)
+    assert result == "TRUNCATED"
+    # Only the first 5 tokens are decoded.
+    enc.decode.assert_called_once()
+    assert enc.decode.call_args.args[0] == list(range(5))
+
+
+@pytest.mark.asyncio
+async def test_truncate_text_uses_tiktoken_returns_unchanged_when_under_limit():
+    """truncate_text returns the original text when token count is within the limit."""
+    limiter = LLMLimiter()
+    fake_module, enc = _fake_tiktoken(encode_len=3)
+    with (
+        patch.object(
+            LLMLimiter, "use_tiktoken", new_callable=PropertyMock, return_value=True
+        ),
+        patch.dict("sys.modules", {"tiktoken": fake_module}),
+    ):
+        result = limiter.truncate_text("short", 10)
+    assert result == "short"
+    enc.decode.assert_not_called()
+
+
 @pytest.mark.asyncio
 async def test_count_tokens_falls_back_when_tiktoken_raises_non_import_error():
     """A tiktoken failure that is NOT ImportError (bad encoding name,
@@ -363,6 +423,113 @@ class TestLLMLimiterRateLimiting:
         assert len(limiter._token_log) == 1
 
 
+class TestLLMLimiterPropertyDefaults:
+    """Properties fall back to the built-in default when CFG is unset/falsy."""
+
+    def test_max_token_per_request_default_when_cfg_falsy(self):
+        limiter = LLMLimiter()
+        with patch("zrb.llm.config.limiter.CFG") as cfg:
+            cfg.LLM_MAX_TOKEN_PER_REQUEST = None
+            assert limiter.max_token_per_request == 16_000
+
+    def test_throttle_check_interval_default_when_cfg_falsy(self):
+        limiter = LLMLimiter()
+        with patch("zrb.llm.config.limiter.CFG") as cfg:
+            cfg.LLM_THROTTLE_SLEEP = None
+            assert limiter.throttle_check_interval == 0.1
+
+    def test_max_request_per_minute_default_when_cfg_falsy(self):
+        limiter = LLMLimiter()
+        with patch("zrb.llm.config.limiter.CFG") as cfg:
+            cfg.LLM_MAX_REQUEST_PER_MINUTE = None
+            assert limiter.max_request_per_minute == 60
+
+    def test_max_token_per_minute_default_when_cfg_falsy(self):
+        limiter = LLMLimiter()
+        with patch("zrb.llm.config.limiter.CFG") as cfg:
+            cfg.LLM_MAX_TOKEN_PER_MINUTE = None
+            assert limiter.max_token_per_minute == 100_000
+
+
+class TestLLMLimiterPruningLoop:
+    """Exercise the real turn-based pruning loop (no is_turn_start patching)."""
+
+    def test_prunes_oldest_turn_to_fit(self):
+        """A multi-turn history over budget drops whole leading turns until it fits."""
+        limiter = LLMLimiter()
+        # char/4 estimate: keep tiktoken off and pick a tight budget.
+        limiter.max_token_per_request = 30  # available = int(30*0.9) = 27
+
+        # Each turn: a user request (turn start) + a model response.
+        from datetime import datetime
+
+        from pydantic_ai.messages import ModelResponse, TextPart
+
+        def turn(user_text, reply_text):
+            req = ModelRequest(parts=[UserPromptPart(content=user_text)])
+            res = ModelResponse(
+                parts=[TextPart(content=reply_text)], timestamp=datetime.now()
+            )
+            return [req, res]
+
+        history = (
+            turn("first user message padding padding", "first reply padding padding")
+            + turn("second user message padding", "second reply padding")
+            + turn("third short", "third short")
+        )
+
+        result = limiter.fit_context_window(history, "new question")
+
+        # Pruning happened: the oldest turn(s) were dropped but newest survives.
+        assert len(result) < len(history)
+        assert result[-1].parts[0].content == "third short"
+        # Result begins at a turn boundary (a user prompt request).
+        assert is_turn_start(result[0])
+
+    def test_prunes_all_when_only_one_turn_and_over_budget(self):
+        """When no later turn boundary exists, the whole history is cleared."""
+        limiter = LLMLimiter()
+        limiter.max_token_per_request = 30  # available = 27
+
+        from datetime import datetime
+
+        from pydantic_ai.messages import ModelResponse, TextPart
+
+        # A single turn whose body exceeds the budget; no subsequent turn start.
+        req = ModelRequest(parts=[UserPromptPart(content="x" * 200)])
+        res = ModelResponse(
+            parts=[TextPart(content="y" * 50)], timestamp=datetime.now()
+        )
+        history = [req, res]
+
+        result = limiter.fit_context_window(history, "tiny")
+        assert result == []
+
+
+class TestLLMLimiterToStrListInstructions:
+    """_to_str over a list counts only the latest item's instructions (lines 279-282)."""
+
+    def test_count_tokens_list_includes_latest_instructions(self):
+        """A list whose latest item carries instructions costs more than one without.
+
+        Driven through the public count_tokens(): the only difference between the
+        two lists is the trailing item's instructions, so a higher token count
+        proves the latest-instruction branch ran.
+        """
+        limiter = LLMLimiter()
+
+        class MsgWithInstr:
+            def __init__(self, instr):
+                self.instructions = instr
+                self.parts = []
+
+        long_instr = "ACTIVE_INSTRUCTION_TEXT " * 20
+        with_instr = [MsgWithInstr(""), MsgWithInstr(long_instr)]
+        without_instr = [MsgWithInstr(""), MsgWithInstr("")]
+
+        assert limiter.count_tokens(with_instr) > limiter.count_tokens(without_instr)
+
+
 class TestLLMLimiterFitContextWindow:
     """Test context window fitting through public API."""
 
@@ -596,6 +763,38 @@ class TestLLMLimiterAcquireWithNotifier:
 
         await acquire_with_timeout()
         assert notifier.called
+
+    @pytest.mark.asyncio
+    async def test_acquire_notifier_clear_after_limit_lifts(self):
+        """Once the rate limit lifts, the notifier receives a final clear ("\\n").
+
+        Drives the public acquire(): start over the request budget, then raise the
+        budget mid-flight so the throttle loop exits and the clear branch runs.
+        """
+        limiter = LLMLimiter()
+        limiter.max_request_per_minute = 1
+        limiter.max_token_per_minute = 10000
+        limiter.throttle_check_interval = 0.01
+        limiter.max_request_per_minute = 1
+        # Pre-fill the request budget so the first acquire is blocked.
+        await limiter.acquire("seed")
+
+        notifier = MagicMock()
+
+        async def lift_limit_soon():
+            await asyncio.sleep(0.03)
+            limiter.max_request_per_minute = 100
+
+        await asyncio.gather(
+            limiter.acquire("blocked", notifier=notifier),
+            lift_limit_soon(),
+        )
+
+        # Notifier was called for the wait message AND the trailing clear.
+        assert notifier.called
+        assert any(
+            call.args and call.args[0] == "\n" for call in notifier.call_args_list
+        )
 
     @pytest.mark.asyncio
     async def test_acquire_notifier_called_once_with_clear(self):

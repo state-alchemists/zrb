@@ -128,13 +128,18 @@ def test_list_files_depth_limiting(tmp_path):
 
 
 def test_list_files_truncation(tmp_path):
-    # Create more than 1000 files to trigger truncation
+    from unittest.mock import patch
+
     for i in range(1100):
         (tmp_path / f"file_{i:04d}.txt").write_text("x")
 
-    res = list_files(str(tmp_path))
+    # Tiny char budget so the file list overflows and head-keep truncates.
+    with patch("zrb.llm.tool.file_list.CFG") as mock_cfg:
+        mock_cfg.LLM_MAX_OUTPUT_CHARS = 200
+        res = list_files(str(tmp_path))
     assert "truncation_notice" in res
-    assert len(res["files"]) == 1000  # 500 head + 500 tail
+    assert "TRUNCATED" in res["truncation_notice"]
+    assert 0 < len(res["files"]) < 1100
 
 
 # --- glob_files additional coverage ---
@@ -225,13 +230,17 @@ def test_glob_files_excluded_patterns(tmp_path):
 
 
 def test_glob_files_truncation(tmp_path):
+    from unittest.mock import patch
+
     for i in range(1100):
         (tmp_path / f"file_{i:04d}.txt").write_text("x")
 
-    res = glob_files("*.txt", path=str(tmp_path))
+    with patch("zrb.llm.tool.file_list.CFG") as mock_cfg:
+        mock_cfg.LLM_MAX_OUTPUT_CHARS = 200
+        res = glob_files("*.txt", path=str(tmp_path))
     assert "truncation_notice" in res
     assert "TRUNCATED" in res["truncation_notice"]
-    assert len(res["files"]) == 1000  # 500 head + 500 tail
+    assert 0 < len(res["files"]) < 1100
 
 
 # --- read_file additional coverage ---
@@ -268,18 +277,47 @@ def test_read_file_binary_with_null_bytes(tmp_path):
     assert "binary" in result.lower()
 
 
-def test_read_file_auto_truncate_false(tmp_path):
+def test_read_file_small_no_truncation(tmp_path):
     file_path = tmp_path / "test.txt"
     content = "line1\nline2\nline3\n"
     file_path.write_text(content)
 
-    result = read_file(str(file_path), auto_truncate=False)
+    result = read_file(str(file_path))
     assert "line1" in result
     assert "line2" in result
     assert "line3" in result
     assert "TRUNCATED" not in result
-    assert "IMPORTANT" not in result
     assert "---CONTENT---" in result
+
+
+def test_read_file_line_range(tmp_path):
+    file_path = tmp_path / "test.txt"
+    file_path.write_text("\n".join(f"line{i}" for i in range(1, 11)))
+
+    result = read_file(str(file_path), start_line=3, end_line=5)
+    body = result.split("---CONTENT---")[1]
+    assert "line3" in body and "line4" in body and "line5" in body
+    assert "line2" not in body and "line6" not in body
+    assert "lines 3-5 of 10" in result
+
+
+def test_read_file_end_line_negative_one_reads_to_end(tmp_path):
+    file_path = tmp_path / "test.txt"
+    file_path.write_text("\n".join(f"line{i}" for i in range(1, 6)))
+
+    result = read_file(str(file_path), start_line=4, end_line=-1)
+    body = result.split("---CONTENT---")[1]
+    assert "line4" in body and "line5" in body
+    assert "line3" not in body
+
+
+def test_read_file_start_line_beyond_eof(tmp_path):
+    file_path = tmp_path / "test.txt"
+    file_path.write_text("only\none\ntwo\n")
+
+    result = read_file(str(file_path), start_line=99)
+    assert "Error" in result
+    assert "beyond end of file" in result
 
 
 def test_read_file_truncation_header(tmp_path):
@@ -290,26 +328,24 @@ def test_read_file_truncation_header(tmp_path):
 
     result = read_file(str(file_path))
     assert "---CONTENT---" in result
-    assert ("[File:" in result and "truncated" in result.lower()) or "File:" in result
+    header = result.split("---CONTENT---")[0]
+    assert "truncated" in header.lower()
+    assert result.rstrip().endswith("...[TRUNCATED]")
 
 
-def test_read_file_truncation_header_reports_middle_elided(tmp_path):
-    # B21: when head+tail are kept and the middle is elided, the header must
-    # NOT claim a contiguous "lines X-Y" range. It should say first/last.
-    # Needs both line count > head+tail (2*1000) AND chars > 100k to trigger
-    # middle elision.
+def test_read_file_truncation_keeps_head(tmp_path):
+    # Truncation keeps the head and drops the overflow at the end, marked
+    # ...[TRUNCATED] — the file's top is read first.
     file_path = tmp_path / "many_lines.txt"
     line = "x" * 110
-    content = "\n".join(line for _ in range(3000))
+    content = "\n".join(f"{i:04d}-{line}" for i in range(3000))
     file_path.write_text(content)
 
     result = read_file(str(file_path))
-    header = result.split("---CONTENT---")[0]
-    assert "middle elided" in header
-    assert "showing first" in header
-    assert "and last" in header
-    # The misleading contiguous "lines 1-N" range must be gone.
-    assert "lines 1–" not in header
+    body = result.split("---CONTENT---\n", 1)[1]
+    assert body.startswith("0000-")
+    assert "2999-" not in body
+    assert body.rstrip().endswith("...[TRUNCATED]")
 
 
 def test_read_file_non_utf8(tmp_path):
@@ -476,7 +512,7 @@ def test_search_files_result_truncation(tmp_path):
 
     result = search_files("needle", path=str(tmp_path))
     assert "truncation_notice" in result
-    assert len(result["results"]) == 500  # 250 head + 250 tail
+    assert 0 < len(result["results"]) < 600
 
 
 def test_search_files_files_only(tmp_path):
@@ -588,19 +624,17 @@ class TestSearchFilesFallback:
 
 class TestFileSearchTruncation:
     def test_get_file_matches_truncation(self, tmp_path):
-        # We need to import the internal helper, but @AGENTS.md says Public API Only.
-        # We will test via search_files instead.
+        # Tested via the public search_files: a file with more matches than the
+        # per-file cap gets a head-keep truncation marker.
         file_path = tmp_path / "large_file.txt"
         file_path.write_text("\n".join([f"match {i}" for i in range(100)]))
 
         from unittest.mock import patch
 
         with (
-            patch("zrb.llm.tool.file_search.CFG") as mock_cfg,
+            patch("zrb.llm.tool.file_search._MAX_MATCHES_PER_FILE", 20),
             patch("shutil.which", return_value=None),
         ):
-            mock_cfg.LLM_FILE_READ_LINES = 20
-
             result = search_files("match", path=str(tmp_path))
             # The result for this one file should have truncation marker
             assert any(
@@ -621,8 +655,9 @@ class TestFileSearchTruncation:
             for i in range(20):
                 (tmp_path / f"match_{i}.txt").write_text("needle")
 
-            mock_cfg.LLM_FILE_READ_LINES = 20  # preserved_head = 5, preserved_tail = 5
+            # Tiny char budget so the result-file list overflows and truncates.
+            mock_cfg.LLM_MAX_OUTPUT_CHARS = 100
 
-            result = search_files("needle", path=str(tmp_path), auto_truncate=True)
+            result = search_files("needle", path=str(tmp_path))
             assert "truncation_notice" in result
             assert "TRUNCATED" in result["truncation_notice"]

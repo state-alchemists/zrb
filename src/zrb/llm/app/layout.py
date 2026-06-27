@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, cast
 
 from prompt_toolkit.filters import (
     Condition,
@@ -18,6 +18,7 @@ from prompt_toolkit.layout.containers import Float, FloatContainer
 from prompt_toolkit.layout.controls import FormattedTextControl
 from prompt_toolkit.layout.menus import CompletionsMenu
 from prompt_toolkit.lexers import Lexer
+from prompt_toolkit.mouse_events import MouseEventType
 from prompt_toolkit.widgets import Frame, TextArea
 
 from zrb.llm.app.completion import InputCompleter
@@ -118,6 +119,7 @@ def create_input_field(
     if kb is None:
         kb = KeyBindings()
         text_area.control.key_bindings = kb
+    kb = cast(KeyBindings, kb)
 
     @Condition
     def is_first_line() -> bool:
@@ -139,14 +141,10 @@ def create_input_field(
     def _(event):
         event.current_buffer.history_forward()
 
-    # Tab navigation
-    @kb.add("tab", filter=~has_completions)
-    def _(event):
-        event.app.layout.focus_next()
-
-    @kb.add("s-tab", filter=~has_completions)
-    def _(event):
-        event.app.layout.focus_previous()
+    # Focus traversal is handled by Tab at the app level; Tab still drives
+    # completion-menu navigation when a menu is open (the app-level binding
+    # is gated by ~has_completions). Shift+Tab is deliberately unbound here
+    # so the app-level binding can cycle modes. See ADR-0075.
 
     return text_area
 
@@ -173,9 +171,37 @@ def create_output_field(
     if key_bindings is not None:
         text_area.control.key_bindings = key_bindings
 
+    _bind_scroll_to_cursor(text_area)
+
     # Set cursor to the end - TextArea will keep cursor visible when focusable
     text_area.buffer.cursor_position = len(text_area.text)
     return text_area
+
+
+def _bind_scroll_to_cursor(text_area: TextArea, lines: int = 3) -> None:
+    """Make the mouse wheel move the output cursor instead of the viewport.
+
+    The output window pins itself to the cursor, so prompt_toolkit's default
+    wheel handling (nudging vertical_scroll) gets snapped straight back to the
+    bottom by the next streamed chunk. Moving the cursor itself scrolls the
+    window for real and — because the cursor leaves the last line — pauses the
+    auto-follow in append_to_output. Intercepting on the control handles scroll
+    regardless of which pane is focused, so no Ctrl+K is needed first.
+    """
+    control = text_area.control
+    inner_handler = control.mouse_handler
+
+    def mouse_handler(mouse_event):
+        buf = text_area.buffer
+        if mouse_event.event_type == MouseEventType.SCROLL_UP:
+            buf.cursor_position += buf.document.get_cursor_up_position(count=lines)
+            return None
+        if mouse_event.event_type == MouseEventType.SCROLL_DOWN:
+            buf.cursor_position += buf.document.get_cursor_down_position(count=lines)
+            return None
+        return inner_handler(mouse_event)
+
+    control.mouse_handler = mouse_handler
 
 
 def create_layout(

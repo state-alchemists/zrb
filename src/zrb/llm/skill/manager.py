@@ -95,7 +95,7 @@ class SkillManager:
         # Scan in order of precedence: global -> project
         # We iterate in normal order to allow later skills (project) to override earlier ones (global)
         for search_dir in target_search_dirs:
-            self._scan_dir(search_dir, max_depth=self._max_depth)
+            self._scan_dir(Path(search_dir), max_depth=self._max_depth)
         self._scanned = True
         return list(self._skills.values())
 
@@ -119,9 +119,7 @@ class SkillManager:
         search_dirs.extend(self._get_plugin_search_dirs())
         search_dirs.extend(self._get_base_search_dirs())
         search_dirs.extend(self._get_extra_skill_dirs())
-        builtin_dir = self._get_builtin_dir()
-        if builtin_dir is not None:
-            search_dirs.append(builtin_dir)
+        search_dirs.extend(self._get_builtin_dirs())
         search_dirs.append(Path(self._root_dir))
         return search_dirs
 
@@ -241,16 +239,20 @@ class SkillManager:
                 dirs.append(dir_path)
         return dirs
 
-    def _get_builtin_dir(self) -> Path | None:
-        """Builtin skills directory (always included, lowest priority).
+    def _get_builtin_dirs(self) -> list[Path]:
+        """Builtin skill directories (always lowest priority).
 
-        Returns ``None`` when the path is missing (broken install / unusual layout)
-        so the caller can skip it rather than falling back to a spurious default.
+        ``core_skills/`` is always included — core skills are the agent's
+        methodology baseline that the utility skills delegate into, so they have
+        no disable toggle. ``skills/`` (utility skills) is gated by
+        ``CFG.LLM_ENABLE_BUILTIN_SKILLS``. Missing paths (broken install / unusual
+        layout) are skipped rather than yielding a spurious default.
         """
-        builtin_path = Path(__file__).parent.parent.parent / "llm_plugin" / "skills"
-        if builtin_path.exists() and builtin_path.is_dir():
-            return builtin_path
-        return None
+        base = Path(__file__).parent.parent.parent / "llm_plugin"
+        dirs: list[Path] = [base / "core_skills"]
+        if CFG.LLM_ENABLE_BUILTIN_SKILLS:
+            dirs.append(base / "skills")
+        return [d for d in dirs if d.exists() and d.is_dir()]
 
     def _get_upward_dirs(self) -> list[Path]:
         """Get directories from root to cwd for upward traversal.

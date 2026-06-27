@@ -7,7 +7,7 @@ from zrb.llm.agent.run.deferred_calls import (
     process_deferred_requests,
     rebuild_for_denials,
 )
-from zrb.llm.hook.interface import HookResult
+from zrb.llm.hook.executor import HookExecutionResult
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.tool_call.handler import ToolCallHandler
@@ -82,18 +82,25 @@ async def test_process_deferred_requests_approved_by_policy():
     hook_manager.execute_hooks.assert_any_call(
         HookEvent.PRE_TOOL_USE,
         {"tool": "test_tool", "args": {"arg1": "val1"}, "call_id": "call_1"},
+        tool_name="test_tool",
+        tool_input={"arg1": "val1"},
     )
-    hook_manager.execute_hooks.assert_any_call(
-        HookEvent.POST_TOOL_USE,
-        {"tool": "test_tool", "args": {"arg1": "val1"}, "result": approved_result},
-    )
+    # PostToolUse no longer fires from the approval path — it fires at execution
+    # time in SafeToolsetWrapper.call_tool. So only PRE_TOOL_USE is seen here.
+    fired_events = [c.args[0] for c in hook_manager.execute_hooks.call_args_list]
+    assert HookEvent.POST_TOOL_USE not in fired_events
 
 
 @pytest.mark.asyncio
 async def test_process_deferred_requests_denied_by_hook():
+    """A PreToolUse hook with permissionDecision="deny" cancels the call."""
     ui = MagicMock(spec=UIProtocol)
     hook_manager = MagicMock(spec=HookManager)
-    hook_result = HookResult(modifications={"cancel_tool": True})
+    hook_result = HookExecutionResult(
+        success=True,
+        permission_decision="deny",
+        permission_decision_reason="blocked by policy",
+    )
     hook_manager.execute_hooks = AsyncMock(return_value=[hook_result])
 
     call = MagicMock()
@@ -108,14 +115,44 @@ async def test_process_deferred_requests_denied_by_hook():
     result = await process_deferred_requests(result_output, None, ui, hook_manager)
 
     assert isinstance(result.approvals["call_1"], MockToolDenied)
-    assert result.approvals["call_1"].message == "Tool execution cancelled by hook"
+    assert result.approvals["call_1"].message == "blocked by policy"
+
+
+@pytest.mark.asyncio
+async def test_process_deferred_requests_allowed_by_hook():
+    """A PreToolUse hook with permissionDecision="allow" skips the approval
+    cascade entirely (the tool handler is never consulted)."""
+    ui = MagicMock(spec=UIProtocol)
+    hook_manager = MagicMock(spec=HookManager)
+    hook_result = HookExecutionResult(success=True, permission_decision="allow")
+    hook_manager.execute_hooks = AsyncMock(return_value=[hook_result])
+
+    tool_handler = MagicMock(spec=ToolCallHandler)
+    tool_handler.check_policies = AsyncMock(return_value=MockToolDenied("would deny"))
+
+    call = MagicMock()
+    call.tool_name = "test_tool"
+    call.args = {"arg1": "val1"}
+    call.tool_call_id = "call_1"
+
+    result_output = MagicMock()
+    result_output.calls = [call]
+    result_output.approvals = []
+
+    result = await process_deferred_requests(
+        result_output, tool_handler, ui, hook_manager
+    )
+
+    assert isinstance(result.approvals["call_1"], MockToolApproved)
+    tool_handler.check_policies.assert_not_called()
 
 
 @pytest.mark.asyncio
 async def test_process_deferred_requests_modified_by_hook():
+    """A PreToolUse hook with updatedInput rewrites the tool arguments."""
     ui = MagicMock(spec=UIProtocol)
     hook_manager = MagicMock(spec=HookManager)
-    hook_result = HookResult(modifications={"tool_args": {"arg1": "modified"}})
+    hook_result = HookExecutionResult(success=True, updated_input={"arg1": "modified"})
     hook_manager.execute_hooks = AsyncMock(side_effect=[[hook_result], []])
 
     tool_handler = MagicMock(spec=ToolCallHandler)
@@ -232,6 +269,79 @@ async def test_permission_request_not_fired_when_auto_approved():
     await process_deferred_requests(result_output, tool_handler, ui, hook_manager)
 
     assert _permission_request_calls(hook_manager) == []
+
+
+def _route_execute_hooks(mapping):
+    async def _execute(event, data, *args, **kwargs):
+        return mapping.get(event, [])
+
+    return AsyncMock(side_effect=_execute)
+
+
+@pytest.mark.asyncio
+async def test_permission_request_hook_auto_allows():
+    """A PermissionRequest hook returning decision.behavior="allow" approves the
+    call without consulting the interactive approval channel."""
+    ui = MagicMock(spec=UIProtocol)
+    hook_manager = MagicMock(spec=HookManager)
+    allow = HookExecutionResult(
+        success=True, hook_specific_output={"decision": {"behavior": "allow"}}
+    )
+    hook_manager.execute_hooks = _route_execute_hooks(
+        {HookEvent.PERMISSION_REQUEST: [allow]}
+    )
+
+    approval_channel = MagicMock()
+    approval_channel.request_approval = AsyncMock()
+
+    call = MagicMock()
+    call.tool_name = "test_tool"
+    call.args = {"arg1": "val1"}
+    call.tool_call_id = "call_1"
+
+    result_output = MagicMock()
+    result_output.calls = [call]
+    result_output.approvals = []
+
+    result = await process_deferred_requests(
+        result_output, None, ui, hook_manager, approval_channel=approval_channel
+    )
+
+    assert isinstance(result.approvals["call_1"], MockToolApproved)
+    approval_channel.request_approval.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_permission_request_hook_auto_denies():
+    """A PermissionRequest hook returning decision.behavior="deny" denies the
+    call without consulting the interactive approval channel."""
+    ui = MagicMock(spec=UIProtocol)
+    hook_manager = MagicMock(spec=HookManager)
+    deny = HookExecutionResult(
+        success=True, hook_specific_output={"decision": {"behavior": "deny"}}
+    )
+    hook_manager.execute_hooks = _route_execute_hooks(
+        {HookEvent.PERMISSION_REQUEST: [deny]}
+    )
+
+    approval_channel = MagicMock()
+    approval_channel.request_approval = AsyncMock()
+
+    call = MagicMock()
+    call.tool_name = "test_tool"
+    call.args = {"arg1": "val1"}
+    call.tool_call_id = "call_1"
+
+    result_output = MagicMock()
+    result_output.calls = [call]
+    result_output.approvals = []
+
+    result = await process_deferred_requests(
+        result_output, None, ui, hook_manager, approval_channel=approval_channel
+    )
+
+    assert isinstance(result.approvals["call_1"], MockToolDenied)
+    approval_channel.request_approval.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -420,15 +530,11 @@ async def test_process_deferred_requests_denied_removes_from_calls():
         )
 
     assert isinstance(result.approvals["call_1"], MockToolDenied)
-    # Note: process_deferred_requests only deletes from calls if it was already there.
-    # But current_results starts empty. Wait, if it's a DeferredToolResults,
-    # usually pydantic-ai might have populated it?
-    # Actually process_deferred_requests creates a NEW DeferredToolResults.
-
-    hook_manager.execute_hooks.assert_any_call(
-        HookEvent.POST_TOOL_USE_FAILURE,
-        {"tool": "test_tool", "args": {"arg1": "val1"}, "error": "Denied"},
-    )
+    # PostToolUseFailure no longer fires from the approval path: a denied call is
+    # a permission outcome, not an execution failure. It fires only when a tool
+    # actually raises, in SafeToolsetWrapper.call_tool.
+    fired_events = [c.args[0] for c in hook_manager.execute_hooks.call_args_list]
+    assert HookEvent.POST_TOOL_USE_FAILURE not in fired_events
 
 
 def _ask_policy():
@@ -511,6 +617,343 @@ async def test_noninteractive_other_ask_tool_is_denied():
 
     assert isinstance(result.approvals["call_1"], MockToolDenied)
     tool_handler.handle.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_pretooluse_ask_forces_prompt_over_auto_approve():
+    """A PreToolUse hook returning permissionDecision="ask" forces the interactive
+    prompt even when a tool policy would otherwise auto-approve the call."""
+    ui = MagicMock(spec=UIProtocol)
+    hook_manager = MagicMock(spec=HookManager)
+    ask = HookExecutionResult(success=True, permission_decision="ask")
+    hook_manager.execute_hooks = _route_execute_hooks({HookEvent.PRE_TOOL_USE: [ask]})
+
+    # Tool policy WOULD auto-approve, but the hook's "ask" must override it and
+    # route to the interactive CLI handler.
+    tool_handler = MagicMock(spec=ToolCallHandler)
+    tool_handler.check_policies = AsyncMock(return_value=MockToolApproved("auto"))
+    cli_result = MockToolApproved("user approved")
+    tool_handler.handle = AsyncMock(return_value=cli_result)
+
+    call = MagicMock()
+    call.tool_name = "run_shell_command"
+    call.args = {"cmd": "ls"}
+    call.tool_call_id = "call_1"
+
+    result_output = MagicMock()
+    result_output.calls = [call]
+    result_output.approvals = []
+
+    with (
+        patch("zrb.llm.permission.get_effective_policy", return_value=None),
+        patch("zrb.llm.tool.ask.get_interactive_mode", return_value=True),
+    ):
+        result = await process_deferred_requests(
+            result_output, tool_handler, ui, hook_manager
+        )
+
+    assert result.approvals["call_1"] == cli_result
+    tool_handler.handle.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_pretooluse_hook_with_invalid_json_string_args():
+    """_as_tool_input: when call.args is a non-JSON string, it is passed to the
+    hook unchanged (lines 54-55)."""
+    ui = MagicMock(spec=UIProtocol)
+    hook_manager = MagicMock(spec=HookManager)
+    hook_manager.execute_hooks = AsyncMock(return_value=[])
+
+    tool_handler = MagicMock(spec=ToolCallHandler)
+    approved = MockToolApproved("ok")
+    tool_handler.check_policies = AsyncMock(return_value=approved)
+
+    call = MagicMock()
+    call.tool_name = "test_tool"
+    call.args = "not-valid-json{"
+    call.tool_call_id = "call_1"
+
+    result_output = MagicMock()
+    result_output.calls = [call]
+    result_output.approvals = []
+
+    result = await process_deferred_requests(
+        result_output, tool_handler, ui, hook_manager
+    )
+
+    assert result.approvals["call_1"] == approved
+    # The raw string was forwarded as tool_input (not parsed).
+    hook_manager.execute_hooks.assert_any_call(
+        HookEvent.PRE_TOOL_USE,
+        {"tool": "test_tool", "args": "not-valid-json{", "call_id": "call_1"},
+        tool_name="test_tool",
+        tool_input="not-valid-json{",
+    )
+
+
+@pytest.mark.asyncio
+async def test_hook_deny_removes_preexisting_call_entry():
+    """A PreToolUse deny drops a matching entry from current_results.calls
+    (line 108)."""
+    ui = MagicMock(spec=UIProtocol)
+    hook_manager = MagicMock(spec=HookManager)
+    hook_result = HookExecutionResult(
+        success=True, permission_decision="deny", permission_decision_reason="no"
+    )
+    hook_manager.execute_hooks = AsyncMock(return_value=[hook_result])
+
+    call = MagicMock()
+    call.tool_name = "test_tool"
+    call.args = {"arg1": "val1"}
+    call.tool_call_id = "call_1"
+
+    result_output = MagicMock()
+    result_output.calls = [call]
+    result_output.approvals = []
+
+    # Seed current_results.calls so the del branch executes. DeferredToolResults
+    # is constructed inside process_deferred_requests; patch it to pre-populate.
+    class _SeededResults(MockDeferredToolResults):
+        def __init__(self, *a, **k):
+            super().__init__(*a, **k)
+            self.calls = {"call_1": "preexisting"}
+
+    with patch("pydantic_ai.DeferredToolResults", _SeededResults):
+        result = await process_deferred_requests(result_output, None, ui, hook_manager)
+
+    assert isinstance(result.approvals["call_1"], MockToolDenied)
+    assert "call_1" not in result.calls
+
+
+@pytest.mark.asyncio
+async def test_policy_deny_removes_preexisting_call_entry():
+    """A cascade DENY drops a matching entry from current_results.calls
+    (line 134)."""
+    ui = MagicMock(spec=UIProtocol)
+    hook_manager = MagicMock(spec=HookManager)
+    hook_manager.execute_hooks = AsyncMock(return_value=[])
+
+    tool_handler = MagicMock(spec=ToolCallHandler)
+    tool_handler.check_policies = AsyncMock(return_value=MockToolDenied("nope"))
+
+    call = MagicMock()
+    call.tool_name = "test_tool"
+    call.args = {"arg1": "val1"}
+    call.tool_call_id = "call_1"
+
+    result_output = MagicMock()
+    result_output.calls = [call]
+    result_output.approvals = []
+
+    class _SeededResults(MockDeferredToolResults):
+        def __init__(self, *a, **k):
+            super().__init__(*a, **k)
+            self.calls = {"call_1": "preexisting"}
+
+    with patch("pydantic_ai.DeferredToolResults", _SeededResults):
+        result = await process_deferred_requests(
+            result_output, tool_handler, ui, hook_manager
+        )
+
+    assert isinstance(result.approvals["call_1"], MockToolDenied)
+    assert "call_1" not in result.calls
+
+
+@pytest.mark.asyncio
+async def test_permission_policy_allow_auto_approves():
+    """Priority 2: a permission policy returning ALLOW auto-approves (lines
+    240-250), including coercing string args to a dict."""
+    from zrb.llm.permission import ALLOW
+
+    ui = MagicMock(spec=UIProtocol)
+    hook_manager = MagicMock(spec=HookManager)
+    hook_manager.execute_hooks = AsyncMock(return_value=[])
+
+    policy = MagicMock()
+    policy.decide.return_value = ALLOW
+
+    call = MagicMock()
+    call.tool_name = "test_tool"
+    call.args = json.dumps({"arg1": "val1"})
+    call.tool_call_id = "call_1"
+
+    result_output = MagicMock()
+    result_output.calls = [call]
+    result_output.approvals = []
+
+    with (
+        patch("zrb.llm.permission.get_effective_policy", return_value=policy),
+        patch("zrb.llm.permission.tool_capability", return_value="cap"),
+    ):
+        result = await process_deferred_requests(result_output, None, ui, hook_manager)
+
+    assert isinstance(result.approvals["call_1"], MockToolApproved)
+    # The JSON string args were decoded to a dict before policy.decide.
+    policy.decide.assert_called_once_with("test_tool", "cap", {"arg1": "val1"})
+
+
+@pytest.mark.asyncio
+async def test_permission_policy_deny_blocks():
+    """Priority 2: a permission policy returning DENY blocks (lines 251-255)."""
+    from zrb.llm.permission import DENY
+
+    ui = MagicMock(spec=UIProtocol)
+    hook_manager = MagicMock(spec=HookManager)
+    hook_manager.execute_hooks = AsyncMock(return_value=[])
+
+    policy = MagicMock()
+    policy.decide.return_value = DENY
+
+    call = MagicMock()
+    call.tool_name = "test_tool"
+    call.args = "{bad json"
+    call.tool_call_id = "call_1"
+
+    result_output = MagicMock()
+    result_output.calls = [call]
+    result_output.approvals = []
+
+    with (
+        patch("zrb.llm.permission.get_effective_policy", return_value=policy),
+        patch("zrb.llm.permission.tool_capability", return_value="cap"),
+    ):
+        result = await process_deferred_requests(result_output, None, ui, hook_manager)
+
+    assert isinstance(result.approvals["call_1"], MockToolDenied)
+    # A non-JSON string coerces to {} (lines 242-243) before policy.decide.
+    policy.decide.assert_called_once_with("test_tool", "cap", {})
+
+
+@pytest.mark.asyncio
+async def test_yolo_auto_approves_with_no_policy_opinion():
+    """Priority 3: YOLO=True auto-approves when no policy has an opinion (lines
+    289-291)."""
+    ui = MagicMock(spec=UIProtocol)
+    hook_manager = MagicMock(spec=HookManager)
+    hook_manager.execute_hooks = AsyncMock(return_value=[])
+
+    tool_handler = MagicMock(spec=ToolCallHandler)
+    tool_handler.check_policies = AsyncMock(return_value=None)
+    tool_handler.handle = AsyncMock(return_value=MockToolDenied("should not reach"))
+
+    call = MagicMock()
+    call.tool_name = "run_shell_command"
+    call.args = {"cmd": "ls"}
+    call.tool_call_id = "call_1"
+
+    result_output = MagicMock()
+    result_output.calls = [call]
+    result_output.approvals = []
+
+    with (
+        patch("zrb.llm.permission.get_effective_policy", return_value=None),
+        patch("zrb.llm.tool.ask.get_interactive_mode", return_value=True),
+        patch("zrb.llm.agent.run.runtime_state.get_current_yolo", return_value=True),
+    ):
+        result = await process_deferred_requests(
+            result_output, tool_handler, ui, hook_manager
+        )
+
+    assert isinstance(result.approvals["call_1"], MockToolApproved)
+    tool_handler.handle.assert_not_called()
+    # YOLO auto-approve never prompts, so PermissionRequest must not fire.
+    assert _permission_request_calls(hook_manager) == []
+
+
+@pytest.mark.asyncio
+async def test_approval_channel_with_invalid_json_string_args():
+    """Priority 4: a non-JSON string args value yields empty tool_args on the
+    ApprovalContext (lines 330-331)."""
+    ui = MagicMock(spec=UIProtocol)
+    hook_manager = MagicMock(spec=HookManager)
+    hook_manager.execute_hooks = AsyncMock(return_value=[])
+
+    approval_channel = MagicMock()
+    channel_result = MagicMock()
+    channel_result.to_pydantic_result.return_value = MockToolApproved("ok")
+    approval_channel.request_approval = AsyncMock(return_value=channel_result)
+
+    call = MagicMock()
+    call.tool_name = "test_tool"
+    call.args = "not-json{"
+    call.tool_call_id = "call_1"
+
+    result_output = MagicMock()
+    result_output.calls = [call]
+    result_output.approvals = []
+
+    with (
+        patch("zrb.llm.permission.get_effective_policy", return_value=None),
+        patch("zrb.llm.tool.ask.get_interactive_mode", return_value=True),
+        patch("zrb.llm.agent.run.runtime_state.get_current_yolo", return_value=None),
+    ):
+        result = await process_deferred_requests(
+            result_output, None, ui, hook_manager, approval_channel=approval_channel
+        )
+
+    assert isinstance(result.approvals["call_1"], MockToolApproved)
+    context = approval_channel.request_approval.call_args[0][0]
+    assert context.tool_args == {}
+
+
+@pytest.mark.asyncio
+async def test_no_approval_mechanism_with_hard_ask_denies():
+    """Fallthrough: hard-ASK policy with no approval channel and no CLI
+    confirmation denies rather than silently approving (lines 359-364)."""
+    ui = MagicMock(spec=UIProtocol)
+    hook_manager = MagicMock(spec=HookManager)
+    hook_manager.execute_hooks = AsyncMock(return_value=[])
+
+    call = MagicMock()
+    call.tool_name = "run_shell_command"
+    call.args = {"cmd": "ls"}
+    call.tool_call_id = "call_1"
+
+    result_output = MagicMock()
+    result_output.calls = [call]
+    result_output.approvals = []
+
+    with (
+        patch("zrb.llm.permission.get_effective_policy", return_value=_ask_policy()),
+        patch("zrb.llm.permission.tool_capability", return_value=None),
+        patch("zrb.llm.tool.ask.get_interactive_mode", return_value=True),
+        patch("zrb.llm.agent.run.runtime_state.get_current_yolo", return_value=None),
+    ):
+        # effective_tool_confirmation is neither a ToolCallHandler nor callable.
+        result = await process_deferred_requests(
+            result_output, object(), ui, hook_manager
+        )
+
+    assert isinstance(result.approvals["call_1"], MockToolDenied)
+
+
+@pytest.mark.asyncio
+async def test_no_approval_mechanism_without_ask_returns_none():
+    """Fallthrough: no policy opinion and no approval mechanism returns None,
+    which becomes the approval result for the call (line 366)."""
+    ui = MagicMock(spec=UIProtocol)
+    hook_manager = MagicMock(spec=HookManager)
+    hook_manager.execute_hooks = AsyncMock(return_value=[])
+
+    call = MagicMock()
+    call.tool_name = "run_shell_command"
+    call.args = {"cmd": "ls"}
+    call.tool_call_id = "call_1"
+
+    result_output = MagicMock()
+    result_output.calls = [call]
+    result_output.approvals = []
+
+    with (
+        patch("zrb.llm.permission.get_effective_policy", return_value=None),
+        patch("zrb.llm.tool.ask.get_interactive_mode", return_value=True),
+        patch("zrb.llm.agent.run.runtime_state.get_current_yolo", return_value=None),
+    ):
+        result = await process_deferred_requests(
+            result_output, object(), ui, hook_manager
+        )
+
+    assert result.approvals["call_1"] is None
 
 
 @pytest.mark.asyncio

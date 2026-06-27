@@ -204,13 +204,35 @@ class TestHookManagerExecution:
             executed.append("subsequent")
             return HookResult(success=True)
 
-        manager.register(blocking_hook, events=[HookEvent.SESSION_START])
-        manager.register(subsequent_hook, events=[HookEvent.SESSION_START])
+        # PRE_TOOL_USE is a blocking-capable event, so a block halts the chain.
+        manager.register(blocking_hook, events=[HookEvent.PRE_TOOL_USE])
+        manager.register(subsequent_hook, events=[HookEvent.PRE_TOOL_USE])
 
-        results = await manager.execute_hooks(HookEvent.SESSION_START, {})
+        results = await manager.execute_hooks(HookEvent.PRE_TOOL_USE, {})
         assert "blocking" in executed
         assert "subsequent" not in executed
         assert results[0].exit_code == 2
+
+    @pytest.mark.asyncio
+    async def test_block_on_non_blocking_event_continues_chain(self, manager):
+        """exit-2 / decision=block is meaningless for a non-blocking event
+        (e.g. Notification), so it must NOT suppress the remaining hooks
+        (Claude-compatible)."""
+        executed = []
+
+        async def blocking_hook(ctx):
+            executed.append("blocking")
+            return HookResult.block("ignored here")
+
+        async def subsequent_hook(ctx):
+            executed.append("subsequent")
+            return HookResult(success=True)
+
+        manager.register(blocking_hook, events=[HookEvent.NOTIFICATION])
+        manager.register(subsequent_hook, events=[HookEvent.NOTIFICATION])
+
+        await manager.execute_hooks(HookEvent.NOTIFICATION, {})
+        assert executed == ["blocking", "subsequent"]
 
     @pytest.mark.asyncio
     async def test_continue_false_stops_execution(self, manager):

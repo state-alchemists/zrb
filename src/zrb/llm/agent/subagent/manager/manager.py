@@ -38,7 +38,7 @@ class SubAgentDefinition:
         description: str,
         system_prompt: str,
         model: str | None = None,
-        tools: list[str] = [],
+        tools: list[str] | None = None,
         agent_instance: Any | None = None,
         agent_factory: Callable[[], Any] | None = None,
         inherit_sections: list[str] | None = None,
@@ -48,7 +48,7 @@ class SubAgentDefinition:
         self.description = description
         self.system_prompt = system_prompt
         self.model = model
-        self.tools = tools
+        self.tools = tools if tools is not None else []
         self.agent_instance = agent_instance
         self.agent_factory = agent_factory
         # Inherit named PromptManager sections from the main-agent composition
@@ -185,7 +185,7 @@ class SubAgentManager(LoaderMixin, SearchMixin):
                 else self.get_search_directories()
             )
         for search_dir in target_search_dirs:
-            self._scan_dir(search_dir, max_depth=self._max_depth)
+            self._scan_dir(Path(search_dir), max_depth=self._max_depth)
         self._loaded = True
         return list(self._agents.values())
 
@@ -397,7 +397,7 @@ class SubAgentManager(LoaderMixin, SearchMixin):
         if target_search_dirs is None:
             target_search_dirs = self.get_search_directories()
         for search_dir in target_search_dirs:
-            self._scan_dir(search_dir, max_depth=self._max_depth)
+            self._scan_dir(Path(search_dir), max_depth=self._max_depth)
 
     def _get_tool_registry(self) -> dict[str, Callable]:
         return self._tool_registry

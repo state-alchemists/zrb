@@ -294,14 +294,9 @@ async def write_todos(
     replace: bool = True,
 ) -> str:
     """
-    Creates or replaces the todo list for the current session.
-
-    Each todo is a dict with keys:
-      - content (str): what the task is
-      - status  (str, optional): "pending", "in_progress", "completed", "cancelled" (default: "pending")
-      - id      (str, optional): unique identifier (auto-assigned if omitted)
-
-    With `replace=True` (default), all existing todos are overwritten. Pass `replace=False` to merge.
+    Creates or replaces the session todo list. Each item: {content (str), status
+    ("pending"|"in_progress"|"completed"|"cancelled", default "pending"), id (auto-assigned
+    if omitted)}. replace=True (default) overwrites all; replace=False merges.
     """
     session_name = session or get_current_context_session()
 
@@ -412,14 +407,14 @@ async def get_todos(session: str = "") -> str:
 
 
 # Export tool functions with proper names for LLM
-write_todos.__name__ = "WriteTodos"
-get_todos.__name__ = "GetTodos"
+write_todos.__name__ = "TodoWrite"
+get_todos.__name__ = "TodoRead"
 
 
 def create_plan_tools() -> list:
     """Create planning tools for registration with the LLM agent.
 
-    Only WriteTodos (replace-by-default) and GetTodos are exposed: WriteTodos
+    Only TodoWrite (replace-by-default) and TodoRead are exposed: TodoWrite
     subsumes per-item status changes and clearing.
     """
     return [write_todos, get_todos]

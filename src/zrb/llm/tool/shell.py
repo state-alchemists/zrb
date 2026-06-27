@@ -7,46 +7,54 @@ import tempfile
 from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
 from zrb.llm.sandbox.os_sandbox import SandboxUnavailableError
-from zrb.util.cli.style import stylize_faint
+from zrb.util.cli.style import stylize_muted
 from zrb.util.cmd.command import resolve_shell, terminate_process
-from zrb.util.truncate import truncate_output
+from zrb.util.truncate import truncate_text
 
 
 async def run_shell_command(
     command: str,
     cwd: str = "",
     timeout: int = 120,
-    preserved_head_lines: int = 500,
-    preserved_tail_lines: int = 500,
-    max_chars: int | None = None,
+    max_chars: int = -1,
     shell: str = "",
     dangerously_skip_sandbox: bool = False,
+    background: bool = False,
+    description: str = "",
 ) -> str:
     """
-    Executes a non-interactive command in a shell or interpreter. Streams stdout/stderr
-    live and returns truncated output.
+    Executes a non-interactive command in a shell. Returns truncated stdout/stderr.
+    stdin is closed — prompts hang until timeout; pass `-y`, `--yes`, or `CI=true`.
+    Batch with `&&`; use `cwd` instead of `cd`. Timed-out processes may continue in background.
+    When output exceeds the size cap it is truncated from the TOP (keeping the
+    tail, where errors land); the full stdout/stderr is saved to a temp file
+    whose path is reported — Grep/Read it for the elided content.
 
-    Commands must be fully non-interactive: pass auto-confirmation flags (e.g. `-y`,
-    `--yes`) or set the equivalent environment variables so the process never waits
-    for stdin — stdin is closed, and interactive prompts hang until the timeout.
-
-    Batch independent commands into one call where the interpreter supports chaining
-    (e.g. `pytest && flake8 src` in a POSIX shell) to avoid extra round-trips. Use the
-    `cwd` parameter instead of a `cd` command to set the working directory.
-
-    Default `timeout` is 120 seconds; timed-out processes may continue in the background.
-
-    Args:
-        shell: The shell or interpreter to run the command with — a POSIX shell
-            ("bash", "zsh", "sh"), a Windows shell ("pwsh", "powershell", "cmd"),
-            or a language runtime ("node", "ruby", "php" — `command` is then
-            source code). Empty string uses the user's default shell.
-        dangerously_skip_sandbox: Run this command OUTSIDE the OS-level sandbox
-            (when one is active). Only set it when a command genuinely needs to
-            write outside the workspace; it always requires explicit user
-            approval.
+    shell: "bash"/"zsh"/"sh" (POSIX), "pwsh"/"cmd" (Windows), or "node"/"ruby"/"php"
+    (runtime — command treated as source code); empty = user's default shell.
+    background=True returns a handle for MonitorProcess (timeout not applied).
+    dangerously_skip_sandbox=True exits the OS sandbox — requires explicit user approval.
+    max_chars=-1 uses the configured output limit.
     """
-    if max_chars is None:
+    if background:
+        # lazy: keep the background registry off the hot foreground path.
+        from zrb.llm.tool.shell_background import get_shell_background_registry
+
+        try:
+            handle = await get_shell_background_registry().start(
+                command, cwd, description, shell, dangerously_skip_sandbox
+            )
+        except SandboxUnavailableError as e:
+            return (
+                f"Command refused by sandbox policy: {e}. "
+                "[SYSTEM SUGGESTION]: this deployment requires OS-level "
+                "sandboxing for shell commands (LLM_SANDBOX_FALLBACK=deny)."
+            )
+        return (
+            f"Started background process. Handle: {handle}. "
+            "Call MonitorProcess with this handle to check status."
+        )
+    if max_chars < 0:
         max_chars = CFG.LLM_MAX_OUTPUT_CHARS
     cwd = cwd or os.getcwd()
     resolved_shell, shell_flag = resolve_shell(shell)
@@ -77,6 +85,9 @@ async def run_shell_command(
 
     try:
         process = await _start_process(argv, cwd)
+        # _start_process creates the subprocess with stdout/stderr=PIPE, so both
+        # readers are always present here (the type is StreamReader | None).
+        assert process.stdout is not None and process.stderr is not None
 
         stdout_lines = []
         stderr_lines = []
@@ -112,8 +123,6 @@ async def run_shell_command(
             bg_pids,
             timed_out,
             timeout,
-            preserved_head_lines,
-            preserved_tail_lines,
             max_chars,
         )
         if sandbox_note:
@@ -207,7 +216,7 @@ async def _read_stream(stream: asyncio.StreamReader, lines_list: list[str]):
         decoded = line.decode(errors="replace")
         if decoded:
             stripped = ANSI_ESCAPE.sub("", decoded)
-            shown = stylize_faint(stripped)
+            shown = stylize_muted(stripped)
             zrb_print(f"  {shown}", end="", plain=True)  # Stream to console
             lines_list.append(stripped)
 
@@ -252,8 +261,6 @@ def _format_output(
     bg_pids: list[int],
     timed_out: bool,
     timeout: int,
-    preserved_head_lines: int,
-    preserved_tail_lines: int,
     max_chars: int,
 ) -> str:
     """Formats the command execution result into a readable string."""
@@ -262,12 +269,14 @@ def _format_output(
         exit_code_str = "(timed out)"
         stderr_str += f"\nError: Command timed out after {timeout} seconds."
 
-    stdout_str, _ = truncate_output(
-        stdout_str, preserved_head_lines, preserved_tail_lines, 1000, max_chars
-    )
-    stderr_str, _ = truncate_output(
-        stderr_str, preserved_head_lines, preserved_tail_lines, 1000, max_chars
-    )
+    full_stdout, full_stderr = stdout_str, stderr_str
+    stdout_str, stdout_truncated = truncate_text(stdout_str, max_chars, keep="tail")
+    stderr_str, stderr_truncated = truncate_text(stderr_str, max_chars, keep="tail")
+    dump_path = None
+    if stdout_truncated or stderr_truncated:
+        dump_path = _dump_full_output(
+            command, cwd, full_stdout, full_stderr, exit_code_str
+        )
 
     # Analyze for suggestions
     suggestion = ""
@@ -325,9 +334,36 @@ def _format_output(
         f"Exit Code: {exit_code_str}",
         f"Background PIDs: {', '.join(map(str, bg_pids)) if bg_pids else '(none)'}",
     ]
+    if dump_path:
+        output_parts.append(
+            f"\n[SYSTEM SUGGESTION]: Output truncated (kept the tail). Full "
+            f"stdout/stderr saved to {dump_path} — Grep it to locate sections, "
+            "then Read."
+        )
     if suggestion:
         output_parts.append(f"\n{suggestion}")
     return "\n".join(output_parts)
+
+
+def _dump_full_output(
+    command: str, cwd: str, stdout_str: str, stderr_str: str, exit_code_str: str
+) -> str | None:
+    """Persist untruncated output so the elided head stays recoverable.
+
+    Best-effort: returns the temp-file path, or None if the write fails.
+    Cross-platform — tempfile targets %TEMP% on Windows, $TMPDIR/tmp elsewhere.
+    """
+    # ponytail: not auto-deleted; the OS reaps its temp dir. Add cleanup only if it bloats.
+    try:
+        fd, path = tempfile.mkstemp(prefix="zrb_shell_", suffix=".log")
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(
+                f"Command: {command}\nDirectory: {cwd}\nExit Code: {exit_code_str}\n\n"
+            )
+            f.write(f"=== STDOUT ===\n{stdout_str}\n\n=== STDERR ===\n{stderr_str}\n")
+        return path
+    except Exception:
+        return None
 
 
 run_shell_command.__name__ = "Shell"

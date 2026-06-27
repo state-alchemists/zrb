@@ -219,10 +219,10 @@ def serve_chat_api(
     async def stream_chat(
         session_id: str,
         request: Request,
-    ) -> SSEStreamResponse:
+    ) -> "SSEStreamResponse":
         forbidden = await _forbid_if_unauthorized(request)
         if forbidden is not None:
-            return forbidden
+            return forbidden  # type: ignore[return-value]
         session = session_manager.get_session(session_id)
         if session is None:
             session = await session_manager.create_session(session_id=session_id)

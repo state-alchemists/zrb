@@ -40,9 +40,9 @@ Zrb can be heavily customized using environment variables. These control everyth
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_INIT_FILE_NAME` | Filename to search for (recursive up parent directories) | `zrb_init.py` |
-| `ZRB_INIT_SCRIPTS` | Colon-separated list of Python scripts to always load | — |
-| `ZRB_INIT_MODULES` | Colon-separated list of Python modules to force-load on startup | — |
+| `ZRB_INIT_FILE_NAME` | Name of the task-definition file zrb auto-loads. On startup zrb walks from the current directory up to the filesystem root and loads every file with this name it finds. | `zrb_init.py` |
+| `ZRB_INIT_SCRIPTS` | Colon-separated Python script paths zrb runs on startup (in addition to the discovered `ZRB_INIT_FILE_NAME` files) to register task definitions | — |
+| `ZRB_INIT_MODULES` | Comma-separated importable module names zrb imports on startup so their task definitions register (colon-separated still accepted) | — |
 | `ZRB_LOAD_BUILTIN` | Whether to load pre-packaged tasks (Git, UUID, base64, etc.) | `1` (true) |
 | `ZRB_WARN_UNRECOMMENDED_COMMAND` | Show warnings for potentially unsafe shell commands | `on` (true) |
 
@@ -75,7 +75,7 @@ Zrb's experimental Web UI has dedicated configuration options.
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ZRB_WEB_HTTP_PORT` | Port for Web UI server | `21213` |
-| `ZRB_WEB_ENABLE_AUTH` | Enable username/password authentication | `0` (false) |
+| `ZRB_WEB_AUTH_ENABLED` | Enable username/password authentication | `0` (false) |
 | `ZRB_WEB_SECRET_KEY` | Secret key for authentication tokens ⚠️ **Change for production!** | `zrb` |
 
 ### Authentication Tokens
@@ -136,7 +136,7 @@ export ZRB_EDITOR=nvim                  # Use neovim for editing
 export ZRB_INIT_FILE_NAME=tasks.py      # Use custom init file name
 
 # Web UI (production)
-export ZRB_WEB_ENABLE_AUTH=1
+export ZRB_WEB_AUTH_ENABLED=1
 export ZRB_WEB_SECRET_KEY="your-secure-secret-key"
 export ZRB_WEB_SUPER_ADMIN_PASSWORD="secure-password"
 

@@ -29,6 +29,7 @@ Zrb uses `pydantic-ai` to interface with a wide array of Large Language Models, 
 - [LSP Server Selection](#19-lsp-server-selection)
 - [TUI Color Styles](#20-tui-color-styles)
 - [Sandbox Configuration](#21-sandbox-configuration)
+- [CLI Semantic Colors](#22-cli-semantic-colors)
 
 ---
 
@@ -186,7 +187,7 @@ The system prompt is assembled from an **ordered list of sections**. The list is
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_INCLUDE_SECTIONS` | Comma-separated, order-sensitive list of sections to include | `persona,mandate,git_mandate,journal_mandate,system_context,project_context,tool_guidance,claude_skills` |
+| `ZRB_LLM_INCLUDE_SECTIONS` | Comma-separated, order-sensitive list of sections to include | `persona,mandate,git_mandate,journal_mandate,system_context,project_context,tool_guidance` |
 | `ZRB_LLM_INCLUDE_JOURNAL_REMINDER` | Append a journaling reminder at session end (runtime hook, not a prompt section) | `off` |
 
 Recognised section names:
@@ -200,13 +201,14 @@ Recognised section names:
 | `system_context` | OS / time / CWD / ambient state |
 | `project_context` | Project docs (`AGENTS.md`, `CLAUDE.md`, `README.md`, …) |
 | `tool_guidance` | Per-tool usage guidance |
-| `claude_skills` | Available skills index + active-skill contents |
+
+> The skill catalogue (core skills, other available skills, and active-skill contents) is part of the `mandate` section, injected via `{CORE_SKILLS}`/`{AVAILABLE_SKILLS}`/`{PREACTIVATED_SKILLS}` placeholders — it is no longer a separate section.
 
 Examples:
 
 ```bash
 # Strip the journaling mandate and project context (e.g. for benchmark runners).
-export ZRB_LLM_INCLUDE_SECTIONS="persona,mandate,git_mandate,system_context,tool_guidance,claude_skills"
+export ZRB_LLM_INCLUDE_SECTIONS="persona,mandate,git_mandate,system_context,tool_guidance"
 
 # Personality-only: just persona and mandate.
 export ZRB_LLM_INCLUDE_SECTIONS="persona,mandate"
@@ -273,7 +275,7 @@ substitution. No Python required:
 
 ```bash
 # Loads company_context.md and places it after `mandate`.
-export ZRB_LLM_INCLUDE_SECTIONS="persona,mandate,company_context,tool_guidance,claude_skills"
+export ZRB_LLM_INCLUDE_SECTIONS="persona,mandate,company_context,tool_guidance"
 ```
 
 > **Resolution precedence** for a section name is **built-in > registered provider >
@@ -470,12 +472,14 @@ No additional configuration needed.
 
 ## 12. Skill & Agent Search Configuration
 
-These variables control where Zrb searches for skills and agents.
+These variables control where Zrb searches for skills and agents, and whether the built-in ones are loaded.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ZRB_LLM_SEARCH_PROJECT` | Search project dirs (filesystem root → cwd) for config dir names | `on` |
 | `ZRB_LLM_SEARCH_HOME` | Search home directory (`~/.claude/`, `~/.zrb/`) | `on` |
+| `ZRB_LLM_ENABLE_BUILTIN_SKILLS` | Load the built-in utility skills (`llm_plugin/skills`). Core skills (`core_skills/`) are always on; user/project/plugin skills are unaffected | `on` |
+| `ZRB_LLM_ENABLE_BUILTIN_AGENTS` | Load the built-in sub-agents (`llm_plugin/agents`). User/project/plugin agents are unaffected | `on` |
 | `ZRB_LLM_CONFIG_DIR_NAMES` | Config subdirectory names to look for in each dir (colon-separated) | `.claude:.zrb` |
 | `ZRB_LLM_BASE_SEARCH_DIRS` | Explicit base dirs containing `skills/`, `agents/`, `plugins/` | (empty) |
 | `ZRB_LLM_EXTRA_SKILL_DIRS` | Additional direct skill directories | (empty) |
@@ -519,7 +523,7 @@ Zrb searches for skills/agents in this order (highest to lowest priority):
 
 ## 13. Timeout Configuration
 
-All timeout values are in **milliseconds**. Divide by 1000 to convert to seconds.
+All timeout values are in **milliseconds** unless the row says otherwise. Divide by 1000 to convert to seconds.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -528,6 +532,7 @@ All timeout values are in **milliseconds**. Divide by 1000 to convert to seconds
 | `ZRB_LLM_REQUEST_TIMEOUT` | Maximum time to wait for an LLM response (ms) | `300000` |
 | `ZRB_LLM_INPUT_QUEUE_TIMEOUT` | Polling interval for the chat input queue (ms) | `500` |
 | `ZRB_LLM_SHELL_KILL_WAIT_TIMEOUT` | Time to wait for a shell process to exit after SIGTERM before SIGKILL (ms) | `5000` |
+| `ZRB_LLM_BACKGROUND_WAIT_MAX` | Max time a single `GetDelegationResult`/`MonitorProcess` `wait=` call may block before returning "still running" (**seconds**, not ms) | `300` |
 | `ZRB_LLM_WEB_PAGE_TIMEOUT` | Playwright page load timeout (ms) | `30000` |
 | `ZRB_LLM_WEB_HTTP_TIMEOUT` | HTTP request timeout for web tools and search (ms) | `30000` |
 | `ZRB_LLM_MODEL_FETCH_TIMEOUT` | Timeout for fetching Ollama model list (ms) | `5000` |
@@ -560,7 +565,6 @@ All interval and delay values are in **milliseconds**.
 | `ZRB_LLM_MAX_COMPLETION_FILES` | Maximum files scanned for path autocompletion | `5000` |
 | `ZRB_LLM_MAX_OUTPUT_CHARS` | Maximum characters returned by shell command and file read tools | `100000` |
 | `ZRB_LLM_MAX_TOOL_RESULT_CHARS` | Global backstop cap (characters) on every tool's model-facing result, applied after the tool runs. Catches outputs not already capped by a tool (Grep, AnalyzeCode, web, MCP). `0` disables it. | `100000` |
-| `ZRB_LLM_FILE_READ_LINES` | Lines to preserve at head and tail when truncating file reads | `1000` |
 | `ZRB_LLM_HISTORY_MAX_DISPLAY_CHARS` | Maximum characters shown by the `/history` command | `5000` |
 | `ZRB_LLM_HISTORY_TRUNCATE_LENGTH` | Maximum chars per field when formatting history entries | `100` |
 | `ZRB_LLM_PROJECT_DOC_MAX_CHARS` | Maximum chars loaded from each project doc file (e.g. CLAUDE.md) | `8000` |
@@ -653,8 +657,65 @@ attributes like `bold`. The special value `noinherit` resets to terminal default
 | `ZRB_LLM_UI_STYLE_STATUS` | Status bar text | `ansiwhite` |
 | `ZRB_LLM_UI_STYLE_BOTTOM_TOOLBAR` | Bottom toolbar | `noinherit` |
 
+### Choice Widget (AskUserQuestion panel)
+
+| Variable | Styles | Default |
+|----------|--------|---------|
+| `ZRB_LLM_UI_STYLE_CHOICE_BG` | Panel background | `#1f1f1f` |
+| `ZRB_LLM_UI_STYLE_CHOICE_SELECTED_BG` | Selected row highlight | `#264f78` |
+
+### Mode Badge (status-bar Shift+Tab cycle indicator)
+
+| Variable | Styles | Default |
+|----------|--------|---------|
+| `ZRB_LLM_UI_STYLE_MODE_NORMAL` | `normal` mode badge | `fg:ansigreen` |
+| `ZRB_LLM_UI_STYLE_MODE_ACCEPT_EDITS` | `accept-edits` mode badge | `fg:ansiyellow bold` |
+| `ZRB_LLM_UI_STYLE_MODE_PLAN` | `plan` mode badge | `fg:ansiblue bold` |
+| `ZRB_LLM_UI_STYLE_MODE_YOLO` | `yolo` mode badge | `fg:ansired bold` |
+| `ZRB_LLM_UI_STYLE_MODE_CUSTOM` | `custom-yolo` mode badge | `fg:ansiyellow bold` |
+
+### Info-bar indicators
+
+| Variable | Styles | Default |
+|----------|--------|---------|
+| `ZRB_LLM_UI_STYLE_INFO_YOLO_ON` | Yolo = fully on | `ansired` |
+| `ZRB_LLM_UI_STYLE_INFO_YOLO_PARTIAL` | Yolo = tool subset active | `ansiyellow` |
+| `ZRB_LLM_UI_STYLE_INFO_YOLO_OFF` | Yolo = off | `ansigreen` |
+| `ZRB_LLM_UI_STYLE_INFO_PLAN_ON` | Plan mode = on | `ansiblue` |
+| `ZRB_LLM_UI_STYLE_INFO_PLAN_OFF` | Plan mode = off | `ansigreen` |
+
 > Assistant identity (`ZRB_LLM_ASSISTANT_NAME`, `ZRB_LLM_ASSISTANT_ASCII_ART`,
 > `ZRB_LLM_ASSISTANT_JARGON`) is covered in [System Prompts & Identity](#4-system-prompts--identity).
+
+### Theme Examples
+
+Example shell scripts are provided in `examples/themes/` to quickly switch
+between curated color palettes. Source one in your shell rc to apply it:
+
+```bash
+# ~/.zshrc or ~/.bashrc
+source /path/to/zrb/examples/themes/zrb-theme-dark.sh
+```
+
+Available themes:
+
+| File | Description |
+|------|-------------|
+| `zrb-theme-dark.sh` | Dark background (default — matches built-in defaults) |
+| `zrb-theme-light.sh` | Light background (dark text on light panels) |
+| `zrb-theme-high-contrast.sh` | Maximum contrast (pure black/white, bold throughout) |
+
+Each file defines a shell function (`zrb_theme_dark`, `zrb_theme_light`,
+`zrb_theme_high_contrast`) so you can switch themes mid-session:
+
+```bash
+zrb_theme_light    # switch to light theme
+zrb llm chat       # start a new session with the light theme
+```
+
+To create your own theme, copy one of the example files and adjust the
+`ZRB_LLM_UI_STYLE_*` values. The variables take effect on the next `zrb llm chat`
+session — no restart needed.
 
 ---
 
@@ -672,5 +733,31 @@ layers, platform matrix, escape hatch).
 | `ZRB_LLM_SANDBOX_DENY_READ_PATHS` | Colon-separated never-read paths (credential stores). Setting it replaces the built-in default list. | built-in list |
 | `ZRB_LLM_SANDBOX_FALLBACK` | `warn` runs unsandboxed with a visible warning when no OS mechanism exists (Windows, Linux without bwrap); `deny` refuses. | `warn` |
 | `ZRB_LLM_SANDBOX_ALLOW_ESCAPE` | Whether the `dangerously_skip_sandbox` tool argument is honored. Set `false` for CI / non-interactive deployments. | `true` |
+
+---
+
+## 22. CLI Semantic Colors
+
+These variables override the ANSI colors used for plain terminal output (outside the TUI). Each `_COLOR_*` value is a color name (`black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`, or their `bright_*` variants). Each `_STYLE_*` value is a style name (`bold`, `faint`, `italic`, `underline`, `blink_slow`, `blink_fast`, `reversed`, `hide`, `crossed_out`). Leave a variable unset (or set to `""`) to suppress that attribute.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_CLI_COLOR_MUTED` | Foreground color for de-emphasized output | _(none)_ |
+| `ZRB_CLI_STYLE_MUTED` | Style for de-emphasized output | `faint` |
+| `ZRB_CLI_COLOR_WARNING` | Foreground color for warning messages | `yellow` |
+| `ZRB_CLI_STYLE_WARNING` | Style for warning messages | `bold` |
+| `ZRB_CLI_COLOR_ERROR` | Foreground color for error messages | `red` |
+| `ZRB_CLI_STYLE_ERROR` | Style for error messages | `bold` |
+| `ZRB_CLI_COLOR_SUCCESS` | Foreground color for success messages | `green` |
+| `ZRB_CLI_STYLE_SUCCESS` | Style for success messages | _(none)_ |
+| `ZRB_CLI_COLOR_HIGHLIGHT` | Foreground color for highlighted text (session names, commands) | `yellow` |
+| `ZRB_CLI_STYLE_HIGHLIGHT` | Style for highlighted text | `bold` |
+| `ZRB_CLI_COLOR_INFO` | Foreground color for informational messages | `cyan` |
+| `ZRB_CLI_STYLE_INFO` | Style for informational messages | _(none)_ |
+| `ZRB_CLI_COLOR_TODO_PROJECT` | Color for todo project tags (`+project`) | `yellow` |
+| `ZRB_CLI_COLOR_TODO_CONTEXT` | Color for todo context tags (`@context`) | `cyan` |
+| `ZRB_CLI_COLOR_TODO_KEYVAL` | Color for todo key:value pairs | `magenta` |
+
+> These affect `stylize_warning`, `stylize_error`, `stylize_muted` (alias: `stylize_faint`/`stylize_log`), `stylize_highlight`, `stylize_info`, `stylize_success`, and the `stylize_todo_*` helpers. Physical helpers (`stylize_yellow`, `stylize_red`, etc.) are unaffected — they always produce their named color.
 
 ---

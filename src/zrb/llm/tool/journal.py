@@ -5,7 +5,7 @@ import subprocess
 from typing import Any
 
 from zrb.config.config import CFG
-from zrb.util.truncate import truncate_output
+from zrb.util.truncate import truncate_text
 
 
 def search_journal(query: str, case_sensitive: bool = False) -> dict[str, Any]:
@@ -89,9 +89,7 @@ def _format_results(raw_lines: list[str], abs_dir: str) -> dict[str, Any]:
             if os.path.isabs(file_path)
             else file_path
         )
-        truncated, _ = truncate_output(
-            content, head_lines=1, tail_lines=0, max_chars=500
-        )
+        truncated, _ = truncate_text(content, 500, keep="head")
         results.append({"file": rel, "line": line_num_str, "content": truncated})
 
     if not results:

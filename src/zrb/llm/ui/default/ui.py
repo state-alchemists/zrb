@@ -42,7 +42,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class UI(
+class UI(  # type: ignore[reportIncompatibleVariableOverride]
     LifecycleMixin,
     KeybindingsMixin,
     SelectionMixin,

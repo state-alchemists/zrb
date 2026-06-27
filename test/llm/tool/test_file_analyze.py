@@ -58,7 +58,6 @@ async def test_analyze_file_truncation(temp_file):
     ):
 
         mock_cfg.LLM_FILE_ANALYSIS_TOKEN_THRESHOLD = 10
-        mock_cfg.LLM_FILE_READ_LINES = 5
         mock_run.return_value = ("Truncated analysis", [])
 
         result = await analyze_file(temp_file, "query")

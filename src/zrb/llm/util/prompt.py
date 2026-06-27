@@ -35,8 +35,8 @@ def expand_prompt(prompt: str) -> str:
         # Add to appendix with strict instructions
         appendix_entries.append(
             make_markdown_section(
-                header,
-                content=content,
+                header or "",
+                content=content or "",
                 as_code=True,
             )
         )

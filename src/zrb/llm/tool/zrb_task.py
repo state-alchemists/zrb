@@ -41,11 +41,15 @@ def create_list_zrb_task_tool():
 
 def create_run_zrb_task_tool():
     async def run_zrb_task(
-        task_name: str, args: dict[str, str] | None = None, timeout: int = 30
+        task_name: str,
+        # Mutable default is intentional: pydantic-ai converts it to
+        # default_factory internally, so each LLM call gets a fresh dict.
+        # Using `= {}` instead of `dict[str, str] | None` keeps the JSON
+        # schema compact (no anyOf + null bloat in the LLM tool description).
+        args: dict[str, str] = {},  # noqa: B006
+        timeout: int = 30,
     ) -> str:
         """Run a zrb automation task by name with optional --key value args."""
-        if args is None:
-            args = {}
         # Construct command, quoting every part so values containing spaces
         # or shell metacharacters cannot be word-split or injected.
         zrb_cmd = CFG.ROOT_GROUP_NAME

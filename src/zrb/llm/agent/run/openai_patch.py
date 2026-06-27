@@ -15,6 +15,10 @@ docs/advanced-topics/maintainer-guide.md#the-openai-serializer-patch
 for the full picture (and why both layers exist).
 """
 
+from typing import Any
+
+from zrb.config.config import CFG
+
 
 def patch_openai_model_response_serialization():
     """Monkey-patch pydantic-ai's OpenAI model to omit ``content: null`` in assistant messages with tool calls.
@@ -25,10 +29,6 @@ def patch_openai_model_response_serialization():
     rejections. To make that regression diagnosable rather than invisible, the
     failure path logs a warning instead of swallowing the exception.
     """
-    # lazy: zrb.config pulls the heavy CFG singleton; keep it local so importing
-    # this module stays cheap on cold start.
-    from zrb.config.config import CFG
-
     try:
         # lazy: heavy third-party
         from pydantic_ai.models.openai import OpenAIChatModel
@@ -47,7 +47,7 @@ def patch_openai_model_response_serialization():
             return
 
         def _patched_into_message_param(self):
-            message_param = {"role": "assistant"}
+            message_param: dict[str, Any] = {"role": "assistant"}
             if self.thinkings:
                 for field_name, contents in self.thinkings.items():
                     message_param[field_name] = "\n\n".join(contents)

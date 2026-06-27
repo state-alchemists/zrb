@@ -386,15 +386,15 @@ class TestUtilityFunctions:
         assert "Auto-session task" in result
 
     def test_create_plan_tools(self):
-        """Agent-facing plan tools are WriteTodos + GetTodos.
+        """Agent-facing plan tools are TodoWrite + TodoRead.
 
-        WriteTodos replaces the list by default, so it subsumes the former
+        TodoWrite replaces the list by default, so it subsumes the former
         per-item update and clear operations.
         """
         tools = create_plan_tools()
 
         names = [t.__name__ for t in tools]
-        assert names == ["WriteTodos", "GetTodos"]
+        assert names == ["TodoWrite", "TodoRead"]
 
     def test_todo_manager_instance(self):
         """Test that todo_manager is a TodoManager instance."""

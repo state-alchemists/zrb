@@ -144,7 +144,7 @@ class CmdTask(BaseTask):
             cwd=cwd,
             env_map=env_map,
             print_method=print_method,
-            register_pid_method=lambda pid: ctx.xcom.get(xcom_pid_key).push(pid),
+            register_pid_method=lambda pid: ctx.xcom[xcom_pid_key].push(pid),
             max_output_line=self._max_output_line,
             max_error_line=self._max_error_line,
             timeout=self._execution_timeout,
@@ -259,7 +259,7 @@ class CmdTask(BaseTask):
             return "\n".join(
                 [cmd_val for cmd_val in cmd_val_list if cmd_val is not None]
             )
-        return self.__render_single_cmd_val(ctx, cmd_val)
+        return self.__render_single_cmd_val(ctx, cmd_val) or ""
 
     def __render_single_cmd_val(
         self, ctx: AnyContext, single_cmd_val: SingleCmdVal

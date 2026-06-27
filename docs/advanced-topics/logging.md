@@ -144,3 +144,5 @@ zrb llm chat
 # Custom session log directory
 export ZRB_SESSION_LOG_DIR=/var/log/zrb-sessions
 ```
+
+🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > Logging

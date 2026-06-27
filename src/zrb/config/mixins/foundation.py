@@ -6,21 +6,37 @@ import logging
 import os
 from importlib import metadata as _metadata
 
+from zrb.config.env_field import (
+    EnvField,
+    colon_join,
+    colon_list,
+    comma_join,
+    comma_or_colon_list,
+    on_off,
+)
 from zrb.config.helper import (
     get_current_shell,
     get_default_diff_edit_command,
-    get_env,
     get_log_level,
+    is_termux,
 )
 from zrb.util.string.conversion import to_boolean
 from zrb.util.string.format import fstring_format
+
+
+def _serialize_log_level(value) -> str:
+    """Mirror the old setter: accept a numeric level or a name, store a name."""
+    if isinstance(value, int):
+        return logging.getLevelName(value)
+    return str(value)
+
 
 _DEFAULT_BANNER = """
                 bb
    zzzzz rr rr  bb
      zz  rrr  r bbbbbb
     zz   rr     bb   bb
-   zzzzz rr     bbbbbb   {VERSION} Pollux
+   zzzzz rr     bbbbbb   {VERSION} Jinrui
    _ _ . .  . _ .  _ . . .
 Your Automation Powerhouse
 ☕ Donate at: https://stalchmst.com
@@ -55,257 +71,156 @@ class FoundationMixin:
         self.DEFAULT_MCP_CONFIG_FILE: str = "mcp-config.json"
         super().__init__()
 
-    @property
-    def ENV_PREFIX(self) -> str:
-        return os.getenv("_ZRB_ENV_PREFIX", self.DEFAULT_ENV_PREFIX)
-
-    @ENV_PREFIX.setter
-    def ENV_PREFIX(self, value: str):
-        os.environ["_ZRB_ENV_PREFIX"] = value
+    # Bootstrap key: reads/writes the bare _ZRB_ENV_PREFIX, so it cannot itself
+    # depend on ENV_PREFIX (no_prefix avoids the recursion).
+    ENV_PREFIX = EnvField(
+        str,
+        no_prefix=True,
+        aliases=["_ZRB_ENV_PREFIX"],
+        write_key="_ZRB_ENV_PREFIX",
+        doc="Prefix for all Zrb env vars (used for white-labeling a custom CLI).",
+    )
 
     @property
     def LOGGER(self) -> logging.Logger:
         return logging.getLogger()
 
-    @property
-    def SHELL(self) -> str:
-        return get_env(
-            "SHELL",
-            (self.DEFAULT_SHELL if self.DEFAULT_SHELL != "" else get_current_shell()),
-            self.ENV_PREFIX,
-        )
+    SHELL = EnvField(
+        str,
+        default_factory=lambda c: c.DEFAULT_SHELL or get_current_shell(),
+        doc="Shell used by CmdTask. Auto-detected when unset.",
+    )
 
-    @SHELL.setter
-    def SHELL(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_SHELL"] = value
+    IS_TERMUX = EnvField(
+        to_boolean,
+        serialize=on_off,
+        default_factory=lambda c: on_off(is_termux()),
+        doc="Whether zrb runs under Termux. Auto-detected; override to force "
+        "Termux-specific behavior such as Tab-to-cycle-mode keybindings.",
+    )
 
-    @property
-    def EDITOR(self) -> str:
-        return get_env("EDITOR", self.DEFAULT_EDITOR, self.ENV_PREFIX)
+    EDITOR = EnvField(str, doc="Default text editor for interactive prompts.")
 
-    @EDITOR.setter
-    def EDITOR(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_EDITOR"] = value
+    DIFF_EDIT_COMMAND_TPL = EnvField(
+        str,
+        aliases=["DIFF_EDIT_COMMAND"],
+        write_key="DIFF_EDIT_COMMAND",
+        default_factory=lambda c: (
+            c.DEFAULT_DIFF_EDIT_COMMAND_TPL or get_default_diff_edit_command(c.EDITOR)
+        ),
+        doc="Template command for interactive file editing. Derived from EDITOR.",
+    )
 
-    @property
-    def DIFF_EDIT_COMMAND_TPL(self) -> str:
-        return get_env(
-            "DIFF_EDIT_COMMAND",
-            (
-                self.DEFAULT_DIFF_EDIT_COMMAND_TPL
-                if self.DEFAULT_DIFF_EDIT_COMMAND_TPL != ""
-                else get_default_diff_edit_command(self.EDITOR)
-            ),
-            self.ENV_PREFIX,
-        )
+    INIT_MODULES = EnvField(
+        comma_or_colon_list,
+        serialize=comma_join,
+        doc="Comma-separated importable module names zrb imports on startup so "
+        "their task definitions register (e.g. a shared team task package). "
+        "Colon-separated values are still accepted.",
+    )
 
-    @DIFF_EDIT_COMMAND_TPL.setter
-    def DIFF_EDIT_COMMAND_TPL(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_DIFF_EDIT_COMMAND"] = value
+    ROOT_GROUP_NAME = EnvField(str, doc="Name of the root command group in help menus.")
 
-    @property
-    def INIT_MODULES(self) -> list[str]:
-        init_modules_str = get_env(
-            "INIT_MODULES", self.DEFAULT_INIT_MODULES, self.ENV_PREFIX
-        )
-        if init_modules_str != "":
-            return [
-                module.strip()
-                for module in init_modules_str.split(":")
-                if module.strip() != ""
-            ]
-        return []
+    ROOT_GROUP_DESCRIPTION = EnvField(
+        str, doc="Description for the root command group."
+    )
 
-    @INIT_MODULES.setter
-    def INIT_MODULES(self, value: list[str]):
-        os.environ[f"{self.ENV_PREFIX}_INIT_MODULES"] = ":".join(value)
+    INIT_SCRIPTS = EnvField(
+        colon_list,
+        serialize=colon_join,
+        doc="Colon-separated Python script paths zrb runs on startup (in addition "
+        "to the discovered INIT_FILE_NAME files) to register task definitions.",
+    )
 
-    @property
-    def ROOT_GROUP_NAME(self) -> str:
-        return get_env("ROOT_GROUP_NAME", self.DEFAULT_ROOT_GROUP_NAME, self.ENV_PREFIX)
+    INIT_FILE_NAME = EnvField(
+        str,
+        doc="Name of the task-definition file zrb auto-loads. On startup zrb walks "
+        "from the current directory up to the filesystem root and loads every "
+        "file with this name it finds.",
+    )
 
-    @ROOT_GROUP_NAME.setter
-    def ROOT_GROUP_NAME(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_ROOT_GROUP_NAME"] = value
+    LOGGING_LEVEL = EnvField(
+        get_log_level,
+        serialize=_serialize_log_level,
+        doc="Verbosity of Zrb's internal logs (CRITICAL..DEBUG).",
+    )
 
-    @property
-    def ROOT_GROUP_DESCRIPTION(self) -> str:
-        return get_env(
-            "ROOT_GROUP_DESCRIPTION",
-            self.DEFAULT_ROOT_GROUP_DESCRIPTION,
-            self.ENV_PREFIX,
-        )
+    LOAD_BUILTIN = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc="Whether to load pre-packaged tasks (Git, UUID, base64, etc.).",
+    )
 
-    @ROOT_GROUP_DESCRIPTION.setter
-    def ROOT_GROUP_DESCRIPTION(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_ROOT_GROUP_DESCRIPTION"] = value
+    WARN_UNRECOMMENDED_COMMAND = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc="Show warnings for potentially unsafe shell commands.",
+    )
 
-    @property
-    def INIT_SCRIPTS(self) -> list[str]:
-        init_scripts_str = get_env(
-            "INIT_SCRIPTS", self.DEFAULT_INIT_SCRIPTS, self.ENV_PREFIX
-        )
-        if init_scripts_str != "":
-            return [
-                script.strip()
-                for script in init_scripts_str.split(":")
-                if script.strip() != ""
-            ]
-        return []
+    SESSION_LOG_DIR = EnvField(
+        str,
+        default_factory=lambda c: (
+            c.DEFAULT_SESSION_LOG_DIR
+            or os.path.expanduser(os.path.join("~", f".{c.ROOT_GROUP_NAME}", "session"))
+        ),
+        doc="Directory for session-specific logs and history.",
+    )
 
-    @INIT_SCRIPTS.setter
-    def INIT_SCRIPTS(self, value: list[str]):
-        os.environ[f"{self.ENV_PREFIX}_INIT_SCRIPTS"] = ":".join(value)
+    TODO_DIR = EnvField(
+        str,
+        default_factory=lambda c: (
+            c.DEFAULT_TODO_DIR or os.path.expanduser(os.path.join("~", "todo"))
+        ),
+        doc="Directory for the todo.txt file.",
+    )
 
-    @property
-    def INIT_FILE_NAME(self) -> str:
-        return get_env("INIT_FILE_NAME", self.DEFAULT_INIT_FILE_NAME, self.ENV_PREFIX)
+    TODO_VISUAL_FILTER = EnvField(
+        str,
+        aliases=["TODO_FILTER"],
+        write_key="TODO_FILTER",
+        doc="Filter string applied to todo task listings.",
+    )
 
-    @INIT_FILE_NAME.setter
-    def INIT_FILE_NAME(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_INIT_FILE_NAME"] = value
+    TODO_RETENTION = EnvField(
+        str, doc="How long completed todo items are kept before archiving (e.g. 2w)."
+    )
 
-    @property
-    def LOGGING_LEVEL(self) -> int:
-        return get_log_level(
-            get_env("LOGGING_LEVEL", self.DEFAULT_LOGGING_LEVEL, self.ENV_PREFIX)
-        )
+    # Internal version key: bare _ZRB_CUSTOM_VERSION, falling back to the
+    # installed package version.
+    VERSION = EnvField(
+        str,
+        no_prefix=True,
+        aliases=["_ZRB_CUSTOM_VERSION"],
+        write_key="_ZRB_CUSTOM_VERSION",
+        default_factory=lambda c: c.DEFAULT_VERSION or _metadata.version("zrb"),
+        doc="Displayed version string. Overrides the installed package version.",
+    )
 
-    @LOGGING_LEVEL.setter
-    def LOGGING_LEVEL(self, value):
-        if isinstance(value, int):
-            value = logging.getLevelName(value)
-        os.environ[f"{self.ENV_PREFIX}_LOGGING_LEVEL"] = str(value)
+    ASCII_ART_DIR = EnvField(
+        str,
+        default_factory=lambda c: (
+            c.DEFAULT_ASCII_ART_DIR
+            or os.path.join(f".{c.ROOT_GROUP_NAME}", "ascii-art")
+        ),
+        doc="Directory for ASCII art assets.",
+    )
 
-    @property
-    def LOAD_BUILTIN(self) -> bool:
-        return to_boolean(
-            get_env("LOAD_BUILTIN", self.DEFAULT_LOAD_BUILTIN, self.ENV_PREFIX)
-        )
+    BANNER = EnvField(
+        str,
+        transform=lambda v, c: fstring_format(v, {"VERSION": c.VERSION}),
+        doc="Banner shown at CLI start. Supports {VERSION} formatting.",
+    )
 
-    @LOAD_BUILTIN.setter
-    def LOAD_BUILTIN(self, value: bool):
-        os.environ[f"{self.ENV_PREFIX}_LOAD_BUILTIN"] = "on" if value else "off"
+    USE_TIKTOKEN = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc="Whether to use tiktoken for token counting.",
+    )
 
-    @property
-    def WARN_UNRECOMMENDED_COMMAND(self) -> bool:
-        return to_boolean(
-            get_env(
-                "WARN_UNRECOMMENDED_COMMAND",
-                self.DEFAULT_WARN_UNRECOMMENDED_COMMAND,
-                self.ENV_PREFIX,
-            )
-        )
+    TIKTOKEN_ENCODING_NAME = EnvField(
+        str,
+        aliases=["TIKTOKEN_ENCODING", "TIKTOKEN_ENCODING_NAME"],
+        doc="Tiktoken encoding name (e.g. cl100k_base).",
+    )
 
-    @WARN_UNRECOMMENDED_COMMAND.setter
-    def WARN_UNRECOMMENDED_COMMAND(self, value: bool):
-        os.environ[f"{self.ENV_PREFIX}_WARN_UNRECOMMENDED_COMMAND"] = (
-            "on" if value else "off"
-        )
-
-    @property
-    def SESSION_LOG_DIR(self) -> str:
-        default = self.DEFAULT_SESSION_LOG_DIR
-        if default == "":
-            default = os.path.expanduser(
-                os.path.join("~", f".{self.ROOT_GROUP_NAME}", "session")
-            )
-        return get_env("SESSION_LOG_DIR", default, self.ENV_PREFIX)
-
-    @SESSION_LOG_DIR.setter
-    def SESSION_LOG_DIR(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_SESSION_LOG_DIR"] = value
-
-    @property
-    def TODO_DIR(self) -> str:
-        default = self.DEFAULT_TODO_DIR
-        if default == "":
-            default = os.path.expanduser(os.path.join("~", "todo"))
-        return get_env("TODO_DIR", default, self.ENV_PREFIX)
-
-    @TODO_DIR.setter
-    def TODO_DIR(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_TODO_DIR"] = value
-
-    @property
-    def TODO_VISUAL_FILTER(self) -> str:
-        return get_env("TODO_FILTER", self.DEFAULT_TODO_VISUAL_FILTER, self.ENV_PREFIX)
-
-    @TODO_VISUAL_FILTER.setter
-    def TODO_VISUAL_FILTER(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_TODO_FILTER"] = value
-
-    @property
-    def TODO_RETENTION(self) -> str:
-        return get_env("TODO_RETENTION", self.DEFAULT_TODO_RETENTION, self.ENV_PREFIX)
-
-    @TODO_RETENTION.setter
-    def TODO_RETENTION(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_TODO_RETENTION"] = value
-
-    @property
-    def VERSION(self) -> str:
-        custom_version = os.getenv("_ZRB_CUSTOM_VERSION", "")
-        if custom_version != "":
-            return custom_version
-        return (
-            self.DEFAULT_VERSION
-            if self.DEFAULT_VERSION != ""
-            else _metadata.version("zrb")
-        )
-
-    @VERSION.setter
-    def VERSION(self, value: str):
-        os.environ["_ZRB_CUSTOM_VERSION"] = value
-
-    @property
-    def ASCII_ART_DIR(self) -> str:
-        default = self.DEFAULT_ASCII_ART_DIR
-        if default == "":
-            default = os.path.join(f".{self.ROOT_GROUP_NAME}", "ascii-art")
-        return get_env("ASCII_ART_DIR", default, self.ENV_PREFIX)
-
-    @ASCII_ART_DIR.setter
-    def ASCII_ART_DIR(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_ASCII_ART_DIR"] = value
-
-    @property
-    def BANNER(self) -> str:
-        return fstring_format(
-            get_env("BANNER", self.DEFAULT_BANNER, self.ENV_PREFIX),
-            {"VERSION": self.VERSION},
-        )
-
-    @BANNER.setter
-    def BANNER(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_BANNER"] = value
-
-    @property
-    def USE_TIKTOKEN(self) -> bool:
-        return to_boolean(
-            get_env("USE_TIKTOKEN", self.DEFAULT_USE_TIKTOKEN, self.ENV_PREFIX)
-        )
-
-    @USE_TIKTOKEN.setter
-    def USE_TIKTOKEN(self, value: bool):
-        os.environ[f"{self.ENV_PREFIX}_USE_TIKTOKEN"] = "on" if value else "off"
-
-    @property
-    def TIKTOKEN_ENCODING_NAME(self) -> str:
-        return get_env(
-            ["TIKTOKEN_ENCODING", "TIKTOKEN_ENCODING_NAME"],
-            self.DEFAULT_TIKTOKEN_ENCODING_NAME,
-            self.ENV_PREFIX,
-        )
-
-    @TIKTOKEN_ENCODING_NAME.setter
-    def TIKTOKEN_ENCODING_NAME(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_TIKTOKEN_ENCODING_NAME"] = value
-
-    @property
-    def MCP_CONFIG_FILE(self) -> str:
-        return get_env("MCP_CONFIG_FILE", self.DEFAULT_MCP_CONFIG_FILE, self.ENV_PREFIX)
-
-    @MCP_CONFIG_FILE.setter
-    def MCP_CONFIG_FILE(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_MCP_CONFIG_FILE"] = value
+    MCP_CONFIG_FILE = EnvField(str, doc="Path to the MCP server config file.")

@@ -1,0 +1,13 @@
+{
+  "include": ["src/zrb"],
+  "exclude": [
+    "**/__pycache__",
+    "**/.venv",
+    ".zrb",
+    "test",
+    "zrb_init.py"
+  ],
+  "pythonVersion": "3.11",
+  "typeCheckingMode": "standard",
+  "reportMissingModuleSource": false
+}

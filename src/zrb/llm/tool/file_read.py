@@ -1,21 +1,22 @@
 import os
 
 from zrb.config.config import CFG
-from zrb.util.truncate import truncate_output
+from zrb.util.truncate import truncate_text
 
 
 def read_file(
     path: str,
-    auto_truncate: bool = True,
+    start_line: int = 1,
+    end_line: int = -1,
 ) -> str:
     """
-    Reads a file's full content. Long files are truncated to the configured
-    limits (default: first/last 1000 lines, 100k chars); the header reports
-    exactly what was kept.
+    Reads a UTF-8 text file. Returns lines [start_line, end_line], 1-indexed and
+    inclusive; end_line=-1 means the last line (so the default reads the whole file).
+    Output beyond the size cap is truncated at the end with a `...[TRUNCATED]` marker —
+    narrow the range or Grep to locate the part you need, then Read it.
 
-    Output format: a metadata header line (`[File: ... | N lines]`) followed by a
-    `---CONTENT---` delimiter, then the file body. When copying text for Edit's
-    `old_text`, take it from below the `---CONTENT---` marker only.
+    Output: `[File: ... ]` header, then `---CONTENT---`, then the body.
+    When supplying old_text to Edit, copy only from below `---CONTENT---`.
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
 
@@ -31,34 +32,20 @@ def read_file(
         with open(abs_path, "r", encoding="utf-8") as f:
             content = f.read()
 
-        total_lines = content.count("\n") + 1
-        max_chars = CFG.LLM_MAX_OUTPUT_CHARS
-        preserved_head_lines = CFG.LLM_FILE_READ_LINES
-        preserved_tail_lines = CFG.LLM_FILE_READ_LINES
+        lines = content.splitlines(keepends=True)
+        total_lines = len(lines)
 
-        if auto_truncate:
-            content, truncation_info = truncate_output(
-                content,
-                preserved_head_lines,
-                preserved_tail_lines,
-                CFG.LLM_FILE_READ_LINES,
-                max_chars,
-            )
-            shown_lines = truncation_info["truncated_lines"]
-            truncated = truncation_info["truncation_type"] != "none"
-        else:
-            shown_lines = total_lines
-            truncated = False
+        range_error = _validate_range(start_line, end_line, total_lines)
+        if range_error:
+            return range_error
 
-        header = _format_read_header(
-            path,
-            shown_lines,
-            total_lines,
-            truncated,
-            preserved_head_lines,
-            preserved_tail_lines,
-        )
-        return f"{header}{content}"
+        start = max(1, start_line)
+        end = total_lines if end_line == -1 else min(end_line, total_lines)
+        selected = "".join(lines[start - 1 : end])
+
+        body, truncated = truncate_text(selected, CFG.LLM_MAX_OUTPUT_CHARS, keep="head")
+        header = _format_read_header(path, start, end, total_lines, truncated)
+        return f"{header}{body}"
 
     except UnicodeDecodeError:
         return (
@@ -90,6 +77,27 @@ def _validate_path_for_reading(abs_path: str) -> str | None:
     return None
 
 
+def _validate_range(start_line: int, end_line: int, total_lines: int) -> str | None:
+    """Validates the requested 1-indexed line range against the file length."""
+    if end_line != -1 and end_line < 1:
+        return (
+            f"Error: end_line must be >= 1 or -1 (got {end_line}). "
+            "[SYSTEM SUGGESTION]: Use -1 to read through the last line."
+        )
+    if end_line != -1 and start_line > end_line:
+        return (
+            f"Error: start_line ({start_line}) is after end_line ({end_line}). "
+            "[SYSTEM SUGGESTION]: Pass start_line <= end_line."
+        )
+    if total_lines > 0 and start_line > total_lines:
+        return (
+            f"Error: start_line ({start_line}) is beyond end of file "
+            f"({total_lines} lines). "
+            "[SYSTEM SUGGESTION]: Read a start_line within the file."
+        )
+    return None
+
+
 def _check_file_safety(abs_path: str) -> str | None:
     """Checks if the file is safe to read (size and content type)."""
     file_size = os.path.getsize(abs_path)
@@ -114,37 +122,26 @@ def _check_file_safety(abs_path: str) -> str | None:
 
 def _format_read_header(
     path: str,
-    shown_lines: int,
+    start: int,
+    end: int,
     total_lines: int,
     truncated: bool,
-    head_lines: int,
-    tail_lines: int,
 ) -> str:
     """
-    Formats the header information for the read content.
+    Formats the header above the file content.
 
-    Uses a clear delimiter so the LLM can unambiguously distinguish
-    metadata from file content. The content below ---CONTENT---
-    is the actual file content; everything above is NOT part of the file.
-
-    When truncation elides the middle of the file (head + tail kept), the
-    shown lines are NOT a contiguous range, so the header honestly reports
-    the first/last split rather than a misleading ``lines X–Y`` range.
+    Uses a clear ---CONTENT--- delimiter so the LLM can unambiguously distinguish
+    metadata from file content: everything below it is the file, everything above
+    is NOT. Reports the exact 1-indexed line range when it is a subset of the file,
+    and notes truncation so a clipped read is never mistaken for the whole range.
     """
-    if not truncated:
-        return f"[File: {path} | {total_lines} lines]\n---CONTENT---\n"
-
-    # Middle elided only when the file is longer than the kept head+tail window.
-    middle_elided = total_lines > head_lines + tail_lines
-    if middle_elided:
-        meta = (
-            f"[File: {path} | showing first {head_lines} and last {tail_lines} "
-            f"of {total_lines} lines (middle elided) | "
-            f"truncated — use Grep to locate sections, then Read again]"
-        )
+    if start == 1 and end == total_lines:
+        span = f"{total_lines} lines"
     else:
-        meta = (
-            f"[File: {path} | {shown_lines} of {total_lines} lines shown | "
-            f"truncated — use Grep to locate sections, then Read again]"
+        span = f"lines {start}-{end} of {total_lines}"
+    if truncated:
+        span += (
+            f" | truncated at {CFG.LLM_MAX_OUTPUT_CHARS} chars — "
+            "narrow the range or Grep to see more"
         )
-    return f"{meta}\n---CONTENT---\n"
+    return f"[File: {path} | {span}]\n---CONTENT---\n"

@@ -131,8 +131,9 @@ The assistant comes with a rich set of built-in tools. These are automatically a
 
 | Tool | Function | Description |
 |------|----------|-------------|
-| `Shell` | `run_shell_command` | Execute non-interactive shell commands. Streams output live and truncates large results. Always requires non-interactive flags (e.g., `-y`). |
-| `Bash` | `run_shell_command` | Alias for `Shell` (Claude compatibility). Same behavior and arguments. |
+| `Shell` | `run_shell_command` | Execute non-interactive shell commands. Streams output live and truncates large results. Always requires non-interactive flags (e.g., `-y`). Pass `background=True` for long-running processes (dev servers, watchers) to get a handle immediately instead of blocking. |
+| `Bash` | `run_shell_command` | Alias for `Shell` (Claude compatibility). Same behavior and arguments (incl. `background=True`). |
+| `MonitorProcess` | `monitor_process` | Check, wait on, or kill a background process started with `Shell`/`Bash` `background=True`. Pass `wait=N` to block up to N seconds (returns early on exit), or `kill=True` to terminate. |
 
 ### File System
 
@@ -141,7 +142,7 @@ The assistant comes with a rich set of built-in tools. These are automatically a
 | `LS` | `list_files` | Recursively list files up to 3 levels deep, auto-excluding `.git`, `node_modules`, `__pycache__`, etc. |
 | `Glob` | `glob_files` | Find files matching a glob pattern (e.g., `**/*.py`). |
 | `Grep` | `search_files` | Search file contents by regex pattern. Supports `context_lines` (default 2), `files_only=True` to return only matching file paths, `case_sensitive=False` for case-insensitive search, and `file_pattern` to restrict to specific file types. |
-| `Read` | `read_file` | Read a single file's contents with optional line-range slicing and auto-truncation. Issue parallel `Read` calls to load several files in one turn. |
+| `Read` | `read_file` | Read a UTF-8 text file between `start_line` and `end_line` (1-indexed, inclusive; defaults: 1 to end). Output exceeding the char cap is truncated at the end — narrow the range or use `Grep` to locate the section you need. Issue parallel `Read` calls to load several files in one turn. |
 | `Write` | `write_file` | Write or overwrite a file. |
 | `Edit` | `replace_in_file` | Make targeted string replacements in a single file. |
 
@@ -149,8 +150,8 @@ The assistant comes with a rich set of built-in tools. These are automatically a
 
 | Tool | Function | Description |
 |------|----------|-------------|
-| `OpenWebPage` | `open_web_page` | Fetch a URL and return its content as Markdown. Optionally summarizes via a sub-agent to reduce token usage. |
-| `SearchInternet` | `search_internet` | Search the web by query string. Defaults to Google News RSS (free, no setup). Optionally use SerpAPI, Brave, or SearXNG via `ZRB_SEARCH_INTERNET_METHOD`. |
+| `WebFetch` | `open_web_page` | Fetch a URL and return its content as Markdown. Optionally summarizes via a sub-agent to reduce token usage. |
+| `WebSearch` | `search_internet` | Search the web by query string. Defaults to Google News RSS (free, no setup). Optionally use SerpAPI, Brave, or SearXNG via `ZRB_SEARCH_INTERNET_METHOD`. |
 
 ### User Interaction
 
@@ -177,8 +178,8 @@ The assistant comes with a rich set of built-in tools. These are automatically a
 
 | Tool | Function | Description |
 |------|----------|-------------|
-| `WriteTodos` | `write_todos` | Create or replace the session todo list (persisted to `~/.zrb/todos/<session>.json`). Replacing the full list subsumes per-item status updates and clearing. |
-| `GetTodos` | `get_todos` | Get the current todo list and progress summary. |
+| `TodoWrite` | `write_todos` | Create or replace the session todo list (persisted to `~/.zrb/todos/<session>.json`). Replacing the full list subsumes per-item status updates and clearing. |
+| `TodoRead` | `get_todos` | Get the current todo list and progress summary. |
 
 ### Knowledge Base (RAG)
 
@@ -207,7 +208,7 @@ The assistant can connect to external MCP servers defined in `mcp-config.json`. 
 
 | Tool | Description |
 |------|-------------|
-| `DelegateToAgent` | Delegate a sub-task to a named sub-agent. Sub-agents are discovered from `agents/` directories. See sub-agents section below. |
+| `DelegateToAgent` | Delegate a sub-task to a named sub-agent (discovered from `agents/` directories). Pass `tasks=[{...}, ...]` to fan out several concurrently in one call. See sub-agents section below. |
 | `ActivateSkill` | Load a named skill (a set of prompts and tools) into the current session. |
 
 ### Git Worktrees
@@ -401,3 +402,5 @@ For persistent, long-term memory, Zrb uses a journal system—a directory of Mar
 | `LLMChatTask` | `from zrb import LLMChatTask` | Interactive chat |
 
 ---
+
+🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > LLM Integration

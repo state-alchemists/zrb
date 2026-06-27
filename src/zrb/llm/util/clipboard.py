@@ -11,6 +11,7 @@ Priority order per platform:
 from __future__ import annotations
 
 import asyncio
+import base64
 import io
 import os
 import shutil
@@ -46,7 +47,8 @@ async def _macos() -> bytes | None:
         from PIL import ImageGrab  # type: ignore[import]
 
         img = await asyncio.to_thread(ImageGrab.grabclipboard)
-        if img is None:
+        # grabclipboard() returns an Image, a list of file paths, or None.
+        if img is None or isinstance(img, list):
             return None
         buf = io.BytesIO()
         img.save(buf, format="PNG")
@@ -100,7 +102,8 @@ def _windows() -> bytes | None:
         from PIL import ImageGrab  # type: ignore[import]
 
         img = ImageGrab.grabclipboard()
-        if img is None:
+        # grabclipboard() returns an Image, a list of file paths, or None.
+        if img is None or isinstance(img, list):
             return None
         buf = io.BytesIO()
         img.save(buf, format="PNG")
@@ -231,8 +234,6 @@ def _write_osc52(text: str) -> None:
     The terminal emulator on the *local* machine handles the clipboard,
     so this works over SSH. Tmux and screen need a passthrough wrapper.
     """
-    import base64
-
     encoded = base64.b64encode(text.encode("utf-8")).decode("ascii")
     tmux = os.environ.get("TMUX")
     screen = os.environ.get("TERM") == "screen"

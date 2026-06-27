@@ -12,6 +12,7 @@ Zrb includes native LSP integration for semantic code intelligence. When LSP ser
 - [Supported Languages](#supported-languages)
 - [Installation](#installation)
 - [Auto-Detection](#auto-detection)
+- [Custom LSP Servers](#custom-lsp-servers)
 - [Available Tools](#available-tools)
 - [Usage Examples](#usage-examples)
 - [How It Works](#how-it-works)
@@ -143,6 +144,38 @@ Zrb automatically detects installed LSP servers using the system PATH. No config
 ### Multiple Servers for Same Language
 
 If multiple LSP servers are installed for the same language, zrb picks one automatically. The order is determined by which server is detected first in the PATH.
+
+---
+
+## Custom LSP Servers
+
+The built-in catalogue (`LSP_SERVER_CONFIGS`) covers 21+ servers, but you can teach zrb about any other LSP server — a language not in the table, an in-house server, or a custom binary — by registering it from your `zrb_init.py`:
+
+```python
+from zrb.llm.lsp.configs import LSPServerConfig
+from zrb.llm.lsp.manager import lsp_manager
+
+lsp_manager.register_lsp_server(
+    "zls",  # unique key, also usable in ZRB_LLM_LSP_PREFERRED_SERVERS
+    LSPServerConfig(
+        name="zls",
+        command=["zls"],            # how to launch it (must be on PATH)
+        language_ids=["zig"],       # LSP language identifiers
+        file_extensions=[".zig"],   # files this server handles
+    ),
+)
+```
+
+Registered servers behave exactly like built-ins:
+
+- **Auto-detection** — `detect_available_lsp_servers()` reports them when `command[0]` is on `PATH` (via `shutil.which`).
+- **File matching** — a file whose extension is in `file_extensions` resolves to this server.
+- **Selection / preference** — the name participates in `ZRB_LLM_LSP_PREFERRED_SERVERS` and per-call `preferred_servers` ordering.
+- **Override** — registering a name that already exists (e.g. `"pyright"`) replaces the built-in config for that name.
+
+Registration goes through a single module-level registry (`lsp_server_configs`); user entries are merged over the built-in table. Call `register_lsp_server()` once at startup, before the first LSP query.
+
+👉 Runnable end-to-end example: [`examples/lsp-config`](../../examples/lsp-config).
 
 ---
 
@@ -377,3 +410,5 @@ server = await lsp_manager.get_server(
 | `from zrb.llm.lsp.server import detect_available_lsp_servers` | Detection check |
 
 ---
+
+🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > LSP Support
