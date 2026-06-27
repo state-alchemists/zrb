@@ -63,24 +63,24 @@ class TestBaseUICommandHandlers:
         """Test _handle_save_command saves conversation."""
         ui = simple_ui_instance
         ui._save_commands = ["/save"]
-        ui._history_manager.load = MagicMock(return_value=[])
-        ui._history_manager.update = MagicMock()
-        ui._history_manager.save = MagicMock()
+        ui.history_manager.load = MagicMock(return_value=[])
+        ui.history_manager.update = MagicMock()
+        ui.history_manager.save = MagicMock()
         ui.append_to_output = MagicMock()
         ui._conversation_session_name = "test-session"
 
         result = ui._handle_save_command("/save my-save")
 
         assert result is True
-        ui._history_manager.update.assert_called_once()
-        ui._history_manager.save.assert_called_once_with("my-save")
+        ui.history_manager.update.assert_called_once()
+        ui.history_manager.save.assert_called_once_with("my-save")
 
     def test_handle_save_command_no_name(self, simple_ui_instance):
         """Test _handle_save_command with no name provided."""
         ui = simple_ui_instance
         ui._save_commands = ["/save"]
-        ui._history_manager.load = MagicMock(return_value=[])
-        ui._history_manager.update = MagicMock()
+        ui.history_manager.load = MagicMock(return_value=[])
+        ui.history_manager.update = MagicMock()
 
         result = ui._handle_save_command("/save")
 
@@ -90,7 +90,7 @@ class TestBaseUICommandHandlers:
         """Test _handle_save_command handles history manager errors."""
         ui = simple_ui_instance
         ui._save_commands = ["/save"]
-        ui._history_manager.load = MagicMock(side_effect=Exception("Load error"))
+        ui.history_manager.load = MagicMock(side_effect=Exception("Load error"))
         ui.append_to_output = MagicMock()
 
         result = ui._handle_save_command("/save test")
@@ -102,13 +102,13 @@ class TestBaseUICommandHandlers:
         """Test _handle_load_command loads conversation."""
         ui = simple_ui_instance
         ui._load_commands = ["/load"]
-        ui._history_manager.load = MagicMock(return_value=[])
+        ui.history_manager.load = MagicMock(return_value=[])
         ui.append_to_output = MagicMock()
 
         result = ui._handle_load_command("/load my-session")
 
         assert result is True
-        assert ui._conversation_session_name == "my-session"
+        assert ui.conversation_session_name == "my-session"
 
     def test_handle_load_command_no_name(self, simple_ui_instance):
         """Test _handle_load_command with no name provided."""
@@ -192,7 +192,7 @@ class TestBaseUICommandHandlers:
 
         ui = simple_ui_instance
         ui._copy_commands = ["/copy"]
-        ui._history_manager.load = MagicMock(
+        ui.history_manager.load = MagicMock(
             return_value=[{"role": "user", "content": "hi"}]
         )
         ui.append_to_output = MagicMock()
@@ -214,7 +214,7 @@ class TestBaseUICommandHandlers:
 
         ui = simple_ui_instance
         ui._copy_commands = ["/copy"]
-        ui._history_manager.load = MagicMock(
+        ui.history_manager.load = MagicMock(
             return_value=[{"role": "user", "content": "hi"}]
         )
         ui.append_to_output = MagicMock()
@@ -238,7 +238,7 @@ class TestBaseUICommandHandlers:
         """Test /copy shows error when no history."""
         ui = simple_ui_instance
         ui._copy_commands = ["/copy"]
-        ui._history_manager.load = MagicMock(return_value=[])
+        ui.history_manager.load = MagicMock(return_value=[])
         ui.append_to_output = MagicMock()
 
         result = ui._handle_copy_command("/copy")
@@ -252,7 +252,7 @@ class TestBaseUICommandHandlers:
         """Test /copy with a trailing space strips to the bare command (clipboard copy)."""
         ui = simple_ui_instance
         ui._copy_commands = ["/copy"]
-        ui._history_manager.load = MagicMock(return_value=[])
+        ui.history_manager.load = MagicMock(return_value=[])
         ui.append_to_output = MagicMock()
 
         result = ui._handle_copy_command("/copy ")
@@ -288,7 +288,7 @@ class TestBaseUICommandHandlers:
         result = ui._handle_set_model_command("/model gpt-4")
 
         assert result is True
-        assert ui._model == "gpt-4"
+        assert ui.model == "gpt-4"
 
     def test_handle_set_model_command_while_thinking(self, simple_ui_instance):
         """Test _handle_set_model_command blocked while thinking."""
@@ -520,7 +520,7 @@ class TestLoadCommandReplay:
 
         ui = recording_ui
         ui._load_commands = ["/load"]
-        ui._history_manager.load = MagicMock(
+        ui.history_manager.load = MagicMock(
             return_value=[ModelRequest(parts=[UserPromptPart(content="hello there")])]
         )
 
@@ -537,7 +537,7 @@ class TestLoadCommandReplay:
 
         ui = recording_ui
         ui._load_commands = ["/load"]
-        ui._history_manager.load = MagicMock(
+        ui.history_manager.load = MagicMock(
             return_value=[ModelResponse(parts=[TextPart(content="**bold reply**")])]
         )
 
@@ -566,7 +566,7 @@ class TestLoadCommandReplay:
 
         ui = recording_ui
         ui._load_commands = ["/load"]
-        ui._history_manager.load = MagicMock(
+        ui.history_manager.load = MagicMock(
             return_value=[
                 ModelResponse(
                     parts=[
@@ -594,7 +594,7 @@ class TestLoadCommandReplay:
 
         ui = recording_ui
         ui._load_commands = ["/load"]
-        ui._history_manager.load = MagicMock(
+        ui.history_manager.load = MagicMock(
             return_value=[
                 ModelRequest(
                     parts=[
@@ -623,7 +623,7 @@ class TestLoadCommandReplay:
         """Empty history should not emit any replay output, only the switch line."""
         ui = recording_ui
         ui._load_commands = ["/load"]
-        ui._history_manager.load = MagicMock(return_value=[])
+        ui.history_manager.load = MagicMock(return_value=[])
 
         assert ui._handle_load_command("/load my-session") is True
 
@@ -640,7 +640,7 @@ class TestLoadCommandReplay:
 
         ui = recording_ui
         ui._load_commands = ["/load"]
-        ui._history_manager.load = MagicMock(
+        ui.history_manager.load = MagicMock(
             return_value=[
                 ModelResponse(parts=[ThinkingPart(content="pondering the question")])
             ]
@@ -659,7 +659,7 @@ class TestLoadCommandReplay:
 
         ui = recording_ui
         ui._load_commands = ["/load"]
-        ui._history_manager.load = MagicMock(
+        ui.history_manager.load = MagicMock(
             return_value=[
                 ModelRequest(
                     parts=[
@@ -680,7 +680,7 @@ class TestLoadCommandReplay:
         """If the history manager raises, an error line must be shown to the user."""
         ui = recording_ui
         ui._load_commands = ["/load"]
-        ui._history_manager.load = MagicMock(side_effect=RuntimeError("boom"))
+        ui.history_manager.load = MagicMock(side_effect=RuntimeError("boom"))
 
         assert ui._handle_load_command("/load my-session") is True
 

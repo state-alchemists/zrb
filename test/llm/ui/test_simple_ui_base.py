@@ -31,7 +31,7 @@ def deps():
 
 def test_simple_ui_init(deps):
     ui = ConcreteSimpleUI(**deps)
-    assert ui._assistant_name == "Assistant"  # From UIConfig.default()
+    assert ui.assistant_name == "Assistant"  # From UIConfig.default()
     assert ui.yolo is False
 
 
@@ -101,7 +101,7 @@ async def test_simple_ui_run_async(deps):
         res = await ui.run_async()
         assert res == "Done"
 
-    ui._submit_user_message.assert_called_once_with(ui._llm_task, "start")
+    ui._submit_user_message.assert_called_once_with(ui.llm_task, "start")
 
 
 @pytest.mark.asyncio

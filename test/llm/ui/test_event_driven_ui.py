@@ -30,7 +30,7 @@ async def test_handle_incoming_message():
     # Not waiting for input -> submit message
     ui._waiting_for_input = False
     ui.handle_incoming_message("hello")
-    ui._submit_user_message.assert_called_with(ui._llm_task, "hello")
+    ui._submit_user_message.assert_called_with(ui.llm_task, "hello")
     assert ui.input_queue.empty()
 
     # Waiting for input -> enqueue

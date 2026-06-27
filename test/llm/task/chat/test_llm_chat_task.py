@@ -348,7 +348,7 @@ async def test_llm_chat_task_passes_getter_renderer_to_summarizer():
 
     with (
         patch(
-            "zrb.llm.task.chat.task.create_summarizer_history_processor"
+            "zrb.llm.task.chat.exec_mixin.create_summarizer_history_processor"
         ) as mock_create_proc,
         patch("zrb.llm.task.llm_task.create_agent"),
         patch(

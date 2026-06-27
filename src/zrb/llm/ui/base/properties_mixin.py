@@ -174,3 +174,18 @@ class PropertiesMixin:
     def summarize_commands(self) -> list[str]:
         """Get the list of summarize commands."""
         return self._summarize_commands
+
+    @property
+    def history_manager(self) -> Any:
+        """Public read accessor for the conversation history manager."""
+        return self._history_manager
+
+    @property
+    def snapshot_manager(self) -> Any:
+        """Public read accessor for the snapshot manager (may be None)."""
+        return self._snapshot_manager
+
+    @property
+    def background_tasks(self) -> Any:
+        """Public read accessor for the background-task set."""
+        return self._background_tasks
