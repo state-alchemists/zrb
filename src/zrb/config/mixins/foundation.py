@@ -18,6 +18,7 @@ from zrb.config.helper import (
     get_current_shell,
     get_default_diff_edit_command,
     get_log_level,
+    is_termux,
 )
 from zrb.util.string.conversion import to_boolean
 from zrb.util.string.format import fstring_format
@@ -88,6 +89,14 @@ class FoundationMixin:
         str,
         default_factory=lambda c: c.DEFAULT_SHELL or get_current_shell(),
         doc="Shell used by CmdTask. Auto-detected when unset.",
+    )
+
+    IS_TERMUX = EnvField(
+        to_boolean,
+        serialize=on_off,
+        default_factory=lambda c: on_off(is_termux()),
+        doc="Whether zrb runs under Termux. Auto-detected; override to force "
+        "Termux-specific behavior such as Tab-to-cycle-mode keybindings.",
     )
 
     EDITOR = EnvField(str, doc="Default text editor for interactive prompts.")

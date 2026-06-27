@@ -4,7 +4,7 @@ from unittest import mock
 from unittest.mock import patch
 
 from zrb.config.config import Config
-from zrb.config.helper import get_current_shell, get_env, get_log_level
+from zrb.config.helper import get_current_shell, get_env, get_log_level, is_termux
 
 
 def test_logger():
@@ -114,6 +114,37 @@ def test_default_shell_zsh_requested_but_absent(mock_platform_system, monkeypatc
     monkeypatch.setenv("SHELL", "/bin/zsh")
     with mock.patch("shutil.which", side_effect=_which("bash", "sh")):
         assert get_current_shell() == "bash"
+
+
+def test_is_termux_detects_termux_version(monkeypatch):
+    monkeypatch.setenv("TERMUX_VERSION", "0.118.0")
+    monkeypatch.delenv("PREFIX", raising=False)
+    assert is_termux() is True
+
+
+def test_is_termux_detects_com_termux_prefix(monkeypatch):
+    monkeypatch.delenv("TERMUX_VERSION", raising=False)
+    monkeypatch.setenv("PREFIX", "/data/data/com.termux/files/usr")
+    assert is_termux() is True
+
+
+def test_is_termux_false_off_termux(monkeypatch):
+    monkeypatch.delenv("TERMUX_VERSION", raising=False)
+    monkeypatch.setenv("PREFIX", "/usr/local")
+    assert is_termux() is False
+
+
+def test_cfg_is_termux_auto_detected(monkeypatch):
+    monkeypatch.delenv("ZRB_IS_TERMUX", raising=False)
+    monkeypatch.setenv("TERMUX_VERSION", "0.118.0")
+    assert Config().IS_TERMUX is True
+
+
+def test_cfg_is_termux_env_override_wins(monkeypatch):
+    # Auto-detection says Termux, but an explicit override forces it off.
+    monkeypatch.setenv("TERMUX_VERSION", "0.118.0")
+    monkeypatch.setenv("ZRB_IS_TERMUX", "false")
+    assert Config().IS_TERMUX is False
 
 
 def test_default_editor(monkeypatch):

@@ -118,15 +118,25 @@ def test_ctrl_k_binding_focus_input(mock_ui, setup_bindings):
     event.app.layout.focus.assert_called_with(mock_ui._input_field)
 
 
-def test_tab_cycles_mode(mock_ui, setup_bindings):
-    """Tab cycles the interaction mode.
+def test_tab_does_not_cycle_mode_off_termux(mock_ui, setup_bindings):
+    """Off Termux, plain Tab is unbound and does not cycle the mode.
 
-    prompt_toolkit normalizes ``"tab"`` to ``Keys.ControlI`` (``c-i``)
-    internally (Tab and Ctrl+I share the same terminal byte), so the
-    test triggers it as ``"c-i"``.
+    Only Shift+Tab cycles; Tab is left free for its default behavior.
+    prompt_toolkit normalizes ``"tab"`` to ``Keys.ControlI`` (``c-i``).
     """
     event = create_mock_event()
-    trigger_binding(setup_bindings, "c-i", event)
+    triggered = trigger_binding(setup_bindings, "c-i", event)
+    assert triggered is False
+    mock_ui.cycle_mode.assert_not_called()
+
+
+def test_tab_cycles_mode_on_termux(mock_ui, key_bindings, monkeypatch):
+    """On Termux, Shift+Tab is indistinguishable from Tab, so plain Tab
+    (``c-i``) is bound to mode cycling as a fallback."""
+    monkeypatch.setenv("ZRB_IS_TERMUX", "true")
+    mock_ui.setup_app_keybindings(key_bindings, MagicMock())
+    event = create_mock_event()
+    trigger_binding(key_bindings, "c-i", event)
     mock_ui.cycle_mode.assert_called_once()
 
 

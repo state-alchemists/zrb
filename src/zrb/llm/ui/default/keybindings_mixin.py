@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING
 
+from zrb.config.config import CFG
 from zrb.llm.hook.interface import HookEvent
 from zrb.llm.util.image_scale import scale_image_bytes
 
@@ -92,12 +93,11 @@ class KeybindingsMixin:
             lambda: not getattr(self, "has_active_choice", lambda: False)()
         )
 
-        # Ctrl+K toggles focus between the input and output panes. On Termux
-        # Tab and Shift+Tab produce the same byte (0x09), so Tab is used for
-        # mode cycling (below) and Ctrl+K is the sole focus-toggle binding.
-        # The input/output controls' own Tab/Shift+Tab focus traversal was
-        # removed (see app/layout.py, app/keybinding.py) so Tab and Shift+Tab
-        # are free to cycle modes.
+        # Ctrl+K toggles focus between the input and output panes. The
+        # input/output controls' own Tab/Shift+Tab focus traversal was removed
+        # (see app/layout.py, app/keybinding.py) so Shift+Tab is free to cycle
+        # modes (below). Note: on Termux, Tab and Shift+Tab both produce byte
+        # 0x09, so mode cycling via Shift+Tab is unavailable there.
         @app_keybindings.add("c-k")
         def _(event):
             if event.app.layout.has_focus(self._input_field):
@@ -275,17 +275,20 @@ class KeybindingsMixin:
         def _(event):
             self.toggle_yolo()
 
-        # Tab / Shift+Tab — cycle normal → accept-edits → plan. On Termux both
-        # keys produce the same byte (0x09), so both route to the same handler.
-        # Shift+Tab is kept for desktop terminals where it's a distinct key.
-        # Gated so a completion menu keeps Tab for next-completion and Shift+Tab
-        # for previous-completion, and a choice widget keeps its own Tab/back-tab
-        # navigation.
+        if CFG.IS_TERMUX:
+            # On Termux, Tab and Shift+Tab are indistinguishable (both byte 0x09),
+            # so Shift+Tab never arrives — bind plain Tab to mode cycling there.
+            @app_keybindings.add("tab", filter=no_active_choice & ~has_completions)
+            def _(event):
+                self.cycle_mode()
 
-        @app_keybindings.add("tab", filter=no_active_choice & ~has_completions)
-        @app_keybindings.add("s-tab", filter=no_active_choice & ~has_completions)
-        def _(event):
-            self.cycle_mode()
+        else:
+            # Shift+Tab — cycle normal → accept-edits → plan. Gated so a completion
+            # menu keeps Shift+Tab for previous-completion, and a choice widget keeps
+            # its own back-tab navigation.
+            @app_keybindings.add("s-tab", filter=no_active_choice & ~has_completions)
+            def _(event):
+                self.cycle_mode()
 
         @app_keybindings.add("c-j", filter=no_active_choice)  # Ctrl+J / Ctrl+Enter
         @app_keybindings.add("c-space", filter=no_active_choice)  # Ctrl+Space fallback

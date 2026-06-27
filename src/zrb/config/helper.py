@@ -35,6 +35,20 @@ def get_current_shell() -> str:
     return "sh"
 
 
+def is_termux() -> bool:
+    """Best-effort detection of a Termux (Android) terminal.
+
+    Termux exports ``TERMUX_VERSION`` and installs everything under a
+    ``com.termux`` prefix. Either signal is enough; both are checked so the
+    detection survives a stripped environment that drops ``TERMUX_VERSION``.
+    Used to special-case keybindings: on Termux, Tab and Shift+Tab both emit
+    byte ``0x09``, so the terminal cannot tell them apart.
+    """
+    if os.getenv("TERMUX_VERSION"):
+        return True
+    return "com.termux" in os.getenv("PREFIX", "")
+
+
 def get_default_diff_edit_command(editor: str) -> str:
     if editor in [
         "code",
