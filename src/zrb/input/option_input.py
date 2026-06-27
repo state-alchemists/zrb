@@ -16,7 +16,7 @@ class OptionInput(BaseInput):
         name: str,
         description: str | None = None,
         prompt: str | None = None,
-        options: StrListAttr = [],
+        options: StrListAttr | None = None,
         default: StrAttr = "",
         auto_render: bool = True,
         allow_empty: bool = False,
@@ -33,7 +33,7 @@ class OptionInput(BaseInput):
             allow_positional_parsing=allow_positional_parsing,
             always_prompt=always_prompt,
         )
-        self._options = options
+        self._options = options if options is not None else []
 
     def to_html(self, shared_ctx: AnySharedContext) -> str:
         name = self.name

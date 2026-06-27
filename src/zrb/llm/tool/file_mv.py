@@ -12,10 +12,17 @@ def move_file(src: str, dst: str) -> str:
     abs_src = os.path.abspath(os.path.expanduser(src))
     abs_dst = os.path.abspath(os.path.expanduser(dst))
     if not os.path.exists(abs_src):
-        return f"Error: Source not found: {src}"
+        return (
+            f"Error: Source not found: {src}. "
+            "[SYSTEM SUGGESTION]: Check the source path; use List to see what exists."
+        )
     try:
         os.makedirs(os.path.dirname(abs_dst), exist_ok=True)
         shutil.move(abs_src, abs_dst)
         return f"Moved: {src} -> {dst}"
     except Exception as e:
-        return f"Error moving {src} to {dst}: {e}"
+        return (
+            f"Error moving {src} to {dst}: {e}. "
+            "[SYSTEM SUGGESTION]: Verify the destination parent is writable and the "
+            "source is not in use, then retry."
+        )

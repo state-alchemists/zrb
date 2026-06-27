@@ -11,6 +11,7 @@ Priority order per platform:
 from __future__ import annotations
 
 import asyncio
+import base64
 import io
 import os
 import shutil
@@ -233,8 +234,6 @@ def _write_osc52(text: str) -> None:
     The terminal emulator on the *local* machine handles the clipboard,
     so this works over SSH. Tmux and screen need a passthrough wrapper.
     """
-    import base64
-
     encoded = base64.b64encode(text.encode("utf-8")).decode("ascii")
     tmux = os.environ.get("TMUX")
     screen = os.environ.get("TERM") == "screen"

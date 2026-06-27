@@ -8,7 +8,14 @@ from functools import wraps
 from typing import TYPE_CHECKING, Any, cast
 
 from zrb.config.config import CFG
+from zrb.llm.agent.gates import permission_gate, sandbox_gate
+from zrb.llm.agent.run.hook_result_extractor import (
+    extract_post_tool_decision,
+    extract_pre_tool_decision,
+)
 from zrb.llm.config.config import llm_config as default_llm_config
+from zrb.llm.hook.manager import hook_manager
+from zrb.llm.hook.types import HookEvent
 from zrb.llm.util.prompt import expand_prompt
 from zrb.util.string.conversion import to_string
 
@@ -86,103 +93,6 @@ def safe_copy_result(result: Any) -> Any:
         return result
 
 
-def _permission_gate(tool_name: str, capability: Any, args: dict[str, Any]) -> Any:
-    """Return a blocked ``ToolReturn`` if the in-force policy denies this call.
-
-    Returns ``None`` when nothing denies it (the default — no policy and
-    ``AgentMode.BUILD`` → always ``None``, so the synchronous path is
-    unchanged). Enforces the *deny* outcome that the approval layer (allow/ask)
-    cannot express, without touching the deferred-request machinery.
-    """
-    # lazy: circular — common is imported by the runner; permission is a leaf,
-    # but keep the read local so the policy is re-resolved per call.
-    from pydantic_ai import ToolReturn
-
-    from zrb.llm.permission import DENY, get_current_agent_mode, get_effective_policy
-
-    policy = get_effective_policy()
-    if policy is None:
-        return None
-    if policy.decide(tool_name, capability, args) != DENY:
-        return None
-    mode = get_current_agent_mode().value
-    return ToolReturn(
-        return_value=None,
-        content=(
-            f"Blocked: '{tool_name}' is not permitted under the current "
-            f"permission policy (mode: {mode}). "
-            "[SYSTEM SUGGESTION]: this is a read-only / restricted context. "
-            "Finish discovery, then call ExitPlanMode (if in plan mode) to "
-            "present your plan for approval before making changes."  # fmt: skip
-        ),
-        metadata={"blocked": True},
-    )
-
-
-def _sandbox_gate(tool_name: str, capability: Any, args: dict[str, Any]) -> Any:
-    """Return a blocked ``ToolReturn`` if the sandbox FS policy denies this call.
-
-    Returns ``None`` when the sandbox is disabled (the default — zero-cost
-    path) or no path argument violates the policy. EXECUTE tools are not
-    path-checked here: shell commands are contained by the OS-level sandbox
-    layer, not by argument inspection.
-    """
-    # lazy: heavy third-party / leaf module read per call so tests and
-    # downstream CFG overrides are honored.
-    from pydantic_ai import ToolReturn
-
-    from zrb.llm.permission import Capability
-    from zrb.llm.sandbox import check_read, check_write, get_effective_sandbox_policy
-
-    # Argument keys the sandbox gate treats as filesystem paths (subset of the
-    # permission layer's _SALIENT_ARG_KEYS). Reads check every path-like arg;
-    # writes additionally check them for EDIT/UNKNOWN tools ("src" is write-checked
-    # because move_file deletes it; "dst" because it gets overwritten).
-    _SANDBOX_READ_KEYS = ("path", "file_path", "file", "filename", "src")
-    _SANDBOX_WRITE_KEYS = ("path", "file_path", "file", "filename", "src", "dst")
-
-    policy = get_effective_sandbox_policy()
-    if not policy.enabled:
-        return None
-
-    def _blocked(reason: str) -> Any:
-        return ToolReturn(
-            return_value=None,
-            content=(
-                f"Blocked by sandbox policy: {reason}. "
-                "[SYSTEM SUGGESTION]: work within the project directory, or "
-                "ask the user to extend the sandbox writable paths "
-                "(LLM_SANDBOX_WRITABLE_PATHS) / adjust the deny list "
-                "(LLM_SANDBOX_DENY_READ_PATHS)."
-            ),
-            metadata={"blocked": True},
-        )
-
-    if not policy.allow_escape and args.get("dangerously_skip_sandbox"):
-        return _blocked(
-            "dangerously_skip_sandbox was requested but escaping the sandbox "
-            "is disabled in this deployment (LLM_SANDBOX_ALLOW_ESCAPE=false)"
-        )
-
-    cap_value = getattr(capability, "value", capability)
-    if cap_value == Capability.EXECUTE.value:
-        return None
-    for key in _SANDBOX_READ_KEYS:
-        value = args.get(key)
-        if isinstance(value, str):
-            error = check_read(value, policy)
-            if error is not None:
-                return _blocked(error)
-    if cap_value in (Capability.EDIT.value, Capability.UNKNOWN.value):
-        for key in _SANDBOX_WRITE_KEYS:
-            value = args.get(key)
-            if isinstance(value, str):
-                error = check_write(value, policy)
-                if error is not None:
-                    return _blocked(error)
-    return None
-
-
 def _truncated_content(content: str) -> tuple[str, dict[str, Any]]:
     """Apply the global tool-result size backstop to a model-facing string.
 
@@ -217,10 +127,10 @@ def create_safe_wrapper(func: Callable, name: str | None = None) -> Callable:
     @wraps(func)
     async def wrapper(*args, **kwargs):
         try:
-            blocked = _permission_gate(tool_name, capability, kwargs)
+            blocked = permission_gate(tool_name, capability, kwargs)
             if blocked is not None:
                 return blocked
-            blocked = _sandbox_gate(tool_name, capability, kwargs)
+            blocked = sandbox_gate(tool_name, capability, kwargs)
             if blocked is not None:
                 return blocked
 
@@ -269,10 +179,10 @@ def _wrap_toolset(toolset: "AbstractToolset[None]") -> "AbstractToolset[None]":
                 tool_args = await _fire_pre_tool_use(name, tool_args, ctx)
                 if isinstance(tool_args, ToolReturn):
                     return tool_args  # PreToolUse hook denied the call
-                blocked = _permission_gate(name, tool_capability(tool), tool_args or {})
+                blocked = permission_gate(name, tool_capability(tool), tool_args or {})
                 if blocked is not None:
                     return blocked
-                blocked = _sandbox_gate(name, tool_capability(tool), tool_args or {})
+                blocked = sandbox_gate(name, tool_capability(tool), tool_args or {})
                 if blocked is not None:
                     return blocked
                 result = await super().call_tool(name, tool_args, ctx, tool)
@@ -308,13 +218,8 @@ async def _fire_pre_tool_use(name: str, tool_args: dict[str, Any], ctx: Any) -> 
     rewritten) ``tool_args`` to use, or a blocking ``ToolReturn`` if a hook denied
     the call.
     """
-    # lazy: circular — common ← runner ← deferred_calls; hook manager + extractor
-    # read at call time to avoid an import cycle.
+    # lazy: heavy third-party deferral
     from pydantic_ai import ToolReturn
-
-    from zrb.llm.agent.run.hook_result_extractor import extract_pre_tool_decision
-    from zrb.llm.hook.manager import hook_manager
-    from zrb.llm.hook.types import HookEvent
 
     if getattr(ctx, "tool_call_approved", False):
         return tool_args
@@ -383,12 +288,8 @@ async def _fire_post_tool_use(name: str, tool_args: dict[str, Any], result: Any)
     replace the model-facing content via ``updatedToolOutput``. Returns the
     ``ToolReturn`` to surface.
     """
-    # lazy: circular — see _fire_pre_tool_use.
+    # lazy: heavy third-party deferral
     from pydantic_ai import ToolReturn
-
-    from zrb.llm.agent.run.hook_result_extractor import extract_post_tool_decision
-    from zrb.llm.hook.manager import hook_manager
-    from zrb.llm.hook.types import HookEvent
 
     results = await hook_manager.execute_hooks(
         HookEvent.POST_TOOL_USE,
@@ -463,10 +364,6 @@ async def _fire_post_tool_use_failure(
     name: str, tool_args: dict[str, Any], error: Exception
 ) -> None:
     """Fire PostToolUseFailure after a tool raised (observe-only, never raises)."""
-    # lazy: circular — see _fire_pre_tool_use.
-    from zrb.llm.hook.manager import hook_manager
-    from zrb.llm.hook.types import HookEvent
-
     try:
         await hook_manager.execute_hooks(
             HookEvent.POST_TOOL_USE_FAILURE,

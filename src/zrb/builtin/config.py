@@ -2,6 +2,7 @@ from zrb.builtin.group import config_group
 from zrb.context.any_context import AnyContext
 from zrb.input.str_input import StrInput
 from zrb.task.make_task import make_task
+from zrb.util.cli.markdown import render_markdown
 
 
 def _escape_cell(value: str) -> str:
@@ -65,9 +66,6 @@ def _collect_entries(keyword: str) -> list[tuple[str, str, str]]:
     alias="explain",
 )
 def explain_config(ctx: AnyContext) -> None:
-    # lazy: heavy third-party
-    from zrb.util.cli.markdown import render_markdown
-
     entries = _collect_entries(ctx.input.keyword)
     if not entries:
         ctx.print("No matching configuration entries found.")

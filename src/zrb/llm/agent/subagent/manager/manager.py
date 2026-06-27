@@ -38,7 +38,7 @@ class SubAgentDefinition:
         description: str,
         system_prompt: str,
         model: str | None = None,
-        tools: list[str] = [],
+        tools: list[str] | None = None,
         agent_instance: Any | None = None,
         agent_factory: Callable[[], Any] | None = None,
         inherit_sections: list[str] | None = None,
@@ -48,7 +48,7 @@ class SubAgentDefinition:
         self.description = description
         self.system_prompt = system_prompt
         self.model = model
-        self.tools = tools
+        self.tools = tools if tools is not None else []
         self.agent_instance = agent_instance
         self.agent_factory = agent_factory
         # Inherit named PromptManager sections from the main-agent composition

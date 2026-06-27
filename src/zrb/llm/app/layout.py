@@ -18,6 +18,7 @@ from prompt_toolkit.layout.containers import Float, FloatContainer
 from prompt_toolkit.layout.controls import FormattedTextControl
 from prompt_toolkit.layout.menus import CompletionsMenu
 from prompt_toolkit.lexers import Lexer
+from prompt_toolkit.mouse_events import MouseEventType
 from prompt_toolkit.widgets import Frame, TextArea
 
 from zrb.llm.app.completion import InputCompleter
@@ -187,8 +188,6 @@ def _bind_scroll_to_cursor(text_area: TextArea, lines: int = 3) -> None:
     auto-follow in append_to_output. Intercepting on the control handles scroll
     regardless of which pane is focused, so no Ctrl+K is needed first.
     """
-    from prompt_toolkit.mouse_events import MouseEventType
-
     control = text_area.control
     inner_handler = control.mouse_handler
 

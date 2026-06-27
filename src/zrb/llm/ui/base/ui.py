@@ -42,6 +42,7 @@ from zrb.llm.tool_call import (
     default_response_handler,
 )
 from zrb.llm.ui.base.commands_mixin import CommandsMixin
+from zrb.llm.ui.base.properties_mixin import PropertiesMixin
 from zrb.llm.ui.base.replay_mixin import HistoryReplayMixin
 from zrb.llm.ui.base.system_info_mixin import SystemInfoMixin
 from zrb.llm.ui.multi_ui import MultiUI
@@ -63,7 +64,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class BaseUI(CommandsMixin, HistoryReplayMixin, SystemInfoMixin):
+class BaseUI(PropertiesMixin, CommandsMixin, HistoryReplayMixin, SystemInfoMixin):
     """Base class for LLM Chat UI implementations.
 
     This class provides the core chat functionality (message handling, command
@@ -275,16 +276,6 @@ class BaseUI(CommandsMixin, HistoryReplayMixin, SystemInfoMixin):
         self._pending_attachments.clear()
         return attachments
 
-    @property
-    def llm_task(self) -> Any:
-        """Get the LLM task."""
-        return self._llm_task
-
-    @llm_task.setter
-    def llm_task(self, value: Any):
-        """Set the LLM task."""
-        self._llm_task = value
-
     def execute_hook(self, event: HookEvent, event_data: Any, **kwargs) -> None:
         """
         Safely execute hooks from either sync or async context.
@@ -336,125 +327,6 @@ class BaseUI(CommandsMixin, HistoryReplayMixin, SystemInfoMixin):
         if self._yolo_xcom_key not in self._ctx.xcom:
             self._ctx.xcom[self._yolo_xcom_key] = Xcom()
         self._ctx.xcom[self._yolo_xcom_key].set(value)
-
-    @property
-    def model(self) -> Any:
-        """Get the current model."""
-        return self._model
-
-    @model.setter
-    def model(self, value: Any):
-        """Set the model."""
-        self._model = value
-
-    @property
-    def small_model(self) -> Any:
-        """Get the current small model."""
-        return self._small_model
-
-    @small_model.setter
-    def small_model(self, value: Any):
-        """Set the small model."""
-        self._small_model = value
-
-    @property
-    def multimodal_model(self) -> Any:
-        """Get the current multimodal model."""
-        return self._multimodal_model
-
-    @multimodal_model.setter
-    def multimodal_model(self, value: Any):
-        """Set the multimodal model."""
-        self._multimodal_model = value
-
-    @property
-    def conversation_session_name(self) -> str:
-        """Get the conversation session name."""
-        return self._conversation_session_name
-
-    @conversation_session_name.setter
-    def conversation_session_name(self, value: str):
-        """Set the conversation session name."""
-        self._conversation_session_name = value
-
-    @property
-    def triggers(self) -> list[Callable[[], AsyncIterable[Any]]]:
-        return self._triggers
-
-    @triggers.setter
-    def triggers(self, value: list[Callable[[], AsyncIterable[Any]]]):
-        self._triggers = value
-
-    @property
-    def last_output(self) -> str:
-        if self._last_result_data is None:
-            return ""
-        return self._last_result_data
-
-    @property
-    def assistant_name(self) -> str:
-        """Get the assistant name."""
-        return self._assistant_name
-
-    @property
-    def initial_message(self) -> Any:
-        """Get the initial message."""
-        return self._initial_message
-
-    @property
-    def exit_commands(self) -> list[str]:
-        """Get the list of exit commands."""
-        return self._exit_commands
-
-    @property
-    def info_commands(self) -> list[str]:
-        """Get the list of info/help commands."""
-        return self._info_commands
-
-    @property
-    def save_commands(self) -> list[str]:
-        """Get the list of save commands."""
-        return self._save_commands
-
-    @property
-    def load_commands(self) -> list[str]:
-        """Get the list of load commands."""
-        return self._load_commands
-
-    @property
-    def attach_commands(self) -> list[str]:
-        """Get the list of attach commands."""
-        return self._attach_commands
-
-    @property
-    def redirect_output_commands(self) -> list[str]:
-        """Get the list of redirect output commands."""
-        return self._redirect_output_commands
-
-    @property
-    def yolo_toggle_commands(self) -> list[str]:
-        """Get the list of yolo toggle commands."""
-        return self._yolo_toggle_commands
-
-    @property
-    def set_model_commands(self) -> list[str]:
-        """Get the list of set model commands."""
-        return self._set_model_commands
-
-    @property
-    def exec_commands(self) -> list[str]:
-        """Get the list of exec commands."""
-        return self._exec_commands
-
-    @property
-    def custom_commands(self) -> list[AnyCustomCommand]:
-        """Get the list of custom commands."""
-        return self._custom_commands
-
-    @property
-    def summarize_commands(self) -> list[str]:
-        """Get the list of summarize commands."""
-        return self._summarize_commands
 
     # =========================================================================
     # REQUIRED METHODS - Must be implemented by subclasses

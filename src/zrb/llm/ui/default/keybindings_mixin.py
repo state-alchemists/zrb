@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 from zrb.config.config import CFG
 from zrb.llm.hook.interface import HookEvent
 from zrb.llm.util.image_scale import scale_image_bytes
+from zrb.util.cli.style import remove_style
 
 if TYPE_CHECKING:
     from typing import Any, TextIO
@@ -113,8 +114,6 @@ class KeybindingsMixin:
                 data = buffer.copy_selection()
                 # The output buffer holds raw ANSI codes (e.g. muted tool-call
                 # detail); strip them so the clipboard gets plain text.
-                from zrb.util.cli.style import remove_style
-
                 data.text = remove_style(data.text)
                 if event.app.clipboard:
                     event.app.clipboard.set_data(data)
