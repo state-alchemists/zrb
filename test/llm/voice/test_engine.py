@@ -53,6 +53,15 @@ class TestVoiceEngine:
                 result = asyncio_run(engine.start_listening(stop_event))
                 assert result == "hello"
 
+    def test_transcribe_delegates_to_backend(self, engine):
+        """_transcribe resolves the backend and calls it with the audio."""
+        transcriber = AsyncMock(return_value="decoded")
+        with patch.object(
+            engine, "_get_transcriber", new_callable=AsyncMock, return_value=transcriber
+        ):
+            assert asyncio_run(engine._transcribe(b"audio")) == "decoded"
+        transcriber.assert_awaited_once_with(b"audio")
+
     def test_get_transcriber_unknown_mode_raises(self, engine):
         """Unknown voice mode raises RuntimeError."""
         with patch.dict(os.environ, {"ZRB_LLM_VOICE_MODE": "unknown"}):
@@ -227,6 +236,364 @@ class TestDownloadVoskModel:
                 release.set()  # let the worker thread unwind
 
         asyncio.run(scenario())
+
+
+class TestRecord:
+    """Tests for VoiceEngine._record() with mocked sounddevice."""
+
+    @staticmethod
+    def _fake_stream_factory(captured):
+        class FakeStream:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+        def make_stream(samplerate, channels, callback):
+            captured["callback"] = callback
+            return FakeStream()
+
+        return make_stream
+
+    def test_captures_audio_then_stops(self):
+        """A captured block is concatenated and returned as int16 PCM bytes."""
+
+        async def scenario():
+            import numpy as np
+
+            engine = VoiceEngine()
+            stop_event = asyncio.Event()
+            captured = {}
+            fake_sd = MagicMock()
+            fake_sd.InputStream.side_effect = self._fake_stream_factory(captured)
+
+            with patch.dict("sys.modules", {"sounddevice": fake_sd}):
+                task = asyncio.create_task(engine._record(stop_event))
+                await asyncio.sleep(0)  # let _record reach InputStream
+                cb = captured["callback"]
+                # status-truthy branch, then a normal block.
+                cb(np.array([[0.5]], dtype=np.float32), 1, None, "overflow")
+                cb(np.array([[0.25]], dtype=np.float32), 1, None, None)
+                await asyncio.sleep(0.15)  # let queue.get pull a block
+                stop_event.set()
+                result = await task
+
+            assert isinstance(result, bytes)
+            assert len(result) > 0
+
+        asyncio.run(scenario())
+
+    def test_no_audio_returns_empty_bytes(self):
+        """A pre-set stop_event yields no blocks -> empty bytes."""
+
+        async def scenario():
+            engine = VoiceEngine()
+            stop_event = asyncio.Event()
+            stop_event.set()
+            fake_sd = MagicMock()
+            fake_sd.InputStream.side_effect = self._fake_stream_factory({})
+
+            with patch.dict("sys.modules", {"sounddevice": fake_sd}):
+                result = await engine._record(stop_event)
+
+            assert result == b""
+
+        asyncio.run(scenario())
+
+    def test_mic_open_failure_raises_runtime_error(self):
+        """A failure opening the input stream is wrapped as RuntimeError."""
+
+        async def scenario():
+            engine = VoiceEngine()
+            fake_sd = MagicMock()
+            fake_sd.InputStream.side_effect = OSError("no device")
+
+            with patch.dict("sys.modules", {"sounddevice": fake_sd}):
+                with pytest.raises(RuntimeError, match="Cannot open microphone"):
+                    await engine._record(asyncio.Event())
+
+        asyncio.run(scenario())
+
+
+class TestVoskTranscriber:
+    """Tests for the offline Vosk backend factory."""
+
+    def _patch_local_model(self):
+        return (
+            patch("zrb.llm.voice.engine._get_vosk_model_dir", return_value="/models/m"),
+            patch("os.path.isdir", return_value=True),
+        )
+
+    def test_transcribe_accept_waveform(self):
+        engine = VoiceEngine()
+        rec = MagicMock()
+        rec.AcceptWaveform.return_value = True
+        rec.Result.return_value = '{"text": "hello world"}'
+        fake_vosk = MagicMock()
+        fake_vosk.KaldiRecognizer = MagicMock(return_value=rec)
+        p_dir, p_isdir = self._patch_local_model()
+        with patch.dict("sys.modules", {"vosk": fake_vosk}), p_dir, p_isdir:
+            transcribe = asyncio_run(engine._make_vosk_transcriber())
+            assert asyncio_run(transcribe(b"audio")) == "hello world"
+
+    def test_transcribe_final_result_branch(self):
+        engine = VoiceEngine()
+        rec = MagicMock()
+        rec.AcceptWaveform.return_value = False
+        rec.FinalResult.return_value = '{"text": "final text"}'
+        fake_vosk = MagicMock()
+        fake_vosk.KaldiRecognizer = MagicMock(return_value=rec)
+        p_dir, p_isdir = self._patch_local_model()
+        with patch.dict("sys.modules", {"vosk": fake_vosk}), p_dir, p_isdir:
+            transcribe = asyncio_run(engine._make_vosk_transcriber())
+            assert asyncio_run(transcribe(b"audio")) == "final text"
+
+    def test_downloads_when_no_local_model(self):
+        engine = VoiceEngine()
+        fake_vosk = MagicMock()
+        with (
+            patch.dict("sys.modules", {"vosk": fake_vosk}),
+            patch("zrb.llm.voice.engine._get_vosk_model_dir", return_value=None),
+            patch(
+                "zrb.llm.voice.engine._download_vosk_model",
+                new_callable=AsyncMock,
+                return_value="/dl/m",
+            ) as mock_dl,
+        ):
+            asyncio_run(engine._make_vosk_transcriber())
+            mock_dl.assert_awaited_once()
+
+    def test_import_error_on_macos(self):
+        engine = VoiceEngine()
+        with (
+            patch.dict("sys.modules", {"vosk": None}),
+            patch("platform.system", return_value="Darwin"),
+        ):
+            with pytest.raises(ImportError, match="macOS"):
+                asyncio_run(engine._make_vosk_transcriber())
+
+    def test_import_error_on_linux(self):
+        engine = VoiceEngine()
+        with (
+            patch.dict("sys.modules", {"vosk": None}),
+            patch("platform.system", return_value="Linux"),
+        ):
+            with pytest.raises(ImportError, match="vosk is not installed"):
+                asyncio_run(engine._make_vosk_transcriber())
+
+    def test_model_load_failure_raises(self):
+        engine = VoiceEngine()
+        fake_vosk = MagicMock()
+        fake_vosk.Model.side_effect = RuntimeError("bad model")
+        p_dir, p_isdir = self._patch_local_model()
+        with patch.dict("sys.modules", {"vosk": fake_vosk}), p_dir, p_isdir:
+            with pytest.raises(RuntimeError, match="Vosk model not found"):
+                asyncio_run(engine._make_vosk_transcriber())
+
+
+class TestOpenAITranscriber:
+    """Tests for the OpenAI Whisper backend factory."""
+
+    def test_transcribe(self):
+        engine = VoiceEngine()
+        result_obj = MagicMock()
+        result_obj.text = "openai text"
+        client = MagicMock()
+        client.audio.transcriptions.create = AsyncMock(return_value=result_obj)
+        fake_openai = MagicMock()
+        fake_openai.AsyncOpenAI = MagicMock(return_value=client)
+        with patch.dict("sys.modules", {"openai": fake_openai}):
+            transcribe = engine._make_openai_transcriber()
+            assert asyncio_run(transcribe(b"\x00\x01")) == "openai text"
+
+    def test_import_error(self):
+        engine = VoiceEngine()
+        with patch.dict("sys.modules", {"openai": None}):
+            with pytest.raises(ImportError, match="openai is not installed"):
+                engine._make_openai_transcriber()
+
+
+class TestGoogleTranscriber:
+    """Tests for the Google Gemini STT backend factory."""
+
+    def _patch_genai(self, response):
+        client = MagicMock()
+        client.models.generate_content = MagicMock(return_value=response)
+        fake_genai = MagicMock()
+        fake_genai.Client = MagicMock(return_value=client)
+        fake_google = MagicMock()
+        fake_google.genai = fake_genai
+        return patch.dict(
+            "sys.modules",
+            {
+                "google": fake_google,
+                "google.genai": fake_genai,
+                "google.genai.types": MagicMock(),
+            },
+        )
+
+    def test_transcribe_strips_text(self):
+        engine = VoiceEngine()
+        response = MagicMock()
+        response.text = "  google text  "
+        with self._patch_genai(response):
+            transcribe = engine._make_google_transcriber()
+            assert asyncio_run(transcribe(b"\x00\x01")) == "google text"
+
+    def test_transcribe_empty_text(self):
+        engine = VoiceEngine()
+        response = MagicMock()
+        response.text = None
+        with self._patch_genai(response):
+            transcribe = engine._make_google_transcriber()
+            assert asyncio_run(transcribe(b"\x00\x01")) == ""
+
+    def test_import_error(self):
+        engine = VoiceEngine()
+        with patch.dict("sys.modules", {"google": None}):
+            with pytest.raises(ImportError, match="google-genai is not installed"):
+                engine._make_google_transcriber()
+
+
+class TestGetTranscriberDispatch:
+    """The mode dispatch in _get_transcriber resolves the right factory."""
+
+    def test_dispatches_openai(self):
+        engine = VoiceEngine()
+        sentinel = AsyncMock()
+        with (
+            patch.object(engine, "_make_openai_transcriber", return_value=sentinel),
+            patch.dict(os.environ, {"ZRB_LLM_VOICE_MODE": "openai"}),
+        ):
+            assert asyncio_run(engine._get_transcriber()) is sentinel
+
+    def test_dispatches_google(self):
+        engine = VoiceEngine()
+        sentinel = AsyncMock()
+        with (
+            patch.object(engine, "_make_google_transcriber", return_value=sentinel),
+            patch.dict(os.environ, {"ZRB_LLM_VOICE_MODE": "google"}),
+        ):
+            assert asyncio_run(engine._get_transcriber()) is sentinel
+
+
+class TestMultimodalCapabilityGate:
+    """The multimodal backend rejects models that can't accept audio."""
+
+    def test_unsupported_modality_rejected(self):
+        engine = VoiceEngine()
+        engine._transcriber = None
+        with (
+            patch("zrb.llm.config.config.llm_config") as mock_cfg,
+            patch("zrb.llm.util.capabilities.model_capabilities") as mock_caps,
+            patch.dict(os.environ, {"ZRB_LLM_VOICE_MODE": "multimodal"}),
+        ):
+            mock_cfg.multimodal_model = "gemini:gemini-2.5-flash"
+            mock_cfg.resolve_model.return_value = "gemini:gemini-2.5-flash"
+            mock_caps.supports_modality.return_value = False
+            with pytest.raises(RuntimeError, match="does not support audio"):
+                asyncio_run(engine._get_transcriber())
+
+
+class TestEngineHelpers:
+    """Tests for module-level helper functions."""
+
+    def test_is_openai_chat_model_strings(self):
+        from zrb.llm.voice.engine import _is_openai_chat_model
+
+        assert _is_openai_chat_model("openai:gpt-4o") is True
+        assert _is_openai_chat_model("gpt-4o") is True
+        assert _is_openai_chat_model("o1-mini") is True
+        assert _is_openai_chat_model("gemini-2.5-flash") is False
+        assert _is_openai_chat_model(123) is False
+
+    def test_is_openai_chat_model_instance(self):
+        from zrb.llm.voice.engine import _is_openai_chat_model
+
+        class FakeModel:
+            pass
+
+        fake_mod = MagicMock()
+        fake_mod.OpenAIChatModel = FakeModel
+        fake_mod.OpenAIModel = FakeModel
+        with patch.dict("sys.modules", {"pydantic_ai.models.openai": fake_mod}):
+            assert _is_openai_chat_model(FakeModel()) is True
+
+    def test_is_openai_chat_model_import_fallback(self):
+        from zrb.llm.voice.engine import _is_openai_chat_model
+
+        with patch.dict("sys.modules", {"pydantic_ai.models.openai": None}):
+            assert _is_openai_chat_model("openai:foo") is True
+            assert _is_openai_chat_model("bar") is False
+
+    def test_model_name_variants(self):
+        from zrb.llm.voice.engine import _model_name
+
+        assert _model_name("gpt-4o") == "gpt-4o"
+
+        obj = MagicMock()
+        obj.model_name = "the-model"
+        assert _model_name(obj) == "the-model"
+
+        class NoName:
+            model_name = None
+            name = None
+
+        assert _model_name(NoName()) == "NoName"
+
+    def test_get_vosk_model_dir_cache_hit(self):
+        from zrb.llm.voice.engine import _get_vosk_model_dir
+
+        with patch("os.path.isdir", side_effect=lambda p: p.endswith("mymodel")):
+            assert _get_vosk_model_dir("mymodel").endswith("mymodel")
+
+    def test_get_vosk_model_dir_env_hit(self):
+        from zrb.llm.voice.engine import _get_vosk_model_dir
+
+        with (
+            patch("os.path.isdir", side_effect=lambda p: p == "/env/model"),
+            patch.dict(os.environ, {"VOSK_MODEL_PATH": "/env/model"}),
+        ):
+            assert _get_vosk_model_dir("missing") == "/env/model"
+
+    def test_get_vosk_model_dir_none(self):
+        from zrb.llm.voice.engine import _get_vosk_model_dir
+
+        with (
+            patch("os.path.isdir", return_value=False),
+            patch.dict(os.environ, {}, clear=True),
+        ):
+            assert _get_vosk_model_dir("missing") is None
+
+
+class TestDownloadVoskModelBranches:
+    """Additional branches of the chunked download helper."""
+
+    def test_read_failure_raises(self):
+        fake_resp = MagicMock()
+        fake_resp.read.side_effect = OSError("read broke")
+        with (
+            patch("urllib.request.urlopen", return_value=fake_resp),
+            patch("os.makedirs"),
+        ):
+            with pytest.raises(RuntimeError, match="Failed to download Vosk model"):
+                asyncio_run(_download_vosk_model("m", "http://host"))
+        fake_resp.close.assert_called_once()
+
+    def test_missing_dir_after_extract_raises(self):
+        fake_resp = MagicMock()
+        fake_resp.read.side_effect = [b"data", b""]
+        with (
+            patch("urllib.request.urlopen", return_value=fake_resp),
+            patch("zipfile.ZipFile"),
+            patch("os.makedirs"),
+            patch("os.path.isdir", return_value=False),
+        ):
+            with pytest.raises(
+                RuntimeError, match="did not produce expected directory"
+            ):
+                asyncio_run(_download_vosk_model("m", "http://host"))
 
 
 def asyncio_run(coro):
