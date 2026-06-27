@@ -21,6 +21,12 @@ _DEFAULT_TEMPLATE_PATH = os.path.join(
 # (including `-c ...` config injection, which lands in args[0]) is refused.
 _ALLOWED_GIT = {"diff", "log", "show", "shortlog", "tag"}
 
+# SHA of git's permanent empty-tree object. Hard-coded in git's C source since
+# 2008 (commit 346245a1bb by Jeff King); returned synthetically by
+# find_cached_object() without ever being stored on disk. Valid in every repo.
+# Reproduce with: git hash-object -t tree /dev/null
+_EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+
 
 @make_task(
     name="generate-changelog",
@@ -84,7 +90,7 @@ async def _matching_tags(ctx, repo_dir, sort, regex):
     result, code = await run_command(
         cmd=["git", "tag", f"--sort={sort}"],
         cwd=repo_dir,
-        print_method=ctx.print,
+        print_method=lambda *_: None,
     )
     if code != 0:
         raise Exception(f"git tag failed with exit code {code}")
@@ -94,29 +100,75 @@ async def _matching_tags(ctx, repo_dir, sort, regex):
     return [t.strip() for t in result.output.splitlines() if regex.match(t.strip())]
 
 
-async def _git(ctx, repo_dir, args):
-    result, _ = await run_command(
-        cmd=["git", *args], cwd=repo_dir, print_method=ctx.print
+async def _summarize(ctx, repo_dir, template, tag, previous):
+    from zrb.llm.agent import create_agent  # lazy: pydantic_ai is a heavy extra
+
+    log, stat, date = await _collect_log(ctx, repo_dir, tag, previous)
+    # Pre-fill the values we already know; the LLM fills the section details.
+    skeleton = (
+        template.replace("{tag}", tag)
+        .replace("{previous_tag}", previous or "(initial release)")
+        .replace("{date}", date)
     )
+    instruction = (
+        f"Write the changelog for release {tag} "
+        f"(previous release: {previous or 'none — this is the initial release'}).\n\n"
+        f"Commit log:\n{log}\n\n"
+        f"Change statistics (files changed, insertions, deletions):\n{stat}\n\n"
+        f"Use the `git` tool to inspect individual file diffs only where the "
+        f"commit log or stats above are unclear — always use --stat first to "
+        f"identify relevant files, then fetch a specific file with "
+        f'["diff", "{previous or _EMPTY_TREE}..{tag}", "--", "path/to/file"]. '
+        f"Skip generated or lock files (poetry.lock, package-lock.json, "
+        f"*.pb.go, auto-migrations) as they carry no changelog signal. "
+        "Fill in the section details of this template, keeping "
+        "its structure and headings; drop sections that have no entries:\n\n"
+        f"{skeleton}\n\n"
+        "Output only the resulting changelog markdown, nothing else."
+    )
+    agent = create_agent(tools=[_make_git_tool(ctx, repo_dir)], yolo=True)
+    result = await agent.run(instruction)
     return result.output
 
 
 async def _collect_log(ctx, repo_dir, tag, previous):
-    rng = f"{previous}..{tag}" if previous else tag
-    log = await _git(ctx, repo_dir, ["log", "--no-merges", "--pretty=- %s", rng])
+    log_rng = f"{previous}..{tag}" if previous else tag
+    # `--` prevents "ambiguous argument" when a ref name resembles a path.
+    log = await _git(
+        ctx, repo_dir, ["log", "--no-merges", "--pretty=- %s", log_rng, "--"]
+    )
+    if previous:
+        # Normal range: both sides are commits, `..` syntax is correct.
+        stat_args = ["diff", "--stat", f"{previous}..{tag}", "--"]
+    else:
+        # Initial release: _EMPTY_TREE is a tree object, not a commit.
+        # Space-separated (not `..`) lets git diff two tree-ish objects directly.
+        stat_args = ["diff", "--stat", _EMPTY_TREE, tag, "--"]
+    # Stat is non-fatal — suppress its output since we fall back to "" on error.
+    stat = await _git(ctx, repo_dir, stat_args, silent=True)
+    if stat.startswith("[git error"):
+        stat = ""
     date = (await _git(ctx, repo_dir, ["log", "-1", "--format=%cs", tag])).strip()
-    return log, date
+    return log, stat, date
 
 
 def _make_git_tool(ctx, repo_dir):
     async def git(args: list[str]) -> str:
         """Run a read-only git command to inspect changes in this repo.
 
-        Pass the subcommand and its arguments as a list, e.g.
-        ["diff", "--stat", "v1.0.0..v1.1.0"] or
-        ["show", "v1.1.0", "--", "path/to/file"]. Allowed subcommands:
-        diff, log, show, shortlog, tag. Use this when the commit log already
-        provided is not enough to describe a change accurately.
+        Pass the subcommand and its arguments as a list. Always include "--"
+        before any file path to avoid "ambiguous argument" errors. Examples:
+        - ["diff", "--stat", "v1.0.0..v1.1.0", "--"] — see all files changed
+        - ["diff", "v1.0.0..v1.1.0", "--", "src/module.py"] — inspect one file
+        - ["log", "--oneline", "v1.0.0..v1.1.0", "--"] — compact commit list
+        - ["show", "abc1234"] — inspect a single commit
+
+        Allowed subcommands: diff, log, show, shortlog, tag.
+
+        Strategy: call with --stat first to see which files changed, then fetch
+        individual files that need clarification. Skip generated or lock files
+        (e.g. poetry.lock, package-lock.json, *.pb.go, migration auto-files)
+        — their diffs are massive but carry no meaningful changelog signal.
         """
         if not args or args[0] not in _ALLOWED_GIT:
             return (
@@ -128,26 +180,12 @@ def _make_git_tool(ctx, repo_dir):
     return git
 
 
-async def _summarize(ctx, repo_dir, template, tag, previous):
-    from zrb.llm.agent import create_agent  # lazy: pydantic_ai is a heavy extra
-
-    log, date = await _collect_log(ctx, repo_dir, tag, previous)
-    # Pre-fill the values we already know; the LLM fills the section details.
-    skeleton = (
-        template.replace("{tag}", tag)
-        .replace("{previous_tag}", previous or "(initial release)")
-        .replace("{date}", date)
+async def _git(ctx, repo_dir, args, silent=False):
+    result, code = await run_command(
+        cmd=["git", *args],
+        cwd=repo_dir,
+        print_method=(lambda *_: None) if silent else ctx.print,
     )
-    instruction = (
-        f"Write the changelog for release {tag} "
-        f"(previous release: {previous or 'none — this is the initial release'}).\n\n"
-        f"Commit log:\n{log}\n\n"
-        "Use the `git` tool to inspect diffs/stats only where the commit log "
-        "above is unclear. Fill in the section details of this template, keeping "
-        "its structure and headings; drop sections that have no entries:\n\n"
-        f"{skeleton}\n\n"
-        "Output only the resulting changelog markdown, nothing else."
-    )
-    agent = create_agent(tools=[_make_git_tool(ctx, repo_dir)], yolo=True)
-    result = await agent.run(instruction)
+    if code != 0:
+        return f"[git error exit={code}]\n{result.error or result.output}".strip()
     return result.output
