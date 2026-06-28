@@ -60,6 +60,71 @@ if TYPE_CHECKING:
 class ExecMixin:
     """Execution + resource lifecycle for LLMChatTask."""
 
+    if TYPE_CHECKING:
+        # Attributes/methods provided by the composed LLMChatTask and its
+        # sibling mixins. Declared here so pyright can resolve them when
+        # ExecMixin is type-checked in isolation (same pattern as the UI
+        # mixins, e.g. keybindings_mixin.py). Complex unions/callables are
+        # annotated `Any` deliberately; the concrete types live on LLMChatTask.
+        _ui_summarize_commands: list[str]
+        _ui_attach_commands: list[str]
+        _ui_exit_commands: list[str]
+        _ui_info_commands: list[str]
+        _ui_save_commands: list[str]
+        _ui_load_commands: list[str]
+        _ui_rewind_commands: list[str]
+        _ui_redirect_output_commands: list[str]
+        _ui_yolo_toggle_commands: list[str]
+        _ui_set_model_commands: list[str]
+        _ui_exec_commands: list[str]
+        _ui_btw_commands: list[str]
+        _ui_plan_commands: list[str]
+        _ui_copy_commands: list[str]
+        _ui_voice_commands: list[str]
+        _render_system_prompt: bool
+        _render_active_skills: bool
+        _render_message: bool
+        _render_model: bool
+        _render_conversation_name: bool
+        _yolo_xcom_key: str
+        _active_skills: Any
+        _approval_channels: Any
+        _argument_formatters: Any
+        _attachment: Any
+        _capabilities: Any
+        _conversation_name: Any
+        _enable_rewind: Any
+        _history_manager: Any
+        _history_processors: Any
+        _hook_factories: Any
+        _interactive: Any
+        _llm_config: Any
+        _llm_limiter: Any
+        _message: Any
+        _model: Any
+        _permissions: Any
+        _prompt_manager: Any
+        _response_handlers: Any
+        _sandbox: Any
+        _snapshot_dir: Any
+        _system_prompt: Any
+        _tool_confirmation: Any
+        _tool_factories: Any
+        _tool_guidance_factories: Any
+        _tool_guidance_section_factories: Any
+        _tool_policies: Any
+        _tools: Any
+        _toolset_factories: Any
+        _toolsets: Any
+        _uis: Any
+        _yolo: Any
+        _apply_tool_guidance: Any
+        _run_interactive_session: Any
+        _run_non_interactive_session: Any
+        # From BaseTask (the concrete base LLMChatTask extends).
+        name: str
+        envs: Any
+
     def get_system_prompt(self, ctx: AnyContext) -> str:
         if self._prompt_manager is None:
             return ""
@@ -313,6 +378,11 @@ class ExecMixin:
                 self._ui_copy_commands
                 if self._ui_copy_commands
                 else CFG.LLM_UI_COMMAND_COPY
+            ),
+            "voice": (
+                self._ui_voice_commands
+                if self._ui_voice_commands
+                else CFG.LLM_UI_COMMAND_VOICE
             ),
         }
 

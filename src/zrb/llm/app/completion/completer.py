@@ -41,8 +41,10 @@ class InputCompleter(Completer):
         summarize_commands: list[str] = [],
         set_model_commands: list[str] = [],
         exec_commands: list[str] = [],
+        btw_commands: list[str] = [],
         plan_commands: list[str] = [],
         copy_commands: list[str] = [],
+        voice_commands: list[str] = [],
         custom_commands: list[AnyCustomCommand] = [],
         custom_model_names: list[str] = [],
         show_ollama_models: bool = True,
@@ -62,8 +64,10 @@ class InputCompleter(Completer):
         self._summarize_commands = summarize_commands
         self._set_model_commands = set_model_commands
         self._exec_commands = exec_commands
+        self._btw_commands = btw_commands
         self._plan_commands = plan_commands
         self._copy_commands = copy_commands
+        self._voice_commands = voice_commands
         self._custom_commands = custom_commands
         self._custom_model_names = custom_model_names
         self._show_ollama_models = show_ollama_models
@@ -131,8 +135,10 @@ class InputCompleter(Completer):
             + self._redirect_output_commands
             + self._set_model_commands
             + self._exec_commands
+            + self._btw_commands
             + self._plan_commands
             + self._copy_commands
+            + self._voice_commands
         )
         return all_commands + [cc.command for cc in self._custom_commands]
 
@@ -199,11 +205,16 @@ class InputCompleter(Completer):
                 self._exec_commands,
                 lambda cmd: f"Execute CLI command (i.e., {cmd} <command>)",
             ),
+            (
+                self._btw_commands,
+                lambda cmd: f"Ask side question (i.e., {cmd} <question>)",
+            ),
             (self._plan_commands, "Toggle PLAN mode (read-only) on/off"),
             (
                 self._copy_commands,
                 lambda cmd: f"Copy transcript to clipboard (bare) or to file (i.e., {cmd} <path>)",
             ),
+            (self._voice_commands, "Toggle voice dictation on/off"),
         ]
         for cmds, meta in groups:
             yield from self._yield_command_completions(

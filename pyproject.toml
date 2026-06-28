@@ -1,6 +1,6 @@
 [project]
 name = "zrb"
-version = "2.43.1"
+version = "2.44.0"
 description = "Your Automation Powerhouse"
 authors = [{name = "Go Frendi Gunawan", email = "gofrendiasgard@gmail.com"}]
 license = "AGPL-3.0-or-later"
@@ -72,10 +72,10 @@ documentation = "https://github.com/state-alchemists/zrb"
 [project.optional-dependencies]
 # Install all extras:
 # - poetry install --all-extras
-# - pip install "zrb[rag,playwright,cohere,vertexai,google,anthropic,groq,xai,bedrock,huggingface,voyageai]"
+# - pip install "zrb[rag,playwright,cohere,vertexai,google,anthropic,groq,xai,bedrock,huggingface,voyageai,voice]"
 # Install a specific extra:
-# - poetry install -E rag
-# - pip install "zrb[rag]"
+# - poetry install -E voice
+# - pip install "zrb[voice]"
 #
 # NOTE: Make sure these dependencies do not conflict with pydantic-ai-slim. Security
 # pins on transitive packages are annotated inline on the dependency that carries them.
@@ -110,6 +110,12 @@ voyageai = [
     # Security fix: GHSA-3644-q5cj-c5c7 (CVE-2026-45134) - unsafe prompt-manifest deserialization.
     # Security fix: GHSA-f4xh-w4cj-qxq8 - TracingMiddleware arbitrary server-side file read.
     "langsmith>=0.8.18",
+]
+voice = [
+    "vosk>=0.3.44,<0.3.45; sys_platform == 'darwin'",
+    "vosk>=0.3.45; sys_platform != 'darwin'",
+    "sounddevice>=0.5.1",
+    "numpy>=1.26.0",
 ]
 
 [project.scripts]

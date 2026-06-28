@@ -108,6 +108,7 @@ async def test_run_interactive_session_basic(runner):
             "btw",
             "plan",
             "copy",
+            "voice",
             "build",
         ]
     }
@@ -157,6 +158,7 @@ async def test_run_interactive_session_with_factories_and_multiplex(runner):
             "btw",
             "plan",
             "copy",
+            "voice",
             "build",
         ]
     }

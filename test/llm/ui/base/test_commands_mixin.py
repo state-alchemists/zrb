@@ -1,4 +1,5 @@
 import asyncio
+import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -22,6 +23,11 @@ class MockUI(CommandsMixin):
         self._plan_commands = ["/plan"]
         self._summarize_commands = ["/summarize"]
         self._copy_commands = []
+        self._voice_commands = ["/voice"]
+        self._voice_mode_active = False
+        self._voice_recording_active = False
+        self._voice_task = None
+        self._voice_stop_event = None
         self._custom_commands = []
 
         self.execute_hook = MagicMock()
@@ -557,3 +563,67 @@ async def test_command_dispatch_exception_is_logged(ui):
     ui.schedule_command("/help")
     assert len(ui._background_tasks) == 1
     await list(ui._background_tasks)[0]
+
+
+# ── Voice command tests (ADR-0081) ──────────────────────────────────────
+
+
+def test_handle_toggle_voice_enables(ui):
+    """`/voice` toggles voice mode on when disabled."""
+    with patch.dict(os.environ, {"ZRB_LLM_VOICE_ENABLED": "true"}):
+        assert ui._voice_mode_active is False
+        result = ui._handle_toggle_voice("/voice")
+        assert result is True
+        assert ui._voice_mode_active is True
+        assert any("ON" in o for o in ui.outputs)
+
+
+def test_handle_toggle_voice_disables(ui):
+    """`/voice` toggles voice mode off when enabled."""
+    ui._voice_mode_active = True
+    with patch.dict(os.environ, {"ZRB_LLM_VOICE_ENABLED": "true"}):
+        result = ui._handle_toggle_voice("/voice")
+        assert result is True
+        assert ui._voice_mode_active is False
+        assert any("OFF" in o for o in ui.outputs)
+
+
+def test_handle_toggle_voice_blocked_when_disabled(ui):
+    """`/voice` shows a message when voice is not enabled in config."""
+    with patch.dict(os.environ, {"ZRB_LLM_VOICE_ENABLED": "false"}):
+        result = ui._handle_toggle_voice("/voice")
+        assert result is True
+        assert ui._voice_mode_active is False
+        assert any("not enabled" in o for o in ui.outputs)
+
+
+def test_voice_command_in_help_text(ui):
+    """Help text includes /voice when voice is enabled."""
+    with patch.dict(os.environ, {"ZRB_LLM_VOICE_ENABLED": "true"}):
+        help_text = ui._get_help_text()
+        assert "/voice" in help_text
+
+
+def test_voice_command_always_in_help(ui):
+    """Help text always shows /voice regardless of voice enabled state."""
+    with patch.dict(os.environ, {"ZRB_LLM_VOICE_ENABLED": "false"}):
+        help_text = ui._get_help_text()
+        assert "/voice" in help_text
+    with patch.dict(os.environ, {"ZRB_LLM_VOICE_ENABLED": "true"}):
+        help_text = ui._get_help_text()
+        assert "/voice" in help_text
+
+
+def test_classify_input_recognizes_voice(ui):
+    """`/voice` is classified as a thinking_command."""
+    with patch.dict(os.environ, {"ZRB_LLM_VOICE_ENABLED": "true"}):
+        assert ui.classify_input("/voice") == "thinking_command"
+
+
+def test_voice_handler_rejects_non_voice_input(ui):
+    """`/q`, `/exit`, random text do NOT trigger the voice handler."""
+    with patch.dict(os.environ, {"ZRB_LLM_VOICE_ENABLED": "true"}):
+        assert ui._handle_toggle_voice("/q") is False
+        assert ui._handle_toggle_voice("/exit") is False
+        assert ui._handle_toggle_voice("hello") is False
+        assert ui._handle_toggle_voice("/voice") is True

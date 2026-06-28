@@ -27,6 +27,7 @@ class LLMUICommandsMixin:
         self.DEFAULT_LLM_UI_COMMAND_BTW: str = "/btw"
         self.DEFAULT_LLM_UI_COMMAND_PLAN_TOGGLE: str = "/plan"
         self.DEFAULT_LLM_UI_COMMAND_COPY: str = "/copy"
+        self.DEFAULT_LLM_UI_COMMAND_VOICE: str = "/voice"
         super().__init__()
 
     LLM_UI_COMMAND_SUMMARIZE = EnvField(
@@ -111,4 +112,10 @@ class LLMUICommandsMixin:
         comma_list,
         serialize=comma_join,
         doc="Comma-separated command aliases to copy the last assistant response to the clipboard.",
+    )
+
+    LLM_UI_COMMAND_VOICE = EnvField(
+        comma_list,
+        serialize=comma_join,
+        doc="Comma-separated command aliases to toggle voice dictation mode.",
     )
