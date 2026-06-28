@@ -43,7 +43,9 @@ def _collect_entries(keyword: str) -> list[tuple[str, str, str]]:
                 value = "" if raw is None else attr_val._serialize(raw)
             except Exception:
                 value = "(error)"
-            description = attr_val.__doc__ or ""
+            description = (attr_val.__doc__ or "").replace(
+                "{ENV_PREFIX}", CFG.ENV_PREFIX
+            )
             if kw and kw not in env_var.lower() and kw not in description.lower():
                 continue
             entries.append((env_var, value, description))

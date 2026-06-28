@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from zrb.config.config import CFG
 from zrb.llm.permission import (
     DENY,
     Capability,
@@ -86,8 +87,8 @@ def sandbox_gate(tool_name: str, capability: Any, args: dict[str, Any]) -> Any:
                 f"Blocked by sandbox policy: {reason}. "
                 "[SYSTEM SUGGESTION]: work within the project directory, or "
                 "ask the user to extend the sandbox writable paths "
-                "(LLM_SANDBOX_WRITABLE_PATHS) / adjust the deny list "
-                "(LLM_SANDBOX_DENY_READ_PATHS)."
+                f"({CFG.ENV_PREFIX}_LLM_SANDBOX_WRITABLE_PATHS) / adjust the deny list "
+                f"({CFG.ENV_PREFIX}_LLM_SANDBOX_DENY_READ_PATHS)."
             ),
             metadata={"blocked": True},
         )

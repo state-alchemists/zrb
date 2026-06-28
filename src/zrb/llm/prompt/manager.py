@@ -492,7 +492,7 @@ class PromptManager:
                     f"Prompt section '{name}' is not a built-in, has no "
                     "registered provider, and no markdown file resolves for "
                     "it — the section is empty. Check include_sections / "
-                    "ZRB_LLM_INCLUDE_SECTIONS for a typo."
+                    f"{CFG.ENV_PREFIX}_LLM_INCLUDE_SECTIONS for a typo."
                 )
                 log_warning = getattr(ctx, "log_warning", None)
                 if callable(log_warning):

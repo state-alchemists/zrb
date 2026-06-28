@@ -48,7 +48,8 @@ async def run_shell_command(
             return (
                 f"Command refused by sandbox policy: {e}. "
                 "[SYSTEM SUGGESTION]: this deployment requires OS-level "
-                "sandboxing for shell commands (LLM_SANDBOX_FALLBACK=deny)."
+                "sandboxing for shell commands "
+                f"({CFG.ENV_PREFIX}_LLM_SANDBOX_FALLBACK=deny)."
             )
         return (
             f"Started background process. Handle: {handle}. "
@@ -78,7 +79,7 @@ async def run_shell_command(
         return (
             f"Command refused by sandbox policy: {e}. "
             "[SYSTEM SUGGESTION]: this deployment requires OS-level sandboxing "
-            "for shell commands (LLM_SANDBOX_FALLBACK=deny). Use the in-process "
+            f"for shell commands ({CFG.ENV_PREFIX}_LLM_SANDBOX_FALLBACK=deny). Use the in-process "
             "file tools instead, or ask the user to adjust the sandbox "
             "configuration."
         )

@@ -67,7 +67,7 @@ class LLMPromptMixin:
         serialize=_include_sections_serialize,
         doc=(
             "Order-sensitive list of prompt sections to include.\n\n"
-            "Read from ZRB_LLM_INCLUDE_SECTIONS (comma-separated). Falls back "
+            "Read from {ENV_PREFIX}_LLM_INCLUDE_SECTIONS (comma-separated). Falls back "
             "to the default in DEFAULT_LLM_INCLUDE_SECTIONS."
         ),
     )
