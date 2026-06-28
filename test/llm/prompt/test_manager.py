@@ -1,3 +1,5 @@
+import os
+import tempfile
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -190,6 +192,125 @@ def test_add_live_context_handles_none_return():
         rendered = manager.create_live_context(ctx)
 
     assert "Time:" in rendered
+
+
+def _render_with_journal(
+    inject_journal_index: bool,
+    index_body: str,
+    sections: list[str] | None = None,
+) -> str:
+    """Render live-context with a temp journal index, returning the block.
+
+    *sections* defaults to ``["journal_mandate"]`` because the journal index is
+    coupled to that section (ADR-0082): it is emitted only when journal_mandate
+    is active. Pass ``[]`` to exercise the suppression path.
+    """
+    manager = PromptManager(
+        include_sections=["journal_mandate"] if sections is None else sections
+    )
+    ctx = MagicMock()
+    ctx.input.session = "journal-test"
+    with tempfile.TemporaryDirectory() as journal_dir:
+        with open(os.path.join(journal_dir, "index.md"), "w", encoding="utf-8") as f:
+            f.write(index_body)
+        env = {
+            "ZRB_LLM_JOURNAL_DIR": journal_dir,
+            "ZRB_LLM_JOURNAL_INDEX_FILE": "index.md",
+        }
+        with (
+            patch.dict(os.environ, env),
+            patch("zrb.llm.tool.plan.todo_manager") as mock_tm,
+        ):
+            mock_tm.get_todos.return_value = None
+            return manager.create_live_context(
+                ctx, inject_journal_index=inject_journal_index
+            )
+
+
+def test_live_context_includes_journal_index_when_requested():
+    """The journal index snapshot is injected when inject_journal_index is set."""
+    rendered = _render_with_journal(
+        inject_journal_index=True, index_body="# My Journal Hub"
+    )
+    assert "<journal-index>" in rendered
+    assert "</journal-index>" in rendered
+    assert "My Journal Hub" in rendered
+
+
+def test_live_context_omits_journal_index_by_default():
+    """Without the flag the index is omitted — it is already present in history."""
+    rendered = _render_with_journal(
+        inject_journal_index=False, index_body="# My Journal Hub"
+    )
+    assert "My Journal Hub" not in rendered
+    assert "<journal-index>" not in rendered
+    # The volatile per-turn lines still render.
+    assert "Time:" in rendered
+
+
+def test_live_context_skips_empty_journal_index():
+    """An empty index file produces no journal block even when requested."""
+    rendered = _render_with_journal(inject_journal_index=True, index_body="   \n")
+    assert "<journal-index>" not in rendered
+
+
+def test_live_context_couples_journal_index_to_journal_mandate_section():
+    """Even with the flag set, the index is suppressed when journal_mandate is
+    not an active section — the index is coupled to that section (ADR-0082)."""
+    rendered = _render_with_journal(
+        inject_journal_index=True, index_body="# My Journal Hub", sections=[]
+    )
+    assert "<journal-index>" not in rendered
+    assert "My Journal Hub" not in rendered
+    # The volatile per-turn lines still render.
+    assert "Time:" in rendered
+
+
+def test_compose_explicit_register_uses_variant():
+    """ZRB_LLM_PROFILE=explicit selects the explicit phrasing variant."""
+    manager = PromptManager(include_sections=["persona"])
+    manager.model = "anthropic:claude-opus-4-8"
+    with patch.dict(os.environ, {"ZRB_LLM_PROFILE": "explicit"}):
+        prompt = manager.compose_prompt()(SharedContext())
+    assert "No preamble" in prompt  # explicit persona variant
+
+
+def test_compose_explicit_includes_examples_section_when_listed():
+    """When examples is in include_sections, profile=explicit resolves examples.explicit.md."""
+    manager = PromptManager(include_sections=["persona", "examples"])
+    manager.model = "anthropic:claude-opus-4-8"
+    with patch.dict(os.environ, {"ZRB_LLM_PROFILE": "explicit"}):
+        prompt = manager.compose_prompt()(SharedContext())
+    assert "No preamble" in prompt  # explicit persona variant
+    assert "Worked Examples" in prompt  # examples section (explicit variant)
+
+
+def test_compose_auto_defaults_to_terse_base():
+    """auto makes no capability guess — terse base, no examples — for any model."""
+    manager = PromptManager(include_sections=["persona"])
+    manager.model = (
+        "deepseek:deepseek-v4-pro"  # a frontier model; must not be guessed weak
+    )
+    with patch.dict(os.environ, {"ZRB_LLM_PROFILE": "auto"}):
+        prompt = manager.compose_prompt()(SharedContext())
+    assert "Match depth and format" in prompt  # base persona
+    assert "Worked Examples" not in prompt  # no examples under terse
+
+
+def test_compose_auto_honors_declared_model_profile():
+    """A declared per-model mapping drives auto resolution through compose."""
+    from zrb.llm.prompt.profile import model_profile_registry, register_model_profile
+
+    manager = PromptManager(include_sections=["persona", "examples"])
+    manager.model = "ollama:my-small-3b"
+    register_model_profile("my-small-3b", "explicit")
+    try:
+        with patch.dict(os.environ, {"ZRB_LLM_PROFILE": "auto"}):
+            prompt = manager.compose_prompt()(SharedContext())
+    finally:
+        model_profile_registry.clear()
+    assert "No preamble" in prompt
+    assert "Worked Examples" in prompt
 
 
 def test_add_live_context_swallows_provider_exceptions():

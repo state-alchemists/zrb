@@ -20,6 +20,7 @@ class RAGMixin:
     RAG_EMBEDDING_API_KEY = EnvField(
         str,
         nullable=True,
+        secret=True,
         doc="API key for the embedding model provider. Unset defers to the provider's own env var.",
     )
 

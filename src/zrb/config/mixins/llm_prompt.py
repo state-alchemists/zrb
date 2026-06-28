@@ -30,12 +30,19 @@ class LLMPromptMixin:
         # The skill catalogue is injected into mandate via {CORE_SKILLS}/
         # {AVAILABLE_SKILLS}/{PREACTIVATED_SKILLS} placeholders, not a separate section.
         self.DEFAULT_LLM_INCLUDE_SECTIONS: str = (
-            "persona,mandate,git_mandate,journal_mandate,system_context,"
+            "persona,mandate,examples,git_mandate,journal_mandate,system_context,"
             "project_context,tool_guidance"
         )
         # Runtime journaling reminder — separate from the journal_mandate
         # prompt section, which is controlled by LLM_INCLUDE_SECTIONS.
         self.DEFAULT_LLM_INCLUDE_JOURNAL_REMINDER: str = "off"
+        # Prompt profile (ADR-0083): "terse" (base prompts) or "explicit"
+        # (directive, with examples, for weaker models); "auto" uses "terse"
+        # unless a per-model profile is declared via register_model_profile().
+        # zrb makes no capability guess from the model id. The profile selects
+        # per-section phrasing variants (e.g. persona.explicit.md over persona.md);
+        # which sections appear is controlled solely by LLM_INCLUDE_SECTIONS.
+        self.DEFAULT_LLM_PROFILE: str = "auto"
         super().__init__()
 
     LLM_PROMPT_DIR = EnvField(
@@ -65,15 +72,26 @@ class LLMPromptMixin:
     LLM_INCLUDE_SECTIONS = EnvField(
         comma_list,
         serialize=_include_sections_serialize,
-        doc=(
-            "Order-sensitive list of prompt sections to include.\n\n"
-            "Read from {ENV_PREFIX}_LLM_INCLUDE_SECTIONS (comma-separated). Falls back "
-            "to the default in DEFAULT_LLM_INCLUDE_SECTIONS."
-        ),
+        doc="Order-sensitive list of prompt sections to include (comma-separated).",
     )
 
     LLM_INCLUDE_JOURNAL_REMINDER = EnvField(
         to_boolean,
         serialize=on_off,
         doc="Inject a journaling reminder into the system prompt at each turn (separate from journal_mandate section).",
+    )
+
+    LLM_PROFILE = EnvField(
+        str,
+        doc=(
+            "Prompt profile controlling how each section is phrased:\n"
+            "- 'terse': concise, principle-led — the base prompts.\n"
+            "- 'explicit': more directive, with worked examples, for weaker "
+            "models.\n"
+            "- 'auto' (default): uses 'terse' unless a per-model profile has "
+            "been declared via register_model_profile().\n\n"
+            "The profile selects per-section phrasing variants (e.g. "
+            "persona.explicit.md, falling back to the base file) and toggles the "
+            "examples section.\n\n"
+        ),
     )

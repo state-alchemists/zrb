@@ -282,12 +282,20 @@ class BuilderMixin:
         compose_prompt = self._prompt_manager.compose_prompt()
         return compose_prompt(ctx)
 
-    def get_live_context(self, ctx: AnyContext) -> str:
+    def get_live_context(
+        self, ctx: AnyContext, inject_journal_index: bool = False
+    ) -> str:
         """Render the per-turn ``<live-context>`` block injected into the user
-        turn. Empty string when there is no prompt manager (nothing to wire)."""
+        turn. Empty string when there is no prompt manager (nothing to wire).
+
+        ``inject_journal_index`` appends the journal index snapshot. Callers set
+        it only when the index is absent from history, so it is paid once per
+        context window and re-seeded after summarization drops it."""
         if self._prompt_manager is None:
             return ""
-        return self._prompt_manager.create_live_context(ctx)
+        return self._prompt_manager.create_live_context(
+            ctx, inject_journal_index=inject_journal_index
+        )
 
     def _get_model_settings(self, ctx: AnyContext) -> ModelSettings | None:
         model_settings = self._model_settings

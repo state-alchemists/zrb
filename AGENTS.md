@@ -26,7 +26,7 @@ The tree is self-describing — `ls src/zrb/` plus each module's docstring cover
 
 `PromptManager` (`src/zrb/llm/prompt/manager.py`) assembles the system prompt from ordered sections. Default order in `config/mixins/llm_prompt.py::DEFAULT_LLM_INCLUDE_SECTIONS`:
 
-`persona → mandate → git_mandate → journal_mandate → system_context → project_context → tool_guidance`
+`persona → mandate → examples → git_mandate → journal_mandate → system_context → project_context → tool_guidance`
 
 User-added prompts follow. Override via the `include_sections` constructor parameter or the `ZRB_LLM_INCLUDE_SECTIONS` env var (comma-separated, order-sensitive).
 
@@ -35,6 +35,17 @@ A section name that is **not** a built-in resolves as a custom, config-positione
 - **Markdown file** — otherwise the name resolves via `get_prompt(name)` (project-override → env → base-prompt-dir → package), so `company_context` loads `company_context.md` with the usual `{PLACEHOLDER}` substitution. Missing files resolve to `""` (harmless no-op; a warning is logged at compose time so an unknown/misspelled name is diagnosable).
 
 Either way, downstreams add ordered sections without editing `PromptManager`. See ADR-0061.
+
+### Profile (model-adaptive phrasing)
+
+A second axis controls *how* each section is phrased, independent of *which* sections appear (ADR-0083). The `ZRB_LLM_PROFILE` knob (`CFG.LLM_PROFILE`, default `auto`) selects a **profile**:
+
+- `terse` / `explicit` — force that profile. `terse` is the concise, principle-led base; `explicit` is more imperative/repeated/exemplified for weaker models.
+- `auto` (default) — resolves to `terse` **unless** a per-model mapping was declared. zrb makes **no capability guess from the model id** — there is no reliable cross-provider way to measure strength from a string (family names like `deepseek`/`qwen`/`llama` span tiny→frontier). Per-model selection is *declared*, not inferred: `register_model_profile("my-7b", "explicit")` (`prompt/profile.py`), mirroring the `model_capabilities` registry. See `resolve_profile`.
+
+The base `*.md` files **are** the `terse` profile. Other profiles are **variant overlays**: `get_prompt(name, profile="explicit")` resolves `{name}.explicit.md` through the full override chain, falling back to the base `{name}.md` when no variant exists — so a profile only needs variant files for the sections whose phrasing actually changes (currently `persona.explicit.md`). Weak ≠ fewer rules: the explicit profile is *more* directive, not shorter. The `examples` section is always in the default section list; its base file (`examples.md`) is empty and emits nothing, while `examples.explicit.md` carries few-shot blocks that only resolve under the explicit profile.
+
+`PromptManager._get_composed_middlewares` resolves the profile once (from `CFG.LLM_PROFILE` + `self._model`) and threads it to file-backed sections. Cross-cutting voice that does not decompose into a variant stays a whole alternate section/preset (the selection escape hatch).
 
 **Each section is MECE — a single behavior lives in exactly one section.** Adding a rule: pick the smallest-scope section that owns the concept.
 

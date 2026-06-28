@@ -264,8 +264,13 @@ class LLMTask(BuilderMixin, HistoryMixin, BaseTask):  # type: ignore[reportIncom
         # Render the volatile per-turn state separately and inject it into the
         # user turn (not the system prompt) so the cacheable prefix stays
         # byte-stable. This call also performs per-turn ambient-state wiring
-        # (session/interactive/worktree) — it must run every turn.
-        live_context = self.get_live_context(ctx)
+        # (session/interactive/worktree) — it must run every turn. The journal
+        # index snapshot is seeded on the first turn only (empty history); each
+        # later summarization re-seeds it at its own site (summarize_history), so
+        # the index is always present without living in the cached system prompt.
+        live_context = self.get_live_context(
+            ctx, inject_journal_index=not message_history
+        )
         agent = self._create_agent(ctx, system_prompt=system_prompt)
         effective_message, effective_attachments = self._get_effective_prompt(
             ctx, user_message, user_attachments, message_history
@@ -346,7 +351,14 @@ class LLMTask(BuilderMixin, HistoryMixin, BaseTask):  # type: ignore[reportIncom
             and user_message.strip() in self._summarize_command
         ):
             ctx.print("Compressing conversation history...", plain=True)
-            new_history = await summarize_history(message_history, force=True)
+            new_history = await summarize_history(
+                message_history,
+                force=True,
+                inject_journal_index=(
+                    self._prompt_manager is not None
+                    and "journal_mandate" in self._prompt_manager.active_sections
+                ),
+            )
             history_manager.update(conversation_name, new_history)
             history_manager.save(conversation_name)
             return True

@@ -90,3 +90,55 @@ def test_get_prompt_journal_mandate_with_local_override():
                 assert "This is a local override" in prompt
             finally:
                 os.chdir(original_cwd)
+
+
+# ── Profile variants (ADR-0083) ──────────────────────────────────────────
+
+
+def test_get_prompt_explicit_profile_uses_variant_when_present():
+    """profile='explicit' resolves persona.explicit.md, not the base file."""
+    base = get_prompt("persona", ASSISTANT_NAME="Zrb")
+    explicit = get_prompt("persona", profile="explicit", ASSISTANT_NAME="Zrb")
+    assert explicit != base
+    assert "No preamble" in explicit  # text unique to the explicit variant
+
+
+def test_get_prompt_terse_profile_uses_base_file():
+    """The base files ARE the terse profile — no .terse variant is consulted."""
+    base = get_prompt("persona", ASSISTANT_NAME="Zrb")
+    terse = get_prompt("persona", profile="terse", ASSISTANT_NAME="Zrb")
+    assert terse == base
+
+
+def test_get_prompt_profile_falls_back_to_base_when_no_variant():
+    """A section with no variant for the profile falls back to the base file."""
+    base = get_prompt("mandate")
+    explicit = get_prompt("mandate", profile="explicit")
+    assert explicit == base
+
+
+def test_get_prompt_examples_section_is_explicit_only():
+    """The examples section ships as an explicit-profile variant."""
+    assert "Worked Examples" in get_prompt("examples", profile="explicit")
+
+
+def test_get_prompt_variant_respects_local_override():
+    """A project override of the variant file wins over the packaged variant."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        local_prompt_dir = os.path.join(temp_dir, ".zrb/llm/prompt")
+        os.makedirs(local_prompt_dir, exist_ok=True)
+        with open(os.path.join(local_prompt_dir, "persona.explicit.md"), "w") as f:
+            f.write("# Custom Explicit Persona Override")
+
+        env_vars = {
+            "ZRB_LLM_PROMPT_DIR": ".zrb/llm/prompt",
+            "_ZRB_ENV_PREFIX": "ZRB",
+        }
+        with patch.dict(os.environ, env_vars):
+            original_cwd = os.getcwd()
+            os.chdir(temp_dir)
+            try:
+                prompt = get_prompt("persona", profile="explicit")
+                assert "Custom Explicit Persona Override" in prompt
+            finally:
+                os.chdir(original_cwd)

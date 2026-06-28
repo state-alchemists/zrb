@@ -24,6 +24,7 @@ Zrb can be heavily customized using environment variables. These control everyth
 |----------|-------------|---------|
 | `ZRB_SHELL` | Shell used by `CmdTask` | Auto-detected (`zsh`, `bash`, `PowerShell`) |
 | `ZRB_EDITOR` | Default text editor for interactive prompts | `nano` |
+| `ZRB_IS_TERMUX` | Whether zrb runs under Termux (auto-detected; override for Termux-specific keybindings) | Auto-detected |
 | [`ZRB_LOGGING_LEVEL`](../advanced-topics/logging.md) | Verbosity of Zrb's internal logs | `WARNING` |
 | `ZRB_BANNER` | Custom ASCII art or text displayed at CLI start | Standard Zrb ASCII art |
 | `ZRB_ROOT_GROUP_NAME` | Name of root command group in help menus | `zrb` |
@@ -45,6 +46,7 @@ Zrb can be heavily customized using environment variables. These control everyth
 | `ZRB_INIT_MODULES` | Comma-separated importable module names zrb imports on startup so their task definitions register (colon-separated still accepted) | — |
 | `ZRB_LOAD_BUILTIN` | Whether to load pre-packaged tasks (Git, UUID, base64, etc.) | `1` (true) |
 | `ZRB_WARN_UNRECOMMENDED_COMMAND` | Show warnings for potentially unsafe shell commands | `on` (true) |
+| `ZRB_MCP_CONFIG_FILE` | Path to the MCP server config file | (none) |
 
 ---
 

@@ -23,13 +23,21 @@ class InternetSearchMixin:
         super().__init__()
 
     SEARCH_INTERNET_METHOD = EnvField(
-        str, doc="One of: google_rss (default), serpapi, brave, searxng."
+        str,
+        doc=(
+            "Search backend. One of:\n"
+            "- 'google_rss' (default): Google News RSS, no API key.\n"
+            "- 'serpapi': SerpAPI (requires SERPAPI_KEY).\n"
+            "- 'brave': Brave Search API (requires BRAVE_API_KEY).\n"
+            "- 'searxng': a self-hosted SearXNG instance."
+        ),
     )
 
     # BRAVE_API_KEY / SERPAPI_KEY use bare (un-prefixed) env vars by design.
     BRAVE_API_KEY = EnvField(
         str,
         no_prefix=True,
+        secret=True,
         doc="API key for the Brave Search API (un-prefixed env var).",
     )
 
@@ -42,7 +50,10 @@ class InternetSearchMixin:
     )
 
     SERPAPI_KEY = EnvField(
-        str, no_prefix=True, doc="API key for SerpAPI (un-prefixed env var)."
+        str,
+        no_prefix=True,
+        secret=True,
+        doc="API key for SerpAPI (un-prefixed env var).",
     )
 
     SERPAPI_SAFE = EnvField(str, doc="Safe search filter for SerpAPI results (on/off).")
@@ -62,7 +73,13 @@ class InternetSearchMixin:
     )
 
     SEARXNG_SAFE = EnvField(
-        int, doc="Safe search level for SearXNG (0=none, 1=moderate, 2=strict)."
+        int,
+        doc=(
+            "Safe search level for SearXNG:\n"
+            "- 0: none.\n"
+            "- 1: moderate.\n"
+            "- 2: strict."
+        ),
     )
 
     SEARXNG_LANG = EnvField(

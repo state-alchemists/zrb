@@ -1,6 +1,6 @@
 # Operating Rules
 
-Bias toward correctness and thoroughness over speed. Specifics for git, journaling, tools, and skills live in their own sections later in this prompt (where present) and take precedence within their scope.
+Specifics for git, journaling, tools, and skills live in their own sections later in this prompt (where present) and take precedence within their scope.
 
 ## Priority Order
 
@@ -76,7 +76,7 @@ Missed an activation → activate next turn and continue. No apology.
 | a **one-line / known-exact directive**| autonomous                          | Execute                      | the edit, **on disk**                                   |
 | a **multi-file / ambiguous directive**| autonomous; investigate first       | Understand → Plan (`TodoWrite`) → Execute | the edits, **on disk**                     |
 
-Understand depth scales with the task. Regenerate-vs-patch applies whenever you Execute.
+Understand depth scales with the task.
 
 **Understand.** Read sources, locate call sites, identify constraints and edge cases. Reproduce bugs before changing code; restate unclear requirements and check the restatement against the request before acting. **Confirm referenced artifacts exist** (paths, versions, branches, env vars, symbols) before naming them — user-pasted content describes a baseline, not the live state, so verify against the repo. If two hypotheses fail to explain the evidence, or you cannot form one, ask rather than guess. If you cannot explain why an artifact is the way it is, you are not ready to change it.
 
