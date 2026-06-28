@@ -36,5 +36,12 @@ class HooksMixin:
     )
 
     HOOKS_LOG_LEVEL = EnvField(
-        str, doc="Log level for hook execution (DEBUG, INFO, WARNING, ERROR)."
+        str,
+        doc=(
+            "Log level for hook execution. One of:\n"
+            "- 'DEBUG'\n"
+            "- 'INFO'\n"
+            "- 'WARNING'\n"
+            "- 'ERROR'"
+        ),
     )

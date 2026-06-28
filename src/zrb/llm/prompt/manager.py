@@ -10,6 +10,7 @@ from zrb.llm.prompt.claude import (
     create_project_context_prompt,
 )
 from zrb.llm.prompt.live_context import render_live_context
+from zrb.llm.prompt.profile import resolve_profile
 from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.prompt.system_context import system_context
 from zrb.llm.prompt.tool_guidance import (
@@ -129,6 +130,18 @@ class PromptManager:
         self._include_sections = value
 
     @property
+    def active_sections(self) -> list[str]:
+        """The resolved prompt sections: instance override, else CFG default.
+
+        Single source of truth for *which* sections are active — used both by
+        prompt composition and by callers that must couple volatile content to a
+        section's presence (e.g. the journal index, owned by ``journal_mandate``;
+        see ``create_live_context`` and ADR-0082)."""
+        if self._include_sections is not None:
+            return list(self._include_sections)
+        return list(CFG.LLM_INCLUDE_SECTIONS)
+
+    @property
     def tool_names(self):
         return self._tool_names
 
@@ -226,7 +239,9 @@ class PromptManager:
                 return
         self._live_context_providers.append((name, provider))
 
-    def create_live_context(self, ctx: AnyContext) -> str:
+    def create_live_context(
+        self, ctx: AnyContext, inject_journal_index: bool = False
+    ) -> str:
         """Render the per-turn volatile runtime state as a ``<live-context>``
         block for injection into the latest user message.
 
@@ -240,8 +255,17 @@ class PromptManager:
 
         Custom providers registered via ``add_live_context`` are called after
         the built-in rendering, in registration order.
+
+        The journal index snapshot is volatile content owned by the
+        ``journal_mandate`` section (ADR-0082): it is emitted only when both
+        *inject_journal_index* is set (the right moment — first turn) **and**
+        ``journal_mandate`` is an active section, so a prompt that drops that
+        section drops the index with it.
         """
-        body = render_live_context(ctx, self._model)
+        inject_index = (
+            inject_journal_index and "journal_mandate" in self.active_sections
+        )
+        body = render_live_context(ctx, self._model, inject_journal_index=inject_index)
         for name, provider in self._live_context_providers:
             try:
                 extra = provider(ctx)
@@ -387,10 +411,14 @@ class PromptManager:
         self, ctx: AnyContext
     ) -> list[PromptMiddleware | str]:
         # Resolve sections: instance override or CFG default
-        if self._include_sections is not None:
-            sections = list(self._include_sections)
-        else:
-            sections = list(CFG.LLM_INCLUDE_SECTIONS)
+        sections = self.active_sections
+
+        # Resolve the profile (ADR-0083) from the LLM_PROFILE knob + active
+        # model. It selects per-section phrasing variants (file-backed sections
+        # resolve ``{name}.{profile}`` with fallback). Which sections appear
+        # is controlled solely by include_sections / ZRB_LLM_INCLUDE_SECTIONS —
+        # the profile never injects or removes sections.
+        profile = resolve_profile(CFG.LLM_PROFILE, self._model)
 
         assistant_name = (
             get_str_attr(ctx, self._assistant_name) if self._assistant_name else None
@@ -458,7 +486,9 @@ class PromptManager:
                 # here too, since _extra's {ASSISTANT_NAME} is harmless when a
                 # markdown file has no matching placeholder.
                 middlewares.append(
-                    self._file_section_middleware(section, extra_replacements=_extra)
+                    self._file_section_middleware(
+                        section, profile=profile, extra_replacements=_extra
+                    )
                 )
 
         # User custom prompts always last
@@ -468,15 +498,17 @@ class PromptManager:
     def _file_section_middleware(
         self,
         name: str,
+        profile: str | None = None,
         extra_replacements: dict[str, str] | None = None,
     ) -> FullMiddleware:
         """Middleware for a file-backed custom section.
 
-        Resolves *name* via ``get_prompt`` at compose time. When nothing
-        resolves (no registered provider, no markdown file), the section is
-        empty — a warning is logged so a misspelled name in
-        ``include_sections`` / ``ZRB_LLM_INCLUDE_SECTIONS`` is diagnosable
-        instead of silently dropped.
+        Resolves *name* via ``get_prompt`` at compose time, preferring the
+        *profile* variant (``{name}.{profile}.md``) with fallback to the base
+        file (ADR-0083). When nothing resolves (no registered provider, no
+        markdown file), the section is empty — a warning is logged so a
+        misspelled name in ``include_sections`` / ``ZRB_LLM_INCLUDE_SECTIONS``
+        is diagnosable instead of silently dropped.
 
         *extra_replacements* are forwarded to ``get_prompt`` as
         ``**extra_replacements`` for ``{PLACEHOLDER}`` substitution.
@@ -486,7 +518,7 @@ class PromptManager:
             ctx: AnyContext, current: str, next_fn: Callable[[AnyContext, str], str]
         ) -> str:
             kwargs = extra_replacements or {}
-            content = get_prompt(name, **kwargs)
+            content = get_prompt(name, profile=profile, **kwargs)
             if not content:
                 message = (
                     f"Prompt section '{name}' is not a built-in, has no "

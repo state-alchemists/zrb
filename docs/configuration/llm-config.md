@@ -187,7 +187,7 @@ The system prompt is assembled from an **ordered list of sections**. The list is
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_INCLUDE_SECTIONS` | Comma-separated, order-sensitive list of sections to include | `persona,mandate,git_mandate,journal_mandate,system_context,project_context,tool_guidance` |
+| `ZRB_LLM_INCLUDE_SECTIONS` | Comma-separated, order-sensitive list of sections to include | `persona,mandate,examples,git_mandate,journal_mandate,system_context,project_context,tool_guidance` |
 | `ZRB_LLM_INCLUDE_JOURNAL_REMINDER` | Append a journaling reminder at session end (runtime hook, not a prompt section) | `off` |
 
 Recognised section names:
@@ -196,6 +196,7 @@ Recognised section names:
 |---------|---------|
 | `persona` | AI identity prompt |
 | `mandate` | Behavioral rules |
+| `examples` | Few-shot worked examples (empty under terse; explicit variant carries content) |
 | `git_mandate` | Git safety rules (rendered only inside a git repo) |
 | `journal_mandate` | Journaling protocol |
 | `system_context` | OS / time / CWD / ambient state |
@@ -208,7 +209,7 @@ Examples:
 
 ```bash
 # Strip the journaling mandate and project context (e.g. for benchmark runners).
-export ZRB_LLM_INCLUDE_SECTIONS="persona,mandate,git_mandate,system_context,tool_guidance"
+export ZRB_LLM_INCLUDE_SECTIONS="persona,mandate,examples,git_mandate,system_context,tool_guidance"
 
 # Personality-only: just persona and mandate.
 export ZRB_LLM_INCLUDE_SECTIONS="persona,mandate"
@@ -218,6 +219,63 @@ To toggle a single section programmatically, mutate `CFG.LLM_INCLUDE_SECTIONS` d
 
 The section names above are the **built-ins**. Any other name in the list resolves
 as a *custom* section — see [Programmatic Prompt Customization](#programmatic-prompt-customization) below.
+
+### Prompt Profile (model-adaptive phrasing)
+
+`ZRB_LLM_INCLUDE_SECTIONS` controls *which* sections appear. A second knob,
+`ZRB_LLM_PROFILE`, controls *how each section is phrased* — so the prompt can
+match the model in use. This matters because weak and strong models want
+different prompts: strong models do best with terse, principle-led instructions,
+while weaker/smaller models follow more explicit, repeated, example-heavy ones.
+**Weaker does not mean a shorter prompt** — the explicit profile is *more*
+directive, not less.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_LLM_PROFILE` | Prompt profile: `auto`, `terse`, or `explicit` | `auto` |
+
+- **`terse`** — the concise, principle-led profile (the base prompt files).
+- **`explicit`** — the directive profile: per-section phrasing variants where
+  they exist (e.g. a more imperative `persona`). The `examples` section is
+  always in the default section list; its base file is empty, while
+  `examples.explicit.md` carries few-shot worked examples that only emit
+  under the explicit profile.
+- **`auto`** (default) — resolves to `terse` unless you have declared a profile
+  for the active model (see below). **zrb does not try to guess a model's
+  strength from its id** — there is no reliable way to do that across providers,
+  and a family name (`deepseek`, `qwen`, `llama`, …) tells you nothing about a
+  given model's capability. So `auto` is conservative: it keeps the terse default
+  and you opt a weaker model into `explicit`.
+
+For a weaker model, either set the knob globally:
+
+```bash
+export ZRB_LLM_PROFILE=explicit
+```
+
+…or, if you switch between models, declare per-model profiles once in your
+`zrb_init.py` (the same curated, user-extensible approach as the model
+capability registry):
+
+```python
+from zrb.llm.prompt.profile import register_model_profile
+
+# Models whose full id matches the (case-insensitive) regex use that profile
+# under `auto`. The id is matched exactly as configured — provider prefix and
+# any tier suffix included (e.g. `ollama:deepseek-v4-flash:cloud`), nothing is
+# stripped. Most-recently declared wins.
+register_model_profile(r"my-local-3b", "explicit")
+register_model_profile(r"qwen2\.5-7b", "explicit")
+register_model_profile(r"^ollama:", "explicit")  # or match a whole provider
+```
+
+How the overlay works: the base prompt `.md` files *are* the `terse` profile.
+The `explicit` profile is an overlay — for a section named `persona`, the loader
+prefers `persona.explicit.md` and falls back to `persona.md` when no variant
+exists. So you can add an explicit variant for just the sections whose wording
+should change, leaving the rest shared (it follows the same
+project-override → env → base-dir → package lookup as any prompt file, so you can
+override a variant too).
 
 ### Programmatic Prompt Customization
 
@@ -759,5 +817,41 @@ These variables override the ANSI colors used for plain terminal output (outside
 | `ZRB_CLI_COLOR_TODO_KEYVAL` | Color for todo key:value pairs | `magenta` |
 
 > These affect `stylize_warning`, `stylize_error`, `stylize_muted` (alias: `stylize_faint`/`stylize_log`), `stylize_highlight`, `stylize_info`, `stylize_success`, and the `stylize_todo_*` helpers. Physical helpers (`stylize_yellow`, `stylize_red`, etc.) are unaffected — they always produce their named color.
+
+---
+
+## 23. Voice Dictation
+
+Opt-in push-to-talk voice input in the chat TUI, gated by `ZRB_LLM_VOICE_ENABLED`.
+When enabled, the `/voice` command toggles recording mode. Audio dependencies
+(sounddevice, numpy) are lazy-loaded — no cost at startup.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_LLM_VOICE_ENABLED` | Master switch for voice dictation in `zrb llm chat`. Requires sounddevice + an STT backend. | `false` |
+| `ZRB_LLM_VOICE_MODE` | Speech-to-text backend: `vosk` (offline, cross-platform), `openai` (Whisper API), `google` (Gemini STT), or `multimodal` (uses `ZRB_LLM_MULTIMODAL_MODEL` — slower/more expensive) | `vosk` |
+| `ZRB_LLM_VOICE_PUSH_TO_TALK_KEY` | prompt_toolkit key name for push-to-talk (e.g. `space`, `c-t` for Ctrl+T) | `space` |
+
+### Backend-Specific Settings
+
+Each backend uses only its own variables:
+
+| Backend | Variable | Description | Default |
+|---------|----------|-------------|---------|
+| `openai` | `ZRB_LLM_VOICE_OPENAI_MODEL` | Whisper API model name | `whisper-1` |
+| `google` | `ZRB_LLM_VOICE_GOOGLE_MODEL` | Gemini STT model name | `gemini-2.5-flash` |
+| `vosk` | `ZRB_LLM_VOICE_VOSK_MODEL_NAME` | Model directory name (without `.zip`). Downloaded from `<VOSK_MODEL_URL>/<name>.zip` | `vosk-model-small-en-us-0.15` |
+| `vosk` | `ZRB_LLM_VOICE_VOSK_MODEL_URL` | Base URL for downloading the Vosk model zip (extracted to `~/.cache/vosk/`) | `https://alphacephei.com/vosk/models` |
+
+```bash
+# Enable offline voice dictation with Vosk
+export ZRB_LLM_VOICE_ENABLED=on
+export ZRB_LLM_VOICE_MODE=vosk
+
+# Or use OpenAI Whisper
+export ZRB_LLM_VOICE_ENABLED=on
+export ZRB_LLM_VOICE_MODE=openai
+export ZRB_LLM_VOICE_OPENAI_MODEL=whisper-1
+```
 
 ---

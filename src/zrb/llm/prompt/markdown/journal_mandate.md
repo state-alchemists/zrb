@@ -34,8 +34,4 @@ Search → work (verify any claim you will record) → log → reply. Log *after
 
 ---
 
-**Index:** `{CFG_LLM_JOURNAL_INDEX_FILE}` ({CFG_LLM_JOURNAL_INDEX_FILE_STATUS})
-
-````
-{JOURNAL_INDEX_CONTENT}
-````
+Your journal index (`{CFG_LLM_JOURNAL_INDEX_FILE}`) maps what is already recorded. A snapshot is injected into the first `<live-context>` block of the session for orientation — read it there, and use `SearchJournal` for full entries before acting.

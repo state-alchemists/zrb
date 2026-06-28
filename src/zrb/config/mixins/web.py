@@ -64,7 +64,7 @@ class WebMixin:
     )
 
     WEB_SUPER_ADMIN_PASSWORD = EnvField(
-        str, doc="Password for the built-in super-admin account."
+        str, secret=True, doc="Password for the built-in super-admin account."
     )
 
     WEB_ACCESS_TOKEN_COOKIE_NAME = EnvField(
@@ -76,7 +76,9 @@ class WebMixin:
     )
 
     WEB_SECRET_KEY = EnvField(
-        str, doc="Secret key used to sign JWT tokens. Change this in production."
+        str,
+        secret=True,
+        doc="Secret key used to sign JWT tokens. Change this in production.",
     )
 
     WEB_AUTH_ENABLED = EnvField(

@@ -47,6 +47,7 @@ class LLMCoreMixin:
     LLM_API_KEY = EnvField(
         str,
         nullable=True,
+        secret=True,
         doc="API key for the LLM provider. Unset defers to the provider's own env var (e.g. OPENAI_API_KEY).",
     )
 
@@ -71,10 +72,11 @@ class LLMCoreMixin:
         doc=(
             "Tool permission ruleset. Empty (default) keeps legacy yolo "
             "behavior. Accepts a shorthand ('allow'/'ask'/'deny') or a "
-            "comma-separated 'key:action' list where key is a tool name, a "
-            "capability (read/edit/execute/network/delegate/meta), or '*', "
-            "e.g. 'edit:deny,Bash:ask,*:allow'. First match wins; 'deny' is "
-            "enforced before the tool runs, 'allow' skips approval, 'ask' "
-            "prompts."
+            "comma-separated 'key:action' list, where key is a tool name, a "
+            "capability (read/edit/execute/network/delegate/meta), or '*' "
+            "(e.g. 'edit:deny,Bash:ask,*:allow'). First match wins. Actions:\n"
+            "- 'deny': enforced before the tool runs.\n"
+            "- 'allow': skips approval.\n"
+            "- 'ask': prompts for approval."
         ),
     )

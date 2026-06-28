@@ -2,25 +2,45 @@ from zrb.builtin.group import config_group
 from zrb.context.any_context import AnyContext
 from zrb.input.str_input import StrInput
 from zrb.task.make_task import make_task
-from zrb.util.cli.markdown import render_markdown
 
 
-def _escape_cell(value: str) -> str:
-    return value.replace("|", "\\|").replace("\n", " ")
+def _render_table(entries: list[tuple[str, str, str]]) -> str:
+    """Render entries with rich's ``Table`` (not a markdown table).
 
+    Descriptions carry intentional newlines — e.g. a knob with several options
+    documents them as a bulleted list. A markdown table cannot hold a line break
+    in a cell, so the previous markdown-string renderer collapsed every
+    description onto one line, turning bullets into inline ``-`` fragments.
+    ``Table`` cells honor ``\\n``, so the structure survives.
 
-def _build_table(entries: list[tuple[str, str, str]]) -> str:
-    lines = [
-        "| Environment Variable | Value | Description |",
-        "|---|---|---|",
-    ]
+    Cells are wrapped in ``Text`` so their content is rendered literally: rich
+    parses ``[...]`` in a plain string as console markup, which would silently
+    swallow a value like ``[set]`` / ``[unset]`` (it looks like a style tag).
+    """
+    # lazy: heavy third-party
+    from rich import box
+    from rich.console import Console
+    from rich.table import Table
+    from rich.text import Text
+
+    # SIMPLE_HEAD: no top/bottom border, just a header underline. The task runner
+    # prepends a status prefix to the first printed line; a box with a top border
+    # would put a full-width rule on that line and overflow it. SIMPLE_HEAD opens
+    # with a blank line instead, so the prefix sits clear of the table.
+    table = Table(box=box.SIMPLE_HEAD, show_lines=True, pad_edge=False, expand=False)
+    table.add_column("Environment Variable", style="bold bright_cyan", no_wrap=True)
+    table.add_column("Value", style="green")
+    table.add_column("Description")
     for env_var, value, description in entries:
-        lines.append(
-            f"| `{_escape_cell(env_var)}` "
-            f"| `{_escape_cell(value)}` "
-            f"| {_escape_cell(description)} |"
-        )
-    return "\n".join(lines)
+        table.add_row(Text(env_var), Text(value), Text(description))
+
+    console = Console(force_terminal=True)
+    with console.capture() as capture:
+        console.print(table)
+    # Drop rich's trailing space-padding on each line (it pads cells out to the
+    # console width). rstrip only removes whitespace, so ANSI styling — which
+    # ends in 'm' — is left intact.
+    return "\n".join(line.rstrip() for line in capture.get().splitlines())
 
 
 def _collect_entries(keyword: str) -> list[tuple[str, str, str]]:
@@ -40,7 +60,11 @@ def _collect_entries(keyword: str) -> list[tuple[str, str, str]]:
             env_var = attr_val.env_key(CFG.ENV_PREFIX)
             try:
                 raw = getattr(CFG, attr_name)
-                value = "" if raw is None else attr_val._serialize(raw)
+                if attr_val.secret:
+                    # Never display a secret; only whether it is configured.
+                    value = "[set]" if raw not in (None, "") else "[unset]"
+                else:
+                    value = "" if raw is None else attr_val._serialize(raw)
             except Exception:
                 value = "(error)"
             description = (attr_val.__doc__ or "").replace(
@@ -72,5 +96,4 @@ def explain_config(ctx: AnyContext) -> None:
     if not entries:
         ctx.print("No matching configuration entries found.")
         return
-    table = _build_table(entries)
-    ctx.print(render_markdown(table, width=None))
+    ctx.print(_render_table(entries))

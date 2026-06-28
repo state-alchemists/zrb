@@ -13,6 +13,7 @@ from zrb.llm.agent.subagent.manager.search_mixin import SearchMixin
 from zrb.llm.agent.subagent.yolo import make_yolo_inheritance_checker
 from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.factory_resolver import resolve_factory_items
+from zrb.llm.prompt.live_context import render_journal_index
 from zrb.llm.prompt.tool_guidance import (
     ToolCatalogue,
     ToolGroups,
@@ -311,7 +312,14 @@ class SubAgentManager(LoaderMixin, SearchMixin):
             system_prompt=effective_system_prompt,
             tools=resolved_tools,
             toolsets=resolved_toolsets,
-            history_processors=[create_summarizer_history_processor()],
+            history_processors=[
+                create_summarizer_history_processor(
+                    inject_journal_index=(
+                        bool(definition.inherit_sections)
+                        and "journal_mandate" in definition.inherit_sections
+                    )
+                )
+            ],
             yolo=effective_yolo,
             resolve_model=False,
         )
@@ -374,11 +382,20 @@ class SubAgentManager(LoaderMixin, SearchMixin):
             # into the inherited prompt so an agent that inherits system_context
             # still sees the per-turn state (time, git, …) it saw before the
             # main-chat split — the main chat injects it into the user turn
-            # instead, via run_agent's live_context.
+            # instead, via run_agent's live_context. Being single-turn, a
+            # sub-agent is always "the first turn": inject the journal index
+            # unconditionally (create_live_context gates it on journal_mandate
+            # being inherited). See ADR-0082.
             if "system_context" in sections:
-                live = pm.create_live_context(ctx)
+                live = pm.create_live_context(ctx, inject_journal_index=True)
                 if live:
                     composed = f"{composed}\n\n{live}".strip()
+            elif "journal_mandate" in sections:
+                # journal_mandate inherited without system_context: inject only
+                # the index, not the per-turn state that system_context owns.
+                journal_block = render_journal_index()
+                if journal_block:
+                    composed = f"{composed}\n\n{journal_block}".strip()
             return composed
         except Exception:
             # Don't fail agent creation on inheritance issues — surface as no

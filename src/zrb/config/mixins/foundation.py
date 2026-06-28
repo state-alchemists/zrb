@@ -142,7 +142,14 @@ class FoundationMixin:
     LOGGING_LEVEL = EnvField(
         get_log_level,
         serialize=_serialize_log_level,
-        doc="Verbosity of Zrb's internal logs (CRITICAL..DEBUG).",
+        doc=(
+            "Verbosity of Zrb's internal logs, from least to most verbose:\n"
+            "- 'CRITICAL'\n"
+            "- 'ERROR'\n"
+            "- 'WARNING'\n"
+            "- 'INFO'\n"
+            "- 'DEBUG'"
+        ),
     )
 
     LOAD_BUILTIN = EnvField(

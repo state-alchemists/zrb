@@ -108,6 +108,11 @@ class EnvField(Generic[T]):
         no ``ENV_PREFIX`` (e.g. ``BRAVE_API_KEY`` rather than ``ZRB_BRAVE_API_KEY``).
         Pair with ``aliases``/``write_key`` for internal names such as
         ``_ZRB_CUSTOM_VERSION``.
+    secret:
+        When ``True``, the value is sensitive (an API key, token, password, …)
+        and must not be displayed. Readers that surface config to users (e.g.
+        ``zrb config explain``) show ``[set]``/``[unset]`` instead of the value.
+        Does not affect how the value is read or written — only its display.
     doc:
         Docstring surfaced as the descriptor's ``__doc__``.
     """
@@ -125,6 +130,7 @@ class EnvField(Generic[T]):
         fallback: Any = _UNSET,
         nullable: bool = False,
         no_prefix: bool = False,
+        secret: bool = False,
         doc: str = "",
     ):
         self._cast = cast
@@ -137,12 +143,18 @@ class EnvField(Generic[T]):
         self._fallback = fallback
         self._nullable = nullable
         self._no_prefix = no_prefix
+        self._secret = secret
         self.__doc__ = doc
 
     def __set_name__(self, owner: type, name: str) -> None:
         self._name = name
         self._read_names = self._aliases if self._aliases is not None else [name]
         self._write_name = self._write_key if self._write_key is not None else name
+
+    @property
+    def secret(self) -> bool:
+        """Whether this field holds a sensitive value that must not be displayed."""
+        return self._secret
 
     def env_key(self, prefix: str) -> str:
         """Full environment variable name this field writes to, given a prefix."""

@@ -466,6 +466,33 @@ def test_sub_agent_manager_inherit_sections_composes_parent_sections():
     assert mandate_idx < body_idx
 
 
+def test_sub_agent_manager_inherits_journal_index_with_journal_mandate():
+    """A sub-agent that inherits journal_mandate (single-turn, so always the
+    first turn) gets the journal index folded into its system prompt — the
+    index injection now reaches sub-agents too (ADR-0082)."""
+    manager = SubAgentManager()
+    agent_def = SubAgentDefinition(
+        name="journaler",
+        path=".",
+        description="d",
+        system_prompt="Body.",
+        inherit_sections=["journal_mandate"],
+    )
+    manager.add_agent(agent_def)
+
+    journal_block = "<journal-index>\nProject Hub\n</journal-index>"
+    with (
+        patch(
+            "zrb.llm.agent.subagent.manager.manager.render_journal_index",
+            return_value=journal_block,
+        ),
+        patch("zrb.llm.agent.subagent.manager.manager.create_agent") as mock_create,
+    ):
+        manager.create_agent("journaler")
+        prompt = mock_create.call_args.kwargs["system_prompt"]
+    assert "Project Hub" in prompt
+
+
 def test_sub_agent_manager_inherit_sections_empty_list_means_opt_out():
     """inherit_sections=[] explicitly opts out (same observable result as
     None, but documents intent in the agent file)."""

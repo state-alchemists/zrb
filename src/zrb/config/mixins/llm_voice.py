@@ -47,10 +47,12 @@ class LLMVoiceMixin:
     LLM_VOICE_MODE = EnvField(
         str,
         doc=(
-            "Speech-to-text backend for voice dictation. One of: vosk "
-            "(offline, cross-platform), openai (OpenAI Whisper API), google "
-            "(Google Gemini STT), multimodal (uses {ENV_PREFIX}_LLM_MULTIMODAL_MODEL, "
-            "slower/ more expensive). Default: vosk."
+            "Speech-to-text backend for voice dictation. One of:\n"
+            "- 'vosk' (default): offline, cross-platform.\n"
+            "- 'openai': OpenAI Whisper API.\n"
+            "- 'google': Google Gemini STT.\n"
+            "- 'multimodal': uses {ENV_PREFIX}_LLM_MULTIMODAL_MODEL "
+            "(slower / more expensive)."
         ),
     )
 

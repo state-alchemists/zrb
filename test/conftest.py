@@ -36,6 +36,13 @@ _TEST_ENV = {
     "SERPAPI_KEY": "test-serpapi-key",
     "ZRB_LLM_MODEL": "openai-chat:gpt-4o",
     "ZRB_LLM_SMALL_MODEL": "openai-chat:gpt-4o-mini",
+    # Pin the prompt profile to its production default so prompt-composition
+    # tests are deterministic regardless of the developer's shell. A developer
+    # with ZRB_LLM_PROFILE=explicit exported would otherwise see the explicit
+    # phrasing variants leak into tests that assert on the default (terse)
+    # composition. Tests exercising explicit override this with patch.dict
+    # (which layers on top of this default).
+    "ZRB_LLM_PROFILE": "auto",
 }
 
 
