@@ -25,6 +25,8 @@ from zrb.llm.prompt.tool_guidance import (
     ToolGuidance,
     get_parallel_tool_call_section,
 )
+from zrb.llm.util.git import is_inside_git_dir
+from zrb.util.string.conversion import to_boolean
 
 # NOTE: `zrb.llm.tool` and `zrb.llm.lsp.tools` are imported lazily inside
 # ``apply_common_tools``. Reason: ``zrb.llm.tool/__init__.py`` loads
@@ -62,11 +64,18 @@ class CommonToolHost(Protocol):
 
 # ── Static guidance ──────────────────────────────────────────────────────────
 # Cross-tool decisions only. Per-tool intrinsics (argument behavior, output
-# format, default values, irreversibility warnings) live in the tool docstrings
-# where they're attached to the schema and only consume context when the model
-# is actively considering that tool. Tool Usage Guide entries answer "when do
-# I reach for THIS tool instead of THAT one?" — anything that doesn't reduce
-# to a cross-tool choice belongs in the docstring.
+# format, default values, irreversibility warnings) live in the tool docstrings,
+# co-located with the schema the model fills in — which aids adherence and keeps
+# this guide from restating them. Note that both are always-on: pydantic-ai
+# serializes every registered tool's docstring + parameter schema into the
+# request on every turn, so a docstring is NOT "lazy" context paid only when the
+# model considers the tool — moving detail into a docstring relocates the token
+# cost, it does not remove it. The real lever on tool-definition weight is the
+# number of registered tools (hence the conditional registration of LSP and
+# worktree tools in apply_common_tools below), not where the prose lives.
+# Tool Usage Guide entries answer "when do I reach for THIS tool instead of
+# THAT one?" — anything that doesn't reduce to a cross-tool choice belongs in
+# the docstring.
 
 _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
     # File Operations
@@ -342,6 +351,16 @@ def apply_common_tools(host: CommonToolHost) -> None:
     )
 
     lsp_tools = create_lsp_tools() if detect_available_lsp_servers() else []
+    # Worktree tools only make sense inside a git repo — registering them in a
+    # non-git directory is pure prompt weight (their guidance is auto-suppressed
+    # by the runtime tool_names filter, but the docstrings + schemas would still
+    # ship on every request). Mirrors the LSP gate above. is_inside_git_dir() is
+    # evaluated against the startup cwd; a user in a non-git dir trades away the
+    # tools' `cwd`-points-elsewhere escape hatch, same as the LSP gate trades
+    # away server-less repos — acceptable for the token saving.
+    worktree_tools = (
+        [enter_worktree, exit_worktree, list_worktrees] if is_inside_git_dir() else []
+    )
     # TodoWrite replaces the whole list by default, so it subsumes the former
     # UpdateTodo (rewrite with one status changed) and ClearTodos (write []).
     plan_tools = [write_todos, get_todos]
@@ -357,7 +376,6 @@ def apply_common_tools(host: CommonToolHost) -> None:
         analyze_file,
         analyze_code,
         search_journal,
-        list_worktrees,
     ):
         tag(_fn, Capability.READ)
     for _fn in (
@@ -365,10 +383,12 @@ def apply_common_tools(host: CommonToolHost) -> None:
         replace_in_file,
         remove_file,
         move_file,
-        enter_worktree,
-        exit_worktree,
     ):
         tag(_fn, Capability.EDIT)
+    # Tag worktree tools only when registered (git dir): list is read-only,
+    # enter/exit mutate the tree. Mirrors the lsp_tools tagging loop below.
+    for _fn in worktree_tools:
+        tag(_fn, Capability.READ if _fn is list_worktrees else Capability.EDIT)
     tag(run_shell_command, Capability.EXECUTE)
     tag(run_bash_command, Capability.EXECUTE)
     for _fn in (search_internet, open_web_page):
@@ -392,17 +412,26 @@ def apply_common_tools(host: CommonToolHost) -> None:
         analyze_file,
         remove_file,
         move_file,
-        ask_user_question,
         search_journal,
         search_internet,
         open_web_page,
-        enter_worktree,
-        exit_worktree,
-        list_worktrees,
-        enter_plan_mode,
-        exit_plan_mode,
+        *worktree_tools,
         *lsp_tools,
         *plan_tools,
+    )
+    # Plan-mode and AskUserQuestion need a human in the loop, so register them
+    # only in interactive sessions. In non-interactive runs (one-shot CLI,
+    # sub-agents, programmatic LLMTask) they are dead weight — AskUserQuestion
+    # short-circuits and the prompt already says to skip plan mode — yet their
+    # docstrings + schemas (~350-450 tok) would still ship on every request.
+    # Gating drops them; the runtime tool_names filter auto-suppresses their
+    # Tool Usage Guide entries to match. Factories (not static add_tool) so the
+    # gate is re-evaluated per run against the resolved context.
+    host.add_tool_factory(
+        lambda ctx: (
+            [enter_plan_mode, exit_plan_mode] if _resolve_interactive(ctx) else []
+        ),
+        lambda ctx: [ask_user_question] if _resolve_interactive(ctx) else [],
     )
     host.add_tool_factory(
         lambda ctx: tag(create_list_zrb_task_tool(), Capability.READ),
@@ -419,3 +448,25 @@ def apply_common_tools(host: CommonToolHost) -> None:
 def _parallel_tool_call_section_factory(ctx: "AnyContext", model: Any) -> "str | None":
     """Emit the parallel-tool-call policy block, tone tuned to the model."""
     return get_parallel_tool_call_section(model)
+
+
+def _resolve_interactive(ctx: "AnyContext") -> bool:
+    """Interactivity as seen when tool factories resolve.
+
+    The main chat task carries the flag on ``ctx.input.interactive`` (already
+    resolved by the time factories run). Sub-agents and programmatic
+    ``LLMTask`` don't expose it, so fall back to the ``interactive_mode``
+    ContextVar (set by live_context once a session is running, hence reliable
+    by the time a sub-agent's tools resolve). Absent both, default True so no
+    host silently loses tools it had before.
+    """
+    # lazy: zrb.llm.tool.ask transitively loads pydantic_ai; deferring keeps
+    # the heavy import off this module's load path.
+    from zrb.llm.tool.ask import get_interactive_mode
+
+    val = getattr(getattr(ctx, "input", None), "interactive", None)
+    if isinstance(val, bool):
+        return val
+    if isinstance(val, str):
+        return to_boolean(val)
+    return get_interactive_mode()
