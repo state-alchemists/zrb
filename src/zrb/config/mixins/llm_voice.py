@@ -67,7 +67,7 @@ class LLMVoiceMixin:
         str,
         doc=(
             "Model name for the OpenAI Whisper API backend. "
-            "Only used when LLM_VOICE_MODE=openai. "
+            "Only used when {ENV_PREFIX}_LLM_VOICE_MODE=openai. "
             "Default: whisper-1."
         ),
     )
@@ -76,7 +76,7 @@ class LLMVoiceMixin:
         str,
         doc=(
             "Model name for the Google Gemini STT backend. "
-            "Only used when LLM_VOICE_MODE=google. "
+            "Only used when {ENV_PREFIX}_LLM_VOICE_MODE=google. "
             "Default: gemini-2.5-flash."
         ),
     )
@@ -85,7 +85,7 @@ class LLMVoiceMixin:
         str,
         doc=(
             "Vosk model directory name (without .zip). "
-            "Only used when LLM_VOICE_MODE=vosk. "
+            "Only used when {ENV_PREFIX}_LLM_VOICE_MODE=vosk. "
             "Default: vosk-model-small-en-us-0.15."
         ),
     )
@@ -96,7 +96,7 @@ class LLMVoiceMixin:
             "Base URL for downloading the Vosk model zip. "
             "The zip at <url>/<model_name>.zip is downloaded and extracted "
             "to ~/.cache/vosk/. "
-            "Only used when LLM_VOICE_MODE=vosk. "
+            "Only used when {ENV_PREFIX}_LLM_VOICE_MODE=vosk. "
             "Default: https://alphacephei.com/vosk/models."
         ),
     )
