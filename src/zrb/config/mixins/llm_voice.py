@@ -49,7 +49,7 @@ class LLMVoiceMixin:
         doc=(
             "Speech-to-text backend for voice dictation. One of: vosk "
             "(offline, cross-platform), openai (OpenAI Whisper API), google "
-            "(Google Gemini STT), multimodal (uses ZRB_LLM_MULTIMODAL_MODEL, "
+            "(Google Gemini STT), multimodal (uses {ENV_PREFIX}_LLM_MULTIMODAL_MODEL, "
             "slower/ more expensive). Default: vosk."
         ),
     )

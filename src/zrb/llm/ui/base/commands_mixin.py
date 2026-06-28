@@ -299,7 +299,7 @@ class CommandsMixin(ConversationCommandsMixin, ModelCommandsMixin, ExecCommandsM
             self.append_to_output(
                 stylize_warning(
                     "\n  🎤 Voice dictation is not enabled.\n"
-                    "     Set ZRB_LLM_VOICE_ENABLED=on and restart.\n"
+                    f"     Set {CFG.ENV_PREFIX}_LLM_VOICE_ENABLED=on and restart.\n"
                 )
             )
             return True

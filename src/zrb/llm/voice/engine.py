@@ -130,7 +130,7 @@ class VoiceEngine:
             else:
                 raise RuntimeError(
                     f"Unknown voice mode: {mode!r}. "
-                    f"Set ZRB_LLM_VOICE_MODE to one of: vosk, openai, google, multimodal."
+                    f"Set {CFG.ENV_PREFIX}_LLM_VOICE_MODE to one of: vosk, openai, google, multimodal."
                 )
         except ImportError as e:
             raise RuntimeError(
@@ -156,12 +156,12 @@ class VoiceEngine:
                     "vosk is not installed or not compatible with this macOS version.\n"
                     "  pip install vosk==0.3.44\n"
                     "Or use a different voice backend:\n"
-                    "  ZRB_LLM_VOICE_MODE=openai|google"
+                    f"  {CFG.ENV_PREFIX}_LLM_VOICE_MODE=openai|google"
                 ) from None
             raise ImportError(
                 "vosk is not installed.\n"
                 "  pip install vosk sounddevice numpy\n"
-                "Or switch backends: ZRB_LLM_VOICE_MODE=openai|google"
+                f"Or switch backends: {CFG.ENV_PREFIX}_LLM_VOICE_MODE=openai|google"
             ) from None
 
         model_name = CFG.LLM_VOICE_VOSK_MODEL_NAME
@@ -180,7 +180,7 @@ class VoiceEngine:
             raise RuntimeError(
                 f"Vosk model not found at {model_path}: {e}\n"
                 f"Manually download from {model_url} or configure\n"
-                f"ZRB_LLM_VOICE_VOSK_MODEL_NAME / ZRB_LLM_VOICE_VOSK_MODEL_URL."
+                f"{CFG.ENV_PREFIX}_LLM_VOICE_VOSK_MODEL_NAME / {CFG.ENV_PREFIX}_LLM_VOICE_VOSK_MODEL_URL."
             ) from e
         sample_rate = 16000
 
@@ -292,7 +292,7 @@ class VoiceEngine:
         if multimodal_model is None:
             raise RuntimeError(
                 "LLM_MULTIMODAL_MODEL is not configured. "
-                "Set ZRB_LLM_MULTIMODAL_MODEL or switch to a different voice backend."
+                f"Set {CFG.ENV_PREFIX}_LLM_MULTIMODAL_MODEL or switch to a different voice backend."
             )
 
         resolved = llm_config.resolve_model(multimodal_model)
@@ -302,8 +302,8 @@ class VoiceEngine:
                 f"Multimodal model {name!r} is from OpenAI, which does not "
                 f"accept audio content blocks in the chat completions API "
                 f"(pydantic-ai limitation). "
-                f"Set ZRB_LLM_VOICE_MODE=openai to use the Whisper API, "
-                f"or set ZRB_LLM_MULTIMODAL_MODEL to a model that supports "
+                f"Set {CFG.ENV_PREFIX}_LLM_VOICE_MODE=openai to use the Whisper API, "
+                f"or set {CFG.ENV_PREFIX}_LLM_MULTIMODAL_MODEL to a model that supports "
                 f"inline audio (e.g. gemini-2.5-flash)."
             )
 
@@ -311,7 +311,7 @@ class VoiceEngine:
             name = _model_name(multimodal_model)
             raise RuntimeError(
                 f"Multimodal model {name!r} does not support audio "
-                f"transcription. Set ZRB_LLM_VOICE_MODE to one of: "
+                f"transcription. Set {CFG.ENV_PREFIX}_LLM_VOICE_MODE to one of: "
                 f"vosk, openai, google, or choose a model that "
                 f"supports audio input."
             )
