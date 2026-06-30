@@ -10,10 +10,11 @@ def read_file(
     end_line: int = -1,
 ) -> str:
     """
-    Reads a UTF-8 text file. Returns lines [start_line, end_line], 1-indexed and
-    inclusive; end_line=-1 means the last line (so the default reads the whole file).
-    Output beyond the size cap is truncated at the end with a `...[TRUNCATED]` marker —
-    narrow the range or Grep to locate the part you need, then Read it.
+    Reads a UTF-8 text file or extracts text from a PDF. Returns lines
+    [start_line, end_line], 1-indexed and inclusive; end_line=-1 means the
+    last line (so the default reads the whole file). Output beyond the size
+    cap is truncated at the end with a `...[TRUNCATED]` marker — narrow the
+    range or Grep to locate the part you need, then Read it.
 
     Output: `[File: ... ]` header, then `---CONTENT---`, then the body.
     When supplying old_text to Edit, copy only from below `---CONTENT---`.
@@ -23,6 +24,9 @@ def read_file(
     validation_error = _validate_path_for_reading(abs_path)
     if validation_error:
         return validation_error
+
+    if _is_pdf_file(abs_path):
+        return _read_pdf(path, abs_path, start_line, end_line)
 
     safety_error = _check_file_safety(abs_path)
     if safety_error:
@@ -118,6 +122,50 @@ def _check_file_safety(abs_path: str) -> str | None:
     except Exception:
         pass
     return None
+
+
+def _is_pdf_file(abs_path: str) -> bool:
+    return abs_path.lower().endswith(".pdf")
+
+
+def _read_pdf(path: str, abs_path: str, start_line: int, end_line: int) -> str:
+    # lazy: pdfplumber is heavy; only loaded when we actually have a PDF
+    import pdfplumber
+    from pdfplumber.pdf import PDF
+
+    try:
+        with pdfplumber.open(abs_path) as pdf:
+            pdf: PDF
+            full_text = "\n".join(
+                page.extract_text() for page in pdf.pages if page.extract_text()
+            )
+    except Exception as e:
+        return (
+            f"Error reading PDF {path}: {e}. "
+            "[SYSTEM SUGGESTION]: Ensure the file is a valid PDF."
+        )
+
+    if not full_text.strip():
+        return (
+            f"Error: No extractable text found in PDF {path}. "
+            "[SYSTEM SUGGESTION]: This PDF may be scanned/image-only "
+            "or contain no text layer. Use a tool suited to OCR."
+        )
+
+    lines = full_text.splitlines(keepends=True)
+    total_lines = len(lines)
+
+    range_error = _validate_range(start_line, end_line, total_lines)
+    if range_error:
+        return range_error
+
+    start = max(1, start_line)
+    end = total_lines if end_line == -1 else min(end_line, total_lines)
+    selected = "".join(lines[start - 1 : end])
+
+    body, truncated = truncate_text(selected, CFG.LLM_MAX_OUTPUT_CHARS, keep="head")
+    header = _format_read_header(path, start, end, total_lines, truncated)
+    return f"{header}{body}"
 
 
 def _format_read_header(
