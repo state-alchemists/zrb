@@ -13,6 +13,7 @@ import re
 from typing import TYPE_CHECKING, TextIO, cast
 
 from zrb.config.config import CFG
+from zrb.llm.agent.activity import agent_activity_registry
 from zrb.util.cli.style import stylize_muted
 from zrb.util.cli.terminal import get_terminal_size
 
@@ -295,20 +296,18 @@ class OutputMixin:
         ]
 
     def get_agent_activity_text(self) -> "AnyFormattedText":
-        """One line per currently-running sub-agent: name · activity.
+        """One line per running sub-agent: #ordinal name · task — activity.
 
-        Empty when nothing is delegating, so the panel collapses to zero height.
+        This panel is the legend for the [name #ordinal] prefixes in the output
+        stream. Empty when nothing is delegating, so it collapses to zero height.
         Refreshed by the app's periodic redraw (LLM_UI_REFRESH_INTERVAL).
         """
-        # lazy: circular — output_mixin → delegate (BufferedUI) → ui_protocol → here
-        from zrb.llm.agent.activity import agent_activity_registry
-
         agents = agent_activity_registry.active()
         if not agents:
             return []
         frags: list = []
         for agent in agents:
-            label = f" 🔧 {agent.name}"
+            label = f" 🔧 #{agent.ordinal} {agent.name}"
             if agent.task:
                 label += f" · {_truncate(agent.task, 50)}"
             if agent.last_line:

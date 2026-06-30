@@ -8,7 +8,6 @@ def test_start_tracks_agent_as_active():
     assert len(active) == 1
     assert active[0].agent_id == "id1"
     assert active[0].name == "researcher"
-    assert active[0].status == "running"
     assert active[0].last_line == ""
 
 
@@ -44,11 +43,27 @@ def test_snapshot_is_serializable():
         {
             "agent_id": "id1",
             "name": "researcher",
+            "ordinal": 1,
             "task": "map the codebase",
-            "status": "running",
             "last_line": "working",
         }
     ]
+
+
+def test_start_returns_incrementing_ordinal():
+    reg = AgentActivityRegistry()
+    assert reg.start("a", "x") == 1
+    assert reg.start("b", "y") == 2
+    assert [a.ordinal for a in reg.active()] == [1, 2]
+
+
+def test_ordinal_resets_when_batch_drains():
+    reg = AgentActivityRegistry()
+    reg.start("a", "x")
+    reg.start("b", "y")
+    reg.finish("a")
+    reg.finish("b")  # registry now empty -> counter resets
+    assert reg.start("c", "z") == 1
 
 
 def test_clear_removes_all():

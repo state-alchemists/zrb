@@ -28,7 +28,6 @@ from zrb.llm.hook.types import HookEvent
 from zrb.llm.tool.ambient_state import get_active_worktree
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 from zrb.llm.ui.std_ui import StdUI
-from zrb.util.string.name import get_random_name
 
 
 @dataclass
@@ -64,6 +63,15 @@ class BufferedUI(UIProtocol):
     def set_activity_id(self, agent_id: str) -> None:
         """Route this sub-agent's output lines to the activity registry."""
         self._agent_id = agent_id
+
+    def set_label(self, prefix: str) -> None:
+        """Set the per-line output prefix (e.g. ``[generalist #1] ``)."""
+        self._prefix = prefix
+
+    @property
+    def label(self) -> str:
+        """The output prefix without surrounding whitespace (e.g. ``[generalist #1]``)."""
+        return self._prefix.strip()
 
     async def ask_user(self, prompt: str) -> str:
         # Lock ensures only one agent interacts with parent UI at a time
@@ -230,9 +238,16 @@ async def _run_agent_task(
     # SubagentStart/Stop fire on the parent run's hook manager (Claude semantics:
     # the parent observes its subagents). agent_type is the delegated agent's name.
     agent_id = uuid.uuid4().hex[:8]
-    if hasattr(ui, "set_activity_id"):
+    _tracks_activity = hasattr(ui, "set_activity_id")
+    if _tracks_activity:
         getattr(ui, "set_activity_id")(agent_id)
-    agent_activity_registry.start(agent_id, agent_name, task=deliverable or task)
+        ordinal = agent_activity_registry.start(
+            agent_id, agent_name, task=deliverable or task
+        )
+        # Label the output stream with the panel ordinal, unless the caller
+        # already set a meaningful prefix (background delegation uses its handle).
+        if not getattr(ui, "label", "") and hasattr(ui, "set_label"):
+            getattr(ui, "set_label")(f"[{agent_name} #{ordinal}] ")
     await _fire_subagent_hook(HookEvent.SUBAGENT_START, agent_name, agent_id)
     try:
         result, _ = await run_agent(
@@ -259,7 +274,8 @@ async def _run_agent_task(
     except Exception as e:  # noqa: BLE001
         return AgentTaskResult(agent_name, None, str(e))
     finally:
-        agent_activity_registry.finish(agent_id)
+        if _tracks_activity:
+            agent_activity_registry.finish(agent_id)
         await _fire_subagent_hook(HookEvent.SUBAGENT_STOP, agent_name, agent_id)
 
 
@@ -330,9 +346,8 @@ async def _run_parallel(
         task = task_spec.get("task", "")
         non_goals = task_spec.get("non_goals", []) or []
         additional_context = task_spec.get("additional_context", "")
-        unique_id = get_random_name(separator="-", add_random_digit=True)
-        prefix = f"[{agent_name}:{unique_id}] "
-        buffered_ui = BufferedUI(parent_ui, prefix=prefix, shared_lock=ui_lock)
+        # _run_agent_task assigns the [agent_name #ordinal] label.
+        buffered_ui = BufferedUI(parent_ui, shared_lock=ui_lock)
 
         result = await _run_agent_task(
             agent_name=agent_name,
@@ -348,7 +363,7 @@ async def _run_parallel(
         async with ui_lock:
             buffered_ui.flush_to_parent()
         return AgentTaskResult(
-            f"{agent_name}:{unique_id}",
+            buffered_ui.label or f"[{agent_name}]",
             result.result,
             result.error,
         )
@@ -357,13 +372,14 @@ async def _run_parallel(
 
     combined_results = []
     for r in results:
+        # r.agent_name already carries its [agent_name #ordinal] label.
         if not r.success:
-            combined_results.append(f"[{r.agent_name}] Error: {r.error}")
+            combined_results.append(f"{r.agent_name} Error: {r.error}")
         else:
             indented_result = "\n".join(
                 ["  " + line for line in (r.result or "").splitlines()]
             )
-            combined_results.append(f"[{r.agent_name}] completed:\n{indented_result}")
+            combined_results.append(f"{r.agent_name} completed:\n{indented_result}")
     return "\n\n".join(combined_results)
 
 
@@ -416,10 +432,9 @@ def create_delegate_to_agent_tool(
                 "(non_goals defaults to []), or pass tasks=[...] to fan out."
             )
         parent_ui = get_current_ui() or StdUI()
-        # Generate unique identifier for this agent instance
-        unique_id = get_random_name(separator="-", add_random_digit=True)
-        prefix = f"[{agent_name}:{unique_id}] "
-        buffered_ui = BufferedUI(parent_ui, prefix=prefix)
+        # _run_agent_task assigns the [agent_name #ordinal] label (the panel
+        # is the legend); no opaque per-instance id is shown to the user.
+        buffered_ui = BufferedUI(parent_ui)
 
         task_result = await _run_agent_task(
             agent_name=agent_name,
@@ -437,8 +452,8 @@ def create_delegate_to_agent_tool(
         if not task_result.success:
             return f"Error: {task_result.error}"
 
-        # Return result with unique identifier for traceability
-        return f"[{agent_name}:{unique_id}] completed:\n\n{task_result.result}"
+        label = buffered_ui.label or f"[{agent_name}]"
+        return f"{label} completed:\n\n{task_result.result}"
 
     delegate_to_agent.zrb_is_delegate_tool = True  # type: ignore[attr-defined]
     delegate_to_agent.__name__ = "DelegateToAgent"

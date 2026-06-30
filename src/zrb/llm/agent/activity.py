@@ -22,8 +22,8 @@ from dataclasses import dataclass
 class AgentActivity:
     agent_id: str
     name: str
+    ordinal: int = 0  # display number; the panel is the legend for output prefixes
     task: str = ""  # the deliverable/task the agent was assigned
-    status: str = "running"  # "running" only while tracked; dropped on finish
     last_line: str = ""
 
 
@@ -36,11 +36,15 @@ class AgentActivityRegistry:
 
     def __init__(self) -> None:
         self._agents: dict[str, AgentActivity] = {}
+        self._counter = 0
 
-    def start(self, agent_id: str, name: str, task: str = "") -> None:
+    def start(self, agent_id: str, name: str, task: str = "") -> int:
+        """Track a sub-agent and return its display ordinal (#1, #2, ...)."""
+        self._counter += 1
         self._agents[agent_id] = AgentActivity(
-            agent_id=agent_id, name=name, task=task.strip()
+            agent_id=agent_id, name=name, ordinal=self._counter, task=task.strip()
         )
+        return self._counter
 
     def update(self, agent_id: str, text: str) -> None:
         agent = self._agents.get(agent_id)
@@ -53,18 +57,22 @@ class AgentActivityRegistry:
 
     def finish(self, agent_id: str) -> None:
         self._agents.pop(agent_id, None)
+        # Restart numbering once the batch fully drains, so the next fan-out
+        # begins at #1 instead of an ever-growing count.
+        if not self._agents:
+            self._counter = 0
 
     def active(self) -> list[AgentActivity]:
         return list(self._agents.values())
 
-    def snapshot(self) -> list[dict[str, str]]:
+    def snapshot(self) -> list[dict[str, object]]:
         """Serializable view for non-TUI backends (web/polling poll responses)."""
         return [
             {
                 "agent_id": a.agent_id,
                 "name": a.name,
+                "ordinal": a.ordinal,
                 "task": a.task,
-                "status": a.status,
                 "last_line": a.last_line,
             }
             for a in self._agents.values()

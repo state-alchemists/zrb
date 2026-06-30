@@ -231,6 +231,10 @@ def create_layout(
     # status bar. ConditionalContainer collapses it to nothing when idle.
     extra_children = []
     if agent_activity_text is not None:
+        # lazy: activity is lightweight (stdlib only), imported here to avoid
+        # dragging the import across all layout consumers.
+        from zrb.llm.agent.activity import agent_activity_registry
+
         extra_children.append(
             ConditionalContainer(
                 Window(
@@ -238,7 +242,7 @@ def create_layout(
                     dont_extend_height=True,
                     style="class:bottom-toolbar",
                 ),
-                filter=Condition(lambda: bool(agent_activity_text())),
+                filter=Condition(lambda: bool(agent_activity_registry.active())),
             )
         )
 
