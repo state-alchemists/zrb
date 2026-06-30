@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, TextIO
 if TYPE_CHECKING:
     from zrb.llm.tool_call.ui_protocol import ChoiceSpec
 
+from zrb.llm.agent.activity import agent_activity_registry
 from zrb.llm.agent.run.runner import run_agent
 from zrb.llm.agent.run.runtime_state import get_current_hook_manager, get_current_ui
 
@@ -55,8 +56,14 @@ class BufferedUI(UIProtocol):
         self._wrapped = wrapped_ui
         self._prefix = prefix
         self._buffer: list[str] = []
+        # Set by _run_agent_task so buffered output also feeds the activity panel.
+        self._agent_id: str | None = None
         # Use provided shared lock (for parallel agents) or create own lock
         self._lock = shared_lock if shared_lock is not None else asyncio.Lock()
+
+    def set_activity_id(self, agent_id: str) -> None:
+        """Route this sub-agent's output lines to the activity registry."""
+        self._agent_id = agent_id
 
     async def ask_user(self, prompt: str) -> str:
         # Lock ensures only one agent interacts with parent UI at a time
@@ -83,6 +90,8 @@ class BufferedUI(UIProtocol):
         # Buffer output
         text = sep.join(str(v) for v in values) + end
         self._buffer.append(text)
+        if self._agent_id:
+            agent_activity_registry.update(self._agent_id, text)
 
     async def ask_user_choice(self, spec: ChoiceSpec) -> str:
         # Mirrors ask_user: serialize parent interaction and flush first.
@@ -142,6 +151,8 @@ class BufferedUI(UIProtocol):
         immediately, such as tool call notifications during subagent execution.
         """
         text = sep.join(str(v) for v in values) + end
+        if self._agent_id:
+            agent_activity_registry.update(self._agent_id, text)
         if self._prefix:
             # Add prefix to each non-empty line
             lines = text.split("\n")
@@ -219,6 +230,9 @@ async def _run_agent_task(
     # SubagentStart/Stop fire on the parent run's hook manager (Claude semantics:
     # the parent observes its subagents). agent_type is the delegated agent's name.
     agent_id = uuid.uuid4().hex[:8]
+    if hasattr(ui, "set_activity_id"):
+        getattr(ui, "set_activity_id")(agent_id)
+    agent_activity_registry.start(agent_id, agent_name, task=deliverable or task)
     await _fire_subagent_hook(HookEvent.SUBAGENT_START, agent_name, agent_id)
     try:
         result, _ = await run_agent(
@@ -245,6 +259,7 @@ async def _run_agent_task(
     except Exception as e:  # noqa: BLE001
         return AgentTaskResult(agent_name, None, str(e))
     finally:
+        agent_activity_registry.finish(agent_id)
         await _fire_subagent_hook(HookEvent.SUBAGENT_STOP, agent_name, agent_id)
 
 

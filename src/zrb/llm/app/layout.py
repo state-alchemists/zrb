@@ -14,7 +14,11 @@ from prompt_toolkit.layout import (
     Window,
     WindowAlign,
 )
-from prompt_toolkit.layout.containers import Float, FloatContainer
+from prompt_toolkit.layout.containers import (
+    ConditionalContainer,
+    Float,
+    FloatContainer,
+)
 from prompt_toolkit.layout.controls import FormattedTextControl
 from prompt_toolkit.layout.menus import CompletionsMenu
 from prompt_toolkit.lexers import Lexer
@@ -216,11 +220,27 @@ def create_layout(
     info_bar_text: Callable[[], AnyFormattedText],
     status_bar_text: Callable[[], AnyFormattedText],
     extra_floats: list[Float] | None = None,
+    agent_activity_text: Callable[[], AnyFormattedText] | None = None,
 ) -> Layout:
     title_bar_text = HTML(
         f" <style bg='ansipurple' color='white'><b> {title} </b></style> "
         f"<style color='#888888'>| {jargon}</style>"
     )
+
+    # Sub-agent activity panel: one line per running delegate, just above the
+    # status bar. ConditionalContainer collapses it to nothing when idle.
+    extra_children = []
+    if agent_activity_text is not None:
+        extra_children.append(
+            ConditionalContainer(
+                Window(
+                    content=FormattedTextControl(agent_activity_text),
+                    dont_extend_height=True,
+                    style="class:bottom-toolbar",
+                ),
+                filter=Condition(lambda: bool(agent_activity_text())),
+            )
+        )
 
     return Layout(
         FloatContainer(
@@ -250,6 +270,8 @@ def create_layout(
                         style="class:input-frame",
                     ),
                     Window(height=1),  # Bottom padding
+                    # Sub-agent activity panel (collapses when idle)
+                    *extra_children,
                     # Status Bar (fixed height)
                     Window(
                         height=1,
