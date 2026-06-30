@@ -4,46 +4,10 @@ from typing import TYPE_CHECKING, Any, Callable
 
 from zrb.context.any_context import AnyContext
 from zrb.llm.util.image_scale import scale_image_bytes
+from zrb.llm.util.pdf import extract_pdf_text
 
 if TYPE_CHECKING:
     from pydantic_ai.messages import UserContent
-
-
-def _extract_pdf_text(path: str, print_fn: Callable[[str], Any]) -> str | None:
-    """Extract text content from a PDF file.
-
-    Returns the combined text of all pages, or ``None`` when the PDF is
-    scanned/image-only, corrupted, or ``pdfplumber`` is not installed.
-
-    Extracting text client-side is more efficient than sending raw PDF
-    bytes to the LLM — the binary representation is much larger than the
-    extracted text, and most models cannot consume ``application/pdf``
-    natively.
-    """
-    try:
-        # lazy: pdfplumber is a core dependency but a heavy import
-        import pdfplumber
-    except ImportError:
-        print_fn("pdfplumber not available; cannot extract text from PDF")
-        return None
-
-    try:
-        with pdfplumber.open(path) as pdf:
-            texts = []
-            for page in pdf.pages:
-                text = page.extract_text()
-                if text:
-                    texts.append(text)
-            if not texts:
-                print_fn(
-                    "No extractable text found in PDF: the file may be "
-                    "scanned/image-only or contain no text layer."
-                )
-                return None
-            return "\n".join(texts)
-    except Exception as e:
-        print_fn(f"Failed to extract text from PDF {path}: {e}")
-        return None
 
 
 def normalize_attachments(
@@ -65,11 +29,15 @@ def normalize_attachments(
                 if media_type:
                     try:
                         if media_type == "application/pdf":
-                            pdf_text = _extract_pdf_text(path, print_fn)
+                            pdf_text = extract_pdf_text(path)
                             if pdf_text is not None:
                                 final_attachments.append(pdf_text)
                                 continue
                             # Fall through to binary if extraction failed
+                            print_fn(
+                                "Failed to extract text from PDF — "
+                                "attaching as binary"
+                            )
                         data = Path(path).read_bytes()
                         if media_type.startswith("image/"):
                             scaled = scale_image_bytes(data, media_type=media_type)

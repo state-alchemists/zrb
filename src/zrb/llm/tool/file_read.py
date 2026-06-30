@@ -1,6 +1,7 @@
 import os
 
 from zrb.config.config import CFG
+from zrb.llm.util.pdf import extract_pdf_text
 from zrb.util.truncate import truncate_text
 
 
@@ -129,20 +130,13 @@ def _is_pdf_file(abs_path: str) -> bool:
 
 
 def _read_pdf(path: str, abs_path: str, start_line: int, end_line: int) -> str:
-    # lazy: pdfplumber is heavy; only loaded when we actually have a PDF
-    import pdfplumber
-    from pdfplumber.pdf import PDF
+    full_text = extract_pdf_text(abs_path)
 
-    try:
-        with pdfplumber.open(abs_path) as pdf:
-            pdf: PDF
-            full_text = "\n".join(
-                page.extract_text() for page in pdf.pages if page.extract_text()
-            )
-    except Exception as e:
+    if full_text is None:
         return (
-            f"Error reading PDF {path}: {e}. "
-            "[SYSTEM SUGGESTION]: Ensure the file is a valid PDF."
+            f"Error reading PDF {path}: Failed to extract text. "
+            "[SYSTEM SUGGESTION]: The PDF may be corrupted, scanned/image-only, "
+            "or pdfplumber may not be installed."
         )
 
     if not full_text.strip():
