@@ -13,6 +13,7 @@ import re
 from typing import TYPE_CHECKING, TextIO, cast
 
 from zrb.config.config import CFG
+from zrb.llm.agent.activity import agent_activity_registry
 from zrb.util.cli.style import stylize_muted
 from zrb.util.cli.terminal import get_terminal_size
 
@@ -34,6 +35,12 @@ _MODE_STATUS_LABELS = {
     "yolo": "yolo",
     "custom": "custom-yolo",
 }
+
+
+def _truncate(text: str, limit: int) -> str:
+    """First line of `text`, clipped to `limit` chars with an ellipsis."""
+    text = text.splitlines()[0] if text else ""
+    return text if len(text) <= limit else text[: limit - 3] + "..."
 
 
 def _get_mode_status_style(mode: str) -> str:
@@ -287,6 +294,27 @@ class OutputMixin:
             ("", "\n"),
             *center_line(line3),
         ]
+
+    def get_agent_activity_text(self) -> "AnyFormattedText":
+        """One line per running sub-agent: #ordinal name · task — activity.
+
+        This panel is the legend for the [name #ordinal] prefixes in the output
+        stream. Empty when nothing is delegating, so it collapses to zero height.
+        Refreshed by the app's periodic redraw (LLM_UI_REFRESH_INTERVAL).
+        """
+        agents = agent_activity_registry.active()
+        if not agents:
+            return []
+        frags: list = []
+        for agent in agents:
+            label = f" 🔧 #{agent.ordinal} {agent.name}"
+            if agent.task:
+                label += f" · {_truncate(agent.task, 50)}"
+            if agent.last_line:
+                label += f" — {_truncate(agent.last_line, 40)}"
+            frags.append((CFG.LLM_UI_STYLE_THINKING, label))
+            frags.append(("", "\n"))
+        return frags[:-1]  # drop trailing newline so height == agent count
 
     def get_status_bar_text(self) -> "AnyFormattedText":
         if self.current_confirmation is not None:

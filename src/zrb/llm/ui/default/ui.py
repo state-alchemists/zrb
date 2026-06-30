@@ -190,6 +190,7 @@ class UI(  # type: ignore[reportIncompatibleVariableOverride]
             info_bar_text=self.get_info_bar_text,
             status_bar_text=self.get_status_bar_text,
             extra_floats=[choice_float],
+            agent_activity_text=self.get_agent_activity_text,
         )
 
         # lazy: heavy third-party
