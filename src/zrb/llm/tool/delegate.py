@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any, TextIO
 if TYPE_CHECKING:
     from zrb.llm.tool_call.ui_protocol import ChoiceSpec
 
-from zrb.llm.agent.activity import agent_activity_registry
+from zrb.llm.agent.activity import HasActivityTracking, agent_activity_registry
 from zrb.llm.agent.run.runner import run_agent
 from zrb.llm.agent.run.runtime_state import get_current_hook_manager, get_current_ui
 
@@ -238,16 +238,16 @@ async def _run_agent_task(
     # SubagentStart/Stop fire on the parent run's hook manager (Claude semantics:
     # the parent observes its subagents). agent_type is the delegated agent's name.
     agent_id = uuid.uuid4().hex[:8]
-    _tracks_activity = hasattr(ui, "set_activity_id")
+    _tracks_activity = isinstance(ui, HasActivityTracking)
     if _tracks_activity:
-        getattr(ui, "set_activity_id")(agent_id)
+        ui.set_activity_id(agent_id)
         ordinal = agent_activity_registry.start(
             agent_id, agent_name, task=deliverable or task
         )
         # Label the output stream with the panel ordinal, unless the caller
         # already set a meaningful prefix (background delegation uses its handle).
-        if not getattr(ui, "label", "") and hasattr(ui, "set_label"):
-            getattr(ui, "set_label")(f"[{agent_name} #{ordinal}] ")
+        if not ui.label:
+            ui.set_label(f"[{agent_name} #{ordinal}] ")
     await _fire_subagent_hook(HookEvent.SUBAGENT_START, agent_name, agent_id)
     try:
         result, _ = await run_agent(
