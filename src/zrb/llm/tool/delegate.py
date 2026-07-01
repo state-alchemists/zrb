@@ -229,7 +229,7 @@ async def _run_agent_task(
             agent_name,
             None,
             f"Sub-agent '{agent_name}' not found. "
-            "[SYSTEM SUGGESTION]: Use ListZrbTasks to see available sub-agents, "
+            "[SYSTEM SUGGESTION]: Check DelegateToAgent's description for available sub-agents, "
             "or check agent registration in your zrb config.",
         )
 

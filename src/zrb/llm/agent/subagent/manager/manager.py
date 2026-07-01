@@ -31,6 +31,13 @@ if TYPE_CHECKING:
     from pydantic_ai.toolsets import AbstractToolset
 
 
+def _resolve_tool_name(t: Any) -> str | None:
+    raw = getattr(t, "name", None)
+    if raw is not None:
+        return raw
+    return getattr(t, "__name__", None)
+
+
 class SubAgentDefinition:
     def __init__(
         self,
@@ -40,6 +47,7 @@ class SubAgentDefinition:
         system_prompt: str,
         model: str | None = None,
         tools: list[str] | None = None,
+        disallowed_tools: list[str] | None = None,
         agent_instance: Any | None = None,
         agent_factory: Callable[[], Any] | None = None,
         inherit_sections: list[str] | None = None,
@@ -50,6 +58,7 @@ class SubAgentDefinition:
         self.system_prompt = system_prompt
         self.model = model
         self.tools = tools if tools is not None else []
+        self.disallowed_tools = disallowed_tools if disallowed_tools is not None else []
         self.agent_instance = agent_instance
         self.agent_factory = agent_factory
         # Inherit named PromptManager sections from the main-agent composition
@@ -243,6 +252,14 @@ class SubAgentManager(LoaderMixin, SearchMixin):
                         resolved_tools.append(single_tool)
             elif not getattr(tool, "zrb_is_delegate_tool", False):
                 resolved_tools.append(tool)
+
+        # Apply disallowedTools: remove any tools the definition explicitly denies.
+        if definition.disallowed_tools:
+            resolved_tools = [
+                t
+                for t in resolved_tools
+                if _resolve_tool_name(t) not in definition.disallowed_tools
+            ]
 
         resolved_toolsets = self._get_all_toolsets(ctx)
 
