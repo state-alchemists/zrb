@@ -14,9 +14,9 @@ def extract_pdf_text(path: str) -> str | None:
         path: File-system path to the PDF.
 
     Returns:
-        Combined text of all pages joined by newlines, or ``None`` when the
-        PDF is scanned/image-only, corrupted, pdfplumber is not installed,
-        or an unexpected error occurs.
+        Combined text of all pages joined by newlines, empty string when the
+        PDF contains no extractable text (e.g. scanned/image-only), or
+        ``None`` when pdfplumber is not installed or an unexpected error occurs.
     """
     try:
         # lazy: pdfplumber is a core dependency but heavy to import at module
@@ -28,6 +28,6 @@ def extract_pdf_text(path: str) -> str | None:
     try:
         with pdfplumber.open(path) as pdf:
             texts = [p.extract_text() for p in pdf.pages if p.extract_text()]
-            return "\n".join(texts) if texts else None
+            return "\n".join(texts) if texts else ""
     except Exception:
         return None

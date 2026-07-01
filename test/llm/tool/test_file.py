@@ -438,7 +438,7 @@ def test_read_pdf_file_invalid(tmp_path):
     ):
         result = read_file(str(pdf_file))
     assert "Error" in result
-    assert "Corrupt PDF" in result
+    assert "corrupted" in result.lower()
 
 
 def test_read_pdf_file_line_range(tmp_path):

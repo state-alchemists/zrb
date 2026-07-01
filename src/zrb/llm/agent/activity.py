@@ -16,6 +16,22 @@ avoid cross-session bleed.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Protocol, runtime_checkable
+
+
+@runtime_checkable
+class HasActivityTracking(Protocol):
+    """A UI implementation that can feed the sub-agent activity panel.
+
+    ``BufferedUI`` (see ``zrb.llm.tool.delegate``) is the canonical
+    implementation; the protocol enables ``isinstance`` checks in
+    ``_run_agent_task`` without coupling to a concrete class.
+    """
+
+    def set_activity_id(self, agent_id: str) -> None: ...
+    def set_label(self, prefix: str) -> None: ...
+    @property
+    def label(self) -> str: ...
 
 
 @dataclass
