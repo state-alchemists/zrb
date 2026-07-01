@@ -236,8 +236,8 @@ class TestStreamEventHandlerToolResult:
 
         mock_event = MagicMock()
         mock_event.tool_call_id = "call_123"
-        mock_event.result = MagicMock()
-        mock_event.result.content = "success"
+        mock_event.part = MagicMock()
+        mock_event.part.content = "success"
         handler._handle_tool_result(mock_event)
         print_fn.assert_called()
         args = print_fn.call_args[0][0]
@@ -250,8 +250,8 @@ class TestStreamEventHandlerToolResult:
 
         mock_event = MagicMock()
         mock_event.tool_call_id = "call_123"
-        mock_event.result = MagicMock()
-        mock_event.result.content = "success"
+        mock_event.part = MagicMock()
+        mock_event.part.content = "success"
         handler._handle_tool_result(mock_event)
         print_fn.assert_called()
         args = print_fn.call_args[0][0]
@@ -305,6 +305,32 @@ class TestStreamEventHandlerCall:
         handler._was_tool_call_delta = True
         await handler(event)
         assert handler._was_tool_call_delta is False
+
+    @pytest.mark.asyncio
+    async def test_call_output_tool_call_and_result_events(self):
+        """OutputToolCallEvent/OutputToolResultEvent (final/deferred-output tool
+        calls) must dispatch through the same handlers as function tool calls,
+        since they share the ToolCallEvent/ToolResultEvent base."""
+        print_fn = MagicMock()
+        handler = StreamEventHandler(print_fn=print_fn, show_tool_result=True)
+        from pydantic_ai import OutputToolCallEvent, OutputToolResultEvent
+        from pydantic_ai.messages import ToolCallPart, ToolReturnPart
+
+        call_event = OutputToolCallEvent(
+            part=ToolCallPart(
+                tool_name="final_result", args="{}", tool_call_id="call_1"
+            )
+        )
+        await handler(call_event)
+        assert "call_1" in print_fn.call_args[0][0]
+
+        result_event = OutputToolResultEvent(
+            part=ToolReturnPart(
+                tool_name="final_result", content="done", tool_call_id="call_1"
+            )
+        )
+        await handler(result_event)
+        assert "Return done" in print_fn.call_args[0][0]
 
 
 class TestCreateEventHandler:

@@ -37,9 +37,9 @@ class PartialRunAccumulator:
     def record_event(self, event: Any) -> None:
         # lazy: heavy third-party deferral
         from pydantic_ai import (
-            FunctionToolCallEvent,
-            FunctionToolResultEvent,
             PartStartEvent,
+            ToolCallEvent,
+            ToolResultEvent,
         )
         from pydantic_ai.messages import TextPart
 
@@ -47,7 +47,7 @@ class PartialRunAccumulator:
             if isinstance(event.part, TextPart):
                 self.has_partial_text = True
 
-        elif isinstance(event, FunctionToolCallEvent):
+        elif isinstance(event, ToolCallEvent):
             self._current_tool_name = event.part.tool_name
             self._current_tool_args = (
                 self._truncate(str(event.part.args))
@@ -56,7 +56,7 @@ class PartialRunAccumulator:
             )
             self._current_tool_call_id = event.part.tool_call_id
 
-        elif isinstance(event, FunctionToolResultEvent):
+        elif isinstance(event, ToolResultEvent):
             tool_name = event.part.tool_name
             if tool_name is not None and tool_name == self._current_tool_name:
                 result_preview = self._truncate(str(event.part.content))

@@ -519,7 +519,6 @@ class TestEngineHelpers:
 
         fake_mod = MagicMock()
         fake_mod.OpenAIChatModel = FakeModel
-        fake_mod.OpenAIModel = FakeModel
         with patch.dict("sys.modules", {"pydantic_ai.models.openai": fake_mod}):
             assert _is_openai_chat_model(FakeModel()) is True
 

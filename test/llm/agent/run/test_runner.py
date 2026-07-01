@@ -1,9 +1,9 @@
 import asyncio
+from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from pydantic_ai import Agent, AgentRunResultEvent
-from pydantic_ai.result import AgentEventStream
 
 from zrb.llm.agent.run.runner import run_agent
 from zrb.llm.config.limiter import LLMLimiter
@@ -15,13 +15,15 @@ from zrb.llm.hook.types import HookEvent
 def _stream_from(agen_func):
     """Wrap an async generator function into a run_stream_events mock.
 
-    The real AgentEventStream supports ``async with ... as stream:``, but
-    raw async generators do not.  This helper wraps the generator in an
-    AgentEventStream so tests pass args/kwargs through transparently.
+    ``run_stream_events()`` returns a bare async context manager (no dedicated
+    class to import), so we mimic that shape directly with
+    ``contextlib.asynccontextmanager`` rather than depending on an internal
+    pydantic-ai type.
     """
 
-    def wrapper(*args, **kwargs):
-        return AgentEventStream(generator=agen_func(*args, **kwargs))
+    @asynccontextmanager
+    async def wrapper(*args, **kwargs):
+        yield agen_func(*args, **kwargs)
 
     return wrapper
 

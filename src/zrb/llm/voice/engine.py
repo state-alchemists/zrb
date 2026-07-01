@@ -350,9 +350,9 @@ def _is_openai_chat_model(model: object) -> bool:
     instances and string model identifiers (``openai:gpt-4o``, ``gpt-4o``, etc.)
     """
     try:
-        from pydantic_ai.models.openai import OpenAIChatModel, OpenAIModel
+        from pydantic_ai.models.openai import OpenAIChatModel
 
-        if isinstance(model, (OpenAIChatModel, OpenAIModel)):
+        if isinstance(model, OpenAIChatModel):
             return True
     except ImportError:
         pass

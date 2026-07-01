@@ -4644,14 +4644,14 @@ timezone = ["tzdata ; python_version >= \"3.9\" and platform_system == \"Windows
 
 [[package]]
 name = "pydantic-ai-slim"
-version = "1.107.0"
+version = "2.2.0"
 description = "Agent Framework / shim to use Pydantic with LLMs, slim package"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "pydantic_ai_slim-1.107.0-py3-none-any.whl", hash = "sha256:1af49bbae06a6c598f72c54d4734ba377100cac493c9a05fa8e089bebeae0da6"},
-    {file = "pydantic_ai_slim-1.107.0.tar.gz", hash = "sha256:4616f689a92fcfecfecf2a7af27aca22f139a873cf6d7a8929eaeee9c0eedbb4"},
+    {file = "pydantic_ai_slim-2.2.0-py3-none-any.whl", hash = "sha256:ec5a98e42eafeca654b5f27e6c3b2118688bb94230e428e748db2d41a47bbbd9"},
+    {file = "pydantic_ai_slim-2.2.0.tar.gz", hash = "sha256:61057823b4a6f71e703d45d1a1d4efae468cf8e29fb73c6026d46826df7884ac"},
 ]
 
 [package.dependencies]
@@ -4661,21 +4661,19 @@ griffelib = ">=2.0"
 httpx = ">=0.27"
 opentelemetry-api = ">=1.28.0"
 pydantic = ">=2.12"
-pydantic-graph = "1.107.0"
+pydantic-graph = "2.2.0"
 typing-inspection = ">=0.4.0"
 
 [package.extras]
-a2a = ["fasta2a (>=0.6.1)"]
-ag-ui = ["ag-ui-protocol (>=0.1.10)", "starlette (>=0.45.3)"]
+ag-ui = ["ag-ui-protocol (>=0.1.10)", "starlette (>=0.46.2)"]
 anthropic = ["anthropic (>=0.108.0)"]
 bedrock = ["boto3 (>=1.42.63)"]
 cli = ["argcomplete (>=3.5.0)", "prompt-toolkit (>=3)", "pyperclip (>=1.9.0)", "pyyaml (>=6.0.2)", "rich (>=13)"]
 cohere = ["cohere (>=5.20.6) ; platform_system != \"Emscripten\""]
 dbos = ["dbos (>=2.10.0)"]
 duckduckgo = ["ddgs (>=9.0.0)"]
-evals = ["pydantic-evals (==1.107.0)"]
+evals = ["pydantic-evals (==2.2.0)"]
 exa = ["exa-py (>=2.0.0)"]
-fastmcp = ["fastmcp (>=3.3.0)"]
 google = ["google-genai (>=1.70.0)"]
 groq = ["groq (>=0.25.0)"]
 huggingface = ["hf-xet (<1.5.0) ; platform_machine == \"x86_64\" or platform_machine == \"amd64\" or platform_machine == \"AMD64\" or platform_machine == \"arm64\" or platform_machine == \"aarch64\"", "huggingface-hub (>=1.3.4,<2.0.0)"]
@@ -4684,23 +4682,17 @@ mcp = ["fastmcp-slim[client] (>=3.3.0)"]
 mistral = ["mistralai (>=2.0.0,!=2.4.6)"]
 openai = ["openai (>=2.29.0)", "tiktoken (>=0.12.0)"]
 openrouter = ["openai (>=2.8.0)"]
-outlines-llamacpp = ["outlines[llamacpp] (>=1.0.0,<1.3.0) ; python_version < \"3.14\""]
-outlines-mlxlm = ["outlines[mlxlm] (>=1.0.0,<1.3.0) ; python_version < \"3.14\" and platform_system == \"Darwin\" and platform_machine == \"arm64\""]
-outlines-sglang = ["outlines[sglang] (>=1.0.0,<1.3.0) ; python_version < \"3.14\"", "pillow (>=12.2.0) ; python_version < \"3.14\""]
-outlines-transformers = ["outlines[transformers] (>=1.0.0,<1.3.0) ; python_version < \"3.14\" and (sys_platform != \"darwin\" or platform_machine != \"x86_64\")", "pillow (>=12.2.0) ; python_version < \"3.14\"", "torch (>=2.8.0) ; python_version < \"3.14\" and (sys_platform != \"darwin\" or platform_machine != \"x86_64\")", "transformers (>=4.0.0) ; python_version < \"3.14\""]
-outlines-vllm-offline = ["outlines (>=1.0.0,<1.3.0) ; python_version < \"3.14\"", "torch (>=2.8.0) ; python_version < \"3.14\" and (sys_platform != \"darwin\" or platform_machine != \"x86_64\")", "vllm (>=0.20.0) ; python_version < \"3.12\" and (sys_platform != \"darwin\" or platform_machine != \"x86_64\")"]
 prefect = ["prefect (>=3.6.13)"]
 retries = ["tenacity (>=8.2.3)"]
 sentence-transformers = ["sentence-transformers (>=5.2.0) ; python_version < \"3.14\""]
 spec = ["pydantic-handlebars (>=0.1.0)", "pyyaml (>=6.0.2)"]
 tavily = ["tavily-python (>=0.5.0)"]
 temporal = ["temporalio (>=1.24.0)"]
-ui = ["starlette (>=0.45.3)"]
-vertexai = ["google-auth (>=2.36.0)", "requests (>=2.32.2)"]
+ui = ["starlette (>=0.46.2)"]
 voyageai = ["voyageai (>=0.3.7) ; python_version < \"3.14\""]
-web = ["httpx (>=0.27.0)", "starlette (>=0.45.3)", "uvicorn (>=0.38.0)"]
+web = ["httpx (>=0.27.0)", "starlette (>=0.46.2)", "uvicorn (>=0.38.0)"]
 web-fetch = ["markdownify (>=1.2)"]
-xai = ["xai-sdk (>=1.12.2)"]
+xai = ["xai-sdk (>=1.14.0)"]
 
 [[package]]
 name = "pydantic-core"
@@ -4863,14 +4855,14 @@ uuid-utils = ["uuid-utils (>=0.6.0) ; python_version < \"3.14\""]
 
 [[package]]
 name = "pydantic-graph"
-version = "1.107.0"
+version = "2.2.0"
 description = "Graph and state machine library"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "pydantic_graph-1.107.0-py3-none-any.whl", hash = "sha256:71add94fe7e14c703977a895117c475aae6c0b02a774a036c4d00d9a63c78b00"},
-    {file = "pydantic_graph-1.107.0.tar.gz", hash = "sha256:278dd89b3e33f3a2963ac949f27a53aef705c5d883a8ce5d06d23e6e3cfbd972"},
+    {file = "pydantic_graph-2.2.0-py3-none-any.whl", hash = "sha256:b55467d0ec68ad818d910e22e509118e78d85fc133cc8a8c07334b559644f533"},
+    {file = "pydantic_graph-2.2.0.tar.gz", hash = "sha256:7cc99594f0ccb07f875199c5715a0190b1acc0d54b27d501c2002dfd419ecee0"},
 ]
 
 [package.dependencies]
@@ -7339,4 +7331,4 @@ xai = ["aiohttp", "xai-sdk"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11.0,<3.15.0"
-content-hash = "484bb7a17e38a8cdf3659affa8a4027b1386601472c35ccca99be1fd77aca2a8"
+content-hash = "c29f6e6d4997230b99ade08eef02ef1aa291d4d93662303b9c21296ce850cb5e"
