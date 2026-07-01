@@ -131,7 +131,15 @@ def test_is_termux_detects_com_termux_prefix(monkeypatch):
 def test_is_termux_false_off_termux(monkeypatch):
     monkeypatch.delenv("TERMUX_VERSION", raising=False)
     monkeypatch.setenv("PREFIX", "/usr/local")
+    monkeypatch.delenv("ANDROID_ROOT", raising=False)
     assert is_termux() is False
+
+
+def test_is_termux_detects_android_root(monkeypatch):
+    monkeypatch.delenv("TERMUX_VERSION", raising=False)
+    monkeypatch.delenv("PREFIX", raising=False)
+    monkeypatch.setenv("ANDROID_ROOT", "/system")
+    assert is_termux() is True
 
 
 def test_cfg_is_termux_auto_detected(monkeypatch):
