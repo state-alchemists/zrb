@@ -443,27 +443,6 @@ async def _prepare_history(
     )
 
 
-async def _apply_history_processors(
-    history: list[Any], processors: list[Any]
-) -> list[Any]:
-    """Apply history processors and ensure proper message alternation.
-
-    Called between tool-call iterations so that summarization effects (e.g.
-    replacing a large tool result with a SUMMARY_PREFIX string) are written
-    back to current_history. Without this, pydantic-ai's before_model_request
-    modifies a shallow copy and result.all_messages() always returns the
-    original unsummarized content, causing large tool results to be
-    re-summarized on every subsequent model call.
-    """
-    processed = history
-    for processor in processors:
-        try:
-            processed = await processor(processed)
-        except Exception as e:
-            CFG.LOGGER.warning(f"History processor failed between tool calls: {e}")
-    return ensure_alternating_roles(processed)
-
-
 async def _execution_loop(
     agent: "Agent[None, Any]",
     current_message: Any,
@@ -484,13 +463,6 @@ async def _execution_loop(
     extension_state = ExtensionState()
     current_results = None
     partial_run = PartialRunAccumulator()
-    # pydantic-ai's before_model_request runs history processors on a shallow
-    # copy of ctx.state.message_history, so any summarization it does is never
-    # written back. result.all_messages() therefore always returns the original
-    # (unsummarized) content. We hold a reference to the processors here so we
-    # can apply them ourselves to persist their effects between tool call
-    # iterations.
-    history_processors = list(getattr(agent, "zrb_history_processors", None) or [])
 
     try:
         while True:
@@ -586,20 +558,13 @@ async def _execution_loop(
 
                 current_results = rebuild_for_denials(current_results)
                 current_message = None
-                # Skip history processors when pending deferred results exist:
-                # they can orphan the ModelResponse whose tool_calls are
-                # expected by _handle_deferred_tool_results in the next stream
-                # iteration.  Processor effects are already applied in
-                # _prepare_history before the first stream call.
-                if current_results and (
-                    getattr(current_results, "calls", None)
-                    or getattr(current_results, "approvals", None)
-                ):
-                    current_history = run_history
-                else:
-                    current_history = await _apply_history_processors(
-                        run_history, history_processors
-                    )
+                # process_deferred_requests() always populates
+                # current_results.approvals for every resolved call (approved,
+                # denied, or hook-blocked alike), so history processors are never
+                # reapplied here -- run_history feeds the next iteration as-is.
+                # Processor effects were already applied in _prepare_history
+                # before the first stream call.
+                current_history = run_history
                 CFG.LOGGER.debug("Continuing to next iteration with current_results")
                 continue
 

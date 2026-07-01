@@ -6,10 +6,10 @@ if TYPE_CHECKING:
     from pydantic_ai import (
         AgentRunResultEvent,
         AgentStreamEvent,
-        FunctionToolCallEvent,
-        FunctionToolResultEvent,
         PartDeltaEvent,
         PartStartEvent,
+        ToolCallEvent,
+        ToolResultEvent,
     )
 
 PrintKind = Literal[
@@ -74,10 +74,10 @@ class StreamEventHandler:
         from pydantic_ai import (
             AgentRunResultEvent,
             FinalResultEvent,
-            FunctionToolCallEvent,
-            FunctionToolResultEvent,
             PartDeltaEvent,
             PartStartEvent,
+            ToolCallEvent,
+            ToolResultEvent,
         )
 
         skip_prefix_update = False
@@ -86,9 +86,9 @@ class StreamEventHandler:
             skip_prefix_update = self._handle_part_start(event)
         elif isinstance(event, PartDeltaEvent):
             self._handle_part_delta(event)
-        elif isinstance(event, FunctionToolCallEvent):
+        elif isinstance(event, ToolCallEvent):
             self._handle_tool_call(event)
-        elif isinstance(event, FunctionToolResultEvent):
+        elif isinstance(event, ToolResultEvent):
             self._handle_tool_result(event)
         elif isinstance(event, AgentRunResultEvent):
             self._handle_run_result(event)
@@ -176,7 +176,7 @@ class StreamEventHandler:
                     self._progress_chars
                 )
 
-    def _handle_tool_call(self, event: "FunctionToolCallEvent"):
+    def _handle_tool_call(self, event: "ToolCallEvent"):
         if self._was_tool_call_delta and not self._show_tool_call_detail:
             self._print_fn("\r", "progress")
 
@@ -194,10 +194,10 @@ class StreamEventHandler:
             self._fprint(line, preserve_leading_newline=True, kind="tool_call")
         self._was_tool_call_delta = False
 
-    def _handle_tool_result(self, event: "FunctionToolResultEvent"):
+    def _handle_tool_result(self, event: "ToolResultEvent"):
         if self._show_tool_result:
             self._fprint(
-                f"{self._event_prefix}🔠 {event.tool_call_id} | Return {event.result.content}\n",
+                f"{self._event_prefix}🔠 {event.tool_call_id} | Return {event.part.content}\n",
                 preserve_leading_newline=True,
                 kind="tool_call",
             )

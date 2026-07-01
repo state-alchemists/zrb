@@ -34,10 +34,10 @@ if TYPE_CHECKING:
     from pydantic_ai.tools import ToolFuncEither
     from pydantic_ai.toolsets import AbstractToolset
 
-    # zrb applies history processors itself in runner._apply_history_processors
-    # (passing extra positional args like `reserved_tokens` in some call sites),
-    # so the contract is broader than pydantic-ai's `HistoryProcessor` type alias.
-    # Kept local to avoid depending on a private pydantic-ai symbol.
+    # zrb applies history processors itself in runner._prepare_history (passing
+    # an extra positional `reserved_tokens` arg), so the contract is broader
+    # than pydantic-ai's `HistoryProcessor` type alias. Kept local to avoid
+    # depending on a private pydantic-ai symbol.
     HistoryProcessor = Callable[..., Awaitable[list[ModelMessage]]]
 
 

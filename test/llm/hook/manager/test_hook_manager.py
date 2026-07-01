@@ -535,10 +535,7 @@ class TestHookManagerHookTypes:
         mock_agent = MagicMock()
         mock_agent.run = AsyncMock(return_value=MagicMock(output='{"res": "ok"}'))
 
-        with (
-            patch("pydantic_ai.Agent", return_value=mock_agent),
-            patch("pydantic_ai.models.openai.OpenAIModel", return_value=MagicMock()),
-        ):
+        with patch("pydantic_ai.Agent", return_value=mock_agent):
             manager.scan(search_dirs=[str(tmp_path)])
             results = await manager.execute_hooks(
                 HookEvent.SESSION_START, {}, session_id="sid"
@@ -566,10 +563,7 @@ class TestHookManagerHookTypes:
         mock_agent = MagicMock()
         mock_agent.run = AsyncMock(return_value=MagicMock(output="agent output"))
 
-        with (
-            patch("pydantic_ai.Agent", return_value=mock_agent),
-            patch("pydantic_ai.models.openai.OpenAIModel", return_value=MagicMock()),
-        ):
+        with patch("pydantic_ai.Agent", return_value=mock_agent):
             manager.scan(search_dirs=[str(tmp_path)])
             results = await manager.execute_hooks(HookEvent.SESSION_START, "some input")
             assert results[0].message == "agent output"
