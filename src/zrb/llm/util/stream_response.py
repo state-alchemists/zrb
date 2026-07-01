@@ -257,7 +257,7 @@ def create_event_handler(
     )
 
 
-def _get_truncated_event_part_args(event: "AgentStreamEvent") -> Any:
+def _get_truncated_event_part_args(event: "AgentStreamEvent | ToolCallEvent") -> Any:
     if not hasattr(event, "part"):
         return {}
     part = getattr(event, "part")

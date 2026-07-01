@@ -171,7 +171,7 @@ def _wrap_toolset(toolset: "AbstractToolset[None]") -> "AbstractToolset[None]":
     # lazy: circular — permission is a leaf module.
     from zrb.llm.permission import tool_capability
 
-    class SafeToolsetWrapper(WrapperToolset):
+    class SafeToolsetWrapper(WrapperToolset[None]):
         async def call_tool(
             self, name: str, tool_args: dict[str, Any], ctx: Any, tool: Any
         ) -> Any:
@@ -441,8 +441,12 @@ def create_agent(
         model, final_model, model_settings
     )
 
-    agent = Agent(
+    agent: "Agent[None, Any]" = Agent(
         model=final_model,
+        # Pins AgentDepsT=None so the contravariant `toolsets`/`model_settings`
+        # params below (all typed AbstractToolset[None]/etc.) resolve against
+        # the right overload instead of the deps_type=object default.
+        deps_type=type(None),
         # final_output_type may be `output_type | DeferredToolRequests`, a union
         # pydantic-ai accepts at runtime but its OutputSpec param type doesn't model.
         output_type=cast("OutputSpec[Any]", final_output_type),
