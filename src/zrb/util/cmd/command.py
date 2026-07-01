@@ -1,4 +1,5 @@
 import asyncio
+import codecs
 import os
 import re
 import signal
@@ -161,10 +162,11 @@ async def run_command(
     is_interactive: bool = False,
 ) -> tuple[CmdResult, int]:
     """
-    Executes a command using the robust `readline` strategy with a memory
-    limit, and correctly handles terminal control characters in the output.
-    Please note that `interactive` execution is generally not recommended and thus
-    disabled by default.
+    Executes a command, streaming raw stdout/stderr bytes as they arrive so the
+    combined output looks like running the command manually in a terminal
+    (`\\r`-driven progress output is shown live instead of buffering until a
+    newline). Please note that `interactive` execution is generally not
+    recommended and thus disabled by default.
     When using `interactive execution, the command will not be started in new session
     and will share the same stdin as the main process, which might trigger race condition.
     You can use interactive execution for a limited usecase when the command
@@ -194,16 +196,17 @@ async def run_command(
         register_pid_method(cmd_process.pid)
     # stdout/stderr are guaranteed non-None since the process is created with PIPE.
     assert cmd_process.stdout is not None and cmd_process.stderr is not None
-    # Use the new, simple, and correct stream reader.
+    # Read stdout/stderr from one multiplexed loop so interleaved lines land in
+    # something much closer to real write order (see __read_streams).
     display_lines = deque(maxlen=max_display_line if max_display_line > 0 else 0)
-    stdout_task = asyncio.create_task(
-        __read_stream(
-            cmd_process.stdout, actual_print_method, max_output_line, display_lines
-        )
-    )
-    stderr_task = asyncio.create_task(
-        __read_stream(
-            cmd_process.stderr, actual_print_method, max_error_line, display_lines
+    streams_task = asyncio.create_task(
+        __read_streams(
+            cmd_process.stdout,
+            cmd_process.stderr,
+            actual_print_method,
+            max_output_line,
+            max_error_line,
+            display_lines,
         )
     )
     timeout_task = (
@@ -218,7 +221,7 @@ async def run_command(
         if timeout_task and timeout_task in done:
             raise asyncio.TimeoutError()
         return_code = wait_task.result()
-        stdout, stderr = await asyncio.gather(stdout_task, stderr_task)
+        stdout, stderr = await streams_task
         display = "\r\n".join(display_lines)
         return CmdResult(stdout, stderr, display=display), return_code
     except (KeyboardInterrupt, asyncio.CancelledError, asyncio.TimeoutError):
@@ -236,9 +239,8 @@ async def run_command(
         except Exception:
             pass
         # Final cleanup
-        stdout_task.cancel()
-        stderr_task.cancel()
-        await asyncio.gather(stdout_task, stderr_task, return_exceptions=True)
+        streams_task.cancel()
+        await asyncio.gather(streams_task, return_exceptions=True)
         raise
 
 
@@ -248,47 +250,127 @@ def __get_cmd_stdin(is_interactive: bool) -> int | TextIO:
     return asyncio.subprocess.DEVNULL
 
 
-async def __read_stream(
-    stream: asyncio.StreamReader,
+async def __read_streams(
+    stdout_stream: asyncio.StreamReader,
+    stderr_stream: asyncio.StreamReader,
     print_method: Callable[..., None],
-    max_line: int,
+    max_output_line: int,
+    max_error_line: int,
     display_queue: deque[Any],
-) -> str:
+) -> tuple[str, str]:
     """
-    Reads from the stream using the robust `readline()` and correctly
-    interprets carriage returns (`\r`) as distinct print events.
+    Reads stdout and stderr from a single multiplexed loop -- reacting to
+    whichever stream has data first -- instead of two independently scheduled
+    reader tasks. Two decoupled tasks can each drain a burst of already
+    buffered lines from their own stream before ever yielding to the other,
+    which reorders interleaved output relative to when it was actually
+    written. Reacting from one shared loop removes that extra source of skew.
+    Reads raw bytes rather than `readline()`, so `\r`-driven progress output
+    (no trailing `\n`, e.g. docker/apt progress bars) is shown live instead of
+    buffering until a newline finally arrives, and a chunk larger than the
+    stream's internal buffer limit can never make `readline()` raise and
+    silently abandon the rest of the stream. A line with no `\r`/`\n` at all
+    is still force-flushed once it grows past `CFG.CMD_BUFFER_LIMIT`, so an
+    unterminated line can no longer grow the in-memory buffer without bound.
+
+    Note: two lines written to stdout and stderr at truly the same instant
+    have no OS-level ordering to reconstruct -- each is its own pipe with its
+    own kernel buffer, unlike a real terminal where both share one fd.
     """
-    captured_lines = deque(maxlen=max_line if max_line > 0 else 0)
+    streams = {"stdout": stdout_stream, "stderr": stderr_stream}
+    states = {
+        "stdout": __StreamState(max_output_line),
+        "stderr": __StreamState(max_error_line),
+    }
+    pending = {
+        name: asyncio.ensure_future(stream.read(65536))
+        for name, stream in streams.items()
+    }
+    try:
+        while pending:
+            done, _ = await asyncio.wait(
+                pending.values(), return_when=asyncio.FIRST_COMPLETED
+            )
+            for name in list(pending.keys()):
+                if pending[name] not in done:
+                    continue
+                chunk = __resolve_chunk(pending.pop(name))
+                if not chunk:
+                    __finalize_stream(states[name], print_method, display_queue)
+                    continue
+                __feed_stream(states[name], chunk, print_method, display_queue)
+                pending[name] = asyncio.ensure_future(streams[name].read(65536))
+    finally:
+        for future in pending.values():
+            future.cancel()
+    return (
+        "\r\n".join(states["stdout"].captured),
+        "\r\n".join(states["stderr"].captured),
+    )
+
+
+class __StreamState:
+    """Decode/line-buffer state for one subprocess stream."""
+
+    def __init__(self, max_line: int) -> None:
+        self.max_line = max_line
+        self.decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
+        self.buffer = ""
+        self.captured: deque[str] = deque(maxlen=max_line if max_line > 0 else 0)
+
+
+def __resolve_chunk(future: "asyncio.Future[bytes]") -> bytes:
+    try:
+        return future.result()
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        raise
+    except Exception:
+        return b""
+
+
+def __emit_line(
+    state: __StreamState,
+    line: str,
+    print_method: Callable[..., None],
+    display_queue: deque[Any],
+) -> None:
+    clean_part = line.rstrip()
+    if not clean_part:
+        return
+    try:
+        print_method(clean_part, end="\r\n")
+    except Exception:
+        print_method(clean_part)
+    if state.max_line > 0:
+        state.captured.append(clean_part)
+        display_queue.append(clean_part)
+
+
+def __feed_stream(
+    state: __StreamState,
+    chunk: bytes,
+    print_method: Callable[..., None],
+    display_queue: deque[Any],
+) -> None:
+    state.buffer += state.decoder.decode(chunk)
     while True:
-        try:
-            line_bytes = await stream.readline()
-            if not line_bytes:
-                break
-        except ValueError:
-            # Safety valve for the memory limit.
-            error_msg = "[ERROR] A single line of output was too long to process."
-            print_method(error_msg)
-            if max_line > 0:
-                captured_lines.append(error_msg)
-                display_queue.append(error_msg)
+        match = re.search(r"[\r\n]", state.buffer)
+        if match is None:
             break
-        except (KeyboardInterrupt, asyncio.CancelledError):
-            raise
-        except Exception:
-            break
-        decoded_line = line_bytes.decode("utf-8", errors="replace")
-        parts = decoded_line.replace("\r", "\n").splitlines()
-        for part in parts:
-            clean_part = part.rstrip()
-            if clean_part:
-                try:
-                    print_method(clean_part, end="\r\n")
-                except Exception:
-                    print_method(clean_part)
-                if max_line > 0:
-                    captured_lines.append(clean_part)
-                    display_queue.append(clean_part)
-    return "\r\n".join(captured_lines)
+        __emit_line(state, state.buffer[: match.start()], print_method, display_queue)
+        state.buffer = state.buffer[match.end() :]
+    if len(state.buffer) > CFG.CMD_BUFFER_LIMIT:
+        __emit_line(state, state.buffer, print_method, display_queue)
+        state.buffer = ""
+
+
+def __finalize_stream(
+    state: __StreamState,
+    print_method: Callable[..., None],
+    display_queue: deque[Any],
+) -> None:
+    state.buffer += state.decoder.decode(b"", final=True)
+    __emit_line(state, state.buffer, print_method, display_queue)
 
 
 def kill_pid(pid: int, print_method: Callable[..., None] | None = None):
