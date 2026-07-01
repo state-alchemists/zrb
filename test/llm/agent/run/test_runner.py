@@ -431,11 +431,35 @@ async def test_run_agent_deferred_requests():
 
 
 @pytest.mark.asyncio
-async def test_run_agent_deferred_skips_processors_when_calls_pending():
-    """_apply_history_processors is skipped when current_results.calls is non-empty."""
+@pytest.mark.parametrize(
+    "calls, approvals",
+    [
+        pytest.param({}, {"call_id": "approved"}, id="approval-style-deferral"),
+        pytest.param({"call_id": "data"}, {}, id="calls-style-deferral"),
+    ],
+)
+async def test_run_agent_deferred_never_reapplies_processors(calls, approvals):
+    """History processors are never reapplied between deferred-tool iterations
+    (ADR-0058 Fix B), regardless of what current_results looks like.
+
+    This used to be a conditional guard (skip only when current_results had
+    pending calls/approvals), but _process_deferred_requests always populates
+    current_results.approvals for every resolved call (approved, denied, or
+    hook-blocked alike), so the guard's condition was always true in
+    practice -- the dead reapplication branch and the now-always-true guard
+    were removed in favor of always feeding run_history through unchanged.
+    """
     from pydantic_ai import DeferredToolRequests, DeferredToolResults
 
+    processor_calls = []
+
+    async def counting_processor(messages, reserved_tokens=0):
+        processor_calls.append(len(messages))
+        return messages
+
     agent = MagicMock()
+    agent.zrb_history_processors = [counting_processor]
+
     mock_result = MagicMock()
     mock_deferred = MagicMock(spec=DeferredToolRequests)
     mock_result.output = mock_deferred
@@ -458,84 +482,25 @@ async def test_run_agent_deferred_skips_processors_when_calls_pending():
     agent.run_stream_events = _stream_from(_gen)
 
     with patch(
-        "zrb.llm.agent.run.runner._apply_history_processors",
+        "zrb.llm.agent.run.runner._process_deferred_requests",
         new_callable=AsyncMock,
-    ) as mock_apply:
-        mock_apply.side_effect = lambda h, p: h
+    ) as mock_process:
+        mock_deferred_results = MagicMock(spec=DeferredToolResults)
+        mock_deferred_results.calls = calls
+        mock_deferred_results.approvals = approvals
+        mock_process.return_value = mock_deferred_results
 
-        with patch(
-            "zrb.llm.agent.run.runner._process_deferred_requests",
-            new_callable=AsyncMock,
-        ) as mock_process:
-            mock_deferred_results = MagicMock(spec=DeferredToolResults)
-            mock_deferred_results.calls = {"call_id": "data"}
-            mock_deferred_results.approvals = {}
-            mock_process.return_value = mock_deferred_results
+        result, _ = await run_agent(
+            agent=agent,
+            message="Use tool",
+            message_history=[],
+            limiter=LLMLimiter(),
+        )
 
-            result, _ = await run_agent(
-                agent=agent,
-                message="Use tool",
-                message_history=[],
-                limiter=LLMLimiter(),
-            )
-
-            assert result == "Final"
-            # calls has entries → guard skips _apply_history_processors
-            assert mock_apply.call_count == 0
-
-
-@pytest.mark.asyncio
-async def test_run_agent_deferred_runs_processors_when_no_pending():
-    """_apply_history_processors runs when current_results has no pending calls/approvals."""
-    from pydantic_ai import DeferredToolRequests, DeferredToolResults
-
-    agent = MagicMock()
-    mock_result = MagicMock()
-    mock_deferred = MagicMock(spec=DeferredToolRequests)
-    mock_result.output = mock_deferred
-    mock_result.all_messages.return_value = []
-
-    mock_final_result = MagicMock()
-    mock_final_result.output = "Final"
-    mock_final_result.all_messages.return_value = []
-
-    call_count = 0
-
-    async def _gen(*args, **kwargs):
-        nonlocal call_count
-        call_count += 1
-        if call_count == 1:
-            yield AgentRunResultEvent(result=mock_result)
-        else:
-            yield AgentRunResultEvent(result=mock_final_result)
-
-    agent.run_stream_events = _stream_from(_gen)
-
-    with patch(
-        "zrb.llm.agent.run.runner._apply_history_processors",
-        new_callable=AsyncMock,
-    ) as mock_apply:
-        mock_apply.side_effect = lambda h, p: h
-
-        with patch(
-            "zrb.llm.agent.run.runner._process_deferred_requests",
-            new_callable=AsyncMock,
-        ) as mock_process:
-            mock_deferred_results = MagicMock(spec=DeferredToolResults)
-            mock_deferred_results.calls = {}
-            mock_deferred_results.approvals = {}
-            mock_process.return_value = mock_deferred_results
-
-            result, _ = await run_agent(
-                agent=agent,
-                message="Use tool",
-                message_history=[],
-                limiter=LLMLimiter(),
-            )
-
-            assert result == "Final"
-            # calls and approvals both empty → guard lets _apply_history_processors run
-            assert mock_apply.call_count == 1
+        assert result == "Final"
+        # Only _prepare_history's up-front pass invokes the processor -- never
+        # a second time for the deferred-tool continuation.
+        assert len(processor_calls) == 1
 
 
 @pytest.mark.asyncio
