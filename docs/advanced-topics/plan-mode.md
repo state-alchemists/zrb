@@ -38,7 +38,7 @@ Plan Mode is an ambient state propagated via `ContextVars`. When active, `get_ef
 You can toggle Plan Mode on/off in two ways:
 
 1.  **Slash Command:** Type `/plan` in the chat UI. The command toggles — type `/plan` once to enter Plan Mode, again to exit.
-2.  **Keyboard Shortcut:** Press `Ctrl+P` to toggle Plan Mode at any time.
+2.  **Keyboard Shortcut:** Press `Shift+Tab` to cycle through modes: `normal` → `accept_edits` → `plan` → back to `normal`. (This is a 3-way cycle, not a simple plan on/off toggle. `Ctrl+Y` toggles YOLO mode instead, which is unrelated to Plan Mode.)
 
 When Plan Mode is active, the info bar displays `PLAN MODE: On` (blue). When off, it displays `PLAN MODE: Off` (green).
 

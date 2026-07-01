@@ -146,7 +146,9 @@ Zrb supports Claude-compatible lifecycle hooks.
 | `~/.zrb/hooks.json` | User-level single file |
 | `~/.zrb/hooks/*.json` | User-level directory |
 | `./.claude/hooks.json` | Project-level single file |
+| `./.claude/hooks/*.json` | Project-level directory |
 | `./.zrb/hooks.json` | Project-level single file |
+| `./.zrb/hooks/*.json` | Project-level directory |
 
 > 💡 **See Also:** [Hooks Guide](./hooks.md) for detailed hook configuration.
 

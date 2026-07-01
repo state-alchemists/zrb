@@ -79,9 +79,9 @@ async def watch_file(ctx):
         
         if current_content != last_content:
             ctx.print("File changed!")
-            # Push the new content to the trigger's XCom queue!
-            # This action automatically fires the Callback.
-            ctx.task.push_exchange_xcom(ctx.session, current_content)
+            # Push the new content onto the trigger's XCom queue (by the
+            # queue_name given below) — this automatically fires the Callback.
+            ctx.xcom.event_queue.push(current_content)
             last_content = current_content
 
 # 2. Define the Trigger Task
@@ -147,7 +147,7 @@ When you run `zrb daily-report-scheduler`, the process remains alive in the fore
 | `@minutely` | `* * * * *` |
 | `@hourly` | `0 * * * *` |
 | `@daily` | `0 0 * * *` |
-| `@weekly` | `0 0 * * 0` |
+| `@weekly` | `0 0 * * 1` |
 | `@monthly` | `0 0 1 * *` |
 
 ---
@@ -174,7 +174,7 @@ The `Scheduler` accepts standard cron expressions or preset keywords.
 | `@minutely` | Every minute | `* * * * *` |
 | `@hourly` | Every hour | `0 * * * *` |
 | `@daily` | Every day at midnight | `0 0 * * *` |
-| `@weekly` | Every Sunday at midnight | `0 0 * * 0` |
+| `@weekly` | Every Monday at midnight | `0 0 * * 1` |
 | `@monthly` | 1st of month at midnight | `0 0 1 * *` |
 
 ### Standard Cron Format

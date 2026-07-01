@@ -30,6 +30,7 @@ Zrb uses `pydantic-ai` to interface with a wide array of Large Language Models, 
 - [TUI Color Styles](#20-tui-color-styles)
 - [Sandbox Configuration](#21-sandbox-configuration)
 - [CLI Semantic Colors](#22-cli-semantic-colors)
+- [Voice Dictation](#23-voice-dictation)
 
 ---
 
@@ -52,10 +53,12 @@ These variables define which LLM Zrb uses for its primary reasoning and how it c
 |----------|-------------|-----------|
 | OpenAI | `openai:gpt-4o` | (default) |
 | Anthropic | `anthropic:claude-3-5-sonnet-latest` | `pip install "zrb[anthropic]"` |
-| Google Vertex | `google-vertex:gemini-1.5-pro` | `pip install "zrb[google]"` |
+| Google Vertex | `google-cloud:gemini-1.5-pro` | `pip install "zrb[google]"` |
 | Ollama | `ollama:llama3.1` | (default) |
 | DeepSeek | `deepseek:deepseek-reasoner` | (default) |
-| Groq | `groq:llama3-8b-8192` | (default) |
+| Groq | `groq:llama3-8b-8192` | `pip install "zrb[groq]"` |
+
+> 💡 **Google Vertex auth extra:** Vertex AI (as opposed to the plain Gemini API) additionally needs the `vertexai` extra (`google-auth`, `pyasn1`) for its authentication flow — `pip install "zrb[google,vertexai]"`.
 
 ### Python API: Model Getter & Renderer
 

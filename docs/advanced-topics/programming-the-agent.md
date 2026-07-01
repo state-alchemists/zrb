@@ -63,7 +63,7 @@ from zrb.llm.prompt.manager import PromptManager
 pm = PromptManager(
     # the built-in default order, with your section spliced in
     include_sections=[
-        "persona", "mandate", "git_mandate", "journal_mandate",
+        "persona", "mandate", "examples", "git_mandate", "journal_mandate",
         "system_context", "project_context",
         "sprint_context",        # ← your section
         "tool_guidance",

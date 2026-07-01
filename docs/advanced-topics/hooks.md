@@ -119,27 +119,44 @@ tool-name matchers (including the `Bash` / `Task` aliases).
 
 ## Hook Locations
 
-Hooks are discovered automatically in these locations (in order of precedence):
+Hooks are discovered automatically in these locations (in order of precedence, highest first):
 
 | Location | Purpose |
 |----------|---------|
+| Plugin `hooks/` dirs | The bundled `llm_plugin` hooks, plus entries under `ZRB_LLM_PLUGIN_DIRS` |
 | `~/.zrb/hooks.json` | User-level hooks (single file) |
 | `~/.zrb/hooks/*.json` | User-level hooks directory |
-| `./.zrb/hooks.json` | Project-specific hooks (single file) |
-| `./.zrb/hooks/*.json` | Project-specific hooks directory |
 | `~/.claude/hooks.json` | Claude Code compatibility (single file) |
 | `~/.claude/hooks/*.json` | Claude Code compatibility (directory) |
 | `~/.claude/settings.json` | Claude Code compatibility — the nested `hooks` block |
 | `~/.claude/settings.local.json` | Claude Code compatibility — the nested `hooks` block |
+| `./.zrb/hooks.json` | Project-specific hooks (single file) |
+| `./.zrb/hooks/*.json` | Project-specific hooks directory |
 | `./.claude/hooks.json` | Claude Code compatibility, project (single file) |
 | `./.claude/hooks/*.json` | Claude Code compatibility, project (directory) |
 | `./.claude/settings.json` | Claude Code compatibility, project — the nested `hooks` block |
 | `./.claude/settings.local.json` | Claude Code compatibility, project — the nested `hooks` block |
-| Plugin `hooks/` dirs | Inside `ZRB_LLM_PLUGIN_DIRS` entries |
+| `CFG.HOOKS_DIRS` | Additional colon-separated custom directories |
 
 Hooks Claude Code (and drop-in tools like [peon-ping](https://peonping.com)) register
 inside `settings.json`/`settings.local.json` are picked up automatically — only the
 nested `hooks` block is read; other settings keys are ignored.
+
+### Hooks Subsystem Configuration
+
+The hooks subsystem itself is controlled by a small set of `CFG`/env knobs,
+independent of any individual hook's own `enabled`/`timeout` fields:
+
+| `CFG` field | Env var | Default | Description |
+|-------------|---------|---------|--------------|
+| `HOOKS_ENABLED` | `ZRB_HOOKS_ENABLED` | `on` | Master on/off switch for the entire hooks subsystem |
+| `HOOKS_DIRS` | `ZRB_HOOKS_DIRS` | `""` | Colon-separated additional directories to scan for hook scripts |
+| `HOOKS_TIMEOUT` | `ZRB_HOOKS_TIMEOUT` | `30000` | Timeout in milliseconds for hook execution |
+| `HOOKS_DEBUG` | `ZRB_HOOKS_DEBUG` | `off` | Enable verbose debug output for hook execution |
+| `HOOKS_LOG_LEVEL` | `ZRB_HOOKS_LOG_LEVEL` | `INFO` | Log level for hook execution (`DEBUG`/`INFO`/`WARNING`/`ERROR`) |
+
+Setting `HOOKS_ENABLED` to `off` disables the hooks subsystem entirely,
+regardless of what is configured in `hooks.json` files.
 
 ---
 
@@ -157,7 +174,7 @@ Hooks can attach to these lifecycle events:
 | `PreToolUse` | Before a tool executes (**every** tool call). `permissionDecision` is `deny` (block), `allow` (auto-approve), `ask` (force the approval prompt), or `defer` (no opinion); can also rewrite args (`updatedInput`) | **Yes** |
 | `PostToolUse` | After a tool succeeds. Can block the result (`decision: "block"`) or replace it (`updatedToolOutput`) | **Yes** |
 | `PostToolUseFailure` | After a tool raises | No |
-| `PermissionRequest` | A tool call reaches an interactive approval prompt (fires only when the user is actually asked — not for auto-approved/YOLO/policy-allowed calls). Can auto-resolve via `decision.behavior` (`allow`/`deny`) | No |
+| `PermissionRequest` | A tool call reaches an interactive approval prompt (fires only when the user is actually asked — not for auto-approved/YOLO/policy-allowed calls). Can auto-resolve via `decision.behavior` (`allow`/`deny`) | **Yes** |
 | `Notification` | System notifications. `AskUserQuestion` fires one with `notification_type='elicitation_dialog'` when it blocks for an answer | No |
 | `Stop` | A turn finishes and control returns to the user. The per-turn "done" signal. Can **block-to-continue** (`decision: "block"` + `reason`) to force another turn, and carries the `systemMessage` turn-extension (e.g. journaling) | **Yes** |
 | `StopFailure` | A turn ends on an unrecoverable API error. Observe-only; matches on `error_type` (`rate_limit`, `overloaded`, `server_error`, `context_length`, `authentication_failed`, `invalid_request`, `model_not_found`, `unknown`) | No |
@@ -233,7 +250,7 @@ Hooks are defined in JSON or YAML format. Each hook has the following structure:
 | `matchers` | array | No | Conditions to filter when hook runs |
 | `async` | boolean | No | Run asynchronously (default: false) |
 | `enabled` | boolean | No | Hook is active (default: true) |
-| `timeout` | number | No | Timeout in seconds (default: 30) |
+| `timeout` | number | No | Timeout in seconds. Default is type-dependent: `command` hooks default to 600s, `prompt` hooks default to 30s, and `agent` hooks default to 60s |
 | `env` | object | No | Environment variables to inject |
 | `priority` | number | No | Execution priority (higher = earlier) |
 
@@ -273,6 +290,9 @@ Execute shell commands or scripts.
 | `command` | string | Shell command to execute |
 | `shell` | boolean | Use shell interpreter (default: true) |
 | `working_dir` | string | Working directory (optional) |
+
+> The example above omits an explicit `timeout`, so it runs at the `command`
+> hook default of 600 seconds, not 30.
 
 **Input: env vars _and_ stdin.** A command hook receives its event two ways, so it
 works with both styles of Claude-Code hook. The `CLAUDE_*` [environment
@@ -352,7 +372,7 @@ Run agents with tools for complex analysis.
 | Field | Type | Description |
 |-------|------|-------------|
 | `system_prompt` | string | System prompt for the agent |
-| `tools` | array | List of tool names available to agent |
+| `tools` | array | Parsed from config but **not currently wired up** — the agent hook's agent runs with no tools regardless of this field. Treat it as reserved for future use, not a working option |
 | `model` | string | Model to use (e.g., `openai:gpt-4o`) |
 
 ---
@@ -671,15 +691,18 @@ Command hooks receive these environment variables automatically:
 |----------|-------------|
 | `CLAUDE_HOOK_EVENT` | The hook event name (e.g., `PreToolUse`) |
 | `CLAUDE_CWD` | Current working directory |
-| `CLAUDE_SESSION_ID` | Unique session identifier |
+| `CLAUDE_TRANSCRIPT_PATH` | Path to transcript file |
+| `CLAUDE_PERMISSION_MODE` | Current permission mode |
+| `CLAUDE_PROJECT_DIR` | Best-guess project root directory |
+| `CLAUDE_EVENT_DATA` | Full event data as JSON string |
 | `CLAUDE_TOOL_NAME` | Tool name (for tool events) |
 | `CLAUDE_TOOL_INPUT` | Tool input as JSON string |
 | `CLAUDE_PROMPT` | User prompt (for prompt events) |
 | `CLAUDE_COMMAND_NAME` | Command token, e.g. `/save` or `>` (for `PreCommand`/`PostCommand`) |
 | `CLAUDE_COMMAND_ARGS` | Text after the command token (for `PreCommand`/`PostCommand`) |
-| `CLAUDE_EVENT_DATA` | Full event data as JSON string |
-| `CLAUDE_TRANSCRIPT_PATH` | Path to transcript file |
-| `CLAUDE_PERMISSION_MODE` | Current permission mode |
+
+The session identifier is available in the stdin JSON payload (`session_id`)
+but is not exposed as an environment variable.
 
 ### Using Environment Variables
 

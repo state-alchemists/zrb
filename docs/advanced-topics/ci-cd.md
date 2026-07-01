@@ -64,7 +64,7 @@ jobs:
           echo "🏃 Triggered by: ${{ github.actor }}"
           echo "🎉 Event: ${{ github.event_name }}"
           echo "🌲 Branch/Ref: ${{ github.ref }}"
-          zrb --version
+          zrb version
         shell: bash
 
       - name: Run Tests
@@ -103,7 +103,7 @@ stages:
 
 before_script:
   - echo "🚀 Starting CI/CD pipeline..."
-  - zrb --version
+  - zrb version
 
 show_info:
   stage: setup
@@ -150,7 +150,7 @@ pipelines:
         name: "Show Environment Info"
         script:
           - echo "🚀 Starting CI/CD pipeline..."
-          - zrb --version
+          - zrb version
           - echo "🌲 Branch: $BITBUCKET_BRANCH"
 
     - step:

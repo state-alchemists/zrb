@@ -26,18 +26,22 @@ When a session starts, Zrb creates an `XCom` object containing one `deque` per t
 # Access another task's queue
 ctx.xcom["upstream-task-name"]
 
-# Access your own task's queue
-ctx.xcom[ctx.task_name]
+# Access your own task's queue (use the literal name you gave the task)
+ctx.xcom["my-task-name"]
 ```
 
-Each queue supports four operations:
+> **Note:** There is no public way to read a task's own name back from `ctx` — the task name is stored privately and is not exposed as an attribute. Use the literal string you passed as `name=...` when defining the task.
+
+Each queue supports the following operations:
 
 | Method | Description | Returns |
 |--------|-------------|---------|
 | `.push(value)` | Add a value to the end of the queue | `None` |
 | `.pop()` | Remove and return the oldest item | The value |
+| `.popright()` | Remove and return the newest (most recently pushed) item | The value |
 | `.peek()` | View the oldest item without removing | The value |
-| `.get()` | Read latest value without removing; returns `None` if empty | Value or `None` |
+| `.get()` | Read the most recently pushed value without removing; returns `None` if empty | Value or `None` |
+| `.set(value)` | Push a value, then discard everything except that latest value | `None` |
 
 ---
 
@@ -53,11 +57,13 @@ def produce(ctx):
     return {"status": "ok", "data": [1, 2, 3]}  # Auto-pushed to ctx.xcom["producer"]
 ```
 
-For `CmdTask`, the **stdout** of the shell command is captured and pushed:
+For `CmdTask`, the action returns a `CmdResult` object (capturing stdout, stderr, and exit code), and that object is pushed as-is:
 
 ```python
 producer = cli.add_task(CmdTask(name="producer", cmd="echo 'Hello from shell'"))
-# ctx.xcom["producer"].pop() returns "Hello from shell"
+# ctx.xcom["producer"].pop() returns a CmdResult, not a plain string.
+# CmdResult stringifies to the command's stdout, so f"{result}" or str(result)
+# gives you "Hello from shell".
 ```
 
 ---
@@ -70,8 +76,8 @@ producer = cli.add_task(CmdTask(name="producer", cmd="echo 'Hello from shell'"))
 @make_task(name="worker", group=cli)
 def work(ctx):
     # Push multiple values
-    ctx.xcom[ctx.task_name].push("first")
-    ctx.xcom[ctx.task_name].push("second")
+    ctx.xcom["worker"].push("first")
+    ctx.xcom["worker"].push("second")
     # Queue now contains: ["first", "second"] (FIFO)
 ```
 
@@ -135,13 +141,15 @@ scaffold = cli.add_task(
         name="scaffold",
         upstream=[creator],
         source_path="./templates/app",
-        destination_path="./projects/{ctx.xcom['creator'].pop()}",
+        destination_path="./projects/{ctx.xcom['creator'].peek()}",
         transform_content={
             "APP_NAME": "{ctx.xcom['creator'].pop()}"
         }
     )
 )
 ```
+
+> **Note:** `creator` only pushes one value, but the template reads it twice. Since `.pop()` removes the item, the second read here uses `.peek()` (non-destructive) for `destination_path` and `.pop()` (destructive) for `transform_content`, so both placeholders resolve to the same value without raising `IndexError`.
 
 ---
 
@@ -168,8 +176,8 @@ stage_1 = cli.add_task(CmdTask(name="fetch", cmd="curl https://api.example.com/d
 
 @make_task(name="transform", upstream=[stage_1], group=cli)
 def transform(ctx):
-    raw = ctx.xcom["fetch"].pop()
-    processed = raw.upper()
+    raw = ctx.xcom["fetch"].pop()  # a CmdResult, not a plain string
+    processed = str(raw).upper()
     return processed  # Pass to next stage
 
 stage_3 = cli.add_task(CmdTask(
@@ -187,8 +195,8 @@ Each consumer calls `.pop()` independently, so you must push multiple copies or 
 @make_task(name="broadcaster", group=cli)
 def broadcast(ctx):
     value = {"config": "production"}
-    ctx.xcom[ctx.task_name].push(value)
-    ctx.xcom[ctx.task_name].push(value)  # Second copy
+    ctx.xcom["broadcaster"].push(value)
+    ctx.xcom["broadcaster"].push(value)  # Second copy
     return value
 
 # Both consumers will get a value
@@ -207,7 +215,7 @@ my_callback = Callback(
 )
 
 # Inside the trigger action:
-# ctx.task.push_exchange_xcom(ctx.session, event_data)
+# ctx.xcom.event_queue.push(event_data)
 # → pushes to "event_queue" → fires callback → maps to input.message
 ```
 
@@ -218,7 +226,7 @@ my_callback = Callback(
 | Issue | Behavior | Mitigation |
 |-------|----------|------------|
 | **Pop from empty queue** | `pop()` raises `IndexError` | Use `.get()` which returns `None` |
-| **Task not in upstream** | `ctx.xcom["other"].pop()` fails | XCom requires the source to be in `upstream` (or running within the same session) |
+| **Reading a task that hasn't run yet** | `ctx.xcom["other"]` raises `KeyError` if that task hasn't executed in this session at all; `.pop()`/`.peek()` raise `IndexError` if the task ran but hasn't pushed a value yet (or the value was already popped) | `ctx.xcom` is one shared, session-wide dict — `upstream` only controls execution *order*, it does not restrict xcom visibility. Make sure the producing task has actually run and pushed before you read from it |
 | **Multiple pops** | Each `.pop()` removes one item | Push once per consumer, or use `.peek()` for read-only |
 | **Task name with hyphens** | `ctx.xcom.my-task` is invalid Python | Use bracket notation: `ctx.xcom["my-task"]` |
 | **Large data** | XCom is in-memory (`deque`) | Not designed for large payloads (>1 MB) |
@@ -241,8 +249,9 @@ value = ctx.xcom["task-name"].get()
 # Peek (view without removing)
 value = ctx.xcom["task-name"].peek()
 
-# Push to self
-ctx.xcom[ctx.task_name].push(value)
+# Push to self (use the literal name you gave the task; ctx has no
+# public way to read a task's own name back)
+ctx.xcom["my-task-name"].push(value)
 
 # Auto-push via return value (inside @make_task function)
 def my_task(ctx):

@@ -58,11 +58,14 @@ For non-LLM tasks, the lifecycle ends here. For an `LLMChatTask`, the action han
 ## Stage 3 — `LLMChatTask` build & UI selection
 
 ```
-src/zrb/llm/task/chat/task.py :: LLMChatTask._exec_action()
+src/zrb/llm/task/chat/exec_mixin.py :: LLMChatTask._exec_action()
 ↓ (via mixins on the same class)
 src/zrb/llm/task/chat/builder_mixin.py  - build the inner LLMTask
 src/zrb/llm/task/chat/runner_mixin.py   - resolve UIs/triggers/commands
 ```
+
+`LLMChatTask` (`src/zrb/llm/task/chat/task.py`) is composed as
+`LLMChatTask(BuilderMixin, RunnerMixin, ExecMixin, BaseTask)`.
 
 Three things happen here:
 
@@ -140,7 +143,7 @@ Tool approval flow:
 
 UI streaming uses `prompt_toolkit` for the default TUI; HTTP chat uses SSE. Both implement the same `UIProtocol`. See `src/zrb/llm/ui/base/ui.py` for the contract; [llm-custom-ui.md](./llm-custom-ui.md) for authoring.
 
-Hook events fire at well-defined points (PROMPT_SUBMIT, TOOL_USE, NOTIFICATION, SESSION_START, SESSION_END, …). See [hooks.md](./hooks.md) for the full event list and authoring patterns.
+Hook events fire at well-defined points (USER_PROMPT_SUBMIT, PRE_TOOL_USE, POST_TOOL_USE, POST_TOOL_USE_FAILURE, NOTIFICATION, SESSION_START, SESSION_END, …). See [hooks.md](./hooks.md) for the full event list and authoring patterns.
 
 ---
 
@@ -170,7 +173,7 @@ Control returns up through `LLMChatTask._exec_action` → `run_task_async` → `
 | Task tree resolution | `src/zrb/runner/cli.py`, `src/zrb/util/group.py` |
 | Task execution lifecycle | `src/zrb/task/base/{execution,lifecycle,monitoring}.py` |
 | `llm chat` task definition | `src/zrb/builtin/llm/chat.py` |
-| Chat builder + runner | `src/zrb/llm/task/chat/{task,builder_mixin,runner_mixin}.py` |
+| Chat builder + runner | `src/zrb/llm/task/chat/{task,builder_mixin,runner_mixin,exec_mixin}.py` |
 | Inner LLM task | `src/zrb/llm/task/llm_task.py` |
 | Agent factory | `src/zrb/llm/agent/common.py` |
 | Run loop | `src/zrb/llm/agent/run/runner.py` |

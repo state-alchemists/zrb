@@ -24,12 +24,12 @@ Tests live in the `test/` directory, mirroring the `src/` structure:
 ```
 test/
 ├── conftest.py              # Shared fixtures
-├── test_builtin/
+├── builtin/
 │   └── test_git.py
-├── test_llm/
-│   └── test_prompt/
+├── llm/
+│   └── prompt/
 │       └── test_manager.py
-└── test_task/
+└── task/
     └── test_base_task.py
 ```
 
@@ -112,7 +112,9 @@ For `CmdTask`, you can run the task programmatically and verify the command exec
 
 ```python
 import pytest
+from unittest.mock import MagicMock
 from zrb import CmdTask, Group
+from zrb.context.any_context import AnyContext
 
 @pytest.mark.asyncio
 async def test_cmd_task_execution():
@@ -121,6 +123,9 @@ async def test_cmd_task_execution():
         name="echo-test",
         cmd="echo 'Hello, Test!'",
     ))
+    
+    # Build a minimal mock context to drive the task
+    ctx = MagicMock(spec=AnyContext)
     
     # Execute the task
     result = await task._exec_action(ctx)
@@ -171,8 +176,11 @@ def create_test_context(task, inputs=None, envs=None):
     ctx.log_debug = MagicMock()
     
     return ctx
+```
 
+> **Note:** `ctx.task`, `ctx.task_name`, and `ctx.session_id` set above are test-only synthetic conveniences for this helper's own assertions — they are not real attributes on `AnyContext`/`Context` (`src/zrb/context/any_context.py`, `src/zrb/context/context.py`). Setting them here only works because `ctx` is a `MagicMock(spec=AnyContext)`, which permits assigning arbitrary attributes; production task code cannot rely on `ctx.task`/`ctx.task_name`/`ctx.session_id` being present.
 
+```python
 @pytest.mark.asyncio
 async def test_with_realistic_context():
     from zrb import Task, Group
@@ -218,17 +226,28 @@ def test_task_dependencies():
 
 ## Running Tests
 
-Run tests with the project's test runner from the project root:
+The recommended way to run tests in this repo is the project's `zrb-test.sh` script from the project root. It runs the full suite through `pytest`, additionally runs `flake8 src/zrb --select=F` (which fails on unused or duplicate imports), and enforces a minimum coverage gate of 90%:
 
 ```bash
 # Activate virtual environment first
 source .venv/bin/activate
 
+# Run all tests (pytest + flake8 F-checks + coverage gate)
+./zrb-test.sh
+
+# Scope to a file, directory, or a single test function
+./zrb-test.sh test/task/test_base_task.py
+./zrb-test.sh test/task/test_base_task.py::test_some_function
+```
+
+For a quicker, narrower check without the flake8/coverage gate, you can invoke `pytest` directly:
+
+```bash
 # Run all tests
 poetry run pytest
 
 # Run specific test file
-poetry run pytest test/test_task/test_base_task.py
+poetry run pytest test/task/test_base_task.py
 
 # Run with verbose output
 poetry run pytest -v

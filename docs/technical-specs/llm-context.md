@@ -77,38 +77,33 @@ Journal entries are stored in a directory structure with a central index file.
 
 ## 3. Prompt Injection
 
-Only the `index.md` file content is automatically injected into the LLM's system prompt.
+The `index.md` snapshot is deliberately kept **out of** the cached system prompt (`src/zrb/llm/prompt/live_context.py::render_journal_index`). Embedding the mutable index in the cached prefix would invalidate that cache every time the agent journaled mid-session (ADR-0082), so instead it travels through the conversation itself, as part of the `<live-context>` block appended to the latest **user** message — never the system prompt.
 
-```markdown
-### Journal & Notes
-[Content from index.md]
+The index is only injected at the two moments it could otherwise be missing from context:
 
-### Journal System
-**Journal System Configuration:**
-- **Journal Directory:** `~/.zrb/llm-notes/`
-- **Index File:** `index.md`
+- **The first turn** — when history is still empty, `render_live_context(..., inject_journal_index=True)` appends the snapshot.
+- **History summarization** — `summarize_history` re-seeds the index into the freshly-compressed history so it survives compaction.
 
-**Documentation Guidelines:**
-- Technical information → `AGENTS.md`
-- User preferences, notes → Journal directory
+On every other turn, the block is simply omitted — the agent is expected to already have it from earlier in the conversation.
+
+When present, the block is wrapped as its own tag inside the live-context payload:
+
 ```
+<journal-index>
+Your persistent memory (index file: index.md). Use SearchJournal for full entries.
+[content of index.md, truncated to ~1000 characters, with " (...more)" appended if truncated]
+</journal-index>
+```
+
+If the index file is missing, unreadable, or empty, nothing is injected at all.
 
 ---
 
 ## 4. Automatic Creation
 
-The journal system automatically creates the directory and index file if they don't exist:
+Zrb does **not** auto-create the journal directory or the index file. There is no code path under `src/zrb/llm/` that calls `os.makedirs` or otherwise materializes `~/.zrb/llm-notes/` or `index.md` on startup — `src/zrb/llm/tool/journal.py` only implements a `search_journal` tool (exposed to the agent as `SearchJournal`) for reading existing entries.
 
-```python
-effective_journal_dir = os.path.abspath(os.path.expanduser(CFG.LLM_JOURNAL_DIR))
-if not os.path.isdir(effective_journal_dir):
-    os.makedirs(effective_journal_dir, exist_ok=True)
-    
-index_path = os.path.join(effective_journal_dir, CFG.LLM_JOURNAL_INDEX_FILE)
-if not os.path.isfile(index_path):
-    with open(index_path, "w") as f:
-        f.write("")  # Create empty index file
-```
+Creating the directory, the index file, and any per-topic Markdown files is the agent's own responsibility, driven entirely by prompt/skill guidance (see the `core-journaling` skill under `src/zrb/llm_plugin/core_skills/`) rather than by zrb's runtime code. If the agent never decides to journal, the directory and index simply never come into existence.
 
 ---
 

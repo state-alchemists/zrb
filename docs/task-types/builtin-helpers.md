@@ -2,7 +2,7 @@
 
 # Built-in Helper Tasks
 
-Zrb comes with a suite of pre-packaged, ready-to-use tasks for common developer operations. You don't need to write these from scratch; simply import them and bind them to your `cli` group!
+Zrb comes with a suite of pre-packaged, ready-to-use tasks for common developer operations. You don't need to write these from scratch — by default (`CFG.LOAD_BUILTIN` is `"on"`), simply `import zrb` and every built-in group is auto-registered and ready to run with zero extra code. You can still import individual tasks and bind them to your own `cli` group if you want custom grouping.
 
 These are organized into conceptual modules within `zrb.builtin`.
 
@@ -34,7 +34,7 @@ Inspect runtime configuration.
 
 | Task | Description |
 |------|-------------|
-| `explain` | Render all `EnvField`-backed config knobs as a markdown table (env var, current value, description). Accepts optional `--keyword` to filter. |
+| `explain` | Render all `EnvField`-backed config knobs as a formatted terminal table (rich's `Table`, not markdown — env var, current value, description). Accepts optional `--keyword` to filter. |
 
 ### 🌱 Git (`git`)
 
@@ -46,7 +46,18 @@ Standard git operations wrapped as Zrb tasks.
 | `git-commit` | Stage all changes and create a commit |
 | `git-pull` | Pull from remote |
 | `git-push` | Push to remote |
+
+### 🌿 Git Branch (`git branch`)
+
+| Task | Description |
+|------|-------------|
 | `prune-local-git-branches` | Clean up merged/deleted local branches |
+
+### 📝 Git Changelog (`git changelog`)
+
+| Task | Description |
+|------|-------------|
+| `generate-changelog` | LLM-driven changelog generation, one file per matching git tag |
 
 ### 🌳 Git Subtree (`git subtree`)
 
@@ -165,7 +176,7 @@ Convert between Unix epoch timestamps and ISO 8601. `--timezone` accepts `utc` (
 
 | Task | Description |
 |------|-------------|
-| `format-python` | Format code using `isort` and `black` |
+| `format-code` (alias `format`) | Format code using `isort` and `black` |
 
 ### 🎲 Random (`random`)
 
@@ -265,7 +276,7 @@ Now you can run:
 
 ```bash
 zrb git-commit --message "Fixing bug"
-zrb crypto encode-base64 --string "Hello World"
+zrb crypto encode-base64 --text "Hello World"
 ```
 
 ---
