@@ -173,7 +173,7 @@ class CmdTask(BaseTask):
 
     def __get_env_map(self, ctx: AnyContext) -> dict[str, str]:
         envs = {key: val for key, val in ctx.env.items()}
-        envs["_ZRB_SSH_PASSWORD"] = self._get_remote_password(ctx)
+        envs["SSHPASS"] = self._get_remote_password(ctx)
         envs["PYTHONBUFFERED"] = "1"
         return envs
 
@@ -242,7 +242,6 @@ class CmdTask(BaseTask):
             host=self._get_remote_host(ctx),
             port=self._get_remote_port(ctx),
             user=self._get_remote_user(ctx),
-            password="$_ZRB_SSH_PASSWORD",
             use_password=self._get_remote_password(ctx) != "",
             ssh_key=self._get_remote_ssh_key(ctx),
         )
