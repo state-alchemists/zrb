@@ -103,8 +103,8 @@ deploy_remote = cli.add_task(
         
         # Password auth: read the real secret from an env var via zrb's
         # templating, and pass it through the `remote_password` kwarg.
-        # Zrb injects it as `_ZRB_SSH_PASSWORD` and shells out via
-        # `sshpass -p "$_ZRB_SSH_PASSWORD"` under the hood.
+        # Zrb injects it as the `SSHPASS` env var and shells out via
+        # `sshpass -e` under the hood.
         remote_password="{env.MY_SSH_PASSWORD}"
     )
 )

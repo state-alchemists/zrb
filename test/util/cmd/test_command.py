@@ -213,10 +213,9 @@ def test_get_remote_cmd_script_with_password():
         host="example.com",
         port=22,
         user="user",
-        password="pass123",
         use_password=True,
     )
-    assert "sshpass -p pass123 ssh -t -p 22 user@example.com 'ls -la'" in result
+    assert "sshpass -e ssh -t -p 22 user@example.com 'ls -la'" in result
 
 
 def test_get_remote_cmd_script_with_ssh_key_and_password():
@@ -227,14 +226,10 @@ def test_get_remote_cmd_script_with_ssh_key_and_password():
         host="example.com",
         port=22,
         user="user",
-        password="pass123",
         use_password=True,
         ssh_key="/path/to/key",
     )
-    assert (
-        "sshpass -p pass123 ssh -t -p 22 -i /path/to/key user@example.com 'ls -la'"
-        in result
-    )
+    assert "sshpass -e ssh -t -p 22 -i /path/to/key user@example.com 'ls -la'" in result
 
 
 def test_get_remote_cmd_script_custom_port():
@@ -245,23 +240,19 @@ def test_get_remote_cmd_script_custom_port():
 
 
 def test_get_remote_cmd_script_quotes_injection_in_credentials():
-    """Credential fields with shell metacharacters must be safely quoted."""
-    import shlex
+    """Password is passed via SSHPASS env var, not on the command line."""
+    malicious = 'p"$(touch /tmp/pwn)`'
 
     result = get_remote_cmd_script(
         "ls",
         host="example.com",
         port=22,
         user="user",
-        password='p"$(touch /tmp/pwn)`',
         use_password=True,
     )
-    # The malicious password is shlex-quoted as a single literal token, so the
-    # command substitution can never reach the shell.
-    assert shlex.quote('p"$(touch /tmp/pwn)`') in result
-    assert "$(touch /tmp/pwn)" not in result.replace(
-        shlex.quote('p"$(touch /tmp/pwn)`'), ""
-    )
+    # sshpass -e reads the password from SSHPASS — never on the command line.
+    assert "sshpass -e" in result
+    assert malicious not in result
 
 
 def test_check_unrecommended_commands_process_substitution():
