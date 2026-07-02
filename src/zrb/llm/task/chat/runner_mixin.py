@@ -94,7 +94,7 @@ class RunnerMixin:
         initial_attachments: "list[UserContent]",
     ) -> Any:
         # Resolve custom commands and intercept if the message is a slash command
-        resolved_custom_commands = resolve_custom_commands(self._custom_commands)
+        resolved_custom_commands = self._resolve_custom_commands()
         effective_message = initial_message
         if isinstance(initial_message, str):
             resolved = resolve_custom_command(initial_message, resolved_custom_commands)
@@ -140,6 +140,15 @@ class RunnerMixin:
         # lazy: zrb internal (heavy via transitive / circular)
         from zrb.llm.ui.base.ui import BaseUI
 
+        # Mirror _run_non_interactive_session's slash-command resolution.
+        # Resolved once here and reused by _build_default_ui_kwargs below,
+        # instead of re-resolving self._custom_commands a second time.
+        resolved_custom_commands = self._resolve_custom_commands()
+        if isinstance(initial_message, str):
+            resolved = resolve_custom_command(initial_message, resolved_custom_commands)
+            if resolved is not None:
+                initial_message = resolved
+
         # Note: AsyncExitStack is handled by LLMTask._exec_action
         # 1. Resolve UIs from factories
         resolved_uis: list["UIProtocol"] = list(self._uis)
@@ -171,6 +180,7 @@ class RunnerMixin:
             initial_attachments=initial_attachments,
             enable_rewind=enable_rewind,
             snapshot_dir=snapshot_dir,
+            resolved_custom_commands=resolved_custom_commands,
         )
 
         # 3. Determine the UI to use
@@ -206,13 +216,15 @@ class RunnerMixin:
         initial_attachments: "list[UserContent]",
         enable_rewind: bool = False,
         snapshot_dir: str = "",
+        resolved_custom_commands: "list[AnyCustomCommand] | None" = None,
     ) -> dict[str, Any]:
         """Build keyword arguments shared by all default UI constructor calls."""
         resolved_custom_model_names = get_attr(ctx, self._custom_model_names, []) or []
         if not isinstance(resolved_custom_model_names, list):
             resolved_custom_model_names = []
 
-        resolved_custom_commands = self._resolve_custom_commands()
+        if resolved_custom_commands is None:
+            resolved_custom_commands = self._resolve_custom_commands()
 
         effective_show_ollama_models = (
             CFG.LLM_SHOW_OLLAMA_MODELS
