@@ -29,10 +29,10 @@ cli.add_task(
 )
 ```
 
-> 💡 **Tip:** Zrb automatically converts `snake_case` task names to `kebab-case` CLI commands!
+> 💡 **Tip:** The task's `name` is used verbatim as the CLI command token — Zrb does not convert `snake_case` to `kebab-case` for you. The task above is invoked as `zrb deploy_app`, not `zrb deploy-app`. If you want a kebab-case CLI command, name the task in kebab-case yourself.
 
 ```bash
-zrb deploy-app
+zrb deploy_app
 ```
 
 ---

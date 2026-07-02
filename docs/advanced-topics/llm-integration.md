@@ -307,7 +307,11 @@ Zrb can automatically discover and manage sub-agents defined in JSON or YAML fil
 Sub-agent files are discovered from (in priority order):
 1. `~/.zrb/agents/`, `~/.claude/agents/` — user-global agents
 2. `<project>/.zrb/agents/`, `<project>/.claude/agents/` — project agents (traversed upward from cwd)
-3. Paths in `ZRB_LLM_EXTRA_AGENT_DIRS`
+3. Plugin agent directories, from `ZRB_LLM_PLUGIN_DIRS`
+4. Paths in `CFG.LLM_BASE_SEARCH_DIRS`
+5. Paths in `ZRB_LLM_EXTRA_AGENT_DIRS`
+6. Zrb's built-in agents
+7. `self._root_dir` (recursive scan target)
 
 > 💡 **Benefit:** Sub-agents isolate context and keep the main conversation history clean.
 
@@ -372,16 +376,28 @@ The AI Assistant is designed for long-running, complex tasks and has a sophistic
 | **Message-level** | Single tool output too large | Summarize before adding to history |
 | **Conversational** | Overall history grows too large | Compress older messages to `<state_snapshot>` |
 
-### 30% Retention Policy
+### Message-Count-Based Retention
 
-When summarization triggers, the system:
+When summarization triggers, the system splits history by message count, not
+by percentage: `target_keep_count = min(summary_window, len(messages))`, where
+`summary_window` defaults to 100 messages (`LLM_HISTORY_SUMMARIZATION_WINDOW`).
+Everything older than that target split point is compressed into a state
+snapshot; the rest is retained verbatim.
 
 | Action | Description |
 |--------|-------------|
-| Compress | Oldest 70% → state snapshot |
-| Retain | Most recent 30% verbatim |
+| Compress | Messages older than the target split point → state snapshot |
+| Retain | Newest `summary_window` messages (default 100) verbatim |
 | Preserve | Tool call/return pairs never separated |
 | Split | At conversation turn boundaries |
+
+The actual split point is adjusted by a backward/forward search that looks for
+a safe turn boundary near that target — it won't cut a tool call away from its
+return. Within that search, a token-based safety valve prevents the retained
+slice from growing too large: if keeping messages back to a candidate split
+point would exceed 70% of the conversational token threshold, the search stops
+extending further back. That 70%/token figure is an internal bound on the
+search, not the primary retention rule.
 
 ### Journal System
 

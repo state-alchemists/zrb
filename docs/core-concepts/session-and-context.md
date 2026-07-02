@@ -34,13 +34,11 @@ When a task executes its `action`, Zrb passes it a `Context` object, universally
 
 ### Shared Data Plane
 
-The context holds information aggregated from the task and all its upstreams:
-
 | Attribute | Description |
 |-----------|-------------|
-| `ctx.input` | Access parsed user inputs |
-| `ctx.env` | Access resolved environment variables |
-| `ctx.xcom` | Access the data-sharing queues |
+| `ctx.input` | Access parsed user inputs, aggregated from the task and all its upstreams |
+| `ctx.env` | Access resolved environment variables, aggregated from the task and all its upstreams |
+| `ctx.xcom` | Access the data-sharing queues — this is a single dict shared by the whole session, not filtered by `upstream`. Any task can read any other task's queue as long as that task has run (or is running) in the same session |
 
 ### Task-Specific Utilities
 
@@ -118,7 +116,7 @@ You can manually interact with XCom queues within a Python task:
 @make_task(name="task1", group=cli)
 def task1(ctx):
     # Manual push (bypassing the return mechanism)
-    ctx.xcom[ctx.task_name].push("Manual Data")
+    ctx.xcom["task1"].push("Manual Data")
 
 @make_task(name="task2", upstream=[task1], group=cli)
 def task2(ctx):
@@ -162,8 +160,8 @@ def my_helper():
 | Inputs | `ctx.input.<name>` |
 | Env vars | `ctx.env.<name>` |
 | XCom data | `ctx.xcom['task-name'].pop()` |
-| Task name | `ctx.task_name` |
-| Session ID | `ctx.session_id` |
+| Task name | Not exposed on `ctx` — use the literal string you passed as `name=...` |
+| Session name | `ctx.session.name` |
 
 ---
 

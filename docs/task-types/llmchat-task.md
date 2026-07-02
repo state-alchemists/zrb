@@ -74,6 +74,8 @@ chat = LLMChatTask(
 )
 ```
 
+> This list is not exhaustive. See the `LLMChatTask`/`LLMTask` source or `--help` for the full constructor parameter list, including `cli_only`, `attachment`, `history_processors`, `capabilities`, `custom_commands`, `enable_rewind`/`snapshot_dir`, and more.
+
 ---
 
 ## Builder API (Post-Construction)
@@ -187,7 +189,7 @@ chat.set_history_manager(FileHistoryManager(history_dir="./my-history/"))
 | **Filesystem sandbox** | `sandbox=` (arg + property) | Same |
 | **Shared tool APIs** | `add_tool`, `add_toolset`, `add_tool_guidance` | Same |
 | **Hook system** | Full lifecycle hooks | Same |
-| **History processors** | `add_history_processor` | Same (via constructor) |
+| **History processors** | `add_history_processor` | Same |
 | **System prompt** | Via `system_prompt` or `prompt_manager` | Same |
 
 ---

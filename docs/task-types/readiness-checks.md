@@ -145,17 +145,17 @@ reliable_server = cli.add_task(
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `url` | URL to check | Required |
+| `url` | URL to check | `http://localhost` |
 | `http_method` | HTTP method | `GET` |
-| `interval` | Seconds between retries | `1` |
+| `interval` | Seconds between retries | `5` |
 
 ### TcpCheck Parameters
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `host` | Hostname | Required |
-| `port` | Port number | Required |
-| `interval` | Seconds between retries | `1` |
+| `host` | Hostname | `localhost` |
+| `port` | Port number | `80` |
+| `interval` | Seconds between retries | `5` |
 
 ---
 

@@ -553,7 +553,7 @@ Use `BaseUI` when you need complete control over the message loop or have custom
 import asyncio
 import json
 from websockets.server import serve
-from zrb.llm.ui.base_ui import BaseUI
+from zrb.llm.ui import BaseUI
 from zrb.builtin.llm.chat import llm_chat
 
 class WebSocketUI(BaseUI):
@@ -720,7 +720,7 @@ class TelegramUI(EventDrivenUI, BufferedOutputMixin):
 def __init__(
     self, ctx, llm_task, history_manager,
     yolo_xcom_key, assistant_name, initial_message, initial_attachments,
-    conversation_session_name, yolo, triggers, response_handlers,
+    conversation_session_name, is_yolo, triggers, response_handlers,
     tool_policies, argument_formatters, markdown_theme,
     summarize_commands, attach_commands, exit_commands, info_commands,
     save_commands, load_commands, redirect_output_commands,
@@ -743,7 +743,7 @@ config = UIConfig(
     # Commands (customize or disable)
     exit_commands=["/quit", "/bye", "/stop"],
     info_commands=["/help", "/?"],
-    yolo=True,  # Auto-approve all tools
+    is_yolo=True,  # Auto-approve all tools
     
     # Disable specific commands
     exec_commands=[],  # No shell access
@@ -766,7 +766,7 @@ llm_chat.set_ui_factory(create_ui_factory(MyUI, config=config))
 | `yolo_toggle_commands` | `["/yolo"]` | Toggle auto-approve |
 | `set_model_commands` | `["/model"]` | Switch model |
 | `exec_commands` | `["/exec"]` | Run shell commands |
-| `yolo` | `False` | Auto-approve mode: `True` for all tools, or comma-separated names (e.g., `"Write,Edit"`) for selective |
+| `is_yolo` | `False` | Auto-approve mode: `True` for all tools, or comma-separated names (e.g., `"Write,Edit"`) for selective |
 | `conversation_session_name` | `""` | Session name (empty = random) |
 
 ---
@@ -794,7 +794,7 @@ def create_my_ui(
         history_manager=history_manager,
         initial_message=initial_message,
         conversation_session_name=initial_conversation_name,
-        yolo=initial_yolo,
+        is_yolo=initial_yolo,
         initial_attachments=initial_attachments,
         # Plus extract commands from ui_commands...
         exit_commands=ui_commands.get("exit", ["/exit"]),
@@ -811,7 +811,7 @@ llm_chat.set_ui_factory(create_my_ui)
 from zrb.llm.ui import create_ui_factory, UIConfig
 
 # One-line registration with automatic parameter mapping
-config = UIConfig(assistant_name="MyBot", yolo=True)
+config = UIConfig(assistant_name="MyBot", is_yolo=True)
 llm_chat.set_ui_factory(
     create_ui_factory(MyUI, config=config, bot_token=TOKEN, chat_id=12345)
 )
@@ -916,7 +916,7 @@ class MyUI(BaseUI):
             initial_message="",
             initial_attachments=[],
             conversation_session_name="",
-            yolo=False,
+            is_yolo=False,
             # ... 15 more params
         )
 
@@ -981,7 +981,7 @@ llm_chat.append_ui_factory(create_ui_factory(TelegramUI, bot=bot, chat_id=CHAT_I
 
 # Add approval channels
 llm_chat.append_approval_channel(TelegramApprovalChannel(bot, CHAT_ID))
-llm_chat.append_approval_channel(TerminalApprovalChannel())
+llm_chat.append_approval_channel(TerminalApprovalChannel(my_ui))
 ```
 
 The framework automatically creates:
@@ -1011,7 +1011,7 @@ llm_chat.append_ui_factory(create_ui_factory(TelegramUI, bot=bot, chat_id=CHAT_I
 
 # Both channels can approve/deny
 llm_chat.append_approval_channel(TelegramApprovalChannel(bot, CHAT_ID))
-llm_chat.append_approval_channel(TerminalApprovalChannel())
+llm_chat.append_approval_channel(TerminalApprovalChannel(my_ui))
 ```
 
 See `examples/chat-telegram/` for a complete implementation.
@@ -1076,8 +1076,11 @@ llm_chat.set_approval_channel(TelegramApprovalChannel(bot, CHAT_ID))
 |-------|-------------|
 | `tool_name` | Name of the tool to execute |
 | `tool_args` | Arguments passed to the tool |
-| `session_name` | Conversation session name |
-| `ui` | Reference to UI for output (if needed) |
+| `tool_call_id` | Identifier for the specific tool call (required) |
+| `session_id` | Session identifier (optional) |
+| `conversation_id` | Conversation identifier (optional) |
+| `user_id` | User identifier (optional) |
+| `extra` | Extra metadata dict (optional) |
 
 ### Built-in Approval Channels
 
@@ -1095,7 +1098,7 @@ from zrb.llm.approval import NullApprovalChannel
 llm_chat.set_approval_channel(NullApprovalChannel())
 
 # Or enable via UIConfig
-config = UIConfig(yolo=True)
+config = UIConfig(is_yolo=True)
 llm_chat.set_ui_factory(create_ui_factory(MyUI, config=config))
 ```
 
@@ -1227,7 +1230,7 @@ def factory(
     ui_commands: dict,            # Command configuration
     initial_message: str,         # First message (if any)
     initial_conversation_name: str,  # Session name
-    initial_yolo: bool | str,       # Auto-approve mode (True, or comma-separated tool names)
+    initial_yolo: "bool | frozenset[str]",  # Auto-approve mode (True/False, or a set of tool names for selective auto-approve)
     initial_attachments: list,    # Files to attach
 ) -> BaseUI:
     ...

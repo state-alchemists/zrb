@@ -44,7 +44,7 @@ cli.add_task(
 
 ## Providing Inputs
 
-Zrb gives you two ways to provide inputs:
+Zrb gives you three ways to provide inputs:
 
 ### 1. Command-Line Flags
 
@@ -55,7 +55,16 @@ zrb hello --name Edward --prefix Mr.
 # Output: Hello Mr. Edward
 ```
 
-### 2. Interactive Prompt
+### 2. Positional Arguments
+
+By default (`allow_positional_parsing=True`, the default on every input), you can also supply values positionally, in the order the inputs were declared — no flag names needed.
+
+```bash
+zrb hello Edward Mr.
+# Output: Hello Mr. Edward
+```
+
+### 3. Interactive Prompt
 
 If you run the task without providing the required inputs, Zrb uses `prompt_toolkit` to automatically prompt you for them.
 
@@ -131,8 +140,8 @@ task = cli.add_task(
 | Input Type | Required Parameters | Optional Parameters |
 |------------|-------------------|---------------------|
 | `StrInput` | `name` | `description`, `default`, `prompt` |
-| `IntInput` | `name` | `description`, `default`, `min`, `max` |
-| `FloatInput` | `name` | `description`, `default`, `min`, `max` |
+| `IntInput` | `name` | `description`, `default`, `prompt` |
+| `FloatInput` | `name` | `description`, `default`, `prompt` |
 | `BoolInput` | `name` | `description`, `default` |
 | `PasswordInput` | `name` | `description` |
 | `OptionInput` | `name`, `options` | `description`, `default` |

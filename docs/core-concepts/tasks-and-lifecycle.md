@@ -19,7 +19,7 @@ A `Task` is the fundamental unit of work in Zrb. It represents a discrete action
 
 ## The `zrb_init.py` File
 
-This is your magic file. When you run `zrb`, it searches for `zrb_init.py` in the current directory and then recursively in all parent directories up to your home directory. This creates a powerful inheritance system where tasks defined in a parent directory are available to all its subdirectories.
+This is your magic file. When you run `zrb`, it searches for `zrb_init.py` in the current directory and then recursively in all parent directories up to the filesystem root. This creates a powerful inheritance system where tasks defined in a parent directory are available to all its subdirectories.
 
 ```
 /home/user/
@@ -93,13 +93,13 @@ build = cli.add_task(
     CmdTask(
         name="build",
         cmd="make build",
-        color=3,    # ANSI color code (0-255). 3 = yellow.
+        color=33,   # Standard SGR color code. 33 = yellow.
         icon="🔨",  # Any emoji or string shown beside the task name.
     )
 )
 ```
 
-`color` accepts standard ANSI 256-color codes. Common values: `1` red, `2` green, `3` yellow, `4` blue, `5` magenta, `6` cyan. When `None` (default), Zrb assigns a color automatically based on the task's position in the pipeline.
+`color` accepts standard SGR color codes. Common values: `31` red, `32` green, `33` yellow, `34` blue, `35` magenta, `36` cyan (plus `90`-`97` for bright variants). Values outside this set are silently ignored (no color applied). When `None` (default), Zrb assigns a color automatically based on the task's position in the pipeline.
 
 ---
 
@@ -202,7 +202,7 @@ When you run `zrb my-task`, here is the exact sequence of events:
 | Step | Phase | Description |
 |------|-------|-------------|
 | 1 | **Initiation** | CLI parser identifies `my-task`, creates Session and Context, parses CLI flags into Inputs |
-| 2 | **Dependency Resolution** | Zrb checks the DAG, recursively calls `.run()` on all upstream tasks |
+| 2 | **Dependency Resolution** | The whole DAG runs inside one shared `Session`: Zrb resolves all root tasks reachable from `my-task` and executes them within that same session, honoring `upstream` order — this is not a series of independent, recursive `.run()` calls (each `.run()` call creates its own new `Session`) |
 | 3 | **Execution Guard** | Evaluates `execute_condition`. If false, task is marked "skipped" |
 | 4 | **Action & Readiness** | Executes core `action`. Concurrently runs `readiness_check` tasks. Marks "ready" when checks pass |
 | 5 | **Resolution** | Return value pushed to XCom. If successful, triggers Successors. If failed, exhausts `retries` then triggers Fallbacks |

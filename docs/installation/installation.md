@@ -12,7 +12,7 @@ Getting Zrb set up is straightforward, but it offers a few powerful options depe
 
 ```bash
 pip install zrb
-zrb --version
+zrb version
 ```
 
 **New to Python or setting up a fresh system?** Use our one-liner installer:
@@ -106,7 +106,7 @@ The script includes these helper functions:
 For Windows users, Zrb provides a PowerShell installation script (`install.ps1`) that simplifies setup.
 
 **Prerequisites:**
--   Python 3.11 or later (install before running the script)
+-   Python 3.11 to <3.15 (install before running the script)
 
 **Install Python on Windows (if needed):**
 
@@ -168,7 +168,7 @@ Zrb provides container images for sandboxed, reproducible, and portable executio
 **Standard Image** (general-purpose automation):
 
 ```bash
-docker run -v ${HOME}:/zrb-home -it --rm stalchmst/zrb:2.35.0 zrb
+docker run -v ${HOME}:/zrb-home -it --rm stalchmst/zrb:2.48.1 zrb
 ```
 
 **DIND (Docker-in-Docker) Image** (for tasks that need Docker commands):
@@ -177,7 +177,7 @@ docker run -v ${HOME}:/zrb-home -it --rm stalchmst/zrb:2.35.0 zrb
 docker run \
     -v ${HOME}:/zrb-home \
     -v /var/run/docker.sock:/var/run/docker.sock \
-    -it --rm stalchmst/zrb:2.35.0-dind docker ps
+    -it --rm stalchmst/zrb:2.48.1-dind docker ps
 ```
 
 <details>
@@ -190,13 +190,13 @@ docker run \
 | `--rm` | Remove container on exit |
 | `-v /var/run/docker.sock:...` | Enable Docker-in-Docker functionality |
 
-> 💡 **Tip:** Always pin to a specific version (e.g., `2.35.0`) for reproducibility.
+> 💡 **Tip:** Always pin to a specific version (e.g., `2.48.1`) for reproducibility.
 
 </details>
 
 > ⚠️ **Apple Silicon:** Use `--platform linux/amd64` if you encounter architecture issues:
 > ```bash
-> docker run --platform linux/amd64 -v ${HOME}:/zrb-home -it --rm stalchmst/zrb:2.35.0 zrb
+> docker run --platform linux/amd64 -v ${HOME}:/zrb-home -it --rm stalchmst/zrb:2.48.1 zrb
 > ```
 
 ### Running Zrb on Android (via Termux and Proot)
@@ -227,7 +227,7 @@ apt update && apt install python3 python3-pip python3-venv -y
 pip3 install zrb
 
 # 6. Verify
-zrb --version
+zrb version
 ```
 
 <details>
@@ -252,7 +252,7 @@ After installing Zrb, verify everything is working:
 
 ```bash
 # Check version
-zrb --version
+zrb version
 
 # View help
 zrb --help
@@ -329,7 +329,7 @@ pip install --upgrade --pre zrb
 
 Pull the latest image:
 ```bash
-docker pull stalchmst/zrb:2.35.0
+docker pull stalchmst/zrb:2.48.1
 # Or for latest:
 docker pull stalchmst/zrb:latest
 ```
@@ -370,7 +370,7 @@ rm -rf ~/.pyenv
 |---------|----------|
 | `zrb: command not found` | Ensure `~/.local/bin` (or your Python bin directory) is in your `PATH` |
 | `Permission denied` errors | Use `pip install --user zrb` or run install script without `sudo` |
-| Python version too old | Zrb requires Python 3.11+. Check with `python --version` |
+| Python version too old | Zrb requires Python 3.11 to <3.15. Check with `python --version` |
 | `pip not found` | Install pip: `python -m ensurepip --upgrade` or use install script |
 | Docker container exits immediately | Add `-it` flags: `docker run -it ...` |
 | Module not found errors | Reinstall: `pip uninstall zrb && pip install zrb` |

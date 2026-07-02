@@ -45,7 +45,7 @@ poetry config pypi-token.pypi <your-api-token>
 
 ```bash
 source ./project.sh
-docker login -U stalchmst
+docker login -u stalchmst
 zrb publish all
 ```
 
@@ -112,17 +112,25 @@ producing this retained sequence:
 x.y.0  →  x.y.z (latest revision of x.y)  →  x.y+1.0  →  x.y+1.w  →  …
 ```
 
+Before compaction, each patch release lands in its own separate file — e.g.
+today's newest minor is spread across `2.48.0.md` and `2.48.1.md`, two
+distinct files, not yet merged. Compaction only happens once a minor ages out,
+at which point its separate per-patch files get merged into a single range
+file.
+
 Worked example (2.31–2.33):
 
 ```
-changelog-v2/2.31.0.md  →  changelog-v2/2.32.0-2.32.2.md  →  changelog-v2/2.33.0-2.33.2.md
+changelog-v2/2.31.0.md  →  changelog-v2/2.32.0-2.32.2.md  →  changelog-v2/2.33.0-2.33.4.md
 ```
 
 Here `2.31` had no patches (stays as `2.31.0.md`); `2.32` collapsed `2.32.1`
 into `2.32.2` and its `2.32.0a1`–`b5` pre-releases into `2.32.0`; `2.33` (once
-it ages out) collapses `2.33.1` into `2.33.2` and the file gets compacted to
-`2.33.0-2.33.2.md`. **The newest minor stays at full per-patch detail** as an
-uncollapsed file (e.g. `2.38.0.md`) until a later minor opens.
+it aged out) collapsed the separate `2.33.1.md`–`2.33.4.md` patch files into
+`2.33.4`, merging everything into the single compacted file
+`2.33.0-2.33.4.md`. **The newest minor stays as separate per-patch files**
+(e.g. today's `2.48.0.md` and `2.48.1.md`) until it ages out and a later minor
+opens.
 
 Rules for the surviving entries — they must not lose the dropped history:
 

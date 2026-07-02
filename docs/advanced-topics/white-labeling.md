@@ -38,10 +38,13 @@ Create your specialized tasks inside your package (`acme_cli/tasks.py`):
 ```python
 # acme_cli/tasks.py
 from zrb import CmdTask
+from zrb.runner.cli import cli
 
-deploy_prod = CmdTask(
-    name="deploy-prod",
-    cmd="echo 'Deploying to Acme Corp Production!'"
+deploy_prod = cli.add_task(
+    CmdTask(
+        name="deploy-prod",
+        cmd="echo 'Deploying to Acme Corp Production!'"
+    )
 )
 ```
 
@@ -115,7 +118,7 @@ Now, instead of `zrb`, you have a fully branded CLI!
 acme deploy-prod
 ```
 
-The terminal will display your custom "Acme" banner, the help menus will reference `acme` instead of `zrb`, and your custom tasks are ready to go.
+This runs your custom task directly. Your custom "Acme" banner is displayed when `acme` is invoked bare (no task name), i.e. running just `acme` shows the group info screen with the banner (`Cli._show_group_info` in `src/zrb/runner/cli.py`); running a specific task like `acme deploy-prod` goes straight to task execution and does not print the banner. Either way, the help menus reference `acme` instead of `zrb`, and your custom tasks are ready to go.
 
 ---
 
