@@ -11,21 +11,15 @@ if TYPE_CHECKING:
 
 def serve_static_resources(app: "FastAPI", web_auth_config: WebAuthConfig) -> None:
     # lazy: heavy third-party
-    from fastapi import HTTPException
-    from fastapi.responses import FileResponse, PlainTextResponse
+    from fastapi.responses import PlainTextResponse
     from fastapi.staticfiles import StaticFiles
 
     _STATIC_DIR = Path(__file__).parent / "resources"
 
+    # StaticFiles fully owns /static (with built-in path containment). A custom
+    # {file_path:path} handler here would be shadowed by the mount today and
+    # become a path-traversal hole the day route registration is reordered.
     app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
-
-    # Serve static files
-    @app.get("/static/{file_path:path}", include_in_schema=False)
-    async def static_files(file_path: str):
-        full_path = _STATIC_DIR / file_path
-        if full_path.is_file():
-            return FileResponse(full_path)
-        raise HTTPException(status_code=404, detail="File not found")
 
     @app.get("/refresh-token.js", include_in_schema=False)
     async def refresh_token_js():

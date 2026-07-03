@@ -102,6 +102,7 @@ class ExecMixin:
         _llm_limiter: Any
         _message: Any
         _model: Any
+        _model_settings: Any
         _permissions: Any
         _prompt_manager: Any
         _response_handlers: Any
@@ -550,6 +551,9 @@ class ExecMixin:
             attachment=lambda ctx: ctx.input.attachments,
             model=lambda ctx: ctx.input.get("model"),
             render_model=False,
+            # Without this, LLMChatTask(model_settings=...) is accepted but
+            # silently ignored: the inner task falls back to llm_config's.
+            model_settings=self._model_settings,
             summarize_command=summarize_commands,
         )
 

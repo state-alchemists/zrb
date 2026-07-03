@@ -232,15 +232,23 @@ class LLMTask(BuilderMixin, HistoryMixin, BaseTask):  # type: ignore[reportIncom
         return self._llm_limiter
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
+        # Resolve toolset factories exactly once. Resolving again inside
+        # _create_agent would produce DIFFERENT instances: the batch entered on
+        # this stack would never be used, the batch given to the agent would
+        # never be entered, and factory side effects (e.g. MCP server spawn)
+        # would run twice per turn.
+        toolsets = self._get_all_toolsets(ctx)
         async with AsyncExitStack() as stack:
             # Enter context for all toolsets that support it
-            for toolset in self._get_all_toolsets(ctx):
+            for toolset in toolsets:
                 if hasattr(toolset, "__aenter__"):
                     await stack.enter_async_context(toolset)
 
-            return await self._exec_action_inner(ctx)
+            return await self._exec_action_inner(ctx, toolsets=toolsets)
 
-    async def _exec_action_inner(self, ctx: AnyContext) -> Any:
+    async def _exec_action_inner(
+        self, ctx: AnyContext, toolsets: "list[AbstractToolset[None]] | None" = None
+    ) -> Any:
         conversation_name = self._get_conversation_name(ctx)
         history_manager = self._get_history_manager(ctx)
         message_history = history_manager.load(conversation_name)
@@ -271,7 +279,7 @@ class LLMTask(BuilderMixin, HistoryMixin, BaseTask):  # type: ignore[reportIncom
         live_context = self.get_live_context(
             ctx, inject_journal_index=not message_history
         )
-        agent = self._create_agent(ctx, system_prompt=system_prompt)
+        agent = self._create_agent(ctx, system_prompt=system_prompt, toolsets=toolsets)
         effective_message, effective_attachments = self._get_effective_prompt(
             ctx, user_message, user_attachments, message_history
         )
@@ -364,7 +372,12 @@ class LLMTask(BuilderMixin, HistoryMixin, BaseTask):  # type: ignore[reportIncom
             return True
         return False
 
-    def _create_agent(self, ctx: AnyContext, system_prompt: str | None = None) -> Any:
+    def _create_agent(
+        self,
+        ctx: AnyContext,
+        system_prompt: str | None = None,
+        toolsets: "list[AbstractToolset[None]] | None" = None,
+    ) -> Any:
         if self._dynamic_yolo is not None:
             should_skip_approval = self._dynamic_yolo
         else:
@@ -395,9 +408,14 @@ class LLMTask(BuilderMixin, HistoryMixin, BaseTask):  # type: ignore[reportIncom
         if system_prompt is None:
             system_prompt = self.get_system_prompt(ctx)
         ctx.log_debug(f"SYSTEM PROMPT: {system_prompt}")
-        # Get all tools and toolsets including those from factories
+        # Get all tools and toolsets including those from factories. Toolsets
+        # may be pre-resolved by _exec_action (which entered their contexts) —
+        # re-resolving here would hand the agent different, never-entered
+        # instances.
         resolved_tools = self._get_all_tools(ctx)
-        resolved_toolsets = self._get_all_toolsets(ctx)
+        resolved_toolsets = (
+            toolsets if toolsets is not None else self._get_all_toolsets(ctx)
+        )
 
         # Resolve model using llm_config
         base_model = self._get_model(ctx)

@@ -130,7 +130,15 @@ async def _handle_threshold_reached(
         action_coro.cancel()
         try:
             await action_coro
-        except (asyncio.CancelledError, Exception):
+        except asyncio.CancelledError:
+            # The action's cancellation is expected — we just requested it.
+            # But if the MONITOR itself was cancelled while waiting, swallowing
+            # here would make it uncancellable and restart the action after
+            # shutdown. `cancelling()` distinguishes the two.
+            current = asyncio.current_task()
+            if current is not None and current.cancelling() > 0:
+                raise
+        except Exception:
             pass
 
     ctx.log_info("Resetting task status.")

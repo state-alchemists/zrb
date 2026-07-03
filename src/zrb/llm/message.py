@@ -34,8 +34,12 @@ def ensure_alternating_roles(messages: list[Any]) -> list[Any]:
         last_msg = new_messages[-1]
 
         # Case 1: Sequential ModelRequests (User -> User) - MERGE
+        # replace() keeps non-part fields (instructions, run_id, ...) that a
+        # freshly constructed ModelRequest would silently drop.
         if isinstance(msg, ModelRequest) and isinstance(last_msg, ModelRequest):
-            new_last_msg = ModelRequest(parts=list(last_msg.parts) + list(msg.parts))
+            new_last_msg = replace(
+                last_msg, parts=list(last_msg.parts) + list(msg.parts)
+            )
             new_messages[-1] = new_last_msg
             continue
 
@@ -56,7 +60,7 @@ def ensure_alternating_roles(messages: list[Any]) -> list[Any]:
 def _strip_orphaned_parts(
     msg: "Any",
     orphaned_ids: "set[str]",
-    part_type: "type",
+    part_type: "type | tuple[type, ...]",
     ensure_text: bool = False,
 ) -> "Any | None":
     """Return *msg* with parts matching *orphaned_ids* removed, or ``None`` if empty.
@@ -100,6 +104,7 @@ def sanitize_orphaned_tool_calls(messages: list[Any]) -> list[Any]:
     from pydantic_ai.messages import (
         ModelRequest,
         ModelResponse,
+        RetryPromptPart,
         ToolCallPart,
         ToolReturnPart,
     )
@@ -127,7 +132,9 @@ def sanitize_orphaned_tool_calls(messages: list[Any]) -> list[Any]:
             if patched is not None:
                 result.append(patched)
         elif isinstance(msg, ModelRequest) and orphaned_returns:
-            patched = _strip_orphaned_parts(msg, orphaned_returns, ToolReturnPart)
+            patched = _strip_orphaned_parts(
+                msg, orphaned_returns, (ToolReturnPart, RetryPromptPart)
+            )
             if patched is not None:
                 result.append(patched)
         else:
@@ -146,6 +153,7 @@ def strip_orphaned_returns(messages: list[Any]) -> list[Any]:
     # lazy: heavy third-party
     from pydantic_ai.messages import (
         ModelRequest,
+        RetryPromptPart,
         ToolReturnPart,
     )
 
@@ -164,7 +172,9 @@ def strip_orphaned_returns(messages: list[Any]) -> list[Any]:
     result: list[Any] = []
     for msg in messages:
         if isinstance(msg, ModelRequest) and orphaned_returns:
-            patched = _strip_orphaned_parts(msg, orphaned_returns, ToolReturnPart)
+            patched = _strip_orphaned_parts(
+                msg, orphaned_returns, (ToolReturnPart, RetryPromptPart)
+            )
             if patched is not None:
                 result.append(patched)
         else:
@@ -223,7 +233,12 @@ def _iter_tool_events(
     """Yield ``(msg_index, tool_call_id, kind)`` for every tool part in *messages*.
 
     *kind* is ``"call"`` for ``ToolCallPart`` and ``"return"`` for
-    ``ToolReturnPart``.  Messages and parts that lack a ``tool_call_id`` (or
+    ``ToolReturnPart`` — or for a tool-linked ``RetryPromptPart``: pydantic-ai
+    answers a failed tool call with a retry part that providers serialize as a
+    ``role='tool'`` message, so for pairing purposes it *is* the return
+    (mirrors ``history_utils``).  Tool-less retries (``tool_name is None``)
+    are skipped: they map to user messages despite their auto-generated
+    ``tool_call_id``.  Messages and parts that lack a ``tool_call_id`` (or
     the ``.parts`` attribute entirely) are silently skipped — this is deliberate:
     the caller expects a best-effort traversal, not an exception.
 
@@ -233,7 +248,7 @@ def _iter_tool_events(
     ``validate_tool_pair_integrity``).
     """
     # lazy: heavy third-party
-    from pydantic_ai.messages import ToolCallPart, ToolReturnPart
+    from pydantic_ai.messages import RetryPromptPart, ToolCallPart, ToolReturnPart
 
     for msg_idx, msg in enumerate(messages):
         try:
@@ -247,4 +262,6 @@ def _iter_tool_events(
             if isinstance(part, ToolCallPart):
                 yield msg_idx, tool_call_id, "call"
             elif isinstance(part, ToolReturnPart):
+                yield msg_idx, tool_call_id, "return"
+            elif isinstance(part, RetryPromptPart) and part.tool_name:
                 yield msg_idx, tool_call_id, "return"

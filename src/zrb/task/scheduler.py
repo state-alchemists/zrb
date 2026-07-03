@@ -75,11 +75,22 @@ class Scheduler(BaseTrigger):
     async def _exec_action(self, ctx: AnyContext):
         cron_pattern = self._get_cron_pattern(ctx)
         ctx.print(f"Monitoring cron pattern: {cron_pattern}")
-        while True:
+        last_fired_minute: datetime.datetime | None = None
+        while ctx.session is None or not ctx.session.is_terminated:
             now = datetime.datetime.now()
             ctx.print(f"Current time: {now}")
-            if match_cron(cron_pattern, now):
+            minute = now.replace(second=0, microsecond=0)
+            # Dedup on the fired minute: a sub-minute tick would otherwise fire
+            # several times inside one matching minute.
+            if minute != last_fired_minute and match_cron(cron_pattern, now):
+                last_fired_minute = minute
                 ctx.print(f"Matching {now} with pattern: {cron_pattern}")
                 if ctx.session is not None:
                     self.push_exchange_xcom(ctx.session, now)
-            await asyncio.sleep(CFG.SCHEDULER_TICK_INTERVAL / 1000)
+            # Never sleep past the next minute boundary: an unaligned 60s sleep
+            # accumulates loop overhead each tick, and once the sample point
+            # drifts across a boundary an entire minute is skipped — a
+            # `30 9 * * *` job silently not firing that day.
+            tick = CFG.SCHEDULER_TICK_INTERVAL / 1000
+            to_next_minute = 60 - now.second - now.microsecond / 1_000_000
+            await asyncio.sleep(min(tick, to_next_minute))

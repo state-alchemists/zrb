@@ -1,3 +1,5 @@
+import html
+
 from zrb.attr.type import IntAttr
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.input.base_input import BaseInput
@@ -28,9 +30,9 @@ class IntInput(BaseInput):
         )
 
     def to_html(self, shared_ctx: AnySharedContext) -> str:
-        name = self.name
-        description = self.description
-        default = self.get_default_str(shared_ctx)
+        name = html.escape(self.name)
+        description = html.escape(self.description)
+        default = html.escape(self.get_default_str(shared_ctx))
         return f'<input type="number" step="1" name="{name}" placeholder="{description}" value="{default}" />'  # noqa
 
     def _parse_str_value(self, str_value: str) -> int:

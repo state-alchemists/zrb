@@ -143,17 +143,12 @@ async def execute_root_tasks(task: AnyTask, session: AnySession):
         ctx.log_info("Session finished.")
         return session.final_result
 
-    except IndexError:
-        # This might occur if get_root_tasks fails unexpectedly
-        ctx.log_error(
-            "IndexError during root task execution, potentially session issue."
-        )
-        session.terminate()  # Ensure termination on error
-        return None
     except (asyncio.CancelledError, KeyboardInterrupt):
         ctx.log_warning("Session execution cancelled or interrupted.")
-        # Session termination happens in finally block
-        return None  # Indicate abnormal termination
+        # Propagate: swallowing cancellation here makes a cancelled session
+        # look like a successful run to every caller (`await llm_task` returns
+        # None instead of raising). Session termination happens in finally.
+        raise
     finally:
         # Ensure termination and final state logging regardless of outcome
         if not session.is_terminated:

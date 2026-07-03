@@ -52,6 +52,40 @@ class TestLLMTaskExecution:
             assert tool in kwargs["tools"]
 
     @pytest.mark.asyncio
+    async def test_llm_task_resolves_toolset_factories_once(self, session):
+        """Toolset factories run once per execution and the SAME instances go
+        to the agent.
+
+        They used to be resolved twice (once for the exit stack, once inside
+        agent creation): factory side effects (e.g. MCP server spawn) fired
+        twice per turn, and the agent got instances whose contexts were never
+        entered.
+        """
+        factory_calls = []
+
+        def toolset_factory(ctx):
+            toolset = MagicMock()
+            del toolset.__aenter__  # plain toolset: no async context to enter
+            factory_calls.append(toolset)
+            return toolset
+
+        task = LLMTask(name="test-task", message="hello")
+        task.add_toolset_factory(toolset_factory)
+
+        with (
+            patch("zrb.llm.task.llm_task.create_agent") as mock_create_agent,
+            patch(
+                "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
+            ) as mock_run_agent,
+        ):
+            mock_run_agent.return_value = ("Response", [])
+            await task.async_run(session)
+
+            assert len(factory_calls) == 1
+            _args, kwargs = mock_create_agent.call_args
+            assert kwargs["toolsets"] == factory_calls
+
+    @pytest.mark.asyncio
     async def test_llm_task_passes_ui_to_run_agent(self, session):
         # Arrange
         ui = MagicMock()

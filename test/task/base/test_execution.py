@@ -286,6 +286,7 @@ async def test_execute_action_until_ready_with_readiness_checks():
     task_status = MagicMock(spec=TaskStatus)
     task_status.is_completed = True
     task_status.is_failed = False
+    task_status.is_permanently_failed = False
 
     def get_status(t):
         if t is check_task:
@@ -308,3 +309,382 @@ async def test_execute_action_until_ready_with_readiness_checks():
 
     assert result is None  # Returns None after deferring
     session.defer_action.assert_called()
+    task_status.mark_as_ready.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_readiness_marks_ready_despite_transient_attempt_failure():
+    """Readiness completing between a failed attempt and its retry still marks ready.
+
+    `is_failed` is per-attempt (cleared by the next mark_as_started); gating
+    readiness on it silently dropped all downstream tasks whenever the checks
+    finished mid-retry. Only a PERMANENT failure may block mark_as_ready.
+    """
+    from zrb.task.base.execution import execute_action_until_ready
+
+    check_task = BaseTask(name="check_task")
+    check_task.exec_chain = AsyncMock(return_value=None)
+
+    task = BaseTask(name="task", readiness_check=[check_task])
+
+    session = MagicMock(spec=AnySession)
+    session.is_terminated = False
+
+    ctx = MagicMock(spec=AnyContext)
+    ctx.xcom = MagicMock()
+    ctx.xcom.get.return_value = None
+
+    check_status = MagicMock(spec=TaskStatus)
+    check_status.is_completed = True
+
+    task_status = MagicMock(spec=TaskStatus)
+    task_status.is_failed = True  # transient: attempt failed, retry pending
+    task_status.is_permanently_failed = False
+
+    def get_status(t):
+        if t is check_task:
+            return check_status
+        return task_status
+
+    session.get_task_status.side_effect = get_status
+
+    with patch.object(task, "get_ctx", return_value=ctx):
+        with patch("asyncio.sleep", new=AsyncMock(return_value=None)):
+            with patch(
+                "zrb.task.base.execution.execute_action_with_retry",
+                new=AsyncMock(return_value="result"),
+            ):
+                await execute_action_until_ready(task, session)
+
+    task_status.mark_as_ready.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_readiness_does_not_mark_ready_when_permanently_failed():
+    """A permanently failed action blocks mark_as_ready even if checks pass."""
+    from zrb.task.base.execution import execute_action_until_ready
+
+    check_task = BaseTask(name="check_task")
+    check_task.exec_chain = AsyncMock(return_value=None)
+
+    task = BaseTask(name="task", readiness_check=[check_task])
+
+    session = MagicMock(spec=AnySession)
+    session.is_terminated = False
+
+    ctx = MagicMock(spec=AnyContext)
+    ctx.xcom = MagicMock()
+    ctx.xcom.get.return_value = None
+
+    check_status = MagicMock(spec=TaskStatus)
+    check_status.is_completed = True
+
+    task_status = MagicMock(spec=TaskStatus)
+    task_status.is_failed = True
+    task_status.is_permanently_failed = True
+
+    def get_status(t):
+        if t is check_task:
+            return check_status
+        return task_status
+
+    session.get_task_status.side_effect = get_status
+
+    with patch.object(task, "get_ctx", return_value=ctx):
+        with patch("asyncio.sleep", new=AsyncMock(return_value=None)):
+            with patch(
+                "zrb.task.base.execution.execute_action_with_retry",
+                new=AsyncMock(return_value="result"),
+            ):
+                await execute_action_until_ready(task, session)
+
+    task_status.mark_as_ready.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_readiness_check_exception_fails_task_instead_of_hanging():
+    """A permanently failed readiness check fails the run instead of hanging.
+
+    The exception used to be logged and dropped while the (possibly
+    never-ending) action was still deferred, leaving the whole run blocked in
+    wait_deferred with no error exit.
+    """
+    from zrb.task.base.execution import execute_action_until_ready
+
+    check_task = BaseTask(name="check_task")
+    check_task.exec_chain = AsyncMock(side_effect=ValueError("port closed"))
+
+    task = BaseTask(name="task", readiness_check=[check_task])
+
+    session = MagicMock(spec=AnySession)
+    session.is_terminated = False
+
+    ctx = MagicMock(spec=AnyContext)
+    ctx.xcom = MagicMock()
+    ctx.xcom.get.return_value = None
+
+    check_status = MagicMock(spec=TaskStatus)
+    task_status = MagicMock(spec=TaskStatus)
+    task_status.is_permanently_failed = False
+    task_status.is_completed = False
+
+    def get_status(t):
+        if t is check_task:
+            return check_status
+        return task_status
+
+    session.get_task_status.side_effect = get_status
+
+    with patch.object(task, "get_ctx", return_value=ctx):
+        with patch("asyncio.sleep", new=AsyncMock(return_value=None)):
+            with patch(
+                "zrb.task.base.execution.execute_action_with_retry",
+                new=AsyncMock(return_value="result"),
+            ):
+                with pytest.raises(ValueError, match="port closed"):
+                    await execute_action_until_ready(task, session)
+
+    task_status.mark_as_permanently_failed.assert_called_once()
+    session.defer_action.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_incomplete_readiness_check_fails_task_instead_of_hanging():
+    """Readiness checks that finish without completing also fail the run."""
+    from zrb.task.base.execution import execute_action_until_ready
+
+    check_task = BaseTask(name="check_task")
+    check_task.exec_chain = AsyncMock(return_value=None)
+
+    task = BaseTask(name="task", readiness_check=[check_task])
+
+    session = MagicMock(spec=AnySession)
+    session.is_terminated = False
+
+    ctx = MagicMock(spec=AnyContext)
+    ctx.xcom = MagicMock()
+    ctx.xcom.get.return_value = None
+
+    check_status = MagicMock(spec=TaskStatus)
+    check_status.is_completed = False  # e.g. skipped/terminated, never completed
+
+    task_status = MagicMock(spec=TaskStatus)
+    task_status.is_permanently_failed = False
+    task_status.is_completed = False
+
+    def get_status(t):
+        if t is check_task:
+            return check_status
+        return task_status
+
+    session.get_task_status.side_effect = get_status
+
+    with patch.object(task, "get_ctx", return_value=ctx):
+        with patch("asyncio.sleep", new=AsyncMock(return_value=None)):
+            with patch(
+                "zrb.task.base.execution.execute_action_with_retry",
+                new=AsyncMock(return_value="result"),
+            ):
+                with pytest.raises(RuntimeError, match="did not complete"):
+                    await execute_action_until_ready(task, session)
+
+    task_status.mark_as_permanently_failed.assert_called_once()
+    session.defer_action.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_readiness_failure_runs_fallbacks_and_skips_successors():
+    """Readiness failure is a permanent failure — fallbacks must fire.
+
+    The retry loop pairs mark_as_permanently_failed with skip_successors +
+    execute_fallbacks; the readiness fail-fast path must do the same, or a
+    `fallback=` on a server task silently never runs when the readiness check
+    (rather than the action) is what dies.
+    """
+    from zrb.task.base.execution import execute_action_until_ready
+
+    check_task = BaseTask(name="check_task")
+    check_task.exec_chain = AsyncMock(side_effect=ValueError("port closed"))
+
+    task = BaseTask(name="task", readiness_check=[check_task])
+
+    session = MagicMock(spec=AnySession)
+    session.is_terminated = False
+
+    ctx = MagicMock(spec=AnyContext)
+    ctx.xcom = MagicMock()
+    ctx.xcom.get.return_value = None
+
+    check_status = MagicMock(spec=TaskStatus)
+    task_status = MagicMock(spec=TaskStatus)
+    task_status.is_permanently_failed = False
+    task_status.is_completed = False
+
+    def get_status(t):
+        if t is check_task:
+            return check_status
+        return task_status
+
+    session.get_task_status.side_effect = get_status
+
+    mock_skip_successors = MagicMock()
+    mock_execute_fallbacks = AsyncMock()
+    with patch.object(task, "get_ctx", return_value=ctx):
+        with patch("asyncio.sleep", new=AsyncMock(return_value=None)):
+            with patch(
+                "zrb.task.base.execution.execute_action_with_retry",
+                new=AsyncMock(return_value="result"),
+            ):
+                with patch(
+                    "zrb.task.base.execution.skip_successors",
+                    new=mock_skip_successors,
+                ):
+                    with patch(
+                        "zrb.task.base.execution.execute_fallbacks",
+                        new=mock_execute_fallbacks,
+                    ):
+                        with pytest.raises(ValueError, match="port closed"):
+                            await execute_action_until_ready(task, session)
+
+    task_status.mark_as_permanently_failed.assert_called_once()
+    mock_skip_successors.assert_called_once_with(task, session)
+    mock_execute_fallbacks.assert_awaited_once_with(task, session)
+
+
+@pytest.mark.asyncio
+async def test_readiness_failure_surfaces_action_error_without_rerunning_fallbacks():
+    """When the action itself crashed, its error is the root cause.
+
+    The retry loop's terminal path already marked the task permanently failed
+    and ran the fallbacks — the readiness fail-fast path must not run them a
+    second time, and must raise the action's exception (not the readiness
+    symptom).
+    """
+    from zrb.task.base.execution import execute_action_until_ready
+
+    check_task = BaseTask(name="check_task")
+    check_task.exec_chain = AsyncMock(side_effect=ValueError("port closed"))
+
+    task = BaseTask(name="task", readiness_check=[check_task])
+
+    session = MagicMock(spec=AnySession)
+    session.is_terminated = False
+
+    ctx = MagicMock(spec=AnyContext)
+    ctx.xcom = MagicMock()
+    ctx.xcom.get.return_value = None
+
+    check_status = MagicMock(spec=TaskStatus)
+    task_status = MagicMock(spec=TaskStatus)
+    # The action's retry loop already did the terminal bookkeeping.
+    task_status.is_permanently_failed = True
+
+    def get_status(t):
+        if t is check_task:
+            return check_status
+        return task_status
+
+    session.get_task_status.side_effect = get_status
+
+    mock_execute_fallbacks = AsyncMock()
+    with patch.object(task, "get_ctx", return_value=ctx):
+        with patch("asyncio.sleep", new=AsyncMock(return_value=None)):
+            with patch(
+                "zrb.task.base.execution.execute_action_with_retry",
+                new=AsyncMock(side_effect=RuntimeError("boom")),
+            ):
+                with patch(
+                    "zrb.task.base.execution.execute_fallbacks",
+                    new=mock_execute_fallbacks,
+                ):
+                    with pytest.raises(RuntimeError, match="boom"):
+                        await execute_action_until_ready(task, session)
+
+    task_status.mark_as_permanently_failed.assert_not_called()
+    mock_execute_fallbacks.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_readiness_failure_after_completed_action_does_not_run_fallbacks():
+    """A completed action already ran its successors and skipped its fallbacks.
+
+    When readiness then fails (short action + broken check), stacking
+    mark_as_permanently_failed on a completed task and firing fallbacks AFTER
+    the successors would be contradictory. The readiness error still
+    propagates so the run fails visibly.
+    """
+    from zrb.task.base.execution import execute_action_until_ready
+
+    check_task = BaseTask(name="check_task")
+    check_task.exec_chain = AsyncMock(side_effect=ValueError("port closed"))
+
+    task = BaseTask(name="task", readiness_check=[check_task])
+
+    session = MagicMock(spec=AnySession)
+    session.is_terminated = False
+
+    ctx = MagicMock(spec=AnyContext)
+    ctx.xcom = MagicMock()
+    ctx.xcom.get.return_value = None
+
+    check_status = MagicMock(spec=TaskStatus)
+    task_status = MagicMock(spec=TaskStatus)
+    task_status.is_permanently_failed = False
+    # The action finished successfully before readiness resolved.
+    task_status.is_completed = True
+
+    def get_status(t):
+        if t is check_task:
+            return check_status
+        return task_status
+
+    session.get_task_status.side_effect = get_status
+
+    mock_skip_successors = MagicMock()
+    mock_execute_fallbacks = AsyncMock()
+    with patch.object(task, "get_ctx", return_value=ctx):
+        with patch("asyncio.sleep", new=AsyncMock(return_value=None)):
+            with patch(
+                "zrb.task.base.execution.execute_action_with_retry",
+                new=AsyncMock(return_value="result"),
+            ):
+                with patch(
+                    "zrb.task.base.execution.skip_successors",
+                    new=mock_skip_successors,
+                ):
+                    with patch(
+                        "zrb.task.base.execution.execute_fallbacks",
+                        new=mock_execute_fallbacks,
+                    ):
+                        with pytest.raises(ValueError, match="port closed"):
+                            await execute_action_until_ready(task, session)
+
+    task_status.mark_as_permanently_failed.assert_not_called()
+    mock_skip_successors.assert_not_called()
+    mock_execute_fallbacks.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_diamond_upstreams_run_readiness_task_once():
+    """Two upstreams completing in the same tick must not double-run the task.
+
+    `is_started` used to be set only inside the created action task — after
+    the readiness path's first suspension point — so both upstream chains
+    passed `is_allowed_to_run` and the action executed twice concurrently.
+    """
+    executions = []
+
+    check = BaseTask(name="check", action=lambda ctx: "ok")
+    a = BaseTask(name="a", action=lambda ctx: "a")
+    b = BaseTask(name="b", action=lambda ctx: "b")
+    d = BaseTask(
+        name="d",
+        action=lambda ctx: executions.append("d"),
+        upstream=[a, b],
+        readiness_check=[check],
+        readiness_check_delay=0,
+    )
+
+    await d.async_run()
+
+    assert executions == ["d"]

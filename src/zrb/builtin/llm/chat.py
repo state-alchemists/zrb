@@ -67,6 +67,11 @@ llm_chat = LLMChatTask(
     yolo="{ctx.input.yolo}",
     message="{ctx.input.message}",
     conversation_name="{ctx.input.session}",
+    # Comma-separated file paths; normalized to BinaryContent in the agent
+    # run path (prompt_content.normalize_attachments).
+    attachment=lambda ctx: [
+        path.strip() for path in ctx.input.attach.split(",") if path.strip()
+    ],
     interactive="{ctx.input.interactive}",
     sandbox=lambda ctx: ctx.input.get("sandbox") or None,
     history_processors=[],

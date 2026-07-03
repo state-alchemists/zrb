@@ -1,3 +1,5 @@
+import html
+
 from zrb.attr.type import BoolAttr
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.input.base_input import BaseInput
@@ -29,8 +31,8 @@ class BoolInput(BaseInput):
         )
 
     def to_html(self, shared_ctx: AnySharedContext) -> str:
-        name = self.name
-        description = self.description
+        name = html.escape(self.name)
+        description = html.escape(self.description)
         default = to_boolean(self.get_default_str(shared_ctx))
         selected_true = "selected" if default else ""
         selected_false = "selected" if not default else ""

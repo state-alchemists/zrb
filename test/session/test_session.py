@@ -478,3 +478,50 @@ def test_get_root_tasks_with_visited_cycle():
     assert upstream in roots2
     # No duplicates
     assert roots1.count(upstream) == 1
+
+
+@pytest.mark.asyncio
+async def test_wait_deferred_drains_coros_deferred_during_wait():
+    """A coro deferred WHILE wait_deferred is running is still awaited.
+
+    Trigger callbacks defer new coros mid-wait; a single gather over a
+    snapshot would return before they finish.
+    """
+    shared_ctx = MagicMock(spec=AnySharedContext)
+    session = Session(shared_ctx=shared_ctx)
+    done = []
+
+    async def second():
+        done.append("second")
+
+    async def first():
+        await asyncio.sleep(0.01)
+        session.defer_coro(second())
+        done.append("first")
+
+    session.defer_coro(first())
+    await session.wait_deferred()
+    assert done == ["first", "second"]
+
+
+@pytest.mark.asyncio
+async def test_defer_coro_prune_logs_failed_coro():
+    """Pruning a finished-and-failed coro retrieves and logs its exception."""
+    from unittest.mock import patch
+
+    shared_ctx = MagicMock(spec=AnySharedContext)
+    session = Session(shared_ctx=shared_ctx)
+
+    async def boom():
+        raise ValueError("deferred failure")
+
+    async def ok():
+        pass
+
+    with patch("zrb.session.session.CFG") as mock_cfg:
+        session.defer_coro(boom())
+        await asyncio.sleep(0.01)  # let it fail
+        session.defer_coro(ok())  # triggers pruning of the failed coro
+        mock_cfg.LOGGER.error.assert_called_once()
+        assert "deferred failure" in mock_cfg.LOGGER.error.call_args.args[0]
+    await session.wait_deferred()

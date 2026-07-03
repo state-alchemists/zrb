@@ -15,34 +15,40 @@ def parse_cron_field(field: str, min_value: int, max_value: int):
 
     Returns:
         set[int]: A set of integer values represented by the cron field.
+
+    Raises:
+        ValueError: On out-of-range values or non-positive steps — a silently
+            never-matching field (e.g. minute ``70``) is a schedule that never
+            fires with no diagnostic.
     """
-    values = set()
-    if field == "*":
-        return set(range(min_value, max_value + 1))
-    elif field.startswith("*/"):
-        # Handle step values like "*/5"
-        step = int(field[2:])
-        return set(range(min_value, max_value + 1, step))
-    elif "-" in field or "," in field or "/" in field:
-        # Handle ranges, lists, and steps
-        parts = field.split(",")
-        for part in parts:
-            if "/" in part:
-                range_part, step = part.split("/")
-                step = int(step)
-                if "-" in range_part:
-                    start, end = map(int, range_part.split("-"))
-                else:
-                    start, end = int(range_part), max_value
-                values.update(range(start, end + 1, step))
-            elif "-" in part:
-                start, end = map(int, part.split("-"))
-                values.update(range(start, end + 1))
+    values: set[int] = set()
+    # Parse per list item so a wildcard step inside a list ("1,*/5") works.
+    for part in field.split(","):
+        if part == "*":
+            values.update(range(min_value, max_value + 1))
+        elif "/" in part:
+            range_part, step_str = part.split("/")
+            step = int(step_str)
+            if step <= 0:
+                raise ValueError(f"Invalid step {step} in cron field '{field}'")
+            if range_part == "*":
+                start, end = min_value, max_value
+            elif "-" in range_part:
+                start, end = map(int, range_part.split("-"))
             else:
-                values.add(int(part))
-    else:
-        # Handle individual values
-        values.add(int(field))
+                start, end = int(range_part), max_value
+            values.update(range(start, end + 1, step))
+        elif "-" in part:
+            start, end = map(int, part.split("-"))
+            values.update(range(start, end + 1))
+        else:
+            values.add(int(part))
+    out_of_range = sorted(v for v in values if v < min_value or v > max_value)
+    if out_of_range:
+        raise ValueError(
+            f"Cron field '{field}' has out-of-range values {out_of_range} "
+            f"(allowed: {min_value}-{max_value})"
+        )
     return values
 
 
@@ -97,7 +103,8 @@ def match_cron(cron_pattern: str, dt: datetime.datetime):
     hours = parse_cron_field(hour, 0, 23)
     days = parse_cron_field(day, 1, 31)
     months = parse_cron_field(month, 1, 12)
-    days_of_week = parse_cron_field(day_of_week, 0, 6)
+    # Max 7, not 6: cron accepts 7 for Sunday (the match below maps it to 0).
+    days_of_week = parse_cron_field(day_of_week, 0, 7)
     # Convert Python's weekday (Mon=0..Sun=6) to cron's convention (Sun=0..Sat=6).
     # `isoweekday() % 7` maps Sun(7)->0, Mon(1)->1, ..., Sat(6)->6. Cron also
     # accepts 7 for Sunday, so treat it as equivalent to 0.

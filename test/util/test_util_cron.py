@@ -182,3 +182,27 @@ def test_match_cron_day_of_month_and_dow_both_restricted_is_or():
     # A Tuesday that is not the 15th matches neither.
     tuesday_14th = datetime.datetime(2024, 5, 14, 0, 0)
     assert match_cron("0 0 15 * 1", tuesday_14th) is False
+
+
+def test_parse_cron_field_list_with_wildcard_step():
+    """A wildcard step inside a list ("1,*/15") must parse, not crash."""
+    assert parse_cron_field("1,*/15", 0, 59) == {1, 0, 15, 30, 45}
+
+
+def test_parse_cron_field_out_of_range_raises():
+    """Out-of-range values raise instead of silently never matching."""
+    with pytest.raises(ValueError, match="out-of-range"):
+        parse_cron_field("70", 0, 59)
+    with pytest.raises(ValueError, match="out-of-range"):
+        parse_cron_field("5-70", 0, 59)
+
+
+def test_parse_cron_field_non_positive_step_raises():
+    with pytest.raises(ValueError, match="step"):
+        parse_cron_field("*/0", 0, 59)
+
+
+def test_parse_cron_field_day_of_week_seven_is_valid():
+    """match_cron parses day-of-week with max 7 (cron's Sunday alias)."""
+    sunday = datetime.datetime(2024, 5, 12, 0, 0)
+    assert match_cron("0 0 * * 7", sunday) is True
