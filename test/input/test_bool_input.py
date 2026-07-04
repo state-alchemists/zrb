@@ -149,5 +149,5 @@ def test_bool_input_auto_render_false():
     with patch("zrb.input.bool_input.get_bool_attr") as mock_get_bool_attr:
         mock_get_bool_attr.return_value = True
         result = inp.get_default_str(shared_ctx)
-        assert result == "True"
+        assert result == "true"
         mock_get_bool_attr.assert_called_once()
