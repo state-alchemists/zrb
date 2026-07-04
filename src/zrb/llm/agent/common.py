@@ -63,6 +63,7 @@ def _wrap_tool(tool: "Tool | ToolFuncEither") -> "Tool | ToolFuncEither":
                 sequential=tool.sequential,
                 requires_approval=tool.requires_approval,
                 timeout=tool.timeout,
+                defer_loading=tool.defer_loading,
             )
         return tool
     else:

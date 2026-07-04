@@ -71,7 +71,7 @@ class SubAgentDefinition:
 class SubAgentManager(LoaderMixin, SearchMixin):
     def __init__(
         self,
-        tool_registry: dict[str, Callable] | None = None,
+        tool_registry: "dict[str, Callable | Tool] | None" = None,
         root_dir: str = ".",
         search_dirs: list[str | Path] | None = None,
         max_depth: int = 1,
@@ -105,14 +105,14 @@ class SubAgentManager(LoaderMixin, SearchMixin):
         self._agents = {}
         self._ensure_loaded()
 
-    def add_tool(self, *tool: Callable):
+    def add_tool(self, *tool: "Callable | Tool"):
         """Register tools."""
         self.append_tool(*tool)
 
-    def append_tool(self, *tool: Callable):
+    def append_tool(self, *tool: "Callable | Tool"):
         """Append tools."""
         for single_tool in tool:
-            tool_name = getattr(single_tool, "__name__", str(single_tool))
+            tool_name = _resolve_tool_name(single_tool) or str(single_tool)
             self._tool_registry[tool_name] = single_tool
 
     def add_tool_factory(self, *factory: Callable[[AnyContext], Tool | ToolFuncEither]):
@@ -433,7 +433,7 @@ class SubAgentManager(LoaderMixin, SearchMixin):
         for search_dir in target_search_dirs:
             self._scan_dir(Path(search_dir), max_depth=self._max_depth)
 
-    def _get_tool_registry(self) -> dict[str, Callable]:
+    def _get_tool_registry(self) -> "dict[str, Callable | Tool]":
         return self._tool_registry
 
     def _get_all_toolsets(self, ctx: AnyContext) -> list[AbstractToolset[None]]:
