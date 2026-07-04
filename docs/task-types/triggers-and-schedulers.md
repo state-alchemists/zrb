@@ -194,7 +194,7 @@ The five fields are:
 │ ┌──────── hour (0-23)
 │ │ ┌─────── day of month (1-31)
 │ │ │ ┌────── month (1-12)
-│ │ │ │ ┌───── day of week (0-6, 0=Sunday)
+│ │ │ │ ┌───── day of week (0-7, 0 or 7=Sunday)
 │ │ │ │ │
 * * * * *
 ```

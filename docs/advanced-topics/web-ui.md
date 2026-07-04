@@ -106,7 +106,10 @@ web_auth_config.guest_accessible_tasks = ["throw-dice"]
 > `SameSite=Lax`. The `Secure` flag means browsers only send them over HTTPS
 > (modern browsers treat `http://localhost` as a secure context, so local
 > development is unaffected) — terminate TLS in front of Zrb for any non-localhost
-> deployment. Only access tokens authenticate a request; a refresh token can only
+> deployment. The `Secure` flag is on by default; if you must serve over plain
+> HTTP on a non-localhost host, set `ZRB_WEB_ENABLE_SECURE_COOKIES=off` (otherwise
+> browsers silently drop the cookies and login appears to fail). Only access
+> tokens authenticate a request; a refresh token can only
 > be exchanged at the refresh endpoint, never used directly as an access token.
 
 ---

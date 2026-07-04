@@ -79,6 +79,7 @@ Zrb's experimental Web UI has dedicated configuration options.
 | `ZRB_WEB_HTTP_PORT` | Port for Web UI server | `21213` |
 | `ZRB_WEB_AUTH_ENABLED` | Enable username/password authentication | `off` |
 | `ZRB_WEB_SECRET_KEY` | Secret key for authentication tokens ⚠️ **Change for production!** | `zrb` |
+| `ZRB_WEB_ENABLE_SECURE_COOKIES` | Set the `Secure` flag on auth cookies (HTTPS-only). Turn `off` for plain-HTTP non-localhost deployments where browsers would otherwise drop the cookies | `on` |
 
 ### Authentication Tokens
 
