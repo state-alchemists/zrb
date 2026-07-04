@@ -14,6 +14,7 @@ class WebAuthConfig:
         access_token_cookie_name: str | None = None,
         refresh_token_cookie_name: str | None = None,
         enable_auth: bool | None = None,
+        secure_cookies: bool | None = None,
         super_admin_username: str | None = None,
         super_admin_password: str | None = None,
         guest_username: str | None = None,
@@ -26,6 +27,7 @@ class WebAuthConfig:
         self._access_token_cookie_name = access_token_cookie_name
         self._refresh_token_cookie_name = refresh_token_cookie_name
         self._enable_auth = enable_auth
+        self._secure_cookies = secure_cookies
         self._super_admin_username = super_admin_username
         self._super_admin_password = super_admin_password
         self._guest_username = guest_username
@@ -94,6 +96,16 @@ class WebAuthConfig:
     @enable_auth.setter
     def enable_auth(self, enable: bool):
         self._enable_auth = enable
+
+    @property
+    def secure_cookies(self) -> bool:
+        if self._secure_cookies is not None:
+            return self._secure_cookies
+        return CFG.WEB_ENABLE_SECURE_COOKIES
+
+    @secure_cookies.setter
+    def secure_cookies(self, secure: bool):
+        self._secure_cookies = secure
 
     @property
     def super_admin_username(self) -> str:

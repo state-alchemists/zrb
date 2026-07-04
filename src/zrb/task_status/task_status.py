@@ -97,7 +97,10 @@ class TaskStatus:
 
     @property
     def allow_run_downstream(self):
-        if self.is_failed or self.is_permanently_failed or self.is_terminated:
+        # Permanent failure only: `is_failed` is per-attempt and cleared on the
+        # next retry's mark_as_started, so gating on it races with the retry
+        # loop of a readiness-checked task and silently drops downstream tasks.
+        if self.is_permanently_failed or self.is_terminated:
             return False
         return self.is_skipped or self.is_ready
 

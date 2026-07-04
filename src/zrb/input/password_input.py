@@ -1,4 +1,5 @@
 import getpass
+import html
 
 from zrb.attr.type import StrAttr
 from zrb.context.any_shared_context import AnySharedContext
@@ -30,9 +31,9 @@ class PasswordInput(BaseInput):
         self._is_secret = True
 
     def to_html(self, shared_ctx: AnySharedContext) -> str:
-        name = self.name
-        description = self.description
-        default = self.get_default_str(shared_ctx)
+        name = html.escape(self.name)
+        description = html.escape(self.description)
+        default = html.escape(self.get_default_str(shared_ctx))
         return f'<input type="password" name="{name}" placeholder="{description}" value="{default}" />'  # noqa
 
     def _prompt_cli_str(self, shared_ctx: AnySharedContext) -> str:

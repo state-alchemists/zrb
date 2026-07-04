@@ -47,6 +47,12 @@ async def test_run_chat_session_success(mock_deps):
     llm_chat_task.async_run.assert_called_once()
     session_manager.broadcast.assert_called_with("test-id", "[USER] hello")
 
+    # The web path must pin interactive off: falling back to the CLI default
+    # (True) replays full history to the SSE client and tears down LSP
+    # servers / fires SESSION_END hooks on every message.
+    run_session = llm_chat_task.async_run.call_args.kwargs["session"]
+    assert run_session.shared_ctx.input["interactive"] == "false"
+
     # Clean up
     task.cancel()
     try:
@@ -98,8 +104,8 @@ async def test_run_chat_session_error(mock_deps):
     session, llm_chat_task, session_manager = mock_deps
     session.input_queue.put_nowait("hello")
 
-    # Make the LLM task fail
-    llm_chat_task.async_run.side_effect = Exception("API failure")
+    # Make the LLM task fail once, then succeed
+    llm_chat_task.async_run.side_effect = [Exception("API failure"), None]
 
     task = asyncio.create_task(
         run_chat_session(session, llm_chat_task, session_manager)
@@ -107,18 +113,61 @@ async def test_run_chat_session_error(mock_deps):
 
     await asyncio.sleep(0.01)
 
-    # Verify error was broadcasted
-    assert session_manager.broadcast.call_count >= 2
-    # The second call should contain the traceback and the error message
-    error_msg = session_manager.broadcast.call_args_list[1][0][1]
-    assert "API failure" in error_msg
-    assert "[ERROR]" in error_msg
+    # Verify error was broadcasted (exactly once — no double [ERROR] broadcast)
+    error_msgs = [
+        call[0][1]
+        for call in session_manager.broadcast.call_args_list
+        if "[ERROR]" in call[0][1]
+    ]
+    assert len(error_msgs) == 1
+    assert "API failure" in error_msgs[0]
+
+    # The loop must survive the failure: the next queued message is processed
+    # instead of sitting dead until the browser reopens the SSE stream.
+    session.input_queue.put_nowait("still alive?")
+    await asyncio.sleep(0.01)
+    assert llm_chat_task.async_run.call_count == 2
 
     task.cancel()
     try:
         await task
     except asyncio.CancelledError:
         pass
+
+
+@pytest.mark.asyncio
+async def test_run_chat_session_cancel_race_ends_as_cancellation(mock_deps):
+    """A cancel() eaten by wait_for's timeout must still cancel the session.
+
+    asyncio.wait_for can consume a CancelledError delivered in the same tick
+    as its timeout and raise TimeoutError instead. The loop detects this via
+    current_task.cancelling(), but must re-raise a real CancelledError — not
+    the TimeoutError, which would fall into the generic error handler and let
+    the task finish "successfully" while its canceller believes it cancelled.
+    """
+    session, llm_chat_task, session_manager = mock_deps
+
+    async def timeout_eating_cancel(coro, *args, **kwargs):
+        coro.close()
+        # Simulate the race: cancellation is requested and delivered, but
+        # swallowed — wait_for surfaces TimeoutError with cancelling() > 0.
+        current = asyncio.current_task()
+        assert current is not None
+        current.cancel()
+        try:
+            await asyncio.sleep(0)
+        except asyncio.CancelledError:
+            pass
+        raise asyncio.TimeoutError()
+
+    with patch("asyncio.wait_for", new=timeout_eating_cancel):
+        task = asyncio.create_task(
+            run_chat_session(session, llm_chat_task, session_manager)
+        )
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+    assert task.cancelled()
 
 
 @pytest.mark.asyncio

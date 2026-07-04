@@ -102,6 +102,7 @@ class ExecMixin:
         _llm_limiter: Any
         _message: Any
         _model: Any
+        _model_settings: Any
         _permissions: Any
         _prompt_manager: Any
         _response_handlers: Any
@@ -117,6 +118,7 @@ class ExecMixin:
         _toolset_factories: Any
         _toolsets: Any
         _uis: Any
+        _ui_factories: Any
         _yolo: Any
         _apply_tool_guidance: Any
         _run_interactive_session: Any
@@ -226,6 +228,8 @@ class ExecMixin:
             return await self._run_non_interactive_session(
                 ctx=ctx,
                 llm_task_core=llm_task_core,
+                history_manager=history_manager,
+                ui_commands=ui_commands,
                 initial_message=initial_message,
                 initial_conversation_name=initial_conversation_name,
                 initial_yolo=initial_yolo,
@@ -418,7 +422,7 @@ class ExecMixin:
             self._tool_policies or self._response_handlers or self._argument_formatters
         ):
             # Non-interactive with policies/handlers/formatters: Use ToolCallHandler
-            if not ui:
+            if not ui and not self._ui_factories:
                 ui = StdUI()
             tool_confirmation = ToolCallHandler(
                 tool_policies=self._tool_policies,
@@ -427,7 +431,11 @@ class ExecMixin:
             )
         else:
             # Non-interactive without policies: Use UI for approval
-            if not ui:
+            # Skip the StdUI fallback when ui_factories are present: the
+            # non-interactive session resolves them and attaches the resulting
+            # UI(s) (e.g. the web/SSE HTTPUI) so run_agent streams through those
+            # instead of stdout.
+            if not ui and not self._ui_factories:
                 ui = StdUI()
             # tool_confirmation = None (let UI handle it via approval_channel)
 
@@ -550,6 +558,9 @@ class ExecMixin:
             attachment=lambda ctx: ctx.input.attachments,
             model=lambda ctx: ctx.input.get("model"),
             render_model=False,
+            # Without this, LLMChatTask(model_settings=...) is accepted but
+            # silently ignored: the inner task falls back to llm_config's.
+            model_settings=self._model_settings,
             summarize_command=summarize_commands,
         )
 

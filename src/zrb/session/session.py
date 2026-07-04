@@ -4,6 +4,7 @@ import asyncio
 import json
 from typing import Any, Coroutine
 
+from zrb.config.config import CFG
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.context.context import AnyContext, Context
 from zrb.group.any_group import AnyGroup
@@ -235,13 +236,34 @@ class Session(AnySession):
             return
         self._coros.append(scheduled)
         self._coros = [
-            existing_coro for existing_coro in self._coros if not existing_coro.done()
+            existing_coro
+            for existing_coro in self._coros
+            if not self._reap_finished_coro(existing_coro)
         ]
+
+    def _reap_finished_coro(self, coro: asyncio.Task[Any]) -> bool:
+        """Return True when *coro* is done, retrieving (and logging) its exception.
+
+        Pruning a finished task without reading its exception silently discards
+        the failure ("Task exception was never retrieved").
+        """
+        if not coro.done():
+            return False
+        if not coro.cancelled():
+            exc = coro.exception()
+            if exc is not None:
+                CFG.LOGGER.error(f"Deferred coroutine failed: {exc!r}")
+        return True
 
     async def wait_deferred(self):
         await self._wait_deferred_monitoring()
         await self._wait_deferred_action()
-        await asyncio.gather(*self._coros)
+        # Drain: a trigger callback can defer NEW coros while this batch is
+        # awaited; a single gather over a snapshot would never await those.
+        while self._coros:
+            batch = self._coros
+            self._coros = []
+            await asyncio.gather(*batch)
 
     async def _wait_deferred_action(self):
         if len(self._action_coros) == 0:

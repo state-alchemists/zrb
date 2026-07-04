@@ -54,6 +54,8 @@ async def test_run_non_interactive_session(runner):
     res = await runner._run_non_interactive_session(
         ctx=ctx,
         llm_task_core=llm_task_core,
+        history_manager=MagicMock(),
+        ui_commands={},
         initial_message="hi",
         initial_conversation_name="sess1",
         initial_yolo=False,
@@ -63,6 +65,37 @@ async def test_run_non_interactive_session(runner):
     assert res == "AI Output"
     assert ctx.xcom["__conversation_name__"] == "sess1"
     llm_task_core.async_run.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_run_non_interactive_session_attaches_ui_factories(runner):
+    """UI factories are resolved and attached to the core task as output sinks
+    so the web/SSE path streams the response without the interactive UI loop."""
+    ctx = MagicMock()
+    ctx.shared_print = MagicMock()
+    ctx.xcom = {}
+
+    http_ui = MagicMock()
+    factory = MagicMock(return_value=http_ui)
+    runner._ui_factories = [factory]
+
+    llm_task_core = MagicMock()
+    llm_task_core.async_run = AsyncMock(return_value="AI Output")
+
+    res = await runner._run_non_interactive_session(
+        ctx=ctx,
+        llm_task_core=llm_task_core,
+        history_manager=MagicMock(),
+        ui_commands={},
+        initial_message="hi",
+        initial_conversation_name="sess1",
+        initial_yolo=False,
+        initial_attachments=[],
+    )
+
+    assert res == "AI Output"
+    factory.assert_called_once()
+    llm_task_core.append_ui.assert_called_once_with(http_ui)
 
 
 # Simplified mock that doesn't inherit from BaseUI but implements the required protocol

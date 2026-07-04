@@ -1,3 +1,5 @@
+import html
+
 from zrb.attr.type import FloatAttr
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.input.base_input import BaseInput
@@ -28,9 +30,9 @@ class FloatInput(BaseInput):
         )
 
     def to_html(self, shared_ctx: AnySharedContext) -> str:
-        name = self.name
-        description = self.description
-        default = self.get_default_str(shared_ctx)
+        name = html.escape(self.name)
+        description = html.escape(self.description)
+        default = html.escape(self.get_default_str(shared_ctx))
         return f'<input type="number" name="{name}" placeholder="{description}" value="{default}" step="any" />'  # noqa
 
     def get_default_str(self, shared_ctx: AnySharedContext) -> str:

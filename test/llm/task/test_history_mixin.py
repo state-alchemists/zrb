@@ -56,6 +56,52 @@ class TestEffectivePrompt:
         # Attachments are preserved on retry.
         assert atts == ["keep"]
 
+    def test_retry_resends_when_last_user_turn_differs(self):
+        # Only the MOST RECENT user turn counts: a recurring message (e.g.
+        # "continue") matching an OLD turn must not suppress resending.
+        from pydantic_ai.messages import (
+            ModelRequest,
+            ModelResponse,
+            TextPart,
+            UserPromptPart,
+        )
+
+        task = LLMTask(name="t")
+        ctx = MagicMock()
+        ctx.attempt = 2
+        history = [
+            ModelRequest(parts=[UserPromptPart(content="continue")]),
+            ModelResponse(parts=[TextPart(content="done")]),
+            ModelRequest(parts=[UserPromptPart(content="something else")]),
+        ]
+        msg, _ = task._get_effective_prompt(ctx, "continue", None, history)
+        assert msg == "continue"
+
+    def test_retry_skips_system_bookkeeping_and_tool_return_turns(self):
+        # "[SYSTEM]" turns appended by error recovery and tool-return-only
+        # requests are not user turns — the real user turn behind them is
+        # the one compared against.
+        from pydantic_ai.messages import (
+            ModelRequest,
+            ToolReturnPart,
+            UserPromptPart,
+        )
+
+        task = LLMTask(name="t")
+        ctx = MagicMock()
+        ctx.attempt = 2
+        history = [
+            ModelRequest(parts=[UserPromptPart(content="hello")]),
+            ModelRequest(
+                parts=[ToolReturnPart(tool_name="t", content="x", tool_call_id="id1")]
+            ),
+            ModelRequest(
+                parts=[UserPromptPart(content="[SYSTEM] Error occurred: boom")]
+            ),
+        ]
+        msg, _ = task._get_effective_prompt(ctx, "hello", None, history)
+        assert "retry attempt 2" in msg
+
 
 class TestContextLengthDetection:
     def test_detects_keyword(self):

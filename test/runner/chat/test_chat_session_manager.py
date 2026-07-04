@@ -570,25 +570,23 @@ class TestChatSessionManager:
         assert "complex" in messages[0]["content"]
         assert messages[0]["timestamp"] is None
 
-    def test_get_all_session_names_empty_when_no_history_dir(self):
-        """Without LLM_HISTORY_DIR set, the helper returns []."""
+    def test_scan_sessions_empty_when_no_history_dir(self):
+        """Without LLM_HISTORY_DIR set, the scan returns []."""
         from zrb.runner.chat.chat_session_manager import ChatSessionManager
 
         manager = ChatSessionManager.get_instance_sync()
         with patch("zrb.runner.chat.chat_session_manager.CFG") as mock_cfg:
             mock_cfg.LLM_HISTORY_DIR = ""
-            assert manager._get_all_session_names() == []
-            assert manager._get_sessions_with_timestamps() == []
+            assert manager._scan_sessions() == []
 
-    def test_get_all_session_names_empty_when_dir_missing(self, tmp_path):
+    def test_scan_sessions_empty_when_dir_missing(self, tmp_path):
         """LLM_HISTORY_DIR set but nonexistent → returns []."""
         from zrb.runner.chat.chat_session_manager import ChatSessionManager
 
         manager = ChatSessionManager.get_instance_sync()
         with patch("zrb.runner.chat.chat_session_manager.CFG") as mock_cfg:
             mock_cfg.LLM_HISTORY_DIR = str(tmp_path / "missing")
-            assert manager._get_all_session_names() == []
-            assert manager._get_sessions_with_timestamps() == []
+            assert manager._scan_sessions() == []
 
     @pytest.mark.asyncio
     async def test_get_sessions_includes_active_without_history(self):

@@ -174,3 +174,15 @@ def test_base_input_to_html_direct():
     assert 'name="my-name"' in html
     assert 'placeholder="My Description"' in html
     assert 'value="my-val"' in html
+
+
+def test_base_input_to_html_escapes_values():
+    """Name/description/default are HTML-escaped in the node-page form."""
+    inp = MinimalInput(
+        "field", description='<script>alert("x")</script>', default='"><img src=x>'
+    )
+    shared_ctx = SharedContext()
+    rendered = inp.to_html(shared_ctx)
+    assert "<script>" not in rendered
+    assert '"><img' not in rendered
+    assert "&lt;script&gt;" in rendered

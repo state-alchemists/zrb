@@ -94,101 +94,87 @@ class ChatSessionManager:
                 except asyncio.CancelledError:
                     pass
 
-    def _get_all_session_names(self) -> list[str]:
-        if not CFG.LLM_HISTORY_DIR:
-            return []
-        history_dir = CFG.LLM_HISTORY_DIR
-        history_dir = os.path.expanduser(history_dir)
-        if not os.path.exists(history_dir):
-            return []
-        session_names = []
-        for filename in os.listdir(history_dir):
-            if filename.endswith(".json"):
-                session_name = filename[:-5]
-                session_names.append(session_name)
-        return session_names
-
-    def _get_sessions_with_timestamps(self) -> list[tuple[str, float]]:
-        """Get all sessions with their file modification timestamps, newest first."""
-        if not CFG.LLM_HISTORY_DIR:
-            return []
-        history_dir = CFG.LLM_HISTORY_DIR
-        history_dir = os.path.expanduser(history_dir)
-        if not os.path.exists(history_dir):
-            return []
-        sessions_with_times = []
-        for filename in os.listdir(history_dir):
-            if filename.endswith(".json"):
-                file_path = os.path.join(history_dir, filename)
-                mtime = os.path.getmtime(file_path)
-                base_name = self._extract_base_name(filename[:-5])
-                sessions_with_times.append((base_name, mtime))
-        # Remove duplicates (keep newest), sort by mtime descending
-        seen = set()
-        result = []
-        for base_name, mtime in sorted(
-            sessions_with_times, key=lambda x: x[1], reverse=True
-        ):
-            if base_name not in seen:
-                seen.add(base_name)
-                result.append((base_name, mtime))
-        return result
-
     def _extract_base_name(self, session_name: str) -> str:
         return _timestamp_pattern.sub("", session_name)
 
+    def _scan_sessions(self) -> list[tuple[str, float, int]]:
+        """Group history files by base session name in one directory scan.
+
+        Returns ``(base_name, newest_mtime, file_count)`` tuples, newest first.
+        The history dir holds a main file per session plus every timestamped
+        backup, so it grows fast — a single ``scandir`` pass with O(n) grouping
+        replaces the old three-listdir + per-file ``getmtime`` + O(n²) name
+        matching that made listing heavy.
+        """
+        if not CFG.LLM_HISTORY_DIR:
+            return []
+        history_dir = os.path.expanduser(CFG.LLM_HISTORY_DIR)
+        if not os.path.isdir(history_dir):
+            return []
+        grouped: dict[str, list] = {}  # base -> [max_mtime, count]
+        with os.scandir(history_dir) as entries:
+            for entry in entries:
+                if not entry.name.endswith(".json"):
+                    continue
+                base_name = self._extract_base_name(entry.name[:-5])
+                try:
+                    mtime = entry.stat().st_mtime
+                except OSError:
+                    continue
+                slot = grouped.get(base_name)
+                if slot is None:
+                    grouped[base_name] = [mtime, 1]
+                else:
+                    if mtime > slot[0]:
+                        slot[0] = mtime
+                    slot[1] += 1
+        ranked = [(base, mt, count) for base, (mt, count) in grouped.items()]
+        ranked.sort(key=lambda item: item[1], reverse=True)
+        return ranked
+
+    def _session_listing(self) -> list[dict[str, Any]]:
+        """History + active sessions as display dicts, most recent first."""
+        listing: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        for base_name, _mtime, file_count in self._scan_sessions():
+            seen.add(base_name)
+            is_active = base_name in self._sessions
+            listing.append(
+                {
+                    "session_id": base_name,
+                    "session_name": base_name,
+                    "is_active": is_active,
+                    "is_processing": (
+                        self._sessions[base_name].is_processing if is_active else False
+                    ),
+                    "message_count": file_count,
+                }
+            )
+        # Active sessions with no history file yet are the newest → put on top.
+        extras = [
+            {
+                "session_id": session_id,
+                "session_name": session.session_name,
+                "is_active": True,
+                "is_processing": session.is_processing,
+                "message_count": 0,
+            }
+            for session_id, session in self._sessions.items()
+            if session_id not in seen
+        ]
+        return extras + listing
+
     def get_sessions_count(self) -> int:
-        sessions_with_times = self._get_sessions_with_timestamps()
-        base_names = {name for name, _ in sessions_with_times}
-        active_ids = set(self._sessions.keys()) - base_names
-        return len(base_names) + len(active_ids)
+        return len(self._session_listing())
 
     def get_sessions(
         self, page: int = 1, limit: int | None = None
     ) -> list[dict[str, Any]]:
         if limit is None:
             limit = CFG.WEB_SESSION_PAGE_SIZE
-        sessions_with_times = self._get_sessions_with_timestamps()
-        all_names = self._get_all_session_names()
-        sessions = []
-        seen_session_ids = set()
-
-        for base_name, _ in sessions_with_times:
-            matching_names = [
-                n for n in all_names if self._extract_base_name(n) == base_name
-            ]
-            session_id = base_name
-            seen_session_ids.add(session_id)
-            is_active = session_id in self._sessions
-            is_processing = (
-                self._sessions[session_id].is_processing if is_active else False
-            )
-            sessions.append(
-                {
-                    "session_id": session_id,
-                    "session_name": base_name,
-                    "is_active": is_active,
-                    "is_processing": is_processing,
-                    "message_count": len(matching_names),
-                }
-            )
-
-        # Add active sessions that aren't in history (new sessions without messages)
-        for session_id, session in self._sessions.items():
-            if session_id not in seen_session_ids:
-                sessions.append(
-                    {
-                        "session_id": session_id,
-                        "session_name": session.session_name,
-                        "is_active": True,
-                        "is_processing": session.is_processing,
-                        "message_count": 0,
-                    }
-                )
-
+        listing = self._session_listing()
         start = (page - 1) * limit
-        end = start + limit
-        return sessions[start:end]
+        return listing[start : start + limit]
 
     async def create_session(
         self,

@@ -257,6 +257,31 @@ class TestTaskStatusAllowRunDownstream:
 
         assert status.allow_run_downstream is False
 
+    def test_allow_run_downstream_when_ready_with_transient_failure(self):
+        """A ready task with a failed attempt mid-retry still allows downstream.
+
+        `is_failed` is per-attempt and cleared by the next mark_as_started;
+        blocking downstream on it raced with the retry loop of
+        readiness-checked tasks and silently dropped downstream tasks.
+        """
+        from zrb.task_status.task_status import TaskStatus
+
+        status = TaskStatus()
+        status.mark_as_ready()
+        status.mark_as_failed()
+
+        assert status.allow_run_downstream is True
+
+    def test_allow_run_downstream_when_ready_but_permanently_failed(self):
+        """Permanent failure blocks downstream even after mark_as_ready."""
+        from zrb.task_status.task_status import TaskStatus
+
+        status = TaskStatus()
+        status.mark_as_ready()
+        status.mark_as_permanently_failed()
+
+        assert status.allow_run_downstream is False
+
     def test_allow_run_downstream_when_permanently_failed(self):
         """Test allow_run_downstream when permanently failed."""
         from zrb.task_status.task_status import TaskStatus

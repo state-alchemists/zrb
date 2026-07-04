@@ -145,8 +145,12 @@ async def test_run_and_cleanup_session_none():
 
 
 @pytest.mark.asyncio
-async def test_execute_root_tasks_index_error():
-    """IndexError during execution is caught and returns None."""
+async def test_execute_root_tasks_index_error_propagates():
+    """IndexError from a task action propagates like any other failure.
+
+    A dedicated `except IndexError` used to convert it to `return None`,
+    making a failed pipeline look successful (CLI exit 0).
+    """
     task = MagicMock(spec=AnyTask)
     ctx_mock = MagicMock()
     task.get_ctx = MagicMock(return_value=ctx_mock)
@@ -156,19 +160,18 @@ async def test_execute_root_tasks_index_error():
     session.is_allowed_to_run = MagicMock(return_value=True)
     session.is_terminated = False
 
-    # Make exec_chain raise IndexError
     task.exec_chain = AsyncMock(side_effect=IndexError("bad index"))
     session.wait_deferred = AsyncMock()
 
-    result = await execute_root_tasks(task, session)
+    with pytest.raises(IndexError, match="bad index"):
+        await execute_root_tasks(task, session)
 
-    assert result is None
     session.terminate.assert_called()
 
 
 @pytest.mark.asyncio
 async def test_execute_root_tasks_cancelled_error():
-    """CancelledError during execution is caught and returns None."""
+    """CancelledError propagates (after cleanup) instead of masking as success."""
     task = MagicMock(spec=AnyTask)
     ctx_mock = MagicMock()
     task.get_ctx = MagicMock(return_value=ctx_mock)
@@ -181,9 +184,11 @@ async def test_execute_root_tasks_cancelled_error():
     task.exec_chain = AsyncMock(side_effect=asyncio.CancelledError())
     session.wait_deferred = AsyncMock()
 
-    result = await execute_root_tasks(task, session)
+    with pytest.raises(asyncio.CancelledError):
+        await execute_root_tasks(task, session)
 
-    assert result is None
+    # Cleanup still runs: session terminated despite the propagated cancel.
+    session.terminate.assert_called()
 
 
 @pytest.mark.asyncio

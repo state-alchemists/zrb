@@ -1,3 +1,5 @@
+import html
+
 from zrb.attr.type import BoolAttr
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.input.base_input import BaseInput
@@ -29,8 +31,8 @@ class BoolInput(BaseInput):
         )
 
     def to_html(self, shared_ctx: AnySharedContext) -> str:
-        name = self.name
-        description = self.description
+        name = html.escape(self.name)
+        description = html.escape(self.description)
         default = to_boolean(self.get_default_str(shared_ctx))
         selected_true = "selected" if default else ""
         selected_false = "selected" if not default else ""
@@ -47,7 +49,9 @@ class BoolInput(BaseInput):
         default_value = get_bool_attr(
             shared_ctx, self._default_value, auto_render=self._auto_render
         )
-        return f"{default_value}"
+        # Match the lowercase <option> values emitted by to_html so the web UI
+        # <select> can round-trip this value; str(bool) would be "True"/"False".
+        return "true" if default_value else "false"
 
     def _parse_str_value(self, str_value: str) -> bool:
         return to_boolean(str_value)
