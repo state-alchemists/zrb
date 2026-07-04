@@ -40,6 +40,8 @@ from zrb.util.string.conversion import to_boolean
 # called, by which point all the cycle's modules are fully loaded.
 
 if TYPE_CHECKING:
+    from pydantic_ai.tools import Tool
+
     from zrb.context.any_context import AnyContext
 
 
@@ -50,7 +52,7 @@ class CommonToolHost(Protocol):
     Satisfied by ``LLMChatTask``, ``LLMTask``, and ``SubAgentManager``.
     """
 
-    def add_tool(self, *tool: Callable) -> None: ...
+    def add_tool(self, *tool: "Callable | Tool") -> None: ...
     def add_tool_factory(self, *factory: "Callable[[AnyContext], Any]") -> None: ...
     def add_toolset_factory(self, *factory: "Callable[[AnyContext], Any]") -> None: ...
     def add_tool_guidance(self, *guidance: ToolGuidance) -> None: ...
@@ -314,6 +316,9 @@ def apply_common_tools(host: CommonToolHost) -> None:
     # available, so advertising them in a server-less repo is pure prompt weight.
     # detect_available_lsp_servers() is a cheap shutil.which scan (no startup).
     # lazy: zrb internal (heavy via transitive / circular)
+    # lazy: pydantic_ai (heavy third-party deferral)
+    from pydantic_ai import Tool
+
     from zrb.llm.lsp.configs import detect_available_lsp_servers
     from zrb.llm.lsp.tools import create_lsp_tools
 
@@ -402,21 +407,29 @@ def apply_common_tools(host: CommonToolHost) -> None:
     host.add_tool(
         run_shell_command,
         run_bash_command,
-        analyze_code,
         list_files,
         glob_files,
         read_file,
         write_file,
         replace_in_file,
         search_files,
-        analyze_file,
         remove_file,
         move_file,
         search_journal,
         search_internet,
         open_web_page,
-        *worktree_tools,
-        *lsp_tools,
+        # Deferred loading: these are rarely needed (specific workflows or
+        # server-gated), so hide their schemas from the model's initial
+        # context. The model discovers them by keyword search only when it
+        # needs one, instead of paying their token cost on every turn.
+        # Tool Usage Guide entries stay visible regardless (tool_names is
+        # populated from all registered tools, deferred or not) — the model
+        # still learns these tools exist and when to reach for them, it just
+        # pays their schema cost only once it searches for them by name.
+        Tool(analyze_code, defer_loading=True),
+        Tool(analyze_file, defer_loading=True),
+        *(Tool(_fn, defer_loading=True) for _fn in worktree_tools),
+        *(Tool(_fn, defer_loading=True) for _fn in lsp_tools),
         *plan_tools,
     )
     # Plan-mode and AskUserQuestion need a human in the loop, so register them
@@ -429,17 +442,34 @@ def apply_common_tools(host: CommonToolHost) -> None:
     # gate is re-evaluated per run against the resolved context.
     host.add_tool_factory(
         lambda ctx: (
-            [enter_plan_mode, exit_plan_mode] if _resolve_interactive(ctx) else []
+            [
+                Tool(enter_plan_mode, defer_loading=True),
+                Tool(exit_plan_mode, defer_loading=True),
+            ]
+            if _resolve_interactive(ctx)
+            else []
         ),
         lambda ctx: [ask_user_question] if _resolve_interactive(ctx) else [],
     )
     host.add_tool_factory(
         lambda ctx: tag(create_list_zrb_task_tool(), Capability.READ),
         lambda ctx: tag(create_run_zrb_task_tool(), Capability.EXECUTE),
-        lambda ctx: tag(create_activate_skill_tool(), Capability.META),
-        lambda ctx: tag(create_monitor_process_tool(), Capability.EXECUTE),
+        # Deferred loading: activated rarely (once per skill, not every
+        # turn) and only after monitoring a background process — see the
+        # rationale on analyze_code/analyze_file above.
+        lambda ctx: Tool(
+            tag(create_activate_skill_tool(), Capability.META), defer_loading=True
+        ),
+        lambda ctx: Tool(
+            tag(create_monitor_process_tool(), Capability.EXECUTE),
+            defer_loading=True,
+        ),
     )
-    host.add_toolset_factory(lambda ctx: load_mcp_config())
+    # MCP servers vary widely in tool count; hide them behind search too —
+    # same rationale as the deferred function tools above.
+    host.add_toolset_factory(
+        lambda ctx: [toolset.defer_loading() for toolset in load_mcp_config()]
+    )
     host.add_tool_guidance(*_STATIC_TOOL_GUIDANCE)
     host.add_tool_guidance_factory(*_DYNAMIC_TOOL_GUIDANCE_FACTORIES)
     host.add_tool_guidance_section_factory(_parallel_tool_call_section_factory)
