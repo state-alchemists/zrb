@@ -210,6 +210,15 @@ function connectSSE() {
                 messagesDiv.appendChild(row);
 
             } else if (kind === 'usage') {
+                // End-of-response marker (always emitted last, through the same
+                // stream as the deltas). Finalize the live answer: drop the
+                // faint/pulsing `streaming` class so it settles into a normal
+                // assistant bubble, and clear the per-response bubble refs.
+                if (streamingBubble) {
+                    streamingBubble.classList.remove('streaming');
+                }
+                streamingBubble = null;
+                thinkingBubble = null;
                 // Usage stats footer row
                 const row = document.createElement('div');
                 row.className = 'message usage';

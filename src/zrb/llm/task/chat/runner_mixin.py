@@ -88,6 +88,8 @@ class RunnerMixin:
         self,
         ctx: "AnyContext",
         llm_task_core: "LLMTask",
+        history_manager: "AnyHistoryManager",
+        ui_commands: dict[str, list[str]],
         initial_message: Any,
         initial_conversation_name: str,
         initial_yolo: "bool | frozenset[str]",
@@ -100,6 +102,23 @@ class RunnerMixin:
             resolved = resolve_custom_command(initial_message, resolved_custom_commands)
             if resolved is not None:
                 effective_message = resolved
+
+        # Attach factory-produced UIs (e.g. the web/SSE HTTPUI) as output sinks
+        # so run_agent streams through them. This is what makes browser chat
+        # work without the interactive session's per-turn history replay and
+        # LSP/SESSION_END teardown. Programmatic self._uis are already wired
+        # into the core task by _create_llm_task_core; only factories need
+        # resolving here, now that the core task instance exists.
+        self._attach_ui_factories(
+            ctx=ctx,
+            llm_task_core=llm_task_core,
+            history_manager=history_manager,
+            ui_commands=ui_commands,
+            initial_message=effective_message,
+            initial_conversation_name=initial_conversation_name,
+            initial_yolo=initial_yolo,
+            initial_attachments=initial_attachments,
+        )
 
         # AsyncExitStack is handled by LLMTask._exec_action
         session_input = {
@@ -119,6 +138,32 @@ class RunnerMixin:
         # Store conversation name in xcom for CLI to print at the end
         ctx.xcom["__conversation_name__"] = initial_conversation_name
         return result
+
+    def _attach_ui_factories(
+        self,
+        ctx: "AnyContext",
+        llm_task_core: "LLMTask",
+        history_manager: "AnyHistoryManager",
+        ui_commands: dict[str, list[str]],
+        initial_message: Any,
+        initial_conversation_name: str,
+        initial_yolo: "bool | frozenset[str]",
+        initial_attachments: "list[UserContent]",
+    ) -> None:
+        """Resolve `_ui_factories` and attach the results to the core task."""
+        for factory in self._ui_factories:
+            factory_ui = factory(
+                ctx=ctx,
+                llm_task=llm_task_core,
+                history_manager=history_manager,
+                ui_commands=ui_commands,
+                initial_message=initial_message,
+                initial_conversation_name=initial_conversation_name,
+                initial_yolo=initial_yolo,
+                initial_attachments=initial_attachments,
+            )
+            for ui in factory_ui if isinstance(factory_ui, list) else [factory_ui]:
+                llm_task_core.append_ui(ui)
 
     def _resolve_custom_commands(self) -> list["AnyCustomCommand"]:
         """Resolve custom commands, calling any callable factories."""

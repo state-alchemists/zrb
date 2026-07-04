@@ -797,7 +797,6 @@ class TestMultiplexApprovalChannel:
 
         mock_channel.notify.assert_called_once_with("Test notification", None)
 
-
     @pytest.mark.asyncio
     async def test_multiplex_cancellation_propagation(self):
         """Test that external cancellation propagates correctly."""

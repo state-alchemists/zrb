@@ -73,7 +73,9 @@ class MultiplexApprovalChannel(ApprovalChannel):
             await asyncio.gather(*tasks, return_exceptions=True)
             if not future.done():
                 future.set_result(
-                    ApprovalResult(approved=False, message="All approval channels failed")
+                    ApprovalResult(
+                        approved=False, message="All approval channels failed"
+                    )
                 )
 
         watchdog = asyncio.create_task(deny_when_all_channels_done())

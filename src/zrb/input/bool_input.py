@@ -49,7 +49,9 @@ class BoolInput(BaseInput):
         default_value = get_bool_attr(
             shared_ctx, self._default_value, auto_render=self._auto_render
         )
-        return f"{default_value}"
+        # Match the lowercase <option> values emitted by to_html so the web UI
+        # <select> can round-trip this value; str(bool) would be "True"/"False".
+        return "true" if default_value else "false"
 
     def _parse_str_value(self, str_value: str) -> bool:
         return to_boolean(str_value)
