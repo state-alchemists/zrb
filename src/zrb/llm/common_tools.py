@@ -132,15 +132,13 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
         when_to_use="Running any shell command (Bash runs the same under bash)",
         key_rule="For file I/O, use Read/Write/Edit/Grep/RM/MV — not Shell. "
         "System Context already lists time, OS, CWD, and available tools — read from there before running commands to discover them. "
-        "For long-running processes (dev servers, watchers, builds), pass background=True and poll with MonitorProcess instead of blocking.",
+        "For long-running processes (dev servers, watchers, builds), run with background=True instead of blocking.",
     ),
     ToolGuidance(
         group_name="Execution",
         tool_name="MonitorProcess",
         when_to_use="Check status of, wait on, or kill a background process "
         "started with Shell/Bash (background=True)",
-        key_rule="Pass wait=N to block up to N seconds (returns early when the "
-        "process exits) instead of busy-polling; kill=True terminates it.",
     ),
     # Analysis
     ToolGuidance(
@@ -183,7 +181,6 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
         when_to_use="Starting work with ≥3 distinct steps, spanning multiple files, "
         "or expected to run across multiple turns — seed the full list before the "
         "first edit. Skip for single-step or one-line changes.",
-        key_rule="Seed the full list up front; advance items by calling TodoWrite again with the updated list.",
     ),
     ToolGuidance(
         group_name="Planning",
