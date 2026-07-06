@@ -232,6 +232,14 @@ class LLMTask(BuilderMixin, HistoryMixin, BaseTask):  # type: ignore[reportIncom
         return self._llm_limiter
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
+        # Apply any deferred zrb-shipped tools/guidance (see defer_common_tools)
+        # before reading the tool surface below. No-op unless defer_common_tools
+        # was called on this task, so eager apply_common_tools users are
+        # unaffected.
+        # lazy: circular — common_tools imports back into the llm package.
+        from zrb.llm.common_tools import ensure_common_tools
+
+        ensure_common_tools(self)
         # Resolve toolset factories exactly once. Resolving again inside
         # _create_agent would produce DIFFERENT instances: the batch entered on
         # this stack would never be used, the batch given to the agent would

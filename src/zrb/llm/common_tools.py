@@ -472,6 +472,32 @@ def apply_common_tools(host: CommonToolHost) -> None:
     host.add_tool_guidance_section_factory(_parallel_tool_call_section_factory)
 
 
+def defer_common_tools(host: CommonToolHost) -> None:
+    """Register ``apply_common_tools(host)`` to run on first use instead of now.
+
+    ``apply_common_tools`` transitively imports ``pydantic_ai`` (via the
+    ``zrb.llm.tool.*`` functions and the ``Tool`` class). Calling it at module
+    import — as the ``llm_chat`` and ``sub_agent_manager`` singletons used to —
+    dragged that ~1.7s import onto every ``import zrb``. Deferring it to the
+    first agent build (``ensure_common_tools`` at the top of the exec /
+    ``create_agent`` entry points) keeps the heavy import off the cold path for
+    callers that never run an agent. See ``ensure_common_tools``.
+    """
+    host._pending_common_tools = True  # type: ignore[attr-defined]
+
+
+def ensure_common_tools(host: CommonToolHost) -> None:
+    """Run the deferred ``apply_common_tools`` once, if one is pending.
+
+    No-op for hosts that never called ``defer_common_tools`` (e.g. bare
+    ``LLMChatTask`` instances that are not the ``llm_chat`` singleton), so the
+    deferral stays scoped to exactly the singletons that had the eager call.
+    """
+    if getattr(host, "_pending_common_tools", False):
+        host._pending_common_tools = False  # type: ignore[attr-defined]
+        apply_common_tools(host)
+
+
 def _parallel_tool_call_section_factory(ctx: "AnyContext", model: Any) -> "str | None":
     """Emit the parallel-tool-call policy block, tone tuned to the model."""
     return get_parallel_tool_call_section(model)

@@ -8,7 +8,7 @@ from zrb.builtin.llm.chat_tool_policy import (
 from zrb.config.config import CFG
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
-from zrb.llm.common_tools import apply_common_tools
+from zrb.llm.common_tools import defer_common_tools
 from zrb.llm.custom_command import get_skill_custom_command
 from zrb.llm.hook.journal import create_journaling_hook_factory
 from zrb.llm.prompt.manager import PromptManager
@@ -84,11 +84,13 @@ llm_chat = LLMChatTask(
     ui_jargon=lambda ctx: CFG.LLM_ASSISTANT_JARGON,
 )
 
-# Register zrb-shipped default tools, factories, and guidance. The same
-# call is made on `sub_agent_manager` at the bottom of
-# `zrb/llm/agent/subagent/manager/manager.py`, so the main agent and
-# sub-agents share their tool surface and guidance.
-apply_common_tools(llm_chat)
+# Register zrb-shipped default tools, factories, and guidance — deferred to the
+# first exec (ExecMixin._exec_action calls ensure_common_tools) so applying it,
+# which transitively imports pydantic_ai, stays off the `import zrb` path. The
+# same deferral is set on `sub_agent_manager` at the bottom of
+# `zrb/llm/agent/subagent/manager/manager.py`, so the main agent and sub-agents
+# share their tool surface and guidance.
+defer_common_tools(llm_chat)
 
 
 def _deferred(tool):

@@ -135,7 +135,14 @@ class ExecMixin:
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
         # lazy: circular — task → exec_mixin (this file) → task.parse_yolo_value.
+        from zrb.llm.common_tools import ensure_common_tools
         from zrb.llm.task.chat.task import parse_yolo_value
+
+        # Apply the deferred zrb-shipped tools/guidance (see chat.py's
+        # defer_common_tools) before any tool/guidance is read below. self is a
+        # full CommonToolHost at runtime (BuilderMixin supplies add_tool etc.);
+        # ExecMixin is type-checked in isolation, hence the ignore.
+        ensure_common_tools(self)  # type: ignore[reportArgumentType]
 
         # 1. Resolve inputs/attributes
         initial_conversation_name = self._get_initial_conversation_name(ctx)
