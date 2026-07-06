@@ -216,6 +216,10 @@ class SubAgentManager(LoaderMixin, SearchMixin):
     def create_agent(
         self, name: str, ctx: AnyContext | None = None, yolo: bool | None = None
     ) -> "Agent[None, Any] | None":
+        # lazy: circular — common_tools imports back into this package.
+        from zrb.llm.common_tools import ensure_common_tools
+
+        ensure_common_tools(self)
         definition = self.get_agent_definition(name)
         if not definition:
             return None
@@ -470,6 +474,10 @@ sub_agent_manager = SubAgentManager()
 # imports SubAgentManager from this module. Importing at the top would hit
 # this module mid-load before the class exists.
 
-from zrb.llm.common_tools import apply_common_tools
+from zrb.llm.common_tools import defer_common_tools
 
-apply_common_tools(sub_agent_manager)
+# Deferred (not applied now): applying pulls in pydantic_ai via the tool
+# imports. ``create_agent`` calls ``ensure_common_tools(self)`` before it reads
+# the tool surface, so the heavy import lands on the first agent build instead
+# of on ``import zrb``.
+defer_common_tools(sub_agent_manager)
