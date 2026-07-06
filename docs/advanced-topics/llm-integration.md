@@ -300,6 +300,53 @@ def get_weather(location: str) -> str:
 my_chat_task.add_tool(get_weather)
 ```
 
+For a tool that needs per-run context, or that you want resolved fresh each turn, register a **factory** instead. Each factory is a `Callable[[AnyContext], ...]` evaluated at the start of every turn; return a single tool, a list, or `[]` to skip registration conditionally.
+
+```python
+my_chat_task.add_tool_factory(lambda ctx: get_weather)
+```
+
+### Deferred-loading tools
+
+A registered tool's schema (docstring + parameters) is serialized into **every** turn's request, whether or not the model uses it. For tools that are rarely needed, wrap them with pydantic-ai's `defer_loading=True` to hide the schema until the model searches for the tool by name — the Tool Usage Guide still tells the model the tool exists, so nothing is lost except the standing per-turn token cost.
+
+```python
+from pydantic_ai import Tool
+
+my_chat_task.add_tool(Tool(get_weather, defer_loading=True))
+```
+
+Pair it with `add_tool_guidance(...)` so the model still learns when to reach for the deferred tool. This is how zrb ships its own rarely-used tools (`analyze_code`, worktree/LSP tools, MCP toolsets, …).
+
+Note that `defer_loading` (a per-turn *token*-cost lever) is unrelated to import cost: `from pydantic_ai import Tool` at module scope eagerly imports `pydantic_ai` (~1.7s). To keep that off the `zrb` startup path, do the import and the `Tool(...)` wrap inside a factory, which runs only when the task first executes:
+
+```python
+def _deferred(ctx):
+    from pydantic_ai import Tool  # imported lazily, on first run
+    return Tool(get_weather, defer_loading=True)
+
+my_chat_task.add_tool_factory(_deferred)
+```
+
+### Equipping a custom host with the shipped tool surface
+
+If you build your own `LLMTask` / `LLMChatTask` and want it to have zrb's standard tools (Read/Write/Shell/Grep/…), guidance, and the MCP toolset factory — the same set the built-in `chat` agent gets — use **`defer_common_tools(host)`**, not `apply_common_tools(host)`:
+
+```python
+from zrb import LLMTask
+from zrb.llm.common_tools import defer_common_tools
+
+my_task = LLMTask(name="my-agent", ...)
+defer_common_tools(my_task)   # register shipped tools + guidance, lazily
+my_task.add_tool(get_weather) # then layer on your own
+```
+
+**Why deferred is the default.** `apply_common_tools` transitively imports `pydantic_ai` (~1.7s) as a side effect of resolving the shipped tools. Task-definition modules are imported on **every** `zrb` CLI invocation — so calling `apply_common_tools` at module scope makes every `zrb` command in your project (even unrelated ones like `zrb --help`) pay that import cost. `defer_common_tools` registers the same tools/guidance but delays the heavy import until the task actually runs its first turn. Constructing the task and adding your own plain-function tools stay import-cheap.
+
+`defer_common_tools` works on `LLMChatTask`, `LLMTask`, and `SubAgentManager` — they each drain the deferred registration on their first run. The built-in `chat` agent and sub-agents already have it deferred, so you only need this for hosts you construct yourself. Call it once per host.
+
+> **When to use eager `apply_common_tools` instead:** only if you built a *custom* host type (one that is not an `LLMChatTask`/`LLMTask`/`SubAgentManager`) — those have no run-time trigger to drain a deferred registration, so they must apply eagerly. You can also use it if you genuinely need the tools registered before the first run (e.g. to introspect the tool list at import time), accepting the eager `pydantic_ai` import.
+
 ### Sub-agents
 
 Zrb can automatically discover and manage sub-agents defined in JSON or YAML files within an `agents/` directory. The primary assistant can then delegate complex tasks to these specialized agents using the built-in `DelegateToAgent` tool.
