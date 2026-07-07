@@ -217,12 +217,12 @@ function Test-ZrbInPipx {
 
 function Pipx-Install-Zrb {
     pipx uninstall zrb -y 2>$null | Out-Null
-    & { $env:PIP_PRE=1; pipx install --python $script:PY_CMD --force zrb }
+    & { $env:PIP_PRE=1; pipx install --python $script:PY_CMD zrb }
 }
 
 function Install-Zrb {
     if (Test-ZrbInPipx) {
-        # Use install --force instead of upgrade so we control the Python version
+        # Uninstall + fresh install so --python takes effect (pipx ignores --python with --force)
         Pipx-Install-Zrb
     }
     elseif (Command-Exists "zrb") {

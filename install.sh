@@ -239,12 +239,12 @@ ensure_pipx_path() {
 
 pipx_install_zrb() {
     pipx uninstall zrb 2>/dev/null || true
-    PIP_PRE=1 pipx install --python "$PY_CMD" --force zrb
+    PIP_PRE=1 pipx install --python "$PY_CMD" zrb
 }
 
 install_zrb() {
     if pipx list --short 2>/dev/null | grep -q "^zrb "; then
-        # Use install --force instead of upgrade so we control the Python version
+        # Uninstall + fresh install so --python takes effect
         pipx_install_zrb
     elif command_exists zrb; then
         warn "zrb was installed via pip (legacy) — migrating to pipx"
