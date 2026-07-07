@@ -125,7 +125,11 @@ install_pyenv_dependencies() {
 ensure_python() {
     # zrb defaults to Python 3.13 for every install so pipx's resolution stays
     # reproducible across machines -- see ensure_pipx_default_python for why.
-    if command_exists python3.13; then
+    # NOTE: check by running it, not command_exists -- pyenv creates a
+    # python3.13 shim the moment ANY installed version has that command, even
+    # if the currently active pyenv version isn't one of them, so a plain
+    # PATH-resolution check gives a false positive.
+    if python3.13 -c "import sys" >/dev/null 2>&1; then
         PY_CMD="python3.13"
         log_ok "Found Python 3.13"
         return

@@ -214,7 +214,10 @@ function Confirm-Extras {
 }
 
 function Pipx-Install-Zrb {
-    pipx uninstall zrb -y 2>$null | Out-Null
+    # `pipx uninstall` takes no -y/--yes flag; passing one errors out silently
+    # (swallowed below), leaving the old venv in place so the install that
+    # follows hits pipx's "already installed" guard and does nothing.
+    pipx uninstall zrb 2>$null | Out-Null
     # --pip-args (not the PIP_PRE env var) persists in pipx's metadata, so later
     # `pipx upgrade`/`pipx reinstall` keep tracking pre-releases automatically.
     pipx install --pip-args='--pre' --python $script:PY_CMD "zrb$($script:ZrbExtras)"
