@@ -188,9 +188,21 @@ function Ensure-PipxPath {
 # Zrb Installation
 #########################################################################################
 
+function Test-ZrbInPipx {
+    # pipx list --short writes "nothing has been installed" to stderr on PS 5.1
+    # which becomes an ugly error message. Use --json for clean output.
+    $json = pipx list --json 2>$null
+    if (-not $json) { return $false }
+    try {
+        $parsed = $json | ConvertFrom-Json
+        return [bool]($parsed.venvs.PSObject.Properties.Name -contains "zrb")
+    } catch {
+        return $false
+    }
+}
+
 function Install-Zrb {
-    $pipxList = pipx list --short 2>$null
-    if ($pipxList -match "(?m)^zrb ") {
+    if (Test-ZrbInPipx) {
         Log-Info "Upgrading zrb via pipx..."
         & { $env:PIP_PRE=1; pipx upgrade zrb }
         if ($LASTEXITCODE -ne 0) {
@@ -338,8 +350,7 @@ Ensure-Pipx
 Ensure-PipxPath
 
 # -- Detect legacy pip installation (pipx is now available for the check) --
-$pipxList = pipx list --short 2>$null
-if ((Command-Exists "zrb") -and ($pipxList -notmatch "(?m)^zrb ")) {
+if ((Command-Exists "zrb") -and (-not (Test-ZrbInPipx))) {
     Warn "Detected zrb installed via pip (legacy). The script now uses pipx."
     Warn "The legacy package will be auto-removed after the pipx install completes."
 }
