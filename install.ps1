@@ -19,19 +19,19 @@ function Command-Exists {
 
 function Log-Info {
     param([string]$Message)
-    Write-Host "> " -NoNewline
+    Write-Host "🤖 " -NoNewline
     Write-Host $Message -ForegroundColor Yellow
 }
 
 function Log-OK {
     param([string]$Message)
-    Write-Host "[OK] " -NoNewline
+    Write-Host "✅ " -NoNewline
     Write-Host $Message -ForegroundColor Green
 }
 
 function Warn {
     param([string]$Message)
-    Write-Host "[!]  " -NoNewline
+    Write-Host "⚠️  " -NoNewline
     Write-Host $Message -ForegroundColor Red
 }
 
@@ -354,10 +354,10 @@ function Install-Lsps {
 # Banner
 Write-Host @"
 
-    +============================+
-    |  Zrb -- Your Automation    |
-    |        Powerhouse          |
-    +============================+
+    ╔════════════════════════════╗
+    ║  Zrb — Your Automation     ║
+    ║        Powerhouse          ║
+    ╚════════════════════════════╝
 
 "@
 

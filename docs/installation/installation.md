@@ -22,7 +22,7 @@ zrb version
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/state-alchemists/zrb/main/install.sh)"
 
 # Windows (PowerShell)
-powershell -ExecutionPolicy Bypass -Command "iex ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/state-alchemists/zrb/main/install.ps1'))"
+powershell -ExecutionPolicy Bypass -Command "iex ([System.Text.Encoding]::UTF8.GetString((New-Object System.Net.WebClient).DownloadData('https://raw.githubusercontent.com/state-alchemists/zrb/main/install.ps1')))"
 ```
 
 ---
@@ -124,7 +124,7 @@ winget install Python.Python.3.13
 **Run from GitHub (recommended):**
 
 ```powershell
-powershell -ExecutionPolicy Bypass -Command "iex ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/state-alchemists/zrb/main/install.ps1'))"
+powershell -ExecutionPolicy Bypass -Command "iex ([System.Text.Encoding]::UTF8.GetString((New-Object System.Net.WebClient).DownloadData('https://raw.githubusercontent.com/state-alchemists/zrb/main/install.ps1')))"
 ```
 
 **Run locally:**
