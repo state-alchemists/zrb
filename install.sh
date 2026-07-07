@@ -236,15 +236,15 @@ ensure_pipx_path() {
 install_zrb() {
     if pipx list --short 2>/dev/null | grep -q "^zrb "; then
         log_info "Upgrading zrb via pipx..."
-        pipx upgrade --pip-args=--pre zrb
+        PIP_PRE=1 pipx upgrade zrb
     elif command_exists zrb; then
         warn "zrb was installed via pip (legacy) — migrating to pipx"
-        pipx install --pip-args=--pre zrb
+        PIP_PRE=1 pipx install zrb
         # Auto-clean legacy install to avoid PATH conflict (fix #6)
         pip uninstall zrb -y 2>/dev/null || true
     else
         log_info "Installing zrb via pipx..."
-        pipx install --pip-args=--pre zrb
+        PIP_PRE=1 pipx install zrb
     fi
     log_ok "zrb installed — run 'zrb --help' to get started"
 }

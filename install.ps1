@@ -188,17 +188,17 @@ function Install-Zrb {
     $pipxList = pipx list --short 2>$null
     if ($pipxList -match "^zrb ") {
         Log-Info "Upgrading zrb via pipx..."
-        pipx upgrade --pip-args=--pre zrb
+        & { $env:PIP_PRE=1; pipx upgrade zrb }
     }
     elseif (Command-Exists "zrb") {
         Warn "zrb was installed via pip (legacy) — migrating to pipx"
-        pipx install --pip-args=--pre zrb
+        & { $env:PIP_PRE=1; pipx install zrb }
         # Auto-clean legacy install to avoid PATH conflict (fix #6)
         pip uninstall zrb -y -q 2>$null
     }
     else {
         Log-Info "Installing zrb via pipx..."
-        pipx install --pip-args=--pre zrb
+        & { $env:PIP_PRE=1; pipx install zrb }
     }
 
     if ($LASTEXITCODE -eq 0) {
@@ -346,4 +346,4 @@ if (Confirm "Install LSP servers for richer code diagnostics?") {
 }
 
 Write-Host ""
-Log-OK ('Installation complete! Restart your terminal or run ''exec $SHELL'' to pick up the new PATH.')
+Log-OK "Installation complete! Restart your terminal to pick up the new PATH."
