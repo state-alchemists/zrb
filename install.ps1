@@ -259,7 +259,7 @@ function Register-Autocomplete {
 
 # Zrb autocomplete
 if (Get-Command zrb -ErrorAction SilentlyContinue) {
-    Invoke-Expression (& zrb shell autocomplete powershell)
+    Invoke-Expression ((& zrb shell autocomplete powershell) -join "`n")
 }
 "@
 
@@ -271,6 +271,16 @@ if (Get-Command zrb -ErrorAction SilentlyContinue) {
         Log-Info "Registering zrb autocomplete to $PROFILE"
         Add-Content -Path $PROFILE -Value $autocompleteBlock
         Log-OK "Autocomplete registered"
+    } else {
+        # Fix existing entry that uses broken '& zrb shell autocomplete' (returns Object[])
+        $profileContent = Get-Content $PROFILE -Raw
+        $oldLine = 'Invoke-Expression (& zrb shell autocomplete powershell)'
+        $newLine = 'Invoke-Expression ((& zrb shell autocomplete powershell) -join "`n")'
+        if ($profileContent -match [regex]::Escape($oldLine)) {
+            $profileContent = $profileContent -replace [regex]::Escape($oldLine), $newLine
+            Set-Content $PROFILE -Value $profileContent
+            Log-OK "Fixed existing autocomplete entry in PowerShell profile"
+        }
     }
 }
 
