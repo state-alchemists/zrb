@@ -48,93 +48,64 @@ function Confirm {
 #########################################################################################
 
 function Ensure-Python {
-    # Try python first, then py launcher
+    # zrb defaults to Python 3.13 for every install so pipx's resolution stays
+    # reproducible across machines -- see Ensure-PipxDefaultPython for why.
+    if (Command-Exists "py") {
+        $resolved = & py -3.13 -c "import sys; print(sys.executable)" 2>$null
+        if ($LASTEXITCODE -eq 0 -and $resolved) {
+            $script:PY_CMD = $resolved.Trim()
+            Log-OK "Found Python 3.13"
+            return
+        }
+    }
+
+    $installed = $false
+    if (Confirm "Python 3.13 is not installed. Install it now?") {
+        if (Command-Exists "winget") {
+            Log-Info "Installing Python 3.13 via winget..."
+            winget install Python.Python.3.13 --accept-source-agreements
+            $installed = $true
+        }
+        else {
+            Start-Process "https://www.python.org/downloads/"
+            Warn "Please download and install Python 3.13 from the opened page, then re-run this script."
+            exit 1
+        }
+    }
+
+    if ($installed) {
+        $env:PATH = [Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" + `
+                    [Environment]::GetEnvironmentVariable("PATH", "User") + ";" + $env:PATH
+        if (Command-Exists "py") {
+            $resolved = & py -3.13 -c "import sys; print(sys.executable)" 2>$null
+            if ($resolved) {
+                $script:PY_CMD = $resolved.Trim()
+                Log-OK "Installed Python 3.13"
+                return
+            }
+        }
+        Warn "Python 3.13 was installed but is not on PATH. Restart PowerShell and re-run this script."
+        exit 1
+    }
+
+    # Fall back to whatever compatible interpreter is already on PATH
     if (Command-Exists "python") {
         $script:PY_CMD = "python"
     }
     elseif (Command-Exists "py") {
-        # py launcher on Windows -- use it to find Python
-        $script:PY_CMD = "py"
+        $script:PY_CMD = (& py -c "import sys; print(sys.executable)").Trim()
     }
     else {
-        if (-not (Confirm "Python is not installed. Download from python.org now?")) {
-            Warn @"
-
-Python 3.11+ is required. Install it via one of these options:
-
-  Option 1 - winget (recommended):
-    winget install Python.Python.3.13
-
-  Option 2 - Download from python.org:
-    https://www.python.org/downloads/
-
-  Option 3 - Microsoft Store:
-    Search for "Python 3.13"
-
-After installing, restart PowerShell and run this script again.
-"@
-            exit 1
-        }
-
-        # Try winget first
-        if (Command-Exists "winget") {
-            Log-Info "Installing Python 3.13 via winget..."
-            winget install Python.Python.3.13 --accept-source-agreements
-        }
-        else {
-            # Fallback: open the download page
-            Start-Process "https://www.python.org/downloads/"
-            Warn "Please download and install Python 3.11+ from the opened page, then re-run this script."
-            exit 1
-        }
-
-        # Refresh PATH and retry
-        $env:PATH = [Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" + `
-                    [Environment]::GetEnvironmentVariable("PATH", "User") + ";" + $env:PATH
-
-        if (Command-Exists "python") {
-            $script:PY_CMD = "python"
-        }
-        elseif (Command-Exists "py") {
-            $script:PY_CMD = "py"
-        }
-        else {
-            Warn "Python was installed but is not on PATH. Restart PowerShell and re-run this script."
-            exit 1
-        }
+        Warn "Python 3.11+ is required. Install it from https://www.python.org/downloads/ then re-run this script."
+        exit 1
     }
 
-    # Verify version
-    $versionLine = & $script:PY_CMD -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>&1
-    $pythonVersion = $versionLine.Trim()
-    Log-Info "Detected Python $pythonVersion"
-
-    $ok = $pythonVersion -match "^3\.(1[1-4])(\..*)?$"  # 3.11-3.14
-    if (-not $ok) {
+    $pythonVersion = (& $script:PY_CMD -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>&1).Trim()
+    if ($pythonVersion -notmatch "^3\.(1[1-4])(\..*)?$") {
         Warn "Python $pythonVersion detected. Need >=3.11, <3.15."
-        if (Confirm "Install Python 3.13 via winget instead?") {
-            winget install Python.Python.3.13 --accept-source-agreements
-            # Re-check after install
-            $env:PATH = [Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" + `
-                        [Environment]::GetEnvironmentVariable("PATH", "User") + ";" + $env:PATH
-            if (Command-Exists "python") {
-                $script:PY_CMD = "python"
-            }
-            else {
-                $script:PY_CMD = "py"
-            }
-        }
-        else {
-            exit 1
-        }
+        exit 1
     }
-
-    Log-OK "Python $pythonVersion"
-
-    # Resolve 'py' launcher to actual Python executable for pipx --python
-    if ($script:PY_CMD -eq "py") {
-        $script:PY_CMD = & py -c "import sys; print(sys.executable)"
-    }
+    Log-OK "Using Python $pythonVersion"
 }
 
 #########################################################################################
@@ -142,15 +113,24 @@ After installing, restart PowerShell and run this script again.
 #########################################################################################
 
 function Find-PipxPath {
-    # Find pipx.exe in the Python user Scripts folder and add to session PATH
+    # Find pipx.exe in the Python user Scripts folder and add to session + permanent PATH.
+    # `pipx ensurepath` only persists pipx's managed bin dir, not pipx.exe's own
+    # location, so without this a new PowerShell window can't find `pipx` itself.
     $pipxDir = Get-ChildItem "$env:USERPROFILE\AppData\Roaming\Python\*\Scripts\pipx.exe" -ErrorAction SilentlyContinue |
         Select-Object -ExpandProperty DirectoryName -First 1
     if (-not $pipxDir) {
         $pipxDir = Get-ChildItem "$env:LOCALAPPDATA\pip\Scripts\pipx.exe" -ErrorAction SilentlyContinue |
             Select-Object -ExpandProperty DirectoryName -First 1
     }
-    if ($pipxDir -and ($env:PATH -notlike "*$pipxDir*")) {
+    if (-not $pipxDir) { return }
+
+    if ($env:PATH -notlike "*$pipxDir*") {
         $env:PATH = "$pipxDir;$env:PATH"
+    }
+
+    $userPath = [Environment]::GetEnvironmentVariable("PATH", "User")
+    if ($userPath -notlike "*$pipxDir*") {
+        [Environment]::SetEnvironmentVariable("PATH", "$userPath;$pipxDir", "User")
     }
 }
 
@@ -198,6 +178,17 @@ function Ensure-PipxPath {
     }
 }
 
+function Ensure-PipxDefaultPython {
+    # Bare `pipx reinstall`/`pipx upgrade` (no --python flag) default to whatever
+    # interpreter pipx itself runs on -- which can be a stale Python tied to
+    # pipx's own installation, silently resolving zrb to an old release that
+    # still supports it. Pin PIPX_DEFAULT_PYTHON so those commands keep
+    # targeting a Python new enough for zrb even when run outside this script.
+    [Environment]::SetEnvironmentVariable("PIPX_DEFAULT_PYTHON", $script:PY_CMD, "User")
+    $env:PIPX_DEFAULT_PYTHON = $script:PY_CMD
+    Log-OK "Pinned PIPX_DEFAULT_PYTHON to $script:PY_CMD"
+}
+
 #########################################################################################
 # Zrb Installation
 #########################################################################################
@@ -215,9 +206,18 @@ function Test-ZrbInPipx {
     }
 }
 
+function Confirm-Extras {
+    if (Confirm "Install all optional dependencies (RAG, Playwright, voice input, and every LLM provider SDK)?") {
+        $script:ZrbExtras = "[rag,playwright,cohere,vertexai,google,anthropic,groq,xai,bedrock,huggingface,voyageai,voice,python]"
+        Log-OK "Will install zrb with all optional extras"
+    }
+}
+
 function Pipx-Install-Zrb {
     pipx uninstall zrb -y 2>$null | Out-Null
-    & { $env:PIP_PRE=1; pipx install --python $script:PY_CMD zrb }
+    # --pip-args (not the PIP_PRE env var) persists in pipx's metadata, so later
+    # `pipx upgrade`/`pipx reinstall` keep tracking pre-releases automatically.
+    pipx install --pip-args='--pre' --python $script:PY_CMD "zrb$($script:ZrbExtras)"
 }
 
 function Install-Zrb {
@@ -373,6 +373,7 @@ Ensure-Python
 # -- Step 2: pipx --
 Ensure-Pipx
 Ensure-PipxPath
+Ensure-PipxDefaultPython
 
 # -- Detect legacy pip installation (pipx is now available for the check) --
 if ((Command-Exists "zrb") -and (-not (Test-ZrbInPipx))) {
@@ -381,6 +382,8 @@ if ((Command-Exists "zrb") -and (-not (Test-ZrbInPipx))) {
 }
 
 # -- Step 3: zrb --
+$script:ZrbExtras = ""
+Confirm-Extras
 Install-Zrb
 
 # -- Step 4: Clean up legacy .local-venv --

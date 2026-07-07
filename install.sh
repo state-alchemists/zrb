@@ -123,50 +123,45 @@ install_pyenv_dependencies() {
 }
 
 ensure_python() {
+    # zrb defaults to Python 3.13 for every install so pipx's resolution stays
+    # reproducible across machines -- see ensure_pipx_default_python for why.
+    if command_exists python3.13; then
+        PY_CMD="python3.13"
+        log_ok "Found Python 3.13"
+        return
+    fi
+
+    if command_exists pyenv; then
+        pyenv_313=$(pyenv versions --bare 2>/dev/null | grep '^3\.13\.' | tail -1)
+        if [ -n "$pyenv_313" ]; then
+            PY_CMD="$(pyenv root)/versions/$pyenv_313/bin/python3.13"
+            log_ok "Found pyenv Python $pyenv_313"
+            return
+        fi
+    fi
+
+    if confirm "Python 3.13 is not installed. Install it via pyenv?"; then
+        install_pyenv_dependencies
+        command_exists pyenv || install_pyenv
+        install_python_on_pyenv
+        PY_CMD="$(pyenv root)/versions/3.13.0/bin/python3.13"
+        return
+    fi
+
+    # Fall back to whatever compatible interpreter is already on the system
     if command_exists python3; then
-        # Use python3 if found, alias it
         PY_CMD="python3"
     elif command_exists python; then
         PY_CMD="python"
     else
-        if confirm "Python is not installed. Install it via pyenv?"; then
-            install_pyenv_dependencies
-            install_pyenv
-            PY_CMD="python"
-        else
-            warn "Python is required. Install Python 3.11+ from https://python.org then re-run this script."
-            exit 1
-        fi
+        warn "Python 3.11+ is required. Install Python 3.13 from https://python.org then re-run this script."
+        exit 1
     fi
 
-    if ! command_exists "$PY_CMD"; then
-        # pyenv was installed but python wasn't compiled yet
-        if command_exists pyenv; then
-            install_python_on_pyenv
-            PY_CMD="python"
-        else
-            warn "Python is not available after installation attempt."
-            exit 1
-        fi
-    fi
-
-    # Verify Python version
     PYTHON_VERSION=$("$PY_CMD" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
-    log_info "Detected Python $PYTHON_VERSION"
     case "$PYTHON_VERSION" in
-        3.11|3.12|3.13|3.14) log_ok "Python $PYTHON_VERSION" ;;
-        3.*)
-            warn "Python $PYTHON_VERSION detected. Need >=3.11, <3.15."
-            if confirm "Install Python 3.13 via pyenv instead?"; then
-                install_pyenv_dependencies
-                install_pyenv
-                install_python_on_pyenv
-                PY_CMD="python"
-            else
-                exit 1
-            fi
-            ;;
-        *) warn "Unknown Python version. Need >=3.11, <3.15."; exit 1 ;;
+        3.11|3.12|3.13|3.14) log_ok "Using Python $PYTHON_VERSION" ;;
+        *) warn "Python $PYTHON_VERSION detected. Need >=3.11, <3.15."; exit 1 ;;
     esac
 }
 
@@ -233,13 +228,45 @@ ensure_pipx_path() {
     fi
 }
 
+ensure_pipx_default_python() {
+    # Bare `pipx reinstall`/`pipx upgrade` (no --python flag) default to whatever
+    # interpreter pipx itself runs on -- which can be a stale distro/brew Python
+    # tied to pipx's own installation, silently resolving zrb to an old release
+    # that still supports it. Pin PIPX_DEFAULT_PYTHON so those commands keep
+    # targeting a Python new enough for zrb even when run outside this script.
+    py_abs=$(command -v "$PY_CMD" 2>/dev/null || echo "$PY_CMD")
+    for rc in "$HOME/.zshrc" "$HOME/.bashrc"; do
+        [ -f "$rc" ] || continue
+        if grep -q "^export PIPX_DEFAULT_PYTHON=" "$rc" 2>/dev/null; then
+            sed -i.bak "s|^export PIPX_DEFAULT_PYTHON=.*|export PIPX_DEFAULT_PYTHON=\"$py_abs\"|" "$rc" && rm -f "${rc}.bak"
+        else
+            {
+                echo ""
+                echo "# Zrb: keep pipx's default interpreter compatible with zrb"
+                echo "export PIPX_DEFAULT_PYTHON=\"$py_abs\""
+            } >> "$rc"
+        fi
+    done
+    export PIPX_DEFAULT_PYTHON="$py_abs"
+    log_ok "Pinned PIPX_DEFAULT_PYTHON to $py_abs"
+}
+
 #########################################################################################
 # Zrb Installation
 #########################################################################################
 
+confirm_extras() {
+    if confirm "Install all optional dependencies (RAG, Playwright, voice input, and every LLM provider SDK)?"; then
+        ZRB_EXTRAS="[rag,playwright,cohere,vertexai,google,anthropic,groq,xai,bedrock,huggingface,voyageai,voice,python]"
+        log_ok "Will install zrb with all optional extras"
+    fi
+}
+
 pipx_install_zrb() {
     pipx uninstall zrb 2>/dev/null || true
-    PIP_PRE=1 pipx install --python "$PY_CMD" zrb
+    # --pip-args (not the PIP_PRE env var) persists in pipx's metadata, so later
+    # `pipx upgrade`/`pipx reinstall` keep tracking pre-releases automatically.
+    pipx install --pip-args='--pre' --python "$PY_CMD" "zrb${ZRB_EXTRAS}"
 }
 
 install_zrb() {
@@ -402,8 +429,11 @@ ensure_python
 # ── Step 3: pipx ──
 ensure_pipx
 ensure_pipx_path
+ensure_pipx_default_python
 
 # ── Step 4: zrb ──
+ZRB_EXTRAS=""
+confirm_extras
 install_zrb
 
 # ── Step 5: Clean up legacy .local-venv ──
