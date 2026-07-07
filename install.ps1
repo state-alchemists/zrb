@@ -185,16 +185,20 @@ function Ensure-PipxPath {
 #########################################################################################
 
 function Install-Zrb {
-    if (Command-Exists "zrb") {
-        Log-Info "zrb already installed. Upgrading..."
-        pipx upgrade zrb 2>$null
-        if ($LASTEXITCODE -ne 0) {
-            pipx install zrb
-        }
+    $pipxList = pipx list --short 2>$null
+    if ($pipxList -match "^zrb ") {
+        Log-Info "Upgrading zrb via pipx..."
+        pipx upgrade --pip-args '--pre' zrb
+    }
+    elseif (Command-Exists "zrb") {
+        Warn "zrb was installed via pip (legacy) — migrating to pipx"
+        pipx install --pip-args '--pre' zrb
+        # Auto-clean legacy install to avoid PATH conflict (fix #6)
+        pip uninstall zrb -y -q 2>$null
     }
     else {
-        Log-Info "Installing zrb..."
-        pipx install zrb
+        Log-Info "Installing zrb via pipx..."
+        pipx install --pip-args '--pre' zrb
     }
 
     if ($LASTEXITCODE -eq 0) {
@@ -203,6 +207,68 @@ function Install-Zrb {
     else {
         Warn "zrb installation failed. Check the error above."
         exit 1
+    }
+}
+
+function Register-Autocomplete {
+    if (-not (Command-Exists "zrb")) { return }
+
+    $profileDir = Split-Path -Parent $PROFILE
+    if ($profileDir -and -not (Test-Path $profileDir)) {
+        New-Item -ItemType Directory -Path $profileDir -Force | Out-Null
+    }
+
+    $autocompleteBlock = @"
+
+# Zrb autocomplete
+if (Get-Command "zrb" -ErrorAction SilentlyContinue) {
+    Invoke-Expression (& zrb shell autocomplete powershell)
+}
+"@
+
+    if (-not (Test-Path $PROFILE)) {
+        New-Item -ItemType File -Path $PROFILE -Force | Out-Null
+    }
+
+    if (-not (Select-String -Path $PROFILE -Pattern "zrb shell autocomplete" -Quiet)) {
+        Log-Info "Registering zrb autocomplete to $PROFILE"
+        Add-Content -Path $PROFILE -Value $autocompleteBlock
+        Log-OK "Autocomplete registered"
+    }
+}
+
+function Cleanup-LocalVenv {
+    # Remove stale ~\.local-venv from old-style installations
+    $venvPath = "$env:USERPROFILE\.local-venv"
+    if (Test-Path $venvPath) {
+        Log-Info "Removing old .local-venv directory (migrated to pipx)"
+        Remove-Item -Recurse -Force $venvPath
+        Log-OK "Removed ~\.local-venv"
+    }
+
+    # Strip old .local-venv activation block from PowerShell profile
+    if (Test-Path $PROFILE) {
+        $lines = Get-Content $PROFILE
+        $inBlock = $false
+        $filtered = @()
+        foreach ($line in $lines) {
+            if ($line -match '# Zrb local venv configuration') {
+                $inBlock = $true
+                continue
+            }
+            if ($inBlock) {
+                if ($line -match '^\s*\}') {
+                    $inBlock = $false
+                }
+                continue
+            }
+            $filtered += $line
+        }
+        if ($filtered.Count -ne $lines.Count) {
+            Log-Info "Removing old .local-venv activation from PowerShell profile"
+            Set-Content $PROFILE -Value $filtered
+            Log-OK "Cleaned PowerShell profile"
+        }
     }
 }
 
@@ -216,7 +282,7 @@ function Install-Lsps {
         Log-Info "No JS/Go/Rust toolchains detected — only Python LSP will be installed."
     }
     Log-Info "Installing python-lsp-server (pylsp)"
-    & $script:PY_CMD -m pip install 'python-lsp-server[all]' -q
+    pipx inject zrb 'python-lsp-server[all]' -q
 
     if ((Command-Exists "npm") -and (Confirm "Install typescript-language-server (for JS/TS)?")) {
         npm install -g typescript-language-server typescript
@@ -245,6 +311,12 @@ Write-Host @"
 
 "@
 
+# ── Admin check ──
+$isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+if ($isAdmin) {
+    Warn "Running as Administrator is not recommended. Run as a regular user if possible."
+}
+
 # ── Step 1: Ensure Python ──
 Ensure-Python
 
@@ -252,10 +324,23 @@ Ensure-Python
 Ensure-Pipx
 Ensure-PipxPath
 
+# ── Detect legacy pip installation (pipx is now available for the check) ──
+$pipxList = pipx list --short 2>$null
+if ((Command-Exists "zrb") -and ($pipxList -notmatch "^zrb ")) {
+    Warn "Detected zrb installed via pip (legacy). The script now uses pipx."
+    Warn "The legacy package will be auto-removed after the pipx install completes."
+}
+
 # ── Step 3: zrb ──
 Install-Zrb
 
-# ── Step 4: LSP servers ──
+# ── Step 4: Clean up legacy .local-venv ──
+Cleanup-LocalVenv
+
+# ── Step 5: Autocomplete ──
+Register-Autocomplete
+
+# ── Step 6: LSP servers ──
 if (Confirm "Install LSP servers for richer code diagnostics?") {
     Install-Lsps
 }

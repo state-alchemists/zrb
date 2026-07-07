@@ -234,14 +234,62 @@ ensure_pipx_path() {
 #########################################################################################
 
 install_zrb() {
-    if command_exists zrb; then
-        log_info "zrb already installed. Upgrading..."
-        pipx upgrade zrb 2>/dev/null || pipx install zrb
+    if pipx list --short 2>/dev/null | grep -q "^zrb "; then
+        log_info "Upgrading zrb via pipx..."
+        pipx upgrade --pip-args '--pre' zrb
+    elif command_exists zrb; then
+        warn "zrb was installed via pip (legacy) — migrating to pipx"
+        pipx install --pip-args '--pre' zrb
+        # Auto-clean legacy install to avoid PATH conflict (fix #6)
+        pip uninstall zrb -y 2>/dev/null || true
     else
-        log_info "Installing zrb..."
-        pipx install zrb
+        log_info "Installing zrb via pipx..."
+        pipx install --pip-args '--pre' zrb
     fi
     log_ok "zrb installed — run 'zrb --help' to get started"
+}
+
+register_autocomplete() {
+    if command_exists zrb; then
+        for rc in "$HOME/.zshrc" "$HOME/.bashrc"; do
+            [ -f "$rc" ] || continue
+            shell_name=$(basename "$rc" | sed 's/\.//')
+            if ! grep -q "zrb shell autocomplete" "$rc" 2>/dev/null; then
+                log_info "Registering zrb autocomplete to $rc"
+                {
+                    echo ""
+                    echo "# Zrb autocomplete"
+                    echo "if command_exists zrb; then"
+                    echo "    eval \"\$(zrb shell autocomplete $shell_name)\""
+                    echo "fi"
+                } >> "$rc"
+            fi
+        done
+        log_ok "Autocomplete registered"
+    fi
+}
+
+cleanup_local_venv() {
+    # Remove stale ~/.local-venv from old-style installations
+    if [ -d "$HOME/.local-venv" ]; then
+        log_info "Removing old ~/.local-venv directory (migrated to pipx)"
+        rm -rf "$HOME/.local-venv"
+        log_ok "Removed ~/.local-venv"
+    fi
+
+    # Strip old .local-venv activation blocks from shell rc files
+    for rc in "$HOME/.zshrc" "$HOME/.bashrc"; do
+        [ -f "$rc" ] || continue
+        if grep -q "local-venv" "$rc" 2>/dev/null; then
+            log_info "Removing old .local-venv activation from $(basename "$rc")"
+            # Remove the if-block that activates .local-venv (written by old install.sh)
+            if command_exists sed; then
+                sed '/^if \[ -f "${HOME}\/.local-venv\/bin\/activate" \]/,/^fi$/d' "$rc" > "${rc}.tmp"
+                mv "${rc}.tmp" "$rc"
+            fi
+            log_ok "Cleaned $(basename "$rc")"
+        fi
+    done
 }
 
 #########################################################################################
@@ -254,7 +302,7 @@ install_lsps() {
     fi
 
     log_info "Installing python-lsp-server (pylsp)"
-    "$PY_CMD" -m pip install 'python-lsp-server[all]' -q
+    pipx inject zrb 'python-lsp-server[all]' -q
 
     if command_exists npm && confirm "Install typescript-language-server (for JS/TS)?"; then
         npm install -g typescript-language-server typescript
@@ -289,7 +337,8 @@ setup_termux() {
 
     log_info "Installing prerequisites"
     pkg install -y python clang cmake build-essential rust golang \
-        binutils ninja patchelf libxml2 libxslt curl wget git which
+        binutils ninja patchelf libxml2 libxslt curl wget git which \
+        swig postgresql sqlite termux-api openssh
 }
 
 #########################################################################################
@@ -321,11 +370,16 @@ cat << 'EOF'
 
 EOF
 
+# ── Migrate from legacy pip/poetry/local-venv installation ──
+if command_exists zrb && ! pipx list --short 2>/dev/null | grep -q "^zrb "; then
+    warn "Detected zrb installed via pip (legacy). The script now uses pipx."
+    warn "Your existing installation will be shadowed by the new pipx install."
+    warn "The legacy package will be auto-removed after the pipx install completes."
+fi
+
 # ── Step 1: Termux setup (if applicable) ──
-if [ "$IS_TERMUX" = "1" ]; then
-    if ! command_exists python; then
-        confirm "Set up Termux for zrb?" && setup_termux
-    fi
+if [ "$IS_TERMUX" = "1" ] && confirm "Set up Termux for zrb?"; then
+    setup_termux
 fi
 
 # ── Step 2: Ensure Python ──
@@ -338,7 +392,13 @@ ensure_pipx_path
 # ── Step 4: zrb ──
 install_zrb
 
-# ── Step 5: LSP servers ──
+# ── Step 5: Clean up legacy .local-venv ──
+cleanup_local_venv
+
+# ── Step 6: Autocomplete ──
+register_autocomplete
+
+# ── Step 7: LSP servers ──
 if confirm "Install LSP servers for richer code diagnostics?"; then
     install_lsps
 fi
