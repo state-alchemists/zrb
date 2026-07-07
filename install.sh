@@ -237,6 +237,10 @@ ensure_pipx_path() {
 # Zrb Installation
 #########################################################################################
 
+pipx_install_zrb() {
+    PIP_PRE=1 pipx install --python "$PY_CMD" --force zrb
+}
+
 install_zrb() {
     if pipx list --short 2>/dev/null | grep -q "^zrb "; then
         log_info "Upgrading zrb via pipx..."
@@ -244,16 +248,16 @@ install_zrb() {
             log_ok "zrb upgraded — run 'zrb --help' to get started"
         else
             warn "Upgrade failed — forcing reinstall"
-            PIP_PRE=1 pipx install --force zrb
+            pipx_install_zrb
         fi
     elif command_exists zrb; then
         warn "zrb was installed via pip (legacy) — migrating to pipx"
-        PIP_PRE=1 pipx install --force zrb
+        pipx_install_zrb
         # Auto-clean legacy install to avoid PATH conflict (fix #6)
         pip uninstall zrb -y 2>/dev/null || true
     else
         log_info "Installing zrb via pipx..."
-        PIP_PRE=1 pipx install --force zrb
+        pipx_install_zrb
     fi
     if command_exists zrb; then
         log_ok "zrb installed — run 'zrb --help' to get started"

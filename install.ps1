@@ -201,18 +201,22 @@ function Test-ZrbInPipx {
     }
 }
 
+function Pipx-Install-Zrb {
+    & { $env:PIP_PRE=1; pipx install --python $script:PY_CMD --force zrb }
+}
+
 function Install-Zrb {
     if (Test-ZrbInPipx) {
         Log-Info "Upgrading zrb via pipx..."
         & { $env:PIP_PRE=1; pipx upgrade zrb }
         if ($LASTEXITCODE -ne 0) {
             Warn "Upgrade failed -- forcing reinstall"
-            & { $env:PIP_PRE=1; pipx install --force zrb }
+            Pipx-Install-Zrb
         }
     }
     elseif (Command-Exists "zrb") {
         Warn "zrb was installed via pip (legacy) -- migrating to pipx"
-        $installOk = & { $env:PIP_PRE=1; pipx install --force zrb; $LASTEXITCODE }
+        $installOk = & { $env:PIP_PRE=1; pipx install --python $script:PY_CMD --force zrb; $LASTEXITCODE }
         if ($installOk -eq 0) {
             # Auto-clean legacy install to avoid PATH conflict (fix #6)
             pip uninstall zrb -y -q 2>$null
@@ -220,7 +224,7 @@ function Install-Zrb {
     }
     else {
         Log-Info "Installing zrb via pipx..."
-        & { $env:PIP_PRE=1; pipx install --force zrb }
+        Pipx-Install-Zrb
     }
 
     if (Command-Exists "zrb") {
