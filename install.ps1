@@ -282,7 +282,7 @@ function Install-Lsps {
         Log-Info "No JS/Go/Rust toolchains detected — only Python LSP will be installed."
     }
     Log-Info "Installing python-lsp-server (pylsp)"
-    pipx inject zrb 'python-lsp-server[all]' -q
+    pipx inject zrb 'python-lsp-server[all]'
 
     if ((Command-Exists "npm") -and (Confirm "Install typescript-language-server (for JS/TS)?")) {
         npm install -g typescript-language-server typescript

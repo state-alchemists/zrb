@@ -302,7 +302,7 @@ install_lsps() {
     fi
 
     log_info "Installing python-lsp-server (pylsp)"
-    pipx inject zrb 'python-lsp-server[all]' -q
+    pipx inject zrb 'python-lsp-server[all]'
 
     if command_exists npm && confirm "Install typescript-language-server (for JS/TS)?"; then
         npm install -g typescript-language-server typescript
