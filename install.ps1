@@ -207,11 +207,7 @@ function Test-ZrbInPipx {
 }
 
 function Pipx-Install-Zrb {
-    # Remove stale venv so --python takes effect (pipx --force reuses existing venv)
-    $pipxHome = pipx environment 2>$null | Select-String "PIPX_HOME" | ForEach-Object { $_ -replace '.*=','' }
-    if (-not $pipxHome) { $pipxHome = "$env:HOME\.local\pipx" }
-    $venvDir = Join-Path $pipxHome "venvs\zrb"
-    if (Test-Path $venvDir) { Remove-Item -Recurse -Force $venvDir }
+    pipx uninstall zrb -y 2>$null | Out-Null
     & { $env:PIP_PRE=1; pipx install --python $script:PY_CMD --force zrb }
 }
 
@@ -222,8 +218,8 @@ function Install-Zrb {
     }
     elseif (Command-Exists "zrb") {
         Warn "zrb was installed via pip (legacy) -- migrating to pipx"
-        $installOk = & { $env:PIP_PRE=1; pipx install --python $script:PY_CMD --force zrb; $LASTEXITCODE }
-        if ($installOk -eq 0) {
+        Pipx-Install-Zrb
+        if ($LASTEXITCODE -eq 0) {
             # Auto-clean legacy install to avoid PATH conflict (fix #6)
             pip uninstall zrb -y -q 2>$null
         }

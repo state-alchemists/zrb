@@ -238,9 +238,7 @@ ensure_pipx_path() {
 #########################################################################################
 
 pipx_install_zrb() {
-    # Remove stale venv so --python takes effect (pipx --force reuses existing venv)
-    pipx_venv_dir=$(pipx environment 2>/dev/null | grep "PIPX_HOME" | cut -d= -f2 || echo "$HOME/.local/pipx")
-    rm -rf "$pipx_venv_dir/venvs/zrb" 2>/dev/null || true
+    pipx uninstall zrb 2>/dev/null || true
     PIP_PRE=1 pipx install --python "$PY_CMD" --force zrb
 }
 
