@@ -6,7 +6,6 @@ param(
     [switch]$Yes
 )
 
-$ErrorActionPreference = "Stop"
 $AUTO_YES = $Yes.IsPresent
 
 #########################################################################################
@@ -340,7 +339,7 @@ Ensure-PipxPath
 
 # -- Detect legacy pip installation (pipx is now available for the check) --
 $pipxList = pipx list --short 2>$null
-    if ((Command-Exists "zrb") -and ($pipxList -notmatch "(?m)^zrb ")) {
+if ((Command-Exists "zrb") -and ($pipxList -notmatch "(?m)^zrb ")) {
     Warn "Detected zrb installed via pip (legacy). The script now uses pipx."
     Warn "The legacy package will be auto-removed after the pipx install completes."
 }
