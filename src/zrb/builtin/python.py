@@ -2,6 +2,7 @@ import shutil
 import subprocess
 
 from zrb.builtin.group import python_group
+from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.task.make_task import make_task
 
@@ -14,17 +15,15 @@ from zrb.task.make_task import make_task
 )
 def format_python_code(ctx: AnyContext) -> str:
     missing = []
-    for tool, install_hint in [
-        ("isort", ""),
-        ("black", ""),
-    ]:
+    for tool in ["isort", "black"]:
         if shutil.which(tool) is None:
             missing.append(tool)
     if missing:
         tools = " and ".join(missing)
+        pkg = CFG.ROOT_GROUP_NAME
         msg = (
             f"[SYSTEM SUGGESTION]: {tools} not found. "
-            f"Install them with: pipx inject zrb \"zrb[format]\""
+            f'Install them with: pipx inject {pkg} "{pkg}[python]"'
         )
         ctx.print_err(msg)
         raise RuntimeError(msg)
