@@ -1,7 +1,13 @@
+#!/usr/bin/env pwsh
 # PowerShell installation script for Zrb on Windows
-# Equivalent to install.sh for Unix systems
+# Usage: .\install.ps1 [-Yes]
+
+param(
+    [switch]$Yes
+)
 
 $ErrorActionPreference = "Stop"
+$AUTO_YES = $Yes.IsPresent
 
 #########################################################################################
 # Functions
@@ -18,193 +24,241 @@ function Log-Info {
     Write-Host $Message -ForegroundColor Yellow
 }
 
+function Log-OK {
+    param([string]$Message)
+    Write-Host "✅ " -NoNewline
+    Write-Host $Message -ForegroundColor Green
+}
+
+function Warn {
+    param([string]$Message)
+    Write-Host "⚠️  " -NoNewline
+    Write-Host $Message -ForegroundColor Red
+}
+
 function Confirm {
     param([string]$Prompt)
+    if ($AUTO_YES) { return $true }
     Log-Info "$Prompt (y/N)"
     $choice = Read-Host
-    switch -Regex ($choice) {
-        "^[yY]" { return $true }
-        "^[nN]" { return $false }
-        default {
-            Write-Host "Invalid choice"
-            return $false
+    return ($choice -match "^[yY]")
+}
+
+#########################################################################################
+# Python Detection & Installation
+#########################################################################################
+
+function Ensure-Python {
+    # Try python first, then py launcher
+    if (Command-Exists "python") {
+        $script:PY_CMD = "python"
+    }
+    elseif (Command-Exists "py") {
+        # py launcher on Windows — use it to find Python
+        $script:PY_CMD = "py"
+    }
+    else {
+        if (-not (Confirm "Python is not installed. Download from python.org now?")) {
+            Warn @"
+
+Python 3.11+ is required. Install it via one of these options:
+
+  Option 1 - winget (recommended):
+    winget install Python.Python.3.13
+
+  Option 2 - Download from python.org:
+    https://www.python.org/downloads/
+
+  Option 3 - Microsoft Store:
+    Search for "Python 3.13"
+
+After installing, restart PowerShell and run this script again.
+"@
+            exit 1
+        }
+
+        # Try winget first
+        if (Command-Exists "winget") {
+            Log-Info "Installing Python 3.13 via winget..."
+            winget install Python.Python.3.13 --accept-source-agreements
+        }
+        else {
+            # Fallback: open the download page
+            Start-Process "https://www.python.org/downloads/"
+            Warn "Please download and install Python 3.11+ from the opened page, then re-run this script."
+            exit 1
+        }
+
+        # Refresh PATH and retry
+        $env:PATH = [Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" + `
+                    [Environment]::GetEnvironmentVariable("PATH", "User") + ";" + $env:PATH
+
+        if (Command-Exists "python") {
+            $script:PY_CMD = "python"
+        }
+        elseif (Command-Exists "py") {
+            $script:PY_CMD = "py"
+        }
+        else {
+            Warn "Python was installed but is not on PATH. Restart PowerShell and re-run this script."
+            exit 1
         }
     }
+
+    # Verify version
+    $versionLine = & $script:PY_CMD -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>&1
+    $pythonVersion = $versionLine.Trim()
+    Log-Info "Detected Python $pythonVersion"
+
+    $ok = $pythonVersion -match "^3\.(1[1-4])(\..*)?$"  # 3.11-3.14
+    if (-not $ok) {
+        Warn "Python $pythonVersion detected. Need >=3.11, <3.15."
+        if (Confirm "Install Python 3.13 via winget instead?") {
+            winget install Python.Python.3.13 --accept-source-agreements
+            # Re-check after install
+            $env:PATH = [Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" + `
+                        [Environment]::GetEnvironmentVariable("PATH", "User") + ";" + $env:PATH
+            if (Command-Exists "python") {
+                $script:PY_CMD = "python"
+            }
+            else {
+                $script:PY_CMD = "py"
+            }
+        }
+        else {
+            exit 1
+        }
+    }
+
+    Log-OK "Python $pythonVersion"
 }
 
-function Add-PathPermanent {
-    param([string]$Path)
-    $userPath = [Environment]::GetEnvironmentVariable("PATH", "User")
-    if ($userPath -notlike "*$Path*") {
-        [Environment]::SetEnvironmentVariable("PATH", "$Path;$userPath", "User")
-        $env:PATH = "$Path;$env:PATH"
+#########################################################################################
+# pipx Installation
+#########################################################################################
+
+function Ensure-Pipx {
+    if (Command-Exists "pipx") {
+        Log-OK "pipx already installed"
+        return
+    }
+
+    Log-Info "Installing pipx"
+
+    # Scoop is the cleanest on Windows
+    if (Command-Exists "scoop") {
+        scoop install pipx
+        Log-OK "pipx installed via Scoop"
+        return
+    }
+
+    # Fallback: pip install
+    & $script:PY_CMD -m pip install --user pipx -q
+    if ($LASTEXITCODE -ne 0) {
+        Warn "pipx installation failed. Try: scoop install pipx"
+        exit 1
+    }
+
+    # pipx.exe is in the user Scripts folder — find it and add to PATH for this session
+    $pipxDir = Get-ChildItem "$env:USERPROFILE\AppData\Roaming\Python\*\Scripts\pipx.exe" -ErrorAction SilentlyContinue |
+        Select-Object -ExpandProperty DirectoryName -First 1
+    if (-not $pipxDir) {
+        $pipxDir = Get-ChildItem "$env:LOCALAPPDATA\pip\Scripts\pipx.exe" -ErrorAction SilentlyContinue |
+            Select-Object -ExpandProperty DirectoryName -First 1
+    }
+    if ($pipxDir -and ($env:PATH -notlike "*$pipxDir*")) {
+        $env:PATH = "$pipxDir;$env:PATH"
+    }
+
+    Log-OK "pipx installed via pip"
+}
+
+function Ensure-PipxPath {
+    if (Command-Exists "pipx") {
+        pipx ensurepath > $null 2>&1
+        Log-OK "pipx added to PATH"
     }
 }
 
-function Register-LocalVenv {
-    param([string]$ProfilePath)
-
-    Log-Info "Registering .local-venv to $ProfilePath"
-
-    # Ensure profile directory exists
-    $profileDir = Split-Path -Parent $ProfilePath
-    if ($profileDir -and -not (Test-Path $profileDir)) {
-        New-Item -ItemType Directory -Path $profileDir -Force | Out-Null
-    }
-
-    $venvBlock = @"
-
-# Zrb local venv configuration
-if (Test-Path "`$HOME\.local-venv\Scripts\Activate.ps1") {
-    . "`$HOME\.local-venv\Scripts\Activate.ps1"
-}
-"@
-
-    if (-not (Test-Path $ProfilePath)) {
-        New-Item -ItemType File -Path $ProfilePath -Force | Out-Null
-    }
-
-    if (-not (Select-String -Path $ProfilePath -Pattern "local-venv" -Quiet)) {
-        Add-Content -Path $ProfilePath -Value $venvBlock
-    }
-}
-
-function Create-And-Register-LocalVenv {
-    Log-Info "Creating local venv at $HOME\.local-venv"
-    python -m venv "$HOME\.local-venv"
-    & "$HOME\.local-venv\Scripts\Activate.ps1"
-
-    # Register to PowerShell profile
-    Register-LocalVenv $PROFILE
-    Log-Info "Virtual environment created and activated"
-}
-
-function Install-Poetry {
-    Log-Info "Installing Poetry"
-    python -m pip install --upgrade pip setuptools --quiet
-    python -m pip install poetry --quiet
-
-    # Poetry installs to user scripts, ensure it's in PATH
-    $userScripts = "$HOME\.local\bin"
-    if (Test-Path $userScripts) {
-        Add-PathPermanent $userScripts
-    }
-
-    # Also check AppData\local\pip\Scripts on Windows
-    $pipScripts = "$env:LOCALAPPDATA\pip\Scripts"
-    if (Test-Path $pipScripts) {
-        Add-PathPermanent $pipScripts
-    }
-
-    Log-Info "Poetry installed"
-}
+#########################################################################################
+# Zrb Installation
+#########################################################################################
 
 function Install-Zrb {
-    Log-Info "Installing Zrb"
-    python -m pip install --pre zrb --quiet
-    Log-Info "Zrb installed"
-}
-
-function Install-Lsps {
-    # LSP servers power richer post-write diagnostics during ``zrb chat``.
-    # Python (pylsp) is installed unconditionally because zrb itself is Python.
-    # Other-language servers are offered only when their toolchain is present.
-    Log-Info "Installing python-lsp-server (pylsp)"
-    python -m pip install 'python-lsp-server[all]' --quiet
-
-    if ((Command-Exists "npm") -and (Confirm "Install typescript-language-server (for JS/TS)?")) {
-        Log-Info "Installing typescript-language-server"
-        npm install -g typescript-language-server typescript
+    if (Command-Exists "zrb") {
+        Log-Info "zrb already installed. Upgrading..."
+        pipx upgrade zrb 2>$null
+        if ($LASTEXITCODE -ne 0) {
+            pipx install zrb
+        }
+    }
+    else {
+        Log-Info "Installing zrb..."
+        pipx install zrb
     }
 
-    if ((Command-Exists "go") -and (Confirm "Install gopls (for Go)?")) {
-        Log-Info "Installing gopls"
-        go install golang.org/x/tools/gopls@latest
+    if ($LASTEXITCODE -eq 0) {
+        Log-OK "zrb installed — run 'zrb --help' to get started"
     }
-
-    if ((Command-Exists "rustup") -and (Confirm "Install rust-analyzer (for Rust)?")) {
-        Log-Info "Installing rust-analyzer"
-        rustup component add rust-analyzer
-    }
-
-    Log-Info "LSP servers installed. zrb auto-detects which ones are on PATH."
-}
-
-#########################################################################################
-# Main Script
-#########################################################################################
-
-# Check if running as administrator (not recommended)
-$isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-if ($isAdmin) {
-    Log-Info "Warning: Running as Administrator is not recommended."
-    Log-Info "Consider running as a regular user."
-}
-
-$IsLocalVenvInstalled = $false
-
-# Check for Python
-if (-not (Command-Exists "python")) {
-    # Try python3 as fallback
-    if (Command-Exists "python3") {
-        Log-Info "Found python3, creating python alias..."
-        Set-Alias -Name python -Value python3 -Scope Global
-    } else {
-        Log-Info ""
-        Log-Info "Python not found!"
-        Log-Info ""
-        Log-Info "Please install Python first using one of these methods:"
-        Log-Info ""
-        Log-Info "  Option 1 - winget (recommended):"
-        Log-Info "    winget install Python.Python.3.13"
-        Log-Info ""
-        Log-Info "  Option 2 - Download from python.org:"
-        Log-Info "    https://www.python.org/downloads/"
-        Log-Info ""
-        Log-Info "  Option 3 - Microsoft Store:"
-        Log-Info "    Search for 'Python 3.13' in Microsoft Store"
-        Log-Info ""
-        Log-Info "After installing Python, restart PowerShell and run this script again."
+    else {
+        Warn "zrb installation failed. Check the error above."
         exit 1
     }
 }
 
-# Get Python version
-$pythonVersion = python --version 2>&1
-Log-Info "Detected: $pythonVersion"
+#########################################################################################
+# LSP Servers (optional)
+#########################################################################################
 
-# Offer Poetry
-if (-not (Command-Exists "poetry") -and (Confirm "Do you want to install Poetry?")) {
-    Install-Poetry
+function Install-Lsps {
+    # Python LSP is always installed — zrb itself is Python
+    if (-not (Command-Exists "npm") -and -not (Command-Exists "go") -and -not (Command-Exists "rustup")) {
+        Log-Info "No JS/Go/Rust toolchains detected — only Python LSP will be installed."
+    }
+    Log-Info "Installing python-lsp-server (pylsp)"
+    & $script:PY_CMD -m pip install 'python-lsp-server[all]' -q
+
+    if ((Command-Exists "npm") -and (Confirm "Install typescript-language-server (for JS/TS)?")) {
+        npm install -g typescript-language-server typescript
+    }
+    if ((Command-Exists "go") -and (Confirm "Install gopls (for Go)?")) {
+        go install golang.org/x/tools/gopls@latest
+    }
+    if ((Command-Exists "rustup") -and (Confirm "Install rust-analyzer (for Rust)?")) {
+        rustup component add rust-analyzer
+    }
+
+    Log-OK "LSP servers installed. zrb auto-detects which ones are on PATH."
 }
 
-# Offer virtual environment
-if (-not (Test-Path "$HOME\.local-venv") -and (Confirm "Do you want to create a virtual environment at ~/.local-venv?")) {
-    Create-And-Register-LocalVenv
-    $IsLocalVenvInstalled = $true
-}
+#########################################################################################
+# Main
+#########################################################################################
 
-# Install Zrb
-if (-not (Command-Exists "zrb")) {
-    Install-Zrb
-}
+# Banner
+Write-Host @"
 
-# Offer LSP servers (powers richer diagnostics during `zrb chat`)
-if (Confirm "Do you want to install LSP language servers for richer code diagnostics?") {
+    ╔════════════════════════════╗
+    ║  Zrb — Your Automation    ║
+    ║        Powerhouse          ║
+    ╚════════════════════════════╝
+
+"@
+
+# ── Step 1: Ensure Python ──
+Ensure-Python
+
+# ── Step 2: pipx ──
+Ensure-Pipx
+Ensure-PipxPath
+
+# ── Step 3: zrb ──
+Install-Zrb
+
+# ── Step 4: LSP servers ──
+if (Confirm "Install LSP servers for richer code diagnostics?") {
     Install-Lsps
 }
 
-# Final message
 Write-Host ""
-Log-Info "Installation complete!"
-Write-Host ""
-
-if ($IsLocalVenvInstalled) {
-    Log-Info "IMPORTANT: You need to restart your terminal session!"
-    Log-Info "After restart, run: zrb --help"
-} else {
-    Log-Info "Run: zrb --help"
-}
-
-Write-Host ""
-Log-Info "Documentation: https://github.com/state-alchemists/zrb"
+Log-OK "Installation complete! Restart your terminal or run 'exec `$SHELL' to pick up the new PATH."
