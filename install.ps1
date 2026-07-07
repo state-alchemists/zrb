@@ -153,9 +153,14 @@ function Ensure-Pipx {
     }
 
     # Fallback: pip install
-    & $script:PY_CMD -m pip install --user pipx -q
+    $pipUserFlag = if ($env:VIRTUAL_ENV) { "" } else { "--user" }
+    & $script:PY_CMD -m pip install $pipUserFlag pipx -q
     if ($LASTEXITCODE -ne 0) {
-        Warn "pipx installation failed. Try: scoop install pipx"
+        if ($pipUserFlag -eq "") {
+            Warn "pipx installation failed. Deactivate your virtualenv and re-run, or install via: scoop install pipx"
+        } else {
+            Warn "pipx installation failed. Try: scoop install pipx"
+        }
         exit 1
     }
 
@@ -189,19 +194,25 @@ function Install-Zrb {
     if ($pipxList -match "(?m)^zrb ") {
         Log-Info "Upgrading zrb via pipx..."
         & { $env:PIP_PRE=1; pipx upgrade zrb }
+        if ($LASTEXITCODE -ne 0) {
+            Warn "Upgrade failed -- forcing reinstall"
+            & { $env:PIP_PRE=1; pipx install --force zrb }
+        }
     }
     elseif (Command-Exists "zrb") {
         Warn "zrb was installed via pip (legacy) -- migrating to pipx"
-        & { $env:PIP_PRE=1; pipx install zrb }
-        # Auto-clean legacy install to avoid PATH conflict (fix #6)
-        pip uninstall zrb -y -q 2>$null
+        $installOk = & { $env:PIP_PRE=1; pipx install --force zrb; $LASTEXITCODE }
+        if ($installOk -eq 0) {
+            # Auto-clean legacy install to avoid PATH conflict (fix #6)
+            pip uninstall zrb -y -q 2>$null
+        }
     }
     else {
         Log-Info "Installing zrb via pipx..."
-        & { $env:PIP_PRE=1; pipx install zrb }
+        & { $env:PIP_PRE=1; pipx install --force zrb }
     }
 
-    if ($LASTEXITCODE -eq 0) {
+    if (Command-Exists "zrb") {
         Log-OK "zrb installed -- run 'zrb --help' to get started"
     }
     else {
@@ -282,7 +293,10 @@ function Install-Lsps {
         Log-Info "No JS/Go/Rust toolchains detected -- only Python LSP will be installed."
     }
     Log-Info "Installing python-lsp-server (pylsp)"
-    pipx inject zrb 'python-lsp-server[all]'
+    pipx inject zrb 'python-lsp-server[all]' 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        Warn "LSP server install failed (non-fatal)"
+    }
 
     if ((Command-Exists "npm") -and (Confirm "Install typescript-language-server (for JS/TS)?")) {
         npm install -g typescript-language-server typescript
