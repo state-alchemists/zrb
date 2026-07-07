@@ -248,12 +248,12 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
 
 _DYNAMIC_TOOL_GUIDANCE_FACTORIES: "list[Callable[[AnyContext], ToolGuidance]]" = [
     lambda ctx: ToolGuidance(
-        group_name="Zrb Tasks",
+        group_name=f"{CFG.ROOT_GROUP_NAME.capitalize()} Tasks",
         tool_name=f"List{CFG.ROOT_GROUP_NAME.capitalize()}Tasks",
         when_to_use=f"Before running a {CFG.ROOT_GROUP_NAME} task — confirm the task name exists",
     ),
     lambda ctx: ToolGuidance(
-        group_name="Zrb Tasks",
+        group_name=f"{CFG.ROOT_GROUP_NAME.capitalize()} Tasks",
         tool_name=f"Run{CFG.ROOT_GROUP_NAME.capitalize()}Task",
         when_to_use=f"Executing a registered {CFG.ROOT_GROUP_NAME} task",
         key_rule=f"Task names are case-sensitive. Verify with List{CFG.ROOT_GROUP_NAME.capitalize()}Tasks first.",

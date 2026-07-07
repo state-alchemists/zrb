@@ -233,7 +233,7 @@ def serve_chat_api(
                 await session_manager.broadcast(
                     session_id,
                     "[ERROR] LLM chat task not found. "
-                    "Please ensure 'zrb llm chat' is registered.",
+                    f"Please ensure '{CFG.ROOT_GROUP_NAME} llm chat' is registered.",
                 )
             else:
                 approval_channel = HTTPChatApprovalChannel(

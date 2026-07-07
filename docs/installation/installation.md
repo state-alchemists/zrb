@@ -2,7 +2,7 @@
 
 # Installation & Setup
 
-Getting Zrb set up is straightforward, but it offers a few powerful options depending on your environment and needs. This guide covers everything from a quick `pip` install to advanced containerized and Android setups.
+Getting Zrb set up is straightforward, but it offers a few powerful options depending on your environment and needs. This guide covers everything from a quick `pipx` install to advanced containerized and Android setups.
 
 ---
 
@@ -11,7 +11,11 @@ Getting Zrb set up is straightforward, but it offers a few powerful options depe
 **Already have Python installed? Get started in seconds:**
 
 ```bash
-pip install zrb
+# Install pipx first (if you don't have it)
+pip install pipx
+
+# Install zrb in an isolated environment
+pipx install zrb
 zrb version
 ```
 
@@ -20,9 +24,11 @@ zrb version
 ```bash
 # Linux/macOS
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/state-alchemists/zrb/main/install.sh)"
+```
 
+```powershell
 # Windows (PowerShell)
-powershell -ExecutionPolicy Bypass -Command "iex ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/state-alchemists/zrb/main/install.ps1'))"
+powershell -ExecutionPolicy Bypass -Command "iex ([System.Text.Encoding]::UTF8.GetString((New-Object System.Net.WebClient).DownloadData('https://raw.githubusercontent.com/state-alchemists/zrb/main/install.ps1')))"
 ```
 
 ---
@@ -31,27 +37,50 @@ powershell -ExecutionPolicy Bypass -Command "iex ((New-Object System.Net.WebClie
 
 | Situation | Recommended Method | Why |
 |-----------|-------------------|-----|
-| ✅ Python already installed | `pip install zrb` | Fastest, simplest |
+| ✅ Python already installed | `pipx install zrb` | Fastest, simplest, isolated |
 | 🆕 Fresh system / No Python | Installation script | Handles Python setup automatically |
 | 🪟 Windows | PowerShell script | Native Windows support |
 | 🐳 CI/CD pipelines | Docker image | Reproducible, isolated environment |
 | 📱 Android / Mobile | Termux + Proot | Run automation on your phone |
-| 🍎 Apple Silicon (M1/M2/M3) | `pip install` or Docker | Fully supported |
+| 🍎 Apple Silicon (M1/M2/M3) | `pipx install` or Docker | Fully supported |
 
 ---
 
 ## 1. Standard Installation Methods
 
-For most users, installing Zrb with `pip` or using the provided installation script is the recommended approach.
+For most users, installing Zrb with `pipx` or using the provided installation script is the recommended approach.
 
-### Using pip (Recommended for Existing Python Setups)
+### Using pipx (Recommended for Existing Python Setups)
 
-If you already have a Python environment set up, `pip` is the quickest way.
+If you already have a Python environment set up, installing via pipx is the fastest way to get an isolated zrb environment.
+
+First, install pipx:
 
 ```bash
-pip install zrb
+# macOS
+brew install pipx
+pipx ensurepath
+
+# Linux (Debian/Ubuntu)
+sudo apt install pipx
+pipx ensurepath
+
+# Windows (PowerShell)
+pip install --user pipx
+
+# Any platform (via pip)
+python -m pip install pipx
+```
+
+Then install zrb:
+
+```bash
+pipx install zrb
 # For the latest pre-release version, which often includes the newest features:
-# pip install --pre zrb
+pipx install --pip-args='--pre' zrb
+
+# Or set the env var:
+PIP_PRE=1 pipx install zrb
 ```
 
 ### Using the Installation Script - Bash (Recommended for New Python/System Setups)
@@ -61,8 +90,7 @@ The `install.sh` script is a powerful helper that automates the installation of 
 **What it sets up:**
 -   **Python Environment:** Installs `pyenv` to manage Python versions (and sets Python 3.13.0 globally) or creates a local virtual environment in `~/.local-venv`.
 -   **System Prerequisites:** Installs build tools and libraries (`build-essential`, `libssl-dev`, etc.) using your OS's package manager (`brew` on macOS, `apt`, `yum`, `dnf`, `pacman`, `apk` on Linux).
--   **Poetry:** Optionally installs the Poetry package manager.
--   **Zrb:** Installs Zrb itself using `pip`.
+-   **Zrb:** Installs Zrb itself via `pipx` into an isolated venv.
 
 > 💡 **Tip:** The script is interactive and will ask for your consent before each change.
 
@@ -90,12 +118,11 @@ The script includes these helper functions:
 | `confirm` | Prompt for `y/N` confirmation before changes |
 | `try_sudo` | Execute commands with `sudo` if available |
 | `register_pyenv` | Add `pyenv` init lines to shell rc file |
-| `register_local_venv` | Register `~/.local-venv` activation in shell |
-| `create_and_register_local_venv` | Create and activate virtual environment |
 | `install_pyenv` | Install pyenv via `curl https://pyenv.run \| bash` |
 | `install_python_on_pyenv` | Install Python 3.13.0 and set as global |
-| `install_poetry` | Install Poetry package manager |
-| `install_zrb` | Install Zrb via `pip install --pre zrb` |
+| `install_pyenv_dependencies` | Install pyenv build dependencies |
+| `pipx_install_zrb` | Install Zrb via `pipx install --python ... zrb` |
+| `register_autocomplete` | Register shell autocomplete |
 
 </details>
 
@@ -124,7 +151,7 @@ winget install Python.Python.3.13
 **Run from GitHub (recommended):**
 
 ```powershell
-powershell -ExecutionPolicy Bypass -Command "iex ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/state-alchemists/zrb/main/install.ps1'))"
+powershell -ExecutionPolicy Bypass -Command "iex ([System.Text.Encoding]::UTF8.GetString((New-Object System.Net.WebClient).DownloadData('https://raw.githubusercontent.com/state-alchemists/zrb/main/install.ps1')))"
 ```
 
 **Run locally:**
@@ -139,18 +166,16 @@ powershell -ExecutionPolicy Bypass -File install.ps1
 If you prefer manual installation or already have Python set up:
 
 ```powershell
-# Basic installation
-pip install --pre zrb
+# Install pipx first
+python -m pip install --user pipx
 
-# Create a virtual environment (optional)
-python -m venv ~/.local-venv
-~/.local-venv/Scripts/Activate.ps1
-pip install --pre zrb
+# Install zrb via pipx
+python -m pipx install zrb
 ```
 
 **Windows-Specific Notes:**
 -   The PowerShell profile location is `$PROFILE` (typically `Documents\PowerShell\Microsoft.PowerShell_profile.ps1`)
--   For virtual environment activation, use `.ps1` scripts (e.g., `Scripts\Activate.ps1`)
+-   The install script auto-registers shell autocomplete
 -   If using PowerShell 7+, the profile path may differ from Windows PowerShell 5.1
 
 </details>
@@ -220,11 +245,11 @@ proot-distro install ubuntu
 # 3. Login to Ubuntu
 proot-distro login ubuntu
 
-# 4. Install Python (inside Ubuntu)
-apt update && apt install python3 python3-pip python3-venv -y
+# 4. Install Python and pipx (inside Ubuntu)
+apt update && apt install python3 python3-pip python3-venv pipx -y
 
 # 5. Install Zrb
-pip3 install zrb
+pipx install zrb
 
 # 6. Verify
 zrb version
@@ -316,13 +341,13 @@ notepad $PROFILE
 
 ## 5. Upgrade Zrb
 
-**Upgrade with pip:**
+**Upgrade with pipx:**
 
 ```bash
-pip install --upgrade zrb
+pipx upgrade zrb
 
 # For latest pre-release:
-pip install --upgrade --pre zrb
+PIP_PRE=1 pipx upgrade zrb
 ```
 
 **Upgrade with Docker:**
@@ -338,13 +363,17 @@ docker pull stalchmst/zrb:latest
 
 ## 6. Uninstall Zrb
 
-**Uninstall with pip:**
+**Uninstall with pipx:**
 
 ```bash
-pip uninstall zrb
+pipx uninstall zrb
 ```
 
-**Clean up virtual environment (if created by install script):**
+**Clean up pipx-managed virtual environment:**
+
+```bash
+rm -rf ~/.local/pipx/venvs/zrb
+```
 
 ```bash
 rm -rf ~/.local-venv
@@ -368,12 +397,12 @@ rm -rf ~/.pyenv
 
 | Problem | Solution |
 |---------|----------|
-| `zrb: command not found` | Ensure `~/.local/bin` (or your Python bin directory) is in your `PATH` |
-| `Permission denied` errors | Use `pip install --user zrb` or run install script without `sudo` |
+| `zrb: command not found` | Run `pipx ensurepath` then restart your terminal, or ensure `~/.local/bin` is in your `PATH` |
+| `pipx: command not found` | Install pipx: `python -m pip install --user pipx && python -m pipx ensurepath` |
 | Python version too old | Zrb requires Python 3.11 to <3.15. Check with `python --version` |
-| `pip not found` | Install pip: `python -m ensurepip --upgrade` or use install script |
+| `pipx install zrb` fails with Python version error | Uninstall stale venv first: `pipx uninstall zrb` then reinstall |
 | Docker container exits immediately | Add `-it` flags: `docker run -it ...` |
-| Module not found errors | Reinstall: `pip uninstall zrb && pip install zrb` |
+| Module not found errors (extras) | Run `pipx inject zrb "zrb[anthropic]"` (or whichever extra you need) |
 
 ### Platform-Specific Issues
 
@@ -383,13 +412,20 @@ rm -rf ~/.pyenv
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 
 # If pip is not recognized
-python -m pip install zrb
+python -m pip install --user pipx
+
+# If zrb is not found after install
+pipx ensurepath
+# Then restart PowerShell
 ```
 
 **macOS (Apple Silicon):**
 ```bash
-# If you see architecture warnings
-arch -arm64 pip install zrb
+# Install pipx via Homebrew (recommended)
+brew install pipx && pipx ensurepath
+
+# Then install zrb
+pipx install zrb
 
 # For Docker on Apple Silicon
 docker run --platform linux/amd64 ...
@@ -398,7 +434,7 @@ docker run --platform linux/amd64 ...
 **Linux:**
 ```bash
 # If you get SSL certificate errors
-pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org zrb
+PIP_TRUSTED_HOST=pypi.org pipx install zrb
 ```
 
 ### Getting Help

@@ -7,11 +7,11 @@ WORKDIR /zrb-bin
 RUN apt-get update && apt-get install -y --no-install-recommends g++ git curl wget jq unzip rsync openssh-client && \
     rm -rf /var/lib/apt/lists/*
 
-# install poetry
+# install poetry for reproducible installs (uses poetry.lock)
 RUN pip install poetry
 RUN poetry config virtualenvs.create false
 
-# copy app source
+# copy app source and install
 COPY . .
 RUN poetry install --without dev
 

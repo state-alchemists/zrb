@@ -49,16 +49,18 @@ These variables define which LLM Zrb uses for its primary reasoning and how it c
 
 ### Supported Providers
 
-| Provider | Model Format | Pip Extra |
-|----------|-------------|-----------|
+| Provider | Model Format | Extra (pipx) |
+|----------|-------------|--------------|
 | OpenAI | `openai:gpt-4o` | (default) |
-| Anthropic | `anthropic:claude-3-5-sonnet-latest` | `pip install "zrb[anthropic]"` |
-| Google Vertex | `google-cloud:gemini-1.5-pro` | `pip install "zrb[google]"` |
+| Anthropic | `anthropic:claude-3-5-sonnet-latest` | `pipx install "zrb[anthropic]"` |
+| Google Vertex | `google-cloud:gemini-1.5-pro` | `pipx install "zrb[google]"` |
 | Ollama | `ollama:llama3.1` | (default) |
 | DeepSeek | `deepseek:deepseek-reasoner` | (default) |
-| Groq | `groq:llama3-8b-8192` | `pip install "zrb[groq]"` |
+| Groq | `groq:llama3-8b-8192` | `pipx install "zrb[groq]"` |
 
-> 💡 **Google Vertex auth extra:** Vertex AI (as opposed to the plain Gemini API) additionally needs the `vertexai` extra (`google-auth`, `pyasn1`) for its authentication flow — `pip install "zrb[google,vertexai]"`.
+> 💡 **Google Vertex auth extra:** Vertex AI (as opposed to the plain Gemini API) additionally needs the `vertexai` extra (`google-auth`, `pyasn1`) for its authentication flow — `pipx install "zrb[google,vertexai]"`.
+
+> 💡 **Add extras after install:** If zrb is already installed via pipx, use `pipx inject zrb "zrb[anthropic]"` (or whichever extra you need) instead of reinstalling.
 
 ### Python API: Model Getter & Renderer
 
