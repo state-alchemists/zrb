@@ -20,19 +20,19 @@ function Command-Exists {
 
 function Log-Info {
     param([string]$Message)
-    Write-Host "🤖 " -NoNewline
+    Write-Host "> " -NoNewline
     Write-Host $Message -ForegroundColor Yellow
 }
 
 function Log-OK {
     param([string]$Message)
-    Write-Host "✅ " -NoNewline
+    Write-Host "[OK] " -NoNewline
     Write-Host $Message -ForegroundColor Green
 }
 
 function Warn {
     param([string]$Message)
-    Write-Host "⚠️  " -NoNewline
+    Write-Host "[!]  " -NoNewline
     Write-Host $Message -ForegroundColor Red
 }
 
@@ -54,7 +54,7 @@ function Ensure-Python {
         $script:PY_CMD = "python"
     }
     elseif (Command-Exists "py") {
-        # py launcher on Windows — use it to find Python
+        # py launcher on Windows -- use it to find Python
         $script:PY_CMD = "py"
     }
     else {
@@ -159,7 +159,7 @@ function Ensure-Pipx {
         exit 1
     }
 
-    # pipx.exe is in the user Scripts folder — find it and add to PATH for this session
+    # pipx.exe is in the user Scripts folder -- find it and add to PATH for this session
     $pipxDir = Get-ChildItem "$env:USERPROFILE\AppData\Roaming\Python\*\Scripts\pipx.exe" -ErrorAction SilentlyContinue |
         Select-Object -ExpandProperty DirectoryName -First 1
     if (-not $pipxDir) {
@@ -191,7 +191,7 @@ function Install-Zrb {
         & { $env:PIP_PRE=1; pipx upgrade zrb }
     }
     elseif (Command-Exists "zrb") {
-        Warn "zrb was installed via pip (legacy) — migrating to pipx"
+        Warn "zrb was installed via pip (legacy) -- migrating to pipx"
         & { $env:PIP_PRE=1; pipx install zrb }
         # Auto-clean legacy install to avoid PATH conflict (fix #6)
         pip uninstall zrb -y -q 2>$null
@@ -202,7 +202,7 @@ function Install-Zrb {
     }
 
     if ($LASTEXITCODE -eq 0) {
-        Log-OK "zrb installed — run 'zrb --help' to get started"
+        Log-OK "zrb installed -- run 'zrb --help' to get started"
     }
     else {
         Warn "zrb installation failed. Check the error above."
@@ -277,9 +277,9 @@ function Cleanup-LocalVenv {
 #########################################################################################
 
 function Install-Lsps {
-    # Python LSP is always installed — zrb itself is Python
+    # Python LSP is always installed -- zrb itself is Python
     if (-not (Command-Exists "npm") -and -not (Command-Exists "go") -and -not (Command-Exists "rustup")) {
-        Log-Info "No JS/Go/Rust toolchains detected — only Python LSP will be installed."
+        Log-Info "No JS/Go/Rust toolchains detected -- only Python LSP will be installed."
     }
     Log-Info "Installing python-lsp-server (pylsp)"
     pipx inject zrb 'python-lsp-server[all]'
@@ -304,43 +304,43 @@ function Install-Lsps {
 # Banner
 Write-Host @"
 
-    ╔════════════════════════════╗
-    ║  Zrb — Your Automation    ║
-    ║        Powerhouse          ║
-    ╚════════════════════════════╝
+    +============================+
+    |  Zrb -- Your Automation    |
+    |        Powerhouse          |
+    +============================+
 
 "@
 
-# ── Admin check ──
+# -- Admin check --
 $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if ($isAdmin) {
     Warn "Running as Administrator is not recommended. Run as a regular user if possible."
 }
 
-# ── Step 1: Ensure Python ──
+# -- Step 1: Ensure Python --
 Ensure-Python
 
-# ── Step 2: pipx ──
+# -- Step 2: pipx --
 Ensure-Pipx
 Ensure-PipxPath
 
-# ── Detect legacy pip installation (pipx is now available for the check) ──
+# -- Detect legacy pip installation (pipx is now available for the check) --
 $pipxList = pipx list --short 2>$null
 if ((Command-Exists "zrb") -and ($pipxList -notmatch "^zrb ")) {
     Warn "Detected zrb installed via pip (legacy). The script now uses pipx."
     Warn "The legacy package will be auto-removed after the pipx install completes."
 }
 
-# ── Step 3: zrb ──
+# -- Step 3: zrb --
 Install-Zrb
 
-# ── Step 4: Clean up legacy .local-venv ──
+# -- Step 4: Clean up legacy .local-venv --
 Cleanup-LocalVenv
 
-# ── Step 5: Autocomplete ──
+# -- Step 5: Autocomplete --
 Register-Autocomplete
 
-# ── Step 6: LSP servers ──
+# -- Step 6: LSP servers --
 if (Confirm "Install LSP servers for richer code diagnostics?") {
     Install-Lsps
 }
