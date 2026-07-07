@@ -23,7 +23,8 @@ def format_python_code(ctx: AnyContext) -> str:
         pkg = CFG.ROOT_GROUP_NAME
         msg = (
             f"[SYSTEM SUGGESTION]: {tools} not found. "
-            f'Install them with: pipx inject {pkg} "{pkg}[python]"'
+            f'Install them with: `pipx inject {pkg} "{pkg}[python]"` or '
+            f"`pip install {pkg}[python]`"
         )
         ctx.print_err(msg)
         raise RuntimeError(msg)

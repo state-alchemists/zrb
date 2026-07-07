@@ -24,7 +24,9 @@ zrb version
 ```bash
 # Linux/macOS
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/state-alchemists/zrb/main/install.sh)"
+```
 
+```powershell
 # Windows (PowerShell)
 powershell -ExecutionPolicy Bypass -Command "iex ([System.Text.Encoding]::UTF8.GetString((New-Object System.Net.WebClient).DownloadData('https://raw.githubusercontent.com/state-alchemists/zrb/main/install.ps1')))"
 ```
