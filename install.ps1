@@ -207,6 +207,11 @@ function Test-ZrbInPipx {
 }
 
 function Pipx-Install-Zrb {
+    # Remove stale venv so --python takes effect (pipx --force reuses existing venv)
+    $pipxHome = pipx environment 2>$null | Select-String "PIPX_HOME" | ForEach-Object { $_ -replace '.*=','' }
+    if (-not $pipxHome) { $pipxHome = "$env:HOME\.local\pipx" }
+    $venvDir = Join-Path $pipxHome "venvs\zrb"
+    if (Test-Path $venvDir) { Remove-Item -Recurse -Force $venvDir }
     & { $env:PIP_PRE=1; pipx install --python $script:PY_CMD --force zrb }
 }
 

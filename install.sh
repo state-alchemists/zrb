@@ -238,18 +238,16 @@ ensure_pipx_path() {
 #########################################################################################
 
 pipx_install_zrb() {
+    # Remove stale venv so --python takes effect (pipx --force reuses existing venv)
+    pipx_venv_dir=$(pipx environment 2>/dev/null | grep "PIPX_HOME" | cut -d= -f2 || echo "$HOME/.local/pipx")
+    rm -rf "$pipx_venv_dir/venvs/zrb" 2>/dev/null || true
     PIP_PRE=1 pipx install --python "$PY_CMD" --force zrb
 }
 
 install_zrb() {
     if pipx list --short 2>/dev/null | grep -q "^zrb "; then
-        log_info "Upgrading zrb via pipx..."
-        if PIP_PRE=1 pipx upgrade zrb; then
-            log_ok "zrb upgraded — run 'zrb --help' to get started"
-        else
-            warn "Upgrade failed — forcing reinstall"
-            pipx_install_zrb
-        fi
+        # Use install --force instead of upgrade so we control the Python version
+        pipx_install_zrb
     elif command_exists zrb; then
         warn "zrb was installed via pip (legacy) — migrating to pipx"
         pipx_install_zrb
