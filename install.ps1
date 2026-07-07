@@ -258,7 +258,7 @@ function Register-Autocomplete {
     $autocompleteBlock = @"
 
 # Zrb autocomplete
-if (Get-Command "zrb" -ErrorAction SilentlyContinue) {
+if (Get-Command zrb -ErrorAction SilentlyContinue) {
     Invoke-Expression (& zrb shell autocomplete powershell)
 }
 "@

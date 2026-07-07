@@ -273,7 +273,7 @@ register_autocomplete() {
                 {
                     echo ""
                     echo "# Zrb autocomplete"
-                    echo "if command_exists zrb; then"
+                    echo "if command -v zrb >/dev/null 2>&1; then"
                     echo "    eval \"\$(zrb shell autocomplete $shell_name)\""
                     echo "fi"
                 } >> "$rc"
