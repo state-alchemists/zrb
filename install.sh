@@ -409,6 +409,9 @@ install_zrb
 # ── Step 5: Clean up legacy .local-venv ──
 cleanup_local_venv
 
+# ── pipx may have been in .local-venv/bin, re-check PATH ──
+ensure_pipx_path
+
 # ── Step 6: Autocomplete ──
 register_autocomplete
 

@@ -141,6 +141,19 @@ After installing, restart PowerShell and run this script again.
 # pipx Installation
 #########################################################################################
 
+function Find-PipxPath {
+    # Find pipx.exe in the Python user Scripts folder and add to session PATH
+    $pipxDir = Get-ChildItem "$env:USERPROFILE\AppData\Roaming\Python\*\Scripts\pipx.exe" -ErrorAction SilentlyContinue |
+        Select-Object -ExpandProperty DirectoryName -First 1
+    if (-not $pipxDir) {
+        $pipxDir = Get-ChildItem "$env:LOCALAPPDATA\pip\Scripts\pipx.exe" -ErrorAction SilentlyContinue |
+            Select-Object -ExpandProperty DirectoryName -First 1
+    }
+    if ($pipxDir -and ($env:PATH -notlike "*$pipxDir*")) {
+        $env:PATH = "$pipxDir;$env:PATH"
+    }
+}
+
 function Ensure-Pipx {
     if (Command-Exists "pipx") {
         Log-OK "pipx already installed"
@@ -168,17 +181,7 @@ function Ensure-Pipx {
         exit 1
     }
 
-    # pipx.exe is in the user Scripts folder -- find it and add to PATH for this session
-    $pipxDir = Get-ChildItem "$env:USERPROFILE\AppData\Roaming\Python\*\Scripts\pipx.exe" -ErrorAction SilentlyContinue |
-        Select-Object -ExpandProperty DirectoryName -First 1
-    if (-not $pipxDir) {
-        $pipxDir = Get-ChildItem "$env:LOCALAPPDATA\pip\Scripts\pipx.exe" -ErrorAction SilentlyContinue |
-            Select-Object -ExpandProperty DirectoryName -First 1
-    }
-    if ($pipxDir -and ($env:PATH -notlike "*$pipxDir*")) {
-        $env:PATH = "$pipxDir;$env:PATH"
-    }
-
+    Find-PipxPath
     Log-OK "pipx installed via pip"
 }
 
@@ -186,6 +189,12 @@ function Ensure-PipxPath {
     if (Command-Exists "pipx") {
         pipx ensurepath > $null 2>&1
         Log-OK "pipx added to PATH"
+    } else {
+        # pipx may have been removed from PATH by Cleanup-LocalVenv
+        Find-PipxPath
+        if (Command-Exists "pipx") {
+            Log-OK "pipx restored to PATH"
+        }
     }
 }
 
@@ -366,6 +375,9 @@ Install-Zrb
 
 # -- Step 4: Clean up legacy .local-venv --
 Cleanup-LocalVenv
+
+# -- pipx may have been in .local-venv\Scripts, re-add to PATH --
+Ensure-PipxPath
 
 # -- Step 5: Autocomplete --
 Register-Autocomplete
