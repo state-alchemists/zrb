@@ -130,6 +130,11 @@ After installing, restart PowerShell and run this script again.
     }
 
     Log-OK "Python $pythonVersion"
+
+    # Resolve 'py' launcher to actual Python executable for pipx --python
+    if ($script:PY_CMD -eq "py") {
+        $script:PY_CMD = & py -c "import sys; print(sys.executable)"
+    }
 }
 
 #########################################################################################
@@ -207,12 +212,8 @@ function Pipx-Install-Zrb {
 
 function Install-Zrb {
     if (Test-ZrbInPipx) {
-        Log-Info "Upgrading zrb via pipx..."
-        & { $env:PIP_PRE=1; pipx upgrade zrb }
-        if ($LASTEXITCODE -ne 0) {
-            Warn "Upgrade failed -- forcing reinstall"
-            Pipx-Install-Zrb
-        }
+        # Use install --force instead of upgrade so we control the Python version
+        Pipx-Install-Zrb
     }
     elseif (Command-Exists "zrb") {
         Warn "zrb was installed via pip (legacy) -- migrating to pipx"
