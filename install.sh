@@ -331,26 +331,20 @@ register_autocomplete() {
 }
 
 cleanup_local_venv() {
-    # Remove stale ~/.local-venv from old-style installations
+    # Legacy installs put zrb in ~/.local-venv and added an existence-guarded activation
+    # block to the user's rc files. We uninstall zrb from that venv so the pipx copy wins
+    # on PATH, but leave the venv dir and rc block untouched (editing user rc files is
+    # risky). The block keeps activating the venv on new shells until the user removes
+    # the dir, so we point that out below rather than claim it's gone.
     if [ -d "$HOME/.local-venv" ]; then
-        log_info "Removing old ~/.local-venv directory (migrated to pipx)"
-        rm -rf "$HOME/.local-venv"
-        log_ok "Removed ~/.local-venv"
-    fi
-
-    # Strip old .local-venv activation blocks from shell rc files
-    for rc in "$HOME/.zshrc" "$HOME/.bashrc"; do
-        [ -f "$rc" ] || continue
-        if grep -q "local-venv" "$rc" 2>/dev/null; then
-            log_info "Removing old .local-venv activation from $(basename "$rc")"
-            # Remove the if-block that activates .local-venv (written by old install.sh)
-            if command_exists sed; then
-                sed '/^if \[ -f "${HOME}\/.local-venv\/bin\/activate" \]/,/^fi$/d' "$rc" > "${rc}.tmp"
-                mv "${rc}.tmp" "$rc"
+        if [ -x "$HOME/.local-venv/bin/pip" ] && "$HOME/.local-venv/bin/pip" show zrb >/dev/null 2>&1; then
+            log_info "Uninstalling old zrb from ~/.local-venv (migrated to pipx)"
+            if "$HOME/.local-venv/bin/pip" uninstall zrb -y >/dev/null 2>&1; then
+                log_ok "Uninstalled old zrb from ~/.local-venv"
             fi
-            log_ok "Cleaned $(basename "$rc")"
         fi
-    done
+        log_info "~/.local-venv still activates in new shells. Remove it when ready: rm -rf ~/.local-venv"
+    fi
 }
 
 #########################################################################################
