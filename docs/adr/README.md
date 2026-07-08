@@ -63,6 +63,7 @@ per record. If a new decision reverses an old one, mark the old one
 - **ADR-0024** — Config reads `os.environ` only; `.env` is the task layer's job — [adr-0024.md](adr-0024.md)
 - **ADR-0025** — `_ZRB_ENV_PREFIX` + `ROOT_GROUP_NAME` for white-labeling — [adr-0025.md](adr-0025.md)
 - **ADR-0073** — Boolean config naming: verb-first for standalone toggles, `_ENABLED` for namespace switches — [adr-0073.md](adr-0073.md)
+- **ADR-0084** — Named style themes: one `ZRB_THEME` preset supplies defaults for every style knob (LLM UI, markdown, CLI colors) via `EnvField(default_factory=...)`; individual `ZRB_*` env still overrides (relates to ADR-0021, ADR-0023, ADR-0083) — [adr-0084.md](adr-0084.md)
 
 ### Runners & packaging
 - **ADR-0026** — One task definition, multiple runners (CLI + Web) — [adr-0026.md](adr-0026.md)

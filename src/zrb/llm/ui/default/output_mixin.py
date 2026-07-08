@@ -350,7 +350,7 @@ class OutputMixin:
                 _get_mode_status_style(mode),
                 f" {_MODE_STATUS_LABELS.get(mode, mode)} ",
             ),
-            ("fg:ansibrightblack", "shift+tab to cycle "),
+            (f"fg:{CFG.LLM_UI_STYLE_FAINT}", "shift+tab to cycle "),
         ]
         # Voice mode indicator (see ADR-0081)
         if getattr(self, "_voice_mode_active", False):
