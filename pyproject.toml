@@ -1,6 +1,6 @@
 [project]
 name = "zrb"
-version = "2.49.3"
+version = "2.49.4"
 description = "Your Automation Powerhouse"
 authors = [{name = "Go Frendi Gunawan", email = "gofrendiasgard@gmail.com"}]
 license = "AGPL-3.0-or-later"
@@ -70,7 +70,7 @@ documentation = "https://github.com/state-alchemists/zrb"
 [project.optional-dependencies]
 # Install all extras:
 # - poetry install --all-extras
-# - pip install "zrb[rag,playwright,cohere,vertexai,google,anthropic,groq,xai,bedrock,huggingface,voyageai,voice,python]"
+# - pip install "zrb[rag,playwright,cohere,vertexai,google,anthropic,groq,mistral,xai,bedrock,huggingface,voyageai,voice,python]"
 # Install a specific extra:
 # - poetry install -E voice
 # - pip install "zrb[voice]"
@@ -92,6 +92,9 @@ vertexai = [
 google = ["google-genai>=1.70.0"]
 anthropic = ["anthropic>=0.108.0"]
 groq = ["groq>=0.25.0"]
+# Security fix (GHSA for supply-chain attack, see pydantic-ai #5382): mistralai==2.4.6 was
+# quarantined on PyPI. We exclude it the same way pydantic-ai-slim's mistral extra does.
+mistral = ["mistralai>=2.0.0,!=2.4.6"]
 xai = [
     "xai-sdk>=1.12.2",
     # Security fix: GHSA-hg6j-4rv6-33pg (CVE-2026-47265) - cross-origin redirect leaks per-request cookies.

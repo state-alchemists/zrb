@@ -208,7 +208,7 @@ function Test-ZrbInPipx {
 
 function Confirm-Extras {
     if (Confirm "Install all optional dependencies (RAG, Playwright, voice input, and every LLM provider SDK)?") {
-        $script:ZrbExtras = "[rag,playwright,cohere,vertexai,google,anthropic,groq,xai,bedrock,huggingface,voyageai,voice,python]"
+        $script:ZrbExtras = "[rag,playwright,cohere,vertexai,google,anthropic,groq,mistral,xai,bedrock,huggingface,voyageai,voice,python]"
         Log-OK "Will install zrb with all optional extras"
     }
 }
