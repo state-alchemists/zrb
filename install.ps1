@@ -303,38 +303,18 @@ if (Get-Command zrb -ErrorAction SilentlyContinue) {
 }
 
 function Cleanup-LocalVenv {
-    # Remove stale ~\.local-venv from old-style installations
+    # Uninstall zrb from old-style .local-venv so the pipx version takes precedence
     $venvPath = "$env:USERPROFILE\.local-venv"
+    if (Test-Path "$venvPath\Scripts\pip.exe") {
+        Log-Info "Uninstalling old zrb from ~\.local-venv (migrated to pipx)"
+        & "$venvPath\Scripts\pip.exe" uninstall zrb -y -q 2>$null
+        Log-OK "Uninstalled old zrb from ~\.local-venv"
+    }
     if (Test-Path $venvPath) {
-        Log-Info "Removing old .local-venv directory (migrated to pipx)"
-        Remove-Item -Recurse -Force $venvPath
-        Log-OK "Removed ~\.local-venv"
+        Log-Info "~\.local-venv is no longer needed. Remove it with: Remove-Item -Recurse -Force ~\.local-venv"
     }
-
-    # Strip old .local-venv activation block from PowerShell profile
-    if (Test-Path $PROFILE) {
-        $lines = Get-Content $PROFILE
-        $inBlock = $false
-        $filtered = @()
-        foreach ($line in $lines) {
-            if ($line -match '# Zrb local venv configuration') {
-                $inBlock = $true
-                continue
-            }
-            if ($inBlock) {
-                if ($line -match '^\s*\}') {
-                    $inBlock = $false
-                }
-                continue
-            }
-            $filtered += $line
-        }
-        if ($filtered.Count -ne $lines.Count) {
-            Log-Info "Removing old .local-venv activation from PowerShell profile"
-            Set-Content $PROFILE -Value $filtered
-            Log-OK "Cleaned PowerShell profile"
-        }
-    }
+    # The old activation block in PowerShell profile is guarded by Test-Path and harmless.
+    # No profile changes needed.
 }
 
 #########################################################################################
