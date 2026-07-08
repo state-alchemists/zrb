@@ -294,6 +294,22 @@ install_zrb() {
     fi
 }
 
+expose_python_tools() {
+    # pipx only exposes the main package's entry points on PATH; black/isort
+    # pulled in by the [python] extra stay buried inside the zrb venv.
+    # Re-inject them with --include-apps so their binaries land in ~/.local/bin.
+    case "$ZRB_EXTRAS" in
+        *python*)
+            log_info "Exposing black and isort on PATH"
+            if pipx inject zrb black isort --include-apps >/dev/null 2>&1; then
+                log_ok "black and isort exposed"
+            else
+                warn "Could not expose black/isort binaries (non-fatal). Run: pipx inject zrb black isort --include-apps"
+            fi
+            ;;
+    esac
+}
+
 register_autocomplete() {
     if command_exists zrb; then
         for rc in "$HOME/.zshrc" "$HOME/.bashrc"; do
@@ -439,6 +455,7 @@ ensure_pipx_default_python
 ZRB_EXTRAS=""
 confirm_extras
 install_zrb
+expose_python_tools
 
 # ── Step 5: Clean up legacy .local-venv ──
 cleanup_local_venv

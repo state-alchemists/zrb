@@ -250,6 +250,21 @@ function Install-Zrb {
     }
 }
 
+function Expose-PythonTools {
+    # pipx only exposes the main package's entry points on PATH; black/isort
+    # pulled in by the [python] extra stay buried inside the zrb venv.
+    # Re-inject them with --include-apps so their binaries land on PATH.
+    if ($script:ZrbExtras -notmatch "python") { return }
+    Log-Info "Exposing black and isort on PATH"
+    pipx inject zrb black isort --include-apps 2>$null | Out-Null
+    if ($LASTEXITCODE -eq 0) {
+        Log-OK "black and isort exposed"
+    }
+    else {
+        Warn "Could not expose black/isort binaries (non-fatal). Run: pipx inject zrb black isort --include-apps"
+    }
+}
+
 function Register-Autocomplete {
     if (-not (Command-Exists "zrb")) { return }
 
@@ -388,6 +403,7 @@ if ((Command-Exists "zrb") -and (-not (Test-ZrbInPipx))) {
 $script:ZrbExtras = ""
 Confirm-Extras
 Install-Zrb
+Expose-PythonTools
 
 # -- Step 4: Clean up legacy .local-venv --
 Cleanup-LocalVenv
