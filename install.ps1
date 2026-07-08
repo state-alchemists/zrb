@@ -305,10 +305,13 @@ if (Get-Command zrb -ErrorAction SilentlyContinue) {
 function Cleanup-LocalVenv {
     # Uninstall zrb from old-style .local-venv so the pipx version takes precedence
     $venvPath = "$env:USERPROFILE\.local-venv"
-    if (Test-Path "$venvPath\Scripts\pip.exe") {
+    $pipExe = Get-ChildItem "$venvPath\Scripts\pip*.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($pipExe) {
         Log-Info "Uninstalling old zrb from ~\.local-venv (migrated to pipx)"
-        & "$venvPath\Scripts\pip.exe" uninstall zrb -y -q 2>$null
-        Log-OK "Uninstalled old zrb from ~\.local-venv"
+        & $pipExe.FullName uninstall zrb -y -q 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            Log-OK "Uninstalled old zrb from ~\.local-venv"
+        }
     }
     if (Test-Path $venvPath) {
         Log-Info "~\.local-venv is no longer needed. Remove it with: Remove-Item -Recurse -Force ~\.local-venv"
