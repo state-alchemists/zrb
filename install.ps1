@@ -303,37 +303,22 @@ if (Get-Command zrb -ErrorAction SilentlyContinue) {
 }
 
 function Cleanup-LocalVenv {
-    # Remove stale ~\.local-venv from old-style installations
+    # Legacy installs put zrb in ~\.local-venv and added a Test-Path-guarded activation
+    # block to the PowerShell profile. We uninstall zrb from that venv so the pipx copy
+    # wins on PATH, but leave the venv dir and profile block untouched (editing the
+    # user's profile is risky). The block keeps activating the venv in new sessions until
+    # the user removes the dir, so we point that out below rather than claim it's gone.
     $venvPath = "$env:USERPROFILE\.local-venv"
-    if (Test-Path $venvPath) {
-        Log-Info "Removing old .local-venv directory (migrated to pipx)"
-        Remove-Item -Recurse -Force $venvPath
-        Log-OK "Removed ~\.local-venv"
+    $pipExe = Get-ChildItem "$venvPath\Scripts\pip*.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($pipExe -and (& $pipExe.FullName show zrb 2>$null)) {
+        Log-Info "Uninstalling old zrb from ~\.local-venv (migrated to pipx)"
+        & $pipExe.FullName uninstall zrb -y -q 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            Log-OK "Uninstalled old zrb from ~\.local-venv"
+        }
     }
-
-    # Strip old .local-venv activation block from PowerShell profile
-    if (Test-Path $PROFILE) {
-        $lines = Get-Content $PROFILE
-        $inBlock = $false
-        $filtered = @()
-        foreach ($line in $lines) {
-            if ($line -match '# Zrb local venv configuration') {
-                $inBlock = $true
-                continue
-            }
-            if ($inBlock) {
-                if ($line -match '^\s*\}') {
-                    $inBlock = $false
-                }
-                continue
-            }
-            $filtered += $line
-        }
-        if ($filtered.Count -ne $lines.Count) {
-            Log-Info "Removing old .local-venv activation from PowerShell profile"
-            Set-Content $PROFILE -Value $filtered
-            Log-OK "Cleaned PowerShell profile"
-        }
+    if (Test-Path $venvPath) {
+        Log-Info "~\.local-venv still activates in new sessions. Remove it when ready: Remove-Item -Recurse -Force ~\.local-venv"
     }
 }
 

@@ -88,7 +88,7 @@ PIP_PRE=1 pipx install zrb
 The `install.sh` script is a powerful helper that automates the installation of Zrb and its common prerequisites, including Python environment management (like `pyenv` or a local virtual environment). This is especially useful if your system doesn't have Python set up optimally or you want a self-contained Zrb environment.
 
 **What it sets up:**
--   **Python Environment:** Installs `pyenv` to manage Python versions (and sets Python 3.13.0 globally) or creates a local virtual environment in `~/.local-venv`.
+-   **Python Environment:** Installs `pyenv` to manage Python versions (and sets Python 3.13.0 globally). Legacy `~/.local-venv` installs are migrated to `pipx`: zrb is uninstalled from the old venv, but the venv directory and its rc-file activation block are left in place for you to remove (`rm -rf ~/.local-venv`).
 -   **System Prerequisites:** Installs build tools and libraries (`build-essential`, `libssl-dev`, etc.) using your OS's package manager (`brew` on macOS, `apt`, `yum`, `dnf`, `pacman`, `apk` on Linux).
 -   **Zrb:** Installs Zrb itself via `pipx` into an isolated venv.
 
