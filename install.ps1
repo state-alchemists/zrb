@@ -303,10 +303,14 @@ if (Get-Command zrb -ErrorAction SilentlyContinue) {
 }
 
 function Cleanup-LocalVenv {
-    # Uninstall zrb from old-style .local-venv so the pipx version takes precedence
+    # Legacy installs put zrb in ~\.local-venv and added a Test-Path-guarded activation
+    # block to the PowerShell profile. We uninstall zrb from that venv so the pipx copy
+    # wins on PATH, but leave the venv dir and profile block untouched (editing the
+    # user's profile is risky). The block keeps activating the venv in new sessions until
+    # the user removes the dir, so we point that out below rather than claim it's gone.
     $venvPath = "$env:USERPROFILE\.local-venv"
     $pipExe = Get-ChildItem "$venvPath\Scripts\pip*.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ($pipExe) {
+    if ($pipExe -and (& $pipExe.FullName show zrb 2>$null)) {
         Log-Info "Uninstalling old zrb from ~\.local-venv (migrated to pipx)"
         & $pipExe.FullName uninstall zrb -y -q 2>$null
         if ($LASTEXITCODE -eq 0) {
@@ -314,10 +318,8 @@ function Cleanup-LocalVenv {
         }
     }
     if (Test-Path $venvPath) {
-        Log-Info "~\.local-venv is no longer needed. Remove it with: Remove-Item -Recurse -Force ~\.local-venv"
+        Log-Info "~\.local-venv still activates in new sessions. Remove it when ready: Remove-Item -Recurse -Force ~\.local-venv"
     }
-    # The old activation block in PowerShell profile is guarded by Test-Path and harmless.
-    # No profile changes needed.
 }
 
 #########################################################################################

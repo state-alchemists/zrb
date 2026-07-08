@@ -331,17 +331,20 @@ register_autocomplete() {
 }
 
 cleanup_local_venv() {
-    # Uninstall zrb from old-style .local-venv so the pipx version takes precedence
+    # Legacy installs put zrb in ~/.local-venv and added an existence-guarded activation
+    # block to the user's rc files. We uninstall zrb from that venv so the pipx copy wins
+    # on PATH, but leave the venv dir and rc block untouched (editing user rc files is
+    # risky). The block keeps activating the venv on new shells until the user removes
+    # the dir, so we point that out below rather than claim it's gone.
     if [ -d "$HOME/.local-venv" ]; then
-        if [ -f "$HOME/.local-venv/bin/pip" ]; then
+        if [ -x "$HOME/.local-venv/bin/pip" ] && "$HOME/.local-venv/bin/pip" show zrb >/dev/null 2>&1; then
             log_info "Uninstalling old zrb from ~/.local-venv (migrated to pipx)"
-            "$HOME/.local-venv/bin/pip" uninstall zrb -y 2>/dev/null || true
-            log_ok "Uninstalled old zrb from ~/.local-venv"
+            if "$HOME/.local-venv/bin/pip" uninstall zrb -y >/dev/null 2>&1; then
+                log_ok "Uninstalled old zrb from ~/.local-venv"
+            fi
         fi
-        log_info "~/.local-venv is no longer needed. Remove it with: rm -rf ~/.local-venv"
+        log_info "~/.local-venv still activates in new shells. Remove it when ready: rm -rf ~/.local-venv"
     fi
-    # The old activation block in rc files is guarded by [ -f ... ] and harmless.
-    # No rc file changes needed.
 }
 
 #########################################################################################
