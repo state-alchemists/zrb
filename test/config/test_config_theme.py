@@ -32,6 +32,29 @@ class TestThemeRegistry:
     def test_theme_value_absent_key_returns_empty(self):
         assert theme_value("dark", "NO_SUCH_KEY") == ""
 
+    def test_unknown_theme_does_not_recurse_through_log_formatter(self, monkeypatch):
+        # Regression: the root logger's formatter styles records via themed
+        # CLI_COLOR_* knobs, so resolving an unknown theme (which logs a
+        # warning) re-enters get_theme during formatting. The once-per-name
+        # guard must break that cycle instead of blowing the stack.
+        from zrb.util.cli.style import stylize_muted
+
+        monkeypatch.setenv("ZRB_THEME", "recursion-regression-theme")
+
+        class _ThemedFormatter(logging.Formatter):
+            def format(self, record):
+                return stylize_muted(super().format(record))
+
+        handler = logging.StreamHandler()
+        handler.setFormatter(_ThemedFormatter())
+        root = logging.getLogger()
+        root.addHandler(handler)
+        try:
+            # Must not raise RecursionError while the themed formatter is live.
+            assert get_theme("recursion-regression-theme") is THEMES[DEFAULT_THEME]
+        finally:
+            root.removeHandler(handler)
+
     def test_register_theme_is_used(self, monkeypatch):
         monkeypatch.setitem(THEMES, "unit-test-theme", {"LLM_UI_STYLE_TEXT": "#abcdef"})
         assert theme_value("unit-test-theme", "LLM_UI_STYLE_TEXT") == "#abcdef"

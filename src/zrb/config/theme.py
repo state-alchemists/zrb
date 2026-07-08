@@ -27,6 +27,8 @@ _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_THEME = "dark"
 
+_WARNED_UNKNOWN: set[str] = set()
+
 # "dark" reproduces the historical hardcoded defaults exactly, so a default
 # install is visually unchanged. "light" is a dark-on-light variant that avoids
 # pale-on-white foregrounds (no bright yellow, near-white text, etc.).
@@ -171,12 +173,17 @@ def get_theme(name: str) -> dict[str, str]:
     """
     theme = THEMES.get(name)
     if theme is None:
-        _LOGGER.warning(
-            "Unknown theme %r; falling back to %r. Known themes: %s",
-            name,
-            DEFAULT_THEME,
-            sorted(THEMES),
-        )
+        # Warn once per name, marking seen *before* logging: the root logger's
+        # formatter styles the record via themed CLI_COLOR_* knobs, which
+        # re-enter get_theme(name) — the guard breaks that recursion.
+        if name not in _WARNED_UNKNOWN:
+            _WARNED_UNKNOWN.add(name)
+            _LOGGER.warning(
+                "Unknown theme %r; falling back to %r. Known themes: %s",
+                name,
+                DEFAULT_THEME,
+                sorted(THEMES),
+            )
         return THEMES[DEFAULT_THEME]
     return theme
 
