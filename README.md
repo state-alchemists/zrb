@@ -213,6 +213,8 @@ Start a chat session with an LLM to ask questions, brainstorm ideas, or get codi
 zrb llm chat
 ```
 
+![Zrb Chat](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/zrb-chat.png)
+
 ---
 
 ## 🧩 Program Your AI Agent
