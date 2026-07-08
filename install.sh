@@ -261,7 +261,7 @@ ensure_pipx_default_python() {
 
 confirm_extras() {
     if confirm "Install all optional dependencies (RAG, Playwright, voice input, and every LLM provider SDK)?"; then
-        ZRB_EXTRAS="[rag,playwright,cohere,vertexai,google,anthropic,groq,xai,bedrock,huggingface,voyageai,voice,python]"
+        ZRB_EXTRAS="[rag,playwright,cohere,vertexai,google,anthropic,groq,mistral,xai,bedrock,huggingface,voyageai,voice,python]"
         log_ok "Will install zrb with all optional extras"
     fi
 }
