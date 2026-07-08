@@ -36,6 +36,21 @@ class TestThemeRegistry:
         monkeypatch.setitem(THEMES, "unit-test-theme", {"LLM_UI_STYLE_TEXT": "#abcdef"})
         assert theme_value("unit-test-theme", "LLM_UI_STYLE_TEXT") == "#abcdef"
 
+    def test_register_theme_merges_onto_dark(self, monkeypatch):
+        # A partial registered theme must inherit unspecified knobs from `dark`
+        # instead of blanking them to "".
+        monkeypatch.delitem(THEMES, "unit-partial-theme", raising=False)
+        register_theme("unit-partial-theme", {"CLI_COLOR_WARNING": "orange"})
+        try:
+            assert theme_value("unit-partial-theme", "CLI_COLOR_WARNING") == "orange"
+            # Unspecified knob falls back to the dark value, not "".
+            assert theme_value(
+                "unit-partial-theme", "LLM_UI_STYLE_TEXT"
+            ) == theme_value("dark", "LLM_UI_STYLE_TEXT")
+            assert theme_value("unit-partial-theme", "LLM_UI_STYLE_TEXT") != ""
+        finally:
+            THEMES.pop("unit-partial-theme", None)
+
     def test_register_theme_helper_copies_input(self, monkeypatch):
         # Ensure register_theme stores an independent copy (mutating the source
         # dict afterwards must not leak into the registered theme).

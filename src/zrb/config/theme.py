@@ -13,7 +13,10 @@ This module is pure data plus helpers — it must **not** import config, to keep
 expects (prompt_toolkit style strings, Rich color names, or hex).
 
 Themes are user/plugin-extensible via :func:`register_theme`, mirroring
-``register_model_profile`` (``llm/prompt/profile.py``).
+``register_model_profile`` (``llm/prompt/profile.py``). Registered themes are
+merged onto the ``dark`` palette, so a partial theme only lists what it changes.
+See :func:`register_theme` for the ``zrb_init.py`` recipe, and
+``examples/themes/`` for a full worked example (monokai).
 """
 
 from __future__ import annotations
@@ -138,11 +141,26 @@ THEMES: dict[str, dict[str, str]] = {"dark": _DARK, "light": _LIGHT}
 def register_theme(name: str, values: dict[str, str]) -> None:
     """Register (or replace) a named theme preset.
 
-    *values* maps style-knob names to their default value under this theme.
-    Missing keys fall back to ``""`` at resolve time, so a partial theme only
-    needs to specify the knobs it changes. Intended for ``zrb_init.py``.
+    *values* maps style-knob names to their default value under this theme. It
+    is layered **on top of the default (``dark``) palette**, so a partial theme
+    only needs to specify the knobs it changes — every unspecified knob keeps
+    its ``dark`` value instead of blanking. Intended for ``zrb_init.py``::
+
+        from zrb.config.theme import register_theme
+
+        # Only override what differs from dark; the rest is inherited.
+        register_theme("solarized", {
+            "CLI_COLOR_INFO": "#268bd2",
+            "LLM_UI_STYLE_TEXT": "#657b83",
+        })
+        # then: export ZRB_THEME=solarized
+
+    Knob names are the ``LLM_UI_STYLE_*`` / ``CLI_COLOR_*`` / ``CLI_STYLE_*``
+    attribute names (see :data:`_DARK` for the full list). Values are whatever
+    the knob's consumer expects: prompt_toolkit style strings for the TUI, Rich
+    style strings for markdown/CLI colors.
     """
-    THEMES[name] = dict(values)
+    THEMES[name] = {**_DARK, **values}
 
 
 def get_theme(name: str) -> dict[str, str]:
