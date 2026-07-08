@@ -2,6 +2,7 @@
 
 # Changelog
 
+- [2.50.0](changelog-v2/2.50.0.md) — July 8, 2026
 - [2.49.5](changelog-v2/2.49.5.md) — July 8, 2026
 - [2.49.4](changelog-v2/2.49.4.md) — July 8, 2026
 - [2.49.3](changelog-v2/2.49.3.md) — July 8, 2026

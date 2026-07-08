@@ -2,8 +2,7 @@ import os
 import tempfile
 from unittest.mock import MagicMock, patch
 
-import pytest
-
+from zrb.config.config import CFG
 from zrb.context.shared_context import SharedContext
 from zrb.llm.prompt.manager import PromptManager, new_prompt
 
@@ -617,3 +616,163 @@ def test_multiple_groups_appear_in_registration_order():
     ctx = SharedContext()
     result = manager.compose_prompt()(ctx)
     assert result.index("First") < result.index("Second")
+
+
+# ── tool_names property ───────────────────────────────────────────────────────
+
+
+def test_tool_names_property_get_and_set():
+    """`tool_names` round-trips through its getter/setter."""
+    manager = PromptManager(tool_names={"A", "B"})
+    assert manager.tool_names == {"A", "B"}
+    manager.tool_names = {"C"}
+    assert manager.tool_names == {"C"}
+
+
+def test_active_sections_falls_back_to_cfg_default():
+    """When include_sections is unset, active_sections uses the CFG default."""
+    manager = PromptManager()  # include_sections is None
+    assert manager.active_sections == list(CFG.LLM_INCLUDE_SECTIONS)
+
+
+def test_tool_guidance_sections_property_round_trips():
+    """`tool_guidance_sections` round-trips and normalizes falsy input to []."""
+    manager = PromptManager()
+    assert manager.tool_guidance_sections == []
+    manager.tool_guidance_sections = ["## Block"]
+    assert manager.tool_guidance_sections == ["## Block"]
+    manager.tool_guidance_sections = None
+    assert manager.tool_guidance_sections == []
+
+
+# ── Live context edge cases ───────────────────────────────────────────────────
+
+
+def test_create_live_context_returns_empty_when_no_content():
+    """With nothing to report the block collapses to an empty string."""
+    manager = PromptManager(include_sections=[])
+    ctx = MagicMock()
+    ctx.input.session = "empty-live"
+    with patch("zrb.llm.prompt.manager.render_live_context", return_value=""):
+        rendered = manager.create_live_context(ctx)
+    assert rendered == ""
+
+
+# ── Custom system context providers ───────────────────────────────────────────
+
+
+def _render_system_context(manager: PromptManager) -> str:
+    """Compose the system_context section with the todo manager stubbed out."""
+    ctx = MagicMock()
+    ctx.input.session = "sys-ctx-test"
+    with patch("zrb.llm.tool.plan.todo_manager") as mock_tm:
+        mock_tm.get_todos.return_value = None
+        return manager.compose_prompt()(ctx)
+
+
+def test_add_system_context_provider_appears_and_overwrites():
+    """Custom system-context providers extend the section; same name overwrites."""
+    manager = PromptManager(include_sections=["system_context"])
+    manager.add_system_context("extra", lambda ctx: "SYS-FIRST")
+    manager.add_system_context("extra", lambda ctx: "SYS-SECOND")  # overwrite
+    manager.add_system_context("more", lambda ctx: "SYS-MORE")  # append
+
+    rendered = _render_system_context(manager)
+
+    assert "SYS-SECOND" in rendered
+    assert "SYS-FIRST" not in rendered
+    assert "SYS-MORE" in rendered
+
+
+def test_system_context_provider_exception_is_swallowed():
+    """A broken system-context provider is isolated; built-in content survives."""
+    manager = PromptManager(include_sections=["system_context"])
+
+    def broken(_ctx):
+        raise RuntimeError("sys-boom")
+
+    manager.add_system_context("broken", broken)
+    manager.model = "openai:gpt-4o"
+
+    rendered = _render_system_context(manager)
+
+    assert "sys-boom" not in rendered
+    assert "openai:gpt-4o" in rendered  # built-in system context still renders
+
+
+# ── Custom project context providers ──────────────────────────────────────────
+
+
+def test_add_project_context_provider_appears_and_overwrites():
+    """Custom project-context providers extend the section; same name overwrites."""
+    manager = PromptManager(include_sections=["project_context"])
+    manager.add_project_context("extra", lambda ctx: "PROJ-FIRST")
+    manager.add_project_context("extra", lambda ctx: "PROJ-SECOND")  # overwrite
+    manager.add_project_context("more", lambda ctx: "PROJ-MORE")  # append
+
+    ctx = SharedContext()
+    rendered = manager.compose_prompt()(ctx)
+
+    assert "Custom Project Context" in rendered
+    assert "PROJ-SECOND" in rendered
+    assert "PROJ-FIRST" not in rendered
+    assert "PROJ-MORE" in rendered
+
+
+def test_project_context_provider_exception_is_swallowed():
+    """A broken project-context provider is isolated and emits nothing."""
+    manager = PromptManager(include_sections=["project_context"])
+
+    def broken(_ctx):
+        raise RuntimeError("proj-boom")
+
+    manager.add_project_context("broken", broken)
+
+    ctx = SharedContext()
+    rendered = manager.compose_prompt()(ctx)
+
+    assert "proj-boom" not in rendered
+
+
+# ── Section skipping ──────────────────────────────────────────────────────────
+
+
+def test_git_mandate_section_skipped_outside_git_dir():
+    """git_mandate is dropped when the process is not inside a git repo."""
+    manager = PromptManager(include_sections=["git_mandate"])
+    ctx = SharedContext()
+    with patch("zrb.llm.prompt.manager.is_inside_git_dir", return_value=False):
+        rendered = manager.compose_prompt()(ctx)
+    assert rendered.strip() == ""
+
+
+def test_claude_skills_section_is_silently_skipped():
+    """The retired claude_skills section is skipped without a warning section."""
+    manager = PromptManager(include_sections=["claude_skills"])
+    ctx = SharedContext()
+    rendered = manager.compose_prompt()(ctx)
+    assert rendered.strip() == ""
+
+
+# ── File-backed section warnings ──────────────────────────────────────────────
+
+
+def test_missing_section_uses_ctx_log_warning_when_available():
+    """A missing file-backed section warns via ctx.log_warning when callable."""
+    manager = PromptManager(include_sections=["nope_section"])
+    ctx = MagicMock()
+    ctx.log_warning = MagicMock()
+    with patch("zrb.llm.prompt.manager.get_prompt", return_value=""):
+        manager.compose_prompt()(ctx)
+    assert ctx.log_warning.called
+
+
+# ── Non-standard prompt inputs ────────────────────────────────────────────────
+
+
+def test_non_callable_non_string_prompt_is_rendered_as_content():
+    """A non-callable, non-string prompt is coerced to string content."""
+    manager = PromptManager(prompts=[123], include_sections=[])
+    ctx = SharedContext()
+    rendered = manager.compose_prompt()(ctx)
+    assert "123" in rendered

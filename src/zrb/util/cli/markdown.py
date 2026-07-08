@@ -17,13 +17,15 @@ def render_markdown(
     from rich.theme import Theme
 
     if theme is None:
+        from zrb.config.config import CFG  # lazy: defer CFG load
+
         theme = Theme(
             {
-                "markdown.link": "bold bright_cyan underline",
-                "markdown.link_url": "italic bright_cyan underline",
-                # Optional: You can customize headers or code blocks here too
-                "markdown.h1": "bold magenta",
-                "markdown.code": "bold white",
+                "markdown.link": CFG.LLM_UI_STYLE_MARKDOWN_LINK,
+                "markdown.link_url": CFG.LLM_UI_STYLE_MARKDOWN_LINK_URL,
+                # Headers/code blocks are themeable too (see config/theme.py).
+                "markdown.h1": CFG.LLM_UI_STYLE_MARKDOWN_H1,
+                "markdown.code": CFG.LLM_UI_STYLE_MARKDOWN_CODE,
             }
         )
 

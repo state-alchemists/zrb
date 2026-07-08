@@ -212,9 +212,9 @@ async def run_command(
     timeout_task = (
         asyncio.create_task(asyncio.sleep(timeout)) if timeout and timeout > 0 else None
     )
+    wait_task = asyncio.create_task(cmd_process.wait())
     try:
-        wait_task = asyncio.create_task(cmd_process.wait())
-        done, pending = await asyncio.wait(
+        done, _ = await asyncio.wait(
             {wait_task, timeout_task} if timeout_task else {wait_task},
             return_when=asyncio.FIRST_COMPLETED,
         )
@@ -238,10 +238,22 @@ async def run_command(
             kill_pid(cmd_process.pid, print_method=actual_print_method)
         except Exception:
             pass
-        # Final cleanup
-        streams_task.cancel()
-        await asyncio.gather(streams_task, return_exceptions=True)
         raise
+    finally:
+        # Cancel every helper task and close the subprocess transport while the
+        # event loop is still alive. Otherwise a dangling task (e.g. the timeout
+        # sleep on the success path) or the transport's own __del__ closes it
+        # later at GC time — and if that lands after the loop is gone (a
+        # subsequent test), it raises "Event loop is closed".
+        helper_tasks: list[asyncio.Task] = [
+            t for t in (timeout_task, wait_task, streams_task) if t
+        ]
+        for task in helper_tasks:
+            task.cancel()
+        await asyncio.gather(*helper_tasks, return_exceptions=True)
+        transport = getattr(cmd_process, "_transport", None)
+        if transport is not None:
+            transport.close()
 
 
 def __get_cmd_stdin(is_interactive: bool) -> int | TextIO:

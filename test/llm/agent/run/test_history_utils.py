@@ -15,8 +15,10 @@ from zrb.llm.agent.run.history_utils import (
     drop_oldest_turn,
     filter_nil_content,
     sanitize_history,
+    strip_thinking_parts,
     strip_to_text_only,
 )
+from zrb.llm.message import TOOL_CALL_PLACEHOLDER
 
 
 class UnknownMessage:
@@ -568,3 +570,206 @@ def test_sanitize_history_allow_orphaned_tool_calls_keeps_pending_call():
         if isinstance(p, ToolCallPart)
     ]
     assert "A" not in stripped_call_ids
+
+
+def test_strip_thinking_parts_passes_through_non_response():
+    """Messages that aren't ModelResponse are returned unchanged."""
+    req = ModelRequest(parts=[UserPromptPart(content="hi")])
+    unknown = UnknownMessage()
+
+    result = strip_thinking_parts([req, unknown])
+
+    assert result[0] is req
+    assert result[1] is unknown
+
+
+def test_strip_thinking_parts_removes_thinking_but_keeps_text():
+    """ThinkingPart is stripped; an existing text part is preserved as-is."""
+    msg = ModelResponse(
+        parts=[ThinkingPart(content="reasoning"), TextPart(content="hello")]
+    )
+
+    result = strip_thinking_parts([msg])
+
+    out = result[0]
+    assert isinstance(out, ModelResponse)
+    assert [type(p).__name__ for p in out.parts] == ["TextPart"]
+    assert out.parts[0].content == "hello"
+
+
+def test_strip_thinking_parts_injects_placeholder_when_all_parts_removed():
+    """A thinking-only response becomes empty after stripping, so a
+    '(tool call)' TextPart is injected to keep providers happy."""
+    msg = ModelResponse(parts=[ThinkingPart(content="just thinking")])
+
+    result = strip_thinking_parts([msg])
+
+    out = result[0]
+    assert len(out.parts) == 1
+    assert isinstance(out.parts[0], TextPart)
+    assert out.parts[0].content == TOOL_CALL_PLACEHOLDER
+
+
+def test_strip_thinking_parts_injects_placeholder_when_only_tool_calls_remain():
+    """After stripping thinking, a tool-call-only response has no text part, so
+    a leading '(tool call)' TextPart is inserted."""
+    msg = ModelResponse(
+        parts=[
+            ThinkingPart(content="reasoning"),
+            ToolCallPart(tool_name="x", args="{}", tool_call_id="c1"),
+        ]
+    )
+
+    result = strip_thinking_parts([msg])
+
+    out = result[0]
+    assert [type(p).__name__ for p in out.parts] == ["TextPart", "ToolCallPart"]
+    assert out.parts[0].content == TOOL_CALL_PLACEHOLDER
+
+
+def test_sanitize_history_debug_logging_detects_problems():
+    """With DEBUG logging enabled, sanitize_history runs _detect_problems over
+    the pre-fix history: messages with no parts, nil-content parts, text-less
+    ModelResponses, and consecutive same-role messages are all detected and
+    logged, then the fix pipeline still returns a valid list."""
+    import logging as _logging
+
+    from zrb.config.config import CFG
+
+    messages = [
+        # No parts at all — triggers the "has no parts" detection.
+        ModelResponse(parts=[]),
+        # Nil-content thinking-only response: nil content + no-text/no-tool +
+        # consecutive-same-role (two ModelResponses in a row) all detected.
+        ModelResponse(parts=[ThinkingPart(content=None)]),
+        # Orphaned tool return so validate_tool_pair_integrity yields problems.
+        ModelRequest(
+            parts=[ToolReturnPart(tool_name="z", content="x", tool_call_id="Z")]
+        ),
+    ]
+
+    prev_level = CFG.LOGGER.level
+    CFG.LOGGER.setLevel(_logging.DEBUG)
+    try:
+        result = sanitize_history(messages, allow_orphaned_tool_calls=False)
+    finally:
+        CFG.LOGGER.setLevel(prev_level)
+
+    assert isinstance(result, list)
+
+
+def test_strip_to_text_only_native_tool_return_in_response():
+    """A BaseToolReturnPart (NativeToolReturnPart) inside a ModelResponse is
+    converted to a sanitized-history TextPart."""
+    history = [
+        ModelResponse(
+            parts=[
+                NativeToolReturnPart(
+                    tool_name="web_search", content="hits", tool_call_id="c1"
+                )
+            ]
+        )
+    ]
+
+    result = strip_to_text_only(history)
+
+    out = result[0]
+    assert isinstance(out, ModelResponse)
+    assert isinstance(out.parts[0], TextPart)
+    assert "(sanitized-history)" in out.parts[0].content
+    assert "web_search" in out.parts[0].content
+    assert "hits" in out.parts[0].content
+
+
+def test_strip_to_text_only_unknown_request_part_passes_through():
+    """A part in a ModelRequest that is not a tool-return / retry / user /
+    system part falls through unchanged (the `return part` branch)."""
+    text_part = TextPart(content="stray")
+    history = [ModelRequest(parts=[text_part])]
+
+    result = strip_to_text_only(history)
+
+    assert isinstance(result[0], ModelRequest)
+    assert result[0].parts[0] is text_part
+
+
+def test_strip_to_text_only_native_tool_call_yields_placeholder():
+    """A NativeToolCallPart (BaseToolCallPart but not ToolCallPart) converts to
+    an empty text label, leaving the ModelResponse text-less, so a leading
+    '(tool call)' placeholder is injected."""
+    history = [
+        ModelResponse(parts=[NativeToolCallPart(tool_name="web_search", args="{}")])
+    ]
+
+    result = strip_to_text_only(history)
+
+    out = result[0]
+    assert isinstance(out, ModelResponse)
+    assert out.parts[0].content == TOOL_CALL_PLACEHOLDER
+
+
+def test_strip_to_text_only_passes_through_unknown_message():
+    """A message that is neither ModelRequest nor ModelResponse is kept as-is."""
+    unknown = UnknownMessage()
+    history = [ModelResponse(parts=[TextPart(content="ok")]), unknown]
+
+    result = strip_to_text_only(history)
+
+    assert result[1] is unknown
+
+
+def test_strip_to_text_only_empty_request_returns_original():
+    """When every message drops to no parts (an empty ModelRequest), the result
+    would be empty, so the original history is returned untouched."""
+    history = [ModelRequest(parts=[])]
+
+    result = strip_to_text_only(history)
+
+    assert result is history
+
+
+def test_strip_to_text_only_truncates_long_tool_return():
+    """A tool-return longer than the max is truncated with a trailing ellipsis."""
+    long_content = "R" * 700
+    history = [
+        ModelRequest(
+            parts=[
+                ToolReturnPart(tool_name="big", content=long_content, tool_call_id="c1")
+            ]
+        )
+    ]
+
+    result = strip_to_text_only(history)
+
+    text = result[0].parts[0].content
+    assert isinstance(result[0].parts[0], UserPromptPart)
+    assert text.endswith("...")
+    assert "R" * 500 in text
+    assert "R" * 700 not in text
+
+
+def test_strip_to_text_only_truncates_long_retry_prompt():
+    """A tool-linked RetryPromptPart with an oversized content is collapsed to a
+    UserPromptPart and truncated with an ellipsis."""
+    from pydantic_ai.messages import RetryPromptPart
+
+    long_content = "E" * 700
+    history = [
+        ModelRequest(
+            parts=[
+                RetryPromptPart(
+                    content=long_content, tool_name="bad_tool", tool_call_id="c1"
+                )
+            ]
+        )
+    ]
+
+    result = strip_to_text_only(history)
+
+    out_part = result[0].parts[0]
+    assert isinstance(out_part, UserPromptPart)
+    text = out_part.content
+    assert "(sanitized-history)" in text
+    assert "bad_tool" in text
+    assert text.endswith("...")
+    assert "E" * 700 not in text

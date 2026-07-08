@@ -20,6 +20,7 @@ To find a setting:
 - Hooks                                      -> _mixins/hooks.py
 - Task runtime intervals/cmd buffer          -> _mixins/task_runtime.py
 - CLI semantic colors (warning/error/muted)  -> mixins/cli_style.py
+- Theme selection (ZRB_THEME preset)         -> mixins/theme.py
 """
 
 from zrb.config.mixins.cli_style import CLIStyleMixin
@@ -35,6 +36,7 @@ from zrb.config.mixins.llm_search import LLMSearchMixin
 from zrb.config.mixins.llm_ui import LLMUIMixin
 from zrb.config.mixins.rag import RAGMixin
 from zrb.config.mixins.task_runtime import TaskRuntimeMixin
+from zrb.config.mixins.theme import ThemeMixin
 from zrb.config.mixins.web import WebMixin
 
 
@@ -52,6 +54,7 @@ class Config(  # type: ignore[misc]  # noqa: E501  # Sibling mixins TYPE_CHECKIN
     InternetSearchMixin,
     HooksMixin,
     TaskRuntimeMixin,
+    ThemeMixin,
     CLIStyleMixin,
 ):
     """Global runtime configuration.
