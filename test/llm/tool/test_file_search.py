@@ -1,6 +1,7 @@
 import os
 from unittest.mock import MagicMock, patch
 
+from zrb.llm.tool import file_search as file_search_mod
 from zrb.llm.tool.file_search import search_files
 
 
@@ -129,18 +130,27 @@ def test_files_only_truncation_notice(tmp_path):
 
 
 def test_os_walk_skips_unreadable_file(tmp_path):
-    # Arrange: a file that exists (so os.walk lists it) but denies reads, so
-    # the per-file open raises and the walk must skip it with a warning.
+    # Arrange: a file that os.walk lists but _get_file_matches cannot read, so
+    # the walk must skip it with a warning. Uses a mock instead of chmod so the
+    # test works regardless of whether it runs as root (GitLab CI containers).
     locked = tmp_path / "locked.py"
     locked.write_text("needle here\n")
-    os.chmod(locked, 0o000)
+    real_get_file_matches = file_search_mod._get_file_matches
+
+    def _raising_get_file_matches(file_path, *args, **kwargs):
+        if str(file_path).endswith("locked.py"):
+            raise OSError("Permission denied")
+        return real_get_file_matches(file_path, *args, **kwargs)
 
     # Act
-    try:
-        with _no_ripgrep():
-            result = search_files("needle", path=str(tmp_path))
-    finally:
-        os.chmod(locked, 0o644)
+    with (
+        _no_ripgrep(),
+        patch(
+            "zrb.llm.tool.file_search._get_file_matches",
+            side_effect=_raising_get_file_matches,
+        ),
+    ):
+        result = search_files("needle", path=str(tmp_path))
 
     # Assert
     assert "warning" in result

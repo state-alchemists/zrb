@@ -1,9 +1,47 @@
+import asyncio
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 
 from zrb.config.config import CFG
 from zrb.llm.sandbox.os_sandbox import SandboxUnavailableError
 from zrb.llm.tool import shell as shell_mod
 from zrb.llm.tool.shell import run_shell_command
+
+
+class _MockStreamReader:
+    """Fake asyncio.StreamReader that yields preset lines then EOF."""
+
+    def __init__(self, lines: list[bytes]):
+        self._lines = lines
+        self._pos = 0
+
+    async def readline(self) -> bytes:
+        if self._pos < len(self._lines):
+            line = self._lines[self._pos]
+            self._pos += 1
+            return line
+        return b""
+
+
+def _make_mock_process(
+    stdout_lines: list[str] | None = None,
+    stderr_lines: list[str] | None = None,
+    returncode: int = 0,
+    pid: int = 12345,
+) -> MagicMock:
+    """Build a mock asyncio.subprocess.Process with readable streams."""
+    proc = MagicMock()
+    proc.stdout = _MockStreamReader(
+        [(s.encode() if isinstance(s, str) else s) for s in (stdout_lines or [])]
+    )
+    proc.stderr = _MockStreamReader(
+        [(s.encode() if isinstance(s, str) else s) for s in (stderr_lines or [])]
+    )
+    proc.wait = AsyncMock(return_value=returncode)
+    proc.returncode = returncode
+    proc.pid = pid
+    return proc
 
 
 def test_shell_name():
@@ -76,9 +114,17 @@ async def test_run_shell_command_stdin_does_not_hang():
 
 
 @pytest.mark.asyncio
-async def test_run_shell_command_runtime_shell_skips_pid_tracking():
+async def test_run_shell_command_runtime_shell_skips_pid_tracking(monkeypatch):
     # A language runtime (shell="node") resolves a non "-c" flag, so PID
     # tracking is skipped and the command is treated as source code.
+    # Mock the subprocess so the test doesn't require node installed
+    # (GitLab CI runners may not ship it).
+    mock_proc = _make_mock_process(stdout_lines=["runtime-ok\n"])
+    monkeypatch.setattr(
+        shell_mod.asyncio,
+        "create_subprocess_exec",
+        AsyncMock(return_value=mock_proc),
+    )
     res = await run_shell_command("console.log('runtime-ok')", shell="node")
     assert "runtime-ok" in res
     assert "Exit Code: 0" in res
@@ -159,9 +205,16 @@ async def test_run_shell_command_dump_failure_is_best_effort(monkeypatch):
     # If persisting the full output fails, no dump path is reported but the
     # (truncated) result is still returned. shell="node" skips PID tracking so
     # the mkstemp patch only affects the dump path.
+    # Mock the subprocess so the test doesn't require node installed.
     def _boom(*args, **kwargs):
         raise OSError("no temp for you")
 
+    mock_proc = _make_mock_process(stdout_lines=["x" * 100 + "\n"])
+    monkeypatch.setattr(
+        shell_mod.asyncio,
+        "create_subprocess_exec",
+        AsyncMock(return_value=mock_proc),
+    )
     monkeypatch.setattr(shell_mod.tempfile, "mkstemp", _boom)
     res = await run_shell_command(
         "console.log('x'.repeat(100))", shell="node", max_chars=5
