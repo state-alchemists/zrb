@@ -43,6 +43,14 @@ def _truncate(text: str, limit: int) -> str:
     return text if len(text) <= limit else text[: limit - 3] + "..."
 
 
+def _fmt_tokens(count: int) -> str:
+    if count >= 1_000_000:
+        return f"{count / 1_000_000:.1f}M"
+    if count >= 1_000:
+        return f"{count / 1_000:.1f}k"
+    return str(count)
+
+
 def _get_mode_status_style(mode: str) -> str:
     """Lazy lookup of the status-bar mode badge style from CFG.
 
@@ -338,6 +346,7 @@ class OutputMixin:
                     CFG.LLM_UI_STYLE_THINKING,
                     f" ⏳ {self._assistant_name} is working{dot_str} ",
                 ),
+                *self._get_token_usage_fragments(),
             ]
         # Persistent Shift+Tab mode indicator (mirrors Claude Code's mode badge
         # near the prompt). `current_cycle_mode` lives on ModelCommandsMixin;
@@ -355,4 +364,20 @@ class OutputMixin:
         # Voice mode indicator (see ADR-0081)
         if getattr(self, "_voice_mode_active", False):
             result.append((CFG.LLM_UI_STYLE_STATUS, " 🎤 VOICE "))
+        result.extend(self._get_token_usage_fragments())
         return result
+
+    def _get_token_usage_fragments(self) -> list:
+        """Session token totals as status-bar fragments; empty until first run."""
+        input_tokens, output_tokens = cast(
+            tuple[int, int], getattr(self, "session_token_usage", (0, 0))
+        )
+        if not input_tokens and not output_tokens:
+            return []
+        return [
+            (
+                f"fg:{CFG.LLM_UI_STYLE_FAINT}",
+                f" 💸 {_fmt_tokens(input_tokens)} in"
+                f" · {_fmt_tokens(output_tokens)} out ",
+            )
+        ]

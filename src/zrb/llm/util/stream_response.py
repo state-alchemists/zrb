@@ -32,8 +32,10 @@ class StreamEventHandler:
         indent_level: int = 1,
         show_tool_call_detail: bool = False,
         show_tool_result: bool = False,
+        usage_callback: Callable[[Any], None] | None = None,
     ):
         self._print_fn = print_fn
+        self._usage_callback = usage_callback
         self._indentation = indent_level * 2 * " "
         self._show_tool_call_detail = show_tool_call_detail
         self._show_tool_result = show_tool_result
@@ -211,6 +213,8 @@ class StreamEventHandler:
 
     def _handle_run_result(self, event: "AgentRunResultEvent"):
         usage = event.result.usage
+        if self._usage_callback is not None:
+            self._usage_callback(usage)
         usage_msg = " ".join(
             [
                 "💸",
@@ -239,6 +243,7 @@ def create_event_handler(
     indent_level: int = 1,
     show_tool_call_detail: bool = False,
     show_tool_result: bool = False,
+    usage_callback: Callable[[Any], None] | None = None,
 ):
     """Create an event handler for agent stream events.
 
@@ -248,12 +253,14 @@ def create_event_handler(
         indent_level: Indentation level for nested output.
         show_tool_call_detail: Whether to show detailed tool call parameters.
         show_tool_result: Whether to show tool result content.
+        usage_callback: Called with the run's `RunUsage` when the run completes.
     """
     return StreamEventHandler(
         print_fn=print_fn,
         indent_level=indent_level,
         show_tool_call_detail=show_tool_call_detail,
         show_tool_result=show_tool_result,
+        usage_callback=usage_callback,
     )
 
 

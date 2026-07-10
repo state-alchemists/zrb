@@ -282,6 +282,16 @@ class TestStreamEventHandlerRunResult:
         assert "Requests: 5" in args
         assert "Total: 1000" in args
 
+    def test_handle_run_result_invokes_usage_callback(self):
+        print_fn = MagicMock()
+        usage_callback = MagicMock()
+        handler = create_event_handler(print_fn=print_fn, usage_callback=usage_callback)
+        mock_usage = MagicMock()
+        mock_event = MagicMock()
+        mock_event.result.usage = mock_usage
+        handler._handle_run_result(mock_event)
+        usage_callback.assert_called_once_with(mock_usage)
+
 
 class TestStreamEventHandlerCall:
     @pytest.mark.asyncio

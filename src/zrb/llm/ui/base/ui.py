@@ -214,6 +214,8 @@ class BaseUI(PropertiesMixin, CommandsMixin, HistoryReplayMixin, SystemInfoMixin
         self._voice_task: asyncio.Task | None = None
         self._voice_stop_event: asyncio.Event | None = None
         self._trigger_tasks: list[asyncio.Task] = []
+        self._session_input_tokens = 0
+        self._session_output_tokens = 0
         self._message_queue: asyncio.Queue = asyncio.Queue()
         self._process_messages_task: asyncio.Task | None = None
         self._last_result_data: str | None = None
@@ -261,6 +263,21 @@ class BaseUI(PropertiesMixin, CommandsMixin, HistoryReplayMixin, SystemInfoMixin
     def ctx(self) -> AnyContext:
         """Get the context for this UI."""
         return self._ctx
+
+    @property
+    def session_token_usage(self) -> tuple[int, int]:
+        """Accumulated (input, output) tokens across all runs in this session."""
+        return self._session_input_tokens, self._session_output_tokens
+
+    def accumulate_usage(self, usage: Any) -> None:
+        """Add one run's `RunUsage` to the session token totals."""
+        self._session_input_tokens += getattr(usage, "input_tokens", 0) or 0
+        self._session_output_tokens += getattr(usage, "output_tokens", 0) or 0
+
+    def reset_session_token_usage(self) -> None:
+        """Zero the session token totals (e.g. when switching conversations)."""
+        self._session_input_tokens = 0
+        self._session_output_tokens = 0
 
     @property
     def tool_call_handler(self) -> Any:
