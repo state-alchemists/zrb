@@ -9,7 +9,9 @@ Zrb comes with a powerful, built-in AI assistant that can understand your codeba
 ## Table of Contents
 
 - [Interactive Chat](#interactive-chat-zrb-llm-chat)
-- [Programmatic Usage](#programmatic-usage-llmtask-and-llmchattask)
+  - [TUI Commands](#tui-commands)
+  - [Session Token Tracking](#session-token-tracking)
+  - [Approval Policies](#approval-policies)
 - [Built-in LLM Tools](#built-in-llm-tools)
 - [Permission Policy System](./permission-policy.md)
 - [Sandbox (Filesystem Containment)](./sandbox.md)
@@ -57,6 +59,18 @@ This launches a full-screen chat application where you can have a conversation w
 > The token(s) that trigger each command are configurable — see
 > [Slash Command Aliases](../configuration/llm-config.md#17-slash-command-aliases).
 
+### Session Token Tracking
+
+The TUI status bar tracks accumulated LLM token usage across all requests in a session. After the first LLM request completes, the status bar displays a token count like:
+
+```
+💸 1.5k in · 34 out
+```
+
+The counters reset whenever you switch conversations via `/load`, since past sessions' spend is not persisted. Tokens are tracked per-UI instance — in a `MultiUI` setup each child UI maintains its own totals.
+
+There are no configuration knobs for this feature; it always appears (non-zero after the first request) and uses the theme's `FAINT` style.
+
 ### Approval Policies
 
 By default, Zrb prompts for confirmation before executing most tools. This is controlled by YOLO mode and the [Permission Policy](./permission-policy.md) system:
@@ -75,7 +89,7 @@ By default, Zrb prompts for confirmation before executing most tools. This is co
 
 ## Programmatic Usage (`LLMTask` and `LLMChatTask`)
 
-You can also integrate the LLM directly into your automated workflows using two specialized task types.
+You can also integrate the LLM directly into your automated workflows using two specialized task types. Both accept `message`, `system_prompt`, and `prompt_manager` as values, templates, callables, or sections — see the full guide at **[Programming the Prompt](programming-the-prompt.md)** for examples of each rung.
 
 ### `LLMTask` (Single-Shot)
 

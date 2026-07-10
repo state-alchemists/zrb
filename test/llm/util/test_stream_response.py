@@ -292,6 +292,30 @@ class TestStreamEventHandlerRunResult:
         handler._handle_run_result(mock_event)
         usage_callback.assert_called_once_with(mock_usage)
 
+    def test_handle_run_result_no_usage_callback(self):
+        """Run result is still printed when usage_callback is None."""
+        print_fn = MagicMock()
+        handler = create_event_handler(print_fn=print_fn, usage_callback=None)
+        mock_usage = MagicMock()
+        mock_usage.requests = 3
+        mock_usage.tool_calls = 1
+        mock_usage.total_tokens = 500
+        mock_usage.input_tokens = 250
+        mock_usage.input_audio_tokens = 0
+        mock_usage.output_tokens = 250
+        mock_usage.output_audio_tokens = 0
+        mock_usage.cache_read_tokens = 0
+        mock_usage.cache_write_tokens = 0
+        mock_usage.details = {}
+        mock_event = MagicMock()
+        mock_event.result = MagicMock()
+        mock_event.result.usage = mock_usage
+        handler._handle_run_result(mock_event)
+        print_fn.assert_called()
+        args = print_fn.call_args[0][0]
+        assert "Requests: 3" in args
+        assert "Total: 500" in args
+
 
 class TestStreamEventHandlerCall:
     @pytest.mark.asyncio

@@ -57,6 +57,7 @@ from zrb.xcom.xcom import Xcom
 if TYPE_CHECKING:
     from pydantic_ai import ToolApproved, ToolCallPart, ToolDenied, UserContent
     from pydantic_ai.models import Model
+    from pydantic_ai.usage import RunUsage
     from rich.theme import Theme
 
     from zrb.llm.tool_call.ui_protocol import ChoiceSpec
@@ -269,7 +270,7 @@ class BaseUI(PropertiesMixin, CommandsMixin, HistoryReplayMixin, SystemInfoMixin
         """Accumulated (input, output) tokens across all runs in this session."""
         return self._session_input_tokens, self._session_output_tokens
 
-    def accumulate_usage(self, usage: Any) -> None:
+    def accumulate_usage(self, usage: "RunUsage") -> None:
         """Add one run's `RunUsage` to the session token totals."""
         self._session_input_tokens += getattr(usage, "input_tokens", 0) or 0
         self._session_output_tokens += getattr(usage, "output_tokens", 0) or 0
