@@ -1865,14 +1865,14 @@ files = [
 
 [[package]]
 name = "genai-prices"
-version = "0.0.66"
+version = "0.0.71"
 description = "Calculate prices for calling LLM inference APIs."
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "genai_prices-0.0.66-py3-none-any.whl", hash = "sha256:86b83f107c1cf04bb449a120cd8d4439ceb6843660d9128cde560eb511686d7b"},
-    {file = "genai_prices-0.0.66.tar.gz", hash = "sha256:f087dfe56da28a4c3933dcf846cf2b7111ba733cef674c0cbc66de80212bcd6b"},
+    {file = "genai_prices-0.0.71-py3-none-any.whl", hash = "sha256:1d13111563af2b1ce43ccfacf77b7ac3216ad704c644408a56e11b181fe0d128"},
+    {file = "genai_prices-0.0.71.tar.gz", hash = "sha256:de4db34ec38404f9ef383cb1ab29e204d16ccf27071af0b16d5747ee7affe36b"},
 ]
 
 [package.dependencies]
@@ -4712,24 +4712,24 @@ timezone = ["tzdata ; python_version >= \"3.9\" and platform_system == \"Windows
 
 [[package]]
 name = "pydantic-ai-slim"
-version = "2.2.0"
-description = "Agent Framework / shim to use Pydantic with LLMs, slim package"
+version = "2.8.0"
+description = "AI Agent Framework, the Pydantic way, slim package"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "pydantic_ai_slim-2.2.0-py3-none-any.whl", hash = "sha256:ec5a98e42eafeca654b5f27e6c3b2118688bb94230e428e748db2d41a47bbbd9"},
-    {file = "pydantic_ai_slim-2.2.0.tar.gz", hash = "sha256:61057823b4a6f71e703d45d1a1d4efae468cf8e29fb73c6026d46826df7884ac"},
+    {file = "pydantic_ai_slim-2.8.0-py3-none-any.whl", hash = "sha256:ddf8ac31442d5433ffff7c47af895088c230448fd28926a713c0f47aa2affc12"},
+    {file = "pydantic_ai_slim-2.8.0.tar.gz", hash = "sha256:5137a76796a508c4b2dac6dca6f841a0660926877aaa19d6f8db9f13fde87d57"},
 ]
 
 [package.dependencies]
 fastmcp-slim = {version = ">=3.3.0", extras = ["client"], optional = true, markers = "extra == \"mcp\""}
-genai-prices = ">=0.0.62"
+genai-prices = ">=0.0.70"
 griffelib = ">=2.0"
 httpx = ">=0.27"
 opentelemetry-api = ">=1.28.0"
 pydantic = ">=2.12"
-pydantic-graph = "2.2.0"
+pydantic-graph = "2.8.0"
 typing-inspection = ">=0.4.0"
 
 [package.extras]
@@ -4740,7 +4740,7 @@ cli = ["argcomplete (>=3.5.0)", "prompt-toolkit (>=3)", "pyperclip (>=1.9.0)", "
 cohere = ["cohere (>=5.20.6) ; platform_system != \"Emscripten\""]
 dbos = ["dbos (>=2.10.0)"]
 duckduckgo = ["ddgs (>=9.0.0)"]
-evals = ["pydantic-evals (==2.2.0)"]
+evals = ["pydantic-evals (==2.8.0)"]
 exa = ["exa-py (>=2.0.0)"]
 google = ["google-genai (>=1.70.0)"]
 groq = ["groq (>=0.25.0)"]
@@ -4750,7 +4750,7 @@ mcp = ["fastmcp-slim[client] (>=3.3.0)"]
 mistral = ["mistralai (>=2.0.0,!=2.4.6)"]
 openai = ["openai (>=2.29.0)", "tiktoken (>=0.12.0)"]
 openrouter = ["openai (>=2.8.0)"]
-prefect = ["prefect (>=3.6.13)"]
+prefect = ["prefect (>=3.7.5)"]
 retries = ["tenacity (>=8.2.3)"]
 sentence-transformers = ["sentence-transformers (>=5.2.0) ; python_version < \"3.14\""]
 spec = ["pydantic-handlebars (>=0.1.0)", "pyyaml (>=6.0.2)"]
@@ -4761,6 +4761,7 @@ voyageai = ["voyageai (>=0.3.7) ; python_version < \"3.14\""]
 web = ["httpx (>=0.27.0)", "starlette (>=0.46.2)", "uvicorn (>=0.38.0)"]
 web-fetch = ["markdownify (>=1.2)"]
 xai = ["xai-sdk (>=1.14.0)"]
+zai = ["openai (>=2.29.0)"]
 
 [[package]]
 name = "pydantic-core"
@@ -4923,14 +4924,14 @@ uuid-utils = ["uuid-utils (>=0.6.0) ; python_version < \"3.14\""]
 
 [[package]]
 name = "pydantic-graph"
-version = "2.2.0"
+version = "2.8.0"
 description = "Graph and state machine library"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "pydantic_graph-2.2.0-py3-none-any.whl", hash = "sha256:b55467d0ec68ad818d910e22e509118e78d85fc133cc8a8c07334b559644f533"},
-    {file = "pydantic_graph-2.2.0.tar.gz", hash = "sha256:7cc99594f0ccb07f875199c5715a0190b1acc0d54b27d501c2002dfd419ecee0"},
+    {file = "pydantic_graph-2.8.0-py3-none-any.whl", hash = "sha256:9b44a06d413586299a2d9ffb76efc1aa1d3b2268984332b03af24dd0c32dad35"},
+    {file = "pydantic_graph-2.8.0.tar.gz", hash = "sha256:f64936ffe69fceb4aaab8fb795cacb1d00f66b08bb3b1889c3ff4413f180ae81"},
 ]
 
 [package.dependencies]
@@ -7401,4 +7402,4 @@ xai = ["aiohttp", "xai-sdk"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11.0,<3.15.0"
-content-hash = "f1f38c88014a388b6b7f536ea837c9c4b9d876ec9946673af4e890269e633175"
+content-hash = "f7d5eb8b88fabfdab9166452ace010162bea8835997042908b769309a73a8a10"
