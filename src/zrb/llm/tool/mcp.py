@@ -5,6 +5,7 @@ from typing import Any
 
 from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
+from zrb.util.truncate import truncate_text
 
 _ENV_VAR_PATTERN = re.compile(r"\$\{([^}:]+)(:-([^}]*))?\}")
 
@@ -90,16 +91,22 @@ def _create_mcp_toolsets(merged_servers: dict[str, Any]) -> list[Any]:
                 } or None
                 transport = StdioTransport(command=command, args=args, env=env)
                 toolsets.append(
-                    MCPToolset(
-                        transport,
-                        id=server_name,
-                        max_retries=CFG.LLM_MCP_MAX_RETRIES,
+                    _wrap_with_truncation(
+                        MCPToolset(
+                            transport,
+                            id=server_name,
+                            max_retries=CFG.LLM_MCP_MAX_RETRIES,
+                        )
                     )
                 )
             elif "url" in config:
                 url = _expand_env_vars(config["url"])
                 toolsets.append(
-                    MCPToolset(url, id=server_name, max_retries=CFG.LLM_MCP_MAX_RETRIES)
+                    _wrap_with_truncation(
+                        MCPToolset(
+                            url, id=server_name, max_retries=CFG.LLM_MCP_MAX_RETRIES
+                        )
+                    )
                 )
         except Exception as e:
             zrb_print(
@@ -107,6 +114,40 @@ def _create_mcp_toolsets(merged_servers: dict[str, Any]) -> list[Any]:
             )
 
     return toolsets
+
+
+def cap_mcp_result(result: Any) -> Any:
+    """Bound an MCP tool result so it can't exceed the per-request token budget.
+
+    A third-party MCP server can return an arbitrarily large payload; unbounded,
+    it becomes a tool-return message that overflows ``llm_limiter``'s per-minute
+    budget on the agent's next request, which then livelocks forever (the same
+    UI freeze WebFetch hit). Only string results are capped — structured results
+    (small dicts/lists the model needs intact) pass through unless their string
+    form alone blows past the cap, in which case the string form is returned.
+    """
+    max_chars = CFG.LLM_MAX_OUTPUT_CHARS
+    if isinstance(result, str):
+        capped, _ = truncate_text(result, max_chars, keep="head")
+        return capped
+    as_text = str(result)
+    if len(as_text) > max_chars:
+        capped, _ = truncate_text(as_text, max_chars, keep="head")
+        return capped
+    return result
+
+
+def _wrap_with_truncation(toolset: Any) -> Any:
+    # lazy: heavy import (pydantic_ai) — mirrors _create_mcp_toolsets. Defined
+    # here so the module doesn't import WrapperToolset at load time.
+    from pydantic_ai.toolsets import WrapperToolset
+
+    class _TruncatingToolset(WrapperToolset):
+        async def call_tool(self, name, tool_args, ctx, tool):  # type: ignore[override]
+            result = await self.wrapped.call_tool(name, tool_args, ctx, tool)
+            return cap_mcp_result(result)
+
+    return _TruncatingToolset(toolset)
 
 
 def _expand_env_vars(value: Any) -> Any:

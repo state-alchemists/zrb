@@ -339,6 +339,16 @@ async def _extract_info(
 
         file_tokens = llm_limiter.count_tokens(content)
 
+        # A single file larger than the whole batch budget would be flushed as a
+        # solo batch (below) and sent whole — if it also exceeds the per-minute
+        # token budget, the rate limiter can never admit it and livelocks the UI
+        # forever. Truncate it to fit, like WebFetch/Shell bound their payloads.
+        per_file_budget = token_limit - base_overhead
+        if file_tokens > per_file_budget:
+            content = llm_limiter.truncate_text(content, per_file_budget)
+            content += "\n...[TRUNCATED]"
+            file_tokens = llm_limiter.count_tokens(content)
+
         if current_token_count + file_tokens + base_overhead > token_limit:
             if content_buffer:
                 await _run_repo_agent(

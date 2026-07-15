@@ -329,9 +329,7 @@ async def test_open_web_page_truncates_oversized_page():
     WebFetch livelock that froze the UI)."""
     huge_html = "<html><body>" + ("<p>spam paragraph</p>" * 5000) + "</body></html>"
     with (
-        patch.dict(
-            os.environ, {f"{CFG.ENV_PREFIX}_LLM_MAX_OUTPUT_CHARS": "500"}
-        ),
+        patch.dict(os.environ, {f"{CFG.ENV_PREFIX}_LLM_MAX_OUTPUT_CHARS": "500"}),
         patch("playwright.async_api.async_playwright") as mock_playwright_ctx,
     ):
         mock_p = AsyncMock()
@@ -357,9 +355,7 @@ async def test_open_web_page_summarizer_input_is_bounded():
     page — this is the request the limiter would otherwise reject forever."""
     huge_html = "<html><body>" + ("<p>spam paragraph</p>" * 5000) + "</body></html>"
     with (
-        patch.dict(
-            os.environ, {f"{CFG.ENV_PREFIX}_LLM_MAX_OUTPUT_CHARS": "500"}
-        ),
+        patch.dict(os.environ, {f"{CFG.ENV_PREFIX}_LLM_MAX_OUTPUT_CHARS": "500"}),
         patch("playwright.async_api.async_playwright") as mock_playwright_ctx,
         patch("zrb.llm.tool.web.create_agent"),
         patch("zrb.llm.tool.web.run_agent", new_callable=AsyncMock) as mock_run_agent,
