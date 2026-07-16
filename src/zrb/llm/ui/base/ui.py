@@ -57,7 +57,7 @@ from zrb.xcom.xcom import Xcom
 if TYPE_CHECKING:
     from pydantic_ai import ToolApproved, ToolCallPart, ToolDenied, UserContent
     from pydantic_ai.models import Model
-    from pydantic_ai.usage import RunUsage
+    from pydantic_ai.usage import RequestUsage, RunUsage
     from rich.theme import Theme
 
     from zrb.llm.tool_call.ui_protocol import ChoiceSpec
@@ -217,6 +217,11 @@ class BaseUI(PropertiesMixin, CommandsMixin, HistoryReplayMixin, SystemInfoMixin
         self._trigger_tasks: list[asyncio.Task] = []
         self._session_input_tokens = 0
         self._session_output_tokens = 0
+        self._session_cache_read_tokens = 0
+        # Occupancy of the current context window = the last request's prompt
+        # size. Unlike the session totals it does not accumulate; it tracks the
+        # latest turn and drops after summarization.
+        self._context_tokens = 0
         self._message_queue: asyncio.Queue = asyncio.Queue()
         self._process_messages_task: asyncio.Task | None = None
         self._last_result_data: str | None = None
@@ -270,15 +275,42 @@ class BaseUI(PropertiesMixin, CommandsMixin, HistoryReplayMixin, SystemInfoMixin
         """Accumulated (input, output) tokens across all runs in this session."""
         return self._session_input_tokens, self._session_output_tokens
 
-    def accumulate_usage(self, usage: "RunUsage") -> None:
-        """Add one run's `RunUsage` to the session token totals."""
+    @property
+    def session_cache_read_tokens(self) -> int:
+        """Accumulated cache-read (cache-hit) tokens across the session."""
+        return self._session_cache_read_tokens
+
+    @property
+    def context_tokens(self) -> int:
+        """Tokens in the current context window (last request's prompt size)."""
+        return self._context_tokens
+
+    def accumulate_usage(
+        self, usage: "RunUsage", context_usage: "RequestUsage | None" = None
+    ) -> None:
+        """Fold one run's usage into session totals and refresh context size.
+
+        `usage` is the whole-run `RunUsage` (accumulated, for billing). Session
+        input/output only grow. `context_usage` is the *last request's*
+        `RequestUsage`; its prompt side (fresh + cached) is the current context
+        occupancy — it replaces, not accumulates.
+        """
         self._session_input_tokens += getattr(usage, "input_tokens", 0) or 0
         self._session_output_tokens += getattr(usage, "output_tokens", 0) or 0
+        self._session_cache_read_tokens += getattr(usage, "cache_read_tokens", 0) or 0
+        if context_usage is not None:
+            self._context_tokens = (
+                (getattr(context_usage, "input_tokens", 0) or 0)
+                + (getattr(context_usage, "cache_read_tokens", 0) or 0)
+                + (getattr(context_usage, "cache_write_tokens", 0) or 0)
+            )
 
     def reset_session_token_usage(self) -> None:
         """Zero the session token totals (e.g. when switching conversations)."""
         self._session_input_tokens = 0
         self._session_output_tokens = 0
+        self._session_cache_read_tokens = 0
+        self._context_tokens = 0
 
     @property
     def tool_call_handler(self) -> Any:

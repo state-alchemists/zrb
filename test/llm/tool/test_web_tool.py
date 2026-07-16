@@ -146,6 +146,11 @@ async def test_open_web_page_playwright_success():
         mock_p.chromium.launch.return_value = mock_browser
         mock_browser.new_page.return_value = mock_page
 
+        # goto returns a response whose headers say it's HTML, not a PDF, so the
+        # content-type check doesn't error and fall back to a real fetch.
+        mock_response = MagicMock()
+        mock_response.headers = {"content-type": "text/html"}
+        mock_page.goto.return_value = mock_response
         mock_page.content.return_value = (
             "<html><body><h1>Title</h1><p>Content</p></body></html>"
         )
@@ -185,6 +190,94 @@ async def test_open_web_page_requests_fallback():
         # urljoin logic check
         assert "https://example.com/link" in result["links_on_page"]
         assert result["summarized"] == False
+
+
+@pytest.mark.asyncio
+async def test_open_web_page_pdf_url_skips_playwright():
+    # A .pdf URL must bypass Playwright and extract text via pdfplumber.
+    fake_page = MagicMock()
+    fake_page.extract_text.return_value = "PDF body text"
+    fake_pdf = MagicMock()
+    fake_pdf.pages = [fake_page]
+    fake_pdf.__enter__.return_value = fake_pdf
+
+    with (
+        patch("requests.get") as mock_get,
+        patch("pdfplumber.open", return_value=fake_pdf) as mock_pdf_open,
+        patch("playwright.async_api.async_playwright") as mock_playwright,
+    ):
+        mock_response = MagicMock()
+        mock_response.content = b"%PDF-1.4 ..."
+        mock_get.return_value = mock_response
+
+        result = await open_web_page("https://example.com/doc.pdf", summarize=False)
+
+        assert "PDF body text" in result["content"]
+        assert result["links_on_page"] == []
+        mock_pdf_open.assert_called_once()
+        mock_playwright.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_open_web_page_extensionless_pdf_via_playwright():
+    # e.g. arxiv.org/pdf/2604.03136 — no .pdf extension, so it goes through
+    # Playwright; Content-Type on the goto response must route it to pdfplumber.
+    fake_page = MagicMock()
+    fake_page.extract_text.return_value = "Arxiv paper text"
+    fake_pdf = MagicMock()
+    fake_pdf.pages = [fake_page]
+    fake_pdf.__enter__.return_value = fake_pdf
+
+    with (
+        patch("playwright.async_api.async_playwright") as mock_playwright_ctx,
+        patch("pdfplumber.open", return_value=fake_pdf),
+    ):
+        mock_p = AsyncMock()
+        mock_browser = AsyncMock()
+        mock_page = AsyncMock()
+        mock_response = AsyncMock()
+        mock_response.headers = {"content-type": "application/pdf"}
+        mock_response.body.return_value = b"%PDF-1.4 ..."
+
+        mock_playwright_ctx.return_value.__aenter__.return_value = mock_p
+        mock_p.chromium.launch.return_value = mock_browser
+        mock_browser.new_page.return_value = mock_page
+        mock_page.goto.return_value = mock_response
+
+        result = await open_web_page(
+            "https://arxiv.org/pdf/2604.03136", summarize=False
+        )
+
+        assert "Arxiv paper text" in result["content"]
+        assert result["links_on_page"] == []
+
+
+@pytest.mark.asyncio
+async def test_open_web_page_pdf_content_type_in_fallback():
+    # A PDF served at a non-.pdf URL is caught by Content-Type in the fallback.
+    fake_page = MagicMock()
+    fake_page.extract_text.return_value = "Fallback PDF text"
+    fake_pdf = MagicMock()
+    fake_pdf.pages = [fake_page]
+    fake_pdf.__enter__.return_value = fake_pdf
+
+    with (
+        patch(
+            "playwright.async_api.async_playwright",
+            side_effect=ImportError("No playwright"),
+        ),
+        patch("requests.get") as mock_get,
+        patch("pdfplumber.open", return_value=fake_pdf),
+    ):
+        mock_response = MagicMock()
+        mock_response.headers = {"Content-Type": "application/pdf"}
+        mock_response.content = b"%PDF-1.4 ..."
+        mock_get.return_value = mock_response
+
+        result = await open_web_page("https://example.com/download", summarize=False)
+
+        assert "Fallback PDF text" in result["content"]
+        assert result["links_on_page"] == []
 
 
 @pytest.mark.asyncio
@@ -232,3 +325,65 @@ async def test_open_web_page_with_summarization():
         assert "links_on_page" in result
         mock_create_agent.assert_called_once()
         mock_run_agent.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_open_web_page_truncates_oversized_page():
+    """A page larger than LLM_MAX_OUTPUT_CHARS is capped before it becomes a
+    message, so the rate limiter never sees an un-admittable request (the
+    WebFetch livelock that froze the UI)."""
+    huge_html = "<html><body>" + ("<p>spam paragraph</p>" * 5000) + "</body></html>"
+    with (
+        patch.dict(os.environ, {f"{CFG.ENV_PREFIX}_LLM_MAX_OUTPUT_CHARS": "500"}),
+        patch("playwright.async_api.async_playwright") as mock_playwright_ctx,
+    ):
+        mock_p = AsyncMock()
+        mock_browser = AsyncMock()
+        mock_page = AsyncMock()
+        mock_playwright_ctx.return_value.__aenter__.return_value = mock_p
+        mock_p.chromium.launch.return_value = mock_browser
+        mock_browser.new_page.return_value = mock_page
+        mock_response = MagicMock()
+        mock_response.headers = {"content-type": "text/html"}
+        mock_page.goto.return_value = mock_response
+        mock_page.content.return_value = huge_html
+        mock_page.eval_on_selector_all.return_value = []
+
+        result = await open_web_page("https://example.com", summarize=False)
+
+    assert result["truncated"] is True
+    assert "[TRUNCATED]" in result["content"]
+    # Bounded to the cap plus the short marker, not the multi-KB original.
+    assert len(result["content"]) < 600
+
+
+@pytest.mark.asyncio
+async def test_open_web_page_summarizer_input_is_bounded():
+    """The summarizer sub-agent must receive the capped content, not the raw
+    page — this is the request the limiter would otherwise reject forever."""
+    huge_html = "<html><body>" + ("<p>spam paragraph</p>" * 5000) + "</body></html>"
+    with (
+        patch.dict(os.environ, {f"{CFG.ENV_PREFIX}_LLM_MAX_OUTPUT_CHARS": "500"}),
+        patch("playwright.async_api.async_playwright") as mock_playwright_ctx,
+        patch("zrb.llm.tool.web.create_agent"),
+        patch("zrb.llm.tool.web.run_agent", new_callable=AsyncMock) as mock_run_agent,
+    ):
+        mock_p = AsyncMock()
+        mock_browser = AsyncMock()
+        mock_page = AsyncMock()
+        mock_playwright_ctx.return_value.__aenter__.return_value = mock_p
+        mock_p.chromium.launch.return_value = mock_browser
+        mock_browser.new_page.return_value = mock_page
+        mock_response = MagicMock()
+        mock_response.headers = {"content-type": "text/html"}
+        mock_page.goto.return_value = mock_response
+        mock_page.content.return_value = huge_html
+        mock_page.eval_on_selector_all.return_value = []
+        mock_run_agent.return_value = ("summary", [])
+
+        await open_web_page("https://example.com", summarize=True)
+
+    sent_message = mock_run_agent.call_args.kwargs["message"]
+    assert "[TRUNCATED]" in sent_message
+    # Bounded to cap + json envelope + instruction, not the 100k+ raw page.
+    assert len(sent_message) < 2000

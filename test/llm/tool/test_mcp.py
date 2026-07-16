@@ -7,7 +7,30 @@ import pytest
 from fastmcp.client.transports import StdioTransport
 from pydantic_ai.mcp import MCPToolset
 
-from zrb.llm.tool.mcp import load_mcp_config
+from zrb.config.config import CFG
+from zrb.llm.tool.mcp import cap_mcp_result, load_mcp_config
+
+
+def test_cap_mcp_result_truncates_long_string():
+    with patch.dict(os.environ, {f"{CFG.ENV_PREFIX}_LLM_MAX_OUTPUT_CHARS": "500"}):
+        out = cap_mcp_result("x" * 5000)
+    assert isinstance(out, str)
+    assert "[TRUNCATED]" in out
+    assert len(out) < 600
+
+
+def test_cap_mcp_result_passes_small_structured_through():
+    data = {"a": 1, "b": [1, 2, 3]}
+    # Small structured results keep their type so the model can consume them.
+    assert cap_mcp_result(data) is data
+
+
+def test_cap_mcp_result_caps_oversized_structured():
+    with patch.dict(os.environ, {f"{CFG.ENV_PREFIX}_LLM_MAX_OUTPUT_CHARS": "500"}):
+        out = cap_mcp_result({"big": "y" * 5000})
+    assert isinstance(out, str)
+    assert "[TRUNCATED]" in out
+    assert len(out) < 600
 
 
 @pytest.fixture

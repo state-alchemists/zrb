@@ -5,6 +5,7 @@ from typing import Any
 
 from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
+from zrb.util.truncate import truncate_text
 
 _ENV_VAR_PATTERN = re.compile(r"\$\{([^}:]+)(:-([^}]*))?\}")
 
@@ -94,12 +95,18 @@ def _create_mcp_toolsets(merged_servers: dict[str, Any]) -> list[Any]:
                         transport,
                         id=server_name,
                         max_retries=CFG.LLM_MCP_MAX_RETRIES,
+                        process_tool_call=_truncating_process_tool_call,
                     )
                 )
             elif "url" in config:
                 url = _expand_env_vars(config["url"])
                 toolsets.append(
-                    MCPToolset(url, id=server_name, max_retries=CFG.LLM_MCP_MAX_RETRIES)
+                    MCPToolset(
+                        url,
+                        id=server_name,
+                        max_retries=CFG.LLM_MCP_MAX_RETRIES,
+                        process_tool_call=_truncating_process_tool_call,
+                    )
                 )
         except Exception as e:
             zrb_print(
@@ -107,6 +114,40 @@ def _create_mcp_toolsets(merged_servers: dict[str, Any]) -> list[Any]:
             )
 
     return toolsets
+
+
+def cap_mcp_result(result: Any) -> Any:
+    """Bound an MCP tool result so it can't exceed the per-request token budget.
+
+    A third-party MCP server can return an arbitrarily large payload; unbounded,
+    it becomes a tool-return message that overflows ``llm_limiter``'s per-minute
+    budget on the agent's next request, which then livelocks forever (the same
+    UI freeze WebFetch hit). Only string results are capped — structured results
+    (small dicts/lists the model needs intact) pass through unless their string
+    form alone blows past the cap, in which case the string form is returned.
+    """
+    max_chars = CFG.LLM_MAX_OUTPUT_CHARS
+    if isinstance(result, str):
+        capped, _ = truncate_text(result, max_chars, keep="head")
+        return capped
+    as_text = str(result)
+    if len(as_text) > max_chars:
+        capped, _ = truncate_text(as_text, max_chars, keep="head")
+        return capped
+    return result
+
+
+async def _truncating_process_tool_call(
+    _ctx: Any, call_tool: Any, name: str, tool_args
+):
+    """pydantic-ai ``process_tool_call`` hook: cap oversized MCP results.
+
+    Runs the real call, then bounds the payload via ``cap_mcp_result``. Using
+    the built-in hook (rather than wrapping the toolset) keeps the object an
+    ``MCPToolset`` — its id and client stay intact for tool namespacing.
+    """
+    result = await call_tool(name, tool_args)
+    return cap_mcp_result(result)
 
 
 def _expand_env_vars(value: Any) -> Any:

@@ -374,10 +374,11 @@ class OutputMixin:
         )
         if not input_tokens and not output_tokens:
             return []
-        return [
-            (
-                f"fg:{CFG.LLM_UI_STYLE_FAINT}",
-                f" 💸 {_fmt_tokens(input_tokens)} in"
-                f" · {_fmt_tokens(output_tokens)} out ",
-            )
-        ]
+        text = f" 💸 {_fmt_tokens(input_tokens)} in · {_fmt_tokens(output_tokens)} out"
+        cached = cast(int, getattr(self, "session_cache_read_tokens", 0))
+        if cached:
+            text += f" · {_fmt_tokens(cached)} cached"
+        context = cast(int, getattr(self, "context_tokens", 0))
+        if context:
+            text += f" · 🧠 {_fmt_tokens(context)} ctx"
+        return [(f"fg:{CFG.LLM_UI_STYLE_FAINT}", text + " ")]

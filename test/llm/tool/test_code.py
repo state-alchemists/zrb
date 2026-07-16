@@ -415,3 +415,31 @@ async def test_summarization_flushes_buffer(temp_code_dir):
         res = await analyze_code(temp_code_dir, "query", use_lsp=False)
     # Two large infos force a buffer flush during summarization; converges to one.
     assert res == "x"
+
+
+# --- oversized single file is truncated, not sent whole (code.py:340) --------
+
+
+@pytest.mark.asyncio
+async def test_extract_info_truncates_oversized_single_file():
+    """A file larger than the batch budget is truncated to fit, so it can never
+    become a request the rate limiter refuses forever (the WebFetch livelock)."""
+    from zrb.llm.config.limiter import llm_limiter
+    from zrb.llm.tool.code import _extract_info
+
+    captured: list = []
+
+    async def fake_run(agent, query, content, content_key, output_list):
+        captured.append(content)
+        output_list.append("info")
+
+    metas = [{"path": "big.py", "content": "x" * 500_000}]
+    with (
+        patch("zrb.llm.tool.code.create_agent"),
+        patch("zrb.llm.tool.code._run_repo_agent", side_effect=fake_run),
+    ):
+        await _extract_info(metas, query="q", token_limit=1000)
+
+    joined = "".join(captured[0])
+    assert "[TRUNCATED]" in joined
+    assert llm_limiter.count_tokens(joined) <= 1000
