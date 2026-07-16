@@ -374,7 +374,7 @@ class OutputMixin:
         result.extend(self._get_token_usage_fragments())
         return result
 
-    def _get_token_usage_fragments(self) -> list:
+    def _get_token_usage_fragments(self) -> list[tuple[str, str]]:
         """Session token totals as status-bar fragments; empty until first run."""
         input_tokens, output_tokens = cast(
             tuple[int, int], getattr(self, "session_token_usage", (0, 0))
@@ -388,4 +388,7 @@ class OutputMixin:
         context = cast(int, getattr(self, "context_tokens", 0))
         if context:
             text += f" · 🧠 {_fmt_tokens(context)} ctx"
-        return [(f"fg:{CFG.LLM_UI_STYLE_FAINT}", text + " ")]
+        return [
+            (CFG.LLM_UI_STYLE_FAINT, "\n"),
+            (f"fg:{CFG.LLM_UI_STYLE_FAINT}", text + " "),
+        ]

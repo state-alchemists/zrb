@@ -60,19 +60,20 @@ def test_ui_session_token_usage(mock_ui_deps):
 
 def test_ui_context_tokens_track_last_request(mock_ui_deps):
     ui = UI(**mock_ui_deps)
-    # context = last request's prompt side (fresh + cache read + cache write);
-    # it replaces rather than accumulates.
+    # context = last request's input_tokens (already inclusive of cache read
+    # and write, per pydantic-ai's AbstractUsage contract); it replaces
+    # rather than accumulates.
     ui.accumulate_usage(
         _usage(input_tokens=1000, output_tokens=10),
         _usage(input_tokens=4000, cache_read_tokens=1000, cache_write_tokens=200),
     )
-    assert ui.context_tokens == 5200
+    assert ui.context_tokens == 4000
     ui.accumulate_usage(
         _usage(input_tokens=1000, output_tokens=10),
         _usage(input_tokens=3000, cache_read_tokens=100),
     )
-    assert ui.context_tokens == 3100  # not accumulated
-    assert "3.1k ctx" in "".join(text for _, text in ui.get_status_bar_text())
+    assert ui.context_tokens == 3000  # not accumulated
+    assert "3.0k ctx" in "".join(text for _, text in ui.get_status_bar_text())
 
     ui.reset_session_token_usage()
     assert ui.context_tokens == 0

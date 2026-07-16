@@ -282,7 +282,7 @@ def create_layout(
                     *extra_children,
                     # Status Bar (fixed height)
                     Window(
-                        height=1,
+                        height=2,
                         content=FormattedTextControl(status_bar_text),
                         style="class:bottom-toolbar",
                     ),

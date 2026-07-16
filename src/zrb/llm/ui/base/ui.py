@@ -292,18 +292,15 @@ class BaseUI(PropertiesMixin, CommandsMixin, HistoryReplayMixin, SystemInfoMixin
 
         `usage` is the whole-run `RunUsage` (accumulated, for billing). Session
         input/output only grow. `context_usage` is the *last request's*
-        `RequestUsage`; its prompt side (fresh + cached) is the current context
-        occupancy — it replaces, not accumulates.
+        `RequestUsage`; its `input_tokens` (already inclusive of cache reads
+        and writes, per pydantic-ai's `AbstractUsage` contract) is the current
+        context occupancy — it replaces, not accumulates.
         """
         self._session_input_tokens += getattr(usage, "input_tokens", 0) or 0
         self._session_output_tokens += getattr(usage, "output_tokens", 0) or 0
         self._session_cache_read_tokens += getattr(usage, "cache_read_tokens", 0) or 0
         if context_usage is not None:
-            self._context_tokens = (
-                (getattr(context_usage, "input_tokens", 0) or 0)
-                + (getattr(context_usage, "cache_read_tokens", 0) or 0)
-                + (getattr(context_usage, "cache_write_tokens", 0) or 0)
-            )
+            self._context_tokens = getattr(context_usage, "input_tokens", 0) or 0
 
     def reset_session_token_usage(self) -> None:
         """Zero the session token totals (e.g. when switching conversations)."""
