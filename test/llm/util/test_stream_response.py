@@ -289,8 +289,12 @@ class TestStreamEventHandlerRunResult:
         mock_usage = MagicMock()
         mock_event = MagicMock()
         mock_event.result.usage = mock_usage
+        # Last ModelResponse carries the per-request usage = current context size.
+        request = MagicMock(spec=["usage"])
+        request.usage = MagicMock()
+        mock_event.result.all_messages.return_value = [MagicMock(spec=[]), request]
         handler._handle_run_result(mock_event)
-        usage_callback.assert_called_once_with(mock_usage)
+        usage_callback.assert_called_once_with(mock_usage, request.usage)
 
     def test_handle_run_result_no_usage_callback(self):
         """Run result is still printed when usage_callback is None."""

@@ -137,7 +137,9 @@ def cap_mcp_result(result: Any) -> Any:
     return result
 
 
-async def _truncating_process_tool_call(_ctx: Any, call_tool: Any, name: str, tool_args):
+async def _truncating_process_tool_call(
+    _ctx: Any, call_tool: Any, name: str, tool_args
+):
     """pydantic-ai ``process_tool_call`` hook: cap oversized MCP results.
 
     Runs the real call, then bounds the payload via ``cap_mcp_result``. Using

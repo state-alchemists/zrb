@@ -32,7 +32,7 @@ class StreamEventHandler:
         indent_level: int = 1,
         show_tool_call_detail: bool = False,
         show_tool_result: bool = False,
-        usage_callback: Callable[[Any], None] | None = None,
+        usage_callback: Callable[..., None] | None = None,
     ):
         self._print_fn = print_fn
         self._usage_callback = usage_callback
@@ -214,7 +214,7 @@ class StreamEventHandler:
     def _handle_run_result(self, event: "AgentRunResultEvent"):
         usage = event.result.usage
         if self._usage_callback is not None:
-            self._usage_callback(usage)
+            self._usage_callback(usage, _last_request_usage(event.result))
         usage_msg = " ".join(
             [
                 "💸",
@@ -243,7 +243,7 @@ def create_event_handler(
     indent_level: int = 1,
     show_tool_call_detail: bool = False,
     show_tool_result: bool = False,
-    usage_callback: Callable[[Any], None] | None = None,
+    usage_callback: Callable[..., None] | None = None,
 ):
     """Create an event handler for agent stream events.
 
@@ -262,6 +262,20 @@ def create_event_handler(
         show_tool_result=show_tool_result,
         usage_callback=usage_callback,
     )
+
+
+def _last_request_usage(result: Any) -> Any:
+    """The last `ModelResponse`'s per-request usage = current context size.
+
+    `RunUsage` sums every request in the run, so it can't report window
+    occupancy. Only `ModelResponse` carries `.usage`; the last one is the most
+    recent prompt sent, which is what fills the context window.
+    """
+    for message in reversed(result.all_messages()):
+        usage = getattr(message, "usage", None)
+        if usage is not None:
+            return usage
+    return None
 
 
 def _get_truncated_event_part_args(event: "AgentStreamEvent | ToolCallEvent") -> Any:
