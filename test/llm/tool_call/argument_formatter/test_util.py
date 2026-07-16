@@ -88,6 +88,28 @@ class TestFormatDiff:
         # With wrapping, we might have multiple continuation lines
         assert len(plus_lines) >= 1
 
+    def test_format_diff_auto_detects_wide_terminal(self):
+        """Auto width detection must use the stdin-aware get_terminal_size.
+
+        Regression: the TUI redirects stdout/stderr fds to a capture pipe, so
+        shutil.get_terminal_size() (stdout-only) falls back to 80 and long diff
+        lines wrap at ~62. The robust helper recovers the real width. Patching
+        it here proves format_diff reads that width (no-op if it were shutil).
+        """
+        long_line = "x" * 160
+        wide = Mock()
+        wide.columns = 200
+        with patch(
+            "zrb.llm.tool_call.argument_formatter.util.get_terminal_size",
+            return_value=wide,
+        ):
+            result = format_diff("short", long_line, "test.txt")
+
+        # The 160-char line fits within 200 cols, so it is NOT wrapped down to
+        # the ~62-col (80 - prefix) width the old shutil fallback produced.
+        widest = max(len(line) for line in result.split("\n"))
+        assert widest > 100
+
     def test_format_diff_with_ui_parameter(self):
         """Test format_diff with UI parameter for width detection."""
         ui = Mock()
