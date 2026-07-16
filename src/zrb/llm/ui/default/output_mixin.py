@@ -143,10 +143,17 @@ class OutputMixin:
         # Scrolling back down to the last line resumes following. Works
         # regardless of which pane is focused, so the thinking process can be
         # read mid-stream without first focusing the output pane (Ctrl+K).
+        #
+        # "Cursor on the last line" == "no newline after the cursor". Checked on
+        # the raw string on purpose: document.cursor_position_row/line_count
+        # build the Document's line index — an O(buffer) scan on EVERY streamed
+        # chunk (the render path rebuilds it anyway, but only at the debounced
+        # ~60Hz rate, not per token). str.find early-exits, so this is O(1)
+        # while following and O(distance to next newline) when scrolled up.
         is_at_last_line = True
         try:
-            doc = self._output_field.buffer.document
-            is_at_last_line = doc.cursor_position_row >= doc.line_count - 1
+            cursor = self._output_field.buffer.cursor_position
+            is_at_last_line = current_text.find("\n", cursor) == -1
         except Exception:
             pass
         should_scroll_to_end = is_at_last_line

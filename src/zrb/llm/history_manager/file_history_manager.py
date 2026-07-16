@@ -423,14 +423,22 @@ class FileHistoryManager(AnyHistoryManager):
     def _save_data_to_file(self, file_path: str, data: Any) -> bool:
         """Save filtered data to a file.
 
-        Returns True if successful, False otherwise.
+        Returns True if successful, False otherwise. Writes to a sibling temp
+        file and renames into place — truncate-writing the live conversation
+        file directly means a crash mid-write corrupts the whole history.
         """
+        tmp_path = f"{file_path}.tmp"
         try:
-            with open(file_path, "w", encoding="utf-8") as f:
+            with open(tmp_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
+            os.replace(tmp_path, file_path)
             return True
         except OSError as e:
             zrb_print(f"Error: Failed to save history to {file_path}: {e}", plain=True)
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                pass
             return False
 
     def _rotate_backups(

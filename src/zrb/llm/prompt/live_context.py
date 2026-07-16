@@ -32,6 +32,7 @@ prompt assembly to ambient runtime state:
    runs the tool short-circuits with a ``[SYSTEM SUGGESTION]`` instead.
 """
 
+import asyncio
 import os
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
@@ -217,15 +218,48 @@ def render_live_context(
 
     The ``model`` argument is accepted for parity with ``system_context`` but is
     not currently rendered here (the model identity line is a stable fact).
+
+    On the async per-turn hot path, prefer ``render_live_context_async`` — this
+    sync form blocks its caller for the duration of the git subprocesses.
+    """
+    # lazy: zrb internal (heavy via transitive / circular)
+    from zrb.llm.tool.plan import todo_manager
+
+    session_name, interactive_bool = _wire_ambient_state(ctx)
+    git_lines, todos_data = _collect_git_info(todo_manager, session_name)
+    return _render_parts(git_lines, todos_data, interactive_bool, inject_journal_index)
+
+
+async def render_live_context_async(
+    ctx: AnyContext, model: "Any" = None, inject_journal_index: bool = False
+) -> str:
+    """``render_live_context`` for async callers (the per-turn hot path).
+
+    The ContextVar wiring runs on the event loop (writes must land in the
+    caller's context); only the git subprocesses + todo fetch are offloaded —
+    inline they freeze the TUI at the start of every turn for as long as
+    ``git status`` takes (routinely hundreds of ms on WSL2 / large repos).
+    """
+    # lazy: zrb internal (heavy via transitive / circular)
+    from zrb.llm.tool.plan import todo_manager
+
+    session_name, interactive_bool = _wire_ambient_state(ctx)
+    git_lines, todos_data = await asyncio.to_thread(
+        _collect_git_info, todo_manager, session_name
+    )
+    return _render_parts(git_lines, todos_data, interactive_bool, inject_journal_index)
+
+
+def _wire_ambient_state(ctx: AnyContext) -> tuple[str, bool]:
+    """Per-turn ContextVar wiring (must run on the caller's thread/context).
+
+    Returns ``(session_name, interactive_bool)``.
     """
     # lazy: zrb internal (heavy via transitive / circular)
     from zrb.llm.tool.ambient_state import (
-        get_active_worktree,
-        set_active_worktree,
         set_current_tool_session,
         set_interactive_mode,
     )
-    from zrb.llm.tool.plan import todo_manager
 
     try:
         session_name = str(ctx.input.session) if hasattr(ctx, "input") else ""
@@ -239,9 +273,18 @@ def render_live_context(
     except Exception:
         interactive_bool = True
     set_interactive_mode(interactive_bool)
+    return session_name, interactive_bool
 
-    # --- Dynamic: git and todos ---
-    git_lines, todos_data = _collect_git_info(todo_manager, session_name)
+
+def _render_parts(
+    git_lines: list[str],
+    todos_data: "dict[str, Any] | None",
+    interactive_bool: bool,
+    inject_journal_index: bool,
+) -> str:
+    """Assemble the live-context lines (ContextVar reads stay on the caller)."""
+    # lazy: zrb internal (heavy via transitive / circular)
+    from zrb.llm.tool.ambient_state import get_active_worktree, set_active_worktree
 
     # --- Worktree (ContextVar — must run on caller's thread) ---
     active_wt = get_active_worktree()

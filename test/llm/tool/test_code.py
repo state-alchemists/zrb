@@ -1,3 +1,4 @@
+import json
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -443,3 +444,8 @@ async def test_extract_info_truncates_oversized_single_file():
     joined = "".join(captured[0])
     assert "[TRUNCATED]" in joined
     assert llm_limiter.count_tokens(joined) <= 1000
+    # Truncation must happen inside the content field, not by cutting the
+    # serialized string — the extractor must always receive valid JSON.
+    parsed = json.loads(captured[0][0])
+    assert parsed["path"] == "big.py"
+    assert parsed["content"].endswith("[TRUNCATED]")
