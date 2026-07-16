@@ -297,6 +297,17 @@ class BuilderMixin:
             ctx, inject_journal_index=inject_journal_index
         )
 
+    async def get_live_context_async(
+        self, ctx: AnyContext, inject_journal_index: bool = False
+    ) -> str:
+        """``get_live_context`` for async callers: git collection runs off-loop
+        so the per-turn render cannot freeze the TUI's event loop."""
+        if self._prompt_manager is None:
+            return ""
+        return await self._prompt_manager.create_live_context_async(
+            ctx, inject_journal_index=inject_journal_index
+        )
+
     def _get_model_settings(self, ctx: AnyContext) -> ModelSettings | None:
         model_settings = self._model_settings
         rendered_model_settings = get_attr(ctx, model_settings, None)

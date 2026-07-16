@@ -266,6 +266,27 @@ class PromptManager:
             inject_journal_index and "journal_mandate" in self.active_sections
         )
         body = render_live_context(ctx, self._model, inject_journal_index=inject_index)
+        return self._finish_live_context(body, ctx)
+
+    async def create_live_context_async(
+        self, ctx: AnyContext, inject_journal_index: bool = False
+    ) -> str:
+        """``create_live_context`` for async callers (the per-turn hot path):
+        the git subprocesses run off-loop instead of blocking the event loop.
+        """
+        # lazy: keep the async twin's import local, mirroring the sync path.
+        from zrb.llm.prompt.live_context import render_live_context_async
+
+        inject_index = (
+            inject_journal_index and "journal_mandate" in self.active_sections
+        )
+        body = await render_live_context_async(
+            ctx, self._model, inject_journal_index=inject_index
+        )
+        return self._finish_live_context(body, ctx)
+
+    def _finish_live_context(self, body: str, ctx: AnyContext) -> str:
+        """Append registered live-context providers and wrap the block."""
         for name, provider in self._live_context_providers:
             try:
                 extra = provider(ctx)

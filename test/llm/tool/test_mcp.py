@@ -33,6 +33,30 @@ def test_cap_mcp_result_caps_oversized_structured():
     assert len(out) < 600
 
 
+def test_cap_mcp_result_passes_binary_through_intact():
+    """A large image must never be stringified into a truncated repr.
+
+    Regression: capping via str(result) turned MCP screenshot results into
+    "BinaryContent(data=b'\\x89PNG..." head text, losing the image entirely.
+    """
+    from pydantic_ai.messages import BinaryContent
+
+    image = BinaryContent(data=b"\x89PNG" * 100_000, media_type="image/png")
+    with patch.dict(os.environ, {f"{CFG.ENV_PREFIX}_LLM_MAX_OUTPUT_CHARS": "500"}):
+        assert cap_mcp_result(image) is image
+
+
+def test_cap_mcp_result_caps_text_items_but_keeps_binary_in_list():
+    from pydantic_ai.messages import BinaryContent
+
+    image = BinaryContent(data=b"\x89PNG" * 100_000, media_type="image/png")
+    with patch.dict(os.environ, {f"{CFG.ENV_PREFIX}_LLM_MAX_OUTPUT_CHARS": "500"}):
+        out = cap_mcp_result([image, "z" * 5000, "short"])
+    assert out[0] is image
+    assert "[TRUNCATED]" in out[1] and len(out[1]) < 600
+    assert out[2] == "short"
+
+
 @pytest.fixture
 def mock_fs():
     with tempfile.TemporaryDirectory() as temp_dir:

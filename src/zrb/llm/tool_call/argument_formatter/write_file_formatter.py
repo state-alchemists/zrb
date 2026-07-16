@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 from typing import TYPE_CHECKING
@@ -5,6 +6,7 @@ from typing import TYPE_CHECKING
 from zrb.llm.tool_call.argument_formatter.util import format_diff
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 from zrb.util.cli.markdown import render_markdown
+from zrb.util.cli.terminal import get_terminal_size
 
 if TYPE_CHECKING:
     from pydantic_ai import ToolCallPart
@@ -35,7 +37,10 @@ async def write_file_formatter(
         if not path or content is None:
             return None
 
-        return _format_single_write(path, content, mode, ui)
+        # Offload: file read + difflib + Rich markdown render is pure blocking
+        # CPU/IO. On the TUI it runs on prompt_toolkit's event loop before the
+        # approval prompt appears, so leaving it inline freezes keystrokes.
+        return await asyncio.to_thread(_format_single_write, path, content, mode, ui)
 
     except Exception:
         return None
@@ -62,9 +67,10 @@ def _format_single_write(path: str, new_content: str, mode: str, ui) -> str | No
         return f"       📄 File: {path} (No changes)\n"
 
     indent = " " * 7
-    # Use width=None to let Rich handle markdown rendering without interfering
-    # with the already-wrapped diff formatting from util.py
-    formatted_diff = render_markdown(diff_md, width=None)
+    # Render at the real terminal width. width=None makes Rich fall back to 80
+    # when stdout is a capture pipe (see get_terminal_size note), which re-wraps
+    # the already-wide diff lines from util.py.
+    formatted_diff = render_markdown(diff_md, width=get_terminal_size().columns)
     formatted_diff = "\n".join(
         [f"{indent}{line}" for line in formatted_diff.splitlines()]
     )

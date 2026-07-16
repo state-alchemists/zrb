@@ -216,6 +216,32 @@ async def test_open_web_page_pdf_url_skips_playwright():
         assert result["links_on_page"] == []
         mock_pdf_open.assert_called_once()
         mock_playwright.assert_not_called()
+        # pdfplumber's extract_text is expensive; it must run once per page,
+        # not once for the emptiness filter and again for the join.
+        assert fake_page.extract_text.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_open_web_page_pdf_text_not_html_converted():
+    # PDF text containing <...> sequences (code, generics, emails) must survive:
+    # running it through the HTML→markdown converter eats them as tags.
+    fake_page = MagicMock()
+    fake_page.extract_text.return_value = "compile with #include <stdio.h> today"
+    fake_pdf = MagicMock()
+    fake_pdf.pages = [fake_page]
+    fake_pdf.__enter__.return_value = fake_pdf
+
+    with (
+        patch("requests.get") as mock_get,
+        patch("pdfplumber.open", return_value=fake_pdf),
+    ):
+        mock_response = MagicMock()
+        mock_response.content = b"%PDF-1.4 ..."
+        mock_get.return_value = mock_response
+
+        result = await open_web_page("https://example.com/doc.pdf", summarize=False)
+
+        assert "<stdio.h>" in result["content"]
 
 
 @pytest.mark.asyncio
@@ -301,6 +327,11 @@ async def test_open_web_page_with_summarization():
         patch("playwright.async_api.async_playwright") as mock_playwright_ctx,
         patch("zrb.llm.tool.web.create_agent") as mock_create_agent,
         patch("zrb.llm.tool.web.run_agent", new_callable=AsyncMock) as mock_run_agent,
+        # The fallback must never be reached: with goto unstubbed, the
+        # content-type check exploded on an auto-AsyncMock (leaking a
+        # never-awaited coroutine) and the test silently fetched the real
+        # https://example.com through requests. Fail loudly instead.
+        patch("requests.get", side_effect=AssertionError("network escape")),
     ):
 
         mock_p = AsyncMock()
@@ -311,6 +342,9 @@ async def test_open_web_page_with_summarization():
         mock_p.chromium.launch.return_value = mock_browser
         mock_browser.new_page.return_value = mock_page
 
+        mock_response = MagicMock()
+        mock_response.headers = {"content-type": "text/html"}
+        mock_page.goto.return_value = mock_response
         mock_page.content.return_value = "<html><body><h1>Title</h1><p>Content with lots of details that should be summarized.</p></body></html>"
         mock_page.eval_on_selector_all.return_value = ["https://example.com/link"]
 

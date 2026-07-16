@@ -122,17 +122,26 @@ def cap_mcp_result(result: Any) -> Any:
     A third-party MCP server can return an arbitrarily large payload; unbounded,
     it becomes a tool-return message that overflows ``llm_limiter``'s per-minute
     budget on the agent's next request, which then livelocks forever (the same
-    UI freeze WebFetch hit). Only string results are capped — structured results
-    (small dicts/lists the model needs intact) pass through unless their string
-    form alone blows past the cap, in which case the string form is returned.
+    UI freeze WebFetch hit). Only *text* is capped: strings directly, string
+    items inside sequences, and oversized dicts via their JSON form. Binary and
+    other rich content parts (e.g. pydantic-ai ``BinaryContent`` images) pass
+    through untouched — stringifying them would replace the image the model is
+    supposed to see with a truncated Python repr.
     """
     max_chars = CFG.LLM_MAX_OUTPUT_CHARS
     if isinstance(result, str):
         capped, _ = truncate_text(result, max_chars, keep="head")
         return capped
-    as_text = str(result)
-    if len(as_text) > max_chars:
-        capped, _ = truncate_text(as_text, max_chars, keep="head")
+    if isinstance(result, (list, tuple)):
+        return [cap_mcp_result(item) for item in result]
+    if isinstance(result, dict):
+        try:
+            as_json = json.dumps(result, ensure_ascii=False)
+        except (TypeError, ValueError):
+            return result
+        if len(as_json) <= max_chars:
+            return result
+        capped, _ = truncate_text(as_json, max_chars, keep="head")
         return capped
     return result
 

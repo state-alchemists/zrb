@@ -234,6 +234,19 @@ async def test_run_shell_command_timeout():
 
 
 @pytest.mark.asyncio
+async def test_run_shell_command_survives_long_single_line():
+    # Regression: asyncio's default 64KB StreamReader limit made readline()
+    # raise on one long line (minified JS, single-line JSON), losing all output
+    # and leaving the process running detached.
+    res = await run_shell_command(
+        "python3 -c \"print('x' * 200000)\"", max_chars=300000
+    )
+    assert "Exit Code: 0" in res
+    assert "xxxx" in res
+    assert "Error executing command" not in res
+
+
+@pytest.mark.asyncio
 async def test_run_shell_command_pid_file_cleanup_failure_is_ignored(monkeypatch):
     # Collecting background PIDs is best-effort: a failure removing the temp PID
     # file is swallowed and the command result is still returned.

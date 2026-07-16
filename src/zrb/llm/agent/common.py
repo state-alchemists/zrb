@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import copy
 import inspect
 import json
@@ -116,7 +117,7 @@ def _truncated_content(content: str) -> tuple[str, dict[str, Any]]:
 def create_safe_wrapper(func: Callable, name: str | None = None) -> Callable:
     """Create a wrapper that catches exceptions and returns ToolReturn objects."""
     # lazy: heavy third-party
-    from pydantic_ai import ToolReturn
+    from pydantic_ai import ModelRetry, ToolReturn
 
     # lazy: circular — permission is a leaf module; capability is read at wrap
     # time (cheap) so the per-call gate need not re-import it.
@@ -138,7 +139,12 @@ def create_safe_wrapper(func: Callable, name: str | None = None) -> Callable:
             if inspect.iscoroutinefunction(func):
                 result = await func(*args, **kwargs)
             else:
-                result = func(*args, **kwargs)
+                # This wrapper is a coroutine function, so pydantic-ai never
+                # applies its own executor offload for sync tools — inline they
+                # would block the TUI's event loop for the tool's duration
+                # (ReadFile on a big file, grep, journal search). ContextVars
+                # propagate into the thread; none of the sync tools write them.
+                result = await asyncio.to_thread(func, *args, **kwargs)
 
             # If result is already a ToolReturn, return it as-is. The tool framed
             # its own content (possibly truncated deliberately) — respect it.
@@ -154,6 +160,11 @@ def create_safe_wrapper(func: Callable, name: str | None = None) -> Callable:
             return ToolReturn(
                 return_value=safe_result, content=content, metadata=metadata
             )
+        except ModelRetry:
+            # pydantic-ai's retry protocol: the framework turns this into a
+            # retry prompt for the model. Swallowing it into an error string
+            # would disable retries for every tool.
+            raise
         except Exception as e:
             error_msg = f"Error executing tool {func.__name__}: {e}"
             return ToolReturn(
@@ -166,7 +177,7 @@ def create_safe_wrapper(func: Callable, name: str | None = None) -> Callable:
 def _wrap_toolset(toolset: "AbstractToolset[None]") -> "AbstractToolset[None]":
     """Wrap a toolset with error handling."""
     # lazy: heavy third-party
-    from pydantic_ai import ToolReturn
+    from pydantic_ai import ModelRetry, ToolReturn
     from pydantic_ai.toolsets import WrapperToolset
 
     # lazy: circular — permission is a leaf module.
@@ -200,6 +211,10 @@ def _wrap_toolset(toolset: "AbstractToolset[None]") -> "AbstractToolset[None]":
                     metadata=metadata,
                 )
                 return await _fire_post_tool_use(name, tool_args, wrapped)
+            except ModelRetry:
+                # Part of pydantic-ai's retry protocol — must reach the
+                # framework, not become an opaque error string.
+                raise
             except Exception as e:
                 await _fire_post_tool_use_failure(name, tool_args, e)
                 error_msg = f"Error executing tool {name}: {e}"

@@ -1,8 +1,9 @@
 import difflib
 import re
-import shutil
 import textwrap
 from typing import Any
+
+from zrb.util.cli.terminal import get_terminal_size
 
 
 def format_diff(
@@ -58,7 +59,11 @@ def format_diff(
         calculated_width = term_width - prefix_len - 10
     else:
         try:
-            term_width = shutil.get_terminal_size().columns
+            # Not shutil.get_terminal_size(): the TUI redirects stdout/stderr
+            # fds to a capture pipe, so that only sees a pipe and falls back to
+            # 80. The robust helper falls through to stdin (fd 0, not
+            # redirected) and recovers the real width.
+            term_width = get_terminal_size().columns
             calculated_width = term_width - prefix_len - 10
         except Exception:
             # Default to 80 if terminal detection fails

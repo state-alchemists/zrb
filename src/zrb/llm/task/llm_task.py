@@ -259,7 +259,11 @@ class LLMTask(BuilderMixin, HistoryMixin, BaseTask):  # type: ignore[reportIncom
     ) -> Any:
         conversation_name = self._get_conversation_name(ctx)
         history_manager = self._get_history_manager(ctx)
-        message_history = history_manager.load(conversation_name)
+        # Offload: load deserializes + re-validates the whole conversation —
+        # O(history) blocking work that would stall the TUI's event loop.
+        message_history = await asyncio.to_thread(
+            history_manager.load, conversation_name
+        )
         user_message = cast(str, get_attr(ctx, self._message, "", self._render_message))
         user_attachments = get_attachments(ctx, self._attachment)
 
@@ -284,7 +288,7 @@ class LLMTask(BuilderMixin, HistoryMixin, BaseTask):  # type: ignore[reportIncom
         # index snapshot is seeded on the first turn only (empty history); each
         # later summarization re-seeds it at its own site (summarize_history), so
         # the index is always present without living in the cached system prompt.
-        live_context = self.get_live_context(
+        live_context = await self.get_live_context_async(
             ctx, inject_journal_index=not message_history
         )
         agent = self._create_agent(ctx, system_prompt=system_prompt, toolsets=toolsets)
@@ -349,7 +353,10 @@ class LLMTask(BuilderMixin, HistoryMixin, BaseTask):  # type: ignore[reportIncom
             raise e
 
         history_manager.update(conversation_name, new_history)
-        history_manager.save(conversation_name)
+        # Offload: save serializes, re-validates, and writes the whole
+        # conversation (twice, with the backup) — it lands at the exact moment
+        # the user expects the prompt back, so it must not block the loop.
+        await asyncio.to_thread(history_manager.save, conversation_name)
         ctx.log_debug(f"All messages: {new_history}")
 
         return self._post_process_output(output)

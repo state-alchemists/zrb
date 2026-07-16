@@ -84,6 +84,7 @@ async def run_shell_command(
             "configuration."
         )
 
+    process = None
     try:
         process = await _start_process(argv, cwd)
         # _start_process creates the subprocess with stdout/stderr=PIPE, so both
@@ -132,6 +133,14 @@ async def run_shell_command(
 
     except Exception as e:
         _cleanup_temp_file(temp_pid_file)
+        # A failure after the process started (e.g. a stream error) must not
+        # leave the command running detached with no handle to it.
+        if process is not None and process.returncode is None:
+            await terminate_process(
+                process,
+                CFG.LLM_SHELL_KILL_WAIT_TIMEOUT / 1000,
+                print_method=CFG.LOGGER.warning,
+            )
         return (
             f"Error executing command: {e}. "
             "[SYSTEM SUGGESTION]: Check the command syntax and that any "
@@ -198,6 +207,10 @@ async def _start_process(argv: list[str], cwd: str) -> asyncio.subprocess.Proces
         stdin=asyncio.subprocess.DEVNULL,
         cwd=cwd,
         start_new_session=True,
+        # asyncio's default 64KB StreamReader limit makes readline() raise on a
+        # single long line (minified JS, one-line JSON logs), losing all output.
+        # ponytail: 8MB line ceiling; switch to chunked read() if ever exceeded.
+        limit=8 * 1024 * 1024,
     )
 
 

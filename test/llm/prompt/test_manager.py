@@ -2,6 +2,8 @@ import os
 import tempfile
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from zrb.config.config import CFG
 from zrb.context.shared_context import SharedContext
 from zrb.llm.prompt.manager import PromptManager, new_prompt
@@ -143,6 +145,30 @@ def test_create_live_context_wraps_volatile_state_in_tags():
     assert rendered.rstrip().endswith("</live-context>")
     # Volatile content lives here, not in the cached system prompt.
     assert "Time:" in rendered
+
+
+@pytest.mark.asyncio
+async def test_create_live_context_async_matches_sync_shape():
+    """The async twin (per-turn hot path, git off-loop) renders the same block
+    shape and honors custom providers, with ContextVar wiring on the loop."""
+    manager = PromptManager(include_sections=[])
+    manager.add_live_context("test_provider", lambda ctx: "- Custom: hello")
+    ctx = MagicMock()
+    ctx.input.session = "live-ctx-async-test"
+
+    with patch("zrb.llm.tool.plan.todo_manager") as mock_tm:
+        mock_tm.get_todos.return_value = None
+        rendered = await manager.create_live_context_async(ctx)
+
+    assert rendered.startswith("<live-context>")
+    assert rendered.rstrip().endswith("</live-context>")
+    assert "Time:" in rendered
+    assert "Custom: hello" in rendered
+
+    from zrb.llm.tool.ambient_state import get_current_tool_session
+
+    # The wiring side effect must land in the caller's context, not a thread's.
+    assert get_current_tool_session() == "live-ctx-async-test"
 
 
 def test_add_live_context_appends_custom_content():
