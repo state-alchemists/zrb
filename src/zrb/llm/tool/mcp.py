@@ -91,21 +91,21 @@ def _create_mcp_toolsets(merged_servers: dict[str, Any]) -> list[Any]:
                 } or None
                 transport = StdioTransport(command=command, args=args, env=env)
                 toolsets.append(
-                    _wrap_with_truncation(
-                        MCPToolset(
-                            transport,
-                            id=server_name,
-                            max_retries=CFG.LLM_MCP_MAX_RETRIES,
-                        )
+                    MCPToolset(
+                        transport,
+                        id=server_name,
+                        max_retries=CFG.LLM_MCP_MAX_RETRIES,
+                        process_tool_call=_truncating_process_tool_call,
                     )
                 )
             elif "url" in config:
                 url = _expand_env_vars(config["url"])
                 toolsets.append(
-                    _wrap_with_truncation(
-                        MCPToolset(
-                            url, id=server_name, max_retries=CFG.LLM_MCP_MAX_RETRIES
-                        )
+                    MCPToolset(
+                        url,
+                        id=server_name,
+                        max_retries=CFG.LLM_MCP_MAX_RETRIES,
+                        process_tool_call=_truncating_process_tool_call,
                     )
                 )
         except Exception as e:
@@ -137,17 +137,15 @@ def cap_mcp_result(result: Any) -> Any:
     return result
 
 
-def _wrap_with_truncation(toolset: Any) -> Any:
-    # lazy: heavy import (pydantic_ai) — mirrors _create_mcp_toolsets. Defined
-    # here so the module doesn't import WrapperToolset at load time.
-    from pydantic_ai.toolsets import WrapperToolset
+async def _truncating_process_tool_call(_ctx: Any, call_tool: Any, name: str, tool_args):
+    """pydantic-ai ``process_tool_call`` hook: cap oversized MCP results.
 
-    class _TruncatingToolset(WrapperToolset):
-        async def call_tool(self, name, tool_args, ctx, tool):  # type: ignore[override]
-            result = await self.wrapped.call_tool(name, tool_args, ctx, tool)
-            return cap_mcp_result(result)
-
-    return _TruncatingToolset(toolset)
+    Runs the real call, then bounds the payload via ``cap_mcp_result``. Using
+    the built-in hook (rather than wrapping the toolset) keeps the object an
+    ``MCPToolset`` — its id and client stay intact for tool namespacing.
+    """
+    result = await call_tool(name, tool_args)
+    return cap_mcp_result(result)
 
 
 def _expand_env_vars(value: Any) -> Any:

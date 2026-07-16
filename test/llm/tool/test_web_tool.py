@@ -146,6 +146,11 @@ async def test_open_web_page_playwright_success():
         mock_p.chromium.launch.return_value = mock_browser
         mock_browser.new_page.return_value = mock_page
 
+        # goto returns a response whose headers say it's HTML, not a PDF, so the
+        # content-type check doesn't error and fall back to a real fetch.
+        mock_response = MagicMock()
+        mock_response.headers = {"content-type": "text/html"}
+        mock_page.goto.return_value = mock_response
         mock_page.content.return_value = (
             "<html><body><h1>Title</h1><p>Content</p></body></html>"
         )
@@ -338,6 +343,9 @@ async def test_open_web_page_truncates_oversized_page():
         mock_playwright_ctx.return_value.__aenter__.return_value = mock_p
         mock_p.chromium.launch.return_value = mock_browser
         mock_browser.new_page.return_value = mock_page
+        mock_response = MagicMock()
+        mock_response.headers = {"content-type": "text/html"}
+        mock_page.goto.return_value = mock_response
         mock_page.content.return_value = huge_html
         mock_page.eval_on_selector_all.return_value = []
 
@@ -366,6 +374,9 @@ async def test_open_web_page_summarizer_input_is_bounded():
         mock_playwright_ctx.return_value.__aenter__.return_value = mock_p
         mock_p.chromium.launch.return_value = mock_browser
         mock_browser.new_page.return_value = mock_page
+        mock_response = MagicMock()
+        mock_response.headers = {"content-type": "text/html"}
+        mock_page.goto.return_value = mock_response
         mock_page.content.return_value = huge_html
         mock_page.eval_on_selector_all.return_value = []
         mock_run_agent.return_value = ("summary", [])
