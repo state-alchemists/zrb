@@ -292,8 +292,8 @@ class PromptManager:
                 extra = provider(ctx)
                 if extra:
                     body += "\n" + extra
-            except Exception:
-                pass
+            except Exception as e:
+                CFG.LOGGER.debug(f"Live-context provider '{name}' failed: {e}")
         if not body.strip():
             return ""
         return f"<live-context>\n{body}\n</live-context>"
@@ -330,8 +330,8 @@ class PromptManager:
                     extra = provider(ctx)
                     if extra:
                         extra_parts.append(extra)
-                except Exception:
-                    pass
+                except Exception as e:
+                    CFG.LOGGER.debug(f"Section provider '{_name}' failed: {e}")
             if extra_parts:
                 result = next_handler(
                     ctx,
@@ -373,8 +373,8 @@ class PromptManager:
                     extra = provider(ctx)
                     if extra:
                         extra_parts.append(extra)
-                except Exception:
-                    pass
+                except Exception as e:
+                    CFG.LOGGER.debug(f"Section provider '{_name}' failed: {e}")
             if extra_parts:
                 result = next_handler(
                     ctx,

@@ -36,6 +36,7 @@ def get_terminal_size(fallback: tuple[int, int] = (80, 24)) -> TerminalSize:
             finally:
                 os.close(fd)
         except Exception:
+            # Best-effort Windows probe; fall through to the portable path below.
             pass
 
     # 3. Fallback to shutil.get_terminal_size which also checks COLUMNS/LINES env vars

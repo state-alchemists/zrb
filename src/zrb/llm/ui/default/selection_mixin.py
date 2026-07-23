@@ -99,6 +99,7 @@ class SelectionMixin(_SelectionMixinBase):
 
             get_app().layout.focus(self._input_field)
         except Exception:
+            # Layout not ready (e.g. before first render) — focus on next paint.
             pass
 
     # --- widget construction --------------------------------------------
@@ -309,4 +310,5 @@ class SelectionMixin(_SelectionMixinBase):
 
             get_app().invalidate()
         except Exception:
+            # No active app to repaint — safe to ignore.
             pass

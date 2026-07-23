@@ -7,7 +7,7 @@ from zrb.session.any_session import AnySession
 from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
 from zrb.task.base.context import fill_shared_context_envs, fill_shared_context_inputs
-from zrb.util.run import run_async
+from zrb.util.run import gather_isolated, run_async
 
 
 async def run_and_cleanup(
@@ -129,7 +129,7 @@ async def execute_root_tasks(task: AnyTask, session: AnySession):
         ]
 
         # Wait for all root chains to complete
-        await asyncio.gather(*root_task_coros)
+        await gather_isolated(*root_task_coros)
 
         # Wait for any deferred actions (like long-running task bodies)
         ctx.log_info("Waiting for deferred actions...")

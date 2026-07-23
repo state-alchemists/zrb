@@ -252,8 +252,8 @@ def _collect_background_pids(temp_pid_file: str | None, process_pid: int) -> lis
                 if pid not in (process_pid, shell_pid, os.getpid()):
                     bg_pids.append(pid)
             os.remove(temp_pid_file)
-        except Exception:
-            pass
+        except Exception as e:
+            CFG.LOGGER.debug(f"Failed to parse background PIDs: {e}")
     return bg_pids
 
 
@@ -262,8 +262,8 @@ def _cleanup_temp_file(temp_pid_file: str | None):
     if temp_pid_file and os.path.exists(temp_pid_file):
         try:
             os.remove(temp_pid_file)
-        except Exception:
-            pass
+        except Exception as e:
+            CFG.LOGGER.debug(f"Failed to remove temp PID file: {e}")
 
 
 def _format_output(

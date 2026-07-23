@@ -113,8 +113,8 @@ class MultiUI:
                 ui.append_to_output(
                     *values, sep=sep, end=end, file=file, flush=flush, kind=kind
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                CFG.LOGGER.debug(f"Child UI append_to_output failed: {e}")
 
     def replay_history(self, messages: list) -> None:
         """Replay loaded history on every child UI that supports it."""
@@ -127,8 +127,8 @@ class MultiUI:
             if callable(replay):
                 try:
                     replay(messages)
-                except Exception:
-                    pass
+                except Exception as e:
+                    CFG.LOGGER.debug(f"Child UI history replay failed: {e}")
 
     async def _stream_ai_response(
         self,
@@ -186,6 +186,7 @@ class MultiUI:
                 if hasattr(ui, "invalidate_ui"):
                     ui.invalidate_ui()
             except Exception:
+                # Best-effort repaint of each child UI.
                 pass
 
     def _create_session_for_llm_task(
@@ -319,8 +320,8 @@ class MultiUI:
                 if hasattr(ui, "ask_user"):
                     task = loop.create_task(ui.ask_user(prompt))
                     pending_tasks[task] = (i, ui)
-            except Exception:
-                pass
+            except Exception as e:
+                CFG.LOGGER.debug(f"Child UI ask_user setup failed: {e}")
 
         if not pending_tasks:
             return ""
@@ -369,8 +370,8 @@ class MultiUI:
                 if hasattr(ui, "ask_user_choice"):
                     task = loop.create_task(ui.ask_user_choice(spec))
                     pending_tasks[task] = (i, ui)
-            except Exception:
-                pass
+            except Exception as e:
+                CFG.LOGGER.debug(f"Child UI ask_user_choice setup failed: {e}")
 
         if not pending_tasks:
             return ""
@@ -411,6 +412,7 @@ class MultiUI:
                 if hasattr(ui, "cancel_pending_confirmations"):
                     ui.cancel_pending_confirmations()
             except Exception:
+                # Best-effort cancel across child UIs during teardown.
                 pass
 
     def stream_to_parent(
@@ -427,8 +429,8 @@ class MultiUI:
                 ui.stream_to_parent(
                     *values, sep=sep, end=end, file=file, flush=flush, kind=kind
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                CFG.LOGGER.debug(f"Child UI stream_to_parent failed: {e}")
 
     async def run_interactive_command(
         self, cmd: str | list[str], shell: bool = False
@@ -470,8 +472,8 @@ class MultiUI:
         except asyncio.CancelledError:
             main_task.cancel()
             await main_task
-        except Exception:
-            pass
+        except Exception as e:
+            CFG.LOGGER.debug(f"Main UI task ended with error: {e}")
         finally:
             # Cancel all tasks
             if self._process_messages_task:
@@ -506,6 +508,7 @@ class MultiUI:
         try:
             self._main_ui.on_exit()
         except Exception:
+            # Best-effort teardown of the main UI.
             pass
 
 

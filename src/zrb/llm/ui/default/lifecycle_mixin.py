@@ -164,6 +164,8 @@ class LifecycleMixin:
                 if app.layout.has_focus(self._input_field):
                     self._scroll_output_to_bottom()
             except Exception:
+                # Best-effort repaint loop; a transient render error must not
+                # kill the loop.
                 pass
             try:
                 # When thinking or waiting for confirmation, refresh faster for
@@ -185,6 +187,7 @@ class LifecycleMixin:
             if buffer.cursor_position != len(buffer.text):
                 buffer.cursor_position = len(buffer.text)
         except Exception:
+            # Best-effort scroll; ignore if the buffer isn't ready.
             pass
 
     def handle_first_render(self):
@@ -203,6 +206,7 @@ class LifecycleMixin:
         try:
             get_app().invalidate()
         except Exception:
+            # No active prompt_toolkit app (e.g. non-interactive) — nothing to repaint.
             pass
 
     def on_exit(self):
@@ -212,6 +216,7 @@ class LifecycleMixin:
         try:
             get_app().exit()
         except Exception:
+            # No active app to exit (already torn down) — nothing to do.
             pass
 
         if hasattr(self, "_background_tasks"):

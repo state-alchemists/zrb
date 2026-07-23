@@ -299,15 +299,15 @@ class ExecMixin:
             from zrb.llm.lsp.manager.manager import lsp_manager
 
             await lsp_manager.shutdown_all()
-        except Exception:
-            pass
+        except Exception as e:
+            CFG.LOGGER.debug(f"LSP shutdown at session end failed: {e}")
         # lazy: only needed at session end; keeps the hook import off hot paths.
         try:
             from zrb.llm.hook.executor import shutdown_hook_executor
 
             shutdown_hook_executor(wait=False)
-        except Exception:
-            pass
+        except Exception as e:
+            CFG.LOGGER.debug(f"Hook-executor shutdown at session end failed: {e}")
 
     def _get_all_tools(self, ctx: AnyContext) -> list[Tool | ToolFuncEither]:
         """Get all tools including those resolved from factories using parent context."""

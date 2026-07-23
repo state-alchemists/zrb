@@ -120,8 +120,8 @@ def _check_file_safety(abs_path: str) -> str | None:
                     "Error: File appears to be binary. "
                     "Reading binary files is not supported."
                 )
-    except Exception:
-        pass
+    except Exception as e:
+        CFG.LOGGER.debug(f"Binary-detection peek failed for {abs_path}: {e}")
     return None
 
 

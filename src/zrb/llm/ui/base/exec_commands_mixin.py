@@ -138,6 +138,7 @@ class ExecCommandsMixin:
                     try:
                         process.kill()
                     except Exception:
+                        # Best-effort kill during teardown; re-raise below regardless.
                         pass
             raise  # Re-raise to allow proper task cancellation
         except Exception as e:

@@ -45,8 +45,8 @@ def load_cmd_history() -> list[str]:
                         if line in unique_cmds:
                             del unique_cmds[line]
                         unique_cmds[line] = None
-        except Exception:
-            pass
+        except Exception as e:
+            CFG.LOGGER.debug(f"Failed to read command history: {e}")
 
     return list(unique_cmds.keys())
 
@@ -127,8 +127,8 @@ def walk_recursive_files(
                     cache["files"] = paths
                     cache["time"] = now
                     return paths
-    except Exception:
-        pass
+    except Exception as e:
+        CFG.LOGGER.debug(f"Failed to walk directory for completion: {e}")
 
     cache["files"] = paths
     cache["time"] = now

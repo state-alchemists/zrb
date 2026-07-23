@@ -102,8 +102,8 @@ class MultiplexApprovalChannel(ApprovalChannel):
         for channel in self._channels:
             try:
                 await channel.notify(message, context)
-            except Exception:
-                pass
+            except Exception as e:
+                CFG.LOGGER.debug(f"Approval channel notify failed: {e}")
 
 
 def is_shutdown_requested() -> bool:

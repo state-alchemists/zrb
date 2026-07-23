@@ -83,6 +83,8 @@ class SystemInfoMixin:
             except asyncio.CancelledError:
                 break
             except Exception:
+                # Best-effort periodic refresh; keep the loop alive on transient
+                # errors without spamming logs each tick.
                 pass
             try:
                 await asyncio.sleep(CFG.LLM_UI_LONG_STATUS_INTERVAL / 1000)

@@ -64,8 +64,8 @@ class HookLoaderMixin:
                     self._load_hooks_from_python(search_path)
             else:
                 self._scan_dir_recursive(search_path, search_path, self._max_depth, 0)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"Failed to load hooks from {path}: {e}")
 
     def _scan_dir_recursive(
         self,

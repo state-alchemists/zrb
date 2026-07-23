@@ -363,30 +363,20 @@ class KeybindingsMixin:
             self._voice_task = None
 
             async def record_and_insert():
-                from zrb.llm.voice.engine import (  # noqa: F811
-                    _download_vosk_model,
-                    _get_vosk_model_dir,
-                )
-
                 # Download the Vosk model before recording (first use only).
                 # This keeps the "Downloading..." status visible. The download
                 # is chunked and cancellable, so /q or Ctrl+C aborts it (both
                 # cancel this task). A pre-downloaded model must be extracted
                 # (the bare .zip is not detected). After the first download the
                 # model is cached for future recordings.
-                if (
-                    engine._transcriber is None
-                    and CFG.LLM_VOICE_MODE.strip().lower() == "vosk"
-                ):
-                    model_name = CFG.LLM_VOICE_VOSK_MODEL_NAME
-                    model_url = CFG.LLM_VOICE_VOSK_MODEL_URL
-                    if not _get_vosk_model_dir(model_name):
+                if not engine.is_ready and CFG.LLM_VOICE_MODE.strip().lower() == "vosk":
+                    if not engine.is_vosk_model_ready():
                         self.append_to_output(
                             stylize_muted("\n  🎤 Downloading voice model...")
                         )
                         self.invalidate_ui()
                         try:
-                            await _download_vosk_model(model_name, model_url)
+                            await engine.download_vosk_model()
                         except Exception as exc:
                             self._voice_mode_active = False
                             self._voice_recording_active = False

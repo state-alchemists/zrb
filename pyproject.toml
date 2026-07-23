@@ -1,6 +1,6 @@
 [project]
 name = "zrb"
-version = "2.50.3"
+version = "2.50.4"
 description = "Your Automation Powerhouse"
 authors = [{name = "Go Frendi Gunawan", email = "gofrendiasgard@gmail.com"}]
 license = "AGPL-3.0-or-later"
@@ -29,15 +29,18 @@ dependencies = [
     "openai>=2.29.0",
     "prompt-toolkit>=3",
     "rich>=13",
-    "mcp>1.25.0,<2.0",
+    # Security fix: GHSA/CVE-2026-59950 - Cross-Site WebSocket Hijacking via unvalidated Host/Origin
+    # headers in the deprecated WebSocket server transport. We pin >=1.28.1.
+    "mcp>=1.28.1,<2.0",
     "requests>=2.33.0,<3.0.0",
     "tiktoken>=0.12.0,<0.13.0",
     "markdownify>=1.2.2,<2.0.0",
     "pyyaml>=6.0.3,<7.0.0",
     "pyperclip>=1.11.0,<2.0.0",
     # Security fix: CVE-2026-40192 - Decompression bomb via unlimited GZIP read in FITS decoding.
-    # Pillow is a transitive dependency via pdfplumber. We pin >=12.2.0 to ensure the patched version is used.
-    "Pillow>=12.2.0",
+    # Security fix: CVE-2026-59204 - DoS via memory-allocation state accumulation in the JPEG2000 decoder. We pin >=12.3.0.
+    # Pillow is a transitive dependency via pdfplumber. We pin >=12.3.0 to ensure the patched version is used.
+    "Pillow>=12.3.0",
     # Security fix: CVE-2026-4539 - ReDoS vulnerability in AdlLexer (GUID regex).
     # pygments is a transitive dependency via rich and pytest. We pin >=2.20.0.
     "pygments>=2.20.0",
@@ -87,7 +90,8 @@ cohere = ["cohere>=5.20.6"]
 vertexai = [
     "google-auth>=2.36.0",
     # Security fix: CVE-2026-23491 - DoS via uncontrolled recursion in ASN.1 decoding (via google-auth).
-    "pyasn1>=0.6.3",
+    # Security fix: CVE-2026-59886 - resource exhaustion via large exponents in univ.Real decoding. We pin >=0.6.4.
+    "pyasn1>=0.6.4",
 ]
 google = ["google-genai>=1.70.0"]
 anthropic = ["anthropic>=0.108.0"]
@@ -157,6 +161,9 @@ exclude = [
 [tool.poetry.group.dev.dependencies]
 autopep8 = "^2.3.2"
 flake8 = "^7.2.0"
+# Pinned exact: pyright ships frequent releases that add diagnostics; a caret
+# range could break the CI type-gate on an unrelated auto-upgrade.
+pyright = "1.1.411"
 # Security fix: CVE-2025-71176 - Local privilege escalation via /tmp/pytest-of-{user} directories.
 pytest = ">=9.0.3"
 pytest-cov = "^6.1.0"

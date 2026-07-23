@@ -155,12 +155,18 @@ minor without it.
 
 ## Inspecting Import Performance
 
-To inspect import performance and decide if a module should be lazy-loaded:
+To inspect import performance and decide if a module should be lazy-loaded, use
+the stdlib `-X importtime` (no extra dependency):
 
 ```bash
-pip install benchmark-imports
-python -m benchmark_imports zrb
+python -X importtime -c "import zrb" 2>importtime.log
 ```
+
+Each line has two time columns: **self** (µs spent in that module's own body)
+and **cumulative** (self + children). Sort by **self**-time to find the modules
+actually worth deferring — a high cumulative with low self just means a heavy
+child, not a module you should touch. Take a warm run (import once first): the
+first run is dominated by cold disk I/O.
 
 ---
 
@@ -528,7 +534,7 @@ On a hit it regenerates the turn rather than returning it: `_history_without_tra
 | Task | Command |
 |------|---------|
 | Publish | `zrb publish all` |
-| Profile imports | `python -m benchmark_imports zrb` |
+| Profile imports | `python -X importtime -c "import zrb" 2>importtime.log` |
 | Generate profile | `python -m cProfile -o .cprofile.prof -m zrb --help` |
 | Visualize (snakeviz) | `snakeviz .cprofile.prof` |
 | Visualize (flame) | `flameprof .cprofile.prof > flamegraph.svg` |

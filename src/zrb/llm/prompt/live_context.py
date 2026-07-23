@@ -104,15 +104,15 @@ def _collect_git_info(
                 "Clean" if not status else f"Dirty ({len(status.splitlines())} changes)"
             )
             git_lines.append(f"- Git: {branch} ({status_str})")
-        except Exception:
-            pass
+        except Exception as e:
+            CFG.LOGGER.debug(f"Failed to read git status for live context: {e}")
         try:
             recent_log = f_git_log.result().stdout.strip()
             if recent_log:
                 log_lines = "\n".join(f"  {line}" for line in recent_log.splitlines())
                 git_lines.append(f"- Recent commits:\n{log_lines}")
-        except Exception:
-            pass
+        except Exception as e:
+            CFG.LOGGER.debug(f"Failed to read git log for live context: {e}")
         todos_data = f_todos.result()
 
     return git_lines, todos_data
@@ -315,8 +315,8 @@ def _render_parts(
     if todos_data:
         try:
             parts.extend(_format_todo_lines(todos_data))
-        except Exception:
-            pass
+        except Exception as e:
+            CFG.LOGGER.debug(f"Failed to format todo lines for live context: {e}")
 
     if inject_journal_index:
         journal_block = render_journal_index()

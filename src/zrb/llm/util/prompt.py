@@ -1,6 +1,7 @@
 import os
 import re
 
+from zrb.config.config import CFG
 from zrb.util.file import list_files, read_file
 from zrb.util.markdown import make_markdown_section
 
@@ -90,8 +91,8 @@ def _process_path_reference(path_ref: str) -> tuple[str | None, str | None, bool
             content = read_file(abs_path)
             header = f"File Content: `{path_ref}`"
             is_valid_ref = True
-        except Exception:
-            pass
+        except Exception as e:
+            CFG.LOGGER.debug(f"Failed to read referenced file {abs_path}: {e}")
     elif os.path.isdir(abs_path):
         try:
             # Use list_files for directory structure
@@ -101,6 +102,6 @@ def _process_path_reference(path_ref: str) -> tuple[str | None, str | None, bool
                 content = "(Empty directory)"
             header = f"Directory Listing: `{path_ref}`"
             is_valid_ref = True
-        except Exception:
-            pass
+        except Exception as e:
+            CFG.LOGGER.debug(f"Failed to list referenced dir {abs_path}: {e}")
     return header, content, is_valid_ref

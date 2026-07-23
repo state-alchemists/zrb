@@ -224,6 +224,7 @@ def copy_text(text: str) -> bool:
                 _write_osc52(text)
                 return True
             except Exception:
+                # OSC 52 unsupported by this terminal — report copy failure.
                 pass
         return False
 
