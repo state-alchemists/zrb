@@ -139,5 +139,6 @@ def _setup_print_and_events(print_fn, event_handler, effective_ui):
             _event_print_fn,
             show_tool_call_detail=CFG.LLM_SHOW_TOOL_CALL_DETAIL,
             show_tool_result=CFG.LLM_SHOW_TOOL_CALL_RESULT,
+            usage_callback=getattr(effective_ui, "accumulate_usage", None),
         )
     return effective_print_fn, effective_event_handler

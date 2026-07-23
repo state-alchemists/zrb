@@ -24,6 +24,7 @@ Zrb can be heavily customized using environment variables. These control everyth
 |----------|-------------|---------|
 | `ZRB_SHELL` | Shell used by `CmdTask` | Auto-detected (`zsh`, `bash`, `PowerShell`) |
 | `ZRB_EDITOR` | Default text editor for interactive prompts | `nano` |
+| `ZRB_IS_TERMUX` | Whether zrb runs under Termux (auto-detected; override for Termux-specific keybindings) | Auto-detected |
 | [`ZRB_LOGGING_LEVEL`](../advanced-topics/logging.md) | Verbosity of Zrb's internal logs | `WARNING` |
 | `ZRB_BANNER` | Custom ASCII art or text displayed at CLI start | Standard Zrb ASCII art |
 | `ZRB_ROOT_GROUP_NAME` | Name of root command group in help menus | `zrb` |
@@ -43,8 +44,9 @@ Zrb can be heavily customized using environment variables. These control everyth
 | `ZRB_INIT_FILE_NAME` | Name of the task-definition file zrb auto-loads. On startup zrb walks from the current directory up to the filesystem root and loads every file with this name it finds. | `zrb_init.py` |
 | `ZRB_INIT_SCRIPTS` | Colon-separated Python script paths zrb runs on startup (in addition to the discovered `ZRB_INIT_FILE_NAME` files) to register task definitions | — |
 | `ZRB_INIT_MODULES` | Comma-separated importable module names zrb imports on startup so their task definitions register (colon-separated still accepted) | — |
-| `ZRB_LOAD_BUILTIN` | Whether to load pre-packaged tasks (Git, UUID, base64, etc.) | `1` (true) |
+| `ZRB_LOAD_BUILTIN` | Whether to load pre-packaged tasks (Git, UUID, base64, etc.) | `on` |
 | `ZRB_WARN_UNRECOMMENDED_COMMAND` | Show warnings for potentially unsafe shell commands | `on` (true) |
+| `ZRB_MCP_CONFIG_FILE` | Path to the MCP server config file | `mcp-config.json` |
 
 ---
 
@@ -75,8 +77,9 @@ Zrb's experimental Web UI has dedicated configuration options.
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ZRB_WEB_HTTP_PORT` | Port for Web UI server | `21213` |
-| `ZRB_WEB_AUTH_ENABLED` | Enable username/password authentication | `0` (false) |
+| `ZRB_WEB_AUTH_ENABLED` | Enable username/password authentication | `off` |
 | `ZRB_WEB_SECRET_KEY` | Secret key for authentication tokens ⚠️ **Change for production!** | `zrb` |
+| `ZRB_WEB_ENABLE_SECURE_COOKIES` | Set the `Secure` flag on auth cookies (HTTPS-only). Turn `off` for plain-HTTP non-localhost deployments where browsers would otherwise drop the cookies | `on` |
 
 ### Authentication Tokens
 
@@ -92,8 +95,8 @@ Zrb's experimental Web UI has dedicated configuration options.
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ZRB_WEB_GUEST_USERNAME` | Username for guest users | `user` |
-| `ZRB_WEB_SUPER_ADMIN_USERNAME` | Super admin username (also supports `ZRB_WEB_SUPERADMIN_USERNAME`) | `admin` |
-| `ZRB_WEB_SUPER_ADMIN_PASSWORD` | Super admin password (also supports `ZRB_WEB_SUPERADMIN_PASSWORD`) | `admin` |
+| `ZRB_WEB_SUPER_ADMIN_USERNAME` | Super admin username | `admin` |
+| `ZRB_WEB_SUPER_ADMIN_PASSWORD` | Super admin password | `admin` |
 
 > ⚠️ **Security Warning:** Change default credentials before deploying to production!
 
@@ -104,7 +107,7 @@ Zrb's experimental Web UI has dedicated configuration options.
 | `ZRB_WEB_TITLE` | Browser tab title | `Zrb` |
 | `ZRB_WEB_JARGON` | Tagline displayed on homepage | `Your Automation PowerHouse` |
 | `ZRB_WEB_HOMEPAGE_INTRO` | Introductory text on homepage | `Welcome to Zrb Web Interface` |
-| `ZRB_WEB_FAVICON_PATH` | Path to custom favicon | — |
+| `ZRB_WEB_FAVICON_PATH` | Path to custom favicon | `/static/favicon-32x32.png` |
 | `ZRB_WEB_CSS_PATH` | Colon-separated list of custom CSS file paths | — |
 | `ZRB_WEB_JS_PATH` | Colon-separated list of custom JavaScript file paths | — |
 | `ZRB_WEB_COLOR` | Pico CSS theme color (`amber`, `red`, `blue`, etc.) | — |

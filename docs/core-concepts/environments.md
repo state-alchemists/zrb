@@ -40,6 +40,8 @@ cli.add_task(
 )
 ```
 
+> ⚠️ **Important:** `link_to_os` defaults to `True` on `Env` (and on `EnvMap`/`EnvFile`, covered below). This means `USER` and `SHELL` above will pick up your real OS-level `$USER`/`$SHELL` values on almost any machine — the `default="nobody"`/`default="sh"` values only kick in if the OS variable is missing. Pass `link_to_os=False` if you want the `default` to always win regardless of the OS environment.
+
 ---
 
 ## OS Integration

@@ -14,13 +14,18 @@ from prompt_toolkit.layout import (
     Window,
     WindowAlign,
 )
-from prompt_toolkit.layout.containers import Float, FloatContainer
+from prompt_toolkit.layout.containers import (
+    ConditionalContainer,
+    Float,
+    FloatContainer,
+)
 from prompt_toolkit.layout.controls import FormattedTextControl
 from prompt_toolkit.layout.menus import CompletionsMenu
 from prompt_toolkit.lexers import Lexer
 from prompt_toolkit.mouse_events import MouseEventType
 from prompt_toolkit.widgets import Frame, TextArea
 
+from zrb.config.config import CFG
 from zrb.llm.app.completion import InputCompleter
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
@@ -38,8 +43,10 @@ def create_input_field(
     summarize_commands: list[str] = [],
     set_model_commands: list[str] = [],
     exec_commands: list[str] = [],
+    btw_commands: list[str] = [],
     plan_commands: list[str] = [],
     copy_commands: list[str] = [],
+    voice_commands: list[str] = [],
     custom_commands: list[AnyCustomCommand] = [],
     history: History | None = None,
     custom_model_names: list[str] = [],
@@ -84,7 +91,9 @@ def create_input_field(
             return min(max(line_count, 1), 10)
 
     text_area = DynamicHeightTextArea(
-        prompt=HTML('<style color="ansibrightblue"><b>&gt;&gt;&gt; </b></style>'),
+        prompt=HTML(
+            f'<style color="{CFG.LLM_UI_STYLE_PROMPT}"><b>&gt;&gt;&gt; </b></style>'
+        ),
         multiline=True,
         wrap_lines=True,
         history=history,
@@ -100,8 +109,10 @@ def create_input_field(
             summarize_commands=summarize_commands,
             set_model_commands=set_model_commands,
             exec_commands=exec_commands,
+            btw_commands=btw_commands,
             plan_commands=plan_commands,
             copy_commands=copy_commands,
+            voice_commands=voice_commands,
             custom_commands=custom_commands,
             custom_model_names=custom_model_names,
             show_ollama_models=show_ollama_models,
@@ -212,11 +223,32 @@ def create_layout(
     info_bar_text: Callable[[], AnyFormattedText],
     status_bar_text: Callable[[], AnyFormattedText],
     extra_floats: list[Float] | None = None,
+    agent_activity_text: Callable[[], AnyFormattedText] | None = None,
 ) -> Layout:
     title_bar_text = HTML(
-        f" <style bg='ansipurple' color='white'><b> {title} </b></style> "
-        f"<style color='#888888'>| {jargon}</style>"
+        f" <style bg='{CFG.LLM_UI_STYLE_TITLE_BAR_BG}' "
+        f"color='{CFG.LLM_UI_STYLE_TITLE_BAR}'><b> {title} </b></style> "
+        f"<style color='{CFG.LLM_UI_STYLE_FAINT}'>| {jargon}</style>"
     )
+
+    # Sub-agent activity panel: one line per running delegate, just above the
+    # status bar. ConditionalContainer collapses it to nothing when idle.
+    extra_children = []
+    if agent_activity_text is not None:
+        # lazy: activity is lightweight (stdlib only), imported here to avoid
+        # dragging the import across all layout consumers.
+        from zrb.llm.agent.activity import agent_activity_registry
+
+        extra_children.append(
+            ConditionalContainer(
+                Window(
+                    content=FormattedTextControl(agent_activity_text),
+                    dont_extend_height=True,
+                    style="class:bottom-toolbar",
+                ),
+                filter=Condition(lambda: bool(agent_activity_registry.active())),
+            )
+        )
 
     return Layout(
         FloatContainer(
@@ -246,9 +278,11 @@ def create_layout(
                         style="class:input-frame",
                     ),
                     Window(height=1),  # Bottom padding
+                    # Sub-agent activity panel (collapses when idle)
+                    *extra_children,
                     # Status Bar (fixed height)
                     Window(
-                        height=1,
+                        height=2,
                         content=FormattedTextControl(status_bar_text),
                         style="class:bottom-toolbar",
                     ),

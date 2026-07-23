@@ -27,7 +27,7 @@ For "chat with my codebase," you never touch any of it. You reach for Python whe
 | Filesystem sandbox | `sandbox=SandboxPolicy(...)` (or `True`/`False`) — contain file/shell access | [Sandbox](sandbox.md) |
 | Approval channel | `task.append_approval_channel(...)` — async approval over any transport | [Permission Policy](permission-policy.md) |
 | Model routing | `model=lambda ctx: ...` — pick the model per request | [`examples/model-tiering`](../../examples/model-tiering) |
-| Dynamic prompt sections | `prompt_manager.register_section(name, provider)` | ↓ below |
+| Prompt (string → template → callable → sections) | `message=`, `system_prompt=`, `prompt_manager=` | [Programming the Prompt](programming-the-prompt.md) |
 | History processors | `history_processors=[fn]` — prune / redact / summarize | ↓ below |
 | Custom UI | `ui=...` / `ui_factory=...` — TUI, web/SSE, chat bot | [Custom UI](llm-custom-ui.md) |
 
@@ -41,54 +41,24 @@ async def get_open_incidents(team: str) -> str:
 chat = LLMChatTask(name="ops-chat", tools=[get_open_incidents])
 ```
 
-## Dynamic (event-driven) prompts
+## Programming the prompt
 
-A static `system_prompt` is fine until the prompt must reflect something that changes at runtime. Two mechanisms cover that.
+Everything the model reads — the per-turn `message` and the standing `system_prompt` — is a value you supply: a string, a `{ctx…}` template, a Python callable, or a fully composed `PromptManager` with reorderable sections, live-state providers, and model-adaptive profiles. That whole ladder, from the one-line string up to dynamic file-backed sections, has its own page:
 
-**1. The whole system prompt as a callable** — evaluated per execution with the active context:
+👉 **[Programming the Prompt](programming-the-prompt.md)** — the full ladder, including dynamic sections (`register_section`), per-turn live context (`add_live_context`), and profiles.
+
+The short version for the two most common runtime needs:
 
 ```python
+# The whole system prompt as a callable — evaluated per execution:
 LLMTask(
     name="deploy-helper",
     system_prompt=lambda ctx: f"You are deploying to {ctx.env.DEPLOY_TARGET}. Be careful in prod.",
 )
-```
 
-**2. A named, composable section** — better when you want to *add* live context to the standard prompt without replacing it. Register a provider on a `PromptManager` and include its name in the section order:
-
-```python
-from zrb import LLMChatTask
-from zrb.llm.prompt.manager import PromptManager
-
-pm = PromptManager(
-    # the built-in default order, with your section spliced in
-    include_sections=[
-        "persona", "mandate", "git_mandate", "journal_mandate",
-        "system_context", "project_context",
-        "sprint_context",        # ← your section
-        "tool_guidance",
-    ],
-)
-
-# provider: Callable[[AnyContext], str]  — return "" to emit nothing this turn
+# A named section whose content reflects live state, spliced into the section order:
 pm.register_section("sprint_context", lambda ctx: f"Active sprint: {load_current_sprint()}")
-
-chat = LLMChatTask(name="sprint-chat", prompt_manager=pm)
 ```
-
-The provider runs at prompt-compose time, every request, so the section always reflects current state. If a name in `include_sections` has no registered provider, Zrb looks for a `<name>.md` prompt file instead (project override → env → package), so static and dynamic sections share one ordering mechanism. See the *LLM Prompt System* notes in `AGENTS.md` and ADR-0061 for the full resolution order.
-
-### Per-turn live context providers
-
-Where `register_section` adds content to the **cached system prompt**, `add_live_context` injects volatile per-turn state into the ` <live-context>` block — the block appended to every user message that carries time, git status, todos, and worktree state. Use it for runtime data that changes every turn and should not invalidate the cacheable prefix:
-
-```python
-pm.add_live_context("deploy_info", lambda ctx: f"- Deploy target: {ctx.env.DEPLOY_TARGET}")
-```
-
-The provider receives the active `AnyContext` and returns a string (or `None`/`""` to emit nothing). Providers run in registration order after the built-in live context lines (time, git, worktree, mode, todos). Re-registering the same name replaces the previous provider.
-
-👉 Runnable end-to-end example: [`examples/live-context`](../../examples/live-context).
 
 ## History processors
 
@@ -132,12 +102,39 @@ This is the capability that has no equivalent in a config-driven assistant: beca
 fetch_ticket >> triage_with_llm >> route_to_team
 ```
 
-Combine that with a custom tool that calls into your codebase, and the agent becomes a reasoning step wired directly into your systems — fetch with deterministic code, reason with the LLM, act with deterministic code.
+**Often you need no tool at all.** When a deterministic step already produced the context, hand it to the model through its `message` template — the command's output *is* the input to the decision:
+
+```python
+from zrb import cli, CmdTask, LLMTask, Task
+
+diff = cli.add_task(CmdTask(name="collect-diff", cmd="git diff --staged"))
+
+review = cli.add_task(
+    LLMTask(
+        name="review",
+        upstream=[diff],
+        message="Review this staged diff and list concerns, or reply 'LGTM':\n\n"
+                "{ctx.xcom['collect-diff'].pop()}",
+    )
+)
+
+def act(ctx):
+    ctx.print(ctx.xcom["review"].pop())  # page, comment on the PR, block the commit…
+
+act_task = cli.add_task(Task(name="act", action=act))
+
+diff >> review >> act_task
+```
+
+Fetch with deterministic code, reason with the LLM, act with deterministic code. Reach for a **custom tool** only when the agent must pull *more* data mid-reasoning (query your DB, hit an API) rather than being handed everything up front — see [`examples/agent-in-pipeline`](../../examples/agent-in-pipeline), which combines the pipeline shape with an in-process tool.
+
+For an **interactive** variant, swap `LLMTask` for `LLMChatTask` and seed the command's output into its `system_prompt` so the user can then converse about it — see [Programming the Prompt → Seeding a chat with context](programming-the-prompt.md#seeding-a-chat-with-context).
 
 👉 Runnable end-to-end example: [`examples/agent-in-pipeline`](../../examples/agent-in-pipeline).
 
 ## See also
 
+- [Programming the Prompt](programming-the-prompt.md) — string → template → callable → `PromptManager`, and how to feed a `CmdTask`'s output into the model
 - [LLM Assistant & AI Tasks](llm-integration.md) — tools, sub-agents, context management
 - [LLMChatTask API Reference](../task-types/llmchat-task.md) — the full builder API
 - [LLM Chat Request Lifecycle](llm-chat-lifecycle.md) — how a turn flows end to end

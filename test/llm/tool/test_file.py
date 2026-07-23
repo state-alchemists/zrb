@@ -358,6 +358,181 @@ def test_read_file_non_utf8(tmp_path):
     assert "binary" in result.lower() or "non-UTF-8" in result
 
 
+# --- read_file PDF coverage ---
+
+
+def test_read_pdf_file(tmp_path):
+    pdf_file = tmp_path / "test.pdf"
+    pdf_file.write_text("dummy")
+
+    import sys
+    import types
+    from unittest.mock import MagicMock, patch
+
+    mock_pdf = MagicMock()
+    mock_page = MagicMock()
+    mock_page.extract_text.return_value = "Hello World PDF content"
+    mock_pdf.pages = [mock_page]
+
+    mock_pdfplumber = types.ModuleType("pdfplumber")
+    ctx = MagicMock()
+    ctx.__enter__.return_value = mock_pdf
+    mock_pdfplumber.open = MagicMock(return_value=ctx)
+    mock_pdfplumber.pdf = types.ModuleType("pdfplumber.pdf")
+    mock_pdfplumber.pdf.PDF = MagicMock()
+
+    with patch.dict(
+        sys.modules,
+        {"pdfplumber": mock_pdfplumber, "pdfplumber.pdf": mock_pdfplumber.pdf},
+    ):
+        result = read_file(str(pdf_file))
+    assert "Hello World PDF content" in result
+    assert "---CONTENT---" in result
+
+
+def test_read_pdf_file_no_text(tmp_path):
+    pdf_file = tmp_path / "test.pdf"
+    pdf_file.write_text("dummy")
+
+    import sys
+    import types
+    from unittest.mock import MagicMock, patch
+
+    mock_pdf = MagicMock()
+    mock_page = MagicMock()
+    mock_page.extract_text.return_value = None
+    mock_pdf.pages = [mock_page]
+
+    mock_pdfplumber = types.ModuleType("pdfplumber")
+    ctx = MagicMock()
+    ctx.__enter__.return_value = mock_pdf
+    mock_pdfplumber.open = MagicMock(return_value=ctx)
+    mock_pdfplumber.pdf = types.ModuleType("pdfplumber.pdf")
+    mock_pdfplumber.pdf.PDF = MagicMock()
+
+    with patch.dict(
+        sys.modules,
+        {"pdfplumber": mock_pdfplumber, "pdfplumber.pdf": mock_pdfplumber.pdf},
+    ):
+        result = read_file(str(pdf_file))
+    assert "Error" in result
+    assert "No extractable text" in result
+
+
+def test_read_pdf_file_invalid(tmp_path):
+    pdf_file = tmp_path / "test.pdf"
+    pdf_file.write_text("dummy")
+
+    import sys
+    import types
+    from unittest.mock import MagicMock, patch
+
+    mock_pdfplumber = types.ModuleType("pdfplumber")
+    mock_pdfplumber.open = MagicMock(side_effect=Exception("Corrupt PDF"))
+    mock_pdfplumber.pdf = types.ModuleType("pdfplumber.pdf")
+    mock_pdfplumber.pdf.PDF = MagicMock()
+
+    with patch.dict(
+        sys.modules,
+        {"pdfplumber": mock_pdfplumber, "pdfplumber.pdf": mock_pdfplumber.pdf},
+    ):
+        result = read_file(str(pdf_file))
+    assert "Error" in result
+    assert "corrupted" in result.lower()
+
+
+def test_read_pdf_file_line_range(tmp_path):
+    pdf_file = tmp_path / "test.pdf"
+    pdf_file.write_text("dummy")
+
+    import sys
+    import types
+    from unittest.mock import MagicMock, patch
+
+    mock_pdf = MagicMock()
+    lines = [f"line{i}" for i in range(1, 11)]
+    mock_page = MagicMock()
+    mock_page.extract_text.return_value = "\n".join(lines)
+    mock_pdf.pages = [mock_page]
+
+    mock_pdfplumber = types.ModuleType("pdfplumber")
+    ctx = MagicMock()
+    ctx.__enter__.return_value = mock_pdf
+    mock_pdfplumber.open = MagicMock(return_value=ctx)
+    mock_pdfplumber.pdf = types.ModuleType("pdfplumber.pdf")
+    mock_pdfplumber.pdf.PDF = MagicMock()
+
+    with patch.dict(
+        sys.modules,
+        {"pdfplumber": mock_pdfplumber, "pdfplumber.pdf": mock_pdfplumber.pdf},
+    ):
+        result = read_file(str(pdf_file), start_line=3, end_line=5)
+    body = result.split("---CONTENT---")[1]
+    assert "line3" in body and "line4" in body and "line5" in body
+    assert "line2" not in body and "line6" not in body
+    assert "lines 3-5 of 10" in result
+
+
+def test_read_pdf_file_end_line_negative_one(tmp_path):
+    pdf_file = tmp_path / "test.pdf"
+    pdf_file.write_text("dummy")
+
+    import sys
+    import types
+    from unittest.mock import MagicMock, patch
+
+    mock_pdf = MagicMock()
+    lines = [f"line{i}" for i in range(1, 6)]
+    mock_page = MagicMock()
+    mock_page.extract_text.return_value = "\n".join(lines)
+    mock_pdf.pages = [mock_page]
+
+    mock_pdfplumber = types.ModuleType("pdfplumber")
+    ctx = MagicMock()
+    ctx.__enter__.return_value = mock_pdf
+    mock_pdfplumber.open = MagicMock(return_value=ctx)
+    mock_pdfplumber.pdf = types.ModuleType("pdfplumber.pdf")
+    mock_pdfplumber.pdf.PDF = MagicMock()
+
+    with patch.dict(
+        sys.modules,
+        {"pdfplumber": mock_pdfplumber, "pdfplumber.pdf": mock_pdfplumber.pdf},
+    ):
+        result = read_file(str(pdf_file), start_line=4, end_line=-1)
+    body = result.split("---CONTENT---")[1]
+    assert "line4" in body and "line5" in body
+    assert "line3" not in body
+
+
+def test_read_pdf_file_start_line_beyond_eof(tmp_path):
+    pdf_file = tmp_path / "test.pdf"
+    pdf_file.write_text("dummy")
+
+    import sys
+    import types
+    from unittest.mock import MagicMock, patch
+
+    mock_pdf = MagicMock()
+    mock_page = MagicMock()
+    mock_page.extract_text.return_value = "only\none\ntwo"
+    mock_pdf.pages = [mock_page]
+
+    mock_pdfplumber = types.ModuleType("pdfplumber")
+    ctx = MagicMock()
+    ctx.__enter__.return_value = mock_pdf
+    mock_pdfplumber.open = MagicMock(return_value=ctx)
+    mock_pdfplumber.pdf = types.ModuleType("pdfplumber.pdf")
+    mock_pdfplumber.pdf.PDF = MagicMock()
+
+    with patch.dict(
+        sys.modules,
+        {"pdfplumber": mock_pdfplumber, "pdfplumber.pdf": mock_pdfplumber.pdf},
+    ):
+        result = read_file(str(pdf_file), start_line=99)
+    assert "Error" in result
+    assert "beyond end of file" in result
+
+
 # --- write_file exception path ---
 
 

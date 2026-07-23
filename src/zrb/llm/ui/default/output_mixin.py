@@ -13,6 +13,7 @@ import re
 from typing import TYPE_CHECKING, TextIO, cast
 
 from zrb.config.config import CFG
+from zrb.llm.agent.activity import agent_activity_registry
 from zrb.util.cli.style import stylize_muted
 from zrb.util.cli.terminal import get_terminal_size
 
@@ -34,6 +35,20 @@ _MODE_STATUS_LABELS = {
     "yolo": "yolo",
     "custom": "custom-yolo",
 }
+
+
+def _truncate(text: str, limit: int) -> str:
+    """First line of `text`, clipped to `limit` chars with an ellipsis."""
+    text = text.splitlines()[0] if text else ""
+    return text if len(text) <= limit else text[: limit - 3] + "..."
+
+
+def _fmt_tokens(count: int) -> str:
+    if count >= 1_000_000:
+        return f"{count / 1_000_000:.1f}M"
+    if count >= 1_000:
+        return f"{count / 1_000:.1f}k"
+    return str(count)
 
 
 def _get_mode_status_style(mode: str) -> str:
@@ -128,10 +143,17 @@ class OutputMixin:
         # Scrolling back down to the last line resumes following. Works
         # regardless of which pane is focused, so the thinking process can be
         # read mid-stream without first focusing the output pane (Ctrl+K).
+        #
+        # "Cursor on the last line" == "no newline after the cursor". Checked on
+        # the raw string on purpose: document.cursor_position_row/line_count
+        # build the Document's line index — an O(buffer) scan on EVERY streamed
+        # chunk (the render path rebuilds it anyway, but only at the debounced
+        # ~60Hz rate, not per token). str.find early-exits, so this is O(1)
+        # while following and O(distance to next newline) when scrolled up.
         is_at_last_line = True
         try:
-            doc = self._output_field.buffer.document
-            is_at_last_line = doc.cursor_position_row >= doc.line_count - 1
+            cursor = self._output_field.buffer.cursor_position
+            is_at_last_line = current_text.find("\n", cursor) == -1
         except Exception:
             pass
         should_scroll_to_end = is_at_last_line
@@ -288,6 +310,27 @@ class OutputMixin:
             *center_line(line3),
         ]
 
+    def get_agent_activity_text(self) -> "AnyFormattedText":
+        """One line per running sub-agent: #ordinal name · task — activity.
+
+        This panel is the legend for the [name #ordinal] prefixes in the output
+        stream. Empty when nothing is delegating, so it collapses to zero height.
+        Refreshed by the app's periodic redraw (LLM_UI_REFRESH_INTERVAL).
+        """
+        agents = agent_activity_registry.active()
+        if not agents:
+            return []
+        frags: list = []
+        for agent in agents:
+            label = f" 🔧 #{agent.ordinal} {agent.name}"
+            if agent.task:
+                label += f" · {_truncate(agent.task, 50)}"
+            if agent.last_line:
+                label += f" — {_truncate(agent.last_line, 40)}"
+            frags.append((CFG.LLM_UI_STYLE_THINKING, label))
+            frags.append(("", "\n"))
+        return frags[:-1]  # drop trailing newline so height == agent count
+
     def get_status_bar_text(self) -> "AnyFormattedText":
         if self.current_confirmation is not None:
             dots = getattr(self, "_confirmation_dots", 0)
@@ -310,17 +353,42 @@ class OutputMixin:
                     CFG.LLM_UI_STYLE_THINKING,
                     f" ⏳ {self._assistant_name} is working{dot_str} ",
                 ),
+                *self._get_token_usage_fragments(),
             ]
         # Persistent Shift+Tab mode indicator (mirrors Claude Code's mode badge
         # near the prompt). `current_cycle_mode` lives on ModelCommandsMixin;
         # guard for lightweight UIs/mocks that don't compose it. See ADR-0075.
         get_mode = getattr(self, "current_cycle_mode", None)
         mode = cast(str, get_mode()) if callable(get_mode) else "normal"
-        return [
+        result: list = [
             (CFG.LLM_UI_STYLE_STATUS, " 🚀 Ready "),
             (
                 _get_mode_status_style(mode),
                 f" {_MODE_STATUS_LABELS.get(mode, mode)} ",
             ),
-            ("fg:ansibrightblack", "shift+tab to cycle "),
+            (f"fg:{CFG.LLM_UI_STYLE_FAINT}", "shift+tab to cycle "),
+        ]
+        # Voice mode indicator (see ADR-0081)
+        if getattr(self, "_voice_mode_active", False):
+            result.append((CFG.LLM_UI_STYLE_STATUS, " 🎤 VOICE "))
+        result.extend(self._get_token_usage_fragments())
+        return result
+
+    def _get_token_usage_fragments(self) -> list[tuple[str, str]]:
+        """Session token totals as status-bar fragments; empty until first run."""
+        input_tokens, output_tokens = cast(
+            tuple[int, int], getattr(self, "session_token_usage", (0, 0))
+        )
+        if not input_tokens and not output_tokens:
+            return []
+        text = f" 💸 {_fmt_tokens(input_tokens)} in · {_fmt_tokens(output_tokens)} out"
+        cached = cast(int, getattr(self, "session_cache_read_tokens", 0))
+        if cached:
+            text += f" · {_fmt_tokens(cached)} cached"
+        context = cast(int, getattr(self, "context_tokens", 0))
+        if context:
+            text += f" · 🧠 {_fmt_tokens(context)} ctx"
+        return [
+            (CFG.LLM_UI_STYLE_FAINT, "\n"),
+            (f"fg:{CFG.LLM_UI_STYLE_FAINT}", text + " "),
         ]

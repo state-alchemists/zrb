@@ -1,3 +1,4 @@
+#!/bin/sh
 set -e
 
 #########################################################################################
@@ -5,282 +6,463 @@ set -e
 #########################################################################################
 
 command_exists() {
-    command -v "$1" &> /dev/null
+    command -v "$1" >/dev/null 2>&1
 }
 
 log_info() {
-    if command_exists printf
-    then
-        printf "🤖 \e[0;33m${1}\e[0;0m\n"
+    if command_exists printf; then
+        printf "🤖 \033[0;33m%s\033[0m\n" "$1"
     else
-        echo "🤖 ${1}"
+        echo "🤖 $1"
+    fi
+}
+
+log_ok() {
+    if command_exists printf; then
+        printf "✅ \033[0;32m%s\033[0m\n" "$1"
+    else
+        echo "✅ $1"
+    fi
+}
+
+warn() {
+    if command_exists printf; then
+        printf "⚠️  \033[0;31m%s\033[0m\n" "$1" >&2
+    else
+        echo "⚠️  $1" >&2
     fi
 }
 
 confirm() {
-    # Prompt the user for confirmation
+    [ "$AUTO_YES" = "1" ] && return 0
     log_info "$1 (y/N)"
     read choice
-    case "$choice" in
-        y|Y ) return 0;;
-        n|N ) return 1;;
-        * ) echo "Invalid choice"; return 1;;
-    esac
+    case "$choice" in y|Y) return 0;; *) return 1;; esac
 }
 
 try_sudo() {
-    if command_exists sudo
-    then
-        sudo $@
+    if command_exists sudo; then
+        sudo "$@"
     else
-        $@
+        "$@"
     fi
 }
+
+#########################################################################################
+# Python Installation (via pyenv)
+#########################################################################################
 
 register_pyenv() {
     log_info "Registering Pyenv to $1"
-    echo 'if [ -d "${HOME}/.pyenv" ]' >> $1
-    echo 'then' >> $1
-    echo '    export PYENV_ROOT="$HOME/.pyenv"' >> $1
-    echo '    export PATH="$PYENV_ROOT/bin:$PATH"' >> $1
-    echo '    eval "$(pyenv init --path)"' >> $1
-    echo 'fi' >> $1
-}
-
-register_local_venv() {
-    log_info "Registering .local-venv to $1"
-    echo 'if [ -f "${HOME}/.local-venv/bin/activate" ]' >> $1
-    echo 'then' >> $1
-    echo '    source "${HOME}/.local-venv/bin/activate"' >> $1
-    echo "    eval \"\$(zrb shell autocomplete $2)\"" >> $1
-    echo 'fi' >> $1
-}
-
-create_and_register_local_venv() {
-    log_info "Creating local venv"
-    python -m venv $HOME/.local-venv
-    . $HOME/.local-venv/bin/activate
-    
-    # register local venv to .zshrc
-    if command_exists zsh
-    then
-        register_local_venv "$HOME/.zshrc" "zsh"
-    fi
-    # register local venv to .bashrc
-    if command_exists bash
-    then
-        register_local_venv "$HOME/.bashrc" "bash"
-    fi
+    {
+        echo 'if [ -d "${HOME}/.pyenv" ]; then'
+        echo '    export PYENV_ROOT="$HOME/.pyenv"'
+        echo '    export PATH="$PYENV_ROOT/bin:$PATH"'
+        echo '    eval "$(pyenv init --path)"'
+        echo 'fi'
+    } >> "$1"
 }
 
 install_pyenv() {
     log_info "Installing pyenv"
     curl https://pyenv.run | bash
 
-    # register .pyenv to .zshrc
-    if [ -f "$HOME/.zshrc" ]
-    then
-        register_pyenv "$HOME/.zshrc"
-    fi
-    # register .pyenv to .bashrc
-    if [ -f "$HOME/.bashrc" ]
-    then
-        register_pyenv "$HOME/.bashrc"
-    fi
-    # activate pyenv
-    log_info "Activating pyenv"
+    for rc in "$HOME/.zshrc" "$HOME/.bashrc"; do
+        [ -f "$rc" ] && register_pyenv "$rc"
+    done
+
     export PYENV_ROOT="$HOME/.pyenv"
     export PATH="$PYENV_ROOT/bin:$PATH"
-    eval "$(pyenv init -)"
-    eval "$(pyenv virtualenv-init -)"
+    eval "$(pyenv init -)" 2>/dev/null || true
+    eval "$(pyenv virtualenv-init -)" 2>/dev/null || true
 }
 
 install_python_on_pyenv() {
-    # install python 3.13.0
-    log_info "Installing python 3.13.0"
+    log_info "Installing Python 3.13.0 via pyenv"
     pyenv install 3.13.0
-    # set global python to 3.13.0
-    log_info "Setting python 3.13.0 as global"
     pyenv global 3.13.0
+    log_ok "Python 3.13.0 installed"
 }
 
-install_poetry() {
-    log_info "Installing Poetry"
-    pip install --upgrade pip setuptools
-    pip install poetry
+install_pyenv_dependencies() {
+    OS_TYPE=$(uname)
+    if [ "$OS_TYPE" = "Darwin" ]; then
+        if command_exists brew; then
+            log_info "Installing pyenv build dependencies via brew"
+            brew install openssl readline sqlite3 xz zlib tcl-tk
+        fi
+    elif [ "$OS_TYPE" = "Linux" ] || [ "$OS_TYPE" = "FreeBSD" ]; then
+        if command_exists apt; then
+            log_info "Installing pyenv build dependencies via apt"
+            try_sudo apt update -qq
+            try_sudo apt install -y -qq build-essential libssl-dev zlib1g-dev \
+                libbz2-dev libreadline-dev libsqlite3-dev curl \
+                libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev
+        elif command_exists pacman; then
+            log_info "Installing pyenv build dependencies via pacman"
+            try_sudo pacman -Syu --noconfirm base-devel openssl zlib xz tk
+        elif command_exists dnf; then
+            log_info "Installing pyenv build dependencies via dnf"
+            try_sudo dnf install -y make gcc patch zlib-devel bzip2 bzip2-devel \
+                readline-devel sqlite sqlite-devel openssl-devel tk-devel \
+                libffi-devel xz-devel libuuid-devel gdbm-libs libnsl2
+        elif command_exists yum; then
+            log_info "Installing pyenv build dependencies via yum"
+            try_sudo yum install -y gcc make patch zlib-devel bzip2 bzip2-devel \
+                readline-devel sqlite sqlite-devel openssl-devel tk-devel libffi-devel xz-devel
+        elif command_exists apk; then
+            log_info "Installing pyenv build dependencies via apk"
+            try_sudo apk add --no-cache git bash build-base libffi-dev openssl-dev \
+                bzip2-dev zlib-dev xz-dev readline-dev sqlite-dev tk-dev
+        elif command_exists pkg; then
+            log_info "Installing pyenv build dependencies via pkg"
+            try_sudo pkg update
+            try_sudo pkg install -y build-essential
+        fi
+    fi
+}
+
+ensure_python() {
+    # zrb defaults to Python 3.13 for every install so pipx's resolution stays
+    # reproducible across machines -- see ensure_pipx_default_python for why.
+    # NOTE: check by running it, not command_exists -- pyenv creates a
+    # python3.13 shim the moment ANY installed version has that command, even
+    # if the currently active pyenv version isn't one of them, so a plain
+    # PATH-resolution check gives a false positive.
+    if python3.13 -c "import sys" >/dev/null 2>&1; then
+        PY_CMD="python3.13"
+        log_ok "Found Python 3.13"
+        return
+    fi
+
+    if command_exists pyenv; then
+        pyenv_313=$(pyenv versions --bare 2>/dev/null | grep '^3\.13\.' | tail -1)
+        if [ -n "$pyenv_313" ]; then
+            PY_CMD="$(pyenv root)/versions/$pyenv_313/bin/python3.13"
+            log_ok "Found pyenv Python $pyenv_313"
+            return
+        fi
+    fi
+
+    if confirm "Python 3.13 is not installed. Install it via pyenv?"; then
+        install_pyenv_dependencies
+        command_exists pyenv || install_pyenv
+        install_python_on_pyenv
+        PY_CMD="$(pyenv root)/versions/3.13.0/bin/python3.13"
+        return
+    fi
+
+    # Fall back to whatever compatible interpreter is already on the system
+    if command_exists python3; then
+        PY_CMD="python3"
+    elif command_exists python; then
+        PY_CMD="python"
+    else
+        warn "Python 3.11+ is required. Install Python 3.13 from https://python.org then re-run this script."
+        exit 1
+    fi
+
+    PYTHON_VERSION=$("$PY_CMD" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+    case "$PYTHON_VERSION" in
+        3.11|3.12|3.13|3.14) log_ok "Using Python $PYTHON_VERSION" ;;
+        *) warn "Python $PYTHON_VERSION detected. Need >=3.11, <3.15."; exit 1 ;;
+    esac
+}
+
+#########################################################################################
+# pipx Installation
+#########################################################################################
+
+ensure_pipx() {
+    if command_exists pipx; then
+        log_ok "pipx already installed"
+        return
+    fi
+
+    log_info "Installing pipx"
+
+    OS_TYPE=$(uname)
+
+    # macOS: brew is the cleanest path
+    if [ "$OS_TYPE" = "Darwin" ] && command_exists brew; then
+        brew install pipx
+        log_ok "pipx installed via brew"
+        return
+    fi
+
+    # Linux/FreeBSD: distro packages where available
+    if [ "$OS_TYPE" = "Linux" ] || [ "$OS_TYPE" = "FreeBSD" ]; then
+        if command_exists apt; then
+            try_sudo apt install -y -qq pipx 2>/dev/null && { log_ok "pipx installed via apt"; return; }
+        fi
+        if command_exists pacman; then
+            try_sudo pacman -S --noconfirm python-pipx 2>/dev/null && { log_ok "pipx installed via pacman"; return; }
+        fi
+        if command_exists dnf; then
+            try_sudo dnf install -y pipx 2>/dev/null && { log_ok "pipx installed via dnf"; return; }
+        fi
+        if command_exists pkg; then
+            try_sudo pkg install -y py-pipx 2>/dev/null && { log_ok "pipx installed via pkg"; return; }
+        fi
+    fi
+
+    # Universal fallback: pip install pipx
+    PIP_USER_FLAG=""
+    [ -z "${VIRTUAL_ENV:-}" ] && PIP_USER_FLAG="--user"
+    "$PY_CMD" -m pip install $PIP_USER_FLAG pipx -q
+
+    # Add ~/.local/bin to PATH for this session (pip's user install location)
+    if [ -z "${VIRTUAL_ENV:-}" ]; then
+        export PATH="$HOME/.local/bin:$PATH"
+    fi
+
+    if ! command_exists pipx; then
+        warn "pipx installation failed. Check the error above."
+        exit 1
+    fi
+
+    log_ok "pipx installed via pip"
+}
+
+ensure_pipx_path() {
+    # pipx ensurepath writes to shell rc files
+    if command_exists pipx; then
+        pipx ensurepath >/dev/null 2>&1 || true
+        log_ok "pipx added to PATH"
+    fi
+}
+
+ensure_pipx_default_python() {
+    # Bare `pipx reinstall`/`pipx upgrade` (no --python flag) default to whatever
+    # interpreter pipx itself runs on -- which can be a stale distro/brew Python
+    # tied to pipx's own installation, silently resolving zrb to an old release
+    # that still supports it. Pin PIPX_DEFAULT_PYTHON so those commands keep
+    # targeting a Python new enough for zrb even when run outside this script.
+    py_abs=$(command -v "$PY_CMD" 2>/dev/null || echo "$PY_CMD")
+    for rc in "$HOME/.zshrc" "$HOME/.bashrc"; do
+        [ -f "$rc" ] || continue
+        if grep -q "^export PIPX_DEFAULT_PYTHON=" "$rc" 2>/dev/null; then
+            sed -i.bak "s|^export PIPX_DEFAULT_PYTHON=.*|export PIPX_DEFAULT_PYTHON=\"$py_abs\"|" "$rc" && rm -f "${rc}.bak"
+        else
+            {
+                echo ""
+                echo "# Zrb: keep pipx's default interpreter compatible with zrb"
+                echo "export PIPX_DEFAULT_PYTHON=\"$py_abs\""
+            } >> "$rc"
+        fi
+    done
+    export PIPX_DEFAULT_PYTHON="$py_abs"
+    log_ok "Pinned PIPX_DEFAULT_PYTHON to $py_abs"
+}
+
+#########################################################################################
+# Zrb Installation
+#########################################################################################
+
+confirm_extras() {
+    if confirm "Install all optional dependencies (RAG, Playwright, voice input, and every LLM provider SDK)?"; then
+        ZRB_EXTRAS="[rag,playwright,cohere,vertexai,google,anthropic,groq,mistral,xai,bedrock,huggingface,voyageai,voice,python]"
+        log_ok "Will install zrb with all optional extras"
+    fi
+}
+
+pipx_install_zrb() {
+    pipx uninstall zrb 2>/dev/null || true
+    # --pip-args (not the PIP_PRE env var) persists in pipx's metadata, so later
+    # `pipx upgrade`/`pipx reinstall` keep tracking pre-releases automatically.
+    pipx install --pip-args='--pre' --python "$PY_CMD" "zrb${ZRB_EXTRAS}"
 }
 
 install_zrb() {
-    log_info "Installing Zrb"
-    eval pip install --pre zrb
+    if pipx list --short 2>/dev/null | grep -q "^zrb "; then
+        # Uninstall + fresh install so --python takes effect
+        pipx_install_zrb
+    elif command_exists zrb; then
+        warn "zrb was installed via pip (legacy) — migrating to pipx"
+        pipx_install_zrb
+        # Auto-clean legacy install to avoid PATH conflict (fix #6)
+        pip uninstall zrb -y 2>/dev/null || true
+    else
+        log_info "Installing zrb via pipx..."
+        pipx_install_zrb
+    fi
+    if command_exists zrb; then
+        log_ok "zrb installed — run 'zrb --help' to get started"
+    else
+        warn "zrb installation failed"
+        exit 1
+    fi
 }
 
-install_lsps() {
-    # LSP servers power richer post-write diagnostics during ``zrb chat``.
-    # Python (pylsp) is installed unconditionally because zrb itself is Python.
-    # Other-language servers are offered only when their toolchain is present.
-    # Use ``python -m pip`` so pylsp lands in the same interpreter that runs
-    # zrb — a bare ``pip`` may resolve via PATH to a different Python.
-    log_info "Installing python-lsp-server (pylsp)"
-    python -m pip install 'python-lsp-server[all]'
+expose_python_tools() {
+    # pipx only exposes the main package's entry points on PATH; black/isort
+    # pulled in by the [python] extra stay buried inside the zrb venv.
+    # Re-inject them with --include-apps so their binaries land in ~/.local/bin.
+    case "$ZRB_EXTRAS" in
+        *python*)
+            log_info "Exposing black and isort on PATH"
+            if pipx inject zrb black isort --include-apps >/dev/null 2>&1; then
+                log_ok "black and isort exposed"
+            else
+                warn "Could not expose black/isort binaries (non-fatal). Run: pipx inject zrb black isort --include-apps"
+            fi
+            ;;
+    esac
+}
 
-    if command_exists npm && confirm "Install typescript-language-server (for JS/TS)?"
-    then
-        log_info "Installing typescript-language-server"
+register_autocomplete() {
+    if command_exists zrb; then
+        for rc in "$HOME/.zshrc" "$HOME/.bashrc"; do
+            [ -f "$rc" ] || continue
+            shell_name=$(basename "$rc" | sed 's/\.//')
+            if ! grep -q "zrb shell autocomplete" "$rc" 2>/dev/null; then
+                log_info "Registering zrb autocomplete to $rc"
+                {
+                    echo ""
+                    echo "# Zrb autocomplete"
+                    echo "if command -v zrb >/dev/null 2>&1; then"
+                    echo "    eval \"\$(zrb shell autocomplete $shell_name)\""
+                    echo "fi"
+                } >> "$rc"
+            fi
+        done
+        log_ok "Autocomplete registered"
+    fi
+}
+
+cleanup_local_venv() {
+    # Legacy installs put zrb in ~/.local-venv and added an existence-guarded activation
+    # block to the user's rc files. We uninstall zrb from that venv so the pipx copy wins
+    # on PATH, but leave the venv dir and rc block untouched (editing user rc files is
+    # risky). The block keeps activating the venv on new shells until the user removes
+    # the dir, so we point that out below rather than claim it's gone.
+    if [ -d "$HOME/.local-venv" ]; then
+        if [ -x "$HOME/.local-venv/bin/pip" ] && "$HOME/.local-venv/bin/pip" show zrb >/dev/null 2>&1; then
+            log_info "Uninstalling old zrb from ~/.local-venv (migrated to pipx)"
+            if "$HOME/.local-venv/bin/pip" uninstall zrb -y >/dev/null 2>&1; then
+                log_ok "Uninstalled old zrb from ~/.local-venv"
+            fi
+        fi
+        log_info "~/.local-venv still activates in new shells. Remove it when ready: rm -rf ~/.local-venv"
+    fi
+}
+
+#########################################################################################
+# LSP Servers (optional)
+#########################################################################################
+
+install_lsps() {
+    if ! command_exists npm && ! command_exists go && ! command_exists rustup; then
+        log_info "No JS/Go/Rust toolchains detected — only Python LSP will be installed."
+    fi
+
+    log_info "Installing python-lsp-server (pylsp)"
+    pipx inject zrb 'python-lsp-server[all]' || warn "LSP server install failed (non-fatal)"
+
+    if command_exists npm && confirm "Install typescript-language-server (for JS/TS)?"; then
         npm install -g typescript-language-server typescript
     fi
-
-    if command_exists go && confirm "Install gopls (for Go)?"
-    then
-        log_info "Installing gopls"
+    if command_exists go && confirm "Install gopls (for Go)?"; then
         go install golang.org/x/tools/gopls@latest
     fi
-
-    if command_exists rustup && confirm "Install rust-analyzer (for Rust)?"
-    then
-        log_info "Installing rust-analyzer"
+    if command_exists rustup && confirm "Install rust-analyzer (for Rust)?"; then
         rustup component add rust-analyzer
     fi
 
-    log_info "LSP servers installed. zrb auto-detects which ones are on PATH."
+    log_ok "LSP servers installed. zrb auto-detects which ones are on PATH."
 }
 
+#########################################################################################
+# Termux Setup
+#########################################################################################
+
+setup_termux() {
+    log_info "Setting environment variables"
+    export CFLAGS="-Wno-incompatible-function-pointer-types"
+
+    log_info "Updating repos and packages"
+    termux-change-repo
+    pkg update -y
+    pkg upgrade -y
+
+    if [ ! -d "${HOME}/storage" ]; then
+        log_info "Setting up storage"
+        termux-setup-storage
+    fi
+
+    log_info "Installing prerequisites"
+    pkg install -y python clang cmake build-essential rust golang \
+        binutils ninja patchelf libxml2 libxslt curl wget git which \
+        swig postgresql sqlite termux-api openssh
+}
 
 #########################################################################################
-# Getting variables
+# Main
 #########################################################################################
-OS_TYPE=$(uname)
 
-if [ -n "$PREFIX" ] && [ "$PREFIX" = "/data/data/com.termux/files/usr" ]
-then
+# Parse flags
+AUTO_YES=0
+for arg in "$@"; do
+    case "$arg" in
+        -y|--yes) AUTO_YES=1 ;;
+    esac
+done
+
+# Detect Termux
+if [ -n "$PREFIX" ] && [ "$PREFIX" = "/data/data/com.termux/files/usr" ]; then
     IS_TERMUX=1
 else
     IS_TERMUX=0
 fi
 
-IS_PYENV_INSTALLED=0
-IS_LOCAL_VENV_INSTALLED=0
+# Banner
+cat << 'EOF'
 
-#########################################################################################
-# Installation
-#########################################################################################
+    ╔════════════════════════════╗
+    ║  Zrb — Your Automation     ║
+    ║        Powerhouse          ║
+    ╚════════════════════════════╝
 
-if [ "$IS_TERMUX" = "1" ] && [ ! -d "$HOME/.local-venv" ] && confirm "Do you want to setup termux?"
-then
-    log_info "Setting environment variables"
-    export CFLAGS="-Wno-incompatible-function-pointer-types" # ruamel.yaml need this.
+EOF
 
-    log_info "Change repo"
-    termux-change-repo
-
-    log_info "Updating packages"
-    pkg update
-    pkg upgrade -y
-
-    if [ ! -d "${HOME}/storage" ]
-    then
-        log_info "Setup storage"
-        termux-setup-storage
-    fi
-
-    log_info "Installing prerequisites"
-    pkg install termux-api openssh curl wget git which \
-        python rust clang cmake build-essential golang swig \
-        binutils ninja patchelf libxml2 libxslt \
-        postgresql sqlite
-
-elif [ "$IS_TERMUX" = "0" ] && confirm "Do you want to install pyenv?"
-then
-    if [ ! -d "$HOME/.pyenv" ]
-    then
-        # Install prerequisites
-
-        if [ "$OS_TYPE" = "Darwin" ]
-        then
-            if command_exists brew
-            then
-                log_info "Using brew to install pyenv prerequisites"
-                brew install openssl readline sqlite3 xz zlib tcl-tk
-            else
-                log_info "Brew not found, continuing anyway"
-            fi
-        elif [ "$OS_TYPE" = "Linux" ]
-        then
-            if command_exists pkg
-            then
-                log_info "Using pkg to install pyenv prerequisites"
-                try_sudo pkg update
-                try_sudo pkg install -y build-essential
-            elif command_exists apt
-            then
-                log_info "Using apt to install pyenv prerequisites"
-                try_sudo apt update
-                try_sudo apt install -y build-essential libssl-dev zlib1g-dev \
-                    libbz2-dev libreadline-dev libsqlite3-dev curl \
-                    libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev
-            elif command_exists yum
-            then
-                log_info "Using yum to install pyenv prerequisites"
-                try_sudo yum install -y gcc make patch zlib-devel bzip2 bzip2-devel readline-devel sqlite sqlite-devel openssl-devel tk-devel libffi-devel xz-devel
-            elif command_exists dnf
-            then
-                log_info "Using dnf to install pyenv prerequisites"
-                try_sudo dnf install -y make gcc patch zlib-devel bzip2 bzip2-devel readline-devel sqlite sqlite-devel openssl-devel tk-devel libffi-devel xz-devel libuuid-devel gdbm-libs libnsl2
-            elif command_exists pacman
-            then
-                log_info "Using pacman to install pyenv prerequisites"
-                try_sudo pacman -syu --noconfirm base-devel openssl zlib xz tk
-            elif command_exists apk
-            then
-                log_info "Using apk to install pyenv prerequisites"
-                try_sudo apk add --no-cache git bash build-base libffi-dev openssl-dev bzip2-dev zlib-dev xz-dev readline-dev sqlite-dev tk-dev
-            else
-                log_info "No known package manager found, continuing anyway"
-            fi
-        else
-            log_info "Unsupported OS, cannot install pyenv pre-requisites, continuing anyway"
-        fi
-    fi
-
-    if ! command_exists pyenv
-    then
-        install_pyenv
-        IS_PYENV_INSTALLED=1
-    fi
-
-    if ! command_exists python
-    then
-        install_python_on_pyenv
-    fi
-elif ! command_exists python
-then
-    log_info "You need to install Python first."
-    log_info "Exiting"
-    exit 1
+# ── Migrate from legacy pip/poetry/local-venv installation ──
+if command_exists zrb && ! pipx list --short 2>/dev/null | grep -q "^zrb "; then
+    warn "Detected zrb installed via pip (legacy). The script now uses pipx."
+    warn "Your existing installation will be shadowed by the new pipx install."
+    warn "The legacy package will be auto-removed after the pipx install completes."
 fi
 
-if ! command_exists poetry && confirm "Do you want to install poetry?"
-then
-    install_poetry
+# ── Step 1: Termux setup (if applicable) ──
+if [ "$IS_TERMUX" = "1" ] && confirm "Set up Termux for zrb?"; then
+    setup_termux
 fi
 
-if [ ! -d "${HOME}/.local-venv" ] && confirm "Do you want to create virtual environment?"
-then
-    create_and_register_local_venv
-    IS_LOCAL_VENV_INSTALLED=1
-fi
+# ── Step 2: Ensure Python ──
+ensure_python
 
-if ! command_exists zrb
-then
-    install_zrb
-fi
+# ── Step 3: pipx ──
+ensure_pipx
+ensure_pipx_path
+ensure_pipx_default_python
 
-if confirm "Do you want to install LSP language servers for richer code diagnostics?"
-then
+# ── Step 4: zrb ──
+ZRB_EXTRAS=""
+confirm_extras
+install_zrb
+expose_python_tools
+
+# ── Step 5: Clean up legacy .local-venv ──
+cleanup_local_venv
+
+# ── pipx may have been in .local-venv/bin, re-check PATH ──
+ensure_pipx_path
+
+# ── Step 6: Autocomplete ──
+register_autocomplete
+
+# ── Step 7: LSP servers ──
+if confirm "Install LSP servers for richer code diagnostics?"; then
     install_lsps
 fi
 
-if [ "$IS_PYENV_INSTALLED" = 1 ] || [ "$IS_LOCAL_VENV_INSTALLED" = 1 ]
-then
-    log_info "You need to restart your terminal session!!!"
-fi
+log_ok "Installation complete! Restart your terminal or run 'exec \$SHELL' to pick up the new PATH."

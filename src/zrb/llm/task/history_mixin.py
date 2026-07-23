@@ -61,30 +61,27 @@ class HistoryMixin:
             # lazy: heavy third-party
             from pydantic_ai.messages import ModelRequest, UserPromptPart
 
-            # Check if the last message (or one of the last few) is the user message
+            # Compare ONLY the most recent real user turn. Scanning the whole
+            # history means a recurring message (e.g. "continue") matches some
+            # old turn and the user's current message gets replaced by the
+            # generic retry notice. "[SYSTEM]"-prefixed turns are bookkeeping
+            # appended by error/cancel recovery — skipped, not user turns.
             found_user_message = False
             str_user_message = str(user_message)
             for msg in reversed(message_history):
-                if isinstance(msg, ModelRequest):
-                    for part in msg.parts:
-                        if isinstance(part, UserPromptPart):
-                            # Handle both text-only and multimodal content
-                            # Multimodal: part.content is [text, BinaryContent(...)]
-                            # Text-only: part.content is a string
-                            part_text = ""
-                            if isinstance(part.content, str):
-                                part_text = part.content
-                            elif isinstance(part.content, list):
-                                # Extract text from multimodal content list
-                                for item in part.content:
-                                    if isinstance(item, str):
-                                        part_text = item
-                                        break
-                            if part_text == str_user_message:
-                                found_user_message = True
-                                break
-                if found_user_message:
-                    break
+                if not isinstance(msg, ModelRequest):
+                    continue
+                part_texts = [
+                    _user_part_text(part)
+                    for part in msg.parts
+                    if isinstance(part, UserPromptPart)
+                ]
+                if not part_texts:
+                    continue  # tool-return-only request
+                if all(text.startswith("[SYSTEM]") for text in part_texts):
+                    continue
+                found_user_message = str_user_message in part_texts
+                break
 
             if found_user_message:
                 # User message is already in history, so we don't need to send it again.
@@ -226,3 +223,15 @@ class HistoryMixin:
             # Remove ANSI escape codes first to ensure regex patterns work correctly
             output = remove_style(output)
         return output
+
+
+def _user_part_text(part: Any) -> str:
+    """Extract the text of a UserPromptPart (text-only or multimodal content)."""
+    if isinstance(part.content, str):
+        return part.content
+    if isinstance(part.content, list):
+        # Multimodal: content is [text, BinaryContent(...)]
+        for item in part.content:
+            if isinstance(item, str):
+                return item
+    return ""

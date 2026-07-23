@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Any, Callable
 
 from zrb.context.any_context import AnyContext
 from zrb.llm.util.image_scale import scale_image_bytes
+from zrb.llm.util.pdf import extract_pdf_text
 
 if TYPE_CHECKING:
     from pydantic_ai.messages import UserContent
@@ -27,6 +28,16 @@ def normalize_attachments(
                 media_type = get_media_type(path)
                 if media_type:
                     try:
+                        if media_type == "application/pdf":
+                            pdf_text = extract_pdf_text(path)
+                            if pdf_text is not None:
+                                final_attachments.append(pdf_text)
+                                continue
+                            # Fall through to binary if extraction failed
+                            print_fn(
+                                "Failed to extract text from PDF — "
+                                "attaching as binary"
+                            )
                         data = Path(path).read_bytes()
                         if media_type.startswith("image/"):
                             scaled = scale_image_bytes(data, media_type=media_type)

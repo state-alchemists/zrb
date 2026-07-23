@@ -6,6 +6,8 @@ from zrb.config.config import CFG
 def create_style() -> Style:
     choice_bg = CFG.LLM_UI_STYLE_CHOICE_BG
     choice_selected_bg = CFG.LLM_UI_STYLE_CHOICE_SELECTED_BG
+    text = CFG.LLM_UI_STYLE_TEXT
+    faint = CFG.LLM_UI_STYLE_FAINT
     return Style.from_dict(
         {
             "title-bar": CFG.LLM_UI_STYLE_TITLE_BAR,
@@ -27,9 +29,9 @@ def create_style() -> Style:
             "choice-frame": f"bg:{choice_bg} {CFG.LLM_UI_STYLE_INPUT_FRAME}",
             "choice": f"bg:{choice_bg}",
             "choice.question": f"bg:{choice_bg} bold",
-            "choice.selected": f"bg:{choice_selected_bg} #ffffff bold",
+            "choice.selected": f"bg:{choice_selected_bg} {text} bold",
             "choice.option": f"bg:{choice_bg}",
-            "choice.desc": f"bg:{choice_bg} #888888",
-            "choice.hint": f"bg:{choice_bg} #6c6c6c",
+            "choice.desc": f"bg:{choice_bg} {faint}",
+            "choice.hint": f"bg:{choice_bg} {faint}",
         }
     )

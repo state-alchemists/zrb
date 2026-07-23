@@ -45,6 +45,7 @@ class _Host:
     BARE_ALIASED = EnvField(
         str, no_prefix=True, aliases=["_INTERNAL_KEY"], write_key="_INTERNAL_KEY"
     )
+    SECRET = EnvField(str, secret=True, default="")
 
 
 @pytest.fixture
@@ -60,6 +61,15 @@ def host(monkeypatch):
 
 def test_reads_default_from_host_attribute(host):
     assert host.PLAIN == 7
+
+
+def test_secret_flag_defaults_false_and_is_exposed(host, monkeypatch):
+    cls = type(host)
+    assert cls.PLAIN.secret is False
+    assert cls.SECRET.secret is True
+    # secret is display-only: it never changes how the value is read or written.
+    monkeypatch.setenv("TESTCFG_SECRET", "top-secret")
+    assert host.SECRET == "top-secret"
 
 
 def test_explicit_default_used_when_unset(host):

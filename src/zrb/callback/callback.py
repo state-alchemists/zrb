@@ -1,3 +1,4 @@
+import asyncio
 import traceback
 from typing import Any
 
@@ -75,6 +76,10 @@ class Callback(AnyCallback):
             result = await self._task.async_run(session)
             self._maybe_publish_result_to_parent_session(parent_session, result)
             return result
+        except (asyncio.CancelledError, KeyboardInterrupt):
+            # Cancellation is not a task error to publish — swallowing it here
+            # would make cancelled callbacks "complete" and block shutdown.
+            raise
         except BaseException as e:
             ctx = session.get_ctx(self._task)
             ctx.print(traceback.format_exc())

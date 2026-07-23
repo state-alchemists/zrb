@@ -213,10 +213,9 @@ def test_get_remote_cmd_script_with_password():
         host="example.com",
         port=22,
         user="user",
-        password="pass123",
         use_password=True,
     )
-    assert "sshpass -p pass123 ssh -t -p 22 user@example.com 'ls -la'" in result
+    assert "sshpass -e ssh -t -p 22 user@example.com 'ls -la'" in result
 
 
 def test_get_remote_cmd_script_with_ssh_key_and_password():
@@ -227,14 +226,10 @@ def test_get_remote_cmd_script_with_ssh_key_and_password():
         host="example.com",
         port=22,
         user="user",
-        password="pass123",
         use_password=True,
         ssh_key="/path/to/key",
     )
-    assert (
-        "sshpass -p pass123 ssh -t -p 22 -i /path/to/key user@example.com 'ls -la'"
-        in result
-    )
+    assert "sshpass -e ssh -t -p 22 -i /path/to/key user@example.com 'ls -la'" in result
 
 
 def test_get_remote_cmd_script_custom_port():
@@ -245,23 +240,19 @@ def test_get_remote_cmd_script_custom_port():
 
 
 def test_get_remote_cmd_script_quotes_injection_in_credentials():
-    """Credential fields with shell metacharacters must be safely quoted."""
-    import shlex
+    """Password is passed via SSHPASS env var, not on the command line."""
+    malicious = 'p"$(touch /tmp/pwn)`'
 
     result = get_remote_cmd_script(
         "ls",
         host="example.com",
         port=22,
         user="user",
-        password='p"$(touch /tmp/pwn)`',
         use_password=True,
     )
-    # The malicious password is shlex-quoted as a single literal token, so the
-    # command substitution can never reach the shell.
-    assert shlex.quote('p"$(touch /tmp/pwn)`') in result
-    assert "$(touch /tmp/pwn)" not in result.replace(
-        shlex.quote('p"$(touch /tmp/pwn)`'), ""
-    )
+    # sshpass -e reads the password from SSHPASS — never on the command line.
+    assert "sshpass -e" in result
+    assert malicious not in result
 
 
 def test_check_unrecommended_commands_process_substitution():
@@ -729,14 +720,17 @@ class TestGetCmdStdinInteractive:
 
 
 class TestReadStreamErrorBranches:
-    """Cover __read_stream ValueError (line-too-long) and generic exception branches."""
+    """Cover __read_stream's carriage-return-live and generic exception branches."""
 
     @pytest.mark.asyncio
-    async def test_read_stream_line_too_long_emits_error(self):
-        """A ValueError from readline (memory-limit valve) emits the error sentinel."""
+    async def test_read_stream_shows_carriage_return_progress_without_newline(self):
+        """`\\r`-driven progress output (no trailing `\\n`) is still captured/printed."""
         stream = MagicMock()
-        # First readline raises ValueError (line over the buffer limit).
-        stream.readline = AsyncMock(side_effect=ValueError("line too long"))
+        # No trailing "\n" at all -- mimics a progress bar that only uses "\r",
+        # plus a final chunk once the stream closes (empty bytes == EOF).
+        stream.read = AsyncMock(
+            side_effect=[b"10%\r50%\r100% done", b""],
+        )
 
         fake_proc = MagicMock()
         fake_proc.pid = 999
@@ -754,14 +748,17 @@ class TestReadStreamErrorBranches:
                 ["irrelevant"], print_method=printed.append
             )
 
-        assert any("too long to process" in m for m in printed)
-        assert "too long to process" in result.output
+        # All three progress segments were printed live, not dropped/batched.
+        assert any("10%" in m for m in printed)
+        assert any("50%" in m for m in printed)
+        assert any("100% done" in m for m in printed)
+        assert "100% done" in result.output
 
     @pytest.mark.asyncio
     async def test_read_stream_generic_exception_breaks_cleanly(self):
-        """A non-ValueError stream exception breaks the read loop without crashing."""
+        """A stream read exception breaks the read loop without crashing."""
         stream = MagicMock()
-        stream.readline = AsyncMock(side_effect=RuntimeError("boom"))
+        stream.read = AsyncMock(side_effect=RuntimeError("boom"))
 
         fake_proc = MagicMock()
         fake_proc.pid = 999
@@ -779,3 +776,35 @@ class TestReadStreamErrorBranches:
         # The read loop swallowed the RuntimeError and produced empty output.
         assert return_code == 0
         assert result.output == ""
+
+    @pytest.mark.asyncio
+    async def test_read_stream_force_flushes_line_exceeding_buffer_limit(
+        self, monkeypatch
+    ):
+        """A line with no `\\r`/`\\n` is force-flushed once it exceeds
+        CFG.CMD_BUFFER_LIMIT, instead of growing the buffer without bound."""
+        monkeypatch.setattr(CFG, "CMD_BUFFER_LIMIT", 10)
+        stream = MagicMock()
+        long_line = b"a" * 20
+        # No "\r"/"\n" anywhere -- the only way this gets flushed is the
+        # buffer-size safety valve. Followed by EOF for both streams.
+        stream.read = AsyncMock(side_effect=[long_line, b"", b""])
+
+        fake_proc = MagicMock()
+        fake_proc.pid = 999
+        fake_proc.returncode = 0
+        fake_proc.stdout = stream
+        fake_proc.stderr = stream
+        fake_proc.wait = AsyncMock(return_value=0)
+
+        printed = []
+        with patch(
+            "zrb.util.cmd.command.asyncio.create_subprocess_exec",
+            new=AsyncMock(return_value=fake_proc),
+        ):
+            result, return_code = await run_command(
+                ["irrelevant"], print_method=printed.append
+            )
+
+        assert any("a" * 20 in m for m in printed)
+        assert "a" * 20 in result.output

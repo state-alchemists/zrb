@@ -60,6 +60,73 @@ if TYPE_CHECKING:
 class ExecMixin:
     """Execution + resource lifecycle for LLMChatTask."""
 
+    if TYPE_CHECKING:
+        # Attributes/methods provided by the composed LLMChatTask and its
+        # sibling mixins. Declared here so pyright can resolve them when
+        # ExecMixin is type-checked in isolation (same pattern as the UI
+        # mixins, e.g. keybindings_mixin.py). Complex unions/callables are
+        # annotated `Any` deliberately; the concrete types live on LLMChatTask.
+        _ui_summarize_commands: list[str]
+        _ui_attach_commands: list[str]
+        _ui_exit_commands: list[str]
+        _ui_info_commands: list[str]
+        _ui_save_commands: list[str]
+        _ui_load_commands: list[str]
+        _ui_rewind_commands: list[str]
+        _ui_redirect_output_commands: list[str]
+        _ui_yolo_toggle_commands: list[str]
+        _ui_set_model_commands: list[str]
+        _ui_exec_commands: list[str]
+        _ui_btw_commands: list[str]
+        _ui_plan_commands: list[str]
+        _ui_copy_commands: list[str]
+        _ui_voice_commands: list[str]
+        _render_system_prompt: bool
+        _render_active_skills: bool
+        _render_message: bool
+        _render_model: bool
+        _render_conversation_name: bool
+        _yolo_xcom_key: str
+        _active_skills: Any
+        _approval_channels: Any
+        _argument_formatters: Any
+        _attachment: Any
+        _capabilities: Any
+        _conversation_name: Any
+        _enable_rewind: Any
+        _history_manager: Any
+        _history_processors: Any
+        _hook_factories: Any
+        _interactive: Any
+        _llm_config: Any
+        _llm_limiter: Any
+        _message: Any
+        _model: Any
+        _model_settings: Any
+        _permissions: Any
+        _prompt_manager: Any
+        _response_handlers: Any
+        _sandbox: Any
+        _snapshot_dir: Any
+        _system_prompt: Any
+        _tool_confirmation: Any
+        _tool_factories: Any
+        _tool_guidance_factories: Any
+        _tool_guidance_section_factories: Any
+        _tool_policies: Any
+        _tools: Any
+        _toolset_factories: Any
+        _toolsets: Any
+        _uis: Any
+        _ui_factories: Any
+        _yolo: Any
+        _apply_tool_guidance: Any
+        _run_interactive_session: Any
+        _run_non_interactive_session: Any
+        # From BaseTask (the concrete base LLMChatTask extends).
+        name: str
+        envs: Any
+
     def get_system_prompt(self, ctx: AnyContext) -> str:
         if self._prompt_manager is None:
             return ""
@@ -68,7 +135,14 @@ class ExecMixin:
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
         # lazy: circular — task → exec_mixin (this file) → task.parse_yolo_value.
+        from zrb.llm.common_tools import ensure_common_tools
         from zrb.llm.task.chat.task import parse_yolo_value
+
+        # Apply the deferred zrb-shipped tools/guidance (see chat.py's
+        # defer_common_tools) before any tool/guidance is read below. self is a
+        # full CommonToolHost at runtime (BuilderMixin supplies add_tool etc.);
+        # ExecMixin is type-checked in isolation, hence the ignore.
+        ensure_common_tools(self)  # type: ignore[reportArgumentType]
 
         # 1. Resolve inputs/attributes
         initial_conversation_name = self._get_initial_conversation_name(ctx)
@@ -161,6 +235,8 @@ class ExecMixin:
             return await self._run_non_interactive_session(
                 ctx=ctx,
                 llm_task_core=llm_task_core,
+                history_manager=history_manager,
+                ui_commands=ui_commands,
                 initial_message=initial_message,
                 initial_conversation_name=initial_conversation_name,
                 initial_yolo=initial_yolo,
@@ -314,6 +390,11 @@ class ExecMixin:
                 if self._ui_copy_commands
                 else CFG.LLM_UI_COMMAND_COPY
             ),
+            "voice": (
+                self._ui_voice_commands
+                if self._ui_voice_commands
+                else CFG.LLM_UI_COMMAND_VOICE
+            ),
         }
 
     def _create_llm_task_core(
@@ -348,7 +429,7 @@ class ExecMixin:
             self._tool_policies or self._response_handlers or self._argument_formatters
         ):
             # Non-interactive with policies/handlers/formatters: Use ToolCallHandler
-            if not ui:
+            if not ui and not self._ui_factories:
                 ui = StdUI()
             tool_confirmation = ToolCallHandler(
                 tool_policies=self._tool_policies,
@@ -357,7 +438,11 @@ class ExecMixin:
             )
         else:
             # Non-interactive without policies: Use UI for approval
-            if not ui:
+            # Skip the StdUI fallback when ui_factories are present: the
+            # non-interactive session resolves them and attaches the resulting
+            # UI(s) (e.g. the web/SSE HTTPUI) so run_agent streams through those
+            # instead of stdout.
+            if not ui and not self._ui_factories:
                 ui = StdUI()
             # tool_confirmation = None (let UI handle it via approval_channel)
 
@@ -455,7 +540,14 @@ class ExecMixin:
             toolsets=resolved_toolsets,
             # No factories passed - tools/toolsets already resolved with parent context
             history_processors=self._history_processors
-            + [create_summarizer_history_processor()],
+            + [
+                create_summarizer_history_processor(
+                    inject_journal_index=(
+                        self._prompt_manager is not None
+                        and "journal_mandate" in self._prompt_manager.active_sections
+                    )
+                )
+            ],
             capabilities=capabilities,
             llm_config=self._llm_config,
             llm_limiter=self._llm_limiter,
@@ -473,6 +565,9 @@ class ExecMixin:
             attachment=lambda ctx: ctx.input.attachments,
             model=lambda ctx: ctx.input.get("model"),
             render_model=False,
+            # Without this, LLMChatTask(model_settings=...) is accepted but
+            # silently ignored: the inner task falls back to llm_config's.
+            model_settings=self._model_settings,
             summarize_command=summarize_commands,
         )
 

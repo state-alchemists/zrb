@@ -6,10 +6,10 @@ if TYPE_CHECKING:
     from pydantic_ai import (
         AgentRunResultEvent,
         AgentStreamEvent,
-        FunctionToolCallEvent,
-        FunctionToolResultEvent,
         PartDeltaEvent,
         PartStartEvent,
+        ToolCallEvent,
+        ToolResultEvent,
     )
 
 PrintKind = Literal[
@@ -32,8 +32,10 @@ class StreamEventHandler:
         indent_level: int = 1,
         show_tool_call_detail: bool = False,
         show_tool_result: bool = False,
+        usage_callback: Callable[..., None] | None = None,
     ):
         self._print_fn = print_fn
+        self._usage_callback = usage_callback
         self._indentation = indent_level * 2 * " "
         self._show_tool_call_detail = show_tool_call_detail
         self._show_tool_result = show_tool_result
@@ -74,10 +76,10 @@ class StreamEventHandler:
         from pydantic_ai import (
             AgentRunResultEvent,
             FinalResultEvent,
-            FunctionToolCallEvent,
-            FunctionToolResultEvent,
             PartDeltaEvent,
             PartStartEvent,
+            ToolCallEvent,
+            ToolResultEvent,
         )
 
         skip_prefix_update = False
@@ -86,9 +88,9 @@ class StreamEventHandler:
             skip_prefix_update = self._handle_part_start(event)
         elif isinstance(event, PartDeltaEvent):
             self._handle_part_delta(event)
-        elif isinstance(event, FunctionToolCallEvent):
+        elif isinstance(event, ToolCallEvent):
             self._handle_tool_call(event)
-        elif isinstance(event, FunctionToolResultEvent):
+        elif isinstance(event, ToolResultEvent):
             self._handle_tool_result(event)
         elif isinstance(event, AgentRunResultEvent):
             self._handle_run_result(event)
@@ -176,7 +178,7 @@ class StreamEventHandler:
                     self._progress_chars
                 )
 
-    def _handle_tool_call(self, event: "FunctionToolCallEvent"):
+    def _handle_tool_call(self, event: "ToolCallEvent"):
         if self._was_tool_call_delta and not self._show_tool_call_detail:
             self._print_fn("\r", "progress")
 
@@ -194,10 +196,10 @@ class StreamEventHandler:
             self._fprint(line, preserve_leading_newline=True, kind="tool_call")
         self._was_tool_call_delta = False
 
-    def _handle_tool_result(self, event: "FunctionToolResultEvent"):
+    def _handle_tool_result(self, event: "ToolResultEvent"):
         if self._show_tool_result:
             self._fprint(
-                f"{self._event_prefix}🔠 {event.tool_call_id} | Return {event.result.content}\n",
+                f"{self._event_prefix}🔠 {event.tool_call_id} | Return {event.part.content}\n",
                 preserve_leading_newline=True,
                 kind="tool_call",
             )
@@ -211,6 +213,8 @@ class StreamEventHandler:
 
     def _handle_run_result(self, event: "AgentRunResultEvent"):
         usage = event.result.usage
+        if self._usage_callback is not None:
+            self._usage_callback(usage, _last_request_usage(event.result))
         usage_msg = " ".join(
             [
                 "💸",
@@ -239,6 +243,7 @@ def create_event_handler(
     indent_level: int = 1,
     show_tool_call_detail: bool = False,
     show_tool_result: bool = False,
+    usage_callback: Callable[..., None] | None = None,
 ):
     """Create an event handler for agent stream events.
 
@@ -248,16 +253,32 @@ def create_event_handler(
         indent_level: Indentation level for nested output.
         show_tool_call_detail: Whether to show detailed tool call parameters.
         show_tool_result: Whether to show tool result content.
+        usage_callback: Called with the run's `RunUsage` when the run completes.
     """
     return StreamEventHandler(
         print_fn=print_fn,
         indent_level=indent_level,
         show_tool_call_detail=show_tool_call_detail,
         show_tool_result=show_tool_result,
+        usage_callback=usage_callback,
     )
 
 
-def _get_truncated_event_part_args(event: "AgentStreamEvent") -> Any:
+def _last_request_usage(result: Any) -> Any:
+    """The last `ModelResponse`'s per-request usage = current context size.
+
+    `RunUsage` sums every request in the run, so it can't report window
+    occupancy. Only `ModelResponse` carries `.usage`; the last one is the most
+    recent prompt sent, which is what fills the context window.
+    """
+    for message in reversed(result.all_messages()):
+        usage = getattr(message, "usage", None)
+        if usage is not None:
+            return usage
+    return None
+
+
+def _get_truncated_event_part_args(event: "AgentStreamEvent | ToolCallEvent") -> Any:
     if not hasattr(event, "part"):
         return {}
     part = getattr(event, "part")

@@ -28,11 +28,13 @@ def test_bool_input_get_default_str():
     with patch("zrb.input.bool_input.get_bool_attr") as mock_get_bool_attr:
         mock_get_bool_attr.return_value = True
         result = inp.get_default_str(shared_ctx)
-        assert result == "True"
+        # Lowercase to match the <option> values from to_html so the web UI
+        # <select> can round-trip the value.
+        assert result == "true"
 
 
 def test_bool_input_get_default_str_false():
-    """Test BoolInput.get_default_str returns 'False' for False value."""
+    """Test BoolInput.get_default_str returns 'false' for False value."""
     inp = BoolInput(name="flag", default=False)
     shared_ctx = MagicMock(spec=AnySharedContext)
     shared_ctx.input = {}
@@ -40,7 +42,22 @@ def test_bool_input_get_default_str_false():
     with patch("zrb.input.bool_input.get_bool_attr") as mock_get_bool_attr:
         mock_get_bool_attr.return_value = False
         result = inp.get_default_str(shared_ctx)
-        assert result == "False"
+        assert result == "false"
+
+
+def test_bool_input_default_str_matches_html_option_value():
+    """Regression: default_str must equal an <option value> so the web UI
+    <select> keeps its selection when handleInputUpdate assigns select.value."""
+    shared_ctx = MagicMock(spec=AnySharedContext)
+    shared_ctx.input = {}
+    for default, expected in ((True, "true"), (False, "false")):
+        inp = BoolInput(name="flag", default=default)
+        with patch("zrb.input.bool_input.get_bool_attr") as mock_get_bool_attr:
+            mock_get_bool_attr.return_value = default
+            default_str = inp.get_default_str(shared_ctx)
+            html = inp.to_html(shared_ctx)
+        assert default_str == expected
+        assert f'value="{default_str}"' in html
 
 
 def test_bool_input_parse_str_value_through_update():
@@ -132,5 +149,5 @@ def test_bool_input_auto_render_false():
     with patch("zrb.input.bool_input.get_bool_attr") as mock_get_bool_attr:
         mock_get_bool_attr.return_value = True
         result = inp.get_default_str(shared_ctx)
-        assert result == "True"
+        assert result == "true"
         mock_get_bool_attr.assert_called_once()

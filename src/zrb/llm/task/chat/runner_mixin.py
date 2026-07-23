@@ -88,18 +88,37 @@ class RunnerMixin:
         self,
         ctx: "AnyContext",
         llm_task_core: "LLMTask",
+        history_manager: "AnyHistoryManager",
+        ui_commands: dict[str, list[str]],
         initial_message: Any,
         initial_conversation_name: str,
         initial_yolo: "bool | frozenset[str]",
         initial_attachments: "list[UserContent]",
     ) -> Any:
         # Resolve custom commands and intercept if the message is a slash command
-        resolved_custom_commands = resolve_custom_commands(self._custom_commands)
+        resolved_custom_commands = self._resolve_custom_commands()
         effective_message = initial_message
         if isinstance(initial_message, str):
             resolved = resolve_custom_command(initial_message, resolved_custom_commands)
             if resolved is not None:
                 effective_message = resolved
+
+        # Attach factory-produced UIs (e.g. the web/SSE HTTPUI) as output sinks
+        # so run_agent streams through them. This is what makes browser chat
+        # work without the interactive session's per-turn history replay and
+        # LSP/SESSION_END teardown. Programmatic self._uis are already wired
+        # into the core task by _create_llm_task_core; only factories need
+        # resolving here, now that the core task instance exists.
+        self._attach_ui_factories(
+            ctx=ctx,
+            llm_task_core=llm_task_core,
+            history_manager=history_manager,
+            ui_commands=ui_commands,
+            initial_message=effective_message,
+            initial_conversation_name=initial_conversation_name,
+            initial_yolo=initial_yolo,
+            initial_attachments=initial_attachments,
+        )
 
         # AsyncExitStack is handled by LLMTask._exec_action
         session_input = {
@@ -120,6 +139,32 @@ class RunnerMixin:
         ctx.xcom["__conversation_name__"] = initial_conversation_name
         return result
 
+    def _attach_ui_factories(
+        self,
+        ctx: "AnyContext",
+        llm_task_core: "LLMTask",
+        history_manager: "AnyHistoryManager",
+        ui_commands: dict[str, list[str]],
+        initial_message: Any,
+        initial_conversation_name: str,
+        initial_yolo: "bool | frozenset[str]",
+        initial_attachments: "list[UserContent]",
+    ) -> None:
+        """Resolve `_ui_factories` and attach the results to the core task."""
+        for factory in self._ui_factories:
+            factory_ui = factory(
+                ctx=ctx,
+                llm_task=llm_task_core,
+                history_manager=history_manager,
+                ui_commands=ui_commands,
+                initial_message=initial_message,
+                initial_conversation_name=initial_conversation_name,
+                initial_yolo=initial_yolo,
+                initial_attachments=initial_attachments,
+            )
+            for ui in factory_ui if isinstance(factory_ui, list) else [factory_ui]:
+                llm_task_core.append_ui(ui)
+
     def _resolve_custom_commands(self) -> list["AnyCustomCommand"]:
         """Resolve custom commands, calling any callable factories."""
         return resolve_custom_commands(self._custom_commands)
@@ -139,6 +184,15 @@ class RunnerMixin:
     ) -> Any:
         # lazy: zrb internal (heavy via transitive / circular)
         from zrb.llm.ui.base.ui import BaseUI
+
+        # Mirror _run_non_interactive_session's slash-command resolution.
+        # Resolved once here and reused by _build_default_ui_kwargs below,
+        # instead of re-resolving self._custom_commands a second time.
+        resolved_custom_commands = self._resolve_custom_commands()
+        if isinstance(initial_message, str):
+            resolved = resolve_custom_command(initial_message, resolved_custom_commands)
+            if resolved is not None:
+                initial_message = resolved
 
         # Note: AsyncExitStack is handled by LLMTask._exec_action
         # 1. Resolve UIs from factories
@@ -171,6 +225,7 @@ class RunnerMixin:
             initial_attachments=initial_attachments,
             enable_rewind=enable_rewind,
             snapshot_dir=snapshot_dir,
+            resolved_custom_commands=resolved_custom_commands,
         )
 
         # 3. Determine the UI to use
@@ -206,13 +261,15 @@ class RunnerMixin:
         initial_attachments: "list[UserContent]",
         enable_rewind: bool = False,
         snapshot_dir: str = "",
+        resolved_custom_commands: "list[AnyCustomCommand] | None" = None,
     ) -> dict[str, Any]:
         """Build keyword arguments shared by all default UI constructor calls."""
         resolved_custom_model_names = get_attr(ctx, self._custom_model_names, []) or []
         if not isinstance(resolved_custom_model_names, list):
             resolved_custom_model_names = []
 
-        resolved_custom_commands = self._resolve_custom_commands()
+        if resolved_custom_commands is None:
+            resolved_custom_commands = self._resolve_custom_commands()
 
         effective_show_ollama_models = (
             CFG.LLM_SHOW_OLLAMA_MODELS
@@ -264,6 +321,7 @@ class RunnerMixin:
             "btw_commands": ui_commands["btw"],
             "plan_commands": ui_commands["plan"],
             "copy_commands": ui_commands["copy"],
+            "voice_commands": ui_commands["voice"],
             "custom_commands": resolved_custom_commands,
             "model": self._get_model(ctx),
             "custom_model_names": resolved_custom_model_names,

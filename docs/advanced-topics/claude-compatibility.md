@@ -121,12 +121,15 @@ tools: [read_file, search_files]
 You are an expert coder specializing in...
 ```
 
+Both YAML list (`[Read, Glob]`) and comma-separated string (`Read, Glob, Grep`) formats are accepted for `tools` and `disallowedTools`, matching the [Claude Code sub-agent spec](https://code.claude.com/docs/en/sub-agents#supported-frontmatter-fields).
+
 | Field | Description |
 |-------|-------------|
 | `name` | Agent identifier |
 | `description` | Brief description for delegation |
 | `model` | LLM model for this agent |
-| `tools` | List of available tools |
+| `tools` | Allowlist of available tools. Accepts a YAML list (`[Read, Glob]`) or a comma-separated string (`Read, Glob, Grep`) |
+| `disallowedTools` | Denylist of tools to remove. Accepts the same formats as `tools`. Applied after `tools` |
 
 ---
 
@@ -143,7 +146,9 @@ Zrb supports Claude-compatible lifecycle hooks.
 | `~/.zrb/hooks.json` | User-level single file |
 | `~/.zrb/hooks/*.json` | User-level directory |
 | `./.claude/hooks.json` | Project-level single file |
+| `./.claude/hooks/*.json` | Project-level directory |
 | `./.zrb/hooks.json` | Project-level single file |
+| `./.zrb/hooks/*.json` | Project-level directory |
 
 > 💡 **See Also:** [Hooks Guide](./hooks.md) for detailed hook configuration.
 

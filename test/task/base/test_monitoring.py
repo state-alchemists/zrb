@@ -435,3 +435,62 @@ class TestMonitorTaskReadinessThresholdReached:
 
         # action_coro.done() was True so cancel should not be called
         action_coro.cancel.assert_not_called()
+
+
+class TestMonitorOwnCancellation:
+    """The monitor must not swallow ITS OWN cancellation while reaping the action."""
+
+    @pytest.mark.asyncio
+    async def test_monitor_cancel_during_action_reap_propagates(self):
+        """Cancelling the monitor while it awaits the cancelled action must
+        propagate — swallowing it restarts the action after shutdown."""
+        from zrb.task.base.monitoring import monitor_task_readiness
+
+        check_task = BaseTask(name="check_task")
+        check_task.exec_chain = AsyncMock(side_effect=ValueError("service down"))
+        task = BaseTask(
+            name="test_task",
+            readiness_check=[check_task],
+            readiness_check_period=0.01,
+            readiness_failure_threshold=1,
+            readiness_timeout=5,
+        )
+
+        session = MagicMock(spec=AnySession)
+        session.is_terminated = False
+        session.get_task_status.side_effect = lambda t: _make_task_status()
+        ctx = _make_ctx()
+
+        started_cleanup = asyncio.Event()
+
+        async def stubborn_action():
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                started_cleanup.set()
+                await asyncio.sleep(30)  # slow cleanup keeps the monitor waiting
+                raise
+
+        action = asyncio.create_task(stubborn_action())
+        mock_exec = MagicMock(return_value=None)
+
+        with patch.object(task, "get_ctx", return_value=ctx):
+            with patch(
+                "zrb.task.base.monitoring.execute_action_with_retry", new=mock_exec
+            ):
+                monitor = asyncio.create_task(
+                    monitor_task_readiness(task, session, action)
+                )
+                # Wait until the monitor cancelled the action and is reaping it.
+                await asyncio.wait_for(started_cleanup.wait(), timeout=5)
+                monitor.cancel()
+                with pytest.raises(asyncio.CancelledError):
+                    await asyncio.wait_for(monitor, timeout=5)
+
+        # The action was never restarted after the monitor's cancellation.
+        mock_exec.assert_not_called()
+        action.cancel()
+        try:
+            await action
+        except asyncio.CancelledError:
+            pass

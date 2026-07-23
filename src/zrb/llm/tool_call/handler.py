@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import TYPE_CHECKING, Any
 
@@ -144,7 +145,11 @@ class ToolCallHandler:
         """
         args_section = ""
         if f"{call.args}" != "{}":
-            args_str = self._format_args(call.args)
+            # Offload: _format_args runs yaml_dump + a Rich markdown render, pure
+            # blocking CPU. On the TUI format_approval_message is awaited on
+            # prompt_toolkit's event loop before the prompt shows, so an inline
+            # render freezes keystrokes (measured ~700ms on a large Write).
+            args_str = await asyncio.to_thread(self._format_args, call.args)
             args_section = f"{args_str}\n"
 
         for formatter in self._argument_formatters:

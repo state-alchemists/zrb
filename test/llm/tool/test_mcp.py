@@ -7,7 +7,54 @@ import pytest
 from fastmcp.client.transports import StdioTransport
 from pydantic_ai.mcp import MCPToolset
 
-from zrb.llm.tool.mcp import load_mcp_config
+from zrb.config.config import CFG
+from zrb.llm.tool.mcp import cap_mcp_result, load_mcp_config
+
+
+def test_cap_mcp_result_truncates_long_string():
+    with patch.dict(os.environ, {f"{CFG.ENV_PREFIX}_LLM_MAX_OUTPUT_CHARS": "500"}):
+        out = cap_mcp_result("x" * 5000)
+    assert isinstance(out, str)
+    assert "[TRUNCATED]" in out
+    assert len(out) < 600
+
+
+def test_cap_mcp_result_passes_small_structured_through():
+    data = {"a": 1, "b": [1, 2, 3]}
+    # Small structured results keep their type so the model can consume them.
+    assert cap_mcp_result(data) is data
+
+
+def test_cap_mcp_result_caps_oversized_structured():
+    with patch.dict(os.environ, {f"{CFG.ENV_PREFIX}_LLM_MAX_OUTPUT_CHARS": "500"}):
+        out = cap_mcp_result({"big": "y" * 5000})
+    assert isinstance(out, str)
+    assert "[TRUNCATED]" in out
+    assert len(out) < 600
+
+
+def test_cap_mcp_result_passes_binary_through_intact():
+    """A large image must never be stringified into a truncated repr.
+
+    Regression: capping via str(result) turned MCP screenshot results into
+    "BinaryContent(data=b'\\x89PNG..." head text, losing the image entirely.
+    """
+    from pydantic_ai.messages import BinaryContent
+
+    image = BinaryContent(data=b"\x89PNG" * 100_000, media_type="image/png")
+    with patch.dict(os.environ, {f"{CFG.ENV_PREFIX}_LLM_MAX_OUTPUT_CHARS": "500"}):
+        assert cap_mcp_result(image) is image
+
+
+def test_cap_mcp_result_caps_text_items_but_keeps_binary_in_list():
+    from pydantic_ai.messages import BinaryContent
+
+    image = BinaryContent(data=b"\x89PNG" * 100_000, media_type="image/png")
+    with patch.dict(os.environ, {f"{CFG.ENV_PREFIX}_LLM_MAX_OUTPUT_CHARS": "500"}):
+        out = cap_mcp_result([image, "z" * 5000, "short"])
+    assert out[0] is image
+    assert "[TRUNCATED]" in out[1] and len(out[1]) < 600
+    assert out[2] == "short"
 
 
 @pytest.fixture

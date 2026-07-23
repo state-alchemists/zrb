@@ -152,6 +152,40 @@ async def testcreate_safe_wrapper_handles_exception():
 
 
 @pytest.mark.asyncio
+async def testcreate_safe_wrapper_sync_function_runs_off_event_loop():
+    """Sync tools must not run inline on the event loop.
+
+    The wrapper is a coroutine function, so pydantic-ai never applies its own
+    executor offload — inline execution would freeze the TUI for the tool's
+    duration (e.g. ReadFile on a large file).
+    """
+    import threading
+
+    loop_thread = threading.current_thread()
+
+    def sync_func():
+        return threading.current_thread() is not loop_thread
+
+    wrapped = create_safe_wrapper(sync_func)
+    result = await wrapped()
+    assert result.return_value is True
+
+
+@pytest.mark.asyncio
+async def testcreate_safe_wrapper_propagates_model_retry():
+    """ModelRetry drives pydantic-ai's retry protocol — it must not be
+    flattened into an error-string ToolReturn."""
+    from pydantic_ai import ModelRetry
+
+    def retrying_func():
+        raise ModelRetry("try again with a narrower query")
+
+    wrapped = create_safe_wrapper(retrying_func)
+    with pytest.raises(ModelRetry):
+        await wrapped()
+
+
+@pytest.mark.asyncio
 async def testcreate_safe_wrapper_already_tool_return():
     """Test create_safe_wrapper when function already returns ToolReturn."""
     from pydantic_ai import ToolReturn

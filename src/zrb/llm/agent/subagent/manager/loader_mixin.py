@@ -121,6 +121,7 @@ class LoaderMixin:
             system_prompt = ""
             model = None
             tools: list[str] = []
+            disallowed_tools: list[str] = []
             inherit_sections: list[str] | None = None
             is_name_resolved = False
 
@@ -137,7 +138,29 @@ class LoaderMixin:
                                 is_name_resolved = True
                             description = frontmatter.get("description", description)
                             model = frontmatter.get("model", None)
-                            tools = frontmatter.get("tools", [])
+                            # Accept list form (canonical) or comma string (Claude-compat).
+                            raw_tools = frontmatter.get("tools", [])
+                            if isinstance(raw_tools, list):
+                                tools = [
+                                    str(t).strip() for t in raw_tools if str(t).strip()
+                                ]
+                            elif isinstance(raw_tools, str):
+                                tools = [
+                                    t.strip() for t in raw_tools.split(",") if t.strip()
+                                ]
+                            raw_disallowed = frontmatter.get("disallowedTools", [])
+                            if isinstance(raw_disallowed, list):
+                                disallowed_tools = [
+                                    str(t).strip()
+                                    for t in raw_disallowed
+                                    if str(t).strip()
+                                ]
+                            elif isinstance(raw_disallowed, str):
+                                disallowed_tools = [
+                                    t.strip()
+                                    for t in raw_disallowed.split(",")
+                                    if t.strip()
+                                ]
                             # Accept list form (canonical) or comma string (Claude-compat).
                             raw_inherit = frontmatter.get("inherit_sections")
                             if isinstance(raw_inherit, list):
@@ -173,6 +196,7 @@ class LoaderMixin:
                 system_prompt=system_prompt,
                 model=model,
                 tools=tools,
+                disallowed_tools=disallowed_tools,
                 inherit_sections=inherit_sections,
             )
         except Exception:

@@ -22,6 +22,7 @@ class WebMixin:
         self.DEFAULT_WEB_REFRESH_TOKEN_COOKIE_NAME: str = "refresh_token"
         self.DEFAULT_WEB_SECRET_KEY: str = "zrb"
         self.DEFAULT_WEB_AUTH_ENABLED: str = "off"
+        self.DEFAULT_WEB_ENABLE_SECURE_COOKIES: str = "on"
         self.DEFAULT_WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES: str = "30"
         self.DEFAULT_WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES: str = "60"
         self.DEFAULT_WEB_TITLE: str = "Zrb"
@@ -64,7 +65,7 @@ class WebMixin:
     )
 
     WEB_SUPER_ADMIN_PASSWORD = EnvField(
-        str, doc="Password for the built-in super-admin account."
+        str, secret=True, doc="Password for the built-in super-admin account."
     )
 
     WEB_ACCESS_TOKEN_COOKIE_NAME = EnvField(
@@ -76,11 +77,23 @@ class WebMixin:
     )
 
     WEB_SECRET_KEY = EnvField(
-        str, doc="Secret key used to sign JWT tokens. Change this in production."
+        str,
+        secret=True,
+        doc="Secret key used to sign JWT tokens. Change this in production.",
     )
 
     WEB_AUTH_ENABLED = EnvField(
         to_boolean, serialize=on_off, doc="Enable/disable web authentication."
+    )
+
+    WEB_ENABLE_SECURE_COOKIES = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc=(
+            "Set the Secure flag on auth cookies (sent over HTTPS only). "
+            "Turn off for plain-HTTP deployments where browsers would "
+            "otherwise silently drop the cookies."
+        ),
     )
 
     WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES = EnvField(

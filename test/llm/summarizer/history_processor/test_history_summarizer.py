@@ -356,6 +356,104 @@ async def test_summarize_history_with_multiple_snapshots():
 
 
 @pytest.mark.asyncio
+async def test_summarize_history_bakes_journal_index_into_summary():
+    """When a journal index exists, summarization re-seeds it into the summary."""
+    limiter = MockLimiter()
+    agent = MagicMock()
+    mock_result = MagicMock()
+    mock_result.output = "summary text"
+    agent.run = AsyncMock(return_value=mock_result)
+
+    messages = [
+        ModelRequest(parts=[UserPromptPart(content="a" * 50)]),
+        ModelRequest(parts=[UserPromptPart(content="b" * 50)]),
+    ]
+
+    journal_block = "<journal-index>\nMy Hub\n</journal-index>"
+    with (
+        patch("zrb.llm.config.limiter.is_turn_start", return_value=True),
+        patch(
+            "zrb.llm.summarizer.chunk_processor.chunk_and_summarize",
+            return_value="old conversation summary",
+        ),
+        patch(
+            "zrb.llm.summarizer.history_summarizer.render_journal_index",
+            return_value=journal_block,
+        ),
+    ):
+        new_history = await summarize_history(
+            messages, agent=agent, limiter=limiter, force=True
+        )
+
+    assert any("<journal-index>" in message_to_text(m) for m in new_history)
+    assert any("My Hub" in message_to_text(m) for m in new_history)
+
+
+@pytest.mark.asyncio
+async def test_summarize_history_without_journal_index_is_unaffected():
+    """No journal index → summary is produced without a journal block."""
+    limiter = MockLimiter()
+    agent = MagicMock()
+    mock_result = MagicMock()
+    mock_result.output = "summary text"
+    agent.run = AsyncMock(return_value=mock_result)
+
+    messages = [ModelRequest(parts=[UserPromptPart(content="a" * 50)])]
+
+    with (
+        patch("zrb.llm.config.limiter.is_turn_start", return_value=True),
+        patch(
+            "zrb.llm.summarizer.chunk_processor.chunk_and_summarize",
+            return_value="old conversation summary",
+        ),
+        patch(
+            "zrb.llm.summarizer.history_summarizer.render_journal_index",
+            return_value=None,
+        ),
+    ):
+        new_history = await summarize_history(
+            messages, agent=agent, limiter=limiter, force=True
+        )
+
+    assert not any("<journal-index>" in message_to_text(m) for m in new_history)
+
+
+@pytest.mark.asyncio
+async def test_summarize_history_skips_journal_index_when_uncoupled():
+    """inject_journal_index=False suppresses the re-seed even when an index
+    exists — keeping the index coupled to the journal_mandate section (ADR-0082)."""
+    limiter = MockLimiter()
+    agent = MagicMock()
+    mock_result = MagicMock()
+    mock_result.output = "summary text"
+    agent.run = AsyncMock(return_value=mock_result)
+
+    messages = [ModelRequest(parts=[UserPromptPart(content="a" * 50)])]
+
+    journal_block = "<journal-index>\nMy Hub\n</journal-index>"
+    with (
+        patch("zrb.llm.config.limiter.is_turn_start", return_value=True),
+        patch(
+            "zrb.llm.summarizer.chunk_processor.chunk_and_summarize",
+            return_value="old conversation summary",
+        ),
+        patch(
+            "zrb.llm.summarizer.history_summarizer.render_journal_index",
+            return_value=journal_block,
+        ),
+    ):
+        new_history = await summarize_history(
+            messages,
+            agent=agent,
+            limiter=limiter,
+            force=True,
+            inject_journal_index=False,
+        )
+
+    assert not any("<journal-index>" in message_to_text(m) for m in new_history)
+
+
+@pytest.mark.asyncio
 async def test_find_safe_split_index_no_safe_split():
     limiter = MockLimiter()
     messages = [

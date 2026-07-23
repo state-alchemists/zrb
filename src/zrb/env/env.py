@@ -10,7 +10,7 @@ class Env(AnyEnv):
     def __init__(
         self,
         name: str,
-        default: StrAttr,
+        default: StrAttr = "",
         auto_render: bool = True,
         link_to_os: bool = True,
         os_name: str | None = None,

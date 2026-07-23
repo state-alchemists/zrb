@@ -57,6 +57,7 @@ from zrb.xcom.xcom import Xcom
 if TYPE_CHECKING:
     from pydantic_ai import ToolApproved, ToolCallPart, ToolDenied, UserContent
     from pydantic_ai.models import Model
+    from pydantic_ai.usage import RequestUsage, RunUsage
     from rich.theme import Theme
 
     from zrb.llm.tool_call.ui_protocol import ChoiceSpec
@@ -170,6 +171,7 @@ class BaseUI(PropertiesMixin, CommandsMixin, HistoryReplayMixin, SystemInfoMixin
         btw_commands: list[str] = [],
         plan_commands: list[str] = [],
         copy_commands: list[str] = [],
+        voice_commands: list[str] = [],
         custom_commands: list[AnyCustomCommand] = [],
         model: "Model | str | None" = None,
         enable_rewind: bool = False,
@@ -205,9 +207,21 @@ class BaseUI(PropertiesMixin, CommandsMixin, HistoryReplayMixin, SystemInfoMixin
         self._btw_commands = btw_commands
         self._plan_commands = plan_commands
         self._copy_commands = copy_commands
+        self._voice_commands = voice_commands
         self._custom_commands = custom_commands
         self._plan_mode_active = False
+        self._voice_mode_active = False
+        self._voice_recording_active = False
+        self._voice_task: asyncio.Task | None = None
+        self._voice_stop_event: asyncio.Event | None = None
         self._trigger_tasks: list[asyncio.Task] = []
+        self._session_input_tokens = 0
+        self._session_output_tokens = 0
+        self._session_cache_read_tokens = 0
+        # Occupancy of the current context window = the last request's prompt
+        # size. Unlike the session totals it does not accumulate; it tracks the
+        # latest turn and drops after summarization.
+        self._context_tokens = 0
         self._message_queue: asyncio.Queue = asyncio.Queue()
         self._process_messages_task: asyncio.Task | None = None
         self._last_result_data: str | None = None
@@ -255,6 +269,45 @@ class BaseUI(PropertiesMixin, CommandsMixin, HistoryReplayMixin, SystemInfoMixin
     def ctx(self) -> AnyContext:
         """Get the context for this UI."""
         return self._ctx
+
+    @property
+    def session_token_usage(self) -> tuple[int, int]:
+        """Accumulated (input, output) tokens across all runs in this session."""
+        return self._session_input_tokens, self._session_output_tokens
+
+    @property
+    def session_cache_read_tokens(self) -> int:
+        """Accumulated cache-read (cache-hit) tokens across the session."""
+        return self._session_cache_read_tokens
+
+    @property
+    def context_tokens(self) -> int:
+        """Tokens in the current context window (last request's prompt size)."""
+        return self._context_tokens
+
+    def accumulate_usage(
+        self, usage: "RunUsage", context_usage: "RequestUsage | None" = None
+    ) -> None:
+        """Fold one run's usage into session totals and refresh context size.
+
+        `usage` is the whole-run `RunUsage` (accumulated, for billing). Session
+        input/output only grow. `context_usage` is the *last request's*
+        `RequestUsage`; its `input_tokens` (already inclusive of cache reads
+        and writes, per pydantic-ai's `AbstractUsage` contract) is the current
+        context occupancy — it replaces, not accumulates.
+        """
+        self._session_input_tokens += getattr(usage, "input_tokens", 0) or 0
+        self._session_output_tokens += getattr(usage, "output_tokens", 0) or 0
+        self._session_cache_read_tokens += getattr(usage, "cache_read_tokens", 0) or 0
+        if context_usage is not None:
+            self._context_tokens = getattr(context_usage, "input_tokens", 0) or 0
+
+    def reset_session_token_usage(self) -> None:
+        """Zero the session token totals (e.g. when switching conversations)."""
+        self._session_input_tokens = 0
+        self._session_output_tokens = 0
+        self._session_cache_read_tokens = 0
+        self._context_tokens = 0
 
     @property
     def tool_call_handler(self) -> Any:

@@ -58,7 +58,7 @@ These are additions, not breaking changes, but worth knowing:
 | Approval channels | `llm_chat.append_approval_channel(...)` — first approval from any channel wins |
 | Rewind/Snapshot | `/rewind` command in TUI; `enable_rewind=True` on `LLMChatTask` |
 | MCP servers | `mcp-config.json` — see [MCP Support](mcp-support.md) |
-| Worktree tools | `CreateWorktree` / `ExitWorktree` tools available in agent sessions |
+| Worktree tools | `EnterWorktree` / `ExitWorktree` tools available in agent sessions |
 | PowerShell autocomplete | `zrb shell autocomplete powershell` |
 
 ---

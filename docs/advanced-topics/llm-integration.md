@@ -9,7 +9,9 @@ Zrb comes with a powerful, built-in AI assistant that can understand your codeba
 ## Table of Contents
 
 - [Interactive Chat](#interactive-chat-zrb-llm-chat)
-- [Programmatic Usage](#programmatic-usage-llmtask-and-llmchattask)
+  - [TUI Commands](#tui-commands)
+  - [Session Token Tracking](#session-token-tracking)
+  - [Approval Policies](#approval-policies)
 - [Built-in LLM Tools](#built-in-llm-tools)
 - [Permission Policy System](./permission-policy.md)
 - [Sandbox (Filesystem Containment)](./sandbox.md)
@@ -57,6 +59,18 @@ This launches a full-screen chat application where you can have a conversation w
 > The token(s) that trigger each command are configurable — see
 > [Slash Command Aliases](../configuration/llm-config.md#17-slash-command-aliases).
 
+### Session Token Tracking
+
+The TUI status bar tracks accumulated LLM token usage across all requests in a session. After the first LLM request completes, the status bar displays a token count like:
+
+```
+💸 1.5k in · 34 out
+```
+
+The counters reset whenever you switch conversations via `/load`, since past sessions' spend is not persisted. Tokens are tracked per-UI instance — in a `MultiUI` setup each child UI maintains its own totals.
+
+There are no configuration knobs for this feature; it always appears (non-zero after the first request) and uses the theme's `FAINT` style.
+
 ### Approval Policies
 
 By default, Zrb prompts for confirmation before executing most tools. This is controlled by YOLO mode and the [Permission Policy](./permission-policy.md) system:
@@ -75,7 +89,7 @@ By default, Zrb prompts for confirmation before executing most tools. This is co
 
 ## Programmatic Usage (`LLMTask` and `LLMChatTask`)
 
-You can also integrate the LLM directly into your automated workflows using two specialized task types.
+You can also integrate the LLM directly into your automated workflows using two specialized task types. Both accept `message`, `system_prompt`, and `prompt_manager` as values, templates, callables, or sections — see the full guide at **[Programming the Prompt](programming-the-prompt.md)** for examples of each rung.
 
 ### `LLMTask` (Single-Shot)
 
@@ -300,6 +314,53 @@ def get_weather(location: str) -> str:
 my_chat_task.add_tool(get_weather)
 ```
 
+For a tool that needs per-run context, or that you want resolved fresh each turn, register a **factory** instead. Each factory is a `Callable[[AnyContext], ...]` evaluated at the start of every turn; return a single tool, a list, or `[]` to skip registration conditionally.
+
+```python
+my_chat_task.add_tool_factory(lambda ctx: get_weather)
+```
+
+### Deferred-loading tools
+
+A registered tool's schema (docstring + parameters) is serialized into **every** turn's request, whether or not the model uses it. For tools that are rarely needed, wrap them with pydantic-ai's `defer_loading=True` to hide the schema until the model searches for the tool by name — the Tool Usage Guide still tells the model the tool exists, so nothing is lost except the standing per-turn token cost.
+
+```python
+from pydantic_ai import Tool
+
+my_chat_task.add_tool(Tool(get_weather, defer_loading=True))
+```
+
+Pair it with `add_tool_guidance(...)` so the model still learns when to reach for the deferred tool. This is how zrb ships its own rarely-used tools (`analyze_code`, worktree/LSP tools, MCP toolsets, …).
+
+Note that `defer_loading` (a per-turn *token*-cost lever) is unrelated to import cost: `from pydantic_ai import Tool` at module scope eagerly imports `pydantic_ai` (~1.7s). To keep that off the `zrb` startup path, do the import and the `Tool(...)` wrap inside a factory, which runs only when the task first executes:
+
+```python
+def _deferred(ctx):
+    from pydantic_ai import Tool  # imported lazily, on first run
+    return Tool(get_weather, defer_loading=True)
+
+my_chat_task.add_tool_factory(_deferred)
+```
+
+### Equipping a custom host with the shipped tool surface
+
+If you build your own `LLMTask` / `LLMChatTask` and want it to have zrb's standard tools (Read/Write/Shell/Grep/…), guidance, and the MCP toolset factory — the same set the built-in `chat` agent gets — use **`defer_common_tools(host)`**, not `apply_common_tools(host)`:
+
+```python
+from zrb import LLMTask
+from zrb.llm.common_tools import defer_common_tools
+
+my_task = LLMTask(name="my-agent", ...)
+defer_common_tools(my_task)   # register shipped tools + guidance, lazily
+my_task.add_tool(get_weather) # then layer on your own
+```
+
+**Why deferred is the default.** `apply_common_tools` transitively imports `pydantic_ai` (~1.7s) as a side effect of resolving the shipped tools. Task-definition modules are imported on **every** `zrb` CLI invocation — so calling `apply_common_tools` at module scope makes every `zrb` command in your project (even unrelated ones like `zrb --help`) pay that import cost. `defer_common_tools` registers the same tools/guidance but delays the heavy import until the task actually runs its first turn. Constructing the task and adding your own plain-function tools stay import-cheap.
+
+`defer_common_tools` works on `LLMChatTask`, `LLMTask`, and `SubAgentManager` — they each drain the deferred registration on their first run. The built-in `chat` agent and sub-agents already have it deferred, so you only need this for hosts you construct yourself. Call it once per host.
+
+> **When to use eager `apply_common_tools` instead:** only if you built a *custom* host type (one that is not an `LLMChatTask`/`LLMTask`/`SubAgentManager`) — those have no run-time trigger to drain a deferred registration, so they must apply eagerly. You can also use it if you genuinely need the tools registered before the first run (e.g. to introspect the tool list at import time), accepting the eager `pydantic_ai` import.
+
 ### Sub-agents
 
 Zrb can automatically discover and manage sub-agents defined in JSON or YAML files within an `agents/` directory. The primary assistant can then delegate complex tasks to these specialized agents using the built-in `DelegateToAgent` tool.
@@ -307,7 +368,11 @@ Zrb can automatically discover and manage sub-agents defined in JSON or YAML fil
 Sub-agent files are discovered from (in priority order):
 1. `~/.zrb/agents/`, `~/.claude/agents/` — user-global agents
 2. `<project>/.zrb/agents/`, `<project>/.claude/agents/` — project agents (traversed upward from cwd)
-3. Paths in `ZRB_LLM_EXTRA_AGENT_DIRS`
+3. Plugin agent directories, from `ZRB_LLM_PLUGIN_DIRS`
+4. Paths in `CFG.LLM_BASE_SEARCH_DIRS`
+5. Paths in `ZRB_LLM_EXTRA_AGENT_DIRS`
+6. Zrb's built-in agents
+7. `self._root_dir` (recursive scan target)
 
 > 💡 **Benefit:** Sub-agents isolate context and keep the main conversation history clean.
 
@@ -372,16 +437,28 @@ The AI Assistant is designed for long-running, complex tasks and has a sophistic
 | **Message-level** | Single tool output too large | Summarize before adding to history |
 | **Conversational** | Overall history grows too large | Compress older messages to `<state_snapshot>` |
 
-### 30% Retention Policy
+### Message-Count-Based Retention
 
-When summarization triggers, the system:
+When summarization triggers, the system splits history by message count, not
+by percentage: `target_keep_count = min(summary_window, len(messages))`, where
+`summary_window` defaults to 100 messages (`LLM_HISTORY_SUMMARIZATION_WINDOW`).
+Everything older than that target split point is compressed into a state
+snapshot; the rest is retained verbatim.
 
 | Action | Description |
 |--------|-------------|
-| Compress | Oldest 70% → state snapshot |
-| Retain | Most recent 30% verbatim |
+| Compress | Messages older than the target split point → state snapshot |
+| Retain | Newest `summary_window` messages (default 100) verbatim |
 | Preserve | Tool call/return pairs never separated |
 | Split | At conversation turn boundaries |
+
+The actual split point is adjusted by a backward/forward search that looks for
+a safe turn boundary near that target — it won't cut a tool call away from its
+return. Within that search, a token-based safety valve prevents the retained
+slice from growing too large: if keeping messages back to a candidate split
+point would exceed 70% of the conversational token threshold, the search stops
+extending further back. That 70%/token figure is an internal bound on the
+search, not the primary retention rule.
 
 ### Journal System
 

@@ -9,6 +9,7 @@ host class for transport/state (``self._send_request_raw``, ``self._next_id``,
 """
 
 import asyncio
+from typing import TYPE_CHECKING, Any
 
 from zrb.context.any_context import zrb_print
 from zrb.llm.lsp.configs import detect_language_from_file
@@ -17,6 +18,21 @@ from zrb.llm.lsp.protocol import JSONRPCMessage, LSPServerError
 
 class OperationsMixin:
     """Document/query operations for an LSP server."""
+
+    if TYPE_CHECKING:
+        # Transport/state provided by the host class (LSPServer). Declared so
+        # pyright can resolve them when OperationsMixin is checked in isolation.
+        config: Any
+        writer: "asyncio.StreamWriter | None"
+        initialized: bool
+        _diagnostics: dict[str, tuple[int | None, list[dict]]]
+        _open_files: set[str]
+        _versions: dict[str, int]
+        _next_id: Any
+        _path_to_uri: Any
+        _uri_to_path: Any
+        _send_request_raw: Any
+        _send_notification_raw: Any
 
     # --- LSP API Methods ---
 

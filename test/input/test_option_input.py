@@ -364,3 +364,17 @@ class TestOptionInputPromptCli:
             assert (
                 any("[green]" in p for p in prompts_seen) or True
             )  # Default in prompt
+
+
+def test_option_input_to_html_escapes_options():
+    """Option values are HTML-escaped in the node-page form."""
+    inp = OptionInput(
+        name="opt",
+        description="<b>desc</b>",
+        options=['<img src=x onerror="a">'],
+        auto_render=False,
+    )
+    rendered = inp.to_html(SharedContext())
+    assert "<img" not in rendered
+    assert "&lt;img" in rendered
+    assert "<b>desc</b>" not in rendered

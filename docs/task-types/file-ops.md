@@ -84,10 +84,10 @@ sync_local = cli.add_task(
 
 ### Local to Remote Sync (Push via SSH)
 
-You can sync files directly to a remote server. While SSH keys are the recommended authentication method, `RsyncTask` also securely handles password authentication via environment variables.
+You can sync files directly to a remote server. While SSH keys are the recommended authentication method, `RsyncTask` also supports password authentication.
 
 ```python
-from zrb import RsyncTask, Env, cli
+from zrb import RsyncTask, cli
 
 deploy_remote = cli.add_task(
     RsyncTask(
@@ -99,11 +99,13 @@ deploy_remote = cli.add_task(
         
         # Optional advanced configurations
         remote_port=2222,
-        remote_ssh_key="~/.ssh/id_rsa_deploy",
         exclude_from=".rsyncignore",
         
-        # Password auth (SSHPASS is read from the OS env and picked up by rsync)
-        env=[Env(name="SSHPASS", default="")] 
+        # Password auth: read the real secret from an env var via zrb's
+        # templating, and pass it through the `remote_password` kwarg.
+        # Zrb injects it as the `SSHPASS` env var and shells out via
+        # `sshpass -e` under the hood.
+        remote_password="{env.MY_SSH_PASSWORD}"
     )
 )
 ```

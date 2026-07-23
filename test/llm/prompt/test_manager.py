@@ -1,7 +1,10 @@
+import os
+import tempfile
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+from zrb.config.config import CFG
 from zrb.context.shared_context import SharedContext
 from zrb.llm.prompt.manager import PromptManager, new_prompt
 
@@ -144,6 +147,30 @@ def test_create_live_context_wraps_volatile_state_in_tags():
     assert "Time:" in rendered
 
 
+@pytest.mark.asyncio
+async def test_create_live_context_async_matches_sync_shape():
+    """The async twin (per-turn hot path, git off-loop) renders the same block
+    shape and honors custom providers, with ContextVar wiring on the loop."""
+    manager = PromptManager(include_sections=[])
+    manager.add_live_context("test_provider", lambda ctx: "- Custom: hello")
+    ctx = MagicMock()
+    ctx.input.session = "live-ctx-async-test"
+
+    with patch("zrb.llm.tool.plan.todo_manager") as mock_tm:
+        mock_tm.get_todos.return_value = None
+        rendered = await manager.create_live_context_async(ctx)
+
+    assert rendered.startswith("<live-context>")
+    assert rendered.rstrip().endswith("</live-context>")
+    assert "Time:" in rendered
+    assert "Custom: hello" in rendered
+
+    from zrb.llm.tool.ambient_state import get_current_tool_session
+
+    # The wiring side effect must land in the caller's context, not a thread's.
+    assert get_current_tool_session() == "live-ctx-async-test"
+
+
 def test_add_live_context_appends_custom_content():
     """Custom live context providers extend the <live-context> block."""
     manager = PromptManager(include_sections=[])
@@ -190,6 +217,125 @@ def test_add_live_context_handles_none_return():
         rendered = manager.create_live_context(ctx)
 
     assert "Time:" in rendered
+
+
+def _render_with_journal(
+    inject_journal_index: bool,
+    index_body: str,
+    sections: list[str] | None = None,
+) -> str:
+    """Render live-context with a temp journal index, returning the block.
+
+    *sections* defaults to ``["journal_mandate"]`` because the journal index is
+    coupled to that section (ADR-0082): it is emitted only when journal_mandate
+    is active. Pass ``[]`` to exercise the suppression path.
+    """
+    manager = PromptManager(
+        include_sections=["journal_mandate"] if sections is None else sections
+    )
+    ctx = MagicMock()
+    ctx.input.session = "journal-test"
+    with tempfile.TemporaryDirectory() as journal_dir:
+        with open(os.path.join(journal_dir, "index.md"), "w", encoding="utf-8") as f:
+            f.write(index_body)
+        env = {
+            "ZRB_LLM_JOURNAL_DIR": journal_dir,
+            "ZRB_LLM_JOURNAL_INDEX_FILE": "index.md",
+        }
+        with (
+            patch.dict(os.environ, env),
+            patch("zrb.llm.tool.plan.todo_manager") as mock_tm,
+        ):
+            mock_tm.get_todos.return_value = None
+            return manager.create_live_context(
+                ctx, inject_journal_index=inject_journal_index
+            )
+
+
+def test_live_context_includes_journal_index_when_requested():
+    """The journal index snapshot is injected when inject_journal_index is set."""
+    rendered = _render_with_journal(
+        inject_journal_index=True, index_body="# My Journal Hub"
+    )
+    assert "<journal-index>" in rendered
+    assert "</journal-index>" in rendered
+    assert "My Journal Hub" in rendered
+
+
+def test_live_context_omits_journal_index_by_default():
+    """Without the flag the index is omitted — it is already present in history."""
+    rendered = _render_with_journal(
+        inject_journal_index=False, index_body="# My Journal Hub"
+    )
+    assert "My Journal Hub" not in rendered
+    assert "<journal-index>" not in rendered
+    # The volatile per-turn lines still render.
+    assert "Time:" in rendered
+
+
+def test_live_context_skips_empty_journal_index():
+    """An empty index file produces no journal block even when requested."""
+    rendered = _render_with_journal(inject_journal_index=True, index_body="   \n")
+    assert "<journal-index>" not in rendered
+
+
+def test_live_context_couples_journal_index_to_journal_mandate_section():
+    """Even with the flag set, the index is suppressed when journal_mandate is
+    not an active section — the index is coupled to that section (ADR-0082)."""
+    rendered = _render_with_journal(
+        inject_journal_index=True, index_body="# My Journal Hub", sections=[]
+    )
+    assert "<journal-index>" not in rendered
+    assert "My Journal Hub" not in rendered
+    # The volatile per-turn lines still render.
+    assert "Time:" in rendered
+
+
+def test_compose_explicit_register_uses_variant():
+    """ZRB_LLM_PROFILE=explicit selects the explicit phrasing variant."""
+    manager = PromptManager(include_sections=["persona"])
+    manager.model = "anthropic:claude-opus-4-8"
+    with patch.dict(os.environ, {"ZRB_LLM_PROFILE": "explicit"}):
+        prompt = manager.compose_prompt()(SharedContext())
+    assert "No preamble" in prompt  # explicit persona variant
+
+
+def test_compose_explicit_includes_examples_section_when_listed():
+    """When examples is in include_sections, profile=explicit resolves examples.explicit.md."""
+    manager = PromptManager(include_sections=["persona", "examples"])
+    manager.model = "anthropic:claude-opus-4-8"
+    with patch.dict(os.environ, {"ZRB_LLM_PROFILE": "explicit"}):
+        prompt = manager.compose_prompt()(SharedContext())
+    assert "No preamble" in prompt  # explicit persona variant
+    assert "Worked Examples" in prompt  # examples section (explicit variant)
+
+
+def test_compose_auto_defaults_to_terse_base():
+    """auto makes no capability guess — terse base, no examples — for any model."""
+    manager = PromptManager(include_sections=["persona"])
+    manager.model = (
+        "deepseek:deepseek-v4-pro"  # a frontier model; must not be guessed weak
+    )
+    with patch.dict(os.environ, {"ZRB_LLM_PROFILE": "auto"}):
+        prompt = manager.compose_prompt()(SharedContext())
+    assert "Match depth and format" in prompt  # base persona
+    assert "Worked Examples" not in prompt  # no examples under terse
+
+
+def test_compose_auto_honors_declared_model_profile():
+    """A declared per-model mapping drives auto resolution through compose."""
+    from zrb.llm.prompt.profile import model_profile_registry, register_model_profile
+
+    manager = PromptManager(include_sections=["persona", "examples"])
+    manager.model = "ollama:my-small-3b"
+    register_model_profile("my-small-3b", "explicit")
+    try:
+        with patch.dict(os.environ, {"ZRB_LLM_PROFILE": "auto"}):
+            prompt = manager.compose_prompt()(SharedContext())
+    finally:
+        model_profile_registry.clear()
+    assert "No preamble" in prompt
+    assert "Worked Examples" in prompt
 
 
 def test_add_live_context_swallows_provider_exceptions():
@@ -496,3 +642,163 @@ def test_multiple_groups_appear_in_registration_order():
     ctx = SharedContext()
     result = manager.compose_prompt()(ctx)
     assert result.index("First") < result.index("Second")
+
+
+# ── tool_names property ───────────────────────────────────────────────────────
+
+
+def test_tool_names_property_get_and_set():
+    """`tool_names` round-trips through its getter/setter."""
+    manager = PromptManager(tool_names={"A", "B"})
+    assert manager.tool_names == {"A", "B"}
+    manager.tool_names = {"C"}
+    assert manager.tool_names == {"C"}
+
+
+def test_active_sections_falls_back_to_cfg_default():
+    """When include_sections is unset, active_sections uses the CFG default."""
+    manager = PromptManager()  # include_sections is None
+    assert manager.active_sections == list(CFG.LLM_INCLUDE_SECTIONS)
+
+
+def test_tool_guidance_sections_property_round_trips():
+    """`tool_guidance_sections` round-trips and normalizes falsy input to []."""
+    manager = PromptManager()
+    assert manager.tool_guidance_sections == []
+    manager.tool_guidance_sections = ["## Block"]
+    assert manager.tool_guidance_sections == ["## Block"]
+    manager.tool_guidance_sections = None
+    assert manager.tool_guidance_sections == []
+
+
+# ── Live context edge cases ───────────────────────────────────────────────────
+
+
+def test_create_live_context_returns_empty_when_no_content():
+    """With nothing to report the block collapses to an empty string."""
+    manager = PromptManager(include_sections=[])
+    ctx = MagicMock()
+    ctx.input.session = "empty-live"
+    with patch("zrb.llm.prompt.manager.render_live_context", return_value=""):
+        rendered = manager.create_live_context(ctx)
+    assert rendered == ""
+
+
+# ── Custom system context providers ───────────────────────────────────────────
+
+
+def _render_system_context(manager: PromptManager) -> str:
+    """Compose the system_context section with the todo manager stubbed out."""
+    ctx = MagicMock()
+    ctx.input.session = "sys-ctx-test"
+    with patch("zrb.llm.tool.plan.todo_manager") as mock_tm:
+        mock_tm.get_todos.return_value = None
+        return manager.compose_prompt()(ctx)
+
+
+def test_add_system_context_provider_appears_and_overwrites():
+    """Custom system-context providers extend the section; same name overwrites."""
+    manager = PromptManager(include_sections=["system_context"])
+    manager.add_system_context("extra", lambda ctx: "SYS-FIRST")
+    manager.add_system_context("extra", lambda ctx: "SYS-SECOND")  # overwrite
+    manager.add_system_context("more", lambda ctx: "SYS-MORE")  # append
+
+    rendered = _render_system_context(manager)
+
+    assert "SYS-SECOND" in rendered
+    assert "SYS-FIRST" not in rendered
+    assert "SYS-MORE" in rendered
+
+
+def test_system_context_provider_exception_is_swallowed():
+    """A broken system-context provider is isolated; built-in content survives."""
+    manager = PromptManager(include_sections=["system_context"])
+
+    def broken(_ctx):
+        raise RuntimeError("sys-boom")
+
+    manager.add_system_context("broken", broken)
+    manager.model = "openai:gpt-4o"
+
+    rendered = _render_system_context(manager)
+
+    assert "sys-boom" not in rendered
+    assert "openai:gpt-4o" in rendered  # built-in system context still renders
+
+
+# ── Custom project context providers ──────────────────────────────────────────
+
+
+def test_add_project_context_provider_appears_and_overwrites():
+    """Custom project-context providers extend the section; same name overwrites."""
+    manager = PromptManager(include_sections=["project_context"])
+    manager.add_project_context("extra", lambda ctx: "PROJ-FIRST")
+    manager.add_project_context("extra", lambda ctx: "PROJ-SECOND")  # overwrite
+    manager.add_project_context("more", lambda ctx: "PROJ-MORE")  # append
+
+    ctx = SharedContext()
+    rendered = manager.compose_prompt()(ctx)
+
+    assert "Custom Project Context" in rendered
+    assert "PROJ-SECOND" in rendered
+    assert "PROJ-FIRST" not in rendered
+    assert "PROJ-MORE" in rendered
+
+
+def test_project_context_provider_exception_is_swallowed():
+    """A broken project-context provider is isolated and emits nothing."""
+    manager = PromptManager(include_sections=["project_context"])
+
+    def broken(_ctx):
+        raise RuntimeError("proj-boom")
+
+    manager.add_project_context("broken", broken)
+
+    ctx = SharedContext()
+    rendered = manager.compose_prompt()(ctx)
+
+    assert "proj-boom" not in rendered
+
+
+# ── Section skipping ──────────────────────────────────────────────────────────
+
+
+def test_git_mandate_section_skipped_outside_git_dir():
+    """git_mandate is dropped when the process is not inside a git repo."""
+    manager = PromptManager(include_sections=["git_mandate"])
+    ctx = SharedContext()
+    with patch("zrb.llm.prompt.manager.is_inside_git_dir", return_value=False):
+        rendered = manager.compose_prompt()(ctx)
+    assert rendered.strip() == ""
+
+
+def test_claude_skills_section_is_silently_skipped():
+    """The retired claude_skills section is skipped without a warning section."""
+    manager = PromptManager(include_sections=["claude_skills"])
+    ctx = SharedContext()
+    rendered = manager.compose_prompt()(ctx)
+    assert rendered.strip() == ""
+
+
+# ── File-backed section warnings ──────────────────────────────────────────────
+
+
+def test_missing_section_uses_ctx_log_warning_when_available():
+    """A missing file-backed section warns via ctx.log_warning when callable."""
+    manager = PromptManager(include_sections=["nope_section"])
+    ctx = MagicMock()
+    ctx.log_warning = MagicMock()
+    with patch("zrb.llm.prompt.manager.get_prompt", return_value=""):
+        manager.compose_prompt()(ctx)
+    assert ctx.log_warning.called
+
+
+# ── Non-standard prompt inputs ────────────────────────────────────────────────
+
+
+def test_non_callable_non_string_prompt_is_rendered_as_content():
+    """A non-callable, non-string prompt is coerced to string content."""
+    manager = PromptManager(prompts=[123], include_sections=[])
+    ctx = SharedContext()
+    rendered = manager.compose_prompt()(ctx)
+    assert "123" in rendered

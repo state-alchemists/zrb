@@ -41,12 +41,19 @@ def is_termux() -> bool:
     Termux exports ``TERMUX_VERSION`` and installs everything under a
     ``com.termux`` prefix. Either signal is enough; both are checked so the
     detection survives a stripped environment that drops ``TERMUX_VERSION``.
+    As a fallback, ``ANDROID_ROOT`` (set to ``/system`` on every Android
+    device) catches proot-based distros that lose ``TERMUX_VERSION`` and
+    ``PREFIX``.
     Used to special-case keybindings: on Termux, Tab and Shift+Tab both emit
     byte ``0x09``, so the terminal cannot tell them apart.
     """
     if os.getenv("TERMUX_VERSION"):
         return True
-    return "com.termux" in os.getenv("PREFIX", "")
+    if "com.termux" in os.getenv("PREFIX", ""):
+        return True
+    if os.getenv("ANDROID_ROOT") == "/system":
+        return True
+    return False
 
 
 def get_default_diff_edit_command(editor: str) -> str:

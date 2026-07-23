@@ -232,18 +232,38 @@ class LLMTask(BuilderMixin, HistoryMixin, BaseTask):  # type: ignore[reportIncom
         return self._llm_limiter
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
+        # Apply any deferred zrb-shipped tools/guidance (see defer_common_tools)
+        # before reading the tool surface below. No-op unless defer_common_tools
+        # was called on this task, so eager apply_common_tools users are
+        # unaffected.
+        # lazy: circular — common_tools imports back into the llm package.
+        from zrb.llm.common_tools import ensure_common_tools
+
+        ensure_common_tools(self)
+        # Resolve toolset factories exactly once. Resolving again inside
+        # _create_agent would produce DIFFERENT instances: the batch entered on
+        # this stack would never be used, the batch given to the agent would
+        # never be entered, and factory side effects (e.g. MCP server spawn)
+        # would run twice per turn.
+        toolsets = self._get_all_toolsets(ctx)
         async with AsyncExitStack() as stack:
             # Enter context for all toolsets that support it
-            for toolset in self._get_all_toolsets(ctx):
+            for toolset in toolsets:
                 if hasattr(toolset, "__aenter__"):
                     await stack.enter_async_context(toolset)
 
-            return await self._exec_action_inner(ctx)
+            return await self._exec_action_inner(ctx, toolsets=toolsets)
 
-    async def _exec_action_inner(self, ctx: AnyContext) -> Any:
+    async def _exec_action_inner(
+        self, ctx: AnyContext, toolsets: "list[AbstractToolset[None]] | None" = None
+    ) -> Any:
         conversation_name = self._get_conversation_name(ctx)
         history_manager = self._get_history_manager(ctx)
-        message_history = history_manager.load(conversation_name)
+        # Offload: load deserializes + re-validates the whole conversation —
+        # O(history) blocking work that would stall the TUI's event loop.
+        message_history = await asyncio.to_thread(
+            history_manager.load, conversation_name
+        )
         user_message = cast(str, get_attr(ctx, self._message, "", self._render_message))
         user_attachments = get_attachments(ctx, self._attachment)
 
@@ -264,9 +284,14 @@ class LLMTask(BuilderMixin, HistoryMixin, BaseTask):  # type: ignore[reportIncom
         # Render the volatile per-turn state separately and inject it into the
         # user turn (not the system prompt) so the cacheable prefix stays
         # byte-stable. This call also performs per-turn ambient-state wiring
-        # (session/interactive/worktree) — it must run every turn.
-        live_context = self.get_live_context(ctx)
-        agent = self._create_agent(ctx, system_prompt=system_prompt)
+        # (session/interactive/worktree) — it must run every turn. The journal
+        # index snapshot is seeded on the first turn only (empty history); each
+        # later summarization re-seeds it at its own site (summarize_history), so
+        # the index is always present without living in the cached system prompt.
+        live_context = await self.get_live_context_async(
+            ctx, inject_journal_index=not message_history
+        )
+        agent = self._create_agent(ctx, system_prompt=system_prompt, toolsets=toolsets)
         effective_message, effective_attachments = self._get_effective_prompt(
             ctx, user_message, user_attachments, message_history
         )
@@ -328,7 +353,10 @@ class LLMTask(BuilderMixin, HistoryMixin, BaseTask):  # type: ignore[reportIncom
             raise e
 
         history_manager.update(conversation_name, new_history)
-        history_manager.save(conversation_name)
+        # Offload: save serializes, re-validates, and writes the whole
+        # conversation (twice, with the backup) — it lands at the exact moment
+        # the user expects the prompt back, so it must not block the loop.
+        await asyncio.to_thread(history_manager.save, conversation_name)
         ctx.log_debug(f"All messages: {new_history}")
 
         return self._post_process_output(output)
@@ -346,13 +374,25 @@ class LLMTask(BuilderMixin, HistoryMixin, BaseTask):  # type: ignore[reportIncom
             and user_message.strip() in self._summarize_command
         ):
             ctx.print("Compressing conversation history...", plain=True)
-            new_history = await summarize_history(message_history, force=True)
+            new_history = await summarize_history(
+                message_history,
+                force=True,
+                inject_journal_index=(
+                    self._prompt_manager is not None
+                    and "journal_mandate" in self._prompt_manager.active_sections
+                ),
+            )
             history_manager.update(conversation_name, new_history)
             history_manager.save(conversation_name)
             return True
         return False
 
-    def _create_agent(self, ctx: AnyContext, system_prompt: str | None = None) -> Any:
+    def _create_agent(
+        self,
+        ctx: AnyContext,
+        system_prompt: str | None = None,
+        toolsets: "list[AbstractToolset[None]] | None" = None,
+    ) -> Any:
         if self._dynamic_yolo is not None:
             should_skip_approval = self._dynamic_yolo
         else:
@@ -383,9 +423,14 @@ class LLMTask(BuilderMixin, HistoryMixin, BaseTask):  # type: ignore[reportIncom
         if system_prompt is None:
             system_prompt = self.get_system_prompt(ctx)
         ctx.log_debug(f"SYSTEM PROMPT: {system_prompt}")
-        # Get all tools and toolsets including those from factories
+        # Get all tools and toolsets including those from factories. Toolsets
+        # may be pre-resolved by _exec_action (which entered their contexts) —
+        # re-resolving here would hand the agent different, never-entered
+        # instances.
         resolved_tools = self._get_all_tools(ctx)
-        resolved_toolsets = self._get_all_toolsets(ctx)
+        resolved_toolsets = (
+            toolsets if toolsets is not None else self._get_all_toolsets(ctx)
+        )
 
         # Resolve model using llm_config
         base_model = self._get_model(ctx)

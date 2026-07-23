@@ -59,9 +59,10 @@ class LLMSandboxMixin:
 
     LLM_SANDBOX_OS_SHELL = EnvField(
         doc=(
-            "OS-level shell sandboxing mode: 'auto' wraps shell commands with "
-            "sandbox-exec (macOS) or bwrap (Linux) when available; 'off' keeps "
-            "only the Python-level filesystem gate."
+            "OS-level shell sandboxing mode:\n"
+            "- 'auto': wraps shell commands with sandbox-exec (macOS) or bwrap "
+            "(Linux) when available.\n"
+            "- 'off': keeps only the Python-level filesystem gate."
         ),
     )
 
@@ -87,8 +88,9 @@ class LLMSandboxMixin:
     LLM_SANDBOX_FALLBACK = EnvField(
         doc=(
             "Behavior when no OS-level sandbox mechanism exists (Windows, or "
-            "Linux without bwrap): 'warn' runs the shell command unsandboxed "
-            "with a visible warning; 'deny' refuses to run it."
+            "Linux without bwrap):\n"
+            "- 'warn': runs the shell command unsandboxed with a visible warning.\n"
+            "- 'deny': refuses to run it."
         ),
     )
 

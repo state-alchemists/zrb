@@ -267,15 +267,24 @@ class BaseTask(AnyTask):
             Any: The final result of the main task execution.
         """
         # Use asyncio.run() to execute the async cleanup wrapper
-        return asyncio.run(
-            run_and_cleanup(
-                self,
-                session=session,
-                print_fn=self._print_fn,
-                str_kwargs=str_kwargs,
-                kwargs=kwargs,
+        try:
+            return asyncio.run(
+                run_and_cleanup(
+                    self,
+                    session=session,
+                    print_fn=self._print_fn,
+                    str_kwargs=str_kwargs,
+                    kwargs=kwargs,
+                )
             )
-        )
+        except (asyncio.CancelledError, KeyboardInterrupt):
+            # Top-level interrupt (Ctrl+C / SIGINT), e.g. stopping
+            # `zrb server start`. The async layers deliberately re-raise
+            # cancellation so a cancelled session never looks successful to
+            # programmatic callers; at this synchronous process-entry boundary
+            # it just means the user asked to stop — exit quietly rather than
+            # dumping a CancelledError traceback.
+            return None
 
     async def async_run(
         self,

@@ -84,6 +84,7 @@ class UI(  # type: ignore[reportIncompatibleVariableOverride]
         btw_commands: list[str] = [],
         plan_commands: list[str] = [],
         copy_commands: list[str] = [],
+        voice_commands: list[str] = [],
         custom_commands: list[AnyCustomCommand] = [],
         model: "Model | str | None" = None,
         custom_model_names: list[str] = [],
@@ -123,6 +124,7 @@ class UI(  # type: ignore[reportIncompatibleVariableOverride]
             btw_commands=btw_commands,
             plan_commands=plan_commands,
             copy_commands=copy_commands,
+            voice_commands=voice_commands,
             custom_commands=custom_commands,
             model=model,
             enable_rewind=enable_rewind,
@@ -154,8 +156,10 @@ class UI(  # type: ignore[reportIncompatibleVariableOverride]
             summarize_commands=self._summarize_commands,
             set_model_commands=self._set_model_commands,
             exec_commands=self._exec_commands,
+            btw_commands=self._btw_commands,
             plan_commands=self._plan_commands,
             copy_commands=self._copy_commands,
+            voice_commands=self._voice_commands,
             custom_commands=self._custom_commands,
             history=self._input_history,
             custom_model_names=custom_model_names,
@@ -186,6 +190,7 @@ class UI(  # type: ignore[reportIncompatibleVariableOverride]
             info_bar_text=self.get_info_bar_text,
             status_bar_text=self.get_status_bar_text,
             extra_floats=[choice_float],
+            agent_activity_text=self.get_agent_activity_text,
         )
 
         # lazy: heavy third-party

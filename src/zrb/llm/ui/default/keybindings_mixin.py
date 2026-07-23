@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 from zrb.config.config import CFG
 from zrb.llm.hook.interface import HookEvent
 from zrb.llm.util.image_scale import scale_image_bytes
-from zrb.util.cli.style import remove_style
+from zrb.util.cli.style import remove_style, stylize_muted
 
 if TYPE_CHECKING:
     from typing import Any, TextIO
@@ -38,6 +38,10 @@ class KeybindingsMixin:
         _is_thinking: bool
         _pending_attachments: list["UserContent"]
         _running_llm_task: asyncio.Task | None
+        _voice_mode_active: bool
+        _voice_recording_active: bool
+        _voice_task: asyncio.Task | None
+        _voice_stop_event: asyncio.Event | None
         # From default UI (prompt_toolkit widgets)
         _input_field: Any
         _output_field: Any
@@ -128,6 +132,11 @@ class KeybindingsMixin:
             if self._running_llm_task and not self._running_llm_task.done():
                 self._running_llm_task.cancel()
                 self.append_to_output("\n<Esc> Canceled")
+            # Abort an in-flight voice recording/model-download so Ctrl+C
+            # exits promptly instead of waiting on the download thread.
+            voice_task = getattr(self, "_voice_task", None)
+            if voice_task is not None and not voice_task.done():
+                voice_task.cancel()
             self.execute_hook(
                 HookEvent.STOP,
                 {"reason": "ctrl_c", "session": self._conversation_session_name},
@@ -293,6 +302,136 @@ class KeybindingsMixin:
         @app_keybindings.add("c-space", filter=no_active_choice)  # Ctrl+Space fallback
         def _(event):
             event.current_buffer.insert_text("\n")
+
+        # Voice push-to-talk: press to record, press again to stop.
+        #
+        # Terminals cannot detect key-release (byte 0x20 for space is sent on
+        # key-down only), so Claude Code's hold-to-talk model is unavailable.
+        # Instead: press once → start recording; press again → stop + exit
+        # voice mode. Transcribed text appears in the input field for editing,
+        # then the user presses Enter to submit like a normal message.
+        # OS key-repeat is filtered via a 300ms debounce (macOS default repeat
+        # interval is ~67ms). Ctrl+Space always inserts a literal newline.
+        voice_ptt_key = CFG.LLM_VOICE_PUSH_TO_TALK_KEY.strip().lower()
+        voice_mode_active = Condition(
+            lambda: getattr(self, "_voice_mode_active", False)
+        )
+        _last_press: float = 0.0
+        _KEY_REPEAT_DEBOUNCE = 0.3
+
+        # Cache the engine across presses so the transcriber backend is
+        # resolved only once (lazy import on first use).
+        _voice_engine: "Any | None" = None
+
+        @app_keybindings.add(voice_ptt_key, filter=voice_mode_active & no_active_choice)
+        def _(event):
+            nonlocal _voice_engine, _last_press
+
+            if not event.app.layout.has_focus(self._input_field):
+                self._input_field.buffer.insert_text(" ")
+                return
+
+            # Debounce: filter OS key-repeat (events <300ms apart).
+            import time
+
+            now = time.time()
+            if now - _last_press < _KEY_REPEAT_DEBOUNCE:
+                _last_press = now
+                return
+            _last_press = now
+
+            # Second press while recording → signal stop, exit voice mode.
+            if self._voice_recording_active:
+                self._voice_recording_active = False
+                if self._voice_stop_event is not None:
+                    self._voice_stop_event.set()
+                self._voice_mode_active = False
+                self.append_to_output(stylize_muted("  🎤 Stopped\n"))
+                self.invalidate_ui()
+                return
+
+            # lazy: heavy third-party — voice engine imports sounddevice/numpy
+            from zrb.llm.voice import VoiceEngine  # noqa: F811
+
+            if _voice_engine is None:
+                _voice_engine = VoiceEngine()
+            engine = _voice_engine
+
+            # Set synchronously BEFORE create_task so key-repeat can't race.
+            self._voice_recording_active = True
+            self._voice_stop_event = asyncio.Event()
+            self._voice_task = None
+
+            async def record_and_insert():
+                from zrb.llm.voice.engine import (  # noqa: F811
+                    _download_vosk_model,
+                    _get_vosk_model_dir,
+                )
+
+                # Download the Vosk model before recording (first use only).
+                # This keeps the "Downloading..." status visible. The download
+                # is chunked and cancellable, so /q or Ctrl+C aborts it (both
+                # cancel this task). A pre-downloaded model must be extracted
+                # (the bare .zip is not detected). After the first download the
+                # model is cached for future recordings.
+                if (
+                    engine._transcriber is None
+                    and CFG.LLM_VOICE_MODE.strip().lower() == "vosk"
+                ):
+                    model_name = CFG.LLM_VOICE_VOSK_MODEL_NAME
+                    model_url = CFG.LLM_VOICE_VOSK_MODEL_URL
+                    if not _get_vosk_model_dir(model_name):
+                        self.append_to_output(
+                            stylize_muted("\n  🎤 Downloading voice model...")
+                        )
+                        self.invalidate_ui()
+                        try:
+                            await _download_vosk_model(model_name, model_url)
+                        except Exception as exc:
+                            self._voice_mode_active = False
+                            self._voice_recording_active = False
+                            self._voice_task = None
+                            self._voice_stop_event = None
+                            self.append_to_output(
+                                stylize_muted(f"\n  ⚠️ Voice error: {exc}\n")
+                            )
+                            self.invalidate_ui()
+                            return
+                        self.append_to_output(stylize_muted("\n  🎤 Voice model ready"))
+                        self.invalidate_ui()
+
+                self.append_to_output(stylize_muted("\n  🎤 Recording... "))
+                self.invalidate_ui()
+                try:
+                    text = await engine.start_listening(
+                        stop_event=self._voice_stop_event,
+                    )
+                except Exception as exc:
+                    self._voice_mode_active = False
+                    self._voice_recording_active = False
+                    self._voice_task = None
+                    self._voice_stop_event = None
+                    self.append_to_output(stylize_muted(f"\n  ⚠️ Voice error: {exc}\n"))
+                    self.invalidate_ui()
+                    return
+                self._voice_mode_active = False
+                self._voice_recording_active = False
+                self._voice_task = None
+                self._voice_stop_event = None
+                if text:
+                    self._input_field.buffer.insert_text(text)
+                    word_count = len(text.split())
+                    self.append_to_output(
+                        stylize_muted(f"\n  🎤 Transcribed ({word_count} words)\n")
+                    )
+                else:
+                    self.append_to_output(stylize_muted("\n  🎤 No speech detected\n"))
+                self.invalidate_ui()
+
+            task = asyncio.create_task(record_and_insert())
+            self._voice_task = task
+            self._background_tasks.add(task)
+            task.add_done_callback(self._background_tasks.discard)
 
     def _handle_multiline(self, event) -> bool:
         buff = event.current_buffer

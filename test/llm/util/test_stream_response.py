@@ -236,8 +236,8 @@ class TestStreamEventHandlerToolResult:
 
         mock_event = MagicMock()
         mock_event.tool_call_id = "call_123"
-        mock_event.result = MagicMock()
-        mock_event.result.content = "success"
+        mock_event.part = MagicMock()
+        mock_event.part.content = "success"
         handler._handle_tool_result(mock_event)
         print_fn.assert_called()
         args = print_fn.call_args[0][0]
@@ -250,8 +250,8 @@ class TestStreamEventHandlerToolResult:
 
         mock_event = MagicMock()
         mock_event.tool_call_id = "call_123"
-        mock_event.result = MagicMock()
-        mock_event.result.content = "success"
+        mock_event.part = MagicMock()
+        mock_event.part.content = "success"
         handler._handle_tool_result(mock_event)
         print_fn.assert_called()
         args = print_fn.call_args[0][0]
@@ -282,6 +282,44 @@ class TestStreamEventHandlerRunResult:
         assert "Requests: 5" in args
         assert "Total: 1000" in args
 
+    def test_handle_run_result_invokes_usage_callback(self):
+        print_fn = MagicMock()
+        usage_callback = MagicMock()
+        handler = create_event_handler(print_fn=print_fn, usage_callback=usage_callback)
+        mock_usage = MagicMock()
+        mock_event = MagicMock()
+        mock_event.result.usage = mock_usage
+        # Last ModelResponse carries the per-request usage = current context size.
+        request = MagicMock(spec=["usage"])
+        request.usage = MagicMock()
+        mock_event.result.all_messages.return_value = [MagicMock(spec=[]), request]
+        handler._handle_run_result(mock_event)
+        usage_callback.assert_called_once_with(mock_usage, request.usage)
+
+    def test_handle_run_result_no_usage_callback(self):
+        """Run result is still printed when usage_callback is None."""
+        print_fn = MagicMock()
+        handler = create_event_handler(print_fn=print_fn, usage_callback=None)
+        mock_usage = MagicMock()
+        mock_usage.requests = 3
+        mock_usage.tool_calls = 1
+        mock_usage.total_tokens = 500
+        mock_usage.input_tokens = 250
+        mock_usage.input_audio_tokens = 0
+        mock_usage.output_tokens = 250
+        mock_usage.output_audio_tokens = 0
+        mock_usage.cache_read_tokens = 0
+        mock_usage.cache_write_tokens = 0
+        mock_usage.details = {}
+        mock_event = MagicMock()
+        mock_event.result = MagicMock()
+        mock_event.result.usage = mock_usage
+        handler._handle_run_result(mock_event)
+        print_fn.assert_called()
+        args = print_fn.call_args[0][0]
+        assert "Requests: 3" in args
+        assert "Total: 500" in args
+
 
 class TestStreamEventHandlerCall:
     @pytest.mark.asyncio
@@ -305,6 +343,32 @@ class TestStreamEventHandlerCall:
         handler._was_tool_call_delta = True
         await handler(event)
         assert handler._was_tool_call_delta is False
+
+    @pytest.mark.asyncio
+    async def test_call_output_tool_call_and_result_events(self):
+        """OutputToolCallEvent/OutputToolResultEvent (final/deferred-output tool
+        calls) must dispatch through the same handlers as function tool calls,
+        since they share the ToolCallEvent/ToolResultEvent base."""
+        print_fn = MagicMock()
+        handler = StreamEventHandler(print_fn=print_fn, show_tool_result=True)
+        from pydantic_ai import OutputToolCallEvent, OutputToolResultEvent
+        from pydantic_ai.messages import ToolCallPart, ToolReturnPart
+
+        call_event = OutputToolCallEvent(
+            part=ToolCallPart(
+                tool_name="final_result", args="{}", tool_call_id="call_1"
+            )
+        )
+        await handler(call_event)
+        assert "call_1" in print_fn.call_args[0][0]
+
+        result_event = OutputToolResultEvent(
+            part=ToolReturnPart(
+                tool_name="final_result", content="done", tool_call_id="call_1"
+            )
+        )
+        await handler(result_event)
+        assert "Return done" in print_fn.call_args[0][0]
 
 
 class TestCreateEventHandler:

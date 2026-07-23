@@ -95,6 +95,39 @@ def test_unmatched_tool_result_is_orphaned():
     assert "read_file" not in summary
 
 
+def test_records_output_tool_call_and_result():
+    """OutputToolCallEvent/OutputToolResultEvent (final/deferred-output tool calls)
+    share the ToolCallEvent/ToolResultEvent base with function tool calls and must
+    be tracked the same way, not just the FunctionTool* subclasses."""
+    from pydantic_ai import OutputToolCallEvent, OutputToolResultEvent
+    from pydantic_ai.messages import ToolCallPart, ToolReturnPart
+
+    acc = PartialRunAccumulator()
+
+    tool_call = OutputToolCallEvent(
+        part=ToolCallPart(
+            tool_name="final_result",
+            args=json.dumps({"answer": "42"}),
+            tool_call_id="call_1",
+        )
+    )
+    tool_result = OutputToolResultEvent(
+        part=ToolReturnPart(
+            tool_name="final_result",
+            content="Final result processed.",
+            tool_call_id="call_1",
+        )
+    )
+
+    acc.record_event(tool_call)
+    acc.record_event(tool_result)
+    assert len(acc.completed_tools) == 1
+
+    name, _args, result = acc.completed_tools[0]
+    assert name == "final_result"
+    assert "Final result processed." in result
+
+
 def test_partial_text_flag():
     from pydantic_ai import PartStartEvent
     from pydantic_ai.messages import TextPart

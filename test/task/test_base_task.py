@@ -191,6 +191,26 @@ def test_base_task_run():
             called_with_arg.close()  # Avoid RuntimeWarning
 
 
+def test_base_task_run_swallows_top_level_cancel():
+    """Ctrl+C / SIGINT at the sync entry exits quietly, no traceback.
+
+    The async layers re-raise CancelledError so a cancelled session never
+    looks successful to programmatic callers; run() (the asyncio.run boundary)
+    must absorb it and return None instead of dumping a traceback.
+    """
+
+    async def cancelling_run_and_cleanup(*args, **kwargs):
+        raise asyncio.CancelledError()
+
+    with patch(
+        "zrb.task.base_task.run_and_cleanup",
+        new=Mock(side_effect=cancelling_run_and_cleanup),
+    ):
+        task = BaseTask(name="test_task")
+        # Must not raise; returns None on interrupt.
+        assert task.run(session=mock_any_session) is None
+
+
 @pytest.mark.asyncio
 async def test_base_task_async_run():
     # Create a simple function that returns a coroutine instead of an async function

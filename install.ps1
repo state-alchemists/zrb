@@ -1,7 +1,12 @@
+#!/usr/bin/env pwsh
 # PowerShell installation script for Zrb on Windows
-# Equivalent to install.sh for Unix systems
+# Usage: .\install.ps1 [-Yes]
 
-$ErrorActionPreference = "Stop"
+param(
+    [switch]$Yes
+)
+
+$AUTO_YES = $Yes.IsPresent
 
 #########################################################################################
 # Functions
@@ -18,193 +23,386 @@ function Log-Info {
     Write-Host $Message -ForegroundColor Yellow
 }
 
+function Log-OK {
+    param([string]$Message)
+    Write-Host "✅ " -NoNewline
+    Write-Host $Message -ForegroundColor Green
+}
+
+function Warn {
+    param([string]$Message)
+    Write-Host "⚠️  " -NoNewline
+    Write-Host $Message -ForegroundColor Red
+}
+
 function Confirm {
     param([string]$Prompt)
+    if ($AUTO_YES) { return $true }
     Log-Info "$Prompt (y/N)"
     $choice = Read-Host
-    switch -Regex ($choice) {
-        "^[yY]" { return $true }
-        "^[nN]" { return $false }
-        default {
-            Write-Host "Invalid choice"
-            return $false
+    return ($choice -match "^[yY]")
+}
+
+#########################################################################################
+# Python Detection & Installation
+#########################################################################################
+
+function Ensure-Python {
+    # zrb defaults to Python 3.13 for every install so pipx's resolution stays
+    # reproducible across machines -- see Ensure-PipxDefaultPython for why.
+    if (Command-Exists "py") {
+        $resolved = & py -3.13 -c "import sys; print(sys.executable)" 2>$null
+        if ($LASTEXITCODE -eq 0 -and $resolved) {
+            $script:PY_CMD = $resolved.Trim()
+            Log-OK "Found Python 3.13"
+            return
+        }
+    }
+
+    $installed = $false
+    if (Confirm "Python 3.13 is not installed. Install it now?") {
+        if (Command-Exists "winget") {
+            Log-Info "Installing Python 3.13 via winget..."
+            winget install Python.Python.3.13 --accept-source-agreements
+            $installed = $true
+        }
+        else {
+            Start-Process "https://www.python.org/downloads/"
+            Warn "Please download and install Python 3.13 from the opened page, then re-run this script."
+            exit 1
+        }
+    }
+
+    if ($installed) {
+        $env:PATH = [Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" + `
+                    [Environment]::GetEnvironmentVariable("PATH", "User") + ";" + $env:PATH
+        if (Command-Exists "py") {
+            $resolved = & py -3.13 -c "import sys; print(sys.executable)" 2>$null
+            if ($resolved) {
+                $script:PY_CMD = $resolved.Trim()
+                Log-OK "Installed Python 3.13"
+                return
+            }
+        }
+        Warn "Python 3.13 was installed but is not on PATH. Restart PowerShell and re-run this script."
+        exit 1
+    }
+
+    # Fall back to whatever compatible interpreter is already on PATH
+    if (Command-Exists "python") {
+        $script:PY_CMD = "python"
+    }
+    elseif (Command-Exists "py") {
+        $script:PY_CMD = (& py -c "import sys; print(sys.executable)").Trim()
+    }
+    else {
+        Warn "Python 3.11+ is required. Install it from https://www.python.org/downloads/ then re-run this script."
+        exit 1
+    }
+
+    $pythonVersion = (& $script:PY_CMD -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>&1).Trim()
+    if ($pythonVersion -notmatch "^3\.(1[1-4])(\..*)?$") {
+        Warn "Python $pythonVersion detected. Need >=3.11, <3.15."
+        exit 1
+    }
+    Log-OK "Using Python $pythonVersion"
+}
+
+#########################################################################################
+# pipx Installation
+#########################################################################################
+
+function Find-PipxPath {
+    # Find pipx.exe in the Python user Scripts folder and add to session + permanent PATH.
+    # `pipx ensurepath` only persists pipx's managed bin dir, not pipx.exe's own
+    # location, so without this a new PowerShell window can't find `pipx` itself.
+    $pipxDir = Get-ChildItem "$env:USERPROFILE\AppData\Roaming\Python\*\Scripts\pipx.exe" -ErrorAction SilentlyContinue |
+        Select-Object -ExpandProperty DirectoryName -First 1
+    if (-not $pipxDir) {
+        $pipxDir = Get-ChildItem "$env:LOCALAPPDATA\pip\Scripts\pipx.exe" -ErrorAction SilentlyContinue |
+            Select-Object -ExpandProperty DirectoryName -First 1
+    }
+    if (-not $pipxDir) { return }
+
+    if ($env:PATH -notlike "*$pipxDir*") {
+        $env:PATH = "$pipxDir;$env:PATH"
+    }
+
+    $userPath = [Environment]::GetEnvironmentVariable("PATH", "User")
+    if ($userPath -notlike "*$pipxDir*") {
+        [Environment]::SetEnvironmentVariable("PATH", "$userPath;$pipxDir", "User")
+    }
+}
+
+function Ensure-Pipx {
+    if (Command-Exists "pipx") {
+        Log-OK "pipx already installed"
+        return
+    }
+
+    Log-Info "Installing pipx"
+
+    # Scoop is the cleanest on Windows
+    if (Command-Exists "scoop") {
+        scoop install pipx
+        Log-OK "pipx installed via Scoop"
+        return
+    }
+
+    # Fallback: pip install
+    $pipUserFlag = if ($env:VIRTUAL_ENV) { "" } else { "--user" }
+    & $script:PY_CMD -m pip install $pipUserFlag pipx -q
+    if ($LASTEXITCODE -ne 0) {
+        if ($pipUserFlag -eq "") {
+            Warn "pipx installation failed. Deactivate your virtualenv and re-run, or install via: scoop install pipx"
+        } else {
+            Warn "pipx installation failed. Try: scoop install pipx"
+        }
+        exit 1
+    }
+
+    Find-PipxPath
+    Log-OK "pipx installed via pip"
+}
+
+function Ensure-PipxPath {
+    if (Command-Exists "pipx") {
+        pipx ensurepath > $null 2>&1
+        Log-OK "pipx added to PATH"
+    } else {
+        # pipx may have been removed from PATH by Cleanup-LocalVenv
+        Find-PipxPath
+        if (Command-Exists "pipx") {
+            Log-OK "pipx restored to PATH"
         }
     }
 }
 
-function Add-PathPermanent {
-    param([string]$Path)
-    $userPath = [Environment]::GetEnvironmentVariable("PATH", "User")
-    if ($userPath -notlike "*$Path*") {
-        [Environment]::SetEnvironmentVariable("PATH", "$Path;$userPath", "User")
-        $env:PATH = "$Path;$env:PATH"
+function Ensure-PipxDefaultPython {
+    # Bare `pipx reinstall`/`pipx upgrade` (no --python flag) default to whatever
+    # interpreter pipx itself runs on -- which can be a stale Python tied to
+    # pipx's own installation, silently resolving zrb to an old release that
+    # still supports it. Pin PIPX_DEFAULT_PYTHON so those commands keep
+    # targeting a Python new enough for zrb even when run outside this script.
+    [Environment]::SetEnvironmentVariable("PIPX_DEFAULT_PYTHON", $script:PY_CMD, "User")
+    $env:PIPX_DEFAULT_PYTHON = $script:PY_CMD
+    Log-OK "Pinned PIPX_DEFAULT_PYTHON to $script:PY_CMD"
+}
+
+#########################################################################################
+# Zrb Installation
+#########################################################################################
+
+function Test-ZrbInPipx {
+    # pipx list --short writes "nothing has been installed" to stderr on PS 5.1
+    # which becomes an ugly error message. Use --json for clean output.
+    $json = pipx list --json 2>$null
+    if (-not $json) { return $false }
+    try {
+        $parsed = $json | ConvertFrom-Json
+        return [bool]($parsed.venvs.PSObject.Properties.Name -contains "zrb")
+    } catch {
+        return $false
     }
 }
 
-function Register-LocalVenv {
-    param([string]$ProfilePath)
-
-    Log-Info "Registering .local-venv to $ProfilePath"
-
-    # Ensure profile directory exists
-    $profileDir = Split-Path -Parent $ProfilePath
-    if ($profileDir -and -not (Test-Path $profileDir)) {
-        New-Item -ItemType Directory -Path $profileDir -Force | Out-Null
-    }
-
-    $venvBlock = @"
-
-# Zrb local venv configuration
-if (Test-Path "`$HOME\.local-venv\Scripts\Activate.ps1") {
-    . "`$HOME\.local-venv\Scripts\Activate.ps1"
-}
-"@
-
-    if (-not (Test-Path $ProfilePath)) {
-        New-Item -ItemType File -Path $ProfilePath -Force | Out-Null
-    }
-
-    if (-not (Select-String -Path $ProfilePath -Pattern "local-venv" -Quiet)) {
-        Add-Content -Path $ProfilePath -Value $venvBlock
+function Confirm-Extras {
+    if (Confirm "Install all optional dependencies (RAG, Playwright, voice input, and every LLM provider SDK)?") {
+        $script:ZrbExtras = "[rag,playwright,cohere,vertexai,google,anthropic,groq,mistral,xai,bedrock,huggingface,voyageai,voice,python]"
+        Log-OK "Will install zrb with all optional extras"
     }
 }
 
-function Create-And-Register-LocalVenv {
-    Log-Info "Creating local venv at $HOME\.local-venv"
-    python -m venv "$HOME\.local-venv"
-    & "$HOME\.local-venv\Scripts\Activate.ps1"
-
-    # Register to PowerShell profile
-    Register-LocalVenv $PROFILE
-    Log-Info "Virtual environment created and activated"
-}
-
-function Install-Poetry {
-    Log-Info "Installing Poetry"
-    python -m pip install --upgrade pip setuptools --quiet
-    python -m pip install poetry --quiet
-
-    # Poetry installs to user scripts, ensure it's in PATH
-    $userScripts = "$HOME\.local\bin"
-    if (Test-Path $userScripts) {
-        Add-PathPermanent $userScripts
-    }
-
-    # Also check AppData\local\pip\Scripts on Windows
-    $pipScripts = "$env:LOCALAPPDATA\pip\Scripts"
-    if (Test-Path $pipScripts) {
-        Add-PathPermanent $pipScripts
-    }
-
-    Log-Info "Poetry installed"
+function Pipx-Install-Zrb {
+    # `pipx uninstall` takes no -y/--yes flag; passing one errors out silently
+    # (swallowed below), leaving the old venv in place so the install that
+    # follows hits pipx's "already installed" guard and does nothing.
+    pipx uninstall zrb 2>$null | Out-Null
+    # --pip-args (not the PIP_PRE env var) persists in pipx's metadata, so later
+    # `pipx upgrade`/`pipx reinstall` keep tracking pre-releases automatically.
+    pipx install --pip-args='--pre' --python $script:PY_CMD "zrb$($script:ZrbExtras)"
 }
 
 function Install-Zrb {
-    Log-Info "Installing Zrb"
-    python -m pip install --pre zrb --quiet
-    Log-Info "Zrb installed"
-}
-
-function Install-Lsps {
-    # LSP servers power richer post-write diagnostics during ``zrb chat``.
-    # Python (pylsp) is installed unconditionally because zrb itself is Python.
-    # Other-language servers are offered only when their toolchain is present.
-    Log-Info "Installing python-lsp-server (pylsp)"
-    python -m pip install 'python-lsp-server[all]' --quiet
-
-    if ((Command-Exists "npm") -and (Confirm "Install typescript-language-server (for JS/TS)?")) {
-        Log-Info "Installing typescript-language-server"
-        npm install -g typescript-language-server typescript
+    if (Test-ZrbInPipx) {
+        # Uninstall + fresh install so --python takes effect (pipx ignores --python with --force)
+        Pipx-Install-Zrb
+    }
+    elseif (Command-Exists "zrb") {
+        Warn "zrb was installed via pip (legacy) -- migrating to pipx"
+        Pipx-Install-Zrb
+        if ($LASTEXITCODE -eq 0) {
+            # Auto-clean legacy install to avoid PATH conflict (fix #6)
+            pip uninstall zrb -y -q 2>$null
+        }
+    }
+    else {
+        Log-Info "Installing zrb via pipx..."
+        Pipx-Install-Zrb
     }
 
-    if ((Command-Exists "go") -and (Confirm "Install gopls (for Go)?")) {
-        Log-Info "Installing gopls"
-        go install golang.org/x/tools/gopls@latest
+    if (Command-Exists "zrb") {
+        Log-OK "zrb installed -- run 'zrb --help' to get started"
     }
-
-    if ((Command-Exists "rustup") -and (Confirm "Install rust-analyzer (for Rust)?")) {
-        Log-Info "Installing rust-analyzer"
-        rustup component add rust-analyzer
-    }
-
-    Log-Info "LSP servers installed. zrb auto-detects which ones are on PATH."
-}
-
-#########################################################################################
-# Main Script
-#########################################################################################
-
-# Check if running as administrator (not recommended)
-$isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-if ($isAdmin) {
-    Log-Info "Warning: Running as Administrator is not recommended."
-    Log-Info "Consider running as a regular user."
-}
-
-$IsLocalVenvInstalled = $false
-
-# Check for Python
-if (-not (Command-Exists "python")) {
-    # Try python3 as fallback
-    if (Command-Exists "python3") {
-        Log-Info "Found python3, creating python alias..."
-        Set-Alias -Name python -Value python3 -Scope Global
-    } else {
-        Log-Info ""
-        Log-Info "Python not found!"
-        Log-Info ""
-        Log-Info "Please install Python first using one of these methods:"
-        Log-Info ""
-        Log-Info "  Option 1 - winget (recommended):"
-        Log-Info "    winget install Python.Python.3.13"
-        Log-Info ""
-        Log-Info "  Option 2 - Download from python.org:"
-        Log-Info "    https://www.python.org/downloads/"
-        Log-Info ""
-        Log-Info "  Option 3 - Microsoft Store:"
-        Log-Info "    Search for 'Python 3.13' in Microsoft Store"
-        Log-Info ""
-        Log-Info "After installing Python, restart PowerShell and run this script again."
+    else {
+        Warn "zrb installation failed. Check the error above."
         exit 1
     }
 }
 
-# Get Python version
-$pythonVersion = python --version 2>&1
-Log-Info "Detected: $pythonVersion"
-
-# Offer Poetry
-if (-not (Command-Exists "poetry") -and (Confirm "Do you want to install Poetry?")) {
-    Install-Poetry
+function Expose-PythonTools {
+    # pipx only exposes the main package's entry points on PATH; black/isort
+    # pulled in by the [python] extra stay buried inside the zrb venv.
+    # Re-inject them with --include-apps so their binaries land on PATH.
+    if ($script:ZrbExtras -notmatch "python") { return }
+    Log-Info "Exposing black and isort on PATH"
+    pipx inject zrb black isort --include-apps 2>$null | Out-Null
+    if ($LASTEXITCODE -eq 0) {
+        Log-OK "black and isort exposed"
+    }
+    else {
+        Warn "Could not expose black/isort binaries (non-fatal). Run: pipx inject zrb black isort --include-apps"
+    }
 }
 
-# Offer virtual environment
-if (-not (Test-Path "$HOME\.local-venv") -and (Confirm "Do you want to create a virtual environment at ~/.local-venv?")) {
-    Create-And-Register-LocalVenv
-    $IsLocalVenvInstalled = $true
+function Register-Autocomplete {
+    if (-not (Command-Exists "zrb")) { return }
+
+    $profileDir = Split-Path -Parent $PROFILE
+    if ($profileDir -and -not (Test-Path $profileDir)) {
+        New-Item -ItemType Directory -Path $profileDir -Force | Out-Null
+    }
+
+    $autocompleteBlock = @"
+
+# Zrb autocomplete
+if (Get-Command zrb -ErrorAction SilentlyContinue) {
+    Invoke-Expression ((& zrb shell autocomplete powershell) -join "`n")
+}
+"@
+
+    if (-not (Test-Path $PROFILE)) {
+        New-Item -ItemType File -Path $PROFILE -Force | Out-Null
+    }
+
+    if (-not (Select-String -Path $PROFILE -Pattern "zrb shell autocomplete" -Quiet)) {
+        Log-Info "Registering zrb autocomplete to $PROFILE"
+        Add-Content -Path $PROFILE -Value $autocompleteBlock
+        Log-OK "Autocomplete registered"
+    } else {
+        # Fix existing entry that uses broken '& zrb shell autocomplete' (returns Object[])
+        $profileContent = Get-Content $PROFILE -Raw
+        $oldLine = 'Invoke-Expression (& zrb shell autocomplete powershell)'
+        $newLine = 'Invoke-Expression ((& zrb shell autocomplete powershell) -join "`n")'
+        if ($profileContent -match [regex]::Escape($oldLine)) {
+            $profileContent = $profileContent -replace [regex]::Escape($oldLine), $newLine
+            Set-Content $PROFILE -Value $profileContent
+            Log-OK "Fixed existing autocomplete entry in PowerShell profile"
+        }
+    }
 }
 
-# Install Zrb
-if (-not (Command-Exists "zrb")) {
-    Install-Zrb
+function Cleanup-LocalVenv {
+    # Legacy installs put zrb in ~\.local-venv and added a Test-Path-guarded activation
+    # block to the PowerShell profile. We uninstall zrb from that venv so the pipx copy
+    # wins on PATH, but leave the venv dir and profile block untouched (editing the
+    # user's profile is risky). The block keeps activating the venv in new sessions until
+    # the user removes the dir, so we point that out below rather than claim it's gone.
+    $venvPath = "$env:USERPROFILE\.local-venv"
+    $pipExe = Get-ChildItem "$venvPath\Scripts\pip*.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($pipExe -and (& $pipExe.FullName show zrb 2>$null)) {
+        Log-Info "Uninstalling old zrb from ~\.local-venv (migrated to pipx)"
+        & $pipExe.FullName uninstall zrb -y -q 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            Log-OK "Uninstalled old zrb from ~\.local-venv"
+        }
+    }
+    if (Test-Path $venvPath) {
+        Log-Info "~\.local-venv still activates in new sessions. Remove it when ready: Remove-Item -Recurse -Force ~\.local-venv"
+    }
 }
 
-# Offer LSP servers (powers richer diagnostics during `zrb chat`)
-if (Confirm "Do you want to install LSP language servers for richer code diagnostics?") {
+#########################################################################################
+# LSP Servers (optional)
+#########################################################################################
+
+function Install-Lsps {
+    # Python LSP is always installed -- zrb itself is Python
+    if (-not (Command-Exists "npm") -and -not (Command-Exists "go") -and -not (Command-Exists "rustup")) {
+        Log-Info "No JS/Go/Rust toolchains detected -- only Python LSP will be installed."
+    }
+    Log-Info "Installing python-lsp-server (pylsp)"
+    pipx inject zrb 'python-lsp-server[all]' 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        Warn "LSP server install failed (non-fatal)"
+    }
+
+    if ((Command-Exists "npm") -and (Confirm "Install typescript-language-server (for JS/TS)?")) {
+        npm install -g typescript-language-server typescript
+    }
+    if ((Command-Exists "go") -and (Confirm "Install gopls (for Go)?")) {
+        go install golang.org/x/tools/gopls@latest
+    }
+    if ((Command-Exists "rustup") -and (Confirm "Install rust-analyzer (for Rust)?")) {
+        rustup component add rust-analyzer
+    }
+
+    Log-OK "LSP servers installed. zrb auto-detects which ones are on PATH."
+}
+
+#########################################################################################
+# Main
+#########################################################################################
+
+# Banner
+Write-Host @"
+
+    ╔════════════════════════════╗
+    ║  Zrb — Your Automation     ║
+    ║        Powerhouse          ║
+    ╚════════════════════════════╝
+
+"@
+
+# -- Admin check --
+$isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+if ($isAdmin) {
+    Warn "Running as Administrator is not recommended. Run as a regular user if possible."
+}
+
+# -- Step 1: Ensure Python --
+Ensure-Python
+
+# -- Step 2: pipx --
+Ensure-Pipx
+Ensure-PipxPath
+Ensure-PipxDefaultPython
+
+# -- Detect legacy pip installation (pipx is now available for the check) --
+if ((Command-Exists "zrb") -and (-not (Test-ZrbInPipx))) {
+    Warn "Detected zrb installed via pip (legacy). The script now uses pipx."
+    Warn "The legacy package will be auto-removed after the pipx install completes."
+}
+
+# -- Step 3: zrb --
+$script:ZrbExtras = ""
+Confirm-Extras
+Install-Zrb
+Expose-PythonTools
+
+# -- Step 4: Clean up legacy .local-venv --
+Cleanup-LocalVenv
+
+# -- pipx may have been in .local-venv\Scripts, re-add to PATH --
+Ensure-PipxPath
+
+# -- Step 5: Autocomplete --
+Register-Autocomplete
+
+# -- Step 6: LSP servers --
+if (Confirm "Install LSP servers for richer code diagnostics?") {
     Install-Lsps
 }
 
-# Final message
 Write-Host ""
-Log-Info "Installation complete!"
-Write-Host ""
-
-if ($IsLocalVenvInstalled) {
-    Log-Info "IMPORTANT: You need to restart your terminal session!"
-    Log-Info "After restart, run: zrb --help"
-} else {
-    Log-Info "Run: zrb --help"
-}
-
-Write-Host ""
-Log-Info "Documentation: https://github.com/state-alchemists/zrb"
+Log-OK "Installation complete! Restart your terminal to pick up the new PATH."

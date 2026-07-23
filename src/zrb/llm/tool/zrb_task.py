@@ -49,7 +49,7 @@ def create_run_zrb_task_tool():
         args: dict[str, str] = {},  # noqa: B006
         timeout: int = 30,
     ) -> str:
-        """Run a zrb automation task by name with optional --key value args."""
+        """Run an automation task by name with optional --key value args."""
         # Construct command, quoting every part so values containing spaces
         # or shell metacharacters cannot be word-split or injected.
         zrb_cmd = CFG.ROOT_GROUP_NAME

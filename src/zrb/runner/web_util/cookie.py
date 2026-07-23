@@ -13,11 +13,14 @@ def set_auth_cookie(web_auth_config: WebAuthConfig, response: "Response", token:
     access_token_max_age = web_auth_config.access_token_expire_minutes * 60
     refresh_token_max_age = web_auth_config.refresh_token_expire_minutes * 60
     now = datetime.now(timezone.utc)
+    # Configurable: an unconditional Secure flag makes cookie auth silently
+    # fail on plain-HTTP (non-localhost) deployments.
+    secure = web_auth_config.secure_cookies
     response.set_cookie(
         key=web_auth_config.access_token_cookie_name,
         value=token.access_token,
         httponly=True,
-        secure=True,
+        secure=secure,
         samesite="lax",
         max_age=access_token_max_age,
         expires=now + timedelta(seconds=access_token_max_age),
@@ -26,7 +29,7 @@ def set_auth_cookie(web_auth_config: WebAuthConfig, response: "Response", token:
         key=web_auth_config.refresh_token_cookie_name,
         value=token.refresh_token,
         httponly=True,
-        secure=True,
+        secure=secure,
         samesite="lax",
         max_age=refresh_token_max_age,
         expires=now + timedelta(seconds=refresh_token_max_age),

@@ -67,9 +67,9 @@ async def process_tool_return_part(
     # Cheap early-return before deepcopy. The summarizer is idempotent on
     # already-summarised / truncated content and on tool denial/approval
     # markers, so re-processing them is wasted work. Avoiding the deepcopy
-    # here matters because _apply_history_processors runs once per model
-    # round-trip (see runner._execution_loop) — the prefix is walked many
-    # times during a single user turn.
+    # here matters because every message in history is walked on each
+    # summarizer pass (see runner._prepare_history), so a no-op deepcopy per
+    # already-processed message adds up over a long conversation.
     if isinstance(original_content, (ToolDenied, ToolApproved)):
         return part, False
     if isinstance(original_content, str) and (

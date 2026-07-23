@@ -136,7 +136,7 @@ start_server = CmdTask(
 |---------|--------|-----------|
 | **Purpose** | Python code | Shell commands |
 | **Syntax** | `action=lambda ctx: ...` | `cmd="shell command"` |
-| **Templating** | Python string formatting | Jinja2 `{ctx.input.x}` |
+| **Templating** | Python string formatting | Zrb's own f-string-style substitution `{ctx.input.x}` (single braces, evaluated with a restricted set of builtins) |
 | **Return value** | Explicit `return` | stdout captured to XCom |
 | **Environment** | Via `os.environ` | Auto-injected into shell |
 | **Best for** | Complex logic, APIs | External tools, scripts |

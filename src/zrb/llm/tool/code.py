@@ -324,19 +324,21 @@ async def _extract_info(
         # Handle LSP context format vs raw content
         if "lsp_symbols" in metadata:
             # LSP semantic context (more compact)
-            content = json.dumps(
-                {
-                    "path": path,
-                    "symbols": metadata.get("lsp_symbols", []),
-                    "diagnostics": metadata.get("lsp_diagnostics", []),
-                    "note": "LSP semantic context - symbol names, types, and locations",
-                }
-            )
+            payload = {
+                "path": path,
+                "symbols": metadata.get("lsp_symbols", []),
+                "diagnostics": metadata.get("lsp_diagnostics", []),
+                "note": "LSP semantic context - symbol names, types, and locations",
+            }
         else:
             # Raw file content
-            content = metadata.get("content", "")
-            content = json.dumps({"path": path, "content": content})
+            payload = {"path": path, "content": metadata.get("content", "")}
 
+        # A single file larger than the whole batch budget would be flushed as a
+        # solo batch (below) and sent whole — if it also exceeds the per-minute
+        # token budget, the rate limiter can never admit it and livelocks the UI
+        # forever. Truncate it to fit, like WebFetch/Shell bound their payloads.
+        content = _fit_file_payload(payload, token_limit - base_overhead)
         file_tokens = llm_limiter.count_tokens(content)
 
         if current_token_count + file_tokens + base_overhead > token_limit:
@@ -356,6 +358,24 @@ async def _extract_info(
         await _run_repo_agent(agent, query, content_buffer, "files", extracted_infos)
 
     return extracted_infos
+
+
+def _fit_file_payload(payload: dict, budget: int) -> str:
+    """Serialize a per-file payload, truncating its text field to fit ``budget``.
+
+    Truncating the *serialized* string cut the JSON mid-string (unterminated,
+    no closing brace), so the extractor could misattribute the path/content
+    boundary. Truncate the dominant field and re-serialize instead — the
+    extractor always receives valid JSON.
+    """
+    content = json.dumps(payload)
+    if llm_limiter.count_tokens(content) <= budget:
+        return content
+    key = "content" if "content" in payload else "symbols"
+    text = payload[key] if isinstance(payload[key], str) else json.dumps(payload[key])
+    envelope = llm_limiter.count_tokens(json.dumps({**payload, key: ""}))
+    text = llm_limiter.truncate_text(text, max(budget - envelope, 1))
+    return json.dumps({**payload, key: text + "\n...[TRUNCATED]"})
 
 
 async def _summarize_info(

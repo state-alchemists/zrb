@@ -202,7 +202,7 @@ server_group = cli.add_group(
 
 @make_task(
     name="start-server",
-    description="🚀 Start Zrb Web Server",
+    description=f"🚀 Start {CFG.ROOT_GROUP_NAME.capitalize()} Web Server",
     cli_only=True,
     retries=0,
     group=server_group,

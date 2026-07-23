@@ -3,10 +3,11 @@ from functools import lru_cache
 from pathlib import Path
 
 from zrb.config.config import CFG
+from zrb.llm.prompt.profile import BASE_PROFILE
 from zrb.util.string.conversion import to_snake_case
 
 
-def get_prompt(name: str, **extra_replacements: str) -> str:
+def get_prompt(name: str, profile: str | None = None, **extra_replacements: str) -> str:
     """Load a prompt by name and apply all placeholder replacements.
 
     This is the canonical function that replaces all individual
@@ -14,6 +15,7 @@ def get_prompt(name: str, **extra_replacements: str) -> str:
 
         prompt = get_prompt("mandate")
         prompt = get_prompt("persona", ASSISTANT_NAME="Zrb")
+        prompt = get_prompt("persona", profile="explicit")
 
     Standard replacements (journal dir, root group name, etc.) are
     always applied automatically.  Pass extra keyword arguments for
@@ -22,19 +24,39 @@ def get_prompt(name: str, **extra_replacements: str) -> str:
     Args:
         name: Prompt file name (without ``.md`` suffix), e.g. ``"persona"``,
             ``"mandate"``, ``"journal_mandate"``.
+        profile: Optional profile variant (ADR-0083). When set to a non-base
+            profile, ``{name}.{profile}`` is resolved first through the full
+            override chain, falling back to the base ``{name}`` when no variant
+            exists.
         extra_replacements: Additional ``{PLACEHOLDER}`` → value entries
             merged on top of the standard replacements.
 
     Returns:
         The rendered prompt string with all placeholders replaced.
     """
-    prompt = get_default_prompt(name)
+    prompt = _load_prompt_for_profile(name, profile)
     replacements = _get_prompt_replacements()
     for key, value in extra_replacements.items():
         # Allow callers to pass either "ASSISTANT_NAME" or "{ASSISTANT_NAME}"
         placeholder = key if key.startswith("{") and key.endswith("}") else f"{{{key}}}"
         replacements[placeholder] = value
     return _replace_prompt_placeholders(prompt, replacements)
+
+
+def _load_prompt_for_profile(name: str, profile: str | None) -> str:
+    """Resolve a section's raw text, preferring a profile-specific variant.
+
+    Tries ``{name}.{profile}`` through the full override chain first (so a
+    project override of the variant still wins over the packaged base), falling
+    back to the base ``{name}`` when no variant resolves. The base ``*.md`` files
+    are the ``terse`` profile, so ``terse``/``None``/empty short-circuit straight
+    to the base. See ADR-0083.
+    """
+    if profile and profile != BASE_PROFILE:
+        variant = get_default_prompt(f"{name}.{profile}")
+        if variant:
+            return variant
+    return get_default_prompt(name)
 
 
 # ── Prompt loading ──────────────────────────────────────────────────────
@@ -116,27 +138,13 @@ def _read_package_prompt(name: str) -> str:
 
 def _get_prompt_replacements() -> dict[str, str]:
     """Return replacement dict, re-computed only when an input changes."""
-    journal_dir = CFG.LLM_JOURNAL_DIR
-    journal_index_name = CFG.LLM_JOURNAL_INDEX_FILE
-    journal_index_file = os.path.abspath(
-        os.path.expanduser(os.path.join(journal_dir, journal_index_name))
-    )
-    try:
-        mtime = os.path.getmtime(journal_index_file)
-    except OSError:
-        mtime = 0.0
-    # Key the cache by every value the result depends on, not just mtime: a
-    # missing index file always reports mtime 0.0, so keying on mtime alone
-    # returned stale replacements after the journal dir (or any other config
-    # value) changed without the index file's mtime changing.
     return dict(
         _get_prompt_replacements_cached(
-            journal_dir,
-            journal_index_name,
+            CFG.LLM_JOURNAL_DIR,
+            CFG.LLM_JOURNAL_INDEX_FILE,
             CFG.ROOT_GROUP_NAME,
             CFG.LLM_ASSISTANT_NAME,
             CFG.ENV_PREFIX,
-            mtime,
         )
     )
 
@@ -148,10 +156,14 @@ def _get_prompt_replacements_cached(
     root_group_name: str,
     assistant_name: str,
     env_prefix: str,
-    journal_mtime: float,
 ) -> dict[str, str]:
-    """Compute all prompt replacements; cached on every input so it refreshes
-    when the journal index changes (mtime) or any config value changes."""
+    """Compute config-derived prompt replacements; cached on every input.
+
+    The journal index *content* is deliberately NOT included here. Embedding the
+    mutable index in this cached system-prompt section invalidated the cacheable
+    prefix every time the agent journaled mid-session; the snapshot is now
+    injected into the ``<live-context>`` block instead (see ``live_context.py``
+    and ADR-0082)."""
     replacements: dict[str, str] = {}
     cfg_values = {
         "LLM_JOURNAL_DIR": journal_dir,
@@ -163,24 +175,6 @@ def _get_prompt_replacements_cached(
     for attr, value in cfg_values.items():
         if value is not None:
             replacements[f"{{CFG_{attr}}}"] = str(value)
-
-    journal_dir_abs = os.path.abspath(os.path.expanduser(journal_dir))
-    journal_index_file = os.path.abspath(
-        os.path.expanduser(os.path.join(journal_dir, journal_index_name))
-    )
-    replacements["{CFG_LLM_JOURNAL_DIR_STATUS}"] = (
-        "exists" if os.path.exists(journal_dir_abs) else "inexist"
-    )
-    replacements["{CFG_LLM_JOURNAL_INDEX_FILE_STATUS}"] = (
-        "exists" if os.path.isfile(journal_index_file) else "inexist"
-    )
-    replacements["{JOURNAL_INDEX_CONTENT}"] = "<Empty>"
-    if os.path.isfile(journal_index_file):
-        with open(journal_index_file, encoding="utf-8") as f:
-            content = f.read()
-            if len(content) > 1000:
-                content = content[:1000] + " (...more)"
-            replacements["{JOURNAL_INDEX_CONTENT}"] = content
     return replacements
 
 

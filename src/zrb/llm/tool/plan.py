@@ -297,6 +297,7 @@ async def write_todos(
     Creates or replaces the session todo list. Each item: {content (str), status
     ("pending"|"in_progress"|"completed"|"cancelled", default "pending"), id (auto-assigned
     if omitted)}. replace=True (default) overwrites all; replace=False merges.
+    To advance status, call again with the full list (replace=True).
     """
     session_name = session or get_current_context_session()
 

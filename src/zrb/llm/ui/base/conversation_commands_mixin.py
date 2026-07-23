@@ -55,6 +55,8 @@ class ConversationCommandsMixin:
 
         def invalidate_ui(self) -> None: ...
 
+        def reset_session_token_usage(self) -> None: ...
+
         def _get_help_text(self) -> str: ...
 
         def _replay_history(self, messages: list) -> None: ...
@@ -115,6 +117,9 @@ class ConversationCommandsMixin:
                 try:
                     history = self._history_manager.load(name)
                     self._replay_history(history)
+                    # The usage meter tracks spend per loaded conversation;
+                    # past sessions' spend is not persisted, so start fresh.
+                    self.reset_session_token_usage()
                 except Exception as e:
                     self.append_to_output(
                         stylize_error(f"\n  ❌ Failed to load history: {e}\n")

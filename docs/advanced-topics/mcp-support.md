@@ -106,13 +106,13 @@ Required fields: `url`.
 
 ## Config Discovery
 
-Zrb discovers MCP configs by traversing upward from the current working directory to the home directory, loading every config file it finds. **Later files override earlier ones** for servers with the same name, so project-level configs can override user-level ones.
+Zrb discovers MCP configs by traversing downward from the home directory to the current working directory, loading every config file it finds along the way. **Later files override earlier ones** for servers with the same name, so project-level configs can override user-level ones.
 
 **Example traversal** (for cwd = `~/projects/myapp/backend`):
 
 | Path | Loaded? |
 |------|---------|
-| `~/.mcp-config.json` | Yes — user-global defaults |
+| `~/mcp-config.json` | Yes — user-global defaults |
 | `~/projects/mcp-config.json` | Yes — workspace defaults |
 | `~/projects/myapp/mcp-config.json` | Yes — app-level config |
 | `~/projects/myapp/backend/mcp-config.json` | Yes — service-level config (highest priority) |

@@ -613,12 +613,69 @@ class TestMultiplexApprovalChannel:
             tool_call_id="call_mux_005",
         )
 
-        # Should not raise, but result depends on race order
-        # Working channel might win the race before failing channel sets result
         result = await channel.request_approval(context)
 
-        # At minimum, the request should complete without raising
-        assert result is not None
+        # Deterministic: an errored channel never resolves the race, so the
+        # working channel's answer always wins regardless of ordering.
+        assert result.approved is True
+        assert result.message == "Working"
+
+    @pytest.mark.asyncio
+    async def test_multiplex_failing_channel_does_not_win_race(self):
+        """A channel that raises immediately must not deny before a slower
+        (human) channel gets to answer."""
+        import asyncio
+
+        from zrb.llm.approval.multiplex_approval_channel import MultiplexApprovalChannel
+
+        async def broken_channel(ctx):
+            raise Exception("bad token")
+
+        async def human_channel(ctx):
+            await asyncio.sleep(0.05)
+            return ApprovalResult(approved=True, message="Human approved")
+
+        broken = MagicMock(spec=ApprovalChannel)
+        broken.request_approval = broken_channel
+        human = MagicMock(spec=ApprovalChannel)
+        human.request_approval = human_channel
+
+        channel = MultiplexApprovalChannel([broken, human])
+        context = ApprovalContext(
+            tool_name="Bash",
+            tool_args={},
+            tool_call_id="call_mux_007",
+        )
+
+        result = await channel.request_approval(context)
+
+        assert result.approved is True
+        assert result.message == "Human approved"
+
+    @pytest.mark.asyncio
+    async def test_multiplex_denies_only_when_all_channels_fail(self):
+        """When every channel errors, the request resolves to a denial."""
+        from zrb.llm.approval.multiplex_approval_channel import MultiplexApprovalChannel
+
+        async def broken_channel(ctx):
+            raise Exception("bad token")
+
+        broken1 = MagicMock(spec=ApprovalChannel)
+        broken1.request_approval = broken_channel
+        broken2 = MagicMock(spec=ApprovalChannel)
+        broken2.request_approval = broken_channel
+
+        channel = MultiplexApprovalChannel([broken1, broken2])
+        context = ApprovalContext(
+            tool_name="Bash",
+            tool_args={},
+            tool_call_id="call_mux_008",
+        )
+
+        result = await channel.request_approval(context)
+
+        assert result.approved is False
+        assert result.message == "All approval channels failed"
 
     @pytest.mark.asyncio
     async def test_multiplex_notify_broadcasts(self, mock_channel, deny_channel):
@@ -739,38 +796,6 @@ class TestMultiplexApprovalChannel:
         await channel.notify("Test notification")
 
         mock_channel.notify.assert_called_once_with("Test notification", None)
-
-    @pytest.mark.asyncio
-    async def test_multiplex_all_channels_fail(self):
-        """Test that request_approval handles all channels failing."""
-        import asyncio
-
-        from zrb.llm.approval.multiplex_approval_channel import MultiplexApprovalChannel
-
-        async def failing_channel(ctx):
-            raise Exception("Channel error")
-
-        mock_channel1 = MagicMock(spec=ApprovalChannel)
-        mock_channel1.request_approval = failing_channel
-
-        mock_channel2 = MagicMock(spec=ApprovalChannel)
-        mock_channel2.request_approval = failing_channel
-
-        channel = MultiplexApprovalChannel([mock_channel1, mock_channel2])
-        context = ApprovalContext(
-            tool_name="Write",
-            tool_args={},
-            tool_call_id="call_all_fail_001",
-        )
-
-        # Should handle gracefully when all channels fail
-        # The first completed sets the future with the error result
-        result = await channel.request_approval(context)
-
-        # Result should have error message since all channels failed
-        assert result is not None
-        assert result.approved is False
-        assert "error" in result.message.lower() or "Error" in result.message
 
     @pytest.mark.asyncio
     async def test_multiplex_cancellation_propagation(self):

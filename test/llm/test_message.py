@@ -33,6 +33,19 @@ def test_alternating_roles_merge_user_requests():
     assert result[0].parts[1].content == "World"
 
 
+def test_alternating_roles_request_merge_preserves_metadata():
+    # Merging must keep non-part fields (instructions, ...) of the kept
+    # request — a freshly constructed ModelRequest would drop them.
+    req1 = ModelRequest(parts=[UserPromptPart(content="Hello")], instructions="sys")
+    req2 = ModelRequest(parts=[UserPromptPart(content="World")])
+
+    result = ensure_alternating_roles([req1, req2])
+
+    assert len(result) == 1
+    assert result[0].instructions == "sys"
+    assert len(result[0].parts) == 2
+
+
 def test_alternating_roles_merge_model_responses():
     # Assistant -> Assistant should merge
     res1 = ModelResponse(
@@ -353,3 +366,57 @@ def test_strip_orphaned_returns_drops_emptied_request():
     result = strip_orphaned_returns([req])
 
     assert result == []
+
+
+def _retry_part(tool_call_id: str, tool_name: str | None = "t"):
+    from pydantic_ai.messages import RetryPromptPart
+
+    return RetryPromptPart(
+        content="validation failed", tool_name=tool_name, tool_call_id=tool_call_id
+    )
+
+
+def test_retry_answered_call_is_a_complete_pair():
+    """A ToolCallPart answered by a tool-linked RetryPromptPart is NOT orphaned.
+
+    Providers serialize the retry as the tool-role response, so sanitizing must
+    keep both sides; deleting the call while keeping the retry produces a
+    dangling tool message that providers reject with 400.
+    """
+    call = ModelResponse(
+        parts=[ToolCallPart(tool_name="t", args={}, tool_call_id="x1")],
+        timestamp=datetime.now(),
+    )
+    retry = ModelRequest(parts=[_retry_part("x1")])
+    answer = ModelResponse(parts=[TextPart(content="ok")], timestamp=datetime.now())
+    messages = [call, retry, answer]
+
+    pairs = get_tool_pairs(messages)
+    assert pairs["x1"] == {"call_idx": 0, "return_idx": 1}
+
+    is_valid, problems = validate_tool_pair_integrity(messages)
+    assert is_valid, problems
+
+    assert sanitize_orphaned_tool_calls(messages) == messages
+    assert strip_orphaned_returns(messages) == messages
+
+
+def test_orphaned_tool_retry_is_stripped():
+    """A tool-linked RetryPromptPart whose call was summarized away is removed."""
+    req = ModelRequest(parts=[_retry_part("gone"), UserPromptPart(content="hi")])
+
+    for fn in (sanitize_orphaned_tool_calls, strip_orphaned_returns):
+        result = fn([req])
+        assert len(result) == 1
+        assert [type(p).__name__ for p in result[0].parts] == ["UserPromptPart"]
+
+
+def test_tool_less_retry_is_ignored_by_pairing():
+    """A RetryPromptPart without tool_name maps to a user message: despite its
+    auto-generated tool_call_id it must not register as a tool return nor be
+    stripped as an orphan."""
+    req = ModelRequest(parts=[_retry_part("auto-id", tool_name=None)])
+
+    assert get_tool_pairs([req]) == {}
+    assert sanitize_orphaned_tool_calls([req]) == [req]
+    assert strip_orphaned_returns([req]) == [req]

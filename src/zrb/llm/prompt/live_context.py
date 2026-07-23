@@ -32,12 +32,14 @@ prompt assembly to ambient runtime state:
    runs the tool short-circuits with a ``[SYSTEM SUGGESTION]`` instead.
 """
 
+import asyncio
 import os
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Any, Callable
 
+from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 
 # Anchors the <live-context> contract in the cached system prompt. Stable text
@@ -159,7 +161,45 @@ def _format_mode_line() -> str | None:
     )
 
 
-def render_live_context(ctx: AnyContext, model: "Any" = None) -> str:
+def render_journal_index() -> str | None:
+    """Read and format the journal index snapshot for context injection.
+
+    Kept out of the cached system prompt on purpose: embedding the mutable index
+    in the cached prefix invalidated it every time the agent journaled
+    mid-session (ADR-0082). It is injected into the conversation instead, at the
+    two — and only two — moments it can otherwise be absent: the first turn
+    (``render_live_context(inject_journal_index=True)``) and each summarization
+    (baked into the summary by ``summarize_history``). Returns ``None`` when the
+    index is missing or empty.
+    """
+    journal_dir = CFG.LLM_JOURNAL_DIR
+    index_name = CFG.LLM_JOURNAL_INDEX_FILE
+    index_file = os.path.abspath(
+        os.path.expanduser(os.path.join(journal_dir, index_name))
+    )
+    if not os.path.isfile(index_file):
+        return None
+    try:
+        with open(index_file, encoding="utf-8") as f:
+            content = f.read()
+    except OSError:
+        return None
+    if not content.strip():
+        return None
+    if len(content) > 1000:
+        content = content[:1000] + " (...more)"
+    return (
+        f"<journal-index>\n"
+        f"Your persistent memory (index file: {index_name}). "
+        f"Use SearchJournal for full entries.\n"
+        f"{content}\n"
+        f"</journal-index>"
+    )
+
+
+def render_live_context(
+    ctx: AnyContext, model: "Any" = None, inject_journal_index: bool = False
+) -> str:
     """Render the volatile per-turn runtime state for ``<live-context>``.
 
     Performs the per-turn ambient-state wiring as a side effect — session
@@ -170,17 +210,56 @@ def render_live_context(ctx: AnyContext, model: "Any" = None) -> str:
     the runner appends it to the latest user turn, keeping the system prompt
     byte-stable so prompt caching survives across turns.
 
+    When ``inject_journal_index`` is true, the journal index snapshot is appended
+    so it enters history (instead of living in the cached system prompt, which it
+    would invalidate on every journal write). Callers set this on the first turn
+    only (empty history); summarization re-seeds the index separately, at its own
+    site (``summarize_history``).
+
     The ``model`` argument is accepted for parity with ``system_context`` but is
     not currently rendered here (the model identity line is a stable fact).
+
+    On the async per-turn hot path, prefer ``render_live_context_async`` — this
+    sync form blocks its caller for the duration of the git subprocesses.
+    """
+    # lazy: zrb internal (heavy via transitive / circular)
+    from zrb.llm.tool.plan import todo_manager
+
+    session_name, interactive_bool = _wire_ambient_state(ctx)
+    git_lines, todos_data = _collect_git_info(todo_manager, session_name)
+    return _render_parts(git_lines, todos_data, interactive_bool, inject_journal_index)
+
+
+async def render_live_context_async(
+    ctx: AnyContext, model: "Any" = None, inject_journal_index: bool = False
+) -> str:
+    """``render_live_context`` for async callers (the per-turn hot path).
+
+    The ContextVar wiring runs on the event loop (writes must land in the
+    caller's context); only the git subprocesses + todo fetch are offloaded —
+    inline they freeze the TUI at the start of every turn for as long as
+    ``git status`` takes (routinely hundreds of ms on WSL2 / large repos).
+    """
+    # lazy: zrb internal (heavy via transitive / circular)
+    from zrb.llm.tool.plan import todo_manager
+
+    session_name, interactive_bool = _wire_ambient_state(ctx)
+    git_lines, todos_data = await asyncio.to_thread(
+        _collect_git_info, todo_manager, session_name
+    )
+    return _render_parts(git_lines, todos_data, interactive_bool, inject_journal_index)
+
+
+def _wire_ambient_state(ctx: AnyContext) -> tuple[str, bool]:
+    """Per-turn ContextVar wiring (must run on the caller's thread/context).
+
+    Returns ``(session_name, interactive_bool)``.
     """
     # lazy: zrb internal (heavy via transitive / circular)
     from zrb.llm.tool.ambient_state import (
-        get_active_worktree,
-        set_active_worktree,
         set_current_tool_session,
         set_interactive_mode,
     )
-    from zrb.llm.tool.plan import todo_manager
 
     try:
         session_name = str(ctx.input.session) if hasattr(ctx, "input") else ""
@@ -194,9 +273,18 @@ def render_live_context(ctx: AnyContext, model: "Any" = None) -> str:
     except Exception:
         interactive_bool = True
     set_interactive_mode(interactive_bool)
+    return session_name, interactive_bool
 
-    # --- Dynamic: git and todos ---
-    git_lines, todos_data = _collect_git_info(todo_manager, session_name)
+
+def _render_parts(
+    git_lines: list[str],
+    todos_data: "dict[str, Any] | None",
+    interactive_bool: bool,
+    inject_journal_index: bool,
+) -> str:
+    """Assemble the live-context lines (ContextVar reads stay on the caller)."""
+    # lazy: zrb internal (heavy via transitive / circular)
+    from zrb.llm.tool.ambient_state import get_active_worktree, set_active_worktree
 
     # --- Worktree (ContextVar — must run on caller's thread) ---
     active_wt = get_active_worktree()
@@ -229,5 +317,10 @@ def render_live_context(ctx: AnyContext, model: "Any" = None) -> str:
             parts.extend(_format_todo_lines(todos_data))
         except Exception:
             pass
+
+    if inject_journal_index:
+        journal_block = render_journal_index()
+        if journal_block:
+            parts.append(journal_block)
 
     return "\n".join(parts)

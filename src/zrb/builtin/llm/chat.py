@@ -8,7 +8,7 @@ from zrb.builtin.llm.chat_tool_policy import (
 from zrb.config.config import CFG
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
-from zrb.llm.common_tools import apply_common_tools
+from zrb.llm.common_tools import defer_common_tools
 from zrb.llm.custom_command import get_skill_custom_command
 from zrb.llm.hook.journal import create_journaling_hook_factory
 from zrb.llm.prompt.manager import PromptManager
@@ -67,6 +67,11 @@ llm_chat = LLMChatTask(
     yolo="{ctx.input.yolo}",
     message="{ctx.input.message}",
     conversation_name="{ctx.input.session}",
+    # Comma-separated file paths; normalized to BinaryContent in the agent
+    # run path (prompt_content.normalize_attachments).
+    attachment=lambda ctx: [
+        path.strip() for path in ctx.input.attach.split(",") if path.strip()
+    ],
     interactive="{ctx.input.interactive}",
     sandbox=lambda ctx: ctx.input.get("sandbox") or None,
     history_processors=[],
@@ -79,20 +84,36 @@ llm_chat = LLMChatTask(
     ui_jargon=lambda ctx: CFG.LLM_ASSISTANT_JARGON,
 )
 
-# Register zrb-shipped default tools, factories, and guidance. The same
-# call is made on `sub_agent_manager` at the bottom of
-# `zrb/llm/agent/subagent/manager/manager.py`, so the main agent and
-# sub-agents share their tool surface and guidance.
-apply_common_tools(llm_chat)
+# Register zrb-shipped default tools, factories, and guidance — deferred to the
+# first exec (ExecMixin._exec_action calls ensure_common_tools) so applying it,
+# which transitively imports pydantic_ai, stays off the `import zrb` path. The
+# same deferral is set on `sub_agent_manager` at the bottom of
+# `zrb/llm/agent/subagent/manager/manager.py`, so the main agent and sub-agents
+# share their tool surface and guidance.
+defer_common_tools(llm_chat)
+
+
+def _deferred(tool):
+    """Wrap a tool so its schema is hidden until the model searches for it by name.
+
+    Delegation is used often enough that the Tool Usage Guide already tells the
+    model its exact name — deferring only removes the schema from every turn's
+    token cost, not the model's knowledge that the tool exists.
+    """
+    # lazy: pydantic_ai (heavy third-party deferral)
+    from pydantic_ai import Tool
+
+    return Tool(tool, defer_loading=True)
+
 
 # Delegate tools — main agent only. Sub-agents filter these out via
 # `zrb_is_delegate_tool` (see SubAgentManager.create_agent), but
 # `apply_common_tools` already registered the matching tool guidance so
 # the prompt mentions them in both places consistently.
 llm_chat.add_tool_factory(
-    lambda ctx: create_delegate_to_agent_tool(),
-    lambda ctx: create_background_delegate_tool(),
-    lambda ctx: create_get_delegation_result_tool(),
+    lambda ctx: _deferred(create_delegate_to_agent_tool()),
+    lambda ctx: _deferred(create_background_delegate_tool()),
+    lambda ctx: _deferred(create_get_delegation_result_tool()),
 )
 
 # Add argument formatter (show arguments when asking for user confirmation)

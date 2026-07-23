@@ -353,3 +353,277 @@ async def test_delegate_fan_out_runs_all_and_combines(mock_sub_agent_manager):
     assert "Result A" in result
     assert "Result B" in result
     assert result.count("completed:") == 2
+
+
+# ── BufferedUI: passthrough methods, prefix branches, activity routing ──
+
+
+@pytest.mark.asyncio
+async def test_buffered_ui_ask_user_choice_flushes_and_forwards():
+    """ask_user_choice flushes buffered output first, then forwards to parent."""
+    mock_wrapped = MagicMock()
+    mock_wrapped.ask_user_choice = AsyncMock(return_value="option-a")
+    ui = BufferedUI(mock_wrapped, prefix="[AGENT] ")
+    ui.append_to_output("buffered line")
+
+    spec = MagicMock()
+    result = await ui.ask_user_choice(spec)
+
+    assert result == "option-a"
+    mock_wrapped.ask_user_choice.assert_awaited_once_with(spec)
+    # Buffered output was flushed to the parent before asking.
+    mock_wrapped.append_to_output.assert_called()
+
+
+@pytest.mark.asyncio
+async def test_buffered_ui_run_interactive_command_forwards():
+    """run_interactive_command passes straight through to the wrapped UI."""
+    mock_wrapped = MagicMock()
+    mock_wrapped.run_interactive_command = AsyncMock(return_value="cmd-output")
+    ui = BufferedUI(mock_wrapped)
+
+    result = await ui.run_interactive_command("ls", shell=True)
+
+    assert result == "cmd-output"
+    mock_wrapped.run_interactive_command.assert_awaited_once_with("ls", True)
+
+
+@pytest.mark.asyncio
+async def test_buffered_ui_run_async_forwards():
+    """run_async passes straight through to the wrapped UI."""
+    mock_wrapped = MagicMock()
+    mock_wrapped.run_async = AsyncMock(return_value="async-result")
+    ui = BufferedUI(mock_wrapped)
+
+    result = await ui.run_async()
+
+    assert result == "async-result"
+    mock_wrapped.run_async.assert_awaited_once()
+
+
+def test_buffered_ui_flush_to_parent_without_prefix():
+    """With no prefix, flush writes the raw buffered output verbatim."""
+    mock_wrapped = MagicMock()
+    ui = BufferedUI(mock_wrapped, prefix="")
+    ui.append_to_output("raw line")
+
+    ui.flush_to_parent()
+
+    mock_wrapped.append_to_output.assert_called_once()
+    assert mock_wrapped.append_to_output.call_args[0][0] == "raw line\n"
+
+
+def test_buffered_ui_yolo_delegates_to_wrapped():
+    """yolo reads through to the wrapped UI when it exposes the attribute."""
+
+    class _Parent:
+        yolo = True
+
+    ui = BufferedUI(_Parent())
+    assert ui.yolo is True
+
+
+def test_buffered_ui_yolo_defaults_false_when_absent():
+    """yolo defaults to False when the wrapped UI has no yolo attribute."""
+
+    class _Parent:
+        pass
+
+    ui = BufferedUI(_Parent())
+    assert ui.yolo is False
+
+
+def test_buffered_ui_append_to_output_updates_activity_registry():
+    """When an activity id is set, buffered writes also feed the activity panel."""
+    mock_wrapped = MagicMock()
+    ui = BufferedUI(mock_wrapped)
+    ui.set_activity_id("agent-123")
+
+    with patch("zrb.llm.tool.delegate.agent_activity_registry") as reg:
+        ui.append_to_output("line")
+
+    reg.update.assert_called_once()
+    assert reg.update.call_args[0][0] == "agent-123"
+
+
+def test_buffered_ui_stream_to_parent_prefixes_and_feeds_activity():
+    """stream_to_parent bypasses the buffer, prefixes each non-empty line, and
+    routes to the activity registry when an id is set."""
+    mock_wrapped = MagicMock()
+    ui = BufferedUI(mock_wrapped, prefix="[AGENT] ")
+    ui.set_activity_id("agent-xyz")
+
+    with patch("zrb.llm.tool.delegate.agent_activity_registry") as reg:
+        ui.stream_to_parent("first\nsecond")
+
+    reg.update.assert_called_once()
+    mock_wrapped.append_to_output.assert_called_once()
+    streamed = mock_wrapped.append_to_output.call_args[0][0]
+    assert "[AGENT] first" in streamed
+    assert "[AGENT] second" in streamed
+    # Streaming is immediate: nothing was left in the buffer.
+    assert ui.get_buffered_output() == ""
+
+
+# ── Envelope: non_goals-as-string and active-worktree context ──
+
+
+@pytest.mark.asyncio
+async def test_delegate_non_goals_as_string(mock_sub_agent_manager):
+    """A non_goals string (not a list) still renders as a single bullet."""
+    mock_sub_agent_manager.create_agent.return_value = MagicMock()
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+
+    with patch(
+        "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+    ) as mock_run_agent:
+        mock_run_agent.return_value = ("ok", [])
+        await tool(
+            agent_name="test-agent",
+            deliverable="d",
+            task="t",
+            non_goals="do not touch prod",
+        )
+        message = mock_run_agent.call_args.kwargs["message"]
+        assert "  - do not touch prod" in message
+
+
+@pytest.mark.asyncio
+async def test_delegate_envelope_includes_active_worktree(mock_sub_agent_manager):
+    """When a worktree is active, the envelope CONTEXT names it alongside context."""
+    mock_sub_agent_manager.create_agent.return_value = MagicMock()
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+
+    with (
+        patch(
+            "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+        ) as mock_run_agent,
+        patch(
+            "zrb.llm.tool.delegate.get_active_worktree",
+            return_value="/repo/.zrb/worktree/feat",
+        ),
+    ):
+        mock_run_agent.return_value = ("ok", [])
+        await tool(
+            agent_name="test-agent",
+            deliverable="d",
+            task="t",
+            non_goals=[],
+            additional_context="existing context",
+        )
+        message = mock_run_agent.call_args.kwargs["message"]
+        assert "Active worktree: /repo/.zrb/worktree/feat" in message
+        assert "existing context" in message
+
+
+@pytest.mark.asyncio
+async def test_delegate_active_worktree_without_context(mock_sub_agent_manager):
+    """With no additional_context, the worktree line stands alone in CONTEXT."""
+    mock_sub_agent_manager.create_agent.return_value = MagicMock()
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+
+    with (
+        patch(
+            "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+        ) as mock_run_agent,
+        patch("zrb.llm.tool.delegate.get_active_worktree", return_value="/wt"),
+    ):
+        mock_run_agent.return_value = ("ok", [])
+        await tool(agent_name="test-agent", deliverable="d", task="t", non_goals=[])
+        message = mock_run_agent.call_args.kwargs["message"]
+        assert "Active worktree: /wt" in message
+
+
+# ── Error paths: recursion, swallowed hook errors, fan-out failure ──
+
+
+@pytest.mark.asyncio
+async def test_delegate_recursion_error_surfaces_suggestion(mock_sub_agent_manager):
+    """A RecursionError from the sub-agent maps to an actionable error string."""
+    mock_sub_agent_manager.create_agent.return_value = MagicMock()
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+
+    with patch(
+        "zrb.llm.tool.delegate.run_agent",
+        new_callable=AsyncMock,
+        side_effect=RecursionError(),
+    ):
+        result = await tool(
+            agent_name="test-agent", deliverable="d", task="t", non_goals=[]
+        )
+
+    assert "Recursion depth exceeded" in result
+
+
+@pytest.mark.asyncio
+async def test_delegate_swallows_hook_manager_errors(mock_sub_agent_manager):
+    """A hook manager that raises must not break delegation (fire-and-forget)."""
+    from zrb.llm.agent.run.runner import current_hook_manager
+
+    mock_sub_agent_manager.create_agent.return_value = MagicMock()
+    boom_manager = MagicMock()
+    boom_manager.execute_hooks = AsyncMock(side_effect=RuntimeError("hook boom"))
+
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+    token = current_hook_manager.set(boom_manager)
+    try:
+        with patch(
+            "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+        ) as mock_run_agent:
+            mock_run_agent.return_value = ("ok", [])
+            result = await tool(
+                agent_name="test-agent", deliverable="d", task="t", non_goals=[]
+            )
+    finally:
+        current_hook_manager.reset(token)
+
+    # Delegation succeeds despite the hook manager blowing up.
+    assert "completed:" in result
+    assert "ok" in result
+    boom_manager.execute_hooks.assert_awaited()
+
+
+@pytest.mark.asyncio
+async def test_delegate_fan_out_reports_failed_task(mock_sub_agent_manager):
+    """A failing sub-agent in a fan-out surfaces as an Error line; others succeed."""
+    mock_sub_agent_manager.create_agent.return_value = MagicMock()
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+
+    with patch(
+        "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+    ) as mock_run_agent:
+        mock_run_agent.side_effect = [("Result OK", []), Exception("boom")]
+        result = await tool(
+            tasks=[
+                {
+                    "agent_name": "test-agent",
+                    "deliverable": "a",
+                    "task": "ta",
+                    "non_goals": [],
+                },
+                {
+                    "agent_name": "test-agent",
+                    "deliverable": "b",
+                    "task": "tb",
+                    "non_goals": [],
+                },
+            ]
+        )
+
+    assert "Result OK" in result
+    assert "Error: boom" in result
+
+
+# ── create_delegate_to_agent_tool: default manager fallback ──
+
+
+def test_create_delegate_tool_uses_default_manager():
+    """Passing no manager falls back to the module default singleton."""
+    default = MagicMock(spec=SubAgentManager)
+    default.scan.return_value = []
+
+    with patch("zrb.llm.tool.delegate.default_sub_agent_manager", default):
+        tool = create_delegate_to_agent_tool()
+
+    assert tool.__name__ == "DelegateToAgent"
+    default.scan.assert_called()

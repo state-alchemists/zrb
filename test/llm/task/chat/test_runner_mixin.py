@@ -1,4 +1,3 @@
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -55,6 +54,8 @@ async def test_run_non_interactive_session(runner):
     res = await runner._run_non_interactive_session(
         ctx=ctx,
         llm_task_core=llm_task_core,
+        history_manager=MagicMock(),
+        ui_commands={},
         initial_message="hi",
         initial_conversation_name="sess1",
         initial_yolo=False,
@@ -64,6 +65,37 @@ async def test_run_non_interactive_session(runner):
     assert res == "AI Output"
     assert ctx.xcom["__conversation_name__"] == "sess1"
     llm_task_core.async_run.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_run_non_interactive_session_attaches_ui_factories(runner):
+    """UI factories are resolved and attached to the core task as output sinks
+    so the web/SSE path streams the response without the interactive UI loop."""
+    ctx = MagicMock()
+    ctx.shared_print = MagicMock()
+    ctx.xcom = {}
+
+    http_ui = MagicMock()
+    factory = MagicMock(return_value=http_ui)
+    runner._ui_factories = [factory]
+
+    llm_task_core = MagicMock()
+    llm_task_core.async_run = AsyncMock(return_value="AI Output")
+
+    res = await runner._run_non_interactive_session(
+        ctx=ctx,
+        llm_task_core=llm_task_core,
+        history_manager=MagicMock(),
+        ui_commands={},
+        initial_message="hi",
+        initial_conversation_name="sess1",
+        initial_yolo=False,
+        initial_attachments=[],
+    )
+
+    assert res == "AI Output"
+    factory.assert_called_once()
+    llm_task_core.append_ui.assert_called_once_with(http_ui)
 
 
 # Simplified mock that doesn't inherit from BaseUI but implements the required protocol
@@ -108,6 +140,7 @@ async def test_run_interactive_session_basic(runner):
             "btw",
             "plan",
             "copy",
+            "voice",
             "build",
         ]
     }
@@ -157,6 +190,7 @@ async def test_run_interactive_session_with_factories_and_multiplex(runner):
             "btw",
             "plan",
             "copy",
+            "voice",
             "build",
         ]
     }
@@ -182,6 +216,123 @@ async def test_run_interactive_session_with_factories_and_multiplex(runner):
 
         # When only one UI is resolved from factories, MultiUI is NOT used
         assert res == "Final"
+
+
+class FakeCustomCommand:
+    """Duck-typed stand-in for AnyCustomCommand used to test slash-command
+    resolution without depending on a concrete implementation."""
+
+    def __init__(self, command: str, args: list[str], prompt_template: str):
+        self.command = command
+        self.description = "fake command"
+        self.args = args
+        self._prompt_template = prompt_template
+
+    def get_prompt(self, kwargs: dict[str, str]) -> str:
+        return self._prompt_template.format(**kwargs)
+
+
+UI_COMMAND_KEYS = [
+    "summarize",
+    "attach",
+    "exit",
+    "info",
+    "save",
+    "load",
+    "rewind",
+    "yolo_toggle",
+    "set_model",
+    "redirect_output",
+    "exec",
+    "btw",
+    "plan",
+    "copy",
+    "voice",
+    "build",
+]
+
+
+@pytest.fixture
+def ui_commands():
+    return {k: [] for k in UI_COMMAND_KEYS}
+
+
+@pytest.mark.asyncio
+async def test_run_interactive_session_resolves_custom_command_initial_message(
+    runner, ui_commands
+):
+    """A slash-command initial_message must be resolved to its prompt before
+    reaching the UI, mirroring _run_non_interactive_session's behavior."""
+    runner._custom_commands = [
+        FakeCustomCommand(
+            command="/foo", args=["text"], prompt_template="RESOLVED:{text}"
+        )
+    ]
+
+    ctx = MagicMock()
+    ctx.xcom = {}
+
+    llm_task_core = MagicMock()
+    history_manager = MagicMock()
+    history_manager.load.return_value = []
+
+    mock_ui = SimpleMockUI()
+
+    with patch("zrb.llm.ui.default.ui.UI") as MockUI:
+        MockUI.return_value = mock_ui
+
+        res = await runner._run_interactive_session(
+            ctx=ctx,
+            llm_task_core=llm_task_core,
+            history_manager=history_manager,
+            ui_commands=ui_commands,
+            initial_message="/foo bar",
+            initial_conversation_name="sess1",
+            initial_yolo=False,
+            initial_attachments=[],
+        )
+
+        assert res == "Final"
+        assert MockUI.call_args.kwargs["initial_message"] == "RESOLVED:bar"
+
+
+@pytest.mark.asyncio
+async def test_run_interactive_session_leaves_plain_message_unchanged(
+    runner, ui_commands
+):
+    """A plain (non-slash-command) initial_message must pass through as-is,
+    even when custom commands are registered."""
+    runner._custom_commands = [
+        FakeCustomCommand(
+            command="/foo", args=["text"], prompt_template="RESOLVED:{text}"
+        )
+    ]
+
+    ctx = MagicMock()
+    ctx.xcom = {}
+
+    llm_task_core = MagicMock()
+    history_manager = MagicMock()
+    history_manager.load.return_value = []
+
+    mock_ui = SimpleMockUI()
+
+    with patch("zrb.llm.ui.default.ui.UI") as MockUI:
+        MockUI.return_value = mock_ui
+
+        res = await runner._run_interactive_session(
+            ctx=ctx,
+            llm_task_core=llm_task_core,
+            history_manager=history_manager,
+            ui_commands=ui_commands,
+            initial_message="hello there",
+            initial_conversation_name="sess1",
+            initial_yolo=False,
+            initial_attachments=[],
+        )
+
+        assert res == "Final"
+        assert MockUI.call_args.kwargs["initial_message"] == "hello there"
 
 
 def test_load_session_history_uses_replay_when_available(runner):

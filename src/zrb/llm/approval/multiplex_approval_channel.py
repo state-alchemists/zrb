@@ -26,17 +26,12 @@ class MultiplexApprovalChannel(ApprovalChannel):
 
     def __init__(self, channels: list[ApprovalChannel]):
         self._channels = channels
-        self._pending: dict[str, asyncio.Future[ApprovalResult]] = {}
-        self._tasks: dict[str, list[asyncio.Task]] = {}
 
     async def request_approval(self, context: ApprovalContext) -> ApprovalResult:
         if is_shutdown_requested():
             return ApprovalResult(approved=False, message="Shutdown requested")
 
         CFG.LOGGER.debug(f"Multiplex request_approval START for {context.tool_name}")
-        CFG.LOGGER.debug(
-            f"Multiplex Channels: {[type(c).__name__ for c in self._channels]}"
-        )
 
         if not self._channels:
             CFG.LOGGER.debug("Multiplex No channels, auto-approving")
@@ -44,97 +39,60 @@ class MultiplexApprovalChannel(ApprovalChannel):
 
         loop = asyncio.get_running_loop()
         future: asyncio.Future[ApprovalResult] = loop.create_future()
-        self._pending[context.tool_call_id] = future
-        self._tasks[context.tool_call_id] = []
 
         async def request_from_channel(channel: ApprovalChannel):
             try:
-                CFG.LOGGER.debug(
-                    f"Multiplex Calling channel {type(channel).__name__}..."
-                )
                 result = await channel.request_approval(context)
                 CFG.LOGGER.debug(
-                    f"Multiplex Channel {type(channel).__name__} returned: approved={result.approved}"
+                    f"Multiplex Channel {type(channel).__name__} returned: "
+                    f"approved={result.approved}"
                 )
                 if not future.done():
-                    CFG.LOGGER.debug(f"Multiplex Setting future result: {result}")
                     future.set_result(result)
-                return result
             except asyncio.CancelledError:
-                CFG.LOGGER.debug(
-                    f"Multiplex Channel {type(channel).__name__} cancelled"
-                )
                 raise
             except BaseException as e:
-
                 CFG.LOGGER.debug(
-                    f"Multiplex Channel {type(channel).__name__} Exception: {type(e).__name__}: {e}"
+                    f"Multiplex Channel {type(channel).__name__} "
+                    f"Exception: {type(e).__name__}: {e}"
                 )
                 traceback.print_exc()
-                if not future.done():
-                    # Set exception result so other channels can continue
-                    future.set_result(
-                        ApprovalResult(approved=False, message=f"Channel error: {e}")
+                # A broken channel must NOT win the race: resolving the future
+                # here would deny before the humans on the remaining channels
+                # (e.g. the terminal) get a chance to answer. Denial happens
+                # only in the watchdog, once EVERY channel has finished
+                # without producing a result.
+
+        # Race all channels; the first real response resolves the future.
+        tasks = [
+            asyncio.create_task(request_from_channel(channel))
+            for channel in self._channels
+        ]
+
+        async def deny_when_all_channels_done():
+            await asyncio.gather(*tasks, return_exceptions=True)
+            if not future.done():
+                future.set_result(
+                    ApprovalResult(
+                        approved=False, message="All approval channels failed"
                     )
-                return None
+                )
 
-        # Run ALL channels concurrently - first response wins
-        tasks = []
-        for channel in self._channels:
-            task = asyncio.create_task(request_from_channel(channel))
-            tasks.append(task)
-        self._tasks[context.tool_call_id] = tasks
-
-        CFG.LOGGER.debug(f"Multiplex Racing {len(tasks)} channels concurrently...")
-
-        try:
-            # Wait for the first channel to complete (or all to fail)
-            done, pending = await asyncio.wait(
-                tasks, return_when=asyncio.FIRST_COMPLETED
-            )
-
-            CFG.LOGGER.debug(
-                f"Multiplex Race complete, {len(done)} done, {len(pending)} pending"
-            )
-
-            # Cancel pending tasks
-            for task in pending:
-                CFG.LOGGER.debug("Multiplex Cancelling pending task")
-                task.cancel()
-                try:
-                    await task
-                except asyncio.CancelledError:
-                    pass
-
-            # Get result from the first completed task
-            for task in done:
-                try:
-                    result = task.result()
-                    # Wait for future to be set if needed
-                    if result is None:
-                        break
-                    CFG.LOGGER.debug(
-                        f"Multiplex Returning result: approved={result.approved}, message={result.message}"
-                    )
-                    return result
-                except asyncio.CancelledError:
-                    continue
-                except Exception as e:
-                    CFG.LOGGER.debug(f"Multiplex Task exception: {e}")
-                    continue
-        except asyncio.CancelledError:
-            CFG.LOGGER.debug("Multiplex request_approval cancelled externally")
-            raise
-
-        # If we got here, wait for future to be set (e.g., by an external callback)
-        CFG.LOGGER.debug("Multiplex Waiting for future to be set...")
+        watchdog = asyncio.create_task(deny_when_all_channels_done())
         try:
             result = await future
-            CFG.LOGGER.debug(f"Multiplex Future resolved: approved={result.approved}")
+            CFG.LOGGER.debug(
+                f"Multiplex Returning result: approved={result.approved}, "
+                f"message={result.message}"
+            )
             return result
-        except asyncio.CancelledError:
-            CFG.LOGGER.debug("Multiplex Future wait cancelled")
-            raise
+        finally:
+            # Cancel the losers (and the watchdog) and reap them so nothing
+            # outlives this request — no per-call state is retained.
+            watchdog.cancel()
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(watchdog, *tasks, return_exceptions=True)
 
     async def notify(
         self, message: str, context: ApprovalContext | None = None

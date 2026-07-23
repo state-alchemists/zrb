@@ -38,6 +38,7 @@ def test_config_llm_include_sections_default():
     assert sections == [
         "persona",
         "mandate",
+        "examples",
         "git_mandate",
         "journal_mandate",
         "system_context",

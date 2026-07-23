@@ -115,7 +115,6 @@ security boundary in v1. Known limits, by design:
 - **zrb-internal writes** (session logs, journal, snapshots) bypass the gate
   — only LLM-initiated tool calls are constrained.
 
-See ADR-0063 in [docs/adr/07-llm-extension.md](../adr/07-llm-extension.md)
-for the full design rationale.
+See [ADR-0063](../adr/adr-0063.md) for the full design rationale.
 
 🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > Sandbox

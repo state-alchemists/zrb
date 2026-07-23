@@ -13,6 +13,7 @@ from zrb.llm.agent.subagent.manager.search_mixin import SearchMixin
 from zrb.llm.agent.subagent.yolo import make_yolo_inheritance_checker
 from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.factory_resolver import resolve_factory_items
+from zrb.llm.prompt.live_context import render_journal_index
 from zrb.llm.prompt.tool_guidance import (
     ToolCatalogue,
     ToolGroups,
@@ -30,6 +31,13 @@ if TYPE_CHECKING:
     from pydantic_ai.toolsets import AbstractToolset
 
 
+def _resolve_tool_name(t: Any) -> str | None:
+    raw = getattr(t, "name", None)
+    if raw is not None:
+        return raw
+    return getattr(t, "__name__", None)
+
+
 class SubAgentDefinition:
     def __init__(
         self,
@@ -39,6 +47,7 @@ class SubAgentDefinition:
         system_prompt: str,
         model: str | None = None,
         tools: list[str] | None = None,
+        disallowed_tools: list[str] | None = None,
         agent_instance: Any | None = None,
         agent_factory: Callable[[], Any] | None = None,
         inherit_sections: list[str] | None = None,
@@ -49,6 +58,7 @@ class SubAgentDefinition:
         self.system_prompt = system_prompt
         self.model = model
         self.tools = tools if tools is not None else []
+        self.disallowed_tools = disallowed_tools if disallowed_tools is not None else []
         self.agent_instance = agent_instance
         self.agent_factory = agent_factory
         # Inherit named PromptManager sections from the main-agent composition
@@ -61,7 +71,7 @@ class SubAgentDefinition:
 class SubAgentManager(LoaderMixin, SearchMixin):
     def __init__(
         self,
-        tool_registry: dict[str, Callable] | None = None,
+        tool_registry: "dict[str, Callable | Tool] | None" = None,
         root_dir: str = ".",
         search_dirs: list[str | Path] | None = None,
         max_depth: int = 1,
@@ -95,14 +105,14 @@ class SubAgentManager(LoaderMixin, SearchMixin):
         self._agents = {}
         self._ensure_loaded()
 
-    def add_tool(self, *tool: Callable):
+    def add_tool(self, *tool: "Callable | Tool"):
         """Register tools."""
         self.append_tool(*tool)
 
-    def append_tool(self, *tool: Callable):
+    def append_tool(self, *tool: "Callable | Tool"):
         """Append tools."""
         for single_tool in tool:
-            tool_name = getattr(single_tool, "__name__", str(single_tool))
+            tool_name = _resolve_tool_name(single_tool) or str(single_tool)
             self._tool_registry[tool_name] = single_tool
 
     def add_tool_factory(self, *factory: Callable[[AnyContext], Tool | ToolFuncEither]):
@@ -206,6 +216,10 @@ class SubAgentManager(LoaderMixin, SearchMixin):
     def create_agent(
         self, name: str, ctx: AnyContext | None = None, yolo: bool | None = None
     ) -> "Agent[None, Any] | None":
+        # lazy: circular — common_tools imports back into this package.
+        from zrb.llm.common_tools import ensure_common_tools
+
+        ensure_common_tools(self)
         definition = self.get_agent_definition(name)
         if not definition:
             return None
@@ -242,6 +256,14 @@ class SubAgentManager(LoaderMixin, SearchMixin):
                         resolved_tools.append(single_tool)
             elif not getattr(tool, "zrb_is_delegate_tool", False):
                 resolved_tools.append(tool)
+
+        # Apply disallowedTools: remove any tools the definition explicitly denies.
+        if definition.disallowed_tools:
+            resolved_tools = [
+                t
+                for t in resolved_tools
+                if _resolve_tool_name(t) not in definition.disallowed_tools
+            ]
 
         resolved_toolsets = self._get_all_toolsets(ctx)
 
@@ -311,7 +333,14 @@ class SubAgentManager(LoaderMixin, SearchMixin):
             system_prompt=effective_system_prompt,
             tools=resolved_tools,
             toolsets=resolved_toolsets,
-            history_processors=[create_summarizer_history_processor()],
+            history_processors=[
+                create_summarizer_history_processor(
+                    inject_journal_index=(
+                        bool(definition.inherit_sections)
+                        and "journal_mandate" in definition.inherit_sections
+                    )
+                )
+            ],
             yolo=effective_yolo,
             resolve_model=False,
         )
@@ -374,11 +403,20 @@ class SubAgentManager(LoaderMixin, SearchMixin):
             # into the inherited prompt so an agent that inherits system_context
             # still sees the per-turn state (time, git, …) it saw before the
             # main-chat split — the main chat injects it into the user turn
-            # instead, via run_agent's live_context.
+            # instead, via run_agent's live_context. Being single-turn, a
+            # sub-agent is always "the first turn": inject the journal index
+            # unconditionally (create_live_context gates it on journal_mandate
+            # being inherited). See ADR-0082.
             if "system_context" in sections:
-                live = pm.create_live_context(ctx)
+                live = pm.create_live_context(ctx, inject_journal_index=True)
                 if live:
                     composed = f"{composed}\n\n{live}".strip()
+            elif "journal_mandate" in sections:
+                # journal_mandate inherited without system_context: inject only
+                # the index, not the per-turn state that system_context owns.
+                journal_block = render_journal_index()
+                if journal_block:
+                    composed = f"{composed}\n\n{journal_block}".strip()
             return composed
         except Exception:
             # Don't fail agent creation on inheritance issues — surface as no
@@ -399,7 +437,7 @@ class SubAgentManager(LoaderMixin, SearchMixin):
         for search_dir in target_search_dirs:
             self._scan_dir(Path(search_dir), max_depth=self._max_depth)
 
-    def _get_tool_registry(self) -> dict[str, Callable]:
+    def _get_tool_registry(self) -> "dict[str, Callable | Tool]":
         return self._tool_registry
 
     def _get_all_toolsets(self, ctx: AnyContext) -> list[AbstractToolset[None]]:
@@ -436,6 +474,10 @@ sub_agent_manager = SubAgentManager()
 # imports SubAgentManager from this module. Importing at the top would hit
 # this module mid-load before the class exists.
 
-from zrb.llm.common_tools import apply_common_tools
+from zrb.llm.common_tools import defer_common_tools
 
-apply_common_tools(sub_agent_manager)
+# Deferred (not applied now): applying pulls in pydantic_ai via the tool
+# imports. ``create_agent`` calls ``ensure_common_tools(self)`` before it reads
+# the tool surface, so the heavy import lands on the first agent build instead
+# of on ``import zrb``.
+defer_common_tools(sub_agent_manager)

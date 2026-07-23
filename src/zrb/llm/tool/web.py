@@ -1,3 +1,4 @@
+import asyncio
 import json
 
 from zrb.config.config import CFG
@@ -5,6 +6,7 @@ from zrb.llm.agent import create_agent, run_agent
 from zrb.llm.config.config import llm_config
 from zrb.llm.config.limiter import llm_limiter
 from zrb.llm.prompt.prompt import get_prompt
+from zrb.util.truncate import truncate_text
 
 
 async def open_web_page(url: str, summarize: bool = True) -> dict:
@@ -13,8 +15,24 @@ async def open_web_page(url: str, summarize: bool = True) -> dict:
     a sub-agent extracts high-signal content to reduce token usage.
     """
     try:
-        html_content, links = await _fetch_page_content(url)
-        markdown_content = _convert_html_to_markdown(html_content)
+        content, links, is_pdf = await _fetch_page_content(url)
+        # PDF text is already plain text — running it through the HTML
+        # converter would eat `<...>`-looking sequences (code, generics,
+        # emails) as if they were tags. The HTML conversion itself is
+        # blocking CPU (BeautifulSoup + markdownify), so it runs off-loop.
+        markdown_content = (
+            content
+            if is_pdf
+            else await asyncio.to_thread(_convert_html_to_markdown, content)
+        )
+        # Bound the payload before it becomes a message, like Shell caps its
+        # output: an unbounded page otherwise produces a request larger than the
+        # per-minute token budget, which the rate limiter can never admit — it
+        # loops forever and freezes the UI. Keep the head, where web pages
+        # front-load their content.
+        markdown_content, truncated = truncate_text(
+            markdown_content, CFG.LLM_MAX_OUTPUT_CHARS, keep="head"
+        )
 
         if summarize:
             summarized_content = await _summarize_web_content(markdown_content, url)
@@ -22,6 +40,7 @@ async def open_web_page(url: str, summarize: bool = True) -> dict:
                 "content": summarized_content,
                 "links_on_page": links,
                 "summarized": True,
+                "truncated": truncated,
                 "url": url,
             }
 
@@ -29,6 +48,7 @@ async def open_web_page(url: str, summarize: bool = True) -> dict:
             "content": markdown_content,
             "links_on_page": links,
             "summarized": False,
+            "truncated": truncated,
             "url": url,
         }
     except Exception as e:
@@ -199,7 +219,16 @@ def _error_result(query: str, page: int, message: str, backend: str) -> dict:
 
 
 async def _fetch_page_content(url: str) -> tuple:
+    """Fetch a URL. Returns ``(content, links, is_pdf)``.
+
+    Sync HTTP (requests) and PDF parsing (pdfplumber) run via
+    ``asyncio.to_thread`` — inline they freeze the TUI's event loop for the
+    whole download + parse.
+    """
     user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    # A known .pdf extension lets us skip launching a browser entirely.
+    if url.split("?")[0].lower().endswith(".pdf"):
+        return await asyncio.to_thread(_fetch_pdf_content, url, user_agent)
     try:
         # lazy: heavy third-party
         from playwright.async_api import async_playwright
@@ -208,9 +237,19 @@ async def _fetch_page_content(url: str) -> tuple:
             browser = await p.chromium.launch(headless=True)
             page = await browser.new_page()
             await page.set_extra_http_headers({"User-Agent": user_agent})
-            await page.goto(
+            response = await page.goto(
                 url, wait_until="networkidle", timeout=CFG.LLM_WEB_PAGE_TIMEOUT
             )
+            # Extensionless PDF URLs (e.g. arxiv.org/pdf/1234.56789) render as an
+            # opaque viewer shell; detect via Content-Type and read the raw bytes
+            # from the same response — no extra round-trip.
+            if response and "application/pdf" in (
+                response.headers.get("content-type", "").lower()
+            ):
+                data = await response.body()
+                await browser.close()
+                text = await asyncio.to_thread(_extract_pdf_text, data)
+                return text, [], True
             content = await page.content()
             links = await page.eval_on_selector_all(
                 "a[href]",
@@ -218,28 +257,61 @@ async def _fetch_page_content(url: str) -> tuple:
                 url,
             )
             await browser.close()
-            return content, links
+            return content, links, False
     except Exception:
-        # lazy: deferred to keep module import light
-        from urllib.parse import urljoin
+        return await asyncio.to_thread(_fetch_page_fallback, url, user_agent)
 
-        # lazy: heavy third-party
-        import requests
-        from bs4 import BeautifulSoup
 
-        response = requests.get(
-            url,
-            headers={"User-Agent": user_agent},
-            timeout=CFG.LLM_WEB_HTTP_TIMEOUT / 1000,
-        )
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, "html.parser")
-        links = [
-            urljoin(url, str(a["href"]))
-            for a in soup.find_all("a", href=True)
-            if not str(a["href"]).startswith("#")
-        ]
-        return response.text, links
+def _fetch_page_fallback(url: str, user_agent: str) -> tuple:
+    """Plain-HTTP fallback when playwright is unavailable or fails (sync, run off-loop)."""
+    # lazy: deferred to keep module import light
+    from urllib.parse import urljoin
+
+    # lazy: heavy third-party
+    import requests
+    from bs4 import BeautifulSoup
+
+    response = requests.get(
+        url,
+        headers={"User-Agent": user_agent},
+        timeout=CFG.LLM_WEB_HTTP_TIMEOUT / 1000,
+    )
+    response.raise_for_status()
+    if "application/pdf" in response.headers.get("Content-Type", "").lower():
+        return _extract_pdf_text(response.content), [], True
+    soup = BeautifulSoup(response.text, "html.parser")
+    links = [
+        urljoin(url, str(a["href"]))
+        for a in soup.find_all("a", href=True)
+        if not str(a["href"]).startswith("#")
+    ]
+    return response.text, links, False
+
+
+def _fetch_pdf_content(url: str, user_agent: str) -> tuple:
+    """Download and extract a PDF (sync, run off-loop)."""
+    # lazy: heavy third-party
+    import requests
+
+    response = requests.get(
+        url,
+        headers={"User-Agent": user_agent},
+        timeout=CFG.LLM_WEB_HTTP_TIMEOUT / 1000,
+    )
+    response.raise_for_status()
+    return _extract_pdf_text(response.content), [], True
+
+
+def _extract_pdf_text(data: bytes) -> str:
+    # lazy: deferred to keep module import light
+    import io
+
+    # lazy: heavy third-party
+    import pdfplumber
+
+    with pdfplumber.open(io.BytesIO(data)) as pdf:
+        texts = (page.extract_text() for page in pdf.pages)
+        return "\n".join(t for t in texts if t)
 
 
 def _convert_html_to_markdown(html_text: str) -> str:

@@ -74,10 +74,10 @@ def my_function(ctx):
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `name` | *(required)* | Task name used in CLI (`zrb <name>`) and XCom references |
-| `color` | `None` (auto) | ANSI 256-color code (`1`=red, `2`=green, `3`=yellow, `4`=blue) |
+| `color` | `None` (auto) | Standard SGR color code (`31`=red, `32`=green, `33`=yellow, `34`=blue, ... `90`-`97` for bright variants). Any value outside this set is silently ignored (no color applied) |
 | `icon` | `None` | Emoji or string prefix shown in terminal output |
 | `description` | `None` | Human-readable description shown in `zrb --help` |
-| `cli_only` | `False` | If `True`, task can only be triggered from CLI, not programmatically |
+| `cli_only` | `False` | If `True`, task is hidden from the web UI runner's task listing. It has no effect on CLI vs. programmatic (`.run()`/`.async_run()`) execution — both still work regardless of this flag |
 
 ### Data & Configuration
 

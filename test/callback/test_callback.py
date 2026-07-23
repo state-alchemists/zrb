@@ -80,6 +80,22 @@ class TestCallbackBehavior:
         assert mock_parent_session.shared_ctx.xcom["sessions"].pop() == "test_session"
 
     @pytest.mark.asyncio
+    async def test_callback_propagates_cancellation(
+        self, mock_task, mock_session, mock_parent_session
+    ):
+        # Cancellation must not be swallowed and published as a "task error" —
+        # a cancelled callback that returns normally blocks shutdown.
+        import asyncio
+
+        mock_task.async_run.side_effect = asyncio.CancelledError()
+        callback = Callback(task=mock_task, input_mapping={}, error_queue="errors")
+
+        with pytest.raises(asyncio.CancelledError):
+            await callback.async_run(mock_parent_session, mock_session)
+
+        assert "errors" not in mock_parent_session.shared_ctx.xcom
+
+    @pytest.mark.asyncio
     async def test_callback_handles_task_error(
         self, mock_task, mock_session, mock_parent_session
     ):

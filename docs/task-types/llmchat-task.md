@@ -9,6 +9,7 @@
 ## Table of Contents
 
 - [Constructor Parameters](#constructor-parameters)
+- [Seeding the Conversation](#seeding-the-conversation)
 - [Builder API (Post-Construction)](#builder-api-post-construction)
 - [Comparison with LLMTask](#comparison-with-llmtask)
 
@@ -73,6 +74,43 @@ chat = LLMChatTask(
     successor: list[AnyTask] | AnyTask | None = None,
 )
 ```
+
+> This list is not exhaustive. See the `LLMChatTask`/`LLMTask` source or `--help` for the full constructor parameter list, including `cli_only`, `attachment`, `history_processors`, `capabilities`, `custom_commands`, `enable_rewind`/`snapshot_dir`, and more.
+
+---
+
+## Seeding the Conversation
+
+Both `message` and `system_prompt` are rendered attributes, so you can hand the chat data produced by an upstream task before the user ever types. The rule of thumb:
+
+- **`message`** — the *opening user turn*. Set it to send a first prompt automatically; leave it empty to drop the user straight into the TUI.
+- **`system_prompt`** — *standing background* the user then converses against. This is where you put an upstream command's output when the whole point is to let the user ask questions about it.
+
+```python
+from zrb import cli, CmdTask, LLMChatTask
+
+status = cli.add_task(CmdTask(name="git-status", cmd="git status && git log --oneline -20"))
+
+chat = cli.add_task(
+    LLMChatTask(
+        name="ask-repo",
+        upstream=[status],
+        system_prompt=lambda ctx: (
+            "You are a git assistant. Here is the current repository state; "
+            "answer the user's questions about it.\n\n"
+            f"{ctx.xcom['git-status'].pop()}"
+        ),
+        ui_greeting="Ask me anything about the current repo state.",
+        # No `message` → the TUI opens and waits for the user.
+    )
+)
+
+status >> chat
+```
+
+> **Note:** `system_prompt` is **not** rendered by default (`render_system_prompt=False`), so `{ ... }` in a system-prompt *string* stays literal. Pass a callable (as above) or set `render_system_prompt=True`. `message` **is** rendered by default.
+
+See **[Programming the Prompt](../advanced-topics/programming-the-prompt.md)** for the full string → template → callable → `PromptManager` ladder.
 
 ---
 
@@ -187,7 +225,7 @@ chat.set_history_manager(FileHistoryManager(history_dir="./my-history/"))
 | **Filesystem sandbox** | `sandbox=` (arg + property) | Same |
 | **Shared tool APIs** | `add_tool`, `add_toolset`, `add_tool_guidance` | Same |
 | **Hook system** | Full lifecycle hooks | Same |
-| **History processors** | `add_history_processor` | Same (via constructor) |
+| **History processors** | `add_history_processor` | Same |
 | **System prompt** | Via `system_prompt` or `prompt_manager` | Same |
 
 ---

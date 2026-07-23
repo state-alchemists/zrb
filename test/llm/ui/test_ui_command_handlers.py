@@ -104,11 +104,14 @@ class TestBaseUICommandHandlers:
         ui._load_commands = ["/load"]
         ui.history_manager.load = MagicMock(return_value=[])
         ui.append_to_output = MagicMock()
+        ui.accumulate_usage(MagicMock(input_tokens=100, output_tokens=50))
 
         result = ui._handle_load_command("/load my-session")
 
         assert result is True
         assert ui.conversation_session_name == "my-session"
+        # The usage meter tracks spend per loaded conversation
+        assert ui.session_token_usage == (0, 0)
 
     def test_handle_load_command_no_name(self, simple_ui_instance):
         """Test _handle_load_command with no name provided."""

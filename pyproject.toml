@@ -1,6 +1,6 @@
 [project]
 name = "zrb"
-version = "2.43.1"
+version = "2.50.3"
 description = "Your Automation Powerhouse"
 authors = [{name = "Go Frendi Gunawan", email = "gofrendiasgard@gmail.com"}]
 license = "AGPL-3.0-or-later"
@@ -9,8 +9,6 @@ keywords = ["Automation", "Task Runner", "Code Generator", "Monorepo", "Low Code
 requires-python = ">=3.11.0,<3.15.0"
 dependencies = [
     "python-dotenv>=1.1.1,<2.0.0",
-    "black>=26.3.1,<27.0.0",
-    "isort>=7.0.0,<8.0.0",
     "beautifulsoup4>=4.14.2,<5.0.0",
     "pdfplumber>=0.11.7,<0.12.0",
     "fastapi[standard]>=0.136.3,<0.137.0",
@@ -26,7 +24,7 @@ dependencies = [
     # Security fix: GHSA-4xgf-cpjx-pc3j - NestedSecretsSettingsSource follows symlinks outside secrets_dir.
     # pydantic-settings is transitive via pydantic-ai-slim → fastmcp-slim → mcp. Pin >=2.14.2.
     "pydantic-settings>=2.14.2",
-    "pydantic-ai-slim[mcp]>=1.106.0,<1.108.0",
+    "pydantic-ai-slim[mcp]>=2.8.0,<2.9.0",
     # NOTE: Make sure the following dependencies are not conflicting with pydantic-ai-slim
     "openai>=2.29.0",
     "prompt-toolkit>=3",
@@ -72,10 +70,14 @@ documentation = "https://github.com/state-alchemists/zrb"
 [project.optional-dependencies]
 # Install all extras:
 # - poetry install --all-extras
-# - pip install "zrb[rag,playwright,cohere,vertexai,google,anthropic,groq,xai,bedrock,huggingface,voyageai]"
+# - pip install "zrb[rag,playwright,cohere,vertexai,google,anthropic,groq,mistral,xai,bedrock,huggingface,voyageai,voice,python]"
 # Install a specific extra:
-# - poetry install -E rag
-# - pip install "zrb[rag]"
+# - poetry install -E voice
+# - pip install "zrb[voice]"
+python = [
+    "black>=26.3.1,<27.0.0",
+    "isort>=7.0.0,<8.0.0",
+]
 #
 # NOTE: Make sure these dependencies do not conflict with pydantic-ai-slim. Security
 # pins on transitive packages are annotated inline on the dependency that carries them.
@@ -90,6 +92,9 @@ vertexai = [
 google = ["google-genai>=1.70.0"]
 anthropic = ["anthropic>=0.108.0"]
 groq = ["groq>=0.25.0"]
+# Security fix (GHSA for supply-chain attack, see pydantic-ai #5382): mistralai==2.4.6 was
+# quarantined on PyPI. We exclude it the same way pydantic-ai-slim's mistral extra does.
+mistral = ["mistralai>=2.0.0,!=2.4.6"]
 xai = [
     "xai-sdk>=1.12.2",
     # Security fix: GHSA-hg6j-4rv6-33pg (CVE-2026-47265) - cross-origin redirect leaks per-request cookies.
@@ -110,6 +115,12 @@ voyageai = [
     # Security fix: GHSA-3644-q5cj-c5c7 (CVE-2026-45134) - unsafe prompt-manifest deserialization.
     # Security fix: GHSA-f4xh-w4cj-qxq8 - TracingMiddleware arbitrary server-side file read.
     "langsmith>=0.8.18",
+]
+voice = [
+    "vosk>=0.3.44,<0.3.45; sys_platform == 'darwin'",
+    "vosk>=0.3.45; sys_platform != 'darwin'",
+    "sounddevice>=0.5.1",
+    "numpy>=1.26.0",
 ]
 
 [project.scripts]

@@ -1,3 +1,4 @@
+import html
 from typing import TYPE_CHECKING
 
 from zrb.attr.type import StrAttr, StrListAttr
@@ -36,15 +37,18 @@ class OptionInput(BaseInput):
         self._options = options if options is not None else []
 
     def to_html(self, shared_ctx: AnySharedContext) -> str:
-        name = self.name
-        description = self.description
+        name = html.escape(self.name)
+        description = html.escape(self.description)
         default = self.get_default_str(shared_ctx)
-        html = [f'<select name="{name}" placeholder="{description}">']
+        lines = [f'<select name="{name}" placeholder="{description}">']
         for value in get_str_list_attr(shared_ctx, self._options, self._auto_render):
             selected = "selected" if value == default else ""
-            html.append(f'<option value="{value}" {selected}>{value}</option>')
-        html.append("</select>")
-        return "\n".join(html)
+            escaped_value = html.escape(value)
+            lines.append(
+                f'<option value="{escaped_value}" {selected}>{escaped_value}</option>'
+            )
+        lines.append("</select>")
+        return "\n".join(lines)
 
     def _prompt_cli_str(self, shared_ctx: AnySharedContext) -> str:
         prompt_message = self.prompt_message

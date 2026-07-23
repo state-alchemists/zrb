@@ -1,6 +1,7 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from zrb import Group, IntInput, StrInput, Task
+from zrb.config.config import CFG
 from zrb.runner.cli import Cli
 
 
@@ -250,3 +251,70 @@ def test_get_run_command_param_quotes_strings_with_spaces():
     # Plain values don't get quoted
     out3 = cli._get_run_command_param("flag", "true")
     assert out3 == "--flag true"
+
+
+def test_conversation_name_printed_at_end(capsys):
+    """A task that stores a conversation name has it echoed to stderr."""
+    cli = Cli()
+
+    def _set_name(ctx):
+        ctx.xcom["__conversation_name__"] = "my-convo"
+        return "ok"
+
+    cli.add_task(Task(name="chatty", action=_set_name))
+    cli.run(str_args=["chatty"])
+    err = capsys.readouterr().err
+    assert "my-convo" in err
+
+
+def test_conversation_name_skipped_when_task_errors():
+    """When the task raises, session is None so the name print is skipped."""
+    cli = Cli()
+
+    def _boom(ctx):
+        raise RuntimeError("boom")
+
+    cli.add_task(Task(name="boom", action=_boom, retries=0))
+    error = None
+    try:
+        cli.run(str_args=["boom"])
+    except Exception as e:
+        error = e
+    assert error is not None
+
+
+def test_version_task_returns_version():
+    """The built-in `version` task returns the configured version string."""
+    from zrb.runner.cli import cli
+
+    result = cli.run(str_args=["version"])
+    assert result == CFG.VERSION
+
+
+def test_start_server_task_builds_and_serves_app():
+    """`server start` wires up the web app and awaits the uvicorn server."""
+    from zrb.runner.cli import cli
+
+    mock_server = MagicMock()
+    mock_server.serve = AsyncMock()
+    with (
+        patch("uvicorn.Config") as mock_config,
+        patch("uvicorn.Server", return_value=mock_server),
+        patch("zrb.runner.web_app.create_web_app") as mock_create,
+        patch("zrb.runner.web_app.configure_uvicorn_logging") as mock_log,
+    ):
+        cli.run(str_args=["server", "start"])
+
+    mock_log.assert_called_once()
+    mock_create.assert_called_once()
+    mock_config.assert_called_once()
+    mock_server.serve.assert_awaited_once()
+
+
+def test_conversation_name_swallows_lookup_error():
+    """A broken xcom lookup is caught, not propagated (defensive branch)."""
+    cli = Cli()
+    session = MagicMock()
+    session.shared_ctx.xcom.get.side_effect = AttributeError("no xcom")
+    # Should not raise despite the lookup blowing up.
+    cli._print_conversation_name(MagicMock(), session)

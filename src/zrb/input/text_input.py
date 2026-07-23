@@ -1,3 +1,4 @@
+import html
 from collections.abc import Callable
 
 from zrb.config.config import CFG
@@ -64,9 +65,9 @@ class TextInput(BaseInput):
         return None
 
     def to_html(self, shared_ctx: AnySharedContext) -> str:
-        name = self.name
-        description = self.description
-        default = self.get_default_str(shared_ctx)
+        name = html.escape(self.name)
+        description = html.escape(self.description)
+        default = html.escape(self.get_default_str(shared_ctx))
         return "\n".join(
             [
                 f'<textarea name="{name}" placeholder="{description}">',

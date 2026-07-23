@@ -72,15 +72,14 @@ async def run_chat_session(
                     session.input_queue.get(),
                     timeout=CFG.LLM_INPUT_QUEUE_TIMEOUT / 1000,
                 )
-            except asyncio.CancelledError:
-                if llm_task and not llm_task.done():
-                    llm_task.cancel()
-                raise
             except asyncio.TimeoutError:
                 if current_task.cancelling() > 0:
-                    if llm_task and not llm_task.done():
-                        llm_task.cancel()
-                    raise
+                    # wait_for's timeout raced with an external cancel() and
+                    # consumed the CancelledError. Re-raising TimeoutError here
+                    # would fall into the generic Exception handler below and
+                    # the task would finish "successfully" despite being
+                    # cancelled — surface it as a real cancellation instead.
+                    raise asyncio.CancelledError()
                 continue
 
             session_manager.set_processing(session.session_id, True)
@@ -94,6 +93,11 @@ async def run_chat_session(
                     "yolo": "false",
                     "attachments": "",
                     "model": "",
+                    # Explicit: without this key the task falls back to the CLI
+                    # input's default (True) and runs the *interactive* branch
+                    # per message — replaying full history to the SSE client and
+                    # tearing down LSP servers / firing SESSION_END hooks every turn.
+                    "interactive": "false",
                 }
             )
             session_obj = Session(shared_ctx=shared_ctx)
@@ -114,14 +118,39 @@ async def run_chat_session(
                         )
                         await llm_task
                         CFG.LOGGER.info("LLM task completed")
+                    except asyncio.CancelledError:
+                        # Cancellation landed while awaiting the run. Awaiting a
+                        # Task does NOT cancel it, so cancel explicitly and wait
+                        # for it to unwind — otherwise the finally below restores
+                        # the shared task's wiring underneath a still-running run.
+                        if llm_task is not None and not llm_task.done():
+                            llm_task.cancel()
+                            try:
+                                await llm_task
+                            except asyncio.CancelledError:
+                                pass
+                            except Exception as unwind_error:
+                                # Don't crash the cancel path, but a failure
+                                # during unwind (e.g. history save) must not
+                                # disappear silently either.
+                                CFG.LOGGER.warning(
+                                    f"LLM task error during cancel-unwind: "
+                                    f"{unwind_error!r}"
+                                )
+                        raise
                     finally:
                         _apply_task_config(llm_chat_task, saved)
             except asyncio.CancelledError:
                 session_manager.set_processing(session.session_id, False)
                 raise
             except Exception as e:
+                # run_llm_message already broadcast the error to the client.
+                # Keep the loop alive: one failed/timed-out request must not kill
+                # the session, or every queued message sits unprocessed until the
+                # browser happens to reopen the SSE stream.
                 CFG.LOGGER.error(f"LLM task error: {e}")
-                raise
+                session_manager.set_processing(session.session_id, False)
+                continue
             session_manager.set_processing(session.session_id, False)
     except asyncio.CancelledError:
         raise
