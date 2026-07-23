@@ -36,6 +36,21 @@ class VoiceEngine:
     def __init__(self) -> None:
         self._transcriber: Callable[[bytes], Coroutine[None, None, str]] | None = None
 
+    @property
+    def is_ready(self) -> bool:
+        """True once a transcriber is resolved (no model download/init needed)."""
+        return self._transcriber is not None
+
+    def is_vosk_model_ready(self) -> bool:
+        """True if the configured Vosk model is already downloaded/extracted."""
+        return _get_vosk_model_dir(CFG.LLM_VOICE_VOSK_MODEL_NAME) is not None
+
+    async def download_vosk_model(self) -> str:
+        """Download+extract the configured Vosk model; return its directory."""
+        return await _download_vosk_model(
+            CFG.LLM_VOICE_VOSK_MODEL_NAME, CFG.LLM_VOICE_VOSK_MODEL_URL
+        )
+
     async def start_listening(self, stop_event: asyncio.Event) -> str:
         """Open the microphone, record until *stop_event* is set, transcribe.
 

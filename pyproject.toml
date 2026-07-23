@@ -157,6 +157,9 @@ exclude = [
 [tool.poetry.group.dev.dependencies]
 autopep8 = "^2.3.2"
 flake8 = "^7.2.0"
+# Pinned exact: pyright ships frequent releases that add diagnostics; a caret
+# range could break the CI type-gate on an unrelated auto-upgrade.
+pyright = "1.1.411"
 # Security fix: CVE-2025-71176 - Local privilege escalation via /tmp/pytest-of-{user} directories.
 pytest = ">=9.0.3"
 pytest-cov = "^6.1.0"

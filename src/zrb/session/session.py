@@ -33,6 +33,7 @@ from zrb.util.cli.style import (
     remove_style,
 )
 from zrb.util.group import get_node_path
+from zrb.util.run import gather_isolated
 from zrb.util.string.name import get_random_name
 from zrb.xcom.xcom import Xcom
 
@@ -206,31 +207,31 @@ class Session(AnySession):
         self._register_single_task(task)
         return self._context[task]
 
+    @staticmethod
+    def _as_task(
+        coro: Coroutine[Any, Any, Any] | asyncio.Task[Any],
+    ) -> asyncio.Task[Any]:
+        """Normalize a coro-or-task into a scheduled Task."""
+        return coro if isinstance(coro, asyncio.Task) else asyncio.create_task(coro)
+
     def defer_monitoring(
         self, task: AnyTask, coro: Coroutine[Any, Any, Any] | asyncio.Task[Any]
     ):
         self._register_single_task(task)
-        if isinstance(coro, asyncio.Task):
-            self._monitoring_coros[task] = coro
-        else:
-            self._monitoring_coros[task] = asyncio.create_task(coro)
+        self._monitoring_coros[task] = self._as_task(coro)
 
     def defer_action(
         self, task: AnyTask, coro: Coroutine[Any, Any, Any] | asyncio.Task[Any]
     ):
         self._register_single_task(task)
-        scheduled = (
-            coro if isinstance(coro, asyncio.Task) else asyncio.create_task(coro)
-        )
+        scheduled = self._as_task(coro)
         if self._is_terminated:
             scheduled.cancel()
             return
         self._action_coros[task] = scheduled
 
     def defer_coro(self, coro: Coroutine[Any, Any, Any] | asyncio.Task[Any]):
-        scheduled = (
-            coro if isinstance(coro, asyncio.Task) else asyncio.create_task(coro)
-        )
+        scheduled = self._as_task(coro)
         if self._is_terminated:
             scheduled.cancel()
             return
@@ -263,19 +264,19 @@ class Session(AnySession):
         while self._coros:
             batch = self._coros
             self._coros = []
-            await asyncio.gather(*batch)
+            await gather_isolated(*batch)
 
     async def _wait_deferred_action(self):
         if len(self._action_coros) == 0:
             return
         task_coros = self._action_coros.values()
-        await asyncio.gather(*task_coros)
+        await gather_isolated(*task_coros)
 
     async def _wait_deferred_monitoring(self):
         if len(self._monitoring_coros) == 0:
             return
         task_coros = self._monitoring_coros.values()
-        await asyncio.gather(*task_coros)
+        await gather_isolated(*task_coros)
 
     def register_task(self, task: AnyTask):
         self._register_task_graph(task, set())

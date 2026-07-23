@@ -5,6 +5,8 @@ import uuid
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, TextIO
 
+from zrb.config.config import CFG
+
 if TYPE_CHECKING:
     from zrb.llm.tool_call.ui_protocol import ChoiceSpec
 
@@ -290,8 +292,8 @@ async def _fire_subagent_hook(event: HookEvent, agent_name: str, agent_id: str) 
             agent_type=agent_name,
             agent_id=agent_id,
         )
-    except Exception:
-        pass
+    except Exception as e:
+        CFG.LOGGER.debug(f"Delegation hook '{event}' failed: {e}")
 
 
 def _delegatable_agents(sub_agent_manager: SubAgentManager) -> list:

@@ -4,6 +4,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
@@ -228,8 +229,8 @@ class SubAgentManager(LoaderMixin, SearchMixin):
         if definition.agent_factory:
             try:
                 return definition.agent_factory()
-            except Exception:
-                pass
+            except Exception as e:
+                CFG.LOGGER.debug(f"Sub-agent factory '{name}' failed: {e}")
 
         if ctx is None:
 

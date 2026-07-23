@@ -630,22 +630,20 @@ async def test_voice_ptt_vosk_downloads_model_first(mock_ui, setup_bindings):
     """The vosk backend downloads the model on first use before recording."""
     mock_ui._voice_mode_active = True
     fake_engine = MagicMock()
-    fake_engine._transcriber = None
+    fake_engine.is_ready = False
+    fake_engine.is_vosk_model_ready = MagicMock(return_value=False)
+    fake_engine.download_vosk_model = AsyncMock()
     fake_engine.start_listening = AsyncMock(return_value="hi")
     event = create_mock_event()
 
     with (
         patch("zrb.llm.voice.VoiceEngine", return_value=fake_engine),
-        patch("zrb.llm.voice.engine._get_vosk_model_dir", return_value=None),
-        patch(
-            "zrb.llm.voice.engine._download_vosk_model", new_callable=AsyncMock
-        ) as mock_dl,
         patch.dict(os.environ, {"ZRB_LLM_VOICE_MODE": "vosk"}),
     ):
         trigger_binding(setup_bindings, " ", event)
         await _drain(mock_ui)
 
-    mock_dl.assert_awaited_once()
+    fake_engine.download_vosk_model.assert_awaited_once()
     assert any("Downloading voice model" in o for o in mock_ui.outputs)
     assert any("Voice model ready" in o for o in mock_ui.outputs)
 
@@ -655,18 +653,14 @@ async def test_voice_ptt_vosk_download_error_aborts(mock_ui, setup_bindings):
     """A model-download failure surfaces and skips recording."""
     mock_ui._voice_mode_active = True
     fake_engine = MagicMock()
-    fake_engine._transcriber = None
+    fake_engine.is_ready = False
+    fake_engine.is_vosk_model_ready = MagicMock(return_value=False)
+    fake_engine.download_vosk_model = AsyncMock(side_effect=RuntimeError("net down"))
     fake_engine.start_listening = AsyncMock(return_value="hi")
     event = create_mock_event()
 
     with (
         patch("zrb.llm.voice.VoiceEngine", return_value=fake_engine),
-        patch("zrb.llm.voice.engine._get_vosk_model_dir", return_value=None),
-        patch(
-            "zrb.llm.voice.engine._download_vosk_model",
-            new_callable=AsyncMock,
-            side_effect=RuntimeError("net down"),
-        ),
         patch.dict(os.environ, {"ZRB_LLM_VOICE_MODE": "vosk"}),
     ):
         trigger_binding(setup_bindings, " ", event)

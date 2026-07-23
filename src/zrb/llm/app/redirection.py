@@ -107,6 +107,7 @@ class GlobalStreamCapture:
                 # especially when FD 1 has been redirected.
                 return open("CONOUT$", "w", encoding="utf-8", errors="replace")
             except Exception:
+                # Best-effort Windows path; fall through to the portable os.dup.
                 pass
         new_fd = os.dup(self.original_stdout_fd)
         return os.fdopen(

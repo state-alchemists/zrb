@@ -141,8 +141,8 @@ class LifecycleMixin:
             for _key, server in list(self._servers.items()):
                 try:
                     await server.stop()
-                except Exception:
-                    pass
+                except Exception as e:
+                    CFG.LOGGER.debug(f"LSP server stop failed during shutdown: {e}")
             self._servers.clear()
             self._project_roots.clear()
 

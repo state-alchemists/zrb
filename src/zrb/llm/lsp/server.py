@@ -153,8 +153,8 @@ class LSPServer(OperationsMixin):
                     self.writer.close()
                     await self.writer.wait_closed()
 
-            except Exception:
-                pass
+            except Exception as e:
+                CFG.LOGGER.debug(f"LSP graceful exit failed; forcing terminate: {e}")
 
             finally:
                 try:

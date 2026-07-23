@@ -85,8 +85,8 @@ def get_default_prompt(name: str) -> str:
             try:
                 with open(base_prompt_path, "r", encoding="utf-8") as f:
                     return f.read()
-            except Exception:
-                pass
+            except Exception as e:
+                CFG.LOGGER.debug(f"Failed to read prompt {base_prompt_path}: {e}")
 
     # 4. Fallback to package default (cached — bundled files never change at runtime)
     return _read_package_prompt(name)
@@ -103,8 +103,8 @@ def _find_custom_prompt(name: str, cwd: str, prompt_dir: str) -> str:
             try:
                 with open(local_prompt_path, "r", encoding="utf-8") as f:
                     return f.read()
-            except Exception:
-                pass
+            except Exception as e:
+                CFG.LOGGER.debug(f"Failed to read prompt {local_prompt_path}: {e}")
     return ""
 
 

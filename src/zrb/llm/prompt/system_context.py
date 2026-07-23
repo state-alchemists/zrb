@@ -218,5 +218,6 @@ def _detect_infra_types(cwd: str, home: str) -> tuple[str, ...]:
         if os.path.isdir(os.path.join(home, ".azure")):
             found.append("Azure")
     except Exception:
+        # Best-effort tooling detection; skip silently if home is unreadable.
         pass
     return tuple(found)

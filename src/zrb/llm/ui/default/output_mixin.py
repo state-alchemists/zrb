@@ -155,6 +155,8 @@ class OutputMixin:
             cursor = self._output_field.buffer.cursor_position
             is_at_last_line = current_text.find("\n", cursor) == -1
         except Exception:
+            # Per-chunk render hot path; default to "at last line" if the
+            # buffer isn't queryable rather than logging on every token.
             pass
         should_scroll_to_end = is_at_last_line
 

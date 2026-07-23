@@ -14,6 +14,8 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
+from zrb.config.config import CFG
+
 
 def make_yolo_inheritance_checker() -> Callable[..., bool]:
     """Return a callable that reports the current effective YOLO mode.
@@ -71,8 +73,8 @@ def make_yolo_inheritance_checker() -> Callable[..., bool]:
             ui = get_current_ui()
             if ui is not None and hasattr(ui, "yolo"):
                 return bool(getattr(ui, "yolo"))
-        except Exception:
-            pass
+        except Exception as e:
+            CFG.LOGGER.debug(f"Could not read UI yolo state: {e}")
         return False
 
     return check_yolo_inheritance

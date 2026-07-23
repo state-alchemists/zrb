@@ -27,6 +27,9 @@ class TaskStatus:
     def reset_history(self):
         self._history = []
 
+    def _record(self, status: str):
+        self._history.append((status, datetime.datetime.now()))
+
     def reset(self):
         self._is_started = False
         self._is_ready = False
@@ -34,38 +37,38 @@ class TaskStatus:
         self._is_skipped = False
         self._is_failed = False
         self._is_permanently_failed = False
-        self._history.append((TASK_RESET, datetime.datetime.now()))
+        self._record(TASK_RESET)
 
     def mark_as_started(self):
         self._is_failed = False
         self._is_started = True
-        self._history.append((TASK_STARTED, datetime.datetime.now()))
+        self._record(TASK_STARTED)
 
     def mark_as_failed(self):
         self._is_failed = True
-        self._history.append((TASK_FAILED, datetime.datetime.now()))
+        self._record(TASK_FAILED)
 
     def mark_as_ready(self):
         self._is_ready = True
-        self._history.append((TASK_READY, datetime.datetime.now()))
+        self._record(TASK_READY)
 
     def mark_as_completed(self):
         self._is_completed = True
-        self._history.append((TASK_COMPLETED, datetime.datetime.now()))
+        self._record(TASK_COMPLETED)
 
     def mark_as_skipped(self):
         self._is_skipped = True
-        self._history.append((TASK_SKIPPED, datetime.datetime.now()))
+        self._record(TASK_SKIPPED)
 
     def mark_as_permanently_failed(self):
         self._is_permanently_failed = True
-        self._history.append((TASK_PERMANENTLY_FAILED, datetime.datetime.now()))
+        self._record(TASK_PERMANENTLY_FAILED)
 
     def mark_as_terminated(self):
         if not self._is_terminated:
             self._is_terminated = True
             if not (self.is_skipped or self.is_completed or self.is_permanently_failed):
-                self._history.append((TASK_TERMINATED, datetime.datetime.now()))
+                self._record(TASK_TERMINATED)
 
     @property
     def is_started(self) -> bool:

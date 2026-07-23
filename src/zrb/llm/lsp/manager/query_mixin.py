@@ -11,6 +11,7 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 
+from zrb.config.config import CFG
 from zrb.llm.lsp.manager.symbol_utils import format_document_symbols, uri_to_path
 from zrb.llm.lsp.no_server_error import no_server_error
 from zrb.llm.lsp.protocol import SymbolKind
@@ -76,8 +77,8 @@ class QueryMixin:
                         "path": uri_to_path(uri),
                         "range": rng,
                     }
-        except Exception:
-            pass
+        except Exception as e:
+            CFG.LOGGER.debug(f"LSP definition query failed: {e}")
 
         # Fallback: workspace symbol search, for servers that support it well
         # (gopls, rust-analyzer, typescript-language-server, clangd, jdtls).
@@ -107,8 +108,8 @@ class QueryMixin:
                         "range": location.get("range", {}),
                         "container": best.get("containerName", ""),
                     }
-        except Exception:
-            pass
+        except Exception as e:
+            CFG.LOGGER.debug(f"LSP symbol lookup failed: {e}")
 
         return {
             "found": False,
@@ -161,8 +162,8 @@ class QueryMixin:
                     "count": len(locations),
                     "references": locations,
                 }
-        except Exception:
-            pass
+        except Exception as e:
+            CFG.LOGGER.debug(f"LSP references query failed: {e}")
 
         return {
             "found": False,
@@ -220,8 +221,8 @@ class QueryMixin:
                     "count": len(results),
                     "diagnostics": results,
                 }
-        except Exception:
-            pass
+        except Exception as e:
+            CFG.LOGGER.debug(f"LSP diagnostics query failed: {e}")
 
         return {
             "found": False,
@@ -249,8 +250,8 @@ class QueryMixin:
                     "count": len(results),
                     "symbols": results,
                 }
-        except Exception:
-            pass
+        except Exception as e:
+            CFG.LOGGER.debug(f"LSP document-symbols query failed: {e}")
 
         return {
             "found": False,
@@ -362,8 +363,8 @@ class QueryMixin:
                     "character": character,
                     "info": content.strip(),
                 }
-        except Exception:
-            pass
+        except Exception as e:
+            CFG.LOGGER.debug(f"LSP hover query failed: {e}")
 
         return {
             "found": False,
@@ -442,8 +443,8 @@ class QueryMixin:
                     "total_edits": total_edits,
                     "changes": "Applied" if applied else "not_applied",
                 }
-        except Exception:
-            pass
+        except Exception as e:
+            CFG.LOGGER.debug(f"LSP rename query failed: {e}")
 
         return {
             "success": False,
@@ -477,8 +478,8 @@ class QueryMixin:
                     if sym.get("name") == symbol_name:
                         candidate_line = sym.get("line", 1) - 1
                         break
-        except Exception:
-            pass
+        except Exception as e:
+            CFG.LOGGER.debug(f"LSP symbol-line resolution failed: {e}")
 
         # 2. Resolve the exact column on the identifier. Try the candidate line
         #    first, then fall back to the first occurrence anywhere in the file.
@@ -493,7 +494,7 @@ class QueryMixin:
                 match = ident.search(line)
                 if match:
                     return (i, match.start())
-        except Exception:
-            pass
+        except Exception as e:
+            CFG.LOGGER.debug(f"LSP symbol-position search failed: {e}")
 
         return None

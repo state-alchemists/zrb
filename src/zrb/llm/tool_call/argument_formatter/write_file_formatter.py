@@ -3,6 +3,7 @@ import json
 import os
 from typing import TYPE_CHECKING
 
+from zrb.config.config import CFG
 from zrb.llm.tool_call.argument_formatter.util import format_diff
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 from zrb.util.cli.markdown import render_markdown
@@ -55,8 +56,8 @@ def _format_single_write(path: str, new_content: str, mode: str, ui) -> str | No
         try:
             with open(abs_path, "r", encoding="utf-8") as f:
                 old_content = f.read()
-        except Exception:
-            pass
+        except Exception as e:
+            CFG.LOGGER.debug(f"Failed to read existing content of {abs_path}: {e}")
 
     final_new_content = new_content
     if mode == "a":

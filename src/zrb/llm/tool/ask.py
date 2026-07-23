@@ -17,6 +17,7 @@ from __future__ import annotations
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, cast
 
+from zrb.config.config import CFG
 from zrb.llm.tool.wrapper import tool_safe_async
 from zrb.llm.tool_call.always_approve import register_always_auto_approve
 
@@ -134,8 +135,8 @@ async def _notify_question_pending(questions: list[dict[str, Any]]) -> None:
             message="Waiting for your answer to a question",
             notification_type="elicitation_dialog",
         )
-    except Exception:
-        pass
+    except Exception as e:
+        CFG.LOGGER.debug(f"Notification hook for ask failed: {e}")
 
 
 def _build_choice_spec(idx: int, total: int, q: dict[str, Any]) -> dict[str, Any]:

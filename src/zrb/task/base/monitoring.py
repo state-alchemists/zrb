@@ -139,6 +139,8 @@ async def _handle_threshold_reached(
             if current is not None and current.cancelling() > 0:
                 raise
         except Exception:
+            # The action we just cancelled may surface its own error while
+            # unwinding; it's already handled by the retry loop — ignore here.
             pass
 
     ctx.log_info("Resetting task status.")

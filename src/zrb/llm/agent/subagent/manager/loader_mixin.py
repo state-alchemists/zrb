@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 
 import yaml
 
+from zrb.config.config import CFG
 from zrb.util.asset_scanner import scan_files
 from zrb.util.load import load_module_from_path
 
@@ -40,8 +41,8 @@ class LoaderMixin:
                 self._on_file_found,
                 self._ignore_dirs,
             )
-        except Exception:
-            pass
+        except Exception as e:
+            CFG.LOGGER.debug(f"Failed to scan agent directory {directory}: {e}")
 
     def _on_file_found(self, item: Path) -> None:
         full_path = str(item)
@@ -104,8 +105,8 @@ class LoaderMixin:
                     system_prompt="",
                     agent_factory=module.get_agent,
                 )
-        except Exception:
-            pass
+        except Exception as e:
+            CFG.LOGGER.debug(f"Failed to load Python agent {full_path}: {e}")
 
     def _load_agent_from_markdown(self, rel_path: str, full_path: str) -> None:
         # lazy: zrb internal (heavy via transitive / circular)
@@ -175,8 +176,8 @@ class LoaderMixin:
                                     for s in raw_inherit.split(",")
                                     if s.strip()
                                 ]
-                except Exception:
-                    pass
+                except Exception as e:
+                    CFG.LOGGER.debug(f"Failed to parse agent frontmatter: {e}")
 
             # 2. Fallback: H1 in markdown body, full file as system prompt.
             if not is_name_resolved:
@@ -199,5 +200,5 @@ class LoaderMixin:
                 disallowed_tools=disallowed_tools,
                 inherit_sections=inherit_sections,
             )
-        except Exception:
-            pass
+        except Exception as e:
+            CFG.LOGGER.debug(f"Failed to load Markdown agent {full_path}: {e}")

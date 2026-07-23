@@ -11,6 +11,18 @@ fi
 # because it carries pre-existing unused-import noise.
 flake8 src/zrb --select=F
 
+# Complexity ratchet: fail if any function exceeds the current worst (mccabe 47,
+# setup_app_keybindings). This blocks NEW hot-spots from landing without failing
+# on today's code; tighten the number as offenders are refactored down.
+flake8 src/zrb --select=C901 --max-complexity=47
+
+# Static type check. pyright is clean in "standard" mode (pyrightconfig.json);
+# keep it that way. Run only on a full pass — it type-checks the whole tree
+# regardless of the path args, so gating it per-file would be misleading.
+if [ "$#" -eq 0 ]; then
+    pyright src/zrb
+fi
+
 # Enforce the documented >=90% coverage bar, but only on a FULL run. A scoped run
 # (one or more paths passed in) exercises only part of the tree, so a global
 # threshold would fail spuriously there.

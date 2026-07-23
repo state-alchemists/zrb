@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from zrb.config.config import CFG
 from zrb.llm.config.config import llm_config as _llm_config
 from zrb.util.cli.style import stylize_muted
 
@@ -198,8 +199,8 @@ class ModelCommandsMixin:
                     self._model = model_name
                     try:
                         self._llm_task.prompt_manager.model = model_name
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        CFG.LOGGER.debug(f"Failed to set prompt-manager model: {e}")
                     self.append_to_output(
                         stylize_muted(f"\n  🤖 Model switched to: {model_name}\n")
                     )

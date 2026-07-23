@@ -237,6 +237,8 @@ async def run_command(
             )
             kill_pid(cmd_process.pid, print_method=actual_print_method)
         except Exception:
+            # Cleanup path during unwind; swallow secondary errors and re-raise
+            # the original exception below.
             pass
         raise
     finally:
