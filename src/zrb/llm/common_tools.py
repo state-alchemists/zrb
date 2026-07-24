@@ -129,7 +129,7 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
     ToolGuidance(
         group_name="Execution",
         tool_name="Shell",
-        when_to_use="Running any shell command (Bash runs the same under bash)",
+        when_to_use="Running any shell command (may be exposed as `Shell` or `Bash` — same tool)",
         key_rule="For file I/O, use Read/Write/Edit/Grep/RM/MV — not Shell. "
         "System Context already lists time, OS, CWD, and available tools — read from there before running commands to discover them. "
         "For long-running processes (dev servers, watchers, builds), run with background=True instead of blocking.",
