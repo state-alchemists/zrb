@@ -18,7 +18,6 @@ The tree is self-describing — `ls src/zrb/` plus each module's docstring cover
 - `src/zrb/llm/` — LLM integration. `task/llm_task.py` (`LLMTask`) and `task/chat/task.py` (`LLMChatTask`) are `BaseTask` subclasses that create pydantic-ai agents internally. `prompt/` composes the system prompt; `tool/` ships agent-callable tools; `agent/subagent/` handles delegation; `common_tools.py` registers the shared baseline used by `LLMChatTask`, `LLMTask`, and `SubAgentManager`.
 - `src/zrb/llm_plugin/` — built-in LLM plugin, split into three categories: `core_skills/` (always-on methodology baseline the utility skills delegate into), `skills/` (utility skills, gated by `CFG.LLM_ENABLE_BUILTIN_SKILLS`), and `agents/` (sub-agents, gated by `CFG.LLM_ENABLE_BUILTIN_AGENTS`). Each skill is `SKILL.md` or `SKILL.py`; each agent is `*.agent.md`. The toggles suppress only built-in content — user/project/plugin skills and agents always load. See ADR-0069.
 - `test/` — mirrors `src/` hierarchy
-- `llm-challenges/runner.py` — agent framework evaluation
 
 > For a top-down tour of `zrb llm chat "..."` (CLI → task → agent run → UI → history), see `docs/advanced-topics/llm-chat-lifecycle.md`.
 
