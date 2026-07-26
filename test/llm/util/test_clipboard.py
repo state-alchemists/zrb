@@ -461,8 +461,9 @@ def test_copy_text_success(clean_env):
     """copy_text returns True when pyperclip.copy succeeds."""
     fake_pyperclip = MagicMock()
 
-    with patch.dict("sys.modules", {"pyperclip": fake_pyperclip}), patch(
-        "zrb.config.helper.is_termux", return_value=False
+    with (
+        patch.dict("sys.modules", {"pyperclip": fake_pyperclip}),
+        patch("zrb.config.helper.is_termux", return_value=False),
     ):
         result = copy_text("hello world")
 
@@ -478,8 +479,9 @@ def test_copy_text_falls_back_to_osc52(clean_env):
 
     mock_pyperclip = MagicMock()
     mock_pyperclip.copy.side_effect = Exception("clipboard unavailable")
-    with patch.dict("sys.modules", {"pyperclip": mock_pyperclip}), patch(
-        "zrb.config.helper.is_termux", return_value=False
+    with (
+        patch.dict("sys.modules", {"pyperclip": mock_pyperclip}),
+        patch("zrb.config.helper.is_termux", return_value=False),
     ):
         result = copy_text("hello")
 
@@ -501,8 +503,9 @@ def test_copy_text_osc52_tmux_passthrough(clean_env):
 
     mock_pyperclip = MagicMock()
     mock_pyperclip.copy.side_effect = Exception("clipboard unavailable")
-    with patch.dict("sys.modules", {"pyperclip": mock_pyperclip}), patch(
-        "zrb.config.helper.is_termux", return_value=False
+    with (
+        patch.dict("sys.modules", {"pyperclip": mock_pyperclip}),
+        patch("zrb.config.helper.is_termux", return_value=False),
     ):
         result = copy_text("test")
 
@@ -519,8 +522,9 @@ def test_copy_text_fails_when_no_tty_and_no_pyperclip(clean_env):
 
     mock_pyperclip = MagicMock()
     mock_pyperclip.copy.side_effect = Exception("clipboard unavailable")
-    with patch.dict("sys.modules", {"pyperclip": mock_pyperclip}), patch(
-        "zrb.config.helper.is_termux", return_value=False
+    with (
+        patch.dict("sys.modules", {"pyperclip": mock_pyperclip}),
+        patch("zrb.config.helper.is_termux", return_value=False),
     ):
         result = copy_text("hello")
 
@@ -534,9 +538,12 @@ def test_copy_text_termux_success(clean_env):
     mock_proc = MagicMock()
     mock_proc.returncode = 0
 
-    with patch("zrb.config.helper.is_termux", return_value=True), patch(
-        "zrb.llm.util.clipboard.subprocess.run", return_value=mock_proc
-    ) as mock_run:
+    with (
+        patch("zrb.config.helper.is_termux", return_value=True),
+        patch(
+            "zrb.llm.util.clipboard.subprocess.run", return_value=mock_proc
+        ) as mock_run,
+    ):
         result = copy_text("hello termux")
 
     assert result is True
@@ -556,9 +563,11 @@ def test_copy_text_termux_fallback_to_pyperclip(clean_env):
 
     fake_pyperclip = MagicMock()
 
-    with patch("zrb.config.helper.is_termux", return_value=True), patch(
-        "zrb.llm.util.clipboard.subprocess.run", return_value=mock_proc
-    ), patch.dict("sys.modules", {"pyperclip": fake_pyperclip}):
+    with (
+        patch("zrb.config.helper.is_termux", return_value=True),
+        patch("zrb.llm.util.clipboard.subprocess.run", return_value=mock_proc),
+        patch.dict("sys.modules", {"pyperclip": fake_pyperclip}),
+    ):
         result = copy_text("hello")
 
     assert result is True
