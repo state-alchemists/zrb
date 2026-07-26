@@ -1,11 +1,12 @@
 """
-Cross-platform clipboard image reading.
+Cross-platform clipboard image reading and text writing.
 
 Priority order per platform:
   macOS   : Pillow ImageGrab  →  osascript fallback
   Windows : Pillow ImageGrab  (only option; shows hint if Pillow missing)
   WSL     : powershell.exe  →  wl-paste (multi-type)  →  xclip
   Linux   : wl-paste (Wayland, multi-type)  →  xclip (X11)
+  Termux  : termux-clipboard-set  →  pyperclip  →  OSC 52
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ import base64
 import io
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 
@@ -205,11 +207,32 @@ async def _run(cmd: list[str]) -> bytes | None:
 def copy_text(text: str) -> bool:
     """Copy text to system clipboard.
 
-    Uses ``pyperclip`` (the project's existing clipboard backend) when
-    available, with an OSC 52 terminal-escape fallback that works over
-    SSH. Returns ``True`` if the text was successfully placed on the
-    clipboard.
+    Tries the following in order, returning ``True`` on the first success:
+
+    1. **Termux** — ``termux-clipboard-set`` (native Android clipboard).
+    2. **pyperclip** — the project's existing clipboard backend (xclip /
+       xsel / pbcopy / …).
+    3. **OSC 52** — terminal escape that works over SSH when the terminal
+       emulator supports it.
+
+    Returns ``True`` if the text was successfully placed on the clipboard.
     """
+    # lazy: internal helper; cheap but avoids top-level import
+    from zrb.config.helper import is_termux
+
+    if is_termux():
+        try:
+            proc = subprocess.run(
+                ["termux-clipboard-set", text],
+                timeout=3,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            if proc.returncode == 0:
+                return True
+        except Exception:
+            pass
     try:
         # lazy: heavy third-party
         import pyperclip  # type: ignore[import]
