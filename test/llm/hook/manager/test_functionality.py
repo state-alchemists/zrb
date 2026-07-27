@@ -221,19 +221,10 @@ async def test_async_command_hook_is_non_blocking():
     assert results == []  # fire-and-forget contributes no result
 
     # Clean up: the background "sleep 5" subprocess must be killed before the
-    # test ends, otherwise it leaks across tests.  Cancel the background task,
-    # then wait with a short timeout — the CancelledError handler in the hook
-    # kills the subprocess, but CPython's _make_subprocess_transport._wait()
-    # can hang if cancellation hits mid-transport-init.  The timeout prevents
-    # this hang from blocking the run.
-    for task in manager._background_tasks:
-        task.cancel()
-    if manager._background_tasks:
-        await asyncio.wait(
-            manager._background_tasks,
-            timeout=2.0,
-            return_when=asyncio.ALL_COMPLETED,
-        )
+    # test ends, otherwise it leaks across tests. shutdown() cancels the task —
+    # the hook's own CancelledError handler kills the process tree — and bounds
+    # the wait, so a hook that refuses to unwind cannot hang the run.
+    await manager.shutdown()
 
 
 @pytest.mark.asyncio
@@ -332,3 +323,52 @@ def test_get_search_directories_dedups_home_and_project(tmp_path, monkeypatch):
 
     assert len(resolved) == len(set(resolved)), f"duplicate search paths: {resolved}"
     assert str((claude_dir / "settings.json").resolve()) in resolved
+
+
+@pytest.mark.asyncio
+async def test_shutdown_cancels_background_hooks_and_kills_their_subprocesses():
+    """A detached async hook must not outlive the session that spawned it.
+
+    Its subprocess runs in its own session/process group (needed so a timeout can
+    kill the whole tree), which means the terminal's Ctrl+C SIGINT never reaches
+    it. shutdown() cancels the task so the command hook's cancellation handler
+    kills the tree; the sentinel proves nothing survived to do its work.
+    """
+    import os
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        sentinel = os.path.join(tmp, "survived")
+        manager = HookManager(search_dirs=[])
+        manager.parse_and_register(
+            {
+                "name": "slow-async",
+                "events": ["Stop"],
+                "type": "command",
+                "async": True,
+                # Subshell so the work is done by a process that outlives a
+                # parent-only kill (see test_hook_creators.py).
+                "config": {
+                    "command": f"( sleep 0.5; touch {sentinel} ) & wait",
+                    "shell": True,
+                },
+            },
+            "test",
+        )
+
+        await manager.execute_hooks(HookEvent.STOP, {})
+        assert manager.has_pending_background_hooks
+
+        await manager.shutdown()
+
+        assert not manager.has_pending_background_hooks
+        await asyncio.sleep(1.0)  # past the subprocess's own sleep
+        assert not os.path.exists(sentinel), "background hook outlived shutdown"
+
+
+@pytest.mark.asyncio
+async def test_shutdown_is_a_noop_when_nothing_is_pending():
+    manager = HookManager(search_dirs=[])
+    await manager.shutdown()
+    assert not manager.has_pending_background_hooks
+    await manager.shutdown()  # idempotent

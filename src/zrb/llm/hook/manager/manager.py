@@ -283,6 +283,45 @@ class HookManager(HookLoaderMixin):
         task.add_done_callback(self._background_tasks.discard)
         return True
 
+    @property
+    def has_pending_background_hooks(self) -> bool:
+        """True while any fire-and-forget hook task is still running."""
+        return any(not task.done() for task in self._background_tasks)
+
+    async def shutdown(self, grace_seconds: float = 2.0) -> None:
+        """Cancel in-flight fire-and-forget hooks and wait for them to settle.
+
+        Async ("fire-and-forget") hooks run detached, and their subprocesses run
+        in their own session/process group — so the terminal's Ctrl+C SIGINT does
+        not reach them. Without this, a slow async hook (an audio notifier, say)
+        outlives the session that spawned it. Cancelling the task makes the
+        command hook's own cancellation handler kill its process tree.
+
+        Waits at most ``grace_seconds`` so shutdown can never block on a hook
+        that refuses to unwind. Safe to call when nothing is pending, and safe to
+        call repeatedly.
+        """
+        tasks = [task for task in self._background_tasks if not task.done()]
+        for task in tasks:
+            task.cancel()
+        if tasks:
+            try:
+                await asyncio.wait_for(
+                    asyncio.gather(*tasks, return_exceptions=True),
+                    timeout=grace_seconds,
+                )
+            except asyncio.TimeoutError:
+                logger.debug(
+                    "%d background hook(s) did not settle within %ss",
+                    len(tasks),
+                    grace_seconds,
+                )
+        self._background_tasks.clear()
+        # The semaphore is bound to the loop that created it; dropping it lets a
+        # later session on a fresh loop build its own instead of awaiting a
+        # semaphore attached to a closed one.
+        self._bg_semaphore = None
+
     async def _run_background_hook(
         self, hook: HookCallable, context: HookContext
     ) -> None:

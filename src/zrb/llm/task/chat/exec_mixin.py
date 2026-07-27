@@ -302,6 +302,17 @@ class ExecMixin:
         except Exception as e:
             CFG.LOGGER.debug(f"LSP shutdown at session end failed: {e}")
         # lazy: only needed at session end; keeps the hook import off hot paths.
+        # Order matters: cancel the detached async hooks first so their
+        # cancellation handlers can kill their process trees, then release the
+        # worker pool. Their subprocesses are in their own process group and so
+        # never receive the terminal's Ctrl+C — this is what stops them
+        # outliving the session.
+        try:
+            from zrb.llm.hook.manager import hook_manager
+
+            await hook_manager.shutdown()
+        except Exception as e:
+            CFG.LOGGER.debug(f"Background-hook shutdown at session end failed: {e}")
         try:
             from zrb.llm.hook.executor import shutdown_hook_executor
 

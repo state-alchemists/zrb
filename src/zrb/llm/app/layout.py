@@ -25,7 +25,6 @@ from prompt_toolkit.lexers import Lexer
 from prompt_toolkit.mouse_events import MouseEventType
 from prompt_toolkit.widgets import Frame, TextArea
 
-from zrb.config.config import CFG
 from zrb.llm.app.completion import InputCompleter
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
@@ -91,9 +90,8 @@ def create_input_field(
             return min(max(line_count, 1), 10)
 
     text_area = DynamicHeightTextArea(
-        prompt=HTML(
-            f'<style color="{CFG.LLM_UI_STYLE_PROMPT}"><b>&gt;&gt;&gt; </b></style>'
-        ),
+        # No prompt marker: the framed input panel already shows where to type,
+        # and dropping it returns those columns to the first wrapped line.
         multiline=True,
         wrap_lines=True,
         history=history,
@@ -225,11 +223,12 @@ def create_layout(
     extra_floats: list[Float] | None = None,
     agent_activity_text: Callable[[], AnyFormattedText] | None = None,
 ) -> Layout:
+    # Style classes, not inlined colors (see create_style). `.format()` rather
+    # than an f-string so a title or jargon containing `<` or `&` is escaped
+    # instead of being parsed as markup.
     title_bar_text = HTML(
-        f" <style bg='{CFG.LLM_UI_STYLE_TITLE_BAR_BG}' "
-        f"color='{CFG.LLM_UI_STYLE_TITLE_BAR}'><b> {title} </b></style> "
-        f"<style color='{CFG.LLM_UI_STYLE_FAINT}'>| {jargon}</style>"
-    )
+        " <title-text><b> {} </b></title-text> <faint>| {}</faint>"
+    ).format(title, jargon)
 
     # Sub-agent activity panel: one line per running delegate, just above the
     # status bar. ConditionalContainer collapses it to nothing when idle.

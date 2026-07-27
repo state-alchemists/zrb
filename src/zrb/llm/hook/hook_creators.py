@@ -302,15 +302,20 @@ def _kill_process_tree(process: subprocess.Popen) -> None:
     exits on its own. The hook returns its timeout result, but the thread stays
     pinned: enough timed-out hooks and the pool has no free workers left.
 
-    POSIX: signal the process group (``start_new_session=True`` above made the
-    child its own leader, so this cannot reach our own group). Elsewhere, or if
-    the group is already gone, fall back to psutil's recursive child walk.
+    POSIX: signal the process group. Elsewhere, or if the group is already gone,
+    fall back to psutil's recursive child walk.
+
+    Both tree kills are aimed by pid, so both are catastrophic if handed a pid
+    that is not a child: ``killpg`` on our own group, or ``kill_pid`` on our own
+    pid, SIGKILLs the running process. ``start_new_session=True`` on the Popen
+    is what makes the group distinct — but this verifies it rather than trusting it, and
+    skips *both* tree kills for a pid that is or shares us.
 
     Never raises. This runs on the timeout and cancellation paths, where an
     escaping error would be swallowed by the outer handler — turning a
     ``CancelledError`` that must propagate into an ordinary failed HookResult.
     """
-    pid = getattr(process, "pid", None)
+    pid = _safe_tree_kill_pid(process)
     group_killed = False
     if pid is not None and hasattr(os, "killpg"):
         try:
@@ -328,11 +333,38 @@ def _kill_process_tree(process: subprocess.Popen) -> None:
         except Exception as e:
             logger.debug(f"Failed to kill hook process tree {pid}: {e}")
     # Always signal the direct child too: it is the only handle that exists on
-    # Windows, and the last resort if both tree kills failed.
+    # Windows, and the last resort if both tree kills failed. Safe regardless of
+    # the checks above — Popen.kill only ever targets its own child.
     try:
         process.kill()
     except Exception as e:
         logger.debug(f"Failed to kill hook process: {e}")
+
+
+def _safe_tree_kill_pid(process: subprocess.Popen) -> int | None:
+    """The pid to aim a tree kill at, or None when no tree kill is safe.
+
+    Returns None for a missing pid, our own pid, or a pid sharing our process
+    group — each of which would make ``killpg``/``kill_pid`` SIGKILL this process.
+    """
+    pid = getattr(process, "pid", None)
+    if not isinstance(pid, int):
+        return None
+    if pid == os.getpid():
+        logger.debug(f"refusing tree kill: hook pid {pid} is the current process")
+        return None
+    try:
+        if hasattr(os, "getpgid") and os.getpgid(pid) == os.getpgid(0):
+            logger.debug(
+                f"refusing tree kill: hook pid {pid} shares the current process "
+                "group — is start_new_session still set on the hook Popen?"
+            )
+            return None
+    except Exception as e:
+        # Cannot determine the group (already reaped, or no getpgid): the
+        # per-process fallback below is still safe, the group kill is not.
+        logger.debug(f"could not read process group for hook pid {pid}: {e}")
+    return pid
 
 
 def create_prompt_hook(config: PromptHookConfig) -> HookCallable:

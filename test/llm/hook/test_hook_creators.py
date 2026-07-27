@@ -780,3 +780,50 @@ async def test_agent_hook_exception_returns_failure():
 
     assert result.success is False
     assert "boom" in (result.output or "")
+
+
+def test_kill_process_tree_never_targets_zrb_itself():
+    """No tree kill may be aimed at zrb's own pid or process group.
+
+    Both vectors SIGKILL the running zrb: `killpg` on our group, and `kill_pid`
+    (psutil, recursive) on our pid. `start_new_session=True` on the hook Popen is
+    what keeps the group distinct, but this verifies rather than trusts it.
+
+    Regression: an earlier guard blocked only the killpg vector and then fell
+    through to kill_pid with the same pid — which killed the test runner
+    outright (exit 137).
+    """
+    from zrb.llm.hook.hook_creators import _kill_process_tree
+
+    for label, pid in (("own pid", os.getpid()), ("own group", os.getpid())):
+        killed = {"done": False}
+
+        class _Proc:
+            returncode = None
+
+            def __init__(self, pid):
+                self.pid = pid
+
+            def kill(self):
+                killed["done"] = True
+
+        # Surviving this call at all is the assertion: a self-targeted tree kill
+        # terminates the process instead of returning.
+        _kill_process_tree(_Proc(pid))
+        assert killed["done"], f"{label}: fell back to no kill at all"
+
+
+def test_kill_process_tree_tolerates_a_pidless_process():
+    """Must not raise on the cancellation path when handed a mock without a pid."""
+    from zrb.llm.hook.hook_creators import _kill_process_tree
+
+    killed = {"done": False}
+
+    class _Proc:
+        returncode = None
+
+        def kill(self):
+            killed["done"] = True
+
+    _kill_process_tree(_Proc())
+    assert killed["done"]

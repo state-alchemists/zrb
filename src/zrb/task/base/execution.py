@@ -148,10 +148,16 @@ async def execute_action_until_ready(task: "BaseTask", session: AnySession):
                 )
 
         except asyncio.TimeoutError as e:
-            ctx.log_error(
-                f"Readiness checks exceeded the {readiness_timeout}s aggregate "
-                "timeout (TASK_READINESS_TIMEOUT); failing task"
-            )
+            # A check can raise TimeoutError itself, so this branch is not proof
+            # the aggregate cap fired — only claim the cap when one is set, or
+            # the log points at a knob that is switched off.
+            if readiness_timeout > 0:
+                ctx.log_error(
+                    f"Readiness checks exceeded the {readiness_timeout}s aggregate "
+                    "timeout (TASK_READINESS_TIMEOUT); failing task"
+                )
+            else:
+                ctx.log_error(f"Readiness check timed out: {e}")
             readiness_error = e
         except Exception as e:
             ctx.log_error(f"Readiness check failed with exception: {e}")
