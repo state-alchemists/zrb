@@ -3,7 +3,7 @@
 Owns conversation state that all concrete UIs share: history manager,
 snapshot manager, message queue, confirmation queue, attachments, system
 info, hook execution, and the slash-command dispatch (composed via
-`CommandsMixin`). Concrete subclasses pick a rendering layer:
+`BaseUICommands`). Concrete subclasses pick a rendering layer:
 
   default/ui.py          - prompt-toolkit TUI (the `zrb llm chat` default)
   simple_ui_base.py      - bring-your-own print/input (for headless callers)
@@ -11,7 +11,7 @@ info, hook execution, and the slash-command dispatch (composed via
   multi_ui.py            - fan-out to multiple UIs at once
   runner/chat/http_ui.py - SSE-streamed UI for the web chat endpoint
 
-For how slash commands are dispatched, see `commands_mixin.py`. For how a
+For how slash commands are dispatched, see `commands.py`. For how a
 single chat turn flows from CLI down through this class, see
 docs/advanced-topics/llm-chat-lifecycle.md.
 """
@@ -41,10 +41,10 @@ from zrb.llm.tool_call import (
     ToolPolicy,
     default_response_handler,
 )
-from zrb.llm.ui.base.commands_mixin import CommandsMixin
-from zrb.llm.ui.base.properties_mixin import PropertiesMixin
-from zrb.llm.ui.base.replay_mixin import HistoryReplayMixin
-from zrb.llm.ui.base.system_info_mixin import SystemInfoMixin
+from zrb.llm.ui.base.commands import BaseUICommands
+from zrb.llm.ui.base.properties import BaseUIProperties
+from zrb.llm.ui.base.replay import BaseUIReplay
+from zrb.llm.ui.base.system_info import BaseUISystemInfo
 from zrb.llm.ui.multi_ui import MultiUI
 from zrb.session.any_session import AnySession
 from zrb.session.session import Session
@@ -65,7 +65,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class BaseUI(PropertiesMixin, CommandsMixin, HistoryReplayMixin, SystemInfoMixin):
+class BaseUI(BaseUIProperties, BaseUICommands, BaseUIReplay, BaseUISystemInfo):
     """Base class for LLM Chat UI implementations.
 
     This class provides the core chat functionality (message handling, command
@@ -585,7 +585,7 @@ class BaseUI(PropertiesMixin, CommandsMixin, HistoryReplayMixin, SystemInfoMixin
         """Public width accessor — delegates to the `_get_output_field_width()`
         override hook so callers (e.g. the diff formatter) read width through a
         public name. Concrete UIs with their own terminal-derived width (the
-        default TUI via `OutputMixin`) override this property directly, winning
+        default TUI via `UIOutput`) override this property directly, winning
         by MRO; custom `BaseUI` subclasses just override `_get_output_field_width`.
         """
         return self._get_output_field_width()
@@ -670,7 +670,7 @@ class BaseUI(PropertiesMixin, CommandsMixin, HistoryReplayMixin, SystemInfoMixin
                     # Event loop closed - exit
                     break
 
-    # History-replay rendering lives in HistoryReplayMixin (replay_mixin.py):
+    # History-replay rendering lives in BaseUIReplay (replay.py):
     # _replay_history, _replay_request_parts, _replay_response_parts,
     # _replay_tool_call, _replay_tool_return are inherited.
 
@@ -814,8 +814,8 @@ class BaseUI(PropertiesMixin, CommandsMixin, HistoryReplayMixin, SystemInfoMixin
             ui, call
         )  # --- SYSTEM INFO / TRIGGERS (Moved from UI) ---
 
-    # System-info status (cwd/git) lives in SystemInfoMixin
-    # (system_info_mixin.py): _update_system_info, _get_cwd_display,
+    # System-info status (cwd/git) lives in BaseUISystemInfo
+    # (system_info.py): _update_system_info, _get_cwd_display,
     # _get_git_info, _update_system_info_loop are inherited.
 
     async def _trigger_loop(
@@ -850,6 +850,6 @@ class BaseUI(PropertiesMixin, CommandsMixin, HistoryReplayMixin, SystemInfoMixin
         except Exception as e:
             self.append_to_output(stylize_error(f"\n[Trigger Error: {e}]\n"))
 
-    # --- COMMAND HANDLERS live in CommandsMixin (see _commands_mixin.py) ---
+    # --- COMMAND HANDLERS live in BaseUICommands (see commands.py) ---
     # The methods _handle_*, _run_shell_command, _stream_btw_response,
     # _submit_attachment, toggle_yolo, and _get_help_text are inherited.

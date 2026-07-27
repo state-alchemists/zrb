@@ -24,10 +24,10 @@ import asyncio
 
 from zrb.config.config import CFG
 from zrb.llm.agent.run.runtime_state import get_current_ui
-from zrb.llm.agent.subagent.manager.manager import (
+from zrb.llm.agent.subagent.manager import (
     SubAgentManager,
 )
-from zrb.llm.agent.subagent.manager.manager import (
+from zrb.llm.agent.subagent.manager import (
     sub_agent_manager as default_sub_agent_manager,
 )
 from zrb.llm.permission import Capability, tag
@@ -175,7 +175,7 @@ def create_background_delegate_tool(
             "Call GetDelegationResult with this handle to collect the result."
         )
 
-    delegate_to_agent_background.zrb_is_delegate_tool = True  # type: ignore[attr-defined]
+    setattr(delegate_to_agent_background, "zrb_is_delegate_tool", True)
     delegate_to_agent_background.__name__ = "DelegateToAgentBackground"
     tag(delegate_to_agent_background, Capability.DELEGATE)
     return delegate_to_agent_background

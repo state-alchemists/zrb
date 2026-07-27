@@ -9,7 +9,7 @@ from zrb.config.config import CFG
 from zrb.llm.hook.manager import hook_manager
 from zrb.llm.skill.util import discover_companion_files
 from zrb.util.asset_scanner import IGNORE_DIRS, scan_files
-from zrb.util.dir_search import get_upward_dirs, scan_plugin_dirs
+from zrb.util.dir_search import BUILTIN_PLUGIN_DIR, get_upward_dirs, scan_plugin_dirs
 from zrb.util.load import load_module_from_path
 
 
@@ -248,7 +248,7 @@ class SkillManager:
         ``CFG.LLM_ENABLE_BUILTIN_SKILLS``. Missing paths (broken install / unusual
         layout) are skipped rather than yielding a spurious default.
         """
-        base = Path(__file__).parent.parent.parent / "llm_plugin"
+        base = BUILTIN_PLUGIN_DIR
         dirs: list[Path] = [base / "core_skills"]
         if CFG.LLM_ENABLE_BUILTIN_SKILLS:
             dirs.append(base / "skills")

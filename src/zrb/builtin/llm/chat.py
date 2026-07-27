@@ -63,7 +63,7 @@ llm_chat = LLMChatTask(
     ],
     # fstring template (StrAttr); LLMChatTask.model omits bare str from its
     # annotation but renders it at run time via get_attr in _get_model.
-    model="{ctx.input.model}",  # type: ignore[arg-type]
+    model="{ctx.input.model}",  # pyright: ignore[reportArgumentType]
     yolo="{ctx.input.yolo}",
     message="{ctx.input.message}",
     conversation_name="{ctx.input.session}",
@@ -85,10 +85,10 @@ llm_chat = LLMChatTask(
 )
 
 # Register zrb-shipped default tools, factories, and guidance — deferred to the
-# first exec (ExecMixin._exec_action calls ensure_common_tools) so applying it,
+# first exec (ChatExecution._exec_action calls ensure_common_tools) so applying it,
 # which transitively imports pydantic_ai, stays off the `import zrb` path. The
 # same deferral is set on `sub_agent_manager` at the bottom of
-# `zrb/llm/agent/subagent/manager/manager.py`, so the main agent and sub-agents
+# `zrb/llm/agent/subagent/manager.py`, so the main agent and sub-agents
 # share their tool surface and guidance.
 defer_common_tools(llm_chat)
 

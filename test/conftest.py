@@ -60,22 +60,48 @@ def _hermetic_environment():
 
 @pytest.fixture(autouse=True, scope="session")
 def _disable_real_filesystem_hooks():
-    """Keep the process-wide ``hook_manager`` singleton from discovering the
-    developer's real ``~/.claude`` hooks (e.g. peon-ping) during the suite.
+    """Keep *every* ``HookManager`` from discovering the developer's real
+    ``~/.claude`` hooks (e.g. peon-ping) during the suite.
 
-    The singleton is imported under one shared object by the runner, llm_task,
-    ui, skill manager and the ask tool. Once command hooks began loading from
-    ``settings.json``, any test that emits a hook event — ``ask_user_question``'s
-    ``Notification``, the runner's ``Stop`` — spawned the user's real async hook
-    subprocesses (peon-ping's ``peon.sh``). With no audio device (CI/WSL) those
-    linger and hang asyncio's subprocess-transport teardown when the per-test
-    event loop closes, making the suite crawl and eventually time out.
+    Once command hooks began loading from ``settings.json``, any test that emits
+    a hook event — ``ask_user_question``'s ``Notification``, the runner's
+    ``Stop`` — spawned the user's real async hook subprocesses (peon-ping's
+    ``peon.sh``). With no audio device (CI/WSL) those linger and hang asyncio's
+    subprocess-transport teardown when the per-test event loop closes, making
+    the suite crawl and eventually time out.
 
-    Pinning the singleton's search dirs to ``[]`` and reloading keeps it inert;
-    tests that need hook behaviour build their own ``HookManager(search_dirs=[])``.
+    Two things need neutering, not one:
+
+    - the process-wide singleton, imported under one shared object by the
+      runner, llm_task, ui, skill manager and the ask tool; and
+    - the **per-execution** managers, because ``_create_llm_task_core`` and
+      ``LLMTaskBuilding`` build a bare ``HookManager()`` per chat run and each
+      instance resolves its own search dirs. Pinning only the singleton left
+      those loading the real hooks, so a non-interactive chat test still
+      spawned ``peon.sh``.
+
+    The construction sites are patched rather than ``get_search_directories``
+    itself, which several tests in ``test/llm/hook/`` legitimately exercise for
+    real. Tests that want hook behaviour keep building their own
+    ``HookManager(search_dirs=[...])`` directly.
     """
-    from zrb.llm.hook.manager import hook_manager
+    from unittest.mock import patch
 
-    hook_manager._search_dirs = []  # backing field of the search_dirs ctor arg
-    hook_manager.reload()  # reset registrations + reload from [] → no fs hooks
-    yield
+    import zrb.llm.task.building as llm_task_building
+    import zrb.llm.task.chat.execution as chat_execution
+    from zrb.llm.hook.manager import HookManager, hook_manager
+
+    class _InertHookManager(HookManager):
+        """A HookManager that never discovers filesystem hooks."""
+
+        def __init__(self, *args, **kwargs):
+            kwargs.setdefault("search_dirs", [])
+            super().__init__(*args, **kwargs)
+
+    with (
+        patch.object(chat_execution, "HookManager", _InertHookManager),
+        patch.object(llm_task_building, "HookManager", _InertHookManager),
+    ):
+        hook_manager._search_dirs = []  # backing field of the search_dirs ctor arg
+        hook_manager.reload()  # reset registrations + reload from [] → no fs hooks
+        yield

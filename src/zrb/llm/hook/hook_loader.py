@@ -2,7 +2,7 @@ import logging
 from pathlib import Path
 
 from zrb.config.config import CFG
-from zrb.util.dir_search import get_upward_dirs
+from zrb.util.dir_search import BUILTIN_PLUGIN_DIR, get_upward_dirs
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +67,7 @@ def _collect_hook_paths(base_dir: Path) -> list[str | Path]:
     # Claude Code registers hooks inside settings.json / settings.local.json
     # under a nested "hooks" block — NOT in hooks.json. Drop-in tools like
     # peon-ping install themselves there, so we read those files too. The
-    # nested block is parsed by HookLoaderMixin._parse_claude_format; any other
+    # nested block is parsed by HookManagerLoading._parse_claude_format; any other
     # settings keys (model, env, permissions, …) are ignored.
     for settings_name in ("settings.json", "settings.local.json"):
         settings_file = base_dir / ".claude" / settings_name
@@ -90,7 +90,7 @@ def _get_plugin_hook_dirs() -> list[str | Path]:
     paths: list[str | Path] = []
 
     # Default Plugin
-    default_plugin_path = Path(__file__).parent.parent.parent / "llm_plugin"
+    default_plugin_path = BUILTIN_PLUGIN_DIR
     if default_plugin_path.exists() and default_plugin_path.is_dir():
         hooks_path = default_plugin_path / "hooks"
         if hooks_path.exists() and hooks_path.is_dir():

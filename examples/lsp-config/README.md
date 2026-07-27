@@ -77,4 +77,4 @@ Names that don't match a given file are skipped, so one flat list can span langu
 
 - [`docs/advanced-topics/lsp-support.md`](../../docs/advanced-topics/lsp-support.md) — full LSP guide, including [Custom LSP Servers](../../docs/advanced-topics/lsp-support.md#custom-lsp-servers)
 - `src/zrb/llm/lsp/configs.py` — the built-in `LSP_SERVER_CONFIGS` catalogue and the registry
-- `src/zrb/llm/lsp/manager/manager.py` — `lsp_manager.register_lsp_server()`
+- `src/zrb/llm/lsp/manager.py` — `lsp_manager.register_lsp_server()`

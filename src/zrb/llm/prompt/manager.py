@@ -1,6 +1,6 @@
 import inspect
 from functools import partial
-from typing import Any, Callable
+from typing import Any, Callable, TypeGuard, cast
 
 from zrb.attr.type import StrListAttr
 from zrb.config.config import CFG
@@ -407,11 +407,12 @@ class PromptManager:
                     # Wrap string with rendering support
                     middlewares.append(self._wrap_simple_prompt(m))
                 elif self._is_full_middleware(m):
-                    # It's already a full middleware
-                    middlewares.append(m)  # type: ignore
+                    # It's already a full middleware (narrowed by the TypeGuard)
+                    middlewares.append(m)
                 else:
-                    # It's a simple callable (ctx -> str), wrap it
-                    middlewares.append(self._wrap_simple_prompt(m))  # type: ignore
+                    # It's a simple callable (ctx -> str), wrap it. The branches
+                    # above already ruled out str and the full-middleware shape.
+                    middlewares.append(self._wrap_simple_prompt(cast(SimplePrompt, m)))
 
             def dispatch(index: int, current_prompt: str) -> str:
                 if index >= len(middlewares):
@@ -556,8 +557,14 @@ class PromptManager:
 
         return file_section_middleware
 
-    def _is_full_middleware(self, prompt: PromptMiddleware | str) -> bool:
-        """Check if prompt is a full middleware (accepts next param) or simple callable."""
+    def _is_full_middleware(
+        self, prompt: PromptMiddleware | str
+    ) -> TypeGuard[FullMiddleware]:
+        """Check if prompt is a full middleware (accepts next param) or simple callable.
+
+        Typed as a `TypeGuard` so callers narrow on the positive branch instead
+        of suppressing the resulting argument-type error.
+        """
         if isinstance(prompt, str):
             return False
         if not callable(prompt):

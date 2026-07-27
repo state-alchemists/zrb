@@ -344,3 +344,34 @@ async def test_get_llm_chat_task_returns_none_when_missing():
     ):
         result = await _get_llm_chat_task(mock_root)
     assert result is None
+
+
+@pytest.mark.asyncio
+async def test_cleared_stale_edit_slot_is_not_reported_as_still_waiting(
+    client: AsyncClient,
+):
+    """Don't tell a client that just sent JSON args to "send JSON args".
+
+    An unhandled claim clears a stale edit slot, so the edit state captured
+    before handle_approval_response is out of date by the time the route builds
+    its error. Re-reading it lets the response describe what is actually
+    pending.
+    """
+    _mock_sm.get_session.return_value = MagicMock()
+    # True on the pre-call read, False afterwards: the stale slot was cleared.
+    _mock_sm.is_waiting_for_edit.side_effect = [True, False]
+    _mock_sm.has_pending_approvals.return_value = True
+    _mock_sm.handle_approval_response.return_value = {
+        "handled": False,
+        "error": "No pending edit request",
+    }
+
+    response = await client.post(
+        "/api/v1/chat/sessions/test/messages",
+        json={"message": {"key": "value"}, "isApprovalAction": True},
+    )
+
+    _mock_sm.is_waiting_for_edit.side_effect = None
+    assert response.status_code == 400
+    assert "send JSON args" not in response.json()["error"]
+    assert "y/n/e" in response.json()["error"]

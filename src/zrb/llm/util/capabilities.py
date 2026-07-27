@@ -134,7 +134,7 @@ def media_type_modality(media_type: str) -> Modality | None:
         return None
     head = media_type.split("/", 1)[0].lower()
     if head in ("image", "audio", "video"):
-        return head  # type: ignore[return-value]
+        return head
     return None
 
 

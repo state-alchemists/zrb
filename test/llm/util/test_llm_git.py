@@ -123,3 +123,33 @@ class TestIsInsideGitDir:
             assert result is True
         finally:
             os.chdir(original_cwd)
+
+    def test_probe_timeout_is_not_memoized(self):
+        """A transient stall must not stick as "not a git dir" for the process.
+
+        Regression: the probe is `lru_cache`d, so once a timeout was answered as
+        False it was cached — one cold-cache stall (credential prompt,
+        index.lock contention) silently disabled the live-context git block and
+        the worktree tools for the rest of the run.
+        """
+        from zrb.llm.util.git import is_inside_git_dir
+
+        with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("git", 5.0)):
+            assert is_inside_git_dir() is False
+
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        with patch("subprocess.run", return_value=mock_result) as mock_run:
+            assert is_inside_git_dir() is True
+            mock_run.assert_called_once()
+
+    def test_non_timeout_failure_is_still_memoized(self):
+        """Only the transient case is retried; a real answer stays cached."""
+        from zrb.llm.util.git import is_inside_git_dir
+
+        with patch("subprocess.run", side_effect=FileNotFoundError("no git")):
+            assert is_inside_git_dir() is False
+
+        with patch("subprocess.run") as mock_run:
+            assert is_inside_git_dir() is False
+            mock_run.assert_not_called()

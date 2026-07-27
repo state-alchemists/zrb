@@ -54,26 +54,61 @@ async def gather_fail_fast(*coros: Any) -> list[Any]:
     cancels the siblings instead.
 
     Cancellation of *this* coroutine is propagated the same way, so callers see
-    plain-gather semantics with no orphans left behind.
+    plain-gather semantics with no orphans left behind — and, unlike plain
+    gather, the unwind is bounded in *both* directions (see below).
+
+    ``asyncio.wait``, not ``asyncio.gather``, for the primary await: a gather
+    being cancelled cancels its children and then waits for them, so a child
+    that shields its cleanup keeps the cancellation pending indefinitely and an
+    enclosing ``wait_for`` overshoots its timeout by however long that child
+    takes. ``asyncio.wait`` hands the cancellation straight back, which lets the
+    settle below actually apply its cap. This is what makes
+    ``CFG.TASK_READINESS_TIMEOUT`` a real ceiling on the readiness fan-out.
 
     Prefer ``gather_isolated`` — cancelling peers is a real behavior difference,
     only correct when a peer's own completion is not something to wait for.
     """
+    if not coros:
+        return []
     tasks = [asyncio.ensure_future(coro) for coro in coros]
-    try:
-        return await asyncio.gather(*tasks)
-    except BaseException:
-        for task in tasks:
-            task.cancel()
-        # Settle the cancellations before unwinding; a still-cancelling task
-        # outliving this frame is the orphan we are trying to avoid. Capped: a
-        # sibling that shields its cleanup must not turn this into the very hang
-        # the cancellation exists to prevent.
+    pending = set(tasks)
+    while pending:
         try:
-            await asyncio.wait_for(
-                asyncio.gather(*tasks, return_exceptions=True),
-                timeout=_CANCEL_SETTLE_TIMEOUT,
+            done, pending = await asyncio.wait(
+                pending, return_when=asyncio.FIRST_COMPLETED
             )
-        except asyncio.TimeoutError:
-            pass
-        raise
+        except BaseException:
+            # Cancellation aimed at us. Settle the children before unwinding.
+            await _cancel_and_settle(tasks)
+            raise
+        # FIRST_COMPLETED, not FIRST_EXCEPTION: the latter treats a *cancelled*
+        # child as an ordinary completion and keeps waiting for the rest, so a
+        # session teardown that cancels one deferred task would block on its
+        # siblings — the hang this helper exists to prevent. Scanned in argument
+        # order (`done` is an unordered set) so the reported failure is the same
+        # one plain gather would have raised.
+        failed = next(
+            (t for t in tasks if t in done and (t.cancelled() or t.exception())),
+            None,
+        )
+        if failed is not None:
+            await _cancel_and_settle(tasks)
+            return await failed  # re-raises the failure (or its CancelledError)
+    return [task.result() for task in tasks]
+
+
+async def _cancel_and_settle(tasks: "list[asyncio.Task[Any]]") -> None:
+    """Cancel *tasks* and wait, briefly, for them to unwind.
+
+    A still-cancelling task outliving the caller's frame is the orphan this
+    exists to avoid. Capped: a sibling that shields its cleanup must not turn
+    the settle into the very hang the cancellation exists to prevent.
+    """
+    for task in tasks:
+        task.cancel()
+    try:
+        await asyncio.wait(tasks, timeout=_CANCEL_SETTLE_TIMEOUT)
+    except BaseException:
+        # A second cancellation landing mid-settle must not replace the outcome
+        # the caller is about to raise.
+        pass

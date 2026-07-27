@@ -1,11 +1,13 @@
 """
 LSP document and query operations.
 
-Mixin holding the document-synchronization and query methods for an LSP
-server (definition, references, diagnostics, symbols, hover, rename, and the
-workspace-edit application helpers). Mixed into ``LSPServer``; relies on the
-host class for transport/state (``self._send_request_raw``, ``self._next_id``,
-``self._path_to_uri``, ``self._uri_to_path``, ``self.initialized``, etc.).
+The document-synchronization and query half of ``LSPServer`` (definition,
+references, diagnostics, symbols, hover, rename, and the workspace-edit
+application helpers), split out to keep ``server.py`` on transport and
+lifecycle. Not a reusable mixin — it reads host state it never sets
+(``self._send_request_raw``, ``self._next_id``, ``self._path_to_uri``,
+``self._uri_to_path``, ``self.initialized``), so ``LSPServer`` is its only
+possible host.
 """
 
 import asyncio
@@ -16,12 +18,12 @@ from zrb.llm.lsp.configs import detect_language_from_file
 from zrb.llm.lsp.protocol import JSONRPCMessage, LSPServerError
 
 
-class OperationsMixin:
+class LSPServerOperations:
     """Document/query operations for an LSP server."""
 
     if TYPE_CHECKING:
         # Transport/state provided by the host class (LSPServer). Declared so
-        # pyright can resolve them when OperationsMixin is checked in isolation.
+        # pyright can resolve them when LSPServerOperations is checked in isolation.
         config: Any
         writer: "asyncio.StreamWriter | None"
         initialized: bool

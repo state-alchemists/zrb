@@ -1,7 +1,7 @@
 """Recursive file-system scanning utility shared by SkillManager and SubAgentManager.
 
 Replaces the duplicated ``_scan_dir`` / ``_scan_dir_recursive`` pattern that
-previously lived in both ``loader_mixin.py`` and ``skill/manager.py``.
+previously lived in both ``manager_loading.py`` and ``skill/manager.py``.
 """
 
 from collections.abc import Callable

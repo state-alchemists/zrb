@@ -2,10 +2,10 @@
 
 This module is decomposed into mixins, mirroring `chat/task.py`:
 
-  builder_mixin.py  - post-construction config API (add/append/set), public
+  building.py  - post-construction config API (add/append/set), public
                       properties, and agent/prompt assembly (tools, system
                       prompt, model selection)
-  history_mixin.py  - conversation/history resolution + error & cancellation
+  history.py  - conversation/history resolution + error & cancellation
                       recovery
 
 The host class keeps `__init__` plus the execution core — `_exec_action`,
@@ -49,8 +49,8 @@ from zrb.llm.sandbox import SandboxInput, coerce_sandbox
 from zrb.llm.summarizer import (
     summarize_history,
 )
-from zrb.llm.task.builder_mixin import BuilderMixin
-from zrb.llm.task.history_mixin import HistoryMixin
+from zrb.llm.task.building import LLMTaskBuilding
+from zrb.llm.task.history import LLMTaskHistory
 from zrb.llm.util.attachment import get_attachments
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
@@ -69,7 +69,7 @@ if TYPE_CHECKING:
     from zrb.llm.tool_call.ui_protocol import UIProtocol
 
 
-class LLMTask(BuilderMixin, HistoryMixin, BaseTask):  # type: ignore[reportIncompatibleVariableOverride]
+class LLMTask(LLMTaskBuilding, LLMTaskHistory, BaseTask):
 
     def __init__(
         self,
@@ -124,7 +124,7 @@ class LLMTask(BuilderMixin, HistoryMixin, BaseTask):  # type: ignore[reportIncom
         yolo: BoolAttr = False,
         ui: UIProtocol | None = None,
         approval_channel: ApprovalChannel | None = None,
-        summarize_command: list[str] | None = None,
+        summarize_commands: list[str] | None = None,
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
         retries: int = 2,
         retry_period: float = 0,
@@ -180,19 +180,15 @@ class LLMTask(BuilderMixin, HistoryMixin, BaseTask):  # type: ignore[reportIncom
         )
         self._active_skills = active_skills
         self._render_active_skills = render_active_skills
-        self._tools = tools if tools is not None else []
-        self._toolsets = toolsets if toolsets is not None else []
-        self._tool_factories = tool_factories if tool_factories is not None else []
-        self._toolset_factories = (
-            toolset_factories if toolset_factories is not None else []
-        )
+        self._tools = tools or []
+        self._toolsets = toolsets or []
+        self._tool_factories = tool_factories or []
+        self._toolset_factories = toolset_factories or []
         self._message = message
         self._render_message = render_message
         self._attachment = attachment
-        self._history_processors = (
-            history_processors if history_processors is not None else []
-        )
-        self._capabilities = capabilities if capabilities is not None else []
+        self._history_processors = history_processors or []
+        self._capabilities = capabilities or []
         self._model = model
         self._render_model = render_model
         self._model_settings = model_settings
@@ -210,9 +206,7 @@ class LLMTask(BuilderMixin, HistoryMixin, BaseTask):  # type: ignore[reportIncom
         self._permissions = permissions
         self._sandbox = sandbox
         self._approval_channel = approval_channel
-        self._summarize_command = (
-            summarize_command if summarize_command is not None else []
-        )
+        self._summarize_commands = summarize_commands or []
         # Guidance factories for dynamically-named tools (e.g., RunZrbTask).
         # Resolved per exec and applied to prompt_manager before composing the
         # system prompt.
@@ -371,7 +365,7 @@ class LLMTask(BuilderMixin, HistoryMixin, BaseTask):  # type: ignore[reportIncom
     ) -> bool:
         if (
             isinstance(user_message, str)
-            and user_message.strip() in self._summarize_command
+            and user_message.strip() in self._summarize_commands
         ):
             ctx.print("Compressing conversation history...", plain=True)
             new_history = await summarize_history(

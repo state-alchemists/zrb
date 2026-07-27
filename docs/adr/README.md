@@ -107,6 +107,7 @@ per record. If a new decision reverses an old one, mark the old one
 - **ADR-0056** — Shell as primary execution tool, Bash as backward-compat alias — [adr-0056.md](adr-0056.md)
 - **ADR-0057** — Post-todo-change progress visualization in the UI — [adr-0057.md](adr-0057.md)
 - **ADR-0060** — `BaseUI` composed from concern mixins (shared-`self` contract) — [adr-0060.md](adr-0060.md)
+- **ADR-0085** — Reserve the `Mixin` suffix for reusable mixins; single-host parts are named `<Owner><Aspect>` and `X/manager/manager.py` flattens to `X/manager.py` (refines ADR-0060, relates to ADR-0021) — [adr-0085.md](adr-0085.md)
 - **ADR-0061** — Config-positioned custom prompt sections (registered provider or markdown file) — [adr-0061.md](adr-0061.md)
 - **ADR-0062** — Intrinsic always-auto-approve for interaction tools (AskUserQuestion) — [adr-0062.md](adr-0062.md)
 - **ADR-0063** — Opt-in two-layer filesystem sandbox (Python FS gate + OS shell wrapper) — [adr-0063.md](adr-0063.md)

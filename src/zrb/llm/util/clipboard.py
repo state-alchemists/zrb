@@ -46,7 +46,7 @@ async def get_clipboard_image() -> bytes | None:
 async def _macos() -> bytes | None:
     try:
         # lazy: heavy third-party
-        from PIL import ImageGrab  # type: ignore[import]
+        from PIL import ImageGrab
 
         img = await asyncio.to_thread(ImageGrab.grabclipboard)
         # grabclipboard() returns an Image, a list of file paths, or None.
@@ -101,7 +101,7 @@ async def _macos_osascript() -> bytes | None:
 def _windows() -> bytes | None:
     try:
         # lazy: heavy third-party
-        from PIL import ImageGrab  # type: ignore[import]
+        from PIL import ImageGrab
 
         img = ImageGrab.grabclipboard()
         # grabclipboard() returns an Image, a list of file paths, or None.
@@ -174,7 +174,7 @@ def _to_png(data: bytes) -> bytes | None:
     """Convert arbitrary image bytes (e.g. BMP) to PNG using Pillow if available."""
     try:
         # lazy: heavy third-party
-        from PIL import Image  # type: ignore[import]
+        from PIL import Image
 
         img = Image.open(io.BytesIO(data))
         buf = io.BytesIO()
@@ -240,7 +240,7 @@ def copy_text(text: str) -> bool:
             pass
     try:
         # lazy: heavy third-party
-        import pyperclip  # type: ignore[import]
+        import pyperclip
 
         pyperclip.copy(text)
         return True
