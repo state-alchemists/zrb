@@ -248,10 +248,10 @@ class LLMChatTask(BuilderMixin, RunnerMixin, ExecMixin, BaseTask):  # type: igno
         self._render_system_prompt = render_system_prompt
         self._active_skills = active_skills
         self._render_active_skills = render_active_skills
-        self._tools = tools if tools is not None else []
-        self._toolsets = toolsets if toolsets is not None else []
+        self._tools = tools or []
+        self._toolsets = toolsets or []
         # LLMChatTask-specific factories that resolve using parent context
-        self._tool_factories = tool_factories if tool_factories is not None else []
+        self._tool_factories = tool_factories or []
         # Guidance factories are called when tools are resolved, to register
         # guidance for dynamically-named factory tools (e.g., RunZrbTask).
         self._tool_guidance_factories: list[Callable[[AnyContext], ToolGuidance]] = []
@@ -262,9 +262,7 @@ class LLMChatTask(BuilderMixin, RunnerMixin, ExecMixin, BaseTask):  # type: igno
         ] = []
         # Store tool guidance until prompt_manager is available
         self._pending_tool_guidance: list[ToolGuidance] = []
-        self._toolset_factories = (
-            toolset_factories if toolset_factories is not None else []
-        )
+        self._toolset_factories = toolset_factories or []
         self._hook_factories: list[Callable[[HookManager], None]] = []
         # Set per execution in _create_llm_task_core; the interactive teardown
         # fires the terminal SESSION_END on it.
@@ -272,10 +270,8 @@ class LLMChatTask(BuilderMixin, RunnerMixin, ExecMixin, BaseTask):  # type: igno
         self._message = message
         self._render_message = render_message
         self._attachment = attachment
-        self._history_processors = (
-            history_processors if history_processors is not None else []
-        )
-        self._capabilities = capabilities if capabilities is not None else []
+        self._history_processors = history_processors or []
+        self._capabilities = capabilities or []
         self._model = model
         self._render_model = render_model
         self._model_settings = model_settings
@@ -297,52 +293,22 @@ class LLMChatTask(BuilderMixin, RunnerMixin, ExecMixin, BaseTask):  # type: igno
         self._sandbox = sandbox
         self._yolo = yolo
         self._yolo_xcom_key = yolo_xcom_key
-        self._ui_summarize_commands = (
-            ui_summarize_commands if ui_summarize_commands is not None else []
-        )
-        self._ui_attach_commands = (
-            ui_attach_commands if ui_attach_commands is not None else []
-        )
-        self._ui_exit_commands = (
-            ui_exit_commands if ui_exit_commands is not None else []
-        )
-        self._ui_info_commands = (
-            ui_info_commands if ui_info_commands is not None else []
-        )
-        self._ui_save_commands = (
-            ui_save_commands if ui_save_commands is not None else []
-        )
-        self._ui_load_commands = (
-            ui_load_commands if ui_load_commands is not None else []
-        )
-        self._ui_rewind_commands = (
-            ui_rewind_commands if ui_rewind_commands is not None else []
-        )
-        self._ui_redirect_output_commands = (
-            ui_redirect_output_commands
-            if ui_redirect_output_commands is not None
-            else []
-        )
-        self._ui_yolo_toggle_commands = (
-            ui_yolo_toggle_commands if ui_yolo_toggle_commands is not None else []
-        )
-        self._ui_set_model_commands = (
-            ui_set_model_commands if ui_set_model_commands is not None else []
-        )
-        self._ui_exec_commands = (
-            ui_exec_commands if ui_exec_commands is not None else []
-        )
-        self._ui_btw_commands = ui_btw_commands if ui_btw_commands is not None else []
-        self._ui_plan_commands = (
-            ui_plan_commands if ui_plan_commands is not None else []
-        )
-        self._ui_copy_commands = (
-            ui_copy_commands if ui_copy_commands is not None else []
-        )
-        self._ui_voice_commands = (
-            ui_voice_commands if ui_voice_commands is not None else []
-        )
-        self._custom_commands = custom_commands if custom_commands is not None else []
+        self._ui_summarize_commands = ui_summarize_commands or []
+        self._ui_attach_commands = ui_attach_commands or []
+        self._ui_exit_commands = ui_exit_commands or []
+        self._ui_info_commands = ui_info_commands or []
+        self._ui_save_commands = ui_save_commands or []
+        self._ui_load_commands = ui_load_commands or []
+        self._ui_rewind_commands = ui_rewind_commands or []
+        self._ui_redirect_output_commands = ui_redirect_output_commands or []
+        self._ui_yolo_toggle_commands = ui_yolo_toggle_commands or []
+        self._ui_set_model_commands = ui_set_model_commands or []
+        self._ui_exec_commands = ui_exec_commands or []
+        self._ui_btw_commands = ui_btw_commands or []
+        self._ui_plan_commands = ui_plan_commands or []
+        self._ui_copy_commands = ui_copy_commands or []
+        self._ui_voice_commands = ui_voice_commands or []
+        self._custom_commands = custom_commands or []
         self._ui_greeting = ui_greeting
         self._render_ui_greeting = render_ui_greeting
         self._ui_assistant_name = ui_assistant_name
@@ -351,14 +317,10 @@ class LLMChatTask(BuilderMixin, RunnerMixin, ExecMixin, BaseTask):  # type: igno
         self._render_ui_jargon = render_ui_jargon
         self._ui_ascii_art_name = ui_ascii_art
         self._render_ui_ascii_art_name = render_ui_ascii_art_name
-        self._triggers = triggers if triggers is not None else []
-        self._response_handlers = (
-            response_handlers if response_handlers is not None else []
-        )
-        self._tool_policies = tool_policies if tool_policies is not None else []
-        self._argument_formatters = (
-            argument_formatters if argument_formatters is not None else []
-        ) + [
+        self._triggers = triggers or []
+        self._response_handlers = response_handlers or []
+        self._tool_policies = tool_policies or []
+        self._argument_formatters = (argument_formatters or []) + [
             replace_in_file_formatter,
             write_file_formatter,
         ]

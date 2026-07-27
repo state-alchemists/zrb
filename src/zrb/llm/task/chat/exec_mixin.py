@@ -47,13 +47,27 @@ from zrb.util.string.name import get_random_name
 from zrb.xcom.xcom import Xcom
 
 if TYPE_CHECKING:
-    from pydantic_ai import Tool
+    from collections.abc import Callable
+
+    from pydantic_ai import Tool, UserContent
     from pydantic_ai.capabilities import AbstractCapability
     from pydantic_ai.models import Model
+    from pydantic_ai.settings import ModelSettings
     from pydantic_ai.tools import ToolFuncEither
     from pydantic_ai.toolsets import AbstractToolset
 
+    from zrb.attr.type import BoolAttr, StrAttr, StrListAttr, fstring
+    from zrb.llm.agent import AnyToolConfirmation
+    from zrb.llm.agent.common import HistoryProcessor
+    from zrb.llm.approval.approval_channel import ApprovalChannel
+    from zrb.llm.config.config import LLMConfig
+    from zrb.llm.config.limiter import LLMLimiter
     from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
+    from zrb.llm.permission import PermissionPolicyInput
+    from zrb.llm.prompt.manager import PromptManager
+    from zrb.llm.prompt.tool_guidance import ToolGuidance
+    from zrb.llm.sandbox import SandboxInput
+    from zrb.llm.tool_call import ArgumentFormatter, ResponseHandler, ToolPolicy
     from zrb.llm.tool_call.ui_protocol import UIProtocol
 
 
@@ -64,8 +78,8 @@ class ExecMixin:
         # Attributes/methods provided by the composed LLMChatTask and its
         # sibling mixins. Declared here so pyright can resolve them when
         # ExecMixin is type-checked in isolation (same pattern as the UI
-        # mixins, e.g. keybindings_mixin.py). Complex unions/callables are
-        # annotated `Any` deliberately; the concrete types live on LLMChatTask.
+        # mixins, e.g. keybindings_mixin.py). Types mirror the corresponding
+        # `LLMChatTask.__init__` parameters — keep the two in sync.
         _ui_summarize_commands: list[str]
         _ui_attach_commands: list[str]
         _ui_exit_commands: list[str]
@@ -87,45 +101,53 @@ class ExecMixin:
         _render_model: bool
         _render_conversation_name: bool
         _yolo_xcom_key: str
-        _active_skills: Any
-        _approval_channels: Any
-        _argument_formatters: Any
-        _attachment: Any
-        _capabilities: Any
-        _conversation_name: Any
-        _enable_rewind: Any
-        _history_manager: Any
-        _history_processors: Any
-        _hook_factories: Any
-        _interactive: Any
-        _llm_config: Any
-        _llm_limiter: Any
-        _message: Any
-        _model: Any
-        _model_settings: Any
-        _permissions: Any
-        _prompt_manager: Any
-        _response_handlers: Any
-        _sandbox: Any
-        _snapshot_dir: Any
-        _system_prompt: Any
-        _tool_confirmation: Any
-        _tool_factories: Any
-        _tool_guidance_factories: Any
-        _tool_guidance_section_factories: Any
-        _tool_policies: Any
-        _tools: Any
-        _toolset_factories: Any
-        _toolsets: Any
-        _uis: Any
-        _ui_factories: Any
-        _yolo: Any
-        _apply_tool_guidance: Any
-        _run_interactive_session: Any
-        _run_non_interactive_session: Any
+        _active_skills: StrListAttr | None
+        _approval_channels: list[ApprovalChannel]
+        _argument_formatters: list[ArgumentFormatter]
+        _attachment: (
+            UserContent
+            | list[UserContent]
+            | Callable[[AnyContext], UserContent | list[UserContent]]
+            | None
+        )
+        _capabilities: list[AbstractCapability[Any]]
+        _conversation_name: StrAttr | None
+        _enable_rewind: bool | None
+        _history_manager: AnyHistoryManager | None
+        _history_processors: list[HistoryProcessor]
+        _hook_factories: list[Callable[[HookManager], None]]
+        _interactive: BoolAttr
+        _llm_config: LLMConfig
+        _llm_limiter: LLMLimiter | None
+        _message: StrAttr | None
+        _model: Callable[[AnyContext], Model | str | fstring | None] | Model | None
+        _model_settings: ModelSettings | Callable[[AnyContext], ModelSettings] | None
+        _permissions: PermissionPolicyInput
+        _prompt_manager: PromptManager | None
+        _response_handlers: list[ResponseHandler]
+        _sandbox: SandboxInput | BoolAttr
+        _snapshot_dir: StrAttr | None
+        _system_prompt: Callable[[AnyContext], str | fstring | None] | str | None
+        _tool_confirmation: AnyToolConfirmation
+        _tool_factories: list[Callable[[AnyContext], Tool | ToolFuncEither]]
+        _tool_guidance_factories: list[Callable[[AnyContext], ToolGuidance]]
+        _tool_guidance_section_factories: list[
+            Callable[[AnyContext, Any], str | None]
+        ]
+        _tool_policies: list[ToolPolicy]
+        _tools: list[Tool | ToolFuncEither]
+        _toolset_factories: list[Callable[[AnyContext], AbstractToolset[None]]]
+        _toolsets: list[AbstractToolset[None]]
+        _uis: list[UIProtocol]
+        _ui_factories: list[Callable[..., UIProtocol]]
+        _yolo: BoolAttr
+        # Sibling-mixin methods. Left as loose callables on purpose
+        _apply_tool_guidance: Callable[[], None]
+        _run_interactive_session: Callable[..., Any]
+        _run_non_interactive_session: Callable[..., Any]
         # From BaseTask (the concrete base LLMChatTask extends).
         name: str
-        envs: Any
+        envs: list[AnyEnv]
 
     def get_system_prompt(self, ctx: AnyContext) -> str:
         if self._prompt_manager is None:
