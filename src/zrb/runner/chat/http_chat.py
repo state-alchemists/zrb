@@ -20,6 +20,7 @@ class HTTPChatApprovalChannel(ApprovalChannel):
         self._pending: dict[str, asyncio.Future[ApprovalResult]] = {}
         self._pending_context: dict[str, ApprovalContext] = {}
         self._waiting_for_edit_tool_call_id: str | None = None
+        self._broadcast_tasks: set[asyncio.Task] = set()
 
     def is_waiting_for_edit(self) -> bool:
         return self._waiting_for_edit_tool_call_id is not None
@@ -37,6 +38,7 @@ class HTTPChatApprovalChannel(ApprovalChannel):
             "waiting_for_edit_id": self._waiting_for_edit_tool_call_id,
             "pending_keys": list(self._pending.keys()),
             "pending_context_keys": list(self._pending_context.keys()),
+            "broadcast_task_count": len(self._broadcast_tasks),
         }
 
     def has_pending_approvals(self) -> bool:
@@ -72,10 +74,14 @@ class HTTPChatApprovalChannel(ApprovalChannel):
         try:
             return await future
         except asyncio.CancelledError:
-            if context.tool_call_id in self._pending:
-                del self._pending[context.tool_call_id]
-            if context.tool_call_id in self._pending_context:
-                del self._pending_context[context.tool_call_id]
+            self._pending.pop(context.tool_call_id, None)
+            self._pending_context.pop(context.tool_call_id, None)
+            # Edit mode must be released too. Leaving it set strands the
+            # channel: is_waiting_for_edit() stays true forever, so the next
+            # approval gets routed down the edit path and its answer is
+            # swallowed against this now-dead tool call.
+            if self._waiting_for_edit_tool_call_id == context.tool_call_id:
+                self._waiting_for_edit_tool_call_id = None
             raise
 
     async def notify(
@@ -85,8 +91,11 @@ class HTTPChatApprovalChannel(ApprovalChannel):
 
     def handle_response(self, response: str, tool_call_id: str | None = None) -> bool:
         if self._waiting_for_edit_tool_call_id:
-            self._handle_edit_response(response)
-            return True
+            if self._handle_edit_response(response):
+                return True
+            # The edit slot was stale (its run was cancelled) and has now been
+            # cleared. Fall through so this response can still answer whatever
+            # approval is genuinely pending, instead of being dropped.
         if tool_call_id and tool_call_id in self._pending:
             self._apply_response(tool_call_id, response)
             return True
@@ -98,72 +107,97 @@ class HTTPChatApprovalChannel(ApprovalChannel):
 
     def handle_edit_response(
         self, response: str, tool_call_id: str | None = None
-    ) -> None:
-        if not self._waiting_for_edit_tool_call_id:
-            return
-        tool_call_id = tool_call_id or self._waiting_for_edit_tool_call_id
-        self._waiting_for_edit_tool_call_id = None
-        if tool_call_id not in self._pending:
-            return
-        context = self._pending_context.get(tool_call_id)
-        if context is None:
-            return
+    ) -> bool:
+        """Resolve a pending edit with args parsed from ``response`` text.
+
+        Returns True only when a pending tool call actually consumed the
+        response, so callers never report success for a dropped answer.
+        """
+        claimed_id = self._claim_edit_tool_call_id(tool_call_id)
+        if claimed_id is None:
+            return False
+        context = self._pending_context.pop(claimed_id)
+        future = self._pending.pop(claimed_id)
         new_args = self._parse_edited_content(response)
-        future = self._pending.pop(tool_call_id)
-        del self._pending_context[tool_call_id]
         if new_args is not None:
-            asyncio.create_task(
-                self.session_manager.broadcast(
-                    self.session_id,
-                    f"[APPROVED with edited args] {context.tool_name}",
-                )
+            self._schedule_broadcast(
+                f"[APPROVED with edited args] {context.tool_name}"
             )
             future.set_result(ApprovalResult(approved=True, override_args=new_args))
         else:
-            asyncio.create_task(
-                self.session_manager.broadcast(
-                    self.session_id,
-                    f"[DENIED - invalid format] {context.tool_name}",
-                )
-            )
+            self._schedule_broadcast(f"[DENIED - invalid format] {context.tool_name}")
             future.set_result(
                 ApprovalResult(approved=False, message="Invalid JSON/YAML format")
             )
+        return True
 
     def handle_edit_response_obj(
         self, args: dict, tool_call_id: str | None = None
-    ) -> None:
-        if not self._waiting_for_edit_tool_call_id:
-            return
-        tool_call_id = tool_call_id or self._waiting_for_edit_tool_call_id
-        self._waiting_for_edit_tool_call_id = None
-        if tool_call_id not in self._pending:
-            return
-        context = self._pending_context.get(tool_call_id)
-        if context is None:
-            return
-        future = self._pending.pop(tool_call_id)
-        del self._pending_context[tool_call_id]
-        asyncio.create_task(
-            self.session_manager.broadcast(
-                self.session_id,
-                f"[APPROVED with edited args] {context.tool_name}",
-            )
-        )
-        future.set_result(ApprovalResult(approved=True, override_args=args))
+    ) -> bool:
+        """Resolve a pending edit with already-decoded ``args``.
 
-    def _handle_edit_response(self, response: str) -> None:
-        self.handle_edit_response(response)
+        Returns True only when a pending tool call actually consumed the args.
+        """
+        claimed_id = self._claim_edit_tool_call_id(tool_call_id)
+        if claimed_id is None:
+            return False
+        context = self._pending_context.pop(claimed_id)
+        future = self._pending.pop(claimed_id)
+        self._schedule_broadcast(f"[APPROVED with edited args] {context.tool_name}")
+        future.set_result(ApprovalResult(approved=True, override_args=args))
+        return True
+
+    def _claim_edit_tool_call_id(self, tool_call_id: str | None) -> str | None:
+        """Take ownership of the awaiting edit slot, or return None.
+
+        Edit mode is a single slot, so a response aimed at a different call is
+        not an edit response and leaves the slot intact. A slot whose future is
+        already gone (the run was cancelled underneath us) is stale: it gets
+        cleared so the channel recovers, but None is still returned because
+        nothing consumed the response.
+        """
+        waiting_id = self._waiting_for_edit_tool_call_id
+        if waiting_id is None:
+            return None
+        if tool_call_id is not None and tool_call_id != waiting_id:
+            return None
+        if waiting_id not in self._pending or waiting_id not in self._pending_context:
+            self._waiting_for_edit_tool_call_id = None
+            return None
+        self._waiting_for_edit_tool_call_id = None
+        return waiting_id
+
+    def _handle_edit_response(self, response: str) -> bool:
+        return self.handle_edit_response(response)
+
+    def _schedule_broadcast(self, message: str) -> None:
+        """Fire a broadcast from a synchronous callback.
+
+        The task is held in ``_broadcast_tasks`` until it finishes: with no
+        strong reference the loop is free to garbage-collect it mid-flight and
+        the client would silently never see the message. Failures are logged
+        here rather than surfacing as "Task exception was never retrieved".
+        """
+        task = asyncio.create_task(
+            self.session_manager.broadcast(self.session_id, message)
+        )
+        self._broadcast_tasks.add(task)
+        task.add_done_callback(self._on_broadcast_done)
+
+    def _on_broadcast_done(self, task: asyncio.Task) -> None:
+        self._broadcast_tasks.discard(task)
+        if task.cancelled():
+            return
+        error = task.exception()
+        if error is not None:
+            CFG.LOGGER.warning(f"Failed to broadcast approval update: {error!r}")
 
     def _apply_response(self, tool_call_id: str, response: str) -> None:
         if tool_call_id not in self._pending:
             return
         if not isinstance(response, str):
-            asyncio.create_task(
-                self.session_manager.broadcast(
-                    self.session_id,
-                    f"[ERROR] Unexpected response type: {type(response).__name__}",
-                )
+            self._schedule_broadcast(
+                f"[ERROR] Unexpected response type: {type(response).__name__}"
             )
             future = self._pending.pop(tool_call_id)
             del self._pending_context[tool_call_id]
@@ -175,20 +209,10 @@ class HTTPChatApprovalChannel(ApprovalChannel):
         future = self._pending.pop(tool_call_id)
         context = self._pending_context.pop(tool_call_id)
         if response_lower in ("y", "yes", "ok", "okay", ""):
-            asyncio.create_task(
-                self.session_manager.broadcast(
-                    self.session_id,
-                    f"[APPROVED] {context.tool_name}",
-                )
-            )
+            self._schedule_broadcast(f"[APPROVED] {context.tool_name}")
             future.set_result(ApprovalResult(approved=True))
         elif response_lower in ("n", "no", "deny", "cancel"):
-            asyncio.create_task(
-                self.session_manager.broadcast(
-                    self.session_id,
-                    f"[DENIED] {context.tool_name}",
-                )
-            )
+            self._schedule_broadcast(f"[DENIED] {context.tool_name}")
             future.set_result(ApprovalResult(approved=False, message="User denied"))
         elif response_lower in ("e", "edit"):
             self._pending[tool_call_id] = future
@@ -199,19 +223,9 @@ class HTTPChatApprovalChannel(ApprovalChannel):
             CFG.LOGGER.info(
                 f"ENTERING EDIT MODE: tool_call_id={tool_call_id}, tool_args={context.tool_args}"
             )
-            asyncio.create_task(
-                self.session_manager.broadcast(
-                    self.session_id,
-                    f"[EDIT MODE] {context.tool_name}\n{args_json}",
-                )
-            )
+            self._schedule_broadcast(f"[EDIT MODE] {context.tool_name}\n{args_json}")
         else:
-            asyncio.create_task(
-                self.session_manager.broadcast(
-                    self.session_id,
-                    f"[DENIED] {context.tool_name}: {response}",
-                )
-            )
+            self._schedule_broadcast(f"[DENIED] {context.tool_name}: {response}")
             future.set_result(
                 ApprovalResult(approved=False, message=f"User denied: {response}")
             )
