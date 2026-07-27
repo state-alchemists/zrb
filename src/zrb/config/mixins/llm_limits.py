@@ -26,9 +26,6 @@ class LLMLimitsMixin:
         self.DEFAULT_LLM_WEB_PAGE_TIMEOUT: str = "30000"
         self.DEFAULT_LLM_WEB_HTTP_TIMEOUT: str = "30000"
         self.DEFAULT_LLM_MODEL_FETCH_TIMEOUT: str = "5000"
-        # 5000, not the former 1000: the knob was never read, and the git calls it
-        # now bounds were hardcoded to 5s. Keeping 1000 would have tightened the
-        # cap 5x on first wiring, dropping the git lines on any slower repo.
         self.DEFAULT_LLM_GIT_CMD_TIMEOUT: str = "5000"
         self.DEFAULT_LLM_MAX_OUTPUT_CHARS: str = "100000"
         self.DEFAULT_LLM_MAX_TOOL_RESULT_CHARS: str = "100000"

@@ -75,7 +75,6 @@ class TestTimeoutConfig:
         monkeypatch.delenv("ZRB_LLM_GIT_CMD_TIMEOUT", raising=False)
         config = Config()
         # 5000 matches the timeout the live-context git calls hardcoded before
-        # this knob was wired to them; 1000 would have tightened the cap 5x.
         assert config.LLM_GIT_CMD_TIMEOUT == 5000
 
     def test_llm_git_cmd_timeout_setter(self, monkeypatch):
