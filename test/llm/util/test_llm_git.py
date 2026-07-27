@@ -88,9 +88,7 @@ class TestIsInsideGitDir:
         """A timeout is the same safe answer as any other failure."""
         from zrb.llm.util.git import is_inside_git_dir
 
-        with patch(
-            "subprocess.run", side_effect=subprocess.TimeoutExpired("git", 5.0)
-        ):
+        with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("git", 5.0)):
             assert is_inside_git_dir() is False
 
     def test_filenot_found_returns_false(self):

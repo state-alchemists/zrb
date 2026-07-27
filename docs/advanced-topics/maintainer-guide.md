@@ -84,7 +84,7 @@ The changelog lives in index and directory under `docs/`:
 ### Writing an entry
 
 Each release is a `## <version> (<Month D, YYYY>)` heading followed by themed
-bullets, with one blank line between entries:
+bullets as one contiguous list — no blank lines between entries:
 
 ```markdown
 ## 2.33.0 (June 6, 2026)

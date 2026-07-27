@@ -675,4 +675,3 @@ class TestConfigSetters:
         config = Config()
         config.HOOKS_TIMEOUT = 60000
         assert os.environ["ZRB_HOOKS_TIMEOUT"] == "60000"
-

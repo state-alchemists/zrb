@@ -219,7 +219,9 @@ class TestRenderLiveContext:
                 mock_run.return_value = MagicMock(stdout="")
                 render_live_context(ctx)
 
-        git_calls = [c for c in mock_run.call_args_list if c.args and "git" in c.args[0]]
+        git_calls = [
+            c for c in mock_run.call_args_list if c.args and "git" in c.args[0]
+        ]
         assert git_calls, "no git commands ran"
         assert all(c.kwargs.get("timeout") == 3.0 for c in git_calls), [
             c.kwargs.get("timeout") for c in git_calls
