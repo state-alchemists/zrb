@@ -354,7 +354,7 @@ class BaseTask(AnyTask):
             return self.run(session=session, kwargs=task_kwargs)
 
         task_runner_fn.__doc__ = self._create_fn_docstring()
-        task_runner_fn.__signature__ = self._create_fn_signature()  # type: ignore[attr-defined]
+        setattr(task_runner_fn, "__signature__", self._create_fn_signature())
         task_runner_fn.__name__ = self.name
         return task_runner_fn
 

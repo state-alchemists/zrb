@@ -1,8 +1,8 @@
 """Integration tests for LLMTask: the execution path and its run_agent /
 create_agent / summarize_history seams (all patched at this module path).
 
-Pure builder/property unit tests live in ``test_builder_mixin.py`` and
-history/recovery unit tests live in ``test_history_mixin.py``.
+Pure builder/property unit tests live in ``test_building.py`` and
+history/recovery unit tests live in ``test_history.py``.
 """
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -228,7 +228,7 @@ class TestLLMTaskExecution:
     async def test_llm_task_summarization_behavior(self, session):
         # Arrange
         task = LLMTask(
-            name="test-task", message="summarize", summarize_command=["summarize"]
+            name="test-task", message="summarize", summarize_commands=["summarize"]
         )
 
         # Act & Assert

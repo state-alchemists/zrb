@@ -477,7 +477,9 @@ def create_agent(
         capabilities=capabilities or [],
         retries={"tools": effective_retries},
     )
-    agent.zrb_history_processors = history_processors or []  # type: ignore[attr-defined]
+    # Ad-hoc attribute on the pydantic-ai agent; setattr keeps it honest
+    # instead of a blanket type suppression.
+    setattr(agent, "zrb_history_processors", history_processors or [])
     return agent
 
 

@@ -119,7 +119,7 @@ class EnvField(Generic[T]):
 
     def __init__(
         self,
-        cast: Callable[[str], T] = str,  # type: ignore[assignment]
+        cast: Callable[[str], T] = str,
         *,
         transform: Callable[[T, Any], T] | None = None,
         serialize: Callable[[Any], str] = str,

@@ -24,7 +24,7 @@ from zrb.llm.lsp.protocol import (
     LSPServerError,
     LSPTimeoutError,
 )
-from zrb.llm.lsp.server_operations import OperationsMixin
+from zrb.llm.lsp.server_operations import LSPServerOperations
 
 __all__ = [
     "LSP_SERVER_CONFIGS",
@@ -37,7 +37,7 @@ __all__ = [
 ]
 
 
-class LSPServer(OperationsMixin):
+class LSPServer(LSPServerOperations):
     """Manages communication with an LSP server process."""
 
     def __init__(

@@ -18,10 +18,10 @@ from zrb.llm.agent.run.runtime_state import get_current_hook_manager, get_curren
 # subagent package's __init__ triggers `apply_common_tools`, which loads
 # zrb.llm.tool, which loads this module — so the package __init__ is still
 # mid-load when delegate.py executes its imports.
-from zrb.llm.agent.subagent.manager.manager import (
+from zrb.llm.agent.subagent.manager import (
     SubAgentManager,
 )
-from zrb.llm.agent.subagent.manager.manager import (
+from zrb.llm.agent.subagent.manager import (
     sub_agent_manager as default_sub_agent_manager,
 )
 from zrb.llm.config.limiter import llm_limiter
@@ -457,7 +457,7 @@ def create_delegate_to_agent_tool(
         label = buffered_ui.label or f"[{agent_name}]"
         return f"{label} completed:\n\n{task_result.result}"
 
-    delegate_to_agent.zrb_is_delegate_tool = True  # type: ignore[attr-defined]
+    setattr(delegate_to_agent, "zrb_is_delegate_tool", True)
     delegate_to_agent.__name__ = "DelegateToAgent"
     delegate_to_agent.__doc__ = (
         "Delegates a task to a named subagent for isolated execution.\n\n"

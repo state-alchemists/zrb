@@ -45,10 +45,14 @@ def serve_task_session_api(
         except NodeNotFoundError:
             # FastAPI returns the Response directly; the model annotation only
             # drives response_model for the success path.
-            return JSONResponse(content={"detail": "Not found"}, status_code=404)  # type: ignore[return-value]
+            return JSONResponse(
+                content={"detail": "Not found"}, status_code=404
+            )  # pyright: ignore[reportReturnType]
         if isinstance(task, AnyTask):
             if not user.can_access_task(task):
-                return JSONResponse(content={"detail": "Forbidden"}, status_code=403)  # type: ignore[return-value]
+                return JSONResponse(
+                    content={"detail": "Forbidden"}, status_code=403
+                )  # pyright: ignore[reportReturnType]
             session_name = residual_args[0] if residual_args else None
             if not session_name:
                 shared_ctx = SharedContext(is_web_mode=True)
@@ -57,7 +61,9 @@ def serve_task_session_api(
                 coroutines.append(coro)
                 coro.add_done_callback(lambda coro: coroutines.remove(coro))
                 return NewSessionResponse(session_name=session.name)
-        return JSONResponse(content={"detail": "Not found"}, status_code=404)  # type: ignore[return-value]
+        return JSONResponse(
+            content={"detail": "Not found"}, status_code=404
+        )  # pyright: ignore[reportReturnType]
 
     @app.get(
         "/api/v1/task-sessions/{path:path}",
@@ -79,10 +85,14 @@ def serve_task_session_api(
         try:
             task, _, residual_args = extract_node_from_args(root_group, args)
         except NodeNotFoundError:
-            return JSONResponse(content={"detail": "Not found"}, status_code=404)  # type: ignore[return-value]
+            return JSONResponse(
+                content={"detail": "Not found"}, status_code=404
+            )  # pyright: ignore[reportReturnType]
         if isinstance(task, AnyTask) and residual_args:
             if not user.can_access_task(task):
-                return JSONResponse(content={"detail": "Forbidden"}, status_code=403)  # type: ignore[return-value]
+                return JSONResponse(
+                    content={"detail": "Forbidden"}, status_code=403
+                )  # pyright: ignore[reportReturnType]
             if residual_args[0] == "list":
                 task_path = get_node_path(root_group, task)
                 max_start_time = (
@@ -105,7 +115,9 @@ def serve_task_session_api(
                 return sanitize_session_state_log(
                     task, session_state_logger.read(residual_args[0])
                 )
-        return JSONResponse(content={"detail": "Not found"}, status_code=404)  # type: ignore[return-value]
+        return JSONResponse(
+            content={"detail": "Not found"}, status_code=404
+        )  # pyright: ignore[reportReturnType]
 
 
 def sanitize_session_state_log_list(

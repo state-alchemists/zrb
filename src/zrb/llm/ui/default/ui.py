@@ -21,11 +21,11 @@ from zrb.llm.tool_call import (
     ToolPolicy,
 )
 from zrb.llm.ui.base.ui import BaseUI
-from zrb.llm.ui.default.confirmation_mixin import ConfirmationMixin
-from zrb.llm.ui.default.keybindings_mixin import KeybindingsMixin
-from zrb.llm.ui.default.lifecycle_mixin import LifecycleMixin
-from zrb.llm.ui.default.output_mixin import OutputMixin
-from zrb.llm.ui.default.selection_mixin import SelectionMixin
+from zrb.llm.ui.default.confirmation import UIConfirmation
+from zrb.llm.ui.default.keybindings import UIKeybindings
+from zrb.llm.ui.default.lifecycle import UILifecycle
+from zrb.llm.ui.default.output import UIOutput
+from zrb.llm.ui.default.selection import UISelection
 from zrb.util.ascii_art.banner import create_banner
 from zrb.util.cli.terminal import get_terminal_size
 
@@ -42,12 +42,12 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class UI(  # type: ignore[reportIncompatibleVariableOverride]
-    LifecycleMixin,
-    KeybindingsMixin,
-    SelectionMixin,
-    ConfirmationMixin,
-    OutputMixin,
+class UI(
+    UILifecycle,
+    UIKeybindings,
+    UISelection,
+    UIConfirmation,
+    UIOutput,
     BaseUI,
 ):
     def __init__(

@@ -58,18 +58,18 @@ For non-LLM tasks, the lifecycle ends here. For an `LLMChatTask`, the action han
 ## Stage 3 — `LLMChatTask` build & UI selection
 
 ```
-src/zrb/llm/task/chat/exec_mixin.py :: LLMChatTask._exec_action()
+src/zrb/llm/task/chat/execution.py :: LLMChatTask._exec_action()
 ↓ (via mixins on the same class)
-src/zrb/llm/task/chat/builder_mixin.py  - build the inner LLMTask
-src/zrb/llm/task/chat/runner_mixin.py   - resolve UIs/triggers/commands
+src/zrb/llm/task/chat/building.py  - build the inner LLMTask
+src/zrb/llm/task/chat/running.py   - resolve UIs/triggers/commands
 ```
 
 `LLMChatTask` (`src/zrb/llm/task/chat/task.py`) is composed as
-`LLMChatTask(BuilderMixin, RunnerMixin, ExecMixin, BaseTask)`.
+`LLMChatTask(LLMTaskBuilding, ChatRunning, ChatExecution, BaseTask)`.
 
 Three things happen here:
 
-1. **Build the inner `LLMTask`** with the resolved tools, toolsets, system prompt, capabilities, and history processors (`builder_mixin.py`). Heavy collaborator: `zrb.llm.prompt.PromptManager` assembles the system prompt; `zrb.llm.skill.SkillManager`, `zrb.llm.hook.HookManager`, and `zrb.llm.agent.subagent.sub_agent_manager` contribute their respective pieces.
+1. **Build the inner `LLMTask`** with the resolved tools, toolsets, system prompt, capabilities, and history processors (`building.py`). Heavy collaborator: `zrb.llm.prompt.PromptManager` assembles the system prompt; `zrb.llm.skill.SkillManager`, `zrb.llm.hook.HookManager`, and `zrb.llm.agent.subagent.sub_agent_manager` contribute their respective pieces.
 2. **Resolve UIs** from `ui_factories` (or fall back to the default TUI). For `zrb llm chat`, this ends up being the prompt-toolkit UI in `src/zrb/llm/ui/default/ui.py`. See [llm-custom-ui.md](./llm-custom-ui.md) for the UI factory contract.
 3. **Wrap approval channels** — if multiple are present, in a `MultiplexApprovalChannel`. Otherwise the single channel passes through.
 
@@ -159,7 +159,7 @@ After the loop terminates (success, error, or user exit):
 - The final history is sanitized one more time and persisted by the active `HistoryManager`.
 - If snapshot/rewind is enabled, `SnapshotManager` writes a checkpoint.
 - The five agent-level `ContextVar`s reset (their `finally` block in `run_agent()`).
-- Background tasks (refresh loop, system-info loop, message queue, triggers) are cancelled and awaited (`UI.cleanup_background_tasks()` in `default/lifecycle_mixin.py`).
+- Background tasks (refresh loop, system-info loop, message queue, triggers) are cancelled and awaited (`UI.cleanup_background_tasks()` in `default/lifecycle.py`).
 
 Control returns up through `LLMChatTask._exec_action` → `run_task_async` → `cli.run` → `serve_cli` → process exit.
 
@@ -173,7 +173,7 @@ Control returns up through `LLMChatTask._exec_action` → `run_task_async` → `
 | Task tree resolution | `src/zrb/runner/cli.py`, `src/zrb/util/group.py` |
 | Task execution lifecycle | `src/zrb/task/base/{execution,lifecycle,monitoring}.py` |
 | `llm chat` task definition | `src/zrb/builtin/llm/chat.py` |
-| Chat builder + runner | `src/zrb/llm/task/chat/{task,builder_mixin,runner_mixin,exec_mixin}.py` |
+| Chat builder + runner | `src/zrb/llm/task/chat/{task,state,building,running,execution}.py` |
 | Inner LLM task | `src/zrb/llm/task/llm_task.py` |
 | Agent factory | `src/zrb/llm/agent/common.py` |
 | Run loop | `src/zrb/llm/agent/run/runner.py` |
@@ -183,7 +183,7 @@ Control returns up through `LLMChatTask._exec_action` → `run_task_async` → `
 | Compression / summarisation | `src/zrb/llm/summarizer/history_summarizer.py` |
 | Default TUI | `src/zrb/llm/ui/default/ui.py` (composes `base/ui.py` + 4 mixins) |
 | HTTP chat UI | `src/zrb/runner/chat/http_ui.py` + SSE backend |
-| Hooks | `src/zrb/llm/hook/manager/manager.py`, `hook_creators.py`, `matcher.py` |
+| Hooks | `src/zrb/llm/hook/manager.py`, `hook_creators.py`, `matcher.py` |
 | Sub-agents | `src/zrb/llm/agent/subagent/manager/` |
 | Permission policy | `src/zrb/llm/permission/` |
 | Persistence | `src/zrb/llm/history_manager/file_history_manager.py` |

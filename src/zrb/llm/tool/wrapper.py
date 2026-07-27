@@ -81,7 +81,7 @@ def tool_safe_async(
                 hint = _get_hint(error_hint, args, kwargs, e)
                 return _format_error(fn.__name__, args, kwargs, e, hint)
 
-        return wrapper  # type: ignore[return-value]
+        return wrapper  # pyright: ignore[reportReturnType]
 
     if func is not None:
         return decorator(func)

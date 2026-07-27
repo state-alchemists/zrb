@@ -31,7 +31,7 @@ from zrb.util.string.conversion import to_boolean
 # NOTE: `zrb.llm.tool` and `zrb.llm.lsp.tools` are imported lazily inside
 # ``apply_common_tools``. Reason: ``zrb.llm.tool/__init__.py`` loads
 # ``delegate.py``, which imports ``SubAgentManager`` from
-# ``zrb.llm.agent.subagent.manager.manager``. If this module is loaded
+# ``zrb.llm.agent.subagent.manager``. If this module is loaded
 # before ``manager.py`` (e.g. via ``builtin/llm/chat.py``), the
 # ``manager.py`` bottom-imports ``default_tools.py`` which re-enters
 # ``apply_common_tools`` while this module is still mid-load — causing an
@@ -483,7 +483,7 @@ def defer_common_tools(host: CommonToolHost) -> None:
     ``create_agent`` entry points) keeps the heavy import off the cold path for
     callers that never run an agent. See ``ensure_common_tools``.
     """
-    host._pending_common_tools = True  # type: ignore[attr-defined]
+    setattr(host, "_pending_common_tools", True)
 
 
 def ensure_common_tools(host: CommonToolHost) -> None:
@@ -494,7 +494,7 @@ def ensure_common_tools(host: CommonToolHost) -> None:
     deferral stays scoped to exactly the singletons that had the eager call.
     """
     if getattr(host, "_pending_common_tools", False):
-        host._pending_common_tools = False  # type: ignore[attr-defined]
+        setattr(host, "_pending_common_tools", False)
         apply_common_tools(host)
 
 

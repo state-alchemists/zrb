@@ -36,13 +36,19 @@ def serve_task_input_api(
         try:
             task, _, _ = extract_node_from_args(root_group, args)
         except NodeNotFoundError:
-            return JSONResponse(content={"detail": "Not found"}, status_code=404)  # type: ignore[return-value]
+            return JSONResponse(
+                content={"detail": "Not found"}, status_code=404
+            )  # pyright: ignore[reportReturnType]
         if isinstance(task, AnyTask):
             if not user.can_access_task(task):
-                return JSONResponse(content={"detail": "Forbidden"}, status_code=403)  # type: ignore[return-value]
+                return JSONResponse(
+                    content={"detail": "Forbidden"}, status_code=403
+                )  # pyright: ignore[reportReturnType]
             str_kwargs = json.loads(query)
             task_str_kwargs = get_task_str_kwargs(
                 task=task, str_args=[], str_kwargs=str_kwargs, cli_mode=False
             )
             return task_str_kwargs
-        return JSONResponse(content={"detail": "Not found"}, status_code=404)  # type: ignore[return-value]
+        return JSONResponse(
+            content={"detail": "Not found"}, status_code=404
+        )  # pyright: ignore[reportReturnType]

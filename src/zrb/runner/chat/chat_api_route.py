@@ -227,7 +227,7 @@ def serve_chat_api(
     ) -> "SSEStreamResponse":
         forbidden = await _forbid_if_unauthorized(request)
         if forbidden is not None:
-            return forbidden  # type: ignore[return-value]
+            return forbidden  # pyright: ignore[reportReturnType]
         session = session_manager.get_session(session_id)
         if session is None:
             session = await session_manager.create_session(session_id=session_id)

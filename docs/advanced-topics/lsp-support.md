@@ -207,7 +207,7 @@ Ask the assistant to use LSP:
 Where is the LSPManager class defined?
 
 # Show file structure
-Show me all symbols in src/zrb/llm/lsp/manager/manager.py
+Show me all symbols in src/zrb/llm/lsp/manager.py
 
 # Get diagnostics
 Are there any errors in server.py?

@@ -17,7 +17,10 @@ The tree is self-describing — `ls src/zrb/` plus each module's docstring cover
 - `src/zrb/task/` — task engine: `BaseTask`, `Task`, `CmdTask`, `HttpCheck`, `TcpCheck`, `Scheduler` (extends `BaseTrigger`), `Scaffolder`, `RsyncTask`. Plus the `make_task` decorator (wraps a plain function into a `BaseTask`).
 - `src/zrb/llm/` — LLM integration. `task/llm_task.py` (`LLMTask`) and `task/chat/task.py` (`LLMChatTask`) are `BaseTask` subclasses that create pydantic-ai agents internally. `prompt/` composes the system prompt; `tool/` ships agent-callable tools; `agent/subagent/` handles delegation; `common_tools.py` registers the shared baseline used by `LLMChatTask`, `LLMTask`, and `SubAgentManager`.
 - `src/zrb/llm_plugin/` — built-in LLM plugin, split into three categories: `core_skills/` (always-on methodology baseline the utility skills delegate into), `skills/` (utility skills, gated by `CFG.LLM_ENABLE_BUILTIN_SKILLS`), and `agents/` (sub-agents, gated by `CFG.LLM_ENABLE_BUILTIN_AGENTS`). Each skill is `SKILL.md` or `SKILL.py`; each agent is `*.agent.md`. The toggles suppress only built-in content — user/project/plugin skills and agents always load. See ADR-0069.
-- `test/` — mirrors `src/` hierarchy
+- `test/` — mirrors the `src/` hierarchy. The mirror is a *naming* rule, not a
+  completeness claim: where a test exists it sits at the mirrored path, but
+  plenty of modules have no test file of their own and are covered through a
+  caller instead.
 
 > For a top-down tour of `zrb llm chat "..."` (CLI → task → agent run → UI → history), see `docs/advanced-topics/llm-chat-lifecycle.md`.
 
@@ -103,8 +106,27 @@ format and the compaction/collapsing procedure — with a worked example — are
 
 ### Code Style
 - Follow existing project conventions (formatting, naming, typing)
-- **Modularity:** functions ≤ 30 lines; helpers placed below their callers
-- **Error handling:** LLM tool errors include a `[SYSTEM SUGGESTION]` prefix with actionable guidance
+- **Modularity:** prefer functions under ~30 lines; helpers placed below their
+  callers. This is a target for *new* code, not a repo-wide invariant — a few
+  hundred existing functions exceed it (keybinding tables, hook creators,
+  constructors). Going long is allowed when splitting would only scatter a
+  single linear procedure; don't split just to hit the number, and don't cite
+  the number as if it were enforced.
+- **`Mixin` means reusable** (ADR-0085). Suffix a class `Mixin` only when it
+  reads no state it does not itself set, so any class can mix it in
+  (`BufferedOutputMixin`; the `CFG` mixins under `config/mixins/`). A class that
+  reads attributes only one host provides is a *part* of that host, not a mixin:
+  name it `<Owner><Aspect>` in a file named for the aspect — `ChatExecution` in
+  `task/chat/execution.py`, `BaseUICommands` in `ui/base/commands.py`. No
+  `_mixin` suffix, no leading underscore (these are imported across modules, so
+  "module-private" would be a false claim). Parts keep a `TYPE_CHECKING`
+  host-contract block declaring what the host must provide.
+- **No path stutter.** `X/manager/manager.py` is `X/manager.py`; siblings become
+  `X/manager_<aspect>.py`.
+- **Error handling:** an LLM tool error the *model* has to recover from carries
+  a `[SYSTEM SUGGESTION]` prefix with actionable guidance. Ordinary programmer
+  errors (bad argument, broken invariant) stay plain `ValueError`/`RuntimeError`
+  — the prefix is for text the model reads, not for every raise.
 
 ### Config Conventions
 
@@ -144,6 +166,11 @@ Run: `source .venv/bin/activate && ./zrb-test.sh [path]` — pass nothing for al
 - ❌ No suffixes like `_advanced.py`, `_coverage.py`, `_extra.py`, `_comprehensive.py`
 - ✅ Single source of truth: update the main test file (`test_manager.py`), not a sibling
 - ✅ Split files >500 lines by **feature group** (`test_manager_lifecycle.py`, `test_manager_search.py`), not by depth or coverage level
+- ⚠️ Mirroring `src/` produces **duplicate basenames** (`test_manager.py` under
+  `hook/`, `lsp/`, `snapshot/`, …). pytest imports rootdir-relative, so two
+  bare `test_manager.py` files collide at collection. Fix by adding an empty
+  `__init__.py` to the test directory — that qualifies the module name. Keep
+  the mirrored filename; do not rename the test to dodge the clash.
 
 **Coverage exclusions** (`.coveragerc`) — do not test these directly:
 - `any_*.py` — protocols / interfaces (no implementation)

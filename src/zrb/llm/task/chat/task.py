@@ -5,8 +5,8 @@ TUI, std-out, http, multi-UI), approval-channel orchestration, history
 manager + snapshot lifecycle, and the inner `LLMTask` execution. Heavy.
 Most of the behaviour is decomposed into:
 
-  builder_mixin.py - construct the inner LLMTask (model, tools, prompts)
-  runner_mixin.py  - resolve UIs/triggers/custom commands, run the loop
+  building.py - construct the inner LLMTask (model, tools, prompts)
+  running.py  - resolve UIs/triggers/custom commands, run the loop
 
 For the public API and authoring patterns, see:
   docs/task-types/llmchat-task.md
@@ -32,9 +32,9 @@ from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.prompt.tool_guidance import ToolGuidance
-from zrb.llm.task.chat.builder_mixin import BuilderMixin
-from zrb.llm.task.chat.exec_mixin import ExecMixin
-from zrb.llm.task.chat.runner_mixin import RunnerMixin
+from zrb.llm.task.chat.building import ChatBuilding
+from zrb.llm.task.chat.execution import ChatExecution
+from zrb.llm.task.chat.running import ChatRunning
 from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.tool_call import (
     ArgumentFormatter,
@@ -85,7 +85,7 @@ def parse_yolo_value(value: Any) -> "bool | frozenset[str]":
     return tools if tools else False
 
 
-class LLMChatTask(BuilderMixin, RunnerMixin, ExecMixin, BaseTask):  # type: ignore[reportIncompatibleVariableOverride]
+class LLMChatTask(ChatBuilding, ChatRunning, ChatExecution, BaseTask):
 
     def __init__(
         self,
@@ -293,30 +293,38 @@ class LLMChatTask(BuilderMixin, RunnerMixin, ExecMixin, BaseTask):  # type: igno
         self._sandbox = sandbox
         self._yolo = yolo
         self._yolo_xcom_key = yolo_xcom_key
-        self._ui_summarize_commands = ui_summarize_commands or []
-        self._ui_attach_commands = ui_attach_commands or []
-        self._ui_exit_commands = ui_exit_commands or []
-        self._ui_info_commands = ui_info_commands or []
-        self._ui_save_commands = ui_save_commands or []
-        self._ui_load_commands = ui_load_commands or []
-        self._ui_rewind_commands = ui_rewind_commands or []
-        self._ui_redirect_output_commands = ui_redirect_output_commands or []
-        self._ui_yolo_toggle_commands = ui_yolo_toggle_commands or []
-        self._ui_set_model_commands = ui_set_model_commands or []
-        self._ui_exec_commands = ui_exec_commands or []
-        self._ui_btw_commands = ui_btw_commands or []
-        self._ui_plan_commands = ui_plan_commands or []
-        self._ui_copy_commands = ui_copy_commands or []
-        self._ui_voice_commands = ui_voice_commands or []
+        # Slash-command alias overrides, keyed as ChatExecution._get_ui_commands
+        # and the UIs consume them. An empty list means "no override" — CFG
+        # supplies the default at resolve time, not here, so a later env change
+        # still wins.
+        self._ui_command_overrides: dict[str, list[str]] = {
+            key: value or []
+            for key, value in (
+                ("summarize", ui_summarize_commands),
+                ("attach", ui_attach_commands),
+                ("exit", ui_exit_commands),
+                ("info", ui_info_commands),
+                ("save", ui_save_commands),
+                ("load", ui_load_commands),
+                ("rewind", ui_rewind_commands),
+                ("yolo_toggle", ui_yolo_toggle_commands),
+                ("set_model", ui_set_model_commands),
+                ("redirect_output", ui_redirect_output_commands),
+                ("exec", ui_exec_commands),
+                ("btw", ui_btw_commands),
+                ("plan", ui_plan_commands),
+                ("copy", ui_copy_commands),
+                ("voice", ui_voice_commands),
+            )
+        }
         self._custom_commands = custom_commands or []
-        self._ui_greeting = ui_greeting
-        self._render_ui_greeting = render_ui_greeting
-        self._ui_assistant_name = ui_assistant_name
-        self._render_ui_assistant_name = render_ui_assistant_name
-        self._ui_jargon = ui_jargon
-        self._render_ui_jargon = render_ui_jargon
-        self._ui_ascii_art_name = ui_ascii_art
-        self._render_ui_ascii_art_name = render_ui_ascii_art_name
+        # (value, render) per UI text; ChatRunning renders the block as one.
+        self._ui_texts: dict[str, tuple[StrAttr | None, bool]] = {
+            "greeting": (ui_greeting, render_ui_greeting),
+            "assistant_name": (ui_assistant_name, render_ui_assistant_name),
+            "ascii_art": (ui_ascii_art, render_ui_ascii_art_name),
+            "jargon": (ui_jargon, render_ui_jargon),
+        }
         self._triggers = triggers or []
         self._response_handlers = response_handlers or []
         self._tool_policies = tool_policies or []
