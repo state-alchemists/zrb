@@ -15,7 +15,7 @@ class LLMUICommandsMixin:
     def __init__(self):
         self.DEFAULT_LLM_UI_COMMAND_SUMMARIZE: str = "/compress, /compact"
         self.DEFAULT_LLM_UI_COMMAND_ATTACH: str = "/attach"
-        self.DEFAULT_LLM_UI_COMMAND_EXIT: str = "/q, /bye, /quit, /exit"
+        self.DEFAULT_LLM_UI_COMMAND_EXIT: str = "/q, :q, /bye, /quit, /exit"
         self.DEFAULT_LLM_UI_COMMAND_INFO: str = "/info, /help"
         self.DEFAULT_LLM_UI_COMMAND_SAVE: str = "/save"
         self.DEFAULT_LLM_UI_COMMAND_LOAD: str = "/load"

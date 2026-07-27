@@ -12,9 +12,9 @@ import re
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
-from zrb.llm.lsp.symbol_utils import format_document_symbols, uri_to_path
 from zrb.llm.lsp.no_server_error import no_server_error
 from zrb.llm.lsp.protocol import SymbolKind
+from zrb.llm.lsp.symbol_utils import format_document_symbols, uri_to_path
 
 if TYPE_CHECKING:
     from zrb.llm.lsp.server import LSPServer

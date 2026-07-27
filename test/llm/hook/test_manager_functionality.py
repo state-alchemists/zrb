@@ -372,3 +372,97 @@ async def test_shutdown_is_a_noop_when_nothing_is_pending():
     await manager.shutdown()
     assert not manager.has_pending_background_hooks
     await manager.shutdown()  # idempotent
+
+
+@pytest.mark.asyncio
+async def test_shutdown_drain_lets_a_quick_hook_finish_first():
+    """`drain=True` is the per-run shape: finish, then cancel the stragglers.
+
+    A non-interactive run tears its manager down moments after dispatching a
+    Stop-event hook, so cancel-first would effectively disable async hooks for
+    every one-shot caller.
+    """
+    import os
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        sentinel = os.path.join(tmp, "finished")
+        manager = HookManager(search_dirs=[])
+        manager.parse_and_register(
+            {
+                "name": "quick-async",
+                "events": ["Stop"],
+                "type": "command",
+                "async": True,
+                "config": {"command": f"sleep 0.1; touch {sentinel}", "shell": True},
+            },
+            "test",
+        )
+
+        await manager.execute_hooks(HookEvent.STOP, {})
+        await manager.shutdown(drain=True)
+
+        assert os.path.exists(sentinel), "drain cancelled a hook that had time to run"
+        assert not manager.has_pending_background_hooks
+
+
+@pytest.mark.asyncio
+async def test_shutdown_drain_still_cancels_a_hook_that_overruns_the_grace():
+    """Draining is bounded — it must not become a way to block teardown."""
+    import os
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        sentinel = os.path.join(tmp, "survived")
+        manager = HookManager(search_dirs=[])
+        manager.parse_and_register(
+            {
+                "name": "slow-async",
+                "events": ["Stop"],
+                "type": "command",
+                "async": True,
+                "config": {
+                    "command": f"( sleep 5; touch {sentinel} ) & wait",
+                    "shell": True,
+                },
+            },
+            "test",
+        )
+
+        await manager.execute_hooks(HookEvent.STOP, {})
+        await manager.shutdown(grace_seconds=0.2, drain=True)
+
+        await asyncio.sleep(0.5)
+        assert not os.path.exists(
+            sentinel
+        ), "background hook outlived a drained shutdown"
+
+
+@pytest.mark.asyncio
+async def test_per_run_hook_managers_are_isolated_from_the_developers_real_hooks():
+    """Guard for the `_disable_real_filesystem_hooks` fixture in test/conftest.py.
+
+    `_create_llm_task_core` builds a bare `HookManager()` per chat run, and a
+    bare manager resolves its own search dirs — on a developer machine that
+    means `~/.claude/settings.json`, i.e. peon-ping. Those async hooks spawn
+    `peon.sh`; with no audio device (CI/WSL) the subprocesses linger and hang
+    asyncio's subprocess-transport teardown when the per-test loop closes,
+    making the suite crawl. The fixture used to pin only the module-level
+    singleton, which left every per-run manager loading them for real.
+
+    Asserted through `execute_hooks` rather than the search-dir list: dirs are
+    still computed, the fixture stops them being *scanned*, and "no hook fires"
+    is the property that actually matters.
+    """
+    import zrb.llm.task.building as llm_task_building
+    import zrb.llm.task.chat.execution as chat_execution
+
+    for module in (chat_execution, llm_task_building):
+        manager = module.HookManager()
+        for event in (HookEvent.NOTIFICATION, HookEvent.STOP, HookEvent.SESSION_END):
+            results = await manager.execute_hooks(event, {})
+            assert results == [], (
+                f"{module.__name__} builds hook managers that run the real "
+                f"filesystem hooks during tests (fired on {event})"
+            )
+        assert not manager.has_pending_background_hooks

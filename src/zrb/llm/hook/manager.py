@@ -288,7 +288,9 @@ class HookManager(HookManagerLoading):
         """True while any fire-and-forget hook task is still running."""
         return any(not task.done() for task in self._background_tasks)
 
-    async def shutdown(self, grace_seconds: float = 2.0) -> None:
+    async def shutdown(
+        self, grace_seconds: float = 2.0, *, drain: bool = False
+    ) -> None:
         """Cancel in-flight fire-and-forget hooks and wait for them to settle.
 
         Async ("fire-and-forget") hooks run detached, and their subprocesses run
@@ -302,25 +304,23 @@ class HookManager(HookManagerLoading):
         this exists to stop. Async hooks are fire-and-forget by construction, so
         one dispatched at SESSION_END has no completion guarantee to break.
 
-        Waits at most ``grace_seconds`` so shutdown can never block on a hook
-        that refuses to unwind. Safe to call when nothing is pending, and safe to
-        call repeatedly.
+        ``drain=True`` inverts that first step only: pending hooks get
+        ``grace_seconds`` to finish on their own before the stragglers are
+        cancelled. That is the right shape for a *per-run* teardown, where the
+        manager may be shut down moments after a hook was dispatched and
+        cancel-first would effectively disable async hooks for that caller.
+
+        Waits at most ``grace_seconds`` per phase, so shutdown can never block on
+        a hook that refuses to unwind. Safe to call when nothing is pending, and
+        safe to call repeatedly.
         """
+        if drain:
+            await self._settle_background_hooks(grace_seconds)
         tasks = [task for task in self._background_tasks if not task.done()]
         for task in tasks:
             task.cancel()
         if tasks:
-            try:
-                await asyncio.wait_for(
-                    asyncio.gather(*tasks, return_exceptions=True),
-                    timeout=grace_seconds,
-                )
-            except asyncio.TimeoutError:
-                logger.debug(
-                    "%d background hook(s) did not settle within %ss",
-                    len(tasks),
-                    grace_seconds,
-                )
+            await self._settle_background_hooks(grace_seconds)
         # No unconditional clear() here: the done-callback already discards
         # finished tasks, so anything still in the set genuinely never settled and
         # has_pending_background_hooks must keep reporting it. Clearing made the
@@ -330,6 +330,22 @@ class HookManager(HookManagerLoading):
         # later session on a fresh loop build its own instead of awaiting a
         # semaphore attached to a closed one.
         self._bg_semaphore = None
+
+    async def _settle_background_hooks(self, timeout: float) -> None:
+        """Wait up to *timeout* for the pending background hooks to finish."""
+        tasks = [task for task in self._background_tasks if not task.done()]
+        if not tasks:
+            return
+        try:
+            await asyncio.wait_for(
+                asyncio.gather(*tasks, return_exceptions=True), timeout=timeout
+            )
+        except asyncio.TimeoutError:
+            logger.debug(
+                "%d background hook(s) did not settle within %ss",
+                len(tasks),
+                timeout,
+            )
 
     async def _run_background_hook(
         self, hook: HookCallable, context: HookContext

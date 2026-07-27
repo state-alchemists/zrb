@@ -158,3 +158,54 @@ async def test_gather_fail_fast_propagates_own_cancellation_and_cancels_children
     with pytest.raises(asyncio.CancelledError):
         await task
     assert cancelled == ["child", "child"]
+
+
+@pytest.mark.asyncio
+async def test_gather_fail_fast_surfaces_a_cancelled_child_without_waiting():
+    # A child cancelled from outside (session teardown cancelling one deferred
+    # task) must fail fast like any other failure. asyncio.wait's
+    # FIRST_EXCEPTION does NOT count a cancellation as an exception, so waiting
+    # on that alone would block on the surviving siblings — the exact hang this
+    # helper exists to prevent.
+    cancelled = []
+
+    async def child(name):
+        try:
+            await asyncio.sleep(30)
+        except asyncio.CancelledError:
+            cancelled.append(name)
+            raise
+
+    victim = asyncio.ensure_future(child("victim"))
+    gathered = asyncio.ensure_future(gather_fail_fast(victim, child("sibling")))
+    await asyncio.sleep(0.01)
+    victim.cancel()
+
+    with pytest.raises(asyncio.CancelledError):
+        await asyncio.wait_for(gathered, timeout=2)
+    assert sorted(cancelled) == ["sibling", "victim"]
+
+
+@pytest.mark.asyncio
+async def test_gather_fail_fast_stays_bounded_when_a_child_shields_its_cleanup(
+    monkeypatch,
+):
+    # An enclosing wait_for must remain a real ceiling. Awaiting the children
+    # through asyncio.gather did not: a gather being cancelled cancels its
+    # children and then waits for them, so a child that shields its cleanup held
+    # the cancellation pending and CFG.TASK_READINESS_TIMEOUT overshot by however
+    # long that child took.
+    monkeypatch.setattr("zrb.util.run._CANCEL_SETTLE_TIMEOUT", 0.2)
+
+    async def shielded():
+        try:
+            await asyncio.sleep(30)
+        except asyncio.CancelledError:
+            await asyncio.sleep(30)  # refuses to unwind
+
+    loop = asyncio.get_running_loop()
+    started = loop.time()
+    with pytest.raises(asyncio.TimeoutError):
+        await asyncio.wait_for(gather_fail_fast(shielded(), shielded()), timeout=0.1)
+    # timeout + settle cap, not the 30s the children would have taken.
+    assert loop.time() - started < 2

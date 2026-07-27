@@ -182,16 +182,19 @@ class ChatExecution(ChatState):
         # 6. Run Interactive or Non-Interactive
         # Note: AsyncExitStack for toolsets is handled by LLMTask._exec_action
         if not interactive:
-            return await self._run_non_interactive_session(
-                ctx=ctx,
-                llm_task_core=llm_task_core,
-                history_manager=history_manager,
-                ui_commands=ui_commands,
-                initial_message=initial_message,
-                initial_conversation_name=initial_conversation_name,
-                initial_yolo=initial_yolo,
-                initial_attachments=initial_attachments,
-            )
+            try:
+                return await self._run_non_interactive_session(
+                    ctx=ctx,
+                    llm_task_core=llm_task_core,
+                    history_manager=history_manager,
+                    ui_commands=ui_commands,
+                    initial_message=initial_message,
+                    initial_conversation_name=initial_conversation_name,
+                    initial_yolo=initial_yolo,
+                    initial_attachments=initial_attachments,
+                )
+            finally:
+                await self._teardown_background_hooks()
 
         try:
             return await self._run_interactive_session(
@@ -256,28 +259,47 @@ class ChatExecution(ChatState):
         # worker pool. Their subprocesses are in their own process group and so
         # never receive the terminal's Ctrl+C — this is what stops them
         # outliving the session.
-        #
-        # Shut down *this session's* manager: _create_llm_task_core builds a fresh
-        # HookManager per execution and that is the instance every hook ran on, so
-        # the module-level singleton holds none of this session's tasks. Fall back
-        # to the singleton only when no per-session manager was created, matching
-        # run_agent's own `hook_manager or default` resolution.
-        try:
-            if self._active_hook_manager is not None:
-                await self._active_hook_manager.shutdown()
-            else:
-                # lazy: only needed at session end; keeps the import off hot paths.
-                from zrb.llm.hook.manager import hook_manager
-
-                await hook_manager.shutdown()
-        except Exception as e:
-            CFG.LOGGER.debug(f"Background-hook shutdown at session end failed: {e}")
+        await self._teardown_background_hooks()
         try:
             from zrb.llm.hook.executor import shutdown_hook_executor
 
             shutdown_hook_executor(wait=False)
         except Exception as e:
             CFG.LOGGER.debug(f"Hook-executor shutdown at session end failed: {e}")
+
+    async def _teardown_background_hooks(self) -> None:
+        """Settle this run's detached (``async: true``) hooks.
+
+        Runs on *both* paths. The interactive session calls it as part of the
+        full teardown; the non-interactive one calls it on its own, because the
+        rest of that teardown (LSP servers, the worker pool) is deliberately
+        skipped there — the web/SSE runner reuses that path per message. Without
+        this, a one-shot ``zrb llm chat -m "..."`` left its detached hooks
+        running after the process exited: they sit in their own process group,
+        so nothing else reaps them.
+
+        ``drain=True``: the pending hooks were very likely dispatched moments
+        ago (a Stop-event notifier on the last turn), so give them their grace
+        period to finish before cancelling the stragglers. Cancel-first is right
+        at *session* end and wrong at *run* end — it would effectively disable
+        async hooks for every non-interactive caller.
+
+        Shuts down *this run's* manager: ``_create_llm_task_core`` builds a fresh
+        ``HookManager`` per execution and that is the instance every hook ran on,
+        so the module-level singleton holds none of this run's tasks. Falls back
+        to the singleton only when no per-run manager was created, matching
+        ``run_agent``'s own ``hook_manager or default`` resolution.
+        """
+        try:
+            if self._active_hook_manager is not None:
+                await self._active_hook_manager.shutdown(drain=True)
+            else:
+                # lazy: only needed at teardown; keeps the import off hot paths.
+                from zrb.llm.hook.manager import hook_manager
+
+                await hook_manager.shutdown(drain=True)
+        except Exception as e:
+            CFG.LOGGER.debug(f"Background-hook shutdown at teardown failed: {e}")
 
     def _get_all_tools(self, ctx: AnyContext) -> list[Tool | ToolFuncEither]:
         """Get all tools including those resolved from factories using parent context."""

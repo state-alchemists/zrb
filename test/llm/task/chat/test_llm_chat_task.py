@@ -487,3 +487,30 @@ async def test_llm_chat_task_forwards_sandbox_to_run_agent():
 
     assert mock_run_agent.called
     assert mock_run_agent.call_args.kwargs["sandbox_policy"] is policy
+
+
+@pytest.mark.asyncio
+async def test_non_interactive_run_settles_its_background_hooks():
+    """A one-shot run must not leave detached hooks running after it returns.
+
+    Regression: only the interactive path had a teardown, so `zrb llm chat -m
+    "..."` and the web/SSE runner left their `async: true` hooks alive — they sit
+    in their own process group, so nothing else reaps them. Drained rather than
+    cancelled up front: this fires at *run* end, possibly moments after the hook
+    was dispatched.
+    """
+    from zrb.llm.hook.manager import HookManager
+
+    with (
+        patch(
+            "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
+        ) as mock_run_agent,
+        patch.object(HookManager, "shutdown", new_callable=AsyncMock) as mock_shutdown,
+    ):
+        mock_run_agent.return_value = ("AI response", [])
+        task = LLMChatTask(
+            name="non-interactive-hook-teardown", message="Hi", interactive=False
+        )
+        await task.async_run(Session(SharedContext(), state_logger=MagicMock()))
+
+    mock_shutdown.assert_awaited_once_with(drain=True)

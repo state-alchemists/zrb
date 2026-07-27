@@ -177,6 +177,10 @@ def serve_chat_api(
             # tool denial. Unhandled dicts fall to the pending-state checks below,
             # which report the miss without touching the pending call.
 
+            # Re-read: an unhandled claim above clears a stale edit slot, so the
+            # value captured before the call is out of date. Using it would tell
+            # a client that just sent JSON args to "send JSON args".
+            is_waiting_edit = session_manager.is_waiting_for_edit(session_id)
             if is_waiting_edit:
                 return JSONResponse(
                     content={"error": "Waiting for edit response, send JSON args"},

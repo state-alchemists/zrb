@@ -42,7 +42,9 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class BaseUICommands(BaseUIConversationCommands, BaseUIModelCommands, BaseUIExecCommands):
+class BaseUICommands(
+    BaseUIConversationCommands, BaseUIModelCommands, BaseUIExecCommands
+):
     """Slash-command dispatch for BaseUI (handlers live in composed mixins)."""
 
     # Host-class contract: state and methods owned by `BaseUI` (and concrete
