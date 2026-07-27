@@ -338,8 +338,7 @@ async def _extract_info(
         # solo batch (below) and sent whole — if it also exceeds the per-minute
         # token budget, the rate limiter can never admit it and livelocks the UI
         # forever. Truncate it to fit, like WebFetch/Shell bound their payloads.
-        content = _fit_file_payload(payload, token_limit - base_overhead)
-        file_tokens = llm_limiter.count_tokens(content)
+        content, file_tokens = _fit_file_payload(payload, token_limit - base_overhead)
 
         if current_token_count + file_tokens + base_overhead > token_limit:
             if content_buffer:
@@ -360,22 +359,28 @@ async def _extract_info(
     return extracted_infos
 
 
-def _fit_file_payload(payload: dict, budget: int) -> str:
-    """Serialize a per-file payload, truncating its text field to fit ``budget``.
+def _fit_file_payload(payload: dict, budget: int) -> tuple[str, int]:
+    """Serialize a per-file payload to fit ``budget``; returns ``(json, tokens)``.
 
     Truncating the *serialized* string cut the JSON mid-string (unterminated,
     no closing brace), so the extractor could misattribute the path/content
     boundary. Truncate the dominant field and re-serialize instead — the
     extractor always receives valid JSON.
+
+    The token count is returned rather than recomputed by the caller: counting
+    is the expensive part, and it already happens here to decide whether the
+    payload fits.
     """
     content = json.dumps(payload)
-    if llm_limiter.count_tokens(content) <= budget:
-        return content
+    tokens = llm_limiter.count_tokens(content)
+    if tokens <= budget:
+        return content, tokens
     key = "content" if "content" in payload else "symbols"
     text = payload[key] if isinstance(payload[key], str) else json.dumps(payload[key])
     envelope = llm_limiter.count_tokens(json.dumps({**payload, key: ""}))
     text = llm_limiter.truncate_text(text, max(budget - envelope, 1))
-    return json.dumps({**payload, key: text + "\n...[TRUNCATED]"})
+    content = json.dumps({**payload, key: text + "\n...[TRUNCATED]"})
+    return content, llm_limiter.count_tokens(content)
 
 
 async def _summarize_info(

@@ -449,3 +449,26 @@ async def test_extract_info_truncates_oversized_single_file():
     parsed = json.loads(captured[0][0])
     assert parsed["path"] == "big.py"
     assert parsed["content"].endswith("[TRUNCATED]")
+
+
+@pytest.mark.asyncio
+async def test_extract_info_counts_tokens_once_per_fitting_file():
+    """Tokenizing is the expensive step; a file that fits is counted once.
+
+    Regression: the fit check counted the payload and the caller counted the
+    returned string again, doubling tokenizer work on every AnalyzeCode.
+    """
+    from zrb.llm.config.limiter import llm_limiter
+    from zrb.llm.tool.code import _extract_info
+
+    metas = [{"path": f"f{i}.py", "content": "x"} for i in range(5)]
+    with (
+        patch("zrb.llm.tool.code.create_agent"),
+        patch("zrb.llm.tool.code._run_repo_agent", new=AsyncMock()),
+        patch.object(
+            llm_limiter, "count_tokens", side_effect=llm_limiter.count_tokens
+        ) as spy,
+    ):
+        await _extract_info(metas, query="q", token_limit=100_000)
+
+    assert spy.call_count == len(metas)

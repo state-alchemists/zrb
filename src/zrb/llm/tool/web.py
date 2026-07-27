@@ -226,9 +226,15 @@ async def _fetch_page_content(url: str) -> tuple:
     whole download + parse.
     """
     user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-    # A known .pdf extension lets us skip launching a browser entirely.
+    # A known .pdf extension lets us skip launching a browser entirely — but
+    # only as a shortcut: plain HTTP can be refused (Cloudflare, cookie/JS wall)
+    # where the browser path succeeds, so a failure here falls through to it
+    # instead of failing the fetch.
     if url.split("?")[0].lower().endswith(".pdf"):
-        return await asyncio.to_thread(_fetch_pdf_content, url, user_agent)
+        try:
+            return await asyncio.to_thread(_fetch_pdf_content, url, user_agent)
+        except Exception as e:
+            CFG.LOGGER.debug(f"Direct PDF fetch failed for {url}, trying browser: {e}")
     try:
         # lazy: heavy third-party
         from playwright.async_api import async_playwright

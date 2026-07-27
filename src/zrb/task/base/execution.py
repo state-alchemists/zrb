@@ -115,25 +115,18 @@ async def execute_action_until_ready(task: "BaseTask", session: AnySession):
         readiness_error: BaseException | None = None
         readiness_timeout = CFG.TASK_READINESS_TIMEOUT / 1000
         try:
-            # return_exceptions isolates the fan-out: one failing check no longer
-            # orphans its siblings mid-flight (we inspect statuses/results below).
-            gather_coro = asyncio.gather(*readiness_check_coros, return_exceptions=True)
+            # gather_isolated fails fast on the first failing check AND cancels
+            # the siblings. Waiting for them all instead would hang here: a
+            # readiness check polls until it succeeds (HttpCheck/TcpCheck never
+            # return on their own), so a sibling would outlive the failure.
+            gather_coro = gather_isolated(*readiness_check_coros)
             # Optional aggregate cap (CFG.TASK_READINESS_TIMEOUT; 0 = off). Without
-            # it, a check that hangs and never returns hangs the whole run here.
+            # it, checks that all hang and never return hang the whole run here.
             if readiness_timeout > 0:
-                results = await asyncio.wait_for(gather_coro, timeout=readiness_timeout)
+                await asyncio.wait_for(gather_coro, timeout=readiness_timeout)
             else:
-                results = await gather_coro
-            # A check that raised is a hard readiness failure — surface it and
-            # skip the completion check (matches the pre-isolation behavior,
-            # where the raising gather jumped straight to the except branch).
-            check_errors = [r for r in results if isinstance(r, Exception)]
-            if check_errors:
-                readiness_error = check_errors[0]
-                ctx.log_error(
-                    f"Readiness check failed with exception: {readiness_error}"
-                )
-            all_readiness_completed = not check_errors and all(
+                await gather_coro
+            all_readiness_completed = all(
                 session.get_task_status(check).is_completed
                 for check in readiness_checks
             )

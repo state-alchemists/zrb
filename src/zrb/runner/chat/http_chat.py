@@ -120,9 +120,7 @@ class HTTPChatApprovalChannel(ApprovalChannel):
         future = self._pending.pop(claimed_id)
         new_args = self._parse_edited_content(response)
         if new_args is not None:
-            self._schedule_broadcast(
-                f"[APPROVED with edited args] {context.tool_name}"
-            )
+            self._schedule_broadcast(f"[APPROVED with edited args] {context.tool_name}")
             future.set_result(ApprovalResult(approved=True, override_args=new_args))
         else:
             self._schedule_broadcast(f"[DENIED - invalid format] {context.tool_name}")

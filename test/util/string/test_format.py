@@ -33,6 +33,7 @@ def test_fstring_format_invalid_expression():
     with pytest.raises(ValueError, match="Error evaluating expression 'z'"):
         fstring_format(template, data)
 
+
 def test_fstring_format_blocks_class_hierarchy_traversal():
     """The builtins whitelist alone cannot stop this — dunders must be rejected.
 

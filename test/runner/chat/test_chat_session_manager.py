@@ -468,6 +468,33 @@ class TestChatSessionManager:
         assert result["type"] == "edit"
 
     @pytest.mark.asyncio
+    async def test_handle_approval_response_json_without_pending_edit(self):
+        """Decoded args with no edit slot must not reach the approval handler.
+
+        Regression: falling through handed the dict to handle_response, which
+        cannot parse it and denied the pending approval outright — a client that
+        raced edit-mode entry lost the tool call instead of retrying.
+        """
+        from zrb.runner.chat.chat_session_manager import ChatSessionManager
+
+        manager = await ChatSessionManager.get_instance()
+
+        mock_channel = MagicMock()
+        mock_channel.is_waiting_for_edit.return_value = False
+        mock_channel.handle_edit_response_obj.return_value = False
+        mock_channel.has_pending_approvals.return_value = True
+
+        await manager.create_session(
+            session_id="json-edit-stale-test", approval_channel=mock_channel
+        )
+
+        result = manager.handle_approval_response(
+            "json-edit-stale-test", {"key": "value"}, is_json=True
+        )
+        assert result["handled"] is False
+        mock_channel.handle_response.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_handle_approval_response_no_pending_approvals(self):
         """When the channel has no pending approvals, handle returns the error fallback."""
         from zrb.runner.chat.chat_session_manager import ChatSessionManager

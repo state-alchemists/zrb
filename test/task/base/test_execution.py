@@ -449,6 +449,67 @@ async def test_readiness_check_exception_fails_task_instead_of_hanging():
 
 
 @pytest.mark.asyncio
+async def test_readiness_check_exception_fails_fast_beside_a_polling_check():
+    """One failing check fails the task even when a sibling never returns.
+
+    Regression: gathering the checks with return_exceptions=True waited for all
+    of them. Readiness checks poll until they succeed (HttpCheck/TcpCheck never
+    return on their own), so the failure never surfaced and the run hung — the
+    exact hazard the fail-fast path below exists to avoid. The polling sibling
+    must be cancelled instead.
+    """
+    from zrb.task.base.execution import execute_action_until_ready
+
+    never = asyncio.Event()
+    polling_cancelled = asyncio.Event()
+
+    async def poll_forever(_session):
+        try:
+            await never.wait()
+        except asyncio.CancelledError:
+            polling_cancelled.set()
+            raise
+
+    failing_check = BaseTask(name="failing_check")
+    failing_check.exec_chain = AsyncMock(side_effect=ValueError("port closed"))
+    polling_check = BaseTask(name="polling_check")
+    polling_check.exec_chain = poll_forever
+
+    task = BaseTask(
+        name="task",
+        readiness_check=[failing_check, polling_check],
+        readiness_check_delay=0,
+    )
+
+    session = MagicMock(spec=AnySession)
+    session.is_terminated = False
+
+    ctx = MagicMock(spec=AnyContext)
+    ctx.xcom = MagicMock()
+    ctx.xcom.get.return_value = None
+
+    task_status = MagicMock(spec=TaskStatus)
+    task_status.is_permanently_failed = False
+    task_status.is_completed = False
+    session.get_task_status.side_effect = lambda t: (
+        task_status if t is task else MagicMock(spec=TaskStatus)
+    )
+
+    with patch.object(task, "get_ctx", return_value=ctx):
+        with patch(
+            "zrb.task.base.execution.execute_action_with_retry",
+            new=AsyncMock(return_value="result"),
+        ):
+            with pytest.raises(ValueError, match="port closed"):
+                await asyncio.wait_for(
+                    execute_action_until_ready(task, session), timeout=5
+                )
+
+    assert polling_cancelled.is_set()
+    session.defer_action.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_incomplete_readiness_check_fails_task_instead_of_hanging():
     """Readiness checks that finish without completing also fail the run."""
     from zrb.task.base.execution import execute_action_until_ready
