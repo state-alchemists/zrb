@@ -2,7 +2,7 @@ import asyncio
 
 import pytest
 
-from zrb.util.run import gather_isolated, run_async
+from zrb.util.run import gather_fail_fast, gather_isolated, run_async
 
 
 @pytest.mark.asyncio
@@ -62,10 +62,41 @@ async def test_gather_isolated_reraises_first_exception():
 
 
 @pytest.mark.asyncio
-async def test_gather_isolated_cancels_siblings_instead_of_orphaning_them():
-    # The whole point of the helper: a failing sibling must not orphan the
-    # others. Plain asyncio.gather would propagate on first exception and leave
-    # the slow sibling running; here it is cancelled and settled.
+async def test_gather_isolated_lets_siblings_finish_before_surfacing_the_error():
+    # gather_isolated's contract: peers are never cut short. Successors,
+    # fallbacks and deferred actions all run through it, and a failing peer must
+    # not cancel the work the others were asked to do.
+    finished = []
+
+    async def slow_ok():
+        await asyncio.sleep(0.05)
+        finished.append("slow")
+        return "slow"
+
+    async def fast_fail():
+        raise RuntimeError("fail")
+
+    with pytest.raises(RuntimeError, match="fail"):
+        await gather_isolated(slow_ok(), fast_fail())
+    assert finished == ["slow"]
+
+
+@pytest.mark.asyncio
+async def test_gather_isolated_propagates_own_cancellation():
+    async def child():
+        await asyncio.sleep(30)
+
+    task = asyncio.ensure_future(gather_isolated(child(), child()))
+    await asyncio.sleep(0.01)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+
+@pytest.mark.asyncio
+async def test_gather_fail_fast_cancels_siblings_instead_of_orphaning_them():
+    # The whole point of the fail-fast helper: a failing sibling must neither
+    # orphan the others (plain gather) nor be waited on (gather_isolated).
     cancelled = []
 
     async def slow_ok():
@@ -81,16 +112,15 @@ async def test_gather_isolated_cancels_siblings_instead_of_orphaning_them():
         raise RuntimeError("fail")
 
     with pytest.raises(RuntimeError, match="fail"):
-        await gather_isolated(slow_ok(), fast_fail())
+        await gather_fail_fast(slow_ok(), fast_fail())
     assert cancelled == ["slow"]
 
 
 @pytest.mark.asyncio
-async def test_gather_isolated_fails_fast_next_to_a_never_ending_sibling():
-    # Regression: waiting for every sibling to settle (return_exceptions=True)
-    # meant a non-terminating sibling — a monitoring loop, a readiness check
-    # that polls until it succeeds — kept the run alive forever after another
-    # coroutine had already failed. The failure must surface regardless.
+async def test_gather_fail_fast_next_to_a_never_ending_sibling():
+    # Why readiness checks need this shape: waiting for every sibling to settle
+    # means a non-terminating sibling — HttpCheck/TcpCheck poll until they
+    # succeed — keeps the run alive forever after another check already failed.
     async def forever():
         while True:
             await asyncio.sleep(0.01)
@@ -99,20 +129,20 @@ async def test_gather_isolated_fails_fast_next_to_a_never_ending_sibling():
         raise RuntimeError("boom")
 
     with pytest.raises(RuntimeError, match="boom"):
-        await asyncio.wait_for(gather_isolated(forever(), boom()), timeout=2)
+        await asyncio.wait_for(gather_fail_fast(forever(), boom()), timeout=2)
 
 
 @pytest.mark.asyncio
-async def test_gather_isolated_returns_results_in_order():
+async def test_gather_fail_fast_returns_results_in_order():
     async def value(v):
         await asyncio.sleep(0.01)
         return v
 
-    assert await gather_isolated(value(1), value(2), value(3)) == [1, 2, 3]
+    assert await gather_fail_fast(value(1), value(2), value(3)) == [1, 2, 3]
 
 
 @pytest.mark.asyncio
-async def test_gather_isolated_propagates_own_cancellation_and_cancels_children():
+async def test_gather_fail_fast_propagates_own_cancellation_and_cancels_children():
     cancelled = []
 
     async def child():
@@ -122,7 +152,7 @@ async def test_gather_isolated_propagates_own_cancellation_and_cancels_children(
             cancelled.append("child")
             raise
 
-    task = asyncio.ensure_future(gather_isolated(child(), child()))
+    task = asyncio.ensure_future(gather_fail_fast(child(), child()))
     await asyncio.sleep(0.01)
     task.cancel()
     with pytest.raises(asyncio.CancelledError):

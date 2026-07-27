@@ -59,6 +59,25 @@ def test_cap_mcp_result_caps_text_items_but_keeps_binary_in_list():
     assert "[TRUNCATED]" in out[2] and len(out[2]) < 600
 
 
+def test_cap_mcp_result_keeps_binary_after_the_budget_is_exhausted():
+    """Position must not decide whether an image survives.
+
+    Regression: once the shared budget hit zero the loop replaced every remaining
+    part with an omission marker, so an image behind a large text part was
+    dropped — the exact loss the binary pass-through exists to prevent. Binary
+    costs no text budget, so it is never dropped for lack of one.
+    """
+    from pydantic_ai.messages import BinaryContent
+
+    image = BinaryContent(data=b"\x89PNG" * 100_000, media_type="image/png")
+    with patch.dict(os.environ, {f"{CFG.ENV_PREFIX}_LLM_MAX_OUTPUT_CHARS": "500"}):
+        out = cap_mcp_result(["z" * 5000, image, "dropped text"])
+    assert image in out, "image dropped by budget exhaustion"
+    assert "[TRUNCATED]" in out[0]
+    assert "dropped text" not in out
+    assert "more parts" in out[-1]
+
+
 def test_cap_mcp_result_bounds_a_list_in_aggregate():
     """Regression: per-item capping bounded nothing.
 

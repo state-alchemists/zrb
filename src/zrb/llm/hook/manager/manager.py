@@ -297,6 +297,11 @@ class HookManager(HookLoaderMixin):
         outlives the session that spawned it. Cancelling the task makes the
         command hook's own cancellation handler kill its process tree.
 
+        Cancel up front rather than granting a grace period first: exit must stay
+        snappy, and a detached hook still running at teardown is exactly what
+        this exists to stop. Async hooks are fire-and-forget by construction, so
+        one dispatched at SESSION_END has no completion guarantee to break.
+
         Waits at most ``grace_seconds`` so shutdown can never block on a hook
         that refuses to unwind. Safe to call when nothing is pending, and safe to
         call repeatedly.
@@ -316,7 +321,11 @@ class HookManager(HookLoaderMixin):
                     len(tasks),
                     grace_seconds,
                 )
-        self._background_tasks.clear()
+        # No unconditional clear() here: the done-callback already discards
+        # finished tasks, so anything still in the set genuinely never settled and
+        # has_pending_background_hooks must keep reporting it. Clearing made the
+        # property claim "nothing pending" while hooks were still running.
+        #
         # The semaphore is bound to the loop that created it; dropping it lets a
         # later session on a fresh loop build its own instead of awaiting a
         # semaphore attached to a closed one.

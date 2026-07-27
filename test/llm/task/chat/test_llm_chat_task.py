@@ -124,6 +124,40 @@ async def test_interactive_teardown_fires_terminal_session_end():
 
 
 @pytest.mark.asyncio
+async def test_interactive_teardown_shuts_down_the_session_hook_manager():
+    """Teardown must settle the manager the session's hooks actually ran on.
+
+    Regression: it shut down the module-level singleton, but
+    _create_llm_task_core builds a fresh HookManager per execution and that is
+    the instance every hook is dispatched through — so the singleton held none of
+    this session's tasks and detached async hooks outlived the session.
+    """
+    from zrb.llm.hook.manager import HookManager
+    from zrb.llm.hook.types import HookEvent
+
+    manager = HookManager(search_dirs=[])
+    manager.parse_and_register(
+        {
+            "name": "slow-async",
+            "events": ["Stop"],
+            "type": "command",
+            "async": True,
+            "config": {"command": "sleep 5", "shell": True},
+        },
+        "test",
+    )
+    await manager.execute_hooks(HookEvent.STOP, {})
+    assert manager.has_pending_background_hooks
+
+    task = LLMChatTask(name="teardown-task-bg")
+    task._active_hook_manager = manager
+
+    await task._teardown_interactive_resources()
+
+    assert not manager.has_pending_background_hooks
+
+
+@pytest.mark.asyncio
 async def test_interactive_teardown_without_hook_manager_is_safe():
     """Teardown must not raise when no hook manager was set (e.g. session never
     reached _create_llm_task_core)."""

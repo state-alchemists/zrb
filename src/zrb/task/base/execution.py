@@ -6,7 +6,7 @@ from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext, current_ctx
 from zrb.session.any_session import AnySession
 from zrb.util.attr import get_bool_attr
-from zrb.util.run import gather_isolated, run_async
+from zrb.util.run import gather_fail_fast, gather_isolated, run_async
 from zrb.xcom.xcom import Xcom
 
 if TYPE_CHECKING:
@@ -115,11 +115,12 @@ async def execute_action_until_ready(task: "BaseTask", session: AnySession):
         readiness_error: BaseException | None = None
         readiness_timeout = CFG.TASK_READINESS_TIMEOUT / 1000
         try:
-            # gather_isolated fails fast on the first failing check AND cancels
-            # the siblings. Waiting for them all instead would hang here: a
-            # readiness check polls until it succeeds (HttpCheck/TcpCheck never
-            # return on their own), so a sibling would outlive the failure.
-            gather_coro = gather_isolated(*readiness_check_coros)
+            # gather_fail_fast, not gather_isolated: readiness checks are the one
+            # place where waiting for the siblings hangs, because a check polls
+            # until it succeeds (HttpCheck/TcpCheck never return on their own) so
+            # a sibling would outlive the failure. Everywhere else (successors,
+            # fallbacks, deferred actions) peers must be allowed to finish.
+            gather_coro = gather_fail_fast(*readiness_check_coros)
             # Optional aggregate cap (CFG.TASK_READINESS_TIMEOUT; 0 = off). Without
             # it, checks that all hang and never return hang the whole run here.
             if readiness_timeout > 0:

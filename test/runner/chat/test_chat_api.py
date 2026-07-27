@@ -155,6 +155,62 @@ async def test_approval_action_waiting_edit_non_json_returns_400(client: AsyncCl
 
 
 @pytest.mark.asyncio
+async def test_unhandled_json_edit_is_never_retried_as_a_text_response(
+    client: AsyncClient,
+):
+    """A missed edit must not be re-sent down the is_json=False path.
+
+    handle_response cannot parse a dict, so retrying there denies the pending
+    tool call outright — a raced edit turning into a spurious denial. The route
+    must report the miss without a second, text-mode attempt.
+    """
+    _mock_sm.get_session.return_value = MagicMock()
+    _mock_sm.is_waiting_for_edit.return_value = True
+    _mock_sm.has_pending_approvals.return_value = True
+    _mock_sm.handle_approval_response.reset_mock()
+    _mock_sm.handle_approval_response.return_value = {
+        "handled": False,
+        "error": "No pending edit request",
+    }
+
+    response = await client.post(
+        "/api/v1/chat/sessions/test/messages",
+        json={"message": {"key": "value"}, "isApprovalAction": True},
+    )
+
+    assert response.status_code == 400
+    calls = _mock_sm.handle_approval_response.call_args_list
+    assert len(calls) == 1, "the dict was retried in text mode"
+    assert calls[0].kwargs["is_json"] is True
+
+
+@pytest.mark.asyncio
+async def test_approval_action_dict_without_pending_edit_falls_through_to_send(
+    client: AsyncClient,
+):
+    """No edit slot and nothing pending: the dict is still an ordinary message.
+
+    Skipping the text-mode retry must not swallow this pre-existing path.
+    """
+    _mock_sm.get_session.return_value = MagicMock()
+    _mock_sm.is_waiting_for_edit.return_value = False
+    _mock_sm.has_pending_approvals.return_value = False
+    _mock_sm.handle_approval_response.reset_mock()
+    _mock_sm.send_input = AsyncMock()
+
+    response = await client.post(
+        "/api/v1/chat/sessions/test/messages",
+        json={"message": {"hello": "world"}, "isApprovalAction": True},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "sent"
+    _mock_sm.handle_approval_response.assert_not_called()
+    _mock_sm.send_input.assert_awaited_once()
+    assert json.loads(_mock_sm.send_input.await_args.args[1]) == {"hello": "world"}
+
+
+@pytest.mark.asyncio
 async def test_approval_action_pending_but_not_handled_returns_400(client: AsyncClient):
     _mock_sm.get_session.return_value = MagicMock()
     _mock_sm.is_waiting_for_edit.return_value = False

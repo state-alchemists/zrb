@@ -145,14 +145,21 @@ def _cap_against_budget(result: Any, budget: int) -> tuple[Any, int]:
         return capped, budget - len(capped)
     if isinstance(result, (list, tuple)):
         items: list[Any] = []
-        for index, item in enumerate(result):
-            if budget <= 0:
-                # Stop rather than append an omission marker per remaining item:
-                # thousands of markers are themselves an overflow.
-                items.append(f"...[TRUNCATED {len(result) - index} more parts]")
-                break
+        dropped = 0
+        for item in result:
+            if budget <= 0 and _is_cappable(item):
+                # Text past the budget is dropped, but counted once at the end
+                # rather than marked per item: thousands of markers are
+                # themselves an overflow.
+                dropped += 1
+                continue
+            # Non-text parts are never dropped for budget: an image replaced by
+            # an omission marker is the exact loss the pass-through exists to
+            # prevent, and it costs no text budget to keep.
             capped_item, budget = _cap_against_budget(item, budget)
             items.append(capped_item)
+        if dropped:
+            items.append(f"...[TRUNCATED {dropped} more parts]")
         return items, budget
     if isinstance(result, dict):
         try:
@@ -166,6 +173,11 @@ def _cap_against_budget(result: Any, budget: int) -> tuple[Any, int]:
     # Binary/rich parts pass through untouched (see docstring) and are not
     # charged: they are not text, and there is nothing to truncate.
     return result, budget
+
+
+def _is_cappable(item: Any) -> bool:
+    """True when ``item`` holds text this module would cap (and can drop)."""
+    return isinstance(item, (str, list, tuple, dict))
 
 
 async def _truncating_process_tool_call(
