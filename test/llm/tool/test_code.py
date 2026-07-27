@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from zrb.llm.config.limiter import llm_limiter
 from zrb.llm.tool.code import analyze_code
 
 
@@ -418,34 +419,73 @@ async def test_summarization_flushes_buffer(temp_code_dir):
     assert res == "x"
 
 
-# --- oversized single file is truncated, not sent whole (code.py:340) --------
+# --- oversized single file is truncated, not sent whole ----------------------
+
+
+def _extractor_payloads(run_mock) -> list[dict]:
+    """The per-file JSON payloads the extractor agent was sent.
+
+    Reads them off the mocked `run_agent` boundary — the extraction batch is an
+    implementation detail, but what reaches the model is observable behavior.
+    """
+    payloads = []
+    for call in run_mock.await_args_list:
+        message = json.loads(call.kwargs["message"])
+        for entry in message.get("files", []):
+            payloads.append(json.loads(entry))
+    return payloads
 
 
 @pytest.mark.asyncio
-async def test_extract_info_truncates_oversized_single_file():
+async def test_oversized_file_is_truncated_before_reaching_the_model(tmp_path):
     """A file larger than the batch budget is truncated to fit, so it can never
     become a request the rate limiter refuses forever (the WebFetch livelock)."""
-    from zrb.llm.config.limiter import llm_limiter
-    from zrb.llm.tool.code import _extract_info
+    d = tmp_path / "big_repo"
+    d.mkdir()
+    (d / "big.py").write_text("x" * 500_000)
 
-    captured: list = []
-
-    async def fake_run(agent, query, content, content_key, output_list):
-        captured.append(content)
-        output_list.append("info")
-
-    metas = [{"path": "big.py", "content": "x" * 500_000}]
     with (
-        patch("zrb.llm.tool.code.create_agent"),
-        patch("zrb.llm.tool.code._run_repo_agent", side_effect=fake_run),
+        patch("zrb.llm.tool.code.run_agent", new_callable=AsyncMock) as run,
+        patch("zrb.llm.tool.code.CFG") as cfg,
     ):
-        await _extract_info(metas, query="q", token_limit=1000)
+        run.return_value = ("info", [])
+        cfg.LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD = 1000
+        cfg.LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD = 100_000
+        await analyze_code(str(d), "query", use_lsp=False)
 
-    joined = "".join(captured[0])
-    assert "[TRUNCATED]" in joined
-    assert llm_limiter.count_tokens(joined) <= 1000
-    # Truncation must happen inside the content field, not by cutting the
-    # serialized string — the extractor must always receive valid JSON.
-    parsed = json.loads(captured[0][0])
-    assert parsed["path"] == "big.py"
-    assert parsed["content"].endswith("[TRUNCATED]")
+    payloads = _extractor_payloads(run)
+    assert payloads, "the extractor was never given the file"
+    big = next(p for p in payloads if p["path"].endswith("big.py"))
+    # Truncation happens inside the content field, not by cutting the serialized
+    # string — the payload must always still parse as JSON (it did, above).
+    assert big["content"].endswith("[TRUNCATED]")
+    assert llm_limiter.count_tokens(json.dumps(big)) <= 1000
+
+
+@pytest.mark.asyncio
+async def test_fitting_files_are_tokenized_once_each(tmp_path):
+    """Tokenizing is the expensive step; a file that fits is counted once.
+
+    Regression: the fit check counted the payload and the caller counted the
+    returned string again, doubling tokenizer work on every AnalyzeCode.
+    """
+    d = tmp_path / "small_repo"
+    d.mkdir()
+    for i in range(5):
+        (d / f"f{i}.py").write_text("x")
+
+    with (
+        patch("zrb.llm.tool.code.run_agent", new_callable=AsyncMock) as run,
+        patch("zrb.llm.tool.code.CFG") as cfg,
+        patch.object(
+            llm_limiter, "count_tokens", side_effect=llm_limiter.count_tokens
+        ) as spy,
+    ):
+        run.return_value = ("info", [])
+        cfg.LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD = 100_000
+        cfg.LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD = 100_000
+        await analyze_code(str(d), "query", use_lsp=False)
+
+    # One count per file during extraction. Anything more means the payload is
+    # being re-tokenized after the fit check.
+    assert spy.call_count == 5, spy.call_count

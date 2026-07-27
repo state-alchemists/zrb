@@ -152,8 +152,6 @@ independent of any individual hook's own `enabled`/`timeout` fields:
 | `HOOKS_ENABLED` | `ZRB_HOOKS_ENABLED` | `on` | Master on/off switch for the entire hooks subsystem |
 | `HOOKS_DIRS` | `ZRB_HOOKS_DIRS` | `""` | Colon-separated additional directories to scan for hook scripts |
 | `HOOKS_TIMEOUT` | `ZRB_HOOKS_TIMEOUT` | `30000` | Timeout in milliseconds for hook execution |
-| `HOOKS_DEBUG` | `ZRB_HOOKS_DEBUG` | `off` | Enable verbose debug output for hook execution |
-| `HOOKS_LOG_LEVEL` | `ZRB_HOOKS_LOG_LEVEL` | `INFO` | Log level for hook execution (`DEBUG`/`INFO`/`WARNING`/`ERROR`) |
 
 Setting `HOOKS_ENABLED` to `off` disables the hooks subsystem entirely,
 regardless of what is configured in `hooks.json` files.

@@ -468,6 +468,33 @@ class TestChatSessionManager:
         assert result["type"] == "edit"
 
     @pytest.mark.asyncio
+    async def test_handle_approval_response_json_without_pending_edit(self):
+        """Decoded args with no edit slot must not reach the approval handler.
+
+        Regression: falling through handed the dict to handle_response, which
+        cannot parse it and denied the pending approval outright — a client that
+        raced edit-mode entry lost the tool call instead of retrying.
+        """
+        from zrb.runner.chat.chat_session_manager import ChatSessionManager
+
+        manager = await ChatSessionManager.get_instance()
+
+        mock_channel = MagicMock()
+        mock_channel.is_waiting_for_edit.return_value = False
+        mock_channel.handle_edit_response_obj.return_value = False
+        mock_channel.has_pending_approvals.return_value = True
+
+        await manager.create_session(
+            session_id="json-edit-stale-test", approval_channel=mock_channel
+        )
+
+        result = manager.handle_approval_response(
+            "json-edit-stale-test", {"key": "value"}, is_json=True
+        )
+        assert result["handled"] is False
+        mock_channel.handle_response.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_handle_approval_response_no_pending_approvals(self):
         """When the channel has no pending approvals, handle returns the error fallback."""
         from zrb.runner.chat.chat_session_manager import ChatSessionManager
@@ -483,6 +510,46 @@ class TestChatSessionManager:
         result = manager.handle_approval_response("no-pending", "y")
         assert result["handled"] is False
         assert "No pending approvals" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_unconsumed_edit_response_falls_through_to_approval(self):
+        """A stale edit slot must not report success for a dropped answer.
+
+        The edit handler returning False means nothing consumed the response, so
+        it has to reach the live pending approval instead of being swallowed.
+        """
+        from zrb.runner.chat.chat_session_manager import ChatSessionManager
+
+        manager = await ChatSessionManager.get_instance()
+        mock_channel = MagicMock()
+        mock_channel.is_waiting_for_edit.return_value = True
+        mock_channel.handle_edit_response.return_value = False
+        mock_channel.has_pending_approvals.return_value = True
+        mock_channel.handle_response.return_value = True
+
+        await manager.create_session(
+            session_id="stale-edit", approval_channel=mock_channel
+        )
+        result = manager.handle_approval_response("stale-edit", "y")
+        assert result == {"handled": True, "type": "approval"}
+        mock_channel.handle_response.assert_called_once_with("y")
+
+    @pytest.mark.asyncio
+    async def test_unconsumed_edit_response_without_pending_reports_failure(self):
+        """No consumer and nothing pending must surface as handled=False."""
+        from zrb.runner.chat.chat_session_manager import ChatSessionManager
+
+        manager = await ChatSessionManager.get_instance()
+        mock_channel = MagicMock()
+        mock_channel.is_waiting_for_edit.return_value = True
+        mock_channel.handle_edit_response.return_value = False
+        mock_channel.has_pending_approvals.return_value = False
+
+        await manager.create_session(
+            session_id="stale-edit-idle", approval_channel=mock_channel
+        )
+        result = manager.handle_approval_response("stale-edit-idle", "y")
+        assert result["handled"] is False
 
     @pytest.mark.asyncio
     async def test_has_session_true_and_false(self):

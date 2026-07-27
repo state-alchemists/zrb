@@ -146,6 +146,10 @@ def create_command_hook(
                     stderr=subprocess.PIPE,
                     cwd=hook_cwd,
                     env=env,
+                    # Own session/process group so the whole tree can be killed
+                    # on timeout — see _kill_process_tree. POSIX-only; silently
+                    # ignored on Windows, where psutil handles the children.
+                    start_new_session=True,
                 ),
             )
             try:
@@ -156,15 +160,12 @@ def create_command_hook(
                     timeout=timeout,
                 )
             except asyncio.TimeoutError:
-                try:
-                    process.kill()
-                    # process is a sync subprocess.Popen, so .wait() returns an
-                    # int — awaiting it raises "'int' object can't be awaited",
-                    # which previously swallowed this TimeoutError and left the
-                    # subprocess unreaped. Reap in the executor instead.
-                    await loop.run_in_executor(None, process.wait)
-                except ProcessLookupError:
-                    pass
+                _kill_process_tree(process)
+                # process is a sync subprocess.Popen, so .wait() returns an
+                # int — awaiting it raises "'int' object can't be awaited",
+                # which previously swallowed this TimeoutError and left the
+                # subprocess unreaped. Reap in the executor instead.
+                await loop.run_in_executor(None, process.wait)
                 logger.warning(
                     f"Command hook timed out after {timeout}s and was killed: "
                     f"{config.command[:60]}"
@@ -174,10 +175,7 @@ def create_command_hook(
                     output=f"Command hook timed out after {timeout}s",
                 )
             except asyncio.CancelledError:
-                try:
-                    process.kill()
-                except ProcessLookupError:
-                    pass
+                _kill_process_tree(process)
                 raise
 
             output = stdout.decode().strip()
@@ -292,6 +290,81 @@ def create_command_hook(
             return HookResult(success=False, output=str(e))
 
     return command_hook
+
+
+def _kill_process_tree(process: subprocess.Popen) -> None:
+    """Kill a hook subprocess *and its descendants*.
+
+    ``process.kill()`` alone only kills the shell spawned by ``shell=True``.
+    A grandchild (``sh -c "sleep 30"`` where the shell forks rather than execs)
+    survives it, and — because it inherited the stdout/stderr pipe write ends —
+    keeps ``communicate()`` blocked in its worker thread until the grandchild
+    exits on its own. The hook returns its timeout result, but the thread stays
+    pinned: enough timed-out hooks and the pool has no free workers left.
+
+    POSIX: signal the process group. Elsewhere, or if the group is already gone,
+    fall back to psutil's recursive child walk.
+
+    Both tree kills are aimed by pid, so both are catastrophic if handed a pid
+    that is not a child: ``killpg`` on our own group, or ``kill_pid`` on our own
+    pid, SIGKILLs the running process. ``start_new_session=True`` on the Popen
+    is what makes the group distinct — but this verifies it rather than trusting it, and
+    skips *both* tree kills for a pid that is or shares us.
+
+    Never raises. This runs on the timeout and cancellation paths, where an
+    escaping error would be swallowed by the outer handler — turning a
+    ``CancelledError`` that must propagate into an ordinary failed HookResult.
+    """
+    pid = _safe_tree_kill_pid(process)
+    group_killed = False
+    if pid is not None and hasattr(os, "killpg"):
+        try:
+            os.killpg(os.getpgid(pid), signal.SIGKILL)
+            group_killed = True
+        except Exception as e:
+            logger.debug(f"killpg failed for hook pid {pid}: {e}")
+    if pid is not None and not group_killed:
+        # lazy: circular — command → ... → hook_creators; also keeps psutil off
+        # the import path for the common (non-timeout) case.
+        from zrb.util.cmd.command import kill_pid
+
+        try:
+            kill_pid(pid, print_method=logger.debug)
+        except Exception as e:
+            logger.debug(f"Failed to kill hook process tree {pid}: {e}")
+    # Always signal the direct child too: it is the only handle that exists on
+    # Windows, and the last resort if both tree kills failed. Safe regardless of
+    # the checks above — Popen.kill only ever targets its own child.
+    try:
+        process.kill()
+    except Exception as e:
+        logger.debug(f"Failed to kill hook process: {e}")
+
+
+def _safe_tree_kill_pid(process: subprocess.Popen) -> int | None:
+    """The pid to aim a tree kill at, or None when no tree kill is safe.
+
+    Returns None for a missing pid, our own pid, or a pid sharing our process
+    group — each of which would make ``killpg``/``kill_pid`` SIGKILL this process.
+    """
+    pid = getattr(process, "pid", None)
+    if not isinstance(pid, int):
+        return None
+    if pid == os.getpid():
+        logger.debug(f"refusing tree kill: hook pid {pid} is the current process")
+        return None
+    try:
+        if hasattr(os, "getpgid") and os.getpgid(pid) == os.getpgid(0):
+            logger.debug(
+                f"refusing tree kill: hook pid {pid} shares the current process "
+                "group — is start_new_session still set on the hook Popen?"
+            )
+            return None
+    except Exception as e:
+        # Cannot determine the group (already reaped, or no getpgid): the
+        # per-process fallback below is still safe, the group kill is not.
+        logger.debug(f"could not read process group for hook pid {pid}: {e}")
+    return pid
 
 
 def create_prompt_hook(config: PromptHookConfig) -> HookCallable:

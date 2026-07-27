@@ -627,3 +627,69 @@ def test_voice_handler_rejects_non_voice_input(ui):
         assert ui._handle_toggle_voice("/exit") is False
         assert ui._handle_toggle_voice("hello") is False
         assert ui._handle_toggle_voice("/voice") is True
+
+
+@pytest.mark.asyncio
+async def test_shell_command_kills_process_when_cancelled_twice(ui):
+    """A second cancel during teardown must not orphan the child process.
+
+    Regression: the cleanup awaited `process.wait()` inside the CancelledError
+    handler and caught only `Exception`. A cancel landing on that await (Ctrl+C
+    again, or shutdown) is a `CancelledError` — a `BaseException` — so it skipped
+    `process.kill()` entirely and left the process running.
+    """
+    killed = {"done": False}
+
+    with patch("asyncio.create_subprocess_shell") as mock_sub:
+        mock_proc = MagicMock()
+        mock_proc.returncode = None
+        # Streaming is cancelled, putting us in the CancelledError handler.
+        mock_proc.stdout.readline = AsyncMock(side_effect=asyncio.CancelledError())
+        mock_proc.stderr.readline = AsyncMock(return_value=b"")
+        mock_proc.terminate = MagicMock()
+        # The reaping await is itself cancelled — the second Ctrl+C.
+        mock_proc.wait = AsyncMock(side_effect=asyncio.CancelledError())
+
+        def _kill():
+            killed["done"] = True
+
+        mock_proc.kill = _kill
+        mock_sub.return_value = mock_proc
+
+        with pytest.raises(asyncio.CancelledError):
+            await ui._run_shell_command("sleep 30")
+
+    assert mock_proc.terminate.called
+    assert killed["done"], "process was left running after a second cancel"
+
+
+@pytest.mark.asyncio
+async def test_shell_command_cleanup_survives_a_failing_ui_write(ui):
+    """A UI write failure during teardown must not skip the process cleanup."""
+    killed = {"done": False}
+    real_append = ui.append_to_output
+
+    def flaky_append(*args, **kwargs):
+        if args and "[Cancelled]" in str(args[0]):
+            raise RuntimeError("buffer gone during teardown")
+        return real_append(*args, **kwargs)
+
+    with patch("asyncio.create_subprocess_shell") as mock_sub:
+        mock_proc = MagicMock()
+        mock_proc.returncode = None
+        mock_proc.stdout.readline = AsyncMock(side_effect=asyncio.CancelledError())
+        mock_proc.stderr.readline = AsyncMock(return_value=b"")
+        mock_proc.terminate = MagicMock()
+        mock_proc.wait = AsyncMock(return_value=0)
+        mock_proc.kill = lambda: killed.__setitem__("done", True)
+        mock_sub.return_value = mock_proc
+
+        ui.append_to_output = flaky_append
+        try:
+            with pytest.raises(RuntimeError):
+                await ui._run_shell_command("sleep 30")
+        finally:
+            ui.append_to_output = real_append
+
+    # terminate() ran before the UI write, so the child was reaped regardless.
+    assert mock_proc.terminate.called

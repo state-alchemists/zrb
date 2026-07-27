@@ -33,7 +33,7 @@ from zrb.util.cli.style import (
     remove_style,
 )
 from zrb.util.group import get_node_path
-from zrb.util.run import gather_isolated
+from zrb.util.run import gather_fail_fast, gather_isolated
 from zrb.util.string.name import get_random_name
 from zrb.xcom.xcom import Xcom
 
@@ -267,16 +267,23 @@ class Session(AnySession):
             await gather_isolated(*batch)
 
     async def _wait_deferred_action(self):
+        # gather_fail_fast: these are the deferred bodies of long-running tasks,
+        # which never return on their own. Waiting for the siblings to settle
+        # would hang the run after one has already failed — two long-running
+        # tasks (a `frontend` + `backend` start) where one crashes must exit
+        # non-zero immediately, not block until the survivor is killed.
         if len(self._action_coros) == 0:
             return
         task_coros = self._action_coros.values()
-        await gather_isolated(*task_coros)
+        await gather_fail_fast(*task_coros)
 
     async def _wait_deferred_monitoring(self):
+        # Same as above: a monitoring loop (Scheduler/BaseTrigger) polls forever
+        # by design, so it must be cancelled on a sibling's failure, not awaited.
         if len(self._monitoring_coros) == 0:
             return
         task_coros = self._monitoring_coros.values()
-        await gather_isolated(*task_coros)
+        await gather_fail_fast(*task_coros)
 
     def register_task(self, task: AnyTask):
         self._register_task_graph(task, set())

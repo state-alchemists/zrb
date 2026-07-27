@@ -50,11 +50,59 @@ def test_cap_mcp_result_caps_text_items_but_keeps_binary_in_list():
     from pydantic_ai.messages import BinaryContent
 
     image = BinaryContent(data=b"\x89PNG" * 100_000, media_type="image/png")
+    # Ordered so the budget is still open when each item is reached: binary is
+    # not charged, "short" costs 5 chars, the long string absorbs the rest.
     with patch.dict(os.environ, {f"{CFG.ENV_PREFIX}_LLM_MAX_OUTPUT_CHARS": "500"}):
-        out = cap_mcp_result([image, "z" * 5000, "short"])
+        out = cap_mcp_result([image, "short", "z" * 5000])
     assert out[0] is image
-    assert "[TRUNCATED]" in out[1] and len(out[1]) < 600
-    assert out[2] == "short"
+    assert out[1] == "short"
+    assert "[TRUNCATED]" in out[2] and len(out[2]) < 600
+
+
+def test_cap_mcp_result_keeps_binary_after_the_budget_is_exhausted():
+    """Position must not decide whether an image survives.
+
+    Regression: once the shared budget hit zero the loop replaced every remaining
+    part with an omission marker, so an image behind a large text part was
+    dropped — the exact loss the binary pass-through exists to prevent. Binary
+    costs no text budget, so it is never dropped for lack of one.
+    """
+    from pydantic_ai.messages import BinaryContent
+
+    image = BinaryContent(data=b"\x89PNG" * 100_000, media_type="image/png")
+    with patch.dict(os.environ, {f"{CFG.ENV_PREFIX}_LLM_MAX_OUTPUT_CHARS": "500"}):
+        out = cap_mcp_result(["z" * 5000, image, "dropped text"])
+    assert image in out, "image dropped by budget exhaustion"
+    assert "[TRUNCATED]" in out[0]
+    assert "dropped text" not in out
+    assert "more parts" in out[-1]
+
+
+def test_cap_mcp_result_bounds_a_list_in_aggregate():
+    """Regression: per-item capping bounded nothing.
+
+    Each of N parts sitting just under the cap passed through untouched, so the
+    total was N x the budget — the same per-request overflow the cap exists to
+    prevent. The budget is shared across the whole structure now.
+    """
+    with patch.dict(os.environ, {f"{CFG.ENV_PREFIX}_LLM_MAX_OUTPUT_CHARS": "500"}):
+        out = cap_mcp_result(["y" * 400] * 50)
+    total = sum(len(item) for item in out)
+    # 50 x 400 = 20_000 chars of input; the whole result stays near the budget.
+    assert total < 700, total
+    assert "more parts" in out[-1]
+
+
+def test_cap_mcp_result_bounds_nested_lists_in_aggregate():
+    with patch.dict(os.environ, {f"{CFG.ENV_PREFIX}_LLM_MAX_OUTPUT_CHARS": "500"}):
+        out = cap_mcp_result([["y" * 400] * 10, ["z" * 400] * 10])
+
+    def total_len(value):
+        if isinstance(value, str):
+            return len(value)
+        return sum(total_len(item) for item in value)
+
+    assert total_len(out) < 700, total_len(out)
 
 
 @pytest.fixture

@@ -25,7 +25,6 @@ from prompt_toolkit.lexers import Lexer
 from prompt_toolkit.mouse_events import MouseEventType
 from prompt_toolkit.widgets import Frame, TextArea
 
-from zrb.config.config import CFG
 from zrb.llm.app.completion import InputCompleter
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
@@ -91,9 +90,6 @@ def create_input_field(
             return min(max(line_count, 1), 10)
 
     text_area = DynamicHeightTextArea(
-        prompt=HTML(
-            f'<style color="{CFG.LLM_UI_STYLE_PROMPT}"><b>&gt;&gt;&gt; </b></style>'
-        ),
         multiline=True,
         wrap_lines=True,
         history=history,
@@ -226,10 +222,8 @@ def create_layout(
     agent_activity_text: Callable[[], AnyFormattedText] | None = None,
 ) -> Layout:
     title_bar_text = HTML(
-        f" <style bg='{CFG.LLM_UI_STYLE_TITLE_BAR_BG}' "
-        f"color='{CFG.LLM_UI_STYLE_TITLE_BAR}'><b> {title} </b></style> "
-        f"<style color='{CFG.LLM_UI_STYLE_FAINT}'>| {jargon}</style>"
-    )
+        " <title-text><b> {} </b></title-text> <faint>| {}</faint>"
+    ).format(title, jargon)
 
     # Sub-agent activity panel: one line per running delegate, just above the
     # status bar. ConditionalContainer collapses it to nothing when idle.

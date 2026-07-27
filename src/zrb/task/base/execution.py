@@ -6,7 +6,7 @@ from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext, current_ctx
 from zrb.session.any_session import AnySession
 from zrb.util.attr import get_bool_attr
-from zrb.util.run import gather_isolated, run_async
+from zrb.util.run import gather_fail_fast, gather_isolated, run_async
 from zrb.xcom.xcom import Xcom
 
 if TYPE_CHECKING:
@@ -115,25 +115,19 @@ async def execute_action_until_ready(task: "BaseTask", session: AnySession):
         readiness_error: BaseException | None = None
         readiness_timeout = CFG.TASK_READINESS_TIMEOUT / 1000
         try:
-            # return_exceptions isolates the fan-out: one failing check no longer
-            # orphans its siblings mid-flight (we inspect statuses/results below).
-            gather_coro = asyncio.gather(*readiness_check_coros, return_exceptions=True)
+            # gather_fail_fast, not gather_isolated: readiness checks are the one
+            # place where waiting for the siblings hangs, because a check polls
+            # until it succeeds (HttpCheck/TcpCheck never return on their own) so
+            # a sibling would outlive the failure. Everywhere else (successors,
+            # fallbacks, deferred actions) peers must be allowed to finish.
+            gather_coro = gather_fail_fast(*readiness_check_coros)
             # Optional aggregate cap (CFG.TASK_READINESS_TIMEOUT; 0 = off). Without
-            # it, a check that hangs and never returns hangs the whole run here.
+            # it, checks that all hang and never return hang the whole run here.
             if readiness_timeout > 0:
-                results = await asyncio.wait_for(gather_coro, timeout=readiness_timeout)
+                await asyncio.wait_for(gather_coro, timeout=readiness_timeout)
             else:
-                results = await gather_coro
-            # A check that raised is a hard readiness failure — surface it and
-            # skip the completion check (matches the pre-isolation behavior,
-            # where the raising gather jumped straight to the except branch).
-            check_errors = [r for r in results if isinstance(r, Exception)]
-            if check_errors:
-                readiness_error = check_errors[0]
-                ctx.log_error(
-                    f"Readiness check failed with exception: {readiness_error}"
-                )
-            all_readiness_completed = not check_errors and all(
+                await gather_coro
+            all_readiness_completed = all(
                 session.get_task_status(check).is_completed
                 for check in readiness_checks
             )
@@ -155,10 +149,16 @@ async def execute_action_until_ready(task: "BaseTask", session: AnySession):
                 )
 
         except asyncio.TimeoutError as e:
-            ctx.log_error(
-                f"Readiness checks exceeded the {readiness_timeout}s aggregate "
-                "timeout (TASK_READINESS_TIMEOUT); failing task"
-            )
+            # A check can raise TimeoutError itself, so this branch is not proof
+            # the aggregate cap fired — only claim the cap when one is set, or
+            # the log points at a knob that is switched off.
+            if readiness_timeout > 0:
+                ctx.log_error(
+                    f"Readiness checks exceeded the {readiness_timeout}s aggregate "
+                    "timeout (TASK_READINESS_TIMEOUT); failing task"
+                )
+            else:
+                ctx.log_error(f"Readiness check timed out: {e}")
             readiness_error = e
         except Exception as e:
             ctx.log_error(f"Readiness check failed with exception: {e}")

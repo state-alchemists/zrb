@@ -128,22 +128,56 @@ def cap_mcp_result(result: Any) -> Any:
     through untouched — stringifying them would replace the image the model is
     supposed to see with a truncated Python repr.
     """
-    max_chars = CFG.LLM_MAX_OUTPUT_CHARS
+    capped, _ = _cap_against_budget(result, CFG.LLM_MAX_OUTPUT_CHARS)
+    return capped
+
+
+def _cap_against_budget(result: Any, budget: int) -> tuple[Any, int]:
+    """Cap ``result`` against a shared ``budget``; returns ``(capped, left)``.
+
+    The budget is threaded through the whole structure rather than applied per
+    item: capping each item of a sequence independently bounds nothing, because
+    N parts each just under the cap still add up to N times the budget — the
+    very overflow this exists to prevent.
+    """
     if isinstance(result, str):
-        capped, _ = truncate_text(result, max_chars, keep="head")
-        return capped
+        capped, _ = truncate_text(result, max(budget, 0), keep="head")
+        return capped, budget - len(capped)
     if isinstance(result, (list, tuple)):
-        return [cap_mcp_result(item) for item in result]
+        items: list[Any] = []
+        dropped = 0
+        for item in result:
+            if budget <= 0 and _is_cappable(item):
+                # Text past the budget is dropped, but counted once at the end
+                # rather than marked per item: thousands of markers are
+                # themselves an overflow.
+                dropped += 1
+                continue
+            # Non-text parts are never dropped for budget: an image replaced by
+            # an omission marker is the exact loss the pass-through exists to
+            # prevent, and it costs no text budget to keep.
+            capped_item, budget = _cap_against_budget(item, budget)
+            items.append(capped_item)
+        if dropped:
+            items.append(f"...[TRUNCATED {dropped} more parts]")
+        return items, budget
     if isinstance(result, dict):
         try:
             as_json = json.dumps(result, ensure_ascii=False)
         except (TypeError, ValueError):
-            return result
-        if len(as_json) <= max_chars:
-            return result
-        capped, _ = truncate_text(as_json, max_chars, keep="head")
-        return capped
-    return result
+            return result, budget
+        if len(as_json) <= budget:
+            return result, budget - len(as_json)
+        capped, _ = truncate_text(as_json, max(budget, 0), keep="head")
+        return capped, budget - len(capped)
+    # Binary/rich parts pass through untouched (see docstring) and are not
+    # charged: they are not text, and there is nothing to truncate.
+    return result, budget
+
+
+def _is_cappable(item: Any) -> bool:
+    """True when ``item`` holds text this module would cap (and can drop)."""
+    return isinstance(item, (str, list, tuple, dict))
 
 
 async def _truncating_process_tool_call(

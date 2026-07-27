@@ -299,10 +299,20 @@ class ChatSessionManager:
         approval_channel = session.approval_channel
         if is_json or approval_channel.is_waiting_for_edit():
             if is_json:
-                approval_channel.handle_edit_response_obj(response)
+                handled = approval_channel.handle_edit_response_obj(response)
             else:
-                approval_channel.handle_edit_response(response)
-            return {"handled": True, "type": "edit"}
+                handled = approval_channel.handle_edit_response(response)
+            # The edit handlers report whether a pending call actually consumed
+            # the response. Reporting an unconditional True here made a dropped
+            # answer look successful while the tool call hung forever.
+            if handled:
+                return {"handled": True, "type": "edit"}
+            if is_json:
+                # Decoded args with no edit slot to consume them (the client
+                # raced edit-mode entry). Report the miss: falling through would
+                # hand a dict to handle_response, which cannot parse it and
+                # denies the pending approval outright.
+                return {"handled": False, "error": "No pending edit request"}
         if approval_channel.has_pending_approvals():
             handled = approval_channel.handle_response(response)
             return {"handled": handled, "type": "approval"}

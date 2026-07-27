@@ -471,7 +471,18 @@ class MultiUI:
             await main_task
         except asyncio.CancelledError:
             main_task.cancel()
-            await main_task
+            # Guard the unwind: an error raised while the main UI tears down
+            # would propagate from here and mask the cancellation, so callers
+            # would see an ordinary failure instead of a cancelled run.
+            try:
+                await main_task
+            except asyncio.CancelledError:
+                pass
+            except Exception as unwind_error:
+                CFG.LOGGER.warning(
+                    f"Main UI error during cancel-unwind: {unwind_error!r}"
+                )
+            raise
         except Exception as e:
             CFG.LOGGER.debug(f"Main UI task ended with error: {e}")
         finally:

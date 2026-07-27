@@ -26,10 +26,12 @@ class LLMLimitsMixin:
         self.DEFAULT_LLM_WEB_PAGE_TIMEOUT: str = "30000"
         self.DEFAULT_LLM_WEB_HTTP_TIMEOUT: str = "30000"
         self.DEFAULT_LLM_MODEL_FETCH_TIMEOUT: str = "5000"
-        self.DEFAULT_LLM_GIT_CMD_TIMEOUT: str = "1000"
+        # 5000, not the former 1000: the knob was never read, and the git calls it
+        # now bounds were hardcoded to 5s. Keeping 1000 would have tightened the
+        # cap 5x on first wiring, dropping the git lines on any slower repo.
+        self.DEFAULT_LLM_GIT_CMD_TIMEOUT: str = "5000"
         self.DEFAULT_LLM_MAX_OUTPUT_CHARS: str = "100000"
         self.DEFAULT_LLM_MAX_TOOL_RESULT_CHARS: str = "100000"
-        self.DEFAULT_LLM_PROJECT_DOC_MAX_CHARS: str = "8000"
         self.DEFAULT_LLM_MAX_COMPLETION_FILES: str = "5000"
         # Image scaling — 1568px is Anthropic's no-extra-cost tier; JPEG q85 is
         # near-lossless for screenshots while halving size vs. PNG re-encode.
@@ -134,7 +136,15 @@ class LLMLimitsMixin:
         int, doc="Timeout in milliseconds for fetching model lists."
     )
 
-    LLM_GIT_CMD_TIMEOUT = EnvField(int, doc="Timeout in milliseconds for git commands.")
+    LLM_GIT_CMD_TIMEOUT = EnvField(
+        int,
+        doc=(
+            "Timeout in milliseconds for the git commands that build live/system "
+            "context (branch, status, log, and the is-a-git-dir probe). Does not "
+            "apply to agent-invoked git work (snapshots, worktrees), which is "
+            "open-ended by nature."
+        ),
+    )
 
     # --- Size caps --------------------------------------------------------
 
@@ -161,10 +171,6 @@ class LLMLimitsMixin:
     LLM_IMAGE_JPEG_QUALITY = EnvField(
         int,
         doc="JPEG quality (1-95) used when re-encoding photos. Ignored for PNGs.",
-    )
-
-    LLM_PROJECT_DOC_MAX_CHARS = EnvField(
-        int, doc="Maximum characters for project documentation."
     )
 
     LLM_MAX_COMPLETION_FILES = EnvField(

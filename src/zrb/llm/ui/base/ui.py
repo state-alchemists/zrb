@@ -618,8 +618,21 @@ class BaseUI(PropertiesMixin, CommandsMixin, HistoryReplayMixin, SystemInfoMixin
                 ):
                     try:
                         await self._running_llm_task
-                    except (asyncio.CancelledError, Exception):
-                        pass
+                    except (KeyboardInterrupt, SystemExit):
+                        # Process-level interrupts are not a job outcome — the
+                        # previous `except (CancelledError, Exception)` let these
+                        # through and so must this.
+                        raise
+                    except BaseException:
+                        # Swallow the awaited task's outcome (incl. its own
+                        # cancellation) — this loop only needs it settled. But a
+                        # cancel aimed at THIS loop must still land, or the queue
+                        # becomes uncancellable while a previous job unwinds.
+                        # `cancelling()` tells the two apart (same guard as
+                        # monitoring._handle_threshold_reached).
+                        current = asyncio.current_task()
+                        if current is not None and current.cancelling() > 0:
+                            raise
 
                 # Create task for current job
                 current_task = asyncio.create_task(job())

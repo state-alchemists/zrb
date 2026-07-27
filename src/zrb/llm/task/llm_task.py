@@ -383,7 +383,10 @@ class LLMTask(BuilderMixin, HistoryMixin, BaseTask):  # type: ignore[reportIncom
                 ),
             )
             history_manager.update(conversation_name, new_history)
-            history_manager.save(conversation_name)
+            # Offloaded for the same reason as the main path: save serializes,
+            # re-validates, and writes the whole conversation twice (with the
+            # backup), and must not block the loop.
+            await asyncio.to_thread(history_manager.save, conversation_name)
             return True
         return False
 

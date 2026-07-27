@@ -24,6 +24,9 @@ def create_style() -> Style:
             "text": CFG.LLM_UI_STYLE_TEXT,
             "status": CFG.LLM_UI_STYLE_STATUS,
             "bottom-toolbar": CFG.LLM_UI_STYLE_BOTTOM_TOOLBAR,
+            "title-text": (
+                f"bg:{CFG.LLM_UI_STYLE_TITLE_BAR_BG} {CFG.LLM_UI_STYLE_TITLE_BAR}"
+            ),
             # AskUserQuestion selection widget. An opaque panel background stops
             # the streaming output behind the float from showing through.
             "choice-frame": f"bg:{choice_bg} {CFG.LLM_UI_STYLE_INPUT_FRAME}",

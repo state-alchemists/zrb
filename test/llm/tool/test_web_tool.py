@@ -222,6 +222,38 @@ async def test_open_web_page_pdf_url_skips_playwright():
 
 
 @pytest.mark.asyncio
+async def test_open_web_page_pdf_url_falls_back_to_playwright_on_http_error():
+    # Regression: the .pdf shortcut was terminal, so a PDF behind a Cloudflare /
+    # cookie / JS wall failed outright even though the browser path handles it.
+    fake_page = MagicMock()
+    fake_page.extract_text.return_value = "Guarded PDF text"
+    fake_pdf = MagicMock()
+    fake_pdf.pages = [fake_page]
+    fake_pdf.__enter__.return_value = fake_pdf
+
+    with (
+        patch("requests.get", side_effect=Exception("403 Forbidden")),
+        patch("playwright.async_api.async_playwright") as mock_playwright_ctx,
+        patch("pdfplumber.open", return_value=fake_pdf),
+    ):
+        mock_p = AsyncMock()
+        mock_browser = AsyncMock()
+        mock_page = AsyncMock()
+        mock_response = AsyncMock()
+        mock_response.headers = {"content-type": "application/pdf"}
+        mock_response.body.return_value = b"%PDF-1.4 ..."
+
+        mock_playwright_ctx.return_value.__aenter__.return_value = mock_p
+        mock_p.chromium.launch.return_value = mock_browser
+        mock_browser.new_page.return_value = mock_page
+        mock_page.goto.return_value = mock_response
+
+        result = await open_web_page("https://example.com/guarded.pdf", summarize=False)
+
+        assert "Guarded PDF text" in result["content"]
+
+
+@pytest.mark.asyncio
 async def test_open_web_page_pdf_text_not_html_converted():
     # PDF text containing <...> sequences (code, generics, emails) must survive:
     # running it through the HTML→markdown converter eats them as tags.

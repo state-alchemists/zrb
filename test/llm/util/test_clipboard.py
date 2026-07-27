@@ -547,10 +547,11 @@ def test_copy_text_termux_success(clean_env):
         result = copy_text("hello termux")
 
     assert result is True
+    # Text goes over stdin, not argv: a large transcript would exceed ARG_MAX.
     mock_run.assert_called_once_with(
-        ["termux-clipboard-set", "hello termux"],
+        ["termux-clipboard-set"],
+        input=b"hello termux",
         timeout=3,
-        stdin=subprocess.DEVNULL,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )

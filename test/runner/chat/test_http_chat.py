@@ -342,3 +342,109 @@ class TestHTTPChatApprovalChannelMore:
         finally:
             loop.close()
             asyncio.set_event_loop(None)
+
+
+class TestHTTPChatApprovalChannelEditModeRecovery:
+    """Cancelling an approval mid-edit must not strand the channel.
+
+    The edit slot used to survive cancellation, so is_waiting_for_edit() stayed
+    true forever and the next approval's answer was routed to the dead tool call
+    and silently dropped.
+    """
+
+    @pytest.fixture
+    def mock_session_manager(self):
+        manager = MagicMock()
+        manager.broadcast = AsyncMock()
+        return manager
+
+    @pytest.fixture
+    def channel(self, mock_session_manager):
+        from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
+
+        return HTTPChatApprovalChannel(mock_session_manager, "sess1")
+
+    async def _start_edit_mode(self, channel, tool_call_id):
+        from zrb.llm.approval.approval_channel import ApprovalContext
+
+        ctx = ApprovalContext("Write", {"path": "a.txt"}, tool_call_id)
+        task = asyncio.create_task(channel.request_approval(ctx))
+        await asyncio.sleep(0.01)
+        channel.handle_response("e", tool_call_id)
+        assert channel.is_waiting_for_edit()
+        return task
+
+    @pytest.mark.asyncio
+    async def test_cancel_during_edit_clears_edit_mode(self, channel):
+        task = await self._start_edit_mode(channel, "call-1")
+
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+        assert channel.is_waiting_for_edit() is False
+        assert channel.debug_state()["waiting_for_edit_id"] is None
+
+    @pytest.mark.asyncio
+    async def test_next_approval_answered_after_cancel_during_edit(self, channel):
+        from zrb.llm.approval.approval_channel import ApprovalContext
+
+        cancelled = await self._start_edit_mode(channel, "call-1")
+        cancelled.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await cancelled
+
+        # A fresh approval must be answerable on the first try.
+        ctx = ApprovalContext("Bash", {"cmd": "ls"}, "call-2")
+        task = asyncio.create_task(channel.request_approval(ctx))
+        await asyncio.sleep(0.01)
+
+        assert channel.handle_response("y", "call-2") is True
+        result = await task
+        assert result.approved is True
+
+    @pytest.mark.asyncio
+    async def test_stale_edit_slot_falls_through_to_pending_approval(self, channel):
+        """A stale slot must not swallow the answer meant for a live call."""
+        from zrb.llm.approval.approval_channel import ApprovalContext
+
+        task = await self._start_edit_mode(channel, "call-1")
+        # Drop the future the way cancellation does, but leave the slot set.
+        channel.handle_edit_response_obj({"path": "b.txt"})
+        await task
+
+        ctx = ApprovalContext("Bash", {"cmd": "ls"}, "call-2")
+        task2 = asyncio.create_task(channel.request_approval(ctx))
+        await asyncio.sleep(0.01)
+        assert channel.handle_response("y") is True
+        assert (await task2).approved is True
+
+    def test_edit_handlers_report_not_handled_when_idle(self, channel):
+        assert channel.handle_edit_response("y") is False
+        assert channel.handle_edit_response_obj({"a": 1}) is False
+
+    @pytest.mark.asyncio
+    async def test_edit_response_for_other_tool_call_leaves_slot_intact(self, channel):
+        task = await self._start_edit_mode(channel, "call-1")
+
+        # Edit mode is a single slot; a response aimed elsewhere is not an edit.
+        assert channel.handle_edit_response('{"a": 1}', "other-call") is False
+        assert channel.is_waiting_for_edit() is True
+
+        assert channel.handle_edit_response('{"a": 1}', "call-1") is True
+        assert (await task).override_args == {"a": 1}
+
+    @pytest.mark.asyncio
+    async def test_broadcast_tasks_are_retained_until_complete(self, channel):
+        """Broadcasts must hold a strong ref so the loop cannot GC them."""
+        from zrb.llm.approval.approval_channel import ApprovalContext
+
+        ctx = ApprovalContext("Bash", {"cmd": "ls"}, "call-1")
+        task = asyncio.create_task(channel.request_approval(ctx))
+        await asyncio.sleep(0.01)
+
+        channel.handle_response("y", "call-1")
+        assert await task is not None
+        await asyncio.sleep(0.01)
+        # Broadcast completed and deregistered itself.
+        assert channel.debug_state()["broadcast_task_count"] == 0

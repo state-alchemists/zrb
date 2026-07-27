@@ -160,17 +160,22 @@ def serve_chat_api(
                             "type": approval_result.get("type"),
                         }
                     )
-
-            approval_result = session_manager.handle_approval_response(
-                session_id, message, is_json=False
-            )
-            if approval_result.get("handled"):
-                return JSONResponse(
-                    content={
-                        "status": "approval_handled",
-                        "type": approval_result.get("type"),
-                    }
+            elif not is_json:
+                approval_result = session_manager.handle_approval_response(
+                    session_id, message, is_json=False
                 )
+                if approval_result.get("handled"):
+                    return JSONResponse(
+                        content={
+                            "status": "approval_handled",
+                            "type": approval_result.get("type"),
+                        }
+                    )
+            # A dict is never retried down the is_json=False path. That hands the
+            # dict to handle_response, which cannot parse it and denies the
+            # pending approval outright — turning a raced edit into a spurious
+            # tool denial. Unhandled dicts fall to the pending-state checks below,
+            # which report the miss without touching the pending call.
 
             if is_waiting_edit:
                 return JSONResponse(

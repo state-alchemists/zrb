@@ -84,18 +84,21 @@ The changelog lives in index and directory under `docs/`:
 ### Writing an entry
 
 Each release is a `## <version> (<Month D, YYYY>)` heading followed by themed
-bullets, with one blank line between entries:
+bullets as one contiguous list — no blank lines between entries:
 
 ```markdown
 ## 2.33.0 (June 6, 2026)
 
-- **Feature: <Title>**:
-  - <detail referencing a concrete symbol/path/env var>
-- **Fix: <Title>**:
-  - <detail>
+- **Feature: <Title>** (`path/to/module.py`, `test/path/to/test_module.py`): <what
+  changed and why, past tense, anchored to concrete symbols>.
+- **Fix: <Title>** (`path/to/module.py`): <the wrong behavior, then the new
+  behavior>. Name the release that introduced it when fixing a shipped bug, so a
+  reader can tell whether their version is affected.
 ```
 
-Use `- **<Category>: <Title>**:` with nested `  - <detail>` sub-bullets.
+Use one flat `- **<Category>: <Title>** (`paths`): <prose>` bullet per change —
+the touched paths in parentheses, then the explanation as running prose. Do not
+nest sub-bullets; a change too big for one bullet is usually two changes.
 Categories are free-form but conventionally `Feature` / `Improvement` / `Fix` /
 `Reliability` / `Security` / `Refactor` / `Performance` / `Chore` /
 `Documentation` / `Tests`. Write past-tense and factual, and anchor each point

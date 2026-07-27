@@ -129,17 +129,22 @@ class ExecCommandsMixin:
                 )
 
         except asyncio.CancelledError:
-            self.append_to_output("\n[Cancelled]\n")
+            # Reap the child BEFORE touching the UI: an append_to_output failure
+            # during teardown must not skip the cleanup and orphan the process.
             if process is not None and process.returncode is None:
                 try:
                     process.terminate()
                     await asyncio.wait_for(process.wait(), timeout=1.0)
-                except Exception:
+                except BaseException:
+                    # BaseException, not Exception: a second cancel (Ctrl+C
+                    # again, or shutdown) landing on the await above would
+                    # otherwise skip the kill and leave the process running.
                     try:
                         process.kill()
                     except Exception:
                         # Best-effort kill during teardown; re-raise below regardless.
                         pass
+            self.append_to_output("\n[Cancelled]\n")
             raise  # Re-raise to allow proper task cancellation
         except Exception as e:
             self.append_to_output(f"\n[Error: {e}]\n")
