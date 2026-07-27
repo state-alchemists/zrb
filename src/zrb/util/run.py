@@ -33,8 +33,8 @@ async def gather_isolated(*coros: Any) -> list[Any]:
     siblings.
 
     This is the right shape for peer work that must not be cut short because a
-    peer failed: successors, fallbacks, deferred actions. Use
-    ``gather_fail_fast`` only where a sibling may never return on its own.
+    peer failed: successors, fallbacks, task chains, root tasks. Use
+    ``gather_fail_fast`` where a sibling may never return on its own.
     """
     results = await asyncio.gather(*coros, return_exceptions=True)
     for r in results:
@@ -47,10 +47,11 @@ async def gather_fail_fast(*coros: Any) -> list[Any]:
     """Gather coros, cancelling the siblings when one of them fails.
 
     ``gather_isolated`` waits for every sibling to settle, which deadlocks when a
-    sibling never returns on its own: a readiness check polls until it succeeds
-    (``HttpCheck``/``TcpCheck`` never complete by themselves), so waiting for it
-    after a peer has already failed hangs the caller forever. Here the first
-    failure cancels the siblings instead.
+    sibling never returns on its own — a readiness check that polls until it
+    succeeds (``HttpCheck``/``TcpCheck``), a deferred long-running task body, a
+    ``Scheduler``/``BaseTrigger`` monitoring loop. Waiting for one of those after
+    a peer has already failed hangs the caller forever. Here the first failure
+    cancels the siblings instead.
 
     Cancellation of *this* coroutine is propagated the same way, so callers see
     plain-gather semantics with no orphans left behind.

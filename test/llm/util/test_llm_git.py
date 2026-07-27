@@ -63,7 +63,35 @@ class TestIsInsideGitDir:
                 ["git", "rev-parse", "--is-inside-work-tree"],
                 capture_output=True,
                 text=True,
+                timeout=5.0,
             )
+
+    def test_probe_is_bounded_by_the_configured_timeout(self, monkeypatch):
+        """The probe must be bounded, and by ZRB_LLM_GIT_CMD_TIMEOUT.
+
+        Regression: it ran with no timeout at all while the knob that documents
+        this cap was never read, so a git that blocks (credential prompt,
+        index.lock contention) stalled every prompt compose behind it.
+        """
+        from zrb.llm.util.git import is_inside_git_dir
+
+        monkeypatch.setenv("ZRB_LLM_GIT_CMD_TIMEOUT", "2500")
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+
+        with patch("subprocess.run", return_value=mock_result) as mock_run:
+            is_inside_git_dir()
+
+        assert mock_run.call_args.kwargs["timeout"] == 2.5
+
+    def test_probe_timeout_reads_as_not_a_git_dir(self):
+        """A timeout is the same safe answer as any other failure."""
+        from zrb.llm.util.git import is_inside_git_dir
+
+        with patch(
+            "subprocess.run", side_effect=subprocess.TimeoutExpired("git", 5.0)
+        ):
+            assert is_inside_git_dir() is False
 
     def test_filenot_found_returns_false(self):
         """Test is_inside_git_dir handles FileNotFoundError."""

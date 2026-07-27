@@ -84,12 +84,6 @@ class LLMUIStylesMixin:
         doc="Prompt-toolkit style for the input panel frame border.",
     )
 
-    LLM_UI_STYLE_PROMPT = EnvField(
-        str,
-        default_factory=theme_default("LLM_UI_STYLE_PROMPT"),
-        doc="Prompt-toolkit style for the input prompt marker (>>>).",
-    )
-
     LLM_UI_STYLE_THINKING = EnvField(
         str,
         default_factory=theme_default("LLM_UI_STYLE_THINKING"),

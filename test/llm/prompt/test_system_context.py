@@ -204,6 +204,27 @@ class TestRenderLiveContext:
 
         assert "Git:" in rendered
 
+    def test_live_context_git_calls_honour_the_configured_timeout(self, monkeypatch):
+        """Every live-context git call is bounded by ZRB_LLM_GIT_CMD_TIMEOUT.
+
+        Regression: the timeout was hardcoded to 5s while the knob documenting
+        this cap was never read by anything, so raising or lowering it did
+        nothing.
+        """
+        ctx = MagicMock(spec=AnyContext)
+        monkeypatch.setenv("ZRB_LLM_GIT_CMD_TIMEOUT", "3000")
+
+        with patch("zrb.llm.util.git.is_inside_git_dir", return_value=True):
+            with patch("subprocess.run") as mock_run:
+                mock_run.return_value = MagicMock(stdout="")
+                render_live_context(ctx)
+
+        git_calls = [c for c in mock_run.call_args_list if c.args and "git" in c.args[0]]
+        assert git_calls, "no git commands ran"
+        assert all(c.kwargs.get("timeout") == 3.0 for c in git_calls), [
+            c.kwargs.get("timeout") for c in git_calls
+        ]
+
     def test_render_live_context_wires_session_from_ctx(self):
         """render_live_context should set the tool session from ctx.input.session."""
         ctx = MagicMock()

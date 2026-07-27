@@ -528,8 +528,6 @@ No additional configuration needed.
 | `ZRB_HOOKS_ENABLED` | Enable the hook system globally; set `off` to disable all hooks (none load or fire) | `on` |
 | `ZRB_HOOKS_DIRS` | Additional hook directories (colon-separated) | (empty) |
 | `ZRB_HOOKS_TIMEOUT` | Default timeout for hook execution (ms) | `30000` |
-| `ZRB_HOOKS_LOG_LEVEL` | Logging level for hooks | `INFO` |
-| `ZRB_HOOKS_DEBUG` | Emit verbose hook diagnostics (matching, dispatch, results) | `off` |
 
 ---
 
@@ -600,7 +598,7 @@ All timeout values are in **milliseconds** unless the row says otherwise. Divide
 | `ZRB_LLM_WEB_HTTP_TIMEOUT` | HTTP request timeout for web tools and search (ms) | `30000` |
 | `ZRB_LLM_MODEL_FETCH_TIMEOUT` | Timeout for fetching Ollama model list (ms) | `5000` |
 | `ZRB_CMD_CLEANUP_TIMEOUT` | Time to wait for a process to exit after interrupt before killing (ms) | `2000` |
-| `ZRB_LLM_GIT_CMD_TIMEOUT` | Timeout for git commands used to build system context (ms) | `1000` |
+| `ZRB_LLM_GIT_CMD_TIMEOUT` | Timeout for the git commands that build live/system context — branch, status, log, and the is-a-git-dir probe (ms). Does not apply to agent-invoked git work (snapshots, worktrees). | `5000` |
 
 ---
 
@@ -630,7 +628,6 @@ All interval and delay values are in **milliseconds**.
 | `ZRB_LLM_MAX_TOOL_RESULT_CHARS` | Global backstop cap (characters) on every tool's model-facing result, applied after the tool runs. Catches outputs not already capped by a tool (Grep, AnalyzeCode, web, MCP). `0` disables it. | `100000` |
 | `ZRB_LLM_HISTORY_MAX_DISPLAY_CHARS` | Maximum characters shown by the `/history` command | `5000` |
 | `ZRB_LLM_HISTORY_TRUNCATE_LENGTH` | Maximum chars per field when formatting history entries | `100` |
-| `ZRB_LLM_PROJECT_DOC_MAX_CHARS` | Maximum chars loaded from each project doc file (e.g. CLAUDE.md) | `8000` |
 | `ZRB_LLM_MAX_IMAGE_DIMENSION` | Longest-edge cap (pixels) for attached images before sending to LLM | `1568` |
 | `ZRB_LLM_IMAGE_JPEG_QUALITY` | JPEG quality (1-95) for re-encoding photos; PNGs are unaffected | `85` |
 | `ZRB_CMD_BUFFER_LIMIT` | Asyncio subprocess read-buffer limit in bytes | `102400` |
@@ -706,7 +703,8 @@ attributes like `bold`. The special value `noinherit` resets to terminal default
 
 | Variable | Styles | Default |
 |----------|--------|---------|
-| `ZRB_LLM_UI_STYLE_TITLE_BAR` | Top title bar | `#ffffff` |
+| `ZRB_LLM_UI_STYLE_TITLE_BAR` | Top title bar foreground | `#ffffff` |
+| `ZRB_LLM_UI_STYLE_TITLE_BAR_BG` | Top title bar background | `ansipurple` |
 | `ZRB_LLM_UI_STYLE_INFO_BAR` | Info/header bar | `#ffffff` |
 | `ZRB_LLM_UI_STYLE_FRAME` | Frame borders | `#888888` |
 | `ZRB_LLM_UI_STYLE_FRAME_LABEL` | Frame labels | `#ffff00` |
@@ -719,6 +717,19 @@ attributes like `bold`. The special value `noinherit` resets to terminal default
 | `ZRB_LLM_UI_STYLE_TEXT` | General body text | `#eeeeee` |
 | `ZRB_LLM_UI_STYLE_STATUS` | Status bar text | `ansiwhite` |
 | `ZRB_LLM_UI_STYLE_BOTTOM_TOOLBAR` | Bottom toolbar | `noinherit` |
+
+### Markdown Rendering
+
+Unlike the knobs above, these are [Rich](https://rich.readthedocs.io/en/stable/style.html)
+style strings (`bold magenta`, `italic bright_cyan underline`) — they style the
+markdown renderer, not the prompt_toolkit widgets.
+
+| Variable | Styles | Default |
+|----------|--------|---------|
+| `ZRB_LLM_UI_STYLE_MARKDOWN_H1` | Top-level headings | `bold magenta` |
+| `ZRB_LLM_UI_STYLE_MARKDOWN_CODE` | Inline code spans | `bold white` |
+| `ZRB_LLM_UI_STYLE_MARKDOWN_LINK` | Link text | `bold bright_cyan underline` |
+| `ZRB_LLM_UI_STYLE_MARKDOWN_LINK_URL` | Link target URL | `italic bright_cyan underline` |
 
 ### Choice Widget (AskUserQuestion panel)
 
@@ -749,6 +760,36 @@ attributes like `bold`. The special value `noinherit` resets to terminal default
 
 > Assistant identity (`ZRB_LLM_ASSISTANT_NAME`, `ZRB_LLM_ASSISTANT_ASCII_ART`,
 > `ZRB_LLM_ASSISTANT_JARGON`) is covered in [System Prompts & Identity](#4-system-prompts--identity).
+
+### Themes (`ZRB_THEME`)
+
+Rather than exporting the knobs above one by one, `ZRB_THEME` selects a whole
+palette at once. Every style knob in this section resolves its **default** from
+the active theme, so a theme sets all of them and any individual `ZRB_*` export
+still wins over it.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_THEME` | Named palette supplying the defaults for every `LLM_UI_STYLE_*` / `CLI_COLOR_*` / `CLI_STYLE_*` knob | `dark` |
+
+Built-in values are `dark` (reproduces the historical hardcoded defaults, so a
+default install is visually unchanged) and `light` (dark-on-light, avoiding pale
+foregrounds on white). An unknown name logs a warning and falls back to `dark`.
+
+Register your own from `zrb_init.py` — a theme is layered on top of `dark`, so a
+partial palette only needs the knobs it changes:
+
+```python
+from zrb.config.theme import register_theme
+
+register_theme("solarized", {
+    "CLI_COLOR_INFO": "#268bd2",
+    "LLM_UI_STYLE_TEXT": "#657b83",
+})
+# then: export ZRB_THEME=solarized
+```
+
+See `examples/themes/monokai/` for a complete worked example.
 
 ### Theme Examples
 
@@ -790,12 +831,12 @@ layers, platform matrix, escape hatch).
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_SANDBOX_ENABLED` | Master switch for the sandbox (Python FS gate + OS shell wrapper). | `false` |
+| `ZRB_LLM_SANDBOX_ENABLED` | Master switch for the sandbox (Python FS gate + OS shell wrapper). | `off` |
 | `ZRB_LLM_SANDBOX_OS_SHELL` | `auto` wraps shell commands with `sandbox-exec` (macOS) / `bwrap` (Linux); `off` keeps only the Python FS gate. | `auto` |
 | `ZRB_LLM_SANDBOX_WRITABLE_PATHS` | Colon-separated writable roots. Empty = automatic (cwd + system temp dir). | (empty) |
 | `ZRB_LLM_SANDBOX_DENY_READ_PATHS` | Colon-separated never-read paths (credential stores). Setting it replaces the built-in default list. | built-in list |
 | `ZRB_LLM_SANDBOX_FALLBACK` | `warn` runs unsandboxed with a visible warning when no OS mechanism exists (Windows, Linux without bwrap); `deny` refuses. | `warn` |
-| `ZRB_LLM_SANDBOX_ALLOW_ESCAPE` | Whether the `dangerously_skip_sandbox` tool argument is honored. Set `false` for CI / non-interactive deployments. | `true` |
+| `ZRB_LLM_SANDBOX_ALLOW_ESCAPE` | Whether the `dangerously_skip_sandbox` tool argument is honored. Set `false` for CI / non-interactive deployments. | `on` |
 
 ---
 
@@ -833,7 +874,7 @@ When enabled, the `/voice` command toggles recording mode. Audio dependencies
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_VOICE_ENABLED` | Master switch for voice dictation in `zrb llm chat`. Requires sounddevice + an STT backend. | `false` |
+| `ZRB_LLM_VOICE_ENABLED` | Master switch for voice dictation in `zrb llm chat`. Requires sounddevice + an STT backend. | `off` |
 | `ZRB_LLM_VOICE_MODE` | Speech-to-text backend: `vosk` (offline, cross-platform), `openai` (Whisper API), `google` (Gemini STT), or `multimodal` (uses `ZRB_LLM_MULTIMODAL_MODEL` — slower/more expensive) | `vosk` |
 | `ZRB_LLM_VOICE_PUSH_TO_TALK_KEY` | prompt_toolkit key name for push-to-talk (e.g. `space`, `c-t` for Ctrl+T) | `space` |
 

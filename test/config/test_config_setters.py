@@ -676,12 +676,3 @@ class TestConfigSetters:
         config.HOOKS_TIMEOUT = 60000
         assert os.environ["ZRB_HOOKS_TIMEOUT"] == "60000"
 
-    def test_hooks_debug_setter(self, monkeypatch):
-        config = Config()
-        config.HOOKS_DEBUG = True
-        assert os.environ["ZRB_HOOKS_DEBUG"] == "on"
-
-    def test_hooks_log_level_setter(self, monkeypatch):
-        config = Config()
-        config.HOOKS_LOG_LEVEL = "DEBUG"
-        assert os.environ["ZRB_HOOKS_LOG_LEVEL"] == "DEBUG"

@@ -208,6 +208,76 @@ async def test_defer_action_and_wait(session):
     # without accessing private members, but wait_deferred should essentially wait for them.
 
 
+def _stub_task(name: str) -> MagicMock:
+    task = MagicMock(spec=AnyTask)
+    task.name = name
+    task.readiness_checks = []
+    task.successors = []
+    task.fallbacks = []
+    task.upstreams = []
+    task.color = None
+    task.icon = None
+    return task
+
+
+@pytest.mark.asyncio
+async def test_failing_deferred_action_does_not_wait_for_a_never_ending_sibling(
+    session,
+):
+    """A crashed long-running task must fail the run immediately.
+
+    Regression: deferred action bodies were gathered with settle-all semantics,
+    but a long-running task's body never returns on its own. Running `frontend`
+    + `backend` where one crashes then blocked until the survivor was killed
+    instead of exiting non-zero. The survivor must be cancelled.
+    """
+    cancelled = asyncio.Event()
+
+    async def serves_forever():
+        try:
+            await asyncio.sleep(30)
+        except asyncio.CancelledError:
+            cancelled.set()
+            raise
+
+    async def crashes():
+        await asyncio.sleep(0.01)
+        raise RuntimeError("backend died")
+
+    session.defer_action(_stub_task("frontend"), serves_forever())
+    session.defer_action(_stub_task("backend"), crashes())
+
+    with pytest.raises(RuntimeError, match="backend died"):
+        await asyncio.wait_for(session.wait_deferred(), timeout=5)
+
+    assert cancelled.is_set()
+
+
+@pytest.mark.asyncio
+async def test_failing_monitoring_coro_cancels_the_polling_siblings(session):
+    """Monitoring loops poll forever by design, so the same rule applies."""
+    cancelled = asyncio.Event()
+
+    async def polls_forever():
+        try:
+            while True:
+                await asyncio.sleep(0.01)
+        except asyncio.CancelledError:
+            cancelled.set()
+            raise
+
+    async def crashes():
+        raise RuntimeError("trigger died")
+
+    session.defer_monitoring(_stub_task("poller"), polls_forever())
+    session.defer_monitoring(_stub_task("trigger"), crashes())
+
+    with pytest.raises(RuntimeError, match="trigger died"):
+        await asyncio.wait_for(session.wait_deferred(), timeout=5)
+
+    assert cancelled.is_set()
+
+
 @pytest.mark.asyncio
 async def test_defer_monitoring_and_wait(session):
     task = MagicMock(spec=AnyTask)

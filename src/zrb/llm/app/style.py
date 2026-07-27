@@ -24,12 +24,6 @@ def create_style() -> Style:
             "text": CFG.LLM_UI_STYLE_TEXT,
             "status": CFG.LLM_UI_STYLE_STATUS,
             "bottom-toolbar": CFG.LLM_UI_STYLE_BOTTOM_TOOLBAR,
-            # Class for the HTML-rendered title bar, so those values reach
-            # prompt-toolkit as *styles*: inlining them into an HTML
-            # `color=`/`bg=` attribute accepts only a bare color, and any real
-            # style string ("bold #ff0000") raised `ValueError: "fg" attribute
-            # contains a space` while building the layout. A Style dict takes the
-            # full grammar.
             "title-text": (
                 f"bg:{CFG.LLM_UI_STYLE_TITLE_BAR_BG} {CFG.LLM_UI_STYLE_TITLE_BAR}"
             ),

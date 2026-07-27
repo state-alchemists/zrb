@@ -121,13 +121,11 @@ class TestThemeResolution:
         monkeypatch.delenv("ZRB_THEME", raising=False)
         for key in (
             "ZRB_LLM_UI_STYLE_TITLE_BAR_BG",
-            "ZRB_LLM_UI_STYLE_PROMPT",
             "ZRB_LLM_UI_STYLE_MARKDOWN_LINK",
         ):
             monkeypatch.delenv(key, raising=False)
         cfg = Config()
         assert cfg.LLM_UI_STYLE_TITLE_BAR_BG == "ansipurple"
-        assert cfg.LLM_UI_STYLE_PROMPT == "ansibrightblue"
         assert cfg.LLM_UI_STYLE_MARKDOWN_LINK == "bold bright_cyan underline"
 
     @pytest.mark.parametrize("theme", ["dark", "light"])

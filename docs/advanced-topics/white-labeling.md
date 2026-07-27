@@ -65,7 +65,7 @@ import acme_cli.tasks
 def run_acme_cli():
     # 2. White-label configuration overrides!
     
-    # Change the env prefix: ZRB_LOG_LEVEL becomes ACME_LOG_LEVEL
+    # Change the env prefix: ZRB_LOGGING_LEVEL becomes ACME_LOGGING_LEVEL
     os.environ["_ZRB_ENV_PREFIX"] = "ACME" 
     
     # Rebrand the root command name

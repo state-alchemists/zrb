@@ -1,4 +1,4 @@
-"""Hook config: enable toggle, hook dirs, timeout, debug, log level."""
+"""Hook config: enable toggle, hook dirs, timeout."""
 
 from __future__ import annotations
 
@@ -13,8 +13,6 @@ class HooksMixin:
         self.DEFAULT_HOOKS_ENABLED: str = "on"
         self.DEFAULT_HOOKS_DIRS: str = ""
         self.DEFAULT_HOOKS_TIMEOUT: str = "30000"
-        self.DEFAULT_HOOKS_DEBUG: str = "off"
-        self.DEFAULT_HOOKS_LOG_LEVEL: str = "INFO"
         super().__init__()
 
     HOOKS_ENABLED = EnvField(
@@ -28,20 +26,3 @@ class HooksMixin:
     )
 
     HOOKS_TIMEOUT = EnvField(int, doc="Timeout in milliseconds for hook execution.")
-
-    HOOKS_DEBUG = EnvField(
-        to_boolean,
-        serialize=on_off,
-        doc="Enable/disable verbose debug output for hook execution.",
-    )
-
-    HOOKS_LOG_LEVEL = EnvField(
-        str,
-        doc=(
-            "Log level for hook execution. One of:\n"
-            "- 'DEBUG'\n"
-            "- 'INFO'\n"
-            "- 'WARNING'\n"
-            "- 'ERROR'"
-        ),
-    )

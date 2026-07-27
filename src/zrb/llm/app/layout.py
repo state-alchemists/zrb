@@ -90,8 +90,6 @@ def create_input_field(
             return min(max(line_count, 1), 10)
 
     text_area = DynamicHeightTextArea(
-        # No prompt marker: the framed input panel already shows where to type,
-        # and dropping it returns those columns to the first wrapped line.
         multiline=True,
         wrap_lines=True,
         history=history,
@@ -223,9 +221,6 @@ def create_layout(
     extra_floats: list[Float] | None = None,
     agent_activity_text: Callable[[], AnyFormattedText] | None = None,
 ) -> Layout:
-    # Style classes, not inlined colors (see create_style). `.format()` rather
-    # than an f-string so a title or jargon containing `<` or `&` is escaped
-    # instead of being parsed as markup.
     title_bar_text = HTML(
         " <title-text><b> {} </b></title-text> <faint>| {}</faint>"
     ).format(title, jargon)
