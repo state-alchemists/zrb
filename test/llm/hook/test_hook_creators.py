@@ -1,4 +1,8 @@
+import asyncio
 import logging
+import os
+import subprocess
+import tempfile
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -339,6 +343,41 @@ async def test_command_hook_error_exit_with_stdout_only(caplog):
 
 
 @pytest.mark.asyncio
+async def test_command_hook_timeout_kills_grandchildren_not_just_the_shell():
+    """A timed-out hook must leave no surviving descendants.
+
+    Regression: the timeout path called ``process.kill()``, which kills only the
+    shell spawned by ``shell=True``. A forked grandchild survived it and — still
+    holding the inherited stdout/stderr pipes — kept ``communicate()`` blocked in
+    its worker thread until it exited on its own, pinning a hook-pool worker for
+    the full sleep. Leaked processes plus an exhausted pool.
+    """
+    # A surviving descendant is detected by its side effect, not by scanning ps.
+    # The work must be done by the *subshell*, not by the parent shell: a plain
+    # `sleep 0.5; touch x` cannot tell the two kills apart, because `touch` is
+    # run by the parent shell and so is lost either way. Backgrounding a subshell
+    # puts sleep+touch in a process that outlives a parent-only kill.
+    with tempfile.TemporaryDirectory() as tmp:
+        sentinel = os.path.join(tmp, "survived")
+        hook = create_command_hook(
+            CommandHookConfig(command=f"( sleep 0.5; touch {sentinel} ) & wait"),
+            timeout=0.1,
+        )
+        context = HookContext(event=HookEvent.NOTIFICATION, event_data={})
+
+        result = await hook(context)
+
+        assert result.success is False
+        assert "timed out" in (result.output or "")
+
+        # Past the grandchild's own sleep: if it were still alive it has now run.
+        await asyncio.sleep(1.0)
+        assert not os.path.exists(
+            sentinel
+        ), "grandchild outlived the kill and kept running"
+
+
+@pytest.mark.asyncio
 async def test_command_hook_timeout_process_already_gone():
     """If the timed-out process is already gone (ProcessLookupError on kill),
     the timeout path still returns cleanly."""
@@ -351,7 +390,10 @@ async def test_command_hook_timeout_process_already_gone():
         def communicate(self, input=None):
             import time as _t
 
-            _t.sleep(5)
+            # Only has to outlast the 0.05-0.1s timeout/cancel below. The
+            # executor thread is not cancellable, so pytest-asyncio's loop
+            # teardown joins it — every second here is a second of test time.
+            _t.sleep(0.3)
             return b"", b""
 
         def kill(self):
@@ -380,7 +422,10 @@ async def test_command_hook_cancelled_kills_process():
         def communicate(self, input=None):
             import time as _t
 
-            _t.sleep(5)
+            # Only has to outlast the 0.05-0.1s timeout/cancel below. The
+            # executor thread is not cancellable, so pytest-asyncio's loop
+            # teardown joins it — every second here is a second of test time.
+            _t.sleep(0.3)
             return b"", b""
 
         def kill(self):
@@ -414,7 +459,10 @@ async def test_command_hook_cancelled_when_process_already_gone():
         def communicate(self, input=None):
             import time as _t
 
-            _t.sleep(5)
+            # Only has to outlast the 0.05-0.1s timeout/cancel below. The
+            # executor thread is not cancellable, so pytest-asyncio's loop
+            # teardown joins it — every second here is a second of test time.
+            _t.sleep(0.3)
             return b"", b""
 
         def kill(self):

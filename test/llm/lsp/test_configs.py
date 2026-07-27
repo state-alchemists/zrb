@@ -107,6 +107,58 @@ def test_get_lsp_config_for_file_with_preferred(mock_which):
     assert config.name == "pyright" or config.name == "pylsp"
 
 
+@patch("shutil.which", return_value=None)
+def test_detect_caches_the_path_scan(mock_which):
+    """The ``$PATH`` probe runs once, not on every call.
+
+    Each miss walks every ``$PATH`` entry (~18ms where PATH includes WSL2's
+    ``/mnt/c/...``), and ``get_for_file`` runs on every agent file edit via the
+    post-write diagnostics — uncached that cost ~1s per edit.
+    """
+    registry = LSPServerConfigRegistry()
+
+    registry.detect()
+    after_first = mock_which.call_count
+    registry.detect()
+    registry.get_for_file("x.py")
+
+    assert after_first > 0
+    assert mock_which.call_count == after_first
+
+
+@patch("shutil.which", return_value=None)
+def test_detect_cache_invalidated_by_register_and_clear(mock_which):
+    """A newly registered server must be visible immediately."""
+    registry = LSPServerConfigRegistry()
+    registry.detect()
+    baseline = mock_which.call_count
+
+    registry.register(
+        "custom",
+        LSPServerConfig(
+            name="custom",
+            command=["custom-lsp"],
+            language_ids=["custom"],
+            file_extensions=[".cst"],
+        ),
+    )
+    registry.detect()
+    assert mock_which.call_count > baseline
+
+    after_register = mock_which.call_count
+    registry.clear()
+    registry.detect()
+    assert mock_which.call_count > after_register
+
+
+@patch("shutil.which", return_value=None)
+def test_detect_result_is_not_shared_mutable_state(mock_which):
+    """Callers get a copy — mutating the result must not poison the cache."""
+    registry = LSPServerConfigRegistry()
+    registry.detect()["injected"] = "/nope"
+    assert "injected" not in registry.detect()
+
+
 def test_detect_language_from_file():
     assert detect_language_from_file("script.py") == "python"
     assert detect_language_from_file("main.go") == "go"
