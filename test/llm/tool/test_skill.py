@@ -28,7 +28,7 @@ class TestCreateActivateSkillTool:
         func = create_activate_skill_tool(skill_manager=mock_manager)
 
         # Call the tool
-        result = await func(name="test-skill")
+        result = await func(skill="test-skill")
 
         assert "ACTIVATED_SKILL" in result
         assert "Skill content here" in result
@@ -45,7 +45,7 @@ class TestCreateActivateSkillTool:
         mock_manager.get_skill.return_value = None
 
         func = create_activate_skill_tool(skill_manager=mock_manager)
-        result = await func(name="unknown")
+        result = await func(skill="unknown")
 
         assert "not found" in result.lower()
 
@@ -62,7 +62,7 @@ class TestCreateActivateSkillTool:
             mock_default_manager.get_skill_content.return_value = "content"
 
             func = create_activate_skill_tool()  # No skill_manager provided
-            await func(name="test")
+            await func(skill="test")
 
             mock_default_manager.get_skill.assert_called_once_with("test")
 
@@ -88,7 +88,7 @@ class TestCreateActivateSkillTool:
         mock_manager.get_skill_content.return_value = "content"
 
         func = create_activate_skill_tool(skill_manager=mock_manager)
-        result = await func(name="test-skill")
+        result = await func(skill="test-skill")
 
         # Check header elements
         assert "Skill directory (working directory): /test" in result
@@ -102,3 +102,36 @@ class TestCreateActivateSkillTool:
         assert "  config/" in result
         assert "    default.yaml" in result
         assert "---" in result
+
+
+class TestActivateSkillSchema:
+    """The parameter models actually reach for, exposed as strictly as before."""
+
+    def test_parameter_is_named_skill_and_stays_the_only_one(self):
+        """Six of eight benchmarked models sent `skill`/`skill_name` to a
+        parameter named `name`, each miss costing a validation retry that
+        re-sent the whole conversation. The fix is the parameter name, not
+        aliases: aliasing would force every field optional and lose
+        ``additionalProperties: false``.
+        """
+        from pydantic_ai import Tool
+
+        from zrb.llm.tool.skill import create_activate_skill_tool
+
+        schema = Tool(create_activate_skill_tool()).function_schema.json_schema
+
+        assert list(schema["properties"]) == ["skill"]
+        assert schema["required"] == ["skill"]
+        assert schema["additionalProperties"] is False
+
+    def test_description_states_where_skill_names_come_from(self):
+        """The schema carries no per-field description, so the tool description
+        is the only place that can say what `skill` should contain."""
+        from pydantic_ai import Tool
+
+        from zrb.llm.tool.skill import create_activate_skill_tool
+
+        description = Tool(create_activate_skill_tool()).description or ""
+
+        assert "skill:" in description
+        assert "Available" in description

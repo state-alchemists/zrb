@@ -261,3 +261,25 @@ async def test_run_shell_command_pid_file_cleanup_failure_is_ignored(monkeypatch
     res = await run_shell_command("echo cleanup-ok")
     assert "cleanup-ok" in res
     assert "Exit Code: 0" in res
+
+
+def test_timeout_docstring_states_seconds_not_milliseconds():
+    """The unit must be explicit in the description the model reads.
+
+    Every other agent-shell tool in wide use takes milliseconds (default
+    120000), so a bare `timeout: int = 120` invites millisecond values. One
+    benchmarked model passed 15000 meaning 15s, got 15000 seconds, and its
+    otherwise-perfect run was recorded as a timeout.
+    """
+    doc = run_shell_command.__doc__ or ""
+
+    assert "SECONDS" in doc
+    assert "not milliseconds" in doc
+
+
+def test_timeout_docstring_points_long_running_work_at_background():
+    """A large timeout is the wrong tool for a server; background=True is."""
+    doc = run_shell_command.__doc__ or ""
+
+    assert "background=True" in doc
+    assert "server" in doc

@@ -30,6 +30,9 @@ async def run_shell_command(
     tail, where errors land); the full stdout/stderr is saved to a temp file
     whose path is reported — Grep/Read it for the elided content.
 
+    timeout: SECONDS, not milliseconds (default 120). A process meant to keep
+    running (server, watcher, `tail -f`) belongs in background=True, not a large
+    timeout — a foreground wait blocks the turn until it elapses.
     shell: "bash"/"zsh"/"sh" (POSIX), "pwsh"/"cmd" (Windows), or "node"/"ruby"/"php"
     (runtime — command treated as source code); empty = user's default shell.
     background=True returns a handle for MonitorProcess (timeout not applied).

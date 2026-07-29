@@ -86,8 +86,39 @@ async def replace_in_file(
     match_count = content.count(actual_old)
     new_content = content.replace(actual_old, new_text, count)
 
+    # A no-op reached this far means old_text *was* found, so it is never the
+    # "not found" case above — and each of its three causes needs different
+    # advice. Retrying is futile in all three, and models do retry a bare
+    # status, so each says which one it is instead of hedging between them.
     if content == new_content:
-        return f"No changes made to {path}"
+        if old_text == new_text:
+            return (
+                f"No changes made to {path}: old_text and new_text are "
+                "identical, so this call cannot change the file. "
+                "[SYSTEM SUGGESTION]: Do not repeat this call — it will keep "
+                "returning this. Re-issue it with a new_text that differs from "
+                "old_text, or, if the file already holds the intended content, "
+                "move on to the next step."
+            )
+        if count == 0:
+            return (
+                f"No changes made to {path}: count=0 asks for zero "
+                "replacements. "
+                "[SYSTEM SUGGESTION]: Do not repeat this call as-is. Omit "
+                "count to replace every occurrence, or pass count=1 to replace "
+                "only the first."
+            )
+        # old_text differs from new_text, yet the matched region equals it, so
+        # the match was fuzzy: the file already reads as new_text and only
+        # whitespace told old_text apart from it.
+        return (
+            f"No changes made to {path}: the matched region already reads "
+            "exactly as new_text, so this edit is already applied — only "
+            "whitespace told old_text apart from it. "
+            "[SYSTEM SUGGESTION]: Do not repeat this call — it will keep "
+            "returning this. Read the file to confirm its current state, then "
+            "move on or edit a different region."
+        )
 
     try:
         with open(abs_path, "w", encoding="utf-8") as f:

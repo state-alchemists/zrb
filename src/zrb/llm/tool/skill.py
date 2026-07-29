@@ -9,21 +9,21 @@ def create_activate_skill_tool(skill_manager: SkillManager | None = None):
     if skill_manager is None:
         skill_manager = default_skill_manager
 
-    async def activate_skill_impl(name: str) -> str:
-        skill = skill_manager.get_skill(name)
+    async def activate_skill_impl(skill: str) -> str:
+        found = skill_manager.get_skill(skill)
 
-        if not skill:
-            return f"Skill '{name}' not found."
+        if not found:
+            return f"Skill '{skill}' not found."
 
-        if not skill.model_invocable:
-            return f"Skill '{name}' is not invocable by the model."
+        if not found.model_invocable:
+            return f"Skill '{skill}' is not invocable by the model."
 
-        content = skill_manager.get_skill_content(name)
+        content = skill_manager.get_skill_content(skill)
         if not content:
-            return f"Skill '{name}' not found."
+            return f"Skill '{skill}' not found."
 
-        skill_dir = str(Path(skill.path).parent)
-        companion_files = skill.companion_files or discover_companion_files(skill.path)
+        skill_dir = str(Path(found.path).parent)
+        companion_files = found.companion_files or discover_companion_files(found.path)
 
         header_lines = [
             "Skill activated. The following context applies:",
@@ -45,6 +45,8 @@ def create_activate_skill_tool(skill_manager: SkillManager | None = None):
         "Activates specialized expertise from a skill.\n\n"
         "Returns the skill's full content, its directory path, and a listing of any\n"
         "companion files (scripts, docs, data). Use Read/Glob on the directory to\n"
-        "access companion files referenced in the skill content."
+        "access companion files referenced in the skill content.\n\n"
+        "skill: the skill's name exactly as listed under Core Skills / Available\n"
+        "Skills, e.g. 'core-coding'."
     )
     return activate_skill_impl
