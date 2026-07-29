@@ -585,6 +585,86 @@ def test_replace_in_file_no_changes(tmp_path):
     assert "No changes made" in result
 
 
+def test_replace_in_file_no_changes_tells_model_not_to_retry(tmp_path):
+    """A no-op edit is a dead end, so it must carry recovery guidance.
+
+    Without it the result reads as a neutral status and models re-issue the
+    identical call — one observed benchmark trial received it 76 times.
+    """
+    file_path = tmp_path / "test.txt"
+    file_path.write_text("hello world")
+
+    result = _r(str(file_path), "hello", "hello")
+
+    assert "[SYSTEM SUGGESTION]" in result
+    assert "Do not repeat this call" in result
+
+
+def test_replace_in_file_identical_args_named_as_the_cause(tmp_path):
+    """Identical arguments and an already-applied edit need different advice.
+
+    Here the fix is the arguments, so the message must not send the model off
+    to re-read the file as if the edit had landed.
+    """
+    file_path = tmp_path / "test.txt"
+    file_path.write_text("hello world")
+
+    result = _r(str(file_path), "hello", "hello")
+
+    assert "old_text and new_text are identical" in result
+    assert "already applied" not in result
+
+
+def test_replace_in_file_identical_args_do_not_preempt_the_file_check(tmp_path):
+    """Identical arguments are diagnosed at the no-op, not ahead of the file.
+
+    Checking them earlier would be cheaper but would relabel two existing
+    errors: a missing file, and (below) an old_text that is not in the file.
+    """
+    result = _r(str(tmp_path / "absent.txt"), "hello", "hello")
+
+    assert "File not found" in result
+
+
+def test_replace_in_file_identical_args_do_not_preempt_the_match_check(tmp_path):
+    """old_text absent from the file is still reported as not found."""
+    file_path = tmp_path / "test.txt"
+    file_path.write_text("hello world")
+
+    result = _r(str(file_path), "absent", "absent")
+
+    assert "not found" in result.lower()
+    assert "are identical" not in result
+
+
+def test_replace_in_file_already_applied_edit_says_so(tmp_path):
+    """A fuzzy match onto text that already equals new_text is a landed edit.
+
+    old_text differs from new_text only in trailing whitespace, so the fuzzy
+    matcher lands on a region that already reads exactly as new_text.
+    """
+    file_path = tmp_path / "test.txt"
+    file_path.write_text("foo bar\n")
+
+    result = _r(str(file_path), "foo bar ", "foo bar\n")
+
+    assert "already applied" in result
+    assert "are identical" not in result
+    assert "Do not repeat this call" in result
+
+
+def test_replace_in_file_zero_count_names_count_as_the_cause(tmp_path):
+    """count=0 is a no-op the model fixes by changing count, not the text."""
+    file_path = tmp_path / "test.txt"
+    file_path.write_text("hello world")
+
+    result = _r(str(file_path), "hello", "HELLO", count=0)
+
+    assert "count=0" in result
+    assert "count=1" in result
+    assert file_path.read_text() == "hello world"
+
+
 def test_replace_in_file_near_match(tmp_path):
     file_path = tmp_path / "test.txt"
     file_path.write_text("hello world\ngoodbye world\n")
