@@ -56,6 +56,9 @@ class MockUI(BaseUICommands):
     def append_to_output(self, text, end="\n"):
         self.outputs.append(str(text) + end)
 
+    def append_markdown(self, markdown_text):
+        self.append_to_output(markdown_text)
+
     def invalidate_ui(self):
         pass
 
