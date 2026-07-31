@@ -16,7 +16,6 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from zrb.llm.custom_command.resolver import resolve_custom_command
-from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import stylize_error, stylize_muted
 
 if TYPE_CHECKING:
@@ -54,6 +53,8 @@ class BaseUIExecCommands:
         def ctx(self) -> "AnyContext": ...
 
         def append_to_output(self, *values: Any, **kwargs: Any) -> None: ...
+
+        def append_markdown(self, markdown_text: str) -> None: ...
 
         def invalidate_ui(self) -> None: ...
 
@@ -231,11 +232,8 @@ class BaseUIExecCommands:
             result = await agent.run(question, message_history=btw_history)
             answer = result.output if hasattr(result, "output") else str(result)
 
-            width = self._get_output_field_width()
             self.append_to_output("\n")
-            self.append_to_output(
-                render_markdown(answer, width=width, theme=self._markdown_theme)
-            )
+            self.append_markdown(answer)
 
         except asyncio.CancelledError:
             self.append_to_output("\n[Cancelled]\n")

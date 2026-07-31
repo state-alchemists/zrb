@@ -282,12 +282,15 @@ def test_enter_command_gated_while_thinking(mock_ui, setup_bindings):
     assert not event.current_buffer.reset.called
 
 
-def test_enter_message_thinking(mock_ui, setup_bindings):
+def test_enter_message_while_thinking_is_queued(mock_ui, setup_bindings):
+    # Typing while the assistant works queues the message (the message loop runs
+    # one job at a time) instead of swallowing the Enter.
     event = create_mock_event("hello")
     mock_ui.classify_input.return_value = "message"
     mock_ui._is_thinking = True
     trigger_binding(setup_bindings, "c-m", event)
-    assert not mock_ui._submit_user_message.called
+    mock_ui._submit_user_message.assert_called_once()
+    event.current_buffer.reset.assert_called_once()
     assert not mock_ui.schedule_command.called
 
 

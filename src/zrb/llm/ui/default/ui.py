@@ -95,6 +95,9 @@ class UI(
     ):
         self._pending_invalidate = False
         self._invalidate_task: asyncio.Task | None = None
+        # [start, end, source] per rendered markdown block — see append_markdown.
+        self._markdown_blocks: list[list] = []
+        self._markdown_width: int | None = None
         super().__init__(
             ctx=ctx,
             yolo_xcom_key=yolo_xcom_key,
@@ -204,8 +207,19 @@ class UI(
             layout=self._layout, keybindings=self._app_kb, style=self._style
         )
 
+        # prompt_toolkit redraws on SIGWINCH, so a render is the cheapest place
+        # to notice a new width and re-wrap the markdown already on screen.
+        self._application.after_render.add_handler(self._on_render)
+
         if self._initial_message:
             self._application.after_render.add_handler(self._on_first_render)
+
+    def _on_render(self, app: "Application") -> None:
+        try:
+            self.rewrap_markdown()
+        except Exception as e:
+            # Runs on every frame — a re-render failure must not kill the paint.
+            logger.warning(f"Markdown re-wrap skipped: {e}")
 
     async def run_interactive_command(
         self, cmd: str | list[str], shell: bool = False

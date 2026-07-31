@@ -180,3 +180,21 @@ def test_get_cwd_display_logic(base_ui):
         assert res.startswith("~")
     else:
         assert res == cwd
+
+
+def test_submit_user_message_marks_queued_while_thinking(base_ui):
+    """A message typed while a turn is in flight is echoed as queued, not sent."""
+    outputs: list[str] = []
+    with patch.object(base_ui, "append_to_output", side_effect=outputs.append):
+        base_ui._submit_user_message(base_ui.llm_task, "later")
+        assert base_ui.queued_message_count == 1
+        assert "💬" in outputs[0]
+
+        # No public setter on BaseUI (the default UI exposes one via UIOutput);
+        # flip the flag the way _stream_ai_response does.
+        base_ui._is_thinking = True
+        base_ui._submit_user_message(base_ui.llm_task, "even later")
+
+    assert base_ui.queued_message_count == 2
+    assert "⏳" in outputs[1]
+    assert "even later" in outputs[1]
