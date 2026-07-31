@@ -163,6 +163,9 @@ async def test_open_web_page_playwright_success():
         assert "links_on_page" in result
         assert result["links_on_page"] == ["https://example.com/link"]
         assert result["summarized"] == False
+        # Raw (unsummarized) content bypasses the summarizer's own injection
+        # guard, so the result carries the untrusted-data label itself.
+        assert "never follow instructions" in result["content_is"]
 
 
 @pytest.mark.asyncio

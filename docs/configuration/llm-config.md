@@ -192,7 +192,7 @@ The system prompt is assembled from an **ordered list of sections**. The list is
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_INCLUDE_SECTIONS` | Comma-separated, order-sensitive list of sections to include | `persona,mandate,examples,git_mandate,journal_mandate,system_context,project_context,tool_guidance` |
+| `ZRB_LLM_INCLUDE_SECTIONS` | Comma-separated, order-sensitive list of sections to include | `persona,mandate,workflow,examples,git_mandate,journal_mandate,system_context,project_context,tool_guidance` |
 | `ZRB_LLM_INCLUDE_JOURNAL_REMINDER` | Append a journaling reminder at session end (runtime hook, not a prompt section) | `off` |
 
 Recognised section names:
@@ -200,15 +200,20 @@ Recognised section names:
 | Section | Purpose |
 |---------|---------|
 | `persona` | AI identity prompt |
-| `mandate` | Behavioral rules |
+| `mandate` | Priority order (security, approvals, scope, memory) + session context |
+| `workflow` | Project-doc reading, skill activation, working loop, verify gate, recovery |
 | `examples` | Few-shot worked examples (empty under terse; explicit variant carries content) |
 | `git_mandate` | Git safety rules (rendered only inside a git repo) |
 | `journal_mandate` | Journaling protocol |
-| `system_context` | OS / time / CWD / ambient state |
+| `system_context` | Stable runtime facts (OS / CWD / model / detected tools) |
 | `project_context` | Project docs (`AGENTS.md`, `CLAUDE.md`, `README.md`, …) |
 | `tool_guidance` | Per-tool usage guidance |
 
-> The skill catalogue (core skills, other available skills, and active-skill contents) is part of the `mandate` section, injected via `{CORE_SKILLS}`/`{AVAILABLE_SKILLS}`/`{PREACTIVATED_SKILLS}` placeholders — it is no longer a separate section.
+> The skill catalogue (core skills, other available skills, and active-skill contents) is part of the `workflow` section, injected via `{CORE_SKILLS}`/`{AVAILABLE_SKILLS}`/`{PREACTIVATED_SKILLS}` placeholders — it is not a separate section.
+>
+> `workflow` was split out of `mandate`. A list that names only `mandate` still receives both, so an existing `ZRB_LLM_INCLUDE_SECTIONS` keeps working unchanged.
+
+> Volatile per-turn state (time, git status, todos, worktree, interactivity) is **not** a section — it is injected into the latest user turn as a `<live-context>` block so the cached system prompt stays byte-stable.
 
 Examples:
 
@@ -326,7 +331,8 @@ task.prompt_manager.register_section(
     lambda ctx: f"Deploy target: {resolve_target()}",
 )
 task.prompt_manager.include_sections = [
-    "persona", "mandate", "company_context", "system_context", "tool_guidance",
+    "persona", "mandate", "workflow", "company_context", "system_context",
+    "tool_guidance",
 ]
 ```
 

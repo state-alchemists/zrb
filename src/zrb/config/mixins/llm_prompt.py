@@ -23,15 +23,19 @@ class LLMPromptMixin:
         self.DEFAULT_LLM_SHOW_TOOL_CALL_RESULT: str = "off"
         # Comma-separated, order-sensitive list of prompt sections to include.
         # Order in the list determines the order they appear in the system prompt.
-        # Each section is MECE (mutually exclusive in concern): persona=identity+priorities,
-        # mandate=operating rules + skill catalogue, git_mandate=git approval,
-        # journal_mandate=memory protocol, system_context=runtime facts,
+        # Each section is MECE (mutually exclusive in concern):
+        # persona=identity+response style, mandate=priority order + session
+        # context, workflow=project-doc reading + skill catalogue + working loop
+        # + verify gate + recovery, git_mandate=git approval,
+        # journal_mandate=memory protocol, system_context=stable runtime facts,
         # project_context=AGENTS.md/CLAUDE.md, tool_guidance=per-tool rules.
-        # The skill catalogue is injected into mandate via {CORE_SKILLS}/
-        # {AVAILABLE_SKILLS}/{PREACTIVATED_SKILLS} placeholders, not a separate section.
+        # The skill catalogue is injected into workflow via {CORE_SKILLS}/
+        # {AVAILABLE_SKILLS}/{PREACTIVATED_SKILLS} placeholders, not a separate
+        # section. `workflow` was split out of `mandate`; a pinned list naming
+        # only `mandate` still receives both files (see PromptManager).
         self.DEFAULT_LLM_INCLUDE_SECTIONS: str = (
-            "persona,mandate,examples,git_mandate,journal_mandate,system_context,"
-            "project_context,tool_guidance"
+            "persona,mandate,workflow,examples,git_mandate,journal_mandate,"
+            "system_context,project_context,tool_guidance"
         )
         # Runtime journaling reminder — separate from the journal_mandate
         # prompt section, which is controlled by LLM_INCLUDE_SECTIONS.

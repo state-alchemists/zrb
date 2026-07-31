@@ -149,6 +149,93 @@ def test_create_project_context_prompt_all_doc_types_listed(tmp_path):
         assert name in result
 
 
+def test_create_project_context_prompt_home_docs_are_user_level(tmp_path):
+    """A doc in the home dir is listed as user-level, not as a project override."""
+    home = (tmp_path / "home").resolve()
+    home.mkdir()
+    (home / "CLAUDE.md").write_text("my cross-project habits")
+
+    handler = create_project_context_prompt()
+    ctx = _make_ctx()
+
+    with (
+        patch("zrb.llm.prompt.claude._get_search_directories", return_value=[home]),
+        patch("zrb.llm.prompt.claude.Path.home", return_value=home),
+    ):
+        result = handler(ctx, "base prompt", _identity_next)
+
+    assert "User-Level Guidance" in result
+    assert "Documentation Files Found" not in result
+    assert str(home / "CLAUDE.md") in result
+
+
+def test_create_project_context_prompt_dot_claude_docs_are_user_level(tmp_path):
+    """``~/.claude`` docs land in the user-level bucket too."""
+    home = (tmp_path / "home").resolve()
+    claude_dir = home / ".claude"
+    claude_dir.mkdir(parents=True)
+    (claude_dir / "CLAUDE.md").write_text("global instructions")
+
+    handler = create_project_context_prompt()
+    ctx = _make_ctx()
+
+    with (
+        patch(
+            "zrb.llm.prompt.claude._get_search_directories", return_value=[claude_dir]
+        ),
+        patch("zrb.llm.prompt.claude.Path.home", return_value=home),
+    ):
+        result = handler(ctx, "base prompt", _identity_next)
+
+    assert "User-Level Guidance" in result
+    assert "Documentation Files Found" not in result
+
+
+def test_create_project_context_prompt_splits_project_and_user_docs(tmp_path):
+    """Both buckets appear, each holding only its own paths."""
+    home = (tmp_path / "home").resolve()
+    home.mkdir()
+    (home / "CLAUDE.md").write_text("user level")
+    project = (tmp_path / "proj").resolve()
+    project.mkdir()
+    (project / "AGENTS.md").write_text("project level")
+
+    handler = create_project_context_prompt()
+    ctx = _make_ctx()
+
+    with (
+        patch(
+            "zrb.llm.prompt.claude._get_search_directories",
+            return_value=[home, project],
+        ),
+        patch("zrb.llm.prompt.claude.Path.home", return_value=home),
+    ):
+        result = handler(ctx, "base prompt", _identity_next)
+
+    project_section, user_section = result.split("### User-Level Guidance")
+    assert "Documentation Files Found" in project_section
+    assert str(project / "AGENTS.md") in project_section
+    assert str(home / "CLAUDE.md") not in project_section
+    assert str(home / "CLAUDE.md") in user_section
+
+
+def test_create_project_context_prompt_unresolvable_home_stays_project_level(tmp_path):
+    """When home can't be resolved, docs keep the pre-split (mandatory) bucket."""
+    (tmp_path / "AGENTS.md").write_text("project level")
+
+    handler = create_project_context_prompt()
+    ctx = _make_ctx()
+
+    with (
+        patch("zrb.llm.prompt.claude._get_search_directories", return_value=[tmp_path]),
+        patch("zrb.llm.prompt.claude.Path.home", side_effect=RuntimeError("no home")),
+    ):
+        result = handler(ctx, "base prompt", _identity_next)
+
+    assert "Documentation Files Found" in result
+    assert "User-Level Guidance" not in result
+
+
 def test_create_project_context_prompt_calls_next_handler(tmp_path):
     """next_handler must always be called exactly once."""
     handler = create_project_context_prompt()

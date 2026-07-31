@@ -53,7 +53,7 @@ Follow the **Scientific Method**: form a hypothesis → test it → analyze resu
 
 ### d.  **Complexity Budget (default hard limits):**
 
-Exceeding a limit is a design defect — restructure before continuing. Project guidelines may set different limits; they win.
+Exceeding a limit is a design defect — restructure before continuing. Project guidelines override these **limits and their enforcement**: a project may set different numbers, or state that a number is a target for new code rather than an invariant. Where it does, follow the project and do not cite the number as if it were enforced.
 
 | Metric | Limit | Remedy when exceeded |
 |--------|-------|----------------------|
@@ -91,6 +91,8 @@ Exceeding a limit is a design defect — restructure before continuing. Project 
 - Validation is the only path to finality.
 - Bug fixes: reproduce before fixing. If root cause is unclear, Read `workflows/debug.md`.
 - After any change: run tests, linters, and type-checkers.
+- **Removals get proved, not assumed.** When the task was to eliminate something — a hardcoded credential moved to config, a deprecated call migrated, a placeholder stripped, a debug print removed — `Grep` the changed files for the literal you removed (`password123`, `legacy_auth(`, `console.log`, the old import) and require zero hits. Tests pass on code that still carries the string you were asked to delete; this check is what catches it.
+- **Touched credentials, auth, user input, or file I/O?** Read `workflows/review.md` and run its security checklist before declaring done — don't wait for a review request.
 - If validation fails, diagnose before retrying.
 
 ### h.  **Synthesis:**

@@ -1,13 +1,29 @@
 # Activity Log Entry Template
 
-A single day's file (`activity-log/YYYY/YYYY-MM/YYYY-MM-DD.md`) holds *multiple* entries — one per significant task. Each entry follows the format below.
+A single day's file (`activity-log/YYYY/YYYY-MM/YYYY-MM-DD.md`) holds *multiple* entries — one per significant task.
 
-## Per-Entry Format
+There are two entry forms. **Pick by the size of what happened, not by which one is more thorough.**
+
+## Short Form (default)
+
+One line. Use it for a single task, a fix, a lookup that produced a finding — the common case. This is the form the system prompt's Journal Protocol carries, so you can write it without this skill:
+
+````markdown
+- HH:MM — <what was done>. Files: <paths or —>. See: <relative/path/to/note.md> (omit if none)
+````
+
+Several short lines in a day file are fine and preferred over one inflated long entry.
+
+## Long Form
+
+Use it when a single turn spanned several phases, changed many files, or made a decision that needs its rationale preserved — a session someone will need to reconstruct later. Do not use it to dress up a one-line change.
+
+### Per-Entry Format
 
 ````markdown
 ## HH:MM — <one-line task title>
 **Request**: <one sentence summarizing what the user asked>
-**Skills used**: <comma-separated list, e.g. core-coding, core-research; or "none" if no skill was activated>
+**Skills used**: <comma-separated list, e.g. core-coding, core-research; omit the line entirely if no skill was activated>
 **Actions**:
 - <significant change — file path, command, or decision>
 - <another>
@@ -56,7 +72,15 @@ Past tense, terse, factual. Treat it as evidence for your future self — not na
 - Good: "Refactored `LLMTask._create_agent` to expose `get_system_prompt`; 1,621 tests pass."
 - Bad: "I started by looking at the LLMTask class, and after some thought I decided…"
 
-## Example
+## Examples
+
+Short form — one fix, one line:
+
+````markdown
+- 09:12 — Fixed the double-dispatch in the job queue: `pop()` deleted before the ack. Files: `job_queue.py`, `worker.py`. See: ../../../technical/queue-ack-ordering.md
+````
+
+Long form — a multi-phase session:
 
 ````markdown
 ## 14:23 — Skill restructure: core-coding companions

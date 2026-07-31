@@ -32,12 +32,13 @@ def test_config_llm_include_sections_default():
 
     sections = CFG.LLM_INCLUDE_SECTIONS
     assert isinstance(sections, list)
-    # Default order: persona, mandate, git_mandate, journal_mandate,
-    # system_context, project_context, tool_guidance. The skill catalogue is
-    # folded into mandate via placeholders, so there is no claude_skills section.
+    # The skill catalogue is folded into `workflow` via placeholders, so there is
+    # no claude_skills section. `workflow` carries what was split out of
+    # `mandate` (project-doc reading, skills, working loop, verify, recovery).
     assert sections == [
         "persona",
         "mandate",
+        "workflow",
         "examples",
         "git_mandate",
         "journal_mandate",
