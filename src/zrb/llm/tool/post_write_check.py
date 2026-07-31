@@ -36,6 +36,17 @@ async def format_post_write_diagnostics(abs_path: str) -> str:
     supported by any available checker, or the file is error-free. The
     caller appends the returned string directly to its success message — an
     empty return means the tool result is unchanged.
+
+    The suffix carries a ``[SYSTEM SUGGESTION]`` naming the next action, per the
+    convention in AGENTS.md: an error the *model* has to recover from gets
+    actionable guidance, not just a report. Without it this block was the
+    highest-traffic recovery-needed result in the codebase with no instruction
+    attached — one benchmark trial received 81 consecutive
+    ``Successfully updated … [DIAGNOSTIC]`` results and answered every one with
+    another blind edit, because "fix these before continuing" is satisfied by
+    exactly that. The guidance therefore says what to do *differently*: re-read
+    before the next edit, and stop patching in favour of a whole-file ``Write``
+    once a file has failed twice.
     """
     if not os.path.isfile(abs_path):
         return ""
@@ -64,7 +75,15 @@ async def format_post_write_diagnostics(abs_path: str) -> str:
     return (
         f"\n\n[DIAGNOSTIC]: {len(errors)} error(s) detected in {abs_path}:\n"
         f"{preview}{overflow}\n"
-        f"Fix these before continuing — the edit may have introduced a regression."
+        "The write landed, but the file is now broken — treat this as a failed "
+        "edit, not a completed one.\n"
+        "[SYSTEM SUGGESTION]: Do not issue another edit to this file from memory. "
+        "`Read` the file (or the lines above) to see its current state first, then "
+        "make one targeted fix. If this file already reported errors on a previous "
+        "write, stop patching it — rewrite the whole file with `Write` instead, "
+        "since repeated partial edits are what produced this state. If the errors "
+        "name something outside this file (a missing import, an undefined symbol "
+        "defined elsewhere), fix that file rather than re-editing this one."
     )
 
 
