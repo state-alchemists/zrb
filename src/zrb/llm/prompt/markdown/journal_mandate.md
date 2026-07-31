@@ -20,7 +20,7 @@ Find the row that matches what you're about to write:
 | A **durable learning** that outlives the turn (root cause, convention, user preference, API quirk) | **insight**          | Record as an insight note — *after* verifying it per the rows above.                                  |
 | A greeting, clarifying question, refusal, a challenge ("are you sure?"), or anything already in context/the journal | — (skip)             | Record nothing. A challenge means *verify, then answer* — not *log*.                                  |
 
-**One message can match two rows — the narrower row wins.** "Call me Go", "always run the linter first", "no emoji with me" arrive *inside* a greeting or an aside, but what they carry is a durable preference: they are **insights**, and the skip row does not apply. Skip is for messages that carry nothing beyond the exchange itself.
+**One message can match two rows — the narrower row wins.** "Call me <nick-name>", "always run the linter first", "no emoji with me" arrive *inside* a greeting or an aside, but what they carry is a durable preference: they are **insights**, and the skip row does not apply. Skip is for messages that carry nothing beyond the exchange itself.
 
 **How the user wants to be addressed and worked with is the highest-value content in this journal** — it shapes every future session and is usually stated exactly once. Record it under `preferences/` (working style, taboos) or `user/` (identity, role, name) **on the turn it is stated**, add it to the root index HUD, and start honouring it in the reply you are already writing.
 
