@@ -32,6 +32,63 @@ def test_prompt_manager_include_sections():
     assert len(composed) > 0
 
 
+def test_prompt_manager_workflow_section_carries_working_loop():
+    """The split-out `workflow` section owns the Working Loop and Verify gate."""
+    manager = PromptManager(include_sections=["workflow"], skill_manager=None)
+
+    composed = manager.compose_prompt()(SharedContext())
+
+    assert "## Working Loop" in composed
+    assert "## Verify Before Done" in composed
+    assert "## Skill Activation" in composed
+    # Priority Order stayed behind in `mandate`.
+    assert "## Priority Order" not in composed
+
+
+def test_prompt_manager_legacy_mandate_still_includes_workflow():
+    """A config predating the split names only `mandate` and must lose nothing."""
+    manager = PromptManager(include_sections=["mandate"], skill_manager=None)
+
+    composed = manager.compose_prompt()(SharedContext())
+
+    assert "## Priority Order" in composed
+    assert "## Working Loop" in composed
+    assert "## Verify Before Done" in composed
+
+
+def test_prompt_manager_mandate_and_workflow_match_legacy_mandate():
+    """The shim reproduces the pre-split section, not a reordered variant."""
+    legacy = PromptManager(include_sections=["mandate"], skill_manager=None)
+    split = PromptManager(include_sections=["mandate", "workflow"], skill_manager=None)
+
+    ctx = SharedContext()
+    assert legacy.compose_prompt()(ctx).split() == split.compose_prompt()(ctx).split()
+
+
+def test_prompt_manager_mandate_provider_wins_over_workflow_shim():
+    """Overriding `mandate` means supplying your own — the shim must not re-add it."""
+    manager = PromptManager(include_sections=["mandate"], skill_manager=None)
+    manager.register_section("mandate", lambda ctx: "# Mine")
+
+    composed = manager.compose_prompt()(SharedContext())
+
+    assert "# Mine" in composed
+    assert "## Working Loop" not in composed
+
+
+def test_prompt_manager_mandate_alone_when_workflow_listed_elsewhere():
+    """With `workflow` listed, `mandate` emits only its own content."""
+    manager = PromptManager(
+        include_sections=["mandate", "persona", "workflow"], skill_manager=None
+    )
+
+    composed = manager.compose_prompt()(SharedContext())
+
+    # Both present, but Working Loop must appear exactly once (no duplication).
+    assert composed.count("## Working Loop") == 1
+    assert composed.count("## Priority Order") == 1
+
+
 def test_prompt_manager_empty_sections():
     """include_sections=[] means no built-in sections, only custom prompts."""
     manager = PromptManager(

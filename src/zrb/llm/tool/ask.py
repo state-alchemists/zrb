@@ -6,10 +6,10 @@ non-interactive mode (`zrb llm chat --interactive false`) the tool
 short-circuits with a `[SYSTEM SUGGESTION]` error so the model never blocks
 on stdin in a non-interactive run.
 
-The interactive flag is propagated via the `interactive_mode` ContextVar,
-set by the `system_context` prompt middleware from `ctx.input.interactive`
-once per prompt build. Sub-agents inherit the parent's value through
-ContextVar's asyncio-task semantics.
+The interactive flag is propagated via the `interactive_mode` ContextVar, set
+per turn by `live_context._wire_ambient_state` from `ctx.input.interactive`.
+Sub-agents inherit the parent's value through ContextVar's asyncio-task
+semantics.
 """
 
 from __future__ import annotations

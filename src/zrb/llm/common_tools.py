@@ -131,7 +131,7 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
         tool_name="Shell",
         when_to_use="Running any shell command (may be exposed as `Shell` or `Bash` — same tool)",
         key_rule="For file I/O, use Read/Write/Edit/Grep/RM/MV — not Shell. "
-        "System Context already lists time, OS, CWD, and available tools — read from there before running commands to discover them. "
+        "OS, CWD, and available tools are in System Context; the current time is in the latest <live-context> — read them there instead of shelling out to discover them. "
         "For long-running processes (dev servers, watchers, builds), run with background=True instead of blocking.",
     ),
     ToolGuidance(
@@ -172,7 +172,7 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
         when_to_use="The choice is non-obvious AND the wrong pick would waste significant work — "
         "ambiguous library/strategy/file selection, or scope splits the user hasn't called.",
         key_rule="Do not ask for permission to do obvious things. Skip in non-interactive mode "
-        "(System Context flags `Interactive: no`) — the tool short-circuits there anyway.",
+        "(the latest <live-context> flags `Interactive: no`) — the tool short-circuits there anyway.",
     ),
     # Planning
     ToolGuidance(
@@ -206,13 +206,18 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
         group_name="Plan Mode",
         tool_name="EnterPlanMode",
         when_to_use=(
-            "Before a risky or multi-file change, to investigate read-only "
-            "first (edits/shell/delegation are blocked until you exit)"
+            "Before a change that is hard to undo or where the approach itself is "
+            "contested — migrations, schema/data changes, deletions, anything "
+            "touching deploy or CI, or work where two designs are defensible and "
+            "picking wrong wastes the effort. Investigate read-only first "
+            "(edits/shell/delegation are blocked until you exit)"
         ),
         key_rule=(
-            "Do discovery, then ExitPlanMode with a concrete plan. Skip plan "
-            "mode when non-interactive (no user to approve): present the plan "
-            "inline in your reply and proceed directly to the edits."
+            "Breadth alone is not a trigger: an ordinary multi-file edit stays "
+            "autonomous per the Working Loop — plan mode is for risk and contested "
+            "approach, not file count. Do discovery, then ExitPlanMode with a "
+            "concrete plan. Skip plan mode when non-interactive (no user to "
+            "approve): present the plan inline in your reply and proceed to the edits."
         ),
     ),
     ToolGuidance(
@@ -267,22 +272,30 @@ _DYNAMIC_TOOL_GUIDANCE_FACTORIES: "list[Callable[[AnyContext], ToolGuidance]]" =
     lambda ctx: ToolGuidance(
         group_name="Delegation",
         tool_name="DelegateToAgent",
-        when_to_use="Delegate only when ALL apply: (a) the work needs >5 tool calls, "
-        "(b) it spans >3 files OR requires speculative exploration, "
-        "(c) you cannot already write the exact edits. "
-        "Do the work yourself for ≤2 files, one-line changes, or any edit whose content you already know. "
+        when_to_use="Either (a) the work will read far more than it reports — many "
+        "searches, pages, or files whose intermediate content you will not need "
+        "again (research fan-out; broad exploration where you cannot yet name the "
+        "files); or (b) your own context is the problem — the same hypothesis has "
+        "failed twice, or you are checking work you produced yourself. There a "
+        "sub-agent blind to your reasoning is the point, not the token saving. "
         "To fan out, pass tasks=[{...}, ...] to run several concurrently in one call.",
-        key_rule="deliverable and non_goals are the scope clamp — make them concrete; "
-        "sub-agents over-produce against fuzzy specs. For fan-out, each task dict "
-        "carries its own clamp and runs blind to the others.",
+        key_rule="Do it yourself when you already know the answer's shape — an edit "
+        "whose content you can write now, a change confined to files you can name, or "
+        "a lookup of one or two searches. Do NOT delegate when the next step depends "
+        "on interpreting the last, or when you need verbatim text to cite: a sub-agent "
+        "returns a report you cannot interrogate. Fan out reads freely; fanning out "
+        "WRITES shares one working tree, so each task must enter its own worktree "
+        "first or they corrupt each other. deliverable and non_goals are the scope "
+        "clamp — make them concrete; sub-agents over-produce against fuzzy specs.",
     ),
     lambda ctx: ToolGuidance(
         group_name="Delegation",
         tool_name="DelegateToAgentBackground",
-        when_to_use="Long, independent work you do NOT need before continuing "
-        "(e.g. speculative research, generating a file). To fan out, start "
-        "several and collect the handles later.",
-        key_rule="Same scope clamp as DelegateToAgent. Need the result now? "
+        when_to_use="Work you do NOT need before continuing — speculative research, "
+        "generating a file, a slow sweep. Justified by timing, not size: the work may "
+        "be small. To fan out, start several and collect the handles later.",
+        key_rule="Same scope clamp and same fan-out caution as DelegateToAgent "
+        "(concurrent writes share one working tree). Need the result now? "
         "Use DelegateToAgent (pass tasks=[...] to run several at once).",
     ),
     lambda ctx: ToolGuidance(

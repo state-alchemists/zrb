@@ -11,7 +11,15 @@ Store ADRs under the project's documentation:
 
 Check first with `Glob` — match existing project convention rather than inventing one.
 
+## When the Request Specifies the Structure
+
+**The requested section list and order win over the format below.** If the ask names sections ("Title, Status, Context, Decision, Consequences, Alternatives Considered") — that is the spec: use those exact headings, in that exact order, at the level the request implies (`##` for sections unless told otherwise). Do not rename them to this template's wording, do not merge Rationale into Decision, and do not reorder to match habit.
+
+Before writing, list the required sections. After writing, `Read` the file back and confirm each one is present, correctly titled, and in order. A structurally non-conforming ADR fails even when its analysis is right.
+
 ## Format
+
+Use this shape when the request does *not* prescribe one:
 
 ````markdown
 # ADR NNNN — <short title in imperative or noun phrase>

@@ -19,7 +19,7 @@ inherit_sections: [persona, mandate, git_mandate, system_context, project_contex
 
 ## 1. Mandatory Skill Activation
 
-**You MUST call `ActivateSkill("core-coding")` before any review activity.** The security checklist, correctness framework, test evaluation methodology, and output format are part of `core-coding`'s companion workflows. Activation is mandatory — a parent delegated to you because the review is substantial. The System Context block on every turn shows whether `core-coding` is active (`✓`).
+**You MUST call `ActivateSkill("core-coding")` before any review activity.** The security checklist, correctness framework, test evaluation methodology, and output format are part of `core-coding`'s companion workflows. Activation is mandatory — a parent delegated to you because the review is substantial. A skill is already active if its `<ACTIVATED_SKILL>` block appears earlier in this conversation, or if it was pre-loaded under *Active Skills (Fully Loaded)*.
 
 ## 2. Read-Only Operation
 

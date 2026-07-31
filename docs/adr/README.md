@@ -87,6 +87,10 @@ per record. If a new decision reverses an old one, mark the old one
 - **ADR-0059** — Degenerate model output must not corrupt the conversation: scoped placeholder + empty-completion guard — [adr-0059.md](adr-0059.md)
 - **ADR-0065** — Split volatile runtime state out of the system prompt into a per-turn `<live-context>` block to preserve prompt caching — [adr-0065.md](adr-0065.md)
 - **ADR-0082** — Journal index moves from the cached system prompt into the conversation, injected at its two observable events — first turn (live-context) and each summarization (baked into the summary by `summarize_history`) — instead of being detected by a marker (refines ADR-0065, relates to ADR-0036, ADR-0039) — [adr-0082.md](adr-0082.md)
+- **ADR-0086** — Split `workflow` out of `mandate` (project-doc reading, skills, working loop, verify gate, recovery); a pinned section list naming only `mandate` still receives both files (refines ADR-0035, ADR-0079) — [adr-0086.md](adr-0086.md)
+- **ADR-0087** — `journal_mandate` carries the everyday write shapes inline (one activity line, one insight note); `core-journaling` owns structural work only (relates to ADR-0039, ADR-0069, ADR-0082) — [adr-0087.md](adr-0087.md)
+- **ADR-0088** — Untrusted-data framing ships with the tool result (`read_file` header, raw `open_web_page` field), and injection refusal gains a non-interactive branch: refuse the directive, finish the real task — [adr-0088.md](adr-0088.md)
+- **ADR-0089** — Home-level `AGENTS.md`/`CLAUDE.md` render under **User-Level Guidance** and are exempt from the mandatory project-doc read (refines ADR-0036) — [adr-0089.md](adr-0089.md)
 
 ### LLM extension surface
 - **ADR-0041** — Tools as plain functions with PascalCase `__name__` — [adr-0041.md](adr-0041.md)
@@ -94,6 +98,7 @@ per record. If a new decision reverses an old one, mark the old one
 - **ADR-0043** — Explicit tool-guidance registration + runtime filtering — [adr-0043.md](adr-0043.md)
 - **ADR-0044** — Claude-compatible skills (`SKILL.md`/`.py`) + companion files — [adr-0044.md](adr-0044.md)
 - **ADR-0045** — Subagent scope-clamp envelope + section inheritance — [adr-0045.md](adr-0045.md)
+- **ADR-0090** — Delegation criteria are context-shaped (reads far more than it reports; or the parent's own context is the liability), not file-count-shaped; concurrent write fan-out shares one working tree and is called out as unsafe (relates to ADR-0045, ADR-0043) — [adr-0090.md](adr-0090.md)
 - **ADR-0046** — `BufferedUI` + confirmation queue for concurrent agents — [adr-0046.md](adr-0046.md)
 - **ADR-0047** — Lifecycle hooks (Claude-compatible) — [adr-0047.md](adr-0047.md)
 - **ADR-0048** — MCP (Model Context Protocol) support — [adr-0048.md](adr-0048.md)

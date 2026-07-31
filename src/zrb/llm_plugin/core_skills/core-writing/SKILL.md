@@ -27,6 +27,7 @@ When the current task matches a trigger below, `Read` the named companion from t
 
 ### 2. Structure & Outline
 
+- **A structure named in the request overrides every default below.** If the ask specifies sections, an order, heading levels, a per-item element ("a before/after code block for each change"), or a closing element ("end with the upgrade command"), that list is the spec. Write it down as a checklist before drafting, and keep the request's own wording and order — do not re-title, re-order, merge, or "improve" the sections.
 - **Technical docs**: Problem → Solution → Usage → API → Examples
 - **Persuasive writing**: Hook → Context → Evidence → Resolution → CTA
 - **Instructional**: Goal → Prerequisites → Steps → Verification → Troubleshooting
@@ -66,7 +67,10 @@ When the current task matches a trigger below, `Read` the named companion from t
 
 ## Quality Checklist
 
-Before finalizing:
+Before finalizing, `Read` the file back — check the bytes on disk, not the draft in your head:
+- Is every section the request named present, at the named heading level, in the named order?
+- Does every per-item requirement hold for *every* item (all N changes have their code block, all N options have their trade-off)? "Most of them" is a failure.
+- Is the closing element there (checklist, command, next step) if one was asked for?
 - Does the first paragraph convey the main point?
 - Can any sentence be shortened without losing meaning?
 - Are all claims supported by evidence?

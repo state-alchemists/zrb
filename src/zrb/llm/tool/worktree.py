@@ -76,7 +76,11 @@ async def enter_worktree(branch_name: str = "", cwd: str = "") -> str:
 async def exit_worktree(worktree_path: str, keep_branch: bool = False) -> str:
     """
     Removes a worktree created with EnterWorktree. keep_branch=False (default) also
-    deletes the branch and all its commits — irreversible. Always clean up after use.
+    runs `git branch -D` — the branch and all its commits are gone, irreversibly.
+
+    That deletion is an approval-gated action (see the Git Rules): confirm with the
+    user before discarding a branch that holds commits, and pass keep_branch=True
+    when unsure. Removing a worktree you created and left empty needs no approval.
     """
     cwd = os.getcwd()
 

@@ -10,4 +10,6 @@ Before requesting approval, show `git status` + `git diff HEAD`. If the diff is 
 
 `status`, `diff`, `log`, `branch`, `show`, `remote -v`, `worktree list`
 
-Worktree creation (`worktree add`, the `EnterWorktree` tool) is also exempt: it builds an isolated tree without touching the current working tree, index, or existing branches — so it carries none of the risk that gates `checkout`/`switch`/`branch`.
+Worktree **creation** (`worktree add`, the `EnterWorktree` tool) is also exempt: it builds an isolated tree without touching the current working tree, index, or existing branches — so it carries none of the risk that gates `checkout`/`switch`/`branch`.
+
+Worktree **removal** is not exempt. `ExitWorktree` with the default `keep_branch=False` runs `git branch -D`, which is in the approval list above: confirm before discarding a branch that holds commits, or pass `keep_branch=True`. Removing a worktree whose branch you created and left without commits needs no approval.

@@ -84,20 +84,41 @@ def create_project_context_prompt():
                 if file_path.exists() and file_path.is_file():
                     doc_files[filename].append(file_path)
 
-        # Collect all found file paths, ordered least to most specific
+        # Collect all found file paths, ordered least to most specific, split by
+        # scope: a doc sitting in the home directory describes the user's
+        # cross-project habits, not this project's rules, so it must not be
+        # presented as a project override the mandate forces a full Read of.
         listed_files: list[str] = []
+        user_level_files: list[str] = []
         for filename in doc_files.keys():
             for file_path in doc_files[filename]:
-                listed_files.append(f"- `{file_path}`")
+                bucket = (
+                    user_level_files
+                    if _is_user_level_dir(file_path.parent)
+                    else listed_files
+                )
+                bucket.append(f"- `{file_path}`")
 
-        if not listed_files:
+        if not listed_files and not user_level_files:
             return next_handler(ctx, current_prompt)
 
-        parts = [
-            "### Documentation Files Found",
-            "(See Operating Rules → Project Documentation for when to read these.)",
-            *listed_files,
-        ]
+        parts: list[str] = []
+        if listed_files:
+            parts += [
+                "### Documentation Files Found",
+                "(See Project Documentation for when to read these.)",
+                *listed_files,
+            ]
+        if user_level_files:
+            if parts:
+                parts.append("")
+            parts += [
+                "### User-Level Guidance",
+                "(Outside this project — the user's cross-project preferences, not "
+                "project rules. Not part of the mandatory read; consult only when "
+                "the turn's work depends on it.)",
+                *user_level_files,
+            ]
 
         context_message = "\n".join(parts)
         return next_handler(
@@ -106,6 +127,24 @@ def create_project_context_prompt():
         )
 
     return project_context
+
+
+def _is_user_level_dir(directory: Path) -> bool:
+    """True when *directory* holds user-level (not project-level) docs.
+
+    Only the home directory itself and ``~/.claude`` qualify: those are the two
+    the search path contributes regardless of where the user is working, so a doc
+    there is about the user, not the project. Every other entry comes from the
+    cwd's parent chain and is genuinely project scoped. Returns ``False`` when
+    home cannot be resolved — the mandatory-read bucket is the safe default,
+    since that is the pre-split behavior.
+    """
+    try:
+        home = Path.home().resolve()
+        resolved = directory.resolve()
+    except Exception:
+        return False
+    return resolved == home or resolved == home / ".claude"
 
 
 def _get_search_directories() -> list[Path]:

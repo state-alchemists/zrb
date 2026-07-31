@@ -35,11 +35,14 @@ class PromptManager:
     """Assembles the LLM system prompt from ordered, MECE sections.
 
     Sections are emitted in the order given by ``include_sections`` (default in
-    ``config/mixins/llm_prompt.py``: persona → mandate → git_mandate →
-    journal_mandate → system_context → project_context → tool_guidance),
-    followed by any user-added prompts. The skill catalogue is folded into the
-    mandate section via ``{CORE_SKILLS}``/``{AVAILABLE_SKILLS}``/``{PREACTIVATED_SKILLS}``
-    placeholders rather than a standalone section. A section name that is
+    ``config/mixins/llm_prompt.py``: persona → mandate → workflow → examples →
+    git_mandate → journal_mandate → system_context → project_context →
+    tool_guidance), followed by any user-added prompts. The skill catalogue is
+    folded into the ``workflow`` section via
+    ``{CORE_SKILLS}``/``{AVAILABLE_SKILLS}``/``{PREACTIVATED_SKILLS}``
+    placeholders rather than a standalone section; a config that predates the
+    ``mandate``/``workflow`` split still gets both files at ``mandate``'s
+    position. A section name that is
     not one of the built-ins resolves as a custom section: a provider registered
     via ``register_section`` (composed by calling it with the active context, for
     runtime-dynamic content) takes precedence, otherwise the content is loaded
@@ -497,6 +500,24 @@ class PromptManager:
                 # precedence over a same-named markdown file. Registered via
                 # register_section(); see AGENTS.md ("LLM Prompt System").
                 middlewares.append(self._section_providers[section])
+            elif section == "mandate" and "workflow" not in sections:
+                # Back-compat: `workflow` was split out of `mandate` (Priority
+                # Order + Session Context stayed behind; Project Documentation
+                # through Stop moved out). A pinned include_sections /
+                # ZRB_LLM_INCLUDE_SECTIONS predating the split names only
+                # `mandate`, so emit both files at that position — the
+                # concatenation reproduces the pre-split section instead of
+                # silently dropping the Working Loop and Verify gate. Placed
+                # after the provider check so a registered `mandate` provider
+                # still wins (overriding `mandate` means supplying your own).
+                middlewares.append(
+                    self._file_section_middleware(
+                        "mandate",
+                        "workflow",
+                        profile=profile,
+                        extra_replacements=_extra,
+                    )
+                )
             else:
                 # Unknown/file-backed custom section, resolved via
                 # get_prompt(name, **_extra) (project override -> env -> base
@@ -504,7 +525,7 @@ class PromptManager:
                 # ordered sections through include_sections + a markdown file,
                 # with no code change. Missing files resolve to "" (harmless
                 # no-op) and log a warning so a misspelled name is diagnosable.
-                # Built-in sections like "mandate" and "journal_mandate" live
+                # Built-in sections like "workflow" and "journal_mandate" live
                 # here too, since _extra's {ASSISTANT_NAME} is harmless when a
                 # markdown file has no matching placeholder.
                 middlewares.append(
@@ -519,18 +540,23 @@ class PromptManager:
 
     def _file_section_middleware(
         self,
-        name: str,
+        *names: str,
         profile: str | None = None,
         extra_replacements: dict[str, str] | None = None,
     ) -> FullMiddleware:
-        """Middleware for a file-backed custom section.
+        """Middleware for one or more file-backed sections emitted as a unit.
 
-        Resolves *name* via ``get_prompt`` at compose time, preferring the
-        *profile* variant (``{name}.{profile}.md``) with fallback to the base
-        file (ADR-0083). When nothing resolves (no registered provider, no
-        markdown file), the section is empty — a warning is logged so a
-        misspelled name in ``include_sections`` / ``ZRB_LLM_INCLUDE_SECTIONS``
-        is diagnosable instead of silently dropped.
+        Resolves each name in *names* via ``get_prompt`` at compose time,
+        preferring the *profile* variant (``{name}.{profile}.md``) with fallback
+        to the base file (ADR-0083). When nothing resolves for a name (no
+        registered provider, no markdown file), that part is empty — a warning
+        is logged so a misspelled name in ``include_sections`` /
+        ``ZRB_LLM_INCLUDE_SECTIONS`` is diagnosable instead of silently dropped.
+
+        Passing more than one name emits them back to back at a single
+        position. That exists for the ``mandate``/``workflow`` split: a config
+        that predates the split names only ``mandate`` and must still receive
+        both.
 
         *extra_replacements* are forwarded to ``get_prompt`` as
         ``**extra_replacements`` for ``{PLACEHOLDER}`` substitution.
@@ -540,22 +566,29 @@ class PromptManager:
             ctx: AnyContext, current: str, next_fn: Callable[[AnyContext, str], str]
         ) -> str:
             kwargs = extra_replacements or {}
-            content = get_prompt(name, profile=profile, **kwargs)
-            if not content:
-                message = (
-                    f"Prompt section '{name}' is not a built-in, has no "
-                    "registered provider, and no markdown file resolves for "
-                    "it — the section is empty. Check include_sections / "
-                    f"{CFG.ENV_PREFIX}_LLM_INCLUDE_SECTIONS for a typo."
-                )
-                log_warning = getattr(ctx, "log_warning", None)
-                if callable(log_warning):
-                    log_warning(message)
-                else:
-                    zrb_print(f"Warning: {message}", plain=True)
-            return next_fn(ctx, f"{current}\n{content}")
+            parts: list[str] = []
+            for name in names:
+                content = get_prompt(name, profile=profile, **kwargs)
+                if not content:
+                    self._warn_empty_section(ctx, name)
+                parts.append(content)
+            return next_fn(ctx, f"{current}\n" + "\n".join(parts))
 
         return file_section_middleware
+
+    def _warn_empty_section(self, ctx: AnyContext, name: str) -> None:
+        """Surface a section name that resolved to nothing, so typos are visible."""
+        message = (
+            f"Prompt section '{name}' is not a built-in, has no "
+            "registered provider, and no markdown file resolves for "
+            "it — the section is empty. Check include_sections / "
+            f"{CFG.ENV_PREFIX}_LLM_INCLUDE_SECTIONS for a typo."
+        )
+        log_warning = getattr(ctx, "log_warning", None)
+        if callable(log_warning):
+            log_warning(message)
+        else:
+            zrb_print(f"Warning: {message}", plain=True)
 
     def _is_full_middleware(
         self, prompt: PromptMiddleware | str

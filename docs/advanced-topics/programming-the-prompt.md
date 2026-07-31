@@ -165,7 +165,7 @@ Now `zrb ask-repo` runs the command, hands the output to the model as background
 The system prompt Zrb ships is not one blob — it is an ordered list of **sections**, each owning one concern (persona, operating rules, git rules, project context, tool guidance, …). The default order is:
 
 ```
-persona → mandate → examples → git_mandate → journal_mandate
+persona → mandate → workflow → examples → git_mandate → journal_mandate
   → system_context → project_context → tool_guidance
 ```
 
@@ -181,7 +181,7 @@ from zrb.llm.prompt.manager import PromptManager
 pm = PromptManager(
     prompts=["Prefer standard-library solutions over new dependencies."],
     include_sections=[
-        "persona", "mandate", "system_context",
+        "persona", "mandate", "workflow", "system_context",
         "project_context", "tool_guidance",
         # dropped: examples, git_mandate, journal_mandate
     ],
@@ -199,7 +199,7 @@ A name in `include_sections` that isn't a built-in becomes a **custom section**.
 ```python
 pm = PromptManager(
     include_sections=[
-        "persona", "mandate", "system_context", "project_context",
+        "persona", "mandate", "workflow", "system_context", "project_context",
         "sprint_context",      # ← your section
         "tool_guidance",
     ],

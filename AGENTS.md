@@ -28,9 +28,11 @@ The tree is self-describing — `ls src/zrb/` plus each module's docstring cover
 
 `PromptManager` (`src/zrb/llm/prompt/manager.py`) assembles the system prompt from ordered sections. Default order in `config/mixins/llm_prompt.py::DEFAULT_LLM_INCLUDE_SECTIONS`:
 
-`persona → mandate → examples → git_mandate → journal_mandate → system_context → project_context → tool_guidance`
+`persona → mandate → workflow → examples → git_mandate → journal_mandate → system_context → project_context → tool_guidance`
 
 User-added prompts follow. Override via the `include_sections` constructor parameter or the `ZRB_LLM_INCLUDE_SECTIONS` env var (comma-separated, order-sensitive).
+
+> **`workflow` was split out of `mandate`.** `mandate` kept the Priority Order and Session Context; `workflow` took Project Documentation, Skill Activation (with the skill-catalogue placeholders), the Working Loop, Verify Before Done, Recovery, and Stop. A pinned `include_sections` / `ZRB_LLM_INCLUDE_SECTIONS` that names only `mandate` still gets both files emitted at `mandate`'s position, so no config silently loses the Working Loop. A *registered provider* for `mandate` overrides both — replacing the section means supplying its content yourself.
 
 A section name that is **not** a built-in resolves as a custom, config-positioned section (precedence: built-in > registered provider > markdown file):
 - **Registered provider** — `prompt_manager.register_section("company_context", lambda ctx: ...)` registers a dynamic provider, composed by calling it with the active context at compose time. Use for always-on content that reflects runtime state (current sprint, deploy target, live schema). Return `""` to emit nothing.
@@ -49,15 +51,20 @@ The base `*.md` files **are** the `terse` profile. Other profiles are **variant 
 
 `PromptManager._get_composed_middlewares` resolves the profile once (from `CFG.LLM_PROFILE` + `self._model`) and threads it to file-backed sections. Cross-cutting voice that does not decompose into a variant stays a whole alternate section/preset (the selection escape hatch).
 
+> **Invariant: a behavioral rule never lives only in a profile variant.** Because the registry ships empty, `auto` resolves to `terse` for *every* model — so anything reachable only from `*.explicit.md` reaches nobody by default. Variants may re-phrase, repeat, or exemplify a rule; the rule itself belongs in the base file. (This was a real bug: "when you say you will run a tool, actually run it" lived only in `examples.explicit.md` and therefore never shipped; it is now in `workflow.md` → Execute.)
+
 **Each section is MECE — a single behavior lives in exactly one section.** Adding a rule: pick the smallest-scope section that owns the concept.
 
 - `persona` — identity + response style
-- `mandate` — operating rules (no tool/git specifics) + the skill catalogue, injected via `{CORE_SKILLS}`/`{AVAILABLE_SKILLS}`/`{PREACTIVATED_SKILLS}` placeholders (`build_skill_replacements` in `prompt/claude.py`); core skills (`llm_plugin/core_skills/`) are listed separately from other model-invocable skills
+- `mandate` — the Priority Order (precedence, not sequence) + session context; no tool/git specifics
+- `workflow` — how a turn runs: project-doc reading, skill activation, the Working Loop, the Verify Before Done gate, Recovery, Stop. Carries the skill catalogue via `{CORE_SKILLS}`/`{AVAILABLE_SKILLS}`/`{PREACTIVATED_SKILLS}` placeholders (`build_skill_replacements` in `prompt/claude.py`); core skills (`llm_plugin/core_skills/`) are listed separately from other model-invocable skills
 - `git_mandate` — git approval rules
-- `journal_mandate` — memory protocol + index
-- `system_context` — runtime facts; auto-injects session wiring, active worktree, and pending todos so todo tools target the right conversation and stale state self-clears
-- `project_context` — AGENTS.md / CLAUDE.md project overrides
+- `journal_mandate` — memory protocol: what to record, the everyday write shapes (one activity line, one insight note), and when to escalate to the `core-journaling` skill for structural work
+- `system_context` — *stable* runtime facts only (OS, CWD, model, detected tools/markers) plus the `<live-context>` anchor, so the cached prefix stays byte-identical across turns
+- `project_context` — project docs found (mandatory read) and, listed separately, home-level docs found (`~`, `~/.claude`) which are *not* project overrides
 - `tool_guidance` — per-tool when-to-use + key rules
+
+Volatile per-turn state (time, git, todos, worktree, mode, interactivity) lives in `live_context`, not `system_context` — it is injected into the latest user turn. `render_live_context` also performs the per-turn ambient wiring (session binding for the todo tools, interactive-mode binding for `ask_user_question`, stale-worktree cleanup).
 
 ### Ambient State (`ContextVar`s)
 
