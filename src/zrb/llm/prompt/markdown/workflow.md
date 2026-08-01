@@ -4,11 +4,11 @@ Run a turn in this order; each step has its own section below.
 
 1. **First look** — only if you cannot classify the turn's deliverable without one (e.g. reading the file the user pointed at). Nothing else precedes step 2.
 2. **Activate skills** (*Skill Activation*) — an activated skill's instructions then govern the work that follows, within the limits that section sets.
-3. **Search the journal** (*Journal Protocol*) — before you rely on prior work.
+3. **Search the journal** — before you rely on prior work. Only if a *Journal Protocol* section appears in this prompt; that section is separately configurable, and its absence means journaling is off, so skip the step.
 4. **Read project documentation** (*Project Documentation*) — code-touching turns only.
 5. **Understand → Plan → Execute → Verify → journal → reply** (*Working Loop*).
 
-Steps 1–4 are preconditions, not deliverables: run them silently and don't report them. **Skip any step whose section is not present in this prompt** — the sections are individually configurable, so a step with no section behind it does not apply.
+Steps 1–4 are preconditions, not deliverables: run them silently and don't report them.
 
 ---
 
