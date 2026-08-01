@@ -349,12 +349,21 @@ def test_live_context_couples_journal_index_to_journal_mandate_section():
 
 
 def test_compose_explicit_register_uses_variant():
-    """ZRB_LLM_PROFILE=explicit selects the explicit phrasing variant."""
+    """ZRB_LLM_PROFILE=explicit selects the explicit variant where one exists."""
+    manager = PromptManager(include_sections=["examples"])
+    manager.model = "anthropic:claude-opus-4-8"
+    with patch.dict(os.environ, {"ZRB_LLM_PROFILE": "explicit"}):
+        prompt = manager.compose_prompt()(SharedContext())
+    assert "Worked Examples" in prompt  # explicit examples variant
+
+
+def test_compose_explicit_falls_back_to_base_when_no_variant():
+    """A section with no .explicit.md resolves to its base file under explicit."""
     manager = PromptManager(include_sections=["persona"])
     manager.model = "anthropic:claude-opus-4-8"
     with patch.dict(os.environ, {"ZRB_LLM_PROFILE": "explicit"}):
         prompt = manager.compose_prompt()(SharedContext())
-    assert "No preamble" in prompt  # explicit persona variant
+    assert "Match depth and format" in prompt  # base persona; no variant exists
 
 
 def test_compose_explicit_includes_examples_section_when_listed():
@@ -363,7 +372,6 @@ def test_compose_explicit_includes_examples_section_when_listed():
     manager.model = "anthropic:claude-opus-4-8"
     with patch.dict(os.environ, {"ZRB_LLM_PROFILE": "explicit"}):
         prompt = manager.compose_prompt()(SharedContext())
-    assert "No preamble" in prompt  # explicit persona variant
     assert "Worked Examples" in prompt  # examples section (explicit variant)
 
 
@@ -391,7 +399,6 @@ def test_compose_auto_honors_declared_model_profile():
             prompt = manager.compose_prompt()(SharedContext())
     finally:
         model_profile_registry.clear()
-    assert "No preamble" in prompt
     assert "Worked Examples" in prompt
 
 

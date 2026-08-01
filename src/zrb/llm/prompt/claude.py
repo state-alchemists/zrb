@@ -123,7 +123,7 @@ def create_project_context_prompt():
         context_message = "\n".join(parts)
         return next_handler(
             ctx,
-            f"{current_prompt}\n\n{make_markdown_section('Project Documentation', context_message)}",
+            f"{current_prompt}\n\n{make_markdown_section('Project Context', context_message)}",
         )
 
     return project_context

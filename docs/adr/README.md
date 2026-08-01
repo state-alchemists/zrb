@@ -133,5 +133,6 @@ per record. If a new decision reverses an old one, mark the old one
 - **ADR-0080** — Mode cycle binds Shift+Tab only, with a Termux-detected (`CFG.IS_TERMUX`) plain-Tab fallback since Termux can't distinguish the two keys (refines ADR-0075) — [adr-0080.md](adr-0080.md)
 - **ADR-0081** — Voice dictation via `/voice` command with push-to-talk keybinding, opt-in behind `ZRB_LLM_VOICE_ENABLED` — [adr-0081.md](adr-0081.md)
 - **ADR-0083** — Model-adaptive prompt profiles: a profile-variant axis (`terse`/`explicit`) over the existing section composition; the profile is set by `ZRB_LLM_PROFILE` or a user-declared per-model registry — zrb does **not** guess capability from the model id (extends ADR-0061, relates to ADR-0035, ADR-0040) — [adr-0083.md](adr-0083.md)
+- **ADR-0091** — A profile variant may add demonstrations but never add or re-phrase rules: `persona.explicit.md` is removed and `explicit` becomes `terse` plus worked examples, because added constraint mass degrades exactly the weaker models the profile targets (narrows ADR-0083) — [adr-0091.md](adr-0091.md)
 
 🔖 [Documentation Home](../README.md)
