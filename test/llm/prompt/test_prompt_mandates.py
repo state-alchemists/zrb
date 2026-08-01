@@ -96,11 +96,18 @@ def test_get_prompt_journal_mandate_with_local_override():
 
 
 def test_get_prompt_explicit_profile_uses_variant_when_present():
-    """profile='explicit' resolves persona.explicit.md, not the base file."""
+    """profile='explicit' resolves examples.explicit.md, not the base file."""
+    base = get_prompt("examples")
+    explicit = get_prompt("examples", profile="explicit")
+    assert explicit != base
+    assert "Worked Examples" in explicit  # text unique to the explicit variant
+
+
+def test_get_prompt_explicit_profile_falls_back_when_no_variant():
+    """A section with no .explicit.md transparently resolves to its base file."""
     base = get_prompt("persona", ASSISTANT_NAME="Zrb")
     explicit = get_prompt("persona", profile="explicit", ASSISTANT_NAME="Zrb")
-    assert explicit != base
-    assert "No preamble" in explicit  # text unique to the explicit variant
+    assert explicit == base
 
 
 def test_get_prompt_terse_profile_uses_base_file():

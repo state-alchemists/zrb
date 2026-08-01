@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, TextIO, cast
 
 from zrb.config.config import CFG
 from zrb.llm.agent.activity import agent_activity_registry
+from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import stylize_muted
 from zrb.util.cli.terminal import get_terminal_size
 
@@ -90,6 +91,10 @@ class UIOutput:
         # From default UI (`UI.__init__`)
         _pending_invalidate: bool
         _invalidate_task: asyncio.Task | None
+        _markdown_blocks: list[list]
+        _markdown_width: int | None
+        _markdown_theme: Any
+        _application: Any
 
         # From BaseUI. The setter is declared too: BaseUI.yolo has one, and a
         # getter-only stub here reads as a narrowing override on the composed
@@ -214,6 +219,66 @@ class UIOutput:
         )
         self._schedule_invalidate()
 
+    def append_markdown(self, markdown_text: str) -> None:
+        """Append rendered markdown, remembering the source (public API).
+
+        Rich hard-wraps markdown at render time, so a resized terminal would
+        keep the old line breaks forever. Recording (start, end, source) lets
+        `rewrap_markdown` splice a fresh render in at the new width. The
+        trailing newline is appended separately so it stays outside the span.
+        """
+        rendered = render_markdown(
+            markdown_text, width=self.output_field_width, theme=self._markdown_theme
+        )
+        start = len(self.output_text)
+        self.append_to_output(rendered, end="")
+        end = len(self.output_text)
+        self.append_to_output("")
+        # Only track what landed verbatim — a pending confirmation buffers the
+        # content instead of inserting it, which would make the span a lie.
+        if end - start == len(rendered):
+            self._markdown_blocks.append([start, end, markdown_text])
+
+    def rewrap_markdown(self) -> None:
+        """Re-render tracked markdown blocks at the current width (public API).
+
+        Called from the app's after-render hook; a no-op unless the terminal
+        width actually changed.
+        """
+        width = self.output_field_width
+        if width == self._markdown_width:
+            return
+        self._markdown_width = width
+        if not self._markdown_blocks:
+            return
+        # ponytail: splices by recorded offsets, which assumes nothing rewrote
+        # the transcript inside a markdown span (only the trailing status line
+        # is ever rewritten, via \r). If that stops holding, store the rendered
+        # text per block and rebuild the whole buffer from the block list.
+        text = self.output_text
+        shift = 0
+        for block in self._markdown_blocks:
+            start, end = block[0] + shift, block[1] + shift
+            rendered = render_markdown(
+                block[2], width=width, theme=self._markdown_theme
+            )
+            text = text[:start] + rendered + text[end:]
+            block[0], block[1] = start, start + len(rendered)
+            shift += len(rendered) - (end - start)
+        self._set_output_text(text)
+
+    def _set_output_text(self, text: str) -> None:
+        # lazy: heavy third-party
+        from prompt_toolkit.document import Document
+
+        buffer = self._output_field.buffer
+        follows_tail = buffer.cursor_position >= len(buffer.text)
+        cursor = len(text) if follows_tail else min(buffer.cursor_position, len(text))
+        buffer.set_document(
+            Document(text, cursor_position=cursor), bypass_readonly=True
+        )
+        self._schedule_invalidate()
+
     def _schedule_invalidate(self):
         if self._pending_invalidate:
             return
@@ -232,14 +297,27 @@ class UIOutput:
 
     @property
     def output_field_width(self) -> int | None:
-        """Get the output field width."""
-        try:
-            width = get_terminal_size().columns - 4
-            if width < 10:
-                width = None
-        except Exception:
-            width = None
-        return width
+        """Get the output field width.
+
+        Asks the running application first: its output is a dup of the real
+        stdout, while `get_terminal_size` has to probe fds 1/2 that
+        `GlobalStreamCapture` redirected to a pipe (it lands on stdin, or on
+        `COLUMNS`, and can disagree with what the renderer is painting).
+        """
+        columns = None
+        app = getattr(self, "_application", None)
+        if app is not None:
+            try:
+                columns = app.output.get_size().columns
+            except Exception:
+                columns = None
+        if columns is None:
+            try:
+                columns = get_terminal_size().columns
+            except Exception:
+                return None
+        width = columns - 4
+        return width if width >= 10 else None
 
     def get_info_bar_text(self) -> "AnyFormattedText":
         # lazy: heavy third-party
@@ -355,10 +433,16 @@ class UIOutput:
             next_dots = (dots + 1) % 4
             setattr(self, "_thinking_dots", next_dots)
             dot_str = "." * next_dots + " " * (3 - next_dots)
+            queued = cast(int, getattr(self, "queued_message_count", 0))
             return [
                 (
                     CFG.LLM_UI_STYLE_THINKING,
                     f" ⏳ {self._assistant_name} is working{dot_str} ",
+                ),
+                *(
+                    [(CFG.LLM_UI_STYLE_STATUS, f" 📥 {queued} queued ")]
+                    if queued
+                    else []
                 ),
                 *self._get_token_usage_fragments(),
             ]

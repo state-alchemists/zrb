@@ -11,7 +11,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from zrb.llm.util.history_formatter import format_args, format_timestamp, truncate
-from zrb.util.cli.markdown import render_markdown
 
 if TYPE_CHECKING:
     from typing import Any
@@ -28,6 +27,8 @@ class BaseUIReplay:
         _markdown_theme: "Theme | None"
 
         def append_to_output(self, *values: Any, **kwargs: Any) -> None: ...
+
+        def append_markdown(self, markdown_text: str) -> None: ...
 
         def _get_output_field_width(self) -> int | None: ...
 
@@ -85,7 +86,6 @@ class BaseUIReplay:
         pending_tool_calls: dict[str, str],
     ) -> None:
         """Render parts of a replayed ModelResponse (thinking/text/tool-call)."""
-        width = self._get_output_field_width()
         for part in parts:
             pkind = getattr(part, "part_kind", None)
             if pkind == "thinking":
@@ -98,11 +98,7 @@ class BaseUIReplay:
                 content = str(getattr(part, "content", "") or "")
                 if content.strip():
                     self.append_to_output("\n")
-                    self.append_to_output(
-                        render_markdown(
-                            content, width=width, theme=self._markdown_theme
-                        )
-                    )
+                    self.append_markdown(content)
             elif pkind == "tool-call":
                 self._replay_tool_call(part, pending_tool_calls)
 

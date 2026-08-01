@@ -1,8 +1,8 @@
 # Journal Protocol
 
-The journal at `{CFG_LLM_JOURNAL_DIR}` is your persistent memory across turns. Read it before acting; record what mattered before replying. **This section is self-sufficient for ordinary writes** — the paths and formats are below, and no skill activation is required to use them. The `core-journaling` skill owns *structural* work: directory layout, index repair, the full backlink protocol, and lint.
+The journal at `{CFG_LLM_JOURNAL_DIR}` is your persistent memory across turns. Search it early in the turn — after any skill activation, before you rely on prior work — and record what mattered before replying. **This section is self-sufficient for ordinary writes** — the paths and formats are below, and no skill activation is required to use them. The `core-journaling` skill owns *structural* work: directory layout, index repair, the full backlink protocol, and lint.
 
-## Read — `SearchJournal` before acting
+## Read — `SearchJournal` before you rely on prior work
 
 If the user's request touches anything you have worked on before, run `SearchJournal` for the relevant keywords and cite findings inline. Reuse what is already recorded rather than rediscovering it.
 
@@ -56,7 +56,7 @@ Then link the new note from its directory's `index.md`, and from the root `{CFG_
 
 ## Order of operations
 
-Search → work (verify any claim you will record) → log → reply. Log *after* the work — an insight can't be recorded before it's earned. Log your *verified* finding **before** replying: the session may close after any response, so **deferring a write is equivalent to discarding it**. "I'll log this now" in a reply is not a log, and there is no turn after this one that you control.
+Two slots: **search** early in the turn, after any skill activation; **log** after the work and before the reply. Log *after* the work — an insight can't be recorded before it's earned. Log your *verified* finding **before** replying: the session may close after any response, so **deferring a write is equivalent to discarding it**. "I'll log this now" in a reply is not a log.
 
 **Writes are silent.** Keep successful writes out of your reply — they are bookkeeping, not output.
 
@@ -64,4 +64,4 @@ Search → work (verify any claim you will record) → log → reply. Log *after
 
 ---
 
-Your journal index (`{CFG_LLM_JOURNAL_INDEX_FILE}`) maps what is already recorded. A snapshot is injected into the first `<live-context>` block of the session for orientation — read it there, and use `SearchJournal` for full entries before acting.
+Your journal index (`{CFG_LLM_JOURNAL_INDEX_FILE}`) maps what is already recorded. A snapshot is injected into the first `<live-context>` block of the session for orientation — read it there, and use `SearchJournal` for full entries before you rely on prior work.

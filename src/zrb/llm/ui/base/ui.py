@@ -581,6 +581,25 @@ class BaseUI(BaseUIProperties, BaseUICommands, BaseUIReplay, BaseUISystemInfo):
         pass
 
     @property
+    def queued_message_count(self) -> int:
+        """Messages waiting for the current turn to finish."""
+        return self._message_queue.qsize()
+
+    def append_markdown(self, markdown_text: str) -> None:
+        """Render `markdown_text` at the current output width and append it.
+
+        The default TUI overrides this (in `UIOutput`) to remember the source so
+        a terminal resize can re-wrap it; every other UI just renders once.
+        """
+        self.append_to_output(
+            render_markdown(
+                markdown_text,
+                width=self.output_field_width,
+                theme=self._markdown_theme,
+            )
+        )
+
+    @property
     def output_field_width(self) -> int | None:
         """Public width accessor — delegates to the `_get_output_field_width()`
         override hook so callers (e.g. the diff formatter) read width through a
@@ -684,8 +703,10 @@ class BaseUI(BaseUIProperties, BaseUICommands, BaseUIReplay, BaseUISystemInfo):
 
         # No parent - process locally (original behavior)
         timestamp = datetime.now().strftime("%H:%M")
-        # 1. Render User Message
-        self.append_to_output(f"\n💬 {timestamp} >> {user_message.strip()}\n")
+        # 1. Render User Message. While a turn is in flight the message only
+        # joins the queue, so say so rather than implying it was sent.
+        marker = "⏳" if self._is_thinking else "💬"
+        self.append_to_output(f"\n{marker} {timestamp} >> {user_message.strip()}\n")
         # 2. Trigger AI Response
         attachments = self.take_pending_attachments()
 
@@ -755,13 +776,8 @@ class BaseUI(BaseUIProperties, BaseUICommands, BaseUIReplay, BaseUISystemInfo):
             if result_data is not None:
                 if isinstance(result_data, str):
                     self._last_result_data = result_data
-                    width = self._get_output_field_width()
                     self.append_to_output("\n")
-                    self.append_to_output(
-                        render_markdown(
-                            result_data, width=width, theme=self._markdown_theme
-                        )
-                    )
+                    self.append_markdown(result_data)
 
         except asyncio.CancelledError:
             self.append_to_output("\n[Cancelled]\n")

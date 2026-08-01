@@ -58,6 +58,40 @@ def test_syntax_error_surfaces_via_static_check(tmp_path):
     assert "SyntaxError" in result
 
 
+def test_diagnostic_carries_actionable_system_suggestion(tmp_path):
+    """A diagnostic is an error the model must recover from, so per AGENTS.md it
+    carries a `[SYSTEM SUGGESTION]` naming the next action — re-read before the
+    next edit, and escalate to a whole-file Write on a repeat. Without this the
+    result reads as a completed success and invites another blind edit."""
+    path = tmp_path / "broken.py"
+    path.write_text("def f(:\n    pass\n")
+    with patch(
+        "zrb.llm.tool.post_write_check.lsp_manager.get_diagnostics",
+        new=AsyncMock(return_value={"found": False, "diagnostics": []}),
+    ):
+        result = _run(format_post_write_diagnostics(str(path)))
+
+    assert "[SYSTEM SUGGESTION]" in result
+    # Names the next action rather than restating the problem.
+    assert "`Read`" in result
+    assert "`Write`" in result
+    # Contradicts the caller's "Successfully updated ..." framing.
+    assert "treat this as a failed edit" in result
+
+
+def test_clean_file_emits_no_suggestion(tmp_path):
+    """The guidance rides along with a diagnostic — never on a clean write."""
+    path = tmp_path / "fine.py"
+    path.write_text("def f():\n    return 1\n")
+    with patch(
+        "zrb.llm.tool.post_write_check.lsp_manager.get_diagnostics",
+        new=AsyncMock(return_value={"found": False, "diagnostics": []}),
+    ):
+        result = _run(format_post_write_diagnostics(str(path)))
+
+    assert result == ""
+
+
 def test_undefined_name_surfaces_when_lsp_empty_but_found(tmp_path):
     """Regression: LSP `found=True` with empty filtered errors must NOT skip
     the static check. pyflakes catches the undefined name; the user sees it."""

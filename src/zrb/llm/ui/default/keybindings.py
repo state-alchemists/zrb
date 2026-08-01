@@ -264,17 +264,19 @@ class UIKeybindings:
                 self.schedule_command(text, guarded=False)
                 return
 
-            # Everything else is gated while thinking (matches main: the buffer
-            # is kept so the user can resubmit once the response finishes).
-            if self._is_thinking:
-                return
-
+            # Commands stay gated while thinking: they mutate session/UI state
+            # (/save, /load, /model), so running one mid-response is unsafe. The
+            # buffer is kept so the user can resubmit once the response finishes.
             if kind == "command":
+                if self._is_thinking:
+                    return
                 buff.reset()
                 self.schedule_command(text)
                 return
 
-            # Plain message — record for up-arrow recall, then submit.
+            # Plain message — record for up-arrow recall, then submit. Submitting
+            # while thinking is allowed: the message loop runs one job at a time,
+            # so it lands in the queue and runs when the current turn ends.
             buff.append_to_history()
             self._submit_user_message(llm_task, text)
             buff.reset()
