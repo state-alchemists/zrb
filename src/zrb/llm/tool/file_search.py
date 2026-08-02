@@ -48,7 +48,14 @@ def search_files(
 
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
-        return {"error": f"Path not found: {path}"}
+        return {
+            "error": (
+                f"Path not found: {path} (resolved to {abs_path}). "
+                "[SYSTEM SUGGESTION]: a relative path resolves against the "
+                "current directory, not the project root. Use List to see "
+                "what is there, then search under a path that exists."
+            )
+        }
 
     patterns_to_exclude = (
         exclude_patterns if exclude_patterns is not None else DEFAULT_EXCLUDED_PATTERNS

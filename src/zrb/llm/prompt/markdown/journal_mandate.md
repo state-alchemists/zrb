@@ -1,67 +1,43 @@
 # Journal Protocol
 
-The journal at `{CFG_LLM_JOURNAL_DIR}` is your persistent memory across turns. Search it early in the turn — after any skill activation, before you rely on prior work — and record what mattered before replying. **This section is self-sufficient for ordinary writes** — the paths and formats are below, and no skill activation is required to use them. The `core-journaling` skill owns *structural* work: directory layout, index repair, the full backlink protocol, and lint.
+The journal at `{CFG_LLM_JOURNAL_DIR}` is your memory across sessions: search it when it would save work, add to it when a turn produced something a later session needs.
 
-## Read — `SearchJournal` before you rely on prior work
+## Read
 
-If the user's request touches anything you have worked on before, run `SearchJournal` for the relevant keywords and cite findings inline. Reuse what is already recorded rather than rediscovering it.
+If the request touches work you have done before, `SearchJournal` for the keywords and cite what you find inline — or `Read` the root index (`{CFG_LLM_JOURNAL_INDEX_FILE}`) for the map of what exists. Reuse what is recorded rather than rediscovering it.
 
-**Never assert what the journal does or does not contain without reading it first.** "That was never recorded", "I have no note on this", "you haven't told me before" are negative claims about files you can open — `SearchJournal` (or `Read` the index) before making one. The index snapshot injected into the first `<live-context>` is a *snapshot*: it reflects one moment and scrolls out of view as the session grows, so its absence from your recent context is not evidence of absence from disk.
+**Read before you state what the journal holds.** "That was never recorded", "I have no note on this" are claims about files you can open, so open them first. An empty result means nothing is recorded *yet* — a journal with no entries is new, not broken.
 
-## What to record — and what to verify first
+## Write — most turns record nothing
 
-Find the row that matches what you're about to write:
+Three things earn an entry. Everything else is skipped:
 
-| You're about to record…                                                            | It's a…              | Do this                                                                                              |
-|------------------------------------------------------------------------------------|----------------------|-----------------------------------------------------------------------------------------------------|
-| Something you **did or directly saw this turn** (edited a file, ran a command, chose an approach) | **activity**         | Log it — it's true by the fact you did it. *When in doubt, log it*: the activity line below is one line of text. |
-| An assertion you **did not directly observe** ("the bug is in Y", "X causes Z")    | **claim**            | Verify with a tool *this turn* (`Grep`/`Read`/`SearchJournal`/command), **then** record.             |
-| A **number** ("832 lines", "5-8 calls") or a **negative/absence** ("no tests", "never called", "there is no X") | **claim (high-risk)**| Record only with its source **inline on the same line** — `(rg: 0 hits)`, `(wc -l: 832)`. No in-turn source → drop it, or hedge ("appears untested"). |
-| A **durable learning** that outlives the turn (root cause, convention, user preference, API quirk) | **insight**          | Record as an insight note — *after* verifying it per the rows above.                                  |
-| A greeting, clarifying question, refusal, a challenge ("are you sure?"), or anything already in context/the journal | — (skip)             | Record nothing. A challenge means *verify, then answer* — not *log*.                                  |
+- **A preference or convention the user stated** — how they want to be addressed or worked with, what to avoid. This is the highest-value content here and it is usually said exactly once, so record it the turn it is said and honour it in the reply you are already writing.
+- **A root cause, decision, or API quirk** a later session would otherwise rediscover.
+- **Work that changed files** — one line naming what and where.
 
-**One message can match two rows — the narrower row wins.** "Call me <nick-name>", "always run the linter first", "no emoji with me" arrive *inside* a greeting or an aside, but what they carry is a durable preference: they are **insights**, and the skip row does not apply. Skip is for messages that carry nothing beyond the exchange itself.
+Skipped: greetings, clarifying questions, refusals, challenges ("are you sure?"), single lookups, anything already recorded, and anything you would have to hedge to state. A challenge means verify and answer, not log.
 
-**How the user wants to be addressed and worked with is the highest-value content in this journal** — it shapes every future session and is usually stated exactly once. Record it under `preferences/` (working style, taboos) or `user/` (identity, role, name) **on the turn it is stated**, add it to the root index HUD, and start honouring it in the reply you are already writing.
+**Verify before you record.** The journal is durable, so a wrong entry misleads every future session. Something you *did* is true by the fact you did it. Anything you *concluded* gets a tool result first. A number or an absence — "832 lines", "no tests" — carries its source inline (`wc -l: 832`, `rg: 0 hits`) or stays out.
 
-The journal is durable, so a wrong assertion silently misleads every future session — that's why claims, **especially negatives and estimates dressed as measurements**, get verified before they're written. Verifying is part of the work; it comes before the log.
+## The everyday shape is one line
 
-**Also skip:** single-call lookups with no finding; and anything already recorded — *extend the existing note* instead of duplicating.
+Append to `activity-log/YYYY/YYYY-MM/YYYY-MM-DD.md`, creating it with a `# YYYY-MM-DD` heading if absent:
 
-## Write — the ordinary path
+    - HH:MM — <what happened>. Files: <paths or —>.
 
-Two shapes cover nearly every write. Both are plain `Write`/`Edit` calls; neither needs a skill.
+That is the whole ordinary path, and one `Write` covers it.
 
-**Activity — append one line to today's log.** File: `activity-log/YYYY/YYYY-MM/YYYY-MM-DD.md` (create it with a `# YYYY-MM-DD` heading if absent). One line, past tense, terse:
+A preference or finding that must be **findable by topic** later earns its own note under `preferences/`, `user/`, `projects/`, or `technical/`. Activate `core-journaling` for that — it owns the note format, the indexes, and the link graph, so a note never costs you a directory layout decision mid-turn.
 
-    - HH:MM — <what was done>. Files: <paths or —>. See: <relative/path/to/note.md> (omit if none)
+## When to write
 
-**Insight — one note, one concept.** File: `user/`, `preferences/`, `projects/`, or `technical/` — `<topic>.md`:
+**A finding is earned the moment you verify it — which is before you write it up, not after. So the order is: verify → log → answer.** Your reply is the last thing in the turn, every time.
 
-    ---
-    slug: <short-kebab>
-    ---
-    # <title>
+That matters because a response carrying both the reply and the write leaves a spare turn afterwards, and whatever you say in it — "Done", "Journal created" — becomes the visible final answer, burying the real one. The write goes in a response of its own, carrying no reply text; the answer follows once the write returns.
 
-    **Context:** <one sentence — when does this apply?>
-    **Finding:** <the durable fact, decision, or rule>
-    **Source:** <file:line, commit hash, or URL>
+Do not defer instead: the session may close after any response, so an unwritten finding is a discarded one.
 
-    ## Backlinks
-    - [<who links here>](<relative/path.md>) — <one-phrase reason>
+**Writes are silent.** No sentence announcing one, before or after. "One line logged so a later session doesn't re-derive this" is exactly the sentence to leave out — the reply reads identically whether or not you journaled.
 
-Then link the new note from its directory's `index.md`, and from the root `{CFG_LLM_JOURNAL_INDEX_FILE}` when it belongs on the HUD (user preferences always do). **Links are file-relative markdown** — `[jwt notes](../technical/jwt.md)`, never `[[wikilinks]]`. **Every forward link gets a reverse link in the target** under its `## Backlinks`; that single rule is what keeps the graph navigable.
-
-**Activate `core-journaling` when the write is structural** — a new directory, restructuring or repairing indexes, renaming/splitting/deleting notes, running `journal-lint.py`, reconciling a journal that predates this layout, or an entry shape this section does not cover (e.g. the fuller multi-field activity entry for a long multi-task session). It is the single source of truth for those; the two shapes above are the everyday subset of it.
-
-## Order of operations
-
-Two slots: **search** early in the turn, after any skill activation; **log** after the work and before the reply. Log *after* the work — an insight can't be recorded before it's earned. Log your *verified* finding **before** replying: the session may close after any response, so **deferring a write is equivalent to discarding it**. "I'll log this now" in a reply is not a log.
-
-**Writes are silent.** Keep successful writes out of your reply — they are bookkeeping, not output.
-
-**If the write fails**: include what you would have written in your reply under the literal tag `[journal-fallback]` and ask the user to record it manually.
-
----
-
-Your journal index (`{CFG_LLM_JOURNAL_INDEX_FILE}`) maps what is already recorded. A snapshot is injected into the first `<live-context>` block of the session for orientation — read it there, and use `SearchJournal` for full entries before you rely on prior work.
+**If a write fails**, include what you would have written under the literal tag `[journal-fallback]` and ask the user to record it manually. A missing directory is the ordinary first-run state: create it and write.

@@ -23,7 +23,15 @@ def search_journal(query: str, case_sensitive: bool = False) -> dict[str, Any]:
 
     abs_dir = os.path.abspath(os.path.expanduser(journal_dir))
     if not os.path.isdir(abs_dir):
-        return {"error": f"Journal directory not found: {journal_dir}"}
+        # A journal that has never been written to is empty, not broken. Report
+        # it the same way an empty search does and create the directory, so the
+        # model's first Write lands somewhere instead of the whole memory layer
+        # reading as unavailable.
+        try:
+            os.makedirs(abs_dir, exist_ok=True)
+        except OSError as e:
+            return {"error": f"Cannot create journal directory {journal_dir}: {e}"}
+        return {"summary": "No matches found.", "results": []}
 
     flags = 0 if case_sensitive else re.IGNORECASE
     try:

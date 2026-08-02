@@ -1,12 +1,12 @@
 """Deterministic, content-only truncation for tool results.
 
 A global backstop applied in ``agent/common.py`` to every tool's model-facing
-``content`` string. Individual tools (``file_read``, ``bash``) already cap their
-own output via ``LLM_MAX_OUTPUT_CHARS``; this catches everything else (Grep,
-AnalyzeCode, web fetches, MCP toolsets) that was previously uncapped.
+output. Individual tools (``file_read``, ``bash``) already cap their own output
+via ``LLM_MAX_OUTPUT_CHARS``; this catches everything else (Grep, AnalyzeCode,
+web fetches, MCP toolsets) that was previously uncapped.
 
-Only the ``content`` string is touched — never a tool's structured
-``return_value`` — so programmatic consumers are unaffected.
+The untruncated size survives in the ``ToolReturn`` metadata, which pydantic-ai
+never sends to the model (see ``agent/tool_result.py``).
 """
 
 from __future__ import annotations

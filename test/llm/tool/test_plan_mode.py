@@ -79,7 +79,7 @@ async def test_plan_mode_blocks_edit_and_execute_allows_read():
 
     assert r_write.metadata.get("blocked") is True
     assert r_shell.metadata.get("blocked") is True
-    assert r_read.content == "contents"
+    assert r_read.return_value == "contents"
     assert ("write", "a.py") not in ran
     assert ("shell", "ls") not in ran
     assert ("read", "a.py") in ran

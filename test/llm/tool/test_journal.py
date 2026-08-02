@@ -31,12 +31,29 @@ def test_no_journal_dir_configured():
     assert "not configured" in result["error"]
 
 
-def test_journal_dir_not_found():
+def test_journal_dir_missing_is_empty_not_an_error(tmp_path):
+    """A journal nobody has written to yet reads as empty, and gets created.
+
+    Reporting it as an error made the whole memory layer look unavailable, so
+    the model fell back to "I cannot journal" instead of writing its first note.
+    """
+    missing = tmp_path / "never-written" / "journal"
     with patch("zrb.llm.tool.journal.CFG") as mock_cfg:
-        mock_cfg.LLM_JOURNAL_DIR = "/nonexistent/path/journal"
+        mock_cfg.LLM_JOURNAL_DIR = str(missing)
+        result = search_journal("anything")
+    assert "error" not in result
+    assert result["results"] == []
+    assert missing.is_dir()
+
+
+def test_journal_dir_uncreatable_reports_error(tmp_path):
+    blocker = tmp_path / "not-a-dir"
+    blocker.write_text("")
+    with patch("zrb.llm.tool.journal.CFG") as mock_cfg:
+        mock_cfg.LLM_JOURNAL_DIR = str(blocker / "journal")
         result = search_journal("anything")
     assert "error" in result
-    assert "not found" in result["error"]
+    assert "Cannot create journal directory" in result["error"]
 
 
 def test_invalid_regex(journal_with_entries):

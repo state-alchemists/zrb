@@ -7,6 +7,8 @@ import pytest
 from zrb.config.config import CFG
 from zrb.context.shared_context import SharedContext
 from zrb.llm.prompt.manager import PromptManager, new_prompt
+from zrb.llm.prompt.prompt import get_prompt
+from zrb.llm.prompt.section_filter import filter_requires
 
 
 def test_prompt_manager_basic():
@@ -348,43 +350,85 @@ def test_live_context_couples_journal_index_to_journal_mandate_section():
     assert "Time:" in rendered
 
 
-def test_compose_explicit_register_uses_variant():
-    """ZRB_LLM_PROFILE=explicit selects the explicit variant where one exists."""
+def test_compose_mini_register_uses_variant():
+    """ZRB_LLM_PROFILE=explicit selects the mini variant where one exists."""
     manager = PromptManager(include_sections=["examples"])
     manager.model = "anthropic:claude-opus-4-8"
-    with patch.dict(os.environ, {"ZRB_LLM_PROFILE": "explicit"}):
+    with patch.dict(os.environ, {"ZRB_LLM_PROFILE": "mini"}):
         prompt = manager.compose_prompt()(SharedContext())
-    assert "Worked Examples" in prompt  # explicit examples variant
+    assert (
+        filter_requires(
+            get_prompt("examples", profile="mini"), set(manager.active_sections)
+        )
+        in prompt
+    )
 
 
-def test_compose_explicit_falls_back_to_base_when_no_variant():
+def test_compose_mini_falls_back_to_base_when_no_variant():
     """A section with no .explicit.md resolves to its base file under explicit."""
     manager = PromptManager(include_sections=["persona"])
     manager.model = "anthropic:claude-opus-4-8"
-    with patch.dict(os.environ, {"ZRB_LLM_PROFILE": "explicit"}):
+    with patch.dict(os.environ, {"ZRB_LLM_PROFILE": "mini"}):
         prompt = manager.compose_prompt()(SharedContext())
-    assert "Match depth and format" in prompt  # base persona; no variant exists
+    # The base file, minus the blocks that reference sections this config omits.
+    expected = filter_requires(get_prompt("persona", ASSISTANT_NAME="Zrb"), {"persona"})
+    assert expected in prompt
 
 
-def test_compose_explicit_includes_examples_section_when_listed():
-    """When examples is in include_sections, profile=explicit resolves examples.explicit.md."""
+def test_compose_drops_a_block_referencing_an_omitted_section():
+    """The turn-sequence journal step must not survive without journal_mandate."""
+    with_journal = PromptManager(include_sections=["workflow", "journal_mandate"])
+    without = PromptManager(include_sections=["workflow"])
+    ctx = SharedContext()
+    assert "Search the journal" in with_journal.compose_prompt()(ctx)
+    assert "Search the journal" not in without.compose_prompt()(ctx)
+
+
+def test_compose_mini_includes_examples_section_when_listed():
+    """When examples is in include_sections, profile=explicit resolves examples.mini.md."""
     manager = PromptManager(include_sections=["persona", "examples"])
     manager.model = "anthropic:claude-opus-4-8"
-    with patch.dict(os.environ, {"ZRB_LLM_PROFILE": "explicit"}):
+    with patch.dict(os.environ, {"ZRB_LLM_PROFILE": "mini"}):
         prompt = manager.compose_prompt()(SharedContext())
-    assert "Worked Examples" in prompt  # examples section (explicit variant)
+    assert (
+        filter_requires(
+            get_prompt("examples", profile="mini"), set(manager.active_sections)
+        )
+        in prompt
+    )
 
 
-def test_compose_auto_defaults_to_terse_base():
-    """auto makes no capability guess — terse base, no examples — for any model."""
-    manager = PromptManager(include_sections=["persona"])
+def test_compose_auto_uses_the_terse_base_for_a_model_declaring_no_small_size():
+    """A family name is never read as weakness — only a stated size is (ADR-0093)."""
+    manager = PromptManager(include_sections=["persona", "examples"])
     manager.model = (
         "deepseek:deepseek-v4-pro"  # a frontier model; must not be guessed weak
     )
     with patch.dict(os.environ, {"ZRB_LLM_PROFILE": "auto"}):
         prompt = manager.compose_prompt()(SharedContext())
-    assert "Match depth and format" in prompt  # base persona
-    assert "Worked Examples" not in prompt  # no examples under terse
+    assert (
+        filter_requires(get_prompt("examples"), set(manager.active_sections)) in prompt
+    )
+    assert (
+        filter_requires(
+            get_prompt("examples", profile="mini"), set(manager.active_sections)
+        )
+        not in prompt
+    )
+
+
+def test_compose_auto_selects_mini_from_a_declared_small_size():
+    """A parameter count in the id ships the worked examples without any config."""
+    manager = PromptManager(include_sections=["persona", "examples"])
+    manager.model = "ollama:qwen2.5-7b"
+    with patch.dict(os.environ, {"ZRB_LLM_PROFILE": "auto"}):
+        prompt = manager.compose_prompt()(SharedContext())
+    assert (
+        filter_requires(
+            get_prompt("examples", profile="mini"), set(manager.active_sections)
+        )
+        in prompt
+    )
 
 
 def test_compose_auto_honors_declared_model_profile():
@@ -393,13 +437,18 @@ def test_compose_auto_honors_declared_model_profile():
 
     manager = PromptManager(include_sections=["persona", "examples"])
     manager.model = "ollama:my-small-3b"
-    register_model_profile("my-small-3b", "explicit")
+    register_model_profile("my-small-3b", "mini")
     try:
         with patch.dict(os.environ, {"ZRB_LLM_PROFILE": "auto"}):
             prompt = manager.compose_prompt()(SharedContext())
     finally:
         model_profile_registry.clear()
-    assert "Worked Examples" in prompt
+    assert (
+        filter_requires(
+            get_prompt("examples", profile="mini"), set(manager.active_sections)
+        )
+        in prompt
+    )
 
 
 def test_add_live_context_swallows_provider_exceptions():

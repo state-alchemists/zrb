@@ -12,6 +12,7 @@ from zrb.llm.prompt.claude import (
 from zrb.llm.prompt.live_context import render_live_context
 from zrb.llm.prompt.profile import resolve_profile
 from zrb.llm.prompt.prompt import get_prompt
+from zrb.llm.prompt.section_filter import filter_requires
 from zrb.llm.prompt.system_context import system_context
 from zrb.llm.prompt.tool_guidance import (
     ToolCatalogue,
@@ -472,6 +473,11 @@ class PromptManager:
         _groups = self._tool_groups
 
         middlewares: list[PromptMiddleware | str] = []
+        # What the prompt will *actually* carry, which is not the configured
+        # list: git_mandate drops outside a repo, and a pre-split `mandate`
+        # pulls `workflow` in with it. Cross-reference blocks are filtered
+        # against this set so the prompt never points at an absent section.
+        emitted = self._emitted_sections(sections)
 
         for section in sections:
             if section == "git_mandate" and not is_inside_git_dir():
@@ -516,6 +522,7 @@ class PromptManager:
                         "workflow",
                         profile=profile,
                         extra_replacements=_extra,
+                        emitted=emitted,
                     )
                 )
             else:
@@ -530,7 +537,10 @@ class PromptManager:
                 # markdown file has no matching placeholder.
                 middlewares.append(
                     self._file_section_middleware(
-                        section, profile=profile, extra_replacements=_extra
+                        section,
+                        profile=profile,
+                        extra_replacements=_extra,
+                        emitted=emitted,
                     )
                 )
 
@@ -543,6 +553,7 @@ class PromptManager:
         *names: str,
         profile: str | None = None,
         extra_replacements: dict[str, str] | None = None,
+        emitted: set[str] | None = None,
     ) -> FullMiddleware:
         """Middleware for one or more file-backed sections emitted as a unit.
 
@@ -566,15 +577,33 @@ class PromptManager:
             ctx: AnyContext, current: str, next_fn: Callable[[AnyContext, str], str]
         ) -> str:
             kwargs = extra_replacements or {}
+            present = emitted if emitted is not None else set(names)
             parts: list[str] = []
             for name in names:
                 content = get_prompt(name, profile=profile, **kwargs)
                 if not content:
                     self._warn_empty_section(ctx, name)
-                parts.append(content)
+                parts.append(filter_requires(content, present))
             return next_fn(ctx, f"{current}\n" + "\n".join(parts))
 
         return file_section_middleware
+
+    def _emitted_sections(self, sections: list[str]) -> set[str]:
+        """Section names the composed prompt will actually contain.
+
+        Differs from the configured list in both directions: ``git_mandate`` is
+        skipped outside a git repo, and a config predating the mandate/workflow
+        split names only ``mandate`` while emitting ``workflow`` alongside it.
+        Cross-reference blocks are resolved against this, so a reference is kept
+        exactly when its target really ships.
+        """
+        emitted = set(sections)
+        if "git_mandate" in emitted and not is_inside_git_dir():
+            emitted.discard("git_mandate")
+        if "mandate" in emitted:
+            emitted.add("workflow")
+        emitted.discard("claude_skills")
+        return emitted
 
     def _warn_empty_section(self, ctx: AnyContext, name: str) -> None:
         """Surface a section name that resolved to nothing, so typos are visible."""

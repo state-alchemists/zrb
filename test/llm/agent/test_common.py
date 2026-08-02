@@ -117,7 +117,7 @@ async def testcreate_safe_wrapper_sync_function():
     result = await wrapped(5)
     assert isinstance(result, ToolReturn)
     assert result.return_value == 10
-    assert result.content == "10"
+    assert result.content is None
 
 
 @pytest.mark.asyncio
@@ -148,7 +148,7 @@ async def testcreate_safe_wrapper_handles_exception():
     result = await wrapped()
     assert isinstance(result, ToolReturn)
     assert result.metadata.get("error") is True
-    assert "Test error" in result.content
+    assert "Test error" in str(result.return_value)
 
 
 @pytest.mark.asyncio
@@ -190,7 +190,7 @@ async def testcreate_safe_wrapper_already_tool_return():
     """Test create_safe_wrapper when function already returns ToolReturn."""
     from pydantic_ai import ToolReturn
 
-    tr = ToolReturn(return_value="already_wrapped", content="wrapped")
+    tr = ToolReturn(return_value="already_wrapped")
 
     async def wrapped_func():
         return tr
@@ -306,7 +306,7 @@ async def test_call_tool_pretooluse_deny_blocks():
 
     assert isinstance(res, ToolReturn)
     assert res.metadata.get("blocked") is True
-    assert "nope" in res.content
+    assert "nope" in str(res.return_value)
     mock_super.assert_not_called()
 
 
@@ -391,13 +391,12 @@ async def test_call_tool_posttooluse_block():
 
     assert isinstance(res, ToolReturn)
     assert res.metadata.get("blocked") is True
-    assert "bad output" in res.content
+    assert "bad output" in str(res.return_value)
 
 
 @pytest.mark.asyncio
 async def test_call_tool_posttooluse_updated_output_replaces_content():
-    """A PostToolUse hook with updatedToolOutput replaces the model-facing
-    content while preserving the structured return value."""
+    """A PostToolUse hook with updatedToolOutput replaces what the model reads."""
     from pydantic_ai import ToolReturn
     from pydantic_ai.toolsets import FunctionToolset
 
@@ -422,14 +421,14 @@ async def test_call_tool_posttooluse_updated_output_replaces_content():
         res = await wrapped_ts.call_tool("t", {}, None, None)
 
     assert isinstance(res, ToolReturn)
-    assert res.content == "REDACTED"
-    assert res.return_value == "original"
+    assert res.return_value == "REDACTED"
+    assert res.content is None
 
 
 @pytest.mark.asyncio
 async def test_call_tool_posttooluse_additional_context_appended():
     """A PostToolUse hook's additionalContext is appended to the model-facing
-    content (Claude injects it into context after the tool result)."""
+    output (Claude injects it into context after the tool result)."""
     from pydantic_ai import ToolReturn
     from pydantic_ai.toolsets import FunctionToolset
 
@@ -455,8 +454,8 @@ async def test_call_tool_posttooluse_additional_context_appended():
         res = await wrapped_ts.call_tool("t", {}, None, None)
 
     assert isinstance(res, ToolReturn)
-    assert res.content == "original\n\nnote: linter passed"
-    assert res.return_value == "original"
+    assert res.return_value == "original\n\nnote: linter passed"
+    assert res.content is None
 
 
 @pytest.mark.asyncio

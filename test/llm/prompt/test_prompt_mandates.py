@@ -95,18 +95,20 @@ def test_get_prompt_journal_mandate_with_local_override():
 # ── Profile variants (ADR-0083) ──────────────────────────────────────────
 
 
-def test_get_prompt_explicit_profile_uses_variant_when_present():
-    """profile='explicit' resolves examples.explicit.md, not the base file."""
+def test_get_prompt_mini_profile_uses_variant_when_present():
+    """profile='mini' resolves examples.mini.md, not the base file."""
     base = get_prompt("examples")
-    explicit = get_prompt("examples", profile="explicit")
+    explicit = get_prompt("examples", profile="mini")
     assert explicit != base
-    assert "Worked Examples" in explicit  # text unique to the explicit variant
+    # A variant may add demonstrations, never rules (ADR-0091), so it is a
+    # strict superset of the base rather than a rewrite of it.
+    assert explicit.startswith(base.rstrip())
 
 
-def test_get_prompt_explicit_profile_falls_back_when_no_variant():
+def test_get_prompt_mini_profile_falls_back_when_no_variant():
     """A section with no .explicit.md transparently resolves to its base file."""
     base = get_prompt("persona", ASSISTANT_NAME="Zrb")
-    explicit = get_prompt("persona", profile="explicit", ASSISTANT_NAME="Zrb")
+    explicit = get_prompt("persona", profile="mini", ASSISTANT_NAME="Zrb")
     assert explicit == base
 
 
@@ -120,13 +122,16 @@ def test_get_prompt_terse_profile_uses_base_file():
 def test_get_prompt_profile_falls_back_to_base_when_no_variant():
     """A section with no variant for the profile falls back to the base file."""
     base = get_prompt("mandate")
-    explicit = get_prompt("mandate", profile="explicit")
+    explicit = get_prompt("mandate", profile="mini")
     assert explicit == base
 
 
-def test_get_prompt_examples_section_is_explicit_only():
-    """The examples section ships as an explicit-profile variant."""
-    assert "Worked Examples" in get_prompt("examples", profile="explicit")
+def test_get_prompt_examples_ships_in_both_profiles():
+    """Examples reach every model; explicit adds more on top (ADR-0091/0093)."""
+    base = get_prompt("examples")
+    explicit = get_prompt("examples", profile="mini")
+    assert "<example>" in base
+    assert explicit.count("<example>") > base.count("<example>")
 
 
 def test_get_prompt_variant_respects_local_override():
@@ -134,7 +139,7 @@ def test_get_prompt_variant_respects_local_override():
     with tempfile.TemporaryDirectory() as temp_dir:
         local_prompt_dir = os.path.join(temp_dir, ".zrb/llm/prompt")
         os.makedirs(local_prompt_dir, exist_ok=True)
-        with open(os.path.join(local_prompt_dir, "persona.explicit.md"), "w") as f:
+        with open(os.path.join(local_prompt_dir, "persona.mini.md"), "w") as f:
             f.write("# Custom Explicit Persona Override")
 
         env_vars = {
@@ -145,7 +150,7 @@ def test_get_prompt_variant_respects_local_override():
             original_cwd = os.getcwd()
             os.chdir(temp_dir)
             try:
-                prompt = get_prompt("persona", profile="explicit")
+                prompt = get_prompt("persona", profile="mini")
                 assert "Custom Explicit Persona Override" in prompt
             finally:
                 os.chdir(original_cwd)
