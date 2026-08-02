@@ -174,6 +174,16 @@ A `PromptManager` lets you control that assembly. Two independent levers:
 - **`prompts=[...]`** — extra section(s) appended after the built-ins. This is exactly what `system_prompt` populates.
 - **`include_sections=[...]`** — the full ordered list of section names to emit. Drop one, reorder them, or splice your own name in.
 
+Dropping a section is safe: a block that references another section is marked in the markdown and pruned when its target is not emitted, so the composed prompt never instructs the model about a part it never received (ADR-0094).
+
+```markdown
+<!--requires:journal_mandate-->
+4. **Search the journal** — before you rely on prior work.
+<!--/requires-->
+```
+
+Comma-separated dependencies must all be present. A marker alone on its line removes the whole line; one mid-sentence removes only itself, so a conditional clause can sit inside a bullet.
+
 ```python
 from zrb import cli, LLMChatTask
 from zrb.llm.prompt.manager import PromptManager
@@ -223,10 +233,10 @@ If a custom section name has no registered provider, Zrb resolves it to a **Mark
 Independently, the `ZRB_LLM_PROFILE` knob controls *how* sections are phrased without changing *which* appear:
 
 - `terse` — the concise, principle-led base (the `.md` files as written).
-- `explicit` — more imperative and exemplified, for weaker models.
+- `mini` — the same rules plus worked demonstrations, for small models.
 - `auto` (default) — `terse`, unless a per-model profile was declared via `register_model_profile(...)`.
 
-Profiles are variant overlays: `get_prompt(name, profile="explicit")` resolves `{name}.explicit.md`, falling back to the base `{name}.md`. See `AGENTS.md` → *Profile* and ADR-0083.
+Profiles are variant overlays: `get_prompt(name, profile="mini")` resolves `{name}.mini.md`, falling back to the base `{name}.md`. See `AGENTS.md` → *Profile*, ADR-0083, and ADR-0095.
 
 ---
 

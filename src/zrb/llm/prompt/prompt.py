@@ -15,7 +15,7 @@ def get_prompt(name: str, profile: str | None = None, **extra_replacements: str)
 
         prompt = get_prompt("mandate")
         prompt = get_prompt("persona", ASSISTANT_NAME="Zrb")
-        prompt = get_prompt("persona", profile="explicit")
+        prompt = get_prompt("persona", profile="mini")
 
     Standard replacements (journal dir, root group name, etc.) are
     always applied automatically.  Pass extra keyword arguments for

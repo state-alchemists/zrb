@@ -40,11 +40,11 @@ class LLMPromptMixin:
         # Runtime journaling reminder — separate from the journal_mandate
         # prompt section, which is controlled by LLM_INCLUDE_SECTIONS.
         self.DEFAULT_LLM_INCLUDE_JOURNAL_REMINDER: str = "off"
-        # Prompt profile (ADR-0083): "terse" (base prompts) or "explicit"
-        # (directive, with examples, for weaker models); "auto" uses "terse"
+        # Prompt profile (ADR-0083): "terse" (base prompts) or "mini"
+        # (base prompts plus worked examples, for small models); "auto" uses "terse"
         # unless a per-model profile is declared via register_model_profile().
         # zrb makes no capability guess from the model id. The profile selects
-        # per-section phrasing variants (e.g. persona.explicit.md over persona.md);
+        # per-section phrasing variants (e.g. persona.mini.md over persona.md);
         # which sections appear is controlled solely by LLM_INCLUDE_SECTIONS.
         self.DEFAULT_LLM_PROFILE: str = "auto"
         super().__init__()
@@ -95,7 +95,7 @@ class LLMPromptMixin:
             "- 'auto' (default): uses 'terse' unless a per-model profile has "
             "been declared via register_model_profile().\n\n"
             "The profile selects per-section phrasing variants (e.g. "
-            "persona.explicit.md, falling back to the base file) and toggles the "
+            "persona.mini.md, falling back to the base file) and toggles the "
             "examples section.\n\n"
         ),
     )

@@ -14,6 +14,7 @@ from zrb.llm.agent.run.hook_result_extractor import (
     extract_post_tool_decision,
     extract_pre_tool_decision,
 )
+from zrb.llm.agent.tool_result import has_multimodal, tool_return
 from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.hook.manager import hook_manager
 from zrb.llm.hook.types import HookEvent
@@ -95,23 +96,35 @@ def safe_copy_result(result: Any) -> Any:
         return result
 
 
-def _truncated_content(content: str) -> tuple[str, dict[str, Any]]:
-    """Apply the global tool-result size backstop to a model-facing string.
+def _oversize_metadata(value: Any) -> dict[str, Any]:
+    """Flag an oversized tool result in metadata, without rewriting it.
 
-    Returns ``(content, metadata)``. The cap (``CFG.LLM_MAX_TOOL_RESULT_CHARS``)
-    is high enough that typical output is untouched; ``0`` disables it. Only the
-    text shown to the model is affected — never a tool's structured return value.
+    ``CFG.LLM_MAX_TOOL_RESULT_CHARS`` has never bounded what the model reads:
+    it was applied to ``ToolReturn.content`` while ``return_value`` — the field
+    that becomes the tool-result message — went through whole, so the cap only
+    shrank the duplicate copy (see ADR-0092). Dropping that duplicate must not
+    silently start truncating payloads the model used to receive in full, so the
+    size is recorded and the value is passed through untouched.
+
+    Metadata never reaches the model; it is there so a real cap can be decided
+    on evidence rather than introduced as a side effect of a bug fix.
+
+    Multimodal content is not measured at all — its text rendering is a repr,
+    not the file, so a character count of it would be meaningless.
     """
     # lazy: circular — common → truncate is fine, but keep CFG read local so
     # the cap is re-read per call (tests may patch it) and import stays cheap.
     from zrb.llm.agent.truncate import truncate_tool_content
 
-    truncated, was_truncated = truncate_tool_content(
-        content, limit=CFG.LLM_MAX_TOOL_RESULT_CHARS
+    if has_multimodal(value):
+        return {}
+    rendered = value if isinstance(value, str) else to_string(value)
+    _, is_oversized = truncate_tool_content(
+        rendered, limit=CFG.LLM_MAX_TOOL_RESULT_CHARS
     )
-    if not was_truncated:
-        return content, {}
-    return truncated, {"truncated": True, "original_chars": len(content)}
+    if not is_oversized:
+        return {}
+    return {"oversized": True, "original_chars": len(rendered)}
 
 
 def create_safe_wrapper(func: Callable, name: str | None = None) -> Callable:
@@ -154,12 +167,9 @@ def create_safe_wrapper(func: Callable, name: str | None = None) -> Callable:
             # Create a safe copy to prevent mutation by pydantic-ai
             safe_result = safe_copy_result(result)
 
-            # Otherwise wrap successful result in ToolReturn, applying the global
-            # content-size backstop (return_value is left whole).
-            content, metadata = _truncated_content(to_string(safe_result))
-            return ToolReturn(
-                return_value=safe_result, content=content, metadata=metadata
-            )
+            # Otherwise wrap the successful result untouched — see
+            # _oversize_metadata for why the size cap does not rewrite it.
+            return tool_return(safe_result, **_oversize_metadata(safe_result))
         except ModelRetry:
             # pydantic-ai's retry protocol: the framework turns this into a
             # retry prompt for the model. Swallowing it into an error string
@@ -167,9 +177,7 @@ def create_safe_wrapper(func: Callable, name: str | None = None) -> Callable:
             raise
         except Exception as e:
             error_msg = f"Error executing tool {func.__name__}: {e}"
-            return ToolReturn(
-                return_value=None, content=error_msg, metadata={"error": True}
-            )
+            return tool_return(error_msg, error=True)
 
     return wrapper
 
@@ -204,12 +212,7 @@ def _wrap_toolset(toolset: "AbstractToolset[None]") -> "AbstractToolset[None]":
                     return await _fire_post_tool_use(name, tool_args, result)
                 # Create a safe copy to prevent mutation by pydantic-ai
                 safe_result = safe_copy_result(result)
-                content, metadata = _truncated_content(to_string(safe_result))
-                wrapped = ToolReturn(
-                    return_value=safe_result,
-                    content=content,
-                    metadata=metadata,
-                )
+                wrapped = tool_return(safe_result, **_oversize_metadata(safe_result))
                 return await _fire_post_tool_use(name, tool_args, wrapped)
             except ModelRetry:
                 # Part of pydantic-ai's retry protocol — must reach the
@@ -218,9 +221,7 @@ def _wrap_toolset(toolset: "AbstractToolset[None]") -> "AbstractToolset[None]":
             except Exception as e:
                 await _fire_post_tool_use_failure(name, tool_args, e)
                 error_msg = f"Error executing tool {name}: {e}"
-                return ToolReturn(
-                    return_value=None, content=error_msg, metadata={"error": True}
-                )
+                return tool_return(error_msg, error=True)
 
     return SafeToolsetWrapper(toolset)
 
@@ -234,9 +235,6 @@ async def _fire_pre_tool_use(name: str, tool_args: dict[str, Any], ctx: Any) -> 
     rewritten) ``tool_args`` to use, or a blocking ``ToolReturn`` if a hook denied
     the call.
     """
-    # lazy: heavy third-party deferral
-    from pydantic_ai import ToolReturn
-
     if getattr(ctx, "tool_call_approved", False):
         return tool_args
     results = await hook_manager.execute_hooks(
@@ -254,13 +252,9 @@ async def _fire_pre_tool_use(name: str, tool_args: dict[str, Any], ctx: Any) -> 
     )
     decision = extract_pre_tool_decision(results)
     if decision.deny:
-        return ToolReturn(
-            return_value=None,
-            content=(
-                f"Blocked by PreToolUse hook: "
-                f"{decision.reason or 'tool call denied'}"
-            ),
-            metadata={"blocked": True},
+        return tool_return(
+            f"Blocked by PreToolUse hook: {decision.reason or 'tool call denied'}",
+            blocked=True,
         )
     # Limitation: this is the execution-time path for tools that don't require
     # approval (no interactive prompt to show here), so a hook's
@@ -281,11 +275,11 @@ def _tool_response_payload(result: Any) -> dict[str, Any]:
 
     Claude's PostToolUse payload carries the tool's output under ``tool_response``.
     The result here may be a pydantic-ai ``ToolReturn`` (use its model-facing
-    ``content``), a plain dict, or an arbitrary value. Wrap non-dicts under a
+    ``return_value``), a plain dict, or an arbitrary value. Wrap non-dicts under a
     ``content`` key and stringify anything that won't serialize so the stdin
     payload never falls back to the minimal event-only form.
     """
-    content = getattr(result, "content", result)
+    content = getattr(result, "return_value", result)
     if isinstance(content, dict):
         payload = content
     else:
@@ -319,22 +313,19 @@ async def _fire_post_tool_use(name: str, tool_args: dict[str, Any], result: Any)
     )
     decision = extract_post_tool_decision(results)
     if decision.block:
-        return ToolReturn(
-            return_value=None,
-            content=(
-                f"Tool result blocked by PostToolUse hook: " f"{decision.reason or ''}"
-            ),
-            metadata={"blocked": True},
+        return tool_return(
+            f"Tool result blocked by PostToolUse hook: {decision.reason or ''}",
+            blocked=True,
         )
     if decision.updated_output is not None and isinstance(result, ToolReturn):
         result = ToolReturn(
-            return_value=result.return_value,
-            content=decision.updated_output,
+            return_value=decision.updated_output,
+            content=result.content,
             metadata=result.metadata,
         )
     # Claude injects a PostToolUse hook's additionalContext into the model's
     # context after the tool result; render it by appending to the model-facing
-    # content (the only post-tool injection point available here).
+    # output (the only post-tool injection point available here).
     if decision.additional_context:
         result = _append_tool_context(result, decision.additional_context)
     return result
@@ -343,21 +334,20 @@ async def _fire_post_tool_use(name: str, tool_args: dict[str, Any], result: Any)
 def _append_tool_context(result: Any, extra: str) -> Any:
     """Append a PostToolUse hook's additionalContext to the model-facing output.
 
-    Extends the ``ToolReturn`` content so the model sees the tool result followed
-    by the hook's context. A non-``ToolReturn`` result is wrapped, preserving the
-    original value for the model while surfacing the context.
+    Extends the ``ToolReturn`` return value so the model sees the tool result
+    followed by the hook's context in the same tool-result message. A
+    non-``ToolReturn`` result is wrapped the same way.
     """
     # lazy: heavy third-party
     from pydantic_ai import ToolReturn
 
     if isinstance(result, ToolReturn):
-        content = result.content
         return ToolReturn(
-            return_value=result.return_value,
-            content=_merge_content(content, extra),
+            return_value=_merge_content(result.return_value, extra),
+            content=result.content,
             metadata=result.metadata,
         )
-    return ToolReturn(return_value=result, content=_merge_content(result, extra))
+    return tool_return(_merge_content(result, extra))
 
 
 def _merge_content(content: Any, extra: str) -> Any:

@@ -54,7 +54,13 @@ def list_files(
     all_files: list[str] = []
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
-        return {"error": f"Path does not exist: {abs_path}"}
+        return {
+            "error": (
+                f"Path does not exist: {abs_path}. "
+                "[SYSTEM SUGGESTION]: List the nearest parent that does "
+                "exist to see the real layout."
+            )
+        }
 
     depth = 3
     patterns_to_exclude = (
@@ -112,7 +118,13 @@ def glob_files(
     found_files = []
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
-        return {"error": f"Path does not exist: {abs_path}"}
+        return {
+            "error": (
+                f"Path does not exist: {abs_path}. "
+                "[SYSTEM SUGGESTION]: List the nearest parent that does "
+                "exist to see the real layout."
+            )
+        }
 
     patterns_to_exclude = (
         exclude_patterns if exclude_patterns is not None else DEFAULT_EXCLUDED_PATTERNS

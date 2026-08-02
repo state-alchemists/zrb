@@ -112,7 +112,8 @@ Single-hook configurations using the common contract behave the same in both:
 `UserPromptSubmit` block + `continue: false` + `additionalContext`,
 `SessionStart` `additionalContext` (including plain-stdout-as-context),
 `Stop` block-to-continue (8-block cap, `stop_hook_active`) and `systemMessage`
-extension, `PermissionRequest` `decision.behavior`, `PreCompact` block, and
+extension (its own separate 8-message cap), `PermissionRequest`
+`decision.behavior`, `PreCompact` block, and
 tool-name matchers (including the `Bash` / `Task` aliases).
 
 ---

@@ -174,7 +174,7 @@ async def test_gate_allows_non_denied_tool():
     finally:
         current_permission_policy.reset(token)
 
-    assert result.content == "content"
+    assert result.return_value == "content"
     assert "blocked" not in result.metadata
 
 
@@ -190,7 +190,7 @@ async def test_gate_inert_without_policy():
     wrapped = create_safe_wrapper(mutate)
 
     result = await wrapped()
-    assert result.content == "did it"
+    assert result.return_value == "did it"
     assert "blocked" not in result.metadata
 
 

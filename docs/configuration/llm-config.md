@@ -202,7 +202,7 @@ Recognised section names:
 | `persona` | AI identity prompt |
 | `mandate` | Priority order (security, approvals, scope, memory) + session context |
 | `workflow` | Project-doc reading, skill activation, working loop, verify gate, recovery |
-| `examples` | Few-shot worked examples (empty under terse; explicit variant carries content) |
+| `examples` | Answer-scale and stance demonstrations (the `mini` variant adds more) |
 | `git_mandate` | Git safety rules (rendered only inside a git repo) |
 | `journal_mandate` | Journaling protocol |
 | `system_context` | Stable runtime facts (OS / CWD / model / detected tools) |
@@ -234,38 +234,43 @@ as a *custom* section — see [Programmatic Prompt Customization](#programmatic-
 
 `ZRB_LLM_INCLUDE_SECTIONS` controls *which* sections appear. A second knob,
 `ZRB_LLM_PROFILE`, controls *how each section is phrased* — so the prompt can
-match the model in use. This matters because weak and strong models want
-different prompts: strong models do best with terse, principle-led instructions,
-while weaker/smaller models follow more explicit, repeated, example-heavy ones.
-**Weaker does not mean a shorter prompt** — the explicit profile is *more*
-directive, not less.
+match the model in use. Small models follow worked examples better than they
+follow abstract rules, so the second profile adds demonstrations. **It does not
+add rules**: added constraint mass degrades exactly the models it targets, so a
+variant may exemplify a rule but never re-word or extend one (ADR-0091).
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_PROFILE` | Prompt profile: `auto`, `terse`, or `explicit` | `auto` |
+| `ZRB_LLM_PROFILE` | Prompt profile: `auto`, `terse`, or `mini` | `auto` |
 
 - **`terse`** — the concise, principle-led profile (the base prompt files).
-- **`explicit`** — the directive profile: per-section phrasing variants where
-  they exist (e.g. a more imperative `persona`). The `examples` section is
-  always in the default section list; its base file is empty, while
-  `examples.explicit.md` carries few-shot worked examples that only emit
-  under the explicit profile.
-- **`auto`** (default) — resolves to `terse` unless you have declared a profile
-  for the active model (see below). **zrb does not try to guess a model's
-  strength from its id** — there is no reliable way to do that across providers,
-  and a family name (`deepseek`, `qwen`, `llama`, …) tells you nothing about a
-  given model's capability. So `auto` is conservative: it keeps the terse default
-  and you opt a weaker model into `explicit`.
+- **`mini`** — the profile for small models: the same rules, plus worked
+  demonstrations. Currently that means `examples.mini.md`, a superset of the
+  base `examples.md`.
+- **`auto`** (default) — `mini` when the model id *declares* a small size,
+  `terse` otherwise.
 
-For a weaker model, either set the knob globally:
+`auto` reads a **stated size**, never a family name. `deepseek`, `qwen`, and
+`llama` span tiny instruct models through frontier models, so a family name tells
+you nothing — but `-7b` is the vendor stating a parameter count, and `mini` /
+`haiku` / `nano` are vendor size tiers. Built-in matches:
+
+| Selects `mini` | Stays `terse` |
+|----------------|---------------|
+| a stated parameter count of 14B or less — `qwen2.5-7b`, `gemma-2-9b`, `qwen3-14b` | larger stated sizes — `qwen3-32b`, `llama-3-70b`, `llama-3.1-405b` |
+| vendor small tiers — `gpt-5-mini`, `claude-haiku-4-5`, `gemini-nano` | everything else — `claude-opus-4-8`, `deepseek-v4-pro`, `gemini-2.5-pro` |
+
+`flash` is deliberately *not* matched: it is a latency tier, not a size one, and
+spans weak to strong. Opt one in explicitly if you want it.
+
+Force a profile globally:
 
 ```bash
-export ZRB_LLM_PROFILE=explicit
+export ZRB_LLM_PROFILE=mini
 ```
 
-…or, if you switch between models, declare per-model profiles once in your
-`zrb_init.py` (the same curated, user-extensible approach as the model
-capability registry):
+…or declare per-model profiles once in your `zrb_init.py`. A declaration always
+beats a built-in, in either direction:
 
 ```python
 from zrb.llm.prompt.profile import register_model_profile
@@ -274,18 +279,24 @@ from zrb.llm.prompt.profile import register_model_profile
 # under `auto`. The id is matched exactly as configured — provider prefix and
 # any tier suffix included (e.g. `ollama:deepseek-v4-flash:cloud`), nothing is
 # stripped. Most-recently declared wins.
-register_model_profile(r"my-local-3b", "explicit")
-register_model_profile(r"qwen2\.5-7b", "explicit")
-register_model_profile(r"^ollama:", "explicit")  # or match a whole provider
+register_model_profile(r"deepseek-v4-flash", "mini")   # opt a latency tier in
+register_model_profile(r"my-local-3b", "mini")
+register_model_profile(r"qwen2\.5-7b", "terse")        # opt a small model out
+register_model_profile(r"^ollama:", "mini")            # or match a whole provider
 ```
 
 How the overlay works: the base prompt `.md` files *are* the `terse` profile.
-The `explicit` profile is an overlay — for a section named `persona`, the loader
-prefers `persona.explicit.md` and falls back to `persona.md` when no variant
-exists. So you can add an explicit variant for just the sections whose wording
-should change, leaving the rest shared (it follows the same
+`mini` is an overlay — for a section named `persona`, the loader prefers
+`persona.mini.md` and falls back to `persona.md` when no variant exists. A
+variant *replaces* its base file rather than appending to it, so a variant you
+add must repeat everything the base says that still applies. It follows the same
 project-override → env → base-dir → package lookup as any prompt file, so you can
-override a variant too).
+override a variant too.
+
+> The profile was called `explicit` in earlier releases. It is `mini` now, with
+> no alias: `ZRB_LLM_PROFILE=explicit` is unrecognized and falls through to
+> `auto`, and `register_model_profile(..., "explicit")` raises `ValueError`.
+> See ADR-0095.
 
 ### Programmatic Prompt Customization
 
@@ -631,7 +642,7 @@ All interval and delay values are in **milliseconds**.
 |----------|-------------|---------|
 | `ZRB_LLM_MAX_COMPLETION_FILES` | Maximum files scanned for path autocompletion | `5000` |
 | `ZRB_LLM_MAX_OUTPUT_CHARS` | Maximum characters returned by shell command and file read tools | `100000` |
-| `ZRB_LLM_MAX_TOOL_RESULT_CHARS` | Global backstop cap (characters) on every tool's model-facing result, applied after the tool runs. Catches outputs not already capped by a tool (Grep, AnalyzeCode, web, MCP). `0` disables it. | `100000` |
+| `ZRB_LLM_MAX_TOOL_RESULT_CHARS` | Size (characters) above which a tool result is flagged `oversized` in `ToolReturn.metadata`. **It does not truncate**: the cap only ever applied to a duplicate copy of the result, and removing that duplicate (ADR-0092) must not silently start shortening payloads the model previously received in full. `0` disables the check. | `100000` |
 | `ZRB_LLM_HISTORY_MAX_DISPLAY_CHARS` | Maximum characters shown by the `/history` command | `5000` |
 | `ZRB_LLM_HISTORY_TRUNCATE_LENGTH` | Maximum chars per field when formatting history entries | `100` |
 | `ZRB_LLM_MAX_IMAGE_DIMENSION` | Longest-edge cap (pixels) for attached images before sending to LLM | `1568` |

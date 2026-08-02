@@ -101,9 +101,11 @@ If the index file is missing, unreadable, or empty, nothing is injected at all.
 
 ## 4. Automatic Creation
 
-Zrb does **not** auto-create the journal directory or the index file. There is no code path under `src/zrb/llm/` that calls `os.makedirs` or otherwise materializes `~/.zrb/llm-notes/` or `index.md` on startup — `src/zrb/llm/tool/journal.py` only implements a `search_journal` tool (exposed to the agent as `SearchJournal`) for reading existing entries.
+Zrb creates the journal **directory** on first search, and nothing else. `search_journal` (`src/zrb/llm/tool/journal.py`, exposed to the agent as `SearchJournal`) calls `os.makedirs(..., exist_ok=True)` when the configured directory is absent and reports the same empty result an unmatched search returns.
 
-Creating the directory, the index file, and any per-topic Markdown files is the agent's own responsibility, driven entirely by prompt/skill guidance (see the `core-journaling` skill under `src/zrb/llm_plugin/core_skills/`) rather than by zrb's runtime code. If the agent never decides to journal, the directory and index simply never come into existence.
+That behaviour is deliberate. Reporting a missing directory as an error made the whole memory layer read as unavailable, and the agent responded by declaring it could not journal rather than by writing its first note — the directory could not come into existence because nothing would create it. An unwritten journal is *empty*, not broken.
+
+The index file and every per-topic Markdown file remain the agent's responsibility, driven by prompt and skill guidance (see the `core-journaling` skill under `src/zrb/llm_plugin/core_skills/`) rather than by zrb's runtime code.
 
 ---
 

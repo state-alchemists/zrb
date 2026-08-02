@@ -89,7 +89,7 @@ def test_prompt_manager_uses_config_defaults():
     assert len(prompt) > 0
 
 
-def test_prompt_manager_explicit_overrides():
+def test_prompt_manager_mini_overrides():
     """Test that explicit include_sections overrides config defaults."""
     CFG._instance = None
 
@@ -105,7 +105,7 @@ def test_prompt_manager_explicit_overrides():
     assert len(prompt) > 0
 
 
-def test_prompt_manager_include_sections_explicit_subset():
+def test_prompt_manager_include_sections_mini_subset():
     """Explicit include_sections selects only listed sections."""
     CFG._instance = None
 

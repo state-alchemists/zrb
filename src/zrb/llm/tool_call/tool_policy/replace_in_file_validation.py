@@ -52,7 +52,11 @@ async def replace_in_file_validation_policy(
 
     # 2. Check if file exists
     if not os.path.exists(abs_path):
-        return ToolDenied(f"File not found: {path}")
+        return ToolDenied(
+            f"File not found: {path} (resolved to {abs_path}). "
+            "[SYSTEM SUGGESTION]: a relative path resolves against the current "
+            "directory, not the project root. Use List to confirm the path."
+        )
 
     # 3. Check if old_text is in file. Accept either an exact substring match
     #    or a fuzzy match (whitespace/indentation tolerant), mirroring the

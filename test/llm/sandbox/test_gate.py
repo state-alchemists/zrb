@@ -68,7 +68,7 @@ async def test_gate_inert_when_disabled(tmp_path):
     tag(mutate, Capability.EDIT)
     wrapped = create_safe_wrapper(mutate)
     result = await wrapped(path="/definitely/outside/file.txt")
-    assert result.content == "did it"
+    assert result.return_value == "did it"
     assert "blocked" not in result.metadata
 
 
@@ -94,7 +94,7 @@ async def test_gate_blocks_edit_outside_writable_roots(tmp_path):
         current_sandbox_policy.reset(token)
 
     assert result.metadata.get("blocked") is True
-    assert "Blocked by sandbox policy" in result.content
+    assert "Blocked by sandbox policy" in result.return_value
     assert calls == []  # never executed
 
 
@@ -116,7 +116,7 @@ async def test_gate_allows_edit_inside_writable_roots(tmp_path):
     finally:
         current_sandbox_policy.reset(token)
 
-    assert result.content == "did it"
+    assert result.return_value == "did it"
     assert "blocked" not in result.metadata
 
 
@@ -160,7 +160,7 @@ async def test_gate_does_not_path_check_execute_tools(tmp_path):
     finally:
         current_sandbox_policy.reset(token)
 
-    assert result.content == "ran"
+    assert result.return_value == "ran"
     assert "blocked" not in result.metadata
 
 
@@ -201,7 +201,7 @@ async def test_gate_blocks_escape_when_disallowed(tmp_path):
         current_sandbox_policy.reset(token)
 
     assert result.metadata.get("blocked") is True
-    assert "dangerously_skip_sandbox" in result.content
+    assert "dangerously_skip_sandbox" in result.return_value
 
 
 @pytest.mark.asyncio
@@ -232,4 +232,4 @@ async def test_gate_move_checks_src_and_dst(tmp_path):
         current_sandbox_policy.reset(token)
 
     assert blocked.metadata.get("blocked") is True
-    assert allowed.content == "moved"
+    assert allowed.return_value == "moved"

@@ -38,6 +38,11 @@ async def read_file_validation_policy(
     if path:
         abs_path = os.path.abspath(os.path.expanduser(str(path)))
         if not os.path.exists(abs_path):
-            return ToolDenied(f"File not found: {path}")
+            return ToolDenied(
+                f"File not found: {path} (resolved to {abs_path}). "
+                "[SYSTEM SUGGESTION]: a relative path resolves against the "
+                "current directory, not the project root. Use List to see "
+                "what is actually there before guessing another path."
+            )
 
     return await next_handler(ui, call)

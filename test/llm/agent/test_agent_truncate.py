@@ -69,7 +69,7 @@ def test_non_string_passthrough():
 
 
 @pytest.mark.asyncio
-async def test_wrapper_truncates_large_string_content():
+async def test_wrapper_flags_large_content_without_rewriting_it():
     from pydantic_ai import ToolReturn
 
     from zrb.llm.agent.common import create_safe_wrapper
@@ -84,11 +84,12 @@ async def test_wrapper_truncates_large_string_content():
         result = await wrapped()
 
     assert isinstance(result, ToolReturn)
-    assert result.metadata.get("truncated") is True
+    assert result.metadata.get("oversized") is True
     assert result.metadata.get("original_chars") == 5000
-    assert len(result.content) < 5000
-    # return_value is left whole — programmatic consumers unaffected
+    # The payload the model reads is untouched: the cap only ever shrank the
+    # duplicate copy, so dropping that copy must not start truncating.
     assert result.return_value == big
+    assert result.content is None
 
 
 @pytest.mark.asyncio
@@ -105,8 +106,9 @@ async def test_wrapper_does_not_truncate_small_content():
         result = await wrapped()
 
     assert isinstance(result, ToolReturn)
-    assert result.content == "small"
-    assert "truncated" not in result.metadata
+    assert result.return_value == "small"
+    assert result.content is None
+    assert "oversized" not in result.metadata
 
 
 @pytest.mark.asyncio
@@ -119,10 +121,10 @@ async def test_wrapper_respects_explicit_toolreturn():
     big = "q" * 5000
 
     def tool():
-        return ToolReturn(return_value=big, content=big)
+        return ToolReturn(return_value=big)
 
     with cap_at(10):
         wrapped = create_safe_wrapper(tool)
         result = await wrapped()
 
-    assert result.content == big  # not re-truncated
+    assert result.return_value == big  # not re-truncated

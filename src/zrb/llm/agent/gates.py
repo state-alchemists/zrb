@@ -19,6 +19,7 @@ from __future__ import annotations
 from typing import Any
 
 from zrb.config.config import CFG
+from zrb.llm.agent.tool_result import tool_return
 from zrb.llm.permission import (
     DENY,
     Capability,
@@ -36,25 +37,19 @@ def permission_gate(tool_name: str, capability: Any, args: dict[str, Any]) -> An
     unchanged). Enforces the *deny* outcome that the approval layer (allow/ask)
     cannot express, without touching the deferred-request machinery.
     """
-    # lazy: heavy third-party deferral
-    from pydantic_ai import ToolReturn
-
     policy = get_effective_policy()
     if policy is None:
         return None
     if policy.decide(tool_name, capability, args) != DENY:
         return None
     mode = get_current_agent_mode().value
-    return ToolReturn(
-        return_value=None,
-        content=(
-            f"Blocked: '{tool_name}' is not permitted under the current "
-            f"permission policy (mode: {mode}). "
-            "[SYSTEM SUGGESTION]: this is a read-only / restricted context. "
-            "Finish discovery, then call ExitPlanMode (if in plan mode) to "
-            "present your plan for approval before making changes."  # fmt: skip
-        ),
-        metadata={"blocked": True},
+    return tool_return(
+        f"Blocked: '{tool_name}' is not permitted under the current "
+        f"permission policy (mode: {mode}). "
+        "[SYSTEM SUGGESTION]: this is a read-only / restricted context. "
+        "Finish discovery, then call ExitPlanMode (if in plan mode) to "
+        "present your plan for approval before making changes.",  # fmt: skip
+        blocked=True,
     )
 
 
@@ -66,9 +61,6 @@ def sandbox_gate(tool_name: str, capability: Any, args: dict[str, Any]) -> Any:
     path-checked here: shell commands are contained by the OS-level sandbox
     layer, not by argument inspection.
     """
-    # lazy: heavy third-party deferral
-    from pydantic_ai import ToolReturn
-
     # Argument keys the sandbox gate treats as filesystem paths (subset of the
     # permission layer's _SALIENT_ARG_KEYS). Reads check every path-like arg;
     # writes additionally check them for EDIT/UNKNOWN tools ("src" is write-checked
@@ -81,16 +73,13 @@ def sandbox_gate(tool_name: str, capability: Any, args: dict[str, Any]) -> Any:
         return None
 
     def _blocked(reason: str) -> Any:
-        return ToolReturn(
-            return_value=None,
-            content=(
-                f"Blocked by sandbox policy: {reason}. "
-                "[SYSTEM SUGGESTION]: work within the project directory, or "
-                "ask the user to extend the sandbox writable paths "
-                f"({CFG.ENV_PREFIX}_LLM_SANDBOX_WRITABLE_PATHS) / adjust the deny list "
-                f"({CFG.ENV_PREFIX}_LLM_SANDBOX_DENY_READ_PATHS)."
-            ),
-            metadata={"blocked": True},
+        return tool_return(
+            f"Blocked by sandbox policy: {reason}. "
+            "[SYSTEM SUGGESTION]: work within the project directory, or "
+            "ask the user to extend the sandbox writable paths "
+            f"({CFG.ENV_PREFIX}_LLM_SANDBOX_WRITABLE_PATHS) / adjust the deny list "
+            f"({CFG.ENV_PREFIX}_LLM_SANDBOX_DENY_READ_PATHS).",
+            blocked=True,
         )
 
     if not policy.allow_escape and args.get("dangerously_skip_sandbox"):
