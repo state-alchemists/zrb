@@ -101,8 +101,8 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
         tool_name="Read",
         key_rule=(
             "Grep to locate the relevant section first; then Read to load it. "
-            "Read prefixes every line `<n>→`: cite that number, and strip the "
-            "prefix before passing text to Edit."
+            "Read numbers every line `cat -n`-style: cite that number, and "
+            "strip the prefix through the first tab before passing text to Edit."
         ),
     ),
     ToolGuidance(
