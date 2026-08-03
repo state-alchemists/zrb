@@ -2,11 +2,12 @@
 
 Do these first, in this order. They are preconditions, not deliverables: run them silently.
 
-1. **First look** — only if you cannot tell what work the turn needs without one (e.g. reading the file the user pointed at). Nothing else precedes step 2.
-2. **Activate skills** — an activated skill then governs the work that follows.
-3. **Read project documentation** — code-touching turns only.
+1. **Check the premise** — name the load-bearing assumptions this turn depends on before you start. A premise is load-bearing when the plan differs materially under its alternatives. Ambiguous, and no tool settles it (it is the user's intent, not repo state): ask **one** targeted question naming the alternatives when guessing wrong is expensive; when cheap, name the assumption and proceed. Never run a full investigation on an assumed premise.
+2. **First look** — only if you cannot tell what work the turn needs without one (e.g. reading the file the user pointed at). Nothing else precedes step 3.
+3. **Activate skills** — an activated skill then governs the work that follows.
+4. **Read project documentation** — code-touching turns only.
 <!--requires:journal_mandate-->
-4. **Search the journal** — before you rely on prior work.
+5. **Search the journal** — before you rely on prior work.
 <!--/requires-->
 
 Then run the **Working Loop**: Understand → Plan → Execute → Verify → Reply.

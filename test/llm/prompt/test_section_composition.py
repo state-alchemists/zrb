@@ -90,6 +90,28 @@ def test_mini_examples_are_a_superset_of_the_base():
     assert len(explicit) > len(base)
 
 
+def test_premise_check_is_first_and_unconditional():
+    """The premise check must open the Turn Sequence, unconditionally.
+
+    It is the guard against investigating from an unverified premise — the
+    step that must fire before anything else runs. Wrapping it in a
+    requires-block or renumbering it behind a conditional step would silently
+    drop the guard for some configuration.
+    """
+    import re
+
+    text = get_prompt("workflow")
+    turn = text.split("## Turn Sequence", 1)[1].split("\n## ", 1)[0]
+    steps = [
+        line.strip()
+        for line in turn.splitlines()
+        if re.match(r"^\d+\.\s", line.strip())
+    ]
+    assert steps[0].startswith("1. **Check the premise**")
+    assert "<!--requires" not in steps[0]
+    assert any("**Activate skills**" in step for step in steps[1:])
+
+
 @pytest.mark.parametrize("profile", [None, "mini"])
 def test_no_numbered_list_gaps_in_any_subset(profile):
     """A conditional item must not leave a hole like `1. 2. 4.` behind.
