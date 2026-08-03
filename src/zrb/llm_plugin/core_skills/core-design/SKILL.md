@@ -1,6 +1,6 @@
 ---
 name: core-design
-description: "Activate when the turn's deliverable is a design — system architecture, API contract, data model, component decomposition, or trade-off analysis. Provides the Constraints → Explore → Decide → Specify → Plan workflow for sound, well-reasoned designs."
+description: "Activate when the turn produces a design — system architecture, API contract, data model, component decomposition, or trade-off analysis. Provides the Constraints → Explore → Decide → Specify → Plan workflow."
 user-invocable: false
 ---
 # Skill: core-design

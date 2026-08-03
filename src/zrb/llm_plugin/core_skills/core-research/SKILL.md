@@ -1,6 +1,6 @@
 ---
 name: core-research
-description: "Activate when the turn's deliverable is findings, comparisons, recommendations, or an investigation-backed plan — answering questions, analyzing unfamiliar code, exploring new domains. Provides the systematic Scope → Discover → Synthesize → Plan workflow."
+description: "Activate when the turn requires investigation — answering a question, analyzing unfamiliar code, exploring a new domain, comparing options — whether that investigation is the deliverable or only the work needed to reach one. Provides the Scope → Discover → Synthesize → Plan workflow."
 user-invocable: false
 ---
 # Skill: core-research

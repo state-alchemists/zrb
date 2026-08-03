@@ -40,4 +40,4 @@ Do not defer instead: the session may close after any response, so an unwritten 
 
 **Writes are silent.** No sentence announcing one, before or after. "One line logged so a later session doesn't re-derive this" is exactly the sentence to leave out — the reply reads identically whether or not you journaled.
 
-**If a write fails**, include what you would have written under the literal tag `[journal-fallback]` and ask the user to record it manually. A missing directory is the ordinary first-run state: create it and write.
+**If a write fails**, include what you would have written under the literal tag `[journal-fallback]` and ask the user to record it manually.

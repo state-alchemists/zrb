@@ -1,6 +1,7 @@
 import asyncio
 import os
 import shutil
+from unittest.mock import patch
 
 import pytest
 
@@ -78,6 +79,68 @@ def test_replace_in_file(temp_dir):
     assert "Successfully updated" in res
     with open(file_path, "r") as f:
         assert f.read() == "hello zrb"
+
+
+def test_replace_in_file_tolerates_read_line_number_prefix(temp_dir):
+    # Read numbers every line, so old_text copied verbatim out of its output
+    # cannot match the file. Left unhandled, the failure loops: the error tells
+    # the model to copy from Read, which is what it just did.
+    file_path = os.path.join(temp_dir, "test.py")
+    with open(file_path, "w") as f:
+        f.write("def foo():\n    return 1\n\ndef bar():\n    return 2\n")
+
+    body = read_file(file_path).split("---CONTENT---\n", 1)[1]
+    copied = body.splitlines(keepends=True)
+
+    res = _r(file_path, copied[3].rstrip("\n"), "def baz():")
+    assert "Successfully updated" in res
+    assert "line-number prefix" in res
+    with open(file_path) as f:
+        assert f.read() == "def foo():\n    return 1\n\ndef baz():\n    return 2\n"
+
+
+def test_replace_in_file_strips_the_prefix_from_new_text_too(temp_dir):
+    # A model that copied the prefix into old_text usually copied it into
+    # new_text as well; writing that through would put line numbers in the file.
+    file_path = os.path.join(temp_dir, "test.py")
+    with open(file_path, "w") as f:
+        f.write("def foo():\n    return 1\n")
+
+    res = _r(
+        file_path,
+        "     1\tdef foo():\n     2\t    return 1\n",
+        "     1\tdef qux():\n     2\t    return 9\n",
+    )
+    assert "Successfully updated" in res
+    with open(file_path) as f:
+        assert f.read() == "def qux():\n    return 9\n"
+
+
+def test_replace_in_file_still_edits_genuinely_numbered_content(temp_dir):
+    # Stripping is a last resort, tried only after an exact match fails, so a
+    # file that really does contain cat -n text edits through the exact path.
+    file_path = os.path.join(temp_dir, "fixture.txt")
+    with open(file_path, "w") as f:
+        f.write("     1\tdef foo():\n")
+
+    res = _r(file_path, "     1\tdef foo():", "     1\tdef zzz():")
+    assert "Successfully updated" in res
+    assert "line-number prefix" not in res
+    with open(file_path) as f:
+        assert f.read() == "     1\tdef zzz():\n"
+
+
+def test_replace_in_file_near_match_hint_ignores_the_prefix(temp_dir):
+    # The hint compares old_text's first line against the file. With the prefix
+    # attached it matches nothing, so the one diagnostic that shows the model
+    # the real line went silent exactly when it was needed.
+    file_path = os.path.join(temp_dir, "test.txt")
+    with open(file_path, "w") as f:
+        f.write("x = compute(a, b)  # note\n")
+
+    res = _r(file_path, "     1\tx = compute(a, b)\n     2\tmore", "y")
+    assert "Similar lines found" in res
+    assert "Line 1: x = compute(a, b)  # note" in res
 
 
 def test_search_files(temp_dir):
@@ -353,9 +416,59 @@ def test_read_file_truncation_keeps_head(tmp_path):
 
     result = read_file(str(file_path))
     body = result.split("---CONTENT---\n", 1)[1]
-    assert body.startswith("0000-")
+    assert body.startswith("     1\t0000-")
     assert "2999-" not in body
     assert body.rstrip().endswith("...[TRUNCATED]")
+
+
+def test_read_file_prefixes_each_line_with_its_number(tmp_path):
+    # Citations are read off the prefix, never counted — a ranged read must
+    # number from start_line, not from 1.
+    file_path = tmp_path / "test.txt"
+    file_path.write_text("\n".join(f"line{i}" for i in range(1, 11)))
+
+    body = read_file(str(file_path)).split("---CONTENT---\n", 1)[1]
+    assert body.startswith("     1\tline1\n")
+    assert "    10\tline10" in body
+
+    ranged = read_file(str(file_path), start_line=3, end_line=5)
+    ranged_body = ranged.split("---CONTENT---\n", 1)[1]
+    assert ranged_body == "     3\tline3\n     4\tline4\n     5\tline5\n"
+
+
+def test_read_file_budget_counts_file_chars_not_prefixes(tmp_path):
+    # The header reports the cap as a char count, so the cap has to be spent on
+    # the file — numbering first would bill ~13% of it to prefixes the file
+    # does not contain, while the header still claimed the full figure.
+    file_path = tmp_path / "many_lines.txt"
+    file_path.write_text("\n".join("abcd" for _ in range(100)))  # 5 chars/line
+
+    with patch("zrb.llm.tool.file_read.CFG") as cfg:
+        cfg.LLM_MAX_OUTPUT_CHARS = 40
+        body = read_file(str(file_path)).split("---CONTENT---\n", 1)[1]
+
+    delivered = "".join(
+        line.split("\t", 1)[1]
+        for line in body.replace("\n...[TRUNCATED]", "").splitlines(keepends=True)
+    )
+    assert len(delivered) <= 40
+    assert len(delivered) > 30  # the whole budget went to content, not prefixes
+    assert body.rstrip().endswith("...[TRUNCATED]")
+
+
+def test_read_file_single_line_over_budget_is_hard_cut(tmp_path):
+    # A minified file is one line; keeping it whole would blow the cap, and
+    # dropping it would return nothing.
+    file_path = tmp_path / "min.js"
+    file_path.write_text("z" * 500)
+
+    with patch("zrb.llm.tool.file_read.CFG") as cfg:
+        cfg.LLM_MAX_OUTPUT_CHARS = 40
+        body = read_file(str(file_path)).split("---CONTENT---\n", 1)[1]
+
+    assert body.startswith("     1\t")
+    assert body.rstrip().endswith("...[TRUNCATED]")
+    assert len(body.split("\t", 1)[1].replace("\n...[TRUNCATED]", "")) == 40
 
 
 def test_read_file_non_utf8(tmp_path):
@@ -398,6 +511,10 @@ def test_read_pdf_file(tmp_path):
         result = read_file(str(pdf_file))
     assert "Hello World PDF content" in result
     assert "---CONTENT---" in result
+    # Unnumbered: a PDF's line breaks come from the extractor, so a numbered
+    # citation would name a position in this extraction, not in the document.
+    body = result.split("---CONTENT---\n", 1)[1]
+    assert body.startswith("Hello World PDF content")
 
 
 def test_read_pdf_file_no_text(tmp_path):
