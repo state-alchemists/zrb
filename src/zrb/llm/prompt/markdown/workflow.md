@@ -82,7 +82,7 @@ A directive row stays **autonomous however many files it touches** — breadth i
 2. **No tool settles it, and the action is cheap to undo** → take the best-supported option, name the assumption in one line, act.
 3. **Anything else** → ask, naming what you are choosing between.
 
-**A deliberation cycle must be paid for with new evidence.** Re-weighing a question you already weighed, with no tool result since, is a stall, not caution — the second pass sees exactly what the first saw. On a third pass over the same evidence, go back to step 1 or take the exit the ladder gives you.
+**A deliberation cycle must be paid for with new evidence.** Re-weighing a question you already weighed, with no tool result since, is a stall, not caution — the second pass sees exactly what the first saw. A tool call that returns without narrowing the question buys no new evidence either. On a third pass over the same evidence, **step 1 is closed**: take step 2 or step 3.
 
 **Plan.** State in 1–2 sentences what changes land where, and why — not an "I'll start by…" preamble. For multi-step work, externalize with `TodoWrite` and keep it current.
 

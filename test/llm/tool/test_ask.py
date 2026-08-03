@@ -86,6 +86,10 @@ async def test_short_circuits_in_non_interactive_mode():
     )
     assert "[SYSTEM SUGGESTION]" in result
     assert "non-interactive" in result.lower()
+    # Both exits offered, and the re-ask loop closed.
+    assert "best judgement" in result.lower()
+    assert "stop and report" in result.lower()
+    assert "do not call it again" in result.lower()
 
 
 @pytest.mark.asyncio
@@ -103,6 +107,8 @@ async def test_returns_error_when_ui_unavailable():
         )
     assert "[SYSTEM SUGGESTION]" in result
     assert "No UI is available" in result
+    assert "stop and report" in result.lower()
+    assert "do not call it again" in result.lower()
 
 
 @pytest.mark.asyncio
