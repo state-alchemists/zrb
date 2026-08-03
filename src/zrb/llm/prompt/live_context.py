@@ -191,8 +191,16 @@ def render_journal_index() -> str | None:
         return None
     if not content.strip():
         return None
-    if len(content) > 1000:
-        content = content[:1000] + " (...more)"
+    limit = CFG.LLM_JOURNAL_INDEX_MAX_CHARS
+    if limit > 0 and len(content) > limit:
+        # Cut on a line boundary. A raw slice lands mid-word, so the last
+        # surviving entry arrives as a fragment the model has to guess at —
+        # and the HUD's entries are facts about the user, where half a
+        # sentence is worse than none. Overflow is dropped from the end, so
+        # the file is written most-durable-first (see core-journaling).
+        head = content[:limit]
+        cut = head.rfind("\n")
+        content = (head[:cut] if cut > 0 else head) + "\n (...more)"
     return (
         f"<journal-index>\n"
         f"Your persistent memory (index file: {index_name}). "

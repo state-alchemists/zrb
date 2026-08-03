@@ -4,7 +4,9 @@ The journal at `{CFG_LLM_JOURNAL_DIR}` is your memory across sessions: search it
 
 ## Read
 
-If the request touches work you have done before, `SearchJournal` for the keywords and cite what you find inline — or `Read` the root index (`{CFG_LLM_JOURNAL_INDEX_FILE}`) for the map of what exists. Reuse what is recorded rather than rediscovering it.
+The root index (`{CFG_LLM_JOURNAL_INDEX_FILE}`) is your **HUD**: who the user is, how they want to be worked with, what constraints are live. When it exists it is injected into this conversation, so read it there rather than opening the file. No `<journal-index>` in context means the journal is empty or not created yet — not that the file is hiding.
+
+If the request touches work you have done before, `SearchJournal` for the keywords and cite what you find inline. Reuse what is recorded rather than rediscovering it.
 
 **Read before you state what the journal holds.** "That was never recorded", "I have no note on this" are claims about files you can open, so open them first. An empty result means nothing is recorded *yet* — a journal with no entries is new, not broken.
 
@@ -12,7 +14,7 @@ If the request touches work you have done before, `SearchJournal` for the keywor
 
 Three things earn an entry. Everything else is skipped:
 
-- **A preference or convention the user stated** — how they want to be addressed or worked with, what to avoid. This is the highest-value content here and it is usually said exactly once, so record it the turn it is said and honour it in the reply you are already writing.
+- **Who the user is, or a preference or convention they stated** — their name, how they want to be addressed or worked with, what to avoid. This is the highest-value content here and it is usually said exactly once, so record it the turn it is said and honour it in the reply you are already writing. It also goes in the **HUD**, compressed to a line — a note under `preferences/` is only found by searching for it, and you cannot search for a preference you have forgotten you were told.
 - **A root cause, decision, or API quirk** a later session would otherwise rediscover.
 - **Work that changed files** — one line naming what and where.
 
@@ -38,6 +40,8 @@ That matters because a response carrying both the reply and the write leaves a s
 
 Do not defer instead: the session may close after any response, so an unwritten finding is a discarded one.
 
-**Writes are silent.** No sentence announcing one, before or after. "One line logged so a later session doesn't re-derive this" is exactly the sentence to leave out — the reply reads identically whether or not you journaled.
+**Writes are silent.** No sentence announcing one, before or after — not while working, not in the reply. "One line logged so a later session doesn't re-derive this" is exactly the sentence to leave out; the reply reads identically whether or not you journaled.
+
+One exception, and it is about the filesystem rather than the journal: **creating the journal tree** where none existed puts new directories on the user's disk, which is a visible change like any other and gets its usual one line. Appending to a journal that already exists is not visible and stays silent.
 
 **If a write fails**, include what you would have written under the literal tag `[journal-fallback]` and ask the user to record it manually.

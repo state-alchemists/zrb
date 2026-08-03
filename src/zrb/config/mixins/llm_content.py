@@ -25,6 +25,7 @@ class LLMContentMixin:
         self.DEFAULT_LLM_SNAPSHOT_DIR: str = ""
         self.DEFAULT_LLM_JOURNAL_DIR: str = ""
         self.DEFAULT_LLM_JOURNAL_INDEX_FILE: str = "index.md"
+        self.DEFAULT_LLM_JOURNAL_INDEX_MAX_CHARS: str = "2500"
         self.DEFAULT_LLM_HISTORY_SUMMARIZATION_WINDOW: str = "100"
         self.DEFAULT_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD: str = ""
         self.DEFAULT_LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD: str = ""
@@ -75,6 +76,18 @@ class LLMContentMixin:
         str,
         default_factory=lambda cfg: cfg.DEFAULT_LLM_JOURNAL_INDEX_FILE,
         doc="Filename of the journal index file.",
+    )
+
+    LLM_JOURNAL_INDEX_MAX_CHARS = EnvField(
+        int,
+        fallback=0,
+        default_factory=lambda cfg: cfg.DEFAULT_LLM_JOURNAL_INDEX_MAX_CHARS,
+        doc=(
+            "Maximum characters of the journal index injected into context. "
+            "The index is the HUD — it carries the user's identity and standing "
+            "preferences, so overflow is dropped from the end and the file is "
+            "ordered most-durable-first."
+        ),
     )
 
     LLM_ENABLE_REWIND = EnvField(

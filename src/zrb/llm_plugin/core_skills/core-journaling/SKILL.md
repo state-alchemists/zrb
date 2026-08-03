@@ -39,6 +39,28 @@ The Journal is a bidirectional graph knowledge base plus a chronological log boo
 
 Each directory MUST have an `index.md` that links to every file in it. Exception: date-leaf directories under `activity-log/YYYY/YYYY-MM/` do not — the month index covers them.
 
+## The Root Index Is the HUD
+
+Every other file in the journal is found by searching. The root `index.md` is different: it is **injected into the conversation** on the first turn and at each summarization, so it is the only journal content present without anyone going to look for it. That makes it the one place a fact can live and still be acted on by a session that does not know to ask.
+
+So it carries **the facts themselves, compressed**, not just links to them. A link to `preferences/tone.md` is a link the model must decide to follow; `- Prefers terse replies, no preamble.` is already working.
+
+It is also the graph's root — NO ORPHANS below is measured from here — so it has a second job: being the entry point to every directory. Sections 1–3 do the first job and hold facts; sections 4–5 do the second and hold links.
+
+**Shape, in this order** — see `templates/journal-index.md`:
+
+1. **Who the user is** — name and how to address them, role, working context. One line each.
+2. **Standing preferences** — how they want to be worked with, and taboos. One line each.
+3. **Active constraints** — what is currently true and binding (a deadline, a frozen dependency, a machine that lacks a runtime).
+4. **Directories** — one line linking every top-level directory index. This is what keeps the tree reachable; a HUD without it lints as one orphan per directory.
+5. **Recent insights** — links, newest first.
+
+**The order is load-bearing.** The injected snapshot is capped at `LLM_JOURNAL_INDEX_MAX_CHARS` and overflow is dropped **from the end**. Sections 1–3 are small and change rarely, section 4 is a single line that never grows, and section 5 grows without bound — so section 5 goes last and its growth only ever evicts itself. Put it first and the user's name is what falls off.
+
+The cap applies to the injected snapshot, not to the file. `journal-lint.py` reads the file, so a `## Directories` line that got truncated out of context still keeps the tree reachable on disk.
+
+Keep entries to one line and prune section 5 as it ages — a fact that has become permanent belongs in 1–3, and a stale link belongs deleted. The HUD is a dashboard, not an archive.
+
 ## Two Kinds of Writes
 
 | Kind | Where | Purpose |
@@ -92,6 +114,7 @@ When writing a specific kind of entry, Read the matching template from this skil
 |---------|----------|
 | An insight note (`user/`, `preferences/`, `projects/`, `technical/`) | `templates/insight-note.md` |
 | A day's activity log entry | `templates/activity-entry.md` |
+| The root `index.md` (HUD) | `templates/journal-index.md` |
 
 ## Companion Tools
 
@@ -108,7 +131,7 @@ When writing a specific kind of entry, Read the matching template from this skil
 4. Add a `## Backlinks` section at the bottom (initially empty, or pre-populated if you know who will link here).
 5. For each forward link you added, open the target file and append this note to its `## Backlinks` section.
 6. Add a markdown link to the new note from the relevant directory `index.md`.
-7. If noteworthy enough for the HUD, also add a link from outer `index.md` under *Recent Insights*.
+7. Update the HUD (root `index.md`). If the note is about **who the user is or how they want to be worked with**, put the fact itself there as a one-line entry under section 1 or 2 — the note holds the detail, the HUD holds the part that must survive without being searched for. Anything else noteworthy gets a link under *Recent Insights* instead.
 
 ## Writing an Activity Log Entry (Step-by-Step)
 
