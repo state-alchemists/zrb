@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from zrb.llm.agent.subagent.manager import SubAgentManager
+from zrb.llm.agent.subagent.manager import SubAgentDefinition, SubAgentManager
 from zrb.llm.permission import Capability, tool_capability
 from zrb.llm.tool.delegate import AgentTaskResult
 from zrb.llm.tool.delegate_background import (
@@ -37,6 +37,48 @@ def test_background_tool_is_delegate_tool(manager):
     tool = create_background_delegate_tool(manager)
     assert getattr(tool, "zrb_is_delegate_tool", False) is True
     assert tool.__name__ == "DelegateToAgentBackground"
+
+
+def test_background_docstring_carries_the_agent_roster(manager):
+    manager.scan.return_value = [
+        SubAgentDefinition(
+            name="test-agent",
+            path="path",
+            description="A test agent",
+            system_prompt="prompt",
+        )
+    ]
+
+    tool = create_background_delegate_tool(manager)
+
+    assert "AVAILABLE AGENTS" in tool.__doc__
+    assert "test-agent" in tool.__doc__
+
+
+@pytest.mark.asyncio
+async def test_unknown_agent_is_rejected_before_detaching(manager):
+    """A bad name must fail at call time, not at GetDelegationResult time."""
+    manager.create_agent.return_value = None
+    manager.scan.return_value = [
+        SubAgentDefinition(
+            name="test-agent",
+            path="path",
+            description="A test agent",
+            system_prompt="prompt",
+        )
+    ]
+    delegate = create_background_delegate_tool(manager)
+
+    result = await delegate(
+        agent_name="test-agnt",
+        deliverable="a result",
+        task="task",
+        non_goals=[],
+    )
+
+    assert "Did you mean 'test-agent'?" in result
+    # No handle was minted, so the model cannot poll for a run that never began.
+    assert "Handle" not in result
 
 
 @pytest.mark.asyncio

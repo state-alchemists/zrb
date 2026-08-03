@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import difflib
 import uuid
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, TextIO
@@ -230,9 +231,7 @@ async def _run_agent_task(
         return AgentTaskResult(
             agent_name,
             None,
-            f"Sub-agent '{agent_name}' not found. "
-            "[SYSTEM SUGGESTION]: Check DelegateToAgent's description for available sub-agents, "
-            "or check agent registration in your zrb config.",
+            agent_not_found_message(agent_name, sub_agent_manager),
         )
 
     full_message = _format_envelope(deliverable, non_goals, task, additional_context)
@@ -319,6 +318,47 @@ def _delegatable_agents(sub_agent_manager: SubAgentManager) -> list:
     ]
 
 
+def agent_roster_doc(sub_agent_manager: SubAgentManager) -> str:
+    """The `AVAILABLE AGENTS` block for a delegation tool's docstring.
+
+    Every tool that takes an `agent_name` embeds this. The roster used to live
+    only in `DelegateToAgent`'s docstring, so a model calling
+    `DelegateToAgentBackground` had no list of valid names anywhere in its
+    schema and had to recall one from another tool's description.
+    """
+    agents = _delegatable_agents(sub_agent_manager)
+    if not agents:
+        return "- No sub-agents found."
+    return "\n".join(f"- `{a.name}`: {a.description}" for a in agents)
+
+
+def agent_not_found_message(agent_name: str, sub_agent_manager: SubAgentManager) -> str:
+    """Error text for an unknown `agent_name`, naming the valid ones.
+
+    The previous text said only "Check DelegateToAgent's description for
+    available sub-agents" — an instruction to re-read something the model
+    already has and just misread, which makes the next attempt another guess.
+    The names are cheap; spelling them out here turns the retry into a
+    correction. The closest match is offered first because the usual failure is
+    a near-miss (`research` for `researcher`, or a name carried over from a
+    different harness's roster).
+    """
+    names = [a.name for a in _delegatable_agents(sub_agent_manager)]
+    if not names:
+        return (
+            f"Sub-agent '{agent_name}' not found: no sub-agents are registered. "
+            "[SYSTEM SUGGESTION]: Do the work yourself — delegation is "
+            "unavailable in this session."
+        )
+    close = difflib.get_close_matches(agent_name, names, n=1, cutoff=0.6)
+    suggestion = f" Did you mean '{close[0]}'?" if close else ""
+    return (
+        f"Sub-agent '{agent_name}' not found.{suggestion} "
+        f"[SYSTEM SUGGESTION]: Available agents are: {', '.join(names)}. "
+        "Call again with one of these exact names, or do the work yourself."
+    )
+
+
 async def _run_parallel(
     tasks: list[dict[str, Any]],
     sub_agent_manager: SubAgentManager,
@@ -391,13 +431,7 @@ def create_delegate_to_agent_tool(
     if sub_agent_manager is None:
         sub_agent_manager = default_sub_agent_manager
     # Scan for available (and permitted) agents to populate the docstring
-    available_agents = _delegatable_agents(sub_agent_manager)
-    agent_docs = []
-    for agent in available_agents:
-        agent_docs.append(f"- `{agent.name}`: {agent.description}")
-    agent_doc_section = (
-        "\n".join(agent_docs) if agent_docs else "- No sub-agents found."
-    )
+    agent_doc_section = agent_roster_doc(sub_agent_manager)
 
     async def delegate_to_agent(
         agent_name: str = "",

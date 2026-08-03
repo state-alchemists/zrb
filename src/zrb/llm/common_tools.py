@@ -324,14 +324,16 @@ _DYNAMIC_TOOL_GUIDANCE_FACTORIES: "list[Callable[[AnyContext], ToolGuidance]]" =
         "failed twice, or you are checking work you produced yourself. There a "
         "sub-agent blind to your reasoning is the point, not the token saving. "
         "To fan out, pass tasks=[{...}, ...] to run several concurrently in one call.",
-        key_rule="Do it yourself when you already know the answer's shape — an edit "
-        "whose content you can write now, a change confined to files you can name, or "
-        "a lookup of one or two searches. Do NOT delegate when the next step depends "
-        "on interpreting the last, or when you need verbatim text to cite: a sub-agent "
-        "returns a report you cannot interrogate. Fan out reads freely; fanning out "
-        "WRITES shares one working tree, so each task must enter its own worktree "
-        "first or they corrupt each other. deliverable and non_goals are the scope "
-        "clamp — make them concrete; sub-agents over-produce against fuzzy specs.",
+        key_rule="Do it yourself when you already know the answer's shape: an edit "
+        "you can write now, files you can name, one or two searches. Do NOT delegate "
+        "when the next step depends on interpreting the last, or when you need "
+        "verbatim text to quote — a report cannot be interrogated. That rules out "
+        "the part you quote, not the whole turn: decide per unit of work, so reading "
+        "the core yourself while delegating the rest is one turn. Fanning out reads is "
+        "free; fanning out WRITES shares one working tree, so each task must enter "
+        "its own worktree. deliverable and non_goals are the scope clamp — concrete, "
+        "or sub-agents over-produce. Agent names come from AVAILABLE AGENTS in this "
+        "tool's schema and are exact; never adapt one from another harness.",
     ),
     lambda ctx: ToolGuidance(
         group_name="Delegation",
@@ -339,7 +341,8 @@ _DYNAMIC_TOOL_GUIDANCE_FACTORIES: "list[Callable[[AnyContext], ToolGuidance]]" =
         when_to_use="Work you do NOT need before continuing — speculative research, "
         "generating a file, a slow sweep. Justified by timing, not size: the work may "
         "be small. To fan out, start several and collect the handles later.",
-        key_rule="Same scope clamp and same fan-out caution as DelegateToAgent "
+        key_rule="Same scope clamp, same agent-picking rule (this tool carries its "
+        "own AVAILABLE AGENTS list), and same fan-out caution as DelegateToAgent "
         "(concurrent writes share one working tree). Need the result now? "
         "Use DelegateToAgent (pass tasks=[...] to run several at once).",
     ),

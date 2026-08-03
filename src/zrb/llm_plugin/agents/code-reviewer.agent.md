@@ -1,6 +1,6 @@
 ---
 name: code-reviewer
-description: A read-only code review agent that performs deep, systematic analysis of code changes. Produces severity-rated findings covering correctness, security, performance, and maintainability. Delegate to this agent for thorough reviews without polluting the primary context.
+description: Read-only. Pick it when the code already exists and you need a verdict on it — severity-rated findings across correctness, security, performance, and maintainability. It judges; it does not fix. Cannot write.
 tools: [
   Shell, Bash,
   Read,

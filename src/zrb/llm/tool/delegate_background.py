@@ -31,7 +31,12 @@ from zrb.llm.agent.subagent.manager import (
     sub_agent_manager as default_sub_agent_manager,
 )
 from zrb.llm.permission import Capability, tag
-from zrb.llm.tool.delegate import BufferedUI, _run_agent_task
+from zrb.llm.tool.delegate import (
+    BufferedUI,
+    _run_agent_task,
+    agent_not_found_message,
+    agent_roster_doc,
+)
 from zrb.llm.ui.std_ui import StdUI
 from zrb.util.string.name import get_random_name
 
@@ -147,6 +152,12 @@ def create_background_delegate_tool(
         non_goals (list; [] only when no scope-expansion risk). additional_context
         is optional.
         """
+        # Resolve the name before detaching. _run_agent_task would also catch an
+        # unknown agent, but only inside the background coroutine — the model
+        # would get "Started background agent 'reseacher'" and not learn the name
+        # was wrong until it polled GetDelegationResult, if it ever did.
+        if not sub_agent_manager.create_agent(agent_name):
+            return agent_not_found_message(agent_name, sub_agent_manager)
         parent_ui = get_current_ui() or StdUI()
         handle = get_random_name(separator="-", add_random_digit=True)
         prefix = f"[{agent_name}:{handle}] "
@@ -177,6 +188,13 @@ def create_background_delegate_tool(
 
     setattr(delegate_to_agent_background, "zrb_is_delegate_tool", True)
     delegate_to_agent_background.__name__ = "DelegateToAgentBackground"
+    # Carry the roster in this tool's own schema. "mirrors DelegateToAgent" told
+    # the model where the argument *shapes* come from, but the valid names were
+    # never here — leaving it to recall them from a sibling tool's description.
+    delegate_to_agent_background.__doc__ = (
+        f"{delegate_to_agent_background.__doc__}\n"
+        f"        AVAILABLE AGENTS:\n{agent_roster_doc(sub_agent_manager)}\n"
+    )
     tag(delegate_to_agent_background, Capability.DELEGATE)
     return delegate_to_agent_background
 

@@ -1,6 +1,6 @@
 ---
 name: generalist
-description: A highly capable generalist operating in an isolated session. Delegate to this agent for massive, context-heavy tasks (like log analysis or deep research) to prevent polluting your primary context window.
+description: Can write, and has the full tool set. Pick it when the delegated work must produce or modify an artifact on disk, or when a large context-heavy task (log analysis, deep research) both reads and writes. For work that is purely reading, prefer a read-only agent — it cannot change anything by accident.
 tools: [
   Shell, Bash, Read, Write, Edit, RM, MV,
   LS, Glob, Grep,

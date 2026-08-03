@@ -1,6 +1,6 @@
 ---
 name: researcher
-description: A read-only research agent specialized in gathering information from the web and local codebase. Delegate to this agent for deep research tasks (documentation lookup, API investigation, technology comparison, codebase archaeology) to keep your primary context clean.
+description: Read-only. Pick it when the answer is not in your context and has to be gathered — documentation lookup, API investigation, technology comparison, codebase archaeology. It returns a report, so do not use it when you need verbatim text to quote or cite. Cannot write.
 tools: [
   Read,
   LS, Glob, Grep,

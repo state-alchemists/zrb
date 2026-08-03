@@ -93,7 +93,7 @@ llm_chat = LLMChatTask(
 defer_common_tools(llm_chat)
 
 
-def _deferred(tool):
+def _tool_factory(tool, defer_loading: bool = True):
     """Wrap a tool so its schema is hidden until the model searches for it by name.
 
     Delegation is used often enough that the Tool Usage Guide already tells the
@@ -103,7 +103,7 @@ def _deferred(tool):
     # lazy: pydantic_ai (heavy third-party deferral)
     from pydantic_ai import Tool
 
-    return Tool(tool, defer_loading=True)
+    return Tool(tool, defer_loading=defer_loading)
 
 
 # Delegate tools — main agent only. Sub-agents filter these out via
@@ -111,9 +111,9 @@ def _deferred(tool):
 # `apply_common_tools` already registered the matching tool guidance so
 # the prompt mentions them in both places consistently.
 llm_chat.add_tool_factory(
-    lambda ctx: _deferred(create_delegate_to_agent_tool()),
-    lambda ctx: _deferred(create_background_delegate_tool()),
-    lambda ctx: _deferred(create_get_delegation_result_tool()),
+    lambda ctx: _tool_factory(create_delegate_to_agent_tool(), defer_loading=False),
+    lambda ctx: _tool_factory(create_background_delegate_tool()),
+    lambda ctx: _tool_factory(create_get_delegation_result_tool()),
 )
 
 # Add argument formatter (show arguments when asking for user confirmation)
