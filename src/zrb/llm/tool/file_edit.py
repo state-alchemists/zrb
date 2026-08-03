@@ -1,6 +1,9 @@
 import os
+import re
 
 from zrb.llm.tool.post_write_check import format_post_write_diagnostics
+
+_READ_LINE_NUMBER = re.compile(r"^ *\d+\t")
 
 
 async def replace_in_file(
@@ -11,6 +14,11 @@ async def replace_in_file(
 ) -> str:
     """
     Replaces text in a file. Always Read the file first to get exact text.
+
+    Read prefixes every line with its number (`cat -n` style: six columns, then
+    a tab). That prefix is not in the file — strip it from old_text and
+    new_text. Text copied straight out of Read is matched anyway, but only
+    after the exact match has already failed.
 
     Falls back to fuzzy matching (whitespace-tolerant) if exact match fails.
     count=-1 replaces all occurrences; count=1 replaces only the first.
@@ -58,9 +66,26 @@ async def replace_in_file(
             actual_old = matched
             fuzzy_note = " (fuzzy match: whitespace differences were normalized)"
 
+    # Last resort: old_text copied verbatim out of Read's numbered output.
+    if actual_old is None:
+        stripped_old = _strip_read_line_numbers(old_text)
+        if stripped_old is not None:
+            actual_old = (
+                stripped_old
+                if stripped_old in content
+                else _find_fuzzy_match(content, stripped_old)
+            )
+            if actual_old is not None:
+                old_text = stripped_old
+                new_text = _strip_read_line_numbers(new_text) or new_text
+                fuzzy_note = " (stripped Read's line-number prefix from old_text)"
+
     if actual_old is None:
         lines = content.splitlines()
-        old_lines = old_text.splitlines()
+        # Compare on the un-prefixed text: with the prefix still attached, the
+        # first line matches nothing and this whole hint goes silent exactly
+        # when it is most useful.
+        old_lines = (_strip_read_line_numbers(old_text) or old_text).splitlines()
         if old_lines:
             first_line = old_lines[0]
             near_matches = [
@@ -75,12 +100,14 @@ async def replace_in_file(
                     f"Similar lines found:\n{preview}\n"
                     f"[SYSTEM SUGGESTION]: old_text must match the file exactly. "
                     f"Check for trailing spaces or indentation differences. "
-                    f"Use Read to copy old_text verbatim from the file content."
+                    f"The lines above are shown as the file holds them — copy "
+                    f"from those, without Read's line-number prefix."
                 )
         return (
             f"Error: '{_trunc(old_text, 80)}' not found in {path}.\n"
-            f"[SYSTEM SUGGESTION]: Use Read to get the exact file content, then copy "
-            f"old_text verbatim from it. Do not retry with guessed text."
+            f"[SYSTEM SUGGESTION]: Re-Read the region and copy old_text from it, "
+            f"dropping the line-number prefix through the first tab. Do not "
+            f"retry with guessed text."
         )
 
     match_count = content.count(actual_old)
@@ -175,6 +202,25 @@ def _match_indentation_flexible(content: str, old_text: str) -> str | None:
         if [line[shift:] for line in block_clean] == old_dedented:
             return "".join(block)
     return None
+
+
+def _strip_read_line_numbers(text: str) -> str | None:
+    """Undo ``Read``'s ``cat -n`` prefix when it was copied into an edit argument.
+
+    ``Read`` numbers every line, so text copied straight out of its output
+    cannot match the file. That is the likeliest reason an otherwise-verbatim
+    ``old_text`` fails, and it is invisible in the model's own transcript: the
+    prefix looks like the leading whitespace of the line it precedes.
+
+    Returns ``None`` unless *every* line carries the prefix, so a partial copy
+    is never silently mangled. Callers reach this only after an exact and a
+    fuzzy match have both failed, so a file that genuinely contains ``cat -n``
+    text — a fixture, a pasted diff — still edits through the exact path.
+    """
+    lines = text.splitlines(keepends=True)
+    if not lines or not all(_READ_LINE_NUMBER.match(line) for line in lines):
+        return None
+    return "".join(_READ_LINE_NUMBER.sub("", line, count=1) for line in lines)
 
 
 def _find_fuzzy_match(content: str, old_text: str) -> str | None:

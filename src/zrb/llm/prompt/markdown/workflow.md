@@ -33,7 +33,7 @@ A grep does **not** satisfy this; only a full `Read` does. It applies even when 
 
 Skills carry domain expertise the persona deliberately omits. **Before starting work, silently activate every skill the turn's work will need** with `ActivateSkill`, then continue in the same turn.
 
-Activation returns the skill's full content, which **stays in history for the rest of the session — so activate each skill once.** Already active if its `<ACTIVATED_SKILL>` block appears earlier, or if it is listed under *Active Skills (Fully Loaded)*.
+Activation returns the skill's full content, which stays in history — **so activate each skill once, unless summarization dropped it.** Already active if its `<ACTIVATED_SKILL>` block appears earlier, or if it is listed under *Active Skills (Fully Loaded)*.
 
 An activated skill's instructions are authoritative for that task: they supersede the Working Loop below, but **never** the safety rules or the Verify gate, and they yield to explicit user instructions and to `AGENTS.md` / `CLAUDE.md`.
 
