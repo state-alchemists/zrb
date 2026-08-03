@@ -85,7 +85,10 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
         group_name="File Operations",
         tool_name="LS",
         when_to_use="Exploring a directory without a known filename pattern",
-        key_rule="For pattern-based discovery (e.g. `**/*.py`), use Glob. For content search, use Grep.",
+        key_rule=(
+            "For pattern-based discovery (e.g. `**/*.py`), use Glob. "
+            "For content search, use Grep."
+        ),
     ),
     ToolGuidance(
         group_name="File Operations",
@@ -96,7 +99,11 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
     ToolGuidance(
         group_name="File Operations",
         tool_name="Read",
-        key_rule="Grep to locate the relevant section first; then Read to load it.",
+        key_rule=(
+            "Grep to locate the relevant section first; then Read to load it. "
+            "Read prefixes every line `<n>→`: cite that number, and strip the "
+            "prefix before passing text to Edit."
+        ),
     ),
     ToolGuidance(
         group_name="File Operations",
@@ -106,7 +113,10 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
     ToolGuidance(
         group_name="File Operations",
         tool_name="Edit",
-        key_rule="Before editing a public symbol, Grep or LspFindReferences for call sites and update them in the same turn.",
+        key_rule=(
+            "Before editing a public symbol, Grep or LspFindReferences for call "
+            "sites and update them in the same turn."
+        ),
     ),
     ToolGuidance(
         group_name="File Operations",
@@ -117,22 +127,36 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
         group_name="File Operations",
         tool_name="RM",
         when_to_use="Use instead of Bash rm",
-        key_rule="Before removing, Grep for imports or references and update them in the same turn.",
+        key_rule=(
+            "Before removing, Grep for imports or references and update them in "
+            "the same turn."
+        ),
     ),
     ToolGuidance(
         group_name="File Operations",
         tool_name="MV",
         when_to_use="Use instead of Bash mv",
-        key_rule="Before moving, Grep for imports or references that name the old path and update them.",
+        key_rule=(
+            "Before moving, Grep for imports or references that name the old path "
+            "and update them."
+        ),
     ),
     # Execution
     ToolGuidance(
         group_name="Execution",
         tool_name="Shell",
-        when_to_use="Running any shell command (may be exposed as `Shell` or `Bash` — same tool)",
-        key_rule="For file I/O, use Read/Write/Edit/Grep/RM/MV — not Shell. "
-        "OS, CWD, and available tools are in System Context; the current time is in the latest <live-context> — read them there instead of shelling out to discover them. "
-        "For long-running processes (dev servers, watchers, builds), run with background=True instead of blocking.",
+        when_to_use=(
+            "Running any shell command (may be exposed as `Shell` or `Bash` — "
+            "same tool)"
+        ),
+        key_rule=(
+            "For file I/O, use Read/Write/Edit/Grep/RM/MV — not Shell. "
+            "OS, CWD, and available tools are in System Context; the current time "
+            "is in the latest <live-context> — read them there instead of "
+            "shelling out to discover them. "
+            "For long-running processes (dev servers, watchers, builds), run with "
+            "background=True instead of blocking."
+        ),
     ),
     ToolGuidance(
         group_name="Execution",
@@ -169,10 +193,16 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
     ToolGuidance(
         group_name="User Interaction",
         tool_name="AskUserQuestion",
-        when_to_use="The choice is non-obvious AND the wrong pick would waste significant work — "
-        "ambiguous library/strategy/file selection, or scope splits the user hasn't called.",
-        key_rule="Do not ask for permission to do obvious things. Skip in non-interactive mode "
-        "(the latest <live-context> flags `Interactive: no`) — the tool short-circuits there anyway.",
+        when_to_use=(
+            "The choice is non-obvious AND the wrong pick would waste significant "
+            "work — ambiguous library/strategy/file selection, or scope splits "
+            "the user hasn't called."
+        ),
+        key_rule=(
+            "Do not ask for permission to do obvious things. Skip in "
+            "non-interactive mode (the latest <live-context> flags "
+            "`Interactive: no`) — the tool short-circuits there anyway."
+        ),
     ),
     # Planning
     ToolGuidance(
@@ -199,7 +229,10 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
         tool_name="EnterWorktree",
         when_to_use="Isolated branch for risky experiments, parallel "
         "approaches, or staging changes before merging",
-        key_rule="ListWorktrees first. Pass the returned path as the `cwd` argument to Shell/Bash.",
+        key_rule=(
+            "ListWorktrees first. Pass the returned path as the `cwd` argument "
+            "to Shell/Bash."
+        ),
     ),
     # Plan Mode
     ToolGuidance(
@@ -240,7 +273,10 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
     ToolGuidance(
         group_name="LSP",
         tool_name="LspRenameSymbol",
-        key_rule="Apply (`dry_run=False`) only after user approval; preview first (the default).",
+        key_rule=(
+            "Apply (`dry_run=False`) only after user approval; preview first "
+            "(the default)."
+        ),
     ),
 ]
 
@@ -255,18 +291,27 @@ _DYNAMIC_TOOL_GUIDANCE_FACTORIES: "list[Callable[[AnyContext], ToolGuidance]]" =
     lambda ctx: ToolGuidance(
         group_name=f"{CFG.ROOT_GROUP_NAME.capitalize()} Tasks",
         tool_name=f"List{CFG.ROOT_GROUP_NAME.capitalize()}Tasks",
-        when_to_use=f"Before running a {CFG.ROOT_GROUP_NAME} task — confirm the task name exists",
+        when_to_use=(
+            f"Before running a {CFG.ROOT_GROUP_NAME} task — confirm the task "
+            "name exists"
+        ),
     ),
     lambda ctx: ToolGuidance(
         group_name=f"{CFG.ROOT_GROUP_NAME.capitalize()} Tasks",
         tool_name=f"Run{CFG.ROOT_GROUP_NAME.capitalize()}Task",
         when_to_use=f"Executing a registered {CFG.ROOT_GROUP_NAME} task",
-        key_rule=f"Task names are case-sensitive. Verify with List{CFG.ROOT_GROUP_NAME.capitalize()}Tasks first.",
+        key_rule=(
+            "Task names are case-sensitive. Verify with "
+            f"List{CFG.ROOT_GROUP_NAME.capitalize()}Tasks first."
+        ),
     ),
     lambda ctx: ToolGuidance(
         group_name="Delegation",
         tool_name="ActivateSkill",
-        when_to_use="Loading domain-specific protocols for specialized work (see Skill Activation table)",
+        when_to_use=(
+            "Loading domain-specific protocols for specialized work "
+            "(see Skill Activation table)"
+        ),
         key_rule="Re-activate after summarization if skill context was lost.",
     ),
     lambda ctx: ToolGuidance(
@@ -464,12 +509,9 @@ def apply_common_tools(host: CommonToolHost) -> None:
     host.add_tool_factory(
         lambda ctx: tag(create_list_zrb_task_tool(), Capability.READ),
         lambda ctx: tag(create_run_zrb_task_tool(), Capability.EXECUTE),
-        # Deferred loading: activated rarely (once per skill, not every
-        # turn) and only after monitoring a background process — see the
-        # rationale on analyze_code/analyze_file above.
-        lambda ctx: Tool(
-            tag(create_activate_skill_tool(), Capability.META), defer_loading=True
-        ),
+        lambda ctx: tag(create_activate_skill_tool(), Capability.META),
+        # Deferred loading: only needed after monitoring a background process —
+        # see the rationale on analyze_code/analyze_file above.
         lambda ctx: Tool(
             tag(create_monitor_process_tool(), Capability.EXECUTE),
             defer_loading=True,

@@ -353,9 +353,24 @@ def test_read_file_truncation_keeps_head(tmp_path):
 
     result = read_file(str(file_path))
     body = result.split("---CONTENT---\n", 1)[1]
-    assert body.startswith("0000-")
+    assert body.startswith("     1→0000-")
     assert "2999-" not in body
     assert body.rstrip().endswith("...[TRUNCATED]")
+
+
+def test_read_file_prefixes_each_line_with_its_number(tmp_path):
+    # Citations are read off the prefix, never counted — a ranged read must
+    # number from start_line, not from 1.
+    file_path = tmp_path / "test.txt"
+    file_path.write_text("\n".join(f"line{i}" for i in range(1, 11)))
+
+    body = read_file(str(file_path)).split("---CONTENT---\n", 1)[1]
+    assert body.startswith("     1→line1\n")
+    assert "    10→line10" in body
+
+    ranged = read_file(str(file_path), start_line=3, end_line=5)
+    ranged_body = ranged.split("---CONTENT---\n", 1)[1]
+    assert ranged_body == "     3→line3\n     4→line4\n     5→line5\n"
 
 
 def test_read_file_non_utf8(tmp_path):

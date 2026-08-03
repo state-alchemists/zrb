@@ -18,7 +18,7 @@ class LLMUICommandsMixin:
         self.DEFAULT_LLM_UI_COMMAND_EXIT: str = "/q, :q, /bye, /quit, /exit"
         self.DEFAULT_LLM_UI_COMMAND_INFO: str = "/info, /help"
         self.DEFAULT_LLM_UI_COMMAND_SAVE: str = "/save"
-        self.DEFAULT_LLM_UI_COMMAND_LOAD: str = "/load"
+        self.DEFAULT_LLM_UI_COMMAND_LOAD: str = "/load, /resume"
         self.DEFAULT_LLM_UI_COMMAND_REWIND: str = "/rewind"
         self.DEFAULT_LLM_UI_COMMAND_YOLO_TOGGLE: str = "/yolo"
         self.DEFAULT_LLM_UI_COMMAND_REDIRECT_OUTPUT: str = ">, /redirect"
@@ -27,7 +27,7 @@ class LLMUICommandsMixin:
         self.DEFAULT_LLM_UI_COMMAND_BTW: str = "/btw"
         self.DEFAULT_LLM_UI_COMMAND_PLAN_TOGGLE: str = "/plan"
         self.DEFAULT_LLM_UI_COMMAND_COPY: str = "/copy"
-        self.DEFAULT_LLM_UI_COMMAND_VOICE: str = "/voice"
+        self.DEFAULT_LLM_UI_COMMAND_VOICE: str = "/voice, /v"
         super().__init__()
 
     LLM_UI_COMMAND_SUMMARIZE = EnvField(
