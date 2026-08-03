@@ -1,6 +1,6 @@
 ---
 name: core-coding
-description: "Activate when the deliverable is a change to source, test, or config files — including the analysis done in service of that change. Provides the Research → Strategy → Execution workflow, the complexity budget, and deep-dive companions (testing, debug, observability, refactor, review)."
+description: "Activate when the turn changes source, test, or config files. Provides the Research → Strategy → Execution workflow, the complexity budget, and deep-dive companions (testing, debug, observability, refactor, review)."
 user-invocable: false
 ---
 # Skill: core-coding

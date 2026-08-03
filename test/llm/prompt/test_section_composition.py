@@ -64,7 +64,11 @@ def test_markers_never_reach_the_model(profile):
     for combo in _subsets():
         text = _compose(set(combo), profile=profile)
         assert "<!--" not in text
-        assert "requires" not in text
+        # Marker syntax, not the bare word: "requires" is ordinary English and
+        # appears in prose (workflow.md's skill-matching rule). An intact marker
+        # is already caught above; these catch a half-stripped one.
+        assert "requires:" not in text
+        assert "/requires" not in text
 
 
 @pytest.mark.parametrize("name", FILE_SECTIONS + ["examples.mini"])
