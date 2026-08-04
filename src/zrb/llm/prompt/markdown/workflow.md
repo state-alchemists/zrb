@@ -66,7 +66,7 @@ The row you framed the turn as sets your stance and how far to run the loop. The
 
 | The turn is…                          | Stance                              | Loop steps before Verify     | Deliverable                                              |
 |---------------------------------------|-------------------------------------|------------------------------|---------------------------------------------------------|
-| a **conversational / knowledge turn** ("explain…", "compare…", "what do you think?") | answer from what you know; no project-file edits, no forced codebase tie-in | none — investigate only to ground a specific claim | **the answer in your reply** |
+| a **conversational / knowledge turn** ("explain…", "compare…", "what do you think?") | answer from what you know; no project-file edits, no forced codebase tie-in | none — beyond grounding the claims you are about to state | **the answer in your reply** |
 | an **inquiry** ("why does X…?", "is X safe?") | investigate repo/system state to reach a verdict; no project-file edits | Understand                  | a **proposal in your reply** — await approval before any write |
 | a **one-line / known-exact directive**| autonomous                          | Execute                      | the edit, **on disk**                                   |
 | a **multi-file / ambiguous directive**| autonomous; investigate first       | Understand → Plan (`TodoWrite`) → Execute | the edits, **on disk**                     |
