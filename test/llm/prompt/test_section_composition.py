@@ -39,7 +39,9 @@ OWNED_VOCABULARY = {
         "Verify Before Done",
         "ActivateSkill",
         "Turn Sequence",
-        "Cost of guessing wrong",
+        "When you don't know",
+        "Where the deliverable goes",
+        "Routing work outward",
     ],
     "mandate": ["Priority Order", "Operating Rules"],
     "persona": ["Response Calibration"],
@@ -73,6 +75,29 @@ def test_no_subset_references_an_absent_section(profile):
                 (sorted(present), word) for word in vocabulary if word in text
             ]
     assert offenders == []
+
+
+def test_every_owned_term_still_exists_in_its_owner():
+    """A guard for a term nobody says any more guards nothing.
+
+    ``test_no_subset_references_an_absent_section`` asserts a *negative*, so a
+    term that has been renamed out of its owner keeps passing while protecting
+    the live heading not at all. Both `Cost of guessing wrong` and
+    `ActivateSkill` sat here for a release after the text stopped containing
+    them. Renaming a heading must now break this test, which is the moment to
+    update the map.
+
+    ``project_context`` is skipped: it is assembled in Python, not a file
+    ``get_prompt`` can resolve.
+    """
+    missing = [
+        (owner, word)
+        for owner, vocabulary in OWNED_VOCABULARY.items()
+        if owner in FILE_SECTIONS
+        for word in vocabulary
+        if word not in get_prompt(owner)
+    ]
+    assert missing == []
 
 
 @pytest.mark.parametrize("profile", [None, "mini"])

@@ -69,7 +69,12 @@ The base `*.md` files **are** the `terse` profile. Other profiles are **variant 
 > unconditionally. `test_section_composition.py` enforces this: it brute-forces
 > all 63 subsets against an `OWNED_VOCABULARY` map, and a separate test
 > composes `tool_guidance` alone. **Adding a section-defining term means adding
-> it to `OWNED_VOCABULARY`** — the test only catches vocabulary it knows about.
+> it to `OWNED_VOCABULARY`; renaming one means renaming it there too** — the
+> subset walk asserts a negative, so a term the prompt no longer contains keeps
+> passing while guarding nothing (`Cost of guessing wrong` and `ActivateSkill`
+> both sat in the map for a release after the text dropped them).
+> `test_every_owned_term_still_exists_in_its_owner` now fails on that, and the
+> test only catches vocabulary it knows about either way.
 
 **Each section is MECE — a single behavior lives in exactly one section.** Adding a rule: pick the smallest-scope section that owns the concept.
 
@@ -83,8 +88,8 @@ keep them in sync. Consistent duplication is the cost of independent toggling;
 shipped two different trigger lists for one decision).
 
 - `persona` — identity + response style
-- `mandate` — the Priority Order and nothing else: one eight-rank ladder, precedence not sequence, plus the auto-summarization note. No tool/git specifics.
-- `workflow` — how a turn runs: the Turn Sequence (premise → first look → frame → skills → project docs → journal), project-doc reading, skill activation, the Working Loop, the Verify Before Done gate, Recovery, Stop. Owns the `Cost of guessing wrong` ask-versus-assume test and the deliverable-destination rule. Carries the skill catalogue via `{CORE_SKILLS}`/`{AVAILABLE_SKILLS}`/`{PREACTIVATED_SKILLS}` placeholders (`build_skill_replacements` in `prompt/claude.py`); core skills (`llm_plugin/core_skills/`) are listed separately from other model-invocable skills
+- `mandate` — the Priority Order and nothing else: one six-rank ladder, precedence not sequence, plus the auto-summarization note. No tool/git specifics.
+- `workflow` — how a turn runs: the Turn Sequence (premise → first look → frame → skills → project docs → journal), project-doc reading, skill activation, the Working Loop, the Verify Before Done gate, Recovery, Stop. Owns the `When you don't know` ladder — one ask-versus-assume test for every kind of not-knowing — and the `Where the deliverable goes` destination rule. Carries the skill catalogue via `{CORE_SKILLS}`/`{AVAILABLE_SKILLS}`/`{PREACTIVATED_SKILLS}` placeholders (`build_skill_replacements` in `prompt/claude.py`); core skills (`llm_plugin/core_skills/`) are listed separately from other model-invocable skills
 - `git_mandate` — git approval rules
 - `journal_mandate` — memory protocol: what to record, the everyday write shapes (one activity line, one insight note), and when to escalate to the `core-journaling` skill for structural work
 - `system_context` — *stable* runtime facts only (OS, CWD, model, detected tools/markers) plus the `<live-context>` anchor, so the cached prefix stays byte-identical across turns

@@ -4,7 +4,10 @@ Your memory across sessions, at `{CFG_LLM_JOURNAL_DIR}`.
 
 ## Read
 
-The root index (`{CFG_LLM_JOURNAL_INDEX_FILE}`) is your **HUD** — who the user is, how they want to be worked with, what is currently binding. It is injected into this conversation when it exists, so read it there rather than opening the file. No `<journal-index>` in context means the journal is empty or not yet created, not that the file is hiding.
+The root index (`{CFG_LLM_JOURNAL_INDEX_FILE}`) is your **HUD** — who the user is, how they want to be worked with, what is currently binding. It is injected into this conversation as `<journal-index>`, so read it there rather than opening the file. Two cases where the file holds more than the block does, and only these:
+
+- The block ends in `(...more)` — the tail was cut to fit. `Read` the index for the rest before relying on what it says.
+- No `<journal-index>` appears at all — usually an empty or not-yet-created journal, but the injection can also be switched off. `SearchJournal` before concluding the journal is empty.
 
 `SearchJournal` when the request touches work you have done before, and cite what you find inline.
 

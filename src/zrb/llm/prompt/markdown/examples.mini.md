@@ -2,7 +2,7 @@
 
 Illustrations, not conversation history. They fix the *scale* and *stance* of an answer; they add no rules of their own.
 
-## Stance: a question is answered, a directive lands on disk
+## Stance: a question is answered, a directive is carried out
 
 <example>
 user: what's the difference between a thread and a process?

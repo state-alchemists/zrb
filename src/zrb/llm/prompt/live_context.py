@@ -175,7 +175,9 @@ def render_journal_index() -> str | None:
     two — and only two — moments it can otherwise be absent: the first turn
     (``render_live_context(inject_journal_index=True)``) and each summarization
     (baked into the summary by ``summarize_history``). Returns ``None`` when the
-    index is missing or empty.
+    index is missing or empty, and when ``LLM_JOURNAL_INDEX_MAX_CHARS`` is 0 —
+    Journal Protocol tells the model that a missing block is not proof of an
+    empty journal precisely because of that last case.
     """
     journal_dir = CFG.LLM_JOURNAL_DIR
     index_name = CFG.LLM_JOURNAL_INDEX_FILE
@@ -198,6 +200,7 @@ def render_journal_index() -> str | None:
     limit = CFG.LLM_JOURNAL_INDEX_MAX_CHARS
     if limit == 0:
         return None
+    hint = ""
     if limit > 0 and len(content) > limit:
         # Cut on a line boundary. A raw slice lands mid-word, so the last
         # surviving entry arrives as a fragment the model has to guess at —
@@ -207,9 +210,14 @@ def render_journal_index() -> str | None:
         head = content[:limit]
         cut = head.rfind("\n")
         content = (head[:cut] if cut > 0 else head) + "\n (...more)"
+        # Say where the rest is. Journal Protocol tells the model to read the
+        # HUD here rather than opening the file, so without this line a cut
+        # tail is simply invisible — the block reads as the whole index.
+        hint = f"Truncated at `(...more)`; Read {index_file} for the rest. "
     return (
         f"<journal-index>\n"
         f"Your persistent memory (index file: {index_name}). "
+        f"{hint}"
         f"Use SearchJournal for full entries.\n"
         f"{content}\n"
         f"</journal-index>"
