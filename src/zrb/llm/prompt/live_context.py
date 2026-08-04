@@ -179,6 +179,11 @@ def render_journal_index() -> str | None:
     Journal Protocol tells the model that a missing block is not proof of an
     empty journal precisely because of that last case.
     """
+    # Callers already gate on "journal_mandate" in active_sections, which
+    # LLM_JOURNAL_ENABLED clears — but summarize_history reaches this directly,
+    # so the switch is honoured here too rather than trusting every call path.
+    if not CFG.LLM_JOURNAL_ENABLED:
+        return None
     journal_dir = CFG.LLM_JOURNAL_DIR
     index_name = CFG.LLM_JOURNAL_INDEX_FILE
     index_file = os.path.abspath(

@@ -23,6 +23,7 @@ class LLMContentMixin:
         self.DEFAULT_LLM_HISTORY_BACKUP_RETAIN: str = "3"
         self.DEFAULT_LLM_ENABLE_REWIND: str = "off"
         self.DEFAULT_LLM_SNAPSHOT_DIR: str = ""
+        self.DEFAULT_LLM_JOURNAL_ENABLED: str = "on"
         self.DEFAULT_LLM_JOURNAL_DIR: str = ""
         self.DEFAULT_LLM_JOURNAL_INDEX_FILE: str = "index.md"
         self.DEFAULT_LLM_JOURNAL_INDEX_MAX_CHARS: str = "2500"
@@ -58,6 +59,21 @@ class LLMContentMixin:
             )
         ),
         doc="Directory for LLM conversation snapshots.",
+    )
+
+    LLM_JOURNAL_ENABLED = EnvField(
+        to_boolean,
+        serialize=on_off,
+        default_factory=lambda cfg: cfg.DEFAULT_LLM_JOURNAL_ENABLED,
+        doc=(
+            "Master switch for the cross-session journal. Off suppresses all "
+            "four of its surfaces together: the Journal Protocol prompt "
+            "section, the <journal-index> injection, the SearchJournal tool, "
+            "and the built-in core-journaling skill. Off means the model is "
+            "never told a journal exists, so it neither reads nor writes one — "
+            "LLM_JOURNAL_DIR has no 'unset' value that achieves this (it falls "
+            "back to ~/<root>/llm-notes), which is why this knob exists."
+        ),
     )
 
     LLM_JOURNAL_DIR = EnvField(

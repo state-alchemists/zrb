@@ -939,6 +939,57 @@ def test_builtin_core_skills_always_searched(tmp_path):
     assert not any(d.endswith("llm_plugin/skills") for d in dirs)
 
 
+def test_core_journaling_dropped_when_journal_disabled(tmp_path):
+    """`LLM_JOURNAL_ENABLED=false` removes the built-in journaling skill.
+
+    `core_skills/` has no blanket toggle, so the switch drops one skill rather
+    than the directory — otherwise the catalogue would still invite the model to
+    build a journal tree, the surface the switch exists to remove. Its siblings
+    must survive.
+    """
+    manager = SkillManager(root_dir=str(tmp_path))
+    with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
+        _builtin_mock_cfg(mock_cfg, enable_builtin_skills=False)
+        mock_cfg.LLM_JOURNAL_ENABLED = False
+        names = {s.name for s in manager.scan()}
+    assert "core-journaling" not in names
+    assert "core-coding" in names, "unrelated core skills must be unaffected"
+
+
+def test_core_journaling_present_when_journal_enabled(tmp_path):
+    """The switch defaults on, so the skill ships normally."""
+    manager = SkillManager(root_dir=str(tmp_path))
+    with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
+        _builtin_mock_cfg(mock_cfg, enable_builtin_skills=False)
+        mock_cfg.LLM_JOURNAL_ENABLED = True
+        names = {s.name for s in manager.scan()}
+    assert "core-journaling" in names
+
+
+def test_user_core_journaling_survives_journal_disabled(tmp_path):
+    """A user-supplied skill of the same name is not built-in, so it stays.
+
+    ADR-0069: a toggle suppresses built-in content, never the user's.
+    """
+    user_dir = tmp_path / "skills" / "core-journaling"
+    user_dir.mkdir(parents=True)
+    (user_dir / "SKILL.md").write_text(
+        "---\nname: core-journaling\ndescription: mine\n---\n# Mine\n",
+        encoding="utf-8",
+    )
+    manager = SkillManager(root_dir=str(tmp_path))
+    with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
+        _builtin_mock_cfg(
+            mock_cfg,
+            enable_builtin_skills=False,
+            extra_skill_dirs=[str(tmp_path / "skills")],
+        )
+        mock_cfg.LLM_JOURNAL_ENABLED = False
+        skills = {s.name: s for s in manager.scan()}
+    assert "core-journaling" in skills
+    assert skills["core-journaling"].description == "mine"
+
+
 def test_builtin_utility_skills_searched_when_enabled(tmp_path):
     manager = SkillManager(root_dir=str(tmp_path))
     with patch("zrb.llm.skill.manager.CFG") as mock_cfg:

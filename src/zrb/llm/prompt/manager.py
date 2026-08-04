@@ -140,10 +140,22 @@ class PromptManager:
         Single source of truth for *which* sections are active — used both by
         prompt composition and by callers that must couple volatile content to a
         section's presence (e.g. the journal index, owned by ``journal_mandate``;
-        see ``create_live_context`` and ADR-0082)."""
-        if self._include_sections is not None:
-            return list(self._include_sections)
-        return list(CFG.LLM_INCLUDE_SECTIONS)
+        see ``create_live_context`` and ADR-0082).
+
+        ``LLM_JOURNAL_ENABLED=false`` drops ``journal_mandate`` here rather than
+        at each consumer, which is what makes one knob reach all of them: the
+        section stops composing, ``_emitted_sections`` no longer lists it so
+        ``<!--requires:journal_mandate-->`` blocks in sibling sections strip
+        themselves, and every ``"journal_mandate" in active_sections`` guard
+        (index injection, both summarization paths) goes false at once."""
+        sections = (
+            list(self._include_sections)
+            if self._include_sections is not None
+            else list(CFG.LLM_INCLUDE_SECTIONS)
+        )
+        if not CFG.LLM_JOURNAL_ENABLED:
+            sections = [s for s in sections if s != "journal_mandate"]
+        return sections
 
     @property
     def tool_names(self):

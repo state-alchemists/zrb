@@ -445,7 +445,6 @@ def apply_common_tools(host: CommonToolHost) -> None:
         search_files,
         remove_file,
         move_file,
-        search_journal,
         search_internet,
         open_web_page,
         # Deferred loading: these are rarely needed (specific workflows or
@@ -480,6 +479,10 @@ def apply_common_tools(host: CommonToolHost) -> None:
             else []
         ),
         lambda ctx: [ask_user_question] if _resolve_interactive(ctx) else [],
+        # Registered only when journaling is on. With LLM_JOURNAL_ENABLED off the
+        # Journal Protocol section is gone too, so a live SearchJournal would be
+        # a tool the prompt never mentions and no guidance describes.
+        lambda ctx: [search_journal] if CFG.LLM_JOURNAL_ENABLED else [],
     )
     host.add_tool_factory(
         lambda ctx: tag(create_list_zrb_task_tool(), Capability.READ),

@@ -774,6 +774,48 @@ def test_active_sections_falls_back_to_cfg_default():
     assert manager.active_sections == list(CFG.LLM_INCLUDE_SECTIONS)
 
 
+def test_journal_disabled_drops_journal_mandate_from_active_sections():
+    """`LLM_JOURNAL_ENABLED=false` removes the section, however it was configured.
+
+    Filtering here rather than at each consumer is what lets one knob reach all
+    of them — the index injection and both summarization paths gate on
+    ``"journal_mandate" in active_sections``.
+    """
+    explicit = PromptManager(include_sections=["persona", "journal_mandate"])
+    default = PromptManager()  # falls back to the CFG list, which includes it
+    with patch("zrb.llm.prompt.manager.CFG") as cfg:
+        cfg.LLM_JOURNAL_ENABLED = False
+        cfg.LLM_INCLUDE_SECTIONS = ["persona", "journal_mandate"]
+        assert explicit.active_sections == ["persona"]
+        assert default.active_sections == ["persona"]
+
+
+def test_journal_enabled_keeps_journal_mandate():
+    """The switch defaults on, so the section survives an unrelated config."""
+    manager = PromptManager(include_sections=["persona", "journal_mandate"])
+    with patch("zrb.llm.prompt.manager.CFG") as cfg:
+        cfg.LLM_JOURNAL_ENABLED = True
+        assert manager.active_sections == ["persona", "journal_mandate"]
+
+
+def test_journal_disabled_strips_requires_blocks_in_sibling_sections(monkeypatch):
+    """A sibling's `<!--requires:journal_mandate-->` block goes with it.
+
+    The switch must not leave `workflow`'s journal step or `mandate`'s memory
+    line pointing at a section that no longer ships. Driven through the env var
+    so every other CFG read stays real — the placeholder substitution in
+    `get_prompt` needs genuine values.
+    """
+    manager = PromptManager(
+        include_sections=["mandate", "workflow", "journal_mandate"]
+    )
+    monkeypatch.setenv("ZRB_LLM_JOURNAL_ENABLED", "false")
+    prompt = manager.compose_prompt()(SharedContext())
+    assert "Journal Protocol" not in prompt
+    assert "Search the journal" not in prompt
+    assert "<!--" not in prompt
+
+
 def test_tool_guidance_sections_property_round_trips():
     """`tool_guidance_sections` round-trips and normalizes falsy input to []."""
     manager = PromptManager()

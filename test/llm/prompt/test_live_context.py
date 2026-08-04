@@ -92,6 +92,20 @@ def test_zero_suppresses_the_injection(tmp_path):
         assert render_journal_index() is None
 
 
+def test_journal_disabled_suppresses_the_injection(tmp_path, monkeypatch):
+    """`LLM_JOURNAL_ENABLED=false` wins over a present, non-empty index.
+
+    Callers gate on ``"journal_mandate" in active_sections``, which the switch
+    clears — but ``summarize_history`` reaches this directly, so the switch is
+    honoured here rather than trusting every call path.
+    """
+    journal_dir = _write_index(tmp_path, "# Journal\n\n- Name: Go\n")
+    monkeypatch.setenv("ZRB_LLM_JOURNAL_DIR", journal_dir)
+    monkeypatch.setenv("ZRB_LLM_JOURNAL_ENABLED", "false")
+
+    assert render_journal_index() is None
+
+
 def test_negative_injects_the_whole_index_uncapped(tmp_path):
     filler = "\n".join(f"- [insight {i}](technical/n{i}.md)" for i in range(200))
     journal_dir = _write_index(tmp_path, f"# Journal\n\n{filler}\n")

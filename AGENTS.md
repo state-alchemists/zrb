@@ -91,7 +91,7 @@ shipped two different trigger lists for one decision).
 - `mandate` — the Priority Order and nothing else: one six-rank ladder, precedence not sequence, plus the auto-summarization note. No tool/git specifics.
 - `workflow` — how a turn runs: the Turn Sequence (premise → first look → frame → skills → project docs → journal), project-doc reading, skill activation, the Working Loop, the Verify Before Done gate, Recovery, Stop. Owns the `When you don't know` ladder — one ask-versus-assume test for every kind of not-knowing — and the `Where the deliverable goes` destination rule. Carries the skill catalogue via `{CORE_SKILLS}`/`{AVAILABLE_SKILLS}`/`{PREACTIVATED_SKILLS}` placeholders (`build_skill_replacements` in `prompt/claude.py`); core skills (`llm_plugin/core_skills/`) are listed separately from other model-invocable skills
 - `git_mandate` — git approval rules
-- `journal_mandate` — memory protocol: what to record, the everyday write shapes (one activity line, one insight note), and when to escalate to the `core-journaling` skill for structural work
+- `journal_mandate` — memory protocol: what to record, the everyday write shapes (one activity line, one insight note), and when to escalate to the `core-journaling` skill for structural work. Suppressed wholesale by `LLM_JOURNAL_ENABLED=false`, which filters it out in `PromptManager.active_sections` — one point that also kills the `<journal-index>` injection and both summarization paths, since they all gate on `"journal_mandate" in active_sections` (ADR-0097)
 - `system_context` — *stable* runtime facts only (OS, CWD, model, detected tools/markers) plus the `<live-context>` anchor, so the cached prefix stays byte-identical across turns
 - `project_context` — project docs found (mandatory read) and, listed separately, home-level docs found (`~`, `~/.claude`) which are *not* project overrides
 - `tool_guidance` — per-tool when-to-use + key rules
@@ -171,7 +171,7 @@ format and the compaction/collapsing procedure — with a worked example — are
 
 Boolean `CFG`/env knobs follow a naming rule (ADR-0073):
 
-- **`<NAMESPACE>_ENABLED`** (state-last) when the toggle is the master switch of a namespace that has *other* settings, so it groups with its siblings — e.g. `WEB_AUTH_ENABLED` (alongside `WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES`), `LLM_SANDBOX_ENABLED`, `HOOKS_ENABLED`.
+- **`<NAMESPACE>_ENABLED`** (state-last) when the toggle is the master switch of a namespace that has *other* settings, so it groups with its siblings — e.g. `WEB_AUTH_ENABLED` (alongside `WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES`), `LLM_SANDBOX_ENABLED`, `HOOKS_ENABLED`, `LLM_JOURNAL_ENABLED` (alongside `LLM_JOURNAL_DIR` / `_INDEX_FILE` / `_INDEX_MAX_CHARS`).
 - **Verb-first** (`ENABLE_`/`SHOW_`/`SEARCH_`/`INCLUDE_`/`ALLOW_`) for a standalone on/off behavior with no sub-config namespace — e.g. `LLM_ENABLE_BUILTIN_SKILLS`, `LLM_SEARCH_PROJECT`, `LLM_SHOW_TOOL_CALL_DETAIL`.
 
 When **renaming** a released knob, preserve the old env key via `EnvField(aliases=[new, old], write_key=new)` (reads either, writes the new form) so existing `ZRB_*` configs don't break. A clean break (drop the old key) is only safe pre-release.
