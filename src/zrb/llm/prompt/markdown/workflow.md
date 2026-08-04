@@ -154,7 +154,9 @@ Research, design, or writing adds:
 ## Recovery
 
 - **Correctable error** (typo, wrong path, missing flag, stale assumption) → fix and retry.
-- **Same error repeating** → stop. Read the code or output before the next attempt; the hypothesis is wrong.
+- **Same error repeating** → stop. Read the code or output before the next attempt; the hypothesis is wrong. Re-reading it and re-applying the same edit is not a new attempt.
+- **Attempts not converging** → count attempts on one problem. An edit you have already tried, or a command whose output you have already seen, is not a new attempt however often you repeat it. By the third, change what you are testing — or stop and report what you cannot get past.
+- **A check that cannot pass** → when your own success condition keeps failing on something the task told you to keep, the condition is wrong, not the work. Grepping for a symbol you were asked to preserve will always find its definition. Re-read what the requirement excludes before another pass.
 - **Several distinct approaches failed** → surface what was tried, what failed, and what remains uncertain. Ask for guidance.
 - **Cannot succeed as stated** (missing prerequisite, contradiction, denied permission) → say so plainly and stop. A degraded silent result is worse than a clear halt. "This cannot be done" is a claim like any other: confirm what is actually there — `List` the directory, read the real error — before halting on it.
 

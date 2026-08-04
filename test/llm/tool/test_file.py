@@ -783,6 +783,49 @@ def test_replace_in_file_identical_args_do_not_preempt_the_match_check(tmp_path)
     assert "are identical" not in result
 
 
+def test_replace_in_file_missing_directory_is_not_reported_as_a_missing_file(tmp_path):
+    """A missing parent means a wrong path, so Write must not be suggested.
+
+    Write creates missing parents, so following that advice turns a
+    wrong-directory guess into a new tree and leaves the edit where nothing
+    reads it.
+    """
+    result = _r(str(tmp_path / "nope" / "deeper" / "f.py"), "a", "b")
+
+    assert "wrong path" in result.lower()
+    assert "does not exist either" in result
+    assert str(tmp_path / "nope" / "deeper") in result
+    assert "Do not Write" in result
+
+
+def test_replace_in_file_missing_file_in_existing_dir_still_suggests_write(tmp_path):
+    """The original advice is right when only the file is absent."""
+    result = _r(str(tmp_path / "absent.py"), "a", "b")
+
+    assert "File not found" in result
+    assert "use Write to create the" in result
+    assert "wrong path" not in result.lower()
+
+
+def test_write_file_reports_a_directory_it_created(tmp_path):
+    """Creating a directory is a visible change, so the model is told."""
+    target = tmp_path / "brand" / "new" / "f.txt"
+
+    result = _w(str(target), "hello")
+
+    assert "Successfully wrote" in result
+    assert f"created new directory {tmp_path / 'brand' / 'new'}" in result
+    assert target.read_text() == "hello"
+
+
+def test_write_file_says_nothing_when_the_directory_existed(tmp_path):
+    """No note for the ordinary case — it would be noise on every write."""
+    result = _w(str(tmp_path / "f.txt"), "hello")
+
+    assert "Successfully wrote" in result
+    assert "created new directory" not in result
+
+
 def test_replace_in_file_already_applied_edit_says_so(tmp_path):
     """A fuzzy match onto text that already equals new_text is a landed edit.
 

@@ -39,6 +39,21 @@ async def replace_in_file(
         )
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
+        parent = os.path.dirname(abs_path)
+        if parent and not os.path.isdir(parent):
+            # A missing *directory* means the path resolved against the wrong
+            # base, not that the file is yet to be created — so the advice below
+            # is actively wrong here. Write creates missing parents, so following
+            # it turns a wrong-directory guess into a new tree and leaves the
+            # edit somewhere nothing reads.
+            return (
+                f"Error: File not found: {path} — its directory does not exist "
+                f"either ({parent}). "
+                "[SYSTEM SUGGESTION]: This is a wrong path, not a missing file. "
+                "Re-resolve it against the working directory in System Context. "
+                "Do not Write to it: that would create the directory and leave "
+                "the file where nothing reads it."
+            )
         return (
             f"Error: File not found: {path}. "
             "[SYSTEM SUGGESTION]: Check the path, or use Write to create the "
