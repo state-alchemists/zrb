@@ -441,7 +441,7 @@ class ChatExecution(ChatState):
             toolsets=resolved_toolsets,
             # No factories passed - tools/toolsets already resolved with parent context
             history_processors=self._history_processors
-            + [create_summarizer_history_processor(inject_journal_index=True)],
+            + [create_summarizer_history_processor()],
             capabilities=capabilities,
             llm_config=self._llm_config,
             llm_limiter=self._llm_limiter,

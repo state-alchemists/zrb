@@ -290,7 +290,7 @@ class MultiUI:
                     try:
                         await task
                     except asyncio.CancelledError:
-                        pass
+                        raise
                     finally:
                         self._running_llm_task = None
 

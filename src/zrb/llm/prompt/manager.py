@@ -399,10 +399,9 @@ class PromptManager:
             _extra.update(build_skill_replacements(self._skill_manager, active_skills))
 
         middlewares: list[PromptMiddleware | str] = []
-        # What the prompt will *actually* carry. Cross-reference blocks are
-        # filtered against this set so the prompt never points at an absent
-        # section.
-        emitted = self._emitted_sections(sections)
+        # Cross-reference blocks are filtered against the section set so the
+        # prompt never points at a section it did not emit.
+        emitted = set(sections)
 
         for section in sections:
             if section == "system_context":
@@ -476,17 +475,6 @@ class PromptManager:
             return next_fn(ctx, f"{current}\n" + "\n".join(parts))
 
         return file_section_middleware
-
-    def _emitted_sections(self, sections: list[str]) -> set[str]:
-        """Section names the composed prompt will actually contain.
-
-        Cross-reference blocks are resolved against this, so a reference is kept
-        exactly when its target really ships. With every section unconditional,
-        this is just the configured list — the hook stays because
-        ``include_sections`` is user-controlled and a section may become
-        conditional again.
-        """
-        return set(sections)
 
     def _warn_empty_section(self, ctx: AnyContext, name: str) -> None:
         """Surface a section name that resolved to nothing, so typos are visible."""

@@ -205,7 +205,7 @@ Recognised section names:
 
 > The skill catalogue (core skills, other available skills, and active-skill contents) is part of the `workflow` section, injected via `{CORE_SKILLS}`/`{AVAILABLE_SKILLS}`/`{PREACTIVATED_SKILLS}` placeholders — it is not a separate section.
 >
-> **Retired sections.** `mandate`, `git_mandate`, `journal_mandate`, and `tool_guidance` no longer exist (ADR-0098/0099/0100). `mandate` folded into `workflow`; `git_mandate` is enforced by the shell tool policy instead; the journal is three tools with no prose; per-tool rules live in tool docstrings. A pinned list naming any of them composes that entry to nothing and logs a warning — harmless, but worth cleaning up.
+> **Retired sections.** `mandate`, `git_mandate`, `journal_mandate`, and `tool_guidance` no longer exist (ADR-0098/0099/0100). `mandate` folded into `workflow`; `git_mandate` is enforced by the shell tool policy instead; the journal is three tools with no prose; per-tool rules live in tool docstrings. A pinned list naming any of them falls through to the custom-section path: it composes to nothing (with a warning) unless you have a markdown override of that name, in which case your override is still emitted at that position.
 
 > Volatile per-turn state (time, git status, todos, worktree, interactivity) is **not** a section — it is injected into the latest user turn as a `<live-context>` block so the cached system prompt stays byte-stable.
 

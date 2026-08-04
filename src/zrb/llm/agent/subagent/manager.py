@@ -252,9 +252,7 @@ class SubAgentManager(SubAgentManagerLoading, SubAgentManagerSearch):
             system_prompt=effective_system_prompt,
             tools=resolved_tools,
             toolsets=resolved_toolsets,
-            history_processors=[
-                create_summarizer_history_processor(inject_journal_index=True)
-            ],
+            history_processors=[create_summarizer_history_processor()],
             yolo=effective_yolo,
             resolve_model=False,
         )

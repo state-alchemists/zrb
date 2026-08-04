@@ -419,41 +419,6 @@ async def test_summarize_history_without_journal_index_is_unaffected():
 
 
 @pytest.mark.asyncio
-async def test_summarize_history_skips_journal_index_when_uncoupled():
-    """inject_journal_index=False suppresses the re-seed even when an index
-    exists — keeping the index coupled to the journal_mandate section (ADR-0082)."""
-    limiter = MockLimiter()
-    agent = MagicMock()
-    mock_result = MagicMock()
-    mock_result.output = "summary text"
-    agent.run = AsyncMock(return_value=mock_result)
-
-    messages = [ModelRequest(parts=[UserPromptPart(content="a" * 50)])]
-
-    journal_block = "<journal-index>\nMy Hub\n</journal-index>"
-    with (
-        patch("zrb.llm.config.limiter.is_turn_start", return_value=True),
-        patch(
-            "zrb.llm.summarizer.chunk_processor.chunk_and_summarize",
-            return_value="old conversation summary",
-        ),
-        patch(
-            "zrb.llm.summarizer.history_summarizer.render_journal_index",
-            return_value=journal_block,
-        ),
-    ):
-        new_history = await summarize_history(
-            messages,
-            agent=agent,
-            limiter=limiter,
-            force=True,
-            inject_journal_index=False,
-        )
-
-    assert not any("<journal-index>" in message_to_text(m) for m in new_history)
-
-
-@pytest.mark.asyncio
 async def test_find_safe_split_index_no_safe_split():
     limiter = MockLimiter()
     messages = [

@@ -784,3 +784,36 @@ def test_non_callable_non_string_prompt_is_rendered_as_content():
     ctx = SharedContext()
     rendered = manager.compose_prompt()(ctx)
     assert "123" in rendered
+
+
+def test_retired_section_name_still_serves_a_user_override():
+    """A retired name plus a markdown override keeps working as a custom section.
+
+    Users who overrode `mandate.md` and pinned it in ZRB_LLM_INCLUDE_SECTIONS
+    should not silently lose their customization: the name falls through to the
+    file-backed custom-section path and their file is emitted at that position.
+    The upgrading guide documents exactly this, so it is pinned here.
+    """
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        prompt_dir = os.path.join(temp_dir, ".zrb/llm/prompt")
+        os.makedirs(prompt_dir)
+        with open(os.path.join(prompt_dir, "mandate.md"), "w") as f:
+            f.write("# My Old Mandate Override")
+
+        env = {"ZRB_LLM_PROMPT_DIR": ".zrb/llm/prompt", "_ZRB_ENV_PREFIX": "ZRB"}
+        with patch.dict(os.environ, env):
+            original_cwd = os.getcwd()
+            os.chdir(temp_dir)
+            try:
+                manager = PromptManager(
+                    include_sections=["persona", "mandate"], skill_manager=None
+                )
+                composed = manager.compose_prompt()(SharedContext())
+            finally:
+                os.chdir(original_cwd)
+
+    assert "My Old Mandate Override" in composed
+    # Position is honoured: the override lands after persona, where it was listed.
+    assert composed.index("# Identity") < composed.index("# My Old Mandate Override")

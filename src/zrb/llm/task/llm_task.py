@@ -353,11 +353,7 @@ class LLMTask(LLMTaskBuilding, LLMTaskHistory, BaseTask):
             and user_message.strip() in self._summarize_commands
         ):
             ctx.print("Compressing conversation history...", plain=True)
-            new_history = await summarize_history(
-                message_history,
-                force=True,
-                inject_journal_index=True,
-            )
+            new_history = await summarize_history(message_history, force=True)
             history_manager.update(conversation_name, new_history)
             # Offloaded for the same reason as the main path: save serializes,
             # re-validates, and writes the whole conversation twice (with the

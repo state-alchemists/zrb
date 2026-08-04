@@ -157,5 +157,4 @@ Then interact with the LLM and observe hook behavior.
 
 - `src/zrb/llm/hook/types.py` — HookEvent enum
 - `src/zrb/llm/hook/interface.py` — HookResult class
-- `src/zrb/llm/hook/journal.py` — Built-in journaling hook
 - `docs/advanced-topics/hooks.md` — Full hooks documentation

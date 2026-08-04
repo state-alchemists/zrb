@@ -257,45 +257,6 @@ def stylize_red(text: str):
     return stylize(text, color=RED)
 
 
-def stylize_bold_green(text: str):
-    """
-    Stylize text with bold green foreground color.
-
-    Args:
-        text (str): The input string.
-
-    Returns:
-        str: The stylized string.
-    """
-    return stylize(text, color=GREEN, style=BOLD)
-
-
-def stylize_bold_yellow(text: str):
-    """
-    Stylize text with bold yellow foreground color.
-
-    Args:
-        text (str): The input string.
-
-    Returns:
-        str: The stylized string.
-    """
-    return stylize(text, color=YELLOW, style=BOLD)
-
-
-def stylize_bold_red(text: str):
-    """
-    Stylize text with bold red foreground color.
-
-    Args:
-        text (str): The input string.
-
-    Returns:
-        str: The stylized string.
-    """
-    return stylize(text, color=RED, style=BOLD)
-
-
 _COLOR_NAME_MAP: dict[str, int] = {
     "black": BLACK,
     "red": RED,
