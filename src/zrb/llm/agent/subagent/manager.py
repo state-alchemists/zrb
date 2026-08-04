@@ -15,12 +15,6 @@ from zrb.llm.agent.subagent.yolo import make_yolo_inheritance_checker
 from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.factory_resolver import resolve_factory_items
 from zrb.llm.prompt.live_context import render_journal_index
-from zrb.llm.prompt.tool_guidance import (
-    ToolCatalogue,
-    ToolGroups,
-    ToolGuidance,
-    get_tool_guidance_prompt,
-)
 from zrb.llm.summarizer import (
     create_summarizer_history_processor,
 )
@@ -63,7 +57,7 @@ class SubAgentDefinition:
         self.agent_instance = agent_instance
         self.agent_factory = agent_factory
         # Inherit named PromptManager sections from the main-agent composition
-        # (persona, mandate, git_mandate, system_context, project_context, ...).
+        # (persona, workflow, examples, system_context, project_context).
         # None = no inheritance (legacy behavior: only the body + tool guidance).
         # Use ``[]`` to explicitly opt out while documenting the intent.
         self.inherit_sections = inherit_sections
@@ -91,14 +85,6 @@ class SubAgentManager(SubAgentManagerLoading, SubAgentManagerSearch):
         self._agents: dict[str, SubAgentDefinition] = {}
         self._ignore_dirs = IGNORE_DIRS if ignore_dirs is None else ignore_dirs
         self._loaded: bool = False  # Track if agents have been loaded
-        self._tool_guidance: ToolCatalogue = {}
-        self._tool_groups: ToolGroups = []
-        # Guidance factories for dynamically-named tools (e.g., RunZrbTask).
-        self._tool_guidance_factories: list[Callable[[AnyContext], ToolGuidance]] = []
-        # Section factories for model-aware Tool Usage Guide intros (e.g., parallel-tool-call policy).
-        self._tool_guidance_section_factories: list[
-            Callable[[AnyContext, Any], str | None]
-        ] = []
 
     def reload(self):
         """Force re-scan agents. Use after CFG changes or agent file updates."""
@@ -146,43 +132,6 @@ class SubAgentManager(SubAgentManagerLoading, SubAgentManagerSearch):
     ):
         """Append toolset factories."""
         self._toolset_factories += list(factory)
-
-    def add_tool_group(self, *, name: str) -> None:
-        for label, _ in self._tool_groups:
-            if label == name:
-                return
-        self._tool_groups.append((name, []))
-
-    def add_tool_guidance(self, *guidances: ToolGuidance) -> None:
-        for g in guidances:
-            self.add_tool_group(name=g.group_name)
-            self._tool_guidance[g.tool_name] = (g.when_to_use, g.key_rule)
-            for label, members in self._tool_groups:
-                if label == g.group_name:
-                    if g.tool_name not in members:
-                        members.append(g.tool_name)
-                    break
-
-    def add_tool_guidance_factory(
-        self, *factory: "Callable[[AnyContext], ToolGuidance]"
-    ):
-        """Register guidance for dynamically-named factory tools.
-
-        Each factory is called when creating an agent. It should return
-        a single ToolGuidance object.
-        """
-        self._tool_guidance_factories.extend(factory)
-
-    def add_tool_guidance_section_factory(
-        self, *factory: "Callable[[AnyContext, Any], str | None]"
-    ):
-        """Register a factory that renders a model-aware Tool Usage Guide section.
-
-        Each factory is called per-agent with ``(ctx, resolved_model)`` and
-        returns a Markdown block (typically starting with ``## Heading``) or
-        ``None``/empty string to skip injection.
-        """
-        self._tool_guidance_section_factories.extend(factory)
 
     def scan(
         self, search_dirs: list[str | Path] | None = None
@@ -279,36 +228,7 @@ class SubAgentManager(SubAgentManagerLoading, SubAgentManagerSearch):
         # Resolve model so section factories can use it
         final_model = default_llm_config.resolve_model(definition.model)
 
-        # Resolve guidance factories for dynamically-named tools into a
-        # per-agent throwaway copy. Mutating ``self._tool_guidance`` /
-        # ``self._tool_groups`` directly would permanently accumulate guidance
-        # on the process-wide ``sub_agent_manager`` singleton across unrelated
-        # ``create_agent`` calls.
-        local_guidance, local_groups = self._build_local_guidance(ctx)
-
-        # Resolve section factories for model-aware guidance sections
-        section_strings: list[str] = []
-        for factory in self._tool_guidance_section_factories:
-            rendered = factory(ctx, final_model)
-            if rendered:
-                section_strings.append(rendered)
-
-        # Filter guidance to the sub-agent's resolved tool surface so we don't
-        # emit guidance for tools it cannot call (notably the main-agent-only
-        # delegate tools, which were stripped above via ``zrb_is_delegate_tool``).
-        resolved_tool_names: set[str] = set()
-        for t in resolved_tools:
-            tname = getattr(t, "name", None) or getattr(t, "__name__", None)
-            if tname:
-                resolved_tool_names.add(tname)
-        guidance_prompt = get_tool_guidance_prompt(
-            resolved_tool_names or None,
-            local_guidance,
-            local_groups,
-            extra_sections=section_strings if section_strings else None,
-        )
-
-        # Inherited sections (persona, mandate, system_context, ...) come from
+        # Inherited sections (persona, workflow, system_context, ...) come from
         # the main-agent PromptManager composition. Sub-agents that need the
         # parent's identity / operating rules / project context declare
         # ``inherit_sections`` in their frontmatter; legacy agents with
@@ -322,8 +242,6 @@ class SubAgentManager(SubAgentManagerLoading, SubAgentManagerSearch):
             parts.append(inherited_prompt)
         if definition.system_prompt:
             parts.append(definition.system_prompt)
-        if guidance_prompt:
-            parts.append(guidance_prompt)
         effective_system_prompt = "\n\n".join(parts).strip()
 
         # resolve_model=False: definition.model was already resolved into
@@ -335,35 +253,11 @@ class SubAgentManager(SubAgentManagerLoading, SubAgentManagerSearch):
             tools=resolved_tools,
             toolsets=resolved_toolsets,
             history_processors=[
-                create_summarizer_history_processor(
-                    inject_journal_index=(
-                        bool(definition.inherit_sections)
-                        and "journal_mandate" in definition.inherit_sections
-                    )
-                )
+                create_summarizer_history_processor(inject_journal_index=True)
             ],
             yolo=effective_yolo,
             resolve_model=False,
         )
-
-    def _build_local_guidance(
-        self, ctx: AnyContext
-    ) -> "tuple[ToolCatalogue, ToolGroups]":
-        """Build a per-agent guidance catalogue without mutating shared state.
-
-        Copies the registered base guidance/groups, then layers in the
-        dynamically-named factory guidance for this one agent. The originals
-        on ``self`` are never modified, so repeated ``create_agent`` calls do
-        not accumulate guidance on the singleton.
-        """
-        local_guidance: ToolCatalogue = dict(self._tool_guidance)
-        local_groups: ToolGroups = [
-            (label, list(members)) for label, members in self._tool_groups
-        ]
-        for factory in self._tool_guidance_factories:
-            guidance = factory(ctx)
-            _merge_guidance(local_guidance, local_groups, guidance)
-        return local_guidance, local_groups
 
     def _build_inherited_prompt(
         self,
@@ -377,10 +271,6 @@ class SubAgentManager(SubAgentManagerLoading, SubAgentManagerSearch):
         ``""`` (explicit opt-out). A non-empty list builds a temporary
         PromptManager scoped to just those sections.
 
-        ``tool_guidance`` is intentionally NOT delegated to this PromptManager
-        — the calling ``create_agent`` already composes the sub-agent's own
-        tool-filtered guidance block, so re-rendering it here would either
-        duplicate or use the wrong tool set.
         """
         if not inherit_sections:
             return ""
@@ -388,14 +278,9 @@ class SubAgentManager(SubAgentManagerLoading, SubAgentManagerSearch):
         # pulls in skill_manager which pulls in hook_manager.
         from zrb.llm.prompt.manager import PromptManager
 
-        sections = [s for s in inherit_sections if s != "tool_guidance"]
-        if not sections:
-            return ""
+        sections = list(inherit_sections)
         pm = PromptManager(include_sections=sections)
         pm.model = model
-        # Sub-agents have a different tool subset; let inherited tool_guidance
-        # (if any) render unfiltered rather than against the parent's tools.
-        pm.tool_names = None
         try:
             composed = pm.compose_prompt()(ctx).strip()
             # Sub-agents are single-turn (one run_agent, empty history), so the
@@ -406,15 +291,15 @@ class SubAgentManager(SubAgentManagerLoading, SubAgentManagerSearch):
             # main-chat split — the main chat injects it into the user turn
             # instead, via run_agent's live_context. Being single-turn, a
             # sub-agent is always "the first turn": inject the journal index
-            # unconditionally (create_live_context gates it on journal_mandate
-            # being inherited). See ADR-0082.
+            # unconditionally (render_journal_index itself honours
+            # LLM_JOURNAL_ENABLED). See ADR-0082.
             if "system_context" in sections:
                 live = pm.create_live_context(ctx, inject_journal_index=True)
                 if live:
                     composed = f"{composed}\n\n{live}".strip()
-            elif "journal_mandate" in sections:
-                # journal_mandate inherited without system_context: inject only
-                # the index, not the per-turn state that system_context owns.
+            else:
+                # No system_context to carry it: inject the index alone, not the
+                # per-turn state that system_context owns.
                 journal_block = render_journal_index()
                 if journal_block:
                     composed = f"{composed}\n\n{journal_block}".strip()
@@ -444,26 +329,6 @@ class SubAgentManager(SubAgentManagerLoading, SubAgentManagerSearch):
     def _get_all_toolsets(self, ctx: AnyContext) -> list[AbstractToolset[None]]:
         """All toolsets including those resolved from factories."""
         return resolve_factory_items(self._toolsets, self._toolset_factories, ctx)
-
-
-def _merge_guidance(
-    guidance: "ToolCatalogue",
-    groups: "ToolGroups",
-    g: ToolGuidance,
-) -> None:
-    """Insert a single ToolGuidance into the given catalogue/groups in place.
-
-    Mirrors ``SubAgentManager.add_tool_guidance`` but targets caller-provided
-    (typically throwaway) structures instead of the shared instance state.
-    """
-    if not any(label == g.group_name for label, _ in groups):
-        groups.append((g.group_name, []))
-    guidance[g.tool_name] = (g.when_to_use, g.key_rule)
-    for label, members in groups:
-        if label == g.group_name:
-            if g.tool_name not in members:
-                members.append(g.tool_name)
-            break
 
 
 # Module-level singleton - lightweight, agents loaded on first access

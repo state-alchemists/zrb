@@ -23,7 +23,7 @@ def get_prompt(name: str, profile: str | None = None, **extra_replacements: str)
 
     Args:
         name: Prompt file name (without ``.md`` suffix), e.g. ``"persona"``,
-            ``"mandate"``, ``"journal_mandate"``.
+            ``"workflow"``, ``"examples"``.
         profile: Optional profile variant (ADR-0083). When set to a non-base
             profile, ``{name}.{profile}`` is resolved first through the full
             override chain, falling back to the base ``{name}`` when no variant

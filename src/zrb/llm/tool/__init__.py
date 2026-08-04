@@ -13,6 +13,7 @@ from zrb.llm.tool.file import (
     write_file,
 )
 from zrb.llm.tool.journal import search_journal
+from zrb.llm.tool.journal_write import log_activity, write_journal_note
 from zrb.llm.tool.mcp import load_mcp_config
 from zrb.llm.tool.plan import (
     create_plan_tools,
@@ -27,6 +28,8 @@ from zrb.llm.tool.web import open_web_page, search_internet
 from zrb.llm.tool.zrb_task import create_list_zrb_task_tool, create_run_zrb_task_tool
 
 search_journal.__name__ = "SearchJournal"
+log_activity.__name__ = "LogActivity"
+write_journal_note.__name__ = "WriteJournalNote"
 
 __all__ = [
     "run_shell_command",
@@ -42,6 +45,8 @@ __all__ = [
     "remove_file",
     "move_file",
     "search_journal",
+    "log_activity",
+    "write_journal_note",
     "load_mcp_config",
     "create_rag_from_directory",
     "create_activate_skill_tool",

@@ -10,7 +10,6 @@ from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
 from zrb.llm.common_tools import defer_common_tools
 from zrb.llm.custom_command import get_skill_custom_command
-from zrb.llm.hook.journal import create_journaling_hook_factory
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.skill.manager import skill_manager
 from zrb.llm.task.chat.task import LLMChatTask
@@ -21,7 +20,6 @@ from zrb.llm.tool.delegate_background import (
 )
 from zrb.llm.tool_call import (
     auto_approve,
-    bash_safe_command_policy,
     read_file_validation_policy,
     replace_in_file_formatter,
     replace_in_file_response_handler,
@@ -130,7 +128,8 @@ llm_chat.add_response_handler(replace_in_file_response_handler)
 # `current_tool_confirmation` ContextVar set by `run_agent` — see the
 # `_confirm_tool_execution` chain in `zrb.llm.ui.base.ui`.
 llm_chat.add_tool_policy(
-    bash_safe_command_policy(),
+    # bash_safe_command_policy is registered by apply_common_tools, alongside the
+    # shell tools it guards.
     replace_in_file_validation_policy,
     read_file_validation_policy,
     auto_approve("Read", approve_if_path_inside_cwd),
@@ -152,6 +151,12 @@ llm_chat.add_tool_policy(
     auto_approve("RM", approve_if_path_inside_journal_dir),
     auto_approve("MV", approve_if_mv_inside_journal_dir),
     auto_approve("SearchJournal"),
+    # The journal writers cannot address anything outside CFG.LLM_JOURNAL_DIR —
+    # they derive every path themselves — so there is nothing for the user to
+    # adjudicate, and prompting would make recording memory expensive enough to
+    # skip.
+    auto_approve("LogActivity"),
+    auto_approve("WriteJournalNote"),
     auto_approve("WebSearch"),
     auto_approve("WebFetch"),
     auto_approve("ActivateSkill"),
@@ -192,10 +197,6 @@ llm_chat.add_tool_policy(
 
 # Add custom command (slash commands)
 llm_chat.add_custom_command(get_skill_custom_command(skill_manager))
-
-# Add hook factories
-# Journaling hook will check CFG.LLM_INCLUDE_JOURNAL_REMINDER at execution time
-llm_chat.add_hook_factory(create_journaling_hook_factory())
 
 llm_group.add_task(llm_chat)
 cli.add_task(llm_chat)

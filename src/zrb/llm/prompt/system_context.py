@@ -109,9 +109,37 @@ def system_context(
     if found_markers:
         parts.append(f"- Project: {', '.join(found_markers)}")
 
+    parallel_line = _format_parallel_tool_call_line(model)
+    if parallel_line:
+        parts.append(parallel_line)
+
     context_block = "# System Context\n" + "\n".join(parts)
     context_block += "\n\n" + _LIVE_CONTEXT_ANCHOR
     return next_handler(ctx, f"{current_prompt}\n\n{context_block}")
+
+
+def _format_parallel_tool_call_line(model: "Any") -> str | None:
+    """Whether this model can batch tool calls — a stable fact about the model.
+
+    Session-invariant (it only changes on ``/model``, which recomposes the
+    prompt anyway), so it belongs with the other system facts rather than in a
+    section of its own.
+    """
+    # lazy: zrb internal (heavy via transitive / circular)
+    from zrb.llm.util.capabilities import model_capabilities
+
+    supports = model_capabilities.get(model).supports_parallel_tool_calls
+    if supports is None:
+        return None
+    if supports:
+        return (
+            "- Parallel tool calls: supported — batch independent calls into "
+            "one response. Sequence dependent writes."
+        )
+    return (
+        "- Parallel tool calls: NOT supported — issue exactly one tool call "
+        "per response."
+    )
 
 
 def _format_model_line(model: "Any") -> str | None:
@@ -119,9 +147,6 @@ def _format_model_line(model: "Any") -> str | None:
 
     Returns ``None`` when *model* is None or its identifier cannot be
     resolved (e.g. ``MagicMock`` without a real ``model_name``).
-    Capability-driven guidance (parallel tool call policy, etc.) lives
-    in the Tool Usage Guide via ``get_parallel_tool_call_section`` —
-    see ``src/zrb/builtin/llm/chat.py`` for the section-factory wiring.
     """
     # lazy: zrb internal (heavy via transitive / circular)
     from zrb.llm.util.capabilities import is_known_model

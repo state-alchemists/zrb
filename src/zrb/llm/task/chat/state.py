@@ -38,7 +38,6 @@ if TYPE_CHECKING:
     from zrb.llm.hook.manager import HookManager
     from zrb.llm.permission import PermissionPolicyInput
     from zrb.llm.prompt.manager import PromptManager
-    from zrb.llm.prompt.tool_guidance import ToolGuidance
     from zrb.llm.sandbox import SandboxInput
     from zrb.llm.tool_call import ArgumentFormatter, ResponseHandler, ToolPolicy
     from zrb.llm.tool_call.ui_protocol import UIProtocol
@@ -59,9 +58,6 @@ class ChatState:
     _tool_factories: list[Callable[[AnyContext], Tool | ToolFuncEither]]
     _toolsets: list[AbstractToolset[None]]
     _toolset_factories: list[Callable[[AnyContext], AbstractToolset[None]]]
-    _tool_guidance_factories: list[Callable[[AnyContext], ToolGuidance]]
-    _tool_guidance_section_factories: list[Callable[[AnyContext, Any], str | None]]
-    _pending_tool_guidance: list[ToolGuidance]
     _tool_confirmation: AnyToolConfirmation
     _tool_policies: list[ToolPolicy]
     _argument_formatters: list[ArgumentFormatter]

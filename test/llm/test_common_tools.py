@@ -8,7 +8,6 @@ reached that boundary, rather than reaching into a task's private tool lists.
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
 from zrb.llm.common_tools import apply_common_tools
-from zrb.llm.prompt.tool_guidance import ToolGuidance
 
 
 class RecordingHost:
@@ -18,7 +17,7 @@ class RecordingHost:
         self.tools: list = []
         self.tool_factories: list = []
         self.toolset_factories: list = []
-        self.guidance: list[ToolGuidance] = []
+        self.policies: list = []
 
     def add_tool(self, *tool):
         self.tools.extend(tool)
@@ -29,14 +28,8 @@ class RecordingHost:
     def add_toolset_factory(self, *factory):
         self.toolset_factories.extend(factory)
 
-    def add_tool_guidance(self, *guidance):
-        self.guidance.extend(guidance)
-
-    def add_tool_guidance_factory(self, *factory):
-        pass
-
-    def add_tool_guidance_section_factory(self, *factory):
-        pass
+    def add_tool_policy(self, *policy):
+        self.policies.extend(policy)
 
     def resolved_tool_names(self) -> set[str]:
         """Names of every tool registered directly or via a factory."""
@@ -62,14 +55,44 @@ def _names(monkeypatch, journal_enabled: bool) -> set[str]:
     return host.resolved_tool_names()
 
 
-def test_search_journal_registered_when_journal_enabled(monkeypatch):
-    assert "SearchJournal" in _names(monkeypatch, True)
+JOURNAL_TOOLS = {"SearchJournal", "LogActivity", "WriteJournalNote"}
 
 
-def test_search_journal_unregistered_when_journal_disabled(monkeypatch):
-    """With the switch off the Journal Protocol section is gone too, so a live
-    SearchJournal would be a tool the prompt never mentions."""
+def test_journal_tools_registered_when_journal_enabled(monkeypatch):
+    assert JOURNAL_TOOLS <= _names(monkeypatch, True)
+
+
+def test_journal_tools_unregistered_when_journal_disabled(monkeypatch):
+    """The tools *are* the journal interface — no prompt section describes it.
+
+    So the switch has to reach them: with it off there is nothing left telling
+    the model a journal exists, which is the surface the toggle exists to remove.
+    """
     names = _names(monkeypatch, False)
-    assert "SearchJournal" not in names
+    assert not (JOURNAL_TOOLS & names)
     # The switch is scoped to journaling: unrelated tools keep registering.
     assert {"Read", "Write", "Grep"} <= names
+
+
+def test_shell_safety_policy_ships_with_the_shell_tools(monkeypatch):
+    """The git approval rule left the prompt, so its enforcement must travel here.
+
+    Registering the allowlist alongside the tools it guards is what makes the
+    deleted `git_mandate` section safe to delete.
+    """
+    monkeypatch.setenv("ZRB_LLM_JOURNAL_ENABLED", "true")
+    host = RecordingHost()
+    apply_common_tools(host)
+    assert len(host.policies) == 1
+
+
+def test_hosts_without_an_approval_channel_are_skipped(monkeypatch):
+    """A host with no add_tool_policy must not blow up registration."""
+    monkeypatch.setenv("ZRB_LLM_JOURNAL_ENABLED", "true")
+
+    class PolicylessHost(RecordingHost):
+        add_tool_policy = None
+
+    host = PolicylessHost()
+    apply_common_tools(host)
+    assert {"Read", "Write", "Grep"} <= host.resolved_tool_names()

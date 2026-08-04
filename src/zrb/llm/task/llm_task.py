@@ -44,7 +44,6 @@ from zrb.llm.permission import (
     resolve_policy,
 )
 from zrb.llm.prompt.manager import PromptManager
-from zrb.llm.prompt.tool_guidance import ToolGuidance
 from zrb.llm.sandbox import SandboxInput, coerce_sandbox
 from zrb.llm.summarizer import (
     summarize_history,
@@ -207,15 +206,6 @@ class LLMTask(LLMTaskBuilding, LLMTaskHistory, BaseTask):
         self._sandbox = sandbox
         self._approval_channel = approval_channel
         self._summarize_commands = summarize_commands or []
-        # Guidance factories for dynamically-named tools (e.g., RunZrbTask).
-        # Resolved per exec and applied to prompt_manager before composing the
-        # system prompt.
-        self._tool_guidance_factories: list[Callable[[AnyContext], ToolGuidance]] = []
-        # Section factories for model-aware Tool Usage Guide intros (e.g.,
-        # parallel-tool-call policy).
-        self._tool_guidance_section_factories: list[
-            Callable[[AnyContext, Any], "str | None"]
-        ] = []
 
     @property
     def llm_config(self) -> LLMConfig:
@@ -265,11 +255,6 @@ class LLMTask(LLMTaskBuilding, LLMTaskHistory, BaseTask):
             ctx, history_manager, conversation_name, user_message, message_history
         ):
             return "Conversation history compressed."
-
-        # Resolve guidance/section factories into the prompt manager so the
-        # composed system prompt reflects dynamically-named tools and any
-        # model-aware Tool Usage Guide sections.
-        self._resolve_tool_guidance_factories(ctx)
 
         # Compute system prompt once and reuse for both agent creation and run_agent.
         # This avoids rebuilding the prompt (including expensive system_context I/O)
@@ -371,10 +356,7 @@ class LLMTask(LLMTaskBuilding, LLMTaskHistory, BaseTask):
             new_history = await summarize_history(
                 message_history,
                 force=True,
-                inject_journal_index=(
-                    self._prompt_manager is not None
-                    and "journal_mandate" in self._prompt_manager.active_sections
-                ),
+                inject_journal_index=True,
             )
             history_manager.update(conversation_name, new_history)
             # Offloaded for the same reason as the main path: save serializes,

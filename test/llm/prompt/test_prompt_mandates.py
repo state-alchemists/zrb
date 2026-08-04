@@ -24,56 +24,37 @@ def test_get_prompt_persona_with_custom_name():
     assert "{ASSISTANT_NAME}" not in prompt
 
 
-def test_get_prompt_mandate_returns_non_empty():
-    """get_prompt('mandate') returns a non-empty string."""
-    prompt = get_prompt("mandate")
+def test_get_prompt_workflow_returns_non_empty():
+    """get_prompt('workflow') returns a non-empty string."""
+    prompt = get_prompt("workflow")
     assert isinstance(prompt, str)
-    assert len(prompt) > 0
     assert prompt.strip() != ""
 
 
-def test_get_prompt_git_mandate_returns_non_empty():
-    """get_prompt('git_mandate') returns a non-empty string."""
-    prompt = get_prompt("git_mandate")
-    assert isinstance(prompt, str)
-    assert len(prompt) > 0
-    assert prompt.strip() != ""
+def test_get_prompt_workflow_carries_the_absorbed_sections():
+    """The retired `mandate` and `git_mandate` rules live here now.
+
+    Both files were deleted rather than re-pointed, so nothing else would
+    notice if their content had been dropped instead of moved.
+    """
+    prompt = get_prompt("workflow")
+    assert "## Priority Order" in prompt
+    assert "git diff HEAD" in prompt
 
 
-def test_get_prompt_journal_mandate_returns_non_empty():
-    """get_prompt('journal_mandate') returns a non-empty string."""
-    prompt = get_prompt("journal_mandate")
-    assert isinstance(prompt, str)
-    assert len(prompt) > 0
-    assert prompt.strip() != ""
+def test_get_prompt_retired_section_resolves_to_empty():
+    """A retired name left in a pinned config is a no-op, not a crash."""
+    for name in ("mandate", "git_mandate", "journal_mandate", "tool_guidance"):
+        assert get_prompt(name) == ""
 
 
-def test_get_prompt_journal_mandate_replaces_placeholders():
-    """get_prompt('journal_mandate') replaces configuration placeholders."""
-    env_vars = {
-        "ZRB_LLM_JOURNAL_DIR": "/test/journal/dir",
-        "ZRB_LLM_JOURNAL_INDEX_FILE": "test_index.md",
-        "_ZRB_ENV_PREFIX": "ZRB",
-    }
-    with patch.dict(os.environ, env_vars):
-        prompt = get_prompt("journal_mandate")
-        assert isinstance(prompt, str)
-        assert len(prompt) > 0
-        assert "/test/journal/dir" in prompt
-        assert "test_index.md" in prompt
-        assert "{CFG_LLM_JOURNAL_DIR}" not in prompt
-        assert "{CFG_LLM_JOURNAL_INDEX_FILE}" not in prompt
-
-
-def test_get_prompt_journal_mandate_with_local_override():
-    """get_prompt('journal_mandate') uses local override when available."""
+def test_get_prompt_workflow_with_local_override():
+    """get_prompt('workflow') uses local override when available."""
     with tempfile.TemporaryDirectory() as temp_dir:
         local_prompt_dir = os.path.join(temp_dir, ".zrb/llm/prompt")
         os.makedirs(local_prompt_dir, exist_ok=True)
-        local_journal_path = os.path.join(local_prompt_dir, "journal_mandate.md")
-        local_content = "# Local Journal Override\n\nThis is a local override."
-        with open(local_journal_path, "w") as f:
-            f.write(local_content)
+        with open(os.path.join(local_prompt_dir, "workflow.md"), "w") as f:
+            f.write("# Local Workflow Override\n\nThis is a local override.")
 
         env_vars = {
             "ZRB_LLM_PROMPT_DIR": ".zrb/llm/prompt",
@@ -83,11 +64,8 @@ def test_get_prompt_journal_mandate_with_local_override():
             original_cwd = os.getcwd()
             os.chdir(temp_dir)
             try:
-                prompt = get_prompt("journal_mandate")
-                assert isinstance(prompt, str)
-                assert len(prompt) > 0
-                assert "Local Journal Override" in prompt
-                assert "This is a local override" in prompt
+                prompt = get_prompt("workflow")
+                assert "Local Workflow Override" in prompt
             finally:
                 os.chdir(original_cwd)
 
@@ -121,8 +99,8 @@ def test_get_prompt_terse_profile_uses_base_file():
 
 def test_get_prompt_profile_falls_back_to_base_when_no_variant():
     """A section with no variant for the profile falls back to the base file."""
-    base = get_prompt("mandate")
-    explicit = get_prompt("mandate", profile="mini")
+    base = get_prompt("workflow")
+    explicit = get_prompt("workflow", profile="mini")
     assert explicit == base
 
 

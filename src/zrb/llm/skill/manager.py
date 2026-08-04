@@ -96,36 +96,8 @@ class SkillManager:
         # We iterate in normal order to allow later skills (project) to override earlier ones (global)
         for search_dir in target_search_dirs:
             self._scan_dir(Path(search_dir), max_depth=self._max_depth)
-        self._drop_disabled_builtins()
         self._scanned = True
         return list(self._skills.values())
-
-    _JOURNAL_SKILL = "core-journaling"
-
-    def _drop_disabled_builtins(self) -> None:
-        """Remove built-in skills whose subsystem is switched off.
-
-        ``core_skills/`` has no blanket toggle by design, so this drops one skill
-        rather than the directory: with ``LLM_JOURNAL_ENABLED`` off the Journal
-        Protocol section and ``SearchJournal`` are already gone, and leaving
-        ``core-journaling`` in the catalogue would still invite the model to
-        build a journal tree — the surface that toggle exists to remove.
-
-        Only the *built-in* copy is dropped (ADR-0069: a toggle suppresses
-        built-in content, never the user's). A user or project skill of the same
-        name overrode it during the scan and stays.
-        """
-        if CFG.LLM_JOURNAL_ENABLED:
-            return
-        skill = self._skills.get(self._JOURNAL_SKILL)
-        if skill is None:
-            return
-        try:
-            is_builtin = Path(skill.path).is_relative_to(BUILTIN_PLUGIN_DIR)
-        except (TypeError, ValueError):
-            return
-        if is_builtin:
-            del self._skills[self._JOURNAL_SKILL]
 
     _SKILL_ASSET = "skills"
     _PLUGIN_ASSET = "plugins"

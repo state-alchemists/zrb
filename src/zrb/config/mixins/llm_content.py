@@ -66,11 +66,12 @@ class LLMContentMixin:
         serialize=on_off,
         default_factory=lambda cfg: cfg.DEFAULT_LLM_JOURNAL_ENABLED,
         doc=(
-            "Master switch for the cross-session journal. Off suppresses all "
-            "four of its surfaces together: the Journal Protocol prompt "
-            "section, the <journal-index> injection, the SearchJournal tool, "
-            "and the built-in core-journaling skill. Off means the model is "
-            "never told a journal exists, so it neither reads nor writes one — "
+            "Master switch for the cross-session journal. Off unregisters the "
+            "three journal tools (SearchJournal, LogActivity, "
+            "WriteJournalNote) and suppresses the <journal-index> injection. "
+            "Those tools are the whole interface — there is no prompt section "
+            "describing a journal protocol — so off means the model is never "
+            "told a journal exists, and neither reads nor writes one. "
             "LLM_JOURNAL_DIR has no 'unset' value that achieves this (it falls "
             "back to ~/<root>/llm-notes), which is why this knob exists."
         ),

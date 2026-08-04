@@ -31,7 +31,6 @@ from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.prompt.manager import PromptManager
-from zrb.llm.prompt.tool_guidance import ToolGuidance
 from zrb.llm.task.chat.building import ChatBuilding
 from zrb.llm.task.chat.execution import ChatExecution
 from zrb.llm.task.chat.running import ChatRunning
@@ -252,16 +251,6 @@ class LLMChatTask(ChatBuilding, ChatRunning, ChatExecution, BaseTask):
         self._toolsets = toolsets or []
         # LLMChatTask-specific factories that resolve using parent context
         self._tool_factories = tool_factories or []
-        # Guidance factories are called when tools are resolved, to register
-        # guidance for dynamically-named factory tools (e.g., RunZrbTask).
-        self._tool_guidance_factories: list[Callable[[AnyContext], ToolGuidance]] = []
-        # Tool-guidance section factories — produce model-aware Markdown
-        # blocks inserted above the per-tool catalogue at compose time.
-        self._tool_guidance_section_factories: list[
-            Callable[[AnyContext, Any], str | None]
-        ] = []
-        # Store tool guidance until prompt_manager is available
-        self._pending_tool_guidance: list[ToolGuidance] = []
         self._toolset_factories = toolset_factories or []
         self._hook_factories: list[Callable[[HookManager], None]] = []
         # Set per execution in _create_llm_task_core; the interactive teardown

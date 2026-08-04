@@ -162,12 +162,13 @@ Now `zrb ask-repo` runs the command, hands the output to the model as background
 
 ## Rung 5 — composing sections with `PromptManager`
 
-The system prompt Zrb ships is not one blob — it is an ordered list of **sections**, each owning one concern (persona, operating rules, git rules, project context, tool guidance, …). The default order is:
+The system prompt Zrb ships is not one blob — it is an ordered list of **sections**, each owning one concern. Three carry rules, two carry runtime facts:
 
 ```
-persona → mandate → workflow → examples → git_mandate → journal_mandate
-  → system_context → project_context → tool_guidance
+persona → workflow → examples → system_context → project_context
 ```
+
+> Per-tool rules are **not** a section. They live in each tool's docstring, which pydantic-ai ships with the schema on every request (ADR-0098/0100). The retired `mandate`, `git_mandate`, `journal_mandate`, and `tool_guidance` names still parse — they resolve to an empty custom section and log a warning — but they emit nothing.
 
 A `PromptManager` lets you control that assembly. Two independent levers:
 
@@ -177,8 +178,8 @@ A `PromptManager` lets you control that assembly. Two independent levers:
 Dropping a section is safe: a block that references another section is marked in the markdown and pruned when its target is not emitted, so the composed prompt never instructs the model about a part it never received (ADR-0094).
 
 ```markdown
-<!--requires:journal_mandate-->
-4. **Search the journal** — before you rely on prior work.
+<!--requires:project_context-->
+Read exactly the paths under **Documentation Files Found**.
 <!--/requires-->
 ```
 
@@ -191,9 +192,8 @@ from zrb.llm.prompt.manager import PromptManager
 pm = PromptManager(
     prompts=["Prefer standard-library solutions over new dependencies."],
     include_sections=[
-        "persona", "mandate", "workflow", "system_context",
-        "project_context", "tool_guidance",
-        # dropped: examples, git_mandate, journal_mandate
+        "persona", "workflow", "system_context", "project_context",
+        # dropped: examples
     ],
 )
 
@@ -209,9 +209,8 @@ A name in `include_sections` that isn't a built-in becomes a **custom section**.
 ```python
 pm = PromptManager(
     include_sections=[
-        "persona", "mandate", "workflow", "system_context", "project_context",
+        "persona", "workflow", "examples", "system_context", "project_context",
         "sprint_context",      # ← your section
-        "tool_guidance",
     ],
 )
 pm.register_section("sprint_context", lambda ctx: f"Active sprint: {load_current_sprint()}")

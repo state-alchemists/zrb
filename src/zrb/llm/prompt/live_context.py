@@ -179,7 +179,7 @@ def render_journal_index() -> str | None:
     Journal Protocol tells the model that a missing block is not proof of an
     empty journal precisely because of that last case.
     """
-    # Callers already gate on "journal_mandate" in active_sections, which
+    # Callers pick the moment (first turn / summarization); this check is what
     # LLM_JOURNAL_ENABLED clears — but summarize_history reaches this directly,
     # so the switch is honoured here too rather than trusting every call path.
     if not CFG.LLM_JOURNAL_ENABLED:
@@ -211,7 +211,8 @@ def render_journal_index() -> str | None:
         # surviving entry arrives as a fragment the model has to guess at —
         # and the HUD's entries are facts about the user, where half a
         # sentence is worse than none. Overflow is dropped from the end, so
-        # the file is written most-durable-first (see core-journaling).
+        # the file is written most-durable-first (WriteJournalNote keeps the
+        # unbounded Recent Insights section last, so overflow evicts itself).
         head = content[:limit]
         cut = head.rfind("\n")
         content = (head[:cut] if cut > 0 else head) + "\n (...more)"

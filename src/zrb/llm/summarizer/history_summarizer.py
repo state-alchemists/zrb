@@ -47,7 +47,7 @@ def create_summarizer_history_processor(
     Creates a history processor that auto-summarizes history when it exceeds `token_threshold`.
 
     `inject_journal_index` is forwarded to `summarize_history`: pass ``False`` when
-    the agent's ``journal_mandate`` section is inactive so compaction does not
+    journaling is switched off so compaction does not
     re-seed the journal index into a prompt that omits it (ADR-0082).
     """
     llm_limiter = limiter or default_llm_limiter
@@ -205,7 +205,8 @@ async def summarize_history(
     the normal token/window limits (e.g. triggered by an explicit /compress command).
 
     `inject_journal_index` re-seeds the journal index into the summary (ADR-0082).
-    Callers pass ``False`` when the ``journal_mandate`` section is not active, so
+    Callers pass ``False`` to opt out entirely; ``render_journal_index`` also
+    honours ``LLM_JOURNAL_ENABLED`` itself, so
     the index is never re-introduced into a prompt that deliberately omits it.
     """
     try:
@@ -258,8 +259,8 @@ async def summarize_history(
         # the message structure intact (no extra turn to break role alternation
         # or tool-call pairing) and means the index is present in the very same
         # request the processor compacts for. See ADR-0082. Skipped when the
-        # caller has no active journal_mandate section, keeping the index coupled
-        # to that section across compaction.
+        # caller opts out. render_journal_index honours LLM_JOURNAL_ENABLED, so a
+        # disabled journal contributes nothing here either.
         if inject_journal_index:
             journal_block = render_journal_index()
             if journal_block:

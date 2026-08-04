@@ -3,8 +3,7 @@
 Sections toggle independently via ``LLM_INCLUDE_SECTIONS``, so a cross-reference
 is only safe if it disappears with its target. These tests brute-force every
 combination rather than spot-checking the default, because the failure mode is a
-config nobody tried: a prompt telling the model to search a journal that was
-never included.
+config nobody tried: a prompt pointing at a section that was never included.
 """
 
 import itertools
@@ -16,11 +15,8 @@ from zrb.llm.prompt.section_filter import filter_requires
 
 FILE_SECTIONS = [
     "persona",
-    "mandate",
     "workflow",
     "examples",
-    "git_mandate",
-    "journal_mandate",
 ]
 
 # Text that must not survive when the section owning it is absent.
@@ -32,8 +28,10 @@ FILE_SECTIONS = [
 # someone trims LLM_INCLUDE_SECTIONS. The fix is always to restate the rule
 # compactly in place, never to add the pointer back.
 OWNED_VOCABULARY = {
-    "journal_mandate": ["journal", "Journal", "SearchJournal"],
     "project_context": ["Documentation Files Found", "User-Level Guidance"],
+    # `Priority Order` and `Operating Rules` moved here from the retired
+    # `mandate` section; the git approval rule moved here from the retired
+    # `git_mandate` and is now phrased as `git diff HEAD`.
     "workflow": [
         "Working Loop",
         "Verify Before Done",
@@ -42,10 +40,12 @@ OWNED_VOCABULARY = {
         "When you don't know",
         "Where the deliverable goes",
         "Routing work outward",
+        "Priority Order",
+        "Operating Rules",
+        "git diff HEAD",
+        "Tool usage",
     ],
-    "mandate": ["Priority Order", "Operating Rules"],
     "persona": ["Response Calibration"],
-    "git_mandate": ["Requires Approval"],
 }
 
 
@@ -153,35 +153,6 @@ def test_premise_check_is_first_and_unconditional():
     assert any("**Activate skills**" in step for step in steps[1:])
 
 
-def test_tool_guidance_is_self_contained():
-    """Tool guidance is its own switchable section, so it cannot cite others.
-
-    It is built in Python rather than markdown, so ``filter_requires`` never
-    sees it and a ``<!--requires:-->`` guard is not available. A pointer at
-    another section therefore has no way to disappear with its target — the
-    text must stand alone.
-
-    Composed with ``tool_guidance`` as the only section, so anything foreign
-    that shows up came from the guidance entries themselves.
-    """
-    from zrb.context.shared_context import SharedContext
-    from zrb.llm.common_tools import apply_common_tools
-    from zrb.llm.task.llm_task import LLMTask
-
-    host = LLMTask(name="tool-guidance-probe")
-    apply_common_tools(host)
-    host.prompt_manager.include_sections = ["tool_guidance"]
-    composed = host.prompt_manager.compose_prompt()(SharedContext())
-
-    offenders = [
-        (owner, word)
-        for owner, vocabulary in OWNED_VOCABULARY.items()
-        for word in vocabulary
-        if word[0].isupper() and word in composed
-    ]
-    assert offenders == []
-
-
 @pytest.mark.parametrize("profile", [None, "mini"])
 def test_no_numbered_list_gaps_in_any_subset(profile):
     """A conditional item must not leave a hole like `1. 2. 4.` behind.
@@ -205,3 +176,19 @@ def test_no_numbered_list_gaps_in_any_subset(profile):
                     range(run[0], run[0] + len(run))
                 ), f"gap {run} with sections={sorted(combo)}"
             run = []
+
+
+def test_default_prompt_stays_within_its_budget():
+    """The composed default prompt has a ceiling, enforced.
+
+    Collapsing six rule sections into three took the default composition from
+    ~32,600 chars to ~19,500. Nothing stops that creeping back one paragraph at
+    a time, so the budget is a test rather than a note. Raising the ceiling is a
+    decision to make deliberately, not a diff to wave through.
+    """
+    from unittest.mock import MagicMock
+
+    from zrb.llm.prompt.manager import PromptManager
+
+    composed = PromptManager().compose_prompt()(MagicMock())
+    assert len(composed) < 24_000, f"default prompt grew to {len(composed)} chars"

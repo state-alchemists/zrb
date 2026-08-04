@@ -34,43 +34,33 @@ def test_prompt_manager_include_sections():
     assert len(composed) > 0
 
 
-def test_prompt_manager_workflow_section_carries_working_loop():
-    """The split-out `workflow` section owns the Working Loop and Verify gate."""
+def test_prompt_manager_workflow_section_is_the_whole_rulebook():
+    """`workflow` owns everything the retired mandate/git_mandate carried."""
     manager = PromptManager(include_sections=["workflow"], skill_manager=None)
-
-    composed = manager.compose_prompt()(SharedContext())
-
-    assert "## Working Loop" in composed
-    assert "## Verify Before Done" in composed
-    assert "## Skill Activation" in composed
-    # Priority Order stayed behind in `mandate`.
-    assert "## Priority Order" not in composed
-
-
-def test_prompt_manager_legacy_mandate_still_includes_workflow():
-    """A config predating the split names only `mandate` and must lose nothing."""
-    manager = PromptManager(include_sections=["mandate"], skill_manager=None)
 
     composed = manager.compose_prompt()(SharedContext())
 
     assert "## Priority Order" in composed
     assert "## Working Loop" in composed
     assert "## Verify Before Done" in composed
+    assert "## Skill Activation" in composed
+    assert "## Tool usage" in composed
 
 
-def test_prompt_manager_mandate_and_workflow_match_legacy_mandate():
-    """The shim reproduces the pre-split section, not a reordered variant."""
-    legacy = PromptManager(include_sections=["mandate"], skill_manager=None)
-    split = PromptManager(include_sections=["mandate", "workflow"], skill_manager=None)
+def test_prompt_manager_retired_section_composes_to_nothing():
+    """A pinned config naming a deleted section degrades, it does not crash."""
+    manager = PromptManager(
+        include_sections=["mandate", "git_mandate", "tool_guidance"],
+        skill_manager=None,
+    )
 
-    ctx = SharedContext()
-    assert legacy.compose_prompt()(ctx).split() == split.compose_prompt()(ctx).split()
+    assert manager.compose_prompt()(SharedContext()).strip() == ""
 
 
-def test_prompt_manager_mandate_provider_wins_over_workflow_shim():
-    """Overriding `mandate` means supplying your own — the shim must not re-add it."""
-    manager = PromptManager(include_sections=["mandate"], skill_manager=None)
-    manager.register_section("mandate", lambda ctx: "# Mine")
+def test_prompt_manager_registered_provider_wins_over_file():
+    """Overriding a section means supplying your own content."""
+    manager = PromptManager(include_sections=["workflow"], skill_manager=None)
+    manager.register_section("workflow", lambda ctx: "# Mine")
 
     composed = manager.compose_prompt()(SharedContext())
 
@@ -338,16 +328,19 @@ def test_live_context_skips_empty_journal_index():
     assert "<journal-index>" not in rendered
 
 
-def test_live_context_couples_journal_index_to_journal_mandate_section():
-    """Even with the flag set, the index is suppressed when journal_mandate is
-    not an active section — the index is coupled to that section (ADR-0082)."""
-    rendered = _render_with_journal(
-        inject_journal_index=True, index_body="# My Journal Hub", sections=[]
-    )
+def test_live_context_journal_index_follows_the_journal_flag():
+    """With journaling off the index is suppressed even when callers ask for it.
+
+    There is no journal prompt section to couple to any more, so the flag is
+    checked in render_journal_index itself.
+    """
+    with patch("zrb.llm.prompt.live_context.CFG") as mock_cfg:
+        mock_cfg.LLM_JOURNAL_ENABLED = False
+        rendered = _render_with_journal(
+            inject_journal_index=True, index_body="# My Journal Hub"
+        )
     assert "<journal-index>" not in rendered
     assert "My Journal Hub" not in rendered
-    # The volatile per-turn lines still render.
-    assert "Time:" in rendered
 
 
 def test_compose_mini_register_uses_variant():
@@ -376,12 +369,12 @@ def test_compose_mini_falls_back_to_base_when_no_variant():
 
 
 def test_compose_drops_a_block_referencing_an_omitted_section():
-    """The turn-sequence journal step must not survive without journal_mandate."""
-    with_journal = PromptManager(include_sections=["workflow", "journal_mandate"])
+    """workflow's project-doc pointer must not survive without project_context."""
+    with_ctx = PromptManager(include_sections=["workflow", "project_context"])
     without = PromptManager(include_sections=["workflow"])
     ctx = SharedContext()
-    assert "Search the journal" in with_journal.compose_prompt()(ctx)
-    assert "Search the journal" not in without.compose_prompt()(ctx)
+    assert "Documentation Files Found" in with_ctx.compose_prompt()(ctx)
+    assert "Documentation Files Found" not in without.compose_prompt()(ctx)
 
 
 def test_compose_mini_includes_examples_section_when_listed():
@@ -473,20 +466,6 @@ def test_add_live_context_swallows_provider_exceptions():
     assert "boom" not in rendered
 
 
-def test_prompt_manager_tool_guidance_sections_injected_before_catalogue():
-    """`tool_guidance_sections` content appears in the Tool Usage Guide output."""
-    manager = PromptManager(include_sections=["tool_guidance"])
-    manager.tool_guidance_sections = ["## Tool Call Parallelism\n- ⛔ Test warning."]
-
-    ctx = MagicMock()
-    composed = manager.compose_prompt()
-    rendered = composed(ctx)
-
-    assert "# Tool Usage Guide" in rendered
-    assert "## Tool Call Parallelism" in rendered
-    assert "Test warning." in rendered
-
-
 def test_prompt_manager_render_true_with_string_prompt():
     """PromptManager(render=True) with a plain string prompt."""
     manager = PromptManager(
@@ -514,23 +493,23 @@ def test_new_prompt_with_render_true():
 def test_section_order_follows_include_sections():
     """Sections appear in the order specified by include_sections."""
     manager = PromptManager(
-        include_sections=["mandate", "persona"],
+        include_sections=["workflow", "persona"],
     )
     ctx = SharedContext()
     composed = manager.compose_prompt()(ctx)
-    # "mandate" section starts with "# Operating Rules", "persona" with "# Identity"
-    mandate_pos = composed.index("# Operating Rules")
+    # "workflow" starts with "# Operating Rules", "persona" with "# Identity"
+    workflow_pos = composed.index("# Operating Rules")
     persona_pos = composed.index("# Identity")
-    assert mandate_pos < persona_pos
+    assert workflow_pos < persona_pos
 
     # Reverse order
     manager2 = PromptManager(
-        include_sections=["persona", "mandate"],
+        include_sections=["persona", "workflow"],
     )
     composed2 = manager2.compose_prompt()(ctx)
     persona_pos2 = composed2.index("# Identity")
-    mandate_pos2 = composed2.index("# Operating Rules")
-    assert persona_pos2 < mandate_pos2
+    workflow_pos2 = composed2.index("# Operating Rules")
+    assert persona_pos2 < workflow_pos2
 
 
 # ── Custom file-backed sections ───────────────────────────────────────────────
@@ -665,163 +644,22 @@ def test_builtin_section_can_be_overridden_by_registered_provider():
     assert "# Overridden" in composed
 
 
-# ── Tool guidance ─────────────────────────────────────────────────────────────
-
-
-def _guidance_manager(**extra) -> PromptManager:
-    """Helper: a PromptManager with tool_guidance enabled."""
-    return PromptManager(
-        include_sections=["tool_guidance"],
-        **extra,
-    )
-
-
-def test_add_tool_guidance_appears_in_prompt():
-    manager = _guidance_manager()
-    manager.add_tool_guidance(
-        group="MyGroup",
-        name="MyTool",
-        use_when="Doing something useful",
-        key_rule="Always pass --flag.",
-    )
-    ctx = SharedContext()
-    result = manager.compose_prompt()(ctx)
-    assert "MyGroup" in result
-    assert "MyTool" in result
-    assert "Doing something useful" in result
-    assert "Always pass --flag." in result
-
-
-def test_add_tool_guidance_without_key_rule():
-    manager = _guidance_manager()
-    manager.add_tool_guidance(group="G", name="Tool", use_when="Does stuff")
-    ctx = SharedContext()
-    result = manager.compose_prompt()(ctx)
-    assert "Tool" in result
-    assert "Does stuff" in result
-    assert " — *" not in result
-
-
-def test_add_tool_guidance_auto_creates_group():
-    manager = _guidance_manager()
-    manager.add_tool_guidance(group="AutoGroup", name="AutoTool", use_when="Auto use")
-    ctx = SharedContext()
-    result = manager.compose_prompt()(ctx)
-    assert "AutoGroup" in result
-    assert "AutoTool" in result
-
-
-def test_add_tool_group_is_idempotent():
-    manager = _guidance_manager()
-    manager.add_tool_group(name="GroupA")
-    manager.add_tool_group(name="GroupA")  # second call is a no-op
-    manager.add_tool_guidance(group="GroupA", name="Tool1", use_when="Does stuff")
-    ctx = SharedContext()
-    result = manager.compose_prompt()(ctx)
-    assert result.count("GroupA") == 1  # header rendered exactly once
-
-
-def test_add_tool_guidance_updates_existing_entry():
-    manager = _guidance_manager()
-    manager.add_tool_guidance(group="G", name="Tool", use_when="Old description")
-    manager.add_tool_guidance(group="G", name="Tool", use_when="New description")
-    ctx = SharedContext()
-    result = manager.compose_prompt()(ctx)
-    assert "New description" in result
-    assert "Old description" not in result
-
-
-def test_tool_guidance_absent_when_no_entries_registered():
-    manager = _guidance_manager()
-    ctx = SharedContext()
-    result = manager.compose_prompt()(ctx)
-    assert "Tool Usage Guide" not in result
-
-
-def test_tool_names_filter_excludes_unregistered_tools():
-    manager = _guidance_manager(tool_names={"ToolA"})
-    manager.add_tool_guidance(group="G", name="ToolA", use_when="Does A")
-    manager.add_tool_guidance(group="G", name="ToolB", use_when="Does B")
-    ctx = SharedContext()
-    result = manager.compose_prompt()(ctx)
-    assert "ToolA" in result
-    assert "ToolB" not in result
-
-
-def test_multiple_groups_appear_in_registration_order():
-    manager = _guidance_manager()
-    manager.add_tool_guidance(group="First", name="T1", use_when="Use T1")
-    manager.add_tool_guidance(group="Second", name="T2", use_when="Use T2")
-    ctx = SharedContext()
-    result = manager.compose_prompt()(ctx)
-    assert result.index("First") < result.index("Second")
-
-
-# ── tool_names property ───────────────────────────────────────────────────────
-
-
-def test_tool_names_property_get_and_set():
-    """`tool_names` round-trips through its getter/setter."""
-    manager = PromptManager(tool_names={"A", "B"})
-    assert manager.tool_names == {"A", "B"}
-    manager.tool_names = {"C"}
-    assert manager.tool_names == {"C"}
-
-
 def test_active_sections_falls_back_to_cfg_default():
     """When include_sections is unset, active_sections uses the CFG default."""
     manager = PromptManager()  # include_sections is None
     assert manager.active_sections == list(CFG.LLM_INCLUDE_SECTIONS)
 
 
-def test_journal_disabled_drops_journal_mandate_from_active_sections():
-    """`LLM_JOURNAL_ENABLED=false` removes the section, however it was configured.
+def test_active_sections_is_not_filtered_by_the_journal_flag():
+    """Journaling no longer owns a section, so the flag must not touch this list.
 
-    Filtering here rather than at each consumer is what lets one knob reach all
-    of them — the index injection and both summarization paths gate on
-    ``"journal_mandate" in active_sections``.
+    It gates the journal *tools* at registration instead; filtering here as well
+    would silently drop a user's custom section named after the old one.
     """
-    explicit = PromptManager(include_sections=["persona", "journal_mandate"])
-    default = PromptManager()  # falls back to the CFG list, which includes it
+    manager = PromptManager(include_sections=["persona", "workflow"])
     with patch("zrb.llm.prompt.manager.CFG") as cfg:
         cfg.LLM_JOURNAL_ENABLED = False
-        cfg.LLM_INCLUDE_SECTIONS = ["persona", "journal_mandate"]
-        assert explicit.active_sections == ["persona"]
-        assert default.active_sections == ["persona"]
-
-
-def test_journal_enabled_keeps_journal_mandate():
-    """The switch defaults on, so the section survives an unrelated config."""
-    manager = PromptManager(include_sections=["persona", "journal_mandate"])
-    with patch("zrb.llm.prompt.manager.CFG") as cfg:
-        cfg.LLM_JOURNAL_ENABLED = True
-        assert manager.active_sections == ["persona", "journal_mandate"]
-
-
-def test_journal_disabled_strips_requires_blocks_in_sibling_sections(monkeypatch):
-    """A sibling's `<!--requires:journal_mandate-->` block goes with it.
-
-    The switch must not leave `workflow`'s journal step or `mandate`'s memory
-    line pointing at a section that no longer ships. Driven through the env var
-    so every other CFG read stays real — the placeholder substitution in
-    `get_prompt` needs genuine values.
-    """
-    manager = PromptManager(include_sections=["mandate", "workflow", "journal_mandate"])
-    monkeypatch.setenv("ZRB_LLM_JOURNAL_ENABLED", "false")
-    prompt = manager.compose_prompt()(SharedContext())
-    assert "Journal Protocol" not in prompt
-    assert "Search the journal" not in prompt
-    assert "<!--" not in prompt
-
-
-def test_tool_guidance_sections_property_round_trips():
-    """`tool_guidance_sections` round-trips and normalizes falsy input to []."""
-    manager = PromptManager()
-    assert manager.tool_guidance_sections == []
-    manager.tool_guidance_sections = ["## Block"]
-    assert manager.tool_guidance_sections == ["## Block"]
-    manager.tool_guidance_sections = None
-    assert manager.tool_guidance_sections == []
+        assert manager.active_sections == ["persona", "workflow"]
 
 
 # ── Live context edge cases ───────────────────────────────────────────────────
@@ -914,15 +752,6 @@ def test_project_context_provider_exception_is_swallowed():
 
 
 # ── Section skipping ──────────────────────────────────────────────────────────
-
-
-def test_git_mandate_section_skipped_outside_git_dir():
-    """git_mandate is dropped when the process is not inside a git repo."""
-    manager = PromptManager(include_sections=["git_mandate"])
-    ctx = SharedContext()
-    with patch("zrb.llm.prompt.manager.is_inside_git_dir", return_value=False):
-        rendered = manager.compose_prompt()(ctx)
-    assert rendered.strip() == ""
 
 
 def test_claude_skills_section_is_silently_skipped():

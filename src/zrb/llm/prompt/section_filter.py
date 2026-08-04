@@ -10,15 +10,15 @@ a section is absent.
 Instead, a referencing block is marked in the markdown and removed at compose
 time when its dependency is not emitted:
 
-    <!--requires:journal_mandate-->
-    3. **Search the journal** — before you rely on prior work.
+    <!--requires:project_context-->
+    Read exactly the paths under **Documentation Files Found**.
     <!--/requires-->
 
 The composed prompt then never mentions a part that does not exist, and the
 markdown stays readable as a whole. Multiple dependencies are comma-separated
 and **all** must be present:
 
-    <!--requires:journal_mandate,tool_guidance-->
+    <!--requires:project_context,examples-->
 
 The dependency name is the section name as it appears in ``include_sections``.
 Marker lines are always stripped, so an unmarked prompt is unaffected and a
@@ -41,13 +41,13 @@ def _span_to_cut(text: str, start: int, end: int) -> tuple[int, int]:
 
     Markers are written both ways and both must read naturally once resolved:
 
-        <!--requires:journal_mandate-->
-        3. **Search the journal** ...
+        <!--requires:project_context-->
+        Read exactly the paths under **Documentation Files Found**.
         <!--/requires-->
 
     is a block whose marker lines should vanish entirely, while a conditional
-    clause inside a bullet — ``... ends at the answer.<!--requires:x--> Journal
-    writes are silent.<!--/requires-->`` — must leave the surrounding line
+    clause inside a bullet — ``... ends at the answer.<!--requires:x--> The
+    rest is silent.<!--/requires-->`` — must leave the surrounding line
     intact. Removing only the marker in the first case would leave a blank line
     that was never in the source; removing the line in the second would delete
     the sentence around it.

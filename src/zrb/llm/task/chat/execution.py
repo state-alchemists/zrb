@@ -10,8 +10,8 @@ Kept separate from `task.py` (config-time `__init__`) and from
 execution-time machinery that `BaseTask` invokes on the composed task.
 
 The `_*` state read here is set in `LLMChatTask.__init__` and typed in
-`state.py::ChatState`. The sibling methods it calls — `_apply_tool_guidance`
-(ChatBuilding) and the two session runners (ChatRunning) — are declared below.
+`state.py::ChatState`. The sibling methods it calls — the two session runners
+(ChatRunning) — are declared below.
 """
 
 from __future__ import annotations
@@ -69,7 +69,6 @@ class ChatExecution(ChatState):
         # level the variable form means zero parameters, which does not match
         # ChatBuilding's unbound `(self) -> None` and trips
         # reportIncompatibleMethodOverride.
-        def _apply_tool_guidance(self) -> None: ...  # ChatBuilding
 
         # The session runners keep the loose-callable form on purpose — `...`
         # matches any signature, so ChatRunning's real (and long) parameter
@@ -129,44 +128,12 @@ class ChatExecution(ChatState):
         resolved_tools = self._get_all_tools(ctx)
         resolved_toolsets = self._get_all_toolsets(ctx)
 
-        # 4a. Auto-wire resolved tool names to the prompt manager so that
-        # tool guidance is filtered to only the tools actually registered.
-        # Also wire the resolved model so the system_context section can
-        # surface model-specific capability notes (e.g. lack of parallel
-        # tool-call support). Re-set on every exec — `/model` switches
-        # update ctx.input.model, which flows through _get_model(ctx).
+        # 4a. Wire the resolved model so the system_context section can surface
+        # model-specific capability notes (e.g. lack of parallel tool-call
+        # support). Re-set on every exec — `/model` switches update
+        # ctx.input.model, which flows through _get_model(ctx).
         if self._prompt_manager is not None:
-            tool_names: set[str] = set()
-            for t in resolved_tools:
-                name = getattr(t, "name", None) or getattr(t, "__name__", None)
-                if name:
-                    tool_names.add(name)
-            self._prompt_manager.tool_names = tool_names or None
             self._prompt_manager.model = self._get_model(ctx)
-
-        # 4b. Apply pending tool guidance added via add_tool_guidance()
-        self._apply_tool_guidance()
-
-        # 4c. Register guidance for dynamically-named factory tools.
-        if self._prompt_manager is not None:
-            for guidance_factory in self._tool_guidance_factories:
-                guidance = guidance_factory(ctx)
-                self._prompt_manager.add_tool_guidance(
-                    group=guidance.group_name,
-                    name=guidance.tool_name,
-                    use_when=guidance.when_to_use,
-                    key_rule=guidance.key_rule,
-                )
-
-        # 4d. Resolve model-aware Tool Usage Guide intro sections.
-        if self._prompt_manager is not None:
-            resolved_model = self._get_model(ctx)
-            sections: list[str] = []
-            for section_factory in self._tool_guidance_section_factories:
-                rendered = section_factory(ctx, resolved_model)
-                if rendered:
-                    sections.append(rendered)
-            self._prompt_manager.tool_guidance_sections = sections
 
         # 5. Create core LLM task
         llm_task_core = self._create_llm_task_core(
@@ -474,14 +441,7 @@ class ChatExecution(ChatState):
             toolsets=resolved_toolsets,
             # No factories passed - tools/toolsets already resolved with parent context
             history_processors=self._history_processors
-            + [
-                create_summarizer_history_processor(
-                    inject_journal_index=(
-                        self._prompt_manager is not None
-                        and "journal_mandate" in self._prompt_manager.active_sections
-                    )
-                )
-            ],
+            + [create_summarizer_history_processor(inject_journal_index=True)],
             capabilities=capabilities,
             llm_config=self._llm_config,
             llm_limiter=self._llm_limiter,
