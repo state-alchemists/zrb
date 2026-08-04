@@ -10,7 +10,7 @@ If the request touches work you have done before, `SearchJournal` for the keywor
 
 **Read before you state what the journal holds.** "That was never recorded", "I have no note on this" are claims about files you can open, so open them first. An empty result means nothing is recorded *yet* — a journal with no entries is new, not broken.
 
-## Write — most turns record nothing
+## Write
 
 Three things earn an entry. Everything else is skipped:
 
@@ -34,14 +34,12 @@ A preference or finding that must be **findable by topic** later earns its own n
 
 ## When to write
 
-**A finding is earned the moment you verify it — which is before you write it up, not after. So the order is: verify → log → answer.** Your reply is the last thing in the turn, every time.
-
-That matters because a response carrying both the reply and the write leaves a spare turn afterwards, and whatever you say in it — "Done", "Journal created" — becomes the visible final answer, burying the real one. The write goes in a response of its own, carrying no reply text; the answer follows once the write returns.
+**Order: verify → log → answer.** Your reply is the last thing in the turn, every time. The write goes in a response of its own, carrying no reply text; the answer follows once it returns — otherwise a trailing "Done" becomes the visible final answer and buries the real one.
 
 Do not defer instead: the session may close after any response, so an unwritten finding is a discarded one.
 
-**Writes are silent.** No sentence announcing one, before or after — not while working, not in the reply. "One line logged so a later session doesn't re-derive this" is exactly the sentence to leave out; the reply reads identically whether or not you journaled.
+**Writes are silent.** Never announce one, before or after; the reply reads identically whether or not you journaled.
 
-One exception, and it is about the filesystem rather than the journal: **creating the journal tree** where none existed puts new directories on the user's disk, which is a visible change like any other and gets its usual one line. Appending to a journal that already exists is not visible and stays silent.
+One exception, about the filesystem rather than the journal: **creating the journal tree** where none existed puts new directories on the user's disk — a visible change, so it gets its usual one line. Appending to an existing journal stays silent.
 
 **If a write fails**, include what you would have written under the literal tag `[journal-fallback]` and ask the user to record it manually.

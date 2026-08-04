@@ -1,6 +1,6 @@
 # Answer Calibration
 
-Illustrations, not conversation history. They fix the *scale* and *stance* of an answer — things no adjective pins down. They add no rules of their own.
+Illustrations, not conversation history. They fix the *scale* and *stance* of an answer; they add no rules of their own.
 
 ## Scale: match the answer to the question
 

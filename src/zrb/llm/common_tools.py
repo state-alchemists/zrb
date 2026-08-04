@@ -86,23 +86,21 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
         tool_name="LS",
         when_to_use="Exploring a directory without a known filename pattern",
         key_rule=(
-            "For pattern-based discovery (e.g. `**/*.py`), use Glob. "
-            "For content search, use Grep."
+            "For a name pattern (e.g. `**/*.py`) use Glob; for content use Grep."
         ),
     ),
     ToolGuidance(
         group_name="File Operations",
         tool_name="Glob",
         when_to_use="Finding files by name pattern",
-        key_rule="For content search, use Grep. For an unfiltered directory listing, use LS.",
     ),
     ToolGuidance(
         group_name="File Operations",
         tool_name="Read",
         key_rule=(
             "Grep to locate the relevant section first; then Read to load it. "
-            "Read numbers every line `cat -n`-style: cite that number, and "
-            "strip the prefix through the first tab before passing text to Edit."
+            "Strip the `cat -n` prefix through the first tab before passing "
+            "text to Edit."
         ),
     ),
     ToolGuidance(
@@ -121,25 +119,17 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
     ToolGuidance(
         group_name="File Operations",
         tool_name="Grep",
-        key_rule="For content search across files; to load a specific section, use Read.",
+        when_to_use="Searching file contents",
     ),
     ToolGuidance(
         group_name="File Operations",
         tool_name="RM",
         when_to_use="Use instead of Bash rm",
-        key_rule=(
-            "Before removing, Grep for imports or references and update them in "
-            "the same turn."
-        ),
     ),
     ToolGuidance(
         group_name="File Operations",
         tool_name="MV",
         when_to_use="Use instead of Bash mv",
-        key_rule=(
-            "Before moving, Grep for imports or references that name the old path "
-            "and update them."
-        ),
     ),
     # Execution
     ToolGuidance(
@@ -168,13 +158,13 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
     ToolGuidance(
         group_name="Analysis",
         tool_name="AnalyzeCode",
-        key_rule="Slow. Use Read + Grep first; AnalyzeFile for a single file; "
-        "Glob or LS for a simple listing.",
+        key_rule="Slow. Read + Grep first; AnalyzeFile for one file; Glob or LS "
+        "for a listing.",
     ),
     ToolGuidance(
         group_name="Analysis",
         tool_name="AnalyzeFile",
-        key_rule="Slow. Use Read for content; for directory-level analysis use AnalyzeCode.",
+        key_rule="Slow. Read for content; AnalyzeCode for a directory.",
     ),
     # Research & Web
     ToolGuidance(
@@ -187,7 +177,6 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
         group_name="Research & Web",
         tool_name="WebFetch",
         when_to_use="Fetching a known URL",
-        key_rule="When the URL is not known, WebSearch first.",
     ),
     # User Interaction
     ToolGuidance(
@@ -198,11 +187,7 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
             "work — ambiguous library/strategy/file selection, or scope splits "
             "the user hasn't called."
         ),
-        key_rule=(
-            "Do not ask for permission to do obvious things. Skip in "
-            "non-interactive mode (the latest <live-context> flags "
-            "`Interactive: no`) — the tool short-circuits there anyway."
-        ),
+        key_rule="Make obvious calls yourself; reserve this for genuine ambiguity.",
     ),
     # Planning
     ToolGuidance(
@@ -239,19 +224,11 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
         group_name="Plan Mode",
         tool_name="EnterPlanMode",
         when_to_use=(
-            "Before a change that is hard to undo or where the approach itself is "
-            "contested — migrations, schema/data changes, deletions, anything "
-            "touching deploy or CI, or work where two designs are defensible and "
-            "picking wrong wastes the effort. Investigate read-only first "
-            "(edits/shell/delegation are blocked until you exit)"
+            "The Working Loop's escalation triggers (hard to undo, or contested "
+            "approach). Investigate read-only first — edits/shell/delegation are "
+            "blocked until you exit"
         ),
-        key_rule=(
-            "Breadth alone is not a trigger: an ordinary multi-file edit stays "
-            "autonomous per the Working Loop — plan mode is for risk and contested "
-            "approach, not file count. Do discovery, then ExitPlanMode with a "
-            "concrete plan. Skip plan mode when non-interactive (no user to "
-            "approve): present the plan inline in your reply and proceed to the edits."
-        ),
+        key_rule="Do discovery, then ExitPlanMode with a concrete plan.",
     ),
     ToolGuidance(
         group_name="Plan Mode",
@@ -322,37 +299,31 @@ _DYNAMIC_TOOL_GUIDANCE_FACTORIES: "list[Callable[[AnyContext], ToolGuidance]]" =
         "again (research fan-out; broad exploration where you cannot yet name the "
         "files); or (b) your own context is the problem — the same hypothesis has "
         "failed twice, or you are checking work you produced yourself. There a "
-        "sub-agent blind to your reasoning is the point, not the token saving. "
-        "To fan out, pass tasks=[{...}, ...] to run several concurrently in one call.",
+        "sub-agent blind to your reasoning is the point, not the token saving.",
         key_rule="Do it yourself when you already know the answer's shape: an edit "
-        "you can write now, files you can name, one or two searches. Do NOT delegate "
-        "when the next step depends on interpreting the last, or when you need "
-        "verbatim text to quote — a report cannot be interrogated. That rules out "
-        "the part you quote, not the whole turn: decide per unit of work, so reading "
-        "the core yourself while delegating the rest is one turn. Fanning out reads is "
-        "free; fanning out WRITES shares one working tree, so each task must enter "
-        "its own worktree. deliverable and non_goals are the scope clamp — concrete, "
-        "or sub-agents over-produce. Agent names come from AVAILABLE AGENTS in this "
-        "tool's schema and are exact; never adapt one from another harness.",
+        "you can write now, files you can name, one or two searches. Delegating "
+        "breaks down when the next step depends on interpreting the last, or when "
+        "you need verbatim text to quote — a report cannot be interrogated. That "
+        "rules out the part you quote, not the whole turn: decide per unit of work, "
+        "so reading the core yourself while delegating the rest is one turn. Fanning "
+        "out reads is free; fanning out WRITES shares one working tree, so each task "
+        "needs its own worktree. Agent names are exact — never adapt one from "
+        "another harness.",
     ),
     lambda ctx: ToolGuidance(
         group_name="Delegation",
         tool_name="DelegateToAgentBackground",
         when_to_use="Work you do NOT need before continuing — speculative research, "
         "generating a file, a slow sweep. Justified by timing, not size: the work may "
-        "be small. To fan out, start several and collect the handles later.",
-        key_rule="Same scope clamp, same agent-picking rule (this tool carries its "
-        "own AVAILABLE AGENTS list), and same fan-out caution as DelegateToAgent "
-        "(concurrent writes share one working tree). Need the result now? "
-        "Use DelegateToAgent (pass tasks=[...] to run several at once).",
+        "be small.",
+        key_rule="Need the result before continuing? Use DelegateToAgent. Concurrent "
+        "writes share one working tree, so give each its own worktree.",
     ),
     lambda ctx: ToolGuidance(
         group_name="Delegation",
         tool_name="GetDelegationResult",
         when_to_use="Collect the result of a DelegateToAgentBackground handle",
-        key_rule="Pass wait=N to block up to N seconds (returns early on finish) "
-        "instead of busy-polling; kill=True stops the agent. The handle is "
-        "consumed once a completed result is collected.",
+        key_rule="Prefer wait=N over repeated polling.",
     ),
 ]
 
