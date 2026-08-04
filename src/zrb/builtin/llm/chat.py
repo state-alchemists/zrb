@@ -94,11 +94,14 @@ defer_common_tools(llm_chat)
 
 
 def _tool_factory(tool, defer_loading: bool = True):
-    """Wrap a tool so its schema is hidden until the model searches for it by name.
+    """Wrap a tool, optionally hiding its schema until searched for by name.
 
-    Delegation is used often enough that the Tool Usage Guide already tells the
-    model its exact name — deferring only removes the schema from every turn's
-    token cost, not the model's knowledge that the tool exists.
+    Deferring removes the schema from every turn's token cost, not the model's
+    knowledge that the tool exists — the Tool Usage Guide names all three
+    delegation tools either way. ``DelegateToAgent`` is the exception that
+    loads eagerly: its schema carries the sub-agent roster, and a model that
+    has to search before it can see which agents exist mostly does not
+    delegate at all.
     """
     # lazy: pydantic_ai (heavy third-party deferral)
     from pydantic_ai import Tool

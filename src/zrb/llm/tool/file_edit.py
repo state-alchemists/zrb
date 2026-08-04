@@ -77,7 +77,7 @@ async def replace_in_file(
             )
             if actual_old is not None:
                 old_text = stripped_old
-                new_text = _strip_read_line_numbers(new_text) or new_text
+                new_text = _strip_prefix_per_line(new_text)
                 fuzzy_note = " (stripped Read's line-number prefix from old_text)"
 
     if actual_old is None:
@@ -220,7 +220,31 @@ def _strip_read_line_numbers(text: str) -> str | None:
     lines = text.splitlines(keepends=True)
     if not lines or not all(_READ_LINE_NUMBER.match(line) for line in lines):
         return None
-    return "".join(_READ_LINE_NUMBER.sub("", line, count=1) for line in lines)
+    return _strip_prefix_per_line(text)
+
+
+def _strip_prefix_per_line(text: str) -> str:
+    """Drop ``Read``'s prefix from whichever lines carry it, leaving the rest.
+
+    The all-or-nothing rule in ``_strip_read_line_numbers`` is right for
+    ``old_text``: a partial match there means the guess was wrong, and mangling
+    it would edit the wrong region. For ``new_text`` the same rule inverts into
+    data loss. We only reach this function once ``old_text`` has *proved* the
+    model was copying out of ``Read``, and the usual edit changes one line — so
+    the replacement arrives with prefixes on the lines that were copied and none
+    on the line that was rewritten. All-or-nothing then declines to strip and
+    writes ``     3\\tsome text`` into the file, reported as a success. On a
+    ``.py`` file the post-write diagnostics catch it; on markdown or YAML
+    nothing does.
+
+    Per-line is safe here for the same reason the caller is: a file that
+    genuinely contains ``cat -n`` text matched on the exact path and never got
+    this far.
+    """
+    return "".join(
+        _READ_LINE_NUMBER.sub("", line, count=1)
+        for line in text.splitlines(keepends=True)
+    )
 
 
 def _find_fuzzy_match(content: str, old_text: str) -> str | None:

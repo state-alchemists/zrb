@@ -75,3 +75,33 @@ def test_head_survives_so_ordering_decides_what_is_kept(tmp_path):
     assert result is not None
     assert "- Name: Go" in result
     assert "insight 199" not in result
+
+
+def test_zero_suppresses_the_injection(tmp_path):
+    """0 means "max 0 chars", not "unlimited".
+
+    ``EnvField`` falls back to 0 on an unparseable value, so reading 0 as
+    unlimited would let a typo'd env var silently uncap the injection.
+    """
+    journal_dir = _write_index(tmp_path, "# Journal\n\n- Name: Go\n")
+    with patch("zrb.llm.prompt.live_context.CFG") as cfg:
+        cfg.LLM_JOURNAL_DIR = journal_dir
+        cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
+        cfg.LLM_JOURNAL_INDEX_MAX_CHARS = 0
+
+        assert render_journal_index() is None
+
+
+def test_negative_injects_the_whole_index_uncapped(tmp_path):
+    filler = "\n".join(f"- [insight {i}](technical/n{i}.md)" for i in range(200))
+    journal_dir = _write_index(tmp_path, f"# Journal\n\n{filler}\n")
+    with patch("zrb.llm.prompt.live_context.CFG") as cfg:
+        cfg.LLM_JOURNAL_DIR = journal_dir
+        cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
+        cfg.LLM_JOURNAL_INDEX_MAX_CHARS = -1
+
+        result = render_journal_index()
+
+    assert result is not None
+    assert "insight 199" in result
+    assert "(...more)" not in result

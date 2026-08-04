@@ -32,7 +32,7 @@ The tree is self-describing — `ls src/zrb/` plus each module's docstring cover
 
 User-added prompts follow. Override via the `include_sections` constructor parameter or the `ZRB_LLM_INCLUDE_SECTIONS` env var (comma-separated, order-sensitive).
 
-> **`workflow` was split out of `mandate`.** `mandate` kept the Priority Order and Session Context; `workflow` took Project Documentation, Skill Activation (with the skill-catalogue placeholders), the Working Loop, Verify Before Done, Recovery, and Stop. A pinned `include_sections` / `ZRB_LLM_INCLUDE_SECTIONS` that names only `mandate` still gets both files emitted at `mandate`'s position, so no config silently loses the Working Loop. A *registered provider* for `mandate` overrides both — replacing the section means supplying its content yourself.
+> **`workflow` was split out of `mandate`.** `mandate` kept the Priority Order; `workflow` took Project Documentation, Skill Activation (with the skill-catalogue placeholders), the Working Loop, Verify Before Done, Recovery, and Stop. A pinned `include_sections` / `ZRB_LLM_INCLUDE_SECTIONS` that names only `mandate` still gets both files emitted at `mandate`'s position, so no config silently loses the Working Loop. A *registered provider* for `mandate` overrides both — replacing the section means supplying its content yourself.
 
 A section name that is **not** a built-in resolves as a custom, config-positioned section (precedence: built-in > registered provider > markdown file):
 - **Registered provider** — `prompt_manager.register_section("company_context", lambda ctx: ...)` registers a dynamic provider, composed by calling it with the active context at compose time. Use for always-on content that reflects runtime state (current sprint, deploy target, live schema). Return `""` to emit nothing.
@@ -49,17 +49,42 @@ A second axis controls *how* each section is phrased, independent of *which* sec
 
 The base `*.md` files **are** the `terse` profile. Other profiles are **variant overlays**: `get_prompt(name, profile="mini")` resolves `{name}.mini.md` through the full override chain, falling back to the base `{name}.md` when no variant exists — so a profile only needs variant files for the sections that actually change (currently `examples.mini.md`, the only variant). **A variant may add demonstrations; it may not add or re-phrase rules** (ADR-0091): `mini` is `terse` plus worked examples, never more rule text. A variant *replaces* its base file, so `examples.mini.md` must stay a strict superset of `examples.md` — a test pins that.
 
+> **`examples` is deliberately thin in the base.** Its own first line says it carries illustrations and *"no rules of their own"*, which makes it the one section where the profile axis can do real work: the base keeps only the four examples that fix a zrb-specific stance (no forced codebase tie-in, directive→disk with call sites, measure before you call something large, tool result carrying an imperative), and the other 22 live in `examples.mini.md`. Adding a demonstration? It goes in the variant unless it teaches a stance a frontier model gets wrong — and if it teaches a *rule*, it does not belong in either file.
+
 > The profile was previously called `explicit`; it is `mini` now (ADR-0095), naming the model class it targets rather than a register it no longer uses. This is a clean break — `ZRB_LLM_PROFILE=explicit` is not recognized and falls through to `auto`.
 
 `PromptManager._get_composed_middlewares` resolves the profile once (from `CFG.LLM_PROFILE` + `self._model`) and threads it to file-backed sections. Cross-cutting voice that does not decompose into a variant stays a whole alternate section/preset (the selection escape hatch).
 
 > **Invariant: a behavioral rule never lives only in a profile variant.** A variant reaches only the models that resolve to it, so a rule placed there silently misses everyone else. Variants may re-phrase, repeat, or exemplify a rule; the rule itself belongs in the base file. (This was a real bug twice over: "when you say you will run a tool, actually run it" lived only in the variant and never shipped — it is now in `workflow.md` → Execute — and before ADR-0093 the registry shipped empty, so `auto` resolved to `terse` for *every* model and the variant reached nobody at all.)
 
+> **Invariant: every section reads whole on its own.** Sections toggle
+> independently via `LLM_INCLUDE_SECTIONS`, so a section that cites a sibling
+> ("see the Priority Order", "per the Working Loop's triggers") reads fine in
+> the default composition and dangles the moment someone trims the list. The
+> fix is always to **restate the rule compactly in place**, never to add the
+> pointer back. Where a reference is genuinely worth keeping, wrap it in
+> `<!--requires:other_section-->` so it disappears with its target — but that
+> guard only exists for markdown sections; `tool_guidance` is built in Python
+> and `filter_requires` never sees it, so its entries must stand alone
+> unconditionally. `test_section_composition.py` enforces this: it brute-forces
+> all 63 subsets against an `OWNED_VOCABULARY` map, and a separate test
+> composes `tool_guidance` alone. **Adding a section-defining term means adding
+> it to `OWNED_VOCABULARY`** — the test only catches vocabulary it knows about.
+
 **Each section is MECE — a single behavior lives in exactly one section.** Adding a rule: pick the smallest-scope section that owns the concept.
 
+Self-containment and MECE pull in opposite directions where two switchable
+sections both need a rule. MECE governs *where the rule is authored and
+maintained*; self-containment governs *what a composition may assume*. When
+both apply — the delegation triggers, which `workflow` owns and
+`tool_guidance` also needs — state it in both, phrased for each context, and
+keep them in sync. Consistent duplication is the cost of independent toggling;
+**divergent** duplication is the bug (`DelegateToAgent` and the Working Loop
+shipped two different trigger lists for one decision).
+
 - `persona` — identity + response style
-- `mandate` — the Priority Order (precedence, not sequence) + session context; no tool/git specifics
-- `workflow` — how a turn runs: project-doc reading, skill activation, the Working Loop, the Verify Before Done gate, Recovery, Stop. Carries the skill catalogue via `{CORE_SKILLS}`/`{AVAILABLE_SKILLS}`/`{PREACTIVATED_SKILLS}` placeholders (`build_skill_replacements` in `prompt/claude.py`); core skills (`llm_plugin/core_skills/`) are listed separately from other model-invocable skills
+- `mandate` — the Priority Order and nothing else: one eight-rank ladder, precedence not sequence, plus the auto-summarization note. No tool/git specifics.
+- `workflow` — how a turn runs: the Turn Sequence (premise → first look → frame → skills → project docs → journal), project-doc reading, skill activation, the Working Loop, the Verify Before Done gate, Recovery, Stop. Owns the `Cost of guessing wrong` ask-versus-assume test and the deliverable-destination rule. Carries the skill catalogue via `{CORE_SKILLS}`/`{AVAILABLE_SKILLS}`/`{PREACTIVATED_SKILLS}` placeholders (`build_skill_replacements` in `prompt/claude.py`); core skills (`llm_plugin/core_skills/`) are listed separately from other model-invocable skills
 - `git_mandate` — git approval rules
 - `journal_mandate` — memory protocol: what to record, the everyday write shapes (one activity line, one insight note), and when to escalate to the `core-journaling` skill for structural work
 - `system_context` — *stable* runtime facts only (OS, CWD, model, detected tools/markers) plus the `<live-context>` anchor, so the cached prefix stays byte-identical across turns

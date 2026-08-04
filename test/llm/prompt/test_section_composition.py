@@ -24,10 +24,26 @@ FILE_SECTIONS = [
 ]
 
 # Text that must not survive when the section owning it is absent.
+#
+# Every section is independently switchable, so a section is only correct if it
+# reads whole on its own. A pointer at a sibling ("see the Priority Order",
+# "per the persona's closing rule") is the failure this catches: it reads fine
+# in the default composition and turns into a dangling reference the moment
+# someone trims LLM_INCLUDE_SECTIONS. The fix is always to restate the rule
+# compactly in place, never to add the pointer back.
 OWNED_VOCABULARY = {
     "journal_mandate": ["journal", "Journal", "SearchJournal"],
     "project_context": ["Documentation Files Found", "User-Level Guidance"],
-    "workflow": ["Working Loop", "Verify Before Done", "ActivateSkill"],
+    "workflow": [
+        "Working Loop",
+        "Verify Before Done",
+        "ActivateSkill",
+        "Turn Sequence",
+        "Cost of guessing wrong",
+    ],
+    "mandate": ["Priority Order", "Operating Rules"],
+    "persona": ["Response Calibration"],
+    "git_mandate": ["Requires Approval"],
 }
 
 
@@ -110,6 +126,35 @@ def test_premise_check_is_first_and_unconditional():
     assert steps[0].startswith("1. **Check the premise**")
     assert "<!--requires" not in steps[0]
     assert any("**Activate skills**" in step for step in steps[1:])
+
+
+def test_tool_guidance_is_self_contained():
+    """Tool guidance is its own switchable section, so it cannot cite others.
+
+    It is built in Python rather than markdown, so ``filter_requires`` never
+    sees it and a ``<!--requires:-->`` guard is not available. A pointer at
+    another section therefore has no way to disappear with its target — the
+    text must stand alone.
+
+    Composed with ``tool_guidance`` as the only section, so anything foreign
+    that shows up came from the guidance entries themselves.
+    """
+    from zrb.context.shared_context import SharedContext
+    from zrb.llm.common_tools import apply_common_tools
+    from zrb.llm.task.llm_task import LLMTask
+
+    host = LLMTask(name="tool-guidance-probe")
+    apply_common_tools(host)
+    host.prompt_manager.include_sections = ["tool_guidance"]
+    composed = host.prompt_manager.compose_prompt()(SharedContext())
+
+    offenders = [
+        (owner, word)
+        for owner, vocabulary in OWNED_VOCABULARY.items()
+        for word in vocabulary
+        if word[0].isupper() and word in composed
+    ]
+    assert offenders == []
 
 
 @pytest.mark.parametrize("profile", [None, "mini"])

@@ -140,12 +140,11 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
             "same tool)"
         ),
         key_rule=(
-            "For file I/O, use Read/Write/Edit/Grep/RM/MV — not Shell. "
-            "OS, CWD, and available tools are in System Context; the current time "
-            "is in the latest <live-context> — read them there instead of "
-            "shelling out to discover them. "
-            "For long-running processes (dev servers, watchers, builds), run with "
-            "background=True instead of blocking."
+            "Anything about files goes through Read/Write/Edit/Grep/RM/MV/LS, "
+            "including merely looking: `test -f`, `ls`, `cat`, `head`, `find`, "
+            "`wc -l`. OS, CWD, and tools are in System Context; the time is in "
+            "the latest <live-context>. Long-running processes (dev servers, "
+            "watchers, builds) take background=True instead of blocking."
         ),
     ),
     ToolGuidance(
@@ -183,11 +182,13 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
         group_name="User Interaction",
         tool_name="AskUserQuestion",
         when_to_use=(
-            "The choice is non-obvious AND the wrong pick would waste significant "
-            "work — ambiguous library/strategy/file selection, or scope splits "
-            "the user hasn't called."
+            "Guessing wrong would waste work already done, or put something on "
+            "the user's disk or an external system that they then have to undo "
+            "— a new file in their repo, a chosen library, a schema, a post."
         ),
-        key_rule="Make obvious calls yourself; reserve this for genuine ambiguity.",
+        key_rule="One question, naming the alternatives. When the pick is cheap to "
+        "reverse and confined to your reply, do not ask: choose, and name the "
+        "assumption in the reply.",
     ),
     # Planning
     ToolGuidance(
@@ -224,9 +225,11 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
         group_name="Plan Mode",
         tool_name="EnterPlanMode",
         when_to_use=(
-            "The Working Loop's escalation triggers (hard to undo, or contested "
-            "approach). Investigate read-only first — edits/shell/delegation are "
-            "blocked until you exit"
+            "The change is hard to undo, or the approach itself is contested — a "
+            "migration, a schema/data change, a deletion, a deploy/CI change, or "
+            "two defensible designs where picking wrong wastes the work. Breadth "
+            "alone is not a trigger. Investigate read-only first — edits, shell, "
+            "and delegation are blocked until you exit"
         ),
         key_rule="Do discovery, then ExitPlanMode with a concrete plan.",
     ),
@@ -286,29 +289,27 @@ _DYNAMIC_TOOL_GUIDANCE_FACTORIES: "list[Callable[[AnyContext], ToolGuidance]]" =
         group_name="Delegation",
         tool_name="ActivateSkill",
         when_to_use=(
-            "Loading domain-specific protocols for specialized work "
-            "(see Skill Activation table)"
+            "Loading domain-specific methodology before starting work the skill "
+            "covers. Activate every skill that applies, not just one"
         ),
         key_rule="Re-activate after summarization if skill context was lost.",
     ),
     lambda ctx: ToolGuidance(
         group_name="Delegation",
         tool_name="DelegateToAgent",
-        when_to_use="Either (a) the work will read far more than it reports — many "
-        "searches, pages, or files whose intermediate content you will not need "
-        "again (research fan-out; broad exploration where you cannot yet name the "
-        "files); or (b) your own context is the problem — the same hypothesis has "
-        "failed twice, or you are checking work you produced yourself. There a "
-        "sub-agent blind to your reasoning is the point, not the token saving.",
-        key_rule="Do it yourself when you already know the answer's shape: an edit "
-        "you can write now, files you can name, one or two searches. Delegating "
-        "breaks down when the next step depends on interpreting the last, or when "
-        "you need verbatim text to quote — a report cannot be interrogated. That "
-        "rules out the part you quote, not the whole turn: decide per unit of work, "
-        "so reading the core yourself while delegating the rest is one turn. Fanning "
-        "out reads is free; fanning out WRITES shares one working tree, so each task "
-        "needs its own worktree. Agent names are exact — never adapt one from "
-        "another harness.",
+        when_to_use="A named agent fits the work; or the steps are independent and "
+        "can run at once; or the step reads far more than it reports (research "
+        "fan-out, exploration where you cannot yet name the files); or your own "
+        "context is the problem — the same hypothesis has failed twice, or you are "
+        "checking work you produced yourself.",
+        key_rule="Do it yourself when you know the answer's shape: an edit you can "
+        "write now, files you can name, one or two searches. Delegation breaks down "
+        "when the next step depends on interpreting the last, or when you need "
+        "verbatim text to quote — a report cannot be interrogated. That rules out "
+        "the part you quote, not the turn: decide per unit of work. Fanning out "
+        "reads is free; fanning out writes shares one working tree, so give each "
+        "its own worktree. Agent names are exact — never adapt one from another "
+        "harness.",
     ),
     lambda ctx: ToolGuidance(
         group_name="Delegation",

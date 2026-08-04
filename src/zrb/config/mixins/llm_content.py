@@ -86,7 +86,8 @@ class LLMContentMixin:
             "Maximum characters of the journal index injected into context. "
             "The index is the HUD — it carries the user's identity and standing "
             "preferences, so overflow is dropped from the end and the file is "
-            "ordered most-durable-first."
+            "ordered most-durable-first. 0 suppresses the injection entirely; "
+            "a negative value injects the whole index uncapped."
         ),
     )
 

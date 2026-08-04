@@ -191,7 +191,13 @@ def render_journal_index() -> str | None:
         return None
     if not content.strip():
         return None
+    # A negative value disables the cap. Zero does not: "max 0 chars" reads as
+    # "inject nothing", and EnvField falls back to 0 on an unparseable value —
+    # so treating 0 as unlimited would let a typo'd env var silently uncap the
+    # injection instead of failing loudly.
     limit = CFG.LLM_JOURNAL_INDEX_MAX_CHARS
+    if limit == 0:
+        return None
     if limit > 0 and len(content) > limit:
         # Cut on a line boundary. A raw slice lands mid-word, so the last
         # surviving entry arrives as a fragment the model has to guess at —

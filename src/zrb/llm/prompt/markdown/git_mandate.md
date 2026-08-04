@@ -1,4 +1,4 @@
-# Git Rules (Supplement to Operating Rules)
+# Git Rules
 
 ## Requires Approval
 

@@ -1,6 +1,6 @@
 ---
 name: core-journaling
-description: "Activate when the turn does *structural* journal work — creating a directory, repairing indexes, renaming/splitting/deleting notes, running journal-lint, reconciling a legacy journal. Everyday writes (one activity line, one insight note) are covered by the Journal Protocol and need no activation. Provides the graph protocol, directory layout, and long-form activity entry."
+description: "Activate when the turn builds or reshapes the journal's *structure* — writing the root index, adding a top-level directory, repairing indexes, renaming/splitting/deleting notes, running journal-lint, reconciling a legacy journal. The first write into an empty journal is always structural. Appending a line to an existing activity log is not, and needs no activation. Provides the graph protocol, directory layout, HUD template, and long-form activity entry."
 user-invocable: false
 ---
 # Skill: core-journaling

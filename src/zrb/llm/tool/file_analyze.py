@@ -3,7 +3,6 @@ import os
 from zrb.config.config import CFG
 from zrb.llm.tool.file_read import read_file
 from zrb.llm.tool.file_search import search_files
-from zrb.util.truncate import truncate_text
 
 
 async def analyze_file(path: str, query: str) -> str:
@@ -30,7 +29,7 @@ async def analyze_file(path: str, query: str) -> str:
     token_threshold = CFG.LLM_FILE_ANALYSIS_TOKEN_THRESHOLD
     char_limit = token_threshold * 4
 
-    clipped_content, _ = truncate_text(content, char_limit, keep="head")
+    clipped_content = _clip_numbered(content, char_limit)
 
     system_prompt = get_prompt("file_extractor")
 
@@ -63,3 +62,28 @@ async def analyze_file(path: str, query: str) -> str:
     )
 
     return str(result)
+
+
+def _clip_numbered(text: str, max_chars: int) -> str:
+    """Clip ``Read``'s output to ``max_chars`` of *file* content.
+
+    ``read_file`` prefixes every line with ``cat -n`` numbering, which
+    ``file_extractor.md`` tells the sub-agent to read past. Clipping the
+    numbered text would bill ~13% of the analysis window to characters that
+    are not in the file, so the budget is measured on each line's payload and
+    the prefix rides along free. ``read_file`` makes the same distinction for
+    its own cap; this is the second place the numbered output gets budgeted.
+
+    A line with no tab — the ``[File: ...]`` header, or unnumbered PDF text —
+    counts at full length, since there is no prefix to discount.
+    """
+    kept: list[str] = []
+    total = 0
+    for line in text.splitlines(keepends=True):
+        _, tab, payload = line.partition("\t")
+        total += len(payload) if tab else len(line)
+        if total > max_chars and kept:
+            kept.append("\n...[TRUNCATED]")
+            break
+        kept.append(line)
+    return "".join(kept)

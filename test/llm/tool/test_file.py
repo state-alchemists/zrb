@@ -116,6 +116,25 @@ def test_replace_in_file_strips_the_prefix_from_new_text_too(temp_dir):
         assert f.read() == "def qux():\n    return 9\n"
 
 
+def test_replace_in_file_strips_the_prefix_from_partially_copied_new_text(temp_dir):
+    # The common edit rewrites one line: the untouched lines still carry the
+    # prefix, the rewritten one does not. All-or-nothing stripping declines
+    # here and writes "     3\t" into the file, reported as a success — silent
+    # corruption on any file the post-write diagnostics do not cover.
+    file_path = os.path.join(temp_dir, "doc.md")
+    with open(file_path, "w") as f:
+        f.write("# Title\n\nsome text\nmore text\n")
+
+    res = _r(
+        file_path,
+        "     3\tsome text\n     4\tmore text\n",
+        "     3\tsome text\nCHANGED text\n",
+    )
+    assert "Successfully updated" in res
+    with open(file_path) as f:
+        assert f.read() == "# Title\n\nsome text\nCHANGED text\n"
+
+
 def test_replace_in_file_still_edits_genuinely_numbered_content(temp_dir):
     # Stripping is a last resort, tried only after an exact match fails, so a
     # file that really does contain cat -n text edits through the exact path.
