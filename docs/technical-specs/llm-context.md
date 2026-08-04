@@ -37,8 +37,21 @@ Journal entries are stored in a directory structure with a central index file.
 
 | Setting | Environment Variable | Default |
 |---------|---------------------|---------|
+| Enabled | `ZRB_LLM_JOURNAL_ENABLED` | `on` |
 | Journal Directory | `ZRB_LLM_JOURNAL_DIR` | `~/.zrb/llm-notes/` |
 | Index File | `ZRB_LLM_JOURNAL_INDEX_FILE` | `index.md` |
+| Injected index cap | `ZRB_LLM_JOURNAL_INDEX_MAX_CHARS` | `2500` |
+
+`ZRB_LLM_JOURNAL_ENABLED=false` turns the whole subsystem off — the Journal
+Protocol prompt section, the `<journal-index>` injection, the `SearchJournal`
+tool, and the built-in `core-journaling` skill all disappear together, so the
+model is never told a journal exists. The gate lives in
+`PromptManager.active_sections`, which drops `journal_mandate`; the index
+injection and both summarization paths already key on that section's presence,
+so one filter reaches all of them (ADR-0097).
+
+`ZRB_LLM_JOURNAL_DIR` is **not** an off switch: clearing it falls back to
+`~/.zrb/llm-notes/` rather than disabling journaling.
 
 ### Directory Organization
 
@@ -91,11 +104,28 @@ When present, the block is wrapped as its own tag inside the live-context payloa
 ```
 <journal-index>
 Your persistent memory (index file: index.md). Use SearchJournal for full entries.
-[content of index.md, truncated to ~1000 characters, with " (...more)" appended if truncated]
+[content of index.md, capped at ZRB_LLM_JOURNAL_INDEX_MAX_CHARS]
 </journal-index>
 ```
 
-If the index file is missing, unreadable, or empty, nothing is injected at all.
+When the content exceeds the cap it is cut **on a line boundary** and ` (...more)`
+is appended, and the header gains a pointer to the rest:
+
+```
+Your persistent memory (index file: index.md). Truncated at `(...more)`; Read /abs/path/to/index.md for the rest. Use SearchJournal for full entries.
+```
+
+Cutting on a line boundary matters because the entries are facts about the user —
+half a sentence is worse than none. Overflow is dropped from the **end**, so the
+index should be written most-durable-first (the `core-journaling` skill's HUD
+template fixes that order: identity and standing preferences first, unbounded
+"recent insights" last, so growth only ever evicts itself).
+
+Nothing is injected at all when the index file is missing, unreadable, or empty;
+when `ZRB_LLM_JOURNAL_INDEX_MAX_CHARS` is `0`; or when
+`ZRB_LLM_JOURNAL_ENABLED` is `false`. Because a missing block therefore does not
+prove an empty journal, the Journal Protocol tells the model to `SearchJournal`
+before concluding one way or the other.
 
 ---
 

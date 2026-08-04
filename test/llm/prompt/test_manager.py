@@ -806,9 +806,7 @@ def test_journal_disabled_strips_requires_blocks_in_sibling_sections(monkeypatch
     so every other CFG read stays real — the placeholder substitution in
     `get_prompt` needs genuine values.
     """
-    manager = PromptManager(
-        include_sections=["mandate", "workflow", "journal_mandate"]
-    )
+    manager = PromptManager(include_sections=["mandate", "workflow", "journal_mandate"])
     monkeypatch.setenv("ZRB_LLM_JOURNAL_ENABLED", "false")
     prompt = manager.compose_prompt()(SharedContext())
     assert "Journal Protocol" not in prompt

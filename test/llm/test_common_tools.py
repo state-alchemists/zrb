@@ -40,15 +40,11 @@ class RecordingHost:
 
     def resolved_tool_names(self) -> set[str]:
         """Names of every tool registered directly or via a factory."""
-        ctx = Context(
-            shared_ctx=SharedContext(), task_name="probe", color=0, icon="x"
-        )
+        ctx = Context(shared_ctx=SharedContext(), task_name="probe", color=0, icon="x")
         resolved = list(self.tools)
         for factory in self.tool_factories:
             produced = factory(ctx)
-            resolved.extend(
-                produced if isinstance(produced, list) else [produced]
-            )
+            resolved.extend(produced if isinstance(produced, list) else [produced])
         names = set()
         for tool in resolved:
             name = getattr(tool, "__name__", None) or getattr(tool, "name", None)

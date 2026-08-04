@@ -389,8 +389,10 @@ Guidance entries for tools that are not registered on the task are automatically
 
 | Variable | Description | Default |
 |----------|-------------|---------|
+| `ZRB_LLM_JOURNAL_ENABLED` | Master switch for the journal. `false` suppresses all four surfaces together — the Journal Protocol prompt section, the `<journal-index>` injection, the `SearchJournal` tool, and the built-in `core-journaling` skill — so the model is never told a journal exists (ADR-0097). Note `ZRB_LLM_JOURNAL_DIR` has no "off" value: clearing it falls back to the default path rather than disabling anything | `on` |
 | `ZRB_LLM_JOURNAL_DIR` | Long-term notes directory | `~/.zrb/llm-notes/` |
 | `ZRB_LLM_JOURNAL_INDEX_FILE` | Main index file name | `index.md` |
+| `ZRB_LLM_JOURNAL_INDEX_MAX_CHARS` | Max characters of the index injected into context. Overflow is dropped from the **end** on a line boundary, so write the index most-durable-first. `0` suppresses the injection; a negative value injects it uncapped | `2500` |
 | `ZRB_LLM_HISTORY_DIR` | Conversation history directory | `~/.zrb/llm-history/` |
 | `ZRB_LLM_HISTORY_BACKUP_RETAIN` | Number of timestamped history backups to keep per conversation (`-1` = keep all, `0` = disable) | `3` |
 
@@ -668,11 +670,34 @@ All interval and delay values are in **milliseconds**.
 
 These variables let you customize the slash tokens that trigger built-in UI commands.
 
+Each value is a **comma-separated list of alias tokens**, and setting one
+*replaces* the defaults rather than adding to them — list every alias you want to
+keep. Tokens need not start with `/`: `!` and `>` are the defaults for two of
+them.
+
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_UI_COMMAND_PLAN_TOGGLE` | Slash command to toggle Plan Mode | `/plan` |
+| `ZRB_LLM_UI_COMMAND_ATTACH` | Attach a file to the next message | `/attach` |
+| `ZRB_LLM_UI_COMMAND_BTW` | Add a note to the journal without prompting the agent | `/btw` |
+| `ZRB_LLM_UI_COMMAND_COPY` | Copy the last response to the clipboard | `/copy` |
+| `ZRB_LLM_UI_COMMAND_EXEC` | Run a shell command directly from the prompt | `!, /exec` |
+| `ZRB_LLM_UI_COMMAND_EXIT` | Leave the chat session | `/q, :q, /bye, /quit, /exit` |
+| `ZRB_LLM_UI_COMMAND_INFO` | Show session info and the command list | `/info, /help` |
+| `ZRB_LLM_UI_COMMAND_LOAD` | Resume a saved conversation | `/load, /resume` |
+| `ZRB_LLM_UI_COMMAND_PLAN_TOGGLE` | Toggle Plan Mode | `/plan` |
+| `ZRB_LLM_UI_COMMAND_REDIRECT_OUTPUT` | Write the next response to a file | `>, /redirect` |
+| `ZRB_LLM_UI_COMMAND_REWIND` | Step the conversation back a turn | `/rewind` |
+| `ZRB_LLM_UI_COMMAND_SAVE` | Save the current conversation | `/save` |
+| `ZRB_LLM_UI_COMMAND_SET_MODEL` | Switch the model mid-session | `/model` |
+| `ZRB_LLM_UI_COMMAND_SUMMARIZE` | Compact the conversation history | `/compress, /compact` |
+| `ZRB_LLM_UI_COMMAND_VOICE` | Toggle voice input | `/voice, /v` |
+| `ZRB_LLM_UI_COMMAND_YOLO_TOGGLE` | Toggle auto-approval of tool calls | `/yolo` |
 
-All other slash commands (`/yolo`, `/exit`, `/save`, `/load`, etc.) share the same pattern — prefix `ZRB_LLM_UI_COMMAND_` + the uppercase command name, with a comma-separated list of alias tokens as the value.
+> ⚠️ **The variable name is not derivable from the command.** Several differ from
+> the token they bind: `/yolo` → `YOLO_TOGGLE`, `/plan` → `PLAN_TOGGLE`,
+> `/model` → `SET_MODEL`, `/compress` → `SUMMARIZE`, `>` → `REDIRECT_OUTPUT`.
+> Use the names in the table rather than uppercasing the slash token — a guessed
+> name is simply an unread environment variable, with no error to tell you.
 
 ---
 
