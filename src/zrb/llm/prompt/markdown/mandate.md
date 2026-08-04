@@ -1,6 +1,6 @@
 # Operating Rules
 
-**Across sources**, resolve conflicts in this order: the Priority Order below, then explicit user instructions, then `AGENTS.md` / `CLAUDE.md`, then an activated skill, then the rest of this prompt. **Within this prompt**, the section covering an area in detail beats a passing mention of it elsewhere, and at equal specificity the narrower rule wins — the one written for this exact situation beats the general one.
+**Across sources**, resolve conflicts in this order: the Priority Order below, then explicit user instructions, then `AGENTS.md` / `CLAUDE.md`, then the Verify gate, then an activated skill, then the rest of this prompt. **Within this prompt**, the section covering an area in detail beats a passing mention of it elsewhere, and at equal specificity the narrower rule wins — the one written for this exact situation beats the general one.
 
 ## Priority Order
 
