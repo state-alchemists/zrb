@@ -677,16 +677,16 @@ them.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_UI_COMMAND_ATTACH` | Attach a file to the next message | `/attach` |
-| `ZRB_LLM_UI_COMMAND_BTW` | Add a note to the journal without prompting the agent | `/btw` |
-| `ZRB_LLM_UI_COMMAND_COPY` | Copy the last response to the clipboard | `/copy` |
+| `ZRB_LLM_UI_COMMAND_ATTACH` | `<cmd> <path>` — attach a file to the conversation | `/attach` |
+| `ZRB_LLM_UI_COMMAND_BTW` | `<cmd> <question>` — ask a side question that is **not** saved to history; works while the LLM is still thinking | `/btw` |
+| `ZRB_LLM_UI_COMMAND_COPY` | Copy the **full transcript** to the clipboard | `/copy` |
 | `ZRB_LLM_UI_COMMAND_EXEC` | Run a shell command directly from the prompt | `!, /exec` |
 | `ZRB_LLM_UI_COMMAND_EXIT` | Leave the chat session | `/q, :q, /bye, /quit, /exit` |
 | `ZRB_LLM_UI_COMMAND_INFO` | Show session info and the command list | `/info, /help` |
 | `ZRB_LLM_UI_COMMAND_LOAD` | Resume a saved conversation | `/load, /resume` |
 | `ZRB_LLM_UI_COMMAND_PLAN_TOGGLE` | Toggle Plan Mode | `/plan` |
-| `ZRB_LLM_UI_COMMAND_REDIRECT_OUTPUT` | Write the next response to a file | `>, /redirect` |
-| `ZRB_LLM_UI_COMMAND_REWIND` | Step the conversation back a turn | `/rewind` |
+| `ZRB_LLM_UI_COMMAND_REDIRECT_OUTPUT` | Bare: copy the **last response** to the clipboard. `<cmd> <path>`: write that response to a file | `>, /redirect` |
+| `ZRB_LLM_UI_COMMAND_REWIND` | Rewind to a previous turn | `/rewind` |
 | `ZRB_LLM_UI_COMMAND_SAVE` | Save the current conversation | `/save` |
 | `ZRB_LLM_UI_COMMAND_SET_MODEL` | Switch the model mid-session | `/model` |
 | `ZRB_LLM_UI_COMMAND_SUMMARIZE` | Compact the conversation history | `/compress, /compact` |
