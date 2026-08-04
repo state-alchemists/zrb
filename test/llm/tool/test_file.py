@@ -116,6 +116,25 @@ def test_replace_in_file_strips_the_prefix_from_new_text_too(temp_dir):
         assert f.read() == "def qux():\n    return 9\n"
 
 
+def test_replace_in_file_strips_the_prefix_from_partially_copied_new_text(temp_dir):
+    # The common edit rewrites one line: the untouched lines still carry the
+    # prefix, the rewritten one does not. All-or-nothing stripping declines
+    # here and writes "     3\t" into the file, reported as a success — silent
+    # corruption on any file the post-write diagnostics do not cover.
+    file_path = os.path.join(temp_dir, "doc.md")
+    with open(file_path, "w") as f:
+        f.write("# Title\n\nsome text\nmore text\n")
+
+    res = _r(
+        file_path,
+        "     3\tsome text\n     4\tmore text\n",
+        "     3\tsome text\nCHANGED text\n",
+    )
+    assert "Successfully updated" in res
+    with open(file_path) as f:
+        assert f.read() == "# Title\n\nsome text\nCHANGED text\n"
+
+
 def test_replace_in_file_still_edits_genuinely_numbered_content(temp_dir):
     # Stripping is a last resort, tried only after an exact match fails, so a
     # file that really does contain cat -n text edits through the exact path.
@@ -762,6 +781,49 @@ def test_replace_in_file_identical_args_do_not_preempt_the_match_check(tmp_path)
 
     assert "not found" in result.lower()
     assert "are identical" not in result
+
+
+def test_replace_in_file_missing_directory_is_not_reported_as_a_missing_file(tmp_path):
+    """A missing parent means a wrong path, so Write must not be suggested.
+
+    Write creates missing parents, so following that advice turns a
+    wrong-directory guess into a new tree and leaves the edit where nothing
+    reads it.
+    """
+    result = _r(str(tmp_path / "nope" / "deeper" / "f.py"), "a", "b")
+
+    assert "wrong path" in result.lower()
+    assert "does not exist either" in result
+    assert str(tmp_path / "nope" / "deeper") in result
+    assert "Do not Write" in result
+
+
+def test_replace_in_file_missing_file_in_existing_dir_still_suggests_write(tmp_path):
+    """The original advice is right when only the file is absent."""
+    result = _r(str(tmp_path / "absent.py"), "a", "b")
+
+    assert "File not found" in result
+    assert "use Write to create the" in result
+    assert "wrong path" not in result.lower()
+
+
+def test_write_file_reports_a_directory_it_created(tmp_path):
+    """Creating a directory is a visible change, so the model is told."""
+    target = tmp_path / "brand" / "new" / "f.txt"
+
+    result = _w(str(target), "hello")
+
+    assert "Successfully wrote" in result
+    assert f"created new directory {tmp_path / 'brand' / 'new'}" in result
+    assert target.read_text() == "hello"
+
+
+def test_write_file_says_nothing_when_the_directory_existed(tmp_path):
+    """No note for the ordinary case — it would be noise on every write."""
+    result = _w(str(tmp_path / "f.txt"), "hello")
+
+    assert "Successfully wrote" in result
+    assert "created new directory" not in result
 
 
 def test_replace_in_file_already_applied_edit_says_so(tmp_path):

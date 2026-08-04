@@ -81,7 +81,10 @@ class LLMUICommandsMixin:
     LLM_UI_COMMAND_REDIRECT_OUTPUT = EnvField(
         comma_list,
         serialize=comma_join,
-        doc="Comma-separated command aliases to redirect the next response to a file.",
+        doc=(
+            "Comma-separated command aliases acting on the *last* response: bare "
+            "copies it to the clipboard, `<alias> <path>` writes it to a file."
+        ),
     )
 
     LLM_UI_COMMAND_EXEC = EnvField(
@@ -111,7 +114,10 @@ class LLMUICommandsMixin:
     LLM_UI_COMMAND_COPY = EnvField(
         comma_list,
         serialize=comma_join,
-        doc="Comma-separated command aliases to copy the last assistant response to the clipboard.",
+        doc=(
+            "Comma-separated command aliases to copy the full conversation "
+            "transcript to the clipboard."
+        ),
     )
 
     LLM_UI_COMMAND_VOICE = EnvField(

@@ -3,7 +3,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from zrb.llm.agent.subagent.manager import SubAgentDefinition, SubAgentManager
-from zrb.llm.tool.delegate import BufferedUI, create_delegate_to_agent_tool
+from zrb.llm.tool.delegate import (
+    BufferedUI,
+    agent_not_found_message,
+    create_delegate_to_agent_tool,
+)
 
 
 @pytest.fixture
@@ -39,6 +43,35 @@ async def test_delegate_tool_agent_not_found(mock_sub_agent_manager):
     )
     assert "Error" in result
     assert "not found" in result
+    # The roster is in the error, so the retry is a correction, not a guess.
+    assert "test-agent" in result
+
+
+@pytest.mark.asyncio
+async def test_delegate_tool_not_found_suggests_closest_name(
+    mock_sub_agent_manager,
+):
+    mock_sub_agent_manager.create_agent.return_value = None
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+
+    result = await tool(
+        agent_name="test-agnt",
+        deliverable="a result",
+        task="task",
+        non_goals=[],
+    )
+    assert "Did you mean 'test-agent'?" in result
+
+
+def test_agent_not_found_message_without_registered_agents():
+    manager = MagicMock(spec=SubAgentManager)
+    manager.scan.return_value = []
+
+    result = agent_not_found_message("anything", manager)
+
+    assert "no sub-agents are registered" in result
+    # No roster to offer, so it must not tell the model to retry with a name.
+    assert "Call again" not in result
 
 
 @pytest.mark.asyncio

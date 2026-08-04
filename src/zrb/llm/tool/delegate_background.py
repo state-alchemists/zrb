@@ -21,6 +21,7 @@ restarts. A plan-mode parent cannot start a background agent — the tool is tag
 from __future__ import annotations
 
 import asyncio
+import inspect
 
 from zrb.config.config import CFG
 from zrb.llm.agent.run.runtime_state import get_current_ui
@@ -31,7 +32,12 @@ from zrb.llm.agent.subagent.manager import (
     sub_agent_manager as default_sub_agent_manager,
 )
 from zrb.llm.permission import Capability, tag
-from zrb.llm.tool.delegate import BufferedUI, _run_agent_task
+from zrb.llm.tool.delegate import (
+    BufferedUI,
+    _run_agent_task,
+    agent_not_found_message,
+    agent_roster_doc,
+)
 from zrb.llm.ui.std_ui import StdUI
 from zrb.util.string.name import get_random_name
 
@@ -147,6 +153,20 @@ def create_background_delegate_tool(
         non_goals (list; [] only when no scope-expansion risk). additional_context
         is optional.
         """
+        # Resolve the name before detaching. _run_agent_task would also catch an
+        # unknown agent, but only inside the background coroutine — the model
+        # would get "Started background agent 'reseacher'" and not learn the name
+        # was wrong until it polled GetDelegationResult, if it ever did.
+        #
+        # get_agent_definition, not create_agent: create_agent runs every tool
+        # factory, resolves the model, and composes the whole system prompt, and
+        # _run_agent_task calls it again inside the coroutine. Validating with it
+        # would build the agent twice and put the first build on the caller's
+        # turn — the wait this tool exists to avoid. It is also the same lookup
+        # create_agent itself uses to decide the None return, so the check is
+        # exactly as strict.
+        if not sub_agent_manager.get_agent_definition(agent_name):
+            return agent_not_found_message(agent_name, sub_agent_manager)
         parent_ui = get_current_ui() or StdUI()
         handle = get_random_name(separator="-", add_random_digit=True)
         prefix = f"[{agent_name}:{handle}] "
@@ -177,6 +197,16 @@ def create_background_delegate_tool(
 
     setattr(delegate_to_agent_background, "zrb_is_delegate_tool", True)
     delegate_to_agent_background.__name__ = "DelegateToAgentBackground"
+    # Carry the roster in this tool's own schema. "mirrors DelegateToAgent" told
+    # the model where the argument *shapes* come from, but the valid names were
+    # never here — leaving it to recall them from a sibling tool's description.
+    # cleandoc computes the common indent from the non-first lines, so an
+    # unindented roster appended under an 8-space docstring pins that indent on
+    # the whole description. Normalize before joining.
+    delegate_to_agent_background.__doc__ = (
+        f"{inspect.cleandoc(delegate_to_agent_background.__doc__ or '')}\n\n"
+        f"AVAILABLE AGENTS:\n{agent_roster_doc(sub_agent_manager)}\n"
+    )
     tag(delegate_to_agent_background, Capability.DELEGATE)
     return delegate_to_agent_background
 

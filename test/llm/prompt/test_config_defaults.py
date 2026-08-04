@@ -32,19 +32,15 @@ def test_config_llm_include_sections_default():
 
     sections = CFG.LLM_INCLUDE_SECTIONS
     assert isinstance(sections, list)
-    # The skill catalogue is folded into `workflow` via placeholders, so there is
-    # no claude_skills section. `workflow` carries what was split out of
-    # `mandate` (project-doc reading, skills, working loop, verify, recovery).
+    # Three rule sections plus two data sections. The skill catalogue is folded
+    # into `workflow` via placeholders; per-tool rules live in tool docstrings,
+    # so there is no tool_guidance section.
     assert sections == [
         "persona",
-        "mandate",
         "workflow",
         "examples",
-        "git_mandate",
-        "journal_mandate",
         "system_context",
         "project_context",
-        "tool_guidance",
     ]
 
 
@@ -52,8 +48,8 @@ def test_config_llm_include_sections_setter():
     """Test that the LLM_INCLUDE_SECTIONS setter works."""
     CFG._instance = None
 
-    CFG.LLM_INCLUDE_SECTIONS = ["persona", "mandate"]
-    assert CFG.LLM_INCLUDE_SECTIONS == ["persona", "mandate"]
+    CFG.LLM_INCLUDE_SECTIONS = ["persona", "workflow"]
+    assert CFG.LLM_INCLUDE_SECTIONS == ["persona", "workflow"]
 
     # Reset
     CFG._instance = None
@@ -112,7 +108,7 @@ def test_prompt_manager_include_sections_mini_subset():
     ctx = SharedContext()
 
     manager = PromptManager(
-        include_sections=["persona", "git_mandate", "journal_mandate"],
+        include_sections=["persona", "examples"],
     )
 
     prompt = manager.compose_prompt()(ctx)
@@ -127,11 +123,11 @@ def test_prompt_manager_include_sections_ordering():
     ctx = SharedContext()
 
     manager = PromptManager(
-        include_sections=["mandate", "persona"],
+        include_sections=["workflow", "persona"],
     )
 
     prompt = manager.compose_prompt()(ctx)
-    # mandate header comes before persona header
+    # workflow header comes before persona header
     assert prompt.index("# Operating Rules") < prompt.index("# Identity")
 
 

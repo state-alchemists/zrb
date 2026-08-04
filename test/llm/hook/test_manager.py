@@ -18,16 +18,12 @@ from zrb.llm.hook.types import HookEvent, HookType, MatcherOperator
 
 @pytest.fixture
 def manager():
-    """Create HookManager with journaling disabled for tests."""
+    """Create HookManager for tests."""
     mock_cfg = MagicMock()
-    mock_cfg.LLM_INCLUDE_JOURNAL_REMINDER = False
     mock_cfg.ROOT_GROUP_NAME = "zrb"
     mock_cfg.LLM_PLUGIN_DIRS = []
     mock_cfg.HOOKS_DIRS = []
-    mock_cfg.LLM_JOURNAL_DIR = "/tmp/test_journal"
-    mock_cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
-
-    with patch("zrb.llm.hook.journal.CFG", mock_cfg):
+    with patch("zrb.llm.hook.manager.CFG", mock_cfg):
         yield HookManager(search_dirs=[])
 
 

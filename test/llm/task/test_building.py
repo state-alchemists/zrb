@@ -183,25 +183,3 @@ class TestAssembly:
     def test_get_model_settings_falls_back_to_config(self):
         task = LLMTask(name="test-task")
         assert task._get_model_settings(MagicMock()) == task.llm_config.model_settings
-
-    def test_tool_guidance_factory_is_resolved_with_context(self):
-        from zrb.llm.prompt.tool_guidance import ToolGuidance
-
-        guidance = ToolGuidance(
-            group_name="MyGroup",
-            tool_name="MyTool",
-            when_to_use="when X",
-            key_rule="do Y",
-        )
-        factory = MagicMock(return_value=guidance)
-        task = LLMTask(name="test-task")
-        task.add_tool_guidance_factory(factory)
-        ctx = MagicMock()
-        task._resolve_tool_guidance_factories(ctx)
-        factory.assert_called_once_with(ctx)
-
-    def test_tool_guidance_section_factory_sets_sections(self):
-        task = LLMTask(name="test-task")
-        task.add_tool_guidance_section_factory(lambda ctx, model: "## Extra section")
-        task._resolve_tool_guidance_factories(MagicMock())
-        assert task.prompt_manager.tool_guidance_sections == ["## Extra section"]

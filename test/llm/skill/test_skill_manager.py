@@ -939,6 +939,40 @@ def test_builtin_core_skills_always_searched(tmp_path):
     assert not any(d.endswith("llm_plugin/skills") for d in dirs)
 
 
+def test_no_builtin_journaling_skill_ships(tmp_path):
+    """The journal is a pair of tools now, not a skill.
+
+    `core-journaling` carried the on-disk format the writers own by
+    construction; keeping a stale copy would give the model a second, divergent
+    description of the same tree.
+    """
+    manager = SkillManager(root_dir=str(tmp_path))
+    with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
+        _builtin_mock_cfg(mock_cfg, enable_builtin_skills=False)
+        names = {s.name for s in manager.scan()}
+    assert "core-journaling" not in names
+    assert "core-coding" in names, "unrelated core skills must be unaffected"
+
+
+def test_a_user_journaling_skill_still_loads(tmp_path):
+    """Deleting the built-in must not blocklist the name (ADR-0069)."""
+    user_dir = tmp_path / "skills" / "core-journaling"
+    user_dir.mkdir(parents=True)
+    (user_dir / "SKILL.md").write_text(
+        "---\nname: core-journaling\ndescription: mine\n---\n# Mine\n",
+        encoding="utf-8",
+    )
+    manager = SkillManager(root_dir=str(tmp_path))
+    with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
+        _builtin_mock_cfg(
+            mock_cfg,
+            enable_builtin_skills=False,
+            extra_skill_dirs=[str(tmp_path / "skills")],
+        )
+        skills = {s.name: s for s in manager.scan()}
+    assert skills["core-journaling"].description == "mine"
+
+
 def test_builtin_utility_skills_searched_when_enabled(tmp_path):
     manager = SkillManager(root_dir=str(tmp_path))
     with patch("zrb.llm.skill.manager.CFG") as mock_cfg:

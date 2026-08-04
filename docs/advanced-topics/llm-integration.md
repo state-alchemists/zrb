@@ -242,59 +242,52 @@ The assistant can connect to external MCP servers defined in `mcp-config.json`. 
 
 ---
 
-## Tool Guidance
+## Telling the LLM how to use a tool
 
-Every built-in tool ships with guidance that tells the LLM **when to use it** and **what the most important behavioral rule is**. When you add a custom tool, you can register the same kind of guidance so the LLM knows how to use it correctly.
-
-Guidance is automatically filtered at runtime — entries for tools that are not registered on the task are suppressed, so the LLM never sees instructions for tools it cannot use.
-
-### Static guidance (most common)
-
-Use `add_tool_guidance()` with one or more `ToolGuidance` objects. This is the standard approach for tools whose names are known at definition time.
+There is no tool-guidance prompt section (ADR-0100). A tool describes itself: its
+**docstring** and type annotations become the JSON schema pydantic-ai sends on
+every request, so whatever the model needs to know sits right next to the
+arguments it is filling in.
 
 ```python
-from zrb import LLMChatTask, ToolGuidance
+def check_stock(warehouse_id: str, sku: str) -> dict:
+    """Look up on-hand stock for one SKU in one warehouse.
 
-my_chat_task.add_tool(my_custom_tool)
+    Always pass warehouse_id — a lookup without it scans every site and times
+    out. An empty result means no stock on hand, not an error. To find a
+    warehouse id first, use ListWarehouses.
+    """
+    ...
 
-my_chat_task.add_tool_guidance(
-    ToolGuidance(
-        group_name="My Domain",
-        tool_name="MyCustomTool",
-        when_to_use="When the user asks about X or needs to look up Y",
-        key_rule="Always pass a valid ID; never call without first calling ListItems.",
-    )
+my_chat_task.add_tool(check_stock)
+```
+
+Write into the docstring what a guidance entry used to carry: when to reach for
+this tool, the one constraint that trips callers up, and which tool to use
+instead when this is the wrong one.
+
+> **This relocates token cost, it does not remove it.** pydantic-ai serializes
+> every registered tool's docstring *and* schema into every request, so a
+> docstring is not deferred context. What it buys is locality — the rule is in
+> front of the model at the moment it matters. The lever on prompt weight is the
+> **number** of registered tools; see *Deferred-loading tools* below.
+
+### Cross-cutting policy
+
+For a rule that is not about any one tool, register a prompt section rather than
+repeating it in N docstrings:
+
+```python
+my_chat_task.prompt_manager.register_section(
+    "tool_policy",
+    lambda ctx: "## Inventory rules\n- Never quote stock without a warehouse.",
 )
 ```
 
-`ToolGuidance` fields:
-
-| Field | Required | Description |
-|-------|----------|-------------|
-| `group_name` | Yes | Section heading in the rendered prompt. Created automatically on first use. |
-| `tool_name` | Yes | Must match the tool's `__name__` attribute. |
-| `when_to_use` | No | One sentence: the condition that should trigger this tool. |
-| `key_rule` | No | The single most important constraint, gotcha, or sequencing requirement. |
-
-### Dynamic guidance (config-dependent tool names)
-
-Use `add_tool_guidance_factory()` when the tool name depends on runtime config or context. Each factory is a `Callable[[AnyContext], ToolGuidance]` evaluated at the start of each conversation turn.
-
-```python
-from zrb.config.config import CFG
-
-my_chat_task.add_tool_guidance_factory(
-    lambda ctx: ToolGuidance(
-        group_name="My Domain",
-        tool_name=f"List{CFG.ROOT_GROUP_NAME.capitalize()}Items",
-        when_to_use="Before operating on any item — confirm it exists",
-    )
-)
-```
-
-This is only needed when the tool name itself is dynamic. For static names, use `add_tool_guidance()` instead.
-
-> **Note:** `add_tool_guidance_factory()` and `add_tool_guidance_section_factory()` are available on `LLMChatTask`, `LLMTask`, and `SubAgentManager` — all of which conform to the `CommonToolHost` protocol in `zrb.llm.common_tools`.
+Then add `tool_policy` to `ZRB_LLM_INCLUDE_SECTIONS` at the position you want.
+This is the replacement for the removed `add_tool_guidance()` /
+`add_tool_guidance_factory()` / `add_tool_guidance_section_factory()` APIs, and
+it is strictly more capable: the provider sees the live context.
 
 ---
 
@@ -322,7 +315,7 @@ my_chat_task.add_tool_factory(lambda ctx: get_weather)
 
 ### Deferred-loading tools
 
-A registered tool's schema (docstring + parameters) is serialized into **every** turn's request, whether or not the model uses it. For tools that are rarely needed, wrap them with pydantic-ai's `defer_loading=True` to hide the schema until the model searches for the tool by name — the Tool Usage Guide still tells the model the tool exists, so nothing is lost except the standing per-turn token cost.
+A registered tool's schema (docstring + parameters) is serialized into **every** turn's request, whether or not the model uses it. For tools that are rarely needed, wrap them with pydantic-ai's `defer_loading=True` to hide the schema until the model searches for the tool by name. This is the one real lever on tool-definition weight.
 
 ```python
 from pydantic_ai import Tool
@@ -330,7 +323,7 @@ from pydantic_ai import Tool
 my_chat_task.add_tool(Tool(get_weather, defer_loading=True))
 ```
 
-Pair it with `add_tool_guidance(...)` so the model still learns when to reach for the deferred tool. This is how zrb ships its own rarely-used tools (`analyze_code`, worktree/LSP tools, MCP toolsets, …).
+The trade-off is discovery: a deferred tool is invisible until searched for, so give it a name the model would think to search. This is how zrb ships its own rarely-used tools (`analyze_code`, worktree/LSP tools, `MonitorProcess`, MCP toolsets, …). Tools that are useless in a given environment are better *unregistered* than deferred — zrb skips the LSP tools when no language server is installed, the worktree tools outside a git repo, and the journal tools when `ZRB_LLM_JOURNAL_ENABLED` is off.
 
 Note that `defer_loading` (a per-turn *token*-cost lever) is unrelated to import cost: `from pydantic_ai import Tool` at module scope eagerly imports `pydantic_ai` (~1.7s). To keep that off the `zrb` startup path, do the import and the `Tool(...)` wrap inside a factory, which runs only when the task first executes:
 

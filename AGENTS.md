@@ -28,14 +28,16 @@ The tree is self-describing — `ls src/zrb/` plus each module's docstring cover
 
 `PromptManager` (`src/zrb/llm/prompt/manager.py`) assembles the system prompt from ordered sections. Default order in `config/mixins/llm_prompt.py::DEFAULT_LLM_INCLUDE_SECTIONS`:
 
-`persona → mandate → workflow → examples → git_mandate → journal_mandate → system_context → project_context → tool_guidance`
+`persona → workflow → examples → system_context → project_context`
 
-User-added prompts follow. Override via the `include_sections` constructor parameter or the `ZRB_LLM_INCLUDE_SECTIONS` env var (comma-separated, order-sensitive).
+Three carry rules, two carry runtime facts. User-added prompts follow. Override via the `include_sections` constructor parameter or the `ZRB_LLM_INCLUDE_SECTIONS` env var (comma-separated, order-sensitive).
 
-> **`workflow` was split out of `mandate`.** `mandate` kept the Priority Order and Session Context; `workflow` took Project Documentation, Skill Activation (with the skill-catalogue placeholders), the Working Loop, Verify Before Done, Recovery, and Stop. A pinned `include_sections` / `ZRB_LLM_INCLUDE_SECTIONS` that names only `mandate` still gets both files emitted at `mandate`'s position, so no config silently loses the Working Loop. A *registered provider* for `mandate` overrides both — replacing the section means supplying its content yourself.
+> **Rules live where they are enforced (ADR-0098).** Sort every rule by what can make it true: **the runtime** first (a hook, a tool policy, a tool implementation), then **the tool's own docstring** (per-tool mechanics, next to the schema), then **the prompt** (only judgment no tool can make for the model), then **a skill** (domain methodology, on demand). This is what collapsed six rule sections into three. It also means *there is no prompt-side tool catalogue*: `tool_guidance` and its `add_tool_guidance` registry are gone (ADR-0100), and `mandate` / `git_mandate` / `journal_mandate` are gone with it (ADR-0098, ADR-0099). Those names in a pinned config now resolve to an empty custom section and log a warning.
+
+> **Moving prose into a docstring does not save tokens.** pydantic-ai serializes every registered tool's docstring *and* parameter schema into every request, so a docstring is not deferred context. Relocation buys locality and adherence. The only lever on tool-definition weight is the **number** of registered tools — hence the conditional registration of LSP, worktree, plan-mode, and journal tools, and `defer_loading=True` on the rarely-used ones.
 
 A section name that is **not** a built-in resolves as a custom, config-positioned section (precedence: built-in > registered provider > markdown file):
-- **Registered provider** — `prompt_manager.register_section("company_context", lambda ctx: ...)` registers a dynamic provider, composed by calling it with the active context at compose time. Use for always-on content that reflects runtime state (current sprint, deploy target, live schema). Return `""` to emit nothing.
+- **Registered provider** — `prompt_manager.register_section("company_context", lambda ctx: ...)` registers a dynamic provider, composed by calling it with the active context at compose time. Use for always-on content that reflects runtime state (current sprint, deploy target, live schema). Return `""` to emit nothing. **This is also the migration path for code that used to call `add_tool_guidance`.**
 - **Markdown file** — otherwise the name resolves via `get_prompt(name)` (project-override → env → base-prompt-dir → package), so `company_context` loads `company_context.md` with the usual `{PLACEHOLDER}` substitution. Missing files resolve to `""` (harmless no-op; a warning is logged at compose time so an unknown/misspelled name is diagnosable).
 
 Either way, downstreams add ordered sections without editing `PromptManager`. See ADR-0061.
@@ -49,24 +51,48 @@ A second axis controls *how* each section is phrased, independent of *which* sec
 
 The base `*.md` files **are** the `terse` profile. Other profiles are **variant overlays**: `get_prompt(name, profile="mini")` resolves `{name}.mini.md` through the full override chain, falling back to the base `{name}.md` when no variant exists — so a profile only needs variant files for the sections that actually change (currently `examples.mini.md`, the only variant). **A variant may add demonstrations; it may not add or re-phrase rules** (ADR-0091): `mini` is `terse` plus worked examples, never more rule text. A variant *replaces* its base file, so `examples.mini.md` must stay a strict superset of `examples.md` — a test pins that.
 
+> **`examples` is deliberately thin in the base.** Its own first line says it carries illustrations and *"no rules of their own"*, which makes it the one section where the profile axis can do real work: the base keeps only the four examples that fix a zrb-specific stance (no forced codebase tie-in, directive→disk with call sites, measure before you call something large, tool result carrying an imperative), and the rest live in `examples.mini.md`. Adding a demonstration? It goes in the variant unless it teaches a stance a frontier model gets wrong — and if it teaches a *rule*, it does not belong in either file. `examples` survived the collapse to three sections precisely because demonstrations are the highest-value content per token for the small models the profile axis serves.
+
 > The profile was previously called `explicit`; it is `mini` now (ADR-0095), naming the model class it targets rather than a register it no longer uses. This is a clean break — `ZRB_LLM_PROFILE=explicit` is not recognized and falls through to `auto`.
 
 `PromptManager._get_composed_middlewares` resolves the profile once (from `CFG.LLM_PROFILE` + `self._model`) and threads it to file-backed sections. Cross-cutting voice that does not decompose into a variant stays a whole alternate section/preset (the selection escape hatch).
 
 > **Invariant: a behavioral rule never lives only in a profile variant.** A variant reaches only the models that resolve to it, so a rule placed there silently misses everyone else. Variants may re-phrase, repeat, or exemplify a rule; the rule itself belongs in the base file. (This was a real bug twice over: "when you say you will run a tool, actually run it" lived only in the variant and never shipped — it is now in `workflow.md` → Execute — and before ADR-0093 the registry shipped empty, so `auto` resolved to `terse` for *every* model and the variant reached nobody at all.)
 
-**Each section is MECE — a single behavior lives in exactly one section.** Adding a rule: pick the smallest-scope section that owns the concept.
+> **Invariant: every section reads whole on its own.** Sections toggle
+> independently via `LLM_INCLUDE_SECTIONS`, so a section that cites a sibling
+> ("see the Priority Order", "per the Working Loop's triggers") reads fine in
+> the default composition and dangles the moment someone trims the list. The
+> fix is always to **restate the rule compactly in place**, never to add the
+> pointer back. Where a reference is genuinely worth keeping, wrap it in
+> `<!--requires:other_section-->` so it disappears with its target — with three
+> sections there is exactly one such guard left, `workflow`'s pointer at
+> `project_context`. `test_section_composition.py` enforces this by
+> brute-forcing all 7 subsets against an `OWNED_VOCABULARY` map. **Adding a
+> section-defining term means adding it to `OWNED_VOCABULARY`; renaming one
+> means renaming it there too** — the subset walk asserts a negative, so a term
+> the prompt no longer contains keeps passing while guarding nothing (`Cost of
+> guessing wrong` and `ActivateSkill` both sat in the map for a release after
+> the text dropped them). `test_every_owned_term_still_exists_in_its_owner`
+> fails on that, and the test only catches vocabulary it knows about either way.
+
+**Each section is MECE — a single behavior lives in exactly one section.** Adding a rule: pick the smallest-scope section that owns the concept — and first check whether it belongs in the prompt at all, per the enforcement ladder above.
+
+The old tension between MECE and self-containment has largely dissolved: three sections means far fewer cross-references to keep in sync, and the case that used to force duplication (delegation triggers, needed by both `workflow` and `tool_guidance`) is gone with `tool_guidance` — `DelegateToAgent`'s docstring is now the single source, and `workflow` points at it rather than restating it. Where duplication is still unavoidable, consistent duplication is the cost of independent toggling; **divergent** duplication is the bug.
 
 - `persona` — identity + response style
-- `mandate` — the Priority Order (precedence, not sequence) + session context; no tool/git specifics
-- `workflow` — how a turn runs: project-doc reading, skill activation, the Working Loop, the Verify Before Done gate, Recovery, Stop. Carries the skill catalogue via `{CORE_SKILLS}`/`{AVAILABLE_SKILLS}`/`{PREACTIVATED_SKILLS}` placeholders (`build_skill_replacements` in `prompt/claude.py`); core skills (`llm_plugin/core_skills/`) are listed separately from other model-invocable skills
-- `git_mandate` — git approval rules
-- `journal_mandate` — memory protocol: what to record, the everyday write shapes (one activity line, one insight note), and when to escalate to the `core-journaling` skill for structural work
-- `system_context` — *stable* runtime facts only (OS, CWD, model, detected tools/markers) plus the `<live-context>` anchor, so the cached prefix stays byte-identical across turns
+- `workflow` — the whole rulebook. Opens with the **Priority Order** (one six-rank ladder, precedence not sequence — first, because primacy bias means later rules get dropped first), then how a turn runs: the Turn Sequence (premise → first look → frame → skills → project docs), project-doc reading, skill activation, the Working Loop, the Verify Before Done gate, Recovery, Stop. Owns the `When you don't know` ladder, the `Where the deliverable goes` destination rule, the `Tool usage` cross-tool policy, and the one git rule a policy cannot produce (show `git status` + `git diff HEAD` before asking approval). Carries the skill catalogue via `{CORE_SKILLS}`/`{AVAILABLE_SKILLS}`/`{PREACTIVATED_SKILLS}` placeholders (`build_skill_replacements` in `prompt/claude.py`)
+- `examples` — demonstrations only, no rules of their own; profile-gated
+- `system_context` — *stable* runtime facts only (OS, CWD, model, whether the model supports parallel tool calls, detected tools/markers) plus the `<live-context>` anchor, so the cached prefix stays byte-identical across turns
 - `project_context` — project docs found (mandatory read) and, listed separately, home-level docs found (`~`, `~/.claude`) which are *not* project overrides
-- `tool_guidance` — per-tool when-to-use + key rules
 
 Volatile per-turn state (time, git, todos, worktree, mode, interactivity) lives in `live_context`, not `system_context` — it is injected into the latest user turn. `render_live_context` also performs the per-turn ambient wiring (session binding for the todo tools, interactive-mode binding for `ask_user_question`, stale-worktree cleanup).
+
+### Journal
+
+The cross-session journal is **three tools and no prose** (ADR-0099). `SearchJournal` reads; `LogActivity` appends one line to `activity-log/YYYY/YYYY-MM/YYYY-MM-DD.md`; `WriteJournalNote` writes a topic note under `user/`, `preferences/`, `projects/`, or `technical/`. The writers (`llm/tool/journal_write.py`) derive every path and timestamp themselves and maintain the index and backlink graph, which is why the four invariants the old `journal-lint.py` checked — no broken links, no missing backlinks, no orphans, no missing indexes — are now unviolatable rather than checkable. What earns an entry lives in the tool docstrings.
+
+`LLM_JOURNAL_ENABLED=false` unregisters all three tools in `apply_common_tools`; `render_journal_index` checks the same flag for the `<journal-index>` injection (ADR-0082). There is no prompt section to suppress.
 
 ### Ambient State (`ContextVar`s)
 
@@ -79,18 +105,6 @@ Canonical index in `src/zrb/contextvars.py` — every var, its owning module, an
 
 Git worktrees live at `{git_root}/.zrb/worktree/{branch_name}` (gitignored).
 
-### Configuring Tool Guidance
-
-Tool guidance is fully explicit — no static catalogue. Register via:
-
-```python
-prompt_manager.add_tool_guidance(group="My Tools", name="MyTool",
-    use_when="Doing X when Y", key_rule="Pass --flag; never call without context.")
-```
-
-`add_tool_group` is called automatically when the group does not yet exist.
-
-`LLMChatTask._exec_action` sets `prompt_manager.tool_names` from the resolved tool list at runtime; guidance for unregistered tools is suppressed. **For factory-created tools whose Python function names differ from their LLM-visible names**, register an `add_tool_guidance()` entry explicitly — otherwise the runtime-name filter drops them.
 
 ## Architecture Decision Records (ADRs)
 
@@ -141,7 +155,7 @@ format and the compaction/collapsing procedure — with a worked example — are
 
 Boolean `CFG`/env knobs follow a naming rule (ADR-0073):
 
-- **`<NAMESPACE>_ENABLED`** (state-last) when the toggle is the master switch of a namespace that has *other* settings, so it groups with its siblings — e.g. `WEB_AUTH_ENABLED` (alongside `WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES`), `LLM_SANDBOX_ENABLED`, `HOOKS_ENABLED`.
+- **`<NAMESPACE>_ENABLED`** (state-last) when the toggle is the master switch of a namespace that has *other* settings, so it groups with its siblings — e.g. `WEB_AUTH_ENABLED` (alongside `WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES`), `LLM_SANDBOX_ENABLED`, `HOOKS_ENABLED`, `LLM_JOURNAL_ENABLED` (alongside `LLM_JOURNAL_DIR` / `_INDEX_FILE` / `_INDEX_MAX_CHARS`).
 - **Verb-first** (`ENABLE_`/`SHOW_`/`SEARCH_`/`INCLUDE_`/`ALLOW_`) for a standalone on/off behavior with no sub-config namespace — e.g. `LLM_ENABLE_BUILTIN_SKILLS`, `LLM_SEARCH_PROJECT`, `LLM_SHOW_TOOL_CALL_DETAIL`.
 
 When **renaming** a released knob, preserve the old env key via `EnvField(aliases=[new, old], write_key=new)` (reads either, writes the new form) so existing `ZRB_*` configs don't break. A clean break (drop the old key) is only safe pre-release.

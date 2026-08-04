@@ -17,7 +17,6 @@ from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.prompt.manager import PromptManager
-from zrb.llm.prompt.tool_guidance import ToolGuidance
 from zrb.llm.task.chat.state import ChatState
 from zrb.llm.tool_call import ArgumentFormatter, ResponseHandler, ToolPolicy
 
@@ -127,68 +126,6 @@ class ChatBuilding(ChatState):
         self, *factory: "Callable[[AnyContext], Tool | ToolFuncEither]"
     ):
         self._tool_factories += list(factory)
-
-    # --- Tool guidance ----------------------------------------------------
-
-    def add_tool_guidance_factory(
-        self,
-        *guidance_factory: "Callable[[AnyContext], ToolGuidance]",
-    ):
-        """Alias of `append_tool_guidance_factory` — adds to the end of the list."""
-        self.append_tool_guidance_factory(*guidance_factory)
-
-    def append_tool_guidance_factory(
-        self,
-        *guidance_factory: "Callable[[AnyContext], ToolGuidance]",
-    ):
-        """Register guidance for dynamically-named factory tools.
-
-        The factory is called when tools are resolved from factories. It should
-        return a single ToolGuidance object.
-        """
-        self._tool_guidance_factories += list(guidance_factory)
-
-    def add_tool_guidance(self, *guidance: ToolGuidance):
-        """Alias of `append_tool_guidance` — adds to the end of the list."""
-        self.append_tool_guidance(*guidance)
-
-    def append_tool_guidance(self, *guidance: ToolGuidance):
-        """Add tool guidance entries to be applied when prompt_manager is available."""
-        self._pending_tool_guidance.extend(guidance)
-
-    def add_tool_guidance_section_factory(
-        self,
-        *section_factory: "Callable[[AnyContext, Any], str | None]",
-    ):
-        """Alias of `append_tool_guidance_section_factory` — adds to the end of the list."""
-        self.append_tool_guidance_section_factory(*section_factory)
-
-    def append_tool_guidance_section_factory(
-        self,
-        *section_factory: "Callable[[AnyContext, Any], str | None]",
-    ):
-        """Register a factory that renders a model-aware Tool Usage Guide section.
-
-        Each factory is called per-exec with ``(ctx, resolved_model)`` — the
-        same model that drives ``create_agent`` — and returns a Markdown
-        block (typically starting with ``## Heading``) or an empty string /
-        ``None`` to skip injection. Resulting blocks are inserted at the top
-        of ``# Tool Usage Guide``, above the per-tool catalogue.
-        """
-        self._tool_guidance_section_factories += list(section_factory)
-
-    def _apply_tool_guidance(self):
-        """Apply all pending tool guidance to the prompt manager."""
-        if self._prompt_manager is None:
-            return
-        for g in self._pending_tool_guidance:
-            self._prompt_manager.add_tool_guidance(
-                group=g.group_name,
-                name=g.tool_name,
-                use_when=g.when_to_use,
-                key_rule=g.key_rule,
-            )
-        self._pending_tool_guidance.clear()
 
     # --- Hook factories ---------------------------------------------------
 

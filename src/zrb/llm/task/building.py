@@ -11,7 +11,6 @@ that own the `run_agent` / `create_agent` / `summarize_history` call sites.
 State assumed to exist on the host class (set in `LLMTask.__init__`):
 - `_prompt_manager`, `_uis`, `_hook_manager`, `_llm_config`
 - `_tools`, `_tool_factories`, `_toolsets`, `_toolset_factories`
-- `_tool_guidance_factories`, `_tool_guidance_section_factories`
 - `_history_processors`, `_tool_confirmation`, `_approval_channel`
 - `_history_manager`, `_permissions`, `_sandbox`, `_custom_model_names`
 - `_model`, `_render_model`, `_model_settings`
@@ -26,7 +25,6 @@ from zrb.llm.factory_resolver import resolve_factory_items
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
 from zrb.llm.prompt.manager import PromptManager
-from zrb.llm.prompt.tool_guidance import ToolGuidance
 from zrb.util.attr import get_attr
 
 if TYPE_CHECKING:
@@ -67,8 +65,6 @@ class LLMTaskBuilding:
         _tool_factories: list[Callable[[AnyContext], Tool | ToolFuncEither]]
         _toolsets: list[AbstractToolset[None]]
         _toolset_factories: list[Callable[[AnyContext], AbstractToolset[None]]]
-        _tool_guidance_factories: list[Callable[[AnyContext], ToolGuidance]]
-        _tool_guidance_section_factories: list[Callable[[AnyContext, Any], str | None]]
         _history_processors: list[HistoryProcessor]
         _tool_confirmation: AnyToolConfirmation
         _approval_channel: ApprovalChannel | None
@@ -203,77 +199,6 @@ class LLMTaskBuilding:
         self, *factory: Callable[[AnyContext], Tool | ToolFuncEither]
     ):
         self._tool_factories += list(factory)
-
-    def add_tool_guidance(self, *guidance: ToolGuidance):
-        """Alias of `append_tool_guidance` — adds to the end of the list."""
-        self.append_tool_guidance(*guidance)
-
-    def append_tool_guidance(self, *guidance: ToolGuidance):
-        """Add tool guidance entries directly to the prompt manager."""
-        if self._prompt_manager is None:
-            return
-        for g in guidance:
-            self._prompt_manager.add_tool_guidance(
-                group=g.group_name,
-                name=g.tool_name,
-                use_when=g.when_to_use,
-                key_rule=g.key_rule,
-            )
-
-    def add_tool_guidance_factory(self, *factory: Callable[[AnyContext], ToolGuidance]):
-        """Alias of `append_tool_guidance_factory` — adds to the end of the list."""
-        self.append_tool_guidance_factory(*factory)
-
-    def append_tool_guidance_factory(
-        self, *factory: Callable[[AnyContext], ToolGuidance]
-    ):
-        """Register guidance for dynamically-named factory tools.
-
-        Each factory is called per exec and returns a single ``ToolGuidance``
-        that gets added to ``prompt_manager`` before the system prompt is
-        composed.
-        """
-        self._tool_guidance_factories += list(factory)
-
-    def add_tool_guidance_section_factory(
-        self, *factory: Callable[[AnyContext, Any], "str | None"]
-    ):
-        """Alias of `append_tool_guidance_section_factory` — adds to the end of the list."""
-        self.append_tool_guidance_section_factory(*factory)
-
-    def append_tool_guidance_section_factory(
-        self, *factory: Callable[[AnyContext, Any], "str | None"]
-    ):
-        """Register a factory that renders a model-aware Tool Usage Guide section.
-
-        Each factory is called per exec with ``(ctx, resolved_model)`` and
-        returns a Markdown block (typically starting with ``## Heading``) or
-        ``None``/empty string to skip injection.
-        """
-        self._tool_guidance_section_factories += list(factory)
-
-    def _resolve_tool_guidance_factories(self, ctx: AnyContext) -> None:
-        """Resolve guidance + section factories into ``_prompt_manager``.
-
-        Called once per exec before ``get_system_prompt``.
-        """
-        if self._prompt_manager is None:
-            return
-        for guidance_factory in self._tool_guidance_factories:
-            guidance = guidance_factory(ctx)
-            self._prompt_manager.add_tool_guidance(
-                group=guidance.group_name,
-                name=guidance.tool_name,
-                use_when=guidance.when_to_use,
-                key_rule=guidance.key_rule,
-            )
-        resolved_model = self._get_model(ctx)
-        sections: list[str] = []
-        for section_factory in self._tool_guidance_section_factories:
-            rendered = section_factory(ctx, resolved_model)
-            if rendered:
-                sections.append(rendered)
-        self._prompt_manager.tool_guidance_sections = sections
 
     def add_history_processor(self, *processor: HistoryProcessor):
         """Alias of `append_history_processor` — adds to the end of the list."""

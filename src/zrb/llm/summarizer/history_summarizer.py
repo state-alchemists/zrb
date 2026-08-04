@@ -38,17 +38,12 @@ def create_summarizer_history_processor(
     conversational_token_threshold: int | None = None,
     message_token_threshold: int | None = None,
     summary_window: int | None = None,
-    inject_journal_index: bool = True,
     # Backward compatibility
     agent: Any = None,
     token_threshold: int | None = None,
 ) -> "Callable[[list[ModelMessage]], Awaitable[list[ModelMessage]]]":
     """
     Creates a history processor that auto-summarizes history when it exceeds `token_threshold`.
-
-    `inject_journal_index` is forwarded to `summarize_history`: pass ``False`` when
-    the agent's ``journal_mandate`` section is inactive so compaction does not
-    re-seed the journal index into a prompt that omits it (ADR-0082).
     """
     llm_limiter = limiter or default_llm_limiter
     if conversational_token_threshold is None:
@@ -122,7 +117,6 @@ def create_summarizer_history_processor(
                 summary_window=summary_window,
                 limiter=llm_limiter,
                 conversational_token_threshold=adjusted_threshold,
-                inject_journal_index=inject_journal_index,
             )
             if result != messages:
                 new_tokens = llm_limiter.count_tokens(result)
@@ -194,7 +188,6 @@ async def summarize_history(
     limiter: "LLMLimiter | None" = None,
     conversational_token_threshold: int | None = None,
     force: bool = False,
-    inject_journal_index: bool = True,
 ) -> "list[ModelMessage]":
     """
     Summarizes the history, keeping the last `summary_window` messages intact.
@@ -204,9 +197,8 @@ async def summarize_history(
     When `force=True`, compression is performed even if the conversation is within
     the normal token/window limits (e.g. triggered by an explicit /compress command).
 
-    `inject_journal_index` re-seeds the journal index into the summary (ADR-0082).
-    Callers pass ``False`` when the ``journal_mandate`` section is not active, so
-    the index is never re-introduced into a prompt that deliberately omits it.
+    The journal index is re-seeded into the summary (ADR-0082);
+    ``render_journal_index`` returns nothing when journaling is off.
     """
     try:
         # 1. Setup Configs
@@ -257,13 +249,11 @@ async def summarize_history(
         # the first-turn live-context). Baking it into the summary message keeps
         # the message structure intact (no extra turn to break role alternation
         # or tool-call pairing) and means the index is present in the very same
-        # request the processor compacts for. See ADR-0082. Skipped when the
-        # caller has no active journal_mandate section, keeping the index coupled
-        # to that section across compaction.
-        if inject_journal_index:
-            journal_block = render_journal_index()
-            if journal_block:
-                summary_text = f"{summary_text}\n\n{journal_block}"
+        # request the processor compacts for. See ADR-0082. render_journal_index
+        # honours LLM_JOURNAL_ENABLED, so a disabled journal adds nothing here.
+        journal_block = render_journal_index()
+        if journal_block:
+            summary_text = f"{summary_text}\n\n{journal_block}"
         summary_message = _create_summary_model_request(summary_text)
         if summary_message is None:
             return messages

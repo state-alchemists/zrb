@@ -175,8 +175,15 @@ def render_journal_index() -> str | None:
     two — and only two — moments it can otherwise be absent: the first turn
     (``render_live_context(inject_journal_index=True)``) and each summarization
     (baked into the summary by ``summarize_history``). Returns ``None`` when the
-    index is missing or empty.
+    index is missing or empty, and when ``LLM_JOURNAL_INDEX_MAX_CHARS`` is 0 —
+    Journal Protocol tells the model that a missing block is not proof of an
+    empty journal precisely because of that last case.
     """
+    # Callers pick the moment (first turn / summarization); this check is what
+    # LLM_JOURNAL_ENABLED clears — but summarize_history reaches this directly,
+    # so the switch is honoured here too rather than trusting every call path.
+    if not CFG.LLM_JOURNAL_ENABLED:
+        return None
     journal_dir = CFG.LLM_JOURNAL_DIR
     index_name = CFG.LLM_JOURNAL_INDEX_FILE
     index_file = os.path.abspath(
@@ -191,11 +198,32 @@ def render_journal_index() -> str | None:
         return None
     if not content.strip():
         return None
-    if len(content) > 1000:
-        content = content[:1000] + " (...more)"
+    # A negative value disables the cap. Zero does not: "max 0 chars" reads as
+    # "inject nothing", and EnvField falls back to 0 on an unparseable value —
+    # so treating 0 as unlimited would let a typo'd env var silently uncap the
+    # injection instead of failing loudly.
+    limit = CFG.LLM_JOURNAL_INDEX_MAX_CHARS
+    if limit == 0:
+        return None
+    hint = ""
+    if limit > 0 and len(content) > limit:
+        # Cut on a line boundary. A raw slice lands mid-word, so the last
+        # surviving entry arrives as a fragment the model has to guess at —
+        # and the HUD's entries are facts about the user, where half a
+        # sentence is worse than none. Overflow is dropped from the end, so
+        # the file is written most-durable-first (WriteJournalNote keeps the
+        # unbounded Recent Insights section last, so overflow evicts itself).
+        head = content[:limit]
+        cut = head.rfind("\n")
+        content = (head[:cut] if cut > 0 else head) + "\n (...more)"
+        # Say where the rest is. Journal Protocol tells the model to read the
+        # HUD here rather than opening the file, so without this line a cut
+        # tail is simply invisible — the block reads as the whole index.
+        hint = f"Truncated at `(...more)`; Read {index_file} for the rest. "
     return (
         f"<journal-index>\n"
         f"Your persistent memory (index file: {index_name}). "
+        f"{hint}"
         f"Use SearchJournal for full entries.\n"
         f"{content}\n"
         f"</journal-index>"

@@ -14,14 +14,8 @@ from zrb.llm.prompt.profile import resolve_profile
 from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.prompt.section_filter import filter_requires
 from zrb.llm.prompt.system_context import system_context
-from zrb.llm.prompt.tool_guidance import (
-    ToolCatalogue,
-    ToolGroups,
-    get_tool_guidance_prompt,
-)
 from zrb.llm.skill.manager import SkillManager
 from zrb.llm.skill.manager import skill_manager as default_skill_manager
-from zrb.llm.util.git import is_inside_git_dir
 from zrb.util.attr import get_str_attr, get_str_list_attr
 
 # Simple prompt: just takes context and returns a string
@@ -36,25 +30,27 @@ class PromptManager:
     """Assembles the LLM system prompt from ordered, MECE sections.
 
     Sections are emitted in the order given by ``include_sections`` (default in
-    ``config/mixins/llm_prompt.py``: persona → mandate → workflow → examples →
-    git_mandate → journal_mandate → system_context → project_context →
-    tool_guidance), followed by any user-added prompts. The skill catalogue is
-    folded into the ``workflow`` section via
+    ``config/mixins/llm_prompt.py``: persona → workflow → examples →
+    system_context → project_context), followed by any user-added prompts. Three
+    of those carry rules; the last two carry runtime facts. There is no
+    prompt-side tool catalogue — what a tool does and which tool to reach for
+    instead lives in the tool's own docstring, which pydantic-ai ships with the
+    schema on every request.
+
+    The skill catalogue is folded into the ``workflow`` section via
     ``{CORE_SKILLS}``/``{AVAILABLE_SKILLS}``/``{PREACTIVATED_SKILLS}``
-    placeholders rather than a standalone section; a config that predates the
-    ``mandate``/``workflow`` split still gets both files at ``mandate``'s
-    position. A section name that is
-    not one of the built-ins resolves as a custom section: a provider registered
-    via ``register_section`` (composed by calling it with the active context, for
+    placeholders rather than a standalone section. A section name that is not one
+    of the built-ins resolves as a custom section: a provider registered via
+    ``register_section`` (composed by calling it with the active context, for
     runtime-dynamic content) takes precedence, otherwise the content is loaded
     via ``get_prompt(name)`` (so ``"company_context"`` resolves
     ``company_context.md`` through the usual project-override → env →
     base-prompt-dir → package lookup). Either way downstreams add always-on,
-    config-positioned sections without touching this class. ``tool_names`` and
-    ``tool_guidance`` are resolved at runtime to
-    filter per-tool guidance to the tools actually available; ``model`` and
-    ``assistant_name`` may be callables resolved against the active context. See
-    AGENTS.md ("LLM Prompt System").
+    config-positioned sections without touching this class. A name that resolves
+    to neither — including a retired section such as ``mandate`` or
+    ``tool_guidance`` left in a pinned config — composes to nothing and logs a
+    warning. ``model`` and ``assistant_name`` may be callables resolved against
+    the active context. See AGENTS.md ("LLM Prompt System").
     """
 
     def __init__(
@@ -62,9 +58,6 @@ class PromptManager:
         prompts: list[PromptMiddleware | str] | None = None,
         assistant_name: str | Callable[[AnyContext], str] | None = None,
         include_sections: list[str] | None = None,
-        tool_names: "set[str] | Callable[[AnyContext], set[str]] | None" = None,
-        tool_guidance: "ToolCatalogue | None" = None,
-        tool_groups: "ToolGroups | None" = None,
         skill_manager: SkillManager | None = None,
         active_skills: StrListAttr | None = None,
         render_active_skills: bool = True,
@@ -73,11 +66,6 @@ class PromptManager:
         self._middlewares = prompts or []
         self._assistant_name = assistant_name
         self._include_sections = include_sections  # None means "use CFG default"
-        self._tool_names = tool_names
-        self._tool_guidance: ToolCatalogue = (
-            tool_guidance if tool_guidance is not None else {}
-        )
-        self._tool_groups: ToolGroups = tool_groups if tool_groups is not None else []
         self._skill_manager = skill_manager or default_skill_manager
         self._active_skills = active_skills
         self._render_active_skills = render_active_skills
@@ -103,11 +91,6 @@ class PromptManager:
         # support). Set by the task runner before each compose_prompt(),
         # so /model switches mid-session are reflected automatically.
         self._model: Any = None
-        # Pre-rendered Markdown blocks injected above the per-tool
-        # catalogue when the ``tool_guidance`` section is composed. Set
-        # by the task runner from model-aware section factories so the
-        # blocks reflect the active model.
-        self._tool_guidance_sections: list[str] = []
 
     @property
     def prompts(self):
@@ -137,21 +120,18 @@ class PromptManager:
     def active_sections(self) -> list[str]:
         """The resolved prompt sections: instance override, else CFG default.
 
-        Single source of truth for *which* sections are active — used both by
-        prompt composition and by callers that must couple volatile content to a
-        section's presence (e.g. the journal index, owned by ``journal_mandate``;
-        see ``create_live_context`` and ADR-0082)."""
-        if self._include_sections is not None:
-            return list(self._include_sections)
-        return list(CFG.LLM_INCLUDE_SECTIONS)
+        Single source of truth for *which* sections are active.
 
-    @property
-    def tool_names(self):
-        return self._tool_names
-
-    @tool_names.setter
-    def tool_names(self, value: "set[str] | Callable[[AnyContext], set[str]] | None"):
-        self._tool_names = value
+        Journaling is no longer one of them: there is no prompt section to
+        suppress, so ``LLM_JOURNAL_ENABLED`` gates the journal *tools* at
+        registration instead (see ``apply_common_tools``), and the index
+        injection checks the flag directly (``render_journal_index``).
+        """
+        return (
+            list(self._include_sections)
+            if self._include_sections is not None
+            else list(CFG.LLM_INCLUDE_SECTIONS)
+        )
 
     @property
     def model(self) -> Any:
@@ -160,48 +140,6 @@ class PromptManager:
     @model.setter
     def model(self, value: Any) -> None:
         self._model = value
-
-    @property
-    def tool_guidance_sections(self) -> list[str]:
-        return self._tool_guidance_sections
-
-    @tool_guidance_sections.setter
-    def tool_guidance_sections(self, value: list[str] | None) -> None:
-        self._tool_guidance_sections = list(value) if value else []
-
-    def add_tool_group(self, *, name: str) -> None:
-        """Register a new tool group if it does not already exist."""
-        for label, _ in self._tool_groups:
-            if label == name:
-                return
-        self._tool_groups.append((name, []))
-
-    def add_tool_guidance(
-        self,
-        *,
-        group: str,
-        name: str,
-        use_when: str | None = None,
-        key_rule: str | None = None,
-    ) -> None:
-        """Add or update a tool entry within a group.
-
-        If *group* does not yet exist it is created automatically.
-        If *name* already exists in the catalogue its entry is
-        overwritten, but its position inside the group is preserved.
-        """
-        # Ensure the group exists
-        self.add_tool_group(name=group)
-
-        # Update catalogue
-        self._tool_guidance[name] = (use_when, key_rule)
-
-        # Append to group members if not already there
-        for label, members in self._tool_groups:
-            if label == group:
-                if name not in members:
-                    members.append(name)
-                break
 
     def register_section(self, name: str, provider: SimplePrompt) -> None:
         """Register a dynamic provider for a config-positioned custom section.
@@ -260,16 +198,14 @@ class PromptManager:
         Custom providers registered via ``add_live_context`` are called after
         the built-in rendering, in registration order.
 
-        The journal index snapshot is volatile content owned by the
-        ``journal_mandate`` section (ADR-0082): it is emitted only when both
-        *inject_journal_index* is set (the right moment — first turn) **and**
-        ``journal_mandate`` is an active section, so a prompt that drops that
-        section drops the index with it.
+        The journal index snapshot rides here rather than the cached system
+        prompt (ADR-0082). *inject_journal_index* picks the moment (first turn);
+        ``render_journal_index`` itself checks ``LLM_JOURNAL_ENABLED``, so a
+        disabled journal emits nothing regardless of what callers ask for.
         """
-        inject_index = (
-            inject_journal_index and "journal_mandate" in self.active_sections
+        body = render_live_context(
+            ctx, self._model, inject_journal_index=inject_journal_index
         )
-        body = render_live_context(ctx, self._model, inject_journal_index=inject_index)
         return self._finish_live_context(body, ctx)
 
     async def create_live_context_async(
@@ -281,11 +217,8 @@ class PromptManager:
         # lazy: keep the async twin's import local, mirroring the sync path.
         from zrb.llm.prompt.live_context import render_live_context_async
 
-        inject_index = (
-            inject_journal_index and "journal_mandate" in self.active_sections
-        )
         body = await render_live_context_async(
-            ctx, self._model, inject_journal_index=inject_index
+            ctx, self._model, inject_journal_index=inject_journal_index
         )
         return self._finish_live_context(body, ctx)
 
@@ -457,47 +390,22 @@ class PromptManager:
             if effective
             else {}
         )
-        # Skill catalogue lives in mandate.md via {CORE_SKILLS}/{AVAILABLE_SKILLS}
+        # Skill catalogue lives in workflow.md via {CORE_SKILLS}/{AVAILABLE_SKILLS}
         # /{PREACTIVATED_SKILLS} placeholders (no separate claude_skills section).
         if self._skill_manager:
             active_skills = get_str_list_attr(
                 ctx, self._active_skills, self._render_active_skills
             )
             _extra.update(build_skill_replacements(self._skill_manager, active_skills))
-        tool_names_value = (
-            self._tool_names(ctx) if callable(self._tool_names) else self._tool_names
-        )
-
-        # Capture values to avoid late-binding in lambdas
-        _catalogue = self._tool_guidance
-        _groups = self._tool_groups
 
         middlewares: list[PromptMiddleware | str] = []
-        # What the prompt will *actually* carry, which is not the configured
-        # list: git_mandate drops outside a repo, and a pre-split `mandate`
-        # pulls `workflow` in with it. Cross-reference blocks are filtered
-        # against this set so the prompt never points at an absent section.
-        emitted = self._emitted_sections(sections)
+        # Cross-reference blocks are filtered against the section set so the
+        # prompt never points at a section it did not emit.
+        emitted = set(sections)
 
         for section in sections:
-            if section == "git_mandate" and not is_inside_git_dir():
-                continue
-            if section == "claude_skills":
-                # Removed: the skill catalogue now lives in the mandate section.
-                # Silently skip so a pinned old DEFAULT_LLM_INCLUDE_SECTIONS
-                # doesn't emit a spurious "unknown section" warning.
-                continue
             if section == "system_context":
                 middlewares.append(self._create_system_context_middleware())
-            elif section == "tool_guidance":
-                _extra_sections = list(self._tool_guidance_sections)
-                middlewares.append(
-                    new_prompt(
-                        lambda tn=tool_names_value, c=_catalogue, g=_groups, es=_extra_sections: get_tool_guidance_prompt(
-                            tn, c, g, extra_sections=es
-                        )
-                    )
-                )
             elif section == "project_context":
                 middlewares.append(self._create_project_context_middleware())
             elif section in self._section_providers:
@@ -506,35 +414,15 @@ class PromptManager:
                 # precedence over a same-named markdown file. Registered via
                 # register_section(); see AGENTS.md ("LLM Prompt System").
                 middlewares.append(self._section_providers[section])
-            elif section == "mandate" and "workflow" not in sections:
-                # Back-compat: `workflow` was split out of `mandate` (Priority
-                # Order + Session Context stayed behind; Project Documentation
-                # through Stop moved out). A pinned include_sections /
-                # ZRB_LLM_INCLUDE_SECTIONS predating the split names only
-                # `mandate`, so emit both files at that position — the
-                # concatenation reproduces the pre-split section instead of
-                # silently dropping the Working Loop and Verify gate. Placed
-                # after the provider check so a registered `mandate` provider
-                # still wins (overriding `mandate` means supplying your own).
-                middlewares.append(
-                    self._file_section_middleware(
-                        "mandate",
-                        "workflow",
-                        profile=profile,
-                        extra_replacements=_extra,
-                        emitted=emitted,
-                    )
-                )
             else:
-                # Unknown/file-backed custom section, resolved via
+                # Built-in file-backed sections (persona, workflow, examples)
+                # and unknown/custom ones both resolve here, via
                 # get_prompt(name, **_extra) (project override -> env -> base
                 # prompt dir -> package default). Lets downstreams add always-on,
                 # ordered sections through include_sections + a markdown file,
                 # with no code change. Missing files resolve to "" (harmless
-                # no-op) and log a warning so a misspelled name is diagnosable.
-                # Built-in sections like "workflow" and "journal_mandate" live
-                # here too, since _extra's {ASSISTANT_NAME} is harmless when a
-                # markdown file has no matching placeholder.
+                # no-op) and log a warning, which is also what a retired section
+                # name left in a pinned config does.
                 middlewares.append(
                     self._file_section_middleware(
                         section,
@@ -587,23 +475,6 @@ class PromptManager:
             return next_fn(ctx, f"{current}\n" + "\n".join(parts))
 
         return file_section_middleware
-
-    def _emitted_sections(self, sections: list[str]) -> set[str]:
-        """Section names the composed prompt will actually contain.
-
-        Differs from the configured list in both directions: ``git_mandate`` is
-        skipped outside a git repo, and a config predating the mandate/workflow
-        split names only ``mandate`` while emitting ``workflow`` alongside it.
-        Cross-reference blocks are resolved against this, so a reference is kept
-        exactly when its target really ships.
-        """
-        emitted = set(sections)
-        if "git_mandate" in emitted and not is_inside_git_dir():
-            emitted.discard("git_mandate")
-        if "mandate" in emitted:
-            emitted.add("workflow")
-        emitted.discard("claude_skills")
-        return emitted
 
     def _warn_empty_section(self, ctx: AnyContext, name: str) -> None:
         """Surface a section name that resolved to nothing, so typos are visible."""

@@ -37,8 +37,20 @@ Journal entries are stored in a directory structure with a central index file.
 
 | Setting | Environment Variable | Default |
 |---------|---------------------|---------|
+| Enabled | `ZRB_LLM_JOURNAL_ENABLED` | `on` |
 | Journal Directory | `ZRB_LLM_JOURNAL_DIR` | `~/.zrb/llm-notes/` |
 | Index File | `ZRB_LLM_JOURNAL_INDEX_FILE` | `index.md` |
+| Injected index cap | `ZRB_LLM_JOURNAL_INDEX_MAX_CHARS` | `2500` |
+
+`ZRB_LLM_JOURNAL_ENABLED=false` turns the whole subsystem off. There is no
+journal prompt section to suppress — the journal *is* its three tools
+(`SearchJournal`, `LogActivity`, `WriteJournalNote`), so the flag unregisters
+them in `apply_common_tools`, and `render_journal_index` checks the same flag
+for the `<journal-index>` injection. The model is then never told a journal
+exists (ADR-0099).
+
+`ZRB_LLM_JOURNAL_DIR` is **not** an off switch: clearing it falls back to
+`~/.zrb/llm-notes/` rather than disabling journaling.
 
 ### Directory Organization
 
@@ -91,21 +103,38 @@ When present, the block is wrapped as its own tag inside the live-context payloa
 ```
 <journal-index>
 Your persistent memory (index file: index.md). Use SearchJournal for full entries.
-[content of index.md, truncated to ~1000 characters, with " (...more)" appended if truncated]
+[content of index.md, capped at ZRB_LLM_JOURNAL_INDEX_MAX_CHARS]
 </journal-index>
 ```
 
-If the index file is missing, unreadable, or empty, nothing is injected at all.
+When the content exceeds the cap it is cut **on a line boundary** and ` (...more)`
+is appended, and the header gains a pointer to the rest:
+
+```
+Your persistent memory (index file: index.md). Truncated at `(...more)`; Read /abs/path/to/index.md for the rest. Use SearchJournal for full entries.
+```
+
+Cutting on a line boundary matters because the entries are facts about the user —
+half a sentence is worse than none. Overflow is dropped from the **end**, so the
+index should be written most-durable-first. `WriteJournalNote` enforces that
+order when it creates the root index: identity and standing preferences first,
+unbounded "Recent Insights" last, so growth only ever evicts itself.
+
+Nothing is injected at all when the index file is missing, unreadable, or empty;
+when `ZRB_LLM_JOURNAL_INDEX_MAX_CHARS` is `0`; or when
+`ZRB_LLM_JOURNAL_ENABLED` is `false`. A missing block therefore does not prove
+an empty journal — `SearchJournal`'s own description tells the model to look
+before concluding one way or the other.
 
 ---
 
 ## 4. Automatic Creation
 
-Zrb creates the journal **directory** on first search, and nothing else. `search_journal` (`src/zrb/llm/tool/journal.py`, exposed to the agent as `SearchJournal`) calls `os.makedirs(..., exist_ok=True)` when the configured directory is absent and reports the same empty result an unmatched search returns.
+`search_journal` (`src/zrb/llm/tool/journal.py`, exposed to the agent as `SearchJournal`) calls `os.makedirs(..., exist_ok=True)` when the configured directory is absent and reports the same empty result an unmatched search returns.
 
-That behaviour is deliberate. Reporting a missing directory as an error made the whole memory layer read as unavailable, and the agent responded by declaring it could not journal rather than by writing its first note — the directory could not come into existence because nothing would create it. An unwritten journal is *empty*, not broken.
+That behaviour is deliberate. Reporting a missing directory as an error made the whole memory layer read as unavailable, and the agent responded by declaring it could not journal rather than by writing its first note. An unwritten journal is *empty*, not broken.
 
-The index file and every per-topic Markdown file remain the agent's responsibility, driven by prompt and skill guidance (see the `core-journaling` skill under `src/zrb/llm_plugin/core_skills/`) rather than by zrb's runtime code.
+**The rest of the tree is created by the writers, not by the agent.** `LogActivity` and `WriteJournalNote` (`src/zrb/llm/tool/journal_write.py`) derive every path and timestamp themselves, create the root index and the five directory indexes on first write, and maintain the link graph — each note registered in its directory index, each forward link matched by a reciprocal backlink. The agent supplies content; the structure is code (ADR-0099).
 
 ---
 

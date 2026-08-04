@@ -491,9 +491,10 @@ def _apply_capability_constraints(
        malform parallel tool calls. Real OpenAI / Azure OpenAI honor the
        flag; Ollama-cloud's OpenAI-compatible endpoint silently ignores
        it (verified empirically against minimax-m2.7 and glm-4.7). The
-       **prompt-side** parallel-tool-call section in the Tool Usage Guide
-       (see :func:`zrb.llm.prompt.tool_guidance.get_parallel_tool_call_section`)
-       is what actually changes those models' behavior. Both layers use
+       **prompt-side** parallel-tool-call line in the System Context
+       section (see ``_format_parallel_tool_call_line`` in
+       ``zrb.llm.prompt.system_context``) is what actually changes those
+       models' behavior. Both layers use
        the same capability registry, so toggling
        ``supports_parallel_tool_calls`` in one place updates both.
     """

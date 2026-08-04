@@ -1,19 +1,26 @@
 """Shared default-tool registration for zrb-shipped agents.
 
-`apply_common_tools(host)` registers the standard zrb-shipped tools,
-toolset factories, static tool guidance, dynamic guidance factories, and
-the model-aware Tool Usage Guide section factory on any host that
-conforms to ``CommonToolHost`` — used by both ``LLMChatTask`` (main
-agent), ``LLMTask`` (programmatic agents), and ``SubAgentManager``
-(sub-agents) so they share the same tool surface and guidance.
+`apply_common_tools(host)` registers the standard zrb-shipped tools, toolset
+factories, and the shell-safety policy on any host that conforms to
+``CommonToolHost`` — used by ``LLMChatTask`` (main agent), ``LLMTask``
+(programmatic agents), and ``SubAgentManager`` (sub-agents) so they share the
+same tool surface.
+
+There is no prompt-side tool catalogue. What a tool does, what its arguments
+mean, and which tool to reach for instead all live in the tool's own docstring,
+next to the schema the model fills in. pydantic-ai serializes every registered
+tool's docstring + parameter schema into every request either way, so the
+docstring is not deferred context — the only lever on tool-definition weight is
+the *number* of registered tools, which is why LSP, worktree, plan-mode, and
+journal tools are registered conditionally and rarely-used ones use
+``defer_loading``.
 
 Delegate tools (``DelegateToAgent`` — which also fans out via its ``tasks``
 arg — and ``DelegateToAgentBackground``) are intentionally NOT registered here
 — they're main-agent-only and sub-agents filter them out via
-``zrb_is_delegate_tool``. Tool policies, argument
-formatters, and response handlers are also out of scope: those live on
-``LLMChatTask`` and propagate to sub-agents at runtime via the
-``current_tool_confirmation`` ContextVar.
+``zrb_is_delegate_tool``. Argument formatters and response handlers are out of
+scope: those live on ``LLMChatTask`` and propagate to sub-agents at runtime via
+the ``current_tool_confirmation`` ContextVar.
 """
 
 from __future__ import annotations
@@ -21,10 +28,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Callable, Protocol, runtime_checkable
 
 from zrb.config.config import CFG
-from zrb.llm.prompt.tool_guidance import (
-    ToolGuidance,
-    get_parallel_tool_call_section,
-)
 from zrb.llm.util.git import is_inside_git_dir
 from zrb.util.string.conversion import to_boolean
 
@@ -55,303 +58,6 @@ class CommonToolHost(Protocol):
     def add_tool(self, *tool: "Callable | Tool") -> None: ...
     def add_tool_factory(self, *factory: "Callable[[AnyContext], Any]") -> None: ...
     def add_toolset_factory(self, *factory: "Callable[[AnyContext], Any]") -> None: ...
-    def add_tool_guidance(self, *guidance: ToolGuidance) -> None: ...
-    def add_tool_guidance_factory(
-        self, *factory: "Callable[[AnyContext], ToolGuidance]"
-    ) -> None: ...
-    def add_tool_guidance_section_factory(
-        self, *factory: "Callable[[AnyContext, Any], str | None]"
-    ) -> None: ...
-
-
-# ── Static guidance ──────────────────────────────────────────────────────────
-# Cross-tool decisions only. Per-tool intrinsics (argument behavior, output
-# format, default values, irreversibility warnings) live in the tool docstrings,
-# co-located with the schema the model fills in — which aids adherence and keeps
-# this guide from restating them. Note that both are always-on: pydantic-ai
-# serializes every registered tool's docstring + parameter schema into the
-# request on every turn, so a docstring is NOT "lazy" context paid only when the
-# model considers the tool — moving detail into a docstring relocates the token
-# cost, it does not remove it. The real lever on tool-definition weight is the
-# number of registered tools (hence the conditional registration of LSP and
-# worktree tools in apply_common_tools below), not where the prose lives.
-# Tool Usage Guide entries answer "when do I reach for THIS tool instead of
-# THAT one?" — anything that doesn't reduce to a cross-tool choice belongs in
-# the docstring.
-
-_STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
-    # File Operations
-    ToolGuidance(
-        group_name="File Operations",
-        tool_name="LS",
-        when_to_use="Exploring a directory without a known filename pattern",
-        key_rule=(
-            "For pattern-based discovery (e.g. `**/*.py`), use Glob. "
-            "For content search, use Grep."
-        ),
-    ),
-    ToolGuidance(
-        group_name="File Operations",
-        tool_name="Glob",
-        when_to_use="Finding files by name pattern",
-        key_rule="For content search, use Grep. For an unfiltered directory listing, use LS.",
-    ),
-    ToolGuidance(
-        group_name="File Operations",
-        tool_name="Read",
-        key_rule=(
-            "Grep to locate the relevant section first; then Read to load it. "
-            "Read numbers every line `cat -n`-style: cite that number, and "
-            "strip the prefix through the first tab before passing text to Edit."
-        ),
-    ),
-    ToolGuidance(
-        group_name="File Operations",
-        tool_name="Write",
-        key_rule="For surgical changes to an existing file, use Edit.",
-    ),
-    ToolGuidance(
-        group_name="File Operations",
-        tool_name="Edit",
-        key_rule=(
-            "Before editing a public symbol, Grep or LspFindReferences for call "
-            "sites and update them in the same turn."
-        ),
-    ),
-    ToolGuidance(
-        group_name="File Operations",
-        tool_name="Grep",
-        key_rule="For content search across files; to load a specific section, use Read.",
-    ),
-    ToolGuidance(
-        group_name="File Operations",
-        tool_name="RM",
-        when_to_use="Use instead of Bash rm",
-        key_rule=(
-            "Before removing, Grep for imports or references and update them in "
-            "the same turn."
-        ),
-    ),
-    ToolGuidance(
-        group_name="File Operations",
-        tool_name="MV",
-        when_to_use="Use instead of Bash mv",
-        key_rule=(
-            "Before moving, Grep for imports or references that name the old path "
-            "and update them."
-        ),
-    ),
-    # Execution
-    ToolGuidance(
-        group_name="Execution",
-        tool_name="Shell",
-        when_to_use=(
-            "Running any shell command (may be exposed as `Shell` or `Bash` — "
-            "same tool)"
-        ),
-        key_rule=(
-            "For file I/O, use Read/Write/Edit/Grep/RM/MV — not Shell. "
-            "OS, CWD, and available tools are in System Context; the current time "
-            "is in the latest <live-context> — read them there instead of "
-            "shelling out to discover them. "
-            "For long-running processes (dev servers, watchers, builds), run with "
-            "background=True instead of blocking."
-        ),
-    ),
-    ToolGuidance(
-        group_name="Execution",
-        tool_name="MonitorProcess",
-        when_to_use="Check status of, wait on, or kill a background process "
-        "started with Shell/Bash (background=True)",
-    ),
-    # Analysis
-    ToolGuidance(
-        group_name="Analysis",
-        tool_name="AnalyzeCode",
-        key_rule="Slow. Use Read + Grep first; AnalyzeFile for a single file; "
-        "Glob or LS for a simple listing.",
-    ),
-    ToolGuidance(
-        group_name="Analysis",
-        tool_name="AnalyzeFile",
-        key_rule="Slow. Use Read for content; for directory-level analysis use AnalyzeCode.",
-    ),
-    # Research & Web
-    ToolGuidance(
-        group_name="Research & Web",
-        tool_name="WebSearch",
-        when_to_use="Current information, recent docs, or events",
-        key_rule="Start broad with WebSearch, then WebFetch on the most promising URL.",
-    ),
-    ToolGuidance(
-        group_name="Research & Web",
-        tool_name="WebFetch",
-        when_to_use="Fetching a known URL",
-        key_rule="When the URL is not known, WebSearch first.",
-    ),
-    # User Interaction
-    ToolGuidance(
-        group_name="User Interaction",
-        tool_name="AskUserQuestion",
-        when_to_use=(
-            "The choice is non-obvious AND the wrong pick would waste significant "
-            "work — ambiguous library/strategy/file selection, or scope splits "
-            "the user hasn't called."
-        ),
-        key_rule=(
-            "Do not ask for permission to do obvious things. Skip in "
-            "non-interactive mode (the latest <live-context> flags "
-            "`Interactive: no`) — the tool short-circuits there anyway."
-        ),
-    ),
-    # Planning
-    ToolGuidance(
-        group_name="Planning",
-        tool_name="TodoWrite",
-        when_to_use="Starting work with ≥3 distinct steps, spanning multiple files, "
-        "or expected to run across multiple turns — seed the full list before the "
-        "first edit. Skip for single-step or one-line changes.",
-    ),
-    ToolGuidance(
-        group_name="Planning",
-        tool_name="TodoRead",
-        when_to_use="Resuming work, or after summarization may have dropped the "
-        "plan — check the current list before proceeding",
-    ),
-    # Git Worktrees
-    ToolGuidance(
-        group_name="Git Worktrees",
-        tool_name="ListWorktrees",
-        when_to_use="Check before EnterWorktree to avoid duplicates",
-    ),
-    ToolGuidance(
-        group_name="Git Worktrees",
-        tool_name="EnterWorktree",
-        when_to_use="Isolated branch for risky experiments, parallel "
-        "approaches, or staging changes before merging",
-        key_rule=(
-            "ListWorktrees first. Pass the returned path as the `cwd` argument "
-            "to Shell/Bash."
-        ),
-    ),
-    # Plan Mode
-    ToolGuidance(
-        group_name="Plan Mode",
-        tool_name="EnterPlanMode",
-        when_to_use=(
-            "Before a change that is hard to undo or where the approach itself is "
-            "contested — migrations, schema/data changes, deletions, anything "
-            "touching deploy or CI, or work where two designs are defensible and "
-            "picking wrong wastes the effort. Investigate read-only first "
-            "(edits/shell/delegation are blocked until you exit)"
-        ),
-        key_rule=(
-            "Breadth alone is not a trigger: an ordinary multi-file edit stays "
-            "autonomous per the Working Loop — plan mode is for risk and contested "
-            "approach, not file count. Do discovery, then ExitPlanMode with a "
-            "concrete plan. Skip plan mode when non-interactive (no user to "
-            "approve): present the plan inline in your reply and proceed to the edits."
-        ),
-    ),
-    ToolGuidance(
-        group_name="Plan Mode",
-        tool_name="ExitPlanMode",
-        when_to_use="When discovery is done and you have a concrete change plan",
-    ),
-    # LSP
-    ToolGuidance(
-        group_name="LSP",
-        tool_name="LspListServers",
-        when_to_use="Verify an LSP server is running before reaching for other Lsp* tools",
-        key_rule="If no servers are listed, fall back to Read + Grep.",
-    ),
-    ToolGuidance(
-        group_name="LSP",
-        tool_name="LspFindReferences",
-        when_to_use="Find all call sites before renaming, moving, or deleting a symbol",
-    ),
-    ToolGuidance(
-        group_name="LSP",
-        tool_name="LspRenameSymbol",
-        key_rule=(
-            "Apply (`dry_run=False`) only after user approval; preview first "
-            "(the default)."
-        ),
-    ),
-]
-
-# ── Dynamic guidance ─────────────────────────────────────────────────────────
-# Factories so ``CFG.ROOT_GROUP_NAME`` is re-read at exec time (e.g. tool
-# names change if the user customizes the root group). The delegate-tool
-# guidance below is registered on every host, but only the main agent can
-# actually call the delegate tools; sub-agents lack them, so the runtime
-# ``tool_names`` filter drops the guidance for them.
-
-_DYNAMIC_TOOL_GUIDANCE_FACTORIES: "list[Callable[[AnyContext], ToolGuidance]]" = [
-    lambda ctx: ToolGuidance(
-        group_name=f"{CFG.ROOT_GROUP_NAME.capitalize()} Tasks",
-        tool_name=f"List{CFG.ROOT_GROUP_NAME.capitalize()}Tasks",
-        when_to_use=(
-            f"Before running a {CFG.ROOT_GROUP_NAME} task — confirm the task "
-            "name exists"
-        ),
-    ),
-    lambda ctx: ToolGuidance(
-        group_name=f"{CFG.ROOT_GROUP_NAME.capitalize()} Tasks",
-        tool_name=f"Run{CFG.ROOT_GROUP_NAME.capitalize()}Task",
-        when_to_use=f"Executing a registered {CFG.ROOT_GROUP_NAME} task",
-        key_rule=(
-            "Task names are case-sensitive. Verify with "
-            f"List{CFG.ROOT_GROUP_NAME.capitalize()}Tasks first."
-        ),
-    ),
-    lambda ctx: ToolGuidance(
-        group_name="Delegation",
-        tool_name="ActivateSkill",
-        when_to_use=(
-            "Loading domain-specific protocols for specialized work "
-            "(see Skill Activation table)"
-        ),
-        key_rule="Re-activate after summarization if skill context was lost.",
-    ),
-    lambda ctx: ToolGuidance(
-        group_name="Delegation",
-        tool_name="DelegateToAgent",
-        when_to_use="Either (a) the work will read far more than it reports — many "
-        "searches, pages, or files whose intermediate content you will not need "
-        "again (research fan-out; broad exploration where you cannot yet name the "
-        "files); or (b) your own context is the problem — the same hypothesis has "
-        "failed twice, or you are checking work you produced yourself. There a "
-        "sub-agent blind to your reasoning is the point, not the token saving. "
-        "To fan out, pass tasks=[{...}, ...] to run several concurrently in one call.",
-        key_rule="Do it yourself when you already know the answer's shape — an edit "
-        "whose content you can write now, a change confined to files you can name, or "
-        "a lookup of one or two searches. Do NOT delegate when the next step depends "
-        "on interpreting the last, or when you need verbatim text to cite: a sub-agent "
-        "returns a report you cannot interrogate. Fan out reads freely; fanning out "
-        "WRITES shares one working tree, so each task must enter its own worktree "
-        "first or they corrupt each other. deliverable and non_goals are the scope "
-        "clamp — make them concrete; sub-agents over-produce against fuzzy specs.",
-    ),
-    lambda ctx: ToolGuidance(
-        group_name="Delegation",
-        tool_name="DelegateToAgentBackground",
-        when_to_use="Work you do NOT need before continuing — speculative research, "
-        "generating a file, a slow sweep. Justified by timing, not size: the work may "
-        "be small. To fan out, start several and collect the handles later.",
-        key_rule="Same scope clamp and same fan-out caution as DelegateToAgent "
-        "(concurrent writes share one working tree). Need the result now? "
-        "Use DelegateToAgent (pass tasks=[...] to run several at once).",
-    ),
-    lambda ctx: ToolGuidance(
-        group_name="Delegation",
-        tool_name="GetDelegationResult",
-        when_to_use="Collect the result of a DelegateToAgentBackground handle",
-        key_rule="Pass wait=N to block up to N seconds (returns early on finish) "
-        "instead of busy-polling; kill=True stops the agent. The handle is "
-        "consumed once a completed result is collected.",
-    ),
-]
 
 
 def apply_common_tools(host: CommonToolHost) -> None:
@@ -397,6 +103,7 @@ def apply_common_tools(host: CommonToolHost) -> None:
         write_file,
     )
     from zrb.llm.tool.journal import search_journal
+    from zrb.llm.tool.journal_write import log_activity, write_journal_note
     from zrb.llm.tool.mcp import load_mcp_config
     from zrb.llm.tool.plan import get_todos, write_todos
     from zrb.llm.tool.plan_mode import enter_plan_mode, exit_plan_mode
@@ -409,6 +116,9 @@ def apply_common_tools(host: CommonToolHost) -> None:
         create_list_zrb_task_tool,
         create_run_zrb_task_tool,
     )
+
+    # lazy: circular — tool_policy → handler → ui → llm_task → here
+    from zrb.llm.tool_call.tool_policy.bash_validation import bash_safe_command_policy
 
     lsp_tools = create_lsp_tools() if detect_available_lsp_servers() else []
     # Worktree tools only make sense inside a git repo — registering them in a
@@ -443,6 +153,10 @@ def apply_common_tools(host: CommonToolHost) -> None:
         replace_in_file,
         remove_file,
         move_file,
+        # The journal writers only ever touch CFG.LLM_JOURNAL_DIR, but they do
+        # write, so plan mode must block them like any other edit.
+        log_activity,
+        write_journal_note,
     ):
         tag(_fn, Capability.EDIT)
     # Tag worktree tools only when registered (git dir): list is read-only,
@@ -470,7 +184,6 @@ def apply_common_tools(host: CommonToolHost) -> None:
         search_files,
         remove_file,
         move_file,
-        search_journal,
         search_internet,
         open_web_page,
         # Deferred loading: these are rarely needed (specific workflows or
@@ -505,6 +218,15 @@ def apply_common_tools(host: CommonToolHost) -> None:
             else []
         ),
         lambda ctx: [ask_user_question] if _resolve_interactive(ctx) else [],
+        # The journal tools are the whole journal interface — there is no prompt
+        # section describing the protocol any more, so LLM_JOURNAL_ENABLED=false
+        # is enforced by these three simply not existing. Their docstrings carry
+        # what earns an entry and when to write it, and disappear with them.
+        lambda ctx: (
+            [search_journal, log_activity, write_journal_note]
+            if CFG.LLM_JOURNAL_ENABLED
+            else []
+        ),
     )
     host.add_tool_factory(
         lambda ctx: tag(create_list_zrb_task_tool(), Capability.READ),
@@ -522,9 +244,16 @@ def apply_common_tools(host: CommonToolHost) -> None:
     host.add_toolset_factory(
         lambda ctx: [toolset.defer_loading() for toolset in load_mcp_config()]
     )
-    host.add_tool_guidance(*_STATIC_TOOL_GUIDANCE)
-    host.add_tool_guidance_factory(*_DYNAMIC_TOOL_GUIDANCE_FACTORIES)
-    host.add_tool_guidance_section_factory(_parallel_tool_call_section_factory)
+    # Shell safety travels with the shell tools rather than with one builtin
+    # task: the allowlist in bash_safe_command_policy IS the git approval rule
+    # (read-only subcommands auto-approve, `commit`/`push`/`reset` reach the
+    # user), so registering it here is what lets that rule stay out of the
+    # prompt. Hosts without an approval channel (programmatic LLMTask,
+    # SubAgentManager — the latter inherits the caller's confirmation via the
+    # current_tool_confirmation ContextVar) have no add_tool_policy; skip them.
+    add_policy = getattr(host, "add_tool_policy", None)
+    if callable(add_policy):
+        add_policy(bash_safe_command_policy())
 
 
 def defer_common_tools(host: CommonToolHost) -> None:
@@ -551,11 +280,6 @@ def ensure_common_tools(host: CommonToolHost) -> None:
     if getattr(host, "_pending_common_tools", False):
         setattr(host, "_pending_common_tools", False)
         apply_common_tools(host)
-
-
-def _parallel_tool_call_section_factory(ctx: "AnyContext", model: Any) -> "str | None":
-    """Emit the parallel-tool-call policy block, tone tuned to the model."""
-    return get_parallel_tool_call_section(model)
 
 
 def _resolve_interactive(ctx: "AnyContext") -> bool:

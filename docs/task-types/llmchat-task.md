@@ -137,31 +137,30 @@ chat.add_toolset(my_toolset)
 chat.add_toolset_factory(lambda ctx: create_toolset())
 ```
 
-### Tool Guidance
+### Telling the LLM how to use a tool
+
+A tool describes itself through its docstring — pydantic-ai serializes it with
+the schema on every request. There is no separate guidance API (ADR-0100).
 
 ```python
-from zrb import ToolGuidance
+def my_tool(item_id: str) -> dict:
+    """Look up one item by id.
 
-chat.add_tool_guidance(
-    ToolGuidance(
-        group_name="My Tools",
-        tool_name="MyTool",
-        when_to_use="When user asks about X",
-        key_rule="Always call Validate first",
-    )
-)
+    Call ListItems first if you do not have an id; this fails on an unknown one.
+    """
+    ...
 
-# For dynamic tool names (resolved at runtime):
-chat.add_tool_guidance_factory(
-    lambda ctx: ToolGuidance(
-        group_name="Zrb Tasks",
-        tool_name=f"List{CFG.ROOT_GROUP_NAME.capitalize()}Tasks",
-        when_to_use="Before running any task",
-    )
-)
+chat.add_tool(my_tool)
 ```
 
-> **Note:** `add_tool_guidance_factory` is available on both `LLMChatTask` and `LLMTask`.
+For cross-cutting policy, register a prompt section and place its name in
+`ZRB_LLM_INCLUDE_SECTIONS`:
+
+```python
+chat.prompt_manager.register_section(
+    "tool_policy", lambda ctx: "## My rules\n- Always validate before writing."
+)
+```
 
 ### History Processors
 
@@ -216,14 +215,13 @@ chat.set_history_manager(FileHistoryManager(history_dir="./my-history/"))
 | **Use case** | Interactive conversation | Single-shot processing |
 | **Conversation history** | Persistent across turns | None (one request) |
 | **TUI** | Full-screen terminal UI | No TUI (programmatic only) |
-| **`add_tool_guidance_factory`** | Yes | Yes |
 | **Custom commands** | Yes | No |
 | **Triggers (async iterables)** | Yes | No |
 | **Response handlers** | Yes | No |
 | **Tool policies** | Yes | No |
 | **Permission policy** | `permissions=` (arg + property) | Same |
 | **Filesystem sandbox** | `sandbox=` (arg + property) | Same |
-| **Shared tool APIs** | `add_tool`, `add_toolset`, `add_tool_guidance` | Same |
+| **Shared tool APIs** | `add_tool`, `add_tool_factory`, `add_toolset` | Same |
 | **Hook system** | Full lifecycle hooks | Same |
 | **History processors** | `add_history_processor` | Same |
 | **System prompt** | Via `system_prompt` or `prompt_manager` | Same |

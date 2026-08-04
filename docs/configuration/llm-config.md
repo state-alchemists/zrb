@@ -176,11 +176,10 @@ Zrb loads prompts with a multi-level override system (first found wins):
 ### Overridable Prompts
 
 - `persona`
-- `mandate`
-- `git_mandate`
+- `workflow`
+- `examples`
 - `conversational_summarizer`
 - `message_summarizer`
-- `journal_mandate`
 - `file_extractor`
 - `repo_extractor`
 - `repo_summarizer`
@@ -192,37 +191,32 @@ The system prompt is assembled from an **ordered list of sections**. The list is
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_INCLUDE_SECTIONS` | Comma-separated, order-sensitive list of sections to include | `persona,mandate,workflow,examples,git_mandate,journal_mandate,system_context,project_context,tool_guidance` |
-| `ZRB_LLM_INCLUDE_JOURNAL_REMINDER` | Append a journaling reminder at session end (runtime hook, not a prompt section) | `off` |
+| `ZRB_LLM_INCLUDE_SECTIONS` | Comma-separated, order-sensitive list of sections to include | `persona,workflow,examples,system_context,project_context` |
 
 Recognised section names:
 
 | Section | Purpose |
 |---------|---------|
-| `persona` | AI identity prompt |
-| `mandate` | Priority order (security, approvals, scope, memory) + session context |
-| `workflow` | Project-doc reading, skill activation, working loop, verify gate, recovery |
+| `persona` | AI identity + response style |
+| `workflow` | The whole rulebook: priority order, turn sequence, skill activation, working loop, verify gate, tool usage, recovery |
 | `examples` | Answer-scale and stance demonstrations (the `mini` variant adds more) |
-| `git_mandate` | Git safety rules (rendered only inside a git repo) |
-| `journal_mandate` | Journaling protocol |
 | `system_context` | Stable runtime facts (OS / CWD / model / detected tools) |
 | `project_context` | Project docs (`AGENTS.md`, `CLAUDE.md`, `README.md`, …) |
-| `tool_guidance` | Per-tool usage guidance |
 
 > The skill catalogue (core skills, other available skills, and active-skill contents) is part of the `workflow` section, injected via `{CORE_SKILLS}`/`{AVAILABLE_SKILLS}`/`{PREACTIVATED_SKILLS}` placeholders — it is not a separate section.
 >
-> `workflow` was split out of `mandate`. A list that names only `mandate` still receives both, so an existing `ZRB_LLM_INCLUDE_SECTIONS` keeps working unchanged.
+> **Retired sections.** `mandate`, `git_mandate`, `journal_mandate`, and `tool_guidance` no longer exist (ADR-0098/0099/0100). `mandate` folded into `workflow`; `git_mandate` is enforced by the shell tool policy instead; the journal is three tools with no prose; per-tool rules live in tool docstrings. A pinned list naming any of them falls through to the custom-section path: it composes to nothing (with a warning) unless you have a markdown override of that name, in which case your override is still emitted at that position.
 
 > Volatile per-turn state (time, git status, todos, worktree, interactivity) is **not** a section — it is injected into the latest user turn as a `<live-context>` block so the cached system prompt stays byte-stable.
 
 Examples:
 
 ```bash
-# Strip the journaling mandate and project context (e.g. for benchmark runners).
-export ZRB_LLM_INCLUDE_SECTIONS="persona,mandate,examples,git_mandate,system_context,tool_guidance"
+# Strip demonstrations and project context (e.g. for benchmark runners).
+export ZRB_LLM_INCLUDE_SECTIONS="persona,workflow,system_context"
 
-# Personality-only: just persona and mandate.
-export ZRB_LLM_INCLUDE_SECTIONS="persona,mandate"
+# Personality-only: just persona.
+export ZRB_LLM_INCLUDE_SECTIONS="persona"
 ```
 
 To toggle a single section programmatically, mutate `CFG.LLM_INCLUDE_SECTIONS` directly (it is a `list[str]`).
@@ -342,8 +336,7 @@ task.prompt_manager.register_section(
     lambda ctx: f"Deploy target: {resolve_target()}",
 )
 task.prompt_manager.include_sections = [
-    "persona", "mandate", "workflow", "company_context", "system_context",
-    "tool_guidance",
+    "persona", "workflow", "company_context", "system_context",
 ]
 ```
 
@@ -354,8 +347,8 @@ dir → `ZRB_LLM_PROMPT_<NAME>` → base dir → package), with `{PLACEHOLDER}`
 substitution. No Python required:
 
 ```bash
-# Loads company_context.md and places it after `mandate`.
-export ZRB_LLM_INCLUDE_SECTIONS="persona,mandate,company_context,tool_guidance"
+# Loads company_context.md and places it after `workflow`.
+export ZRB_LLM_INCLUDE_SECTIONS="persona,workflow,company_context,system_context"
 ```
 
 > **Resolution precedence** for a section name is **built-in > registered provider >
@@ -363,25 +356,46 @@ export ZRB_LLM_INCLUDE_SECTIONS="persona,mandate,company_context,tool_guidance"
 > misspelled name silently emits nothing). See ADR-0061 and AGENTS.md ("LLM Prompt
 > System").
 
-### Tool Guidance
+### Telling the LLM about a custom tool
 
-The tool guidance section tells the LLM when and how to use each available tool. All built-in tools ship with guidance pre-registered. When you add a custom tool, register its guidance so the LLM knows how to use it:
+There is no tool-guidance section any more (ADR-0100). What a tool does, what its
+arguments mean, and which tool to reach for instead all live in the tool's own
+**docstring** — pydantic-ai serializes it with the JSON schema on every request,
+so the model reads it next to the arguments it is filling in:
 
 ```python
 from zrb import LLMChatTask
 
-task = LLMChatTask(name="chat")
-task.add_tool(my_tool)
+def check_stock(warehouse_id: str, sku: str) -> dict:
+    """Look up on-hand stock for one SKU in one warehouse.
 
-task.prompt_manager.add_tool_guidance(
-    group="My Domain",
-    name="MyTool",
-    use_when="When the user asks about inventory or stock levels",
-    key_rule="Always filter by warehouse_id; an empty result means no stock, not an error.",
+    Always pass warehouse_id — a lookup without it scans every site and times
+    out. An empty result means no stock on hand, not an error.
+    """
+    ...
+
+task = LLMChatTask(name="chat")
+task.add_tool(check_stock)
+```
+
+Note this relocates token cost rather than removing it: a docstring ships every
+turn, exactly as the guidance section did. The lever on prompt weight is the
+**number** of registered tools — use `Tool(fn, defer_loading=True)` for tools
+that are rarely needed, so their schema only materializes once the model
+searches for them.
+
+For cross-cutting policy that is not about any one tool, register a prompt
+section instead:
+
+```python
+task.prompt_manager.register_section(
+    "tool_policy",
+    lambda ctx: "## Inventory rules\n- Never quote stock without a warehouse.",
 )
 ```
 
-Guidance entries for tools that are not registered on the task are automatically suppressed at runtime, so the prompt never grows stale. To disable the entire section, drop `tool_guidance` from `ZRB_LLM_INCLUDE_SECTIONS`.
+Then place `tool_policy` in `ZRB_LLM_INCLUDE_SECTIONS`. This is the documented
+replacement for the removed `add_tool_guidance()` API.
 
 ---
 
@@ -389,8 +403,10 @@ Guidance entries for tools that are not registered on the task are automatically
 
 | Variable | Description | Default |
 |----------|-------------|---------|
+| `ZRB_LLM_JOURNAL_ENABLED` | Master switch for the journal. `false` unregisters the three journal tools (`SearchJournal`, `LogActivity`, `WriteJournalNote`) and suppresses the `<journal-index>` injection. Those tools are the whole interface — there is no journal prompt section — so the model is never told a journal exists (ADR-0099). Note `ZRB_LLM_JOURNAL_DIR` has no "off" value: clearing it falls back to the default path rather than disabling anything | `on` |
 | `ZRB_LLM_JOURNAL_DIR` | Long-term notes directory | `~/.zrb/llm-notes/` |
 | `ZRB_LLM_JOURNAL_INDEX_FILE` | Main index file name | `index.md` |
+| `ZRB_LLM_JOURNAL_INDEX_MAX_CHARS` | Max characters of the index injected into context. Overflow is dropped from the **end** on a line boundary, so write the index most-durable-first. `0` suppresses the injection; a negative value injects it uncapped | `2500` |
 | `ZRB_LLM_HISTORY_DIR` | Conversation history directory | `~/.zrb/llm-history/` |
 | `ZRB_LLM_HISTORY_BACKUP_RETAIN` | Number of timestamped history backups to keep per conversation (`-1` = keep all, `0` = disable) | `3` |
 
@@ -668,11 +684,34 @@ All interval and delay values are in **milliseconds**.
 
 These variables let you customize the slash tokens that trigger built-in UI commands.
 
+Each value is a **comma-separated list of alias tokens**, and setting one
+*replaces* the defaults rather than adding to them — list every alias you want to
+keep. Tokens need not start with `/`: `!` and `>` are the defaults for two of
+them.
+
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_UI_COMMAND_PLAN_TOGGLE` | Slash command to toggle Plan Mode | `/plan` |
+| `ZRB_LLM_UI_COMMAND_ATTACH` | `<cmd> <path>` — attach a file to the conversation | `/attach` |
+| `ZRB_LLM_UI_COMMAND_BTW` | `<cmd> <question>` — ask a side question that is **not** saved to history; works while the LLM is still thinking | `/btw` |
+| `ZRB_LLM_UI_COMMAND_COPY` | Copy the **full transcript** to the clipboard | `/copy` |
+| `ZRB_LLM_UI_COMMAND_EXEC` | Run a shell command directly from the prompt | `!, /exec` |
+| `ZRB_LLM_UI_COMMAND_EXIT` | Leave the chat session | `/q, :q, /bye, /quit, /exit` |
+| `ZRB_LLM_UI_COMMAND_INFO` | Show session info and the command list | `/info, /help` |
+| `ZRB_LLM_UI_COMMAND_LOAD` | Resume a saved conversation | `/load, /resume` |
+| `ZRB_LLM_UI_COMMAND_PLAN_TOGGLE` | Toggle Plan Mode | `/plan` |
+| `ZRB_LLM_UI_COMMAND_REDIRECT_OUTPUT` | Bare: copy the **last response** to the clipboard. `<cmd> <path>`: write that response to a file | `>, /redirect` |
+| `ZRB_LLM_UI_COMMAND_REWIND` | Rewind to a previous turn | `/rewind` |
+| `ZRB_LLM_UI_COMMAND_SAVE` | Save the current conversation | `/save` |
+| `ZRB_LLM_UI_COMMAND_SET_MODEL` | Switch the model mid-session | `/model` |
+| `ZRB_LLM_UI_COMMAND_SUMMARIZE` | Compact the conversation history | `/compress, /compact` |
+| `ZRB_LLM_UI_COMMAND_VOICE` | Toggle voice input | `/voice, /v` |
+| `ZRB_LLM_UI_COMMAND_YOLO_TOGGLE` | Toggle auto-approval of tool calls | `/yolo` |
 
-All other slash commands (`/yolo`, `/exit`, `/save`, `/load`, etc.) share the same pattern — prefix `ZRB_LLM_UI_COMMAND_` + the uppercase command name, with a comma-separated list of alias tokens as the value.
+> ⚠️ **The variable name is not derivable from the command.** Several differ from
+> the token they bind: `/yolo` → `YOLO_TOGGLE`, `/plan` → `PLAN_TOGGLE`,
+> `/model` → `SET_MODEL`, `/compress` → `SUMMARIZE`, `>` → `REDIRECT_OUTPUT`.
+> Use the names in the table rather than uppercasing the slash token — a guessed
+> name is simply an unread environment variable, with no error to tell you.
 
 ---
 

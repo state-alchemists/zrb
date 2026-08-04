@@ -4,7 +4,9 @@
 to the user mid-turn. Renders through the active `UIProtocol.ask_user`. In
 non-interactive mode (`zrb llm chat --interactive false`) the tool
 short-circuits with a `[SYSTEM SUGGESTION]` error so the model never blocks
-on stdin in a non-interactive run.
+on stdin in a non-interactive run. That suggestion offers two terminal exits
+— decide-and-continue or stop-and-report — and forbids a retry, so an
+unanswerable question cannot become a re-ask loop.
 
 The interactive flag is propagated via the `interactive_mode` ContextVar, set
 per turn by `live_context._wire_ambient_state` from `ctx.input.interactive`.
@@ -54,13 +56,16 @@ async def ask_user_question(questions: list[dict[str, Any]]) -> str:
     Returns: a structured string listing each question's answer.
 
     Non-interactive mode: returns a `[SYSTEM SUGGESTION]` error directing the
-    model to decide and continue. Never blocks on stdin in that mode.
+    model to either decide and continue or stop and report the open choice.
+    Never blocks on stdin in that mode.
     """
     if not get_interactive_mode():
         return (
             "[SYSTEM SUGGESTION]: AskUserQuestion is unavailable in non-interactive "
-            "mode. Make your best judgement based on the conversation so far and "
-            "continue."
+            "mode. Do not call it again this turn. Pick one: (a) make your best "
+            "judgement from the conversation so far, name the assumption, and "
+            "continue; or (b) if a wrong pick would waste the work, stop and "
+            "report the choice you could not make."
         )
     if not questions:
         return "Error: no questions provided."
@@ -72,7 +77,9 @@ async def ask_user_question(questions: list[dict[str, Any]]) -> str:
     if ui is None:
         return (
             "[SYSTEM SUGGESTION]: No UI is available to render the question. "
-            "Make your best judgement and continue."
+            "Do not call it again this turn. Either make your best judgement, "
+            "name the assumption, and continue, or stop and report the choice "
+            "you could not make."
         )
 
     required = ("question", "options")

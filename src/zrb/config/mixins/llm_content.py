@@ -23,8 +23,10 @@ class LLMContentMixin:
         self.DEFAULT_LLM_HISTORY_BACKUP_RETAIN: str = "3"
         self.DEFAULT_LLM_ENABLE_REWIND: str = "off"
         self.DEFAULT_LLM_SNAPSHOT_DIR: str = ""
+        self.DEFAULT_LLM_JOURNAL_ENABLED: str = "on"
         self.DEFAULT_LLM_JOURNAL_DIR: str = ""
         self.DEFAULT_LLM_JOURNAL_INDEX_FILE: str = "index.md"
+        self.DEFAULT_LLM_JOURNAL_INDEX_MAX_CHARS: str = "2500"
         self.DEFAULT_LLM_HISTORY_SUMMARIZATION_WINDOW: str = "100"
         self.DEFAULT_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD: str = ""
         self.DEFAULT_LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD: str = ""
@@ -59,6 +61,22 @@ class LLMContentMixin:
         doc="Directory for LLM conversation snapshots.",
     )
 
+    LLM_JOURNAL_ENABLED = EnvField(
+        to_boolean,
+        serialize=on_off,
+        default_factory=lambda cfg: cfg.DEFAULT_LLM_JOURNAL_ENABLED,
+        doc=(
+            "Master switch for the cross-session journal. Off unregisters the "
+            "three journal tools (SearchJournal, LogActivity, "
+            "WriteJournalNote) and suppresses the <journal-index> injection. "
+            "Those tools are the whole interface — there is no prompt section "
+            "describing a journal protocol — so off means the model is never "
+            "told a journal exists, and neither reads nor writes one. "
+            "LLM_JOURNAL_DIR has no 'unset' value that achieves this (it falls "
+            "back to ~/<root>/llm-notes), which is why this knob exists."
+        ),
+    )
+
     LLM_JOURNAL_DIR = EnvField(
         str,
         default_factory=lambda cfg: (
@@ -75,6 +93,19 @@ class LLMContentMixin:
         str,
         default_factory=lambda cfg: cfg.DEFAULT_LLM_JOURNAL_INDEX_FILE,
         doc="Filename of the journal index file.",
+    )
+
+    LLM_JOURNAL_INDEX_MAX_CHARS = EnvField(
+        int,
+        fallback=0,
+        default_factory=lambda cfg: cfg.DEFAULT_LLM_JOURNAL_INDEX_MAX_CHARS,
+        doc=(
+            "Maximum characters of the journal index injected into context. "
+            "The index is the HUD — it carries the user's identity and standing "
+            "preferences, so overflow is dropped from the end and the file is "
+            "ordered most-durable-first. 0 suppresses the injection entirely; "
+            "a negative value injects the whole index uncapped."
+        ),
     )
 
     LLM_ENABLE_REWIND = EnvField(

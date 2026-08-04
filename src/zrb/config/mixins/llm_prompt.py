@@ -23,23 +23,20 @@ class LLMPromptMixin:
         self.DEFAULT_LLM_SHOW_TOOL_CALL_RESULT: str = "off"
         # Comma-separated, order-sensitive list of prompt sections to include.
         # Order in the list determines the order they appear in the system prompt.
-        # Each section is MECE (mutually exclusive in concern):
-        # persona=identity+response style, mandate=priority order + session
-        # context, workflow=project-doc reading + skill catalogue + working loop
-        # + verify gate + recovery, git_mandate=git approval,
-        # journal_mandate=memory protocol, system_context=stable runtime facts,
-        # project_context=AGENTS.md/CLAUDE.md, tool_guidance=per-tool rules.
+        # Each section is MECE (mutually exclusive in concern). Three carry
+        # rules: persona=identity+response style, workflow=priority order + turn
+        # sequence + skill catalogue + working loop + verify gate + recovery,
+        # examples=demonstrations only. Two carry runtime facts:
+        # system_context=stable facts (OS, CWD, model), project_context=
+        # AGENTS.md/CLAUDE.md discovery.
+        # There is no tool section: per-tool rules live in tool docstrings,
+        # which pydantic-ai ships with the schema on every request.
         # The skill catalogue is injected into workflow via {CORE_SKILLS}/
         # {AVAILABLE_SKILLS}/{PREACTIVATED_SKILLS} placeholders, not a separate
-        # section. `workflow` was split out of `mandate`; a pinned list naming
-        # only `mandate` still receives both files (see PromptManager).
+        # section.
         self.DEFAULT_LLM_INCLUDE_SECTIONS: str = (
-            "persona,mandate,workflow,examples,git_mandate,journal_mandate,"
-            "system_context,project_context,tool_guidance"
+            "persona,workflow,examples,system_context,project_context"
         )
-        # Runtime journaling reminder — separate from the journal_mandate
-        # prompt section, which is controlled by LLM_INCLUDE_SECTIONS.
-        self.DEFAULT_LLM_INCLUDE_JOURNAL_REMINDER: str = "off"
         # Prompt profile (ADR-0083): "terse" (base prompts) or "mini"
         # (base prompts plus worked examples, for small models); "auto" uses "terse"
         # unless a per-model profile is declared via register_model_profile().
@@ -79,18 +76,12 @@ class LLMPromptMixin:
         doc="Order-sensitive list of prompt sections to include (comma-separated).",
     )
 
-    LLM_INCLUDE_JOURNAL_REMINDER = EnvField(
-        to_boolean,
-        serialize=on_off,
-        doc="Inject a journaling reminder into the system prompt at each turn (separate from journal_mandate section).",
-    )
-
     LLM_PROFILE = EnvField(
         str,
         doc=(
             "Prompt profile controlling how each section is phrased:\n"
             "- 'terse': concise, principle-led — the base prompts.\n"
-            "- 'explicit': more directive, with worked examples, for weaker "
+            "- 'mini': the same rules plus worked examples, for small "
             "models.\n"
             "- 'auto' (default): uses 'terse' unless a per-model profile has "
             "been declared via register_model_profile().\n\n"
