@@ -197,7 +197,7 @@ async def summarize_history(
     When `force=True`, compression is performed even if the conversation is within
     the normal token/window limits (e.g. triggered by an explicit /compress command).
 
-    The journal index is re-seeded into the summary (ADR-0082);
+    The journal index is re-seeded into the summary (ADR-0042);
     ``render_journal_index`` returns nothing when journaling is off.
     """
     try:
@@ -247,7 +247,7 @@ async def summarize_history(
         # the first-turn live-context). Baking it into the summary message keeps
         # the message structure intact (no extra turn to break role alternation
         # or tool-call pairing) and means the index is present in the very same
-        # request the processor compacts for. See ADR-0082. render_journal_index
+        # request the processor compacts for. See ADR-0042. render_journal_index
         # honours LLM_JOURNAL_ENABLED, so a disabled journal adds nothing here.
         journal_block = render_journal_index()
         if journal_block:

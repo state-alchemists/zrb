@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 # mutually exclusive so a single keystroke always lands on a well-defined state.
 # Auto-accept-edits reuses selective yolo over the LLM-visible edit-tool names
 # (`write_file.__name__ == "Write"`, `replace_in_file.__name__ == "Edit"`), so it
-# auto-approves file writes while every other tool still prompts. See ADR-0075.
+# auto-approves file writes while every other tool still prompts. See ADR-0073.
 _AUTO_EDIT_TOOLS = frozenset({"Write", "Edit"})
 _MODE_CYCLE = ("normal", "accept_edits", "plan")
 _MODE_BANNERS = {

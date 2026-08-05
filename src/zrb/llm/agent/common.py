@@ -102,7 +102,7 @@ def _oversize_metadata(value: Any) -> dict[str, Any]:
     ``CFG.LLM_MAX_TOOL_RESULT_CHARS`` has never bounded what the model reads:
     it was applied to ``ToolReturn.content`` while ``return_value`` — the field
     that becomes the tool-result message — went through whole, so the cap only
-    shrank the duplicate copy (see ADR-0092). Dropping that duplicate must not
+    shrank the duplicate copy (see ADR-0043). Dropping that duplicate must not
     silently start truncating payloads the model used to receive in full, so the
     size is recorded and the value is passed through untouched.
 

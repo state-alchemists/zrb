@@ -258,7 +258,7 @@ def test_sub_agent_manager_inherit_sections_composes_parent_sections():
 
 def test_sub_agent_manager_inherits_journal_index():
     """A sub-agent is single-turn, so always "the first turn": the journal index
-    is folded into its system prompt (ADR-0082). With no journal prompt section
+    is folded into its system prompt (ADR-0042). With no journal prompt section
     left, the flag is honoured inside render_journal_index itself."""
     manager = SubAgentManager()
     agent_def = SubAgentDefinition(

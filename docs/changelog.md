@@ -4,45 +4,20 @@
 
 - [2.55.0](changelog-v2/2.55.0.md) — August 5, 2026
 - [2.54.0](changelog-v2/2.54.0.md) — August 4, 2026
-- [2.53.2a2](changelog-v2/2.53.2a2.md) — August 4, 2026
-- [2.53.2a1](changelog-v2/2.53.2a1.md) — August 3, 2026
-- [2.53.1](changelog-v2/2.53.1.md) — August 3, 2026
-- [2.53.1a1](changelog-v2/2.53.1a1.md) — August 3, 2026
-- [2.53.0](changelog-v2/2.53.0.md) — August 2, 2026
+- [2.53.0-2.53.2a2](changelog-v2/2.53.0-2.53.2a2.md) — August 2, 2026–August 4, 2026
 - [2.52.0](changelog-v2/2.52.0.md) — August 1, 2026
 - [2.51.0](changelog-v2/2.51.0.md) — July 31, 2026
-- [2.50.9](changelog-v2/2.50.9.md) — July 29, 2026
-- [2.50.8](changelog-v2/2.50.8.md) — July 28, 2026
-- [2.50.7](changelog-v2/2.50.7.md) — July 27, 2026
-- [2.50.6](changelog-v2/2.50.6.md) — July 27, 2026
-- [2.50.5](changelog-v2/2.50.5.md) — July 25, 2026
-- [2.50.4](changelog-v2/2.50.4.md) — July 23, 2026
-- [2.50.3](changelog-v2/2.50.3.md) — July 17, 2026
-- [2.50.2](changelog-v2/2.50.2.md) — July 16, 2026
-- [2.50.1](changelog-v2/2.50.1.md) — July 11, 2026
-- [2.50.0](changelog-v2/2.50.0.md) — July 8, 2026
-- [2.49.5](changelog-v2/2.49.5.md) — July 8, 2026
-- [2.49.4](changelog-v2/2.49.4.md) — July 8, 2026
-- [2.49.3](changelog-v2/2.49.3.md) — July 8, 2026
-- [2.49.2](changelog-v2/2.49.2.md) — July 6, 2026
-- [2.49.1](changelog-v2/2.49.1.md) — July 5, 2026
-- [2.49.0](changelog-v2/2.49.0.md) — July 4, 2026
-- [2.48.4](changelog-v2/2.48.4.md) — July 4, 2026
-- [2.48.3](changelog-v2/2.48.3.md) — July 2, 2026
-- [2.48.2](changelog-v2/2.48.2.md) — July 2, 2026
-- [2.48.1](changelog-v2/2.48.1.md) — July 1, 2026
-- [2.48.0](changelog-v2/2.48.0.md) — July 1, 2026
+- [2.50.0-2.50.9](changelog-v2/2.50.0-2.50.9.md) — July 8, 2026–July 29, 2026
+- [2.49.0-2.49.5](changelog-v2/2.49.0-2.49.5.md) — July 4, 2026–July 8, 2026
+- [2.48.0-2.48.4](changelog-v2/2.48.0-2.48.4.md) — July 1, 2026–July 4, 2026
 - [2.47.0](changelog-v2/2.47.0.md) — July 1, 2026
 - [2.46.0](changelog-v2/2.46.0.md) — June 30, 2026
 - [2.45.0](changelog-v2/2.45.0.md) — June 28, 2026
 - [2.44.0](changelog-v2/2.44.0.md) — June 27, 2026
-- [2.43.1](changelog-v2/2.43.1.md) — June 27, 2026
-- [2.43.0](changelog-v2/2.43.0.md) — June 25, 2026
-- [2.42.1](changelog-v2/2.42.1.md) — June 25, 2026
-- [2.42.0](changelog-v2/2.42.0.md) — June 24, 2026
+- [2.43.0-2.43.1](changelog-v2/2.43.0-2.43.1.md) — June 25, 2026–June 27, 2026
+- [2.42.0-2.42.1](changelog-v2/2.42.0-2.42.1.md) — June 24, 2026–June 25, 2026
 - [2.41.0](changelog-v2/2.41.0.md) — June 24, 2026
-- [2.40.1](changelog-v2/2.40.1.md) — June 23, 2026
-- [2.40.0](changelog-v2/2.40.0.md) — June 21, 2026
+- [2.40.0-2.40.1](changelog-v2/2.40.0-2.40.1.md) — June 21, 2026–June 23, 2026
 - [2.39.0](changelog-v2/2.39.0.md) — June 21, 2026
 - [2.38.0](changelog-v2/2.38.0.md) — June 20, 2026
 - [2.37.0](changelog-v2/2.37.0.md) — June 19, 2026

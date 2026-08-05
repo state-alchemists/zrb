@@ -156,7 +156,7 @@ class TestSystemContext:
     def test_deny_listed_model_gets_the_batching_override(self):
         """The only parallel-tool-call line that renders is the withdrawal.
 
-        Batching is the prompt's unconditional default (ADR-0101); this line is
+        Batching is the prompt's unconditional default (ADR-0038); this line is
         how a model known to malform parallel calls opts back out.
         """
         ctx = MagicMock(spec=AnyContext)

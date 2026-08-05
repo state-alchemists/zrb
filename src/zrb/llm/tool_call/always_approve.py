@@ -10,7 +10,7 @@ itself rather than depending on a per-runner policy list (e.g. the builtin
 chat's ``auto_approve(...)`` registrations in ``builtin/llm/chat.py``). The
 approval cascade (``agent/run/deferred_calls.py::_resolve_approval``) consults
 this set first — Priority 0 — so the guarantee holds in every path: the main
-agent, delegated sub-agents, and the web/API runner alike. See ADR-0062.
+agent, delegated sub-agents, and the web/API runner alike. See ADR-0060.
 
 This module is an intentional dependency-free leaf so importing it can never
 introduce an import cycle from the approval cascade or from tool definitions.

@@ -1,4 +1,4 @@
-"""Tests for the intrinsic always-auto-approve registry (ADR-0062)."""
+"""Tests for the intrinsic always-auto-approve registry (ADR-0060)."""
 
 from __future__ import annotations
 

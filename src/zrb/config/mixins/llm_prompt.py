@@ -37,7 +37,7 @@ class LLMPromptMixin:
         self.DEFAULT_LLM_INCLUDE_SECTIONS: str = (
             "persona,workflow,examples,system_context,project_context"
         )
-        # Prompt profile (ADR-0083): "terse" (base prompts) or "mini"
+        # Prompt profile (ADR-0047): "terse" (base prompts) or "mini"
         # (base prompts plus worked examples, for small models); "auto" uses "terse"
         # unless a per-model profile is declared via register_model_profile().
         # zrb makes no capability guess from the model id. The profile selects

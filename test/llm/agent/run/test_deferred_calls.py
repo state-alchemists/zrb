@@ -443,7 +443,7 @@ async def test_process_deferred_requests_always_auto_approve_bypasses_handler():
 
     AskUserQuestion *is* the user interaction; a separate approval prompt is
     redundant. The cascade must approve it before any tool-policy check or CLI
-    fallback, in every path. See ADR-0062.
+    fallback, in every path. See ADR-0060.
     """
     from zrb.llm.tool_call.always_approve import register_always_auto_approve
 
@@ -550,7 +550,7 @@ def _ask_policy():
 async def test_noninteractive_exit_plan_mode_is_auto_approved():
     """Non-interactive + hard-ASK on ExitPlanMode auto-approves instead of
     blocking on a stdin prompt no one can answer. The plan gate is a no-op
-    without a user to read the plan. See ADR-0067."""
+    without a user to read the plan. See ADR-0060."""
     ui = MagicMock(spec=UIProtocol)
     hook_manager = MagicMock(spec=HookManager)
     hook_manager.execute_hooks = AsyncMock(return_value=[])
@@ -588,7 +588,7 @@ async def test_noninteractive_exit_plan_mode_is_auto_approved():
 async def test_noninteractive_other_ask_tool_is_denied():
     """Non-interactive + hard-ASK on a non-plan tool denies rather than running
     it unattended (preserving the hard-ASK safety design) or blocking forever.
-    See ADR-0067."""
+    See ADR-0060."""
     ui = MagicMock(spec=UIProtocol)
     hook_manager = MagicMock(spec=HookManager)
     hook_manager.execute_hooks = AsyncMock(return_value=[])

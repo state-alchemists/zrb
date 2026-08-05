@@ -289,7 +289,7 @@ class SubAgentManager(SubAgentManagerLoading, SubAgentManagerSearch):
             # instead, via run_agent's live_context. Being single-turn, a
             # sub-agent is always "the first turn": inject the journal index
             # unconditionally (render_journal_index itself honours
-            # LLM_JOURNAL_ENABLED). See ADR-0082.
+            # LLM_JOURNAL_ENABLED). See ADR-0042.
             if "system_context" in sections:
                 live = pm.create_live_context(ctx, inject_journal_index=True)
                 if live:

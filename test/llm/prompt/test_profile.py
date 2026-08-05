@@ -1,4 +1,4 @@
-"""Tests for model-adaptive prompt profiles (ADR-0083)."""
+"""Tests for model-adaptive prompt profiles (ADR-0047)."""
 
 import pytest
 
@@ -31,7 +31,7 @@ def test_mini_and_terse_are_forced_regardless_of_model():
 
 
 def test_auto_stays_terse_for_models_that_declare_no_small_size():
-    # A family name is still never read as a capability signal (ADR-0093):
+    # A family name is still never read as a capability signal (ADR-0047):
     # only a stated size token or a vendor small-tier label selects explicit.
     for model in [
         "anthropic:claude-opus-4-8",
@@ -148,7 +148,7 @@ def test_isolated_registry_instance_does_not_touch_singleton():
 
 
 def test_the_old_explicit_value_is_no_longer_a_profile():
-    """`explicit` was renamed to `mini` with no alias (ADR-0095)."""
+    """`explicit` was renamed to `mini` with no alias (ADR-0047)."""
     # An unrecognized ZRB_LLM_PROFILE falls through to auto-resolution.
     assert resolve_profile("explicit", "anthropic:claude-opus-4") == BASE_PROFILE
     with pytest.raises(ValueError, match="Unknown profile"):

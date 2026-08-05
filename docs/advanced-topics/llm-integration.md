@@ -244,7 +244,7 @@ The assistant can connect to external MCP servers defined in `mcp-config.json`. 
 
 ## Telling the LLM how to use a tool
 
-There is no tool-guidance prompt section (ADR-0100). A tool describes itself: its
+There is no tool-guidance prompt section (ADR-0045). A tool describes itself: its
 **docstring** and type annotations become the JSON schema pydantic-ai sends on
 every request, so whatever the model needs to know sits right next to the
 arguments it is filling in.

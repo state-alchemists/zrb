@@ -499,7 +499,7 @@ The handler sits **last among the HTTP-400 handlers** in `handle_stream_error`, 
 
 The sanitization layer and `allow_orphaned_tool_calls` above protect against a tool **call/return pair** being split by compression. A different failure mode arises specifically *between* deferred-tool iterations: after a deferred tool is approved or denied, the loop re-enters `agent.run_stream_events()` with the resolved `DeferredToolResults`. If the summarizer ran again between iterations, it could compress the kept slice enough that the **entire `ModelResponse` whose `tool_calls` match `current_results`** is dropped. `allow_orphaned_tool_calls` does not help here — there is no orphaned *part* to preserve; the whole response carrying the tool calls is gone. pydantic-ai's `_handle_deferred_tool_results` then raises a `UserError` whose message contains *"does not contain any unprocessed tool calls"* (or *"does not contain a `ModelResponse`"*).
 
-Two defenses cover this (see ADR-0058):
+Two defenses cover this (see ADR-0040):
 
 1. **Prevention (`runner.py`, `_execution_loop`)** — the deferred-tool branch always sets `current_history` directly to `run_history`, unconditionally, never reapplying processors mid-deferral. This was originally a conditional guard, but `_process_deferred_requests` always populates `current_results.approvals` for every resolved call (approved, denied, or hook-blocked), so the guard's "skip" condition was always true in practice — the dead reapplication branch was removed. Processor effects are already applied in `_prepare_history` before the first stream call, and the summarizer still runs on every non-deferred iteration.
 

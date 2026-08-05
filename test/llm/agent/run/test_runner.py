@@ -440,7 +440,7 @@ async def test_run_agent_deferred_requests():
 )
 async def test_run_agent_deferred_never_reapplies_processors(calls, approvals):
     """History processors are never reapplied between deferred-tool iterations
-    (ADR-0058 Fix B), regardless of what current_results looks like.
+    (ADR-0040 Fix B), regardless of what current_results looks like.
 
     This used to be a conditional guard (skip only when current_results had
     pending calls/approvals), but _process_deferred_requests always populates

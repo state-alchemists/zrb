@@ -104,8 +104,8 @@ longer in the defaults, so nothing resolves it. Either keep the name in an
 explicit `ZRB_LLM_INCLUDE_SECTIONS` (it then works as a custom section, see
 above) or move the content into a `workflow.md` override.
 
-See [ADR-0098](../adr/adr-0098.md), [ADR-0099](../adr/adr-0099.md), and
-[ADR-0100](../adr/adr-0100.md) for the reasoning.
+See [ADR-0045](../adr/adr-0045.md) and [ADR-0053](../adr/adr-0053.md) for the
+reasoning.
 
 ---
 

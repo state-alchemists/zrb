@@ -955,7 +955,7 @@ def test_no_builtin_journaling_skill_ships(tmp_path):
 
 
 def test_a_user_journaling_skill_still_loads(tmp_path):
-    """Deleting the built-in must not blocklist the name (ADR-0069)."""
+    """Deleting the built-in must not blocklist the name (ADR-0052)."""
     user_dir = tmp_path / "skills" / "core-journaling"
     user_dir.mkdir(parents=True)
     (user_dir / "SKILL.md").write_text(

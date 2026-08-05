@@ -121,7 +121,7 @@ def system_context(
 def _format_parallel_tool_call_line(model: "Any") -> str | None:
     """Announce only the *exception* to the prompt's batch-by-default rule.
 
-    There is no affirmative branch on purpose (ADR-0101). The registry resolves
+    There is no affirmative branch on purpose (ADR-0038). The registry resolves
     ``supports_parallel_tool_calls`` to ``True`` for no built-in model — it is a
     deny-list — so an affirmative line gated on it could never render, while
     ``workflow.md`` gated batching on that line appearing. Every model therefore

@@ -6,9 +6,9 @@ composed, independent of *which* sections appear (that is
 
 - ``terse`` — the concise, principle-led base prompts.
 - ``mini`` — the profile for small models: the same rules plus worked
-  demonstrations (``examples.mini.md``). Never extra rules (ADR-0091).
+  demonstrations (``examples.mini.md``). Never extra rules (ADR-0047).
 - ``auto`` (default) — ``mini`` when the model id declares a small size,
-  ``terse`` otherwise (see :data:`DEFAULT_MODEL_PROFILES`, ADR-0093).
+  ``terse`` otherwise (see :data:`DEFAULT_MODEL_PROFILES`, ADR-0047).
 
 The base ``*.md`` files **are** the ``terse`` profile; other profiles are variant
 overlays resolved with fallback (a missing variant transparently uses the base
@@ -24,7 +24,7 @@ size *tiers* vendors label explicitly (``mini``, ``nano``, ``haiku``, ``flash``,
 …). Those are matched by :data:`DEFAULT_MODEL_PROFILES` so the small models that
 most need worked examples actually receive them by default.
 
-The asymmetry makes the default safe: under ADR-0091 the ``mini`` profile
+The asymmetry makes the default safe: under ADR-0047 the ``mini`` profile
 adds *demonstrations only* — never extra rules — so a false positive costs some
 example tokens, while a false negative costs a weak model the one adaptation the
 evidence supports. Override either way with one line:
@@ -48,7 +48,7 @@ VALID_PROFILES = (BASE_PROFILE, MINI_PROFILE)
 #: Every entry keys off something the id *states* rather than something it hints
 #: at: an explicit parameter count at or below ~14B, or a vendor's own
 #: small-tier label. Larger declared sizes (``-32b``, ``-70b``, ``-405b``) are
-#: deliberately not matched — the regex accepts 1–14 only. See ADR-0093.
+#: deliberately not matched — the regex accepts 1–14 only. See ADR-0047.
 DEFAULT_MODEL_PROFILES: tuple[tuple[str, str], ...] = (
     # A stated parameter count of 14B or less: "7b", "8B", "gemma-2-9b".
     (r"(?<![0-9])(?:[1-9]|1[0-4])\s*b(?![a-z0-9])", MINI_PROFILE),

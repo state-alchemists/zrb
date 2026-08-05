@@ -35,7 +35,7 @@ def test_ask_user_question_registers_itself_as_always_auto_approve():
 
     This is what frees AskUserQuestion from relying on a per-runner policy list
     (e.g. the builtin chat's auto_approve registrations) — the approval cascade
-    approves it in every path. See ADR-0062.
+    approves it in every path. See ADR-0060.
     """
     from zrb.llm.tool_call.always_approve import is_always_auto_approve
 

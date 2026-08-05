@@ -47,7 +47,7 @@ journal prompt section to suppress — the journal *is* its three tools
 (`SearchJournal`, `LogActivity`, `WriteJournalNote`), so the flag unregisters
 them in `apply_common_tools`, and `render_journal_index` checks the same flag
 for the `<journal-index>` injection. The model is then never told a journal
-exists (ADR-0099).
+exists (ADR-0053).
 
 `ZRB_LLM_JOURNAL_DIR` is **not** an off switch: clearing it falls back to
 `~/.zrb/llm-notes/` rather than disabling journaling.
@@ -89,7 +89,7 @@ exists (ADR-0099).
 
 ## 3. Prompt Injection
 
-The `index.md` snapshot is deliberately kept **out of** the cached system prompt (`src/zrb/llm/prompt/live_context.py::render_journal_index`). Embedding the mutable index in the cached prefix would invalidate that cache every time the agent journaled mid-session (ADR-0082), so instead it travels through the conversation itself, as part of the `<live-context>` block appended to the latest **user** message — never the system prompt.
+The `index.md` snapshot is deliberately kept **out of** the cached system prompt (`src/zrb/llm/prompt/live_context.py::render_journal_index`). Embedding the mutable index in the cached prefix would invalidate that cache every time the agent journaled mid-session (ADR-0042), so instead it travels through the conversation itself, as part of the `<live-context>` block appended to the latest **user** message — never the system prompt.
 
 The index is only injected at the two moments it could otherwise be missing from context:
 
@@ -123,7 +123,7 @@ unbounded "Recent Insights" last, so growth only ever evicts itself.
 Nothing is injected at all when the index file is missing, unreadable, or empty;
 when `ZRB_LLM_JOURNAL_INDEX_MAX_CHARS` is `0`; or when
 `ZRB_LLM_JOURNAL_ENABLED` is `false`. A missing block therefore does not prove
-an empty journal — but nothing tells the model that any more. ADR-0099 removed
+an empty journal — but nothing tells the model that any more. ADR-0053 removed
 the prompt section that used to say it, and the only remaining homes are the
 prompt (deliberately emptied) or a tool docstring that would be paid for on
 every request, so the caveat is left as a known gap rather than shipped
@@ -139,7 +139,7 @@ registered — a deliberate and unusual pairing.
 
 That behaviour is deliberate. Reporting a missing directory as an error made the whole memory layer read as unavailable, and the agent responded by declaring it could not journal rather than by writing its first note. An unwritten journal is *empty*, not broken.
 
-**The rest of the tree is created by the writers, not by the agent.** `LogActivity` and `WriteJournalNote` (`src/zrb/llm/tool/journal_write.py`) derive every path and timestamp themselves, create the root index and the five directory indexes on first write, and maintain the link graph — each note registered in its directory index, each forward link matched by a reciprocal backlink. The agent supplies content; the structure is code (ADR-0099).
+**The rest of the tree is created by the writers, not by the agent.** `LogActivity` and `WriteJournalNote` (`src/zrb/llm/tool/journal_write.py`) derive every path and timestamp themselves, create the root index and the five directory indexes on first write, and maintain the link graph — each note registered in its directory index, each forward link matched by a reciprocal backlink. The agent supplies content; the structure is code (ADR-0053).
 
 ---
 

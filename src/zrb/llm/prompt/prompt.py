@@ -24,7 +24,7 @@ def get_prompt(name: str, profile: str | None = None, **extra_replacements: str)
     Args:
         name: Prompt file name (without ``.md`` suffix), e.g. ``"persona"``,
             ``"workflow"``, ``"examples"``.
-        profile: Optional profile variant (ADR-0083). When set to a non-base
+        profile: Optional profile variant (ADR-0047). When set to a non-base
             profile, ``{name}.{profile}`` is resolved first through the full
             override chain, falling back to the base ``{name}`` when no variant
             exists.
@@ -50,7 +50,7 @@ def _load_prompt_for_profile(name: str, profile: str | None) -> str:
     project override of the variant still wins over the packaged base), falling
     back to the base ``{name}`` when no variant resolves. The base ``*.md`` files
     are the ``terse`` profile, so ``terse``/``None``/empty short-circuit straight
-    to the base. See ADR-0083.
+    to the base. See ADR-0047.
     """
     if profile and profile != BASE_PROFILE:
         variant = get_default_prompt(f"{name}.{profile}")
@@ -163,7 +163,7 @@ def _get_prompt_replacements_cached(
     mutable index in this cached system-prompt section invalidated the cacheable
     prefix every time the agent journaled mid-session; the snapshot is now
     injected into the ``<live-context>`` block instead (see ``live_context.py``
-    and ADR-0082)."""
+    and ADR-0042)."""
     replacements: dict[str, str] = {}
     cfg_values = {
         "LLM_JOURNAL_DIR": journal_dir,

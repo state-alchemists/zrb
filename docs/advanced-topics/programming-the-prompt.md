@@ -168,14 +168,14 @@ The system prompt Zrb ships is not one blob — it is an ordered list of **secti
 persona → workflow → examples → system_context → project_context
 ```
 
-> Per-tool rules are **not** a section. They live in each tool's docstring, which pydantic-ai ships with the schema on every request (ADR-0098/0100). The retired `mandate`, `git_mandate`, `journal_mandate`, and `tool_guidance` names still parse as custom sections: empty (with a warning) unless you have a markdown override of that name, which is then emitted at that position.
+> Per-tool rules are **not** a section. They live in each tool's docstring, which pydantic-ai ships with the schema on every request (ADR-0045). The retired `mandate`, `git_mandate`, `journal_mandate`, and `tool_guidance` names still parse as custom sections: empty (with a warning) unless you have a markdown override of that name, which is then emitted at that position.
 
 A `PromptManager` lets you control that assembly. Two independent levers:
 
 - **`prompts=[...]`** — extra section(s) appended after the built-ins. This is exactly what `system_prompt` populates.
 - **`include_sections=[...]`** — the full ordered list of section names to emit. Drop one, reorder them, or splice your own name in.
 
-Dropping a section is safe: a block that references another section is marked in the markdown and pruned when its target is not emitted, so the composed prompt never instructs the model about a part it never received (ADR-0094).
+Dropping a section is safe: a block that references another section is marked in the markdown and pruned when its target is not emitted, so the composed prompt never instructs the model about a part it never received (ADR-0046).
 
 ```markdown
 <!--requires:project_context-->
@@ -235,7 +235,7 @@ Independently, the `ZRB_LLM_PROFILE` knob controls *how* sections are phrased wi
 - `mini` — the same rules plus worked demonstrations, for small models.
 - `auto` (default) — `terse`, unless a per-model profile was declared via `register_model_profile(...)`.
 
-Profiles are variant overlays: `get_prompt(name, profile="mini")` resolves `{name}.mini.md`, falling back to the base `{name}.md`. See `AGENTS.md` → *Profile*, ADR-0083, and ADR-0095.
+Profiles are variant overlays: `get_prompt(name, profile="mini")` resolves `{name}.mini.md`, falling back to the base `{name}.md`. See `AGENTS.md` → *Profile* and ADR-0047.
 
 ---
 
@@ -255,6 +255,6 @@ Profiles are variant overlays: `get_prompt(name, profile="mini")` resolves `{nam
 - [XCom Deep Dive](../core-concepts/xcom-deep-dive.md) — how task outputs flow into `{ctx.xcom[...]}`
 - [LLMChatTask API Reference](../task-types/llmchat-task.md) — the full constructor and builder API
 - [LLM Assistant & AI Tasks](llm-integration.md) — tools, sub-agents, context management
-- `AGENTS.md` → *LLM Prompt System* and ADR-0061 / ADR-0083 — section resolution and profiles
+- `AGENTS.md` → *LLM Prompt System* and ADR-0044 and ADR-0047 — section resolution and profiles
 
 🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > Programming the Prompt

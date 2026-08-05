@@ -33,7 +33,7 @@ def create_output_keybindings(input_field: "TextArea") -> "KeyBindings":
     # Focus traversal is handled by Tab at the app level; Shift+Tab is
     # intentionally not bound here so Shift+Tab can cycle modes at the app
     # level. Tab still drives completion-menu navigation when a menu is open
-    # (the app-level binding is gated by ~has_completions). See ADR-0075.
+    # (the app-level binding is gated by ~has_completions). See ADR-0073.
 
     # Only redirect printable characters when output field is focused
     # and no text is selected (to allow copying)
