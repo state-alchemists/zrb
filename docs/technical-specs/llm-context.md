@@ -123,8 +123,13 @@ unbounded "Recent Insights" last, so growth only ever evicts itself.
 Nothing is injected at all when the index file is missing, unreadable, or empty;
 when `ZRB_LLM_JOURNAL_INDEX_MAX_CHARS` is `0`; or when
 `ZRB_LLM_JOURNAL_ENABLED` is `false`. A missing block therefore does not prove
-an empty journal — `SearchJournal`'s own description tells the model to look
-before concluding one way or the other.
+an empty journal — but nothing tells the model that any more. ADR-0099 removed
+the prompt section that used to say it, and the only remaining homes are the
+prompt (deliberately emptied) or a tool docstring that would be paid for on
+every request, so the caveat is left as a known gap rather than shipped
+(`render_journal_index`'s docstring records it). It matters only when
+`ZRB_LLM_JOURNAL_INDEX_MAX_CHARS` is `0` while the journal tools stay
+registered — a deliberate and unusual pairing.
 
 ---
 

@@ -190,4 +190,3 @@ class LLMLimitsMixin:
     LLM_MAX_COMPLETION_FILES = EnvField(
         int, doc="Maximum number of files for completion."
     )
-

@@ -658,6 +658,7 @@ All interval and delay values are in **milliseconds**.
 |----------|-------------|---------|
 | `ZRB_LLM_MAX_COMPLETION_FILES` | Maximum files scanned for path autocompletion | `5000` |
 | `ZRB_LLM_MAX_OUTPUT_CHARS` | Maximum characters returned by shell command and file read tools | `100000` |
+| `ZRB_LLM_MAX_CONSOLE_OUTPUT_CHARS` | Cap (characters) on how much of a shell command's output is mirrored to the console. Separate from `ZRB_LLM_MAX_OUTPUT_CHARS`, which caps what the model sees: a human watching a build wants far more scrollback than the model needs, but neither wants a runaway command echoed line by line. Beyond the cap the output is still captured and still reaches the model. | `1000000` |
 | `ZRB_LLM_MAX_TOOL_RESULT_CHARS` | Size (characters) above which a tool result is flagged `oversized` in `ToolReturn.metadata`. **It does not truncate**: the cap only ever applied to a duplicate copy of the result, and removing that duplicate (ADR-0092) must not silently start shortening payloads the model previously received in full. `0` disables the check. | `100000` |
 | `ZRB_LLM_HISTORY_MAX_DISPLAY_CHARS` | Maximum characters shown by the `/history` command | `5000` |
 | `ZRB_LLM_HISTORY_TRUNCATE_LENGTH` | Maximum chars per field when formatting history entries | `100` |
