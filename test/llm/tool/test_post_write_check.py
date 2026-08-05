@@ -112,36 +112,47 @@ def test_diagnostic_carries_actionable_system_suggestion(tmp_path):
     assert "treat this as a failed edit" in result
 
 
-def test_a_repeat_failure_escalates_to_a_whole_file_rewrite(tmp_path):
-    """The escalation must be stated, not left to the model's own bookkeeping.
+def test_the_suggestion_never_prescribes_a_whole_file_rewrite(tmp_path):
+    """The escalation that used to live here prescribed its own trigger.
 
-    Phrasing it as "if this file already reported errors on a previous write"
-    asks a small model to track its own history. It does not: one trial spent 45
-    alternating Read/Edit calls on a single file, never escalating.
+    "`Read` the file in full, then replace it in a single `Write`" asks for a
+    whole-file rewrite; a small model's rewrite regenerates the diagnostic, which
+    re-issues the instruction. An A/B on gpt-4o-mini isolated it — the
+    ``refactor`` challenge took 10 tool calls without the ladder and 51 with it,
+    and the arm's total calls rose 215 -> 366 while the pass rate fell 11/18 ->
+    8/18. What survives asks for *one targeted fix*, which an `Edit` satisfies
+    without restarting the cycle.
     """
     path = tmp_path / "broken.py"
     path.write_text("def f(:\n    pass\n")
 
-    first, second = _diagnose_repeatedly(path, 2)
+    messages = _diagnose_repeatedly(path, 3)
 
-    assert "failure 2 on broken.py" in second
-    assert "Stop editing it" in second
-    assert "single `Write`" in second
-    assert "Stop editing it" not in first
+    for m in messages:
+        assert "single `Write`" not in m
+        assert "Stop editing it" not in m
+        assert "replace it in a single" not in m
+    assert "one targeted fix" in messages[0]
 
 
-def test_the_escalation_does_not_argue_against_its_own_escape_hatch(tmp_path):
-    """Regression: a caveat about `Write` reverting unseen edits was read as a
-    reason to avoid `Write`, and the loop it was meant to break got worse. The
-    read is the rewrite's first step, not a warning attached to it."""
+def test_the_suggestion_is_bounded_then_goes_silent(tmp_path):
+    """Past two tries the only lever left is to stop talking.
+
+    A third rung was tried, at length, telling the model to stop and report. One
+    trial received it 22 times and kept going. Advice already being ignored is
+    not made effective by repetition, and every appended instruction is something
+    to react to instead of the errors. The errors keep being reported in full.
+    """
     path = tmp_path / "broken.py"
     path.write_text("def f(:\n    pass\n")
 
-    _first, second = _diagnose_repeatedly(path, 2)
+    messages = _diagnose_repeatedly(path, 5)
 
-    assert "reverts the edits" not in second
-    # Read is sequenced before the write, not offered as an alternative to it.
-    assert second.index("`Read`") < second.index("single `Write`")
+    assert all("[DIAGNOSTIC]" in m for m in messages), "errors stay reported"
+    assert all("[SYSTEM SUGGESTION]" in m for m in messages[:2])
+    assert all("[SYSTEM SUGGESTION]" not in m for m in messages[2:])
+    # Nothing dangles where the suggestion used to be.
+    assert messages[-1].rstrip().endswith("not a completed one.")
 
 
 def test_counts_are_tracked_per_file(tmp_path):
@@ -156,6 +167,7 @@ def test_counts_are_tracked_per_file(tmp_path):
 
         await f(str(a))
         await f(str(a))
+        await f(str(a))  # a is now past the bound and silent
         return await f(str(b))
 
     with patch(
@@ -164,7 +176,7 @@ def test_counts_are_tracked_per_file(tmp_path):
     ):
         b_first = _run(_mixed())
 
-    assert "Stop editing it" not in b_first
+    assert "[SYSTEM SUGGESTION]" in b_first
 
 
 def test_clean_file_emits_no_suggestion(tmp_path):
@@ -232,3 +244,58 @@ def test_lsp_returning_non_dict_does_not_crash(tmp_path):
     ):
         result = _run(format_post_write_diagnostics(str(path)))
     assert result == ""
+
+
+@pytest.mark.asyncio
+async def test_a_compliant_read_write_cycle_stops_being_instructed(tmp_path):
+    """The end-to-end shape of the loop the A/B measured, through the real tools.
+
+    A model that obeys the suggestion exactly — `Read`, then `Write` — and still
+    cannot fix the file used to receive an instruction every single cycle: first
+    the whole-file-rewrite prescription (which regenerates the diagnostic that
+    re-issues it), then a "stop and report" rung that one trial ignored 22 times.
+    Now the instruction stops after two, and only the errors keep coming.
+    """
+    from zrb.llm.tool.file_read import read_file
+    from zrb.llm.tool.file_write import write_file
+
+    p = tmp_path / "main.py"
+    broken = "def run(:\n    return 1\n"
+    p.write_text(broken)
+
+    messages = []
+    for _ in range(6):
+        read_file(str(p))
+        messages.append(await write_file(str(p), broken))
+
+    assert all("[DIAGNOSTIC]" in m for m in messages), "the file must stay broken"
+    assert sum("[SYSTEM SUGGESTION]" in m for m in messages) == 2
+    # Nothing in any cycle asks for the whole-file rewrite that fed the loop.
+    assert all("single `Write`" not in m for m in messages)
+
+
+@pytest.mark.asyncio
+async def test_a_fixed_file_reports_nothing_further(tmp_path):
+    """The ordinary recovery: one diagnostic, one suggestion, then silence.
+
+    This is the path the bound must not disturb — a model that reads, fixes, and
+    succeeds sees the guidance exactly once and gets a clean result afterwards.
+    """
+    from zrb.llm.tool.file_read import read_file
+    from zrb.llm.tool.file_write import write_file
+
+    p = tmp_path / "ok.py"
+    p.write_text("def run(:\n    return 1\n")
+
+    read_file(str(p))
+    first = await write_file(str(p), "def run(:\n    return 1\n")
+    read_file(str(p))
+    second = await write_file(str(p), "def run():\n    return 1\n")
+
+    assert "[DIAGNOSTIC]" in first
+    assert "[SYSTEM SUGGESTION]" in first
+    assert "one targeted fix" in first
+    # The fix landed, so nothing is appended at all.
+    assert "[DIAGNOSTIC]" not in second
+    assert "[SYSTEM SUGGESTION]" not in second
+    assert second.startswith("Successfully wrote")

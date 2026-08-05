@@ -3,7 +3,9 @@ import os
 from zrb.llm.tool.command_repetition import bump_workspace_revision
 from zrb.llm.tool.file_freshness import (
     clear_edit_streak,
+    is_file_fresh,
     mark_file_fresh,
+    mark_file_stale,
     refuse_stale_write,
 )
 from zrb.llm.tool.post_write_check import format_post_write_diagnostics
@@ -21,11 +23,21 @@ async def write_file(path: str, content: str, mode: str = "w") -> str:
     of the file silently reverts whatever happened in between. Appending
     (mode="a") and creating a new file are unaffected.
     """
-    if mode == "w":
+    # Anything that is not an append replaces the whole file, so it is gated.
+    # Matched on the prefix rather than on ``== "w"``: "wt" and "w+" truncate
+    # just as thoroughly, and an equality check let them through ungated.
+    appending = mode.startswith("a")
+    if not appending:
         refusal = refuse_stale_write(path)
         if refusal:
             return refusal
     abs_path = os.path.abspath(os.path.expanduser(path))
+    # An append is the one mode that can leave content the model has not seen in
+    # place, so whether it ends up holding a full view depends on what was there
+    # first. Sampled before the write, which is about to invalidate both facts.
+    leaves_unseen_content = (
+        appending and os.path.isfile(abs_path) and not is_file_fresh(path)
+    )
     parent = os.path.dirname(abs_path)
     # Sampled before makedirs. Creating a directory is a change to the user's
     # tree, and a silent one reads as "the path already existed" — which is how a
@@ -44,9 +56,20 @@ async def write_file(path: str, content: str, mode: str = "w") -> str:
             "space, then retry."
         )
 
-    # The model authored every byte, so its memory *is* the file — until an
-    # Edit changes it out from under that view.
-    mark_file_fresh(path)
+    # A whole-file write, or the creation of a new file in any mode, means the
+    # model authored every byte — its memory *is* the file until something
+    # changes it out from under that view.
+    #
+    # An append to a file that already existed does not. It leaves whatever was
+    # there in place, and only extends the model's view if that view was current
+    # to begin with. Marking it fresh unconditionally opened a one-step bypass
+    # of the whole guard: `mode="a"` with empty content against an unread file
+    # granted freshness, and the very next `mode="w"` was then free to discard
+    # content the model had never seen.
+    if leaves_unseen_content:
+        mark_file_stale(path)
+    else:
+        mark_file_fresh(path)
     bump_workspace_revision()
     clear_edit_streak(path)
     dir_note = f" (created new directory {parent})" if created_dir else ""

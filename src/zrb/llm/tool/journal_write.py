@@ -180,6 +180,35 @@ def _write_note_file(
     source: str,
     targets: list[str],
 ) -> None:
+    """Write the note, preserving the link graph an earlier revision accumulated.
+
+    A note gets re-written whenever its finding is refined, and the *whole* file
+    is composed from the arguments — which is why the two link blocks have to be
+    merged rather than rebuilt. Neither is the caller's to supply on an update:
+
+    * ``## Backlinks`` is written by *other* notes, via ``_add_backlink``. A
+      plain truncate dropped every one of them, so linking A→B and then updating
+      B left B with no way back to A. That is the ``missing-backlink`` invariant
+      this module claims to make unviolatable, violated by its own writer.
+    * ``## Related`` holds the forward links. Dropping those while the targets
+      keep their backlinks is the same break seen from the other end — a
+      backlink pointing at a note that no longer claims the relationship.
+
+    Merging is the conservative direction: a link is only ever added here, and
+    ``_resolve_links`` has already confirmed each new target exists on disk.
+    """
+    related = _merge_entries(
+        _entries_under(note_path, "## Related"),
+        [
+            f"- [{_title_of(target)}]({os.path.relpath(target, os.path.dirname(note_path))})"
+            for target in targets
+        ],
+    )
+    # The directory index is what makes this note reachable from the root, so it
+    # is the note's first backlink by construction.
+    backlinks = _merge_entries(
+        _entries_under(note_path, _BACKLINKS_HEADING), ["- [index](index.md)"]
+    )
     lines = [
         "---",
         f"slug: {slug}",
@@ -191,20 +220,43 @@ def _write_note_file(
         f"**Source:** {source}",
         "",
     ]
-    if targets:
+    if related:
         lines.append("## Related")
         lines.append("")
-        for target in targets:
-            rel = os.path.relpath(target, os.path.dirname(note_path))
-            lines.append(f"- [{_title_of(target)}]({rel})")
+        lines.extend(related)
         lines.append("")
-    # The directory index is what makes this note reachable from the root, so it
-    # is the note's first backlink by construction.
     lines.append(_BACKLINKS_HEADING)
     lines.append("")
-    lines.append("- [index](index.md)")
+    lines.extend(backlinks)
     lines.append("")
     _write_text(note_path, "\n".join(lines))
+
+
+def _entries_under(path: str, heading: str) -> list[str]:
+    """The `- […](…)` lines already listed under *heading* in an existing file.
+
+    Empty for a file that does not exist yet, or that has no such heading.
+    """
+    lines = _read_text(path).splitlines()
+    if heading not in lines:
+        return []
+    start = lines.index(heading) + 1
+    entries: list[str] = []
+    for line in lines[start:]:
+        if line.startswith("## "):
+            break
+        if line.startswith("- "):
+            entries.append(line)
+    return entries
+
+
+def _merge_entries(existing: list[str], new: list[str]) -> list[str]:
+    """Existing entries in their original order, then any genuinely new ones."""
+    merged = list(existing)
+    for entry in new:
+        if entry not in merged:
+            merged.append(entry)
+    return merged
 
 
 def _resolve_links(root: str, links: list[str]) -> list[str]:

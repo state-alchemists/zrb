@@ -51,14 +51,14 @@ command_attempts: ContextVar[dict[str, tuple[str, int, str]]] = ContextVar(
     "command_attempts", default={}
 )
 
-# Bumped by every successful write or edit, and by every command run. Its only
-# job is to answer "has *anything at all* happened since I last ran this?" for a
-# command whose own output is nondeterministic and so can never repeat its
-# digest. Counting other commands too keeps the second ground deliberately
-# narrow: it fires only for back-to-back identical invocations with nothing in
-# between, where there is no reading under which the second run learned
-# something. A fix applied by `sed -i` rather than by Edit still counts as a
-# change, which is the false positive worth avoiding.
+# Bumped by every successful write or edit, and — inside `record_outcome` — by
+# every command run. Its only job is to answer "has *anything at all* happened
+# since I last ran this?" for a command whose own output is nondeterministic and
+# so can never repeat its digest. Counting other commands too keeps the second
+# ground deliberately narrow: it fires only for back-to-back identical
+# invocations with nothing in between, where there is no reading under which the
+# second run learned something. A fix applied by `sed -i` rather than by Edit
+# still counts as a change, which is the false positive worth avoiding.
 workspace_revision: ContextVar[int] = ContextVar("workspace_revision", default=0)
 
 
@@ -95,31 +95,44 @@ def outcome_digest(exit_code: str, stdout: str, stderr: str) -> str:
     return hashlib.sha256(payload.encode("utf-8", "replace")).hexdigest()
 
 
-def record_outcome(signature: str, digest: str, workspace_state: str = "") -> int:
+def record_outcome(signature: str, digest: str) -> int:
     """Record a run and return how many consecutive runs count as no-new-evidence.
 
     A run is "the same again" on either of two grounds:
 
     * **Same outcome.** Identical exit code and output — the primary signal, and
       the one that leaves an honest fix-verify loop alone.
-    * **Nothing changed in between.** Same command, and no file written or
-      edited since the last run of it. This covers the case the digest cannot:
-      a nondeterministic command (a concurrency simulation whose numbers differ
-      every time) never repeats its output, so re-running it without touching
-      anything would otherwise look like progress forever.
+    * **Nothing changed in between.** Same command, and nothing at all happened
+      between the previous run of it and this one. This covers the case the
+      digest cannot: a nondeterministic command (a concurrency simulation whose
+      numbers differ every time) never repeats its output, so re-running it
+      without touching anything would otherwise look like progress forever.
 
     Either ground continues the streak; a run that both differs *and* follows a
     change resets it to 1.
+
+    The revision is sampled twice, and both samples matter. The run being
+    recorded is itself an event, so it bumps the counter — but comparing *this*
+    run's pre-bump sample against the *previous* run's pre-bump sample would
+    then always differ by exactly that bump, which made the second ground
+    unreachable for its entire existence: a nondeterministic command sat at
+    streak 1 forever. What gets stored is the post-bump value, so the next run
+    of this signature compares the world it observed against the world as it
+    stood when this run finished, and "nothing happened in between" is a
+    question the two samples can actually answer.
     """
+    observed = current_workspace_state()
+    bump_workspace_revision()
+    recorded = current_workspace_state()
     state = command_attempts.get()
     previous = state.get(signature)
     if previous is None:
         streak = 1
     else:
-        prev_digest, prev_streak, prev_workspace = previous
-        continues = prev_digest == digest or prev_workspace == workspace_state
+        prev_digest, prev_streak, prev_recorded = previous
+        continues = prev_digest == digest or prev_recorded == observed
         streak = prev_streak + 1 if continues else 1
-    command_attempts.set({**state, signature: (digest, streak, workspace_state)})
+    command_attempts.set({**state, signature: (digest, streak, recorded)})
     if streak == 1:
         _clear_warned(signature)
     return streak

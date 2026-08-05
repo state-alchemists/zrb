@@ -1,7 +1,7 @@
 import os
 
 from zrb.config.config import CFG
-from zrb.llm.tool.file_freshness import clear_edit_streak, mark_file_fresh
+from zrb.llm.tool.file_freshness import record_read
 from zrb.llm.util.pdf import extract_pdf_text
 from zrb.util.truncate import truncate_text
 
@@ -70,14 +70,10 @@ def read_file(
         body = _number_lines(kept, start)
         if truncated:
             body = body.rstrip("\n") + "\n...[TRUNCATED]"
-        # Only a complete, untruncated read gives the model a current view of
-        # the whole file — which is what a later whole-file Write is checked
-        # against. A 20-line window into a 400-line file does not.
-        if start == 1 and end >= total_lines and not truncated:
-            mark_file_fresh(path)
-        # Any read of this file breaks a blind-edit streak: the model has now
-        # looked at what its edits produced.
-        clear_edit_streak(path)
+        # Records the span as well as the freshness it grants, so a later
+        # refused Write can name what this read actually covered instead of
+        # repeating "Read it" at a model that just did.
+        record_read(path, start, end, total_lines, truncated)
         header = _format_read_header(path, start, end, total_lines, truncated)
         return f"{header}{body}"
 

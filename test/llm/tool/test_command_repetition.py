@@ -197,3 +197,50 @@ async def test_background_launches_are_not_counted(monkeypatch):
         result = await run_shell_command("sleep 1", background=True)
 
     assert _NUDGE not in result
+
+
+@pytest.mark.asyncio
+async def test_a_nondeterministic_command_rerun_for_nothing_is_named(
+    monkeypatch, tmp_path
+):
+    """The second ground, which was unreachable for its entire existence.
+
+    A command whose output differs every run — a concurrency simulation
+    reporting different numbers — can never repeat its digest, so re-running it
+    forever looked like progress. The fallback ground was "same command, and
+    nothing happened in between", but the run's own workspace-revision bump was
+    sampled on the wrong side of itself, so consecutive runs always looked one
+    change apart and the streak sat at 1 no matter how many times it ran.
+    """
+    script = tmp_path / "sim.py"
+    script.write_text("import random\nprint(random.random())\n")
+    cmd = f"python3 {script}"
+
+    first = await run_shell_command(cmd, cwd=str(tmp_path))
+    second = await run_shell_command(cmd, cwd=str(tmp_path))
+    third = await run_shell_command(cmd, cwd=str(tmp_path))
+
+    assert _NUDGE not in first
+    assert _NUDGE not in second
+    assert _NUDGE in third
+    assert "no file changed since the previous run" in third
+
+
+@pytest.mark.asyncio
+async def test_editing_a_file_between_nondeterministic_runs_resets_it(tmp_path):
+    """A write in between is new evidence even when the output never repeats.
+
+    This is what keeps the second ground off an honest loop: the digest cannot
+    vouch for a nondeterministic command, so the file change has to.
+    """
+    script = tmp_path / "sim.py"
+    script.write_text("import random\nprint(random.random())\n")
+    cmd = f"python3 {script}"
+    target = tmp_path / "fix.py"
+
+    results = []
+    for i in range(4):
+        results.append(await run_shell_command(cmd, cwd=str(tmp_path)))
+        await write_file(str(target), f"attempt = {i}\n")
+
+    assert all(_NUDGE not in r for r in results)

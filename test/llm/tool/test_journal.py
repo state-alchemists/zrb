@@ -421,3 +421,91 @@ def test_writers_refuse_when_the_journal_dir_is_unset():
         with pytest.raises(ValueError) as excinfo:
             log_activity("anything")
     assert "not configured" in str(excinfo.value)
+
+
+def test_rewriting_a_note_keeps_the_backlinks_other_notes_added(writable_journal):
+    """The missing-backlink invariant, broken by this module's own writer.
+
+    A note is re-written whenever its finding is refined, and the whole file is
+    composed from the arguments — so a plain truncate dropped the `## Backlinks`
+    entries that *other* notes had inserted. Linking second→first and then
+    updating `first` left `first` with no way back, while `second` kept its
+    forward link: exactly the half-edge the deleted `journal-lint.py` used to
+    catch.
+    """
+    from zrb.llm.tool.journal_write import write_journal_note
+
+    write_journal_note(
+        category="technical",
+        slug="first",
+        title="First",
+        context="c",
+        finding="f",
+        source="s",
+    )
+    write_journal_note(
+        category="projects",
+        slug="second",
+        title="Second",
+        context="c",
+        finding="f",
+        source="s",
+        links=["technical/first.md"],
+    )
+    assert "[Second]" in _read(writable_journal, "technical", "first.md")
+
+    write_journal_note(
+        category="technical",
+        slug="first",
+        title="First",
+        context="revised",
+        finding="revised finding",
+        source="s:2",
+    )
+
+    first = _read(writable_journal, "technical", "first.md")
+    assert "revised finding" in first
+    assert "[Second]" in first, "the backlink another note wrote was dropped"
+    assert "- [index](index.md)" in first
+    assert first.count("[Second]") == 1
+
+
+def test_rewriting_a_note_keeps_its_own_forward_links(writable_journal):
+    """The same half-edge from the other end.
+
+    Dropping `## Related` while the target keeps its backlink leaves a backlink
+    pointing at a note that no longer claims the relationship.
+    """
+    from zrb.llm.tool.journal_write import write_journal_note
+
+    write_journal_note(
+        category="technical",
+        slug="first",
+        title="First",
+        context="c",
+        finding="f",
+        source="s",
+    )
+    write_journal_note(
+        category="projects",
+        slug="second",
+        title="Second",
+        context="c",
+        finding="f",
+        source="s",
+        links=["technical/first.md"],
+    )
+
+    write_journal_note(
+        category="projects",
+        slug="second",
+        title="Second",
+        context="revised",
+        finding="revised",
+        source="s:2",
+    )
+
+    second = _read(writable_journal, "projects", "second.md")
+    assert "## Related" in second
+    assert "[First]" in second
+    assert second.count("[First]") == 1

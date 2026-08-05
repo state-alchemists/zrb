@@ -290,7 +290,18 @@ class MultiUI:
                     try:
                         await task
                     except asyncio.CancelledError:
-                        raise
+                        # Two different cancellations arrive here and they need
+                        # opposite handling. A cancel aimed at THIS loop (the
+                        # shutdown path in run_async/on_exit) must land, or the
+                        # queue keeps running and `await self._process_messages_task`
+                        # never returns. A cancel aimed only at the job — one
+                        # response interrupted, session continuing — must not,
+                        # or the loop exits and no further user message is ever
+                        # processed. `cancelling()` tells them apart, the same
+                        # guard base/ui.py's twin uses.
+                        current = asyncio.current_task()
+                        if current is not None and current.cancelling() > 0:
+                            raise
                     finally:
                         self._running_llm_task = None
 

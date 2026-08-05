@@ -503,9 +503,7 @@ def _repetition_note(
     # lazy: leaf module, keeps the counter off the import path of callers that
     # never run a command.
     from zrb.llm.tool.command_repetition import (
-        bump_workspace_revision,
         command_signature,
-        current_workspace_state,
         mark_warned,
         outcome_digest,
         record_outcome,
@@ -516,11 +514,10 @@ def _repetition_note(
     clear_all_edit_streaks()
     signature = command_signature(command, cwd)
     digest = outcome_digest(exit_code_str, stdout_str, stderr_str)
-    # Sampled before the bump below, so it reflects the world this run saw.
-    streak = record_outcome(signature, digest, current_workspace_state())
-    # This run is itself something that happened, so a later invocation of some
-    # other command cannot claim nothing has changed since.
-    bump_workspace_revision()
+    # record_outcome owns the workspace-revision bump for this run: the value it
+    # stores has to be the post-bump one, or the run's own bump makes every
+    # later run look like it followed a change. See its docstring.
+    streak = record_outcome(signature, digest)
     if not should_warn(signature, streak, CFG.LLM_REPEATED_ATTEMPT_THRESHOLD):
         return ""
     mark_warned(signature)

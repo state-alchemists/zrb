@@ -29,6 +29,13 @@ from zrb.llm.lsp.manager import lsp_manager
 
 _MAX_ERRORS_SHOWN = 5
 
+# How many times one file may carry the [SYSTEM SUGGESTION] before the
+# diagnostic is left to speak for itself. Two, because a model that has ignored
+# it twice is not going to act on a third copy — one trial ignored an escalated
+# version 22 times — and because every appended instruction is something for the
+# model to react to instead of the errors. See _next_action.
+_MAX_SUGGESTIONS_PER_FILE = 2
+
 # How many times each path has come back broken in this context. The escalation
 # used to be phrased as a condition the model had to evaluate about its own
 # history ("if this file already reported errors on a previous write"), which a
@@ -94,49 +101,60 @@ async def format_post_write_diagnostics(abs_path: str) -> str:
         else ""
     )
     failures = _bump_diagnostic_count(abs_path)
+    suggestion = _next_action(failures)
     return (
         f"\n\n[DIAGNOSTIC]: {len(errors)} error(s) detected in {abs_path}:\n"
         f"{preview}{overflow}\n"
         "The write landed, but the file is now broken — treat this as a failed "
-        "edit, not a completed one.\n"
-        f"{_next_action(abs_path, failures)}"
+        "edit, not a completed one."
+        f"{chr(10) + suggestion if suggestion else ''}"
     )
 
 
-def _next_action(abs_path: str, failures: int) -> str:
-    """Name the next action, escalating on a count rather than on the model's memory.
+def _next_action(failures: int) -> str:
+    """One suggestion, twice at most. Then the diagnostic speaks for itself.
 
-    The escalation ladder is load-bearing and easy to break. A benchmarked trial
-    took 81 consecutive ``Successfully updated … [DIAGNOSTIC]`` results and
-    answered every one with another blind edit, which is what put a
-    ``[SYSTEM SUGGESTION]`` here at all. A later revision buried the escalation
-    behind a caveat about ``Write`` reverting unseen edits, and a trial promptly
-    spent 45 alternating Read/Edit calls on one file without ever escalating —
-    the caveat reads as an argument against the escape hatch it introduces.
+    A benchmarked trial once took 81 consecutive ``Successfully updated …
+    [DIAGNOSTIC]`` results and answered every one with another blind edit, which
+    is why there is a ``[SYSTEM SUGGESTION]`` here at all. The answer to that was
+    an escalating ladder, and measurement says the ladder was the wrong answer —
+    twice over.
 
-    So the two rungs are kept apart. The first says re-read then edit. The
-    second says the patching has failed and states the rewrite as the
-    instruction, with the read as its first step rather than as a warning
-    attached to it.
+    **Escalating prescribed its own trigger.** The second rung said "`Read` the
+    file in full, then replace it in a single `Write`". A whole-file rewrite by a
+    small model regenerates the diagnostic, which re-issues the rung, which asks
+    for another rewrite. An A/B on ``openai:gpt-4o-mini`` (6 cells x 3 trials,
+    identical env, only the zrb tree swapped) isolated it: on the ``refactor``
+    challenge the pre-ladder build spent **10** tool calls and 4 diagnostics and
+    stopped, while the ladder build spent **51**, took 25 diagnostics, and
+    failed. Across the arm, tool calls rose 215 -> 366 (+70%) and the pass rate
+    fell 11/18 -> 8/18, with both control cells unchanged. Turning a cheap wrong
+    answer into an expensive one is a regression even when the verdict matches.
+    The surviving text is the pre-ladder wording, which asks for *one targeted
+    fix* — an ``Edit`` does not restart the cycle a whole-file ``Write`` does.
+
+    **More text cannot stop a loop.** A third rung was then added that said, at
+    length, to stop and report. One trial received it **22 times** and kept
+    going. Advice the model is already ignoring is not made effective by
+    repetition; past a couple of tries the only lever the harness still holds is
+    to stop talking. So the suggestion is bounded and then silent: the errors are
+    still reported in full, because they are real information, but nothing is
+    appended for the model to react to.
+
+    The general rule, learned here the expensive way: **an injected instruction
+    must be bounded, and must not prescribe an action that regenerates its own
+    input.** The repetition counter and the blind-edit nudge already satisfy
+    both — they fire once per streak — which is why neither showed up in the
+    regression.
     """
-    tail = (
-        " If the errors name something outside this file (a missing import, an "
-        "undefined symbol defined elsewhere), fix that file rather than "
-        "re-editing this one."
-    )
-    if failures < 2:
-        return (
-            "[SYSTEM SUGGESTION]: Do not issue another edit to this file from "
-            "memory. `Read` the file (or the lines above) to see its current "
-            "state first, then make one targeted fix." + tail
-        )
+    if failures > _MAX_SUGGESTIONS_PER_FILE:
+        return ""
     return (
-        f"[SYSTEM SUGGESTION]: This is failure {failures} on {os.path.basename(abs_path)}. "
-        "Stop editing it — repeated partial edits are what produced this state, "
-        "and another one will not converge. Do this instead, in order: `Read` "
-        "the file in full, then replace it in a single `Write` that is correct "
-        "as a whole. Base that write on what the read just showed you, not on "
-        "your memory of the file." + tail
+        "[SYSTEM SUGGESTION]: Do not issue another edit to this file from "
+        "memory. `Read` the file (or the lines above) to see its current state "
+        "first, then make one targeted fix. If the errors name something "
+        "outside this file (a missing import, an undefined symbol defined "
+        "elsewhere), fix that file rather than re-editing this one."
     )
 
 
