@@ -262,7 +262,7 @@ To understand Zrb's core design decisions (such as the strict use of `asyncio`, 
 
 ## Context Propagation Internals
 
-Zrb uses Python's `contextvars.ContextVar` to thread execution state through async coroutines without explicit parameter passing. There are sixteen `ContextVar` instances across the codebase, split into five layers. The single source of truth is `src/zrb/contextvars.py` (a re-export index); update this section whenever you add, remove, or rename a `ContextVar`.
+Zrb uses Python's `contextvars.ContextVar` to thread execution state through async coroutines without explicit parameter passing. There are eleven `ContextVar` instances across the codebase, split into five layers. The single source of truth is `src/zrb/contextvars.py` (a re-export index); update this section whenever you add, remove, or rename a `ContextVar`.
 
 ### The Five Layers
 
@@ -308,25 +308,6 @@ All five are set at the start of `run_agent()` and reset in its `finally` block.
 | `interactive_mode` | `bool` | Whether the current chat session is interactive — gates `ask_user_question` so non-interactive runs short-circuit instead of blocking on stdin |
 
 Set/cleared by their owning tool implementations rather than at a single entry point.
-
-> **Not a `ContextVar`: file freshness.** `src/zrb/llm/tool/file_freshness.py` keeps
-> plain module-level dicts, and `zrb/contextvars.py` says so explicitly. Two reasons,
-> both learned the hard way. First, its principal writer is `read_file`, which is
-> *synchronous* — so `create_safe_wrapper` dispatches it through `asyncio.to_thread`,
-> which runs the call in a **copied** context and discards every `ContextVar.set` on
-> the way out. As a `ContextVar` the table therefore recorded no read at all, and
-> `refuse_stale_write` refused every whole-file `Write` to an existing file with "you
-> have not read it" however many times it had just been read. Second, the state
-> describes the shared filesystem rather than one task: a sub-agent's write has to be
-> visible to its parent, which context isolation is designed to prevent. **A
-> synchronous tool cannot keep cross-call state in a `ContextVar`** — check that before
-> adding one.
-
-| `command_attempts` | `dict[str, int]` | How many times each `(cwd, command)` pair has been run, so the Recovery ladder is enforced at runtime rather than in prose. Read by `run_shell_command`, which appends a `[SYSTEM SUGGESTION]` at the threshold (ADR-0102). |
-| `command_attempts_warned` | `frozenset[str]` | Signatures already called out, so one loop yields one escalation instead of a note on every later call |
-| `diagnostic_counts` | `dict[str, int]` | Consecutive post-write failures per file, so `post_write_check` can escalate from "re-read then edit" to "stop editing, read in full and rewrite" on a stated count rather than on the model's own recollection |
-
-All three sit in leaf modules beside the tools that own them, so `zrb/contextvars.py` can index them without importing the UI/task graph.
 
 ### The Scoping Pattern
 

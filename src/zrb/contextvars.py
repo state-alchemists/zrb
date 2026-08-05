@@ -9,14 +9,6 @@ from three homes that keep bounded-context ownership of their state:
 * `zrb.llm.permission.state`  - permission policy + agent mode (plan/default)
 * `zrb.llm.sandbox.state`     - sandbox policy (filesystem containment)
 * `zrb.llm.tool.ambient_state`  - tool-scoped ambient state (worktree, session)
-* `zrb.llm.tool.command_repetition` - repeated shell-invocation counters
-* `zrb.llm.tool.post_write_check` - per-file diagnostic-failure counters
-
-`zrb.llm.tool.file_freshness` is deliberately NOT here. Its state describes the
-shared filesystem rather than one task, and its main writer (`read_file`) is
-synchronous — so `create_safe_wrapper` runs it via `asyncio.to_thread`, whose
-copied context throws every `ContextVar.set` away. It keeps plain module-level
-dicts instead; see that module's docstring.
 
 Nothing here owns state. This module exists purely as a discoverable registry
 so contributors can answer "what ContextVars exist?" without grepping.
@@ -75,36 +67,6 @@ from zrb.llm.tool.ambient_state import (
     set_current_tool_session,
     set_interactive_mode,
 )
-from zrb.llm.tool.command_repetition import (
-    command_attempts,
-    command_attempts_warned,
-    command_signature,
-    mark_warned,
-    outcome_digest,
-    record_outcome,
-    reset_command_attempts,
-    should_warn,
-)
-
-# Not ContextVars (see the module docstring above), re-exported here anyway so
-# the freshness helpers stay discoverable alongside the ambient state they sit
-# next to in the tool layer.
-from zrb.llm.tool.file_freshness import (
-    clear_all_edit_streaks,
-    clear_edit_streak,
-    is_file_fresh,
-    is_file_tracked,
-    mark_file_fresh,
-    mark_file_stale,
-    note_edit_streak,
-    record_read,
-    refuse_stale_write,
-    reset_file_freshness,
-)
-from zrb.llm.tool.post_write_check import (
-    diagnostic_counts,
-    reset_diagnostic_counts,
-)
 
 __all__ = [
     # Task execution context
@@ -142,24 +104,4 @@ __all__ = [
     "interactive_mode",
     "get_interactive_mode",
     "set_interactive_mode",
-    "is_file_fresh",
-    "is_file_tracked",
-    "mark_file_fresh",
-    "mark_file_stale",
-    "record_read",
-    "refuse_stale_write",
-    "reset_file_freshness",
-    "note_edit_streak",
-    "clear_edit_streak",
-    "clear_all_edit_streaks",
-    "command_attempts",
-    "command_attempts_warned",
-    "command_signature",
-    "outcome_digest",
-    "record_outcome",
-    "should_warn",
-    "mark_warned",
-    "reset_command_attempts",
-    "diagnostic_counts",
-    "reset_diagnostic_counts",
 ]

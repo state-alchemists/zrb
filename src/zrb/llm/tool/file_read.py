@@ -1,7 +1,6 @@
 import os
 
 from zrb.config.config import CFG
-from zrb.llm.tool.file_freshness import record_read
 from zrb.llm.util.pdf import extract_pdf_text
 from zrb.util.truncate import truncate_text
 
@@ -70,10 +69,6 @@ def read_file(
         body = _number_lines(kept, start)
         if truncated:
             body = body.rstrip("\n") + "\n...[TRUNCATED]"
-        # Records the span as well as the freshness it grants, so a later
-        # refused Write can name what this read actually covered instead of
-        # repeating "Read it" at a model that just did.
-        record_read(path, start, end, total_lines, truncated)
         header = _format_read_header(path, start, end, total_lines, truncated)
         return f"{header}{body}"
 

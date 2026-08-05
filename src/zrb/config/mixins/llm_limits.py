@@ -35,13 +35,6 @@ class LLMLimitsMixin:
         self.DEFAULT_LLM_MAX_CONSOLE_OUTPUT_CHARS: str = "1000000"
         self.DEFAULT_LLM_MAX_TOOL_RESULT_CHARS: str = "100000"
         self.DEFAULT_LLM_MAX_COMPLETION_FILES: str = "5000"
-        # 3 matches the Recovery ladder in workflow.md ("by the third, change
-        # what you are testing"). The nudge fires on the third identical run.
-        self.DEFAULT_LLM_REPEATED_ATTEMPT_THRESHOLD: str = "3"
-        # 8, not 3: editing one file several times running is ordinary when
-        # working through a function. Ten in a row with nothing read and
-        # nothing run is the shape that burned a 600s budget.
-        self.DEFAULT_LLM_BLIND_EDIT_STREAK_THRESHOLD: str = "8"
         # Image scaling — 1568px is Anthropic's no-extra-cost tier; JPEG q85 is
         # near-lossless for screenshots while halving size vs. PNG re-encode.
         self.DEFAULT_LLM_MAX_IMAGE_DIMENSION: str = "1568"
@@ -198,22 +191,3 @@ class LLMLimitsMixin:
         int, doc="Maximum number of files for completion."
     )
 
-    LLM_BLIND_EDIT_STREAK_THRESHOLD = EnvField(
-        int,
-        doc=(
-            "How many consecutive edits to one file — with nothing read and no "
-            "command run in between — before the tool result carries a "
-            "[SYSTEM SUGGESTION] to go and check. 0 disables it; the edit "
-            "itself is never blocked."
-        ),
-    )
-
-    LLM_REPEATED_ATTEMPT_THRESHOLD = EnvField(
-        int,
-        doc=(
-            "How many byte-identical shell invocations before the tool result "
-            "carries a [SYSTEM SUGGESTION] to change approach. Enforces the "
-            "Recovery ladder at runtime rather than in prose. 0 disables it; "
-            "the call itself is never blocked."
-        ),
-    )

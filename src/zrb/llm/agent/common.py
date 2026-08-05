@@ -155,16 +155,8 @@ def create_safe_wrapper(func: Callable, name: str | None = None) -> Callable:
                 # This wrapper is a coroutine function, so pydantic-ai never
                 # applies its own executor offload for sync tools — inline they
                 # would block the TUI's event loop for the tool's duration
-                # (ReadFile on a big file, grep, journal search).
-                #
-                # ContextVars propagate INTO the thread but not back out:
-                # to_thread runs the call in a copied context, so any `set()`
-                # inside is discarded here. A sync tool must therefore not keep
-                # cross-call state in a ContextVar. `read_file` did — it marked
-                # files fresh for `file_freshness` — and the write vanished on
-                # every single call, which refused every whole-file `Write` to
-                # an existing file no matter how often the model read it. That
-                # state is a plain module dict now, for exactly this reason.
+                # (ReadFile on a big file, grep, journal search). ContextVars
+                # propagate into the thread; none of the sync tools write them.
                 result = await asyncio.to_thread(func, *args, **kwargs)
 
             # If result is already a ToolReturn, return it as-is. The tool framed

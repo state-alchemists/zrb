@@ -1,9 +1,6 @@
 import os
 import re
 
-from zrb.config.config import CFG
-from zrb.llm.tool.command_repetition import bump_workspace_revision
-from zrb.llm.tool.file_freshness import mark_file_stale, note_edit_streak
 from zrb.llm.tool.post_write_check import format_post_write_diagnostics
 
 _READ_LINE_NUMBER = re.compile(r"^ *\d+\t")
@@ -176,16 +173,10 @@ async def replace_in_file(
         )
 
     replacements = match_count if count == -1 else min(match_count, count)
-    # The file no longer matches any full view the model holds: the delta is
-    # real, but its picture of the surrounding content is no longer guaranteed.
-    # A later whole-file Write must re-read first.
-    mark_file_stale(path)
-    bump_workspace_revision()
-    streak_note = note_edit_streak(path, CFG.LLM_BLIND_EDIT_STREAK_THRESHOLD)
     diag_suffix = await format_post_write_diagnostics(abs_path)
     return (
         f"Successfully updated {path} ({replacements} replacement(s)){fuzzy_note}"
-        f"{diag_suffix}{streak_note}"
+        f"{diag_suffix}"
     )
 
 
