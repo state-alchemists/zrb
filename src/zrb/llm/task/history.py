@@ -91,7 +91,7 @@ class LLMTaskHistory:
                 return (
                     f"[SYSTEM] This is retry attempt {ctx.attempt}. "
                     "The previous attempt failed. Please review the history and continue.",
-                    user_attachments,  # Preserve attachments on retry
+                    user_attachments,
                 )
         return user_message, user_attachments
 

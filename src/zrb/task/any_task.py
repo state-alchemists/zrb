@@ -1,4 +1,4 @@
-from __future__ import annotations  # Enables forward references
+from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Callable, overload

@@ -233,7 +233,6 @@ class LLMChatTask(ChatBuilding, ChatRunning, ChatExecution, BaseTask):
         )
         self._llm_config = default_llm_config if llm_config is None else llm_config
         self._llm_limiter = llm_limiter
-        # Auto-convert system_prompt to prompt_manager if provided and prompt_manager not set
         if prompt_manager is None:
             prompt_manager = PromptManager(
                 prompts=[system_prompt] if system_prompt else [],

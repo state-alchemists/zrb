@@ -36,7 +36,6 @@ async def default_response_handler(
         ui.append_to_output("\n🛑 Execution denied.")
         return ToolDenied("User denied execution")
     elif user_response.lower().strip() in ("e", "edit"):
-        # Edit logic
         try:
             args = call.args
             if isinstance(args, str):
@@ -47,7 +46,6 @@ async def default_response_handler(
             if not isinstance(args, dict):
                 args = {}
 
-            # Use shared editor utility
             new_args = await edit_content_via_editor(ui, args)
 
             if new_args is None:

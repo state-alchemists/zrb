@@ -69,7 +69,6 @@ class BaseUIExecCommands:
     # --- exec (shell) -----------------------------------------------------
 
     def _handle_exec_command(self, text: str) -> bool:
-        # Prevent execution when LLM is thinking
         if self._is_thinking:
             return False
 
@@ -246,7 +245,6 @@ class BaseUIExecCommands:
     # --- custom commands --------------------------------------------------
 
     def _handle_custom_command(self, text: str) -> bool:
-        # Prevent custom commands when LLM is thinking
         if self._is_thinking:
             return False
 

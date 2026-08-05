@@ -86,7 +86,6 @@ class ToolCallHandler:
         while True:
             message = await self._get_confirm_user_message(ui, call)
             ui.append_to_output(f"\n\n{message}", end="")
-            # Wait for user input
             user_input = await ui.ask_user("")
             user_response = user_input.strip()
 

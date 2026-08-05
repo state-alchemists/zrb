@@ -145,7 +145,6 @@ def find_best_effort_split(
     best_broken_incomplete_pairs = float("inf")
     best_score = -1
 
-    # Try all possible split points from the end
     for split_idx in range(len(messages), 0, -1):
         to_keep = messages[split_idx:]
         tokens_to_keep = limiter.count_tokens(to_keep)

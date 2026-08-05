@@ -30,7 +30,6 @@ def auto_approve(
         # lazy: heavy third-party
         from pydantic_ai import ToolApproved
 
-        # Check if tool name matches
         if call.tool_name != tool_name:
             return await next_handler(ui, call)
 
@@ -48,7 +47,6 @@ def auto_approve(
         if isinstance(args, dict) and args.get("dangerously_skip_sandbox"):
             return await next_handler(ui, call)
 
-        # If kwargs_patterns is empty or None, approve
         if not kwargs_patterns:
             return ToolApproved()
 
@@ -58,7 +56,6 @@ def auto_approve(
             # So we delegate to the next handler.
             return await next_handler(ui, call)
 
-        # Check constraints
         # "all parameter in the call parameter has to match the ones in kwargs_patterns
         # (if that parameter defined in the kwargs_patterns)"
         if callable(kwargs_patterns):
@@ -68,7 +65,6 @@ def auto_approve(
             for arg_name, arg_value in args.items():
                 if arg_name in kwargs_patterns:
                     pattern = kwargs_patterns[arg_name]
-                    # Convert arg_value to string for regex matching
                     if not re.search(pattern, str(arg_value)):
                         return await next_handler(ui, call)
 

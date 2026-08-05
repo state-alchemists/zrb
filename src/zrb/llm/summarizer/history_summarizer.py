@@ -209,7 +209,6 @@ async def summarize_history(
             )
         if summary_window is None:
             summary_window = CFG.LLM_HISTORY_SUMMARIZATION_WINDOW
-        # Ensure we have things to summarize
         to_summarize, to_keep = split_history(
             messages, summary_window, llm_limiter, conversational_token_threshold
         )
@@ -230,7 +229,6 @@ async def summarize_history(
         )
         # 3. Final Aggregation and potential re-summarization
         final_summary_tokens = llm_limiter.count_tokens(summary_text)
-        # Check if we have multiple snapshots or if we are still near the threshold
         has_multiple_snapshots = summary_text.count("<state_snapshot>") > 1
         is_near_threshold = final_summary_tokens > (
             conversational_token_threshold * 0.8

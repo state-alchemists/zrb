@@ -11,7 +11,6 @@ def _get_new_python_path(path_to_add: str) -> str:
     current_python_path = os.environ.get("PYTHONPATH", "")
     paths = current_python_path.split(os.pathsep) if current_python_path else []
     if path_to_add not in paths:
-        # Append to the end
         return os.pathsep.join(paths + [path_to_add]) if paths else path_to_add
     return current_python_path
 
@@ -29,11 +28,9 @@ def load_file(path: str, max_depth: int = -1) -> ModuleType | None:
         abs_path = os.path.abspath(path)
         directory = os.path.dirname(abs_path)
 
-        # Add to sys.path if not present
         if directory not in sys.path:
             sys.path.append(directory)
 
-        # Update PYTHONPATH
         new_python_path = _get_new_python_path(directory)
         if new_python_path != os.environ.get("PYTHONPATH", ""):
             os.environ["PYTHONPATH"] = new_python_path

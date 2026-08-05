@@ -16,7 +16,6 @@ def message_to_text(msg: Any) -> str:
         return model_request_to_text(msg)
     if isinstance(msg, ModelResponse):
         return model_response_to_text(msg)
-    # Fallback for unknown message types
     try:
         return str(msg)
     except Exception:
@@ -37,7 +36,6 @@ def model_request_to_text(msg: ModelRequest) -> str:
     )
 
     parts = []
-    # Safely get parts with default
     msg_parts = getattr(msg, "parts", [])
     for p in msg_parts:
         if isinstance(p, UserPromptPart):
@@ -76,7 +74,6 @@ def model_request_to_text(msg: ModelRequest) -> str:
             if content is not None:
                 parts.append(f"System: {content}")
         else:
-            # Fallback for unknown part types
             parts.append(f"[Unknown part type: {type(p).__name__}]")
     return "\n".join(parts) if parts else "[Empty ModelRequest]"
 

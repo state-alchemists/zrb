@@ -261,7 +261,6 @@ class BaseUI(BaseUIProperties, BaseUICommands, BaseUIReplay, BaseUISystemInfo):
         # Track background tasks to prevent garbage collection
         self._background_tasks: set[asyncio.Task] = set()
 
-        # Initialize yolo from parameter
         if is_yolo:
             self.yolo = is_yolo
 
@@ -653,7 +652,6 @@ class BaseUI(BaseUIProperties, BaseUICommands, BaseUIReplay, BaseUISystemInfo):
                         if current is not None and current.cancelling() > 0:
                             raise
 
-                # Create task for current job
                 current_task = asyncio.create_task(job())
                 self._running_llm_task = current_task
 

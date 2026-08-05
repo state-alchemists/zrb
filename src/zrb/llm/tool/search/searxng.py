@@ -83,7 +83,6 @@ def search_internet(
     except requests.exceptions.Timeout as e:
         error_msg = f"Error: Connection to Searxng at {CFG.SEARXNG_BASE_URL} timed out."
 
-        # Check conditions for suggestion
         is_default_url = is_default_searxng_url(CFG.SEARXNG_BASE_URL)
         docker_installed = is_docker_installed()
 

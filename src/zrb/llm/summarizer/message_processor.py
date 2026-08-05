@@ -32,7 +32,6 @@ async def process_message_for_summarization(
         return msg
     new_parts = []
     msg_modified = False
-    # Safely get parts with default
     msg_parts = getattr(msg, "parts", [])
     for p in msg_parts:
         if not isinstance(p, ToolReturnPart):
@@ -59,7 +58,6 @@ async def process_tool_return_part(
     # lazy: heavy third-party
     from pydantic_ai import ToolApproved, ToolDenied
 
-    # Safely get content with default
     original_content = getattr(part, "content", None)
     if original_content is None:
         return part, False
@@ -100,7 +98,6 @@ async def process_tool_return_part(
         plain=True,
     )
 
-    # Calculate available tokens for summary (accounting for prefix)
     prefix = f"{SUMMARY_PREFIX}\n"
     prefix_tokens = limiter.count_tokens(prefix)
     available_tokens = message_threshold - prefix_tokens
@@ -117,7 +114,6 @@ async def process_tool_return_part(
         )
         content = limiter.truncate_text(content, insanity_threshold)
 
-    # Ensure we have positive available tokens
     if available_tokens <= 0:
         zrb_print(
             stylize_error(
@@ -125,7 +121,6 @@ async def process_tool_return_part(
             ),
             plain=True,
         )
-        # Keep original but truncated
         truncated = limiter.truncate_text(content, message_threshold)
         new_part = replace(part, content=f"{TRUNCATED_PREFIX}\n{truncated}")
         return new_part, True

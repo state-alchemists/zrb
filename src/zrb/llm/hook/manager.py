@@ -72,7 +72,7 @@ class HookManager(HookManagerLoading):
         self._max_depth = max_depth
         self._ignore_dirs = _IGNORE_DIRS if ignore_dirs is None else ignore_dirs
         self._search_dirs: list[str | Path] | None = search_dirs
-        self._loaded: bool = False  # Track if hooks have been loaded
+        self._loaded: bool = False
         # Strong refs to fire-and-forget async hook tasks so the event loop
         # doesn't GC them mid-run (asyncio only keeps weak references).
         self._background_tasks: set[asyncio.Task] = set()
@@ -93,7 +93,6 @@ class HookManager(HookManagerLoading):
         self._global_hooks = []
         self._hook_configs = {}
         self._hook_to_config = {}
-        # Re-run factories to re-register dynamic hooks
         for factory in self._hook_factories:
             factory(self)
         self._ensure_loaded()
@@ -148,13 +147,11 @@ class HookManager(HookManagerLoading):
         if not CFG.HOOKS_ENABLED:
             return []
 
-        # Lazy load hooks on first execution
         self._ensure_loaded()
 
         if metadata is None:
             metadata = {}
 
-        # Create enhanced context with Claude Code fields
         context = HookContext(
             event=event,
             event_data=event_data,
@@ -166,20 +163,17 @@ class HookManager(HookManagerLoading):
             hook_event_name=event.value,
         )
 
-        # Populate event-specific fields from kwargs
         for key, value in kwargs.items():
             if hasattr(context, key):
                 setattr(context, key, value)
 
         results: list[HookExecutionResult] = []
 
-        # Combine global hooks and event-specific hooks
         hooks_to_run = self._global_hooks + self._hooks[event]
 
         if not hooks_to_run:
             return results
 
-        # Sort hooks by priority (higher priority first)
         # Create a default config for hooks without config (e.g., manually registered)
         default_config = HookConfig(
             name="default",
@@ -196,7 +190,6 @@ class HookManager(HookManagerLoading):
 
         # Execute hooks sequentially to support blocking/continue logic
         for i, hook in enumerate(hooks_to_run):
-            # Get timeout from config if available
             config = self._hook_to_config.get(hook)
             timeout = config.timeout if config else None
 
@@ -232,7 +225,6 @@ class HookManager(HookManagerLoading):
                 results.append(
                     HookExecutionResult(success=False, error=str(e), exit_code=1)
                 )
-                # Continue to next hook even if this one failed
                 continue
 
             # Check for blocking decisions (exit code 2). A block only halts the
@@ -380,13 +372,11 @@ class HookManager(HookManagerLoading):
             metadata=metadata,
         )
 
-        # Convert to old format
         results: list[HookResult] = []
         for exec_result in exec_results:
             # Start with data which contains all modifications
             modifications = exec_result.data.copy() if exec_result.data else {}
 
-            # Override with Claude Code specific fields if they exist
             if exec_result.decision:
                 modifications["decision"] = exec_result.decision
             if exec_result.reason:
@@ -459,7 +449,6 @@ class HookManager(HookManagerLoading):
         Convert HookConfig into a HookCallable using appropriate executor.
         Wraps the actual hook with matcher evaluation.
         """
-        # Create the actual hook callable
         if config.type == HookType.COMMAND:
             inner_hook = self._create_command_hook(
                 cast("CommandHookConfig", config.config), config.timeout
@@ -489,7 +478,6 @@ class HookManager(HookManagerLoading):
         # the moment it returns. `execute_hooks` dispatches async command hooks
         # on the persistent main loop instead (see there).
         async def hook_with_matchers(context: HookContext) -> HookResult:
-            # Evaluate matchers first
             if not evaluate_matchers(config.matchers, context):
                 logger.debug(
                     f"Hook '{config.name}' skipped due to matcher evaluation failure"
@@ -497,7 +485,6 @@ class HookManager(HookManagerLoading):
                 # Return a neutral result (not an error, just didn't run)
                 return HookResult(success=True, output="Skipped due to matchers")
 
-            # Execute the actual hook
             return await inner_hook(context)
 
         return hook_with_matchers

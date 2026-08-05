@@ -46,7 +46,6 @@ def render_markdown(
         match = re.search(r"((?:\s|\x1b\[[0-9;]*m)+)$", line)
         if match:
             tail = match.group(1)
-            # Remove spaces from the tail
             clean_tail = re.sub(r"\s+", "", tail)
             return line[: match.start(1)] + clean_tail
         return line

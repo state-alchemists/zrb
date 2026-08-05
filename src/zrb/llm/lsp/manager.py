@@ -71,7 +71,6 @@ class LSPManager(LSPManagerLifecycle, LSPManagerQuery):
         lsp_server_configs.register(name, config)
 
 
-# Singleton instance
 lsp_manager = LSPManager()
 
 # Backstop: a chat/agent run that used LSP tools starts language-server

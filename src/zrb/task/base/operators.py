@@ -1,4 +1,3 @@
-# No specific imports needed from typing for these changes
 from zrb.task.any_task import AnyTask
 
 
@@ -13,14 +12,11 @@ def handle_rshift(
     try:
         if isinstance(right_operand, list):
             for task in right_operand:
-                # Assuming append_upstream exists and handles duplicates
                 task.append_upstream(left_task)
         else:
-            # Assuming right_operand is a single AnyTask
             right_operand.append_upstream(left_task)
         return right_operand
     except Exception as e:
-        # Catch potential errors during append_upstream or type issues
         raise ValueError(f"Invalid operation {left_task} >> {right_operand}: {e}")
 
 
@@ -33,9 +29,7 @@ def handle_lshift(
     Returns the left_task.
     """
     try:
-        # Assuming append_upstream exists and handles single or list input
         left_task.append_upstream(right_operand)
         return left_task
     except Exception as e:
-        # Catch potential errors during append_upstream or type issues
         raise ValueError(f"Invalid operation {left_task} << {right_operand}: {e}")

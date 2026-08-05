@@ -30,10 +30,8 @@ async def _get_lsp_context(file_path: str, abs_dir: str) -> dict | None:
     try:
         full_path = os.path.join(abs_dir, file_path)
 
-        # Get document symbols
         symbols_result = await lsp_manager.get_document_symbols(full_path)
 
-        # Get diagnostics (errors, warnings)
         diagnostics_result = await lsp_manager.get_diagnostics(full_path)
 
         if not symbols_result.get("found") and not diagnostics_result.get("found"):
@@ -56,7 +54,6 @@ async def _get_lsp_context(file_path: str, abs_dir: str) -> dict | None:
                     }
                 )
 
-        # Format diagnostics
         if diagnostics_result.get("found") and diagnostics_result.get("count", 0) > 0:
             for diag in diagnostics_result.get("diagnostics", [])[:20]:  # Limit to 20
                 context["lsp_diagnostics"].append(
@@ -112,9 +109,7 @@ async def analyze_code(
         else:
             include_patterns = [file_pattern]
 
-    # Use LSP-enhanced file metadata collection when available
     if use_lsp:
-        # Check if any LSP servers are available
         available_servers = lsp_manager.list_available_servers()
         if available_servers:
             zrb_print(
@@ -242,14 +237,11 @@ async def _get_file_metadatas_with_lsp(
                 ):
                     continue
 
-                # Check if LSP supports this file type
                 file_ext = os.path.splitext(file)[1].lower()
                 if file_ext in LSP_SUPPORTED_EXTENSIONS:
-                    # Queue LSP analysis (async)
                     lsp_tasks.append(_get_lsp_context(rel_path, dir_path))
                     file_paths.append(rel_path)
                 else:
-                    # Read file content directly (non-LSP file type)
                     with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
                         metadata_list.append({"path": rel_path, "content": f.read()})
 
@@ -280,7 +272,6 @@ async def _get_file_metadatas_with_lsp(
                 # Use LSP context (more token-efficient for structure queries)
                 metadata_list.append(lsp_result)
             else:
-                # No LSP data - read file content
                 try:
                     with open(
                         os.path.join(dir_path, rel_path),
@@ -321,9 +312,7 @@ async def _extract_info(
     for metadata in file_metadatas:
         path = metadata.get("path", "")
 
-        # Handle LSP context format vs raw content
         if "lsp_symbols" in metadata:
-            # LSP semantic context (more compact)
             payload = {
                 "path": path,
                 "symbols": metadata.get("lsp_symbols", []),
@@ -331,7 +320,6 @@ async def _extract_info(
                 "note": "LSP semantic context - symbol names, types, and locations",
             }
         else:
-            # Raw file content
             payload = {"path": path, "content": metadata.get("content", "")}
 
         # A single file larger than the whole batch budget would be flushed as a
@@ -352,7 +340,6 @@ async def _extract_info(
             content_buffer.append(content)
             current_token_count += file_tokens
 
-    # Process remaining buffer
     if content_buffer:
         await _run_repo_agent(agent, query, content_buffer, "files", extracted_infos)
 
@@ -402,7 +389,6 @@ async def _summarize_info(
     base_overhead = 100
 
     for info in extracted_infos:
-        # Check if adding this info exceeds limit
         if (
             llm_limiter.count_tokens(content_buffer + info) + base_overhead
             > token_limit

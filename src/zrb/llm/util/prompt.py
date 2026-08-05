@@ -21,7 +21,6 @@ def expand_prompt(prompt: str) -> str:
     last_idx = 0
     parts = []
     for match in matches:
-        # Add text before match
         parts.append(prompt[last_idx : match.start()])
         path_ref = match.group("path")
         original_token = match.group(0)
@@ -31,9 +30,7 @@ def expand_prompt(prompt: str) -> str:
             parts.append(original_token)
             last_idx = match.end()
             continue
-        # If we successfully got content
         parts.append(f"`{path_ref}` (see Appendix)")
-        # Add to appendix with strict instructions
         appendix_entries.append(
             make_markdown_section(
                 header or "",
@@ -42,7 +39,6 @@ def expand_prompt(prompt: str) -> str:
             )
         )
         last_idx = match.end()
-    # Add remaining text
     parts.append(prompt[last_idx:])
     new_prompt = "".join(parts)
     if appendix_entries:

@@ -23,7 +23,6 @@ from typing import Any, Literal
 
 from zrb.context.any_context import zrb_print
 
-# Todo status types
 TodoStatus = Literal["pending", "in_progress", "completed", "cancelled"]
 
 
@@ -188,7 +187,6 @@ class TodoManager:
             return (1, t["id"])
 
 
-# Singleton instance
 todo_manager = TodoManager()
 
 

@@ -21,7 +21,6 @@ def build_task_context(task: AnyTask, session: AnySession) -> AnyContext:
     with the task's specific environment variables.
     """
     ctx = session.get_ctx(task)
-    # Enhance session ctx with current task env
     for env in task.envs:
         env.update_context(ctx)
     return ctx
@@ -81,7 +80,7 @@ def combine_inputs(
             continue
         if task_input.name not in input_names:
             existing_inputs.append(task_input)
-            input_names.append(task_input.name)  # Update names list
+            input_names.append(task_input.name)
 
 
 def combine_envs(
@@ -97,7 +96,6 @@ def combine_envs(
     elif new_envs is None:
         pass
     else:
-        # new_envs is a list
         for env in new_envs:
             if env is not None:
                 existing_envs.append(env)

@@ -48,7 +48,6 @@ class FileSessionStateLogger(AnySessionStateLogger):
     ) -> "SessionStateLogList":
 
         matching_sessions = []
-        # Traverse the timeline directory and filter sessions
         timeline_dir = os.path.join(
             self._get_session_log_dir(), "_timeline", *task_path
         )
@@ -57,20 +56,15 @@ class FileSessionStateLogger(AnySessionStateLogger):
         for root, _, files in os.walk(timeline_dir):
             for file_name in files:
                 session_name = os.path.splitext(file_name)[0]
-                # Read the session and retrieve start time
                 session_log = self.read(session_name)
                 start_time = self._get_start_time(session_log)
-                # Filter sessions based on start time
                 if start_time and min_start_time <= start_time <= max_start_time:
                     matching_sessions.append((start_time, session_log))
-        # Sort sessions by start time, descending
         matching_sessions.sort(key=lambda x: x[0], reverse=True)
         total = len(matching_sessions)
-        # Apply pagination
         start_index = page * limit
         end_index = start_index + limit
         paginated_sessions = matching_sessions[start_index:end_index]
-        # Extract session logs from the sorted list of tuples
         data = [session_log for _, session_log in paginated_sessions]
         return SessionStateLogList(total=total, data=data)
 

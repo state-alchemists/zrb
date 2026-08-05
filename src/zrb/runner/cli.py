@@ -74,7 +74,6 @@ class Cli(Group):
     def _print_conversation_name(self, task: AnyTask, session: Session | None):
         """Print conversation name if available in shared context."""
         try:
-            # Check for conversation name stored by LLM chat task
             if session is None:
                 return
             conversation_name = session.shared_ctx.xcom.get(

@@ -342,7 +342,6 @@ def _convert_html_to_markdown(html_text: str) -> str:
 
 async def _summarize_web_content(markdown_content: str, url: str) -> str:
     """Summarize web content using an agent while preserving references."""
-    # Create the summarization agent
     agent = create_agent(
         # Already resolved here; resolve_model=False stops create_agent from
         # firing model_getter/model_renderer a second time.
@@ -351,14 +350,12 @@ async def _summarize_web_content(markdown_content: str, url: str) -> str:
         resolve_model=False,
     )
 
-    # Prepare the prompt data
     prompt_data = {
         "url": url,
         "content": markdown_content,
         "instruction": "Extract high-signal information from this web page content while preserving all essential references and citations. Focus on technical details, specifications, and actionable information.",
     }
 
-    # Run the agent
     message = json.dumps(prompt_data)
     result, _ = await run_agent(
         agent=agent,

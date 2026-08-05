@@ -93,7 +93,6 @@ class _ShellBackgroundRegistry:
             bp = self._procs.get(handle)
             if bp is not None:
                 bp.stdout_lines.append(line.decode(errors="replace"))
-        # Drain remaining buffer
         if proc.stdout:
             remaining = await proc.stdout.read()
             if remaining:

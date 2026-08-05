@@ -369,7 +369,6 @@ class PromptManager:
     def _get_composed_middlewares(
         self, ctx: AnyContext
     ) -> list[PromptMiddleware | str]:
-        # Resolve sections: instance override or CFG default
         sections = self.active_sections
 
         # Resolve the profile (ADR-0083) from the LLM_PROFILE knob + active

@@ -266,7 +266,6 @@ class BaseTask(AnyTask):
         Returns:
             Any: The final result of the main task execution.
         """
-        # Use asyncio.run() to execute the async cleanup wrapper
         try:
             return asyncio.run(
                 run_and_cleanup(
@@ -326,7 +325,6 @@ class BaseTask(AnyTask):
             Any: The result of the action execution.
         """
         try:
-            # Delegate to the helper function for the default behavior
             return await run_default_action(self, ctx)
         except (KeyboardInterrupt, GeneratorExit):
             raise
@@ -337,7 +335,6 @@ class BaseTask(AnyTask):
             if not isinstance(e, KeyboardInterrupt):
                 # if error is KeyboardInterrupt, don't print anything
                 ctx.log_error(additional_error_note)
-            # Add definition location to the error
             if hasattr(e, "add_note"):
                 e.add_note(additional_error_note)
             elif hasattr(e, "__notes__"):
@@ -372,7 +369,6 @@ class BaseTask(AnyTask):
         str_input_default_values = {}
         for inp in self.inputs:
             str_input_default_values[inp.name] = inp.get_default_str(stub_shared_ctx)
-        # Create docstring
         doc = f"{self.description}\n\n"
         if len(self.inputs) > 0:
             doc += "Args:\n"

@@ -401,10 +401,8 @@ def create_agent(
     from pydantic_ai import Agent, DeferredToolRequests
     from pydantic_ai.toolsets import FunctionToolset
 
-    # Expand system prompt with references
     effective_system_prompt = expand_prompt(system_prompt)
 
-    # Wrap tools and toolsets with error handling
     safe_tools = [_wrap_tool(t) for t in tools]
     safe_toolsets = [_wrap_toolset(t) for t in toolsets]
 

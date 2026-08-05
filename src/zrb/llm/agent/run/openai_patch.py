@@ -54,7 +54,6 @@ def patch_openai_model_response_serialization():
             if self.texts:
                 message_param["content"] = "\n\n".join(self.texts)
             elif not self.tool_calls and not self.thinkings:
-                # Only set content=None if there are no tool_calls and no thinkings
                 message_param["content"] = None
             if self.tool_calls:
                 message_param["tool_calls"] = self.tool_calls

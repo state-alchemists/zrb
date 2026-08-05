@@ -45,12 +45,10 @@ install_zinit = CmdTask(
 def setup_zsh(ctx: AnyContext):
     zsh_config = read_file(os.path.join(os.path.dirname(__file__), "zsh_config.sh"))
     zsh_config_file = os.path.expanduser(ctx.input["zsh-config"])
-    # Make sure config file exists
     if not os.path.isfile(zsh_config_file):
         write_file(zsh_config_file, "")
     content = read_file(zsh_config_file)
     if zsh_config in content:
         return
-    # Write config
     write_file(zsh_config_file, [content, zsh_config, ""])
     ctx.print("Setup complete, restart your terminal to continue")

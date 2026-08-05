@@ -17,7 +17,6 @@ async def chunk_and_summarize(
     include_last_user_intent_instruction: bool = False,
 ) -> str:
     """Break history into chunks and summarize them in parallel."""
-    # Pre-calculate texts
     history_texts = []
     for m in messages:
         try:

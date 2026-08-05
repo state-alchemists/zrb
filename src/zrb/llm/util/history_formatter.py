@@ -124,7 +124,6 @@ def _format_request(
     for part in tool_return_parts:
         lines.extend(_format_tool_return(part, pending_tool_calls, full))
 
-    # Show user prompt(s)
     for part in user_prompt_parts:
         content = getattr(part, "content", "")
         ts_display = f"{timestamp} " if timestamp else ""
@@ -142,7 +141,6 @@ def _format_request(
             lines.append(f"  Ref: {dynamic_ref}")
         lines.extend(_indent_lines(str(content), 2, max_lines=indent_max))
 
-    # Retry prompts
     for part in retry_parts:
         content = getattr(part, "content", "")
         tool_name = getattr(part, "tool_name", None)
@@ -236,7 +234,6 @@ def _format_tool_return(
     content = getattr(part, "content", "")
     outcome = getattr(part, "outcome", "success")
 
-    # Status indicator
     status_icon = "✅" if str(outcome) == "success" else "❌"
 
     id_display = tool_call_id or "?"
@@ -349,7 +346,6 @@ def format_timestamp(timestamp) -> str:
 
     try:
         if isinstance(timestamp, str):
-            # Parse ISO format
             if timestamp.endswith("Z"):
                 timestamp = timestamp[:-1] + "+00:00"
             dt = datetime.fromisoformat(timestamp)

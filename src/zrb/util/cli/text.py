@@ -16,12 +16,10 @@ def edit_text(
         if prompt_message.strip() != "":
             prompt_message_eol = f"{prompt_message}\n"
             temp_file.write(prompt_message_eol.encode())
-        # Pre-fill with default content
         if value:
             temp_file.write(value.encode())
         temp_file.flush()
         subprocess.call([editor, temp_file_name])
-        # Read the edited content
         edited_content = read_file(temp_file_name)
     if prompt_message.strip() != "":
         parts = [text.strip() for text in edited_content.split(prompt_message, 1)]

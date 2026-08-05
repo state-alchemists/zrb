@@ -41,15 +41,13 @@ def make_markdown_section(header: str, content: str, as_code: bool = False) -> s
     if content.strip() == "":
         return ""
     if as_code:
-        # Find the longest sequence of backticks in the content
+        # The fence should be one longer than the longest sequence found
         longest_backtick_sequence = 0
-        # Use finditer to find all occurrences of backticks
         for match in re.finditer(r"`+", content):
             longest_backtick_sequence = max(
                 longest_backtick_sequence, len(match.group(0))
             )
 
-        # The fence should be one longer than the longest sequence found
         fence_len = 4
         if longest_backtick_sequence >= fence_len:
             fence_len = longest_backtick_sequence + 1

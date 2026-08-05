@@ -84,7 +84,7 @@ class SubAgentManager(SubAgentManagerLoading, SubAgentManagerSearch):
         self._max_depth = max_depth
         self._agents: dict[str, SubAgentDefinition] = {}
         self._ignore_dirs = IGNORE_DIRS if ignore_dirs is None else ignore_dirs
-        self._loaded: bool = False  # Track if agents have been loaded
+        self._loaded: bool = False
 
     def reload(self):
         """Force re-scan agents. Use after CFG changes or agent file updates."""
@@ -207,7 +207,6 @@ class SubAgentManager(SubAgentManagerLoading, SubAgentManagerSearch):
             elif not getattr(tool, "zrb_is_delegate_tool", False):
                 resolved_tools.append(tool)
 
-        # Apply disallowedTools: remove any tools the definition explicitly denies.
         if definition.disallowed_tools:
             resolved_tools = [
                 t
