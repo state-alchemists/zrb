@@ -39,11 +39,12 @@ OWNED_VOCABULARY = {
         "Turn Sequence",
         "When you don't know",
         "Where the deliverable goes",
-        "Routing work outward",
+        "Delegating to sub-agents",
         "Priority Order",
         "Operating Rules",
         "git diff HEAD",
         "Tool usage",
+        "Efficiency",
     ],
     "persona": ["Response Calibration"],
 }
