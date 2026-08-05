@@ -9,7 +9,7 @@ from three homes that keep bounded-context ownership of their state:
 * `zrb.llm.permission.state`  - permission policy + agent mode (plan/default)
 * `zrb.llm.sandbox.state`     - sandbox policy (filesystem containment)
 * `zrb.llm.tool.ambient_state`  - tool-scoped ambient state (worktree, session)
-* `zrb.llm.tool.file_freshness` - whether the model's view of a file is current
+* `zrb.llm.tool.file_freshness` - whether the model's view of a file is current, and blind-edit streaks
 * `zrb.llm.tool.command_repetition` - repeated shell-invocation counters
 * `zrb.llm.tool.post_write_check` - per-file diagnostic-failure counters
 
@@ -75,16 +75,22 @@ from zrb.llm.tool.command_repetition import (
     command_attempts_warned,
     command_signature,
     mark_warned,
-    record_attempt,
+    outcome_digest,
+    record_outcome,
     reset_command_attempts,
     should_warn,
 )
 from zrb.llm.tool.file_freshness import (
+    clear_all_edit_streaks,
+    clear_edit_streak,
+    edit_streaks,
     file_freshness,
     is_file_fresh,
     is_file_tracked,
     mark_file_fresh,
     mark_file_stale,
+    note_edit_streak,
+    refuse_stale_write,
     reset_file_freshness,
 )
 from zrb.llm.tool.post_write_check import (
@@ -133,11 +139,17 @@ __all__ = [
     "is_file_tracked",
     "mark_file_fresh",
     "mark_file_stale",
+    "refuse_stale_write",
     "reset_file_freshness",
+    "edit_streaks",
+    "note_edit_streak",
+    "clear_edit_streak",
+    "clear_all_edit_streaks",
     "command_attempts",
     "command_attempts_warned",
     "command_signature",
-    "record_attempt",
+    "outcome_digest",
+    "record_outcome",
     "should_warn",
     "mark_warned",
     "reset_command_attempts",

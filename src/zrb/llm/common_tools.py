@@ -119,9 +119,6 @@ def apply_common_tools(host: CommonToolHost) -> None:
 
     # lazy: circular — tool_policy → handler → ui → llm_task → here
     from zrb.llm.tool_call.tool_policy.bash_validation import bash_safe_command_policy
-    from zrb.llm.tool_call.tool_policy.write_freshness_validation import (
-        write_freshness_policy,
-    )
 
     lsp_tools = create_lsp_tools() if detect_available_lsp_servers() else []
     # Worktree tools only make sense inside a git repo — registering them in a
@@ -257,12 +254,6 @@ def apply_common_tools(host: CommonToolHost) -> None:
     add_policy = getattr(host, "add_tool_policy", None)
     if callable(add_policy):
         add_policy(bash_safe_command_policy())
-        # A rule the prompt states but cannot enforce, moved to where it can be
-        # (ADR-0102): do not overwrite a file you have not read since it last
-        # changed. Its sibling rule — notice when you are re-running the same
-        # attempt — rides on the shell tool's own result instead, because a
-        # policy runs in the approval chain and never sees a tool's output.
-        add_policy(write_freshness_policy())
 
 
 def defer_common_tools(host: CommonToolHost) -> None:

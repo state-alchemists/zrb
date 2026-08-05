@@ -134,6 +134,10 @@ async def run_shell_command(
 
         bg_pids = _collect_background_pids(temp_pid_file, process.pid)
 
+        exit_code_str = "(timed out)" if timed_out else str(process.returncode)
+        note = _repetition_note(
+            command, cwd, exit_code_str, stdout_cap.text, stderr_cap.text
+        )
         result = _format_output(
             command,
             cwd,
@@ -144,7 +148,7 @@ async def run_shell_command(
             timed_out,
             timeout,
         )
-        result += _repetition_note(command, cwd)
+        result += note
         if sandbox_note:
             result = f"{sandbox_note}\n{result}"
         return result
@@ -479,36 +483,55 @@ def _assemble_output(
     return "\n".join(output_parts)
 
 
-def _repetition_note(command: str, cwd: str) -> str:
-    """Name a loop once the same command has been re-run past the threshold.
+def _repetition_note(
+    command: str,
+    cwd: str,
+    exit_code_str: str,
+    stdout_str: str,
+    stderr_str: str,
+) -> str:
+    """Name a loop once the same command keeps returning the same answer.
+
+    Keyed on the *outcome*, not the invocation: an honest fix-verify loop
+    (``debug-loop``'s run → fix → run) produces a different result each time and
+    stays silent here, while a stuck one repeats itself and gets named.
 
     Appended rather than folded into ``_suggest_next_step``'s if/elif chain: a
-    command can both fail recognizably *and* be the third identical attempt,
-    and the second observation is the one that breaks the loop.
+    command can both fail recognizably *and* be the third identical outcome, and
+    the second observation is the one that breaks the loop.
     """
     # lazy: leaf module, keeps the counter off the import path of callers that
     # never run a command.
     from zrb.llm.tool.command_repetition import (
+        bump_workspace_revision,
         command_signature,
+        current_workspace_state,
         mark_warned,
-        record_attempt,
+        outcome_digest,
+        record_outcome,
         should_warn,
     )
+    from zrb.llm.tool.file_freshness import clear_all_edit_streaks
 
+    clear_all_edit_streaks()
     signature = command_signature(command, cwd)
-    count = record_attempt(signature)
-    if not should_warn(signature, count, CFG.LLM_REPEATED_ATTEMPT_THRESHOLD):
+    digest = outcome_digest(exit_code_str, stdout_str, stderr_str)
+    # Sampled before the bump below, so it reflects the world this run saw.
+    streak = record_outcome(signature, digest, current_workspace_state())
+    # This run is itself something that happened, so a later invocation of some
+    # other command cannot claim nothing has changed since.
+    bump_workspace_revision()
+    if not should_warn(signature, streak, CFG.LLM_REPEATED_ATTEMPT_THRESHOLD):
         return ""
     mark_warned(signature)
     return (
-        f"\n\n[SYSTEM SUGGESTION]: This is attempt {count} at this exact "
-        "command in this directory. Re-running input you have already run is "
-        "not new evidence, and the result above is one you have already seen. "
-        "Change what you are testing: read the code path instead of exercising "
-        "it again, add output that separates your competing hypotheses, or "
-        "narrow to the smallest failing case. If you cannot say what this "
-        "attempt told you that the last one did not, stop and report what you "
-        "cannot get past."
+        f"\n\n[SYSTEM SUGGESTION]: This command has now told you nothing new "
+        f"{streak} times in a row — either the same exit code and output, or "
+        "no file changed since the previous run. Change what you are "
+        "testing: read the code path instead of exercising it again, add output "
+        "that separates your competing hypotheses, or narrow to the smallest "
+        "failing case. If you cannot say what the next run would tell you that "
+        "this one did not, stop and report what you cannot get past."
     )
 
 

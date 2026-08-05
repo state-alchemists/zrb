@@ -86,18 +86,21 @@ def test_shell_safety_policy_ships_with_the_shell_tools(monkeypatch):
     assert _policy_owners(host) >= {"bash_safe_command_policy"}
 
 
-def test_write_freshness_ships_as_a_policy(monkeypatch):
-    """ADR-0102: a stale whole-file overwrite is a runtime rule, not a prose one.
+def test_runtime_rules_do_not_ship_as_tool_policies(monkeypatch):
+    """ADR-0102: both runtime rules live inside their tools, not in the chain.
 
-    Its sibling — noticing a repeated attempt — is deliberately NOT here. A
-    policy runs in the approval chain and never sees a tool's result, so that
-    one lives inside the shell tool (see test_command_repetition.py).
+    The approval chain is only consulted when a ToolCallHandler is bound, which
+    a headless run does not do — a guard registered there silently evaporates in
+    exactly the mode the benchmark uses. Freshness now lives in `write_file`
+    (test_file_freshness_guard.py) and repetition in `run_shell_command`
+    (test_command_repetition.py).
     """
     monkeypatch.setenv("ZRB_LLM_JOURNAL_ENABLED", "true")
     host = RecordingHost()
     apply_common_tools(host)
     owners = _policy_owners(host)
-    assert "write_freshness_policy" in owners
+    assert "bash_safe_command_policy" in owners
+    assert "write_freshness_policy" not in owners
     assert "repetition_policy" not in owners
 
 

@@ -1,16 +1,28 @@
-"""The repeated-attempt counter, exercised through the shell tool that owns it.
+"""The repeated-outcome counter, exercised through the shell tool that owns it.
 
-An earlier version of this lived in a ``tool_policy``. Policies run in the
-*approval* chain — ``next_handler`` returns the next policy's decision, never
-the tool's output — so the note was appended to ``None`` and silently dropped
-on every call. These tests drive the real tool so that shape cannot come back.
+Two shapes this must keep apart, both drawn from benchmark runs:
+
+* A **stuck loop** — one command re-run until the clock ran out (``pytest -q``
+  x16, ``python3 main.py`` x24). Worth naming.
+* An **honest fix-verify loop** — ``debug-loop``'s run → fix → run → fix → run.
+  An earlier version counted invocations, so every *successful* cell of that
+  challenge, across four models, tripped the nudge for doing what the task
+  required. Keying on the outcome is what tells the two apart.
+
+An even earlier version lived in a ``tool_policy``, where ``next_handler``
+returns the next policy's decision rather than the tool's output, so the note
+was appended to ``None`` and dropped on every call. These tests drive the real
+tool so neither shape can come back.
 """
 
 import pytest
 
 from zrb.config.config import CFG
 from zrb.llm.tool.command_repetition import reset_command_attempts
+from zrb.llm.tool.file_write import write_file
 from zrb.llm.tool.shell import run_shell_command
+
+_NUDGE = "told you nothing new"
 
 
 @pytest.fixture(autouse=True)
@@ -21,56 +33,107 @@ def _clean_state():
 
 
 @pytest.mark.asyncio
-async def test_the_first_attempts_are_left_alone():
-    """Re-running a suite twice is ordinary; only a loop is worth naming."""
+async def test_the_first_repeats_are_left_alone():
+    """Re-running a suite twice is ordinary; only a stuck streak is worth naming."""
     first = await run_shell_command("echo one")
     second = await run_shell_command("echo one")
 
-    assert "[SYSTEM SUGGESTION]" not in first
-    assert "[SYSTEM SUGGESTION]" not in second
+    assert _NUDGE not in first
+    assert _NUDGE not in second
 
 
 @pytest.mark.asyncio
-async def test_the_third_identical_attempt_is_named():
-    """All three benchmark timeouts re-ran one command 6, 16, and 24 times."""
+async def test_the_third_identical_outcome_is_named():
     for _ in range(2):
         await run_shell_command("echo loop")
     third = await run_shell_command("echo loop")
 
-    assert "attempt 3 at this exact command" in third
+    assert _NUDGE in third
+    assert "3 times in a row" in third
     assert "stop and report" in third
 
 
 @pytest.mark.asyncio
-async def test_the_note_fires_once_not_on_every_later_call():
-    """One loop earns one escalation; nagging would be noise inside the noise."""
+async def test_a_fix_verify_loop_is_not_a_stuck_loop(tmp_path):
+    """The regression that shipped: run → fix → run → fix → run must stay silent.
+
+    Same command every time, different result every time — which is precisely
+    what progress looks like. ``debug-loop`` requires this, and every passing
+    cell of it was being told to stop.
+    """
+    script = tmp_path / "run.sh"
+    marker = tmp_path / "stage"
+    script.write_text(f'cat "{marker}"\n')
+    cmd = f'sh "{script}"'
+
+    results = []
+    for stage in ("error one", "error two", "success"):
+        await write_file(str(marker), stage + "\n")
+        results.append(await run_shell_command(cmd))
+
+    assert all(_NUDGE not in r for r in results)
+    assert "success" in results[-1]
+
+
+@pytest.mark.asyncio
+async def test_a_changed_outcome_resets_the_streak(tmp_path):
+    """Two stuck runs, then progress, then two more: no nudge at any point."""
+    marker = tmp_path / "out"
+    await write_file(str(marker), "same\n")  # via the tool, so it stays writable
+    cmd = f'cat "{marker}"'
+
+    await run_shell_command(cmd)
+    second = await run_shell_command(cmd)
+    await write_file(str(marker), "different\n")
+    third = await run_shell_command(cmd)
+    fourth = await run_shell_command(cmd)
+
+    assert all(_NUDGE not in r for r in (second, third, fourth))
+
+
+@pytest.mark.asyncio
+async def test_a_restuck_command_can_be_named_again(tmp_path):
+    """Getting unstuck clears the warning, so a later stall is still reported."""
+    marker = tmp_path / "out"
+    await write_file(str(marker), "stuck\n")  # via the tool, so it stays writable
+    cmd = f'cat "{marker}"'
+
+    first_streak = [await run_shell_command(cmd) for _ in range(3)]
+    await write_file(str(marker), "moved\n")
+    second_streak = [await run_shell_command(cmd) for _ in range(3)]
+
+    assert any(_NUDGE in r for r in first_streak)
+    assert any(_NUDGE in r for r in second_streak)
+
+
+@pytest.mark.asyncio
+async def test_the_note_fires_once_per_streak():
     for _ in range(3):
         await run_shell_command("echo loop")
     fourth = await run_shell_command("echo loop")
 
-    assert "[SYSTEM SUGGESTION]" not in fourth
+    assert _NUDGE not in fourth
 
 
 @pytest.mark.asyncio
 async def test_a_varied_command_is_not_a_repeat():
-    """Varying the command IS changing what you test — the desired behaviour."""
     await run_shell_command("echo a")
     await run_shell_command("echo b")
     third = await run_shell_command("echo c")
 
-    assert "[SYSTEM SUGGESTION]" not in third
+    assert _NUDGE not in third
 
 
 @pytest.mark.asyncio
 async def test_the_same_command_in_another_directory_is_another_test(tmp_path):
-    """`pytest -q` in two packages is two tests, not one repeated attempt."""
+    """``pytest -q`` in two packages is two tests, not one repeated attempt."""
     other = tmp_path / "elsewhere"
     other.mkdir()
     for _ in range(2):
         await run_shell_command("echo scoped")
     third = await run_shell_command("echo scoped", cwd=str(other))
 
-    assert "[SYSTEM SUGGESTION]" not in third
+    assert _NUDGE not in third
 
 
 @pytest.mark.asyncio
@@ -82,22 +145,18 @@ async def test_the_command_still_runs_and_keeps_its_output():
 
     assert "payload" in third
     assert "Exit Code: 0" in third
-    assert "attempt 3" in third
+    assert _NUDGE in third
 
 
 @pytest.mark.asyncio
 async def test_the_note_coexists_with_a_failure_suggestion():
-    """A command can both fail recognizably and be the third identical attempt.
-
-    The failure hint is chosen by an if/elif chain; the loop observation is
-    appended separately, because the second one is what breaks the loop.
-    """
+    """A command can both fail recognizably and be the third identical outcome."""
     for _ in range(2):
         await run_shell_command("nonexistent-binary-xyz")
     third = await run_shell_command("nonexistent-binary-xyz")
 
     assert "command not found" in third.lower()
-    assert "attempt 3 at this exact command" in third
+    assert _NUDGE in third
 
 
 @pytest.mark.asyncio
@@ -107,19 +166,19 @@ async def test_a_zero_threshold_disables_it(monkeypatch):
     for _ in range(5):
         result = await run_shell_command("echo off")
 
-    assert "[SYSTEM SUGGESTION]" not in result
+    assert _NUDGE not in result
 
 
 @pytest.mark.asyncio
 async def test_bash_shares_the_counter():
-    """Bash delegates to the shell tool, so the count must not fork."""
+    """Bash delegates to the shell tool, so the streak must not fork."""
     from zrb.llm.tool.bash import run_bash_command
 
     await run_shell_command("echo shared")
     await run_bash_command("echo shared")
     third = await run_bash_command("echo shared")
 
-    assert "attempt 3 at this exact command" in third
+    assert _NUDGE in third
 
 
 @pytest.mark.asyncio
@@ -137,4 +196,4 @@ async def test_background_launches_are_not_counted(monkeypatch):
     for _ in range(3):
         result = await run_shell_command("sleep 1", background=True)
 
-    assert "[SYSTEM SUGGESTION]" not in result
+    assert _NUDGE not in result

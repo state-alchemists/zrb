@@ -16,6 +16,22 @@ failing-tests t3       145    one path x128        ``pytest -q`` x16
 Every repeat was byte-identical, so a counter this simple names all three at
 attempt 3 instead of 24, 6, and 16.
 
+**A repeated command is not by itself a loop.** Counting invocations alone was
+wrong and shipped once: `debug-loop` asks the agent to run, fix, run, fix, run,
+and every *successful* cell of that challenge — across four models — tripped the
+nudge for doing exactly what the task required. Re-running a command after
+changing the code is new evidence; re-running it and getting the same answer is
+not. So the count keys on the **outcome**: same command, same exit code, same
+output digest, consecutively. A run whose result differs from the last one
+resets the streak, which is what makes an honest fix-verify loop invisible here
+and a stuck one visible.
+
+One outcome the digest cannot catch: a command whose output is nondeterministic
+(a concurrency simulation reporting different numbers each run) never repeats
+itself, so re-running it forever would look like progress. A second ground
+covers that — same command, and no file written or edited since the last run of
+it. See :func:`record_outcome`.
+
 This lives beside the shell tool rather than in a ``tool_policy`` because
 policies run in the *approval* chain: their ``next_handler`` returns the next
 policy's decision, never the tool's output, so a policy physically cannot
@@ -26,16 +42,38 @@ path, so the count belongs there (ADR-0102).
 
 from __future__ import annotations
 
-from collections import Counter
+import hashlib
 from contextvars import ContextVar
 
-# "<cwd>\0<command>" -> attempts so far in this context.
-command_attempts: ContextVar[dict[str, int]] = ContextVar(
+# "<cwd>\0<command>" -> (outcome digest, consecutive no-new-evidence runs,
+# workspace revision at the time of the run).
+command_attempts: ContextVar[dict[str, tuple[str, int, str]]] = ContextVar(
     "command_attempts", default={}
 )
 
+# Bumped by every successful write or edit, and by every command run. Its only
+# job is to answer "has *anything at all* happened since I last ran this?" for a
+# command whose own output is nondeterministic and so can never repeat its
+# digest. Counting other commands too keeps the second ground deliberately
+# narrow: it fires only for back-to-back identical invocations with nothing in
+# between, where there is no reading under which the second run learned
+# something. A fix applied by `sed -i` rather than by Edit still counts as a
+# change, which is the false positive worth avoiding.
+workspace_revision: ContextVar[int] = ContextVar("workspace_revision", default=0)
+
+
+def bump_workspace_revision() -> None:
+    """Record that a file changed. Called by the write and edit tools."""
+    workspace_revision.set(workspace_revision.get() + 1)
+
+
+def current_workspace_state() -> str:
+    return str(workspace_revision.get())
+
+
 # Signatures already called out, so one loop earns one escalation rather than a
-# note on every later call.
+# note on every later call. Cleared for a signature whose outcome changes, so a
+# command that gets unstuck and later re-sticks can be named again.
 command_attempts_warned: ContextVar[frozenset[str]] = ContextVar(
     "command_attempts_warned", default=frozenset()
 )
@@ -51,17 +89,45 @@ def command_signature(command: str, cwd: str) -> str:
     return f"{cwd}\0{command.strip()}"
 
 
-def record_attempt(signature: str) -> int:
-    """Record another attempt at *signature* and return the new count."""
-    counts = Counter(command_attempts.get())
-    counts[signature] += 1
-    command_attempts.set(dict(counts))
-    return counts[signature]
+def outcome_digest(exit_code: str, stdout: str, stderr: str) -> str:
+    """Fingerprint what a run *told* the model, which is what can go stale."""
+    payload = f"{exit_code}\0{stdout.strip()}\0{stderr.strip()}"
+    return hashlib.sha256(payload.encode("utf-8", "replace")).hexdigest()
 
 
-def should_warn(signature: str, count: int, threshold: int) -> bool:
-    """Whether this attempt is the one that earns the escalation."""
-    if threshold <= 0 or count < threshold:
+def record_outcome(signature: str, digest: str, workspace_state: str = "") -> int:
+    """Record a run and return how many consecutive runs count as no-new-evidence.
+
+    A run is "the same again" on either of two grounds:
+
+    * **Same outcome.** Identical exit code and output — the primary signal, and
+      the one that leaves an honest fix-verify loop alone.
+    * **Nothing changed in between.** Same command, and no file written or
+      edited since the last run of it. This covers the case the digest cannot:
+      a nondeterministic command (a concurrency simulation whose numbers differ
+      every time) never repeats its output, so re-running it without touching
+      anything would otherwise look like progress forever.
+
+    Either ground continues the streak; a run that both differs *and* follows a
+    change resets it to 1.
+    """
+    state = command_attempts.get()
+    previous = state.get(signature)
+    if previous is None:
+        streak = 1
+    else:
+        prev_digest, prev_streak, prev_workspace = previous
+        continues = prev_digest == digest or prev_workspace == workspace_state
+        streak = prev_streak + 1 if continues else 1
+    command_attempts.set({**state, signature: (digest, streak, workspace_state)})
+    if streak == 1:
+        _clear_warned(signature)
+    return streak
+
+
+def should_warn(signature: str, streak: int, threshold: int) -> bool:
+    """Whether this run is the one that earns the escalation."""
+    if threshold <= 0 or streak < threshold:
         return False
     return signature not in command_attempts_warned.get()
 
@@ -71,6 +137,13 @@ def mark_warned(signature: str) -> None:
 
 
 def reset_command_attempts() -> None:
-    """Drop all counts. For tests and for starting a fresh session."""
+    """Drop all state. For tests and for starting a fresh session."""
     command_attempts.set({})
     command_attempts_warned.set(frozenset())
+    workspace_revision.set(0)
+
+
+def _clear_warned(signature: str) -> None:
+    warned = command_attempts_warned.get()
+    if signature in warned:
+        command_attempts_warned.set(warned - {signature})
