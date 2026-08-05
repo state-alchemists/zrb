@@ -36,7 +36,7 @@ import asyncio
 import os
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Callable
 
 from zrb.config.config import CFG
@@ -334,7 +334,7 @@ def _render_parts(
         active_wt = ""
 
     parts: list[str] = [
-        f"- Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        f"- Time: {datetime.now().astimezone().strftime('%Y-%m-%d %H:%M:%S %Z (UTC%z)')}",
     ]
     parts.extend(git_lines)
     if active_wt:
