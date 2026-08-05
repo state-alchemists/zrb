@@ -171,6 +171,41 @@ class TestSystemContext:
         assert "NOT supported by this model" in rendered
         assert "one tool call per response" in rendered
 
+    def test_the_override_outranks_the_tool_descriptions_too(self):
+        """Batching is now urged in two places the override has to beat.
+
+        `workflow`'s Tool usage rule and `read_file`'s docstring both tell the
+        model to batch. For a deny-listed model the request-level
+        `parallel_tool_calls=False` is documented as defence-in-depth only —
+        Ollama-cloud ignores it — so this line is the mechanism that actually
+        works, and it has to name what it overrides.
+        """
+        ctx = MagicMock(spec=AnyContext)
+        received = []
+        system_context(
+            ctx,
+            "",
+            lambda c, p: received.append(p) or "ok",
+            model="ollama:glm-4.7:cloud",
+        )
+        rendered = received[0]
+        assert "overrides every batching instruction" in rendered
+        assert "tool description" in rendered
+
+    def test_read_file_defers_to_the_system_context_override(self):
+        """The docstring must not contradict the line that overrides it.
+
+        A tool description is static, so it cannot be withheld per model. It can
+        only name its own exception — otherwise a deny-listed model reads "call
+        this in parallel" and "issue exactly one tool call" in the same request.
+        """
+        from zrb.llm.tool.file_read import read_file
+
+        doc = " ".join((read_file.__doc__ or "").split())
+
+        assert "in parallel" in doc
+        assert "unless System Context says this model cannot batch" in doc
+
     def test_no_model_is_told_that_batching_is_supported(self):
         """Regression: the affirmative branch was unreachable and gated the rule.
 

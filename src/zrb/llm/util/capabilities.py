@@ -203,11 +203,25 @@ _VIDEO_PATTERNS = (
     r"gemini-3",
 )
 
-# Models known to malform OpenAI-spec parallel tool calls (they emit a
-# single tool_call with concatenated `name` and concatenated `arguments`
-# JSON, e.g. ``name="ActivateSkillReadRead"``). The model itself can't
-# follow text-level guidance to stop; the only reliable fix is to set
-# ``parallel_tool_calls=False`` at the provider request level.
+# Models known to *malform* OpenAI-spec parallel tool calls: they emit a single
+# tool_call with concatenated `name` and concatenated `arguments` JSON, e.g.
+# ``name="ActivateSkillReadRead"``, and both calls are lost. The model cannot
+# follow text-level guidance to stop, so it is corrected in two places — the
+# System Context override line and ``parallel_tool_calls=False`` on the request.
+#
+# This list is deliberately *only* that failure mode. "Does not support parallel
+# tool calls" covers three distinct behaviours, and only one belongs here:
+#
+#   1. **Malforms them** (this list). Actively destructive — the turn loses work.
+#   2. **Rejects the parameter.** The provider 400s on `parallel_tool_calls`
+#      itself: OpenAI's o-series ("Unsupported parameter: 'parallel_tool_calls'
+#      is not supported with this model"), kimi-k2.5 via NVIDIA NIM ("This model
+#      only supports single tool-calls at once!"). Listing one of those here
+#      would make `_apply_capability_constraints` send the very parameter that
+#      breaks the request. Do not add them until that is split out.
+#   3. **Simply never emits more than one** — gpt-oss via Ollama, and most
+#      smaller local models. Harmless: encouragement to batch is a no-op, the
+#      model issues one call and the turn proceeds. Nothing to declare.
 _NO_PARALLEL_TOOL_CALLS = (
     r"minimax-m2\.7",
     r"glm-4\.7",

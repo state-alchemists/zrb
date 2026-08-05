@@ -139,8 +139,11 @@ def _format_parallel_tool_call_line(model: "Any") -> str | None:
     supports = model_capabilities.get(model).supports_parallel_tool_calls
     if supports is False:
         return (
-            "- Parallel tool calls: NOT supported by this model — override the "
-            "batching rule and issue exactly one tool call per response."
+            "- Parallel tool calls: NOT supported by this model — issue exactly "
+            "one tool call per response. This overrides every batching "
+            "instruction elsewhere, in the workflow rules and in any tool "
+            "description. Two calls in one response arrive as a single "
+            "malformed call with the names concatenated, and both are lost."
         )
     return None
 

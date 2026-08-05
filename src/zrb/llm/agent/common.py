@@ -497,6 +497,20 @@ def _apply_capability_constraints(
        models' behavior. Both layers use
        the same capability registry, so toggling
        ``supports_parallel_tool_calls`` in one place updates both.
+
+    .. warning::
+
+       Some providers reject ``parallel_tool_calls`` outright rather than
+       honouring or ignoring it — OpenAI's o-series answers "Unsupported
+       parameter: 'parallel_tool_calls' is not supported with this model" with
+       a 400, and kimi-k2.5 behind NVIDIA NIM answers "This model only supports
+       single tool-calls at once!". For such a model, declaring
+       ``supports_parallel_tool_calls=False`` would send the one parameter that
+       breaks every request — a worse failure than the batching it prevents.
+       Splitting "malforms parallel calls" from "rejects the flag" into two
+       fields is the fix if that case ever needs supporting; until then the
+       registry comment on ``_NO_PARALLEL_TOOL_CALLS`` says to keep such models
+       off the list.
     """
     # lazy: zrb internal (heavy via transitive / circular)
     from zrb.llm.util.capabilities import model_capabilities
