@@ -83,7 +83,24 @@ def test_shell_safety_policy_ships_with_the_shell_tools(monkeypatch):
     monkeypatch.setenv("ZRB_LLM_JOURNAL_ENABLED", "true")
     host = RecordingHost()
     apply_common_tools(host)
-    assert len(host.policies) == 1
+    assert _policy_owners(host) >= {"bash_safe_command_policy"}
+
+
+def test_rules_the_prompt_cannot_enforce_ship_as_policies(monkeypatch):
+    """ADR-0102: freshness and repetition are runtime rules, not prose ones.
+
+    Both were in the prompt and both were ignored by models that had read them,
+    so they travel with the tools whose misuse they catch.
+    """
+    monkeypatch.setenv("ZRB_LLM_JOURNAL_ENABLED", "true")
+    host = RecordingHost()
+    apply_common_tools(host)
+    assert _policy_owners(host) >= {"write_freshness_policy", "repetition_policy"}
+
+
+def _policy_owners(host) -> set[str]:
+    """The factory each registered policy closure came from."""
+    return {policy.__qualname__.split(".")[0] for policy in host.policies}
 
 
 def test_hosts_without_an_approval_channel_are_skipped(monkeypatch):

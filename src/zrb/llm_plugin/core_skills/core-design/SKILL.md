@@ -1,6 +1,6 @@
 ---
 name: core-design
-description: "Activate when the turn produces a design — system architecture, API contract, data model, component decomposition, or trade-off analysis. Provides the Constraints → Explore → Decide → Specify → Plan workflow."
+description: "Activate when the turn produces a design — system architecture, API contract, data model, component decomposition, or trade-off analysis. Covers the thinking, not the document: when the deliverable is written up (ADR, RFC, design doc), activate core-writing too. Provides the Constraints → Explore → Decide → Specify → Plan workflow."
 user-invocable: false
 ---
 # Skill: core-design

@@ -283,3 +283,110 @@ def test_timeout_docstring_points_long_running_work_at_background():
 
     assert "background=True" in doc
     assert "server" in doc
+
+
+def test_docstring_points_unbounded_output_at_a_summarizing_form():
+    """The output hazard needs naming next to the interactive-hang hazard.
+
+    Three benchmarked trials ran an unscoped `git diff` in a dirty repo, each
+    producing ~139MB and timing out. The docstring covered stdin hangs but said
+    nothing about commands whose output has no ceiling.
+    """
+    doc = run_shell_command.__doc__ or ""
+
+    assert "--stat" in doc
+    assert "timeout" in doc
+
+
+@pytest.mark.asyncio
+async def test_full_output_survives_bounded_memory_retention(monkeypatch):
+    """The head must stay recoverable even though it is never held in RAM.
+
+    Retention is tail-biased and bounded, so the dump file is the only place
+    the head still exists. If spilling regressed, this is where it shows.
+    """
+    monkeypatch.setattr(CFG, "LLM_MAX_OUTPUT_CHARS", 40)
+    mock_proc = _make_mock_process(stdout_lines=[f"line-{i:04d}\n" for i in range(500)])
+    monkeypatch.setattr(
+        shell_mod.asyncio,
+        "create_subprocess_exec",
+        AsyncMock(return_value=mock_proc),
+    )
+
+    res = await run_shell_command("emit", shell="node")
+
+    assert "line-0499" in res, "the tail must reach the model"
+    assert "line-0000" not in res, "the head must not be retained in memory"
+    dump_path = res.split("saved to ")[1].split(" ")[0]
+    dumped = open(dump_path, encoding="utf-8").read()
+    assert "line-0000" in dumped and "line-0499" in dumped
+
+
+@pytest.mark.asyncio
+async def test_console_echo_stops_at_the_display_cap(monkeypatch):
+    """Echoing is per line and costs a regex plus a print; it needs a ceiling.
+
+    Spies on the module's own printer rather than capturing a stream: zrb_print
+    resolves its sink at call time, so fd-level capture does not see it.
+    """
+    printed: list[str] = []
+    monkeypatch.setattr(CFG, "LLM_MAX_CONSOLE_OUTPUT_CHARS", 100)
+    monkeypatch.setattr(CFG, "LLM_MAX_OUTPUT_CHARS", 100000)
+    monkeypatch.setattr(
+        shell_mod, "zrb_print", lambda text, **kwargs: printed.append(text)
+    )
+    mock_proc = _make_mock_process(stdout_lines=[f"row-{i:04d}\n" for i in range(300)])
+    monkeypatch.setattr(
+        shell_mod.asyncio,
+        "create_subprocess_exec",
+        AsyncMock(return_value=mock_proc),
+    )
+
+    res = await run_shell_command("emit", shell="node")
+    console = "".join(printed)
+
+    assert "console output capped" in console
+    assert "row-0299" not in console, "echo stopped at the cap"
+    assert "row-0299" in res, "capture is unaffected by the display cap"
+
+
+@pytest.mark.asyncio
+async def test_timeout_after_flooding_is_not_diagnosed_as_a_hang(monkeypatch):
+    """A command killed mid-write was not waiting on stdin.
+
+    The old suggestion sent the model to `ps aux | grep` for a process that was
+    already dead, and never named the actual remedy — bounding the output.
+    """
+    monkeypatch.setattr(CFG, "LLM_MAX_OUTPUT_CHARS", 50)
+
+    async def _never_finishes(*args, **kwargs):
+        await asyncio.sleep(10)
+
+    mock_proc = _make_mock_process(stdout_lines=[f"x-{i:05d}\n" for i in range(400)])
+    mock_proc.wait = _never_finishes
+    mock_proc.returncode = None
+    monkeypatch.setattr(
+        shell_mod.asyncio,
+        "create_subprocess_exec",
+        AsyncMock(return_value=mock_proc),
+    )
+    monkeypatch.setattr(shell_mod, "terminate_process", AsyncMock())
+
+    res = await run_shell_command("emit", shell="node", timeout=1)
+
+    assert "(timed out)" in res
+    assert "still writing, not waiting on input" in res
+    assert "--stat" in res
+    assert "ps aux" not in res
+
+
+@pytest.mark.asyncio
+async def test_timeout_without_output_still_reads_as_a_possible_hang(monkeypatch):
+    """The quiet timeout keeps the original diagnosis — nothing was produced."""
+    monkeypatch.setattr(shell_mod, "terminate_process", AsyncMock())
+
+    res = await run_shell_command("sleep 5", timeout=1)
+
+    assert "(timed out)" in res
+    assert "ps aux" in res
+    assert "still writing" not in res

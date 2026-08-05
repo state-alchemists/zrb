@@ -298,6 +298,12 @@ async def write_todos(
     ("pending"|"in_progress"|"completed"|"cancelled", default "pending"), id (auto-assigned
     if omitted)}. replace=True (default) overwrites all; replace=False merges.
     To advance status, call again with the full list (replace=True).
+
+    Mark an item `completed` only once its work is done *and* verified — the
+    test run, the read-back, the grep. Never on intent, and never because the
+    edit that should accomplish it has landed. An item whose verification is
+    still outstanding stays `in_progress`; one that is blocked stays
+    `in_progress` and gains a follow-up item naming the blocker.
     """
     session_name = session or get_current_context_session()
 

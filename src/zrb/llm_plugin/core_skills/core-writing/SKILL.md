@@ -1,6 +1,6 @@
 ---
 name: core-writing
-description: "Activate when the turn produces substantial prose — docs, copy, proposals, feedback, commit/PR text, or UI strings. Provides copywriting frameworks, tone guidance, and an editing workflow."
+description: "Activate when the turn produces substantial prose — docs, copy, proposals, feedback, commit/PR text, or UI strings. Includes documents that record technical work: an ADR, RFC, design doc, postmortem, or migration guide is a written deliverable and needs this alongside whichever skill covers its subject. Provides copywriting frameworks, tone guidance, and an editing workflow."
 user-invocable: false
 ---
 # Skill: core-writing

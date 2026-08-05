@@ -80,10 +80,13 @@ async def format_post_write_diagnostics(abs_path: str) -> str:
         "[SYSTEM SUGGESTION]: Do not issue another edit to this file from memory. "
         "`Read` the file (or the lines above) to see its current state first, then "
         "make one targeted fix. If this file already reported errors on a previous "
-        "write, stop patching it — rewrite the whole file with `Write` instead, "
-        "since repeated partial edits are what produced this state. If the errors "
-        "name something outside this file (a missing import, an undefined symbol "
-        "defined elsewhere), fix that file rather than re-editing this one."
+        "write, stop patching it — `Read` it in full and then rewrite it with "
+        "`Write`, since repeated partial edits are what produced this state. The "
+        "read is not optional: the file no longer matches whatever you last saw "
+        "whole, and a `Write` built from that memory reverts the edits between. "
+        "If the errors name something outside this file (a missing import, an "
+        "undefined symbol defined elsewhere), fix that file rather than "
+        "re-editing this one."
     )
 
 

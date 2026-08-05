@@ -262,9 +262,9 @@ To understand Zrb's core design decisions (such as the strict use of `asyncio`, 
 
 ## Context Propagation Internals
 
-Zrb uses Python's `contextvars.ContextVar` to thread execution state through async coroutines without explicit parameter passing. There are eleven `ContextVar` instances across the codebase, split into five layers. The single source of truth is `src/zrb/contextvars.py` (a re-export index); update this section whenever you add, remove, or rename a `ContextVar`.
+Zrb uses Python's `contextvars.ContextVar` to thread execution state through async coroutines without explicit parameter passing. There are fifteen `ContextVar` instances across the codebase, split into six layers. The single source of truth is `src/zrb/contextvars.py` (a re-export index); update this section whenever you add, remove, or rename a `ContextVar`.
 
-### The Five Layers
+### The Six Layers
 
 **Layer 1 — Task execution** (`src/zrb/context/any_context.py`):
 
@@ -299,15 +299,25 @@ All five are set at the start of `run_agent()` and reset in its `finally` block.
 |---|---|---|
 | `current_sandbox_policy` | `SandboxPolicy \| None` | In-force filesystem-containment policy (`None` = resolve from `CFG.LLM_SANDBOX_*`, which is disabled unless the deployment opted in). Set by `run_agent()` from the explicit arg or inherited from a parent run; reset in its `finally` block. Consumed by the `_sandbox_gate` in `agent/common.py` and the shell tools' OS-sandbox wrapper. |
 
-**Layer 5 — Tool ambient state** (`src/zrb/llm/tool/worktree.py`, `src/zrb/llm/tool/plan.py`, `src/zrb/llm/tool/ask.py`):
+**Layer 5 — Tool ambient state** (`src/zrb/llm/tool/worktree.py`, `src/zrb/llm/tool/plan.py`, `src/zrb/llm/tool/ask.py`, `src/zrb/llm/tool/file_freshness.py`):
 
 | Variable | Type | Purpose |
 |---|---|---|
 | `active_worktree` | `str` | Path of the worktree the agent is currently operating in (set by `EnterWorktree`, cleared by `ExitWorktree`) |
 | `_current_session` | `str` | Session id used by the todo tools so they default to the right conversation when called without an explicit `session=` |
 | `interactive_mode` | `bool` | Whether the current chat session is interactive — gates `ask_user_question` so non-interactive runs short-circuit instead of blocking on stdin |
+| `file_freshness` | `dict[str, bool]` | Per-path: whether the model's full-content view of the file is current. `Read`/`Write` set it true, `Edit` sets it false. Read by `write_freshness_policy` to refuse a blind whole-file overwrite (ADR-0102). |
 
 Set/cleared by their owning tool implementations rather than at a single entry point.
+
+**Layer 6 — Tool policy state** (`src/zrb/llm/tool_call/tool_policy/repetition_state.py`):
+
+| Variable | Type | Purpose |
+|---|---|---|
+| `repetition_counts` | `dict[str, int]` | How many times each byte-identical shell command has been issued, so the Recovery ladder can be enforced at runtime rather than in prose (ADR-0102) |
+| `repetition_warned` | `frozenset[str]` | Signatures already nudged, so one loop yields one escalation instead of a note on every subsequent call |
+
+Kept in a leaf module so `zrb/contextvars.py` can index them without importing the policy's own dependency graph (handler → UI → task).
 
 ### The Scoping Pattern
 

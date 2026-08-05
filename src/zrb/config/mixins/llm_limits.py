@@ -28,8 +28,16 @@ class LLMLimitsMixin:
         self.DEFAULT_LLM_MODEL_FETCH_TIMEOUT: str = "5000"
         self.DEFAULT_LLM_GIT_CMD_TIMEOUT: str = "5000"
         self.DEFAULT_LLM_MAX_OUTPUT_CHARS: str = "100000"
+        # 10x the model-facing cap: generous enough that a normal build, test
+        # run, or install still scrolls in full, small enough that a runaway
+        # command (an unscoped `git diff` in a dirty monorepo) cannot spend
+        # minutes of wall clock being printed.
+        self.DEFAULT_LLM_MAX_CONSOLE_OUTPUT_CHARS: str = "1000000"
         self.DEFAULT_LLM_MAX_TOOL_RESULT_CHARS: str = "100000"
         self.DEFAULT_LLM_MAX_COMPLETION_FILES: str = "5000"
+        # 3 matches the Recovery ladder in workflow.md ("by the third, change
+        # what you are testing"). The nudge fires on the third identical run.
+        self.DEFAULT_LLM_REPEATED_ATTEMPT_THRESHOLD: str = "3"
         # Image scaling — 1568px is Anthropic's no-extra-cost tier; JPEG q85 is
         # near-lossless for screenshots while halving size vs. PNG re-encode.
         self.DEFAULT_LLM_MAX_IMAGE_DIMENSION: str = "1568"
@@ -150,6 +158,18 @@ class LLMLimitsMixin:
         doc="Maximum characters for tool output (shell commands, file reads).",
     )
 
+    LLM_MAX_CONSOLE_OUTPUT_CHARS = EnvField(
+        int,
+        doc=(
+            "Cap (characters) on how much of a shell command's output is "
+            "mirrored to the console. Separate from LLM_MAX_OUTPUT_CHARS, "
+            "which caps what the model sees: a human watching a build wants "
+            "far more scrollback than the model needs, but neither wants a "
+            "runaway command echoed line by line. Beyond the cap the output "
+            "is still captured and still reaches the model."
+        ),
+    )
+
     LLM_MAX_TOOL_RESULT_CHARS = EnvField(
         int,
         doc=(
@@ -172,4 +192,14 @@ class LLMLimitsMixin:
 
     LLM_MAX_COMPLETION_FILES = EnvField(
         int, doc="Maximum number of files for completion."
+    )
+
+    LLM_REPEATED_ATTEMPT_THRESHOLD = EnvField(
+        int,
+        doc=(
+            "How many byte-identical shell invocations before the tool result "
+            "carries a [SYSTEM SUGGESTION] to change approach. Enforces the "
+            "Recovery ladder at runtime rather than in prose. 0 disables it; "
+            "the call itself is never blocked."
+        ),
     )

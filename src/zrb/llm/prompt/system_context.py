@@ -119,7 +119,15 @@ def system_context(
 
 
 def _format_parallel_tool_call_line(model: "Any") -> str | None:
-    """Whether this model can batch tool calls — a stable fact about the model.
+    """Announce only the *exception* to the prompt's batch-by-default rule.
+
+    There is no affirmative branch on purpose (ADR-0101). The registry resolves
+    ``supports_parallel_tool_calls`` to ``True`` for no built-in model — it is a
+    deny-list — so an affirmative line gated on it could never render, while
+    ``workflow.md`` gated batching on that line appearing. Every model therefore
+    read the rule as unsatisfied and serialized its calls. Batching is now the
+    unconditional default in the prompt, and this line exists to withdraw it
+    from the models known to malform parallel calls.
 
     Session-invariant (it only changes on ``/model``, which recomposes the
     prompt anyway), so it belongs with the other system facts rather than in a
@@ -129,17 +137,12 @@ def _format_parallel_tool_call_line(model: "Any") -> str | None:
     from zrb.llm.util.capabilities import model_capabilities
 
     supports = model_capabilities.get(model).supports_parallel_tool_calls
-    if supports is None:
-        return None
-    if supports:
+    if supports is False:
         return (
-            "- Parallel tool calls: supported — batch independent calls into "
-            "one response. Sequence dependent writes."
+            "- Parallel tool calls: NOT supported by this model — override the "
+            "batching rule and issue exactly one tool call per response."
         )
-    return (
-        "- Parallel tool calls: NOT supported — issue exactly one tool call "
-        "per response."
-    )
+    return None
 
 
 def _format_model_line(model: "Any") -> str | None:

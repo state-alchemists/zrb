@@ -9,6 +9,8 @@ from three homes that keep bounded-context ownership of their state:
 * `zrb.llm.permission.state`  - permission policy + agent mode (plan/default)
 * `zrb.llm.sandbox.state`     - sandbox policy (filesystem containment)
 * `zrb.llm.tool.ambient_state`  - tool-scoped ambient state (worktree, session)
+* `zrb.llm.tool.file_freshness` - whether the model's view of a file is current
+* `zrb.llm.tool_call.tool_policy.repetition_state` - repeated-attempt counters
 
 Nothing here owns state. This module exists purely as a discoverable registry
 so contributors can answer "what ContextVars exist?" without grepping.
@@ -67,6 +69,24 @@ from zrb.llm.tool.ambient_state import (
     set_current_tool_session,
     set_interactive_mode,
 )
+from zrb.llm.tool.file_freshness import (
+    file_freshness,
+    is_file_fresh,
+    is_file_tracked,
+    mark_file_fresh,
+    mark_file_stale,
+    reset_file_freshness,
+)
+
+# --- Tool policy state ---
+from zrb.llm.tool_call.tool_policy.repetition_state import (
+    bump_repetition,
+    mark_repetition_warned,
+    repetition_counts,
+    repetition_warned,
+    reset_repetition_state,
+    was_repetition_warned,
+)
 
 __all__ = [
     # Task execution context
@@ -104,4 +124,17 @@ __all__ = [
     "interactive_mode",
     "get_interactive_mode",
     "set_interactive_mode",
+    "file_freshness",
+    "is_file_fresh",
+    "is_file_tracked",
+    "mark_file_fresh",
+    "mark_file_stale",
+    "reset_file_freshness",
+    # Tool policy state
+    "repetition_counts",
+    "repetition_warned",
+    "bump_repetition",
+    "was_repetition_warned",
+    "mark_repetition_warned",
+    "reset_repetition_state",
 ]
