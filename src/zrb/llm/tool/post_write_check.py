@@ -23,10 +23,31 @@ from __future__ import annotations
 
 import ast
 import os
+from contextvars import ContextVar
 
 from zrb.llm.lsp.manager import lsp_manager
 
 _MAX_ERRORS_SHOWN = 5
+
+# How many times each path has come back broken in this context. The escalation
+# used to be phrased as a condition the model had to evaluate about its own
+# history ("if this file already reported errors on a previous write"), which a
+# small model does not track. Counting here turns it into a stated fact.
+diagnostic_counts: ContextVar[dict[str, int]] = ContextVar(
+    "diagnostic_counts", default={}
+)
+
+
+def reset_diagnostic_counts() -> None:
+    """Drop all per-file diagnostic counts. For tests and new sessions."""
+    diagnostic_counts.set({})
+
+
+def _bump_diagnostic_count(abs_path: str) -> int:
+    counts = diagnostic_counts.get()
+    nxt = counts.get(abs_path, 0) + 1
+    diagnostic_counts.set({**counts, abs_path: nxt})
+    return nxt
 
 
 async def format_post_write_diagnostics(abs_path: str) -> str:
@@ -72,21 +93,50 @@ async def format_post_write_diagnostics(abs_path: str) -> str:
         if len(errors) > _MAX_ERRORS_SHOWN
         else ""
     )
+    failures = _bump_diagnostic_count(abs_path)
     return (
         f"\n\n[DIAGNOSTIC]: {len(errors)} error(s) detected in {abs_path}:\n"
         f"{preview}{overflow}\n"
         "The write landed, but the file is now broken — treat this as a failed "
         "edit, not a completed one.\n"
-        "[SYSTEM SUGGESTION]: Do not issue another edit to this file from memory. "
-        "`Read` the file (or the lines above) to see its current state first, then "
-        "make one targeted fix. If this file already reported errors on a previous "
-        "write, stop patching it — `Read` it in full and then rewrite it with "
-        "`Write`, since repeated partial edits are what produced this state. The "
-        "read is not optional: the file no longer matches whatever you last saw "
-        "whole, and a `Write` built from that memory reverts the edits between. "
-        "If the errors name something outside this file (a missing import, an "
+        f"{_next_action(abs_path, failures)}"
+    )
+
+
+def _next_action(abs_path: str, failures: int) -> str:
+    """Name the next action, escalating on a count rather than on the model's memory.
+
+    The escalation ladder is load-bearing and easy to break. A benchmarked trial
+    took 81 consecutive ``Successfully updated … [DIAGNOSTIC]`` results and
+    answered every one with another blind edit, which is what put a
+    ``[SYSTEM SUGGESTION]`` here at all. A later revision buried the escalation
+    behind a caveat about ``Write`` reverting unseen edits, and a trial promptly
+    spent 45 alternating Read/Edit calls on one file without ever escalating —
+    the caveat reads as an argument against the escape hatch it introduces.
+
+    So the two rungs are kept apart. The first says re-read then edit. The
+    second says the patching has failed and states the rewrite as the
+    instruction, with the read as its first step rather than as a warning
+    attached to it.
+    """
+    tail = (
+        " If the errors name something outside this file (a missing import, an "
         "undefined symbol defined elsewhere), fix that file rather than "
         "re-editing this one."
+    )
+    if failures < 2:
+        return (
+            "[SYSTEM SUGGESTION]: Do not issue another edit to this file from "
+            "memory. `Read` the file (or the lines above) to see its current "
+            "state first, then make one targeted fix." + tail
+        )
+    return (
+        f"[SYSTEM SUGGESTION]: This is failure {failures} on {os.path.basename(abs_path)}. "
+        "Stop editing it — repeated partial edits are what produced this state, "
+        "and another one will not converge. Do this instead, in order: `Read` "
+        "the file in full, then replace it in a single `Write` that is correct "
+        "as a whole. Base that write on what the read just showed you, not on "
+        "your memory of the file." + tail
     )
 
 

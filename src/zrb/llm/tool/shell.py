@@ -144,6 +144,7 @@ async def run_shell_command(
             timed_out,
             timeout,
         )
+        result += _repetition_note(command, cwd)
         if sandbox_note:
             result = f"{sandbox_note}\n{result}"
         return result
@@ -476,6 +477,39 @@ def _assemble_output(
     if suggestion:
         output_parts.append(f"\n{suggestion}")
     return "\n".join(output_parts)
+
+
+def _repetition_note(command: str, cwd: str) -> str:
+    """Name a loop once the same command has been re-run past the threshold.
+
+    Appended rather than folded into ``_suggest_next_step``'s if/elif chain: a
+    command can both fail recognizably *and* be the third identical attempt,
+    and the second observation is the one that breaks the loop.
+    """
+    # lazy: leaf module, keeps the counter off the import path of callers that
+    # never run a command.
+    from zrb.llm.tool.command_repetition import (
+        command_signature,
+        mark_warned,
+        record_attempt,
+        should_warn,
+    )
+
+    signature = command_signature(command, cwd)
+    count = record_attempt(signature)
+    if not should_warn(signature, count, CFG.LLM_REPEATED_ATTEMPT_THRESHOLD):
+        return ""
+    mark_warned(signature)
+    return (
+        f"\n\n[SYSTEM SUGGESTION]: This is attempt {count} at this exact "
+        "command in this directory. Re-running input you have already run is "
+        "not new evidence, and the result above is one you have already seen. "
+        "Change what you are testing: read the code path instead of exercising "
+        "it again, add output that separates your competing hypotheses, or "
+        "narrow to the smallest failing case. If you cannot say what this "
+        "attempt told you that the last one did not, stop and report what you "
+        "cannot get past."
+    )
 
 
 def _timeout_suggestion(timeout: int, flooded: bool, total_chars: int) -> str:

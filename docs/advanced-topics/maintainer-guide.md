@@ -262,9 +262,9 @@ To understand Zrb's core design decisions (such as the strict use of `asyncio`, 
 
 ## Context Propagation Internals
 
-Zrb uses Python's `contextvars.ContextVar` to thread execution state through async coroutines without explicit parameter passing. There are fifteen `ContextVar` instances across the codebase, split into six layers. The single source of truth is `src/zrb/contextvars.py` (a re-export index); update this section whenever you add, remove, or rename a `ContextVar`.
+Zrb uses Python's `contextvars.ContextVar` to thread execution state through async coroutines without explicit parameter passing. There are seventeen `ContextVar` instances across the codebase, split into five layers. The single source of truth is `src/zrb/contextvars.py` (a re-export index); update this section whenever you add, remove, or rename a `ContextVar`.
 
-### The Six Layers
+### The Five Layers
 
 **Layer 1 — Task execution** (`src/zrb/context/any_context.py`):
 
@@ -310,14 +310,11 @@ All five are set at the start of `run_agent()` and reset in its `finally` block.
 
 Set/cleared by their owning tool implementations rather than at a single entry point.
 
-**Layer 6 — Tool policy state** (`src/zrb/llm/tool_call/tool_policy/repetition_state.py`):
+| `command_attempts` | `dict[str, int]` | How many times each `(cwd, command)` pair has been run, so the Recovery ladder is enforced at runtime rather than in prose. Read by `run_shell_command`, which appends a `[SYSTEM SUGGESTION]` at the threshold (ADR-0102). |
+| `command_attempts_warned` | `frozenset[str]` | Signatures already called out, so one loop yields one escalation instead of a note on every later call |
+| `diagnostic_counts` | `dict[str, int]` | Consecutive post-write failures per file, so `post_write_check` can escalate from "re-read then edit" to "stop editing, read in full and rewrite" on a stated count rather than on the model's own recollection |
 
-| Variable | Type | Purpose |
-|---|---|---|
-| `repetition_counts` | `dict[str, int]` | How many times each byte-identical shell command has been issued, so the Recovery ladder can be enforced at runtime rather than in prose (ADR-0102) |
-| `repetition_warned` | `frozenset[str]` | Signatures already nudged, so one loop yields one escalation instead of a note on every subsequent call |
-
-Kept in a leaf module so `zrb/contextvars.py` can index them without importing the policy's own dependency graph (handler → UI → task).
+All three sit in leaf modules beside the tools that own them, so `zrb/contextvars.py` can index them without importing the UI/task graph.
 
 ### The Scoping Pattern
 

@@ -86,16 +86,19 @@ def test_shell_safety_policy_ships_with_the_shell_tools(monkeypatch):
     assert _policy_owners(host) >= {"bash_safe_command_policy"}
 
 
-def test_rules_the_prompt_cannot_enforce_ship_as_policies(monkeypatch):
-    """ADR-0102: freshness and repetition are runtime rules, not prose ones.
+def test_write_freshness_ships_as_a_policy(monkeypatch):
+    """ADR-0102: a stale whole-file overwrite is a runtime rule, not a prose one.
 
-    Both were in the prompt and both were ignored by models that had read them,
-    so they travel with the tools whose misuse they catch.
+    Its sibling — noticing a repeated attempt — is deliberately NOT here. A
+    policy runs in the approval chain and never sees a tool's result, so that
+    one lives inside the shell tool (see test_command_repetition.py).
     """
     monkeypatch.setenv("ZRB_LLM_JOURNAL_ENABLED", "true")
     host = RecordingHost()
     apply_common_tools(host)
-    assert _policy_owners(host) >= {"write_freshness_policy", "repetition_policy"}
+    owners = _policy_owners(host)
+    assert "write_freshness_policy" in owners
+    assert "repetition_policy" not in owners
 
 
 def _policy_owners(host) -> set[str]:

@@ -10,7 +10,8 @@ from three homes that keep bounded-context ownership of their state:
 * `zrb.llm.sandbox.state`     - sandbox policy (filesystem containment)
 * `zrb.llm.tool.ambient_state`  - tool-scoped ambient state (worktree, session)
 * `zrb.llm.tool.file_freshness` - whether the model's view of a file is current
-* `zrb.llm.tool_call.tool_policy.repetition_state` - repeated-attempt counters
+* `zrb.llm.tool.command_repetition` - repeated shell-invocation counters
+* `zrb.llm.tool.post_write_check` - per-file diagnostic-failure counters
 
 Nothing here owns state. This module exists purely as a discoverable registry
 so contributors can answer "what ContextVars exist?" without grepping.
@@ -69,6 +70,15 @@ from zrb.llm.tool.ambient_state import (
     set_current_tool_session,
     set_interactive_mode,
 )
+from zrb.llm.tool.command_repetition import (
+    command_attempts,
+    command_attempts_warned,
+    command_signature,
+    mark_warned,
+    record_attempt,
+    reset_command_attempts,
+    should_warn,
+)
 from zrb.llm.tool.file_freshness import (
     file_freshness,
     is_file_fresh,
@@ -77,15 +87,9 @@ from zrb.llm.tool.file_freshness import (
     mark_file_stale,
     reset_file_freshness,
 )
-
-# --- Tool policy state ---
-from zrb.llm.tool_call.tool_policy.repetition_state import (
-    bump_repetition,
-    mark_repetition_warned,
-    repetition_counts,
-    repetition_warned,
-    reset_repetition_state,
-    was_repetition_warned,
+from zrb.llm.tool.post_write_check import (
+    diagnostic_counts,
+    reset_diagnostic_counts,
 )
 
 __all__ = [
@@ -130,11 +134,13 @@ __all__ = [
     "mark_file_fresh",
     "mark_file_stale",
     "reset_file_freshness",
-    # Tool policy state
-    "repetition_counts",
-    "repetition_warned",
-    "bump_repetition",
-    "was_repetition_warned",
-    "mark_repetition_warned",
-    "reset_repetition_state",
+    "command_attempts",
+    "command_attempts_warned",
+    "command_signature",
+    "record_attempt",
+    "should_warn",
+    "mark_warned",
+    "reset_command_attempts",
+    "diagnostic_counts",
+    "reset_diagnostic_counts",
 ]
