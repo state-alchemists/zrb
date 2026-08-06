@@ -28,7 +28,6 @@ def _get_skill_custom_commands(skill_manager: SkillManager) -> list[AnyCustomCom
             continue
 
         args = _extract_args(content)
-        # Build description with argument_hint if available
         description = skill.description
         if skill.argument_hint:
             description = f"{skill.description} {skill.argument_hint}"
@@ -100,7 +99,6 @@ def _extract_args(content: str) -> list[str]:
         if match not in args and match not in special_vars:
             args.append(match)
 
-    # Remove duplicates while preserving order
     unique_args = []
     for arg in args:
         if arg not in unique_args:

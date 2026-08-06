@@ -388,7 +388,6 @@ class BaseUIConversationCommands:
         return False
 
     def _submit_attachment(self, path: str):
-        # Validate path
         self.append_to_output(stylize_muted(f"\n  🔢 Attach {path}...\n"))
         expanded_path = os.path.abspath(os.path.expanduser(path))
         if not os.path.exists(expanded_path):

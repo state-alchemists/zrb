@@ -69,9 +69,7 @@ def create_input_field(
             get_line_prefix,
         ) -> int:
             """Calculate preferred height based on content."""
-            # Get current text
             text = self.text
-            # Count lines (including wrapped lines)
             line_count = text.count("\n") + 1
 
             # Calculate how many lines would be needed with wrapping
@@ -84,9 +82,6 @@ def create_input_field(
                     )
                 line_count = max(line_count, wrapped_lines)
 
-            # Start with 1 line (just the prompt line)
-            # The prompt line is included in the TextArea's rendering
-            # So total height should be just the content lines
             return min(max(line_count, 1), 10)
 
     text_area = DynamicHeightTextArea(
@@ -120,7 +115,6 @@ def create_input_field(
         dont_extend_height=True,  # Don't let it be compressed
     )
 
-    # Add custom keybindings for history navigation
     # TextArea doesn't accept key_bindings in __init__, we must add them to its control
     kb = text_area.control.key_bindings
     if kb is None:
@@ -162,7 +156,6 @@ def create_output_field(
     def get_line_prefix(line_number: int, wrap_number: int) -> AnyFormattedText:
         return " "
 
-    # Create TextArea with cursor at the end to ensure bottom is visible
     text_area = TextArea(
         text=greeting.rstrip() + "\n\n",
         read_only=True,

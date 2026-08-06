@@ -30,9 +30,7 @@ def serve_cli():
     handler = logging.StreamHandler()
     handler.setFormatter(FaintFormatter())
     CFG.LOGGER.addHandler(handler)
-    # --- End Logging Configuration ---
     try:
-        # load init modules
         for init_module in CFG.INIT_MODULES:
             CFG.LOGGER.info(f"Loading {init_module}")
             try:
@@ -40,7 +38,6 @@ def serve_cli():
             except BaseException as e:
                 print(stylize_error(f"{e}"), file=sys.stderr)
         zrb_init_path_list = get_init_path_list()
-        # load init scripts
         for init_script in CFG.INIT_SCRIPTS:
             abs_init_script = os.path.abspath(os.path.expanduser(init_script))
             if abs_init_script not in zrb_init_path_list:
@@ -49,14 +46,12 @@ def serve_cli():
                     load_file(abs_init_script, -1)
                 except BaseException as e:
                     print(stylize_error(f"{e}"), file=sys.stderr)
-        # load zrb init
         for zrb_init_path in zrb_init_path_list:
             CFG.LOGGER.info(f"Loading {zrb_init_path}")
             try:
                 load_file(zrb_init_path)
             except BaseException as e:
                 print(stylize_error(f"{e}"), file=sys.stderr)
-        # run the CLI
         cli.run(sys.argv[1:])
     except KeyboardInterrupt:
         # The exception is handled by the task runner

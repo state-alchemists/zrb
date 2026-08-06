@@ -45,11 +45,9 @@ def check_unrecommended_commands(cmd_script: str) -> dict[str, str]:
         r"\bls ": "Avoid using ls; use shell globs or find instead",
     }
     violations = {}
-    # Check banned commands
     for cmd, reason in banned_commands.items():
         if cmd in cmd_script:
             violations[cmd] = reason
-    # Check banned regex patterns
     for pattern, reason in banned_commands_regex.items():
         if re.search(pattern, cmd_script):
             violations[pattern] = reason

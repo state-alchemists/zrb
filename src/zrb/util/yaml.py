@@ -25,7 +25,6 @@ def yaml_dump(obj: Any, key: str = "") -> str:
         obj_to_dump = _get_obj_value(processed_obj, key_parts)
     else:
         obj_to_dump = processed_obj
-    # Add custom representer for multiline strings
     yaml.add_representer(str, _multiline_string_presenter)
     yaml_str = yaml.dump(
         obj_to_dump,
@@ -61,15 +60,12 @@ def edit_obj(obj: Any, key: str, val: str) -> Any:
         edit({"a": 1}, "", "2") -> 2  # Replace entire object with scalar
         edit({"a": 1}, "", "b: 2") -> {"a": 1, "b": 2}  # Patch dict if obj is dict
     """
-    # Parse the value using YAML rules
     parsed_value = _load_yaml(val)
 
-    # Handle empty key - replace entire object
     if not key:
         if isinstance(obj, dict) and isinstance(parsed_value, dict):
             # Patch/merge the dict values
             return {**obj, **parsed_value}
-        # Replace entire object with parsed value
         return parsed_value
 
     key_parts = _parse_key(key)
@@ -120,14 +116,12 @@ def _load_yaml(value_str: str) -> Any:
     # lazy: heavy third-party
     import yaml
 
-    # Handle empty string explicitly
     if value_str == "":
         return ""
     try:
         parsed = yaml.safe_load(value_str)
         return parsed
     except yaml.YAMLError:
-        # If YAML parsing fails, treat as string
         return value_str
 
 
@@ -138,18 +132,14 @@ def _set_obj_value(obj: Any, keys: list[str], value: Any) -> Any:
     current_key = keys[0]
     remaining_keys = keys[1:]
     if isinstance(obj, dict):
-        # Handle dictionary
         if remaining_keys:
-            # There are more keys to traverse
             if current_key not in obj:
                 obj[current_key] = {}
             obj[current_key] = _set_obj_value(obj[current_key], remaining_keys, value)
         else:
-            # This is the final key
             obj[current_key] = value
         return obj
     elif isinstance(obj, list):
-        # Handle list - convert key to index
         try:
             index = int(current_key)
             if 0 <= index < len(obj):
@@ -165,13 +155,10 @@ def _set_obj_value(obj: Any, keys: list[str], value: Any) -> Any:
             raise KeyError(f"Cannot use non-integer key '{current_key}' with list")
         return obj
     else:
-        # Handle other types by converting to dict
         if remaining_keys:
-            # Create nested structure
             new_obj = {current_key: _set_obj_value({}, remaining_keys, value)}
             return new_obj
         else:
-            # Replace the entire object
             return {current_key: value}
 
 

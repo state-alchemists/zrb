@@ -147,7 +147,6 @@ async def list_available_servers() -> dict:
     }
 
 
-# Set function names for tool display
 find_definition.__name__ = "LspFindDefinition"
 find_references.__name__ = "LspFindReferences"
 get_diagnostics.__name__ = "LspGetDiagnostics"

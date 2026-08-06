@@ -43,7 +43,6 @@ async def _get_lsp_context(file_path: str, abs_dir: str) -> dict | None:
             "lsp_diagnostics": [],
         }
 
-        # Format symbols (compact representation)
         if symbols_result.get("found"):
             for sym in symbols_result.get("symbols", [])[:50]:  # Limit to 50 symbols
                 context["lsp_symbols"].append(
@@ -248,7 +247,6 @@ async def _get_file_metadatas_with_lsp(
             except Exception as e:
                 zrb_print(f"Error reading file {file_path}: {e}", plain=True)
 
-    # Run all LSP tasks concurrently
     if lsp_tasks:
         zrb_print(f"  🔍 LSP analysis ({len(lsp_tasks)} files)", plain=True)
         lsp_results = await asyncio.gather(*lsp_tasks, return_exceptions=True)

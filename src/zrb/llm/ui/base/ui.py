@@ -124,11 +124,9 @@ class BaseUI(BaseUIProperties, BaseUICommands, BaseUIReplay, BaseUISystemInfo):
                     await proc.wait()
 
                 async def run_async(self):
-                    # Start message processing loop
                     self._process_messages_task = asyncio.create_task(
                         self._process_messages_loop()
                     )
-                    # Send initial message if provided
                     if self._initial_message:
                         self._submit_user_message(self._llm_task, self._initial_message)
                     # Keep running until cancelled
@@ -338,7 +336,6 @@ class BaseUI(BaseUIProperties, BaseUICommands, BaseUIReplay, BaseUISystemInfo):
         Maintains strong references to tasks to prevent garbage collection.
         """
         try:
-            # Try to get the running event loop
             loop = asyncio.get_running_loop()
             # We're in an async context with a running loop
             task = loop.create_task(
@@ -351,7 +348,6 @@ class BaseUI(BaseUIProperties, BaseUICommands, BaseUIReplay, BaseUISystemInfo):
 
         except RuntimeError:
             # No running event loop - we're in a sync context
-            # Create a new event loop and run synchronously
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             try:
@@ -503,14 +499,11 @@ class BaseUI(BaseUIProperties, BaseUICommands, BaseUIReplay, BaseUISystemInfo):
 
         Example:
             async def run_async(self):
-                # Start background tasks
                 self._process_messages_task = asyncio.create_task(
                     self._process_messages_loop()
                 )
-                # Send initial message if provided
                 if self._initial_message:
                     self._submit_user_message(self._llm_task, self._initial_message)
-                # Run until cancelled or stopped
                 try:
                     while self._running:
                         await asyncio.sleep(0.1)
@@ -761,7 +754,6 @@ class BaseUI(BaseUIProperties, BaseUICommands, BaseUIReplay, BaseUISystemInfo):
                 AgentMode.PLAN if self._plan_mode_active else AgentMode.BUILD
             )
 
-            # Set UI for tool confirmation
             llm_task.set_ui(self)
             llm_task.tool_confirmation = cast(Any, self._confirm_tool_execution)
             result_data = await llm_task.async_run(session)
@@ -816,7 +808,6 @@ class BaseUI(BaseUIProperties, BaseUICommands, BaseUIReplay, BaseUISystemInfo):
         # instead of self, which is the captured main UI
 
         ui = get_current_ui() or self
-        # Handle list of UIs from outer context
         if isinstance(ui, list):
             if len(ui) == 0:
                 ui = self

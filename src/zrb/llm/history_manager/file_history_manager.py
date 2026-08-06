@@ -363,7 +363,6 @@ class FileHistoryManager(AnyHistoryManager):
         return data
 
     def _get_file_path(self, conversation_name: str) -> str:
-        # Sanitize conversation name to be safe for filename
         safe_name = "".join(
             c for c in conversation_name if c.isalnum() or c in (" ", ".", "_", "-")
         ).strip()

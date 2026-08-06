@@ -226,6 +226,7 @@ class ChatExecution(ChatState):
         # never receive the terminal's Ctrl+C — this is what stops them
         # outliving the session.
         await self._teardown_background_hooks()
+        # lazy: only needed at teardown; keeps the import off hot paths.
         try:
             from zrb.llm.hook.executor import shutdown_hook_executor
 
@@ -315,7 +316,6 @@ class ChatExecution(ChatState):
         # lazy: zrb internal (heavy via transitive / circular)
         from zrb.llm.ui.std_ui import StdUI
 
-        # Determine the tool confirmation and ui to use
         tool_confirmation = self._tool_confirmation
         ui = self._uis if self._uis else None
 

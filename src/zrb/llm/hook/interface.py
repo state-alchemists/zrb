@@ -122,20 +122,10 @@ class HookResult:
         """Convert to Claude Code compatible JSON output."""
         result = {}
 
-        # Merge modifications first
         if self.modifications:
             result.update(self.modifications)
 
-        # Handle hookSpecificOutput - should be a dictionary
-        if "hookSpecificOutput" in result and not isinstance(
-            result["hookSpecificOutput"], dict
-        ):
-            # If it's not a dict, we might want to wrap it or leave it if it's already correct?
-            # Claude expects object with fields like permissionDecision
-            pass
-
-        # Handle specific fields that should be in hookSpecificOutput for PreToolUse
-        # If permissionDecision is present, it's likely a PreToolUse result that belongs in hookSpecificOutput
+        # A PreToolUse decision arrives flat; Claude expects it nested.
         if "permissionDecision" in result:
             if "hookSpecificOutput" not in result:
                 result["hookSpecificOutput"] = {}
@@ -151,14 +141,12 @@ class HookResult:
                     "updatedInput"
                 )
 
-        # Add basic fields
         result["success"] = self.success
         if self.output:
             result["output"] = self.output
         if self.data:
             result["data"] = self.data
 
-        # Handle blocking case - ensure decision and reason are set
         if not self.success and self.should_stop:
             result["decision"] = "block"
             # Use reason from modifications if available, otherwise use output

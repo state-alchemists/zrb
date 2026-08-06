@@ -192,7 +192,6 @@ def _ensure_gitignore(git_root: str, pattern: str) -> None:
         pass
 
 
-# Set function names to PascalCase for tool display
 enter_worktree.__name__ = "EnterWorktree"
 exit_worktree.__name__ = "ExitWorktree"
 list_worktrees.__name__ = "ListWorktrees"

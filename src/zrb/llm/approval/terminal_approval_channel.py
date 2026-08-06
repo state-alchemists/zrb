@@ -37,11 +37,9 @@ class TerminalApprovalChannel:
             f"TerminalApprovalChannel context.tool_args: {context.tool_args}"
         )
 
-        # Format the approval message
         # lazy: heavy third-party
         from pydantic_ai import ToolCallPart
 
-        # Create a mock ToolCallPart for formatting
         call = ToolCallPart(
             tool_name=context.tool_name,
             args=context.tool_args,
@@ -53,7 +51,6 @@ class TerminalApprovalChannel:
         ui_handler = getattr(self._ui, "tool_call_handler", None)
         handler = ui_handler if ui_handler is not None else ToolCallHandler()
 
-        # Use public method for approval message with custom instruction
         message = await handler.format_approval_message(self._ui, call)
         CFG.LOGGER.debug(
             "TerminalApprovalChannel Got confirmation message, about to display to user"
@@ -62,7 +59,6 @@ class TerminalApprovalChannel:
 
         CFG.LOGGER.debug("TerminalApprovalChannel Waiting for user input via CLI...")
 
-        # Wait for user input
         user_input = await self._ui.ask_user("")
         user_response = user_input.strip()
 
@@ -70,14 +66,12 @@ class TerminalApprovalChannel:
             f"TerminalApprovalChannel Got user response: '{user_response}'"
         )
 
-        # Parse response
         r = user_response.lower().strip()
         if r in ("y", "yes", "ok", "accept", "✅", ""):
             return ApprovalResult(approved=True)
         if r in ("n", "no", "deny", "cancel", "🛑"):
             return ApprovalResult(approved=False, message="User denied")
 
-        # Handle edit mode - use response handler chain if available
         if r in ("e", "edit"):
             # Use the UI's response handlers (e.g., replace_in_file_response_handler)
             # which shows diff and handles editing properly
@@ -103,7 +97,6 @@ class TerminalApprovalChannel:
         # lazy: heavy third-party
         from pydantic_ai import ToolApproved, ToolDenied
 
-        # Use public getter for response handlers
         response_handlers = handler.get_response_handlers()
 
         async def next_handler(
@@ -113,7 +106,6 @@ class TerminalApprovalChannel:
             index: int,
         ) -> Any:
             if index >= len(response_handlers):
-                # Default behavior - deny
                 return ToolDenied("Edit not handled")
             resp_handler = response_handlers[index]
             return await resp_handler(
@@ -132,12 +124,10 @@ class TerminalApprovalChannel:
         """Handle edit mode - open editor for new arguments."""
         current_args = context.tool_args or {}
 
-        # Show current args
         args_str = json.dumps(current_args, indent=2, default=str)
         self._ui.append_to_output(f"\n📝 Current arguments:\n```\n{args_str}\n```\n")
         self._ui.append_to_output("Opening editor...\n")
 
-        # Open editor via shared utility
         new_args = await edit_content_via_editor(self._ui, current_args)
 
         if new_args is None:

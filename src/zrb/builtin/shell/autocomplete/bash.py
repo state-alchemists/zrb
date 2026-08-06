@@ -9,7 +9,6 @@ _zrb_complete() {
     local cur cmd_input subcmd_output
     local -a subcommands
 
-    # Get the current word being completed
     cur="${COMP_WORDS[COMP_CWORD]}"
 
     # Build the command input dynamically (excluding the current word being typed)

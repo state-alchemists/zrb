@@ -304,7 +304,6 @@ class ChatRunning(ChatState):
             if len(resolved_uis) == 1:
                 return resolved_uis[0]
             ui = MultiUI(resolved_uis)
-            # Set up approval channel for MultiUI
             if len(self._approval_channels) == 1:
                 ui.set_approval_channel(self._approval_channels[0])
             elif len(self._approval_channels) > 1:
@@ -326,7 +325,6 @@ class ChatRunning(ChatState):
         if not resolved_uis:
             return default_ui
 
-        # Factory UIs + default UI combined
         all_uis = [default_ui] + resolved_uis
         ui = MultiUI(all_uis)
         if len(self._approval_channels) == 1:

@@ -513,17 +513,14 @@ class PromptManager:
         def middleware(
             ctx: AnyContext, current: str, next_fn: Callable[[AnyContext, str], str]
         ) -> str:
-            # Get the prompt content
             if callable(prompt):
                 content = prompt(ctx)
             else:
                 content = prompt
 
-            # Apply rendering if enabled (for string content)
             if self._render and isinstance(content, str):
                 content = get_str_attr(ctx, content, auto_render=True)
 
-            # Continue chain automatically
             new_prompt = f"{current}\n{content}" if content else current
             return next_fn(ctx, new_prompt)
 

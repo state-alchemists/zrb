@@ -187,7 +187,7 @@ class HookManager(HookManagerLoading):
             reverse=True,  # Higher priority first
         )
 
-        # Execute hooks sequentially to support blocking/continue logic
+        # Sequential, not concurrent: a hook may block or stop the chain.
         for i, hook in enumerate(hooks_to_run):
             config = self._hook_to_config.get(hook)
             timeout = config.timeout if config else None
@@ -373,7 +373,6 @@ class HookManager(HookManagerLoading):
 
         results: list[HookResult] = []
         for exec_result in exec_results:
-            # Start with data which contains all modifications
             modifications = exec_result.data.copy() if exec_result.data else {}
 
             if exec_result.decision:
@@ -431,7 +430,6 @@ class HookManager(HookManagerLoading):
         if target_search_dirs is None:
             target_search_dirs = self.get_search_directories()
 
-        # Run hook factories to register dynamic hooks
         for factory in self._hook_factories:
             factory(self)
 

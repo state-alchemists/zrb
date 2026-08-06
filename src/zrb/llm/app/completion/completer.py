@@ -221,7 +221,6 @@ class InputCompleter(Completer):
                 cmds, prefix, lower_word, word, meta
             )
 
-        # Custom commands
         for custom_cmd in self._custom_commands:
             if custom_cmd.command.startswith(
                 prefix
