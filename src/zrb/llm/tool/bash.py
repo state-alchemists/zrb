@@ -20,6 +20,13 @@ async def run_bash_command(
     """
     Like Shell but always runs under bash (git-bash on Windows). Use when a script
     or skill assumes bash; otherwise prefer Shell with the user's default shell.
+
+    Same routing rule as Shell: this runs things (builds, tests, linters, git,
+    package managers). File work goes through the file tools — Read/Write/Edit
+    for contents, Grep/Glob/LS to search and list, RM/MV to remove and move —
+    which carry diagnostics, path validation, and per-path approval that `cat`,
+    `sed -i`, `find`, `rm`, `mv`, or `>` into a file all bypass.
+
     stdin is closed — prompts hang until timeout; pass `-y`, `--yes`, or `CI=true`.
     Batch with `&&`; use `cwd` instead of `cd`. Timed-out processes may continue in background.
 

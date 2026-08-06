@@ -477,7 +477,7 @@ async def _execution_loop(
                     current_message,
                     message_history=current_history,
                     deferred_tool_results=current_results,
-                    usage_limits=UsageLimits(request_limit=None),
+                    usage_limits=UsageLimits(request_limit=_request_limit()),
                 ) as stream:
                     CFG.LOGGER.debug(
                         f"Stream started, current_results={current_results}"
@@ -499,7 +499,7 @@ async def _execution_loop(
                         if effective_event_handler:
                             await effective_event_handler(event)
             except Exception as _stream_exc:
-                stream_error = _stream_exc
+                stream_error = _explain_usage_limit(_stream_exc)
 
             if stream_error is not None:
                 outcome = await handle_stream_error(
@@ -637,6 +637,42 @@ async def _execution_loop(
         if not hasattr(e, "zrb_history"):
             setattr(e, "zrb_history", run_history)
         raise e
+
+
+def _request_limit() -> int | None:
+    """The per-run model-request cap, or ``None`` when disabled.
+
+    A run with no cap has no way to stop a model that has stopped converging:
+    the prompt's Recovery rules tell it to change approach by the third attempt,
+    but nothing enforces that, and a weak model will happily re-edit the same
+    file from memory until the wall clock runs out (343 tool calls, 267 of them
+    edits, was the worst observed). This is the enforcement half of that rule.
+    """
+    limit = CFG.LLM_MAX_REQUEST_PER_RUN
+    return limit if limit > 0 else None
+
+
+def _explain_usage_limit(exc: Exception) -> Exception:
+    """Turn pydantic-ai's request-limit error into an actionable halt.
+
+    Returned rather than raised so the caller keeps its existing error path:
+    the swap happens before ``handle_stream_error``, which does not treat a
+    ``RuntimeError`` as retryable, so the run halts instead of spending the
+    retry budget re-hitting a cap it cannot get under. The partial history is
+    still attached by the outer handler, so the work already done survives.
+    """
+    # lazy: heavy third-party
+    from pydantic_ai.exceptions import UsageLimitExceeded
+
+    if not isinstance(exc, UsageLimitExceeded):
+        return exc
+    return RuntimeError(
+        f"Stopped after {CFG.LLM_MAX_REQUEST_PER_RUN} model requests in one run "
+        f"({CFG.ENV_PREFIX}_LLM_MAX_REQUEST_PER_RUN). This cap exists to catch a "
+        "run that is repeating itself rather than progressing — check the work "
+        "done so far before raising it, since a higher cap on a loop that is not "
+        "converging only spends more tokens. Set it to 0 to disable."
+    )
 
 
 async def _acquire_rate_limit(

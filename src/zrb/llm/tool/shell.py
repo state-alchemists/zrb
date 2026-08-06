@@ -32,6 +32,14 @@ async def run_shell_command(
 ) -> str:
     """
     Executes a non-interactive command in a shell. Returns truncated stdout/stderr.
+
+    Use this to RUN things — builds, tests, linters, git, package managers,
+    scripts. Not to touch files: Read/Write/Edit for contents, Grep/Glob/LS to
+    search and list, RM/MV to remove and move. `cat`, `head`, `sed -i`, `find`,
+    `test -f`, `rm`, `mv`, and `>` into a file are the wrong tool here even when
+    they would work — the file tools carry post-write diagnostics, path
+    validation, and per-path approval that a shell command bypasses.
+
     stdin is closed — prompts hang until timeout; pass `-y`, `--yes`, or `CI=true`.
     Batch with `&&`; use `cwd` instead of `cd`. Timed-out processes may continue in background.
     When output exceeds the size cap it is truncated from the TOP (keeping the
@@ -166,8 +174,23 @@ async def run_shell_command(
 
 
 def _prepare_command(command: str, use_pid_tracking: bool) -> tuple[str, str | None]:
-    """Wrap the command to capture background PIDs when on a POSIX shell."""
-    if not use_pid_tracking:
+    """Wrap the command to capture background PIDs when on a POSIX shell.
+
+    **Every wrapper token gets its own line.** The wrapper used to splice itself
+    onto the command with `;` separators — ``{ <command> ; }; __code=$?; …`` —
+    which silently corrupted any command whose *last line* cannot tolerate a
+    trailing `; }`. That is not an edge case: it broke a heredoc (the `EOF`
+    delimiter stops being alone on its line, so the shell swallows the rest of
+    the wrapper hunting for it), a trailing comment (`# …` eats the rest of the
+    line), a trailing `;`, and — on bash/sh — a command merely ending in a
+    newline. Models write all four constantly, and the failure surfaced as an
+    opaque `parse error near '\\n'` pointing at a line number in a string the
+    model never wrote. Newline separators make the command a statement of its
+    own, so nothing the model writes can run into the wrapper.
+    """
+    # An empty command has no body to wrap: `{ }` is itself a syntax error, so
+    # the wrapper would turn a harmless no-op into a shell failure.
+    if not use_pid_tracking or not command.strip():
         return command, None
 
     fd, temp_pid_file = tempfile.mkstemp(prefix="zrb_pids_")
@@ -183,10 +206,11 @@ def _prepare_command(command: str, use_pid_tracking: bool) -> tuple[str, str | N
     # _collect_background_pids can exclude it even when a wrapper makes
     # process.pid != $$.
     wrapper_command = (
-        f"echo $$ > {temp_pid_file}; "
-        f"{{ {command} ; }}; __code=$?; "
+        f"echo $$ > {temp_pid_file}\n"
+        f"{{\n{command}\n}}\n"
+        f"__code=$?\n"
         f"pgrep -g $(ps -o pgid= -p $$ 2>/dev/null || echo $$) "
-        f">> {temp_pid_file} 2>/dev/null; "
+        f">> {temp_pid_file} 2>/dev/null\n"
         f"exit $__code"
     )
     return wrapper_command, temp_pid_file

@@ -441,8 +441,8 @@ def create_agent(
     # a getter that expects a tier string. See LLMTask._create_agent.
     final_model = default_llm_config.resolve_model(model) if resolve_model else model
     effective_retries = retries if retries is not None else CFG.LLM_TOOL_MAX_RETRIES
-    effective_model_settings = _apply_capability_constraints(
-        model, final_model, model_settings
+    effective_model_settings = _apply_request_timeout(
+        _apply_capability_constraints(model, final_model, model_settings)
     )
 
     agent: "Agent[None, Any]" = Agent(
@@ -469,6 +469,33 @@ def create_agent(
     # instead of a blanket type suppression.
     setattr(agent, "zrb_history_processors", history_processors or [])
     return agent
+
+
+def _apply_request_timeout(
+    model_settings: "ModelSettings | None",
+) -> "ModelSettings | None":
+    """Give every model request a deadline, from ``CFG.LLM_REQUEST_TIMEOUT``.
+
+    Without one, a provider that accepts the connection and then stops sending
+    blocks the run forever: pydantic-ai waits on the stream, and ``retry_loop``
+    only fires on a raised exception, so a stall is indistinguishable from
+    thinking. Observed as two benchmark cells that burned their full 600s
+    wall-clock having produced no output, no history, and no file writes.
+
+    ``LLM_REQUEST_TIMEOUT`` already existed and already documented itself as the
+    "default timeout for LLM requests" — it was simply never read outside the
+    web session runner. Applied here rather than at a call site so it covers the
+    main agent, programmatic ``LLMTask``, and sub-agents alike. A caller that
+    sets ``timeout`` itself wins; a non-positive value disables the deadline.
+    """
+    timeout_ms = CFG.LLM_REQUEST_TIMEOUT
+    if timeout_ms <= 0:
+        return model_settings
+    if model_settings is None:
+        return {"timeout": timeout_ms / 1000}
+    if "timeout" in model_settings:
+        return model_settings
+    return {**model_settings, "timeout": timeout_ms / 1000}
 
 
 def _apply_capability_constraints(
