@@ -21,12 +21,10 @@ def create_list_zrb_task_tool():
                     )
                 target_group = next_group
         output = [f"Tasks in '{target_group.name}':"]
-        # Subgroups
         if target_group.subgroups:
             output.append("\n  Groups:")
             for alias, grp in target_group.subgroups.items():
                 output.append(f"    - {alias}: {grp.description}")
-        # Tasks
         if target_group.subtasks:
             output.append("\n  Tasks:")
             for alias, task in target_group.subtasks.items():

@@ -59,7 +59,6 @@ class LSPServerOperations:
         if result is None:
             return None
 
-        # Handle both Location and LocationLink
         if isinstance(result, list):
             return result
         elif isinstance(result, dict) and "uri" in result:

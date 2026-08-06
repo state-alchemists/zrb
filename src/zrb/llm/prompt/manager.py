@@ -390,7 +390,7 @@ class PromptManager:
             else {}
         )
         # Skill catalogue lives in workflow.md via {CORE_SKILLS}/{AVAILABLE_SKILLS}
-        # /{PREACTIVATED_SKILLS} placeholders (no separate claude_skills section).
+        # /{PREACTIVATED_SKILLS} placeholders.
         if self._skill_manager:
             active_skills = get_str_list_attr(
                 ctx, self._active_skills, self._render_active_skills
@@ -513,17 +513,14 @@ class PromptManager:
         def middleware(
             ctx: AnyContext, current: str, next_fn: Callable[[AnyContext, str], str]
         ) -> str:
-            # Get the prompt content
             if callable(prompt):
                 content = prompt(ctx)
             else:
                 content = prompt
 
-            # Apply rendering if enabled (for string content)
             if self._render and isinstance(content, str):
                 content = get_str_attr(ctx, content, auto_render=True)
 
-            # Continue chain automatically
             new_prompt = f"{current}\n{content}" if content else current
             return next_fn(ctx, new_prompt)
 

@@ -364,6 +364,7 @@ def _is_openai_chat_model(model: object) -> bool:
     Checks both pydantic-ai :class:`~pydantic_ai.models.openai.OpenAIChatModel`
     instances and string model identifiers (``openai:gpt-4o``, ``gpt-4o``, etc.)
     """
+    # lazy: heavy third-party
     try:
         from pydantic_ai.models.openai import OpenAIChatModel
 
@@ -414,6 +415,8 @@ async def _download_vosk_model(model_name: str, model_url: str) -> str:
     Returns the model path on success.
     Raises RuntimeError if the download or extraction fails.
     """
+    # lazy: deferred to keep module import light — urllib.request drags in
+    # ssl/http and zipfile drags in lzma/bz2, for a one-shot download path.
     import io as _io
     import urllib.request as _urllib
     import zipfile

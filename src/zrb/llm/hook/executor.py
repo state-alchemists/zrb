@@ -116,7 +116,6 @@ class ThreadPoolHookExecutor:
         timeout = timeout or self.default_timeout
 
         try:
-            # Run hook in thread pool with timeout
             # Use get_running_loop() for Python 3.14+ compatibility
             # (get_event_loop() raises RuntimeError if no loop exists in 3.14+)
             loop = asyncio.get_running_loop()
@@ -156,7 +155,6 @@ class ThreadPoolHookExecutor:
                 return await hook(context)
             except Exception as e:
                 logger.error(f"Error in hook execution: {e}", exc_info=True)
-                # Return a failure result instead of raising
                 return HookResult(success=False, output=str(e), should_stop=False)
 
         try:
@@ -164,7 +162,6 @@ class ThreadPoolHookExecutor:
             # including cleanup of subprocess transports
             hook_result = asyncio.run(run_hook_async())
 
-            # Parse result into Claude Code compatible format
             return self._parse_hook_result(hook_result)
 
         except Exception as e:
@@ -180,29 +177,24 @@ class ThreadPoolHookExecutor:
         - decision: "block" for blocking decisions
         - hook_specific_output for event-specific control
         """
-        # Start with basic success/failure
         exec_result = HookExecutionResult(
             success=result.success, message=result.output, data=result.data or {}
         )
 
-        # Set error field and exit_code when success is False
         if not result.success:
             if result.output:
                 exec_result.error = result.output
             exec_result.exit_code = 1
 
-        # Check for blocking decisions
         if result.should_stop:
             exec_result.blocked = True
             exec_result.decision = "block"
             exec_result.exit_code = 2
 
-        # Parse modifications for Claude Code compatibility
         if result.modifications:
-            # Store all modifications in data for backward compatibility
+            # HookManager reads modifications back out of `data` (manager.py).
             exec_result.data.update(result.modifications)
 
-            # Check for Claude Code specific fields
             if "decision" in result.modifications:
                 exec_result.decision = result.modifications["decision"]
                 if exec_result.decision == "block":

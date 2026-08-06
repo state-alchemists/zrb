@@ -347,7 +347,7 @@ async def test_shutdown_cancels_background_hooks_and_kills_their_subprocesses():
                 "type": "command",
                 "async": True,
                 # Subshell so the work is done by a process that outlives a
-                # parent-only kill (see test_hook_creators.py).
+                # parent-only kill (see test_creator_subprocess.py).
                 "config": {
                     "command": f"( sleep 0.5; touch {sentinel} ) & wait",
                     "shell": True,

@@ -332,7 +332,6 @@ class SkillManager:
                     if len(parts) >= 3:
                         frontmatter = yaml.safe_load(parts[1])
                         if frontmatter:
-                            # Basic fields
                             if "name" in frontmatter:
                                 name = frontmatter["name"]
                                 is_name_resolved = True
@@ -359,11 +358,9 @@ class SkillManager:
                             context = frontmatter.get("context")
                             agent = frontmatter.get("agent")
 
-                            # Parse hooks if present
                             hooks_data = frontmatter.get("hooks")
                             if hooks_data:
                                 if isinstance(hooks_data, dict):
-                                    # Claude nested format
                                     hook_manager.parse_claude_format(
                                         {"hooks": hooks_data}, full_path
                                     )

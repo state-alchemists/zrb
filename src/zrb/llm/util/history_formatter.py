@@ -178,7 +178,6 @@ def _format_response(
         lines.append("  💭 Thinking:")
         lines.extend(_indent_lines(str(content), 4, max_lines=None if full else 10))
 
-    # Then show text content
     text_parts = [p for p in parts if getattr(p, "part_kind", None) == "text"]
     for part in text_parts:
         content = getattr(part, "content", "")

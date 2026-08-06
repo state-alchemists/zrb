@@ -10,7 +10,6 @@ _zrb_complete() {
     local cmd_input
     local subcmd_output
 
-    # Build the command input based on the current words
     cmd_input="zrb shell autocomplete subcmd ${words[1,CURRENT-1]}"
 
     # Fetch the subcommands dynamically and store them in a variable

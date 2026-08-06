@@ -137,7 +137,6 @@ class Context(AnyContext):
             return
         color = self._color
         icon = self._icon
-        # Handle case where session is None (e.g., in tests)
         if self.session is None:
             max_name_length = len(self._task_name) + len(icon)
         else:

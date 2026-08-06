@@ -7,7 +7,6 @@ from typing import TextIO
 
 class GlobalStreamCapture:
     def __init__(self):
-        # Save original file descriptors once
         self.original_stdout_fd = os.dup(sys.stdout.fileno())
         self.original_stderr_fd = os.dup(sys.stderr.fileno())
         self.capturing = False
@@ -23,7 +22,6 @@ class GlobalStreamCapture:
 
         self.capturing = True
 
-        # Create new pipe for this session
         self.pipe_r, self.pipe_w = os.pipe()
 
         # Flush existing buffers to ensure order
@@ -34,7 +32,6 @@ class GlobalStreamCapture:
         os.dup2(self.pipe_w, sys.stdout.fileno())
         os.dup2(self.pipe_w, sys.stderr.fileno())
 
-        # Start the reader thread
         self.thread = threading.Thread(
             target=self._reader, args=(self.pipe_r,), daemon=True
         )
@@ -46,7 +43,6 @@ class GlobalStreamCapture:
 
         self.capturing = False
 
-        # Restore original file descriptors
         sys.stdout.flush()
         sys.stderr.flush()
         os.dup2(self.original_stdout_fd, sys.stdout.fileno())
@@ -86,7 +82,6 @@ class GlobalStreamCapture:
         finally:
             # 3. Restore redirection (point FD 1/2 back to pipe)
             if self.pipe_w is not None:
-                # Flush again just in case
                 sys.stdout.flush()
                 sys.stderr.flush()
                 os.dup2(self.pipe_w, sys.stdout.fileno())
@@ -96,7 +91,6 @@ class GlobalStreamCapture:
         with os.fdopen(pipe_r, "r", errors="replace", buffering=1) as f:
             for line in f:
                 if line:
-                    # Buffer the line instead of sending to UI
                     self._buffer.append(line.expandtabs(4))
 
     def get_original_stdout(self) -> TextIO:

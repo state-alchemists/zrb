@@ -222,7 +222,6 @@ class MultiUI:
         if self._tool_call_handler is not None:
             return await self._tool_call_handler.handle(self, call)
 
-        # Try winning UI's handler
         winning_ui = getattr(self, "_last_winning_ui", None)
         winning_handler = getattr(winning_ui, "tool_call_handler", None)
         if winning_handler is not None:
@@ -462,20 +461,16 @@ class MultiUI:
 
         self._shutdown_event = asyncio.Event()
 
-        # Start shared message processor
         self._process_messages_task = asyncio.create_task(self._process_messages_loop())
 
-        # Set LLM task on all UIs
         if hasattr(self._main_ui, "llm_task"):
             self.set_llm_task(self._main_ui.llm_task)
 
-        # Start all child UIs' event loops (except main UI)
         for i, ui in enumerate(self._uis):
             if i != self._main_ui_index:
                 task = asyncio.create_task(self._start_child_ui(ui))
                 self._child_tasks.append(task)
 
-        # Run main UI's async loop
         main_task = asyncio.create_task(self._main_ui.run_async())
 
         try:

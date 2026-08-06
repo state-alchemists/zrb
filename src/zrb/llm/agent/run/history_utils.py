@@ -111,12 +111,8 @@ def sanitize_history(
             for p in problems:
                 CFG.LOGGER.debug(f"sanitize_history [pre-fix]: {p}")
 
-    # filter_nil_content drops messages whose valid_parts list ends up empty
-    # (see line in filter_nil_content: ``if valid_parts: filtered.append(...)``).
-    # sanitize_orphaned_tool_calls drops messages whose _strip_orphaned_parts
-    # returns None. Both upstream steps already filter empties, so the
-    # standalone ``[m for m in messages if getattr(m, "parts", None)]`` pass
-    # that used to live here is redundant.
+    # Both steps below already drop messages left with no parts, so no separate
+    # empty-message pass is needed here.
     messages = filter_nil_content(messages)
     if not allow_orphaned_tool_calls:
         messages = sanitize_orphaned_tool_calls(messages)

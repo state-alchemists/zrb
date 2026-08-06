@@ -79,7 +79,6 @@ async def process_tool_return_part(
     # Create a safe copy to prevent mutation during processing
     safe_content = safe_copy_result(original_content)
 
-    # Convert non-string content to string for summarization
     content_is_string = isinstance(safe_content, str)
     if not content_is_string:
         try:

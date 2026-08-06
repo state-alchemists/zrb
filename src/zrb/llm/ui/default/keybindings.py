@@ -9,6 +9,7 @@ command handlers on `BaseUICommands` — is the bulk of the file.
 from __future__ import annotations
 
 import asyncio
+import time
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
@@ -334,8 +335,6 @@ class UIKeybindings:
                 return
 
             # Debounce: filter OS key-repeat (events <300ms apart).
-            import time
-
             now = time.time()
             if now - _last_press < _KEY_REPEAT_DEBOUNCE:
                 _last_press = now

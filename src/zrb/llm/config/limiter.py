@@ -291,7 +291,6 @@ class LLMLimiter:
                 items.append(f"{key_str}: {val_str}")
             return " ".join(items)
 
-        # Handle Pydantic AI objects
         res = ""
         # 1. Handle parts (ModelRequest, ModelResponse)
         if hasattr(content, "parts"):

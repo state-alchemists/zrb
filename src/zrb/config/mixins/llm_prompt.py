@@ -29,11 +29,9 @@ class LLMPromptMixin:
         # examples=demonstrations only. Two carry runtime facts:
         # system_context=stable facts (OS, CWD, model), project_context=
         # AGENTS.md/CLAUDE.md discovery.
-        # There is no tool section: per-tool rules live in tool docstrings,
-        # which pydantic-ai ships with the schema on every request.
-        # The skill catalogue is injected into workflow via {CORE_SKILLS}/
-        # {AVAILABLE_SKILLS}/{PREACTIVATED_SKILLS} placeholders, not a separate
-        # section.
+        # Per-tool rules live in tool docstrings, which pydantic-ai ships with
+        # the schema on every request. The skill catalogue is injected into
+        # workflow via {CORE_SKILLS}/{AVAILABLE_SKILLS}/{PREACTIVATED_SKILLS}.
         self.DEFAULT_LLM_INCLUDE_SECTIONS: str = (
             "persona,workflow,examples,system_context,project_context"
         )
@@ -41,7 +39,7 @@ class LLMPromptMixin:
         # (base prompts plus worked examples, for small models); "auto" uses "terse"
         # unless a per-model profile is declared via register_model_profile().
         # zrb makes no capability guess from the model id. The profile selects
-        # per-section phrasing variants (e.g. persona.mini.md over persona.md);
+        # per-section phrasing variants (e.g. examples.mini.md over examples.md);
         # which sections appear is controlled solely by LLM_INCLUDE_SECTIONS.
         self.DEFAULT_LLM_PROFILE: str = "auto"
         super().__init__()

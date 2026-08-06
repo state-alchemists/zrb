@@ -73,11 +73,7 @@ def _collect_git_info(
         return [], _safe_get_todos(todo_manager, session_name)
 
     git_lines: list[str] = []
-    # Configurable via ZRB_LLM_GIT_CMD_TIMEOUT, which is what the knob has always
-    # documented ("timeout for git commands used to build system context") but was
-    # never wired to — these three were hardcoded to the same 5s the knob's
-    # default now carries, so the cap is identical until someone changes it.
-    git_timeout = CFG.LLM_GIT_CMD_TIMEOUT / 1000
+    git_timeout = CFG.LLM_GIT_CMD_TIMEOUT / 1000  # knob is in milliseconds
     with ThreadPoolExecutor(max_workers=4) as ex:
         f_git_branch = ex.submit(
             subprocess.run,
