@@ -119,6 +119,7 @@ To prevent runaway AI loops, manage API costs, and stay within provider limits, 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ZRB_LLM_MAX_REQUEST_PER_MINUTE` | Max API requests per minute | `60` |
+| `ZRB_LLM_MAX_REQUEST_PER_RUN` | Max model requests in one agent run before it halts — the backstop for a run that stops converging. `0` disables. | `300` |
 | `ZRB_LLM_MAX_TOKEN_PER_MINUTE` | Max tokens processed per minute | `128000` |
 | `ZRB_LLM_MAX_TOKEN_PER_REQUEST` | Hard context window limit | `128000` |
 | `ZRB_LLM_THROTTLE_SLEEP` | Seconds to pause when rate-limited | `1.0` |
@@ -205,7 +206,7 @@ Recognised section names:
 
 > The skill catalogue (core skills, other available skills, and active-skill contents) is part of the `workflow` section, injected via `{CORE_SKILLS}`/`{AVAILABLE_SKILLS}`/`{PREACTIVATED_SKILLS}` placeholders — it is not a separate section.
 >
-> **Retired sections.** `mandate`, `git_mandate`, `journal_mandate`, and `tool_guidance` no longer exist (ADR-0098/0099/0100). `mandate` folded into `workflow`; `git_mandate` is enforced by the shell tool policy instead; the journal is three tools with no prose; per-tool rules live in tool docstrings. A pinned list naming any of them falls through to the custom-section path: it composes to nothing (with a warning) unless you have a markdown override of that name, in which case your override is still emitted at that position.
+> Per-tool rules are not a section either: they live in each tool's docstring, which ships with the tool schema on every request (ADR-0045).
 
 > Volatile per-turn state (time, git status, todos, worktree, interactivity) is **not** a section — it is injected into the latest user turn as a `<live-context>` block so the cached system prompt stays byte-stable.
 
@@ -231,7 +232,7 @@ as a *custom* section — see [Programmatic Prompt Customization](#programmatic-
 match the model in use. Small models follow worked examples better than they
 follow abstract rules, so the second profile adds demonstrations. **It does not
 add rules**: added constraint mass degrades exactly the models it targets, so a
-variant may exemplify a rule but never re-word or extend one (ADR-0091).
+variant may exemplify a rule but never re-word or extend one (ADR-0047).
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -287,10 +288,8 @@ add must repeat everything the base says that still applies. It follows the same
 project-override → env → base-dir → package lookup as any prompt file, so you can
 override a variant too.
 
-> The profile was called `explicit` in earlier releases. It is `mini` now, with
-> no alias: `ZRB_LLM_PROFILE=explicit` is unrecognized and falls through to
-> `auto`, and `register_model_profile(..., "explicit")` raises `ValueError`.
-> See ADR-0095.
+> An unrecognized `ZRB_LLM_PROFILE` value falls through to `auto`, and
+> `register_model_profile(..., "<unknown>")` raises `ValueError`.
 
 ### Programmatic Prompt Customization
 
@@ -353,15 +352,15 @@ export ZRB_LLM_INCLUDE_SECTIONS="persona,workflow,company_context,system_context
 
 > **Resolution precedence** for a section name is **built-in > registered provider >
 > markdown file**. A missing markdown file resolves to `""` (a harmless no-op — so a
-> misspelled name silently emits nothing). See ADR-0061 and AGENTS.md ("LLM Prompt
+> misspelled name silently emits nothing). See ADR-0044 and AGENTS.md ("LLM Prompt
 > System").
 
 ### Telling the LLM about a custom tool
 
-There is no tool-guidance section any more (ADR-0100). What a tool does, what its
-arguments mean, and which tool to reach for instead all live in the tool's own
-**docstring** — pydantic-ai serializes it with the JSON schema on every request,
-so the model reads it next to the arguments it is filling in:
+What a tool does, what its arguments mean, and which tool to reach for instead
+all live in the tool's own **docstring** — pydantic-ai serializes it with the
+JSON schema on every request, so the model reads it next to the arguments it is
+filling in (ADR-0045):
 
 ```python
 from zrb import LLMChatTask
@@ -394,8 +393,7 @@ task.prompt_manager.register_section(
 )
 ```
 
-Then place `tool_policy` in `ZRB_LLM_INCLUDE_SECTIONS`. This is the documented
-replacement for the removed `add_tool_guidance()` API.
+Then place `tool_policy` in `ZRB_LLM_INCLUDE_SECTIONS`.
 
 ---
 
@@ -403,7 +401,7 @@ replacement for the removed `add_tool_guidance()` API.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_JOURNAL_ENABLED` | Master switch for the journal. `false` unregisters the three journal tools (`SearchJournal`, `LogActivity`, `WriteJournalNote`) and suppresses the `<journal-index>` injection. Those tools are the whole interface — there is no journal prompt section — so the model is never told a journal exists (ADR-0099). Note `ZRB_LLM_JOURNAL_DIR` has no "off" value: clearing it falls back to the default path rather than disabling anything | `on` |
+| `ZRB_LLM_JOURNAL_ENABLED` | Master switch for the journal. `false` unregisters the three journal tools (`SearchJournal`, `LogActivity`, `WriteJournalNote`) and suppresses the `<journal-index>` injection. Those tools are the whole interface — there is no journal prompt section — so the model is never told a journal exists (ADR-0053). Note `ZRB_LLM_JOURNAL_DIR` has no "off" value: clearing it falls back to the default path rather than disabling anything | `on` |
 | `ZRB_LLM_JOURNAL_DIR` | Long-term notes directory | `~/.zrb/llm-notes/` |
 | `ZRB_LLM_JOURNAL_INDEX_FILE` | Main index file name | `index.md` |
 | `ZRB_LLM_JOURNAL_INDEX_MAX_CHARS` | Max characters of the index injected into context. Overflow is dropped from the **end** on a line boundary, so write the index most-durable-first. `0` suppresses the injection; a negative value injects it uncapped | `2500` |
@@ -453,11 +451,11 @@ Restore rewinds **both** the working directory files **and** the conversation hi
 
 ### Shadow repo layout
 
-```
-~/.zrb/llm-snapshots/
-└── <session-name>/
-    └── .git/          ← isolated git repo (never touches your project git)
-    └── <files ...>    ← mirror of your working directory at each turn
+```mermaid
+flowchart LR
+    Root["~/.zrb/llm-snapshots/"] --> Session["&lt;session-name&gt;/"]
+    Session --> Git[".git/ — isolated repo, never touches your project git"]
+    Session --> Files["&lt;files …&gt; — mirror of your working directory at each turn"]
 ```
 
 ---
@@ -593,24 +591,17 @@ Zrb searches for skills/agents in this order (highest to lowest priority):
 
 ### Directory Structure
 
-```
-~/.claude/
-├── skills/
-│   └── my-skill/
-│       └── SKILL.md
-├── agents/
-│   └── my-agent/
-│       └── AGENT.md
-└── plugins/
-    └── my-plugin/
-        ├── .claude-plugin/
-        │   └── plugin.json
-        ├── skills/
-        │   └── plugin-skill/
-        │       └── SKILL.md
-        └── agents/
-            └── plugin-agent/
-                └── AGENT.md
+```mermaid
+flowchart LR
+    Root["~/.claude/"] --> Skills["skills/"]
+    Root --> Agents["agents/"]
+    Root --> Plugins["plugins/"]
+    Skills --> S1["my-skill/"] --> S1F["SKILL.md"]
+    Agents --> A1["my-agent/"] --> A1F["AGENT.md"]
+    Plugins --> P1["my-plugin/"]
+    P1 --> Meta[".claude-plugin/"] --> MetaF["plugin.json"]
+    P1 --> PS["skills/"] --> PS1["plugin-skill/"] --> PS1F["SKILL.md"]
+    P1 --> PA["agents/"] --> PA1["plugin-agent/"] --> PA1F["AGENT.md"]
 ```
 
 ---
@@ -623,7 +614,7 @@ All timeout values are in **milliseconds** unless the row says otherwise. Divide
 |----------|-------------|---------|
 | `ZRB_LLM_SSE_KEEPALIVE_TIMEOUT` | How long to wait before sending an SSE keepalive ping (ms) | `60000` |
 | `ZRB_WEB_SHUTDOWN_TIMEOUT` | Graceful web server shutdown timeout (ms) | `10000` |
-| `ZRB_LLM_REQUEST_TIMEOUT` | Maximum time to wait for an LLM response (ms) | `300000` |
+| `ZRB_LLM_REQUEST_TIMEOUT` | Deadline for a single model request, applied to every agent (main, sub-agent, programmatic). Guards against a provider that accepts the connection and then stops sending, which no retry can detect. `0` disables. (ms) | `300000` |
 | `ZRB_LLM_INPUT_QUEUE_TIMEOUT` | Polling interval for the chat input queue (ms) | `500` |
 | `ZRB_LLM_SHELL_KILL_WAIT_TIMEOUT` | Time to wait for a shell process to exit after SIGTERM before SIGKILL (ms) | `5000` |
 | `ZRB_LLM_BACKGROUND_WAIT_MAX` | Max time a single `GetDelegationResult`/`MonitorProcess` `wait=` call may block before returning "still running" (**seconds**, not ms) | `300` |
@@ -658,7 +649,8 @@ All interval and delay values are in **milliseconds**.
 |----------|-------------|---------|
 | `ZRB_LLM_MAX_COMPLETION_FILES` | Maximum files scanned for path autocompletion | `5000` |
 | `ZRB_LLM_MAX_OUTPUT_CHARS` | Maximum characters returned by shell command and file read tools | `100000` |
-| `ZRB_LLM_MAX_TOOL_RESULT_CHARS` | Size (characters) above which a tool result is flagged `oversized` in `ToolReturn.metadata`. **It does not truncate**: the cap only ever applied to a duplicate copy of the result, and removing that duplicate (ADR-0092) must not silently start shortening payloads the model previously received in full. `0` disables the check. | `100000` |
+| `ZRB_LLM_MAX_CONSOLE_OUTPUT_CHARS` | Cap (characters) on how much of a shell command's output is mirrored to the console. Separate from `ZRB_LLM_MAX_OUTPUT_CHARS`, which caps what the model sees: a human watching a build wants far more scrollback than the model needs, but neither wants a runaway command echoed line by line. Beyond the cap the output is still captured and still reaches the model. | `1000000` |
+| `ZRB_LLM_MAX_TOOL_RESULT_CHARS` | Size (characters) above which a tool result is flagged `oversized` in `ToolReturn.metadata`. **It does not truncate** — the flag is metadata only, never sent to the model; per-tool caps (`ZRB_LLM_MAX_OUTPUT_CHARS`) are what bound what the model reads. `0` disables the check. | `100000` |
 | `ZRB_LLM_HISTORY_MAX_DISPLAY_CHARS` | Maximum characters shown by the `/history` command | `5000` |
 | `ZRB_LLM_HISTORY_TRUNCATE_LENGTH` | Maximum chars per field when formatting history entries | `100` |
 | `ZRB_LLM_MAX_IMAGE_DIMENSION` | Longest-edge cap (pixels) for attached images before sending to LLM | `1568` |

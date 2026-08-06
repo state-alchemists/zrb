@@ -158,7 +158,6 @@ rename_symbol.__name__ = "LspRenameSymbol"
 list_available_servers.__name__ = "LspListServers"
 
 
-# Tool creation functions for integration with chat.py
 def create_lsp_tools() -> list:
     """Create LSP tool functions for registration with LLMChatTask."""
     return [

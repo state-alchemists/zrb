@@ -349,7 +349,7 @@ class LSPServerOperations:
         if result and isinstance(result, dict):
             workspace_edit = result
             if dry_run:
-                return workspace_edit  # Return the edit without applying
+                return workspace_edit
             # Option (a): actually apply the WorkspaceEdit to disk. We parse
             # the LSP ``changes`` / ``documentChanges`` payload and write the
             # text edits ourselves. ``applied`` flags whether every edit

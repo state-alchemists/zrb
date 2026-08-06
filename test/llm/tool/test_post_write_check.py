@@ -61,8 +61,8 @@ def test_syntax_error_surfaces_via_static_check(tmp_path):
 def test_diagnostic_carries_actionable_system_suggestion(tmp_path):
     """A diagnostic is an error the model must recover from, so per AGENTS.md it
     carries a `[SYSTEM SUGGESTION]` naming the next action — re-read before the
-    next edit, and escalate to a whole-file Write on a repeat. Without this the
-    result reads as a completed success and invites another blind edit."""
+    next edit, and fix the named target. Without this the result reads as a
+    completed success and invites another blind edit."""
     path = tmp_path / "broken.py"
     path.write_text("def f(:\n    pass\n")
     with patch(
@@ -74,7 +74,10 @@ def test_diagnostic_carries_actionable_system_suggestion(tmp_path):
     assert "[SYSTEM SUGGESTION]" in result
     # Names the next action rather than restating the problem.
     assert "`Read`" in result
-    assert "`Write`" in result
+    # Does not prescribe a whole-file `Write`, which a model reads as a license
+    # to rewrite from memory — the exact move that once shipped a regression.
+    assert "whole file" not in result
+    assert "`Write`" not in result
     # Contradicts the caller's "Successfully updated ..." framing.
     assert "treat this as a failed edit" in result
 

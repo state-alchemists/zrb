@@ -50,7 +50,6 @@ def get_group_subcommands(
         nexts.append(task_alias)
     for subgroup_alias, subgroup in get_non_empty_subgroups(group).items():
         nexts.append(subgroup_alias)
-        # Recursively add subgroup
         get_group_subcommands(
             group=subgroup,
             previous_path=previous_path + [group.name],

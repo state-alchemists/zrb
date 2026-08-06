@@ -197,7 +197,7 @@ async def summarize_history(
     When `force=True`, compression is performed even if the conversation is within
     the normal token/window limits (e.g. triggered by an explicit /compress command).
 
-    The journal index is re-seeded into the summary (ADR-0082);
+    The journal index is re-seeded into the summary (ADR-0042);
     ``render_journal_index`` returns nothing when journaling is off.
     """
     try:
@@ -209,7 +209,6 @@ async def summarize_history(
             )
         if summary_window is None:
             summary_window = CFG.LLM_HISTORY_SUMMARIZATION_WINDOW
-        # Ensure we have things to summarize
         to_summarize, to_keep = split_history(
             messages, summary_window, llm_limiter, conversational_token_threshold
         )
@@ -230,7 +229,6 @@ async def summarize_history(
         )
         # 3. Final Aggregation and potential re-summarization
         final_summary_tokens = llm_limiter.count_tokens(summary_text)
-        # Check if we have multiple snapshots or if we are still near the threshold
         has_multiple_snapshots = summary_text.count("<state_snapshot>") > 1
         is_near_threshold = final_summary_tokens > (
             conversational_token_threshold * 0.8
@@ -249,7 +247,7 @@ async def summarize_history(
         # the first-turn live-context). Baking it into the summary message keeps
         # the message structure intact (no extra turn to break role alternation
         # or tool-call pairing) and means the index is present in the very same
-        # request the processor compacts for. See ADR-0082. render_journal_index
+        # request the processor compacts for. See ADR-0042. render_journal_index
         # honours LLM_JOURNAL_ENABLED, so a disabled journal adds nothing here.
         journal_block = render_journal_index()
         if journal_block:

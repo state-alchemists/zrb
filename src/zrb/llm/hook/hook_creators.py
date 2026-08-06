@@ -32,10 +32,8 @@ def create_command_hook(
     config: CommandHookConfig, timeout: float | None = None
 ) -> HookCallable:
     async def command_hook(context: HookContext) -> HookResult:
-        # Prepare environment with Claude Code context variables
         env = os.environ.copy()
 
-        # Inject Claude Code context variables for hook scripts
         env["CLAUDE_HOOK_EVENT"] = str(context.event.value)
         env["CLAUDE_HOOK_EVENT_NAME"] = context.hook_event_name or str(
             context.event.value
@@ -44,7 +42,6 @@ def create_command_hook(
         env["CLAUDE_TRANSCRIPT_PATH"] = context.transcript_path or ""
         env["CLAUDE_PERMISSION_MODE"] = context.permission_mode
 
-        # Phase 7: Environment Variables
         env["CLAUDE_PROJECT_DIR"] = (
             context.cwd or os.getcwd()
         )  # Best guess for project root
@@ -63,7 +60,6 @@ def create_command_hook(
                 env[key] = value
             # else: omit — the stdin payload carries the data.
 
-        # Inject event-specific data as JSON
         try:
             # Try to serialize event_data, fall back to string representation
             if context.event_data is not None:
@@ -71,10 +67,8 @@ def create_command_hook(
             else:
                 env["CLAUDE_EVENT_DATA"] = "null"
         except (TypeError, ValueError):
-            # If not JSON serializable, use string representation
             _set_bounded_env("CLAUDE_EVENT_DATA", str(context.event_data))
 
-        # Add context fields to environment
         for field in [
             "tool_name",
             "tool_input",
@@ -377,11 +371,9 @@ def create_prompt_hook(config: PromptHookConfig) -> HookCallable:
         This runs an LLM with the given prompt template and returns the result.
         """
         try:
-            # Import here to avoid circular imports
             # lazy: heavy third-party
             from pydantic_ai import Agent
 
-            # Get LLM configuration
             model_name = config.model or CFG.LLM_MODEL
             if not model_name:
                 logger.error("No LLM model configured for prompt hook")
@@ -389,15 +381,12 @@ def create_prompt_hook(config: PromptHookConfig) -> HookCallable:
 
             final_model = llm_config.resolve_model(model_name)
 
-            # Create agent with the prompt
             agent = Agent(
                 model=final_model,
                 system_prompt=config.system_prompt or "",
                 deps_type=dict,
             )
 
-            # Format user prompt template with context
-            # Simple template substitution using context fields
             user_prompt = config.user_prompt_template
             for field_name in dir(context):
                 if not field_name.startswith("_"):
@@ -409,16 +398,13 @@ def create_prompt_hook(config: PromptHookConfig) -> HookCallable:
                                 placeholder, str(field_value)
                             )
 
-            # Run the agent
             result = await agent.run(user_prompt, deps={})
 
-            # Parse the result for modifications
             modifications = {}
             # str() is kept outside the try so the narrowed JSONDecodeError
             # catch covers exactly the json.loads call and nothing else.
             output_text = str(result.output)
             try:
-                # Try to parse as JSON if it looks like JSON
                 if output_text.strip().startswith("{") and output_text.strip().endswith(
                     "}"
                 ):
@@ -426,7 +412,6 @@ def create_prompt_hook(config: PromptHookConfig) -> HookCallable:
                     if isinstance(parsed, dict):
                         modifications = parsed
             except json.JSONDecodeError:
-                # Not JSON, use as plain output
                 pass
 
             return HookResult(
@@ -447,11 +432,9 @@ def create_agent_hook(config: AgentHookConfig) -> HookCallable:
         This creates an agent with the given system prompt and tools.
         """
         try:
-            # Import here to avoid circular imports
             # lazy: heavy third-party
             from pydantic_ai import Agent
 
-            # Get LLM configuration
             model_name = config.model or CFG.LLM_MODEL
             if not model_name:
                 logger.error("No LLM model configured for agent hook")
@@ -459,7 +442,6 @@ def create_agent_hook(config: AgentHookConfig) -> HookCallable:
 
             final_model = llm_config.resolve_model(model_name)
 
-            # Create agent with system prompt
             agent = Agent(
                 model=final_model,
                 system_prompt=config.system_prompt,
@@ -469,29 +451,21 @@ def create_agent_hook(config: AgentHookConfig) -> HookCallable:
             # TODO: Add tools from config.tools
             # For now, run without tools
 
-            # Create a prompt from context
-            # Use event_data or other context fields as input
             user_input = ""
             if context.event_data:
-                if isinstance(context.event_data, dict):
-                    user_input = str(context.event_data)
-                else:
-                    user_input = str(context.event_data)
+                user_input = str(context.event_data)
             elif hasattr(context, "prompt") and context.prompt:
                 user_input = context.prompt
             else:
                 user_input = f"Hook event: {context.event.value}"
 
-            # Run the agent
             result = await agent.run(user_input, deps={})
 
-            # Parse the result for modifications
             modifications = {}
             # str() is kept outside the try so the narrowed JSONDecodeError
             # catch covers exactly the json.loads call and nothing else.
             output_text = str(result.output)
             try:
-                # Try to parse as JSON if it looks like JSON
                 if output_text.strip().startswith("{") and output_text.strip().endswith(
                     "}"
                 ):
@@ -499,7 +473,6 @@ def create_agent_hook(config: AgentHookConfig) -> HookCallable:
                     if isinstance(parsed, dict):
                         modifications = parsed
             except json.JSONDecodeError:
-                # Not JSON, use as plain output
                 pass
 
             return HookResult(

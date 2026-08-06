@@ -82,7 +82,6 @@ class LSPServer(LSPServerOperations):
             return True
 
         try:
-            # Start the process
             self.process = await asyncio.create_subprocess_exec(
                 *self.config.command,
                 stdin=asyncio.subprocess.PIPE,
@@ -94,14 +93,12 @@ class LSPServer(LSPServerOperations):
             self.reader = self.process.stdout
             self.writer = self.process.stdin
 
-            # Start reading responses in background
             self._read_task = asyncio.create_task(self._read_loop())
             # Drain stderr so a server that logs verbosely (e.g. node/pyright)
             # can't fill the pipe buffer and block on its own stderr writes,
             # which would stall every request.
             self._stderr_task = asyncio.create_task(self._drain_stderr())
 
-            # Initialize the server
             await self._initialize()
 
             zrb_print(
@@ -131,7 +128,6 @@ class LSPServer(LSPServerOperations):
 
         if self.process:
             try:
-                # Send shutdown request
                 if self.writer:
                     shutdown_msg = JSONRPCMessage.create_request(
                         "shutdown", None, self._next_id()
@@ -143,7 +139,6 @@ class LSPServer(LSPServerOperations):
                     )
                     await self.writer.drain()
 
-                # Send exit notification
                 if self.writer:
                     exit_msg = JSONRPCMessage.create_notification("exit")
                     self.writer.write(
@@ -184,7 +179,6 @@ class LSPServer(LSPServerOperations):
 
         result = await self._send_request_raw(params)
         if result is not None:
-            # Send initialized notification
             initialized = JSONRPCMessage.create_notification("initialized")
             await self._send_notification_raw(initialized)
             self.initialized = True
@@ -273,13 +267,11 @@ class LSPServer(LSPServerOperations):
                     break
                 buffer += data
 
-                # Process all complete messages in buffer
                 while b"\r\n\r\n" in buffer:
                     header_end = buffer.index(b"\r\n\r\n")
                     header = buffer[:header_end]
                     body_start = header_end + 4
 
-                    # Parse content-length (bytes) from header
                     content_length = 0
                     for line in header.split(b"\r\n"):
                         if line.lower().startswith(b"content-length:"):
@@ -319,7 +311,6 @@ class LSPServer(LSPServerOperations):
         try:
             msg = json.loads(body)
 
-            # Check if this is a response to a pending request
             if "id" in msg:
                 request_id = msg["id"]
                 future = self.pending_requests.pop(request_id, None)
@@ -336,7 +327,6 @@ class LSPServer(LSPServerOperations):
                     elif "result" in msg:
                         future.set_result(msg["result"])
 
-            # Handle server-originated notifications.
             elif "method" in msg:
                 method = msg["method"]
                 params = msg.get("params", {})

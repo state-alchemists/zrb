@@ -81,7 +81,6 @@ def create_web_app(
 
         yield
 
-        # Cleanup on shutdown
         for coro in _COROS:
             coro.cancel()
         if _COROS:

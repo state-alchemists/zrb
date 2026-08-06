@@ -199,7 +199,7 @@ class PromptManager:
         the built-in rendering, in registration order.
 
         The journal index snapshot rides here rather than the cached system
-        prompt (ADR-0082). *inject_journal_index* picks the moment (first turn);
+        prompt (ADR-0042). *inject_journal_index* picks the moment (first turn);
         ``render_journal_index`` itself checks ``LLM_JOURNAL_ENABLED``, so a
         disabled journal emits nothing regardless of what callers ask for.
         """
@@ -369,10 +369,9 @@ class PromptManager:
     def _get_composed_middlewares(
         self, ctx: AnyContext
     ) -> list[PromptMiddleware | str]:
-        # Resolve sections: instance override or CFG default
         sections = self.active_sections
 
-        # Resolve the profile (ADR-0083) from the LLM_PROFILE knob + active
+        # Resolve the profile (ADR-0047) from the LLM_PROFILE knob + active
         # model. It selects per-section phrasing variants (file-backed sections
         # resolve ``{name}.{profile}`` with fallback). Which sections appear
         # is controlled solely by include_sections / ZRB_LLM_INCLUDE_SECTIONS —
@@ -447,7 +446,7 @@ class PromptManager:
 
         Resolves each name in *names* via ``get_prompt`` at compose time,
         preferring the *profile* variant (``{name}.{profile}.md``) with fallback
-        to the base file (ADR-0083). When nothing resolves for a name (no
+        to the base file (ADR-0047). When nothing resolves for a name (no
         registered provider, no markdown file), that part is empty — a warning
         is logged so a misspelled name in ``include_sections`` /
         ``ZRB_LLM_INCLUDE_SECTIONS`` is diagnosable instead of silently dropped.

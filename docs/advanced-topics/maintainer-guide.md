@@ -111,29 +111,28 @@ compacted. Each minor version has its own file under `changelog-v2/`. **Keep
 only two entries per minor version** — the minor bump and its final revision —
 producing this retained sequence:
 
-```
-x.y.0  →  x.y.z (latest revision of x.y)  →  x.y+1.0  →  x.y+1.w  →  …
+```mermaid
+flowchart LR
+    A["x.y.0"] --> B["x.y.z — latest revision of x.y"] --> C["x.y+1.0"] --> D["x.y+1.w"] --> E["…"]
 ```
 
-Before compaction, each patch release lands in its own separate file — e.g.
-today's newest minor is spread across `2.48.0.md` and `2.48.1.md`, two
-distinct files, not yet merged. Compaction only happens once a minor ages out,
-at which point its separate per-patch files get merged into a single range
-file.
+Before compaction, each patch release lands in its own separate file. Compaction
+only happens once a minor ages out, at which point its separate per-patch files
+are merged into a single range file.
 
 Worked example (2.31–2.33):
 
-```
-changelog-v2/2.31.0.md  →  changelog-v2/2.32.0-2.32.2.md  →  changelog-v2/2.33.0-2.33.4.md
+```mermaid
+flowchart LR
+    V31["changelog-v2/2.31.0.md"] --> V32["changelog-v2/2.32.0-2.32.2.md"] --> V33["changelog-v2/2.33.0-2.33.4.md"]
 ```
 
 Here `2.31` had no patches (stays as `2.31.0.md`); `2.32` collapsed `2.32.1`
 into `2.32.2` and its `2.32.0a1`–`b5` pre-releases into `2.32.0`; `2.33` (once
 it aged out) collapsed the separate `2.33.1.md`–`2.33.4.md` patch files into
 `2.33.4`, merging everything into the single compacted file
-`2.33.0-2.33.4.md`. **The newest minor stays as separate per-patch files**
-(e.g. today's `2.48.0.md` and `2.48.1.md`) until it ages out and a later minor
-opens.
+`2.33.0-2.33.4.md`. **The newest minor stays as separate per-patch files** until
+it ages out and a later minor opens.
 
 Rules for the surviving entries — they must not lose the dropped history:
 
@@ -262,7 +261,7 @@ To understand Zrb's core design decisions (such as the strict use of `asyncio`, 
 
 ## Context Propagation Internals
 
-Zrb uses Python's `contextvars.ContextVar` to thread execution state through async coroutines without explicit parameter passing. There are eleven `ContextVar` instances across the codebase, split into five layers. The single source of truth is `src/zrb/contextvars.py` (a re-export index); update this section whenever you add, remove, or rename a `ContextVar`.
+Zrb uses Python's `contextvars.ContextVar` to thread execution state through async coroutines without explicit parameter passing. There are twelve `ContextVar` instances across the codebase, split into five layers. The single source of truth is `src/zrb/contextvars.py` (a re-export index); update this section whenever you add, remove, or rename a `ContextVar`.
 
 ### The Five Layers
 
@@ -499,9 +498,9 @@ The handler sits **last among the HTTP-400 handlers** in `handle_stream_error`, 
 
 The sanitization layer and `allow_orphaned_tool_calls` above protect against a tool **call/return pair** being split by compression. A different failure mode arises specifically *between* deferred-tool iterations: after a deferred tool is approved or denied, the loop re-enters `agent.run_stream_events()` with the resolved `DeferredToolResults`. If the summarizer ran again between iterations, it could compress the kept slice enough that the **entire `ModelResponse` whose `tool_calls` match `current_results`** is dropped. `allow_orphaned_tool_calls` does not help here — there is no orphaned *part* to preserve; the whole response carrying the tool calls is gone. pydantic-ai's `_handle_deferred_tool_results` then raises a `UserError` whose message contains *"does not contain any unprocessed tool calls"* (or *"does not contain a `ModelResponse`"*).
 
-Two defenses cover this (see ADR-0058):
+Two defenses cover this (see ADR-0040):
 
-1. **Prevention (`runner.py`, `_execution_loop`)** — the deferred-tool branch always sets `current_history` directly to `run_history`, unconditionally, never reapplying processors mid-deferral. This was originally a conditional guard, but `_process_deferred_requests` always populates `current_results.approvals` for every resolved call (approved, denied, or hook-blocked), so the guard's "skip" condition was always true in practice — the dead reapplication branch was removed. Processor effects are already applied in `_prepare_history` before the first stream call, and the summarizer still runs on every non-deferred iteration.
+1. **Prevention (`runner.py`, `_execution_loop`)** — the deferred-tool branch always sets `current_history` directly to `run_history`, unconditionally, never reapplying processors mid-deferral. It is unconditional rather than guarded because `_process_deferred_requests` populates `current_results.approvals` for every resolved call (approved, denied, or hook-blocked), so any "should I skip the summarizer?" condition is true on every deferred iteration anyway. Processor effects are already applied in `_prepare_history` before the first stream call, and the summarizer still runs on every non-deferred iteration.
 
    ```python
    # runner.py — _execution_loop, deferred-tool branch

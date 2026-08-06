@@ -74,10 +74,8 @@ class SimpleUI(BaseUI):
         argument_formatters: "list[ArgumentFormatter] | None" = None,
         **kwargs,  # Accept extra kwargs for easy subclassing
     ):
-        # Accept config parameter
         self._config = config or UIConfig.default()
 
-        # Generate yolo_xcom_key if not provided
         yolo_key = self._config.yolo_xcom_key or f"_yolo_{id(self)}"
 
         super().__init__(
@@ -195,17 +193,14 @@ class SimpleUI(BaseUI):
 
     async def run_async(self) -> str:
         """Default implementation - handles common pattern."""
-        # Start message processing
         self._process_messages_task = asyncio.create_task(self._process_messages_loop())
         # Add to background tasks to prevent premature garbage collection
         if hasattr(self, "_background_tasks"):
             self._background_tasks.add(self._process_messages_task)
 
-        # Send initial message if provided
         if self._initial_message:
             self._submit_user_message(self._llm_task, self._initial_message)
 
-        # Run until stopped
         try:
             await self._run_loop()
         except asyncio.CancelledError:
@@ -217,7 +212,6 @@ class SimpleUI(BaseUI):
             except asyncio.CancelledError:
                 pass
             finally:
-                # Remove from background tasks
                 if hasattr(self, "_background_tasks"):
                     self._background_tasks.discard(self._process_messages_task)
 

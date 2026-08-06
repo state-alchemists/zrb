@@ -128,7 +128,6 @@ def show_todo(ctx: AnyContext):
     todo_list: list[TodoTaskModel] = []
     if os.path.isfile(todo_file_path):
         todo_list = load_todo_list(todo_file_path)
-    # Get todo task
     todo_task = select_todo_task(todo_list, ctx.input.keyword)
     if todo_task is None:
         ctx.log_error("Task not found")
@@ -136,7 +135,6 @@ def show_todo(ctx: AnyContext):
     if todo_task.completed:
         ctx.log_error("Task already completed")
         return
-    # Update todo task
     todo_task = cascade_todo_task(todo_task)
     task_id = todo_task.keyval.get("id", "")
     log_work_path = os.path.join(CFG.TODO_DIR, "log-work", f"{task_id}.json")
@@ -162,7 +160,6 @@ def complete_todo(ctx: AnyContext):
     todo_list: list[TodoTaskModel] = []
     if os.path.isfile(todo_file_path):
         todo_list = load_todo_list(todo_file_path)
-    # Get todo task
     todo_task = select_todo_task(todo_list, ctx.input.keyword)
     if todo_task is None:
         ctx.log_error("Task not found")
@@ -170,13 +167,11 @@ def complete_todo(ctx: AnyContext):
     if todo_task.completed:
         ctx.log_error("Task already completed")
         return get_visual_todo_list(todo_list, filter=ctx.input.filter)
-    # Update todo task
     todo_task = cascade_todo_task(todo_task)
     # cascade_todo_task guarantees creation_date is set, so completion_date
     # can always be recorded here.
     todo_task.completion_date = datetime.date.today()
     todo_task.completed = True
-    # Save todo list
     save_todo_list(todo_file_path, todo_list)
     return get_visual_todo_list(todo_list, filter=ctx.input.filter)
 
@@ -212,12 +207,10 @@ def archive_todo(ctx: AnyContext):
     archive_file_path = os.path.join(CFG.TODO_DIR, "archive.txt")
     if not os.path.isdir(CFG.TODO_DIR):
         os.makedirs(CFG.TODO_DIR, exist_ok=True)
-    # Get archived todo list
     archived_todo_list = []
     if os.path.isfile(archive_file_path):
         archived_todo_list = load_todo_list(archive_file_path)
     archived_todo_list += new_archived_todo_list
-    # Save the new todo list and add the archived ones
     save_todo_list(archive_file_path, archived_todo_list)
     save_todo_list(todo_file_path, working_todo_list)
     return get_visual_todo_list(working_todo_list, filter=ctx.input.filter)
@@ -256,20 +249,16 @@ def log_todo(ctx: AnyContext):
     todo_list: list[TodoTaskModel] = []
     if os.path.isfile(todo_file_path):
         todo_list = load_todo_list(todo_file_path)
-    # Get todo task
     todo_task = select_todo_task(todo_list, ctx.input.keyword)
     if todo_task is None:
         ctx.log_error("Task not found")
         return get_visual_todo_list(todo_list, filter=ctx.input.filter)
-    # Update todo task
     todo_task = cascade_todo_task(todo_task)
     current_duration_str = todo_task.keyval.get("duration", "0")
     todo_task.keyval["duration"] = add_duration(
         current_duration_str, ctx.input.duration
     )
-    # Save todo list
     save_todo_list(todo_file_path, todo_list)
-    # Add log work
     log_work_dir = os.path.join(CFG.TODO_DIR, "log-work")
     os.makedirs(log_work_dir, exist_ok=True)
     log_work_file_path = os.path.join(
@@ -288,9 +277,7 @@ def log_todo(ctx: AnyContext):
             "start": start_work_time_str,
         }
     )
-    # save todo with log work
     write_file(log_work_file_path, json.dumps(log_work, indent=2))
-    # get log work list
     task_id = todo_task.keyval.get("id", "")
     log_work_path = os.path.join(CFG.TODO_DIR, "log-work", f"{task_id}.json")
     log_work_list = []

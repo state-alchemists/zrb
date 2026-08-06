@@ -10,7 +10,6 @@ from zrb.util.init_path import get_init_path_list
 from zrb.util.load import load_file, load_module
 
 
-# Custom Formatter for faint styling
 class FaintFormatter(logging.Formatter):
 
     def __init__(self, fmt=None, datefmt=None):

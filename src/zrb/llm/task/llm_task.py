@@ -162,7 +162,6 @@ class LLMTask(LLMTaskBuilding, LLMTaskHistory, BaseTask):
         )
         self._llm_config = default_llm_config if llm_config is None else llm_config
         self._llm_limiter = default_llm_limiter if llm_limiter is None else llm_limiter
-        # Auto-convert system_prompt to prompt_manager if provided and prompt_manager not set
         if prompt_manager is None:
             prompt_manager = PromptManager(
                 prompts=[system_prompt] if system_prompt else [],
@@ -231,7 +230,6 @@ class LLMTask(LLMTaskBuilding, LLMTaskHistory, BaseTask):
         # would run twice per turn.
         toolsets = self._get_all_toolsets(ctx)
         async with AsyncExitStack() as stack:
-            # Enter context for all toolsets that support it
             for toolset in toolsets:
                 if hasattr(toolset, "__aenter__"):
                     await stack.enter_async_context(toolset)
@@ -276,7 +274,6 @@ class LLMTask(LLMTaskBuilding, LLMTaskHistory, BaseTask):
         )
 
         try:
-            # Compute YOLO status for context propagation
             yolo_value = (
                 self._dynamic_yolo()
                 if callable(self._dynamic_yolo)
@@ -407,7 +404,6 @@ class LLMTask(LLMTaskBuilding, LLMTaskHistory, BaseTask):
             toolsets if toolsets is not None else self._get_all_toolsets(ctx)
         )
 
-        # Resolve model using llm_config
         base_model = self._get_model(ctx)
         final_model = self._llm_config.resolve_model(base_model)
 

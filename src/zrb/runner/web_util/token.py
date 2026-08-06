@@ -29,7 +29,6 @@ def regenerate_tokens(web_auth_config: WebAuthConfig, refresh_token: str) -> Tok
     # lazy: heavy third-party
     from fastapi import HTTPException
 
-    # Decode and validate token
     try:
         payload = jwt.decode(
             refresh_token,
@@ -50,7 +49,6 @@ def regenerate_tokens(web_auth_config: WebAuthConfig, refresh_token: str) -> Tok
     user = web_auth_config.find_user_by_username(username)
     if user is None:
         raise HTTPException(status_code=401, detail="User not found")
-    # Create new token
     new_access_token = _generate_access_token(web_auth_config, username)
     new_refresh_token = _generate_refresh_token(web_auth_config, username)
     return Token(

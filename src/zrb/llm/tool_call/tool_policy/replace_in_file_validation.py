@@ -26,7 +26,6 @@ async def replace_in_file_validation_policy(
     if call.tool_name != "Edit":
         return await next_handler(ui, call)
 
-    # Parse arguments
     args = call.args
     try:
         if isinstance(args, str):

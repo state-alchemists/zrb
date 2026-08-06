@@ -354,7 +354,6 @@ class LLMLimiter:
 
     def _calculate_wait_time(self, tokens: int) -> float:
         now = time.time()
-        # Default wait
         wait = 1.0
 
         # If request limit hit, wait until oldest request expires. With a

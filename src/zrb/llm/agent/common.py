@@ -102,7 +102,7 @@ def _oversize_metadata(value: Any) -> dict[str, Any]:
     ``CFG.LLM_MAX_TOOL_RESULT_CHARS`` has never bounded what the model reads:
     it was applied to ``ToolReturn.content`` while ``return_value`` — the field
     that becomes the tool-result message — went through whole, so the cap only
-    shrank the duplicate copy (see ADR-0092). Dropping that duplicate must not
+    shrank the duplicate copy (see ADR-0043). Dropping that duplicate must not
     silently start truncating payloads the model used to receive in full, so the
     size is recorded and the value is passed through untouched.
 
@@ -401,10 +401,8 @@ def create_agent(
     from pydantic_ai import Agent, DeferredToolRequests
     from pydantic_ai.toolsets import FunctionToolset
 
-    # Expand system prompt with references
     effective_system_prompt = expand_prompt(system_prompt)
 
-    # Wrap tools and toolsets with error handling
     safe_tools = [_wrap_tool(t) for t in tools]
     safe_toolsets = [_wrap_toolset(t) for t in toolsets]
 
@@ -443,8 +441,8 @@ def create_agent(
     # a getter that expects a tier string. See LLMTask._create_agent.
     final_model = default_llm_config.resolve_model(model) if resolve_model else model
     effective_retries = retries if retries is not None else CFG.LLM_TOOL_MAX_RETRIES
-    effective_model_settings = _apply_capability_constraints(
-        model, final_model, model_settings
+    effective_model_settings = _apply_request_timeout(
+        _apply_capability_constraints(model, final_model, model_settings)
     )
 
     agent: "Agent[None, Any]" = Agent(
@@ -473,6 +471,33 @@ def create_agent(
     return agent
 
 
+def _apply_request_timeout(
+    model_settings: "ModelSettings | None",
+) -> "ModelSettings | None":
+    """Give every model request a deadline, from ``CFG.LLM_REQUEST_TIMEOUT``.
+
+    Without one, a provider that accepts the connection and then stops sending
+    blocks the run forever: pydantic-ai waits on the stream, and ``retry_loop``
+    only fires on a raised exception, so a stall is indistinguishable from
+    thinking. Observed as two benchmark cells that burned their full 600s
+    wall-clock having produced no output, no history, and no file writes.
+
+    ``LLM_REQUEST_TIMEOUT`` already existed and already documented itself as the
+    "default timeout for LLM requests" — it was simply never read outside the
+    web session runner. Applied here rather than at a call site so it covers the
+    main agent, programmatic ``LLMTask``, and sub-agents alike. A caller that
+    sets ``timeout`` itself wins; a non-positive value disables the deadline.
+    """
+    timeout_ms = CFG.LLM_REQUEST_TIMEOUT
+    if timeout_ms <= 0:
+        return model_settings
+    if model_settings is None:
+        return {"timeout": timeout_ms / 1000}
+    if "timeout" in model_settings:
+        return model_settings
+    return {**model_settings, "timeout": timeout_ms / 1000}
+
+
 def _apply_capability_constraints(
     model: "Model | str | None",
     final_model: "Model | str | None",
@@ -497,6 +522,20 @@ def _apply_capability_constraints(
        models' behavior. Both layers use
        the same capability registry, so toggling
        ``supports_parallel_tool_calls`` in one place updates both.
+
+    .. warning::
+
+       Some providers reject ``parallel_tool_calls`` outright rather than
+       honouring or ignoring it — OpenAI's o-series answers "Unsupported
+       parameter: 'parallel_tool_calls' is not supported with this model" with
+       a 400, and kimi-k2.5 behind NVIDIA NIM answers "This model only supports
+       single tool-calls at once!". For such a model, declaring
+       ``supports_parallel_tool_calls=False`` would send the one parameter that
+       breaks every request — a worse failure than the batching it prevents.
+       Splitting "malforms parallel calls" from "rejects the flag" into two
+       fields is the fix if that case ever needs supporting; until then the
+       registry comment on ``_NO_PARALLEL_TOOL_CALLS`` says to keep such models
+       off the list.
     """
     # lazy: zrb internal (heavy via transitive / circular)
     from zrb.llm.util.capabilities import model_capabilities

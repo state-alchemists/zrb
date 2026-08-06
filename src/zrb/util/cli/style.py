@@ -152,7 +152,6 @@ def stylize(
     Returns:
         str: The stylized string with ANSI escape codes.
     """
-    # Start constructing the ANSI escape code
     code_parts = []
     if style is not None and style in VALID_STYLES:
         code_parts.append(str(style))
@@ -160,7 +159,6 @@ def stylize(
         code_parts.append(str(color))
     if background is not None and background in VALID_BACKGROUNDS:
         code_parts.append(str(background))
-    # Join all parts with ';' and add the escape code ending
     if len(code_parts) > 0:
         return "\033[" + ";".join(code_parts) + "m" + text + "\033[0m"
     return text

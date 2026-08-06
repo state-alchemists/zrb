@@ -124,7 +124,6 @@ class ChatExecution(ChatState):
         ui_commands = self._get_ui_commands()
 
         # 4. Resolve tools/toolsets from factories using parent context
-        # LLMChatTask factories use the parent (LLMChatTask) context
         resolved_tools = self._get_all_tools(ctx)
         resolved_toolsets = self._get_all_toolsets(ctx)
 
@@ -318,14 +317,12 @@ class ChatExecution(ChatState):
 
         # Determine the tool confirmation and ui to use
         tool_confirmation = self._tool_confirmation
-        ui = (
-            self._uis if self._uis else None
-        )  # Use programmatically set UIs if provided
+        ui = self._uis if self._uis else None
 
         if interactive:
             # Interactive mode: Let the UI handle everything
             tool_confirmation = None
-            ui = None  # Interactive mode uses its own UI system
+            ui = None
         elif (
             self._tool_policies or self._response_handlers or self._argument_formatters
         ):
@@ -406,9 +403,7 @@ class ChatExecution(ChatState):
         CFG.LOGGER.debug(f"  effective_approval_channel: {effective_approval_channel}")
         CFG.LOGGER.debug(f"  _approval_channels: {self._approval_channels}")
 
-        # Create a fresh HookManager for this task execution
         hook_manager = HookManager()
-        # Apply all hook factories
         for factory in self._hook_factories:
             factory(hook_manager)
         # Hold a reference so the interactive teardown can fire the terminal

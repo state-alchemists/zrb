@@ -98,7 +98,6 @@ class BufferedUI(UIProtocol):
         flush: bool = False,
         kind: str = "text",
     ):
-        # Buffer output
         text = sep.join(str(v) for v in values) + end
         self._buffer.append(text)
         if self._agent_id:
@@ -165,7 +164,6 @@ class BufferedUI(UIProtocol):
         if self._agent_id:
             agent_activity_registry.update(self._agent_id, text)
         if self._prefix:
-            # Add prefix to each non-empty line
             lines = text.split("\n")
             text = "\n".join(
                 f"{self._prefix}{line}" if line.strip() else "" for line in lines
@@ -430,7 +428,6 @@ def create_delegate_to_agent_tool(
 ):
     if sub_agent_manager is None:
         sub_agent_manager = default_sub_agent_manager
-    # Scan for available (and permitted) agents to populate the docstring
     agent_doc_section = agent_roster_doc(sub_agent_manager)
 
     async def delegate_to_agent(
@@ -482,7 +479,6 @@ def create_delegate_to_agent_tool(
             ui=buffered_ui,
         )
 
-        # Flush any remaining buffered output
         buffered_ui.flush_to_parent()
 
         if not task_result.success:
@@ -495,9 +491,13 @@ def create_delegate_to_agent_tool(
     delegate_to_agent.__name__ = "DelegateToAgent"
     delegate_to_agent.__doc__ = (
         "Delegates a task to a named subagent for isolated execution.\n\n"
+        "The envelope is the contract — a vague envelope comes back vague:\n"
         "- deliverable: concrete artifact that must exist on return (name the file, function, or decision).\n"
         "- task: how to produce it — reference exact files, line numbers, or commands when known.\n"
         "- non_goals: things the sub-agent must NOT do (scope clamp). Pass [] only when certain.\n\n"
+        "For a comparative deliverable, set the axes yourself and give every "
+        "sub-agent the same list — reports built on different frames cannot be "
+        "reconciled.\n\n"
         "FAN OUT: pass tasks=[{agent_name, deliverable, task, non_goals, ...}, ...] to run multiple "
         "sub-agents concurrently in one call. Flat args are ignored when tasks is non-empty.\n\n"
         f"AVAILABLE AGENTS:\n{agent_doc_section}"

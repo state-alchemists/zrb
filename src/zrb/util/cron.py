@@ -94,11 +94,9 @@ def match_cron(cron_pattern: str, dt: datetime.datetime):
     Returns:
         bool: True if the datetime matches the cron pattern, False otherwise.
     """
-    # Handle special cron patterns
     if cron_pattern.startswith("@"):
         return handle_special_cron_patterns(cron_pattern, dt)
     minute, hour, day, month, day_of_week = cron_pattern.split()
-    # Parse each field with step, range, and wildcard support
     minutes = parse_cron_field(minute, 0, 59)
     hours = parse_cron_field(hour, 0, 23)
     days = parse_cron_field(day, 1, 31)

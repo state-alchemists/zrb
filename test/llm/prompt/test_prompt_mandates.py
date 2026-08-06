@@ -70,7 +70,7 @@ def test_get_prompt_workflow_with_local_override():
                 os.chdir(original_cwd)
 
 
-# ── Profile variants (ADR-0083) ──────────────────────────────────────────
+# ── Profile variants (ADR-0047) ──────────────────────────────────────────
 
 
 def test_get_prompt_mini_profile_uses_variant_when_present():
@@ -78,7 +78,7 @@ def test_get_prompt_mini_profile_uses_variant_when_present():
     base = get_prompt("examples")
     explicit = get_prompt("examples", profile="mini")
     assert explicit != base
-    # A variant may add demonstrations, never rules (ADR-0091), so it is a
+    # A variant may add demonstrations, never rules (ADR-0047), so it is a
     # strict superset of the base rather than a rewrite of it.
     assert explicit.startswith(base.rstrip())
 
@@ -105,7 +105,7 @@ def test_get_prompt_profile_falls_back_to_base_when_no_variant():
 
 
 def test_get_prompt_examples_ships_in_both_profiles():
-    """Examples reach every model; explicit adds more on top (ADR-0091/0093)."""
+    """Examples reach every model; explicit adds more on top (ADR-0047/0093)."""
     base = get_prompt("examples")
     explicit = get_prompt("examples", profile="mini")
     assert "<example>" in base

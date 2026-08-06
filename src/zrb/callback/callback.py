@@ -40,7 +40,7 @@ class Callback(AnyCallback):
             xcom_mapping: Map of parent session's xcom names to current session's xcom names
             result_queue: The name of the XCom queue in the parent session
                 to publish the task result.
-            result_queue: The name of the Xcom queue in the parent session
+            error_queue: The name of the Xcom queue in the parent session
                 to publish the task error.
             session_name_queue: The name of the XCom queue in the parent
                 session to publish the session name.
@@ -57,7 +57,6 @@ class Callback(AnyCallback):
         self._maybe_publish_session_name_to_parent_session(
             parent_session=parent_session, session=session
         )
-        # prepare input
         inputs = get_str_dict_attr(
             session.shared_ctx,
             self._input_mapping,
@@ -66,12 +65,10 @@ class Callback(AnyCallback):
         for name, value in inputs.items():
             session.shared_ctx.input[name] = value
             session.shared_ctx.input[to_snake_case(name)] = value
-        # map xcom
         if self._xcom_mapping is not None:
             for parent_xcom_name, current_xcom_name in self._xcom_mapping.items():
                 parent_xcom = parent_session.shared_ctx.xcom[parent_xcom_name]
                 session.shared_ctx.xcom[current_xcom_name] = parent_xcom
-        # run task and get result
         try:
             result = await self._task.async_run(session)
             self._maybe_publish_result_to_parent_session(parent_session, result)

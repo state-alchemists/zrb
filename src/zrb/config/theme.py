@@ -5,7 +5,7 @@ A *theme* is a named bundle of default style values. The ``ZRB_THEME`` knob
 from the active theme via :func:`theme_default` (wired as each field's
 ``EnvField(default_factory=...)``). An explicitly set ``ZRB_*`` style env still
 wins, because ``EnvField`` reads the env first and only calls the factory when
-the knob is unset. See ADR-0084.
+the knob is unset. See ADR-0027.
 
 This module is pure data plus helpers — it must **not** import config, to keep
 ``zrb.config`` importable without a cycle. Keys are style-knob names (e.g.

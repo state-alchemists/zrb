@@ -96,6 +96,49 @@ async def test_run_shell_command_with_bash_shell_bashism():
     assert "Exit Code: 0" in res
 
 
+# The PID-tracking wrapper used to splice itself onto the command with `; }`,
+# which corrupted any command whose LAST LINE cannot absorb a trailing `; }`.
+# Every shape below failed with an opaque shell parse error pointing at a line
+# number in a string the model never wrote, and models write all of them
+# routinely. Real shells, not mocks: the bug was in generated shell syntax, so
+# only an actual parse can catch a regression.
+@pytest.mark.parametrize("shell", ["bash", "sh", ""])
+@pytest.mark.parametrize(
+    "command, expected",
+    [
+        # A heredoc: `EOF ; }` stops being a delimiter alone on its line, so the
+        # shell swallowed the rest of the wrapper hunting for one.
+        ("python3 - <<'EOF'\nprint('heredoc-ok')\nEOF", "heredoc-ok"),
+        ("cat <<-EOF\n\tdash-ok\n\tEOF", "dash-ok"),
+        # A trailing comment ate the wrapper's own `; }`.
+        ("echo comment-ok  # explain the command", "comment-ok"),
+        # A trailing newline or `;` produced `; ; }` — a syntax error on bash/sh.
+        ("echo newline-ok\n", "newline-ok"),
+        ("echo semicolon-ok;", "semicolon-ok"),
+    ],
+)
+@pytest.mark.asyncio
+async def test_pid_tracking_wrapper_preserves_command_syntax(command, expected, shell):
+    res = await run_shell_command(command, shell=shell)
+    assert expected in res
+    assert "Exit Code: 0" in res
+
+
+@pytest.mark.asyncio
+async def test_pid_tracking_wrapper_preserves_exit_code():
+    """The wrapper must report the command's status, not its own."""
+    res = await run_shell_command("exit 7")
+    assert "Exit Code: 7" in res
+
+
+@pytest.mark.asyncio
+async def test_empty_command_is_a_no_op_not_a_syntax_error():
+    """`{ }` with no body is itself a syntax error, so an empty command must
+    skip the wrapper rather than be turned into a shell failure."""
+    res = await run_shell_command("   ")
+    assert "Exit Code: 0" in res
+
+
 @pytest.mark.asyncio
 async def test_run_shell_command_reports_background_pids():
     # A backgrounded process that outlives the shell is reported so the agent
@@ -283,3 +326,138 @@ def test_timeout_docstring_points_long_running_work_at_background():
 
     assert "background=True" in doc
     assert "server" in doc
+
+
+def test_docstring_points_unbounded_output_at_a_summarizing_form():
+    """The output hazard needs naming next to the interactive-hang hazard.
+
+    Three benchmarked trials ran an unscoped `git diff` in a dirty repo, each
+    producing ~139MB and timing out. The docstring covered stdin hangs but said
+    nothing about commands whose output has no ceiling.
+    """
+    doc = run_shell_command.__doc__ or ""
+
+    assert "--stat" in doc
+    assert "timeout" in doc
+
+
+@pytest.mark.asyncio
+async def test_full_output_survives_bounded_memory_retention(monkeypatch):
+    """The head must stay recoverable even though it is never held in RAM.
+
+    Retention is tail-biased and bounded, so the dump file is the only place
+    the head still exists. If spilling regressed, this is where it shows.
+    """
+    monkeypatch.setattr(CFG, "LLM_MAX_OUTPUT_CHARS", 40)
+    mock_proc = _make_mock_process(stdout_lines=[f"line-{i:04d}\n" for i in range(500)])
+    monkeypatch.setattr(
+        shell_mod.asyncio,
+        "create_subprocess_exec",
+        AsyncMock(return_value=mock_proc),
+    )
+
+    res = await run_shell_command("emit", shell="node")
+
+    assert "line-0499" in res, "the tail must reach the model"
+    assert "line-0000" not in res, "the head must not be retained in memory"
+    dump_path = res.split("saved to ")[1].split(" ")[0]
+    dumped = open(dump_path, encoding="utf-8").read()
+    assert "line-0000" in dumped and "line-0499" in dumped
+
+
+@pytest.mark.asyncio
+async def test_console_echo_stops_at_the_display_cap(monkeypatch):
+    """Echoing is per line and costs a regex plus a print; it needs a ceiling.
+
+    Spies on the module's own printer rather than capturing a stream: zrb_print
+    resolves its sink at call time, so fd-level capture does not see it.
+    """
+    printed: list[str] = []
+    monkeypatch.setattr(CFG, "LLM_MAX_CONSOLE_OUTPUT_CHARS", 100)
+    monkeypatch.setattr(CFG, "LLM_MAX_OUTPUT_CHARS", 100000)
+    monkeypatch.setattr(
+        shell_mod, "zrb_print", lambda text, **kwargs: printed.append(text)
+    )
+    mock_proc = _make_mock_process(stdout_lines=[f"row-{i:04d}\n" for i in range(300)])
+    monkeypatch.setattr(
+        shell_mod.asyncio,
+        "create_subprocess_exec",
+        AsyncMock(return_value=mock_proc),
+    )
+
+    res = await run_shell_command("emit", shell="node")
+    console = "".join(printed)
+
+    assert "console output capped" in console
+    assert "row-0299" not in console, "echo stopped at the cap"
+    assert "row-0299" in res, "capture is unaffected by the display cap"
+
+
+@pytest.mark.asyncio
+async def test_timeout_after_flooding_is_not_diagnosed_as_a_hang(monkeypatch):
+    """A command killed mid-write was not waiting on stdin.
+
+    The old suggestion sent the model to `ps aux | grep` for a process that was
+    already dead, and never named the actual remedy — bounding the output.
+    """
+    monkeypatch.setattr(CFG, "LLM_MAX_OUTPUT_CHARS", 50)
+
+    async def _never_finishes(*args, **kwargs):
+        await asyncio.sleep(10)
+
+    mock_proc = _make_mock_process(stdout_lines=[f"x-{i:05d}\n" for i in range(400)])
+    mock_proc.wait = _never_finishes
+    mock_proc.returncode = None
+    monkeypatch.setattr(
+        shell_mod.asyncio,
+        "create_subprocess_exec",
+        AsyncMock(return_value=mock_proc),
+    )
+    monkeypatch.setattr(shell_mod, "terminate_process", AsyncMock())
+
+    res = await run_shell_command("emit", shell="node", timeout=1)
+
+    assert "(timed out)" in res
+    assert "still writing, not waiting on input" in res
+    assert "--stat" in res
+    assert "ps aux" not in res
+
+
+@pytest.mark.asyncio
+async def test_timeout_without_output_still_reads_as_a_possible_hang(monkeypatch):
+    """The quiet timeout keeps the original diagnosis — nothing was produced."""
+    monkeypatch.setattr(shell_mod, "terminate_process", AsyncMock())
+
+    res = await run_shell_command("sleep 5", timeout=1)
+
+    assert "(timed out)" in res
+    assert "ps aux" in res
+    assert "still writing" not in res
+
+
+def test_docstring_routes_file_work_to_the_file_tools():
+    """Shell must say it is for running things, not for touching files.
+
+    A model that reaches for `cat`/`sed -i`/`rm` gets none of what the file tools
+    carry — post-write diagnostics, path validation, per-path auto-approval — so
+    the routing rule belongs next to the schema it competes with, not only in the
+    prompt where it applies to no tool in particular.
+    """
+    doc = run_shell_command.__doc__ or ""
+
+    for file_tool in ("Read", "Write", "Edit", "Grep", "Glob", "LS", "RM", "MV"):
+        assert file_tool in doc
+    for wrong in ("cat", "find", "sed -i"):
+        assert wrong in doc
+
+
+def test_bash_docstring_carries_the_same_routing_rule():
+    """Bash delegates to Shell, so it inherits the bug surface — and must
+    inherit the rule. Its own docstring is the only one a model sees when it
+    picks Bash by name (many Claude skills assume that name)."""
+    from zrb.llm.tool.bash import run_bash_command
+
+    doc = run_bash_command.__doc__ or ""
+
+    for file_tool in ("Read", "Write", "Edit", "Grep", "Glob", "LS", "RM", "MV"):
+        assert file_tool in doc

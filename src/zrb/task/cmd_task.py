@@ -150,7 +150,6 @@ class CmdTask(BaseTask):
             timeout=self._execution_timeout,
             is_interactive=self._is_interactive,
         )
-        # Check for errors
         if return_code != 0:
             raise Exception(f"Process {self._name} exited ({return_code})")
         ctx.log_info(f"Exit status: {return_code}")

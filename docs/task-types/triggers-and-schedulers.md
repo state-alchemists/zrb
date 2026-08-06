@@ -187,17 +187,18 @@ Scheduler(
 )
 ```
 
-The five fields are:
+The schedule is five space-separated fields, in this order:
 
-```
-┌───────── minute (0-59)
-│ ┌──────── hour (0-23)
-│ │ ┌─────── day of month (1-31)
-│ │ │ ┌────── month (1-12)
-│ │ │ │ ┌───── day of week (0-7, 0 or 7=Sunday)
-│ │ │ │ │
-* * * * *
-```
+| Position | Field | Range |
+|----------|-------|-------|
+| 1 | minute | `0`-`59` |
+| 2 | hour | `0`-`23` |
+| 3 | day of month | `1`-`31` |
+| 4 | month | `1`-`12` |
+| 5 | day of week | `0`-`7` (`0` and `7` both mean Sunday) |
+
+So in `*/15 * * * *` the `*/15` is the minute field and the four `*` are hour,
+day of month, month, and day of week.
 
 ### Cron Operators
 

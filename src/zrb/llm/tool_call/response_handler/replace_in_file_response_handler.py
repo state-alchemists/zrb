@@ -25,7 +25,6 @@ async def replace_in_file_response_handler(
     if response.lower() not in ("e", "edit"):
         return await next_handler(ui, call, response)
 
-    # It is replace_in_file and user wants to edit
     args = call.args
     if isinstance(args, str):
         try:
@@ -39,7 +38,6 @@ async def replace_in_file_response_handler(
     old_text = args.get("old_text", "")
     new_text = args.get("new_text", "")
 
-    # Create temporary files
     with tempfile.NamedTemporaryFile(mode="w+", delete=False, suffix=".old") as tf_old:
         tf_old.write(old_text)
         old_path = tf_old.name
@@ -49,19 +47,15 @@ async def replace_in_file_response_handler(
         new_path = tf_new.name
 
     try:
-        # Prepare command
         cmd_tpl = CFG.DIFF_EDIT_COMMAND_TPL
         cmd = cmd_tpl.format(old=old_path, new=new_path)
 
-        # Run command using the UI's interactive command handler
         await ui.run_interactive_command(cmd, shell=True)
 
-        # Read back new content
         with open(new_path, "r", encoding="utf-8") as f:
             edited_new_text = f.read()
 
         if edited_new_text != new_text:
-            # Update args
             new_args = dict(args)
             new_args["new_text"] = edited_new_text
             ui.append_to_output("\n✅ Replacement modified.")
@@ -74,7 +68,6 @@ async def replace_in_file_response_handler(
         ui.append_to_output(f"\n❌ Error during diff edit: {e}")
         return None
     finally:
-        # Cleanup
         if os.path.exists(old_path):
             os.remove(old_path)
         if os.path.exists(new_path):

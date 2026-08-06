@@ -13,6 +13,13 @@ class LLMLimitsMixin:
         self.DEFAULT_LLM_MAX_TOKEN_PER_MINUTE: str = "128000"
         self.DEFAULT_LLM_MAX_TOKEN_PER_REQUEST: str = "128000"
         self.DEFAULT_LLM_THROTTLE_SLEEP: str = "1.0"
+        # Backstop for a run that stops converging. Chosen from measurement, not
+        # taste: the largest *legitimate* run observed in benchmarking was a
+        # 44-site migration at 79 tool calls, while the pathological case — a
+        # weak model re-editing the same nine files from memory — reached 343
+        # and would have kept going. 300 leaves ~4x headroom over real work and
+        # still cuts the loop well before a wall-clock timeout does.
+        self.DEFAULT_LLM_MAX_REQUEST_PER_RUN: str = "300"
         self.DEFAULT_LLM_MAX_CONTEXT_RETRIES: str = "5"
         self.DEFAULT_LLM_TOOL_MAX_RETRIES: str = "3"
         self.DEFAULT_LLM_MCP_MAX_RETRIES: str = "3"
@@ -28,6 +35,11 @@ class LLMLimitsMixin:
         self.DEFAULT_LLM_MODEL_FETCH_TIMEOUT: str = "5000"
         self.DEFAULT_LLM_GIT_CMD_TIMEOUT: str = "5000"
         self.DEFAULT_LLM_MAX_OUTPUT_CHARS: str = "100000"
+        # 10x the model-facing cap: generous enough that a normal build, test
+        # run, or install still scrolls in full, small enough that a runaway
+        # command (an unscoped `git diff` in a dirty monorepo) cannot spend
+        # minutes of wall clock being printed.
+        self.DEFAULT_LLM_MAX_CONSOLE_OUTPUT_CHARS: str = "1000000"
         self.DEFAULT_LLM_MAX_TOOL_RESULT_CHARS: str = "100000"
         self.DEFAULT_LLM_MAX_COMPLETION_FILES: str = "5000"
         # Image scaling — 1568px is Anthropic's no-extra-cost tier; JPEG q85 is
@@ -67,6 +79,17 @@ class LLMLimitsMixin:
     LLM_THROTTLE_SLEEP = EnvField(
         float,
         doc="Number of seconds to sleep when throttling is required.",
+    )
+
+    LLM_MAX_REQUEST_PER_RUN = EnvField(
+        int,
+        doc=(
+            "Maximum model requests a single agent run may make before it is "
+            "halted. The backstop for a run that stops converging — retrying an "
+            "edit it has already tried, or re-reading output it has already "
+            "seen — which the prompt tells the model to stop doing but nothing "
+            "could enforce. 0 or negative disables the cap."
+        ),
     )
 
     # --- Retries ----------------------------------------------------------
@@ -148,6 +171,18 @@ class LLMLimitsMixin:
     LLM_MAX_OUTPUT_CHARS = EnvField(
         int,
         doc="Maximum characters for tool output (shell commands, file reads).",
+    )
+
+    LLM_MAX_CONSOLE_OUTPUT_CHARS = EnvField(
+        int,
+        doc=(
+            "Cap (characters) on how much of a shell command's output is "
+            "mirrored to the console. Separate from LLM_MAX_OUTPUT_CHARS, "
+            "which caps what the model sees: a human watching a build wants "
+            "far more scrollback than the model needs, but neither wants a "
+            "runaway command echoed line by line. Beyond the cap the output "
+            "is still captured and still reaches the model."
+        ),
     )
 
     LLM_MAX_TOOL_RESULT_CHARS = EnvField(

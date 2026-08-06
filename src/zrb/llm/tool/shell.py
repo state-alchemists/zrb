@@ -2,14 +2,22 @@ import asyncio
 import os
 import platform
 import re
+import shutil
 import tempfile
+from collections import deque
+from typing import TextIO
 
 from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
 from zrb.llm.sandbox.os_sandbox import SandboxUnavailableError
 from zrb.util.cli.style import stylize_muted
 from zrb.util.cmd.command import resolve_shell, terminate_process
-from zrb.util.truncate import truncate_text
+
+_ANSI_ESCAPE = re.compile(
+    r"(?:\x1B\[[0-?]*[ -/]*[@-~])|"  # CSI (Control Sequence Introducer)
+    r"(?:\x1B\][^\a\x1b]*[\a\x1b])|"  # OSC (Operating System Command)
+    r"(?:\x1B[0-9=>])"  # Simple 2-byte (DECSC, DECRC, etc.)
+)
 
 
 async def run_shell_command(
@@ -24,11 +32,27 @@ async def run_shell_command(
 ) -> str:
     """
     Executes a non-interactive command in a shell. Returns truncated stdout/stderr.
+
+    Use this to RUN things — builds, tests, linters, git, package managers,
+    scripts. Not to touch files: Read/Write/Edit for contents, Grep/Glob/LS to
+    search and list, RM/MV to remove and move. `cat`, `head`, `sed -i`, `find`,
+    `test -f`, `rm`, `mv`, and `>` into a file are the wrong tool here even when
+    they would work — the file tools carry post-write diagnostics, path
+    validation, and per-path approval that a shell command bypasses.
+
     stdin is closed — prompts hang until timeout; pass `-y`, `--yes`, or `CI=true`.
     Batch with `&&`; use `cwd` instead of `cd`. Timed-out processes may continue in background.
     When output exceeds the size cap it is truncated from the TOP (keeping the
     tail, where errors land); the full stdout/stderr is saved to a temp file
     whose path is reported — Grep/Read it for the elided content.
+
+    Prefer the bounded form of a command whose output has no natural ceiling —
+    it is charged against your timeout either way. Ask for the summary first
+    and drill in after: `git diff --stat` before `git diff`, `--name-only`
+    before full contents, a path or pathspec before a whole tree, `head`/
+    `wc -l` before a raw dump. An unscoped command in a large or dirty repo can
+    emit hundreds of megabytes and be killed by its own timeout having told you
+    nothing.
 
     timeout: SECONDS, not milliseconds (default 120). A process meant to keep
     running (server, watcher, `tail -f`) belongs in background=True, not a large
@@ -94,15 +118,16 @@ async def run_shell_command(
         # readers are always present here (the type is StreamReader | None).
         assert process.stdout is not None and process.stderr is not None
 
-        stdout_lines = []
-        stderr_lines = []
+        echo_cap = CFG.LLM_MAX_CONSOLE_OUTPUT_CHARS
+        stdout_cap = _StreamCapture(max_chars, echo_cap)
+        stderr_cap = _StreamCapture(max_chars, echo_cap)
 
         timed_out = False
         try:
             await asyncio.wait_for(
                 asyncio.gather(
-                    _read_stream(process.stdout, stdout_lines),
-                    _read_stream(process.stderr, stderr_lines),
+                    _read_stream(process.stdout, stdout_cap),
+                    _read_stream(process.stderr, stderr_cap),
                     process.wait(),
                 ),
                 timeout=timeout,
@@ -115,20 +140,17 @@ async def run_shell_command(
                 print_method=CFG.LOGGER.warning,
             )
 
-        stdout_str = "".join(stdout_lines)
-        stderr_str = "".join(stderr_lines)
         bg_pids = _collect_background_pids(temp_pid_file, process.pid)
 
         result = _format_output(
             command,
             cwd,
-            stdout_str,
-            stderr_str,
+            stdout_cap,
+            stderr_cap,
             process.returncode,
             bg_pids,
             timed_out,
             timeout,
-            max_chars,
         )
         if sandbox_note:
             result = f"{sandbox_note}\n{result}"
@@ -152,8 +174,23 @@ async def run_shell_command(
 
 
 def _prepare_command(command: str, use_pid_tracking: bool) -> tuple[str, str | None]:
-    """Wrap the command to capture background PIDs when on a POSIX shell."""
-    if not use_pid_tracking:
+    """Wrap the command to capture background PIDs when on a POSIX shell.
+
+    **Every wrapper token gets its own line.** The wrapper used to splice itself
+    onto the command with `;` separators — ``{ <command> ; }; __code=$?; …`` —
+    which silently corrupted any command whose *last line* cannot tolerate a
+    trailing `; }`. That is not an edge case: it broke a heredoc (the `EOF`
+    delimiter stops being alone on its line, so the shell swallows the rest of
+    the wrapper hunting for it), a trailing comment (`# …` eats the rest of the
+    line), a trailing `;`, and — on bash/sh — a command merely ending in a
+    newline. Models write all four constantly, and the failure surfaced as an
+    opaque `parse error near '\\n'` pointing at a line number in a string the
+    model never wrote. Newline separators make the command a statement of its
+    own, so nothing the model writes can run into the wrapper.
+    """
+    # An empty command has no body to wrap: `{ }` is itself a syntax error, so
+    # the wrapper would turn a harmless no-op into a shell failure.
+    if not use_pid_tracking or not command.strip():
         return command, None
 
     fd, temp_pid_file = tempfile.mkstemp(prefix="zrb_pids_")
@@ -169,10 +206,11 @@ def _prepare_command(command: str, use_pid_tracking: bool) -> tuple[str, str | N
     # _collect_background_pids can exclude it even when a wrapper makes
     # process.pid != $$.
     wrapper_command = (
-        f"echo $$ > {temp_pid_file}; "
-        f"{{ {command} ; }}; __code=$?; "
+        f"echo $$ > {temp_pid_file}\n"
+        f"{{\n{command}\n}}\n"
+        f"__code=$?\n"
         f"pgrep -g $(ps -o pgid= -p $$ 2>/dev/null || echo $$) "
-        f">> {temp_pid_file} 2>/dev/null; "
+        f">> {temp_pid_file} 2>/dev/null\n"
         f"exit $__code"
     )
     return wrapper_command, temp_pid_file
@@ -217,25 +255,149 @@ async def _start_process(argv: list[str], cwd: str) -> asyncio.subprocess.Proces
     )
 
 
-async def _read_stream(stream: asyncio.StreamReader, lines_list: list[str]):
-    """Reads from a stream line by line, printing to console and appending to list."""
+class _StreamCapture:
+    """Bounded capture of one output stream.
+
+    Three budgets, deliberately separate:
+
+    * ``retain`` — characters held in memory, tail-biased. Only the tail ever
+      reached the model even before this class existed, so holding the head
+      resident bought nothing.
+    * ``echo`` — characters mirrored to the console. Echoing costs a regex
+      substitution and a print *per line*; an unscoped ``git diff`` in a dirty
+      monorepo spent longer being displayed than being computed and was killed
+      by its own timeout as a result.
+    * the spill file — the complete stream, written as it arrives, so the
+      elided head stays recoverable without being resident.
+
+    The spill opens exactly when the first character would be dropped, which
+    keeps the invariant that ``text`` is the whole stream whenever
+    ``spill_path`` is ``None``.
+    """
+
+    def __init__(self, retain: int, echo: int) -> None:
+        self._retain = max(retain, 0)
+        self._echo_budget = max(echo, 0)
+        self._chunks: "deque[str]" = deque()
+        self._held = 0
+        self._echoed = 0
+        self._spill: TextIO | None = None
+        self._spill_failed = False
+        self.total_chars = 0
+        self.spill_path: str | None = None
+
+    @property
+    def text(self) -> str:
+        """The retained tail — what the model is shown."""
+        return "".join(self._chunks)
+
+    @property
+    def truncated(self) -> bool:
+        return self.total_chars > self._held
+
+    def feed(self, chunk: str) -> None:
+        self.total_chars += len(chunk)
+        if self._spill is not None:
+            self._spill.write(chunk)
+        self._chunks.append(chunk)
+        self._held += len(chunk)
+        if self._held > self._retain:
+            self._begin_spill()
+            self._trim()
+
+    def echo(self, chunk: str) -> None:
+        """Mirror to the console until the display budget is spent."""
+        remaining = self._echo_budget - self._echoed
+        if remaining <= 0:
+            return
+        if len(chunk) <= remaining:
+            self._echoed += len(chunk)
+            zrb_print(f"  {stylize_muted(chunk)}", end="", plain=True)
+            return
+        self._echoed = self._echo_budget
+        zrb_print(f"  {stylize_muted(chunk[:remaining])}", end="", plain=True)
+        zrb_print(
+            stylize_muted(
+                f"\n  … console output capped at {self._echo_budget} characters. "
+                "The command is still being captured; only the display stops "
+                f"here ({CFG.ENV_PREFIX}_LLM_MAX_CONSOLE_OUTPUT_CHARS).\n"
+            ),
+            end="",
+            plain=True,
+        )
+
+    def write_full(self, dest: TextIO) -> None:
+        """Copy the complete stream into *dest*, streaming from spill if needed."""
+        if self.spill_path is None:
+            dest.write(self.text)
+            return
+        self.close()
+        with open(self.spill_path, "r", encoding="utf-8") as src:
+            shutil.copyfileobj(src, dest)
+
+    def close(self) -> None:
+        if self._spill is not None:
+            try:
+                self._spill.close()
+            except Exception as e:
+                CFG.LOGGER.debug(f"Failed to close spill file: {e}")
+            self._spill = None
+
+    def discard(self) -> None:
+        """Close and remove the spill file; the merged dump has superseded it."""
+        self.close()
+        if self.spill_path:
+            try:
+                os.remove(self.spill_path)
+            except Exception as e:
+                CFG.LOGGER.debug(f"Failed to remove spill file: {e}")
+            self.spill_path = None
+
+    def _begin_spill(self) -> None:
+        """Start spilling. Best-effort: without a temp file the head is simply lost.
+
+        Called before the first drop, when ``_chunks`` still holds everything
+        received so far — so writing the deque here captures the head exactly
+        once, and ``feed`` writes every later chunk directly.
+        """
+        if self._spill is not None or self._spill_failed:
+            return
+        try:
+            fd, path = tempfile.mkstemp(prefix="zrb_shell_part_", suffix=".log")
+            self._spill = os.fdopen(fd, "w", encoding="utf-8")
+            self.spill_path = path
+            self._spill.write("".join(self._chunks))
+        except Exception as e:
+            CFG.LOGGER.debug(f"Failed to open spill file: {e}")
+            self._spill_failed = True
+            self._spill = None
+            self.spill_path = None
+
+    def _trim(self) -> None:
+        """Drop from the head until the retention budget holds, tail-exact."""
+        while self._chunks and self._held > self._retain:
+            overflow = self._held - self._retain
+            head = self._chunks.popleft()
+            if len(head) > overflow:
+                self._chunks.appendleft(head[overflow:])
+                self._held -= overflow
+                return
+            self._held -= len(head)
+
+
+async def _read_stream(stream: asyncio.StreamReader, capture: _StreamCapture):
+    """Reads from a stream line by line, echoing to console and capturing."""
     if not stream:
         return
-    ANSI_ESCAPE = re.compile(
-        r"(?:\x1B\[[0-?]*[ -/]*[@-~])|"  # CSI (Control Sequence Introducer)
-        r"(?:\x1B\][^\a\x1b]*[\a\x1b])|"  # OSC (Operating System Command)
-        r"(?:\x1B[0-9=>])"  # Simple 2-byte (DECSC, DECRC, etc.)
-    )
     while True:
         line = await stream.readline()
         if not line:
             break
         decoded = line.decode(errors="replace")
         if decoded:
-            stripped = ANSI_ESCAPE.sub("", decoded)
-            shown = stylize_muted(stripped)
-            zrb_print(f"  {shown}", end="", plain=True)  # Stream to console
-            lines_list.append(stripped)
+            stripped = _ANSI_ESCAPE.sub("", decoded)
+            capture.echo(stripped)
+            capture.feed(stripped)
 
 
 def _collect_background_pids(temp_pid_file: str | None, process_pid: int) -> list[int]:
@@ -272,39 +434,115 @@ def _cleanup_temp_file(temp_pid_file: str | None):
 def _format_output(
     command: str,
     cwd: str,
-    stdout_str: str,
-    stderr_str: str,
+    stdout_cap: _StreamCapture,
+    stderr_cap: _StreamCapture,
     returncode: int | None,
     bg_pids: list[int],
     timed_out: bool,
     timeout: int,
-    max_chars: int,
 ) -> str:
     """Formats the command execution result into a readable string."""
     exit_code_str = str(returncode) if returncode is not None else "(none)"
+    stdout_str, stderr_str = stdout_cap.text, stderr_cap.text
     if timed_out:
         exit_code_str = "(timed out)"
         stderr_str += f"\nError: Command timed out after {timeout} seconds."
 
-    full_stdout, full_stderr = stdout_str, stderr_str
-    stdout_str, stdout_truncated = truncate_text(stdout_str, max_chars, keep="tail")
-    stderr_str, stderr_truncated = truncate_text(stderr_str, max_chars, keep="tail")
+    flooded = stdout_cap.truncated or stderr_cap.truncated
+    total_chars = stdout_cap.total_chars + stderr_cap.total_chars
     dump_path = None
-    if stdout_truncated or stderr_truncated:
+    if flooded:
         dump_path = _dump_full_output(
-            command, cwd, full_stdout, full_stderr, exit_code_str
+            command, cwd, stdout_cap, stderr_cap, exit_code_str
         )
+    stdout_cap.discard()
+    stderr_cap.discard()
 
-    # Analyze for suggestions
+    suggestion = _suggest_next_step(
+        command, stdout_str, stderr_str, timed_out, timeout, flooded, total_chars
+    )
+    return _assemble_output(
+        command,
+        cwd,
+        stdout_str,
+        stderr_str,
+        exit_code_str,
+        bg_pids,
+        dump_path,
+        suggestion,
+    )
+
+
+def _assemble_output(
+    command: str,
+    cwd: str,
+    stdout_str: str,
+    stderr_str: str,
+    exit_code_str: str,
+    bg_pids: list[int],
+    dump_path: str | None,
+    suggestion: str,
+) -> str:
+    output_parts = [
+        f"Command: {command}",
+        f"Directory: {cwd}",
+        f"Stdout:\n{stdout_str.strip() or '(empty)'}",
+        f"Stderr:\n{stderr_str.strip() or '(empty)'}",
+        f"Exit Code: {exit_code_str}",
+        f"Background PIDs: {', '.join(map(str, bg_pids)) if bg_pids else '(none)'}",
+    ]
+    if dump_path:
+        output_parts.append(
+            f"\n[SYSTEM SUGGESTION]: Output truncated (kept the tail). Full "
+            f"stdout/stderr saved to {dump_path} — Grep it to locate sections, "
+            "then Read."
+        )
+    if suggestion:
+        output_parts.append(f"\n{suggestion}")
+    return "\n".join(output_parts)
+
+
+def _timeout_suggestion(timeout: int, flooded: bool, total_chars: int) -> str:
+    """Tell a hung process apart from one drowning in its own output.
+
+    A command killed after emitting megabytes was not waiting on stdin — it was
+    still writing. Sending that one off to ``ps aux | grep`` points the model at
+    a process that is already dead and says nothing about the actual remedy,
+    which is to bound the output. Both readings stay available because a slow
+    build can be genuinely long-running *and* verbose.
+    """
+    if flooded:
+        return (
+            "[SYSTEM SUGGESTION]: The command timed out after "
+            f"{timeout}s having already produced {total_chars} characters — it "
+            "was still writing, not waiting on input. Do not re-run it "
+            "unchanged. Re-run a bounded form: scope it to a path, add a "
+            "summarizing flag (`git diff --stat`, `--name-only`, `-l`), pipe "
+            "through `head`/`wc -l`, or redirect to a file and Grep that. If it "
+            "is meant to keep running, use background=True instead."
+        )
+    return (
+        "[SYSTEM SUGGESTION]: The command timed out. "
+        "This often means the process is still running in the background. "
+        "Use 'ps aux | grep <process_name>' to check its status "
+        "before retrying or killing it. Next time ensure you use non-interactive flags like '-y' or 'CI=true'."
+    )
+
+
+def _suggest_next_step(
+    command: str,
+    stdout_str: str,
+    stderr_str: str,
+    timed_out: bool,
+    timeout: int,
+    flooded: bool,
+    total_chars: int,
+) -> str:
+    """Map a recognizable failure shape to the next action worth taking."""
     suggestion = ""
     combined_output = (stdout_str + stderr_str).lower()
     if timed_out:
-        suggestion = (
-            "[SYSTEM SUGGESTION]: The command timed out. "
-            "This often means the process is still running in the background. "
-            "Use 'ps aux | grep <process_name>' to check its status "
-            "before retrying or killing it. Next time ensure you use non-interactive flags like '-y' or 'CI=true'."
-        )
+        suggestion = _timeout_suggestion(timeout, flooded, total_chars)
     elif "lock" in combined_output and (
         "apt" in command or "brew" in command or "dpkg" in command
     ):
@@ -343,29 +581,20 @@ def _format_output(
             "The target service may not be running. "
             "Check with 'ps aux | grep <service>' or 'docker ps' before retrying."
         )
-    output_parts = [
-        f"Command: {command}",
-        f"Directory: {cwd}",
-        f"Stdout:\n{stdout_str.strip() or '(empty)'}",
-        f"Stderr:\n{stderr_str.strip() or '(empty)'}",
-        f"Exit Code: {exit_code_str}",
-        f"Background PIDs: {', '.join(map(str, bg_pids)) if bg_pids else '(none)'}",
-    ]
-    if dump_path:
-        output_parts.append(
-            f"\n[SYSTEM SUGGESTION]: Output truncated (kept the tail). Full "
-            f"stdout/stderr saved to {dump_path} — Grep it to locate sections, "
-            "then Read."
-        )
-    if suggestion:
-        output_parts.append(f"\n{suggestion}")
-    return "\n".join(output_parts)
+    return suggestion
 
 
 def _dump_full_output(
-    command: str, cwd: str, stdout_str: str, stderr_str: str, exit_code_str: str
+    command: str,
+    cwd: str,
+    stdout_cap: _StreamCapture,
+    stderr_cap: _StreamCapture,
+    exit_code_str: str,
 ) -> str | None:
     """Persist untruncated output so the elided head stays recoverable.
+
+    Streams each capture's spill file in rather than materializing it, so a
+    multi-gigabyte command costs one file copy instead of one resident string.
 
     Best-effort: returns the temp-file path, or None if the write fails.
     Cross-platform — tempfile targets %TEMP% on Windows, $TMPDIR/tmp elsewhere.
@@ -377,7 +606,11 @@ def _dump_full_output(
             f.write(
                 f"Command: {command}\nDirectory: {cwd}\nExit Code: {exit_code_str}\n\n"
             )
-            f.write(f"=== STDOUT ===\n{stdout_str}\n\n=== STDERR ===\n{stderr_str}\n")
+            f.write("=== STDOUT ===\n")
+            stdout_cap.write_full(f)
+            f.write("\n\n=== STDERR ===\n")
+            stderr_cap.write_full(f)
+            f.write("\n")
         return path
     except Exception:
         return None

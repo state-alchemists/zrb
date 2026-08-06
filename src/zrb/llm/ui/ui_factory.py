@@ -56,12 +56,10 @@ def create_ui_factory(
         initial_yolo: bool,
         initial_attachments: list[Any],
     ) -> BaseUI:
-        # Create config with merged commands
         cfg = config or UIConfig.default()
         if ui_commands:
             cfg = cfg.merge_commands(ui_commands)
 
-        # Set yolo and conversation name from parameters
         cfg.is_yolo = initial_yolo
         cfg.conversation_session_name = initial_conversation_name
 

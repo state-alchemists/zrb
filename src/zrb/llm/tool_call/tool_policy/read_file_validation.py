@@ -23,7 +23,6 @@ async def read_file_validation_policy(
     if call.tool_name != "Read":
         return await next_handler(ui, call)
 
-    # Parse arguments
     args = call.args
     try:
         if isinstance(args, str):

@@ -33,12 +33,10 @@ install_tmux = CmdTask(
 def setup_tmux(ctx: AnyContext):
     tmux_config = read_file(os.path.join(os.path.dirname(__file__), "tmux_config.sh"))
     tmux_config_file = os.path.expanduser(ctx.input["tmux-config"])
-    # Make sure config file exists
     if not os.path.isfile(tmux_config_file):
         write_file(tmux_config_file, "")
     content = read_file(tmux_config_file)
     if tmux_config in content:
         return
-    # Write config
     write_file(tmux_config_file, [content, tmux_config, ""])
     ctx.print("Setup complete, restart your terminal to continue")

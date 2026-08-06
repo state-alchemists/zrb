@@ -124,7 +124,7 @@ class TestActivateSkillSchema:
         assert schema["required"] == ["skill"]
         assert schema["additionalProperties"] is False
 
-    def test_description_states_where_skill_names_come_from(self):
+    def test_description_states_what_skill_should_contain(self):
         """The schema carries no per-field description, so the tool description
         is the only place that can say what `skill` should contain."""
         from pydantic_ai import Tool
@@ -134,4 +134,65 @@ class TestActivateSkillSchema:
         description = Tool(create_activate_skill_tool()).description or ""
 
         assert "skill:" in description
-        assert "Available" in description
+        assert "core-coding" in description
+
+    def test_description_does_not_point_at_a_prompt_section(self):
+        """Prompt sections toggle independently (``LLM_INCLUDE_SECTIONS``), so a
+        docstring pointing at one dangles the moment that section is trimmed —
+        and unlike a prompt-internal cross-reference, no requires-guard can strip
+        it. The description must stand on its own.
+        """
+        from pydantic_ai import Tool
+
+        from zrb.llm.tool.skill import create_activate_skill_tool
+
+        description = Tool(create_activate_skill_tool()).description or ""
+
+        assert "Core Skills" not in description
+        assert "Available Skills" not in description
+
+
+class TestActivateSkillErrorsSelfCorrect:
+    """An unknown name must come back with the valid ones.
+
+    Mirrors ``agent_not_found_message`` for delegation: the usual failure is a
+    misremembered name, so listing the real ones turns the retry into a
+    correction rather than a second guess.
+    """
+
+    @pytest.mark.asyncio
+    async def test_unknown_skill_lists_the_activatable_ones(self, tmp_path):
+        from zrb.llm.skill.manager import SkillManager
+        from zrb.llm.tool.skill import create_activate_skill_tool
+
+        (tmp_path / "real.skill.md").write_text(
+            "---\nname: real-skill\ndescription: A real skill\n---\n# Body"
+        )
+        sm = SkillManager(root_dir=str(tmp_path))
+        sm.scan(search_dirs=[tmp_path])
+
+        result = await create_activate_skill_tool(skill_manager=sm)(skill="reel-skill")
+
+        assert "not found" in result.lower()
+        assert "real-skill" in result
+        assert "[SYSTEM SUGGESTION]" in result
+
+    @pytest.mark.asyncio
+    async def test_user_only_skill_says_to_do_the_work_yourself(self, tmp_path):
+        """A `disable-model-invocation` skill is a slash command, not an agent
+        skill — every built-in utility skill is one, so this is the likeliest
+        wrong guess a model can make."""
+        from zrb.llm.skill.manager import SkillManager
+        from zrb.llm.tool.skill import create_activate_skill_tool
+
+        (tmp_path / "cmd.skill.md").write_text(
+            "---\nname: cmd-only\ndescription: A command\n"
+            "disable-model-invocation: true\n---\n# Body"
+        )
+        sm = SkillManager(root_dir=str(tmp_path))
+        sm.scan(search_dirs=[tmp_path])
+
+        result = await create_activate_skill_tool(skill_manager=sm)(skill="cmd-only")
+
+        assert "not invocable by the model" in result
+        assert "[SYSTEM SUGGESTION]" in result

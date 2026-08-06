@@ -1,7 +1,7 @@
 """Deferred-tool-call processing for `run_agent`.
 
 When pydantic-ai produces a `DeferredToolRequests`, we route each call
-through the approval precedence chain (ADR-0055, ADR-0062):
+through the approval precedence chain (ADR-0060, ADR-0060):
 
 0. Always-approve      — tools that ARE the interaction (e.g. AskUserQuestion);
    auto-approve in every path, independent of any policy list
@@ -177,7 +177,7 @@ async def _resolve_approval(
 ):
     """Run the approval cascade for a single deferred call.
 
-    Approval precedence chain (ADR-0055, ADR-0062):
+    Approval precedence chain (ADR-0060, ADR-0060):
       0. Always-approve (intrinsically interactive tools, e.g. AskUserQuestion)
       1. Tool policy (Pre-confirmation)
       2. Permission policy (Strict mode: ALLOW→Approve, DENY→Deny, ASK→Force Ask)
@@ -194,7 +194,7 @@ async def _resolve_approval(
     # Priority 0: Intrinsically auto-approved tools. These ARE the user
     # interaction (e.g. AskUserQuestion), so a separate approval prompt is
     # redundant and would render before the question itself. Approve in every
-    # path, independent of any per-runner policy list. See ADR-0062.
+    # path, independent of any per-runner policy list. See ADR-0060.
     if is_always_auto_approve(call.tool_name):
         # lazy: heavy third-party
         from pydantic_ai import ToolApproved
@@ -262,8 +262,8 @@ async def _resolve_approval(
     # forever (the root cause of the --interactive false plan-mode hang).
     # Resolve it deterministically instead: auto-approve the plan gate
     # (ExitPlanMode's approval is a no-op without a user to read the plan —
-    # mirrors AskUserQuestion / ADR-0062) and deny any other approval-gated
-    # tool rather than running it unattended. See ADR-0067.
+    # mirrors AskUserQuestion / ADR-0060) and deny any other approval-gated
+    # tool rather than running it unattended. See ADR-0060.
     # lazy: circular — run-loop approval path ↔ zrb.llm.tool.ask
     from zrb.llm.tool.ask import get_interactive_mode
 

@@ -95,11 +95,10 @@ def _tool_factory(tool, defer_loading: bool = True):
     """Wrap a tool, optionally hiding its schema until searched for by name.
 
     Deferring removes the schema from every turn's token cost, not the model's
-    knowledge that the tool exists — the Tool Usage Guide names all three
-    delegation tools either way. ``DelegateToAgent`` is the exception that
-    loads eagerly: its schema carries the sub-agent roster, and a model that
-    has to search before it can see which agents exist mostly does not
-    delegate at all.
+    knowledge that the tool exists — native tool search still surfaces the
+    name on demand. ``DelegateToAgent`` is the exception that loads eagerly:
+    its schema carries the sub-agent roster, and a model that has to search
+    before it can see which agents exist mostly does not delegate at all.
     """
     # lazy: pydantic_ai (heavy third-party deferral)
     from pydantic_ai import Tool
@@ -108,9 +107,9 @@ def _tool_factory(tool, defer_loading: bool = True):
 
 
 # Delegate tools — main agent only. Sub-agents filter these out via
-# `zrb_is_delegate_tool` (see SubAgentManager.create_agent), but
-# `apply_common_tools` already registered the matching tool guidance so
-# the prompt mentions them in both places consistently.
+# `zrb_is_delegate_tool` (see SubAgentManager.create_agent). The when-to-
+# delegate judgment lives in the workflow's `Delegating to sub-agents`
+# section; the how (roster, envelope) lives in these docstrings.
 llm_chat.add_tool_factory(
     lambda ctx: _tool_factory(create_delegate_to_agent_tool(), defer_loading=False),
     lambda ctx: _tool_factory(create_background_delegate_tool()),
@@ -163,7 +162,7 @@ llm_chat.add_tool_policy(
     # AskUserQuestion is auto-approved intrinsically (it registers itself via
     # register_always_auto_approve in zrb.llm.tool.ask), so the cascade approves
     # it in every path — main agent, sub-agents, web — not just here. See
-    # ADR-0062. No entry needed in this list.
+    # ADR-0060. No entry needed in this list.
     auto_approve("DelegateToAgent"),
     # Starting a background delegation and polling its result are harmless; the
     # sub-agent's own tool calls still route their approvals to the user.

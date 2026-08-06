@@ -19,7 +19,6 @@ def yaml_dump(obj: Any, key: str = "") -> str:
     # lazy: heavy third-party
     import yaml
 
-    # Process the object
     processed_obj = _sanitize_obj(obj)
     if key:
         key_parts = _parse_key(key)
@@ -28,7 +27,6 @@ def yaml_dump(obj: Any, key: str = "") -> str:
         obj_to_dump = processed_obj
     # Add custom representer for multiline strings
     yaml.add_representer(str, _multiline_string_presenter)
-    # Generate YAML
     yaml_str = yaml.dump(
         obj_to_dump,
         default_flow_style=False,
@@ -74,9 +72,7 @@ def edit_obj(obj: Any, key: str, val: str) -> Any:
         # Replace entire object with parsed value
         return parsed_value
 
-    # Split the key by dots
     key_parts = _parse_key(key)
-    # Set the nested value
     return _set_obj_value(obj, key_parts, parsed_value)
 
 
@@ -128,7 +124,6 @@ def _load_yaml(value_str: str) -> Any:
     if value_str == "":
         return ""
     try:
-        # Use yaml.safe_load to parse the value
         parsed = yaml.safe_load(value_str)
         return parsed
     except yaml.YAMLError:

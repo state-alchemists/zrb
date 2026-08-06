@@ -39,7 +39,6 @@ def drop_oldest_turn(history: list[Any], min_turns: int = 0) -> list[Any]:
     if not history:
         return history
 
-    # Count existing turns
     turn_count = 0
     for msg in history:
         if is_turn_start(msg):

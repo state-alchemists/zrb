@@ -97,8 +97,6 @@ class PollingUI(SimpleUI):
         - WebSocket: When a message event arrives
         """
         if self._waiting_for_input:
-            # LLM is blocked on get_input() waiting for user response
             self._input_queue.put_nowait(text)
         else:
-            # LLM is idle - start a new conversation turn
             self._submit_user_message(self._llm_task, text)

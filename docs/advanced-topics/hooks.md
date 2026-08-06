@@ -588,11 +588,9 @@ This hook triggers before every tool call, forcing user approval.
 trigger additional LLM actions when a turn finishes (e.g. journaling). It fires
 on **`Stop`**, the per-turn signal — not on `SessionEnd`, which is terminal.
 
-> **Migrating from `SessionEnd`:** before, this extension and the built-in
-> journaling reminder lived on `SessionEnd` (which used to fire per turn). They
-> now live on `Stop`. If you wrote a journaling/summarization hook keyed on
-> `SessionEnd`, move it to `Stop`. `SessionEnd` now fires once, when the chat
-> session ends.
+> **Key it on `Stop`, not `SessionEnd`.** `SessionEnd` fires once, when the chat
+> session ends, so a per-turn journaling or summarization hook keyed on it runs
+> exactly once instead of every turn.
 
 ### Two Modes
 

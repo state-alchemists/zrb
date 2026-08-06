@@ -20,13 +20,10 @@ async def execute_task_chain(task: "BaseTask", session: AnySession):
     if session.is_terminated or not session.is_allowed_to_run(task):
         return
     result = await execute_task_action(task, session)
-    # Get next tasks
     nexts = session.get_next_tasks(task)
     if session.is_terminated or len(nexts) == 0:
         return result
-    # Run next tasks asynchronously
     next_coros = [run_async(next_task.exec_chain(session)) for next_task in nexts]
-    # Wait for the next tasks to complete. The result of the current task is returned.
     await gather_isolated(*next_coros)
     return result
 
@@ -44,11 +41,9 @@ async def execute_task_action(task: "BaseTask", session: AnySession):
             ctx.log_info("Not allowed to run")
             return
         if not check_execute_condition(task, session):
-            # Skip the task based on its execute_condition
             ctx.log_info("Marked as skipped (condition false)")
             session.get_task_status(task).mark_as_skipped()
             return
-        # Wait for task to be ready (handles action execution, readiness checks)
         return await run_async(execute_action_until_ready(task, session))
     finally:
         current_ctx.reset(token)
@@ -78,17 +73,14 @@ async def execute_action_until_ready(task: "BaseTask", session: AnySession):
     )
     monitor_readiness = bool(task.monitor_readiness)
 
-    if not readiness_checks:  # Simplified check for empty list
+    if not readiness_checks:
         ctx.log_info("No readiness checks")
-        # Task has no readiness check, execute action directly
         result = await run_async(execute_action_with_retry(task, session))
-        # Mark ready only if the action completed successfully (not failed/cancelled)
         if session.get_task_status(task).is_completed:
             ctx.log_info("Marked as ready")
             session.get_task_status(task).mark_as_ready()
         return result
 
-    # Start the task action and readiness checks concurrently
     ctx.log_info("Starting action and readiness checks")
     # Mark started BEFORE the first suspension point. `is_allowed_to_run` gates
     # on `is_started`, which is otherwise only set inside the created task —
@@ -109,7 +101,6 @@ async def execute_action_until_ready(task: "BaseTask", session: AnySession):
             run_async(check.exec_chain(session)) for check in readiness_checks
         ]
 
-        # Wait primarily for readiness checks to complete
         ctx.log_info("Waiting for readiness checks")
         readiness_passed = False
         readiness_error: BaseException | None = None
@@ -200,10 +191,8 @@ async def execute_action_until_ready(task: "BaseTask", session: AnySession):
                 f"Readiness checks for task '{task.name}' did not complete"
             )
 
-        # Defer the main action coroutine; it will be awaited later if needed
         session.defer_action(task, action_coro)
 
-        # Start monitoring only if readiness passed and monitoring is enabled
         if readiness_passed and monitor_readiness:
             # lazy: circular — zrb.task.base.monitoring imports from this module.
             from zrb.task.base.monitoring import monitor_task_readiness
@@ -242,46 +231,37 @@ async def execute_action_with_retry(task: "BaseTask", session: AnySession) -> An
             ctx.log_info("Marked as started")
             session.get_task_status(task).mark_as_started()
 
-            # Execute the underlying action (which might be overridden in subclasses)
-            # We call the task's exec_action method directly here.
             result = await run_async(task.exec_action(ctx))
 
             ctx.log_info("Marked as completed")
             session.get_task_status(task).mark_as_completed()
 
-            # Store result in XCom
             task_xcom: Xcom | None = ctx.xcom.get(task.name)
             if task_xcom is not None:
                 task_xcom.push(result)
 
-            # Skip fallbacks and execute successors on success
             skip_fallbacks(task, session)
             await run_async(execute_successors(task, session))
             return result
 
         except (asyncio.CancelledError, KeyboardInterrupt, GeneratorExit):
             ctx.log_warning("Task cancelled or interrupted")
-            session.get_task_status(task).mark_as_failed()  # Mark as failed on cancel
+            session.get_task_status(task).mark_as_failed()
             # Do not trigger fallbacks/successors on cancellation
             raise
         except BaseException as e:
             ctx.log_error(f"Attempt {attempt + 1}/{max_attempt} failed: {e}")
-            session.get_task_status(
-                task
-            ).mark_as_failed()  # Mark failed for this attempt
+            session.get_task_status(task).mark_as_failed()
 
             if attempt < max_attempt - 1:
-                # More retries available
                 continue
             else:
-                # Final attempt failed
                 ctx.log_error("Marked as permanently failed")
                 ctx.log_error(traceback.format_exc())
                 session.get_task_status(task).mark_as_permanently_failed()
-                # Skip successors and execute fallbacks on permanent failure
                 skip_successors(task, session)
                 await run_async(execute_fallbacks(task, session))
-                raise e  # Re-raise the exception after handling fallbacks
+                raise e
 
 
 async def run_default_action(task: "BaseTask", ctx: AnyContext) -> Any:
@@ -295,14 +275,10 @@ async def run_default_action(task: "BaseTask", ctx: AnyContext) -> Any:
         ctx.log_debug("No action defined for this task.")
         return None
     if isinstance(action, str):
-        # Render f-string action
         rendered_action = ctx.render(action)
         ctx.log_debug(f"Rendered action string: {rendered_action}")
-        # Assuming string actions are meant to be returned as is.
-        # If they need execution (e.g., shell commands), that logic would go here.
         return rendered_action
     elif callable(action):
-        # Execute callable action
         ctx.log_debug(f"Executing callable action: {action.__name__}")
         return await run_async(action(ctx))
     else:

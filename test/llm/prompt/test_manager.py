@@ -276,7 +276,7 @@ def _render_with_journal(
     """Render live-context with a temp journal index, returning the block.
 
     *sections* defaults to ``["journal_mandate"]`` because the journal index is
-    coupled to that section (ADR-0082): it is emitted only when journal_mandate
+    coupled to that section (ADR-0042): it is emitted only when journal_mandate
     is active. Pass ``[]`` to exercise the suppression path.
     """
     manager = PromptManager(
@@ -392,7 +392,7 @@ def test_compose_mini_includes_examples_section_when_listed():
 
 
 def test_compose_auto_uses_the_terse_base_for_a_model_declaring_no_small_size():
-    """A family name is never read as weakness — only a stated size is (ADR-0093)."""
+    """A family name is never read as weakness — only a stated size is (ADR-0047)."""
     manager = PromptManager(include_sections=["persona", "examples"])
     manager.model = (
         "deepseek:deepseek-v4-pro"  # a frontier model; must not be guessed weak

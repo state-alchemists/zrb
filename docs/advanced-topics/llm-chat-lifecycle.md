@@ -23,12 +23,10 @@ This page traces a single request top-to-bottom — every file the request lands
 
 ## Stage 1 — CLI bootstrap
 
-```
-zrb llm chat "summarise this repo"
-↓
-src/zrb/__main__.py :: serve_cli()
-↓
-src/zrb/runner/cli.py :: cli.run(argv)
+```mermaid
+flowchart TD
+    Cmd(["zrb llm chat 'summarise this repo'"]) --> Serve["src/zrb/__main__.py :: serve_cli()"]
+    Serve --> Run["src/zrb/runner/cli.py :: cli.run(argv)"]
 ```
 
 `serve_cli()` configures the root logger, then loads every `zrb_init.py` it can find walking from `cwd` up to `$HOME` (this is how task definitions in parent directories become available — see [tasks-and-lifecycle.md](../core-concepts/tasks-and-lifecycle.md#the-zrb_initpy-file)). It then calls `cli.run(sys.argv[1:])`.
@@ -39,14 +37,11 @@ src/zrb/runner/cli.py :: cli.run(argv)
 
 ## Stage 2 — Task resolution & invocation
 
-```
-src/zrb/runner/cli.py :: Cli.run()
-↓
-src/zrb/util/group.py :: extract_node_from_args()      # walks argv -> task
-↓
-src/zrb/builtin/llm/chat.py :: llm_chat                # the resolved task
-↓
-src/zrb/task/base/lifecycle.py :: run_task_async()
+```mermaid
+flowchart TD
+    Run["src/zrb/runner/cli.py :: Cli.run()"] --> Extract["src/zrb/util/group.py :: extract_node_from_args()"]
+    Extract -->|"walks argv to a task"| Task["src/zrb/builtin/llm/chat.py :: llm_chat"]
+    Task -->|the resolved task| Lifecycle["src/zrb/task/base/lifecycle.py :: run_task_async()"]
 ```
 
 `extract_node_from_args(["llm", "chat", "summarise this repo"])` returns the `llm_chat` task plus residual args. `run_task_async()` builds a `Session` + `SharedContext`, then enters the standard task execution lifecycle (the 5-step flow described in [architecture.md](./architecture.md#the-task-execution-lifecycle)).
@@ -57,11 +52,11 @@ For non-LLM tasks, the lifecycle ends here. For an `LLMChatTask`, the action han
 
 ## Stage 3 — `LLMChatTask` build & UI selection
 
-```
-src/zrb/llm/task/chat/execution.py :: LLMChatTask._exec_action()
-↓ (via mixins on the same class)
-src/zrb/llm/task/chat/building.py  - build the inner LLMTask
-src/zrb/llm/task/chat/running.py   - resolve UIs/triggers/commands
+```mermaid
+flowchart TD
+    Exec["src/zrb/llm/task/chat/execution.py :: LLMChatTask._exec_action()"]
+    Exec -->|part of the same class| Build["src/zrb/llm/task/chat/building.py — build the inner LLMTask"]
+    Exec -->|part of the same class| Running["src/zrb/llm/task/chat/running.py — resolve UIs, triggers, commands"]
 ```
 
 `LLMChatTask` (`src/zrb/llm/task/chat/task.py`) is composed as
@@ -79,12 +74,10 @@ The chat task then calls into the inner `LLMTask` execution path.
 
 ## Stage 4 — Inner `LLMTask` & agent run
 
-```
-src/zrb/llm/task/llm_task.py :: LLMTask._exec_action()
-↓
-src/zrb/llm/agent/common.py :: create_agent()          # builds pydantic_ai.Agent
-↓
-src/zrb/llm/agent/run/runner.py :: run_agent()
+```mermaid
+flowchart TD
+    Inner["src/zrb/llm/task/llm_task.py :: LLMTask._exec_action()"] --> Create["src/zrb/llm/agent/common.py :: create_agent()"]
+    Create -->|"builds a pydantic_ai.Agent"| RunAgent["src/zrb/llm/agent/run/runner.py :: run_agent()"]
 ```
 
 `LLMTask._exec_action()` resolves dynamic attributes (model, system prompt, message), calls `create_agent()` to build a `pydantic_ai.Agent`, then enters `run_agent()`.
@@ -95,16 +88,15 @@ src/zrb/llm/agent/run/runner.py :: run_agent()
 
 ## Stage 5 — `run_agent` execution loop
 
-```
-src/zrb/llm/agent/run/runner.py :: _execution_loop()
-↓ for each turn:
-   sanitize_history()             - history_utils.py
-   agent.run_stream_events()      - pydantic_ai
-   collect events / tool calls
-   on exception:
-       retry_loop.py decides retry / strip thinking / give up
-   on AgentRunResultEvent:
-       sanitize_history(result)   - history_utils.py
+```mermaid
+flowchart TD
+    Loop["src/zrb/llm/agent/run/runner.py :: _execution_loop()"] --> Sanitize["sanitize_history() — history_utils.py"]
+    Sanitize --> Stream["agent.run_stream_events() — pydantic_ai"]
+    Stream --> Collect["collect events and tool calls"]
+    Collect -->|exception| Retry["retry_loop.py — retry, strip thinking, or give up"]
+    Collect -->|AgentRunResultEvent| Post["sanitize_history(result) — history_utils.py"]
+    Retry --> Sanitize
+    Post -->|next turn| Sanitize
 ```
 
 This is the heart. Every turn:
@@ -128,16 +120,19 @@ src/zrb/llm/summarizer/history_summarizer.py :: summarize_history()
 
 While the agent streams events, three side channels are active:
 
-```
-events ─┬─→ stream_response.create_event_handler()  ─→ UI.append_to_output()
-        ├─→ HookManager.execute_hooks(NOTIFICATION) ─→ hook side-effects
-        └─→ on tool call:
-                tool_call_handler          ─→ UI.ask_user() / approval channel
-                pydantic_ai executes tool  ─→ ToolReturnPart back to history
+```mermaid
+flowchart LR
+    Events([agent events]) --> Stream["stream_response.create_event_handler()"]
+    Events --> Hooks["HookManager.execute_hooks(NOTIFICATION)"]
+    Events --> Tool{"tool call?"}
+    Stream --> Out["UI.append_to_output()"]
+    Hooks --> Side["hook side-effects"]
+    Tool -->|approval| Handler["tool_call_handler → UI.ask_user() / approval channel"]
+    Tool -->|execution| Exec["pydantic_ai runs the tool → ToolReturnPart back to history"]
 ```
 
 Tool approval flow:
-- If the tool is intrinsically interactive (e.g. `AskUserQuestion`, registered via `register_always_auto_approve`), it is auto-approved first — a separate prompt would render before the question itself (ADR-0062).
+- If the tool is intrinsically interactive (e.g. `AskUserQuestion`, registered via `register_always_auto_approve`), it is auto-approved first — a separate prompt would render before the question itself (ADR-0060).
 - If `current_yolo` is `True` (or the tool is in the selective YOLO set), the tool runs immediately.
 - Otherwise the call goes through `current_tool_confirmation` (terminal) or `current_approval_channel` (remote). For HTTP chat, `MultiplexApprovalChannel` lets the SSE backend handle the prompt.
 
@@ -149,10 +144,10 @@ Hook events fire at well-defined points (USER_PROMPT_SUBMIT, PRE_TOOL_USE, POST_
 
 ## Stage 7 — History persistence & shutdown
 
-```
-src/zrb/llm/history_manager/file_history_manager.py :: save()
-↓
-~/.zrb/llm/history/<session_name>.json    (default path)
+```mermaid
+flowchart LR
+    Save["src/zrb/llm/history_manager/file_history_manager.py :: save()"]
+    Save -->|default path| File["~/.zrb/llm/history/&lt;session_name&gt;.json"]
 ```
 
 After the loop terminates (success, error, or user exit):
@@ -184,7 +179,7 @@ Control returns up through `LLMChatTask._exec_action` → `run_task_async` → `
 | Default TUI | `src/zrb/llm/ui/default/ui.py` (composes `base/ui.py` + 4 mixins) |
 | HTTP chat UI | `src/zrb/runner/chat/http_ui.py` + SSE backend |
 | Hooks | `src/zrb/llm/hook/manager.py`, `hook_creators.py`, `matcher.py` |
-| Sub-agents | `src/zrb/llm/agent/subagent/manager/` |
+| Sub-agents | `src/zrb/llm/agent/subagent/` |
 | Permission policy | `src/zrb/llm/permission/` |
 | Persistence | `src/zrb/llm/history_manager/file_history_manager.py` |
 | Snapshots | `src/zrb/llm/snapshot/manager.py` |

@@ -153,6 +153,73 @@ class TestSystemContext:
         assert "CRITICAL" not in rendered
         assert "`ReadReadRead`" not in rendered
 
+    def test_deny_listed_model_gets_the_batching_override(self):
+        """The only parallel-tool-call line that renders is the withdrawal.
+
+        Batching is the prompt's unconditional default (ADR-0038); this line is
+        how a model known to malform parallel calls opts back out.
+        """
+        ctx = MagicMock(spec=AnyContext)
+        received = []
+        system_context(
+            ctx,
+            "",
+            lambda c, p: received.append(p) or "ok",
+            model="ollama:minimax-m2.7:cloud",
+        )
+        rendered = received[0]
+        assert "NOT supported by this model" in rendered
+        assert "one tool call per response" in rendered
+
+    def test_the_override_outranks_the_tool_descriptions_too(self):
+        """Batching is now urged in two places the override has to beat.
+
+        `workflow`'s Tool usage rule and `read_file`'s docstring both tell the
+        model to batch. For a deny-listed model the request-level
+        `parallel_tool_calls=False` is documented as defence-in-depth only —
+        Ollama-cloud ignores it — so this line is the mechanism that actually
+        works, and it has to name what it overrides.
+        """
+        ctx = MagicMock(spec=AnyContext)
+        received = []
+        system_context(
+            ctx,
+            "",
+            lambda c, p: received.append(p) or "ok",
+            model="ollama:glm-4.7:cloud",
+        )
+        rendered = received[0]
+        assert "overrides every batching instruction" in rendered
+        assert "tool description" in rendered
+
+    def test_read_file_defers_to_the_system_context_override(self):
+        """The docstring must not contradict the line that overrides it.
+
+        A tool description is static, so it cannot be withheld per model. It can
+        only name its own exception — otherwise a deny-listed model reads "call
+        this in parallel" and "issue exactly one tool call" in the same request.
+        """
+        from zrb.llm.tool.file_read import read_file
+
+        doc = " ".join((read_file.__doc__ or "").split())
+
+        assert "in parallel" in doc
+        assert "unless System Context says this model cannot batch" in doc
+
+    def test_no_model_is_told_that_batching_is_supported(self):
+        """Regression: the affirmative branch was unreachable and gated the rule.
+
+        ``supports_parallel_tool_calls`` resolves to True for no built-in model,
+        so an affirmative line could never render — yet ``workflow.md`` made
+        batching conditional on it appearing. Every model read the rule as
+        unsatisfied. The affirmative branch is gone; nothing may reintroduce it.
+        """
+        ctx = MagicMock(spec=AnyContext)
+        for name in ("openai:gpt-4o-mini", "google:gemini-2.5-flash", None):
+            received = []
+            system_context(ctx, "", lambda c, p: received.append(p) or "ok", model=name)
+            assert "Parallel tool calls: supported" not in received[0]
+
     def test_system_context_omits_model_line_when_model_unrecognisable(self):
         """A MagicMock with no real ``model_name`` is treated as unknown."""
         ctx = MagicMock(spec=AnyContext)

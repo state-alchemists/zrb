@@ -122,9 +122,8 @@ def apply_common_tools(host: CommonToolHost) -> None:
 
     lsp_tools = create_lsp_tools() if detect_available_lsp_servers() else []
     # Worktree tools only make sense inside a git repo — registering them in a
-    # non-git directory is pure prompt weight (their guidance is auto-suppressed
-    # by the runtime tool_names filter, but the docstrings + schemas would still
-    # ship on every request). Mirrors the LSP gate above. is_inside_git_dir() is
+    # non-git directory is pure prompt weight (their docstrings + schemas would
+    # still ship on every request). Mirrors the LSP gate above. is_inside_git_dir() is
     # evaluated against the startup cwd; a user in a non-git dir trades away the
     # tools' `cwd`-points-elsewhere escape hatch, same as the LSP gate trades
     # away server-less repos — acceptable for the token saving.
@@ -188,12 +187,10 @@ def apply_common_tools(host: CommonToolHost) -> None:
         open_web_page,
         # Deferred loading: these are rarely needed (specific workflows or
         # server-gated), so hide their schemas from the model's initial
-        # context. The model discovers them by keyword search only when it
-        # needs one, instead of paying their token cost on every turn.
-        # Tool Usage Guide entries stay visible regardless (tool_names is
-        # populated from all registered tools, deferred or not) — the model
-        # still learns these tools exist and when to reach for them, it just
-        # pays their schema cost only once it searches for them by name.
+        # context. The model discovers them through native tool search
+        # (Anthropic/OpenAI server-side) only when it needs one, instead of
+        # paying their docstring + schema token cost on every turn. The name
+        # stays visible either way; the full description materializes on search.
         Tool(analyze_code, defer_loading=True),
         Tool(analyze_file, defer_loading=True),
         *(Tool(_fn, defer_loading=True) for _fn in worktree_tools),
@@ -205,9 +202,8 @@ def apply_common_tools(host: CommonToolHost) -> None:
     # sub-agents, programmatic LLMTask) they are dead weight — AskUserQuestion
     # short-circuits and the prompt already says to skip plan mode — yet their
     # docstrings + schemas (~350-450 tok) would still ship on every request.
-    # Gating drops them; the runtime tool_names filter auto-suppresses their
-    # Tool Usage Guide entries to match. Factories (not static add_tool) so the
-    # gate is re-evaluated per run against the resolved context.
+    # Factories (not static add_tool) so the gate is re-evaluated per run
+    # against the resolved context.
     host.add_tool_factory(
         lambda ctx: (
             [

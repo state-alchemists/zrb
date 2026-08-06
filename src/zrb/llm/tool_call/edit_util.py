@@ -31,7 +31,6 @@ async def edit_content_via_editor(
     """
     editor = text_editor or CFG.EDITOR
 
-    # Format as YAML for editing
     is_yaml_edit = True
     try:
         content_str = yaml_dump(content)
@@ -42,24 +41,19 @@ async def edit_content_via_editor(
         extension = ".json"
         is_yaml_edit = False
 
-    # Write to temp file
     with tempfile.NamedTemporaryFile(suffix=extension, mode="w+", delete=False) as tf:
         tf.write(content_str)
         tf_path = tf.name
 
-    # Open editor
     await ui.run_interactive_command([editor, tf_path], shell=False)
 
-    # Read back
     with open(tf_path, "r", encoding="utf-8") as tf:
         new_content_str = tf.read()
     os.remove(tf_path)
 
-    # Check if unchanged
     if new_content_str == content_str:
         return content  # Return original content unchanged
 
-    # Parse edited content
     try:
         if is_yaml_edit:
             # lazy: heavy third-party

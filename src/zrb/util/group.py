@@ -72,7 +72,7 @@ def get_node_path(group: AnyGroup, node: AnyGroup | AnyTask) -> list[str] | None
     """
     if group is None:
         return []
-    if group == node:  # Handle the case where the target is the starting group
+    if group == node:
         return [group.name]
     if isinstance(node, AnyTask):
         for alias, subtask in group.subtasks.items():

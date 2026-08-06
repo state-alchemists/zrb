@@ -19,7 +19,6 @@ def double_quote(input_string: str) -> str:
     """
     # Escape necessary characters: backslashes and double quotes
     escaped_string = re.sub(r'([\\"])', r"\\\1", input_string)
-    # Wrap in double quotes
     return f'"{escaped_string}"'
 
 

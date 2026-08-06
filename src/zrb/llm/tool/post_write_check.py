@@ -45,8 +45,7 @@ async def format_post_write_diagnostics(abs_path: str) -> str:
     ``Successfully updated … [DIAGNOSTIC]`` results and answered every one with
     another blind edit, because "fix these before continuing" is satisfied by
     exactly that. The guidance therefore says what to do *differently*: re-read
-    before the next edit, and stop patching in favour of a whole-file ``Write``
-    once a file has failed twice.
+    before the next edit, and fix the named target rather than patching blind.
     """
     if not os.path.isfile(abs_path):
         return ""
@@ -79,9 +78,7 @@ async def format_post_write_diagnostics(abs_path: str) -> str:
         "edit, not a completed one.\n"
         "[SYSTEM SUGGESTION]: Do not issue another edit to this file from memory. "
         "`Read` the file (or the lines above) to see its current state first, then "
-        "make one targeted fix. If this file already reported errors on a previous "
-        "write, stop patching it — rewrite the whole file with `Write` instead, "
-        "since repeated partial edits are what produced this state. If the errors "
+        "make one targeted fix. If the errors "
         "name something outside this file (a missing import, an undefined symbol "
         "defined elsewhere), fix that file rather than re-editing this one."
     )

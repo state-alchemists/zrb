@@ -21,11 +21,9 @@ async def run_and_cleanup(
     Wrapper for async_run that ensures session termination and cleanup of
     other concurrent asyncio tasks. This is the main entry point for `task.run()`.
     """
-    # Ensure a session exists
     if session is None:
         session = Session(shared_ctx=SharedContext(print_fn=print_fn))
 
-    # Create the main task execution coroutine
     main_task_coro = asyncio.create_task(
         run_task_async(task, session, print_fn, str_kwargs, kwargs)
     )
@@ -35,16 +33,14 @@ async def run_and_cleanup(
         result = await main_task_coro
         return result
     except (asyncio.CancelledError, KeyboardInterrupt) as e:
-        ctx = task.get_ctx(session)  # Get context for logging
+        ctx = task.get_ctx(session)
         ctx.log_warning(f"Run cancelled/interrupted: {e}")
-        raise  # Re-raise to propagate
+        raise
     finally:
-        # Ensure session termination if it exists and wasn't terminated by the run
         if session and not session.is_terminated:
-            ctx = task.get_ctx(session)  # Get context for logging
+            ctx = task.get_ctx(session)
             ctx.log_info("Terminating session after run completion/error.")
             session.terminate()
-        # Clean up other potentially running asyncio tasks (excluding the main one)
         # Be cautious with blanket cancellation if other background tasks are expected
         try:
             pending = [
@@ -53,7 +49,7 @@ async def run_and_cleanup(
                 if t is not main_task_coro and not t.done()
             ]
             if pending:
-                ctx = task.get_ctx(session)  # Get context for logging
+                ctx = task.get_ctx(session)
                 ctx.log_debug(f"Cleaning up {len(pending)} pending asyncio tasks...")
                 for t in pending:
                     t.cancel()
@@ -64,7 +60,6 @@ async def run_and_cleanup(
                     # Expected if tasks handle cancellation promptly
                     pass
                 except Exception as cleanup_exc:
-                    # Log errors during cleanup if necessary
                     if ctx is not None:
                         ctx.log_warning(f"Error during task cleanup: {cleanup_exc}")
         except RuntimeError as cleanup_exc:
@@ -86,11 +81,9 @@ async def run_task_async(
     if session is None:
         session = Session(shared_ctx=SharedContext(print_fn=print_fn))
 
-    # Populate shared context with inputs and environment variables
     fill_shared_context_inputs(session.shared_ctx, task, str_kwargs, kwargs)
-    fill_shared_context_envs(session.shared_ctx)  # Inject OS env vars
+    fill_shared_context_envs(session.shared_ctx)
 
-    # Start the execution chain from the root tasks
     result = await task.exec_root_tasks(session)
     return result
 
@@ -101,45 +94,36 @@ async def execute_root_tasks(task: AnyTask, session: AnySession):
     manages session state logging, and handles overall execution flow.
     """
     session.set_main_task(task)
-    session.state_logger.write(session.as_state_log())  # Initial state log
-    ctx = task.get_ctx(session)  # Get context early for logging
+    session.state_logger.write(session.as_state_log())
+    ctx = task.get_ctx(session)
 
     log_state_task = None
     try:
-        # Start background state logging
         log_state_task = asyncio.create_task(log_session_state(task, session))
 
-        # Identify root tasks allowed to run
         root_tasks = [
             t for t in session.get_root_tasks(task) if session.is_allowed_to_run(t)
         ]
 
         if not root_tasks:
             ctx.log_info("No root tasks to execute for this task.")
-            # If the main task itself should run even with no explicit roots?
-            # Current logic seems to imply if no roots, nothing runs.
-            session.terminate()  # Terminate if nothing to run
+            session.terminate()
             return None
 
         ctx.log_info(f"Executing {len(root_tasks)} root task(s)")
         root_task_coros = [
-            # Assuming exec_chain exists on AnyTask (it's abstract)
-            run_async(root_task.exec_chain(session))
-            for root_task in root_tasks
+            run_async(root_task.exec_chain(session)) for root_task in root_tasks
         ]
 
-        # Wait for all root chains to complete
         await gather_isolated(*root_task_coros)
 
-        # Wait for any deferred actions (like long-running task bodies)
         ctx.log_info("Waiting for deferred actions...")
         await session.wait_deferred()
         ctx.log_info("Deferred actions complete.")
 
-        # Final termination and logging
         session.terminate()
         if log_state_task and not log_state_task.done():
-            await log_state_task  # Ensure final state is logged
+            await log_state_task
         ctx.log_info("Session finished.")
         return session.final_result
 
@@ -150,24 +134,20 @@ async def execute_root_tasks(task: AnyTask, session: AnySession):
         # None instead of raising). Session termination happens in finally.
         raise
     finally:
-        # Ensure termination and final state logging regardless of outcome
         if not session.is_terminated:
             session.terminate()
-        # Ensure the state logger task is awaited/cancelled properly
         if log_state_task:
             if not log_state_task.done():
                 log_state_task.cancel()
                 try:
                     await log_state_task
                 except asyncio.CancelledError:
-                    pass  # Expected cancellation
-            # Log final state after ensuring logger task is finished
+                    pass
             session.state_logger.write(session.as_state_log())
         else:
-            # Log final state even if logger task didn't start
             session.state_logger.write(session.as_state_log())
 
-        ctx.log_debug(f"Final session state: {session}")  # Log final session details
+        ctx.log_debug(f"Final session state: {session}")
 
 
 async def log_session_state(task: AnyTask, session: AnySession):
@@ -178,10 +158,8 @@ async def log_session_state(task: AnyTask, session: AnySession):
         while not session.is_terminated:
             session.state_logger.write(session.as_state_log())
             await asyncio.sleep(0.1)  # ~10 state log writes per second
-        # Log one final time after termination signal
         session.state_logger.write(session.as_state_log())
     except (asyncio.CancelledError, KeyboardInterrupt):
-        # Log final state on cancellation too
         try:
             session.state_logger.write(session.as_state_log())
         except (asyncio.CancelledError, KeyboardInterrupt):
@@ -192,7 +170,6 @@ async def log_session_state(task: AnyTask, session: AnySession):
         except Exception:
             pass  # Context may be unavailable during shutdown
     except Exception as e:
-        # Log any unexpected errors in the logger itself
         try:
             ctx = task.get_ctx(session)
             ctx.log_error(f"Error in session state logger: {e}")

@@ -86,7 +86,6 @@ class FileHistoryManager(AnyHistoryManager):
                 # with certain models like GLM-5 via Ollama
                 filtered_data = self._filter_empty_responses(cleaned_data)
 
-                # Validate the cleaned and filtered data
                 messages = ModelMessagesTypeAdapter.validate_python(filtered_data)
                 self._cache[conversation_name] = messages
                 self._cache.move_to_end(conversation_name)
@@ -156,7 +155,6 @@ class FileHistoryManager(AnyHistoryManager):
         file_path = self._get_file_path(conversation_name)
 
         try:
-            # First, try to serialize the messages
             # Suppress Pydantic serialization warnings for BinaryContent in parts
             # (pydantic-ai's type adapter schema doesn't include BinaryContent in its
             # union, but serialization still works correctly)
@@ -179,10 +177,8 @@ class FileHistoryManager(AnyHistoryManager):
             # with certain models like GLM-5 via Ollama
             filtered_data = self._filter_empty_responses(cleaned_data)
 
-            # Validate the cleaned and filtered data
             ModelMessagesTypeAdapter.validate_python(filtered_data)
 
-            # Save the main history file
             self._save_data_to_file(file_path, filtered_data)
             # Refresh the sync point so our own write doesn't look like an
             # out-of-band change on the next load().
@@ -190,7 +186,6 @@ class FileHistoryManager(AnyHistoryManager):
             # Disk now matches the cache: the entry is evictable again.
             self._dirty.discard(conversation_name)
 
-            # Create a timestamped backup, then enforce retention.
             # Retention is controlled by LLM_HISTORY_BACKUP_RETAIN:
             #   0  → backups disabled entirely
             #  -1  → keep every backup (legacy behavior)
@@ -215,7 +210,6 @@ class FileHistoryManager(AnyHistoryManager):
                 f"Warning: Failed to save history for {conversation_name} due to validation error: {e}",
                 plain=True,
             )
-            # Don't save corrupted data
 
         except OSError as e:
             zrb_print(
@@ -232,7 +226,6 @@ class FileHistoryManager(AnyHistoryManager):
             if not filename.endswith(".json"):
                 continue
 
-            # Remove extension to get the conversation name
             conversation_name = filename[:-5]
 
             is_match, score = fuzzy_match(conversation_name, keyword)
@@ -386,7 +379,6 @@ class FileHistoryManager(AnyHistoryManager):
         - "my-session-2024-03-18-10-30" -> "my-session"
         - "my-session" -> "my-session"
         """
-        # Remove timestamp suffix if present
         return _TIMESTAMP_PATTERN.sub("", conversation_name)
 
     def _get_backup_file_path(self, base_name: str, timestamp: datetime) -> str:
@@ -400,19 +392,16 @@ class FileHistoryManager(AnyHistoryManager):
         ts_str = timestamp.strftime("%Y-%m-%d-%H-%M-%S")
         base_path = os.path.join(self._history_dir, f"{base_name}-{ts_str}")
 
-        # Check if the base backup path exists
         candidate = f"{base_path}.json"
         if not os.path.exists(candidate):
             return candidate
 
-        # Find next available sequence number
         counter = 1
         while True:
             candidate = f"{base_path}-{counter}.json"
             if not os.path.exists(candidate):
                 return candidate
             counter += 1
-            # Safety limit
             if counter > 1000:
                 # Fallback to using microseconds
                 ts_str_with_us = timestamp.strftime("%Y-%m-%d-%H-%M-%S-%f")

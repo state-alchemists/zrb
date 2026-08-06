@@ -113,7 +113,6 @@ class BufferedOutputMixin:
             text = re.sub(r"[" + progress_chars + r"]+\s*$", "", text)
             text = text.rstrip()
 
-        # Remove remaining \r
         text = text.replace("\r", "")
 
         if not text.strip():
@@ -123,7 +122,6 @@ class BufferedOutputMixin:
         # These are progress indicators that get repeated in event-driven UIs
         # We only want to show the actual tool call notification
         if "Prepare tool parameters" in text:
-            # Skip this message - the tool call notification is what matters
             return
 
         self._buffer.append(text)
@@ -147,7 +145,6 @@ class BufferedOutputMixin:
             self._buffer = []
 
             if content:
-                # Call the subclass send method
                 await self._send_buffered(content)
 
     async def _send_buffered(self, text: str):
