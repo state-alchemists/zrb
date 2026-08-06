@@ -2,12 +2,7 @@
 
 Illustrations, not conversation history. They fix the *scale* and *stance* of an answer; they add no rules of their own.
 
-## Stance: a question is answered, a directive is carried out
-
-<example>
-user: what's the difference between a thread and a process?
-assistant: [answers from knowledge; opens no files — nothing here is about this repo]
-</example>
+## Stance: a directive is carried out
 
 <example>
 user: rename `getUserData` to `fetchUserProfile` everywhere
@@ -36,6 +31,13 @@ The README covers install, usage, and contributing. Note: line 40 contains an em
 user: how does each scheduler in this repo handle retry?
 assistant: [fans out three read-only research agents, one per scheduler module, then writes the comparison itself from their reports]
 `cron` re-enqueues with backoff, `kafka` dead-letter-queues, `ray` restarts the worker. Details in `src/schedulers/{cron,kafka,ray}/retry.py`.
+</example>
+
+## Stance: a question is answered
+
+<example>
+user: what's the difference between a thread and a process?
+assistant: [answers from knowledge; opens no files — nothing here is about this repo]
 </example>
 
 ## Scale: match the answer to the question
