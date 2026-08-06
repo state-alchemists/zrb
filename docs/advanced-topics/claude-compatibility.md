@@ -73,14 +73,14 @@ share the namespace with other skills and companions aren't unambiguous.
 
 Example directory structure:
 
-```
-.zrb/skills/
-└── my-deploy-skill/
-    ├── SKILL.md
-    ├── scripts/
-    │   ├── deploy.sh
-    │   └── rollback.sh
-    └── deploy-config.yaml
+```mermaid
+flowchart LR
+    Root[".zrb/skills/"] --> Skill["my-deploy-skill/"]
+    Skill --> Def["SKILL.md"]
+    Skill --> Scripts["scripts/"]
+    Skill --> Conf["deploy-config.yaml"]
+    Scripts --> Deploy["deploy.sh"]
+    Scripts --> Rollback["rollback.sh"]
 ```
 
 When the skill is activated (via `/my-deploy-skill` or `ActivateSkill`), the LLM

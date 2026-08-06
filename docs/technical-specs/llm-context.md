@@ -53,17 +53,17 @@ exists (ADR-0053).
 
 ### Directory Organization
 
-```
-~/.zrb/llm-notes/
-├── index.md                    # Main index (auto-injected)
-├── project-a/
-│   ├── design.md              # Design decisions
-│   ├── meeting-notes.md       # Meeting notes
-│   └── api-spec.md            # API specs
-├── project-b/
-│   ├── requirements.md        # Requirements
-│   └── architecture.md        # Architecture
-└── user-preferences.md        # Global preferences
+```mermaid
+flowchart LR
+    Root["~/.zrb/llm-notes/"] --> Index["index.md — main index, auto-injected"]
+    Root --> PA["project-a/"]
+    Root --> PB["project-b/"]
+    Root --> Prefs["user-preferences.md — global preferences"]
+    PA --> PAD["design.md — design decisions"]
+    PA --> PAM["meeting-notes.md — meeting notes"]
+    PA --> PAA["api-spec.md — API specs"]
+    PB --> PBR["requirements.md — requirements"]
+    PB --> PBA["architecture.md — architecture"]
 ```
 
 ### Index File Structure

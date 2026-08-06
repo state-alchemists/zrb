@@ -164,8 +164,9 @@ Now `zrb ask-repo` runs the command, hands the output to the model as background
 
 The system prompt Zrb ships is not one blob — it is an ordered list of **sections**, each owning one concern. Three carry rules, two carry runtime facts:
 
-```
-persona → workflow → examples → system_context → project_context
+```mermaid
+flowchart LR
+    P["persona"] --> W["workflow"] --> E["examples"] --> S["system_context"] --> C["project_context"]
 ```
 
 > Per-tool rules are **not** a section. They live in each tool's docstring, which pydantic-ai ships with the schema on every request (ADR-0045).

@@ -111,29 +111,28 @@ compacted. Each minor version has its own file under `changelog-v2/`. **Keep
 only two entries per minor version** — the minor bump and its final revision —
 producing this retained sequence:
 
-```
-x.y.0  →  x.y.z (latest revision of x.y)  →  x.y+1.0  →  x.y+1.w  →  …
+```mermaid
+flowchart LR
+    A["x.y.0"] --> B["x.y.z — latest revision of x.y"] --> C["x.y+1.0"] --> D["x.y+1.w"] --> E["…"]
 ```
 
-Before compaction, each patch release lands in its own separate file — e.g.
-today's newest minor is spread across `2.48.0.md` and `2.48.1.md`, two
-distinct files, not yet merged. Compaction only happens once a minor ages out,
-at which point its separate per-patch files get merged into a single range
-file.
+Before compaction, each patch release lands in its own separate file. Compaction
+only happens once a minor ages out, at which point its separate per-patch files
+are merged into a single range file.
 
 Worked example (2.31–2.33):
 
-```
-changelog-v2/2.31.0.md  →  changelog-v2/2.32.0-2.32.2.md  →  changelog-v2/2.33.0-2.33.4.md
+```mermaid
+flowchart LR
+    V31["changelog-v2/2.31.0.md"] --> V32["changelog-v2/2.32.0-2.32.2.md"] --> V33["changelog-v2/2.33.0-2.33.4.md"]
 ```
 
 Here `2.31` had no patches (stays as `2.31.0.md`); `2.32` collapsed `2.32.1`
 into `2.32.2` and its `2.32.0a1`–`b5` pre-releases into `2.32.0`; `2.33` (once
 it aged out) collapsed the separate `2.33.1.md`–`2.33.4.md` patch files into
 `2.33.4`, merging everything into the single compacted file
-`2.33.0-2.33.4.md`. **The newest minor stays as separate per-patch files**
-(e.g. today's `2.48.0.md` and `2.48.1.md`) until it ages out and a later minor
-opens.
+`2.33.0-2.33.4.md`. **The newest minor stays as separate per-patch files** until
+it ages out and a later minor opens.
 
 Rules for the surviving entries — they must not lose the dropped history:
 

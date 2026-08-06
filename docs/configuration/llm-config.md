@@ -450,11 +450,11 @@ Restore rewinds **both** the working directory files **and** the conversation hi
 
 ### Shadow repo layout
 
-```
-~/.zrb/llm-snapshots/
-└── <session-name>/
-    └── .git/          ← isolated git repo (never touches your project git)
-    └── <files ...>    ← mirror of your working directory at each turn
+```mermaid
+flowchart LR
+    Root["~/.zrb/llm-snapshots/"] --> Session["&lt;session-name&gt;/"]
+    Session --> Git[".git/ — isolated repo, never touches your project git"]
+    Session --> Files["&lt;files …&gt; — mirror of your working directory at each turn"]
 ```
 
 ---
@@ -590,24 +590,17 @@ Zrb searches for skills/agents in this order (highest to lowest priority):
 
 ### Directory Structure
 
-```
-~/.claude/
-├── skills/
-│   └── my-skill/
-│       └── SKILL.md
-├── agents/
-│   └── my-agent/
-│       └── AGENT.md
-└── plugins/
-    └── my-plugin/
-        ├── .claude-plugin/
-        │   └── plugin.json
-        ├── skills/
-        │   └── plugin-skill/
-        │       └── SKILL.md
-        └── agents/
-            └── plugin-agent/
-                └── AGENT.md
+```mermaid
+flowchart LR
+    Root["~/.claude/"] --> Skills["skills/"]
+    Root --> Agents["agents/"]
+    Root --> Plugins["plugins/"]
+    Skills --> S1["my-skill/"] --> S1F["SKILL.md"]
+    Agents --> A1["my-agent/"] --> A1F["AGENT.md"]
+    Plugins --> P1["my-plugin/"]
+    P1 --> Meta[".claude-plugin/"] --> MetaF["plugin.json"]
+    P1 --> PS["skills/"] --> PS1["plugin-skill/"] --> PS1F["SKILL.md"]
+    P1 --> PA["agents/"] --> PA1["plugin-agent/"] --> PA1F["AGENT.md"]
 ```
 
 ---

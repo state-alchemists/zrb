@@ -116,16 +116,12 @@ Zrb automatically detects installed LSP servers using the system PATH. No config
 
 ### Detection Flow
 
-```
-1. zrb starts or LSP tools are used
-        ↓
-2. detect_available_lsp_servers() scans PATH
-        ↓
-3. Found servers are cached for the session
-        ↓
-4. File → LSP matching by extension
-        ↓
-5. LSP server started on-demand per project root
+```mermaid
+flowchart TD
+    S1([zrb starts, or an LSP tool is used]) --> S2["detect_available_lsp_servers() scans PATH"]
+    S2 --> S3["found servers cached for the session"]
+    S3 --> S4["file matched to a server by extension"]
+    S4 --> S5["server started on demand, per project root"]
 ```
 
 ### File Extension Matching

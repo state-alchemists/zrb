@@ -21,13 +21,13 @@ A `Task` is the fundamental unit of work in Zrb. It represents a discrete action
 
 This is your magic file. When you run `zrb`, it searches for `zrb_init.py` in the current directory and then recursively in all parent directories up to the filesystem root. This creates a powerful inheritance system where tasks defined in a parent directory are available to all its subdirectories.
 
-```
-/home/user/
-├── zrb_init.py          ← Global tasks (available everywhere)
-└── project/
-    ├── zrb_init.py      ← Project tasks (available in project/)
-    └── app/
-        └── zrb_init.py  ← App tasks (available in project/app/)
+```mermaid
+flowchart LR
+    Home["/home/user/"] --> HomeInit["zrb_init.py — global tasks, available everywhere"]
+    Home --> Project["project/"]
+    Project --> ProjectInit["zrb_init.py — project tasks, available in project/"]
+    Project --> App["app/"]
+    App --> AppInit["zrb_init.py — app tasks, available in project/app/"]
 ```
 
 > 💡 **Tip:** When you run `zrb` from `/home/user/project/app`, you can access tasks defined in all three `zrb_init.py` files.
