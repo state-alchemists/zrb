@@ -16,6 +16,30 @@ from zrb.llm.hook.schema import CommandHookConfig, HookConfig, MatcherConfig
 from zrb.llm.hook.types import HookEvent, HookType, MatcherOperator
 
 
+def _fake_popen(stdout: bytes = b"", stderr: bytes = b"", returncode: int = 0):
+    """A Popen stand-in backed by real pipes already holding *stdout*/*stderr*.
+
+    The hook reader drains file descriptors and stops at the child's exit, so a
+    bare MagicMock whose ``communicate`` returns a tuple is not enough — it needs
+    fds that can be selected on and an exit status that ``poll`` reports.
+    """
+
+    def _loaded(data: bytes):
+        read_fd, write_fd = os.pipe()
+        os.write(write_fd, data)  # test payloads sit far under the 64 KiB buffer
+        os.close(write_fd)  # so the reader sees EOF straight after the data
+        return os.fdopen(read_fd, "rb")
+
+    process = MagicMock()
+    process.returncode = returncode
+    process.stdin = None
+    process.stdout = _loaded(stdout)
+    process.stderr = _loaded(stderr)
+    process.poll.return_value = returncode
+    process.wait.return_value = returncode
+    return process
+
+
 @pytest.fixture
 def manager():
     """Create HookManager for tests."""
@@ -405,9 +429,7 @@ class TestHookManagerHookTypes:
             )
         )
 
-        mock_process = MagicMock()
-        mock_process.returncode = 2
-        mock_process.communicate.return_value = (b"blocked", b"")
+        mock_process = _fake_popen(stdout=b"blocked", returncode=2)
 
         with patch("subprocess.Popen", return_value=mock_process):
             manager.scan(search_dirs=[str(tmp_path)])
@@ -431,9 +453,7 @@ class TestHookManagerHookTypes:
             )
         )
 
-        mock_process = MagicMock()
-        mock_process.returncode = 0
-        mock_process.communicate.return_value = (b'{"k": "v"}', b"")
+        mock_process = _fake_popen(stdout=b'{"k": "v"}')
 
         with patch("subprocess.Popen", return_value=mock_process):
             manager.scan(search_dirs=[str(tmp_path)])
@@ -458,9 +478,7 @@ class TestHookManagerHookTypes:
             )
         )
 
-        mock_process = MagicMock()
-        mock_process.returncode = 0
-        mock_process.communicate.return_value = (b"", b"")
+        mock_process = _fake_popen()
 
         with patch("subprocess.Popen", return_value=mock_process) as mock_popen:
             manager.scan(search_dirs=[str(tmp_path)])

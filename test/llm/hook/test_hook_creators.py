@@ -3,6 +3,7 @@ import logging
 import os
 import subprocess
 import tempfile
+import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -378,6 +379,84 @@ async def test_command_hook_timeout_kills_grandchildren_not_just_the_shell():
 
 
 @pytest.mark.asyncio
+async def test_command_hook_returns_when_the_child_exits_not_at_pipe_eof():
+    """A hook that backgrounds work and exits succeeds at once, keeping output.
+
+    Regression: the reader was ``Popen.communicate``, which returns at pipe EOF.
+    A disowned descendant inherits the stdout/stderr write ends, so EOF waited on
+    the *descendant* rather than the hook — peon-ping's
+    ``_run_sound_and_notify & disown``, the shape Claude-Code notifiers use,
+    turned every firing into a false 10s timeout for a hook that had already
+    succeeded in milliseconds.
+
+    The descendant must be left running: backgrounding is the whole point of
+    ``& disown``, and killing it would cut off the sound it exists to play.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        sentinel = os.path.join(tmp, "background-work-finished")
+        hook = create_command_hook(
+            CommandHookConfig(
+                command=f"( sleep 1; touch {sentinel} ) & disown; echo ok; exit 0"
+            ),
+            timeout=10,
+        )
+        context = HookContext(event=HookEvent.SESSION_START, event_data={})
+
+        started = time.monotonic()
+        result = await hook(context)
+        elapsed = time.monotonic() - started
+
+        assert result.success is True
+        assert (
+            elapsed < 0.8
+        ), f"waited on the descendant, not the child ({elapsed:.2f}s)"
+        # The child's own output still arrives in full.
+        assert result.modifications.get("additionalContext") == "ok"
+
+        # Past the descendant's sleep: a successful hook's background work lives.
+        await asyncio.sleep(1.3)
+        assert os.path.exists(sentinel), "background work was killed off"
+
+
+@pytest.mark.asyncio
+async def test_command_hook_timeout_kills_descendants_of_a_shell_that_already_exited():
+    """The group kill must reach descendants when the shell is already gone.
+
+    Regression: the group was looked up with ``getpgid(pid)`` at kill time, but a
+    shell that backgrounds work and exits is gone by then — the lookup raised
+    ESRCH, the group kill was skipped, and the psutil fallback had no live pid to
+    walk. The group is now captured at spawn, while its leader still lives.
+
+    Forcing a genuine timeout here takes a *chatty* descendant: silence after the
+    child exits is what ends the read, so a quiet descendant returns success
+    instead (the test above). Both descendants share the spawned group, so one
+    group kill must take out the chatter and the sentinel writer together.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        sentinel = os.path.join(tmp, "survived")
+        hook = create_command_hook(
+            CommandHookConfig(
+                command=(
+                    "( while true; do echo chatter; sleep 0.01; done ) & disown; "
+                    f"( sleep 0.6; touch {sentinel} ) & disown; exit 0"
+                )
+            ),
+            timeout=0.3,
+        )
+        context = HookContext(event=HookEvent.NOTIFICATION, event_data={})
+
+        result = await hook(context)
+
+        assert result.success is False
+        assert "timed out" in (result.output or "")
+
+        await asyncio.sleep(1.0)
+        assert not os.path.exists(
+            sentinel
+        ), "descendant of an exited shell outlived the kill"
+
+
+@pytest.mark.asyncio
 async def test_command_hook_timeout_process_already_gone():
     """If the timed-out process is already gone (ProcessLookupError on kill),
     the timeout path still returns cleanly."""
@@ -387,20 +466,24 @@ async def test_command_hook_timeout_process_already_gone():
     class _Proc:
         returncode = None
 
-        def communicate(self, input=None):
+        # No pipes: the hook's reader has nothing to drain and falls straight
+        # through to wait(), which is where this fake's slowness lives.
+        stdin = stdout = stderr = None
+
+        def poll(self):
+            return None  # still running
+
+        def wait(self):
             import time as _t
 
             # Only has to outlast the 0.05-0.1s timeout/cancel below. The
-            # executor thread is not cancellable, so pytest-asyncio's loop
-            # teardown joins it — every second here is a second of test time.
+            # thread running this is not cancellable, so keep it short — every
+            # second here is a second a slow-hook assertion has to wait out.
             _t.sleep(0.3)
-            return b"", b""
+            return 0
 
         def kill(self):
             raise ProcessLookupError()
-
-        def wait(self):
-            return 0
 
     with patch("zrb.llm.hook.hook_creators.subprocess.Popen", return_value=_Proc()):
         result = await hook(context)
@@ -419,20 +502,24 @@ async def test_command_hook_cancelled_kills_process():
     class _Proc:
         returncode = None
 
-        def communicate(self, input=None):
+        # No pipes: the hook's reader has nothing to drain and falls straight
+        # through to wait(), which is where this fake's slowness lives.
+        stdin = stdout = stderr = None
+
+        def poll(self):
+            return None  # still running
+
+        def wait(self):
             import time as _t
 
             # Only has to outlast the 0.05-0.1s timeout/cancel below. The
-            # executor thread is not cancellable, so pytest-asyncio's loop
-            # teardown joins it — every second here is a second of test time.
+            # thread running this is not cancellable, so keep it short — every
+            # second here is a second a slow-hook assertion has to wait out.
             _t.sleep(0.3)
-            return b"", b""
+            return 0
 
         def kill(self):
             killed["done"] = True
-
-        def wait(self):
-            return 0
 
     hook = create_command_hook(CommandHookConfig(command="sleep 5"))
     context = HookContext(event=HookEvent.NOTIFICATION, event_data={})
@@ -456,20 +543,24 @@ async def test_command_hook_cancelled_when_process_already_gone():
     class _Proc:
         returncode = None
 
-        def communicate(self, input=None):
+        # No pipes: the hook's reader has nothing to drain and falls straight
+        # through to wait(), which is where this fake's slowness lives.
+        stdin = stdout = stderr = None
+
+        def poll(self):
+            return None  # still running
+
+        def wait(self):
             import time as _t
 
             # Only has to outlast the 0.05-0.1s timeout/cancel below. The
-            # executor thread is not cancellable, so pytest-asyncio's loop
-            # teardown joins it — every second here is a second of test time.
+            # thread running this is not cancellable, so keep it short — every
+            # second here is a second a slow-hook assertion has to wait out.
             _t.sleep(0.3)
-            return b"", b""
+            return 0
 
         def kill(self):
             raise ProcessLookupError()
-
-        def wait(self):
-            return 0
 
     hook = create_command_hook(CommandHookConfig(command="sleep 5"))
     context = HookContext(event=HookEvent.NOTIFICATION, event_data={})
@@ -490,14 +581,16 @@ async def test_command_hook_unknown_signal_number_uses_generic_label():
     class _Proc:
         returncode = -99  # 99 is not a valid signal -> ValueError fallback
 
-        def communicate(self, input=None):
-            return b"", b""
+        stdin = stdout = stderr = None
+
+        def poll(self):
+            return -99  # already exited
 
         def kill(self):
             pass
 
         def wait(self):
-            return 0
+            return -99
 
     hook = create_command_hook(CommandHookConfig(command="true"))
     context = HookContext(event=HookEvent.SESSION_END, event_data={})
