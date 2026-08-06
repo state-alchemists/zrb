@@ -110,6 +110,7 @@ tombstone.
 - **ADR-0047** — [Profiles vary phrasing, never rules; `mini` from a declared size](adr-0047.md)
 - **ADR-0048** — [Home-level docs are user guidance, not project rules](adr-0048.md)
 - **ADR-0049** — [Untrusted-data framing travels with the tool result](adr-0049.md)
+- **ADR-0075** — [A `closing` section re-anchors the end-of-turn rules as the prompt's last words](adr-0075.md)
 
 ### Skills, agents and the journal
 

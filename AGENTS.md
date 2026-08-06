@@ -25,13 +25,14 @@ The tree is self-describing — `ls src/zrb/` plus each module's docstring cover
 
 `PromptManager` (`src/zrb/llm/prompt/manager.py`) assembles the system prompt from ordered sections. Default order in `config/mixins/llm_prompt.py::DEFAULT_LLM_INCLUDE_SECTIONS`:
 
-`persona → workflow → examples → system_context → project_context`
+`persona → workflow → examples → system_context → project_context → closing`
 
 - `persona` — identity and response style.
-- `workflow` — the whole rulebook. Opens with the **Priority Order** (one ladder, precedence not sequence — first, because primacy bias means later rules get dropped first), then how a turn runs: Turn Sequence, project-doc reading, skill activation, the Working Loop, the Verify Before Done gate, Recovery, Stop. Owns the `When you don't know` ladder, the `Where the deliverable goes` rule, the `Tool usage` cross-tool policy, the `Delegating to sub-agents` triggers, and the one git rule a policy cannot produce (show `git status` + `git diff HEAD` before asking approval). Carries the skill catalogue via `{CORE_SKILLS}` / `{AVAILABLE_SKILLS}` / `{PREACTIVATED_SKILLS}` (`build_skill_replacements` in `prompt/claude.py`).
+- `workflow` — the whole rulebook. Opens with the **Priority Order** (one ladder, precedence not sequence — first, because primacy bias means later rules get dropped first), then how a turn runs: Turn Sequence, project-doc reading, skill activation, the Working Loop, the Verify Before Done gate, Recovery, Stop, then the **Skill Catalogue** (the roster moved after the operational rules so the list does not separate Turn Sequence from the Working Loop). Owns the `When you don't know` ladder, the `Where the deliverable goes` rule, the `Tool usage` cross-tool policy, the `Delegating to sub-agents` triggers, and the one git rule a policy cannot produce (show `git status` + `git diff HEAD` before asking approval). Carries the skill catalogue via `{CORE_SKILLS}` / `{AVAILABLE_SKILLS}` / `{PREACTIVATED_SKILLS}` (`build_skill_replacements` in `prompt/claude.py`).
 - `examples` — demonstrations only, no rules of their own; profile-gated.
 - `system_context` — *stable* runtime facts only (OS, CWD, model, detected tools/markers) plus the `<live-context>` anchor, so the cached prefix stays byte-identical across turns. It announces only the one model-adaptive exception — a model the capability registry deny-lists for parallel tool calls (ADR-0038) — never an affirmative batching line.
 - `project_context` — project docs found (mandatory read) and, listed separately, home-level docs (`~`, `~/.claude`) which are *not* project overrides.
+- `closing` — the recency anchor: a compact re-statement of the two end-of-turn rules (verify the artifact, then close with what changed and stop). It restates only, never adds a rule, and it sits last because the closing words are the best-recalled ones.
 
 Volatile per-turn state (time, git, todos, worktree, mode, interactivity) lives in `live_context`, not `system_context` — it is injected into the latest user turn. `render_live_context` also performs the per-turn ambient wiring: session binding for the todo tools, interactive-mode binding for `ask_user_question`, stale-worktree cleanup.
 
@@ -44,7 +45,7 @@ See ADR-0044.
 
 ### Where a rule goes
 
-**Rules live where they are enforced (ADR-0045).** Sort every rule by what can make it true: **the runtime** (a hook, a tool policy, a tool implementation), then **the tool's own docstring** (per-tool mechanics, next to the schema), then **the prompt** (only judgment no tool can make), then **a skill** (domain methodology, on demand). It is why the prompt holds three rule sections and no tool catalogue: a per-tool rule belongs in the docstring, and a rule a policy already enforces belongs nowhere in the prompt at all.
+**Rules live where they are enforced (ADR-0045).** Sort every rule by what can make it true: **the runtime** (a hook, a tool policy, a tool implementation), then **the tool's own docstring** (per-tool mechanics, next to the schema), then **the prompt** (only judgment no tool can make), then **a skill** (domain methodology, on demand). It is why the prompt holds four rule sections and no tool catalogue: a per-tool rule belongs in the docstring, and a rule a policy already enforces belongs nowhere in the prompt at all.
 
 **Each section is MECE — a single behavior lives in exactly one section.** Adding a rule: first check whether it belongs in the prompt at all, per the ladder above; then pick the smallest-scope section that owns the concept.
 

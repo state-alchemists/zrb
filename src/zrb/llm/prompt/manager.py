@@ -31,11 +31,11 @@ class PromptManager:
 
     Sections are emitted in the order given by ``include_sections`` (default in
     ``config/mixins/llm_prompt.py``: persona → workflow → examples →
-    system_context → project_context), followed by any user-added prompts. Three
-    of those carry rules; the last two carry runtime facts. There is no
-    prompt-side tool catalogue — what a tool does and which tool to reach for
-    instead lives in the tool's own docstring, which pydantic-ai ships with the
-    schema on every request.
+    system_context → project_context → closing), followed by any user-added
+    prompts. Four of those carry rules; the last two carry runtime facts. There
+    is no prompt-side tool catalogue — what a tool does and which tool to reach
+    for instead lives in the tool's own docstring, which pydantic-ai ships with
+    the schema on every request.
 
     The skill catalogue is folded into the ``workflow`` section via
     ``{CORE_SKILLS}``/``{AVAILABLE_SKILLS}``/``{PREACTIVATED_SKILLS}``

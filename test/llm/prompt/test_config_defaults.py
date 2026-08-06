@@ -32,7 +32,7 @@ def test_config_llm_include_sections_default():
 
     sections = CFG.LLM_INCLUDE_SECTIONS
     assert isinstance(sections, list)
-    # Three rule sections plus two data sections. The skill catalogue is folded
+    # Four rule sections plus two data sections. The skill catalogue is folded
     # into `workflow` via placeholders; per-tool rules live in tool docstrings,
     # so there is no tool_guidance section.
     assert sections == [
@@ -41,6 +41,7 @@ def test_config_llm_include_sections_default():
         "examples",
         "system_context",
         "project_context",
+        "closing",
     ]
 
 

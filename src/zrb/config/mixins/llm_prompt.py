@@ -23,17 +23,18 @@ class LLMPromptMixin:
         self.DEFAULT_LLM_SHOW_TOOL_CALL_RESULT: str = "off"
         # Comma-separated, order-sensitive list of prompt sections to include.
         # Order in the list determines the order they appear in the system prompt.
-        # Each section is MECE (mutually exclusive in concern). Three carry
+        # Each section is MECE (mutually exclusive in concern). Four carry
         # rules: persona=identity+response style, workflow=priority order + turn
-        # sequence + skill catalogue + working loop + verify gate + recovery,
-        # examples=demonstrations only. Two carry runtime facts:
-        # system_context=stable facts (OS, CWD, model), project_context=
+        # sequence + skill activation + working loop + verify gate + recovery +
+        # skill catalogue, examples=demonstrations only, closing=the recency
+        # anchor that re-states the two end-of-turn rules. Two carry runtime
+        # facts: system_context=stable facts (OS, CWD, model), project_context=
         # AGENTS.md/CLAUDE.md discovery.
         # Per-tool rules live in tool docstrings, which pydantic-ai ships with
         # the schema on every request. The skill catalogue is injected into
         # workflow via {CORE_SKILLS}/{AVAILABLE_SKILLS}/{PREACTIVATED_SKILLS}.
         self.DEFAULT_LLM_INCLUDE_SECTIONS: str = (
-            "persona,workflow,examples,system_context,project_context"
+            "persona,workflow,examples,system_context,project_context,closing"
         )
         # Prompt profile (ADR-0047): "terse" (base prompts) or "mini"
         # (base prompts plus worked examples, for small models); "auto" uses "terse"

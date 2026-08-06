@@ -17,6 +17,7 @@ FILE_SECTIONS = [
     "persona",
     "workflow",
     "examples",
+    "closing",
 ]
 
 # Text that must not survive when the section owning it is absent.
