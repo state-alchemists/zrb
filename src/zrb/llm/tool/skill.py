@@ -78,7 +78,6 @@ def _skill_not_found_message(skill: str, skill_manager: SkillManager) -> str:
     misremembered name, so listing the real ones turns the retry into a
     correction instead of another guess.
     """
-    return (
-        f"Skill '{skill}' not found. [SYSTEM SUGGESTION]: "
-        + _available_skills_hint(skill_manager)
+    return f"Skill '{skill}' not found. [SYSTEM SUGGESTION]: " + _available_skills_hint(
+        skill_manager
     )

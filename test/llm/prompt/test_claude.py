@@ -341,14 +341,33 @@ def test_build_skill_replacements_separates_core_from_other(tmp_path):
     assert "other" in r["AVAILABLE_SKILLS"]
 
 
-def test_build_skill_replacements_available_empty_placeholder(tmp_path):
-    """AVAILABLE_SKILLS is a harmless placeholder string when empty."""
+def test_build_skill_replacements_available_is_empty_when_none_registered(tmp_path):
+    """No available skills means no section at all — heading included.
+
+    A stock install has none: every built-in utility skill under
+    ``llm_plugin/skills/`` is ``disable-model-invocation`` (a slash command the
+    user reaches, not an agent skill), so this used to render an "Available
+    Skills" heading over the words "(none registered)". Paying for a heading that
+    introduces nothing teaches the model that catalogue entries are decorative.
+    """
     sm = SkillManager(root_dir=str(tmp_path))
     sm.scan(search_dirs=[])
 
     r = build_skill_replacements(sm)
 
-    assert r["AVAILABLE_SKILLS"] == "_(none registered)_"
+    assert r["AVAILABLE_SKILLS"] == ""
+
+
+def test_build_skill_replacements_available_carries_its_own_heading(tmp_path):
+    """The heading rides with the list so it can disappear with it."""
+    (tmp_path / "test.skill.md").write_text(
+        "---\nname: test-skill\ndescription: A test skill\n---\n# Content"
+    )
+
+    r = build_skill_replacements(_scan(tmp_path))
+
+    assert "### Available Skills" in r["AVAILABLE_SKILLS"]
+    assert "test-skill" in r["AVAILABLE_SKILLS"]
 
 
 def test_build_skill_replacements_active_skill_content_loaded(tmp_path):

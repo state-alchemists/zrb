@@ -1300,3 +1300,104 @@ async def test_run_agent_merge_consecutive_model_requests():
         # this turn's prompt onto the stored message and duplicate it on the next
         # save/cancel path. The original object's parts must stay empty.
         assert history[0].parts == []
+
+
+# ── Per-run request budget ───────────────────────────────────────────────
+# A run used to pass `request_limit=None`, so nothing could stop a model that
+# had stopped converging. The worst observed case re-edited the same nine files
+# from memory for 343 tool calls and only ended when the wall clock did. The
+# prompt's Recovery rules tell the model to change approach by the third
+# attempt; this is the half of that rule something can actually enforce.
+
+
+def _minimal_limiter() -> MagicMock:
+    limiter = MagicMock(spec=LLMLimiter)
+    limiter.acquire = AsyncMock()
+    limiter.max_token_per_request = 1000
+    limiter.count_tokens.return_value = 10
+    limiter.fit_context_window.side_effect = lambda h, m, r: h
+    return limiter
+
+
+@pytest.mark.asyncio
+async def test_run_agent_caps_requests_per_run():
+    from zrb.config.config import CFG
+
+    agent = MagicMock()
+    mock_result = MagicMock()
+    mock_result.output = "done"
+    mock_result.all_messages.return_value = []
+
+    async def _gen(*args, **kwargs):
+        yield AgentRunResultEvent(result=mock_result)
+
+    with patch.object(agent, "run_stream_events") as mock_run:
+        mock_run.side_effect = _stream_from(_gen)
+        await run_agent(
+            agent=agent, message="Hi", message_history=[], limiter=_minimal_limiter()
+        )
+
+    limits = mock_run.call_args[1]["usage_limits"]
+    assert limits.request_limit == CFG.LLM_MAX_REQUEST_PER_RUN
+
+
+@pytest.mark.asyncio
+async def test_run_agent_request_cap_can_be_disabled(monkeypatch):
+    """0 means "no cap", not "no requests allowed"."""
+    from zrb.config.config import CFG
+
+    monkeypatch.setattr(CFG, "DEFAULT_LLM_MAX_REQUEST_PER_RUN", "0")
+    monkeypatch.delenv(f"{CFG.ENV_PREFIX}_LLM_MAX_REQUEST_PER_RUN", raising=False)
+
+    agent = MagicMock()
+    mock_result = MagicMock()
+    mock_result.output = "done"
+    mock_result.all_messages.return_value = []
+
+    async def _gen(*args, **kwargs):
+        yield AgentRunResultEvent(result=mock_result)
+
+    with patch.object(agent, "run_stream_events") as mock_run:
+        mock_run.side_effect = _stream_from(_gen)
+        await run_agent(
+            agent=agent, message="Hi", message_history=[], limiter=_minimal_limiter()
+        )
+
+    assert mock_run.call_args[1]["usage_limits"].request_limit is None
+
+
+@pytest.mark.asyncio
+async def test_run_agent_explains_the_request_cap_instead_of_retrying():
+    """Hitting the cap halts with actionable text, and does not burn retries.
+
+    The generic error path would otherwise surface pydantic-ai's own message,
+    which names neither the knob nor why raising it is usually the wrong move.
+    """
+    from pydantic_ai.exceptions import UsageLimitExceeded
+
+    from zrb.config.config import CFG
+
+    agent = MagicMock()
+    attempts = 0
+
+    async def _gen(*args, **kwargs):
+        nonlocal attempts
+        attempts += 1
+        raise UsageLimitExceeded("the exceeded request_limit of 300")
+        yield  # pragma: no cover - generator marker
+
+    with patch.object(agent, "run_stream_events") as mock_run:
+        mock_run.side_effect = _stream_from(_gen)
+        with pytest.raises(RuntimeError) as excinfo:
+            await run_agent(
+                agent=agent,
+                message="Hi",
+                message_history=[],
+                limiter=_minimal_limiter(),
+            )
+
+    message = str(excinfo.value)
+    assert f"{CFG.LLM_MAX_REQUEST_PER_RUN} model requests" in message
+    assert f"{CFG.ENV_PREFIX}_LLM_MAX_REQUEST_PER_RUN" in message
+    # A cap is not transient: retrying it re-hits the same wall.
+    assert attempts == 1

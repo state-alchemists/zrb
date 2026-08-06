@@ -36,7 +36,7 @@ import asyncio
 import os
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Callable
 
 from zrb.config.config import CFG

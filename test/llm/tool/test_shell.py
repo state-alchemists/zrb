@@ -96,6 +96,49 @@ async def test_run_shell_command_with_bash_shell_bashism():
     assert "Exit Code: 0" in res
 
 
+# The PID-tracking wrapper used to splice itself onto the command with `; }`,
+# which corrupted any command whose LAST LINE cannot absorb a trailing `; }`.
+# Every shape below failed with an opaque shell parse error pointing at a line
+# number in a string the model never wrote, and models write all of them
+# routinely. Real shells, not mocks: the bug was in generated shell syntax, so
+# only an actual parse can catch a regression.
+@pytest.mark.parametrize("shell", ["bash", "sh", ""])
+@pytest.mark.parametrize(
+    "command, expected",
+    [
+        # A heredoc: `EOF ; }` stops being a delimiter alone on its line, so the
+        # shell swallowed the rest of the wrapper hunting for one.
+        ("python3 - <<'EOF'\nprint('heredoc-ok')\nEOF", "heredoc-ok"),
+        ("cat <<-EOF\n\tdash-ok\n\tEOF", "dash-ok"),
+        # A trailing comment ate the wrapper's own `; }`.
+        ("echo comment-ok  # explain the command", "comment-ok"),
+        # A trailing newline or `;` produced `; ; }` — a syntax error on bash/sh.
+        ("echo newline-ok\n", "newline-ok"),
+        ("echo semicolon-ok;", "semicolon-ok"),
+    ],
+)
+@pytest.mark.asyncio
+async def test_pid_tracking_wrapper_preserves_command_syntax(command, expected, shell):
+    res = await run_shell_command(command, shell=shell)
+    assert expected in res
+    assert "Exit Code: 0" in res
+
+
+@pytest.mark.asyncio
+async def test_pid_tracking_wrapper_preserves_exit_code():
+    """The wrapper must report the command's status, not its own."""
+    res = await run_shell_command("exit 7")
+    assert "Exit Code: 7" in res
+
+
+@pytest.mark.asyncio
+async def test_empty_command_is_a_no_op_not_a_syntax_error():
+    """`{ }` with no body is itself a syntax error, so an empty command must
+    skip the wrapper rather than be turned into a shell failure."""
+    res = await run_shell_command("   ")
+    assert "Exit Code: 0" in res
+
+
 @pytest.mark.asyncio
 async def test_run_shell_command_reports_background_pids():
     # A backgrounded process that outlives the shell is reported so the agent
@@ -390,3 +433,31 @@ async def test_timeout_without_output_still_reads_as_a_possible_hang(monkeypatch
     assert "(timed out)" in res
     assert "ps aux" in res
     assert "still writing" not in res
+
+
+def test_docstring_routes_file_work_to_the_file_tools():
+    """Shell must say it is for running things, not for touching files.
+
+    A model that reaches for `cat`/`sed -i`/`rm` gets none of what the file tools
+    carry — post-write diagnostics, path validation, per-path auto-approval — so
+    the routing rule belongs next to the schema it competes with, not only in the
+    prompt where it applies to no tool in particular.
+    """
+    doc = run_shell_command.__doc__ or ""
+
+    for file_tool in ("Read", "Write", "Edit", "Grep", "Glob", "LS", "RM", "MV"):
+        assert file_tool in doc
+    for wrong in ("cat", "find", "sed -i"):
+        assert wrong in doc
+
+
+def test_bash_docstring_carries_the_same_routing_rule():
+    """Bash delegates to Shell, so it inherits the bug surface — and must
+    inherit the rule. Its own docstring is the only one a model sees when it
+    picks Bash by name (many Claude skills assume that name)."""
+    from zrb.llm.tool.bash import run_bash_command
+
+    doc = run_bash_command.__doc__ or ""
+
+    for file_tool in ("Read", "Write", "Edit", "Grep", "Glob", "LS", "RM", "MV"):
+        assert file_tool in doc

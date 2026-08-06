@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from zrb.config.config import CFG
 from zrb.llm.agent.common import create_safe_wrapper, safe_copy_result
 
 
@@ -651,6 +652,10 @@ def test_create_agent_retries_fallback():
 
     with patch("zrb.llm.agent.common.CFG") as mock_cfg:
         mock_cfg.LLM_TOOL_MAX_RETRIES = 5
+        # Stubbing the whole singleton means every field create_agent reads has
+        # to be a real value, not a MagicMock — the request deadline is compared
+        # numerically.
+        mock_cfg.LLM_REQUEST_TIMEOUT = 300000
         with patch("pydantic_ai.Agent", mock_agent_class):
 
             # 1. retries=None (should use CFG.LLM_TOOL_MAX_RETRIES)
@@ -662,6 +667,16 @@ def test_create_agent_retries_fallback():
             create_agent(model="test-model", retries=2, yolo=True)
             args, kwargs = mock_agent_class.call_args
             assert kwargs.get("retries") == {"tools": 2}
+
+
+def _settings_of(mock_agent_class) -> dict:
+    _, kwargs = mock_agent_class.call_args
+    return kwargs.get("model_settings")
+
+
+def _default_timeout() -> float:
+    """The request deadline every agent carries, in seconds."""
+    return CFG.LLM_REQUEST_TIMEOUT / 1000
 
 
 def test_create_agent_forces_sequential_for_parallel_unsupported_model():
@@ -676,8 +691,10 @@ def test_create_agent_forces_sequential_for_parallel_unsupported_model():
             yolo=True,
         )
 
-    _, kwargs = mock_agent_class.call_args
-    assert kwargs.get("model_settings") == {"parallel_tool_calls": False}
+    assert _settings_of(mock_agent_class) == {
+        "parallel_tool_calls": False,
+        "timeout": _default_timeout(),
+    }
 
 
 def test_create_agent_respects_caller_parallel_tool_calls_override():
@@ -693,19 +710,74 @@ def test_create_agent_respects_caller_parallel_tool_calls_override():
             yolo=True,
         )
 
-    _, kwargs = mock_agent_class.call_args
-    settings = kwargs.get("model_settings")
-    assert settings == {"parallel_tool_calls": True, "temperature": 0.5}
+    assert _settings_of(mock_agent_class) == {
+        "parallel_tool_calls": True,
+        "temperature": 0.5,
+        "timeout": _default_timeout(),
+    }
 
 
 def test_create_agent_leaves_unknown_models_unchanged():
-    """A model with no explicit capability entry gets no settings injection."""
+    """A model with no capability entry gets no *capability* injection.
+
+    The request deadline is not a capability constraint — it applies to every
+    model — so it is present here while ``parallel_tool_calls`` is not.
+    """
     from zrb.llm.agent.common import create_agent
 
     mock_agent_class = MagicMock()
     with patch("pydantic_ai.Agent", mock_agent_class):
         create_agent(model="openai:gpt-4o", system_prompt="test", yolo=True)
 
-    _, kwargs = mock_agent_class.call_args
-    # No injection: ``model_settings`` stays as the caller passed (None here).
-    assert kwargs.get("model_settings") is None
+    settings = _settings_of(mock_agent_class)
+    assert "parallel_tool_calls" not in settings
+    assert settings == {"timeout": _default_timeout()}
+
+
+# ── Request deadline ─────────────────────────────────────────────────────
+# A provider that accepts the connection and then stops sending used to block
+# the run forever: pydantic-ai waits on the stream and the retry loop only fires
+# on a raised exception, so a stall was indistinguishable from thinking. Two
+# benchmark cells burned a full 600s wall clock having written no file and
+# produced no output.
+
+
+def test_create_agent_applies_the_configured_request_timeout(monkeypatch):
+    from zrb.llm.agent.common import create_agent
+
+    monkeypatch.setattr(CFG, "DEFAULT_LLM_REQUEST_TIMEOUT", "45000")
+    monkeypatch.delenv(f"{CFG.ENV_PREFIX}_LLM_REQUEST_TIMEOUT", raising=False)
+    mock_agent_class = MagicMock()
+    with patch("pydantic_ai.Agent", mock_agent_class):
+        create_agent(model="openai:gpt-4o", system_prompt="test", yolo=True)
+
+    assert _settings_of(mock_agent_class) == {"timeout": 45.0}
+
+
+def test_create_agent_lets_the_caller_own_the_timeout():
+    """An explicit ``timeout`` is never overwritten by the configured default."""
+    from zrb.llm.agent.common import create_agent
+
+    mock_agent_class = MagicMock()
+    with patch("pydantic_ai.Agent", mock_agent_class):
+        create_agent(
+            model="openai:gpt-4o",
+            system_prompt="test",
+            model_settings={"timeout": 5.0},
+            yolo=True,
+        )
+
+    assert _settings_of(mock_agent_class) == {"timeout": 5.0}
+
+
+def test_create_agent_omits_the_timeout_when_disabled(monkeypatch):
+    """A non-positive timeout means "no deadline", not "expire immediately"."""
+    from zrb.llm.agent.common import create_agent
+
+    monkeypatch.setattr(CFG, "DEFAULT_LLM_REQUEST_TIMEOUT", "0")
+    monkeypatch.delenv(f"{CFG.ENV_PREFIX}_LLM_REQUEST_TIMEOUT", raising=False)
+    mock_agent_class = MagicMock()
+    with patch("pydantic_ai.Agent", mock_agent_class):
+        create_agent(model="openai:gpt-4o", system_prompt="test", yolo=True)
+
+    assert _settings_of(mock_agent_class) is None

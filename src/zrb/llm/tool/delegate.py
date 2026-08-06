@@ -491,9 +491,13 @@ def create_delegate_to_agent_tool(
     delegate_to_agent.__name__ = "DelegateToAgent"
     delegate_to_agent.__doc__ = (
         "Delegates a task to a named subagent for isolated execution.\n\n"
+        "The envelope is the contract — a vague envelope comes back vague:\n"
         "- deliverable: concrete artifact that must exist on return (name the file, function, or decision).\n"
         "- task: how to produce it — reference exact files, line numbers, or commands when known.\n"
         "- non_goals: things the sub-agent must NOT do (scope clamp). Pass [] only when certain.\n\n"
+        "For a comparative deliverable, set the axes yourself and give every "
+        "sub-agent the same list — reports built on different frames cannot be "
+        "reconciled.\n\n"
         "FAN OUT: pass tasks=[{agent_name, deliverable, task, non_goals, ...}, ...] to run multiple "
         "sub-agents concurrently in one call. Flat args are ignored when tasks is non-empty.\n\n"
         f"AVAILABLE AGENTS:\n{agent_doc_section}"

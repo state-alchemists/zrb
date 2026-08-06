@@ -29,6 +29,13 @@ FILE_SECTIONS = [
 # compactly in place, never to add the pointer back.
 OWNED_VOCABULARY = {
     "project_context": ["Documentation Files Found", "User-Level Guidance"],
+    # `workflow`'s batching rule withdraws itself for models that cannot batch,
+    # which only `system_context` can report. Unguarded, that clause told every
+    # trimmed config to consult a section it was never given. Listed here rather
+    # than trusted to review: `system_context` is Python-generated, so it is
+    # never one of FILE_SECTIONS and the subset walk therefore always asserts
+    # this term is absent — exactly the guard the marker has to satisfy.
+    "system_context": ["System Context"],
     # `Priority Order` and `Operating Rules` moved here from the retired
     # `mandate` section; the git approval rule moved here from the retired
     # `git_mandate` and is now phrased as `git diff HEAD`.
@@ -177,6 +184,24 @@ def test_no_numbered_list_gaps_in_any_subset(profile):
                     range(run[0], run[0] + len(run))
                 ), f"gap {run} with sections={sorted(combo)}"
             run = []
+
+
+def test_batching_rule_forbids_the_payload_form():
+    """ "Batch twelve edits" must not read as "describe twelve edits".
+
+    A capable model spent 9,193 output tokens printing 44 correct
+    ``{path, old_text, new_text}`` objects into its reply and changed no file,
+    having read the batching rule as an instruction to assemble one payload.
+    `Edit` takes a single replacement by design, so the rule has to say that a
+    batch is N calls — otherwise the tool schema and the prompt disagree and the
+    model resolves it by writing prose.
+    """
+    text = get_prompt("workflow")
+    section = text.split("### Tool usage", 1)[1].split("\n---", 1)[0]
+
+    assert "Batch independent calls" in section
+    assert "N tool calls" in section
+    assert "twelve `Edit` calls" in section
 
 
 def test_default_prompt_stays_within_its_budget():

@@ -119,6 +119,7 @@ To prevent runaway AI loops, manage API costs, and stay within provider limits, 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ZRB_LLM_MAX_REQUEST_PER_MINUTE` | Max API requests per minute | `60` |
+| `ZRB_LLM_MAX_REQUEST_PER_RUN` | Max model requests in one agent run before it halts — the backstop for a run that stops converging. `0` disables. | `300` |
 | `ZRB_LLM_MAX_TOKEN_PER_MINUTE` | Max tokens processed per minute | `128000` |
 | `ZRB_LLM_MAX_TOKEN_PER_REQUEST` | Hard context window limit | `128000` |
 | `ZRB_LLM_THROTTLE_SLEEP` | Seconds to pause when rate-limited | `1.0` |
@@ -613,7 +614,7 @@ All timeout values are in **milliseconds** unless the row says otherwise. Divide
 |----------|-------------|---------|
 | `ZRB_LLM_SSE_KEEPALIVE_TIMEOUT` | How long to wait before sending an SSE keepalive ping (ms) | `60000` |
 | `ZRB_WEB_SHUTDOWN_TIMEOUT` | Graceful web server shutdown timeout (ms) | `10000` |
-| `ZRB_LLM_REQUEST_TIMEOUT` | Maximum time to wait for an LLM response (ms) | `300000` |
+| `ZRB_LLM_REQUEST_TIMEOUT` | Deadline for a single model request, applied to every agent (main, sub-agent, programmatic). Guards against a provider that accepts the connection and then stops sending, which no retry can detect. `0` disables. (ms) | `300000` |
 | `ZRB_LLM_INPUT_QUEUE_TIMEOUT` | Polling interval for the chat input queue (ms) | `500` |
 | `ZRB_LLM_SHELL_KILL_WAIT_TIMEOUT` | Time to wait for a shell process to exit after SIGTERM before SIGKILL (ms) | `5000` |
 | `ZRB_LLM_BACKGROUND_WAIT_MAX` | Max time a single `GetDelegationResult`/`MonitorProcess` `wait=` call may block before returning "still running" (**seconds**, not ms) | `300` |
