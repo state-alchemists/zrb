@@ -20,7 +20,7 @@ def load_module(name: str) -> ModuleType:
 
 
 def load_file(path: str, max_depth: int = -1) -> ModuleType | None:
-    # max_depth is kept for signature compatibility but ignored in this simple implementation
+    # max_depth is accepted but unused; nothing here recurses.
     if not os.path.exists(path):
         return None
 

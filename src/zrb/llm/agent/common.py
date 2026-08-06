@@ -86,13 +86,11 @@ def safe_copy_result(result: Any) -> Any:
         return result
     if isinstance(result, (list, dict, set)):
         return copy.deepcopy(result)
-    # For other types (including tuples which may contain mutable elements),
-    # perform a deep copy to be safe
+    # Other types (tuples especially) may still hold mutable elements.
     try:
         return copy.deepcopy(result)
     except Exception:
-        # If deepcopy fails (e.g., for complex objects), return as-is
-        # This maintains backward compatibility while fixing the common cases
+        # Un-copyable objects (open handles, locks) pass through as-is.
         return result
 
 

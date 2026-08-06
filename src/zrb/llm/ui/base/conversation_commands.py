@@ -319,7 +319,8 @@ class BaseUIConversationCommands:
                             stylize_error("\n  ❌ No conversation history to copy.\n")
                         )
                         return True
-                    # lazy: tests patch copy_text/format_history; hoisting bypasses mocks
+                    # lazy: tests patch copy_text/format_history_as_text; hoisting
+                    # bypasses mocks
                     from zrb.llm.util.clipboard import copy_text
                     from zrb.llm.util.history_formatter import (
                         format_history_as_text,

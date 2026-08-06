@@ -390,7 +390,7 @@ class PromptManager:
             else {}
         )
         # Skill catalogue lives in workflow.md via {CORE_SKILLS}/{AVAILABLE_SKILLS}
-        # /{PREACTIVATED_SKILLS} placeholders (no separate claude_skills section).
+        # /{PREACTIVATED_SKILLS} placeholders.
         if self._skill_manager:
             active_skills = get_str_list_attr(
                 ctx, self._active_skills, self._render_active_skills

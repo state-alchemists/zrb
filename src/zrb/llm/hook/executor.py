@@ -192,7 +192,7 @@ class ThreadPoolHookExecutor:
             exec_result.exit_code = 2
 
         if result.modifications:
-            # Store all modifications in data for backward compatibility
+            # HookManager reads modifications back out of `data` (manager.py).
             exec_result.data.update(result.modifications)
 
             if "decision" in result.modifications:
