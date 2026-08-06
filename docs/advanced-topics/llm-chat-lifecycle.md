@@ -178,7 +178,7 @@ Control returns up through `LLMChatTask._exec_action` → `run_task_async` → `
 | Compression / summarisation | `src/zrb/llm/summarizer/history_summarizer.py` |
 | Default TUI | `src/zrb/llm/ui/default/ui.py` (composes `base/ui.py` + 4 mixins) |
 | HTTP chat UI | `src/zrb/runner/chat/http_ui.py` + SSE backend |
-| Hooks | `src/zrb/llm/hook/manager.py`, `hook_creators.py`, `matcher.py` |
+| Hooks | `src/zrb/llm/hook/manager.py`, `creator.py`, `process_{io,kill}.py`, `matcher.py` |
 | Sub-agents | `src/zrb/llm/agent/subagent/` |
 | Permission policy | `src/zrb/llm/permission/` |
 | Persistence | `src/zrb/llm/history_manager/file_history_manager.py` |

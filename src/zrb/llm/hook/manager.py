@@ -2,9 +2,8 @@
 
 Owns hook registration, matcher evaluation, and execution. The filesystem
 loading + JSON/YAML parsing lives in the sibling `manager_loading.py`; the
-type-specific factories (command/prompt/agent) live in
-`zrb.llm.hook.hook_creators`; matcher operator semantics live in
-`zrb.llm.hook.matcher`.
+type-specific factories (command/prompt/agent) live in `zrb.llm.hook.creator`;
+matcher operator semantics live in `zrb.llm.hook.matcher`.
 
 For the public hook authoring guide (formats, events, examples), see:
   docs/advanced-topics/hooks.md
@@ -18,15 +17,15 @@ from pathlib import Path
 from typing import Any, Callable, cast
 
 from zrb.config.config import CFG
+from zrb.llm.hook.creator import (
+    create_agent_hook,
+    create_command_hook,
+    create_prompt_hook,
+)
 from zrb.llm.hook.executor import (
     HookExecutionResult,
     ThreadPoolHookExecutor,
     get_hook_executor,
-)
-from zrb.llm.hook.hook_creators import (
-    create_agent_hook,
-    create_command_hook,
-    create_prompt_hook,
 )
 from zrb.llm.hook.hook_loader import get_search_directories as _get_search_directories
 from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
