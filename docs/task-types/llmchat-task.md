@@ -140,7 +140,7 @@ chat.add_toolset_factory(lambda ctx: create_toolset())
 ### Telling the LLM how to use a tool
 
 A tool describes itself through its docstring — pydantic-ai serializes it with
-the schema on every request. There is no separate guidance API (ADR-0045).
+the schema on every request (ADR-0045).
 
 ```python
 def my_tool(item_id: str) -> dict:

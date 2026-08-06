@@ -44,7 +44,7 @@ See ADR-0044.
 
 ### Where a rule goes
 
-**Rules live where they are enforced (ADR-0045).** Sort every rule by what can make it true: **the runtime** (a hook, a tool policy, a tool implementation), then **the tool's own docstring** (per-tool mechanics, next to the schema), then **the prompt** (only judgment no tool can make), then **a skill** (domain methodology, on demand). This is what collapsed six rule sections into three, and why there is no prompt-side tool catalogue. `mandate`, `git_mandate`, `journal_mandate` and `tool_guidance` no longer exist; those names in a pinned config resolve to an empty custom section and log a warning.
+**Rules live where they are enforced (ADR-0045).** Sort every rule by what can make it true: **the runtime** (a hook, a tool policy, a tool implementation), then **the tool's own docstring** (per-tool mechanics, next to the schema), then **the prompt** (only judgment no tool can make), then **a skill** (domain methodology, on demand). It is why the prompt holds three rule sections and no tool catalogue: a per-tool rule belongs in the docstring, and a rule a policy already enforces belongs nowhere in the prompt at all.
 
 **Each section is MECE — a single behavior lives in exactly one section.** Adding a rule: first check whether it belongs in the prompt at all, per the ladder above; then pick the smallest-scope section that owns the concept.
 

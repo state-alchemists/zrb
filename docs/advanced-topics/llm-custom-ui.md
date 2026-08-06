@@ -526,6 +526,37 @@ app.add_routes([
 
 Use `BaseUI` when you need complete control over the message loop or have custom architecture requirements.
 
+### Architecture Overview
+
+```mermaid
+flowchart TB
+    subgraph LLMChatTask["LLMChatTask"]
+        subgraph BaseUI["BaseUI (Inherit from)"]
+            ProcLoop["_process_messages_loop()"]
+            Submit["_submit_user_message()"]
+            Stream["_stream_ai_response()"]
+            Handle["_handle_*_cmd()"]
+            Impl["YOU IMPLEMENT:\nappend_to_output()\nask_user()\nrun_interactive_command()\nrun_async()"]
+        end
+
+        subgraph ApprovalChannel["ApprovalChannel (Inject separately)"]
+            Request["request_approval()"]
+            Notify["notify()"]
+        end
+
+        ProcLoop --> Submit --> Stream --> Impl
+    end
+```
+
+### When to Use BaseUI vs SimpleUI
+
+| Use BaseUI When | Use SimpleUI When |
+|-----------------|-------------------|
+| You need custom `run_async()` logic | Standard event loop is fine |
+| You need `run_interactive_command()` | Shell commands not needed |
+| You want low-level `append_to_output()` | Simple `print()` is enough |
+| You're building a custom multiplexer | Single-channel UI |
+
 ### What You Must Implement
 
 **5 items total:**
@@ -546,6 +577,15 @@ Use `BaseUI` when you need complete control over the message loop or have custom
 - Command handlers (`/help`, `/exit`, `/save`, `/load`, `/model`, `/exec`, `/yolo`)
 - History management integration
 - Tool confirmation handling
+
+### BaseUI Optional Methods
+
+| Method | Default | Purpose |
+|--------|---------|---------|
+| `invalidate_ui()` | No-op | Redraw/refresh UI |
+| `on_exit()` | No-op | Cleanup on shutdown |
+| `stream_to_parent()` | Calls `append_to_output` | For multiplexed UIs |
+| `_get_output_field_width()` | None | Custom text width for formatting (exposed publicly as the `output_field_width` property, which is what the diff/markdown formatters read) |
 
 ### Example: WebSocket Backend
 
@@ -821,61 +861,6 @@ llm_chat.set_ui_factory(
 1. Maps the 8 standard parameters to UIConfig
 2. Merges `ui_commands` from task configuration
 3. Passes your extra kwargs (`bot_token`, `chat_id`) to `MyUI.__init__()`
-
----
-
-## Level 4: BaseUI (For Full Control)
-
-For advanced use cases that need complete control, inherit from `BaseUI` directly.
-
-### Architecture Overview
-
-```mermaid
-flowchart TB
-    subgraph LLMChatTask["LLMChatTask"]
-        subgraph BaseUI["BaseUI (Inherit from)"]
-            ProcLoop["_process_messages_loop()"]
-            Submit["_submit_user_message()"]
-            Stream["_stream_ai_response()"]
-            Handle["_handle_*_cmd()"]
-            Impl["YOU IMPLEMENT:\nappend_to_output()\nask_user()\nrun_interactive_command()\nrun_async()"]
-        end
-
-        subgraph ApprovalChannel["ApprovalChannel (Inject separately)"]
-            Request["request_approval()"]
-            Notify["notify()"]
-        end
-
-        ProcLoop --> Submit --> Stream --> Impl
-    end
-```
-
-### When to Use BaseUI vs SimpleUI
-
-| Use BaseUI When | Use SimpleUI When |
-|-----------------|-------------------|
-| You need custom `run_async()` logic | Standard event loop is fine |
-| You need `run_interactive_command()` | Shell commands not needed |
-| You want low-level `append_to_output()` | Simple `print()` is enough |
-| You're building a custom multiplexer | Single-channel UI |
-
-### BaseUI Required Methods
-
-| Method | Purpose |
-|--------|---------|
-| `append_to_output(*values, sep, end, file, flush)` | Called for all output (AI, system, errors) |
-| `ask_user(prompt: str)` | Blocks until user responds |
-| `run_interactive_command(cmd, shell)` | Execute shell commands (can return error) |
-| `run_async()` | Start message loop, manage lifecycle |
-
-### BaseUI Optional Methods
-
-| Method | Default | Purpose |
-|--------|---------|---------|
-| `invalidate_ui()` | No-op | Redraw/refresh UI |
-| `on_exit()` | No-op | Cleanup on shutdown |
-| `stream_to_parent()` | Calls `append_to_output` | For multiplexed UIs |
-| `_get_output_field_width()` | None | Custom text width for formatting (exposed publicly as the `output_field_width` property, which is what the diff/markdown formatters read) |
 
 ---
 

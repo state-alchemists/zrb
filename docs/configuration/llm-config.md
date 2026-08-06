@@ -205,7 +205,7 @@ Recognised section names:
 
 > The skill catalogue (core skills, other available skills, and active-skill contents) is part of the `workflow` section, injected via `{CORE_SKILLS}`/`{AVAILABLE_SKILLS}`/`{PREACTIVATED_SKILLS}` placeholders — it is not a separate section.
 >
-> **Retired sections.** `mandate`, `git_mandate`, `journal_mandate`, and `tool_guidance` no longer exist (ADR-0045, ADR-0053). `mandate` folded into `workflow`; `git_mandate` is enforced by the shell tool policy instead; the journal is three tools with no prose; per-tool rules live in tool docstrings. A pinned list naming any of them falls through to the custom-section path: it composes to nothing (with a warning) unless you have a markdown override of that name, in which case your override is still emitted at that position.
+> Per-tool rules are not a section either: they live in each tool's docstring, which ships with the tool schema on every request (ADR-0045).
 
 > Volatile per-turn state (time, git status, todos, worktree, interactivity) is **not** a section — it is injected into the latest user turn as a `<live-context>` block so the cached system prompt stays byte-stable.
 
@@ -287,10 +287,8 @@ add must repeat everything the base says that still applies. It follows the same
 project-override → env → base-dir → package lookup as any prompt file, so you can
 override a variant too.
 
-> The profile was called `explicit` in earlier releases. It is `mini` now, with
-> no alias: `ZRB_LLM_PROFILE=explicit` is unrecognized and falls through to
-> `auto`, and `register_model_profile(..., "explicit")` raises `ValueError`.
-> See ADR-0047.
+> An unrecognized `ZRB_LLM_PROFILE` value falls through to `auto`, and
+> `register_model_profile(..., "<unknown>")` raises `ValueError`.
 
 ### Programmatic Prompt Customization
 
@@ -358,10 +356,10 @@ export ZRB_LLM_INCLUDE_SECTIONS="persona,workflow,company_context,system_context
 
 ### Telling the LLM about a custom tool
 
-There is no tool-guidance section any more (ADR-0045). What a tool does, what its
-arguments mean, and which tool to reach for instead all live in the tool's own
-**docstring** — pydantic-ai serializes it with the JSON schema on every request,
-so the model reads it next to the arguments it is filling in:
+What a tool does, what its arguments mean, and which tool to reach for instead
+all live in the tool's own **docstring** — pydantic-ai serializes it with the
+JSON schema on every request, so the model reads it next to the arguments it is
+filling in (ADR-0045):
 
 ```python
 from zrb import LLMChatTask
@@ -394,8 +392,7 @@ task.prompt_manager.register_section(
 )
 ```
 
-Then place `tool_policy` in `ZRB_LLM_INCLUDE_SECTIONS`. This is the documented
-replacement for the removed `add_tool_guidance()` API.
+Then place `tool_policy` in `ZRB_LLM_INCLUDE_SECTIONS`.
 
 ---
 
@@ -659,7 +656,7 @@ All interval and delay values are in **milliseconds**.
 | `ZRB_LLM_MAX_COMPLETION_FILES` | Maximum files scanned for path autocompletion | `5000` |
 | `ZRB_LLM_MAX_OUTPUT_CHARS` | Maximum characters returned by shell command and file read tools | `100000` |
 | `ZRB_LLM_MAX_CONSOLE_OUTPUT_CHARS` | Cap (characters) on how much of a shell command's output is mirrored to the console. Separate from `ZRB_LLM_MAX_OUTPUT_CHARS`, which caps what the model sees: a human watching a build wants far more scrollback than the model needs, but neither wants a runaway command echoed line by line. Beyond the cap the output is still captured and still reaches the model. | `1000000` |
-| `ZRB_LLM_MAX_TOOL_RESULT_CHARS` | Size (characters) above which a tool result is flagged `oversized` in `ToolReturn.metadata`. **It does not truncate**: the cap only ever applied to a duplicate copy of the result, and removing that duplicate (ADR-0043) must not silently start shortening payloads the model previously received in full. `0` disables the check. | `100000` |
+| `ZRB_LLM_MAX_TOOL_RESULT_CHARS` | Size (characters) above which a tool result is flagged `oversized` in `ToolReturn.metadata`. **It does not truncate** — the flag is metadata only, never sent to the model; per-tool caps (`ZRB_LLM_MAX_OUTPUT_CHARS`) are what bound what the model reads. `0` disables the check. | `100000` |
 | `ZRB_LLM_HISTORY_MAX_DISPLAY_CHARS` | Maximum characters shown by the `/history` command | `5000` |
 | `ZRB_LLM_HISTORY_TRUNCATE_LENGTH` | Maximum chars per field when formatting history entries | `100` |
 | `ZRB_LLM_MAX_IMAGE_DIMENSION` | Longest-edge cap (pixels) for attached images before sending to LLM | `1568` |

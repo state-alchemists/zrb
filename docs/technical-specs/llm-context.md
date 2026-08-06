@@ -14,20 +14,19 @@ Zrb provides a directory-based journal system for maintaining persistent context
 - [Automatic Creation](#4-automatic-creation)
 - [Configuration Placeholders](#5-configuration-placeholders)
 - [Documentation Separation](#6-documentation-separation)
-- [Migration Guide](#7-migration-from-old-note-system)
 
 ---
 
 ## 1. Overview
 
-The journal system replaces the old JSON-based note system with a more flexible directory-based approach. It provides a structured way to maintain context through Markdown files organized hierarchically by topic or project.
+The journal is a directory of Markdown files organized hierarchically by topic or project, giving the assistant a structured place to keep context that outlives a single session.
 
-| Feature | Old System | New System |
-|---------|------------|------------|
-| Storage | Single JSON file | Directory of Markdown files |
-| Organization | Flat | Hierarchical |
-| Format | JSON | Markdown |
-| Index | N/A | `index.md` |
+| Property | Value |
+|----------|-------|
+| Storage | Directory of Markdown files |
+| Organization | Hierarchical, by topic or project |
+| Entry point | `index.md`, the only file injected into a session |
+| Written by | `LogActivity` and `WriteJournalNote`, which own the on-disk format |
 
 ---
 
@@ -123,11 +122,10 @@ unbounded "Recent Insights" last, so growth only ever evicts itself.
 Nothing is injected at all when the index file is missing, unreadable, or empty;
 when `ZRB_LLM_JOURNAL_INDEX_MAX_CHARS` is `0`; or when
 `ZRB_LLM_JOURNAL_ENABLED` is `false`. A missing block therefore does not prove
-an empty journal — but nothing tells the model that any more. ADR-0053 removed
-the prompt section that used to say it, and the only remaining homes are the
-prompt (deliberately emptied) or a tool docstring that would be paid for on
-every request, so the caveat is left as a known gap rather than shipped
-(`render_journal_index`'s docstring records it). It matters only when
+an empty journal — and nothing tells the model so. Stating the caveat would
+cost either prompt weight or a tool docstring paid for on every request, so it
+is a known gap rather than shipped text (`render_journal_index`'s docstring
+records it). It matters only when
 `ZRB_LLM_JOURNAL_INDEX_MAX_CHARS` is `0` while the journal tools stay
 registered — a deliberate and unusual pairing.
 
@@ -166,29 +164,4 @@ The journal system uses configuration placeholders that are automatically replac
 
 > 💡 **Best Practice:** Use `AGENTS.md` for rules the LLM must follow. Use the journal for information the LLM should remember.
 
----
-
-## 7. Migration from Old Note System
-
-The old JSON-based note system (`NoteManager`, `LLM_NOTE_FILE`) was removed in version 2.4.0.
-
-### Migration Steps
-
-```bash
-# 1. Create journal directory
-mkdir -p ~/.zrb/llm-notes/
-
-# 2. Create index file
-touch ~/.zrb/llm-notes/index.md
-
-# 3. Organize notes into Markdown files
-# Move content from old JSON to categorized .md files
-```
-
-| Old System | New System |
-|------------|------------|
-| Single JSON file | Directory structure |
-| `NoteManager` class | Direct file access |
-| `LLM_NOTE_FILE` env var | `ZRB_LLM_JOURNAL_DIR` |
-
----
+🔖 [Documentation Home](../../README.md) > [Technical Specs](./llm-context.md)

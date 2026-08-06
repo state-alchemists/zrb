@@ -168,7 +168,7 @@ The system prompt Zrb ships is not one blob — it is an ordered list of **secti
 persona → workflow → examples → system_context → project_context
 ```
 
-> Per-tool rules are **not** a section. They live in each tool's docstring, which pydantic-ai ships with the schema on every request (ADR-0045). The retired `mandate`, `git_mandate`, `journal_mandate`, and `tool_guidance` names still parse as custom sections: empty (with a warning) unless you have a markdown override of that name, which is then emitted at that position.
+> Per-tool rules are **not** a section. They live in each tool's docstring, which pydantic-ai ships with the schema on every request (ADR-0045).
 
 A `PromptManager` lets you control that assembly. Two independent levers:
 

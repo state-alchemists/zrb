@@ -244,10 +244,10 @@ The assistant can connect to external MCP servers defined in `mcp-config.json`. 
 
 ## Telling the LLM how to use a tool
 
-There is no tool-guidance prompt section (ADR-0045). A tool describes itself: its
-**docstring** and type annotations become the JSON schema pydantic-ai sends on
-every request, so whatever the model needs to know sits right next to the
-arguments it is filling in.
+A tool describes itself. Its **docstring** and type annotations become the JSON
+schema pydantic-ai sends on every request, so whatever the model needs to know
+sits right next to the arguments it is filling in — that is the whole mechanism
+(ADR-0045).
 
 ```python
 def check_stock(warehouse_id: str, sku: str) -> dict:
@@ -262,9 +262,9 @@ def check_stock(warehouse_id: str, sku: str) -> dict:
 my_chat_task.add_tool(check_stock)
 ```
 
-Write into the docstring what a guidance entry used to carry: when to reach for
-this tool, the one constraint that trips callers up, and which tool to use
-instead when this is the wrong one.
+Write three things into the docstring: when to reach for this tool, the one
+constraint that trips callers up, and which tool to use instead when this is the
+wrong one.
 
 > **This relocates token cost, it does not remove it.** pydantic-ai serializes
 > every registered tool's docstring *and* schema into every request, so a
@@ -285,9 +285,8 @@ my_chat_task.prompt_manager.register_section(
 ```
 
 Then add `tool_policy` to `ZRB_LLM_INCLUDE_SECTIONS` at the position you want.
-This is the replacement for the removed `add_tool_guidance()` /
-`add_tool_guidance_factory()` / `add_tool_guidance_section_factory()` APIs, and
-it is strictly more capable: the provider sees the live context.
+The provider is called with the live context, so the section can reflect runtime
+state.
 
 ---
 
