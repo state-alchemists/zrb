@@ -1,9 +1,9 @@
-"""Width-aware rendering of the TUI help panel (ASCII art + command tables).
+"""Width-aware rendering of the TUI help panel (ASCII art + command table).
 
 The panel is re-rendered from this data on every terminal resize, so no *row*
 is ever clipped to fit: a description wraps inside its column instead, and the
 art keeps its own column until the remaining width stops being usable, at which
-point it moves above the tables rather than being dropped. Row *count* is
+point it moves above the table rather than being dropped. Row *count* is
 capped separately (`max_commands`), which is a choice about screen real estate
 rather than a consequence of the width.
 """
@@ -18,8 +18,8 @@ from zrb.util.cli.ansi import strip_trailing_padding
 if TYPE_CHECKING:
     from rich.console import RenderableType
 
-# Below this many columns for the command tables, the art stops sharing a row
-# with them and is printed above instead.
+# Below this many columns for the command table, the art stops sharing a row
+# with it and is printed above instead.
 MIN_CONTENT_WIDTH = 44
 
 # Gap between the art column and the tables beside it.
@@ -64,7 +64,7 @@ def render_help_panel(panel: HelpPanel, width: int | None = None) -> str:
 
 
 def _build_content(panel: HelpPanel) -> "RenderableType":
-    """Header text plus one table per help section, stacked vertically."""
+    """Header text plus a single table holding every help section."""
     # lazy: heavy third-party
     from rich.console import Group
     from rich.text import Text
@@ -72,51 +72,94 @@ def _build_content(panel: HelpPanel) -> "RenderableType":
     parts: list["RenderableType"] = []
     if panel.header.strip() != "":
         parts.extend([Text.from_ansi(panel.header.strip("\n")), Text("")])
-    if panel.commands:
-        rows = _cap_rows(panel.commands, panel.max_commands)
-        parts.append(_build_table("Available Commands:", "Command", rows))
-    if panel.shortcuts:
-        if parts:
-            parts.append(Text(""))
-        parts.append(_build_table("Keyboard Shortcuts:", "Key", panel.shortcuts))
+    sections = _build_sections(panel)
+    if sections:
+        parts.append(_build_table(sections))
     return Group(*parts)
 
 
-def _cap_rows(
-    rows: list[tuple[str, str]], limit: int | None
-) -> list[tuple[str, str]]:
+def _build_sections(panel: HelpPanel) -> list[tuple[str, list[tuple[str, str]]]]:
+    """The non-empty help sections, each a caption plus its rows."""
+    sections: list[tuple[str, list[tuple[str, str]]]] = []
+    if panel.commands:
+        rows = _cap_rows(panel.commands, panel.max_commands)
+        sections.append(("Available Commands:", rows))
+    if panel.shortcuts:
+        sections.append(("Keyboard Shortcuts:", list(panel.shortcuts)))
+    return sections
+
+
+def _cap_rows(rows: list[tuple[str, str]], limit: int | None) -> list[tuple[str, str]]:
     """Keep the first `limit` rows, summarizing the remainder in one row."""
     if limit is None or len(rows) <= limit:
         return rows
     return rows[:limit] + [("...", f"and {len(rows) - limit} more")]
 
 
-def _build_table(
-    title: str, key_header: str, rows: list[tuple[str, str]]
-) -> "RenderableType":
-    """A titled two-column table whose description column folds, never clips."""
+def _build_table(sections: list[tuple[str, list[tuple[str, str]]]]) -> "RenderableType":
+    """One table for every section, keys sharing a single column.
+
+    A section caption spans the full width, so it cannot live in a column of
+    its own: rich has no column-spanning cell, and a caption placed in the key
+    column is cropped to that column's width. Each key/description pair is
+    therefore a nested grid inside one full-width column, which is what lets
+    the caption run edge to edge while every section's keys still line up --
+    the grids share an explicitly measured key width instead of each table
+    sizing its own.
+    """
     # lazy: heavy third-party
-    from rich.console import Group
     from rich.table import Table
     from rich.text import Text
 
+    key_width = _key_column_width(sections)
     table = Table(
         box=None,
-        header_style="bold",
+        show_header=False,
         expand=True,
         show_edge=False,
         pad_edge=False,
-        padding=(0, 2),
+        padding=0,
     )
-    table.add_column(key_header, no_wrap=True, style="bold")
-    table.add_column("Description", overflow="fold")
-    for key, description in rows:
-        table.add_row(key, description)
-    return Group(Text(title, style="bold"), table)
+    table.add_column(overflow="fold")
+    for index, (caption, rows) in enumerate(sections):
+        if index > 0:
+            table.add_row("")
+        table.add_row(Text(caption, style="bold"))
+        for key, description in rows:
+            table.add_row(_build_row(key, description, key_width))
+    return table
+
+
+def _build_row(key: str, description: str, key_width: int) -> "RenderableType":
+    """One key/description pair, laid out to a fixed key column."""
+    # lazy: heavy third-party
+    from rich.table import Table
+    from rich.text import Text
+
+    row = Table.grid(expand=True, padding=(0, 2))
+    row.add_column(width=key_width, no_wrap=True)
+    # `ratio` sends every spare column to the description; without it a short
+    # description lets the key column absorb the slack and rows stop aligning.
+    row.add_column(overflow="fold", ratio=1)
+    # Bold on the cell, not the column: a column style also paints the padding
+    # and the blank continuation lines of a wrapped description.
+    row.add_row(Text(key, style="bold"), description)
+    return row
+
+
+def _key_column_width(sections: list[tuple[str, list[tuple[str, str]]]]) -> int:
+    """Cells needed by the widest key across every section."""
+    # lazy: heavy third-party
+    from rich.text import Text
+
+    return max(
+        (Text.from_ansi(key).cell_len for _, rows in sections for key, _ in rows),
+        default=0,
+    )
 
 
 def _build_side_by_side(art: str, content: "RenderableType") -> "RenderableType":
-    """One borderless row: the art in column 1, the tables beside it."""
+    """One borderless row: the art in column 1, the table beside it."""
     # lazy: heavy third-party
     from rich.table import Table
     from rich.text import Text

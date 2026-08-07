@@ -389,9 +389,7 @@ class TestBaseUICommandHandlers:
         assert "Ctrl+K" in help_text
         assert "Shift+Tab" in help_text
 
-    def test_get_help_text_lists_every_command_at_any_width(
-        self, simple_ui_instance
-    ):
+    def test_get_help_text_lists_every_command_at_any_width(self, simple_ui_instance):
         """No command is dropped and no description clipped, however narrow."""
         ui = simple_ui_instance
         ui._exit_commands = ["/exit"]

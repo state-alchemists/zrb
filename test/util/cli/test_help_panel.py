@@ -60,9 +60,7 @@ def test_extreme_narrowness_folds_rather_than_truncates():
     assert "/exit" in rendered and "/model" in rendered
     assert "..." not in rendered
     # The last word of the longest description is still on screen.
-    assert "multimodal" in rendered.replace("\n", "").replace(" ", "").replace(
-        "│", ""
-    )
+    assert "multimodal" in rendered.replace("\n", "").replace(" ", "").replace("│", "")
 
 
 def test_no_line_exceeds_the_requested_width():
@@ -74,7 +72,28 @@ def test_no_line_exceeds_the_requested_width():
 def test_wide_terminal_puts_art_beside_the_tables():
     rendered = plain(render_help_panel(panel(), 120))
     art_row = [line for line in rendered.splitlines() if "|  o   o  |" in line][0]
-    assert "Description" in art_row or "/" in art_row.split("|  o   o  |")[1]
+    assert art_row.split("|  o   o  |")[1].strip() != ""
+
+
+def test_commands_and_shortcuts_share_one_key_column():
+    """A single table: a shortcut's description starts where a command's does."""
+    lines = plain(render_help_panel(panel(art=""), 100)).splitlines()
+    command_line = next(line for line in lines if "/exit" in line)
+    shortcut_line = next(line for line in lines if "Ctrl+J" in line)
+    assert command_line.index("Exit the application") == shortcut_line.index(
+        "Insert a newline"
+    )
+
+
+def test_section_captions_span_both_columns():
+    """Each caption owns its whole row instead of being cropped to the key
+    column, which is the point of merging the two tables into one."""
+    lines = [
+        line.rstrip()
+        for line in plain(render_help_panel(panel(art=""), 100)).splitlines()
+    ]
+    assert "Available Commands:" in lines
+    assert "Keyboard Shortcuts:" in lines
 
 
 def test_narrow_terminal_moves_art_above_the_tables():
@@ -104,7 +123,9 @@ def test_max_commands_caps_the_row_count_with_a_summary_row():
 
 
 def test_max_commands_leaves_a_short_list_alone():
-    rendered = plain(render_help_panel(HelpPanel(commands=COMMANDS, max_commands=5), 100))
+    rendered = plain(
+        render_help_panel(HelpPanel(commands=COMMANDS, max_commands=5), 100)
+    )
     assert "more" not in rendered
     assert "/exit" in rendered and "/model" in rendered
 

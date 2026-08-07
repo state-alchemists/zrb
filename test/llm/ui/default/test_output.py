@@ -197,7 +197,9 @@ def test_print_help_panel_rerenders_on_resize_without_truncating():
     """The help panel is tracked like markdown: a resize re-lays it out, and
     no width ever clips a command description."""
     ui = MockMarkdownUI()
-    long_description = "Set model (usage: /model <model-name>, /model small <model-name>)"
+    long_description = (
+        "Set model (usage: /model <model-name>, /model small <model-name>)"
+    )
     ui.get_help_panel = lambda art="", header="": HelpPanel(
         commands=[("/model", long_description)],
         shortcuts=[("Ctrl+J", "Insert a newline (multi-line input)")],
