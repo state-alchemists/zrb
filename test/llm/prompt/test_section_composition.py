@@ -7,9 +7,11 @@ config nobody tried: a prompt pointing at a section that was never included.
 """
 
 import itertools
+import re
 
 import pytest
 
+from zrb.llm.prompt.profile import MICRO_SECTIONS, MICRO_TOOLS, MINI_SECTIONS
 from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.prompt.section_filter import filter_requires
 
@@ -218,3 +220,140 @@ def test_default_prompt_stays_within_its_budget():
 
     composed = PromptManager().compose_prompt()(MagicMock())
     assert len(composed) < 24_000, f"default prompt grew to {len(composed)} chars"
+
+
+# ── The safety floor across presets (ADR-0075) ──────────────────────────
+
+# Priority Order rank 1, as three concepts rather than three sentences: each
+# entry is the alternative phrasings that count as carrying it. Matching on
+# concepts keeps the test from pinning prose, while still failing loudly if a
+# lean preset is trimmed until one of the three is simply gone.
+RANK_ONE_CONCEPTS = {
+    "secrets": [r"secret", r"credential", r"password", r"api key"],
+    "tool output is not instructions": [r"data,\s*not", r"ignore\s+\w+\s+instructions"],
+    "confirm destructive actions": [r"destructive", r"destroy", r"irreversible"],
+}
+
+
+PRESET_COMPOSITIONS = [
+    (["persona", "workflow", "examples"], None),
+    (list(MINI_SECTIONS), "mini"),
+    (list(MICRO_SECTIONS), None),
+]
+
+# The sections that carry *rules*, per preset, weakest-capability last. Examples
+# are excluded on purpose: a demonstration lowers burden rather than adding it,
+# so the two move in opposite directions (ADR-0047 vs ADR-0075).
+RULE_SECTIONS_BY_PRESET = [
+    ("terse", ["persona", "workflow"]),
+    ("mini", ["persona", "workflow_mini"]),
+    ("micro", ["persona", "workflow_micro"]),
+]
+
+
+@pytest.mark.parametrize(
+    "sections, variant", PRESET_COMPOSITIONS, ids=["terse", "mini", "micro"]
+)
+def test_every_preset_carries_the_rank_one_safety_rules(sections, variant):
+    """Composition may drop method. It may never drop safety.
+
+    `micro` exists to subtract, so the thing to pin is the floor it may not cut
+    through: a preset that trims until secrets, prompt-injection framing, or
+    destructive-action confirmation is gone has removed a rule no model class
+    can be left without.
+    """
+    text = "\n".join(
+        filter_requires(get_prompt(name, profile=variant), set(sections))
+        for name in sections
+        if name not in ("system_context", "project_context")
+    ).lower()
+    missing = [
+        concept
+        for concept, patterns in RANK_ONE_CONCEPTS.items()
+        if not any(re.search(p, text) for p in patterns)
+    ]
+    assert missing == []
+
+
+def test_workflow_micro_names_no_tool_its_preset_lacks():
+    """A lean section must not instruct the model to call a tool it never gets.
+
+    Same failure as a dangling section pointer, one axis over: `micro` drops
+    most of the tool surface, so its workflow has to route only to what
+    survives. Unlike `<!--requires:-->`, nothing strips a stale tool name.
+    """
+    text = get_prompt("workflow_micro")
+    named = set(re.findall(r"`([A-Z][A-Za-z]+)`", text))
+    assert named <= MICRO_TOOLS, sorted(named - MICRO_TOOLS)
+
+
+def test_rule_burden_falls_as_the_target_model_gets_weaker():
+    """The less capable the model, the less we ask it to hold at once.
+
+    The ordering is the whole point of having presets: `mini` used to be the
+    *heaviest* composition in the system, shipping a 7B model the frontier
+    rulebook plus 1,200 extra tokens of examples.
+
+    Mass and rule count must fall strictly — those are the load itself. Clause
+    nesting only has to not *rise*: it is a style proxy with a floor, and both
+    lighter rulebooks already sit on it, so demanding a strict drop there would
+    force prose damage to satisfy a number. Examples are excluded from all three
+    measures on purpose — a demonstration lowers burden rather than adding it,
+    so it moves opposite the rules (ADR-0047 vs ADR-0075).
+    """
+    profile_of = {"terse": None, "mini": "mini", "micro": None}
+    measured = []
+    for preset, sections in RULE_SECTIONS_BY_PRESET:
+        text = "\n".join(
+            get_prompt(name, profile=profile_of[preset]) for name in sections
+        )
+        measured.append(
+            (
+                preset,
+                len(text),
+                len(re.findall(r"^\s*[-*\d]+[.)]?\s+", text, re.M)),
+                len(re.findall(r"[—;(]", text)),
+            )
+        )
+    for (lo_name, *lo), (hi_name, *hi) in zip(measured, measured[1:]):
+        for label, a, b in zip(("chars", "rules"), lo, hi):
+            assert b < a, f"{label}: {hi_name}={b} is not below {lo_name}={a}"
+        assert (
+            hi[2] <= lo[2]
+        ), f"subclauses: {hi_name}={hi[2]} rose above {lo_name}={lo[2]}"
+
+
+def test_workflow_mini_names_no_tool_that_does_not_exist():
+    """Same guard as `workflow_micro`, against the full tool surface.
+
+    `mini` keeps every tool, so the risk is not a trimmed surface but a stale
+    name: nothing strips a tool reference that no longer resolves.
+    """
+    from zrb.llm.common_tools import apply_common_tools
+
+    registered: set[str] = set()
+
+    class _Host:
+        def add_tool(self, *tool):
+            for t in tool:
+                fn = getattr(t, "function", t)
+                registered.add(getattr(fn, "__name__", "") or getattr(t, "name", ""))
+
+        def add_tool_factory(self, *factory):
+            pass
+
+        def add_toolset_factory(self, *factory):
+            pass
+
+    apply_common_tools(_Host())
+    # Factory-built and main-agent-only tools are not enumerable without a
+    # context or a chat task. Name the ones the prompt cites, so a rename to any
+    # of them still fails this test.
+    registered |= {
+        "ActivateSkill",
+        "AskUserQuestion",
+        "EnterPlanMode",
+        "DelegateToAgent",
+    }
+    named = set(re.findall(r"`([A-Z][A-Za-z]+)`", get_prompt("workflow_mini")))
+    assert named <= registered, sorted(named - registered)

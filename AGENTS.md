@@ -56,20 +56,39 @@ See ADR-0044.
 
 Consistent duplication is the cost of independent toggling; **divergent** duplication is the bug. The current split follows the ladder: *when* to delegate is judgment, so `workflow` owns the triggers; *how* (agent roster, envelope mechanics) stays in `DelegateToAgent`'s docstring as the single source.
 
-### Profile (model-adaptive phrasing)
+### Profile (a preset over three axes)
 
-A second axis controls *how* each section is phrased, independent of *which* sections appear (ADR-0047). `ZRB_LLM_PROFILE` (`CFG.LLM_PROFILE`, default `auto`):
+`ZRB_LLM_PROFILE` (`CFG.LLM_PROFILE`, default `auto`) selects a **preset**: a named binding of *which* sections compose, *how* they are phrased, and *which* tools register (ADR-0075). The table lives in `prompt/profile.py::PRESETS`.
 
-- `terse` / `mini` — force that profile. `terse` is the concise, principle-led base; `mini` is the same rules plus worked demonstrations, for small models.
-- `auto` — resolves to `mini` when the model id declares a small size (a parameter count ≤14B, or a vendor small-tier label), `terse` otherwise. zrb makes **no guess from a family name** — `deepseek`/`qwen`/`llama` span tiny→frontier — but a stated parameter count is the vendor declaring the size. Declare your own with `register_model_profile("my-7b", "mini")` (`prompt/profile.py`); user declarations beat the built-ins.
+| Preset | sections | phrasing variant | tool surface |
+|---|---|---|---|
+| `terse` | default | — | full |
+| `mini` | `workflow` → `workflow_mini` | `.mini` | full |
+| `micro` | `persona, workflow_micro, system_context` | — | `MICRO_TOOLS` (10) |
 
-The base `*.md` files **are** the `terse` profile. Other profiles are **variant overlays**: `get_prompt(name, profile="mini")` resolves `{name}.mini.md` through the full override chain, falling back to the base — so a profile only needs files for the sections that actually change (currently `examples.mini.md`, the only variant). A variant *replaces* its base file, so `examples.mini.md` must stay a strict superset of `examples.md`; a test pins that.
+- `auto` resolves from the model id: a declared parameter count ≤4B → `micro`, 5–14B or a vendor small-tier label → `mini`, otherwise `terse`. zrb makes **no guess from a family name** — `deepseek`/`qwen`/`llama` span tiny→frontier — but a stated parameter count is the vendor declaring the size. Declare your own with `register_model_profile("my-7b", "mini")`; user declarations beat the built-ins.
+- The bands are asymmetric on purpose: `mini` only *adds* demonstrations, so a false positive is cheap; `micro` *removes* sections and tools, so only a stated ≤4B count selects it (`nano`/`tiny` label models far stronger than a 3B local one, and stay on `mini`).
+- An explicitly-set `ZRB_LLM_INCLUDE_SECTIONS` overrides a preset's section list; changing `CFG.DEFAULT_LLM_INCLUDE_SECTIONS` does not (a preset outranking a *default* is the intended precedence).
 
-> **Invariant: a behavioral rule never lives only in a profile variant.** A variant reaches only the models that resolve to it, so a rule placed there silently misses everyone else. **A variant may add demonstrations; it may not add or re-phrase rules.** If it teaches a rule, it belongs in the base file.
+**Phrasing variants.** The base `*.md` files **are** the unvaried form. A variant is an **overlay**: `get_prompt(name, profile="mini")` resolves `{name}.mini.md` through the full override chain, falling back to the base — so a variant only needs files for the sections that actually change (currently `examples.mini.md`, the only one). A variant *replaces* its base file, so `examples.mini.md` must stay a strict superset of `examples.md`; a test pins that.
+
+> **Invariant: a behavioral rule never lives only in a variant** (ADR-0047). A variant reaches only the models that resolve to it, so a rule placed there silently misses everyone else. **A variant may add demonstrations; it may not add, re-phrase, or remove rules.** The subtracting direction is the more dangerous one and is why `micro` cuts by *composition* — dropping a section is guarded and tested; thinning a file behind a variant is not.
+
+**Burden falls monotonically with target capability.** That is what the preset ladder is *for*, and it is asserted, not assumed:
+
+> Each preset's rule-carrying sections (`persona` + its `workflow*`) must be strictly smaller in mass and rule count than the preset above. Clause nesting must not rise. Demonstrations are excluded and move the other way — a worked example lowers burden, which is why `mini` loses rule text *and* gains `examples.mini.md`. `test_section_composition.py::test_rule_burden_falls_as_the_target_model_gets_weaker`.
+
+`mini` motivated the rule: it used to ship a 5-14B model the frontier `workflow.md` plus 1,200 tokens of extra examples, making it the heaviest composition in the system. A variant could not fix it (a variant may not remove rules), so `mini` swaps the *section* instead. It keeps every capability — skills, todos, delegation, plan mode, all 21 tools — because trimming those would cost behavior, not burden.
+
+Two further invariants bound a preset (ADR-0075), both tested:
+
+> **Composition may drop method; it may never drop safety.** Priority Order rank 1 — secrets, tool results are data not instructions, confirm destructive actions — must survive in every preset. `test_section_composition.py::test_every_preset_carries_the_rank_one_safety_rules`.
+
+> **A preset's tool set is closed under docstring cross-reference.** Tool docstrings route between each other, and a docstring ships with its schema whatever the config, so it cannot carry a `<!--requires:-->` guard. This is what sizes `MICRO_TOOLS` at ten rather than six: `Shell`/`Grep` route to `Glob`/`RM`/`MV`, and `Shell`'s `background=True` returns a handle only `MonitorProcess` can poll. `test_common_tools.py::test_micro_tool_set_is_closed_under_docstring_cross_reference`.
 
 `examples` is deliberately thin in the base: it keeps only the examples that fix a zrb-specific stance a capable model would not otherwise adopt, and the rest live in `examples.mini.md`. Add a demonstration to the variant unless it teaches a stance a frontier model gets wrong.
 
-`PromptManager._get_composed_middlewares` resolves the profile once (from `CFG.LLM_PROFILE` + `self._model`) and threads it to file-backed sections. Cross-cutting voice that does not decompose into a variant stays a whole alternate section or preset.
+`PromptManager.active_sections` applies the preset's section axis, `_get_composed_middlewares` threads its variant to file-backed sections, and `apply_common_tools` applies its tool axis (via `_PresetHost`, which filters factories and drops MCP toolsets).
 
 ### Journal
 

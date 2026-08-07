@@ -77,14 +77,20 @@ class LLMPromptMixin:
     LLM_PROFILE = EnvField(
         str,
         doc=(
-            "Prompt profile controlling how each section is phrased:\n"
-            "- 'terse': concise, principle-led — the base prompts.\n"
-            "- 'mini': the same rules plus worked examples, for small "
-            "models.\n"
-            "- 'auto' (default): uses 'terse' unless a per-model profile has "
-            "been declared via register_model_profile().\n\n"
-            "The profile selects per-section phrasing variants (e.g. "
-            "persona.mini.md, falling back to the base file) and toggles the "
-            "examples section.\n\n"
+            "Prompt profile — a preset binding which sections compose, how "
+            "they are phrased, and which tools register:\n"
+            "- 'terse': concise, principle-led base prompts, full tool "
+            "surface.\n"
+            "- 'mini': the same sections and tools plus worked examples, for "
+            "small models (~5-14B).\n"
+            "- 'micro': a lean section list and a 10-tool surface, for very "
+            "small models (~3B). No skills, sub-agents, web, todos or "
+            "project-doc reading.\n"
+            "- 'auto' (default): resolved from the model id — a declared size "
+            "of 4B or less selects 'micro', 5-14B or a vendor small-tier "
+            "label selects 'mini', otherwise 'terse'. Override per model with "
+            "register_model_profile().\n\n"
+            "Setting LLM_INCLUDE_SECTIONS explicitly overrides a preset's "
+            "section list.\n\n"
         ),
     )

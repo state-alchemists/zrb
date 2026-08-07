@@ -230,13 +230,14 @@ The provider runs at prompt-compose time on every request, so the section always
 
 If a custom section name has no registered provider, Zrb resolves it to a **Markdown file** — `get_prompt("sprint_context")` loads `sprint_context.md` through the override chain (project override → env → base-prompt-dir → package), with the same `{PLACEHOLDER}` substitution. Static and dynamic sections thus share one ordering mechanism; a missing file is a harmless no-op (logged at compose time so a typo is diagnosable).
 
-Independently, the `ZRB_LLM_PROFILE` knob controls *how* sections are phrased without changing *which* appear:
+Independently, the `ZRB_LLM_PROFILE` knob selects a **preset** — which sections compose, how they are phrased, and which tools register:
 
-- `terse` — the concise, principle-led base (the `.md` files as written).
-- `mini` — the same rules plus worked demonstrations, for small models.
-- `auto` (default) — `terse`, unless a per-model profile was declared via `register_model_profile(...)`.
+- `terse` — the concise, principle-led base (the `.md` files as written), full tool surface.
+- `mini` — a lighter rulebook (`workflow_mini`) plus worked demonstrations, same tools, for small models (~5-14B).
+- `micro` — a lean section list (`persona, workflow_micro, system_context`) and a 10-tool surface, for very small models (~3B).
+- `auto` (default) — resolved from a declared model size, or from `register_model_profile(...)`.
 
-Profiles are variant overlays: `get_prompt(name, profile="mini")` resolves `{name}.mini.md`, falling back to the base `{name}.md`. See `AGENTS.md` → *Profile* and ADR-0047.
+The phrasing axis is a **variant overlay**: `get_prompt(name, profile="mini")` resolves `{name}.mini.md`, falling back to the base `{name}.md`. A variant may add demonstrations but never add, re-word or *remove* a rule — which is why `micro` subtracts by swapping the section list instead. An explicitly-set `ZRB_LLM_INCLUDE_SECTIONS` overrides a preset's sections. See `AGENTS.md` → *Profile*, ADR-0047 and ADR-0075.
 
 ---
 
@@ -256,6 +257,6 @@ Profiles are variant overlays: `get_prompt(name, profile="mini")` resolves `{nam
 - [XCom Deep Dive](../core-concepts/xcom-deep-dive.md) — how task outputs flow into `{ctx.xcom[...]}`
 - [LLMChatTask API Reference](../task-types/llmchat-task.md) — the full constructor and builder API
 - [LLM Assistant & AI Tasks](llm-integration.md) — tools, sub-agents, context management
-- `AGENTS.md` → *LLM Prompt System* and ADR-0044 and ADR-0047 — section resolution and profiles
+- `AGENTS.md` → *LLM Prompt System* and ADR-0044, ADR-0047, ADR-0075 — section resolution, variants and presets
 
 🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > Programming the Prompt

@@ -1,13 +1,18 @@
-"""Tests for model-adaptive prompt profiles (ADR-0047)."""
+"""Tests for model-adaptive prompt profiles and presets (ADR-0047, ADR-0075)."""
 
 import pytest
 
 from zrb.llm.prompt.profile import (
     BASE_PROFILE,
+    MICRO_PROFILE,
+    MICRO_SECTIONS,
+    MICRO_TOOLS,
     MINI_PROFILE,
+    MINI_SECTIONS,
     ModelProfileRegistry,
     model_profile_registry,
     register_model_profile,
+    resolve_preset,
     resolve_profile,
 )
 
@@ -153,3 +158,84 @@ def test_the_old_explicit_value_is_no_longer_a_profile():
     assert resolve_profile("explicit", "anthropic:claude-opus-4") == BASE_PROFILE
     with pytest.raises(ValueError, match="Unknown profile"):
         register_model_profile("legacy-model", "explicit")
+
+
+# ── Presets (ADR-0075) ──────────────────────────────────────────────────
+
+
+def test_auto_selects_micro_only_from_a_declared_size_of_4b_or_less():
+    for model in ["ollama:qwen2.5:3b", "ollama:llama3.2:3B", "local/phi-2b", "tiny-1b"]:
+        assert resolve_profile("auto", model) == MICRO_PROFILE, model
+
+
+def test_the_size_bands_do_not_overlap():
+    """5B-14B stays on `mini`; `micro` must not swallow the band above it."""
+    for model in ["mistral-7b", "gemma-2-9b", "qwen2.5-14b"]:
+        assert resolve_profile("auto", model) == MINI_PROFILE, model
+    for model in ["qwen2.5-32b", "llama-3-70b", "deepseek-405b"]:
+        assert resolve_profile("auto", model) == BASE_PROFILE, model
+
+
+def test_vendor_small_tier_labels_stay_on_mini():
+    """`micro` removes capability, so a label is not enough to select it.
+
+    `mini` only *adds* demonstrations, so a false positive is cheap. `micro`
+    drops sections and tools, so a false positive is expensive — and `nano`
+    /`tiny` label models (`gpt-5-nano`) far more capable than a 3B local one.
+    """
+    for model in [
+        "openai:gpt-5-nano",
+        "openai:gpt-5-mini",
+        "anthropic:claude-haiku-4-5",
+    ]:
+        assert resolve_profile("auto", model) == MINI_PROFILE, model
+
+
+def test_a_user_declaration_can_still_force_micro():
+    register_model_profile("my-local-model", MICRO_PROFILE)
+    assert resolve_profile("auto", "my-local-model") == MICRO_PROFILE
+
+
+def test_terse_constrains_nothing():
+    """`terse` is the unconstrained baseline every other preset subtracts from."""
+    preset = resolve_preset(BASE_PROFILE)
+    assert (preset.sections, preset.variant, preset.tools) == (None, None, None)
+
+
+def test_only_micro_constrains_the_tool_axis():
+    """`mini` keeps every capability; it lightens the rulebook, not the surface.
+
+    A 5-14B model can still use skills, todos and delegation, so trimming its
+    tools would cost behaviour rather than burden. Only `micro` goes that far.
+    """
+    assert resolve_preset(MINI_PROFILE).tools is None
+    assert resolve_preset(MICRO_PROFILE).tools == MICRO_TOOLS
+
+
+def test_mini_swaps_the_workflow_section_and_keeps_its_examples_variant():
+    """`mini` lightens rules by *composition* and adds demonstrations by variant.
+
+    Both axes at once, in opposite directions: fewer rules (a section swap,
+    which is guarded and tested) plus more worked examples (a variant, which
+    ADR-0047 permits). A variant may never subtract, which is why the lighter
+    rulebook cannot be a `workflow.mini.md`.
+    """
+    preset = resolve_preset(MINI_PROFILE)
+    assert preset.sections == MINI_SECTIONS
+    assert "workflow_mini" in preset.sections
+    assert "workflow" not in preset.sections
+    assert preset.variant == MINI_PROFILE
+
+
+def test_micro_binds_all_three_axes_and_carries_no_variant():
+    """`micro` subtracts by composition, never by a variant overlay (ADR-0047)."""
+    preset = resolve_preset(MICRO_PROFILE)
+    assert preset.sections == MICRO_SECTIONS
+    assert preset.tools == MICRO_TOOLS
+    assert preset.variant is None
+
+
+def test_an_unknown_profile_degrades_to_the_full_surface():
+    """A stale config must lose nothing rather than land on a crippled preset."""
+    preset = resolve_preset("no-such-profile")
+    assert (preset.sections, preset.variant, preset.tools) == (None, None, None)

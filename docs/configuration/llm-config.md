@@ -225,35 +225,64 @@ To toggle a single section programmatically, mutate `CFG.LLM_INCLUDE_SECTIONS` d
 The section names above are the **built-ins**. Any other name in the list resolves
 as a *custom* section — see [Programmatic Prompt Customization](#programmatic-prompt-customization) below.
 
-### Prompt Profile (model-adaptive phrasing)
+### Prompt Profile (matching the prompt to the model)
 
-`ZRB_LLM_INCLUDE_SECTIONS` controls *which* sections appear. A second knob,
-`ZRB_LLM_PROFILE`, controls *how each section is phrased* — so the prompt can
-match the model in use. Small models follow worked examples better than they
-follow abstract rules, so the second profile adds demonstrations. **It does not
-add rules**: added constraint mass degrades exactly the models it targets, so a
-variant may exemplify a rule but never re-word or extend one (ADR-0047).
+`ZRB_LLM_INCLUDE_SECTIONS` controls *which* sections appear. `ZRB_LLM_PROFILE`
+selects a **preset** — a named binding of three axes at once: which sections
+compose, how they are phrased, and which tools register (ADR-0075).
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_PROFILE` | Prompt profile: `auto`, `terse`, or `mini` | `auto` |
+| `ZRB_LLM_PROFILE` | Prompt preset: `auto`, `terse`, `mini`, or `micro` | `auto` |
 
-- **`terse`** — the concise, principle-led profile (the base prompt files).
-- **`mini`** — the profile for small models: the same rules, plus worked
-  demonstrations. Currently that means `examples.mini.md`, a superset of the
-  base `examples.md`.
-- **`auto`** (default) — `mini` when the model id *declares* a small size,
-  `terse` otherwise.
+| Preset | Sections | Phrasing | Tools |
+|--------|----------|----------|-------|
+| `terse` | default | base files | full |
+| `mini` | `workflow` → `workflow_mini` | `+ examples.mini.md` | full |
+| `micro` | `persona, workflow_micro, system_context` | base files | 10 |
+
+- **`terse`** — the concise, principle-led preset (the base prompt files).
+- **`mini`** — for small models (~5-14B). Two changes in opposite directions: a
+  lighter rulebook (`workflow_mini` in place of `workflow`, ~25% smaller with
+  the precedence ladder flattened) and *more* worked demonstrations
+  (`examples.mini.md`, a superset of the base `examples.md`). Small models
+  follow worked examples better than abstract rules. The demonstrations **never
+  add rules**: added constraint mass degrades exactly the models it targets, so
+  a variant may exemplify a rule but never re-word or extend one (ADR-0047).
+  Every tool and capability is kept — a 5-14B model can still use skills, todos
+  and delegation.
+- **`micro`** — for very small models (~3B), where the *budget* is the binding
+  constraint rather than the register. Composes to roughly 4,000 tokens against
+  a default session's ~10,500. A `micro` session has **no** skills, sub-agents,
+  web access, todo list, journal, plan mode, MCP tools or project-doc reading —
+  it is a single-tool-call-per-turn assistant, not an agentic coder. Use it when
+  a small local model must drive the main loop; for a small model *assisting* a
+  larger one, `ZRB_LLM_SMALL_MODEL` is the better slot.
+- **`auto`** (default) — resolved from the model id.
 
 `auto` reads a **stated size**, never a family name. `deepseek`, `qwen`, and
 `llama` span tiny instruct models through frontier models, so a family name tells
 you nothing — but `-7b` is the vendor stating a parameter count, and `mini` /
 `haiku` / `nano` are vendor size tiers. Built-in matches:
 
-| Selects `mini` | Stays `terse` |
-|----------------|---------------|
-| a stated parameter count of 14B or less — `qwen2.5-7b`, `gemma-2-9b`, `qwen3-14b` | larger stated sizes — `qwen3-32b`, `llama-3-70b`, `llama-3.1-405b` |
-| vendor small tiers — `gpt-5-mini`, `claude-haiku-4-5`, `gemini-nano` | everything else — `claude-opus-4-8`, `deepseek-v4-pro`, `gemini-2.5-pro` |
+| Selects `micro` | Selects `mini` | Stays `terse` |
+|-----------------|----------------|---------------|
+| a stated count of 4B or less — `qwen2.5:3b`, `llama3.2:3b`, `phi-2b` | a stated count of 5-14B — `qwen2.5-7b`, `gemma-2-9b`, `qwen3-14b` | larger stated sizes — `qwen3-32b`, `llama-3-70b`, `llama-3.1-405b` |
+| — | vendor small tiers — `gpt-5-mini`, `claude-haiku-4-5`, `gemini-nano` | everything else — `claude-opus-4-8`, `deepseek-v4-pro`, `gemini-2.5-pro` |
+
+The two bands are asymmetric on purpose. `mini` only *adds* demonstrations, so a
+false positive costs a few example tokens — cheap, which is why vendor
+small-tier labels resolve there. `micro` *removes* sections and tools, so a
+false positive costs real capability; only a stated ≤4B count selects it, and
+`nano`/`tiny` label models (`gpt-5-nano`) far more capable than a 3B local one.
+Declare a local model into `micro` explicitly (see below).
+
+Burden falls as the target model gets weaker: each preset's rulebook is strictly
+smaller than the one above it. Demonstrations move the other way, because a
+worked example lowers burden rather than adding to it.
+
+Setting `ZRB_LLM_INCLUDE_SECTIONS` explicitly overrides a preset's section list,
+so you can run `micro`'s lean tool surface with your own sections.
 
 `flash` is deliberately *not* matched: it is a latency tier, not a size one, and
 spans weak to strong. Opt one in explicitly if you want it.

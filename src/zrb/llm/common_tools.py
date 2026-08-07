@@ -86,6 +86,9 @@ def apply_common_tools(host: CommonToolHost) -> None:
     # lazy: permission is a leaf module.
     from zrb.llm.permission import Capability, tag
 
+    # lazy: circular — profile → prompt → ui → llm_task → here
+    from zrb.llm.prompt.profile import resolve_preset, resolve_profile
+
     # lazy: zrb.llm.tool.* transitively load pydantic_ai; deferring keeps cold-start
     # latency off the import path for callers that never apply common tools.
     from zrb.llm.tool.ask import ask_user_question
@@ -104,21 +107,30 @@ def apply_common_tools(host: CommonToolHost) -> None:
     )
     from zrb.llm.tool.journal import search_journal
     from zrb.llm.tool.journal_write import log_activity, write_journal_note
-    from zrb.llm.tool.mcp import load_mcp_config
     from zrb.llm.tool.plan import get_todos, write_todos
     from zrb.llm.tool.plan_mode import enter_plan_mode, exit_plan_mode
     from zrb.llm.tool.shell import run_shell_command
-    from zrb.llm.tool.shell_background import create_monitor_process_tool
-    from zrb.llm.tool.skill import create_activate_skill_tool
     from zrb.llm.tool.web import open_web_page, search_internet
     from zrb.llm.tool.worktree import enter_worktree, exit_worktree, list_worktrees
-    from zrb.llm.tool.zrb_task import (
-        create_list_zrb_task_tool,
-        create_run_zrb_task_tool,
-    )
 
     # lazy: circular — tool_policy → handler → ui → llm_task → here
     from zrb.llm.tool_call.tool_policy.bash_validation import bash_safe_command_policy
+
+    # The preset's tool axis (ADR-0075). ``None`` means "do not constrain",
+    # which is every preset but ``micro``. Resolved against CFG.LLM_MODEL
+    # because ``apply_common_tools`` has no host model to read; a task with a
+    # per-task model override that differs from CFG.LLM_MODEL therefore keeps
+    # the full surface — setting ZRB_LLM_PROFILE=micro explicitly always works.
+    allowed_tools = resolve_preset(
+        resolve_profile(CFG.LLM_PROFILE, CFG.LLM_MODEL)
+    ).tools
+
+    def _in_preset(tool: "Callable | Tool") -> bool:
+        if allowed_tools is None:
+            return True
+        fn = getattr(tool, "function", tool)
+        name = getattr(fn, "__name__", "") or getattr(tool, "name", "")
+        return name in allowed_tools
 
     lsp_tools = create_lsp_tools() if detect_available_lsp_servers() else []
     # Worktree tools only make sense inside a git repo — registering them in a
@@ -172,7 +184,7 @@ def apply_common_tools(host: CommonToolHost) -> None:
         _name = getattr(_tool, "__name__", "") or getattr(_tool, "name", "")
         tag(_tool, Capability.EDIT if "Rename" in _name else Capability.READ)
 
-    host.add_tool(
+    static_tools: list["Callable | Tool"] = [
         run_shell_command,
         run_bash_command,
         list_files,
@@ -196,7 +208,99 @@ def apply_common_tools(host: CommonToolHost) -> None:
         *(Tool(_fn, defer_loading=True) for _fn in worktree_tools),
         *(Tool(_fn, defer_loading=True) for _fn in lsp_tools),
         *plan_tools,
+    ]
+    host.add_tool(*(t for t in static_tools if _in_preset(t)))
+
+    # Factory tools go through the same preset filter — ``micro`` keeps
+    # ``MonitorProcess``, which is factory-built, so skipping the block wholesale
+    # would break the closure ``MICRO_TOOLS`` promises. The filtering host also
+    # drops every MCP toolset and every deferred tool for a constrained preset:
+    # ``defer_loading`` needs provider-side tool search, which local runtimes
+    # generally lack, so a deferred tool there is unreachable rather than cheap
+    # (ADR-0075).
+    _apply_factory_tools(
+        _PresetHost(host, _in_preset) if allowed_tools is not None else host,
+        ask_user_question,
+        enter_plan_mode,
+        exit_plan_mode,
     )
+
+    # Shell safety travels with the shell tools rather than with one builtin
+    # task: the allowlist in bash_safe_command_policy IS the git approval rule
+    # (read-only subcommands auto-approve, `commit`/`push`/`reset` reach the
+    # user), so registering it here is what lets that rule stay out of the
+    # prompt. Hosts without an approval channel (programmatic LLMTask,
+    # SubAgentManager — the latter inherits the caller's confirmation via the
+    # current_tool_confirmation ContextVar) have no add_tool_policy; skip them.
+    add_policy = getattr(host, "add_tool_policy", None)
+    if callable(add_policy):
+        add_policy(bash_safe_command_policy())
+
+
+class _PresetHost:
+    """A ``CommonToolHost`` that passes on only what the preset allows.
+
+    Wraps the real host so the factory registrations below stay written once,
+    for every preset. Factories resolve per run, so the filter has to travel
+    with them rather than being applied at registration time.
+
+    Toolsets are dropped outright: an MCP server's tool list is not known here
+    and is not name-filterable in the spirit of a fixed, closed tool surface.
+    """
+
+    def __init__(self, host: CommonToolHost, keep: "Callable[[Any], bool]") -> None:
+        self._host = host
+        self._keep = keep
+
+    def add_tool(self, *tool: "Callable | Tool") -> None:
+        kept = [t for t in tool if self._keep(t)]
+        if kept:
+            self._host.add_tool(*kept)
+
+    def add_tool_factory(self, *factory: "Callable[[AnyContext], Any]") -> None:
+        self._host.add_tool_factory(*(self._wrap(f) for f in factory))
+
+    def add_toolset_factory(self, *factory: "Callable[[AnyContext], Any]") -> None:
+        return None
+
+    def _wrap(
+        self, factory: "Callable[[AnyContext], Any]"
+    ) -> "Callable[[AnyContext], Any]":
+        def filtered(ctx: "AnyContext") -> Any:
+            produced = factory(ctx)
+            items = produced if isinstance(produced, list) else [produced]
+            return [t for t in items if t is not None and self._keep(t)]
+
+        return filtered
+
+
+def _apply_factory_tools(
+    host: CommonToolHost,
+    ask_user_question: "Callable",
+    enter_plan_mode: "Callable",
+    exit_plan_mode: "Callable",
+) -> None:
+    """Register the context-resolved tool and toolset factories on *host*.
+
+    Split out of ``apply_common_tools`` so the preset gate reads as one
+    condition. Takes the three interactivity-gated tools as arguments because
+    ``apply_common_tools`` imports them lazily (see its import block).
+    """
+    # lazy: zrb.llm.tool.* transitively load pydantic_ai — same reason as the
+    # import block in apply_common_tools.
+    from pydantic_ai import Tool
+
+    from zrb.llm.permission import Capability, tag
+    from zrb.llm.tool.journal import search_journal
+    from zrb.llm.tool.journal_write import log_activity, write_journal_note
+    from zrb.llm.tool.mcp import load_mcp_config
+    from zrb.llm.tool.shell_background import create_monitor_process_tool
+    from zrb.llm.tool.skill import create_activate_skill_tool
+    from zrb.llm.tool.zrb_task import (
+        create_list_zrb_task_tool,
+        create_run_zrb_task_tool,
+    )
+
     # Plan-mode and AskUserQuestion need a human in the loop, so register them
     # only in interactive sessions. In non-interactive runs (one-shot CLI,
     # sub-agents, programmatic LLMTask) they are dead weight — AskUserQuestion
@@ -240,16 +344,6 @@ def apply_common_tools(host: CommonToolHost) -> None:
     host.add_toolset_factory(
         lambda ctx: [toolset.defer_loading() for toolset in load_mcp_config()]
     )
-    # Shell safety travels with the shell tools rather than with one builtin
-    # task: the allowlist in bash_safe_command_policy IS the git approval rule
-    # (read-only subcommands auto-approve, `commit`/`push`/`reset` reach the
-    # user), so registering it here is what lets that rule stay out of the
-    # prompt. Hosts without an approval channel (programmatic LLMTask,
-    # SubAgentManager — the latter inherits the caller's confirmation via the
-    # current_tool_confirmation ContextVar) have no add_tool_policy; skip them.
-    add_policy = getattr(host, "add_tool_policy", None)
-    if callable(add_policy):
-        add_policy(bash_safe_command_policy())
 
 
 def defer_common_tools(host: CommonToolHost) -> None:
