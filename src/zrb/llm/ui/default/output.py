@@ -310,10 +310,12 @@ class UIOutput:
             self.invalidate_ui()
 
         try:
-            self._invalidate_task = asyncio.create_task(_do_invalidate())
+            loop = asyncio.get_running_loop()
         except RuntimeError:
             self._pending_invalidate = False
             self.invalidate_ui()
+            return
+        self._invalidate_task = loop.create_task(_do_invalidate())
 
     @property
     def output_field_width(self) -> int | None:
