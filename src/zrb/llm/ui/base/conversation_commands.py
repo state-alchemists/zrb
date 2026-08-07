@@ -57,7 +57,7 @@ class BaseUIConversationCommands:
 
         def reset_session_token_usage(self) -> None: ...
 
-        def _get_help_text(self) -> str: ...
+        def print_help(self) -> None: ...
 
         def _replay_history(self, messages: list) -> None: ...
 
@@ -71,7 +71,9 @@ class BaseUIConversationCommands:
 
     def _handle_info_command(self, text: str) -> bool:
         if text.strip().lower() in self._info_commands:
-            self.append_to_output(stylize_muted(self._get_help_text()))
+            # Rendered by print_help, not wrapped in a style here: the panel
+            # emits its own ANSI, which an enclosing style code would break.
+            self.print_help()
             return True
         return False
 

@@ -1,8 +1,9 @@
 import os
+from unittest.mock import patch
 
 import pytest
 
-from zrb.util.ascii_art.banner import create_banner
+from zrb.util.ascii_art.banner import get_ascii_art
 
 
 @pytest.fixture
@@ -12,61 +13,41 @@ def temp_art_file(tmp_path):
     return str(f)
 
 
-def test_create_banner_simple(temp_art_file):
-    text = "Hello World"
-    banner = create_banner(temp_art_file, text)
-    assert "ASCII" in banner
-    assert "ART" in banner
-    assert "Hello World" in banner
+def test_get_ascii_art_reads_a_path(temp_art_file):
+    art = get_ascii_art(temp_art_file)
+    assert "ASCII" in art
+    assert "ART" in art
 
 
-def test_create_banner_empty_ascii():
-    text = "Hello World"
-    # This will return a random art, so we just check for the text
-    banner = create_banner(None, text)
-    assert "Hello World" in banner
+def test_get_ascii_art_reads_a_builtin_name():
+    art = get_ascii_art("default")
+    assert art.strip() != ""
 
 
-def test_create_banner_empty_text(temp_art_file):
-    banner = create_banner(temp_art_file, "")
-    assert "ASCII" in banner
-    assert "ART" in banner
+def test_get_ascii_art_reads_a_name_from_the_art_dir(tmp_path, monkeypatch):
+    art_dir = tmp_path / ".zrb" / "ascii-art"
+    art_dir.mkdir(parents=True)
+    (art_dir / "mine.txt").write_text("MY ART")
+    monkeypatch.chdir(tmp_path)
+
+    assert "MY ART" in get_ascii_art("mine")
 
 
-from unittest.mock import patch
-
-
-def test_create_banner_empty_art():
-    from zrb.util.ascii_art.banner import create_banner
-
-    with patch("zrb.util.ascii_art.banner._get_art_only", return_value=""):
-        res = create_banner(None, "text")
-        assert res == "text"
-
-
-def test_create_banner_max_width_hides_art_when_overflow():
-    with patch("zrb.util.ascii_art.banner._get_art_only", return_value="ASCII\nART"):
-        # art_width=5, separator=2, text_width=11 → 18 columns total.
-        # max_width=10 forces the art to be dropped.
-        res = create_banner(None, "Hello World", max_width=10)
-        assert res == "Hello World"
-        assert "ASCII" not in res
-
-
-def test_create_banner_max_width_keeps_art_when_fits():
-    with patch("zrb.util.ascii_art.banner._get_art_only", return_value="ASCII\nART"):
-        res = create_banner(None, "Hi", max_width=80)
-        assert "ASCII" in res
-        assert "Hi" in res
-
-
-def test_get_art_only_file_not_found():
-    from zrb.util.ascii_art.banner import _get_art_only
-
-    # Provide a non-existent absolute path
-    res = _get_art_only("/tmp/nonexistent_art_xyz_123.txt")
-    # Should fallback to random or empty
+def test_get_ascii_art_falls_back_to_a_random_art():
+    # A name that matches nothing still yields art, never an empty panel.
+    res = get_ascii_art("/tmp/nonexistent_art_xyz_123.txt")
     assert isinstance(res, str)
+    assert res.strip() != ""
+
+
+def test_get_ascii_art_without_a_name_picks_something():
+    assert get_ascii_art().strip() != ""
+
+
+def test_get_ascii_art_returns_empty_when_no_art_exists(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    with patch("os.path.isdir", return_value=False):
+        assert get_ascii_art("nope") == ""
 
 
 def test_get_default_banner_search_path_value_error():
@@ -75,3 +56,17 @@ def test_get_default_banner_search_path_value_error():
     with patch("os.path.commonpath", side_effect=ValueError("different drives")):
         res = _get_default_banner_search_path()
         assert len(res) >= 1
+
+
+def test_get_default_banner_search_path_walks_up_to_home(monkeypatch, tmp_path):
+    from zrb.util.ascii_art.banner import _get_default_banner_search_path
+
+    home = tmp_path / "home"
+    nested = home / "a" / "b"
+    nested.mkdir(parents=True)
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.chdir(nested)
+
+    res = _get_default_banner_search_path()
+    assert os.path.abspath(str(nested)) in res
+    assert os.path.abspath(str(home)) in res

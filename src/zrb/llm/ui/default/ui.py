@@ -26,7 +26,8 @@ from zrb.llm.ui.default.keybindings import UIKeybindings
 from zrb.llm.ui.default.lifecycle import UILifecycle
 from zrb.llm.ui.default.output import UIOutput
 from zrb.llm.ui.default.selection import UISelection
-from zrb.util.ascii_art.banner import create_banner
+from zrb.util.ascii_art.banner import get_ascii_art
+from zrb.util.cli.help_panel import render_help_panel
 from zrb.util.cli.terminal import get_terminal_size
 
 if TYPE_CHECKING:
@@ -40,6 +41,10 @@ if TYPE_CHECKING:
     from rich.theme import Theme
 
 logger = logging.getLogger(__name__)
+
+# The greeting shares the screen with the conversation, so it lists at most
+# this many commands and points at `/help` for the rest.
+GREETING_COMMAND_LIMIT = 20
 
 
 class UI(
@@ -95,9 +100,10 @@ class UI(
     ):
         self._pending_invalidate = False
         self._invalidate_task: asyncio.Task | None = None
-        # [start, end, source] per rendered markdown block — see append_markdown.
-        self._markdown_blocks: list[list] = []
-        self._markdown_width: int | None = None
+        # [start, end, source, renderer] per width-dependent block appended
+        # through `append_rendered` — see that method and `rewrap_output`.
+        self._rendered_blocks: list[list] = []
+        self._rendered_width: int | None = None
         super().__init__(
             ctx=ctx,
             yolo_xcom_key=yolo_xcom_key,
@@ -170,16 +176,19 @@ class UI(
             show_pydantic_ai_models=show_pydantic_ai_models,
         )
 
-        help_text = self._get_help_text(limit=20, max_length=75)
-        full_greeting = create_banner(
-            self._ascii_art,
-            f"{greeting}\n{help_text}",
-            max_width=get_terminal_size().columns,
-        )
         custom_output_kb = create_output_keybindings(self._input_field)
         self._output_field = create_output_field(
-            full_greeting, output_lexer, key_bindings=custom_output_kb
+            "", output_lexer, key_bindings=custom_output_kb
         )
+        # Resolved once: an unknown art name falls back to a *random* file, so
+        # re-resolving per render would reshuffle the image on every resize.
+        greeting_panel = self.get_help_panel(
+            art=get_ascii_art(self._ascii_art),
+            header=greeting,
+            max_commands=GREETING_COMMAND_LIMIT,
+        )
+        self.append_rendered(greeting_panel, render_help_panel)
+        self.append_to_output("")
 
         # AskUserQuestion selection widget (hidden until a choice is active).
         self._init_selection_state()
@@ -216,10 +225,10 @@ class UI(
 
     def _on_render(self, app: "Application") -> None:
         try:
-            self.rewrap_markdown()
+            self.rewrap_output()
         except Exception as e:
             # Runs on every frame — a re-render failure must not kill the paint.
-            logger.warning(f"Markdown re-wrap skipped: {e}")
+            logger.warning(f"Output re-wrap skipped: {e}")
 
     async def run_interactive_command(
         self, cmd: str | list[str], shell: bool = False

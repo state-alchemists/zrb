@@ -14,11 +14,13 @@ from typing import TYPE_CHECKING, TextIO, cast
 
 from zrb.config.config import CFG
 from zrb.llm.agent.activity import agent_activity_registry
+from zrb.util.cli.help_panel import render_help_panel
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import stylize_muted
 from zrb.util.cli.terminal import get_terminal_size
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from typing import Any
 
     from prompt_toolkit.formatted_text import AnyFormattedText
@@ -91,8 +93,8 @@ class UIOutput:
         # From default UI (`UI.__init__`)
         _pending_invalidate: bool
         _invalidate_task: asyncio.Task | None
-        _markdown_blocks: list[list]
-        _markdown_width: int | None
+        _rendered_blocks: list[list]
+        _rendered_width: int | None
         _markdown_theme: Any
         _application: Any
 
@@ -107,6 +109,11 @@ class UIOutput:
 
         # From UILifecycle
         def invalidate_ui(self) -> None: ...
+
+        # From BaseUICommands
+        def get_help_panel(
+            self, art: str = "", header: str = "", max_commands: int | None = None
+        ) -> Any: ...
 
     @property
     def is_thinking(self) -> bool:
@@ -220,16 +227,28 @@ class UIOutput:
         self._schedule_invalidate()
 
     def append_markdown(self, markdown_text: str) -> None:
-        """Append rendered markdown, remembering the source (public API).
+        """Append rendered markdown, remembering the source (public API)."""
+        self.append_rendered(markdown_text, self._render_markdown_block)
 
-        Rich hard-wraps markdown at render time, so a resized terminal would
-        keep the old line breaks forever. Recording (start, end, source) lets
-        `rewrap_markdown` splice a fresh render in at the new width. The
-        trailing newline is appended separately so it stays outside the span.
+    def print_help(self) -> None:
+        """Append the help panel as a re-renderable block (public API).
+
+        Overrides `BaseUICommands.print_help` so `/help` re-lays out on resize
+        the same way the greeting panel does.
         """
-        rendered = render_markdown(
-            markdown_text, width=self.output_field_width, theme=self._markdown_theme
-        )
+        self.append_rendered(self.get_help_panel(), render_help_panel)
+
+    def append_rendered(
+        self, source: Any, renderer: "Callable[[Any, int | None], str]"
+    ) -> None:
+        """Append width-dependent output, remembering how to re-render it.
+
+        Rich hard-wraps at render time, so a resized terminal would keep the old
+        line breaks forever. Recording (start, end, source, renderer) lets
+        `rewrap_output` splice a fresh render in at the new width. The trailing
+        newline is appended separately so it stays outside the span.
+        """
+        rendered = renderer(source, self.output_field_width)
         start = len(self.output_text)
         self.append_to_output(rendered, end="")
         end = len(self.output_text)
@@ -237,35 +256,36 @@ class UIOutput:
         # Only track what landed verbatim — a pending confirmation buffers the
         # content instead of inserting it, which would make the span a lie.
         if end - start == len(rendered):
-            self._markdown_blocks.append([start, end, markdown_text])
+            self._rendered_blocks.append([start, end, source, renderer])
 
-    def rewrap_markdown(self) -> None:
-        """Re-render tracked markdown blocks at the current width (public API).
+    def rewrap_output(self) -> None:
+        """Re-render tracked blocks at the current width (public API).
 
         Called from the app's after-render hook; a no-op unless the terminal
         width actually changed.
         """
         width = self.output_field_width
-        if width == self._markdown_width:
+        if width == self._rendered_width:
             return
-        self._markdown_width = width
-        if not self._markdown_blocks:
+        self._rendered_width = width
+        if not self._rendered_blocks:
             return
         # ponytail: splices by recorded offsets, which assumes nothing rewrote
-        # the transcript inside a markdown span (only the trailing status line
+        # the transcript inside a tracked span (only the trailing status line
         # is ever rewritten, via \r). If that stops holding, store the rendered
         # text per block and rebuild the whole buffer from the block list.
         text = self.output_text
         shift = 0
-        for block in self._markdown_blocks:
+        for block in self._rendered_blocks:
             start, end = block[0] + shift, block[1] + shift
-            rendered = render_markdown(
-                block[2], width=width, theme=self._markdown_theme
-            )
+            rendered = block[3](block[2], width)
             text = text[:start] + rendered + text[end:]
             block[0], block[1] = start, start + len(rendered)
             shift += len(rendered) - (end - start)
         self._set_output_text(text)
+
+    def _render_markdown_block(self, markdown_text: str, width: int | None) -> str:
+        return render_markdown(markdown_text, width=width, theme=self._markdown_theme)
 
     def _set_output_text(self, text: str) -> None:
         # lazy: heavy third-party

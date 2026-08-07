@@ -156,8 +156,12 @@ def create_output_field(
     def get_line_prefix(line_number: int, wrap_number: int) -> AnyFormattedText:
         return " "
 
+    # An empty greeting starts the buffer empty: the default UI appends its
+    # greeting panel afterwards (so a resize can re-render it), and padding
+    # here would push it down by two blank lines.
+    initial_text = greeting.rstrip() + "\n\n" if greeting.strip() != "" else ""
     text_area = TextArea(
-        text=greeting.rstrip() + "\n\n",
+        text=initial_text,
         read_only=True,
         scrollbar=False,
         wrap_lines=True,

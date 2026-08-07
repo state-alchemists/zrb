@@ -389,16 +389,19 @@ class TestBaseUICommandHandlers:
         assert "Ctrl+K" in help_text
         assert "Shift+Tab" in help_text
 
-    def test_get_help_text_with_limit(self, simple_ui_instance):
-        """Test _get_help_text respects limit parameter."""
+    def test_get_help_text_lists_every_command_at_any_width(self, simple_ui_instance):
+        """No command is dropped and no description clipped, however narrow."""
         ui = simple_ui_instance
         ui._exit_commands = ["/exit"]
         ui._info_commands = ["/help"]
         ui._attach_commands = ["/attach"]
 
-        help_text = ui._get_help_text(limit=1)
-
-        assert "and more" in help_text
+        for width in (200, 100, 50):
+            help_text = ui._get_help_text(width=width)
+            assert "and more" not in help_text
+            assert "..." not in help_text
+            for expected in ("/exit", "/help", "/attach", "clipboard"):
+                assert expected in help_text
 
     def test_get_help_text_empty_commands(self, simple_ui_instance):
         """Test _get_help_text with all empty command lists."""
