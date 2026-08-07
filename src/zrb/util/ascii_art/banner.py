@@ -1,73 +1,14 @@
+"""Resolution of the ASCII art shown beside the TUI help panel.
+
+Composition lives in `zrb.util.cli.help_panel`, which lays the art out against
+the current terminal width; this module only answers "which art, and what is
+in it".
+"""
+
 import os
 import random
-import re
 
 from zrb.config.config import CFG
-
-ANSI_ESCAPE = re.compile(r"(?:\x1B|\\033)(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
-
-
-def _get_visible_length(text: str) -> int:
-    """Return the visible length of a string, excluding ANSI escape sequences."""
-    return len(ANSI_ESCAPE.sub("", text))
-
-
-def create_banner(
-    art: str | None = None,
-    text: str | None = None,
-    max_width: int | None = None,
-) -> str:
-    art_content = _get_art_only(art)
-
-    if text is None or text.strip() == "":
-        return art_content
-
-    art_lines = art_content.splitlines()
-    if not art_lines:
-        return text
-
-    max_art_length = max(_get_visible_length(line) for line in art_lines)
-
-    # Hide the art if the combined width would overflow the terminal: the
-    # separator is 2 spaces and we compare against the widest text line.
-    if max_width is not None:
-        max_text_length = max(
-            (_get_visible_length(line) for line in text.splitlines()), default=0
-        )
-        if max_art_length + 2 + max_text_length > max_width:
-            return text
-
-    # Pad all art lines to the same visual length
-    padded_art_lines = [
-        line + " " * (max_art_length - _get_visible_length(line)) for line in art_lines
-    ]
-
-    text_lines = text.splitlines()
-
-    combined_lines = []
-
-    max_lines = max(len(padded_art_lines), len(text_lines))
-
-    art_offset = (max_lines - len(padded_art_lines)) // 2
-    text_offset = (max_lines - len(text_lines)) // 2
-
-    for i in range(max_lines):
-        art_index = i - art_offset
-        if 0 <= art_index < len(padded_art_lines):
-            art_line = padded_art_lines[art_index]
-        else:
-            art_line = " " * max_art_length
-
-        text_index = i - text_offset
-        if 0 <= text_index < len(text_lines):
-            text_line = text_lines[text_index]
-        else:
-            text_line = ""
-
-        combined_line = art_line + "  " + text_line
-        combined_lines.append(combined_line)
-
-    return "\n".join(combined_lines)
 
 
 def _get_default_banner_search_path() -> list[str]:
@@ -88,7 +29,14 @@ def _get_default_banner_search_path() -> list[str]:
     return search_paths
 
 
-def _get_art_only(art: str | None = None) -> str:
+def get_ascii_art(art: str | None = None) -> str:
+    """Resolve `art` (a path or a name) to its content, or pick a random one.
+
+    Resolution order: literal path, then `{search path}/{ASCII_ART_DIR}/{art}.txt`
+    walking up from the CWD to `$HOME`, then the built-in art folder. A name that
+    matches nothing falls back to a random available art, so callers that need a
+    stable image across re-renders must resolve once and keep the result.
+    """
     if art is not None:
         if os.path.isfile(art):
             with open(art, "r", encoding="utf-8") as f:

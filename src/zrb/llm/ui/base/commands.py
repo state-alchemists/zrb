@@ -24,7 +24,9 @@ from zrb.llm.hook.types import HookEvent
 from zrb.llm.ui.base.conversation_commands import BaseUIConversationCommands
 from zrb.llm.ui.base.exec_commands import BaseUIExecCommands
 from zrb.llm.ui.base.model_commands import BaseUIModelCommands
+from zrb.util.cli.help_panel import HelpPanel, render_help_panel
 from zrb.util.cli.style import stylize_muted, stylize_warning
+from zrb.util.cli.terminal import get_terminal_size
 
 if TYPE_CHECKING:
     from typing import Any, Callable
@@ -330,9 +332,35 @@ class BaseUICommands(
 
     # --- help text --------------------------------------------------------
 
-    def _get_help_text(
-        self, limit: int | None = None, max_length: int | None = None
-    ) -> str:
+    def get_help_panel(
+        self, art: str = "", header: str = "", max_commands: int | None = None
+    ) -> "HelpPanel":
+        """The help content as data, ready to be rendered at any width.
+
+        Keeping the rows unformatted is what lets the panel be re-rendered on
+        every resize instead of being wrapped once and clipped to fit. Row
+        *count* is still capped by `max_commands` where screen space is tight.
+        """
+        return HelpPanel(
+            commands=self._get_command_help_entries(),
+            shortcuts=list(_KEYBOARD_SHORTCUTS),
+            art=art,
+            header=header,
+            max_commands=max_commands,
+        )
+
+    def print_help(self) -> None:
+        """Write the help panel to the output (public API; overridable)."""
+        self.append_to_output(self._get_help_text())
+
+    def _get_help_text(self, width: int | None = None) -> str:
+        if not self._get_command_help_entries():
+            return ""
+        if width is None:
+            width = _get_default_help_width()
+        return render_help_panel(self.get_help_panel(), width)
+
+    def _get_command_help_entries(self) -> list[tuple[str, str]]:
         raw_lines: list[tuple[str, str]] = []
 
         def add_cmd_help(commands: list[str], description: str):
@@ -376,38 +404,27 @@ class BaseUICommands(
         for custom_cmd in self._custom_commands:
             raw_lines.append((custom_cmd.command, custom_cmd.description))
 
-        if not raw_lines:
-            return ""
+        return raw_lines
 
-        max_cmd_len = max(len(cmd) for cmd, _ in raw_lines)
-        help_lines = ["\nAvailable Commands:"]
-        for i, (cmd, desc) in enumerate(raw_lines):
-            if limit is not None and i >= limit:
-                help_lines.append("  ... and more")
-                break
-            capped_desc = desc
-            if max_length is not None and max_length > 4:
-                capped_desc = (
-                    desc if len(desc) <= max_length else f"{desc[:max_length - 4]} ..."
-                )
-            help_lines.append(f"  {cmd:<{max_cmd_len}} : {capped_desc}")
 
-        shortcuts: list[tuple[str, str]] = [
-            ("Ctrl+J", "Insert a newline (multi-line input)"),
-            ("Ctrl+V / Alt+V", "Paste text or image from clipboard"),
-            ("Shift+Tab", "Cycle mode: normal -> accept-edits -> plan"),
-            ("Ctrl+K", "Toggle focus between input and output"),
-            ("Esc", "Cancel running task or clear input"),
-            ("Ctrl+Y", "Toggle YOLO mode"),
-            ("Ctrl+C", "Copy selection, clear input, or exit"),
-            ("↑ / ↓", "Navigate input history"),
-        ]
-        max_key_len = max(len(k) for k, _ in shortcuts)
-        help_lines.append("\nKeyboard Shortcuts:")
-        for key, desc in shortcuts:
-            help_lines.append(f"  {key:<{max_key_len}} : {desc}")
+_KEYBOARD_SHORTCUTS: list[tuple[str, str]] = [
+    ("Ctrl+J", "Insert a newline (multi-line input)"),
+    ("Ctrl+V / Alt+V", "Paste text or image from clipboard"),
+    ("Shift+Tab", "Cycle mode: normal -> accept-edits -> plan"),
+    ("Ctrl+K", "Toggle focus between input and output"),
+    ("Esc", "Cancel running task or clear input"),
+    ("Ctrl+Y", "Toggle YOLO mode"),
+    ("Ctrl+C", "Copy selection, clear input, or exit"),
+    ("↑ / ↓", "Navigate input history"),
+]
 
-        return "\n".join(help_lines) + "\n"
+
+def _get_default_help_width() -> int | None:
+    """Terminal width for UIs that print straight to the terminal."""
+    try:
+        return get_terminal_size().columns
+    except Exception:
+        return None
 
 
 def _matches(text: str, tokens: list[str], prefix: bool) -> bool:

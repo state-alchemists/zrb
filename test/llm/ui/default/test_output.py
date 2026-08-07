@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock, patch
 
 from zrb.llm.ui.default.output import UIOutput
+from zrb.util.cli.help_panel import HelpPanel
 
 
 class MockOutputUI(UIOutput):
@@ -129,12 +130,12 @@ def test_get_status_bar_text_logic():
 
 class MockMarkdownUI(MockOutputUI):
     """MockOutputUI with a buffer that really stores text, so the offset-based
-    markdown re-wrap can be driven through the public methods."""
+    re-wrap can be driven through the public methods."""
 
     def __init__(self):
         super().__init__()
-        self._markdown_blocks = []
-        self._markdown_width = None
+        self._rendered_blocks = []
+        self._rendered_width = None
         self._markdown_theme = None
         self._output_field.buffer = _RecordingBuffer(self._output_field)
 
@@ -168,7 +169,7 @@ def test_append_markdown_rewraps_on_resize():
             narrow = ui.output_text
 
             mock_size.return_value.columns = 200
-            ui.rewrap_markdown()
+            ui.rewrap_output()
             wide = ui.output_text
 
     assert narrow.startswith("before\n") and narrow.endswith("after\n")
@@ -178,18 +179,48 @@ def test_append_markdown_rewraps_on_resize():
     assert wide.count("\n") < narrow.count("\n")
 
 
-def test_rewrap_markdown_is_a_noop_at_unchanged_width():
+def test_rewrap_output_is_a_noop_at_unchanged_width():
     ui = MockMarkdownUI()
 
     with patch.object(ui, "_schedule_invalidate"):
         with patch("zrb.llm.ui.default.output.get_terminal_size") as mock_size:
             mock_size.return_value.columns = 60
             ui.append_markdown("hello **world**")
-            ui.rewrap_markdown()
+            ui.rewrap_output()
             first = ui.output_text
-            ui.rewrap_markdown()
+            ui.rewrap_output()
 
             assert ui.output_text == first
+
+
+def test_print_help_panel_rerenders_on_resize_without_truncating():
+    """The help panel is tracked like markdown: a resize re-lays it out, and
+    no width ever clips a command description."""
+    ui = MockMarkdownUI()
+    long_description = "Set model (usage: /model <model-name>, /model small <model-name>)"
+    ui.get_help_panel = lambda art="", header="": HelpPanel(
+        commands=[("/model", long_description)],
+        shortcuts=[("Ctrl+J", "Insert a newline (multi-line input)")],
+        art="<art-line-1>\n<art-line-2>",
+    )
+
+    with patch.object(ui, "_schedule_invalidate"):
+        with patch("zrb.llm.ui.default.output.get_terminal_size") as mock_size:
+            mock_size.return_value.columns = 60
+            ui.print_help()
+            narrow = ui.output_text
+
+            mock_size.return_value.columns = 160
+            ui.rewrap_output()
+            wide = ui.output_text
+
+    for rendered in (narrow, wide):
+        assert "<art-line-1>" in rendered and "<art-line-2>" in rendered
+        assert "..." not in rendered
+        for word in long_description.split():
+            assert word in rendered
+    # The narrow render had to wrap the description onto more lines.
+    assert narrow.count("\n") > wide.count("\n")
 
 
 def test_get_status_bar_text_shows_queued_messages():
