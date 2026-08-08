@@ -370,19 +370,91 @@ file rather than appending to it, so a variant you add must repeat everything
 the base says that still applies. It follows the same project-override → env →
 base-dir → package lookup as any prompt file, so you can override a variant too.
 
-To add a fourth preset, assign one — `PRESETS` is the source of truth for which
-names `ZRB_LLM_PROFILE` accepts:
+### Defining Your Own Profile
+
+The three built-ins are not special — they are three entries in `PRESETS`, and
+you can add a fourth. Use `register_preset()`, which validates what a bare
+`PRESETS[name] = ...` assignment cannot:
 
 ```python
-from zrb.llm.prompt.profile import PRESETS, Preset, register_model_profile
+# zrb_init.py
+from zrb.llm.prompt.profile import Preset, register_preset, register_model_profile
 
-PRESETS["nano"] = Preset(
-    sections=("persona", "workflow", "system_context"),
-    variant="nano",                       # loads workflow.nano.md, if present
-    tools=frozenset({"Read", "Edit", "LS", "Shell"}),
+register_preset(
+    "nano",
+    Preset(
+        sections=("persona", "workflow", "system_context"),
+        variant="nano",                    # resolves persona.nano.md, workflow.nano.md
+        tools=frozenset({"Read", "Edit", "LS", "Shell"}),
+    ),
 )
-register_model_profile(r"my-1b-box", "nano")
+
+register_model_profile(r"my-1b-box", "nano")   # optional: select it automatically
 ```
+
+`ZRB_LLM_PROFILE=nano` now works, and so does `register_model_profile(..., "nano")`.
+
+**Each axis is optional.** Pass only what you want to change; `None` means "do
+not constrain this axis". A preset that only trims tools is one line:
+
+```python
+register_preset("no-journal", Preset(drops=frozenset({
+    "SearchJournal", "LogActivity", "WriteJournalNote",
+})))
+```
+
+| Field | Effect when set | When `None` |
+| --- | --- | --- |
+| `sections` | Exactly these sections compose | `ZRB_LLM_INCLUDE_SECTIONS` applies |
+| `variant` | Prefers `{section}.{variant}.md` | Base `.md` files (the `full` text) |
+| `tools` | Allowlist — a closed surface | Every registered tool |
+| `drops` | Denylist — everything except these | Every registered tool |
+
+`tools` and `drops` are mutually exclusive; setting both raises `ValueError`,
+because `admits()` reads `tools` first and would silently ignore `drops`. Use
+`tools` when you want a fixed surface you can reason about, `drops` when you
+want to keep whatever ships and subtract a few — a denylist keeps picking up
+newly-added tools, an allowlist does not.
+
+#### Writing the variant files
+
+`variant="nano"` does not create anything. It tells the loader to *prefer*
+`persona.nano.md` and `workflow.nano.md`, falling back to the base file when
+one is absent — so a preset with no variant files silently ships the frontier
+prose. Put them wherever `ZRB_LLM_PROMPT_DIR` points:
+
+```
+prompts/
+  persona.nano.md
+  workflow.nano.md
+```
+
+A variant **replaces** its base rather than appending to it, so it must repeat
+everything the base said that still applies. Start from a copy of
+`workflow.minimal.md` rather than from scratch — it is the shortest complete
+rulebook zrb ships.
+
+#### What `register_preset` checks
+
+Two errors raise, three conditions warn. All of them are things a plain dict
+assignment lets through in silence:
+
+| Condition | Result |
+| --- | --- |
+| Name empty, not a string, or not a `Preset` | `ValueError` |
+| Name is `auto` | `ValueError` — it means "derive from the model id", so a preset stored there is unreachable |
+| `variant` set but no `{section}.{variant}.md` found | Warning naming the missing file |
+| Composed rulebook drops a Priority Order rank 1 rule | Warning — secrets, tool-output-is-not-instructions, confirm-destructive |
+| No rule-carrying section composes at all | Warning — the model would get tools and no operating rules |
+
+The safety warning matters most. The built-in presets are pinned to rank 1 by a
+test that walks a hardcoded list of the three names, so a preset registered at
+runtime inherits none of that guarantee; `register_preset` is where it gets
+checked instead. Warnings rather than errors, because a custom rulebook may
+phrase a rule in words the check does not recognise — read them, then decide.
+
+> `PRESETS[name] = Preset(...)` still works and stays supported. It just skips
+> every check in the table above.
 
 > An unrecognized `ZRB_LLM_PROFILE` value falls through to `auto`, and
 > `register_model_profile(..., "<unknown>")` raises `ValueError`.

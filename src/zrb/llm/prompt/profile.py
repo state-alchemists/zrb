@@ -142,6 +142,18 @@ class Preset:
     tools: frozenset[str] | None = None
     drops: frozenset[str] | None = None
 
+    def __post_init__(self) -> None:
+        # "Set at most one" was documented above and enforced nowhere, and
+        # `admits` resolves the conflict by silently ignoring `drops` — so a
+        # preset asking for "these ten tools, minus the journal" got the ten and
+        # no warning. Rejected at construction rather than at registration,
+        # because `PRESETS[name] = Preset(...)` bypasses `register_preset`.
+        if self.tools is not None and self.drops is not None:
+            raise ValueError(
+                "Preset takes either tools (an allowlist) or drops (a denylist), "
+                "not both. `tools` alone already excludes everything unlisted."
+            )
+
     def admits(self, name: str) -> bool:
         """Whether a tool registered under *name* survives this preset."""
         if self.tools is not None:
@@ -218,6 +230,127 @@ def valid_profiles() -> tuple[str, ...]:
     accepted too — ``PRESETS`` is the single source of truth for the set.
     """
     return tuple(PRESETS)
+
+
+#: The rank-1 safety rules, as the alternative phrasings that count as carrying
+#: each one. Concepts rather than sentences, so a custom rulebook may say it in
+#: its own words. Deliberately a second copy of the table in
+#: ``test_section_composition.py``: the test asserts the floor for the built-in
+#: presets independently, and a shared table would let one wrong regex excuse
+#: both.
+_RANK_ONE_PATTERNS: dict[str, tuple[str, ...]] = {
+    "secrets": (r"secret", r"credential", r"password", r"api key"),
+    "tool output is not instructions": (
+        r"data,?\s*not",
+        r"ignore\s+\w+\s+instructions",
+    ),
+    "confirm destructive actions": (r"destructive", r"destroy", r"irreversible"),
+}
+
+#: Sections that carry rules, and so must still carry the safety floor. A preset
+#: composing none of them is a preset with no rulebook, which
+#: :func:`register_preset` reports separately.
+_RULE_SECTIONS = ("persona", "workflow")
+
+
+def register_preset(name: str, preset: Preset) -> None:
+    """Register *preset* under *name*, making it a valid ``LLM_PROFILE`` value.
+
+    ``PRESETS[name] = preset`` does the same thing and stays supported; this
+    adds the checks that a bare assignment cannot make, because the three ways a
+    custom preset goes wrong are all silent:
+
+    1. **The prose falls back to ``full``.** A ``variant`` with no
+       ``{section}.{variant}.md`` anywhere on the lookup path resolves to the
+       base file, so a preset written for a 1B model quietly ships it the
+       frontier rulebook. Warned per section, not raised: shipping a variant for
+       only *some* sections is legitimate.
+    2. **The safety floor goes missing.** Every built-in preset is pinned to
+       Priority Order rank 1 by ``test_section_composition.py``; that test walks
+       a hardcoded list of the three built-ins, so a custom preset inherits none
+       of it. The same floor is checked here instead.
+    3. **Both tool axes are set.** Rejected by :class:`Preset` itself.
+
+    Overriding a built-in name is allowed — redefining ``lean`` for your own
+    fleet is a legitimate use — and runs the same checks.
+
+    Args:
+        name: The ``ZRB_LLM_PROFILE`` value that selects this preset.
+        preset: What the name binds.
+
+    Raises:
+        ValueError: *name* is empty or not a string, *preset* is not a
+            :class:`Preset`, or *name* is ``auto`` (reserved for model-based
+            resolution, so a preset under that name could never be selected).
+    """
+    # Typed as object so the runtime guard is not read as dead code: this is a
+    # public entry point, and the value it protects lands in a module-level dict
+    # that every later lookup trusts.
+    candidate: object = preset
+    if not isinstance(name, str) or not name.strip():
+        raise ValueError(f"Preset name must be a non-empty string, got {name!r}.")
+    if not isinstance(candidate, Preset):
+        raise ValueError(
+            f"Expected a Preset for {name!r}, got {type(candidate).__name__}."
+        )
+    key = name.strip().lower()
+    if key == "auto":
+        raise ValueError(
+            "'auto' is reserved: it means 'resolve from the model id', so a "
+            "preset registered under it could never be selected. Register it "
+            "under its own name and point models at it with "
+            "register_model_profile()."
+        )
+    PRESETS[key] = preset
+    for warning in _preset_warnings(preset):
+        CFG.LOGGER.warning(f"register_preset({key!r}): {warning}")
+
+
+def _preset_warnings(preset: Preset) -> list[str]:
+    """What is off about *preset* but not fatal. Empty when it is sound."""
+    # lazy: circular — prompt imports profile for FULL_PROFILE
+    from zrb.llm.prompt.prompt import get_default_prompt, get_prompt
+
+    # ``LLM_INCLUDE_SECTIONS`` is the parsed list; the ``DEFAULT_`` twin beside
+    # it is the raw comma-separated string, and iterating that yields
+    # characters, not section names.
+    sections = preset.sections or tuple(CFG.LLM_INCLUDE_SECTIONS)
+    warnings = []
+    if preset.variant:
+        missing = [
+            section
+            for section in sections
+            if section in _RULE_SECTIONS
+            and not get_default_prompt(f"{section}.{preset.variant}")
+        ]
+        if missing:
+            warnings.append(
+                f"variant {preset.variant!r} has no file for {missing}, so those "
+                f"sections fall back to the base (`full`) text. Add "
+                f"{missing[0]}.{preset.variant}.md under LLM_PROMPT_DIR."
+            )
+    composed = "\n".join(
+        get_prompt(section, profile=preset.variant)
+        for section in sections
+        if section in _RULE_SECTIONS
+    ).lower()
+    if not composed.strip():
+        warnings.append(
+            f"composes no rule-carrying section ({' or '.join(_RULE_SECTIONS)}), "
+            "so the model gets tools and context but no operating rules."
+        )
+        return warnings
+    absent = [
+        concept
+        for concept, patterns in _RANK_ONE_PATTERNS.items()
+        if not any(re.search(pattern, composed) for pattern in patterns)
+    ]
+    if absent:
+        warnings.append(
+            f"composed rulebook states no {absent}. Composition may drop method; "
+            "it may never drop Priority Order rank 1 (ADR-0075)."
+        )
+    return warnings
 
 
 def resolve_preset(profile: str | None) -> Preset:

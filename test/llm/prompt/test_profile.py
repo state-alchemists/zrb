@@ -1,5 +1,7 @@
 """Tests for model-adaptive prompt profiles and presets (ADR-0047, ADR-0075)."""
 
+import logging
+
 import pytest
 
 from zrb.llm.prompt.profile import (
@@ -15,6 +17,7 @@ from zrb.llm.prompt.profile import (
     active_preset,
     model_profile_registry,
     register_model_profile,
+    register_preset,
     resolve_preset,
     resolve_profile,
     valid_profiles,
@@ -368,3 +371,116 @@ def test_a_user_can_register_a_fourth_preset():
         assert resolve_profile("auto", "my-nano-box") == "nano"
     finally:
         del PRESETS["nano"]
+
+
+@pytest.fixture
+def unregister():
+    """Drop any preset a test registers, so `PRESETS` survives the module."""
+    added: list[str] = []
+    yield added.append
+    for name in added:
+        PRESETS.pop(name, None)
+
+
+def test_a_preset_cannot_set_both_tool_axes():
+    """`admits` reads `tools` first and ignores `drops`, so both is never what
+    the caller meant.
+
+    Rejected in ``__post_init__`` rather than in ``register_preset``, because
+    ``PRESETS[name] = Preset(...)`` is still a supported way in and would walk
+    straight past a check that lived only in the function.
+    """
+    with pytest.raises(ValueError, match="either tools .* or drops"):
+        Preset(tools=frozenset({"Read"}), drops=frozenset({"Edit"}))
+
+
+def test_register_preset_makes_the_name_selectable(unregister):
+    unregister("nano")
+    register_preset("nano", Preset(sections=("persona", "workflow"), variant="lean"))
+
+    assert "nano" in valid_profiles()
+    assert resolve_profile("nano", "anything") == "nano"
+    assert resolve_preset("nano").variant == "lean"
+    register_model_profile("my-1b-box", "nano")
+    assert resolve_profile("auto", "my-1b-box") == "nano"
+
+
+def test_register_preset_normalizes_the_name(unregister):
+    unregister("nano")
+    register_preset("  NaNo  ", Preset())
+    assert "nano" in valid_profiles()
+
+
+@pytest.mark.parametrize(
+    "name, preset, message",
+    [
+        ("", Preset(), "non-empty string"),
+        ("x", "not-a-preset", "Expected a Preset"),
+        ("auto", Preset(), "reserved"),
+    ],
+)
+def test_register_preset_rejects_what_cannot_work(name, preset, message):
+    """`auto` is the interesting one: it is not a preset name but the instruction
+    to derive one from the model id, so a preset stored under it is unreachable."""
+    with pytest.raises(ValueError, match=message):
+        register_preset(name, preset)
+
+
+def test_register_preset_warns_when_a_variant_has_no_file(unregister, caplog):
+    """The silent fallback, surfaced.
+
+    ``get_prompt`` resolving ``foo.{variant}.md`` → ``foo.md`` is correct
+    runtime behaviour and a trap at registration: a preset written for a 1B
+    model ships it the frontier rulebook and says nothing. Warned, not raised —
+    varying only some sections is legitimate, which is why `full` needs no files
+    at all.
+    """
+    unregister("nano")
+    with caplog.at_level(logging.WARNING):
+        register_preset("nano", Preset(variant="nowhere"))
+
+    assert "fall back to the base" in caplog.text
+    assert "workflow.nowhere.md" in caplog.text or "persona.nowhere.md" in caplog.text
+
+
+def test_register_preset_warns_when_the_safety_floor_is_gone(
+    unregister, caplog, tmp_path, monkeypatch
+):
+    """Rank 1 is pinned for the built-ins by a hardcoded list of three names.
+
+    `test_section_composition.py::test_every_preset_carries_the_rank_one_safety_rules`
+    walks `PRESET_VARIANTS`, so a preset registered at runtime inherits none of
+    that guarantee. This is where a custom one gets it.
+    """
+    unregister("tiny")
+    (tmp_path / "persona.tiny.md").write_text("# Identity\nYou are {ASSISTANT_NAME}.")
+    (tmp_path / "workflow.tiny.md").write_text("# How to Work\nRead it, edit it.")
+
+    monkeypatch.setenv("ZRB_LLM_PROMPT_DIR", str(tmp_path))
+    with caplog.at_level(logging.WARNING):
+        register_preset(
+            "tiny", Preset(sections=("persona", "workflow"), variant="tiny")
+        )
+
+    assert "secrets" in caplog.text
+    assert "confirm destructive actions" in caplog.text
+
+
+def test_register_preset_is_quiet_for_a_sound_preset(unregister, caplog):
+    """A preset that constrains only tools keeps the default sections and the
+    base prose, so it has nothing to warn about."""
+    unregister("beefy")
+    with caplog.at_level(logging.WARNING):
+        register_preset("beefy", Preset(drops=frozenset({"SearchJournal"})))
+
+    assert caplog.text == ""
+
+
+def test_register_preset_warns_when_no_rulebook_composes(unregister, caplog):
+    """Sections that carry no rules leave the model with tools and no operating
+    rules — distinct from dropping *some* rules, and worth its own message."""
+    unregister("bare")
+    with caplog.at_level(logging.WARNING):
+        register_preset("bare", Preset(sections=("system_context",)))
+
+    assert "no rule-carrying section" in caplog.text
