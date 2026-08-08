@@ -963,7 +963,7 @@ files = [
     {file = "colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6"},
     {file = "colorama-0.4.6.tar.gz", hash = "sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44"},
 ]
-markers = {main = "extra == \"rag\" and os_name == \"nt\" or platform_system == \"Windows\"", dev = "sys_platform == \"win32\""}
+markers = {main = "extra == \"rag\" and os_name == \"nt\" or platform_system == \"Windows\""}
 
 [[package]]
 name = "coverage"
@@ -2999,6 +2999,24 @@ files = [
     {file = "logfire_api-4.40.0-py3-none-any.whl", hash = "sha256:f8b7309235a942368b927f00e0a1869ff0820833f264a30e77a35f1da829c130"},
     {file = "logfire_api-4.40.0.tar.gz", hash = "sha256:f4631d5ca6af95e9d4dadc4f63619ebb8f2300eecfca0ca99c84403d6ea605de"},
 ]
+
+[[package]]
+name = "mando"
+version = "0.7.1"
+description = "Create Python CLI apps with little to no effort at all!"
+optional = false
+python-versions = "*"
+groups = ["dev"]
+files = [
+    {file = "mando-0.7.1-py2.py3-none-any.whl", hash = "sha256:26ef1d70928b6057ee3ca12583d73c63e05c49de8972d620c278a7b206581a8a"},
+    {file = "mando-0.7.1.tar.gz", hash = "sha256:18baa999b4b613faefb00eac4efadcf14f510b59b924b66e08289aa1de8c3500"},
+]
+
+[package.dependencies]
+six = "*"
+
+[package.extras]
+restructuredtext = ["rst2ansi"]
 
 [[package]]
 name = "markdown-it-py"
@@ -5478,6 +5496,25 @@ files = [
 ]
 
 [[package]]
+name = "radon"
+version = "6.0.1"
+description = "Code Metrics in Python"
+optional = false
+python-versions = "*"
+groups = ["dev"]
+files = [
+    {file = "radon-6.0.1-py2.py3-none-any.whl", hash = "sha256:632cc032364a6f8bb1010a2f6a12d0f14bc7e5ede76585ef29dc0cecf4cd8859"},
+    {file = "radon-6.0.1.tar.gz", hash = "sha256:d1ac0053943a893878940fedc8b19ace70386fc9c9bf0a09229a44125ebf45b5"},
+]
+
+[package.dependencies]
+colorama = {version = ">=0.4.1", markers = "python_version > \"3.4\""}
+mando = ">=0.6,<0.8"
+
+[package.extras]
+toml = ["tomli (>=2.0.1)"]
+
+[[package]]
 name = "referencing"
 version = "0.37.0"
 description = "JSON Referencing + Python"
@@ -6137,7 +6174,7 @@ version = "1.17.0"
 description = "Python 2 and 3 compatibility utilities"
 optional = false
 python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,>=2.7"
-groups = ["main"]
+groups = ["main", "dev"]
 files = [
     {file = "six-1.17.0-py2.py3-none-any.whl", hash = "sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274"},
     {file = "six-1.17.0.tar.gz", hash = "sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81"},
@@ -7545,4 +7582,4 @@ xai = ["aiohttp", "xai-sdk"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11.0,<3.15.0"
-content-hash = "38974d536fd575748a2f13e543be13776e51ad81027d4bcf1fdb37f31a221a42"
+content-hash = "5e3af616a6e2b473600ced6ce2a9b07dc7f798cbc4b33a93a58f4031e4e18d43"
