@@ -49,16 +49,52 @@ These variables define which LLM Zrb uses for its primary reasoning and how it c
 
 ### Supported Providers
 
-| Provider | Model Format | Extra (pipx) |
-|----------|-------------|--------------|
-| OpenAI | `openai:gpt-4o` | (default) |
-| Anthropic | `anthropic:claude-3-5-sonnet-latest` | `pipx install "zrb[anthropic]"` |
-| Google Vertex | `google-cloud:gemini-1.5-pro` | `pipx install "zrb[google]"` |
-| Ollama | `ollama:llama3.1` | (default) |
-| DeepSeek | `deepseek:deepseek-reasoner` | (default) |
-| Groq | `groq:llama3-8b-8192` | `pipx install "zrb[groq]"` |
+Anything `ZRB_LLM_MODEL` names as `provider:model` is resolved by pydantic-ai,
+so every provider it ships works in zrb without registration. Providers that
+speak the OpenAI wire protocol need no extra at all — `openai` is a core zrb
+dependency. The rest bring their own vendor SDK.
+
+**No extra needed** (OpenAI-compatible, or SDK-free):
+
+| Provider | Model format | Credentials |
+|----------|-------------|-------------|
+| OpenAI | `openai:gpt-5` | `OPENAI_API_KEY` |
+| Ollama | `ollama:llama3.1` | `OLLAMA_BASE_URL` (`OLLAMA_API_KEY` for Ollama Cloud) |
+| DeepSeek | `deepseek:deepseek-reasoner` | `DEEPSEEK_API_KEY` |
+| OpenRouter | `openrouter:anthropic/claude-opus-4.8` | `OPENROUTER_API_KEY` |
+| Azure OpenAI | `azure:gpt-5` | `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT` |
+| Z.ai | `zai:glm-5` | `ZAI_API_KEY` |
+| Moonshot AI | `moonshotai:kimi-k2-thinking` | `MOONSHOTAI_API_KEY` |
+| Alibaba | `alibaba:qwen-max` | `ALIBABA_API_KEY` or `DASHSCOPE_API_KEY` |
+| Cerebras | `cerebras:llama3.1-8b` | `CEREBRAS_API_KEY` |
+| Together | `together:meta-llama/Llama-3-70b` | `TOGETHER_API_KEY` |
+| Fireworks | `fireworks:accounts/fireworks/models/…` | `FIREWORKS_API_KEY` |
+| Nebius | `nebius:…` | `NEBIUS_API_KEY` |
+| OVHcloud | `ovhcloud:…` | `OVHCLOUD_API_KEY` |
+| SambaNova | `sambanova:…` | `SAMBANOVA_API_KEY` |
+| Snowflake Cortex | `snowflake:…` | `SNOWFLAKE_ACCOUNT`, `SNOWFLAKE_TOKEN` |
+| Heroku | `heroku:…` | `HEROKU_INFERENCE_KEY` |
+| Vercel AI Gateway | `vercel:…` | `VERCEL_AI_GATEWAY_API_KEY` or `VERCEL_OIDC_TOKEN` |
+| LiteLLM | `litellm:…` | per your LiteLLM config |
+
+**Extra required** (vendor SDK):
+
+| Provider | Model format | Extra (pipx) | Credentials |
+|----------|-------------|--------------|-------------|
+| Anthropic | `anthropic:claude-opus-4-8` | `zrb[anthropic]` | `ANTHROPIC_API_KEY` |
+| Google (Gemini API) | `google:gemini-2.5-pro` | `zrb[google]` | `GOOGLE_API_KEY` or `GEMINI_API_KEY` |
+| Google Vertex | `google-cloud:gemini-2.5-pro` | `zrb[google,vertexai]` | `GOOGLE_APPLICATION_CREDENTIALS`, `GOOGLE_CLOUD_PROJECT` |
+| Groq | `groq:llama3-8b-8192` | `zrb[groq]` | `GROQ_API_KEY` |
+| Mistral | `mistral:mistral-large-latest` | `zrb[mistral]` | `MISTRAL_API_KEY` |
+| xAI | `xai:grok-4` | `zrb[xai]` | `XAI_API_KEY` |
+| AWS Bedrock | `bedrock:anthropic.claude-…` | `zrb[bedrock]` | standard AWS credentials |
+| Bedrock Mantle | `bedrock-mantle:…` | `zrb[bedrock]` | `AWS_BEARER_TOKEN_BEDROCK`, `AWS_REGION` |
+| Cohere | `cohere:command-r-plus` | `zrb[cohere]` | `CO_API_KEY` |
+| Hugging Face | `huggingface:…` | `zrb[huggingface]` | `HF_TOKEN` |
 
 > 💡 **Google Vertex auth extra:** Vertex AI (as opposed to the plain Gemini API) additionally needs the `vertexai` extra (`google-auth`, `pyasn1`) for its authentication flow — `pipx install "zrb[google,vertexai]"`.
+
+> 💡 **Any OpenAI-compatible endpoint** that is not in the list works through `ZRB_LLM_BASE_URL` + `ZRB_LLM_API_KEY` with a bare model name (no `provider:` prefix) — that is the path a self-hosted vLLM, LM Studio, or company gateway takes.
 
 > 💡 **Add extras after install:** If zrb is already installed via pipx, use `pipx inject zrb "zrb[anthropic]"` (or whichever extra you need) instead of reinstalling.
 

@@ -74,3 +74,23 @@ def test_get_retry_wait():
 
     # Test max wait
     assert get_retry_wait(e2, 10, 30) == 30.0
+
+
+def test_get_retry_wait_reads_a_wrapped_model_http_error():
+    """pydantic-ai hands back `ModelHTTPError`, not the provider SDK's exception.
+
+    That wrapper has no `.response`, so its `retry_after` is the only place the
+    provider's requested wait survives.
+    """
+    from pydantic_ai.exceptions import ModelHTTPError
+
+    e = ModelHTTPError(
+        status_code=429, model_name="m", body=None, headers={"retry-after": "12"}
+    )
+    assert get_retry_wait(e, 1, 60) == 12.0
+    # Still capped by max_wait.
+    assert get_retry_wait(e, 1, 5) == 5.0
+
+    # A wrapper carrying no usable header falls back to exponential backoff.
+    bare = ModelHTTPError(status_code=429, model_name="m", body=None)
+    assert get_retry_wait(bare, 3, 60) == 8.0

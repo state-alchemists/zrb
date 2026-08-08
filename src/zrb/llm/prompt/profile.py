@@ -68,9 +68,8 @@ SMALL_TIER_LABELS: tuple[str, ...] = (
 )
 
 # A parameter count as vendors write it: delimited, optionally fractional, and
-# closed by a `b`. The decimal is the whole reason this is parsed rather than
-# pattern-matched per band — `deepseek-r1:1.5b` reads as 1.5B, where a digit
-# class matching `5b` read it as 5B and handed a 1.5B model the 5-14B preset.
+# closed by a `b`. The count is captured whole and compared numerically, so
+# `deepseek-r1:1.5b` reads as 1.5B rather than as its trailing `5b`.
 _DECLARED_SIZE = re.compile(r"(?<![a-z0-9.])(\d+(?:\.\d+)?)\s*b(?![a-z0-9])", re.I)
 _SMALL_TIER = re.compile(rf"(?<![a-z])({'|'.join(SMALL_TIER_LABELS)})(?![a-z])", re.I)
 

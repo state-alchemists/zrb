@@ -87,9 +87,8 @@ def read_hook_output(
             # The exit test is "this poll returned nothing", not "this poll read
             # nothing". A poll that only saw stdin *writable* returned early —
             # stdin is writable from the moment the child is spawned — so it
-            # proves nothing about a quiet interval. Treating it as one dropped
-            # the output of every hook that exited within the first poll, which
-            # is most of them: `echo hello` raced the very first select.
+            # proves nothing about a quiet interval, and a fast child's buffered
+            # output would be closed unread.
             if process.stdin is not None:
                 _unregister(sel, process.stdin)
                 _close_pipe(process.stdin)

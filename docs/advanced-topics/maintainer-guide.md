@@ -448,29 +448,24 @@ Before applying fixes, `_detect_problems()` scans the history for invariant viol
 
 `filter_nil_content` fixes the problem at the `ModelMessage` object level (before serialization). There is a second, complementary fix at the serialization level: `openai_patch.py` monkey-patches `OpenAIChatModel._MapModelResponseContext._into_message_param`.
 
-The upstream implementation always sets `content = None` when there is no text, which serializes to `"content": null` in JSON:
+The upstream implementation sets `content = None` whenever there is no text, tool calls or not, which serializes to `"content": null` in JSON:
 
 ```python
-# pydantic-ai upstream (≥ 1.90.0) — still present
+# pydantic-ai 2.27.0
+if not self.texts and not self.tool_calls:
+    return None                       # nothing to send: emit no message at all
+...
 if self.texts:
     message_param['content'] = '\n\n'.join(self.texts)
 else:
     message_param['content'] = None   # sent as "content": null
 ```
 
-The patch changes the `else` branch to only set `content` when there are *neither* `tool_calls` *nor* `thinkings`:
+The patch drops the `else`, so `content` is omitted from the serialized JSON entirely when tool calls are present. This is valid per the OpenAI API spec and accepted by all known providers. The empty-response guard on the first line is upstream's and is reproduced verbatim — returning a message there would be the same 400 in a different disguise.
 
-```python
-# openai_patch.py
-if self.texts:
-    message_param['content'] = '\n\n'.join(self.texts)
-elif not self.tool_calls and not self.thinkings:
-    message_param['content'] = None   # only set null when nothing else is set
-```
+No model profile flag turns the null off, so the patch is still required as of 2.27.0. Upstream documents `_into_message_param` as an override hook, which is what makes the shape supportable even though the class it hangs off is private.
 
-When `tool_calls` or `thinkings` are present, the `content` key is omitted from the serialized JSON entirely (not set to `null`). This is valid per the OpenAI API spec and accepted by all known providers.
-
-The patch is applied once at import time (`runner.py` calls `patch_openai_model_response_serialization()` at module load). It fails silently if pydantic-ai's internal class structure changes, at which point `filter_nil_content` remains the fallback.
+The patch is applied once at import time (`runner.py` calls `patch_openai_model_response_serialization()` at module load). If pydantic-ai renames the internal it targets, the miss is logged at WARNING and `filter_nil_content` remains the fallback.
 
 ### The `strip_thinking_parts` Retry
 
@@ -516,6 +511,31 @@ The sanitization and retry layers above all handle *errors* (exceptions). A weak
 `_execution_loop` (`runner.py`) checks `_is_empty_completion(result_output)` after the stream, *after* the `DeferredToolRequests` branch (a deferred result is a legitimate tool-call outcome, never "empty") and *before* the `SESSION_END` hooks. `_is_empty_completion` returns `True` only for a **str** output that is blank or one of `_EMPTY_COMPLETION_MARKERS` (`"(tool call)"` and the bare `"(tool call"` imitation) — structured outputs are never caught.
 
 On a hit it regenerates the turn rather than returning it: `_history_without_trailing_response(run_history)` drops the degenerate trailing `ModelResponse` (keeping any tool returns, so the deferred-resume case is handled too), `current_message`/`current_results` are reset to `None`, and the loop re-requests. This is bounded by `RetryState.max_empty_completion_retries` (default 2); once exhausted the loop raises a clear `RuntimeError` ("Model returned an empty response …") instead of looping forever or surfacing the placeholder. A legitimate answer is always non-empty prose, so this never rejects real output.
+
+### Re-checking a Mitigation Against a New pydantic-ai
+
+Each layer here works around something a *provider* gets wrong, not something
+pydantic-ai gets wrong, which is why upgrading rarely retires one. Re-audit on a
+minor bump anyway — a layer that has become dead weight is worse than one that
+never existed, because it keeps rewriting history for no reason.
+
+Audited against **2.27.0**; every layer below is still load-bearing:
+
+| Layer | Verdict |
+|---|---|
+| `filter_nil_content` | Keep. Object-level guard against `None`/`""` content; nothing upstream normalizes this. |
+| `openai_patch` | Keep. `_into_message_param` still writes `content = None` beside `tool_calls`, and no profile flag disables it. |
+| `sanitize_orphaned_tool_calls` | Keep. The orphans are created by *zrb's* summarizer splitting a turn, so no upstream change can remove them. |
+| `ensure_alternating_roles` | Keep. Same origin as above. |
+| `strip_thinking_parts` retry | Keep. Error-triggered and free when it does not fire; the providers that reject echoed thinking still exist. |
+| Opaque-400 text-only fallback | Keep. Deliberately provider-agnostic; upstream classifies transport errors, not provider quirks. |
+| Deferred-mismatch recovery | Keep, and re-check the strings. It matches on `UserError` text raised by `_agent_graph`; both phrases are unchanged in 2.27.0. |
+| Empty-completion guard | Keep. Guards a *successful* stream with no content — not an error path upstream ever sees. |
+
+Two things moved the other way and were adopted rather than kept: `ModelHTTPError`
+now carries `headers` and a parsed `retry_after`, which `get_retry_wait` reads
+before falling back to exponential backoff, and `known_model_names()` supersedes
+unwrapping `KnownModelName.__value__` for `/model` completion.
 
 ### File Map
 
