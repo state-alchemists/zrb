@@ -207,11 +207,11 @@ class LLMTaskBuilding:
     def append_history_processor(self, *processor: HistoryProcessor):
         self._history_processors += list(processor)
 
-    def _get_all_tools(self, ctx: AnyContext) -> list[Tool | ToolFuncEither]:
+    def get_all_tools(self, ctx: AnyContext) -> list[Tool | ToolFuncEither]:
         """Get all tools including those resolved from factories."""
         return resolve_factory_items(self._tools, self._tool_factories, ctx)
 
-    def _get_all_toolsets(self, ctx: AnyContext) -> list[AbstractToolset[None]]:
+    def get_all_toolsets(self, ctx: AnyContext) -> list[AbstractToolset[None]]:
         """Get all toolsets including those resolved from factories."""
         return resolve_factory_items(self._toolsets, self._toolset_factories, ctx)
 
@@ -247,14 +247,20 @@ class LLMTaskBuilding:
             ctx, inject_journal_index=inject_journal_index
         )
 
-    def _get_model_settings(self, ctx: AnyContext) -> ModelSettings | None:
+    def get_model_settings(self, ctx: AnyContext) -> ModelSettings | None:
+        """The task's model settings, falling back to the LLM config's."""
         model_settings = self._model_settings
         rendered_model_settings = get_attr(ctx, model_settings, None)
         if rendered_model_settings is not None:
             return rendered_model_settings
         return self._llm_config.model_settings
 
-    def _get_model(self, ctx: AnyContext) -> str | Model:
+    def get_model(self, ctx: AnyContext) -> str | Model:
+        """The task's model, rendered against *ctx*, falling back to the config's.
+
+        A blank render counts as unset, so an empty ``--model`` input does not
+        shadow the configured model with an empty string.
+        """
         model = self._model
         rendered_model = get_attr(ctx, model, None, auto_render=self._render_model)
         if isinstance(rendered_model, str) and rendered_model.strip() == "":

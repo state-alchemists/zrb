@@ -93,26 +93,26 @@ class TestRegistration:
         task = LLMTask(name="test-task")
         task.add_tool(tool_a)
         task.append_tool(tool_b)
-        resolved = task._get_all_tools(MagicMock())
+        resolved = task.get_all_tools(MagicMock())
         assert tool_a in resolved and tool_b in resolved
 
     def test_tool_factory_resolved_in_get_all_tools(self):
         tool = MagicMock()
         task = LLMTask(name="test-task")
         task.add_tool_factory(lambda ctx: tool)
-        assert tool in task._get_all_tools(MagicMock())
+        assert tool in task.get_all_tools(MagicMock())
 
     def test_append_toolset_and_get_all_toolsets(self):
         toolset = MagicMock()
         task = LLMTask(name="test-task")
         task.add_toolset(toolset)
-        assert toolset in task._get_all_toolsets(MagicMock())
+        assert toolset in task.get_all_toolsets(MagicMock())
 
     def test_toolset_factory_resolved_in_get_all_toolsets(self):
         toolset = MagicMock()
         task = LLMTask(name="test-task")
         task.add_toolset_factory(lambda ctx: toolset)
-        assert toolset in task._get_all_toolsets(MagicMock())
+        assert toolset in task.get_all_toolsets(MagicMock())
 
     def test_set_ui_replaces_and_append_ui_adds(self):
         ui_a, ui_b = MagicMock(), MagicMock()
@@ -169,17 +169,17 @@ class TestRegistration:
 class TestAssembly:
     def test_get_model_defaults_to_llm_config_model(self):
         task = LLMTask(name="test-task")
-        assert task._get_model(MagicMock()) == task.llm_config.model
+        assert task.get_model(MagicMock()) == task.llm_config.model
 
     def test_get_model_uses_explicit_model(self):
         task = LLMTask(name="test-task", model="explicit-model", render_model=False)
-        assert task._get_model(MagicMock()) == "explicit-model"
+        assert task.get_model(MagicMock()) == "explicit-model"
 
     def test_get_model_treats_blank_string_as_unset(self):
         task = LLMTask(name="test-task", model="   ", render_model=False)
         # Blank explicit model falls back to the config default.
-        assert task._get_model(MagicMock()) == task.llm_config.model
+        assert task.get_model(MagicMock()) == task.llm_config.model
 
     def test_get_model_settings_falls_back_to_config(self):
         task = LLMTask(name="test-task")
-        assert task._get_model_settings(MagicMock()) == task.llm_config.model_settings
+        assert task.get_model_settings(MagicMock()) == task.llm_config.model_settings

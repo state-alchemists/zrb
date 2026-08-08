@@ -214,7 +214,7 @@ class SubAgentManager(SubAgentManagerLoading, SubAgentManagerSearch):
                 if _resolve_tool_name(t) not in definition.disallowed_tools
             ]
 
-        resolved_toolsets = self._get_all_toolsets(ctx)
+        resolved_toolsets = self.get_all_toolsets(ctx)
 
         # YOLO: explicit True wins; otherwise return a checker that reads the
         # live parent state on each invocation (so toggles propagate).
@@ -323,7 +323,7 @@ class SubAgentManager(SubAgentManagerLoading, SubAgentManagerSearch):
     def _get_tool_registry(self) -> "dict[str, Callable | Tool]":
         return self._tool_registry
 
-    def _get_all_toolsets(self, ctx: AnyContext) -> list[AbstractToolset[None]]:
+    def get_all_toolsets(self, ctx: AnyContext) -> list[AbstractToolset[None]]:
         """All toolsets including those resolved from factories."""
         return resolve_factory_items(self._toolsets, self._toolset_factories, ctx)
 

@@ -237,9 +237,9 @@ compose, how they are phrased, and which tools register (ADR-0075).
 
 | Preset | Sections | Phrasing | Tools |
 |--------|----------|----------|-------|
-| `full` | default | base files | full |
-| `lean` | `workflow` → `workflow.lean.md` | `+ examples.lean.md` | full |
-| `minimal` | `persona, workflow.minimal.md, system_context` | base files | 10 |
+| `full` | default | base files | all 21 |
+| `lean` | default | `workflow.lean.md`, `examples.lean.md` | all 21 |
+| `minimal` | `persona, workflow, system_context` | `workflow.minimal.md` | 10 |
 
 - **`full`** — the concise, principle-led preset (the base prompt files).
 - **`lean`** — for small models (~5-14B). Two changes in opposite directions: a
@@ -252,8 +252,8 @@ compose, how they are phrased, and which tools register (ADR-0075).
   Every tool and capability is kept — a 5-14B model can still use skills, todos
   and delegation.
 - **`minimal`** — for very small models (~3B), where the *budget* is the binding
-  constraint rather than the register. Composes to roughly 4,000 tokens against
-  a default session's ~10,500. A `minimal` session has **no** skills, sub-agents,
+  constraint rather than the register. Composes to roughly 3,500 tokens of
+  preamble against ~9,000. A `minimal` session has **no** skills, sub-agents,
   web access, todo list, journal, plan mode, MCP tools or project-doc reading —
   it is a single-tool-call-per-turn assistant, not an agentic coder. Use it when
   a small local model must drive the main loop; for a small model *assisting* a
@@ -267,8 +267,14 @@ you nothing — but `-7b` is the vendor stating a parameter count, and `mini` /
 
 | Selects `minimal` | Selects `lean` | Stays `full` |
 |-----------------|----------------|---------------|
-| a stated count of 4B or less — `qwen2.5:3b`, `llama3.2:3b`, `phi-2b` | a stated count of 5-14B — `qwen2.5-7b`, `gemma-2-9b`, `qwen3-14b` | larger stated sizes — `qwen3-32b`, `llama-3-70b`, `llama-3.1-405b` |
+| a stated count of 4B or less — `qwen2.5:3b`, `deepseek-r1:1.5b`, `qwen2.5:0.5b` | a stated count of 5-14B — `qwen2.5-7b`, `gemma-2-9b`, `qwen3-14b` | larger stated sizes — `qwen3-32b`, `llama-3-70b`, `llama-3.1-405b` |
 | — | vendor small tiers — `gpt-5-mini`, `claude-haiku-4-5`, `gemini-nano` | everything else — `claude-opus-4-8`, `deepseek-v4-pro`, `gemini-2.5-pro` |
+
+The count is read as a **number**, so a fractional size means what it says:
+`1.5b` is 1.5B, not 5B. Where an id states two counts the first wins, which is
+how an MoE id reads as its total rather than its active parameters
+(`qwen3-30b-a3b` → 30B → `full`). A stated count also outranks a label, so
+`some-mini-32b` stays `full`.
 
 The two bands are asymmetric on purpose. `lean` keeps every section and tool and
 only reshapes prose, so a false positive is cheap — which is why every vendor

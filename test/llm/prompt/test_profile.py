@@ -11,6 +11,7 @@ from zrb.llm.prompt.profile import (
     PRESETS,
     ModelProfileRegistry,
     Preset,
+    active_preset,
     model_profile_registry,
     register_model_profile,
     resolve_preset,
@@ -85,13 +86,12 @@ def test_built_in_defaults_survive_clearing_user_declarations():
     assert resolve_profile("auto", "ollama:qwen2.5-7b") == LEAN_PROFILE
 
 
-def test_a_registry_without_defaults_matches_nothing():
-    from zrb.llm.prompt.profile import ModelProfileRegistry
-
-    isolated = ModelProfileRegistry(defaults=())
-    assert isolated.resolve("ollama:qwen2.5-7b") is None
-    isolated.set("qwen2.5-7b", "lean")
-    assert isolated.resolve("ollama:qwen2.5-7b") == LEAN_PROFILE
+def test_a_model_declaring_nothing_resolves_to_nothing():
+    """`resolve` reports "no opinion" rather than guessing, so `auto` can fall back."""
+    isolated = ModelProfileRegistry()
+    assert isolated.resolve("ollama:some-model") is None
+    isolated.set("some-model", "lean")
+    assert isolated.resolve("ollama:some-model") == LEAN_PROFILE
 
 
 def test_none_or_blank_profile_behaves_like_auto():
@@ -168,6 +168,34 @@ def test_the_old_explicit_value_is_no_longer_a_profile():
 def test_auto_selects_minimal_only_from_a_declared_size_of_4b_or_less():
     for model in ["ollama:qwen2.5:3b", "ollama:llama3.2:3B", "local/phi-2b", "tiny-1b"]:
         assert resolve_profile("auto", model) == MINIMAL_PROFILE, model
+
+
+def test_a_fractional_parameter_count_reads_as_one_number():
+    """`1.5b` is 1.5B, not 5B — the case a per-band digit class got wrong.
+
+    `deepseek-r1:1.5b` and `qwen2.5:0.5b` are the two most common local models
+    on the planet, and both landed on `lean` (the 5-14B preset) because the
+    digit before the `b` was read in isolation. A stated size is parsed as a
+    number now, so the decimal is part of it.
+    """
+    for model in ["ollama:deepseek-r1:1.5b", "ollama:qwen2.5:0.5b", "phi3:3.8b"]:
+        assert resolve_profile("auto", model) == MINIMAL_PROFILE, model
+
+
+def test_the_first_declared_count_is_the_one_read():
+    """A model stating two sizes (`qwen3-30b-a3b`) is stating the larger first.
+
+    An MoE id names total parameters before active ones. Reading the trailing
+    `a3b` would hand a 30B model the ~3B preset; the leading count is both the
+    conservative choice and the one vendors put first.
+    """
+    assert resolve_profile("auto", "ollama:qwen3-30b-a3b") == FULL_PROFILE
+
+
+def test_a_declared_size_outranks_a_small_tier_label():
+    """The count is the more specific claim, so it wins where both appear."""
+    assert resolve_profile("auto", "some-mini-32b") == FULL_PROFILE
+    assert resolve_profile("auto", "some-mini-3b") == MINIMAL_PROFILE
 
 
 def test_the_size_bands_do_not_overlap():
@@ -255,6 +283,20 @@ def test_an_unknown_profile_degrades_to_the_full_surface():
     """A stale config must lose nothing rather than land on a crippled preset."""
     preset = resolve_preset("no-such-profile")
     assert (preset.sections, preset.variant, preset.tools) == (None, None, None)
+
+
+def test_active_preset_reads_the_knob_and_the_model_together(monkeypatch):
+    """The one call every consumer of the three axes makes.
+
+    `PromptManager` (sections, phrasing) and `apply_common_tools` (tools) would
+    otherwise each spell out knob-then-model resolution, which is how the two
+    drift apart.
+    """
+    monkeypatch.setenv("ZRB_LLM_PROFILE", "minimal")
+    assert active_preset("anthropic:claude-opus-4").sections == MINIMAL_SECTIONS
+    monkeypatch.setenv("ZRB_LLM_PROFILE", "auto")
+    assert active_preset("ollama:qwen2.5:3b").tools == MINIMAL_TOOLS
+    assert active_preset("anthropic:claude-opus-4").tools is None
 
 
 def test_a_user_can_register_a_fourth_preset():

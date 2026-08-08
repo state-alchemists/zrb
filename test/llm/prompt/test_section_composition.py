@@ -342,15 +342,13 @@ def test_workflow_lean_names_no_tool_that_does_not_exist():
     `lean` keeps every tool, so the risk is not a trimmed surface but a stale
     name: nothing strips a tool reference that no longer resolves.
     """
-    from zrb.llm.common_tools import apply_common_tools
+    from zrb.llm.common_tools import apply_common_tools, tool_name
 
     registered: set[str] = set()
 
     class _Host:
         def add_tool(self, *tool):
-            for t in tool:
-                fn = getattr(t, "function", t)
-                registered.add(getattr(fn, "__name__", "") or getattr(t, "name", ""))
+            registered.update(tool_name(t) for t in tool)
 
         def add_tool_factory(self, *factory):
             pass

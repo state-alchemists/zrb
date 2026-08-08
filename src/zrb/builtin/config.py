@@ -64,7 +64,7 @@ def _collect_entries(keyword: str) -> list[tuple[str, str, str]]:
                     # Never display a secret; only whether it is configured.
                     value = "[set]" if raw not in (None, "") else "[unset]"
                 else:
-                    value = "" if raw is None else attr_val._serialize(raw)
+                    value = "" if raw is None else attr_val.serialize(raw)
             except Exception:
                 value = "(error)"
             description = (attr_val.__doc__ or "").replace(

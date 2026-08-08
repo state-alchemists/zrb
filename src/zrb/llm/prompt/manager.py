@@ -1,5 +1,4 @@
 import inspect
-import os
 from functools import partial
 from typing import Any, Callable, TypeGuard, cast
 
@@ -11,7 +10,7 @@ from zrb.llm.prompt.claude import (
     create_project_context_prompt,
 )
 from zrb.llm.prompt.live_context import render_live_context
-from zrb.llm.prompt.profile import resolve_preset, resolve_profile
+from zrb.llm.prompt.profile import Preset, active_preset
 from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.prompt.section_filter import filter_requires
 from zrb.llm.prompt.system_context import system_context
@@ -130,6 +129,10 @@ class PromptManager:
            through the variant axis and keep every section — ADR-0075),
         4. ``CFG.LLM_INCLUDE_SECTIONS``.
 
+        Only the *env var* counts as the user naming a list: overriding
+        ``CFG.DEFAULT_LLM_INCLUDE_SECTIONS`` in ``zrb_init.py`` changes the
+        *default*, and a preset outranking a default is the intended precedence.
+
         Journaling is not one of them: there is no prompt section to
         suppress, so ``LLM_JOURNAL_ENABLED`` gates the journal *tools* at
         registration instead (see ``apply_common_tools``), and the index
@@ -137,11 +140,20 @@ class PromptManager:
         """
         if self._include_sections is not None:
             return list(self._include_sections)
-        if not _sections_set_in_env():
-            preset = resolve_preset(resolve_profile(CFG.LLM_PROFILE, self._model))
-            if preset.sections is not None:
-                return list(preset.sections)
+        sections = self.active_preset.sections
+        if sections is not None and not CFG.is_env_set("LLM_INCLUDE_SECTIONS"):
+            return list(sections)
         return list(CFG.LLM_INCLUDE_SECTIONS)
+
+    @property
+    def active_preset(self) -> Preset:
+        """The preset the configured ``LLM_PROFILE`` binds for the active model.
+
+        Read for two of its three axes: the section list above, and the phrasing
+        variant threaded to file-backed sections in ``_get_composed_middlewares``.
+        The third — the tool surface — is applied by ``apply_common_tools``.
+        """
+        return active_preset(self._model)
 
     @property
     def model(self) -> Any:
@@ -381,15 +393,11 @@ class PromptManager:
     ) -> list[PromptMiddleware | str]:
         sections = self.active_sections
 
-        # Resolve the preset (ADR-0075) from the LLM_PROFILE knob + active
-        # model, then take its phrasing axis: file-backed sections resolve
-        # ``{name}.{variant}.md`` with fallback to the base (ADR-0047). This is
-        # how ``lean`` and ``minimal`` get their lighter rulebooks —
-        # ``workflow`` stays the section name and the file resolves per preset.
-        # ``full`` carries no variant, so every section takes the base file. The
-        # preset's *section* axis was already applied by ``active_sections``,
-        # and its *tool* axis by ``apply_common_tools``.
-        variant = resolve_preset(resolve_profile(CFG.LLM_PROFILE, self._model)).variant
+        # The preset's phrasing axis (ADR-0075): file-backed sections resolve
+        # ``{name}.{variant}.md`` with fallback to the base (ADR-0047), which is
+        # how ``lean`` and ``minimal`` get their lighter rulebooks. ``full``
+        # carries no variant, so every section takes the base file.
+        variant = self.active_preset.variant
 
         assistant_name = (
             get_str_attr(ctx, self._assistant_name) if self._assistant_name else None
@@ -538,18 +546,6 @@ class PromptManager:
             return next_fn(ctx, new_prompt)
 
         return middleware
-
-
-def _sections_set_in_env() -> bool:
-    """True when ``LLM_INCLUDE_SECTIONS`` is set in the environment.
-
-    A preset only supplies its section list when the user has not named one
-    (ADR-0075). Only the *env var* counts as naming one: overriding
-    ``CFG.DEFAULT_LLM_INCLUDE_SECTIONS`` in ``zrb_init.py`` changes the
-    *default*, and a preset outranking a default is the intended precedence.
-    """
-    field = cast(Any, type(CFG)).LLM_INCLUDE_SECTIONS
-    return field.env_key(CFG.ENV_PREFIX) in os.environ
 
 
 def new_prompt(new_prompt: str | Callable[[], str], render: bool = False):

@@ -124,15 +124,15 @@ class ChatExecution(ChatState):
         ui_commands = self._get_ui_commands()
 
         # 4. Resolve tools/toolsets from factories using parent context
-        resolved_tools = self._get_all_tools(ctx)
-        resolved_toolsets = self._get_all_toolsets(ctx)
+        resolved_tools = self.get_all_tools(ctx)
+        resolved_toolsets = self.get_all_toolsets(ctx)
 
         # 4a. Wire the resolved model so the system_context section can surface
         # model-specific capability notes (e.g. lack of parallel tool-call
         # support). Re-set on every exec — `/model` switches update
-        # ctx.input.model, which flows through _get_model(ctx).
+        # ctx.input.model, which flows through get_model(ctx).
         if self._prompt_manager is not None:
-            self._prompt_manager.model = self._get_model(ctx)
+            self._prompt_manager.model = self.get_model(ctx)
 
         # 5. Create core LLM task
         llm_task_core = self._create_llm_task_core(
@@ -268,11 +268,11 @@ class ChatExecution(ChatState):
         except Exception as e:
             CFG.LOGGER.debug(f"Background-hook shutdown at teardown failed: {e}")
 
-    def _get_all_tools(self, ctx: AnyContext) -> list[Tool | ToolFuncEither]:
+    def get_all_tools(self, ctx: AnyContext) -> list[Tool | ToolFuncEither]:
         """Get all tools including those resolved from factories using parent context."""
         return resolve_factory_items(self._tools, self._tool_factories, ctx)
 
-    def _get_all_toolsets(self, ctx: AnyContext) -> list[AbstractToolset[None]]:
+    def get_all_toolsets(self, ctx: AnyContext) -> list[AbstractToolset[None]]:
         """Get all toolsets including those resolved from factories using parent context."""
         return resolve_factory_items(self._toolsets, self._toolset_factories, ctx)
 
@@ -486,7 +486,7 @@ class ChatExecution(ChatState):
             return ui.conversation_session_name
         return getattr(ui, "conversation_session_name", initial_conversation_name)
 
-    def _get_model(self, ctx: AnyContext) -> str | Model:
+    def get_model(self, ctx: AnyContext) -> str | Model:
         model = self._model
         rendered_model = get_attr(ctx, model, None, auto_render=self._render_model)
         if isinstance(rendered_model, str) and rendered_model.strip() == "":

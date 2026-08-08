@@ -60,7 +60,7 @@ llm_chat = LLMChatTask(
         ),
     ],
     # fstring template (StrAttr); LLMChatTask.model omits bare str from its
-    # annotation but renders it at run time via get_attr in _get_model.
+    # annotation but renders it at run time via get_attr in get_model.
     model="{ctx.input.model}",  # pyright: ignore[reportArgumentType]
     yolo="{ctx.input.yolo}",
     message="{ctx.input.message}",

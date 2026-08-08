@@ -9,7 +9,7 @@ import re
 
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
-from zrb.llm.common_tools import apply_common_tools
+from zrb.llm.common_tools import apply_common_tools, tool_name
 from zrb.llm.prompt.profile import MINIMAL_TOOLS
 
 
@@ -34,19 +34,18 @@ class RecordingHost:
     def add_tool_policy(self, *policy):
         self.policies.extend(policy)
 
-    def resolved_tool_names(self) -> set[str]:
-        """Names of every tool registered directly or via a factory."""
+    def resolved_tools(self) -> list:
+        """Every tool registered directly or produced by a factory."""
         ctx = Context(shared_ctx=SharedContext(), task_name="probe", color=0, icon="x")
         resolved = list(self.tools)
         for factory in self.tool_factories:
             produced = factory(ctx)
             resolved.extend(produced if isinstance(produced, list) else [produced])
-        names = set()
-        for tool in resolved:
-            name = getattr(tool, "__name__", None) or getattr(tool, "name", None)
-            if name:
-                names.add(str(name))
-        return names
+        return resolved
+
+    def resolved_tool_names(self) -> set[str]:
+        """Names of every tool registered directly or via a factory."""
+        return {name for name in map(tool_name, self.resolved_tools()) if name}
 
 
 def _names(monkeypatch, journal_enabled: bool) -> set[str]:
@@ -140,11 +139,10 @@ def test_minimal_tool_set_is_closed_under_docstring_cross_reference(monkeypatch)
 
     dangling = {}
     for tool in minimal_host.tools:
-        fn = getattr(tool, "function", tool)
-        doc = fn.__doc__ or ""
+        doc = getattr(tool, "function", tool).__doc__ or ""
         hits = {n for n in dropped if re.search(rf"\b{re.escape(n)}\b", doc)}
         if hits:
-            dangling[getattr(fn, "__name__", "?")] = sorted(hits)
+            dangling[tool_name(tool)] = sorted(hits)
     assert dangling == {}
 
 
@@ -177,14 +175,26 @@ def test_minimal_registers_no_deferred_tools(monkeypatch):
     host = RecordingHost()
     apply_common_tools(host)
 
-    ctx = Context(shared_ctx=SharedContext(), task_name="probe", color=0, icon="x")
-    resolved = list(host.tools)
-    for factory in host.tool_factories:
-        produced = factory(ctx)
-        resolved.extend(produced if isinstance(produced, list) else [produced])
+    deferred = [t for t in host.resolved_tools() if getattr(t, "defer_loading", False)]
+    assert deferred == [], [tool_name(t) for t in deferred]
 
-    deferred = [t for t in resolved if getattr(t, "defer_loading", False)]
-    assert deferred == [], [getattr(t, "name", t) for t in deferred]
+
+def test_minimal_registers_no_mcp_toolsets(monkeypatch):
+    """A closed tool surface cannot include a list it does not know.
+
+    An MCP server's tools are discovered at connect time, so a name filter here
+    has nothing to filter — the preset would advertise an unbounded surface
+    while claiming a ten-tool ceiling.
+    """
+    monkeypatch.setenv("ZRB_LLM_PROFILE", "minimal")
+    host = RecordingHost()
+    apply_common_tools(host)
+    assert host.toolset_factories == []
+
+    monkeypatch.setenv("ZRB_LLM_PROFILE", "full")
+    unconstrained = RecordingHost()
+    apply_common_tools(unconstrained)
+    assert unconstrained.toolset_factories != []
 
 
 def test_unconstrained_presets_keep_the_full_surface(monkeypatch):

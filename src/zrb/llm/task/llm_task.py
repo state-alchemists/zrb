@@ -228,7 +228,7 @@ class LLMTask(LLMTaskBuilding, LLMTaskHistory, BaseTask):
         # this stack would never be used, the batch given to the agent would
         # never be entered, and factory side effects (e.g. MCP server spawn)
         # would run twice per turn.
-        toolsets = self._get_all_toolsets(ctx)
+        toolsets = self.get_all_toolsets(ctx)
         async with AsyncExitStack() as stack:
             for toolset in toolsets:
                 if hasattr(toolset, "__aenter__"):
@@ -239,8 +239,8 @@ class LLMTask(LLMTaskBuilding, LLMTaskHistory, BaseTask):
     async def _exec_action_inner(
         self, ctx: AnyContext, toolsets: "list[AbstractToolset[None]] | None" = None
     ) -> Any:
-        conversation_name = self._get_conversation_name(ctx)
-        history_manager = self._get_history_manager(ctx)
+        conversation_name = self.get_conversation_name(ctx)
+        history_manager = self.get_history_manager(ctx)
         # Offload: load deserializes + re-validates the whole conversation —
         # O(history) blocking work that would stall the TUI's event loop.
         message_history = await asyncio.to_thread(
@@ -269,7 +269,7 @@ class LLMTask(LLMTaskBuilding, LLMTaskHistory, BaseTask):
             ctx, inject_journal_index=not message_history
         )
         agent = self._create_agent(ctx, system_prompt=system_prompt, toolsets=toolsets)
-        effective_message, effective_attachments = self._get_effective_prompt(
+        effective_message, effective_attachments = self.get_effective_prompt(
             ctx, user_message, user_attachments, message_history
         )
 
@@ -313,7 +313,7 @@ class LLMTask(LLMTaskBuilding, LLMTaskHistory, BaseTask):
             )
         except asyncio.CancelledError as ce:
             partial_run = getattr(ce, "zrb_partial_run", None)
-            self._save_cancelled_history(
+            self.save_cancelled_history(
                 history_manager,
                 conversation_name,
                 message_history,
@@ -323,7 +323,7 @@ class LLMTask(LLMTaskBuilding, LLMTaskHistory, BaseTask):
             raise
         except Exception as e:
             partial_run = getattr(e, "zrb_partial_run", None)
-            self._handle_run_error(
+            self.handle_run_error(
                 ctx, history_manager, conversation_name, e, partial_run=partial_run
             )
             raise e
@@ -335,7 +335,7 @@ class LLMTask(LLMTaskBuilding, LLMTaskHistory, BaseTask):
         await asyncio.to_thread(history_manager.save, conversation_name)
         ctx.log_debug(f"All messages: {new_history}")
 
-        return self._post_process_output(output)
+        return self.post_process_output(output)
 
     async def _handle_summarization(
         self,
@@ -399,12 +399,12 @@ class LLMTask(LLMTaskBuilding, LLMTaskHistory, BaseTask):
         # may be pre-resolved by _exec_action (which entered their contexts) —
         # re-resolving here would hand the agent different, never-entered
         # instances.
-        resolved_tools = self._get_all_tools(ctx)
+        resolved_tools = self.get_all_tools(ctx)
         resolved_toolsets = (
-            toolsets if toolsets is not None else self._get_all_toolsets(ctx)
+            toolsets if toolsets is not None else self.get_all_toolsets(ctx)
         )
 
-        base_model = self._get_model(ctx)
+        base_model = self.get_model(ctx)
         final_model = self._llm_config.resolve_model(base_model)
 
         for ui in self._uis:
@@ -419,7 +419,7 @@ class LLMTask(LLMTaskBuilding, LLMTaskHistory, BaseTask):
             system_prompt=system_prompt,
             tools=resolved_tools,
             toolsets=resolved_toolsets,
-            model_settings=self._get_model_settings(ctx),
+            model_settings=self.get_model_settings(ctx),
             history_processors=self._history_processors,
             capabilities=self._capabilities,
             yolo=should_skip_approval,

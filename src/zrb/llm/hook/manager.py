@@ -79,6 +79,21 @@ class HookManager(HookManagerLoading):
         # the running loop (see _run_background_hook).
         self._bg_semaphore: asyncio.Semaphore | None = None
 
+    @property
+    def search_dirs(self) -> list[str | Path] | None:
+        """Directories scanned for hook files; ``None`` means "ask the config".
+
+        Assigning invalidates the load, so the next access rescans — which is
+        how a caller points an already-constructed manager somewhere else (an
+        empty list being the way to say "discover nothing").
+        """
+        return self._search_dirs
+
+    @search_dirs.setter
+    def search_dirs(self, value: list[str | Path] | None) -> None:
+        self._search_dirs = value
+        self._loaded = False
+
     def _ensure_loaded(self):
         """Lazy load hooks on first access. No-op if already loaded."""
         if not self._loaded:
