@@ -262,7 +262,7 @@ compose, how they are phrased, and which tools register (ADR-0075).
 
 `auto` reads a **stated size**, never a family name. `deepseek`, `qwen`, and
 `llama` span tiny instruct models through frontier models, so a family name tells
-you nothing — but `-7b` is the vendor stating a parameter count, and `lean` /
+you nothing — but `-7b` is the vendor stating a parameter count, and `mini` /
 `haiku` / `nano` are vendor size tiers. Built-in matches:
 
 | Selects `minimal` | Selects `lean` | Stays `full` |
@@ -270,12 +270,13 @@ you nothing — but `-7b` is the vendor stating a parameter count, and `lean` /
 | a stated count of 4B or less — `qwen2.5:3b`, `llama3.2:3b`, `phi-2b` | a stated count of 5-14B — `qwen2.5-7b`, `gemma-2-9b`, `qwen3-14b` | larger stated sizes — `qwen3-32b`, `llama-3-70b`, `llama-3.1-405b` |
 | — | vendor small tiers — `gpt-5-mini`, `claude-haiku-4-5`, `gemini-nano` | everything else — `claude-opus-4-8`, `deepseek-v4-pro`, `gemini-2.5-pro` |
 
-The two bands are asymmetric on purpose. `lean` only *adds* demonstrations, so a
-false positive costs a few example tokens — cheap, which is why vendor
-small-tier labels resolve there. `minimal` *removes* sections and tools, so a
-false positive costs real capability; only a stated ≤4B count selects it, and
-`nano`/`tiny` label models (`gpt-5-nano`) far more capable than a 3B local one.
-Declare a local model into `minimal` explicitly (see below).
+The two bands are asymmetric on purpose. `lean` keeps every section and tool and
+only reshapes prose, so a false positive is cheap — which is why every vendor
+small-tier label (`mini`, `micro`, `nano`, `tiny`, `small`, `lite`, `haiku`)
+resolves there. `minimal` *removes* sections and tools, so a false positive
+costs real capability; only a stated ≤4B count selects it, never a label,
+because `nano`/`tiny` sit on models (`gpt-5-nano`) far more capable than a 3B
+local one. Declare a local model into `minimal` explicitly (see below).
 
 Burden falls as the target model gets weaker: each preset's rulebook is strictly
 smaller than the one above it. Demonstrations move the other way, because a
@@ -310,12 +311,27 @@ register_model_profile(r"^ollama:", "lean")            # or match a whole provid
 ```
 
 How the overlay works: the base prompt `.md` files *are* the `full` profile.
-`lean` is an overlay — for a section named `persona`, the loader prefers
-`persona.lean.md` and falls back to `persona.md` when no variant exists. A
-variant *replaces* its base file rather than appending to it, so a variant you
-add must repeat everything the base says that still applies. It follows the same
-project-override → env → base-dir → package lookup as any prompt file, so you can
-override a variant too.
+Every other preset is an overlay — for a section named `workflow`, the loader
+prefers `workflow.lean.md` (or `workflow.minimal.md`) and falls back to
+`workflow.md` when no variant exists. This is the only naming convention
+involved: a section name never carries the preset. A variant *replaces* its base
+file rather than appending to it, so a variant you add must repeat everything
+the base says that still applies. It follows the same project-override → env →
+base-dir → package lookup as any prompt file, so you can override a variant too.
+
+To add a fourth preset, assign one — `PRESETS` is the source of truth for which
+names `ZRB_LLM_PROFILE` accepts:
+
+```python
+from zrb.llm.prompt.profile import PRESETS, Preset, register_model_profile
+
+PRESETS["nano"] = Preset(
+    sections=("persona", "workflow", "system_context"),
+    variant="nano",                       # loads workflow.nano.md, if present
+    tools=frozenset({"Read", "Edit", "LS", "Shell"}),
+)
+register_model_profile(r"my-1b-box", "nano")
+```
 
 > An unrecognized `ZRB_LLM_PROFILE` value falls through to `auto`, and
 > `register_model_profile(..., "<unknown>")` raises `ValueError`.

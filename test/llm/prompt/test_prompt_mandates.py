@@ -91,10 +91,10 @@ def test_get_prompt_lean_profile_falls_back_when_no_variant():
 
 
 def test_get_prompt_full_profile_uses_base_file():
-    """The base files ARE the terse profile — no .terse variant is consulted."""
+    """The base files ARE the `full` profile — no .full variant is consulted."""
     base = get_prompt("persona", ASSISTANT_NAME="Zrb")
-    terse = get_prompt("persona", profile="full", ASSISTANT_NAME="Zrb")
-    assert terse == base
+    full = get_prompt("persona", profile="full", ASSISTANT_NAME="Zrb")
+    assert full == base
 
 
 def test_get_prompt_profile_falls_back_to_base_when_no_variant():

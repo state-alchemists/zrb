@@ -337,7 +337,7 @@ def test_rule_burden_falls_as_the_target_model_gets_weaker():
 
 
 def test_workflow_lean_names_no_tool_that_does_not_exist():
-    """Same guard as `workflow_minimal`, against the full tool surface.
+    """Same guard as `workflow.minimal.md`, against the full tool surface.
 
     `lean` keeps every tool, so the risk is not a trimmed surface but a stale
     name: nothing strips a tool reference that no longer resolves.

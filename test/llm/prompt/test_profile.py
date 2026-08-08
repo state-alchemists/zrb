@@ -62,7 +62,7 @@ def test_auto_selects_lean_from_a_declared_small_size():
 
 
 def test_auto_does_not_read_a_large_declared_size_as_small():
-    """The size rule accepts 1-14B only; bigger stated counts stay terse."""
+    """The size rule accepts 1-14B only; bigger stated counts stay `full`."""
     for model in ["qwen3-32b", "llama-3-70b", "llama-3.1-405b"]:
         assert resolve_profile("auto", model) == FULL_PROFILE, model
 
