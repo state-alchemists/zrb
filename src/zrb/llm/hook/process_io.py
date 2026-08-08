@@ -73,22 +73,26 @@ def read_hook_output(
 
         while sel.get_map():
             events = sel.select(timeout=_HOOK_DRAIN_INTERVAL)
-            had_readable = False
             for key, _ in events:
                 if key.fileobj is process.stdin:
                     pending = _write_stdin(sel, process.stdin, pending)
                 else:
-                    had_readable = True
                     _read_pipe(sel, key, collected[key.fd])
             if process.poll() is None:
                 continue
             # The child is gone: stop feeding it, and leave as soon as a full
-            # poll interval turns up nothing more to read. Whatever still holds
-            # these pipes open is a descendant that outlived it.
+            # poll interval turns up nothing at all. Whatever still holds these
+            # pipes open is a descendant that outlived it.
+            #
+            # The exit test is "this poll returned nothing", not "this poll read
+            # nothing". A poll that only saw stdin *writable* returned early —
+            # stdin is writable from the moment the child is spawned — so it
+            # proves nothing about a quiet interval, and a fast child's buffered
+            # output would be closed unread.
             if process.stdin is not None:
                 _unregister(sel, process.stdin)
                 _close_pipe(process.stdin)
-            if not had_readable:
+            if not events:
                 break
     finally:
         sel.close()

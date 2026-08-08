@@ -45,9 +45,7 @@ from zrb.llm.permission import (
 )
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.sandbox import SandboxInput, coerce_sandbox
-from zrb.llm.summarizer import (
-    summarize_history,
-)
+from zrb.llm.summarizer import summarize_history
 from zrb.llm.task.building import LLMTaskBuilding
 from zrb.llm.task.history import LLMTaskHistory
 from zrb.llm.util.attachment import get_attachments
@@ -138,6 +136,72 @@ class LLMTask(LLMTaskBuilding, LLMTaskHistory, BaseTask):
         successor: list[AnyTask] | AnyTask | None = None,
         print_fn: PrintFn | None = None,
     ):
+        """Define a single-turn LLM task: one prompt in, one response out.
+
+        Use `LLMChatTask` instead when you want an interactive conversation.
+
+        A `render_x` flag controls whether `x` is treated as an f-string template
+        rendered against the task context. Set it False to pass a literal value
+        containing braces.
+
+        Args:
+            message: The user message to send. Usually a template referencing an
+                input, such as `"{ctx.input.question}"`.
+            render_message: Whether to render `message` as a template.
+            attachment: Images or files to send alongside the message. A single
+                item, a list, or a callable taking the context.
+            system_prompt: System prompt text, or a callable taking the context.
+                Overrides whatever `prompt_manager` would compose.
+            render_system_prompt: Whether to render `system_prompt` as a template.
+                Off by default, since prompts commonly contain braces.
+            prompt_manager: `PromptManager` composing the system prompt from
+                sections. Defaults to the shared one.
+            active_skills: Names of skills to pre-activate for this task.
+            render_active_skills: Whether to render `active_skills` as templates.
+            model: The model to use, as a name or a pydantic-ai `Model`. Defaults
+                to the one from `llm_config`.
+            render_model: Whether to render `model` as a template.
+            model_settings: Provider settings such as temperature, or a callable
+                taking the context.
+            custom_model_names: Extra model names to offer beyond the detected
+                ones.
+            llm_config: Credentials and endpoint settings. Defaults to the shared
+                `llm_config`.
+            llm_limiter: Rate and token limiter. Defaults to the shared
+                `llm_limiter`.
+            capabilities: pydantic-ai capabilities to enable for the run.
+            tools: Functions or `Tool`s the model may call.
+            toolsets: Toolsets whose tools the model may call.
+            tool_factories: Callables building tools per run from the context. Use
+                these when a tool must close over resolved inputs.
+            toolset_factories: Callables building toolsets per run from the
+                context.
+            tool_confirmation: Policy deciding which tool calls need approval.
+            approval_channel: Channel carrying approval requests to whoever answers
+                them. Without one, a call needing approval is denied rather than
+                blocking.
+            permissions: Policy bounding which files and commands tools may touch.
+            sandbox: Whether, and how, tool calls run sandboxed.
+            yolo: Skip tool confirmation. True for all tools, or a comma-separated
+                string or set naming the tools to auto-approve.
+            dynamic_yolo: Callable re-evaluating `yolo` per tool call, for a
+                decision that depends on run-time state.
+            conversation_name: Name the conversation is stored under.
+            render_conversation_name: Whether to render `conversation_name` as a
+                template.
+            history_manager: Store persisting conversation history across runs.
+                Without one, history lives in memory only.
+            history_processors: Callables rewriting history before each request,
+                run in order. This is the seam summarization uses.
+            summarize_commands: Aliases for the summarize command exposed to any
+                attached UI.
+            hook_manager: `HookManager` supplying lifecycle hooks. Defaults to a
+                task-local manager.
+            ui: UI receiving streamed output and prompts.
+
+        Every parameter `BaseTask` accepts is also accepted here and behaves
+        identically; see `BaseTask` for those.
+        """
         super().__init__(
             name=name,
             color=color,
@@ -208,10 +272,12 @@ class LLMTask(LLMTaskBuilding, LLMTaskHistory, BaseTask):
 
     @property
     def llm_config(self) -> LLMConfig:
+        """Model, credentials, and endpoint settings backing this task."""
         return self._llm_config
 
     @property
     def llm_limiter(self) -> LLMLimiter:
+        """Rate and token limiter throttling this task's requests."""
         return self._llm_limiter
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
@@ -228,7 +294,7 @@ class LLMTask(LLMTaskBuilding, LLMTaskHistory, BaseTask):
         # this stack would never be used, the batch given to the agent would
         # never be entered, and factory side effects (e.g. MCP server spawn)
         # would run twice per turn.
-        toolsets = self._get_all_toolsets(ctx)
+        toolsets = self.get_all_toolsets(ctx)
         async with AsyncExitStack() as stack:
             for toolset in toolsets:
                 if hasattr(toolset, "__aenter__"):
@@ -239,8 +305,8 @@ class LLMTask(LLMTaskBuilding, LLMTaskHistory, BaseTask):
     async def _exec_action_inner(
         self, ctx: AnyContext, toolsets: "list[AbstractToolset[None]] | None" = None
     ) -> Any:
-        conversation_name = self._get_conversation_name(ctx)
-        history_manager = self._get_history_manager(ctx)
+        conversation_name = self.get_conversation_name(ctx)
+        history_manager = self.get_history_manager(ctx)
         # Offload: load deserializes + re-validates the whole conversation —
         # O(history) blocking work that would stall the TUI's event loop.
         message_history = await asyncio.to_thread(
@@ -269,7 +335,7 @@ class LLMTask(LLMTaskBuilding, LLMTaskHistory, BaseTask):
             ctx, inject_journal_index=not message_history
         )
         agent = self._create_agent(ctx, system_prompt=system_prompt, toolsets=toolsets)
-        effective_message, effective_attachments = self._get_effective_prompt(
+        effective_message, effective_attachments = self.get_effective_prompt(
             ctx, user_message, user_attachments, message_history
         )
 
@@ -313,7 +379,7 @@ class LLMTask(LLMTaskBuilding, LLMTaskHistory, BaseTask):
             )
         except asyncio.CancelledError as ce:
             partial_run = getattr(ce, "zrb_partial_run", None)
-            self._save_cancelled_history(
+            self.save_cancelled_history(
                 history_manager,
                 conversation_name,
                 message_history,
@@ -323,7 +389,7 @@ class LLMTask(LLMTaskBuilding, LLMTaskHistory, BaseTask):
             raise
         except Exception as e:
             partial_run = getattr(e, "zrb_partial_run", None)
-            self._handle_run_error(
+            self.handle_run_error(
                 ctx, history_manager, conversation_name, e, partial_run=partial_run
             )
             raise e
@@ -335,7 +401,7 @@ class LLMTask(LLMTaskBuilding, LLMTaskHistory, BaseTask):
         await asyncio.to_thread(history_manager.save, conversation_name)
         ctx.log_debug(f"All messages: {new_history}")
 
-        return self._post_process_output(output)
+        return self.post_process_output(output)
 
     async def _handle_summarization(
         self,
@@ -399,12 +465,12 @@ class LLMTask(LLMTaskBuilding, LLMTaskHistory, BaseTask):
         # may be pre-resolved by _exec_action (which entered their contexts) —
         # re-resolving here would hand the agent different, never-entered
         # instances.
-        resolved_tools = self._get_all_tools(ctx)
+        resolved_tools = self.get_all_tools(ctx)
         resolved_toolsets = (
-            toolsets if toolsets is not None else self._get_all_toolsets(ctx)
+            toolsets if toolsets is not None else self.get_all_toolsets(ctx)
         )
 
-        base_model = self._get_model(ctx)
+        base_model = self.get_model(ctx)
         final_model = self._llm_config.resolve_model(base_model)
 
         for ui in self._uis:
@@ -419,7 +485,7 @@ class LLMTask(LLMTaskBuilding, LLMTaskHistory, BaseTask):
             system_prompt=system_prompt,
             tools=resolved_tools,
             toolsets=resolved_toolsets,
-            model_settings=self._get_model_settings(ctx),
+            model_settings=self.get_model_settings(ctx),
             history_processors=self._history_processors,
             capabilities=self._capabilities,
             yolo=should_skip_approval,

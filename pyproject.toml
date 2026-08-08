@@ -1,6 +1,6 @@
 [project]
 name = "zrb"
-version = "2.56.0"
+version = "2.57.0"
 description = "Your Automation Powerhouse"
 authors = [{name = "Go Frendi Gunawan", email = "gofrendiasgard@gmail.com"}]
 license = "AGPL-3.0-or-later"
@@ -24,9 +24,17 @@ dependencies = [
     # Security fix: GHSA-4xgf-cpjx-pc3j - NestedSecretsSettingsSource follows symlinks outside secrets_dir.
     # pydantic-settings is transitive via pydantic-ai-slim → fastmcp-slim → mcp. Pin >=2.14.2.
     "pydantic-settings>=2.14.2",
-    "pydantic-ai-slim[mcp]>=2.8.0,<2.9.0",
+    "pydantic-ai-slim[mcp]>=2.27.0,<2.28.0",
     # NOTE: Make sure the following dependencies are not conflicting with pydantic-ai-slim
-    "openai>=2.29.0",
+    # `openai` is a core dependency (not an extra) because every OpenAI-compatible
+    # provider routes through it — OpenAI, Ollama, DeepSeek, OpenRouter, Z.ai,
+    # Cerebras, Together, and the rest.
+    # >=2.45.0 is a hard floor, not a preference: `OpenAIChatModel._completions_create`
+    # passes `prompt_cache_options=` to `chat.completions.create()` unconditionally
+    # (it sends OMIT when unset, but still passes the keyword), and that parameter
+    # only exists from openai 2.45.0. An older SDK raises TypeError on *every*
+    # request. Same floor pydantic-ai's own `openai` extra sets.
+    "openai>=2.45.0",
     "prompt-toolkit>=3",
     "rich>=13",
     # Security fix: GHSA/CVE-2026-59950 - Cross-Site WebSocket Hijacking via unvalidated Host/Origin
@@ -98,22 +106,36 @@ anthropic = ["anthropic>=0.108.0"]
 groq = ["groq>=0.25.0"]
 # Security fix (GHSA for supply-chain attack, see pydantic-ai #5382): mistralai==2.4.6 was
 # quarantined on PyPI. We exclude it the same way pydantic-ai-slim's mistral extra does.
-mistral = ["mistralai>=2.0.0,!=2.4.6"]
+# >=2.4.2 is pydantic-ai's floor: below it, `prompt_cache_key` and `reasoning_effort`
+# are missing from `chat.complete_async` / `chat.stream_async`.
+mistral = ["mistralai>=2.4.2,!=2.4.6"]
 xai = [
-    "xai-sdk>=1.12.2",
+    # >=1.14.0 matches pydantic-ai's floor for the xAI SDK.
+    "xai-sdk>=1.14.0",
     # Security fix: GHSA-hg6j-4rv6-33pg (CVE-2026-47265) - cross-origin redirect leaks per-request cookies.
-    # Security fix: GHSA-xcgm-r5h9-7989 (CVE-2026-54274) - incomplete WebSocket frame payloads bypass memory limits. We pin >=3.14.1.
-    "aiohttp>=3.14.1",
+    # Security fix: GHSA-xcgm-r5h9-7989 (CVE-2026-54274) - incomplete WebSocket frame payloads bypass memory limits.
+    # Security fix: GHSA-mfx4-hv73-q22v (CVE-2026-69243) - HTTP request smuggling via WebSocket upgrade.
+    # Security fix: GHSA-mq44-7p77-q5h7 (CVE-2026-59881) - WebSocket client accepts compressed frames without negotiated permessage-deflate.
+    # Security fix: GHSA-cq5v-8q36-5273 (CVE-2026-69244) - out-of-bounds heap read in the C response parser. We pin >=3.14.3.
+    "aiohttp>=3.14.3",
 ]
 bedrock = ["boto3>=1.42.63"]
-huggingface = ["huggingface-hub[inference]>=1.3.4,<2.0.0"]
+huggingface = [
+    "huggingface-hub[inference]>=1.3.4,<2.0.0",
+    # huggingface_hub 1.3.x calls the deprecated hf_xet.download_files() API,
+    # so hf-xet must stay below 1.5.0. Mirrors pydantic-ai-slim's huggingface extra.
+    "hf-xet<1.5.0; platform_machine == 'x86_64' or platform_machine == 'amd64' or platform_machine == 'AMD64' or platform_machine == 'arm64' or platform_machine == 'aarch64'",
+]
 voyageai = [
     "voyageai>=0.3.7 ; python_version < '3.14'",
     # Security fix: CVE-2026-34070, CVE-2026-44843 (GHSA-pjwx-r37v-7724) - unsafe deserialization.
     "langchain-core>=1.3.3",
     # Security fix: GHSA-hg6j-4rv6-33pg (CVE-2026-47265) - cross-origin redirect leaks per-request cookies.
-    # Security fix: GHSA-xcgm-r5h9-7989 (CVE-2026-54274) - incomplete WebSocket frame payloads bypass memory limits. We pin >=3.14.1.
-    "aiohttp>=3.14.1",
+    # Security fix: GHSA-xcgm-r5h9-7989 (CVE-2026-54274) - incomplete WebSocket frame payloads bypass memory limits.
+    # Security fix: GHSA-mfx4-hv73-q22v (CVE-2026-69243) - HTTP request smuggling via WebSocket upgrade.
+    # Security fix: GHSA-mq44-7p77-q5h7 (CVE-2026-59881) - WebSocket client accepts compressed frames without negotiated permessage-deflate.
+    # Security fix: GHSA-cq5v-8q36-5273 (CVE-2026-69244) - out-of-bounds heap read in the C response parser. We pin >=3.14.3.
+    "aiohttp>=3.14.3",
     # Security fix: GHSA-fv5p-p927-qmxr - SSRF via redirect bypass in HTMLHeaderTextSplitter.split_text_from_url().
     "langchain-text-splitters>=1.1.2",
     # Security fix: GHSA-3644-q5cj-c5c7 (CVE-2026-45134) - unsafe prompt-manifest deserialization.
@@ -170,6 +192,7 @@ pytest-cov = "^6.1.0"
 pytest-asyncio = "^1.3.0"
 tomlkit = "^0.13.3"
 httpx2 = ">=2.4.0"
+radon = "^6.0.1"
 
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "function"

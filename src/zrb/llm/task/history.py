@@ -27,7 +27,12 @@ if TYPE_CHECKING:
 
 
 class LLMTaskHistory:
-    """Conversation/history resolution and error/cancellation recovery."""
+    """Conversation/history resolution and error/cancellation recovery.
+
+    Every method here is part of the host's surface rather than an internal
+    detail: the host calls them by name, and a subclass overrides them to change
+    where history lives or what a failed run leaves behind.
+    """
 
     if TYPE_CHECKING:
         # Attributes supplied by the host class (set in LLMTask.__init__).
@@ -35,12 +40,14 @@ class LLMTaskHistory:
         _conversation_name: StrAttr | None
         _render_conversation_name: bool
 
-    def _get_history_manager(self, ctx: AnyContext) -> AnyHistoryManager:
+    def get_history_manager(self, ctx: AnyContext) -> AnyHistoryManager:
+        """The configured history manager, or a default file-backed one."""
         if self._history_manager is not None:
             return self._history_manager
         return FileHistoryManager(history_dir=CFG.LLM_HISTORY_DIR)
 
-    def _get_conversation_name(self, ctx: AnyContext) -> str:
+    def get_conversation_name(self, ctx: AnyContext) -> str:
+        """The configured conversation name, or a fresh random one when blank."""
         conversation_name = str(
             get_attr(ctx, self._conversation_name, "", self._render_conversation_name)
         )
@@ -48,13 +55,18 @@ class LLMTaskHistory:
             conversation_name = get_random_name()
         return conversation_name
 
-    def _get_effective_prompt(
+    def get_effective_prompt(
         self,
         ctx: AnyContext,
         user_message: str,
         user_attachments: list[Any] | None,
         message_history: list[Any],
     ) -> tuple[str, list[Any] | None]:
+        """The message to send this attempt, plus the attachments to send with it.
+
+        On a retry whose message is already the last user turn in history,
+        re-sending it would duplicate the turn, so a retry notice goes instead.
+        """
         # Detect retry and avoid duplicating the initial message if it's already in history
         # Also, if it's a retry, we might want to inform the LLM about the previous failure.
         if ctx.attempt > 1 and len(message_history) > 0:
@@ -95,7 +107,7 @@ class LLMTaskHistory:
                 )
         return user_message, user_attachments
 
-    def _is_context_length_error(self, error: Exception) -> bool:
+    def is_context_length_error(self, error: Exception) -> bool:
         """Return True when the error is a model context-length / prompt-too-long rejection."""
         err_str = str(error).lower()
         context_keywords = [
@@ -115,7 +127,7 @@ class LLMTaskHistory:
             return True
         return False
 
-    def _handle_run_error(
+    def handle_run_error(
         self,
         ctx: AnyContext,
         history_manager: AnyHistoryManager,
@@ -123,6 +135,12 @@ class LLMTaskHistory:
         error: Exception,
         partial_run: Any = None,
     ):
+        """Persist what a failed run leaves behind, so the next retry sees it.
+
+        No-op unless the error carries a ``zrb_history``. A context-length
+        failure saves the history unchanged — appending to it would make the
+        next attempt longer and guarantee the same failure.
+        """
         # lazy: heavy third-party
         from pydantic_ai.messages import (
             ModelRequest,
@@ -137,7 +155,7 @@ class LLMTaskHistory:
             return
         # Do not append error info when the history is already too long — appending
         # would make the next retry even longer and guarantee repeated failures.
-        if self._is_context_length_error(error):
+        if self.is_context_length_error(error):
             ctx.log_warning(
                 "Context-length error detected; not growing history for retry."
             )
@@ -172,7 +190,7 @@ class LLMTaskHistory:
         history_manager.update(conversation_name, new_history)
         history_manager.save(conversation_name)
 
-    def _save_cancelled_history(
+    def save_cancelled_history(
         self,
         history_manager: AnyHistoryManager,
         conversation_name: str,
@@ -218,7 +236,8 @@ class LLMTaskHistory:
         except Exception as e:
             CFG.LOGGER.warning(f"Failed to save cancelled history: {e}")
 
-    def _post_process_output(self, output: Any) -> Any:
+    def post_process_output(self, output: Any) -> Any:
+        """Strip terminal styling from a string result; pass anything else through."""
         if isinstance(output, str):
             # Remove ANSI escape codes first to ensure regex patterns work correctly
             output = remove_style(output)

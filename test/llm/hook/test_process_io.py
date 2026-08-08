@@ -95,6 +95,52 @@ def test_read_hook_output_delivers_the_stdin_payload():
     assert b"Notification" in os.read(process._stdin_r, 4096)
 
 
+class _ProcThatExitsAfterTheFirstPoll:
+    """A child that finishes and flushes between the first select and the poll.
+
+    The shape of every fast hook: `echo hello` is spawned, the selector wakes
+    immediately because *stdin* is writable (it always is), and by the time
+    `poll()` is asked the child has already run, written, and exited.
+    """
+
+    def __init__(self):
+        stdout_r, self._stdout_w = os.pipe()
+        stderr_r, self._stderr_w = os.pipe()
+        self._stdin_r, stdin_w = os.pipe()
+        self.stdout = _FakePipe(stdout_r)
+        self.stderr = _FakePipe(stderr_r)
+        self.stdin = _FakePipe(stdin_w)
+        self.returncode = 0
+        self._exited = False
+
+    def poll(self):
+        if not self._exited:
+            self._exited = True
+            os.write(self._stdout_w, b"hello-context")
+            os.close(self._stdout_w)
+            os.close(self._stderr_w)
+        return self.returncode
+
+    def wait(self):
+        return self.returncode
+
+
+def test_read_hook_output_does_not_drop_a_child_that_exits_in_the_first_poll():
+    """A poll that only saw stdin writable is not a quiet interval.
+
+    The exit test used to be "this poll read nothing", and stdin is writable
+    from the moment the child is spawned — so a child that exited during the
+    first poll had its output discarded unread. `echo hello-context` lost its
+    line often enough to make the hook suite flaky, and a SessionStart hook
+    silently contributed no context at all.
+    """
+    process = _ProcThatExitsAfterTheFirstPoll()
+
+    stdout, _ = read_hook_output(process, b'{"hook_event_name": "SessionStart"}')
+
+    assert stdout == b"hello-context"
+
+
 def test_read_hook_output_survives_a_pipe_that_fails_to_close():
     """A close() that raises must not escape.
 

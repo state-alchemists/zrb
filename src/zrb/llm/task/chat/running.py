@@ -9,7 +9,7 @@ Kept separate from `building.py` because:
 - runner is execution-time orchestration (drives the inner LLMTask + UI loop).
 
 The `_*` state read here is set in `LLMChatTask.__init__` and typed in
-`state.py::ChatState`. The two sibling methods it calls (`_get_model`,
+`state.py::ChatState`. The two sibling methods it calls (`get_model`,
 `_get_ui_conversation_name`, both on ChatExecution) are declared below.
 """
 
@@ -43,7 +43,7 @@ class ChatRunning(ChatState):
 
     if TYPE_CHECKING:
         # Implemented by the sibling ChatExecution on the composed LLMChatTask.
-        def _get_model(self, ctx: "AnyContext") -> "str | Model": ...
+        def get_model(self, ctx: "AnyContext") -> "str | Model": ...
 
         def _get_ui_conversation_name(
             self, ui: "UIProtocol", initial_conversation_name: str
@@ -91,7 +91,7 @@ class ChatRunning(ChatState):
             "session": initial_conversation_name,
             "yolo": bool(initial_yolo),  # inner task uses dynamic_yolo; just pass bool
             "attachments": initial_attachments,
-            "model": self._get_model(ctx),
+            "model": self.get_model(ctx),
             "interactive": False,
         }
         shared_ctx = SharedContext(
@@ -282,7 +282,7 @@ class ChatRunning(ChatState):
             "copy_commands": ui_commands["copy"],
             "voice_commands": ui_commands["voice"],
             "custom_commands": resolved_custom_commands,
-            "model": self._get_model(ctx),
+            "model": self.get_model(ctx),
             "custom_model_names": resolved_custom_model_names,
             "show_ollama_models": effective_show_ollama_models,
             "show_pydantic_ai_models": effective_show_pydantic_ai_models,

@@ -107,9 +107,10 @@ tombstone.
 - **ADR-0044** — [Ordered sections; custom sections are config-positioned](adr-0044.md)
 - **ADR-0045** — [A rule lives where it is enforced](adr-0045.md)
 - **ADR-0046** — [Every section reads whole on its own; one Priority Order](adr-0046.md)
-- **ADR-0047** — [Profiles vary phrasing, never rules; `mini` from a declared size](adr-0047.md)
+- **ADR-0047** — [A variant is an overlay; a rule never lives only in one](adr-0047.md)
 - **ADR-0048** — [Home-level docs are user guidance, not project rules](adr-0048.md)
 - **ADR-0049** — [Untrusted-data framing travels with the tool result](adr-0049.md)
+- **ADR-0075** — [A profile is a preset over three axes; `minimal` serves ~3B models](adr-0075.md)
 
 ### Skills, agents and the journal
 

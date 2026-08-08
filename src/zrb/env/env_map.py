@@ -13,6 +13,16 @@ class EnvMap(AnyEnv):
         link_to_os: bool = True,
         os_prefix: str | None = None,
     ):
+        """Declare several environment variables for a task at once.
+
+        Args:
+            vars: The variables by name, or a callable taking the shared context
+                and returning them.
+            auto_render: Whether to render each value as a template.
+            link_to_os: Whether an OS variable of the same name takes precedence.
+            os_prefix: Prefix for the OS lookup, so `DEV` reads `DEV_DB_HOST` for
+                an entry named `DB_HOST`.
+        """
         self._env_map = vars
         self._link_to_os = link_to_os
         self._os_prefix = os_prefix

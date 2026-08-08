@@ -65,6 +65,53 @@ class CmdTask(BaseTask):
         successor: list[AnyTask] | AnyTask | None = None,
         print_fn: PrintFn | None = None,
     ):
+        """Define a task that runs a shell command, locally or over SSH.
+
+        A `render_x` flag controls whether `x` is treated as an f-string template
+        rendered against the task context. Set it False to pass a literal value
+        containing braces.
+
+        Args:
+            cmd: The command to run. A string, an f-string template, a callable
+                taking the context, a `Cmd`/`CmdPath`, or a list of any of these
+                joined as separate lines.
+            render_cmd: Whether to render `cmd` as a template.
+            cwd: Working directory for the command. Defaults to the process's
+                current working directory, i.e. where `zrb` was invoked.
+            render_cwd: Whether to render `cwd` as a template.
+            shell: Shell binary to run under. Defaults to `CFG.SHELL`.
+            render_shell: Whether to render `shell` as a template.
+            shell_flag: Flag making the shell read the command, such as `-c`.
+                Inferred from `shell` when omitted.
+            render_shell_flag: Whether to render `shell_flag` as a template.
+            remote_host: Host to run on over SSH. When omitted the command runs
+                locally, and every other `remote_*` value is ignored.
+            render_remote_host: Whether to render `remote_host` as a template.
+            remote_port: SSH port.
+            render_remote_port: Whether to render `remote_port` as a template.
+            remote_user: SSH user.
+            render_remote_user: Whether to render `remote_user` as a template.
+            remote_password: SSH password. Prefer `remote_ssh_key`.
+            render_remote_password: Whether to render `remote_password` as a
+                template.
+            remote_ssh_key: Path to the private key used for SSH.
+            render_remote_ssh_key: Whether to render `remote_ssh_key` as a
+                template.
+            plain_print: When True, stream output verbatim instead of prefixing
+                each line with the task name and icon.
+            warn_unrecommended_command: Whether to warn about patterns that are
+                risky in a non-interactive shell. Defaults to the config setting.
+            max_output_line: How many trailing stdout lines to retain in the
+                result.
+            max_error_line: How many trailing stderr lines to retain in the
+                result.
+            execution_timeout: Seconds before the command is killed.
+            is_interactive: When True, attach the command to the terminal so it can
+                prompt. Requires a TTY.
+
+        Every parameter `BaseTask` accepts is also accepted here and behaves
+        identically; see `BaseTask` for those.
+        """
         super().__init__(
             name=name,
             color=color,

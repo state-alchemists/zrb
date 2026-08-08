@@ -28,7 +28,7 @@ class MockLLMChatTask(ChatRunning):
         self._show_ollama_models = None
         self._show_pydantic_ai_models = None
 
-    def _get_model(self, ctx):
+    def get_model(self, ctx):
         return "test-model"
 
     def _get_ui_conversation_name(self, ui, name):

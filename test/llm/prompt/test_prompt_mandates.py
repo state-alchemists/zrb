@@ -73,43 +73,48 @@ def test_get_prompt_workflow_with_local_override():
 # ── Profile variants (ADR-0047) ──────────────────────────────────────────
 
 
-def test_get_prompt_mini_profile_uses_variant_when_present():
-    """profile='mini' resolves examples.mini.md, not the base file."""
+def test_get_prompt_lean_profile_uses_variant_when_present():
+    """profile='lean' resolves examples.lean.md, not the base file."""
     base = get_prompt("examples")
-    explicit = get_prompt("examples", profile="mini")
+    explicit = get_prompt("examples", profile="lean")
     assert explicit != base
     # A variant may add demonstrations, never rules (ADR-0047), so it is a
     # strict superset of the base rather than a rewrite of it.
     assert explicit.startswith(base.rstrip())
 
 
-def test_get_prompt_mini_profile_falls_back_when_no_variant():
+def test_get_prompt_lean_profile_falls_back_when_no_variant():
     """A section with no .explicit.md transparently resolves to its base file."""
     base = get_prompt("persona", ASSISTANT_NAME="Zrb")
-    explicit = get_prompt("persona", profile="mini", ASSISTANT_NAME="Zrb")
+    explicit = get_prompt("persona", profile="lean", ASSISTANT_NAME="Zrb")
     assert explicit == base
 
 
-def test_get_prompt_terse_profile_uses_base_file():
-    """The base files ARE the terse profile — no .terse variant is consulted."""
+def test_get_prompt_full_profile_uses_base_file():
+    """The base files ARE the `full` profile — no .full variant is consulted."""
     base = get_prompt("persona", ASSISTANT_NAME="Zrb")
-    terse = get_prompt("persona", profile="terse", ASSISTANT_NAME="Zrb")
-    assert terse == base
+    full = get_prompt("persona", profile="full", ASSISTANT_NAME="Zrb")
+    assert full == base
 
 
 def test_get_prompt_profile_falls_back_to_base_when_no_variant():
-    """A section with no variant for the profile falls back to the base file."""
-    base = get_prompt("workflow")
-    explicit = get_prompt("workflow", profile="mini")
-    assert explicit == base
+    """A section with no variant for the profile falls back to the base file.
+
+    `persona` is the same at every preset — identity does not get lighter for a
+    small model — so it is the section that exercises the fallback. `workflow`
+    would not: it ships a variant per preset.
+    """
+    base = get_prompt("persona")
+    for profile in ("lean", "minimal"):
+        assert get_prompt("persona", profile=profile) == base, profile
 
 
 def test_get_prompt_examples_ships_in_both_profiles():
-    """Examples reach every model; explicit adds more on top (ADR-0047/0093)."""
+    """Examples reach every model; `lean` adds more on top (ADR-0047)."""
     base = get_prompt("examples")
-    explicit = get_prompt("examples", profile="mini")
+    lean = get_prompt("examples", profile="lean")
     assert "<example>" in base
-    assert explicit.count("<example>") > base.count("<example>")
+    assert lean.count("<example>") > base.count("<example>")
 
 
 def test_get_prompt_variant_respects_local_override():
@@ -117,7 +122,7 @@ def test_get_prompt_variant_respects_local_override():
     with tempfile.TemporaryDirectory() as temp_dir:
         local_prompt_dir = os.path.join(temp_dir, ".zrb/llm/prompt")
         os.makedirs(local_prompt_dir, exist_ok=True)
-        with open(os.path.join(local_prompt_dir, "persona.mini.md"), "w") as f:
+        with open(os.path.join(local_prompt_dir, "persona.lean.md"), "w") as f:
             f.write("# Custom Explicit Persona Override")
 
         env_vars = {
@@ -128,7 +133,7 @@ def test_get_prompt_variant_respects_local_override():
             original_cwd = os.getcwd()
             os.chdir(temp_dir)
             try:
-                prompt = get_prompt("persona", profile="mini")
+                prompt = get_prompt("persona", profile="lean")
                 assert "Custom Explicit Persona Override" in prompt
             finally:
                 os.chdir(original_cwd)

@@ -34,6 +34,7 @@ from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.task.chat.building import ChatBuilding
 from zrb.llm.task.chat.execution import ChatExecution
 from zrb.llm.task.chat.running import ChatRunning
+from zrb.llm.task.chat.ui_commands import UICommands
 from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.tool_call import (
     ArgumentFormatter,
@@ -154,21 +155,7 @@ class LLMChatTask(ChatBuilding, ChatRunning, ChatExecution, BaseTask):
         sandbox: "SandboxInput | BoolAttr" = None,
         yolo: BoolAttr = False,
         yolo_xcom_key: str = "yolo",
-        ui_summarize_commands: list[str] | None = None,
-        ui_attach_commands: list[str] | None = None,
-        ui_exit_commands: list[str] | None = None,
-        ui_info_commands: list[str] | None = None,
-        ui_save_commands: list[str] | None = None,
-        ui_load_commands: list[str] | None = None,
-        ui_rewind_commands: list[str] | None = None,
-        ui_redirect_output_commands: list[str] | None = None,
-        ui_yolo_toggle_commands: list[str] | None = None,
-        ui_set_model_commands: list[str] | None = None,
-        ui_exec_commands: list[str] | None = None,
-        ui_btw_commands: list[str] | None = None,
-        ui_plan_commands: list[str] | None = None,
-        ui_copy_commands: list[str] | None = None,
-        ui_voice_commands: list[str] | None = None,
+        ui_commands: UICommands | None = None,
         custom_commands: (
             list[
                 AnyCustomCommand
@@ -183,7 +170,7 @@ class LLMChatTask(ChatBuilding, ChatRunning, ChatExecution, BaseTask):
         ui_jargon: StrAttr | None = None,
         render_ui_jargon: bool = True,
         ui_ascii_art: StrAttr | None = None,
-        render_ui_ascii_art_name: bool = True,
+        render_ui_ascii_art: bool = True,
         triggers: list[Callable[[], AsyncIterable[Any]]] | None = None,
         response_handlers: list[ResponseHandler] | None = None,
         tool_policies: list[ToolPolicy] | None = None,
@@ -209,6 +196,101 @@ class LLMChatTask(ChatBuilding, ChatRunning, ChatExecution, BaseTask):
         successor: list[AnyTask] | AnyTask | None = None,
         print_fn: PrintFn | None = None,
     ):
+        """Define an interactive LLM chat session, as `zrb llm chat` does.
+
+        Builds an inner `LLMTask` per turn and drives it through one or more UIs.
+        For a single non-interactive prompt, use `LLMTask` directly.
+
+        A `render_x` flag controls whether `x` is treated as an f-string template
+        rendered against the task context. Set it False to pass a literal value
+        containing braces.
+
+        Args:
+            message: Initial message to send before handing over to the user.
+                Leave unset to start with an empty prompt.
+            render_message: Whether to render `message` as a template.
+            attachment: Images or files to send with the initial message.
+            system_prompt: System prompt text, or a callable taking the context.
+                Overrides whatever `prompt_manager` would compose.
+            render_system_prompt: Whether to render `system_prompt` as a template.
+                Off by default, since prompts commonly contain braces.
+            prompt_manager: `PromptManager` composing the system prompt from
+                sections. Defaults to the shared one.
+            active_skills: Names of skills to pre-activate for the session.
+            render_active_skills: Whether to render `active_skills` as templates.
+            model: The model to use, as a name or a pydantic-ai `Model`. Defaults
+                to the one from `llm_config`.
+            render_model: Whether to render `model` as a template.
+            model_settings: Provider settings such as temperature.
+            custom_model_names: Extra names offered by the model picker, beyond the
+                detected ones.
+            show_ollama_models: Whether the picker lists locally-installed Ollama
+                models. Defaults to the config setting.
+            show_pydantic_ai_models: Whether the picker lists models known to
+                pydantic-ai. Defaults to the config setting.
+            llm_config: Credentials and endpoint settings. Defaults to the shared
+                `llm_config`.
+            llm_limiter: Rate and token limiter. Defaults to the shared
+                `llm_limiter`.
+            capabilities: pydantic-ai capabilities to enable for the run.
+            tools: Functions or `Tool`s the model may call.
+            toolsets: Toolsets whose tools the model may call.
+            tool_factories: Callables building tools per run from the context.
+            toolset_factories: Callables building toolsets per run from the
+                context.
+            tool_confirmation: Policy deciding which tool calls need approval.
+            tool_policies: Callables deciding whether a call is allowed, denied, or
+                needs confirmation. The first to return a verdict decides.
+            response_handlers: Callables post-processing a tool result before the
+                model sees it. The first non-`None` result wins.
+            argument_formatters: Callables controlling how tool-call arguments are
+                displayed. All run in order, each overwriting the last.
+            approval_channel: Channel carrying approval requests to whoever answers
+                them.
+            permissions: Policy bounding which files and commands tools may touch.
+            sandbox: Whether, and how, tool calls run sandboxed.
+            yolo: Skip tool confirmation. True for all tools, or a comma-separated
+                string or set naming the tools to auto-approve.
+            yolo_xcom_key: xcom key the session reads and writes when the user
+                toggles yolo mode at run time.
+            conversation_name: Name the conversation is stored under.
+            render_conversation_name: Whether to render `conversation_name` as a
+                template.
+            history_manager: Store persisting conversation history across runs.
+            history_processors: Callables rewriting history before each request,
+                run in order.
+            enable_rewind: Whether the session can roll back to an earlier turn.
+                Defaults to the config setting.
+            snapshot_dir: Directory holding rewind snapshots. Defaults to the
+                standard location under the git root.
+            ui: A ready-made UI to drive the session with.
+            ui_factory: Callable building the UI once the run's context is known.
+                Prefer this over `ui` when the UI depends on resolved inputs.
+            include_default_ui: Whether to attach the built-in terminal UI
+                alongside any supplied one.
+            interactive: Whether the session prompts the user. Set False to run
+                `message` and exit.
+            ui_commands: Slash-command alias overrides, as a `UICommands`, e.g.
+                `UICommands(exit="/quit", save=["/save", "/w"])`. Commands left
+                unset keep their configured defaults.
+            custom_commands: Extra slash commands, as `AnyCustomCommand`s or
+                callables returning them.
+            ui_greeting: Text shown when the session starts.
+            render_ui_greeting: Whether to render `ui_greeting` as a template.
+            ui_assistant_name: Name the assistant is labelled with.
+            render_ui_assistant_name: Whether to render `ui_assistant_name` as a
+                template.
+            ui_ascii_art: Banner art shown above the greeting.
+            render_ui_ascii_art: Whether to render `ui_ascii_art` as a template.
+            ui_jargon: Tagline shown beside the banner.
+            render_ui_jargon: Whether to render `ui_jargon` as a template.
+            markdown_theme: Rich theme used to render the assistant's markdown.
+            triggers: Callables returning async iterables whose items are submitted
+                as user turns, letting an external source drive the session.
+
+        Every parameter `BaseTask` accepts is also accepted here and behaves
+        identically; see `BaseTask` for those.
+        """
         super().__init__(
             name=name,
             color=color,
@@ -282,35 +364,18 @@ class LLMChatTask(ChatBuilding, ChatRunning, ChatExecution, BaseTask):
         self._yolo = yolo
         self._yolo_xcom_key = yolo_xcom_key
         # Slash-command alias overrides, keyed as ChatExecution._get_ui_commands
-        # and the UIs consume them. An empty list means "no override" — CFG
+        # and the UIs consume them. A missing key means "no override" — CFG
         # supplies the default at resolve time, not here, so a later env change
         # still wins.
-        self._ui_command_overrides: dict[str, list[str]] = {
-            key: value or []
-            for key, value in (
-                ("summarize", ui_summarize_commands),
-                ("attach", ui_attach_commands),
-                ("exit", ui_exit_commands),
-                ("info", ui_info_commands),
-                ("save", ui_save_commands),
-                ("load", ui_load_commands),
-                ("rewind", ui_rewind_commands),
-                ("yolo_toggle", ui_yolo_toggle_commands),
-                ("set_model", ui_set_model_commands),
-                ("redirect_output", ui_redirect_output_commands),
-                ("exec", ui_exec_commands),
-                ("btw", ui_btw_commands),
-                ("plan", ui_plan_commands),
-                ("copy", ui_copy_commands),
-                ("voice", ui_voice_commands),
-            )
-        }
+        self._ui_command_overrides = (
+            ui_commands.to_overrides() if ui_commands is not None else {}
+        )
         self._custom_commands = custom_commands or []
         # (value, render) per UI text; ChatRunning renders the block as one.
         self._ui_texts: dict[str, tuple[StrAttr | None, bool]] = {
             "greeting": (ui_greeting, render_ui_greeting),
             "assistant_name": (ui_assistant_name, render_ui_assistant_name),
-            "ascii_art": (ui_ascii_art, render_ui_ascii_art_name),
+            "ascii_art": (ui_ascii_art, render_ui_ascii_art),
             "jargon": (ui_jargon, render_ui_jargon),
         }
         self._triggers = triggers or []

@@ -124,14 +124,25 @@ def classify_error_type(e: Exception) -> str:
 
 
 def get_retry_wait(e: Exception, attempt: int, max_wait: float) -> float:
-    """Exponential backoff, honoring Retry-After header when present."""
+    """Exponential backoff, honoring ``Retry-After`` when the provider sent one.
+
+    Two exception shapes carry it, and zrb sees both. pydantic-ai wraps a
+    provider error in ``ModelHTTPError``, whose ``retry_after`` parses the header
+    — including the HTTP-date form, which a bare ``float()`` cannot. A raw
+    provider-SDK exception (``openai.APIStatusError`` and friends) instead
+    carries an httpx ``response``, whose headers are read directly. Anything
+    unparseable falls through to exponential backoff.
+    """
+    retry_after = getattr(e, "retry_after", None)
+    if isinstance(retry_after, (int, float)):
+        return min(float(retry_after), max_wait)
     response = getattr(e, "response", None)
     if response is not None:
         headers = getattr(response, "headers", {})
-        retry_after = headers.get("retry-after") or headers.get("Retry-After")
-        if retry_after is not None:
+        raw = headers.get("retry-after") or headers.get("Retry-After")
+        if raw is not None:
             try:
-                return min(float(retry_after), max_wait)
+                return min(float(raw), max_wait)
             except ValueError:
                 pass
     return min(2**attempt, max_wait)

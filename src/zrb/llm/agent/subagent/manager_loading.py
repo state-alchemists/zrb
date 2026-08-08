@@ -10,7 +10,7 @@ from __future__ import annotations
 import os
 import uuid
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import yaml
 
@@ -20,6 +20,24 @@ from zrb.util.load import load_module_from_path
 
 if TYPE_CHECKING:
     from zrb.llm.agent.subagent.manager import SubAgentDefinition
+
+
+_Default = TypeVar("_Default")
+
+
+def _as_str_list(raw: Any, default: _Default) -> "list[str] | _Default":
+    """Coerce a frontmatter field to a clean list of strings.
+
+    Accepts the canonical list form or a comma-separated string
+    (Claude-compatible), dropping blank entries either way. Anything else —
+    including a missing key — yields `default`, which lets a caller distinguish
+    "absent" (None) from "present but empty" ([]).
+    """
+    if isinstance(raw, list):
+        return [str(item).strip() for item in raw if str(item).strip()]
+    if isinstance(raw, str):
+        return [item.strip() for item in raw.split(",") if item.strip()]
+    return default
 
 
 class SubAgentManagerLoading:
@@ -116,8 +134,7 @@ class SubAgentManagerLoading:
             with open(full_path, "r", encoding="utf-8") as f:
                 content = f.read()
 
-            default_name = os.path.basename(os.path.dirname(full_path))
-            name = default_name
+            name = os.path.basename(os.path.dirname(full_path))
             description = "No description"
             system_prompt = ""
             model = None
@@ -139,43 +156,13 @@ class SubAgentManagerLoading:
                                 is_name_resolved = True
                             description = frontmatter.get("description", description)
                             model = frontmatter.get("model", None)
-                            # Accept list form (canonical) or comma string (Claude-compat).
-                            raw_tools = frontmatter.get("tools", [])
-                            if isinstance(raw_tools, list):
-                                tools = [
-                                    str(t).strip() for t in raw_tools if str(t).strip()
-                                ]
-                            elif isinstance(raw_tools, str):
-                                tools = [
-                                    t.strip() for t in raw_tools.split(",") if t.strip()
-                                ]
-                            raw_disallowed = frontmatter.get("disallowedTools", [])
-                            if isinstance(raw_disallowed, list):
-                                disallowed_tools = [
-                                    str(t).strip()
-                                    for t in raw_disallowed
-                                    if str(t).strip()
-                                ]
-                            elif isinstance(raw_disallowed, str):
-                                disallowed_tools = [
-                                    t.strip()
-                                    for t in raw_disallowed.split(",")
-                                    if t.strip()
-                                ]
-                            # Accept list form (canonical) or comma string (Claude-compat).
-                            raw_inherit = frontmatter.get("inherit_sections")
-                            if isinstance(raw_inherit, list):
-                                inherit_sections = [
-                                    str(s).strip()
-                                    for s in raw_inherit
-                                    if str(s).strip()
-                                ]
-                            elif isinstance(raw_inherit, str):
-                                inherit_sections = [
-                                    s.strip()
-                                    for s in raw_inherit.split(",")
-                                    if s.strip()
-                                ]
+                            tools = _as_str_list(frontmatter.get("tools"), tools)
+                            disallowed_tools = _as_str_list(
+                                frontmatter.get("disallowedTools"), disallowed_tools
+                            )
+                            inherit_sections = _as_str_list(
+                                frontmatter.get("inherit_sections"), inherit_sections
+                            )
                 except Exception as e:
                     CFG.LOGGER.debug(f"Failed to parse agent frontmatter: {e}")
 
@@ -185,7 +172,6 @@ class SubAgentManagerLoading:
                     stripped = line.strip()
                     if stripped.startswith("# "):
                         name = stripped[2:].strip()
-                        is_name_resolved = True
                         break
                 if not system_prompt:
                     system_prompt = content

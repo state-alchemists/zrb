@@ -23,6 +23,7 @@ To find a setting:
 - Theme selection (ZRB_THEME preset)         -> mixins/theme.py
 """
 
+from zrb.config.env_field import EnvField
 from zrb.config.mixins.cli_style import CLIStyleMixin
 from zrb.config.mixins.foundation import FoundationMixin
 from zrb.config.mixins.hooks import HooksMixin
@@ -63,6 +64,23 @@ class Config(  # noqa: E501  # Sibling mixins TYPE_CHECKING-declare ENV_PREFIX/R
     cooperating `__init__` methods chain via `super().__init__()`, so creating
     a `Config()` populates every default in one pass.
     """
+
+    def is_env_set(self, name: str) -> bool:
+        """Whether the user set the environment variable behind `CFG.<name>`.
+
+        A read never answers this: an unset field falls back to its default, so
+        the value alone cannot say whether the user chose it. Callers that must
+        distinguish "chosen" from "defaulted" — e.g. a prompt preset that
+        supplies a section list only when `LLM_INCLUDE_SECTIONS` names none —
+        ask here rather than reconstructing the env key themselves.
+
+        Raises `AttributeError` for a name that is not an `EnvField` (hand-written
+        properties such as `LOGGER` have no env var to be set).
+        """
+        field = getattr(type(self), name, None)
+        if not isinstance(field, EnvField):
+            raise AttributeError(f"{name} is not an environment-backed config field")
+        return field.is_set(self.ENV_PREFIX)
 
 
 CFG = Config()

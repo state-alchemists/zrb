@@ -1,79 +1,187 @@
 """Model-adaptive prompt profiles.
 
-A *profile* controls how each section is phrased and which optional sections are
-composed, independent of *which* sections appear (that is
-``LLM_INCLUDE_SECTIONS``). ``LLM_PROFILE`` selects one:
+A *profile* is a **preset**: a named binding of three axes — which sections
+compose, how they are phrased, and which tools register (ADR-0075).
+``LLM_PROFILE`` selects one, and the names order themselves by how much the
+model is asked to hold at once:
 
-- ``terse`` — the concise, principle-led base prompts.
-- ``mini`` — the profile for small models: the same rules plus worked
-  demonstrations (``examples.mini.md``). Never extra rules (ADR-0047).
-- ``auto`` (default) — ``mini`` when the model id declares a small size,
-  ``terse`` otherwise (see :data:`DEFAULT_MODEL_PROFILES`, ADR-0047).
+- ``full`` — every section, every tool, the base prompt files.
+- ``lean`` — every section and tool on a lighter rulebook, for ~5-14B models.
+- ``minimal`` — a short section list and a short tool surface, for ~4B and below.
+- ``auto`` (default) — resolved from the model id by :func:`builtin_profile`.
 
-The base ``*.md`` files **are** the ``terse`` profile; other profiles are variant
-overlays resolved with fallback (a missing variant transparently uses the base
-file — see ``prompt.get_prompt``). This keeps shared rules in one place and forks
-only the sections whose phrasing actually changes.
+A preset reaches the prompt through one file-naming convention and no other: a
+section named ``foo`` resolves ``foo.{profile}.md`` and falls back to ``foo.md``
+(``prompt.get_prompt``), so a preset ships files only for the sections whose
+text actually changes.
 
-**On choosing a profile automatically.** A *family* name (``deepseek``, ``qwen``,
-``llama``, …) says nothing about capability — those families span tiny instruct
-models through frontier models — so zrb still never infers strength from one.
-What it does read is a **declared size token**: ``-7b`` is not a guess about the
-model, it is the vendor stating the parameter count, and the same goes for the
-size *tiers* vendors label explicitly (``mini``, ``nano``, ``haiku``, ``flash``,
-…). Those are matched by :data:`DEFAULT_MODEL_PROFILES` so the small models that
-most need worked examples actually receive them by default.
-
-The asymmetry makes the default safe: under ADR-0047 the ``mini`` profile
-adds *demonstrations only* — never extra rules — so a false positive costs some
-example tokens, while a false negative costs a weak model the one adaptation the
-evidence supports. Override either way with one line:
-``register_model_profile("my-model", "terse")``, or set ``ZRB_LLM_PROFILE``.
+Automatic selection reads what a model id *states*, never what it hints at. A
+family name (``deepseek``, ``qwen``, ``llama``) spans tiny instruct models
+through frontier ones, so it is ignored; a parameter count is the vendor
+declaring the size, and so is a vendor's own small-tier label. Override either
+way with ``register_model_profile("my-model", "full")`` or ``ZRB_LLM_PROFILE``.
 """
 
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from typing import Any
 
-# The base ``*.md`` files are written in the terse, principle-led register, so
-# ``terse`` needs no variant files — it resolves straight to the base.
-BASE_PROFILE = "terse"
-MINI_PROFILE = "mini"
-VALID_PROFILES = (BASE_PROFILE, MINI_PROFILE)
+from zrb.config.config import CFG
+
+# The base ``*.md`` files are the unvaried phrasing, so ``full`` needs no variant
+# files — every section resolves straight to the base.
+FULL_PROFILE = "full"
+LEAN_PROFILE = "lean"
+MINIMAL_PROFILE = "minimal"
 
 
-#: Built-in model-id patterns, consulted only after user declarations.
+#: Declared parameter count (in billions) → profile, as ascending upper bounds.
+#: A size above the last bound selects nothing, so large models keep ``full``.
 #:
-#: Every entry keys off something the id *states* rather than something it hints
-#: at: an explicit parameter count at or below ~14B, or a vendor's own
-#: small-tier label. Larger declared sizes (``-32b``, ``-70b``, ``-405b``) are
-#: deliberately not matched — the regex accepts 1–14 only. See ADR-0047.
-DEFAULT_MODEL_PROFILES: tuple[tuple[str, str], ...] = (
-    # A stated parameter count of 14B or less: "7b", "8B", "gemma-2-9b".
-    (r"(?<![0-9])(?:[1-9]|1[0-4])\s*b(?![a-z0-9])", MINI_PROFILE),
-    # Vendor small-tier labels.
-    (r"(?<![a-z])(mini|nano|tiny|small|lite)(?![a-z])", MINI_PROFILE),
-    (r"(?<![a-z])haiku(?![a-z])", MINI_PROFILE),
-    # `flash` is deliberately absent: it is a *latency* tier, not a size one, and
-    # it spans weak to strong (``gemini-2.5-flash`` is capable). Opt a specific
-    # one in with ``register_model_profile("deepseek-v4-flash", "mini")``.
+#: The bands are asymmetric on purpose. ``lean`` keeps every capability and only
+#: reshapes prose, so a false positive is cheap. ``minimal`` *removes* sections
+#: and tools, so a false positive costs real capability — which is why only a
+#: stated count reaches it, never a label (see :data:`SMALL_TIER_LABELS`).
+SIZE_BANDS: tuple[tuple[float, str], ...] = (
+    (4, MINIMAL_PROFILE),
+    (14, LEAN_PROFILE),
 )
+
+#: Vendor small-tier labels, all resolving to ``lean``. A label is never enough
+#: to select ``minimal``: ``nano``/``tiny``/``micro`` sit on models (``gpt-5-nano``)
+#: far more capable than a 3B local one. Declare a local model into ``minimal``
+#: explicitly instead: ``register_model_profile("my-local-model", "minimal")``.
+#:
+#: ``flash`` is deliberately absent — it is a *latency* tier that spans weak to
+#: strong (``gemini-2.5-flash`` is capable). Opt one in with
+#: ``register_model_profile("deepseek-v4-flash", "lean")``.
+SMALL_TIER_LABELS: tuple[str, ...] = (
+    "mini",
+    "micro",
+    "nano",
+    "tiny",
+    "small",
+    "lite",
+    "haiku",
+)
+
+# A parameter count as vendors write it: delimited, optionally fractional, and
+# closed by a `b`. The count is captured whole and compared numerically, so
+# `deepseek-r1:1.5b` reads as 1.5B rather than as its trailing `5b`.
+_DECLARED_SIZE = re.compile(r"(?<![a-z0-9.])(\d+(?:\.\d+)?)\s*b(?![a-z0-9])", re.I)
+_SMALL_TIER = re.compile(rf"(?<![a-z])({'|'.join(SMALL_TIER_LABELS)})(?![a-z])", re.I)
+
+
+def builtin_profile(model_id: str) -> str | None:
+    """Profile declared by *model_id* itself, or ``None`` if it declares none.
+
+    A stated parameter count wins over a label: it is the more specific claim,
+    and a model stating both (``qwen3-30b-a3b``) is stating that the larger
+    number is what it is. The first count in the id is the one read.
+    """
+    size = _declared_size(model_id)
+    if size is not None:
+        return next((profile for limit, profile in SIZE_BANDS if size <= limit), None)
+    return LEAN_PROFILE if _SMALL_TIER.search(model_id) else None
+
+
+def _declared_size(model_id: str) -> float | None:
+    """Parameter count in billions stated by *model_id*, or ``None``."""
+    match = _DECLARED_SIZE.search(model_id)
+    return float(match.group(1)) if match else None
+
+
+@dataclass(frozen=True)
+class Preset:
+    """What a profile binds: a section list, a phrasing variant, a tool surface.
+
+    ``None`` on any field means "do not constrain this axis" — the configured
+    ``LLM_INCLUDE_SECTIONS`` applies, the base prompt files apply, every
+    registered tool applies. See ADR-0075.
+    """
+
+    sections: tuple[str, ...] | None = None
+    variant: str | None = None
+    tools: frozenset[str] | None = None
+
+
+#: ``minimal``'s tool surface. Closed under docstring cross-reference (ADR-0056),
+#: which is what sets the size: the obvious six (``Shell``, ``Read``, ``Write``,
+#: ``Edit``, ``Grep``, ``LS``) leave four dangling references. ``Shell`` and
+#: ``Grep`` route callers to ``Glob``/``RM``/``MV`` for work they decline, and
+#: ``Shell``'s ``background=True`` hands back a handle only ``MonitorProcess``
+#: can poll — advertising the parameter without the tool is a trap, not a
+#: saving. ``test_common_tools.py`` pins the closure rather than trusting this.
+MINIMAL_TOOLS = frozenset(
+    {
+        "Shell",
+        "Read",
+        "Write",
+        "Edit",
+        "Grep",
+        "LS",
+        "Glob",
+        "RM",
+        "MV",
+        "MonitorProcess",
+    }
+)
+
+#: ``minimal``'s section list. The two omissions are the point: ``examples``
+#: because ``workflow.minimal.md`` carries its own demonstrations inline, and
+#: ``project_context`` because its instruction is to ``Read`` project docs in
+#: full, which alone can exceed a ~3B model's effective window. ``workflow``
+#: stays in the list and resolves to ``workflow.minimal.md`` through the variant
+#: axis — ``lean`` needs no list at all for the same reason.
+MINIMAL_SECTIONS = ("persona", "workflow", "system_context")
+
+#: Profile → preset. Burden falls monotonically with the capability each preset
+#: targets — ``test_section_composition.py`` pins that ordering rather than
+#: trusting this comment.
+#:
+#: Registering a fourth is a dict assignment: ``PRESETS["nano"] = Preset(...)``.
+#: :func:`valid_profiles` derives from these keys, so a new entry is immediately
+#: accepted by ``ZRB_LLM_PROFILE`` and by :func:`register_model_profile`.
+PRESETS: dict[str, Preset] = {
+    FULL_PROFILE: Preset(),
+    LEAN_PROFILE: Preset(variant=LEAN_PROFILE),
+    MINIMAL_PROFILE: Preset(
+        sections=MINIMAL_SECTIONS, variant=MINIMAL_PROFILE, tools=MINIMAL_TOOLS
+    ),
+}
+
+
+def valid_profiles() -> tuple[str, ...]:
+    """The profile names ``ZRB_LLM_PROFILE`` accepts, derived from :data:`PRESETS`.
+
+    A function rather than a constant so a preset registered after import is
+    accepted too — ``PRESETS`` is the single source of truth for the set.
+    """
+    return tuple(PRESETS)
+
+
+def resolve_preset(profile: str | None) -> Preset:
+    """Return the :class:`Preset` bound to *profile*, or an unconstrained one.
+
+    An unrecognized profile yields ``Preset()`` so a stale config degrades to
+    the full surface rather than to a crippled one.
+    """
+    return PRESETS.get(profile or "", Preset())
 
 
 class ModelProfileRegistry:
-    """Map of model-name patterns to prompt profiles, in two tiers.
+    """Model-id patterns declared by the user, tried before the built-ins.
 
-    User declarations come first, most-recently-declared winning;
-    :data:`DEFAULT_MODEL_PROFILES` is consulted only when none match, so a
-    single ``register_model_profile`` call in ``zrb_init.py`` overrides a
-    built-in either way. Consulted only by the ``auto`` profile. Mirrors
-    ``model_capabilities`` (``capabilities.py``).
+    Most-recently-declared wins, and every declaration outranks
+    :func:`builtin_profile`, so one ``register_model_profile`` call in
+    ``zrb_init.py`` overrides a built-in in either direction. Consulted only by
+    the ``auto`` profile. Mirrors ``model_capabilities`` (``capabilities.py``).
     """
 
-    def __init__(self, defaults: tuple[tuple[str, str], ...] | None = None) -> None:
+    def __init__(self) -> None:
         self._overrides: list[tuple[str, str]] = []
-        self._defaults = DEFAULT_MODEL_PROFILES if defaults is None else defaults
 
     def set(self, pattern: str, profile: str) -> None:
         """Declare the profile for models whose id matches *pattern*.
@@ -85,33 +193,24 @@ class ModelProfileRegistry:
         provider-wide ``ollama:`` or a tier-wide ``:cloud``. *profile* must be a
         valid profile. Most recently declared patterns take priority.
         """
-        if profile not in VALID_PROFILES:
+        if profile not in valid_profiles():
             raise ValueError(
-                f"Unknown profile {profile!r}. Valid: {list(VALID_PROFILES)}"
+                f"Unknown profile {profile!r}. Valid: {list(valid_profiles())}"
             )
         self._overrides.insert(0, (pattern, profile))
 
     def resolve(self, model: Any | None) -> str | None:
-        """Return the profile for *model*, or ``None`` if nothing matches.
-
-        User declarations are tried before the built-in defaults, so declaring a
-        pattern always wins over a shipped one.
-        """
+        """Return the profile for *model*, or ``None`` if nothing declares one."""
         name = _model_id(model)
         if not name:
             return None
-        for pattern, profile in (*self._overrides, *self._defaults):
+        for pattern, profile in self._overrides:
             if re.search(pattern, name, re.IGNORECASE):
                 return profile
-        return None
+        return builtin_profile(name)
 
     def clear(self) -> None:
-        """Drop user declarations, keeping the built-in defaults. For tests.
-
-        To exercise the no-mapping fallback, construct an isolated registry
-        instead — ``ModelProfileRegistry(defaults=())`` — rather than stripping
-        the singleton's defaults, which would leak into every later test.
-        """
+        """Drop user declarations, keeping the built-ins. For tests."""
         self._overrides.clear()
 
 
@@ -129,15 +228,25 @@ def register_model_profile(pattern: str, profile: str) -> None:
 def resolve_profile(profile: str | None, model: Any | None) -> str:
     """Resolve the active profile from the ``LLM_PROFILE`` value and the model.
 
-    ``terse``/``mini`` select that profile directly. ``auto`` (the default)
-    — or any unrecognized value — consults :data:`model_profile_registry` (user
-    declarations, then :data:`DEFAULT_MODEL_PROFILES`), falling back to the
-    ``terse`` base when nothing matches.
+    Any name in :func:`valid_profiles` selects that preset directly. ``auto``
+    (the default) — or any unrecognized value — consults
+    :data:`model_profile_registry` (user declarations, then
+    :func:`builtin_profile`), falling back to ``full`` when nothing matches.
     """
     value = (profile or "auto").strip().lower()
-    if value in VALID_PROFILES:
+    if value in valid_profiles():
         return value
-    return model_profile_registry.resolve(model) or BASE_PROFILE
+    return model_profile_registry.resolve(model) or FULL_PROFILE
+
+
+def active_preset(model: Any | None = None) -> Preset:
+    """The preset in force for *model* under the configured ``LLM_PROFILE``.
+
+    The one call every consumer of the three axes makes — ``PromptManager`` for
+    sections and phrasing, ``apply_common_tools`` for the tool surface — so the
+    knob and the model are read in one place rather than at each site.
+    """
+    return resolve_preset(resolve_profile(CFG.LLM_PROFILE, model))
 
 
 def _model_id(model: Any | None) -> str:

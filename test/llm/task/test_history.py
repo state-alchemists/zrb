@@ -1,9 +1,9 @@
 """Tests for LLMTaskHistory (conversation/history resolution + error recovery).
 
-Exercised through the public ``LLMTask`` surface, which composes LLMTaskHistory.
-Some helpers are invoked directly (mirroring the pre-existing convention for
-``_save_cancelled_history`` / ``_handle_run_error``), since they are recovery
-paths that are awkward to drive end-to-end.
+Driven through ``LLMTask``, which composes LLMTaskHistory. These methods are
+part of that host's surface — it calls them by name and a subclass overrides
+them to change where history lives — so calling them directly is exercising the
+public API rather than reaching past it.
 """
 
 from unittest.mock import MagicMock
@@ -15,23 +15,23 @@ class TestConversationAndHistoryLookup:
     def test_get_history_manager_returns_explicit(self):
         manager = MagicMock()
         task = LLMTask(name="t", history_manager=manager)
-        assert task._get_history_manager(MagicMock()) is manager
+        assert task.get_history_manager(MagicMock()) is manager
 
     def test_get_history_manager_defaults_to_file_manager(self):
         from zrb.llm.history_manager.file_history_manager import FileHistoryManager
 
         task = LLMTask(name="t")
-        assert isinstance(task._get_history_manager(MagicMock()), FileHistoryManager)
+        assert isinstance(task.get_history_manager(MagicMock()), FileHistoryManager)
 
     def test_get_conversation_name_uses_explicit(self):
         task = LLMTask(
             name="t", conversation_name="my-convo", render_conversation_name=False
         )
-        assert task._get_conversation_name(MagicMock()) == "my-convo"
+        assert task.get_conversation_name(MagicMock()) == "my-convo"
 
     def test_get_conversation_name_random_when_blank(self):
         task = LLMTask(name="t")
-        name = task._get_conversation_name(MagicMock())
+        name = task.get_conversation_name(MagicMock())
         assert isinstance(name, str) and name.strip() != ""
 
 
@@ -40,7 +40,7 @@ class TestEffectivePrompt:
         task = LLMTask(name="t")
         ctx = MagicMock()
         ctx.attempt = 1
-        msg, atts = task._get_effective_prompt(ctx, "hello", ["a"], [])
+        msg, atts = task.get_effective_prompt(ctx, "hello", ["a"], [])
         assert msg == "hello"
         assert atts == ["a"]
 
@@ -51,7 +51,7 @@ class TestEffectivePrompt:
         ctx = MagicMock()
         ctx.attempt = 2
         history = [ModelRequest(parts=[UserPromptPart(content="hello")])]
-        msg, atts = task._get_effective_prompt(ctx, "hello", ["keep"], history)
+        msg, atts = task.get_effective_prompt(ctx, "hello", ["keep"], history)
         assert "retry attempt 2" in msg
         # Attachments are preserved on retry.
         assert atts == ["keep"]
@@ -74,7 +74,7 @@ class TestEffectivePrompt:
             ModelResponse(parts=[TextPart(content="done")]),
             ModelRequest(parts=[UserPromptPart(content="something else")]),
         ]
-        msg, _ = task._get_effective_prompt(ctx, "continue", None, history)
+        msg, _ = task.get_effective_prompt(ctx, "continue", None, history)
         assert msg == "continue"
 
     def test_retry_skips_system_bookkeeping_and_tool_return_turns(self):
@@ -99,35 +99,35 @@ class TestEffectivePrompt:
                 parts=[UserPromptPart(content="[SYSTEM] Error occurred: boom")]
             ),
         ]
-        msg, _ = task._get_effective_prompt(ctx, "hello", None, history)
+        msg, _ = task.get_effective_prompt(ctx, "hello", None, history)
         assert "retry attempt 2" in msg
 
 
 class TestContextLengthDetection:
     def test_detects_keyword(self):
         task = LLMTask(name="t")
-        assert task._is_context_length_error(ValueError("prompt too long")) is True
+        assert task.is_context_length_error(ValueError("prompt too long")) is True
 
     def test_ignores_unrelated_error(self):
         task = LLMTask(name="t")
-        assert task._is_context_length_error(ValueError("boom")) is False
+        assert task.is_context_length_error(ValueError("boom")) is False
 
     def test_detects_status_400_with_keyword(self):
         task = LLMTask(name="t")
         err = ValueError("context window exceeded")
         err.status_code = 400
-        assert task._is_context_length_error(err) is True
+        assert task.is_context_length_error(err) is True
 
 
 class TestPostProcessOutput:
     def test_strips_ansi_from_string(self):
         task = LLMTask(name="t")
-        assert task._post_process_output("\x1b[31mhi\x1b[0m") == "hi"
+        assert task.post_process_output("\x1b[31mhi\x1b[0m") == "hi"
 
     def test_passes_through_non_string(self):
         task = LLMTask(name="t")
         payload = {"k": "v"}
-        assert task._post_process_output(payload) is payload
+        assert task.post_process_output(payload) is payload
 
 
 class TestSaveCancelledHistory:
@@ -143,7 +143,7 @@ class TestSaveCancelledHistory:
 
         history_manager = MagicMock()
         task = LLMTask(name="test-task")
-        task._save_cancelled_history(
+        task.save_cancelled_history(
             history_manager,
             "test-convo",
             [],
@@ -163,7 +163,7 @@ class TestSaveCancelledHistory:
     def test_without_partial_run(self):
         history_manager = MagicMock()
         task = LLMTask(name="test-task")
-        task._save_cancelled_history(
+        task.save_cancelled_history(
             history_manager,
             "test-convo",
             [],
@@ -181,7 +181,7 @@ class TestSaveCancelledHistory:
 
         history_manager = MagicMock()
         task = LLMTask(name="test-task")
-        task._save_cancelled_history(
+        task.save_cancelled_history(
             history_manager,
             "test-convo",
             [],
@@ -212,7 +212,7 @@ class TestHandleRunError:
         history_manager = MagicMock()
         ctx = MagicMock()
         task = LLMTask(name="test-task")
-        task._handle_run_error(
+        task.handle_run_error(
             ctx, history_manager, "test-convo", error, partial_run=partial_run
         )
 
@@ -238,7 +238,7 @@ class TestHandleRunError:
         history_manager = MagicMock()
         ctx = MagicMock()
         task = LLMTask(name="test-task")
-        task._handle_run_error(
+        task.handle_run_error(
             ctx, history_manager, "test-convo", error, partial_run=partial_run
         )
 
@@ -250,5 +250,5 @@ class TestHandleRunError:
         error = ValueError("boom")  # no zrb_history attribute
         history_manager = MagicMock()
         task = LLMTask(name="test-task")
-        task._handle_run_error(MagicMock(), history_manager, "test-convo", error)
+        task.handle_run_error(MagicMock(), history_manager, "test-convo", error)
         assert not history_manager.update.called

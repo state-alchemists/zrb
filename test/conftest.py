@@ -38,10 +38,10 @@ _TEST_ENV = {
     "ZRB_LLM_SMALL_MODEL": "openai-chat:gpt-4o-mini",
     # Pin the prompt profile to its production default so prompt-composition
     # tests are deterministic regardless of the developer's shell. A developer
-    # with ZRB_LLM_PROFILE=explicit exported would otherwise see the explicit
-    # phrasing variants leak into tests that assert on the default (terse)
-    # composition. Tests exercising explicit override this with patch.dict
-    # (which layers on top of this default).
+    # with ZRB_LLM_PROFILE=lean exported would otherwise see that preset's
+    # phrasing variants leak into tests that assert on the default (full)
+    # composition. Tests exercising another preset override this with
+    # patch.dict / monkeypatch (which layer on top of this default).
     "ZRB_LLM_PROFILE": "auto",
 }
 
@@ -102,6 +102,6 @@ def _disable_real_filesystem_hooks():
         patch.object(chat_execution, "HookManager", _InertHookManager),
         patch.object(llm_task_building, "HookManager", _InertHookManager),
     ):
-        hook_manager._search_dirs = []  # backing field of the search_dirs ctor arg
+        hook_manager.search_dirs = []  # discover nothing from the filesystem
         hook_manager.reload()  # reset registrations + reload from [] → no fs hooks
         yield

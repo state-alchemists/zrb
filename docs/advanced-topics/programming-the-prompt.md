@@ -230,13 +230,14 @@ The provider runs at prompt-compose time on every request, so the section always
 
 If a custom section name has no registered provider, Zrb resolves it to a **Markdown file** — `get_prompt("sprint_context")` loads `sprint_context.md` through the override chain (project override → env → base-prompt-dir → package), with the same `{PLACEHOLDER}` substitution. Static and dynamic sections thus share one ordering mechanism; a missing file is a harmless no-op (logged at compose time so a typo is diagnosable).
 
-Independently, the `ZRB_LLM_PROFILE` knob controls *how* sections are phrased without changing *which* appear:
+Independently, the `ZRB_LLM_PROFILE` knob selects a **preset** — which sections compose, how they are phrased, and which tools register:
 
-- `terse` — the concise, principle-led base (the `.md` files as written).
-- `mini` — the same rules plus worked demonstrations, for small models.
-- `auto` (default) — `terse`, unless a per-model profile was declared via `register_model_profile(...)`.
+- `full` — the whole rulebook (the `.md` files as written) and all 21 tools.
+- `lean` — a lighter rulebook (`workflow.lean.md`) plus worked demonstrations, same sections and tools, for small models (~5-14B).
+- `minimal` — three sections, a one-page rulebook (`workflow.minimal.md`) and a 10-tool surface, for very small models (~3B).
+- `auto` (default) — resolved from a declared model size, or from `register_model_profile(...)`.
 
-Profiles are variant overlays: `get_prompt(name, profile="mini")` resolves `{name}.mini.md`, falling back to the base `{name}.md`. See `AGENTS.md` → *Profile* and ADR-0047.
+The phrasing axis is a **variant overlay**, and it is the only way a preset changes a section's wording: `get_prompt(name, profile="lean")` resolves `{name}.{profile}.md`, falling back to the base `{name}.md`. The section list says which topics appear, never which wording — so there is no `workflow_lean` section, just a `workflow.lean.md` file. A variant may re-shape its rulebook, but no rule may live *only* in a variant, and every preset must keep the rank-1 safety rules. An explicitly-set `ZRB_LLM_INCLUDE_SECTIONS` overrides a preset's sections; registering a fourth preset is `PRESETS["nano"] = Preset(...)`. See `AGENTS.md` → *Profile*, ADR-0047 and ADR-0075.
 
 ---
 
@@ -256,6 +257,6 @@ Profiles are variant overlays: `get_prompt(name, profile="mini")` resolves `{nam
 - [XCom Deep Dive](../core-concepts/xcom-deep-dive.md) — how task outputs flow into `{ctx.xcom[...]}`
 - [LLMChatTask API Reference](../task-types/llmchat-task.md) — the full constructor and builder API
 - [LLM Assistant & AI Tasks](llm-integration.md) — tools, sub-agents, context management
-- `AGENTS.md` → *LLM Prompt System* and ADR-0044 and ADR-0047 — section resolution and profiles
+- `AGENTS.md` → *LLM Prompt System* and ADR-0044, ADR-0047, ADR-0075 — section resolution, variants and presets
 
 🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > Programming the Prompt

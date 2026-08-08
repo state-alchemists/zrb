@@ -55,6 +55,29 @@ class Scaffolder(BaseTask):
         successor: list[AnyTask] | AnyTask | None = None,
         print_fn: PrintFn | None = None,
     ):
+        """Define a task that copies a template tree, rewriting as it goes.
+
+        Args:
+            source_path: Directory or file to copy from.
+            render_source_path: Whether to render `source_path` as a template.
+            destination_path: Where to copy to.
+            render_destination_path: Whether to render `destination_path` as a
+                template.
+            transform_path: How to rewrite copied paths. A mapping of search
+                string to replacement, or a callable taking the context and a
+                path.
+            render_transform_path: Whether to render template values in
+                `transform_path`.
+            transform_content: How to rewrite copied file contents. An
+                `AnyContentTransformer`, a list of them, a mapping of search
+                string to replacement, or a callable taking the context and a
+                file path.
+            render_transform_content: Whether to render template values in
+                `transform_content`.
+
+        Every parameter `BaseTask` accepts is also accepted here and behaves
+        identically; see `BaseTask` for those.
+        """
         super().__init__(
             name=name,
             color=color,

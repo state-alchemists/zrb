@@ -148,18 +148,25 @@ class LLMConfig:
 
     @property
     def api_key(self) -> str | None:
+        """API key for the provider, falling back to `LLM_API_KEY`."""
         return self._api_key or getattr(CFG, "LLM_API_KEY", None)
 
     @api_key.setter
     def api_key(self, value: str):
+        """Override the API key for this config."""
         self._api_key = value
 
     @property
     def base_url(self) -> str | None:
+        """Provider base URL, falling back to `LLM_BASE_URL`.
+
+        Set this to reach an OpenAI-compatible endpoint such as Ollama.
+        """
         return self._base_url or getattr(CFG, "LLM_BASE_URL", None)
 
     @base_url.setter
     def base_url(self, value: str):
+        """Override the base URL for this config."""
         self._base_url = value
 
     @property

@@ -112,6 +112,7 @@ class BaseTrigger(BaseTask):
 
     @property
     def queue_name(self) -> str:
+        """Name of the xcom queue carrying this trigger's events, defaulting to its name."""
         if self._queue_name is None:
             return f"{self.name}"
         return self._queue_name
@@ -129,6 +130,7 @@ class BaseTrigger(BaseTask):
 
     @property
     def callbacks(self) -> list[AnyCallback]:
+        """Callbacks invoked once per triggered event, always as a list."""
         if isinstance(self._callbacks, AnyCallback):
             return [self._callbacks]
         return self._callbacks
@@ -170,9 +172,19 @@ class BaseTrigger(BaseTask):
         return shared_ctx.xcom[self.queue_name]
 
     def push_exchange_xcom(self, session: AnySession, data: Any):
+        """Publish an event, waking whatever this trigger drives.
+
+        Call this from a trigger implementation when the external condition it
+        watches fires.
+        """
         exchange_xcom = self._get_exchange_xcom(session)
         exchange_xcom.push(data)
 
     def pop_exchange_xcom(self, session: AnySession) -> Any:
+        """Remove and return the oldest pending event.
+
+        Raises:
+            IndexError: If no event is pending.
+        """
         exchange_xcom = self._get_exchange_xcom(session)
         return exchange_xcom.pop()

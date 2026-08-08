@@ -35,12 +35,11 @@ class LLMPromptMixin:
         self.DEFAULT_LLM_INCLUDE_SECTIONS: str = (
             "persona,workflow,examples,system_context,project_context"
         )
-        # Prompt profile (ADR-0047): "terse" (base prompts) or "mini"
-        # (base prompts plus worked examples, for small models); "auto" uses "terse"
-        # unless a per-model profile is declared via register_model_profile().
-        # zrb makes no capability guess from the model id. The profile selects
-        # per-section phrasing variants (e.g. examples.mini.md over examples.md);
-        # which sections appear is controlled solely by LLM_INCLUDE_SECTIONS.
+        # Prompt preset (ADR-0075): "full", "lean" or "minimal"; "auto" resolves
+        # one from the model id, falling back to "full". A preset binds a section
+        # list, a phrasing variant (workflow.lean.md over workflow.md) and a tool
+        # surface. zrb makes no capability guess from a model *family* name —
+        # only from a declared parameter count or a vendor small-tier label.
         self.DEFAULT_LLM_PROFILE: str = "auto"
         super().__init__()
 
@@ -77,14 +76,21 @@ class LLMPromptMixin:
     LLM_PROFILE = EnvField(
         str,
         doc=(
-            "Prompt profile controlling how each section is phrased:\n"
-            "- 'terse': concise, principle-led — the base prompts.\n"
-            "- 'mini': the same rules plus worked examples, for small "
-            "models.\n"
-            "- 'auto' (default): uses 'terse' unless a per-model profile has "
-            "been declared via register_model_profile().\n\n"
-            "The profile selects per-section phrasing variants (e.g. "
-            "persona.mini.md, falling back to the base file) and toggles the "
-            "examples section.\n\n"
+            "Prompt profile — a preset binding which sections compose, how "
+            "they are phrased, and which tools register. The names order "
+            "themselves by how much the model is asked to hold at once:\n"
+            "- 'full': the whole rulebook and all 21 tools, on the base "
+            "prompts.\n"
+            "- 'lean': every section and every tool, on a lighter rulebook "
+            "plus worked examples, for small models (~5-14B).\n"
+            "- 'minimal': a three-section prompt and a 10-tool surface, for "
+            "very small models (~3B). No skills, sub-agents, web, todos or "
+            "project-doc reading.\n"
+            "- 'auto' (default): resolved from the model id — a declared size "
+            "of 4B or less selects 'minimal', 5-14B or a vendor small-tier "
+            "label selects 'lean', otherwise 'full'. Override per model with "
+            "register_model_profile().\n\n"
+            "Setting LLM_INCLUDE_SECTIONS explicitly overrides a preset's "
+            "section list.\n\n"
         ),
     )

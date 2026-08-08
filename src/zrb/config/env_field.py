@@ -162,6 +162,23 @@ class EnvField(Generic[T]):
             return self._write_name
         return f"{prefix}_{self._write_name}"
 
+    def is_set(self, prefix: str) -> bool:
+        """Whether any env var this field *reads* is present.
+
+        Aliases count: a renamed knob is still "set" when the environment
+        carries its old key. Distinct from a truthy read — a field falls back to
+        its default when unset, so the value alone cannot tell a caller whether
+        the user chose it. Reach it through ``CFG.is_env_set(name)``.
+        """
+        return any(
+            (name if self._no_prefix else f"{prefix}_{name}") in os.environ
+            for name in self._read_names
+        )
+
+    def serialize(self, value: Any) -> str:
+        """Render *value* the way this field writes it to the environment."""
+        return self._serialize(value)
+
     def _read_raw(self, obj: Any) -> str:
         default = self._resolve_default(obj)
         if not self._no_prefix:

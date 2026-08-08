@@ -46,6 +46,17 @@ class Session(AnySession):
         root_group: AnyGroup | None = None,
         state_logger: AnySessionStateLogger | None = None,
     ):
+        """Hold the state of one execution run.
+
+        Args:
+            shared_ctx: Context carrying the inputs, envs, and xcom of this run.
+            parent: Session that spawned this one, for a callback or sub-task.
+                None for a top-level run.
+            root_group: Group the executed task was resolved from, used to
+                report task paths.
+            state_logger: Sink persisting session state. Defaults to no
+                persistence.
+        """
         self._name = get_random_name()
         self._root_group = root_group
         self._state_logger = state_logger
@@ -151,6 +162,11 @@ class Session(AnySession):
         self._main_task_path = [] if main_task_path is None else main_task_path
 
     def as_state_log(self) -> "SessionStateLog":
+        """Snapshot this session as a serializable pydantic log.
+
+        Captures each task's status history and timings. This is what the web
+        UI polls and what the session-state logger persists.
+        """
 
         task_status_log: dict[str, TaskStatusStateLog] = {}
         log_start_time = ""

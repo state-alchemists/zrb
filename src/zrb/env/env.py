@@ -15,6 +15,19 @@ class Env(AnyEnv):
         link_to_os: bool = True,
         os_name: str | None = None,
     ):
+        """Declare a single environment variable for a task.
+
+        Args:
+            name: Variable name as the task sees it on `ctx.env`.
+            default: Value used when the OS does not provide one. A template
+                rendered against the context, or a callable taking it.
+            auto_render: Whether to render `default` as a template.
+            link_to_os: Whether to read the value from the OS environment. When
+                False, only `default` is used.
+            os_name: OS variable to read instead of `name`, letting a task see
+                `DB_HOST` while the environment supplies `PROD_DB_HOST`.
+                Ignored when `link_to_os` is False.
+        """
         self._name = name
         self._default = default
         self._auto_render = auto_render

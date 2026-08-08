@@ -36,6 +36,21 @@ class HttpCheck(BaseTask):
         successor: list[AnyTask] | AnyTask | None = None,
         print_fn: PrintFn | None = None,
     ):
+        """Define a task that passes once an HTTP endpoint responds.
+
+        Typically used as another task's `readiness_check`.
+
+        Args:
+            url: URL to poll. A template rendered against the context, or a
+                callable taking it.
+            render_url: Whether to render `url` as a template.
+            http_method: HTTP method to send.
+            interval: Seconds between polls. Defaults to the readiness check
+                period.
+
+        Every parameter `BaseTask` accepts is also accepted here and behaves
+        identically; see `BaseTask` for those.
+        """
         super().__init__(
             name=name,
             color=color,

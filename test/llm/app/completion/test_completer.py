@@ -466,10 +466,10 @@ def test_fuzzy_walk_too_many_files_falls_back_to_path_completer(
 
 
 def test_known_models_fallback_on_exception(mock_history_manager, complete_event):
-    """If pydantic-ai's KnownModelName can't be introspected, a static fallback
-    list is used so /model completion still works."""
+    """If pydantic-ai cannot report its known models, a static fallback list is
+    used so /model completion still works."""
     with patch(
-        "zrb.llm.app.completion.completer.get_args",
+        "pydantic_ai.models.known_model_names",
         side_effect=Exception("boom"),
     ):
         completer = InputCompleter(

@@ -41,50 +41,67 @@ class LLMLimiter:
 
     @property
     def max_request_per_minute(self) -> int:
+        """Requests allowed per minute, from `LLM_MAX_REQUEST_PER_MINUTE` (default 60)."""
         if self._max_request_per_minute is not None:
             return self._max_request_per_minute
         return getattr(CFG, "LLM_MAX_REQUEST_PER_MINUTE", None) or 60
 
     @max_request_per_minute.setter
     def max_request_per_minute(self, value: int):
+        """Override the per-minute request cap for this limiter."""
         self._max_request_per_minute = value
 
     @property
     def max_token_per_minute(self) -> int:
+        """Tokens allowed per minute, from `LLM_MAX_TOKEN_PER_MINUTE` (default 100k)."""
         if self._max_token_per_minute is not None:
             return self._max_token_per_minute
         return getattr(CFG, "LLM_MAX_TOKEN_PER_MINUTE", None) or 100_000
 
     @max_token_per_minute.setter
     def max_token_per_minute(self, value: int):
+        """Override the per-minute token cap for this limiter."""
         self._max_token_per_minute = value
 
     @property
     def max_token_per_request(self) -> int:
+        """Tokens allowed in one request, from `LLM_MAX_TOKEN_PER_REQUEST` (default 16k).
+
+        `fit_context_window` trims history to stay under this.
+        """
         if self._max_token_per_request is not None:
             return self._max_token_per_request
         return getattr(CFG, "LLM_MAX_TOKEN_PER_REQUEST", None) or 16_000
 
     @max_token_per_request.setter
     def max_token_per_request(self, value: int):
+        """Override the per-request token cap for this limiter."""
         self._max_token_per_request = value
 
     @property
     def throttle_check_interval(self) -> float:
+        """Seconds slept between capacity re-checks while throttled (default 0.1)."""
         if self._throttle_check_interval is not None:
             return self._throttle_check_interval
         return getattr(CFG, "LLM_THROTTLE_SLEEP", None) or 0.1
 
     @throttle_check_interval.setter
     def throttle_check_interval(self, value: float):
+        """Override the throttle poll interval for this limiter."""
         self._throttle_check_interval = value
 
     @property
     def use_tiktoken(self) -> bool:
+        """Whether tokens are counted with tiktoken rather than estimated.
+
+        Accurate but slower, and requires the `tiktoken` package. Off by
+        default; enable with `USE_TIKTOKEN`.
+        """
         return getattr(CFG, "USE_TIKTOKEN", False)
 
     @property
     def tiktoken_encoding(self) -> str:
+        """Encoding name used when `use_tiktoken` is on (default `cl100k_base`)."""
         return getattr(CFG, "TIKTOKEN_ENCODING_NAME", "cl100k_base")
 
     # --- Public API ---

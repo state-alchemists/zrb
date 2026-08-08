@@ -9,6 +9,12 @@ This module applies the fix once at import time by overriding
 ``_MapModelResponseContext._into_message_param`` to omit ``content`` entirely
 when ``tool_calls`` are present, which is valid per the OpenAI API spec.
 
+Verified still necessary against pydantic-ai 2.27.0: the upstream method sets
+``content = None`` whenever there is no text, tool calls or not, and no model
+profile flag turns that off. Upstream documents the method as an override hook,
+so the shape of the patch is supported even though the class it hangs off is
+private.
+
 This is the *serialization-layer* fix; `history_utils.filter_nil_content` is
 the complementary *object-layer* fix that runs before every model call. See
 docs/advanced-topics/maintainer-guide.md#the-openai-serializer-patch
@@ -46,15 +52,21 @@ def patch_openai_model_response_serialization():
             )
             return
 
-        def _patched_into_message_param(self):
+        def _patched_into_message_param(self) -> dict[str, Any] | None:
+            # Mirrors upstream apart from the `content` branch below.
+            # A response with neither text nor tool calls has no assistant
+            # message to send: emitting `{"role": "assistant", "content": null}`
+            # for it is a 400 on the Chat Completions API.
+            if not self.texts and not self.tool_calls:
+                return None
             message_param: dict[str, Any] = {"role": "assistant"}
             if self.thinkings:
                 for field_name, contents in self.thinkings.items():
                     message_param[field_name] = "\n\n".join(contents)
             if self.texts:
                 message_param["content"] = "\n\n".join(self.texts)
-            elif not self.tool_calls and not self.thinkings:
-                message_param["content"] = None
+            # No `else`: with tool calls present the key is omitted entirely,
+            # which is what DeepSeek and other OpenAI-compatible APIs require.
             if self.tool_calls:
                 message_param["tool_calls"] = self.tool_calls
             return message_param

@@ -55,6 +55,38 @@ class RsyncTask(CmdTask):
         successor: list[AnyTask] | AnyTask | None = None,
         print_fn: PrintFn | None = None,
     ):
+        """Define a task that copies files with `rsync`, locally or over SSH.
+
+        Exactly one side may be remote. Pair `local_source_path` with
+        `remote_destination_path` to upload, or `remote_source_path` with
+        `local_destination_path` to download. The SSH connection reuses `CmdTask`'s
+        `remote_*` parameters.
+
+        A `render_x` flag controls whether `x` is treated as an f-string template
+        rendered against the task context. Set it False to pass a literal value
+        containing braces.
+
+        Args:
+            local_source_path: Path on this machine to copy from.
+            render_local_source_path: Whether to render `local_source_path` as a
+                template.
+            local_destination_path: Path on this machine to copy to.
+            render_local_destination_path: Whether to render
+                `local_destination_path` as a template.
+            remote_source_path: Path on the remote host to copy from.
+            render_remote_source_path: Whether to render `remote_source_path` as a
+                template.
+            remote_destination_path: Path on the remote host to copy to.
+            render_remote_destination_path: Whether to render
+                `remote_destination_path` as a template.
+            exclude_from: Path to a file listing rsync exclude patterns, passed
+                through as `--exclude-from`.
+            render_exclude_from: Whether to render `exclude_from` as a template.
+            auto_render_shell: Whether to render `shell` as a template.
+
+        Every parameter `CmdTask` accepts is also accepted here and behaves
+        identically, except that `cmd` is generated rather than supplied.
+        """
         super().__init__(
             name=name,
             color=color,

@@ -1,5 +1,5 @@
 import os
-from typing import Any, Callable, Iterable, get_args
+from typing import Any, Callable, Iterable
 
 from prompt_toolkit.completion import (
     CompleteEvent,
@@ -51,7 +51,7 @@ class InputCompleter(Completer):
         show_pydantic_ai_models: bool = True,
     ):
         # lazy: heavy third-party
-        from pydantic_ai.models import KnownModelName
+        from pydantic_ai.models import known_model_names
 
         self._history_manager = history_manager
         self._attach_commands = attach_commands
@@ -74,7 +74,7 @@ class InputCompleter(Completer):
         self._show_pydantic_ai_models = show_pydantic_ai_models
 
         try:
-            self._known_models = list(get_args(KnownModelName.__value__))
+            self._known_models = list(known_model_names())
         except Exception:
             self._known_models = [
                 "openai-chat:gpt-4o",

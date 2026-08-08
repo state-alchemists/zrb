@@ -12,18 +12,25 @@ from zrb.session.session import Session
 from zrb.session_state_logger.session_state_logger_factory import session_state_logger
 from zrb.task.any_task import AnyTask
 from zrb.task.make_task import make_task
-from zrb.util.cli.style import (
-    stylize_highlight,
-    stylize_muted,
-    stylize_section_header,
-)
+from zrb.util.cli.style import stylize_highlight, stylize_muted, stylize_section_header
 from zrb.util.group import extract_node_from_args, get_non_empty_subgroups, get_subtasks
 from zrb.util.string.conversion import double_quote
 
 
 class Cli(Group):
+    """The root command group, and the entry point `zrb` dispatches through.
+
+    Import the ready-made `cli` singleton rather than constructing this — a
+    second instance holds a separate task tree that nothing runs.
+    """
 
     def __init__(self):
+        """Build the root group.
+
+        Takes no arguments: `name`, `description`, and `banner` are read from
+        config on each access rather than fixed at construction, so changing
+        `ROOT_GROUP_NAME` is reflected without rebuilding the tree.
+        """
         super().__init__(name="_zrb")
 
     @property
@@ -39,6 +46,16 @@ class Cli(Group):
         return CFG.BANNER
 
     def run(self, str_args: list[str] | None = None):
+        """Parse CLI arguments and run whatever task they address.
+
+        Args:
+            str_args: Arguments as typed, without the program name. Defaults to
+                an empty list, which prints the root group's help.
+
+        Returns:
+            The task's result, or None when the arguments resolve to a group
+            rather than a task, in which case its help is printed.
+        """
         if str_args is None:
             str_args = []
         str_kwargs, str_args = self._extract_kwargs_from_args(str_args)
@@ -213,10 +230,7 @@ async def start_server(_: AnyContext):
     from uvicorn import Config, Server
 
     # lazy: zrb internal (heavy via transitive / circular)
-    from zrb.runner.web_app import (
-        configure_uvicorn_logging,
-        create_web_app,
-    )
+    from zrb.runner.web_app import configure_uvicorn_logging, create_web_app
 
     configure_uvicorn_logging()
     app = create_web_app(cli, web_auth_config, session_state_logger)

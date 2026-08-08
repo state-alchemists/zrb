@@ -31,15 +31,15 @@ from zrb.config.config import CFG
 from zrb.llm.util.git import is_inside_git_dir
 from zrb.util.string.conversion import to_boolean
 
-# NOTE: `zrb.llm.tool` and `zrb.llm.lsp.tools` are imported lazily inside
-# ``apply_common_tools``. Reason: ``zrb.llm.tool/__init__.py`` loads
+# NOTE: `zrb.llm.tool` and `zrb.llm.lsp.tools` are imported lazily inside the
+# registration functions below. Reason: ``zrb.llm.tool/__init__.py`` loads
 # ``delegate.py``, which imports ``SubAgentManager`` from
 # ``zrb.llm.agent.subagent.manager``. If this module is loaded
 # before ``manager.py`` (e.g. via ``builtin/llm/chat.py``), the
 # ``manager.py`` bottom-imports ``default_tools.py`` which re-enters
 # ``apply_common_tools`` while this module is still mid-load — causing an
 # ImportError on ``apply_common_tools``. Keeping the heavy imports inside
-# the function defers them until ``apply_common_tools`` is actually
+# the functions defers them until ``apply_common_tools`` is actually
 # called, by which point all the cycle's modules are fully loaded.
 
 if TYPE_CHECKING:
@@ -66,20 +66,63 @@ def apply_common_tools(host: CommonToolHost) -> None:
     Idempotent only if called once per host — calling twice will register
     everything twice.
     """
+    keep = _preset_tool_filter()
+    _register_tools(host, keep)
+    _register_tool_factories(host, keep)
+    # Shell safety travels with the shell tools rather than with one builtin
+    # task: the allowlist in bash_safe_command_policy IS the git approval rule
+    # (read-only subcommands auto-approve, `commit`/`push`/`reset` reach the
+    # user), so registering it here is what lets that rule stay out of the
+    # prompt. Hosts without an approval channel (programmatic LLMTask,
+    # SubAgentManager — the latter inherits the caller's confirmation via the
+    # current_tool_confirmation ContextVar) have no add_tool_policy; skip them.
+    add_policy = getattr(host, "add_tool_policy", None)
+    if callable(add_policy):
+        # lazy: circular — tool_policy → handler → ui → llm_task → here
+        from zrb.llm.tool_call.tool_policy.bash_validation import (
+            bash_safe_command_policy,
+        )
+
+        add_policy(bash_safe_command_policy())
+
+
+def tool_name(tool: "Callable | Tool | Any") -> str:
+    """Registered name of *tool*, whether it is a bare function or a ``Tool``.
+
+    A ``Tool`` wraps the function it was built from, and zrb's tools carry their
+    PascalCase name on ``__name__`` (ADR-0054), so both layers have to be tried.
+    """
+    fn = getattr(tool, "function", tool)
+    return getattr(fn, "__name__", "") or getattr(tool, "name", "") or ""
+
+
+def _preset_tool_filter() -> "Callable[[Any], bool] | None":
+    """Predicate keeping only the tools the active preset registers, or ``None``.
+
+    ``None`` means "this preset does not constrain the tool axis" — every preset
+    but ``minimal`` (ADR-0075). Resolved against ``CFG.LLM_MODEL`` because
+    registration happens before any host model is known, so a task whose
+    per-task model override differs from ``CFG.LLM_MODEL`` keeps the full
+    surface; setting ``ZRB_LLM_PROFILE`` explicitly always works.
+    """
+    # lazy: circular — profile → prompt → ui → llm_task → here
+    from zrb.llm.prompt.profile import active_preset
+
+    allowed = active_preset(CFG.LLM_MODEL).tools
+    return None if allowed is None else (lambda tool: tool_name(tool) in allowed)
+
+
+def _register_tools(host: CommonToolHost, keep: "Callable[[Any], bool] | None") -> None:
+    """Register the statically-known tools, tagged with their capabilities."""
     # lazy + import from source modules directly. Going through the
     # ``zrb.llm.tool`` re-export would deadlock: that package's __init__
     # loads ``delegate.py`` which triggers ``SubAgentManager`` load which
     # ultimately re-enters this function. By that time the re-export
     # names (``analyze_file``, etc.) aren't yet bound on ``zrb.llm.tool``.
-    # lazy: zrb internal (heavy via transitive / circular)
-    # Register the 8 LSP tools only when a language server is actually installed
-    # — their own guidance already says to fall back to Read + Grep when none is
-    # available, so advertising them in a server-less repo is pure prompt weight.
-    # detect_available_lsp_servers() is a cheap shutil.which scan (no startup).
-    # lazy: zrb internal (heavy via transitive / circular)
     # lazy: pydantic_ai (heavy third-party deferral)
     from pydantic_ai import Tool
 
+    # lazy: zrb internal (heavy via transitive / circular)
     from zrb.llm.lsp.configs import detect_available_lsp_servers
     from zrb.llm.lsp.tools import create_lsp_tools
 
@@ -88,7 +131,6 @@ def apply_common_tools(host: CommonToolHost) -> None:
 
     # lazy: zrb.llm.tool.* transitively load pydantic_ai; deferring keeps cold-start
     # latency off the import path for callers that never apply common tools.
-    from zrb.llm.tool.ask import ask_user_question
     from zrb.llm.tool.bash import run_bash_command
     from zrb.llm.tool.code import analyze_code
     from zrb.llm.tool.file import (
@@ -102,24 +144,15 @@ def apply_common_tools(host: CommonToolHost) -> None:
         search_files,
         write_file,
     )
-    from zrb.llm.tool.journal import search_journal
-    from zrb.llm.tool.journal_write import log_activity, write_journal_note
-    from zrb.llm.tool.mcp import load_mcp_config
     from zrb.llm.tool.plan import get_todos, write_todos
-    from zrb.llm.tool.plan_mode import enter_plan_mode, exit_plan_mode
     from zrb.llm.tool.shell import run_shell_command
-    from zrb.llm.tool.shell_background import create_monitor_process_tool
-    from zrb.llm.tool.skill import create_activate_skill_tool
     from zrb.llm.tool.web import open_web_page, search_internet
     from zrb.llm.tool.worktree import enter_worktree, exit_worktree, list_worktrees
-    from zrb.llm.tool.zrb_task import (
-        create_list_zrb_task_tool,
-        create_run_zrb_task_tool,
-    )
 
-    # lazy: circular — tool_policy → handler → ui → llm_task → here
-    from zrb.llm.tool_call.tool_policy.bash_validation import bash_safe_command_policy
-
+    # Register the 8 LSP tools only when a language server is actually installed
+    # — their own guidance already says to fall back to Read + Grep when none is
+    # available, so advertising them in a server-less repo is pure prompt weight.
+    # detect_available_lsp_servers() is a cheap shutil.which scan (no startup).
     lsp_tools = create_lsp_tools() if detect_available_lsp_servers() else []
     # Worktree tools only make sense inside a git repo — registering them in a
     # non-git directory is pure prompt weight (their docstrings + schemas would
@@ -144,19 +177,9 @@ def apply_common_tools(host: CommonToolHost) -> None:
         search_files,
         analyze_file,
         analyze_code,
-        search_journal,
     ):
         tag(_fn, Capability.READ)
-    for _fn in (
-        write_file,
-        replace_in_file,
-        remove_file,
-        move_file,
-        # The journal writers only ever touch CFG.LLM_JOURNAL_DIR, but they do
-        # write, so plan mode must block them like any other edit.
-        log_activity,
-        write_journal_note,
-    ):
+    for _fn in (write_file, replace_in_file, remove_file, move_file):
         tag(_fn, Capability.EDIT)
     # Tag worktree tools only when registered (git dir): list is read-only,
     # enter/exit mutate the tree. Mirrors the lsp_tools tagging loop below.
@@ -166,13 +189,12 @@ def apply_common_tools(host: CommonToolHost) -> None:
     tag(run_bash_command, Capability.EXECUTE)
     for _fn in (search_internet, open_web_page):
         tag(_fn, Capability.NETWORK)
-    for _fn in plan_tools + [ask_user_question]:
+    for _fn in plan_tools:
         tag(_fn, Capability.META)
     for _tool in lsp_tools:
-        _name = getattr(_tool, "__name__", "") or getattr(_tool, "name", "")
-        tag(_tool, Capability.EDIT if "Rename" in _name else Capability.READ)
+        tag(_tool, Capability.EDIT if "Rename" in tool_name(_tool) else Capability.READ)
 
-    host.add_tool(
+    tools: list["Callable | Tool"] = [
         run_shell_command,
         run_bash_command,
         list_files,
@@ -196,15 +218,54 @@ def apply_common_tools(host: CommonToolHost) -> None:
         *(Tool(_fn, defer_loading=True) for _fn in worktree_tools),
         *(Tool(_fn, defer_loading=True) for _fn in lsp_tools),
         *plan_tools,
+    ]
+    host.add_tool(*_selected(tools, keep))
+
+
+def _register_tool_factories(
+    host: CommonToolHost, keep: "Callable[[Any], bool] | None"
+) -> None:
+    """Register the tools whose availability is only known per run.
+
+    A factory is re-evaluated against the resolved context on every run, which
+    is what lets interactivity and ``LLM_JOURNAL_ENABLED`` gate a tool without
+    a second registration path. The preset filter therefore has to travel with
+    the factory rather than be applied here — ``minimal`` keeps exactly one
+    factory-built tool (``MonitorProcess``), so skipping the block wholesale
+    would break the closure ``MINIMAL_TOOLS`` promises.
+    """
+    # lazy: pydantic_ai (heavy third-party deferral)
+    from pydantic_ai import Tool
+
+    # lazy: zrb.llm.tool.* transitively load pydantic_ai — same reason as the
+    # import block in _register_tools.
+    from zrb.llm.permission import Capability, tag
+    from zrb.llm.tool.ask import ask_user_question
+    from zrb.llm.tool.journal import search_journal
+    from zrb.llm.tool.journal_write import log_activity, write_journal_note
+    from zrb.llm.tool.mcp import load_mcp_config
+    from zrb.llm.tool.plan_mode import enter_plan_mode, exit_plan_mode
+    from zrb.llm.tool.shell_background import create_monitor_process_tool
+    from zrb.llm.tool.skill import create_activate_skill_tool
+    from zrb.llm.tool.zrb_task import (
+        create_list_zrb_task_tool,
+        create_run_zrb_task_tool,
     )
-    # Plan-mode and AskUserQuestion need a human in the loop, so register them
-    # only in interactive sessions. In non-interactive runs (one-shot CLI,
-    # sub-agents, programmatic LLMTask) they are dead weight — AskUserQuestion
-    # short-circuits and the prompt already says to skip plan mode — yet their
-    # docstrings + schemas (~350-450 tok) would still ship on every request.
-    # Factories (not static add_tool) so the gate is re-evaluated per run
-    # against the resolved context.
-    host.add_tool_factory(
+
+    tag(ask_user_question, Capability.META)
+    tag(search_journal, Capability.READ)
+    # The journal writers only ever touch CFG.LLM_JOURNAL_DIR, but they do
+    # write, so plan mode must block them like any other edit.
+    for _fn in (log_activity, write_journal_note):
+        tag(_fn, Capability.EDIT)
+
+    factories: list["Callable[[AnyContext], Any]"] = [
+        # Plan-mode and AskUserQuestion need a human in the loop, so register
+        # them only in interactive sessions. In non-interactive runs (one-shot
+        # CLI, sub-agents, programmatic LLMTask) they are dead weight —
+        # AskUserQuestion short-circuits and the prompt already says to skip plan
+        # mode — yet their docstrings + schemas (~350-450 tok) would still ship
+        # on every request.
         lambda ctx: (
             [
                 Tool(enter_plan_mode, defer_loading=True),
@@ -223,33 +284,65 @@ def apply_common_tools(host: CommonToolHost) -> None:
             if CFG.LLM_JOURNAL_ENABLED
             else []
         ),
-    )
-    host.add_tool_factory(
         lambda ctx: tag(create_list_zrb_task_tool(), Capability.READ),
         lambda ctx: tag(create_run_zrb_task_tool(), Capability.EXECUTE),
         lambda ctx: tag(create_activate_skill_tool(), Capability.META),
         # Deferred loading: only needed after monitoring a background process —
-        # see the rationale on analyze_code/analyze_file above.
+        # see the rationale on analyze_code/analyze_file in _register_tools.
         lambda ctx: Tool(
             tag(create_monitor_process_tool(), Capability.EXECUTE),
             defer_loading=True,
         ),
-    )
-    # MCP servers vary widely in tool count; hide them behind search too —
-    # same rationale as the deferred function tools above.
-    host.add_toolset_factory(
-        lambda ctx: [toolset.defer_loading() for toolset in load_mcp_config()]
-    )
-    # Shell safety travels with the shell tools rather than with one builtin
-    # task: the allowlist in bash_safe_command_policy IS the git approval rule
-    # (read-only subcommands auto-approve, `commit`/`push`/`reset` reach the
-    # user), so registering it here is what lets that rule stay out of the
-    # prompt. Hosts without an approval channel (programmatic LLMTask,
-    # SubAgentManager — the latter inherits the caller's confirmation via the
-    # current_tool_confirmation ContextVar) have no add_tool_policy; skip them.
-    add_policy = getattr(host, "add_tool_policy", None)
-    if callable(add_policy):
-        add_policy(bash_safe_command_policy())
+    ]
+    host.add_tool_factory(*(_gated(factory, keep) for factory in factories))
+    if keep is None:
+        # MCP servers vary widely in tool count; hide them behind search too —
+        # same rationale as the deferred function tools above. A constrained
+        # preset drops them outright: an MCP server's tool list is not known
+        # here, so it cannot be part of a closed, fixed surface.
+        host.add_toolset_factory(
+            lambda ctx: [toolset.defer_loading() for toolset in load_mcp_config()]
+        )
+
+
+def _selected(
+    tools: "list[Callable | Tool]", keep: "Callable[[Any], bool] | None"
+) -> "list[Callable | Tool]":
+    """The tools *keep* admits, registered eagerly.
+
+    Deferral swaps a tool's schema for a ``search_tools`` entry the model must
+    call before it can reach the tool. That pays when it hides a dozen tools and
+    inverts on a preset that keeps ten, so a preset that constrains the surface
+    takes the schemas and drops the indirection (ADR-0075).
+    """
+    if keep is None:
+        return list(tools)
+    return [_undefer(tool) for tool in tools if keep(tool)]
+
+
+def _gated(
+    factory: "Callable[[AnyContext], Any]", keep: "Callable[[Any], bool] | None"
+) -> "Callable[[AnyContext], Any]":
+    """*factory* with the preset filter applied to whatever it produces."""
+    if keep is None:
+        return factory
+
+    def filtered(ctx: "AnyContext") -> Any:
+        produced = factory(ctx)
+        items = produced if isinstance(produced, list) else [produced]
+        return _selected([item for item in items if item is not None], keep)
+
+    return filtered
+
+
+def _undefer(tool: "Callable | Tool") -> "Callable | Tool":
+    """*tool* with ``defer_loading`` stripped (see :func:`_selected`)."""
+    # lazy: pydantic_ai (heavy third-party deferral)
+    from pydantic_ai import Tool
+
+    if isinstance(tool, Tool) and tool.defer_loading:
+        return Tool(tool.function)
+    return tool
 
 
 def defer_common_tools(host: CommonToolHost) -> None:

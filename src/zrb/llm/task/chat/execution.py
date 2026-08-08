@@ -36,10 +36,9 @@ from zrb.llm.permission import (
     tool_capability,
 )
 from zrb.llm.sandbox import coerce_sandbox
-from zrb.llm.summarizer import (
-    create_summarizer_history_processor,
-)
+from zrb.llm.summarizer import create_summarizer_history_processor
 from zrb.llm.task.chat.state import ChatState
+from zrb.llm.task.chat.ui_commands import UI_COMMAND_CFG_ATTRS
 from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.util.attachment import get_attachments
 from zrb.util.attr import get_attr, get_bool_attr, get_str_attr
@@ -77,6 +76,10 @@ class ChatExecution(ChatState):
         _run_non_interactive_session: Callable[..., Any]  # ChatRunning
 
     def get_system_prompt(self, ctx: AnyContext) -> str:
+        """Compose the full system prompt for this run.
+
+        Returns the empty string when the task has no prompt manager.
+        """
         if self._prompt_manager is None:
             return ""
         compose_prompt = self._prompt_manager.compose_prompt()
@@ -124,15 +127,15 @@ class ChatExecution(ChatState):
         ui_commands = self._get_ui_commands()
 
         # 4. Resolve tools/toolsets from factories using parent context
-        resolved_tools = self._get_all_tools(ctx)
-        resolved_toolsets = self._get_all_toolsets(ctx)
+        resolved_tools = self.get_all_tools(ctx)
+        resolved_toolsets = self.get_all_toolsets(ctx)
 
         # 4a. Wire the resolved model so the system_context section can surface
         # model-specific capability notes (e.g. lack of parallel tool-call
         # support). Re-set on every exec — `/model` switches update
-        # ctx.input.model, which flows through _get_model(ctx).
+        # ctx.input.model, which flows through get_model(ctx).
         if self._prompt_manager is not None:
-            self._prompt_manager.model = self._get_model(ctx)
+            self._prompt_manager.model = self.get_model(ctx)
 
         # 5. Create core LLM task
         llm_task_core = self._create_llm_task_core(
@@ -268,35 +271,21 @@ class ChatExecution(ChatState):
         except Exception as e:
             CFG.LOGGER.debug(f"Background-hook shutdown at teardown failed: {e}")
 
-    def _get_all_tools(self, ctx: AnyContext) -> list[Tool | ToolFuncEither]:
+    def get_all_tools(self, ctx: AnyContext) -> list[Tool | ToolFuncEither]:
         """Get all tools including those resolved from factories using parent context."""
         return resolve_factory_items(self._tools, self._tool_factories, ctx)
 
-    def _get_all_toolsets(self, ctx: AnyContext) -> list[AbstractToolset[None]]:
+    def get_all_toolsets(self, ctx: AnyContext) -> list[AbstractToolset[None]]:
         """Get all toolsets including those resolved from factories using parent context."""
         return resolve_factory_items(self._toolsets, self._toolset_factories, ctx)
 
     def _get_ui_commands(self) -> dict[str, list[str]]:
         """Resolve UI slash-command aliases from the overrides or CFG."""
-        defaults = {
-            "summarize": CFG.LLM_UI_COMMAND_SUMMARIZE,
-            "attach": CFG.LLM_UI_COMMAND_ATTACH,
-            "exit": CFG.LLM_UI_COMMAND_EXIT,
-            "info": CFG.LLM_UI_COMMAND_INFO,
-            "save": CFG.LLM_UI_COMMAND_SAVE,
-            "load": CFG.LLM_UI_COMMAND_LOAD,
-            "rewind": CFG.LLM_UI_COMMAND_REWIND,
-            "yolo_toggle": CFG.LLM_UI_COMMAND_YOLO_TOGGLE,
-            "set_model": CFG.LLM_UI_COMMAND_SET_MODEL,
-            "redirect_output": CFG.LLM_UI_COMMAND_REDIRECT_OUTPUT,
-            "exec": CFG.LLM_UI_COMMAND_EXEC,
-            "btw": CFG.LLM_UI_COMMAND_BTW,
-            "plan": CFG.LLM_UI_COMMAND_PLAN_TOGGLE,
-            "copy": CFG.LLM_UI_COMMAND_COPY,
-            "voice": CFG.LLM_UI_COMMAND_VOICE,
-        }
         overrides = self._ui_command_overrides
-        return {key: overrides.get(key) or value for key, value in defaults.items()}
+        return {
+            key: overrides.get(key) or getattr(CFG, cfg_attr)
+            for key, cfg_attr in UI_COMMAND_CFG_ATTRS.items()
+        }
 
     def _create_llm_task_core(
         self,
@@ -486,7 +475,13 @@ class ChatExecution(ChatState):
             return ui.conversation_session_name
         return getattr(ui, "conversation_session_name", initial_conversation_name)
 
-    def _get_model(self, ctx: AnyContext) -> str | Model:
+    def get_model(self, ctx: AnyContext) -> str | Model:
+        """Resolve the model to use for this run.
+
+        A templated model name is rendered against `ctx` when the task was
+        built with `render_model`. An empty result falls back to the model from
+        `llm_config`.
+        """
         model = self._model
         rendered_model = get_attr(ctx, model, None, auto_render=self._render_model)
         if isinstance(rendered_model, str) and rendered_model.strip() == "":

@@ -3,7 +3,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from zrb.config.config import CFG
-from zrb.llm.prompt.profile import BASE_PROFILE
+from zrb.llm.prompt.profile import FULL_PROFILE
 from zrb.util.string.conversion import to_snake_case
 
 
@@ -15,7 +15,7 @@ def get_prompt(name: str, profile: str | None = None, **extra_replacements: str)
 
         prompt = get_prompt("mandate")
         prompt = get_prompt("persona", ASSISTANT_NAME="Zrb")
-        prompt = get_prompt("persona", profile="mini")
+        prompt = get_prompt("persona", profile="lean")
 
     Standard replacements (journal dir, root group name, etc.) are
     always applied automatically.  Pass extra keyword arguments for
@@ -49,10 +49,10 @@ def _load_prompt_for_profile(name: str, profile: str | None) -> str:
     Tries ``{name}.{profile}`` through the full override chain first (so a
     project override of the variant still wins over the packaged base), falling
     back to the base ``{name}`` when no variant resolves. The base ``*.md`` files
-    are the ``terse`` profile, so ``terse``/``None``/empty short-circuit straight
+    are the ``full`` profile, so ``full``/``None``/empty short-circuit straight
     to the base. See ADR-0047.
     """
-    if profile and profile != BASE_PROFILE:
+    if profile and profile != FULL_PROFILE:
         variant = get_default_prompt(f"{name}.{profile}")
         if variant:
             return variant

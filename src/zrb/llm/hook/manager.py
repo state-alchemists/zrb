@@ -60,6 +60,16 @@ class HookManager(HookManagerLoading):
         ignore_dirs: list[str] | None = None,
     ):
         # Lightweight: just assign properties, no heavy operations
+        """Discover and run lifecycle hooks.
+
+        Args:
+            search_dirs: Directories to scan for hook definitions. Defaults to
+                the standard project and user locations.
+            max_depth: How many directory levels below each search directory to
+                descend.
+            ignore_dirs: Directory names skipped while scanning, such as
+                `node_modules`.
+        """
         self._hooks: dict[HookEvent, list[HookCallable]] = defaultdict(list)
         self._global_hooks: list[HookCallable] = []
         self._executor: ThreadPoolHookExecutor = get_hook_executor()
@@ -78,6 +88,21 @@ class HookManager(HookManagerLoading):
         # Bounds concurrent fire-and-forget subprocesses. Created lazily inside
         # the running loop (see _run_background_hook).
         self._bg_semaphore: asyncio.Semaphore | None = None
+
+    @property
+    def search_dirs(self) -> list[str | Path] | None:
+        """Directories scanned for hook files; ``None`` means "ask the config".
+
+        Assigning invalidates the load, so the next access rescans — which is
+        how a caller points an already-constructed manager somewhere else (an
+        empty list being the way to say "discover nothing").
+        """
+        return self._search_dirs
+
+    @search_dirs.setter
+    def search_dirs(self, value: list[str | Path] | None) -> None:
+        self._search_dirs = value
+        self._loaded = False
 
     def _ensure_loaded(self):
         """Lazy load hooks on first access. No-op if already loaded."""
@@ -439,6 +464,11 @@ class HookManager(HookManagerLoading):
         self._loaded = True
 
     def get_search_directories(self) -> list[str | Path]:
+        """Directories searched for hook definitions, in precedence order.
+
+        Project-level locations come before user-level ones, so a project hook
+        overrides a home-directory hook of the same name.
+        """
         return _get_search_directories()
 
     def _hydrate_hook(self, config: HookConfig) -> HookCallable:

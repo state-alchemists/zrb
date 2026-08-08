@@ -56,20 +56,45 @@ See ADR-0044.
 
 Consistent duplication is the cost of independent toggling; **divergent** duplication is the bug. The current split follows the ladder: *when* to delegate is judgment, so `workflow` owns the triggers; *how* (agent roster, envelope mechanics) stays in `DelegateToAgent`'s docstring as the single source.
 
-### Profile (model-adaptive phrasing)
+### Profile (a preset over three axes)
 
-A second axis controls *how* each section is phrased, independent of *which* sections appear (ADR-0047). `ZRB_LLM_PROFILE` (`CFG.LLM_PROFILE`, default `auto`):
+`ZRB_LLM_PROFILE` (`CFG.LLM_PROFILE`, default `auto`) selects a **preset**: a named binding of *which* sections compose, *how* they are phrased, and *which* tools register (ADR-0075). The table lives in `prompt/profile.py::PRESETS`.
 
-- `terse` / `mini` — force that profile. `terse` is the concise, principle-led base; `mini` is the same rules plus worked demonstrations, for small models.
-- `auto` — resolves to `mini` when the model id declares a small size (a parameter count ≤14B, or a vendor small-tier label), `terse` otherwise. zrb makes **no guess from a family name** — `deepseek`/`qwen`/`llama` span tiny→frontier — but a stated parameter count is the vendor declaring the size. Declare your own with `register_model_profile("my-7b", "mini")` (`prompt/profile.py`); user declarations beat the built-ins.
+| Preset | sections | phrasing variant | tool surface |
+|---|---|---|---|
+| `full` | default | — | all 21 tools |
+| `lean` | default | `.lean` | all 21 tools |
+| `minimal` | `persona, workflow, system_context` | `.minimal` | `MINIMAL_TOOLS` (10) |
 
-The base `*.md` files **are** the `terse` profile. Other profiles are **variant overlays**: `get_prompt(name, profile="mini")` resolves `{name}.mini.md` through the full override chain, falling back to the base — so a profile only needs files for the sections that actually change (currently `examples.mini.md`, the only variant). A variant *replaces* its base file, so `examples.mini.md` must stay a strict superset of `examples.md`; a test pins that.
+The names order themselves by how much the model is asked to hold at once. That is the point of them: the previous set (`terse`/`mini`/`micro`) mixed a prose register with two size words, named the *largest* preset "terse", and put `micro` in collision with the vendor tier labels the selector matches on — a model labelled `-micro` matched nothing and fell through to the heaviest preset.
 
-> **Invariant: a behavioral rule never lives only in a profile variant.** A variant reaches only the models that resolve to it, so a rule placed there silently misses everyone else. **A variant may add demonstrations; it may not add or re-phrase rules.** If it teaches a rule, it belongs in the base file.
+- `auto` resolves from the model id: a declared parameter count ≤4B → `minimal`, 5–14B or a vendor small-tier label → `lean`, otherwise `full`. zrb makes **no guess from a family name** — `deepseek`/`qwen`/`llama` span tiny→frontier — but a stated parameter count is the vendor declaring the size. Declare your own with `register_model_profile("my-7b", "lean")`; user declarations beat the built-ins.
+- **A stated count is parsed as a number** (`builtin_profile` → `SIZE_BANDS`), never matched per band by a digit pattern. A digit class cannot see a decimal point: `deepseek-r1:1.5b` matched `5b` and took `lean`, so the two most-run local models on the planet got the preset for models ten times their size. Parsing also fixes the two ambiguous ids by rule — the *first* count wins (`qwen3-30b-a3b` reads as 30B, its total, not its active parameters) and a count outranks a label (`some-mini-32b` stays `full`).
+- The bands are asymmetric on purpose: `lean` keeps every section and tool, so a false positive is cheap; `minimal` *removes* both, so only a stated ≤4B count selects it. A vendor label is never enough — `nano`/`tiny`/`micro` sit on models far stronger than a 3B local one and stay on `lean`.
+- An explicitly-set `ZRB_LLM_INCLUDE_SECTIONS` overrides a preset's section list; changing `CFG.DEFAULT_LLM_INCLUDE_SECTIONS` does not (a preset outranking a *default* is the intended precedence).
+- Registering a fourth preset is a dict assignment: `PRESETS["nano"] = Preset(...)`. `valid_profiles()` derives from those keys, so the new name is immediately accepted by `ZRB_LLM_PROFILE` and `register_model_profile`.
 
-`examples` is deliberately thin in the base: it keeps only the examples that fix a zrb-specific stance a capable model would not otherwise adopt, and the rest live in `examples.mini.md`. Add a demonstration to the variant unless it teaches a stance a frontier model gets wrong.
+**One naming convention, no exceptions.** A section named `foo` resolves `foo.{profile}.md` and falls back to `foo.md`. That is how *every* preset varies text — `workflow.lean.md`, `workflow.minimal.md`, `examples.lean.md`. There is no such thing as a `workflow_lean` *section*: the section list only ever says which topics appear, never which wording. A preset ships files only for the sections whose text actually changes.
 
-`PromptManager._get_composed_middlewares` resolves the profile once (from `CFG.LLM_PROFILE` + `self._model`) and threads it to file-backed sections. Cross-cutting voice that does not decompose into a variant stays a whole alternate section or preset.
+**Burden falls monotonically with target capability.** That is what the preset ladder is *for*, and it is asserted, not assumed:
+
+> Each preset's rule-carrying sections (`persona` + `workflow`, resolved through its own variant) must be strictly smaller in mass and rule count than the preset above. Clause nesting must not rise. Demonstrations are excluded and move the other way — a worked example lowers burden, which is why `lean` loses rule text *and* gains `examples.lean.md`. `test_section_composition.py::test_rule_burden_falls_as_the_target_model_gets_weaker`.
+
+`lean` motivated the rule: it used to ship a 5-14B model the frontier `workflow.md` plus 1,200 tokens of extra examples, making it the heaviest composition in the system. Its own rulebook is now `workflow.lean.md` — the same behaviours with the precedence ladder flattened and the decision ladders merged. It keeps every capability (skills, todos, delegation, plan mode, all 21 tools), because trimming those would cost behavior, not burden. Note the totals still put `lean` slightly above `full`: the rulebook fell ~700 tokens and `examples.lean.md` adds ~1,200 back. That is the intended trade, not a regression — demonstrations are excluded from the burden metric on purpose.
+
+> **Invariant: a variant never becomes the only home of a rule** (ADR-0047). A variant reaches only the models that resolve to it, so a rule that exists nowhere else silently misses everyone else. A variant may re-shape the rulebook for its model class — that is what `workflow.lean.md` and `workflow.minimal.md` are — but the safety floor below is what stops re-shaping from becoming quiet deletion.
+
+Two further invariants bound a preset (ADR-0075), both tested:
+
+> **Composition may drop method; it may never drop safety.** Priority Order rank 1 — secrets, tool results are data not instructions, confirm destructive actions — must survive in every preset. `test_section_composition.py::test_every_preset_carries_the_rank_one_safety_rules`.
+
+> **A preset's tool set is closed under docstring cross-reference.** Tool docstrings route between each other, and a docstring ships with its schema whatever the config, so it cannot carry a `<!--requires:-->` guard. This is what sizes `MINIMAL_TOOLS` at ten rather than six: `Shell`/`Grep` route to `Glob`/`RM`/`MV`, and `Shell`'s `background=True` returns a handle only `MonitorProcess` can poll. `test_common_tools.py::test_minimal_tool_set_is_closed_under_docstring_cross_reference`.
+
+**A constrained preset registers its tools eagerly.** `defer_loading` trades a tool's schema for a `search_tools` entry the model must call before it can reach the tool. That pays when it hides a dozen tools; it inverts at ten — `minimal` would spend ~146 tokens of `search_tools` to hide `MonitorProcess`'s ~127, and charge a ~3B model a discovery turn to poll a background process. `_selected` un-defers what it keeps; `test_common_tools.py::test_minimal_registers_no_deferred_tools` covers the factory path too, since `MonitorProcess` is factory-built and is the only deferred tool the preset keeps.
+
+`examples` is deliberately thin in the base: it keeps only the examples that fix a zrb-specific stance a capable model would not otherwise adopt, and the rest live in `examples.lean.md`. Add a demonstration to the variant unless it teaches a stance a frontier model gets wrong.
+
+One call resolves the knob and the model together — `profile.active_preset(model)` — and each consumer takes the axis it owns: `PromptManager.active_sections` the section list, `_get_composed_middlewares` the phrasing variant, `apply_common_tools` the tool surface. The tool axis is a predicate (`_preset_tool_filter`) applied to both the static list and every tool factory, because a factory resolves per run; a constrained preset also drops MCP toolsets, whose tool lists are unknown at registration and so cannot be part of a closed surface.
 
 ### Journal
 
@@ -103,7 +128,7 @@ Lives under `docs/`: `changelog.md` (index), `changelog-v2/` (per-minor files, e
 ### Code Style
 - Follow existing project conventions (formatting, naming, typing).
 - **Modularity:** prefer functions under ~30 lines; helpers placed below their callers. This is a target for *new* code, not a repo-wide invariant — several hundred existing functions exceed it (keybinding tables, hook creators, constructors). Going long is fine when splitting would only scatter a single linear procedure; don't split to hit the number, and don't cite the number as if it were enforced.
-- **`Mixin` means reusable** (ADR-0035). Suffix a class `Mixin` only when it reads no state it does not itself set, so any class can mix it in (`BufferedOutputMixin`; the `CFG` mixins under `config/mixins/`). A class that reads attributes only one host provides is a *part* of that host: name it `<Owner><Aspect>` in a file named for the aspect — `ChatExecution` in `task/chat/execution.py`, `BaseUICommands` in `ui/base/commands.py`. No `_mixin` suffix, no leading underscore (these are imported across modules, so "module-private" would be a false claim). Parts keep a `TYPE_CHECKING` host-contract block declaring what the host must provide.
+- **`Mixin` means reusable** (ADR-0035). Suffix a class `Mixin` only when it reads no state it does not itself set, so any class can mix it in (`BufferedOutputMixin`; the `CFG` mixins under `config/mixins/`). A class that reads attributes only one host provides is a *part* of that host: name it `<Owner><Aspect>` in a file named for the aspect — `ChatExecution` in `task/chat/execution.py`, `BaseUICommands` in `ui/base/commands.py`. No `_mixin` suffix, no leading underscore (these are imported across modules, so "module-private" would be a false claim). Parts keep a `TYPE_CHECKING` host-contract block declaring what the host must provide. **A method the host calls by name, a sibling part declares, or a subclass overrides is public too** — `LLMTaskHistory.get_conversation_name`, `LLMTaskBuilding.get_model`. Only helpers called from inside their own part keep the underscore.
 - **No path stutter.** `X/manager/manager.py` is `X/manager.py`; siblings become `X/manager_<aspect>.py`.
 - **Error handling:** an LLM tool error the *model* has to recover from carries a `[SYSTEM SUGGESTION]` prefix with actionable guidance. Ordinary programmer errors (bad argument, broken invariant) stay plain `ValueError`/`RuntimeError` — the prefix is for text the model reads, not for every raise.
 

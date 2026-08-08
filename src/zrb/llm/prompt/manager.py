@@ -10,7 +10,7 @@ from zrb.llm.prompt.claude import (
     create_project_context_prompt,
 )
 from zrb.llm.prompt.live_context import render_live_context
-from zrb.llm.prompt.profile import resolve_profile
+from zrb.llm.prompt.profile import Preset, active_preset
 from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.prompt.section_filter import filter_requires
 from zrb.llm.prompt.system_context import system_context
@@ -118,20 +118,42 @@ class PromptManager:
 
     @property
     def active_sections(self) -> list[str]:
-        """The resolved prompt sections: instance override, else CFG default.
+        """The resolved prompt sections, in precedence order.
 
-        Single source of truth for *which* sections are active.
+        Single source of truth for *which* sections are active:
 
-        Journaling is no longer one of them: there is no prompt section to
+        1. the instance ``include_sections`` override,
+        2. an explicitly-set ``LLM_INCLUDE_SECTIONS`` env var,
+        3. the active preset's section list, when it constrains that axis
+           (only ``minimal`` does — ``full`` and ``lean`` reshape their prose
+           through the variant axis and keep every section — ADR-0075),
+        4. ``CFG.LLM_INCLUDE_SECTIONS``.
+
+        Only the *env var* counts as the user naming a list: overriding
+        ``CFG.DEFAULT_LLM_INCLUDE_SECTIONS`` in ``zrb_init.py`` changes the
+        *default*, and a preset outranking a default is the intended precedence.
+
+        Journaling is not one of them: there is no prompt section to
         suppress, so ``LLM_JOURNAL_ENABLED`` gates the journal *tools* at
         registration instead (see ``apply_common_tools``), and the index
         injection checks the flag directly (``render_journal_index``).
         """
-        return (
-            list(self._include_sections)
-            if self._include_sections is not None
-            else list(CFG.LLM_INCLUDE_SECTIONS)
-        )
+        if self._include_sections is not None:
+            return list(self._include_sections)
+        sections = self.active_preset.sections
+        if sections is not None and not CFG.is_env_set("LLM_INCLUDE_SECTIONS"):
+            return list(sections)
+        return list(CFG.LLM_INCLUDE_SECTIONS)
+
+    @property
+    def active_preset(self) -> Preset:
+        """The preset the configured ``LLM_PROFILE`` binds for the active model.
+
+        Read for two of its three axes: the section list above, and the phrasing
+        variant threaded to file-backed sections in ``_get_composed_middlewares``.
+        The third — the tool surface — is applied by ``apply_common_tools``.
+        """
+        return active_preset(self._model)
 
     @property
     def model(self) -> Any:
@@ -371,12 +393,11 @@ class PromptManager:
     ) -> list[PromptMiddleware | str]:
         sections = self.active_sections
 
-        # Resolve the profile (ADR-0047) from the LLM_PROFILE knob + active
-        # model. It selects per-section phrasing variants (file-backed sections
-        # resolve ``{name}.{profile}`` with fallback). Which sections appear
-        # is controlled solely by include_sections / ZRB_LLM_INCLUDE_SECTIONS —
-        # the profile never injects or removes sections.
-        profile = resolve_profile(CFG.LLM_PROFILE, self._model)
+        # The preset's phrasing axis (ADR-0075): file-backed sections resolve
+        # ``{name}.{variant}.md`` with fallback to the base (ADR-0047), which is
+        # how ``lean`` and ``minimal`` get their lighter rulebooks. ``full``
+        # carries no variant, so every section takes the base file.
+        variant = self.active_preset.variant
 
         assistant_name = (
             get_str_attr(ctx, self._assistant_name) if self._assistant_name else None
@@ -425,7 +446,7 @@ class PromptManager:
                 middlewares.append(
                     self._file_section_middleware(
                         section,
-                        profile=profile,
+                        profile=variant,
                         extra_replacements=_extra,
                         emitted=emitted,
                     )
