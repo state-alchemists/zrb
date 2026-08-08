@@ -45,7 +45,7 @@ These variables define which LLM Zrb uses for its primary reasoning and how it c
 | `ZRB_LLM_MULTIMODAL_MODEL` | Model for multimodal tasks (image analysis) | `None` (no fallback) |
 | `ZRB_LLM_API_KEY` | API key for your LLM provider | None |
 | `ZRB_LLM_BASE_URL` | Custom endpoint URL | None |
-| `ZRB_LLM_PERMISSIONS` | Tool permission ruleset. Empty keeps legacy yolo behavior. Accepts a shorthand (`allow`/`ask`/`deny`) or a comma-separated `key:action` list (e.g. `edit:deny,Bash:ask,*:allow`). First match wins. | (empty) |
+| `ZRB_LLM_PERMISSIONS` | Tool permission ruleset. Empty keeps legacy yolo behavior. Accepts a shorthand (`allow`/`ask`/`deny`) or a comma-separated `key:action` list (e.g. `edit:deny,Shell:ask,*:allow`). First match wins. | (empty) |
 
 ### Supported Providers
 
@@ -273,23 +273,24 @@ compose, how they are phrased, and which tools register (ADR-0075).
 
 | Preset | Sections | Phrasing | Tools |
 |--------|----------|----------|-------|
-| `full` | default | base files | all 21 |
-| `lean` | default | `workflow.lean.md`, `examples.lean.md` | all 21 |
-| `minimal` | `persona, workflow, system_context` | `workflow.minimal.md` | 10 |
+| `full` | default | base files | all 20 |
+| `lean` | default | `persona.lean.md`, `workflow.lean.md`, `examples.lean.md` | all but the journal trio (17) |
+| `minimal` | `persona, workflow, system_context` | `persona.minimal.md`, `workflow.minimal.md` | 10 |
 
 - **`full`** — the concise, principle-led preset (the base prompt files).
 - **`lean`** — for small models (~5-14B). Two changes in opposite directions: a
-  lighter rulebook (`workflow.lean.md` in place of `workflow`, ~25% smaller with
-  the precedence ladder flattened) and *more* worked demonstrations
-  (`examples.lean.md`, a superset of the base `examples.md`). Small models
-  follow worked examples better than abstract rules. The demonstrations **never
-  add rules**: added constraint mass degrades exactly the models it targets, so
-  a variant may exemplify a rule but never re-word or extend one (ADR-0047).
-  Every tool and capability is kept — a 5-14B model can still use skills, todos
-  and delegation.
+  lighter rulebook (`persona.lean.md` and `workflow.lean.md` in place of their
+  bases, ~25% smaller with the precedence ladder flattened) and *more* worked
+  demonstrations (`examples.lean.md`). Small models follow worked examples better
+  than abstract rules. The demonstrations **never add rules**: added constraint
+  mass degrades exactly the models it targets, so a variant may exemplify a rule
+  but never re-word or extend one (ADR-0047). The only capability dropped is the
+  journal — a 5-14B model still gets skills, todos, web and delegation, and
+  cross-session memory is never needed to finish a turn. Set
+  `ZRB_LLM_PROFILE=full` if you want it back on a 7B.
 - **`minimal`** — for very small models (~3B), where the *budget* is the binding
-  constraint rather than the register. Composes to roughly 3,500 tokens of
-  preamble against ~9,000. A `minimal` session has **no** skills, sub-agents,
+  constraint rather than the register. Composes to roughly 3,400 tokens of
+  preamble against ~8,400. A `minimal` session has **no** skills, sub-agents,
   web access, todo list, journal, plan mode, MCP tools or project-doc reading —
   it is a single-tool-call-per-turn assistant, not an agentic coder. Use it when
   a small local model must drive the main loop; for a small model *assisting* a
@@ -304,7 +305,7 @@ you nothing — but `-7b` is the vendor stating a parameter count, and `mini` /
 | Selects `minimal` | Selects `lean` | Stays `full` |
 |-----------------|----------------|---------------|
 | a stated count of 4B or less — `qwen2.5:3b`, `deepseek-r1:1.5b`, `qwen2.5:0.5b` | a stated count of 5-14B — `qwen2.5-7b`, `gemma-2-9b`, `qwen3-14b` | larger stated sizes — `qwen3-32b`, `llama-3-70b`, `llama-3.1-405b` |
-| — | vendor small tiers — `gpt-5-mini`, `claude-haiku-4-5`, `gemini-nano` | everything else — `claude-opus-4-8`, `deepseek-v4-pro`, `gemini-2.5-pro` |
+| a small-tier label served locally — `ollama:phi4-mini`, `lmstudio:gemma-tiny` | vendor small tiers on a hosted provider — `gpt-5-mini`, `claude-haiku-4-5`, `gemini-nano` | everything else — `claude-opus-4-8`, `deepseek-v4-pro`, `gemini-2.5-pro`, `ollama:kimi-k2.6:cloud` |
 
 The count is read as a **number**, so a fractional size means what it says:
 `1.5b` is 1.5B, not 5B. Where an id states two counts the first wins, which is
@@ -312,17 +313,25 @@ how an MoE id reads as its total rather than its active parameters
 (`qwen3-30b-a3b` → 30B → `full`). A stated count also outranks a label, so
 `some-mini-32b` stays `full`.
 
-The two bands are asymmetric on purpose. `lean` keeps every section and tool and
-only reshapes prose, so a false positive is cheap — which is why every vendor
-small-tier label (`mini`, `micro`, `nano`, `tiny`, `small`, `lite`, `haiku`)
-resolves there. `minimal` *removes* sections and tools, so a false positive
-costs real capability; only a stated ≤4B count selects it, never a label,
-because `nano`/`tiny` sit on models (`gpt-5-nano`) far more capable than a 3B
-local one. Declare a local model into `minimal` explicitly (see below).
+The two bands are asymmetric on purpose. `lean` keeps every section and nearly
+every tool, so a false positive is cheap — which is why every vendor small-tier
+label (`mini`, `micro`, `nano`, `tiny`, `small`, `lite`, `haiku`) resolves there
+by default. `minimal` *removes* sections and tools, so a false positive costs
+real capability, and a stated ≤4B count selects it outright.
 
-Burden falls as the target model gets weaker: each preset's rulebook is strictly
-smaller than the one above it. Demonstrations move the other way, because a
-worked example lowers burden rather than adding to it.
+A label **alone** never does, because `nano`/`tiny` sit on models (`gpt-5-nano`)
+far more capable than a 3B local one. A label plus a **local provider prefix**
+does: `ollama:`, `lmstudio:`, `llamacpp:` and `localai:` say who is serving the
+model, and `ollama:phi4-mini` is 3.8B of weights on a laptop where
+`openai:gpt-5-nano` is the entry tier of a hosted family. Ollama's own hosted
+tier is excluded by its `:cloud` suffix, so `ollama:kimi-k2.6:cloud` stays
+`full`. Anything the built-ins get wrong, declare explicitly (see below).
+
+Burden falls as the target model gets weaker: each rule-carrying section is
+strictly smaller than the same section one preset up. Demonstrations move the
+other way, because a worked example lowers burden rather than adding to it — but
+they are exempt from the ladder, not from the budget: the *composed total* falls
+across presets too, so a weaker target never receives more prompt overall.
 
 Setting `ZRB_LLM_INCLUDE_SECTIONS` explicitly overrides a preset's section list,
 so you can run `minimal`'s lean tool surface with your own sections.

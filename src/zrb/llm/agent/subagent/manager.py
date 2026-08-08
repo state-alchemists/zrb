@@ -24,6 +24,18 @@ if TYPE_CHECKING:
     from pydantic_ai.toolsets import AbstractToolset
 
 
+# Claude Code names its shell tool ``Bash``; zrb ships a single ``Shell`` tool.
+# A sub-agent file written for Claude that lists ``Bash`` maps onto ``Shell``,
+# so an agent's `tools:` / `disallowedTools:` frontmatter keeps working
+# unmodified (case-insensitive, e.g. ``Bash`` or ``bash``).
+_TOOL_NAME_ALIASES = {"bash": "Shell"}
+
+
+def _canonical_tool_name(name: str) -> str:
+    """The zrb tool name that implements the Claude-compatible name *name*."""
+    return _TOOL_NAME_ALIASES.get(name.lower(), name)
+
+
 def _resolve_tool_name(t: Any) -> str | None:
     raw = getattr(t, "name", None)
     if raw is not None:
@@ -220,10 +232,9 @@ class SubAgentManager(SubAgentManagerLoading, SubAgentManagerSearch):
         resolved_tools = []
         registry = self._get_tool_registry()
         for tool_name in definition.tools:
-            if tool_name in registry:
-                tool = registry[tool_name]
-                if not getattr(tool, "zrb_is_delegate_tool", False):
-                    resolved_tools.append(tool)
+            tool = registry.get(_canonical_tool_name(tool_name))
+            if tool is not None and not getattr(tool, "zrb_is_delegate_tool", False):
+                resolved_tools.append(tool)
 
         for factory in self._tool_factories:
             tool = factory(ctx)
@@ -235,10 +246,11 @@ class SubAgentManager(SubAgentManagerLoading, SubAgentManagerSearch):
                 resolved_tools.append(tool)
 
         if definition.disallowed_tools:
+            disallowed = {
+                _canonical_tool_name(name) for name in definition.disallowed_tools
+            }
             resolved_tools = [
-                t
-                for t in resolved_tools
-                if _resolve_tool_name(t) not in definition.disallowed_tools
+                t for t in resolved_tools if _resolve_tool_name(t) not in disallowed
             ]
 
         resolved_toolsets = self.get_all_toolsets(ctx)

@@ -131,7 +131,7 @@ tombstone.
 - **ADR-0061** — [Plan mode is a permission preset](adr-0061.md)
 - **ADR-0062** — [Advertised tool options are permission-filtered](adr-0062.md)
 - **ADR-0063** — [Opt-in two-layer filesystem sandbox](adr-0063.md)
-- **ADR-0064** — [`Shell` is primary, `Bash` is an alias, background is a flag](adr-0064.md)
+- **ADR-0064** — [`Shell` is the only shell tool; background is a flag](adr-0064.md)
 - **ADR-0065** — [MCP servers are first-class tool sources](adr-0065.md)
 
 ### Delegation and concurrency

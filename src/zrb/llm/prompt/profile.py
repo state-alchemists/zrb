@@ -70,6 +70,20 @@ SMALL_TIER_LABELS: tuple[str, ...] = (
 # A parameter count as vendors write it: delimited, optionally fractional, and
 # closed by a `b`. The count is captured whole and compared numerically, so
 # `deepseek-r1:1.5b` reads as 1.5B rather than as its trailing `5b`.
+#: Provider prefixes that mean "this model runs on the user's own machine".
+#:
+#: The one piece of context that changes what a small-tier label claims. A vendor
+#: shipping ``gpt-5-nano`` over an API is naming a tier in a lineup that starts
+#: far above a 3B; someone running ``ollama:phi4-mini`` is running 3.8B of
+#: weights on a laptop. Same label, two different assertions — which is why a
+#: label alone still only reaches ``lean`` (see :data:`SMALL_TIER_LABELS`) and
+#: only a label *plus* a local prefix reaches ``minimal``.
+#:
+#: Ollama's hosted tier is the exception inside the exception: ``ollama:`` there
+#: prefixes frontier models, and those ids carry ``:cloud``, so it disqualifies.
+LOCAL_PROVIDERS: tuple[str, ...] = ("ollama:", "lmstudio:", "llamacpp:", "localai:")
+_HOSTED_TIER = ":cloud"
+
 _DECLARED_SIZE = re.compile(r"(?<![a-z0-9.])(\d+(?:\.\d+)?)\s*b(?![a-z0-9])", re.I)
 _SMALL_TIER = re.compile(rf"(?<![a-z])({'|'.join(SMALL_TIER_LABELS)})(?![a-z])", re.I)
 
@@ -80,11 +94,24 @@ def builtin_profile(model_id: str) -> str | None:
     A stated parameter count wins over a label: it is the more specific claim,
     and a model stating both (``qwen3-30b-a3b``) is stating that the larger
     number is what it is. The first count in the id is the one read.
+
+    With no count, a small-tier label reaches ``minimal`` only when the model is
+    also locally served (:data:`LOCAL_PROVIDERS`), and ``lean`` otherwise.
     """
     size = _declared_size(model_id)
     if size is not None:
         return next((profile for limit, profile in SIZE_BANDS if size <= limit), None)
-    return LEAN_PROFILE if _SMALL_TIER.search(model_id) else None
+    if not _SMALL_TIER.search(model_id):
+        return None
+    return MINIMAL_PROFILE if _is_local(model_id) else LEAN_PROFILE
+
+
+def _is_local(model_id: str) -> bool:
+    """Whether *model_id* names a locally-served model rather than a hosted one."""
+    lowered = model_id.lower()
+    if _HOSTED_TIER in lowered:
+        return False
+    return any(lowered.startswith(prefix) for prefix in LOCAL_PROVIDERS)
 
 
 def _declared_size(model_id: str) -> float | None:
@@ -100,11 +127,31 @@ class Preset:
     ``None`` on any field means "do not constrain this axis" — the configured
     ``LLM_INCLUDE_SECTIONS`` applies, the base prompt files apply, every
     registered tool applies. See ADR-0075.
+
+    The tool axis has two forms because the two constrained presets want
+    opposite things. ``tools`` is an allowlist: a closed, fixed surface, which
+    is what ``minimal`` needs and what makes its closure checkable. ``drops`` is
+    a denylist: everything registered *except* these, which is what ``lean``
+    needs — it keeps the full surface and subtracts a few, so an allowlist would
+    have to re-list every tool and would silently drop each new one from ``lean``
+    until someone remembered to add it. Set at most one.
     """
 
     sections: tuple[str, ...] | None = None
     variant: str | None = None
     tools: frozenset[str] | None = None
+    drops: frozenset[str] | None = None
+
+    def admits(self, name: str) -> bool:
+        """Whether a tool registered under *name* survives this preset."""
+        if self.tools is not None:
+            return name in self.tools
+        return self.drops is None or name not in self.drops
+
+    @property
+    def constrains_tools(self) -> bool:
+        """Whether this preset narrows the tool axis at all."""
+        return self.tools is not None or self.drops is not None
 
 
 #: ``minimal``'s tool surface. Closed under docstring cross-reference (ADR-0056),
@@ -129,6 +176,17 @@ MINIMAL_TOOLS = frozenset(
     }
 )
 
+#: What ``lean`` subtracts from the full surface. Small in count, not in weight:
+#: these three are ~920 tokens of schema, ~18% of the eager tool definitions a
+#: 5-14B model reads before it reads the request.
+#:
+#: The journal trio goes because cross-session memory is the wrong thing to
+#: spend a constrained model's tool budget on: it is not needed to finish the
+#: turn, and ADR-0053 left no prompt prose to orphan. ``live_context`` stops
+#: injecting the index to match (see ``render_journal_index``) — a preset that
+#: drops the reader must not keep handing it something to read.
+LEAN_DROPS = frozenset({"SearchJournal", "LogActivity", "WriteJournalNote"})
+
 #: ``minimal``'s section list. The two omissions are the point: ``examples``
 #: because ``workflow.minimal.md`` carries its own demonstrations inline, and
 #: ``project_context`` because its instruction is to ``Read`` project docs in
@@ -146,7 +204,7 @@ MINIMAL_SECTIONS = ("persona", "workflow", "system_context")
 #: accepted by ``ZRB_LLM_PROFILE`` and by :func:`register_model_profile`.
 PRESETS: dict[str, Preset] = {
     FULL_PROFILE: Preset(),
-    LEAN_PROFILE: Preset(variant=LEAN_PROFILE),
+    LEAN_PROFILE: Preset(variant=LEAN_PROFILE, drops=LEAN_DROPS),
     MINIMAL_PROFILE: Preset(
         sections=MINIMAL_SECTIONS, variant=MINIMAL_PROFILE, tools=MINIMAL_TOOLS
     ),

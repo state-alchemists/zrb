@@ -119,3 +119,77 @@ def test_negative_injects_the_whole_index_uncapped(tmp_path):
     assert result is not None
     assert "insight 199" in result
     assert "(...more)" not in result
+
+
+# ── Injected context is closed under the preset's tool surface (ADR-0075) ──
+
+
+class _Ctx:
+    """Minimal stand-in for the context ``render_live_context`` reads.
+
+    ``SharedContext.input`` is a read-only property, so the real class cannot
+    carry the interactivity flag this needs to steer.
+    """
+
+    def __init__(self, interactive: bool):
+        self.input = type("_Input", (), {"interactive": interactive, "session": "t"})()
+
+
+def _live_context(model: str, *, interactive: bool = True) -> str:
+    """Render a live-context block as *model*'s preset would receive it."""
+    from zrb.llm.prompt.live_context import render_live_context
+
+    return render_live_context(_Ctx(interactive), model, inject_journal_index=True)
+
+
+def test_a_line_never_names_a_tool_the_preset_dropped():
+    """The third channel that can name a tool, and the one nothing guarded.
+
+    ``test_common_tools.py`` closes the docstring channel and
+    ``test_section_composition.py`` closes the prompt-section channel. Injected
+    context escaped both: ``<live-context>`` announced ``AskUserQuestion`` and
+    the journal index announced ``SearchJournal`` on every preset, including the
+    two that never register either.
+    """
+    import re
+
+    from zrb.llm.common_tools import apply_common_tools, tool_name
+    from zrb.llm.prompt.profile import active_preset
+
+    registered: set[str] = set()
+
+    class _Host:
+        def add_tool(self, *tool):
+            registered.update(tool_name(t) for t in tool)
+
+        def add_tool_factory(self, *factory):
+            pass
+
+        def add_toolset_factory(self, *factory):
+            pass
+
+    apply_common_tools(_Host())
+    registered |= {"AskUserQuestion", "SearchJournal", "EnterPlanMode", "ExitPlanMode"}
+
+    for model in ("ollama:llama3.2:3b", "ollama:qwen3:8b", "anthropic:claude-opus-4-8"):
+        preset = active_preset(model)
+        text = _live_context(model)
+        named = {
+            n for n in re.findall(r"\b([A-Z][a-zA-Z]+)\b", text) if n in registered
+        }
+        absent = {n for n in named if not preset.admits(n)}
+        assert absent == set(), f"{model}: {sorted(absent)}"
+
+
+def test_the_non_interactive_line_forbids_no_tool_by_name():
+    """Those tools are unregistered in exactly this branch, so naming them is waste.
+
+    ``_resolve_interactive`` gates AskUserQuestion and both plan-mode tools off
+    for non-interactive runs, so the sentence spent ~55 tokens per turn warning
+    against three tools the model could not see.
+    """
+    text = _live_context("anthropic:claude-opus-4-8", interactive=False)
+
+    assert "Interactive: no" in text
+    for tool in ("AskUserQuestion", "EnterPlanMode", "ExitPlanMode"):
+        assert tool not in text

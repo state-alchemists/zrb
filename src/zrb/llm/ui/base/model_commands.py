@@ -123,7 +123,7 @@ class BaseUIModelCommands:
 
         Returns a cycle member (``normal`` / ``accept_edits`` / ``plan``), or an
         off-cycle label (``yolo`` / ``custom``) when yolo was set outside the
-        Shift+Tab cycle (e.g. ``/yolo`` or ``/yolo Read,Bash`` / Ctrl+Y). Plan
+        Shift+Tab cycle (e.g. ``/yolo`` or ``/yolo Read,Shell`` / Ctrl+Y). Plan
         mode takes precedence so the label never misreports a read-only run.
         """
         if getattr(self, "_plan_mode_active", False):

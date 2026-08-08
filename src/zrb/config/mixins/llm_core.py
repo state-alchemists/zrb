@@ -74,7 +74,7 @@ class LLMCoreMixin:
             "behavior. Accepts a shorthand ('allow'/'ask'/'deny') or a "
             "comma-separated 'key:action' list, where key is a tool name, a "
             "capability (read/edit/execute/network/delegate/meta), or '*' "
-            "(e.g. 'edit:deny,Bash:ask,*:allow'). First match wins. Actions:\n"
+            "(e.g. 'edit:deny,Shell:ask,*:allow'). First match wins. Actions:\n"
             "- 'deny': enforced before the tool runs.\n"
             "- 'allow': skips approval.\n"
             "- 'ask': prompts for approval."

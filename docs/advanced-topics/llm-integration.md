@@ -83,7 +83,7 @@ By default, Zrb prompts for confirmation before executing most tools. This is co
 | **Permission Policy** | Fine-grained `ALLOW`/`DENY`/`ASK` rules that can override YOLO |
 | **Plan Mode** | Strict read-only mode for discovery. See [Plan Mode](./plan-mode.md) |
 
-**Safe Command Policy:** Both `Shell` and `Bash` tools automatically approve known-safe read-only commands (e.g., `ls`, `git status`, `cat`, `grep`) without requiring YOLO mode. Commands with dangerous shell metacharacters (`>`, `|`, `;`, `&`, `` ` ``, `$()`, `\n`, `\r`) always require explicit approval. Known-safe prefixes include `ls`, `cat`, `grep`, `git status`, `printenv`, and similar read-only commands — note that bare `env` is intentionally excluded as `env FOO=1 rm -rf x` can execute arbitrary commands.
+**Safe Command Policy:** The `Shell` tool automatically approves known-safe read-only commands (e.g., `ls`, `git status`, `cat`, `grep`) without requiring YOLO mode. Commands with dangerous shell metacharacters (`>`, `|`, `;`, `&`, `` ` ``, `$()`, `\n`, `\r`) always require explicit approval. Known-safe prefixes include `ls`, `cat`, `grep`, `git status`, `printenv`, and similar read-only commands — note that bare `env` is intentionally excluded as `env FOO=1 rm -rf x` can execute arbitrary commands.
 
 ---
 
@@ -145,9 +145,8 @@ The assistant comes with a rich set of built-in tools. These are automatically a
 
 | Tool | Function | Description |
 |------|----------|-------------|
-| `Shell` | `run_shell_command` | Execute non-interactive shell commands. Streams output live and truncates large results. Always requires non-interactive flags (e.g., `-y`). Pass `background=True` for long-running processes (dev servers, watchers) to get a handle immediately instead of blocking. |
-| `Bash` | `run_shell_command` | Alias for `Shell` (Claude compatibility). Same behavior and arguments (incl. `background=True`). |
-| `MonitorProcess` | `monitor_process` | Check, wait on, or kill a background process started with `Shell`/`Bash` `background=True`. Pass `wait=N` to block up to N seconds (returns early on exit), or `kill=True` to terminate. |
+| `Shell` | `run_shell_command` | Execute non-interactive shell commands. Streams output live and truncates large results. Always requires non-interactive flags (e.g., `-y`). Pass `background=True` for long-running processes (dev servers, watchers) to get a handle immediately instead of blocking. zrb's only shell tool — sub-agents that list `Bash` (the Claude Code name) are mapped to it on load; pass `shell="bash"` if bash is needed specifically. |
+| `MonitorProcess` | `monitor_process` | Check, wait on, or kill a background process started with `Shell` `background=True`. Pass `wait=N` to block up to N seconds (returns early on exit), or `kill=True` to terminate. |
 
 ### File System
 

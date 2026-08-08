@@ -1,4 +1,3 @@
-from zrb.llm.tool.bash import run_bash_command as run_bash_command
 from zrb.llm.tool.code import analyze_code
 from zrb.llm.tool.delegate import create_delegate_to_agent_tool
 from zrb.llm.tool.file import (
@@ -33,7 +32,6 @@ write_journal_note.__name__ = "WriteJournalNote"
 
 __all__ = [
     "run_shell_command",
-    "run_bash_command",
     "analyze_code",
     "glob_files",
     "list_files",

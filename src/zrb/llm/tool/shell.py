@@ -40,6 +40,10 @@ async def run_shell_command(
     they would work — the file tools carry post-write diagnostics, path
     validation, and per-path approval that a shell command bypasses.
 
+    Shell is zrb's only shell tool — call Shell, not Bash. A sub-agent or skill
+    that asks for ``Bash`` (the Claude Code name) is mapped to Shell when it
+    loads; pass ``shell="bash"`` if you need bash specifically.
+
     stdin is closed — prompts hang until timeout; pass `-y`, `--yes`, or `CI=true`.
     Batch with `&&`; use `cwd` instead of `cd`. Timed-out processes may continue in background.
     When output exceeds the size cap it is truncated from the TOP (keeping the

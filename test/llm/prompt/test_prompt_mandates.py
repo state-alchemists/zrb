@@ -78,15 +78,19 @@ def test_get_prompt_lean_profile_uses_variant_when_present():
     base = get_prompt("examples")
     explicit = get_prompt("examples", profile="lean")
     assert explicit != base
-    # A variant may add demonstrations, never rules (ADR-0047), so it is a
-    # strict superset of the base rather than a rewrite of it.
-    assert explicit.startswith(base.rstrip())
+    assert "<example>" in explicit
 
 
 def test_get_prompt_lean_profile_falls_back_when_no_variant():
-    """A section with no .explicit.md transparently resolves to its base file."""
-    base = get_prompt("persona", ASSISTANT_NAME="Zrb")
-    explicit = get_prompt("persona", profile="lean", ASSISTANT_NAME="Zrb")
+    """A section with no .lean.md transparently resolves to its base file.
+
+    Exercised on a non-section prompt file. Every *section* now ships a variant
+    per preset — that is the point of the burden ladder in
+    ``test_section_composition.py`` — so a section can no longer demonstrate
+    the fallback without first regressing the thing the ladder pins.
+    """
+    base = get_prompt("web_summarizer")
+    explicit = get_prompt("web_summarizer", profile="lean")
     assert explicit == base
 
 
@@ -100,17 +104,25 @@ def test_get_prompt_full_profile_uses_base_file():
 def test_get_prompt_profile_falls_back_to_base_when_no_variant():
     """A section with no variant for the profile falls back to the base file.
 
-    `persona` is the same at every preset — identity does not get lighter for a
-    small model — so it is the section that exercises the fallback. `workflow`
-    would not: it ships a variant per preset.
+    `persona` used to be the section that exercised this, on the reasoning that
+    identity does not get lighter for a small model. It does: the same 486
+    tokens of frontier-register prose were 35% of `minimal`'s whole rule payload
+    and contradicted its own rulebook on reply length. The silent fallback was
+    what let that ship unnoticed, so the fallback is now pinned on a prompt file
+    that is genuinely preset-invariant rather than on one nobody had varied yet.
     """
-    base = get_prompt("persona")
+    base = get_prompt("repo_summarizer")
     for profile in ("lean", "minimal"):
-        assert get_prompt("persona", profile=profile) == base, profile
+        assert get_prompt("repo_summarizer", profile=profile) == base, profile
 
 
 def test_get_prompt_examples_ships_in_both_profiles():
-    """Examples reach every model; `lean` adds more on top (ADR-0047)."""
+    """Examples reach every model, and `lean` gets proportionally more of them.
+
+    More demonstrations, not more total prompt: `lean`'s extra examples are paid
+    for out of its own lighter rulebook, which
+    ``test_a_weaker_targets_preset_ships_less_prompt_in_total`` enforces.
+    """
     base = get_prompt("examples")
     lean = get_prompt("examples", profile="lean")
     assert "<example>" in base

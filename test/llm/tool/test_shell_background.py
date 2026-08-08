@@ -1,7 +1,7 @@
 """Tests for background shell command execution.
 
-Background processes are launched through the public ``Shell``/``Bash`` tools
-with ``background=True``; the registry and ``MonitorProcess`` collect them.
+Background processes are launched through the ``Shell`` tool with
+``background=True``; the registry and ``MonitorProcess`` collect them.
 """
 
 import asyncio

@@ -61,7 +61,7 @@ Place `hooks.json` or `hooks.yaml` in `.zrb/` or `~/.zrb/`:
       "command": "echo '{\"decision\": \"block\", \"reason\": \"Dangerous command blocked\"}'"
     },
     "matchers": [
-      {"field": "tool_name", "operator": "equals", "value": "Bash"}
+      {"field": "tool_name", "operator": "equals", "value": "Shell"}
     ]
   }
 ]

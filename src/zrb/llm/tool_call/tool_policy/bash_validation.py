@@ -106,7 +106,7 @@ def _is_safe_command(command: str) -> bool:
 
 def bash_safe_command_policy() -> ToolPolicy:
     """
-    Returns a ToolPolicy that auto-approves Bash tool calls whose command is
+    Returns a ToolPolicy that auto-approves Shell tool calls whose command is
     read-only and contains no state-changing shell metacharacters.
 
     Uses an allowlist: only explicitly known-safe command prefixes are auto-approved.
@@ -121,7 +121,7 @@ def bash_safe_command_policy() -> ToolPolicy:
         # lazy: heavy third-party
         from pydantic_ai import ToolApproved
 
-        if call.tool_name not in ("Shell", "Bash"):
+        if call.tool_name != "Shell":
             return await next_handler(ui, call)
 
         try:

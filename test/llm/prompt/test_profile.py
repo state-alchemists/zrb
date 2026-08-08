@@ -4,6 +4,7 @@ import pytest
 
 from zrb.llm.prompt.profile import (
     FULL_PROFILE,
+    LEAN_DROPS,
     LEAN_PROFILE,
     MINIMAL_PROFILE,
     MINIMAL_SECTIONS,
@@ -206,12 +207,12 @@ def test_the_size_bands_do_not_overlap():
         assert resolve_profile("auto", model) == FULL_PROFILE, model
 
 
-def test_vendor_small_tier_labels_stay_on_lean():
-    """`minimal` removes capability, so a label is never enough to select it.
+def test_a_hosted_small_tier_label_stays_on_lean():
+    """A vendor tier name is a claim about a lineup, not about a size.
 
-    `lean` keeps every section and tool, so a false positive is cheap.
-    `minimal` drops both, so a false positive is expensive — and `nano`/`tiny`
-    label models (`gpt-5-nano`) far more capable than a 3B local one.
+    `lean` keeps every section and tool, so a false positive is cheap; `minimal`
+    drops both, so a false positive is expensive — and `nano`/`micro` label
+    models (`gpt-5-nano`) far more capable than a 3B local one.
 
     `micro` is in the list for the same reason, and is the case the old naming
     got wrong: while a preset was *called* `micro`, a model labelled `-micro`
@@ -221,9 +222,44 @@ def test_vendor_small_tier_labels_stay_on_lean():
         "openai:gpt-5-nano",
         "openai:gpt-5-mini",
         "openai:gpt-5-micro",
+        "openai:gpt-4o-mini",
         "anthropic:claude-haiku-4-5",
     ]:
         assert resolve_profile("auto", model) == LEAN_PROFILE, model
+
+
+def test_a_locally_served_small_tier_label_selects_minimal():
+    """The same label means a different size once you know who is serving it.
+
+    `ollama:phi4-mini` is 3.8B of weights on the user's laptop; `openai:gpt-5-nano`
+    is the entry tier of a hosted lineup. Both state no parameter count and both
+    used to resolve to `lean`, handing a 3.8B model the heaviest composition in
+    the system. The provider prefix is the disambiguator, and `_model_id` already
+    keeps it intact.
+    """
+    for model in [
+        "ollama:phi4-mini:latest",
+        "lmstudio:phi-4-mini",
+        "llamacpp:qwen2.5-mini",
+        "localai:tiny-llama",
+    ]:
+        assert resolve_profile("auto", model) == MINIMAL_PROFILE, model
+
+
+def test_ollamas_hosted_tier_is_not_treated_as_local():
+    """`ollama:` also prefixes frontier models; `:cloud` is what separates them."""
+    for model in [
+        "ollama:kimi-k2.6:cloud",
+        "ollama:qwen3-coder-next:cloud",
+        "ollama:minimax-m2.7:cloud",
+    ]:
+        assert resolve_profile("auto", model) == FULL_PROFILE, model
+
+
+def test_a_declared_size_still_outranks_a_local_prefix():
+    """A stated count is the specific claim wherever the model is served."""
+    assert resolve_profile("auto", "ollama:qwen3:8b") == LEAN_PROFILE
+    assert resolve_profile("auto", "ollama:qwen2.5-mini:32b") == FULL_PROFILE
 
 
 def test_a_user_declaration_can_still_force_minimal():
@@ -234,7 +270,30 @@ def test_a_user_declaration_can_still_force_minimal():
 def test_full_constrains_nothing():
     """`full` is the unconstrained baseline every other preset subtracts from."""
     preset = resolve_preset(FULL_PROFILE)
-    assert (preset.sections, preset.variant, preset.tools) == (None, None, None)
+    assert (preset.sections, preset.variant, preset.tools, preset.drops) == (
+        None,
+        None,
+        None,
+        None,
+    )
+
+
+def test_lean_subtracts_tools_without_closing_the_surface():
+    """`lean` uses the denylist axis, so a new tool reaches it without an edit."""
+    preset = resolve_preset(LEAN_PROFILE)
+    assert preset.tools is None
+    assert preset.drops == LEAN_DROPS
+    assert preset.constrains_tools
+    assert preset.admits("Shell")
+    assert preset.admits("SomeToolAddedNextRelease")
+
+
+def test_minimal_closes_the_surface():
+    """`minimal` uses the allowlist axis, so a new tool does *not* reach it."""
+    preset = resolve_preset(MINIMAL_PROFILE)
+    assert preset.drops is None
+    assert preset.admits("Shell")
+    assert not preset.admits("SomeToolAddedNextRelease")
 
 
 def test_only_minimal_constrains_the_tool_axis():

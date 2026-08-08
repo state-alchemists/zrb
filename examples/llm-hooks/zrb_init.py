@@ -108,7 +108,7 @@ async def permission_hook(context: HookContext) -> HookResult:
     tool_name = context.tool_name or ""
 
     SAFE_TOOLS = {"Read", "Glob", "Grep", "LS", "LspListServers"}
-    DANGEROUS_TOOLS = {"Bash", "RunShellCommand"}
+    DANGEROUS_TOOLS = {"Shell"}
 
     if tool_name in DANGEROUS_TOOLS:
         tool_input = context.tool_input or {}
@@ -117,7 +117,7 @@ async def permission_hook(context: HookContext) -> HookResult:
         # Allow read-only commands
         safe_patterns = ["ls", "cat", "grep", "find", "git status", "git log"]
         if any(cmd in command for cmd in safe_patterns):
-            print(f"[PERMISSION] Allowing safe Bash: {command[:50]}")
+            print(f"[PERMISSION] Allowing safe Shell command: {command[:50]}")
             return HookResult(
                 success=True,
                 modifications={"permissionDecision": "allow"},
@@ -126,7 +126,7 @@ async def permission_hook(context: HookContext) -> HookResult:
         # Deny dangerous patterns
         dangerous_patterns = ["rm ", "rmdir", "sudo", "chmod", "chown", ">"]
         if any(pat in command for pat in dangerous_patterns):
-            print(f"[PERMISSION] Blocking dangerous Bash: {command[:50]}")
+            print(f"[PERMISSION] Blocking dangerous Shell command: {command[:50]}")
             return HookResult(
                 success=True,
                 modifications={"permissionDecision": "deny"},

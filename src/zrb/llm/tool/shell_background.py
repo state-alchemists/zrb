@@ -1,7 +1,7 @@
 """Background shell command execution.
 
-``Shell``/``Bash`` with ``background=True`` start a command in the background
-and return a handle immediately (the registry below does the launching).
+``Shell`` with ``background=True`` starts a command in the background
+and returns a handle immediately (the registry below does the launching).
 ``MonitorProcess(handle)`` polls the status, shows captured stdout/stderr
 incrementally, optionally waits up to N seconds for exit, and optionally kills
 the process.
@@ -143,7 +143,7 @@ class _ShellBackgroundRegistry:
         if bp is None:
             return (
                 f"Unknown handle '{handle}'. "
-                "[SYSTEM SUGGESTION]: start a process with Shell/Bash "
+                "[SYSTEM SUGGESTION]: start a process with Shell "
                 "(background=True); a finished handle is consumed by the poll "
                 "that reports its exit."
             )
@@ -219,8 +219,7 @@ def create_monitor_process_tool():
         kill: bool = False,
         wait: float = 0,
     ) -> str:
-        """Check or kill a background process started with Shell/Bash
-        (background=True).
+        """Check or kill a process started with `background=True`.
 
         By default returns the current stdout/stderr and status. Pass `wait=N`
         to block up to N seconds (capped by LLM_BACKGROUND_WAIT_MAX), returning

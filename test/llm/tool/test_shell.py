@@ -441,7 +441,9 @@ def test_docstring_routes_file_work_to_the_file_tools():
     A model that reaches for `cat`/`sed -i`/`rm` gets none of what the file tools
     carry — post-write diagnostics, path validation, per-path auto-approval — so
     the routing rule belongs next to the schema it competes with, not only in the
-    prompt where it applies to no tool in particular.
+    prompt where it applies to no tool in particular. It must also say to call
+    Shell rather than Bash — Bash is no longer a tool, so the docstring is the
+    only place the model learns that sub-agents listing `Bash` map to Shell.
     """
     doc = run_shell_command.__doc__ or ""
 
@@ -450,14 +452,4 @@ def test_docstring_routes_file_work_to_the_file_tools():
     for wrong in ("cat", "find", "sed -i"):
         assert wrong in doc
 
-
-def test_bash_docstring_carries_the_same_routing_rule():
-    """Bash delegates to Shell, so it inherits the bug surface — and must
-    inherit the rule. Its own docstring is the only one a model sees when it
-    picks Bash by name (many Claude skills assume that name)."""
-    from zrb.llm.tool.bash import run_bash_command
-
-    doc = run_bash_command.__doc__ or ""
-
-    for file_tool in ("Read", "Write", "Edit", "Grep", "Glob", "LS", "RM", "MV"):
-        assert file_tool in doc
+    assert "not Bash" in doc

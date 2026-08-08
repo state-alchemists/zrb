@@ -411,7 +411,7 @@ Fields can use dot notation to access nested context:
 ### Tool names (Claude-compatible)
 
 Zrb's built-in tools expose Claude-compatible names (`Read`, `Write`, `Edit`,
-`Grep`, `Glob`, `LS`, `Bash`, `WebFetch`, `WebSearch`, `TodoWrite`, `TodoRead`,
+`Grep`, `Glob`, `LS`, `Shell`, `WebFetch`, `WebSearch`, `TodoWrite`, `TodoRead`,
 …), so a Claude hook matcher keyed on a tool name — e.g. `{"matcher": "Edit"}`
 or a `tool_name` matcher — works as-is. A few zrb tools keep a name that
 differs from Claude's; for those, the Claude name is accepted as an **alias** on

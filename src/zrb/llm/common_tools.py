@@ -25,7 +25,7 @@ the ``current_tool_confirmation`` ContextVar.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Callable, NamedTuple, Protocol, runtime_checkable
 
 from zrb.config.config import CFG
 from zrb.llm.util.git import is_inside_git_dir
@@ -96,23 +96,47 @@ def tool_name(tool: "Callable | Tool | Any") -> str:
     return getattr(fn, "__name__", "") or getattr(tool, "name", "") or ""
 
 
-def _preset_tool_filter() -> "Callable[[Any], bool] | None":
+class _Surface(NamedTuple):
+    """How the active preset narrows the tool axis.
+
+    ``undefer`` rides along because deferral only pays above a certain surface
+    size: it swaps a tool's schema for a ``search_tools`` entry the model must
+    call first. ``minimal`` keeps ten tools and would spend more on the
+    indirection than it hides, so it takes the schemas (ADR-0075). ``lean`` keeps
+    thirty-three — there the indirection is the whole saving, so its deferred
+    tools stay deferred. The old code derived this from "is the axis constrained
+    at all", which was the same question only while ``minimal`` was the only
+    preset that constrained it.
+    """
+
+    admits: "Callable[[Any], bool]"
+    undefer: bool
+
+
+def _preset_tool_filter() -> "_Surface | None":
     """Predicate keeping only the tools the active preset registers, or ``None``.
 
-    ``None`` means "this preset does not constrain the tool axis" — every preset
-    but ``minimal`` (ADR-0075). Resolved against ``CFG.LLM_MODEL`` because
-    registration happens before any host model is known, so a task whose
-    per-task model override differs from ``CFG.LLM_MODEL`` keeps the full
-    surface; setting ``ZRB_LLM_PROFILE`` explicitly always works.
+    ``None`` means "this preset does not constrain the tool axis" — only ``full``
+    now (ADR-0075). ``minimal`` constrains it with an allowlist and ``lean`` with
+    a denylist; ``Preset.admits`` resolves either, so this stays one predicate.
+    Resolved against ``CFG.LLM_MODEL`` because registration happens before any
+    host model is known, so a task whose per-task model override differs from
+    ``CFG.LLM_MODEL`` keeps the full surface; setting ``ZRB_LLM_PROFILE``
+    explicitly always works.
     """
     # lazy: circular — profile → prompt → ui → llm_task → here
     from zrb.llm.prompt.profile import active_preset
 
-    allowed = active_preset(CFG.LLM_MODEL).tools
-    return None if allowed is None else (lambda tool: tool_name(tool) in allowed)
+    preset = active_preset(CFG.LLM_MODEL)
+    if not preset.constrains_tools:
+        return None
+    return _Surface(
+        admits=lambda tool: preset.admits(tool_name(tool)),
+        undefer=preset.tools is not None,
+    )
 
 
-def _register_tools(host: CommonToolHost, keep: "Callable[[Any], bool] | None") -> None:
+def _register_tools(host: CommonToolHost, keep: "_Surface | None") -> None:
     """Register the statically-known tools, tagged with their capabilities."""
     # lazy + import from source modules directly. Going through the
     # ``zrb.llm.tool`` re-export would deadlock: that package's __init__
@@ -131,7 +155,6 @@ def _register_tools(host: CommonToolHost, keep: "Callable[[Any], bool] | None") 
 
     # lazy: zrb.llm.tool.* transitively load pydantic_ai; deferring keeps cold-start
     # latency off the import path for callers that never apply common tools.
-    from zrb.llm.tool.bash import run_bash_command
     from zrb.llm.tool.code import analyze_code
     from zrb.llm.tool.file import (
         analyze_file,
@@ -186,7 +209,6 @@ def _register_tools(host: CommonToolHost, keep: "Callable[[Any], bool] | None") 
     for _fn in worktree_tools:
         tag(_fn, Capability.READ if _fn is list_worktrees else Capability.EDIT)
     tag(run_shell_command, Capability.EXECUTE)
-    tag(run_bash_command, Capability.EXECUTE)
     for _fn in (search_internet, open_web_page):
         tag(_fn, Capability.NETWORK)
     for _fn in plan_tools:
@@ -196,7 +218,6 @@ def _register_tools(host: CommonToolHost, keep: "Callable[[Any], bool] | None") 
 
     tools: list["Callable | Tool"] = [
         run_shell_command,
-        run_bash_command,
         list_files,
         glob_files,
         read_file,
@@ -222,9 +243,7 @@ def _register_tools(host: CommonToolHost, keep: "Callable[[Any], bool] | None") 
     host.add_tool(*_selected(tools, keep))
 
 
-def _register_tool_factories(
-    host: CommonToolHost, keep: "Callable[[Any], bool] | None"
-) -> None:
+def _register_tool_factories(host: CommonToolHost, keep: "_Surface | None") -> None:
     """Register the tools whose availability is only known per run.
 
     A factory is re-evaluated against the resolved context on every run, which
@@ -306,22 +325,21 @@ def _register_tool_factories(
 
 
 def _selected(
-    tools: "list[Callable | Tool]", keep: "Callable[[Any], bool] | None"
+    tools: "list[Callable | Tool]", keep: "_Surface | None"
 ) -> "list[Callable | Tool]":
-    """The tools *keep* admits, registered eagerly.
+    """The tools *keep* admits, un-deferred if the preset wants their schemas.
 
-    Deferral swaps a tool's schema for a ``search_tools`` entry the model must
-    call before it can reach the tool. That pays when it hides a dozen tools and
-    inverts on a preset that keeps ten, so a preset that constrains the surface
-    takes the schemas and drops the indirection (ADR-0075).
+    See ``_Surface.undefer`` for why that is not simply "the axis is
+    constrained".
     """
     if keep is None:
         return list(tools)
-    return [_undefer(tool) for tool in tools if keep(tool)]
+    chosen = [tool for tool in tools if keep.admits(tool)]
+    return [_undefer(tool) for tool in chosen] if keep.undefer else chosen
 
 
 def _gated(
-    factory: "Callable[[AnyContext], Any]", keep: "Callable[[Any], bool] | None"
+    factory: "Callable[[AnyContext], Any]", keep: "_Surface | None"
 ) -> "Callable[[AnyContext], Any]":
     """*factory* with the preset filter applied to whatever it produces."""
     if keep is None:

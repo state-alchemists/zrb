@@ -18,7 +18,7 @@ _CAPABILITY_ATTR = "zrb_capability"
 class Capability(str, Enum):
     READ = "read"  # pure reads: Read, LS, Glob, Grep, Analyze*, SearchJournal
     EDIT = "edit"  # filesystem mutation: Write, Edit, RM, MV, Enter/ExitWorktree
-    EXECUTE = "execute"  # arbitrary side effects: Bash, RunZrbTask
+    EXECUTE = "execute"  # arbitrary side effects: Shell, RunZrbTask
     NETWORK = "network"  # outbound network: WebSearch, WebFetch
     DELEGATE = "delegate"  # spawns sub-agents
     META = "meta"  # harness control, no external effect: todos, skills, AskUser

@@ -2,7 +2,7 @@
 name: generalist
 description: Can write, and has the full tool set. Pick it when the delegated work must produce or modify an artifact on disk, or when a large context-heavy task (log analysis, deep research) both reads and writes. For work that is purely reading, prefer a read-only agent — it cannot change anything by accident.
 tools: [
-  Shell, Bash, Read, Write, Edit, RM, MV,
+  Shell, Read, Write, Edit, RM, MV,
   LS, Glob, Grep,
   AnalyzeFile, AnalyzeCode,
   SearchJournal, WebSearch, WebFetch,

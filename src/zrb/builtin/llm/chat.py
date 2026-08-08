@@ -174,7 +174,7 @@ llm_chat.add_tool_policy(
     # via the permission policy (PLAN_MODE_POLICY sets it to ASK) so the user
     # must approve the plan before execution resumes.
     # MonitorProcess is read-only (poll/wait); kill still routes through the user.
-    # Starting a background command goes through Shell/Bash (background=True), which
+    # Starting a background command goes through Shell (background=True), which
     # is gated by bash_safe_command_policy like any other shell call.
     auto_approve("MonitorProcess"),
     # LSP tools - read-only, safe to auto-approve

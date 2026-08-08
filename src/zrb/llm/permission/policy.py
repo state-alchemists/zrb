@@ -97,8 +97,8 @@ def resolve_policy(raw: "PermissionPolicyInput") -> "PermissionPolicy | None":
     """Build a policy from user config.
 
     Accepts ``None``/empty (→ ``None``, legacy behavior), a ``PermissionPolicy``,
-    a shorthand ``"allow"``/``"ask"``/``"deny"``, a ``"key:action"`` list string
-    (e.g. ``"edit:deny,Bash:ask,*:allow"``), or a list of dicts/``Rule``s.
+    a shorthand ``"allow"``/``"ask"``/``"deny"``,     a ``"key:action"`` list string
+    (e.g. ``"edit:deny,Shell:ask,*:allow"``), or a list of dicts/``Rule``s.
     """
     if raw is None or raw == "":
         return None

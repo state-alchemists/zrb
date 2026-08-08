@@ -86,6 +86,63 @@ def test_sub_agent_manager_filter_delegate_tools():
         assert delegate_tool not in resolved_tools
 
 
+def test_sub_agent_manager_maps_bash_tool_to_shell():
+    """A Claude-written sub-agent that lists ``Bash`` gets zrb's ``Shell`` tool.
+
+    ``Bash`` is not a zrb tool; the registry holds ``Shell``. Both the tool
+    resolution and the ``disallowedTools`` filter map the Claude name over.
+    """
+    manager = SubAgentManager()
+
+    def shell_tool():
+        """Shell tool"""
+        return "ok"
+
+    shell_tool.__name__ = "Shell"
+    manager.add_tool(shell_tool)
+
+    agent_def = SubAgentDefinition(
+        name="claude-agent",
+        path=".",
+        description="Test",
+        system_prompt="Prompt",
+        tools=["Bash"],
+    )
+    manager.add_agent(agent_def)
+
+    with patch("zrb.llm.agent.subagent.manager.create_agent") as mock_create_agent:
+        manager.create_agent("claude-agent")
+        resolved_tools = mock_create_agent.call_args.kwargs["tools"]
+        assert shell_tool in resolved_tools
+
+
+def test_sub_agent_manager_maps_bash_disallowed_tool_to_shell():
+    """``disallowedTools: [Bash]`` excludes the ``Shell`` tool."""
+    manager = SubAgentManager()
+
+    def shell_tool():
+        """Shell tool"""
+        return "ok"
+
+    shell_tool.__name__ = "Shell"
+    manager.add_tool(shell_tool)
+
+    agent_def = SubAgentDefinition(
+        name="claude-agent",
+        path=".",
+        description="Test",
+        system_prompt="Prompt",
+        tools=["Shell"],
+        disallowed_tools=["Bash"],
+    )
+    manager.add_agent(agent_def)
+
+    with patch("zrb.llm.agent.subagent.manager.create_agent") as mock_create_agent:
+        manager.create_agent("claude-agent")
+        resolved_tools = mock_create_agent.call_args.kwargs["tools"]
+        assert shell_tool not in resolved_tools
+
+
 def test_sub_agent_manager_filter_delegate_tools_from_factory():
     manager = SubAgentManager()
 
