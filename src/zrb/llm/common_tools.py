@@ -117,10 +117,10 @@ def apply_common_tools(host: CommonToolHost) -> None:
     from zrb.llm.tool_call.tool_policy.bash_validation import bash_safe_command_policy
 
     # The preset's tool axis (ADR-0075). ``None`` means "do not constrain",
-    # which is every preset but ``micro``. Resolved against CFG.LLM_MODEL
+    # which is every preset but ``minimal``. Resolved against CFG.LLM_MODEL
     # because ``apply_common_tools`` has no host model to read; a task with a
     # per-task model override that differs from CFG.LLM_MODEL therefore keeps
-    # the full surface — setting ZRB_LLM_PROFILE=micro explicitly always works.
+    # the full surface — setting ZRB_LLM_PROFILE=minimal explicitly always works.
     allowed_tools = resolve_preset(
         resolve_profile(CFG.LLM_PROFILE, CFG.LLM_MODEL)
     ).tools
@@ -211,13 +211,10 @@ def apply_common_tools(host: CommonToolHost) -> None:
     ]
     host.add_tool(*(t for t in static_tools if _in_preset(t)))
 
-    # Factory tools go through the same preset filter — ``micro`` keeps
+    # Factory tools go through the same preset filter — ``minimal`` keeps
     # ``MonitorProcess``, which is factory-built, so skipping the block wholesale
-    # would break the closure ``MICRO_TOOLS`` promises. The filtering host also
-    # drops every MCP toolset and every deferred tool for a constrained preset:
-    # ``defer_loading`` needs provider-side tool search, which local runtimes
-    # generally lack, so a deferred tool there is unreachable rather than cheap
-    # (ADR-0075).
+    # would break the closure ``MINIMAL_TOOLS`` promises. The filtering host also
+    # drops every MCP toolset and un-defers what it keeps (ADR-0075).
     _apply_factory_tools(
         _PresetHost(host, _in_preset) if allowed_tools is not None else host,
         ask_user_question,
@@ -253,7 +250,7 @@ class _PresetHost:
         self._keep = keep
 
     def add_tool(self, *tool: "Callable | Tool") -> None:
-        kept = [t for t in tool if self._keep(t)]
+        kept = [_undefer(t) for t in tool if self._keep(t)]
         if kept:
             self._host.add_tool(*kept)
 
@@ -269,9 +266,27 @@ class _PresetHost:
         def filtered(ctx: "AnyContext") -> Any:
             produced = factory(ctx)
             items = produced if isinstance(produced, list) else [produced]
-            return [t for t in items if t is not None and self._keep(t)]
+            return [_undefer(t) for t in items if t is not None and self._keep(t)]
 
         return filtered
+
+
+def _undefer(tool: "Callable | Tool") -> "Callable | Tool":
+    """Register *tool* eagerly, whatever ``defer_loading`` it was built with.
+
+    Deferral swaps a tool's schema for a ``search_tools`` entry the model must
+    call before it can reach the tool. The trade pays when it hides a dozen
+    tools; it inverts on a preset that keeps ten. ``minimal`` would spend
+    ~146 tokens of ``search_tools`` to hide ``MonitorProcess``'s ~127, and
+    charge a ~3B model a discovery turn to poll a background process — so a
+    constrained preset takes the schema and drops the indirection (ADR-0075).
+    """
+    # lazy: pydantic_ai is heavy; same reason as the import block above.
+    from pydantic_ai import Tool
+
+    if isinstance(tool, Tool) and tool.defer_loading:
+        return Tool(tool.function)
+    return tool
 
 
 def _apply_factory_tools(

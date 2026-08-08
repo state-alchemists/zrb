@@ -10,7 +10,7 @@ import re
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
 from zrb.llm.common_tools import apply_common_tools
-from zrb.llm.prompt.profile import MICRO_TOOLS
+from zrb.llm.prompt.profile import MINIMAL_TOOLS
 
 
 class RecordingHost:
@@ -104,42 +104,42 @@ def test_hosts_without_an_approval_channel_are_skipped(monkeypatch):
 # ── Preset tool surface (ADR-0075) ──────────────────────────────────────
 
 
-def _micro_names(monkeypatch) -> set[str]:
-    monkeypatch.setenv("ZRB_LLM_PROFILE", "micro")
+def _minimal_names(monkeypatch) -> set[str]:
+    monkeypatch.setenv("ZRB_LLM_PROFILE", "minimal")
     monkeypatch.setenv("ZRB_LLM_JOURNAL_ENABLED", "true")
     host = RecordingHost()
     apply_common_tools(host)
     return host.resolved_tool_names()
 
 
-def test_micro_registers_exactly_its_nine_tools(monkeypatch):
+def test_minimal_registers_exactly_its_ten_tools(monkeypatch):
     """The preset's tool axis is the lever a ~3B model actually needs.
 
     Journaling is left *enabled* to prove the preset outranks it: the point is
     a hard ceiling on tool count, not a second copy of the feature toggles.
     """
-    assert _micro_names(monkeypatch) == MICRO_TOOLS
+    assert _minimal_names(monkeypatch) == MINIMAL_TOOLS
 
 
-def test_micro_tool_set_is_closed_under_docstring_cross_reference(monkeypatch):
+def test_minimal_tool_set_is_closed_under_docstring_cross_reference(monkeypatch):
     """A docstring naming an unregistered tool is a dangle nothing can catch.
 
     Tool docstrings route between each other ("Not to touch files:
     Read/Write/Edit ... RM/MV to remove and move"). Unlike a prompt section,
     a docstring ships with its schema whatever the config, so it cannot carry a
-    `<!--requires:-->` guard. This is why the set is nine tools and not six.
+    `<!--requires:-->` guard. This is why the set is ten tools and not six.
     """
-    monkeypatch.setenv("ZRB_LLM_PROFILE", "terse")
+    monkeypatch.setenv("ZRB_LLM_PROFILE", "full")
     every_host = RecordingHost()
     apply_common_tools(every_host)
-    dropped = every_host.resolved_tool_names() - MICRO_TOOLS
+    dropped = every_host.resolved_tool_names() - MINIMAL_TOOLS
 
-    monkeypatch.setenv("ZRB_LLM_PROFILE", "micro")
-    micro_host = RecordingHost()
-    apply_common_tools(micro_host)
+    monkeypatch.setenv("ZRB_LLM_PROFILE", "minimal")
+    minimal_host = RecordingHost()
+    apply_common_tools(minimal_host)
 
     dangling = {}
-    for tool in micro_host.tools:
+    for tool in minimal_host.tools:
         fn = getattr(tool, "function", tool)
         doc = fn.__doc__ or ""
         hits = {n for n in dropped if re.search(rf"\b{re.escape(n)}\b", doc)}
@@ -148,37 +148,52 @@ def test_micro_tool_set_is_closed_under_docstring_cross_reference(monkeypatch):
     assert dangling == {}
 
 
-def test_micro_keeps_the_shell_safety_policy(monkeypatch):
-    """`micro` keeps `Shell`, so the approval rule that guards it must survive.
+def test_minimal_keeps_the_shell_safety_policy(monkeypatch):
+    """`minimal` keeps `Shell`, so the approval rule that guards it must survive.
 
     The preset trims the tool surface; it must never trim an enforcement the
     remaining surface depends on.
     """
-    monkeypatch.setenv("ZRB_LLM_PROFILE", "micro")
+    monkeypatch.setenv("ZRB_LLM_PROFILE", "minimal")
     host = RecordingHost()
     apply_common_tools(host)
     assert len(host.policies) == 1
 
 
-def test_micro_registers_no_deferred_tools(monkeypatch):
-    """`defer_loading` needs provider-side tool search, which local runtimes lack.
+def test_minimal_registers_no_deferred_tools(monkeypatch):
+    """At ten tools, deferral costs more than it hides.
 
-    A deferred tool there is unreachable rather than cheap, so the preset must
-    drop them outright instead of relying on deferral to hide them.
+    `defer_loading` swaps a tool's schema for a `search_tools` entry the model
+    must call before it can reach the tool. That trade pays when it hides a
+    dozen; `minimal` would be paying ~146 tokens of `search_tools` to hide
+    `MonitorProcess`'s ~127, and spending a ~3B model's turn on a discovery
+    step to poll a background process.
+
+    Factory-built tools are checked too — `MonitorProcess` is one, and it is
+    the only deferred tool `MINIMAL_TOOLS` keeps, so a check scoped to the
+    static list would guard nothing.
     """
-    monkeypatch.setenv("ZRB_LLM_PROFILE", "micro")
+    monkeypatch.setenv("ZRB_LLM_PROFILE", "minimal")
     host = RecordingHost()
     apply_common_tools(host)
-    assert [t for t in host.tools if getattr(t, "defer_loading", False)] == []
+
+    ctx = Context(shared_ctx=SharedContext(), task_name="probe", color=0, icon="x")
+    resolved = list(host.tools)
+    for factory in host.tool_factories:
+        produced = factory(ctx)
+        resolved.extend(produced if isinstance(produced, list) else [produced])
+
+    deferred = [t for t in resolved if getattr(t, "defer_loading", False)]
+    assert deferred == [], [getattr(t, "name", t) for t in deferred]
 
 
 def test_unconstrained_presets_keep_the_full_surface(monkeypatch):
-    """Only `micro` constrains the tool axis; `terse`/`mini` must not regress."""
+    """Only `minimal` constrains the tool axis; `full`/`lean` must not regress."""
     monkeypatch.setenv("ZRB_LLM_JOURNAL_ENABLED", "true")
-    for profile in ("terse", "mini"):
+    for profile in ("full", "lean"):
         monkeypatch.setenv("ZRB_LLM_PROFILE", profile)
         host = RecordingHost()
         apply_common_tools(host)
         names = host.resolved_tool_names()
-        assert MICRO_TOOLS < names, profile
+        assert MINIMAL_TOOLS < names, profile
         assert {"WebSearch", "TodoWrite", "ActivateSkill"} <= names, profile

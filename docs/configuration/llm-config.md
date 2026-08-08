@@ -200,7 +200,7 @@ Recognised section names:
 |---------|---------|
 | `persona` | AI identity + response style |
 | `workflow` | The whole rulebook: priority order, turn sequence, skill activation, working loop, verify gate, tool usage, recovery |
-| `examples` | Answer-scale and stance demonstrations (the `mini` variant adds more) |
+| `examples` | Answer-scale and stance demonstrations (the `lean` variant adds more) |
 | `system_context` | Stable runtime facts (OS / CWD / model / detected tools) |
 | `project_context` | Project docs (`AGENTS.md`, `CLAUDE.md`, `README.md`, …) |
 
@@ -233,27 +233,27 @@ compose, how they are phrased, and which tools register (ADR-0075).
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_PROFILE` | Prompt preset: `auto`, `terse`, `mini`, or `micro` | `auto` |
+| `ZRB_LLM_PROFILE` | Prompt preset: `auto`, `full`, `lean`, or `minimal` | `auto` |
 
 | Preset | Sections | Phrasing | Tools |
 |--------|----------|----------|-------|
-| `terse` | default | base files | full |
-| `mini` | `workflow` → `workflow_mini` | `+ examples.mini.md` | full |
-| `micro` | `persona, workflow_micro, system_context` | base files | 10 |
+| `full` | default | base files | full |
+| `lean` | `workflow` → `workflow.lean.md` | `+ examples.lean.md` | full |
+| `minimal` | `persona, workflow.minimal.md, system_context` | base files | 10 |
 
-- **`terse`** — the concise, principle-led preset (the base prompt files).
-- **`mini`** — for small models (~5-14B). Two changes in opposite directions: a
-  lighter rulebook (`workflow_mini` in place of `workflow`, ~25% smaller with
+- **`full`** — the concise, principle-led preset (the base prompt files).
+- **`lean`** — for small models (~5-14B). Two changes in opposite directions: a
+  lighter rulebook (`workflow.lean.md` in place of `workflow`, ~25% smaller with
   the precedence ladder flattened) and *more* worked demonstrations
-  (`examples.mini.md`, a superset of the base `examples.md`). Small models
+  (`examples.lean.md`, a superset of the base `examples.md`). Small models
   follow worked examples better than abstract rules. The demonstrations **never
   add rules**: added constraint mass degrades exactly the models it targets, so
   a variant may exemplify a rule but never re-word or extend one (ADR-0047).
   Every tool and capability is kept — a 5-14B model can still use skills, todos
   and delegation.
-- **`micro`** — for very small models (~3B), where the *budget* is the binding
+- **`minimal`** — for very small models (~3B), where the *budget* is the binding
   constraint rather than the register. Composes to roughly 4,000 tokens against
-  a default session's ~10,500. A `micro` session has **no** skills, sub-agents,
+  a default session's ~10,500. A `minimal` session has **no** skills, sub-agents,
   web access, todo list, journal, plan mode, MCP tools or project-doc reading —
   it is a single-tool-call-per-turn assistant, not an agentic coder. Use it when
   a small local model must drive the main loop; for a small model *assisting* a
@@ -262,27 +262,27 @@ compose, how they are phrased, and which tools register (ADR-0075).
 
 `auto` reads a **stated size**, never a family name. `deepseek`, `qwen`, and
 `llama` span tiny instruct models through frontier models, so a family name tells
-you nothing — but `-7b` is the vendor stating a parameter count, and `mini` /
+you nothing — but `-7b` is the vendor stating a parameter count, and `lean` /
 `haiku` / `nano` are vendor size tiers. Built-in matches:
 
-| Selects `micro` | Selects `mini` | Stays `terse` |
+| Selects `minimal` | Selects `lean` | Stays `full` |
 |-----------------|----------------|---------------|
 | a stated count of 4B or less — `qwen2.5:3b`, `llama3.2:3b`, `phi-2b` | a stated count of 5-14B — `qwen2.5-7b`, `gemma-2-9b`, `qwen3-14b` | larger stated sizes — `qwen3-32b`, `llama-3-70b`, `llama-3.1-405b` |
 | — | vendor small tiers — `gpt-5-mini`, `claude-haiku-4-5`, `gemini-nano` | everything else — `claude-opus-4-8`, `deepseek-v4-pro`, `gemini-2.5-pro` |
 
-The two bands are asymmetric on purpose. `mini` only *adds* demonstrations, so a
+The two bands are asymmetric on purpose. `lean` only *adds* demonstrations, so a
 false positive costs a few example tokens — cheap, which is why vendor
-small-tier labels resolve there. `micro` *removes* sections and tools, so a
+small-tier labels resolve there. `minimal` *removes* sections and tools, so a
 false positive costs real capability; only a stated ≤4B count selects it, and
 `nano`/`tiny` label models (`gpt-5-nano`) far more capable than a 3B local one.
-Declare a local model into `micro` explicitly (see below).
+Declare a local model into `minimal` explicitly (see below).
 
 Burden falls as the target model gets weaker: each preset's rulebook is strictly
 smaller than the one above it. Demonstrations move the other way, because a
 worked example lowers burden rather than adding to it.
 
 Setting `ZRB_LLM_INCLUDE_SECTIONS` explicitly overrides a preset's section list,
-so you can run `micro`'s lean tool surface with your own sections.
+so you can run `minimal`'s lean tool surface with your own sections.
 
 `flash` is deliberately *not* matched: it is a latency tier, not a size one, and
 spans weak to strong. Opt one in explicitly if you want it.
@@ -290,7 +290,7 @@ spans weak to strong. Opt one in explicitly if you want it.
 Force a profile globally:
 
 ```bash
-export ZRB_LLM_PROFILE=mini
+export ZRB_LLM_PROFILE=lean
 ```
 
 …or declare per-model profiles once in your `zrb_init.py`. A declaration always
@@ -303,15 +303,15 @@ from zrb.llm.prompt.profile import register_model_profile
 # under `auto`. The id is matched exactly as configured — provider prefix and
 # any tier suffix included (e.g. `ollama:deepseek-v4-flash:cloud`), nothing is
 # stripped. Most-recently declared wins.
-register_model_profile(r"deepseek-v4-flash", "mini")   # opt a latency tier in
-register_model_profile(r"my-local-3b", "mini")
-register_model_profile(r"qwen2\.5-7b", "terse")        # opt a small model out
-register_model_profile(r"^ollama:", "mini")            # or match a whole provider
+register_model_profile(r"deepseek-v4-flash", "lean")   # opt a latency tier in
+register_model_profile(r"my-local-3b", "lean")
+register_model_profile(r"qwen2\.5-7b", "full")        # opt a small model out
+register_model_profile(r"^ollama:", "lean")            # or match a whole provider
 ```
 
-How the overlay works: the base prompt `.md` files *are* the `terse` profile.
-`mini` is an overlay — for a section named `persona`, the loader prefers
-`persona.mini.md` and falls back to `persona.md` when no variant exists. A
+How the overlay works: the base prompt `.md` files *are* the `full` profile.
+`lean` is an overlay — for a section named `persona`, the loader prefers
+`persona.lean.md` and falls back to `persona.md` when no variant exists. A
 variant *replaces* its base file rather than appending to it, so a variant you
 add must repeat everything the base says that still applies. It follows the same
 project-override → env → base-dir → package lookup as any prompt file, so you can

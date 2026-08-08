@@ -11,7 +11,7 @@ import re
 
 import pytest
 
-from zrb.llm.prompt.profile import MICRO_SECTIONS, MICRO_TOOLS, MINI_SECTIONS
+from zrb.llm.prompt.profile import MINIMAL_SECTIONS, MINIMAL_TOOLS
 from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.prompt.section_filter import filter_requires
 
@@ -72,7 +72,7 @@ def _subsets():
         yield from itertools.combinations(FILE_SECTIONS, size)
 
 
-@pytest.mark.parametrize("profile", [None, "mini"])
+@pytest.mark.parametrize("profile", [None, "lean"])
 def test_no_subset_references_an_absent_section(profile):
     offenders = []
     for combo in _subsets():
@@ -110,7 +110,7 @@ def test_every_owned_term_still_exists_in_its_owner():
     assert missing == []
 
 
-@pytest.mark.parametrize("profile", [None, "mini"])
+@pytest.mark.parametrize("profile", [None, "lean"])
 def test_markers_never_reach_the_model(profile):
     for combo in _subsets():
         text = _compose(set(combo), profile=profile)
@@ -122,7 +122,7 @@ def test_markers_never_reach_the_model(profile):
         assert "/requires" not in text
 
 
-@pytest.mark.parametrize("name", FILE_SECTIONS + ["examples.mini"])
+@pytest.mark.parametrize("name", FILE_SECTIONS + ["examples.lean"])
 def test_every_requires_block_is_closed(name):
     """An unterminated block silently swallows the rest of a section."""
     import re
@@ -133,10 +133,10 @@ def test_every_requires_block_is_closed(name):
     )
 
 
-def test_mini_examples_are_a_superset_of_the_base():
+def test_lean_examples_are_a_superset_of_the_base():
     """A profile variant replaces the base file, so it must not lose content."""
     base = get_prompt("examples")
-    explicit = get_prompt("examples", profile="mini")
+    explicit = get_prompt("examples", profile="lean")
     assert explicit.startswith(base.rstrip()[:200])
     assert len(explicit) > len(base)
 
@@ -163,7 +163,7 @@ def test_premise_check_is_first_and_unconditional():
     assert any("**Activate skills**" in step for step in steps[1:])
 
 
-@pytest.mark.parametrize("profile", [None, "mini"])
+@pytest.mark.parametrize("profile", [None, "lean"])
 def test_no_numbered_list_gaps_in_any_subset(profile):
     """A conditional item must not leave a hole like `1. 2. 4.` behind.
 
@@ -235,29 +235,30 @@ RANK_ONE_CONCEPTS = {
 }
 
 
+# (sections, variant) per preset. Only `minimal` constrains the section axis;
+# `full` and `lean` compose the default list and differ by variant alone, which
+# is why `workflow` is the section name in all three rows.
 PRESET_COMPOSITIONS = [
     (["persona", "workflow", "examples"], None),
-    (list(MINI_SECTIONS), "mini"),
-    (list(MICRO_SECTIONS), None),
+    (["persona", "workflow", "examples"], "lean"),
+    (list(MINIMAL_SECTIONS), "minimal"),
 ]
 
-# The sections that carry *rules*, per preset, weakest-capability last. Examples
-# are excluded on purpose: a demonstration lowers burden rather than adding it,
-# so the two move in opposite directions (ADR-0047 vs ADR-0075).
-RULE_SECTIONS_BY_PRESET = [
-    ("terse", ["persona", "workflow"]),
-    ("mini", ["persona", "workflow_mini"]),
-    ("micro", ["persona", "workflow_micro"]),
-]
+# The sections that carry *rules*, weakest-capability last. Each preset reads the
+# same two section names and resolves them through its own variant. Examples are
+# excluded on purpose: a demonstration lowers burden rather than adding it, so
+# the two move in opposite directions (ADR-0047 vs ADR-0075).
+RULE_SECTIONS = ["persona", "workflow"]
+PRESET_VARIANTS = [("full", None), ("lean", "lean"), ("minimal", "minimal")]
 
 
 @pytest.mark.parametrize(
-    "sections, variant", PRESET_COMPOSITIONS, ids=["terse", "mini", "micro"]
+    "sections, variant", PRESET_COMPOSITIONS, ids=["full", "lean", "minimal"]
 )
 def test_every_preset_carries_the_rank_one_safety_rules(sections, variant):
     """Composition may drop method. It may never drop safety.
 
-    `micro` exists to subtract, so the thing to pin is the floor it may not cut
+    `minimal` exists to subtract, so the thing to pin is the floor it may not cut
     through: a preset that trims until secrets, prompt-injection framing, or
     destructive-action confirmation is gone has removed a rule no model class
     can be left without.
@@ -275,22 +276,37 @@ def test_every_preset_carries_the_rank_one_safety_rules(sections, variant):
     assert missing == []
 
 
-def test_workflow_micro_names_no_tool_its_preset_lacks():
-    """A lean section must not instruct the model to call a tool it never gets.
+def test_workflow_minimal_names_no_tool_its_preset_lacks():
+    """A trimmed preset must not tell the model to call a tool it never gets.
 
-    Same failure as a dangling section pointer, one axis over: `micro` drops
+    Same failure as a dangling section pointer, one axis over: `minimal` drops
     most of the tool surface, so its workflow has to route only to what
     survives. Unlike `<!--requires:-->`, nothing strips a stale tool name.
     """
-    text = get_prompt("workflow_micro")
+    text = get_prompt("workflow", profile="minimal")
     named = set(re.findall(r"`([A-Z][A-Za-z]+)`", text))
-    assert named <= MICRO_TOOLS, sorted(named - MICRO_TOOLS)
+    assert named <= MINIMAL_TOOLS, sorted(named - MINIMAL_TOOLS)
+
+
+def test_every_variant_resolves_to_its_own_file():
+    """A missing variant falls back silently, so the fallback must be pinned.
+
+    `get_prompt` returning the base file on a typo is the right runtime
+    behaviour and the wrong test outcome: every burden assertion below would
+    compare `workflow.md` against itself and pass.
+    """
+    base = get_prompt("workflow")
+    for _, variant in PRESET_VARIANTS:
+        if variant is None:
+            continue
+        assert get_prompt("workflow", profile=variant) != base, variant
+    assert get_prompt("examples", profile="lean") != get_prompt("examples")
 
 
 def test_rule_burden_falls_as_the_target_model_gets_weaker():
     """The less capable the model, the less we ask it to hold at once.
 
-    The ordering is the whole point of having presets: `mini` used to be the
+    The ordering is the whole point of having presets: `lean` used to be the
     *heaviest* composition in the system, shipping a 7B model the frontier
     rulebook plus 1,200 extra tokens of examples.
 
@@ -301,12 +317,9 @@ def test_rule_burden_falls_as_the_target_model_gets_weaker():
     measures on purpose — a demonstration lowers burden rather than adding it,
     so it moves opposite the rules (ADR-0047 vs ADR-0075).
     """
-    profile_of = {"terse": None, "mini": "mini", "micro": None}
     measured = []
-    for preset, sections in RULE_SECTIONS_BY_PRESET:
-        text = "\n".join(
-            get_prompt(name, profile=profile_of[preset]) for name in sections
-        )
+    for preset, variant in PRESET_VARIANTS:
+        text = "\n".join(get_prompt(name, profile=variant) for name in RULE_SECTIONS)
         measured.append(
             (
                 preset,
@@ -323,10 +336,10 @@ def test_rule_burden_falls_as_the_target_model_gets_weaker():
         ), f"subclauses: {hi_name}={hi[2]} rose above {lo_name}={lo[2]}"
 
 
-def test_workflow_mini_names_no_tool_that_does_not_exist():
-    """Same guard as `workflow_micro`, against the full tool surface.
+def test_workflow_lean_names_no_tool_that_does_not_exist():
+    """Same guard as `workflow_minimal`, against the full tool surface.
 
-    `mini` keeps every tool, so the risk is not a trimmed surface but a stale
+    `lean` keeps every tool, so the risk is not a trimmed surface but a stale
     name: nothing strips a tool reference that no longer resolves.
     """
     from zrb.llm.common_tools import apply_common_tools
@@ -355,5 +368,7 @@ def test_workflow_mini_names_no_tool_that_does_not_exist():
         "EnterPlanMode",
         "DelegateToAgent",
     }
-    named = set(re.findall(r"`([A-Z][A-Za-z]+)`", get_prompt("workflow_mini")))
+    named = set(
+        re.findall(r"`([A-Z][A-Za-z]+)`", get_prompt("workflow", profile="lean"))
+    )
     assert named <= registered, sorted(named - registered)

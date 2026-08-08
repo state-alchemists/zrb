@@ -126,7 +126,8 @@ class PromptManager:
         1. the instance ``include_sections`` override,
         2. an explicitly-set ``LLM_INCLUDE_SECTIONS`` env var,
         3. the active preset's section list, when it constrains that axis
-           (``micro`` does; ``terse`` and ``mini`` do not — ADR-0075),
+           (only ``minimal`` does — ``full`` and ``lean`` reshape their prose
+           through the variant axis and keep every section — ADR-0075),
         4. ``CFG.LLM_INCLUDE_SECTIONS``.
 
         Journaling is not one of them: there is no prompt section to
@@ -382,10 +383,12 @@ class PromptManager:
 
         # Resolve the preset (ADR-0075) from the LLM_PROFILE knob + active
         # model, then take its phrasing axis: file-backed sections resolve
-        # ``{name}.{variant}`` with fallback to the base (ADR-0047). A preset
-        # with no variant (``terse``, ``micro``) passes None and gets the base
-        # files. The preset's *section* axis was already applied by
-        # ``active_sections``, and its *tool* axis by ``apply_common_tools``.
+        # ``{name}.{variant}.md`` with fallback to the base (ADR-0047). This is
+        # how ``lean`` and ``minimal`` get their lighter rulebooks —
+        # ``workflow`` stays the section name and the file resolves per preset.
+        # ``full`` carries no variant, so every section takes the base file. The
+        # preset's *section* axis was already applied by ``active_sections``,
+        # and its *tool* axis by ``apply_common_tools``.
         variant = resolve_preset(resolve_profile(CFG.LLM_PROFILE, self._model)).variant
 
         assistant_name = (

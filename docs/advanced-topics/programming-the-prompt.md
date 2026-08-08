@@ -232,12 +232,12 @@ If a custom section name has no registered provider, Zrb resolves it to a **Mark
 
 Independently, the `ZRB_LLM_PROFILE` knob selects a **preset** — which sections compose, how they are phrased, and which tools register:
 
-- `terse` — the concise, principle-led base (the `.md` files as written), full tool surface.
-- `mini` — a lighter rulebook (`workflow_mini`) plus worked demonstrations, same tools, for small models (~5-14B).
-- `micro` — a lean section list (`persona, workflow_micro, system_context`) and a 10-tool surface, for very small models (~3B).
+- `full` — the whole rulebook (the `.md` files as written) and all 21 tools.
+- `lean` — a lighter rulebook (`workflow.lean.md`) plus worked demonstrations, same sections and tools, for small models (~5-14B).
+- `minimal` — three sections, a one-page rulebook (`workflow.minimal.md`) and a 10-tool surface, for very small models (~3B).
 - `auto` (default) — resolved from a declared model size, or from `register_model_profile(...)`.
 
-The phrasing axis is a **variant overlay**: `get_prompt(name, profile="mini")` resolves `{name}.mini.md`, falling back to the base `{name}.md`. A variant may add demonstrations but never add, re-word or *remove* a rule — which is why `micro` subtracts by swapping the section list instead. An explicitly-set `ZRB_LLM_INCLUDE_SECTIONS` overrides a preset's sections. See `AGENTS.md` → *Profile*, ADR-0047 and ADR-0075.
+The phrasing axis is a **variant overlay**, and it is the only way a preset changes a section's wording: `get_prompt(name, profile="lean")` resolves `{name}.{profile}.md`, falling back to the base `{name}.md`. The section list says which topics appear, never which wording — so there is no `workflow_lean` section, just a `workflow.lean.md` file. A variant may re-shape its rulebook, but no rule may live *only* in a variant, and every preset must keep the rank-1 safety rules. An explicitly-set `ZRB_LLM_INCLUDE_SECTIONS` overrides a preset's sections; registering a fourth preset is `PRESETS["nano"] = Preset(...)`. See `AGENTS.md` → *Profile*, ADR-0047 and ADR-0075.
 
 ---
 

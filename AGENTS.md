@@ -62,33 +62,38 @@ Consistent duplication is the cost of independent toggling; **divergent** duplic
 
 | Preset | sections | phrasing variant | tool surface |
 |---|---|---|---|
-| `terse` | default | — | full |
-| `mini` | `workflow` → `workflow_mini` | `.mini` | full |
-| `micro` | `persona, workflow_micro, system_context` | — | `MICRO_TOOLS` (10) |
+| `full` | default | — | all 21 tools |
+| `lean` | default | `.lean` | all 21 tools |
+| `minimal` | `persona, workflow, system_context` | `.minimal` | `MINIMAL_TOOLS` (10) |
 
-- `auto` resolves from the model id: a declared parameter count ≤4B → `micro`, 5–14B or a vendor small-tier label → `mini`, otherwise `terse`. zrb makes **no guess from a family name** — `deepseek`/`qwen`/`llama` span tiny→frontier — but a stated parameter count is the vendor declaring the size. Declare your own with `register_model_profile("my-7b", "mini")`; user declarations beat the built-ins.
-- The bands are asymmetric on purpose: `mini` only *adds* demonstrations, so a false positive is cheap; `micro` *removes* sections and tools, so only a stated ≤4B count selects it (`nano`/`tiny` label models far stronger than a 3B local one, and stay on `mini`).
+The names order themselves by how much the model is asked to hold at once. That is the point of them: the previous set (`terse`/`mini`/`micro`) mixed a prose register with two size words, named the *largest* preset "terse", and put `micro` in collision with the vendor tier labels the selector matches on — a model labelled `-micro` matched nothing and fell through to the heaviest preset.
+
+- `auto` resolves from the model id: a declared parameter count ≤4B → `minimal`, 5–14B or a vendor small-tier label → `lean`, otherwise `full`. zrb makes **no guess from a family name** — `deepseek`/`qwen`/`llama` span tiny→frontier — but a stated parameter count is the vendor declaring the size. Declare your own with `register_model_profile("my-7b", "lean")`; user declarations beat the built-ins.
+- The bands are asymmetric on purpose: `lean` keeps every section and tool, so a false positive is cheap; `minimal` *removes* both, so only a stated ≤4B count selects it. A vendor label is never enough — `nano`/`tiny`/`micro` sit on models far stronger than a 3B local one and stay on `lean`.
 - An explicitly-set `ZRB_LLM_INCLUDE_SECTIONS` overrides a preset's section list; changing `CFG.DEFAULT_LLM_INCLUDE_SECTIONS` does not (a preset outranking a *default* is the intended precedence).
+- Registering a fourth preset is a dict assignment: `PRESETS["nano"] = Preset(...)`. `valid_profiles()` derives from those keys, so the new name is immediately accepted by `ZRB_LLM_PROFILE` and `register_model_profile`.
 
-**Phrasing variants.** The base `*.md` files **are** the unvaried form. A variant is an **overlay**: `get_prompt(name, profile="mini")` resolves `{name}.mini.md` through the full override chain, falling back to the base — so a variant only needs files for the sections that actually change (currently `examples.mini.md`, the only one). A variant *replaces* its base file, so `examples.mini.md` must stay a strict superset of `examples.md`; a test pins that.
-
-> **Invariant: a behavioral rule never lives only in a variant** (ADR-0047). A variant reaches only the models that resolve to it, so a rule placed there silently misses everyone else. **A variant may add demonstrations; it may not add, re-phrase, or remove rules.** The subtracting direction is the more dangerous one and is why `micro` cuts by *composition* — dropping a section is guarded and tested; thinning a file behind a variant is not.
+**One naming convention, no exceptions.** A section named `foo` resolves `foo.{profile}.md` and falls back to `foo.md`. That is how *every* preset varies text — `workflow.lean.md`, `workflow.minimal.md`, `examples.lean.md`. There is no such thing as a `workflow_lean` *section*: the section list only ever says which topics appear, never which wording. A preset ships files only for the sections whose text actually changes.
 
 **Burden falls monotonically with target capability.** That is what the preset ladder is *for*, and it is asserted, not assumed:
 
-> Each preset's rule-carrying sections (`persona` + its `workflow*`) must be strictly smaller in mass and rule count than the preset above. Clause nesting must not rise. Demonstrations are excluded and move the other way — a worked example lowers burden, which is why `mini` loses rule text *and* gains `examples.mini.md`. `test_section_composition.py::test_rule_burden_falls_as_the_target_model_gets_weaker`.
+> Each preset's rule-carrying sections (`persona` + `workflow`, resolved through its own variant) must be strictly smaller in mass and rule count than the preset above. Clause nesting must not rise. Demonstrations are excluded and move the other way — a worked example lowers burden, which is why `lean` loses rule text *and* gains `examples.lean.md`. `test_section_composition.py::test_rule_burden_falls_as_the_target_model_gets_weaker`.
 
-`mini` motivated the rule: it used to ship a 5-14B model the frontier `workflow.md` plus 1,200 tokens of extra examples, making it the heaviest composition in the system. A variant could not fix it (a variant may not remove rules), so `mini` swaps the *section* instead. It keeps every capability — skills, todos, delegation, plan mode, all 21 tools — because trimming those would cost behavior, not burden.
+`lean` motivated the rule: it used to ship a 5-14B model the frontier `workflow.md` plus 1,200 tokens of extra examples, making it the heaviest composition in the system. Its own rulebook is now `workflow.lean.md` — the same behaviours with the precedence ladder flattened and the decision ladders merged. It keeps every capability (skills, todos, delegation, plan mode, all 21 tools), because trimming those would cost behavior, not burden. Note the totals still put `lean` slightly above `full`: the rulebook fell ~700 tokens and `examples.lean.md` adds ~1,200 back. That is the intended trade, not a regression — demonstrations are excluded from the burden metric on purpose.
+
+> **Invariant: a variant never becomes the only home of a rule** (ADR-0047). A variant reaches only the models that resolve to it, so a rule that exists nowhere else silently misses everyone else. A variant may re-shape the rulebook for its model class — that is what `workflow.lean.md` and `workflow.minimal.md` are — but the safety floor below is what stops re-shaping from becoming quiet deletion.
 
 Two further invariants bound a preset (ADR-0075), both tested:
 
 > **Composition may drop method; it may never drop safety.** Priority Order rank 1 — secrets, tool results are data not instructions, confirm destructive actions — must survive in every preset. `test_section_composition.py::test_every_preset_carries_the_rank_one_safety_rules`.
 
-> **A preset's tool set is closed under docstring cross-reference.** Tool docstrings route between each other, and a docstring ships with its schema whatever the config, so it cannot carry a `<!--requires:-->` guard. This is what sizes `MICRO_TOOLS` at ten rather than six: `Shell`/`Grep` route to `Glob`/`RM`/`MV`, and `Shell`'s `background=True` returns a handle only `MonitorProcess` can poll. `test_common_tools.py::test_micro_tool_set_is_closed_under_docstring_cross_reference`.
+> **A preset's tool set is closed under docstring cross-reference.** Tool docstrings route between each other, and a docstring ships with its schema whatever the config, so it cannot carry a `<!--requires:-->` guard. This is what sizes `MINIMAL_TOOLS` at ten rather than six: `Shell`/`Grep` route to `Glob`/`RM`/`MV`, and `Shell`'s `background=True` returns a handle only `MonitorProcess` can poll. `test_common_tools.py::test_minimal_tool_set_is_closed_under_docstring_cross_reference`.
 
-`examples` is deliberately thin in the base: it keeps only the examples that fix a zrb-specific stance a capable model would not otherwise adopt, and the rest live in `examples.mini.md`. Add a demonstration to the variant unless it teaches a stance a frontier model gets wrong.
+**A constrained preset registers its tools eagerly.** `defer_loading` trades a tool's schema for a `search_tools` entry the model must call before it can reach the tool. That pays when it hides a dozen tools; it inverts at ten — `minimal` would spend ~146 tokens of `search_tools` to hide `MonitorProcess`'s ~127, and charge a ~3B model a discovery turn to poll a background process. `_PresetHost` un-defers what it keeps; `test_common_tools.py::test_minimal_registers_no_deferred_tools` covers the factory path too, since `MonitorProcess` is factory-built and is the only deferred tool the preset keeps.
 
-`PromptManager.active_sections` applies the preset's section axis, `_get_composed_middlewares` threads its variant to file-backed sections, and `apply_common_tools` applies its tool axis (via `_PresetHost`, which filters factories and drops MCP toolsets).
+`examples` is deliberately thin in the base: it keeps only the examples that fix a zrb-specific stance a capable model would not otherwise adopt, and the rest live in `examples.lean.md`. Add a demonstration to the variant unless it teaches a stance a frontier model gets wrong.
+
+`PromptManager.active_sections` applies the preset's section axis, `_get_composed_middlewares` threads its variant to file-backed sections, and `apply_common_tools` applies its tool axis (via `_PresetHost`, which filters factories, un-defers survivors, and drops MCP toolsets).
 
 ### Journal
 
