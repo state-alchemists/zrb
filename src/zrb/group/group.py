@@ -6,6 +6,13 @@ class Group(AnyGroup):
     def __init__(
         self, name: str, description: str | None = None, banner: str | None = None
     ):
+        """Define a CLI command group.
+
+        Args:
+            name: Group name, used as the CLI word addressing it.
+            description: Help text. Defaults to `name`.
+            banner: Text printed above the group's help listing.
+        """
         self._name = name
         self._banner = banner
         self._description = description

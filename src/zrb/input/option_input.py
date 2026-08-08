@@ -24,6 +24,14 @@ class OptionInput(BaseInput):
         allow_positional_parsing: bool = True,
         always_prompt: bool = True,
     ):
+        """Define an input restricted to a fixed set of choices.
+
+        Args:
+            options: The allowed values, or a callable returning them. Each value
+                may be a template rendered against the context.
+
+        Every other parameter is `BaseInput`'s and behaves identically.
+        """
         super().__init__(
             name=name,
             description=description,

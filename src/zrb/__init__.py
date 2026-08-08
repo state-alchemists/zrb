@@ -69,6 +69,7 @@ from zrb.llm.config.limiter import LLMLimiter, llm_limiter
 from zrb.llm.hook.manager import HookManager, hook_manager
 from zrb.llm.skill.manager import SkillManager, skill_manager
 from zrb.llm.task.chat.task import LLMChatTask
+from zrb.llm.task.chat.ui_commands import UICommands
 from zrb.llm.task.llm_task import LLMTask
 
 # --- Runner (CLI + web schemas) ------------------------------------------
@@ -167,6 +168,7 @@ __all__ = [
     "Xcom",
     "LLMTask",
     "LLMChatTask",
+    "UICommands",
     "LLMConfig",
     "llm_config",
     "LLMLimiter",

@@ -45,9 +45,7 @@ from zrb.llm.permission import (
 )
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.sandbox import SandboxInput, coerce_sandbox
-from zrb.llm.summarizer import (
-    summarize_history,
-)
+from zrb.llm.summarizer import summarize_history
 from zrb.llm.task.building import LLMTaskBuilding
 from zrb.llm.task.history import LLMTaskHistory
 from zrb.llm.util.attachment import get_attachments
@@ -138,6 +136,72 @@ class LLMTask(LLMTaskBuilding, LLMTaskHistory, BaseTask):
         successor: list[AnyTask] | AnyTask | None = None,
         print_fn: PrintFn | None = None,
     ):
+        """Define a single-turn LLM task: one prompt in, one response out.
+
+        Use `LLMChatTask` instead when you want an interactive conversation.
+
+        A `render_x` flag controls whether `x` is treated as an f-string template
+        rendered against the task context. Set it False to pass a literal value
+        containing braces.
+
+        Args:
+            message: The user message to send. Usually a template referencing an
+                input, such as `"{ctx.input.question}"`.
+            render_message: Whether to render `message` as a template.
+            attachment: Images or files to send alongside the message. A single
+                item, a list, or a callable taking the context.
+            system_prompt: System prompt text, or a callable taking the context.
+                Overrides whatever `prompt_manager` would compose.
+            render_system_prompt: Whether to render `system_prompt` as a template.
+                Off by default, since prompts commonly contain braces.
+            prompt_manager: `PromptManager` composing the system prompt from
+                sections. Defaults to the shared one.
+            active_skills: Names of skills to pre-activate for this task.
+            render_active_skills: Whether to render `active_skills` as templates.
+            model: The model to use, as a name or a pydantic-ai `Model`. Defaults
+                to the one from `llm_config`.
+            render_model: Whether to render `model` as a template.
+            model_settings: Provider settings such as temperature, or a callable
+                taking the context.
+            custom_model_names: Extra model names to offer beyond the detected
+                ones.
+            llm_config: Credentials and endpoint settings. Defaults to the shared
+                `llm_config`.
+            llm_limiter: Rate and token limiter. Defaults to the shared
+                `llm_limiter`.
+            capabilities: pydantic-ai capabilities to enable for the run.
+            tools: Functions or `Tool`s the model may call.
+            toolsets: Toolsets whose tools the model may call.
+            tool_factories: Callables building tools per run from the context. Use
+                these when a tool must close over resolved inputs.
+            toolset_factories: Callables building toolsets per run from the
+                context.
+            tool_confirmation: Policy deciding which tool calls need approval.
+            approval_channel: Channel carrying approval requests to whoever answers
+                them. Without one, a call needing approval is denied rather than
+                blocking.
+            permissions: Policy bounding which files and commands tools may touch.
+            sandbox: Whether, and how, tool calls run sandboxed.
+            yolo: Skip tool confirmation. True for all tools, or a comma-separated
+                string or set naming the tools to auto-approve.
+            dynamic_yolo: Callable re-evaluating `yolo` per tool call, for a
+                decision that depends on run-time state.
+            conversation_name: Name the conversation is stored under.
+            render_conversation_name: Whether to render `conversation_name` as a
+                template.
+            history_manager: Store persisting conversation history across runs.
+                Without one, history lives in memory only.
+            history_processors: Callables rewriting history before each request,
+                run in order. This is the seam summarization uses.
+            summarize_commands: Aliases for the summarize command exposed to any
+                attached UI.
+            hook_manager: `HookManager` supplying lifecycle hooks. Defaults to a
+                task-local manager.
+            ui: UI receiving streamed output and prompts.
+
+        Every parameter `BaseTask` accepts is also accepted here and behaves
+        identically; see `BaseTask` for those.
+        """
         super().__init__(
             name=name,
             color=color,
@@ -208,10 +272,12 @@ class LLMTask(LLMTaskBuilding, LLMTaskHistory, BaseTask):
 
     @property
     def llm_config(self) -> LLMConfig:
+        """Model, credentials, and endpoint settings backing this task."""
         return self._llm_config
 
     @property
     def llm_limiter(self) -> LLMLimiter:
+        """Rate and token limiter throttling this task's requests."""
         return self._llm_limiter
 
     async def _exec_action(self, ctx: AnyContext) -> Any:

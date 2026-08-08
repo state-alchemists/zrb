@@ -15,9 +15,7 @@ from zrb.llm.agent.subagent.yolo import make_yolo_inheritance_checker
 from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.factory_resolver import resolve_factory_items
 from zrb.llm.prompt.live_context import render_journal_index
-from zrb.llm.summarizer import (
-    create_summarizer_history_processor,
-)
+from zrb.llm.summarizer import create_summarizer_history_processor
 from zrb.util.asset_scanner import IGNORE_DIRS
 
 if TYPE_CHECKING:
@@ -73,6 +71,18 @@ class SubAgentManager(SubAgentManagerLoading, SubAgentManagerSearch):
         ignore_dirs: list[str] | None = None,
     ):
         # Lightweight: just assign properties, no heavy operations
+        """Discover sub-agent definitions and build agents from them.
+
+        Args:
+            tool_registry: Tools available to sub-agents, by name. Defaults to
+                the shared common-tool registry.
+            root_dir: Directory the project-level search starts from.
+            search_dirs: Explicit directories to scan, replacing the defaults
+                derived from `root_dir`.
+            max_depth: How many directory levels below each search directory to
+                descend.
+            ignore_dirs: Directory names skipped while scanning.
+        """
         self._tool_registry = tool_registry if tool_registry is not None else {}
         self._tool_factories: list[Callable[[AnyContext], Tool | ToolFuncEither]] = []
         self._toolsets: list[AbstractToolset[None]] = []
@@ -154,6 +164,11 @@ class SubAgentManager(SubAgentManagerLoading, SubAgentManagerSearch):
         self._agents[definition.name] = definition
 
     def get_agent_definition(self, name: str) -> SubAgentDefinition | None:
+        """Look up a sub-agent definition, loading them first if needed.
+
+        Matches the registry key, then falls back to matching an agent's own
+        name or path. Returns None when nothing matches.
+        """
         self._ensure_loaded()
         agent = self._agents.get(name)
         if not agent:
@@ -166,6 +181,18 @@ class SubAgentManager(SubAgentManagerLoading, SubAgentManagerSearch):
     def create_agent(
         self, name: str, ctx: AnyContext | None = None, yolo: bool | None = None
     ) -> "Agent[None, Any] | None":
+        """Build a ready-to-run pydantic-ai agent from a sub-agent definition.
+
+        Args:
+            name: Sub-agent to build, resolved as in `get_agent_definition`.
+            ctx: Task context supplying the tools and prompt state the agent
+                inherits.
+            yolo: Override for whether the agent may skip tool confirmation.
+                Defaults to inheriting the parent's setting.
+
+        Returns:
+            The agent, or None when `name` matches no definition.
+        """
         # lazy: circular — common_tools imports back into this package.
         from zrb.llm.common_tools import ensure_common_tools
 

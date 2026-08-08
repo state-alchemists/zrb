@@ -19,6 +19,17 @@ class ContentTransformer(AnyContentTransformer):
         ),
         auto_render: bool = True,
     ):
+        """Define how matching files are rewritten during scaffolding.
+
+        Args:
+            name: Transformer name, used in logs.
+            match: Which files this applies to. A glob, a list of globs, or a
+                predicate taking the context and a file path.
+            transform: The rewrite. Either a mapping of search string to
+                replacement (values may be templates or callables), or a callable
+                taking the context and a file path that edits the file itself.
+            auto_render: Whether to render template values in `transform`.
+        """
         self._name = name
         self._match = match
         self._transform_file = transform

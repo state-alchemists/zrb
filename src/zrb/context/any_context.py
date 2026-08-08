@@ -66,7 +66,11 @@ class AnyContext(AnySharedContext):
 
     @abstractmethod
     def update_task_env(self, task_env: dict[str, str]):
-        pass
+        """Merge `task_env` into this context's environment variables.
+
+        Args:
+            task_env: Variables to add or overwrite, by name.
+        """
 
     @abstractmethod
     def print(

@@ -70,6 +70,16 @@ class SkillManager:
         max_depth: int = 2,
         ignore_dirs: list[str] | None = None,
     ):
+        """Discover and serve agent skills.
+
+        Args:
+            root_dir: Directory the project-level search starts from.
+            search_dirs: Explicit directories to scan, replacing the defaults
+                derived from `root_dir`.
+            max_depth: How many directory levels below each search directory to
+                descend.
+            ignore_dirs: Directory names skipped while scanning.
+        """
         self._root_dir = root_dir
         self._search_dirs = search_dirs
         self._max_depth = max_depth
@@ -84,6 +94,15 @@ class SkillManager:
         self._ensure_scanned()
 
     def scan(self, search_dirs: list[str | Path] | None = None) -> list[Skill]:
+        """Discover skills on disk, replacing anything previously scanned.
+
+        Args:
+            search_dirs: Directories to scan. Defaults to those passed at
+                construction, otherwise `get_search_directories()`.
+
+        Returns:
+            Every skill found, in discovery order.
+        """
         self._skills = {}
         target_search_dirs = search_dirs
         if target_search_dirs is None:
@@ -135,6 +154,11 @@ class SkillManager:
         return list(self._skills.values())
 
     def get_skill(self, name: str) -> Skill | None:
+        """Look up one skill, scanning first if that has not happened yet.
+
+        Matches the registry key, then falls back to matching a skill's own
+        name or path. Returns None when nothing matches.
+        """
         self._ensure_scanned()
         skill = self._skills.get(name)
         if not skill:
@@ -146,6 +170,10 @@ class SkillManager:
         return skill
 
     def get_skill_content(self, name: str) -> str | None:
+        """Return a skill's instruction text, or None if the skill is unknown.
+
+        Resolves the name the same way `get_skill` does.
+        """
         self._ensure_scanned()
         skill = self.get_skill(name)
         if not skill:

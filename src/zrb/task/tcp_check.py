@@ -32,6 +32,21 @@ class TcpCheck(BaseTask):
         successor: list[AnyTask] | AnyTask | None = None,
         print_fn: PrintFn | None = None,
     ):
+        """Define a task that passes once a TCP port accepts connections.
+
+        Typically used as another task's `readiness_check`.
+
+        Args:
+            host: Host to connect to. A template rendered against the context, or
+                a callable taking it.
+            render_host: Whether to render `host` as a template.
+            port: Port to connect to.
+            interval: Seconds between attempts. Defaults to the readiness check
+                period.
+
+        Every parameter `BaseTask` accepts is also accepted here and behaves
+        identically; see `BaseTask` for those.
+        """
         super().__init__(
             name=name,
             color=color,

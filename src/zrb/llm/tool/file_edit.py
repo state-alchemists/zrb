@@ -38,27 +38,9 @@ async def replace_in_file(
             "Write instead."
         )
     abs_path = os.path.abspath(os.path.expanduser(path))
-    if not os.path.exists(abs_path):
-        parent = os.path.dirname(abs_path)
-        if parent and not os.path.isdir(parent):
-            # A missing *directory* means the path resolved against the wrong
-            # base, not that the file is yet to be created — so the advice below
-            # is actively wrong here. Write creates missing parents, so following
-            # it turns a wrong-directory guess into a new tree and leaves the
-            # edit somewhere nothing reads.
-            return (
-                f"Error: File not found: {path} — its directory does not exist "
-                f"either ({parent}). "
-                "[SYSTEM SUGGESTION]: This is a wrong path, not a missing file. "
-                "Re-resolve it against the working directory in System Context. "
-                "Do not Write to it: that would create the directory and leave "
-                "the file where nothing reads it."
-            )
-        return (
-            f"Error: File not found: {path}. "
-            "[SYSTEM SUGGESTION]: Check the path, or use Write to create the "
-            "file if it should not exist yet."
-        )
+    missing = _describe_missing_file(path, abs_path)
+    if missing is not None:
+        return missing
 
     try:
         with open(abs_path, "r", encoding="utf-8") as f:
@@ -70,97 +52,17 @@ async def replace_in_file(
             "then retry."
         )
 
-    # Exact match
-    actual_old = old_text if old_text in content else None
-    fuzzy_note = ""
-
-    # Fuzzy fallback
+    actual_old, old_text, new_text, fuzzy_note = _locate_match(
+        content, old_text, new_text
+    )
     if actual_old is None:
-        matched = _find_fuzzy_match(content, old_text)
-        if matched is not None:
-            actual_old = matched
-            fuzzy_note = " (fuzzy match: whitespace differences were normalized)"
-
-    # Last resort: old_text copied verbatim out of Read's numbered output.
-    if actual_old is None:
-        stripped_old = _strip_read_line_numbers(old_text)
-        if stripped_old is not None:
-            actual_old = (
-                stripped_old
-                if stripped_old in content
-                else _find_fuzzy_match(content, stripped_old)
-            )
-            if actual_old is not None:
-                old_text = stripped_old
-                new_text = _strip_prefix_per_line(new_text)
-                fuzzy_note = " (stripped Read's line-number prefix from old_text)"
-
-    if actual_old is None:
-        lines = content.splitlines()
-        # Compare on the un-prefixed text: with the prefix still attached, the
-        # first line matches nothing and this whole hint goes silent exactly
-        # when it is most useful.
-        old_lines = (_strip_read_line_numbers(old_text) or old_text).splitlines()
-        if old_lines:
-            first_line = old_lines[0]
-            near_matches = [
-                (i + 1, line) for i, line in enumerate(lines) if first_line in line
-            ]
-            if near_matches:
-                preview = "\n".join(
-                    f"  Line {num}: {line[:120]}" for num, line in near_matches[:3]
-                )
-                return (
-                    f"Error: '{_trunc(old_text, 80)}' not found in {path}.\n"
-                    f"Similar lines found:\n{preview}\n"
-                    f"[SYSTEM SUGGESTION]: old_text must match the file exactly. "
-                    f"Check for trailing spaces or indentation differences. "
-                    f"The lines above are shown as the file holds them — copy "
-                    f"from those, without Read's line-number prefix."
-                )
-        return (
-            f"Error: '{_trunc(old_text, 80)}' not found in {path}.\n"
-            f"[SYSTEM SUGGESTION]: Re-Read the region and copy old_text from it, "
-            f"dropping the line-number prefix through the first tab. Do not "
-            f"retry with guessed text."
-        )
+        return _describe_missing_match(content, old_text, path)
 
     match_count = content.count(actual_old)
     new_content = content.replace(actual_old, new_text, count)
 
-    # A no-op reached this far means old_text *was* found, so it is never the
-    # "not found" case above — and each of its three causes needs different
-    # advice. Retrying is futile in all three, and models do retry a bare
-    # status, so each says which one it is instead of hedging between them.
     if content == new_content:
-        if old_text == new_text:
-            return (
-                f"No changes made to {path}: old_text and new_text are "
-                "identical, so this call cannot change the file. "
-                "[SYSTEM SUGGESTION]: Do not repeat this call — it will keep "
-                "returning this. Re-issue it with a new_text that differs from "
-                "old_text, or, if the file already holds the intended content, "
-                "move on to the next step."
-            )
-        if count == 0:
-            return (
-                f"No changes made to {path}: count=0 asks for zero "
-                "replacements. "
-                "[SYSTEM SUGGESTION]: Do not repeat this call as-is. Omit "
-                "count to replace every occurrence, or pass count=1 to replace "
-                "only the first."
-            )
-        # old_text differs from new_text, yet the matched region equals it, so
-        # the match was fuzzy: the file already reads as new_text and only
-        # whitespace told old_text apart from it.
-        return (
-            f"No changes made to {path}: the matched region already reads "
-            "exactly as new_text, so this edit is already applied — only "
-            "whitespace told old_text apart from it. "
-            "[SYSTEM SUGGESTION]: Do not repeat this call — it will keep "
-            "returning this. Read the file to confirm its current state, then "
-            "move on or edit a different region."
-        )
+        return _describe_noop(path, old_text, new_text, count)
 
     try:
         with open(abs_path, "w", encoding="utf-8") as f:
@@ -177,6 +79,146 @@ async def replace_in_file(
     return (
         f"Successfully updated {path} ({replacements} replacement(s)){fuzzy_note}"
         f"{diag_suffix}"
+    )
+
+
+def _describe_missing_file(path: str, abs_path: str) -> str | None:
+    """Explain an unreadable path, or return None when the file exists."""
+    if os.path.exists(abs_path):
+        return None
+    parent = os.path.dirname(abs_path)
+    if parent and not os.path.isdir(parent):
+        # A missing *directory* means the path resolved against the wrong base,
+        # not that the file is yet to be created — so the advice below is
+        # actively wrong here. Write creates missing parents, so following it
+        # turns a wrong-directory guess into a new tree and leaves the edit
+        # somewhere nothing reads.
+        return (
+            f"Error: File not found: {path} — its directory does not exist "
+            f"either ({parent}). "
+            "[SYSTEM SUGGESTION]: This is a wrong path, not a missing file. "
+            "Re-resolve it against the working directory in System Context. "
+            "Do not Write to it: that would create the directory and leave "
+            "the file where nothing reads it."
+        )
+    return (
+        f"Error: File not found: {path}. "
+        "[SYSTEM SUGGESTION]: Check the path, or use Write to create the "
+        "file if it should not exist yet."
+    )
+
+
+def _locate_match(
+    content: str, old_text: str, new_text: str
+) -> tuple[str | None, str, str, str]:
+    """Find the region `old_text` refers to, trying three strategies in order.
+
+    Exact match first, then a whitespace-tolerant fuzzy match, then a retry with
+    Read's line-number prefix stripped off. The last strategy rewrites both
+    `old_text` and `new_text`, so they are returned alongside the match.
+
+    Returns:
+        `(actual_old, old_text, new_text, note)`, where `actual_old` is None if
+        nothing matched and `note` describes any non-exact match for the user.
+    """
+    if old_text in content:
+        return old_text, old_text, new_text, ""
+
+    matched = _find_fuzzy_match(content, old_text)
+    if matched is not None:
+        return (
+            matched,
+            old_text,
+            new_text,
+            " (fuzzy match: whitespace differences were normalized)",
+        )
+
+    # Last resort: old_text copied verbatim out of Read's numbered output.
+    stripped_old = _strip_read_line_numbers(old_text)
+    if stripped_old is not None:
+        matched = (
+            stripped_old
+            if stripped_old in content
+            else _find_fuzzy_match(content, stripped_old)
+        )
+        if matched is not None:
+            return (
+                matched,
+                stripped_old,
+                _strip_prefix_per_line(new_text),
+                " (stripped Read's line-number prefix from old_text)",
+            )
+
+    return None, old_text, new_text, ""
+
+
+def _describe_missing_match(content: str, old_text: str, path: str) -> str:
+    """Explain a failed match, pointing at near-misses when there are any."""
+    lines = content.splitlines()
+    # Compare on the un-prefixed text: with the prefix still attached, the first
+    # line matches nothing and this whole hint goes silent exactly when it is
+    # most useful.
+    old_lines = (_strip_read_line_numbers(old_text) or old_text).splitlines()
+    if old_lines:
+        first_line = old_lines[0]
+        near_matches = [
+            (i + 1, line) for i, line in enumerate(lines) if first_line in line
+        ]
+        if near_matches:
+            preview = "\n".join(
+                f"  Line {num}: {line[:120]}" for num, line in near_matches[:3]
+            )
+            return (
+                f"Error: '{_trunc(old_text, 80)}' not found in {path}.\n"
+                f"Similar lines found:\n{preview}\n"
+                f"[SYSTEM SUGGESTION]: old_text must match the file exactly. "
+                f"Check for trailing spaces or indentation differences. "
+                f"The lines above are shown as the file holds them — copy "
+                f"from those, without Read's line-number prefix."
+            )
+    return (
+        f"Error: '{_trunc(old_text, 80)}' not found in {path}.\n"
+        f"[SYSTEM SUGGESTION]: Re-Read the region and copy old_text from it, "
+        f"dropping the line-number prefix through the first tab. Do not "
+        f"retry with guessed text."
+    )
+
+
+def _describe_noop(path: str, old_text: str, new_text: str, count: int) -> str:
+    """Explain why a located match still changed nothing.
+
+    Reaching here means `old_text` *was* found, so this is never the "not found"
+    case — and each of its three causes needs different advice. Retrying is
+    futile in all three, and models do retry a bare status, so each says which
+    one it is instead of hedging between them.
+    """
+    if old_text == new_text:
+        return (
+            f"No changes made to {path}: old_text and new_text are "
+            "identical, so this call cannot change the file. "
+            "[SYSTEM SUGGESTION]: Do not repeat this call — it will keep "
+            "returning this. Re-issue it with a new_text that differs from "
+            "old_text, or, if the file already holds the intended content, "
+            "move on to the next step."
+        )
+    if count == 0:
+        return (
+            f"No changes made to {path}: count=0 asks for zero "
+            "replacements. "
+            "[SYSTEM SUGGESTION]: Do not repeat this call as-is. Omit "
+            "count to replace every occurrence, or pass count=1 to replace "
+            "only the first."
+        )
+    # old_text differs from new_text, yet the matched region equals it, so the
+    # match was fuzzy: the file already reads as new_text and only whitespace
+    # told old_text apart from it.
+    return (
+        f"No changes made to {path}: the matched region already reads "
+        "exactly as new_text, so this edit is already applied — only "
+        "whitespace told old_text apart from it. "
+        "[SYSTEM SUGGESTION]: Do not repeat this call — it will keep "
+        "returning this. Read the file to confirm its current state, then "
+        "move on or edit a different region."
     )
 
 

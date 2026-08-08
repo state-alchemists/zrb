@@ -158,7 +158,11 @@ class AnyTask(ABC):
 
     @abstractmethod
     def get_ctx(self, session: "AnySession") -> "AnyContext":
-        pass
+        """Build this task's execution context within `session`.
+
+        The context carries resolved inputs, envs, and the logging helpers the
+        action uses.
+        """
 
     @abstractmethod
     def run(

@@ -41,6 +41,11 @@ class ChatBuilding(ChatState):
 
     @property
     def prompt_manager(self) -> PromptManager:
+        """The `PromptManager` composing this task's system prompt.
+
+        Raises:
+            ValueError: If the task was built without one.
+        """
         if self._prompt_manager is None:
             raise ValueError(f"Task {self.name} doesn't have prompt_manager")
         return self._prompt_manager
@@ -73,10 +78,12 @@ class ChatBuilding(ChatState):
 
     @property
     def custom_model_names(self) -> "StrListAttr | None":
+        """Extra model names offered by the `/model` picker, beyond detected ones."""
         return self._custom_model_names
 
     @custom_model_names.setter
     def custom_model_names(self, value: "StrListAttr | None"):
+        """Replace the custom model-name list."""
         self._custom_model_names = value
 
     def set_approval_channel(self, channel: "ApprovalChannel | None"):
@@ -94,6 +101,11 @@ class ChatBuilding(ChatState):
         self.append_toolset(*toolset)
 
     def append_toolset(self, *toolset: "AbstractToolset"):
+        """Add pydantic-ai toolsets whose tools the agent may call.
+
+        Use a toolset to attach a group of related tools at once, such as an
+        MCP server's. For a single function, `append_tool` is simpler.
+        """
         self._toolsets += list(toolset)
 
     def add_toolset_factory(
@@ -105,6 +117,11 @@ class ChatBuilding(ChatState):
     def append_toolset_factory(
         self, *factory: "Callable[[AnyContext], AbstractToolset[None]]"
     ):
+        """Add factories building toolsets per run, from the task context.
+
+        Prefer this over `append_toolset` when the toolset depends on inputs or
+        env vars: a factory is called at run time, so it sees resolved values.
+        """
         self._toolset_factories += list(factory)
 
     # --- Tools ------------------------------------------------------------
@@ -114,6 +131,12 @@ class ChatBuilding(ChatState):
         self.append_tool(*tool)
 
     def append_tool(self, *tool: "Tool | ToolFuncEither"):
+        """Add tools the agent may call.
+
+        Accepts a plain function or a pydantic-ai `Tool`. A plain function's
+        name, type hints, and docstring become the tool schema the model sees,
+        so both are worth writing carefully.
+        """
         self._tools += list(tool)
 
     def add_tool_factory(
@@ -125,6 +148,11 @@ class ChatBuilding(ChatState):
     def append_tool_factory(
         self, *factory: "Callable[[AnyContext], Tool | ToolFuncEither]"
     ):
+        """Add factories building tools per run, from the task context.
+
+        Prefer this over `append_tool` when the tool needs to close over
+        resolved inputs or env vars, which exist only once the task runs.
+        """
         self._tool_factories += list(factory)
 
     # --- Hook factories ---------------------------------------------------
@@ -134,6 +162,11 @@ class ChatBuilding(ChatState):
         self.append_hook_factory(*factory)
 
     def append_hook_factory(self, *factory: Callable[[HookManager], None]):
+        """Add factories registering hooks on this task's hook manager.
+
+        Unlike `LLMTaskBuilding.append_hook_factory`, factories are stored and
+        applied when the chat task builds its inner `LLMTask`, not immediately.
+        """
         self._hook_factories += list(factory)
 
     # --- History processors ----------------------------------------------
@@ -143,6 +176,12 @@ class ChatBuilding(ChatState):
         self.append_history_processor(*processor)
 
     def append_history_processor(self, *processor: "HistoryProcessor"):
+        """Add processors that rewrite conversation history before each request.
+
+        Processors run in registration order, each receiving the previous one's
+        output. This is the seam summarization and trimming use to keep a long
+        conversation inside the context window.
+        """
         self._history_processors += list(processor)
 
     # --- Response handlers / tool policies / arg formatters --------------
@@ -156,6 +195,12 @@ class ChatBuilding(ChatState):
         self.prepend_response_handler(*handler)
 
     def prepend_response_handler(self, *handler: ResponseHandler):
+        """Add handlers that post-process a tool's result before the model sees it.
+
+        Inserted at the front, so these run before already-registered handlers.
+        The chain short-circuits: the first handler returning a non-`None`
+        result wins and the rest are skipped.
+        """
         self._response_handlers = list(handler) + self._response_handlers
 
     def add_tool_policy(self, *policy: ToolPolicy):
@@ -167,6 +212,12 @@ class ChatBuilding(ChatState):
         self.prepend_tool_policy(*policy)
 
     def prepend_tool_policy(self, *policy: ToolPolicy):
+        """Add policies deciding whether a tool call is allowed, denied, or confirmed.
+
+        Inserted at the front, so these run before already-registered policies.
+        The chain short-circuits: the first policy returning a verdict decides,
+        and the rest are skipped.
+        """
         self._tool_policies = list(policy) + self._tool_policies
 
     def add_argument_formatter(self, *formatter: ArgumentFormatter):
@@ -181,6 +232,13 @@ class ChatBuilding(ChatState):
         self.prepend_argument_formatter(*formatter)
 
     def prepend_argument_formatter(self, *formatter: ArgumentFormatter):
+        """Add formatters controlling how a tool call's arguments are displayed.
+
+        Inserted at the front of the pipeline. Unlike the policy and handler
+        chains, formatters do not short-circuit: every one runs in order and
+        each non-`None` result overwrites the previous, so formatters already
+        registered still run after this one and may replace its output.
+        """
         self._argument_formatters = list(formatter) + self._argument_formatters
 
     # --- Triggers ---------------------------------------------------------
@@ -190,6 +248,12 @@ class ChatBuilding(ChatState):
         self.append_trigger(*trigger)
 
     def append_trigger(self, *trigger: Callable[[], AsyncIterable[Any]]):
+        """Add sources that feed messages into the chat loop unprompted.
+
+        Each trigger is a callable returning an async iterable; every item it
+        yields is submitted as a user turn. This is how a scheduled or
+        externally-driven message enters an otherwise interactive session.
+        """
         self._triggers += trigger
 
     # --- Custom commands --------------------------------------------------
@@ -209,28 +273,43 @@ class ChatBuilding(ChatState):
             AnyCustomCommand | Callable[[], AnyCustomCommand | list[AnyCustomCommand]]
         ),
     ):
+        """Add slash commands available inside the chat session.
+
+        Accepts an `AnyCustomCommand`, or a callable returning one or a list of
+        them. A callable is resolved when the session starts, which lets a
+        command set be discovered at run time.
+        """
         self._custom_commands += list(custom_command)
 
     # --- Accessors --------------------------------------------------------
 
     @property
     def llm_config(self) -> "LLMConfig":
+        """Model, credentials, and endpoint settings backing this task."""
         return self._llm_config
 
     @property
     def llm_limiter(self) -> "LLMLimiter | None":
+        """Rate and token limiter throttling requests, or None if unlimited."""
         return self._llm_limiter
 
     @property
     def permissions(self) -> "PermissionPolicyInput":
+        """Policy bounding which files and commands the agent's tools may touch."""
         return self._permissions
 
     @permissions.setter
     def permissions(self, value: "PermissionPolicyInput"):
+        """Replace the permission policy."""
         self._permissions = value
 
     @property
     def sandbox(self) -> "SandboxInput | BoolAttr":
+        """Whether, and how, tool calls run inside a sandbox.
+
+        A bool or template toggles the default sandbox; a `SandboxInput`
+        configures it.
+        """
         return self._sandbox
 
     @sandbox.setter

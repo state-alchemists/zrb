@@ -14,6 +14,17 @@ class EnvFile(EnvMap):
         link_to_os: bool = True,
         os_prefix: str | None = None,
     ):
+        """Load environment variables for a task from a dotenv file.
+
+        Args:
+            path: Path to the `.env` file. A template rendered against the
+                context, or a callable taking it.
+            auto_render: Whether to render `path` as a template.
+            link_to_os: Whether an OS variable of the same name overrides the
+                file's value.
+            os_prefix: Prefix for the OS lookup, so `DEV` reads `DEV_DB_HOST` for
+                a file entry named `DB_HOST`.
+        """
         super().__init__(
             vars={}, auto_render=auto_render, link_to_os=link_to_os, os_prefix=os_prefix
         )

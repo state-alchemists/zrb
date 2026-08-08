@@ -191,158 +191,237 @@ async def _resolve_approval(
     the always-approve tools (priority 0) are still honored.
     """
 
-    # Priority 0: Intrinsically auto-approved tools. These ARE the user
-    # interaction (e.g. AskUserQuestion), so a separate approval prompt is
-    # redundant and would render before the question itself. Approve in every
-    # path, independent of any per-runner policy list. See ADR-0060.
-    if is_always_auto_approve(call.tool_name):
+    # lazy: permission is a leaf module.
+    from zrb.llm.permission import ASK
+
+    # Each stage returns a verdict to stop the cascade, or None to fall through
+    # to the next. The order below IS the documented precedence chain.
+    verdict = _approve_always_auto_approve_tools(call)
+    if verdict is not None:
+        return verdict
+
+    verdict = await _apply_tool_policies(
+        call, ui, effective_tool_confirmation, force_ask
+    )
+    if verdict is not None:
+        return verdict
+
+    policy_decision, verdict = _apply_permission_policy(call, force_ask)
+    if verdict is not None:
+        return verdict
+
+    verdict = _resolve_non_interactive_ask(call, policy_decision, force_ask)
+    if verdict is not None:
+        return verdict
+
+    verdict = _approve_via_yolo(policy_decision, force_ask)
+    if verdict is not None:
+        return verdict
+
+    verdict = await _apply_permission_request_hook(call, hook_manager)
+    if verdict is not None:
+        return verdict
+
+    if approval_channel is not None:
+        return await _request_via_approval_channel(call, approval_channel)
+
+    verdict = await _confirm_via_cli(call, ui, effective_tool_confirmation)
+    if verdict is not None:
+        return verdict
+
+    # Fallthrough: no approval mechanism configured. If the policy said ASK (or a
+    # hook forced ASK) we must not silently approve — deny instead.
+    if policy_decision == ASK or force_ask:
+        # lazy: heavy third-party
+        from pydantic_ai import ToolDenied
+
+        return ToolDenied(
+            "Policy requires approval but no approval channel is configured"
+        )
+    return None
+
+
+def _approve_always_auto_approve_tools(call):
+    """Priority 0: tools that ARE the user interaction.
+
+    A separate prompt for `AskUserQuestion` would render before the question
+    itself, so these approve on every path regardless of per-runner policy.
+    See ADR-0060.
+    """
+    if not is_always_auto_approve(call.tool_name):
+        return None
+    # lazy: heavy third-party
+    from pydantic_ai import ToolApproved
+
+    return ToolApproved()
+
+
+async def _apply_tool_policies(call, ui, effective_tool_confirmation, force_ask):
+    """Priority 1: pre-confirmation tool policies.
+
+    `effective_tool_confirmation` may be a `ToolCallHandler` directly
+    (non-interactive) or a `BaseUI` bound method wrapping one (interactive) —
+    unwrap either.
+    """
+    handler = None
+    if isinstance(effective_tool_confirmation, ToolCallHandler):
+        handler = effective_tool_confirmation
+    elif (bound := getattr(effective_tool_confirmation, "__self__", None)) is not None:
+        handler = getattr(bound, "tool_call_handler", None)
+    if not isinstance(handler, ToolCallHandler):
+        return None
+    policy_result = await handler.check_policies(ui, call)
+    if policy_result is None:
+        return None
+    # A hook-requested ASK forces the prompt: ignore an auto-APPROVE here, but
+    # still honor an explicit DENY.
+    # lazy: heavy third-party
+    from pydantic_ai import ToolDenied
+
+    if not force_ask or isinstance(policy_result, ToolDenied):
+        return policy_result
+    return None
+
+
+def _apply_permission_policy(call, force_ask):
+    """Priority 2: the permission ruleset.
+
+    Returns the raw decision alongside any verdict, because a decision of ASK
+    stops YOLO from auto-approving further down the cascade even though it
+    resolves nothing here.
+    """
+    # lazy: permission is a leaf module.
+    from zrb.llm.permission import ALLOW, DENY, get_effective_policy, tool_capability
+
+    policy = get_effective_policy()
+    if policy is None:
+        return None, None
+    raw_args = getattr(call, "args", None) or {}
+    if isinstance(raw_args, str):
+        try:
+            raw_args = json.loads(raw_args)
+        except json.JSONDecodeError:
+            raw_args = {}
+    decision = policy.decide(call.tool_name, tool_capability(call), raw_args)
+    if decision == ALLOW and not force_ask:
         # lazy: heavy third-party
         from pydantic_ai import ToolApproved
 
-        return ToolApproved()
+        return decision, ToolApproved()
+    if decision == DENY:
+        # lazy: heavy third-party
+        from pydantic_ai import ToolDenied
 
-    # Priority 1: Tool policies (Pre-confirmation). Auto-approved tools skip
-    # the PermissionRequest hook entirely. The effective_tool_confirmation may
-    # be a ToolCallHandler directly (non-interactive) or wrapped by a BaseUI
-    # bound method (interactive) — unwrap either.
-    _tch = None
-    if isinstance(effective_tool_confirmation, ToolCallHandler):
-        _tch = effective_tool_confirmation
-    elif (bound := getattr(effective_tool_confirmation, "__self__", None)) is not None:
-        _tch = getattr(bound, "tool_call_handler", None)
-    if isinstance(_tch, ToolCallHandler):
-        policy_result = await _tch.check_policies(ui, call)
-        if policy_result is not None:
-            # A hook-requested ASK forces the prompt: ignore an auto-APPROVE here,
-            # but still honor an explicit DENY.
-            # lazy: heavy third-party
-            from pydantic_ai import ToolDenied
+        return decision, ToolDenied("Blocked by permission policy")
+    return decision, None
 
-            if not force_ask or isinstance(policy_result, ToolDenied):
-                return policy_result
 
+def _resolve_non_interactive_ask(call, policy_decision, force_ask):
+    """Priority 2b: settle a hard ASK when there is nobody to ask.
+
+    Without a human, a hard ASK can neither be prompted nor overridden by YOLO,
+    so it would fall through to the stdin prompt at Priority 5 and block forever
+    (the root cause of the `--interactive false` plan-mode hang). Resolve it
+    deterministically instead: auto-approve the plan gate (`ExitPlanMode`'s
+    approval is a no-op with no user to read the plan, mirroring
+    `AskUserQuestion`) and deny any other approval-gated tool rather than
+    running it unattended. See ADR-0060.
+    """
     # lazy: permission is a leaf module.
-    from zrb.llm.permission import (
-        ALLOW,
-        ASK,
-        DENY,
-        get_effective_policy,
-        tool_capability,
-    )
+    from zrb.llm.permission import ASK
 
-    # Priority 2: Permission policy (Ruleset)
-    policy = get_effective_policy()
-    policy_decision: str | None = None
-    if policy is not None:
-        cap = tool_capability(call)
-        raw_args = getattr(call, "args", None) or {}
-        if isinstance(raw_args, str):
-            try:
-                raw_args = json.loads(raw_args)
-            except json.JSONDecodeError:
-                raw_args = {}
-        policy_decision = policy.decide(call.tool_name, cap, raw_args)
-
-        if policy_decision == ALLOW and not force_ask:
-            # lazy: heavy third-party
-            from pydantic_ai import ToolApproved
-
-            return ToolApproved()
-        if policy_decision == DENY:
-            # lazy: heavy third-party
-            from pydantic_ai import ToolDenied
-
-            return ToolDenied("Blocked by permission policy")
-
-        # if policy_decision == ASK, we continue but skip Priority 3 (YOLO).
-
-    # Priority 2b: Non-interactive hard-ASK resolution. With no human to
-    # confirm, a hard ASK can neither be prompted nor overridden by YOLO, so it
-    # would otherwise fall through to the stdin prompt at Priority 5 and block
-    # forever (the root cause of the --interactive false plan-mode hang).
-    # Resolve it deterministically instead: auto-approve the plan gate
-    # (ExitPlanMode's approval is a no-op without a user to read the plan —
-    # mirrors AskUserQuestion / ADR-0060) and deny any other approval-gated
-    # tool rather than running it unattended. See ADR-0060.
     # lazy: circular — run-loop approval path ↔ zrb.llm.tool.ask
     from zrb.llm.tool.ask import get_interactive_mode
 
-    if (policy_decision == ASK or force_ask) and not get_interactive_mode():
-        # lazy: heavy third-party
-        from pydantic_ai import ToolApproved, ToolDenied
+    if not (policy_decision == ASK or force_ask) or get_interactive_mode():
+        return None
+    # lazy: heavy third-party
+    from pydantic_ai import ToolApproved, ToolDenied
 
-        if call.tool_name == "ExitPlanMode":
-            return ToolApproved()
-        return ToolDenied(
-            "Non-interactive mode: approval-gated tool blocked (no user to "
-            "confirm). Re-run with --interactive true to approve interactively."
-        )
+    if call.tool_name == "ExitPlanMode":
+        return ToolApproved()
+    return ToolDenied(
+        "Non-interactive mode: approval-gated tool blocked (no user to "
+        "confirm). Re-run with --interactive true to approve interactively."
+    )
 
-    # Priority 3: YOLO (Auto-approve)
+
+def _approve_via_yolo(policy_decision, force_ask):
+    """Priority 3: YOLO auto-approval.
+
+    An explicit policy ASK, or a hook-requested ASK, is a hard ask that YOLO
+    does not override.
+    """
+    # lazy: permission is a leaf module.
     # lazy: runtime_state is a thin re-export of runner ContextVars.
     from zrb.llm.agent.run.runtime_state import get_current_yolo
+    from zrb.llm.permission import ASK
 
-    yolo_val = get_current_yolo()
-    # Explicit policy ASK (or a hook-requested ASK) is a 'hard ask' that bypasses YOLO.
-    if yolo_val is True and policy_decision != ASK and not force_ask:
+    if get_current_yolo() is not True or policy_decision == ASK or force_ask:
+        return None
+    # lazy: heavy third-party
+    from pydantic_ai import ToolApproved
+
+    return ToolApproved()
+
+
+async def _apply_permission_request_hook(call, hook_manager):
+    """Fire PermissionRequest, now that the cascade has decided to ask.
+
+    Every auto-resolve path is exhausted by this point, so the call *will* block
+    on a prompt. Firing here means "needs your approval" notifications ring
+    exactly when the user is asked, never for an auto-approved call.
+
+    Claude-compatible: the hook may resolve the prompt itself via
+    `hookSpecificOutput.decision.behavior`.
+    """
+    if hook_manager is None:
+        return None
+    perm_results = await hook_manager.execute_hooks(
+        HookEvent.PERMISSION_REQUEST,
+        {"tool": call.tool_name, "args": getattr(call, "args", None)},
+        tool_name=call.tool_name,
+        message=f"Approval requested to run {call.tool_name}",
+    )
+    perm_decision = extract_permission_decision(perm_results)
+    if perm_decision == "allow":
         # lazy: heavy third-party
         from pydantic_ai import ToolApproved
 
         return ToolApproved()
+    if perm_decision == "deny":
+        # lazy: heavy third-party
+        from pydantic_ai import ToolDenied
 
-    # We've exhausted every auto-resolve path (always-approve, tool/permission
-    # policy, YOLO): the call WILL block on an interactive prompt below. Fire
-    # PermissionRequest so "needs your approval" notifications/sounds (e.g.
-    # peon-ping) ring exactly when the user is asked — not for auto-approved
-    # calls. Fired here, after the cascade decides to ask, so it never
-    # false-positives on allowed tools.
-    if hook_manager is not None:
-        perm_results = await hook_manager.execute_hooks(
-            HookEvent.PERMISSION_REQUEST,
-            {"tool": call.tool_name, "args": getattr(call, "args", None)},
-            tool_name=call.tool_name,
-            message=f"Approval requested to run {call.tool_name}",
-        )
-        # Claude-compatible: a PermissionRequest hook may auto-resolve the prompt
-        # via hookSpecificOutput.decision.behavior ("allow"/"deny").
-        perm_decision = extract_permission_decision(perm_results)
-        if perm_decision == "allow":
-            # lazy: heavy third-party
-            from pydantic_ai import ToolApproved
+        return ToolDenied("Denied by PermissionRequest hook")
+    return None
 
-            return ToolApproved()
-        if perm_decision == "deny":
-            # lazy: heavy third-party
-            from pydantic_ai import ToolDenied
 
-            return ToolDenied("Denied by PermissionRequest hook")
+async def _request_via_approval_channel(call, approval_channel):
+    """Priority 4: ask over the approval channel; the first response wins."""
+    CFG.LOGGER.debug(f"Using approval channel for {call.tool_name}")
+    args: dict = {}
+    raw_args = getattr(call, "args", None)
+    if isinstance(raw_args, dict):
+        args = raw_args
+    elif isinstance(raw_args, str):
+        try:
+            args = json.loads(raw_args)
+        except json.JSONDecodeError:
+            pass
+    context = ApprovalContext(
+        tool_name=call.tool_name,
+        tool_args=args,
+        tool_call_id=call.tool_call_id,
+    )
+    CFG.LOGGER.debug("Calling approval_channel.request_approval()...")
+    approval_result = await approval_channel.request_approval(context)
+    CFG.LOGGER.debug(f"Approval channel returned: approved={approval_result.approved}")
+    return approval_result.to_pydantic_result()
 
-    # Priority 4: Approval channel (multi-channel, first response wins)
-    if approval_channel is not None:
-        CFG.LOGGER.debug(f"Using approval channel for {call.tool_name}")
-        args: dict = {}
-        raw_args = getattr(call, "args", None)
-        if isinstance(raw_args, dict):
-            args = raw_args
-        elif isinstance(raw_args, str):
-            try:
-                args = json.loads(raw_args)
-            except json.JSONDecodeError:
-                pass
 
-        context = ApprovalContext(
-            tool_name=call.tool_name,
-            tool_args=args,
-            tool_call_id=call.tool_call_id,
-        )
-        CFG.LOGGER.debug("Calling approval_channel.request_approval()...")
-        approval_result = await approval_channel.request_approval(context)
-        CFG.LOGGER.debug(
-            f"Approval channel returned: approved={approval_result.approved}"
-        )
-        return approval_result.to_pydantic_result()
-
-    # Priority 5: CLI fallback via tool confirmation
+async def _confirm_via_cli(call, ui, effective_tool_confirmation):
+    """Priority 5: fall back to the interactive CLI prompt."""
     CFG.LOGGER.debug(f"Using CLI fallback for {call.tool_name}")
     if isinstance(effective_tool_confirmation, ToolCallHandler):
         result = await effective_tool_confirmation.handle(ui, call)
@@ -354,13 +433,4 @@ async def _resolve_approval(
             res = await res
         CFG.LOGGER.debug(f"CLI callable returned: {res}")
         return res
-    # Fallthrough: no approval mechanism configured.  If the policy said ASK (or a
-    # hook forced ASK) we must not silently approve — deny instead.
-    if policy_decision == ASK or force_ask:
-        # lazy: heavy third-party
-        from pydantic_ai import ToolDenied
-
-        return ToolDenied(
-            "Policy requires approval but no approval channel is configured"
-        )
     return None

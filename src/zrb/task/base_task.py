@@ -72,6 +72,56 @@ class BaseTask(AnyTask):
         successor: list[AnyTask] | AnyTask | None = None,
         print_fn: PrintFn | None = None,
     ):
+        """Define a task.
+
+        Only `name` is required; every other parameter has a working default,
+        so `BaseTask(name="build")` is valid on its own.
+
+        Args:
+            name: Task name. Also the CLI sub-command name, so prefer
+                kebab-case (`build-image`).
+            color: 8-bit ANSI color code (0-255) for this task's log prefix.
+                Defaults to one derived from the name.
+            icon: Single-character emoji or glyph shown beside log lines.
+            description: Help text shown by `zrb <group> <task> --help`.
+                Defaults to `name`.
+            cli_only: When True, hide this task from the web UI and expose it
+                only on the CLI. Use for tasks that need a TTY.
+            input: Input(s) prompted for before the task runs. Accepts a single
+                `AnyInput` or a sequence. Inputs of upstream tasks are merged in
+                automatically, so declare only what this task adds.
+            env: Environment variable(s) visible to this task, as a single
+                `AnyEnv` or a sequence.
+            action: What the task does. Either a callable taking the task
+                context, or an f-string template rendered against it. Subclasses
+                (`CmdTask`, `LLMTask`) supply their own and ignore this.
+            execute_condition: Whether the task should run at all. A bool, or a
+                template/callable evaluated against the context at runtime; a
+                falsy result marks the task skipped, not failed.
+            retries: Number of *additional* attempts after a failure. The
+                default of 2 means up to 3 total attempts.
+            retry_period: Seconds to wait between retry attempts.
+            readiness_check: Task(s) that must succeed before this task is
+                considered ready. Presence of any check turns this into a
+                long-running task: `run` returns once the checks pass, while
+                the action keeps running in the background.
+            readiness_check_delay: Seconds to wait after starting the action
+                before the first readiness check.
+            readiness_check_period: Seconds between readiness checks once
+                monitoring, i.e. when `monitor_readiness` is True.
+            readiness_failure_threshold: Consecutive readiness-check failures
+                tolerated before the task is declared failed.
+            readiness_timeout: Seconds a single readiness check may take before
+                it counts as failed.
+            monitor_readiness: When True, keep re-running readiness checks after
+                the task is ready and restart the action if they start failing.
+            upstream: Task(s) that must complete before this one starts.
+                Equivalent to `other >> this`.
+            fallback: Task(s) to run if this task ultimately fails.
+            successor: Task(s) to run after this task succeeds.
+            print_fn: Callable receiving this task's output lines. Defaults to
+                printing to stdout.
+        """
         # Optimized stack retrieval
         frame = inspect.currentframe()
         if frame is not None:
@@ -130,46 +180,61 @@ class BaseTask(AnyTask):
 
     @property
     def name(self) -> str:
+        """The task's name, as used on the CLI."""
         return self._name
 
     @property
     def color(self) -> int | None:
+        """8-bit ANSI color code for this task's log prefix, if one was set."""
         return self._color
 
     @property
     def icon(self) -> str | None:
+        """Glyph shown beside this task's log lines, if one was set."""
         return self._icon
 
     @property
     def description(self) -> str:
+        """Help text for this task, falling back to its name."""
         return self._description if self._description is not None else self.name
 
     @property
     def cli_only(self) -> bool:
+        """Whether this task is hidden from the web UI."""
         return self._cli_only
 
     @property
     def execute_condition(self):
+        """The raw condition deciding whether this task runs.
+
+        Unevaluated: a bool, template string, or callable. Rendering it against
+        a context is the execution layer's job.
+        """
         return self._execute_condition
 
     @property
     def retries(self) -> int:
+        """Additional attempts allowed after a failure (default 2)."""
         return self._retries if self._retries is not None else 2
 
     @property
     def retry_period(self) -> float:
+        """Seconds to wait between retry attempts."""
         return self._retry_period if self._retry_period is not None else 0
 
     @property
     def readiness_check_delay(self) -> float:
+        """Seconds to wait after the action starts before checking readiness."""
         return self._readiness_check_delay
 
     @property
     def readiness_check_period(self) -> float:
+        """Seconds between readiness checks while monitoring (default 5)."""
         return self._readiness_check_period if self._readiness_check_period else 5.0
 
     @property
     def readiness_failure_threshold(self) -> int:
+        """Consecutive readiness failures tolerated before failing (default 1)."""
         return (
             self._readiness_failure_threshold
             if self._readiness_failure_threshold
@@ -178,22 +243,27 @@ class BaseTask(AnyTask):
 
     @property
     def readiness_timeout(self) -> float:
+        """Seconds a single readiness check may take before failing (default 60)."""
         return self._readiness_timeout if self._readiness_timeout else 60
 
     @property
     def monitor_readiness(self) -> bool:
+        """Whether readiness keeps being re-checked after the task is ready."""
         return self._monitor_readiness if self._monitor_readiness is not None else False
 
     @property
     def action(self):
+        """The raw action: a callable, an f-string template, or None."""
         return self._action
 
     @property
     def envs(self) -> list[AnyEnv]:
+        """This task's environment variables, merged with those of its upstreams."""
         return get_combined_envs(self, task_envs=self._envs)
 
     @property
     def inputs(self) -> list[AnyInput]:
+        """This task's inputs, merged with those of its upstreams."""
         return get_combined_inputs(self, task_inputs=self._inputs)
 
     def _append_unique_tasks(
@@ -242,6 +312,12 @@ class BaseTask(AnyTask):
         self._append_unique_tasks(upstreams, self._upstreams)
 
     def get_ctx(self, session: AnySession) -> AnyContext:
+        """Build this task's execution context within `session`.
+
+        The context carries resolved inputs, envs, and the logging helpers the
+        action uses. Call this when you need the same view of a session that
+        the action receives.
+        """
         return build_task_context(self, session)
 
     def run(
@@ -291,6 +367,20 @@ class BaseTask(AnyTask):
         str_kwargs: dict[str, str] | None = None,
         kwargs: dict[str, Any] | None = None,
     ) -> Any:
+        """Run the task and its dependencies from inside an async context.
+
+        The async counterpart of `run`, and the one to use when an event loop
+        is already running.
+
+        Args:
+            session: Session to run in. A new one is created when omitted.
+            str_kwargs: Input values as raw strings, parsed the way CLI
+                arguments are.
+            kwargs: Input values as already-typed Python objects.
+
+        Returns:
+            The result of the main task's action.
+        """
         return await run_task_async(
             self,
             session=session,
@@ -300,12 +390,23 @@ class BaseTask(AnyTask):
         )
 
     async def exec_root_tasks(self, session: AnySession):
+        """Run the dependency graph's roots, then cascade down to this task.
+
+        Execution entry point used by the runners. Prefer `run`/`async_run`
+        unless you are driving a session yourself.
+        """
         return await execute_root_tasks(self, session)
 
     async def exec_chain(self, session: AnySession):
+        """Run this task, then its successors, in order."""
         return await execute_task_chain(self, session)
 
     async def exec(self, session: AnySession):
+        """Run this task's own action, assuming upstreams already completed.
+
+        Handles readiness checks, retries, and fallbacks. It does not run
+        upstreams — `exec_root_tasks` does that.
+        """
         return await execute_task_action(self, session)
 
     async def exec_action(self, ctx: AnyContext) -> Any:
@@ -343,6 +444,17 @@ class BaseTask(AnyTask):
             raise e
 
     def to_function(self) -> Callable[..., Any]:
+        """Wrap this task as a plain Python function.
+
+        The returned function takes one keyword argument per task input, named
+        in snake_case, and carries a generated `__name__`, `__doc__`, and
+        `__signature__`. That makes it introspectable by anything expecting an
+        ordinary callable — `help()`, IDEs, and LLM tool registration alike.
+
+        Returns:
+            A callable running this task in a fresh session and returning its
+            result.
+        """
 
         def task_runner_fn(**kwargs) -> Any:
             task_kwargs = self._get_func_kwargs(kwargs)

@@ -16,6 +16,34 @@ flake8 src/zrb --select=F
 # on today's code; tighten the number as offenders are refactored down.
 flake8 src/zrb --select=C901 --max-complexity=47
 
+# Second ratchet, on *true* per-function complexity. mccabe sums a nested
+# function's branches into its enclosing function, so a registration function
+# (serve_chat_api, setup_app_keybindings) scores as high as genuinely tangled
+# logic and pins the flake8 number above at 47. radon scores each function on
+# its own, which is the number worth holding down. Tighten as offenders fall.
+python - <<'PY'
+import json, subprocess, sys
+
+LIMIT = 23
+report = json.loads(
+    subprocess.run(
+        ["radon", "cc", "src/zrb", "--json"], capture_output=True, text=True, check=True
+    ).stdout
+)
+over = [
+    (block["complexity"], f"{path}:{block['lineno']} {block['name']}")
+    for path, blocks in report.items()
+    if isinstance(blocks, list)
+    for block in blocks
+    if block["complexity"] > LIMIT
+]
+if over:
+    print(f"Per-function complexity above the ratchet ({LIMIT}):")
+    for score, where in sorted(over, reverse=True):
+        print(f"  {score:3d}  {where}")
+    sys.exit(1)
+PY
+
 # Static type check. pyright is clean in "standard" mode (pyrightconfig.json);
 # keep it that way. Run only on a full pass — it type-checks the whole tree
 # regardless of the path args, so gating it per-file would be misleading.

@@ -21,6 +21,17 @@ class Context(AnyContext):
     def __init__(
         self, shared_ctx: AnySharedContext, task_name: str, color: int, icon: str
     ):
+        """Build a task-scoped view of a session.
+
+        Usually obtained from `task.get_ctx(session)` rather than constructed
+        directly.
+
+        Args:
+            shared_ctx: Session-wide context this one reads inputs and envs from.
+            task_name: Name of the owning task, used to prefix its log lines.
+            color: 8-bit ANSI color code for that prefix.
+            icon: Glyph shown beside the prefix.
+        """
         self._shared_ctx = shared_ctx
         self._env = shared_ctx.env.copy()
         self._task_name = task_name

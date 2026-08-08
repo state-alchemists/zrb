@@ -9,6 +9,12 @@ from zrb.util.string.conversion import to_snake_case
 
 
 class BaseInput(AnyInput):
+    """Default `AnyInput` implementation, treating every value as a string.
+
+    Subclass this and override `_parse_str_value` to add a type; that is all
+    `IntInput`, `BoolInput`, and `FloatInput` do.
+    """
+
     def __init__(
         self,
         name: str,
@@ -20,6 +26,25 @@ class BaseInput(AnyInput):
         allow_positional_parsing: bool = True,
         always_prompt: bool = True,
     ):
+        """Define an input.
+
+        Args:
+            name: Input name, used as the CLI flag and the context key. Also
+                exposed in snake_case, so `project-name` is readable as
+                `ctx.input.project_name`.
+            description: Help text. Defaults to `name`.
+            prompt: Message shown when prompting. Defaults to `name`.
+            default: Default value. May be a literal, an f-string template
+                rendered against the context, or a callable taking it.
+            auto_render: Whether to render a templated `default`. Set False to
+                pass a literal string containing braces.
+            allow_empty: Whether an empty answer is accepted. When False, the
+                prompt repeats until something is entered.
+            allow_positional_parsing: Whether this input may be given as a bare
+                positional CLI argument rather than `--name value`.
+            always_prompt: Whether to prompt even when a default exists. Set
+                False for inputs whose default is nearly always right.
+        """
         self._name = name
         self._description = description
         self._prompt = prompt

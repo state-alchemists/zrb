@@ -1,5 +1,13 @@
 class CmdResult:
     def __init__(self, output: str, error: str, display: str):
+        """Hold the captured output of a finished command.
+
+        Args:
+            output: Everything the command wrote to stdout.
+            error: Everything the command wrote to stderr.
+            display: The output as shown to the user, which may be truncated or
+                styled where `output` is raw.
+        """
         self.output = output
         self.error = error
         self.display = display

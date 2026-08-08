@@ -43,6 +43,15 @@ class Scheduler(BaseTrigger):
         successor: list[AnyTask] | AnyTask | None = None,
         print_fn: PrintFn | None = None,
     ):
+        """Define a task that emits an event on a cron schedule.
+
+        Args:
+            schedule: Cron expression describing when to fire. A template
+                rendered against the context, or a callable taking it.
+
+        Every parameter `BaseTrigger` accepts is also accepted here and behaves
+        identically; see `BaseTrigger` for those.
+        """
         super().__init__(
             name=name,
             color=color,

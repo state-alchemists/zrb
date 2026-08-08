@@ -4,6 +4,14 @@ from zrb.task.any_task import AnyTask
 
 
 class AnyGroup(ABC):
+    """A CLI command group: a namespace holding tasks and nested subgroups.
+
+    Groups form the `zrb <group> <subgroup> <task>` command tree. Each entry is
+    registered under an *alias* — the word typed on the CLI — which defaults to
+    the task's or group's own name but can differ, so the same task can appear
+    in more than one place.
+    """
+
     @property
     @abstractmethod
     def name(self) -> str:
@@ -36,24 +44,60 @@ class AnyGroup(ABC):
 
     @abstractmethod
     def add_group(self, group: "AnyGroup", alias: str | None = None) -> "AnyGroup":
-        pass
+        """Register a subgroup under this one.
+
+        Args:
+            group: The group to nest.
+            alias: CLI word addressing it. Defaults to the group's own name.
+
+        Returns:
+            The group that was added, so calls can be chained.
+        """
 
     @abstractmethod
     def add_task(self, task: "AnyTask", alias: str | None = None) -> "AnyTask":
-        pass
+        """Register a task in this group.
+
+        Args:
+            task: The task to expose.
+            alias: CLI word addressing it. Defaults to the task's own name.
+
+        Returns:
+            The task that was added, so calls can be chained.
+        """
 
     @abstractmethod
     def remove_group(self, group: "AnyGroup | str"):
-        pass
+        """Unregister a subgroup, by alias or by the group object itself.
+
+        Passing the group object removes it under every alias it is registered
+        as; passing an alias removes only that one.
+
+        Raises:
+            ValueError: If the group is not registered here.
+        """
 
     @abstractmethod
     def remove_task(self, task: "AnyTask | str"):
-        pass
+        """Unregister a task, by alias or by the task object itself.
+
+        Passing the task object removes it under every alias it is registered
+        as; passing an alias removes only that one.
+
+        Raises:
+            ValueError: If the task is not registered here.
+        """
 
     @abstractmethod
     def get_task_by_alias(self, alias: str) -> AnyTask | None:
-        pass
+        """Look up a directly-registered task, or None if the alias is unknown.
+
+        Does not search subgroups.
+        """
 
     @abstractmethod
     def get_group_by_alias(self, alias: str) -> "AnyGroup | None":
-        pass
+        """Look up a directly-registered subgroup, or None if the alias is unknown.
+
+        Does not search recursively.
+        """

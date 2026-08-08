@@ -63,8 +63,8 @@ chat = LLMChatTask(
     # UI
     ui: UIProtocol | None = None,
     ui_factory: Callable | None = None,
-    # Summarization
-    ui_summarize_commands: list[str] | None = None,
+    # Slash-command alias overrides, e.g. UICommands(exit="/quit")
+    ui_commands: UICommands | None = None,
     # Flow control (inherited from BaseTask)
     execute_condition: bool | str | Callable = True,
     retries: int = 0,

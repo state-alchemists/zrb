@@ -36,10 +36,9 @@ from zrb.llm.permission import (
     tool_capability,
 )
 from zrb.llm.sandbox import coerce_sandbox
-from zrb.llm.summarizer import (
-    create_summarizer_history_processor,
-)
+from zrb.llm.summarizer import create_summarizer_history_processor
 from zrb.llm.task.chat.state import ChatState
+from zrb.llm.task.chat.ui_commands import UI_COMMAND_CFG_ATTRS
 from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.util.attachment import get_attachments
 from zrb.util.attr import get_attr, get_bool_attr, get_str_attr
@@ -77,6 +76,10 @@ class ChatExecution(ChatState):
         _run_non_interactive_session: Callable[..., Any]  # ChatRunning
 
     def get_system_prompt(self, ctx: AnyContext) -> str:
+        """Compose the full system prompt for this run.
+
+        Returns the empty string when the task has no prompt manager.
+        """
         if self._prompt_manager is None:
             return ""
         compose_prompt = self._prompt_manager.compose_prompt()
@@ -278,25 +281,11 @@ class ChatExecution(ChatState):
 
     def _get_ui_commands(self) -> dict[str, list[str]]:
         """Resolve UI slash-command aliases from the overrides or CFG."""
-        defaults = {
-            "summarize": CFG.LLM_UI_COMMAND_SUMMARIZE,
-            "attach": CFG.LLM_UI_COMMAND_ATTACH,
-            "exit": CFG.LLM_UI_COMMAND_EXIT,
-            "info": CFG.LLM_UI_COMMAND_INFO,
-            "save": CFG.LLM_UI_COMMAND_SAVE,
-            "load": CFG.LLM_UI_COMMAND_LOAD,
-            "rewind": CFG.LLM_UI_COMMAND_REWIND,
-            "yolo_toggle": CFG.LLM_UI_COMMAND_YOLO_TOGGLE,
-            "set_model": CFG.LLM_UI_COMMAND_SET_MODEL,
-            "redirect_output": CFG.LLM_UI_COMMAND_REDIRECT_OUTPUT,
-            "exec": CFG.LLM_UI_COMMAND_EXEC,
-            "btw": CFG.LLM_UI_COMMAND_BTW,
-            "plan": CFG.LLM_UI_COMMAND_PLAN_TOGGLE,
-            "copy": CFG.LLM_UI_COMMAND_COPY,
-            "voice": CFG.LLM_UI_COMMAND_VOICE,
-        }
         overrides = self._ui_command_overrides
-        return {key: overrides.get(key) or value for key, value in defaults.items()}
+        return {
+            key: overrides.get(key) or getattr(CFG, cfg_attr)
+            for key, cfg_attr in UI_COMMAND_CFG_ATTRS.items()
+        }
 
     def _create_llm_task_core(
         self,
@@ -487,6 +476,12 @@ class ChatExecution(ChatState):
         return getattr(ui, "conversation_session_name", initial_conversation_name)
 
     def get_model(self, ctx: AnyContext) -> str | Model:
+        """Resolve the model to use for this run.
+
+        A templated model name is rendered against `ctx` when the task was
+        built with `render_model`. An empty result falls back to the model from
+        `llm_config`.
+        """
         model = self._model
         rendered_model = get_attr(ctx, model, None, auto_render=self._render_model)
         if isinstance(rendered_model, str) and rendered_model.strip() == "":

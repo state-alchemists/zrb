@@ -83,6 +83,7 @@ class FoundationMixin:
 
     @property
     def LOGGER(self) -> logging.Logger:
+        """The root logger. Its level follows `LOGLEVEL`."""
         return logging.getLogger()
 
     SHELL = EnvField(
