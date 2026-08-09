@@ -62,14 +62,9 @@ Detailed instructions for the LLM on how to perform this skill.
 
 ### Companion Files
 
-When a skill lives in its own dedicated directory with a `SKILL.md` or `SKILL.py`
-entry point, other files in that directory (scripts, templates, configs, reference
-docs) are **auto-discovered** and surfaced to the LLM on activation. This allows
-skill authors to bundle helper tooling alongside instructions.
+When a skill lives in its own dedicated directory with a `SKILL.md` or `SKILL.py` entry point, other files in that directory (scripts, templates, configs, reference docs) are **auto-discovered** and surfaced to the LLM on activation. This allows skill authors to bundle helper tooling alongside instructions.
 
-**Convention:** `SKILL.md` / `SKILL.py` in a subdirectory enables companion
-discovery. Flat `*.skill.md` files shared across a directory do not — they
-share the namespace with other skills and companions aren't unambiguous.
+**Convention:** `SKILL.md` / `SKILL.py` in a subdirectory enables companion discovery. Flat `*.skill.md` files shared across a directory do not — they share the namespace with other skills and companions aren't unambiguous.
 
 Example directory structure:
 
@@ -83,11 +78,9 @@ flowchart LR
     Scripts --> Rollback["rollback.sh"]
 ```
 
-When the skill is activated (via `/my-deploy-skill` or `ActivateSkill`), the LLM
-sees the companion file listing and can read or use them during execution.
+When the skill is activated (via `/my-deploy-skill` or `ActivateSkill`), the LLM sees the companion file listing and can read or use them during execution.
 
-The `ActivateSkill` tool also returns the skill directory path and companion
-file listing alongside the skill content.
+The `ActivateSkill` tool also returns the skill directory path and companion file listing alongside the skill content.
 
 ---
 

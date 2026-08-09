@@ -4,11 +4,7 @@
 
 Zrb includes a robust, first-match-wins permission system designed to provide fine-grained control over which tools an LLM agent can call. This system acts as a security gate, ensuring that agents operate within safe boundaries even when YOLO mode is enabled.
 
-> **Permission vs. sandbox.** The permission policy controls *intent* — which
-> tool calls the user agrees to. The opt-in [sandbox](sandbox.md) controls
-> *blast radius* — what an approved call can actually touch on the filesystem.
-> At execution time the two gates run back-to-back in `agent/common.py`:
-> `_permission_gate` first, then `_sandbox_gate`.
+> **Permission vs. sandbox.** The permission policy controls *intent* — which tool calls the user agrees to. The opt-in [sandbox](sandbox.md) controls *blast radius* — what an approved call can actually touch on the filesystem. At execution time the two gates run back-to-back in `agent/common.py`: `_permission_gate` first, then `_sandbox_gate`.
 
 ---
 
@@ -113,7 +109,7 @@ A permission-policy `DENY` is additionally enforced at execution time, so it hol
 
 ## Strict ASK (YOLO Override)
 
-A critical security feature of the system is the **Strict ASK** behavior. 
+A critical security feature of the system is the **Strict ASK** behavior.
 
 If a Permission Policy explicitly returns `ASK` for a tool call, the system **ignores the YOLO toggle** and forces a manual confirmation. This ensures that high-risk transitions (like exiting [Plan Mode](./plan-mode.md)) can never be automated away by a model.
 
@@ -131,8 +127,7 @@ export ZRB_LLM_PERMISSIONS="read:allow,edit:ask,execute:ask,*:deny"
 
 ### Gating the built-in `zrb llm chat`
 
-To constrain the chat task that `zrb llm chat` runs, set `permissions` on the
-built-in `llm_chat` task in your `zrb_init.py`:
+To constrain the chat task that `zrb llm chat` runs, set `permissions` on the built-in `llm_chat` task in your `zrb_init.py`:
 
 ```python
 from zrb.builtin.llm.chat import llm_chat
@@ -140,13 +135,11 @@ from zrb.builtin.llm.chat import llm_chat
 llm_chat.permissions = my_policy
 ```
 
-`permissions` is a read/write property, so this also works to change the policy
-after construction on any task.
+`permissions` is a read/write property, so this also works to change the policy after construction on any task.
 
 ### Per-Task Configuration
 
-Both `LLMTask` and `LLMChatTask` accept a `permissions` argument — pass the
-policy directly when you define your own task:
+Both `LLMTask` and `LLMChatTask` accept a `permissions` argument — pass the policy directly when you define your own task:
 
 ```python
 from zrb import LLMChatTask, LLMTask, cli
@@ -167,8 +160,7 @@ safe_chat = cli.add_task(
 )
 ```
 
-Run a custom task by its own name (`zrb safe-chat`), not `zrb llm chat` — the
-latter runs the built-in `llm_chat` covered above.
+Run a custom task by its own name (`zrb safe-chat`), not `zrb llm chat` — the latter runs the built-in `llm_chat` covered above.
 
 Or set the default for every task via environment variable:
 
@@ -177,20 +169,11 @@ export ZRB_LLM_PERMISSIONS="read:allow,edit:ask,execute:ask,*:deny"
 zrb llm chat
 ```
 
-**Precedence:** the explicit `permissions` argument wins over
-`ZRB_LLM_PERMISSIONS`, which wins over the ambient policy a parent run set (how
-sub-agents inherit their parent's policy). Plan Mode's read-only preset
-overrides all of them while it is active.
+**Precedence:** the explicit `permissions` argument wins over `ZRB_LLM_PERMISSIONS`, which wins over the ambient policy a parent run set (how sub-agents inherit their parent's policy). Plan Mode's read-only preset overrides all of them while it is active.
 
 ### Advanced: the ambient policy ContextVar
 
-Under the hood every policy resolves to the `current_permission_policy`
-ContextVar, which each tool call reads via `get_effective_policy()`. The
-`permissions=` argument is the normal way to set it. For dynamic cases — e.g.
-choosing a policy at runtime based on live state — you can set the ContextVar
-directly with `set_current_permission_policy(policy)` from
-`zrb.llm.permission.state`. The explicit `permissions=` argument, when given,
-takes precedence over a value set this way.
+Under the hood every policy resolves to the `current_permission_policy` ContextVar, which each tool call reads via `get_effective_policy()`. The `permissions=` argument is the normal way to set it. For dynamic cases — e.g. choosing a policy at runtime based on live state — you can set the ContextVar directly with `set_current_permission_policy(policy)` from `zrb.llm.permission.state`. The explicit `permissions=` argument, when given, takes precedence over a value set this way.
 
 ---
 🔖 [Home](../../README.md) > [Advanced Topics](./) > Permission Policy

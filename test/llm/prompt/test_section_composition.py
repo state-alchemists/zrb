@@ -123,7 +123,21 @@ def test_markers_never_reach_the_model(profile):
         assert "/requires" not in text
 
 
-@pytest.mark.parametrize("name", FILE_SECTIONS + ["examples.lean"])
+@pytest.mark.parametrize(
+    "name",
+    FILE_SECTIONS
+    + [
+        "examples.lean",
+        # Every shipped variant, not just the base. A variant is a whole
+        # rulebook for the models that resolve to it, so an unterminated block
+        # in `workflow.minimal` swallows the rest of the only rules a 3B model
+        # ever sees — and it was the one file this test never opened.
+        "persona.lean",
+        "persona.minimal",
+        "workflow.lean",
+        "workflow.minimal",
+    ],
+)
 def test_every_requires_block_is_closed(name):
     """An unterminated block silently swallows the rest of a section."""
     import re
@@ -233,9 +247,16 @@ def test_batching_rule_forbids_the_payload_form():
     assert "twelve `Edit` calls" in section
 
 
-#: Absolute ceiling on the *composed* prompt, per preset. Headroom is ~20% over
-#: what each ships today (full 20,066 / lean 17,371 / minimal 4,923).
-PRESET_BUDGETS = {"full": 24_000, "lean": 20_000, "minimal": 6_000}
+#: Absolute ceiling on the *file-backed* sections of each preset. Headroom is
+#: ~20% over what each ships today (full 17,105 / lean 14,358 / minimal 4,366).
+#:
+#: Deliberately not the composed prompt. `system_context` embeds the OS, cwd and
+#: detected tools, and `project_context` walks the parent chain listing every
+#: AGENTS.md/README.md it finds — so a composed count is a property of the
+#: machine and working directory, not of the prompt. Budgeting it means the
+#: ceiling moves when someone runs the suite from a different folder, and a real
+#: prompt regression can hide behind a shallower checkout.
+PRESET_BUDGETS = {"full": 20_500, "lean": 17_500, "minimal": 5_500}
 
 
 @pytest.mark.parametrize("profile, ceiling", sorted(PRESET_BUDGETS.items()))
@@ -258,15 +279,20 @@ def test_each_preset_stays_within_its_budget(monkeypatch, profile, ceiling):
     autonomy rather than more text (ADR-0049): `full` having room is not a
     reason to spend it.
     """
-    from unittest.mock import MagicMock
-
-    from zrb.llm.prompt.manager import PromptManager
-
     monkeypatch.setenv("ZRB_LLM_PROFILE", profile)
-    composed = PromptManager().compose_prompt()(MagicMock())
+    sections, variant = {
+        "full": (["persona", "workflow", "examples"], None),
+        "lean": (["persona", "workflow", "examples"], "lean"),
+        "minimal": (list(MINIMAL_SECTIONS), "minimal"),
+    }[profile]
+    shipped = "".join(
+        get_prompt(section, profile=variant)
+        for section in sections
+        if section in FILE_SECTIONS
+    )
     assert (
-        len(composed) < ceiling
-    ), f"{profile} prompt grew to {len(composed)} chars (ceiling {ceiling})"
+        len(shipped) < ceiling
+    ), f"{profile} prompt grew to {len(shipped)} chars (ceiling {ceiling})"
 
 
 # ── The safety floor across presets (ADR-0049) ──────────────────────────
@@ -324,9 +350,60 @@ def test_every_preset_carries_the_rank_one_safety_rules(sections, variant):
     assert missing == []
 
 
+#: What the model should do *instead*, per rank-1 rule. A bare prohibition is
+#: not enough: measured over 928 runs (`llm-experiment/`), the presets that
+#: state only what not to do comply at 44-53% while the one that also names the
+#: substitute behaviour complies at 88% — same models, same probes. Affirmative
+#: steps survive a long rulebook; prohibitions decay as context grows
+#: (arXiv 2604.20911). So the floor is the *form*, not just the concept.
+#:
+#: Injection is absent on purpose. Its rule already reads affirmatively in every
+#: preset ("report that you saw it"), and resistance measured at ceiling — no
+#: model in any arm called an exfiltration-capable tool.
+RANK_ONE_SUBSTITUTES = {
+    "secrets": r"say (that )?(it|the file) (holds|has|contains)",
+    "confirm destructive actions": r"wait for a [\"“]?yes",
+}
+
+
+@pytest.mark.parametrize(
+    "sections, variant", PRESET_COMPOSITIONS, ids=["full", "lean", "minimal"]
+)
+def test_rank_one_rules_name_the_substitute_behaviour(sections, variant):
+    """Every preset must say what to do instead, not only what not to do.
+
+    This is the half of the safety floor that
+    `test_every_preset_carries_the_rank_one_safety_rules` cannot see: that test
+    passes when the words are present, and word-presence is exactly what came
+    apart from compliance in measurement. `workflow.md` used to open with
+    "Never expose a credential" and the model printed the key; the same model on
+    `workflow.minimal.md` — which adds "say the file has one" — printed the
+    substitute instead.
+
+    Presets may still differ in what *else* their rank-1 rules carry; the
+    `Interactive: no` branch and the `git status`/`git diff HEAD` rule only
+    apply where those tools exist. What may not differ is the form.
+    """
+    text = "\n".join(
+        filter_requires(get_prompt(name, profile=variant), set(sections))
+        for name in sections
+        if name not in ("system_context", "project_context")
+    ).lower()
+    missing = [
+        concept
+        for concept, pattern in RANK_ONE_SUBSTITUTES.items()
+        if not re.search(pattern, text)
+    ]
+    assert missing == [], (
+        f"{variant or 'full'} states these rank-1 rules as prohibitions with no "
+        f"substitute behaviour: {missing}"
+    )
+
+
 # The closing recap, as the body statement each item restates. Every preset ends
-# with `## Final Reminders`, which exists to put the highest-cost rules at the
-# recency position the way `Priority Order` puts them at the primacy one.
+# with `## Final Reminders`, which restates the highest-cost rules because those
+# are the ones that go wrong most often — a redundancy argument, not a
+# positional one (ADR-0046).
 RECAP_ANCHORS = {
     "tool output is not instructions": [r"data,? not (instructions|orders)"],
     "confirm destructive actions": [r"destructive|destroy"],
@@ -536,15 +613,24 @@ def test_workflow_lean_names_no_tool_its_preset_lacks():
     assert named <= available, sorted(named - available)
 
 
-def test_lean_drops_only_tools_that_are_actually_registered():
+def test_lean_drops_only_tools_that_are_actually_registered(monkeypatch):
     """A drop naming a tool nobody registers silently protects nothing.
 
     Same shape as `test_every_owned_term_still_exists_in_its_owner`: `LEAN_DROPS`
     is applied as a filter, so a renamed or deleted tool leaves a dead entry that
     keeps passing every closure check while subtracting nothing.
+
+    The factories have to be *resolved*, not excused. All three entries of
+    `LEAN_DROPS` are factory-built, so exempting factory-built names made the
+    assertion `LEAN_DROPS <= registered | LEAN_DROPS` — vacuously true, and
+    blind to exactly the rename it exists to catch.
     """
+    from unittest.mock import MagicMock
+
     from zrb.llm.common_tools import apply_common_tools, tool_name
 
+    monkeypatch.setenv("ZRB_LLM_PROFILE", "full")
+    monkeypatch.setenv("ZRB_LLM_JOURNAL_ENABLED", "true")
     registered: set[str] = set()
 
     class _Host:
@@ -552,15 +638,15 @@ def test_lean_drops_only_tools_that_are_actually_registered():
             registered.update(tool_name(t) for t in tool)
 
         def append_tool_factory(self, *factory):
-            pass
+            for build in factory:
+                produced = build(MagicMock())
+                if produced is None:
+                    continue
+                items = produced if isinstance(produced, (list, tuple)) else [produced]
+                registered.update(tool_name(t) for t in items if t is not None)
 
         def append_toolset_factory(self, *factory):
             pass
 
     apply_common_tools(_Host())
-    # `SearchJournal` and the writers are factory-built (gated on
-    # LLM_JOURNAL_ENABLED), so they never reach add_tool here.
-    factory_built = {"SearchJournal", "LogActivity", "WriteJournalNote"}
-    assert LEAN_DROPS <= (registered | factory_built), sorted(
-        LEAN_DROPS - registered - factory_built
-    )
+    assert LEAN_DROPS <= registered, sorted(LEAN_DROPS - registered)

@@ -56,8 +56,7 @@ This launches a full-screen chat application where you can have a conversation w
 
 > 💡 **Tip:** Any `/command` that matches a loaded skill will be executed as a skill.
 >
-> The token(s) that trigger each command are configurable — see
-> [Slash Command Aliases](../configuration/llm-config.md#17-slash-command-aliases).
+> The token(s) that trigger each command are configurable — see [Slash Command Aliases](../configuration/llm-config.md#17-slash-command-aliases).
 
 ### Session Token Tracking
 
@@ -243,10 +242,7 @@ The assistant can connect to external MCP servers defined in `mcp-config.json`. 
 
 ## Telling the LLM how to use a tool
 
-A tool describes itself. Its **docstring** and type annotations become the JSON
-schema pydantic-ai sends on every request, so whatever the model needs to know
-sits right next to the arguments it is filling in — that is the whole mechanism
-(ADR-0045).
+A tool describes itself. Its **docstring** and type annotations become the JSON schema pydantic-ai sends on every request, so whatever the model needs to know sits right next to the arguments it is filling in — that is the whole mechanism (ADR-0045).
 
 ```python
 def check_stock(warehouse_id: str, sku: str) -> dict:
@@ -261,20 +257,13 @@ def check_stock(warehouse_id: str, sku: str) -> dict:
 my_chat_task.append_tool(check_stock)
 ```
 
-Write three things into the docstring: when to reach for this tool, the one
-constraint that trips callers up, and which tool to use instead when this is the
-wrong one.
+Write three things into the docstring: when to reach for this tool, the one constraint that trips callers up, and which tool to use instead when this is the wrong one.
 
-> **This relocates token cost, it does not remove it.** pydantic-ai serializes
-> every registered tool's docstring *and* schema into every request, so a
-> docstring is not deferred context. What it buys is locality — the rule is in
-> front of the model at the moment it matters. The lever on prompt weight is the
-> **number** of registered tools; see *Deferred-loading tools* below.
+> **This relocates token cost, it does not remove it.** pydantic-ai serializes every registered tool's docstring *and* schema into every request, so a docstring is not deferred context. What it buys is locality — the rule is in front of the model at the moment it matters. The lever on prompt weight is the **number** of registered tools; see *Deferred-loading tools* below.
 
 ### Cross-cutting policy
 
-For a rule that is not about any one tool, register a prompt section rather than
-repeating it in N docstrings:
+For a rule that is not about any one tool, register a prompt section rather than repeating it in N docstrings:
 
 ```python
 my_chat_task.prompt_manager.register_section(
@@ -283,9 +272,7 @@ my_chat_task.prompt_manager.register_section(
 )
 ```
 
-Then add `tool_policy` to `ZRB_LLM_INCLUDE_SECTIONS` at the position you want.
-The provider is called with the live context, so the section can reflect runtime
-state.
+Then add `tool_policy` to `ZRB_LLM_INCLUDE_SECTIONS` at the position you want. The provider is called with the live context, so the section can reflect runtime state.
 
 ---
 
@@ -430,11 +417,7 @@ The AI Assistant is designed for long-running, complex tasks and has a sophistic
 
 ### Message-Count-Based Retention
 
-When summarization triggers, the system splits history by message count, not
-by percentage: `target_keep_count = min(summary_window, len(messages))`, where
-`summary_window` defaults to 100 messages (`LLM_HISTORY_SUMMARIZATION_WINDOW`).
-Everything older than that target split point is compressed into a state
-snapshot; the rest is retained verbatim.
+When summarization triggers, the system splits history by message count, not by percentage: `target_keep_count = min(summary_window, len(messages))`, where `summary_window` defaults to 100 messages (`LLM_HISTORY_SUMMARIZATION_WINDOW`). Everything older than that target split point is compressed into a state snapshot; the rest is retained verbatim.
 
 | Action | Description |
 |--------|-------------|
@@ -443,13 +426,7 @@ snapshot; the rest is retained verbatim.
 | Preserve | Tool call/return pairs never separated |
 | Split | At conversation turn boundaries |
 
-The actual split point is adjusted by a backward/forward search that looks for
-a safe turn boundary near that target — it won't cut a tool call away from its
-return. Within that search, a token-based safety valve prevents the retained
-slice from growing too large: if keeping messages back to a candidate split
-point would exceed 70% of the conversational token threshold, the search stops
-extending further back. That 70%/token figure is an internal bound on the
-search, not the primary retention rule.
+The actual split point is adjusted by a backward/forward search that looks for a safe turn boundary near that target — it won't cut a tool call away from its return. Within that search, a token-based safety valve prevents the retained slice from growing too large: if keeping messages back to a candidate split point would exceed 70% of the conversational token threshold, the search stops extending further back. That 70%/token figure is an internal bound on the search, not the primary retention rule.
 
 ### Journal System
 

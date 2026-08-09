@@ -1,0 +1,4 @@
+*.log
+__pycache__/
+# Serves production tool schemas to the harness; kept local, not shipped.
+docstrings.py
