@@ -103,7 +103,7 @@ def get_effective_policy() -> "PermissionPolicy | None":
     """The policy actually in force.
 
     Plan mode's read-only preset overrides any explicit policy; otherwise the
-    explicit policy applies (``None`` → legacy behavior, nothing constrained).
+    explicit policy applies (``None`` → nothing constrained).
     """
     if current_agent_mode.get().mode == AgentMode.PLAN:
         return PLAN_MODE_POLICY

@@ -100,9 +100,9 @@ class UIKeybindings:
         )
 
         # Ctrl+K toggles focus between the input and output panes. The
-        # input/output controls' own Tab/Shift+Tab focus traversal was removed
-        # (see app/layout.py, app/keybinding.py) so Shift+Tab is free to cycle
-        # modes (below). Note: on Termux, Tab and Shift+Tab both produce byte
+        # input/output controls bind no Tab/Shift+Tab focus traversal of their
+        # own (see app/layout.py, app/keybinding.py), leaving Shift+Tab free to
+        # cycle modes (below). Note: on Termux, Tab and Shift+Tab both produce byte
         # 0x09, so mode cycling via Shift+Tab is unavailable there.
         @app_keybindings.add("c-k")
         def _(event):

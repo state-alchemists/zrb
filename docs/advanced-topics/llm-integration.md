@@ -83,7 +83,7 @@ By default, Zrb prompts for confirmation before executing most tools. This is co
 | **Permission Policy** | Fine-grained `ALLOW`/`DENY`/`ASK` rules that can override YOLO |
 | **Plan Mode** | Strict read-only mode for discovery. See [Plan Mode](./plan-mode.md) |
 
-**Safe Command Policy:** Both `Shell` and `Bash` tools automatically approve known-safe read-only commands (e.g., `ls`, `git status`, `cat`, `grep`) without requiring YOLO mode. Commands with dangerous shell metacharacters (`>`, `|`, `;`, `&`, `` ` ``, `$()`, `\n`, `\r`) always require explicit approval. Known-safe prefixes include `ls`, `cat`, `grep`, `git status`, `printenv`, and similar read-only commands — note that bare `env` is intentionally excluded as `env FOO=1 rm -rf x` can execute arbitrary commands.
+**Safe Command Policy:** The `Shell` tool automatically approves known-safe read-only commands (e.g., `ls`, `git status`, `cat`, `grep`) without requiring YOLO mode. Commands with dangerous shell metacharacters (`>`, `|`, `;`, `&`, `` ` ``, `$()`, `\n`, `\r`) always require explicit approval. Known-safe prefixes include `ls`, `cat`, `grep`, `git status`, `printenv`, and similar read-only commands — note that bare `env` is intentionally excluded as `env FOO=1 rm -rf x` can execute arbitrary commands.
 
 ---
 
@@ -145,9 +145,8 @@ The assistant comes with a rich set of built-in tools. These are automatically a
 
 | Tool | Function | Description |
 |------|----------|-------------|
-| `Shell` | `run_shell_command` | Execute non-interactive shell commands. Streams output live and truncates large results. Always requires non-interactive flags (e.g., `-y`). Pass `background=True` for long-running processes (dev servers, watchers) to get a handle immediately instead of blocking. |
-| `Bash` | `run_shell_command` | Alias for `Shell` (Claude compatibility). Same behavior and arguments (incl. `background=True`). |
-| `MonitorProcess` | `monitor_process` | Check, wait on, or kill a background process started with `Shell`/`Bash` `background=True`. Pass `wait=N` to block up to N seconds (returns early on exit), or `kill=True` to terminate. |
+| `Shell` | `run_shell_command` | Execute non-interactive shell commands. Streams output live and truncates large results. Always requires non-interactive flags (e.g., `-y`). Pass `background=True` for long-running processes (dev servers, watchers) to get a handle immediately instead of blocking. zrb's only shell tool — sub-agents that list `Bash` (the Claude Code name) are mapped to it on load; pass `shell="bash"` if bash is needed specifically. |
+| `MonitorProcess` | `monitor_process` | Check, wait on, or kill a background process started with `Shell` `background=True`. Pass `wait=N` to block up to N seconds (returns early on exit), or `kill=True` to terminate. |
 
 ### File System
 
@@ -199,7 +198,7 @@ The assistant comes with a rich set of built-in tools. These are automatically a
 
 | Tool factory | Description |
 |---|---|
-| `create_rag_from_directory` | Creates a semantic search tool over a local directory of documents (ChromaDB + OpenAI embeddings). Returns a callable tool you register with `add_tool()`. Requires `chromadb` and `openai` packages. |
+| `create_rag_from_directory` | Creates a semantic search tool over a local directory of documents (ChromaDB + OpenAI embeddings). Returns a callable tool you register with `append_tool()`. Requires `chromadb` and `openai` packages. |
 
 ```python
 from zrb.llm.tool.rag import create_rag_from_directory
@@ -211,7 +210,7 @@ search_docs = create_rag_from_directory(
     vector_db_path="./.chroma",
 )
 
-my_chat_task.add_tool(search_docs)
+my_chat_task.append_tool(search_docs)
 ```
 
 ### MCP (Model Context Protocol)
@@ -259,7 +258,7 @@ def check_stock(warehouse_id: str, sku: str) -> dict:
     """
     ...
 
-my_chat_task.add_tool(check_stock)
+my_chat_task.append_tool(check_stock)
 ```
 
 Write three things into the docstring: when to reach for this tool, the one
@@ -303,13 +302,13 @@ def get_weather(location: str) -> str:
     """Gets the current weather for a given location."""
     # ... your implementation ...
 
-my_chat_task.add_tool(get_weather)
+my_chat_task.append_tool(get_weather)
 ```
 
 For a tool that needs per-run context, or that you want resolved fresh each turn, register a **factory** instead. Each factory is a `Callable[[AnyContext], ...]` evaluated at the start of every turn; return a single tool, a list, or `[]` to skip registration conditionally.
 
 ```python
-my_chat_task.add_tool_factory(lambda ctx: get_weather)
+my_chat_task.append_tool_factory(lambda ctx: get_weather)
 ```
 
 ### Deferred-loading tools
@@ -319,7 +318,7 @@ A registered tool's schema (docstring + parameters) is serialized into **every**
 ```python
 from pydantic_ai import Tool
 
-my_chat_task.add_tool(Tool(get_weather, defer_loading=True))
+my_chat_task.append_tool(Tool(get_weather, defer_loading=True))
 ```
 
 The trade-off is discovery: a deferred tool is invisible until searched for, so give it a name the model would think to search. This is how zrb ships its own rarely-used tools (`analyze_code`, worktree/LSP tools, `MonitorProcess`, MCP toolsets, …). Tools that are useless in a given environment are better *unregistered* than deferred — zrb skips the LSP tools when no language server is installed, the worktree tools outside a git repo, and the journal tools when `ZRB_LLM_JOURNAL_ENABLED` is off.
@@ -331,7 +330,7 @@ def _deferred(ctx):
     from pydantic_ai import Tool  # imported lazily, on first run
     return Tool(get_weather, defer_loading=True)
 
-my_chat_task.add_tool_factory(_deferred)
+my_chat_task.append_tool_factory(_deferred)
 ```
 
 ### Equipping a custom host with the shipped tool surface
@@ -344,7 +343,7 @@ from zrb.llm.common_tools import defer_common_tools
 
 my_task = LLMTask(name="my-agent", ...)
 defer_common_tools(my_task)   # register shipped tools + guidance, lazily
-my_task.add_tool(get_weather) # then layer on your own
+my_task.append_tool(get_weather) # then layer on your own
 ```
 
 **Why deferred is the default.** `apply_common_tools` transitively imports `pydantic_ai` (~1.7s) as a side effect of resolving the shipped tools. Task-definition modules are imported on **every** `zrb` CLI invocation — so calling `apply_common_tools` at module scope makes every `zrb` command in your project (even unrelated ones like `zrb --help`) pay that import cost. `defer_common_tools` registers the same tools/guidance but delays the heavy import until the task actually runs its first turn. Constructing the task and adding your own plain-function tools stay import-cheap.

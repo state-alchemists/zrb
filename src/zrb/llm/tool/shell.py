@@ -2,15 +2,11 @@ import asyncio
 import os
 import platform
 import re
-import shutil
 import tempfile
-from collections import deque
-from typing import TextIO
 
 from zrb.config.config import CFG
-from zrb.context.any_context import zrb_print
 from zrb.llm.sandbox.os_sandbox import SandboxUnavailableError
-from zrb.util.cli.style import stylize_muted
+from zrb.llm.tool.stream_capture import StreamCapture
 from zrb.util.cmd.command import resolve_shell, terminate_process
 
 _ANSI_ESCAPE = re.compile(
@@ -39,6 +35,10 @@ async def run_shell_command(
     `test -f`, `rm`, `mv`, and `>` into a file are the wrong tool here even when
     they would work — the file tools carry post-write diagnostics, path
     validation, and per-path approval that a shell command bypasses.
+
+    Shell is zrb's only shell tool — call Shell, not Bash. A sub-agent or skill
+    that asks for ``Bash`` (the Claude Code name) is mapped to Shell when it
+    loads; pass ``shell="bash"`` if you need bash specifically.
 
     stdin is closed — prompts hang until timeout; pass `-y`, `--yes`, or `CI=true`.
     Batch with `&&`; use `cwd` instead of `cd`. Timed-out processes may continue in background.
@@ -119,8 +119,8 @@ async def run_shell_command(
         assert process.stdout is not None and process.stderr is not None
 
         echo_cap = CFG.LLM_MAX_CONSOLE_OUTPUT_CHARS
-        stdout_cap = _StreamCapture(max_chars, echo_cap)
-        stderr_cap = _StreamCapture(max_chars, echo_cap)
+        stdout_cap = StreamCapture(max_chars, echo_cap)
+        stderr_cap = StreamCapture(max_chars, echo_cap)
 
         timed_out = False
         try:
@@ -176,17 +176,16 @@ async def run_shell_command(
 def _prepare_command(command: str, use_pid_tracking: bool) -> tuple[str, str | None]:
     """Wrap the command to capture background PIDs when on a POSIX shell.
 
-    **Every wrapper token gets its own line.** The wrapper used to splice itself
-    onto the command with `;` separators — ``{ <command> ; }; __code=$?; …`` —
-    which silently corrupted any command whose *last line* cannot tolerate a
-    trailing `; }`. That is not an edge case: it broke a heredoc (the `EOF`
-    delimiter stops being alone on its line, so the shell swallows the rest of
-    the wrapper hunting for it), a trailing comment (`# …` eats the rest of the
-    line), a trailing `;`, and — on bash/sh — a command merely ending in a
-    newline. Models write all four constantly, and the failure surfaced as an
-    opaque `parse error near '\\n'` pointing at a line number in a string the
-    model never wrote. Newline separators make the command a statement of its
-    own, so nothing the model writes can run into the wrapper.
+    **Every wrapper token gets its own line.** Splicing the wrapper on with `;`
+    separators — ``{ <command> ; }; __code=$?; …`` — corrupts any command whose
+    *last line* cannot tolerate a trailing `; }`: a heredoc (the `EOF` delimiter
+    stops being alone on its line, so the shell swallows the rest of the wrapper
+    hunting for it), a trailing comment (`# …` eats the rest of the line), a
+    trailing `;`, and — on bash/sh — a command merely ending in a newline.
+    Models write all four constantly, and the failure surfaces as an opaque
+    `parse error near '\\n'` pointing at a line number in a string the model
+    never wrote. Newline separators make the command a statement of its own, so
+    nothing the model writes can run into the wrapper.
     """
     # An empty command has no body to wrap: `{ }` is itself a syntax error, so
     # the wrapper would turn a harmless no-op into a shell failure.
@@ -255,137 +254,7 @@ async def _start_process(argv: list[str], cwd: str) -> asyncio.subprocess.Proces
     )
 
 
-class _StreamCapture:
-    """Bounded capture of one output stream.
-
-    Three budgets, deliberately separate:
-
-    * ``retain`` — characters held in memory, tail-biased. Only the tail ever
-      reached the model even before this class existed, so holding the head
-      resident bought nothing.
-    * ``echo`` — characters mirrored to the console. Echoing costs a regex
-      substitution and a print *per line*; an unscoped ``git diff`` in a dirty
-      monorepo spent longer being displayed than being computed and was killed
-      by its own timeout as a result.
-    * the spill file — the complete stream, written as it arrives, so the
-      elided head stays recoverable without being resident.
-
-    The spill opens exactly when the first character would be dropped, which
-    keeps the invariant that ``text`` is the whole stream whenever
-    ``spill_path`` is ``None``.
-    """
-
-    def __init__(self, retain: int, echo: int) -> None:
-        self._retain = max(retain, 0)
-        self._echo_budget = max(echo, 0)
-        self._chunks: "deque[str]" = deque()
-        self._held = 0
-        self._echoed = 0
-        self._spill: TextIO | None = None
-        self._spill_failed = False
-        self.total_chars = 0
-        self.spill_path: str | None = None
-
-    @property
-    def text(self) -> str:
-        """The retained tail — what the model is shown."""
-        return "".join(self._chunks)
-
-    @property
-    def truncated(self) -> bool:
-        return self.total_chars > self._held
-
-    def feed(self, chunk: str) -> None:
-        self.total_chars += len(chunk)
-        if self._spill is not None:
-            self._spill.write(chunk)
-        self._chunks.append(chunk)
-        self._held += len(chunk)
-        if self._held > self._retain:
-            self._begin_spill()
-            self._trim()
-
-    def echo(self, chunk: str) -> None:
-        """Mirror to the console until the display budget is spent."""
-        remaining = self._echo_budget - self._echoed
-        if remaining <= 0:
-            return
-        if len(chunk) <= remaining:
-            self._echoed += len(chunk)
-            zrb_print(f"  {stylize_muted(chunk)}", end="", plain=True)
-            return
-        self._echoed = self._echo_budget
-        zrb_print(f"  {stylize_muted(chunk[:remaining])}", end="", plain=True)
-        zrb_print(
-            stylize_muted(
-                f"\n  … console output capped at {self._echo_budget} characters. "
-                "The command is still being captured; only the display stops "
-                f"here ({CFG.ENV_PREFIX}_LLM_MAX_CONSOLE_OUTPUT_CHARS).\n"
-            ),
-            end="",
-            plain=True,
-        )
-
-    def write_full(self, dest: TextIO) -> None:
-        """Copy the complete stream into *dest*, streaming from spill if needed."""
-        if self.spill_path is None:
-            dest.write(self.text)
-            return
-        self.close()
-        with open(self.spill_path, "r", encoding="utf-8") as src:
-            shutil.copyfileobj(src, dest)
-
-    def close(self) -> None:
-        if self._spill is not None:
-            try:
-                self._spill.close()
-            except Exception as e:
-                CFG.LOGGER.debug(f"Failed to close spill file: {e}")
-            self._spill = None
-
-    def discard(self) -> None:
-        """Close and remove the spill file; the merged dump has superseded it."""
-        self.close()
-        if self.spill_path:
-            try:
-                os.remove(self.spill_path)
-            except Exception as e:
-                CFG.LOGGER.debug(f"Failed to remove spill file: {e}")
-            self.spill_path = None
-
-    def _begin_spill(self) -> None:
-        """Start spilling. Best-effort: without a temp file the head is simply lost.
-
-        Called before the first drop, when ``_chunks`` still holds everything
-        received so far — so writing the deque here captures the head exactly
-        once, and ``feed`` writes every later chunk directly.
-        """
-        if self._spill is not None or self._spill_failed:
-            return
-        try:
-            fd, path = tempfile.mkstemp(prefix="zrb_shell_part_", suffix=".log")
-            self._spill = os.fdopen(fd, "w", encoding="utf-8")
-            self.spill_path = path
-            self._spill.write("".join(self._chunks))
-        except Exception as e:
-            CFG.LOGGER.debug(f"Failed to open spill file: {e}")
-            self._spill_failed = True
-            self._spill = None
-            self.spill_path = None
-
-    def _trim(self) -> None:
-        """Drop from the head until the retention budget holds, tail-exact."""
-        while self._chunks and self._held > self._retain:
-            overflow = self._held - self._retain
-            head = self._chunks.popleft()
-            if len(head) > overflow:
-                self._chunks.appendleft(head[overflow:])
-                self._held -= overflow
-                return
-            self._held -= len(head)
-
-
-async def _read_stream(stream: asyncio.StreamReader, capture: _StreamCapture):
+async def _read_stream(stream: asyncio.StreamReader, capture: StreamCapture):
     """Reads from a stream line by line, echoing to console and capturing."""
     if not stream:
         return
@@ -434,8 +303,8 @@ def _cleanup_temp_file(temp_pid_file: str | None):
 def _format_output(
     command: str,
     cwd: str,
-    stdout_cap: _StreamCapture,
-    stderr_cap: _StreamCapture,
+    stdout_cap: StreamCapture,
+    stderr_cap: StreamCapture,
     returncode: int | None,
     bg_pids: list[int],
     timed_out: bool,
@@ -587,8 +456,8 @@ def _suggest_next_step(
 def _dump_full_output(
     command: str,
     cwd: str,
-    stdout_cap: _StreamCapture,
-    stderr_cap: _StreamCapture,
+    stdout_cap: StreamCapture,
+    stderr_cap: StreamCapture,
     exit_code_str: str,
 ) -> str | None:
     """Persist untruncated output so the elided head stays recoverable.

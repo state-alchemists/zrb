@@ -42,11 +42,11 @@ description: A project skill
         encoding="utf-8",
     )
 
-    # Setup legacy/fallback skill: project/legacy-skill.skill.md
-    legacy_skill_file = project_dir / "legacy-skill.skill.md"
-    legacy_skill_file.write_text(
-        """# Legacy Skill
-Legacy content
+    # Setup the `.skill.md` fallback format: project/fallback-skill.skill.md
+    fallback_skill_file = project_dir / "fallback-skill.skill.md"
+    fallback_skill_file.write_text(
+        """# Fallback Skill
+Fallback content
 """,
         encoding="utf-8",
     )
@@ -87,7 +87,7 @@ def test_skill_manager_scan(temp_skill_env):
     skill_names = [s.name for s in skills]
     assert "global-skill" in skill_names
     assert "project-skill" in skill_names
-    assert "Legacy Skill" in skill_names
+    assert "Fallback Skill" in skill_names
 
     # Check descriptions
     global_skill = next(s for s in skills if s.name == "global-skill")
@@ -96,8 +96,8 @@ def test_skill_manager_scan(temp_skill_env):
     project_skill = next(s for s in skills if s.name == "project-skill")
     assert project_skill.description == "A project skill"
 
-    legacy_skill = next(s for s in skills if s.name == "Legacy Skill")
-    assert legacy_skill.description == "No description"
+    fallback_skill = next(s for s in skills if s.name == "Fallback Skill")
+    assert fallback_skill.description == "No description"
 
 
 def test_skill_manager_precedence(temp_skill_env):
@@ -955,7 +955,7 @@ def test_no_builtin_journaling_skill_ships(tmp_path):
 
 
 def test_a_user_journaling_skill_still_loads(tmp_path):
-    """Deleting the built-in must not blocklist the name (ADR-0052)."""
+    """Deleting the built-in must not blocklist the name (ADR-0054)."""
     user_dir = tmp_path / "skills" / "core-journaling"
     user_dir.mkdir(parents=True)
     (user_dir / "SKILL.md").write_text(

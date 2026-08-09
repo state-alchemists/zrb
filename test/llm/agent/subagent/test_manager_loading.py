@@ -95,7 +95,7 @@ def test_sub_agent_manager_add_tool_list_public(manager):
         """t1"""
         pass
 
-    manager.add_tool(t1)
+    manager.append_tool(t1)
 
     agent_def = SubAgentDefinition(
         name="tool-test", path=".", description="d", system_prompt="p", tools=["t1"]
@@ -119,7 +119,7 @@ def test_sub_agent_manager_disallowed_tools_filters_registry(manager):
         """t2"""
         pass
 
-    manager.add_tool(t1, t2)
+    manager.append_tool(t1, t2)
 
     agent_def = SubAgentDefinition(
         name="dis-test",
@@ -148,7 +148,7 @@ def test_sub_agent_manager_disallowed_tools_filters_factory(manager):
     def factory(ctx):
         return t2
 
-    manager.add_tool_factory(factory)
+    manager.append_tool_factory(factory)
 
     agent_def = SubAgentDefinition(
         name="dis-factory",

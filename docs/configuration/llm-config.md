@@ -45,7 +45,7 @@ These variables define which LLM Zrb uses for its primary reasoning and how it c
 | `ZRB_LLM_MULTIMODAL_MODEL` | Model for multimodal tasks (image analysis) | `None` (no fallback) |
 | `ZRB_LLM_API_KEY` | API key for your LLM provider | None |
 | `ZRB_LLM_BASE_URL` | Custom endpoint URL | None |
-| `ZRB_LLM_PERMISSIONS` | Tool permission ruleset. Empty keeps legacy yolo behavior. Accepts a shorthand (`allow`/`ask`/`deny`) or a comma-separated `key:action` list (e.g. `edit:deny,Bash:ask,*:allow`). First match wins. | (empty) |
+| `ZRB_LLM_PERMISSIONS` | Tool permission ruleset. Empty keeps legacy yolo behavior. Accepts a shorthand (`allow`/`ask`/`deny`) or a comma-separated `key:action` list (e.g. `edit:deny,Shell:ask,*:allow`). First match wins. | (empty) |
 
 ### Supported Providers
 
@@ -265,7 +265,7 @@ as a *custom* section — see [Programmatic Prompt Customization](#programmatic-
 
 `ZRB_LLM_INCLUDE_SECTIONS` controls *which* sections appear. `ZRB_LLM_PROFILE`
 selects a **preset** — a named binding of three axes at once: which sections
-compose, how they are phrased, and which tools register (ADR-0075).
+compose, how they are phrased, and which tools register (ADR-0049).
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -273,24 +273,26 @@ compose, how they are phrased, and which tools register (ADR-0075).
 
 | Preset | Sections | Phrasing | Tools |
 |--------|----------|----------|-------|
-| `full` | default | base files | all 21 |
-| `lean` | default | `workflow.lean.md`, `examples.lean.md` | all 21 |
-| `minimal` | `persona, workflow, system_context` | `workflow.minimal.md` | 10 |
+| `full` | default | base files | all 20 |
+| `lean` | default | `persona.lean.md`, `workflow.lean.md`, `examples.lean.md` | all but the journal trio (17) |
+| `minimal` | `persona, workflow, system_context` | `persona.minimal.md`, `workflow.minimal.md` | 10 |
 
 - **`full`** — the concise, principle-led preset (the base prompt files).
 - **`lean`** — for small models (~5-14B). Two changes in opposite directions: a
-  lighter rulebook (`workflow.lean.md` in place of `workflow`, ~25% smaller with
-  the precedence ladder flattened) and *more* worked demonstrations
-  (`examples.lean.md`, a superset of the base `examples.md`). Small models
-  follow worked examples better than abstract rules. The demonstrations **never
-  add rules**: added constraint mass degrades exactly the models it targets, so
-  a variant may exemplify a rule but never re-word or extend one (ADR-0047).
-  Every tool and capability is kept — a 5-14B model can still use skills, todos
-  and delegation.
+  lighter rulebook (`persona.lean.md` and `workflow.lean.md` in place of their
+  bases, ~25% smaller with the precedence ladder flattened) and *more* worked
+  demonstrations (`examples.lean.md`). Small models follow worked examples better
+  than abstract rules. The demonstrations **never add rules**: added constraint
+  mass degrades exactly the models it targets, so a variant may exemplify a rule
+  but never re-word or extend one (ADR-0049). The only capability dropped is the
+  journal — a 5-14B model still gets skills, todos, web and delegation, and
+  cross-session memory is never needed to finish a turn. Set
+  `ZRB_LLM_PROFILE=full` if you want it back on a 7B.
 - **`minimal`** — for very small models (~3B), where the *budget* is the binding
-  constraint rather than the register. Composes to roughly 3,500 tokens of
-  preamble against ~9,000. A `minimal` session has **no** skills, sub-agents,
-  web access, todo list, journal, plan mode, MCP tools or project-doc reading —
+  constraint rather than the register. Composes to roughly 1,250 tokens of
+  preamble against ~4,600 for `full`. A `minimal` session has **no** skills,
+  sub-agents, web access, todo list, journal, plan mode, MCP tools or
+  project-doc reading —
   it is a single-tool-call-per-turn assistant, not an agentic coder. Use it when
   a small local model must drive the main loop; for a small model *assisting* a
   larger one, `ZRB_LLM_SMALL_MODEL` is the better slot.
@@ -304,7 +306,7 @@ you nothing — but `-7b` is the vendor stating a parameter count, and `mini` /
 | Selects `minimal` | Selects `lean` | Stays `full` |
 |-----------------|----------------|---------------|
 | a stated count of 4B or less — `qwen2.5:3b`, `deepseek-r1:1.5b`, `qwen2.5:0.5b` | a stated count of 5-14B — `qwen2.5-7b`, `gemma-2-9b`, `qwen3-14b` | larger stated sizes — `qwen3-32b`, `llama-3-70b`, `llama-3.1-405b` |
-| — | vendor small tiers — `gpt-5-mini`, `claude-haiku-4-5`, `gemini-nano` | everything else — `claude-opus-4-8`, `deepseek-v4-pro`, `gemini-2.5-pro` |
+| a small-tier label served locally — `ollama:phi4-mini`, `lmstudio:gemma-tiny` | vendor small tiers on a hosted provider — `gpt-5-mini`, `claude-haiku-4-5`, `gemini-nano` | everything else — `claude-opus-4-8`, `deepseek-v4-pro`, `gemini-2.5-pro`, `ollama:kimi-k2.6:cloud` |
 
 The count is read as a **number**, so a fractional size means what it says:
 `1.5b` is 1.5B, not 5B. Where an id states two counts the first wins, which is
@@ -312,17 +314,25 @@ how an MoE id reads as its total rather than its active parameters
 (`qwen3-30b-a3b` → 30B → `full`). A stated count also outranks a label, so
 `some-mini-32b` stays `full`.
 
-The two bands are asymmetric on purpose. `lean` keeps every section and tool and
-only reshapes prose, so a false positive is cheap — which is why every vendor
-small-tier label (`mini`, `micro`, `nano`, `tiny`, `small`, `lite`, `haiku`)
-resolves there. `minimal` *removes* sections and tools, so a false positive
-costs real capability; only a stated ≤4B count selects it, never a label,
-because `nano`/`tiny` sit on models (`gpt-5-nano`) far more capable than a 3B
-local one. Declare a local model into `minimal` explicitly (see below).
+The two bands are asymmetric on purpose. `lean` keeps every section and nearly
+every tool, so a false positive is cheap — which is why every vendor small-tier
+label (`mini`, `micro`, `nano`, `tiny`, `small`, `lite`, `haiku`) resolves there
+by default. `minimal` *removes* sections and tools, so a false positive costs
+real capability, and a stated ≤4B count selects it outright.
 
-Burden falls as the target model gets weaker: each preset's rulebook is strictly
-smaller than the one above it. Demonstrations move the other way, because a
-worked example lowers burden rather than adding to it.
+A label **alone** never does, because `nano`/`tiny` sit on models (`gpt-5-nano`)
+far more capable than a 3B local one. A label plus a **local provider prefix**
+does: `ollama:`, `lmstudio:`, `llamacpp:` and `localai:` say who is serving the
+model, and `ollama:phi4-mini` is 3.8B of weights on a laptop where
+`openai:gpt-5-nano` is the entry tier of a hosted family. Ollama's own hosted
+tier is excluded by its `:cloud` suffix, so `ollama:kimi-k2.6:cloud` stays
+`full`. Anything the built-ins get wrong, declare explicitly (see below).
+
+Burden falls as the target model gets weaker: each rule-carrying section is
+strictly smaller than the same section one preset up. Demonstrations move the
+other way, because a worked example lowers burden rather than adding to it — but
+they are exempt from the ladder, not from the budget: the *composed total* falls
+across presets too, so a weaker target never receives more prompt overall.
 
 Setting `ZRB_LLM_INCLUDE_SECTIONS` explicitly overrides a preset's section list,
 so you can run `minimal`'s lean tool surface with your own sections.
@@ -361,19 +371,91 @@ file rather than appending to it, so a variant you add must repeat everything
 the base says that still applies. It follows the same project-override → env →
 base-dir → package lookup as any prompt file, so you can override a variant too.
 
-To add a fourth preset, assign one — `PRESETS` is the source of truth for which
-names `ZRB_LLM_PROFILE` accepts:
+### Defining Your Own Profile
+
+The three built-ins are not special — they are three entries in `PRESETS`, and
+you can add a fourth. Use `register_preset()`, which validates what a bare
+`PRESETS[name] = ...` assignment cannot:
 
 ```python
-from zrb.llm.prompt.profile import PRESETS, Preset, register_model_profile
+# zrb_init.py
+from zrb.llm.prompt.profile import Preset, register_preset, register_model_profile
 
-PRESETS["nano"] = Preset(
-    sections=("persona", "workflow", "system_context"),
-    variant="nano",                       # loads workflow.nano.md, if present
-    tools=frozenset({"Read", "Edit", "LS", "Shell"}),
+register_preset(
+    "nano",
+    Preset(
+        sections=("persona", "workflow", "system_context"),
+        variant="nano",                    # resolves persona.nano.md, workflow.nano.md
+        tools=frozenset({"Read", "Edit", "LS", "Shell"}),
+    ),
 )
-register_model_profile(r"my-1b-box", "nano")
+
+register_model_profile(r"my-1b-box", "nano")   # optional: select it automatically
 ```
+
+`ZRB_LLM_PROFILE=nano` now works, and so does `register_model_profile(..., "nano")`.
+
+**Each axis is optional.** Pass only what you want to change; `None` means "do
+not constrain this axis". A preset that only trims tools is one line:
+
+```python
+register_preset("no-journal", Preset(drops=frozenset({
+    "SearchJournal", "LogActivity", "WriteJournalNote",
+})))
+```
+
+| Field | Effect when set | When `None` |
+| --- | --- | --- |
+| `sections` | Exactly these sections compose | `ZRB_LLM_INCLUDE_SECTIONS` applies |
+| `variant` | Prefers `{section}.{variant}.md` | Base `.md` files (the `full` text) |
+| `tools` | Allowlist — a closed surface | Every registered tool |
+| `drops` | Denylist — everything except these | Every registered tool |
+
+`tools` and `drops` are mutually exclusive; setting both raises `ValueError`,
+because `admits()` reads `tools` first and would silently ignore `drops`. Use
+`tools` when you want a fixed surface you can reason about, `drops` when you
+want to keep whatever ships and subtract a few — a denylist keeps picking up
+newly-added tools, an allowlist does not.
+
+#### Writing the variant files
+
+`variant="nano"` does not create anything. It tells the loader to *prefer*
+`persona.nano.md` and `workflow.nano.md`, falling back to the base file when
+one is absent — so a preset with no variant files silently ships the frontier
+prose. Put them wherever `ZRB_LLM_PROMPT_DIR` points:
+
+```
+prompts/
+  persona.nano.md
+  workflow.nano.md
+```
+
+A variant **replaces** its base rather than appending to it, so it must repeat
+everything the base said that still applies. Start from a copy of
+`workflow.minimal.md` rather than from scratch — it is the shortest complete
+rulebook zrb ships.
+
+#### What `register_preset` checks
+
+Two errors raise, three conditions warn. All of them are things a plain dict
+assignment lets through in silence:
+
+| Condition | Result |
+| --- | --- |
+| Name empty, not a string, or not a `Preset` | `ValueError` |
+| Name is `auto` | `ValueError` — it means "derive from the model id", so a preset stored there is unreachable |
+| `variant` set but no `{section}.{variant}.md` found | Warning naming the missing file |
+| Composed rulebook drops a Priority Order rank 1 rule | Warning — secrets, tool-output-is-not-instructions, confirm-destructive |
+| No rule-carrying section composes at all | Warning — the model would get tools and no operating rules |
+
+The safety warning matters most. The built-in presets are pinned to rank 1 by a
+test that walks a hardcoded list of the three names, so a preset registered at
+runtime inherits none of that guarantee; `register_preset` is where it gets
+checked instead. Warnings rather than errors, because a custom rulebook may
+phrase a rule in words the check does not recognise — read them, then decide.
+
+> `PRESETS[name] = Preset(...)` still works and stays supported. It just skips
+> every check in the table above.
 
 > An unrecognized `ZRB_LLM_PROFILE` value falls through to `auto`, and
 > `register_model_profile(..., "<unknown>")` raises `ValueError`.
@@ -384,7 +466,7 @@ Beyond editing prompt files and env vars, each task exposes its `PromptManager` 
 the public `task.prompt_manager` property. It offers three programmatic ways to shape
 the system prompt, in increasing power.
 
-**1. Append custom instructions** — `add_prompt()` (alias `append_prompt()`) adds
+**1. Append custom instructions** — `append_prompt()` adds
 content that is emitted **after** all built-in sections. Accepts a static string, a
 `Callable[[AnyContext], str]` for runtime-dynamic text, or a *full middleware*
 `Callable[[ctx, current_prompt, next], str]` that can rewrite the entire assembled
@@ -396,24 +478,24 @@ from zrb import LLMChatTask
 task = LLMChatTask(name="chat")
 
 # Static text
-task.prompt_manager.add_prompt("Always answer in British English.")
+task.prompt_manager.append_prompt("Always answer in British English.")
 
 # Dynamic text — receives the active context
 import datetime
 def date_note(ctx) -> str:
     return f"Today's date is {datetime.date.today():%Y-%m-%d}."
-task.prompt_manager.add_prompt(date_note)
+task.prompt_manager.append_prompt(date_note)
 
 # Full middleware — `current_prompt` is everything assembled so far
 def strip_blank_lines(ctx, current_prompt, nxt):
     cleaned = "\n".join(line for line in current_prompt.splitlines() if line.strip())
     return nxt(ctx, cleaned)
-task.prompt_manager.add_prompt(strip_blank_lines)
+task.prompt_manager.append_prompt(strip_blank_lines)
 ```
 
 **2. Register a dynamic, positioned section** — `register_section(name, provider)`
 registers a `Callable[[AnyContext], str]` that is composed *at the position* its
-`name` occupies in `include_sections` (not pinned to the end like `add_prompt`). Use
+`name` occupies in `include_sections` (not pinned to the end like `append_prompt`). Use
 it for always-on content that must reflect live state. Return `""` to emit nothing:
 
 ```python
@@ -461,7 +543,7 @@ def check_stock(warehouse_id: str, sku: str) -> dict:
     ...
 
 task = LLMChatTask(name="chat")
-task.add_tool(check_stock)
+task.append_tool(check_stock)
 ```
 
 Note this relocates token cost rather than removing it: a docstring ships every
@@ -488,7 +570,7 @@ Then place `tool_policy` in `ZRB_LLM_INCLUDE_SECTIONS`.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_JOURNAL_ENABLED` | Master switch for the journal. `false` unregisters the three journal tools (`SearchJournal`, `LogActivity`, `WriteJournalNote`) and suppresses the `<journal-index>` injection. Those tools are the whole interface — there is no journal prompt section — so the model is never told a journal exists (ADR-0053). Note `ZRB_LLM_JOURNAL_DIR` has no "off" value: clearing it falls back to the default path rather than disabling anything | `on` |
+| `ZRB_LLM_JOURNAL_ENABLED` | Master switch for the journal. `false` unregisters the three journal tools (`SearchJournal`, `LogActivity`, `WriteJournalNote`) and suppresses the `<journal-index>` injection. Those tools are the whole interface — there is no journal prompt section — so the model is never told a journal exists (ADR-0055). Note `ZRB_LLM_JOURNAL_DIR` has no "off" value: clearing it falls back to the default path rather than disabling anything | `on` |
 | `ZRB_LLM_JOURNAL_DIR` | Long-term notes directory | `~/.zrb/llm-notes/` |
 | `ZRB_LLM_JOURNAL_INDEX_FILE` | Main index file name | `index.md` |
 | `ZRB_LLM_JOURNAL_INDEX_MAX_CHARS` | Max characters of the index injected into context. Overflow is dropped from the **end** on a line boundary, so write the index most-durable-first. `0` suppresses the injection; a negative value injects it uncapped | `2500` |

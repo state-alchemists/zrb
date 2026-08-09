@@ -13,7 +13,7 @@ from zrb.config.env_field import EnvField
 from zrb.config.theme import theme_default
 
 
-class LLMUIStylesMixin:
+class ConfigLLMUIStyles:
     if TYPE_CHECKING:
         # Attributes supplied by sibling mixins on the composed Config class.
         ENV_PREFIX: str  # FoundationMixin

@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
+from zrb.util.truncate import truncate_display
 
 if TYPE_CHECKING:
     from pydantic_ai import ModelMessage
@@ -286,9 +287,7 @@ def truncate(text: str, max_length: int | None = None) -> str:
 
     if max_length is None:
         max_length = CFG.LLM_HISTORY_TRUNCATE_LENGTH
-    if len(text) <= max_length:
-        return text
-    return text[: max_length - 3] + "..."
+    return truncate_display(text, max_length)
 
 
 def format_args(args, full: bool = False) -> str:
@@ -321,8 +320,8 @@ def _truncate_kwargs(kwargs: dict, max_length: int = 30, full: bool = False) -> 
 
     truncated = {}
     for key, val in kwargs.items():
-        if not full and isinstance(val, str) and len(val) > max_length:
-            truncated[key] = f"{val[:max_length-3]}..."
+        if not full and isinstance(val, str):
+            truncated[key] = truncate_display(val, max_length)
         else:
             truncated[key] = val
     try:

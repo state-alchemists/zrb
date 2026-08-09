@@ -6,8 +6,13 @@ things per exported name:
 
   * membership of ``zrb.__all__``
   * every public method/property on each exported class
-  * every ``__init__`` parameter: name, order, kind, and *whether* it has a
-    default
+  * every ``__init__`` parameter that zrb itself defines: name, order, kind,
+    and *whether* it has a default
+
+``__init__`` inherited from a non-zrb base (``enum.Enum``, a pydantic model, a
+``typing.Protocol``) is not pinned: its signature is upstream-controlled and can
+shift across Python versions (CPython renamed Enum's ``**kwargs`` to ``**kwds``
+in 3.13), which would make the snapshot unstable for no zrb change.
 
 Defaults are recorded as a boolean, never by value. Several defaults are live
 singletons (``llm_config``, ``hook_manager``) whose ``repr`` carries a memory
@@ -47,6 +52,22 @@ def _signature_of(func) -> list[str]:
     return rows
 
 
+def _class_init_of(cls: type) -> list[str]:
+    """Describe ``__init__`` parameters only when zrb defines the constructor.
+
+    ``cls.__init__`` may be inherited from a non-zrb base (``enum.Enum``, a
+    pydantic ``BaseModel``, a ``typing.Protocol``), whose signature is controlled
+    upstream and can vary across Python versions (CPython renamed Enum's
+    ``**kwargs`` to ``**kwds`` in 3.13). That signature is not zrb's public
+    contract, so it is not pinned — mirroring the zrb-ownership filter that
+    ``_public_members`` already applies.
+    """
+    module = getattr(cls.__init__, "__module__", None)
+    if not module or not module.startswith("zrb"):
+        return []
+    return _signature_of(cls.__init__)
+
+
 def _public_members(cls: type) -> list[str]:
     """List public methods and properties that `cls` defines or inherits from zrb."""
     names = []
@@ -70,7 +91,7 @@ def build_surface() -> dict:
         obj = getattr(zrb, name, None)
         if inspect.isclass(obj):
             surface["classes"][name] = {
-                "init": _signature_of(obj.__init__),
+                "init": _class_init_of(obj),
                 "members": _public_members(obj),
             }
         elif inspect.isfunction(obj):

@@ -33,7 +33,7 @@ class TestLLMTaskExecution:
         # Arrange
         tool = MagicMock()
         task = LLMTask(name="test-task", message="hello")
-        task.add_tool(tool)
+        task.append_tool(tool)
 
         # Act & Assert
         # We mock create_agent to see if our tool was passed to it during execution
@@ -56,10 +56,9 @@ class TestLLMTaskExecution:
         """Toolset factories run once per execution and the SAME instances go
         to the agent.
 
-        They used to be resolved twice (once for the exit stack, once inside
-        agent creation): factory side effects (e.g. MCP server spawn) fired
-        twice per turn, and the agent got instances whose contexts were never
-        entered.
+        Resolving twice (once for the exit stack, once inside agent creation)
+        would fire factory side effects — e.g. an MCP server spawn — twice per
+        turn and hand the agent instances whose contexts were never entered.
         """
         factory_calls = []
 
@@ -70,7 +69,7 @@ class TestLLMTaskExecution:
             return toolset
 
         task = LLMTask(name="test-task", message="hello")
-        task.add_toolset_factory(toolset_factory)
+        task.append_toolset_factory(toolset_factory)
 
         with (
             patch("zrb.llm.task.llm_task.create_agent") as mock_create_agent,
@@ -248,7 +247,7 @@ class TestLLMTaskExecution:
         tool = MagicMock()
         factory = MagicMock(return_value=tool)
         task = LLMTask(name="test-task", message="hello")
-        task.add_tool_factory(factory)
+        task.append_tool_factory(factory)
 
         # Act & Assert
         with (

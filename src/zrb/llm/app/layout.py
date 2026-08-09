@@ -145,7 +145,7 @@ def create_input_field(
     # Focus traversal is handled by Tab at the app level; Tab still drives
     # completion-menu navigation when a menu is open (the app-level binding
     # is gated by ~has_completions). Shift+Tab is deliberately unbound here
-    # so the app-level binding can cycle modes. See ADR-0073.
+    # so the app-level binding can cycle modes. See ADR-0075.
 
     return text_area
 

@@ -1,9 +1,12 @@
-"""Tests for model-adaptive prompt profiles and presets (ADR-0047, ADR-0075)."""
+"""Tests for model-adaptive prompt profiles and presets (ADR-0049)."""
+
+import logging
 
 import pytest
 
 from zrb.llm.prompt.profile import (
     FULL_PROFILE,
+    LEAN_DROPS,
     LEAN_PROFILE,
     MINIMAL_PROFILE,
     MINIMAL_SECTIONS,
@@ -12,8 +15,10 @@ from zrb.llm.prompt.profile import (
     ModelProfileRegistry,
     Preset,
     active_preset,
+    builtin_profile,
     model_profile_registry,
     register_model_profile,
+    register_preset,
     resolve_preset,
     resolve_profile,
     valid_profiles,
@@ -39,7 +44,7 @@ def test_lean_and_full_are_forced_regardless_of_model():
 
 
 def test_auto_stays_full_for_models_that_declare_no_small_size():
-    # A family name is still never read as a capability signal (ADR-0047):
+    # A family name is still never read as a capability signal (ADR-0049):
     # only a stated size token or a vendor small-tier label selects explicit.
     for model in [
         "anthropic:claude-opus-4-8",
@@ -155,14 +160,14 @@ def test_isolated_registry_instance_does_not_touch_singleton():
 
 
 def test_the_old_explicit_value_is_no_longer_a_profile():
-    """`explicit` was renamed to `lean` with no alias (ADR-0047)."""
+    """`explicit` was renamed to `lean` with no alias (ADR-0049)."""
     # An unrecognized ZRB_LLM_PROFILE falls through to auto-resolution.
     assert resolve_profile("explicit", "anthropic:claude-opus-4") == FULL_PROFILE
     with pytest.raises(ValueError, match="Unknown profile"):
         register_model_profile("legacy-model", "explicit")
 
 
-# ── Presets (ADR-0075) ──────────────────────────────────────────────────
+# ── Presets (ADR-0049) ──────────────────────────────────────────────────
 
 
 def test_auto_selects_minimal_only_from_a_declared_size_of_4b_or_less():
@@ -206,12 +211,12 @@ def test_the_size_bands_do_not_overlap():
         assert resolve_profile("auto", model) == FULL_PROFILE, model
 
 
-def test_vendor_small_tier_labels_stay_on_lean():
-    """`minimal` removes capability, so a label is never enough to select it.
+def test_a_hosted_small_tier_label_stays_on_lean():
+    """A vendor tier name is a claim about a lineup, not about a size.
 
-    `lean` keeps every section and tool, so a false positive is cheap.
-    `minimal` drops both, so a false positive is expensive — and `nano`/`tiny`
-    label models (`gpt-5-nano`) far more capable than a 3B local one.
+    `lean` keeps every section and tool, so a false positive is cheap; `minimal`
+    drops both, so a false positive is expensive — and `nano`/`micro` label
+    models (`gpt-5-nano`) far more capable than a 3B local one.
 
     `micro` is in the list for the same reason, and is the case the old naming
     got wrong: while a preset was *called* `micro`, a model labelled `-micro`
@@ -221,9 +226,44 @@ def test_vendor_small_tier_labels_stay_on_lean():
         "openai:gpt-5-nano",
         "openai:gpt-5-mini",
         "openai:gpt-5-micro",
+        "openai:gpt-4o-mini",
         "anthropic:claude-haiku-4-5",
     ]:
         assert resolve_profile("auto", model) == LEAN_PROFILE, model
+
+
+def test_a_locally_served_small_tier_label_selects_minimal():
+    """The same label means a different size once you know who is serving it.
+
+    `ollama:phi4-mini` is 3.8B of weights on the user's laptop; `openai:gpt-5-nano`
+    is the entry tier of a hosted lineup. Both state no parameter count and both
+    used to resolve to `lean`, handing a 3.8B model the heaviest composition in
+    the system. The provider prefix is the disambiguator, and `_model_id` already
+    keeps it intact.
+    """
+    for model in [
+        "ollama:phi4-mini:latest",
+        "lmstudio:phi-4-mini",
+        "llamacpp:qwen2.5-mini",
+        "localai:tiny-llama",
+    ]:
+        assert resolve_profile("auto", model) == MINIMAL_PROFILE, model
+
+
+def test_ollamas_hosted_tier_is_not_treated_as_local():
+    """`ollama:` also prefixes frontier models; `:cloud` is what separates them."""
+    for model in [
+        "ollama:kimi-k2.6:cloud",
+        "ollama:qwen3-coder-next:cloud",
+        "ollama:minimax-m2.7:cloud",
+    ]:
+        assert resolve_profile("auto", model) == FULL_PROFILE, model
+
+
+def test_a_declared_size_still_outranks_a_local_prefix():
+    """A stated count is the specific claim wherever the model is served."""
+    assert resolve_profile("auto", "ollama:qwen3:8b") == LEAN_PROFILE
+    assert resolve_profile("auto", "ollama:qwen2.5-mini:32b") == FULL_PROFILE
 
 
 def test_a_user_declaration_can_still_force_minimal():
@@ -234,7 +274,30 @@ def test_a_user_declaration_can_still_force_minimal():
 def test_full_constrains_nothing():
     """`full` is the unconstrained baseline every other preset subtracts from."""
     preset = resolve_preset(FULL_PROFILE)
-    assert (preset.sections, preset.variant, preset.tools) == (None, None, None)
+    assert (preset.sections, preset.variant, preset.tools, preset.drops) == (
+        None,
+        None,
+        None,
+        None,
+    )
+
+
+def test_lean_subtracts_tools_without_closing_the_surface():
+    """`lean` uses the denylist axis, so a new tool reaches it without an edit."""
+    preset = resolve_preset(LEAN_PROFILE)
+    assert preset.tools is None
+    assert preset.drops == LEAN_DROPS
+    assert preset.constrains_tools
+    assert preset.admits("Shell")
+    assert preset.admits("SomeToolAddedNextRelease")
+
+
+def test_minimal_closes_the_surface():
+    """`minimal` uses the allowlist axis, so a new tool does *not* reach it."""
+    preset = resolve_preset(MINIMAL_PROFILE)
+    assert preset.drops is None
+    assert preset.admits("Shell")
+    assert not preset.admits("SomeToolAddedNextRelease")
 
 
 def test_only_minimal_constrains_the_tool_axis():
@@ -309,3 +372,156 @@ def test_a_user_can_register_a_fourth_preset():
         assert resolve_profile("auto", "my-nano-box") == "nano"
     finally:
         del PRESETS["nano"]
+
+
+@pytest.fixture
+def unregister():
+    """Drop any preset a test registers, so `PRESETS` survives the module."""
+    added: list[str] = []
+    yield added.append
+    for name in added:
+        PRESETS.pop(name, None)
+
+
+def test_a_preset_cannot_set_both_tool_axes():
+    """`admits` reads `tools` first and ignores `drops`, so both is never what
+    the caller meant.
+
+    Rejected in ``__post_init__`` rather than in ``register_preset``, because
+    ``PRESETS[name] = Preset(...)`` is still a supported way in and would walk
+    straight past a check that lived only in the function.
+    """
+    with pytest.raises(ValueError, match="either tools .* or drops"):
+        Preset(tools=frozenset({"Read"}), drops=frozenset({"Edit"}))
+
+
+def test_register_preset_makes_the_name_selectable(unregister):
+    unregister("nano")
+    register_preset("nano", Preset(sections=("persona", "workflow"), variant="lean"))
+
+    assert "nano" in valid_profiles()
+    assert resolve_profile("nano", "anything") == "nano"
+    assert resolve_preset("nano").variant == "lean"
+    register_model_profile("my-1b-box", "nano")
+    assert resolve_profile("auto", "my-1b-box") == "nano"
+
+
+def test_register_preset_normalizes_the_name(unregister):
+    unregister("nano")
+    register_preset("  NaNo  ", Preset())
+    assert "nano" in valid_profiles()
+
+
+@pytest.mark.parametrize(
+    "name, preset, message",
+    [
+        ("", Preset(), "non-empty string"),
+        ("x", "not-a-preset", "Expected a Preset"),
+        ("auto", Preset(), "reserved"),
+    ],
+)
+def test_register_preset_rejects_what_cannot_work(name, preset, message):
+    """`auto` is the interesting one: it is not a preset name but the instruction
+    to derive one from the model id, so a preset stored under it is unreachable."""
+    with pytest.raises(ValueError, match=message):
+        register_preset(name, preset)
+
+
+def test_register_preset_warns_when_a_variant_has_no_file(unregister, caplog):
+    """The silent fallback, surfaced.
+
+    ``get_prompt`` resolving ``foo.{variant}.md`` → ``foo.md`` is correct
+    runtime behaviour and a trap at registration: a preset written for a 1B
+    model ships it the frontier rulebook and says nothing. Warned, not raised —
+    varying only some sections is legitimate, which is why `full` needs no files
+    at all.
+    """
+    unregister("nano")
+    with caplog.at_level(logging.WARNING):
+        register_preset("nano", Preset(variant="nowhere"))
+
+    assert "fall back to the base" in caplog.text
+    assert "workflow.nowhere.md" in caplog.text or "persona.nowhere.md" in caplog.text
+
+
+def test_register_preset_warns_when_the_safety_floor_is_gone(
+    unregister, caplog, tmp_path, monkeypatch
+):
+    """Rank 1 is pinned for the built-ins by a hardcoded list of three names.
+
+    `test_section_composition.py::test_every_preset_carries_the_rank_one_safety_rules`
+    walks `PRESET_VARIANTS`, so a preset registered at runtime inherits none of
+    that guarantee. This is where a custom one gets it.
+    """
+    unregister("tiny")
+    (tmp_path / "persona.tiny.md").write_text("# Identity\nYou are {ASSISTANT_NAME}.")
+    (tmp_path / "workflow.tiny.md").write_text("# How to Work\nRead it, edit it.")
+
+    monkeypatch.setenv("ZRB_LLM_PROMPT_DIR", str(tmp_path))
+    with caplog.at_level(logging.WARNING):
+        register_preset(
+            "tiny", Preset(sections=("persona", "workflow"), variant="tiny")
+        )
+
+    assert "secrets" in caplog.text
+    assert "confirm destructive actions" in caplog.text
+
+
+def test_register_preset_is_quiet_for_a_sound_preset(unregister, caplog):
+    """A preset that constrains only tools keeps the default sections and the
+    base prose, so it has nothing to warn about."""
+    unregister("beefy")
+    with caplog.at_level(logging.WARNING):
+        register_preset("beefy", Preset(drops=frozenset({"SearchJournal"})))
+
+    assert caplog.text == ""
+
+
+def test_register_preset_warns_when_no_rulebook_composes(unregister, caplog):
+    """Sections that carry no rules leave the model with tools and no operating
+    rules — distinct from dropping *some* rules, and worth its own message."""
+    unregister("bare")
+    with caplog.at_level(logging.WARNING):
+        register_preset("bare", Preset(sections=("system_context",)))
+
+    assert "no rule-carrying section" in caplog.text
+
+
+# ── Why this registry is not `model_capabilities` (ADR-0038 vs ADR-0049) ──
+
+
+def test_profile_and_capability_registries_key_on_different_things():
+    """The two registries look alike and must not be unified.
+
+    `ModelProfileRegistry` matches the **full** model id; `model_capabilities`
+    matches the **bare** name with the `provider:` prefix stripped. That is not
+    duplication, it is two different questions:
+
+    * A capability is a property of the *weights*. `gpt-4o` accepts images
+      whether it is served by `openai:` or `azure:`, so the prefix is noise —
+      which is why the built-in deny patterns can be `^`-anchored.
+    * A profile is a property of the *deployment*. `ollama:phi4-mini` is 3.8B
+      on a laptop and `openai:gpt-5-nano` is the entry tier of a hosted family,
+      so who serves it is the whole signal.
+
+    Merging them would have to pick one key, and either choice regresses
+    silently: a bare name strips `ollama:`/`:cloud` and drops every local small
+    model from `minimal` back to `lean`, while a full id un-anchors
+    `^claude-haiku-3$` and hands a text-only model image support.
+    """
+    from zrb.llm.util.capabilities import model_capabilities
+
+    # The profile side needs the prefix: it is what distinguishes a 3.8B local
+    # model from a hosted entry tier that merely shares the label.
+    assert builtin_profile("ollama:phi4-mini") == MINIMAL_PROFILE
+    assert builtin_profile("phi4-mini") == LEAN_PROFILE
+    # ...and the tier suffix, which is what keeps hosted frontier models out.
+    assert builtin_profile("ollama:kimi-k2.6:cloud") is None
+
+    # The capability side never sees a prefix, so a provider-shaped pattern
+    # cannot match there. Registering one is a silent no-op, not an override.
+    model_capabilities.register("ollama:", supports_image_input=True)
+    try:
+        assert model_capabilities.get("ollama:phi4-mini").supports_image_input is False
+    finally:
+        model_capabilities.clear()

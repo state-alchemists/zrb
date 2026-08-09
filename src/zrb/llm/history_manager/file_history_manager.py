@@ -188,7 +188,7 @@ class FileHistoryManager(AnyHistoryManager):
 
             # Retention is controlled by LLM_HISTORY_BACKUP_RETAIN:
             #   0  → backups disabled entirely
-            #  -1  → keep every backup (legacy behavior)
+            #  -1  → keep every backup
             #   N  → keep the N most recent backups per conversation base name
             backup_retain = CFG.LLM_HISTORY_BACKUP_RETAIN
             if backup_retain != 0:

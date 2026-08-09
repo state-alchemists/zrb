@@ -149,6 +149,18 @@ async def test_run_command_timeout():
 
 
 @pytest.mark.asyncio
+async def test_run_command_timeout_without_killpg_falls_back_to_terminate_pid(
+    monkeypatch,
+):
+    """Windows has no os.killpg; the timeout cleanup must fall back to psutil."""
+    monkeypatch.delattr(os, "killpg")
+    with patch("zrb.util.cmd.command.terminate_pid") as mock_terminate:
+        with pytest.raises(asyncio.TimeoutError):
+            await run_command(["sleep", "2"], timeout=0.5)
+        mock_terminate.assert_called_once()
+
+
+@pytest.mark.asyncio
 async def test_run_command_cwd():
     # Print current working directory
     cmd = ["pwd"]

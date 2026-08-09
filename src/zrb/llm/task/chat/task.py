@@ -16,6 +16,7 @@ see docs/advanced-topics/llm-chat-lifecycle.md.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, AsyncIterable, Callable
 
 from zrb.attr.type import BoolAttr, StrAttr, StrListAttr, fstring
@@ -90,12 +91,13 @@ class LLMChatTask(ChatBuilding, ChatRunning, ChatExecution, BaseTask):
     def __init__(
         self,
         name: str,
+        *,
         color: int | None = None,
         icon: str | None = None,
         description: str | None = None,
         cli_only: bool = False,
-        input: list[AnyInput | None] | AnyInput | None = None,
-        env: list[AnyEnv | None] | AnyEnv | None = None,
+        input: Sequence[AnyInput | None] | AnyInput | None = None,
+        env: Sequence[AnyEnv | None] | AnyEnv | None = None,
         system_prompt: Callable[[AnyContext], str | fstring | None] | str | None = None,
         render_system_prompt: bool = False,
         prompt_manager: PromptManager | None = None,
@@ -109,6 +111,7 @@ class LLMChatTask(ChatBuilding, ChatRunning, ChatExecution, BaseTask):
         toolset_factories: (
             list[Callable[[AnyContext], AbstractToolset[None]]] | None
         ) = None,
+        hook_manager: HookManager | None = None,
         message: StrAttr | None = None,
         render_message: bool = True,
         attachment: (
@@ -185,15 +188,15 @@ class LLMChatTask(ChatBuilding, ChatRunning, ChatExecution, BaseTask):
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
         retries: int = 0,
         retry_period: float = 0,
-        readiness_check: list[AnyTask] | AnyTask | None = None,
+        readiness_check: Sequence[AnyTask] | AnyTask | None = None,
         readiness_check_delay: float = 0.5,
         readiness_check_period: float = 5,
         readiness_failure_threshold: int = 1,
         readiness_timeout: int = 60,
         monitor_readiness: bool = False,
-        upstream: list[AnyTask] | AnyTask | None = None,
-        fallback: list[AnyTask] | AnyTask | None = None,
-        successor: list[AnyTask] | AnyTask | None = None,
+        upstream: Sequence[AnyTask] | AnyTask | None = None,
+        fallback: Sequence[AnyTask] | AnyTask | None = None,
+        successor: Sequence[AnyTask] | AnyTask | None = None,
         print_fn: PrintFn | None = None,
     ):
         """Define an interactive LLM chat session, as `zrb llm chat` does.
@@ -238,6 +241,12 @@ class LLMChatTask(ChatBuilding, ChatRunning, ChatExecution, BaseTask):
             tool_factories: Callables building tools per run from the context.
             toolset_factories: Callables building toolsets per run from the
                 context.
+            hook_manager: `HookManager` supplying lifecycle hooks. Unlike
+                `LLMTask`, this defaults to a *fresh* manager per run rather
+                than the global one, so one chat session's hooks cannot leak
+                into the next. Pass the global `hook_manager` (or any specific
+                one) to opt out of that isolation; `append_hook_factory` is the
+                lighter option when you only need to register hooks.
             tool_confirmation: Policy deciding which tool calls need approval.
             tool_policies: Callables deciding whether a call is allowed, denied, or
                 needs confirmation. The first to return a verdict decides.
@@ -334,6 +343,9 @@ class LLMChatTask(ChatBuilding, ChatRunning, ChatExecution, BaseTask):
         self._tool_factories = tool_factories or []
         self._toolset_factories = toolset_factories or []
         self._hook_factories: list[Callable[[HookManager], None]] = []
+        # None (the default) means "a fresh manager per run" — see
+        # `hook_manager` in the docstring for why chat isolates by default.
+        self._hook_manager = hook_manager
         # Set per execution in _create_llm_task_core; the interactive teardown
         # fires the terminal SESSION_END on it.
         self._active_hook_manager: HookManager | None = None

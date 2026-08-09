@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-from zrb.llm.tool.ambient_state import (
-    set_current_session,  # legacy alias kept for back-compat
-)
+from zrb.llm.tool.ambient_state import set_current_session  # the shorter alias
 from zrb.llm.tool.ambient_state import (
     active_worktree,
     get_active_worktree,

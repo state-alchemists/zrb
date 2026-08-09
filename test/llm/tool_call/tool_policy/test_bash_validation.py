@@ -139,7 +139,7 @@ class TestBashSafeCommandPolicy:
         policy = bash_safe_command_policy()
         ui = MagicMock()
         call = MagicMock()
-        call.tool_name = "Bash"
+        call.tool_name = "Shell"
         call.args = {"command": "ls -la"}
 
         next_handler = AsyncMock(return_value="next_result")
@@ -156,7 +156,7 @@ class TestBashSafeCommandPolicy:
         policy = bash_safe_command_policy()
         ui = MagicMock()
         call = MagicMock()
-        call.tool_name = "Bash"
+        call.tool_name = "Shell"
         call.args = {"command": "rm file.txt"}
 
         next_handler = AsyncMock(return_value="next_result")
@@ -168,8 +168,8 @@ class TestBashSafeCommandPolicy:
         assert next_handler.called is True
 
     @pytest.mark.asyncio
-    async def test_policy_passes_through_non_bash_tool(self):
-        """Test that non-Bash tools pass through."""
+    async def test_policy_passes_through_non_shell_tool(self):
+        """Test that non-Shell tools pass through."""
         policy = bash_safe_command_policy()
         ui = MagicMock()
         call = MagicMock()
@@ -189,7 +189,7 @@ class TestBashSafeCommandPolicy:
         policy = bash_safe_command_policy()
         ui = MagicMock()
         call = MagicMock()
-        call.tool_name = "Bash"
+        call.tool_name = "Shell"
         call.args = json.dumps({"command": "ls"})
 
         next_handler = AsyncMock(return_value="next_result")
@@ -207,7 +207,7 @@ class TestBashSafeCommandPolicy:
         policy = bash_safe_command_policy()
         ui = MagicMock()
         call = MagicMock()
-        call.tool_name = "Bash"
+        call.tool_name = "Shell"
         call.args = "not valid json"
 
         next_handler = AsyncMock(return_value="next_result")
@@ -224,7 +224,7 @@ class TestBashSafeCommandPolicy:
         policy = bash_safe_command_policy()
         ui = MagicMock()
         call = MagicMock()
-        call.tool_name = "Bash"
+        call.tool_name = "Shell"
         call.args = ["list", "of", "args"]
 
         next_handler = AsyncMock(return_value="next_result")
@@ -241,7 +241,7 @@ class TestBashSafeCommandPolicy:
         policy = bash_safe_command_policy()
         ui = MagicMock()
         call = MagicMock()
-        call.tool_name = "Bash"
+        call.tool_name = "Shell"
         call.args = {"other_key": "value"}
 
         next_handler = AsyncMock(return_value="next_result")
@@ -258,7 +258,7 @@ class TestBashSafeCommandPolicy:
         policy = bash_safe_command_policy()
         ui = MagicMock()
         call = MagicMock()
-        call.tool_name = "Bash"
+        call.tool_name = "Shell"
         call.args = {"command": 123}
 
         next_handler = AsyncMock(return_value="next_result")

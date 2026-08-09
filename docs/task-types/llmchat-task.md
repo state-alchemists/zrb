@@ -130,11 +130,10 @@ chat.append_ui_factory(lambda: OtherUI())
 ### Tools & Toolsets
 
 ```python
-chat.add_tool(my_tool)
 chat.append_tool(my_tool)
-chat.add_tool_factory(lambda ctx: create_tool())
-chat.add_toolset(my_toolset)
-chat.add_toolset_factory(lambda ctx: create_toolset())
+chat.append_tool_factory(lambda ctx: create_tool())
+chat.append_toolset(my_toolset)
+chat.append_toolset_factory(lambda ctx: create_toolset())
 ```
 
 ### Telling the LLM how to use a tool
@@ -150,7 +149,7 @@ def my_tool(item_id: str) -> dict:
     """
     ...
 
-chat.add_tool(my_tool)
+chat.append_tool(my_tool)
 ```
 
 For cross-cutting policy, register a prompt section and place its name in
@@ -165,14 +164,13 @@ chat.prompt_manager.register_section(
 ### History Processors
 
 ```python
-chat.add_history_processor(my_processor)
 chat.append_history_processor(my_processor)
 ```
 
 ### Hook Factories
 
 ```python
-chat.add_hook_factory(lambda hm: hm.register(my_hook, events=[HookEvent.SESSION_START]))
+chat.append_hook_factory(lambda hm: hm.register(my_hook, events=[HookEvent.SESSION_START]))
 chat.append_hook_factory(lambda hm: hm.register(other_hook, events=[HookEvent.SESSION_END]))
 ```
 
@@ -181,9 +179,9 @@ chat.append_hook_factory(lambda hm: hm.register(other_hook, events=[HookEvent.SE
 ```python
 chat.set_approval_channel(channel)
 chat.append_approval_channel(channel)
-chat.add_tool_policy(policy)
-chat.add_response_handler(handler)
-chat.add_argument_formatter(formatter)
+chat.prepend_tool_policy(policy)
+chat.prepend_response_handler(handler)
+chat.prepend_argument_formatter(formatter)
 chat.permissions = my_permission_policy  # read/write property; also a constructor arg
 chat.sandbox = my_sandbox_policy         # read/write property; also a constructor arg
 ```
@@ -194,9 +192,7 @@ See [Permission Policy](../advanced-topics/permission-policy.md) and
 ### Triggers & Custom Commands
 
 ```python
-chat.add_trigger(my_async_iterator)
 chat.append_trigger(my_async_iterator)
-chat.add_custom_command(my_command)
 chat.append_custom_command(my_command)
 ```
 
@@ -221,9 +217,9 @@ chat.set_history_manager(FileHistoryManager(history_dir="./my-history/"))
 | **Tool policies** | Yes | No |
 | **Permission policy** | `permissions=` (arg + property) | Same |
 | **Filesystem sandbox** | `sandbox=` (arg + property) | Same |
-| **Shared tool APIs** | `add_tool`, `add_tool_factory`, `add_toolset` | Same |
+| **Shared tool APIs** | `append_tool`, `append_tool_factory`, `append_toolset` | Same |
 | **Hook system** | Full lifecycle hooks | Same |
-| **History processors** | `add_history_processor` | Same |
+| **History processors** | `append_history_processor` | Same |
 | **System prompt** | Via `system_prompt` or `prompt_manager` | Same |
 
 ---

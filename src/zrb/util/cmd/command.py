@@ -224,7 +224,13 @@ async def run_command(
         return CmdResult(stdout, stderr, display=display), return_code
     except (KeyboardInterrupt, asyncio.CancelledError, asyncio.TimeoutError):
         try:
-            os.killpg(cmd_process.pid, signal.SIGINT)
+            if hasattr(os, "killpg"):
+                os.killpg(cmd_process.pid, signal.SIGINT)
+            else:
+                # Windows has no POSIX process groups; terminate the tree via
+                # psutil (a hard kill there) instead of leaving the child
+                # orphaned by a swallowed AttributeError.
+                terminate_pid(cmd_process.pid, print_method=actual_print_method)
             await asyncio.wait_for(
                 cmd_process.wait(), timeout=CFG.CMD_CLEANUP_TIMEOUT / 1000
             )

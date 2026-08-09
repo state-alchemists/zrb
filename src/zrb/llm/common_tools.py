@@ -25,9 +25,13 @@ the ``current_tool_confirmation`` ContextVar.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Callable, NamedTuple, Protocol, runtime_checkable
 
 from zrb.config.config import CFG
+from zrb.llm.prompt.profile import active_preset
+from zrb.llm.tool_call.tool_policy.bash_validation import (
+    bash_safe_command_policy,
+)
 from zrb.llm.util.git import is_inside_git_dir
 from zrb.util.string.conversion import to_boolean
 
@@ -55,9 +59,11 @@ class CommonToolHost(Protocol):
     Satisfied by ``LLMChatTask``, ``LLMTask``, and ``SubAgentManager``.
     """
 
-    def add_tool(self, *tool: "Callable | Tool") -> None: ...
-    def add_tool_factory(self, *factory: "Callable[[AnyContext], Any]") -> None: ...
-    def add_toolset_factory(self, *factory: "Callable[[AnyContext], Any]") -> None: ...
+    def append_tool(self, *tool: "Callable | Tool") -> None: ...
+    def append_tool_factory(self, *factory: "Callable[[AnyContext], Any]") -> None: ...
+    def append_toolset_factory(
+        self, *factory: "Callable[[AnyContext], Any]"
+    ) -> None: ...
 
 
 def apply_common_tools(host: CommonToolHost) -> None:
@@ -75,14 +81,9 @@ def apply_common_tools(host: CommonToolHost) -> None:
     # user), so registering it here is what lets that rule stay out of the
     # prompt. Hosts without an approval channel (programmatic LLMTask,
     # SubAgentManager — the latter inherits the caller's confirmation via the
-    # current_tool_confirmation ContextVar) have no add_tool_policy; skip them.
-    add_policy = getattr(host, "add_tool_policy", None)
+    # current_tool_confirmation ContextVar) have no prepend_tool_policy; skip them.
+    add_policy = getattr(host, "prepend_tool_policy", None)
     if callable(add_policy):
-        # lazy: circular — tool_policy → handler → ui → llm_task → here
-        from zrb.llm.tool_call.tool_policy.bash_validation import (
-            bash_safe_command_policy,
-        )
-
         add_policy(bash_safe_command_policy())
 
 
@@ -90,29 +91,49 @@ def tool_name(tool: "Callable | Tool | Any") -> str:
     """Registered name of *tool*, whether it is a bare function or a ``Tool``.
 
     A ``Tool`` wraps the function it was built from, and zrb's tools carry their
-    PascalCase name on ``__name__`` (ADR-0054), so both layers have to be tried.
+    PascalCase name on ``__name__`` (ADR-0056), so both layers have to be tried.
     """
     fn = getattr(tool, "function", tool)
     return getattr(fn, "__name__", "") or getattr(tool, "name", "") or ""
 
 
-def _preset_tool_filter() -> "Callable[[Any], bool] | None":
+class _Surface(NamedTuple):
+    """How the active preset narrows the tool axis.
+
+    ``undefer`` rides along because deferral only pays above a certain surface
+    size: it swaps a tool's schema for a ``search_tools`` entry the model must
+    call first. ``minimal`` keeps ten tools and would spend more on the
+    indirection than it hides, so it takes the schemas (ADR-0049). ``lean`` keeps
+    thirty-three — there the indirection is the whole saving, so its deferred
+    tools stay deferred. Hence the key is "does the preset close the surface"
+    (``Preset.tools is not None``), not "does it constrain the axis at all".
+    """
+
+    admits: "Callable[[Any], bool]"
+    undefer: bool
+
+
+def _preset_tool_filter() -> "_Surface | None":
     """Predicate keeping only the tools the active preset registers, or ``None``.
 
-    ``None`` means "this preset does not constrain the tool axis" — every preset
-    but ``minimal`` (ADR-0075). Resolved against ``CFG.LLM_MODEL`` because
-    registration happens before any host model is known, so a task whose
-    per-task model override differs from ``CFG.LLM_MODEL`` keeps the full
-    surface; setting ``ZRB_LLM_PROFILE`` explicitly always works.
+    ``None`` means "this preset does not constrain the tool axis" — only ``full``
+    now (ADR-0049). ``minimal`` constrains it with an allowlist and ``lean`` with
+    a denylist; ``Preset.admits`` resolves either, so this stays one predicate.
+    Resolved against ``CFG.LLM_MODEL`` because registration happens before any
+    host model is known, so a task whose per-task model override differs from
+    ``CFG.LLM_MODEL`` keeps the full surface; setting ``ZRB_LLM_PROFILE``
+    explicitly always works.
     """
-    # lazy: circular — profile → prompt → ui → llm_task → here
-    from zrb.llm.prompt.profile import active_preset
+    preset = active_preset(CFG.LLM_MODEL)
+    if not preset.constrains_tools:
+        return None
+    return _Surface(
+        admits=lambda tool: preset.admits(tool_name(tool)),
+        undefer=preset.tools is not None,
+    )
 
-    allowed = active_preset(CFG.LLM_MODEL).tools
-    return None if allowed is None else (lambda tool: tool_name(tool) in allowed)
 
-
-def _register_tools(host: CommonToolHost, keep: "Callable[[Any], bool] | None") -> None:
+def _register_tools(host: CommonToolHost, keep: "_Surface | None") -> None:
     """Register the statically-known tools, tagged with their capabilities."""
     # lazy + import from source modules directly. Going through the
     # ``zrb.llm.tool`` re-export would deadlock: that package's __init__
@@ -131,7 +152,6 @@ def _register_tools(host: CommonToolHost, keep: "Callable[[Any], bool] | None") 
 
     # lazy: zrb.llm.tool.* transitively load pydantic_ai; deferring keeps cold-start
     # latency off the import path for callers that never apply common tools.
-    from zrb.llm.tool.bash import run_bash_command
     from zrb.llm.tool.code import analyze_code
     from zrb.llm.tool.file import (
         analyze_file,
@@ -186,7 +206,6 @@ def _register_tools(host: CommonToolHost, keep: "Callable[[Any], bool] | None") 
     for _fn in worktree_tools:
         tag(_fn, Capability.READ if _fn is list_worktrees else Capability.EDIT)
     tag(run_shell_command, Capability.EXECUTE)
-    tag(run_bash_command, Capability.EXECUTE)
     for _fn in (search_internet, open_web_page):
         tag(_fn, Capability.NETWORK)
     for _fn in plan_tools:
@@ -196,7 +215,6 @@ def _register_tools(host: CommonToolHost, keep: "Callable[[Any], bool] | None") 
 
     tools: list["Callable | Tool"] = [
         run_shell_command,
-        run_bash_command,
         list_files,
         glob_files,
         read_file,
@@ -219,12 +237,10 @@ def _register_tools(host: CommonToolHost, keep: "Callable[[Any], bool] | None") 
         *(Tool(_fn, defer_loading=True) for _fn in lsp_tools),
         *plan_tools,
     ]
-    host.add_tool(*_selected(tools, keep))
+    host.append_tool(*_selected(tools, keep))
 
 
-def _register_tool_factories(
-    host: CommonToolHost, keep: "Callable[[Any], bool] | None"
-) -> None:
+def _register_tool_factories(host: CommonToolHost, keep: "_Surface | None") -> None:
     """Register the tools whose availability is only known per run.
 
     A factory is re-evaluated against the resolved context on every run, which
@@ -294,34 +310,33 @@ def _register_tool_factories(
             defer_loading=True,
         ),
     ]
-    host.add_tool_factory(*(_gated(factory, keep) for factory in factories))
+    host.append_tool_factory(*(_gated(factory, keep) for factory in factories))
     if keep is None:
         # MCP servers vary widely in tool count; hide them behind search too —
         # same rationale as the deferred function tools above. A constrained
         # preset drops them outright: an MCP server's tool list is not known
         # here, so it cannot be part of a closed, fixed surface.
-        host.add_toolset_factory(
+        host.append_toolset_factory(
             lambda ctx: [toolset.defer_loading() for toolset in load_mcp_config()]
         )
 
 
 def _selected(
-    tools: "list[Callable | Tool]", keep: "Callable[[Any], bool] | None"
+    tools: "list[Callable | Tool]", keep: "_Surface | None"
 ) -> "list[Callable | Tool]":
-    """The tools *keep* admits, registered eagerly.
+    """The tools *keep* admits, un-deferred if the preset wants their schemas.
 
-    Deferral swaps a tool's schema for a ``search_tools`` entry the model must
-    call before it can reach the tool. That pays when it hides a dozen tools and
-    inverts on a preset that keeps ten, so a preset that constrains the surface
-    takes the schemas and drops the indirection (ADR-0075).
+    See ``_Surface.undefer`` for why that is not simply "the axis is
+    constrained".
     """
     if keep is None:
         return list(tools)
-    return [_undefer(tool) for tool in tools if keep(tool)]
+    chosen = [tool for tool in tools if keep.admits(tool)]
+    return [_undefer(tool) for tool in chosen] if keep.undefer else chosen
 
 
 def _gated(
-    factory: "Callable[[AnyContext], Any]", keep: "Callable[[Any], bool] | None"
+    factory: "Callable[[AnyContext], Any]", keep: "_Surface | None"
 ) -> "Callable[[AnyContext], Any]":
     """*factory* with the preset filter applied to whatever it produces."""
     if keep is None:
@@ -349,9 +364,9 @@ def defer_common_tools(host: CommonToolHost) -> None:
     """Register ``apply_common_tools(host)`` to run on first use instead of now.
 
     ``apply_common_tools`` transitively imports ``pydantic_ai`` (via the
-    ``zrb.llm.tool.*`` functions and the ``Tool`` class). Calling it at module
-    import — as the ``llm_chat`` and ``sub_agent_manager`` singletons used to —
-    dragged that ~1.7s import onto every ``import zrb``. Deferring it to the
+    ``zrb.llm.tool.*`` functions and the ``Tool`` class). Calling it while the
+    ``llm_chat`` / ``sub_agent_manager`` singletons are constructed would drag
+    that ~1.7s import onto every ``import zrb``. Deferring it to the
     first agent build (``ensure_common_tools`` at the top of the exec /
     ``create_agent`` entry points) keeps the heavy import off the cold path for
     callers that never run an agent. See ``ensure_common_tools``.
@@ -364,7 +379,7 @@ def ensure_common_tools(host: CommonToolHost) -> None:
 
     No-op for hosts that never called ``defer_common_tools`` (e.g. bare
     ``LLMChatTask`` instances that are not the ``llm_chat`` singleton), so the
-    deferral stays scoped to exactly the singletons that had the eager call.
+    deferral stays scoped to the hosts that asked for it.
     """
     if getattr(host, "_pending_common_tools", False):
         setattr(host, "_pending_common_tools", False)

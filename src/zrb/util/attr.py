@@ -1,7 +1,6 @@
 from typing import Any
 
 from zrb.attr.type import (
-    AnyAttr,
     BoolAttr,
     FloatAttr,
     IntAttr,
@@ -166,8 +165,8 @@ def get_float_attr(
 
 def get_attr(
     ctx: AnyContext | AnySharedContext,
-    attr: AnyAttr,
-    default: AnyAttr,
+    attr: Any,
+    default: Any,
     auto_render: bool = True,
 ) -> Any | None:
     """
@@ -175,9 +174,9 @@ def get_attr(
 
     Args:
         ctx (AnyContext): The shared context object.
-        attr (AnyAttr): The attribute to retrieve. Can be a value, a callable,
+        attr (Any): The attribute to retrieve. Can be a value, a callable,
             or a string to render.
-        default (AnyAttr): The default value if the attribute is None.
+        default (Any): The default value if the attribute is None.
         auto_render (bool): Whether to auto-render the attribute value if it's a string.
 
     Returns:

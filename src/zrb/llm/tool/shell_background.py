@@ -1,7 +1,7 @@
 """Background shell command execution.
 
-``Shell``/``Bash`` with ``background=True`` start a command in the background
-and return a handle immediately (the registry below does the launching).
+``Shell`` with ``background=True`` starts a command in the background
+and returns a handle immediately (the registry below does the launching).
 ``MonitorProcess(handle)`` polls the status, shows captured stdout/stderr
 incrementally, optionally waits up to N seconds for exit, and optionally kills
 the process.
@@ -143,7 +143,7 @@ class _ShellBackgroundRegistry:
         if bp is None:
             return (
                 f"Unknown handle '{handle}'. "
-                "[SYSTEM SUGGESTION]: start a process with Shell/Bash "
+                "[SYSTEM SUGGESTION]: start a process with Shell "
                 "(background=True); a finished handle is consumed by the poll "
                 "that reports its exit."
             )
@@ -164,7 +164,7 @@ class _ShellBackgroundRegistry:
                 # processes (and their output buffers) don't accumulate in
                 # the registry for the rest of the session.
                 lines.append("The handle has been consumed — the process has finished.")
-                _cancel_tasks(bp)
+                _release_process(bp)
                 self._procs.pop(handle, None)
             else:
                 lines.append(
@@ -186,7 +186,7 @@ class _ShellBackgroundRegistry:
             CFG.LLM_SHELL_KILL_WAIT_TIMEOUT / 1000,
             print_method=CFG.LOGGER.warning,
         )
-        _cancel_tasks(bp)
+        _release_process(bp)
         self._procs.pop(handle, None)
         return f"Killed process '{handle}'."
 
@@ -194,16 +194,29 @@ class _ShellBackgroundRegistry:
         for handle, bp in list(self._procs.items()):
             if bp.process.returncode is None:
                 kill_pid(bp.process.pid, print_method=CFG.LOGGER.warning)
-            _cancel_tasks(bp)
+            _release_process(bp)
         self._procs.clear()
 
 
-def _cancel_tasks(bp: _BackgroundProcess) -> None:
-    """Cancel the detached reader/wait tasks attached to a background process."""
+def _release_process(bp: _BackgroundProcess) -> None:
+    """Cancel the detached reader/wait tasks and finalize the subprocess transport.
+
+    A subprocess transport is only closed once the loop observes both the
+    process exit and the pipe EOFs. A background process dropped before that
+    (consume, kill, or cancel_all) gets its transport garbage-collected after
+    the loop has closed, where CPython < 3.13's ``BaseSubprocessTransport.__del__``
+    calls ``close()`` without the gh-114177 closed-loop guard and raises
+    ``RuntimeError('Event loop is closed')`` — surfaced by pytest as a
+    PytestUnraisableExceptionWarning. Closing explicitly here, while the loop is
+    alive, makes that ``__del__`` a no-op.
+    """
     for task in bp.tasks:
         if not task.done():
             task.cancel()
     bp.tasks = []
+    transport = getattr(bp.process, "_transport", None)
+    if transport is not None:
+        transport.close()
 
 
 _registry = _ShellBackgroundRegistry()
@@ -219,8 +232,7 @@ def create_monitor_process_tool():
         kill: bool = False,
         wait: float = 0,
     ) -> str:
-        """Check or kill a background process started with Shell/Bash
-        (background=True).
+        """Check or kill a process started with `background=True`.
 
         By default returns the current stdout/stderr and status. Pass `wait=N`
         to block up to N seconds (capped by LLM_BACKGROUND_WAIT_MAX), returning

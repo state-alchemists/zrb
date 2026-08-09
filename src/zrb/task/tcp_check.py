@@ -1,5 +1,5 @@
 import asyncio
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 
 from zrb.attr.type import IntAttr, StrAttr
 from zrb.config.config import CFG
@@ -16,20 +16,21 @@ class TcpCheck(BaseTask):
     def __init__(
         self,
         name: str,
+        *,
         color: int | None = None,
         icon: str | None = None,
         description: str | None = None,
         cli_only: bool = False,
-        input: list[AnyInput | None] | AnyInput | None = None,
-        env: list[AnyEnv | None] | AnyEnv | None = None,
+        input: Sequence[AnyInput | None] | AnyInput | None = None,
+        env: Sequence[AnyEnv | None] | AnyEnv | None = None,
         host: StrAttr = "localhost",
         render_host: bool = True,
         port: IntAttr = 80,
         interval: float | None = None,
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
-        upstream: list[AnyTask] | AnyTask | None = None,
-        fallback: list[AnyTask] | AnyTask | None = None,
-        successor: list[AnyTask] | AnyTask | None = None,
+        upstream: Sequence[AnyTask] | AnyTask | None = None,
+        fallback: Sequence[AnyTask] | AnyTask | None = None,
+        successor: Sequence[AnyTask] | AnyTask | None = None,
         print_fn: PrintFn | None = None,
     ):
         """Define a task that passes once a TCP port accepts connections.

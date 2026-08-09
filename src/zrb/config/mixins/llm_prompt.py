@@ -35,7 +35,7 @@ class LLMPromptMixin:
         self.DEFAULT_LLM_INCLUDE_SECTIONS: str = (
             "persona,workflow,examples,system_context,project_context"
         )
-        # Prompt preset (ADR-0075): "full", "lean" or "minimal"; "auto" resolves
+        # Prompt preset (ADR-0049): "full", "lean" or "minimal"; "auto" resolves
         # one from the model id, falling back to "full". A preset binds a section
         # list, a phrasing variant (workflow.lean.md over workflow.md) and a tool
         # surface. zrb makes no capability guess from a model *family* name —

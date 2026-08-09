@@ -9,9 +9,9 @@ def _render_table(entries: list[tuple[str, str, str]]) -> str:
 
     Descriptions carry intentional newlines — e.g. a knob with several options
     documents them as a bulleted list. A markdown table cannot hold a line break
-    in a cell, so the previous markdown-string renderer collapsed every
-    description onto one line, turning bullets into inline ``-`` fragments.
-    ``Table`` cells honor ``\\n``, so the structure survives.
+    in a cell — it would collapse every description onto one line, turning
+    bullets into inline ``-`` fragments. ``Table`` cells honor ``\\n``, so the
+    structure survives.
 
     Cells are wrapped in ``Text`` so their content is rendered literally: rich
     parses ``[...]`` in a plain string as console markup, which would silently

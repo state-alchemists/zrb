@@ -2,8 +2,7 @@
 
 The model supplies *content*; this module supplies *structure*. Paths,
 timestamps, index registration, and reciprocal backlinks are derived here, which
-is what makes the four invariants the old ``journal-lint.py`` used to check
-unviolatable rather than merely checkable:
+is what makes these four invariants unviolatable rather than merely checkable:
 
 - **broken-link** — a link is only written after its target is confirmed on disk.
 - **missing-backlink** — the reciprocal entry is inserted in the same call.

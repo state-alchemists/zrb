@@ -568,7 +568,7 @@ async def test_command_dispatch_exception_is_logged(ui):
     await list(ui._background_tasks)[0]
 
 
-# ── Voice command tests (ADR-0074) ──────────────────────────────────────
+# ── Voice command tests (ADR-0076) ──────────────────────────────────────
 
 
 def test_handle_toggle_voice_enables(ui):

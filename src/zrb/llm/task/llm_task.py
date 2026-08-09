@@ -17,6 +17,7 @@ patch at this module path (`zrb.llm.task.llm_task.*`), so they must stay here.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Sequence
 from contextlib import AsyncExitStack
 from typing import TYPE_CHECKING, Any, Callable, cast
 
@@ -71,12 +72,13 @@ class LLMTask(LLMTaskBuilding, LLMTaskHistory, BaseTask):
     def __init__(
         self,
         name: str,
+        *,
         color: int | None = None,
         icon: str | None = None,
         description: str | None = None,
         cli_only: bool = False,
-        input: list[AnyInput | None] | AnyInput | None = None,
-        env: list[AnyEnv | None] | AnyEnv | None = None,
+        input: Sequence[AnyInput | None] | AnyInput | None = None,
+        env: Sequence[AnyEnv | None] | AnyEnv | None = None,
         system_prompt: Callable[[AnyContext], str | fstring | None] | str | None = None,
         render_system_prompt: bool = False,
         prompt_manager: PromptManager | None = None,
@@ -125,15 +127,15 @@ class LLMTask(LLMTaskBuilding, LLMTaskHistory, BaseTask):
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
         retries: int = 2,
         retry_period: float = 0,
-        readiness_check: list[AnyTask] | AnyTask | None = None,
+        readiness_check: Sequence[AnyTask] | AnyTask | None = None,
         readiness_check_delay: float = 0.5,
         readiness_check_period: float = 5,
         readiness_failure_threshold: int = 1,
         readiness_timeout: int = 60,
         monitor_readiness: bool = False,
-        upstream: list[AnyTask] | AnyTask | None = None,
-        fallback: list[AnyTask] | AnyTask | None = None,
-        successor: list[AnyTask] | AnyTask | None = None,
+        upstream: Sequence[AnyTask] | AnyTask | None = None,
+        fallback: Sequence[AnyTask] | AnyTask | None = None,
+        successor: Sequence[AnyTask] | AnyTask | None = None,
         print_fn: PrintFn | None = None,
     ):
         """Define a single-turn LLM task: one prompt in, one response out.
@@ -346,7 +348,7 @@ class LLMTask(LLMTaskBuilding, LLMTaskHistory, BaseTask):
                 else get_bool_attr(ctx, self._yolo, False)
             )
             # Resolve the permission policy from the explicit task param, else
-            # global config. None → run_agent keeps legacy/inherited behavior.
+            # global config. None → run_agent keeps the inherited policy.
             permission_policy = resolve_policy(
                 self._permissions
                 if self._permissions is not None

@@ -13,7 +13,7 @@ def get_prompt(name: str, profile: str | None = None, **extra_replacements: str)
     This is the canonical function that replaces all individual
     ``get_*_prompt()`` functions. Call it directly:
 
-        prompt = get_prompt("mandate")
+        prompt = get_prompt("workflow")
         prompt = get_prompt("persona", ASSISTANT_NAME="Zrb")
         prompt = get_prompt("persona", profile="lean")
 
@@ -24,7 +24,7 @@ def get_prompt(name: str, profile: str | None = None, **extra_replacements: str)
     Args:
         name: Prompt file name (without ``.md`` suffix), e.g. ``"persona"``,
             ``"workflow"``, ``"examples"``.
-        profile: Optional profile variant (ADR-0047). When set to a non-base
+        profile: Optional profile variant (ADR-0049). When set to a non-base
             profile, ``{name}.{profile}`` is resolved first through the full
             override chain, falling back to the base ``{name}`` when no variant
             exists.
@@ -50,7 +50,7 @@ def _load_prompt_for_profile(name: str, profile: str | None) -> str:
     project override of the variant still wins over the packaged base), falling
     back to the base ``{name}`` when no variant resolves. The base ``*.md`` files
     are the ``full`` profile, so ``full``/``None``/empty short-circuit straight
-    to the base. See ADR-0047.
+    to the base. See ADR-0049.
     """
     if profile and profile != FULL_PROFILE:
         variant = get_default_prompt(f"{name}.{profile}")

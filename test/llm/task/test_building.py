@@ -91,7 +91,7 @@ class TestRegistration:
     def test_append_tool_and_get_all_tools(self):
         tool_a, tool_b = MagicMock(), MagicMock()
         task = LLMTask(name="test-task")
-        task.add_tool(tool_a)
+        task.append_tool(tool_a)
         task.append_tool(tool_b)
         resolved = task.get_all_tools(MagicMock())
         assert tool_a in resolved and tool_b in resolved
@@ -99,19 +99,19 @@ class TestRegistration:
     def test_tool_factory_resolved_in_get_all_tools(self):
         tool = MagicMock()
         task = LLMTask(name="test-task")
-        task.add_tool_factory(lambda ctx: tool)
+        task.append_tool_factory(lambda ctx: tool)
         assert tool in task.get_all_tools(MagicMock())
 
     def test_append_toolset_and_get_all_toolsets(self):
         toolset = MagicMock()
         task = LLMTask(name="test-task")
-        task.add_toolset(toolset)
+        task.append_toolset(toolset)
         assert toolset in task.get_all_toolsets(MagicMock())
 
     def test_toolset_factory_resolved_in_get_all_toolsets(self):
         toolset = MagicMock()
         task = LLMTask(name="test-task")
-        task.add_toolset_factory(lambda ctx: toolset)
+        task.append_toolset_factory(lambda ctx: toolset)
         assert toolset in task.get_all_toolsets(MagicMock())
 
     def test_set_ui_replaces_and_append_ui_adds(self):
@@ -140,7 +140,7 @@ class TestRegistration:
             return HookResult()
 
         task = LLMTask(name="test-task", message="hello")
-        task.add_hook_factory(
+        task.append_hook_factory(
             lambda mgr: mgr.register(my_hook, events=[HookEvent.SESSION_START])
         )
 

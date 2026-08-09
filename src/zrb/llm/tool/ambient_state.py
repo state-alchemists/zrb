@@ -1,7 +1,7 @@
 """Ambient state for tool calls — active worktree, current tool session.
 
 These `ContextVar`s are set by tools like `EnterWorktree` or by the prompt
-middleware, and read by other tools (e.g. `Shell`/`Bash`, `DelegateToAgent`, the todo
+middleware, and read by other tools (e.g. `Shell`, `DelegateToAgent`, the todo
 tools) that need to know "what worktree are we in" or "which session's todos".
 
 The underlying `ContextVar`s stay where their owning tools define them. This
@@ -42,7 +42,7 @@ def get_current_tool_session() -> str:
 def set_current_tool_session(session_name: str) -> None:
     """Set the session name that tool calls should default to.
 
-    Preferred over the legacy `set_current_session` alias for readability.
+    Preferred over the `set_current_session` alias for readability.
     """
     set_current_session(session_name)
 

@@ -2,9 +2,8 @@
 
 Every `_`-prefixed name below is assigned in `LLMChatTask.__init__`. Declaring
 the types here once lets `ChatBuilding`, `ChatRunning`, and `ChatExecution` be
-type-checked in isolation without each re-declaring the same list — the three
-copies used to drift, and one of them carried a "keep the two in sync" comment
-that only a human could honour.
+type-checked in isolation without each re-declaring the same list — one
+declaration cannot drift against itself.
 
 Annotation-only on purpose: a bare annotation creates no class attribute, so
 putting `ChatState` in the MRO ahead of `BaseTask` shadows nothing at runtime.
@@ -65,6 +64,10 @@ class ChatState:
 
     # --- Hooks -------------------------------------------------------------
     _hook_factories: list[Callable[[HookManager], None]]
+    #: Explicit manager from the constructor; None means "build a fresh one per
+    #: run", which is the default and keeps one chat session's hooks out of the
+    #: next.
+    _hook_manager: HookManager | None
     _active_hook_manager: HookManager | None
 
     # --- Message / model ---------------------------------------------------

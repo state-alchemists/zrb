@@ -16,6 +16,8 @@ single chat turn flows from CLI down through this class, see
 docs/advanced-topics/llm-chat-lifecycle.md.
 """
 
+from __future__ import annotations
+
 import asyncio
 import inspect
 import logging
@@ -32,8 +34,12 @@ from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.hook.manager import hook_manager
 from zrb.llm.hook.types import HookEvent
+from zrb.llm.permission.state import (
+    AgentMode,
+    get_current_agent_mode,
+    set_current_agent_mode,
+)
 from zrb.llm.snapshot.manager import SnapshotManager
-from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.tool_call import (
     ArgumentFormatter,
     ResponseHandler,
@@ -60,6 +66,7 @@ if TYPE_CHECKING:
     from pydantic_ai.usage import RequestUsage, RunUsage
     from rich.theme import Theme
 
+    from zrb.llm.task.llm_task import LLMTask
     from zrb.llm.tool_call.ui_protocol import ChoiceSpec
 
 logger = logging.getLogger(__name__)
@@ -703,7 +710,7 @@ class BaseUI(BaseUIProperties, BaseUICommands, BaseUIReplay, BaseUISystemInfo):
 
         async def job():
             await self._stream_ai_response(
-                cast(LLMTask, llm_task), user_message, attachments
+                cast("LLMTask", llm_task), user_message, attachments
             )
 
         self._message_queue.put_nowait(job)
@@ -742,14 +749,6 @@ class BaseUI(BaseUIProperties, BaseUICommands, BaseUIReplay, BaseUISystemInfo):
 
             # Sync plan mode to the shared mutable state before the LLM run
             # so the agent inherits the mode set by /plan.
-            # lazy: circular — permission.state transitively imports zrb.llm.ui,
-            # so hoisting this to module level re-enters ui mid-load.
-            from zrb.llm.permission.state import (
-                AgentMode,
-                get_current_agent_mode,
-                set_current_agent_mode,
-            )
-
             set_current_agent_mode(
                 AgentMode.PLAN if self._plan_mode_active else AgentMode.BUILD
             )

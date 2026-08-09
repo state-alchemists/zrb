@@ -12,7 +12,7 @@ def test_sub_agent_manager_add_tool():
         """My tool"""
         return "ok"
 
-    manager.add_tool(my_tool)
+    manager.append_tool(my_tool)
 
     agent_def = SubAgentDefinition(
         name="test-agent",
@@ -62,7 +62,7 @@ def test_sub_agent_manager_filter_delegate_tools():
 
     delegate_tool.zrb_is_delegate_tool = True
 
-    manager.add_tool(regular_tool, delegate_tool)
+    manager.append_tool(regular_tool, delegate_tool)
 
     # 3. Setup an agent definition that uses both
     agent_def = SubAgentDefinition(
@@ -86,6 +86,63 @@ def test_sub_agent_manager_filter_delegate_tools():
         assert delegate_tool not in resolved_tools
 
 
+def test_sub_agent_manager_maps_bash_tool_to_shell():
+    """A Claude-written sub-agent that lists ``Bash`` gets zrb's ``Shell`` tool.
+
+    ``Bash`` is not a zrb tool; the registry holds ``Shell``. Both the tool
+    resolution and the ``disallowedTools`` filter map the Claude name over.
+    """
+    manager = SubAgentManager()
+
+    def shell_tool():
+        """Shell tool"""
+        return "ok"
+
+    shell_tool.__name__ = "Shell"
+    manager.append_tool(shell_tool)
+
+    agent_def = SubAgentDefinition(
+        name="claude-agent",
+        path=".",
+        description="Test",
+        system_prompt="Prompt",
+        tools=["Bash"],
+    )
+    manager.add_agent(agent_def)
+
+    with patch("zrb.llm.agent.subagent.manager.create_agent") as mock_create_agent:
+        manager.create_agent("claude-agent")
+        resolved_tools = mock_create_agent.call_args.kwargs["tools"]
+        assert shell_tool in resolved_tools
+
+
+def test_sub_agent_manager_maps_bash_disallowed_tool_to_shell():
+    """``disallowedTools: [Bash]`` excludes the ``Shell`` tool."""
+    manager = SubAgentManager()
+
+    def shell_tool():
+        """Shell tool"""
+        return "ok"
+
+    shell_tool.__name__ = "Shell"
+    manager.append_tool(shell_tool)
+
+    agent_def = SubAgentDefinition(
+        name="claude-agent",
+        path=".",
+        description="Test",
+        system_prompt="Prompt",
+        tools=["Shell"],
+        disallowed_tools=["Bash"],
+    )
+    manager.add_agent(agent_def)
+
+    with patch("zrb.llm.agent.subagent.manager.create_agent") as mock_create_agent:
+        manager.create_agent("claude-agent")
+        resolved_tools = mock_create_agent.call_args.kwargs["tools"]
+        assert shell_tool not in resolved_tools
+
+
 def test_sub_agent_manager_filter_delegate_tools_from_factory():
     manager = SubAgentManager()
 
@@ -96,7 +153,7 @@ def test_sub_agent_manager_filter_delegate_tools_from_factory():
     delegate_tool.zrb_is_delegate_tool = True
 
     # Add a factory that returns a delegate tool
-    manager.add_tool_factory(lambda ctx: delegate_tool)
+    manager.append_tool_factory(lambda ctx: delegate_tool)
 
     agent_def = SubAgentDefinition(
         name="test-agent",
@@ -169,7 +226,7 @@ def test_sub_agent_manager_reload():
 def test_sub_agent_manager_add_toolset():
     manager = SubAgentManager()
     ts = MagicMock()
-    manager.add_toolset(ts)
+    manager.append_toolset(ts)
 
     agent_def = SubAgentDefinition("test", ".", "d", "p")
     manager.add_agent(agent_def)
@@ -184,7 +241,7 @@ def test_sub_agent_manager_add_toolset_factory():
     manager = SubAgentManager()
     ts = MagicMock()
     factory = MagicMock(return_value=ts)
-    manager.add_toolset_factory(factory)
+    manager.append_toolset_factory(factory)
 
     agent_def = SubAgentDefinition("test", ".", "d", "p")
     manager.add_agent(agent_def)
@@ -200,30 +257,30 @@ def test_sub_agent_definition_defaults_inherit_sections_none():
     """SubAgentDefinition without inherit_sections preserves lean prompt
     composition (no parent persona/mandate injected)."""
     agent_def = SubAgentDefinition(
-        name="legacy",
+        name="lean",
         path=".",
         description="d",
-        system_prompt="You are a legacy agent.",
+        system_prompt="You are a lean agent.",
     )
     assert agent_def.inherit_sections is None
 
 
-def test_sub_agent_manager_legacy_agent_skips_inheritance():
+def test_sub_agent_manager_lean_agent_skips_inheritance():
     """Agents with inherit_sections=None get only body + own guidance —
     no # Identity / # Operating Rules from the main agent."""
     manager = SubAgentManager()
     agent_def = SubAgentDefinition(
-        name="legacy",
+        name="lean",
         path=".",
         description="d",
-        system_prompt="You are a legacy agent. Do X.",
+        system_prompt="You are a lean agent. Do X.",
     )
     manager.add_agent(agent_def)
 
     with patch("zrb.llm.agent.subagent.manager.create_agent") as mock_create:
-        manager.create_agent("legacy")
+        manager.create_agent("lean")
         prompt = mock_create.call_args.kwargs["system_prompt"]
-    assert "You are a legacy agent. Do X." in prompt
+    assert "You are a lean agent. Do X." in prompt
     assert "# Identity" not in prompt
     assert "# Operating Rules" not in prompt
 

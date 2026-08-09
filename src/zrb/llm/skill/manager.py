@@ -3,13 +3,12 @@ import uuid
 from collections.abc import Callable
 from pathlib import Path
 
-import yaml
-
 from zrb.config.config import CFG
 from zrb.llm.hook.manager import hook_manager
 from zrb.llm.skill.util import discover_companion_files
 from zrb.util.asset_scanner import IGNORE_DIRS, scan_files
 from zrb.util.dir_search import BUILTIN_PLUGIN_DIR, get_upward_dirs, scan_plugin_dirs
+from zrb.util.frontmatter import parse_frontmatter
 from zrb.util.load import load_module_from_path
 
 
@@ -47,6 +46,36 @@ class Skill:
         content_factory: Callable[[], str] | None = None,
         companion_files: list[str] | None = None,
     ):
+        """Define a skill programmatically, without a `SKILL.md` on disk.
+
+        The filesystem loader builds these from frontmatter; construct one
+        directly to register a skill from code:
+        `skill_manager.add_skill(Skill(...))`.
+
+        Args:
+            name: Display name, and the `/slash-command` that invokes it.
+            path: Directory the skill was loaded from. Resolves
+                `companion_files` and any relative path in the content; pass the
+                directory the skill should read relative to.
+            description: What the skill is for. This is what the model matches
+                on when deciding to activate it, so describe the *work*, not the
+                topic.
+            model_invocable: Whether the model may activate it on its own.
+                False makes it user-invocable only.
+            user_invocable: Whether it appears in the `/` menu.
+            argument_hint: Placeholder shown in autocomplete, e.g. `"[filename]"`.
+            allowed_tools: Tool names usable without permission while the skill
+                is active, e.g. `["Read", "Grep"]`.
+            model: Model override applied while the skill runs.
+            context: Where it runs. `"fork"` runs it in a sub-agent instead of
+                the current context.
+            agent: Agent type to use when `context` forks, e.g. `"Explore"`.
+            content: The skill body. Mutually exclusive with `content_factory`.
+            content_factory: Callable returning the body, for content that must
+                be built at activation time rather than at registration.
+            companion_files: Paths, relative to `path`, that the skill's content
+                refers to and that travel with it.
+        """
         self.name = name
         self.path = path
         self.description = description
@@ -356,48 +385,43 @@ class SkillManager:
             # 1. Parse YAML Frontmatter
             if content.startswith("---"):
                 try:
-                    parts = content.split("---", 2)
-                    if len(parts) >= 3:
-                        frontmatter = yaml.safe_load(parts[1])
-                        if frontmatter:
-                            if "name" in frontmatter:
-                                name = frontmatter["name"]
-                                is_name_resolved = True
-                            description = frontmatter.get("description", description)
-                            model_invocable = not frontmatter.get(
-                                "disable-model-invocation", False
+                    frontmatter, _ = parse_frontmatter(content)
+                    if "name" in frontmatter:
+                        name = frontmatter["name"]
+                        is_name_resolved = True
+                    description = frontmatter.get("description", description)
+                    model_invocable = not frontmatter.get(
+                        "disable-model-invocation", False
+                    )
+                    user_invocable = frontmatter.get("user-invocable", True)
+
+                    # Claude Code spec fields
+                    argument_hint = frontmatter.get("argument-hint")
+
+                    # allowed-tools: comma-separated string or list
+                    allowed_tools_raw = frontmatter.get("allowed-tools")
+                    if allowed_tools_raw:
+                        if isinstance(allowed_tools_raw, str):
+                            allowed_tools = [
+                                t.strip() for t in allowed_tools_raw.split(",")
+                            ]
+                        elif isinstance(allowed_tools_raw, list):
+                            allowed_tools = allowed_tools_raw
+
+                    model = frontmatter.get("model")
+                    context = frontmatter.get("context")
+                    agent = frontmatter.get("agent")
+
+                    hooks_data = frontmatter.get("hooks")
+                    if hooks_data:
+                        if isinstance(hooks_data, dict):
+                            hook_manager.parse_claude_format(
+                                {"hooks": hooks_data}, full_path
                             )
-                            user_invocable = frontmatter.get("user-invocable", True)
-
-                            # Claude Code spec fields
-                            argument_hint = frontmatter.get("argument-hint")
-
-                            # allowed-tools: comma-separated string or list
-                            allowed_tools_raw = frontmatter.get("allowed-tools")
-                            if allowed_tools_raw:
-                                if isinstance(allowed_tools_raw, str):
-                                    allowed_tools = [
-                                        t.strip() for t in allowed_tools_raw.split(",")
-                                    ]
-                                elif isinstance(allowed_tools_raw, list):
-                                    allowed_tools = allowed_tools_raw
-
-                            model = frontmatter.get("model")
-                            context = frontmatter.get("context")
-                            agent = frontmatter.get("agent")
-
-                            hooks_data = frontmatter.get("hooks")
-                            if hooks_data:
-                                if isinstance(hooks_data, dict):
-                                    hook_manager.parse_claude_format(
-                                        {"hooks": hooks_data}, full_path
-                                    )
-                                elif isinstance(hooks_data, list):
-                                    # Zrb flat format
-                                    for hook_item in hooks_data:
-                                        hook_manager.parse_and_register(
-                                            hook_item, full_path
-                                        )
+                        elif isinstance(hooks_data, list):
+                            # Zrb flat format
+                            for hook_item in hooks_data:
+                                hook_manager.parse_and_register(hook_item, full_path)
 
                 except Exception:
                     CFG.LOGGER.warning(

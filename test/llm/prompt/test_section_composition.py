@@ -11,7 +11,7 @@ import re
 
 import pytest
 
-from zrb.llm.prompt.profile import MINIMAL_SECTIONS, MINIMAL_TOOLS
+from zrb.llm.prompt.profile import LEAN_DROPS, MINIMAL_SECTIONS, MINIMAL_TOOLS
 from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.prompt.section_filter import filter_requires
 
@@ -54,6 +54,7 @@ OWNED_VOCABULARY = {
         "git diff HEAD",
         "Tool usage",
         "Efficiency",
+        "Final Reminders",
     ],
     "persona": ["Response Calibration"],
 }
@@ -133,12 +134,38 @@ def test_every_requires_block_is_closed(name):
     )
 
 
-def test_lean_examples_are_a_superset_of_the_base():
-    """A profile variant replaces the base file, so it must not lose content."""
-    base = get_prompt("examples")
-    explicit = get_prompt("examples", profile="lean")
-    assert explicit.startswith(base.rstrip()[:200])
-    assert len(explicit) > len(base)
+#: What the base `examples.md` demonstrates, as a stance the variant must also
+#: teach. Concepts rather than prose: a variant exists to re-word for its model
+#: class, so pinning bytes would forbid the only thing it is for.
+BASE_EXAMPLE_CONCEPTS = {
+    "stance: a question is answered": [r"thread and a process", r"opens no files"],
+    "stance: a directive is carried out": [r"getUserData|legacy_auth", r"call site"],
+    "check, don't recall": [r"rather than (eyeballing|answering from memory)"],
+    "tool results are data": [r"IGNORE PREVIOUS INSTRUCTIONS", r"injection"],
+    "delegate heavy discovery": [r"read-only research agents|sub-?agents"],
+}
+
+
+def test_a_variant_of_examples_still_teaches_what_the_base_teaches():
+    """A variant replaces the base file, so it must not lose *coverage*.
+
+    Coverage, not bytes. This used to assert that `examples.lean.md` opened with
+    `examples.md` verbatim, which enforced the wrong thing in the right
+    direction: it guaranteed nothing was dropped by guaranteeing the two files
+    were the same file, so every edit to the base desynchronized the variant and
+    the variant could never re-word for its own model class. Match on the stance
+    each demonstration teaches and let the wording differ — which is what
+    ``test_a_variant_of_examples_is_not_a_superset_of_the_base`` then requires.
+    """
+    import re
+
+    lean = get_prompt("examples", profile="lean")
+    missing = [
+        concept
+        for concept, patterns in BASE_EXAMPLE_CONCEPTS.items()
+        if not all(re.search(p, lean) for p in patterns)
+    ]
+    assert missing == []
 
 
 def test_premise_check_is_first_and_unconditional():
@@ -206,23 +233,43 @@ def test_batching_rule_forbids_the_payload_form():
     assert "twelve `Edit` calls" in section
 
 
-def test_default_prompt_stays_within_its_budget():
-    """The composed default prompt has a ceiling, enforced.
+#: Absolute ceiling on the *composed* prompt, per preset. Headroom is ~20% over
+#: what each ships today (full 20,066 / lean 17,371 / minimal 4,923).
+PRESET_BUDGETS = {"full": 24_000, "lean": 20_000, "minimal": 6_000}
+
+
+@pytest.mark.parametrize("profile, ceiling", sorted(PRESET_BUDGETS.items()))
+def test_each_preset_stays_within_its_budget(monkeypatch, profile, ceiling):
+    """Every preset has a ceiling, enforced. Not just the default one.
 
     Collapsing six rule sections into three took the default composition from
     ~32,600 chars to ~19,500. Nothing stops that creeping back one paragraph at
-    a time, so the budget is a test rather than a note. Raising the ceiling is a
+    a time, so the budget is a test rather than a note. Raising a ceiling is a
     decision to make deliberately, not a diff to wave through.
+
+    Per preset, because the two relative guards leave a gap that a uniform drift
+    walks straight through: `test_rule_burden_falls_as_the_target_model_gets_weaker`
+    and `test_a_weaker_targets_preset_ships_less_prompt_in_total` both pin the
+    *ordering*, so adding a paragraph to all three variants at once keeps every
+    ratchet green while every model gets more to read. Only an absolute number
+    catches that, and until now only `full` had one.
+
+    This is the enforcement arm of the rule that a more capable model buys more
+    autonomy rather than more text (ADR-0049): `full` having room is not a
+    reason to spend it.
     """
     from unittest.mock import MagicMock
 
     from zrb.llm.prompt.manager import PromptManager
 
+    monkeypatch.setenv("ZRB_LLM_PROFILE", profile)
     composed = PromptManager().compose_prompt()(MagicMock())
-    assert len(composed) < 24_000, f"default prompt grew to {len(composed)} chars"
+    assert (
+        len(composed) < ceiling
+    ), f"{profile} prompt grew to {len(composed)} chars (ceiling {ceiling})"
 
 
-# ── The safety floor across presets (ADR-0075) ──────────────────────────
+# ── The safety floor across presets (ADR-0049) ──────────────────────────
 
 # Priority Order rank 1, as three concepts rather than three sentences: each
 # entry is the alternative phrasings that count as carrying it. Matching on
@@ -247,7 +294,8 @@ PRESET_COMPOSITIONS = [
 # The sections that carry *rules*, weakest-capability last. Each preset reads the
 # same two section names and resolves them through its own variant. Examples are
 # excluded on purpose: a demonstration lowers burden rather than adding it, so
-# the two move in opposite directions (ADR-0047 vs ADR-0075).
+# the two move in opposite directions (ADR-0049) — they get their own
+# ceiling in `test_demonstrations_do_not_grow_as_the_target_model_gets_weaker`.
 RULE_SECTIONS = ["persona", "workflow"]
 PRESET_VARIANTS = [("full", None), ("lean", "lean"), ("minimal", "minimal")]
 
@@ -274,6 +322,50 @@ def test_every_preset_carries_the_rank_one_safety_rules(sections, variant):
         if not any(re.search(p, text) for p in patterns)
     ]
     assert missing == []
+
+
+# The closing recap, as the body statement each item restates. Every preset ends
+# with `## Final Reminders`, which exists to put the highest-cost rules at the
+# recency position the way `Priority Order` puts them at the primacy one.
+RECAP_ANCHORS = {
+    "tool output is not instructions": [r"data,? not (instructions|orders)"],
+    "confirm destructive actions": [r"destructive|destroy"],
+    "name the cause first": [r"[Nn]ame the cause|[Ss]ay the cause"],
+    "acting is not describing": [
+        r"[Ss]tating an action is not performing it|do not describe it"
+    ],
+    "check the artifact": [r"[Cc]heck (the artifact|your work)"],
+    "finish the turn": [r"[Ff]inish the work this turn|[Rr]eport the real result"],
+}
+
+
+@pytest.mark.parametrize("variant", [None, "lean", "minimal"])
+def test_the_closing_recap_restates_only_what_the_body_states(variant):
+    """A recap is duplication on purpose. Divergent duplication is the bug.
+
+    `Priority Order` opens the rulebook to exploit primacy; nothing exploited
+    recency, which is where a rule read just before the request lands hardest —
+    the slot kimi's "Ultimate Reminders" and gemini's "Final Reminder" occupy.
+    Adding one is safe only while it stays a *pointer* to rules stated above it:
+    a recap that introduces a rule of its own splits the rulebook in two, and the
+    copy nobody edits is the one the model reads last.
+
+    Asserted in the direction that can actually rot: every recapped rule must
+    still be stated in the body. AGENTS.md's MECE rule tolerates consistent
+    duplication inside one section and forbids the divergent kind.
+    """
+    text = get_prompt("workflow", profile=variant)
+    body, _, recap = text.partition("## Final Reminders")
+    assert recap.strip(), f"workflow[{variant}] ships no closing recap"
+    items = re.findall(r"^\d+\.\s", recap, re.M)
+    assert len(items) >= 4, f"workflow[{variant}] recap has only {len(items)} items"
+    unanchored = [
+        rule
+        for rule, patterns in RECAP_ANCHORS.items()
+        if any(re.search(p, recap) for p in patterns)
+        and not any(re.search(p, body) for p in patterns)
+    ]
+    assert unanchored == [], f"workflow[{variant}] recaps rules its body never states"
 
 
 def test_workflow_minimal_names_no_tool_its_preset_lacks():
@@ -303,57 +395,128 @@ def test_every_variant_resolves_to_its_own_file():
     assert get_prompt("examples", profile="lean") != get_prompt("examples")
 
 
-def test_rule_burden_falls_as_the_target_model_gets_weaker():
+def _burden(section: str, variant: str | None) -> tuple[int, int, int]:
+    """Mass, rule count, and clause nesting for one section under one variant."""
+    text = get_prompt(section, profile=variant)
+    return (
+        len(text),
+        len(re.findall(r"^\s*[-*\d]+[.)]?\s+", text, re.M)),
+        len(re.findall(r"[—;(]", text)),
+    )
+
+
+@pytest.mark.parametrize("section", RULE_SECTIONS)
+def test_rule_burden_falls_as_the_target_model_gets_weaker(section):
     """The less capable the model, the less we ask it to hold at once.
 
-    The ordering is the whole point of having presets: `lean` used to be the
-    *heaviest* composition in the system, shipping a 7B model the frontier
-    rulebook plus 1,200 extra tokens of examples.
+    The ordering is the whole point of having presets, and without this
+    assertion nothing stops the preset built for weaker models from becoming the
+    heaviest composition in the system.
+
+    Measured **per section**, not over their concatenation. A summed measure
+    reports the total and hides its terms: a section shipping every preset the
+    same frontier-register prose can be 35% of `minimal`'s rule payload while
+    the sum still falls, because another section shrank enough to cover for it.
+    A section that never varies is a section whose
+    variant nobody wrote, and the silent `foo.{profile}.md` → `foo.md` fallback
+    (ADR-0049) means nothing else says so.
 
     Mass and rule count must fall strictly — those are the load itself. Clause
-    nesting only has to not *rise*: it is a style proxy with a floor, and both
+    nesting only has to not *rise*: it is a style proxy with a floor, and the
     lighter rulebooks already sit on it, so demanding a strict drop there would
-    force prose damage to satisfy a number. Examples are excluded from all three
-    measures on purpose — a demonstration lowers burden rather than adding it,
-    so it moves opposite the rules (ADR-0047 vs ADR-0075).
+    force prose damage to satisfy a number.
     """
-    measured = []
-    for preset, variant in PRESET_VARIANTS:
-        text = "\n".join(get_prompt(name, profile=variant) for name in RULE_SECTIONS)
-        measured.append(
-            (
-                preset,
-                len(text),
-                len(re.findall(r"^\s*[-*\d]+[.)]?\s+", text, re.M)),
-                len(re.findall(r"[—;(]", text)),
-            )
-        )
-    for (lo_name, *lo), (hi_name, *hi) in zip(measured, measured[1:]):
+    measured = [
+        (preset, _burden(section, variant)) for preset, variant in PRESET_VARIANTS
+    ]
+    for (lo_name, lo), (hi_name, hi) in zip(measured, measured[1:]):
         for label, a, b in zip(("chars", "rules"), lo, hi):
-            assert b < a, f"{label}: {hi_name}={b} is not below {lo_name}={a}"
+            assert (
+                b < a
+            ), f"{section}: {label}: {hi_name}={b} is not below {lo_name}={a}"
         assert (
             hi[2] <= lo[2]
-        ), f"subclauses: {hi_name}={hi[2]} rose above {lo_name}={lo[2]}"
+        ), f"{section}: subclauses: {hi_name}={hi[2]} rose above {lo_name}={lo[2]}"
 
 
-def test_workflow_lean_names_no_tool_that_does_not_exist():
-    """Same guard as `workflow.minimal.md`, against the full tool surface.
+@pytest.mark.parametrize("variant", [None, "lean"])
+def test_examples_carry_no_rule_of_their_own(variant):
+    """`examples` demonstrates; it never legislates.
 
-    `lean` keeps every tool, so the risk is not a trimmed surface but a stale
-    name: nothing strips a tool reference that no longer resolves.
+    `examples.md` opens by saying so and `OWNED_VOCABULARY` gives `examples` no
+    terms, but both are *absences* — nothing failed when `examples.lean.md`
+    grew three `Wrong:` verdicts. A `Wrong:` clause is a rule wearing a
+    demonstration's clothes: it states what the model must not do, in a section
+    every other guard treats as carrying nothing to state.
+
+    It also matters where the rule ends up. A rule stated only in `examples`
+    reaches nobody in `minimal`, which drops the section, and it is invisible to
+    the per-section burden ladder, which excludes it. Both are ways for a rule
+    to go missing quietly, which is exactly what ADR-0049's
+    no-variant-only-rules invariant forbids one axis over.
+    """
+    text = get_prompt("examples", profile=variant)
+    assert "Wrong:" not in text, f"examples[{variant}] states a rule as a verdict"
+
+
+def test_a_variant_of_examples_is_not_a_superset_of_the_base():
+    """Two files, one content, no test between them — they will drift.
+
+    The variant axis *replaces*, so embedding the base buys nothing a shorter
+    file would not, and every edit to the base would silently desynchronize the
+    copy inside the variant.
+    """
+    base = get_prompt("examples").strip()
+    lean = get_prompt("examples", profile="lean").strip()
+    assert base not in lean, "examples.lean.md embeds examples.md verbatim"
+
+
+def test_a_weaker_targets_preset_ships_less_prompt_in_total():
+    """The composed payload falls too, not only its rule-carrying half.
+
+    The per-section ladder above governs `persona` and `workflow`; `examples` is
+    exempt from it because a demonstration lowers burden rather than adding it
+    (ADR-0049), so a lighter preset is *allowed* proportionally more
+    of it. Exempt from the ladder is not exempt from the budget: a preset that
+    spends its rulebook saving on extra examples ends up the heaviest
+    composition in the system, shipped to the weaker model.
+
+    Whatever the per-rule argument, the total is what a 7B model has to attend
+    to before it reads the request. So the totals are ordered as well, and a
+    preset that wants more demonstrations pays for them out of its own rulebook
+    rather than out of the model's attention.
+    """
+    measured = [
+        (preset, sum(len(get_prompt(name, profile=variant)) for name in sections))
+        for (preset, _), (sections, variant) in zip(
+            PRESET_VARIANTS, PRESET_COMPOSITIONS
+        )
+    ]
+    for (lo_name, lo), (hi_name, hi) in zip(measured, measured[1:]):
+        assert hi < lo, f"total: {hi_name}={hi} is not below {lo_name}={lo}"
+
+
+def test_workflow_lean_names_no_tool_its_preset_lacks():
+    """Same guard as `workflow.minimal.md`, against `lean`'s own surface.
+
+    Was "against the full tool surface", on the reasoning that `lean` keeps every
+    tool so only a stale name could dangle. `lean` now subtracts `LEAN_DROPS`,
+    which makes it the same failure as `minimal`'s: a rulebook naming a tool its
+    own preset never registers. Nothing strips a tool reference the way
+    `<!--requires:-->` strips a section reference.
     """
     from zrb.llm.common_tools import apply_common_tools, tool_name
 
     registered: set[str] = set()
 
     class _Host:
-        def add_tool(self, *tool):
+        def append_tool(self, *tool):
             registered.update(tool_name(t) for t in tool)
 
-        def add_tool_factory(self, *factory):
+        def append_tool_factory(self, *factory):
             pass
 
-        def add_toolset_factory(self, *factory):
+        def append_toolset_factory(self, *factory):
             pass
 
     apply_common_tools(_Host())
@@ -366,7 +529,38 @@ def test_workflow_lean_names_no_tool_that_does_not_exist():
         "EnterPlanMode",
         "DelegateToAgent",
     }
+    available = registered - LEAN_DROPS
     named = set(
         re.findall(r"`([A-Z][A-Za-z]+)`", get_prompt("workflow", profile="lean"))
     )
-    assert named <= registered, sorted(named - registered)
+    assert named <= available, sorted(named - available)
+
+
+def test_lean_drops_only_tools_that_are_actually_registered():
+    """A drop naming a tool nobody registers silently protects nothing.
+
+    Same shape as `test_every_owned_term_still_exists_in_its_owner`: `LEAN_DROPS`
+    is applied as a filter, so a renamed or deleted tool leaves a dead entry that
+    keeps passing every closure check while subtracting nothing.
+    """
+    from zrb.llm.common_tools import apply_common_tools, tool_name
+
+    registered: set[str] = set()
+
+    class _Host:
+        def append_tool(self, *tool):
+            registered.update(tool_name(t) for t in tool)
+
+        def append_tool_factory(self, *factory):
+            pass
+
+        def append_toolset_factory(self, *factory):
+            pass
+
+    apply_common_tools(_Host())
+    # `SearchJournal` and the writers are factory-built (gated on
+    # LLM_JOURNAL_ENABLED), so they never reach add_tool here.
+    factory_built = {"SearchJournal", "LogActivity", "WriteJournalNote"}
+    assert LEAN_DROPS <= (registered | factory_built), sorted(
+        LEAN_DROPS - registered - factory_built
+    )

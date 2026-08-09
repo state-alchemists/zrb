@@ -160,24 +160,6 @@ class LLMTaskBuilding:
         """Replace the sandbox configuration."""
         self._sandbox = value
 
-    def add_hook_factory(self, *factory: Callable[[HookManager], None]):
-        """Register one or more hook factories on this task's hook manager.
-
-        Alias of ``append_hook_factory`` — adds to the end of the list.
-
-        Each factory receives the ``HookManager`` and registers hooks on it (it
-        is applied immediately — the factory typically calls
-        ``manager.register(hook, events=[...])``). Mirrors
-        ``LLMChatTask.add_hook_factory``.
-
-        Isolation by default: a task starts on the shared global hook manager,
-        but the first ``add_hook_factory`` call swaps in a fresh per-task
-        ``HookManager`` so these hooks do not leak into other tasks. To opt into
-        the global manager (or any specific one) instead, pass ``hook_manager=``
-        at construction — an explicitly provided manager is never replaced.
-        """
-        self.append_hook_factory(*factory)
-
     def append_hook_factory(self, *factory: Callable[[HookManager], None]):
         """Register one or more hook factories on this task's hook manager.
 
@@ -211,10 +193,6 @@ class LLMTaskBuilding:
         """Replace the custom model-name list."""
         self._custom_model_names = value
 
-    def add_toolset(self, *toolset: AbstractToolset):
-        """Alias of `append_toolset` — adds to the end of the list."""
-        self.append_toolset(*toolset)
-
     def append_toolset(self, *toolset: AbstractToolset):
         """Add pydantic-ai toolsets whose tools the agent may call.
 
@@ -222,12 +200,6 @@ class LLMTaskBuilding:
         MCP server's. For a single function, `append_tool` is simpler.
         """
         self._toolsets += list(toolset)
-
-    def add_toolset_factory(
-        self, *factory: Callable[[AnyContext], AbstractToolset[None]]
-    ):
-        """Alias of `append_toolset_factory` — adds to the end of the list."""
-        self.append_toolset_factory(*factory)
 
     def append_toolset_factory(
         self, *factory: Callable[[AnyContext], AbstractToolset[None]]
@@ -239,10 +211,6 @@ class LLMTaskBuilding:
         """
         self._toolset_factories += list(factory)
 
-    def add_tool(self, *tool: Tool | ToolFuncEither):
-        """Alias of `append_tool` — adds to the end of the list."""
-        self.append_tool(*tool)
-
     def append_tool(self, *tool: Tool | ToolFuncEither):
         """Add tools the agent may call.
 
@@ -251,10 +219,6 @@ class LLMTaskBuilding:
         so both are worth writing carefully.
         """
         self._tools += list(tool)
-
-    def add_tool_factory(self, *factory: Callable[[AnyContext], Tool | ToolFuncEither]):
-        """Alias of `append_tool_factory` — adds to the end of the list."""
-        self.append_tool_factory(*factory)
 
     def append_tool_factory(
         self, *factory: Callable[[AnyContext], Tool | ToolFuncEither]
@@ -265,10 +229,6 @@ class LLMTaskBuilding:
         resolved inputs or env vars, which exist only once the task runs.
         """
         self._tool_factories += list(factory)
-
-    def add_history_processor(self, *processor: HistoryProcessor):
-        """Alias of `append_history_processor` — adds to the end of the list."""
-        self.append_history_processor(*processor)
 
     def append_history_processor(self, *processor: HistoryProcessor):
         """Add processors that rewrite conversation history before each request.

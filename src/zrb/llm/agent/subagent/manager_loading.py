@@ -12,10 +12,9 @@ import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar
 
-import yaml
-
 from zrb.config.config import CFG
 from zrb.util.asset_scanner import scan_files
+from zrb.util.frontmatter import parse_frontmatter
 from zrb.util.load import load_module_from_path
 
 if TYPE_CHECKING:
@@ -146,23 +145,19 @@ class SubAgentManagerLoading:
             # 1. YAML frontmatter (preferred)
             if content.startswith("---"):
                 try:
-                    parts = content.split("---", 2)
-                    if len(parts) >= 3:
-                        frontmatter = yaml.safe_load(parts[1])
-                        system_prompt = parts[2].strip()
-                        if frontmatter:
-                            if "name" in frontmatter:
-                                name = frontmatter["name"]
-                                is_name_resolved = True
-                            description = frontmatter.get("description", description)
-                            model = frontmatter.get("model", None)
-                            tools = _as_str_list(frontmatter.get("tools"), tools)
-                            disallowed_tools = _as_str_list(
-                                frontmatter.get("disallowedTools"), disallowed_tools
-                            )
-                            inherit_sections = _as_str_list(
-                                frontmatter.get("inherit_sections"), inherit_sections
-                            )
+                    frontmatter, system_prompt = parse_frontmatter(content)
+                    if "name" in frontmatter:
+                        name = frontmatter["name"]
+                        is_name_resolved = True
+                    description = frontmatter.get("description", description)
+                    model = frontmatter.get("model", None)
+                    tools = _as_str_list(frontmatter.get("tools"), tools)
+                    disallowed_tools = _as_str_list(
+                        frontmatter.get("disallowedTools"), disallowed_tools
+                    )
+                    inherit_sections = _as_str_list(
+                        frontmatter.get("inherit_sections"), inherit_sections
+                    )
                 except Exception as e:
                     CFG.LOGGER.debug(f"Failed to parse agent frontmatter: {e}")
 

@@ -98,7 +98,7 @@ def test_prompt_manager_empty_sections():
 
 def test_prompt_manager_add_prompt():
     manager = PromptManager(include_sections=[])
-    manager.add_prompt("P1")
+    manager.append_prompt("P1")
     manager.append_prompt("P2")
 
     ctx = SharedContext()
@@ -357,15 +357,24 @@ def test_compose_lean_register_uses_variant():
     )
 
 
-def test_compose_lean_falls_back_to_base_when_no_variant():
-    """A section with no .lean.md resolves to its base file under `lean`."""
+def test_compose_lean_resolves_the_lean_variant():
+    """`lean` composes persona.lean.md, not the base file.
+
+    Was `..._falls_back_to_base_when_no_variant`, asserting the opposite —
+    `persona` had no variant, so it demonstrated the fallback. That absence was
+    the bug: every preset read the same frontier-register identity, including
+    the one built for ~3B models. The fallback itself is still pinned, on a
+    prompt file that is genuinely preset-invariant
+    (``test_prompt_mandates.py::test_get_prompt_profile_falls_back_to_base_when_no_variant``).
+    """
     manager = PromptManager(include_sections=["persona"])
     manager.model = "anthropic:claude-opus-4-8"
     with patch.dict(os.environ, {"ZRB_LLM_PROFILE": "lean"}):
         prompt = manager.compose_prompt()(SharedContext())
-    # The base file, minus the blocks that reference sections this config omits.
-    expected = filter_requires(get_prompt("persona", ASSISTANT_NAME="Zrb"), {"persona"})
-    assert expected in prompt
+    # The variant file, minus the blocks referencing sections this config omits.
+    variant = get_prompt("persona", profile="lean", ASSISTANT_NAME="Zrb")
+    assert filter_requires(variant, {"persona"}) in prompt
+    assert get_prompt("persona", ASSISTANT_NAME="Zrb") not in prompt
 
 
 def test_compose_drops_a_block_referencing_an_omitted_section():
@@ -392,7 +401,7 @@ def test_compose_lean_includes_examples_section_when_listed():
 
 
 def test_compose_auto_uses_the_full_base_for_a_model_declaring_no_small_size():
-    """A family name is never read as weakness — only a stated size is (ADR-0047)."""
+    """A family name is never read as weakness — only a stated size is (ADR-0049)."""
     manager = PromptManager(include_sections=["persona", "examples"])
     manager.model = (
         "deepseek:deepseek-v4-pro"  # a frontier model; must not be guessed weak
@@ -445,7 +454,7 @@ def test_compose_auto_honors_declared_model_profile():
 
 
 def test_minimal_supplies_the_section_list_it_binds(monkeypatch):
-    """`minimal` is the only preset that constrains the section axis (ADR-0075)."""
+    """`minimal` is the only preset that constrains the section axis (ADR-0049)."""
     from zrb.llm.prompt.profile import MINIMAL_SECTIONS
 
     manager = PromptManager()

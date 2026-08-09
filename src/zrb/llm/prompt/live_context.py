@@ -16,7 +16,7 @@ prompt assembly to ambient runtime state:
 
 2. **Active worktree** — if ``EnterWorktree`` was called, the path is rendered
    as ``- Active worktree: <path>`` in the live-context block and reminds the
-   LLM to pass it as ``cwd`` to ``Bash``. Cleared automatically when
+   LLM to pass it as ``cwd`` to ``Shell``. Cleared automatically when
    ``ExitWorktree`` is called. Read via ``get_active_worktree()`` from
    ``zrb.llm.tool.ambient_state``. If the path no longer exists on disk, the
    stale value is cleared on the spot.
@@ -41,21 +41,37 @@ from typing import Any, Callable
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
+from zrb.llm.prompt.profile import active_preset
 
 # Anchors the <live-context> contract in the cached system prompt. Stable text
 # — costs nothing per turn and never invalidates the cacheable prefix — while
 # telling any model (not just ones that learned <system-reminder>) what the
 # block is and that the most recent one wins.
+# It names no individual line: a constrained preset renders no todo or worktree
+# line, and an anchor that promises lines the composition cannot produce is the
+# same dangle as a rulebook naming an absent tool, minus the test that catches
+# it. The block is self-describing once it arrives.
 _LIVE_CONTEXT_ANCHOR = (
     "Each user turn ends with a <live-context> block describing current runtime "
-    "state (time, git, todos, worktree, mode). It is injected automatically — "
-    "not written by the user. Treat the most recent <live-context> as "
-    "authoritative; earlier ones are stale snapshots from when that turn was "
-    "sent."
+    "state. It is injected automatically — not written by the user. Treat the "
+    "most recent <live-context> as authoritative; earlier ones are stale "
+    "snapshots from when that turn was sent."
 )
 
 
 SimpleLiveContextProvider = Callable[[AnyContext], str | None]
+
+
+def _admits(model: "Any", tool: str) -> bool:
+    """Whether the active preset registers *tool* for *model*.
+
+    Injected context is the third channel that can name a tool, after the prompt
+    sections and the tool docstrings. ADR-0049 promises a preset's tool surface
+    is closed under cross-reference;
+    a `<live-context>` line announcing `AskUserQuestion` to a preset that never
+    registered it breaks that promise from outside every test that guards it.
+    """
+    return active_preset(model).admits(tool)
 
 
 def _collect_git_info(
@@ -173,11 +189,11 @@ def render_journal_index() -> str | None:
     (baked into the summary by ``summarize_history``). Returns ``None`` when the
     index is missing or empty, and when ``LLM_JOURNAL_INDEX_MAX_CHARS`` is 0.
 
-    A missing block is therefore not proof of an empty journal — but nothing
-    tells the model that any more. ADR-0053 removed the section that used to,
-    leaving no journal prose at all, only the three tools. Left as a known gap
-    rather than papered over: the only places it could go are the prompt (which
-    ADR-0053 deliberately emptied) or ``SearchJournal``'s docstring, and a
+    A missing block is therefore not proof of an empty journal — and nothing
+    tells the model so, since ADR-0055 leaves the journal as three tools and no
+    prose. Left as a known gap rather than papered over: the only places it
+    could go are the prompt (which ADR-0055 deliberately keeps empty of journal
+    prose) or ``SearchJournal``'s docstring, and a
     docstring ships with its schema on *every* request, so a caveat about a
     config most deployments never touch would be paid for on every turn
     forever. It matters only when ``LLM_JOURNAL_INDEX_MAX_CHARS`` is 0 while the
@@ -253,8 +269,10 @@ def render_live_context(
     only (empty history); summarization re-seeds the index separately, at its own
     site (``summarize_history``).
 
-    The ``model`` argument is accepted for parity with ``system_context`` but is
-    not currently rendered here (the model identity line is a stable fact).
+    The ``model`` argument resolves the active preset, so a line naming a tool
+    is emitted only where that tool is registered (``_admits``). It is not
+    rendered as text — the model identity line is a stable fact and lives in
+    ``system_context``.
 
     On the async per-turn hot path, prefer ``render_live_context_async`` — this
     sync form blocks its caller for the duration of the git subprocesses.
@@ -264,7 +282,9 @@ def render_live_context(
 
     session_name, interactive_bool = _wire_ambient_state(ctx)
     git_lines, todos_data = _collect_git_info(todo_manager, session_name)
-    return _render_parts(git_lines, todos_data, interactive_bool, inject_journal_index)
+    return _render_parts(
+        git_lines, todos_data, interactive_bool, inject_journal_index, model
+    )
 
 
 async def render_live_context_async(
@@ -284,7 +304,9 @@ async def render_live_context_async(
     git_lines, todos_data = await asyncio.to_thread(
         _collect_git_info, todo_manager, session_name
     )
-    return _render_parts(git_lines, todos_data, interactive_bool, inject_journal_index)
+    return _render_parts(
+        git_lines, todos_data, interactive_bool, inject_journal_index, model
+    )
 
 
 def _wire_ambient_state(ctx: AnyContext) -> tuple[str, bool]:
@@ -318,6 +340,7 @@ def _render_parts(
     todos_data: "dict[str, Any] | None",
     interactive_bool: bool,
     inject_journal_index: bool,
+    model: "Any" = None,
 ) -> str:
     """Assemble the live-context lines (ContextVar reads stay on the caller)."""
     # lazy: zrb internal (heavy via transitive / circular)
@@ -335,17 +358,26 @@ def _render_parts(
     parts.extend(git_lines)
     if active_wt:
         parts.append(
-            f"- Active worktree: {active_wt} (pass as cwd to Shell/Bash; use absolute paths for Read/Write/Edit/Grep)"
+            f"- Active worktree: {active_wt} (pass as cwd to Shell; use absolute paths for Read/Write/Edit/Grep)"
         )
     mode_line = _format_mode_line()
     if mode_line:
         parts.append(mode_line)
     if interactive_bool:
-        parts.append("- Interactive: yes (AskUserQuestion is available)")
-    else:
+        # Named only where it exists: `minimal` drops AskUserQuestion, and
+        # announcing a tool the model cannot call is worse than saying nothing.
         parts.append(
-            "- Interactive: no — do not call AskUserQuestion, EnterPlanMode, or "
-            "ExitPlanMode, and do not wait on user input mid-turn; there is no "
+            "- Interactive: yes (AskUserQuestion is available)"
+            if _admits(model, "AskUserQuestion")
+            else "- Interactive: yes"
+        )
+    else:
+        # No tool names here. AskUserQuestion, EnterPlanMode and ExitPlanMode
+        # are registered only in interactive sessions (`_resolve_interactive`
+        # in common_tools.py), so this branch would spend ~55 tokens per turn
+        # forbidding tools that are already absent.
+        parts.append(
+            "- Interactive: no — do not wait on user input mid-turn; there is no "
             "user to answer or approve a plan. Present any plan inline and "
             "proceed: decide based on the conversation and continue."
         )
@@ -355,7 +387,12 @@ def _render_parts(
         except Exception as e:
             CFG.LOGGER.debug(f"Failed to format todo lines for live context: {e}")
 
-    if inject_journal_index:
+    # The index tells the model to "Use SearchJournal for full entries", so a
+    # preset that dropped the journal tools must not be handed one — it would be
+    # a few hundred tokens of memory with no tool to act on it. `lean` drops
+    # them by preset (LEAN_DROPS) and `minimal` by allowlist; both are the same
+    # question, which is why this asks the surface rather than the flag.
+    if inject_journal_index and _admits(model, "SearchJournal"):
         journal_block = render_journal_index()
         if journal_block:
             parts.append(journal_block)

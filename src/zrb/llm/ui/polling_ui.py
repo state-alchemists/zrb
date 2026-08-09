@@ -1,13 +1,16 @@
+from __future__ import annotations
+
 import asyncio
 from typing import TYPE_CHECKING
 
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
-from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.ui.simple_ui_base import SimpleUI
 from zrb.llm.ui.ui_config import UIConfig
 
 if TYPE_CHECKING:
     from pydantic_ai import UserContent
+
+    from zrb.llm.task.llm_task import LLMTask
 
 
 class PollingUI(SimpleUI):
@@ -61,9 +64,11 @@ class PollingUI(SimpleUI):
 
     @property
     def input_queue(self) -> asyncio.Queue[str]:
-        """Public accessor for input queue (backward compatibility).
+        """The queue incoming messages land on.
 
-        Prefer using handle_incoming_message() for routing messages.
+        The public read seam for the queue — without it a caller (or a test)
+        asserting on queue state has to reach for the private attribute. Prefer
+        `handle_incoming_message()` for *routing* a message in.
         """
         return self._input_queue
 

@@ -56,7 +56,7 @@ Tools are tagged with capabilities in `src/zrb/llm/permission/capability.py`:
 |------------|-------------|---------------|
 | `READ` | Pure-read operations | `Read`, `LS`, `Glob`, `Grep` |
 | `EDIT` | Filesystem mutation | `Write`, `Edit` |
-| `EXECUTE` | Arbitrary side effects | `Shell`, `Bash`, `RunZrbTask` |
+| `EXECUTE` | Arbitrary side effects | `Shell`, `RunZrbTask` |
 | `NETWORK` | Outbound network access | `WebSearch`, `WebFetch` |
 | `DELEGATE` | Spawning sub-agents | `DelegateToAgent` |
 | `META` | Harness control | `TodoWrite`, `AskUserQuestion` |
@@ -78,8 +78,7 @@ my_policy = PermissionPolicy((
     # Allow all reads
     Rule(Capability.READ, ALLOW),
     
-    # Force confirmation for all shell commands (both tool names)
-    Rule("Bash", ASK),
+    # Force confirmation for all shell commands
     Rule("Shell", ASK),
     
     # Deny everything else by default
@@ -90,7 +89,7 @@ my_policy = PermissionPolicy((
 ### Rule Matching
 
 Rules can match on:
-1.  **Exact Tool Name:** e.g., `"Shell"`, `"Bash"`, `"Write"`.
+1.  **Exact Tool Name:** e.g., `"Shell"`, `"Read"`, `"Write"`.
 2.  **Capability:** e.g., `Capability.EDIT`.
 3.  **Wildcard:** `"*"` matches everything.
 4.  **Arg Pattern:** An optional glob pattern matched against salient arguments (like `path` or `command`).
@@ -99,7 +98,7 @@ Rules can match on:
 
 ## The Precedence Chain
 
-When pydantic-ai requests a tool call, Zrb resolves the outcome using this priority order (ADR-0060):
+When pydantic-ai requests a tool call, Zrb resolves the outcome using this priority order (ADR-0062):
 
 0.  **Always-Approve:** Tools that *are* the user interaction (e.g. `AskUserQuestion`) are auto-approved unconditionally — gating them behind a prompt is meaningless, since approval would render *before* the question itself. A tool opts in by self-registering via `register_always_auto_approve(...)`, so the guarantee travels with the tool and holds in every path (main agent, sub-agents, web), independent of any policy list below.
 1.  **Tool Policy:** Argument-level rules registered in code (`auto_approve("Read")`, command validators). A match is final.

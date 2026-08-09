@@ -57,8 +57,7 @@ class LLMLimitsMixin:
         ),
     )
 
-    # Reads either alias; setter writes the plural TOKENS_ form (kept for
-    # backward compatibility with previously written env vars).
+    # Reads either alias; setter writes the plural TOKENS_ form.
     LLM_MAX_TOKEN_PER_MINUTE = EnvField(
         int,
         aliases=["LLM_MAX_TOKEN_PER_MINUTE", "LLM_MAX_TOKENS_PER_MINUTE"],

@@ -29,9 +29,8 @@ DEFAULT_THEME = "dark"
 
 _WARNED_UNKNOWN: set[str] = set()
 
-# "dark" reproduces the historical hardcoded defaults exactly, so a default
-# install is visually unchanged. "light" is a dark-on-light variant that avoids
-# pale-on-white foregrounds (no bright yellow, near-white text, etc.).
+# "dark" is what a default install renders. "light" is a dark-on-light variant
+# that avoids pale-on-white foregrounds (no bright yellow, near-white text).
 _DARK: dict[str, str] = {
     # LLM UI (prompt_toolkit style strings)
     "LLM_UI_STYLE_TITLE_BAR": "#ffffff",

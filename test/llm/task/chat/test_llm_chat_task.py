@@ -253,11 +253,11 @@ async def test_llm_chat_task_setters():
 
     task = LLMChatTask(name="setter-task", interactive=False)
 
-    task.add_tool(setter_tool_func)
-    task.add_toolset(setter_toolset_func)
-    task.add_history_processor(MagicMock())
-    task.add_trigger(lambda: None)
-    task.add_custom_command(MagicMock())
+    task.append_tool(setter_tool_func)
+    task.append_toolset(setter_toolset_func)
+    task.append_history_processor(MagicMock())
+    task.append_trigger(lambda: None)
+    task.append_custom_command(MagicMock())
 
     shared_ctx = SharedContext()
     session = Session(shared_ctx, state_logger=MagicMock())

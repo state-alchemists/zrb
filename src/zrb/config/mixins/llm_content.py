@@ -10,7 +10,7 @@ from zrb.config.helper import get_max_token_threshold, limit_token_threshold
 from zrb.util.string.conversion import to_boolean
 
 
-class LLMContentMixin:
+class ConfigLLMContent:
     if TYPE_CHECKING:
         # Attributes supplied by sibling mixins on the composed Config class.
         ENV_PREFIX: str  # FoundationMixin
@@ -121,8 +121,7 @@ class LLMContentMixin:
         default_factory=lambda cfg: cfg.DEFAULT_LLM_HISTORY_BACKUP_RETAIN,
         doc=(
             "Number of timestamped history backups to keep per conversation. "
-            "0 disables backup writes entirely. -1 keeps every backup "
-            "(legacy behavior)."
+            "0 disables backup writes entirely. -1 keeps every backup."
         ),
     )
 

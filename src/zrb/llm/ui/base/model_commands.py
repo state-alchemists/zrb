@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.config.config import llm_config as _llm_config
+from zrb.llm.permission.state import AgentMode, set_current_agent_mode
 from zrb.util.cli.style import stylize_muted
 
 if TYPE_CHECKING:
@@ -31,7 +32,7 @@ if TYPE_CHECKING:
 # mutually exclusive so a single keystroke always lands on a well-defined state.
 # Auto-accept-edits reuses selective yolo over the LLM-visible edit-tool names
 # (`write_file.__name__ == "Write"`, `replace_in_file.__name__ == "Edit"`), so it
-# auto-approves file writes while every other tool still prompts. See ADR-0073.
+# auto-approves file writes while every other tool still prompts. See ADR-0075.
 _AUTO_EDIT_TOOLS = frozenset({"Write", "Edit"})
 _MODE_CYCLE = ("normal", "accept_edits", "plan")
 _MODE_BANNERS = {
@@ -94,13 +95,6 @@ class BaseUIModelCommands:
     def toggle_plan(self):
         """Toggle plan mode on/off and force refresh."""
         self._plan_mode_active = not self._plan_mode_active
-        # lazy: circular — permission.state transitively imports zrb.llm.ui,
-        # so hoisting this to module level re-enters ui mid-load.
-        from zrb.llm.permission.state import (
-            AgentMode,
-            set_current_agent_mode,
-        )
-
         set_current_agent_mode(
             AgentMode.PLAN if self._plan_mode_active else AgentMode.BUILD
         )
@@ -123,7 +117,7 @@ class BaseUIModelCommands:
 
         Returns a cycle member (``normal`` / ``accept_edits`` / ``plan``), or an
         off-cycle label (``yolo`` / ``custom``) when yolo was set outside the
-        Shift+Tab cycle (e.g. ``/yolo`` or ``/yolo Read,Bash`` / Ctrl+Y). Plan
+        Shift+Tab cycle (e.g. ``/yolo`` or ``/yolo Read,Shell`` / Ctrl+Y). Plan
         mode takes precedence so the label never misreports a read-only run.
         """
         if getattr(self, "_plan_mode_active", False):
@@ -149,10 +143,6 @@ class BaseUIModelCommands:
         self._apply_cycle_mode(nxt)
 
     def _apply_cycle_mode(self, name: str) -> None:
-        # lazy: circular — permission.state transitively imports zrb.llm.ui,
-        # so hoisting this to module level re-enters ui mid-load.
-        from zrb.llm.permission.state import AgentMode, set_current_agent_mode
-
         is_plan = name == "plan"
         self._plan_mode_active = is_plan
         set_current_agent_mode(AgentMode.PLAN if is_plan else AgentMode.BUILD)

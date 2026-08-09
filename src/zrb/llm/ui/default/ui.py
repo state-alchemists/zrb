@@ -14,7 +14,6 @@ from zrb.llm.app.redirection import GlobalStreamCapture
 from zrb.llm.app.style import create_style
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
-from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.tool_call import (
     ArgumentFormatter,
     ResponseHandler,
@@ -39,6 +38,8 @@ if TYPE_CHECKING:
     from pydantic_ai import UserContent
     from pydantic_ai.models import Model
     from rich.theme import Theme
+
+    from zrb.llm.task.llm_task import LLMTask
 
 logger = logging.getLogger(__name__)
 

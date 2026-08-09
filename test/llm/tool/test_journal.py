@@ -196,10 +196,9 @@ def test_python_search_swallows_file_open_errors(journal_dir):
 
 # --- Writers -------------------------------------------------------------
 #
-# These replace journal-lint.py. Its four invariants (broken-link,
-# missing-backlink, orphan, missing-index) used to be checked by a script the
-# model had to remember to run; now the writers hold them by construction, so
-# the tests assert the construction rather than a linter's verdict.
+# The four journal invariants (broken-link, missing-backlink, orphan,
+# missing-index) are held by the writers by construction rather than checked
+# after the fact, so these tests assert the construction.
 
 
 @pytest.fixture

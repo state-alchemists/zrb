@@ -10,6 +10,7 @@ This guide is for developers who contribute to or maintain the Zrb project itsel
 
 - [Publishing Zrb](#publishing-zrb)
 - [Changelog](#changelog)
+- [API Reference](#api-reference)
 - [Inspecting Import Performance](#inspecting-import-performance)
 - [Profiling Zrb](#profiling-zrb)
 - [Testing Strategies](#testing-strategies)
@@ -154,6 +155,24 @@ the goal is that the compacted file still conveys what happened across each
 minor without it.
 
 ---
+
+## API Reference
+
+`./zrb-api-doc.sh [outdir]` renders the public API from docstrings into
+`dist/api` (gitignored, default outdir). It reads the annotations that
+`src/zrb/py.typed` makes visible to consumers.
+
+`pdoc` rather than `mkdocstrings`: `docs/` is plain markdown with no
+`mkdocs.yml`, and adopting mkdocs to render one reference is a bigger
+commitment than the reference warrants. The output is deliberately not
+committed — it regenerates from source, so a checked-in copy is only ever a
+stale second answer to the same question.
+
+Two tests keep the input honest, so the generated page has no blanks:
+`test_public_api_docs.py` requires a docstring on every public member of every
+exported class and a documented parameter for every constructor argument a
+class adds; `test_public_api_contract.py` pins the surface itself against
+`public_api_snapshot.json`.
 
 ## Inspecting Import Performance
 

@@ -242,10 +242,9 @@ def _iter_tool_events(
     the ``.parts`` attribute entirely) are silently skipped — this is deliberate:
     the caller expects a best-effort traversal, not an exception.
 
-    Using a single traversal helper eliminates the duplicated for-loop /
-    try-except / isinstance pattern that previously lived in three separate
-    functions (``sanitize_orphaned_tool_calls``, ``get_tool_pairs``,
-    ``validate_tool_pair_integrity``).
+    This is the single traversal helper behind ``sanitize_orphaned_tool_calls``,
+    ``get_tool_pairs`` and ``validate_tool_pair_integrity``, so the for-loop /
+    try-except / isinstance pattern exists once.
     """
     # lazy: heavy third-party
     from pydantic_ai.messages import RetryPromptPart, ToolCallPart, ToolReturnPart

@@ -1,7 +1,6 @@
 import difflib
 import re
 import textwrap
-from typing import Any
 
 from zrb.util.cli.terminal import get_terminal_size
 
@@ -11,7 +10,6 @@ def format_diff(
     new_content: str,
     path: str,
     term_width: int | None = None,
-    ui: Any | None = None,
 ) -> str:
     """
     Returns a markdown-formatted diff string with line numbers.
@@ -24,7 +22,6 @@ def format_diff(
         new_content: New file content
         path: File path (for display purposes)
         term_width: Optional terminal width (if known)
-        ui: Deprecated, kept for backward compatibility — no longer used.
     """
     diff_lines = list(
         difflib.unified_diff(

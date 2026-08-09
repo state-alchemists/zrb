@@ -157,7 +157,7 @@ async def run_agent(
     )
 
     # Set the policy from the explicit arg, else keep whatever a parent run set
-    # (sub-agent inheritance), else None (legacy: nothing constrained).
+    # (sub-agent inheritance), else None (nothing constrained).
     effective_policy = (
         permission_policy
         if permission_policy is not None
@@ -172,8 +172,7 @@ async def run_agent(
 
     # Bind the run-scoped ContextVars through an ExitStack so set/reset stays
     # symmetric and exception-safe: if a later bind raises, the vars already
-    # bound are still reset on close (the old per-token finally reset tokens
-    # that may never have been set).
+    # bound are still reset on close, and no token is reset that was never set.
     stack = ExitStack()
     try:
         _bind_contextvar(stack, current_ui, effective_ui)

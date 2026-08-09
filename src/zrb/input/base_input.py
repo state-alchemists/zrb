@@ -1,7 +1,6 @@
 import html
 from typing import Any
 
-from zrb.attr.type import AnyAttr
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.input.any_input import AnyInput
 from zrb.util.attr import get_attr
@@ -20,7 +19,7 @@ class BaseInput(AnyInput):
         name: str,
         description: str | None = None,
         prompt: str | None = None,
-        default: AnyAttr = "",
+        default: Any = "",
         auto_render: bool = True,
         allow_empty: bool = False,
         allow_positional_parsing: bool = True,

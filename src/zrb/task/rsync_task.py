@@ -1,3 +1,5 @@
+from collections.abc import Sequence
+
 from zrb.attr.type import BoolAttr, IntAttr, StrAttr
 from zrb.context.any_context import AnyContext
 from zrb.context.print_fn import PrintFn
@@ -12,14 +14,18 @@ class RsyncTask(CmdTask):
     def __init__(
         self,
         name: str,
+        *,
         color: int | None = None,
         icon: str | None = None,
         description: str | None = None,
         cli_only: bool = False,
-        input: list[AnyInput | None] | AnyInput | None = None,
-        env: list[AnyEnv | None] | AnyEnv | None = None,
+        input: Sequence[AnyInput | None] | AnyInput | None = None,
+        env: Sequence[AnyEnv | None] | AnyEnv | None = None,
         shell: StrAttr | None = None,
-        auto_render_shell: bool = True,
+        render_shell: bool = True,
+        shell_flag: StrAttr | None = None,
+        render_shell_flag: bool = True,
+        is_interactive: bool = False,
         remote_host: StrAttr | None = None,
         render_remote_host: bool = True,
         remote_port: IntAttr | None = None,
@@ -49,10 +55,15 @@ class RsyncTask(CmdTask):
         execute_condition: BoolAttr = True,
         retries: int = 2,
         retry_period: float = 0,
-        readiness_check: list[AnyTask] | AnyTask | None = None,
-        upstream: list[AnyTask] | AnyTask | None = None,
-        fallback: list[AnyTask] | AnyTask | None = None,
-        successor: list[AnyTask] | AnyTask | None = None,
+        readiness_check: Sequence[AnyTask] | AnyTask | None = None,
+        readiness_check_delay: float = 0.5,
+        readiness_check_period: float = 5,
+        readiness_failure_threshold: int = 1,
+        readiness_timeout: int = 60,
+        monitor_readiness: bool = False,
+        upstream: Sequence[AnyTask] | AnyTask | None = None,
+        fallback: Sequence[AnyTask] | AnyTask | None = None,
+        successor: Sequence[AnyTask] | AnyTask | None = None,
         print_fn: PrintFn | None = None,
     ):
         """Define a task that copies files with `rsync`, locally or over SSH.
@@ -82,10 +93,13 @@ class RsyncTask(CmdTask):
             exclude_from: Path to a file listing rsync exclude patterns, passed
                 through as `--exclude-from`.
             render_exclude_from: Whether to render `exclude_from` as a template.
-            auto_render_shell: Whether to render `shell` as a template.
+            render_shell: Whether to render `shell` as a template.
 
         Every parameter `CmdTask` accepts is also accepted here and behaves
-        identically, except that `cmd` is generated rather than supplied.
+        identically, except for the three that only make sense for a
+        user-supplied command: `cmd` and `render_cmd`, which are generated here
+        from the paths above, and `warn_unrecommended_command`, which screens a
+        command you wrote.
         """
         super().__init__(
             name=name,
@@ -96,7 +110,10 @@ class RsyncTask(CmdTask):
             input=input,
             env=env,
             shell=shell,
-            render_shell=auto_render_shell,
+            render_shell=render_shell,
+            shell_flag=shell_flag,
+            render_shell_flag=render_shell_flag,
+            is_interactive=is_interactive,
             remote_host=remote_host,
             render_remote_host=render_remote_host,
             remote_port=remote_port,
@@ -117,6 +134,11 @@ class RsyncTask(CmdTask):
             retries=retries,
             retry_period=retry_period,
             readiness_check=readiness_check,
+            readiness_check_delay=readiness_check_delay,
+            readiness_check_period=readiness_check_period,
+            readiness_failure_threshold=readiness_failure_threshold,
+            readiness_timeout=readiness_timeout,
+            monitor_readiness=monitor_readiness,
             upstream=upstream,
             fallback=fallback,
             successor=successor,

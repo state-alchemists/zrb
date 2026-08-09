@@ -22,16 +22,16 @@ class RecordingHost:
         self.toolset_factories: list = []
         self.policies: list = []
 
-    def add_tool(self, *tool):
+    def append_tool(self, *tool):
         self.tools.extend(tool)
 
-    def add_tool_factory(self, *factory):
+    def append_tool_factory(self, *factory):
         self.tool_factories.extend(factory)
 
-    def add_toolset_factory(self, *factory):
+    def append_toolset_factory(self, *factory):
         self.toolset_factories.extend(factory)
 
-    def add_tool_policy(self, *policy):
+    def prepend_tool_policy(self, *policy):
         self.policies.extend(policy)
 
     def resolved_tools(self) -> list:
@@ -100,7 +100,7 @@ def test_hosts_without_an_approval_channel_are_skipped(monkeypatch):
     assert {"Read", "Write", "Grep"} <= host.resolved_tool_names()
 
 
-# ── Preset tool surface (ADR-0075) ──────────────────────────────────────
+# ── Preset tool surface (ADR-0049) ──────────────────────────────────────
 
 
 def _minimal_names(monkeypatch) -> set[str]:
