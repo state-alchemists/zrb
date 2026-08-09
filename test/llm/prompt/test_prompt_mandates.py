@@ -73,16 +73,15 @@ def test_get_prompt_workflow_with_local_override():
 # ── Profile variants (ADR-0049) ──────────────────────────────────────────
 
 
-def test_get_prompt_lean_profile_uses_variant_when_present():
-    """profile='lean' resolves examples.lean.md, not the base file."""
-    base = get_prompt("examples")
-    explicit = get_prompt("examples", profile="lean")
+def test_get_prompt_minimal_profile_uses_variant_when_present():
+    """profile='minimal' resolves persona.minimal.md, not the base file."""
+    base = get_prompt("persona", ASSISTANT_NAME="Zrb")
+    explicit = get_prompt("persona", profile="minimal", ASSISTANT_NAME="Zrb")
     assert explicit != base
-    assert "<example>" in explicit
 
 
-def test_get_prompt_lean_profile_falls_back_when_no_variant():
-    """A section with no .lean.md transparently resolves to its base file.
+def test_get_prompt_profile_falls_back_when_no_variant():
+    """A section with no variant file transparently resolves to its base.
 
     Exercised on a non-section prompt file. Every *section* now ships a variant
     per preset — that is the point of the burden ladder in
@@ -90,7 +89,7 @@ def test_get_prompt_lean_profile_falls_back_when_no_variant():
     the fallback without first regressing the thing the ladder pins.
     """
     base = get_prompt("web_summarizer")
-    explicit = get_prompt("web_summarizer", profile="lean")
+    explicit = get_prompt("web_summarizer", profile="minimal")
     assert explicit == base
 
 
@@ -109,21 +108,19 @@ def test_get_prompt_profile_falls_back_to_base_when_no_variant():
     on one would pin the absence of a variant somebody still has to write.
     """
     base = get_prompt("repo_summarizer")
-    for profile in ("lean", "minimal"):
-        assert get_prompt("repo_summarizer", profile=profile) == base, profile
+    assert get_prompt("repo_summarizer", profile="minimal") == base
 
 
-def test_get_prompt_examples_ships_in_both_profiles():
-    """Examples reach every model, and `lean` gets proportionally more of them.
+def test_get_prompt_examples_ships_demonstrations():
+    """`examples` is one file with no variant, and it carries worked examples.
 
-    More demonstrations, not more total prompt: `lean`'s extra examples are paid
-    for out of its own lighter rulebook, which
-    ``test_a_weaker_targets_preset_ships_less_prompt_in_total`` enforces.
+    `minimal` drops the section rather than re-wording it, carrying its own
+    demonstrations inline in `workflow.minimal.md`, so there is no second file
+    here to keep in step.
     """
     base = get_prompt("examples")
-    lean = get_prompt("examples", profile="lean")
     assert "<example>" in base
-    assert lean.count("<example>") > base.count("<example>")
+    assert get_prompt("examples", profile="minimal") == base
 
 
 def test_get_prompt_variant_respects_local_override():
@@ -131,7 +128,7 @@ def test_get_prompt_variant_respects_local_override():
     with tempfile.TemporaryDirectory() as temp_dir:
         local_prompt_dir = os.path.join(temp_dir, ".zrb/llm/prompt")
         os.makedirs(local_prompt_dir, exist_ok=True)
-        with open(os.path.join(local_prompt_dir, "persona.lean.md"), "w") as f:
+        with open(os.path.join(local_prompt_dir, "persona.minimal.md"), "w") as f:
             f.write("# Custom Explicit Persona Override")
 
         env_vars = {
@@ -142,7 +139,7 @@ def test_get_prompt_variant_respects_local_override():
             original_cwd = os.getcwd()
             os.chdir(temp_dir)
             try:
-                prompt = get_prompt("persona", profile="lean")
+                prompt = get_prompt("persona", profile="minimal")
                 assert "Custom Explicit Persona Override" in prompt
             finally:
                 os.chdir(original_cwd)

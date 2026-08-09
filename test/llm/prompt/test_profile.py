@@ -500,7 +500,7 @@ def test_profile_and_capability_registries_key_on_different_things():
     # The profile side needs the prefix: it is what distinguishes a 3.8B local
     # model from a hosted entry tier that merely shares the label.
     assert builtin_profile("ollama:phi4-mini") == MINIMAL_PROFILE
-    assert builtin_profile("phi4-mini") == MINIMAL_PROFILE
+    assert builtin_profile("phi4-mini") is None
     # ...and the tier suffix, which is what keeps hosted frontier models out.
     assert builtin_profile("ollama:kimi-k2.6:cloud") is None
 

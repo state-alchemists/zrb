@@ -1,8 +1,8 @@
 """Measure what the ADRs assert: prompt and tool-schema weight per preset.
 
 Every prompt/tool size quoted in AGENTS.md and the ADRs was hand-derived once
-and has drifted apart since (ADR-0049 says LEAN_DROPS is 694 tokens, profile.py
-says ~920). This prints the numbers instead, so they can be regenerated.
+and drifted apart from the code it described. This prints the numbers instead,
+so they can be regenerated rather than transcribed.
 
 Two prompt figures are reported per preset, and they are not interchangeable:
 

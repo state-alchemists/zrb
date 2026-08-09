@@ -73,6 +73,7 @@ def _subsets():
         yield from itertools.combinations(FILE_SECTIONS, size)
 
 
+@pytest.mark.parametrize("profile", [None, "minimal"])
 def test_no_subset_references_an_absent_section(profile):
     offenders = []
     for combo in _subsets():
@@ -110,6 +111,7 @@ def test_every_owned_term_still_exists_in_its_owner():
     assert missing == []
 
 
+@pytest.mark.parametrize("profile", [None, "minimal"])
 def test_markers_never_reach_the_model(profile):
     for combo in _subsets():
         text = _compose(set(combo), profile=profile)
@@ -196,6 +198,7 @@ def test_premise_check_is_first_and_unconditional():
     assert any("**Activate skills**" in step for step in steps[1:])
 
 
+@pytest.mark.parametrize("profile", [None, "minimal"])
 def test_no_numbered_list_gaps_in_any_subset(profile):
     """A conditional item must not leave a hole like `1. 2. 4.` behind.
 

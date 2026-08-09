@@ -254,33 +254,33 @@ def test_sub_agent_manager_add_toolset_factory():
 
 
 def test_sub_agent_definition_defaults_inherit_sections_none():
-    """SubAgentDefinition without inherit_sections preserves lean prompt
+    """SubAgentDefinition without inherit_sections preserves a bare prompt
     composition (no parent persona/mandate injected)."""
     agent_def = SubAgentDefinition(
-        name="lean",
+        name="bare",
         path=".",
         description="d",
-        system_prompt="You are a lean agent.",
+        system_prompt="You are a bare agent.",
     )
     assert agent_def.inherit_sections is None
 
 
-def test_sub_agent_manager_lean_agent_skips_inheritance():
+def test_sub_agent_manager_bare_agent_skips_inheritance():
     """Agents with inherit_sections=None get only body + own guidance —
     no # Identity / # Operating Rules from the main agent."""
     manager = SubAgentManager()
     agent_def = SubAgentDefinition(
-        name="lean",
+        name="bare",
         path=".",
         description="d",
-        system_prompt="You are a lean agent. Do X.",
+        system_prompt="You are a bare agent. Do X.",
     )
     manager.add_agent(agent_def)
 
     with patch("zrb.llm.agent.subagent.manager.create_agent") as mock_create:
-        manager.create_agent("lean")
+        manager.create_agent("bare")
         prompt = mock_create.call_args.kwargs["system_prompt"]
-    assert "You are a lean agent. Do X." in prompt
+    assert "You are a bare agent. Do X." in prompt
     assert "# Identity" not in prompt
     assert "# Operating Rules" not in prompt
 

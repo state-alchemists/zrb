@@ -15,7 +15,7 @@ def get_prompt(name: str, profile: str | None = None, **extra_replacements: str)
 
         prompt = get_prompt("workflow")
         prompt = get_prompt("persona", ASSISTANT_NAME="Zrb")
-        prompt = get_prompt("persona", profile="lean")
+        prompt = get_prompt("persona", profile="minimal")
 
     Standard replacements (journal dir, root group name, etc.) are
     always applied automatically.  Pass extra keyword arguments for

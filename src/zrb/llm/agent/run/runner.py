@@ -730,8 +730,8 @@ def _request_limit() -> int | None:
 
     A run with no cap has no way to stop a model that has stopped converging.
     The prompt used to ask for this in prose — change approach by the third
-    attempt — and no preset followed it (``full`` 0/7, ``lean`` 1/7, ``minimal``
-    2/7 on an unfixable build), so the words are gone and the bound is the whole
+    attempt — and no preset followed it (``full`` 0/7, ``minimal`` 2/7 on an
+    unfixable build), so the words are gone and the bound is the whole
     of it now (ADR-0077). A weak model will otherwise re-edit the same file from
     memory until the wall clock runs out; 343 tool calls, 267 of them edits, was
     the worst observed.

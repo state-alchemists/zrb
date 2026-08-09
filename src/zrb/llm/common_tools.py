@@ -103,8 +103,8 @@ class _Surface(NamedTuple):
     ``undefer`` rides along because deferral only pays above a certain surface
     size: it swaps a tool's schema for a ``search_tools`` entry the model must
     call first. ``minimal`` keeps ten tools and would spend more on the
-    indirection than it hides, so it takes the schemas (ADR-0049). ``lean`` keeps
-    thirty-three (17 eager plus 16 deferred) — there the indirection is the whole
+    indirection than it hides, so it takes the schemas (ADR-0049). ``full`` keeps
+    thirty-six (20 eager plus 16 deferred) — there the indirection is the whole
     saving, so its deferred tools stay deferred. Hence the key is "does the
     preset close the surface"
     (``Preset.tools is not None``), not "does it constrain the axis at all".
@@ -118,8 +118,9 @@ def _preset_tool_filter() -> "_Surface | None":
     """Predicate keeping only the tools the active preset registers, or ``None``.
 
     ``None`` means "this preset does not constrain the tool axis" — only ``full``
-    now (ADR-0049). ``minimal`` constrains it with an allowlist and ``lean`` with
-    a denylist; ``Preset.admits`` resolves either, so this stays one predicate.
+    (ADR-0049). ``minimal`` constrains it with an allowlist, and a user-defined
+    preset may use a denylist; ``Preset.admits`` resolves either, so this stays
+    one predicate.
     Resolved against ``CFG.LLM_MODEL`` because registration happens before any
     host model is known, so a task whose per-task model override differs from
     ``CFG.LLM_MODEL`` keeps the full surface; setting ``ZRB_LLM_PROFILE``

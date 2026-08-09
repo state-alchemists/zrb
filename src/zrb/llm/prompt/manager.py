@@ -202,7 +202,7 @@ class PromptManager:
         1. the instance ``include_sections`` override,
         2. an explicitly-set ``LLM_INCLUDE_SECTIONS`` env var,
         3. the active preset's section list, when it constrains that axis
-           (only ``minimal`` does — ``full`` and ``lean`` reshape their prose
+           (only ``minimal`` does — ``full`` composes the default list
            through the variant axis and keep every section — ADR-0049),
         4. ``CFG.LLM_INCLUDE_SECTIONS``.
 
@@ -446,7 +446,7 @@ class PromptManager:
 
         # The preset's phrasing axis (ADR-0049): file-backed sections resolve
         # ``{name}.{variant}.md`` with fallback to the base (ADR-0049), which is
-        # how ``lean`` and ``minimal`` get their lighter rulebooks. ``full``
+        # how ``minimal`` gets its lighter rulebook. ``full``
         # carries no variant, so every section takes the base file.
         variant = self.active_preset.variant
 

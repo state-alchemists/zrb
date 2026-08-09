@@ -343,22 +343,8 @@ def test_live_context_journal_index_follows_the_journal_flag():
     assert "My Journal Hub" not in rendered
 
 
-def test_compose_lean_register_uses_variant():
-    """ZRB_LLM_PROFILE=lean selects the .lean variant where one exists."""
-    manager = PromptManager(include_sections=["examples"])
-    manager.model = "anthropic:claude-opus-4-8"
-    with patch.dict(os.environ, {"ZRB_LLM_PROFILE": "lean"}):
-        prompt = manager.compose_prompt()(SharedContext())
-    assert (
-        filter_requires(
-            get_prompt("examples", profile="lean"), set(manager.active_sections)
-        )
-        in prompt
-    )
-
-
-def test_compose_lean_resolves_the_lean_variant():
-    """`lean` composes persona.lean.md, not the base file.
+def test_compose_minimal_resolves_the_minimal_variant():
+    """`minimal` composes persona.minimal.md, not the base file.
 
     Was `..._falls_back_to_base_when_no_variant`, asserting the opposite —
     `persona` had no variant, so it demonstrated the fallback. That absence was
@@ -369,10 +355,10 @@ def test_compose_lean_resolves_the_lean_variant():
     """
     manager = PromptManager(include_sections=["persona"])
     manager.model = "anthropic:claude-opus-4-8"
-    with patch.dict(os.environ, {"ZRB_LLM_PROFILE": "lean"}):
+    with patch.dict(os.environ, {"ZRB_LLM_PROFILE": "minimal"}):
         prompt = manager.compose_prompt()(SharedContext())
     # The variant file, minus the blocks referencing sections this config omits.
-    variant = get_prompt("persona", profile="lean", ASSISTANT_NAME="Zrb")
+    variant = get_prompt("persona", profile="minimal", ASSISTANT_NAME="Zrb")
     assert filter_requires(variant, {"persona"}) in prompt
     assert get_prompt("persona", ASSISTANT_NAME="Zrb") not in prompt
 
@@ -386,20 +372,6 @@ def test_compose_drops_a_block_referencing_an_omitted_section():
     assert "Documentation Files Found" not in without.compose_prompt()(ctx)
 
 
-def test_compose_lean_includes_examples_section_when_listed():
-    """When examples is in include_sections, `lean` resolves examples.lean.md."""
-    manager = PromptManager(include_sections=["persona", "examples"])
-    manager.model = "anthropic:claude-opus-4-8"
-    with patch.dict(os.environ, {"ZRB_LLM_PROFILE": "lean"}):
-        prompt = manager.compose_prompt()(SharedContext())
-    assert (
-        filter_requires(
-            get_prompt("examples", profile="lean"), set(manager.active_sections)
-        )
-        in prompt
-    )
-
-
 def test_compose_auto_uses_the_full_base_for_a_model_declaring_no_small_size():
     """A family name is never read as weakness — only a stated size is (ADR-0049)."""
     manager = PromptManager(include_sections=["persona", "examples"])
@@ -411,26 +383,6 @@ def test_compose_auto_uses_the_full_base_for_a_model_declaring_no_small_size():
     assert (
         filter_requires(get_prompt("examples"), set(manager.active_sections)) in prompt
     )
-    assert (
-        filter_requires(
-            get_prompt("examples", profile="lean"), set(manager.active_sections)
-        )
-        not in prompt
-    )
-
-
-def test_compose_auto_selects_lean_from_a_declared_small_size():
-    """A parameter count in the id ships the worked examples without any config."""
-    manager = PromptManager(include_sections=["persona", "examples"])
-    manager.model = "ollama:qwen2.5-7b"
-    with patch.dict(os.environ, {"ZRB_LLM_PROFILE": "auto"}):
-        prompt = manager.compose_prompt()(SharedContext())
-    assert (
-        filter_requires(
-            get_prompt("examples", profile="lean"), set(manager.active_sections)
-        )
-        in prompt
-    )
 
 
 def test_compose_auto_honors_declared_model_profile():
@@ -439,18 +391,18 @@ def test_compose_auto_honors_declared_model_profile():
 
     manager = PromptManager(include_sections=["persona", "examples"])
     manager.model = "ollama:my-small-3b"
-    register_model_profile("my-small-3b", "lean")
+    register_model_profile("my-small-3b", "minimal")
     try:
         with patch.dict(os.environ, {"ZRB_LLM_PROFILE": "auto"}):
             prompt = manager.compose_prompt()(SharedContext())
     finally:
         model_profile_registry.clear()
-    assert (
-        filter_requires(
-            get_prompt("examples", profile="lean"), set(manager.active_sections)
-        )
-        in prompt
-    )
+    # Observed on the phrasing axis, not the section axis: an explicit
+    # `include_sections` outranks the preset's section list
+    # (``test_an_env_section_list_outranks_the_preset``), so the declaration
+    # shows up as `persona` resolving to its variant.
+    variant = get_prompt("persona", profile="minimal", ASSISTANT_NAME="Zrb")
+    assert filter_requires(variant, set(manager.active_sections)) in prompt
 
 
 def test_minimal_supplies_the_section_list_it_binds(monkeypatch):
@@ -460,7 +412,7 @@ def test_minimal_supplies_the_section_list_it_binds(monkeypatch):
     manager = PromptManager()
     monkeypatch.setenv("ZRB_LLM_PROFILE", "minimal")
     assert manager.active_sections == list(MINIMAL_SECTIONS)
-    monkeypatch.setenv("ZRB_LLM_PROFILE", "lean")
+    monkeypatch.setenv("ZRB_LLM_PROFILE", "full")
     assert manager.active_sections == list(CFG.LLM_INCLUDE_SECTIONS)
 
 

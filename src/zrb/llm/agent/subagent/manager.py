@@ -280,7 +280,7 @@ class SubAgentManager(SubAgentManagerLoading, SubAgentManagerSearch):
         # the main-agent PromptManager composition. Sub-agents that need the
         # parent's identity / operating rules / project context declare
         # ``inherit_sections`` in their frontmatter; an agent that omits it
-        # (``inherit_sections = None``) stays lean.
+        # (``inherit_sections = None``) stays bare.
         inherited_prompt = self._build_inherited_prompt(
             ctx, definition.inherit_sections, final_model
         )
@@ -313,7 +313,7 @@ class SubAgentManager(SubAgentManagerLoading, SubAgentManagerSearch):
     ) -> str:
         """Compose the named PromptManager sections for sub-agent inheritance.
 
-        ``None`` → return ``""`` (lean sub-agent). ``[]`` → return
+        ``None`` → return ``""`` (bare sub-agent). ``[]`` → return
         ``""`` (explicit opt-out). A non-empty list builds a temporary
         PromptManager scoped to just those sections.
 
