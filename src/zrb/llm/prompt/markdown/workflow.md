@@ -134,7 +134,7 @@ Code adds four. Tests, linter, and type-checker pass. Every import is used and e
 Two checks no run can make for you:
 
 - **Removal needs a grep.** When asked to remove, replace, or stop using something, `Grep` the changed files for the literal and require zero hits. A secret left as the default in `getenv("KEY", "hunter2")` is still the thing you were asked to delete.
-- **Run it twice.** A second run in a fresh process separates working from working-once; a lock bound to a dead event loop, a cache, a temp file, or an import-time global passes every single-run check. Where the task is "make it run", the second run is part of the deliverable.
+- **Cold start, not warm one.** Caches, temp files, and import-time globals let working-once code pass a single run. Where the deliverable is runnable, confirm it runs from a clean start — the user's run is cold, not your warmed-up session.
 
 Research, design, and writing add three. Sources are recent and authoritative. Alternatives are named. And **a requested structure is a contract**: named sections, headings, order, and closing elements all appear, verified against the file. The output stands alone without your context.
 
