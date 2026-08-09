@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from typing import Any
 
 from zrb.config.config import CFG
-
 from zrb.llm.agent.activity import HasActivityTracking, agent_activity_registry
 from zrb.llm.agent.run.runner import run_agent
 from zrb.llm.agent.run.runtime_state import get_current_hook_manager, get_current_ui
@@ -42,8 +41,6 @@ class AgentTaskResult:
     @property
     def success(self) -> bool:
         return self.error is None or self.error == ""
-
-
 
 
 def _format_envelope(

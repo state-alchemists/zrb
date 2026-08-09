@@ -1,6 +1,5 @@
-from collections.abc import Sequence
-
 import os
+from collections.abc import Sequence
 from functools import partial
 
 from zrb.attr.type import BoolAttr, IntAttr, StrAttr

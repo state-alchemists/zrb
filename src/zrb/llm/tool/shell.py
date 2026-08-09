@@ -254,8 +254,6 @@ async def _start_process(argv: list[str], cwd: str) -> asyncio.subprocess.Proces
     )
 
 
-
-
 async def _read_stream(stream: asyncio.StreamReader, capture: StreamCapture):
     """Reads from a stream line by line, echoing to console and capturing."""
     if not stream:

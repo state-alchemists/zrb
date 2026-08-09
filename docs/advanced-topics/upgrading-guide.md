@@ -22,8 +22,8 @@ means you are done. Env vars and prompt files are unaffected.
 
 ### `add_X` on ordered collections is `append_X` or `prepend_X`
 
-The 21 one-line aliases are gone. `add_` had stopped meaning one thing — it
-forwarded to `append_` fifteen times and to `prepend_` three times — so the name
+The 22 one-line aliases are gone. `add_` had stopped meaning one thing — it
+forwarded to `append_` nineteen times and to `prepend_` three times — so the name
 no longer told you where your handler landed. Position is now in the name.
 
 | Before | After |

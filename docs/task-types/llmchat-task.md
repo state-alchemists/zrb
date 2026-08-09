@@ -131,7 +131,6 @@ chat.append_ui_factory(lambda: OtherUI())
 
 ```python
 chat.append_tool(my_tool)
-chat.append_tool(my_tool)
 chat.append_tool_factory(lambda ctx: create_tool())
 chat.append_toolset(my_toolset)
 chat.append_toolset_factory(lambda ctx: create_toolset())
@@ -166,7 +165,6 @@ chat.prompt_manager.register_section(
 
 ```python
 chat.append_history_processor(my_processor)
-chat.append_history_processor(my_processor)
 ```
 
 ### Hook Factories
@@ -195,8 +193,6 @@ See [Permission Policy](../advanced-topics/permission-policy.md) and
 
 ```python
 chat.append_trigger(my_async_iterator)
-chat.append_trigger(my_async_iterator)
-chat.append_custom_command(my_command)
 chat.append_custom_command(my_command)
 ```
 

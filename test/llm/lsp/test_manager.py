@@ -1,7 +1,6 @@
 """Tests for LSP manager functionality."""
 
 import asyncio
-import signal
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -196,25 +195,25 @@ class TestLspManagerLifecycle:
 
     @pytest.mark.asyncio
     async def test_force_kill_all_empty_is_noop(self, manager):
-        with patch("zrb.llm.lsp.manager_lifecycle.os.kill") as mock_kill:
+        with patch("zrb.llm.lsp.manager_lifecycle.kill_pid") as mock_kill:
             manager.force_kill_all()
             mock_kill.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_force_kill_all_sigkills_running_server(self, manager):
         await self._seed_server(manager, pid=4321, returncode=None)
-        with patch("zrb.llm.lsp.manager_lifecycle.os.kill") as mock_kill:
+        with patch("zrb.llm.lsp.manager_lifecycle.kill_pid") as mock_kill:
             manager.force_kill_all()
-            mock_kill.assert_called_once_with(4321, signal.SIGKILL)
+            mock_kill.assert_called_once_with(4321, print_method=CFG.LOGGER.debug)
         # Servers are forgotten, so a second pass (e.g. atexit) does nothing.
-        with patch("zrb.llm.lsp.manager_lifecycle.os.kill") as mock_kill2:
+        with patch("zrb.llm.lsp.manager_lifecycle.kill_pid") as mock_kill2:
             manager.force_kill_all()
             mock_kill2.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_force_kill_all_skips_already_exited_server(self, manager):
         await self._seed_server(manager, pid=4321, returncode=0)
-        with patch("zrb.llm.lsp.manager_lifecycle.os.kill") as mock_kill:
+        with patch("zrb.llm.lsp.manager_lifecycle.kill_pid") as mock_kill:
             manager.force_kill_all()
             mock_kill.assert_not_called()
 
@@ -222,7 +221,7 @@ class TestLspManagerLifecycle:
     async def test_force_kill_all_swallows_kill_errors(self, manager):
         await self._seed_server(manager, pid=99, returncode=None)
         with patch(
-            "zrb.llm.lsp.manager_lifecycle.os.kill",
+            "zrb.llm.lsp.manager_lifecycle.kill_pid",
             side_effect=ProcessLookupError,
         ):
             # Must not raise — it is an atexit handler.

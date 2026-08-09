@@ -549,7 +549,7 @@ response_transformer = ResponseTransformerHook(max_length=1000)
 def register_hooks(manager):
     """Register all hooks with the manager.
 
-    Called automatically by add_hook_factory().
+    Called automatically by append_hook_factory().
     """
     # Session tracker — observe multiple events
     manager.register(
@@ -613,7 +613,7 @@ def register_hooks(manager):
 
 
 # Register hooks with llm_chat task
-llm_chat.add_hook_factory(register_hooks)
+llm_chat.append_hook_factory(register_hooks)
 
 
 # =============================================================================

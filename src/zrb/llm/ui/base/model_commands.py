@@ -14,8 +14,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
-from zrb.llm.permission.state import AgentMode, set_current_agent_mode
 from zrb.llm.config.config import llm_config as _llm_config
+from zrb.llm.permission.state import AgentMode, set_current_agent_mode
 from zrb.util.cli.style import stylize_muted
 
 if TYPE_CHECKING:

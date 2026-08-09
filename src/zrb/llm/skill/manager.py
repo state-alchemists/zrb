@@ -3,7 +3,6 @@ import uuid
 from collections.abc import Callable
 from pathlib import Path
 
-
 from zrb.config.config import CFG
 from zrb.llm.hook.manager import hook_manager
 from zrb.llm.skill.util import discover_companion_files
@@ -422,9 +421,7 @@ class SkillManager:
                         elif isinstance(hooks_data, list):
                             # Zrb flat format
                             for hook_item in hooks_data:
-                                hook_manager.parse_and_register(
-                                    hook_item, full_path
-                                )
+                                hook_manager.parse_and_register(hook_item, full_path)
 
                 except Exception:
                     CFG.LOGGER.warning(

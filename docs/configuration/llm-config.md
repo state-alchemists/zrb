@@ -289,9 +289,10 @@ compose, how they are phrased, and which tools register (ADR-0049).
   cross-session memory is never needed to finish a turn. Set
   `ZRB_LLM_PROFILE=full` if you want it back on a 7B.
 - **`minimal`** — for very small models (~3B), where the *budget* is the binding
-  constraint rather than the register. Composes to roughly 3,400 tokens of
-  preamble against ~8,400. A `minimal` session has **no** skills, sub-agents,
-  web access, todo list, journal, plan mode, MCP tools or project-doc reading —
+  constraint rather than the register. Composes to roughly 1,250 tokens of
+  preamble against ~4,600 for `full`. A `minimal` session has **no** skills,
+  sub-agents, web access, todo list, journal, plan mode, MCP tools or
+  project-doc reading —
   it is a single-tool-call-per-turn assistant, not an agentic coder. Use it when
   a small local model must drive the main loop; for a small model *assisting* a
   larger one, `ZRB_LLM_SMALL_MODEL` is the better slot.

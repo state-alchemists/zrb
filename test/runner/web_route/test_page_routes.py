@@ -41,7 +41,6 @@ def auth_config():
     return cfg
 
 
-
 @pytest.mark.parametrize("path", ["/", "/ui", "/ui/"])
 def test_home_page_renders_on_every_alias(path, rendered, auth_config):
     """All three aliases are declared on one handler; a decorator dropped in a
@@ -52,12 +51,12 @@ def test_home_page_renders_on_every_alias(path, rendered, auth_config):
     root_group.name = "zrb"
     root_group.description = "automation"
 
-    with patch(f"{module}.get_jinja_env", return_value=rendered), patch(
-        f"{module}.get_user_from_request", return_value=None
-    ), patch(f"{module}.get_html_subgroup_info", return_value=""), patch(
-        f"{module}.get_html_subtask_info", return_value=""
-    ), patch(
-        f"{module}.get_html_auth_link", return_value=""
+    with (
+        patch(f"{module}.get_jinja_env", return_value=rendered),
+        patch(f"{module}.get_user_from_request", return_value=None),
+        patch(f"{module}.get_html_subgroup_info", return_value=""),
+        patch(f"{module}.get_html_subtask_info", return_value=""),
+        patch(f"{module}.get_html_auth_link", return_value=""),
     ):
         serve_home_page(app, root_group, auth_config)
         response = TestClient(app).get(path)
@@ -72,9 +71,11 @@ def test_chat_page_renders_on_every_alias(path, rendered, auth_config):
     app = FastAPI()
     root_group = MagicMock()
 
-    with patch(f"{module}.get_jinja_env", return_value=rendered), patch(
-        f"{module}.get_user_from_request", return_value=None
-    ), patch(f"{module}.get_html_auth_link", return_value=""):
+    with (
+        patch(f"{module}.get_jinja_env", return_value=rendered),
+        patch(f"{module}.get_user_from_request", return_value=None),
+        patch(f"{module}.get_html_auth_link", return_value=""),
+    ):
         serve_chat_page(app, root_group, auth_config)
         response = TestClient(app).get(path)
 
@@ -99,9 +100,13 @@ def test_404_serves_a_page_for_the_ui_and_json_for_the_api(
     module = "zrb.runner.web_route.error_page.serve_default_404"
     app = FastAPI()
 
-    with patch(f"{module}.get_user_from_request", return_value=None), patch(
-        f"{module}.show_error_page", return_value=HTMLResponse("<html>404</html>", 404)
-    ) as show_page:
+    with (
+        patch(f"{module}.get_user_from_request", return_value=None),
+        patch(
+            f"{module}.show_error_page",
+            return_value=HTMLResponse("<html>404</html>", 404),
+        ) as show_page,
+    ):
         serve_default_404(app, MagicMock(), auth_config)
         response = TestClient(app).get(path)
 

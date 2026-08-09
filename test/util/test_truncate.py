@@ -86,7 +86,6 @@ def test_truncate_chars_truncates():
     assert "TRUNCATED" in out
 
 
-
 def test_the_live_stream_and_the_exported_transcript_agree():
     """One tool call must render the same in both views.
 

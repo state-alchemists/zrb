@@ -12,10 +12,9 @@ import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar
 
-
 from zrb.config.config import CFG
-from zrb.util.frontmatter import parse_frontmatter
 from zrb.util.asset_scanner import scan_files
+from zrb.util.frontmatter import parse_frontmatter
 from zrb.util.load import load_module_from_path
 
 if TYPE_CHECKING:

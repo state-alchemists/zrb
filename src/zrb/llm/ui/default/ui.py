@@ -30,7 +30,6 @@ from zrb.util.cli.help_panel import render_help_panel
 from zrb.util.cli.terminal import get_terminal_size
 
 if TYPE_CHECKING:
-    from zrb.llm.task.llm_task import LLMTask
     from prompt_toolkit import Application
     from prompt_toolkit.key_binding import KeyBindings
     from prompt_toolkit.layout import Layout
@@ -39,6 +38,8 @@ if TYPE_CHECKING:
     from pydantic_ai import UserContent
     from pydantic_ai.models import Model
     from rich.theme import Theme
+
+    from zrb.llm.task.llm_task import LLMTask
 
 logger = logging.getLogger(__name__)
 

@@ -525,4 +525,3 @@ class BaseTask(AnyTask):
                 )
             )
         return inspect.Signature(params)
-

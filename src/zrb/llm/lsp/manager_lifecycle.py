@@ -8,8 +8,6 @@ methods that read/mutate them.
 from __future__ import annotations
 
 import asyncio
-import os
-import signal
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -19,6 +17,7 @@ from zrb.llm.lsp.server import (
     detect_available_lsp_servers,
     get_lsp_config_for_file,
 )
+from zrb.util.cmd.command import kill_pid
 
 # Bound on the per-file project-root cache. The cache only saves a directory
 # walk, so a plain size cap (drop oldest insertion) is enough — precision
@@ -160,7 +159,10 @@ class LSPManagerLifecycle:
             if process is None or process.returncode is not None:
                 continue
             try:
-                os.kill(process.pid, signal.SIGKILL)
-            except (ProcessLookupError, PermissionError, OSError):
+                # os.kill(pid, SIGKILL) raises ValueError on Windows — only a
+                # handful of signals are valid there. kill_pid is psutil-based,
+                # a SIGKILL-equivalent on both platforms.
+                kill_pid(process.pid, print_method=CFG.LOGGER.debug)
+            except Exception:  # noqa: BLE001 - atexit backstop, must never raise
                 pass
         self._servers.clear()

@@ -13,12 +13,12 @@ import re
 from typing import TYPE_CHECKING, TextIO, cast
 
 from zrb.config.config import CFG
-from zrb.util.truncate import truncate_display
 from zrb.llm.agent.activity import agent_activity_registry
 from zrb.util.cli.help_panel import render_help_panel
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import stylize_muted
 from zrb.util.cli.terminal import get_terminal_size
+from zrb.util.truncate import truncate_display
 
 if TYPE_CHECKING:
     from collections.abc import Callable

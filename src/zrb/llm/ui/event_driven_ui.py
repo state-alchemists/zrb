@@ -10,8 +10,9 @@ from zrb.llm.ui.simple_ui_base import SimpleUI
 from zrb.llm.ui.ui_config import UIConfig
 
 if TYPE_CHECKING:
-    from zrb.llm.task.llm_task import LLMTask
     from pydantic_ai import UserContent
+
+    from zrb.llm.task.llm_task import LLMTask
 
 
 class EventDrivenUI(SimpleUI):

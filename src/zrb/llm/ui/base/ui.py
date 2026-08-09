@@ -15,8 +15,8 @@ For how slash commands are dispatched, see `commands.py`. For how a
 single chat turn flows from CLI down through this class, see
 docs/advanced-topics/llm-chat-lifecycle.md.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import asyncio
 import inspect
@@ -27,11 +27,6 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, TextIO, cast
 
 from zrb.config.config import CFG
-from zrb.llm.permission.state import (
-    AgentMode,
-    get_current_agent_mode,
-    set_current_agent_mode,
-)
 from zrb.context.any_context import AnyContext
 from zrb.context.shared_context import SharedContext
 from zrb.llm.agent.run.runtime_state import get_current_ui
@@ -39,6 +34,11 @@ from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.hook.manager import hook_manager
 from zrb.llm.hook.types import HookEvent
+from zrb.llm.permission.state import (
+    AgentMode,
+    get_current_agent_mode,
+    set_current_agent_mode,
+)
 from zrb.llm.snapshot.manager import SnapshotManager
 from zrb.llm.tool_call import (
     ArgumentFormatter,
@@ -61,12 +61,12 @@ from zrb.util.string.name import get_random_name
 from zrb.xcom.xcom import Xcom
 
 if TYPE_CHECKING:
-    from zrb.llm.task.llm_task import LLMTask
     from pydantic_ai import ToolApproved, ToolCallPart, ToolDenied, UserContent
     from pydantic_ai.models import Model
     from pydantic_ai.usage import RequestUsage, RunUsage
     from rich.theme import Theme
 
+    from zrb.llm.task.llm_task import LLMTask
     from zrb.llm.tool_call.ui_protocol import ChoiceSpec
 
 logger = logging.getLogger(__name__)
