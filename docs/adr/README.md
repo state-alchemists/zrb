@@ -2,42 +2,26 @@
 
 # Architecture Decision Records
 
-This directory records **why** zrb is built the way it is. Every record
-describes a decision **that is currently in force**, with the alternatives that
-were rejected and why.
+This directory records **why** zrb is built the way it is. Every record describes a decision **that is currently in force**, with the alternatives that were rejected and why.
 
 ## How to read an entry
 
 Every ADR has the same shape:
 
 - **Status** — normally `Accepted`.
-- **Context** — the forces and the problem. Where a decision replaced an
-  earlier attempt, the attempt and the evidence against it are part of the
-  context, because that is what makes the decision legible.
+- **Context** — the forces and the problem. Where a decision replaced an earlier attempt, the attempt and the evidence against it are part of the context, because that is what makes the decision legible.
 - **Decision** — what was chosen, concretely.
 - **Consequences** — what it buys and what it costs.
-- **Alternatives rejected** — each with the reason. This section is the point
-  of the record; a decision without its discarded options is just documentation.
+- **Alternatives rejected** — each with the reason. This section is the point of the record; a decision without its discarded options is just documentation.
 - **Where it lives** — the files that implement it.
 
 ## How to add one
 
-Record a decision as an ADR when it is **non-trivial** (a reasonable developer
-could pick differently), **consequential** (it affects other parts of the
-system or how users interact with it), and **persistent** (meant to last, not a
-quick hack). One decision per record. Create `docs/adr/adr-NNNN.md` with the
-next free number, and add a row to the index below under the relevant theme.
+Record a decision as an ADR when it is **non-trivial** (a reasonable developer could pick differently), **consequential** (it affects other parts of the system or how users interact with it), and **persistent** (meant to last, not a quick hack). One decision per record. Create `docs/adr/adr-NNNN.md` with the next free number, and add a row to the index below under the relevant theme.
 
-**When a decision changes, rewrite the record that owns it.** This log is
-maintained as a description of the system as it stands, not as an append-only
-history — a chain of "refines ADR-X, narrows ADR-Y, superseded by ADR-Z" makes
-a reader reconstruct the current state from four documents. The superseded
-approach belongs in the surviving record's Context or Alternatives, where it
-still explains the decision. Git history and the changelog hold the
-chronology.
+**When a decision changes, rewrite the record that owns it.** This log is maintained as a description of the system as it stands, not as an append-only history — a chain of "refines ADR-X, narrows ADR-Y, superseded by ADR-Z" makes a reader reconstruct the current state from four documents. The superseded approach belongs in the surviving record's Context or Alternatives, where it still explains the decision. Git history and the changelog hold the chronology.
 
-Delete a record when its decision no longer applies anywhere — do not leave a
-tombstone.
+Delete a record when its decision no longer applies anywhere — do not leave a tombstone.
 
 ## Index
 

@@ -41,15 +41,9 @@ Journal entries are stored in a directory structure with a central index file.
 | Index File | `ZRB_LLM_JOURNAL_INDEX_FILE` | `index.md` |
 | Injected index cap | `ZRB_LLM_JOURNAL_INDEX_MAX_CHARS` | `2500` |
 
-`ZRB_LLM_JOURNAL_ENABLED=false` turns the whole subsystem off. There is no
-journal prompt section to suppress — the journal *is* its three tools
-(`SearchJournal`, `LogActivity`, `WriteJournalNote`), so the flag unregisters
-them in `apply_common_tools`, and `render_journal_index` checks the same flag
-for the `<journal-index>` injection. The model is then never told a journal
-exists (ADR-0055).
+`ZRB_LLM_JOURNAL_ENABLED=false` turns the whole subsystem off. There is no journal prompt section to suppress — the journal *is* its three tools (`SearchJournal`, `LogActivity`, `WriteJournalNote`), so the flag unregisters them in `apply_common_tools`, and `render_journal_index` checks the same flag for the `<journal-index>` injection. The model is then never told a journal exists (ADR-0055).
 
-`ZRB_LLM_JOURNAL_DIR` is **not** an off switch: clearing it falls back to
-`~/.zrb/llm-notes/` rather than disabling journaling.
+`ZRB_LLM_JOURNAL_DIR` is **not** an off switch: clearing it falls back to `~/.zrb/llm-notes/` rather than disabling journaling.
 
 ### Directory Organization
 
@@ -106,28 +100,15 @@ Your persistent memory (index file: index.md). Use SearchJournal for full entrie
 </journal-index>
 ```
 
-When the content exceeds the cap it is cut **on a line boundary** and ` (...more)`
-is appended, and the header gains a pointer to the rest:
+When the content exceeds the cap it is cut **on a line boundary** and ` (...more)` is appended, and the header gains a pointer to the rest:
 
 ```
 Your persistent memory (index file: index.md). Truncated at `(...more)`; Read /abs/path/to/index.md for the rest. Use SearchJournal for full entries.
 ```
 
-Cutting on a line boundary matters because the entries are facts about the user —
-half a sentence is worse than none. Overflow is dropped from the **end**, so the
-index should be written most-durable-first. `WriteJournalNote` enforces that
-order when it creates the root index: identity and standing preferences first,
-unbounded "Recent Insights" last, so growth only ever evicts itself.
+Cutting on a line boundary matters because the entries are facts about the user — half a sentence is worse than none. Overflow is dropped from the **end**, so the index should be written most-durable-first. `WriteJournalNote` enforces that order when it creates the root index: identity and standing preferences first, unbounded "Recent Insights" last, so growth only ever evicts itself.
 
-Nothing is injected at all when the index file is missing, unreadable, or empty;
-when `ZRB_LLM_JOURNAL_INDEX_MAX_CHARS` is `0`; or when
-`ZRB_LLM_JOURNAL_ENABLED` is `false`. A missing block therefore does not prove
-an empty journal — and nothing tells the model so. Stating the caveat would
-cost either prompt weight or a tool docstring paid for on every request, so it
-is a known gap rather than shipped text (`render_journal_index`'s docstring
-records it). It matters only when
-`ZRB_LLM_JOURNAL_INDEX_MAX_CHARS` is `0` while the journal tools stay
-registered — a deliberate and unusual pairing.
+Nothing is injected at all when the index file is missing, unreadable, or empty; when `ZRB_LLM_JOURNAL_INDEX_MAX_CHARS` is `0`; or when `ZRB_LLM_JOURNAL_ENABLED` is `false`. A missing block therefore does not prove an empty journal — and nothing tells the model so. Stating the caveat would cost either prompt weight or a tool docstring paid for on every request, so it is a known gap rather than shipped text (`render_journal_index`'s docstring records it). It matters only when `ZRB_LLM_JOURNAL_INDEX_MAX_CHARS` is `0` while the journal tools stay registered — a deliberate and unusual pairing.
 
 ---
 

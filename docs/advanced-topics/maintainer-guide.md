@@ -84,8 +84,7 @@ The changelog lives in index and directory under `docs/`:
 
 ### Writing an entry
 
-Each release is a `## <version> (<Month D, YYYY>)` heading followed by themed
-bullets as one contiguous list — no blank lines between entries:
+Each release is a `## <version> (<Month D, YYYY>)` heading followed by themed bullets as one contiguous list — no blank lines between entries:
 
 ```markdown
 ## 2.33.0 (June 6, 2026)
@@ -97,29 +96,18 @@ bullets as one contiguous list — no blank lines between entries:
   reader can tell whether their version is affected.
 ```
 
-Use one flat `- **<Category>: <Title>** (`paths`): <prose>` bullet per change —
-the touched paths in parentheses, then the explanation as running prose. Do not
-nest sub-bullets; a change too big for one bullet is usually two changes.
-Categories are free-form but conventionally `Feature` / `Improvement` / `Fix` /
-`Reliability` / `Security` / `Refactor` / `Performance` / `Chore` /
-`Documentation` / `Tests`. Write past-tense and factual, and anchor each point
-to something locatable (`module.py`, `ClassName`, an env var, `ADR-NNNN`).
+Use one flat `- **<Category>: <Title>** (`paths`): <prose>` bullet per change — the touched paths in parentheses, then the explanation as running prose. Do not nest sub-bullets; a change too big for one bullet is usually two changes. Categories are free-form but conventionally `Feature` / `Improvement` / `Fix` / `Reliability` / `Security` / `Refactor` / `Performance` / `Chore` / `Documentation` / `Tests`. Write past-tense and factual, and anchor each point to something locatable (`module.py`, `ClassName`, an env var, `ADR-NNNN`).
 
 ### Collapsing (compaction)
 
-To keep the changelog readable as it grows, old entries are periodically
-compacted. Each minor version has its own file under `changelog-v2/`. **Keep
-only two entries per minor version** — the minor bump and its final revision —
-producing this retained sequence:
+To keep the changelog readable as it grows, old entries are periodically compacted. Each minor version has its own file under `changelog-v2/`. **Keep only two entries per minor version** — the minor bump and its final revision — producing this retained sequence:
 
 ```mermaid
 flowchart LR
     A["x.y.0"] --> B["x.y.z — latest revision of x.y"] --> C["x.y+1.0"] --> D["x.y+1.w"] --> E["…"]
 ```
 
-Before compaction, each patch release lands in its own separate file. Compaction
-only happens once a minor ages out, at which point its separate per-patch files
-are merged into a single range file.
+Before compaction, each patch release lands in its own separate file. Compaction only happens once a minor ages out, at which point its separate per-patch files are merged into a single range file.
 
 Worked example (2.31–2.33):
 
@@ -128,66 +116,37 @@ flowchart LR
     V31["changelog-v2/2.31.0.md"] --> V32["changelog-v2/2.32.0-2.32.2.md"] --> V33["changelog-v2/2.33.0-2.33.4.md"]
 ```
 
-Here `2.31` had no patches (stays as `2.31.0.md`); `2.32` collapsed `2.32.1`
-into `2.32.2` and its `2.32.0a1`–`b5` pre-releases into `2.32.0`; `2.33` (once
-it aged out) collapsed the separate `2.33.1.md`–`2.33.4.md` patch files into
-`2.33.4`, merging everything into the single compacted file
-`2.33.0-2.33.4.md`. **The newest minor stays as separate per-patch files** until
-it ages out and a later minor opens.
+Here `2.31` had no patches (stays as `2.31.0.md`); `2.32` collapsed `2.32.1` into `2.32.2` and its `2.32.0a1`–`b5` pre-releases into `2.32.0`; `2.33` (once it aged out) collapsed the separate `2.33.1.md`–`2.33.4.md` patch files into `2.33.4`, merging everything into the single compacted file `2.33.0-2.33.4.md`. **The newest minor stays as separate per-patch files** until it ages out and a later minor opens.
 
 Rules for the surviving entries — they must not lose the dropped history:
 
-- The kept **`x.y.z` (latest)** entry **summarizes the cumulative changes** of
-  every dropped patch `x.y.1`–`x.y.z`, not merely its own.
-- The kept **`x.y.0`** entry **absorbs its pre-releases** (`x.y.0a*`/`x.y.0b*`).
-  The headline features usually land in the pre-release entries (the stable
-  `.0` note often just says "consolidating the pre-release line below"), so
-  dropping them without folding loses the real content.
-- Mark a rolled-up entry with a one-line italic note directly under the heading:
-  `_Cumulative summary of the X.Y.1–X.Y.Z patch line._`
-- **Summarize, don't concatenate.** A 24-patch line becomes one
-  release-note-sized entry grouped by theme; drop version-bump noise and
-  test-only churn (one "expanded test coverage" mention suffices).
+- The kept **`x.y.z` (latest)** entry **summarizes the cumulative changes** of every dropped patch `x.y.1`–`x.y.z`, not merely its own.
+- The kept **`x.y.0`** entry **absorbs its pre-releases** (`x.y.0a*`/`x.y.0b*`). The headline features usually land in the pre-release entries (the stable `.0` note often just says "consolidating the pre-release line below"), so dropping them without folding loses the real content.
+- Mark a rolled-up entry with a one-line italic note directly under the heading: `_Cumulative summary of the X.Y.1–X.Y.Z patch line._`
+- **Summarize, don't concatenate.** A 24-patch line becomes one release-note-sized entry grouped by theme; drop version-bump noise and test-only churn (one "expanded test coverage" mention suffices).
 - Update `changelog.md` when renaming a file (e.g. `2.38.0.md` → `2.38.0-2.38.3.md`) so the link stays current.
 
-Dropped content stays recoverable from git, so compaction is reversible — but
-the goal is that the compacted file still conveys what happened across each
-minor without it.
+Dropped content stays recoverable from git, so compaction is reversible — but the goal is that the compacted file still conveys what happened across each minor without it.
 
 ---
 
 ## API Reference
 
-`./zrb-api-doc.sh [outdir]` renders the public API from docstrings into
-`dist/api` (gitignored, default outdir). It reads the annotations that
-`src/zrb/py.typed` makes visible to consumers.
+`./zrb-api-doc.sh [outdir]` renders the public API from docstrings into `dist/api` (gitignored, default outdir). It reads the annotations that `src/zrb/py.typed` makes visible to consumers.
 
-`pdoc` rather than `mkdocstrings`: `docs/` is plain markdown with no
-`mkdocs.yml`, and adopting mkdocs to render one reference is a bigger
-commitment than the reference warrants. The output is deliberately not
-committed — it regenerates from source, so a checked-in copy is only ever a
-stale second answer to the same question.
+`pdoc` rather than `mkdocstrings`: `docs/` is plain markdown with no `mkdocs.yml`, and adopting mkdocs to render one reference is a bigger commitment than the reference warrants. The output is deliberately not committed — it regenerates from source, so a checked-in copy is only ever a stale second answer to the same question.
 
-Two tests keep the input honest, so the generated page has no blanks:
-`test_public_api_docs.py` requires a docstring on every public member of every
-exported class and a documented parameter for every constructor argument a
-class adds; `test_public_api_contract.py` pins the surface itself against
-`public_api_snapshot.json`.
+Two tests keep the input honest, so the generated page has no blanks: `test_public_api_docs.py` requires a docstring on every public member of every exported class and a documented parameter for every constructor argument a class adds; `test_public_api_contract.py` pins the surface itself against `public_api_snapshot.json`.
 
 ## Inspecting Import Performance
 
-To inspect import performance and decide if a module should be lazy-loaded, use
-the stdlib `-X importtime` (no extra dependency):
+To inspect import performance and decide if a module should be lazy-loaded, use the stdlib `-X importtime` (no extra dependency):
 
 ```bash
 python -X importtime -c "import zrb" 2>importtime.log
 ```
 
-Each line has two time columns: **self** (µs spent in that module's own body)
-and **cumulative** (self + children). Sort by **self**-time to find the modules
-actually worth deferring — a high cumulative with low self just means a heavy
-child, not a module you should touch. Take a warm run (import once first): the
-first run is dominated by cold disk I/O.
+Each line has two time columns: **self** (µs spent in that module's own body) and **cumulative** (self + children). Sort by **self**-time to find the modules actually worth deferring — a high cumulative with low self just means a heavy child, not a module you should touch. Take a warm run (import once first): the first run is dominated by cold disk I/O.
 
 ---
 
@@ -500,8 +459,7 @@ Rather than catalog every variant, `retry_loop.py` has a catch-all that fires **
 
 1. It applies `strip_to_text_only()` to the message history. Each structured part is collapsed to its plain-text equivalent **inside its parent message's allowed type set**, because pydantic-ai's `_map_user_message` (`models/openai.py`) hits `assert_never` on any non-`{System,User,ToolReturn,Retry}PromptPart` it finds in a `ModelRequest`:
    - In `ModelResponse`: `BaseToolCallPart`/`BuiltinToolReturnPart`/`ThinkingPart` → `TextPart` with descriptive labels (e.g. `[Tool: deploy({"env":"prod"})]`, `[Result (deploy): started]`).
-   - In `ModelRequest`: `ToolReturnPart` and tool-linked `RetryPromptPart` → `UserPromptPart` with the same kind of label (a `TextPart` inside a `ModelRequest` would crash the OpenAI mapper).
-   Because both sides of every tool call/return pair are stripped in sympathy, no `tool_call_id` cross-reference survives — there is nothing left to orphan. Nil/empty content is replaced with `"."`. Large tool results are truncated to 500 chars.
+   - In `ModelRequest`: `ToolReturnPart` and tool-linked `RetryPromptPart` → `UserPromptPart` with the same kind of label (a `TextPart` inside a `ModelRequest` would crash the OpenAI mapper). Because both sides of every tool call/return pair are stripped in sympathy, no `tool_call_id` cross-reference survives — there is nothing left to orphan. Nil/empty content is replaced with `"."`. Large tool results are truncated to 500 chars.
 2. It retries the model call with the sanitised history.
 
 This is deliberately provider-agnostic. Text in the form `{"role": "user", "content": "..."}` / `{"role": "assistant", "content": "..."}` is the lowest common denominator that every text-generation provider accepts. The handler is gated on `current_message is not None` (it does not fire during tool-loop iterations with deferred results, where stripping structure could orphan tool call/return pairs).
@@ -533,10 +491,7 @@ On a hit it regenerates the turn rather than returning it: `_history_without_tra
 
 ### Re-checking a Mitigation Against a New pydantic-ai
 
-Each layer here works around something a *provider* gets wrong, not something
-pydantic-ai gets wrong, which is why upgrading rarely retires one. Re-audit on a
-minor bump anyway — a layer that has become dead weight is worse than one that
-never existed, because it keeps rewriting history for no reason.
+Each layer here works around something a *provider* gets wrong, not something pydantic-ai gets wrong, which is why upgrading rarely retires one. Re-audit on a minor bump anyway — a layer that has become dead weight is worse than one that never existed, because it keeps rewriting history for no reason.
 
 Audited against **2.27.0**; every layer below is still load-bearing:
 
@@ -551,10 +506,7 @@ Audited against **2.27.0**; every layer below is still load-bearing:
 | Deferred-mismatch recovery | Keep, and re-check the strings. It matches on `UserError` text raised by `_agent_graph`; both phrases are unchanged in 2.27.0. |
 | Empty-completion guard | Keep. Guards a *successful* stream with no content — not an error path upstream ever sees. |
 
-Two things moved the other way and were adopted rather than kept: `ModelHTTPError`
-now carries `headers` and a parsed `retry_after`, which `get_retry_wait` reads
-before falling back to exponential backoff, and `known_model_names()` supersedes
-unwrapping `KnownModelName.__value__` for `/model` completion.
+Two things moved the other way and were adopted rather than kept: `ModelHTTPError` now carries `headers` and a parsed `retry_after`, which `get_retry_wait` reads before falling back to exponential backoff, and `known_model_names()` supersedes unwrapping `KnownModelName.__value__` for `/model` completion.
 
 ### File Map
 

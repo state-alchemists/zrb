@@ -104,8 +104,9 @@ class _Surface(NamedTuple):
     size: it swaps a tool's schema for a ``search_tools`` entry the model must
     call first. ``minimal`` keeps ten tools and would spend more on the
     indirection than it hides, so it takes the schemas (ADR-0049). ``lean`` keeps
-    thirty-three — there the indirection is the whole saving, so its deferred
-    tools stay deferred. Hence the key is "does the preset close the surface"
+    thirty-three (17 eager plus 16 deferred) — there the indirection is the whole
+    saving, so its deferred tools stay deferred. Hence the key is "does the
+    preset close the surface"
     (``Preset.tools is not None``), not "does it constrain the axis at all".
     """
 

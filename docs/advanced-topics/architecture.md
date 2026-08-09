@@ -9,7 +9,7 @@ This document is aimed at maintainers, contributors, and curious power users who
 ## 1. Core Philosophy
 
 ### Python as the Ultimate DSL
-Zrb explicitly rejects YAML, JSON, or custom Domain Specific Languages (DSLs) for defining automation pipelines. 
+Zrb explicitly rejects YAML, JSON, or custom Domain Specific Languages (DSLs) for defining automation pipelines.
 * **Why:** YAML pipelines often reinvent programming constructs poorly (e.g., awkward syntax for loops, conditionals, or string interpolation). By using pure Python, users get type safety, linting, code completion, and the entire PyPI ecosystem out of the box.
 * **Implication:** The framework must be expressive and ergonomic. We use `__rshift__` (`>>`) and `__lshift__` (`<<`) operator overloading to make task dependency chaining visually intuitive.
 
@@ -47,7 +47,7 @@ Zrb uses a custom dictionary subclass called `DotDict` for `ctx.env`, `ctx.input
 
 ### Robust LLM Integration
 Zrb treats Large Language Models not just as APIs, but as sophisticated, recursive agents using `pydantic-ai`.
-* **Hooks and Tools:** Tools are passed as Python callables. Agents can recursively invoke sub-agents. 
+* **Hooks and Tools:** Tools are passed as Python callables. Agents can recursively invoke sub-agents.
 * **Inherited Context:** LLM constraints (like `yolo` mode, active UI, or approval channels) are inherited dynamically from parent agents through `ContextVars` to ensure security policies bypass strict argument passing boundaries.
 
 ---
@@ -76,12 +76,12 @@ Because Zrb is highly decoupled, objects often need to reference each other (e.g
 * **Action:** Use stringized type hints or `from __future__ import annotations` to prevent `ImportError`.
 
 ### Developer-Centric Error Tracking
-When an exception occurs deep within `asyncio.gather`, standard tracebacks are often useless. 
+When an exception occurs deep within `asyncio.gather`, standard tracebacks are often useless.
 * **Convention:** The `BaseTask` constructor captures the exact file and line number where the user defined the task (`self.__decl_file`, `self.__decl_line`) using the `inspect` module.
 * **Usage:** When an action fails, this metadata is injected into the exception notes (`e.add_note()`). Always preserve this mechanism so the user knows *which of their defined tasks* caused the crash.
 
 ### F-String and Jinja Rendering
-We defer execution of dynamic parameters. Many attributes accept `fstring` or strings containing `Jinja2` syntax. 
+We defer execution of dynamic parameters. Many attributes accept `fstring` or strings containing `Jinja2` syntax.
 * **Convention:** Never trust a string property as static. Pass it through `ctx.render(task.property)` immediately before execution to ensure the most up-to-date Environment Variables or XCom data is populated.
 
 🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > Architecture, Philosophy, & Conventions

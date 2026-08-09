@@ -138,8 +138,7 @@ chat.append_toolset_factory(lambda ctx: create_toolset())
 
 ### Telling the LLM how to use a tool
 
-A tool describes itself through its docstring — pydantic-ai serializes it with
-the schema on every request (ADR-0045).
+A tool describes itself through its docstring — pydantic-ai serializes it with the schema on every request (ADR-0045).
 
 ```python
 def my_tool(item_id: str) -> dict:
@@ -152,8 +151,7 @@ def my_tool(item_id: str) -> dict:
 chat.append_tool(my_tool)
 ```
 
-For cross-cutting policy, register a prompt section and place its name in
-`ZRB_LLM_INCLUDE_SECTIONS`:
+For cross-cutting policy, register a prompt section and place its name in `ZRB_LLM_INCLUDE_SECTIONS`:
 
 ```python
 chat.prompt_manager.register_section(
@@ -186,8 +184,7 @@ chat.permissions = my_permission_policy  # read/write property; also a construct
 chat.sandbox = my_sandbox_policy         # read/write property; also a constructor arg
 ```
 
-See [Permission Policy](../advanced-topics/permission-policy.md) and
-[Sandbox](../advanced-topics/sandbox.md) for the accepted policy shapes.
+See [Permission Policy](../advanced-topics/permission-policy.md) and [Sandbox](../advanced-topics/sandbox.md) for the accepted policy shapes.
 
 ### Triggers & Custom Commands
 

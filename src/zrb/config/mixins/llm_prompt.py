@@ -79,7 +79,7 @@ class LLMPromptMixin:
             "Prompt profile — a preset binding which sections compose, how "
             "they are phrased, and which tools register. The names order "
             "themselves by how much the model is asked to hold at once:\n"
-            "- 'full': the whole rulebook and all 21 tools, on the base "
+            "- 'full': the whole rulebook and all 20 eager tools, on the base "
             "prompts.\n"
             "- 'lean': every section and every tool, on a lighter rulebook "
             "plus worked examples, for small models (~5-14B).\n"

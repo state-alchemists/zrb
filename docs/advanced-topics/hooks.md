@@ -4,16 +4,9 @@
 
 The Zrb Hook System provides a powerful way to intercept and modify the execution of LLM agents. You can execute shell commands, run LLM prompts, or trigger specific scripts at key lifecycle events.
 
-Zrb's hook system is **modeled on Claude Code hooks** and aims for drop-in
-compatibility: hooks register in the same files, read the same stdin payload and
-`CLAUDE_*` env vars, and use the same matcher/decision JSON. Most single-hook
-Claude configurations work unchanged.
+Zrb's hook system is **modeled on Claude Code hooks** and aims for drop-in compatibility: hooks register in the same files, read the same stdin payload and `CLAUDE_*` env vars, and use the same matcher/decision JSON. Most single-hook Claude configurations work unchanged.
 
-It is **not** a 100% reimplementation. Several behaviors diverge — most notably
-the multi-hook execution model and the `exit 2` feedback channel — and a Claude
-hook that relies on them will behave differently here. Read
-[Differences from Claude Code](#differences-from-claude-code) before porting a
-non-trivial hook.
+It is **not** a 100% reimplementation. Several behaviors diverge — most notably the multi-hook execution model and the `exit 2` feedback channel — and a Claude hook that relies on them will behave differently here. Read [Differences from Claude Code](#differences-from-claude-code) before porting a non-trivial hook.
 
 ---
 
@@ -56,10 +49,7 @@ Create a hook file in `~/.zrb/hooks.json` or `./.zrb/hooks.json`:
 
 ## Differences from Claude Code
 
-Zrb reads Claude's hook config and payload format, so most hooks port over. But
-the runtime is a separate implementation, and the differences below **change
-outcomes**, not just cosmetics. If you are porting a Claude hook that relies on
-any of these, adjust it.
+Zrb reads Claude's hook config and payload format, so most hooks port over. But the runtime is a separate implementation, and the differences below **change outcomes**, not just cosmetics. If you are porting a Claude hook that relies on any of these, adjust it.
 
 ### Behavioral differences (these can change what a hook does)
 
@@ -74,9 +64,7 @@ any of these, adjust it.
 | 7 | **`Notification` firing** | Fires for permission prompts, 60s idle, auth, elicitation, etc. | Fires only for elicitation (`notification_type='elicitation_dialog'`, from the ask/question tool). No permission-prompt or idle notifications — permission prompts route to the `PermissionRequest` event instead, and there is no idle timer |
 | 8 | **Legacy `decision: "approve"`** | Auto-approves a `PreToolUse` call (deprecated form) | Ignored — auto-approve only via `permissionDecision: "allow"` |
 
-> The `exit 2` reason channel (stderr), `PostToolUse` `additionalContext`, and
-> the `Notification` matcher field (`notification_type`) **were** divergences and
-> are now Claude-compatible — see the [changelog](../changelog.md).
+> The `exit 2` reason channel (stderr), `PostToolUse` `additionalContext`, and the `Notification` matcher field (`notification_type`) **were** divergences and are now Claude-compatible — see the [changelog](../changelog.md).
 
 ### Matcher value coverage (matchers fire on a subset of Claude's values)
 
@@ -90,31 +78,16 @@ A matcher keyed on a value zrb never emits simply never fires.
 
 ### Events and types zrb does not implement
 
-- **Claude-only events** (no zrb counterpart): `Setup`, `UserPromptExpansion`,
-  `PostToolBatch`, `PermissionDenied`, `TeammateIdle`, `Elicitation` /
-  `ElicitationResult`, `FileChanged`, `CwdChanged`, `ConfigChange`,
-  `InstructionsLoaded`, `TaskCreated` / `TaskCompleted`, `WorktreeCreate` /
-  `WorktreeRemove`, `MessageDisplay`.
-- **Claude-only hook types / options**: `http` and `mcp_tool` hook types, the
-  `if` argument-level filter (e.g. `Bash(git *)`), `async` / `asyncRewake` /
-  `once`, command exec-form `args`, and `disableAllHooks`. Zrb supports the
-  `command`, `prompt`, and `agent` types only.
+- **Claude-only events** (no zrb counterpart): `Setup`, `UserPromptExpansion`, `PostToolBatch`, `PermissionDenied`, `TeammateIdle`, `Elicitation` / `ElicitationResult`, `FileChanged`, `CwdChanged`, `ConfigChange`, `InstructionsLoaded`, `TaskCreated` / `TaskCompleted`, `WorktreeCreate` / `WorktreeRemove`, `MessageDisplay`.
+- **Claude-only hook types / options**: `http` and `mcp_tool` hook types, the `if` argument-level filter (e.g. `Bash(git *)`), `async` / `asyncRewake` / `once`, command exec-form `args`, and `disableAllHooks`. Zrb supports the `command`, `prompt`, and `agent` types only.
 
 ### Zrb-only events (no Claude counterpart)
 
-- `PreCommand` / `PostCommand` — bracket a UI command in the chat TUI (Claude's
-  nearest analogue is `UserPromptExpansion`, with a different contract).
+- `PreCommand` / `PostCommand` — bracket a UI command in the chat TUI (Claude's nearest analogue is `UserPromptExpansion`, with a different contract).
 
 ### What ports cleanly
 
-Single-hook configurations using the common contract behave the same in both:
-`PreToolUse` deny / allow / `updatedInput` / `permissionDecisionReason`,
-`UserPromptSubmit` block + `continue: false` + `additionalContext`,
-`SessionStart` `additionalContext` (including plain-stdout-as-context),
-`Stop` block-to-continue (8-block cap, `stop_hook_active`) and `systemMessage`
-extension (its own separate 8-message cap), `PermissionRequest`
-`decision.behavior`, `PreCompact` block, and
-tool-name matchers (including the `Bash` / `Task` aliases).
+Single-hook configurations using the common contract behave the same in both: `PreToolUse` deny / allow / `updatedInput` / `permissionDecisionReason`, `UserPromptSubmit` block + `continue: false` + `additionalContext`, `SessionStart` `additionalContext` (including plain-stdout-as-context), `Stop` block-to-continue (8-block cap, `stop_hook_active`) and `systemMessage` extension (its own separate 8-message cap), `PermissionRequest` `decision.behavior`, `PreCompact` block, and tool-name matchers (including the `Bash` / `Task` aliases).
 
 ---
 
@@ -139,14 +112,11 @@ Hooks are discovered automatically in these locations (in order of precedence, h
 | `./.claude/settings.local.json` | Claude Code compatibility, project — the nested `hooks` block |
 | `CFG.HOOKS_DIRS` | Additional colon-separated custom directories |
 
-Hooks Claude Code (and drop-in tools like [peon-ping](https://peonping.com)) register
-inside `settings.json`/`settings.local.json` are picked up automatically — only the
-nested `hooks` block is read; other settings keys are ignored.
+Hooks Claude Code (and drop-in tools like [peon-ping](https://peonping.com)) register inside `settings.json`/`settings.local.json` are picked up automatically — only the nested `hooks` block is read; other settings keys are ignored.
 
 ### Hooks Subsystem Configuration
 
-The hooks subsystem itself is controlled by a small set of `CFG`/env knobs,
-independent of any individual hook's own `enabled`/`timeout` fields:
+The hooks subsystem itself is controlled by a small set of `CFG`/env knobs, independent of any individual hook's own `enabled`/`timeout` fields:
 
 | `CFG` field | Env var | Default | Description |
 |-------------|---------|---------|--------------|
@@ -154,8 +124,7 @@ independent of any individual hook's own `enabled`/`timeout` fields:
 | `HOOKS_DIRS` | `ZRB_HOOKS_DIRS` | `""` | Colon-separated additional directories to scan for hook scripts |
 | `HOOKS_TIMEOUT` | `ZRB_HOOKS_TIMEOUT` | `30000` | Timeout in milliseconds for hook execution |
 
-Setting `HOOKS_ENABLED` to `off` disables the hooks subsystem entirely,
-regardless of what is configured in `hooks.json` files.
+Setting `HOOKS_ENABLED` to `off` disables the hooks subsystem entirely, regardless of what is configured in `hooks.json` files.
 
 ---
 
@@ -182,16 +151,9 @@ Hooks can attach to these lifecycle events:
 | `SubagentStart` | A sub-agent (delegation) begins. Matches on `agent_type` (the delegated agent's name); also carries `agent_id` | No |
 | `SubagentStop` | A sub-agent finishes (success or error). Same `agent_type`/`agent_id` as its `SubagentStart` | No |
 
-`PreCommand` / `PostCommand` fire in the interactive chat TUI when the user
-runs a built-in or custom command (any configured token — `/save`, `/exit`, a
-custom `>` redirect, etc.; not just `/`-prefixed). The command name and
-arguments are exposed as `command_name` / `command_args` (see [Environment
-Variables](#environment-variables)). A blocking `PreCommand` hook cancels the
-command before it runs; plain chat messages do **not** fire these events.
+`PreCommand` / `PostCommand` fire in the interactive chat TUI when the user runs a built-in or custom command (any configured token — `/save`, `/exit`, a custom `>` redirect, etc.; not just `/`-prefixed). The command name and arguments are exposed as `command_name` / `command_args` (see [Environment Variables](#environment-variables)). A blocking `PreCommand` hook cancels the command before it runs; plain chat messages do **not** fire these events.
 
-A `PreCommand` hook can also **rewrite the command's argument** by returning a
-`command_args` value — the command token is preserved, the argument is
-swapped. For example, redirect a model switch:
+A `PreCommand` hook can also **rewrite the command's argument** by returning a `command_args` value — the command token is preserved, the argument is swapped. For example, redirect a model switch:
 
 ```python
 async def downgrade_opus(ctx):
@@ -200,9 +162,7 @@ async def downgrade_opus(ctx):
     return HookResult()
 ```
 
-A shell command hook does the same by printing JSON on stdout:
-`echo '{"command_args": "sonnet"}'`. The highest-priority hook that sets
-`command_args` wins.
+A shell command hook does the same by printing JSON on stdout: `echo '{"command_args": "sonnet"}'`. The highest-priority hook that sets `command_args` wins.
 
 ---
 
@@ -290,27 +250,16 @@ Execute shell commands or scripts.
 | `shell` | boolean | Use shell interpreter (default: true) |
 | `working_dir` | string | Working directory (optional) |
 
-> The example above omits an explicit `timeout`, so it runs at the `command`
-> hook default of 600 seconds, not 30.
+> The example above omits an explicit `timeout`, so it runs at the `command` hook default of 600 seconds, not 30.
 
-**Input: env vars _and_ stdin.** A command hook receives its event two ways, so it
-works with both styles of Claude-Code hook. The `CLAUDE_*` [environment
-variables](#environment-variables) are set, and the full Claude-Code event payload
-is also written to the command's **stdin** as JSON (`hook_event_name`, `session_id`,
-`cwd`, …). Tool events carry `tool_name` and `tool_input` (and `tool_response`
-on `PostToolUse`), so both stdin reads and `tool_name` matchers work. Stdin-driven
-hooks read it like:
+**Input: env vars _and_ stdin.** A command hook receives its event two ways, so it works with both styles of Claude-Code hook. The `CLAUDE_*` [environment variables](#environment-variables) are set, and the full Claude-Code event payload is also written to the command's **stdin** as JSON (`hook_event_name`, `session_id`, `cwd`, …). Tool events carry `tool_name` and `tool_input` (and `tool_response` on `PostToolUse`), so both stdin reads and `tool_name` matchers work. Stdin-driven hooks read it like:
 
 ```bash
 event=$(cat)                                    # read the JSON payload from stdin
 name=$(echo "$event" | jq -r .hook_event_name)  # e.g. "Stop"
 ```
 
-**Output: stdout.** A command hook controls behavior by printing a JSON object
-on stdout (`{"decision": ...}`, `{"permissionDecision": ...}`, etc.). For
-`SessionStart` and `UserPromptSubmit`, **plain (non-JSON) stdout is injected as
-`additionalContext`** — so a simple `echo "Current branch: $(git branch --show-current)"`
-hook adds that line to the model's context, matching Claude Code.
+**Output: stdout.** A command hook controls behavior by printing a JSON object on stdout (`{"decision": ...}`, `{"permissionDecision": ...}`, etc.). For `SessionStart` and `UserPromptSubmit`, **plain (non-JSON) stdout is injected as `additionalContext`** — so a simple `echo "Current branch: $(git branch --show-current)"` hook adds that line to the model's context, matching Claude Code.
 
 ### 2. Prompt Hooks
 
@@ -410,21 +359,14 @@ Fields can use dot notation to access nested context:
 
 ### Tool names (Claude-compatible)
 
-Zrb's built-in tools expose Claude-compatible names (`Read`, `Write`, `Edit`,
-`Grep`, `Glob`, `LS`, `Shell`, `WebFetch`, `WebSearch`, `TodoWrite`, `TodoRead`,
-…), so a Claude hook matcher keyed on a tool name — e.g. `{"matcher": "Edit"}`
-or a `tool_name` matcher — works as-is. A few zrb tools keep a name that
-differs from Claude's; for those, the Claude name is accepted as an **alias** on
-`tool_name` matchers:
+Zrb's built-in tools expose Claude-compatible names (`Read`, `Write`, `Edit`, `Grep`, `Glob`, `LS`, `Shell`, `WebFetch`, `WebSearch`, `TodoWrite`, `TodoRead`, …), so a Claude hook matcher keyed on a tool name — e.g. `{"matcher": "Edit"}` or a `tool_name` matcher — works as-is. A few zrb tools keep a name that differs from Claude's; for those, the Claude name is accepted as an **alias** on `tool_name` matchers:
 
 | zrb tool | also matches |
 |----------|--------------|
 | `Shell` (the default shell tool) | `Bash` |
 | `DelegateToAgent`, `DelegateToAgentBackground` | `Task` |
 
-Aliases apply to positive operators (`equals`, `regex`, `contains`, …); a
-`not_equals` matcher compares against the literal name only, so an exclusion is
-never silently widened.
+Aliases apply to positive operators (`equals`, `regex`, `contains`, …); a `not_equals` matcher compares against the literal name only, so an exclusion is never silently widened.
 
 **Common Fields:**
 
@@ -513,30 +455,19 @@ echo '{"decision": "block", "reason": "Dangerous operation blocked"}'
 exit 2
 ```
 
-> **Reason channel:** zrb accepts the block reason on **either** stream — an
-> explicit `reason` in a stdout JSON object, or stderr (the Claude convention,
-> e.g. `echo "reason" >&2; exit 2`), or plain stdout text — in that precedence.
-> Claude-style stderr hooks therefore carry their reason correctly.
+> **Reason channel:** zrb accepts the block reason on **either** stream — an explicit `reason` in a stdout JSON object, or stderr (the Claude convention, e.g. `echo "reason" >&2; exit 2`), or plain stdout text — in that precedence. Claude-style stderr hooks therefore carry their reason correctly.
 
-Exit 2 (and `decision: "block"`) is honored only for the **blocking-capable**
-events — those marked **Yes** in the [lifecycle table](#lifecycle-events)
-(`UserPromptSubmit`, `PreCommand`, `PreToolUse`, `PostToolUse`,
-`PermissionRequest`, `Stop`, `PreCompact`). On an observe-only event (e.g.
-`Notification`, `SessionStart`, `SubagentStop`) a block is ignored and the
-remaining hooks for that event still run.
+Exit 2 (and `decision: "block"`) is honored only for the **blocking-capable** events — those marked **Yes** in the [lifecycle table](#lifecycle-events) (`UserPromptSubmit`, `PreCommand`, `PreToolUse`, `PostToolUse`, `PermissionRequest`, `Stop`, `PreCompact`). On an observe-only event (e.g. `Notification`, `SessionStart`, `SubagentStop`) a block is ignored and the remaining hooks for that event still run.
 
 ### Halting the run (`continue: false`)
 
-Distinct from a per-event block, `continue: false` is an unconditional request
-to stop all processing. Return it (with an optional `stopReason`) to end the run
-regardless of event:
+Distinct from a per-event block, `continue: false` is an unconditional request to stop all processing. Return it (with an optional `stopReason`) to end the run regardless of event:
 
 ```bash
 echo '{"continue": false, "stopReason": "Quota exhausted"}'
 ```
 
-On `UserPromptSubmit` the turn ends before the model runs; on `Stop` it ends the
-turn, overriding any block-to-continue or `systemMessage` extension.
+On `UserPromptSubmit` the turn ends before the model runs; on `Stop` it ends the turn, overriding any block-to-continue or `systemMessage` extension.
 
 ### JSON Output
 
@@ -551,8 +482,7 @@ Output JSON with `"decision": "block"`:
 
 ### `PreToolUse` permission decisions
 
-`PreToolUse` hooks control a tool call via `permissionDecision` (top-level or
-nested under `hookSpecificOutput`):
+`PreToolUse` hooks control a tool call via `permissionDecision` (top-level or nested under `hookSpecificOutput`):
 
 | `permissionDecision` | Description |
 |----------------------|-------------|
@@ -561,9 +491,7 @@ nested under `hookSpecificOutput`):
 | `ask` | Force the interactive approval prompt, overriding any tool-policy/permission ALLOW or YOLO auto-approve (an explicit DENY still wins) |
 | `defer` | No opinion — let the normal approval flow decide |
 
-> `ask` forces the prompt only on the deferred-approval path (tools that go
-> through the approval cascade). On the direct execution-time path there is no
-> prompt to show, so `ask` degrades to proceed.
+> `ask` forces the prompt only on the deferred-approval path (tools that go through the approval cascade). On the direct execution-time path there is no prompt to show, so `ask` degrades to proceed.
 
 ### Permission / Approval Hook Example
 
@@ -584,13 +512,9 @@ This hook triggers before every tool call, forcing user approval.
 
 ## Extending a Turn with System Messages (Stop)
 
-`Stop` hooks can extend a turn by returning a system message. This lets hooks
-trigger additional LLM actions when a turn finishes (e.g. journaling). It fires
-on **`Stop`**, the per-turn signal — not on `SessionEnd`, which is terminal.
+`Stop` hooks can extend a turn by returning a system message. This lets hooks trigger additional LLM actions when a turn finishes (e.g. journaling). It fires on **`Stop`**, the per-turn signal — not on `SessionEnd`, which is terminal.
 
-> **Key it on `Stop`, not `SessionEnd`.** `SessionEnd` fires once, when the chat
-> session ends, so a per-turn journaling or summarization hook keyed on it runs
-> exactly once instead of every turn.
+> **Key it on `Stop`, not `SessionEnd`.** `SessionEnd` fires once, when the chat session ends, so a per-turn journaling or summarization hook keyed on it runs exactly once instead of every turn.
 
 ### Two Modes
 
@@ -648,11 +572,7 @@ async def summarize_hook(context: HookContext) -> HookResult:
 
 ### Block-to-continue (Claude-compatible)
 
-A `Stop` command hook can also force another turn the Claude way — exit 2 (or
-`decision: "block"`) with a `reason`. The reason is injected as the next prompt
-and the agent runs again. A consecutive-block cap (8) prevents infinite loops;
-`stop_hook_active` is set on the payload once a continuation is in progress so
-the hook can detect it.
+A `Stop` command hook can also force another turn the Claude way — exit 2 (or `decision: "block"`) with a `reason`. The reason is injected as the next prompt and the agent runs again. A consecutive-block cap (8) prevents infinite loops; `stop_hook_active` is set on the payload once a continuation is in progress so the hook can detect it.
 
 ### How It Works
 
@@ -698,8 +618,7 @@ Command hooks receive these environment variables automatically:
 | `CLAUDE_COMMAND_NAME` | Command token, e.g. `/save` or `>` (for `PreCommand`/`PostCommand`) |
 | `CLAUDE_COMMAND_ARGS` | Text after the command token (for `PreCommand`/`PostCommand`) |
 
-The session identifier is available in the stdin JSON payload (`session_id`)
-but is not exposed as an environment variable.
+The session identifier is available in the stdin JSON payload (`session_id`) but is not exposed as an environment variable.
 
 ### Using Environment Variables
 

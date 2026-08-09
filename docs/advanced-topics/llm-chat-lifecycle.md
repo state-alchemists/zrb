@@ -59,8 +59,7 @@ flowchart TD
     Exec -->|part of the same class| Running["src/zrb/llm/task/chat/running.py — resolve UIs, triggers, commands"]
 ```
 
-`LLMChatTask` (`src/zrb/llm/task/chat/task.py`) is composed as
-`LLMChatTask(LLMTaskBuilding, ChatRunning, ChatExecution, BaseTask)`.
+`LLMChatTask` (`src/zrb/llm/task/chat/task.py`) is composed as `LLMChatTask(LLMTaskBuilding, ChatRunning, ChatExecution, BaseTask)`.
 
 Three things happen here:
 

@@ -105,11 +105,7 @@ def my_function(ctx):
 | `readiness_timeout` | `60` | Max wait for a single re-check once `monitor_readiness=True`. Does **not** cap the initial readiness wait — see note below |
 | `monitor_readiness` | `False` | Keep checking periodically *after* ready |
 
-> **`readiness_timeout` only applies to periodic re-checks.** The *initial* wait for
-> readiness is capped by the `ZRB_TASK_READINESS_TIMEOUT` environment variable
-> (milliseconds, `0` = no cap), which defaults to `0`. So by default a readiness
-> check that never completes waits forever, regardless of `readiness_timeout`.
-> Set `ZRB_TASK_READINESS_TIMEOUT` to bound it.
+> **`readiness_timeout` only applies to periodic re-checks.** The *initial* wait for readiness is capped by the `ZRB_TASK_READINESS_TIMEOUT` environment variable (milliseconds, `0` = no cap), which defaults to `0`. So by default a readiness check that never completes waits forever, regardless of `readiness_timeout`. Set `ZRB_TASK_READINESS_TIMEOUT` to bound it.
 
 ### Dependencies & Flow Control
 
@@ -181,9 +177,7 @@ def start_server(ctx):
     # ... start server ...
 ```
 
-The `HttpCheck` retries until the endpoint answers, so `start-app` is held until the
-server is actually serving. To put a ceiling on that wait, export
-`ZRB_TASK_READINESS_TIMEOUT` (milliseconds) — without it the wait is unbounded:
+The `HttpCheck` retries until the endpoint answers, so `start-app` is held until the server is actually serving. To put a ceiling on that wait, export `ZRB_TASK_READINESS_TIMEOUT` (milliseconds) — without it the wait is unbounded:
 
 ```bash
 ZRB_TASK_READINESS_TIMEOUT=120000 zrb start-app

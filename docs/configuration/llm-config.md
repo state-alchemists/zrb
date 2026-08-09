@@ -49,10 +49,7 @@ These variables define which LLM Zrb uses for its primary reasoning and how it c
 
 ### Supported Providers
 
-Anything `ZRB_LLM_MODEL` names as `provider:model` is resolved by pydantic-ai,
-so every provider it ships works in zrb without registration. Providers that
-speak the OpenAI wire protocol need no extra at all — `openai` is a core zrb
-dependency. The rest bring their own vendor SDK.
+Anything `ZRB_LLM_MODEL` names as `provider:model` is resolved by pydantic-ai, so every provider it ships works in zrb without registration. Providers that speak the OpenAI wire protocol need no extra at all — `openai` is a core zrb dependency. The rest bring their own vendor SDK.
 
 **No extra needed** (OpenAI-compatible, or SDK-free):
 
@@ -174,9 +171,7 @@ Zrb automatically triggers background summarization agents when conversation his
 | `ZRB_LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD` | Token count triggering individual message summarization | 50% of conversational threshold |
 | `ZRB_LLM_HISTORY_SUMMARIZATION_WINDOW` | Recent messages to keep verbatim | `100` |
 
-The same mechanism guards repository- and file-analysis tools so a single large
-read can't blow the context window. Each is clamped to a fraction of
-`MAX_TOKEN_PER_REQUEST`:
+The same mechanism guards repository- and file-analysis tools so a single large read can't blow the context window. Each is clamped to a fraction of `MAX_TOKEN_PER_REQUEST`:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -258,14 +253,11 @@ export ZRB_LLM_INCLUDE_SECTIONS="persona"
 
 To toggle a single section programmatically, mutate `CFG.LLM_INCLUDE_SECTIONS` directly (it is a `list[str]`).
 
-The section names above are the **built-ins**. Any other name in the list resolves
-as a *custom* section — see [Programmatic Prompt Customization](#programmatic-prompt-customization) below.
+The section names above are the **built-ins**. Any other name in the list resolves as a *custom* section — see [Programmatic Prompt Customization](#programmatic-prompt-customization) below.
 
 ### Prompt Profile (matching the prompt to the model)
 
-`ZRB_LLM_INCLUDE_SECTIONS` controls *which* sections appear. `ZRB_LLM_PROFILE`
-selects a **preset** — a named binding of three axes at once: which sections
-compose, how they are phrased, and which tools register (ADR-0049).
+`ZRB_LLM_INCLUDE_SECTIONS` controls *which* sections appear. `ZRB_LLM_PROFILE` selects a **preset** — a named binding of three axes at once: which sections compose, how they are phrased, and which tools register (ADR-0049).
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -278,67 +270,28 @@ compose, how they are phrased, and which tools register (ADR-0049).
 | `minimal` | `persona, workflow, system_context` | `persona.minimal.md`, `workflow.minimal.md` | 10 |
 
 - **`full`** — the concise, principle-led preset (the base prompt files).
-- **`lean`** — for small models (~5-14B). Two changes in opposite directions: a
-  lighter rulebook (`persona.lean.md` and `workflow.lean.md` in place of their
-  bases, ~25% smaller with the precedence ladder flattened) and *more* worked
-  demonstrations (`examples.lean.md`). Small models follow worked examples better
-  than abstract rules. The demonstrations **never add rules**: added constraint
-  mass degrades exactly the models it targets, so a variant may exemplify a rule
-  but never re-word or extend one (ADR-0049). The only capability dropped is the
-  journal — a 5-14B model still gets skills, todos, web and delegation, and
-  cross-session memory is never needed to finish a turn. Set
-  `ZRB_LLM_PROFILE=full` if you want it back on a 7B.
-- **`minimal`** — for very small models (~3B), where the *budget* is the binding
-  constraint rather than the register. Composes to roughly 1,250 tokens of
-  preamble against ~4,600 for `full`. A `minimal` session has **no** skills,
-  sub-agents, web access, todo list, journal, plan mode, MCP tools or
-  project-doc reading —
-  it is a single-tool-call-per-turn assistant, not an agentic coder. Use it when
-  a small local model must drive the main loop; for a small model *assisting* a
-  larger one, `ZRB_LLM_SMALL_MODEL` is the better slot.
+- **`lean`** — for small models (~5-14B). Two changes in opposite directions: a lighter rulebook (`persona.lean.md` and `workflow.lean.md` in place of their bases, ~25% smaller with the precedence ladder flattened) and *more* worked demonstrations (`examples.lean.md`). Small models follow worked examples better than abstract rules. The demonstrations **never add rules**: added constraint mass degrades exactly the models it targets, so a variant may exemplify a rule but never re-word or extend one (ADR-0049). The only capability dropped is the journal — a 5-14B model still gets skills, todos, web and delegation, and cross-session memory is never needed to finish a turn. Set `ZRB_LLM_PROFILE=full` if you want it back on a 7B.
+- **`minimal`** — for very small models (~3B), where the *budget* is the binding constraint rather than the register. Composes to roughly 1,250 tokens of preamble against ~4,600 for `full`. A `minimal` session has **no** skills, sub-agents, web access, todo list, journal, plan mode, MCP tools or project-doc reading — it is a single-tool-call-per-turn assistant, not an agentic coder. Use it when a small local model must drive the main loop; for a small model *assisting* a larger one, `ZRB_LLM_SMALL_MODEL` is the better slot.
 - **`auto`** (default) — resolved from the model id.
 
-`auto` reads a **stated size**, never a family name. `deepseek`, `qwen`, and
-`llama` span tiny instruct models through frontier models, so a family name tells
-you nothing — but `-7b` is the vendor stating a parameter count, and `mini` /
-`haiku` / `nano` are vendor size tiers. Built-in matches:
+`auto` reads a **stated size**, never a family name. `deepseek`, `qwen`, and `llama` span tiny instruct models through frontier models, so a family name tells you nothing — but `-7b` is the vendor stating a parameter count, and `mini` / `haiku` / `nano` are vendor size tiers. Built-in matches:
 
 | Selects `minimal` | Selects `lean` | Stays `full` |
 |-----------------|----------------|---------------|
 | a stated count of 4B or less — `qwen2.5:3b`, `deepseek-r1:1.5b`, `qwen2.5:0.5b` | a stated count of 5-14B — `qwen2.5-7b`, `gemma-2-9b`, `qwen3-14b` | larger stated sizes — `qwen3-32b`, `llama-3-70b`, `llama-3.1-405b` |
 | a small-tier label served locally — `ollama:phi4-mini`, `lmstudio:gemma-tiny` | vendor small tiers on a hosted provider — `gpt-5-mini`, `claude-haiku-4-5`, `gemini-nano` | everything else — `claude-opus-4-8`, `deepseek-v4-pro`, `gemini-2.5-pro`, `ollama:kimi-k2.6:cloud` |
 
-The count is read as a **number**, so a fractional size means what it says:
-`1.5b` is 1.5B, not 5B. Where an id states two counts the first wins, which is
-how an MoE id reads as its total rather than its active parameters
-(`qwen3-30b-a3b` → 30B → `full`). A stated count also outranks a label, so
-`some-mini-32b` stays `full`.
+The count is read as a **number**, so a fractional size means what it says: `1.5b` is 1.5B, not 5B. Where an id states two counts the first wins, which is how an MoE id reads as its total rather than its active parameters (`qwen3-30b-a3b` → 30B → `full`). A stated count also outranks a label, so `some-mini-32b` stays `full`.
 
-The two bands are asymmetric on purpose. `lean` keeps every section and nearly
-every tool, so a false positive is cheap — which is why every vendor small-tier
-label (`mini`, `micro`, `nano`, `tiny`, `small`, `lite`, `haiku`) resolves there
-by default. `minimal` *removes* sections and tools, so a false positive costs
-real capability, and a stated ≤4B count selects it outright.
+The two bands are asymmetric on purpose. `lean` keeps every section and nearly every tool, so a false positive is cheap — which is why every vendor small-tier label (`mini`, `micro`, `nano`, `tiny`, `small`, `lite`, `haiku`) resolves there by default. `minimal` *removes* sections and tools, so a false positive costs real capability, and a stated ≤4B count selects it outright.
 
-A label **alone** never does, because `nano`/`tiny` sit on models (`gpt-5-nano`)
-far more capable than a 3B local one. A label plus a **local provider prefix**
-does: `ollama:`, `lmstudio:`, `llamacpp:` and `localai:` say who is serving the
-model, and `ollama:phi4-mini` is 3.8B of weights on a laptop where
-`openai:gpt-5-nano` is the entry tier of a hosted family. Ollama's own hosted
-tier is excluded by its `:cloud` suffix, so `ollama:kimi-k2.6:cloud` stays
-`full`. Anything the built-ins get wrong, declare explicitly (see below).
+A label **alone** never does, because `nano`/`tiny` sit on models (`gpt-5-nano`) far more capable than a 3B local one. A label plus a **local provider prefix** does: `ollama:`, `lmstudio:`, `llamacpp:` and `localai:` say who is serving the model, and `ollama:phi4-mini` is 3.8B of weights on a laptop where `openai:gpt-5-nano` is the entry tier of a hosted family. Ollama's own hosted tier is excluded by its `:cloud` suffix, so `ollama:kimi-k2.6:cloud` stays `full`. Anything the built-ins get wrong, declare explicitly (see below).
 
-Burden falls as the target model gets weaker: each rule-carrying section is
-strictly smaller than the same section one preset up. Demonstrations move the
-other way, because a worked example lowers burden rather than adding to it — but
-they are exempt from the ladder, not from the budget: the *composed total* falls
-across presets too, so a weaker target never receives more prompt overall.
+Burden falls as the target model gets weaker: each rule-carrying section is strictly smaller than the same section one preset up. Demonstrations move the other way, because a worked example lowers burden rather than adding to it — but they are exempt from the ladder, not from the budget: the *composed total* falls across presets too, so a weaker target never receives more prompt overall.
 
-Setting `ZRB_LLM_INCLUDE_SECTIONS` explicitly overrides a preset's section list,
-so you can run `minimal`'s lean tool surface with your own sections.
+Setting `ZRB_LLM_INCLUDE_SECTIONS` explicitly overrides a preset's section list, so you can run `minimal`'s lean tool surface with your own sections.
 
-`flash` is deliberately *not* matched: it is a latency tier, not a size one, and
-spans weak to strong. Opt one in explicitly if you want it.
+`flash` is deliberately *not* matched: it is a latency tier, not a size one, and spans weak to strong. Opt one in explicitly if you want it.
 
 Force a profile globally:
 
@@ -346,8 +299,7 @@ Force a profile globally:
 export ZRB_LLM_PROFILE=lean
 ```
 
-…or declare per-model profiles once in your `zrb_init.py`. A declaration always
-beats a built-in, in either direction:
+…or declare per-model profiles once in your `zrb_init.py`. A declaration always beats a built-in, in either direction:
 
 ```python
 from zrb.llm.prompt.profile import register_model_profile
@@ -362,20 +314,11 @@ register_model_profile(r"qwen2\.5-7b", "full")        # opt a small model out
 register_model_profile(r"^ollama:", "lean")            # or match a whole provider
 ```
 
-How the overlay works: the base prompt `.md` files *are* the `full` profile.
-Every other preset is an overlay — for a section named `workflow`, the loader
-prefers `workflow.lean.md` (or `workflow.minimal.md`) and falls back to
-`workflow.md` when no variant exists. This is the only naming convention
-involved: a section name never carries the preset. A variant *replaces* its base
-file rather than appending to it, so a variant you add must repeat everything
-the base says that still applies. It follows the same project-override → env →
-base-dir → package lookup as any prompt file, so you can override a variant too.
+How the overlay works: the base prompt `.md` files *are* the `full` profile. Every other preset is an overlay — for a section named `workflow`, the loader prefers `workflow.lean.md` (or `workflow.minimal.md`) and falls back to `workflow.md` when no variant exists. This is the only naming convention involved: a section name never carries the preset. A variant *replaces* its base file rather than appending to it, so a variant you add must repeat everything the base says that still applies. It follows the same project-override → env → base-dir → package lookup as any prompt file, so you can override a variant too.
 
 ### Defining Your Own Profile
 
-The three built-ins are not special — they are three entries in `PRESETS`, and
-you can add a fourth. Use `register_preset()`, which validates what a bare
-`PRESETS[name] = ...` assignment cannot:
+The three built-ins are not special — they are three entries in `PRESETS`, and you can add a fourth. Use `register_preset()`, which validates what a bare `PRESETS[name] = ...` assignment cannot:
 
 ```python
 # zrb_init.py
@@ -395,8 +338,7 @@ register_model_profile(r"my-1b-box", "nano")   # optional: select it automatical
 
 `ZRB_LLM_PROFILE=nano` now works, and so does `register_model_profile(..., "nano")`.
 
-**Each axis is optional.** Pass only what you want to change; `None` means "do
-not constrain this axis". A preset that only trims tools is one line:
+**Each axis is optional.** Pass only what you want to change; `None` means "do not constrain this axis". A preset that only trims tools is one line:
 
 ```python
 register_preset("no-journal", Preset(drops=frozenset({
@@ -411,18 +353,11 @@ register_preset("no-journal", Preset(drops=frozenset({
 | `tools` | Allowlist — a closed surface | Every registered tool |
 | `drops` | Denylist — everything except these | Every registered tool |
 
-`tools` and `drops` are mutually exclusive; setting both raises `ValueError`,
-because `admits()` reads `tools` first and would silently ignore `drops`. Use
-`tools` when you want a fixed surface you can reason about, `drops` when you
-want to keep whatever ships and subtract a few — a denylist keeps picking up
-newly-added tools, an allowlist does not.
+`tools` and `drops` are mutually exclusive; setting both raises `ValueError`, because `admits()` reads `tools` first and would silently ignore `drops`. Use `tools` when you want a fixed surface you can reason about, `drops` when you want to keep whatever ships and subtract a few — a denylist keeps picking up newly-added tools, an allowlist does not.
 
 #### Writing the variant files
 
-`variant="nano"` does not create anything. It tells the loader to *prefer*
-`persona.nano.md` and `workflow.nano.md`, falling back to the base file when
-one is absent — so a preset with no variant files silently ships the frontier
-prose. Put them wherever `ZRB_LLM_PROMPT_DIR` points:
+`variant="nano"` does not create anything. It tells the loader to *prefer* `persona.nano.md` and `workflow.nano.md`, falling back to the base file when one is absent — so a preset with no variant files silently ships the frontier prose. Put them wherever `ZRB_LLM_PROMPT_DIR` points:
 
 ```
 prompts/
@@ -430,15 +365,11 @@ prompts/
   workflow.nano.md
 ```
 
-A variant **replaces** its base rather than appending to it, so it must repeat
-everything the base said that still applies. Start from a copy of
-`workflow.minimal.md` rather than from scratch — it is the shortest complete
-rulebook zrb ships.
+A variant **replaces** its base rather than appending to it, so it must repeat everything the base said that still applies. Start from a copy of `workflow.minimal.md` rather than from scratch — it is the shortest complete rulebook zrb ships.
 
 #### What `register_preset` checks
 
-Two errors raise, three conditions warn. All of them are things a plain dict
-assignment lets through in silence:
+Two errors raise, three conditions warn. All of them are things a plain dict assignment lets through in silence:
 
 | Condition | Result |
 | --- | --- |
@@ -448,29 +379,17 @@ assignment lets through in silence:
 | Composed rulebook drops a Priority Order rank 1 rule | Warning — secrets, tool-output-is-not-instructions, confirm-destructive |
 | No rule-carrying section composes at all | Warning — the model would get tools and no operating rules |
 
-The safety warning matters most. The built-in presets are pinned to rank 1 by a
-test that walks a hardcoded list of the three names, so a preset registered at
-runtime inherits none of that guarantee; `register_preset` is where it gets
-checked instead. Warnings rather than errors, because a custom rulebook may
-phrase a rule in words the check does not recognise — read them, then decide.
+The safety warning matters most. The built-in presets are pinned to rank 1 by a test that walks a hardcoded list of the three names, so a preset registered at runtime inherits none of that guarantee; `register_preset` is where it gets checked instead. Warnings rather than errors, because a custom rulebook may phrase a rule in words the check does not recognise — read them, then decide.
 
-> `PRESETS[name] = Preset(...)` still works and stays supported. It just skips
-> every check in the table above.
+> `PRESETS[name] = Preset(...)` still works and stays supported. It just skips every check in the table above.
 
-> An unrecognized `ZRB_LLM_PROFILE` value falls through to `auto`, and
-> `register_model_profile(..., "<unknown>")` raises `ValueError`.
+> An unrecognized `ZRB_LLM_PROFILE` value falls through to `auto`, and `register_model_profile(..., "<unknown>")` raises `ValueError`.
 
 ### Programmatic Prompt Customization
 
-Beyond editing prompt files and env vars, each task exposes its `PromptManager` via
-the public `task.prompt_manager` property. It offers three programmatic ways to shape
-the system prompt, in increasing power.
+Beyond editing prompt files and env vars, each task exposes its `PromptManager` via the public `task.prompt_manager` property. It offers three programmatic ways to shape the system prompt, in increasing power.
 
-**1. Append custom instructions** — `append_prompt()` adds
-content that is emitted **after** all built-in sections. Accepts a static string, a
-`Callable[[AnyContext], str]` for runtime-dynamic text, or a *full middleware*
-`Callable[[ctx, current_prompt, next], str]` that can rewrite the entire assembled
-prompt before passing it on (middleware is detected by arity — 3+ parameters):
+**1. Append custom instructions** — `append_prompt()` adds content that is emitted **after** all built-in sections. Accepts a static string, a `Callable[[AnyContext], str]` for runtime-dynamic text, or a *full middleware* `Callable[[ctx, current_prompt, next], str]` that can rewrite the entire assembled prompt before passing it on (middleware is detected by arity — 3+ parameters):
 
 ```python
 from zrb import LLMChatTask
@@ -493,10 +412,7 @@ def strip_blank_lines(ctx, current_prompt, nxt):
 task.prompt_manager.append_prompt(strip_blank_lines)
 ```
 
-**2. Register a dynamic, positioned section** — `register_section(name, provider)`
-registers a `Callable[[AnyContext], str]` that is composed *at the position* its
-`name` occupies in `include_sections` (not pinned to the end like `append_prompt`). Use
-it for always-on content that must reflect live state. Return `""` to emit nothing:
+**2. Register a dynamic, positioned section** — `register_section(name, provider)` registers a `Callable[[AnyContext], str]` that is composed *at the position* its `name` occupies in `include_sections` (not pinned to the end like `append_prompt`). Use it for always-on content that must reflect live state. Return `""` to emit nothing:
 
 ```python
 task.prompt_manager.register_section(
@@ -508,28 +424,18 @@ task.prompt_manager.include_sections = [
 ]
 ```
 
-**3. File-backed custom section** — any name in `include_sections` that is not a
-built-in (and has no registered provider) resolves as a file-backed custom section.
-It loads `<name>.md` through the same override hierarchy as built-in prompts (project
-dir → `ZRB_LLM_PROMPT_<NAME>` → base dir → package), with `{PLACEHOLDER}`
-substitution. No Python required:
+**3. File-backed custom section** — any name in `include_sections` that is not a built-in (and has no registered provider) resolves as a file-backed custom section. It loads `<name>.md` through the same override hierarchy as built-in prompts (project dir → `ZRB_LLM_PROMPT_<NAME>` → base dir → package), with `{PLACEHOLDER}` substitution. No Python required:
 
 ```bash
 # Loads company_context.md and places it after `workflow`.
 export ZRB_LLM_INCLUDE_SECTIONS="persona,workflow,company_context,system_context"
 ```
 
-> **Resolution precedence** for a section name is **built-in > registered provider >
-> markdown file**. A missing markdown file resolves to `""` (a harmless no-op — so a
-> misspelled name silently emits nothing). See ADR-0044 and AGENTS.md ("LLM Prompt
-> System").
+> **Resolution precedence** for a section name is **built-in > registered provider > markdown file**. A missing markdown file resolves to `""` (a harmless no-op — so a misspelled name silently emits nothing). See ADR-0044 and AGENTS.md ("LLM Prompt System").
 
 ### Telling the LLM about a custom tool
 
-What a tool does, what its arguments mean, and which tool to reach for instead
-all live in the tool's own **docstring** — pydantic-ai serializes it with the
-JSON schema on every request, so the model reads it next to the arguments it is
-filling in (ADR-0045):
+What a tool does, what its arguments mean, and which tool to reach for instead all live in the tool's own **docstring** — pydantic-ai serializes it with the JSON schema on every request, so the model reads it next to the arguments it is filling in (ADR-0045):
 
 ```python
 from zrb import LLMChatTask
@@ -546,14 +452,9 @@ task = LLMChatTask(name="chat")
 task.append_tool(check_stock)
 ```
 
-Note this relocates token cost rather than removing it: a docstring ships every
-turn, exactly as the guidance section did. The lever on prompt weight is the
-**number** of registered tools — use `Tool(fn, defer_loading=True)` for tools
-that are rarely needed, so their schema only materializes once the model
-searches for them.
+Note this relocates token cost rather than removing it: a docstring ships every turn, exactly as the guidance section did. The lever on prompt weight is the **number** of registered tools — use `Tool(fn, defer_loading=True)` for tools that are rarely needed, so their schema only materializes once the model searches for them.
 
-For cross-cutting policy that is not about any one tool, register a prompt
-section instead:
+For cross-cutting policy that is not about any one tool, register a prompt section instead:
 
 ```python
 task.prompt_manager.register_section(
@@ -691,8 +592,7 @@ These variables control which internet search engine Zrb's LLM tools use.
 
 ### Google News RSS (Default)
 
-Free, no API key, no Docker required. Fetches results from Google News RSS feed.
-No additional configuration needed.
+Free, no API key, no Docker required. Fetches results from Google News RSS feed. No additional configuration needed.
 
 ### SerpAPI (Google)
 
@@ -845,10 +745,7 @@ All interval and delay values are in **milliseconds**.
 
 These variables let you customize the slash tokens that trigger built-in UI commands.
 
-Each value is a **comma-separated list of alias tokens**, and setting one
-*replaces* the defaults rather than adding to them — list every alias you want to
-keep. Tokens need not start with `/`: `!` and `>` are the defaults for two of
-them.
+Each value is a **comma-separated list of alias tokens**, and setting one *replaces* the defaults rather than adding to them — list every alias you want to keep. Tokens need not start with `/`: `!` and `>` are the defaults for two of them.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -868,11 +765,7 @@ them.
 | `ZRB_LLM_UI_COMMAND_VOICE` | Toggle voice input | `/voice, /v` |
 | `ZRB_LLM_UI_COMMAND_YOLO_TOGGLE` | Toggle auto-approval of tool calls | `/yolo` |
 
-> ⚠️ **The variable name is not derivable from the command.** Several differ from
-> the token they bind: `/yolo` → `YOLO_TOGGLE`, `/plan` → `PLAN_TOGGLE`,
-> `/model` → `SET_MODEL`, `/compress` → `SUMMARIZE`, `>` → `REDIRECT_OUTPUT`.
-> Use the names in the table rather than uppercasing the slash token — a guessed
-> name is simply an unread environment variable, with no error to tell you.
+> ⚠️ **The variable name is not derivable from the command.** Several differ from the token they bind: `/yolo` → `YOLO_TOGGLE`, `/plan` → `PLAN_TOGGLE`, `/model` → `SET_MODEL`, `/compress` → `SUMMARIZE`, `>` → `REDIRECT_OUTPUT`. Use the names in the table rather than uppercasing the slash token — a guessed name is simply an unread environment variable, with no error to tell you.
 
 ---
 
@@ -888,9 +781,7 @@ them.
 
 ## 19. LSP Server Selection
 
-The LSP-backed code tools (`AnalyzeCode`, the `Lsp*` tools) auto-pick a language
-server for each file: your configured preference first, then the first *installed*
-server (command on `PATH`) whose config matches the file's extension.
+The LSP-backed code tools (`AnalyzeCode`, the `Lsp*` tools) auto-pick a language server for each file: your configured preference first, then the first *installed* server (command on `PATH`) whose config matches the file's extension.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -905,18 +796,13 @@ from zrb import CFG
 CFG.LLM_LSP_PREFERRED_SERVERS = ["pyright", "gopls"]
 ```
 
-Empty (default) keeps the previous installation/registry-order behavior. See
-[LSP Support](../advanced-topics/lsp-support.md) for the full selection rules and a
-per-call programmatic override.
+Empty (default) keeps the previous installation/registry-order behavior. See [LSP Support](../advanced-topics/lsp-support.md) for the full selection rules and a per-call programmatic override.
 
 ---
 
 ## 20. TUI Color Styles
 
-These variables override the colors used by the interactive `zrb llm chat` terminal
-UI. Each value is a [prompt_toolkit style string](https://python-prompt-toolkit.readthedocs.io/en/master/pages/advanced_topics/styling.html)
-— a hex color (`#ffcc00`), an ANSI name (`ansigreen`, `ansiyellow`), and/or
-attributes like `bold`. The special value `noinherit` resets to terminal defaults.
+These variables override the colors used by the interactive `zrb llm chat` terminal UI. Each value is a [prompt_toolkit style string](https://python-prompt-toolkit.readthedocs.io/en/master/pages/advanced_topics/styling.html) — a hex color (`#ffcc00`), an ANSI name (`ansigreen`, `ansiyellow`), and/or attributes like `bold`. The special value `noinherit` resets to terminal defaults.
 
 | Variable | Styles | Default |
 |----------|--------|---------|
@@ -937,9 +823,7 @@ attributes like `bold`. The special value `noinherit` resets to terminal default
 
 ### Markdown Rendering
 
-Unlike the knobs above, these are [Rich](https://rich.readthedocs.io/en/stable/style.html)
-style strings (`bold magenta`, `italic bright_cyan underline`) — they style the
-markdown renderer, not the prompt_toolkit widgets.
+Unlike the knobs above, these are [Rich](https://rich.readthedocs.io/en/stable/style.html) style strings (`bold magenta`, `italic bright_cyan underline`) — they style the markdown renderer, not the prompt_toolkit widgets.
 
 | Variable | Styles | Default |
 |----------|--------|---------|
@@ -975,26 +859,19 @@ markdown renderer, not the prompt_toolkit widgets.
 | `ZRB_LLM_UI_STYLE_INFO_PLAN_ON` | Plan mode = on | `ansiblue` |
 | `ZRB_LLM_UI_STYLE_INFO_PLAN_OFF` | Plan mode = off | `ansigreen` |
 
-> Assistant identity (`ZRB_LLM_ASSISTANT_NAME`, `ZRB_LLM_ASSISTANT_ASCII_ART`,
-> `ZRB_LLM_ASSISTANT_JARGON`) is covered in [System Prompts & Identity](#4-system-prompts--identity).
+> Assistant identity (`ZRB_LLM_ASSISTANT_NAME`, `ZRB_LLM_ASSISTANT_ASCII_ART`, `ZRB_LLM_ASSISTANT_JARGON`) is covered in [System Prompts & Identity](#4-system-prompts--identity).
 
 ### Themes (`ZRB_THEME`)
 
-Rather than exporting the knobs above one by one, `ZRB_THEME` selects a whole
-palette at once. Every style knob in this section resolves its **default** from
-the active theme, so a theme sets all of them and any individual `ZRB_*` export
-still wins over it.
+Rather than exporting the knobs above one by one, `ZRB_THEME` selects a whole palette at once. Every style knob in this section resolves its **default** from the active theme, so a theme sets all of them and any individual `ZRB_*` export still wins over it.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ZRB_THEME` | Named palette supplying the defaults for every `LLM_UI_STYLE_*` / `CLI_COLOR_*` / `CLI_STYLE_*` knob | `dark` |
 
-Built-in values are `dark` (reproduces the historical hardcoded defaults, so a
-default install is visually unchanged) and `light` (dark-on-light, avoiding pale
-foregrounds on white). An unknown name logs a warning and falls back to `dark`.
+Built-in values are `dark` (reproduces the historical hardcoded defaults, so a default install is visually unchanged) and `light` (dark-on-light, avoiding pale foregrounds on white). An unknown name logs a warning and falls back to `dark`.
 
-Register your own from `zrb_init.py` — a theme is layered on top of `dark`, so a
-partial palette only needs the knobs it changes:
+Register your own from `zrb_init.py` — a theme is layered on top of `dark`, so a partial palette only needs the knobs it changes:
 
 ```python
 from zrb.config.theme import register_theme
@@ -1010,8 +887,7 @@ See `examples/themes/monokai/` for a complete worked example.
 
 ### Theme Examples
 
-Example shell scripts are provided in `examples/themes/` to quickly switch
-between curated color palettes. Source one in your shell rc to apply it:
+Example shell scripts are provided in `examples/themes/` to quickly switch between curated color palettes. Source one in your shell rc to apply it:
 
 ```bash
 # ~/.zshrc or ~/.bashrc
@@ -1026,25 +902,20 @@ Available themes:
 | `zrb-theme-light.sh` | Light background (dark text on light panels) |
 | `zrb-theme-high-contrast.sh` | Maximum contrast (pure black/white, bold throughout) |
 
-Each file defines a shell function (`zrb_theme_dark`, `zrb_theme_light`,
-`zrb_theme_high_contrast`) so you can switch themes mid-session:
+Each file defines a shell function (`zrb_theme_dark`, `zrb_theme_light`, `zrb_theme_high_contrast`) so you can switch themes mid-session:
 
 ```bash
 zrb_theme_light    # switch to light theme
 zrb llm chat       # start a new session with the light theme
 ```
 
-To create your own theme, copy one of the example files and adjust the
-`ZRB_LLM_UI_STYLE_*` values. The variables take effect on the next `zrb llm chat`
-session — no restart needed.
+To create your own theme, copy one of the example files and adjust the `ZRB_LLM_UI_STYLE_*` values. The variables take effect on the next `zrb llm chat` session — no restart needed.
 
 ---
 
 ## 21. Sandbox Configuration
 
-Opt-in filesystem containment for LLM tool calls — see
-[Sandbox](../advanced-topics/sandbox.md) for the full model (two enforcement
-layers, platform matrix, escape hatch).
+Opt-in filesystem containment for LLM tool calls — see [Sandbox](../advanced-topics/sandbox.md) for the full model (two enforcement layers, platform matrix, escape hatch).
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -1085,9 +956,7 @@ These variables override the ANSI colors used for plain terminal output (outside
 
 ## 23. Voice Dictation
 
-Opt-in push-to-talk voice input in the chat TUI, gated by `ZRB_LLM_VOICE_ENABLED`.
-When enabled, the `/voice` command toggles recording mode. Audio dependencies
-(sounddevice, numpy) are lazy-loaded — no cost at startup.
+Opt-in push-to-talk voice input in the chat TUI, gated by `ZRB_LLM_VOICE_ENABLED`. When enabled, the `/voice` command toggles recording mode. Audio dependencies (sounddevice, numpy) are lazy-loaded — no cost at startup.
 
 | Variable | Description | Default |
 |----------|-------------|---------|

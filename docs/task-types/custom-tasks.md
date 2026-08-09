@@ -208,13 +208,9 @@ cli.add_task(ApiCallTask(
 ## Best Practices
 
 1. **Accept `**kwargs`** in your `__init__` and pass them to `super().__init__()`. This ensures all standard `BaseTask` parameters (`upstream`, `retries`, `color`, etc.) remain usable.
-
 2. **`_exec_action` is async.** `await` your I/O calls directly. If you have blocking work, hand it to `asyncio.to_thread` so you don't stall the event loop.
-
 3. **Document custom parameters.** If you add constructor parameters, include docstrings so they appear in IDE tooltips.
-
 4. **Match existing patterns.** Look at built-in tasks like `CmdTask` (`src/zrb/task/cmd_task.py`), `HttpCheck`, or `Scaffolder` — they all override `_exec_action`.
-
 5. **Prefer composition over deep inheritance.** If you find yourself creating 3+ levels of subclassing, consider composing with `upstream` and `successor` instead.
 
 ---

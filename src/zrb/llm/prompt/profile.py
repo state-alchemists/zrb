@@ -188,9 +188,12 @@ MINIMAL_TOOLS = frozenset(
     }
 )
 
-#: What ``lean`` subtracts from the full surface. Small in count, not in weight:
-#: these three are ~920 tokens of schema, ~18% of the eager tool definitions a
-#: 5-14B model reads before it reads the request.
+#: What ``lean`` subtracts from the full surface: ~437 tokens of schema, ~18% of
+#: the eager tool definitions a 5-14B model reads before it reads the request.
+#: Regenerate with ``python llm-experiment/measure.py`` rather than editing by
+#: hand — the earlier "~920 tokens" here and the "3,840 → 3,146" in ADR-0049
+#: disagreed with each other because both were hand-derived once and never
+#: recomputed.
 #:
 #: The journal trio goes because cross-session memory is the wrong thing to
 #: spend a constrained model's tool budget on: it is not needed to finish the

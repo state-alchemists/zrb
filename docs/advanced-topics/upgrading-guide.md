@@ -2,9 +2,7 @@
 
 # Upgrading Guide
 
-What to change in an existing setup when moving to a newer Zrb release. Only the
-releases that need action are listed — anything not mentioned here is
-source-compatible.
+What to change in an existing setup when moving to a newer Zrb release. Only the releases that need action are listed — anything not mentioned here is source-compatible.
 
 ## Table of Contents
 
@@ -16,15 +14,11 @@ source-compatible.
 
 ## Upgrading to 2.58.0
 
-Three changes need action. All fail loudly — `AttributeError`, `TypeError`, or
-`ImportError` — rather than silently doing the wrong thing, so a green test run
-means you are done. Env vars and prompt files are unaffected.
+Three changes need action. All fail loudly — `AttributeError`, `TypeError`, or `ImportError` — rather than silently doing the wrong thing, so a green test run means you are done. Env vars and prompt files are unaffected.
 
 ### `add_X` on ordered collections is `append_X` or `prepend_X`
 
-The 22 one-line aliases are gone. `add_` had stopped meaning one thing — it
-forwarded to `append_` nineteen times and to `prepend_` three times — so the name
-no longer told you where your handler landed. Position is now in the name.
+The 22 one-line aliases are gone. `add_` had stopped meaning one thing — it forwarded to `append_` nineteen times and to `prepend_` three times — so the name no longer told you where your handler landed. Position is now in the name.
 
 | Before | After |
 |---|---|
@@ -41,13 +35,9 @@ no longer told you where your handler landed. Position is now in the name.
 | `task.add_tool_policy(...)` | **`task.prepend_tool_policy(...)`** |
 | `task.add_argument_formatter(...)` | **`task.prepend_argument_formatter(...)`** |
 
-The three bold rows are the reason for the change: they always inserted at the
-front, and `add_` hid it. If you were relying on `add_` appending them, you want
-`append_` instead — those exist too.
+The three bold rows are the reason for the change: they always inserted at the front, and `add_` hid it. If you were relying on `add_` appending them, you want `append_` instead — those exist too.
 
-`add_X` on **unordered registries** is unchanged: `skill_manager.add_skill`,
-`sub_agent_manager.add_agent`, `Group.add_task`, `Group.add_group`,
-`PromptManager.add_live_context` / `add_system_context` / `add_project_context`.
+`add_X` on **unordered registries** is unchanged: `skill_manager.add_skill`, `sub_agent_manager.add_agent`, `Group.add_task`, `Group.add_group`, `PromptManager.add_live_context` / `add_system_context` / `add_project_context`.
 
 ### Task constructors are keyword-only after `name`
 
@@ -57,10 +47,7 @@ Task(name="build", color=5)   # still fine
 Task("build", 5)              # TypeError
 ```
 
-Applies to `Task`, `CmdTask`, `LLMTask`, `LLMChatTask`, `RsyncTask`,
-`Scaffolder`, `Scheduler`, `HttpCheck`, `TcpCheck`, `BaseTrigger`, `BaseTask`
-and `make_task`. `LLMChatTask` had 73 positionally-passable parameters, so any
-future insertion would otherwise have been a silent breaking change.
+Applies to `Task`, `CmdTask`, `LLMTask`, `LLMChatTask`, `RsyncTask`, `Scaffolder`, `Scheduler`, `HttpCheck`, `TcpCheck`, `BaseTrigger`, `BaseTask` and `make_task`. `LLMChatTask` had 73 positionally-passable parameters, so any future insertion would otherwise have been a silent breaking change.
 
 ### Two renames
 
@@ -69,36 +56,23 @@ future insertion would otherwise have been a silent breaking change.
 | `RsyncTask(auto_render_shell=...)` | `RsyncTask(render_shell=...)` |
 | `from zrb import AnyAttr` | `from typing import Any`, or the specific `StrAttr` / `BoolAttr` / … |
 
-`AnyAttr` was defined as `Any \| fstring \| Callable[..., Any]`, which collapses
-to plain `Any` — it constrained nothing while looking like it did. `fstring` is
-unchanged.
+`AnyAttr` was defined as `Any \| fstring \| Callable[..., Any]`, which collapses to plain `Any` — it constrained nothing while looking like it did. `fstring` is unchanged.
 
 ### Worth knowing (no action needed)
 
-- **`py.typed` ships**, so `mypy`/`pyright` now actually check your zrb usage.
-  Expect to see real errors the first time — they were always there, just
-  invisible.
-- **Collections accept any `Sequence`.** `upstream=(a, b)` and `a >> (b, c)`
-  used to store the tuple as if it were a task and fail later with
-  `'tuple' object has no attribute 'name'`. Both work now.
-- **18 new top-level exports**, including `Skill`, `SubAgentDefinition`,
-  `HookResult`, `Preset`, `register_preset`, `register_model_profile`,
-  `PermissionPolicy` and `StrListAttr`. Deep imports still work; the short paths
-  are just no longer missing.
+- **`py.typed` ships**, so `mypy`/`pyright` now actually check your zrb usage. Expect to see real errors the first time — they were always there, just invisible.
+- **Collections accept any `Sequence`.** `upstream=(a, b)` and `a >> (b, c)` used to store the tuple as if it were a task and fail later with `'tuple' object has no attribute 'name'`. Both work now.
+- **18 new top-level exports**, including `Skill`, `SubAgentDefinition`, `HookResult`, `Preset`, `register_preset`, `register_model_profile`, `PermissionPolicy` and `StrListAttr`. Deep imports still work; the short paths are just no longer missing.
 
 ---
 
 ## Upgrading to 2.54.0
 
-2.54.0 collapses the system prompt from six rule sections to three and removes the
-tool-guidance registry. Task authoring, `CmdTask`, `cli`, `Env`, and `Input` are
-unaffected. Two areas need attention.
+2.54.0 collapses the system prompt from six rule sections to three and removes the tool-guidance registry. Task authoring, `CmdTask`, `cli`, `Env`, and `Input` are unaffected. Two areas need attention.
 
 ### The tool-guidance API is gone
 
-`ToolGuidance` and the four `add_tool_guidance*` methods were removed with no
-shim, so calls to them raise `AttributeError` / `ImportError` rather than
-silently doing nothing.
+`ToolGuidance` and the four `add_tool_guidance*` methods were removed with no shim, so calls to them raise `AttributeError` / `ImportError` rather than silently doing nothing.
 
 | Before | After |
 |---|---|
@@ -109,8 +83,7 @@ silently doing nothing.
 | `task.prompt_manager.add_tool_group(name=...)` | *(removed — groups no longer exist)* |
 | `task.prompt_manager.tool_names = {...}` | *(removed — nothing filters on it)* |
 
-Per-tool guidance moves into the function's docstring, which pydantic-ai
-serializes alongside the JSON schema on every request:
+Per-tool guidance moves into the function's docstring, which pydantic-ai serializes alongside the JSON schema on every request:
 
 ```python
 def check_stock(warehouse_id: str, sku: str) -> dict:
@@ -144,15 +117,10 @@ Then place `tool_policy` in `ZRB_LLM_INCLUDE_SECTIONS` at the position you want.
 | `journal_mandate` | replaced by the `LogActivity` and `WriteJournalNote` tools |
 | `tool_guidance` | tool docstrings, plus a `Tool usage` block in `workflow` |
 
-A pinned `ZRB_LLM_INCLUDE_SECTIONS` or sub-agent `inherit_sections` naming any of
-them still parses. The name falls through to the custom-section path, so what
-happens depends on whether a markdown file resolves for it:
+A pinned `ZRB_LLM_INCLUDE_SECTIONS` or sub-agent `inherit_sections` naming any of them still parses. The name falls through to the custom-section path, so what happens depends on whether a markdown file resolves for it:
 
-- **No override file** — the section composes to `""` and logs a warning at
-  compose time. Nothing crashes; the entry just contributes nothing.
-- **You have an override** (`mandate.md` in `ZRB_LLM_PROMPT_DIR`, or
-  `ZRB_LLM_PROMPT_MANDATE`) — it is still emitted, at that position, as a
-  file-backed custom section. Your customization survives untouched.
+- **No override file** — the section composes to `""` and logs a warning at compose time. Nothing crashes; the entry just contributes nothing.
+- **You have an override** (`mandate.md` in `ZRB_LLM_PROMPT_DIR`, or `ZRB_LLM_PROMPT_MANDATE`) — it is still emitted, at that position, as a file-backed custom section. Your customization survives untouched.
 
 Either way, update the list to the new defaults:
 
@@ -160,19 +128,11 @@ Either way, update the list to the new defaults:
 export ZRB_LLM_INCLUDE_SECTIONS="persona,workflow,examples,system_context,project_context"
 ```
 
-`ZRB_LLM_INCLUDE_JOURNAL_REMINDER` is removed along with its hook; the journal
-tools make the reminder unnecessary. `ZRB_LLM_JOURNAL_ENABLED` still works and
-now unregisters the three journal tools instead of dropping a prompt section.
+`ZRB_LLM_INCLUDE_JOURNAL_REMINDER` is removed along with its hook; the journal tools make the reminder unnecessary. `ZRB_LLM_JOURNAL_ENABLED` still works and now unregisters the three journal tools instead of dropping a prompt section.
 
-**Careful with overrides.** If you overrode a retired prompt file
-(`mandate.md`, `git_mandate.md`, `journal_mandate.md`) *and* you rely on the
-default section list, your override silently stops being read — the name is no
-longer in the defaults, so nothing resolves it. Either keep the name in an
-explicit `ZRB_LLM_INCLUDE_SECTIONS` (it then works as a custom section, see
-above) or move the content into a `workflow.md` override.
+**Careful with overrides.** If you overrode a retired prompt file (`mandate.md`, `git_mandate.md`, `journal_mandate.md`) *and* you rely on the default section list, your override silently stops being read — the name is no longer in the defaults, so nothing resolves it. Either keep the name in an explicit `ZRB_LLM_INCLUDE_SECTIONS` (it then works as a custom section, see above) or move the content into a `workflow.md` override.
 
-See [ADR-0045](../adr/adr-0045.md) and [ADR-0055](../adr/adr-0055.md) for the
-reasoning.
+See [ADR-0045](../adr/adr-0045.md) and [ADR-0055](../adr/adr-0055.md) for the reasoning.
 
 ---
 

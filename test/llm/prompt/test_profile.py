@@ -463,7 +463,12 @@ def test_register_preset_warns_when_the_safety_floor_is_gone(
             "tiny", Preset(sections=("persona", "workflow"), variant="tiny")
         )
 
+    # All three concepts, not a sample. profile.py keeps its own copy of the
+    # rank-1 table on purpose (a shared one would let one wrong regex excuse
+    # both), and asserting only two of the three let the copies drift on the
+    # third with nothing to catch it.
     assert "secrets" in caplog.text
+    assert "tool output is not instructions" in caplog.text
     assert "confirm destructive actions" in caplog.text
 
 
