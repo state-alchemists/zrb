@@ -6,6 +6,7 @@ import pytest
 from zrb.config.config import CFG
 from zrb.llm.sandbox.os_sandbox import SandboxUnavailableError
 from zrb.llm.tool import shell as shell_mod
+from zrb.llm.tool import stream_capture as capture_mod
 from zrb.llm.tool.shell import run_shell_command
 
 
@@ -375,8 +376,10 @@ async def test_console_echo_stops_at_the_display_cap(monkeypatch):
     printed: list[str] = []
     monkeypatch.setattr(CFG, "LLM_MAX_CONSOLE_OUTPUT_CHARS", 100)
     monkeypatch.setattr(CFG, "LLM_MAX_OUTPUT_CHARS", 100000)
+    # The echo moved to `stream_capture` with the class that does it; patching
+    # `shell_mod` here would silently stop spying anything.
     monkeypatch.setattr(
-        shell_mod, "zrb_print", lambda text, **kwargs: printed.append(text)
+        capture_mod, "zrb_print", lambda text, **kwargs: printed.append(text)
     )
     mock_proc = _make_mock_process(stdout_lines=[f"row-{i:04d}\n" for i in range(300)])
     monkeypatch.setattr(

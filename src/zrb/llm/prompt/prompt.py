@@ -13,7 +13,7 @@ def get_prompt(name: str, profile: str | None = None, **extra_replacements: str)
     This is the canonical function that replaces all individual
     ``get_*_prompt()`` functions. Call it directly:
 
-        prompt = get_prompt("mandate")
+        prompt = get_prompt("workflow")
         prompt = get_prompt("persona", ASSISTANT_NAME="Zrb")
         prompt = get_prompt("persona", profile="lean")
 

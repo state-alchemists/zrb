@@ -120,6 +120,7 @@ from typing import TYPE_CHECKING
 
 from zrb.llm.ui.base.ui import BaseUI
 from zrb.llm.ui.buffered_output import BufferedOutputMixin
+from zrb.llm.ui.buffered_ui import BufferedUI
 
 if TYPE_CHECKING:
     from zrb.llm.ui.default.ui import UI  # noqa: F401 — lazy-loaded via __getattr__
@@ -136,6 +137,7 @@ from zrb.llm.ui.ui_factory import (
 
 __all__ = [
     "BufferedOutputMixin",
+    "BufferedUI",
     # Simple API (RECOMMENDED)
     "SimpleUI",
     "EventDrivenUI",

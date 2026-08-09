@@ -26,6 +26,50 @@ FullMiddleware = Callable[[AnyContext, str, Callable[[AnyContext, str], str]], s
 PromptMiddleware = SimplePrompt | FullMiddleware
 
 
+class _ProviderRegistry:
+    """Named dynamic providers, composed in registration order.
+
+    One shape used three times: live context, system context, project context.
+    Each had its own copy of "scan the list for this name, replace or append"
+    and of "call each provider, swallow whatever it raises, keep the non-empty
+    results" — the second of which is the part worth having once, since a
+    downstream provider that throws must never take the prompt down with it.
+
+    Not merged with ``_section_providers``: that one is a plain dict holding
+    *one* provider per section, and composing it means picking a single entry
+    rather than concatenating all of them.
+    """
+
+    def __init__(self, label: str) -> None:
+        self._label = label
+        self._providers: list[tuple[str, SimplePrompt]] = []
+
+    def set(self, name: str, provider: SimplePrompt) -> None:
+        """Register *provider* under *name*, replacing any previous one."""
+        for i, (existing, _) in enumerate(self._providers):
+            if existing == name:
+                self._providers[i] = (name, provider)
+                return
+        self._providers.append((name, provider))
+
+    def render(self, ctx: AnyContext) -> list[str]:
+        """Every provider's non-empty output, in registration order.
+
+        A provider that raises is logged and skipped: these are downstream
+        extension points, and one bad plugin must not cost the whole prompt.
+        """
+        parts: list[str] = []
+        for name, provider in self._providers:
+            try:
+                extra = provider(ctx)
+            except Exception as e:
+                CFG.LOGGER.debug(f"{self._label} provider '{name}' failed: {e}")
+                continue
+            if extra:
+                parts.append(extra)
+        return parts
+
+
 class PromptManager:
     """Assembles the LLM system prompt from ordered, MECE sections.
 
@@ -96,15 +140,15 @@ class PromptManager:
         self._render = render
         # Live context providers: per-turn dynamic state injected into the
         # <live-context> block after built-in rendering.
-        self._live_context_providers: list[tuple[str, SimplePrompt]] = []
+        self._live_context_providers = _ProviderRegistry("Live-context")
         # Project context providers: registered via add_project_context();
         # composed into the project_context section alongside the built-in
         # project documentation content.
-        self._project_context_providers: list[tuple[str, SimplePrompt]] = []
+        self._project_context_providers = _ProviderRegistry("Project-context")
         # System context providers: registered via add_system_context();
         # composed into the system_context section alongside the built-in
         # system context (OS, CWD, tools, etc.).
-        self._system_context_providers: list[tuple[str, SimplePrompt]] = []
+        self._system_context_providers = _ProviderRegistry("System-context")
         # Dynamic providers for config-positioned custom sections, keyed by the
         # name used in ``include_sections``. A registered provider is composed
         # by calling ``provider(ctx)`` at compose time; it takes precedence over
@@ -235,11 +279,7 @@ class PromptManager:
         (or ``None`` / ``""`` to emit nothing). Re-registering the same *name*
         overwrites the previous provider.
         """
-        for i, (existing_name, _) in enumerate(self._live_context_providers):
-            if existing_name == name:
-                self._live_context_providers[i] = (name, provider)
-                return
-        self._live_context_providers.append((name, provider))
+        self._live_context_providers.set(name, provider)
 
     def create_live_context(
         self, ctx: AnyContext, inject_journal_index: bool = False
@@ -284,13 +324,8 @@ class PromptManager:
 
     def _finish_live_context(self, body: str, ctx: AnyContext) -> str:
         """Append registered live-context providers and wrap the block."""
-        for name, provider in self._live_context_providers:
-            try:
-                extra = provider(ctx)
-                if extra:
-                    body += "\n" + extra
-            except Exception as e:
-                CFG.LOGGER.debug(f"Live-context provider '{name}' failed: {e}")
+        for extra in self._live_context_providers.render(ctx):
+            body += "\n" + extra
         if not body.strip():
             return ""
         return f"<live-context>\n{body}\n</live-context>"
@@ -304,11 +339,7 @@ class PromptManager:
         ``None`` / ``""`` to emit nothing). Re-registering the same *name*
         overwrites the previous provider.
         """
-        for i, (existing_name, _) in enumerate(self._system_context_providers):
-            if existing_name == name:
-                self._system_context_providers[i] = (name, provider)
-                return
-        self._system_context_providers.append((name, provider))
+        self._system_context_providers.set(name, provider)
 
     def _create_system_context_middleware(self) -> FullMiddleware:
         """Build the system_context section middleware, including custom providers."""
@@ -321,14 +352,7 @@ class PromptManager:
             next_handler: Callable[[AnyContext, str], str],
         ) -> str:
             result = _builtin(ctx, current_prompt, next_handler)
-            extra_parts: list[str] = []
-            for _name, provider in _providers:
-                try:
-                    extra = provider(ctx)
-                    if extra:
-                        extra_parts.append(extra)
-                except Exception as e:
-                    CFG.LOGGER.debug(f"Section provider '{_name}' failed: {e}")
+            extra_parts = _providers.render(ctx)
             if extra_parts:
                 result = next_handler(
                     ctx,
@@ -347,11 +371,7 @@ class PromptManager:
         nothing). Re-registering the same *name* overwrites the previous
         provider.
         """
-        for i, (existing_name, _) in enumerate(self._project_context_providers):
-            if existing_name == name:
-                self._project_context_providers[i] = (name, provider)
-                return
-        self._project_context_providers.append((name, provider))
+        self._project_context_providers.set(name, provider)
 
     def _create_project_context_middleware(self) -> FullMiddleware:
         """Build the project_context section middleware, including custom providers."""
@@ -364,14 +384,7 @@ class PromptManager:
             next_handler: Callable[[AnyContext, str], str],
         ) -> str:
             result = _builtin(ctx, current_prompt, next_handler)
-            extra_parts: list[str] = []
-            for _name, provider in _providers:
-                try:
-                    extra = provider(ctx)
-                    if extra:
-                        extra_parts.append(extra)
-                except Exception as e:
-                    CFG.LOGGER.debug(f"Section provider '{_name}' failed: {e}")
+            extra_parts = _providers.render(ctx)
             if extra_parts:
                 result = next_handler(
                     ctx,
@@ -496,24 +509,19 @@ class PromptManager:
 
     def _file_section_middleware(
         self,
-        *names: str,
+        name: str,
         profile: str | None = None,
         extra_replacements: dict[str, str] | None = None,
         emitted: set[str] | None = None,
     ) -> FullMiddleware:
         """Middleware for one or more file-backed sections emitted as a unit.
 
-        Resolves each name in *names* via ``get_prompt`` at compose time,
+        Resolves *name* via ``get_prompt`` at compose time,
         preferring the *profile* variant (``{name}.{profile}.md``) with fallback
-        to the base file (ADR-0047). When nothing resolves for a name (no
-        registered provider, no markdown file), that part is empty — a warning
+        to the base file (ADR-0047). When nothing resolves (no registered
+        provider, no markdown file), the section is empty — a warning
         is logged so a misspelled name in ``include_sections`` /
         ``ZRB_LLM_INCLUDE_SECTIONS`` is diagnosable instead of silently dropped.
-
-        Passing more than one name emits them back to back at a single
-        position. That exists for the ``mandate``/``workflow`` split: a config
-        that predates the split names only ``mandate`` and must still receive
-        both.
 
         *extra_replacements* are forwarded to ``get_prompt`` as
         ``**extra_replacements`` for ``{PLACEHOLDER}`` substitution.
@@ -523,14 +531,11 @@ class PromptManager:
             ctx: AnyContext, current: str, next_fn: Callable[[AnyContext, str], str]
         ) -> str:
             kwargs = extra_replacements or {}
-            present = emitted if emitted is not None else set(names)
-            parts: list[str] = []
-            for name in names:
-                content = get_prompt(name, profile=profile, **kwargs)
-                if not content:
-                    self._warn_empty_section(ctx, name)
-                parts.append(filter_requires(content, present))
-            return next_fn(ctx, f"{current}\n" + "\n".join(parts))
+            present = emitted if emitted is not None else {name}
+            content = get_prompt(name, profile=profile, **kwargs)
+            if not content:
+                self._warn_empty_section(ctx, name)
+            return next_fn(ctx, f"{current}\n" + filter_requires(content, present))
 
         return file_section_middleware
 

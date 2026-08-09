@@ -2590,7 +2590,7 @@ version = "3.1.6"
 description = "A very fast and expressive template engine."
 optional = false
 python-versions = ">=3.7"
-groups = ["main"]
+groups = ["main", "dev"]
 files = [
     {file = "jinja2-3.1.6-py3-none-any.whl", hash = "sha256:85ece4451f492d0c13c5dd7c13a64681a86afae63a5f347908daf103ce6d2f67"},
     {file = "jinja2-3.1.6.tar.gz", hash = "sha256:0137fb05990d35f1275a587e9aee6d56da821fc83491a0fb838183be43f66d6d"},
@@ -3043,6 +3043,24 @@ rtd = ["ipykernel", "jupyter_sphinx", "mdit-py-plugins (>=0.5.0)", "myst-parser"
 testing = ["coverage", "pytest", "pytest-cov", "pytest-regressions", "pytest-timeout", "requests"]
 
 [[package]]
+name = "markdown2"
+version = "2.5.5"
+description = "A fast and complete Python implementation of Markdown"
+optional = false
+python-versions = "<4,>=3.9"
+groups = ["dev"]
+files = [
+    {file = "markdown2-2.5.5-py3-none-any.whl", hash = "sha256:be798587e09d1f52d2e4d96a649c4b82a778c75f9929aad52a2c95747fa26941"},
+    {file = "markdown2-2.5.5.tar.gz", hash = "sha256:001547e68f6e7fcf0f1cb83f7e82f48aa7d48b2c6a321f0cd20a853a8a2d1664"},
+]
+
+[package.extras]
+all = ["latex2mathml ; python_version >= \"3.8.1\"", "pygments (>=2.7.3)", "wavedrom"]
+code-syntax-highlighting = ["pygments (>=2.7.3)"]
+latex = ["latex2mathml ; python_version >= \"3.8.1\""]
+wavedrom = ["wavedrom"]
+
+[[package]]
 name = "markdownify"
 version = "1.2.3"
 description = "Convert HTML to markdown."
@@ -3064,7 +3082,7 @@ version = "3.0.3"
 description = "Safely add untrusted strings to HTML/XML markup."
 optional = false
 python-versions = ">=3.9"
-groups = ["main"]
+groups = ["main", "dev"]
 files = [
     {file = "markupsafe-3.0.3-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:2f981d352f04553a7171b8e44369f2af4055f888dfb147d55e42d29e29e74559"},
     {file = "markupsafe-3.0.3-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:e1c1493fb6e50ab01d20a22826e57520f1284df32f2d8601fdd90b6304601419"},
@@ -4084,6 +4102,24 @@ files = [
 "pdfminer.six" = "20260107"
 Pillow = ">=12.2.0"
 pypdfium2 = ">=5.9.0"
+
+[[package]]
+name = "pdoc"
+version = "16.0.0"
+description = "API Documentation for Python Projects"
+optional = false
+python-versions = ">=3.10"
+groups = ["dev"]
+files = [
+    {file = "pdoc-16.0.0-py3-none-any.whl", hash = "sha256:070b51de2743b9b1a4e0ab193a06c9e6c12cf4151cf9137656eebb16e8556628"},
+    {file = "pdoc-16.0.0.tar.gz", hash = "sha256:fdadc40cc717ec53919e3cd720390d4e3bcd40405cb51c4918c119447f913514"},
+]
+
+[package.dependencies]
+Jinja2 = ">=2.11.0"
+markdown2 = ">=2.5.4"
+MarkupSafe = ">=1.1.1"
+pygments = ">=2.12.0"
 
 [[package]]
 name = "pillow"
@@ -7582,4 +7618,4 @@ xai = ["aiohttp", "xai-sdk"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11.0,<3.15.0"
-content-hash = "5e3af616a6e2b473600ced6ce2a9b07dc7f798cbc4b33a93a58f4031e4e18d43"
+content-hash = "0dcd4497288aa81c2dbf22bc0d6749291e528732a61cd3569b9495b1808b4959"

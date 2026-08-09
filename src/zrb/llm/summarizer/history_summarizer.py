@@ -38,9 +38,6 @@ def create_summarizer_history_processor(
     conversational_token_threshold: int | None = None,
     message_token_threshold: int | None = None,
     summary_window: int | None = None,
-    # Backward compatibility
-    agent: Any = None,
-    token_threshold: int | None = None,
 ) -> "Callable[[list[ModelMessage]], Awaitable[list[ModelMessage]]]":
     """
     Creates a history processor that auto-summarizes history when it exceeds `token_threshold`.
@@ -48,7 +45,7 @@ def create_summarizer_history_processor(
     llm_limiter = limiter or default_llm_limiter
     if conversational_token_threshold is None:
         conversational_token_threshold = (
-            token_threshold or CFG.LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD
+            CFG.LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD
         )
     if message_token_threshold is None:
         message_token_threshold = CFG.LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD

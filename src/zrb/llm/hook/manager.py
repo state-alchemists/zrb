@@ -386,8 +386,17 @@ class HookManager(HookManagerLoading):
         session_id: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> list[HookResult]:
-        """
-        Backward compatibility method that returns old HookResult format.
+        """Run *event*'s hooks and flatten each result into a `HookResult`.
+
+        Not a back-compat shim, despite how it was labelled. `execute_hooks`
+        returns typed execution results; this collapses each one's fields into
+        the flat, Claude-format `modifications` mapping (`decision`,
+        `permissionDecision`, `additionalContext`, `updatedInput`, …) that
+        `HookResult` carries. That mapping is a real transformation, not an
+        alias, and `HookResult` is part of the public surface.
+
+        Nothing in zrb itself calls this — the runtime consumes the typed form
+        directly. It exists for callers that want the flat shape.
         """
         exec_results = await self.execute_hooks(
             event=event,
