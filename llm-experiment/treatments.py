@@ -40,7 +40,6 @@ def zrb_arms() -> dict[str, str]:
     ]
     return {
         "zrb-full": _compose("full"),
-        "zrb-lean": _compose("lean"),
         "zrb-minimal": _compose("minimal"),
         "zrb-full-no-persona": _compose(
             "full", [s for s in full_sections if s != "persona"]

@@ -20,16 +20,15 @@ from __future__ import annotations
 import os
 from unittest.mock import MagicMock
 
-# The journal trio IS LEAN_DROPS, so measuring with the journal off would make
-# `lean` and `full` look identical. Measure the shipped default: journal on.
+# Measure the shipped default rather than a stripped one: the journal tools are
+# part of `full`'s eager surface and leaving them off understates it.
 os.environ["ZRB_LLM_JOURNAL_ENABLED"] = "true"
 
 PRESET_SECTIONS = {
     "full": ("persona", "workflow", "examples"),
-    "lean": ("persona", "workflow", "examples"),
     "minimal": ("persona", "workflow"),
 }
-VARIANTS = {"full": None, "lean": "lean", "minimal": "minimal"}
+VARIANTS = {"full": None, "minimal": "minimal"}
 
 
 def counter():
@@ -98,7 +97,7 @@ def main() -> None:
     print(f"tokenizer: {tokenizer}\ncwd: {os.getcwd()}\n")
 
     rows = []
-    for preset in ("full", "lean", "minimal"):
+    for preset in ("full", "minimal"):
         os.environ["ZRB_LLM_PROFILE"] = preset
         variant = VARIANTS[preset]
         files = "".join(get_prompt(s, profile=variant) for s in PRESET_SECTIONS[preset])
@@ -125,12 +124,11 @@ def main() -> None:
         print(f"{preset:9s} {len(eager):6d} {len(deferred):9d} {total:14,d}")
 
     full_eager = {n for n, _ in rows[0][3]}
-    lean_eager = {n for n, _ in rows[1][3]}
-    dropped = full_eager - lean_eager
+    dropped = full_eager - {n for n, _ in rows[-1][3]}
     if dropped:
         cost = sum(count(s) for n, s in rows[0][3] if n in dropped)
         pct = 100 * cost / max(sum(count(s) for _, s in rows[0][3]), 1)
-        print(f"\nlean drops {sorted(dropped)}: {cost:,} tok ({pct:.0f}% of full)")
+        print(f"\nminimal drops {sorted(dropped)}: {cost:,} tok ({pct:.0f}% of full)")
 
     print("\nper-tool schema weight (full preset), heaviest first")
     print(f"  {'tool':22s}{'tokens':>8s}{'desc ch':>9s}{'schema ch':>11s}")

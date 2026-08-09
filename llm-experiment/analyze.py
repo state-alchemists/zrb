@@ -125,7 +125,7 @@ def main() -> None:
     ]
 
     x1 = [r for r in rows if r["experiment"] == "X1"]
-    ladder = ["zrb-full", "zrb-lean", "zrb-minimal"]
+    ladder = ["zrb-full", "zrb-minimal"]
     out.append(section("X1 — preset ladder", pivot(x1, "model", "arm", ladder)))
     priced = sum("input_tokens" in r for r in rows)
     out.append(

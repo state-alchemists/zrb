@@ -79,8 +79,7 @@ python run.py --experiment X5 --arm zrb-full --out runs-after.jsonl
 X5's table says `full` (44%) does not beat `minimal` (41%) on rules `minimal`
 lacks entirely, and that licenses nothing on its own. Ablation says otherwise for
 two of them: *completeness-as-checklist* looks free across presets but costs
-`full` 9pp and `lean` 12pp when actually removed, and a *scope* demonstration
-gains neither arm. Only `Sequence coupled edits` was safe to cut, because it
+`full` 9pp when actually removed, and a *scope* demonstration gains neither arm. Only `Sequence coupled edits` was safe to cut, because it
 measured **0% inside every arm** — a within-arm fact needing no comparison to
 another preset.
 
@@ -102,15 +101,14 @@ indistinguishable from resampling.
 
 Read the findings against these, not around them.
 
-- **`lean`'s target class is represented; `minimal`'s is not.** `gpt-4o-mini`
-  and `gpt-4.1-nano` are hosted small-tier models, and zrb resolves both to
-  `lean` — a hosted small-tier label alone never reaches `minimal`, which needs
-  a local provider prefix or a declared ≤4B size. So the ladder's `full`→`lean`
-  rung is tested against the class it was written for, and the `lean`→`minimal`
-  rung is not: every local sub-4B model fails to load on this machine (2.3 GiB
-  needed, 1.6 GiB free) and every small cloud model on the endpoint has been
-  retired. **X1 can speak to `lean`; on `minimal` it can only fail to find an
-  effect among models that are not its target.**
+- **`minimal`'s target class is not represented.** All eight models resolve to
+  `full`: a hosted small-tier label alone never reaches `minimal`, which needs a
+  local provider prefix or a declared ≤14B size. `gpt-4o-mini` and
+  `gpt-4.1-nano` are the weakest arms available and both are hosted. Every local
+  sub-4B model fails to load on this machine (2.3 GiB needed, 1.6 GiB free) and
+  every small cloud model on the endpoint has been retired. **On `minimal`, X1
+  can only fail to find an effect among models that are not its target — which
+  is not the same as finding no effect.**
 - **n is 1–2 per cell.** Only large effects are visible. Per the Wharton GAIL
   replication work, a difference under ~10pp at this n is not distinguishable
   from sampling noise, and prompt tweaks routinely produce swings that look like

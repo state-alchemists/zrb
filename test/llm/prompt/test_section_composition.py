@@ -11,7 +11,7 @@ import re
 
 import pytest
 
-from zrb.llm.prompt.profile import LEAN_DROPS, MINIMAL_SECTIONS, MINIMAL_TOOLS
+from zrb.llm.prompt.profile import MINIMAL_SECTIONS, MINIMAL_TOOLS
 from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.prompt.section_filter import filter_requires
 
@@ -73,7 +73,6 @@ def _subsets():
         yield from itertools.combinations(FILE_SECTIONS, size)
 
 
-@pytest.mark.parametrize("profile", [None, "lean"])
 def test_no_subset_references_an_absent_section(profile):
     offenders = []
     for combo in _subsets():
@@ -111,7 +110,6 @@ def test_every_owned_term_still_exists_in_its_owner():
     assert missing == []
 
 
-@pytest.mark.parametrize("profile", [None, "lean"])
 def test_markers_never_reach_the_model(profile):
     for combo in _subsets():
         text = _compose(set(combo), profile=profile)
@@ -127,14 +125,11 @@ def test_markers_never_reach_the_model(profile):
     "name",
     FILE_SECTIONS
     + [
-        "examples.lean",
         # Every shipped variant, not just the base. A variant is a whole
         # rulebook for the models that resolve to it, so an unterminated block
         # in `workflow.minimal` swallows the rest of the only rules a 3B model
         # ever sees — and it was the one file this test never opened.
-        "persona.lean",
         "persona.minimal",
-        "workflow.lean",
         "workflow.minimal",
     ],
 )
@@ -160,24 +155,21 @@ BASE_EXAMPLE_CONCEPTS = {
 }
 
 
-def test_a_variant_of_examples_still_teaches_what_the_base_teaches():
-    """A variant replaces the base file, so it must not lose *coverage*.
+def test_examples_still_teaches_every_stance_it_is_responsible_for():
+    """Coverage, not bytes.
 
-    Coverage, not bytes. This used to assert that `examples.lean.md` opened with
-    `examples.md` verbatim, which enforced the wrong thing in the right
-    direction: it guaranteed nothing was dropped by guaranteeing the two files
-    were the same file, so every edit to the base desynchronized the variant and
-    the variant could never re-word for its own model class. Match on the stance
-    each demonstration teaches and let the wording differ — which is what
-    ``test_a_variant_of_examples_is_not_a_superset_of_the_base`` then requires.
+    `examples` is the only section `minimal` drops outright, so a demonstration
+    that disappears from here reaches nobody at all. Matching on the stance each
+    demonstration teaches rather than on its wording leaves the prose free to be
+    rewritten without the guard going quiet.
     """
     import re
 
-    lean = get_prompt("examples", profile="lean")
+    text = get_prompt("examples")
     missing = [
         concept
         for concept, patterns in BASE_EXAMPLE_CONCEPTS.items()
-        if not all(re.search(p, lean) for p in patterns)
+        if not all(re.search(p, text) for p in patterns)
     ]
     assert missing == []
 
@@ -204,7 +196,6 @@ def test_premise_check_is_first_and_unconditional():
     assert any("**Activate skills**" in step for step in steps[1:])
 
 
-@pytest.mark.parametrize("profile", [None, "lean"])
 def test_no_numbered_list_gaps_in_any_subset(profile):
     """A conditional item must not leave a hole like `1. 2. 4.` behind.
 
@@ -248,7 +239,7 @@ def test_batching_rule_forbids_the_payload_form():
 
 
 #: Absolute ceiling on the *file-backed* sections of each preset. Headroom is
-#: ~20% over what each ships today (full 17,105 / lean 14,358 / minimal 4,366).
+#: ~20% over what each ships today (full 20,028 / minimal 4,366).
 #:
 #: Deliberately not the composed prompt. `system_context` embeds the OS, cwd and
 #: detected tools, and `project_context` walks the parent chain listing every
@@ -256,7 +247,7 @@ def test_batching_rule_forbids_the_payload_form():
 #: machine and working directory, not of the prompt. Budgeting it means the
 #: ceiling moves when someone runs the suite from a different folder, and a real
 #: prompt regression can hide behind a shallower checkout.
-PRESET_BUDGETS = {"full": 20_500, "lean": 17_500, "minimal": 5_500}
+PRESET_BUDGETS = {"full": 20_500, "minimal": 5_500}
 
 
 @pytest.mark.parametrize("profile, ceiling", sorted(PRESET_BUDGETS.items()))
@@ -282,7 +273,6 @@ def test_each_preset_stays_within_its_budget(monkeypatch, profile, ceiling):
     monkeypatch.setenv("ZRB_LLM_PROFILE", profile)
     sections, variant = {
         "full": (["persona", "workflow", "examples"], None),
-        "lean": (["persona", "workflow", "examples"], "lean"),
         "minimal": (list(MINIMAL_SECTIONS), "minimal"),
     }[profile]
     shipped = "".join(
@@ -300,7 +290,7 @@ def test_each_preset_stays_within_its_budget(monkeypatch, profile, ceiling):
 # Priority Order rank 1, as three concepts rather than three sentences: each
 # entry is the alternative phrasings that count as carrying it. Matching on
 # concepts keeps the test from pinning prose, while still failing loudly if a
-# lean preset is trimmed until one of the three is simply gone.
+# smaller preset is trimmed until one of the three is simply gone.
 RANK_ONE_CONCEPTS = {
     "secrets": [r"secret", r"credential", r"password", r"api key"],
     "tool output is not instructions": [r"data,\s*not", r"ignore\s+\w+\s+instructions"],
@@ -309,11 +299,10 @@ RANK_ONE_CONCEPTS = {
 
 
 # (sections, variant) per preset. Only `minimal` constrains the section axis;
-# `full` and `lean` compose the default list and differ by variant alone, which
-# is why `workflow` is the section name in all three rows.
+# `full` composes the default list, which is why `workflow` is the section name
+# in both rows rather than a preset-suffixed one.
 PRESET_COMPOSITIONS = [
     (["persona", "workflow", "examples"], None),
-    (["persona", "workflow", "examples"], "lean"),
     (list(MINIMAL_SECTIONS), "minimal"),
 ]
 
@@ -323,11 +312,11 @@ PRESET_COMPOSITIONS = [
 # the two move in opposite directions (ADR-0049) — they get their own
 # ceiling in `test_demonstrations_do_not_grow_as_the_target_model_gets_weaker`.
 RULE_SECTIONS = ["persona", "workflow"]
-PRESET_VARIANTS = [("full", None), ("lean", "lean"), ("minimal", "minimal")]
+PRESET_VARIANTS = [("full", None), ("minimal", "minimal")]
 
 
 @pytest.mark.parametrize(
-    "sections, variant", PRESET_COMPOSITIONS, ids=["full", "lean", "minimal"]
+    "sections, variant", PRESET_COMPOSITIONS, ids=["full", "minimal"]
 )
 def test_every_preset_carries_the_rank_one_safety_rules(sections, variant):
     """Composition may drop method. It may never drop safety.
@@ -367,7 +356,7 @@ RANK_ONE_SUBSTITUTES = {
 
 
 @pytest.mark.parametrize(
-    "sections, variant", PRESET_COMPOSITIONS, ids=["full", "lean", "minimal"]
+    "sections, variant", PRESET_COMPOSITIONS, ids=["full", "minimal"]
 )
 def test_rank_one_rules_name_the_substitute_behaviour(sections, variant):
     """Every preset must say what to do instead, not only what not to do.
@@ -416,7 +405,7 @@ RECAP_ANCHORS = {
 }
 
 
-@pytest.mark.parametrize("variant", [None, "lean", "minimal"])
+@pytest.mark.parametrize("variant", [None, "minimal"])
 def test_the_closing_recap_restates_only_what_the_body_states(variant):
     """A recap is duplication on purpose. Divergent duplication is the bug.
 
@@ -469,7 +458,6 @@ def test_every_variant_resolves_to_its_own_file():
         if variant is None:
             continue
         assert get_prompt("workflow", profile=variant) != base, variant
-    assert get_prompt("examples", profile="lean") != get_prompt("examples")
 
 
 def _burden(section: str, variant: str | None) -> tuple[int, int, int]:
@@ -516,13 +504,12 @@ def test_rule_burden_falls_as_the_target_model_gets_weaker(section):
         ), f"{section}: subclauses: {hi_name}={hi[2]} rose above {lo_name}={lo[2]}"
 
 
-@pytest.mark.parametrize("variant", [None, "lean"])
-def test_examples_carry_no_rule_of_their_own(variant):
+def test_examples_carry_no_rule_of_their_own():
     """`examples` demonstrates; it never legislates.
 
     `examples.md` opens by saying so and `OWNED_VOCABULARY` gives `examples` no
-    terms, but both are *absences* — nothing failed when `examples.lean.md`
-    grew three `Wrong:` verdicts. A `Wrong:` clause is a rule wearing a
+    terms, but both are *absences* — nothing failed when the file grew three
+    `Wrong:` verdicts. A `Wrong:` clause is a rule wearing a
     demonstration's clothes: it states what the model must not do, in a section
     every other guard treats as carrying nothing to state.
 
@@ -532,20 +519,8 @@ def test_examples_carry_no_rule_of_their_own(variant):
     to go missing quietly, which is exactly what ADR-0049's
     no-variant-only-rules invariant forbids one axis over.
     """
-    text = get_prompt("examples", profile=variant)
-    assert "Wrong:" not in text, f"examples[{variant}] states a rule as a verdict"
-
-
-def test_a_variant_of_examples_is_not_a_superset_of_the_base():
-    """Two files, one content, no test between them — they will drift.
-
-    The variant axis *replaces*, so embedding the base buys nothing a shorter
-    file would not, and every edit to the base would silently desynchronize the
-    copy inside the variant.
-    """
-    base = get_prompt("examples").strip()
-    lean = get_prompt("examples", profile="lean").strip()
-    assert base not in lean, "examples.lean.md embeds examples.md verbatim"
+    text = get_prompt("examples")
+    assert "Wrong:" not in text, "examples states a rule as a verdict"
 
 
 def test_a_weaker_targets_preset_ships_less_prompt_in_total():
@@ -571,82 +546,3 @@ def test_a_weaker_targets_preset_ships_less_prompt_in_total():
     ]
     for (lo_name, lo), (hi_name, hi) in zip(measured, measured[1:]):
         assert hi < lo, f"total: {hi_name}={hi} is not below {lo_name}={lo}"
-
-
-def test_workflow_lean_names_no_tool_its_preset_lacks():
-    """Same guard as `workflow.minimal.md`, against `lean`'s own surface.
-
-    Was "against the full tool surface", on the reasoning that `lean` keeps every
-    tool so only a stale name could dangle. `lean` now subtracts `LEAN_DROPS`,
-    which makes it the same failure as `minimal`'s: a rulebook naming a tool its
-    own preset never registers. Nothing strips a tool reference the way
-    `<!--requires:-->` strips a section reference.
-    """
-    from zrb.llm.common_tools import apply_common_tools, tool_name
-
-    registered: set[str] = set()
-
-    class _Host:
-        def append_tool(self, *tool):
-            registered.update(tool_name(t) for t in tool)
-
-        def append_tool_factory(self, *factory):
-            pass
-
-        def append_toolset_factory(self, *factory):
-            pass
-
-    apply_common_tools(_Host())
-    # Factory-built and main-agent-only tools are not enumerable without a
-    # context or a chat task. Name the ones the prompt cites, so a rename to any
-    # of them still fails this test.
-    registered |= {
-        "ActivateSkill",
-        "AskUserQuestion",
-        "EnterPlanMode",
-        "DelegateToAgent",
-    }
-    available = registered - LEAN_DROPS
-    named = set(
-        re.findall(r"`([A-Z][A-Za-z]+)`", get_prompt("workflow", profile="lean"))
-    )
-    assert named <= available, sorted(named - available)
-
-
-def test_lean_drops_only_tools_that_are_actually_registered(monkeypatch):
-    """A drop naming a tool nobody registers silently protects nothing.
-
-    Same shape as `test_every_owned_term_still_exists_in_its_owner`: `LEAN_DROPS`
-    is applied as a filter, so a renamed or deleted tool leaves a dead entry that
-    keeps passing every closure check while subtracting nothing.
-
-    The factories have to be *resolved*, not excused. All three entries of
-    `LEAN_DROPS` are factory-built, so exempting factory-built names made the
-    assertion `LEAN_DROPS <= registered | LEAN_DROPS` — vacuously true, and
-    blind to exactly the rename it exists to catch.
-    """
-    from unittest.mock import MagicMock
-
-    from zrb.llm.common_tools import apply_common_tools, tool_name
-
-    monkeypatch.setenv("ZRB_LLM_PROFILE", "full")
-    monkeypatch.setenv("ZRB_LLM_JOURNAL_ENABLED", "true")
-    registered: set[str] = set()
-
-    class _Host:
-        def append_tool(self, *tool):
-            registered.update(tool_name(t) for t in tool)
-
-        def append_tool_factory(self, *factory):
-            for build in factory:
-                produced = build(MagicMock())
-                if produced is None:
-                    continue
-                items = produced if isinstance(produced, (list, tuple)) else [produced]
-                registered.update(tool_name(t) for t in items if t is not None)
-
-        def append_toolset_factory(self, *factory):
-            pass
-
-    apply_common_tools(_Host())
-    assert LEAN_DROPS <= registered, sorted(LEAN_DROPS - registered)

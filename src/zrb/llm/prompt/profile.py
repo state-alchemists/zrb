@@ -6,9 +6,12 @@ compose, how they are phrased, and which tools register (ADR-0049).
 model is asked to hold at once:
 
 - ``full`` — every section, every tool, the base prompt files.
-- ``lean`` — every section and tool on a lighter rulebook, for ~5-14B models.
-- ``minimal`` — a short section list and a short tool surface, for ~4B and below.
+- ``minimal`` — a short section list and a short tool surface, for ~14B and below.
 - ``auto`` (default) — resolved from the model id by :func:`builtin_profile`.
+
+The two differ on every axis at once: section list, phrasing, tool surface. A
+preset that varied only one of them would be a second rulebook to keep in step
+for no measurable difference (ADR-0049).
 
 A preset reaches the prompt through one file-naming convention and no other: a
 section named ``foo`` resolves ``foo.{profile}.md`` and falls back to ``foo.md``
@@ -33,30 +36,33 @@ from zrb.config.config import CFG
 # The base ``*.md`` files are the unvaried phrasing, so ``full`` needs no variant
 # files — every section resolves straight to the base.
 FULL_PROFILE = "full"
-LEAN_PROFILE = "lean"
 MINIMAL_PROFILE = "minimal"
 
 
 #: Declared parameter count (in billions) → profile, as ascending upper bounds.
 #: A size above the last bound selects nothing, so large models keep ``full``.
 #:
-#: The bands are asymmetric on purpose. ``lean`` keeps every capability and only
-#: reshapes prose, so a false positive is cheap. ``minimal`` *removes* sections
-#: and tools, so a false positive costs real capability — which is why only a
-#: stated count reaches it, never a label (see :data:`SMALL_TIER_LABELS`).
-SIZE_BANDS: tuple[tuple[float, str], ...] = (
-    (4, MINIMAL_PROFILE),
-    (14, LEAN_PROFILE),
-)
+#: A model that states 14B or less gets the smaller prompt: handing the heaviest
+#: one to the models least able to hold it inverts the point of having presets,
+#: and ``minimal`` measured no worse than ``full`` on every model tested. That
+#: evidence does not reach down here — the grid was 31B and up — so the bound is
+#: reasoned rather than measured, and it costs real capability (see
+#: :data:`MINIMAL_TOOLS`). A 7B that needs web, skills or sub-agents is declared
+#: into ``full`` explicitly.
+SIZE_BANDS: tuple[tuple[float, str], ...] = ((14, MINIMAL_PROFILE),)
 
-#: Vendor small-tier labels, all resolving to ``lean``. A label is never enough
-#: to select ``minimal``: ``nano``/``tiny``/``micro`` sit on models (``gpt-5-nano``)
-#: far more capable than a 3B local one. Declare a local model into ``minimal``
-#: explicitly instead: ``register_model_profile("my-local-model", "minimal")``.
+#: Vendor small-tier labels. A label alone declares nothing, so the model keeps
+#: ``full``; only a label *plus* a local provider reaches ``minimal``.
+#:
+#: A label is the weaker claim: ``nano``/``tiny``/``micro`` sit on models
+#: (``gpt-5-nano``) far more capable than a 3B local one. Guessing wrong toward
+#: ``full`` costs tokens; guessing wrong toward ``minimal`` costs the model its
+#: web access and sub-agents. So a bare label keeps ``full``, and a small local
+#: model is declared in explicitly:
+#: ``register_model_profile("my-local-model", "minimal")``.
 #:
 #: ``flash`` is deliberately absent — it is a *latency* tier that spans weak to
-#: strong (``gemini-2.5-flash`` is capable). Opt one in with
-#: ``register_model_profile("deepseek-v4-flash", "lean")``.
+#: strong (``gemini-2.5-flash`` is capable).
 SMALL_TIER_LABELS: tuple[str, ...] = (
     "mini",
     "micro",
@@ -76,8 +82,8 @@ SMALL_TIER_LABELS: tuple[str, ...] = (
 #: shipping ``gpt-5-nano`` over an API is naming a tier in a lineup that starts
 #: far above a 3B; someone running ``ollama:phi4-mini`` is running 3.8B of
 #: weights on a laptop. Same label, two different assertions — which is why a
-#: label alone still only reaches ``lean`` (see :data:`SMALL_TIER_LABELS`) and
-#: only a label *plus* a local prefix reaches ``minimal``.
+#: label alone keeps ``full`` (see :data:`SMALL_TIER_LABELS`) and only a label
+#: *plus* a local prefix reaches ``minimal``.
 #:
 #: Ollama's hosted tier is the exception inside the exception: ``ollama:`` there
 #: prefixes frontier models, and those ids carry ``:cloud``, so it disqualifies.
@@ -96,14 +102,15 @@ def builtin_profile(model_id: str) -> str | None:
     number is what it is. The first count in the id is the one read.
 
     With no count, a small-tier label reaches ``minimal`` only when the model is
-    also locally served (:data:`LOCAL_PROVIDERS`), and ``lean`` otherwise.
+    also locally served (:data:`LOCAL_PROVIDERS`); otherwise it declares nothing
+    and the caller keeps ``full``.
     """
     size = _declared_size(model_id)
     if size is not None:
         return next((profile for limit, profile in SIZE_BANDS if size <= limit), None)
     if not _SMALL_TIER.search(model_id):
         return None
-    return MINIMAL_PROFILE if _is_local(model_id) else LEAN_PROFILE
+    return MINIMAL_PROFILE if _is_local(model_id) else None
 
 
 def _is_local(model_id: str) -> bool:
@@ -128,13 +135,12 @@ class Preset:
     ``LLM_INCLUDE_SECTIONS`` applies, the base prompt files apply, every
     registered tool applies. See ADR-0049.
 
-    The tool axis has two forms because the two constrained presets want
-    opposite things. ``tools`` is an allowlist: a closed, fixed surface, which
-    is what ``minimal`` needs and what makes its closure checkable. ``drops`` is
-    a denylist: everything registered *except* these, which is what ``lean``
-    needs — it keeps the full surface and subtracts a few, so an allowlist would
-    have to re-list every tool and would silently drop each new one from ``lean``
-    until someone remembered to add it. Set at most one.
+    The tool axis has two forms. ``tools`` is an allowlist: a closed, fixed
+    surface, which is what ``minimal`` needs and what makes its closure
+    checkable. ``drops`` is a denylist for a preset that keeps the full surface
+    and subtracts a few names, where an allowlist would have to re-list every
+    tool and would silently drop each newly-added one until someone remembered
+    it. Set at most one.
     """
 
     sections: tuple[str, ...] | None = None
@@ -188,38 +194,23 @@ MINIMAL_TOOLS = frozenset(
     }
 )
 
-#: What ``lean`` subtracts from the full surface: ~437 tokens of schema, ~18% of
-#: the eager tool definitions a 5-14B model reads before it reads the request.
-#: Regenerate with ``python llm-experiment/measure.py`` rather than editing by
-#: hand — the earlier "~920 tokens" here and the "3,840 → 3,146" in ADR-0049
-#: disagreed with each other because both were hand-derived once and never
-#: recomputed.
-#:
-#: The journal trio goes because cross-session memory is the wrong thing to
-#: spend a constrained model's tool budget on: it is not needed to finish the
-#: turn, and ADR-0055 left no prompt prose to orphan. ``live_context`` stops
-#: injecting the index to match (see ``render_journal_index``) — a preset that
-#: drops the reader must not keep handing it something to read.
-LEAN_DROPS = frozenset({"SearchJournal", "LogActivity", "WriteJournalNote"})
-
 #: ``minimal``'s section list. The two omissions are the point: ``examples``
 #: because ``workflow.minimal.md`` carries its own demonstrations inline, and
 #: ``project_context`` because its instruction is to ``Read`` project docs in
 #: full, which alone can exceed a ~3B model's effective window. ``workflow``
 #: stays in the list and resolves to ``workflow.minimal.md`` through the variant
-#: axis — ``lean`` needs no list at all for the same reason.
+#: axis.
 MINIMAL_SECTIONS = ("persona", "workflow", "system_context")
 
-#: Profile → preset. Burden falls monotonically with the capability each preset
-#: targets — ``test_section_composition.py`` pins that ordering rather than
-#: trusting this comment.
+#: Profile → preset. Burden falls with the capability each preset targets —
+#: ``test_section_composition.py`` pins that ordering rather than trusting this
+#: comment.
 #:
-#: Registering a fourth is a dict assignment: ``PRESETS["nano"] = Preset(...)``.
+#: Registering another is a dict assignment: ``PRESETS["nano"] = Preset(...)``.
 #: :func:`valid_profiles` derives from these keys, so a new entry is immediately
 #: accepted by ``ZRB_LLM_PROFILE`` and by :func:`register_model_profile`.
 PRESETS: dict[str, Preset] = {
     FULL_PROFILE: Preset(),
-    LEAN_PROFILE: Preset(variant=LEAN_PROFILE, drops=LEAN_DROPS),
     MINIMAL_PROFILE: Preset(
         sections=MINIMAL_SECTIONS, variant=MINIMAL_PROFILE, tools=MINIMAL_TOOLS
     ),
@@ -274,7 +265,7 @@ def register_preset(name: str, preset: Preset) -> None:
        of it. The same floor is checked here instead.
     3. **Both tool axes are set.** Rejected by :class:`Preset` itself.
 
-    Overriding a built-in name is allowed — redefining ``lean`` for your own
+    Overriding a built-in name is allowed — redefining ``minimal`` for your own
     fleet is a legitimate use — and runs the same checks.
 
     Args:
@@ -388,7 +379,7 @@ class ModelProfileRegistry:
 
     Unifying them has to pick one key, and either choice regresses silently: a
     bare name drops ``LOCAL_PROVIDERS`` and ``_HOSTED_TIER``, sending every
-    local small model back to ``lean``; a full id un-anchors ``^claude-haiku-3$``
+    local small model out of ``minimal``; a full id un-anchors ``^claude-haiku-3$``
     and grants a text-only model image support.
     ``test_profile.py::test_profile_and_capability_registries_key_on_different_things``
     pins both halves.

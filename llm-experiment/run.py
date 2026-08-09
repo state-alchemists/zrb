@@ -33,10 +33,10 @@ from treatments import canary_arms, opencode_arms, zrb_arms
 RESULTS = Path(__file__).parent / "results" / "runs.jsonl"
 
 # Eight models: six frontier/mid families through ollama, plus two hosted
-# small-tier OpenAI models. zrb routes every hosted small-tier label to `lean`
-# (only a local prefix or a declared <=4B reaches `minimal`), so the two
-# `openai:` entries are `lean` tested against the class it was written for.
-# `minimal`'s own target class stays unrepresented — see README "Limitations".
+# small-tier OpenAI models. All eight resolve to `full` — only a local prefix or
+# a declared <=14B reaches `minimal` — so every arm here is measured against
+# models the smaller preset was not written for. `minimal`'s own target class
+# stays unrepresented; see README "Limitations".
 MODELS = [
     "gemma4:31b-cloud",  # Google    — smallest declared size available
     "deepseek-v4-flash:cloud",  # DeepSeek  — fast tier
@@ -44,8 +44,8 @@ MODELS = [
     "kimi-k2.6:cloud",  # Moonshot  — opencode ships a kimi.txt
     "glm-5.2:cloud",  # Zhipu
     "mistral-large-3:675b-cloud",  # Mistral — non-reasoning
-    "openai:gpt-4o-mini",  # OpenAI    — weak arm; zrb resolves it to `lean`
-    "openai:gpt-4.1-nano",  # OpenAI    — weak arm; zrb resolves it to `lean`
+    "openai:gpt-4o-mini",  # OpenAI    — weak arm, hosted small tier
+    "openai:gpt-4.1-nano",  # OpenAI    — weak arm, hosted small tier
 ]
 
 # Every arm sees the same tool surface, so prompt text is the only variable.
@@ -370,7 +370,7 @@ def _retag_turns(result, trace: Trace) -> None:
 def cells(only_experiment: str | None, only_model: str | None) -> list[dict]:
     """The full grid. Reps follow the plan: 2 for the core claims, 1 elsewhere."""
     oc, canary = opencode_arms(), canary_arms()
-    ladder = ["zrb-full", "zrb-lean", "zrb-minimal"]
+    ladder = ["zrb-full", "zrb-minimal"]
     ablation = ["zrb-full-no-persona", "zrb-full-no-examples"]
 
     grid: list[dict] = []
