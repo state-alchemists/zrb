@@ -1,6 +1,6 @@
 import os
 import shutil
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import cast
 
 from zrb.attr.type import StrAttr
@@ -25,12 +25,13 @@ class Scaffolder(BaseTask):
     def __init__(
         self,
         name: str,
+        *,
         color: int | None = None,
         icon: str | None = None,
         description: str | None = None,
         cli_only: bool = False,
-        input: list[AnyInput | None] | AnyInput | None = None,
-        env: list[AnyEnv | None] | AnyEnv | None = None,
+        input: Sequence[AnyInput | None] | AnyInput | None = None,
+        env: Sequence[AnyEnv | None] | AnyEnv | None = None,
         source_path: StrAttr | None = None,
         render_source_path: bool = True,
         destination_path: StrAttr | None = None,
@@ -44,15 +45,15 @@ class Scaffolder(BaseTask):
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
         retries: int = 2,
         retry_period: float = 0,
-        readiness_check: list[AnyTask] | AnyTask | None = None,
+        readiness_check: Sequence[AnyTask] | AnyTask | None = None,
         readiness_check_delay: float = 0.5,
         readiness_check_period: float = 5,
         readiness_failure_threshold: int = 1,
         readiness_timeout: int = 60,
         monitor_readiness: bool = False,
-        upstream: list[AnyTask] | AnyTask | None = None,
-        fallback: list[AnyTask] | AnyTask | None = None,
-        successor: list[AnyTask] | AnyTask | None = None,
+        upstream: Sequence[AnyTask] | AnyTask | None = None,
+        fallback: Sequence[AnyTask] | AnyTask | None = None,
+        successor: Sequence[AnyTask] | AnyTask | None = None,
         print_fn: PrintFn | None = None,
     ):
         """Define a task that copies a template tree, rewriting as it goes.

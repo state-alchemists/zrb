@@ -110,23 +110,23 @@ def _tool_factory(tool, defer_loading: bool = True):
 # `zrb_is_delegate_tool` (see SubAgentManager.create_agent). The when-to-
 # delegate judgment lives in the workflow's `Delegating to sub-agents`
 # section; the how (roster, envelope) lives in these docstrings.
-llm_chat.add_tool_factory(
+llm_chat.append_tool_factory(
     lambda ctx: _tool_factory(create_delegate_to_agent_tool(), defer_loading=False),
     lambda ctx: _tool_factory(create_background_delegate_tool()),
     lambda ctx: _tool_factory(create_get_delegation_result_tool()),
 )
 
 # Add argument formatter (show arguments when asking for user confirmation)
-llm_chat.add_argument_formatter(replace_in_file_formatter, write_file_formatter)
+llm_chat.prepend_argument_formatter(replace_in_file_formatter, write_file_formatter)
 
 # Add response handler (update tool)
-llm_chat.add_response_handler(replace_in_file_response_handler)
+llm_chat.prepend_response_handler(replace_in_file_response_handler)
 
 # Add tool policies (automatically approve/disprove tool calling).
 # These also propagate to sub-agent tool calls via the
 # `current_tool_confirmation` ContextVar set by `run_agent` — see the
 # `_confirm_tool_execution` chain in `zrb.llm.ui.base.ui`.
-llm_chat.add_tool_policy(
+llm_chat.prepend_tool_policy(
     # bash_safe_command_policy is registered by apply_common_tools, alongside the
     # shell tools it guards.
     replace_in_file_validation_policy,
@@ -195,7 +195,7 @@ llm_chat.add_tool_policy(
 )
 
 # Add custom command (slash commands)
-llm_chat.add_custom_command(get_skill_custom_command(skill_manager))
+llm_chat.append_custom_command(get_skill_custom_command(skill_manager))
 
 llm_group.add_task(llm_chat)
 cli.add_task(llm_chat)

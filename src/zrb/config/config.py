@@ -28,7 +28,7 @@ from zrb.config.mixins.cli_style import CLIStyleMixin
 from zrb.config.mixins.foundation import FoundationMixin
 from zrb.config.mixins.hooks import HooksMixin
 from zrb.config.mixins.internet_search import InternetSearchMixin
-from zrb.config.mixins.llm_content import LLMContentMixin
+from zrb.config.mixins.llm_content import ConfigLLMContent
 from zrb.config.mixins.llm_core import LLMCoreMixin
 from zrb.config.mixins.llm_limits import LLMLimitsMixin
 from zrb.config.mixins.llm_prompt import LLMPromptMixin
@@ -41,13 +41,13 @@ from zrb.config.mixins.theme import ThemeMixin
 from zrb.config.mixins.web import WebMixin
 
 
-class Config(  # noqa: E501  # Sibling mixins TYPE_CHECKING-declare ENV_PREFIX/ROOT_GROUP_* (FoundationMixin read-write properties) as attrs for self-access; pyright flags the property-vs-attr composition as an incompatible override (false positive — all expose the same str type).
+class Config(  # noqa: E501  # Sibling parts TYPE_CHECKING-declare ENV_PREFIX/ROOT_GROUP_* (FoundationMixin read-write properties) as attrs for self-access; pyright flags the property-vs-attr composition as an incompatible override (false positive — all expose the same str type).
     FoundationMixin,
     WebMixin,
     LLMCoreMixin,
     LLMUIMixin,
     LLMLimitsMixin,
-    LLMContentMixin,
+    ConfigLLMContent,
     LLMPromptMixin,
     LLMSandboxMixin,
     LLMSearchMixin,

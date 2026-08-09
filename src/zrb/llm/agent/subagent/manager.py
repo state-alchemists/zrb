@@ -44,6 +44,12 @@ def _resolve_tool_name(t: Any) -> str | None:
 
 
 class SubAgentDefinition:
+    """A delegatable sub-agent, as loaded from a `*.agent.md` file or built in code.
+
+    Register one with `sub_agent_manager.add_agent(SubAgentDefinition(...))`;
+    `DelegateToAgent` then lists it and can hand it work.
+    """
+
     def __init__(
         self,
         name: str,
@@ -57,6 +63,28 @@ class SubAgentDefinition:
         agent_factory: Callable[[], Any] | None = None,
         inherit_sections: list[str] | None = None,
     ):
+        """Define a sub-agent.
+
+        Args:
+            name: How the agent is addressed when delegating to it.
+            path: Directory the definition was loaded from; relative paths in
+                `system_prompt` resolve against it.
+            description: What this agent is for. `DelegateToAgent` shows this to
+                the delegating model, so it decides whether work is routed here.
+            system_prompt: The agent's own operating instructions.
+            model: Model override. Defaults to the delegating task's model.
+            tools: Tool names the agent may call. Empty means the default
+                surface. A Claude-authored definition listing `Bash` maps onto
+                zrb's `Shell` as it loads.
+            disallowed_tools: Tool names to subtract from whatever `tools`
+                resolved to.
+            agent_instance: A pre-built pydantic-ai agent to use instead of
+                constructing one from the fields above.
+            agent_factory: Callable returning that agent, for construction that
+                must happen per run.
+            inherit_sections: Prompt sections copied from the delegating task.
+                None inherits the default set.
+        """
         self.name = name
         self.path = path
         self.description = description
@@ -114,19 +142,11 @@ class SubAgentManager(SubAgentManagerLoading, SubAgentManagerSearch):
         self._agents = {}
         self._ensure_loaded()
 
-    def add_tool(self, *tool: "Callable | Tool"):
-        """Register tools."""
-        self.append_tool(*tool)
-
     def append_tool(self, *tool: "Callable | Tool"):
         """Append tools."""
         for single_tool in tool:
             tool_name = _resolve_tool_name(single_tool) or str(single_tool)
             self._tool_registry[tool_name] = single_tool
-
-    def add_tool_factory(self, *factory: Callable[[AnyContext], Tool | ToolFuncEither]):
-        """Register tool factories."""
-        self.append_tool_factory(*factory)
 
     def append_tool_factory(
         self, *factory: Callable[[AnyContext], Tool | ToolFuncEither]
@@ -135,19 +155,9 @@ class SubAgentManager(SubAgentManagerLoading, SubAgentManagerSearch):
         for single_factory in factory:
             self._tool_factories.append(single_factory)
 
-    def add_toolset(self, *toolset: AbstractToolset[None]):
-        """Register toolsets."""
-        self.append_toolset(*toolset)
-
     def append_toolset(self, *toolset: AbstractToolset[None]):
         """Append toolsets."""
         self._toolsets += list(toolset)
-
-    def add_toolset_factory(
-        self, *factory: Callable[[AnyContext], AbstractToolset[None]]
-    ):
-        """Register toolset factories."""
-        self.append_toolset_factory(*factory)
 
     def append_toolset_factory(
         self, *factory: Callable[[AnyContext], AbstractToolset[None]]

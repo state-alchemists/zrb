@@ -392,7 +392,9 @@ class ChatExecution(ChatState):
         CFG.LOGGER.debug(f"  effective_approval_channel: {effective_approval_channel}")
         CFG.LOGGER.debug(f"  _approval_channels: {self._approval_channels}")
 
-        hook_manager = HookManager()
+        hook_manager = (
+            HookManager() if self._hook_manager is None else self._hook_manager
+        )
         for factory in self._hook_factories:
             factory(hook_manager)
         # Hold a reference so the interactive teardown can fire the terminal

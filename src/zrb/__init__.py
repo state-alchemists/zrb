@@ -10,12 +10,12 @@ from zrb import builtin
 
 # --- Attribute descriptors (deferred-eval property types) -----------------
 from zrb.attr.type import (
-    AnyAttr,
     BoolAttr,
     FloatAttr,
     IntAttr,
     StrAttr,
     StrDictAttr,
+    StrListAttr,
     fstring,
 )
 
@@ -29,6 +29,7 @@ from zrb.cmd.cmd_val import Cmd, CmdPath
 
 # --- Config singleton -----------------------------------------------------
 from zrb.config.config import CFG, Config
+from zrb.config.theme import register_theme
 from zrb.config.web_auth_config import web_auth_config
 
 # --- Content transformers -------------------------------------------------
@@ -63,14 +64,34 @@ from zrb.input.str_input import StrInput
 from zrb.input.text_input import TextInput
 
 # --- LLM agent / chat / config / managers --------------------------------
-from zrb.llm.agent.subagent.manager import SubAgentManager, sub_agent_manager
+# Each manager is exported with the type you must construct to call it. A
+# manager alone is not a usable API: `hook_manager` without `HookResult` gives
+# you the registry and no way to return from a hook.
+from zrb.llm.agent.subagent.manager import (
+    SubAgentDefinition,
+    SubAgentManager,
+    sub_agent_manager,
+)
 from zrb.llm.config.config import LLMConfig, llm_config
 from zrb.llm.config.limiter import LLMLimiter, llm_limiter
+from zrb.llm.hook import HookContext, HookEvent, HookResult
 from zrb.llm.hook.manager import HookManager, hook_manager
+from zrb.llm.permission import ALLOW, ASK, DENY, PermissionPolicy, Rule
+from zrb.llm.prompt.manager import PromptManager
+from zrb.llm.prompt.profile import Preset, register_model_profile, register_preset
+from zrb.llm.skill import Skill
 from zrb.llm.skill.manager import SkillManager, skill_manager
 from zrb.llm.task.chat.task import LLMChatTask
 from zrb.llm.task.chat.ui_commands import UICommands
 from zrb.llm.task.llm_task import LLMTask
+from zrb.llm.tool_call.always_approve import register_always_auto_approve
+
+# Two model registries, exported together because they are asked about the same
+# model and answer different questions — see ADR-0077. `model_capabilities`
+# matches the *bare* name (a property of the weights); `register_model_profile`
+# matches the *full* id, prefix and tier suffix included (a property of the
+# deployment). They are deliberately not merged.
+from zrb.llm.util.capabilities import model_capabilities
 
 # --- Runner (CLI + web schemas) ------------------------------------------
 from zrb.runner.cli import Cli, cli
@@ -111,12 +132,12 @@ skill_manager: SkillManager = skill_manager
 
 __all__ = [
     "builtin",
-    "AnyAttr",
     "BoolAttr",
     "FloatAttr",
     "IntAttr",
     "StrAttr",
     "StrDictAttr",
+    "StrListAttr",
     "fstring",
     "AnyCallback",
     "Callback",
@@ -175,8 +196,25 @@ __all__ = [
     "llm_limiter",
     "SubAgentManager",
     "sub_agent_manager",
+    "SubAgentDefinition",
     "HookManager",
     "hook_manager",
+    "HookEvent",
+    "HookContext",
+    "HookResult",
     "SkillManager",
     "skill_manager",
+    "Skill",
+    "PromptManager",
+    "Preset",
+    "register_preset",
+    "register_model_profile",
+    "model_capabilities",
+    "register_theme",
+    "register_always_auto_approve",
+    "PermissionPolicy",
+    "Rule",
+    "ALLOW",
+    "DENY",
+    "ASK",
 ]

@@ -16,6 +16,7 @@ from typing import Any, Callable
 
 from zrb.context.any_context import AnyContext
 from zrb.llm.prompt.live_context import _LIVE_CONTEXT_ANCHOR
+from zrb.llm.sandbox.state import get_effective_sandbox_policy
 
 _DEFAULT_TOOLS: list[tuple[str, str]] = [
     ("docker", "Docker"),
@@ -101,6 +102,9 @@ def system_context(
         f"- OS: {platform.platform()}",
         f"- CWD: {cwd}",
     ]
+    sandbox_line = _format_sandbox_line()
+    if sandbox_line:
+        parts.append(sandbox_line)
     model_line = _format_model_line(model)
     if model_line:
         parts.append(model_line)
@@ -116,6 +120,34 @@ def system_context(
     context_block = "# System Context\n" + "\n".join(parts)
     context_block += "\n\n" + _LIVE_CONTEXT_ANCHOR
     return next_handler(ctx, f"{current_prompt}\n\n{context_block}")
+
+
+def _format_sandbox_line() -> str | None:
+    """State that tool calls reach the real machine, when they do.
+
+    Priority Order rank 1 tells the model to confirm anything destructive or
+    irreversible, and nothing else in the prompt says whether "irreversible" is
+    even true here — ``LLM_SANDBOX_ENABLED`` defaults to ``False``, so by
+    default both enforcement layers (the FS gate in ``agent.gates`` and the OS
+    shell wrapper) are off and every write lands on the user's disk. A rule
+    whose stakes the model cannot see is a rule it under-applies.
+
+    One branch on purpose, and the *opposite* one to
+    :func:`_format_parallel_tool_call_line`: that function announces the rare
+    exception, this one announces the risky state. A "you are sandboxed" line
+    would be a licence to relax, gated on a config the model cannot verify;
+    silence leaves the unconditional rank-1 rule in force, which is the safe
+    way to be wrong.
+
+    Session-invariant — the policy is bound once per run, so this belongs with
+    the other cached system facts rather than in ``live_context``.
+    """
+    if get_effective_sandbox_policy().enabled:
+        return None
+    return (
+        "- Sandbox: none — file writes and shell commands take effect on this "
+        "machine directly and are not contained."
+    )
 
 
 def _format_parallel_tool_call_line(model: "Any") -> str | None:

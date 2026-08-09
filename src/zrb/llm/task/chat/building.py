@@ -96,10 +96,6 @@ class ChatBuilding(ChatState):
 
     # --- Toolsets ---------------------------------------------------------
 
-    def add_toolset(self, *toolset: "AbstractToolset"):
-        """Alias of `append_toolset` — adds to the end of the list."""
-        self.append_toolset(*toolset)
-
     def append_toolset(self, *toolset: "AbstractToolset"):
         """Add pydantic-ai toolsets whose tools the agent may call.
 
@@ -107,12 +103,6 @@ class ChatBuilding(ChatState):
         MCP server's. For a single function, `append_tool` is simpler.
         """
         self._toolsets += list(toolset)
-
-    def add_toolset_factory(
-        self, *factory: "Callable[[AnyContext], AbstractToolset[None]]"
-    ):
-        """Alias of `append_toolset_factory` — adds to the end of the list."""
-        self.append_toolset_factory(*factory)
 
     def append_toolset_factory(
         self, *factory: "Callable[[AnyContext], AbstractToolset[None]]"
@@ -126,10 +116,6 @@ class ChatBuilding(ChatState):
 
     # --- Tools ------------------------------------------------------------
 
-    def add_tool(self, *tool: "Tool | ToolFuncEither"):
-        """Alias of `append_tool` — adds to the end of the list."""
-        self.append_tool(*tool)
-
     def append_tool(self, *tool: "Tool | ToolFuncEither"):
         """Add tools the agent may call.
 
@@ -138,12 +124,6 @@ class ChatBuilding(ChatState):
         so both are worth writing carefully.
         """
         self._tools += list(tool)
-
-    def add_tool_factory(
-        self, *factory: "Callable[[AnyContext], Tool | ToolFuncEither]"
-    ):
-        """Alias of `append_tool_factory` — adds to the end of the list."""
-        self.append_tool_factory(*factory)
 
     def append_tool_factory(
         self, *factory: "Callable[[AnyContext], Tool | ToolFuncEither]"
@@ -157,10 +137,6 @@ class ChatBuilding(ChatState):
 
     # --- Hook factories ---------------------------------------------------
 
-    def add_hook_factory(self, *factory: Callable[[HookManager], None]):
-        """Alias of `append_hook_factory` — adds to the end of the list."""
-        self.append_hook_factory(*factory)
-
     def append_hook_factory(self, *factory: Callable[[HookManager], None]):
         """Add factories registering hooks on this task's hook manager.
 
@@ -170,10 +146,6 @@ class ChatBuilding(ChatState):
         self._hook_factories += list(factory)
 
     # --- History processors ----------------------------------------------
-
-    def add_history_processor(self, *processor: "HistoryProcessor"):
-        """Alias of `append_history_processor` — adds to the end of the list."""
-        self.append_history_processor(*processor)
 
     def append_history_processor(self, *processor: "HistoryProcessor"):
         """Add processors that rewrite conversation history before each request.
@@ -186,14 +158,6 @@ class ChatBuilding(ChatState):
 
     # --- Response handlers / tool policies / arg formatters --------------
 
-    def add_response_handler(self, *handler: ResponseHandler):
-        """Alias of `prepend_response_handler`.
-
-        Inserts at the front, so it runs before the already-registered
-        handlers and can short-circuit them.
-        """
-        self.prepend_response_handler(*handler)
-
     def prepend_response_handler(self, *handler: ResponseHandler):
         """Add handlers that post-process a tool's result before the model sees it.
 
@@ -203,14 +167,6 @@ class ChatBuilding(ChatState):
         """
         self._response_handlers = list(handler) + self._response_handlers
 
-    def add_tool_policy(self, *policy: ToolPolicy):
-        """Alias of `prepend_tool_policy`.
-
-        Inserts at the front, so it runs before the already-registered
-        policies and can short-circuit them.
-        """
-        self.prepend_tool_policy(*policy)
-
     def prepend_tool_policy(self, *policy: ToolPolicy):
         """Add policies deciding whether a tool call is allowed, denied, or confirmed.
 
@@ -219,17 +175,6 @@ class ChatBuilding(ChatState):
         and the rest are skipped.
         """
         self._tool_policies = list(policy) + self._tool_policies
-
-    def add_argument_formatter(self, *formatter: ArgumentFormatter):
-        """Alias of `prepend_argument_formatter`.
-
-        Inserts at the front of the formatting pipeline. Unlike the policy and
-        handler chains, formatters do not short-circuit: every one runs in
-        order and each non-`None` result overwrites the previous, so
-        formatters already registered still run after this one and may replace
-        its output.
-        """
-        self.prepend_argument_formatter(*formatter)
 
     def prepend_argument_formatter(self, *formatter: ArgumentFormatter):
         """Add formatters controlling how a tool call's arguments are displayed.
@@ -243,10 +188,6 @@ class ChatBuilding(ChatState):
 
     # --- Triggers ---------------------------------------------------------
 
-    def add_trigger(self, *trigger: Callable[[], AsyncIterable[Any]]):
-        """Alias of `append_trigger` — adds to the end of the list."""
-        self.append_trigger(*trigger)
-
     def append_trigger(self, *trigger: Callable[[], AsyncIterable[Any]]):
         """Add sources that feed messages into the chat loop unprompted.
 
@@ -257,15 +198,6 @@ class ChatBuilding(ChatState):
         self._triggers += trigger
 
     # --- Custom commands --------------------------------------------------
-
-    def add_custom_command(
-        self,
-        *custom_command: (
-            AnyCustomCommand | Callable[[], AnyCustomCommand | list[AnyCustomCommand]]
-        ),
-    ):
-        """Alias of `append_custom_command` — adds to the end of the list."""
-        self.append_custom_command(*custom_command)
 
     def append_custom_command(
         self,

@@ -111,6 +111,8 @@ tombstone.
 - **ADR-0048** — [Home-level docs are user guidance, not project rules](adr-0048.md)
 - **ADR-0049** — [Untrusted-data framing travels with the tool result](adr-0049.md)
 - **ADR-0075** — [A profile is a preset over three axes; `minimal` serves ~3B models](adr-0075.md)
+- **ADR-0076** — [The prompt states the risky runtime state, never its absence](adr-0076.md)
+- **ADR-0077** — [Capability and profile are keyed differently and are not merged](adr-0077.md)
 
 ### Skills, agents and the journal
 

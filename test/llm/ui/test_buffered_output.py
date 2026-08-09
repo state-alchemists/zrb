@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from zrb.llm.ui.buffered_output_mixin import BufferedOutputMixin
+from zrb.llm.ui.buffered_output import BufferedOutputMixin
 
 
 class MockBufferedUI(BufferedOutputMixin):

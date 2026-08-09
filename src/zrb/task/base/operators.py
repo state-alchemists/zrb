@@ -1,16 +1,21 @@
+from collections.abc import Sequence
+
 from zrb.task.any_task import AnyTask
 
 
 def handle_rshift(
-    left_task: AnyTask, right_operand: AnyTask | list[AnyTask]
-) -> AnyTask | list[AnyTask]:
+    left_task: AnyTask, right_operand: AnyTask | Sequence[AnyTask]
+) -> AnyTask | Sequence[AnyTask]:
     """
     Implements the >> operator logic: left_task becomes an upstream for right_operand.
     Modifies the right_operand(s) by calling append_upstream.
     Returns the right_operand.
     """
     try:
-        if isinstance(right_operand, list):
+        # Test the collection side, not `not isinstance(..., AnyTask)`: a stub
+        # or MagicMock standing in for a task is not an `AnyTask` subclass and
+        # must still take the single-task branch rather than be iterated.
+        if isinstance(right_operand, Sequence):
             for task in right_operand:
                 task.append_upstream(left_task)
         else:
@@ -21,7 +26,7 @@ def handle_rshift(
 
 
 def handle_lshift(
-    left_task: AnyTask, right_operand: AnyTask | list[AnyTask]
+    left_task: AnyTask, right_operand: AnyTask | Sequence[AnyTask]
 ) -> AnyTask:
     """
     Implements the << operator logic: right_operand becomes an upstream for left_task.

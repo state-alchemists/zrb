@@ -1,8 +1,31 @@
+"""CLI command grouping — the nodes between `zrb` and a task.
+
+A `Group` is one word in a command line. Nesting groups nests the words, so
+`cli.add_group(Group("db")).add_task(migrate_task)` is reached as
+`zrb db migrate`. Groups hold subgroups and tasks under *aliases*, which is how
+the same task object can appear under two names without being redefined.
+"""
+
 from zrb.group.any_group import AnyGroup
 from zrb.task.any_task import AnyTask
 
 
 class Group(AnyGroup):
+    """A named node in the CLI tree, holding subgroups and tasks.
+
+    Register it on the `cli` singleton (or on another group) and it becomes a
+    command word:
+
+        from zrb import cli, Group, Task
+
+        db = cli.add_group(Group("db", description="Database chores"))
+        db.add_task(Task(name="migrate", action=lambda ctx: ...))
+        # -> zrb db migrate
+
+    `subgroups` and `subtasks` are returned alphabetically by alias, which is
+    what makes `--help` output stable rather than insertion-ordered.
+    """
+
     def __init__(
         self, name: str, description: str | None = None, banner: str | None = None
     ):
@@ -23,43 +46,78 @@ class Group(AnyGroup):
         return f"<{self.__class__.__name__} name={self._name}>"
 
     @property
-    def name(self):
+    def name(self) -> str:
+        """The group's name, as typed on the CLI."""
         return self._name
 
     @property
     def banner(self) -> str:
+        """Text printed above this group's help listing, or `""` if unset."""
         if self._banner is None:
             return ""
         return self._banner
 
     @property
-    def description(self):
+    def description(self) -> str:
+        """Help text for this group. Falls back to `name` when unset."""
         return self._description if self._description is not None else self.name
 
     @property
     def subgroups(self) -> dict[str, AnyGroup]:
+        """Registered subgroups keyed by alias, sorted by alias."""
         names = list(self._groups.keys())
         names.sort()
         return {name: self._groups[name] for name in names}
 
     @property
     def subtasks(self) -> dict[str, AnyTask]:
+        """Registered tasks keyed by alias, sorted by alias."""
         alias = list(self._tasks.keys())
         alias.sort()
         return {name: self._tasks[name] for name in alias}
 
-    def add_group(self, group: AnyGroup, alias: str | None = None) -> AnyGroup:
+    def add_group(self, group: "AnyGroup | str", alias: str | None = None) -> AnyGroup:
+        """Register *group* as a subgroup and return it, so calls can chain.
+
+        Args:
+            group: The group to register. A plain string is shorthand for
+                `Group(that_string)`.
+            alias: CLI word addressing it. Defaults to the group's own name;
+                pass one to expose the same group under a second word.
+
+        Returns:
+            The registered group — the newly built one when *group* was a
+            string, otherwise *group* itself.
+        """
         real_group = Group(group) if isinstance(group, str) else group
         alias = alias if alias is not None else real_group.name
         self._groups[alias] = real_group
         return real_group
 
     def add_task(self, task: AnyTask, alias: str | None = None) -> AnyTask:
+        """Register *task* under this group and return it, so calls can chain.
+
+        Args:
+            task: The task to expose.
+            alias: CLI word addressing it. Defaults to the task's own name;
+                pass one to expose the same task object twice.
+
+        Returns:
+            *task*, unchanged.
+        """
         alias = alias if alias is not None else task.name
         self._tasks[alias] = task
         return task
 
     def remove_group(self, group: "AnyGroup | str"):
+        """Unregister a subgroup, by object, by alias, or by name.
+
+        A string is matched against aliases first and against group *names*
+        second, so an alias always wins when the two disagree.
+
+        Raises:
+            ValueError: Nothing matched, so the call would silently do nothing.
+        """
         original_groups_len = len(self._groups)
         if isinstance(group, AnyGroup):
             new_groups = {
@@ -92,6 +150,14 @@ class Group(AnyGroup):
         raise ValueError(f"Cannot remove group {group} from {self}")
 
     def remove_task(self, task: "AnyTask | str"):
+        """Unregister a task, by object, by alias, or by name.
+
+        A string is matched against aliases first and against task *names*
+        second, so an alias always wins when the two disagree.
+
+        Raises:
+            ValueError: Nothing matched, so the call would silently do nothing.
+        """
         original_tasks_len = len(self._tasks)
         if isinstance(task, AnyTask):
             new_tasks = {
@@ -124,7 +190,9 @@ class Group(AnyGroup):
         raise ValueError(f"Cannot remove task {task} from {self}")
 
     def get_task_by_alias(self, alias: str) -> AnyTask | None:
+        """The task registered under *alias*, or None. Does not search names."""
         return self._tasks.get(alias)
 
     def get_group_by_alias(self, alias: str) -> AnyGroup | None:
+        """The subgroup registered under *alias*, or None. Does not search names."""
         return self._groups.get(alias)

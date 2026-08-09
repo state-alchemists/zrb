@@ -159,13 +159,13 @@ def test_a_line_never_names_a_tool_the_preset_dropped():
     registered: set[str] = set()
 
     class _Host:
-        def add_tool(self, *tool):
+        def append_tool(self, *tool):
             registered.update(tool_name(t) for t in tool)
 
-        def add_tool_factory(self, *factory):
+        def append_tool_factory(self, *factory):
             pass
 
-        def add_toolset_factory(self, *factory):
+        def append_toolset_factory(self, *factory):
             pass
 
     apply_common_tools(_Host())

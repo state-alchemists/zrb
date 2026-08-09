@@ -8,8 +8,83 @@ source-compatible.
 
 ## Table of Contents
 
+- [Upgrading to 2.58.0](#upgrading-to-2580)
 - [Upgrading to 2.54.0](#upgrading-to-2540)
 - [Upgrading from 1.x.x to 2.x.x](#upgrading-from-1xx-to-2xx)
+
+---
+
+## Upgrading to 2.58.0
+
+Three changes need action. All fail loudly — `AttributeError`, `TypeError`, or
+`ImportError` — rather than silently doing the wrong thing, so a green test run
+means you are done. Env vars and prompt files are unaffected.
+
+### `add_X` on ordered collections is `append_X` or `prepend_X`
+
+The 21 one-line aliases are gone. `add_` had stopped meaning one thing — it
+forwarded to `append_` fifteen times and to `prepend_` three times — so the name
+no longer told you where your handler landed. Position is now in the name.
+
+| Before | After |
+|---|---|
+| `task.add_tool(...)` | `task.append_tool(...)` |
+| `task.add_tool_factory(...)` | `task.append_tool_factory(...)` |
+| `task.add_toolset(...)` | `task.append_toolset(...)` |
+| `task.add_toolset_factory(...)` | `task.append_toolset_factory(...)` |
+| `task.add_hook_factory(...)` | `task.append_hook_factory(...)` |
+| `task.add_history_processor(...)` | `task.append_history_processor(...)` |
+| `task.add_trigger(...)` | `task.append_trigger(...)` |
+| `task.add_custom_command(...)` | `task.append_custom_command(...)` |
+| `task.prompt_manager.add_prompt(...)` | `task.prompt_manager.append_prompt(...)` |
+| `task.add_response_handler(...)` | **`task.prepend_response_handler(...)`** |
+| `task.add_tool_policy(...)` | **`task.prepend_tool_policy(...)`** |
+| `task.add_argument_formatter(...)` | **`task.prepend_argument_formatter(...)`** |
+
+The three bold rows are the reason for the change: they always inserted at the
+front, and `add_` hid it. If you were relying on `add_` appending them, you want
+`append_` instead — those exist too.
+
+`add_X` on **unordered registries** is unchanged: `skill_manager.add_skill`,
+`sub_agent_manager.add_agent`, `Group.add_task`, `Group.add_group`,
+`PromptManager.add_live_context` / `add_system_context` / `add_project_context`.
+
+### Task constructors are keyword-only after `name`
+
+```python
+Task("build")                 # still fine
+Task(name="build", color=5)   # still fine
+Task("build", 5)              # TypeError
+```
+
+Applies to `Task`, `CmdTask`, `LLMTask`, `LLMChatTask`, `RsyncTask`,
+`Scaffolder`, `Scheduler`, `HttpCheck`, `TcpCheck`, `BaseTrigger`, `BaseTask`
+and `make_task`. `LLMChatTask` had 73 positionally-passable parameters, so any
+future insertion would otherwise have been a silent breaking change.
+
+### Two renames
+
+| Before | After |
+|---|---|
+| `RsyncTask(auto_render_shell=...)` | `RsyncTask(render_shell=...)` |
+| `from zrb import AnyAttr` | `from typing import Any`, or the specific `StrAttr` / `BoolAttr` / … |
+
+`AnyAttr` was defined as `Any \| fstring \| Callable[..., Any]`, which collapses
+to plain `Any` — it constrained nothing while looking like it did. `fstring` is
+unchanged.
+
+### Worth knowing (no action needed)
+
+- **`py.typed` ships**, so `mypy`/`pyright` now actually check your zrb usage.
+  Expect to see real errors the first time — they were always there, just
+  invisible.
+- **Collections accept any `Sequence`.** `upstream=(a, b)` and `a >> (b, c)`
+  used to store the tuple as if it were a task and fail later with
+  `'tuple' object has no attribute 'name'`. Both work now.
+- **18 new top-level exports**, including `Skill`, `SubAgentDefinition`,
+  `HookResult`, `Preset`, `register_preset`, `register_model_profile`,
+  `PermissionPolicy` and `StrListAttr`. Deep imports still work; the short paths
+  are just no longer missing.
 
 ---
 

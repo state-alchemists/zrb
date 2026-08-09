@@ -33,7 +33,7 @@ class TestLLMTaskExecution:
         # Arrange
         tool = MagicMock()
         task = LLMTask(name="test-task", message="hello")
-        task.add_tool(tool)
+        task.append_tool(tool)
 
         # Act & Assert
         # We mock create_agent to see if our tool was passed to it during execution
@@ -70,7 +70,7 @@ class TestLLMTaskExecution:
             return toolset
 
         task = LLMTask(name="test-task", message="hello")
-        task.add_toolset_factory(toolset_factory)
+        task.append_toolset_factory(toolset_factory)
 
         with (
             patch("zrb.llm.task.llm_task.create_agent") as mock_create_agent,
@@ -248,7 +248,7 @@ class TestLLMTaskExecution:
         tool = MagicMock()
         factory = MagicMock(return_value=tool)
         task = LLMTask(name="test-task", message="hello")
-        task.add_tool_factory(factory)
+        task.append_tool_factory(factory)
 
         # Act & Assert
         with (

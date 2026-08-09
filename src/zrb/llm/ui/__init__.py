@@ -119,7 +119,7 @@ Dual Mode (CLI + Telegram):
 from typing import TYPE_CHECKING
 
 from zrb.llm.ui.base.ui import BaseUI
-from zrb.llm.ui.buffered_output_mixin import BufferedOutputMixin
+from zrb.llm.ui.buffered_output import BufferedOutputMixin
 
 if TYPE_CHECKING:
     from zrb.llm.ui.default.ui import UI  # noqa: F401 — lazy-loaded via __getattr__

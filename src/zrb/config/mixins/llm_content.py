@@ -10,7 +10,7 @@ from zrb.config.helper import get_max_token_threshold, limit_token_threshold
 from zrb.util.string.conversion import to_boolean
 
 
-class LLMContentMixin:
+class ConfigLLMContent:
     if TYPE_CHECKING:
         # Attributes supplied by sibling mixins on the composed Config class.
         ENV_PREFIX: str  # FoundationMixin

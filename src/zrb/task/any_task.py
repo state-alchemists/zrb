@@ -3,6 +3,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Callable, overload
 
+from collections.abc import Sequence
+
 from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
 
@@ -40,14 +42,16 @@ class AnyTask(ABC):
     def __rshift__(self, other: "AnyTask") -> "AnyTask": ...
 
     @overload
-    def __rshift__(self, other: "list[AnyTask]") -> "list[AnyTask]": ...
+    def __rshift__(self, other: "Sequence[AnyTask]") -> "Sequence[AnyTask]": ...
 
     @abstractmethod
-    def __rshift__(self, other: "AnyTask | list[AnyTask]") -> "AnyTask | list[AnyTask]":
+    def __rshift__(
+        self, other: "AnyTask | Sequence[AnyTask]"
+    ) -> "AnyTask | Sequence[AnyTask]":
         pass
 
     @abstractmethod
-    def __lshift__(self, other: "AnyTask | list[AnyTask]") -> "AnyTask":
+    def __lshift__(self, other: "AnyTask | Sequence[AnyTask]") -> "AnyTask":
         pass
 
     @property
@@ -117,41 +121,41 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    def append_fallback(self, fallbacks: "AnyTask" | list["AnyTask"]):
+    def append_fallback(self, fallbacks: "AnyTask | Sequence[AnyTask]"):
         """Add the fallback tasks.
 
         Args:
-            fallbacks (AnyTask | list[AnyTask]): A single fallback task or
+            fallbacks (AnyTask | Sequence[AnyTask]): A single fallback task or
                 a list of fallback tasks.
         """
         pass
 
     @abstractmethod
-    def append_successor(self, successors: "AnyTask" | list["AnyTask"]):
+    def append_successor(self, successors: "AnyTask | Sequence[AnyTask]"):
         """Add the successor tasks.
 
         Args:
-            successors (AnyTask | list[AnyTask]): A single successor task or
+            successors (AnyTask | Sequence[AnyTask]): A single successor task or
                 a list of successor tasks.
         """
         pass
 
     @abstractmethod
-    def append_readiness_check(self, readiness_checks: "AnyTask" | list["AnyTask"]):
+    def append_readiness_check(self, readiness_checks: "AnyTask | Sequence[AnyTask]"):
         """Add the readiness_check tasks.
 
         Args:
-            readiness_checks (AnyTask | list[AnyTask]): A single readiness_check task or
+            readiness_checks (AnyTask | Sequence[AnyTask]): A single readiness_check task or
                 a list of readiness_check tasks.
         """
         pass
 
     @abstractmethod
-    def append_upstream(self, upstreams: "AnyTask" | list["AnyTask"]):
+    def append_upstream(self, upstreams: "AnyTask | Sequence[AnyTask]"):
         """Add the upstream tasks that this task depends on.
 
         Args:
-            upstreams (AnyTask | list[AnyTask]): A single upstream task or
+            upstreams (AnyTask | Sequence[AnyTask]): A single upstream task or
                 a list of upstream tasks.
         """
         pass

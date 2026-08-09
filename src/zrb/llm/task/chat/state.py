@@ -65,6 +65,10 @@ class ChatState:
 
     # --- Hooks -------------------------------------------------------------
     _hook_factories: list[Callable[[HookManager], None]]
+    #: Explicit manager from the constructor; None means "build a fresh one per
+    #: run", which is the default and keeps one chat session's hooks out of the
+    #: next.
+    _hook_manager: HookManager | None
     _active_hook_manager: HookManager | None
 
     # --- Message / model ---------------------------------------------------

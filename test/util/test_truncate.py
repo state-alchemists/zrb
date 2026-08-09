@@ -84,3 +84,31 @@ def test_truncate_chars_truncates():
     out = truncate_chars("abcdef", 3)
     assert out.startswith("abc")
     assert "TRUNCATED" in out
+
+
+
+def test_the_live_stream_and_the_exported_transcript_agree():
+    """One tool call must render the same in both views.
+
+    `history_formatter` and `stream_response` each carried a private
+    `_truncate_kwargs` — same name, same package, same 30-char default, and
+    different output: one elided as `val[:27] + "..."`, the other as
+    `arg[:26] + " ..."`, so the exported transcript and the live stream
+    disagreed by a character on the same call.
+
+    Asserted through the public surface: the transcript renderer's output must
+    equal `truncate_display`, and the stream renderer must be bound to that same
+    function rather than to a copy of its logic.
+    """
+    import json
+
+    from zrb.llm.util import stream_response
+    from zrb.llm.util.history_formatter import format_args
+    from zrb.util.truncate import truncate_display
+
+    value = "x" * 80
+    exported = json.loads(format_args({"path": value}))["path"]
+
+    assert exported == truncate_display(value, 30)
+    assert len(exported) == 30 and exported.endswith("...")
+    assert stream_response.truncate_display is truncate_display

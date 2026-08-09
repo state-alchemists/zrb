@@ -63,6 +63,30 @@ class PromptManager:
         render_active_skills: bool = True,
         render: bool = False,
     ):
+        """Build a prompt manager.
+
+        Every parameter is optional; `PromptManager()` composes the default
+        section list against the shipped prompt files.
+
+        Args:
+            prompts: Extra content emitted *after* every built-in section. Each
+                entry is a string, a `Callable[[AnyContext], str]`, or a full
+                middleware `Callable[[ctx, current, next], str]` that may
+                rewrite the whole assembled prompt (detected by arity, 3+).
+            assistant_name: Name substituted for `{ASSISTANT_NAME}`. A callable
+                is resolved against the active context. Defaults to
+                `CFG.LLM_ASSISTANT_NAME`.
+            include_sections: Which sections compose, in order. `None` defers to
+                the active preset, then to `CFG.LLM_INCLUDE_SECTIONS`.
+            skill_manager: Source of the skill catalogue folded into `workflow`.
+                Defaults to the global `skill_manager`.
+            active_skills: Skills to pre-activate, listed in the prompt as
+                already loaded.
+            render_active_skills: Whether to render `active_skills` entries as
+                templates against the context.
+            render: Whether string prompts in `prompts` are rendered as
+                templates against the context.
+        """
         self._middlewares = prompts or []
         self._assistant_name = assistant_name
         self._include_sections = include_sections  # None means "use CFG default"
@@ -93,27 +117,36 @@ class PromptManager:
         self._model: Any = None
 
     @property
-    def prompts(self):
+    def prompts(self) -> list["PromptMiddleware | str"]:
+        """The extra prompts appended after the built-in sections."""
         return self._middlewares
 
     @prompts.setter
     def prompts(self, value: list[PromptMiddleware | str]):
+        """Replace the appended prompts wholesale."""
         self._middlewares = value
 
     @property
     def active_skills(self) -> StrListAttr | None:
+        """Skills listed in the prompt as already loaded, or None."""
         return self._active_skills
 
     @active_skills.setter
     def active_skills(self, value: StrListAttr | None):
+        """Set the pre-activated skill list."""
         self._active_skills = value
 
     @property
     def include_sections(self) -> list[str] | None:
+        """The explicit section override, or None to defer to preset/config.
+
+        Read `active_sections` for the list actually in force.
+        """
         return self._include_sections
 
     @include_sections.setter
     def include_sections(self, value: list[str] | None):
+        """Pin the section list, overriding the preset and the config default."""
         self._include_sections = value
 
     @property
@@ -157,10 +190,12 @@ class PromptManager:
 
     @property
     def model(self) -> Any:
+        """The model the prompt is being composed for; drives preset selection."""
         return self._model
 
     @model.setter
     def model(self, value: Any) -> None:
+        """Bind the active model. Set by the runner before each compose."""
         self._model = value
 
     def register_section(self, name: str, provider: SimplePrompt) -> None:
@@ -181,12 +216,15 @@ class PromptManager:
         self._section_providers[name] = provider
 
     def reset(self):
+        """Drop every appended prompt, keeping the built-in sections."""
         self._middlewares = []
 
-    def add_prompt(self, *middleware: PromptMiddleware | str):
-        self.append_prompt(*middleware)
-
     def append_prompt(self, *middleware: PromptMiddleware | str):
+        """Append content emitted after all built-in sections.
+
+        Accepts a static string, a `Callable[[AnyContext], str]`, or a full
+        middleware `Callable[[ctx, current, next], str]`.
+        """
         self._middlewares.extend(middleware)
 
     def add_live_context(self, name: str, provider: SimplePrompt) -> None:

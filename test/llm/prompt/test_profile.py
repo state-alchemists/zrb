@@ -15,6 +15,7 @@ from zrb.llm.prompt.profile import (
     ModelProfileRegistry,
     Preset,
     active_preset,
+    builtin_profile,
     model_profile_registry,
     register_model_profile,
     register_preset,
@@ -484,3 +485,43 @@ def test_register_preset_warns_when_no_rulebook_composes(unregister, caplog):
         register_preset("bare", Preset(sections=("system_context",)))
 
     assert "no rule-carrying section" in caplog.text
+
+
+# ── Why this registry is not `model_capabilities` (ADR-0038 vs ADR-0075) ──
+
+
+def test_profile_and_capability_registries_key_on_different_things():
+    """The two registries look alike and must not be unified.
+
+    `ModelProfileRegistry` matches the **full** model id; `model_capabilities`
+    matches the **bare** name with the `provider:` prefix stripped. That is not
+    duplication, it is two different questions:
+
+    * A capability is a property of the *weights*. `gpt-4o` accepts images
+      whether it is served by `openai:` or `azure:`, so the prefix is noise —
+      which is why the built-in deny patterns can be `^`-anchored.
+    * A profile is a property of the *deployment*. `ollama:phi4-mini` is 3.8B
+      on a laptop and `openai:gpt-5-nano` is the entry tier of a hosted family,
+      so who serves it is the whole signal.
+
+    Merging them would have to pick one key, and either choice regresses
+    silently: a bare name strips `ollama:`/`:cloud` and drops every local small
+    model from `minimal` back to `lean`, while a full id un-anchors
+    `^claude-haiku-3$` and hands a text-only model image support.
+    """
+    from zrb.llm.util.capabilities import model_capabilities
+
+    # The profile side needs the prefix: it is what distinguishes a 3.8B local
+    # model from a hosted entry tier that merely shares the label.
+    assert builtin_profile("ollama:phi4-mini") == MINIMAL_PROFILE
+    assert builtin_profile("phi4-mini") == LEAN_PROFILE
+    # ...and the tier suffix, which is what keeps hosted frontier models out.
+    assert builtin_profile("ollama:kimi-k2.6:cloud") is None
+
+    # The capability side never sees a prefix, so a provider-shaped pattern
+    # cannot match there. Registering one is a silent no-op, not an override.
+    model_capabilities.register("ollama:", supports_image_input=True)
+    try:
+        assert model_capabilities.get("ollama:phi4-mini").supports_image_input is False
+    finally:
+        model_capabilities.clear()

@@ -465,7 +465,7 @@ Beyond editing prompt files and env vars, each task exposes its `PromptManager` 
 the public `task.prompt_manager` property. It offers three programmatic ways to shape
 the system prompt, in increasing power.
 
-**1. Append custom instructions** — `add_prompt()` (alias `append_prompt()`) adds
+**1. Append custom instructions** — `append_prompt()` adds
 content that is emitted **after** all built-in sections. Accepts a static string, a
 `Callable[[AnyContext], str]` for runtime-dynamic text, or a *full middleware*
 `Callable[[ctx, current_prompt, next], str]` that can rewrite the entire assembled
@@ -477,24 +477,24 @@ from zrb import LLMChatTask
 task = LLMChatTask(name="chat")
 
 # Static text
-task.prompt_manager.add_prompt("Always answer in British English.")
+task.prompt_manager.append_prompt("Always answer in British English.")
 
 # Dynamic text — receives the active context
 import datetime
 def date_note(ctx) -> str:
     return f"Today's date is {datetime.date.today():%Y-%m-%d}."
-task.prompt_manager.add_prompt(date_note)
+task.prompt_manager.append_prompt(date_note)
 
 # Full middleware — `current_prompt` is everything assembled so far
 def strip_blank_lines(ctx, current_prompt, nxt):
     cleaned = "\n".join(line for line in current_prompt.splitlines() if line.strip())
     return nxt(ctx, cleaned)
-task.prompt_manager.add_prompt(strip_blank_lines)
+task.prompt_manager.append_prompt(strip_blank_lines)
 ```
 
 **2. Register a dynamic, positioned section** — `register_section(name, provider)`
 registers a `Callable[[AnyContext], str]` that is composed *at the position* its
-`name` occupies in `include_sections` (not pinned to the end like `add_prompt`). Use
+`name` occupies in `include_sections` (not pinned to the end like `append_prompt`). Use
 it for always-on content that must reflect live state. Return `""` to emit nothing:
 
 ```python
@@ -542,7 +542,7 @@ def check_stock(warehouse_id: str, sku: str) -> dict:
     ...
 
 task = LLMChatTask(name="chat")
-task.add_tool(check_stock)
+task.append_tool(check_stock)
 ```
 
 Note this relocates token cost rather than removing it: a docstring ships every

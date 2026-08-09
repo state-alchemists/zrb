@@ -233,20 +233,40 @@ def test_batching_rule_forbids_the_payload_form():
     assert "twelve `Edit` calls" in section
 
 
-def test_default_prompt_stays_within_its_budget():
-    """The composed default prompt has a ceiling, enforced.
+#: Absolute ceiling on the *composed* prompt, per preset. Headroom is ~20% over
+#: what each ships today (full 20,066 / lean 17,371 / minimal 4,923).
+PRESET_BUDGETS = {"full": 24_000, "lean": 20_000, "minimal": 6_000}
+
+
+@pytest.mark.parametrize("profile, ceiling", sorted(PRESET_BUDGETS.items()))
+def test_each_preset_stays_within_its_budget(monkeypatch, profile, ceiling):
+    """Every preset has a ceiling, enforced. Not just the default one.
 
     Collapsing six rule sections into three took the default composition from
     ~32,600 chars to ~19,500. Nothing stops that creeping back one paragraph at
-    a time, so the budget is a test rather than a note. Raising the ceiling is a
+    a time, so the budget is a test rather than a note. Raising a ceiling is a
     decision to make deliberately, not a diff to wave through.
+
+    Per preset, because the two relative guards leave a gap that a uniform drift
+    walks straight through: `test_rule_burden_falls_as_the_target_model_gets_weaker`
+    and `test_a_weaker_targets_preset_ships_less_prompt_in_total` both pin the
+    *ordering*, so adding a paragraph to all three variants at once keeps every
+    ratchet green while every model gets more to read. Only an absolute number
+    catches that, and until now only `full` had one.
+
+    This is the enforcement arm of the rule that a more capable model buys more
+    autonomy rather than more text (ADR-0075): `full` having room is not a
+    reason to spend it.
     """
     from unittest.mock import MagicMock
 
     from zrb.llm.prompt.manager import PromptManager
 
+    monkeypatch.setenv("ZRB_LLM_PROFILE", profile)
     composed = PromptManager().compose_prompt()(MagicMock())
-    assert len(composed) < 24_000, f"default prompt grew to {len(composed)} chars"
+    assert (
+        len(composed) < ceiling
+    ), f"{profile} prompt grew to {len(composed)} chars (ceiling {ceiling})"
 
 
 # ── The safety floor across presets (ADR-0075) ──────────────────────────
@@ -491,13 +511,13 @@ def test_workflow_lean_names_no_tool_its_preset_lacks():
     registered: set[str] = set()
 
     class _Host:
-        def add_tool(self, *tool):
+        def append_tool(self, *tool):
             registered.update(tool_name(t) for t in tool)
 
-        def add_tool_factory(self, *factory):
+        def append_tool_factory(self, *factory):
             pass
 
-        def add_toolset_factory(self, *factory):
+        def append_toolset_factory(self, *factory):
             pass
 
     apply_common_tools(_Host())
@@ -529,13 +549,13 @@ def test_lean_drops_only_tools_that_are_actually_registered():
     registered: set[str] = set()
 
     class _Host:
-        def add_tool(self, *tool):
+        def append_tool(self, *tool):
             registered.update(tool_name(t) for t in tool)
 
-        def add_tool_factory(self, *factory):
+        def append_tool_factory(self, *factory):
             pass
 
-        def add_toolset_factory(self, *factory):
+        def append_toolset_factory(self, *factory):
             pass
 
     apply_common_tools(_Host())

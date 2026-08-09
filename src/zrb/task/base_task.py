@@ -51,6 +51,7 @@ class BaseTask(AnyTask):
     def __init__(
         self,
         name: str,
+        *,
         color: int | None = None,
         icon: str | None = None,
         description: str | None = None,
@@ -61,15 +62,15 @@ class BaseTask(AnyTask):
         execute_condition: BoolAttr = True,
         retries: int = 2,
         retry_period: float = 0,
-        readiness_check: list[AnyTask] | AnyTask | None = None,
+        readiness_check: Sequence[AnyTask] | AnyTask | None = None,
         readiness_check_delay: float = 0.5,
         readiness_check_period: float = 5,
         readiness_failure_threshold: int = 1,
         readiness_timeout: int = 60,
         monitor_readiness: bool = False,
-        upstream: list[AnyTask] | AnyTask | None = None,
-        fallback: list[AnyTask] | AnyTask | None = None,
-        successor: list[AnyTask] | AnyTask | None = None,
+        upstream: Sequence[AnyTask] | AnyTask | None = None,
+        fallback: Sequence[AnyTask] | AnyTask | None = None,
+        successor: Sequence[AnyTask] | AnyTask | None = None,
         print_fn: PrintFn | None = None,
     ):
         """Define a task.
@@ -156,11 +157,31 @@ class BaseTask(AnyTask):
         self._action = action
         self._print_fn = print_fn
 
-    def _ensure_task_list(self, tasks: AnyTask | list[AnyTask] | None) -> list[AnyTask]:
+    def _ensure_task_list(
+        self, tasks: AnyTask | Sequence[AnyTask] | None
+    ) -> list[AnyTask]:
+        """Normalize a single task or a collection of them into a list.
+
+        Tests sequence-ness rather than `isinstance(tasks, list)`, which is what
+        these parameters' annotations have promised all along: a tuple used to
+        take the single-task branch and be stored *as* a task, surfacing much
+        later as `'tuple' object has no attribute 'name'`.
+
+        The test is on the *collection* side, not `isinstance(tasks, AnyTask)`.
+        Anything task-like that is not an `AnyTask` subclass — a stub, a
+        `MagicMock`, a duck-typed adapter — must still land on the single-task
+        branch, and testing the task side would send it to `list()` instead.
+
+        `str`/`bytes` are rejected outright rather than falling through: both
+        satisfy `Sequence`, so a bare string would otherwise spread into a list
+        of its own characters and fail somewhere far away.
+        """
         if tasks is None:
             return []
-        if isinstance(tasks, list):
-            return tasks
+        if isinstance(tasks, (str, bytes)):
+            raise TypeError(f"Expected a task or a sequence of tasks, got {tasks!r}")
+        if isinstance(tasks, Sequence):
+            return list(tasks)
         return [tasks]
 
     def __repr__(self):
@@ -170,12 +191,14 @@ class BaseTask(AnyTask):
     def __rshift__(self, other: AnyTask) -> AnyTask: ...
 
     @overload
-    def __rshift__(self, other: list[AnyTask]) -> list[AnyTask]: ...
+    def __rshift__(self, other: Sequence[AnyTask]) -> Sequence[AnyTask]: ...
 
-    def __rshift__(self, other: AnyTask | list[AnyTask]) -> AnyTask | list[AnyTask]:
+    def __rshift__(
+        self, other: AnyTask | Sequence[AnyTask]
+    ) -> AnyTask | Sequence[AnyTask]:
         return handle_rshift(self, other)
 
-    def __lshift__(self, other: AnyTask | list[AnyTask]) -> AnyTask:
+    def __lshift__(self, other: AnyTask | Sequence[AnyTask]) -> AnyTask:
         return handle_lshift(self, other)
 
     @property
@@ -267,10 +290,10 @@ class BaseTask(AnyTask):
         return get_combined_inputs(self, task_inputs=self._inputs)
 
     def _append_unique_tasks(
-        self, items: "AnyTask | list[AnyTask]", target: "list[AnyTask]"
+        self, items: "AnyTask | Sequence[AnyTask]", target: "list[AnyTask]"
     ) -> None:
         """Appends tasks to target list, skipping duplicates."""
-        to_add = items if isinstance(items, list) else [items]
+        to_add = self._ensure_task_list(items)
         for item in to_add:
             if item not in target:
                 target.append(item)
@@ -280,7 +303,7 @@ class BaseTask(AnyTask):
         """Returns the list of fallback tasks."""
         return self._fallbacks
 
-    def append_fallback(self, fallbacks: "AnyTask | list[AnyTask]"):
+    def append_fallback(self, fallbacks: "AnyTask | Sequence[AnyTask]"):
         """Appends fallback tasks, ensuring no duplicates."""
         self._append_unique_tasks(fallbacks, self._fallbacks)
 
@@ -289,7 +312,7 @@ class BaseTask(AnyTask):
         """Returns the list of successor tasks."""
         return self._successors
 
-    def append_successor(self, successors: "AnyTask | list[AnyTask]"):
+    def append_successor(self, successors: "AnyTask | Sequence[AnyTask]"):
         """Appends successor tasks, ensuring no duplicates."""
         self._append_unique_tasks(successors, self._successors)
 
@@ -298,7 +321,7 @@ class BaseTask(AnyTask):
         """Returns the list of readiness check tasks."""
         return self._readiness_checks
 
-    def append_readiness_check(self, readiness_checks: "AnyTask | list[AnyTask]"):
+    def append_readiness_check(self, readiness_checks: "AnyTask | Sequence[AnyTask]"):
         """Appends readiness check tasks, ensuring no duplicates."""
         self._append_unique_tasks(readiness_checks, self._readiness_checks)
 
@@ -307,7 +330,7 @@ class BaseTask(AnyTask):
         """Returns the list of upstream tasks."""
         return self._upstreams
 
-    def append_upstream(self, upstreams: "AnyTask | list[AnyTask]"):
+    def append_upstream(self, upstreams: "AnyTask | Sequence[AnyTask]"):
         """Appends upstream tasks, ensuring no duplicates."""
         self._append_unique_tasks(upstreams, self._upstreams)
 
@@ -502,3 +525,4 @@ class BaseTask(AnyTask):
                 )
             )
         return inspect.Signature(params)
+

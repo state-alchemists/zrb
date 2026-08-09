@@ -368,7 +368,27 @@ class ModelProfileRegistry:
     Most-recently-declared wins, and every declaration outranks
     :func:`builtin_profile`, so one ``register_model_profile`` call in
     ``zrb_init.py`` overrides a built-in in either direction. Consulted only by
-    the ``auto`` profile. Mirrors ``model_capabilities`` (``capabilities.py``).
+    the ``auto`` profile.
+
+    **Not a duplicate of ``model_capabilities`` (``llm/util/capabilities.py``),
+    and not mergeable with it.** The two have the same shape and different
+    keys, because they answer different questions:
+
+    * A capability is a property of the *weights*. ``gpt-4o`` accepts images
+      whether ``openai:`` or ``azure:`` serves it, so that registry strips the
+      prefix and matches the bare name — which is what lets its built-in deny
+      patterns be ``^``-anchored.
+    * A profile is a property of the *deployment*. ``ollama:phi4-mini`` is 3.8B
+      on a laptop; ``openai:gpt-5-nano`` is the entry tier of a hosted family.
+      Same small-tier label, opposite conclusions, and only the prefix and the
+      ``:cloud`` suffix separate them — so nothing here is stripped.
+
+    Unifying them has to pick one key, and either choice regresses silently: a
+    bare name drops ``LOCAL_PROVIDERS`` and ``_HOSTED_TIER``, sending every
+    local small model back to ``lean``; a full id un-anchors ``^claude-haiku-3$``
+    and grants a text-only model image support.
+    ``test_profile.py::test_profile_and_capability_registries_key_on_different_things``
+    pins both halves.
     """
 
     def __init__(self) -> None:

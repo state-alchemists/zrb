@@ -55,9 +55,13 @@ class CommonToolHost(Protocol):
     Satisfied by ``LLMChatTask``, ``LLMTask``, and ``SubAgentManager``.
     """
 
-    def add_tool(self, *tool: "Callable | Tool") -> None: ...
-    def add_tool_factory(self, *factory: "Callable[[AnyContext], Any]") -> None: ...
-    def add_toolset_factory(self, *factory: "Callable[[AnyContext], Any]") -> None: ...
+    def append_tool(self, *tool: "Callable | Tool") -> None: ...
+    def append_tool_factory(
+        self, *factory: "Callable[[AnyContext], Any]"
+    ) -> None: ...
+    def append_toolset_factory(
+        self, *factory: "Callable[[AnyContext], Any]"
+    ) -> None: ...
 
 
 def apply_common_tools(host: CommonToolHost) -> None:
@@ -75,8 +79,8 @@ def apply_common_tools(host: CommonToolHost) -> None:
     # user), so registering it here is what lets that rule stay out of the
     # prompt. Hosts without an approval channel (programmatic LLMTask,
     # SubAgentManager — the latter inherits the caller's confirmation via the
-    # current_tool_confirmation ContextVar) have no add_tool_policy; skip them.
-    add_policy = getattr(host, "add_tool_policy", None)
+    # current_tool_confirmation ContextVar) have no prepend_tool_policy; skip them.
+    add_policy = getattr(host, "prepend_tool_policy", None)
     if callable(add_policy):
         # lazy: circular — tool_policy → handler → ui → llm_task → here
         from zrb.llm.tool_call.tool_policy.bash_validation import (
@@ -240,7 +244,7 @@ def _register_tools(host: CommonToolHost, keep: "_Surface | None") -> None:
         *(Tool(_fn, defer_loading=True) for _fn in lsp_tools),
         *plan_tools,
     ]
-    host.add_tool(*_selected(tools, keep))
+    host.append_tool(*_selected(tools, keep))
 
 
 def _register_tool_factories(host: CommonToolHost, keep: "_Surface | None") -> None:
@@ -313,13 +317,13 @@ def _register_tool_factories(host: CommonToolHost, keep: "_Surface | None") -> N
             defer_loading=True,
         ),
     ]
-    host.add_tool_factory(*(_gated(factory, keep) for factory in factories))
+    host.append_tool_factory(*(_gated(factory, keep) for factory in factories))
     if keep is None:
         # MCP servers vary widely in tool count; hide them behind search too —
         # same rationale as the deferred function tools above. A constrained
         # preset drops them outright: an MCP server's tool list is not known
         # here, so it cannot be part of a closed, fixed surface.
-        host.add_toolset_factory(
+        host.append_toolset_factory(
             lambda ctx: [toolset.defer_loading() for toolset in load_mcp_config()]
         )
 

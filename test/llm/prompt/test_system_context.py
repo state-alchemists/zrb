@@ -13,6 +13,7 @@ from unittest.mock import MagicMock, patch
 from zrb.context.any_context import AnyContext
 from zrb.llm.prompt.live_context import render_live_context
 from zrb.llm.prompt.system_context import system_context
+from zrb.llm.sandbox import SandboxPolicy, set_current_sandbox_policy
 from zrb.llm.tool.plan import get_current_context_session
 
 
@@ -50,6 +51,44 @@ class TestSystemContext:
         enriched = received[0]
         assert "OS:" in enriched
         assert "CWD:" in enriched
+
+    def test_system_context_states_that_tool_calls_reach_the_real_machine(self):
+        """The unsandboxed default must be stated, not left for the model to guess.
+
+        Priority Order rank 1 says to confirm anything destructive or
+        irreversible. ``LLM_SANDBOX_ENABLED`` defaults to False, so by default
+        that is literally true — and nothing else in the composed prompt says
+        so. A rule whose stakes are invisible is a rule that gets under-applied.
+        """
+        ctx = MagicMock(spec=AnyContext)
+        received = []
+
+        set_current_sandbox_policy(SandboxPolicy(enabled=False))
+        try:
+            system_context(ctx, "test", lambda c, p: received.append(p) or "ok")
+        finally:
+            set_current_sandbox_policy(None)
+
+        assert "Sandbox: none" in received[0]
+
+    def test_system_context_claims_no_containment_when_sandboxed(self):
+        """Silence when contained — never a licence to relax.
+
+        The affirmative branch is deliberately absent: a "you are sandboxed"
+        line would relax rank 1 on the strength of a config the model cannot
+        verify. Saying nothing leaves the unconditional rule in force, which is
+        the safe way to be wrong.
+        """
+        ctx = MagicMock(spec=AnyContext)
+        received = []
+
+        set_current_sandbox_policy(SandboxPolicy(enabled=True))
+        try:
+            system_context(ctx, "test", lambda c, p: received.append(p) or "ok")
+        finally:
+            set_current_sandbox_policy(None)
+
+        assert "Sandbox" not in received[0]
 
     def test_system_context_excludes_volatile_state(self):
         """Volatile per-turn state must NOT live in the cached system prompt.

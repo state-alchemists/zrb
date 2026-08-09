@@ -98,7 +98,7 @@ def test_prompt_manager_empty_sections():
 
 def test_prompt_manager_add_prompt():
     manager = PromptManager(include_sections=[])
-    manager.add_prompt("P1")
+    manager.append_prompt("P1")
     manager.append_prompt("P2")
 
     ctx = SharedContext()

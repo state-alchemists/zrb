@@ -2,6 +2,8 @@ import json
 import time
 from typing import TYPE_CHECKING, Any, Callable, Literal
 
+from zrb.util.truncate import truncate_display
+
 if TYPE_CHECKING:
     from pydantic_ai import (
         AgentRunResultEvent,
@@ -306,8 +308,8 @@ def _truncate_kwargs(kwargs: dict[str, Any]) -> dict[str, Any]:
 
 
 def _truncate_arg(arg: str, length: int = 30) -> str:
-    if isinstance(arg, str) and len(arg) > length:
-        return f"{arg[:length-4]} ..."
+    if isinstance(arg, str):
+        return truncate_display(arg, length)
     return arg
 
 
