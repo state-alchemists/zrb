@@ -69,9 +69,8 @@ class EventDrivenUI(SimpleUI):
     def input_queue(self) -> asyncio.Queue[str]:
         """The queue incoming messages land on.
 
-        Not a back-compat shim, despite how it was labelled: it is the public
-        read seam for the queue, and without it a caller (or a test) asserting
-        on queue state has to reach for the private attribute. Prefer
+        The public read seam for the queue — without it a caller (or a test)
+        asserting on queue state has to reach for the private attribute. Prefer
         `handle_incoming_message()` for *routing* a message in.
         """
         return self._input_queue

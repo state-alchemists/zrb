@@ -24,9 +24,9 @@ def build_skill_replacements(
       are none. The heading rides here rather than sitting literally in
       ``workflow.md`` because a stock install has no such skills: every built-in
       utility skill under ``llm_plugin/skills/`` is ``disable-model-invocation``
-      (it is a slash command, reached by the user), so the section used to
-      render as a heading over ``_(none registered)_``. Paying for a heading
-      that introduces nothing teaches the model that catalogue entries are
+      (it is a slash command, reached by the user). A literal heading would
+      render over ``_(none registered)_``, and paying for a heading that
+      introduces nothing teaches the model that catalogue entries are
       decorative.
     - ``PREACTIVATED_SKILLS`` — full content of any pre-activated skills, loaded up
       front; empty when none. Active skills are dropped from the two lists above

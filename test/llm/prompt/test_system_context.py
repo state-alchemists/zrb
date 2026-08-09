@@ -408,11 +408,11 @@ class TestRenderLiveContext:
     def test_render_live_context_renders_interactive_no_when_input_false(self):
         """ctx.input.interactive=False renders the non-interactive guard line.
 
-        The line no longer names the tools it used to forbid: AskUserQuestion,
-        EnterPlanMode and ExitPlanMode are registered only in interactive
-        sessions, so this branch warned against three tools that were already
-        absent from it. What it must still carry is the instruction that
-        replaces waiting — proceed rather than block.
+        The line names no tool: AskUserQuestion, EnterPlanMode and
+        ExitPlanMode are registered only in interactive sessions, so naming them
+        here would warn against three tools already absent from this branch.
+        What it must carry is the instruction that replaces waiting — proceed
+        rather than block.
         """
         ctx = MagicMock()
         ctx.input.session = "noninteractive-session"

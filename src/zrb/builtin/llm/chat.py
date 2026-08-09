@@ -162,7 +162,7 @@ llm_chat.prepend_tool_policy(
     # AskUserQuestion is auto-approved intrinsically (it registers itself via
     # register_always_auto_approve in zrb.llm.tool.ask), so the cascade approves
     # it in every path — main agent, sub-agents, web — not just here. See
-    # ADR-0060. No entry needed in this list.
+    # ADR-0062. No entry needed in this list.
     auto_approve("DelegateToAgent"),
     # Starting a background delegation and polling its result are harmless; the
     # sub-agent's own tool calls still route their approvals to the user.

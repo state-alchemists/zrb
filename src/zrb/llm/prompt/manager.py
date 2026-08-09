@@ -203,7 +203,7 @@ class PromptManager:
         2. an explicitly-set ``LLM_INCLUDE_SECTIONS`` env var,
         3. the active preset's section list, when it constrains that axis
            (only ``minimal`` does — ``full`` and ``lean`` reshape their prose
-           through the variant axis and keep every section — ADR-0075),
+           through the variant axis and keep every section — ADR-0049),
         4. ``CFG.LLM_INCLUDE_SECTIONS``.
 
         Only the *env var* counts as the user naming a list: overriding
@@ -444,8 +444,8 @@ class PromptManager:
     ) -> list[PromptMiddleware | str]:
         sections = self.active_sections
 
-        # The preset's phrasing axis (ADR-0075): file-backed sections resolve
-        # ``{name}.{variant}.md`` with fallback to the base (ADR-0047), which is
+        # The preset's phrasing axis (ADR-0049): file-backed sections resolve
+        # ``{name}.{variant}.md`` with fallback to the base (ADR-0049), which is
         # how ``lean`` and ``minimal`` get their lighter rulebooks. ``full``
         # carries no variant, so every section takes the base file.
         variant = self.active_preset.variant
@@ -518,7 +518,7 @@ class PromptManager:
 
         Resolves *name* via ``get_prompt`` at compose time,
         preferring the *profile* variant (``{name}.{profile}.md``) with fallback
-        to the base file (ADR-0047). When nothing resolves (no registered
+        to the base file (ADR-0049). When nothing resolves (no registered
         provider, no markdown file), the section is empty — a warning
         is logged so a misspelled name in ``include_sections`` /
         ``ZRB_LLM_INCLUDE_SECTIONS`` is diagnosable instead of silently dropped.

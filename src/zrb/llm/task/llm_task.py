@@ -348,7 +348,7 @@ class LLMTask(LLMTaskBuilding, LLMTaskHistory, BaseTask):
                 else get_bool_attr(ctx, self._yolo, False)
             )
             # Resolve the permission policy from the explicit task param, else
-            # global config. None → run_agent keeps legacy/inherited behavior.
+            # global config. None → run_agent keeps the inherited policy.
             permission_policy = resolve_policy(
                 self._permissions
                 if self._permissions is not None

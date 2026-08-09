@@ -63,7 +63,7 @@ def _format_single_write(path: str, new_content: str, mode: str, ui) -> str | No
     if mode == "a":
         final_new_content = old_content + new_content
 
-    diff_md = format_diff(old_content, final_new_content, path, ui=ui)
+    diff_md = format_diff(old_content, final_new_content, path)
     if not diff_md:
         return f"       📄 File: {path} (No changes)\n"
 

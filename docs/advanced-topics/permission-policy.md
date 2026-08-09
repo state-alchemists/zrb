@@ -98,7 +98,7 @@ Rules can match on:
 
 ## The Precedence Chain
 
-When pydantic-ai requests a tool call, Zrb resolves the outcome using this priority order (ADR-0060):
+When pydantic-ai requests a tool call, Zrb resolves the outcome using this priority order (ADR-0062):
 
 0.  **Always-Approve:** Tools that *are* the user interaction (e.g. `AskUserQuestion`) are auto-approved unconditionally — gating them behind a prompt is meaningless, since approval would render *before* the question itself. A tool opts in by self-registering via `register_always_auto_approve(...)`, so the guarantee travels with the tool and holds in every path (main agent, sub-agents, web), independent of any policy list below.
 1.  **Tool Policy:** Argument-level rules registered in code (`auto_approve("Read")`, command validators). A match is final.

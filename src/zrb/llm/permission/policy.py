@@ -5,7 +5,7 @@ A ``PermissionPolicy`` is an ordered list of ``Rule``s evaluated first-match-win
 ``"*"``, optionally narrowed by a glob on a salient argument (path / command /
 url / agent_name). ``decide`` returns ``"allow"``, ``"ask"``, or ``"deny"``.
 
-A ``yolo`` value is a degenerate policy expressed as rules via the legacy
+A ``yolo`` value is a degenerate policy expressed as rules via the
 ``check_yolo`` predicate — ``True`` allows everything, ``False`` asks,
 and a ``frozenset`` of tool names selectively auto-approves.
 """
@@ -89,14 +89,14 @@ def _arg_matches(pattern: str, args: dict) -> bool:
 
 # The shapes ``resolve_policy`` (and therefore the ``permissions=`` task
 # argument) accepts: an already-built policy, a shorthand/list string, a
-# sequence of ``Rule``s or rule dicts, or ``None`` (legacy: nothing constrained).
+# sequence of ``Rule``s or rule dicts, or ``None`` (nothing constrained).
 PermissionPolicyInput = PermissionPolicy | str | Sequence[Rule | dict] | None
 
 
 def resolve_policy(raw: "PermissionPolicyInput") -> "PermissionPolicy | None":
     """Build a policy from user config.
 
-    Accepts ``None``/empty (→ ``None``, legacy behavior), a ``PermissionPolicy``,
+    Accepts ``None``/empty (→ ``None``, nothing constrained), a ``PermissionPolicy``,
     a shorthand ``"allow"``/``"ask"``/``"deny"``,     a ``"key:action"`` list string
     (e.g. ``"edit:deny,Shell:ask,*:allow"``), or a list of dicts/``Rule``s.
     """

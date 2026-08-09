@@ -171,7 +171,7 @@ longer in the defaults, so nothing resolves it. Either keep the name in an
 explicit `ZRB_LLM_INCLUDE_SECTIONS` (it then works as a custom section, see
 above) or move the content into a `workflow.md` override.
 
-See [ADR-0045](../adr/adr-0045.md) and [ADR-0053](../adr/adr-0053.md) for the
+See [ADR-0045](../adr/adr-0045.md) and [ADR-0055](../adr/adr-0055.md) for the
 reasoning.
 
 ---

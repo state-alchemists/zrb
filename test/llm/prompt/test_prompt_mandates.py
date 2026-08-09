@@ -32,10 +32,10 @@ def test_get_prompt_workflow_returns_non_empty():
 
 
 def test_get_prompt_workflow_carries_the_absorbed_sections():
-    """The retired `mandate` and `git_mandate` rules live here now.
+    """`workflow` is the sole home of the Priority Order and the git rule.
 
-    Both files were deleted rather than re-pointed, so nothing else would
-    notice if their content had been dropped instead of moved.
+    No other section carries them, so if they were dropped from `workflow`
+    nothing else would notice.
     """
     prompt = get_prompt("workflow")
     assert "## Priority Order" in prompt
@@ -70,7 +70,7 @@ def test_get_prompt_workflow_with_local_override():
                 os.chdir(original_cwd)
 
 
-# ── Profile variants (ADR-0047) ──────────────────────────────────────────
+# ── Profile variants (ADR-0049) ──────────────────────────────────────────
 
 
 def test_get_prompt_lean_profile_uses_variant_when_present():
@@ -104,12 +104,9 @@ def test_get_prompt_full_profile_uses_base_file():
 def test_get_prompt_profile_falls_back_to_base_when_no_variant():
     """A section with no variant for the profile falls back to the base file.
 
-    `persona` used to be the section that exercised this, on the reasoning that
-    identity does not get lighter for a small model. It does: the same 486
-    tokens of frontier-register prose were 35% of `minimal`'s whole rule payload
-    and contradicted its own rulebook on reply length. The silent fallback was
-    what let that ship unnoticed, so the fallback is now pinned on a prompt file
-    that is genuinely preset-invariant rather than on one nobody had varied yet.
+    Pinned on a prompt file that is genuinely preset-invariant, never on a
+    *section*: every section ships a variant per preset, so pinning the fallback
+    on one would pin the absence of a variant somebody still has to write.
     """
     base = get_prompt("repo_summarizer")
     for profile in ("lean", "minimal"):

@@ -64,7 +64,7 @@ def _format_replace(path, old_text, new_text, count, ui) -> str | None:
     if content == new_content:
         return None
 
-    diff_md = format_diff(content, new_content, path, ui=ui)
+    diff_md = format_diff(content, new_content, path)
     if not diff_md:
         return None
 

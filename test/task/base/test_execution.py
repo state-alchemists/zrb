@@ -405,9 +405,9 @@ async def test_readiness_does_not_mark_ready_when_permanently_failed():
 async def test_readiness_check_exception_fails_task_instead_of_hanging():
     """A permanently failed readiness check fails the run instead of hanging.
 
-    The exception used to be logged and dropped while the (possibly
-    never-ending) action was still deferred, leaving the whole run blocked in
-    wait_deferred with no error exit.
+    Logging and dropping the exception while the (possibly never-ending)
+    action is still deferred leaves the whole run blocked in wait_deferred with
+    no error exit.
     """
     from zrb.task.base.execution import execute_action_until_ready
 
@@ -729,9 +729,9 @@ async def test_readiness_failure_after_completed_action_does_not_run_fallbacks()
 async def test_diamond_upstreams_run_readiness_task_once():
     """Two upstreams completing in the same tick must not double-run the task.
 
-    `is_started` used to be set only inside the created action task — after
-    the readiness path's first suspension point — so both upstream chains
-    passed `is_allowed_to_run` and the action executed twice concurrently.
+    `is_started` must be set before the readiness path's first suspension
+    point. Set it only inside the created action task and both upstream chains
+    pass `is_allowed_to_run`, running the action twice concurrently.
     """
     executions = []
 

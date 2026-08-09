@@ -56,10 +56,9 @@ class TestLLMTaskExecution:
         """Toolset factories run once per execution and the SAME instances go
         to the agent.
 
-        They used to be resolved twice (once for the exit stack, once inside
-        agent creation): factory side effects (e.g. MCP server spawn) fired
-        twice per turn, and the agent got instances whose contexts were never
-        entered.
+        Resolving twice (once for the exit stack, once inside agent creation)
+        would fire factory side effects — e.g. an MCP server spawn — twice per
+        turn and hand the agent instances whose contexts were never entered.
         """
         factory_calls = []
 

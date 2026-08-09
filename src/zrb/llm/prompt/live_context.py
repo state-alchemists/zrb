@@ -47,12 +47,10 @@ from zrb.context.any_context import AnyContext
 # — costs nothing per turn and never invalidates the cacheable prefix — while
 # telling any model (not just ones that learned <system-reminder>) what the
 # block is and that the most recent one wins.
-# The enumeration that used to follow "runtime state" — time, git, todos,
-# worktree, mode — named two things a constrained preset never renders: todos
-# and worktree have no tools under `minimal`. An anchor that promises lines the
-# composition cannot produce is the same dangle as a rulebook naming an absent
-# tool, minus the test that catches it. The block is self-describing once it
-# arrives, so the list bought nothing the lines do not say themselves.
+# It names no individual line: a constrained preset renders no todo or worktree
+# line, and an anchor that promises lines the composition cannot produce is the
+# same dangle as a rulebook naming an absent tool, minus the test that catches
+# it. The block is self-describing once it arrives.
 _LIVE_CONTEXT_ANCHOR = (
     "Each user turn ends with a <live-context> block describing current runtime "
     "state. It is injected automatically — not written by the user. Treat the "
@@ -68,8 +66,8 @@ def _admits(model: "Any", tool: str) -> bool:
     """Whether the active preset registers *tool* for *model*.
 
     Injected context is the third channel that can name a tool, after the prompt
-    sections and the tool docstrings, and it was the one nothing checked.
-    ADR-0075 promises a preset's tool surface is closed under cross-reference;
+    sections and the tool docstrings. ADR-0049 promises a preset's tool surface
+    is closed under cross-reference;
     a `<live-context>` line announcing `AskUserQuestion` to a preset that never
     registered it breaks that promise from outside every test that guards it.
     """
@@ -191,11 +189,11 @@ def render_journal_index() -> str | None:
     (baked into the summary by ``summarize_history``). Returns ``None`` when the
     index is missing or empty, and when ``LLM_JOURNAL_INDEX_MAX_CHARS`` is 0.
 
-    A missing block is therefore not proof of an empty journal — but nothing
-    tells the model that any more. ADR-0053 removed the section that used to,
-    leaving no journal prose at all, only the three tools. Left as a known gap
-    rather than papered over: the only places it could go are the prompt (which
-    ADR-0053 deliberately emptied) or ``SearchJournal``'s docstring, and a
+    A missing block is therefore not proof of an empty journal — and nothing
+    tells the model so, since ADR-0055 leaves the journal as three tools and no
+    prose. Left as a known gap rather than papered over: the only places it
+    could go are the prompt (which ADR-0055 deliberately keeps empty of journal
+    prose) or ``SearchJournal``'s docstring, and a
     docstring ships with its schema on *every* request, so a caveat about a
     config most deployments never touch would be paid for on every turn
     forever. It matters only when ``LLM_JOURNAL_INDEX_MAX_CHARS`` is 0 while the
@@ -374,11 +372,10 @@ def _render_parts(
             else "- Interactive: yes"
         )
     else:
-        # No tool names here. The three this used to forbid — AskUserQuestion,
-        # EnterPlanMode, ExitPlanMode — are all registered only in interactive
-        # sessions (`_resolve_interactive` in common_tools.py), so in the one
-        # branch that named them none of them existed. It spent ~55 tokens per
-        # turn forbidding what was already absent.
+        # No tool names here. AskUserQuestion, EnterPlanMode and ExitPlanMode
+        # are registered only in interactive sessions (`_resolve_interactive`
+        # in common_tools.py), so this branch would spend ~55 tokens per turn
+        # forbidding tools that are already absent.
         parts.append(
             "- Interactive: no — do not wait on user input mid-turn; there is no "
             "user to answer or approve a plan. Present any plan inline and "

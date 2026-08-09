@@ -3,10 +3,10 @@
 These are set once by `run_agent` at the start of a turn and read by sub-agents,
 delegate tools, and UI callbacks that don't receive them as explicit arguments.
 
-The underlying `ContextVar`s live at their historical locations so that
-`token = var.set(...)` / `var.reset(token)` patterns in `run_agent` keep working
-without change. This module adds typed getters so callers don't reach into
-`run_agent` or `approval_channel` just to read ambient state.
+The underlying `ContextVar`s live in `run_agent` and `approval_channel`, where
+`run_agent` binds them with `token = var.set(...)` / `var.reset(token)`. This
+module adds typed getters so callers don't reach into those modules just to read
+ambient state.
 """
 
 from __future__ import annotations

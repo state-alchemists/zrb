@@ -87,7 +87,7 @@ from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.tool_call.always_approve import register_always_auto_approve
 
 # Two model registries, exported together because they are asked about the same
-# model and answer different questions — see ADR-0077. `model_capabilities`
+# model and answer different questions — see ADR-0051. `model_capabilities`
 # matches the *bare* name (a property of the weights); `register_model_profile`
 # matches the *full* id, prefix and tier suffix included (a property of the
 # deployment). They are deliberately not merged.

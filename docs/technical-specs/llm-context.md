@@ -46,7 +46,7 @@ journal prompt section to suppress — the journal *is* its three tools
 (`SearchJournal`, `LogActivity`, `WriteJournalNote`), so the flag unregisters
 them in `apply_common_tools`, and `render_journal_index` checks the same flag
 for the `<journal-index>` injection. The model is then never told a journal
-exists (ADR-0053).
+exists (ADR-0055).
 
 `ZRB_LLM_JOURNAL_DIR` is **not** an off switch: clearing it falls back to
 `~/.zrb/llm-notes/` rather than disabling journaling.
@@ -137,7 +137,7 @@ registered — a deliberate and unusual pairing.
 
 That behaviour is deliberate. Reporting a missing directory as an error made the whole memory layer read as unavailable, and the agent responded by declaring it could not journal rather than by writing its first note. An unwritten journal is *empty*, not broken.
 
-**The rest of the tree is created by the writers, not by the agent.** `LogActivity` and `WriteJournalNote` (`src/zrb/llm/tool/journal_write.py`) derive every path and timestamp themselves, create the root index and the five directory indexes on first write, and maintain the link graph — each note registered in its directory index, each forward link matched by a reciprocal backlink. The agent supplies content; the structure is code (ADR-0053).
+**The rest of the tree is created by the writers, not by the agent.** `LogActivity` and `WriteJournalNote` (`src/zrb/llm/tool/journal_write.py`) derive every path and timestamp themselves, create the root index and the five directory indexes on first write, and maintain the link graph — each note registered in its directory index, each forward link matched by a reciprocal backlink. The agent supplies content; the structure is code (ADR-0055).
 
 ---
 

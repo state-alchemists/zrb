@@ -97,15 +97,12 @@ def safe_copy_result(result: Any) -> Any:
 def _oversize_metadata(value: Any) -> dict[str, Any]:
     """Flag an oversized tool result in metadata, without rewriting it.
 
-    ``CFG.LLM_MAX_TOOL_RESULT_CHARS`` has never bounded what the model reads:
-    it was applied to ``ToolReturn.content`` while ``return_value`` — the field
-    that becomes the tool-result message — went through whole, so the cap only
-    shrank the duplicate copy (see ADR-0043). Dropping that duplicate must not
-    silently start truncating payloads the model used to receive in full, so the
-    size is recorded and the value is passed through untouched.
+    ``CFG.LLM_MAX_TOOL_RESULT_CHARS`` does not bound what the model reads (see
+    ADR-0043): the field that becomes the tool-result message goes through
+    whole. The size is recorded and the value is passed through untouched.
 
     Metadata never reaches the model; it is there so a real cap can be decided
-    on evidence rather than introduced as a side effect of a bug fix.
+    on evidence.
 
     Multimodal content is not measured at all — its text rendering is a repr,
     not the file, so a character count of it would be meaningless.

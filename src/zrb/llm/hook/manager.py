@@ -388,12 +388,10 @@ class HookManager(HookManagerLoading):
     ) -> list[HookResult]:
         """Run *event*'s hooks and flatten each result into a `HookResult`.
 
-        Not a back-compat shim, despite how it was labelled. `execute_hooks`
-        returns typed execution results; this collapses each one's fields into
-        the flat, Claude-format `modifications` mapping (`decision`,
-        `permissionDecision`, `additionalContext`, `updatedInput`, …) that
-        `HookResult` carries. That mapping is a real transformation, not an
-        alias, and `HookResult` is part of the public surface.
+        `execute_hooks` returns typed execution results; this collapses each
+        one's fields into the flat, Claude-format `modifications` mapping
+        (`decision`, `permissionDecision`, `additionalContext`, `updatedInput`,
+        …) that `HookResult` carries.
 
         Nothing in zrb itself calls this — the runtime consumes the typed form
         directly. It exists for callers that want the flat shape.

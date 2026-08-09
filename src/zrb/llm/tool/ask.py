@@ -98,7 +98,7 @@ async def ask_user_question(questions: list[dict[str, Any]]) -> str:
 
     # Notify that the agent is now blocking on a user question so "needs your
     # input" notifications/sounds (e.g. peon-ping) ring. AskUserQuestion is
-    # auto-approved (ADR-0060), so it never reaches the PermissionRequest path
+    # auto-approved (ADR-0062), so it never reaches the PermissionRequest path
     # in the approval cascade — this is its only attention signal.
     await _notify_question_pending(questions)
 

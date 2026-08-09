@@ -121,8 +121,7 @@ class ConfigLLMContent:
         default_factory=lambda cfg: cfg.DEFAULT_LLM_HISTORY_BACKUP_RETAIN,
         doc=(
             "Number of timestamped history backups to keep per conversation. "
-            "0 disables backup writes entirely. -1 keeps every backup "
-            "(legacy behavior)."
+            "0 disables backup writes entirely. -1 keeps every backup."
         ),
     )
 

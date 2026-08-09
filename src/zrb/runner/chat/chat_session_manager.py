@@ -102,9 +102,8 @@ class ChatSessionManager:
 
         Returns ``(base_name, newest_mtime, file_count)`` tuples, newest first.
         The history dir holds a main file per session plus every timestamped
-        backup, so it grows fast — a single ``scandir`` pass with O(n) grouping
-        replaces the old three-listdir + per-file ``getmtime`` + O(n²) name
-        matching that made listing heavy.
+        backup, so it grows fast — hence a single ``scandir`` pass with O(n)
+        grouping, which keeps listing cheap as the directory grows.
         """
         if not CFG.LLM_HISTORY_DIR:
             return []

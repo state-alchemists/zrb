@@ -93,7 +93,7 @@ def tool_name(tool: "Callable | Tool | Any") -> str:
     """Registered name of *tool*, whether it is a bare function or a ``Tool``.
 
     A ``Tool`` wraps the function it was built from, and zrb's tools carry their
-    PascalCase name on ``__name__`` (ADR-0054), so both layers have to be tried.
+    PascalCase name on ``__name__`` (ADR-0056), so both layers have to be tried.
     """
     fn = getattr(tool, "function", tool)
     return getattr(fn, "__name__", "") or getattr(tool, "name", "") or ""
@@ -105,11 +105,10 @@ class _Surface(NamedTuple):
     ``undefer`` rides along because deferral only pays above a certain surface
     size: it swaps a tool's schema for a ``search_tools`` entry the model must
     call first. ``minimal`` keeps ten tools and would spend more on the
-    indirection than it hides, so it takes the schemas (ADR-0075). ``lean`` keeps
+    indirection than it hides, so it takes the schemas (ADR-0049). ``lean`` keeps
     thirty-three — there the indirection is the whole saving, so its deferred
-    tools stay deferred. The old code derived this from "is the axis constrained
-    at all", which was the same question only while ``minimal`` was the only
-    preset that constrained it.
+    tools stay deferred. Hence the key is "does the preset close the surface"
+    (``Preset.tools is not None``), not "does it constrain the axis at all".
     """
 
     admits: "Callable[[Any], bool]"
@@ -120,7 +119,7 @@ def _preset_tool_filter() -> "_Surface | None":
     """Predicate keeping only the tools the active preset registers, or ``None``.
 
     ``None`` means "this preset does not constrain the tool axis" — only ``full``
-    now (ADR-0075). ``minimal`` constrains it with an allowlist and ``lean`` with
+    now (ADR-0049). ``minimal`` constrains it with an allowlist and ``lean`` with
     a denylist; ``Preset.admits`` resolves either, so this stays one predicate.
     Resolved against ``CFG.LLM_MODEL`` because registration happens before any
     host model is known, so a task whose per-task model override differs from
@@ -367,9 +366,9 @@ def defer_common_tools(host: CommonToolHost) -> None:
     """Register ``apply_common_tools(host)`` to run on first use instead of now.
 
     ``apply_common_tools`` transitively imports ``pydantic_ai`` (via the
-    ``zrb.llm.tool.*`` functions and the ``Tool`` class). Calling it at module
-    import — as the ``llm_chat`` and ``sub_agent_manager`` singletons used to —
-    dragged that ~1.7s import onto every ``import zrb``. Deferring it to the
+    ``zrb.llm.tool.*`` functions and the ``Tool`` class). Calling it while the
+    ``llm_chat`` / ``sub_agent_manager`` singletons are constructed would drag
+    that ~1.7s import onto every ``import zrb``. Deferring it to the
     first agent build (``ensure_common_tools`` at the top of the exec /
     ``create_agent`` entry points) keeps the heavy import off the cold path for
     callers that never run an agent. See ``ensure_common_tools``.
@@ -382,7 +381,7 @@ def ensure_common_tools(host: CommonToolHost) -> None:
 
     No-op for hosts that never called ``defer_common_tools`` (e.g. bare
     ``LLMChatTask`` instances that are not the ``llm_chat`` singleton), so the
-    deferral stays scoped to exactly the singletons that had the eager call.
+    deferral stays scoped to the hosts that asked for it.
     """
     if getattr(host, "_pending_common_tools", False):
         setattr(host, "_pending_common_tools", False)

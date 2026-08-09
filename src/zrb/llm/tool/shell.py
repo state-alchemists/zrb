@@ -176,17 +176,16 @@ async def run_shell_command(
 def _prepare_command(command: str, use_pid_tracking: bool) -> tuple[str, str | None]:
     """Wrap the command to capture background PIDs when on a POSIX shell.
 
-    **Every wrapper token gets its own line.** The wrapper used to splice itself
-    onto the command with `;` separators — ``{ <command> ; }; __code=$?; …`` —
-    which silently corrupted any command whose *last line* cannot tolerate a
-    trailing `; }`. That is not an edge case: it broke a heredoc (the `EOF`
-    delimiter stops being alone on its line, so the shell swallows the rest of
-    the wrapper hunting for it), a trailing comment (`# …` eats the rest of the
-    line), a trailing `;`, and — on bash/sh — a command merely ending in a
-    newline. Models write all four constantly, and the failure surfaced as an
-    opaque `parse error near '\\n'` pointing at a line number in a string the
-    model never wrote. Newline separators make the command a statement of its
-    own, so nothing the model writes can run into the wrapper.
+    **Every wrapper token gets its own line.** Splicing the wrapper on with `;`
+    separators — ``{ <command> ; }; __code=$?; …`` — corrupts any command whose
+    *last line* cannot tolerate a trailing `; }`: a heredoc (the `EOF` delimiter
+    stops being alone on its line, so the shell swallows the rest of the wrapper
+    hunting for it), a trailing comment (`# …` eats the rest of the line), a
+    trailing `;`, and — on bash/sh — a command merely ending in a newline.
+    Models write all four constantly, and the failure surfaces as an opaque
+    `parse error near '\\n'` pointing at a line number in a string the model
+    never wrote. Newline separators make the command a statement of its own, so
+    nothing the model writes can run into the wrapper.
     """
     # An empty command has no body to wrap: `{ }` is itself a syntax error, so
     # the wrapper would turn a harmless no-op into a shell failure.

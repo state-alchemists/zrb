@@ -415,8 +415,8 @@ def _append_live_context(prompt_content: Any, live_context: str) -> Any:
     ``get_prompt_content``: ``str`` (text-only), ``list[UserContent]``
     (multimodal — a trailing text element is added, keeping the block last for
     recency), and ``None`` (empty turn — the block becomes the content). A
-    falsy ``live_context`` is a no-op, so callers that pass nothing keep the
-    legacy behaviour.
+    falsy ``live_context`` is a no-op, so callers that pass nothing leave the
+    turn untouched.
     """
     if not live_context:
         return prompt_content

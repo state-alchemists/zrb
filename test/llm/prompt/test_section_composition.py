@@ -255,7 +255,7 @@ def test_each_preset_stays_within_its_budget(monkeypatch, profile, ceiling):
     catches that, and until now only `full` had one.
 
     This is the enforcement arm of the rule that a more capable model buys more
-    autonomy rather than more text (ADR-0075): `full` having room is not a
+    autonomy rather than more text (ADR-0049): `full` having room is not a
     reason to spend it.
     """
     from unittest.mock import MagicMock
@@ -269,7 +269,7 @@ def test_each_preset_stays_within_its_budget(monkeypatch, profile, ceiling):
     ), f"{profile} prompt grew to {len(composed)} chars (ceiling {ceiling})"
 
 
-# ── The safety floor across presets (ADR-0075) ──────────────────────────
+# ── The safety floor across presets (ADR-0049) ──────────────────────────
 
 # Priority Order rank 1, as three concepts rather than three sentences: each
 # entry is the alternative phrasings that count as carrying it. Matching on
@@ -294,7 +294,7 @@ PRESET_COMPOSITIONS = [
 # The sections that carry *rules*, weakest-capability last. Each preset reads the
 # same two section names and resolves them through its own variant. Examples are
 # excluded on purpose: a demonstration lowers burden rather than adding it, so
-# the two move in opposite directions (ADR-0047 vs ADR-0075) — they get their own
+# the two move in opposite directions (ADR-0049) — they get their own
 # ceiling in `test_demonstrations_do_not_grow_as_the_target_model_gets_weaker`.
 RULE_SECTIONS = ["persona", "workflow"]
 PRESET_VARIANTS = [("full", None), ("lean", "lean"), ("minimal", "minimal")]
@@ -409,17 +409,17 @@ def _burden(section: str, variant: str | None) -> tuple[int, int, int]:
 def test_rule_burden_falls_as_the_target_model_gets_weaker(section):
     """The less capable the model, the less we ask it to hold at once.
 
-    The ordering is the whole point of having presets: `lean` used to be the
-    *heaviest* composition in the system, shipping a 7B model the frontier
-    rulebook plus 1,200 extra tokens of examples.
+    The ordering is the whole point of having presets, and without this
+    assertion nothing stops the preset built for weaker models from becoming the
+    heaviest composition in the system.
 
     Measured **per section**, not over their concatenation. A summed measure
-    reports the total and hides its terms: `persona` shipped every preset the
-    same 486 tokens of frontier-register prose — 35% of `minimal`'s whole rule
-    payload — and the sum still fell, because `workflow.minimal.md` shrank
-    enough to cover for it. A section that never varies is a section whose
+    reports the total and hides its terms: a section shipping every preset the
+    same frontier-register prose can be 35% of `minimal`'s rule payload while
+    the sum still falls, because another section shrank enough to cover for it.
+    A section that never varies is a section whose
     variant nobody wrote, and the silent `foo.{profile}.md` → `foo.md` fallback
-    (ADR-0047) means nothing else says so.
+    (ADR-0049) means nothing else says so.
 
     Mass and rule count must fall strictly — those are the load itself. Clause
     nesting only has to not *rise*: it is a style proxy with a floor, and the
@@ -452,7 +452,7 @@ def test_examples_carry_no_rule_of_their_own(variant):
     It also matters where the rule ends up. A rule stated only in `examples`
     reaches nobody in `minimal`, which drops the section, and it is invisible to
     the per-section burden ladder, which excludes it. Both are ways for a rule
-    to go missing quietly, which is exactly what ADR-0047's
+    to go missing quietly, which is exactly what ADR-0049's
     no-variant-only-rules invariant forbids one axis over.
     """
     text = get_prompt("examples", profile=variant)
@@ -462,9 +462,9 @@ def test_examples_carry_no_rule_of_their_own(variant):
 def test_a_variant_of_examples_is_not_a_superset_of_the_base():
     """Two files, one content, no test between them — they will drift.
 
-    `examples.lean.md` used to open with `examples.md` verbatim and append to
-    it. The variant axis *replaces*, so the copy bought nothing a shorter file
-    would not, and every edit to the base silently desynchronized the variant.
+    The variant axis *replaces*, so embedding the base buys nothing a shorter
+    file would not, and every edit to the base would silently desynchronize the
+    copy inside the variant.
     """
     base = get_prompt("examples").strip()
     lean = get_prompt("examples", profile="lean").strip()
@@ -476,11 +476,10 @@ def test_a_weaker_targets_preset_ships_less_prompt_in_total():
 
     The per-section ladder above governs `persona` and `workflow`; `examples` is
     exempt from it because a demonstration lowers burden rather than adding it
-    (ADR-0047 vs ADR-0075), so a lighter preset is *allowed* proportionally more
-    of it. Exempt from the ladder is not exempt from the budget: `lean` spent
-    its 700-token rulebook saving on 1,200 tokens of extra examples and came out
-    the heaviest composition in the system — 5,061 tokens against `full`'s
-    4,563, shipped to the weaker model.
+    (ADR-0049), so a lighter preset is *allowed* proportionally more
+    of it. Exempt from the ladder is not exempt from the budget: a preset that
+    spends its rulebook saving on extra examples ends up the heaviest
+    composition in the system, shipped to the weaker model.
 
     Whatever the per-rule argument, the total is what a 7B model has to attend
     to before it reads the request. So the totals are ordered as well, and a

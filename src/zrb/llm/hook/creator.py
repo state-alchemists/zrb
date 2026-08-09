@@ -107,8 +107,8 @@ def create_command_hook(
                 kill_process_tree(process, hook_pgid)
                 # process is a sync subprocess.Popen, so .wait() returns an
                 # int — awaiting it raises "'int' object can't be awaited",
-                # which previously swallowed this TimeoutError and left the
-                # subprocess unreaped. Reap off-thread instead.
+                # which would swallow this TimeoutError and leave the subprocess
+                # unreaped. Reap off-thread instead.
                 await run_detached(process.wait, name="zrb-hook-reap")
                 logger.warning(
                     f"Command hook timed out after {timeout}s and was killed: "
@@ -237,12 +237,11 @@ def _interpret_exit(
 def _blocked_result(output: str, stderr_output: str) -> HookResult:
     """Exit 2 — the hook blocked the action.
 
-    Claude Code feeds the block reason back from STDERR on exit 2; zrb
-    historically read it from stdout. Accept both, in this precedence: an
-    explicit `reason` in a stdout JSON control object > stderr (the Claude
-    convention) > plain stdout text > a default. This keeps existing
-    stdout-based hooks working while making a Claude-style
-    ``echo "reason" >&2; exit 2`` carry its reason instead of the default.
+    Claude Code feeds the block reason back from STDERR on exit 2; zrb also
+    accepts it on stdout. Precedence: an explicit `reason` in a stdout JSON
+    control object > stderr (the Claude convention) > plain stdout text > a
+    default. So both a stdout-based hook and a Claude-style
+    ``echo "reason" >&2; exit 2`` carry their reason.
     """
     modifications: dict = {}
     stdout_is_json = False

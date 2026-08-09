@@ -401,7 +401,7 @@ def test_compose_lean_includes_examples_section_when_listed():
 
 
 def test_compose_auto_uses_the_full_base_for_a_model_declaring_no_small_size():
-    """A family name is never read as weakness — only a stated size is (ADR-0047)."""
+    """A family name is never read as weakness — only a stated size is (ADR-0049)."""
     manager = PromptManager(include_sections=["persona", "examples"])
     manager.model = (
         "deepseek:deepseek-v4-pro"  # a frontier model; must not be guessed weak
@@ -454,7 +454,7 @@ def test_compose_auto_honors_declared_model_profile():
 
 
 def test_minimal_supplies_the_section_list_it_binds(monkeypatch):
-    """`minimal` is the only preset that constrains the section axis (ADR-0075)."""
+    """`minimal` is the only preset that constrains the section axis (ADR-0049)."""
     from zrb.llm.prompt.profile import MINIMAL_SECTIONS
 
     manager = PromptManager()

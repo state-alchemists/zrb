@@ -100,7 +100,7 @@ def test_hosts_without_an_approval_channel_are_skipped(monkeypatch):
     assert {"Read", "Write", "Grep"} <= host.resolved_tool_names()
 
 
-# ── Preset tool surface (ADR-0075) ──────────────────────────────────────
+# ── Preset tool surface (ADR-0049) ──────────────────────────────────────
 
 
 def _minimal_names(monkeypatch) -> set[str]:

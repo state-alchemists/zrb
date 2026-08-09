@@ -1,8 +1,8 @@
 """Build the prompt content payload passed to pydantic-ai's `run_stream_events`.
 
-Pure helper extracted from `run_agent.py`. The merge-into-history path
-in `run_agent` wraps the list in `UserPromptPart` as needed; this helper
-only normalizes the user-facing prompt + attachments.
+Pure helper: it only normalizes the user-facing prompt + attachments. The
+merge-into-history path in `run_agent` wraps the list in `UserPromptPart` as
+needed.
 """
 
 from __future__ import annotations

@@ -1,7 +1,7 @@
 """Deferred-tool-call processing for `run_agent`.
 
 When pydantic-ai produces a `DeferredToolRequests`, we route each call
-through the approval precedence chain (ADR-0060, ADR-0060):
+through the approval precedence chain (ADR-0062, ADR-0062):
 
 0. Always-approve      — tools that ARE the interaction (e.g. AskUserQuestion);
    auto-approve in every path, independent of any policy list
@@ -177,7 +177,7 @@ async def _resolve_approval(
 ):
     """Run the approval cascade for a single deferred call.
 
-    Approval precedence chain (ADR-0060, ADR-0060):
+    Approval precedence chain (ADR-0062, ADR-0062):
       0. Always-approve (intrinsically interactive tools, e.g. AskUserQuestion)
       1. Tool policy (Pre-confirmation)
       2. Permission policy (Strict mode: ALLOW→Approve, DENY→Deny, ASK→Force Ask)
@@ -246,7 +246,7 @@ def _approve_always_auto_approve_tools(call):
 
     A separate prompt for `AskUserQuestion` would render before the question
     itself, so these approve on every path regardless of per-runner policy.
-    See ADR-0060.
+    See ADR-0062.
     """
     if not is_always_auto_approve(call.tool_name):
         return None
@@ -325,7 +325,7 @@ def _resolve_non_interactive_ask(call, policy_decision, force_ask):
     deterministically instead: auto-approve the plan gate (`ExitPlanMode`'s
     approval is a no-op with no user to read the plan, mirroring
     `AskUserQuestion`) and deny any other approval-gated tool rather than
-    running it unattended. See ADR-0060.
+    running it unattended. See ADR-0062.
     """
     # lazy: permission is a leaf module.
     from zrb.llm.permission import ASK

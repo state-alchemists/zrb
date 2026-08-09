@@ -11,10 +11,10 @@ into a concrete value.
 a bool", which `str` alone does not. It is deliberately not a `NewType`, since
 that would reject the plain string literals every call site passes.
 
-There is no `AnyAttr`. It used to exist as `Any | fstring | Callable[..., Any]`,
-which collapses to plain `Any` — so it constrained nothing while looking like it
-did, and annotating a parameter with it bought silence rather than checking. Use
-`Any` where anything goes, or the specific `*Attr` alias where it does not.
+There is deliberately no `AnyAttr`: `Any | fstring | Callable[..., Any]`
+collapses to plain `Any`, so it would constrain nothing while looking like it
+did. Use `Any` where anything goes, or the specific `*Attr` alias where it does
+not.
 """
 
 from collections.abc import Sequence

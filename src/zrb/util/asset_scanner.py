@@ -1,8 +1,4 @@
-"""Recursive file-system scanning utility shared by SkillManager and SubAgentManager.
-
-Replaces the duplicated ``_scan_dir`` / ``_scan_dir_recursive`` pattern that
-previously lived in both ``manager_loading.py`` and ``skill/manager.py``.
-"""
+"""Recursive file-system scanning utility shared by SkillManager and SubAgentManager."""
 
 from collections.abc import Callable
 from pathlib import Path

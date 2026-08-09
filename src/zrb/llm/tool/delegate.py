@@ -171,10 +171,9 @@ async def _fire_subagent_hook(event: HookEvent, agent_name: str, agent_id: str) 
 def _delegatable_agents(sub_agent_manager: SubAgentManager) -> list:
     """Agents the current permission policy permits delegating to.
 
-    With no policy in force (the default), every scanned agent is returned —
-    byte-identical to the historical behavior. When a policy denies delegation
-    to a specific agent, it is omitted from the advertised roster so the model
-    isn't offered an option it cannot use.
+    With no policy in force (the default), every scanned agent is returned.
+    When a policy denies delegation to a specific agent, it is omitted from the
+    advertised roster so the model isn't offered an option it cannot use.
     """
     # lazy: permission is a leaf module.
     from zrb.llm.permission import DENY, Capability, get_effective_policy
@@ -194,10 +193,8 @@ def _delegatable_agents(sub_agent_manager: SubAgentManager) -> list:
 def agent_roster_doc(sub_agent_manager: SubAgentManager) -> str:
     """The `AVAILABLE AGENTS` block for a delegation tool's docstring.
 
-    Every tool that takes an `agent_name` embeds this. The roster used to live
-    only in `DelegateToAgent`'s docstring, so a model calling
-    `DelegateToAgentBackground` had no list of valid names anywhere in its
-    schema and had to recall one from another tool's description.
+    Every tool that takes an `agent_name` embeds this, so the valid names are
+    in each tool's own schema rather than recalled from a sibling's.
     """
     agents = _delegatable_agents(sub_agent_manager)
     if not agents:

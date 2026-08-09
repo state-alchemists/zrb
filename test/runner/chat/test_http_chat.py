@@ -347,9 +347,9 @@ class TestHTTPChatApprovalChannelMore:
 class TestHTTPChatApprovalChannelEditModeRecovery:
     """Cancelling an approval mid-edit must not strand the channel.
 
-    The edit slot used to survive cancellation, so is_waiting_for_edit() stayed
-    true forever and the next approval's answer was routed to the dead tool call
-    and silently dropped.
+    An edit slot surviving cancellation leaves is_waiting_for_edit() true
+    forever, so the next approval's answer routes to the dead tool call and is
+    silently dropped.
     """
 
     @pytest.fixture

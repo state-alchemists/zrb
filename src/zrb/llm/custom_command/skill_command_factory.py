@@ -78,20 +78,20 @@ def _extract_args(content: str) -> list[str]:
         if "arguments" not in args:
             args.append("arguments")
 
-    # 4. Legacy: ${name:-default}
+    # 4. Shell-style: ${name:-default}
     matches = re.findall(r"\${([a-zA-Z0-9_]+):-[^}]+}", content)
     for match in matches:
         if match not in args:
             args.append(match)
 
-    # 5. Legacy: ${name}
+    # 5. Shell-style: ${name}
     # Avoid re-adding ARGUMENTS
     matches = re.findall(r"\$\{([a-zA-Z0-9_]+)\}", content)
     for match in matches:
         if match not in args and match != "ARGUMENTS":
             args.append(match)
 
-    # 6. Legacy: $name (but not $N which is shorthand)
+    # 6. Shell-style: $name (but not $N which is shorthand)
     # Avoid re-adding ARGUMENTS, numbers, or special vars
     matches = re.findall(r"\$([a-zA-Z][a-zA-Z0-9_]*)", content)
     special_vars = {"ARGUMENTS"}

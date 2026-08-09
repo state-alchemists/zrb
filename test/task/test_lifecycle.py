@@ -148,8 +148,8 @@ async def test_run_and_cleanup_session_none():
 async def test_execute_root_tasks_index_error_propagates():
     """IndexError from a task action propagates like any other failure.
 
-    A dedicated `except IndexError` used to convert it to `return None`,
-    making a failed pipeline look successful (CLI exit 0).
+    Swallowing it into `return None` would make a failed pipeline look
+    successful (CLI exit 0).
     """
     task = MagicMock(spec=AnyTask)
     ctx_mock = MagicMock()

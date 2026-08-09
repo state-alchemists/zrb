@@ -96,7 +96,7 @@ class SubAgentDefinition:
         self.agent_factory = agent_factory
         # Inherit named PromptManager sections from the main-agent composition
         # (persona, workflow, examples, system_context, project_context).
-        # None = no inheritance (legacy behavior: only the body + tool guidance).
+        # None = no inheritance (only the body + tool guidance).
         # Use ``[]`` to explicitly opt out while documenting the intent.
         self.inherit_sections = inherit_sections
 
@@ -279,8 +279,8 @@ class SubAgentManager(SubAgentManagerLoading, SubAgentManagerSearch):
         # Inherited sections (persona, workflow, system_context, ...) come from
         # the main-agent PromptManager composition. Sub-agents that need the
         # parent's identity / operating rules / project context declare
-        # ``inherit_sections`` in their frontmatter; legacy agents with
-        # ``inherit_sections = None`` keep the lean original behavior.
+        # ``inherit_sections`` in their frontmatter; an agent that omits it
+        # (``inherit_sections = None``) stays lean.
         inherited_prompt = self._build_inherited_prompt(
             ctx, definition.inherit_sections, final_model
         )
@@ -313,7 +313,7 @@ class SubAgentManager(SubAgentManagerLoading, SubAgentManagerSearch):
     ) -> str:
         """Compose the named PromptManager sections for sub-agent inheritance.
 
-        ``None`` → return ``""`` (legacy lean sub-agent). ``[]`` → return
+        ``None`` → return ``""`` (lean sub-agent). ``[]`` → return
         ``""`` (explicit opt-out). A non-empty list builds a temporary
         PromptManager scoped to just those sections.
 

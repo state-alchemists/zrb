@@ -42,7 +42,7 @@ def get_current_tool_session() -> str:
 def set_current_tool_session(session_name: str) -> None:
     """Set the session name that tool calls should default to.
 
-    Preferred over the legacy `set_current_session` alias for readability.
+    Preferred over the `set_current_session` alias for readability.
     """
     set_current_session(session_name)
 

@@ -27,8 +27,7 @@ class StreamCapture:
     Three budgets, deliberately separate:
 
     * ``retain`` — characters held in memory, tail-biased. Only the tail ever
-      reached the model even before this class existed, so holding the head
-      resident bought nothing.
+      reaches the model, so holding the head resident buys nothing.
     * ``echo`` — characters mirrored to the console. Echoing costs a regex
       substitution and a print *per line*; an unscoped ``git diff`` in a dirty
       monorepo spent longer being displayed than being computed and was killed

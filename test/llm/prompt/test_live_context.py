@@ -121,7 +121,7 @@ def test_negative_injects_the_whole_index_uncapped(tmp_path):
     assert "(...more)" not in result
 
 
-# ── Injected context is closed under the preset's tool surface (ADR-0075) ──
+# ── Injected context is closed under the preset's tool surface (ADR-0049) ──
 
 
 class _Ctx:

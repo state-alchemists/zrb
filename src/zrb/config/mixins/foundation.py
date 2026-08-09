@@ -25,7 +25,7 @@ from zrb.util.string.format import fstring_format
 
 
 def _serialize_log_level(value) -> str:
-    """Mirror the old setter: accept a numeric level or a name, store a name."""
+    """Accept a numeric level or a name, store a name."""
     if isinstance(value, int):
         return logging.getLevelName(value)
     return str(value)

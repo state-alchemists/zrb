@@ -107,51 +107,50 @@ tombstone.
 - **ADR-0044** — [Ordered sections; custom sections are config-positioned](adr-0044.md)
 - **ADR-0045** — [A rule lives where it is enforced](adr-0045.md)
 - **ADR-0046** — [Every section reads whole on its own; one Priority Order](adr-0046.md)
-- **ADR-0047** — [A variant is an overlay; a rule never lives only in one](adr-0047.md)
-- **ADR-0048** — [Home-level docs are user guidance, not project rules](adr-0048.md)
-- **ADR-0049** — [Untrusted-data framing travels with the tool result](adr-0049.md)
-- **ADR-0075** — [A profile is a preset over three axes; `minimal` serves ~3B models](adr-0075.md)
-- **ADR-0076** — [The prompt states the risky runtime state, never its absence](adr-0076.md)
-- **ADR-0077** — [Capability and profile are keyed differently and are not merged](adr-0077.md)
+- **ADR-0047** — [Home-level docs are user guidance, not project rules](adr-0047.md)
+- **ADR-0048** — [Untrusted-data framing travels with the tool result](adr-0048.md)
+- **ADR-0049** — [A profile is a preset over sections, phrasing and tool surface](adr-0049.md)
+- **ADR-0050** — [The prompt states the risky runtime state, never its absence](adr-0050.md)
+- **ADR-0051** — [Capability and profile are keyed differently and are not merged](adr-0051.md)
 
 ### Skills, agents and the journal
 
-- **ADR-0050** — [Skills and agents are discovered from directories](adr-0050.md)
-- **ADR-0051** — [Claude-compatible skills; catalogue from the live scan](adr-0051.md)
-- **ADR-0052** — [Built-in plugin split into core-skills, skills, agents](adr-0052.md)
-- **ADR-0053** — [The journal is a markdown graph that only tools write](adr-0053.md)
+- **ADR-0052** — [Skills and agents are discovered from directories](adr-0052.md)
+- **ADR-0053** — [Claude-compatible skills; catalogue from the live scan](adr-0053.md)
+- **ADR-0054** — [Built-in plugin split into core-skills, skills, agents](adr-0054.md)
+- **ADR-0055** — [The journal is a markdown graph that only tools write](adr-0055.md)
 
 ### Tools and safety
 
-- **ADR-0054** — [Tools are plain functions with PascalCase names](adr-0054.md)
-- **ADR-0055** — [A tool exception becomes text with `[SYSTEM SUGGESTION]`](adr-0055.md)
-- **ADR-0056** — [Tool-definition weight is managed by count, not prose](adr-0056.md)
-- **ADR-0057** — [Tool output is capped twice: per tool, then globally](adr-0057.md)
-- **ADR-0058** — [Tools carry a capability tag](adr-0058.md)
-- **ADR-0059** — [Permissions are an ordered ruleset, first match wins](adr-0059.md)
-- **ADR-0060** — [One approval chain: permission policy, tool policy, yolo](adr-0060.md)
-- **ADR-0061** — [Plan mode is a permission preset](adr-0061.md)
-- **ADR-0062** — [Advertised tool options are permission-filtered](adr-0062.md)
-- **ADR-0063** — [Opt-in two-layer filesystem sandbox](adr-0063.md)
-- **ADR-0064** — [`Shell` is the only shell tool; background is a flag](adr-0064.md)
-- **ADR-0065** — [MCP servers are first-class tool sources](adr-0065.md)
+- **ADR-0056** — [Tools are plain functions with PascalCase names](adr-0056.md)
+- **ADR-0057** — [A tool exception becomes text with `[SYSTEM SUGGESTION]`](adr-0057.md)
+- **ADR-0058** — [Tool-definition weight is managed by count, not prose](adr-0058.md)
+- **ADR-0059** — [Tool output is capped twice: per tool, then globally](adr-0059.md)
+- **ADR-0060** — [Tools carry a capability tag](adr-0060.md)
+- **ADR-0061** — [Permissions are an ordered ruleset, first match wins](adr-0061.md)
+- **ADR-0062** — [One approval chain: permission policy, tool policy, yolo](adr-0062.md)
+- **ADR-0063** — [Plan mode is a permission preset](adr-0063.md)
+- **ADR-0064** — [Advertised tool options are permission-filtered](adr-0064.md)
+- **ADR-0065** — [Opt-in two-layer filesystem sandbox](adr-0065.md)
+- **ADR-0066** — [`Shell` is the only shell tool; background is a flag](adr-0066.md)
+- **ADR-0067** — [MCP servers are first-class tool sources](adr-0067.md)
 
 ### Delegation and concurrency
 
-- **ADR-0066** — [Delegation: envelope, context-shaped criteria, fan-out](adr-0066.md)
-- **ADR-0067** — [Background work inherits permissions and can be waited on](adr-0067.md)
-- **ADR-0068** — [`BufferedUI` and a confirmation queue](adr-0068.md)
+- **ADR-0068** — [Delegation: envelope, context-shaped criteria, fan-out](adr-0068.md)
+- **ADR-0069** — [Background work inherits permissions and can be waited on](adr-0069.md)
+- **ADR-0070** — [`BufferedUI` and a confirmation queue](adr-0070.md)
 
 ### Hooks and the task API
 
-- **ADR-0069** — [Lifecycle hooks, Claude-compatible, control protocol included](adr-0069.md)
-- **ADR-0070** — [`LLMTask` and `LLMChatTask` expose the same knobs](adr-0070.md)
+- **ADR-0071** — [Lifecycle hooks, Claude-compatible, control protocol included](adr-0071.md)
+- **ADR-0072** — [`LLMTask` and `LLMChatTask` expose the same knobs](adr-0072.md)
 
 ### Interactive UI
 
-- **ADR-0071** — [Todo progress reaches the user through a side channel](adr-0071.md)
-- **ADR-0072** — [`ask_user_choice` with a text fallback](adr-0072.md)
-- **ADR-0073** — [Shift+Tab cycles the mode, with a Termux fallback](adr-0073.md)
-- **ADR-0074** — [Voice dictation as an opt-in UI input method](adr-0074.md)
+- **ADR-0073** — [Todo progress reaches the user through a side channel](adr-0073.md)
+- **ADR-0074** — [`ask_user_choice` with a text fallback](adr-0074.md)
+- **ADR-0075** — [Shift+Tab cycles the mode, with a Termux fallback](adr-0075.md)
+- **ADR-0076** — [Voice dictation as an opt-in UI input method](adr-0076.md)
 
 🔖 [Documentation Home](../../README.md)

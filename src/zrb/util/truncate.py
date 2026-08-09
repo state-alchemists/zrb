@@ -62,12 +62,8 @@ def truncate_display(text: str, max_chars: int) -> str:
     screen output, where the budget is the whole point and the result must not
     exceed ``max_chars``.
 
-    Kept as one function because it had been three: ``history_formatter`` and
-    ``stream_response`` each carried a private ``_truncate_kwargs`` with the
-    same name, the same 30-char default and different output — one elided as
-    ``val[:27] + "..."`` and the other as ``arg[:26] + " ..."``, so the live
-    stream and the exported transcript disagreed by a character on the same
-    tool call.
+    Shared by ``history_formatter`` and ``stream_response`` so the live stream
+    and the exported transcript elide a tool call identically.
     """
     if len(text) <= max_chars:
         return text

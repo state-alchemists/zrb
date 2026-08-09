@@ -1,4 +1,4 @@
-"""Tests for model-adaptive prompt profiles and presets (ADR-0047, ADR-0075)."""
+"""Tests for model-adaptive prompt profiles and presets (ADR-0049)."""
 
 import logging
 
@@ -44,7 +44,7 @@ def test_lean_and_full_are_forced_regardless_of_model():
 
 
 def test_auto_stays_full_for_models_that_declare_no_small_size():
-    # A family name is still never read as a capability signal (ADR-0047):
+    # A family name is still never read as a capability signal (ADR-0049):
     # only a stated size token or a vendor small-tier label selects explicit.
     for model in [
         "anthropic:claude-opus-4-8",
@@ -160,14 +160,14 @@ def test_isolated_registry_instance_does_not_touch_singleton():
 
 
 def test_the_old_explicit_value_is_no_longer_a_profile():
-    """`explicit` was renamed to `lean` with no alias (ADR-0047)."""
+    """`explicit` was renamed to `lean` with no alias (ADR-0049)."""
     # An unrecognized ZRB_LLM_PROFILE falls through to auto-resolution.
     assert resolve_profile("explicit", "anthropic:claude-opus-4") == FULL_PROFILE
     with pytest.raises(ValueError, match="Unknown profile"):
         register_model_profile("legacy-model", "explicit")
 
 
-# ── Presets (ADR-0075) ──────────────────────────────────────────────────
+# ── Presets (ADR-0049) ──────────────────────────────────────────────────
 
 
 def test_auto_selects_minimal_only_from_a_declared_size_of_4b_or_less():
@@ -487,7 +487,7 @@ def test_register_preset_warns_when_no_rulebook_composes(unregister, caplog):
     assert "no rule-carrying section" in caplog.text
 
 
-# ── Why this registry is not `model_capabilities` (ADR-0038 vs ADR-0075) ──
+# ── Why this registry is not `model_capabilities` (ADR-0038 vs ADR-0049) ──
 
 
 def test_profile_and_capability_registries_key_on_different_things():

@@ -265,7 +265,7 @@ as a *custom* section — see [Programmatic Prompt Customization](#programmatic-
 
 `ZRB_LLM_INCLUDE_SECTIONS` controls *which* sections appear. `ZRB_LLM_PROFILE`
 selects a **preset** — a named binding of three axes at once: which sections
-compose, how they are phrased, and which tools register (ADR-0075).
+compose, how they are phrased, and which tools register (ADR-0049).
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -284,7 +284,7 @@ compose, how they are phrased, and which tools register (ADR-0075).
   demonstrations (`examples.lean.md`). Small models follow worked examples better
   than abstract rules. The demonstrations **never add rules**: added constraint
   mass degrades exactly the models it targets, so a variant may exemplify a rule
-  but never re-word or extend one (ADR-0047). The only capability dropped is the
+  but never re-word or extend one (ADR-0049). The only capability dropped is the
   journal — a 5-14B model still gets skills, todos, web and delegation, and
   cross-session memory is never needed to finish a turn. Set
   `ZRB_LLM_PROFILE=full` if you want it back on a 7B.
@@ -569,7 +569,7 @@ Then place `tool_policy` in `ZRB_LLM_INCLUDE_SECTIONS`.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_JOURNAL_ENABLED` | Master switch for the journal. `false` unregisters the three journal tools (`SearchJournal`, `LogActivity`, `WriteJournalNote`) and suppresses the `<journal-index>` injection. Those tools are the whole interface — there is no journal prompt section — so the model is never told a journal exists (ADR-0053). Note `ZRB_LLM_JOURNAL_DIR` has no "off" value: clearing it falls back to the default path rather than disabling anything | `on` |
+| `ZRB_LLM_JOURNAL_ENABLED` | Master switch for the journal. `false` unregisters the three journal tools (`SearchJournal`, `LogActivity`, `WriteJournalNote`) and suppresses the `<journal-index>` injection. Those tools are the whole interface — there is no journal prompt section — so the model is never told a journal exists (ADR-0055). Note `ZRB_LLM_JOURNAL_DIR` has no "off" value: clearing it falls back to the default path rather than disabling anything | `on` |
 | `ZRB_LLM_JOURNAL_DIR` | Long-term notes directory | `~/.zrb/llm-notes/` |
 | `ZRB_LLM_JOURNAL_INDEX_FILE` | Main index file name | `index.md` |
 | `ZRB_LLM_JOURNAL_INDEX_MAX_CHARS` | Max characters of the index injected into context. Overflow is dropped from the **end** on a line boundary, so write the index most-durable-first. `0` suppresses the injection; a negative value injects it uncapped | `2500` |

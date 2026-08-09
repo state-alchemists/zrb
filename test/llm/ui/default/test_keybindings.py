@@ -519,7 +519,7 @@ async def test_integration_btw_runs_while_thinking(integration_ui):
     assert ui.submitted == []
 
 
-# ── Voice push-to-talk keybinding (ADR-0074) ──────────────────────────
+# ── Voice push-to-talk keybinding (ADR-0076) ──────────────────────────
 
 
 def test_ctrl_c_cancels_in_flight_voice_task(mock_ui, setup_bindings):

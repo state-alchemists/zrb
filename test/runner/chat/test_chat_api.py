@@ -275,9 +275,9 @@ async def test_post_message_dict_is_json_serialized(client: AsyncClient):
 async def test_routes_forbid_user_without_task_access(client: AsyncClient):
     """With a resolvable chat task, a user who can't access it gets 403.
 
-    Regression test for C1: the chat routes previously discarded the user and
-    never called `can_access_task`, so an unauthorized client could reach the
-    `llm chat` agent (tool/shell execution).
+    The chat routes must pass the user to `can_access_task`; dropping it would
+    let an unauthorized client reach the `llm chat` agent (tool/shell
+    execution).
     """
     no_access_user = MagicMock()
     no_access_user.can_access_task.return_value = False

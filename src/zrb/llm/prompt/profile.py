@@ -1,7 +1,7 @@
 """Model-adaptive prompt profiles.
 
 A *profile* is a **preset**: a named binding of three axes — which sections
-compose, how they are phrased, and which tools register (ADR-0075).
+compose, how they are phrased, and which tools register (ADR-0049).
 ``LLM_PROFILE`` selects one, and the names order themselves by how much the
 model is asked to hold at once:
 
@@ -126,7 +126,7 @@ class Preset:
 
     ``None`` on any field means "do not constrain this axis" — the configured
     ``LLM_INCLUDE_SECTIONS`` applies, the base prompt files apply, every
-    registered tool applies. See ADR-0075.
+    registered tool applies. See ADR-0049.
 
     The tool axis has two forms because the two constrained presets want
     opposite things. ``tools`` is an allowlist: a closed, fixed surface, which
@@ -166,7 +166,7 @@ class Preset:
         return self.tools is not None or self.drops is not None
 
 
-#: ``minimal``'s tool surface. Closed under docstring cross-reference (ADR-0056),
+#: ``minimal``'s tool surface. Closed under docstring cross-reference (ADR-0058),
 #: which is what sets the size: the obvious six (``Shell``, ``Read``, ``Write``,
 #: ``Edit``, ``Grep``, ``LS``) leave four dangling references. ``Shell`` and
 #: ``Grep`` route callers to ``Glob``/``RM``/``MV`` for work they decline, and
@@ -194,7 +194,7 @@ MINIMAL_TOOLS = frozenset(
 #:
 #: The journal trio goes because cross-session memory is the wrong thing to
 #: spend a constrained model's tool budget on: it is not needed to finish the
-#: turn, and ADR-0053 left no prompt prose to orphan. ``live_context`` stops
+#: turn, and ADR-0055 left no prompt prose to orphan. ``live_context`` stops
 #: injecting the index to match (see ``render_journal_index``) — a preset that
 #: drops the reader must not keep handing it something to read.
 LEAN_DROPS = frozenset({"SearchJournal", "LogActivity", "WriteJournalNote"})
@@ -348,7 +348,7 @@ def _preset_warnings(preset: Preset) -> list[str]:
     if absent:
         warnings.append(
             f"composed rulebook states no {absent}. Composition may drop method; "
-            "it may never drop Priority Order rank 1 (ADR-0075)."
+            "it may never drop Priority Order rank 1 (ADR-0049)."
         )
     return warnings
 

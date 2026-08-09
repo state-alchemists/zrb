@@ -140,7 +140,7 @@ class ToolCallHandler:
             approval_instruction: Custom approval instruction. If None, uses default.
 
         This method is public so approval channels can use it to generate
-        consistent messages. Use this instead of the internal _get_confirm_user_message.
+        consistent messages.
         """
         args_section = ""
         if f"{call.args}" != "{}":
