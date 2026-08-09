@@ -250,14 +250,19 @@ async def execute_action_with_retry(task: "BaseTask", session: AnySession) -> An
             # Do not trigger fallbacks/successors on cancellation
             raise
         except BaseException as e:
-            ctx.log_error(f"Attempt {attempt + 1}/{max_attempt} failed: {e}")
+            # `{e!r}` and a traceback on *every* attempt, not just the last: an
+            # exception whose str() is empty (several provider SDK errors are)
+            # logged as "Attempt 1/3 failed: " and nothing else, and if a later
+            # attempt then hung or the process was killed, the run ended with no
+            # record of what had actually gone wrong.
+            ctx.log_error(f"Attempt {attempt + 1}/{max_attempt} failed: {e!r}")
+            ctx.log_error(traceback.format_exc())
             session.get_task_status(task).mark_as_failed()
 
             if attempt < max_attempt - 1:
                 continue
             else:
                 ctx.log_error("Marked as permanently failed")
-                ctx.log_error(traceback.format_exc())
                 session.get_task_status(task).mark_as_permanently_failed()
                 skip_successors(task, session)
                 await run_async(execute_fallbacks(task, session))

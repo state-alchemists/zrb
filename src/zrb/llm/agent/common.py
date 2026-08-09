@@ -14,6 +14,7 @@ from zrb.llm.agent.run.hook_result_extractor import (
     extract_post_tool_decision,
     extract_pre_tool_decision,
 )
+from zrb.llm.agent.run.repetition import RepeatedCallDetector
 from zrb.llm.agent.tool_result import has_multimodal, tool_return
 from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.hook.manager import hook_manager
@@ -187,9 +188,28 @@ def _wrap_toolset(toolset: "AbstractToolset[None]") -> "AbstractToolset[None]":
     from zrb.llm.permission import tool_capability
 
     class SafeToolsetWrapper(WrapperToolset[None]):
+        repeats = RepeatedCallDetector(limit=CFG.LLM_MAX_REPEATED_TOOL_CALLS)
+
         async def call_tool(
             self, name: str, tool_args: dict[str, Any], ctx: Any, tool: Any
         ) -> Any:
+            if self.repeats.check(name, tool_args):
+                # Refused rather than executed, and phrased for the model to act
+                # on (ADR-0057): the model is the only thing that can choose
+                # between finishing and changing approach. Executing it again
+                # would return what the last one returned, at full cost.
+                return tool_return(
+                    "[SYSTEM SUGGESTION] You have now called "
+                    f"{name} with identical arguments "
+                    f"{CFG.LLM_MAX_REPEATED_TOOL_CALLS + 1} times in a row, with "
+                    "nothing in between. The result cannot have changed, so this "
+                    "call was not run. Either the work is already done — in which "
+                    "case report it and stop — or the approach is not working, in "
+                    "which case do something different: read the file you are "
+                    "editing to see its actual current contents, widen the search, "
+                    "or tell the user what you tried and what blocked you.",
+                    error=True,
+                )
             try:
                 tool_args = await _fire_pre_tool_use(name, tool_args, ctx)
                 if isinstance(tool_args, ToolReturn):

@@ -118,6 +118,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0065** — [Opt-in two-layer filesystem sandbox](adr-0065.md)
 - **ADR-0066** — [`Shell` is the only shell tool; background is a flag](adr-0066.md)
 - **ADR-0067** — [MCP servers are first-class tool sources](adr-0067.md)
+- **ADR-0077** — [A run is bounded at three scales against non-convergence](adr-0077.md)
 
 ### Delegation and concurrency
 

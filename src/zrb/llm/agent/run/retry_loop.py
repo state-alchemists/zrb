@@ -50,6 +50,7 @@ class RetryState:
     opaque_retry_done: bool = False
     deferred_mismatch_retry_done: bool = False
     empty_completion_retry_count: int = 0
+    repetition_retry_count: int = 0
     max_context_retries: int = field(
         default_factory=lambda: CFG.LLM_MAX_CONTEXT_RETRIES
     )
@@ -60,6 +61,10 @@ class RetryState:
     # retry a couple of times; if it persists (e.g. context exceeds the model's
     # window) the loop raises a clear error rather than surfacing the placeholder.
     max_empty_completion_retries: int = 2
+    # A decoding loop is usually seed-dependent, so re-issuing the identical
+    # request often clears it. Kept low: when it does not clear, each attempt
+    # costs a full window of repeated output before the guard trips again.
+    max_repetition_retries: int = 2
 
 
 @dataclass

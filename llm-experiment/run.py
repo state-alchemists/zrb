@@ -225,7 +225,7 @@ async def run_cell(model_id: str, system_prompt: str, probe, providers) -> dict:
     from pydantic_ai import Agent
     from pydantic_ai.exceptions import UsageLimitExceeded
     from pydantic_ai.models.openai import OpenAIChatModel
-    from pydantic_ai.usage import UsageLimits
+    from pydantic_ai.usage import RunUsage, UsageLimits
 
     which, _, bare = (
         model_id.rpartition(":")
@@ -242,9 +242,16 @@ async def run_cell(model_id: str, system_prompt: str, probe, providers) -> dict:
     )
     started = time.time()
     looped = False
+    # Accumulated in place by the agent, so it survives the exception below.
+    # Reading usage off the *result* loses precisely the cells worth costing: a
+    # looping run raises instead of returning, and the first version of this
+    # recorded no tokens for 184 of them — cells averaging 24.7 tool calls
+    # against 2.4 on the ones it did record. Cost figures built that way are
+    # survivorship bias, and they flatter whichever arm loops most.
+    usage = RunUsage()
     try:
         result = await agent.run(
-            probe.message, usage_limits=UsageLimits(request_limit=12)
+            probe.message, usage_limits=UsageLimits(request_limit=12), usage=usage
         )
         trace.text = result.output or ""
         _retag_turns(result, trace)
@@ -266,7 +273,31 @@ async def run_cell(model_id: str, system_prompt: str, probe, providers) -> dict:
         "seconds": round(time.time() - started, 2),
         "calls": [c.tool for c in trace.calls],
         "text": trace.text[:600],
+        **_usage(usage),
     }
+
+
+#: What a cell records about its own cost. Named here so a provider that omits
+#: one of them still produces a row of the same shape.
+USAGE_FIELDS = ("input_tokens", "output_tokens", "cache_read_tokens", "requests")
+
+
+def _usage(usage) -> dict:
+    """Tokens the cell actually spent, from the accumulator the agent wrote into.
+
+    ``measure.py`` sizes a prompt *statically*; this is what a run costs, and
+    the two come apart badly. A prompt 1,000 tokens lighter that talks the model
+    into twice the turns is more expensive, not less, and until this was
+    recorded the harness had no way to see that — every cost claim came from
+    static composition size, which is a per-request figure being used to argue
+    about per-task spend.
+
+    No ``try`` here. The first version read ``result.usage()`` — a property, not
+    a method — which raised ``TypeError`` into a bare ``except`` and recorded 64
+    cells with no cost data and no complaint. A missing usage *field* reads as
+    0; a wrong *access* should fail on the first cell, not on the analysis.
+    """
+    return {name: getattr(usage, name, 0) or 0 for name in USAGE_FIELDS}
 
 
 def _retag_turns(result, trace: Trace) -> None:

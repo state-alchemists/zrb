@@ -20,6 +20,18 @@ class LLMLimitsMixin:
         # and would have kept going. 300 leaves ~4x headroom over real work and
         # still cuts the loop well before a wall-clock timeout does.
         self.DEFAULT_LLM_MAX_REQUEST_PER_RUN: str = "300"
+        # The same backstop one level down, for a loop *inside* a single
+        # response, which the request cap cannot see. 32 lines is far past any
+        # prose that repeats on purpose (a table, a changelog, a list of
+        # near-identical imports) and is reached within seconds of a model
+        # starting to cycle — the case that motivated it burned 600s and 2,510
+        # repetitions of one sentence before the wall clock stopped it.
+        self.DEFAULT_LLM_MAX_REPEATED_LINES: str = "32"
+        # And once more for the commonest shape: the same tool call, byte-identical
+        # arguments, back to back. 6 sits above any honest retry-with-the-same-input
+        # and far below the ~100 identical greps measured on an agent that had
+        # already finished its work correctly and would not stop.
+        self.DEFAULT_LLM_MAX_REPEATED_TOOL_CALLS: str = "6"
         self.DEFAULT_LLM_MAX_CONTEXT_RETRIES: str = "5"
         self.DEFAULT_LLM_TOOL_MAX_RETRIES: str = "3"
         self.DEFAULT_LLM_MCP_MAX_RETRIES: str = "3"
@@ -88,6 +100,28 @@ class LLMLimitsMixin:
             "edit it has already tried, or re-reading output it has already "
             "seen — which the prompt tells the model to stop doing but nothing "
             "could enforce. 0 or negative disables the cap."
+        ),
+    )
+
+    LLM_MAX_REPEATED_LINES = EnvField(
+        int,
+        doc=(
+            "How many consecutive output lines a single response may spend "
+            "cycling a handful of values before the response is abandoned and "
+            "regenerated. Catches a model that has stopped generating and "
+            "started repeating — a loop inside one response, which "
+            "LLM_MAX_REQUEST_PER_RUN cannot see. 0 or negative disables it."
+        ),
+    )
+
+    LLM_MAX_REPEATED_TOOL_CALLS = EnvField(
+        int,
+        doc=(
+            "How many times the same tool may be called with byte-identical "
+            "arguments, back to back, before the call is refused with guidance "
+            "instead of executed. A streak means nothing happened in between, "
+            "so the repeat cannot return anything new. Polling tools are "
+            "exempt. 0 or negative disables it."
         ),
     )
 

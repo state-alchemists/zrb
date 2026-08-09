@@ -47,6 +47,7 @@ from zrb.llm.agent.run.hook_result_extractor import (
 from zrb.llm.agent.run.openai_patch import patch_openai_model_response_serialization
 from zrb.llm.agent.run.partial_run import PartialRunAccumulator
 from zrb.llm.agent.run.prompt_content import get_prompt_content as _get_prompt_content
+from zrb.llm.agent.run.repetition import RepetitionDetector
 from zrb.llm.agent.run.retry_loop import RetryState, handle_stream_error
 from zrb.llm.agent.run.session_extension import (
     ExtensionState,
@@ -462,6 +463,7 @@ async def _execution_loop(
     extension_state = ExtensionState()
     current_results = None
     partial_run = PartialRunAccumulator()
+    repetition = RepetitionDetector(window=CFG.LLM_MAX_REPEATED_LINES)
 
     try:
         while True:
@@ -470,6 +472,7 @@ async def _execution_loop(
                 allow_orphaned_tool_calls=(current_results is not None),
             )
             stream_error = None
+            repetition.reset()
             try:
                 # Docs: https://pydantic.dev/docs/ai/core-concepts/agent/#streaming-events-and-final-output
                 async with agent.run_stream_events(
@@ -497,8 +500,22 @@ async def _execution_loop(
                         partial_run.record_event(event)
                         if effective_event_handler:
                             await effective_event_handler(event)
+                        if _degenerates(event, repetition):
+                            # Leaving the `async with` closes the stream, so the
+                            # provider stops being paid to repeat itself.
+                            break
             except Exception as _stream_exc:
                 stream_error = _explain_usage_limit(_stream_exc)
+
+            # Checked before `stream_error` on purpose: abandoning the stream
+            # early can make closing it raise, and that secondary error must not
+            # be what the run reports.
+            if _retry_after_degeneration(repetition, retry_state, print_fn):
+                # Nothing was committed: the result event never arrived, so
+                # `current_message`/`current_history`/`current_results` still
+                # describe the request that degenerated. Re-issue it as-is.
+                result_output = None
+                continue
 
             if stream_error is not None:
                 outcome = await handle_stream_error(
@@ -511,18 +528,9 @@ async def _execution_loop(
                     min_turns=1 if current_results is not None else 0,
                 )
                 if not outcome.should_retry:
-                    # StopFailure: the turn is ending on an unrecoverable API
-                    # error. Observe-only; guarded so a hook can never mask the
-                    # original exception.
-                    try:
-                        await effective_hook_manager.execute_hooks(
-                            HookEvent.STOP_FAILURE,
-                            {"error": str(stream_error), "history": run_history},
-                            error=str(stream_error),
-                            error_type=classify_error_type(stream_error),
-                        )
-                    except Exception:
-                        CFG.LOGGER.debug("StopFailure hook raised", exc_info=True)
+                    await _fire_stop_failure(
+                        effective_hook_manager, stream_error, run_history
+                    )
                     raise stream_error
                 current_history = outcome.new_history or current_history
                 current_message = outcome.new_message
@@ -567,36 +575,14 @@ async def _execution_loop(
                 CFG.LOGGER.debug("Continuing to next iteration with current_results")
                 continue
 
-            # Empty/placeholder completion guard: a weak or overloaded provider
-            # sometimes returns no real text (and no tool call). Don't surface the
-            # "(tool call)" placeholder as the answer — regenerate the turn a
-            # bounded number of times, then raise a clear error.
-            if _is_empty_completion(result_output):
-                if (
-                    retry_state.empty_completion_retry_count
-                    < retry_state.max_empty_completion_retries
-                ):
-                    retry_state.empty_completion_retry_count += 1
-                    print_fn(
-                        "\n[SYSTEM] Model returned an empty response — retrying "
-                        f"(attempt {retry_state.empty_completion_retry_count}/"
-                        f"{retry_state.max_empty_completion_retries})..."
-                    )
-                    CFG.LOGGER.debug(
-                        f"Empty completion (output={result_output!r}); "
-                        "dropping the empty turn and regenerating"
-                    )
-                    current_history = _history_without_trailing_response(run_history)
-                    current_message = None
-                    current_results = None
-                    result_output = None
-                    continue
-                raise RuntimeError(
-                    "Model returned an empty response "
-                    f"{retry_state.empty_completion_retry_count + 1} times. The "
-                    "provider may be overloaded, or the conversation may exceed "
-                    "the model's context window."
-                )
+            if _retry_after_empty_completion(result_output, retry_state, print_fn):
+                # The empty turn is dropped rather than re-sent: unlike a
+                # degenerate response, this one *did* reach history.
+                current_history = _history_without_trailing_response(run_history)
+                current_message = None
+                current_results = None
+                result_output = None
+                continue
 
             # Natural end of the agent's turn. STOP is the per-turn "done" signal
             # that Claude-Code-compatible consumers listen on (completion sounds,
@@ -636,6 +622,107 @@ async def _execution_loop(
         if not hasattr(e, "zrb_history"):
             setattr(e, "zrb_history", run_history)
         raise e
+
+
+def _degenerates(event: Any, repetition: RepetitionDetector) -> bool:
+    """Whether *event*'s text carries the current response past repeating itself.
+
+    Non-text events are not fed at all, so a stream of tool calls and a stream
+    of reasoning parts can never trip the detector.
+    """
+    # lazy: heavy third-party
+    from pydantic_ai.messages import PartDeltaEvent, TextPartDelta
+
+    if not isinstance(event, PartDeltaEvent):
+        return False
+    if not isinstance(event.delta, TextPartDelta):
+        return False
+    return repetition.feed(event.delta.content_delta)
+
+
+def _retry_after_degeneration(
+    repetition: RepetitionDetector,
+    retry_state: RetryState,
+    print_fn: Callable[[str], Any],
+) -> bool:
+    """Whether to re-issue the request whose response degenerated.
+
+    ``False`` when the response was fine. Raises once the retry budget is spent,
+    because a decoding loop that survives being re-rolled is not something the
+    run can work around (ADR-0077).
+    """
+    if not repetition.is_degenerate:
+        return False
+    if retry_state.repetition_retry_count >= retry_state.max_repetition_retries:
+        raise RuntimeError(
+            "Model repeated the same few lines instead of finishing its "
+            f"response, {retry_state.repetition_retry_count + 1} times in a row. "
+            "This is a provider-side decoding loop, not a task failure. Set "
+            f"{CFG.ENV_PREFIX}_LLM_MAX_REPEATED_LINES higher (or 0) if the "
+            "repetition was intentional."
+        )
+    retry_state.repetition_retry_count += 1
+    print_fn(
+        "\n[SYSTEM] Model started repeating itself — abandoning the response "
+        f"and retrying (attempt {retry_state.repetition_retry_count}/"
+        f"{retry_state.max_repetition_retries})..."
+    )
+    return True
+
+
+async def _fire_stop_failure(
+    hook_manager: HookManager, stream_error: Exception, run_history: list[Any]
+) -> None:
+    """Announce a turn ending on an unrecoverable API error.
+
+    Observe-only, and swallowed on failure: the caller re-raises the original
+    exception immediately after, and a hook must never be able to mask it.
+    """
+    try:
+        await hook_manager.execute_hooks(
+            HookEvent.STOP_FAILURE,
+            {"error": str(stream_error), "history": run_history},
+            error=str(stream_error),
+            error_type=classify_error_type(stream_error),
+        )
+    except Exception:
+        CFG.LOGGER.debug("StopFailure hook raised", exc_info=True)
+
+
+def _retry_after_empty_completion(
+    result_output: Any,
+    retry_state: RetryState,
+    print_fn: Callable[[str], Any],
+) -> bool:
+    """Whether to regenerate a turn that came back empty.
+
+    A weak or overloaded provider sometimes returns no real text and no tool
+    call; surfacing the ``(tool call)`` placeholder as the answer is worse than
+    asking again. Same shape as :func:`_retry_after_degeneration` — the two
+    failures differ in what they leave behind, not in how they are handled.
+    """
+    if not _is_empty_completion(result_output):
+        return False
+    if retry_state.empty_completion_retry_count >= (
+        retry_state.max_empty_completion_retries
+    ):
+        raise RuntimeError(
+            "Model returned an empty response "
+            f"{retry_state.empty_completion_retry_count + 1} times. The provider "
+            "may be overloaded, or the conversation may exceed the model's "
+            "context window."
+        )
+    retry_state.empty_completion_retry_count += 1
+    print_fn(
+        "\n[SYSTEM] Model returned an empty response — retrying "
+        f"(attempt {retry_state.empty_completion_retry_count}/"
+        f"{retry_state.max_empty_completion_retries})..."
+    )
+    CFG.LOGGER.debug(
+        f"Empty completion (output={result_output!r}); "
+        "dropping the empty turn and regenerating"
+    )
+    return True
 
 
 def _request_limit() -> int | None:

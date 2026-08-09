@@ -142,6 +142,45 @@ async def test_execute_action_with_retry_failure():
 
 
 @pytest.mark.asyncio
+async def test_a_non_final_failed_attempt_is_logged_with_its_type_and_traceback():
+    """An exception with an empty ``str()`` must still identify itself.
+
+    A provider SDK error whose message is blank logged as "Attempt 1/3 failed: "
+    and nothing more, and when a later attempt hung the run ended with no record
+    of the original fault at all -- the traceback only reached the log on the
+    final attempt, which never arrived.
+    """
+
+    class Blank(Exception):
+        def __str__(self):
+            return ""
+
+    attempts = []
+
+    async def mock_action(ctx):
+        attempts.append(1)
+        if len(attempts) == 1:
+            raise Blank()
+        return "ok"
+
+    mock_action.__name__ = "mock_action"
+    task = BaseTask(name="task", retries=1, retry_period=0, action=mock_action)
+
+    session = MagicMock(spec=AnySession)
+    session.get_task_status.return_value = MagicMock(spec=TaskStatus)
+    ctx = MagicMock(spec=AnyContext)
+    ctx.xcom = MagicMock()
+    ctx.xcom.get.return_value = MagicMock(spec=Xcom)
+
+    with patch.object(task, "get_ctx", return_value=ctx):
+        assert await execute_action_with_retry(task, session) == "ok"
+
+    logged = "\n".join(str(call.args[0]) for call in ctx.log_error.call_args_list)
+    assert "Blank" in logged, "the exception type never reached the log"
+    assert "Traceback" in logged, "a non-final attempt logged no traceback"
+
+
+@pytest.mark.asyncio
 async def test_run_default_action_callable():
     ctx = MagicMock(spec=AnyContext)
 
