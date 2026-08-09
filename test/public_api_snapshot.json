@@ -89,19 +89,13 @@
   ],
   "classes": {
     "AnyCallback": {
-      "init": [
-        "args:VAR_POSITIONAL:0",
-        "kwargs:VAR_KEYWORD:0"
-      ],
+      "init": [],
       "members": [
         "async_run"
       ]
     },
     "AnyContentTransformer": {
-      "init": [
-        "args:VAR_POSITIONAL:0",
-        "kwargs:VAR_KEYWORD:0"
-      ],
+      "init": [],
       "members": [
         "match",
         "name",
@@ -109,10 +103,7 @@
       ]
     },
     "AnyContext": {
-      "init": [
-        "args:VAR_POSITIONAL:0",
-        "kwargs:VAR_KEYWORD:0"
-      ],
+      "init": [],
       "members": [
         "append_to_shared_log",
         "args",
@@ -144,19 +135,13 @@
       ]
     },
     "AnyEnv": {
-      "init": [
-        "args:VAR_POSITIONAL:0",
-        "kwargs:VAR_KEYWORD:0"
-      ],
+      "init": [],
       "members": [
         "update_context"
       ]
     },
     "AnyGroup": {
-      "init": [
-        "args:VAR_POSITIONAL:0",
-        "kwargs:VAR_KEYWORD:0"
-      ],
+      "init": [],
       "members": [
         "add_group",
         "add_task",
@@ -172,10 +157,7 @@
       ]
     },
     "AnyInput": {
-      "init": [
-        "args:VAR_POSITIONAL:0",
-        "kwargs:VAR_KEYWORD:0"
-      ],
+      "init": [],
       "members": [
         "allow_positional_parsing",
         "always_prompt",
@@ -189,10 +171,7 @@
       ]
     },
     "AnySharedContext": {
-      "init": [
-        "args:VAR_POSITIONAL:0",
-        "kwargs:VAR_KEYWORD:0"
-      ],
+      "init": [],
       "members": [
         "append_to_shared_log",
         "args",
@@ -210,10 +189,7 @@
       ]
     },
     "AnyTask": {
-      "init": [
-        "args:VAR_POSITIONAL:0",
-        "kwargs:VAR_KEYWORD:0"
-      ],
+      "init": [],
       "members": [
         "append_fallback",
         "append_readiness_check",
@@ -732,10 +708,7 @@
       ]
     },
     "HookEvent": {
-      "init": [
-        "args:VAR_POSITIONAL:0",
-        "kwargs:VAR_KEYWORD:0"
-      ],
+      "init": [],
       "members": []
     },
     "HookManager": {
@@ -1784,9 +1757,7 @@
       ]
     },
     "User": {
-      "init": [
-        "data:VAR_KEYWORD:0"
-      ],
+      "init": [],
       "members": [
         "can_access_group",
         "can_access_task",
@@ -1794,10 +1765,7 @@
       ]
     },
     "Xcom": {
-      "init": [
-        "args:VAR_POSITIONAL:0",
-        "kwargs:VAR_KEYWORD:0"
-      ],
+      "init": [],
       "members": [
         "add_pop_callback",
         "add_push_callback",
@@ -1812,10 +1780,7 @@
       ]
     },
     "fstring": {
-      "init": [
-        "args:VAR_POSITIONAL:0",
-        "kwargs:VAR_KEYWORD:0"
-      ],
+      "init": [],
       "members": []
     }
   },
