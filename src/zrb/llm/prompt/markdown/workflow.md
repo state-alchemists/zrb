@@ -143,7 +143,6 @@ Research, design, and writing add three. Sources are recent and authoritative. A
 ## Recovery
 
 - **Correctable error.** A typo, a wrong path, a missing flag, or a stale assumption. Fix it and retry.
-- **Repeating or not converging.** Stop guessing; an edit already tried, or output you have already seen, is not a new attempt. Read the code or output before the next one. By the third, change what you are testing, or report what you cannot get past.
 - **A check that cannot pass.** When your own success condition keeps failing on something the task told you to keep, the condition is wrong, not the work.
 - **Cannot succeed as stated.** A missing prerequisite, a contradiction, a denied permission, or several distinct approaches that failed. Say plainly what was tried, what failed, and what remains uncertain, then stop. "This cannot be done" is a claim like any other, so confirm what is there before halting on it.
 

@@ -728,11 +728,13 @@ def _retry_after_empty_completion(
 def _request_limit() -> int | None:
     """The per-run model-request cap, or ``None`` when disabled.
 
-    A run with no cap has no way to stop a model that has stopped converging:
-    the prompt's Recovery rules tell it to change approach by the third attempt,
-    but nothing enforces that, and a weak model will happily re-edit the same
-    file from memory until the wall clock runs out (343 tool calls, 267 of them
-    edits, was the worst observed). This is the enforcement half of that rule.
+    A run with no cap has no way to stop a model that has stopped converging.
+    The prompt used to ask for this in prose — change approach by the third
+    attempt — and no preset followed it (``full`` 0/7, ``lean`` 1/7, ``minimal``
+    2/7 on an unfixable build), so the words are gone and the bound is the whole
+    of it now (ADR-0077). A weak model will otherwise re-edit the same file from
+    memory until the wall clock runs out; 343 tool calls, 267 of them edits, was
+    the worst observed.
     """
     limit = CFG.LLM_MAX_REQUEST_PER_RUN
     return limit if limit > 0 else None

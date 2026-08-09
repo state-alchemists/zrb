@@ -225,7 +225,7 @@ async def run_cell(model_id: str, system_prompt: str, probe, providers) -> dict:
     from pydantic_ai import Agent
     from pydantic_ai.exceptions import UsageLimitExceeded
     from pydantic_ai.models.openai import OpenAIChatModel
-    from pydantic_ai.usage import RunUsage, UsageLimits
+    from pydantic_ai.usage import RunUsage
 
     which, _, bare = (
         model_id.rpartition(":")
@@ -250,9 +250,7 @@ async def run_cell(model_id: str, system_prompt: str, probe, providers) -> dict:
     # survivorship bias, and they flatter whichever arm loops most.
     usage = RunUsage()
     try:
-        result = await agent.run(
-            probe.message, usage_limits=UsageLimits(request_limit=12), usage=usage
-        )
+        result = await _run_with_backoff(agent, probe, usage, trace, turn)
         trace.text = result.output or ""
         _retag_turns(result, trace)
         error = None
@@ -275,6 +273,55 @@ async def run_cell(model_id: str, system_prompt: str, probe, providers) -> dict:
         "text": trace.text[:600],
         **_usage(usage),
     }
+
+
+#: Attempts against a rate-limited provider, and the base of the exponential
+#: backoff between them (seconds): 4, 8, 16, 32, 64.
+RATE_LIMIT_ATTEMPTS = 6
+RATE_LIMIT_BACKOFF = 2.0
+
+#: Substrings that mean the 429 is an *exhausted account*, not fast pacing.
+#: Both arrive as 429 and only the body separates them, so without this the
+#: backoff spends five sleeps per cell — up to two minutes — re-asking a
+#: question whose answer cannot change until someone tops up the account.
+QUOTA_MARKERS = ("insufficient_quota", "exceeded your current quota", "billing")
+
+
+async def _run_with_backoff(agent, probe, usage, trace, turn):
+    """Run the probe, retrying while the provider is rate-limiting us.
+
+    A pacing 429 is a statement about request timing, not about the prompt under
+    test, and recording it as a cell outcome corrupts the grid twice over: the
+    cell holds no measurement, and ``done_keys`` then treats it as complete so a
+    resume never revisits it. One sweep at concurrency 8 came back 646/1232
+    rate-limited and looked, to every downstream reader, like finished data.
+
+    A quota 429 is the opposite: retrying cannot help, and the useful behaviour
+    is to surface it on the first cell so the sweep can be abandoned rather than
+    ground through. The trace is cleared between attempts so a partially
+    executed run cannot contribute phantom tool calls to the one that succeeds.
+    """
+    # lazy: heavy third-party
+    from pydantic_ai.exceptions import ModelHTTPError
+    from pydantic_ai.usage import UsageLimits
+
+    for attempt in range(RATE_LIMIT_ATTEMPTS):
+        try:
+            return await agent.run(
+                probe.message,
+                usage_limits=UsageLimits(request_limit=12),
+                usage=usage,
+            )
+        except ModelHTTPError as exc:
+            spent = any(m in str(exc).lower() for m in QUOTA_MARKERS)
+            last = attempt == RATE_LIMIT_ATTEMPTS - 1
+            if exc.status_code != 429 or spent or last:
+                raise
+            trace.calls.clear()
+            trace.text = ""
+            turn[0] = 0
+            await asyncio.sleep(RATE_LIMIT_BACKOFF ** (attempt + 2))
+    raise AssertionError("unreachable")  # pragma: no cover
 
 
 #: What a cell records about its own cost. Named here so a provider that omits

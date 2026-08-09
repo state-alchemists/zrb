@@ -48,6 +48,69 @@ def section(title: str, body: str) -> str:
     return f"\n## {title}\n\n{body}\n"
 
 
+def cost(rows: list[dict], row_key: str, cols: list[str]) -> str:
+    """Mean input tokens per cell, beside the pass rate that bought them.
+
+    A pass rate alone cannot answer the question the presets exist to settle,
+    because the cheaper prompt is only cheaper if it does not talk the model
+    into more turns. Rows without usage data are skipped rather than counted as
+    zero -- some cells predate usage recording, and averaging a 0 into them
+    would make an arm look cheap for having been measured early.
+    """
+    grid: dict = defaultdict(lambda: defaultdict(list))
+    for r in rows:
+        if "input_tokens" in r:
+            grid[r[row_key]][r["arm"]].append(r)
+    out = [
+        f"| {row_key} | " + " | ".join(cols) + " |",
+        "|" + "---|" * (len(cols) + 1),
+    ]
+    for rk in sorted(grid):
+        cells = []
+        for c in cols:
+            got = grid[rk].get(c, [])
+            cells.append(
+                f"{sum(r['input_tokens'] for r in got) / len(got):,.0f}"
+                if got
+                else "--"
+            )
+        out.append(f"| {rk} | " + " | ".join(cells) + " |")
+    return "\n".join(out)
+
+
+def convergence(rows: list[dict]) -> str:
+    """What non-convergence costs, as a share of the bill.
+
+    The single most actionable number the harness produces: a cell that hits
+    the request limit is a handful of the grid and a large fraction of its
+    tokens, which is why a runtime bound on repetition is worth more than any
+    amount of prompt trimming (ADR-0077).
+    """
+    priced = [r for r in rows if "input_tokens" in r]
+    if not priced:
+        return "_No usage data recorded._"
+    lp = [r for r in priced if r.get("looped")]
+    cl = [r for r in priced if not r.get("looped")]
+    if not lp or not cl:
+        return "_No looped cells in this grid._"
+    tot = sum(r["input_tokens"] for r in priced)
+    lp_tok = sum(r["input_tokens"] for r in lp)
+    return "\n".join(
+        [
+            "| | cells | mean input tok | mean tool calls |",
+            "|---|---|---|---|",
+            f"| hit the request limit | {len(lp)} | "
+            f"{lp_tok / len(lp):,.0f} | {sum(len(r['calls']) for r in lp) / len(lp):.1f} |",
+            f"| completed | {len(cl)} | "
+            f"{sum(r['input_tokens'] for r in cl) / len(cl):,.0f} | "
+            f"{sum(len(r['calls']) for r in cl) / len(cl):.1f} |",
+            "",
+            f"Looping cells are **{len(lp) / len(priced):.0%} of scored cells "
+            f"but {lp_tok / tot:.0%} of all input tokens**.",
+        ]
+    )
+
+
 def main() -> None:
     rows = load()
     errors = [r for r in rows if r["passed"] is None]
@@ -64,6 +127,17 @@ def main() -> None:
     x1 = [r for r in rows if r["experiment"] == "X1"]
     ladder = ["zrb-full", "zrb-lean", "zrb-minimal"]
     out.append(section("X1 — preset ladder", pivot(x1, "model", "arm", ladder)))
+    priced = sum("input_tokens" in r for r in rows)
+    out.append(
+        section(
+            "X1 — cost (mean input tokens per cell)",
+            cost(x1, "model", ladder)
+            + f"\n\nOver the {priced:,} of {len(rows):,} cells with usage recorded. "
+            "Read beside the pass rates above: a preset is only cheaper if the "
+            "tokens it saves per request are not spent again on extra turns.",
+        )
+    )
+    out.append(section("Cost of non-convergence", convergence(rows)))
     out.append(
         section(
             "X1 by probe group",

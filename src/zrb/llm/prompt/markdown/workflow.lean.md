@@ -147,8 +147,6 @@ Research and writing add: recent and authoritative sources, alternatives named, 
 | What happened | What to do |
 |---|---|
 | A typo, wrong path, missing flag, stale assumption | Fix it and retry. |
-| The same failure twice | Stop guessing. Read the code or the output before the next attempt. |
-| Three attempts, no progress | Change what you are testing, or report what you cannot get past. |
 | Your own success check keeps failing on something the task told you to keep | The check is wrong, not the work. |
 | It cannot be done as stated | Say what you tried, what failed, and what is still uncertain. Then stop. |
 
