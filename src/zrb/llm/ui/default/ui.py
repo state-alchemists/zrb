@@ -14,7 +14,6 @@ from zrb.llm.app.redirection import GlobalStreamCapture
 from zrb.llm.app.style import create_style
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
-from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.tool_call import (
     ArgumentFormatter,
     ResponseHandler,
@@ -31,6 +30,7 @@ from zrb.util.cli.help_panel import render_help_panel
 from zrb.util.cli.terminal import get_terminal_size
 
 if TYPE_CHECKING:
+    from zrb.llm.task.llm_task import LLMTask
     from prompt_toolkit import Application
     from prompt_toolkit.key_binding import KeyBindings
     from prompt_toolkit.layout import Layout

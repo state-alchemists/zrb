@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from zrb.context.any_context import zrb_print
+from zrb.llm.agent.run.runtime_state import get_current_ui
 
 TodoStatus = Literal["pending", "in_progress", "completed", "cancelled"]
 
@@ -275,9 +276,6 @@ def _broadcast_todo_progress(
     above the list (e.g. ``"✅ Completed: [1] Fix login bug"``).
     """
     text = _render_todo_progress(todo_data, change_description)
-    # lazy: circular — tool → ui → llm_task → here
-    from zrb.llm.agent.run.runtime_state import get_current_ui
-
     ui = get_current_ui()
     if ui is not None:
         ui.append_to_output(text, kind="todo_progress")

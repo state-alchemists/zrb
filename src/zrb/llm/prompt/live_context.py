@@ -40,6 +40,7 @@ from datetime import datetime
 from typing import Any, Callable
 
 from zrb.config.config import CFG
+from zrb.llm.prompt.profile import active_preset
 from zrb.context.any_context import AnyContext
 
 # Anchors the <live-context> contract in the cached system prompt. Stable text
@@ -72,9 +73,6 @@ def _admits(model: "Any", tool: str) -> bool:
     a `<live-context>` line announcing `AskUserQuestion` to a preset that never
     registered it breaks that promise from outside every test that guards it.
     """
-    # lazy: circular — profile → prompt → ui → llm_task → here
-    from zrb.llm.prompt.profile import active_preset
-
     return active_preset(model).admits(tool)
 
 

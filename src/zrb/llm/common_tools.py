@@ -28,6 +28,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Callable, NamedTuple, Protocol, runtime_checkable
 
 from zrb.config.config import CFG
+from zrb.llm.prompt.profile import active_preset
+from zrb.llm.tool_call.tool_policy.bash_validation import (
+    bash_safe_command_policy,
+)
 from zrb.llm.util.git import is_inside_git_dir
 from zrb.util.string.conversion import to_boolean
 
@@ -82,11 +86,6 @@ def apply_common_tools(host: CommonToolHost) -> None:
     # current_tool_confirmation ContextVar) have no prepend_tool_policy; skip them.
     add_policy = getattr(host, "prepend_tool_policy", None)
     if callable(add_policy):
-        # lazy: circular — tool_policy → handler → ui → llm_task → here
-        from zrb.llm.tool_call.tool_policy.bash_validation import (
-            bash_safe_command_policy,
-        )
-
         add_policy(bash_safe_command_policy())
 
 
@@ -128,9 +127,6 @@ def _preset_tool_filter() -> "_Surface | None":
     ``CFG.LLM_MODEL`` keeps the full surface; setting ``ZRB_LLM_PROFILE``
     explicitly always works.
     """
-    # lazy: circular — profile → prompt → ui → llm_task → here
-    from zrb.llm.prompt.profile import active_preset
-
     preset = active_preset(CFG.LLM_MODEL)
     if not preset.constrains_tools:
         return None

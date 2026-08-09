@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 import sys
@@ -6,11 +8,11 @@ from typing import TYPE_CHECKING, TextIO
 
 from zrb.config.config import CFG
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
-from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.ui.base.ui import BaseUI
 from zrb.llm.ui.ui_config import UIConfig
 
 if TYPE_CHECKING:
+    from zrb.llm.task.llm_task import LLMTask
     from pydantic_ai import UserContent
 
     from zrb.context.any_context import AnyContext
