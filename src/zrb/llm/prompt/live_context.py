@@ -232,13 +232,12 @@ def render_journal_index() -> str | None:
         head = content[:limit]
         cut = head.rfind("\n")
         content = (head[:cut] if cut > 0 else head) + "\n (...more)"
-        # Say where the rest is. This block is the whole of what the model is
-        # handed unprompted, so without this line a cut tail is simply
-        # invisible — the block reads as the complete index.
-        hint = f"Truncated at `(...more)`; Read {index_file} for the rest. "
+        # Mark the cut so the block does not read as the complete index; the
+        # absolute path in the header tells the model where to read the rest.
+        hint = "Truncated at `(...more)`. "
     return (
         f"<journal-index>\n"
-        f"Your persistent memory (index file: {index_name}). "
+        f"Your persistent memory (index file: {index_file}). "
         f"{hint}"
         f"Use SearchJournal for full entries.\n"
         f"{content}\n"

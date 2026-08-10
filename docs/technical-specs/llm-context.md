@@ -95,15 +95,17 @@ When present, the block is wrapped as its own tag inside the live-context payloa
 
 ```
 <journal-index>
-Your persistent memory (index file: index.md). Use SearchJournal for full entries.
+Your persistent memory (index file: /abs/path/to/index.md). Use SearchJournal for full entries.
 [content of index.md, capped at ZRB_LLM_JOURNAL_INDEX_MAX_CHARS]
 </journal-index>
 ```
 
-When the content exceeds the cap it is cut **on a line boundary** and ` (...more)` is appended, and the header gains a pointer to the rest:
+The header carries the **absolute path** of the index file, so the agent can `Read` the file directly when it needs more than the cap allows. The `SearchJournal` directive stays — searching is the intended interface for content, not dumping the whole file into context.
+
+When the content exceeds the cap it is cut **on a line boundary** and ` (...more)` is appended, and the block marks the truncation:
 
 ```
-Your persistent memory (index file: index.md). Truncated at `(...more)`; Read /abs/path/to/index.md for the rest. Use SearchJournal for full entries.
+Your persistent memory (index file: /abs/path/to/index.md). Truncated at `(...more)`. Use SearchJournal for full entries.
 ```
 
 Cutting on a line boundary matters because the entries are facts about the user — half a sentence is worse than none. Overflow is dropped from the **end**, so the index should be written most-durable-first. `WriteJournalNote` enforces that order when it creates the root index: identity and standing preferences first, unbounded "Recent Insights" last, so growth only ever evicts itself.
