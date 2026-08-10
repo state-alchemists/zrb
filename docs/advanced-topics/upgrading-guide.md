@@ -37,7 +37,7 @@ The 22 one-line aliases are gone. `add_` had stopped meaning one thing — it fo
 
 The three bold rows are the reason for the change: they always inserted at the front, and `add_` hid it. If you were relying on `add_` appending them, you want `append_` instead — those exist too.
 
-`add_X` on **unordered registries** is unchanged: `skill_manager.add_skill`, `sub_agent_manager.add_agent`, `Group.add_task`, `Group.add_group`, `PromptManager.add_live_context` / `add_system_context` / `add_project_context`.
+`add_X` on **unordered registries** is unchanged: `skill_manager.add_skill`, `sub_agent_manager.add_agent`, `Group.add_task`, `Group.add_group`, `PromptManager.add_live_context`.
 
 ### Task constructors are keyword-only after `name`
 
@@ -62,7 +62,7 @@ Applies to `Task`, `CmdTask`, `LLMTask`, `LLMChatTask`, `RsyncTask`, `Scaffolder
 
 - **`py.typed` ships**, so `mypy`/`pyright` now actually check your zrb usage. Expect to see real errors the first time — they were always there, just invisible.
 - **Collections accept any `Sequence`.** `upstream=(a, b)` and `a >> (b, c)` used to store the tuple as if it were a task and fail later with `'tuple' object has no attribute 'name'`. Both work now.
-- **18 new top-level exports**, including `Skill`, `SubAgentDefinition`, `HookResult`, `Preset`, `register_preset`, `register_model_profile`, `PermissionPolicy` and `StrListAttr`. Deep imports still work; the short paths are just no longer missing.
+- **15 new top-level exports**, including `Skill`, `SubAgentDefinition`, `HookResult`, `PermissionPolicy` and `StrListAttr`. Deep imports still work; the short paths are just no longer missing.
 
 ---
 
@@ -78,8 +78,8 @@ Applies to `Task`, `CmdTask`, `LLMTask`, `LLMChatTask`, `RsyncTask`, `Scaffolder
 |---|---|
 | `from zrb import ToolGuidance` | *(removed)* |
 | `task.add_tool_guidance(ToolGuidance(...))` | put the guidance in the tool's **docstring** |
-| `task.add_tool_guidance_factory(lambda ctx: ...)` | `task.prompt_manager.register_section(name, provider)` |
-| `task.add_tool_guidance_section_factory(...)` | `task.prompt_manager.register_section(name, provider)` |
+| `task.add_tool_guidance_factory(lambda ctx: ...)` | `task.prompt_manager.append_prompt(lambda ctx: ...)` |
+| `task.add_tool_guidance_section_factory(...)` | `task.prompt_manager.append_prompt(...)` |
 | `task.prompt_manager.add_tool_group(name=...)` | *(removed — groups no longer exist)* |
 | `task.prompt_manager.tool_names = {...}` | *(removed — nothing filters on it)* |
 
@@ -95,12 +95,11 @@ def check_stock(warehouse_id: str, sku: str) -> dict:
     ...
 ```
 
-Cross-cutting policy that is not about one tool becomes a registered section:
+Cross-cutting policy that is not about one tool is appended after the built-in sections:
 
 ```python
-task.prompt_manager.register_section(
-    "tool_policy",
-    lambda ctx: "## Inventory rules\n- Never quote stock without a warehouse.",
+task.prompt_manager.append_prompt(
+    "## Inventory rules\n- Never quote stock without a warehouse.",
 )
 ```
 
