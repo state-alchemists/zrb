@@ -32,20 +32,16 @@ from treatments import canary_arms, opencode_arms, zrb_arms
 
 RESULTS = Path(__file__).parent / "results" / "runs.jsonl"
 
-# Eight models: six frontier/mid families through ollama, plus two hosted
-# small-tier OpenAI models. All eight resolve to `full` — only a local prefix or
-# a declared <=14B reaches `minimal` — so every arm here is measured against
-# models the smaller preset was not written for. `minimal`'s own target class
-# stays unrepresented; see README "Limitations".
+# Three Google Gemini 2.5 models, all hosted through the Gemini API. `pro` and
+# `flash` resolve to `full`; `flash-lite` resolves to `minimal` (see
+# `builtin_profile`), so the grid at last contains the model class the smaller
+# preset was written for — the README "Limitations" gap is closed.
 MODELS = [
-    "gemma4:31b-cloud",  # Google    — smallest declared size available
-    "deepseek-v4-flash:cloud",  # DeepSeek  — fast tier
-    "deepseek-v4-pro:cloud",  # DeepSeek  — strong tier, same family
-    "kimi-k2.6:cloud",  # Moonshot  — opencode ships a kimi.txt
-    "glm-5.2:cloud",  # Zhipu
-    "mistral-large-3:675b-cloud",  # Mistral — non-reasoning
-    "openai:gpt-4o-mini",  # OpenAI    — weak arm, hosted small tier
-    "openai:gpt-4.1-nano",  # OpenAI    — weak arm, hosted small tier
+    "google:gemini-2.5-pro",  # strong tier
+    "google:gemini-2.5-flash",  # latency tier, spans weak to strong
+    "google:gemini-2.5-flash-lite",  # lightweight tier — zrb resolves it to `minimal`
+    "deepseek:deepseek-v4-flash",  # DeepSeek's own API, not ollama's cloud proxy
+    "ollama:gemma4:31b-cloud",
 ]
 
 # Every arm sees the same tool surface, so prompt text is the only variable.
@@ -217,26 +213,35 @@ def build_tools(trace: Trace, turn: "list[int]"):
 async def run_cell(model_id: str, system_prompt: str, probe, providers) -> dict:
     """One probe against one prompt arm. Never raises; failures are recorded.
 
-    An ``openai:`` prefix selects the hosted provider; anything else goes to the
-    ollama endpoint. The prefix is also what zrb's own profile resolution reads,
-    so the id here is the id zrb would classify.
+    An ``openai:``, ``google:`` or ``deepseek:`` prefix selects that hosted
+    provider; an explicit ``ollama:`` prefix strips to the bare tag, and
+    anything else is a literal ollama tag on its own (colons and all — ollama
+    tags use ``:`` as their own version separator, e.g. ``gemma4:31b-cloud``).
+    The prefix is also what zrb's own profile resolution reads, so the id
+    here is the id zrb would classify.
     """
     # lazy: heavy third-party
     from pydantic_ai import Agent
     from pydantic_ai.exceptions import UsageLimitExceeded
+    from pydantic_ai.models.google import GoogleModel
     from pydantic_ai.models.openai import OpenAIChatModel
     from pydantic_ai.usage import RunUsage
 
-    which, _, bare = (
-        model_id.rpartition(":")
-        if model_id.startswith("openai:")
-        else ("ollama", "", model_id)
+    prefix, _, rest = model_id.partition(":")
+    if prefix in ("openai", "google", "deepseek", "ollama"):
+        bare = rest
+    else:
+        prefix, bare = "ollama", model_id
+    provider = providers[prefix]
+    model = (
+        GoogleModel(bare, provider=provider)
+        if prefix == "google"
+        else OpenAIChatModel(bare, provider=provider)
     )
-    provider = providers[which]
 
     trace, turn = Trace(), [0]
     agent = Agent(
-        OpenAIChatModel(bare, provider=provider),
+        model,
         system_prompt=system_prompt,
         tools=build_tools(trace, turn),
     )
@@ -446,12 +451,17 @@ def key(cell: dict) -> tuple:
 
 
 def done_keys() -> set[tuple]:
+    """Tolerates a record glued to the next with no newline (crash mid-write)."""
     if not RESULTS.exists():
         return set()
-    seen = set()
-    for line in RESULTS.read_text().splitlines():
-        if line.strip():
-            seen.add(key(json.loads(line)))
+    text = RESULTS.read_text()
+    decoder, seen, i, n = json.JSONDecoder(), set(), 0, len(text)
+    while i < n:
+        if text[i].isspace():
+            i += 1
+            continue
+        obj, i = decoder.raw_decode(text, i)
+        seen.add(key(obj))
     return seen
 
 
@@ -488,6 +498,7 @@ async def main() -> None:
         )
         return
 
+    from pydantic_ai.providers.google import GoogleProvider
     from pydantic_ai.providers.openai import OpenAIProvider
 
     providers = {
@@ -496,6 +507,13 @@ async def main() -> None:
             api_key=os.environ.get("OLLAMA_API_KEY", "ollama"),
         ),
         "openai": OpenAIProvider(api_key=os.environ["OPENAI_API_KEY"]),
+        # Reads GOOGLE_API_KEY, then GEMINI_API_KEY, from the environment and
+        # raises a clear error when neither is set.
+        "google": GoogleProvider(),
+        "deepseek": OpenAIProvider(
+            base_url="https://api.deepseek.com/v1",
+            api_key=os.environ["DEEPSEEK_API_KEY"],
+        ),
     }
     todo = [
         c

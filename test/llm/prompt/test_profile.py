@@ -235,6 +235,26 @@ def test_a_hosted_small_tier_label_stays_on_full():
         assert resolve_profile("auto", model) == FULL_PROFILE, model
 
 
+def test_gemini_flash_lite_is_the_hosted_label_that_reaches_minimal():
+    """The hosted exception, family-wide: any `flash-lite` Gemini is a size claim.
+
+    ``gemini-*-flash-lite`` is Google's lightweight tier — the bottom of a
+    lineup whose other members are frontier models — so the label alone
+    reaches ``minimal`` even though the provider is hosted. `pro` and `flash`
+    are not small tiers: `flash` is a latency tier and stays ``full``.
+    """
+    for model in [
+        "google:gemini-2.0-flash-lite",
+        "google:gemini-2.5-flash-lite",
+        "google:gemini-3-flash-lite",
+        "gemini-2.5-flash-lite-preview",
+    ]:
+        assert builtin_profile(model) == MINIMAL_PROFILE, model
+        assert resolve_profile("auto", model) == MINIMAL_PROFILE, model
+    assert resolve_profile("auto", "google:gemini-2.5-pro") == FULL_PROFILE
+    assert resolve_profile("auto", "google:gemini-2.5-flash") == FULL_PROFILE
+
+
 def test_a_locally_served_small_tier_label_selects_minimal():
     """The same label means a different size once you know who is serving it.
 

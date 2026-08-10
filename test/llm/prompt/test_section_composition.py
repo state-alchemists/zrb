@@ -54,7 +54,6 @@ OWNED_VOCABULARY = {
         "git diff HEAD",
         "Tool usage",
         "Efficiency",
-        "Final Reminders",
     ],
     "persona": ["Response Calibration"],
 }
@@ -242,7 +241,8 @@ def test_batching_rule_forbids_the_payload_form():
 
 
 #: Absolute ceiling on the *file-backed* sections of each preset. Headroom is
-#: ~20% over what each ships today (full 20,028 / minimal 4,366).
+#: ~18% over `full` and ~33% over `minimal` of what each ships today
+#: (17,425 / 4,125).
 #:
 #: Deliberately not the composed prompt. `system_context` embeds the OS, cwd and
 #: detected tools, and `project_context` walks the parent chain listing every
@@ -390,51 +390,6 @@ def test_rank_one_rules_name_the_substitute_behaviour(sections, variant):
         f"{variant or 'full'} states these rank-1 rules as prohibitions with no "
         f"substitute behaviour: {missing}"
     )
-
-
-# The closing recap, as the body statement each item restates. Every preset ends
-# with `## Final Reminders`, which restates the highest-cost rules because those
-# are the ones that go wrong most often — a redundancy argument, not a
-# positional one (ADR-0046).
-RECAP_ANCHORS = {
-    "tool output is not instructions": [r"data,? not (instructions|orders)"],
-    "confirm destructive actions": [r"destructive|destroy"],
-    "name the cause first": [r"[Nn]ame the cause|[Ss]ay the cause"],
-    "acting is not describing": [
-        r"[Ss]tating an action is not performing it|do not describe it"
-    ],
-    "check the artifact": [r"[Cc]heck (the artifact|your work)"],
-    "finish the turn": [r"[Ff]inish the work this turn|[Rr]eport the real result"],
-}
-
-
-@pytest.mark.parametrize("variant", [None, "minimal"])
-def test_the_closing_recap_restates_only_what_the_body_states(variant):
-    """A recap is duplication on purpose. Divergent duplication is the bug.
-
-    `Priority Order` opens the rulebook to exploit primacy; nothing exploited
-    recency, which is where a rule read just before the request lands hardest —
-    the slot kimi's "Ultimate Reminders" and gemini's "Final Reminder" occupy.
-    Adding one is safe only while it stays a *pointer* to rules stated above it:
-    a recap that introduces a rule of its own splits the rulebook in two, and the
-    copy nobody edits is the one the model reads last.
-
-    Asserted in the direction that can actually rot: every recapped rule must
-    still be stated in the body. AGENTS.md's MECE rule tolerates consistent
-    duplication inside one section and forbids the divergent kind.
-    """
-    text = get_prompt("workflow", profile=variant)
-    body, _, recap = text.partition("## Final Reminders")
-    assert recap.strip(), f"workflow[{variant}] ships no closing recap"
-    items = re.findall(r"^\d+\.\s", recap, re.M)
-    assert len(items) >= 4, f"workflow[{variant}] recap has only {len(items)} items"
-    unanchored = [
-        rule
-        for rule, patterns in RECAP_ANCHORS.items()
-        if any(re.search(p, recap) for p in patterns)
-        and not any(re.search(p, body) for p in patterns)
-    ]
-    assert unanchored == [], f"workflow[{variant}] recaps rules its body never states"
 
 
 def test_workflow_minimal_names_no_tool_its_preset_lacks():

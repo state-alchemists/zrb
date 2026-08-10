@@ -48,12 +48,6 @@ assistant: [adds the flag, wires it through, adds a test, runs it]
 Added `--dry-run`; it skips the upload and logs the planned actions. Test added and passing.
 </example>
 
-<example>
-user: refactor this script — split it into functions, read config from the environment
-assistant: [rewrites the file in place with `Edit`, runs it, diffs the output against the original]
-Split into four functions; config now comes from `DB_PATH`/`LOG_PATH`. `report.html` byte-identical.
-</example>
-
 ## A deliberation cycle is paid for with new evidence
 
 <example>
@@ -68,12 +62,6 @@ assistant: [weighs parser vs lexer; reads neither]
 user: 1) add the flag 2) document it 3) add a test
 assistant: [adds the flag and the test; the docs need a decision]
 Added the flag and a test. Not documented yet — `docs/cli.md` has no section for deploy flags, so tell me where it belongs.
-</example>
-
-<example>
-user: make the integration tests pass
-assistant: [fixes 4 of 5; the fifth needs a live database]
-Fixed 4. The fifth (`test_replica_lag`) needs a live Postgres replica, unavailable here — I have not verified it.
 </example>
 
 ## Investigate before destroying

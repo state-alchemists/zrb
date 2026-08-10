@@ -52,7 +52,8 @@ MINIMAL_PROFILE = "minimal"
 SIZE_BANDS: tuple[tuple[float, str], ...] = ((14, MINIMAL_PROFILE),)
 
 #: Vendor small-tier labels. A label alone declares nothing, so the model keeps
-#: ``full``; only a label *plus* a local provider reaches ``minimal``.
+#: ``full``; only a label *plus* a local provider reaches ``minimal`` — with one
+#: hosted exception, :data:`HOSTED_SMALL_TIER_EXCEPTIONS`.
 #:
 #: A label is the weaker claim: ``nano``/``tiny``/``micro`` sit on models
 #: (``gpt-5-nano``) far more capable than a 3B local one. Guessing wrong toward
@@ -72,6 +73,15 @@ SMALL_TIER_LABELS: tuple[str, ...] = (
     "lite",
     "haiku",
 )
+
+#: Hosted small-tier labels that are still a genuine size claim — the narrow
+#: exception to "a label alone keeps ``full``". The ``flash-lite`` tier across
+#: the gemini family (``2.0``, ``2.5``, ``3``, ...) is Google's lightweight
+#: tier, the bottom of a lineup whose other members are frontier models; it is
+#: the model class ``minimal`` exists for. Kept exact and short because guessing
+#: wrong toward ``minimal`` costs the model its web access and sub-agents: a
+#: pattern here is a product decision, not a heuristic.
+HOSTED_SMALL_TIER_EXCEPTIONS: tuple[str, ...] = (r"gemini-.*flash-lite",)
 
 # A parameter count as vendors write it: delimited, optionally fractional, and
 # closed by a `b`. The count is captured whole and compared numerically, so
@@ -101,16 +111,22 @@ def builtin_profile(model_id: str) -> str | None:
     and a model stating both (``qwen3-30b-a3b``) is stating that the larger
     number is what it is. The first count in the id is the one read.
 
-    With no count, a small-tier label reaches ``minimal`` only when the model is
-    also locally served (:data:`LOCAL_PROVIDERS`); otherwise it declares nothing
-    and the caller keeps ``full``.
+    With no count, a small-tier label reaches ``minimal`` when the model is
+    locally served (:data:`LOCAL_PROVIDERS`) or named in
+    :data:`HOSTED_SMALL_TIER_EXCEPTIONS`; otherwise it declares nothing and the
+    caller keeps ``full``.
     """
     size = _declared_size(model_id)
     if size is not None:
         return next((profile for limit, profile in SIZE_BANDS if size <= limit), None)
     if not _SMALL_TIER.search(model_id):
         return None
-    return MINIMAL_PROFILE if _is_local(model_id) else None
+    if _is_local(model_id) or any(
+        re.search(pattern, model_id, re.IGNORECASE)
+        for pattern in HOSTED_SMALL_TIER_EXCEPTIONS
+    ):
+        return MINIMAL_PROFILE
+    return None
 
 
 def _is_local(model_id: str) -> bool:

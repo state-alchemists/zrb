@@ -15,10 +15,10 @@ trace, so a run is repeatable and safe to interrupt.
 | # | Claim under test | Where zrb states it |
 |---|---|---|
 | X1 | Burden should fall with target capability — a weaker model does better on a smaller prompt, a stronger one is not held back by a larger one | ADR-0049, AGENTS.md "Burden falls monotonically" |
-| X2 | Priority Order goes first and Final Reminders last because of primacy and recency effects | ADR-0046, AGENTS.md |
+| X2 | No privileged position — a rule reads alike at the start, middle and end; nothing occupies the end slot | ADR-0046 |
 | X3 | Family-specific prompt forks are overfitting; one prompt should serve every family | ADR-0051, AGENTS.md |
 | X4 | `persona` earns a slot in every preset, and `examples` earns its tokens | ADR-0045, ADR-0049 |
-| X5 | `full` carries 42 rule-lines to `minimal`'s 18. Do the extra 24 buy anything? | ADR-0049 burden ladder |
+| X5 | `full` carries 40 rule-lines to `minimal`'s 14. Do the extra 26 buy anything? | ADR-0049 burden ladder |
 
 X5 exists because X1's battery saturates — capable models pass most method
 probes under every preset, so X1 cannot tell "the extra rules do nothing" from
@@ -44,15 +44,17 @@ source ../.venv/bin/activate
 python run.py --dry-run          # compose every arm, print sizes, call nothing
 python run.py                    # the sweep; appends to results/runs.jsonl
 python run.py --experiment X2    # one sub-experiment
-python run.py --model openai:gpt-4o-mini   # one model
+python run.py --model google:gemini-2.5-flash-lite   # one model
 python analyze.py                # regenerate results/FINDINGS.md
 python measure.py                # prompt + tool-schema tokens, per preset and per tool
 ```
 
-Models are listed in `run.py`. An `openai:` prefix routes to the hosted API
-(`OPENAI_API_KEY`); everything else goes to the ollama endpoint
-(`OLLAMA_BASE_URL`, `OLLAMA_API_KEY`). The prefix is also what zrb's own
-`builtin_profile()` reads, so the id used here is the id zrb would classify.
+Models are listed in `run.py`. An `openai:` or `google:` prefix routes to that
+hosted API (`OPENAI_API_KEY`; `GOOGLE_API_KEY` or `GEMINI_API_KEY`); everything
+else goes to the ollama endpoint (`OLLAMA_BASE_URL`, `OLLAMA_API_KEY`). The
+prefix is also what zrb's own `builtin_profile()` reads, so the id used here is
+the id zrb would classify — `flash-lite` resolves to `minimal`, `pro` and
+`flash` to `full`.
 
 Results are keyed by `(experiment, model, arm, probe, rep)` and skipped if
 already present, so the sweep resumes after any interruption. Delete matching
@@ -86,7 +88,7 @@ another preset.
 **And a null result only counts if the battery can produce the failure.** These
 probes cannot generate unbounded command output (the mock `Shell` returns a few
 bytes), cannot load a skill or sub-agent (excluded by design), and never exercise
-a model ADR-0038 deny-lists for parallel calls (all eight batch fine). Anything
+a model ADR-0038 deny-lists for parallel calls (all three batch fine). Anything
 guarding one of those prices at zero here and is not therefore free — see
 ADR-0058, where three tool-docstring passages sit in exactly that position.
 Before trusting "no measurable cost", write down what failure the text prevents
@@ -101,14 +103,14 @@ indistinguishable from resampling.
 
 Read the findings against these, not around them.
 
-- **`minimal`'s target class is not represented.** All eight models resolve to
-  `full`: a hosted small-tier label alone never reaches `minimal`, which needs a
-  local provider prefix or a declared ≤14B size. `gpt-4o-mini` and
-  `gpt-4.1-nano` are the weakest arms available and both are hosted. Every local
-  sub-4B model fails to load on this machine (2.3 GiB needed, 1.6 GiB free) and
-  every small cloud model on the endpoint has been retired. **On `minimal`, X1
-  can only fail to find an effect among models that are not its target — which
-  is not the same as finding no effect.**
+- **The grid is one hosted family.** All three models are Google's Gemini 2.5
+  line through the Gemini API. `flash-lite` resolves to `minimal` and
+  `pro`/`flash` to `full` (`builtin_profile`), so the preset ladder at last
+  measures `minimal` on the model class it was written for — that gap is
+  closed. What remains unrepresented is any *local* small model (every sub-4B
+  model fails to load on this machine: 2.3 GiB needed, 1.6 GiB free), and the
+  grid is one family, so a `flash-lite` effect cannot be separated from
+  Gemini's own prompt-following quirks.
 - **n is 1–2 per cell.** Only large effects are visible. Per the Wharton GAIL
   replication work, a difference under ~10pp at this n is not distinguishable
   from sampling noise, and prompt tweaks routinely produce swings that look like

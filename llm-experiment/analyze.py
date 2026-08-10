@@ -16,7 +16,21 @@ RESULTS = Path(__file__).parent / "results" / "runs.jsonl"
 
 
 def load() -> list[dict]:
-    return [json.loads(ln) for ln in RESULTS.read_text().splitlines() if ln.strip()]
+    """Parse newline- *and* directly-concatenated JSON records.
+
+    A run killed mid-write can leave a record with no trailing newline; the
+    next run's append then lands right after it on the same line. Scanning
+    with raw_decode (rather than splitlines + json.loads) tolerates that.
+    """
+    text = RESULTS.read_text()
+    decoder, rows, i, n = json.JSONDecoder(), [], 0, len(text)
+    while i < n:
+        if text[i].isspace():
+            i += 1
+            continue
+        obj, i = decoder.raw_decode(text, i)
+        rows.append(obj)
+    return rows
 
 
 def rate(rows: list[dict]) -> str:
