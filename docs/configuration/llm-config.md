@@ -208,8 +208,10 @@ Zrb loads prompts with a multi-level override system (first found wins):
 ### Overridable Prompts
 
 - `persona`
+- `principle`
 - `workflow`
-- `examples`
+- `example`
+- `profile` (always resolves as `profile.{name}.md`; see [Prompt Profile](#prompt-profile-matching-the-prompt-to-the-model))
 - `conversational_summarizer`
 - `message_summarizer`
 - `file_extractor`
@@ -223,15 +225,17 @@ The system prompt is assembled from an **ordered list of sections**. The list is
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_INCLUDE_SECTIONS` | Comma-separated, order-sensitive list of sections to include | `persona,workflow,examples,system_context,project_context` |
+| `ZRB_LLM_INCLUDE_SECTIONS` | Comma-separated, order-sensitive list of sections to include | `persona,principle,workflow,example,profile,system_context,project_context` |
 
 Recognised section names:
 
 | Section | Purpose |
 |---------|---------|
 | `persona` | AI identity + response style |
+| `principle` | The operating principle underlying the rules |
 | `workflow` | The whole rulebook: priority order, turn sequence, skill activation, working loop, verify gate, tool usage, recovery |
-| `examples` | Answer-scale and stance demonstrations (the `lean` variant adds more) |
+| `example` | Answer-scale and stance demonstrations |
+| `profile` | Model-class calibration (autonomy register) — resolved as `profile.{name}.md` |
 | `system_context` | Stable runtime facts (OS / CWD / model / detected tools) |
 | `project_context` | Project docs (`AGENTS.md`, `CLAUDE.md`, `README.md`, …) |
 
@@ -253,137 +257,43 @@ export ZRB_LLM_INCLUDE_SECTIONS="persona"
 
 To toggle a single section programmatically, mutate `CFG.LLM_INCLUDE_SECTIONS` directly (it is a `list[str]`).
 
-The section names above are the **built-ins**. Any other name in the list resolves as a *custom* section — see [Programmatic Prompt Customization](#programmatic-prompt-customization) below.
+These are the **built-in** sections. A name that is not one of them resolves to nothing: a warning is logged at compose time, and the section is skipped — so a misspelled name is diagnosable rather than silently dropped. There are no user-defined system-prompt sections; for extra content see [Programmatic Prompt Customization](#programmatic-prompt-customization) below.
 
 ### Prompt Profile (matching the prompt to the model)
 
-`ZRB_LLM_INCLUDE_SECTIONS` controls *which* sections appear. `ZRB_LLM_PROFILE` selects a **preset** — a named binding of three axes at once: which sections compose, how they are phrased, and which tools register (ADR-0049).
+`ZRB_LLM_INCLUDE_SECTIONS` controls *which* sections appear. `ZRB_LLM_PROFILE` selects one of three profiles — `minimal`, `standard`, or `capable` — that adjust the final `profile` section, and for `minimal` only, drop the delegate (sub-agent) tools (ADR-0049).
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_PROFILE` | Prompt preset: `auto`, `full`, `lean`, or `minimal` | `auto` |
+| `ZRB_LLM_PROFILE` | Prompt profile: `minimal`, `standard`, `capable`, or `auto` | `standard` |
 
-| Preset | Sections | Phrasing | Tools |
-|--------|----------|----------|-------|
-| `full` | default | base files | all 20 |
-| `lean` | default | `persona.lean.md`, `workflow.lean.md`, `examples.lean.md` | all but the journal trio (17) |
-| `minimal` | `persona, workflow, system_context` | `persona.minimal.md`, `workflow.minimal.md` | 10 |
+| Profile | `profile` section | Delegate tools |
+|---------|-------------------|----------------|
+| `minimal` | `profile.minimal.md` — concise, one clear next action | not registered |
+| `standard` | `profile.standard.md` — balance autonomy with clear communication | registered |
+| `capable` | `profile.capable.md` — strong ownership of substantial work | registered |
 
-- **`full`** — the concise, principle-led preset (the base prompt files).
-- **`lean`** — for small models (~5-14B). Two changes in opposite directions: a lighter rulebook (`persona.lean.md` and `workflow.lean.md` in place of their bases, ~25% smaller with the precedence ladder flattened) and *more* worked demonstrations (`examples.lean.md`). Small models follow worked examples better than abstract rules. The demonstrations **never add rules**: added constraint mass degrades exactly the models it targets, so a variant may exemplify a rule but never re-word or extend one (ADR-0049). The only capability dropped is the journal — a 5-14B model still gets skills, todos, web and delegation, and cross-session memory is never needed to finish a turn. Set `ZRB_LLM_PROFILE=full` if you want it back on a 7B.
-- **`minimal`** — for very small models (~3B), where the *budget* is the binding constraint rather than the register. Composes to roughly 1,250 tokens of preamble against ~4,600 for `full`. A `minimal` session has **no** skills, sub-agents, web access, todo list, journal, plan mode, MCP tools or project-doc reading — it is a single-tool-call-per-turn assistant, not an agentic coder. Use it when a small local model must drive the main loop; for a small model *assisting* a larger one, `ZRB_LLM_SMALL_MODEL` is the better slot.
-- **`auto`** (default) — resolved from the model id.
+A profile selects exactly one file, `profile.{name}.md`, composed as the `profile` section. It does **not** change the `persona` / `principle` / `workflow` / `example` sections (they ship the same wording for every profile) or any other tool. `minimal` is for very small models (~3B): delegating to a sub-agent is a second-order capability such a model cannot use well and is pure token cost otherwise (ADR-0058), so the built-in chat task registers the delegate tools only outside `minimal`.
 
-`auto` reads a **stated size**, never a family name. `deepseek`, `qwen`, and `llama` span tiny instruct models through frontier models, so a family name tells you nothing — but `-7b` is the vendor stating a parameter count, and `mini` / `haiku` / `nano` are vendor size tiers. Built-in matches:
+`auto` — the value that delegates the choice to the model id — never guesses from a family name (`deepseek`, `qwen`, `llama` each span tiny→frontier). It reads a **stated size**:
 
-| Selects `minimal` | Selects `lean` | Stays `full` |
-|-----------------|----------------|---------------|
-| a stated count of 4B or less — `qwen2.5:3b`, `deepseek-r1:1.5b`, `qwen2.5:0.5b` | a stated count of 5-14B — `qwen2.5-7b`, `gemma-2-9b`, `qwen3-14b` | larger stated sizes — `qwen3-32b`, `llama-3-70b`, `llama-3.1-405b` |
-| a small-tier label served locally — `ollama:phi4-mini`, `lmstudio:gemma-tiny` | vendor small tiers on a hosted provider — `gpt-5-mini`, `claude-haiku-4-5`, `gemini-nano` | everything else — `claude-opus-4-8`, `deepseek-v4-pro`, `gemini-2.5-pro`, `ollama:kimi-k2.6:cloud` |
+| Profile | `auto` selects it when |
+|---------|------------------------|
+| `minimal` | a stated count of 4B or less — `qwen2.5:3b`, `deepseek-r1:1.5b`, `qwen2.5:0.5b`; or a small-tier label served locally — `ollama:phi4-mini`, `lmstudio:gemma-tiny` |
+| `standard` | a stated count above 4B and up to 14B — `qwen3-12b`, `llama-3-8b`; or an id that declares nothing |
+| `capable` | a stated count above 14B — `llama-3-70b`, `llama-3.1-405b` |
 
-The count is read as a **number**, so a fractional size means what it says: `1.5b` is 1.5B, not 5B. Where an id states two counts the first wins, which is how an MoE id reads as its total rather than its active parameters (`qwen3-30b-a3b` → 30B → `full`). A stated count also outranks a label, so `some-mini-32b` stays `full`.
+The count is read as a **number**, so a fractional size means what it says: `1.5b` is 1.5B, not 5B. Where an id states two counts the first wins, which is how an MoE id reads as its total rather than its active parameters (`qwen3-30b-a3b` → 30B → `capable`). A stated count also outranks a label, so `some-mini-32b` stays `capable`.
 
-The two bands are asymmetric on purpose. `lean` keeps every section and nearly every tool, so a false positive is cheap — which is why every vendor small-tier label (`mini`, `micro`, `nano`, `tiny`, `small`, `lite`, `haiku`) resolves there by default. `minimal` *removes* sections and tools, so a false positive costs real capability, and a stated ≤4B count selects it outright.
-
-A label **alone** never does, because `nano`/`tiny` sit on models (`gpt-5-nano`) far more capable than a 3B local one. A label plus a **local provider prefix** does: `ollama:`, `lmstudio:`, `llamacpp:` and `localai:` say who is serving the model, and `ollama:phi4-mini` is 3.8B of weights on a laptop where `openai:gpt-5-nano` is the entry tier of a hosted family. Ollama's own hosted tier is excluded by its `:cloud` suffix, so `ollama:kimi-k2.6:cloud` stays `full`. Anything the built-ins get wrong, declare explicitly (see below).
-
-Burden falls as the target model gets weaker: each rule-carrying section is strictly smaller than the same section one preset up. Demonstrations move the other way, because a worked example lowers burden rather than adding to it — but they are exempt from the ladder, not from the budget: the *composed total* falls across presets too, so a weaker target never receives more prompt overall.
-
-Setting `ZRB_LLM_INCLUDE_SECTIONS` explicitly overrides a preset's section list, so you can run `minimal`'s lean tool surface with your own sections.
-
-`flash` is deliberately *not* matched: it is a latency tier, not a size one, and spans weak to strong. Opt one in explicitly if you want it.
+A label **alone** never selects `minimal`, because `nano`/`tiny` sit on models (`gpt-5-nano`) far more capable than a 3B local one. A label plus a **local provider prefix** does: `ollama:`, `lmstudio:`, `llamacpp:` and `localai:` say who is serving the model, and `ollama:phi4-mini` is 3.8B of weights on a laptop where `openai:gpt-5-nano` is the entry tier of a hosted family. Ollama's own hosted tier is excluded by its `:cloud` suffix, so `ollama:kimi-k2.6:cloud` stays `standard`.
 
 Force a profile globally:
 
 ```bash
-export ZRB_LLM_PROFILE=lean
+export ZRB_LLM_PROFILE=minimal
 ```
 
-…or declare per-model profiles once in your `zrb_init.py`. A declaration always beats a built-in, in either direction:
-
-```python
-from zrb.llm.prompt.profile import register_model_profile
-
-# Models whose full id matches the (case-insensitive) regex use that profile
-# under `auto`. The id is matched exactly as configured — provider prefix and
-# any tier suffix included (e.g. `ollama:deepseek-v4-flash:cloud`), nothing is
-# stripped. Most-recently declared wins.
-register_model_profile(r"deepseek-v4-flash", "lean")   # opt a latency tier in
-register_model_profile(r"my-local-3b", "lean")
-register_model_profile(r"qwen2\.5-7b", "full")        # opt a small model out
-register_model_profile(r"^ollama:", "lean")            # or match a whole provider
-```
-
-How the overlay works: the base prompt `.md` files *are* the `full` profile. Every other preset is an overlay — for a section named `workflow`, the loader prefers `workflow.lean.md` (or `workflow.minimal.md`) and falls back to `workflow.md` when no variant exists. This is the only naming convention involved: a section name never carries the preset. A variant *replaces* its base file rather than appending to it, so a variant you add must repeat everything the base says that still applies. It follows the same project-override → env → base-dir → package lookup as any prompt file, so you can override a variant too.
-
-### Defining Your Own Profile
-
-The three built-ins are not special — they are three entries in `PRESETS`, and you can add a fourth. Use `register_preset()`, which validates what a bare `PRESETS[name] = ...` assignment cannot:
-
-```python
-# zrb_init.py
-from zrb.llm.prompt.profile import Preset, register_preset, register_model_profile
-
-register_preset(
-    "nano",
-    Preset(
-        sections=("persona", "workflow", "system_context"),
-        variant="nano",                    # resolves persona.nano.md, workflow.nano.md
-        tools=frozenset({"Read", "Edit", "LS", "Shell"}),
-    ),
-)
-
-register_model_profile(r"my-1b-box", "nano")   # optional: select it automatically
-```
-
-`ZRB_LLM_PROFILE=nano` now works, and so does `register_model_profile(..., "nano")`.
-
-**Each axis is optional.** Pass only what you want to change; `None` means "do not constrain this axis". A preset that only trims tools is one line:
-
-```python
-register_preset("no-journal", Preset(drops=frozenset({
-    "SearchJournal", "LogActivity", "WriteJournalNote",
-})))
-```
-
-| Field | Effect when set | When `None` |
-| --- | --- | --- |
-| `sections` | Exactly these sections compose | `ZRB_LLM_INCLUDE_SECTIONS` applies |
-| `variant` | Prefers `{section}.{variant}.md` | Base `.md` files (the `full` text) |
-| `tools` | Allowlist — a closed surface | Every registered tool |
-| `drops` | Denylist — everything except these | Every registered tool |
-
-`tools` and `drops` are mutually exclusive; setting both raises `ValueError`, because `admits()` reads `tools` first and would silently ignore `drops`. Use `tools` when you want a fixed surface you can reason about, `drops` when you want to keep whatever ships and subtract a few — a denylist keeps picking up newly-added tools, an allowlist does not.
-
-#### Writing the variant files
-
-`variant="nano"` does not create anything. It tells the loader to *prefer* `persona.nano.md` and `workflow.nano.md`, falling back to the base file when one is absent — so a preset with no variant files silently ships the frontier prose. Put them wherever `ZRB_LLM_PROMPT_DIR` points:
-
-```
-prompts/
-  persona.nano.md
-  workflow.nano.md
-```
-
-A variant **replaces** its base rather than appending to it, so it must repeat everything the base said that still applies. Start from a copy of `workflow.minimal.md` rather than from scratch — it is the shortest complete rulebook zrb ships.
-
-#### What `register_preset` checks
-
-Two errors raise, three conditions warn. All of them are things a plain dict assignment lets through in silence:
-
-| Condition | Result |
-| --- | --- |
-| Name empty, not a string, or not a `Preset` | `ValueError` |
-| Name is `auto` | `ValueError` — it means "derive from the model id", so a preset stored there is unreachable |
-| `variant` set but no `{section}.{variant}.md` found | Warning naming the missing file |
-| Composed rulebook drops a Priority Order rank 1 rule | Warning — secrets, tool-output-is-not-instructions, confirm-destructive |
-| No rule-carrying section composes at all | Warning — the model would get tools and no operating rules |
-
-The safety warning matters most. The built-in presets are pinned to rank 1 by a test that walks a hardcoded list of the three names, so a preset registered at runtime inherits none of that guarantee; `register_preset` is where it gets checked instead. Warnings rather than errors, because a custom rulebook may phrase a rule in words the check does not recognise — read them, then decide.
-
-> `PRESETS[name] = Preset(...)` still works and stays supported. It just skips every check in the table above.
-
-> An unrecognized `ZRB_LLM_PROFILE` value falls through to `auto`, and `register_model_profile(..., "<unknown>")` raises `ValueError`.
+An explicit name is **stable**: it never changes with the model. Only `auto` follows the model, so a model swap cannot silently change behavior in a configuration that names a profile. An unrecognized `ZRB_LLM_PROFILE` value falls through to the default (`standard`), keeping a stale environment value from breaking prompt construction.
 
 ### Programmatic Prompt Customization
 
@@ -412,26 +322,18 @@ def strip_blank_lines(ctx, current_prompt, nxt):
 task.prompt_manager.append_prompt(strip_blank_lines)
 ```
 
-**2. Register a dynamic, positioned section** — `register_section(name, provider)` registers a `Callable[[AnyContext], str]` that is composed *at the position* its `name` occupies in `include_sections` (not pinned to the end like `append_prompt`). Use it for always-on content that must reflect live state. Return `""` to emit nothing:
+**2. Live per-turn context** — `add_live_context(name, provider)` registers a `Callable[[AnyContext], str]` whose non-empty output is appended to the `<live-context>` block injected into the latest user turn. Use it for always-on content that must reflect live state (time, git status, deploy target). Return `""` to emit nothing:
 
 ```python
-task.prompt_manager.register_section(
-    "company_context",
+task.prompt_manager.add_live_context(
+    "deploy_target",
     lambda ctx: f"Deploy target: {resolve_target()}",
 )
-task.prompt_manager.include_sections = [
-    "persona", "workflow", "company_context", "system_context",
-]
 ```
 
-**3. File-backed custom section** — any name in `include_sections` that is not a built-in (and has no registered provider) resolves as a file-backed custom section. It loads `<name>.md` through the same override hierarchy as built-in prompts (project dir → `ZRB_LLM_PROMPT_<NAME>` → base dir → package), with `{PLACEHOLDER}` substitution. No Python required:
+A live-context provider is an extension point, so it must never take the prompt down with it: a provider that throws is logged and skipped.
 
-```bash
-# Loads company_context.md and places it after `workflow`.
-export ZRB_LLM_INCLUDE_SECTIONS="persona,workflow,company_context,system_context"
-```
-
-> **Resolution precedence** for a section name is **built-in > registered provider > markdown file**. A missing markdown file resolves to `""` (a harmless no-op — so a misspelled name silently emits nothing). See ADR-0044 and AGENTS.md ("LLM Prompt System").
+**3. Override a built-in prompt file** — wording ships as files, so the no-Python way to change it is to place a same-named file higher on the lookup path (project dir → `ZRB_LLM_PROMPT_<NAME>` → base dir → package; the overridable names are listed under [Overridable Prompts](#overridable-prompts)). For example, put `persona.md` in the directory `ZRB_LLM_PROMPT_DIR` points to and it replaces the packaged persona wording. A *new* name in `include_sections` does not resolve to a file — the built-in section set is fixed, and an unknown name is warned and skipped (ADR-0044).
 
 ### Telling the LLM about a custom tool
 
@@ -454,16 +356,13 @@ task.append_tool(check_stock)
 
 Note this relocates token cost rather than removing it: a docstring ships every turn, exactly as the guidance section did. The lever on prompt weight is the **number** of registered tools — use `Tool(fn, defer_loading=True)` for tools that are rarely needed, so their schema only materializes once the model searches for them.
 
-For cross-cutting policy that is not about any one tool, register a prompt section instead:
+For cross-cutting policy that is not about any one tool, append it to the prompt instead (it lands after the built-in sections, before the user's first message):
 
 ```python
-task.prompt_manager.register_section(
-    "tool_policy",
-    lambda ctx: "## Inventory rules\n- Never quote stock without a warehouse.",
+task.prompt_manager.append_prompt(
+    "## Inventory rules\n- Never quote stock without a warehouse."
 )
 ```
-
-Then place `tool_policy` in `ZRB_LLM_INCLUDE_SECTIONS`.
 
 ---
 

@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 
 from zrb.config.config import CFG
 from zrb.llm.permission import Capability, tag
-from zrb.util.cmd.command import kill_pid, resolve_shell, terminate_process
+from zrb.util.cmd.command import resolve_shell, terminate_process
 from zrb.util.string.name import get_random_name
 
 
@@ -190,10 +190,22 @@ class _ShellBackgroundRegistry:
         self._procs.pop(handle, None)
         return f"Killed process '{handle}'."
 
-    def cancel_all(self) -> None:
+    async def cancel_all(self) -> None:
+        """Kill every running background process and release its transport.
+
+        Session teardown calls this so no asyncio subprocess outlives the event
+        loop. ``terminate_process`` both kills and reaps: a child left running
+        when the loop closes logs "Loop <...> that handles pid N is closed"
+        when it eventually exits, because its exit event can no longer be
+        delivered.
+        """
         for handle, bp in list(self._procs.items()):
             if bp.process.returncode is None:
-                kill_pid(bp.process.pid, print_method=CFG.LOGGER.warning)
+                await terminate_process(
+                    bp.process,
+                    CFG.LLM_SHELL_KILL_WAIT_TIMEOUT / 1000,
+                    print_method=CFG.LOGGER.warning,
+                )
             _release_process(bp)
         self._procs.clear()
 

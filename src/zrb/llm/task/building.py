@@ -62,7 +62,9 @@ class LLMTaskBuilding:
         _hook_manager: HookManager
         _llm_config: LLMConfig
         _tools: list[Tool | ToolFuncEither]
-        _tool_factories: list[Callable[[AnyContext], Tool | ToolFuncEither]]
+        _tool_factories: list[
+            Callable[[AnyContext], Tool | ToolFuncEither | list[Tool | ToolFuncEither]]
+        ]
         _toolsets: list[AbstractToolset[None]]
         _toolset_factories: list[Callable[[AnyContext], AbstractToolset[None]]]
         _history_processors: list[HistoryProcessor]
@@ -221,7 +223,8 @@ class LLMTaskBuilding:
         self._tools += list(tool)
 
     def append_tool_factory(
-        self, *factory: Callable[[AnyContext], Tool | ToolFuncEither]
+        self,
+        *factory: "Callable[[AnyContext], Tool | ToolFuncEither | list[Tool | ToolFuncEither]]",
     ):
         """Add factories building tools per run, from the task context.
 

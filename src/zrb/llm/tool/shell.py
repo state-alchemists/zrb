@@ -31,36 +31,27 @@ async def run_shell_command(
 
     Use this to RUN things — builds, tests, linters, git, package managers,
     scripts. Not to touch files: Read/Write/Edit for contents, Grep/Glob/LS to
-    search and list, RM/MV to remove and move. `cat`, `head`, `sed -i`, `find`,
-    `test -f`, `rm`, `mv`, and `>` into a file are the wrong tool here even when
-    they would work — the file tools carry post-write diagnostics, path
-    validation, and per-path approval that a shell command bypasses.
+    search and list, RM/MV to remove and move. ``cat``, ``find``, ``sed -i`` and
+    shell redirects are the wrong tool — the file tools carry diagnostics
+    and path validation a shell command bypasses.
 
     Shell is zrb's only shell tool — call Shell, not Bash. A sub-agent or skill
-    that asks for ``Bash`` (the Claude Code name) is mapped to Shell when it
-    loads; pass ``shell="bash"`` if you need bash specifically.
+    that asks for ``Bash`` is mapped to Shell; pass ``shell="bash"`` for bash.
 
-    stdin is closed — prompts hang until timeout; pass `-y`, `--yes`, or `CI=true`.
-    Batch with `&&`; use `cwd` instead of `cd`. Timed-out processes may continue in background.
-    When output exceeds the size cap it is truncated from the TOP (keeping the
-    tail, where errors land); the full stdout/stderr is saved to a temp file
-    whose path is reported — Grep/Read it for the elided content.
+    stdin is closed — pass ``-y``, ``--yes``, or ``CI=true`` for prompts.
+    Output is truncated from the TOP (keeping the tail); full output is saved
+    to a temp file whose path is reported — Grep/Read it.
 
-    Prefer the bounded form of a command whose output has no natural ceiling —
-    it is charged against your timeout either way. Ask for the summary first
-    and drill in after: `git diff --stat` before `git diff`, `--name-only`
-    before full contents, a path or pathspec before a whole tree, `head`/
-    `wc -l` before a raw dump. An unscoped command in a large or dirty repo can
-    emit hundreds of megabytes and be killed by its own timeout having told you
-    nothing.
+    Prefer the bounded form: ``git diff --stat`` before ``git diff``,
+    ``--name-only`` before full contents, ``head``/``wc -l`` before a raw dump.
+    An unscoped command can emit hundreds of megabytes and be killed by its own
+    timeout.
 
-    timeout: SECONDS, not milliseconds (default 120). A process meant to keep
-    running (server, watcher, `tail -f`) belongs in background=True, not a large
-    timeout — a foreground wait blocks the turn until it elapses.
-    shell: "bash"/"zsh"/"sh" (POSIX), "pwsh"/"cmd" (Windows), or "node"/"ruby"/"php"
-    (runtime — command treated as source code); empty = user's default shell.
-    background=True returns a handle for MonitorProcess (timeout not applied).
-    dangerously_skip_sandbox=True exits the OS sandbox — requires explicit user approval.
+    timeout: SECONDS, not milliseconds (default 120). Use background=True for
+    long-running processes (server, watcher, ``tail -f``).
+    shell: ``"bash"``/``"zsh"``/``"sh"`` (POSIX), ``"pwsh"``/``"cmd"`` (Windows),
+    ``"node"``/``"ruby"``/``"php"`` (runtime); empty = user's default.
+    dangerously_skip_sandbox=True exits the OS sandbox — requires user approval.
     max_chars=-1 uses the configured output limit.
     """
     if background:
@@ -156,6 +147,24 @@ async def run_shell_command(
             result = f"{sandbox_note}\n{result}"
         return result
 
+    except asyncio.CancelledError:
+        # Cancellation must not orphan the subprocess: ``asyncio.run`` closes
+        # the loop right after the chat ends, and a child still alive then logs
+        # "Loop <...> that handles pid N is closed" when it finally exits (its
+        # exit event can no longer be delivered). Kill + reap while the loop is
+        # still alive, then re-raise so cancellation propagates. BaseException,
+        # not Exception: a re-cancel landing on the reap must not skip the kill.
+        _cleanup_temp_file(temp_pid_file)
+        if process is not None and process.returncode is None:
+            try:
+                await terminate_process(
+                    process,
+                    CFG.LLM_SHELL_KILL_WAIT_TIMEOUT / 1000,
+                    print_method=CFG.LOGGER.warning,
+                )
+            except BaseException:
+                CFG.LOGGER.debug("Shell cleanup on cancel failed", exc_info=True)
+        raise
     except Exception as e:
         _cleanup_temp_file(temp_pid_file)
         # A failure after the process started (e.g. a stream error) must not

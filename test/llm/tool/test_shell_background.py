@@ -7,6 +7,7 @@ Background processes are launched through the ``Shell`` tool with
 import asyncio
 
 import pytest
+import pytest_asyncio
 
 from zrb.llm.permission import Capability, tool_capability
 from zrb.llm.tool.shell import run_shell_command
@@ -16,10 +17,10 @@ from zrb.llm.tool.shell_background import (
 )
 
 
-@pytest.fixture(autouse=True)
-def clean_registry():
+@pytest_asyncio.fixture(autouse=True)
+async def clean_registry():
     yield
-    get_shell_background_registry().cancel_all()
+    await get_shell_background_registry().cancel_all()
 
 
 async def _start_bg(command: str, description: str = "", cwd: str = "") -> str:
@@ -91,7 +92,7 @@ async def test_monitor_process_kill(tmp_path):
 @pytest.mark.asyncio
 async def test_cancel_all_clears(tmp_path):
     handle = await _start_bg("sleep 30", "", str(tmp_path))
-    get_shell_background_registry().cancel_all()
+    await get_shell_background_registry().cancel_all()
     monitor = create_monitor_process_tool()
     result = await monitor(handle)
     assert "Unknown handle" in result
@@ -118,7 +119,7 @@ async def test_cancel_all_cancels_reader_tasks(tmp_path):
     await asyncio.sleep(0.1)
     assert _reader_task_count() > 0
 
-    get_shell_background_registry().cancel_all()
+    await get_shell_background_registry().cancel_all()
     # Allow the event loop to process the cancellations.
     await asyncio.sleep(0.1)
     assert _reader_task_count() == 0

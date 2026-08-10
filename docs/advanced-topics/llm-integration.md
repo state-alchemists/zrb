@@ -263,16 +263,15 @@ Write three things into the docstring: when to reach for this tool, the one cons
 
 ### Cross-cutting policy
 
-For a rule that is not about any one tool, register a prompt section rather than repeating it in N docstrings:
+For a rule that is not about any one tool, append it to the system prompt rather than repeating it in N docstrings:
 
 ```python
-my_chat_task.prompt_manager.register_section(
-    "tool_policy",
-    lambda ctx: "## Inventory rules\n- Never quote stock without a warehouse.",
+my_chat_task.prompt_manager.append_prompt(
+    "## Inventory rules\n- Never quote stock without a warehouse."
 )
 ```
 
-Then add `tool_policy` to `ZRB_LLM_INCLUDE_SECTIONS` at the position you want. The provider is called with the live context, so the section can reflect runtime state.
+`append_prompt` content is emitted after all built-in sections. If the policy depends on live runtime state instead, register a live-context provider (`add_live_context`) so it is re-evaluated every turn without invalidating the cached prompt.
 
 ---
 

@@ -11,6 +11,7 @@ from zrb.input.str_input import StrInput
 from zrb.llm.common_tools import defer_common_tools
 from zrb.llm.custom_command import get_skill_custom_command
 from zrb.llm.prompt.manager import PromptManager
+from zrb.llm.prompt.profile import MINIMAL_PROFILE, active_profile
 from zrb.llm.skill.manager import skill_manager
 from zrb.llm.task.chat.task import LLMChatTask
 from zrb.llm.tool.delegate import create_delegate_to_agent_tool
@@ -109,12 +110,23 @@ def _tool_factory(tool, defer_loading: bool = True):
 # Delegate tools — main agent only. Sub-agents filter these out via
 # `zrb_is_delegate_tool` (see SubAgentManager.create_agent). The when-to-
 # delegate judgment lives in the workflow's `Delegating to sub-agents`
-# section; the how (roster, envelope) lives in these docstrings.
-llm_chat.append_tool_factory(
-    lambda ctx: _tool_factory(create_delegate_to_agent_tool(), defer_loading=False),
-    lambda ctx: _tool_factory(create_background_delegate_tool()),
-    lambda ctx: _tool_factory(create_get_delegation_result_tool()),
-)
+# section; the how (roster, envelope) lives in these docstrings. The `minimal`
+# profile drops delegation entirely (ADR-0049), so the roster schema and the
+# fan-out machinery never reach a ~3B model.
+def _delegate_tool_factory(ctx):
+    # Resolve from this run's model rather than CFG.LLM_MODEL: ``/model`` and
+    # the task's ``model=`` override can select a small model while the global
+    # default remains capable.
+    if active_profile(llm_chat.get_model(ctx)) == MINIMAL_PROFILE:
+        return []
+    return [
+        _tool_factory(create_delegate_to_agent_tool(), defer_loading=False),
+        _tool_factory(create_background_delegate_tool()),
+        _tool_factory(create_get_delegation_result_tool()),
+    ]
+
+
+llm_chat.append_tool_factory(_delegate_tool_factory)
 
 # Add argument formatter (show arguments when asking for user confirmation)
 llm_chat.prepend_argument_formatter(replace_in_file_formatter, write_file_formatter)

@@ -124,7 +124,12 @@ class SubAgentManager(SubAgentManagerLoading, SubAgentManagerSearch):
             ignore_dirs: Directory names skipped while scanning.
         """
         self._tool_registry = tool_registry if tool_registry is not None else {}
-        self._tool_factories: list[Callable[[AnyContext], Tool | ToolFuncEither]] = []
+        self._tool_factories: list[
+            Callable[
+                [AnyContext],
+                Tool | ToolFuncEither | list[Tool | ToolFuncEither],
+            ]
+        ] = []
         self._toolsets: list[AbstractToolset[None]] = []
         self._toolset_factories: list[Callable[[AnyContext], AbstractToolset[None]]] = (
             []
@@ -149,7 +154,8 @@ class SubAgentManager(SubAgentManagerLoading, SubAgentManagerSearch):
             self._tool_registry[tool_name] = single_tool
 
     def append_tool_factory(
-        self, *factory: Callable[[AnyContext], Tool | ToolFuncEither]
+        self,
+        *factory: "Callable[[AnyContext], Tool | ToolFuncEither | list[Tool | ToolFuncEither]]",
     ):
         """Append tool factories."""
         for single_factory in factory:
@@ -280,7 +286,7 @@ class SubAgentManager(SubAgentManagerLoading, SubAgentManagerSearch):
         # the main-agent PromptManager composition. Sub-agents that need the
         # parent's identity / operating rules / project context declare
         # ``inherit_sections`` in their frontmatter; an agent that omits it
-        # (``inherit_sections = None``) stays lean.
+        # (``inherit_sections = None``) keeps only its own prompt.
         inherited_prompt = self._build_inherited_prompt(
             ctx, definition.inherit_sections, final_model
         )
@@ -313,7 +319,7 @@ class SubAgentManager(SubAgentManagerLoading, SubAgentManagerSearch):
     ) -> str:
         """Compose the named PromptManager sections for sub-agent inheritance.
 
-        ``None`` → return ``""`` (lean sub-agent). ``[]`` → return
+        ``None`` → return ``""`` (no-inheritance sub-agent). ``[]`` → return
         ``""`` (explicit opt-out). A non-empty list builds a temporary
         PromptManager scoped to just those sections.
 

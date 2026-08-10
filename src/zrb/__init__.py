@@ -78,19 +78,12 @@ from zrb.llm.hook import HookContext, HookEvent, HookResult
 from zrb.llm.hook.manager import HookManager, hook_manager
 from zrb.llm.permission import ALLOW, ASK, DENY, PermissionPolicy, Rule
 from zrb.llm.prompt.manager import PromptManager
-from zrb.llm.prompt.profile import Preset, register_model_profile, register_preset
 from zrb.llm.skill import Skill
 from zrb.llm.skill.manager import SkillManager, skill_manager
 from zrb.llm.task.chat.task import LLMChatTask
 from zrb.llm.task.chat.ui_commands import UICommands
 from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.tool_call.always_approve import register_always_auto_approve
-
-# Two model registries, exported together because they are asked about the same
-# model and answer different questions — see ADR-0051. `model_capabilities`
-# matches the *bare* name (a property of the weights); `register_model_profile`
-# matches the *full* id, prefix and tier suffix included (a property of the
-# deployment). They are deliberately not merged.
 from zrb.llm.util.capabilities import model_capabilities
 
 # --- Runner (CLI + web schemas) ------------------------------------------
@@ -206,9 +199,6 @@ __all__ = [
     "skill_manager",
     "Skill",
     "PromptManager",
-    "Preset",
-    "register_preset",
-    "register_model_profile",
     "model_capabilities",
     "register_theme",
     "register_always_auto_approve",

@@ -38,7 +38,7 @@ _TEST_ENV = {
     "ZRB_LLM_SMALL_MODEL": "openai-chat:gpt-4o-mini",
     # Pin the prompt profile to its production default so prompt-composition
     # tests are deterministic regardless of the developer's shell. A developer
-    # with ZRB_LLM_PROFILE=lean exported would otherwise see that preset's
+    # with ZRB_LLM_PROFILE=minimal exported would otherwise see that preset's
     # phrasing variants leak into tests that assert on the default (full)
     # composition. Tests exercising another preset override this with
     # patch.dict / monkeypatch (which layer on top of this default).

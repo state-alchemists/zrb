@@ -1,7 +1,7 @@
 import asyncio
 import os
 import shutil
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -28,6 +28,26 @@ def temp_dir(tmp_path):
     d = tmp_path / "test_file_tool"
     d.mkdir()
     return str(d)
+
+
+@pytest.fixture(autouse=True)
+def _no_real_lsp_server():
+    """Keep write/replace tests from spawning a real LSP server subprocess.
+
+    ``write_file``/``replace_in_file`` run post-write diagnostics on ``.py``
+    files, which asks ``lsp_manager`` for a server. ``lsp_manager`` is a
+    process-wide singleton, but each test here drives its coroutine through a
+    throwaway ``asyncio.run()``, so a server spawned on one test's loop is
+    reused after that loop is closed and never torn down — the child watcher
+    then logs "Loop <...> that handles pid N is closed" once the process
+    finally exits at interpreter shutdown. LSP integration itself is covered
+    by test_post_write_check.py and test_lsp_tools.py; here it is stubbed out.
+    """
+    with patch(
+        "zrb.llm.tool.post_write_check.lsp_manager.get_diagnostics",
+        new=AsyncMock(return_value={"found": False, "diagnostics": []}),
+    ):
+        yield
 
 
 def test_write_and_read_file(temp_dir):

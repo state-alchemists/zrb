@@ -6,11 +6,11 @@ This example demonstrates `prompt_manager.add_live_context(name, provider)` — 
 
 Zrb composes two distinct prompt regions, and choosing the right one is the whole point of this example:
 
-| | `register_section` | `add_live_context` |
+| | `append_prompt` | `add_live_context` |
 |---|---|---|
 | **Goes into** | the cached **system prompt** | the `<live-context>` block on each **user message** |
 | **Runs** | at prompt-compose time | **every turn** |
-| **Use for** | stable-ish context (persona, project facts, current sprint) | **volatile** state that changes turn to turn |
+| **Use for** | stable context (persona, project facts, current sprint) | **volatile** state that changes turn to turn |
 | **Caching** | changing it invalidates the cacheable prefix | changes freely **without** breaking prompt caching |
 
 The built-in live-context block already carries time, git status, todos, worktree, and mode. `add_live_context` lets you append your own lines to it.
@@ -81,11 +81,11 @@ llm_chat.prompt_manager.add_live_context(
 
 **Use the context** — the `ctx` argument is the active `AnyContext`; read `ctx.env.*` or inputs to tailor the line.
 
-**Prefer the system prompt instead?** For content that's stable within a session, use `prompt_manager.register_section(...)` so it joins the cached prefix — see [Programming the Agent](../../docs/advanced-topics/programming-the-agent.md#dynamic-event-driven-prompts).
+**Prefer the system prompt instead?** For content that's stable within a session, use `prompt_manager.append_prompt(...)` so it joins the cached prefix — see [Programming the Agent](../../docs/advanced-topics/programming-the-agent.md#dynamic-event-driven-prompts).
 
 ## See Also
 
 - [`docs/advanced-topics/programming-the-agent.md`](../../docs/advanced-topics/programming-the-agent.md#per-turn-live-context-providers) — Per-turn live context providers
 - `src/zrb/llm/prompt/live_context.py` — the built-in live-context rendering
-- `src/zrb/llm/prompt/manager.py` — `add_live_context` / `register_section` / `create_live_context`
+- `src/zrb/llm/prompt/manager.py` — `add_live_context` / `append_prompt` / `create_live_context`
 - `examples/model-tiering/` — another `llm_config` / prompt-manager customization

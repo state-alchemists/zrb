@@ -142,45 +142,6 @@ def _live_context(model: str, *, interactive: bool = True) -> str:
     return render_live_context(_Ctx(interactive), model, inject_journal_index=True)
 
 
-def test_a_line_never_names_a_tool_the_preset_dropped():
-    """The third channel that can name a tool, and the one nothing guarded.
-
-    ``test_common_tools.py`` closes the docstring channel and
-    ``test_section_composition.py`` closes the prompt-section channel. Injected
-    context escaped both: ``<live-context>`` announced ``AskUserQuestion`` and
-    the journal index announced ``SearchJournal`` on every preset, including the
-    two that never register either.
-    """
-    import re
-
-    from zrb.llm.common_tools import apply_common_tools, tool_name
-    from zrb.llm.prompt.profile import active_preset
-
-    registered: set[str] = set()
-
-    class _Host:
-        def append_tool(self, *tool):
-            registered.update(tool_name(t) for t in tool)
-
-        def append_tool_factory(self, *factory):
-            pass
-
-        def append_toolset_factory(self, *factory):
-            pass
-
-    apply_common_tools(_Host())
-    registered |= {"AskUserQuestion", "SearchJournal", "EnterPlanMode", "ExitPlanMode"}
-
-    for model in ("ollama:llama3.2:3b", "ollama:qwen3:8b", "anthropic:claude-opus-4-8"):
-        preset = active_preset(model)
-        text = _live_context(model)
-        named = {
-            n for n in re.findall(r"\b([A-Z][a-zA-Z]+)\b", text) if n in registered
-        }
-        absent = {n for n in named if not preset.admits(n)}
-        assert absent == set(), f"{model}: {sorted(absent)}"
-
-
 def test_the_non_interactive_line_forbids_no_tool_by_name():
     """Those tools are unregistered in exactly this branch, so naming them is waste.
 

@@ -13,7 +13,7 @@ This module is pure data plus helpers — it must **not** import config, to keep
 expects (prompt_toolkit style strings, Rich color names, or hex).
 
 Themes are user/plugin-extensible via :func:`register_theme`, mirroring
-``register_model_profile`` (``llm/prompt/profile.py``). Registered themes are
+prompt profiles (``llm/prompt/profile.py``). Registered themes are
 merged onto the ``dark`` palette, so a partial theme only lists what it changes.
 See :func:`register_theme` for the ``zrb_init.py`` recipe, and
 ``examples/themes/`` for a full worked example (monokai).
