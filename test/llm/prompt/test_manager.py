@@ -41,10 +41,10 @@ def test_prompt_manager_workflow_section_is_the_whole_rulebook():
     composed = manager.compose_prompt()(SharedContext())
 
     assert "## Priority Order" in composed
-    assert "## Working Loop" in composed
+    assert "## Safety" in composed
+    assert "## Execute" in composed
     assert "## Verify Before Done" in composed
     assert "## Skill Activation" in composed
-    assert "## Tool usage" in composed
 
 
 def test_prompt_manager_retired_section_composes_to_nothing():
@@ -65,7 +65,7 @@ def test_prompt_manager_registered_provider_wins_over_file():
     composed = manager.compose_prompt()(SharedContext())
 
     assert "# Mine" in composed
-    assert "## Working Loop" not in composed
+    assert "## Execute" not in composed
 
 
 def test_prompt_manager_mandate_alone_when_workflow_listed_elsewhere():
@@ -76,8 +76,8 @@ def test_prompt_manager_mandate_alone_when_workflow_listed_elsewhere():
 
     composed = manager.compose_prompt()(SharedContext())
 
-    # Both present, but Working Loop must appear exactly once (no duplication).
-    assert composed.count("## Working Loop") == 1
+    # Both present, but the sequence must appear exactly once (no duplication).
+    assert composed.count("## Turn Sequence") == 1
     assert composed.count("## Priority Order") == 1
 
 
@@ -91,7 +91,6 @@ def test_prompt_manager_empty_sections():
     ctx = SharedContext()
     composed = manager.compose_prompt()(ctx)
     assert "Custom Only" in composed
-    # Core sections should NOT appear
     assert "# Identity" not in composed
     assert "# Operating Rules" not in composed
 
@@ -176,7 +175,8 @@ def test_prompt_manager_threads_model_into_system_context():
         rendered = composed(ctx)
 
     assert "- Model: ollama:minimax-m2.7:cloud" in rendered
-    # The capability warning is in Tool Usage Guide, not system context.
+    # Identity only: system context reports the model, never editorialises about
+    # what it can do.
     assert "CRITICAL" not in rendered
 
 
@@ -461,9 +461,7 @@ def test_add_live_context_swallows_provider_exceptions():
         mock_tm.get_todos.return_value = None
         rendered = manager.create_live_context(ctx)
 
-    # Built-in content still renders
     assert "Time:" in rendered
-    # Broken provider is silently skipped
     assert "boom" not in rendered
 
 
@@ -503,7 +501,6 @@ def test_section_order_follows_include_sections():
     persona_pos = composed.index("# Identity")
     assert workflow_pos < persona_pos
 
-    # Reverse order
     manager2 = PromptManager(
         include_sections=["persona", "workflow"],
     )

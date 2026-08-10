@@ -20,13 +20,29 @@ from __future__ import annotations
 import os
 from unittest.mock import MagicMock
 
+from surface import as_tool, eager_tools
+
 # Measure the shipped default rather than a stripped one: the journal tools are
 # part of `full`'s eager surface and leaving them off understates it.
 os.environ["ZRB_LLM_JOURNAL_ENABLED"] = "true"
 
+
+def _file_backed_sections(preset: str) -> tuple[str, ...]:
+    """The sections *preset* ships as files, read from `PRESETS` rather than restated.
+
+    A hardcoded copy stops counting a section the moment a preset gains one,
+    while the composed column beside it keeps counting it.
+    """
+    # lazy: transitively heavy via internal — zrb.config pulls the CFG tree in
+    from zrb.llm.prompt.profile import PRESETS
+
+    file_sections = ("persona", "workflow", "examples")
+    sections = PRESETS[preset].sections or file_sections
+    return tuple(s for s in sections if s in file_sections)
+
+
 PRESET_SECTIONS = {
-    "full": ("persona", "workflow", "examples"),
-    "minimal": ("persona", "workflow"),
+    preset: _file_backed_sections(preset) for preset in ("full", "minimal")
 }
 VARIANTS = {"full": None, "minimal": "minimal"}
 
@@ -42,51 +58,19 @@ def counter():
         return lambda s: len(s) // 4, "chars/4 (install tiktoken for exact)"
 
 
-class Capture:
-    """A CommonToolHost that records instead of registering."""
-
-    def __init__(self) -> None:
-        self.tools: list = []
-        self.factories: list = []
-        self.toolsets: list = []
-
-    def append_tool(self, *tool) -> None:
-        self.tools.extend(tool)
-
-    def append_tool_factory(self, *factory) -> None:
-        self.factories.extend(factory)
-
-    def append_toolset_factory(self, *factory) -> None:
-        self.toolsets.extend(factory)
-
-
-def eager_tools(preset: str) -> list:
-    """Every tool a request would carry a schema for, factories resolved."""
-    os.environ["ZRB_LLM_PROFILE"] = preset
-    from zrb.llm.common_tools import apply_common_tools
-
-    host = Capture()
-    apply_common_tools(host)
-    resolved = list(host.tools)
-    for factory in host.factories:
-        try:
-            produced = factory(MagicMock())
-        except Exception:
-            continue
-        resolved.extend(produced if isinstance(produced, (list, tuple)) else [produced])
-    return [t for t in resolved if t is not None]
-
-
 def schema_text(tool) -> tuple[str, str]:
-    """(name, the text that ships with the request) for one tool."""
-    from pydantic_ai import Tool
+    """(name, the text that ships with the request) for one tool.
 
-    if not isinstance(tool, Tool):
-        tool = Tool(tool)
-    if getattr(tool, "defer_loading", False):
-        return tool.name, ""  # only the name reaches the model until searched
-    schema = getattr(tool, "_parameters_json_schema", None)
-    return tool.name, f"{tool.name}\n{tool.description or ''}\n{schema or ''}"
+    Read off ``tool_def``, which is what pydantic-ai actually serializes, rather
+    than off the private schema attribute an earlier version reached for — a
+    private name that silently returns ``None`` costs the whole per-tool figure
+    and reads as "this tool is free".
+    """
+    resolved = as_tool(tool)
+    if getattr(resolved, "defer_loading", False):
+        return resolved.name, ""  # only the name reaches the model until searched
+    td = resolved.tool_def
+    return td.name, f"{td.name}\n{td.description or ''}\n{td.parameters_json_schema}"
 
 
 def main() -> None:
@@ -130,11 +114,15 @@ def main() -> None:
         pct = 100 * cost / max(sum(count(s) for _, s in rows[0][3]), 1)
         print(f"\nminimal drops {sorted(dropped)}: {cost:,} tok ({pct:.0f}% of full)")
 
-    print("\nper-tool schema weight (full preset), heaviest first")
-    print(f"  {'tool':22s}{'tokens':>8s}{'desc ch':>9s}{'schema ch':>11s}")
+    print("\nper-tool weight (full preset), heaviest first")
+    print(f"  {'tool':22s}{'tokens':>8s}{'docstring ch':>14s}{'schema ch':>11s}")
     for name, text in sorted(rows[0][3], key=lambda p: -count(p[1])):
-        desc, _, schema = text.partition("\n")[2].partition("\n")
-        print(f"  {name:22s}{count(text):8,d}{len(desc):9,d}{len(schema):11,d}")
+        # pydantic-ai puts the *whole* docstring in `description` and only the
+        # argument types in `parameters_json_schema`. Splitting on the first
+        # newline would label one line "desc" and the rest of it "schema".
+        body = text.partition("\n")[2]
+        docstring, _, schema = body.rpartition("\n")
+        print(f"  {name:22s}{count(text):8,d}{len(docstring):14,d}{len(schema):11,d}")
 
     print("\neager tool names")
     for preset, _, _, eager, deferred in rows:

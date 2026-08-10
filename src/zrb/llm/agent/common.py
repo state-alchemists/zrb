@@ -50,7 +50,6 @@ def _wrap_tool(tool: "Tool | ToolFuncEither") -> "Tool | ToolFuncEither":
         # lazy: heavy third-party
         from pydantic_ai import Tool as PydanticTool
 
-        # It is a Tool instance
         original_func = getattr(tool, "function")
         safe_func = create_safe_wrapper(original_func, name=getattr(tool, "name"))
         if isinstance(tool, PydanticTool):
@@ -70,7 +69,6 @@ def _wrap_tool(tool: "Tool | ToolFuncEither") -> "Tool | ToolFuncEither":
             )
         return tool
     else:
-        # It is a callable (hasattr(tool, "function") is False, so not a Tool).
         return create_safe_wrapper(cast("Callable", tool))
 
 
@@ -160,7 +158,6 @@ def create_safe_wrapper(func: Callable, name: str | None = None) -> Callable:
             if isinstance(result, ToolReturn):
                 return result
 
-            # Create a safe copy to prevent mutation by pydantic-ai
             safe_result = safe_copy_result(result)
 
             # Otherwise wrap the successful result untouched — see
@@ -225,7 +222,6 @@ def _wrap_toolset(toolset: "AbstractToolset[None]") -> "AbstractToolset[None]":
                 # PostToolUse hook may still block it or replace its content.
                 if isinstance(result, ToolReturn):
                     return await _fire_post_tool_use(name, tool_args, result)
-                # Create a safe copy to prevent mutation by pydantic-ai
                 safe_result = safe_copy_result(result)
                 wrapped = tool_return(safe_result, **_oversize_metadata(safe_result))
                 return await _fire_post_tool_use(name, tool_args, wrapped)

@@ -93,7 +93,6 @@ async def test_execute_action_with_retry_success():
     async def mock_action(ctx):
         return "ok"
 
-    # Set __name__ attribute on the function
     mock_action.__name__ = "mock_action"
 
     task = BaseTask(name="task", retries=1, retry_period=0, action=mock_action)
@@ -104,9 +103,7 @@ async def test_execute_action_with_retry_success():
 
     ctx = MagicMock(spec=AnyContext)
     with patch.object(task, "get_ctx", return_value=ctx):
-        # Fix: Use a MagicMock that behaves like a dict but also has methods if needed
         xcom_mock = MagicMock(spec=Xcom)
-        # Configure ctx.xcom.get to return our mock xcom
         ctx.xcom = MagicMock()
         ctx.xcom.get.return_value = xcom_mock
 
@@ -123,7 +120,6 @@ async def test_execute_action_with_retry_failure():
     async def mock_action(ctx):
         raise Exception("boom")
 
-    # Set __name__ attribute on the function
     mock_action.__name__ = "mock_action"
 
     task = BaseTask(name="task", retries=0, retry_period=0, action=mock_action)
@@ -187,7 +183,6 @@ async def test_run_default_action_callable():
     async def mock_action(ctx):
         return "result"
 
-    # Set __name__ attribute on the function
     mock_action.__name__ = "mock_action"
 
     task = BaseTask(name="task", action=mock_action)

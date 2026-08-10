@@ -115,7 +115,7 @@ Then place `tool_policy` in `ZRB_LLM_INCLUDE_SECTIONS` at the position you want.
 | `mandate` | folded into `workflow` (the Priority Order now opens it) |
 | `git_mandate` | enforced by the shell tool policy; the one prompt-side rule moved to `workflow` |
 | `journal_mandate` | replaced by the `LogActivity` and `WriteJournalNote` tools |
-| `tool_guidance` | tool docstrings, plus a `Tool usage` block in `workflow` |
+| `tool_guidance` | tool docstrings, plus the batching and never-guess rules in `workflow` |
 
 A pinned `ZRB_LLM_INCLUDE_SECTIONS` or sub-agent `inherit_sections` naming any of them still parses. The name falls through to the custom-section path, so what happens depends on whether a markdown file resolves for it:
 

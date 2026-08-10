@@ -33,8 +33,6 @@ from typing import Any
 
 from zrb.config.config import CFG
 
-# The base ``*.md`` files are the unvaried phrasing, so ``full`` needs no variant
-# files — every section resolves straight to the base.
 FULL_PROFILE = "full"
 MINIMAL_PROFILE = "minimal"
 
@@ -83,9 +81,6 @@ SMALL_TIER_LABELS: tuple[str, ...] = (
 #: pattern here is a product decision, not a heuristic.
 HOSTED_SMALL_TIER_EXCEPTIONS: tuple[str, ...] = (r"gemini-.*flash-lite",)
 
-# A parameter count as vendors write it: delimited, optionally fractional, and
-# closed by a `b`. The count is captured whole and compared numerically, so
-# `deepseek-r1:1.5b` reads as 1.5B rather than as its trailing `5b`.
 #: Provider prefixes that mean "this model runs on the user's own machine".
 #:
 #: The one piece of context that changes what a small-tier label claims. A vendor
@@ -100,6 +95,9 @@ HOSTED_SMALL_TIER_EXCEPTIONS: tuple[str, ...] = (r"gemini-.*flash-lite",)
 LOCAL_PROVIDERS: tuple[str, ...] = ("ollama:", "lmstudio:", "llamacpp:", "localai:")
 _HOSTED_TIER = ":cloud"
 
+# A parameter count as vendors write it: delimited, optionally fractional, closed
+# by a `b`. Captured whole and compared numerically, so `deepseek-r1:1.5b` reads
+# as 1.5B rather than as its trailing `5b`.
 _DECLARED_SIZE = re.compile(r"(?<![a-z0-9.])(\d+(?:\.\d+)?)\s*b(?![a-z0-9])", re.I)
 _SMALL_TIER = re.compile(rf"(?<![a-z])({'|'.join(SMALL_TIER_LABELS)})(?![a-z])", re.I)
 
@@ -165,9 +163,8 @@ class Preset:
     drops: frozenset[str] | None = None
 
     def __post_init__(self) -> None:
-        # "Set at most one" was documented above and enforced nowhere, and
-        # `admits` resolves the conflict by silently ignoring `drops` — so a
-        # preset asking for "these ten tools, minus the journal" got the ten and
+        # `admits` would resolve the conflict by silently ignoring `drops`, so a
+        # preset asking for "these ten tools, minus the journal" gets the ten and
         # no warning. Rejected at construction rather than at registration,
         # because `PRESETS[name] = Preset(...)` bypasses `register_preset`.
         if self.tools is not None and self.drops is not None:
@@ -194,7 +191,7 @@ class Preset:
 #: ``Grep`` route callers to ``Glob``/``RM``/``MV`` for work they decline, and
 #: ``Shell``'s ``background=True`` hands back a handle only ``MonitorProcess``
 #: can poll — advertising the parameter without the tool is a trap, not a
-#: saving. ``test_common_tools.py`` pins the closure rather than trusting this.
+#: saving. ``test_common_tools.py`` pins the closure.
 MINIMAL_TOOLS = frozenset(
     {
         "Shell",
@@ -210,17 +207,18 @@ MINIMAL_TOOLS = frozenset(
     }
 )
 
-#: ``minimal``'s section list. The two omissions are the point: ``examples``
-#: because ``workflow.minimal.md`` carries its own demonstrations inline, and
-#: ``project_context`` because its instruction is to ``Read`` project docs in
-#: full, which alone can exceed a ~3B model's effective window. ``workflow``
-#: stays in the list and resolves to ``workflow.minimal.md`` through the variant
-#: axis.
-MINIMAL_SECTIONS = ("persona", "workflow", "system_context")
+#: ``minimal``'s section list. One omission, and it is the point:
+#: ``project_context``, because its instruction is to ``Read`` project docs in
+#: full, which alone can exceed a ~3B model's effective window.
+#:
+#: ``workflow`` and ``examples`` both resolve to their ``.minimal`` files through
+#: the variant axis, so the two presets share one section list and differ only in
+#: phrasing. Demonstrations live in ``examples.minimal.md`` rather than inline in
+#: ``workflow.minimal.md``, which is what keeps them separable from the rules.
+MINIMAL_SECTIONS = ("persona", "workflow", "examples", "system_context")
 
-#: Profile → preset. Burden falls with the capability each preset targets —
-#: ``test_section_composition.py`` pins that ordering rather than trusting this
-#: comment.
+#: Profile → preset. Burden falls with the capability each preset targets;
+#: ``test_section_composition.py`` pins that ordering.
 #:
 #: Registering another is a dict assignment: ``PRESETS["nano"] = Preset(...)``.
 #: :func:`valid_profiles` derives from these keys, so a new entry is immediately

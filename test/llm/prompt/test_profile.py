@@ -117,7 +117,6 @@ def test_unknown_profile_value_falls_through_to_auto():
 def test_declared_mapping_drives_auto_resolution():
     register_model_profile("my-tiny-7b", "minimal")
     assert resolve_profile("auto", "ollama:my-tiny-7b") == MINIMAL_PROFILE
-    # A non-matching model is unaffected.
     assert resolve_profile("auto", "anthropic:claude-opus-4") == FULL_PROFILE
 
 
@@ -161,7 +160,6 @@ def test_isolated_registry_instance_does_not_touch_singleton():
     isolated = ModelProfileRegistry()
     isolated.set("foo", "minimal")
     assert isolated.resolve("foo-model") == MINIMAL_PROFILE
-    # Singleton remains empty.
     assert model_profile_registry.resolve("foo-model") is None
 
 

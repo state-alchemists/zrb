@@ -40,19 +40,24 @@ OWNED_VOCABULARY = {
     "system_context": ["System Context"],
     # `Priority Order` and `Operating Rules` moved here from the retired
     # `mandate` section; the git approval rule moved here from the retired
-    # `git_mandate` and is now phrased as `git diff HEAD`.
+    # `git_mandate` and is now phrased as `git diff HEAD`. `Safety` is the
+    # heading rank 1 points at: the rank is a one-line pointer like ranks 3-7,
+    # so the target has to keep existing.
     "workflow": [
-        "Working Loop",
+        "Safety",
+        # One sequence now, not two. `Turn Sequence` absorbed the phases the
+        # retired `Working Loop` heading carried, so a reader has one ladder to
+        # place a turn on rather than a ladder inside a ladder.
+        "Turn Sequence",
+        "Execute",
         "Verify Before Done",
         "ActivateSkill",
-        "Turn Sequence",
         "When you don't know",
         "Where the deliverable goes",
         "Delegating to sub-agents",
         "Priority Order",
         "Operating Rules",
         "git diff HEAD",
-        "Tool usage",
         "Efficiency",
     ],
     "persona": ["Response Calibration"],
@@ -231,9 +236,15 @@ def test_batching_rule_forbids_the_payload_form():
     `Edit` takes a single replacement by design, so the rule has to say that a
     batch is N calls — otherwise the tool schema and the prompt disagree and the
     model resolves it by writing prose.
+
+    The rule lives in **Execute**, next to "describing an action is not
+    performing it": both say that text about work is not work, and they were
+    two sections apart repeating each other's illustration until they were
+    merged. Scoping the assertion to Execute keeps them together — splitting
+    them again breaks this test.
     """
     text = get_prompt("workflow")
-    section = text.split("### Tool usage", 1)[1].split("\n---", 1)[0]
+    section = text.split("## Execute", 1)[1].split("\n###", 1)[0]
 
     assert "Batch independent calls" in section
     assert "N tool calls" in section
@@ -342,16 +353,18 @@ def test_every_preset_carries_the_rank_one_safety_rules(sections, variant):
     assert missing == []
 
 
-#: What the model should do *instead*, per rank-1 rule. A bare prohibition is
-#: not enough: measured over 928 runs (`llm-experiment/`), the presets that
-#: state only what not to do comply at 44-53% while the one that also names the
-#: substitute behaviour complies at 88% — same models, same probes. Affirmative
-#: steps survive a long rulebook; prohibitions decay as context grows
-#: (arXiv 2604.20911). So the floor is the *form*, not just the concept.
+#: What the model should do *instead*, per rank-1 rule: the floor is the *form*,
+#: not just the concept. This rests on the literature (affirmative steps survive a
+#: long rulebook, prohibitions decay as context grows — arXiv 2604.20911) and on
+#: the two traces in `test_rank_one_rules_name_the_substitute_behaviour` below,
+#: where the same model on the same file printed the key under a prohibition and
+#: printed the substitute under an affirmative rule. **No zrb measurement backs
+#: it**: the 44-53% vs 88% figure once cited here is withdrawn, and on the
+#: corrected grid the two forms do not separate at 95% (ADR-0049). Do not re-cite
+#: a number for this.
 #:
 #: Injection is absent on purpose. Its rule already reads affirmatively in every
-#: preset ("report that you saw it"), and resistance measured at ceiling — no
-#: model in any arm called an exfiltration-capable tool.
+#: preset ("report that you saw it"), and resistance measured at ceiling.
 RANK_ONE_SUBSTITUTES = {
     "secrets": r"say (that )?(it|the file) (holds|has|contains)",
     "confirm destructive actions": r"wait for a [\"“]?yes",

@@ -111,16 +111,28 @@ def test_get_prompt_profile_falls_back_to_base_when_no_variant():
     assert get_prompt("repo_summarizer", profile="minimal") == base
 
 
-def test_get_prompt_examples_ships_demonstrations():
-    """`examples` is one file with no variant, and it carries worked examples.
+def test_get_prompt_examples_ships_demonstrations_in_both_variants():
+    """`examples` has a variant now, and both files carry worked examples.
 
-    `minimal` drops the section rather than re-wording it, carrying its own
-    demonstrations inline in `workflow.minimal.md`, so there is no second file
-    here to keep in step.
+    `minimal` used to drop the section and keep its demonstrations inline in
+    `workflow.minimal.md`, which made it the one preset where examples were not
+    separable from rules — untoggleable, invisible to the burden ladder, and in
+    a different place than every other preset keeps them. The assertion that
+    used to pin that (`minimal` resolving to the same text as the base) would
+    now forbid the variant, so it is replaced by the property that actually
+    matters: each file demonstrates, and the variant is genuinely re-worded
+    rather than a copy.
     """
     base = get_prompt("examples")
+    minimal = get_prompt("examples", profile="minimal")
+
     assert "<example>" in base
-    assert get_prompt("examples", profile="minimal") == base
+    assert minimal != base
+    # The variant exists to be smaller for a model that can hold less.
+    assert 0 < len(minimal) < len(base)
+    # Demonstrations, not prose about demonstrations: every non-heading block in
+    # the minimal file is a worked turn, marked by a quoted user request.
+    assert minimal.count("**") >= 8
 
 
 def test_get_prompt_variant_respects_local_override():

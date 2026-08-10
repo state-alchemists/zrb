@@ -31,7 +31,6 @@ def test_sub_agent_manager_add_tool():
 
 def test_sub_agent_manager_scan():
     manager = SubAgentManager()
-    # Scan with empty list should not crash
     manager.scan([])
     assert isinstance(manager.get_search_directories(), list)
 
@@ -50,12 +49,10 @@ def test_sub_agent_manager_create_agent_config():
 def test_sub_agent_manager_filter_delegate_tools():
     manager = SubAgentManager()
 
-    # 1. Create a regular tool
     def regular_tool():
         """Regular tool"""
         return "ok"
 
-    # 2. Create a delegate tool
     def delegate_tool():
         """Delegate tool"""
         return "nested"
@@ -64,7 +61,6 @@ def test_sub_agent_manager_filter_delegate_tools():
 
     manager.append_tool(regular_tool, delegate_tool)
 
-    # 3. Setup an agent definition that uses both
     agent_def = SubAgentDefinition(
         name="test-agent",
         path=".",
@@ -74,14 +70,12 @@ def test_sub_agent_manager_filter_delegate_tools():
     )
     manager.add_agent(agent_def)
 
-    # 4. Create the agent and check tools
     with patch("zrb.llm.agent.subagent.manager.create_agent") as mock_create_agent:
         manager.create_agent("test-agent")
         mock_create_agent.assert_called_once()
         call_kwargs = mock_create_agent.call_args.kwargs
         resolved_tools = call_kwargs["tools"]
 
-        # Verify only regular_tool is present
         assert regular_tool in resolved_tools
         assert delegate_tool not in resolved_tools
 
@@ -152,7 +146,6 @@ def test_sub_agent_manager_filter_delegate_tools_from_factory():
 
     delegate_tool.zrb_is_delegate_tool = True
 
-    # Add a factory that returns a delegate tool
     manager.append_tool_factory(lambda ctx: delegate_tool)
 
     agent_def = SubAgentDefinition(
@@ -172,8 +165,6 @@ def test_sub_agent_manager_filter_delegate_tools_from_factory():
 
 def test_sub_agent_manager_get_agent_definition_not_found():
     manager = SubAgentManager()
-    # manager has some default tools but no default agents registered unless scanned
-    # Since we didn't scan, it should be empty
     assert manager.get_agent_definition("non-existent") is None
 
 

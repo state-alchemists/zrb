@@ -56,7 +56,7 @@ class RepetitionDetector:
             return False
         self._partial += delta
         if "\n" not in self._partial:
-            # ponytail: a cycle that never emits a newline slips through until
+            # Known gap: a cycle that never emits a newline slips through until
             # it does. Track a rolling character window if one ever shows up.
             return False
         *complete, self._partial = self._partial.split("\n")
