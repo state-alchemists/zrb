@@ -35,12 +35,12 @@ class LLMPromptMixin:
         self.DEFAULT_LLM_INCLUDE_SECTIONS: str = (
             "persona,workflow,examples,system_context,project_context"
         )
-        # Prompt preset (ADR-0049): "full", "lean" or "minimal"; "auto" resolves
+        # Prompt preset (ADR-0049): "full" (default) or "minimal"; "auto" resolves
         # one from the model id, falling back to "full". A preset binds a section
-        # list, a phrasing variant (workflow.lean.md over workflow.md) and a tool
-        # surface. zrb makes no capability guess from a model *family* name —
+        # list, a phrasing variant (workflow.minimal.md over workflow.md) and a
+        # tool surface. zrb makes no capability guess from a model *family* name —
         # only from a declared parameter count or a vendor small-tier label.
-        self.DEFAULT_LLM_PROFILE: str = "auto"
+        self.DEFAULT_LLM_PROFILE: str = "full"
         super().__init__()
 
     LLM_PROMPT_DIR = EnvField(
@@ -77,18 +77,15 @@ class LLMPromptMixin:
         str,
         doc=(
             "Prompt profile — a preset binding which sections compose, how "
-            "they are phrased, and which tools register. The names order "
-            "themselves by how much the model is asked to hold at once:\n"
-            "- 'full': the whole rulebook and all 20 eager tools, on the base "
-            "prompts.\n"
-            "- 'lean': every section and every tool, on a lighter rulebook "
-            "plus worked examples, for small models (~5-14B).\n"
+            "they are phrased, and which tools register:\n"
+            "- 'full' (default): the whole rulebook and all 20 eager tools, on "
+            "the base prompts.\n"
             "- 'minimal': a three-section prompt and a 10-tool surface, for "
             "very small models (~3B). No skills, sub-agents, web, todos or "
             "project-doc reading.\n"
-            "- 'auto' (default): resolved from the model id — a declared size "
-            "of 4B or less selects 'minimal', 5-14B or a vendor small-tier "
-            "label selects 'lean', otherwise 'full'. Override per model with "
+            "- 'auto': resolved from the model id — a declared size of 4B or "
+            "less, or a vendor small-tier label on a locally served model, "
+            "selects 'minimal', otherwise 'full'. Override per model with "
             "register_model_profile().\n\n"
             "Setting LLM_INCLUDE_SECTIONS explicitly overrides a preset's "
             "section list.\n\n"

@@ -231,7 +231,7 @@ Recognised section names:
 |---------|---------|
 | `persona` | AI identity + response style |
 | `workflow` | The whole rulebook: priority order, turn sequence, skill activation, working loop, verify gate, tool usage, recovery |
-| `examples` | Answer-scale and stance demonstrations (the `lean` variant adds more) |
+| `examples` | Answer-scale and stance demonstrations |
 | `system_context` | Stable runtime facts (OS / CWD / model / detected tools) |
 | `project_context` | Project docs (`AGENTS.md`, `CLAUDE.md`, `README.md`, …) |
 
@@ -261,42 +261,38 @@ The section names above are the **built-ins**. Any other name in the list resolv
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_PROFILE` | Prompt preset: `auto`, `full`, `lean`, or `minimal` | `auto` |
+| `ZRB_LLM_PROFILE` | Prompt preset: `auto`, `full`, or `minimal` | `auto` |
 
 | Preset | Sections | Phrasing | Tools |
 |--------|----------|----------|-------|
 | `full` | default | base files | all 20 |
-| `lean` | default | `persona.lean.md`, `workflow.lean.md`, `examples.lean.md` | all but the journal trio (17) |
 | `minimal` | `persona, workflow, system_context` | `persona.minimal.md`, `workflow.minimal.md` | 10 |
 
 - **`full`** — the concise, principle-led preset (the base prompt files).
-- **`lean`** — for small models (~5-14B). Two changes in opposite directions: a lighter rulebook (`persona.lean.md` and `workflow.lean.md` in place of their bases, ~25% smaller with the precedence ladder flattened) and *more* worked demonstrations (`examples.lean.md`). Small models follow worked examples better than abstract rules. The demonstrations **never add rules**: added constraint mass degrades exactly the models it targets, so a variant may exemplify a rule but never re-word or extend one (ADR-0049). The only capability dropped is the journal — a 5-14B model still gets skills, todos, web and delegation, and cross-session memory is never needed to finish a turn. Set `ZRB_LLM_PROFILE=full` if you want it back on a 7B.
 - **`minimal`** — for very small models (~3B), where the *budget* is the binding constraint rather than the register. Composes to roughly 1,250 tokens of preamble against ~4,600 for `full`. A `minimal` session has **no** skills, sub-agents, web access, todo list, journal, plan mode, MCP tools or project-doc reading — it is a single-tool-call-per-turn assistant, not an agentic coder. Use it when a small local model must drive the main loop; for a small model *assisting* a larger one, `ZRB_LLM_SMALL_MODEL` is the better slot.
 - **`auto`** (default) — resolved from the model id.
 
 `auto` reads a **stated size**, never a family name. `deepseek`, `qwen`, and `llama` span tiny instruct models through frontier models, so a family name tells you nothing — but `-7b` is the vendor stating a parameter count, and `mini` / `haiku` / `nano` are vendor size tiers. Built-in matches:
 
-| Selects `minimal` | Selects `lean` | Stays `full` |
-|-----------------|----------------|---------------|
-| a stated count of 4B or less — `qwen2.5:3b`, `deepseek-r1:1.5b`, `qwen2.5:0.5b` | a stated count of 5-14B — `qwen2.5-7b`, `gemma-2-9b`, `qwen3-14b` | larger stated sizes — `qwen3-32b`, `llama-3-70b`, `llama-3.1-405b` |
-| a small-tier label served locally — `ollama:phi4-mini`, `lmstudio:gemma-tiny` | vendor small tiers on a hosted provider — `gpt-5-mini`, `claude-haiku-4-5`, `gemini-nano` | everything else — `claude-opus-4-8`, `deepseek-v4-pro`, `gemini-2.5-pro`, `ollama:kimi-k2.6:cloud` |
+| Selects `minimal` | Stays `full` |
+|-----------------|---------------|
+| a stated count of 4B or less — `qwen2.5:3b`, `deepseek-r1:1.5b`, `qwen2.5:0.5b` | larger stated sizes — `qwen3-32b`, `llama-3-70b`, `llama-3.1-405b` |
+| a small-tier label served locally — `ollama:phi4-mini`, `lmstudio:gemma-tiny` | everything else — `claude-opus-4-8`, `deepseek-v4-pro`, `gemini-2.5-pro`, `ollama:kimi-k2.6:cloud` |
 
 The count is read as a **number**, so a fractional size means what it says: `1.5b` is 1.5B, not 5B. Where an id states two counts the first wins, which is how an MoE id reads as its total rather than its active parameters (`qwen3-30b-a3b` → 30B → `full`). A stated count also outranks a label, so `some-mini-32b` stays `full`.
-
-The two bands are asymmetric on purpose. `lean` keeps every section and nearly every tool, so a false positive is cheap — which is why every vendor small-tier label (`mini`, `micro`, `nano`, `tiny`, `small`, `lite`, `haiku`) resolves there by default. `minimal` *removes* sections and tools, so a false positive costs real capability, and a stated ≤4B count selects it outright.
 
 A label **alone** never does, because `nano`/`tiny` sit on models (`gpt-5-nano`) far more capable than a 3B local one. A label plus a **local provider prefix** does: `ollama:`, `lmstudio:`, `llamacpp:` and `localai:` say who is serving the model, and `ollama:phi4-mini` is 3.8B of weights on a laptop where `openai:gpt-5-nano` is the entry tier of a hosted family. Ollama's own hosted tier is excluded by its `:cloud` suffix, so `ollama:kimi-k2.6:cloud` stays `full`. Anything the built-ins get wrong, declare explicitly (see below).
 
 Burden falls as the target model gets weaker: each rule-carrying section is strictly smaller than the same section one preset up. Demonstrations move the other way, because a worked example lowers burden rather than adding to it — but they are exempt from the ladder, not from the budget: the *composed total* falls across presets too, so a weaker target never receives more prompt overall.
 
-Setting `ZRB_LLM_INCLUDE_SECTIONS` explicitly overrides a preset's section list, so you can run `minimal`'s lean tool surface with your own sections.
+Setting `ZRB_LLM_INCLUDE_SECTIONS` explicitly overrides a preset's section list, so you can run `minimal`'s tool surface with your own sections.
 
 `flash` is deliberately *not* matched: it is a latency tier, not a size one, and spans weak to strong. Opt one in explicitly if you want it.
 
 Force a profile globally:
 
 ```bash
-export ZRB_LLM_PROFILE=lean
+export ZRB_LLM_PROFILE=minimal
 ```
 
 …or declare per-model profiles once in your `zrb_init.py`. A declaration always beats a built-in, in either direction:
@@ -308,17 +304,17 @@ from zrb.llm.prompt.profile import register_model_profile
 # under `auto`. The id is matched exactly as configured — provider prefix and
 # any tier suffix included (e.g. `ollama:deepseek-v4-flash:cloud`), nothing is
 # stripped. Most-recently declared wins.
-register_model_profile(r"deepseek-v4-flash", "lean")   # opt a latency tier in
-register_model_profile(r"my-local-3b", "lean")
-register_model_profile(r"qwen2\.5-7b", "full")        # opt a small model out
-register_model_profile(r"^ollama:", "lean")            # or match a whole provider
+register_model_profile(r"deepseek-v4-flash", "minimal")   # opt a latency tier in
+register_model_profile(r"my-local-3b", "minimal")
+register_model_profile(r"qwen2\.5-7b", "full")           # opt a small model out
+register_model_profile(r"^ollama:", "minimal")            # or match a whole provider
 ```
 
-How the overlay works: the base prompt `.md` files *are* the `full` profile. Every other preset is an overlay — for a section named `workflow`, the loader prefers `workflow.lean.md` (or `workflow.minimal.md`) and falls back to `workflow.md` when no variant exists. This is the only naming convention involved: a section name never carries the preset. A variant *replaces* its base file rather than appending to it, so a variant you add must repeat everything the base says that still applies. It follows the same project-override → env → base-dir → package lookup as any prompt file, so you can override a variant too.
+How the overlay works: the base prompt `.md` files *are* the `full` profile. Every other preset is an overlay — for a section named `workflow`, the loader prefers `workflow.minimal.md` and falls back to `workflow.md` when no variant exists. This is the only naming convention involved: a section name never carries the preset. A variant *replaces* its base file rather than appending to it, so a variant you add must repeat everything the base says that still applies. It follows the same project-override → env → base-dir → package lookup as any prompt file, so you can override a variant too.
 
 ### Defining Your Own Profile
 
-The three built-ins are not special — they are three entries in `PRESETS`, and you can add a fourth. Use `register_preset()`, which validates what a bare `PRESETS[name] = ...` assignment cannot:
+The two built-ins are not special — they are two entries in `PRESETS`, and you can add a third. Use `register_preset()`, which validates what a bare `PRESETS[name] = ...` assignment cannot:
 
 ```python
 # zrb_init.py

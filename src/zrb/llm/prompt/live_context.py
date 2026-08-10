@@ -389,9 +389,9 @@ def _render_parts(
 
     # The index tells the model to "Use SearchJournal for full entries", so a
     # preset that dropped the journal tools must not be handed one — it would be
-    # a few hundred tokens of memory with no tool to act on it. `lean` drops
-    # them by preset (LEAN_DROPS) and `minimal` by allowlist; both are the same
-    # question, which is why this asks the surface rather than the flag.
+    # a few hundred tokens of memory with no tool to act on it. `minimal` drops
+    # them by allowlist; that is the same question, which is why this asks the
+    # surface rather than the flag.
     if inject_journal_index and _admits(model, "SearchJournal"):
         journal_block = render_journal_index()
         if journal_block:

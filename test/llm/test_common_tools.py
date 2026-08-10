@@ -198,12 +198,11 @@ def test_minimal_registers_no_mcp_toolsets(monkeypatch):
 
 
 def test_unconstrained_presets_keep_the_full_surface(monkeypatch):
-    """Only `minimal` constrains the tool axis; `full`/`lean` must not regress."""
+    """Only `minimal` constrains the tool axis; `full` must not regress."""
     monkeypatch.setenv("ZRB_LLM_JOURNAL_ENABLED", "true")
-    for profile in ("full", "lean"):
-        monkeypatch.setenv("ZRB_LLM_PROFILE", profile)
-        host = RecordingHost()
-        apply_common_tools(host)
-        names = host.resolved_tool_names()
-        assert MINIMAL_TOOLS < names, profile
-        assert {"WebSearch", "TodoWrite", "ActivateSkill"} <= names, profile
+    monkeypatch.setenv("ZRB_LLM_PROFILE", "full")
+    host = RecordingHost()
+    apply_common_tools(host)
+    names = host.resolved_tool_names()
+    assert MINIMAL_TOOLS < names
+    assert {"WebSearch", "TodoWrite", "ActivateSkill"} <= names

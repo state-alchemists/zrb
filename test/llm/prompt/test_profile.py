@@ -6,8 +6,6 @@ import pytest
 
 from zrb.llm.prompt.profile import (
     FULL_PROFILE,
-    LEAN_DROPS,
-    LEAN_PROFILE,
     MINIMAL_PROFILE,
     MINIMAL_SECTIONS,
     MINIMAL_TOOLS,
@@ -38,9 +36,9 @@ def _clean_registry():
     model_profile_registry.clear()
 
 
-def test_lean_and_full_are_forced_regardless_of_model():
+def test_full_and_minimal_are_forced_regardless_of_model():
     assert resolve_profile("full", "deepseek:deepseek-v4") == FULL_PROFILE
-    assert resolve_profile("lean", "anthropic:claude-opus-4") == LEAN_PROFILE
+    assert resolve_profile("minimal", "anthropic:claude-opus-4") == MINIMAL_PROFILE
 
 
 def test_auto_stays_full_for_models_that_declare_no_small_size():
@@ -55,20 +53,15 @@ def test_auto_stays_full_for_models_that_declare_no_small_size():
         assert resolve_profile("auto", model) == FULL_PROFILE, model
 
 
-def test_auto_selects_lean_from_a_declared_small_size():
-    """A parameter count in the id is the vendor stating the size, not a guess."""
-    for model in [
-        "ollama:qwen2.5-7b",
-        "ollama:gemma-2-9b",
-        "qwen3-14b",
-        "openai:gpt-5-mini",
-        "anthropic:claude-haiku-4-5",
-    ]:
-        assert resolve_profile("auto", model) == LEAN_PROFILE, model
+def test_declared_sizes_above_four_billion_stay_full():
+    """A parameter count in the id is the vendor stating the size, not a guess.
+    Only a stated ≤4B count reaches `minimal`; larger counts keep `full`."""
+    for model in ["ollama:qwen2.5-7b", "ollama:gemma-2-9b", "qwen3-14b"]:
+        assert resolve_profile("auto", model) == FULL_PROFILE, model
 
 
 def test_auto_does_not_read_a_large_declared_size_as_small():
-    """The size rule accepts 1-14B only; bigger stated counts stay `full`."""
+    """The size rule accepts ≤4B only; bigger stated counts stay `full`."""
     for model in ["qwen3-32b", "llama-3-70b", "llama-3.1-405b"]:
         assert resolve_profile("auto", model) == FULL_PROFILE, model
 
@@ -77,8 +70,8 @@ def test_flash_is_a_latency_tier_not_a_size_and_stays_full():
     """`flash` spans weak to strong, so it is opt-in rather than a default."""
     assert resolve_profile("auto", "gemini-2.5-flash") == FULL_PROFILE
     assert resolve_profile("auto", "deepseek:deepseek-v4-flash") == FULL_PROFILE
-    register_model_profile("deepseek-v4-flash", "lean")
-    assert resolve_profile("auto", "deepseek:deepseek-v4-flash") == LEAN_PROFILE
+    register_model_profile("deepseek-v4-flash", "minimal")
+    assert resolve_profile("auto", "deepseek:deepseek-v4-flash") == MINIMAL_PROFILE
 
 
 def test_a_user_declaration_overrides_a_built_in_default():
@@ -88,15 +81,15 @@ def test_a_user_declaration_overrides_a_built_in_default():
 
 def test_built_in_defaults_survive_clearing_user_declarations():
     model_profile_registry.clear()
-    assert resolve_profile("auto", "ollama:qwen2.5-7b") == LEAN_PROFILE
+    assert resolve_profile("auto", "ollama:qwen2.5-7b") == FULL_PROFILE
 
 
 def test_a_model_declaring_nothing_resolves_to_nothing():
     """`resolve` reports "no opinion" rather than guessing, so `auto` can fall back."""
     isolated = ModelProfileRegistry()
     assert isolated.resolve("ollama:some-model") is None
-    isolated.set("some-model", "lean")
-    assert isolated.resolve("ollama:some-model") == LEAN_PROFILE
+    isolated.set("some-model", "minimal")
+    assert isolated.resolve("ollama:some-model") == MINIMAL_PROFILE
 
 
 def test_none_or_blank_profile_behaves_like_auto():
@@ -109,41 +102,41 @@ def test_unknown_profile_value_falls_through_to_auto():
 
 
 def test_declared_mapping_drives_auto_resolution():
-    register_model_profile("my-tiny-7b", "lean")
-    assert resolve_profile("auto", "ollama:my-tiny-7b") == LEAN_PROFILE
+    register_model_profile("my-tiny-7b", "minimal")
+    assert resolve_profile("auto", "ollama:my-tiny-7b") == MINIMAL_PROFILE
     # A non-matching model is unaffected.
     assert resolve_profile("auto", "anthropic:claude-opus-4") == FULL_PROFILE
 
 
 def test_declared_mapping_matches_model_object():
-    register_model_profile(r"gemma-2-9b", "lean")
-    assert resolve_profile("auto", _Model("ollama:gemma-2-9b")) == LEAN_PROFILE
+    register_model_profile(r"gemma-2-9b", "minimal")
+    assert resolve_profile("auto", _Model("ollama:gemma-2-9b")) == MINIMAL_PROFILE
 
 
 def test_pattern_matches_full_id_without_stripping_any_segment():
     # The full id is matched as-is — provider, model, and tier all visible.
     cloud_model = "ollama:deepseek-v4-flash:cloud"
     # A model-name substring matches (and is NOT reduced to just "cloud").
-    register_model_profile("deepseek-v4-flash", "lean")
-    assert resolve_profile("auto", cloud_model) == LEAN_PROFILE
+    register_model_profile("deepseek-v4-flash", "minimal")
+    assert resolve_profile("auto", cloud_model) == MINIMAL_PROFILE
 
 
 def test_pattern_can_match_provider_or_tier():
-    register_model_profile(r"^ollama:", "lean")
-    assert resolve_profile("auto", "ollama:anything:cloud") == LEAN_PROFILE
+    register_model_profile(r"^ollama:", "minimal")
+    assert resolve_profile("auto", "ollama:anything:cloud") == MINIMAL_PROFILE
     assert resolve_profile("auto", "anthropic:claude-opus-4") == FULL_PROFILE
 
 
 def test_most_recent_declaration_wins():
     register_model_profile("foo", "full")
-    register_model_profile("foo", "lean")
-    assert resolve_profile("auto", "foo-model") == LEAN_PROFILE
+    register_model_profile("foo", "minimal")
+    assert resolve_profile("auto", "foo-model") == MINIMAL_PROFILE
 
 
-def test_lean_knob_overrides_a_full_declaration():
+def test_minimal_knob_overrides_a_full_declaration():
     register_model_profile("foo", "full")
     # The explicit knob is authoritative; declarations only feed auto.
-    assert resolve_profile("lean", "foo-model") == LEAN_PROFILE
+    assert resolve_profile("minimal", "foo-model") == MINIMAL_PROFILE
 
 
 def test_set_rejects_invalid_profile():
@@ -153,18 +146,18 @@ def test_set_rejects_invalid_profile():
 
 def test_isolated_registry_instance_does_not_touch_singleton():
     isolated = ModelProfileRegistry()
-    isolated.set("foo", "lean")
-    assert isolated.resolve("foo-model") == LEAN_PROFILE
+    isolated.set("foo", "minimal")
+    assert isolated.resolve("foo-model") == MINIMAL_PROFILE
     # Singleton remains empty.
     assert model_profile_registry.resolve("foo-model") is None
 
 
-def test_the_old_explicit_value_is_no_longer_a_profile():
-    """`explicit` was renamed to `lean` with no alias (ADR-0049)."""
+def test_a_retired_profile_name_is_no_longer_a_profile():
+    """`lean` was removed, so a stale config or declaration must fail loudly."""
     # An unrecognized ZRB_LLM_PROFILE falls through to auto-resolution.
-    assert resolve_profile("explicit", "anthropic:claude-opus-4") == FULL_PROFILE
+    assert resolve_profile("lean", "anthropic:claude-opus-4") == FULL_PROFILE
     with pytest.raises(ValueError, match="Unknown profile"):
-        register_model_profile("legacy-model", "explicit")
+        register_model_profile("legacy-model", "lean")
 
 
 # ── Presets (ADR-0049) ──────────────────────────────────────────────────
@@ -179,9 +172,9 @@ def test_a_fractional_parameter_count_reads_as_one_number():
     """`1.5b` is 1.5B, not 5B — the case a per-band digit class got wrong.
 
     `deepseek-r1:1.5b` and `qwen2.5:0.5b` are the two most common local models
-    on the planet, and both landed on `lean` (the 5-14B preset) because the
-    digit before the `b` was read in isolation. A stated size is parsed as a
-    number now, so the decimal is part of it.
+    on the planet, and a per-band digit class would read each trailing digit as
+    the size, taking a 0.5B model for 5B. A stated size is parsed as a number
+    now, so the decimal is part of it.
     """
     for model in ["ollama:deepseek-r1:1.5b", "ollama:qwen2.5:0.5b", "phi3:3.8b"]:
         assert resolve_profile("auto", model) == MINIMAL_PROFILE, model
@@ -203,20 +196,24 @@ def test_a_declared_size_outranks_a_small_tier_label():
     assert resolve_profile("auto", "some-mini-3b") == MINIMAL_PROFILE
 
 
-def test_the_size_bands_do_not_overlap():
-    """5B-14B stays on `lean`; `minimal` must not swallow the band above it."""
-    for model in ["mistral-7b", "gemma-2-9b", "qwen2.5-14b"]:
-        assert resolve_profile("auto", model) == LEAN_PROFILE, model
-    for model in ["qwen2.5-32b", "llama-3-70b", "deepseek-405b"]:
+def test_sizes_above_four_billion_stay_full():
+    """`minimal` must not swallow the band above it: >4B resolves to `full`."""
+    for model in [
+        "mistral-7b",
+        "gemma-2-9b",
+        "qwen2.5-14b",
+        "qwen2.5-32b",
+        "llama-3-70b",
+    ]:
         assert resolve_profile("auto", model) == FULL_PROFILE, model
 
 
-def test_a_hosted_small_tier_label_stays_on_lean():
+def test_a_hosted_small_tier_label_stays_on_full():
     """A vendor tier name is a claim about a lineup, not about a size.
 
-    `lean` keeps every section and tool, so a false positive is cheap; `minimal`
-    drops both, so a false positive is expensive — and `nano`/`micro` label
-    models (`gpt-5-nano`) far more capable than a 3B local one.
+    `minimal` drops sections and tools, so a false positive is expensive — and
+    `nano`/`micro` label models (`gpt-5-nano`) far more capable than a 3B local
+    one, so a hosted label alone resolves to nothing (`full`).
 
     `micro` is in the list for the same reason, and is the case the old naming
     got wrong: while a preset was *called* `micro`, a model labelled `-micro`
@@ -229,17 +226,16 @@ def test_a_hosted_small_tier_label_stays_on_lean():
         "openai:gpt-4o-mini",
         "anthropic:claude-haiku-4-5",
     ]:
-        assert resolve_profile("auto", model) == LEAN_PROFILE, model
+        assert resolve_profile("auto", model) == FULL_PROFILE, model
 
 
 def test_a_locally_served_small_tier_label_selects_minimal():
     """The same label means a different size once you know who is serving it.
 
     `ollama:phi4-mini` is 3.8B of weights on the user's laptop; `openai:gpt-5-nano`
-    is the entry tier of a hosted lineup. Both state no parameter count and both
-    used to resolve to `lean`, handing a 3.8B model the heaviest composition in
-    the system. The provider prefix is the disambiguator, and `_model_id` already
-    keeps it intact.
+    is the entry tier of a hosted lineup. Both state no parameter count, and the
+    provider prefix is the disambiguator: local → `minimal`, hosted → `full`.
+    `_model_id` already keeps it intact.
     """
     for model in [
         "ollama:phi4-mini:latest",
@@ -262,7 +258,7 @@ def test_ollamas_hosted_tier_is_not_treated_as_local():
 
 def test_a_declared_size_still_outranks_a_local_prefix():
     """A stated count is the specific claim wherever the model is served."""
-    assert resolve_profile("auto", "ollama:qwen3:8b") == LEAN_PROFILE
+    assert resolve_profile("auto", "ollama:qwen3:8b") == FULL_PROFILE
     assert resolve_profile("auto", "ollama:qwen2.5-mini:32b") == FULL_PROFILE
 
 
@@ -282,16 +278,6 @@ def test_full_constrains_nothing():
     )
 
 
-def test_lean_subtracts_tools_without_closing_the_surface():
-    """`lean` uses the denylist axis, so a new tool reaches it without an edit."""
-    preset = resolve_preset(LEAN_PROFILE)
-    assert preset.tools is None
-    assert preset.drops == LEAN_DROPS
-    assert preset.constrains_tools
-    assert preset.admits("Shell")
-    assert preset.admits("SomeToolAddedNextRelease")
-
-
 def test_minimal_closes_the_surface():
     """`minimal` uses the allowlist axis, so a new tool does *not* reach it."""
     preset = resolve_preset(MINIMAL_PROFILE)
@@ -301,26 +287,13 @@ def test_minimal_closes_the_surface():
 
 
 def test_only_minimal_constrains_the_tool_axis():
-    """`lean` keeps every capability; it lightens the rulebook, not the surface.
+    """`full` keeps every capability; only `minimal` narrows the surface.
 
-    A 5-14B model can still use skills, todos and delegation, so trimming its
-    tools would cost behaviour rather than burden. Only `minimal` goes that far.
+    `full` is the unconstrained baseline. Only `minimal` trims tools, because
+    trimming them costs behaviour rather than burden.
     """
-    assert resolve_preset(LEAN_PROFILE).tools is None
+    assert resolve_preset(FULL_PROFILE).tools is None
     assert resolve_preset(MINIMAL_PROFILE).tools == MINIMAL_TOOLS
-
-
-def test_lean_reshapes_only_the_phrasing_axis():
-    """`lean` keeps every section and tool; the variant does all the work.
-
-    Its lighter rulebook is `workflow.lean.md`, resolved through the same
-    `{section}.{profile}.md` convention as `examples.lean.md`. Constraining the
-    section list would be a second way to say the same thing.
-    """
-    preset = resolve_preset(LEAN_PROFILE)
-    assert preset.variant == LEAN_PROFILE
-    assert preset.sections is None
-    assert preset.tools is None
 
 
 def test_minimal_binds_all_three_axes():
@@ -362,7 +335,7 @@ def test_active_preset_reads_the_knob_and_the_model_together(monkeypatch):
     assert active_preset("anthropic:claude-opus-4").tools is None
 
 
-def test_a_user_can_register_a_fourth_preset():
+def test_a_user_can_register_another_preset():
     """`PRESETS` is the source of truth for the valid set, so a dict entry is enough."""
     PRESETS["nano"] = Preset(sections=("persona",), tools=frozenset({"Read"}))
     try:
@@ -397,11 +370,11 @@ def test_a_preset_cannot_set_both_tool_axes():
 
 def test_register_preset_makes_the_name_selectable(unregister):
     unregister("nano")
-    register_preset("nano", Preset(sections=("persona", "workflow"), variant="lean"))
+    register_preset("nano", Preset(sections=("persona", "workflow"), variant="nano"))
 
     assert "nano" in valid_profiles()
     assert resolve_profile("nano", "anything") == "nano"
-    assert resolve_preset("nano").variant == "lean"
+    assert resolve_preset("nano").variant == "nano"
     register_model_profile("my-1b-box", "nano")
     assert resolve_profile("auto", "my-1b-box") == "nano"
 
@@ -511,7 +484,7 @@ def test_profile_and_capability_registries_key_on_different_things():
 
     Merging them would have to pick one key, and either choice regresses
     silently: a bare name strips `ollama:`/`:cloud` and drops every local small
-    model from `minimal` back to `lean`, while a full id un-anchors
+    model from `minimal` back to `full`, while a full id un-anchors
     `^claude-haiku-3$` and hands a text-only model image support.
     """
     from zrb.llm.util.capabilities import model_capabilities
@@ -519,7 +492,7 @@ def test_profile_and_capability_registries_key_on_different_things():
     # The profile side needs the prefix: it is what distinguishes a 3.8B local
     # model from a hosted entry tier that merely shares the label.
     assert builtin_profile("ollama:phi4-mini") == MINIMAL_PROFILE
-    assert builtin_profile("phi4-mini") == LEAN_PROFILE
+    assert builtin_profile("phi4-mini") is None
     # ...and the tier suffix, which is what keeps hosted frontier models out.
     assert builtin_profile("ollama:kimi-k2.6:cloud") is None
 

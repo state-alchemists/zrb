@@ -53,8 +53,6 @@ Inside `llm/`:
 
 `llm_plugin/` is split three ways: `core_skills/` (always-on methodology baseline), `skills/` (utility skills, gated by `CFG.LLM_ENABLE_BUILTIN_SKILLS`), `agents/` (sub-agents, gated by `CFG.LLM_ENABLE_BUILTIN_AGENTS`). Each skill is `SKILL.md` or `SKILL.py`; each agent is `*.agent.md`. The toggles suppress only built-in content — user, project and plugin skills and agents always load (ADR-0054).
 
-`llm-experiment/` (repo root, outside `src/`) is the prompt-design measurement harness: `measure.py` prints prompt and eager-tool-schema tokens per preset and is the source of every such number in this file and the ADRs; `run.py` sweeps prompt arms against real models with deterministic scorers, and `analyze.py` regenerates `results/FINDINGS.md`. Behavioural evals of the *shipped* agent live separately in `~/llm-challenges`.
-
 `test/` mirrors the `src/` hierarchy. The mirror is a *naming* rule, not a completeness claim: where a test exists it sits at the mirrored path, but many modules are covered through a caller instead.
 
 > For a top-down tour of `zrb llm chat "..."` (CLI → task → agent run → UI → history), see `docs/advanced-topics/llm-chat-lifecycle.md`.
@@ -63,7 +61,7 @@ Inside `llm/`:
 
 `PromptManager` (`llm/prompt/manager.py`) composes the system prompt from ordered sections; the default order and every knob are in `config/mixins/llm_prompt.py::DEFAULT_LLM_INCLUDE_SECTIONS`. Section wording lives in `llm/prompt/markdown/` as `{section}.{profile}.md` with a `{section}.md` fallback; presets and model resolution live in `prompt/profile.py::PRESETS`. Every design decision here — section order, where a rule lives, the preset ladder, the journal, tool-definition weight — is recorded in the ADRs. Read `docs/adr/README.md` (Prompt; Skills, agents and the journal; Tools and safety) before changing any of it.
 
-The `markdown/` section files are measured, not drafted: `llm-experiment/measure.py` regenerates every token figure, and `test/llm/prompt/test_section_composition.py` pins the per-preset char budgets and the composition invariants. Do not rewrap or trim them blindly — re-run the measurement and the tests after any edit.
+The `markdown/` section files are the single source of truth for prompt wording — there is no generator, so edit them directly. Do not rewrap or trim them blindly: wording and composition invariants are documented in ADR-0049, and the public behavior (preset → sections, section filtering, file resolution) is pinned by tests.
 
 ## Ambient State (`ContextVar`s)
 

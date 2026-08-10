@@ -73,24 +73,22 @@ def test_get_prompt_workflow_with_local_override():
 # ── Profile variants (ADR-0049) ──────────────────────────────────────────
 
 
-def test_get_prompt_lean_profile_uses_variant_when_present():
-    """profile='lean' resolves examples.lean.md, not the base file."""
-    base = get_prompt("examples")
-    explicit = get_prompt("examples", profile="lean")
+def test_get_prompt_profile_uses_variant_when_present():
+    """profile='minimal' resolves persona.minimal.md, not the base file."""
+    base = get_prompt("persona", ASSISTANT_NAME="Zrb")
+    explicit = get_prompt("persona", profile="minimal", ASSISTANT_NAME="Zrb")
     assert explicit != base
-    assert "<example>" in explicit
 
 
-def test_get_prompt_lean_profile_falls_back_when_no_variant():
-    """A section with no .lean.md transparently resolves to its base file.
+def test_get_prompt_profile_falls_back_when_no_variant():
+    """A section with no .minimal.md transparently resolves to its base file.
 
-    Exercised on a non-section prompt file. Every *section* now ships a variant
-    per preset — that is the point of the burden ladder in
-    ``test_section_composition.py`` — so a section can no longer demonstrate
-    the fallback without first regressing the thing the ladder pins.
+    Exercised on a non-section prompt file. Every *section* that ships a variant
+    per preset is the point of the burden ladder in
+    ``test_section_composition.py``.
     """
     base = get_prompt("web_summarizer")
-    explicit = get_prompt("web_summarizer", profile="lean")
+    explicit = get_prompt("web_summarizer", profile="minimal")
     assert explicit == base
 
 
@@ -105,25 +103,23 @@ def test_get_prompt_profile_falls_back_to_base_when_no_variant():
     """A section with no variant for the profile falls back to the base file.
 
     Pinned on a prompt file that is genuinely preset-invariant, never on a
-    *section*: every section ships a variant per preset, so pinning the fallback
-    on one would pin the absence of a variant somebody still has to write.
+    *section*: a section that ships a variant per preset cannot demonstrate the
+    fallback without first regressing the thing the ladder pins.
     """
     base = get_prompt("repo_summarizer")
-    for profile in ("lean", "minimal"):
+    for profile in ("full", "minimal"):
         assert get_prompt("repo_summarizer", profile=profile) == base, profile
 
 
-def test_get_prompt_examples_ships_in_both_profiles():
-    """Examples reach every model, and `lean` gets proportionally more of them.
+def test_get_prompt_examples_is_preset_invariant():
+    """`examples` ships in the base and no variant re-phrases it.
 
-    More demonstrations, not more total prompt: `lean`'s extra examples are paid
-    for out of its own lighter rulebook, which
-    ``test_a_weaker_targets_preset_ships_less_prompt_in_total`` enforces.
+    With `lean` retired there is no preset that demonstrates differently; the
+    base file IS the examples wording every preset composes.
     """
     base = get_prompt("examples")
-    lean = get_prompt("examples", profile="lean")
     assert "<example>" in base
-    assert lean.count("<example>") > base.count("<example>")
+    assert get_prompt("examples", profile="minimal") == base
 
 
 def test_get_prompt_variant_respects_local_override():
@@ -131,8 +127,8 @@ def test_get_prompt_variant_respects_local_override():
     with tempfile.TemporaryDirectory() as temp_dir:
         local_prompt_dir = os.path.join(temp_dir, ".zrb/llm/prompt")
         os.makedirs(local_prompt_dir, exist_ok=True)
-        with open(os.path.join(local_prompt_dir, "persona.lean.md"), "w") as f:
-            f.write("# Custom Explicit Persona Override")
+        with open(os.path.join(local_prompt_dir, "persona.minimal.md"), "w") as f:
+            f.write("# Custom Minimal Persona Override")
 
         env_vars = {
             "ZRB_LLM_PROMPT_DIR": ".zrb/llm/prompt",
@@ -142,7 +138,7 @@ def test_get_prompt_variant_respects_local_override():
             original_cwd = os.getcwd()
             os.chdir(temp_dir)
             try:
-                prompt = get_prompt("persona", profile="lean")
-                assert "Custom Explicit Persona Override" in prompt
+                prompt = get_prompt("persona", profile="minimal")
+                assert "Custom Minimal Persona Override" in prompt
             finally:
                 os.chdir(original_cwd)
