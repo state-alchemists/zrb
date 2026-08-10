@@ -28,7 +28,7 @@ class LLMPromptMixin:
         self.DEFAULT_LLM_INCLUDE_SECTIONS: str = (
             "persona,principle,workflow,example,profile,system_context,project_context"
         )
-        self.DEFAULT_LLM_PROFILE: str = "standard"
+        self.DEFAULT_LLM_PROFILE: str = "auto"
         super().__init__()
 
     LLM_PROMPT_DIR = EnvField(
