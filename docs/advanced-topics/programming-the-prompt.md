@@ -176,15 +176,9 @@ A `PromptManager` lets you control that assembly. Two independent levers:
 - **`prompts=[...]`** — extra content appended after the built-ins. This is exactly what `system_prompt` populates.
 - **`include_sections=[...]`** — the full ordered list of section names to emit. Drop or reorder the built-ins; the built-in set itself is fixed (ADR-0044).
 
-Dropping a section is safe: a block that references another section is marked in the markdown and pruned when its target is not emitted, so the composed prompt never instructs the model about a part it never received (ADR-0046).
-
-```markdown
-<!--requires:project_context-->
-Read exactly the paths under **Documentation Files Found**.
-<!--/requires-->
-```
-
-Comma-separated dependencies must all be present. A marker alone on its line removes the whole line; one mid-sentence removes only itself, so a conditional clause can sit inside a bullet.
+Dropping a section is an intentional deployment trade-off: shipped prompt files
+are plain markdown and are not conditionally rewritten. Keep the sections that
+the remaining instructions depend on (ADR-0046).
 
 ```python
 from zrb import cli, LLMChatTask

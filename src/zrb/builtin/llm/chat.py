@@ -114,7 +114,10 @@ def _tool_factory(tool, defer_loading: bool = True):
 # profile drops delegation entirely (ADR-0049), so the roster schema and the
 # fan-out machinery never reach a ~3B model.
 def _delegate_tool_factory(ctx):
-    if active_profile() == MINIMAL_PROFILE:
+    # Resolve from this run's model rather than CFG.LLM_MODEL: ``/model`` and
+    # the task's ``model=`` override can select a small model while the global
+    # default remains capable.
+    if active_profile(llm_chat.get_model(ctx)) == MINIMAL_PROFILE:
         return []
     return [
         _tool_factory(create_delegate_to_agent_tool(), defer_loading=False),

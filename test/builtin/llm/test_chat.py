@@ -7,13 +7,14 @@ factory against the environment and assert on what it produces.
 
 from unittest.mock import patch
 
-from zrb.builtin.llm.chat import _delegate_tool_factory
+from zrb.builtin.llm.chat import llm_chat
 from zrb.context.shared_context import SharedContext
 
 
-def _names(profile: str) -> list[str]:
+def _names(profile: str, model: str | None = None) -> list[str]:
     with patch.dict("os.environ", {"ZRB_LLM_PROFILE": profile}):
-        return [tool.name for tool in _delegate_tool_factory(SharedContext())]
+        context = SharedContext(input={"model": model or ""})
+        return [tool.name for tool in llm_chat.get_all_tools(context)]
 
 
 def test_standard_profile_registers_the_delegate_tools():
@@ -34,3 +35,7 @@ def test_capable_profile_registers_the_delegate_tools():
 
 def test_minimal_profile_registers_no_delegate_tools():
     assert _names("minimal") == []
+
+
+def test_auto_profile_uses_the_run_model_for_delegate_registration():
+    assert _names("auto", "ollama:qwen2.5:3b") == []
