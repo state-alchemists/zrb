@@ -3,7 +3,6 @@ from functools import lru_cache
 from pathlib import Path
 
 from zrb.config.config import CFG
-from zrb.llm.prompt.profile import FULL_PROFILE
 from zrb.util.string.conversion import to_snake_case
 
 
@@ -24,10 +23,8 @@ def get_prompt(name: str, profile: str | None = None, **extra_replacements: str)
     Args:
         name: Prompt file name (without ``.md`` suffix), e.g. ``"persona"``,
             ``"workflow"``, ``"examples"``.
-        profile: Optional profile variant (ADR-0049). When set to a non-base
-            profile, ``{name}.{profile}`` is resolved first through the full
-            override chain, falling back to the base ``{name}`` when no variant
-            exists.
+        profile: Optional explicit profile adjustment. When supplied,
+            ``{name}.{profile}`` is resolved through the normal override chain.
         extra_replacements: Additional ``{PLACEHOLDER}`` → value entries
             merged on top of the standard replacements.
 
@@ -44,15 +41,8 @@ def get_prompt(name: str, profile: str | None = None, **extra_replacements: str)
 
 
 def _load_prompt_for_profile(name: str, profile: str | None) -> str:
-    """Resolve a section's raw text, preferring a profile-specific variant.
-
-    Tries ``{name}.{profile}`` through the full override chain first (so a
-    project override of the variant still wins over the packaged base), falling
-    back to the base ``{name}`` when no variant resolves. The base ``*.md`` files
-    are the ``full`` profile, so ``full``/``None``/empty short-circuit straight
-    to the base. See ADR-0049.
-    """
-    if profile and profile != FULL_PROFILE:
+    """Resolve a section's raw text, preferring a named profile file."""
+    if profile:
         variant = get_default_prompt(f"{name}.{profile}")
         if variant:
             return variant

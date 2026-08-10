@@ -59,9 +59,9 @@ Inside `llm/`:
 
 ## LLM Prompt System
 
-`PromptManager` (`llm/prompt/manager.py`) composes the system prompt from ordered sections; the default order and every knob are in `config/mixins/llm_prompt.py::DEFAULT_LLM_INCLUDE_SECTIONS`. Section wording lives in `llm/prompt/markdown/` as `{section}.{profile}.md` with a `{section}.md` fallback; presets and model resolution live in `prompt/profile.py::PRESETS`. Every design decision here — section order, where a rule lives, the preset ladder, the journal, tool-definition weight — is recorded in the ADRs. Read `docs/adr/README.md` (Prompt; Skills, agents and the journal; Tools and safety) before changing any of it.
+`PromptManager` (`llm/prompt/manager.py`) composes the system prompt from ordered sections; the default order and every knob are in `config/mixins/llm_prompt.py::DEFAULT_LLM_INCLUDE_SECTIONS`. Section wording lives in `llm/prompt/markdown/`; the `profile` section resolves as `profile.{name}.md` from the three profiles (`minimal`/`standard`/`capable`) plus the optional `auto` model-id ladder in `prompt/profile.py` (ADR-0049). Every design decision here — section order, where a rule lives, the profile ladder, the journal, tool-definition weight — is recorded in the ADRs. Read `docs/adr/README.md` (Prompt; Skills, agents and the journal; Tools and safety) before changing any of it.
 
-The `markdown/` section files are the single source of truth for prompt wording — there is no generator, so edit them directly. Do not rewrap or trim them blindly: wording and composition invariants are documented in ADR-0049, and the public behavior (preset → sections, section filtering, file resolution) is pinned by tests.
+The `markdown/` section files are the single source of truth for prompt wording — there is no generator, so edit them directly. Do not rewrap or trim them blindly: wording and composition invariants are documented in ADR-0049, and the public behavior (profile → section file, section filtering, file resolution) is pinned by tests.
 
 ## Ambient State (`ContextVar`s)
 

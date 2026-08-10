@@ -25,10 +25,9 @@ the ``current_tool_confirmation`` ContextVar.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, NamedTuple, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Callable, Protocol, runtime_checkable
 
 from zrb.config.config import CFG
-from zrb.llm.prompt.profile import active_preset
 from zrb.llm.tool_call.tool_policy.bash_validation import (
     bash_safe_command_policy,
 )
@@ -72,9 +71,8 @@ def apply_common_tools(host: CommonToolHost) -> None:
     Idempotent only if called once per host — calling twice will register
     everything twice.
     """
-    keep = _preset_tool_filter()
-    _register_tools(host, keep)
-    _register_tool_factories(host, keep)
+    _register_tools(host)
+    _register_tool_factories(host)
     # Shell safety travels with the shell tools rather than with one builtin
     # task: the allowlist in bash_safe_command_policy IS the git approval rule
     # (read-only subcommands auto-approve, `commit`/`push`/`reset` reach the
@@ -97,42 +95,7 @@ def tool_name(tool: "Callable | Tool | Any") -> str:
     return getattr(fn, "__name__", "") or getattr(tool, "name", "") or ""
 
 
-class _Surface(NamedTuple):
-    """How the active preset narrows the tool axis.
-
-    ``undefer`` rides along because deferral only pays above a certain surface
-    size: it swaps a tool's schema for a ``search_tools`` entry the model must
-    call first. ``minimal`` keeps ten tools and would spend more on the
-    indirection than it hides, so it takes the schemas (ADR-0049). ``full``
-    keeps everything, where the indirection is the saving, so its deferred tools
-    stay deferred. Hence the key is "does the preset close the surface"
-    (``Preset.tools is not None``), not "does it constrain the axis at all".
-    """
-
-    admits: "Callable[[Any], bool]"
-    undefer: bool
-
-
-def _preset_tool_filter() -> "_Surface | None":
-    """Predicate keeping only the tools the active preset registers, or ``None``.
-
-    ``None`` means "this preset does not constrain the tool axis" — only ``full``
-    now (ADR-0049). ``minimal`` constrains it with an allowlist; ``Preset.admits``
-    resolves either, so this stays one predicate. Resolved against
-    ``CFG.LLM_MODEL`` because registration happens before any host model is
-    known, so a task whose per-task model override differs from ``CFG.LLM_MODEL``
-    keeps the full surface; setting ``ZRB_LLM_PROFILE`` explicitly always works.
-    """
-    preset = active_preset(CFG.LLM_MODEL)
-    if not preset.constrains_tools:
-        return None
-    return _Surface(
-        admits=lambda tool: preset.admits(tool_name(tool)),
-        undefer=preset.tools is not None,
-    )
-
-
-def _register_tools(host: CommonToolHost, keep: "_Surface | None") -> None:
+def _register_tools(host: CommonToolHost) -> None:
     """Register the statically-known tools, tagged with their capabilities."""
     # lazy + import from source modules directly. Going through the
     # ``zrb.llm.tool`` re-export would deadlock: that package's __init__
@@ -236,18 +199,15 @@ def _register_tools(host: CommonToolHost, keep: "_Surface | None") -> None:
         *(Tool(_fn, defer_loading=True) for _fn in lsp_tools),
         *plan_tools,
     ]
-    host.append_tool(*_selected(tools, keep))
+    host.append_tool(*tools)
 
 
-def _register_tool_factories(host: CommonToolHost, keep: "_Surface | None") -> None:
+def _register_tool_factories(host: CommonToolHost) -> None:
     """Register the tools whose availability is only known per run.
 
     A factory is re-evaluated against the resolved context on every run, which
     is what lets interactivity and ``LLM_JOURNAL_ENABLED`` gate a tool without
-    a second registration path. The preset filter therefore has to travel with
-    the factory rather than be applied here — ``minimal`` keeps exactly one
-    factory-built tool (``MonitorProcess``), so skipping the block wholesale
-    would break the closure ``MINIMAL_TOOLS`` promises.
+    a second registration path.
     """
     # lazy: pydantic_ai (heavy third-party deferral)
     from pydantic_ai import Tool
@@ -309,54 +269,11 @@ def _register_tool_factories(host: CommonToolHost, keep: "_Surface | None") -> N
             defer_loading=True,
         ),
     ]
-    host.append_tool_factory(*(_gated(factory, keep) for factory in factories))
-    if keep is None:
-        # MCP servers vary widely in tool count; hide them behind search too —
-        # same rationale as the deferred function tools above. A constrained
-        # preset drops them outright: an MCP server's tool list is not known
-        # here, so it cannot be part of a closed, fixed surface.
-        host.append_toolset_factory(
-            lambda ctx: [toolset.defer_loading() for toolset in load_mcp_config()]
-        )
-
-
-def _selected(
-    tools: "list[Callable | Tool]", keep: "_Surface | None"
-) -> "list[Callable | Tool]":
-    """The tools *keep* admits, un-deferred if the preset wants their schemas.
-
-    See ``_Surface.undefer`` for why that is not simply "the axis is
-    constrained".
-    """
-    if keep is None:
-        return list(tools)
-    chosen = [tool for tool in tools if keep.admits(tool)]
-    return [_undefer(tool) for tool in chosen] if keep.undefer else chosen
-
-
-def _gated(
-    factory: "Callable[[AnyContext], Any]", keep: "_Surface | None"
-) -> "Callable[[AnyContext], Any]":
-    """*factory* with the preset filter applied to whatever it produces."""
-    if keep is None:
-        return factory
-
-    def filtered(ctx: "AnyContext") -> Any:
-        produced = factory(ctx)
-        items = produced if isinstance(produced, list) else [produced]
-        return _selected([item for item in items if item is not None], keep)
-
-    return filtered
-
-
-def _undefer(tool: "Callable | Tool") -> "Callable | Tool":
-    """*tool* with ``defer_loading`` stripped (see :func:`_selected`)."""
-    # lazy: pydantic_ai (heavy third-party deferral)
-    from pydantic_ai import Tool
-
-    if isinstance(tool, Tool) and tool.defer_loading:
-        return Tool(tool.function)
-    return tool
+    host.append_tool_factory(*factories)
+    # MCP servers vary widely in tool count, so they remain deferred.
+    host.append_toolset_factory(
+        lambda ctx: [toolset.defer_loading() for toolset in load_mcp_config()]
+    )
 
 
 def defer_common_tools(host: CommonToolHost) -> None:

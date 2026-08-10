@@ -10,9 +10,8 @@ from zrb.llm.prompt.claude import (
     create_project_context_prompt,
 )
 from zrb.llm.prompt.live_context import render_live_context
-from zrb.llm.prompt.profile import Preset, active_preset
+from zrb.llm.prompt.profile import active_profile
 from zrb.llm.prompt.prompt import get_prompt
-from zrb.llm.prompt.section_filter import filter_requires
 from zrb.llm.prompt.system_context import system_context
 from zrb.llm.skill.manager import SkillManager
 from zrb.llm.skill.manager import skill_manager as default_skill_manager
@@ -24,20 +23,18 @@ SimplePrompt = Callable[[AnyContext], str | None]
 FullMiddleware = Callable[[AnyContext, str, Callable[[AnyContext, str], str]], str]
 # Flexible middleware: can be either simple or full
 PromptMiddleware = SimplePrompt | FullMiddleware
+# The five file-backed rule sections. `system_context` and `project_context`
+# are composed separately: they are data sections built in Python, not files.
+_SECTION_NAMES = frozenset({"persona", "principle", "workflow", "example", "profile"})
 
 
 class _ProviderRegistry:
     """Named dynamic providers, composed in registration order.
 
-    One shape used three times: live context, system context, project context.
-    Each had its own copy of "scan the list for this name, replace or append"
-    and of "call each provider, swallow whatever it raises, keep the non-empty
-    results" — the second of which is the part worth having once, since a
-    downstream provider that throws must never take the prompt down with it.
-
-    Not merged with ``_section_providers``: that one is a plain dict holding
-    *one* provider per section, and composing it means picking a single entry
-    rather than concatenating all of them.
+    One shape used by live context: providers registered via
+    ``add_live_context`` are called every turn and their non-empty output is
+    appended to the block. A downstream provider that throws must never take
+    the prompt down with it, so each is called under a try/except and skipped.
     """
 
     def __init__(self, label: str) -> None:
@@ -74,27 +71,23 @@ class PromptManager:
     """Assembles the LLM system prompt from ordered, MECE sections.
 
     Sections are emitted in the order given by ``include_sections`` (default in
-    ``config/mixins/llm_prompt.py``: persona → workflow → examples →
-    system_context → project_context), followed by any user-added prompts. Three
-    of those carry rules; the last two carry runtime facts. There is no
-    prompt-side tool catalogue — what a tool does and which tool to reach for
-    instead lives in the tool's own docstring, which pydantic-ai ships with the
-    schema on every request.
+    ``config/mixins/llm_prompt.py``: persona → principle → workflow → example →
+    profile → system_context → project_context), followed by any user-added
+    prompts. The first five are file-backed rule sections; the last two are
+    runtime-fact sections built in Python — ``system_context`` renders the
+    session-invariant environment (OS, CWD, tools, model), ``project_context``
+    the project documentation discovered near the working directory. There is
+    no prompt-side tool catalogue — what a tool does and which tool to reach
+    for instead lives in the tool's own docstring, which pydantic-ai ships
+    with the schema on every request.
 
     The skill catalogue is folded into the ``workflow`` section via
     ``{CORE_SKILLS}``/``{AVAILABLE_SKILLS}``/``{PREACTIVATED_SKILLS}``
     placeholders rather than a standalone section. A section name that is not one
-    of the built-ins resolves as a custom section: a provider registered via
-    ``register_section`` (composed by calling it with the active context, for
-    runtime-dynamic content) takes precedence, otherwise the content is loaded
-    via ``get_prompt(name)`` (so ``"company_context"`` resolves
-    ``company_context.md`` through the usual project-override → env →
-    base-prompt-dir → package lookup). Either way downstreams add always-on,
-    config-positioned sections without touching this class. A name that resolves
-    to neither — including a retired section such as ``mandate`` or
-    ``tool_guidance`` left in a pinned config — composes to nothing and logs a
-    warning. ``model`` and ``assistant_name`` may be callables resolved against
-    the active context. See AGENTS.md ("LLM Prompt System").
+    of the built-ins is ignored with a logged warning — a typo in a pinned
+    config is visible rather than silently dropped. ``model`` and
+    ``assistant_name`` may be callables resolved against the active context.
+    See AGENTS.md ("LLM Prompt System").
     """
 
     def __init__(
@@ -121,7 +114,7 @@ class PromptManager:
                 is resolved against the active context. Defaults to
                 `CFG.LLM_ASSISTANT_NAME`.
             include_sections: Which sections compose, in order. `None` defers to
-                the active preset, then to `CFG.LLM_INCLUDE_SECTIONS`.
+                `CFG.LLM_INCLUDE_SECTIONS`.
             skill_manager: Source of the skill catalogue folded into `workflow`.
                 Defaults to the global `skill_manager`.
             active_skills: Skills to pre-activate, listed in the prompt as
@@ -141,19 +134,6 @@ class PromptManager:
         # Live context providers: per-turn dynamic state injected into the
         # <live-context> block after built-in rendering.
         self._live_context_providers = _ProviderRegistry("Live-context")
-        # Project context providers: registered via add_project_context();
-        # composed into the project_context section alongside the built-in
-        # project documentation content.
-        self._project_context_providers = _ProviderRegistry("Project-context")
-        # System context providers: registered via add_system_context();
-        # composed into the system_context section alongside the built-in
-        # system context (OS, CWD, tools, etc.).
-        self._system_context_providers = _ProviderRegistry("System-context")
-        # Dynamic providers for config-positioned custom sections, keyed by the
-        # name used in ``include_sections``. A registered provider is composed
-        # by calling ``provider(ctx)`` at compose time; it takes precedence over
-        # a same-named markdown file. See ``register_section``.
-        self._section_providers: dict[str, SimplePrompt] = {}
         # Resolved current model — used by the system_context section to
         # surface model-specific capabilities (e.g. parallel tool call
         # support). Set by the task runner before each compose_prompt(),
@@ -182,7 +162,7 @@ class PromptManager:
 
     @property
     def include_sections(self) -> list[str] | None:
-        """The explicit section override, or None to defer to preset/config.
+        """The explicit section override, or None to defer to the config default.
 
         Read `active_sections` for the list actually in force.
         """
@@ -190,7 +170,7 @@ class PromptManager:
 
     @include_sections.setter
     def include_sections(self, value: list[str] | None):
-        """Pin the section list, overriding the preset and the config default."""
+        """Pin the section list, overriding the config default."""
         self._include_sections = value
 
     @property
@@ -200,15 +180,9 @@ class PromptManager:
         Single source of truth for *which* sections are active:
 
         1. the instance ``include_sections`` override,
-        2. an explicitly-set ``LLM_INCLUDE_SECTIONS`` env var,
-        3. the active preset's section list, when it constrains that axis
-           (only ``minimal`` does — ``full`` keeps every section and reshapes
-           prose only through the variant axis — ADR-0049),
-        4. ``CFG.LLM_INCLUDE_SECTIONS``.
-
-        Only the *env var* counts as the user naming a list: overriding
-        ``CFG.DEFAULT_LLM_INCLUDE_SECTIONS`` in ``zrb_init.py`` changes the
-        *default*, and a preset outranking a default is the intended precedence.
+        2. ``CFG.LLM_INCLUDE_SECTIONS`` (an explicitly-set
+           ``ZRB_LLM_INCLUDE_SECTIONS`` env var outranks
+           ``DEFAULT_LLM_INCLUDE_SECTIONS`` inside the config).
 
         Journaling is not one of them: there is no prompt section to
         suppress, so ``LLM_JOURNAL_ENABLED`` gates the journal *tools* at
@@ -217,47 +191,17 @@ class PromptManager:
         """
         if self._include_sections is not None:
             return list(self._include_sections)
-        sections = self.active_preset.sections
-        if sections is not None and not CFG.is_env_set("LLM_INCLUDE_SECTIONS"):
-            return list(sections)
         return list(CFG.LLM_INCLUDE_SECTIONS)
 
     @property
-    def active_preset(self) -> Preset:
-        """The preset the configured ``LLM_PROFILE`` binds for the active model.
-
-        Read for two of its three axes: the section list above, and the phrasing
-        variant threaded to file-backed sections in ``_get_composed_middlewares``.
-        The third — the tool surface — is applied by ``apply_common_tools``.
-        """
-        return active_preset(self._model)
-
-    @property
     def model(self) -> Any:
-        """The model the prompt is being composed for; drives preset selection."""
+        """The model the prompt is being composed for; selects the `profile` section."""
         return self._model
 
     @model.setter
     def model(self, value: Any) -> None:
         """Bind the active model. Set by the runner before each compose."""
         self._model = value
-
-    def register_section(self, name: str, provider: SimplePrompt) -> None:
-        """Register a dynamic provider for a config-positioned custom section.
-
-        Once registered, *name* may appear in ``include_sections`` (or the
-        ``ZRB_LLM_INCLUDE_SECTIONS`` env var) and is composed at that position
-        by calling ``provider(ctx)`` at compose time, so the content reflects
-        live runtime state. *provider* must accept the active context and return
-        a string (``Callable[[AnyContext], str]``); return ``""`` to emit
-        nothing.
-
-        Resolution precedence for a section name is built-in > registered
-        provider > markdown file: a registered provider shadows a same-named
-        ``get_prompt(name)`` file but never a built-in section. Re-registering
-        the same name overwrites the previous provider.
-        """
-        self._section_providers[name] = provider
 
     def reset(self):
         """Drop every appended prompt, keeping the built-in sections."""
@@ -330,68 +274,37 @@ class PromptManager:
             return ""
         return f"<live-context>\n{body}\n</live-context>"
 
-    def add_system_context(self, name: str, provider: SimplePrompt) -> None:
-        """Register a dynamic system context provider.
-
-        Called every turn inside the ``system_context`` section, after the
-        built-in system context rendering (OS, CWD, tools, model, etc.).
-        *provider* receives the active context and returns a string (or
-        ``None`` / ``""`` to emit nothing). Re-registering the same *name*
-        overwrites the previous provider.
-        """
-        self._system_context_providers.set(name, provider)
-
     def _create_system_context_middleware(self) -> FullMiddleware:
-        """Build the system_context section middleware, including custom providers."""
+        """Build the ``system_context`` data section middleware.
+
+        Renders the session-invariant system facts (OS, CWD, tools, model,
+        sandbox, parallel-call support) via :func:`system_context`.
+        """
         _builtin = partial(system_context, model=self._model)
-        _providers = self._system_context_providers
 
         def system_context_middleware(
             ctx: AnyContext,
             current_prompt: str,
             next_handler: Callable[[AnyContext, str], str],
         ) -> str:
-            result = _builtin(ctx, current_prompt, next_handler)
-            extra_parts = _providers.render(ctx)
-            if extra_parts:
-                result = next_handler(
-                    ctx,
-                    f"{result}\n\n" + "\n\n".join(extra_parts),
-                )
-            return result
+            return _builtin(ctx, current_prompt, next_handler)
 
         return system_context_middleware
 
-    def add_project_context(self, name: str, provider: SimplePrompt) -> None:
-        """Register a dynamic project context provider.
-
-        Called every turn inside the ``project_context`` section, after the
-        built-in project documentation rendering. *provider* receives the
-        active context and returns a string (or ``None`` / ``""`` to emit
-        nothing). Re-registering the same *name* overwrites the previous
-        provider.
-        """
-        self._project_context_providers.set(name, provider)
-
     def _create_project_context_middleware(self) -> FullMiddleware:
-        """Build the project_context section middleware, including custom providers."""
+        """Build the ``project_context`` data section middleware.
+
+        Renders the project documentation files (AGENTS.md, CLAUDE.md, …)
+        discovered near the working directory via ``create_project_context_prompt``.
+        """
         _builtin = create_project_context_prompt()
-        _providers = self._project_context_providers
 
         def project_context_middleware(
             ctx: AnyContext,
             current_prompt: str,
             next_handler: Callable[[AnyContext, str], str],
         ) -> str:
-            result = _builtin(ctx, current_prompt, next_handler)
-            extra_parts = _providers.render(ctx)
-            if extra_parts:
-                result = next_handler(
-                    ctx,
-                    f"{result}\n\n## Custom Project Context\n"
-                    + "\n\n".join(extra_parts),
-                )
-            return result
+            return _builtin(ctx, current_prompt, next_handler)
 
         return project_context_middleware
 
@@ -444,11 +357,11 @@ class PromptManager:
     ) -> list[PromptMiddleware | str]:
         sections = self.active_sections
 
-        # The preset's phrasing axis (ADR-0049): file-backed sections resolve
-        # ``{name}.{variant}.md`` with fallback to the base (ADR-0049), which is
-        # how ``minimal`` gets its lighter rulebook. ``full`` carries no variant,
-        # so every section takes the base file.
-        variant = self.active_preset.variant
+        # The profile axis (ADR-0049): the `profile` section resolves
+        # ``profile.{profile}.md`` with fallback to the base ``profile.md``;
+        # the other sections are shared. ``active_profile`` resolves ``auto``
+        # from the bound model.
+        variant = active_profile(self._model)
 
         assistant_name = (
             get_str_attr(ctx, self._assistant_name) if self._assistant_name else None
@@ -470,36 +383,20 @@ class PromptManager:
             _extra.update(build_skill_replacements(self._skill_manager, active_skills))
 
         middlewares: list[PromptMiddleware | str] = []
-        # Cross-reference blocks are filtered against the section set so the
-        # prompt never points at a section it did not emit.
-        emitted = set(sections)
-
         for section in sections:
             if section == "system_context":
                 middlewares.append(self._create_system_context_middleware())
             elif section == "project_context":
                 middlewares.append(self._create_project_context_middleware())
-            elif section in self._section_providers:
-                # Registered dynamic section -> composed by calling the
-                # provider with the active context at compose time. Takes
-                # precedence over a same-named markdown file. Registered via
-                # register_section(); see AGENTS.md ("LLM Prompt System").
-                middlewares.append(self._section_providers[section])
+            elif section not in _SECTION_NAMES:
+                self._warn_empty_section(ctx, section)
+                continue
             else:
-                # Built-in file-backed sections (persona, workflow, examples)
-                # and unknown/custom ones both resolve here, via
-                # get_prompt(name, **_extra) (project override -> env -> base
-                # prompt dir -> package default). Lets downstreams add always-on,
-                # ordered sections through include_sections + a markdown file,
-                # with no code change. Missing files resolve to "" (harmless
-                # no-op) and log a warning, which is also what a retired section
-                # name left in a pinned config does.
                 middlewares.append(
                     self._file_section_middleware(
                         section,
-                        profile=variant,
+                        profile=variant if section == "profile" else None,
                         extra_replacements=_extra,
-                        emitted=emitted,
                     )
                 )
 
@@ -512,7 +409,6 @@ class PromptManager:
         name: str,
         profile: str | None = None,
         extra_replacements: dict[str, str] | None = None,
-        emitted: set[str] | None = None,
     ) -> FullMiddleware:
         """Middleware for one or more file-backed sections emitted as a unit.
 
@@ -531,20 +427,19 @@ class PromptManager:
             ctx: AnyContext, current: str, next_fn: Callable[[AnyContext, str], str]
         ) -> str:
             kwargs = extra_replacements or {}
-            present = emitted if emitted is not None else {name}
             content = get_prompt(name, profile=profile, **kwargs)
             if not content:
                 self._warn_empty_section(ctx, name)
-            return next_fn(ctx, f"{current}\n" + filter_requires(content, present))
+            return next_fn(ctx, f"{current}\n{content}")
 
         return file_section_middleware
 
     def _warn_empty_section(self, ctx: AnyContext, name: str) -> None:
         """Surface a section name that resolved to nothing, so typos are visible."""
         message = (
-            f"Prompt section '{name}' is not a built-in, has no "
-            "registered provider, and no markdown file resolves for "
-            "it — the section is empty. Check include_sections / "
+            f"Prompt section '{name}' is not a known section and is ignored. "
+            "Known sections: persona, principle, workflow, example, profile, "
+            "system_context, project_context. Check include_sections / "
             f"{CFG.ENV_PREFIX}_LLM_INCLUDE_SECTIONS for a typo."
         )
         log_warning = getattr(ctx, "log_warning", None)

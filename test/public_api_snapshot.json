@@ -46,7 +46,6 @@
     "OptionInput",
     "PasswordInput",
     "PermissionPolicy",
-    "Preset",
     "PromptManager",
     "RsyncTask",
     "Rule",
@@ -79,8 +78,6 @@
     "make_task",
     "model_capabilities",
     "register_always_auto_approve",
-    "register_model_profile",
-    "register_preset",
     "register_theme",
     "skill_manager",
     "sub_agent_manager",
@@ -1170,18 +1167,6 @@
         "decide"
       ]
     },
-    "Preset": {
-      "init": [
-        "sections:POSITIONAL_OR_KEYWORD:1",
-        "variant:POSITIONAL_OR_KEYWORD:1",
-        "tools:POSITIONAL_OR_KEYWORD:1",
-        "drops:POSITIONAL_OR_KEYWORD:1"
-      ],
-      "members": [
-        "admits",
-        "constrains_tools"
-      ]
-    },
     "PromptManager": {
       "init": [
         "prompts:POSITIONAL_OR_KEYWORD:1",
@@ -1193,12 +1178,9 @@
         "render:POSITIONAL_OR_KEYWORD:1"
       ],
       "members": [
-        "active_preset",
         "active_sections",
         "active_skills",
         "add_live_context",
-        "add_project_context",
-        "add_system_context",
         "append_prompt",
         "compose_prompt",
         "create_live_context",
@@ -1206,7 +1188,6 @@
         "include_sections",
         "model",
         "prompts",
-        "register_section",
         "reset"
       ]
     },
@@ -1818,14 +1799,6 @@
     ],
     "register_always_auto_approve": [
       "tool_names:VAR_POSITIONAL:0"
-    ],
-    "register_model_profile": [
-      "pattern:POSITIONAL_OR_KEYWORD:0",
-      "profile:POSITIONAL_OR_KEYWORD:0"
-    ],
-    "register_preset": [
-      "name:POSITIONAL_OR_KEYWORD:0",
-      "preset:POSITIONAL_OR_KEYWORD:0"
     ],
     "register_theme": [
       "name:POSITIONAL_OR_KEYWORD:0",

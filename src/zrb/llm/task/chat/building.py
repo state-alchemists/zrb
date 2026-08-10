@@ -126,7 +126,8 @@ class ChatBuilding(ChatState):
         self._tools += list(tool)
 
     def append_tool_factory(
-        self, *factory: "Callable[[AnyContext], Tool | ToolFuncEither]"
+        self,
+        *factory: "Callable[[AnyContext], Tool | ToolFuncEither | list[Tool | ToolFuncEither]]",
     ):
         """Add factories building tools per run, from the task context.
 

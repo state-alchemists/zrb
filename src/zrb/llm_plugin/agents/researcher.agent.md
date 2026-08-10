@@ -12,7 +12,7 @@ tools: [
   TodoWrite, TodoRead,
   ActivateSkill
 ]
-inherit_sections: [persona, workflow, system_context, project_context]
+inherit_sections: [persona, principle, workflow, example, profile]
 ---
 # Persona: The Research Specialist
 

@@ -254,35 +254,35 @@ def test_sub_agent_manager_add_toolset_factory():
 
 
 def test_sub_agent_definition_defaults_inherit_sections_none():
-    """SubAgentDefinition without inherit_sections preserves lean prompt
-    composition (no parent persona/mandate injected)."""
+    """SubAgentDefinition without inherit_sections keeps its own prompt only
+    (no parent persona/workflow injected)."""
     agent_def = SubAgentDefinition(
-        name="lean",
+        name="standalone",
         path=".",
         description="d",
-        system_prompt="You are a lean agent.",
+        system_prompt="You are a standalone agent.",
     )
     assert agent_def.inherit_sections is None
 
 
-def test_sub_agent_manager_lean_agent_skips_inheritance():
+def test_sub_agent_manager_without_inherit_sections_skips_inheritance():
     """Agents with inherit_sections=None get only body + own guidance —
-    no # Identity / # Operating Rules from the main agent."""
+    no # Persona / # Workflow from the main agent."""
     manager = SubAgentManager()
     agent_def = SubAgentDefinition(
-        name="lean",
+        name="standalone",
         path=".",
         description="d",
-        system_prompt="You are a lean agent. Do X.",
+        system_prompt="You are a standalone agent. Do X.",
     )
     manager.add_agent(agent_def)
 
     with patch("zrb.llm.agent.subagent.manager.create_agent") as mock_create:
-        manager.create_agent("lean")
+        manager.create_agent("standalone")
         prompt = mock_create.call_args.kwargs["system_prompt"]
-    assert "You are a lean agent. Do X." in prompt
-    assert "# Identity" not in prompt
-    assert "# Operating Rules" not in prompt
+    assert "You are a standalone agent. Do X." in prompt
+    assert "# Persona" not in prompt
+    assert "# Workflow" not in prompt
 
 
 def test_sub_agent_manager_inherit_sections_composes_parent_sections():
@@ -302,8 +302,8 @@ def test_sub_agent_manager_inherit_sections_composes_parent_sections():
         manager.create_agent("inheriting")
         prompt = mock_create.call_args.kwargs["system_prompt"]
 
-    persona_idx = prompt.find("# Identity")
-    workflow_idx = prompt.find("# Operating Rules")
+    persona_idx = prompt.find("# Persona")
+    workflow_idx = prompt.find("# Workflow")
     body_idx = prompt.find("You are an inheriting agent.")
     assert persona_idx != -1
     assert workflow_idx != -1
@@ -356,5 +356,5 @@ def test_sub_agent_manager_inherit_sections_empty_list_means_opt_out():
     with patch("zrb.llm.agent.subagent.manager.create_agent") as mock_create:
         manager.create_agent("optout")
         prompt = mock_create.call_args.kwargs["system_prompt"]
-    assert "# Identity" not in prompt
+    assert "# Persona" not in prompt
     assert "Body only." in prompt

@@ -151,11 +151,11 @@ def my_tool(item_id: str) -> dict:
 chat.append_tool(my_tool)
 ```
 
-For cross-cutting policy, register a prompt section and place its name in `ZRB_LLM_INCLUDE_SECTIONS`:
+For cross-cutting policy, append it to the system prompt (emitted after the built-in sections):
 
 ```python
-chat.prompt_manager.register_section(
-    "tool_policy", lambda ctx: "## My rules\n- Always validate before writing."
+chat.prompt_manager.append_prompt(
+    "## My rules\n- Always validate before writing."
 )
 ```
 

@@ -21,26 +21,14 @@ class LLMPromptMixin:
         self.DEFAULT_LLM_BASE_PROMPT_DIR: str = ""
         self.DEFAULT_LLM_SHOW_TOOL_CALL_DETAIL: str = "off"
         self.DEFAULT_LLM_SHOW_TOOL_CALL_RESULT: str = "off"
-        # Comma-separated, order-sensitive list of prompt sections to include.
-        # Order in the list determines the order they appear in the system prompt.
-        # Each section is MECE (mutually exclusive in concern). Three carry
-        # rules: persona=identity+response style, workflow=priority order + turn
-        # sequence + skill catalogue + working loop + verify gate + recovery,
-        # examples=demonstrations only. Two carry runtime facts:
-        # system_context=stable facts (OS, CWD, model), project_context=
-        # AGENTS.md/CLAUDE.md discovery.
-        # Per-tool rules live in tool docstrings, which pydantic-ai ships with
-        # the schema on every request. The skill catalogue is injected into
-        # workflow via {CORE_SKILLS}/{AVAILABLE_SKILLS}/{PREACTIVATED_SKILLS}.
+        # The seven prompt sections are deliberately fixed and ordered: the five
+        # file-backed rule sections, then the two runtime-fact sections
+        # (system_context renders the environment, project_context the project
+        # docs discovered near the working directory).
         self.DEFAULT_LLM_INCLUDE_SECTIONS: str = (
-            "persona,workflow,examples,system_context,project_context"
+            "persona,principle,workflow,example,profile,system_context,project_context"
         )
-        # Prompt preset (ADR-0049): "full" (default) or "minimal"; "auto" resolves
-        # one from the model id, falling back to "full". A preset binds a section
-        # list, a phrasing variant (workflow.minimal.md over workflow.md) and a
-        # tool surface. zrb makes no capability guess from a model *family* name —
-        # only from a declared parameter count or a vendor small-tier label.
-        self.DEFAULT_LLM_PROFILE: str = "full"
+        self.DEFAULT_LLM_PROFILE: str = "standard"
         super().__init__()
 
     LLM_PROMPT_DIR = EnvField(
@@ -76,18 +64,11 @@ class LLMPromptMixin:
     LLM_PROFILE = EnvField(
         str,
         doc=(
-            "Prompt profile — a preset binding which sections compose, how "
-            "they are phrased, and which tools register:\n"
-            "- 'full' (default): the whole rulebook and all 20 eager tools, on "
-            "the base prompts.\n"
-            "- 'minimal': a three-section prompt and a 10-tool surface, for "
-            "very small models (~3B). No skills, sub-agents, web, todos or "
-            "project-doc reading.\n"
-            "- 'auto': resolved from the model id — a declared size of 4B or "
-            "less, or a vendor small-tier label on a locally served model, "
-            "selects 'minimal', otherwise 'full'. Override per model with "
-            "register_model_profile().\n\n"
-            "Setting LLM_INCLUDE_SECTIONS explicitly overrides a preset's "
-            "section list.\n\n"
+            "Prompt profile: 'minimal', 'standard' (default), or 'capable'. "
+            "It selects profile.<name>.md; 'minimal' additionally registers no "
+            "delegate (sub-agent) tools. 'auto' derives one from the model id: "
+            "a declared size of 4B or less selects 'minimal', 5-14B 'standard', "
+            "above 14B 'capable'; an id declaring nothing falls back to "
+            "'standard'. Override per model with ZRB_LLM_PROFILE.\n"
         ),
     )

@@ -54,7 +54,9 @@ class ChatState:
 
     # --- Tools / toolsets --------------------------------------------------
     _tools: list[Tool | ToolFuncEither]
-    _tool_factories: list[Callable[[AnyContext], Tool | ToolFuncEither]]
+    _tool_factories: list[
+        Callable[[AnyContext], Tool | ToolFuncEither | list[Tool | ToolFuncEither]]
+    ]
     _toolsets: list[AbstractToolset[None]]
     _toolset_factories: list[Callable[[AnyContext], AbstractToolset[None]]]
     _tool_confirmation: AnyToolConfirmation

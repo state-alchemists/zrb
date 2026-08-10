@@ -124,9 +124,13 @@ class TestDetectProjectRoot:
             root = manager.detect_project_root(str(file_path))
             assert root == str(proj_dir)
 
-    def test_detect_project_root_fallback(self, manager, tmp_path):
+    def test_detect_project_root_fallback(self, manager, tmp_path, monkeypatch):
         file_path = tmp_path / "standalone.py"
         file_path.write_text("print('hello')")
+        # An ancestor of tmp_path may hold a real marker (e.g. a stray .git in
+        # the system tmp dir), which would make the walk stop before the
+        # fallback. Empty the marker list so the fallback is exercised hermetically.
+        monkeypatch.setattr("zrb.llm.lsp.manager_lifecycle._PROJECT_MARKERS", [])
         root = manager.detect_project_root(str(file_path))
         assert root == str(tmp_path)
 

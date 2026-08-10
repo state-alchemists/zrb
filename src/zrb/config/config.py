@@ -70,8 +70,9 @@ class Config(  # noqa: E501  # Sibling parts TYPE_CHECKING-declare ENV_PREFIX/RO
 
         A read never answers this: an unset field falls back to its default, so
         the value alone cannot say whether the user chose it. Callers that must
-        distinguish "chosen" from "defaulted" — e.g. a prompt preset that
-        supplies a section list only when `LLM_INCLUDE_SECTIONS` names none —
+        distinguish "chosen" from "defaulted" — e.g. a caller that must keep a
+        user-pinned `ZRB_LLM_INCLUDE_SECTIONS` separate from the shipped default
+        order —
         ask here rather than reconstructing the env key themselves.
 
         Raises `AttributeError` for a name that is not an `EnvField` (hand-written

@@ -32,13 +32,12 @@ def test_config_llm_include_sections_default():
 
     sections = CFG.LLM_INCLUDE_SECTIONS
     assert isinstance(sections, list)
-    # Three rule sections plus two data sections. The skill catalogue is folded
-    # into `workflow` via placeholders; per-tool rules live in tool docstrings,
-    # so there is no tool_guidance section.
     assert sections == [
         "persona",
+        "principle",
         "workflow",
-        "examples",
+        "example",
+        "profile",
         "system_context",
         "project_context",
     ]
@@ -58,7 +57,7 @@ def test_config_llm_include_sections_setter():
 def test_environment_variable_overrides():
     """Test that environment variables can override LLM_INCLUDE_SECTIONS."""
     env_vars = {
-        "ZRB_LLM_INCLUDE_SECTIONS": "persona,system_context",
+        "ZRB_LLM_INCLUDE_SECTIONS": "persona,principle",
         "_ZRB_ENV_PREFIX": "ZRB",
     }
 
@@ -66,9 +65,7 @@ def test_environment_variable_overrides():
         CFG._instance = None
 
         sections = CFG.LLM_INCLUDE_SECTIONS
-        assert sections == ["persona", "system_context"]
-        assert "mandate" not in sections
-        assert "git_mandate" not in sections
+        assert sections == ["persona", "principle"]
 
 
 def test_prompt_manager_uses_config_defaults():
@@ -93,7 +90,7 @@ def test_prompt_manager_mini_overrides():
 
     # Explicit include_sections takes precedence
     manager = PromptManager(
-        include_sections=["persona", "mandate"],
+        include_sections=["persona", "principle"],
     )
 
     prompt = manager.compose_prompt()(ctx)
@@ -108,7 +105,7 @@ def test_prompt_manager_include_sections_mini_subset():
     ctx = SharedContext()
 
     manager = PromptManager(
-        include_sections=["persona", "examples"],
+        include_sections=["persona", "example"],
     )
 
     prompt = manager.compose_prompt()(ctx)
@@ -128,7 +125,7 @@ def test_prompt_manager_include_sections_ordering():
 
     prompt = manager.compose_prompt()(ctx)
     # workflow header comes before persona header
-    assert prompt.index("# Operating Rules") < prompt.index("# Identity")
+    assert prompt.index("# Workflow") < prompt.index("# Persona")
 
 
 @pytest.mark.asyncio
@@ -145,7 +142,7 @@ async def test_prompt_manager_integration():
 
     # Test 2: With environment variable overrides
     env_vars = {
-        "ZRB_LLM_INCLUDE_SECTIONS": "persona,mandate",
+        "ZRB_LLM_INCLUDE_SECTIONS": "persona,principle",
         "_ZRB_ENV_PREFIX": "ZRB",
     }
 

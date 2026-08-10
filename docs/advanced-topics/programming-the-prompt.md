@@ -34,9 +34,9 @@ The rest of this page is how to get data into either one.
 | 2 | `message="… {ctx.xcom['x'].pop()} …"` | Inject an upstream task's output, an input, or an env var. |
 | 3 | `message=lambda ctx: …` | You need real Python to build the prompt. |
 | 4 | `system_prompt=…` (string or callable) | Set persona / standing rules, separate from the per-turn message. |
-| 5 | `prompt_manager=PromptManager(include_sections=[…])` | Reorder, drop, or splice whole prompt sections. |
-| 6 | `pm.register_section(...)` / `pm.add_live_context(...)` | A section's content must reflect live runtime state. |
-| 7 | Markdown-file sections + `ZRB_LLM_PROFILE` | Author prompts as files, with model-adaptive phrasing. |
+| 5 | `prompt_manager=PromptManager(include_sections=[…])` | Reorder or drop the built-in prompt sections. |
+| 6 | `pm.append_prompt(...)` / `pm.add_live_context(...)` | Content must reflect live runtime state, or land after the built-ins. |
+| 7 | Override `markdown/` files + `ZRB_LLM_PROFILE` | Author prompts as files, with per-model-class profile phrasing. |
 
 ---
 
@@ -162,19 +162,19 @@ Now `zrb ask-repo` runs the command, hands the output to the model as background
 
 ## Rung 5 — composing sections with `PromptManager`
 
-The system prompt Zrb ships is not one blob — it is an ordered list of **sections**, each owning one concern. Three carry rules, two carry runtime facts:
+The system prompt Zrb ships is not one blob — it is an ordered list of **sections**, each owning one concern. Five are file-backed rule sections, two carry runtime facts:
 
 ```mermaid
 flowchart LR
-    P["persona"] --> W["workflow"] --> E["examples"] --> S["system_context"] --> C["project_context"]
+    P["persona"] --> R["principle"] --> W["workflow"] --> E["example"] --> F["profile"] --> S["system_context"] --> C["project_context"]
 ```
 
 > Per-tool rules are **not** a section. They live in each tool's docstring, which pydantic-ai ships with the schema on every request (ADR-0045).
 
 A `PromptManager` lets you control that assembly. Two independent levers:
 
-- **`prompts=[...]`** — extra section(s) appended after the built-ins. This is exactly what `system_prompt` populates.
-- **`include_sections=[...]`** — the full ordered list of section names to emit. Drop one, reorder them, or splice your own name in.
+- **`prompts=[...]`** — extra content appended after the built-ins. This is exactly what `system_prompt` populates.
+- **`include_sections=[...]`** — the full ordered list of section names to emit. Drop or reorder the built-ins; the built-in set itself is fixed (ADR-0044).
 
 Dropping a section is safe: a block that references another section is marked in the markdown and pruned when its target is not emitted, so the composed prompt never instructs the model about a part it never received (ADR-0046).
 
@@ -194,7 +194,7 @@ pm = PromptManager(
     prompts=["Prefer standard-library solutions over new dependencies."],
     include_sections=[
         "persona", "workflow", "system_context", "project_context",
-        # dropped: examples
+        # dropped: principle, example, profile
     ],
 )
 
@@ -205,38 +205,32 @@ You can also set the order without touching code, via the `ZRB_LLM_INCLUDE_SECTI
 
 ## Rung 6 — sections that reflect live state
 
-A name in `include_sections` that isn't a built-in becomes a **custom section**. Give it content by registering a provider — a `Callable[[AnyContext], str]` composed *at request time*, so it always reflects current state. Return `""` to emit nothing.
+The built-in section set is fixed, so there are no user-defined system-prompt sections (ADR-0044). Two public hooks cover the same ground:
+
+- **`pm.append_prompt(...)`** — static, dynamic, or full-middleware content emitted **after** all built-in sections; part of the cached system prompt.
+- **`pm.add_live_context(name, provider)`** — inject volatile per-turn state into the `<live-context>` block appended to each user message, **without** invalidating the cacheable system-prompt prefix.
 
 ```python
-pm = PromptManager(
-    include_sections=[
-        "persona", "workflow", "examples", "system_context", "project_context",
-        "sprint_context",      # ← your section
-    ],
-)
-pm.register_section("sprint_context", lambda ctx: f"Active sprint: {load_current_sprint()}")
+pm = PromptManager()
+pm.add_live_context("sprint", lambda ctx: f"Active sprint: {load_current_sprint()}")
 ```
 
-Related helpers for the common cases (all take `(name, provider)`):
-
-- `pm.add_live_context(name, provider)` — inject volatile per-turn state (that changes every turn) into the `<live-context>` block appended to each user message, **without** invalidating the cacheable system-prompt prefix.
-- `pm.add_system_context(name, provider)` / `pm.add_project_context(name, provider)` — add to the built-in `system_context` / `project_context` sections rather than defining a standalone one.
-
-The provider runs at prompt-compose time on every request, so the section always reflects current state. Providers registered with `add_live_context` run in registration order, after the built-in live-context lines (time, git, worktree, mode, todos); re-registering the same name replaces the previous provider.
+The `add_live_context` provider runs every turn, so the injected block always reflects current state. Providers run in registration order, after the built-in live-context lines (time, git, worktree, mode, todos); re-registering the same name replaces the previous provider.
 
 👉 Runnable end-to-end example: [`examples/live-context`](../../examples/live-context).
 
 ## Rung 7 — file-backed sections and profiles
 
-If a custom section name has no registered provider, Zrb resolves it to a **Markdown file** — `get_prompt("sprint_context")` loads `sprint_context.md` through the override chain (project override → env → base-prompt-dir → package), with the same `{PLACEHOLDER}` substitution. Static and dynamic sections thus share one ordering mechanism; a missing file is a harmless no-op (logged at compose time so a typo is diagnosable).
+Section wording ships as files, so you can override any of them without Python: place a same-named file higher on the override chain (project override → env → base-prompt-dir → package) and it replaces the packaged wording, `{PLACEHOLDER}` substitution included.
 
-Independently, the `ZRB_LLM_PROFILE` knob selects a **preset** — which sections compose, how they are phrased, and which tools register:
+Independently, `ZRB_LLM_PROFILE` selects one of three **profiles** — `minimal`, `standard`, or `capable` — that swap the final `profile` section via `profile.{name}.md`, and for `minimal` only, drop the delegate (sub-agent) tools:
 
-- `full` — the whole rulebook (the `.md` files as written) and all 20 eager tools.
-- `minimal` — three sections, a one-page rulebook (`workflow.minimal.md`) and a 10-tool surface, for very small models (~3B).
-- `auto` (default) — resolved from a declared model size, or from `register_model_profile(...)`.
+- `minimal` — concise, one clear next action; no delegate tools. For very small models (~3B).
+- `standard` (default) — balance autonomy with clear communication.
+- `capable` — strong ownership of substantial work.
+- `auto` — derived from the model id: a declared size of ≤4B selects `minimal`, 5–14B `standard`, above 14B `capable`; an id declaring nothing stays `standard`.
 
-The phrasing axis is a **variant overlay**, and it is the only way a preset changes a section's wording: `get_prompt(name, profile="minimal")` resolves `{name}.{profile}.md`, falling back to the base `{name}.md`. The section list says which topics appear, never which wording — so there is no `workflow_minimal` section, just a `workflow.minimal.md` file. A variant may re-shape its rulebook, but no rule may live *only* in a variant, and every preset must keep the rank-1 safety rules. An explicitly-set `ZRB_LLM_INCLUDE_SECTIONS` overrides a preset's sections; registering a new preset is `PRESETS["nano"] = Preset(...)`. See `AGENTS.md` → *LLM Prompt System*, ADR-0049.
+A profile changes **only** the `profile` section and the `minimal` delegate restriction — not the other sections, their wording, or the rest of the tool surface (ADR-0049). Override a profile's wording by dropping a `profile.{name}.md` into `ZRB_LLM_PROMPT_DIR`; run `ZRB_LLM_PROFILE=minimal` for a session on a small local model. See `AGENTS.md` → *LLM Prompt System*, ADR-0049.
 
 ---
 
@@ -247,7 +241,7 @@ The phrasing axis is a **variant overlay**, and it is the only way a preset chan
 - **Give the agent a lasting persona / standing rules.** Rung 4 (`system_prompt`).
 - **Seed an interactive chat with context, then let the user drive.** Rung 4, output in `system_prompt`, `message` left empty.
 - **Reorder or trim the built-in prompt.** Rung 5 (`PromptManager` + `include_sections`).
-- **A section must reflect live runtime state.** Rung 6 (`register_section` / `add_live_context`).
+- **A section must reflect live runtime state.** Rung 6 (`add_live_context`).
 - **Author prompts as files, adapt phrasing per model.** Rung 7 (files + profiles).
 
 ## See also
@@ -256,6 +250,6 @@ The phrasing axis is a **variant overlay**, and it is the only way a preset chan
 - [XCom Deep Dive](../core-concepts/xcom-deep-dive.md) — how task outputs flow into `{ctx.xcom[...]}`
 - [LLMChatTask API Reference](../task-types/llmchat-task.md) — the full constructor and builder API
 - [LLM Assistant & AI Tasks](llm-integration.md) — tools, sub-agents, context management
-- `AGENTS.md` → *LLM Prompt System* and ADR-0044, ADR-0049 — section resolution, variants and presets
+- `AGENTS.md` → *LLM Prompt System* and ADR-0044, ADR-0049 — section resolution, profiles and the auto ladder
 
 🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > Programming the Prompt

@@ -43,9 +43,9 @@ chat = LLMChatTask(name="ops-chat", tools=[get_open_incidents])
 
 ## Programming the prompt
 
-Everything the model reads — the per-turn `message` and the standing `system_prompt` — is a value you supply: a string, a `{ctx…}` template, a Python callable, or a fully composed `PromptManager` with reorderable sections, live-state providers, and model-adaptive profiles. That whole ladder, from the one-line string up to dynamic file-backed sections, has its own page:
+Everything the model reads — the per-turn `message` and the standing `system_prompt` — is a value you supply: a string, a `{ctx…}` template, a Python callable, or a fully composed `PromptManager` with reorderable sections, live-state providers, and profiles. That whole ladder, from the one-line string up to the built-in file-backed sections, has its own page:
 
-👉 **[Programming the Prompt](programming-the-prompt.md)** — the full ladder, including dynamic sections (`register_section`), per-turn live context (`add_live_context`), and profiles.
+👉 **[Programming the Prompt](programming-the-prompt.md)** — the full ladder, including per-turn live context (`add_live_context`) and profiles.
 
 The short version for the two most common runtime needs:
 
@@ -56,8 +56,8 @@ LLMTask(
     system_prompt=lambda ctx: f"You are deploying to {ctx.env.DEPLOY_TARGET}. Be careful in prod.",
 )
 
-# A named section whose content reflects live state, spliced into the section order:
-pm.register_section("sprint_context", lambda ctx: f"Active sprint: {load_current_sprint()}")
+# A named live-context line whose content reflects live state, appended to every user turn:
+pm.add_live_context("sprint", lambda ctx: f"Active sprint: {load_current_sprint()}")
 ```
 
 ## History processors

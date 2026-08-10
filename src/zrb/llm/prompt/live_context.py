@@ -41,16 +41,15 @@ from typing import Any, Callable
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
-from zrb.llm.prompt.profile import active_preset
 
 # Anchors the <live-context> contract in the cached system prompt. Stable text
 # — costs nothing per turn and never invalidates the cacheable prefix — while
 # telling any model (not just ones that learned <system-reminder>) what the
 # block is and that the most recent one wins.
-# It names no individual line: a constrained preset renders no todo or worktree
-# line, and an anchor that promises lines the composition cannot produce is the
-# same dangle as a rulebook naming an absent tool, minus the test that catches
-# it. The block is self-describing once it arrives.
+# It names no individual line: the block's contents vary with the environment
+# (a composition may drop the todo lines), and an anchor that promises lines the
+# block cannot produce is the same dangle as a rulebook naming an absent tool,
+# minus the test that catches it. The block is self-describing once it arrives.
 _LIVE_CONTEXT_ANCHOR = (
     "Each user turn ends with a <live-context> block describing current runtime "
     "state. It is injected automatically — not written by the user. Treat the "
@@ -63,15 +62,12 @@ SimpleLiveContextProvider = Callable[[AnyContext], str | None]
 
 
 def _admits(model: "Any", tool: str) -> bool:
-    """Whether the active preset registers *tool* for *model*.
+    """Whether a standard tool may be named in live context.
 
-    Injected context is the third channel that can name a tool, after the prompt
-    sections and the tool docstrings. ADR-0049 promises a preset's tool surface
-    is closed under cross-reference;
-    a `<live-context>` line announcing `AskUserQuestion` to a preset that never
-    registered it breaks that promise from outside every test that guards it.
+    Prompt profiles no longer alter the tool surface, so all registered tools
+    are available in every profile.
     """
-    return active_preset(model).admits(tool)
+    return True
 
 
 def _collect_git_info(
@@ -269,10 +265,10 @@ def render_live_context(
     only (empty history); summarization re-seeds the index separately, at its own
     site (``summarize_history``).
 
-    The ``model`` argument resolves the active preset, so a line naming a tool
-    is emitted only where that tool is registered (``_admits``). It is not
-    rendered as text — the model identity line is a stable fact and lives in
-    ``system_context``.
+    The ``model`` argument is retained for the tool-admission seam
+    (``_admits``), which currently always admits — profiles do not alter the
+    tool surface. It is not rendered as text: the model identity line is a
+    stable fact and lives in ``system_context``.
 
     On the async per-turn hot path, prefer ``render_live_context_async`` — this
     sync form blocks its caller for the duration of the git subprocesses.
@@ -364,8 +360,9 @@ def _render_parts(
     if mode_line:
         parts.append(mode_line)
     if interactive_bool:
-        # Named only where it exists: `minimal` drops AskUserQuestion, and
-        # announcing a tool the model cannot call is worse than saying nothing.
+        # AskUserQuestion exists only in interactive sessions, so only this
+        # branch names it. `_admits` is the retained gate — always open, since
+        # profiles do not alter the tool surface.
         parts.append(
             "- Interactive: yes (AskUserQuestion is available)"
             if _admits(model, "AskUserQuestion")
@@ -387,11 +384,9 @@ def _render_parts(
         except Exception as e:
             CFG.LOGGER.debug(f"Failed to format todo lines for live context: {e}")
 
-    # The index tells the model to "Use SearchJournal for full entries", so a
-    # preset that dropped the journal tools must not be handed one — it would be
-    # a few hundred tokens of memory with no tool to act on it. `minimal` drops
-    # them by allowlist; that is the same question, which is why this asks the
-    # surface rather than the flag.
+    # The index tells the model to "Use SearchJournal for full entries";
+    # SearchJournal is always registered, so the index is handed over whenever
+    # injection is on (`_admits` is the retained gate).
     if inject_journal_index and _admits(model, "SearchJournal"):
         journal_block = render_journal_index()
         if journal_block:

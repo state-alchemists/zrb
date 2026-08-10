@@ -88,7 +88,13 @@ class LLMTask(LLMTaskBuilding, LLMTaskHistory, BaseTask):
         tools: list[Tool | ToolFuncEither] | None = None,
         toolsets: list[AbstractToolset[None]] | None = None,
         tool_factories: (
-            list[Callable[[AnyContext], Tool | ToolFuncEither]] | None
+            list[
+                Callable[
+                    [AnyContext],
+                    Tool | ToolFuncEither | list[Tool | ToolFuncEither],
+                ]
+            ]
+            | None
         ) = None,
         toolset_factories: (
             list[Callable[[AnyContext], AbstractToolset[None]]] | None
