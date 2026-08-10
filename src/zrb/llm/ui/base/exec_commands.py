@@ -131,6 +131,8 @@ class BaseUIExecCommands:
         except asyncio.CancelledError:
             # Reap the child BEFORE touching the UI: an append_to_output failure
             # during teardown must not skip the cleanup and orphan the process.
+            # An un-reaped child at loop close logs
+            # "Loop <...> that handles pid N is closed" when it eventually exits.
             if process is not None and process.returncode is None:
                 try:
                     process.terminate()
@@ -143,6 +145,10 @@ class BaseUIExecCommands:
                         process.kill()
                     except Exception:
                         # Best-effort kill during teardown; re-raise below regardless.
+                        pass
+                    try:
+                        await asyncio.wait_for(process.wait(), timeout=1.0)
+                    except BaseException:
                         pass
             self.append_to_output("\n[Cancelled]\n")
             raise  # Re-raise to allow proper task cancellation

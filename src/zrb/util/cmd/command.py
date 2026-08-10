@@ -120,6 +120,18 @@ async def terminate_process(
     for pid in pids:
         if psutil.pid_exists(pid):
             kill_pid(pid, print_method=print_method)
+    # Reap whatever survived the grace period. The force-kill sends SIGKILL to
+    # the OS process, but an asyncio subprocess is not reaped until wait() is
+    # called. If that lands after the event loop closes (top-level
+    # ``asyncio.run`` teardown), the child watcher logs
+    # "Loop <...> that handles pid N is closed" — the exit event could not be
+    # delivered. SIGKILLed processes exit immediately, so the bounded wait is a
+    # pure safety net.
+    if process.returncode is None:
+        try:
+            await asyncio.wait_for(process.wait(), timeout=grace_seconds)
+        except asyncio.TimeoutError:
+            pass
 
 
 def terminate_pid(pid: int, print_method: Callable[..., None] | None = None) -> None:

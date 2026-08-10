@@ -229,6 +229,26 @@ class ChatExecution(ChatState):
         # never receive the terminal's Ctrl+C — this is what stops them
         # outliving the session.
         await self._teardown_background_hooks()
+        # Kill background shell / delegation work and reap their subprocesses
+        # while the loop is still alive. Anything left running when the loop
+        # closes logs "Loop <...> that handles pid N is closed" the moment it
+        # exits, because its exit event can no longer be delivered.
+        try:
+            from zrb.llm.tool.shell_background import (
+                get_shell_background_registry,
+            )
+
+            await get_shell_background_registry().cancel_all()
+        except Exception as e:
+            CFG.LOGGER.debug(f"Background-shell teardown at session end failed: {e}")
+        try:
+            from zrb.llm.tool.delegate_background import get_background_registry
+
+            get_background_registry().cancel_all()
+        except Exception as e:
+            CFG.LOGGER.debug(
+                f"Background-delegation teardown at session end failed: {e}"
+            )
         # lazy: only needed at teardown; keeps the import off hot paths.
         try:
             from zrb.llm.hook.executor import shutdown_hook_executor

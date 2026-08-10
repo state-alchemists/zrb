@@ -15,6 +15,29 @@ from typing import TYPE_CHECKING
 from zrb.config.config import CFG
 
 
+async def _communicate_or_reap(proc) -> tuple[bytes, bytes]:
+    """``proc.communicate()`` that kills + reaps the child on cancellation.
+
+    The system-info loop is cancelled at session teardown, which can land while
+    a ``git`` subprocess is mid-flight. An un-reaped child at loop close logs
+    "Loop <...> that handles pid N is closed" when it exits, so unwind by
+    terminating the child before propagating the cancellation.
+    """
+    try:
+        return await proc.communicate()
+    except asyncio.CancelledError:
+        if proc.returncode is None:
+            try:
+                proc.terminate()
+                await asyncio.wait_for(proc.wait(), timeout=1.0)
+            except BaseException:
+                try:
+                    proc.kill()
+                except Exception:
+                    pass
+        raise
+
+
 class BaseUISystemInfo:
     """Track and periodically refresh cwd / git status for the UI."""
 
@@ -55,7 +78,7 @@ class BaseUISystemInfo:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            stdout, _ = await proc.communicate()
+            stdout, _ = await _communicate_or_reap(proc)
             if proc.returncode != 0:
                 return "", ""
             branch = stdout.decode().strip()
@@ -68,10 +91,12 @@ class BaseUISystemInfo:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            stdout, _ = await proc.communicate()
+            stdout, _ = await _communicate_or_reap(proc)
             is_dirty = bool(stdout.strip())
 
             return branch, "*" if is_dirty else ""
+        except asyncio.CancelledError:
+            raise
         except Exception:
             return "", ""
 

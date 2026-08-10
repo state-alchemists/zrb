@@ -156,6 +156,24 @@ async def run_shell_command(
             result = f"{sandbox_note}\n{result}"
         return result
 
+    except asyncio.CancelledError:
+        # Cancellation must not orphan the subprocess: ``asyncio.run`` closes
+        # the loop right after the chat ends, and a child still alive then logs
+        # "Loop <...> that handles pid N is closed" when it finally exits (its
+        # exit event can no longer be delivered). Kill + reap while the loop is
+        # still alive, then re-raise so cancellation propagates. BaseException,
+        # not Exception: a re-cancel landing on the reap must not skip the kill.
+        _cleanup_temp_file(temp_pid_file)
+        if process is not None and process.returncode is None:
+            try:
+                await terminate_process(
+                    process,
+                    CFG.LLM_SHELL_KILL_WAIT_TIMEOUT / 1000,
+                    print_method=CFG.LOGGER.warning,
+                )
+            except BaseException:
+                CFG.LOGGER.debug("Shell cleanup on cancel failed", exc_info=True)
+        raise
     except Exception as e:
         _cleanup_temp_file(temp_pid_file)
         # A failure after the process started (e.g. a stream error) must not

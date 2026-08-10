@@ -160,6 +160,16 @@ class LSPServer(LSPServerOperations):
                     )
                 except asyncio.TimeoutError:
                     self.process.kill()
+                    # Reap the killed process while the loop is still alive. A
+                    # child left un-reaped at loop close logs
+                    # "Loop <...> that handles pid N is closed" when it exits.
+                    try:
+                        await asyncio.wait_for(
+                            self.process.wait(),
+                            timeout=CFG.LLM_SHELL_KILL_WAIT_TIMEOUT / 1000,
+                        )
+                    except asyncio.TimeoutError:
+                        pass
                 finally:
                     self.process = None
                     self.initialized = False
