@@ -1,5 +1,8 @@
 from zrb.llm.tool.code import analyze_code
-from zrb.llm.tool.delegate import create_delegate_to_agent_tool
+from zrb.llm.tool.delegate import (
+    create_delegate_to_agent_tool,
+    create_search_agent_tool,
+)
 from zrb.llm.tool.file import (
     analyze_file,
     glob_files,
@@ -22,7 +25,10 @@ from zrb.llm.tool.plan import (
 from zrb.llm.tool.rag import create_rag_from_directory
 from zrb.llm.tool.shell import run_shell_command
 from zrb.llm.tool.shell_background import create_monitor_process_tool
-from zrb.llm.tool.skill import create_activate_skill_tool
+from zrb.llm.tool.skill import (
+    create_activate_skill_tool,
+    create_search_skill_tool,
+)
 from zrb.llm.tool.web import open_web_page, search_internet
 from zrb.llm.tool.zrb_task import create_list_zrb_task_tool, create_run_zrb_task_tool
 
@@ -48,11 +54,13 @@ __all__ = [
     "load_mcp_config",
     "create_rag_from_directory",
     "create_activate_skill_tool",
+    "create_search_skill_tool",
     "open_web_page",
     "search_internet",
     "create_list_zrb_task_tool",
     "create_run_zrb_task_tool",
     "create_delegate_to_agent_tool",
+    "create_search_agent_tool",
     "create_monitor_process_tool",
     # Planning tools
     "create_plan_tools",

@@ -1,5 +1,6 @@
 """Tests for llm/tool/skill.py - Skill activation tool."""
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -196,3 +197,150 @@ class TestActivateSkillErrorsSelfCorrect:
 
         assert "not invocable by the model" in result
         assert "[SYSTEM SUGGESTION]" in result
+
+    @pytest.mark.asyncio
+    async def test_unknown_skill_hint_is_capped(self, tmp_path, monkeypatch):
+        """A huge catalogue must not dump every name into the error — the hint
+        names a working subset and points at SearchSkill for the rest."""
+        from zrb.llm.skill.manager import Skill, SkillManager
+        from zrb.llm.tool.skill import create_activate_skill_tool
+
+        monkeypatch.setenv("ZRB_LLM_MAX_SKILLS_IN_CATALOG", "3")
+        sm = SkillManager(root_dir=str(tmp_path))
+        sm.scan(search_dirs=[])
+        for i in range(15):
+            sm.add_skill(
+                Skill(
+                    name=f"skill-{i:02d}",
+                    path=str(tmp_path),
+                    description=f"desc {i:02d}",
+                )
+            )
+
+        result = await create_activate_skill_tool(skill_manager=sm)(skill="nope")
+
+        assert "skill-00" in result
+        assert "skill-03" not in result
+        assert "12 more" in result
+        assert "SearchSkill" in result
+
+
+class TestSearchSkillTool:
+    """SearchSkill: on-demand window onto the truncated part of the catalogue."""
+
+    @pytest.mark.asyncio
+    async def test_matches_name(self, tmp_path):
+        from zrb.llm.skill.manager import SkillManager
+        from zrb.llm.tool.skill import create_search_skill_tool
+
+        (tmp_path / "docker.skill.md").write_text(
+            "---\nname: docker-ops\ndescription: Manage docker containers\n---\n# Body"
+        )
+        sm = SkillManager(root_dir=str(tmp_path))
+        sm.scan(search_dirs=[tmp_path])
+
+        result = await create_search_skill_tool(skill_manager=sm)(query="docker")
+
+        assert "docker-ops" in result
+        assert "Manage docker containers" in result
+
+    @pytest.mark.asyncio
+    async def test_matches_description(self, tmp_path):
+        from zrb.llm.skill.manager import SkillManager
+        from zrb.llm.tool.skill import create_search_skill_tool
+
+        (tmp_path / "docker.skill.md").write_text(
+            "---\nname: docker-ops\ndescription: Manage docker containers\n---\n# Body"
+        )
+        sm = SkillManager(root_dir=str(tmp_path))
+        sm.scan(search_dirs=[tmp_path])
+
+        result = await create_search_skill_tool(skill_manager=sm)(query="containers")
+
+        assert "docker-ops" in result
+
+    @pytest.mark.asyncio
+    async def test_no_match_names_the_way_back(self, tmp_path):
+        from zrb.llm.skill.manager import SkillManager
+        from zrb.llm.tool.skill import create_search_skill_tool
+
+        sm = SkillManager(root_dir=str(tmp_path))
+        sm.scan(search_dirs=[tmp_path])
+
+        result = await create_search_skill_tool(skill_manager=sm)(query="zzz")
+
+        assert "No skills match 'zzz'" in result
+        assert "[SYSTEM SUGGESTION]" in result
+
+    @pytest.mark.asyncio
+    async def test_empty_query_lists_every_activatable_skill(self, tmp_path):
+        from zrb.llm.skill.manager import SkillManager
+        from zrb.llm.tool.skill import create_search_skill_tool
+
+        (tmp_path / "a.skill.md").write_text(
+            "---\nname: skill-a\ndescription: Alpha\n---\n# Body"
+        )
+        (tmp_path / "b.skill.md").write_text(
+            "---\nname: skill-b\ndescription: Beta\n---\n# Body"
+        )
+        sm = SkillManager(root_dir=str(tmp_path))
+        sm.scan(search_dirs=[tmp_path])
+
+        result = await create_search_skill_tool(skill_manager=sm)(query="")
+
+        assert "skill-a" in result
+        assert "skill-b" in result
+
+    @pytest.mark.asyncio
+    async def test_skips_non_invocable_skills(self, tmp_path):
+        from zrb.llm.skill.manager import SkillManager
+        from zrb.llm.tool.skill import create_search_skill_tool
+
+        (tmp_path / "a.skill.md").write_text(
+            "---\nname: skill-a\ndescription: Alpha\n---\n# Body"
+        )
+        (tmp_path / "cmd.skill.md").write_text(
+            "---\nname: cmd-only\ndescription: A command\n"
+            "disable-model-invocation: true\n---\n# Body"
+        )
+        sm = SkillManager(root_dir=str(tmp_path))
+        sm.scan(search_dirs=[tmp_path])
+
+        result = await create_search_skill_tool(skill_manager=sm)(query="")
+
+        assert "skill-a" in result
+        assert "cmd-only" not in result
+
+    @pytest.mark.asyncio
+    async def test_truncates_runaway_results(self, tmp_path):
+        from zrb.llm.skill.manager import Skill, SkillManager
+        from zrb.llm.tool.skill import create_search_skill_tool
+
+        sm = SkillManager(root_dir=str(tmp_path))
+        sm.scan(search_dirs=[])
+        for i in range(40):
+            sm.add_skill(
+                Skill(
+                    name=f"match-{i:02d}",
+                    path=str(tmp_path),
+                    description="shares the keyword",
+                )
+            )
+
+        result = await create_search_skill_tool(skill_manager=sm)(query="keyword")
+
+        assert "match-29" in result
+        assert "match-30" not in result
+        assert "more match" in result
+
+    def test_default_manager_is_used_when_none_passed(self):
+        from zrb.llm.tool.skill import create_search_skill_tool
+
+        with patch("zrb.llm.tool.skill.default_skill_manager") as mock_default:
+            mock_default.get_skills.return_value = []
+            tool = create_search_skill_tool()
+            assert tool.__name__ == "SearchSkill"
+            assert (
+                asyncio.run(tool(query="x"))
+                == "No skills match 'x'. [SYSTEM SUGGESTION]: retry with broader terms — matching covers skill names and descriptions."
+            )

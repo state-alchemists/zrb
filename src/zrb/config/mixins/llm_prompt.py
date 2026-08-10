@@ -29,6 +29,11 @@ class LLMPromptMixin:
             "persona,principle,workflow,example,profile,system_context,project_context"
         )
         self.DEFAULT_LLM_PROFILE: str = "auto"
+        # The model-facing skill/agent catalogues are capped so a huge skill or
+        # sub-agent fleet does not inflate every request; the overflow is reachable
+        # on demand via SearchSkill / SearchAgent.
+        self.DEFAULT_LLM_MAX_SKILLS_IN_CATALOG: str = "10"
+        self.DEFAULT_LLM_MAX_AGENTS_IN_ROSTER: str = "10"
         super().__init__()
 
     LLM_PROMPT_DIR = EnvField(
@@ -70,5 +75,25 @@ class LLMPromptMixin:
             "a declared size of 4B or less selects 'minimal', 5-14B 'standard', "
             "above 14B 'capable'; an id declaring nothing falls back to "
             "'standard'. Override per model with ZRB_LLM_PROFILE.\n"
+        ),
+    )
+
+    LLM_MAX_SKILLS_IN_CATALOG = EnvField(
+        int,
+        doc=(
+            "How many model-invocable skills the prompt's skill catalogue lists "
+            "before truncating with a pointer to SearchSkill. The full catalogue "
+            "is always reachable on demand via SearchSkill, so this is a token-"
+            "economy cap, not a hard limit. 0 or negative lists nothing."
+        ),
+    )
+
+    LLM_MAX_AGENTS_IN_ROSTER = EnvField(
+        int,
+        doc=(
+            "How many sub-agents the delegation tools' AVAILABLE AGENTS roster "
+            "lists before truncating with a pointer to SearchAgent. The full "
+            "roster is always reachable on demand via SearchAgent, so this is a "
+            "token-economy cap, not a hard limit. 0 or negative lists nothing."
         ),
     )
