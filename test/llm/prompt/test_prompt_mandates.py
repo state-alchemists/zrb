@@ -25,10 +25,25 @@ def test_workflow_carries_evidence_and_safety_guidance():
     assert "untrusted" in prompt
 
 
+def test_workflow_explains_parallel_calls_skill_activation_and_journal_follow_up():
+    prompt = get_prompt("workflow")
+    assert "Batch independent tool calls" in prompt
+    assert "ActivateSkill" in prompt
+    assert "every matching one" in prompt
+    assert "complete final answer" in prompt
+
+
+def test_example_models_a_multi_methodology_task():
+    prompt = get_prompt("example")
+    assert "core-design" in prompt
+    assert "core-writing" in prompt
+    assert "same response" in prompt
+
+
 @pytest.mark.parametrize("profile", PROFILES)
 def test_each_profile_resolves_its_specific_adjustment(profile):
     prompt = get_prompt("profile", profile=profile)
-    assert "# Profile" in prompt
+    assert "# Operating Profile" in prompt
 
 
 def test_unknown_prompt_is_empty():

@@ -17,8 +17,10 @@ def build_skill_replacements(
 
     Returns ``{CORE_SKILLS}``, ``{AVAILABLE_SKILLS}``, ``{PREACTIVATED_SKILLS}``:
 
-    - ``CORE_SKILLS`` — the always-on methodology baseline (built-in skills
-      under ``llm_plugin/core_skills/``), as a bullet list.
+    - ``CORE_SKILLS`` — activatable core methodologies (built-in skills under
+      ``llm_plugin/core_skills/``), as a bullet list. They are named
+      methodologies in the prompt to distinguish their role from optional
+      domain-specific skills; both use ``ActivateSkill``.
     - ``AVAILABLE_SKILLS`` — every other model-invocable skill (user, project,
       plugin), as a bullet list **under its own heading**, or ``""`` when there
       are none. The heading rides here rather than sitting literally in
@@ -28,9 +30,10 @@ def build_skill_replacements(
       render over ``_(none registered)_``, and paying for a heading that
       introduces nothing teaches the model that catalogue entries are
       decorative.
-    - ``PREACTIVATED_SKILLS`` — full content of any pre-activated skills, loaded up
-      front; empty when none. Active skills are dropped from the two lists above
-      so the model is not told to activate something already loaded.
+    - ``PREACTIVATED_SKILLS`` — full content of any pre-activated instruction
+      bundles, loaded up front; empty when none. Active entries are dropped from
+      the two lists above so the model is not told to activate something already
+      loaded.
     """
     active = set(active_skills or [])
     core: list[Skill] = []

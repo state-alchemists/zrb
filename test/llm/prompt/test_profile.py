@@ -11,6 +11,7 @@ from zrb.llm.prompt.profile import (
     builtin_profile,
     resolve_profile,
 )
+from zrb.llm.prompt.prompt import get_prompt
 
 
 @pytest.mark.parametrize("profile", PROFILES)
@@ -70,3 +71,9 @@ def test_active_profile_reads_the_knob(monkeypatch):
     assert active_profile() == CAPABLE_PROFILE
     monkeypatch.setenv("ZRB_LLM_PROFILE", "auto")
     assert active_profile("qwen3-30b-a3b") == CAPABLE_PROFILE
+
+
+def test_minimal_profile_states_that_delegation_is_unavailable():
+    assert "Delegation tools are unavailable" in get_prompt(
+        "profile", profile=MINIMAL_PROFILE
+    )

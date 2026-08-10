@@ -27,7 +27,7 @@ def test_default_prompt_uses_the_shipped_sections_in_order():
         "# Principle",
         "# Workflow",
         "# Example",
-        "# Profile",
+        "# Operating Profile",
         "# System Context",
         "# Project Context",
     ]

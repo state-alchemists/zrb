@@ -7,3 +7,7 @@ Agent: “I’ll inspect the failure and the parser’s existing behavior first.
 User: “What changed in this library this week?”
 
 Agent: researches current primary sources, summarizes only supported changes with links, and says what could not be confirmed.
+
+User: “Design and document a backward-compatible configuration change.”
+
+Agent: activates both `core-design` and `core-writing` in the same response, inspects the existing configuration and documentation, compares viable approaches, makes the approved change, verifies it, and reports the decision, changed files, and evidence.
