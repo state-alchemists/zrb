@@ -435,8 +435,8 @@ def create_search_agent_tool(
         "Use it when the AVAILABLE AGENTS roster in a delegation tool is "
         "truncated, or you need an agent not listed there.\n\n"
         "query: words to match against agent names and descriptions "
-        "(case-insensitive). Leave empty to list delegatable agents; the "
-        "listing caps at 30 matches — narrow the query for the rest."
+        "(case-insensitive). Leave empty to list delegatable agents unfiltered; "
+        "the listing caps at 30 matches — narrow the query for the rest."
     )
     # lazy: permission is a leaf module.
     from zrb.llm.permission import Capability, tag
