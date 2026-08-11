@@ -101,7 +101,8 @@ def create_search_skill_tool(skill_manager: SkillManager | None = None):
         "Use it when the prompt's skill list is truncated, or a skill you need "
         "is not listed.\n\n"
         "query: words to match against skill names and descriptions "
-        "(case-insensitive). Leave empty to list every activatable skill."
+        "(case-insensitive). Leave empty to list activatable skills; the "
+        "listing caps at 30 matches — narrow the query for the rest."
     )
     return search_skill
 

@@ -84,7 +84,8 @@ class LLMPromptMixin:
             "How many model-invocable skills the prompt's skill catalogue lists "
             "before truncating with a pointer to SearchSkill. The full catalogue "
             "is always reachable on demand via SearchSkill, so this is a token-"
-            "economy cap, not a hard limit. 0 or negative lists nothing."
+            "economy cap, not a hard limit. 0 or negative disables the cap, "
+            "listing the whole catalogue."
         ),
     )
 
@@ -94,6 +95,7 @@ class LLMPromptMixin:
             "How many sub-agents the delegation tools' AVAILABLE AGENTS roster "
             "lists before truncating with a pointer to SearchAgent. The full "
             "roster is always reachable on demand via SearchAgent, so this is a "
-            "token-economy cap, not a hard limit. 0 or negative lists nothing."
+            "token-economy cap, not a hard limit. 0 or negative disables the cap, "
+            "listing the whole roster."
         ),
     )

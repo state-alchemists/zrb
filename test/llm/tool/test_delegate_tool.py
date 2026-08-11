@@ -71,6 +71,17 @@ def test_agent_roster_doc_stays_complete_under_cap(mock_sub_agent_manager, monke
     assert "more" not in doc
 
 
+def test_agent_roster_doc_cap_zero_is_unlimited(mock_sub_agent_manager, monkeypatch):
+    """0 disables the cap: the whole roster is listed, no truncation note."""
+    monkeypatch.setenv("ZRB_LLM_MAX_AGENTS_IN_ROSTER", "0")
+    mock_sub_agent_manager.scan.return_value = _many_agents(8)
+
+    doc = agent_roster_doc(mock_sub_agent_manager)
+
+    assert "agent-07" in doc
+    assert "more" not in doc
+
+
 def test_agent_not_found_message_truncates(mock_sub_agent_manager, monkeypatch):
     """The recovery error must not dump a huge roster either — a working
     subset plus a pointer to SearchAgent."""

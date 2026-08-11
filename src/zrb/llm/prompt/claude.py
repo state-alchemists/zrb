@@ -43,6 +43,11 @@ def build_skill_replacements(
         if not skill.model_invocable or skill.name in active:
             continue
         (core if _is_core_skill(skill) else other).append(skill)
+    # Sort by name so the catalogue (and its truncation boundary) is
+    # deterministic: the scan is filesystem-ordered, and once the cap cuts the
+    # list the visible subset must not depend on readdir order.
+    core.sort(key=lambda s: s.name)
+    other.sort(key=lambda s: s.name)
     available = _format_skill_list(other)
     return {
         "CORE_SKILLS": _format_skill_list(core),

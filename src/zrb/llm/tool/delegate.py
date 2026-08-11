@@ -204,6 +204,10 @@ def agent_roster_doc(sub_agent_manager: SubAgentManager) -> str:
     agents = _delegatable_agents(sub_agent_manager)
     if not agents:
         return "- No sub-agents found."
+    # Sort by name so the roster (and its truncation boundary) is deterministic:
+    # the scan is filesystem-ordered, and once the cap cuts the list the visible
+    # subset must not depend on readdir order.
+    agents = sorted(agents, key=lambda a: a.name)
     cap = CFG.LLM_MAX_AGENTS_IN_ROSTER
     shown = agents if cap < 1 else agents[:cap]
     lines = "\n".join(f"- `{a.name}`: {a.description}" for a in shown)
@@ -224,7 +228,7 @@ def agent_not_found_message(agent_name: str, sub_agent_manager: SubAgentManager)
     a near-miss (`research` for `researcher`, or a name carried over from a
     different harness's roster).
     """
-    names = [a.name for a in _delegatable_agents(sub_agent_manager)]
+    names = sorted(a.name for a in _delegatable_agents(sub_agent_manager))
     if not names:
         return (
             f"Sub-agent '{agent_name}' not found: no sub-agents are registered. "
@@ -431,7 +435,8 @@ def create_search_agent_tool(
         "Use it when the AVAILABLE AGENTS roster in a delegation tool is "
         "truncated, or you need an agent not listed there.\n\n"
         "query: words to match against agent names and descriptions "
-        "(case-insensitive). Leave empty to list every delegatable agent."
+        "(case-insensitive). Leave empty to list delegatable agents; the "
+        "listing caps at 30 matches — narrow the query for the rest."
     )
     # lazy: permission is a leaf module.
     from zrb.llm.permission import Capability, tag

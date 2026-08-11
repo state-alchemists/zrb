@@ -20,6 +20,7 @@ def _names(profile: str, model: str | None = None) -> list[str]:
 def test_standard_profile_registers_the_delegate_tools():
     assert set(_names("standard")) == {
         "DelegateToAgent",
+        "SearchAgent",
         "DelegateToAgentBackground",
         "GetDelegationResult",
     }
@@ -28,6 +29,7 @@ def test_standard_profile_registers_the_delegate_tools():
 def test_capable_profile_registers_the_delegate_tools():
     assert set(_names("capable")) == {
         "DelegateToAgent",
+        "SearchAgent",
         "DelegateToAgentBackground",
         "GetDelegationResult",
     }

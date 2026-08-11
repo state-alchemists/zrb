@@ -464,6 +464,16 @@ def test_build_skill_replacements_does_not_truncate_under_cap(tmp_path, monkeypa
     assert "more" not in r["AVAILABLE_SKILLS"]
 
 
+def test_build_skill_replacements_cap_zero_is_unlimited(tmp_path, monkeypatch):
+    """0 disables the cap: the whole catalogue is listed, no truncation note."""
+    monkeypatch.setenv("ZRB_LLM_MAX_SKILLS_IN_CATALOG", "0")
+
+    r = build_skill_replacements(_many_skill_manager(tmp_path, 15))
+
+    assert "skill-14" in r["AVAILABLE_SKILLS"]
+    assert "more" not in r["AVAILABLE_SKILLS"]
+
+
 def test_build_skill_replacements_truncates_core_skills(tmp_path, monkeypatch):
     """Core methodologies are capped the same way."""
     monkeypatch.setenv("ZRB_LLM_MAX_SKILLS_IN_CATALOG", "2")
