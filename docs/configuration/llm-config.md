@@ -239,7 +239,7 @@ Recognised section names:
 | `system_context` | Stable runtime facts (OS / CWD / model / detected tools) |
 | `project_context` | Project docs (`AGENTS.md`, `CLAUDE.md`, `README.md`, …) |
 
-> The skill catalogue (core skills, other available skills, and active-skill contents) is part of the `workflow` section, injected via `{CORE_SKILLS}`/`{AVAILABLE_SKILLS}`/`{PREACTIVATED_SKILLS}` placeholders — it is not a separate section.
+> The skill catalogue (core skills, other available skills, and active-skill contents) is part of the `workflow` section, injected via `{CORE_SKILLS}`/`{AVAILABLE_SKILLS}`/`{PREACTIVATED_SKILLS}` placeholders — it is not a separate section. Each list is capped by `LLM_MAX_SKILLS_IN_CATALOG`; an overflow is truncated with a pointer to the `SearchSkill` tool, which finds any skill on demand.
 >
 > Per-tool rules are not a section either: they live in each tool's docstring, which ships with the tool schema on every request (ADR-0045).
 
@@ -625,6 +625,8 @@ All interval and delay values are in **milliseconds**.
 | `ZRB_LLM_IMAGE_JPEG_QUALITY` | JPEG quality (1-95) for re-encoding photos; PNGs are unaffected | `85` |
 | `ZRB_CMD_BUFFER_LIMIT` | Asyncio subprocess read-buffer limit in bytes | `102400` |
 | `ZRB_LLM_UI_MAX_BUFFER_SIZE` | Maximum buffered output chars before a forced flush (event-driven UIs) | `2000` |
+| `ZRB_LLM_MAX_SKILLS_IN_CATALOG` | How many model-invocable skills the prompt's skill catalogue lists before truncating with a pointer to `SearchSkill`. The full catalogue is always reachable on demand via `SearchSkill`, so this is a token-economy cap, not a hard limit. `0` or a negative value lists nothing. | `10` |
+| `ZRB_LLM_MAX_AGENTS_IN_ROSTER` | How many sub-agents the delegation tools' AVAILABLE AGENTS roster lists before truncating with a pointer to `SearchAgent`. The full roster is always reachable on demand via `SearchAgent`, so this is a token-economy cap, not a hard limit. `0` or a negative value lists nothing. | `10` |
 
 ---
 

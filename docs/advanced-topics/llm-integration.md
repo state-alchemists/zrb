@@ -221,7 +221,9 @@ The assistant can connect to external MCP servers defined in `mcp-config.json`. 
 | Tool | Description |
 |------|-------------|
 | `DelegateToAgent` | Delegate a sub-task to a named sub-agent (discovered from `agents/` directories). Pass `tasks=[{...}, ...]` to fan out several concurrently in one call. See sub-agents section below. |
+| `SearchAgent` | Find sub-agents by name or description keywords. The `DelegateToAgent` roster only lists the first `LLM_MAX_AGENTS_IN_ROSTER` agents, so use this when the agent you need is not on it. |
 | `ActivateSkill` | Load a named skill (a set of prompts and tools) into the current session. |
+| `SearchSkill` | Find skills by name or description keywords. The skill catalogue in the `workflow` prompt section only lists the first `LLM_MAX_SKILLS_IN_CATALOG` skills, so use this when the skill you need is not listed. |
 
 ### Git Worktrees
 
