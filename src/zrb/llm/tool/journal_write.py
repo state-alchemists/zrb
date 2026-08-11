@@ -36,12 +36,16 @@ _BACKLINKS_HEADING = "## Backlinks"
 def log_activity(summary: str, files: list[str] | None = None) -> str:
     """Records one line of work in the journal's activity log.
 
-    Call this before your reply on any turn that changed files, or that
-    established a root cause, decision, or API quirk a later session would
-    otherwise rediscover. Skip greetings, clarifying questions, refusals, single
-    lookups, and anything already recorded. Verify before recording — a wrong
-    entry misleads every future session, and a number or an absence needs its
-    source (`wc -l: 832`, `rg: 0 hits`) or stays out.
+    Call this BEFORE composing your reply on any turn that changed files, or
+    that established a root cause, decision, or API quirk a later session would
+    otherwise rediscover. The write is recordkeeping, never the user-facing
+    result: after it, deliver the complete final answer — never end the turn
+    with only the "Logged to ..." return value.
+
+    Skip greetings, clarifying questions, refusals,
+    single lookups, and anything already recorded. Verify before recording — a
+    wrong entry misleads every future session, and a number or an absence needs
+    its source (`wc -l: 832`, `rg: 0 hits`) or stays out.
 
     Writing is silent; do not announce it. The date, the time, and the file path
     are derived here, so pass only what happened. `files` are paths you touched.
@@ -68,6 +72,11 @@ def write_journal_note(
     hud_line: str | None = None,
 ) -> str:
     """Records a durable finding as a topic note, findable by search later.
+
+    Call this BEFORE composing your reply, then deliver the complete final
+    answer — the write is recordkeeping, never the user-facing result. The note
+    must stand alone: a future session finds it by topic, so every field reads
+    as if the conversation is gone.
 
     Use this over LogActivity when a later session will need the finding by
     topic rather than by date: who the user is or a preference they stated
