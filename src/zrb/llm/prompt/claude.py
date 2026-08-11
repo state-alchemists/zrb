@@ -2,6 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Callable
 
+from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.llm.skill.manager import Skill, SkillManager
 from zrb.util.markdown import make_markdown_section
@@ -42,6 +43,11 @@ def build_skill_replacements(
         if not skill.model_invocable or skill.name in active:
             continue
         (core if _is_core_skill(skill) else other).append(skill)
+    # Sort by name so the catalogue (and its truncation boundary) is
+    # deterministic: the scan is filesystem-ordered, and once the cap cuts the
+    # list the visible subset must not depend on readdir order.
+    core.sort(key=lambda s: s.name)
+    other.sort(key=lambda s: s.name)
     available = _format_skill_list(other)
     return {
         "CORE_SKILLS": _format_skill_list(core),
@@ -58,7 +64,20 @@ def _is_core_skill(skill: Skill) -> bool:
 
 
 def _format_skill_list(skills: list[Skill]) -> str:
-    return "\n".join(f"- **{s.name}** — {s.description}" for s in skills)
+    """Bullet the *skills*, capped by ``LLM_MAX_SKILLS_IN_CATALOG``.
+
+    A catalogue that outgrows the cap is truncated with a pointer to
+    ``SearchSkill``: the overflow is reachable on demand, so the cap only ever
+    saves tokens, and the note keeps the truncated entries discoverable instead
+    of silently dropped.
+    """
+    cap = CFG.LLM_MAX_SKILLS_IN_CATALOG
+    shown = skills if cap < 1 else skills[:cap]
+    lines = "\n".join(f"- **{s.name}** — {s.description}" for s in shown)
+    hidden = len(skills) - len(shown)
+    if hidden > 0:
+        lines += f"\n(+{hidden} more — use SearchSkill to find them)"
+    return lines
 
 
 def _format_active_skills(

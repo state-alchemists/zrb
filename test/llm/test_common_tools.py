@@ -95,3 +95,13 @@ def test_hosts_without_an_approval_channel_are_skipped(monkeypatch):
     host = PolicylessHost()
     apply_common_tools(host)
     assert {"Read", "Write", "Grep"} <= host.resolved_tool_names()
+
+
+def test_search_skill_ships_alongside_activate_skill(monkeypatch):
+    """SearchSkill is the on-demand window onto the truncated catalogue, so it
+    registers on the same surface as the activator."""
+    host = RecordingHost()
+    apply_common_tools(host)
+
+    assert "SearchSkill" in host.resolved_tool_names()
+    assert "ActivateSkill" in host.resolved_tool_names()

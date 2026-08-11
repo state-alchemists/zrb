@@ -14,7 +14,10 @@ from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.prompt.profile import MINIMAL_PROFILE, active_profile
 from zrb.llm.skill.manager import skill_manager
 from zrb.llm.task.chat.task import LLMChatTask
-from zrb.llm.tool.delegate import create_delegate_to_agent_tool
+from zrb.llm.tool.delegate import (
+    create_delegate_to_agent_tool,
+    create_search_agent_tool,
+)
 from zrb.llm.tool.delegate_background import (
     create_background_delegate_tool,
     create_get_delegation_result_tool,
@@ -121,6 +124,7 @@ def _delegate_tool_factory(ctx):
         return []
     return [
         _tool_factory(create_delegate_to_agent_tool(), defer_loading=False),
+        _tool_factory(create_search_agent_tool(), defer_loading=False),
         _tool_factory(create_background_delegate_tool()),
         _tool_factory(create_get_delegation_result_tool()),
     ]
@@ -171,11 +175,16 @@ llm_chat.prepend_tool_policy(
     auto_approve("WebSearch"),
     auto_approve("WebFetch"),
     auto_approve("ActivateSkill"),
+    auto_approve("SearchSkill"),
     # AskUserQuestion is auto-approved intrinsically (it registers itself via
     # register_always_auto_approve in zrb.llm.tool.ask), so the cascade approves
     # it in every path — main agent, sub-agents, web — not just here. See
     # ADR-0062. No entry needed in this list.
     auto_approve("DelegateToAgent"),
+    # Roster search is metadata — it finds delegation targets, it does not
+    # delegate — so it prompts nothing; the sub-agent's own tool calls still
+    # route their approvals to the user.
+    auto_approve("SearchAgent"),
     # Starting a background delegation and polling its result are harmless; the
     # sub-agent's own tool calls still route their approvals to the user.
     auto_approve("DelegateToAgentBackground"),

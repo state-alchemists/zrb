@@ -156,3 +156,27 @@ def test_llm_small_model(monkeypatch):
         config.SHELL == get_current_shell()
     )  # Existing test was slightly wrong in my previous read, it seems config.SHELL defaults to get_current_shell() on Linux/Darwin
     assert config.LLM_SMALL_MODEL == "gpt-4o-mini"
+
+
+def test_llm_max_skills_in_catalog_default(monkeypatch):
+    monkeypatch.delenv("ZRB_LLM_MAX_SKILLS_IN_CATALOG", raising=False)
+    config = Config()
+    assert config.LLM_MAX_SKILLS_IN_CATALOG == 10
+
+
+def test_llm_max_skills_in_catalog_override(monkeypatch):
+    monkeypatch.setenv("ZRB_LLM_MAX_SKILLS_IN_CATALOG", "5")
+    config = Config()
+    assert config.LLM_MAX_SKILLS_IN_CATALOG == 5
+
+
+def test_llm_max_agents_in_roster_default(monkeypatch):
+    monkeypatch.delenv("ZRB_LLM_MAX_AGENTS_IN_ROSTER", raising=False)
+    config = Config()
+    assert config.LLM_MAX_AGENTS_IN_ROSTER == 10
+
+
+def test_llm_max_agents_in_roster_override(monkeypatch):
+    monkeypatch.setenv("ZRB_LLM_MAX_AGENTS_IN_ROSTER", "3")
+    config = Config()
+    assert config.LLM_MAX_AGENTS_IN_ROSTER == 3

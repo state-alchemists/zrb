@@ -1,8 +1,14 @@
 from pathlib import Path
 
+from zrb.config.config import CFG
 from zrb.llm.skill.manager import SkillManager
 from zrb.llm.skill.manager import skill_manager as default_skill_manager
 from zrb.llm.skill.util import discover_companion_files, format_companion_file_lines
+
+# On-demand search results are themselves capped so an unscoped query (or an
+# empty one) cannot dump the whole catalogue in one answer. 30 entries keeps a
+# full page of matches visible while still bounding a runaway listing.
+_SEARCH_RESULT_LIMIT = 30
 
 
 def create_activate_skill_tool(skill_manager: SkillManager | None = None):
@@ -63,12 +69,71 @@ def create_activate_skill_tool(skill_manager: SkillManager | None = None):
     return activate_skill_impl
 
 
+def create_search_skill_tool(skill_manager: SkillManager | None = None):
+    if skill_manager is None:
+        skill_manager = default_skill_manager
+
+    async def search_skill(query: str = "") -> str:
+        skills = [s for s in skill_manager.get_skills() if s.model_invocable]
+        needle = query.strip().lower()
+        if needle:
+            skills = [
+                s
+                for s in skills
+                if needle in s.name.lower() or needle in (s.description or "").lower()
+            ]
+        if not skills:
+            return _no_skill_match_message(query)
+        shown = skills[:_SEARCH_RESULT_LIMIT]
+        lines = [f"- `{s.name}`: {s.description}" for s in shown]
+        hidden = len(skills) - len(shown)
+        if hidden > 0:
+            lines.append(f"(+{hidden} more match — refine the query)")
+        return "\n".join(lines)
+
+    search_skill.__name__ = "SearchSkill"
+    # The roster is deliberately NOT embedded here (mirrors ActivateSkill): the
+    # catalogue is spelled out in the prompt, and this tool is the on-demand
+    # window onto the part the prompt truncates. Naming the truncation cap here
+    # would pin a config value into a docstring that ships on every request.
+    search_skill.__doc__ = (
+        "Searches the skill catalogue by name or description.\n\n"
+        "Use it when the prompt's skill list is truncated, or a skill you need "
+        "is not listed.\n\n"
+        "query: words to match against skill names and descriptions "
+        "(case-insensitive). Leave empty to list activatable skills; the "
+        "listing caps at 30 matches — narrow the query for the rest."
+    )
+    return search_skill
+
+
+def _no_skill_match_message(query: str) -> str:
+    """Text for an empty search result, naming the way back."""
+    if query.strip():
+        return (
+            f"No skills match '{query.strip()}'. [SYSTEM SUGGESTION]: retry with "
+            "broader terms — matching covers skill names and descriptions."
+        )
+    return "No activatable skills are registered."
+
+
 def _available_skills_hint(skill_manager: SkillManager) -> str:
-    """The valid `skill` values, for an error the model has to recover from."""
+    """The valid `skill` values, for an error the model has to recover from.
+
+    Capped by ``LLM_MAX_SKILLS_IN_CATALOG``: the error names a working subset
+    and points at ``SearchSkill`` for the rest instead of dumping a huge
+    roster into every retry.
+    """
     names = sorted(s.name for s in skill_manager.get_skills() if s.model_invocable)
     if not names:
         return "No activatable skills are registered."
-    return f"Activatable skills are: {', '.join(names)}."
+    cap = CFG.LLM_MAX_SKILLS_IN_CATALOG
+    shown = names if cap < 1 else names[:cap]
+    hint = ", ".join(shown)
+    hidden = len(names) - len(shown)
+    if hidden > 0:
+        hint += f", and {hidden} more (use SearchSkill to list them)"
+    return f"Activatable skills are: {hint}."
 
 
 def _skill_not_found_message(skill: str, skill_manager: SkillManager) -> str:

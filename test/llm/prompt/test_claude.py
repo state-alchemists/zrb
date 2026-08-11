@@ -4,7 +4,7 @@ from zrb.llm.prompt.claude import (
     build_skill_replacements,
     create_project_context_prompt,
 )
-from zrb.llm.skill.manager import SkillManager
+from zrb.llm.skill.manager import Skill, SkillManager
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -424,6 +424,73 @@ def test_build_skill_replacements_skips_non_invocable(tmp_path):
     r = build_skill_replacements(_scan(tmp_path))
 
     assert "hidden" not in r["AVAILABLE_SKILLS"]
+
+
+def _many_skill_manager(tmp_path, count: int) -> SkillManager:
+    """A SkillManager with *count* programmatically-registered skills."""
+    sm = SkillManager(root_dir=str(tmp_path))
+    sm.scan(search_dirs=[])
+    for i in range(count):
+        sm.add_skill(
+            Skill(
+                name=f"skill-{i:02d}",
+                path=str(tmp_path),
+                description=f"Description {i:02d}",
+            )
+        )
+    return sm
+
+
+def test_build_skill_replacements_truncates_available_skills(tmp_path, monkeypatch):
+    """A catalogue over the cap lists only the first entries, with a pointer
+    to SearchSkill for the rest — the overflow stays reachable on demand."""
+    monkeypatch.setenv("ZRB_LLM_MAX_SKILLS_IN_CATALOG", "10")
+
+    r = build_skill_replacements(_many_skill_manager(tmp_path, 15))
+
+    assert "skill-09" in r["AVAILABLE_SKILLS"]
+    assert "skill-10" not in r["AVAILABLE_SKILLS"]
+    assert "5 more" in r["AVAILABLE_SKILLS"]
+    assert "SearchSkill" in r["AVAILABLE_SKILLS"]
+
+
+def test_build_skill_replacements_does_not_truncate_under_cap(tmp_path, monkeypatch):
+    """A small catalogue stays complete — no truncation note."""
+    monkeypatch.setenv("ZRB_LLM_MAX_SKILLS_IN_CATALOG", "10")
+
+    r = build_skill_replacements(_many_skill_manager(tmp_path, 3))
+
+    assert "skill-02" in r["AVAILABLE_SKILLS"]
+    assert "more" not in r["AVAILABLE_SKILLS"]
+
+
+def test_build_skill_replacements_cap_zero_is_unlimited(tmp_path, monkeypatch):
+    """0 disables the cap: the whole catalogue is listed, no truncation note."""
+    monkeypatch.setenv("ZRB_LLM_MAX_SKILLS_IN_CATALOG", "0")
+
+    r = build_skill_replacements(_many_skill_manager(tmp_path, 15))
+
+    assert "skill-14" in r["AVAILABLE_SKILLS"]
+    assert "more" not in r["AVAILABLE_SKILLS"]
+
+
+def test_build_skill_replacements_truncates_core_skills(tmp_path, monkeypatch):
+    """Core methodologies are capped the same way."""
+    monkeypatch.setenv("ZRB_LLM_MAX_SKILLS_IN_CATALOG", "2")
+    for i in range(5):
+        skill_dir = tmp_path / "core_skills" / f"core-{i}"
+        skill_dir.mkdir(parents=True, exist_ok=True)
+        (skill_dir / "SKILL.md").write_text(
+            f"---\nname: core-{i}\ndescription: Core {i}\n---\n# body"
+        )
+
+    r = build_skill_replacements(_scan(tmp_path))
+
+    assert "core-0" in r["CORE_SKILLS"]
+    assert "core-1" in r["CORE_SKILLS"]
+    assert "core-2" not in r["CORE_SKILLS"]
+    assert "3 more" in r["CORE_SKILLS"]
+    assert "SearchSkill" in r["CORE_SKILLS"]
 
 
 # ---------------------------------------------------------------------------

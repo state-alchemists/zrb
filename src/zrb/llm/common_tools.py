@@ -221,7 +221,10 @@ def _register_tool_factories(host: CommonToolHost) -> None:
     from zrb.llm.tool.mcp import load_mcp_config
     from zrb.llm.tool.plan_mode import enter_plan_mode, exit_plan_mode
     from zrb.llm.tool.shell_background import create_monitor_process_tool
-    from zrb.llm.tool.skill import create_activate_skill_tool
+    from zrb.llm.tool.skill import (
+        create_activate_skill_tool,
+        create_search_skill_tool,
+    )
     from zrb.llm.tool.zrb_task import (
         create_list_zrb_task_tool,
         create_run_zrb_task_tool,
@@ -262,6 +265,9 @@ def _register_tool_factories(host: CommonToolHost) -> None:
         lambda ctx: tag(create_list_zrb_task_tool(), Capability.READ),
         lambda ctx: tag(create_run_zrb_task_tool(), Capability.EXECUTE),
         lambda ctx: tag(create_activate_skill_tool(), Capability.META),
+        # SearchSkill is the on-demand window onto the part of the skill
+        # catalogue the prompt truncates, so it ships alongside the activator.
+        lambda ctx: tag(create_search_skill_tool(), Capability.META),
         # Deferred loading: only needed after monitoring a background process —
         # see the rationale on analyze_code/analyze_file in _register_tools.
         lambda ctx: Tool(

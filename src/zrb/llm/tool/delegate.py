@@ -29,6 +29,11 @@ from zrb.llm.tool_call.ui_protocol import UIProtocol
 from zrb.llm.ui.buffered_ui import BufferedUI
 from zrb.llm.ui.std_ui import StdUI
 
+# On-demand search results are themselves capped so an unscoped query (or an
+# empty one) cannot dump the whole roster in one answer. 30 entries keeps a
+# full page of matches visible while still bounding a runaway listing.
+_SEARCH_RESULT_LIMIT = 30
+
 
 @dataclass
 class AgentTaskResult:
@@ -191,12 +196,25 @@ def agent_roster_doc(sub_agent_manager: SubAgentManager) -> str:
     """The `AVAILABLE AGENTS` block for a delegation tool's docstring.
 
     Every tool that takes an `agent_name` embeds this, so the valid names are
-    in each tool's own schema rather than recalled from a sibling's.
+    in each tool's own schema rather than recalled from a sibling's. The roster
+    is capped by ``LLM_MAX_AGENTS_IN_ROSTER`` with a pointer to ``SearchAgent``:
+    a huge sub-agent fleet must not inflate every request's docstrings, and the
+    overflow stays reachable on demand.
     """
     agents = _delegatable_agents(sub_agent_manager)
     if not agents:
         return "- No sub-agents found."
-    return "\n".join(f"- `{a.name}`: {a.description}" for a in agents)
+    # Sort by name so the roster (and its truncation boundary) is deterministic:
+    # the scan is filesystem-ordered, and once the cap cuts the list the visible
+    # subset must not depend on readdir order.
+    agents = sorted(agents, key=lambda a: a.name)
+    cap = CFG.LLM_MAX_AGENTS_IN_ROSTER
+    shown = agents if cap < 1 else agents[:cap]
+    lines = "\n".join(f"- `{a.name}`: {a.description}" for a in shown)
+    hidden = len(agents) - len(shown)
+    if hidden > 0:
+        lines += f"\n(+{hidden} more — use SearchAgent to find them)"
+    return lines
 
 
 def agent_not_found_message(agent_name: str, sub_agent_manager: SubAgentManager) -> str:
@@ -210,7 +228,7 @@ def agent_not_found_message(agent_name: str, sub_agent_manager: SubAgentManager)
     a near-miss (`research` for `researcher`, or a name carried over from a
     different harness's roster).
     """
-    names = [a.name for a in _delegatable_agents(sub_agent_manager)]
+    names = sorted(a.name for a in _delegatable_agents(sub_agent_manager))
     if not names:
         return (
             f"Sub-agent '{agent_name}' not found: no sub-agents are registered. "
@@ -219,9 +237,13 @@ def agent_not_found_message(agent_name: str, sub_agent_manager: SubAgentManager)
         )
     close = difflib.get_close_matches(agent_name, names, n=1, cutoff=0.6)
     suggestion = f" Did you mean '{close[0]}'?" if close else ""
+    cap = CFG.LLM_MAX_AGENTS_IN_ROSTER
+    shown = names if cap < 1 else names[:cap]
+    hidden = len(names) - len(shown)
+    more = f", and {hidden} more (use SearchAgent to list them)" if hidden > 0 else ""
     return (
         f"Sub-agent '{agent_name}' not found.{suggestion} "
-        f"[SYSTEM SUGGESTION]: Available agents are: {', '.join(names)}. "
+        f"[SYSTEM SUGGESTION]: Available agents are: {', '.join(shown)}{more}. "
         "Call again with one of these exact names, or do the work yourself."
     )
 
@@ -376,3 +398,58 @@ def create_delegate_to_agent_tool(
 
     tag(delegate_to_agent, Capability.DELEGATE)
     return delegate_to_agent
+
+
+def create_search_agent_tool(
+    sub_agent_manager: SubAgentManager | None = None,
+):
+    if sub_agent_manager is None:
+        sub_agent_manager = default_sub_agent_manager
+
+    async def search_agent(query: str = "") -> str:
+        agents = _delegatable_agents(sub_agent_manager)
+        needle = query.strip().lower()
+        if needle:
+            agents = [
+                a
+                for a in agents
+                if needle in a.name.lower() or needle in (a.description or "").lower()
+            ]
+        if not agents:
+            return _no_agent_match_message(query)
+        shown = agents[:_SEARCH_RESULT_LIMIT]
+        lines = [f"- `{a.name}`: {a.description}" for a in shown]
+        hidden = len(agents) - len(shown)
+        if hidden > 0:
+            lines.append(f"(+{hidden} more match — refine the query)")
+        return "\n".join(lines)
+
+    setattr(search_agent, "zrb_is_delegate_tool", True)
+    search_agent.__name__ = "SearchAgent"
+    # The roster is deliberately NOT embedded here: it is spelled out in the
+    # delegation tools' docstrings, and this tool is the on-demand window onto
+    # the part those docstrings truncate. Naming the truncation cap here would
+    # pin a config value into a docstring that ships on every request.
+    search_agent.__doc__ = (
+        "Searches the sub-agent roster by name or description.\n\n"
+        "Use it when the AVAILABLE AGENTS roster in a delegation tool is "
+        "truncated, or you need an agent not listed there.\n\n"
+        "query: words to match against agent names and descriptions "
+        "(case-insensitive). Leave empty to list delegatable agents; the "
+        "listing caps at 30 matches — narrow the query for the rest."
+    )
+    # lazy: permission is a leaf module.
+    from zrb.llm.permission import Capability, tag
+
+    tag(search_agent, Capability.DELEGATE)
+    return search_agent
+
+
+def _no_agent_match_message(query: str) -> str:
+    """Text for an empty search result, naming the way back."""
+    if query.strip():
+        return (
+            f"No agents match '{query.strip()}'. [SYSTEM SUGGESTION]: retry with "
+            "broader terms — matching covers agent names and descriptions."
+        )
+    return "No delegatable agents are registered."
