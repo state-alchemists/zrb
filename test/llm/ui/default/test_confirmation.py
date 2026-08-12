@@ -19,6 +19,40 @@ class MockConfirmationUI(UIConfirmation):
         pass
 
 
+class FakeBuffer:
+    """Minimal stand-in for a prompt_toolkit `Buffer`."""
+
+    def __init__(self, text="", cursor_position=0):
+        self.text = text
+        self.cursor_position = cursor_position
+
+    def reset(self):
+        self.text = ""
+        self.cursor_position = 0
+
+
+class FakeInputField:
+    def __init__(self, text=""):
+        self.buffer = FakeBuffer(text)
+
+
+class DraftConfirmationUI(UIConfirmation):
+    """Wires a fake input field so the draft stash/restore paths run."""
+
+    def __init__(self, draft=""):
+        self._confirmation_queue = []
+        self._confirmation_output_buffer = []
+        self._current_confirmation = None
+        self._saved_draft = None
+        self._input_field = FakeInputField(draft)
+
+    def append_to_output(self, text, end="\n"):
+        pass
+
+    def invalidate_ui(self):
+        pass
+
+
 class GuardedConfirmationUI(UIConfirmation):
     """Replicates `UIOutput.append_to_output`'s buffer guard.
 
@@ -170,3 +204,126 @@ async def test_cancel_pending_confirmations():
 
         assert ui._current_confirmation is None
         assert len(ui._confirmation_queue) == 0
+
+
+@pytest.mark.asyncio
+async def test_draft_stashed_and_cleared_when_confirmation_activates():
+    """The half-typed message leaves the field while a confirmation is pending."""
+    ui = DraftConfirmationUI(draft="fix the auth bug")
+
+    with patch("prompt_toolkit.application.get_app"):
+        task = asyncio.create_task(ui.ask_user("prompt"))
+        await asyncio.sleep(0.01)
+
+        assert ui._current_confirmation is not None
+        assert ui._saved_draft == ("fix the auth bug", 0)
+        assert ui._input_field.buffer.text == ""
+
+        ui.submit_user_answer("y")
+        assert await task == "y"
+
+
+@pytest.mark.asyncio
+async def test_draft_restored_with_cursor_after_answer():
+    """After the confirmation resolves, text and cursor position come back."""
+    ui = DraftConfirmationUI(draft="fix the auth bug")
+    ui._input_field.buffer.cursor_position = 5
+
+    with patch("prompt_toolkit.application.get_app"):
+        task = asyncio.create_task(ui.ask_user("prompt"))
+        await asyncio.sleep(0.01)
+        assert ui._input_field.buffer.text == ""
+
+        ui.submit_user_answer("n")
+        assert await task == "n"
+
+        assert ui._saved_draft is None
+        assert ui._input_field.buffer.text == "fix the auth bug"
+        assert ui._input_field.buffer.cursor_position == 5
+
+
+@pytest.mark.asyncio
+async def test_draft_restored_only_after_queue_drains():
+    """Stashed draft survives intermediate confirmations in the queue."""
+    ui = DraftConfirmationUI(draft="fix the auth bug")
+
+    with patch("prompt_toolkit.application.get_app"):
+        task1 = asyncio.create_task(ui.ask_user("prompt 1"))
+        await asyncio.sleep(0.01)
+        task2 = asyncio.create_task(ui.ask_user("prompt 2"))
+        await asyncio.sleep(0.01)
+
+        ui.submit_user_answer("a1")
+        assert await task1 == "a1"
+
+        # Second confirmation now current — the draft is still stashed.
+        assert ui._current_confirmation is not None
+        assert ui._saved_draft == ("fix the auth bug", 0)
+        assert ui._input_field.buffer.text == ""
+
+        ui.submit_user_answer("a2")
+        assert await task2 == "a2"
+
+        assert ui._current_confirmation is None
+        assert ui._saved_draft is None
+        assert ui._input_field.buffer.text == "fix the auth bug"
+
+
+@pytest.mark.asyncio
+async def test_draft_restored_on_cancel():
+    """Cancelling pending confirmations hands the draft back."""
+    ui = DraftConfirmationUI(draft="fix the auth bug")
+
+    with patch("prompt_toolkit.application.get_app"):
+        task = asyncio.create_task(ui.ask_user("prompt"))
+        await asyncio.sleep(0.01)
+        assert ui._input_field.buffer.text == ""
+
+        ui.cancel_pending_confirmations()
+
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+        assert ui._saved_draft is None
+        assert ui._input_field.buffer.text == "fix the auth bug"
+
+
+@pytest.mark.asyncio
+async def test_no_input_field_skips_draft_stash():
+    """UIs without an input field (e.g. other BaseUI subclasses) are unaffected."""
+    ui = MockConfirmationUI()
+
+    with patch("prompt_toolkit.application.get_app"):
+        task = asyncio.create_task(ui.ask_user("prompt"))
+        await asyncio.sleep(0.01)
+
+        ui.submit_user_answer("y")
+        assert await task == "y"
+        assert ui._current_confirmation is None
+
+
+@pytest.mark.asyncio
+async def test_enter_answer_restores_draft():
+    """Regression: the Enter handler's buffer reset must not wipe the draft.
+
+    `_handle_confirmation` clears the buffer BEFORE resolving; the answer text
+    is captured first, then resolution restores the stashed draft into the same
+    buffer. Previously the reset ran after `_resolve_current`, erasing the draft
+    that `_activate_next_confirmation` had just put back.
+    """
+    ui = DraftConfirmationUI(draft="fix the auth bug")
+
+    with patch("prompt_toolkit.application.get_app"):
+        task = asyncio.create_task(ui.ask_user("prompt"))
+        await asyncio.sleep(0.01)
+        assert ui._input_field.buffer.text == ""
+
+        ui._input_field.buffer.text = "y"
+        event = MagicMock()
+        event.current_buffer = ui._input_field.buffer
+        assert ui._handle_confirmation(event) is True
+
+        assert await task == "y"
+        assert ui._saved_draft is None
+        assert ui._input_field.buffer.text == "fix the auth bug"
+        assert ui._input_field.buffer.cursor_position == 0
