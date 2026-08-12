@@ -7,10 +7,12 @@ from prompt_toolkit.clipboard import ClipboardData
 from prompt_toolkit.key_binding import KeyBindings
 
 from zrb.llm.hook.interface import HookEvent
+from zrb.llm.ui.base.message_queue import MessageQueue, QueuedMessage
 from zrb.llm.ui.default.keybindings import UIKeybindings
+from zrb.llm.ui.default.message_editing import UIMessageEditing
 
 
-class MockUI(UIKeybindings):
+class MockUI(UIKeybindings, UIMessageEditing):
     def __init__(self):
         self._background_tasks = set()
         self._pending_attachments = []
@@ -26,6 +28,12 @@ class MockUI(UIKeybindings):
         self._output_field = MagicMock()
 
         self.outputs = []
+
+        # Queued-message editing state (see UIMessageEditing).
+        self._queued_edit_entry = None
+        self._queued_edit_draft = ""
+        self._message_queue = MessageQueue()
+        self.edit_queued_message = MagicMock(return_value=True)
 
         # Mocks for BaseUI methods
         self._cancel_pending_confirmations = MagicMock()
@@ -54,6 +62,10 @@ class MockUI(UIKeybindings):
 
         # Mock for confirmation handling
         self._handle_confirmation = MagicMock(return_value=False)
+
+    @property
+    def effective_message_queue(self):
+        return self._message_queue
 
 
 @pytest.fixture
@@ -294,6 +306,303 @@ def test_enter_message_while_thinking_is_queued(mock_ui, setup_bindings):
     assert not mock_ui.schedule_command.called
 
 
+# ── Queued-message editing (UIMessageEditing) ────────────────────────────
+
+
+def _queued_entry(text, kind="message"):
+    async def run():
+        pass
+
+    return QueuedMessage(text=text, attachments=[], kind=kind, run=run)
+
+
+def test_up_arrow_recalls_queued_message(mock_ui):
+    entry = _queued_entry("queued message")
+    mock_ui._message_queue.put_nowait(entry)
+    event = create_mock_event("current draft")
+
+    assert mock_ui._handle_up_arrow(event) is True
+    assert event.current_buffer.text == "queued message"
+    assert event.current_buffer.cursor_position == len("queued message")
+    assert mock_ui._queued_edit_entry is entry
+    # The pre-edit draft is preserved so Down can restore it.
+    assert mock_ui._queued_edit_draft == "current draft"
+
+
+def test_up_arrow_skips_exec_jobs(mock_ui):
+    _exec = _queued_entry("ls", kind="exec")
+    message = _queued_entry("hello")
+    mock_ui._message_queue.put_nowait(_exec)
+    mock_ui._message_queue.put_nowait(message)
+    event = create_mock_event("draft")
+
+    assert mock_ui._handle_up_arrow(event) is True
+    assert mock_ui._queued_edit_entry is message
+    assert event.current_buffer.text == "hello"
+
+
+def test_up_arrow_falls_through_without_queued_messages(mock_ui):
+    event = create_mock_event("draft")
+    assert mock_ui._handle_up_arrow(event) is False
+    assert mock_ui._queued_edit_entry is None
+
+
+def test_up_arrow_recalls_older_queued_message(mock_ui):
+    older = _queued_entry("older")
+    newer = _queued_entry("newer")
+    mock_ui._message_queue.put_nowait(older)
+    mock_ui._message_queue.put_nowait(newer)
+    event = create_mock_event()
+
+    mock_ui._handle_up_arrow(event)
+    assert mock_ui._queued_edit_entry is newer
+    assert event.current_buffer.text == "newer"
+
+    # The input field holds the recalled text untouched — Up keeps navigating.
+    _set_input_buffer(mock_ui, "newer", len("newer"))
+    mock_ui._handle_up_arrow(event)
+    assert mock_ui._queued_edit_entry is older
+    assert event.current_buffer.text == "older"
+
+
+def test_up_arrow_at_oldest_queued_message_stays(mock_ui):
+    entry = _queued_entry("only message")
+    mock_ui._message_queue.put_nowait(entry)
+    mock_ui._queued_edit_entry = entry
+    # The input field holds the recalled text with the cursor at its end.
+    _set_input_buffer(mock_ui, "only message", len("only message"))
+    event = create_mock_event("only message")
+
+    assert mock_ui._handle_up_arrow(event) is True
+    assert mock_ui._queued_edit_entry is entry
+    assert event.current_buffer.text == "only message"
+
+
+def test_down_arrow_restores_draft(mock_ui):
+    entry = _queued_entry("queued message")
+    mock_ui._message_queue.put_nowait(entry)
+    event = create_mock_event("draft before recall")
+
+    mock_ui._handle_up_arrow(event)
+    assert event.current_buffer.text == "queued message"
+    _set_input_buffer(mock_ui, "queued message", len("queued message"))
+
+    assert mock_ui._handle_down_arrow(event) is True
+    assert mock_ui._queued_edit_entry is None
+    assert event.current_buffer.text == "draft before recall"
+    assert event.current_buffer.cursor_position == len("draft before recall")
+
+
+def test_down_arrow_moves_to_newer_queued_message(mock_ui):
+    older = _queued_entry("older")
+    newer = _queued_entry("newer")
+    mock_ui._message_queue.put_nowait(older)
+    mock_ui._message_queue.put_nowait(newer)
+    mock_ui._queued_edit_entry = older
+    _set_input_buffer(mock_ui, "older", len("older"))
+    event = create_mock_event("older")
+
+    assert mock_ui._handle_down_arrow(event) is True
+    assert mock_ui._queued_edit_entry is newer
+    assert event.current_buffer.text == "newer"
+
+
+def test_up_arrow_drops_stale_edit_mode(mock_ui):
+    # The recalled message's turn started while the user was editing it; the
+    # next Up drops the stale edit mode instead of navigating from a ghost.
+    entry = _queued_entry("queued message")
+    mock_ui._message_queue.put_nowait(entry)
+    event = create_mock_event("draft")
+
+    mock_ui._handle_up_arrow(event)
+    _set_input_buffer(mock_ui, "queued message", len("queued message"))
+    mock_ui._message_queue.remove(entry)
+
+    assert mock_ui._handle_up_arrow(event) is False
+    assert mock_ui._queued_edit_entry is None
+    # The pre-recall draft survives the stale drop.
+    assert mock_ui._queued_edit_draft == "draft"
+
+
+def test_up_arrow_after_stale_edit_recalls_without_clobbering_draft(mock_ui):
+    # The recalled message's turn started; a still-waiting message is queued
+    # behind it, so this Up recalls that one — but the original draft stays
+    # saved.
+    stale = _queued_entry("stale message")
+    recalled = _queued_entry("recalled message")
+    mock_ui._message_queue.put_nowait(stale)
+    mock_ui._message_queue.put_nowait(recalled)
+    event = create_mock_event("draft")
+
+    mock_ui._handle_up_arrow(event)
+    assert mock_ui._queued_edit_entry is recalled
+    _set_input_buffer(mock_ui, "recalled message", len("recalled message"))
+    mock_ui._message_queue.remove(recalled)  # the recalled turn started
+
+    assert mock_ui._handle_up_arrow(event) is True
+    assert mock_ui._queued_edit_entry is stale
+    assert event.current_buffer.text == "stale message"
+    assert mock_ui._queued_edit_draft == "draft"
+
+
+def test_down_arrow_drops_stale_edit_mode(mock_ui):
+    entry = _queued_entry("queued message")
+    mock_ui._message_queue.put_nowait(entry)
+    mock_ui._queued_edit_entry = entry
+    _set_input_buffer(mock_ui, "queued message", len("queued message"))
+    event = create_mock_event("queued message")
+
+    mock_ui._message_queue.remove(entry)
+
+    assert mock_ui._handle_down_arrow(event) is False
+    assert mock_ui._queued_edit_entry is None
+
+
+def test_down_arrow_falls_through_when_not_editing(mock_ui):
+    event = create_mock_event()
+    assert mock_ui._handle_down_arrow(event) is False
+
+
+def test_up_arrow_after_typing_falls_through_and_preserves_edit(mock_ui):
+    # Once the user types into a recalled message, Up must fall through (history
+    # recall) instead of navigating the queue over the in-progress edit — the
+    # saved draft is the pre-recall text, so the edit is otherwise unrecoverable.
+    entry = _queued_entry("queued message")
+    mock_ui._message_queue.put_nowait(entry)
+    event = create_mock_event("draft")
+
+    mock_ui._handle_up_arrow(event)
+    event.current_buffer.text = "queued message EDITED"
+    event.current_buffer.cursor_position = len("queued message EDITED")
+    _set_input_buffer(mock_ui, "queued message EDITED", len("queued message EDITED"))
+
+    assert mock_ui._handle_up_arrow(event) is False
+    assert event.current_buffer.text == "queued message EDITED"
+    assert mock_ui._queued_edit_entry is entry  # Enter can still apply the edit
+
+
+def test_down_arrow_after_typing_falls_through_and_preserves_edit(mock_ui):
+    # Down after typing must not exit edit mode and restore the pre-recall
+    # draft over the user's edit.
+    entry = _queued_entry("queued message")
+    mock_ui._message_queue.put_nowait(entry)
+    event = create_mock_event("draft")
+
+    mock_ui._handle_up_arrow(event)
+    event.current_buffer.text = "queued message EDITED"
+    event.current_buffer.cursor_position = len("queued message EDITED")
+    _set_input_buffer(mock_ui, "queued message EDITED", len("queued message EDITED"))
+
+    assert mock_ui._handle_down_arrow(event) is False
+    assert event.current_buffer.text == "queued message EDITED"
+    assert mock_ui._queued_edit_entry is entry
+
+
+def test_up_arrow_after_cursor_move_falls_through(mock_ui):
+    # Moving the cursor (even without typing) ends recall navigation too.
+    entry = _queued_entry("queued message")
+    mock_ui._message_queue.put_nowait(entry)
+    event = create_mock_event("queued message")
+    mock_ui._handle_up_arrow(event)
+    event.current_buffer.cursor_position = 3
+    _set_input_buffer(mock_ui, "queued message", 3)
+
+    assert mock_ui._handle_up_arrow(event) is False
+    assert event.current_buffer.text == "queued message"
+    assert mock_ui._queued_edit_entry is entry
+
+
+def test_enter_edits_queued_message_after_typing(mock_ui, setup_bindings):
+    # Typing in a recalled message keeps it the Enter target: Enter still
+    # applies the edit in place rather than submitting a new message.
+    entry = _queued_entry("queued message")
+    mock_ui._message_queue.put_nowait(entry)
+    event = create_mock_event("draft")
+    mock_ui._handle_up_arrow(event)
+    event.current_buffer.text = "queued message EDITED"
+    event.current_buffer.cursor_position = len("queued message EDITED")
+
+    trigger_binding(setup_bindings, "c-m", event)
+
+    mock_ui.edit_queued_message.assert_called_once_with(entry, "queued message EDITED")
+    event.current_buffer.reset.assert_called_once()
+    mock_ui._submit_user_message.assert_not_called()
+
+
+def _set_input_buffer(mock_ui, text, cursor_position):
+    mock_ui._input_field.buffer = MagicMock(text=text, cursor_position=cursor_position)
+
+
+def test_recall_navigation_active_for_unmodified_recall(mock_ui):
+    entry = _queued_entry("queued message")
+    mock_ui._queued_edit_entry = entry
+    _set_input_buffer(mock_ui, "queued message", len("queued message"))
+    assert mock_ui._recall_navigation_active() is True
+
+
+def test_recall_navigation_inactive_without_entry(mock_ui):
+    mock_ui._queued_edit_entry = None
+    _set_input_buffer(mock_ui, "queued message", len("queued message"))
+    assert mock_ui._recall_navigation_active() is False
+
+
+def test_recall_navigation_inactive_after_typing(mock_ui):
+    entry = _queued_entry("queued message")
+    mock_ui._queued_edit_entry = entry
+    _set_input_buffer(mock_ui, "queued message edited", len("queued message edited"))
+    assert mock_ui._recall_navigation_active() is False
+
+
+def test_recall_navigation_inactive_after_cursor_moves(mock_ui):
+    entry = _queued_entry("queued message")
+    mock_ui._queued_edit_entry = entry
+    _set_input_buffer(mock_ui, "queued message", 3)
+    assert mock_ui._recall_navigation_active() is False
+
+
+def test_enter_edits_queued_message(mock_ui, setup_bindings):
+    entry = _queued_entry("queued message")
+    mock_ui._message_queue.put_nowait(entry)
+    mock_ui._queued_edit_entry = entry
+    mock_ui._queued_edit_draft = ""
+    event = create_mock_event("edited text")
+
+    trigger_binding(setup_bindings, "c-m", event)
+
+    mock_ui.edit_queued_message.assert_called_once_with(entry, "edited text")
+    event.current_buffer.reset.assert_called_once()
+    mock_ui._submit_user_message.assert_not_called()
+    assert mock_ui._queued_edit_entry is None
+
+
+def test_enter_empty_edit_cancels_and_restores_draft(mock_ui, setup_bindings):
+    entry = _queued_entry("queued message")
+    mock_ui._message_queue.put_nowait(entry)
+    mock_ui._queued_edit_entry = entry
+    mock_ui._queued_edit_draft = "saved draft"
+    event = create_mock_event("   ")
+
+    trigger_binding(setup_bindings, "c-m", event)
+
+    assert event.current_buffer.text == "saved draft"
+    mock_ui.edit_queued_message.assert_not_called()
+    mock_ui._submit_user_message.assert_not_called()
+
+
+def test_enter_after_turn_started_submits_normally(mock_ui, setup_bindings):
+    # The recalled message's turn started before Enter; the edit is refused and
+    # the text falls through to the normal submit path as a new message.
+    entry = _queued_entry("queued message")
+    mock_ui.edit_queued_message.return_value = False
+    mock_ui._queued_edit_entry = entry
+    event = create_mock_event("edited text")
+
+    trigger_binding(setup_bindings, "c-m", event)
+
+    mock_ui._submit_user_message.assert_called_once()
+    assert mock_ui._queued_edit_entry is None
+
+
 def test_enter_submit_message(mock_ui, setup_bindings):
     event = create_mock_event("hello world")
     mock_ui.classify_input.return_value = "message"
@@ -380,9 +689,10 @@ async def test_ctrl_v_no_image_no_hint(mock_ui, setup_bindings):
 # token — are caught end-to-end rather than behind mocked routing.
 
 from zrb.llm.ui.base.commands import BaseUICommands  # noqa: E402
+from zrb.llm.ui.default.message_editing import UIMessageEditing  # noqa: E402
 
 
-class IntegrationUI(UIKeybindings, BaseUICommands):
+class IntegrationUI(UIKeybindings, BaseUICommands, UIMessageEditing):
     def __init__(self):
         self._exit_commands = ["/exit"]
         self._info_commands = ["/help"]
@@ -408,6 +718,8 @@ class IntegrationUI(UIKeybindings, BaseUICommands):
         self._background_tasks = set()
         self._conversation_session_name = "default"
         self._snapshot_manager = None
+        self._queued_edit_entry = None
+        self._queued_edit_draft = ""
         self._llm_task = MagicMock()
         self.last_output = "AI RESPONSE TEXT"
         self._input_field = MagicMock()

@@ -39,6 +39,7 @@ if TYPE_CHECKING:
     from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
     from zrb.llm.snapshot.manager import SnapshotManager
     from zrb.llm.task.llm_task import LLMTask
+    from zrb.llm.ui.base.message_queue import MessageQueue
     from zrb.task.any_task import AnyTask
 
 logger = logging.getLogger(__name__)
@@ -82,7 +83,7 @@ class BaseUICommands(
         _is_thinking: bool
         _llm_task: "LLMTask"
         _markdown_theme: "Theme | None"
-        _message_queue: asyncio.Queue
+        _message_queue: "MessageQueue"
         _model: "Model | str | None"
         _small_model: "Model | str | None"
         _multimodal_model: "Model | str | None"

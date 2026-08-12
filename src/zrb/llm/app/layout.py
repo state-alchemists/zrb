@@ -1,4 +1,4 @@
-from typing import Callable, cast
+from typing import Any, Callable, cast
 
 from prompt_toolkit.filters import (
     Condition,
@@ -51,6 +51,9 @@ def create_input_field(
     custom_model_names: list[str] = [],
     show_ollama_models: bool = True,
     show_pydantic_ai_models: bool = True,
+    up_arrow_handler: Callable[[Any], bool] | None = None,
+    down_arrow_handler: Callable[[Any], bool] | None = None,
+    recall_active: Callable[[], bool] | None = None,
 ) -> TextArea:
     class DynamicHeightTextArea(TextArea):
         """TextArea with dynamic height based on content."""
@@ -132,14 +135,31 @@ def create_input_field(
             text_area.document.cursor_position_row == text_area.document.line_count - 1
         )
 
-    # Bind Up to history only if at first line and no completion menu is shown
-    @kb.add("up", filter=is_first_line & ~has_selection & ~has_completions)
+    @Condition
+    def is_recall_active() -> bool:
+        # A recalled message the user has not touched still reads as recall
+        # navigation: Up walks older queued messages even when that message
+        # spans multiple lines (so the cursor is not on the first line). Once
+        # the user edits, the callback reports False and Up moves the cursor.
+        return recall_active is not None and recall_active()
+
+    # Bind Up to history only if at first line and no completion menu is shown.
+    # The UI can hand us a queued-message recall handler (UIMessageEditing); it
+    # wins over history recall when it consumes the keypress.
+    @kb.add(
+        "up",
+        filter=(is_first_line | is_recall_active) & ~has_selection & ~has_completions,
+    )
     def _(event):
+        if up_arrow_handler is not None and up_arrow_handler(event):
+            return
         event.current_buffer.history_backward()
 
-    # Bind Down to history only if at last line and no completion menu is shown
+    # Bind Down to history only if at last line and no completion menu is shown.
     @kb.add("down", filter=is_last_line & ~has_selection & ~has_completions)
     def _(event):
+        if down_arrow_handler is not None and down_arrow_handler(event):
+            return
         event.current_buffer.history_forward()
 
     # Focus traversal is handled by Tab at the app level; Tab still drives

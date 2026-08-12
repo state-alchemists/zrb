@@ -86,6 +86,9 @@ class UIKeybindings:
 
         def _handle_confirmation(self, event: Any) -> bool: ...
 
+        # From UIMessageEditing
+        def _handle_enter_queued_edit(self, event: Any) -> bool: ...
+
     def setup_app_keybindings(
         self, app_keybindings: "KeyBindings", llm_task: "AnyTask"
     ):
@@ -245,42 +248,12 @@ class UIKeybindings:
             if self._handle_confirmation(event):
                 return
 
-            buff = event.current_buffer
-            text = buff.text
-            if not text.strip():
+            # A still-queued message recalled into the input field (Up arrow)
+            # is edited in place here instead of submitted as a new message.
+            if self._handle_enter_queued_edit(event):
                 return
 
-            # Route by recognition, not by "/" prefix — command tokens are
-            # user-configurable (e.g. ">" for redirect). Recognized commands go
-            # through the hook-wrapped async dispatch (PreCommand may block;
-            # PostCommand fires after); plain text is sent to the LLM.
-            kind = self.classify_input(text)
-
-            # Run-while-thinking commands (/btw, YOLO toggle) dispatch even while
-            # the LLM is responding.
-            if kind == "thinking_command":
-                # Not guarded: like main, /btw and YOLO toggle run independently
-                # — never blocked by, nor blocking, another in-flight command.
-                buff.reset()
-                self.schedule_command(text, guarded=False)
-                return
-
-            # Commands stay gated while thinking: they mutate session/UI state
-            # (/save, /load, /model), so running one mid-response is unsafe. The
-            # buffer is kept so the user can resubmit once the response finishes.
-            if kind == "command":
-                if self._is_thinking:
-                    return
-                buff.reset()
-                self.schedule_command(text)
-                return
-
-            # Plain message — record for up-arrow recall, then submit. Submitting
-            # while thinking is allowed: the message loop runs one job at a time,
-            # so it lands in the queue and runs when the current turn ends.
-            buff.append_to_history()
-            self._submit_user_message(llm_task, text)
-            buff.reset()
+            self._handle_enter_dispatch(event, llm_task)
 
         @app_keybindings.add("c-y")
         def _(event):
@@ -435,3 +408,43 @@ class UIKeybindings:
                     buff.insert_text("\n")
                     return True
         return False
+
+    def _handle_enter_dispatch(self, event: Any, llm_task: "AnyTask") -> None:
+        """Split out of the Enter closure to keep `setup_app_keybindings` under
+        the complexity ratchet."""
+        buff = event.current_buffer
+        text = buff.text
+        if not text.strip():
+            return
+
+        # Route by recognition, not by "/" prefix — command tokens are
+        # user-configurable (e.g. ">" for redirect). Recognized commands go
+        # through the hook-wrapped async dispatch (PreCommand may block;
+        # PostCommand fires after); plain text is sent to the LLM.
+        kind = self.classify_input(text)
+
+        # Run-while-thinking commands (/btw, YOLO toggle) dispatch even while
+        # the LLM is responding.
+        if kind == "thinking_command":
+            # Not guarded: like main, /btw and YOLO toggle run independently
+            # — never blocked by, nor blocking, another in-flight command.
+            buff.reset()
+            self.schedule_command(text, guarded=False)
+            return
+
+        # Commands stay gated while thinking: they mutate session/UI state
+        # (/save, /load, /model), so running one mid-response is unsafe. The
+        # buffer is kept so the user can resubmit once the response finishes.
+        if kind == "command":
+            if self._is_thinking:
+                return
+            buff.reset()
+            self.schedule_command(text)
+            return
+
+        # Plain message — record for up-arrow recall, then submit. Submitting
+        # while thinking is allowed: the message loop runs one job at a time,
+        # so it lands in the queue and runs when the current turn ends.
+        buff.append_to_history()
+        self._submit_user_message(llm_task, text)
+        buff.reset()

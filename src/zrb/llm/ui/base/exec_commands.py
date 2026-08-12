@@ -16,6 +16,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from zrb.llm.custom_command.resolver import resolve_custom_command
+from zrb.llm.ui.base.message_queue import QueuedMessage
 from zrb.util.cli.style import stylize_error, stylize_muted
 
 if TYPE_CHECKING:
@@ -27,6 +28,7 @@ if TYPE_CHECKING:
     from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
     from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
     from zrb.llm.task.llm_task import LLMTask
+    from zrb.llm.ui.base.message_queue import MessageQueue
     from zrb.task.any_task import AnyTask
 
 
@@ -45,7 +47,7 @@ class BaseUIExecCommands:
         _is_thinking: bool
         _llm_task: "LLMTask"
         _markdown_theme: "Theme | None"
-        _message_queue: asyncio.Queue
+        _message_queue: MessageQueue
         _model: "Any"
         _running_llm_task: asyncio.Task | None
 
@@ -79,10 +81,13 @@ class BaseUIExecCommands:
                 if not shell_cmd:
                     return True
 
-                async def job():
-                    await self._run_shell_command(shell_cmd)
-
-                self._message_queue.put_nowait(job)
+                entry = QueuedMessage(
+                    text=shell_cmd,
+                    attachments=[],
+                    kind="exec",
+                    run=lambda: self._run_shell_command(entry.text),
+                )
+                self._message_queue.put_nowait(entry)
                 return True
         return False
 

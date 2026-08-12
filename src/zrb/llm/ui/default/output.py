@@ -288,6 +288,29 @@ class UIOutput:
     def _render_markdown_block(self, markdown_text: str, width: int | None) -> str:
         return render_markdown(markdown_text, width=width, theme=self._markdown_theme)
 
+    def replace_output_span(self, start: int, end: int, replacement: str) -> bool:
+        """Replace ``text[start:end]`` in the output buffer.
+
+        Used to rewrite a queued message's echoed line in place after an edit.
+        Tracked rendered blocks starting at or after the replaced span are
+        shifted by the length delta — the same bookkeeping `rewrap_output`
+        keeps, so a later re-wrap still splices at the right offsets. Returns
+        ``False`` when the span no longer exists (the echo was confirmation-
+        buffered or the buffer was rewritten since).
+        """
+        text = self.output_text
+        if end > len(text):
+            return False
+        delta = len(replacement) - (end - start)
+        new_text = text[:start] + replacement + text[end:]
+        if delta:
+            for block in self._rendered_blocks:
+                if block[0] >= end:
+                    block[0] += delta
+                    block[1] += delta
+        self._set_output_text(new_text)
+        return True
+
     def _set_output_text(self, text: str) -> None:
         # lazy: heavy third-party
         from prompt_toolkit.document import Document

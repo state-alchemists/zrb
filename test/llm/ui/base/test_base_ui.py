@@ -4,7 +4,15 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from zrb.context.shared_context import SharedContext
+from zrb.llm.ui.base.message_queue import MessageQueue, QueuedMessage
 from zrb.llm.ui.base.ui import BaseUI
+
+
+def make_entry(text):
+    async def run():
+        pass
+
+    return QueuedMessage(text=text, attachments=[], kind="message", run=run)
 
 
 class ConcreteUI(BaseUI):
@@ -198,3 +206,104 @@ def test_submit_user_message_marks_queued_while_thinking(base_ui):
     assert base_ui.queued_message_count == 2
     assert "⏳" in outputs[1]
     assert "even later" in outputs[1]
+
+
+@pytest.mark.asyncio
+async def test_edit_queued_message_replaces_text_in_place(base_ui):
+    """A still-queued message's text can be replaced without resubmitting."""
+    entry = make_entry("original")
+    base_ui._message_queue.put_nowait(entry)
+
+    assert base_ui.edit_queued_message(entry, "edited") is True
+    assert entry.text == "edited"
+    assert base_ui.queued_message_count == 1
+
+    # Once the turn starts (entry popped), the edit is refused.
+    popped = await base_ui._message_queue.get()
+    assert popped is entry
+    assert base_ui.edit_queued_message(entry, "too late") is False
+    assert entry.text == "edited"
+
+
+def test_edit_queued_message_strips_whitespace(base_ui):
+    entry = make_entry("original")
+    base_ui._message_queue.put_nowait(entry)
+
+    assert base_ui.edit_queued_message(entry, "  edited  ") is True
+    assert entry.text == "edited"
+    assert entry.is_editable
+
+
+# ── MultiUI routing (effective_message_queue + shared-entry redraw) ────────
+
+
+class FakeMultiUIParent:
+    def __init__(self, children=None):
+        self._message_queue = MessageQueue()
+        self.children = children if children is not None else []
+
+
+class RecordingUI(ConcreteUI):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.redrawn = []
+
+    def _redraw_echo(self, entry):
+        self.redrawn.append(entry)
+
+
+def make_ui():
+    return RecordingUI(
+        ctx=SharedContext(),
+        yolo_xcom_key="yolo",
+        assistant_name="Assistant",
+        llm_task=MagicMock(),
+        history_manager=MagicMock(),
+    )
+
+
+def test_effective_message_queue_routes_to_parent_queue(base_ui):
+    """A child UI in a MultiUI submits and edits against the shared queue."""
+    parent = FakeMultiUIParent()
+    base_ui.multi_ui_parent = parent
+    entry = make_entry("hello")
+    parent._message_queue.put_nowait(entry)
+
+    assert base_ui.effective_message_queue is parent._message_queue
+    assert base_ui.queued_message_count == 1
+
+
+def test_edit_queued_message_updates_shared_entry_and_broadcasts_redraw():
+    """Editing from one child rewrites the shared entry for every child."""
+    child_a, child_b = make_ui(), make_ui()
+    parent = FakeMultiUIParent(children=[child_a, child_b])
+    child_a.multi_ui_parent = parent
+    child_b.multi_ui_parent = parent
+    entry = make_entry("original")
+    parent._message_queue.put_nowait(entry)
+
+    assert child_a.edit_queued_message(entry, "edited") is True
+    assert entry.text == "edited"
+    assert parent._message_queue.contains(entry)
+    # The entry is shared, so the echo redraw was broadcast to both children.
+    assert child_a.redrawn == [entry]
+    assert child_b.redrawn == [entry]
+
+
+@pytest.mark.asyncio
+async def test_edit_queued_message_refused_after_turn_started_in_multi_ui():
+    """A message popped from the shared queue is no longer editable."""
+    child_a, child_b = make_ui(), make_ui()
+    parent = FakeMultiUIParent(children=[child_a, child_b])
+    child_a.multi_ui_parent = parent
+    child_b.multi_ui_parent = parent
+    entry = make_entry("original")
+    parent._message_queue.put_nowait(entry)
+
+    popped = await parent._message_queue.get()
+    assert popped is entry
+
+    assert child_a.edit_queued_message(entry, "too late") is False
+    assert entry.text == "original"
+    assert child_a.redrawn == []
+    assert child_b.redrawn == []
