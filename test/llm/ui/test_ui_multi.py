@@ -18,6 +18,12 @@ class TestMultiUI:
         ui.tool_call_handler._argument_formatters = ["formatter1"]
         ui.tool_call_handler.check_policies = AsyncMock(return_value=None)
         ui.tool_call_handler.handle = AsyncMock(return_value=MagicMock(approved=True))
+        # Pin real defaults so _stream_ai_response's plan-mode sync and snapshot
+        # path behave like a real UI (a MagicMock would read truthy and flip the
+        # module-level agent-mode ContextVar, polluting other tests).
+        ui._plan_mode_active = False
+        ui.snapshot_manager = None
+        ui.history_manager = None
         return ui
 
     def test_multi_ui_creation(self, mock_child_ui):
