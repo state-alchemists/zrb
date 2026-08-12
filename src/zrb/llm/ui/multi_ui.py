@@ -165,6 +165,9 @@ class MultiUI:
         attachments: list[Any] = [],
     ):
         """Stream AI response to all UIs via shared queue."""
+        # A fresh turn has no answer yet; a non-string result or an error must
+        # not leave last_output carrying the previous turn's answer.
+        self._last_result_data = None
         self._set_thinking(True)
         try:
             timestamp = datetime.now().strftime("%H:%M")
@@ -181,7 +184,9 @@ class MultiUI:
                         self._main_ui, "conversation_session_name", ""
                     )
                     msgs = (
-                        current_msgs.load(session_name) if current_msgs is not None else []
+                        current_msgs.load(session_name)
+                        if current_msgs is not None
+                        else []
                     )
                     await snapshot_manager.take_snapshot(
                         f"{timestamp}: {label}", message_count=len(msgs)
@@ -252,7 +257,11 @@ class MultiUI:
         except Exception as e:
             self.append_to_output(f"\n[Error: {e}]\n")
         finally:
-            self._set_thinking(False)
+            # Stop the animation flag first, then refresh system/git info,
+            # then repaint — mirrors BaseUI's finally order
+            # (flag → _update_system_info → invalidate) so the status bar
+            # shows fresh values instead of a stale repaint.
+            self._set_thinking(False, repaint=False)
             for ui in self._uis:
                 update_info = getattr(ui, "_update_system_info", None)
                 if inspect.iscoroutinefunction(update_info):
@@ -260,19 +269,22 @@ class MultiUI:
                         await update_info()
                     except Exception as e:
                         CFG.LOGGER.debug(f"Child UI system info update failed: {e}")
+            self.invalidate_all_uis()
 
-    def _set_thinking(self, value: bool) -> None:
+    def _set_thinking(self, value: bool, repaint: bool = True) -> None:
         """Mirror the thinking flag to every child UI, then repaint.
 
         The status-bar animation ("⏳ working…") and the fast refresh loop
         read each UI's own `_is_thinking`, so the flag must live on the
-        children, not only on the MultiUI wrapper.
+        children, not only on the MultiUI wrapper. `repaint=False` defers the
+        repaint so callers can refresh system info first.
         """
         self._is_thinking = value
         for ui in self._uis:
             if hasattr(ui, "_is_thinking"):
                 ui._is_thinking = value
-        self.invalidate_all_uis()
+        if repaint:
+            self.invalidate_all_uis()
 
     def invalidate_all_uis(self):
         """Invalidate all child UIs."""
@@ -553,6 +565,8 @@ class MultiUI:
         """Run all child UIs and the shared message loop."""
         if not self._main_ui:
             return ""
+
+        self._last_result_data = None
 
         self._shutdown_event = asyncio.Event()
 

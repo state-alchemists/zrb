@@ -230,6 +230,46 @@ async def test_multi_ui_stream_updates_system_info_on_children(
 
 
 @pytest.mark.asyncio
+async def test_multi_ui_stream_repaints_after_system_info_update(multi_ui, child_ui_1):
+    # The status bar must be repainted with fresh system info, not before it.
+    # Sequence: thinking-on repaint → system info update → final repaint.
+    multi_ui.append_to_output = MagicMock()
+    order = []
+    child_ui_1.invalidate_ui = MagicMock(side_effect=lambda: order.append("paint"))
+
+    async def _update():
+        order.append("update")
+
+    child_ui_1._update_system_info = _update
+    llm_task = MagicMock()
+    llm_task.async_run = AsyncMock(return_value="# Response")
+    llm_task.set_ui = MagicMock()
+    llm_task.tool_confirmation = MagicMock()
+
+    await multi_ui._stream_ai_response(llm_task, "Hello", [])
+
+    assert order == ["paint", "update", "paint"]
+
+
+@pytest.mark.asyncio
+async def test_multi_ui_stream_non_string_result_clears_last_output(
+    multi_ui, child_ui_1
+):
+    # A turn whose result is not a string must not leave last_output carrying
+    # the previous turn's answer.
+    multi_ui.append_to_output = MagicMock()
+    multi_ui._last_result_data = "stale"
+    llm_task = MagicMock()
+    llm_task.async_run = AsyncMock(return_value={"structured": "result"})
+    llm_task.set_ui = MagicMock()
+    llm_task.tool_confirmation = MagicMock()
+
+    await multi_ui._stream_ai_response(llm_task, "Hello", [])
+
+    assert multi_ui._last_result_data is None
+
+
+@pytest.mark.asyncio
 async def test_multi_ui_ask_user_race(multi_ui, child_ui_1, child_ui_2):
     # Make child_ui_1 slower
     async def slow_ask(*args):
