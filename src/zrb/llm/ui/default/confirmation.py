@@ -31,6 +31,11 @@ class UIConfirmation:
         _confirmation_queue: list[tuple[asyncio.Future[str], str, Any]]
         _confirmation_output_buffer: list[str]
         _current_confirmation: asyncio.Future[str] | None
+        # From the default `UI`: the input field whose draft is stashed while a
+        # confirmation is pending, so the user's half-typed message survives the
+        # y/n/e answer and is restored afterwards.
+        _input_field: Any
+        _saved_draft: tuple[str, int] | None
 
         # From UIOutput
         def append_to_output(
@@ -80,6 +85,7 @@ class UIConfirmation:
             # would route this very prompt into that buffer — it would never
             # show, leaving the user at "waiting for confirmation" with no
             # question (e.g. AskUserQuestion, whose whole prompt arrives here).
+            self._save_and_clear_input_draft()
             self._render_request(prompt, spec)
             self._current_confirmation = future
             get_app().invalidate()
@@ -101,6 +107,37 @@ class UIConfirmation:
             self._begin_choice(spec)
         elif prompt:
             self.append_to_output(prompt, end="")
+
+    def _save_and_clear_input_draft(self) -> None:
+        """Stash the half-typed message and clear the field for the answer.
+
+        The confirmation answer is read from the input field's buffer, so any
+        text the user had already typed would otherwise be swallowed as a
+        free-text denial. Stash it (text + cursor) on the first activation and
+        restore it once the queue drains (`_restore_input_draft`).
+        """
+        if getattr(self, "_saved_draft", None) is not None:
+            return
+        input_field = getattr(self, "_input_field", None)
+        if input_field is None:
+            return
+        buffer = input_field.buffer
+        self._saved_draft = (buffer.text, buffer.cursor_position)
+        buffer.text = ""
+
+    def _restore_input_draft(self) -> None:
+        """Put the stashed draft back into the input field, if any."""
+        saved = getattr(self, "_saved_draft", None)
+        if saved is None:
+            return
+        self._saved_draft = None
+        input_field = getattr(self, "_input_field", None)
+        if input_field is None:
+            return
+        text, cursor = saved
+        buffer = input_field.buffer
+        buffer.text = text
+        buffer.cursor_position = cursor
 
     def submit_user_answer(self, text: str) -> bool:
         """Resolve the current confirmation prompt with the given answer (public API)."""
@@ -152,6 +189,9 @@ class UIConfirmation:
             # pending, else append_to_output's buffer guard swallows the prompt.
             self._render_request(prompt, spec)
             self._current_confirmation = future
+        elif not self._confirmation_queue:
+            # The queue drained: hand the half-typed message back to the user.
+            self._restore_input_draft()
 
         # Always refresh so the status bar reflects the new confirmation state
         # (including the transition back to "working" or "ready" when queue empties).
@@ -174,11 +214,15 @@ class UIConfirmation:
         self._confirmation_queue.clear()
         self._current_confirmation = None
         self._end_choice()
+        self._restore_input_draft()
 
     def _handle_confirmation(self, event) -> bool:
         buff = event.current_buffer
         text = buff.text
-        if self._resolve_current(text, echo=text + "\n"):
-            buff.reset()
-            return True
-        return False
+        if self._current_confirmation is None:
+            return False
+        # Clear the answer text BEFORE resolving: resolving hands any stashed
+        # draft back into this same buffer, and resetting after the fact would
+        # wipe it.
+        buff.reset()
+        return self._resolve_current(text, echo=text + "\n")

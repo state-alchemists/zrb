@@ -245,8 +245,10 @@ class UISelection(_SelectionBase):
         self._choice_freetext_prefix = None
         self._choice_freetext_question = ""
         combined = ", ".join(part for part in (prefix, typed) if part)
-        self._resolve_current(combined, echo=self._answer_echo(question, combined))
+        # Clear the typed answer before resolving so the restored draft (stashed
+        # when the confirmation activated) is not wiped afterwards.
         buff.reset()
+        self._resolve_current(combined, echo=self._answer_echo(question, combined))
         return True
 
     # --- rendering -------------------------------------------------------
