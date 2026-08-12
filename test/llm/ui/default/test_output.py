@@ -1,5 +1,7 @@
 from unittest.mock import MagicMock, patch
 
+from zrb.llm.ui.base.message_queue import QueuedMessage
+from zrb.llm.ui.default.message_editing import UIMessageEditing
 from zrb.llm.ui.default.output import UIOutput
 from zrb.util.cli.help_panel import HelpPanel
 
@@ -249,3 +251,133 @@ def test_output_field_width_prefers_the_running_application():
         # Unusable app size (e.g. console not detected) falls back.
         ui._application.output.get_size.side_effect = Exception("no console")
         assert ui.output_field_width == 76
+
+
+# ── Queued-message echo splicing (UIMessageEditing + UIOutput) ──────────
+
+
+class MockEditingOutputUI(MockMarkdownUI, UIMessageEditing):
+    """MockMarkdownUI plus the queued-edit echo tracking/redraw methods."""
+
+    def __init__(self):
+        super().__init__()
+        self._queued_edit_entry = None
+        self._queued_edit_draft = ""
+        self._pending_invalidate = False
+
+
+def make_entry(text="original", marker="💬", ts="10:00"):
+    async def run():
+        pass
+
+    entry = QueuedMessage(text=text, attachments=[], kind="message", run=run)
+    entry.echo_marker = marker
+    entry.echo_timestamp = ts
+    return entry
+
+
+def test_track_echo_span_records_when_echo_lands():
+    ui = MockEditingOutputUI()
+    echo = "\n💬 10:00 >> original\n"
+    ui._output_field.text = "head" + echo
+    entry = make_entry()
+
+    ui._track_echo_span(entry, echo)
+
+    assert entry.echo_span == (len("head"), len("head") + len(echo))
+
+
+def test_track_echo_span_skips_when_echo_buffered():
+    # A pending confirmation diverted the echo away from the output buffer, so
+    # there is nothing to splice later — the span must not be recorded.
+    ui = MockEditingOutputUI()
+    ui._output_field.text = "confirmation prompt"
+    entry = make_entry()
+
+    ui._track_echo_span(entry, "\n💬 10:00 >> original\n")
+
+    assert entry.echo_span is None
+
+
+def test_redraw_echo_splices_edited_line():
+    ui = MockEditingOutputUI()
+    echo = "\n💬 10:00 >> original\n"
+    ui._output_field.text = "head" + echo + "tail"
+    entry = make_entry()
+    start = len("head")
+    entry.echo_span = (start, start + len(echo))
+
+    entry.text = "edited text"
+    ui._redraw_echo(entry)
+
+    assert ui.output_text == "head" + "\n💬 10:00 >> edited text\n" + "tail"
+    assert entry.echo_span == (start, start + len("\n💬 10:00 >> edited text\n"))
+
+
+def test_redraw_echo_uses_entry_marker_and_timestamp():
+    ui = MockEditingOutputUI()
+    echo = "\n⏳ 10:00 >> original\n"
+    ui._output_field.text = echo
+    entry = make_entry()
+    entry.echo_marker = "⏳"
+    entry.echo_span = (0, len(echo))
+
+    entry.text = "edited"
+    ui._redraw_echo(entry)
+
+    assert ui.output_text == "\n⏳ 10:00 >> edited\n"
+
+
+def test_redraw_echo_drops_stale_span():
+    ui = MockEditingOutputUI()
+    entry = make_entry()
+    entry.echo_span = (0, 100)  # buffer was rewritten since (e.g. rewind)
+    ui._output_field.text = "short"
+
+    ui._redraw_echo(entry)
+
+    assert entry.echo_span is None
+
+
+def test_redraw_echo_is_a_noop_without_span():
+    # No span recorded (echo was confirmation-buffered) — nothing to splice.
+    ui = MockEditingOutputUI()
+    entry = make_entry()
+    entry.echo_span = None
+    ui._output_field.text = "head"
+
+    ui._redraw_echo(entry)
+
+    assert ui.output_text == "head"
+    assert entry.echo_span is None
+
+
+def test_replace_output_span_shifts_tracked_blocks_after_span():
+    """Splicing a shorter echo must shift rendered-block offsets so a later
+    re-wrap still splices at the right position."""
+    ui = MockMarkdownUI()
+    echo = "\n💬 10:00 >> original\n"
+    ui._output_field.text = "head" + echo + "markdown"
+    block_start = len("head" + echo)
+    ui._rendered_blocks.append(
+        [block_start, block_start + len("markdown"), "source", lambda s, w: "markdown"]
+    )
+
+    with patch.object(ui, "_schedule_invalidate"):
+        replaced = ui.replace_output_span(
+            len("head"), len("head") + len(echo), "\n💬 10:00 >> edited\n"
+        )
+
+    assert replaced is True
+    assert ui.output_text == "head" + "\n💬 10:00 >> edited\n" + "markdown"
+    # "original" (8 chars) → "edited" (6): -2 shift applied to the block.
+    assert ui._rendered_blocks[0][0] == block_start - 2
+    assert ui._rendered_blocks[0][1] == block_start - 2 + len("markdown")
+
+
+def test_replace_output_span_refuses_stale_span():
+    ui = MockMarkdownUI()
+    ui._output_field.text = "short"
+
+    with patch.object(ui, "_schedule_invalidate"):
+        assert ui.replace_output_span(0, 100, "x") is False

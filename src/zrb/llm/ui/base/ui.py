@@ -48,6 +48,7 @@ from zrb.llm.tool_call import (
     default_response_handler,
 )
 from zrb.llm.ui.base.commands import BaseUICommands
+from zrb.llm.ui.base.message_queue import MessageQueue, QueuedMessage
 from zrb.llm.ui.base.properties import BaseUIProperties
 from zrb.llm.ui.base.replay import BaseUIReplay
 from zrb.llm.ui.base.system_info import BaseUISystemInfo
@@ -227,7 +228,7 @@ class BaseUI(BaseUIProperties, BaseUICommands, BaseUIReplay, BaseUISystemInfo):
         # size. Unlike the session totals it does not accumulate; it tracks the
         # latest turn and drops after summarization.
         self._context_tokens = 0
-        self._message_queue: asyncio.Queue = asyncio.Queue()
+        self._message_queue: MessageQueue = MessageQueue()
         self._process_messages_task: asyncio.Task | None = None
         self._last_result_data: str | None = None
 
@@ -580,9 +581,53 @@ class BaseUI(BaseUIProperties, BaseUICommands, BaseUIReplay, BaseUISystemInfo):
         pass
 
     @property
+    def effective_message_queue(self) -> MessageQueue:
+        """The message queue submissions land on.
+
+        A child UI in a MultiUI routes its submissions (and edits) to the
+        parent's shared queue; a standalone UI uses its own.
+        """
+        parent = self.multi_ui_parent
+        if parent is not None:
+            return parent._message_queue
+        return self._message_queue
+
+    @property
     def queued_message_count(self) -> int:
         """Messages waiting for the current turn to finish."""
-        return self._message_queue.qsize()
+        return self.effective_message_queue.qsize()
+
+    def edit_queued_message(self, entry: QueuedMessage, new_text: str) -> bool:
+        """Replace a still-queued message's text in place.
+
+        Returns ``True`` when the message was still queued (its turn had not
+        started) and was edited; ``False`` when it already started and the edit
+        was refused. The entry is shared across every child UI in a MultiUI, so
+        editing from one child updates the message for all; the echo redraw is
+        broadcast the same way `_submit_user_message` broadcasts the original
+        echo.
+        """
+        queue = self.effective_message_queue
+        if not queue.contains(entry):
+            return False
+        entry.text = new_text.strip()
+        targets = self.multi_ui_parent.children if self.multi_ui_parent else [self]
+        for ui in targets:
+            redraw = getattr(ui, "_redraw_echo", None)
+            if callable(redraw):
+                try:
+                    redraw(entry)
+                except Exception as e:
+                    CFG.LOGGER.debug(f"Child UI echo redraw failed: {e}")
+        return True
+
+    def _redraw_echo(self, entry: QueuedMessage) -> None:
+        """Rewrite `entry`'s echoed line after an edit.
+
+        The default TUI overrides this to splice the new line into its output
+        buffer; other UIs have no buffer to rewrite, so the default is a no-op
+        and their edits are invisible but effective.
+        """
 
     def append_markdown(self, markdown_text: str) -> None:
         """Render `markdown_text` at the current output width and append it.
@@ -623,7 +668,7 @@ class BaseUI(BaseUIProperties, BaseUICommands, BaseUIReplay, BaseUISystemInfo):
         """Process jobs from queue, ensuring only one job runs at a time."""
         while True:
             try:
-                job = await self._message_queue.get()
+                entry = await self._message_queue.get()
 
                 # Wait for any still-running task from a previous iteration to
                 # finish. Await it directly instead of polling — this removes the
@@ -652,7 +697,7 @@ class BaseUI(BaseUIProperties, BaseUICommands, BaseUIReplay, BaseUISystemInfo):
                         if current is not None and current.cancelling() > 0:
                             raise
 
-                current_task = asyncio.create_task(job())
+                current_task = asyncio.create_task(entry.run())
                 self._running_llm_task = current_task
 
                 try:
@@ -691,6 +736,14 @@ class BaseUI(BaseUIProperties, BaseUICommands, BaseUIReplay, BaseUISystemInfo):
     # _replay_history, _replay_request_parts, _replay_response_parts,
     # _replay_tool_call, _replay_tool_return are inherited.
 
+    def _track_echo_span(self, entry: QueuedMessage, echo: str) -> None:
+        """Record the output-buffer span of `echo` on `entry`.
+
+        The default UI overrides this so an edit can rewrite the echoed line in
+        place; other UIs have no buffer to splice into, so the default is a
+        no-op and their edits skip the redraw.
+        """
+
     def _submit_user_message(self, llm_task: AnyTask, user_message: str):
         # Check if we have a parent MultiUI to route through
         parent_multi_ui = self.multi_ui_parent
@@ -704,16 +757,22 @@ class BaseUI(BaseUIProperties, BaseUICommands, BaseUIReplay, BaseUISystemInfo):
         # 1. Render User Message. While a turn is in flight the message only
         # joins the queue, so say so rather than implying it was sent.
         marker = "⏳" if self._is_thinking else "💬"
-        self.append_to_output(f"\n{marker} {timestamp} >> {user_message.strip()}\n")
+        echo = f"\n{marker} {timestamp} >> {user_message.strip()}\n"
+        self.append_to_output(echo)
         # 2. Trigger AI Response
         attachments = self.take_pending_attachments()
-
-        async def job():
-            await self._stream_ai_response(
-                cast("LLMTask", llm_task), user_message, attachments
-            )
-
-        self._message_queue.put_nowait(job)
+        entry = QueuedMessage(
+            text=user_message,
+            attachments=attachments,
+            kind="message",
+            run=lambda: self._stream_ai_response(
+                cast("LLMTask", llm_task), entry.text, entry.attachments
+            ),
+        )
+        entry.echo_marker = marker
+        entry.echo_timestamp = timestamp
+        self._track_echo_span(entry, echo)
+        self._message_queue.put_nowait(entry)
 
     async def _stream_ai_response(
         self,

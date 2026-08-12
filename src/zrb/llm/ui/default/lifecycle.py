@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 
     from zrb.llm.snapshot.manager import SnapshotManager
     from zrb.llm.task.llm_task import LLMTask
+    from zrb.llm.ui.base.message_queue import MessageQueue
     from zrb.task.any_task import AnyTask
 
 
@@ -34,7 +35,7 @@ class UILifecycle:
         _background_tasks: set[asyncio.Task]
         _initial_message: Any
         _llm_task: LLMTask
-        _message_queue: asyncio.Queue
+        _message_queue: "MessageQueue"
         _process_messages_task: asyncio.Task | None
         _snapshot_manager: SnapshotManager | None
         _system_info_task: asyncio.Task | None

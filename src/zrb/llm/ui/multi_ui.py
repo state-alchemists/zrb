@@ -18,6 +18,7 @@ from zrb.llm.permission.state import (
     get_current_agent_mode,
     set_current_agent_mode,
 )
+from zrb.llm.ui.base.message_queue import MessageQueue, QueuedMessage
 from zrb.session.session import Session
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import stylize_muted
@@ -56,7 +57,7 @@ class MultiUI:
         self._child_tasks: list[asyncio.Task] = []
         self._pending_input_tasks: list[asyncio.Task] = []
         # Shared message queue for all UIs
-        self._message_queue: asyncio.Queue = asyncio.Queue()
+        self._message_queue: MessageQueue = MessageQueue()
         self._process_messages_task: asyncio.Task | None = None
         self._running_llm_task: asyncio.Task | None = None
         self._is_thinking: bool = False
@@ -362,7 +363,8 @@ class MultiUI:
         Broadcasts to ALL UIs and puts job in shared queue.
         """
         timestamp = datetime.now().strftime("%H:%M")
-        self.append_to_output(f"\n💬 {timestamp} >> {user_message.strip()}\n")
+        echo = f"\n💬 {timestamp} >> {user_message.strip()}\n"
+        self.append_to_output(echo)
 
         # Collect pending attachments from all child UIs (e.g. images pasted
         # via Ctrl+V in the default terminal UI) and clear their queues.
@@ -371,16 +373,30 @@ class MultiUI:
             if hasattr(ui, "take_pending_attachments"):
                 attachments.extend(ui.take_pending_attachments())
 
-        async def job():
-            await self._stream_ai_response(llm_task, user_message, attachments)
+        entry = QueuedMessage(
+            text=user_message,
+            attachments=attachments,
+            kind="message",
+            run=lambda: self._stream_ai_response(
+                llm_task, entry.text, entry.attachments
+            ),
+        )
+        entry.echo_marker = "💬"
+        entry.echo_timestamp = timestamp
+        # Record the echoed span on every child that can redraw in place so an
+        # edit of this still-queued message rewrites the line everywhere.
+        for ui in self._uis:
+            track = getattr(ui, "_track_echo_span", None)
+            if callable(track):
+                track(entry, echo)
 
-        self._message_queue.put_nowait(job)
+        self._message_queue.put_nowait(entry)
 
     async def _process_messages_loop(self):
         """Process jobs from shared queue sequentially."""
         while True:
             try:
-                job = await self._message_queue.get()
+                entry = await self._message_queue.get()
 
                 while (
                     self._running_llm_task is not None
@@ -390,7 +406,7 @@ class MultiUI:
 
                 current_task = asyncio.current_task()
                 if current_task:
-                    task = asyncio.create_task(job())
+                    task = asyncio.create_task(entry.run())
                     self._running_llm_task = task
 
                     try:

@@ -19,10 +19,12 @@ from zrb.llm.tool_call import (
     ResponseHandler,
     ToolPolicy,
 )
+from zrb.llm.ui.base.message_queue import QueuedMessage
 from zrb.llm.ui.base.ui import BaseUI
 from zrb.llm.ui.default.confirmation import UIConfirmation
 from zrb.llm.ui.default.keybindings import UIKeybindings
 from zrb.llm.ui.default.lifecycle import UILifecycle
+from zrb.llm.ui.default.message_editing import UIMessageEditing
 from zrb.llm.ui.default.output import UIOutput
 from zrb.llm.ui.default.selection import UISelection
 from zrb.util.ascii_art.banner import get_ascii_art
@@ -54,6 +56,7 @@ class UI(
     UISelection,
     UIConfirmation,
     UIOutput,
+    UIMessageEditing,
     BaseUI,
 ):
     def __init__(
@@ -152,6 +155,9 @@ class UI(
         from prompt_toolkit.history import InMemoryHistory
 
         self._input_history = InMemoryHistory()
+        # Queued-message editing state (see UIMessageEditing).
+        self._queued_edit_entry: QueuedMessage | None = None
+        self._queued_edit_draft = ""
         self._input_field = create_input_field(
             history_manager=self._history_manager,
             attach_commands=self._attach_commands,
@@ -175,6 +181,9 @@ class UI(
             custom_model_names=custom_model_names,
             show_ollama_models=show_ollama_models,
             show_pydantic_ai_models=show_pydantic_ai_models,
+            up_arrow_handler=self._handle_up_arrow,
+            down_arrow_handler=self._handle_down_arrow,
+            recall_active=self._recall_navigation_active,
         )
 
         custom_output_kb = create_output_keybindings(self._input_field)

@@ -135,5 +135,6 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0074** — [`ask_user_choice` with a text fallback](adr-0074.md)
 - **ADR-0075** — [Shift+Tab cycles the mode, with a Termux fallback](adr-0075.md)
 - **ADR-0076** — [Voice dictation as an opt-in UI input method](adr-0076.md)
+- **ADR-0077** — [Queued messages are editable entries, edited in place from the input field](adr-0077.md)
 
 🔖 [Documentation Home](../../README.md)
