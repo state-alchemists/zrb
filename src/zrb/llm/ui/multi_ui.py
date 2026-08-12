@@ -1,18 +1,28 @@
 import asyncio
+import inspect
 import logging
 import sys
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, TextIO
 
 if TYPE_CHECKING:
+    from pydantic_ai.usage import RequestUsage, RunUsage
+
     from zrb.llm.tool_call.ui_protocol import ChoiceSpec
 
 from zrb.config.config import CFG
 from zrb.context.shared_context import SharedContext
 from zrb.llm.approval.approval_channel import ApprovalContext
+from zrb.llm.permission.state import (
+    AgentMode,
+    get_current_agent_mode,
+    set_current_agent_mode,
+)
 from zrb.session.session import Session
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import stylize_muted
+
+logger = logging.getLogger(__name__)
 
 
 class MultiUI:
@@ -116,6 +126,24 @@ class MultiUI:
             except Exception as e:
                 CFG.LOGGER.debug(f"Child UI append_to_output failed: {e}")
 
+    def accumulate_usage(
+        self, usage: "RunUsage", context_usage: "RequestUsage | None" = None
+    ) -> None:
+        """Forward one run's usage totals to every child UI.
+
+        Mirrors `append_to_output`: the agent runner wires its usage callback
+        to the effective UI, which is a MultiUI in dual/multi-UI mode. Without
+        forwarding, session token totals never accumulate on child UIs and the
+        terminal status-bar meter stays empty.
+        """
+        for ui in self._uis:
+            accumulate = getattr(ui, "accumulate_usage", None)
+            if callable(accumulate):
+                try:
+                    accumulate(usage, context_usage)
+                except Exception as e:
+                    CFG.LOGGER.debug(f"Child UI accumulate_usage failed: {e}")
+
     def replay_history(self, messages: list) -> None:
         """Replay loaded history on every child UI that supports it."""
         self._replay_history(messages)
@@ -137,12 +165,39 @@ class MultiUI:
         attachments: list[Any] = [],
     ):
         """Stream AI response to all UIs via shared queue."""
-        self._is_thinking = True
-        self.invalidate_all_uis()
+        self._set_thinking(True)
         try:
             timestamp = datetime.now().strftime("%H:%M")
+            # Take filesystem snapshot before this AI turn (also records message
+            # count so that a rewind can restore conversation history to a
+            # consistent state). Failures are non-fatal — the AI turn must
+            # proceed regardless. Mirrors BaseUI._stream_ai_response.
+            snapshot_manager = getattr(self._main_ui, "snapshot_manager", None)
+            if snapshot_manager is not None:
+                try:
+                    label = user_message[:80].replace("\n", " ").strip()
+                    current_msgs = getattr(self._main_ui, "history_manager", None)
+                    session_name = getattr(
+                        self._main_ui, "conversation_session_name", ""
+                    )
+                    msgs = (
+                        current_msgs.load(session_name) if current_msgs is not None else []
+                    )
+                    await snapshot_manager.take_snapshot(
+                        f"{timestamp}: {label}", message_count=len(msgs)
+                    )
+                except Exception as snap_err:
+                    logger.warning(f"Snapshot skipped: {snap_err}")
             self.append_to_output(f"\n🤖 {timestamp} >>\n")
             self.append_to_output(stylize_muted("\n  🔢 Streaming response..."))
+
+            # Sync plan mode to the shared mutable state before the LLM run
+            # so the agent inherits the mode set by /plan on the main UI.
+            set_current_agent_mode(
+                AgentMode.PLAN
+                if getattr(self._main_ui, "_plan_mode_active", False)
+                else AgentMode.BUILD
+            )
 
             session = self._create_session_for_llm_task(user_message, attachments)
             llm_task.set_ui(self)
@@ -164,11 +219,32 @@ class MultiUI:
                 return
 
             self._running_llm_task = None
+
+            # Sync plan mode after LLM response (tools like EnterPlanMode set
+            # the ContextVar which is visible here in the same Task context), so
+            # the main UI's /plan badge follows in-run mode changes.
+            if hasattr(self._main_ui, "_plan_mode_active"):
+                self._main_ui._plan_mode_active = (
+                    get_current_agent_mode() == AgentMode.PLAN
+                )
+
             if result_data is not None:
                 if isinstance(result_data, str):
                     self._last_result_data = result_data
                     self.append_to_output("\n")
-                    self.append_to_output(render_markdown(result_data, width=None))
+                    # Render the final answer on the main UI with its themed,
+                    # re-wrappable markdown path; other children keep the
+                    # pre-rendered text they consumed before.
+                    rendered = render_markdown(result_data, width=None)
+                    for ui in self._uis:
+                        try:
+                            append_markdown = getattr(ui, "append_markdown", None)
+                            if callable(append_markdown):
+                                append_markdown(result_data)
+                            else:
+                                ui.append_to_output(rendered, end="")
+                        except Exception as e:
+                            CFG.LOGGER.debug(f"Child UI append failed: {e}")
 
         except asyncio.CancelledError:
             self.append_to_output("\n[Cancelled]\n")
@@ -176,8 +252,27 @@ class MultiUI:
         except Exception as e:
             self.append_to_output(f"\n[Error: {e}]\n")
         finally:
-            self._is_thinking = False
-            self.invalidate_all_uis()
+            self._set_thinking(False)
+            for ui in self._uis:
+                update_info = getattr(ui, "_update_system_info", None)
+                if inspect.iscoroutinefunction(update_info):
+                    try:
+                        await update_info()
+                    except Exception as e:
+                        CFG.LOGGER.debug(f"Child UI system info update failed: {e}")
+
+    def _set_thinking(self, value: bool) -> None:
+        """Mirror the thinking flag to every child UI, then repaint.
+
+        The status-bar animation ("⏳ working…") and the fast refresh loop
+        read each UI's own `_is_thinking`, so the flag must live on the
+        children, not only on the MultiUI wrapper.
+        """
+        self._is_thinking = value
+        for ui in self._uis:
+            if hasattr(ui, "_is_thinking"):
+                ui._is_thinking = value
+        self.invalidate_all_uis()
 
     def invalidate_all_uis(self):
         """Invalidate all child UIs."""
@@ -510,7 +605,11 @@ class MultiUI:
                     task.cancel()
             self._pending_input_tasks = []
 
-        self.last_output = getattr(self._main_ui, "last_output", "")
+        self.last_output = (
+            self._last_result_data
+            if self._last_result_data is not None
+            else getattr(self._main_ui, "last_output", "")
+        )
         return self.last_output
 
     def on_exit(self):
