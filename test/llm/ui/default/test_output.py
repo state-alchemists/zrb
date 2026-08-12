@@ -285,6 +285,7 @@ def test_track_echo_span_records_when_echo_lands():
     ui._track_echo_span(entry, echo)
 
     assert entry.echo_span == (len("head"), len("head") + len(echo))
+    assert entry.echo_text == echo
 
 
 def test_track_echo_span_skips_when_echo_buffered():
@@ -306,12 +307,34 @@ def test_redraw_echo_splices_edited_line():
     entry = make_entry()
     start = len("head")
     entry.echo_span = (start, start + len(echo))
+    entry.echo_text = echo
 
     entry.text = "edited text"
     ui._redraw_echo(entry)
 
     assert ui.output_text == "head" + "\n💬 10:00 >> edited text\n" + "tail"
     assert entry.echo_span == (start, start + len("\n💬 10:00 >> edited text\n"))
+    assert entry.echo_text == "\n💬 10:00 >> edited text\n"
+
+
+def test_redraw_echo_drops_span_that_no_longer_holds_the_echo():
+    # A terminal resize re-wrapped a preceding markdown block and shifted the
+    # transcript without updating the entry's span. The span is in-bounds but
+    # stale, so splicing there would corrupt the output — the redraw must drop
+    # it instead (the edit stays effective, the echo is just not rewritten).
+    ui = MockEditingOutputUI()
+    echo = "\n💬 10:00 >> original\n"
+    ui._output_field.text = "rewrapped long block now" + echo
+    entry = make_entry()
+    stale_start = len("old short block")  # span recorded when the block was short
+    entry.echo_span = (stale_start, stale_start + len(echo))
+    entry.echo_text = echo
+
+    entry.text = "edited text"
+    ui._redraw_echo(entry)
+
+    assert ui.output_text == "rewrapped long block now" + echo  # untouched
+    assert entry.echo_span is None
 
 
 def test_redraw_echo_uses_entry_marker_and_timestamp():

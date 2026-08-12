@@ -93,6 +93,13 @@ class UIMessageEditing:
         buffer = event.current_buffer
         entry = self._queued_edit_entry
 
+        if entry is not None and not self._recall_navigation_active():
+            # The user typed or moved the cursor since the recall — return the
+            # arrows to their normal behavior instead of navigating the queue
+            # over the in-progress edit (which is not recoverable: the saved
+            # draft is the pre-recall text, not the edit).
+            return False
+
         if entry is not None:
             if not queue.contains(entry):
                 # The recalled message's turn started — drop the edit mode and
@@ -135,6 +142,11 @@ class UIMessageEditing:
         queue = self.effective_message_queue
         buffer = event.current_buffer
         entry = self._queued_edit_entry
+
+        if entry is not None and not self._recall_navigation_active():
+            # Same guard as Up: once the user typed or moved the cursor, Down
+            # must not restore the pre-recall draft over their in-progress edit.
+            return False
         if entry is None:
             return False
         if not queue.contains(entry):
@@ -185,6 +197,7 @@ class UIMessageEditing:
         text = self.output_text
         if text.endswith(echo):
             entry.echo_span = (len(text) - len(echo), len(text))
+            entry.echo_text = echo
 
     def _redraw_echo(self, entry: QueuedMessage) -> None:
         """Splice `entry`'s echoed line back into the output buffer after an edit."""
@@ -195,8 +208,18 @@ class UIMessageEditing:
             # The span is stale — the buffer was rewritten since (e.g. rewind).
             entry.echo_span = None
             return
+        if entry.echo_text and self.output_text[start:end] != entry.echo_text:
+            # The span no longer holds the echoed line — a terminal resize
+            # re-wrapped tracked markdown blocks and shifted the transcript
+            # without updating this entry. Drop the span: the edit is already
+            # effective (the turn streams the new text), it just won't rewrite
+            # the echo, instead of splicing the line into the wrong offset and
+            # corrupting the output buffer.
+            entry.echo_span = None
+            return
         marker = entry.echo_marker or "💬"
         ts = entry.echo_timestamp or datetime.now().strftime("%H:%M")
         echo = f"\n{marker} {ts} >> {entry.text.strip()}\n"
         self.replace_output_span(start, end, echo)
         entry.echo_span = (start, start + len(echo))
+        entry.echo_text = echo

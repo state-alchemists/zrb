@@ -22,6 +22,7 @@ def test_queued_message_echo_defaults():
     assert entry.echo_marker == ""
     assert entry.echo_timestamp == ""
     assert entry.echo_span is None
+    assert entry.echo_text == ""
 
 
 def test_peek_latest_returns_newest():

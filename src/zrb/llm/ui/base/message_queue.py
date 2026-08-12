@@ -55,6 +55,12 @@ class QueuedMessage:
         # not land verbatim (e.g. confirmation buffering) or on UIs that cannot
         # redraw in place.
         self.echo_span: tuple[int, int] | None = None
+        # The echoed line `echo_span` points at, so a redraw can verify the span
+        # is still where the line landed before splicing. A terminal resize
+        # re-wraps tracked markdown blocks and shifts the transcript without
+        # updating this entry — the mismatch then drops the span (edit stays
+        # effective, echo not rewritten) instead of corrupting the output.
+        self.echo_text: str = ""
 
     @property
     def is_editable(self) -> bool:

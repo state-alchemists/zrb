@@ -410,13 +410,8 @@ class UIKeybindings:
         return False
 
     def _handle_enter_dispatch(self, event: Any, llm_task: "AnyTask") -> None:
-        """Route the input field's content once Enter reached the input field.
-
-        Recognizes the content as a command, a run-while-thinking command, or
-        a plain message and acts accordingly. The non-keybinding tail of the
-        Enter handler — split out of the closure to keep `setup_app_keybindings`
-        under the complexity ratchet.
-        """
+        """Split out of the Enter closure to keep `setup_app_keybindings` under
+        the complexity ratchet."""
         buff = event.current_buffer
         text = buff.text
         if not text.strip():
