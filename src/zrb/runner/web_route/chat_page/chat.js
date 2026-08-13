@@ -6,28 +6,17 @@ let totalPages = 1;
 let isInEditMode = false;
 let streamingBubble = null;
 let thinkingBubble = null;
-// The streaming bubble that just settled (its raw, unrendered text is still
-// its content at this point) -- kept alive across the `usage` event so the
-// `markdown` event that follows can replace it with the rendered version,
-// instead of leaving the raw text as the permanent "final" answer.
-let lastAnswerBubble = null;
+let lastAnswerBubble = null; // settled streaming bubble, replaced in place once `markdown` arrives
 
 if (typeof mermaid !== 'undefined') {
-    // startOnLoad: false -- diagrams are rendered on demand via mermaid.run()
-    // as each assistant message finalizes, not by scanning the whole page.
     mermaid.initialize({ startOnLoad: false, theme: 'neutral' });
 }
 
-// HTML-entity-escape only -- unlike escapeHtml() below, this must NOT turn
-// newlines into <br>: mermaid.js reads the block's real text content and
-// needs literal "\n" between statements, not <br> elements.
+// mermaid reads the block's literal text, so this can't reuse escapeHtml() (no <br> for \n)
 function escapeHtmlEntities(text) {
     return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-// Render ```mermaid fences as a plain, class-tagged block instead of a
-// generic code block, so mermaid.run() can find and replace them with SVG
-// after the HTML is inserted (see renderMathAndDiagrams).
 const markedRenderer = (typeof marked !== 'undefined') ? new marked.Renderer() : null;
 if (markedRenderer) {
     const defaultCodeRenderer = markedRenderer.code.bind(markedRenderer);
@@ -40,19 +29,13 @@ if (markedRenderer) {
     marked.setOptions({ renderer: markedRenderer });
 }
 
-// Converts raw assistant markdown to sanitized HTML. Falls back to escaped
-// plain text if a vendored renderer failed to load, so a blocked/slow asset
-// never breaks the chat -- it just shows the source instead of rendering it.
 function renderAssistantMarkdown(rawMarkdown) {
     if (typeof marked === 'undefined' || typeof DOMPurify === 'undefined') {
-        return escapeHtml(rawMarkdown);
+        return escapeHtml(rawMarkdown); // vendored renderer missing -- show the source, don't break the chat
     }
     return DOMPurify.sanitize(marked.parse(rawMarkdown));
 }
 
-// Runs KaTeX (for $...$/$$...$$) and Mermaid (for .mermaid blocks) over an
-// already-inserted, already-sanitized subtree. Both are no-ops if their
-// library never loaded, or if the subtree has nothing for them to find.
 function renderMathAndDiagrams(rootEl) {
     if (typeof renderMathInElement !== 'undefined') {
         renderMathInElement(rootEl, {
@@ -206,8 +189,6 @@ async function loadMessages() {
             : escapeHtml(msg.content || '');
         return `<div class="message ${role}"><div class="message-content">${content}</div></div>`;
     }).join('');
-    // Reopening a session should look the same as watching it live: math and
-    // diagrams in past assistant messages render too, not just new ones.
     renderMathAndDiagrams(messagesDiv);
 
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
@@ -284,19 +265,10 @@ function connectSSE() {
                 messagesDiv.appendChild(row);
 
             } else if (kind === 'usage') {
-                // Emitted right after the model finishes, before the `markdown`
-                // event (which carries the same answer, fully rendered -- see
-                // below). Settle the live bubble: drop the faint/pulsing
-                // `streaming` class, but keep a reference to it in
-                // `lastAnswerBubble` so `markdown` can replace its raw content
-                // instead of leaving it as the permanent "final" answer.
                 if (streamingBubble) {
                     streamingBubble.classList.remove('streaming');
                 }
-                // Unconditional (not just inside the `if`): a turn with no
-                // live streaming bubble (e.g. an empty answer) must clear any
-                // stale reference from an earlier turn too, or a later
-                // `markdown` event could overwrite that unrelated old bubble.
+                // also clears it when null, so a stale bubble can't leak into the next turn
                 lastAnswerBubble = streamingBubble;
                 streamingBubble = null;
                 thinkingBubble = null;
@@ -310,18 +282,13 @@ function connectSSE() {
                 messagesDiv.appendChild(row);
 
             } else if (kind === 'markdown') {
-                // The same answer `usage` just settled, this time as raw
-                // markdown for the browser to render (math, diagrams, real
-                // headers/code blocks) instead of plain streamed text.
                 const spinner = document.getElementById('sse-progress');
                 if (spinner) spinner.remove();
                 let targetBubble = (lastAnswerBubble && messagesDiv.contains(lastAnswerBubble))
                     ? lastAnswerBubble
                     : null;
                 if (!targetBubble) {
-                    // No live bubble to replace (e.g. the page reconnected
-                    // mid-turn) -- append a fresh rendered one rather than
-                    // losing the answer.
+                    // no live bubble to replace (e.g. reconnected mid-turn) -- append a new one
                     targetBubble = document.createElement('div');
                     targetBubble.className = 'message assistant';
                     const content = document.createElement('div');

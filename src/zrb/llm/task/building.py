@@ -102,10 +102,7 @@ class LLMTaskBuilding:
         self._uis.append(ui)
 
     def get_uis(self) -> list[UIProtocol]:
-        """Return every currently attached UI.
-
-        A copy, so mutating the result can't bypass `set_ui`/`append_ui`.
-        """
+        """Return a copy of every currently attached UI."""
         return list(self._uis)
 
     @property
