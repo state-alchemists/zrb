@@ -208,6 +208,42 @@ def test_submit_user_message_marks_queued_while_thinking(base_ui):
     assert "even later" in outputs[1]
 
 
+def test_submit_user_message_steers_into_live_run_context(base_ui):
+    """A message sent while a turn is live is delivered into that turn instead
+    of queuing (ADR-0078)."""
+    base_ui.active_run_context = MagicMock()
+    with patch.object(base_ui, "append_to_output"):
+        base_ui._submit_user_message(base_ui.llm_task, "steer me")
+
+    base_ui.active_run_context.enqueue.assert_called_once_with(
+        "steer me", priority="asap"
+    )
+    assert base_ui.queued_message_count == 0
+
+
+def test_submit_user_message_falls_back_to_queue_without_active_run_context(
+    base_ui,
+):
+    """No live turn (the default) keeps the existing queue behavior."""
+    assert base_ui.active_run_context is None
+    with patch.object(base_ui, "append_to_output"):
+        base_ui._submit_user_message(base_ui.llm_task, "later")
+
+    assert base_ui.queued_message_count == 1
+
+
+def test_submit_user_message_falls_back_to_queue_when_enqueue_raises(base_ui):
+    """A run that finished between the check and the call must not lose the
+    message -- it falls back to the queue instead of being dropped."""
+    live_run = MagicMock()
+    live_run.enqueue.side_effect = RuntimeError("run already finished")
+    base_ui.active_run_context = live_run
+    with patch.object(base_ui, "append_to_output"):
+        base_ui._submit_user_message(base_ui.llm_task, "steer me")
+
+    assert base_ui.queued_message_count == 1
+
+
 @pytest.mark.asyncio
 async def test_edit_queued_message_replaces_text_in_place(base_ui):
     """A still-queued message's text can be replaced without resubmitting."""

@@ -48,7 +48,11 @@ from zrb.llm.tool_call import (
     default_response_handler,
 )
 from zrb.llm.ui.base.commands import BaseUICommands
-from zrb.llm.ui.base.message_queue import MessageQueue, QueuedMessage
+from zrb.llm.ui.base.message_queue import (
+    MessageQueue,
+    QueuedMessage,
+    steer_into_live_run,
+)
 from zrb.llm.ui.base.properties import BaseUIProperties
 from zrb.llm.ui.base.replay import BaseUIReplay
 from zrb.llm.ui.base.system_info import BaseUISystemInfo
@@ -229,6 +233,7 @@ class BaseUI(BaseUIProperties, BaseUICommands, BaseUIReplay, BaseUISystemInfo):
         # latest turn and drops after summarization.
         self._context_tokens = 0
         self._message_queue: MessageQueue = MessageQueue()
+        self._active_run_context: Any = None
         self._process_messages_task: asyncio.Task | None = None
         self._last_result_data: str | None = None
 
@@ -331,6 +336,20 @@ class BaseUI(BaseUIProperties, BaseUICommands, BaseUIReplay, BaseUISystemInfo):
     @multi_ui_parent.setter
     def multi_ui_parent(self, parent: Any) -> None:
         self._multi_ui_parent = parent
+
+    @property
+    def active_run_context(self) -> Any:
+        """The live pydantic-ai `RunContext` for the turn currently streaming
+        through this UI, or None between turns / while a turn is suspended
+        (e.g. a pending tool approval). Set by `_execution_loop` for the
+        duration of each `agent.run()` call; read by `_submit_user_message`
+        to steer a new message into the live turn instead of queuing it
+        (ADR-0078)."""
+        return self._active_run_context
+
+    @active_run_context.setter
+    def active_run_context(self, ctx: Any) -> None:
+        self._active_run_context = ctx
 
     def take_pending_attachments(self) -> "list[UserContent]":
         """Return and clear this UI's pending attachments (public accessor)."""
@@ -761,6 +780,8 @@ class BaseUI(BaseUIProperties, BaseUICommands, BaseUIReplay, BaseUISystemInfo):
         self.append_to_output(echo)
         # 2. Trigger AI Response
         attachments = self.take_pending_attachments()
+        if steer_into_live_run(self.active_run_context, user_message, attachments):
+            return
         entry = QueuedMessage(
             text=user_message,
             attachments=attachments,

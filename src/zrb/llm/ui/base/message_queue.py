@@ -20,7 +20,9 @@ from __future__ import annotations
 import asyncio
 from collections import deque
 from collections.abc import Awaitable, Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+
+from zrb.config.config import CFG
 
 if TYPE_CHECKING:
     from pydantic_ai import UserContent
@@ -142,3 +144,30 @@ class MessageQueue(asyncio.Queue):
         self._unfinished_tasks -= 1
         if self._unfinished_tasks == 0:
             self._finished.set()
+
+
+def steer_into_live_run(
+    run_context: Any, text: str, attachments: "list[UserContent]"
+) -> bool:
+    """Try to inject `text`/`attachments` into the turn `run_context` belongs to.
+
+    Returns True when delivered — the caller skips queuing entirely, since
+    pydantic-ai's own drain (`RunContext.enqueue`, priority="asap") delivers it
+    at the next model request, batching with any other message enqueued the
+    same way in the meantime (ADR-0078). Returns False when there is no live
+    run (`run_context` is None — no turn in flight, or one is suspended on a
+    pending tool approval) or the enqueue attempt itself failed (the run
+    finished between the caller's check and this call); either way the
+    caller's normal queue path is the correct fallback.
+    """
+    if run_context is None:
+        return False
+    try:
+        run_context.enqueue(text, *attachments, priority="asap")
+        return True
+    except Exception:
+        CFG.LOGGER.debug(
+            "steer_into_live_run: enqueue failed, falling back to queue",
+            exc_info=True,
+        )
+        return False
