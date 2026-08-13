@@ -43,6 +43,12 @@ from zrb.util.cli.style import remove_style
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
 
+# Which print() kinds never reach Telegram. "streaming" is skipped because
+# the full answer already arrives once as "text" after the run finishes —
+# forwarding each token too just duplicates it. Extend/subclass TelegramUI
+# and pass a different skip_kinds= to change what's rendered.
+SKIP_KINDS = frozenset({"progress", "streaming", "thinking", "tool_call", "usage"})
+
 
 class TelegramBot:
     """Telegram bot wrapper for sending messages."""
@@ -69,7 +75,8 @@ class TelegramBot:
         self._app = Application.builder().token(self.token).build()
         await self._app.initialize()
         await self._app.start()
-        await self._app.updater.start_polling()
+        if self._app.updater:
+            await self._app.updater.start_polling()
         return self._app
 
     async def send(self, chat_id: str, text: str, raw: bool = False, **kwargs):
@@ -100,11 +107,25 @@ def _split(text: str, max_len: int) -> list[str]:
 class TelegramUI(EventDrivenUI, BufferedOutputMixin):
     """Telegram UI using EventDrivenUI with buffered output."""
 
-    def __init__(self, bot: TelegramBot, chat_id: str, **kwargs):
+    # Kinds seen from the LLM run loop: text, streaming, thinking, tool_call,
+    # usage, progress, todo_progress, message, agent, exec, prompt.
+    # Skipped by default; pass skip_kinds= to change what reaches Telegram.
+    DEFAULT_SKIP_KINDS = frozenset({"progress", "streaming"})
+
+    def __init__(
+        self,
+        bot: TelegramBot,
+        chat_id: str,
+        skip_kinds: frozenset[str] | None = None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         BufferedOutputMixin.__init__(self, flush_interval=2.0, max_buffer_size=3000)
         self.bot = bot
         self.chat_id = chat_id
+        self.skip_kinds = (
+            skip_kinds if skip_kinds is not None else self.DEFAULT_SKIP_KINDS
+        )
         self._approval_channel: TelegramApproval | None = None
         self._stop_event = asyncio.Event()
         self._message_handler_registered = False
@@ -118,20 +139,15 @@ class TelegramUI(EventDrivenUI, BufferedOutputMixin):
         await self.bot.send(self.chat_id, text, raw=True, parse_mode="HTML")
 
     async def print(self, text: str, kind: str = "text") -> None:
-        if kind == "progress":
-            return  # Skip transient spinner
+        if kind in self.skip_kinds:
+            return
         clean = remove_style(text)
-        if kind in ("tool_call", "usage"):
-            stripped = clean.strip()
-            if stripped:
-                # Monospace code block with tool icon
-                self.buffer_output(f"\n<i>{html.escape(stripped)}</i>\n\n")
-        elif kind in ("thinking", "streaming"):
-            # Italic for chain-of-thought reasoning
-            self.buffer_output(f"<i>{html.escape(clean)}</i>")
-        else:
-            # streaming / text: plain HTML-escaped response content
-            self.buffer_output(html.escape(clean))
+        if "Streaming response" in clean:
+            return  # status placeholder, not real content
+        escaped = html.escape(clean)
+        # Final response always arrives as kind="text" — keep that plain;
+        # anything else that made it past skip_kinds is secondary, italicize it.
+        self.buffer_output(escaped if kind == "text" else f"<i>{escaped}</i>")
 
     async def start_event_loop(self) -> None:
         if not self.bot._app:
@@ -139,7 +155,7 @@ class TelegramUI(EventDrivenUI, BufferedOutputMixin):
 
         await self.start_flush_loop()
 
-        async def handle_message(update, context):
+        async def handle_message(update, _context):
             if str(update.message.chat_id) != self.chat_id:
                 return
             text = update.message.text
@@ -262,10 +278,6 @@ class TelegramApproval(ApprovalChannel):
 
             elif action == "edit":
                 if tool_call_id in instance._pending:
-                    future = instance._pending[tool_call_id]
-                    instance._pending_context[tool_call_id] = (
-                        instance._pending_context.get(tool_call_id)
-                    )
                     context_obj = instance._pending_context.get(tool_call_id)
                     args = html.escape(
                         json.dumps(
@@ -309,14 +321,13 @@ class TelegramApproval(ApprovalChannel):
 
     def _parse_edited_content(self, content: str) -> dict | None:
         """Parse edited content as JSON or YAML."""
+        import yaml
         content = content.strip()
         try:
             return json.loads(content)
         except json.JSONDecodeError:
             pass
         try:
-            import yaml
-
             return yaml.safe_load(content)
         except yaml.YAMLError:
             pass
@@ -343,7 +354,7 @@ if BOT_TOKEN and CHAT_ID:
         cfg = UIConfig.default()
         if ui_commands:
             cfg = cfg.merge_commands(ui_commands)
-        cfg.yolo = initial_yolo
+        cfg.is_yolo = initial_yolo
         cfg.conversation_session_name = initial_conversation_name
         ui = TelegramUI(
             ctx=ctx,
@@ -354,6 +365,7 @@ if BOT_TOKEN and CHAT_ID:
             initial_attachments=initial_attachments,
             bot=bot,
             chat_id=CHAT_ID,
+            skip_kinds=SKIP_KINDS,
         )
         ui.set_approval_channel(telegram_approval)
         return ui

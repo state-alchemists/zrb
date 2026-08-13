@@ -9,8 +9,7 @@ Shows how to chain tasks with:
 """
 
 import asyncio
-
-from zrb import AnyContext, CmdTask, FloatInput, Task, Xcom, cli, make_task
+from zrb import AnyContext, CmdTask, FloatInput, Task, cli, make_task
 
 # =============================================================================
 # Upstream Dependencies (<<) - Data Flows From Right to Left
@@ -90,11 +89,10 @@ assert task_cook << task_prepare
 
 # Fallback runs when the main task fails
 
-from decimal import Decimal
-
 
 @make_task(
     name="calculate-change",
+    group=cli,
     description="Calculate change from purchase",
     input=[
         FloatInput(name="price", description="Original price", default=100),
@@ -119,6 +117,7 @@ def calculate_change(ctx: AnyContext):
 
 @make_task(
     name="process-order",
+    group=cli,
     description="Process a customer order",
     input=[FloatInput(name="amount", default=50)],
     successor=CmdTask(name="receipt", cmd="echo 'Receipt sent!'"),
@@ -126,5 +125,5 @@ def calculate_change(ctx: AnyContext):
 async def process_order(ctx: AnyContext):
     ctx.print(f"Processing order for ${ctx.input.amount}...")
     await asyncio.sleep(0.5)
-    ctx.print(f"✅ Order processed")
+    ctx.print("✅ Order processed")
     return ctx.input.amount

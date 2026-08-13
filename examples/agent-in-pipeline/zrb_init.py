@@ -83,4 +83,4 @@ def route(ctx):
 route_task = triage_group.add_task(Task(name="route", action=route))
 
 # Wire the DAG: intake → triage → route
-intake >> triage >> route_task
+_ = intake >> triage >> route_task
