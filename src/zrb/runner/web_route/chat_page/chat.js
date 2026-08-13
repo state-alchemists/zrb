@@ -292,8 +292,12 @@ function connectSSE() {
                 // instead of leaving it as the permanent "final" answer.
                 if (streamingBubble) {
                     streamingBubble.classList.remove('streaming');
-                    lastAnswerBubble = streamingBubble;
                 }
+                // Unconditional (not just inside the `if`): a turn with no
+                // live streaming bubble (e.g. an empty answer) must clear any
+                // stale reference from an earlier turn too, or a later
+                // `markdown` event could overwrite that unrelated old bubble.
+                lastAnswerBubble = streamingBubble;
                 streamingBubble = null;
                 thinkingBubble = null;
                 // Usage stats footer row
