@@ -15,6 +15,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
+from zrb.llm.agent.run.history_utils import close_dangling_tool_calls
 from zrb.llm.history_manager.file_history_manager import FileHistoryManager
 from zrb.util.attr import get_attr
 from zrb.util.cli.style import remove_style
@@ -142,13 +143,7 @@ class LLMTaskHistory:
         next attempt longer and guarantee the same failure.
         """
         # lazy: heavy third-party
-        from pydantic_ai.messages import (
-            ModelRequest,
-            ModelResponse,
-            ToolCallPart,
-            ToolReturnPart,
-            UserPromptPart,
-        )
+        from pydantic_ai.messages import ModelRequest, UserPromptPart
 
         new_history = getattr(error, "zrb_history", None)
         if new_history is None:
@@ -164,21 +159,7 @@ class LLMTaskHistory:
             return
         # Append error information to history so it's available on next retry
         # 1. Handle dangling tool calls if necessary
-        if len(new_history) > 0:
-            last_msg = new_history[-1]
-            if isinstance(last_msg, ModelResponse):
-                tool_returns = []
-                for part in last_msg.parts:
-                    if isinstance(part, ToolCallPart):
-                        tool_returns.append(
-                            ToolReturnPart(
-                                tool_name=part.tool_name,
-                                content=f"Error: {str(error)}",
-                                tool_call_id=part.tool_call_id,
-                            )
-                        )
-                if tool_returns:
-                    new_history.append(ModelRequest(parts=tool_returns))
+        new_history = close_dangling_tool_calls(new_history, reason=f"Error: {error}")
 
         # 2. Append general error information
         error_msg = f"[SYSTEM] Error occurred: {str(error)}"
@@ -200,10 +181,11 @@ class LLMTaskHistory:
     ) -> None:
         """Save partial history when a run is cancelled by the user (e.g. Escape).
 
-        Constructs a synthetic history containing the original history, the
-        user's message, and a cancellation marker so the next turn can build
-        on context rather than starting fresh.  Best-effort: a failure must not
-        crash the interrupt path, but it is logged so silent history loss is
+        Constructs a synthetic history containing everything the interrupted
+        turn actually did — not just the pre-turn history — plus a
+        cancellation marker so the next turn can build on real context rather
+        than starting fresh. Best-effort: a failure must not crash the
+        interrupt path, but it is logged so silent history loss is
         diagnosable.
         """
         try:
@@ -215,9 +197,24 @@ class LLMTaskHistory:
                 UserPromptPart,
             )
 
-            partial_history = list(message_history)
-            partial_history.append(
-                ModelRequest(parts=[UserPromptPart(content=str(user_message))])
+            latest_history = getattr(partial_run, "latest_history", None)
+            if latest_history is not None:
+                # The live `ctx.messages` from the interrupted run — already
+                # includes the user's message plus any tool calls/results
+                # completed before the cancellation, unlike `message_history`
+                # (the pre-turn baseline passed to `run_agent`).
+                partial_history = list(latest_history)
+            else:
+                # Cancelled before the run ever reached the model (no event
+                # arrived) — nothing live to fall back on.
+                partial_history = list(message_history)
+                partial_history.append(
+                    ModelRequest(parts=[UserPromptPart(content=str(user_message))])
+                )
+            partial_history = close_dangling_tool_calls(
+                partial_history,
+                reason="[SYSTEM] Cancelled by user before this tool call's "
+                "result was recorded.",
             )
             partial_history.append(
                 ModelResponse(

@@ -22,7 +22,7 @@ import asyncio
 from contextlib import ExitStack
 from contextvars import ContextVar
 from dataclasses import replace
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, TypeAlias
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Coroutine, TypeAlias
 
 from zrb.config.config import CFG
 from zrb.llm.agent.run.deferred_calls import (
@@ -129,10 +129,17 @@ async def run_agent(
     live_context: str = "",
     permission_policy: Any = None,
     sandbox_policy: Any = None,
+    checkpoint_fn: Callable[[list[Any]], Coroutine[Any, Any, None]] | None = None,
 ) -> tuple[Any, list[Any]]:
     """
     Runs the agent with rate limiting, history management, and optional CLI confirmation loop.
     Returns (result_output, new_message_history).
+
+    `checkpoint_fn`, when given, is awaited in the background (never blocking
+    the run) each time the in-progress turn reaches a safe boundary — every
+    tool-call round trip, not just the end of the turn — so a caller that
+    persists history sees progress well before `agent.run()` returns. See
+    `_build_event_stream_handler` for the boundary rule.
     """
     global _openai_patched
     if not _openai_patched:
@@ -238,6 +245,7 @@ async def run_agent(
             effective_ui=effective_ui,
             effective_hook_manager=effective_hook_manager,
             effective_approval_channel=effective_approval_channel,
+            checkpoint_fn=checkpoint_fn,
         )
     finally:
         stack.close()
@@ -452,6 +460,7 @@ async def _execution_loop(
     effective_ui: UIProtocol | None,
     effective_hook_manager: HookManager,
     effective_approval_channel: "ApprovalChannel | None",
+    checkpoint_fn: Callable[[list[Any]], Coroutine[Any, Any, None]] | None = None,
 ) -> tuple[Any, list[Any]]:
     # lazy: heavy third-party
     from pydantic_ai import AgentRunResultEvent, DeferredToolRequests, UsageLimits
@@ -462,6 +471,10 @@ async def _execution_loop(
     extension_state = ExtensionState()
     current_results = None
     partial_run = PartialRunAccumulator()
+    # Background checkpoint-save tasks fired mid-turn (see `_build_event_stream_handler`).
+    # Gathered in the `finally` below so a lagging write can never race past the
+    # caller's own end-of-turn save.
+    pending_checkpoint_tasks: list[asyncio.Task] = []
 
     try:
         while True:
@@ -471,7 +484,12 @@ async def _execution_loop(
             )
             stream_error = None
             handler = _build_event_stream_handler(
-                effective_ui, effective_event_handler, partial_run
+                effective_ui,
+                effective_event_handler,
+                partial_run,
+                checkpoint_fn=checkpoint_fn,
+                pending_checkpoint_tasks=pending_checkpoint_tasks,
+                baseline_len=len(current_history),
             )
             try:
                 # Docs: https://ai.pydantic.dev/agents/#streaming-all-events
@@ -640,14 +658,54 @@ async def _execution_loop(
         partial_run.error = str(e)
         setattr(e, "zrb_partial_run", partial_run)
         if not hasattr(e, "zrb_history"):
-            setattr(e, "zrb_history", run_history)
+            setattr(e, "zrb_history", _resolve_crash_history(partial_run, run_history))
         raise e
+    finally:
+        await _await_pending_checkpoints(pending_checkpoint_tasks)
+
+
+def _resolve_crash_history(
+    partial_run: PartialRunAccumulator, run_history: list[Any]
+) -> list[Any]:
+    """The best available history to attach to an unhandled run exception.
+
+    `run_history` only updates when an `agent.run()` call returns, so on a
+    failure inside the very first call of this turn it's still the pre-turn
+    baseline. `partial_run.latest_history` is the live, ever-growing
+    `ctx.messages` and reflects everything done this turn, including a
+    dangling trailing tool call — closed by the caller via
+    `close_dangling_tool_calls`.
+    """
+    if partial_run.latest_history is not None:
+        return list(partial_run.latest_history)
+    return run_history
+
+
+async def _await_pending_checkpoints(
+    pending_checkpoint_tasks: list[asyncio.Task],
+) -> None:
+    """Drain in-flight checkpoint writes before the run truly ends.
+
+    Guarantees a lagging background save can never land after (and clobber)
+    the caller's own end-of-turn save.
+    """
+    if not pending_checkpoint_tasks:
+        return
+    checkpoint_results = await asyncio.gather(
+        *pending_checkpoint_tasks, return_exceptions=True
+    )
+    for checkpoint_result in checkpoint_results:
+        if isinstance(checkpoint_result, Exception):
+            CFG.LOGGER.warning(f"Checkpoint save failed: {checkpoint_result}")
 
 
 def _build_event_stream_handler(
     effective_ui: UIProtocol | None,
     effective_event_handler: Callable[[Any], Any] | None,
     partial_run: PartialRunAccumulator,
+    checkpoint_fn: Callable[[list[Any]], Coroutine[Any, Any, None]] | None = None,
+    pending_checkpoint_tasks: list[asyncio.Task] | None = None,
+    baseline_len: int = 0,
 ) -> Callable[[Any, Any], Awaitable[None]]:
     """Build the `event_stream_handler` for one `agent.run()` call.
 
@@ -659,16 +717,48 @@ def _build_event_stream_handler(
     once per graph node (every model-request/tool-call round shares the same
     underlying pending-message queue), so re-registering each time is
     redundant.
+
+    When `checkpoint_fn` is set, also fires it (as a background task, never
+    awaited inline) every time `ctx.messages` grows and ends in a
+    `ModelRequest` — the point right after a tool-call round trip's results
+    have all landed, which is always a structurally complete history (no
+    dangling `ToolCallPart`), unlike mid-response-streaming states.
     """
+    last_checkpoint_len = baseline_len
 
     async def _handler(ctx: Any, events: Any) -> None:
+        nonlocal last_checkpoint_len
         _set_active_run_context(effective_ui, ctx)
         async for event in events:
             partial_run.record_event(event)
+            # Live reference (same list pydantic-ai appends to in place), kept
+            # for the exception/cancellation fallback in `_execution_loop` —
+            # cheap, no copy needed just to hold a pointer.
+            partial_run.latest_history = ctx.messages
             if effective_event_handler:
                 await effective_event_handler(event)
+            if checkpoint_fn is not None and _is_checkpoint_boundary(
+                ctx.messages, last_checkpoint_len
+            ):
+                last_checkpoint_len = len(ctx.messages)
+                # Copy now, synchronously: the source list keeps growing, so the
+                # background task must not observe a moving target.
+                snapshot = list(ctx.messages)
+                assert pending_checkpoint_tasks is not None
+                pending_checkpoint_tasks.append(
+                    asyncio.create_task(checkpoint_fn(snapshot))
+                )
 
     return _handler
+
+
+def _is_checkpoint_boundary(messages: list[Any], last_checkpoint_len: int) -> bool:
+    # lazy: heavy third-party
+    from pydantic_ai.messages import ModelRequest
+
+    return len(messages) > last_checkpoint_len and isinstance(
+        messages[-1], ModelRequest
+    )
 
 
 def _set_active_run_context(effective_ui: UIProtocol | None, ctx: Any) -> None:

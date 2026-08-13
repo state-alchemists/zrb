@@ -11,7 +11,7 @@ class AnyHistoryManager(ABC):
         pass
 
     @abstractmethod
-    def save(self, conversation_name: str):
+    def save(self, conversation_name: str, write_backup: bool = True):
         pass
 
     @abstractmethod

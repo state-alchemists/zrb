@@ -347,6 +347,20 @@ class LLMTask(LLMTaskBuilding, LLMTaskHistory, BaseTask):
             ctx, user_message, user_attachments, message_history
         )
 
+        async def _checkpoint(snapshot: list[Any]) -> None:
+            """Persist mid-turn progress so a crash/cancel can resume from it.
+
+            Fired in the background at every safe tool-call-round-trip
+            boundary (see `_build_event_stream_handler`) — never awaited by
+            the run loop itself. `write_backup=False`: a full timestamped
+            backup on every tool call would spam the history dir for no
+            benefit; the end-of-turn save below still writes one.
+            """
+            history_manager.update(conversation_name, snapshot)
+            await asyncio.to_thread(
+                history_manager.save, conversation_name, write_backup=False
+            )
+
         try:
             yolo_value = (
                 self._dynamic_yolo()
@@ -384,6 +398,7 @@ class LLMTask(LLMTaskBuilding, LLMTaskHistory, BaseTask):
                 live_context=live_context,
                 permission_policy=permission_policy,
                 sandbox_policy=sandbox_policy,
+                checkpoint_fn=_checkpoint,
             )
         except asyncio.CancelledError as ce:
             partial_run = getattr(ce, "zrb_partial_run", None)
