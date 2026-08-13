@@ -75,7 +75,8 @@ class TelegramBot:
         self._app = Application.builder().token(self.token).build()
         await self._app.initialize()
         await self._app.start()
-        await self._app.updater.start_polling()
+        if self._app.updater:
+            await self._app.updater.start_polling()
         return self._app
 
     async def send(self, chat_id: str, text: str, raw: bool = False, **kwargs):
@@ -154,7 +155,7 @@ class TelegramUI(EventDrivenUI, BufferedOutputMixin):
 
         await self.start_flush_loop()
 
-        async def handle_message(update, context):
+        async def handle_message(update, _context):
             if str(update.message.chat_id) != self.chat_id:
                 return
             text = update.message.text
@@ -277,10 +278,6 @@ class TelegramApproval(ApprovalChannel):
 
             elif action == "edit":
                 if tool_call_id in instance._pending:
-                    future = instance._pending[tool_call_id]
-                    instance._pending_context[tool_call_id] = (
-                        instance._pending_context.get(tool_call_id)
-                    )
                     context_obj = instance._pending_context.get(tool_call_id)
                     args = html.escape(
                         json.dumps(
@@ -324,14 +321,13 @@ class TelegramApproval(ApprovalChannel):
 
     def _parse_edited_content(self, content: str) -> dict | None:
         """Parse edited content as JSON or YAML."""
+        import yaml
         content = content.strip()
         try:
             return json.loads(content)
         except json.JSONDecodeError:
             pass
         try:
-            import yaml
-
             return yaml.safe_load(content)
         except yaml.YAMLError:
             pass
@@ -358,7 +354,7 @@ if BOT_TOKEN and CHAT_ID:
         cfg = UIConfig.default()
         if ui_commands:
             cfg = cfg.merge_commands(ui_commands)
-        cfg.yolo = initial_yolo
+        cfg.is_yolo = initial_yolo
         cfg.conversation_session_name = initial_conversation_name
         ui = TelegramUI(
             ctx=ctx,

@@ -62,6 +62,7 @@ from zrb import make_task
         IntInput("a", description="First number", default=1),
         IntInput("b", description="Second number", default=1),
     ],
+    group=cli,
 )
 def multiply(ctx):
     result = ctx.input.a * ctx.input.b

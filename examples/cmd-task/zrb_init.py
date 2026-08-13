@@ -4,7 +4,7 @@ Command Task Example
 Shows how to run shell commands with CmdTask.
 """
 
-from zrb import CmdTask, StrInput, cli
+from zrb import CmdTask, Env, StrInput, cli
 
 # =============================================================================
 # Basic CmdTask
@@ -68,7 +68,7 @@ env_task = cli.add_task(
         name="env-check",
         description="Check environment variables",
         cmd="echo $MY_VAR",
-        env={"MY_VAR": "Hello from Zrb"},
+        env=[Env(name="MY_VAR", default="Hello from Zrb", link_to_os=False)],
     )
 )
 

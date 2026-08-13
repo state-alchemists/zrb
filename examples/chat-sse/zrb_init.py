@@ -90,7 +90,7 @@ class SSEServer:
         self._runner: web.AppRunner | None = None
         self._site: web.TCPSite | None = None
         self._ui_instance: "SSEUI | None" = None
-        self._output_queue: asyncio.Queue[str] = asyncio.Queue()
+        self._output_queue: asyncio.Queue[dict[str, str]] = asyncio.Queue()
         self._approval_channel: "SSEApproval | None" = None
 
     @classmethod
@@ -428,7 +428,7 @@ class SSEApproval(ApprovalChannel):
         if tool_call_id not in self._pending:
             return
 
-        context = self._pending_context.get(tool_call_id)
+        context = self._pending_context[tool_call_id]
         new_args = self._parse_edited_content(response)
         future = self._pending.pop(tool_call_id)
         del self._pending_context[tool_call_id]
@@ -463,7 +463,7 @@ class SSEApproval(ApprovalChannel):
         if tool_call_id not in self._pending:
             return
 
-        context = self._pending_context.get(tool_call_id)
+        context = self._pending_context[tool_call_id]
         future = self._pending.pop(tool_call_id)
         del self._pending_context[tool_call_id]
 
@@ -482,20 +482,6 @@ class SSEApproval(ApprovalChannel):
     def _apply_response(self, tool_call_id: str, response: str) -> None:
         """Apply response to a pending tool call."""
         if tool_call_id not in self._pending:
-            return
-
-        # Handle non-string responses (shouldn't happen, but be defensive)
-        if not isinstance(response, str):
-            asyncio.create_task(
-                self.server.broadcast(
-                    f"🛑 Unexpected response type: {type(response).__name__}"
-                )
-            )
-            future = self._pending.pop(tool_call_id)
-            del self._pending_context[tool_call_id]
-            future.set_result(
-                ApprovalResult(approved=False, message="Invalid response type")
-            )
             return
 
         response_lower = response.lower().strip()
@@ -569,9 +555,9 @@ class SSEApproval(ApprovalChannel):
             return None
         except json.JSONDecodeError:
             pass
-        try:
-            import yaml
+        import yaml
 
+        try:
             result = yaml.safe_load(content)
             if isinstance(result, dict):
                 return result
@@ -655,7 +641,7 @@ def sse_ui_factory(
     cfg = UIConfig.default()
     if ui_commands:
         cfg = cfg.merge_commands(ui_commands)
-    cfg.yolo = initial_yolo
+    cfg.is_yolo = initial_yolo
     cfg.conversation_session_name = initial_conversation_name
 
     ui = SSEUI(
