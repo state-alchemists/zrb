@@ -18,7 +18,11 @@ from zrb.llm.permission.state import (
     get_current_agent_mode,
     set_current_agent_mode,
 )
-from zrb.llm.ui.base.message_queue import MessageQueue, QueuedMessage
+from zrb.llm.ui.base.message_queue import (
+    MessageQueue,
+    QueuedMessage,
+    steer_into_live_run,
+)
 from zrb.session.session import Session
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import stylize_muted
@@ -58,6 +62,7 @@ class MultiUI:
         self._pending_input_tasks: list[asyncio.Task] = []
         # Shared message queue for all UIs
         self._message_queue: MessageQueue = MessageQueue()
+        self._active_run_context: Any = None
         self._process_messages_task: asyncio.Task | None = None
         self._running_llm_task: asyncio.Task | None = None
         self._is_thinking: bool = False
@@ -101,6 +106,19 @@ class MultiUI:
     @property
     def _main_ui(self) -> Any:
         return self._uis[self._main_ui_index] if self._uis else None
+
+    @property
+    def active_run_context(self) -> Any:
+        """Mirrors `BaseUI.active_run_context` — the live pydantic-ai
+        `RunContext` for the turn currently streaming through this MultiUI, or
+        None between turns / while a turn is suspended. Read by
+        `_submit_user_message` to steer a new message into the live turn
+        instead of queuing it (ADR-0078)."""
+        return self._active_run_context
+
+    @active_run_context.setter
+    def active_run_context(self, ctx: Any) -> None:
+        self._active_run_context = ctx
 
     def set_llm_task(self, llm_task: Any):
         """Set the LLM task for shared processing."""
@@ -372,6 +390,9 @@ class MultiUI:
         for ui in self._uis:
             if hasattr(ui, "take_pending_attachments"):
                 attachments.extend(ui.take_pending_attachments())
+
+        if steer_into_live_run(self.active_run_context, user_message, attachments):
+            return
 
         entry = QueuedMessage(
             text=user_message,

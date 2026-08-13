@@ -1,5 +1,4 @@
 import asyncio
-from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -12,20 +11,37 @@ from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
 
 
-def _stream_from(agen_func):
-    """Wrap an async generator function into a run_stream_events mock.
+def _run_from(agen_func):
+    """Wrap an async generator function into an ``agent.run(event_stream_handler=...)`` mock.
 
-    ``run_stream_events()`` returns a bare async context manager (no dedicated
-    class to import), so we mimic that shape directly with
-    ``contextlib.asynccontextmanager`` rather than depending on an internal
-    pydantic-ai type.
+    ``agen_func`` keeps yielding the same events every test already
+    constructs, ending with ``AgentRunResultEvent(result=...)`` (the old
+    ``run_stream_events()`` shape). Real pydantic-ai's ``event_stream_handler``
+    never receives that trailing event -- it's ``run_stream_events()``'s own
+    addition, synthesized by its consumer-facing iterator after the
+    background run finishes. This strips it the same way ``_execution_loop``
+    does and returns its ``.result`` as ``agent.run()``'s return value.
     """
 
-    @asynccontextmanager
-    async def wrapper(*args, **kwargs):
-        yield agen_func(*args, **kwargs)
+    async def fake_run(*args, **kwargs):
+        handler = kwargs.pop("event_stream_handler", None)
+        result_holder = []
 
-    return wrapper
+        async def events():
+            async for event in agen_func(*args, **kwargs):
+                if isinstance(event, AgentRunResultEvent):
+                    result_holder.append(event.result)
+                    return
+                yield event
+
+        if handler is not None:
+            await handler(MagicMock(), events())
+        else:
+            async for _ in events():
+                pass
+        return result_holder[0] if result_holder else None
+
+    return fake_run
 
 
 @pytest.mark.asyncio
@@ -60,7 +76,7 @@ async def test_run_agent_runs_history_processors_before_pruning():
     async def _gen(*args, **kwargs):
         yield AgentRunResultEvent(result=mock_result)
 
-    agent.run_stream_events = _stream_from(_gen)
+    agent.run = _run_from(_gen)
 
     result, _ = await run_agent(
         agent=agent, message="Hi", message_history=[], limiter=LLMLimiter()
@@ -96,7 +112,7 @@ async def test_run_agent_precompact_block_skips_history_processors():
     async def _gen(*args, **kwargs):
         yield AgentRunResultEvent(result=mock_result)
 
-    agent.run_stream_events = _stream_from(_gen)
+    agent.run = _run_from(_gen)
 
     async def blocking_precompact(ctx):
         return HookResult.block("preserve everything")
@@ -141,7 +157,7 @@ async def test_run_agent_passes_system_prompt_overhead_to_processors():
     async def _gen(*args, **kwargs):
         yield AgentRunResultEvent(result=mock_result)
 
-    agent.run_stream_events = _stream_from(_gen)
+    agent.run = _run_from(_gen)
 
     limiter = MagicMock(spec=LLMLimiter)
     limiter.max_token_per_request = 1000
@@ -183,7 +199,7 @@ async def test_run_agent_appends_live_context_to_user_turn():
         seen["message"] = current_message
         yield AgentRunResultEvent(result=mock_result)
 
-    agent.run_stream_events = _stream_from(_gen)
+    agent.run = _run_from(_gen)
 
     live = "<live-context>\n- Time: 2026-01-01 00:00:00\n</live-context>"
     await run_agent(
@@ -218,7 +234,7 @@ async def test_run_agent_without_live_context_leaves_message_unchanged():
         seen["message"] = current_message
         yield AgentRunResultEvent(result=mock_result)
 
-    agent.run_stream_events = _stream_from(_gen)
+    agent.run = _run_from(_gen)
 
     await run_agent(
         agent=agent, message="Hello", message_history=[], limiter=LLMLimiter()
@@ -244,7 +260,7 @@ async def test_run_agent_without_history_processors_does_not_crash():
     async def _gen(*args, **kwargs):
         yield AgentRunResultEvent(result=mock_result)
 
-    agent.run_stream_events = _stream_from(_gen)
+    agent.run = _run_from(_gen)
 
     result, _ = await run_agent(
         agent=agent, message="hi", message_history=[], limiter=LLMLimiter()
@@ -263,13 +279,72 @@ async def test_run_agent_basic():
     async def _gen(*args, **kwargs):
         yield AgentRunResultEvent(result=mock_result)
 
-    agent.run_stream_events = _stream_from(_gen)
+    agent.run = _run_from(_gen)
 
     result, history = await run_agent(
         agent=agent, message="Hi", message_history=[], limiter=LLMLimiter()
     )
     assert result == "AI result"
     assert isinstance(history, list)
+
+
+@pytest.mark.asyncio
+async def test_run_agent_feeds_final_result_to_event_handler():
+    """`agent.run(event_stream_handler=...)`'s handler never receives a
+    trailing `AgentRunResultEvent` -- that's `run_stream_events()`'s own
+    synthesis, added by its consumer-facing iterator after the fact.
+    `_execution_loop` must re-fire it manually so usage accounting
+    (`StreamEventHandler._handle_run_result`) keeps working."""
+    agent = MagicMock()
+    mock_result = MagicMock()
+    mock_result.output = "done"
+    mock_result.all_messages.return_value = []
+
+    async def _gen(*args, **kwargs):
+        yield AgentRunResultEvent(result=mock_result)
+
+    agent.run = _run_from(_gen)
+
+    handler = AsyncMock()
+    result, _ = await run_agent(
+        agent=agent,
+        message="Hi",
+        message_history=[],
+        limiter=LLMLimiter(),
+        event_handler=handler,
+    )
+
+    assert result == "done"
+    fired = [call.args[0] for call in handler.await_args_list]
+    result_events = [e for e in fired if isinstance(e, AgentRunResultEvent)]
+    assert len(result_events) == 1
+    assert result_events[0].result is mock_result
+
+
+@pytest.mark.asyncio
+async def test_run_agent_passes_event_stream_handler_to_agent_run():
+    """`_execution_loop` calls `agent.run` (not `run_stream_events`) with an
+    `event_stream_handler` kwarg, and keeps passing the same
+    `message_history`/`deferred_tool_results`/`usage_limits` kwargs
+    `run_stream_events` used to receive."""
+    agent = MagicMock()
+    mock_result = MagicMock()
+    mock_result.output = "done"
+    mock_result.all_messages.return_value = []
+
+    async def _gen(*args, **kwargs):
+        yield AgentRunResultEvent(result=mock_result)
+
+    with patch.object(agent, "run") as mock_run:
+        mock_run.side_effect = _run_from(_gen)
+        await run_agent(
+            agent=agent, message="Hi", message_history=[], limiter=LLMLimiter()
+        )
+
+    assert callable(mock_run.call_args[1]["event_stream_handler"])
+    assert mock_run.call_args[1]["message_history"] == []
+    assert mock_run.call_args[1]["deferred_tool_results"] is None
+    assert mock_run.call_args[1]["usage_limits"] is not None
 
 
 @pytest.mark.asyncio
@@ -294,7 +369,7 @@ async def test_run_agent_fires_stop_on_natural_completion():
     async def _gen(*args, **kwargs):
         yield AgentRunResultEvent(result=mock_result)
 
-    agent.run_stream_events = _stream_from(_gen)
+    agent.run = _run_from(_gen)
 
     result, _ = await run_agent(
         agent=agent,
@@ -316,14 +391,14 @@ async def test_run_agent_with_attachments():
     mock_result.output = "AI result"
     mock_result.all_messages.return_value = []
 
-    # Track the message passed to run_stream_events
+    # Track the message passed to agent.run
     captured_message = []
 
     async def _gen(message, **kwargs):
         captured_message.append(message)
         yield AgentRunResultEvent(result=mock_result)
 
-    agent.run_stream_events = _stream_from(_gen)
+    agent.run = _run_from(_gen)
 
     from pydantic_ai import BinaryContent
 
@@ -338,7 +413,7 @@ async def test_run_agent_with_attachments():
         limiter=LLMLimiter(),
     )
     assert result == "AI result"
-    # run_stream_events receives list[UserContent] directly (str + BinaryContent)
+    # agent.run receives list[UserContent] directly (str + BinaryContent)
     assert len(captured_message) == 1
     msg = captured_message[0]
     assert isinstance(msg, list)
@@ -357,7 +432,7 @@ async def test_run_agent_error_history_attachment():
         raise Exception("API Error")
         yield  # Make it a generator
 
-    agent.run_stream_events = _stream_from(_gen)
+    agent.run = _run_from(_gen)
 
     try:
         await run_agent(
@@ -379,7 +454,7 @@ async def test_run_agent_empty_message():
     async def _gen(*args, **kwargs):
         yield AgentRunResultEvent(result=mock_result)
 
-    agent.run_stream_events = _stream_from(_gen)
+    agent.run = _run_from(_gen)
 
     result, _ = await run_agent(
         agent=agent, message="", message_history=[], limiter=LLMLimiter()
@@ -413,7 +488,7 @@ async def test_run_agent_deferred_requests():
         else:
             yield AgentRunResultEvent(result=mock_final_result)
 
-    agent.run_stream_events = _stream_from(_gen)
+    agent.run = _run_from(_gen)
 
     # Mock tool resolution - return proper DeferredToolResults object
     with patch(
@@ -479,7 +554,7 @@ async def test_run_agent_deferred_never_reapplies_processors(calls, approvals):
         else:
             yield AgentRunResultEvent(result=mock_final_result)
 
-    agent.run_stream_events = _stream_from(_gen)
+    agent.run = _run_from(_gen)
 
     with patch(
         "zrb.llm.agent.run.runner._process_deferred_requests",
@@ -533,7 +608,7 @@ async def test_run_agent_deferred_mismatch_recovers_without_crash():
         else:
             yield AgentRunResultEvent(result=mock_final_result)
 
-    agent.run_stream_events = _stream_from(_gen)
+    agent.run = _run_from(_gen)
 
     result, _ = await run_agent(
         agent=agent,
@@ -564,7 +639,7 @@ async def test_run_agent_retries_empty_completion_then_succeeds():
         call_count += 1
         yield AgentRunResultEvent(result=empty if call_count == 1 else good)
 
-    agent.run_stream_events = _stream_from(_gen)
+    agent.run = _run_from(_gen)
 
     result, _ = await run_agent(
         agent=agent, message="Hi", message_history=[], limiter=LLMLimiter()
@@ -592,7 +667,7 @@ async def test_run_agent_retries_tool_call_placeholder_leak():
         call_count += 1
         yield AgentRunResultEvent(result=leak if call_count == 1 else good)
 
-    agent.run_stream_events = _stream_from(_gen)
+    agent.run = _run_from(_gen)
 
     result, _ = await run_agent(
         agent=agent, message="Hi", message_history=[], limiter=LLMLimiter()
@@ -632,7 +707,7 @@ async def test_run_agent_empty_completion_retry_trims_trailing_response():
         histories.append(kwargs.get("message_history"))
         yield AgentRunResultEvent(result=empty if call_count == 1 else good)
 
-    agent.run_stream_events = _stream_from(_gen)
+    agent.run = _run_from(_gen)
 
     result, _ = await run_agent(
         agent=agent, message="Hi", message_history=[], limiter=LLMLimiter()
@@ -657,7 +732,7 @@ async def test_run_agent_structured_output_bypasses_empty_guard():
     async def _gen(*args, **kwargs):
         yield AgentRunResultEvent(result=result_obj)
 
-    agent.run_stream_events = _stream_from(_gen)
+    agent.run = _run_from(_gen)
 
     result, _ = await run_agent(
         agent=agent, message="Hi", message_history=[], limiter=LLMLimiter()
@@ -681,7 +756,7 @@ async def test_run_agent_empty_completion_raises_after_retries():
         call_count += 1
         yield AgentRunResultEvent(result=empty)
 
-    agent.run_stream_events = _stream_from(_gen)
+    agent.run = _run_from(_gen)
 
     with pytest.raises(RuntimeError, match="empty response"):
         await run_agent(
@@ -717,7 +792,7 @@ async def test_run_agent_stop_replace_response_false():
         else:
             yield AgentRunResultEvent(result=mock_extended_result)
 
-    agent.run_stream_events = _stream_from(_gen)
+    agent.run = _run_from(_gen)
 
     # Stateful hook that only fires once (prevents infinite loop)
     class OnceHook:
@@ -778,7 +853,7 @@ async def test_run_agent_stop_replace_response_true():
         else:
             yield AgentRunResultEvent(result=mock_transformed_result)
 
-    agent.run_stream_events = _stream_from(_gen)
+    agent.run = _run_from(_gen)
 
     # Stateful hook that only fires once (prevents infinite loop)
     class OnceHook:
@@ -824,7 +899,7 @@ def _single_turn_agent(output="ok"):
     async def _gen(*args, **kwargs):
         yield AgentRunResultEvent(result=result)
 
-    agent.run_stream_events = _stream_from(_gen)
+    agent.run = _run_from(_gen)
     return agent
 
 
@@ -961,7 +1036,7 @@ async def test_stop_failure_fires_on_unrecoverable_error():
         raise ValueError("bad request")
         yield  # pragma: no cover — marks this a generator
 
-    agent.run_stream_events = _stream_from(_gen)
+    agent.run = _run_from(_gen)
 
     with pytest.raises(ValueError):
         await run_agent(
@@ -981,7 +1056,7 @@ async def test_run_agent_user_prompt_submit_block_ends_turn():
     """A UserPromptSubmit hook that blocks ends the turn before the model runs;
     the reason is surfaced as the output."""
     agent = MagicMock()
-    agent.run_stream_events = MagicMock(
+    agent.run = MagicMock(
         side_effect=AssertionError("model must not run when prompt is blocked")
     )
 
@@ -1023,7 +1098,7 @@ async def test_run_agent_stop_block_continues_turn():
         call_count += 1
         yield AgentRunResultEvent(result=first if call_count == 1 else second)
 
-    agent.run_stream_events = _stream_from(_gen)
+    agent.run = _run_from(_gen)
 
     class BlockOnce:
         def __init__(self):
@@ -1072,7 +1147,7 @@ async def test_run_agent_stop_block_cap_prevents_infinite_loop():
         result.all_messages.return_value = []
         yield AgentRunResultEvent(result=result)
 
-    agent.run_stream_events = _stream_from(_gen)
+    agent.run = _run_from(_gen)
 
     async def always_block(context: HookContext) -> HookResult:
         if context.event == HookEvent.STOP:
@@ -1110,7 +1185,7 @@ async def test_run_agent_session_start_context_prepending():
     async def _gen(*args, **kwargs):
         yield AgentRunResultEvent(result=mock_result)
 
-    agent.run_stream_events = _stream_from(_gen)
+    agent.run = _run_from(_gen)
 
     manager = HookManager(search_dirs=[])
 
@@ -1127,8 +1202,8 @@ async def test_run_agent_session_start_context_prepending():
     limiter.fit_context_window.side_effect = lambda h, m, r: h
     limiter.acquire = AsyncMock()
 
-    with patch.object(agent, "run_stream_events") as mock_run:
-        mock_run.side_effect = _stream_from(_gen)
+    with patch.object(agent, "run") as mock_run:
+        mock_run.side_effect = _run_from(_gen)
 
         result, _ = await run_agent(
             agent=agent,
@@ -1138,7 +1213,7 @@ async def test_run_agent_session_start_context_prepending():
             hook_manager=manager,
         )
 
-        # Check history passed to run_stream_events
+        # Check history passed to agent.run
         passed_history = mock_run.call_args[1]["message_history"]
         assert len(passed_history) == 1
         assert isinstance(passed_history[0], ModelRequest)
@@ -1156,7 +1231,7 @@ async def test_run_agent_user_prompt_context_prepending():
     async def _gen(*args, **kwargs):
         yield AgentRunResultEvent(result=mock_result)
 
-    agent.run_stream_events = _stream_from(_gen)
+    agent.run = _run_from(_gen)
 
     manager = HookManager(search_dirs=[])
 
@@ -1173,8 +1248,8 @@ async def test_run_agent_user_prompt_context_prepending():
     limiter.fit_context_window.side_effect = lambda h, m, r: h
     limiter.acquire = AsyncMock()
 
-    with patch.object(agent, "run_stream_events") as mock_run:
-        mock_run.side_effect = _stream_from(_gen)
+    with patch.object(agent, "run") as mock_run:
+        mock_run.side_effect = _run_from(_gen)
 
         result, _ = await run_agent(
             agent=agent,
@@ -1184,7 +1259,7 @@ async def test_run_agent_user_prompt_context_prepending():
             hook_manager=manager,
         )
 
-        # Check message passed to run_stream_events
+        # Check message passed to agent.run
         passed_message = mock_run.call_args[0][0]
         assert "PROMPT_CONTEXT" in passed_message
         assert "Hi" in passed_message
@@ -1200,7 +1275,7 @@ async def test_run_agent_multi_ui_resolution():
     async def _gen(*args, **kwargs):
         yield AgentRunResultEvent(result=mock_result)
 
-    agent.run_stream_events = _stream_from(_gen)
+    agent.run = _run_from(_gen)
 
     ui1 = MagicMock()
     ui2 = MagicMock()
@@ -1232,7 +1307,7 @@ async def test_run_agent_emergency_pruning():
     async def _gen(*args, **kwargs):
         yield AgentRunResultEvent(result=mock_result)
 
-    agent.run_stream_events = _stream_from(_gen)
+    agent.run = _run_from(_gen)
 
     limiter = MagicMock(spec=LLMLimiter)
     limiter.max_token_per_request = 100
@@ -1269,7 +1344,7 @@ async def test_run_agent_merge_consecutive_model_requests():
     async def _gen(*args, **kwargs):
         yield AgentRunResultEvent(result=mock_result)
 
-    agent.run_stream_events = _stream_from(_gen)
+    agent.run = _run_from(_gen)
 
     # History ends with ModelRequest
     history = [ModelRequest(parts=[])]
@@ -1280,14 +1355,14 @@ async def test_run_agent_merge_consecutive_model_requests():
     limiter.count_tokens.return_value = 10
     limiter.fit_context_window.side_effect = lambda h, m, r: h
 
-    with patch.object(agent, "run_stream_events") as mock_run:
-        mock_run.side_effect = _stream_from(_gen)
+    with patch.object(agent, "run") as mock_run:
+        mock_run.side_effect = _run_from(_gen)
 
         await run_agent(
             agent=agent, message="Hi", message_history=history, limiter=limiter
         )
 
-        # Check history passed to run_stream_events
+        # Check history passed to agent.run
         passed_history = mock_run.call_args[1]["message_history"]
         assert len(passed_history) == 1
         assert isinstance(passed_history[0].parts[-1], UserPromptPart)
@@ -1331,8 +1406,8 @@ async def test_run_agent_caps_requests_per_run():
     async def _gen(*args, **kwargs):
         yield AgentRunResultEvent(result=mock_result)
 
-    with patch.object(agent, "run_stream_events") as mock_run:
-        mock_run.side_effect = _stream_from(_gen)
+    with patch.object(agent, "run") as mock_run:
+        mock_run.side_effect = _run_from(_gen)
         await run_agent(
             agent=agent, message="Hi", message_history=[], limiter=_minimal_limiter()
         )
@@ -1357,8 +1432,8 @@ async def test_run_agent_request_cap_can_be_disabled(monkeypatch):
     async def _gen(*args, **kwargs):
         yield AgentRunResultEvent(result=mock_result)
 
-    with patch.object(agent, "run_stream_events") as mock_run:
-        mock_run.side_effect = _stream_from(_gen)
+    with patch.object(agent, "run") as mock_run:
+        mock_run.side_effect = _run_from(_gen)
         await run_agent(
             agent=agent, message="Hi", message_history=[], limiter=_minimal_limiter()
         )
@@ -1386,8 +1461,8 @@ async def test_run_agent_explains_the_request_cap_instead_of_retrying():
         raise UsageLimitExceeded("the exceeded request_limit of 300")
         yield  # pragma: no cover - generator marker
 
-    with patch.object(agent, "run_stream_events") as mock_run:
-        mock_run.side_effect = _stream_from(_gen)
+    with patch.object(agent, "run") as mock_run:
+        mock_run.side_effect = _run_from(_gen)
         with pytest.raises(RuntimeError) as excinfo:
             await run_agent(
                 agent=agent,

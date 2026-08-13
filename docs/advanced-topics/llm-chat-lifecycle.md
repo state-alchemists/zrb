@@ -90,10 +90,10 @@ flowchart TD
 ```mermaid
 flowchart TD
     Loop["src/zrb/llm/agent/run/runner.py :: _execution_loop()"] --> Sanitize["sanitize_history() — history_utils.py"]
-    Sanitize --> Stream["agent.run_stream_events() — pydantic_ai"]
+    Sanitize --> Stream["agent.run(event_stream_handler=...) — pydantic_ai"]
     Stream --> Collect["collect events and tool calls"]
     Collect -->|exception| Retry["retry_loop.py — retry, strip thinking, or give up"]
-    Collect -->|AgentRunResultEvent| Post["sanitize_history(result) — history_utils.py"]
+    Collect -->|result.output / result.all_messages()| Post["sanitize_history(result) — history_utils.py"]
     Retry --> Sanitize
     Post -->|next turn| Sanitize
 ```
@@ -101,7 +101,7 @@ flowchart TD
 This is the heart. Every turn:
 
 1. **Sanitize history** before the model call. Four steps in fixed order: `filter_nil_content` → `sanitize_orphaned_tool_calls` → drop empty messages → `ensure_alternating_roles`. Why each step exists, and which providers' bugs each one neutralises, is documented in [maintainer-guide.md#llm-history-sanitization-layer](./maintainer-guide.md#llm-history-sanitization-layer).
-2. **Stream events** from `pydantic_ai`. The OpenAI client also gets a runtime monkey-patch from `openai_patch.py` so it never serialises `"content": null` when there are tool calls.
+2. **Stream events** from `pydantic_ai` via the `event_stream_handler` passed to `agent.run()` — the handler also registers the live `RunContext` on the UI, so a message sent mid-turn can be steered into this same run instead of queuing (ADR-0078). `result_output`/`run_history` come from `agent.run()`'s direct return value, not a stream-witnessed event; `_execution_loop` re-fires a synthetic `AgentRunResultEvent` through the per-event handler afterward so usage accounting keeps working. The OpenAI client also gets a runtime monkey-patch from `openai_patch.py` so it never serialises `"content": null` when there are tool calls.
 3. **Classify exceptions** (`error_classifier.py`) and decide whether to retry, strip thinking parts, or give up (`retry_loop.py`).
 4. **Sanitize the result history** after a successful turn so the next call sees a provider-clean message list.
 

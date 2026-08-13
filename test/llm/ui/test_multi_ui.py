@@ -338,6 +338,45 @@ async def test_multi_ui_submit_message_and_stream(multi_ui):
         pass
 
 
+def test_multi_ui_submit_message_steers_into_live_run_context(multi_ui):
+    """A message sent while a turn is live is delivered into that turn
+    instead of queuing (ADR-0078)."""
+    llm_task = MagicMock()
+    multi_ui.active_run_context = MagicMock()
+
+    multi_ui._submit_user_message(llm_task, "steer me")
+
+    multi_ui.active_run_context.enqueue.assert_called_once_with(
+        "steer me", priority="asap"
+    )
+    assert multi_ui._message_queue.qsize() == 0
+
+
+def test_multi_ui_submit_message_falls_back_to_queue_without_active_run_context(
+    multi_ui,
+):
+    """No live turn (the default) keeps the existing queue behavior."""
+    llm_task = MagicMock()
+    assert multi_ui.active_run_context is None
+
+    multi_ui._submit_user_message(llm_task, "later")
+
+    assert multi_ui._message_queue.qsize() == 1
+
+
+def test_multi_ui_submit_message_falls_back_to_queue_when_enqueue_raises(multi_ui):
+    """A run that finished between the check and the call must not lose the
+    message -- it falls back to the queue instead of being dropped."""
+    llm_task = MagicMock()
+    live_run = MagicMock()
+    live_run.enqueue.side_effect = RuntimeError("run already finished")
+    multi_ui.active_run_context = live_run
+
+    multi_ui._submit_user_message(llm_task, "steer me")
+
+    assert multi_ui._message_queue.qsize() == 1
+
+
 @pytest.mark.asyncio
 async def test_multi_ui_confirm_tool_execution(multi_ui, child_ui_1):
     mock_call = MagicMock()

@@ -470,35 +470,41 @@ async def _execution_loop(
                 allow_orphaned_tool_calls=(current_results is not None),
             )
             stream_error = None
+            handler = _build_event_stream_handler(
+                effective_ui, effective_event_handler, partial_run
+            )
             try:
-                # Docs: https://pydantic.dev/docs/ai/core-concepts/agent/#streaming-events-and-final-output
-                async with agent.run_stream_events(
+                # Docs: https://ai.pydantic.dev/agents/#streaming-all-events
+                CFG.LOGGER.debug(f"Run started, current_results={current_results}")
+                result = await agent.run(
                     current_message,
                     message_history=current_history,
                     deferred_tool_results=current_results,
                     usage_limits=UsageLimits(request_limit=_request_limit()),
-                ) as stream:
-                    CFG.LOGGER.debug(
-                        f"Stream started, current_results={current_results}"
-                    )
-                    async for event in stream:
-                        if isinstance(event, AgentRunResultEvent):
-                            result = event.result
-                            result_output = result.output
-                            CFG.LOGGER.debug(
-                                f"Got result event, result_output type: {type(result_output)}"
-                            )
-                            run_history = sanitize_history(
-                                result.all_messages(),
-                                allow_orphaned_tool_calls=isinstance(
-                                    result_output, DeferredToolRequests
-                                ),
-                            )
-                        partial_run.record_event(event)
-                        if effective_event_handler:
-                            await effective_event_handler(event)
+                    event_stream_handler=handler,
+                )
+                result_output = result.output
+                CFG.LOGGER.debug(
+                    f"Got result, result_output type: {type(result_output)}"
+                )
+                run_history = sanitize_history(
+                    result.all_messages(),
+                    allow_orphaned_tool_calls=isinstance(
+                        result_output, DeferredToolRequests
+                    ),
+                )
+                # `agent.run(event_stream_handler=...)`'s handler never receives
+                # a trailing result event — that's `run_stream_events()`'s own
+                # addition for its consumers, synthesized after the fact from
+                # the same result. Re-fire it here so usage accounting and the
+                # "Requests/Tool Calls/Total" summary line keep working.
+                partial_run.record_event(AgentRunResultEvent(result=result))
+                if effective_event_handler:
+                    await effective_event_handler(AgentRunResultEvent(result=result))
             except Exception as _stream_exc:
                 stream_error = _explain_usage_limit(_stream_exc)
+            finally:
+                _set_active_run_context(effective_ui, None)
 
             if stream_error is not None:
                 outcome = await handle_stream_error(
@@ -636,6 +642,43 @@ async def _execution_loop(
         if not hasattr(e, "zrb_history"):
             setattr(e, "zrb_history", run_history)
         raise e
+
+
+def _build_event_stream_handler(
+    effective_ui: UIProtocol | None,
+    effective_event_handler: Callable[[Any], Any] | None,
+    partial_run: PartialRunAccumulator,
+) -> Callable[[Any, Any], Awaitable[None]]:
+    """Build the `event_stream_handler` for one `agent.run()` call.
+
+    Registers the live `RunContext` on `effective_ui` for the duration of the
+    call so `BaseUI`/`MultiUI._submit_user_message` can steer a mid-turn
+    message into this run via `ctx.enqueue(..., priority="asap")` instead of
+    queuing it (ADR-0078). Registration is cleared by the caller once
+    `agent.run()` returns or raises, not from inside here — the handler fires
+    once per graph node (every model-request/tool-call round shares the same
+    underlying pending-message queue), so re-registering each time is
+    redundant.
+    """
+
+    async def _handler(ctx: Any, events: Any) -> None:
+        _set_active_run_context(effective_ui, ctx)
+        async for event in events:
+            partial_run.record_event(event)
+            if effective_event_handler:
+                await effective_event_handler(event)
+
+    return _handler
+
+
+def _set_active_run_context(effective_ui: UIProtocol | None, ctx: Any) -> None:
+    """Best-effort: not every `UIProtocol` implementer supports steering."""
+    if effective_ui is None:
+        return
+    try:
+        setattr(effective_ui, "active_run_context", ctx)
+    except AttributeError:
+        pass
 
 
 def _request_limit() -> int | None:
