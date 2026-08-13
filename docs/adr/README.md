@@ -139,5 +139,6 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0078** — [Mid-turn messages steer the live run via pydantic-ai's `enqueue`, falling back to the queue](adr-0078.md)
 - **ADR-0079** — [LaTeX math renders as Unicode via masked pre-parse, not a Rich `Markdown` subclass](adr-0079.md)
 - **ADR-0080** — [Mermaid renders as Unicode diagram art via `termaid`; PlantUML stays deferred](adr-0080.md)
+- **ADR-0081** — [Web chat renders markdown/math/diagrams client-side; the non-interactive loop now finalizes at all](adr-0081.md)
 
 🔖 [Documentation Home](../../README.md)

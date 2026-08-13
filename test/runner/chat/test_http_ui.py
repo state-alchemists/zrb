@@ -111,17 +111,35 @@ def test_create_http_ui_factory_with_commands():
 
 
 @pytest.mark.asyncio
-async def test_print_streaming_sets_flag_then_text_skip(mock_deps):
-    """A `text` print right after a `streaming` print is silently dropped to
-    avoid the final markdown-render duplicating already-streamed content."""
+async def test_print_streaming_then_text_both_broadcast(mock_deps):
+    """A `text` print right after a `streaming` print broadcasts too -- there
+    is no swallow-the-next-text-call hack. The non-interactive (web) loop
+    never re-emits streamed content as `text`, so nothing here needs
+    de-duplicating; the finalized answer arrives separately, as `markdown`
+    (see append_markdown)."""
     ui, session_manager, _ = mock_deps
     session_manager.broadcast.reset_mock()
     await ui.print("partial chunk", kind="streaming")
-    await ui.print("partial chunk", kind="text")
-    # Only the streaming call broadcasts.
+    await ui.print("more text", kind="text")
     kinds = [c.kwargs.get("kind") for c in session_manager.broadcast.call_args_list]
-    assert "streaming" in kinds
-    assert kinds.count("text") == 0
+    assert kinds == ["streaming", "text"]
+
+
+@pytest.mark.asyncio
+async def test_append_markdown_broadcasts_raw_text_as_markdown_kind(mock_deps):
+    """append_markdown sends the raw markdown source, not ANSI/Unicode-art --
+    the browser renders it (marked + KaTeX + mermaid), unlike the CLI's
+    BaseUI.append_markdown, which would run it through render_markdown."""
+    ui, session_manager, _ = mock_deps
+    session_manager.broadcast.reset_mock()
+
+    ui.append_markdown("# Title\n\n$x^2$")
+
+    # append_to_output schedules print() as a task; let it run.
+    await asyncio.sleep(0)
+    session_manager.broadcast.assert_called_once_with(
+        "test-id", "# Title\n\n$x^2$\n", kind="markdown"
+    )
 
 
 @pytest.mark.asyncio

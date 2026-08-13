@@ -66,6 +66,68 @@ async def test_run_non_interactive_session(runner):
 
 
 @pytest.mark.asyncio
+async def test_run_non_interactive_session_finalizes_attached_uis(runner):
+    """A string result is handed to every attached UI's append_markdown --
+    the only markdown-rendering pass the non-interactive (web) loop gets,
+    since it never runs through the interactive _stream_ai_response."""
+    ctx = MagicMock()
+    ctx.shared_print = MagicMock()
+    ctx.xcom = {}
+
+    ui_with_markdown = MagicMock(spec=["append_markdown"])
+    ui_without_markdown = MagicMock(spec=[])  # e.g. a UI with no rich rendering
+
+    llm_task_core = MagicMock()
+    llm_task_core.async_run = AsyncMock(return_value="AI Output")
+    llm_task_core.get_uis.return_value = [ui_with_markdown, ui_without_markdown]
+
+    res = await runner._run_non_interactive_session(
+        ctx=ctx,
+        llm_task_core=llm_task_core,
+        history_manager=MagicMock(),
+        ui_commands={},
+        initial_message="hi",
+        initial_conversation_name="sess1",
+        initial_yolo=False,
+        initial_attachments=[],
+    )
+
+    assert res == "AI Output"
+    ui_with_markdown.append_markdown.assert_called_once_with("AI Output")
+
+
+@pytest.mark.asyncio
+async def test_run_non_interactive_session_skips_finalize_for_non_string_result(
+    runner,
+):
+    """A non-string result (e.g. from a tool-only turn) must not reach
+    append_markdown -- it isn't renderable markdown."""
+    ctx = MagicMock()
+    ctx.shared_print = MagicMock()
+    ctx.xcom = {}
+
+    ui_with_markdown = MagicMock(spec=["append_markdown"])
+
+    llm_task_core = MagicMock()
+    llm_task_core.async_run = AsyncMock(return_value=None)
+    llm_task_core.get_uis.return_value = [ui_with_markdown]
+
+    res = await runner._run_non_interactive_session(
+        ctx=ctx,
+        llm_task_core=llm_task_core,
+        history_manager=MagicMock(),
+        ui_commands={},
+        initial_message="hi",
+        initial_conversation_name="sess1",
+        initial_yolo=False,
+        initial_attachments=[],
+    )
+
+    assert res is None
+    ui_with_markdown.append_markdown.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_run_non_interactive_session_attaches_ui_factories(runner):
     """UI factories are resolved and attached to the core task as output sinks
     so the web/SSE path streams the response without the interactive UI loop."""

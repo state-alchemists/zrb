@@ -100,6 +100,15 @@ class ChatRunning(ChatState):
         )
         session = Session(shared_ctx)
         result = await llm_task_core.async_run(session)
+        # The non-interactive loop only streams raw deltas through each
+        # attached UI (see run_agent's print_fn); unlike _stream_ai_response
+        # (the interactive/CLI loop), it never finalizes with a rendered
+        # pass. Every UI that supports it (e.g. the web HTTPUI) gets one here.
+        if isinstance(result, str):
+            for ui in llm_task_core.get_uis():
+                append_markdown = getattr(ui, "append_markdown", None)
+                if callable(append_markdown):
+                    append_markdown(result)
         # Store conversation name in xcom for CLI to print at the end
         ctx.xcom["__conversation_name__"] = initial_conversation_name
         return result
