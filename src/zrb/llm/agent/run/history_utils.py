@@ -475,6 +475,38 @@ def _is_empty_completion(result_output: Any) -> bool:
     return not stripped or stripped in _EMPTY_COMPLETION_MARKERS
 
 
+def close_dangling_tool_calls(history: list[Any], reason: str) -> list[Any]:
+    """Synthesize a `ToolReturnPart` for every unresolved `ToolCallPart`.
+
+    A run interrupted (error, cancellation, hard crash) between a
+    `ModelResponse` carrying tool calls and the `ModelRequest` that would
+    normally carry their results leaves those calls dangling — most
+    providers reject history where a `ToolCallPart` has no matching
+    `ToolReturnPart`. No-op unless the history's last message is a
+    `ModelResponse` with at least one `ToolCallPart`.
+    """
+    # lazy: heavy third-party
+    from pydantic_ai.messages import (
+        ModelRequest,
+        ModelResponse,
+        ToolCallPart,
+        ToolReturnPart,
+    )
+
+    if not history or not isinstance(history[-1], ModelResponse):
+        return history
+    tool_returns = [
+        ToolReturnPart(
+            tool_name=part.tool_name, content=reason, tool_call_id=part.tool_call_id
+        )
+        for part in history[-1].parts
+        if isinstance(part, ToolCallPart)
+    ]
+    if not tool_returns:
+        return history
+    return [*history, ModelRequest(parts=tool_returns)]
+
+
 def _history_without_trailing_response(run_history: list[Any]) -> list[Any]:
     """Drop the trailing assistant ModelResponse so it can be regenerated.
 

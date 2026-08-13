@@ -143,7 +143,7 @@ class FileHistoryManager(AnyHistoryManager):
         except OSError:
             return None
 
-    def save(self, conversation_name: str):
+    def save(self, conversation_name: str, write_backup: bool = True):
         # lazy: heavy third-party
         from pydantic import ValidationError
         from pydantic_ai.messages import ModelMessagesTypeAdapter
@@ -190,8 +190,11 @@ class FileHistoryManager(AnyHistoryManager):
             #   0  → backups disabled entirely
             #  -1  → keep every backup
             #   N  → keep the N most recent backups per conversation base name
+            # write_backup=False (mid-turn checkpoint saves) skips this
+            # regardless of retention — a backup per tool call would spam the
+            # history dir with near-duplicate snapshots for no benefit.
             backup_retain = CFG.LLM_HISTORY_BACKUP_RETAIN
-            if backup_retain != 0:
+            if write_backup and backup_retain != 0:
                 base_name = self._extract_base_name(conversation_name)
                 timestamp = datetime.now()
                 backup_path = self._get_backup_file_path(base_name, timestamp)

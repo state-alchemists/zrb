@@ -12,6 +12,7 @@ from pydantic_ai.messages import (
 )
 
 from zrb.llm.agent.run.history_utils import (
+    close_dangling_tool_calls,
     drop_oldest_turn,
     filter_nil_content,
     sanitize_history,
@@ -746,6 +747,55 @@ def test_strip_to_text_only_truncates_long_tool_return():
     assert text.endswith("...")
     assert "R" * 500 in text
     assert "R" * 700 not in text
+
+
+def test_close_dangling_tool_calls_synthesizes_returns():
+    """A trailing ModelResponse with unresolved tool calls gets a matching
+    ModelRequest of synthetic ToolReturnParts appended, one per call."""
+    history = [
+        ModelRequest(parts=[UserPromptPart(content="do two things")]),
+        ModelResponse(
+            parts=[
+                ToolCallPart(tool_name="a", args="{}", tool_call_id="c1"),
+                ToolCallPart(tool_name="b", args="{}", tool_call_id="c2"),
+            ]
+        ),
+    ]
+
+    result = close_dangling_tool_calls(history, reason="[SYSTEM] Interrupted.")
+
+    assert len(result) == 3
+    closing = result[2]
+    assert isinstance(closing, ModelRequest)
+    assert len(closing.parts) == 2
+    assert all(isinstance(p, ToolReturnPart) for p in closing.parts)
+    assert {p.tool_call_id for p in closing.parts} == {"c1", "c2"}
+    assert all(p.content == "[SYSTEM] Interrupted." for p in closing.parts)
+
+
+def test_close_dangling_tool_calls_noop_on_complete_history():
+    """A history ending in a ModelRequest (no dangling call) is returned as-is."""
+    history = [
+        ModelRequest(parts=[UserPromptPart(content="hi")]),
+        ModelResponse(parts=[TextPart(content="hello")]),
+    ]
+
+    result = close_dangling_tool_calls(history, reason="ignored")
+
+    assert result is history
+
+
+def test_close_dangling_tool_calls_noop_on_empty_history():
+    assert close_dangling_tool_calls([], reason="ignored") == []
+
+
+def test_close_dangling_tool_calls_noop_when_response_has_no_tool_calls():
+    """A trailing ModelResponse with only text has nothing to close."""
+    history = [ModelResponse(parts=[TextPart(content="just text")])]
+
+    result = close_dangling_tool_calls(history, reason="ignored")
+
+    assert result is history
 
 
 def test_strip_to_text_only_truncates_long_retry_prompt():

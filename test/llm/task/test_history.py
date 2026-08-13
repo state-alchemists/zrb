@@ -194,6 +194,88 @@ class TestSaveCancelledHistory:
             len(saved) == 2
         )  # user msg + cancelled marker only — no tools to summarize
 
+    def test_uses_live_history_over_pre_turn_baseline(self):
+        """When the interrupted run captured live progress (real tool calls
+        made this turn), that's used as the base instead of the stale
+        pre-turn `message_history` — and the user's message is not
+        duplicated, since the live history already includes it."""
+        from pydantic_ai.messages import (
+            ModelRequest,
+            ModelResponse,
+            TextPart,
+            ToolCallPart,
+            ToolReturnPart,
+            UserPromptPart,
+        )
+
+        from zrb.llm.agent.run.partial_run import PartialRunAccumulator
+
+        partial_run = PartialRunAccumulator()
+        partial_run.latest_history = [
+            ModelRequest(parts=[UserPromptPart(content="hello")]),
+            ModelResponse(
+                parts=[ToolCallPart(tool_name="t", args="{}", tool_call_id="c1")]
+            ),
+            ModelRequest(
+                parts=[ToolReturnPart(tool_name="t", content="ok", tool_call_id="c1")]
+            ),
+        ]
+
+        history_manager = MagicMock()
+        task = LLMTask(name="test-task")
+        # Stale pre-turn baseline — must NOT be used since live history exists.
+        task.save_cancelled_history(
+            history_manager,
+            "test-convo",
+            ["stale-pre-turn-placeholder"],
+            "hello",
+            partial_run=partial_run,
+        )
+
+        saved = history_manager.update.call_args[0][1]
+        assert "stale-pre-turn-placeholder" not in saved
+        # 3 live messages + the cancellation marker; user message not duplicated.
+        assert len(saved) == 4
+        assert isinstance(saved[-1], ModelResponse)
+        assert isinstance(saved[-1].parts[0], TextPart)
+        assert "interrupted by user" in saved[-1].parts[0].content
+
+    def test_closes_dangling_tool_call_from_live_history(self):
+        """A live history ending in a ModelResponse with an unresolved tool
+        call gets a synthetic ToolReturnPart before the cancellation marker —
+        otherwise most providers reject the resumed history outright."""
+        from pydantic_ai.messages import (
+            ModelRequest,
+            ModelResponse,
+            ToolCallPart,
+            ToolReturnPart,
+            UserPromptPart,
+        )
+
+        from zrb.llm.agent.run.partial_run import PartialRunAccumulator
+
+        partial_run = PartialRunAccumulator()
+        partial_run.latest_history = [
+            ModelRequest(parts=[UserPromptPart(content="hello")]),
+            ModelResponse(
+                parts=[ToolCallPart(tool_name="t", args="{}", tool_call_id="c1")]
+            ),
+        ]
+
+        history_manager = MagicMock()
+        task = LLMTask(name="test-task")
+        task.save_cancelled_history(
+            history_manager, "test-convo", [], "hello", partial_run=partial_run
+        )
+
+        saved = history_manager.update.call_args[0][1]
+        # dangling-call closure + cancellation marker, on top of the 2 live msgs
+        assert len(saved) == 4
+        closing = saved[2]
+        assert isinstance(closing, ModelRequest)
+        assert isinstance(closing.parts[0], ToolReturnPart)
+        assert closing.parts[0].tool_call_id == "c1"
+
 
 class TestHandleRunError:
     def test_appends_partial_summary(self):
@@ -252,3 +334,39 @@ class TestHandleRunError:
         task = LLMTask(name="test-task")
         task.handle_run_error(MagicMock(), history_manager, "test-convo", error)
         assert not history_manager.update.called
+
+    def test_closes_dangling_tool_call_before_error_notice(self):
+        """A `zrb_history` ending in a ModelResponse with an unresolved tool
+        call gets a synthetic error ToolReturnPart closing it, before the
+        `[SYSTEM] Error occurred` notice is appended."""
+        from pydantic_ai.messages import (
+            ModelRequest,
+            ModelResponse,
+            ToolCallPart,
+            ToolReturnPart,
+            UserPromptPart,
+        )
+
+        error = ValueError("connection reset")
+        error.zrb_history = [
+            ModelRequest(parts=[UserPromptPart(content="hello")]),
+            ModelResponse(
+                parts=[ToolCallPart(tool_name="t", args="{}", tool_call_id="c1")]
+            ),
+        ]
+
+        history_manager = MagicMock()
+        ctx = MagicMock()
+        task = LLMTask(name="test-task")
+        task.handle_run_error(ctx, history_manager, "test-convo", error)
+
+        saved = history_manager.update.call_args[0][1]
+        # dangling-call closure + the error notice, on top of the 2 original msgs
+        assert len(saved) == 4
+        closing = saved[2]
+        assert isinstance(closing, ModelRequest)
+        assert isinstance(closing.parts[0], ToolReturnPart)
+        assert closing.parts[0].tool_call_id == "c1"
+        assert "connection reset" in closing.parts[0].content
+        assert isinstance(saved[-1], ModelRequest)
+        assert "Error occurred" in saved[-1].parts[0].content

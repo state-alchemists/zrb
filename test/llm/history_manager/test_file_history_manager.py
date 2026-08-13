@@ -687,6 +687,22 @@ def test_save_creates_backup_with_conflict_resolution(temp_history_dir):
     assert any("10-00-00-1.json" in f for f in files)
 
 
+def test_save_write_backup_false_skips_backup_file(temp_history_dir):
+    """A mid-turn checkpoint save (write_backup=False) writes the live file
+    but no timestamped backup, regardless of LLM_HISTORY_BACKUP_RETAIN — a
+    backup per tool call would spam the history dir for no benefit."""
+    from pydantic_ai.messages import ModelRequest, UserPromptPart
+
+    manager = FileHistoryManager(temp_history_dir)
+    messages = [ModelRequest(parts=[UserPromptPart(content="hi")])]
+
+    manager.update("test-session", messages)
+    manager.save("test-session", write_backup=False)
+
+    files = os.listdir(temp_history_dir)
+    assert files == ["test-session.json"]
+
+
 def test_save_does_nothing_when_session_not_in_cache(temp_history_dir):
     """Line 288: save() returns early if conversation_name is not in cache."""
     manager = FileHistoryManager(temp_history_dir)

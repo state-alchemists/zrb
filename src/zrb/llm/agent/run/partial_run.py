@@ -33,6 +33,14 @@ class PartialRunAccumulator:
     has_partial_text: bool = False
     is_interrupted: bool = False
     error: str = ""
+    # Live reference to the in-progress run's `RunContext.messages` — the same
+    # list object the pydantic-ai graph appends to in place, so it reflects
+    # everything done so far (including dangling tool calls mid-step) even
+    # though `agent.run()` hasn't returned yet. Read by the outer exception/
+    # cancellation handlers in `_execution_loop` as a fresher fallback than the
+    # last completed `agent.run()` call's `run_history`. `None` until the first
+    # event of a run arrives.
+    latest_history: list[Any] | None = None
 
     def record_event(self, event: Any) -> None:
         # lazy: heavy third-party deferral
