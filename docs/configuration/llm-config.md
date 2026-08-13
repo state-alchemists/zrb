@@ -733,6 +733,13 @@ Unlike the knobs above, these are [Rich](https://rich.readthedocs.io/en/stable/s
 | `ZRB_LLM_UI_STYLE_MARKDOWN_LINK` | Link text | `bold bright_cyan underline` |
 | `ZRB_LLM_UI_STYLE_MARKDOWN_LINK_URL` | Link target URL | `italic bright_cyan underline` |
 
+These two toggle content conversion rather than color:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_LLM_UI_ENABLE_MARKDOWN_MATH` | Convert LaTeX math (`$...$` / `$$...$$`, and a fenced ` ```latex `/` ```tex ` block) to Unicode. Falls back to the raw LaTeX source wherever it can't be converted. | `on` |
+| `ZRB_LLM_UI_ENABLE_MARKDOWN_MERMAID` | Render fenced ` ```mermaid `/` ```mmd ` blocks as Unicode diagram art. Falls back to the raw fence if it can't be parsed. | `on` |
+
 ### Choice Widget (AskUserQuestion panel)
 
 | Variable | Styles | Default |

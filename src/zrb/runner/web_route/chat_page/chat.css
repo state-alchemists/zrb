@@ -259,6 +259,23 @@
     line-height: 1.55;
 }
 
+/* Rendered math/diagrams (finalizeAssistantBubble / loadMessages in chat.js)
+   can be wider than the bubble -- scroll horizontally instead of overflowing
+   or getting clipped. Pico already gives `pre`/`code` a monospace font and
+   `overflow-x: auto`; these cover what Pico/KaTeX don't. */
+.message-content .katex-display {
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+.message-content .mermaid {
+    overflow-x: auto;
+}
+
+.message-content .mermaid svg {
+    max-width: none;
+}
+
 /* ── Approval panel ─────────────────────────────────────────── */
 .approval-panel {
     flex-shrink: 0;

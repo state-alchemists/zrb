@@ -33,20 +33,24 @@ def create_http_ui_factory(
             self._approval_channel = approval_channel
             super().__init__(**kwargs)
             self._input_queue: asyncio.Queue[str] = asyncio.Queue()
-            self._streaming_started = False
 
         async def print(self, text: str, kind: str = "text") -> None:
-            if kind == "streaming":
-                self._streaming_started = True
-            elif kind == "text":
-                if self._streaming_started:
-                    self._streaming_started = False
-                    return
             clean = remove_style(text)
             if clean.strip():
                 await self._session_manager.broadcast(
                     self._session_id, clean, kind=kind
                 )
+
+        def append_markdown(self, markdown_text: str) -> None:
+            """Send the raw (unrendered) markdown for the browser to render.
+
+            Overrides `BaseUI.append_markdown`, which would otherwise run
+            `render_markdown` -- the CLI's ANSI/Unicode-art pipeline. The
+            browser has real renderers (a markdown parser, KaTeX, the
+            already-vendored `mermaid.min.js`), so the source is sent as-is
+            under its own kind rather than converted server-side.
+            """
+            self.append_to_output(markdown_text, kind="markdown")
 
         def handle_incoming_message(self, text: str) -> None:
             """Put an incoming message into the input queue."""

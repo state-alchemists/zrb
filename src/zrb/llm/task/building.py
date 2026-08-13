@@ -101,6 +101,10 @@ class LLMTaskBuilding:
         """
         self._uis.append(ui)
 
+    def get_uis(self) -> list[UIProtocol]:
+        """Return a copy of every currently attached UI."""
+        return list(self._uis)
+
     @property
     def tool_confirmation(self) -> AnyToolConfirmation:
         """Policy deciding which tool calls need the user to approve them."""

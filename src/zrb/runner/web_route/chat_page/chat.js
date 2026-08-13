@@ -6,6 +6,58 @@ let totalPages = 1;
 let isInEditMode = false;
 let streamingBubble = null;
 let thinkingBubble = null;
+let lastAnswerBubble = null; // settled streaming bubble, replaced in place once `markdown` arrives
+
+if (typeof mermaid !== 'undefined') {
+    mermaid.initialize({ startOnLoad: false, theme: 'neutral' });
+}
+
+// mermaid reads the block's literal text, so this can't reuse escapeHtml() (no <br> for \n)
+function escapeHtmlEntities(text) {
+    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+const markedRenderer = (typeof marked !== 'undefined') ? new marked.Renderer() : null;
+if (markedRenderer) {
+    const defaultCodeRenderer = markedRenderer.code.bind(markedRenderer);
+    markedRenderer.code = function(token) {
+        if (token && token.lang === 'mermaid') {
+            return `<pre class="mermaid">${escapeHtmlEntities(token.text)}</pre>`;
+        }
+        return defaultCodeRenderer(token);
+    };
+    marked.setOptions({ renderer: markedRenderer });
+}
+
+function renderAssistantMarkdown(rawMarkdown) {
+    if (typeof marked === 'undefined' || typeof DOMPurify === 'undefined') {
+        return escapeHtml(rawMarkdown); // vendored renderer missing -- show the source, don't break the chat
+    }
+    return DOMPurify.sanitize(marked.parse(rawMarkdown));
+}
+
+function renderMathAndDiagrams(rootEl) {
+    if (typeof renderMathInElement !== 'undefined') {
+        renderMathInElement(rootEl, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$', right: '$', display: false}
+            ],
+            throwOnError: false
+        });
+    }
+    if (typeof mermaid !== 'undefined') {
+        const diagrams = rootEl.querySelectorAll('.mermaid');
+        if (diagrams.length > 0) {
+            mermaid.run({ nodes: diagrams }).catch(err => console.error('Mermaid render failed:', err));
+        }
+    }
+}
+
+function finalizeAssistantBubble(contentEl, rawMarkdown) {
+    contentEl.innerHTML = renderAssistantMarkdown(rawMarkdown);
+    renderMathAndDiagrams(contentEl);
+}
 
 async function loadSessions(page = 1) {
     currentPage = page;
@@ -132,10 +184,13 @@ async function loadMessages() {
     const messagesDiv = document.getElementById('messages');
     messagesDiv.innerHTML = data.messages.map(msg => {
         const role = msg.role === 'user' ? 'user' : 'assistant';
-        const content = escapeHtml(msg.content || '');
+        const content = role === 'assistant'
+            ? renderAssistantMarkdown(msg.content || '')
+            : escapeHtml(msg.content || '');
         return `<div class="message ${role}"><div class="message-content">${content}</div></div>`;
     }).join('');
-    
+    renderMathAndDiagrams(messagesDiv);
+
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
@@ -210,13 +265,11 @@ function connectSSE() {
                 messagesDiv.appendChild(row);
 
             } else if (kind === 'usage') {
-                // End-of-response marker (always emitted last, through the same
-                // stream as the deltas). Finalize the live answer: drop the
-                // faint/pulsing `streaming` class so it settles into a normal
-                // assistant bubble, and clear the per-response bubble refs.
                 if (streamingBubble) {
                     streamingBubble.classList.remove('streaming');
                 }
+                // also clears it when null, so a stale bubble can't leak into the next turn
+                lastAnswerBubble = streamingBubble;
                 streamingBubble = null;
                 thinkingBubble = null;
                 // Usage stats footer row
@@ -227,6 +280,24 @@ function connectSSE() {
                 content.textContent = data.text;
                 row.appendChild(content);
                 messagesDiv.appendChild(row);
+
+            } else if (kind === 'markdown') {
+                const spinner = document.getElementById('sse-progress');
+                if (spinner) spinner.remove();
+                let targetBubble = (lastAnswerBubble && messagesDiv.contains(lastAnswerBubble))
+                    ? lastAnswerBubble
+                    : null;
+                if (!targetBubble) {
+                    // no live bubble to replace (e.g. reconnected mid-turn) -- append a new one
+                    targetBubble = document.createElement('div');
+                    targetBubble.className = 'message assistant';
+                    const content = document.createElement('div');
+                    content.className = 'message-content';
+                    targetBubble.appendChild(content);
+                    messagesDiv.appendChild(targetBubble);
+                }
+                finalizeAssistantBubble(targetBubble.querySelector('.message-content'), data.text);
+                lastAnswerBubble = null;
 
             } else if (kind === 'todo_progress') {
                 const row = document.createElement('div');

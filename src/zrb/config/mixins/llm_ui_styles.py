@@ -9,8 +9,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from zrb.config.env_field import EnvField
+from zrb.config.env_field import EnvField, on_off
 from zrb.config.theme import theme_default
+from zrb.util.string.conversion import to_boolean
 
 
 class ConfigLLMUIStyles:
@@ -25,6 +26,8 @@ class ConfigLLMUIStyles:
         self.DEFAULT_LLM_ASSISTANT_NAME: str = "Zrb"
         self.DEFAULT_LLM_ASSISTANT_ASCII_ART: str = "default"
         self.DEFAULT_LLM_ASSISTANT_JARGON: str = ""
+        self.DEFAULT_LLM_UI_ENABLE_MARKDOWN_MATH: str = "on"
+        self.DEFAULT_LLM_UI_ENABLE_MARKDOWN_MERMAID: str = "on"
         super().__init__()
 
     # Falls back to ROOT_GROUP_NAME, then capitalizes the first letter while
@@ -230,4 +233,24 @@ class ConfigLLMUIStyles:
         str,
         default_factory=theme_default("LLM_UI_STYLE_MARKDOWN_CODE"),
         doc="Rich style for inline markdown code spans.",
+    )
+
+    LLM_UI_ENABLE_MARKDOWN_MATH = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc=(
+            "Convert LaTeX math ($...$ / $$...$$) to Unicode when rendering "
+            "markdown. Code fences/spans are never touched; unconvertible "
+            "LaTeX falls back to the raw source."
+        ),
+    )
+
+    LLM_UI_ENABLE_MARKDOWN_MERMAID = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc=(
+            "Render ```mermaid fenced blocks as Unicode diagram art when "
+            "rendering markdown. A block termaid can't parse falls back to "
+            "the raw fence."
+        ),
     )

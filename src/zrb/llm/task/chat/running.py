@@ -100,6 +100,13 @@ class ChatRunning(ChatState):
         )
         session = Session(shared_ctx)
         result = await llm_task_core.async_run(session)
+        # Unlike _stream_ai_response, this loop never finalizes with a
+        # rendered pass -- do it here for every UI that supports it.
+        if isinstance(result, str):
+            for ui in llm_task_core.get_uis():
+                append_markdown = getattr(ui, "append_markdown", None)
+                if callable(append_markdown):
+                    append_markdown(result)
         # Store conversation name in xcom for CLI to print at the end
         ctx.xcom["__conversation_name__"] = initial_conversation_name
         return result

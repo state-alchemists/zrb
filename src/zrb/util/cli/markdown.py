@@ -2,6 +2,8 @@ import re
 from typing import TYPE_CHECKING
 
 from zrb.util.cli.ansi import strip_trailing_padding
+from zrb.util.cli.latex_math import convert_math_to_unicode
+from zrb.util.cli.mermaid_diagram import convert_mermaid_to_art
 
 if TYPE_CHECKING:
     from rich.theme import Theme
@@ -18,9 +20,14 @@ def render_markdown(
     from rich.markdown import Markdown
     from rich.theme import Theme
 
-    if theme is None:
-        from zrb.config.config import CFG  # lazy: defer CFG load
+    from zrb.config.config import CFG  # lazy: defer CFG load
 
+    if CFG.LLM_UI_ENABLE_MARKDOWN_MATH:
+        markdown_text = convert_math_to_unicode(markdown_text)
+    if CFG.LLM_UI_ENABLE_MARKDOWN_MERMAID:
+        markdown_text = convert_mermaid_to_art(markdown_text, width=width)
+
+    if theme is None:
         theme = Theme(
             {
                 "markdown.link": CFG.LLM_UI_STYLE_MARKDOWN_LINK,

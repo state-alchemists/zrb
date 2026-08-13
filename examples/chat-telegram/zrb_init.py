@@ -322,6 +322,7 @@ class TelegramApproval(ApprovalChannel):
     def _parse_edited_content(self, content: str) -> dict | None:
         """Parse edited content as JSON or YAML."""
         import yaml
+
         content = content.strip()
         try:
             return json.loads(content)

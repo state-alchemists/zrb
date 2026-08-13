@@ -1,6 +1,6 @@
 [project]
 name = "zrb"
-version = "2.61.0"
+version = "2.62.0"
 description = "Your Automation Powerhouse"
 authors = [{name = "Go Frendi Gunawan", email = "gofrendiasgard@gmail.com"}]
 license = "AGPL-3.0-or-later"
@@ -45,6 +45,14 @@ dependencies = [
     "markdownify>=1.2.2,<2.0.0",
     "pyyaml>=6.0.3,<7.0.0",
     "pyperclip>=1.11.0,<2.0.0",
+    # Pure-Python LaTeX->Unicode conversion for markdown math rendering
+    # (util/cli/latex_math.py). Zero transitive deps, tiny (<1MB) -- core
+    # rather than an extra, since the render toggle defaults on.
+    "pylatexenc>=2.10,<3.0.0",
+    # Pure-Python Mermaid->Unicode diagram rendering
+    # (util/cli/mermaid_diagram.py). Zero transitive deps. Pinned tight
+    # (<0.9.0): termaid is pre-1.0.
+    "termaid>=0.8.0,<0.9.0",
     # Security fix: CVE-2026-40192 - Decompression bomb via unlimited GZIP read in FITS decoding.
     # Security fix: CVE-2026-59204 - DoS via memory-allocation state accumulation in the JPEG2000 decoder. We pin >=12.3.0.
     # Pillow is a transitive dependency via pdfplumber. We pin >=12.3.0 to ensure the patched version is used.
