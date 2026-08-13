@@ -5152,6 +5152,18 @@ cryptography = {version = ">=3.4.0", optional = true, markers = "extra == \"cryp
 crypto = ["cryptography (>=3.4.0)"]
 
 [[package]]
+name = "pylatexenc"
+version = "2.11"
+description = "Simple LaTeX parser providing latex-to-unicode and unicode-to-latex conversion"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "pylatexenc-2.11-py2.py3-none-any.whl", hash = "sha256:e78e7391d6c104f1ed150e21cfaa58016cdb50aa54406a2eecb793649ffdfdd0"},
+    {file = "pylatexenc-2.11.tar.gz", hash = "sha256:305a072a99ce736246049c9da05841b9d718c0f7ea8888f5f596cf15cb621053"},
+]
+
+[[package]]
 name = "pypdfium2"
 version = "5.12.1"
 description = "Python bindings to PDFium"
@@ -6333,6 +6345,24 @@ files = [
 [package.extras]
 doc = ["reno", "sphinx"]
 test = ["pytest", "tornado (>=4.5)", "typeguard"]
+
+[[package]]
+name = "termaid"
+version = "0.8.0"
+description = "Render Mermaid diagrams in your terminal or Python app"
+optional = false
+python-versions = ">=3.9"
+groups = ["main"]
+files = [
+    {file = "termaid-0.8.0-py3-none-any.whl", hash = "sha256:3b572ed705bbca77eeffcbc1906a73f1c8119613a0552bb2ff7463a2672b1cb3"},
+    {file = "termaid-0.8.0.tar.gz", hash = "sha256:58c4b8960bd4382b1b13c79f1beb9a53ebcbc58531fc8ecea8c64a307112f377"},
+]
+
+[package.extras]
+dev = ["pytest (>=7.0)", "pytest-snapshot"]
+rich = ["rich (>=13.0)"]
+textual = ["textual (>=0.40)"]
+tui = ["textual (>=0.40)"]
 
 [[package]]
 name = "tiktoken"
@@ -7618,4 +7648,4 @@ xai = ["aiohttp", "xai-sdk"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11.0,<3.15.0"
-content-hash = "0dcd4497288aa81c2dbf22bc0d6749291e528732a61cd3569b9495b1808b4959"
+content-hash = "f15949d8173b2dc60b90e69a406fd013a551f9392c062430dd920b4580799f43"
