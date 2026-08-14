@@ -27,6 +27,10 @@ def _video() -> BinaryContent:
     return BinaryContent(data=b"\x00\x00\x00\x18ftypmp42", media_type="video/mp4")
 
 
+def _pdf() -> BinaryContent:
+    return BinaryContent(data=b"%PDF-1.4 fake", media_type="application/pdf")
+
+
 @pytest.mark.asyncio
 async def test_passthrough_when_main_model_supports_image():
     image = _png()
@@ -165,6 +169,53 @@ async def test_image_dropped_when_multimodal_describe_fails():
 
     assert result == "look"
     assert any("Dropped image" in m for m in messages)
+
+
+@pytest.mark.asyncio
+async def test_document_dropped_when_main_model_text_only():
+    """A raw PDF (extraction-failure fallback) is not silently passed through."""
+    pdf = _pdf()
+    messages = []
+
+    result = await replace_unsupported_attachments(
+        ["read this", pdf],
+        main_model="openai:gpt-3.5-turbo",
+        multimodal_model=None,
+        print_fn=lambda m: messages.append(m),
+    )
+
+    assert result == "read this"
+    assert any("Dropped document" in m for m in messages)
+    assert any("cannot be auto-described" in m for m in messages)
+
+
+@pytest.mark.asyncio
+async def test_document_kept_when_main_model_supports_documents():
+    pdf = _pdf()
+
+    result = await replace_unsupported_attachments(
+        ["read this"], main_model="openai:gpt-4o", multimodal_model=None
+    )
+    result_with_pdf = await replace_unsupported_attachments(
+        ["read this", pdf], main_model="openai:gpt-4o", multimodal_model=None
+    )
+
+    # An all-string list collapses to plain text (see the function's
+    # docstring/comment) — only the mixed list stays a list.
+    assert result == "read this"
+    assert result_with_pdf[1] is pdf
+
+
+@pytest.mark.asyncio
+async def test_document_never_auto_described_even_with_multimodal_model():
+    """describe_binary_attachment only handles image/audio — documents always drop."""
+    pdf = _pdf()
+
+    described = await describe_binary_attachment(
+        pdf, multimodal_model="openai:gpt-4o-mini"
+    )
+
+    assert described is None
 
 
 @pytest.mark.asyncio

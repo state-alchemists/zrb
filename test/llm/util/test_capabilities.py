@@ -153,13 +153,47 @@ def test_is_known_model_truthiness():
         ("audio/wav", "audio"),
         ("audio/mpeg", "audio"),
         ("video/mp4", "video"),
-        ("application/pdf", None),
+        ("application/pdf", "document"),
+        ("application/msword", "document"),
+        (
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "document",
+        ),
+        # Plain-text formats are readable by any model regardless of vision
+        # capability, so they are deliberately NOT gated as "document".
         ("text/plain", None),
+        ("text/csv", None),
         ("", None),
     ],
 )
 def test_media_type_modality_maps_mime_heads(media_type, expected):
     assert media_type_modality(media_type) == expected
+
+
+def test_document_input_supported_for_known_vision_models():
+    assert model_capabilities.get("openai:gpt-4o").supports_document_input is True
+    assert (
+        model_capabilities.get("anthropic:claude-opus-4-7").supports_document_input
+        is True
+    )
+
+
+def test_document_input_unsupported_for_text_only_models():
+    assert (
+        model_capabilities.get("openai:gpt-3.5-turbo").supports_document_input is False
+    )
+    assert (
+        model_capabilities.get("anthropic:claude-haiku-3").supports_document_input
+        is False
+    )
+
+
+def test_supports_modality_dispatches_document():
+    assert model_capabilities.supports_modality("openai:gpt-4o", "document") is True
+    assert (
+        model_capabilities.supports_modality("openai:gpt-3.5-turbo", "document")
+        is False
+    )
 
 
 def test_register_override_takes_priority_over_pattern_table():

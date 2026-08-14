@@ -6,6 +6,7 @@ from typing import Any
 
 from zrb.config.config import CFG
 from zrb.llm.history_manager.file_history_manager import FileHistoryManager
+from zrb.llm.prompt.live_context import split_live_context
 from zrb.util.string.name import get_random_name
 
 _timestamp_pattern = re.compile(r"-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}(?:-\d{2})?$")
@@ -235,10 +236,14 @@ class ChatSessionManager:
                             content += part_content
                         else:
                             content += str(part_content)
+            live_context = None
+            if role == "user":
+                content, live_context = split_live_context(content)
             result.append(
                 {
                     "role": role,
                     "content": content,
+                    "live_context": live_context,
                     "timestamp": getattr(msg, "timestamp", None),
                 }
             )
@@ -251,11 +256,15 @@ class ChatSessionManager:
         await session.output_queue.put({"text": text, "kind": kind})
         return True
 
-    async def send_input(self, session_id: str, text: str) -> bool:
+    async def send_input(
+        self, session_id: str, text: str, attachments: "list[str] | None" = None
+    ) -> bool:
         session = self._sessions.get(session_id)
         if session is None:
             return False
-        session.input_queue.put_nowait(text)
+        session.input_queue.put_nowait(
+            {"message": text, "attachments": attachments or []}
+        )
         return True
 
     def set_processing(self, session_id: str, is_processing: bool) -> bool:

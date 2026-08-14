@@ -35,7 +35,7 @@ from typing import TYPE_CHECKING, Any, Literal
 if TYPE_CHECKING:
     from pydantic_ai.models import Model
 
-Modality = Literal["image", "audio", "video"]
+Modality = Literal["image", "audio", "video", "document"]
 
 
 @dataclass(frozen=True)
@@ -51,6 +51,12 @@ class ModelCapabilities:
     supports_image_input: bool = False
     supports_audio_input: bool = False
     supports_video_input: bool = False
+    # Document (PDF/docx/xlsx/doc/xls) support tracks the image pattern list:
+    # every provider that accepts inline images as multimodal content blocks
+    # (Anthropic, Gemini, OpenAI) accepts inline documents through the same
+    # mechanism. Kept as a separate field/pattern list in case a provider
+    # diverges — see `_DOCUMENT_PATTERNS`.
+    supports_document_input: bool = False
     supports_parallel_tool_calls: bool | None = None
 
 
@@ -114,6 +120,8 @@ class ModelCapabilityRegistry:
             return caps.supports_audio_input
         if modality == "video":
             return caps.supports_video_input
+        if modality == "document":
+            return caps.supports_document_input
         return False
 
     def _find_override(self, name: str) -> dict[str, Any] | None:
@@ -128,6 +136,21 @@ def is_known_model(model: "str | Model | None") -> bool:
     return bool(_bare_name(model))
 
 
+#: Opaque-binary document types a text-only model cannot read as bytes.
+#: Plain-text formats (txt/csv/html/md) are deliberately excluded — those
+#: are readable as text by any model regardless of vision capability, so
+#: gating them would drop attachments that actually work fine.
+_DOCUMENT_BINARY_TYPES = frozenset(
+    {
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.ms-excel",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    }
+)
+
+
 def media_type_modality(media_type: str) -> Modality | None:
     """Map a MIME type (e.g. ``image/png``) to a :data:`Modality`."""
     if not media_type:
@@ -135,6 +158,8 @@ def media_type_modality(media_type: str) -> Modality | None:
     head = media_type.split("/", 1)[0].lower()
     if head in ("image", "audio", "video"):
         return head
+    if media_type.lower() in _DOCUMENT_BINARY_TYPES:
+        return "document"
     return None
 
 
@@ -216,6 +241,10 @@ _VIDEO_PATTERNS = (
     r"gemini-3",
 )
 
+# See the `supports_document_input` docstring: same providers, same list.
+_DOCUMENT_PATTERNS = _IMAGE_PATTERNS
+_DOCUMENT_DENY = _IMAGE_DENY
+
 # Models known to *malform* OpenAI-spec parallel tool calls: they emit a single
 # tool_call with concatenated `name` and concatenated `arguments` JSON, e.g.
 # ``name="ActivateSkillReadRead"``, and both calls are lost. The model cannot
@@ -263,6 +292,7 @@ def _resolve_from_patterns(name: str) -> ModelCapabilities:
         supports_image_input=_resolve_image(name),
         supports_audio_input=_matches_any(name, _AUDIO_PATTERNS),
         supports_video_input=_matches_any(name, _VIDEO_PATTERNS),
+        supports_document_input=_resolve_document(name),
         supports_parallel_tool_calls=_resolve_parallel_tool_calls(name),
     )
 
@@ -271,6 +301,12 @@ def _resolve_image(name: str) -> bool:
     if _matches_any(name, _IMAGE_DENY):
         return False
     return _matches_any(name, _IMAGE_PATTERNS)
+
+
+def _resolve_document(name: str) -> bool:
+    if _matches_any(name, _DOCUMENT_DENY):
+        return False
+    return _matches_any(name, _DOCUMENT_PATTERNS)
 
 
 def _resolve_parallel_tool_calls(name: str) -> bool | None:

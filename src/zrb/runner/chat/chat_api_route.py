@@ -1,10 +1,14 @@
 import asyncio
 import json
+import os
+import tempfile
+import uuid
 from typing import Any
 
 from zrb.config.config import CFG
 from zrb.config.web_auth_config import WebAuthConfig
 from zrb.group.any_group import AnyGroup
+from zrb.llm.util.attachment import check_attachment_bytes, get_media_type
 from zrb.runner.chat.chat_session_manager import ChatSessionManager
 from zrb.runner.chat.chat_session_runner import run_chat_session as _run_chat_session
 from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
@@ -12,6 +16,22 @@ from zrb.runner.web_util.user import get_user_from_request
 from zrb.util.group import NodeNotFoundError, extract_node_from_args
 
 from .sse_stream import SSEStreamResponse
+
+
+def _save_uploaded_attachment(session_id: str, filename: str, data: bytes) -> str:
+    """Persist an uploaded attachment to a per-session temp dir, return its path.
+
+    ponytail: uploads are never cleaned up (mirrors the CLI's own /attach,
+    which reads whatever the user already has on disk). Add a retention
+    sweep if the temp dir's growth becomes a real problem.
+    """
+    upload_dir = os.path.join(tempfile.gettempdir(), "zrb_web_chat_uploads", session_id)
+    os.makedirs(upload_dir, exist_ok=True)
+    safe_name = os.path.basename(filename) or "attachment"
+    dest = os.path.join(upload_dir, f"{uuid.uuid4().hex}_{safe_name}")
+    with open(dest, "wb") as f:
+        f.write(data)
+    return dest
 
 
 async def _get_llm_chat_task(root_group: AnyGroup) -> Any:
@@ -28,7 +48,7 @@ def serve_chat_api(
     web_auth_config: WebAuthConfig,
 ) -> None:
     # lazy: heavy third-party
-    from fastapi import Request
+    from fastapi import File, Request, UploadFile
     from fastapi.responses import JSONResponse
 
     session_manager = ChatSessionManager.get_instance_sync()
@@ -119,10 +139,35 @@ def serve_chat_api(
                 "role": msg.get("role", "unknown"),
                 "content": msg.get("content", ""),
             }
+            if msg.get("live_context"):
+                msg_dict["live_context"] = msg["live_context"]
             if "timestamp" in msg and msg["timestamp"]:
                 msg_dict["timestamp"] = str(msg["timestamp"])
             serializable_messages.append(msg_dict)
         return JSONResponse(content={"messages": serializable_messages})
+
+    @app.post("/api/v1/chat/sessions/{session_id}/attachments")
+    async def upload_chat_attachment(
+        session_id: str,
+        request: Request,
+        file: UploadFile = File(...),
+    ) -> JSONResponse:
+        forbidden = await _forbid_if_unauthorized(request)
+        if forbidden is not None:
+            return forbidden
+        filename = file.filename or "attachment"
+        media_type = get_media_type(filename)
+        if not media_type:
+            return JSONResponse(
+                content={"error": f"Unsupported file type: {filename}"},
+                status_code=400,
+            )
+        data = await file.read()
+        rejection = check_attachment_bytes(data, media_type)
+        if rejection:
+            return JSONResponse(content={"error": f"File {rejection}"}, status_code=400)
+        path = _save_uploaded_attachment(session_id, filename, data)
+        return JSONResponse(content={"path": path, "name": os.path.basename(filename)})
 
     @app.post("/api/v1/chat/sessions/{session_id}/messages")
     async def post_chat_message(
@@ -134,6 +179,7 @@ def serve_chat_api(
             return forbidden
         data = await request.json()
         message = data.get("message", "")
+        attachments = data.get("attachments") or []
         is_approval_action = data.get("isApprovalAction", False)
         is_json = isinstance(message, dict)
 
@@ -197,7 +243,7 @@ def serve_chat_api(
         if isinstance(message, dict):
             message = json.dumps(message)
         CFG.LOGGER.info(f"Sending to input queue: {message[:100]}")
-        await session_manager.send_input(session_id, message)
+        await session_manager.send_input(session_id, message, attachments=attachments)
         return JSONResponse(content={"status": "sent"})
 
     @app.get("/api/v1/chat/sessions/{session_id}/approval")

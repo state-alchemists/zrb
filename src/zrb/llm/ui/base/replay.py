@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from zrb.llm.prompt.live_context import split_live_context
 from zrb.llm.util.history_formatter import format_args, format_timestamp, truncate
 
 if TYPE_CHECKING:
@@ -70,8 +71,17 @@ class BaseUIReplay:
             if pkind == "tool-return":
                 self._replay_tool_return(part, pending_tool_calls)
             elif pkind == "user-prompt":
-                content = str(getattr(part, "content", "") or "")
+                raw_content = getattr(part, "content", "") or ""
+                if isinstance(raw_content, str):
+                    content, live_context = split_live_context(raw_content)
+                else:
+                    content, live_context = str(raw_content), None
                 self.append_to_output(f"\n💬 {ts_display}>> {content.strip()}\n")
+                if live_context:
+                    self.append_to_output(
+                        f"\n  🌐 {truncate(live_context, 500)}\n",
+                        kind="live_context",
+                    )
             elif pkind == "retry-prompt":
                 content = str(getattr(part, "content", "") or "")
                 self.append_to_output(

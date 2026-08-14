@@ -73,6 +73,7 @@ The framework automatically creates:
 
 - **Dual Output**: LLM responses appear in BOTH Telegram and terminal
 - **Dual Input**: Reply from EITHER Telegram or terminal
+- **Attachments**: Send a photo or document (with an optional caption) from Telegram to attach it to the turn — same size/type checks as the CLI's `/attach`
 - **Multiplexed Approvals**: Approve/deny from either channel (first response wins)
 - **Tool Argument Editing**: Edit tool arguments via Telegram with JSON/YAML support
 - **Shared History**: One conversation, synced across channels

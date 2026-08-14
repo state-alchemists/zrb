@@ -146,6 +146,28 @@ class TestChatSessionManager:
         assert result is False
 
     @pytest.mark.asyncio
+    async def test_send_input_queues_message_and_attachments(self):
+        from zrb.runner.chat.chat_session_manager import ChatSessionManager
+
+        manager = await ChatSessionManager.get_instance()
+        session = await manager.create_session(session_id="input-attach-test")
+        await manager.send_input(
+            "input-attach-test", "look at this", attachments=["/tmp/a.png"]
+        )
+        queued = session.input_queue.get_nowait()
+        assert queued == {"message": "look at this", "attachments": ["/tmp/a.png"]}
+
+    @pytest.mark.asyncio
+    async def test_send_input_defaults_to_no_attachments(self):
+        from zrb.runner.chat.chat_session_manager import ChatSessionManager
+
+        manager = await ChatSessionManager.get_instance()
+        session = await manager.create_session(session_id="input-no-attach-test")
+        await manager.send_input("input-no-attach-test", "hello")
+        queued = session.input_queue.get_nowait()
+        assert queued == {"message": "hello", "attachments": []}
+
+    @pytest.mark.asyncio
     async def test_set_processing(self):
         from zrb.runner.chat.chat_session_manager import ChatSessionManager
 
@@ -636,6 +658,71 @@ class TestChatSessionManager:
         assert messages[0]["role"] == "assistant"
         assert "complex" in messages[0]["content"]
         assert messages[0]["timestamp"] is None
+
+    @pytest.mark.asyncio
+    async def test_get_messages_splits_live_context_for_user_role(self):
+        """A user turn's trailing <live-context> block is separated out, not
+        shown as if the user typed it."""
+        from zrb.runner.chat.chat_session_manager import ChatSessionManager
+
+        manager = await ChatSessionManager.get_instance()
+        await manager.create_session(session_id="live-context-test")
+
+        part = MagicMock()
+        part.content = (
+            "what's the weather\n\n<live-context>\n- Time: now\n</live-context>"
+        )
+        msg = MagicMock()
+        msg.kind = "request"
+        msg.parts = [part]
+        msg.timestamp = None
+
+        with patch.object(manager._history_manager, "load", return_value=[msg]):
+            messages = manager.get_messages("live-context-test")
+        assert messages[0]["content"] == "what's the weather"
+        assert (
+            messages[0]["live_context"]
+            == "<live-context>\n- Time: now\n</live-context>"
+        )
+
+    @pytest.mark.asyncio
+    async def test_get_messages_no_live_context_field_when_absent(self):
+        from zrb.runner.chat.chat_session_manager import ChatSessionManager
+
+        manager = await ChatSessionManager.get_instance()
+        await manager.create_session(session_id="no-live-context-test")
+
+        part = MagicMock()
+        part.content = "hello"
+        msg = MagicMock()
+        msg.kind = "request"
+        msg.parts = [part]
+        msg.timestamp = None
+
+        with patch.object(manager._history_manager, "load", return_value=[msg]):
+            messages = manager.get_messages("no-live-context-test")
+        assert messages[0]["content"] == "hello"
+        assert messages[0]["live_context"] is None
+
+    @pytest.mark.asyncio
+    async def test_get_messages_assistant_role_never_split_for_live_context(self):
+        """Live context is only ever appended to user turns; assistant text
+        that happens to contain the literal tag is left untouched."""
+        from zrb.runner.chat.chat_session_manager import ChatSessionManager
+
+        manager = await ChatSessionManager.get_instance()
+        await manager.create_session(session_id="assistant-live-context-test")
+
+        part = MagicMock()
+        part.content = "some assistant text"
+        msg = MagicMock()
+        msg.kind = "response"
+        msg.parts = [part]
+        msg.timestamp = None
+
+        with patch.object(manager._history_manager, "load", return_value=[msg]):
+            messages = manager.get_messages("assistant-live-context-test")
+        assert messages[0]["live_context"] is None
 
     def test_scan_sessions_empty_when_no_history_dir(self):
         """Without LLM_HISTORY_DIR set, the scan returns []."""

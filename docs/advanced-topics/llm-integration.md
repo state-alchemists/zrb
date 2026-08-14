@@ -44,7 +44,7 @@ This launches a full-screen chat application where you can have a conversation w
 | `/yolo` or `/yolo <tools>` | Toggle auto-execute mode. With tool names (e.g., `/yolo Write,Edit`), selectively auto-approve only those tools |
 | `/load <name>` | Load a named session |
 | `/save <name>` | Save current session |
-| `/attach <file_path>` | Attach a file to next message |
+| `/attach <file_path>` | Attach a file to next message (capped by `LLM_MAX_ATTACHMENT_BYTES`, default 20MB; content is sniffed against its extension) |
 | `>` or `/redirect` (bare) | Copy last AI response to clipboard |
 | `>` or `/redirect <file_path>` | Save last AI response to a file |
 | `/copy` (bare) | Copy full conversation transcript to clipboard |
@@ -359,7 +359,7 @@ Sub-agent files are discovered from (in priority order):
 
 ## Model Capabilities
 
-Zrb maintains a per-model capability registry that tracks what each model can and can't do — image/audio/video input, whether parallel tool calls are supported, and so on. It's used internally to decide things like *"should I let pydantic-ai emit parallel tool calls for this model?"* and *"is the user attaching an image to a text-only model — describe it via the multimodal fallback?"*.
+Zrb maintains a per-model capability registry that tracks what each model can and can't do — image/audio/video/document input, whether parallel tool calls are supported, and so on. It's used internally to decide things like *"should I let pydantic-ai emit parallel tool calls for this model?"* and *"is the user attaching an image to a text-only model — describe it via the multimodal fallback?"*.
 
 The registry ships with a built-in name-pattern table (it knows about GPT-4o, Claude, Gemini, Llava, etc.) and exposes a module-level singleton you can extend from `zrb_init.py`:
 
@@ -383,6 +383,7 @@ model_capabilities.register(
 | `supports_image_input` | `bool` | Model accepts image attachments |
 | `supports_audio_input` | `bool` | Model accepts audio attachments |
 | `supports_video_input` | `bool` | Model accepts video attachments |
+| `supports_document_input` | `bool` | Model accepts document attachments (PDF/docx/xlsx/doc/xls as opaque binary — plain-text formats always pass through regardless of this flag) |
 | `supports_parallel_tool_calls` | `bool \| None` | Tri-state: `True` known-good, `False` known-malforms parallel calls (zrb sets `parallel_tool_calls=False` at the provider level), `None` unknown — pass through |
 
 Field names mirror LiteLLM's `supports_*` conventions.

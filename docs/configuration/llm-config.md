@@ -623,6 +623,7 @@ All interval and delay values are in **milliseconds**.
 | `ZRB_LLM_HISTORY_TRUNCATE_LENGTH` | Maximum chars per field when formatting history entries | `100` |
 | `ZRB_LLM_MAX_IMAGE_DIMENSION` | Longest-edge cap (pixels) for attached images before sending to LLM | `1568` |
 | `ZRB_LLM_IMAGE_JPEG_QUALITY` | JPEG quality (1-95) for re-encoding photos; PNGs are unaffected | `85` |
+| `ZRB_LLM_MAX_ATTACHMENT_BYTES` | Maximum file size (bytes) accepted by `/attach` and the other attachment paths (web chat upload, chat-telegram example) — checked before the file is read. `0` or negative disables the cap. | `20000000` |
 | `ZRB_CMD_BUFFER_LIMIT` | Asyncio subprocess read-buffer limit in bytes | `102400` |
 | `ZRB_LLM_UI_MAX_BUFFER_SIZE` | Maximum buffered output chars before a forced flush (event-driven UIs) | `2000` |
 | `ZRB_LLM_MAX_SKILLS_IN_CATALOG` | How many model-invocable skills the prompt's skill catalogue lists before truncating with a pointer to `SearchSkill`. The full catalogue is always reachable on demand via `SearchSkill`, so this is a token-economy cap, not a hard limit. `0` or a negative value disables the cap, listing the whole catalogue. | `10` |

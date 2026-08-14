@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from zrb.config.config import CFG
 from zrb.llm.ui.base.commands import BaseUICommands
 
 
@@ -237,6 +238,45 @@ def test_handle_attach_command(ui, tmp_path):
     f.write_text("hello")
     assert ui._handle_attach_command(f"/attach {f}") is True
     assert str(f) in ui._pending_attachments
+
+
+def test_handle_attach_command_not_found(ui, tmp_path):
+    missing = tmp_path / "missing.txt"
+    assert ui._handle_attach_command(f"/attach {missing}") is True
+    assert ui._pending_attachments == []
+    assert any("not found" in o.lower() for o in ui.outputs)
+
+
+def test_handle_attach_command_directory(ui, tmp_path):
+    assert ui._handle_attach_command(f"/attach {tmp_path}") is True
+    assert ui._pending_attachments == []
+    assert any("not found" in o.lower() for o in ui.outputs)
+
+
+def test_handle_attach_command_unsupported_type(ui, tmp_path):
+    f = tmp_path / "test.xyz"
+    f.write_text("data")
+    assert ui._handle_attach_command(f"/attach {f}") is True
+    assert ui._pending_attachments == []
+    assert any("unsupported file type" in o.lower() for o in ui.outputs)
+
+
+def test_handle_attach_command_oversized(ui, tmp_path, monkeypatch):
+    f = tmp_path / "test.txt"
+    f.write_text("hello")
+    monkeypatch.setattr(CFG, "LLM_MAX_ATTACHMENT_BYTES", 1)
+    assert ui._handle_attach_command(f"/attach {f}") is True
+    assert ui._pending_attachments == []
+    assert any("too large" in o.lower() for o in ui.outputs)
+
+
+def test_handle_attach_command_already_attached(ui, tmp_path):
+    f = tmp_path / "test.txt"
+    f.write_text("hello")
+    ui._handle_attach_command(f"/attach {f}")
+    ui._handle_attach_command(f"/attach {f}")
+    assert ui._pending_attachments == [str(f)]
+    assert any("already attached" in o.lower() for o in ui.outputs)
 
 
 def test_toggle_yolo(ui):

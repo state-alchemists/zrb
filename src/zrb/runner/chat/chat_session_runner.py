@@ -68,7 +68,7 @@ async def run_chat_session(
         while True:
             llm_task: asyncio.Task | None = None
             try:
-                message = await asyncio.wait_for(
+                queued = await asyncio.wait_for(
                     session.input_queue.get(),
                     timeout=CFG.LLM_INPUT_QUEUE_TIMEOUT / 1000,
                 )
@@ -82,6 +82,9 @@ async def run_chat_session(
                     raise asyncio.CancelledError()
                 continue
 
+            message = queued["message"]
+            attachments = queued.get("attachments") or []
+
             session_manager.set_processing(session.session_id, True)
             CFG.LOGGER.info(f"Processing message: {message[:100]}")
             await session_manager.broadcast(session.session_id, f"[USER] {message}")
@@ -91,7 +94,10 @@ async def run_chat_session(
                     "message": message,
                     "session": session.session_name,
                     "yolo": "false",
-                    "attachments": "",
+                    # Comma-joined paths, matching the CLI's `--attach` input
+                    # convention that `llm_chat`'s `attachment=` lambda reads
+                    # (`ctx.input.attach`, see `builtin/llm/chat.py`).
+                    "attach": ",".join(attachments),
                     "model": "",
                     # Explicit: without this key the task falls back to the CLI
                     # input's default (True) and runs the *interactive* branch

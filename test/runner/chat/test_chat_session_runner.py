@@ -33,7 +33,7 @@ def mock_deps():
 @pytest.mark.asyncio
 async def test_run_chat_session_success(mock_deps):
     session, llm_chat_task, session_manager = mock_deps
-    session.input_queue.put_nowait("hello")
+    session.input_queue.put_nowait({"message": "hello", "attachments": []})
 
     # Run the session in a task and cancel it after it processes the message
     task = asyncio.create_task(
@@ -66,9 +66,33 @@ async def test_run_chat_session_success(mock_deps):
 
 
 @pytest.mark.asyncio
+async def test_run_chat_session_forwards_attachments_as_attach_input(mock_deps):
+    """Attachment paths queued alongside a message reach `ctx.input.attach`,
+    matching the CLI's own `--attach` convention (comma-separated paths)."""
+    session, llm_chat_task, session_manager = mock_deps
+    session.input_queue.put_nowait(
+        {"message": "look at this", "attachments": ["/tmp/a.png", "/tmp/b.pdf"]}
+    )
+
+    task = asyncio.create_task(
+        run_chat_session(session, llm_chat_task, session_manager)
+    )
+    await asyncio.sleep(0.01)
+
+    run_session = llm_chat_task.async_run.call_args.kwargs["session"]
+    assert run_session.shared_ctx.input["attach"] == "/tmp/a.png,/tmp/b.pdf"
+
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
+
+@pytest.mark.asyncio
 async def test_run_chat_session_timeout(mock_deps):
     session, llm_chat_task, session_manager = mock_deps
-    session.input_queue.put_nowait("hello")
+    session.input_queue.put_nowait({"message": "hello", "attachments": []})
 
     # Make the LLM task hang
     async def hang(*args, **kwargs):
@@ -102,7 +126,7 @@ async def test_run_chat_session_timeout(mock_deps):
 @pytest.mark.asyncio
 async def test_run_chat_session_error(mock_deps):
     session, llm_chat_task, session_manager = mock_deps
-    session.input_queue.put_nowait("hello")
+    session.input_queue.put_nowait({"message": "hello", "attachments": []})
 
     # Make the LLM task fail once, then succeed
     llm_chat_task.async_run.side_effect = [Exception("API failure"), None]
@@ -124,7 +148,7 @@ async def test_run_chat_session_error(mock_deps):
 
     # The loop must survive the failure: the next queued message is processed
     # instead of sitting dead until the browser reopens the SSE stream.
-    session.input_queue.put_nowait("still alive?")
+    session.input_queue.put_nowait({"message": "still alive?", "attachments": []})
     await asyncio.sleep(0.01)
     assert llm_chat_task.async_run.call_count == 2
 

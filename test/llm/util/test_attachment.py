@@ -3,10 +3,14 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from zrb.config.config import CFG
 from zrb.llm.util.attachment import (
+    check_attachment_bytes,
     get_attachments,
     get_media_type,
+    get_oversized_by,
     normalize_attachments,
+    sniff_mismatch,
 )
 
 
@@ -121,3 +125,89 @@ def test_normalize_attachments_non_string_item():
     result = normalize_attachments([item])
     assert len(result) == 1
     assert result[0] is item
+
+
+def test_normalize_attachments_directory_not_found(tmp_path, capsys):
+    normalize_attachments([str(tmp_path)], print_fn=lambda msg: print(msg, end=""))
+    captured = capsys.readouterr()
+    assert "not found" in captured.out
+
+
+def test_get_oversized_by_under_limit(tmp_path):
+    f = tmp_path / "small.txt"
+    f.write_text("hello")
+    assert get_oversized_by(str(f)) is None
+
+
+def test_get_oversized_by_over_limit(tmp_path, monkeypatch):
+    f = tmp_path / "small.txt"
+    f.write_text("hello")
+    monkeypatch.setattr(CFG, "LLM_MAX_ATTACHMENT_BYTES", 2)
+    actual, limit = get_oversized_by(str(f))
+    assert actual == 5
+    assert limit == 2
+
+
+def test_get_oversized_by_disabled(tmp_path, monkeypatch):
+    f = tmp_path / "small.txt"
+    f.write_text("hello")
+    monkeypatch.setattr(CFG, "LLM_MAX_ATTACHMENT_BYTES", 0)
+    assert get_oversized_by(str(f)) is None
+
+
+def test_normalize_attachments_oversized(tmp_path, capsys, monkeypatch):
+    f = tmp_path / "test.txt"
+    f.write_text("hello")
+    monkeypatch.setattr(CFG, "LLM_MAX_ATTACHMENT_BYTES", 1)
+    normalize_attachments([str(f)], print_fn=lambda msg: print(msg, end=""))
+    captured = capsys.readouterr()
+    assert "too large" in captured.out
+
+
+def test_sniff_mismatch_png_ok():
+    assert sniff_mismatch(b"\x89PNG\r\n\x1a\n" + b"rest", "image/png") is None
+
+
+def test_sniff_mismatch_png_spoofed():
+    assert sniff_mismatch(b"not a png", "image/png") is not None
+
+
+def test_sniff_mismatch_webp_ok():
+    data = b"RIFF" + b"\x00\x00\x00\x00" + b"WEBP"
+    assert sniff_mismatch(data, "image/webp") is None
+
+
+def test_sniff_mismatch_webp_bad():
+    assert sniff_mismatch(b"RIFFxxxxNOPE", "image/webp") is not None
+
+
+def test_sniff_mismatch_no_signature_for_type():
+    """Types without a known signature (e.g. audio) are never flagged."""
+    assert sniff_mismatch(b"anything", "audio/mpeg") is None
+
+
+def test_normalize_attachments_spoofed_extension(tmp_path, capsys):
+    f = tmp_path / "fake.png"
+    f.write_bytes(b"not actually a png")
+    normalize_attachments([str(f)], print_fn=lambda msg: print(msg, end=""))
+    captured = capsys.readouterr()
+    assert "doesn't look like" in captured.out
+
+
+def test_check_attachment_bytes_ok():
+    data = b"\x89PNG\r\n\x1a\n" + b"rest"
+    assert check_attachment_bytes(data, "image/png") is None
+
+
+def test_check_attachment_bytes_oversized(monkeypatch):
+    data = b"\x89PNG\r\n\x1a\n" + b"rest"
+    monkeypatch.setattr(CFG, "LLM_MAX_ATTACHMENT_BYTES", 2)
+    reason = check_attachment_bytes(data, "image/png")
+    assert reason is not None
+    assert "too large" in reason
+
+
+def test_check_attachment_bytes_spoofed():
+    reason = check_attachment_bytes(b"not a png", "image/png")
+    assert reason is not None
+    assert "doesn't look like" in reason

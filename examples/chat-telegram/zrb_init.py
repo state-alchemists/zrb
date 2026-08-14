@@ -18,6 +18,7 @@ Usage:
 Features:
 - Dual Output: LLM responses appear in BOTH Telegram and terminal
 - Dual Input: Reply from EITHER Telegram or terminal
+- Attachments: send a photo or document from Telegram to attach it to the turn
 - Multiplexed Approvals: Approve/deny from either channel (first response wins)
 - Shared History: One conversation, synced across channels
 """
@@ -168,11 +169,81 @@ class TelegramUI(EventDrivenUI, BufferedOutputMixin):
             else:
                 self.handle_incoming_message(text)
 
+        async def handle_photo(update, _context):
+            if str(update.message.chat_id) != self.chat_id:
+                return
+            # Telegram compresses photos into JPEG regardless of the
+            # original format; [-1] is the highest-resolution size offered.
+            photo = update.message.photo[-1]
+            if await self._download_and_queue_attachment(
+                photo, "photo.jpg", "image/jpeg"
+            ):
+                self.handle_incoming_message(update.message.caption or "")
+
+        async def handle_document(update, _context):
+            if str(update.message.chat_id) != self.chat_id:
+                return
+            # lazy: zrb internal (heavy via transitive — pdf/image_scale imports)
+            from zrb.llm.util.attachment import get_media_type
+
+            document = update.message.document
+            filename = document.file_name or "file"
+            media_type = get_media_type(filename)
+            if not media_type:
+                await self.bot.send(
+                    self.chat_id, f"❌ Unsupported file type: {filename}"
+                )
+                return
+            if await self._download_and_queue_attachment(
+                document, filename, media_type
+            ):
+                self.handle_incoming_message(update.message.caption or "")
+
         if not self._message_handler_registered:
             self.bot.add_handler(MessageHandler(filters.TEXT, handle_message))
+            self.bot.add_handler(MessageHandler(filters.PHOTO, handle_photo))
+            self.bot.add_handler(MessageHandler(filters.Document.ALL, handle_document))
             self._message_handler_registered = True
 
         await self._stop_event.wait()
+
+    async def _download_and_queue_attachment(
+        self, tg_file_source, filename: str, media_type: str
+    ) -> bool:
+        """Download a Telegram photo/document and queue it as a pending attachment.
+
+        Applies the same size cap and magic-byte check as the CLI's `/attach`
+        and the web chat's upload endpoint, so a spoofed or oversized file
+        can't reach the model through this third entry point either. Returns
+        True on success, False if the attachment was rejected (a message
+        explaining why has already been sent to the chat).
+        """
+        # lazy: zrb internal (heavy via transitive — pdf/image_scale imports)
+        from zrb.config.config import CFG
+        from zrb.llm.util.attachment import check_attachment_bytes
+
+        limit = CFG.LLM_MAX_ATTACHMENT_BYTES
+        declared_size = getattr(tg_file_source, "file_size", None)
+        if declared_size and limit > 0 and declared_size > limit:
+            await self.bot.send(
+                self.chat_id,
+                f"❌ {filename} too large "
+                f"({declared_size} bytes, limit {limit} bytes)",
+            )
+            return False
+        tg_file = await tg_file_source.get_file()
+        data = bytes(await tg_file.download_as_bytearray())
+        rejection = check_attachment_bytes(data, media_type)
+        if rejection:
+            await self.bot.send(self.chat_id, f"❌ {filename} {rejection}")
+            return False
+        # lazy: pydantic_ai is heavy; only needed when an attachment arrives
+        from pydantic_ai import BinaryContent
+
+        self._pending_attachments.append(
+            BinaryContent(data=data, media_type=media_type)
+        )
+        return True
 
     def stop_event_loop(self) -> None:
         """Signal the event loop to exit cleanly."""

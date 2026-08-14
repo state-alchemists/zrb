@@ -170,6 +170,12 @@
     border-bottom-right-radius: 0.25rem;
 }
 
+.message-attachments {
+    margin-top: 0.3rem;
+    font-size: 0.75rem;
+    opacity: 0.75;
+}
+
 /* Assistant bubble — left-aligned, card style */
 .message.assistant {
     align-self: flex-start;
@@ -221,6 +227,22 @@
     white-space: pre-wrap;
     max-width: 80%;
     opacity: 0.82;
+}
+
+/* Live context auto-appended to a user turn — de-emphasised runtime
+   metadata (time, git, todos...), not something the user typed */
+.message.live-context {
+    align-self: flex-end;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0.15rem 0.6rem 0.4rem;
+    margin-top: -0.5rem;
+    font-size: 0.68rem;
+    font-style: italic;
+    white-space: pre-wrap;
+    opacity: 0.35;
+    max-width: 80%;
 }
 
 /* Token usage stats — tiny footer line */
@@ -362,6 +384,40 @@
     margin-bottom: 0;
     padding: 0.5rem 1.1rem;
     white-space: nowrap;
+}
+
+#attach-btn {
+    flex-shrink: 0;
+    margin-bottom: 0;
+    padding: 0.5rem 0.7rem;
+}
+
+.pending-attachments {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    padding: 0.4rem 0 0;
+}
+
+.attachment-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: var(--pico-card-background-color);
+    border: 1px solid var(--pico-border-color);
+    border-radius: 1rem;
+    padding: 0.15rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+.attachment-chip button {
+    all: unset;
+    cursor: pointer;
+    opacity: 0.6;
+}
+
+.attachment-chip button:hover {
+    opacity: 1;
 }
 
 /* ── Todo progress card (full list) ──────────────────────────── */

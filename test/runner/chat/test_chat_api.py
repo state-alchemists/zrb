@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -122,6 +123,111 @@ async def test_post_message_creates_session(client: AsyncClient):
     )
     assert response.status_code == 200
     assert response.json().get("status") == "sent"
+
+
+@pytest.mark.asyncio
+async def test_post_message_forwards_attachments(client: AsyncClient):
+    """Attachment paths in the request body reach send_input as a kwarg."""
+    _mock_sm.get_session.return_value = MagicMock()
+    _mock_sm.send_input = AsyncMock()
+
+    response = await client.post(
+        "/api/v1/chat/sessions/test/messages",
+        json={"message": "look", "attachments": ["/tmp/a.png"]},
+    )
+
+    assert response.status_code == 200
+    assert _mock_sm.send_input.await_args.kwargs["attachments"] == ["/tmp/a.png"]
+
+
+@pytest.mark.asyncio
+async def test_post_message_defaults_attachments_to_empty_list(client: AsyncClient):
+    _mock_sm.get_session.return_value = MagicMock()
+    _mock_sm.send_input = AsyncMock()
+
+    response = await client.post(
+        "/api/v1/chat/sessions/test/messages", json={"message": "hi"}
+    )
+
+    assert response.status_code == 200
+    assert _mock_sm.send_input.await_args.kwargs["attachments"] == []
+
+
+@pytest.mark.asyncio
+async def test_upload_attachment_success(client: AsyncClient, tmp_path):
+    dest = tmp_path / "saved.png"
+    with patch(
+        "zrb.runner.chat.chat_api_route._save_uploaded_attachment",
+        return_value=str(dest),
+    ) as mock_save:
+        response = await client.post(
+            "/api/v1/chat/sessions/test/attachments",
+            files={"file": ("photo.png", b"\x89PNG\r\n\x1a\n" + b"rest", "image/png")},
+        )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["path"] == str(dest)
+    assert data["name"] == "photo.png"
+    mock_save.assert_called_once()
+    assert mock_save.call_args[0][0] == "test"
+    assert mock_save.call_args[0][1] == "photo.png"
+
+
+@pytest.mark.asyncio
+async def test_upload_attachment_rejects_unsupported_type(client: AsyncClient):
+    response = await client.post(
+        "/api/v1/chat/sessions/test/attachments",
+        files={"file": ("evil.xyz", b"whatever", "application/octet-stream")},
+    )
+    assert response.status_code == 400
+    assert "Unsupported file type" in response.json()["error"]
+
+
+@pytest.mark.asyncio
+async def test_upload_attachment_rejects_spoofed_content(client: AsyncClient):
+    response = await client.post(
+        "/api/v1/chat/sessions/test/attachments",
+        files={"file": ("fake.png", b"not actually a png", "image/png")},
+    )
+    assert response.status_code == 400
+    assert "doesn't look like" in response.json()["error"]
+
+
+@pytest.mark.asyncio
+async def test_upload_attachment_rejects_oversized(client: AsyncClient, monkeypatch):
+    from zrb.config.config import CFG
+
+    monkeypatch.setattr(CFG, "LLM_MAX_ATTACHMENT_BYTES", 4)
+    response = await client.post(
+        "/api/v1/chat/sessions/test/attachments",
+        files={"file": ("photo.png", b"\x89PNG\r\n\x1a\n" + b"rest", "image/png")},
+    )
+    assert response.status_code == 400
+    assert "too large" in response.json()["error"]
+
+
+@pytest.mark.asyncio
+async def test_upload_attachment_forbidden_without_access(client: AsyncClient):
+    no_access_user = MagicMock()
+    no_access_user.can_access_task.return_value = False
+    mock_task = MagicMock()
+
+    with (
+        patch(
+            "zrb.runner.chat.chat_api_route.get_user_from_request",
+            new=AsyncMock(return_value=no_access_user),
+        ),
+        patch(
+            "zrb.runner.chat.chat_api_route._get_llm_chat_task",
+            new=AsyncMock(return_value=mock_task),
+        ),
+    ):
+        response = await client.post(
+            "/api/v1/chat/sessions/test/attachments",
+            files={"file": ("photo.png", b"\x89PNG\r\n\x1a\n" + b"rest", "image/png")},
+        )
+    assert response.status_code == 403
 
 
 @pytest.mark.asyncio
@@ -329,6 +435,19 @@ async def test_routes_allow_user_with_task_access(client: AsyncClient):
     ):
         response = await client.get("/api/v1/chat/sessions/test/status")
         assert response.status_code == 200
+
+
+def test_save_uploaded_attachment_writes_file_and_returns_path():
+    from zrb.runner.chat.chat_api_route import _save_uploaded_attachment
+
+    path = _save_uploaded_attachment("some-session", "photo.png", b"data")
+    try:
+        assert os.path.isfile(path)
+        assert os.path.basename(path).endswith("_photo.png")
+        with open(path, "rb") as f:
+            assert f.read() == b"data"
+    finally:
+        os.remove(path)
 
 
 @pytest.mark.asyncio

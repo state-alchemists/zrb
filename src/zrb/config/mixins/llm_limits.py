@@ -46,6 +46,11 @@ class LLMLimitsMixin:
         # near-lossless for screenshots while halving size vs. PNG re-encode.
         self.DEFAULT_LLM_MAX_IMAGE_DIMENSION: str = "1568"
         self.DEFAULT_LLM_IMAGE_JPEG_QUALITY: str = "85"
+        # 20MB: comfortably above a phone photo or a few-minute voice memo,
+        # well under providers' own per-attachment ceilings (e.g. Anthropic's
+        # 32MB document / 5MB image limits), and small enough that a runaway
+        # `/attach` can't balloon the on-disk conversation history.
+        self.DEFAULT_LLM_MAX_ATTACHMENT_BYTES: str = "20000000"
         super().__init__()
 
     LLM_MAX_REQUEST_PER_MINUTE = EnvField(
@@ -206,4 +211,13 @@ class LLMLimitsMixin:
 
     LLM_MAX_COMPLETION_FILES = EnvField(
         int, doc="Maximum number of files for completion."
+    )
+
+    LLM_MAX_ATTACHMENT_BYTES = EnvField(
+        int,
+        doc=(
+            "Maximum file size (bytes) accepted by /attach and other "
+            "attachment paths. Checked before the file is read. "
+            "0 or negative disables the cap."
+        ),
     )

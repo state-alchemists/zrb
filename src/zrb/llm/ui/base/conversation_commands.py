@@ -16,6 +16,7 @@ import logging
 import os
 from typing import TYPE_CHECKING
 
+from zrb.llm.util.attachment import get_media_type, get_oversized_by
 from zrb.util.cli.style import stylize_error, stylize_muted
 
 if TYPE_CHECKING:
@@ -393,8 +394,23 @@ class BaseUIConversationCommands:
     def _submit_attachment(self, path: str):
         self.append_to_output(stylize_muted(f"\n  🔢 Attach {path}...\n"))
         expanded_path = os.path.abspath(os.path.expanduser(path))
-        if not os.path.exists(expanded_path):
+        if not os.path.isfile(expanded_path):
             self.append_to_output(stylize_error(f"\n  ❌ File not found: {path}\n"))
+            return
+        if not get_media_type(expanded_path):
+            self.append_to_output(
+                stylize_error(f"\n  ❌ Unsupported file type: {path}\n")
+            )
+            return
+        oversized_by = get_oversized_by(expanded_path)
+        if oversized_by is not None:
+            actual, limit = oversized_by
+            self.append_to_output(
+                stylize_error(
+                    f"\n  ❌ File too large: {path} "
+                    f"({actual} bytes, limit {limit} bytes)\n"
+                )
+            )
             return
         if expanded_path not in self._pending_attachments:
             self._pending_attachments.append(expanded_path)

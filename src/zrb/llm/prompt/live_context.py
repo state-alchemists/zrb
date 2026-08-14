@@ -34,6 +34,7 @@ prompt assembly to ambient runtime state:
 
 import asyncio
 import os
+import re
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -59,6 +60,41 @@ _LIVE_CONTEXT_ANCHOR = (
 
 
 SimpleLiveContextProvider = Callable[[AnyContext], str | None]
+
+# `_append_live_context` always appends the block last, as `"\n\n" + block`
+# onto the existing text (or bare, when there was no prior text). Matched
+# non-greedily is unnecessary since the block never nests another
+# `<live-context>` — only `<journal-index>` can appear inside it.
+_LIVE_CONTEXT_BLOCK_RE = re.compile(
+    r"\n\n(<live-context>.*</live-context>)\s*\Z", re.DOTALL
+)
+
+
+def split_live_context(content: str) -> tuple[str, str | None]:
+    """Split a trailing ``<live-context>`` block off a stored user message.
+
+    History persists the live-context block inline, appended to the same
+    string the user actually typed (see module docstring) — there is no
+    structural tag for it. Replaying/redisplaying history should not present
+    it as if the user wrote it, so callers that render saved conversations
+    (CLI replay, the web chat API) use this to separate the two before
+    display.
+
+    Returns ``(message_text, live_context_block)`` — *live_context_block* is
+    ``None`` when *content* carries no live-context suffix, in which case
+    *message_text* is *content* unchanged.
+    """
+    if not content or "<live-context>" not in content:
+        return content, None
+    match = _LIVE_CONTEXT_BLOCK_RE.search(content)
+    if not match:
+        # No leading blank line (e.g. the block was the entire prompt) —
+        # a bare prefix match still isolates it correctly.
+        idx = content.find("<live-context>")
+        if content[idx:].rstrip().endswith("</live-context>"):
+            return content[:idx].rstrip(), content[idx:].rstrip()
+        return content, None
+    return content[: match.start()].rstrip(), match.group(1)
 
 
 def _admits(model: "Any", tool: str) -> bool:

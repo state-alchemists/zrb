@@ -7,6 +7,7 @@ let isInEditMode = false;
 let streamingBubble = null;
 let thinkingBubble = null;
 let lastAnswerBubble = null; // settled streaming bubble, replaced in place once `markdown` arrives
+let pendingAttachments = []; // [{path, name}] — uploaded, not yet sent with a message
 
 if (typeof mermaid !== 'undefined') {
     mermaid.initialize({ startOnLoad: false, theme: 'neutral' });
@@ -147,6 +148,8 @@ function backToSessions() {
         eventSource = null;
     }
     currentSessionId = null;
+    pendingAttachments = [];
+    renderPendingAttachments();
     document.getElementById('chat-container').classList.add('hidden');
     document.getElementById('session-selector').classList.remove('hidden');
     loadSessions();
@@ -187,7 +190,14 @@ async function loadMessages() {
         const content = role === 'assistant'
             ? renderAssistantMarkdown(msg.content || '')
             : escapeHtml(msg.content || '');
-        return `<div class="message ${role}"><div class="message-content">${content}</div></div>`;
+        let html = `<div class="message ${role}"><div class="message-content">${content}</div></div>`;
+        if (msg.live_context) {
+            // Runtime state (time, git, todos...) auto-appended to the turn --
+            // not something the user typed, so it renders as separate, faint
+            // metadata rather than inside the user's own bubble.
+            html += `<div class="message live-context"><div class="message-content">${escapeHtml(msg.live_context)}</div></div>`;
+        }
+        return html;
     }).join('');
     renderMathAndDiagrams(messagesDiv);
 
@@ -380,30 +390,78 @@ function connectSSE() {
     };
 }
 
+function renderPendingAttachments() {
+    const container = document.getElementById('pending-attachments');
+    container.classList.toggle('hidden', pendingAttachments.length === 0);
+    container.innerHTML = pendingAttachments.map((att, i) => `
+        <span class="attachment-chip">📎 ${escapeHtml(att.name)} <button data-index="${i}" title="Remove">✕</button></span>
+    `).join('');
+    container.querySelectorAll('button[data-index]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            pendingAttachments.splice(parseInt(btn.dataset.index), 1);
+            renderPendingAttachments();
+        });
+    });
+}
+
+async function handleFileSelect(event) {
+    const files = Array.from(event.target.files || []);
+    event.target.value = ''; // allow re-selecting the same file
+    if (!files.length || !currentSessionId) return;
+
+    for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        try {
+            const response = await fetch(`/api/v1/chat/sessions/${currentSessionId}/attachments`, {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                alert(`Attachment rejected (${file.name}): ${data.error || response.status}`);
+                continue;
+            }
+            pendingAttachments.push({path: data.path, name: data.name});
+        } catch (e) {
+            console.error('attachment upload error:', e);
+            alert(`Failed to upload ${file.name}`);
+        }
+    }
+    renderPendingAttachments();
+}
+
 async function sendMessage() {
     const input = document.getElementById('message-input');
     const message = input.value.trim();
-    
-    if (!message || !currentSessionId) {
+
+    if ((!message && pendingAttachments.length === 0) || !currentSessionId) {
         console.log('sendMessage: empty message or no session');
         return;
     }
-    
+
     input.value = '';
+    const attachments = pendingAttachments.map(a => a.path);
+    const attachedNames = pendingAttachments.map(a => a.name);
+    pendingAttachments = [];
+    renderPendingAttachments();
 
     // Reset streaming state for new response
     streamingBubble = null;
     thinkingBubble = null;
 
     const messagesDiv = document.getElementById('messages');
-    messagesDiv.innerHTML += `<div class="message user"><div class="message-content">${escapeHtml(message)}</div></div>`;
+    const attachmentsLine = attachedNames.length
+        ? `<div class="message-attachments">${attachedNames.map(n => `📎 ${escapeHtml(n)}`).join(' ')}</div>`
+        : '';
+    messagesDiv.innerHTML += `<div class="message user"><div class="message-content">${escapeHtml(message)}</div>${attachmentsLine}</div>`;
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    
+
     try {
         const response = await fetch(`/api/v1/chat/sessions/${currentSessionId}/messages`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({message})
+            body: JSON.stringify({message, attachments})
         });
         console.log('sendMessage response:', response.status, await response.json());
     } catch (e) {
@@ -527,7 +585,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('deny-btn').addEventListener('click', () => handleApproval('n'));
     document.getElementById('edit-btn').addEventListener('click', () => handleApproval('edit'));
     document.getElementById('submit-edit-btn').addEventListener('click', () => handleApproval('edit'));
-    
+    document.getElementById('attach-btn').addEventListener('click', () => {
+        document.getElementById('attachment-input').click();
+    });
+    document.getElementById('attachment-input').addEventListener('change', handleFileSelect);
+
     const input = document.getElementById('message-input');
     input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
