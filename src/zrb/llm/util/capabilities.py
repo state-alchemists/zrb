@@ -171,6 +171,17 @@ _IMAGE_PATTERNS = (
     r"internvl",
     r"phi-?3-vision",
     r"phi-?3\.5-vision",
+    r"claude-fable-5",
+    r"claude-mythos",
+    r"claude-opus-5",
+    r"claude-sonnet-5",
+    r"grok-3",
+    r"grok-4",
+    r"glm-4\.5v",
+    r"glm-4\.6v",
+    r"glm-5v",
+    r"moonshot-v1-.*-vision",
+    r"computer-use",
 )
 
 # Deny-list overriding broad image matches (e.g. "claude-haiku-3" without
@@ -184,6 +195,7 @@ _IMAGE_DENY = (
     r"^text-",
     r"^davinci",
     r"^babbage",
+    r"grok-3-mini",
 )
 
 _AUDIO_PATTERNS = (
@@ -195,6 +207,7 @@ _AUDIO_PATTERNS = (
     r"gemini-2",
     r"gemini-3",
     r"qwen2-audio",
+    r"whisper",
 )
 
 _VIDEO_PATTERNS = (
