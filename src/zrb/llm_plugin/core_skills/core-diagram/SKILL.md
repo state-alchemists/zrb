@@ -1,9 +1,9 @@
 ---
-name: mermaid-diagrams
+name: core-diagram
 description: "Activate when the turn will emit a ```mermaid fence — every diagram type, and at every size, since these failure modes are syntax-level rather than complexity-level. Provides the terminal renderer's supported-type list, the edge-label and quoting rules that prevent silent text loss, and per-type syntax companions."
 user-invocable: false
 ---
-# Skill: mermaid-diagrams
+# Skill: core-diagram
 
 A ` ```mermaid ` fence in your response is rendered to Unicode box-drawing art by `termaid` when the response is displayed. `termaid` implements its own line-oriented parsers rather than Mermaid's grammar, so some perfectly valid Mermaid renders wrong — and it almost never raises. The rules below are the ones whose violation is silent.
 
