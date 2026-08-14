@@ -19,7 +19,3 @@ Agent: writes math as LaTeX between `$...$` (inline) or `$$...$$` (standalone), 
 User: “Explain the states in a traffic light system.”
 
 Agent: draws the state machine as a fenced ` ```mermaid ` block (e.g. a `stateDiagram`/`graph`), since the terminal renders it as Unicode diagram art rather than leaving it as raw text — a diagram is worth reaching for whenever it clarifies structure or flow better than prose.
-
-User: “Show a logic tree where one branch has three children.”
-
-Agent: declares the shared edge once (`P --> G`) and chains each child from there separately (`G --> G1`, `G --> G2`, `G --> G3`), instead of repeating the full chain per child (`P --> G --> G1`, `P --> G --> G2`, `P --> G --> G3`). A repeated edge renders as separate overlapping arrows and tangles the diagram — declare each edge once.
