@@ -56,6 +56,7 @@ class BaseUICommands(
     if TYPE_CHECKING:
         # Command lists (set in `BaseUI.__init__`)
         _attach_commands: list[str]
+        _photo_commands: list[str]
         _btw_commands: list[str]
         _copy_commands: list[str]
         _plan_commands: list[str]
@@ -155,6 +156,7 @@ class BaseUICommands(
                 False,
             ),
             (self._handle_attach_command, self._attach_commands, True, False),
+            (self._handle_photo_command, self._photo_commands, True, False),
             (self._handle_set_model_command, self._set_model_commands, True, False),
             (self._handle_exec_command, self._exec_commands, True, False),
             (self._handle_copy_command, self._copy_commands, True, False),
@@ -372,6 +374,10 @@ class BaseUICommands(
         add_cmd_help(self._exit_commands, "Exit the application")
         add_cmd_help(self._info_commands, "Show this help message")
         add_cmd_help(self._attach_commands, "Attach file (usage: {cmd} <path>)")
+        add_cmd_help(
+            self._photo_commands,
+            "Capture a photo from the camera (usage: {cmd} [device])",
+        )
         add_cmd_help(self._save_commands, "Save conversation (usage: {cmd} <name>)")
         add_cmd_help(self._load_commands, "Load conversation (usage: {cmd} <name>)")
         if self._snapshot_manager is not None:

@@ -21,7 +21,7 @@ For "chat with my codebase," you never touch any of it. You reach for Python whe
 
 | Capability | How | Guide |
 |---|---|---|
-| Custom tools | `tools=[fn]` / `task.append_tool(fn)` — a plain Python function, in-process | [LLM Integration](llm-integration.md) |
+| Custom tools | `tools=[fn]` / `task.append_tool(fn)` — a plain Python function, in-process | [Extending the LLM](extending-the-llm.md) |
 | Lifecycle hooks | `task.append_hook_factory(...)` — fire on tool calls, prompts, session start/end | [Hook System](hooks.md) |
 | Permission policy | `permissions=PermissionPolicy(...)` — allow / ask / deny per tool | [Permission Policy](permission-policy.md) |
 | Filesystem sandbox | `sandbox=SandboxPolicy(...)` (or `True`/`False`) — contain file/shell access | [Sandbox](sandbox.md) |
@@ -135,7 +135,8 @@ For an **interactive** variant, swap `LLMTask` for `LLMChatTask` and seed the co
 ## See also
 
 - [Programming the Prompt](programming-the-prompt.md) — string → template → callable → `PromptManager`, and how to feed a `CmdTask`'s output into the model
-- [LLM Assistant & AI Tasks](llm-integration.md) — tools, sub-agents, context management
+- [LLM Assistant & AI Tasks](llm-integration.md) — TUI, `LLMTask`/`LLMChatTask` usage, troubleshooting
+- [Extending the LLM](extending-the-llm.md) — tools, sub-agents, context management
 - [LLMChatTask API Reference](../task-types/llmchat-task.md) — the full builder API
 - [LLM Chat Request Lifecycle](llm-chat-lifecycle.md) — how a turn flows end to end
 - [Hook System](hooks.md) · [Permission Policy](permission-policy.md) · [Custom UI](llm-custom-ui.md)

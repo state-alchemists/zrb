@@ -17,6 +17,8 @@ import os
 from typing import TYPE_CHECKING
 
 from zrb.llm.util.attachment import get_media_type, get_oversized_by
+from zrb.llm.util.camera import get_camera_photo, missing_tool_hint
+from zrb.llm.util.image_scale import scale_image_bytes
 from zrb.util.cli.style import stylize_error, stylize_muted
 
 if TYPE_CHECKING:
@@ -35,6 +37,7 @@ class BaseUIConversationCommands:
     # so type checkers can verify accesses; the block does not run at runtime.
     if TYPE_CHECKING:
         _attach_commands: list[str]
+        _photo_commands: list[str]
         _copy_commands: list[str]
         _exit_commands: list[str]
         _info_commands: list[str]
@@ -417,3 +420,38 @@ class BaseUIConversationCommands:
             self.append_to_output(stylize_muted(f"\n  📎 Attached: {path}\n"))
         else:
             self.append_to_output(stylize_error(f"\n  📎 Already attached: {path}\n"))
+
+    def _handle_photo_command(self, text: str) -> bool:
+        text = text.strip()
+        for cmd in self._photo_commands:
+            if text.lower() == cmd.lower():
+                device = None
+            else:
+                prefix = f"{cmd} "
+                if not text.lower().startswith(prefix.lower()):
+                    continue
+                device = text[len(prefix) :].strip() or None
+            task = asyncio.create_task(self._submit_photo(device))
+            self._background_tasks.add(task)
+            task.add_done_callback(self._background_tasks.discard)
+            return True
+        return False
+
+    async def _submit_photo(self, device: str | None):
+        self.append_to_output(stylize_muted("\n  📷 Capturing photo...\n"))
+        photo_bytes = await get_camera_photo(device)
+        if photo_bytes is None:
+            self.append_to_output(
+                stylize_error(f"\n  ❌ Camera capture failed.\n{missing_tool_hint()}")
+            )
+            return
+        # lazy: heavy third-party
+        from pydantic_ai import BinaryContent
+
+        scaled = scale_image_bytes(photo_bytes, media_type="image/jpeg")
+        attachment = BinaryContent(data=scaled.data, media_type=scaled.media_type)
+        self._pending_attachments.append(attachment)
+        self.append_to_output(
+            stylize_muted(f"\n  📷 Photo captured ({scaled.final_bytes} bytes)\n")
+        )
+        self.invalidate_ui()

@@ -97,6 +97,7 @@ class SimpleUI(BaseUI):
             markdown_theme=None,
             summarize_commands=self._config.summarize_commands,
             attach_commands=self._config.attach_commands,
+            photo_commands=self._config.photo_commands,
             exit_commands=self._config.exit_commands,
             info_commands=self._config.info_commands,
             save_commands=self._config.save_commands,

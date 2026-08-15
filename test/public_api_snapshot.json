@@ -1732,7 +1732,8 @@
         "btw:POSITIONAL_OR_KEYWORD:1",
         "plan:POSITIONAL_OR_KEYWORD:1",
         "copy:POSITIONAL_OR_KEYWORD:1",
-        "voice:POSITIONAL_OR_KEYWORD:1"
+        "voice:POSITIONAL_OR_KEYWORD:1",
+        "photo:POSITIONAL_OR_KEYWORD:1"
       ],
       "members": [
         "to_overrides"

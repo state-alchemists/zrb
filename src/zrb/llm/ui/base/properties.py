@@ -33,6 +33,7 @@ class BaseUIProperties:
         _save_commands: list[str]
         _load_commands: list[str]
         _attach_commands: list[str]
+        _photo_commands: list[str]
         _redirect_output_commands: list[str]
         _yolo_toggle_commands: list[str]
         _set_model_commands: list[str]
@@ -144,6 +145,11 @@ class BaseUIProperties:
     def attach_commands(self) -> list[str]:
         """Get the list of attach commands."""
         return self._attach_commands
+
+    @property
+    def photo_commands(self) -> list[str]:
+        """Get the list of photo capture commands."""
+        return self._photo_commands
 
     @property
     def redirect_output_commands(self) -> list[str]:

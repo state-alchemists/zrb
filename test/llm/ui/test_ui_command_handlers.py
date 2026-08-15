@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -371,6 +371,46 @@ class TestBaseUICommandHandlers:
         finally:
             os.unlink(temp_path)
 
+    @pytest.mark.asyncio
+    async def test_handle_photo_command_captures_and_attaches(self, simple_ui_instance):
+        """Test _handle_photo_command captures a photo and attaches it."""
+        ui = simple_ui_instance
+        ui._photo_commands = ["/photo"]
+        ui.append_to_output = MagicMock()
+
+        with patch(
+            "zrb.llm.ui.base.conversation_commands.get_camera_photo",
+            new=AsyncMock(return_value=b"\xff\xd8\xff-fake-jpeg"),
+        ):
+            result = ui._handle_photo_command("/photo")
+
+            assert result is True
+            assert len(ui._background_tasks) == 1
+            task = list(ui._background_tasks)[0]
+            await task
+
+        assert len(ui._pending_attachments) == 1
+
+    @pytest.mark.asyncio
+    async def test_handle_photo_command_capture_failure(self, simple_ui_instance):
+        """Test _handle_photo_command shows an error when capture fails."""
+        ui = simple_ui_instance
+        ui._photo_commands = ["/photo"]
+        ui.append_to_output = MagicMock()
+
+        with patch(
+            "zrb.llm.ui.base.conversation_commands.get_camera_photo",
+            new=AsyncMock(return_value=None),
+        ):
+            result = ui._handle_photo_command("/photo")
+
+            task = list(ui._background_tasks)[0]
+            await task
+
+        assert result is True
+        assert ui._pending_attachments == []
+        ui.append_to_output.assert_called()
+
     def test_get_help_text(self, simple_ui_instance):
         """Test _get_help_text returns formatted help."""
         ui = simple_ui_instance
@@ -409,6 +449,7 @@ class TestBaseUICommandHandlers:
         ui._exit_commands = []
         ui._info_commands = []
         ui._attach_commands = []
+        ui._photo_commands = []
         ui._save_commands = []
         ui._load_commands = []
         ui._redirect_output_commands = []

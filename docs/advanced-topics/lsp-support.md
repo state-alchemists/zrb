@@ -375,7 +375,7 @@ server = await lsp_manager.get_server(
 
 - [LLM Integration](./llm-integration.md) - AI assistant overview
 - [AnalyzeCode Tool](#) - Using LSP in code analysis
-- [Custom Tools](./llm-integration.md#custom-tools-and-sub-agents) - Adding your own tools
+- [Custom Tools](./extending-the-llm.md#custom-tools-and-sub-agents) - Adding your own tools
 
 ---
 

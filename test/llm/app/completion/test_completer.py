@@ -24,6 +24,7 @@ def completer(mock_history_manager):
     return InputCompleter(
         history_manager=mock_history_manager,
         attach_commands=["/attach"],
+        photo_commands=["/photo"],
         exit_commands=["/exit"],
         info_commands=["/info"],
         save_commands=["/save"],
@@ -43,6 +44,14 @@ def test_command_completion(completer, complete_event):
     doc = Document(text="/ex", cursor_position=3)
     completions = list(completer.get_completions(doc, complete_event))
     assert any(c.text == "/exit" for c in completions)
+
+
+def test_photo_command_completion(completer, complete_event):
+    doc = Document(text="/pho", cursor_position=4)
+    completions = list(completer.get_completions(doc, complete_event))
+    matches = [c for c in completions if c.text == "/photo"]
+    assert len(matches) == 1
+    assert "camera" in matches[0].display_meta_text.lower()
 
 
 @patch("zrb.llm.app.completion.args.datetime")

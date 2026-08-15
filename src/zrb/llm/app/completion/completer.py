@@ -45,6 +45,7 @@ class InputCompleter(Completer):
         plan_commands: list[str] = [],
         copy_commands: list[str] = [],
         voice_commands: list[str] = [],
+        photo_commands: list[str] = [],
         custom_commands: list[AnyCustomCommand] = [],
         custom_model_names: list[str] = [],
         show_ollama_models: bool = True,
@@ -68,6 +69,7 @@ class InputCompleter(Completer):
         self._plan_commands = plan_commands
         self._copy_commands = copy_commands
         self._voice_commands = voice_commands
+        self._photo_commands = photo_commands
         self._custom_commands = custom_commands
         self._custom_model_names = custom_model_names
         self._show_ollama_models = show_ollama_models
@@ -139,6 +141,7 @@ class InputCompleter(Completer):
             + self._plan_commands
             + self._copy_commands
             + self._voice_commands
+            + self._photo_commands
         )
         return all_commands + [cc.command for cc in self._custom_commands]
 
@@ -215,6 +218,10 @@ class InputCompleter(Completer):
                 lambda cmd: f"Copy transcript to clipboard (bare) or to file (i.e., {cmd} <path>)",
             ),
             (self._voice_commands, "Toggle voice dictation on/off"),
+            (
+                self._photo_commands,
+                lambda cmd: f"Capture a photo from the camera (i.e., {cmd} [device])",
+            ),
         ]
         for cmds, meta in groups:
             yield from self._yield_command_completions(
