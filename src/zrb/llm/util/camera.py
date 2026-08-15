@@ -106,8 +106,13 @@ async def _ffmpeg_capture(device: str | None) -> bytes | None:
     if shutil.which("ffmpeg") is None:
         return None
 
+    extra_args: list[str] = []
     if sys.platform == "darwin":
+        # avfoundation defaults to 29.97fps, which many macOS cameras don't
+        # support (they list only exact 15 or 30fps modes) -- ffmpeg then
+        # fails to open the device with a bare "Input/output error".
         input_fmt, input_arg = "avfoundation", device or "0"
+        extra_args = ["-framerate", "30"]
     elif sys.platform == "win32":
         name = device or await _dshow_default_device()
         if name is None:
@@ -121,6 +126,7 @@ async def _ffmpeg_capture(device: str | None) -> bytes | None:
         "-y",
         "-f",
         input_fmt,
+        *extra_args,
         "-i",
         input_arg,
         "-frames:v",
