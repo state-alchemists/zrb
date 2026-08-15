@@ -54,29 +54,32 @@ def _which_only(*names: str):
 
 
 @pytest.mark.asyncio
-async def test_termux_camera_photo_returns_bytes(clean_env):
+async def test_termux_camera_photo_returns_bytes(clean_env, tmp_path):
+    """The capture path is Termux's real home dir, not tempfile.gettempdir() --
+    a proot-distro guest's own `/tmp` isn't visible to the Termux:API app
+    process that actually writes the file. Redirect the module's fixed path
+    to a writable location for this test."""
     payload = b"\xff\xd8\xff-fake-jpeg"
+    fake_path = str(tmp_path / "photo.jpg")
     clean_env.setattr("zrb.config.helper.is_termux", lambda: True)
     clean_env.setattr(
         "zrb.llm.util.camera.shutil.which", _which_only("termux-camera-photo")
     )
-
-    written: dict = {}
+    clean_env.setattr("zrb.llm.util.camera._TERMUX_HOME_PHOTO_PATH", fake_path)
 
     def _make_proc(*args, **kwargs):
-        # termux-camera-photo writes its output to the tempfile path (last arg).
+        # termux-camera-photo writes its output to the target path (last arg).
         path = args[-1]
         with open(path, "wb") as fh:
             fh.write(payload)
-        written["path"] = path
         return _FakeProcess()
 
     with patch("asyncio.create_subprocess_exec", new=AsyncMock(side_effect=_make_proc)):
         result = await get_camera_photo()
 
     assert result == payload
-    # Tempfile is cleaned up after read.
-    assert not os.path.exists(written["path"])
+    # File is cleaned up after read.
+    assert not os.path.exists(fake_path)
 
 
 @pytest.mark.asyncio
@@ -320,7 +323,6 @@ def test_missing_tool_hint_termux(clean_env):
     hint = missing_tool_hint()
 
     assert "termux-api" in hint
-    assert "proot" in hint
 
 
 def test_missing_tool_hint_macos(clean_env):

@@ -2,17 +2,24 @@
 Cross-platform camera photo capture.
 
 Priority order per platform:
-  Termux (native) : termux-camera-photo
-  Termux (proot)  : termux-camera-photo is unreachable from inside the chroot;
-                     falls through to ffmpeg, which also fails (no /dev/video*
-                     inside proot) -- run zrb from native Termux instead.
-  macOS           : ffmpeg (avfoundation)
-  Windows         : ffmpeg (dshow; auto-detects the first video device)
-  Linux / WSL     : ffmpeg (v4l2; WSL needs usbipd-win passthrough for /dev/video*)
+  Termux (native or proot) : termux-camera-photo
+  macOS                    : ffmpeg (avfoundation)
+  Windows                  : ffmpeg (dshow; auto-detects the first video device)
+  Linux / WSL              : ffmpeg (v4l2; WSL needs usbipd-win passthrough for
+                              /dev/video*)
 
 No new Python dependency: capture shells out to already-optional external
 binaries (ffmpeg, termux-camera-photo), the same approach `clipboard.py`
 uses for clipboard images (wl-paste / xclip / osascript / powershell.exe).
+
+Termux from inside a `proot-distro` guest is not special-cased: the
+Termux:API app that actually captures the photo is a separate, non-prooted
+Android process with its own real filesystem view, so it can only write to a
+path that is valid there -- a proot guest's own `/tmp` or `$HOME` is not
+(the app reports a `FileUtils Error` when asked to). Writing to a fixed
+absolute path under Termux's *real* home directory works from both native
+Termux and a proot guest, since that path is the same real location either
+way -- no proot detection needed.
 """
 
 from __future__ import annotations
@@ -22,7 +29,11 @@ import os
 import re
 import shutil
 import sys
-import tempfile
+
+# Termux's real home directory is always at this fixed location, regardless
+# of whether the caller is native Termux or a proot-distro guest -- see the
+# module docstring and `_termux_camera_photo`.
+_TERMUX_HOME_PHOTO_PATH = "/data/data/com.termux/files/home/.zrb_camera_photo.jpg"
 
 
 async def get_camera_photo(device: str | None = None) -> bytes | None:
@@ -52,9 +63,17 @@ async def get_camera_photo(device: str | None = None) -> bytes | None:
 
 
 async def _termux_camera_photo(device: str | None) -> bytes | None:
-    """Capture via the Termux:API camera intent. Writes to a file (no stdout support)."""
+    """Capture via the Termux:API camera intent. Writes to a file (no stdout support).
+
+    The Termux:API app writes the photo from its own (real Android) process,
+    not from whatever shell invoked `termux-camera-photo` -- so the target
+    path must be valid in Termux's real filesystem, not `tempfile.gettempdir()`
+    (which resolves to a proot guest's own `/tmp` when called from inside
+    `proot-distro`, a path the app can't see). Termux's home directory is
+    always at this fixed location, regardless of caller.
+    """
     camera_id = device or "0"
-    tmp = os.path.join(tempfile.gettempdir(), "zrb_camera_photo.jpg")
+    tmp = _TERMUX_HOME_PHOTO_PATH
     try:
         proc = await asyncio.create_subprocess_exec(
             "termux-camera-photo",
@@ -163,11 +182,7 @@ def missing_tool_hint() -> str:
     from zrb.config.helper import is_termux
 
     if is_termux():
-        return (
-            "  Install the Termux:API app (F-Droid) and `pkg install termux-api`.\n"
-            "  Note: /photo does not work from inside proot-distro -- run zrb "
-            "from native Termux instead.\n"
-        )
+        return "  Install the Termux:API app (F-Droid) and `pkg install termux-api`.\n"
     if sys.platform == "darwin":
         return (
             "  Install ffmpeg (brew install ffmpeg) and grant your terminal "

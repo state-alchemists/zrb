@@ -110,8 +110,8 @@ By default, Zrb prompts for confirmation before executing most tools. This is co
 | Linux: no camera found | Check `/dev/video0` exists and your user is in the `video` group (`sudo usermod -aG video $USER`, then re-login) |
 | Windows: capture fails or picks the wrong camera | Auto-detection parses `ffmpeg -f dshow -list_devices true -i dummy`; if it fails or the machine has multiple cameras, run that command yourself to find the device name and pass it explicitly: `/photo "<device name>"` |
 | WSL: no camera found | WSL2 has no camera passthrough by default — set up [usbipd-win](https://github.com/dorssel/usbipd-win) to attach the webcam to the WSL2 kernel |
-| Termux: "Camera capture failed" | Install the Termux:API app (F-Droid) and `pkg install termux-api` |
-| Termux + proot-distro: `/photo` doesn't work | `termux-camera-photo` generally isn't reachable from inside `proot-distro` — run `zrb llm chat` from native Termux for `/photo`, or take the photo with the Termux camera app and use `/attach <path>` instead |
+| WSL: `usbipd attach` fails with `Device busy (exported)` even after `usbipd bind` | Windows itself is still holding the camera. This is common for a laptop's **built-in/integrated camera** — Windows' Frame Server keeps a handle on it (for Windows Hello, the Camera app, background video-conferencing processes, etc.) and often won't release it even when nothing appears to be using it, sometimes not even after a reboot. An **external USB webcam** attaches far more reliably than an integrated one. If you must use the integrated camera, try closing Windows Hello/Camera/Teams/Zoom first, or as a last resort disable the built-in camera in Device Manager before attaching (`usbipd attach --wsl --busid=<id>`) — re-enable it afterward to use it on Windows again |
+| Termux (native or `proot-distro`): "Camera capture failed" | Install the Termux:API app (F-Droid) and `pkg install termux-api`. `/photo` works from inside `proot-distro` too — the capture writes to Termux's real home directory rather than a temp path, so it's visible from both native Termux and a proot guest |
 
 ---
 
