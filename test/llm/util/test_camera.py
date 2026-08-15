@@ -7,6 +7,7 @@ dependencies (termux-camera-photo, ffmpeg, the live filesystem) are mocked.
 
 from __future__ import annotations
 
+import asyncio
 import os
 from unittest.mock import AsyncMock, patch
 
@@ -30,13 +31,29 @@ def clean_env(monkeypatch):
 class _FakeProcess:
     """Minimal async-process stand-in for `asyncio.create_subprocess_exec`."""
 
-    def __init__(self, stdout: bytes = b"", stderr: bytes = b"", returncode: int = 0):
+    def __init__(
+        self,
+        stdout: bytes = b"",
+        stderr: bytes = b"",
+        returncode: int = 0,
+        hang_seconds: float = 0,
+    ):
         self._stdout = stdout
         self._stderr = stderr
         self.returncode = returncode
+        self._hang_seconds = hang_seconds
+        self.killed = False
 
     async def communicate(self):
+        if self._hang_seconds:
+            await asyncio.sleep(self._hang_seconds)
         return (self._stdout, self._stderr)
+
+    def kill(self):
+        self.killed = True
+
+    async def wait(self):
+        return self.returncode
 
 
 def _which_only(*names: str):
@@ -186,6 +203,79 @@ async def test_linux_ffmpeg_v4l2_default_device(clean_env):
     cmd = seen_cmds[0]
     assert "-f" in cmd and cmd[cmd.index("-f") + 1] == "v4l2"
     assert "-i" in cmd and cmd[cmd.index("-i") + 1] == "/dev/video0"
+
+
+@pytest.mark.asyncio
+async def test_linux_ffmpeg_tries_mjpeg_before_raw_fallback(clean_env):
+    """v4l2 requests MJPEG@640x480 first -- see camera.py module docstring for why."""
+    clean_env.setattr("sys.platform", "linux")
+    clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
+    clean_env.setattr("zrb.llm.util.camera.shutil.which", _which_only("ffmpeg"))
+    payload = b"\xff\xd8\xff-jpeg"
+
+    seen_cmds: list[list[str]] = []
+
+    def _make_proc(*args, **kwargs):
+        seen_cmds.append(list(args))
+        return _FakeProcess(stdout=payload)
+
+    with patch("asyncio.create_subprocess_exec", new=AsyncMock(side_effect=_make_proc)):
+        result = await get_camera_photo()
+
+    assert result == payload
+    # Only one call: the MJPEG attempt succeeded, no raw fallback needed.
+    assert len(seen_cmds) == 1
+    cmd = seen_cmds[0]
+    assert cmd[cmd.index("-input_format") + 1] == "mjpeg"
+    assert cmd[cmd.index("-video_size") + 1] == "640x480"
+
+
+@pytest.mark.asyncio
+async def test_linux_ffmpeg_falls_back_to_raw_when_mjpeg_unsupported(clean_env):
+    clean_env.setattr("sys.platform", "linux")
+    clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
+    clean_env.setattr("zrb.llm.util.camera.shutil.which", _which_only("ffmpeg"))
+    payload = b"\xff\xd8\xff-jpeg"
+
+    seen_cmds: list[list[str]] = []
+
+    def _make_proc(*args, **kwargs):
+        cmd = list(args)
+        seen_cmds.append(cmd)
+        if "-input_format" in cmd:
+            return _FakeProcess(stderr=b"mjpeg not supported", returncode=1)
+        return _FakeProcess(stdout=payload)
+
+    with patch("asyncio.create_subprocess_exec", new=AsyncMock(side_effect=_make_proc)):
+        result = await get_camera_photo()
+
+    assert result == payload
+    assert len(seen_cmds) == 2
+    assert "-input_format" not in seen_cmds[1]
+
+
+@pytest.mark.asyncio
+async def test_capture_timeout_returns_none_with_hint(clean_env):
+    """A hung ffmpeg (open camera, no frame ever delivered) times out instead
+    of blocking forever -- this is the `_run` timeout backstop."""
+    clean_env.setattr("sys.platform", "linux")
+    clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
+    clean_env.setattr("zrb.llm.util.camera.shutil.which", _which_only("ffmpeg"))
+    clean_env.setattr("zrb.llm.util.camera._CAPTURE_TIMEOUT_SECONDS", 0.05)
+
+    hung_procs: list[_FakeProcess] = []
+
+    def _make_proc(*args, **kwargs):
+        proc = _FakeProcess(stdout=b"jpeg", hang_seconds=10)
+        hung_procs.append(proc)
+        return proc
+
+    with patch("asyncio.create_subprocess_exec", new=AsyncMock(side_effect=_make_proc)):
+        result = await get_camera_photo()
+
+    assert result is None
+    assert all(proc.killed for proc in hung_procs)
+    assert "timed out" in missing_tool_hint()
 
 
 @pytest.mark.asyncio
@@ -345,14 +435,31 @@ def test_missing_tool_hint_windows(clean_env):
     assert "dshow" in hint
 
 
-def test_missing_tool_hint_wsl(clean_env):
+def test_missing_tool_hint_wsl_no_device(clean_env):
+    """No /dev/video* at all -- usbipd attached the USB device, but the stock
+    WSL2 kernel has no camera driver, so no device node ever appears."""
     clean_env.setattr("sys.platform", "linux")
     clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
     clean_env.setenv("WSL_DISTRO_NAME", "Ubuntu")
+    clean_env.setattr("zrb.llm.util.camera.glob.glob", lambda pattern: [])
 
     hint = missing_tool_hint()
 
     assert "usbipd-win" in hint
+    assert "custom" in hint.lower() and "kernel" in hint.lower()
+
+
+def test_missing_tool_hint_wsl_device_exists(clean_env):
+    """/dev/video0 exists -- driver is fine, the USB/IP tunnel is the problem."""
+    clean_env.setattr("sys.platform", "linux")
+    clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
+    clean_env.setenv("WSL_DISTRO_NAME", "Ubuntu")
+    clean_env.setattr("zrb.llm.util.camera.glob.glob", lambda pattern: ["/dev/video0"])
+
+    hint = missing_tool_hint()
+
+    assert "USB/IP" in hint
+    assert "external USB webcam" in hint
 
 
 def test_missing_tool_hint_generic_linux(clean_env):

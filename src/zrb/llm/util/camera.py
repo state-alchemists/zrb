@@ -5,8 +5,7 @@ Priority order per platform:
   Termux (native or proot) : termux-camera-photo
   macOS                    : ffmpeg (avfoundation)
   Windows                  : ffmpeg (dshow; auto-detects the first video device)
-  Linux / WSL              : ffmpeg (v4l2; WSL needs usbipd-win passthrough for
-                              /dev/video*)
+  Linux / WSL              : ffmpeg (v4l2)
 
 No new Python dependency: capture shells out to already-optional external
 binaries (ffmpeg, termux-camera-photo), the same approach `clipboard.py`
@@ -20,11 +19,39 @@ path that is valid there -- a proot guest's own `/tmp` or `$HOME` is not
 absolute path under Termux's *real* home directory works from both native
 Termux and a proot guest, since that path is the same real location either
 way -- no proot detection needed.
+
+WSL2 camera capture has two separate, layered failure modes -- see
+`docs/advanced-topics/llm-integration.md#troubleshooting-voice--photo` for
+the full write-up, this is the short version for future maintainers:
+
+1. The stock `microsoft-standard-WSL2` kernel ships with *no* camera driver
+   at all -- no `uvcvideo`, no v4l2 core, not even as a loadable module.
+   `usbipd-win` (https://github.com/dorssel/usbipd-win) only does USB-level
+   passthrough: it can get the webcam enumerated on the USB bus inside WSL2
+   (visible in `lsusb`/`dmesg`) while `/dev/video0` still never appears,
+   because turning a USB device into a `/dev/video*` node is the kernel
+   driver's job and this kernel doesn't have one. Fixed only by building a
+   custom WSL2 kernel with USB Video Class support and pointing `.wslconfig`
+   at it (`kernel=`). `wsl --shutdown` force-powers-off the VM without
+   flushing disk cache first -- a `make modules_install` that hasn't been
+   `sync`ed to disk yet is silently lost on the next boot, so always `sync`
+   (or reboot only after an idle moment) right after installing modules.
+2. Even with the driver working, ffmpeg's default v4l2 negotiation asks for
+   raw YUYV at the camera's max resolution (often 1080p, ~165 Mbps
+   uncompressed) -- usbipd-win's USB/IP tunnel can't sustain that and the
+   capture hangs indefinitely with the camera light stuck on, no frame ever
+   delivered. `_ffmpeg_capture` below works around this by requesting MJPEG
+   (compressed on-camera) at 640x480 first -- tested as the largest size
+   that lands reliably over USB/IP; 720p MJPEG still hangs, since this is an
+   isochronous-transfer reliability ceiling, not simply a bandwidth budget.
+   `_run`'s capture timeout is the backstop for cameras/setups where even
+   that still hangs.
 """
 
 from __future__ import annotations
 
 import asyncio
+import glob
 import os
 import re
 import shutil
@@ -34,6 +61,11 @@ import sys
 # of whether the caller is native Termux or a proot-distro guest -- see the
 # module docstring and `_termux_camera_photo`.
 _TERMUX_HOME_PHOTO_PATH = "/data/data/com.termux/files/home/.zrb_camera_photo.jpg"
+
+# Last ffmpeg stderr tail, for `missing_tool_hint()` to surface -- `_run`'s
+# caller only gets `None` on failure, so the actual reason needs a side
+# channel rather than widening every call site's return type.
+_last_ffmpeg_error: str | None = None
 
 
 async def get_camera_photo(device: str | None = None) -> bytes | None:
@@ -120,8 +152,24 @@ async def _ffmpeg_capture(device: str | None) -> bytes | None:
         input_fmt, input_arg = "dshow", f"video={name}"
     else:
         input_fmt, input_arg = "v4l2", device or "/dev/video0"
+        # v4l2 otherwise negotiates raw YUYV at the camera's max resolution
+        # -- over a USB/IP tunnel (WSL2 + usbipd-win) that bandwidth hangs
+        # the capture indefinitely with no frame ever written. MJPEG is
+        # compressed on-camera and lands well under that ceiling; fall back
+        # to the raw default for cameras that don't support it.
+        # 720p MJPEG still hangs over usbipd-win's USB/IP tunnel (isochronous
+        # transfer reliability, not raw bandwidth -- 720p times out even
+        # compressed) -- 640x480 is the largest size that lands consistently.
+        mjpeg_args = ["-input_format", "mjpeg", "-video_size", "640x480"]
+        data = await _run(_ffmpeg_cmd(input_fmt, mjpeg_args, input_arg))
+        if data is not None:
+            return data
 
-    cmd = [
+    return await _run(_ffmpeg_cmd(input_fmt, extra_args, input_arg))
+
+
+def _ffmpeg_cmd(input_fmt: str, extra_args: list[str], input_arg: str) -> list[str]:
+    return [
         "ffmpeg",
         "-y",
         "-f",
@@ -139,7 +187,6 @@ async def _ffmpeg_capture(device: str | None) -> bytes | None:
         "mjpeg",
         "pipe:1",
     ]
-    return await _run(cmd)
 
 
 async def _dshow_default_device() -> str | None:
@@ -167,16 +214,35 @@ async def _dshow_default_device() -> str | None:
     return match.group(1) if match else None
 
 
+_CAPTURE_TIMEOUT_SECONDS = 15
+
+
 async def _run(cmd: list[str]) -> bytes | None:
+    global _last_ffmpeg_error
     try:
         proc = await asyncio.create_subprocess_exec(
             *cmd,
             stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.PIPE,
         )
-        stdout, _ = await proc.communicate()
+        try:
+            stdout, stderr = await asyncio.wait_for(
+                proc.communicate(), timeout=_CAPTURE_TIMEOUT_SECONDS
+            )
+        except asyncio.TimeoutError:
+            proc.kill()
+            await proc.wait()
+            _last_ffmpeg_error = (
+                f"capture timed out after {_CAPTURE_TIMEOUT_SECONDS}s -- the "
+                "camera opened but never delivered a frame (over WSL2 this "
+                "usually means usbipd's USB/IP tunnel can't keep up with the "
+                "requested format/resolution)"
+            )
+            return None
         if proc.returncode == 0 and stdout:
+            _last_ffmpeg_error = None
             return stdout
+        _last_ffmpeg_error = stderr.decode(errors="ignore").strip()[-500:]
         return None
     except FileNotFoundError:
         return None
@@ -188,27 +254,55 @@ def missing_tool_hint() -> str:
     from zrb.config.helper import is_termux
 
     if is_termux():
-        return "  Install the Termux:API app (F-Droid) and `pkg install termux-api`.\n"
-    if sys.platform == "darwin":
-        return (
+        hint = "  Install the Termux:API app (F-Droid) and `pkg install termux-api`.\n"
+    elif sys.platform == "darwin":
+        hint = (
             "  Install ffmpeg (brew install ffmpeg) and grant your terminal "
             "app camera access in System Settings > Privacy & Security > "
             "Camera.\n"
         )
-    if sys.platform == "win32":
-        return (
+    elif sys.platform == "win32":
+        hint = (
             "  Install ffmpeg (https://ffmpeg.org) and make sure a webcam "
             "driver is installed. If detection fails, run `ffmpeg -f dshow "
             "-list_devices true -i dummy` to find your device name and pass "
             'it explicitly: /photo "<device name>".\n'
         )
-    if os.environ.get("WSL_DISTRO_NAME") or os.environ.get("WSLENV"):
-        return (
-            "  Install ffmpeg. WSL2 has no camera passthrough by default -- "
-            "set up usbipd-win (https://github.com/dorssel/usbipd-win) to "
-            "attach the webcam to the WSL2 kernel.\n"
+    elif os.environ.get("WSL_DISTRO_NAME") or os.environ.get("WSLENV"):
+        doc_url = (
+            "https://github.com/state-alchemists/zrb/blob/main/docs/"
+            "advanced-topics/llm-integration.md#troubleshooting-voice--photo"
         )
-    return (
-        "  Install ffmpeg. If no camera is found, check /dev/video* "
-        "permissions (add your user to the `video` group).\n"
-    )
+        if glob.glob("/dev/video*"):
+            # The device node exists, so usbipd-win + the kernel driver are
+            # both fine -- ffmpeg opened the camera but got no frame, which
+            # on WSL2 is almost always usbipd-win's USB/IP tunnel failing to
+            # sustain the video stream (not a zrb-side timeout tuning issue).
+            hint = (
+                "  Install ffmpeg if it's missing. /dev/video* exists, so the "
+                "camera is attached and the driver is loaded -- ffmpeg just "
+                "isn't getting a frame from it. WSL2's USB/IP tunnel "
+                "(usbipd-win) often can't sustain a webcam stream even at "
+                "reduced resolution/format; an external USB webcam is far "
+                f"more reliable than a laptop's integrated one over USB/IP. "
+                f"Details: {doc_url}\n"
+            )
+        else:
+            hint = (
+                "  Install ffmpeg if it's missing. No /dev/video* device. "
+                "Attaching the camera with usbipd-win "
+                "(https://github.com/dorssel/usbipd-win) is necessary but not "
+                "sufficient: the stock WSL2 kernel ships with no camera "
+                "driver at all (no uvcvideo/v4l2), so usbipd can attach the "
+                "USB device yet no /dev/video* node ever appears. Building a "
+                f"custom WSL2 kernel with USB Video Class support is required "
+                f"-- step-by-step instructions: {doc_url}\n"
+            )
+    else:
+        hint = (
+            "  Install ffmpeg. If no camera is found, check /dev/video* "
+            "permissions (add your user to the `video` group).\n"
+        )
+    if _last_ffmpeg_error:
+        hint += f"  ffmpeg said: {_last_ffmpeg_error}\n"
+    return hint
