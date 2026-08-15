@@ -300,7 +300,8 @@ All task types available in Zrb, from basic to advanced.
 ### III. LLM & AI Integration
 - [Programming the Agent](docs/advanced-topics/programming-the-agent.md) — the overview: every way to shape agent behavior in Python (tools, hooks, dynamic prompts, history processors, agent-as-pipeline-node)
 - [Programming the Prompt](docs/advanced-topics/programming-the-prompt.md) — the ladder from a plain-string `message` up to a composed `PromptManager`; feeding a `CmdTask`'s output into `LLMTask`/`LLMChatTask`
-- [LLM Assistant & AI Tasks](docs/advanced-topics/llm-integration.md) — `LLMTask`, tools, sub-agents, context management
+- [LLM Assistant & AI Tasks](docs/advanced-topics/llm-integration.md) — interactive chat, `LLMTask`/`LLMChatTask` usage, troubleshooting
+- [Extending the LLM](docs/advanced-topics/extending-the-llm.md) — built-in tools, custom tools, sub-agents, model capabilities, context management
 - [Permission Policy System](docs/advanced-topics/permission-policy.md) — fine-grained tool control & security gates
 - [Plan Mode](docs/advanced-topics/plan-mode.md) — read-only discovery & strategy phase
 - [LLMChatTask API Reference](docs/task-types/llmchat-task.md) — builder API, TUI configuration

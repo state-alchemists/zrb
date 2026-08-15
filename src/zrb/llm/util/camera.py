@@ -284,7 +284,7 @@ def missing_tool_hint() -> str:
                 "isn't getting a frame from it. WSL2's USB/IP tunnel "
                 "(usbipd-win) often can't sustain a webcam stream even at "
                 "reduced resolution/format; an external USB webcam is far "
-                f"more reliable than a laptop's integrated one over USB/IP. "
+                "more reliable than a laptop's integrated one over USB/IP. "
                 f"Details: {doc_url}\n"
             )
         else:
@@ -295,7 +295,7 @@ def missing_tool_hint() -> str:
                 "sufficient: the stock WSL2 kernel ships with no camera "
                 "driver at all (no uvcvideo/v4l2), so usbipd can attach the "
                 "USB device yet no /dev/video* node ever appears. Building a "
-                f"custom WSL2 kernel with USB Video Class support is required "
+                "custom WSL2 kernel with USB Video Class support is required "
                 f"-- step-by-step instructions: {doc_url}\n"
             )
     else:

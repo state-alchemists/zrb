@@ -243,7 +243,8 @@ A profile changes **only** the `profile` section and the `minimal` delegate rest
 - [Programming the Agent](programming-the-agent.md) — the full map: tools, hooks, dynamic prompts, history processors, agent-as-pipeline-node
 - [XCom Deep Dive](../core-concepts/xcom-deep-dive.md) — how task outputs flow into `{ctx.xcom[...]}`
 - [LLMChatTask API Reference](../task-types/llmchat-task.md) — the full constructor and builder API
-- [LLM Assistant & AI Tasks](llm-integration.md) — tools, sub-agents, context management
+- [LLM Assistant & AI Tasks](llm-integration.md) — TUI, `LLMTask`/`LLMChatTask` usage, troubleshooting
+- [Extending the LLM](extending-the-llm.md) — tools, sub-agents, context management
 - `AGENTS.md` → *LLM Prompt System* and ADR-0044, ADR-0049 — section resolution, profiles and the auto ladder
 
 🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > Programming the Prompt
