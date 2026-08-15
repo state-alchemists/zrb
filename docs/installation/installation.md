@@ -265,6 +265,8 @@ zrb version
 -   Exit Ubuntu: `exit`
 -   Exit Termux: `exit` again
 
+> ⚠️ **`/photo` and `proot-distro`:** the `zrb llm chat` camera-capture command needs the Termux-API package **and** the Termux:API app, and generally does not work from inside `proot-distro` (this Ubuntu setup) — run `zrb llm chat` from native Termux for `/photo`, or attach a photo taken with another app via `/attach <path>` instead. See [Troubleshooting: Voice & Photo](../advanced-topics/llm-integration.md#troubleshooting-voice--photo).
+
 > ⚠️ **Note:** Docker is challenging on Android due to kernel limitations. Proot Linux distributions have better software compatibility than bare Termux.
 
 </details>

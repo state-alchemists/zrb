@@ -25,6 +25,7 @@ class TestUIConfig:
         assert config.save_commands == []
         assert config.load_commands == []
         assert config.attach_commands == []
+        assert config.photo_commands == []
         assert config.redirect_output_commands == []
         assert config.yolo_toggle_commands == []
         assert config.set_model_commands == []

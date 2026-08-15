@@ -629,6 +629,8 @@ All interval and delay values are in **milliseconds**.
 | `ZRB_LLM_MAX_SKILLS_IN_CATALOG` | How many model-invocable skills the prompt's skill catalogue lists before truncating with a pointer to `SearchSkill`. The full catalogue is always reachable on demand via `SearchSkill`, so this is a token-economy cap, not a hard limit. `0` or a negative value disables the cap, listing the whole catalogue. | `10` |
 | `ZRB_LLM_MAX_AGENTS_IN_ROSTER` | How many sub-agents the delegation tools' AVAILABLE AGENTS roster lists before truncating with a pointer to `SearchAgent`. The full roster is always reachable on demand via `SearchAgent`, so this is a token-economy cap, not a hard limit. `0` or a negative value disables the cap, listing the whole roster. | `10` |
 
+> 💡 `ZRB_LLM_MAX_IMAGE_DIMENSION` and `ZRB_LLM_IMAGE_JPEG_QUALITY` also govern photos captured with `/photo` (see § 17) — a camera photo goes through the same downscale-and-re-encode step as a pasted or attached image before it reaches the model.
+
 ---
 
 ## 16. Retry Configuration
@@ -658,6 +660,7 @@ Each value is a **comma-separated list of alias tokens**, and setting one *repla
 | `ZRB_LLM_UI_COMMAND_EXIT` | Leave the chat session | `/q, :q, /bye, /quit, /exit` |
 | `ZRB_LLM_UI_COMMAND_INFO` | Show session info and the command list | `/info, /help` |
 | `ZRB_LLM_UI_COMMAND_LOAD` | Resume a saved conversation | `/load, /resume` |
+| `ZRB_LLM_UI_COMMAND_PHOTO` | `<cmd> [device]` — capture a photo from the camera and attach it to the conversation (device is optional; auto-detected per platform) | `/photo` |
 | `ZRB_LLM_UI_COMMAND_PLAN_TOGGLE` | Toggle Plan Mode | `/plan` |
 | `ZRB_LLM_UI_COMMAND_REDIRECT_OUTPUT` | Bare: copy the **last response** to the clipboard. `<cmd> <path>`: write that response to a file | `>, /redirect` |
 | `ZRB_LLM_UI_COMMAND_REWIND` | Rewind to a previous turn | `/rewind` |

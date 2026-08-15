@@ -182,6 +182,7 @@ class BaseUI(BaseUIProperties, BaseUICommands, BaseUIReplay, BaseUISystemInfo):
         plan_commands: list[str] = [],
         copy_commands: list[str] = [],
         voice_commands: list[str] = [],
+        photo_commands: list[str] = [],
         custom_commands: list[AnyCustomCommand] = [],
         model: "Model | str | None" = None,
         enable_rewind: bool = False,
@@ -218,6 +219,7 @@ class BaseUI(BaseUIProperties, BaseUICommands, BaseUIReplay, BaseUISystemInfo):
         self._plan_commands = plan_commands
         self._copy_commands = copy_commands
         self._voice_commands = voice_commands
+        self._photo_commands = photo_commands
         self._custom_commands = custom_commands
         self._plan_mode_active = False
         self._voice_mode_active = False

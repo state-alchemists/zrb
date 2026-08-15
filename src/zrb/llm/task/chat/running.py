@@ -288,6 +288,7 @@ class ChatRunning(ChatState):
             "plan_commands": ui_commands["plan"],
             "copy_commands": ui_commands["copy"],
             "voice_commands": ui_commands["voice"],
+            "photo_commands": ui_commands["photo"],
             "custom_commands": resolved_custom_commands,
             "model": self.get_model(ctx),
             "custom_model_names": resolved_custom_model_names,

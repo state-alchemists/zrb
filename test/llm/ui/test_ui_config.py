@@ -56,6 +56,11 @@ class TestUIConfig:
         result = config.merge_commands({"attach": ["/a"]})
         assert result.attach_commands == ["/a"]
 
+    def test_merge_commands_with_photo(self):
+        config = UIConfig.default()
+        result = config.merge_commands({"photo": ["/p"]})
+        assert result.photo_commands == ["/p"]
+
     def test_merge_commands_with_redirect(self):
         config = UIConfig.default()
         result = config.merge_commands({"redirect": ["/r"]})

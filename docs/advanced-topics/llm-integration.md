@@ -12,6 +12,7 @@ Zrb comes with a powerful, built-in AI assistant that can understand your codeba
   - [TUI Commands](#tui-commands)
   - [Session Token Tracking](#session-token-tracking)
   - [Approval Policies](#approval-policies)
+  - [Troubleshooting: Voice & Photo](#troubleshooting-voice--photo)
 - [Built-in LLM Tools](#built-in-llm-tools)
 - [Permission Policy System](./permission-policy.md)
 - [Sandbox (Filesystem Containment)](./sandbox.md)
@@ -45,6 +46,7 @@ This launches a full-screen chat application where you can have a conversation w
 | `/load <name>` | Load a named session |
 | `/save <name>` | Save current session |
 | `/attach <file_path>` | Attach a file to next message (capped by `LLM_MAX_ATTACHMENT_BYTES`, default 20MB; content is sniffed against its extension) |
+| `/photo [device]` | Capture a photo from the camera and attach it to the next message (device is optional; auto-detected per platform) |
 | `>` or `/redirect` (bare) | Copy last AI response to clipboard |
 | `>` or `/redirect <file_path>` | Save last AI response to a file |
 | `/copy` (bare) | Copy full conversation transcript to clipboard |
@@ -53,6 +55,7 @@ This launches a full-screen chat application where you can have a conversation w
 | `/btw <text>` | Inject a side note for the next turn without sending it as a message (runs while the assistant is thinking) |
 | `/plan` | Toggle [Plan Mode](./plan-mode.md) (read-only discovery) |
 | `/rewind [n\|sha]` | List or restore filesystem + history [snapshots](../configuration/llm-config.md#6-rewind--snapshots) (requires `ZRB_LLM_ENABLE_REWIND`) |
+| `/voice` | Toggle push-to-talk voice dictation on/off (requires `ZRB_LLM_VOICE_ENABLED`; see [Voice Dictation](../configuration/llm-config.md#23-voice-dictation)) |
 
 > 💡 **Tip:** Any `/command` that matches a loaded skill will be executed as a skill.
 >
@@ -83,6 +86,32 @@ By default, Zrb prompts for confirmation before executing most tools. This is co
 | **Plan Mode** | Strict read-only mode for discovery. See [Plan Mode](./plan-mode.md) |
 
 **Safe Command Policy:** The `Shell` tool automatically approves known-safe read-only commands (e.g., `ls`, `git status`, `cat`, `grep`) without requiring YOLO mode. Commands with dangerous shell metacharacters (`>`, `|`, `;`, `&`, `` ` ``, `$()`, `\n`, `\r`) always require explicit approval. Known-safe prefixes include `ls`, `cat`, `grep`, `git status`, `printenv`, and similar read-only commands — note that bare `env` is intentionally excluded as `env FOO=1 rm -rf x` can execute arbitrary commands.
+
+### Troubleshooting: Voice & Photo
+
+`/voice` and `/photo` depend on OS-level microphone/camera access, so failures are usually platform setup, not a zrb bug.
+
+**Voice (`/voice`):**
+
+| Symptom | Solution |
+|---------|----------|
+| `/voice` says voice dictation is disabled | Set `ZRB_LLM_VOICE_ENABLED=true` — see [Voice Dictation](../configuration/llm-config.md#23-voice-dictation) |
+| `RuntimeError` mentioning `sounddevice` or `vosk` | Those are optional dependencies: `pip install sounddevice vosk numpy` (or switch `ZRB_LLM_VOICE_MODE` to `openai`/`google`/`multimodal`) |
+| Recording starts but no audio is captured | Check OS microphone permissions for your terminal app; on Linux, check that PulseAudio/PipeWire is running |
+| No sound on WSL | WSL2 needs WSLg (Windows 11) or a PulseAudio server bridged from Windows for audio passthrough |
+| Termux: no microphone access | Install `termux-api` (`pkg install termux-api`) and the Termux:API app from F-Droid; grant microphone permission to Termux:API in Android settings |
+
+**Photo (`/photo`):**
+
+| Symptom | Solution |
+|---------|----------|
+| "Camera capture failed" with no other detail | Install `ffmpeg` — it's the capture backend on every desktop platform |
+| macOS: capture fails or returns a black frame | Grant your terminal app camera access in **System Settings > Privacy & Security > Camera** — easy to miss, since the OS doesn't always prompt for a CLI tool |
+| Linux: no camera found | Check `/dev/video0` exists and your user is in the `video` group (`sudo usermod -aG video $USER`, then re-login) |
+| Windows: capture fails or picks the wrong camera | Auto-detection parses `ffmpeg -f dshow -list_devices true -i dummy`; if it fails or the machine has multiple cameras, run that command yourself to find the device name and pass it explicitly: `/photo "<device name>"` |
+| WSL: no camera found | WSL2 has no camera passthrough by default — set up [usbipd-win](https://github.com/dorssel/usbipd-win) to attach the webcam to the WSL2 kernel |
+| Termux: "Camera capture failed" | Install the Termux:API app (F-Droid) and `pkg install termux-api` |
+| Termux + proot-distro: `/photo` doesn't work | `termux-camera-photo` generally isn't reachable from inside `proot-distro` — run `zrb llm chat` from native Termux for `/photo`, or take the photo with the Termux camera app and use `/attach <path>` instead |
 
 ---
 

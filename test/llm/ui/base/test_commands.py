@@ -17,6 +17,7 @@ class MockUI(BaseUICommands):
         self._rewind_commands = ["/rewind"]
         self._redirect_output_commands = ["/redirect"]
         self._attach_commands = ["/attach"]
+        self._photo_commands = ["/photo"]
         self._yolo_toggle_commands = ["/yolo"]
         self._set_model_commands = ["/model"]
         self._exec_commands = ["/exec"]
@@ -268,6 +269,52 @@ def test_handle_attach_command_oversized(ui, tmp_path, monkeypatch):
     assert ui._handle_attach_command(f"/attach {f}") is True
     assert ui._pending_attachments == []
     assert any("too large" in o.lower() for o in ui.outputs)
+
+
+@pytest.mark.asyncio
+async def test_handle_photo_command_captures_and_attaches(ui):
+    with patch(
+        "zrb.llm.ui.base.conversation_commands.get_camera_photo",
+        new=AsyncMock(return_value=b"\xff\xd8\xff-fake-jpeg"),
+    ):
+        assert ui._handle_photo_command("/photo") is True
+        assert len(ui._background_tasks) == 1
+        task = list(ui._background_tasks)[0]
+        await task
+
+    assert len(ui._pending_attachments) == 1
+    assert any("photo captured" in o.lower() for o in ui.outputs)
+
+
+@pytest.mark.asyncio
+async def test_handle_photo_command_passes_device_argument(ui):
+    mock_capture = AsyncMock(return_value=b"jpeg")
+    with patch(
+        "zrb.llm.ui.base.conversation_commands.get_camera_photo", new=mock_capture
+    ):
+        assert ui._handle_photo_command("/photo 1") is True
+        task = list(ui._background_tasks)[0]
+        await task
+
+    mock_capture.assert_called_once_with("1")
+
+
+@pytest.mark.asyncio
+async def test_handle_photo_command_capture_failure(ui):
+    with patch(
+        "zrb.llm.ui.base.conversation_commands.get_camera_photo",
+        new=AsyncMock(return_value=None),
+    ):
+        assert ui._handle_photo_command("/photo") is True
+        task = list(ui._background_tasks)[0]
+        await task
+
+    assert ui._pending_attachments == []
+    assert any("capture failed" in o.lower() for o in ui.outputs)
+
+
+def test_handle_photo_command_ignores_unrelated_input(ui):
+    assert ui._handle_photo_command("hello") is False
 
 
 def test_handle_attach_command_already_attached(ui, tmp_path):

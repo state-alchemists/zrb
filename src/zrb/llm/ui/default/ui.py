@@ -81,6 +81,7 @@ class UI(
         markdown_theme: "Theme | None" = None,
         summarize_commands: list[str] = [],
         attach_commands: list[str] = [],
+        photo_commands: list[str] = [],
         exit_commands: list[str] = [],
         info_commands: list[str] = [],
         save_commands: list[str] = [],
@@ -125,6 +126,7 @@ class UI(
             markdown_theme=markdown_theme,
             summarize_commands=summarize_commands,
             attach_commands=attach_commands,
+            photo_commands=photo_commands,
             exit_commands=exit_commands,
             info_commands=info_commands,
             save_commands=save_commands,
@@ -161,6 +163,7 @@ class UI(
         self._input_field = create_input_field(
             history_manager=self._history_manager,
             attach_commands=self._attach_commands,
+            photo_commands=self._photo_commands,
             exit_commands=self._exit_commands,
             info_commands=self._info_commands,
             save_commands=self._save_commands,

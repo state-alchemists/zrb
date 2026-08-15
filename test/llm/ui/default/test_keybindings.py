@@ -701,6 +701,7 @@ class IntegrationUI(UIKeybindings, BaseUICommands, UIMessageEditing):
         self._rewind_commands = ["/rewind"]
         self._redirect_output_commands = [">"]  # non-"/" token (the regression)
         self._attach_commands = ["/attach"]
+        self._photo_commands = []
         self._yolo_toggle_commands = ["/yolo"]
         self._set_model_commands = ["/model"]
         self._exec_commands = ["/exec"]

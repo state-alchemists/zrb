@@ -26,6 +26,7 @@ UI_COMMAND_CFG_ATTRS: dict[str, str] = {
     "plan": "LLM_UI_COMMAND_PLAN_TOGGLE",
     "copy": "LLM_UI_COMMAND_COPY",
     "voice": "LLM_UI_COMMAND_VOICE",
+    "photo": "LLM_UI_COMMAND_PHOTO",
 }
 
 Aliases = str | list[str] | None
@@ -67,6 +68,7 @@ class UICommands:
     plan: Aliases = None
     copy: Aliases = None
     voice: Aliases = None
+    photo: Aliases = None
 
     def to_overrides(self) -> dict[str, list[str]]:
         """Normalise the set fields into alias lists, keyed by command name.

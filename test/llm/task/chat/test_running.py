@@ -201,6 +201,7 @@ async def test_run_interactive_session_basic(runner):
             "plan",
             "copy",
             "voice",
+            "photo",
             "build",
         ]
     }
@@ -251,6 +252,7 @@ async def test_run_interactive_session_with_factories_and_multiplex(runner):
             "plan",
             "copy",
             "voice",
+            "photo",
             "build",
         ]
     }
@@ -308,6 +310,7 @@ UI_COMMAND_KEYS = [
     "plan",
     "copy",
     "voice",
+    "photo",
     "build",
 ]
 
