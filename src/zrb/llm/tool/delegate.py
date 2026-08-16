@@ -35,7 +35,7 @@ from zrb.llm.ui.std_ui import StdUI
 from zrb.llm.util.subagent_session_naming import (
     format_delegated_session_name,
     parse_delegated_session,
-    subagent_history_directories,
+    subagent_only_directories,
 )
 from zrb.util.string.name import get_random_name
 
@@ -150,13 +150,19 @@ async def _run_agent_task(
     # exactly this turn; see `LiveSubAgentSessionRegistry.cancel`.
     session = None
     if isinstance(ui, BufferedUI):
-        session = live_subagent_session_registry.register(
+        session = live_subagent_session_registry.add_session(
             activity_session_id, agent_id, agent_name, sub_agent_manager, ui
         )
         session.cancelled_by_human = False  # a fresh run, not a stale flag
         session.active_task = asyncio.current_task()
-    await _fire_subagent_hook(HookEvent.SUBAGENT_START, agent_name, agent_id)
     try:
+        # Fired inside the try (not before it): a cancel landing exactly
+        # during this await must go through the same handling as every other
+        # cancellation below (check `consume_cancelled_flag`), not propagate
+        # uncaught — in the single-delegate path `session.active_task` is the
+        # same asyncio Task driving the whole main turn, so an uncaught
+        # propagation here would kill the entire turn, not just this call.
+        await _fire_subagent_hook(HookEvent.SUBAGENT_START, agent_name, agent_id)
         result, history = await run_agent(
             agent=sub_agent,
             message=full_message,
@@ -267,12 +273,18 @@ def _prune_old_subagent_history() -> None:
     history_dir = os.path.expanduser(CFG.LLM_HISTORY_DIR)
     if not os.path.isdir(history_dir):
         return
-    # The cap is global across every location a delegated transcript can live
-    # in: the current `subagent/{agent_type}/` layout and legacy flat files in
-    # the history root (which only `parse_delegated_session` recognizes).
+    # Scoped to `subagent/{agent_type}/` only — never the flat history root.
+    # The root also holds ordinary (non-delegated) sessions, and a session
+    # name that merely *looks* delegated (matches `parse_delegated_session`'s
+    # best-effort shape, e.g. a user `/save`d name) must never become a
+    # deletion candidate. Cost: legacy delegated files written before the
+    # `subagent/` layout shipped (which live flat in the root) are no longer
+    # pruned by this pass — they simply accumulate, same as before this
+    # feature existed. Reads/search still scan both locations (see
+    # `subagent_history_directories`); only pruning is narrowed.
     entries: list[tuple[float, str]] = []
     try:
-        for directory in subagent_history_directories(history_dir):
+        for directory in subagent_only_directories(history_dir):
             with os.scandir(directory) as it:
                 for entry in it:
                     if not entry.name.endswith(".json"):
@@ -306,6 +318,16 @@ async def _fire_subagent_hook(event: HookEvent, agent_name: str, agent_id: str) 
             agent_type=agent_name,
             agent_id=agent_id,
         )
+    except asyncio.CancelledError:
+        # `asyncio.CancelledError` is a `BaseException`, not caught by the
+        # `Exception` branch below — swallowed deliberately so "Never raises"
+        # is actually true. This call fires from `_run_agent_task`'s `finally`
+        # block too, after its result is already decided; a stray cancel
+        # landing in this narrow best-effort notification must not override
+        # an already-settled return. It is not the cancellation signal the
+        # sub-agent's own turn responds to (that's handled separately, via
+        # `session.consume_cancelled_flag`), so absorbing it here costs nothing.
+        CFG.LOGGER.debug(f"Delegation hook '{event}' cancelled")
     except Exception as e:
         CFG.LOGGER.debug(f"Delegation hook '{event}' failed: {e}")
 
@@ -403,6 +425,53 @@ async def _worktree_has_changes(worktree_path: str) -> bool:
     return bool(stdout.decode().strip())
 
 
+async def _current_head_sha(cwd: str) -> str:
+    """``git rev-parse HEAD`` in *cwd*, or ``""`` if it fails."""
+    proc = await asyncio.create_subprocess_exec(
+        "git",
+        "rev-parse",
+        "HEAD",
+        cwd=cwd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    stdout, _ = await proc.communicate()
+    if proc.returncode != 0:
+        return ""
+    return stdout.decode().strip()
+
+
+async def _worktree_has_new_commits(worktree_path: str, base_sha: str) -> bool:
+    """Whether *worktree_path*'s branch has any commit beyond *base_sha*.
+
+    ``_worktree_has_changes`` alone only sees uncommitted changes — a
+    sub-agent that *commits* its deliverable makes the tree clean, which
+    would otherwise let cleanup force-delete the branch (and its commits)
+    via `exit_worktree`'s default `keep_branch=False`. This closes that gap:
+    a non-empty ``base_sha..HEAD`` range means real work exists on the
+    branch, regardless of working-tree cleanliness.
+    """
+    if not base_sha:
+        # Couldn't determine the fork point (e.g. `rev-parse` failed before
+        # entering the worktree) — fail safe and assume there might be
+        # commits rather than risk deleting real work.
+        return True
+    proc = await asyncio.create_subprocess_exec(
+        "git",
+        "rev-list",
+        "--count",
+        f"{base_sha}..HEAD",
+        cwd=worktree_path,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    stdout, _ = await proc.communicate()
+    if proc.returncode != 0:
+        return True  # fail safe: can't confirm "no new commits", so assume there are
+    count = stdout.decode().strip()
+    return count.isdigit() and int(count) > 0
+
+
 async def _run_parallel(
     tasks: list[dict[str, Any]],
     sub_agent_manager: SubAgentManager,
@@ -447,7 +516,12 @@ async def _run_parallel(
         )
 
         worktree_path = ""
+        base_sha = ""
         if isolate:
+            # Captured before creating the worktree so cleanup can tell "clean
+            # working tree" apart from "clean working tree but new commits
+            # exist" — see `_worktree_has_new_commits`.
+            base_sha = await _current_head_sha(os.getcwd())
             # A distinct name per task: enter_worktree's own default branch name
             # is second-granularity, which concurrent fan-out tasks can collide
             # on within the same second.
@@ -475,15 +549,33 @@ async def _run_parallel(
         finally:
             # Always attempt cleanup, including when the sub-agent errored —
             # this is what lets isolate_worktree survive a crashed sub-agent
-            # rather than leaking worktrees (ADR-0068).
+            # rather than leaking worktrees (ADR-0068). Wrapped in its own
+            # try/except: a cleanup failure (git missing, disk/lock issue)
+            # must not escape into `asyncio.gather` and abort sibling tasks —
+            # same best-effort posture as `_persist_subagent_history`.
             if isolate and worktree_path:
-                if await _worktree_has_changes(worktree_path):
+                try:
+                    dirty = await _worktree_has_changes(worktree_path)
+                    has_new_commits = await _worktree_has_new_commits(
+                        worktree_path, base_sha
+                    )
+                    if dirty or has_new_commits:
+                        # Real work exists (uncommitted or committed) — never
+                        # force-delete it via exit_worktree's default
+                        # keep_branch=False.
+                        if result is not None and result.success and result.result:
+                            result.result += f"\n\n(Worktree left in place for review: {worktree_path})"
+                    else:
+                        await exit_worktree(worktree_path)
+                except Exception as e:  # noqa: BLE001
+                    CFG.LOGGER.debug(
+                        f"Worktree cleanup failed for {worktree_path}: {e}"
+                    )
                     if result is not None and result.success and result.result:
                         result.result += (
-                            f"\n\n(Worktree left in place for review: {worktree_path})"
+                            "\n\n(Worktree cleanup failed — left in place for "
+                            f"manual review: {worktree_path}: {e})"
                         )
-                else:
-                    await exit_worktree(worktree_path)
 
         # Reached only if the try block returned normally (an exception would
         # have propagated past this point after the finally block ran).
@@ -494,10 +586,21 @@ async def _run_parallel(
             result.error,
         )
 
-    results = await asyncio.gather(*[run_single_agent(t) for t in tasks])
+    # return_exceptions=True is defense in depth, not the primary fix: cleanup
+    # failures are already caught above so they surface as a result note, not
+    # a raise. This guards against anything else genuinely unanticipated
+    # (e.g. `_run_agent_task` itself raising) taking down every sibling task
+    # instead of just the one that failed.
+    raw_results = await asyncio.gather(
+        *[run_single_agent(t) for t in tasks], return_exceptions=True
+    )
 
     combined_results = []
-    for r in results:
+    for spec, r in zip(tasks, raw_results):
+        if isinstance(r, BaseException):
+            label = f"[{spec.get('agent_name', '?')}]"
+            combined_results.append(f"{label} Error: {r}")
+            continue
         # r.agent_name already carries its [agent_name #ordinal] label.
         if not r.success:
             combined_results.append(f"{r.agent_name} Error: {r.error}")

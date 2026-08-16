@@ -31,7 +31,7 @@ def sub_agent_manager():
 
 
 def test_register_and_get_round_trip(registry, buffered_ui, sub_agent_manager):
-    entry = registry.register(
+    entry = registry.add_session(
         "sess1", "agent-1", "researcher", sub_agent_manager, buffered_ui
     )
     assert registry.get("sess1", "agent-1") is entry
@@ -49,8 +49,8 @@ def test_get_unknown_returns_none(registry):
 def test_active_scopes_by_session_id(registry, buffered_ui, sub_agent_manager):
     """A process hosting multiple sessions must not bleed one session's
     live sub-agents into another's picker listing."""
-    registry.register("sess1", "a", "researcher", sub_agent_manager, buffered_ui)
-    registry.register("sess2", "b", "reviewer", sub_agent_manager, buffered_ui)
+    registry.add_session("sess1", "a", "researcher", sub_agent_manager, buffered_ui)
+    registry.add_session("sess2", "b", "reviewer", sub_agent_manager, buffered_ui)
 
     assert [e.agent_id for e in registry.active("sess1")] == ["a"]
     assert [e.agent_id for e in registry.active("sess2")] == ["b"]
@@ -60,7 +60,7 @@ def test_active_scopes_by_session_id(registry, buffered_ui, sub_agent_manager):
 def test_mark_turn_finished_updates_history_and_goes_idle(
     registry, buffered_ui, sub_agent_manager
 ):
-    entry = registry.register(
+    entry = registry.add_session(
         "sess1", "a", "researcher", sub_agent_manager, buffered_ui
     )
     entry.state = "running"
@@ -78,8 +78,8 @@ def test_mark_turn_finished_unknown_entry_is_noop(registry):
 def test_clear_one_session_leaves_others_intact(
     registry, buffered_ui, sub_agent_manager
 ):
-    registry.register("sess1", "a", "researcher", sub_agent_manager, buffered_ui)
-    registry.register("sess2", "b", "reviewer", sub_agent_manager, buffered_ui)
+    registry.add_session("sess1", "a", "researcher", sub_agent_manager, buffered_ui)
+    registry.add_session("sess2", "b", "reviewer", sub_agent_manager, buffered_ui)
 
     registry.clear(session_id="sess1")
 
@@ -90,8 +90,8 @@ def test_clear_one_session_leaves_others_intact(
 def test_clear_without_session_id_clears_every_session(
     registry, buffered_ui, sub_agent_manager
 ):
-    registry.register("sess1", "a", "researcher", sub_agent_manager, buffered_ui)
-    registry.register("sess2", "b", "reviewer", sub_agent_manager, buffered_ui)
+    registry.add_session("sess1", "a", "researcher", sub_agent_manager, buffered_ui)
+    registry.add_session("sess2", "b", "reviewer", sub_agent_manager, buffered_ui)
 
     registry.clear()
 
@@ -113,7 +113,7 @@ async def test_send_message_injects_live_when_turn_is_in_flight(
 ):
     """The sub-agent's turn is still running: the message must be injected
     via steer_into_live_run (ADR-0078's mid-turn mechanism), not queued."""
-    entry = registry.register(
+    entry = registry.add_session(
         "sess1", "a", "researcher", sub_agent_manager, buffered_ui
     )
     entry.state = "running"
@@ -137,7 +137,7 @@ async def test_send_message_queues_and_starts_continuation_when_idle(
 ):
     """The sub-agent has already finished: no live run to inject into, so the
     message queues and (since idle) a continuation starts immediately."""
-    entry = registry.register(
+    entry = registry.add_session(
         "sess1", "a", "researcher", sub_agent_manager, buffered_ui
     )
     entry.history = [{"turn": 1}]
@@ -173,7 +173,7 @@ async def test_send_message_queues_without_double_spawning_when_already_running(
 ):
     """A second message arriving while a continuation is already draining
     must just queue -- not spawn a second, concurrent continuation."""
-    entry = registry.register(
+    entry = registry.add_session(
         "sess1", "a", "researcher", sub_agent_manager, buffered_ui
     )
     entry.state = "running"  # a continuation is already in flight
@@ -200,7 +200,7 @@ def test_cancel_drops_queue_and_cancels_in_flight_task(
     """Esc while viewing a running sub-agent must drop its queued messages and
     cancel its run task (flagging it so the delegate task can tell a
     human-initiated cancel apart from the main run's own cancellation)."""
-    entry = registry.register(
+    entry = registry.add_session(
         "sess1", "a", "researcher", sub_agent_manager, buffered_ui
     )
     entry.pending_queue = ["queued 1", "queued 2"]
@@ -223,7 +223,7 @@ def test_cancel_with_only_queued_messages_reports_work(
     registry, buffered_ui, sub_agent_manager
 ):
     """Queued-but-unsent messages count as work to cancel even with no task."""
-    entry = registry.register(
+    entry = registry.add_session(
         "sess1", "a", "researcher", sub_agent_manager, buffered_ui
     )
     entry.pending_queue = ["queued"]
@@ -237,7 +237,7 @@ def test_cancel_with_only_queued_messages_reports_work(
 def test_cancel_with_nothing_in_flight_returns_false(
     registry, buffered_ui, sub_agent_manager
 ):
-    entry = registry.register(
+    entry = registry.add_session(
         "sess1", "a", "researcher", sub_agent_manager, buffered_ui
     )
     entry.state = "idle"
@@ -250,7 +250,7 @@ def test_cancel_with_nothing_in_flight_returns_false(
 def test_cancel_does_not_cancel_a_finished_task(
     registry, buffered_ui, sub_agent_manager
 ):
-    entry = registry.register(
+    entry = registry.add_session(
         "sess1", "a", "researcher", sub_agent_manager, buffered_ui
     )
     task = MagicMock()
@@ -268,7 +268,7 @@ async def test_cancel_stops_a_running_continuation(
 ):
     """Cancel during a live continuation stops the sub-agent's turn: the
     spawned task ends cancelled and the session goes idle."""
-    entry = registry.register(
+    entry = registry.add_session(
         "sess1", "a", "researcher", sub_agent_manager, buffered_ui
     )
     entry.pending_queue = ["keep going"]
@@ -516,7 +516,7 @@ async def test_cancelled_then_continued_session_reports_back_to_main_agent(
     """A session the user cancelled (Esc) and then kept chatting with must hand
     its latest response back to the main agent when it ends naturally — the main
     agent only ever heard "Cancelled by user" from that delegation."""
-    entry = registry.register(
+    entry = registry.add_session(
         "sess1", "a", "researcher", sub_agent_manager, buffered_ui
     )
     entry.pending_queue = ["queued"]
@@ -649,7 +649,7 @@ async def test_report_back_skipped_when_parent_cannot_deliver(
 ):
     """A parent UI without the submit_message channel (e.g. StdUI-backed) means
     the report has nowhere to go — the drain must still finish cleanly."""
-    entry = registry.register(
+    entry = registry.add_session(
         "sess1", "a", "researcher", sub_agent_manager, buffered_ui
     )
     entry.pending_queue = ["queued"]

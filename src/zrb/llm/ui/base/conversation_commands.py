@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING
 from zrb.llm.util.attachment import get_media_type, get_oversized_by
 from zrb.llm.util.camera import get_camera_photo, missing_tool_hint
 from zrb.llm.util.image_scale import scale_image_bytes
+from zrb.llm.util.subagent_session_naming import parse_delegated_session
 from zrb.util.cli.style import stylize_error, stylize_muted
 
 if TYPE_CHECKING:
@@ -155,11 +156,6 @@ class BaseUIConversationCommands:
     # navigation is really just "which session am I bound to right now".
 
     def _apply_persona_for_session(self, name: str) -> None:
-        # lazy: zrb internal (heavy via transitive) — subagent_session_naming
-        # is stdlib-only, but importing it at module level here would still
-        # sit above BaseUI's own lazy-loaded dependents in load order.
-        from zrb.llm.util.subagent_session_naming import parse_delegated_session
-
         delegated = parse_delegated_session(name)
         if delegated is None:
             self._restore_main_persona()

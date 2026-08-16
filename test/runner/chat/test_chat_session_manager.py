@@ -170,7 +170,7 @@ class TestChatSessionManager:
         manager = await ChatSessionManager.get_instance()
         before = live_subagent_session_registry.tracked_session_count()
         await manager.create_session(session_id="live-leak-test")
-        live_subagent_session_registry.register(
+        live_subagent_session_registry.add_session(
             "live-leak-test", "agent-1", "researcher", MagicMock(), MagicMock()
         )
         assert live_subagent_session_registry.tracked_session_count() == before + 1

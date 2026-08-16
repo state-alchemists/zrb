@@ -87,7 +87,7 @@ class LiveSubAgentSessionRegistry:
     def __init__(self) -> None:
         self._sessions: dict[str, dict[str, LiveSubAgentSession]] = {}
 
-    def register(
+    def add_session(
         self,
         session_id: str,
         agent_id: str,

@@ -40,7 +40,17 @@ _DELEGATED_SESSION_PATTERN = re.compile(
 def format_delegated_session_name(
     parent_session_id: str, agent_name: str, agent_id: str
 ) -> str:
-    """The persisted conversation name for one delegated sub-agent run."""
+    """The persisted conversation name for one delegated sub-agent run.
+
+    An empty ``parent_session_id`` falls back to ``"default"``: the pattern's
+    ``parent`` group requires at least one char, so an empty parent would
+    otherwise produce a name ``parse_delegated_session`` can never parse back
+    (neither listable nor resumable). The normal ambient-state path already
+    substitutes ``"default"`` before any tool runs (`live_context.py`), but
+    that's one caller's guarantee, not this function's — enforced here too so
+    every caller, current or future, gets a name that round-trips.
+    """
+    parent_session_id = parent_session_id.strip() or "default"
     return f"{parent_session_id}-sub-{agent_name}-{agent_id}"
 
 
@@ -63,7 +73,22 @@ def subagent_history_directories(history_dir: str) -> list[str]:
     """The directories that can hold delegated transcripts: the history root
     itself (legacy flat files written before the subdirectory layout) plus
     every ``subagent/{agent_type}/`` directory."""
-    dirs = [history_dir]
+    return [history_dir] + subagent_only_directories(history_dir)
+
+
+def subagent_only_directories(history_dir: str) -> list[str]:
+    """Every ``subagent/{agent_type}/`` directory, excluding the flat history
+    root.
+
+    Unlike ``subagent_history_directories``, this never includes the history
+    root — the root is also where ordinary (non-delegated) sessions live, and
+    a session name that merely *looks* delegated (matches
+    ``parse_delegated_session``'s shape) is not actually one. Reads/listings
+    can afford that ambiguity (worst case: a mislabeled listing entry); a
+    caller that *deletes* files past a retention count cannot — so pruning
+    uses this narrower list instead.
+    """
+    dirs: list[str] = []
     root = os.path.join(history_dir, SUBAGENT_HISTORY_SUBDIR)
     try:
         with os.scandir(root) as it:
