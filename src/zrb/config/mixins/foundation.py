@@ -57,8 +57,8 @@ class FoundationMixin:
         self.DEFAULT_INIT_SCRIPTS: str = ""
         self.DEFAULT_INIT_FILE_NAME: str = "zrb_init.py"
         self.DEFAULT_LOGGING_LEVEL: str = "WARNING"
-        self.DEFAULT_LOAD_BUILTIN: str = "on"
-        self.DEFAULT_WARN_UNRECOMMENDED_COMMAND: str = "on"
+        self.DEFAULT_ENABLE_BUILTIN_TASKS: str = "on"
+        self.DEFAULT_SHOW_UNRECOMMENDED_COMMAND_WARNING: str = "on"
         self.DEFAULT_SESSION_LOG_DIR: str = ""
         self.DEFAULT_TODO_DIR: str = ""
         self.DEFAULT_TODO_VISUAL_FILTER: str = ""
@@ -66,7 +66,7 @@ class FoundationMixin:
         self.DEFAULT_VERSION: str = ""
         self.DEFAULT_ASCII_ART_DIR: str = ""
         self.DEFAULT_BANNER: str = _DEFAULT_BANNER
-        self.DEFAULT_USE_TIKTOKEN: str = "off"
+        self.DEFAULT_ENABLE_TIKTOKEN: str = "off"
         self.DEFAULT_TIKTOKEN_ENCODING_NAME: str = "cl100k_base"
         self.DEFAULT_MCP_CONFIG_FILE: str = "mcp-config.json"
         super().__init__()
@@ -153,13 +153,13 @@ class FoundationMixin:
         ),
     )
 
-    LOAD_BUILTIN = EnvField(
+    ENABLE_BUILTIN_TASKS = EnvField(
         to_boolean,
         serialize=on_off,
         doc="Whether to load pre-packaged tasks (Git, UUID, base64, etc.).",
     )
 
-    WARN_UNRECOMMENDED_COMMAND = EnvField(
+    SHOW_UNRECOMMENDED_COMMAND_WARNING = EnvField(
         to_boolean,
         serialize=on_off,
         doc="Show warnings for potentially unsafe shell commands.",
@@ -219,7 +219,7 @@ class FoundationMixin:
         doc="Banner shown at CLI start. Supports {VERSION} formatting.",
     )
 
-    USE_TIKTOKEN = EnvField(
+    ENABLE_TIKTOKEN = EnvField(
         to_boolean,
         serialize=on_off,
         doc="Whether to use tiktoken for token counting.",
@@ -227,7 +227,7 @@ class FoundationMixin:
 
     TIKTOKEN_ENCODING_NAME = EnvField(
         str,
-        aliases=["TIKTOKEN_ENCODING", "TIKTOKEN_ENCODING_NAME"],
+        aliases=["TIKTOKEN_ENCODING_NAME", "TIKTOKEN_ENCODING"],
         doc="Tiktoken encoding name (e.g. cl100k_base).",
     )
 

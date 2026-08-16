@@ -62,84 +62,119 @@ def create_summarizer_history_processor(
             conversational_agent or create_conversational_summarizer_agent()
         )
 
-        # 1. Summarize individual fat messages first
-        try:
-            messages = await summarize_messages(
-                messages,
-                agent=active_message_agent,
-                limiter=llm_limiter,
-                message_token_threshold=message_token_threshold,
-                conversational_token_threshold=conversational_token_threshold,
-            )
-        except Exception as e:
-            zrb_print(
-                stylize_error(f"  Error processing messages in history processor: {e}"),
-                plain=True,
-            )
-            # Continue with original messages if summarization fails
+        messages = await _summarize_fat_messages(
+            messages,
+            agent=active_message_agent,
+            limiter=llm_limiter,
+            message_token_threshold=message_token_threshold,
+            conversational_token_threshold=conversational_token_threshold,
+        )
 
-        # 2. Check if total history + system prompt exceeds threshold
-        try:
-            adjusted_threshold = max(
-                1, conversational_token_threshold - system_prompt_overhead
-            )
+        return await _maybe_compress_history(
+            messages,
+            agent=active_conversational_agent,
+            summary_window=summary_window,
+            limiter=llm_limiter,
+            conversational_token_threshold=conversational_token_threshold,
+            system_prompt_overhead=system_prompt_overhead,
+        )
 
-            current_tokens = llm_limiter.count_tokens(messages)
-            is_short_enough = len(messages) <= summary_window
-            is_within_tokens = current_tokens <= adjusted_threshold
-            if is_short_enough and is_within_tokens:
-                return messages
-            to_summarize, _ = split_history(
-                messages, summary_window, llm_limiter, adjusted_threshold
-            )
-            if (
-                is_within_tokens
-                and llm_limiter.count_tokens(to_summarize) < 0.3 * adjusted_threshold
-            ):
-                # There is no need to summarize if we cannot save at least 0.3 of context window
-                return messages
+    return process_history
 
+
+async def _summarize_fat_messages(
+    messages: "list[ModelMessage]",
+    agent: Any,
+    limiter: "LLMLimiter",
+    message_token_threshold: int,
+    conversational_token_threshold: int,
+) -> "list[ModelMessage]":
+    """Summarize individual fat messages first; keeps the originals on error."""
+    try:
+        return await summarize_messages(
+            messages,
+            agent=agent,
+            limiter=limiter,
+            message_token_threshold=message_token_threshold,
+            conversational_token_threshold=conversational_token_threshold,
+        )
+    except Exception as e:
+        zrb_print(
+            stylize_error(f"  Error processing messages in history processor: {e}"),
+            plain=True,
+        )
+        # Continue with original messages if summarization fails
+        return messages
+
+
+async def _maybe_compress_history(
+    messages: "list[ModelMessage]",
+    agent: Any,
+    summary_window: int,
+    limiter: "LLMLimiter",
+    conversational_token_threshold: int,
+    system_prompt_overhead: int,
+) -> "list[ModelMessage]":
+    """Compress history when it exceeds the token/window threshold."""
+    try:
+        adjusted_threshold = max(
+            1, conversational_token_threshold - system_prompt_overhead
+        )
+
+        current_tokens = limiter.count_tokens(messages)
+        is_short_enough = len(messages) <= summary_window
+        is_within_tokens = current_tokens <= adjusted_threshold
+        if is_short_enough and is_within_tokens:
+            return messages
+        to_summarize, _ = split_history(
+            messages, summary_window, limiter, adjusted_threshold
+        )
+        if (
+            is_within_tokens
+            and limiter.count_tokens(to_summarize) < 0.3 * adjusted_threshold
+        ):
+            # There is no need to summarize if we cannot save at least 0.3 of context window
+            return messages
+
+        zrb_print(
+            stylize_warning(
+                (
+                    f"\n  History limits exceeded (tokens: {current_tokens}/{adjusted_threshold}, messages: {len(messages)}/{summary_window}). "
+                    "Compressing conversation..."
+                )
+            ),
+            plain=True,
+        )
+        result = await summarize_history(
+            messages,
+            agent=agent,
+            summary_window=summary_window,
+            limiter=limiter,
+            conversational_token_threshold=adjusted_threshold,
+        )
+        if result != messages:
+            new_tokens = limiter.count_tokens(result)
             zrb_print(
                 stylize_warning(
-                    (
-                        f"\n  History limits exceeded (tokens: {current_tokens}/{adjusted_threshold}, messages: {len(messages)}/{summary_window}). "
-                        "Compressing conversation..."
-                    )
+                    f"  Conversation compressed "
+                    f"({new_tokens}/{conversational_token_threshold})"
                 ),
                 plain=True,
             )
-            result = await summarize_history(
-                messages,
-                agent=active_conversational_agent,
-                summary_window=summary_window,
-                limiter=llm_limiter,
-                conversational_token_threshold=adjusted_threshold,
-            )
-            if result != messages:
-                new_tokens = llm_limiter.count_tokens(result)
-                zrb_print(
-                    stylize_warning(
-                        f"  Conversation compressed "
-                        f"({new_tokens}/{conversational_token_threshold})"
-                    ),
-                    plain=True,
-                )
-            else:
-                zrb_print(
-                    stylize_warning(
-                        "  Conversation compression produced no change (API error or empty input)"
-                    ),
-                    plain=True,
-                )
-            return result
-        except Exception as e:
+        else:
             zrb_print(
-                stylize_error(f"  Error processing history in history processor: {e}"),
+                stylize_warning(
+                    "  Conversation compression produced no change (API error or empty input)"
+                ),
                 plain=True,
             )
-            return messages
-
-    return process_history
+        return result
+    except Exception as e:
+        zrb_print(
+            stylize_error(f"  Error processing history in history processor: {e}"),
+            plain=True,
+        )
+        return messages
 
 
 async def summarize_messages(

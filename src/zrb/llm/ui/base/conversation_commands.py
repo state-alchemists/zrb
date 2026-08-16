@@ -255,6 +255,31 @@ class BaseUIConversationCommands:
 
         return extract_last_response_text(messages)
 
+    def _write_text_to_file(self, path: str, content: str) -> None:
+        """Expand/absolutize `path`, create parent dirs, and write `content`.
+
+        Shared by the redirect/copy commands' "write to file" branches — kept
+        separate from `zrb.util.file.write_file`, which additionally
+        normalizes trailing newlines (not wanted here: this must write
+        exactly what the user is redirecting/saving).
+        """
+        expanded_path = os.path.abspath(os.path.expanduser(path))
+        os.makedirs(os.path.dirname(expanded_path), exist_ok=True)
+        with open(expanded_path, "w", encoding="utf-8") as f:
+            f.write(content)
+
+    def _copy_to_clipboard_and_report(self, content: str, success_message: str) -> None:
+        """Copy `content` to the clipboard, appending a success/failure line."""
+        # lazy: tests patch clipboard.copy_text; hoisting bypasses the mock
+        from zrb.llm.util.clipboard import copy_text
+
+        if copy_text(content):
+            self.append_to_output(stylize_muted(success_message))
+        else:
+            self.append_to_output(
+                stylize_error("\n  ❌ Failed to copy to clipboard.\n")
+            )
+
     def _handle_redirect_command(self, text: str) -> bool:
         text = text.strip()
         for cmd in self._redirect_output_commands:
@@ -266,17 +291,9 @@ class BaseUIConversationCommands:
                         stylize_error("\n  ❌ No AI response available to copy.\n")
                     )
                     return True
-                # lazy: tests patch clipboard.copy_text; hoisting bypasses the mock
-                from zrb.llm.util.clipboard import copy_text
-
-                if copy_text(content):
-                    self.append_to_output(
-                        stylize_muted("\n  📋 Last output copied to clipboard.\n")
-                    )
-                else:
-                    self.append_to_output(
-                        stylize_error("\n  ❌ Failed to copy to clipboard.\n")
-                    )
+                self._copy_to_clipboard_and_report(
+                    content, "\n  📋 Last output copied to clipboard.\n"
+                )
                 return True
 
             # Command with arg → redirect to file (existing behaviour).
@@ -294,10 +311,7 @@ class BaseUIConversationCommands:
                     return True
 
                 try:
-                    expanded_path = os.path.abspath(os.path.expanduser(path))
-                    os.makedirs(os.path.dirname(expanded_path), exist_ok=True)
-                    with open(expanded_path, "w", encoding="utf-8") as f:
-                        f.write(content)
+                    self._write_text_to_file(path, content)
                     self.append_to_output(
                         stylize_muted(f"\n  📝 Last output redirected to: {path}\n")
                     )
@@ -325,24 +339,15 @@ class BaseUIConversationCommands:
                             stylize_error("\n  ❌ No conversation history to copy.\n")
                         )
                         return True
-                    # lazy: tests patch copy_text/format_history_as_text; hoisting
-                    # bypasses mocks
-                    from zrb.llm.util.clipboard import copy_text
+                    # lazy: tests patch format_history_as_text; hoisting bypasses the mock
                     from zrb.llm.util.history_formatter import (
                         format_history_as_text,
                     )
 
                     transcript = format_history_as_text(messages, full=True)
-                    if copy_text(transcript):
-                        self.append_to_output(
-                            stylize_muted(
-                                "\n  📋 Full transcript copied to clipboard.\n"
-                            )
-                        )
-                    else:
-                        self.append_to_output(
-                            stylize_error("\n  ❌ Failed to copy to clipboard.\n")
-                        )
+                    self._copy_to_clipboard_and_report(
+                        transcript, "\n  📋 Full transcript copied to clipboard.\n"
+                    )
                 except Exception as e:
                     self.append_to_output(
                         stylize_error(f"\n  ❌ Failed to copy transcript: {e}\n")
@@ -370,10 +375,7 @@ class BaseUIConversationCommands:
                     )
 
                     transcript = format_history_as_text(messages, full=True)
-                    expanded_path = os.path.abspath(os.path.expanduser(path))
-                    os.makedirs(os.path.dirname(expanded_path), exist_ok=True)
-                    with open(expanded_path, "w", encoding="utf-8") as f:
-                        f.write(transcript)
+                    self._write_text_to_file(path, transcript)
                     self.append_to_output(
                         stylize_muted(f"\n  📝 Transcript saved to: {path}\n")
                     )

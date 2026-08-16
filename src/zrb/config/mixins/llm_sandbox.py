@@ -9,7 +9,7 @@ See ``zrb.llm.sandbox`` and docs/advanced-topics/sandbox.md.
 
 from __future__ import annotations
 
-from zrb.config.env_field import EnvField, colon_join, expanduser_colon_list
+from zrb.config.env_field import EnvField, colon_join, expanduser_colon_list, on_off
 from zrb.util.string.conversion import to_boolean
 
 # Directories that commonly hold credentials. Defined here (config is a leaf
@@ -50,6 +50,7 @@ class LLMSandboxMixin:
 
     LLM_SANDBOX_ENABLED = EnvField(
         to_boolean,
+        serialize=on_off,
         doc=(
             "Master switch for the LLM tool sandbox (both the Python-level "
             "filesystem gate and the OS-level shell wrapper). Off by default; "
@@ -96,6 +97,7 @@ class LLMSandboxMixin:
 
     LLM_SANDBOX_ALLOW_ESCAPE = EnvField(
         to_boolean,
+        serialize=on_off,
         doc=(
             "Whether the dangerously_skip_sandbox tool argument is honored. "
             "When false, escape requests are blocked outright. Set false for "

@@ -90,7 +90,11 @@ async def analyze_code(
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
-        return f"Error: Path not found: {path}"
+        return (
+            f"Error: Path not found: {path}. "
+            "[SYSTEM SUGGESTION]: Check the path; use List to see what exists "
+            "nearby."
+        )
 
     extensions = DEFAULT_EXTENSIONS
     exclude_patterns = (
@@ -164,18 +168,20 @@ async def analyze_code(
     return summarized_infos[0]
 
 
-def _get_file_metadatas(
+def _collect_matching_files(
     dir_path: str,
     extensions: list[str],
     include_patterns: list[str] | None,
     exclude_patterns: list[str],
-) -> list[dict[str, str]]:
-    """Get file metadata for analysis.
+) -> list[tuple[str, str]]:
+    """Walk `dir_path` and return `(file_path, rel_path)` for every file passing
+    the extension/include/exclude filters, in the same walk-then-sort order
+    both `_get_file_metadatas` and `_get_file_metadatas_with_lsp` need.
 
-    Returns:
-        List of file metadata dicts
+    A filter-evaluation error is logged and the file skipped — matching the
+    original per-caller try/except around this exact block.
     """
-    metadata_list = []
+    matches: list[tuple[str, str]] = []
     for root, dirs, files in os.walk(dir_path):
         dirs[:] = [
             d for d in dirs if not any(pattern in d for pattern in exclude_patterns)
@@ -193,10 +199,32 @@ def _get_file_metadatas(
                     rel_path, include_patterns
                 ):
                     continue
-                with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-                    metadata_list.append({"path": rel_path, "content": f.read()})
+                matches.append((file_path, rel_path))
             except Exception as e:
                 zrb_print(f"Error reading file {file_path}: {e}", plain=True)
+    return matches
+
+
+def _get_file_metadatas(
+    dir_path: str,
+    extensions: list[str],
+    include_patterns: list[str] | None,
+    exclude_patterns: list[str],
+) -> list[dict[str, str]]:
+    """Get file metadata for analysis.
+
+    Returns:
+        List of file metadata dicts
+    """
+    metadata_list = []
+    for file_path, rel_path in _collect_matching_files(
+        dir_path, extensions, include_patterns, exclude_patterns
+    ):
+        try:
+            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                metadata_list.append({"path": rel_path, "content": f.read()})
+        except Exception as e:
+            zrb_print(f"Error reading file {file_path}: {e}", plain=True)
     metadata_list.sort(key=lambda m: m["path"])
     return metadata_list
 
@@ -218,34 +246,20 @@ async def _get_file_metadatas_with_lsp(
     file_paths = []
 
     # First pass: collect files and start LSP tasks for supported file types
-    for root, dirs, files in os.walk(dir_path):
-        dirs[:] = [
-            d for d in dirs if not any(pattern in d for pattern in exclude_patterns)
-        ]
-        files.sort()
-        for file in files:
-            if not any(file.endswith(f".{ext}") for ext in extensions):
-                continue
-            file_path = os.path.join(root, file)
-            try:
-                rel_path = os.path.relpath(file_path, dir_path)
-                if is_path_excluded(rel_path, exclude_patterns):
-                    continue
-                if include_patterns and not is_path_included(
-                    rel_path, include_patterns
-                ):
-                    continue
+    for file_path, rel_path in _collect_matching_files(
+        dir_path, extensions, include_patterns, exclude_patterns
+    ):
+        try:
+            file_ext = os.path.splitext(file_path)[1].lower()
+            if file_ext in LSP_SUPPORTED_EXTENSIONS:
+                lsp_tasks.append(_get_lsp_context(rel_path, dir_path))
+                file_paths.append(rel_path)
+            else:
+                with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                    metadata_list.append({"path": rel_path, "content": f.read()})
 
-                file_ext = os.path.splitext(file)[1].lower()
-                if file_ext in LSP_SUPPORTED_EXTENSIONS:
-                    lsp_tasks.append(_get_lsp_context(rel_path, dir_path))
-                    file_paths.append(rel_path)
-                else:
-                    with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-                        metadata_list.append({"path": rel_path, "content": f.read()})
-
-            except Exception as e:
-                zrb_print(f"Error reading file {file_path}: {e}", plain=True)
+        except Exception as e:
+            zrb_print(f"Error reading file {file_path}: {e}", plain=True)
 
     if lsp_tasks:
         zrb_print(f"  🔍 LSP analysis ({len(lsp_tasks)} files)", plain=True)

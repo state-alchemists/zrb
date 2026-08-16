@@ -180,6 +180,23 @@ class Context(AnyContext):
     ):
         self.print(*values, sep=sep, end=end, file=file, flush=flush, plain=plain)
 
+    def _log(
+        self,
+        level: int,
+        label: str,
+        style_fn,
+        *values: object,
+        sep: str | None = " ",
+        end: str | None = "\n",
+        file: TextIO | None = sys.stderr,
+        flush: bool = True,
+    ):
+        if self._shared_ctx.get_logging_level() <= level:
+            sep = " " if sep is None else sep
+            message = sep.join([f"{value}" for value in values])
+            stylized_message = style_fn(f"[{label}] {message}")
+            self.print(stylized_message, sep=sep, end=end, file=file, flush=flush)
+
     def log_debug(
         self,
         *values: object,
@@ -188,11 +205,16 @@ class Context(AnyContext):
         file: TextIO | None = sys.stderr,
         flush: bool = True,
     ):
-        if self._shared_ctx.get_logging_level() <= logging.DEBUG:
-            sep = " " if sep is None else sep
-            message = sep.join([f"{value}" for value in values])
-            stylized_message = stylize_log(f"[DEBUG] {message}")
-            self.print(stylized_message, sep=sep, end=end, file=file, flush=flush)
+        self._log(
+            logging.DEBUG,
+            "DEBUG",
+            stylize_log,
+            *values,
+            sep=sep,
+            end=end,
+            file=file,
+            flush=flush,
+        )
 
     def log_info(
         self,
@@ -202,11 +224,16 @@ class Context(AnyContext):
         file: TextIO | None = sys.stderr,
         flush: bool = True,
     ):
-        if self._shared_ctx.get_logging_level() <= logging.INFO:
-            sep = " " if sep is None else sep
-            message = sep.join([f"{value}" for value in values])
-            stylized_message = stylize_log(f"[INFO] {message}")
-            self.print(stylized_message, sep=sep, end=end, file=file, flush=flush)
+        self._log(
+            logging.INFO,
+            "INFO",
+            stylize_log,
+            *values,
+            sep=sep,
+            end=end,
+            file=file,
+            flush=flush,
+        )
 
     def log_warning(
         self,
@@ -216,11 +243,16 @@ class Context(AnyContext):
         file: TextIO | None = sys.stderr,
         flush: bool = True,
     ):
-        if self._shared_ctx.get_logging_level() <= logging.INFO:
-            sep = " " if sep is None else sep
-            message = sep.join([f"{value}" for value in values])
-            stylized_message = stylize_warning(f"[WARNING] {message}")
-            self.print(stylized_message, sep=sep, end=end, file=file, flush=flush)
+        self._log(
+            logging.WARNING,
+            "WARNING",
+            stylize_warning,
+            *values,
+            sep=sep,
+            end=end,
+            file=file,
+            flush=flush,
+        )
 
     def log_error(
         self,
@@ -230,11 +262,16 @@ class Context(AnyContext):
         file: TextIO | None = sys.stderr,
         flush: bool = True,
     ):
-        if self._shared_ctx.get_logging_level() <= logging.ERROR:
-            sep = " " if sep is None else sep
-            message = sep.join([f"{value}" for value in values])
-            stylized_message = stylize_error(f"[ERROR] {message}")
-            self.print(stylized_message, sep=sep, end=end, file=file, flush=flush)
+        self._log(
+            logging.ERROR,
+            "ERROR",
+            stylize_error,
+            *values,
+            sep=sep,
+            end=end,
+            file=file,
+            flush=flush,
+        )
 
     def log_critical(
         self,
@@ -244,8 +281,13 @@ class Context(AnyContext):
         file: TextIO | None = sys.stderr,
         flush: bool = True,
     ):
-        if self._shared_ctx.get_logging_level() <= logging.CRITICAL:
-            sep = " " if sep is None else sep
-            message = sep.join([f"{value}" for value in values])
-            stylized_message = stylize_error(f"[CRITICAL] {message}")
-            self.print(stylized_message, sep=sep, end=end, file=file, flush=flush)
+        self._log(
+            logging.CRITICAL,
+            "CRITICAL",
+            stylize_error,
+            *values,
+            sep=sep,
+            end=end,
+            file=file,
+            flush=flush,
+        )

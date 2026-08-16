@@ -57,6 +57,8 @@ import re
 import shutil
 import sys
 
+from zrb.config.helper import is_wsl
+
 # Termux's real home directory is always at this fixed location, regardless
 # of whether the caller is native Termux or a proot-distro guest -- see the
 # module docstring and `_termux_camera_photo`.
@@ -77,7 +79,8 @@ async def get_camera_photo(device: str | None = None) -> bytes | None:
     to explain the failure to the user.
     """
     try:
-        # lazy: internal helper; cheap but avoids top-level import
+        # lazy: tests patch zrb.config.helper.is_termux; hoisting would bind
+        # the name at this module's load time and bypass the mock.
         from zrb.config.helper import is_termux
 
         if is_termux() and shutil.which("termux-camera-photo"):
@@ -250,7 +253,8 @@ async def _run(cmd: list[str]) -> bytes | None:
 
 def missing_tool_hint() -> str:
     """Return a short help string explaining why camera capture failed."""
-    # lazy: internal helper; cheap but avoids top-level import
+    # lazy: tests patch zrb.config.helper.is_termux; hoisting would bind
+    # the name at this module's load time and bypass the mock.
     from zrb.config.helper import is_termux
 
     if is_termux():
@@ -268,7 +272,7 @@ def missing_tool_hint() -> str:
             "-list_devices true -i dummy` to find your device name and pass "
             'it explicitly: /photo "<device name>".\n'
         )
-    elif os.environ.get("WSL_DISTRO_NAME") or os.environ.get("WSLENV"):
+    elif is_wsl():
         doc_url = (
             "https://github.com/state-alchemists/zrb/blob/main/docs/"
             "advanced-topics/llm-integration.md#troubleshooting-voice--photo"

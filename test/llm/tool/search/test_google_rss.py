@@ -2,6 +2,9 @@
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+import requests
+
 from zrb.llm.tool.search.google_rss import search_internet
 
 _RSS_PAYLOAD = b"""<?xml version="1.0" encoding="UTF-8"?>
@@ -76,3 +79,21 @@ def test_search_internet_propagates_http_errors():
             assert "502" in str(e)
         else:
             raise AssertionError("Expected RuntimeError to propagate")
+
+
+def test_search_internet_connection_error_has_suggestion():
+    with patch(
+        "requests.get", side_effect=requests.exceptions.ConnectionError("refused")
+    ):
+        with pytest.raises(Exception) as excinfo:
+            search_internet("x")
+    assert "Unable to connect" in str(excinfo.value)
+    assert "[SYSTEM SUGGESTION]" in str(excinfo.value)
+
+
+def test_search_internet_timeout_has_suggestion():
+    with patch("requests.get", side_effect=requests.exceptions.Timeout("timed out")):
+        with pytest.raises(Exception) as excinfo:
+            search_internet("x")
+    assert "timed out" in str(excinfo.value)
+    assert "[SYSTEM SUGGESTION]" in str(excinfo.value)

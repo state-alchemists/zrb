@@ -15,7 +15,6 @@ from zrb.task.make_task import make_task
     alias="encode",
 )
 def encode_url(ctx: AnyContext) -> str:
-
     result = quote(ctx.input.text, safe="")
     ctx.print(result)
     return result
@@ -29,7 +28,6 @@ def encode_url(ctx: AnyContext) -> str:
     alias="decode",
 )
 def decode_url(ctx: AnyContext) -> str:
-
     result = unquote(ctx.input.text)
     ctx.print(result)
     return result
@@ -44,7 +42,6 @@ def decode_url(ctx: AnyContext) -> str:
     alias="parse",
 )
 def parse_url(ctx: AnyContext) -> str:
-
     parts = urlparse(ctx.input.url)
     try:
         port = parts.port

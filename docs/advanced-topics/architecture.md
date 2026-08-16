@@ -80,8 +80,8 @@ When an exception occurs deep within `asyncio.gather`, standard tracebacks are o
 * **Convention:** The `BaseTask` constructor captures the exact file and line number where the user defined the task (`self.__decl_file`, `self.__decl_line`) using the `inspect` module.
 * **Usage:** When an action fails, this metadata is injected into the exception notes (`e.add_note()`). Always preserve this mechanism so the user knows *which of their defined tasks* caused the crash.
 
-### F-String and Jinja Rendering
-We defer execution of dynamic parameters. Many attributes accept `fstring` or strings containing `Jinja2` syntax.
+### F-String Rendering
+We defer execution of dynamic parameters. Many attributes accept `fstring` — a plain string containing single-brace `{ctx.x}` expressions, rendered by `ctx.render()`. This is Python f-string syntax, not Jinja2 (Jinja2 is used only for the web UI's HTML page templates, `src/zrb/runner/web_route/jinja_env.py`).
 * **Convention:** Never trust a string property as static. Pass it through `ctx.render(task.property)` immediately before execution to ensure the most up-to-date Environment Variables or XCom data is populated.
 
 🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > Architecture, Philosophy, & Conventions

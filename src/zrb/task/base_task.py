@@ -433,8 +433,29 @@ class BaseTask(AnyTask):
         return await execute_task_action(self, session)
 
     async def exec_action(self, ctx: AnyContext) -> Any:
-        """Public wrapper around _exec_action for cross-module callers."""
-        return await self._exec_action(ctx)
+        """Public wrapper around _exec_action for cross-module callers.
+
+        Also the single choke point for enriching a raised exception with this
+        task's declaration site. Subclasses (`CmdTask`, `HttpCheck`,
+        `TcpCheck`, `Scaffolder`, `Scheduler`, ...) override `_exec_action`
+        wholesale rather than calling `super()`, so this enrichment lives here
+        instead of inside `_exec_action` — every subclass gets it regardless
+        of how it overrides the action itself.
+        """
+        try:
+            return await self._exec_action(ctx)
+        except (KeyboardInterrupt, GeneratorExit):
+            raise
+        except BaseException as e:
+            additional_error_note = (
+                f"Task: {self.name} ({self.__decl_file}:{self.__decl_line})"
+            )
+            if hasattr(e, "add_note"):
+                e.add_note(additional_error_note)
+            elif hasattr(e, "__notes__"):
+                # fallback: use the __notes__ attribute directly
+                e.__notes__ = getattr(e, "__notes__", []) + [additional_error_note]
+            raise e
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
         """
@@ -448,23 +469,7 @@ class BaseTask(AnyTask):
         Returns:
             Any: The result of the action execution.
         """
-        try:
-            return await run_default_action(self, ctx)
-        except (KeyboardInterrupt, GeneratorExit):
-            raise
-        except BaseException as e:
-            additional_error_note = (
-                f"Task: {self.name} ({self.__decl_file}:{self.__decl_line})"
-            )
-            if not isinstance(e, KeyboardInterrupt):
-                # if error is KeyboardInterrupt, don't print anything
-                ctx.log_error(additional_error_note)
-            if hasattr(e, "add_note"):
-                e.add_note(additional_error_note)
-            elif hasattr(e, "__notes__"):
-                # fallback: use the __notes__ attribute directly
-                e.__notes__ = getattr(e, "__notes__", []) + [additional_error_note]
-            raise e
+        return await run_default_action(self, ctx)
 
     def to_function(self) -> Callable[..., Any]:
         """Wrap this task as a plain Python function.

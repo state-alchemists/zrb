@@ -207,7 +207,7 @@ Hooks are defined in JSON or YAML format. Each hook has the following structure:
 | `config` | object | Yes | Type-specific configuration |
 | `description` | string | No | Human-readable description |
 | `matchers` | array | No | Conditions to filter when hook runs |
-| `async` | boolean | No | Run asynchronously (default: false) |
+| `async` | boolean | No | Run fire-and-forget in the background, without blocking the event (default: false). Only `command` hooks honor this — `prompt`/`agent` hooks always run synchronously, since their results (e.g. modifications) often need to feed back into the blocking flow. |
 | `enabled` | boolean | No | Hook is active (default: true) |
 | `timeout` | number | No | Timeout in seconds. Default is type-dependent: `command` hooks default to 600s, `prompt` hooks default to 30s, and `agent` hooks default to 60s |
 | `env` | object | No | Environment variables to inject |
@@ -643,8 +643,11 @@ from zrb.llm.hook.types import HookEvent
 
 async def block_production_writes(context: HookContext) -> HookResult:
     """Block writes to production config files."""
-    if context.event_data.get("tool") == "write_file":
-        path = context.event_data.get("path", "")
+    # `event_data`'s shape for PRE_TOOL_USE is {"tool": name, "args": {...}, "call_id": ...}.
+    # `tool` is the display name the agent sees, e.g. "Write" for write_file, not the
+    # Python function name.
+    if context.event_data.get("tool") == "Write":
+        path = context.event_data.get("args", {}).get("path", "")
         if "prod_config" in path:
             return HookResult.block("Cannot modify production config.")
     return HookResult(success=True)
@@ -655,7 +658,16 @@ hook_manager.register(block_production_writes, events=[HookEvent.PRE_TOOL_USE])
 
 ### Programmatic Hook with Priority
 
+`HookConfig` here is metadata only (priority/matchers) — the hook itself is the
+Python callable you already registered, not something built from `config`. Its
+`type`/`config` fields are still required by the constructor, so pass an inert
+placeholder (mirroring the same pattern `hook_manager` uses internally for
+manually-registered hooks with no command):
+
 ```python
+from zrb.llm.hook.schema import CommandHookConfig, HookConfig
+from zrb.llm.hook.types import HookType
+
 async def critical_security_check(context: HookContext) -> HookResult:
     # ... security check logic ...
     return HookResult(success=True)
@@ -665,6 +677,9 @@ hook_manager.register(
     events=[HookEvent.PRE_TOOL_USE],
     config=HookConfig(
         name="critical-security",
+        events=[HookEvent.PRE_TOOL_USE],
+        type=HookType.COMMAND,
+        config=CommandHookConfig(command=""),  # unused: the callable above is the hook
         priority=100,  # Run first
         timeout=5,
     )

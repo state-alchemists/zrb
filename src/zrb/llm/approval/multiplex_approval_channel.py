@@ -34,8 +34,10 @@ class MultiplexApprovalChannel(ApprovalChannel):
         CFG.LOGGER.debug(f"Multiplex request_approval START for {context.tool_name}")
 
         if not self._channels:
-            CFG.LOGGER.debug("Multiplex No channels, auto-approving")
-            return ApprovalResult(approved=True)
+            CFG.LOGGER.debug("Multiplex No channels configured, denying")
+            return ApprovalResult(
+                approved=False, message="No approval channels configured"
+            )
 
         loop = asyncio.get_running_loop()
         future: asyncio.Future[ApprovalResult] = loop.create_future()

@@ -1,7 +1,7 @@
-import json
 import os
 from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
+from zrb.llm.tool_call.args import parse_tool_args
 from zrb.llm.tool_call.handler import UIProtocol
 
 if TYPE_CHECKING:
@@ -23,14 +23,8 @@ async def read_file_validation_policy(
     if call.tool_name != "Read":
         return await next_handler(ui, call)
 
-    args = call.args
-    try:
-        if isinstance(args, str):
-            args = json.loads(args)
-    except (json.JSONDecodeError, ValueError):
-        return await next_handler(ui, call)
-
-    if not isinstance(args, dict):
+    args = parse_tool_args(call)
+    if args is None:
         return await next_handler(ui, call)
 
     path = args.get("path")

@@ -43,7 +43,7 @@ def serve_cli():
             if abs_init_script not in zrb_init_path_list:
                 CFG.LOGGER.info(f"Loading {abs_init_script}")
                 try:
-                    load_file(abs_init_script, -1)
+                    load_file(abs_init_script)
                 except BaseException as e:
                     print(stylize_error(f"{e}"), file=sys.stderr)
         for zrb_init_path in zrb_init_path_list:

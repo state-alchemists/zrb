@@ -21,10 +21,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Callable
 
 from zrb.attr.type import BoolAttr
-from zrb.llm.factory_resolver import resolve_factory_items
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
 from zrb.llm.prompt.manager import PromptManager
+from zrb.llm.task.shared_getters import (
+    resolve_all_tools,
+    resolve_all_toolsets,
+    resolve_model,
+    resolve_system_prompt,
+)
 from zrb.util.attr import get_attr
 
 if TYPE_CHECKING:
@@ -248,21 +253,18 @@ class LLMTaskBuilding:
 
     def get_all_tools(self, ctx: AnyContext) -> list[Tool | ToolFuncEither]:
         """Get all tools including those resolved from factories."""
-        return resolve_factory_items(self._tools, self._tool_factories, ctx)
+        return resolve_all_tools(ctx, self._tools, self._tool_factories)
 
     def get_all_toolsets(self, ctx: AnyContext) -> list[AbstractToolset[None]]:
         """Get all toolsets including those resolved from factories."""
-        return resolve_factory_items(self._toolsets, self._toolset_factories, ctx)
+        return resolve_all_toolsets(ctx, self._toolsets, self._toolset_factories)
 
     def get_system_prompt(self, ctx: AnyContext) -> str:
         """Compose the full system prompt for this run.
 
         Returns the empty string when the task has no prompt manager.
         """
-        if self._prompt_manager is None:
-            return ""
-        compose_prompt = self._prompt_manager.compose_prompt()
-        return compose_prompt(ctx)
+        return resolve_system_prompt(ctx, self._prompt_manager)
 
     def get_live_context(
         self, ctx: AnyContext, inject_journal_index: bool = False
@@ -304,10 +306,4 @@ class LLMTaskBuilding:
         A blank render counts as unset, so an empty ``--model`` input does not
         shadow the configured model with an empty string.
         """
-        model = self._model
-        rendered_model = get_attr(ctx, model, None, auto_render=self._render_model)
-        if isinstance(rendered_model, str) and rendered_model.strip() == "":
-            rendered_model = None
-        if rendered_model is not None:
-            return rendered_model
-        return self._llm_config.model
+        return resolve_model(ctx, self._model, self._render_model, self._llm_config)

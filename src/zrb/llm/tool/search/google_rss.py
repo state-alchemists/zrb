@@ -13,11 +13,25 @@ def search_internet(query: str, page: int = 1) -> dict:
         f"https://news.google.com/rss/search"
         f"?q={quote_plus(query)}&hl=en-US&gl=US&ceid=US:en"
     )
-    response = requests.get(
-        url,
-        headers={"User-Agent": "Mozilla/5.0"},
-        timeout=10,
-    )
+    try:
+        response = requests.get(
+            url,
+            headers={"User-Agent": "Mozilla/5.0"},
+            timeout=10,
+        )
+    except requests.exceptions.ConnectionError as e:
+        raise Exception(
+            "Error: Unable to connect to Google News RSS. Connection refused. "
+            "[SYSTEM SUGGESTION]: This is likely a transient network issue or a "
+            "firewall blocking news.google.com. Retry the search, or try a "
+            "different search backend."
+        ) from e
+    except requests.exceptions.Timeout as e:
+        raise Exception(
+            "Error: Connection to Google News RSS timed out. "
+            "[SYSTEM SUGGESTION]: This is likely a transient network issue. Retry "
+            "the search, or try a different search backend."
+        ) from e
     response.raise_for_status()
 
     root = ET.fromstring(response.content)

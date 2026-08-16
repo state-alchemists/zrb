@@ -179,7 +179,11 @@ class FileHistoryManager(AnyHistoryManager):
 
             ModelMessagesTypeAdapter.validate_python(filtered_data)
 
-            self._save_data_to_file(file_path, filtered_data)
+            if not self._save_data_to_file(file_path, filtered_data):
+                # Write failed (already logged by _save_data_to_file): keep the
+                # entry dirty and its mtime unrefreshed so it's never mistaken
+                # for safely persisted and evicted from the cache.
+                return
             # Refresh the sync point so our own write doesn't look like an
             # out-of-band change on the next load().
             self._cache_mtime[conversation_name] = self._file_mtime(file_path)

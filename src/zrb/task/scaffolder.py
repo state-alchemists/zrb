@@ -3,7 +3,7 @@ import shutil
 from collections.abc import Callable, Sequence
 from typing import cast
 
-from zrb.attr.type import StrAttr
+from zrb.attr.type import BoolAttr, StrAttr
 from zrb.content_transformer.any_content_transformer import AnyContentTransformer
 from zrb.content_transformer.content_transformer import ContentTransformer
 from zrb.context.any_context import AnyContext
@@ -42,7 +42,7 @@ class Scaffolder(BaseTask):
             list[AnyContentTransformer] | AnyContentTransformer | TransformConfig | None
         ) = None,
         render_transform_content: bool = True,
-        execute_condition: bool | str | Callable[[AnyContext], bool] = True,
+        execute_condition: BoolAttr = True,
         retries: int = 2,
         retry_period: float = 0,
         readiness_check: Sequence[AnyTask] | AnyTask | None = None,
@@ -113,10 +113,14 @@ class Scaffolder(BaseTask):
         self._render_path_transformer = render_transform_path
 
     def _get_source_path(self, ctx: AnyContext) -> str:
-        return get_str_attr(ctx, self._source_path, "", auto_render=True)
+        return get_str_attr(
+            ctx, self._source_path, "", auto_render=self._render_source_path
+        )
 
     def _get_destination_path(self, ctx: AnyContext) -> str:
-        return get_str_attr(ctx, self._destination_path, "", auto_render=True)
+        return get_str_attr(
+            ctx, self._destination_path, "", auto_render=self._render_destination_path
+        )
 
     def _get_content_transformers(self) -> list[AnyContentTransformer]:
         if callable(self._content_transformers) or isinstance(

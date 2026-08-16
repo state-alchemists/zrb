@@ -18,7 +18,7 @@ class CmdResult:
         shown_output = f"...{last_line_output}" if last_line_output != "" else ""
         last_line_error = self.error.split("\n")[-1]
         shown_error = f"...{last_line_error}" if last_line_error != "" else ""
-        return f"<{class_name} output={shown_output} error=...{shown_error}>"
+        return f"<{class_name} output={shown_output} error={shown_error}>"
 
     def __str__(self) -> str:
         return self.output

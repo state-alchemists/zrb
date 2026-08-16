@@ -2,12 +2,13 @@ import os
 
 from zrb.builtin.group import setup_group
 from zrb.builtin.setup.common_input import package_manager_input, use_sudo_input
+from zrb.builtin.setup.config_file_helper import append_config_block_if_missing
 from zrb.builtin.setup.zsh.zsh_helper import get_install_zsh_cmd
 from zrb.context.any_context import AnyContext
 from zrb.input.str_input import StrInput
 from zrb.task.cmd_task import CmdTask
 from zrb.task.make_task import make_task
-from zrb.util.file import read_file, write_file
+from zrb.util.file import read_file
 
 install_zsh = CmdTask(
     name="install-zsh",
@@ -42,13 +43,9 @@ install_zinit = CmdTask(
     group=setup_group,
     alias="zsh",
 )
-def setup_zsh(ctx: AnyContext):
+def setup_zsh(ctx: AnyContext) -> None:
     zsh_config = read_file(os.path.join(os.path.dirname(__file__), "zsh_config.sh"))
     zsh_config_file = os.path.expanduser(ctx.input["zsh-config"])
-    if not os.path.isfile(zsh_config_file):
-        write_file(zsh_config_file, "")
-    content = read_file(zsh_config_file)
-    if zsh_config in content:
+    if not append_config_block_if_missing(zsh_config_file, zsh_config):
         return
-    write_file(zsh_config_file, [content, zsh_config, ""])
     ctx.print("Setup complete, restart your terminal to continue")

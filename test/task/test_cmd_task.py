@@ -64,8 +64,37 @@ async def test_cmd_task_exec_failure(mock_session):
         task = CmdTask(name="test_cmd_fail", cmd="exit 1")
         mock_session.register_task(task)
 
-        with pytest.raises(Exception, match="Process test_cmd_fail exited \\(1\\)"):
+        with pytest.raises(RuntimeError, match="Process test_cmd_fail exited \\(1\\)"):
             await task.exec(mock_session)
+    finally:
+        zrb.task.cmd_task.run_command = original_run_command
+
+
+@pytest.mark.asyncio
+async def test_cmd_task_exec_failure_carries_task_context_note(mock_session):
+    """Regression: CmdTask overrides `_exec_action` wholesale, so it used to
+    lose BaseTask's "Task: name (file:line)" exception-enrichment note."""
+    mock_cmd_result = CmdResult(output="", error="error", display="")
+
+    def mock_run_command(*args, **kwargs):
+        async def _coro():
+            return (mock_cmd_result, 1)
+
+        return _coro()
+
+    import zrb.task.cmd_task
+
+    original_run_command = zrb.task.cmd_task.run_command
+    zrb.task.cmd_task.run_command = mock_run_command
+    try:
+        task = CmdTask(name="test_cmd_fail_note", cmd="exit 1")
+        mock_session.register_task(task)
+
+        with pytest.raises(RuntimeError) as exc_info:
+            await task.exec(mock_session)
+
+        notes = getattr(exc_info.value, "__notes__", [])
+        assert any("Task: test_cmd_fail_note" in note for note in notes)
     finally:
         zrb.task.cmd_task.run_command = original_run_command
 
@@ -89,7 +118,9 @@ async def test_cmd_task_exec_signal_killed(mock_session):
         task = CmdTask(name="test_cmd_killed", cmd="sleep 100")
         mock_session.register_task(task)
 
-        with pytest.raises(Exception, match="Process test_cmd_killed exited \\(-9\\)"):
+        with pytest.raises(
+            RuntimeError, match="Process test_cmd_killed exited \\(-9\\)"
+        ):
             await task.exec(mock_session)
     finally:
         zrb.task.cmd_task.run_command = original_run_command

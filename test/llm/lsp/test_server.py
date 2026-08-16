@@ -65,6 +65,40 @@ async def test_lsp_server_lifecycle(lsp_server):
 
 
 @pytest.mark.asyncio
+async def test_lsp_server_start_cleans_up_process_on_initialize_failure(lsp_server):
+    """A spawned subprocess whose handshake fails must not leak: start()
+    should tear the process down (not just return False) so shutdown_all()/
+    the atexit backstop aren't the only things standing between a failed
+    start and an orphaned server process."""
+    with patch("asyncio.create_subprocess_exec") as mock_exec:
+        mock_proc = MagicMock()
+        mock_proc.returncode = None
+        mock_proc.stdout = AsyncMock()
+        mock_proc.stdout.read = AsyncMock(return_value=b"")  # EOF: read loop exits
+        mock_proc.stderr = None
+        mock_proc.stdin = MagicMock()
+        mock_proc.stdin.write = MagicMock()
+        mock_proc.stdin.drain = AsyncMock()
+        mock_proc.terminate = MagicMock()
+        mock_proc.kill = MagicMock()
+        mock_proc.wait = AsyncMock()
+        mock_proc.wait_closed = AsyncMock()
+        mock_exec.return_value = mock_proc
+
+        with patch.object(
+            lsp_server, "_initialize", AsyncMock(side_effect=RuntimeError("boom"))
+        ):
+            started = await lsp_server.start()
+
+        assert started is False
+        # stop() ran as part of the failure path: process handle cleared and
+        # the still-alive mock process was asked to terminate.
+        assert lsp_server.process is None
+        assert lsp_server.initialized is False
+        mock_proc.terminate.assert_called_once()
+
+
+@pytest.mark.asyncio
 async def test_lsp_server_queries(lsp_server):
     """Test public query methods by simulating server responses."""
     with patch("asyncio.create_subprocess_exec") as mock_exec:
@@ -211,6 +245,7 @@ async def test_query_opens_document_first(lsp_server, tmp_path):
 def test_path_to_uri_encodes_special_characters(lsp_server):
     """B26: path_to_uri must quote #/?/%/non-ASCII, matching protocol encoder."""
     from zrb.llm.lsp.protocol import LSPProtocol
+    from zrb.llm.lsp.symbol_utils import uri_to_path
 
     for path in [
         "/tmp/a b.py",
@@ -222,8 +257,9 @@ def test_path_to_uri_encodes_special_characters(lsp_server):
         uri = lsp_server._path_to_uri(path)
         expected = LSPProtocol.create_text_document_identifier(path)["uri"]
         assert uri == expected
-        # Round-trips back to the original absolute path.
-        assert lsp_server._uri_to_path(uri).endswith(path.split("/")[-1])
+        # Round-trips back to the original absolute path via the shared
+        # symbol_utils helper (LSPServer no longer duplicates this itself).
+        assert uri_to_path(uri).endswith(path.split("/")[-1])
         # Spaces and reserved chars are percent-encoded, not left raw.
         assert " " not in uri
 

@@ -108,7 +108,7 @@ async def test_is_branch_merged_throws_on_non_zero_exit(mock_print):
             )
         ),
     ):
-        with pytest.raises(Exception, match="Non zero exit code: 1"):
+        with pytest.raises(RuntimeError, match="Non zero exit code: 1"):
             await git_util.is_branch_merged(
                 "/fake/repo", "any-branch", print_method=mock_print
             )

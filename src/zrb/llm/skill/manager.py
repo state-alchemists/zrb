@@ -330,13 +330,12 @@ class SkillManager:
 
     def _on_file_found(self, item: Path) -> None:
         full_path = str(item)
-        rel_path = os.path.relpath(full_path, self._root_dir)
         if item.name == "SKILL.py" or item.name.endswith(".skill.py"):
-            self._load_skill_from_python(rel_path, full_path)
+            self._load_skill_from_python(full_path)
         elif item.name == "SKILL.md" or item.name.endswith(".skill.md"):
-            self._load_skill_from_markdown(rel_path, full_path)
+            self._load_skill_from_markdown(full_path)
 
-    def _load_skill_from_python(self, rel_path: str, full_path: str):
+    def _load_skill_from_python(self, full_path: str):
         try:
             module_name = f"zrb_skill_{uuid.uuid4().hex}"
             module = load_module_from_path(module_name, full_path)
@@ -363,7 +362,7 @@ class SkillManager:
         except Exception as e:
             CFG.LOGGER.warning(f"Failed to load Python skill from {full_path}: {e}")
 
-    def _load_skill_from_markdown(self, rel_path: str, full_path: str):
+    def _load_skill_from_markdown(self, full_path: str):
         try:
             with open(full_path, "r", encoding="utf-8") as f:
                 content = f.read()

@@ -84,7 +84,7 @@ class SubAgentManagerLoading:
         from pydantic_ai import Agent
 
         # lazy: SubAgentDefinition lives in the sibling module that imports
-        # this mixin; hoisting would create a circular import.
+        # this part; hoisting would create a circular import.
         from zrb.llm.agent.subagent.manager import SubAgentDefinition
 
         try:

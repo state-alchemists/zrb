@@ -1,7 +1,7 @@
 """Singleton manager that owns running LSP server processes.
 
 Composition: lifecycle (start/stop, project-root detection) and queries
-(definition, references, diagnostics, …) live in sibling mixins. The
+(definition, references, diagnostics, …) live in sibling parts. The
 class itself owns the singleton instance and the per-key cache state.
 """
 

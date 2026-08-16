@@ -37,7 +37,6 @@ _FORMATTERS = {2: "b", 8: "o", 10: "d", 16: "x"}
     alias="convert",
 )
 def convert_base(ctx: AnyContext) -> str:
-
     from_base = int(ctx.input.from_base)
     try:
         number = int(ctx.input.value, from_base)

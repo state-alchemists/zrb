@@ -20,7 +20,11 @@ async def analyze_file(path: str, query: str) -> str:
 
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
-        return f"Error: File not found: {path}"
+        return (
+            f"Error: File not found: {path}. "
+            "[SYSTEM SUGGESTION]: Check the path; use List to see what exists "
+            "nearby."
+        )
 
     content = read_file(abs_path)
     if content.startswith("Error:"):

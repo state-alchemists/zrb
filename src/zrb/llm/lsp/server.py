@@ -6,7 +6,6 @@ Handles starting, stopping, and communicating with Language Server Protocol serv
 
 import asyncio
 import json
-from urllib.parse import unquote, urlparse
 
 from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
@@ -114,6 +113,16 @@ class LSPServer(LSPServerOperations):
             zrb_print(
                 f"  ✗ Failed to start LSP server '{self.config.name}': {e}", plain=True
             )
+            # The subprocess may already be spawned (e.g. _initialize() timed
+            # out or raised) — stop() tears down the reader/stderr tasks and
+            # terminates the process so a failed start never leaks it.
+            if self.process is not None:
+                try:
+                    await self.stop()
+                except Exception as stop_error:
+                    CFG.LOGGER.debug(
+                        f"LSP cleanup after failed start also failed: {stop_error}"
+                    )
             return False
 
     async def stop(self):
@@ -210,12 +219,6 @@ class LSPServer(LSPServerOperations):
         causing URI mismatches.
         """
         return LSPProtocol.create_text_document_identifier(path)["uri"]
-
-    def _uri_to_path(self, uri: str) -> str:
-        """Convert URI to file path."""
-        if uri.startswith("file://"):
-            return unquote(urlparse(uri).path)
-        return uri
 
     async def _send_request_raw(self, message: str) -> dict | None:
         """Send a raw JSON-RPC request and wait for response."""

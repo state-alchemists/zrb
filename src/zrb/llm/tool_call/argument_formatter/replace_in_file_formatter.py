@@ -1,8 +1,8 @@
 import asyncio
-import json
 import os
 from typing import TYPE_CHECKING
 
+from zrb.llm.tool_call.args import parse_tool_args
 from zrb.llm.tool_call.argument_formatter.util import format_diff
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 from zrb.util.cli.markdown import render_markdown
@@ -24,10 +24,8 @@ async def replace_in_file_formatter(
         return None
 
     try:
-        args = call.args
-        if isinstance(args, str):
-            args = json.loads(args)
-        if not isinstance(args, dict):
+        args = parse_tool_args(call)
+        if args is None:
             return None
 
         path = args.get("path")

@@ -35,13 +35,13 @@ def to_boolean(text: str) -> bool:
         bool: The boolean representation of the string.
 
     Raises:
-        Exception: If the string cannot be inferred as a boolean value.
+        ValueError: If the string cannot be inferred as a boolean value.
     """
     if text.lower() in TRUE_STRS:
         return True
     if text.lower() in FALSE_STRS:
         return False
-    raise Exception(f'Cannot infer boolean value from "{text}"')
+    raise ValueError(f'Cannot infer boolean value from "{text}"')
 
 
 def to_camel_case(text: str | None) -> str:

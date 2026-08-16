@@ -1,6 +1,6 @@
 from zrb.builtin.group import shell_autocomplete_group
 from zrb.config.config import CFG
-from zrb.context.context import AnyContext
+from zrb.context.any_context import AnyContext
 from zrb.task.make_task import make_task
 
 _COMPLETION_SCRIPT = """
@@ -32,7 +32,7 @@ complete -F _zrb_complete zrb
 
 @make_task(
     name="make-bash-autocomplete",
-    description="Create Zrb autocomplete script for bash",
+    description="🐚 Create Zrb autocomplete script for bash",
     group=shell_autocomplete_group,
     alias="bash",
 )

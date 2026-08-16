@@ -178,6 +178,50 @@ def test_content_transformer_transform_file_with_auto_render():
             mock_write.assert_called_once()
 
 
+def test_content_transformer_match_auto_mode_regex_glob_collision():
+    """Documents the known "auto" collision: a glob-shaped pattern that also
+    happens to parse as valid regex is matched with regex semantics."""
+    ctx = MagicMock(spec=AnyContext)
+    transformer = ContentTransformer(
+        name="test",
+        match="config.json",
+        transform={"old": "new"},
+    )
+    # Default match_mode="auto": "." is a regex wildcard, so this "looks like
+    # a literal glob" pattern also matches a file it doesn't literally equal.
+    assert transformer.match(ctx, "configXjson") is True
+    assert transformer.match(ctx, "config.json") is True
+
+
+def test_content_transformer_match_glob_mode_avoids_regex_collision():
+    """match_mode="glob" skips the regex attempt, so the same pattern only
+    matches its literal glob meaning."""
+    ctx = MagicMock(spec=AnyContext)
+    transformer = ContentTransformer(
+        name="test",
+        match="config.json",
+        transform={"old": "new"},
+        match_mode="glob",
+    )
+    assert transformer.match(ctx, "configXjson") is False
+    assert transformer.match(ctx, "config.json") is True
+
+
+def test_content_transformer_match_regex_mode_skips_glob_fallback():
+    """match_mode="regex" never falls back to fnmatch, so an invalid-regex
+    pattern (or one that just doesn't match as regex) never matches."""
+    ctx = MagicMock(spec=AnyContext)
+    transformer = ContentTransformer(
+        name="test",
+        match="*.txt",
+        transform={"old": "new"},
+        match_mode="regex",
+    )
+    # "*.txt" is not valid regex (nothing to repeat), so under regex-only mode
+    # it can never match, unlike under "auto" or "glob".
+    assert transformer.match(ctx, "notes.txt") is False
+
+
 def test_content_transformer_transform_file_without_auto_render():
     """Test transform_file with auto_render disabled keeps template values."""
     ctx = MagicMock(spec=AnyContext)

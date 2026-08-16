@@ -156,40 +156,7 @@ async def execute_action_until_ready(task: "BaseTask", session: AnySession):
             readiness_error = e
 
         if not readiness_passed:
-            # Fail fast. A readiness check that exhausted its own retries means
-            # the task's service is broken; deferring the (possibly never-ending)
-            # action would leave the whole run hanging in wait_deferred with no
-            # error exit.
-            ctx.log_error("Readiness failed; cancelling action and failing task")
-            action_coro.cancel()
-            action_error: BaseException | None = None
-            try:
-                await action_coro
-            except asyncio.CancelledError:
-                pass
-            except BaseException as e:
-                action_error = e
-            task_status = session.get_task_status(task)
-            if not task_status.is_permanently_failed and not task_status.is_completed:
-                # Same terminal bookkeeping as the retry loop's final attempt.
-                # Skipped when the action already reached a terminal state:
-                # permanently failed → the retry loop already ran the fallbacks;
-                # completed → the action succeeded and its successors already
-                # ran, so stacking permanent failure and firing fallbacks after
-                # them would be contradictory. The readiness error still
-                # propagates below, so the run fails visibly either way.
-                task_status.mark_as_permanently_failed()
-                skip_successors(task, session)
-                await run_async(execute_fallbacks(task, session))
-            if action_error is not None:
-                # The action's own crash is usually why readiness failed —
-                # surface it as the root cause, not the readiness symptom.
-                raise action_error
-            if readiness_error is not None:
-                raise readiness_error
-            raise RuntimeError(
-                f"Readiness checks for task '{task.name}' did not complete"
-            )
+            await _handle_readiness_failure(task, session, action_coro, readiness_error)
 
         session.defer_action(task, action_coro)
 
@@ -208,6 +175,53 @@ async def execute_action_until_ready(task: "BaseTask", session: AnySession):
     except (asyncio.CancelledError, KeyboardInterrupt, GeneratorExit):
         action_coro.cancel()
         raise
+
+
+async def _handle_readiness_failure(
+    task: "BaseTask",
+    session: AnySession,
+    action_coro: "asyncio.Task",
+    readiness_error: BaseException | None,
+) -> None:
+    """Cancel the action, fail the task, run fallbacks, and raise.
+
+    Called when readiness checks did not pass. Always raises: the action's
+    own crash (if any) takes priority as the root cause over the readiness
+    symptom, then the readiness error itself, then a generic error as a last
+    resort.
+    """
+    ctx = task.get_ctx(session)
+    # Fail fast. A readiness check that exhausted its own retries means the
+    # task's service is broken; deferring the (possibly never-ending) action
+    # would leave the whole run hanging in wait_deferred with no error exit.
+    ctx.log_error("Readiness failed; cancelling action and failing task")
+    action_coro.cancel()
+    action_error: BaseException | None = None
+    try:
+        await action_coro
+    except asyncio.CancelledError:
+        pass
+    except BaseException as e:
+        action_error = e
+    task_status = session.get_task_status(task)
+    if not task_status.is_permanently_failed and not task_status.is_completed:
+        # Same terminal bookkeeping as the retry loop's final attempt.
+        # Skipped when the action already reached a terminal state:
+        # permanently failed → the retry loop already ran the fallbacks;
+        # completed → the action succeeded and its successors already ran,
+        # so stacking permanent failure and firing fallbacks after them would
+        # be contradictory. The readiness error still propagates below, so
+        # the run fails visibly either way.
+        task_status.mark_as_permanently_failed()
+        skip_successors(task, session)
+        await run_async(execute_fallbacks(task, session))
+    if action_error is not None:
+        # The action's own crash is usually why readiness failed — surface it
+        # as the root cause, not the readiness symptom.
+        raise action_error
+    if readiness_error is not None:
+        raise readiness_error
+    raise RuntimeError(f"Readiness checks for task '{task.name}' did not complete")
 
 
 async def execute_action_with_retry(task: "BaseTask", session: AnySession) -> Any:

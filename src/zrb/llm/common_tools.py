@@ -28,6 +28,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Callable, Protocol, runtime_checkable
 
 from zrb.config.config import CFG
+from zrb.llm.permission import Capability, tag
 from zrb.llm.tool_call.tool_policy.bash_validation import (
     bash_safe_command_policy,
 )
@@ -108,9 +109,6 @@ def _register_tools(host: CommonToolHost) -> None:
     # lazy: zrb internal (heavy via transitive / circular)
     from zrb.llm.lsp.configs import detect_available_lsp_servers
     from zrb.llm.lsp.tools import create_lsp_tools
-
-    # lazy: permission is a leaf module.
-    from zrb.llm.permission import Capability, tag
 
     # lazy: zrb.llm.tool.* transitively load pydantic_ai; deferring keeps cold-start
     # latency off the import path for callers that never apply common tools.

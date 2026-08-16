@@ -1,8 +1,8 @@
 import asyncio
 import datetime
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 
-from zrb.attr.type import StrAttr, fstring
+from zrb.attr.type import BoolAttr, StrAttr, fstring
 from zrb.callback.any_callback import AnyCallback
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
@@ -28,7 +28,7 @@ class Scheduler(BaseTrigger):
         input: Sequence[AnyInput | None] | AnyInput | None = None,
         env: Sequence[AnyEnv | None] | AnyEnv | None = None,
         schedule: StrAttr | None = None,
-        execute_condition: bool | str | Callable[[AnyContext], bool] = True,
+        execute_condition: BoolAttr = True,
         queue_name: fstring | None = None,
         callback: list[AnyCallback] | AnyCallback | None = None,
         retries: int = 2,

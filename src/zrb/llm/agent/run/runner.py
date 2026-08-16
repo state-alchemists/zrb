@@ -854,7 +854,8 @@ async def _apply_multimodal_fallback(
     with a warning rather than silently sent to a provider that will reject
     or ignore them.
     """
-    # lazy: zrb internal (heavy via transitive / circular)
+    # lazy: zrb.llm.util.multimodal_describe transitively loads pydantic_ai,
+    # pdfplumber and prompt_toolkit — deferred to keep the cold-start path cheap.
     from zrb.llm.util.multimodal_describe import replace_unsupported_attachments
 
     main_model = getattr(agent, "model", None)

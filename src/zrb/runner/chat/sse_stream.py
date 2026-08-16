@@ -2,6 +2,15 @@ import asyncio
 import json
 from typing import Any
 
+# Deliberate exception to this package's "fastapi loads on demand" convention:
+# this class subclasses fastapi.responses.StreamingResponse, and its own name
+# is used as a FastAPI route's return-type annotation in chat_api_route.py
+# (`-> "SSEStreamResponse"`), which FastAPI's route registration resolves via
+# typing.get_type_hints() to decide whether to build a pydantic response
+# model. Replacing this with a factory function (to defer the import) would
+# make that annotation resolve to a function instead of a Response subclass,
+# breaking FastAPI's built-in special-casing of Response return types. The
+# import must stay eager here.
 from fastapi.responses import StreamingResponse
 
 from zrb.config.config import CFG

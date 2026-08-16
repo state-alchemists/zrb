@@ -2,7 +2,7 @@
 # zrb-theme-dark.sh — Dark terminal theme for zrb llm chat
 #
 # Source this file in your shell rc to apply the dark theme:
-#   source docs/examples/themes/zrb-theme-dark.sh
+#   source examples/themes/zrb-theme-dark.sh
 #
 # Or call the function directly:
 #   zrb_theme_dark

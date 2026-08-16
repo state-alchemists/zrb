@@ -2,10 +2,13 @@ import fnmatch
 import os
 import re
 from collections.abc import Callable
+from typing import Any, Literal
 
 from zrb.content_transformer.any_content_transformer import AnyContentTransformer
 from zrb.context.any_context import AnyContext
 from zrb.util.file import read_file, write_file
+
+MatchMode = Literal["auto", "glob", "regex"]
 
 
 class ContentTransformer(AnyContentTransformer):
@@ -15,9 +18,10 @@ class ContentTransformer(AnyContentTransformer):
         match: list[str] | str | Callable[[AnyContext, str], bool],
         transform: (
             dict[str, str | Callable[[AnyContext], str]]
-            | Callable[[AnyContext, str], None]
+            | Callable[[AnyContext, str], Any]
         ),
         auto_render: bool = True,
+        match_mode: MatchMode = "auto",
     ):
         """Define how matching files are rewritten during scaffolding.
 
@@ -29,11 +33,22 @@ class ContentTransformer(AnyContentTransformer):
                 replacement (values may be templates or callables), or a callable
                 taking the context and a file path that edits the file itself.
             auto_render: Whether to render template values in `transform`.
+            match_mode: How string pattern(s) in `match` are interpreted.
+                `"auto"` (default) tries each pattern as a regex first, falling
+                back to a glob when the pattern isn't valid regex or doesn't
+                match as one — this means a glob-shaped pattern that also
+                happens to parse as valid regex is matched with regex
+                semantics, e.g. `"config.json"` also matches `"configXjson"`
+                because `.` is a regex wildcard. Pass `"glob"` to skip the
+                regex attempt entirely (only `fnmatch` semantics), or
+                `"regex"` to skip the glob fallback entirely (only
+                `re.fullmatch` semantics). Ignored when `match` is callable.
         """
         self._name = name
         self._match = match
         self._transform_file = transform
         self._auto_render = auto_render
+        self._match_mode: MatchMode = match_mode
 
     @property
     def name(self) -> str:
@@ -47,11 +62,14 @@ class ContentTransformer(AnyContentTransformer):
         else:
             patterns = self._match
         for pattern in patterns:
-            try:
-                if re.fullmatch(pattern, file_path):
-                    return True
-            except re.error:
-                pass
+            if self._match_mode != "glob":
+                try:
+                    if re.fullmatch(pattern, file_path):
+                        return True
+                except re.error:
+                    pass
+            if self._match_mode == "regex":
+                continue
             if os.sep not in pattern and (
                 os.altsep is None or os.altsep not in pattern
             ):

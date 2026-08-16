@@ -276,7 +276,11 @@ Integrate Zrb into your Continuous Integration/Continuous Deployment pipelines f
 
 ## 🗺️ Documentation Directory
 
-Zrb scales from simple scripts to massive automation ecosystems. Explore the documentation to unlock its full potential:
+Zrb scales from simple scripts to massive automation ecosystems. Explore the documentation to unlock its full potential.
+
+> **New here?** Read these three in order, then branch out as needed: [Tasks & Execution Lifecycle](docs/core-concepts/tasks-and-lifecycle.md) → [CLI and Groups](docs/core-concepts/cli-and-groups.md) → [Inputs](docs/core-concepts/inputs.md). Prefer learning by copy-pasting a working example? See [`examples/`](examples/README.md) instead.
+>
+> `docs/adr/` and `docs/technical-specs/` are maintainer-facing design history, not part of the reading path below.
 
 ### I. Core Concepts
 The foundational pillars of the framework.
@@ -285,8 +289,8 @@ The foundational pillars of the framework.
 - [Inputs](docs/core-concepts/inputs.md)
 - [Environments (Envs)](docs/core-concepts/environments.md)
 - [Session, Context & XCom](docs/core-concepts/session-and-context.md)
-- [The `@make_task` Decorator](docs/core-concepts/make-task.md) — full parameter reference
-- [XCom Deep Dive](docs/core-concepts/xcom-deep-dive.md) — advanced patterns & pitfalls
+- [The `@make_task` Decorator](docs/core-concepts/make-task.md) — (advanced) full parameter reference
+- [XCom Deep Dive](docs/core-concepts/xcom-deep-dive.md) — (advanced) patterns & pitfalls
 
 ### II. Task Types
 All task types available in Zrb, from basic to advanced.
@@ -325,7 +329,10 @@ All task types available in Zrb, from basic to advanced.
 - [Environment Variables & Overrides](docs/configuration/env-vars.md)
 - [LLM & Rate Limiter Configuration](docs/configuration/llm-config.md)
 
-### VI. Changelog
+### VI. Examples
+- [`examples/`](examples/README.md) — runnable `zrb_init.py` for every topic above, grouped by category
+
+### VII. Changelog
 - [Changelog](docs/changelog.md) — full release history
 
 ---

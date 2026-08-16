@@ -1,8 +1,8 @@
 import asyncio
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from zrb.attr.type import StrAttr
+from zrb.attr.type import BoolAttr, StrAttr
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.context.print_fn import PrintFn
@@ -31,7 +31,7 @@ class HttpCheck(BaseTask):
         render_url: bool = True,
         http_method: StrAttr = "GET",
         interval: float | None = None,
-        execute_condition: bool | str | Callable[[AnyContext], bool] = True,
+        execute_condition: BoolAttr = True,
         upstream: Sequence[AnyTask] | AnyTask | None = None,
         fallback: Sequence[AnyTask] | AnyTask | None = None,
         successor: Sequence[AnyTask] | AnyTask | None = None,

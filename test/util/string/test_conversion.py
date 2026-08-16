@@ -27,7 +27,7 @@ def test_to_boolean_false():
 
 
 def test_to_boolean_invalid():
-    with pytest.raises(Exception, match='Cannot infer boolean value from "invalid"'):
+    with pytest.raises(ValueError, match='Cannot infer boolean value from "invalid"'):
         to_boolean("invalid")
 
 

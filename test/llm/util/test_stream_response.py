@@ -6,8 +6,6 @@ from zrb.llm.util.stream_response import (
     StreamEventHandler,
     _get_event_part_content,
     _get_truncated_event_part_args,
-    _truncate_arg,
-    _truncate_kwargs,
     create_event_handler,
 )
 
@@ -439,30 +437,6 @@ class TestGetTruncatedEventPartArgs:
         event.part.args = {"key": "value"}
         result = _get_truncated_event_part_args(event)
         assert result == {"key": "value"}
-
-
-class TestTruncateKwargs:
-    def test_truncate_kwargs(self):
-        kwargs = {"short": "abc", "long": "a" * 50}
-        result = _truncate_kwargs(kwargs)
-        assert result["short"] == "abc"
-        assert len(result["long"]) == 30
-        assert "..." in result["long"]
-
-
-class TestTruncateArg:
-    def test_truncate_short_string(self):
-        result = _truncate_arg("short", length=30)
-        assert result == "short"
-
-    def test_truncate_long_string(self):
-        result = _truncate_arg("a" * 50, length=30)
-        assert len(result) == 30
-        assert result.endswith("...")
-
-    def test_truncate_non_string(self):
-        result = _truncate_arg(12345)
-        assert result == 12345
 
 
 class TestGetEventPartContent:

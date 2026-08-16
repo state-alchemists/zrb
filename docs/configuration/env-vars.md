@@ -4,6 +4,8 @@
 
 Zrb can be heavily customized using environment variables. These control everything from log levels to default text editors, and even the appearance of the Web UI.
 
+> This page is about Zrb's *own* config knobs (read via the `CFG` singleton). Looking for how to define environment variables for *your own tasks* instead? See [Core Concepts: Environments (Envs)](../core-concepts/environments.md).
+
 > **Note on White-labeling:** If you have customized `_ZRB_ENV_PREFIX` (e.g., in `__main__.py` for a custom CLI), remember to replace `ZRB_` with your custom prefix (e.g., `ACME_LOGGING_LEVEL`).
 
 ---
@@ -44,8 +46,8 @@ Zrb can be heavily customized using environment variables. These control everyth
 | `ZRB_INIT_FILE_NAME` | Name of the task-definition file zrb auto-loads. On startup zrb walks from the current directory up to the filesystem root and loads every file with this name it finds. | `zrb_init.py` |
 | `ZRB_INIT_SCRIPTS` | Colon-separated Python script paths zrb runs on startup (in addition to the discovered `ZRB_INIT_FILE_NAME` files) to register task definitions | — |
 | `ZRB_INIT_MODULES` | Comma-separated importable module names zrb imports on startup so their task definitions register (colon-separated still accepted) | — |
-| `ZRB_LOAD_BUILTIN` | Whether to load pre-packaged tasks (Git, UUID, base64, etc.) | `on` |
-| `ZRB_WARN_UNRECOMMENDED_COMMAND` | Show warnings for potentially unsafe shell commands | `on` (true) |
+| `ZRB_ENABLE_BUILTIN_TASKS` | Whether to load pre-packaged tasks (Git, UUID, base64, etc.) | `on` |
+| `ZRB_SHOW_UNRECOMMENDED_COMMAND_WARNING` | Show warnings for potentially unsafe shell commands | `on` (true) |
 | `ZRB_MCP_CONFIG_FILE` | Path to the MCP server config file | `mcp-config.json` |
 
 ---
@@ -144,7 +146,7 @@ export ZRB_WEB_SECRET_KEY="your-secure-secret-key"
 export ZRB_WEB_SUPER_ADMIN_PASSWORD="secure-password"
 
 # Disable builtin tasks for cleaner environment
-export ZRB_LOAD_BUILTIN=0
+export ZRB_ENABLE_BUILTIN_TASKS=0
 ```
 
 ---

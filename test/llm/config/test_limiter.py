@@ -450,6 +450,34 @@ class TestLLMLimiterPropertyDefaults:
             cfg.LLM_MAX_TOKEN_PER_MINUTE = None
             assert limiter.max_token_per_minute == 100_000
 
+    def test_max_request_per_minute_zero_is_not_replaced_by_default(self):
+        """An explicit 0 means 'block every request' and must not fall back
+        to the default 60 just because 0 is falsy."""
+        limiter = LLMLimiter()
+        with patch("zrb.llm.config.limiter.CFG") as cfg:
+            cfg.LLM_MAX_REQUEST_PER_MINUTE = 0
+            cfg.LLM_MAX_TOKEN_PER_MINUTE = 100_000
+            assert limiter.max_request_per_minute == 0
+            assert limiter._can_proceed(tokens=1) is False
+
+    def test_max_token_per_minute_zero_is_not_replaced_by_default(self):
+        """An explicit 0 means 'block every request' and must not fall back
+        to the default 100_000 just because 0 is falsy."""
+        limiter = LLMLimiter()
+        with patch("zrb.llm.config.limiter.CFG") as cfg:
+            cfg.LLM_MAX_REQUEST_PER_MINUTE = 60
+            cfg.LLM_MAX_TOKEN_PER_MINUTE = 0
+            assert limiter.max_token_per_minute == 0
+            assert limiter._can_proceed(tokens=1) is False
+
+    def test_max_token_per_request_zero_is_not_replaced_by_default(self):
+        """An explicit 0 means 'block every request' and must not fall back
+        to the default 16_000 just because 0 is falsy."""
+        limiter = LLMLimiter()
+        with patch("zrb.llm.config.limiter.CFG") as cfg:
+            cfg.LLM_MAX_TOKEN_PER_REQUEST = 0
+            assert limiter.max_token_per_request == 0
+
 
 class TestLLMLimiterPruningLoop:
     """Exercise the real turn-based pruning loop (no is_turn_start patching)."""
@@ -646,7 +674,6 @@ class TestLLMLimiterTruncate:
     def test_truncate_text_tiktoken_fallback_on_exception(self):
         """Test truncate_text falls back when tiktoken raises exception."""
         import builtins
-        import sys
 
         limiter = LLMLimiter()
 

@@ -20,6 +20,8 @@ import subprocess
 import sys
 import tempfile
 
+from zrb.config.helper import is_wsl
+
 
 async def get_clipboard_image() -> bytes | None:
     """
@@ -123,14 +125,9 @@ def _windows() -> bytes | None:
 _WAYLAND_IMAGE_TYPES = ("image/png", "image/bmp", "image/jpeg", "image/tiff")
 
 
-def _is_wsl() -> bool:
-    """Return True when running inside Windows Subsystem for Linux."""
-    return bool(os.environ.get("WSL_DISTRO_NAME") or os.environ.get("WSLENV"))
-
-
 async def _linux() -> bytes | None:
     # WSL: PowerShell has direct access to the Windows clipboard — most reliable.
-    if _is_wsl():
+    if is_wsl():
         data = await _wsl_powershell()
         if data is not None:
             return data
@@ -217,7 +214,8 @@ def copy_text(text: str) -> bool:
 
     Returns ``True`` if the text was successfully placed on the clipboard.
     """
-    # lazy: internal helper; cheap but avoids top-level import
+    # lazy: tests patch zrb.config.helper.is_termux; hoisting would bind
+    # the name at this module's load time and bypass the mock.
     from zrb.config.helper import is_termux
 
     if is_termux():
@@ -280,7 +278,7 @@ def missing_tool_hint() -> str:
     if sys.platform not in ("linux", "linux2"):
         return ""
 
-    if _is_wsl():
+    if is_wsl():
         # powershell.exe should always be present in WSL2; if we got here it
         # means even that failed — nothing more we can suggest.
         return ""

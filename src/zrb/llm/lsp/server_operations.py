@@ -6,8 +6,7 @@ references, diagnostics, symbols, hover, rename, and the workspace-edit
 application helpers), split out to keep ``server.py`` on transport and
 lifecycle. Not a reusable mixin — it reads host state it never sets
 (``self._send_request_raw``, ``self._next_id``, ``self._path_to_uri``,
-``self._uri_to_path``, ``self.initialized``), so ``LSPServer`` is its only
-possible host.
+``self.initialized``), so ``LSPServer`` is its only possible host.
 """
 
 import asyncio
@@ -16,6 +15,7 @@ from typing import TYPE_CHECKING, Any
 from zrb.context.any_context import zrb_print
 from zrb.llm.lsp.configs import detect_language_from_file
 from zrb.llm.lsp.protocol import JSONRPCMessage, LSPServerError
+from zrb.llm.lsp.symbol_utils import uri_to_path
 
 
 class LSPServerOperations:
@@ -32,7 +32,6 @@ class LSPServerOperations:
         _versions: dict[str, int]
         _next_id: Any
         _path_to_uri: Any
-        _uri_to_path: Any
         _send_request_raw: Any
         _send_notification_raw: Any
 
@@ -395,7 +394,7 @@ class LSPServerOperations:
 
     def _apply_text_edits_to_file(self, uri: str, edits: list[dict]) -> bool:
         """Apply a list of LSP ``TextEdit``s to a single file."""
-        path = self._uri_to_path(uri)
+        path = uri_to_path(uri)
         try:
             with open(path, "r", encoding="utf-8") as f:
                 lines = f.read().splitlines(keepends=True)

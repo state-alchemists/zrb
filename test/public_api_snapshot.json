@@ -533,7 +533,8 @@
         "name:POSITIONAL_OR_KEYWORD:0",
         "match:POSITIONAL_OR_KEYWORD:0",
         "transform:POSITIONAL_OR_KEYWORD:0",
-        "auto_render:POSITIONAL_OR_KEYWORD:1"
+        "auto_render:POSITIONAL_OR_KEYWORD:1",
+        "match_mode:POSITIONAL_OR_KEYWORD:1"
       ],
       "members": [
         "match",
@@ -1769,8 +1770,7 @@
   },
   "functions": {
     "load_file": [
-      "path:POSITIONAL_OR_KEYWORD:0",
-      "max_depth:POSITIONAL_OR_KEYWORD:1"
+      "path:POSITIONAL_OR_KEYWORD:0"
     ],
     "load_module": [
       "name:POSITIONAL_OR_KEYWORD:0"

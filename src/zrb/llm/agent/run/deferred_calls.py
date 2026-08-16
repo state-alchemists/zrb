@@ -31,6 +31,7 @@ from zrb.llm.agent.run.hook_result_extractor import (
 from zrb.llm.approval.approval_channel import ApprovalContext
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
+from zrb.llm.permission import ASK
 from zrb.llm.tool_call.always_approve import is_always_auto_approve
 from zrb.llm.tool_call.handler import ToolCallHandler
 from zrb.llm.tool_call.ui_protocol import UIProtocol
@@ -191,9 +192,6 @@ async def _resolve_approval(
     the always-approve tools (priority 0) are still honored.
     """
 
-    # lazy: permission is a leaf module.
-    from zrb.llm.permission import ASK
-
     # Each stage returns a verdict to stop the cascade, or None to fall through
     # to the next. The order below IS the documented precedence chain.
     verdict = _approve_always_auto_approve_tools(call)
@@ -290,7 +288,9 @@ def _apply_permission_policy(call, force_ask):
     stops YOLO from auto-approving further down the cascade even though it
     resolves nothing here.
     """
-    # lazy: permission is a leaf module.
+    # lazy: tests patch zrb.llm.permission.get_effective_policy and
+    # .tool_capability; hoisting would bind these names at this module's
+    # load time and bypass the mocks.
     from zrb.llm.permission import ALLOW, DENY, get_effective_policy, tool_capability
 
     policy = get_effective_policy()
@@ -327,9 +327,6 @@ def _resolve_non_interactive_ask(call, policy_decision, force_ask):
     `AskUserQuestion`) and deny any other approval-gated tool rather than
     running it unattended. See ADR-0062.
     """
-    # lazy: permission is a leaf module.
-    from zrb.llm.permission import ASK
-
     # lazy: circular — run-loop approval path ↔ zrb.llm.tool.ask
     from zrb.llm.tool.ask import get_interactive_mode
 
@@ -352,10 +349,9 @@ def _approve_via_yolo(policy_decision, force_ask):
     An explicit policy ASK, or a hook-requested ASK, is a hard ask that YOLO
     does not override.
     """
-    # lazy: permission is a leaf module.
-    # lazy: runtime_state is a thin re-export of runner ContextVars.
+    # lazy: tests patch zrb.llm.agent.run.runtime_state.get_current_yolo;
+    # hoisting would bind the name at this module's load time and bypass it.
     from zrb.llm.agent.run.runtime_state import get_current_yolo
-    from zrb.llm.permission import ASK
 
     if get_current_yolo() is not True or policy_decision == ASK or force_ask:
         return None

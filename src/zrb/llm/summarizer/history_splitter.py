@@ -121,6 +121,51 @@ def find_safe_split_index(
     return best_safe_split
 
 
+def _classify_split(
+    tool_pairs: dict[str, dict[str, int | None]], split_idx: int
+) -> tuple[bool, int]:
+    """Classify a candidate split against every tool call/return pair.
+
+    Returns `(would_break_complete_pair, broken_incomplete_pairs)`:
+    - `would_break_complete_pair`: separating a complete call/return pair
+      across the split, or keeping an already-orphaned return — both
+      forbidden by Pydantic AI. A caller must reject the split outright when
+      this is True; the incomplete-pair count is meaningless in that case.
+    - `broken_incomplete_pairs`: how many incomplete pairs (a call with no
+      return yet, or an orphaned return being summarized away) this split
+      loses. Used only to score otherwise-valid splits against each other.
+    """
+    would_break_complete_pair = False
+    broken_incomplete_pairs = 0
+
+    for indices in tool_pairs.values():
+        call_idx = indices["call_idx"]
+        return_idx = indices["return_idx"]
+
+        if call_idx is not None and return_idx is not None:
+            # Complete pair - must not be separated
+            call_before_split = call_idx < split_idx
+            return_before_split = return_idx < split_idx
+            if call_before_split != return_before_split:
+                # This would separate a call from its return - NOT ALLOWED
+                would_break_complete_pair = True
+                break
+        elif call_idx is not None and return_idx is None:
+            # Call without return - if call is before split, we lose it
+            if call_idx < split_idx:
+                broken_incomplete_pairs += 1
+        elif call_idx is None and return_idx is not None:
+            # Return without call (orphaned) - MUST NOT be kept
+            if return_idx >= split_idx:
+                # If we keep an orphan, the history remains broken - reject this split
+                would_break_complete_pair = True
+                break
+            # Orphaned return is before split (will be summarized away)
+            broken_incomplete_pairs += 1
+
+    return would_break_complete_pair, broken_incomplete_pairs
+
+
 def find_best_effort_split(
     messages: list[Any],
     limiter: "LLMLimiter",
@@ -153,36 +198,9 @@ def find_best_effort_split(
         if tokens_to_keep > token_threshold * 0.8:
             continue
 
-        # Check if this split would break any complete tool pairs
-        # This is ABSOLUTELY NOT ALLOWED per Pydantic AI requirements
-        would_break_complete_pair = False
-        broken_incomplete_pairs = 0
-
-        for indices in tool_pairs.values():
-            call_idx = indices["call_idx"]
-            return_idx = indices["return_idx"]
-
-            if call_idx is not None and return_idx is not None:
-                # Complete pair - must not be separated
-                call_before_split = call_idx < split_idx
-                return_before_split = return_idx < split_idx
-                if call_before_split != return_before_split:
-                    # This would separate a call from its return - NOT ALLOWED
-                    would_break_complete_pair = True
-                    break
-            elif call_idx is not None and return_idx is None:
-                # Call without return - if call is before split, we lose it
-                if call_idx < split_idx:
-                    broken_incomplete_pairs += 1
-            elif call_idx is None and return_idx is not None:
-                # Return without call (orphaned) - MUST NOT be kept
-                if return_idx >= split_idx:
-                    # If we keep an orphan, the history remains broken - reject this split
-                    would_break_complete_pair = True
-                    break
-                # Orphaned return is before split (will be summarized away)
-                broken_incomplete_pairs += 1
-
+        would_break_complete_pair, broken_incomplete_pairs = _classify_split(
+            tool_pairs, split_idx
+        )
         if would_break_complete_pair:
             # Cannot use this split - it violates Pydantic AI requirements
             continue
@@ -221,11 +239,17 @@ def find_best_effort_split(
 def is_split_safe(
     messages: list[Any], split_idx: int, tool_pairs: dict[str, dict[str, int | None]]
 ) -> bool:
-    """
-    Check if splitting at the given index would break tool call/return pairs.
+    """Check if splitting at the given index would break tool call/return pairs.
 
-    Returns False if splitting would separate a tool call from its return,
-    or if it would leave a tool call without its return in the kept messages.
+    A split is unsafe when it would:
+    1. Separate a complete call/return pair across the split (either side).
+    2. Summarize away a call whose return is kept — the kept return would end
+       up orphaned, with no call to explain it.
+    3. Keep an already-orphaned return that has no call anywhere.
+
+    A call with no return yet that lands in the *kept* messages is safe: the
+    return may simply arrive in a later turn, so there's nothing lost by
+    keeping it as-is.
     """
     for tool_call_id, indices in tool_pairs.items():
         call_idx = indices["call_idx"]
@@ -243,14 +267,11 @@ def is_split_safe(
 
         # If we have only a call (no return yet)
         elif call_idx is not None and return_idx is None:
-            # Tool call without return - if it's before split, we'd lose it
-            # If it's after split, it stays in kept messages without return (also problematic)
-            # Actually, a call without return in kept messages is OK - the return might come later
-            # But if call is before split and we summarize it, we lose the tool call context
+            # Losing the call to summarization would discard its context with
+            # nothing left to explain a future return - unsafe. Keeping it
+            # (return_idx is None either side of the split) is fine.
             if call_idx < split_idx:
-                # Call would be summarized away - we lose the tool call context
                 return False
-            # Call is in kept messages, return might come in future - this is OK
 
         # If we have only a return (no call)
         elif call_idx is None and return_idx is not None:

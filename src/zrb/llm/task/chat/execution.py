@@ -6,7 +6,7 @@ resolution, conversation-name helpers, model resolution, and the interactive
 teardown that releases process-global resources at session end.
 
 Kept separate from `task.py` (config-time `__init__`) and from
-`building.py` / `running.py` because this mixin owns the
+`building.py` / `running.py` because this part owns the
 execution-time machinery that `BaseTask` invokes on the composed task.
 
 The `_*` state read here is set in `LLMChatTask.__init__` and typed in
@@ -23,7 +23,6 @@ from zrb.context.any_context import AnyContext
 from zrb.env.any_env import AnyEnv
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
-from zrb.llm.factory_resolver import resolve_factory_items
 from zrb.llm.history_manager.file_history_manager import FileHistoryManager
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
@@ -40,10 +39,16 @@ from zrb.llm.summarizer import create_summarizer_history_processor
 from zrb.llm.task.chat.state import ChatState
 from zrb.llm.task.chat.ui_commands import UI_COMMAND_CFG_ATTRS
 from zrb.llm.task.llm_task import LLMTask
+from zrb.llm.task.shared_getters import (
+    resolve_all_tools,
+    resolve_all_toolsets,
+    resolve_conversation_name,
+    resolve_model,
+    resolve_system_prompt,
+)
 from zrb.llm.util.attachment import get_attachments
 from zrb.util.attr import get_attr, get_bool_attr, get_str_attr
 from zrb.util.cli.style import stylize_highlight, stylize_muted
-from zrb.util.string.name import get_random_name
 from zrb.xcom.xcom import Xcom
 
 if TYPE_CHECKING:
@@ -63,7 +68,7 @@ class ChatExecution(ChatState):
     """Execution + resource lifecycle for LLMChatTask."""
 
     if TYPE_CHECKING:
-        # Implemented by sibling mixins on the composed LLMChatTask.
+        # Implemented by sibling parts on the composed LLMChatTask.
         # Declared as a method, not a `Callable[[], None]` variable: at class
         # level the variable form means zero parameters, which does not match
         # ChatBuilding's unbound `(self) -> None` and trips
@@ -80,10 +85,7 @@ class ChatExecution(ChatState):
 
         Returns the empty string when the task has no prompt manager.
         """
-        if self._prompt_manager is None:
-            return ""
-        compose_prompt = self._prompt_manager.compose_prompt()
-        return compose_prompt(ctx)
+        return resolve_system_prompt(ctx, self._prompt_manager)
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
         # lazy: circular — task → execution (this file) → task.parse_yolo_value.
@@ -293,11 +295,11 @@ class ChatExecution(ChatState):
 
     def get_all_tools(self, ctx: AnyContext) -> list[Tool | ToolFuncEither]:
         """Get all tools including those resolved from factories using parent context."""
-        return resolve_factory_items(self._tools, self._tool_factories, ctx)
+        return resolve_all_tools(ctx, self._tools, self._tool_factories)
 
     def get_all_toolsets(self, ctx: AnyContext) -> list[AbstractToolset[None]]:
         """Get all toolsets including those resolved from factories using parent context."""
-        return resolve_factory_items(self._toolsets, self._toolset_factories, ctx)
+        return resolve_all_toolsets(ctx, self._toolsets, self._toolset_factories)
 
     def _get_ui_commands(self) -> dict[str, list[str]]:
         """Resolve UI slash-command aliases from the overrides or CFG."""
@@ -321,8 +323,6 @@ class ChatExecution(ChatState):
         # lazy: zrb.llm.ui.* and zrb.llm.tool_call.handler sit downstream of
         # llm_task; hoisting these to module-top creates a circular import.
         from zrb.llm.tool_call.handler import ToolCallHandler
-
-        # lazy: zrb internal (heavy via transitive / circular)
         from zrb.llm.ui.std_ui import StdUI
 
         tool_confirmation = self._tool_confirmation
@@ -479,12 +479,9 @@ class ChatExecution(ChatState):
         )
 
     def _get_initial_conversation_name(self, ctx: AnyContext) -> str:
-        conversation_name = str(
-            get_attr(ctx, self._conversation_name, "", self._render_conversation_name)
+        return resolve_conversation_name(
+            ctx, self._conversation_name, self._render_conversation_name
         )
-        if conversation_name.strip() == "":
-            conversation_name = get_random_name()
-        return conversation_name
 
     def _get_ui_conversation_name(
         self, ui: "UIProtocol", initial_conversation_name: str
@@ -504,10 +501,4 @@ class ChatExecution(ChatState):
         built with `render_model`. An empty result falls back to the model from
         `llm_config`.
         """
-        model = self._model
-        rendered_model = get_attr(ctx, model, None, auto_render=self._render_model)
-        if isinstance(rendered_model, str) and rendered_model.strip() == "":
-            rendered_model = None
-        if rendered_model is not None:
-            return rendered_model
-        return self._llm_config.model
+        return resolve_model(ctx, self._model, self._render_model, self._llm_config)

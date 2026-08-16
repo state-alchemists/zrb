@@ -17,7 +17,6 @@ from zrb.llm.tool.ask import (
     set_interactive_mode,
 )
 from zrb.llm.tool.plan import (
-    _current_session,
     get_current_context_session,
     set_current_session,
 )
@@ -49,7 +48,6 @@ def set_current_tool_session(session_name: str) -> None:
 
 __all__ = [
     "active_worktree",
-    "_current_session",
     "interactive_mode",
     "get_active_worktree",
     "set_active_worktree",

@@ -1,6 +1,6 @@
 from zrb.builtin.group import shell_autocomplete_group
 from zrb.config.config import CFG
-from zrb.context.context import AnyContext
+from zrb.context.any_context import AnyContext
 from zrb.task.make_task import make_task
 
 _COMPLETION_SCRIPT = """# PowerShell dynamic completion script for {command_name}
@@ -26,7 +26,7 @@ Register-ArgumentCompleter -Native -CommandName '{command_name}' -ScriptBlock {
 
 @make_task(
     name="make-powershell-autocomplete",
-    description="Create Zrb autocomplete script for PowerShell",
+    description="🐚 Create Zrb autocomplete script for PowerShell",
     group=shell_autocomplete_group,
     alias="powershell",
 )

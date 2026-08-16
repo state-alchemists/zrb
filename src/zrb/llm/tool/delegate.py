@@ -24,6 +24,7 @@ from zrb.llm.agent.subagent.manager import (
 from zrb.llm.config.limiter import llm_limiter
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
 from zrb.llm.hook.types import HookEvent
+from zrb.llm.permission import Capability, tag
 from zrb.llm.tool.ambient_state import get_active_worktree
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 from zrb.llm.ui.buffered_ui import BufferedUI
@@ -148,6 +149,11 @@ async def _run_agent_task(
             "simplify the task or break it into smaller steps.",
         )
     except Exception as e:  # noqa: BLE001
+        # No [SYSTEM SUGGESTION] here, unlike RecursionError above: that's a
+        # specific, recognizable failure mode with a known fix (simplify the
+        # task); an arbitrary sub-agent exception isn't — guessing generic
+        # recovery advice for an unknown cause would be more likely to
+        # mislead the parent agent than to help it.
         return AgentTaskResult(agent_name, None, str(e))
     finally:
         if _tracks_activity:
@@ -177,8 +183,9 @@ def _delegatable_agents(sub_agent_manager: SubAgentManager) -> list:
     When a policy denies delegation to a specific agent, it is omitted from the
     advertised roster so the model isn't offered an option it cannot use.
     """
-    # lazy: permission is a leaf module.
-    from zrb.llm.permission import DENY, Capability, get_effective_policy
+    # lazy: tests patch zrb.llm.permission.get_effective_policy; hoisting
+    # would bind the name at this module's load time and bypass the mock.
+    from zrb.llm.permission import DENY, get_effective_policy
 
     agents = sub_agent_manager.scan()
     policy = get_effective_policy()
@@ -393,9 +400,6 @@ def create_delegate_to_agent_tool(
         "sub-agents concurrently in one call. Flat args are ignored when tasks is non-empty.\n\n"
         f"AVAILABLE AGENTS:\n{agent_doc_section}"
     )
-    # lazy: permission is a leaf module.
-    from zrb.llm.permission import Capability, tag
-
     tag(delegate_to_agent, Capability.DELEGATE)
     return delegate_to_agent
 
@@ -438,9 +442,6 @@ def create_search_agent_tool(
         "(case-insensitive). Leave empty to list delegatable agents unfiltered; "
         "the listing caps at 30 matches — narrow the query for the rest."
     )
-    # lazy: permission is a leaf module.
-    from zrb.llm.permission import Capability, tag
-
     tag(search_agent, Capability.DELEGATE)
     return search_agent
 

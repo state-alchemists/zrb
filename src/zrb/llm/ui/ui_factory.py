@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import dataclasses
 from typing import TYPE_CHECKING, Any, Callable
 
 from zrb.context.any_context import AnyContext
@@ -63,6 +64,13 @@ def create_ui_factory(
         cfg = config or UIConfig.default()
         if ui_commands:
             cfg = cfg.merge_commands(ui_commands)
+        else:
+            # Always copy before mutating below — `config` may be a single
+            # object shared across repeated factory invocations (e.g. a
+            # long-lived bot serving multiple chats), and mutating it in
+            # place would leak one chat's yolo/session-name state into the
+            # next. `merge_commands` above already returns a fresh copy.
+            cfg = dataclasses.replace(cfg)
 
         cfg.is_yolo = initial_yolo
         cfg.conversation_session_name = initial_conversation_name

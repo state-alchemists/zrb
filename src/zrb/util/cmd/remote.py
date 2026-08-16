@@ -9,23 +9,11 @@ def get_remote_cmd_script(
     use_password: bool = False,
     ssh_key: str = "",
 ) -> str:
-    """
-    Generate an SSH command script to execute a command on a remote host.
+    """Build the `ssh`/`sshpass` invocation that runs `cmd_script` on `host`.
 
-    Password authentication uses sshpass -e, which reads the password from
-    the SSHPASS environment variable. The caller must set SSHPASS in the
-    subprocess environment.
-
-    Args:
-        cmd_script (str): The command script to execute on the remote host.
-        host (str): The remote host address.
-        port (int | str): The SSH port.
-        user (str): The SSH user.
-        use_password (bool): Whether to use password authentication via sshpass -e.
-        ssh_key (str): The path to the SSH private key file.
-
-    Returns:
-        str: The generated SSH command script.
+    `use_password` authenticates via `sshpass -e`, which reads the password
+    from the `SSHPASS` environment variable — the caller must set that in the
+    subprocess environment; the password is never passed on the command line.
     """
     # Quote user-supplied fields — a host, user, port, or key path
     # containing `"`, `` ` `` or `$(…)` would otherwise break out of the

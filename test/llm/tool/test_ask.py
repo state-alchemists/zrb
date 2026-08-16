@@ -96,6 +96,7 @@ async def test_short_circuits_in_non_interactive_mode():
 async def test_returns_error_when_questions_empty():
     result = await ask_user_question([])
     assert "no questions" in result.lower()
+    assert "[SYSTEM SUGGESTION]" in result
 
 
 @pytest.mark.asyncio

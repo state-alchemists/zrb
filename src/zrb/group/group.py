@@ -6,6 +6,8 @@ A `Group` is one word in a command line. Nesting groups nests the words, so
 the same task object can appear under two names without being redefined.
 """
 
+from typing import Any
+
 from zrb.group.any_group import AnyGroup
 from zrb.task.any_task import AnyTask
 
@@ -109,6 +111,44 @@ class Group(AnyGroup):
         self._tasks[alias] = task
         return task
 
+    def _remove_registered(
+        self, items: dict[str, Any], target: Any, item_type: type, label: str
+    ) -> dict[str, Any]:
+        """Shared object/alias/name removal logic for remove_group/remove_task.
+
+        A string `target` is matched against aliases first and against
+        registered-item *names* second, so an alias always wins when the two
+        disagree.
+
+        Raises:
+            ValueError: Nothing matched, so the call would silently do nothing.
+        """
+        original_len = len(items)
+        if isinstance(target, item_type):
+            new_items = {
+                alias: existing
+                for alias, existing in items.items()
+                if target != existing
+            }
+            if len(new_items) == original_len:
+                raise ValueError(f"Cannot remove {label} {target} from {self}")
+            return new_items
+        # target is string, try to remove by alias
+        new_items = {
+            alias: existing for alias, existing in items.items() if alias != target
+        }
+        if len(new_items) < original_len:
+            return new_items
+        # if alias removal didn't work, try to remove by name
+        new_items = {
+            alias: existing
+            for alias, existing in items.items()
+            if existing.name != target
+        }
+        if len(new_items) < original_len:
+            return new_items
+        raise ValueError(f"Cannot remove {label} {target} from {self}")
+
     def remove_group(self, group: "AnyGroup | str"):
         """Unregister a subgroup, by object, by alias, or by name.
 
@@ -118,36 +158,7 @@ class Group(AnyGroup):
         Raises:
             ValueError: Nothing matched, so the call would silently do nothing.
         """
-        original_groups_len = len(self._groups)
-        if isinstance(group, AnyGroup):
-            new_groups = {
-                alias: existing_group
-                for alias, existing_group in self._groups.items()
-                if group != existing_group
-            }
-            if len(new_groups) == original_groups_len:
-                raise ValueError(f"Cannot remove group {group} from {self}")
-            self._groups = new_groups
-            return
-        # group is string, try to remove by alias
-        new_groups = {
-            alias: existing_group
-            for alias, existing_group in self._groups.items()
-            if alias != group
-        }
-        if len(new_groups) < original_groups_len:
-            self._groups = new_groups
-            return
-        # if alias removal didn't work, try to remove by name
-        new_groups = {
-            alias: existing_group
-            for alias, existing_group in self._groups.items()
-            if existing_group.name != group
-        }
-        if len(new_groups) < original_groups_len:
-            self._groups = new_groups
-            return
-        raise ValueError(f"Cannot remove group {group} from {self}")
+        self._groups = self._remove_registered(self._groups, group, AnyGroup, "group")
 
     def remove_task(self, task: "AnyTask | str"):
         """Unregister a task, by object, by alias, or by name.
@@ -158,36 +169,7 @@ class Group(AnyGroup):
         Raises:
             ValueError: Nothing matched, so the call would silently do nothing.
         """
-        original_tasks_len = len(self._tasks)
-        if isinstance(task, AnyTask):
-            new_tasks = {
-                alias: existing_task
-                for alias, existing_task in self._tasks.items()
-                if task != existing_task
-            }
-            if len(new_tasks) == original_tasks_len:
-                raise ValueError(f"Cannot remove task {task} from {self}")
-            self._tasks = new_tasks
-            return
-        # task is string, try to remove by alias
-        new_tasks = {
-            alias: existing_task
-            for alias, existing_task in self._tasks.items()
-            if alias != task
-        }
-        if len(new_tasks) < original_tasks_len:
-            self._tasks = new_tasks
-            return
-        # if alias removal didn't work, try to remove by name
-        new_tasks = {
-            alias: existing_task
-            for alias, existing_task in self._tasks.items()
-            if existing_task.name != task
-        }
-        if len(new_tasks) < original_tasks_len:
-            self._tasks = new_tasks
-            return
-        raise ValueError(f"Cannot remove task {task} from {self}")
+        self._tasks = self._remove_registered(self._tasks, task, AnyTask, "task")
 
     def get_task_by_alias(self, alias: str) -> AnyTask | None:
         """The task registered under *alias*, or None. Does not search names."""

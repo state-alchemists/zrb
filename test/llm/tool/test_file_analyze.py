@@ -33,6 +33,7 @@ async def test_analyze_file_success(temp_file):
 async def test_analyze_file_not_found():
     result = await analyze_file("/non/existent", "query")
     assert "Error: File not found" in result
+    assert "[SYSTEM SUGGESTION]" in result
 
 
 @pytest.mark.asyncio

@@ -55,6 +55,23 @@ async def test_simple_ui_append_to_output(deps):
     assert ui.prints[0] == ("hello world\n", "progress")
 
 
+@pytest.mark.asyncio
+async def test_simple_ui_append_to_output_tracks_background_task(deps):
+    # Regression: asyncio only holds a weak reference to a scheduled task —
+    # without tracking it somewhere, it can be silently garbage-collected
+    # mid-execution. Every other fire-and-forget task in this package tracks
+    # itself in `_background_tasks`; this call site must too.
+    ui = ConcreteSimpleUI(**deps)
+    assert hasattr(ui, "_background_tasks")
+
+    ui.append_to_output("hello")
+    assert len(ui._background_tasks) == 1
+
+    await asyncio.sleep(0.01)
+    # The done-callback discards it once it completes.
+    assert len(ui._background_tasks) == 0
+
+
 def test_simple_ui_append_to_output_sync_fallback(deps, capsys):
     ui = ConcreteSimpleUI(**deps)
     # Patch asyncio.get_running_loop to raise RuntimeError

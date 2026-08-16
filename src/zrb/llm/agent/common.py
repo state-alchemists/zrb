@@ -15,9 +15,11 @@ from zrb.llm.agent.run.hook_result_extractor import (
     extract_pre_tool_decision,
 )
 from zrb.llm.agent.tool_result import has_multimodal, tool_return
+from zrb.llm.agent.truncate import truncate_tool_content
 from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.hook.manager import hook_manager
 from zrb.llm.hook.types import HookEvent
+from zrb.llm.util.capabilities import model_capabilities
 from zrb.llm.util.prompt import expand_prompt
 from zrb.util.string.conversion import to_string
 
@@ -107,10 +109,6 @@ def _oversize_metadata(value: Any) -> dict[str, Any]:
     Multimodal content is not measured at all — its text rendering is a repr,
     not the file, so a character count of it would be meaningless.
     """
-    # lazy: circular — common → truncate is fine, but keep CFG read local so
-    # the cap is re-read per call (tests may patch it) and import stays cheap.
-    from zrb.llm.agent.truncate import truncate_tool_content
-
     if has_multimodal(value):
         return {}
     rendered = value if isinstance(value, str) else to_string(value)
@@ -127,8 +125,8 @@ def create_safe_wrapper(func: Callable, name: str | None = None) -> Callable:
     # lazy: heavy third-party
     from pydantic_ai import ModelRetry, ToolReturn
 
-    # lazy: circular — permission is a leaf module; capability is read at wrap
-    # time (cheap) so the per-call gate need not re-import it.
+    # lazy: tests patch zrb.llm.permission.tool_capability; hoisting would
+    # bind the name at this module's load time and bypass the mock.
     from zrb.llm.permission import tool_capability
 
     capability = tool_capability(func)
@@ -183,7 +181,8 @@ def _wrap_toolset(toolset: "AbstractToolset[None]") -> "AbstractToolset[None]":
     from pydantic_ai import ModelRetry, ToolReturn
     from pydantic_ai.toolsets import WrapperToolset
 
-    # lazy: circular — permission is a leaf module.
+    # lazy: tests patch zrb.llm.permission.tool_capability; hoisting would
+    # bind the name at this module's load time and bypass the mock.
     from zrb.llm.permission import tool_capability
 
     class SafeToolsetWrapper(WrapperToolset[None]):
@@ -532,9 +531,6 @@ def _apply_capability_constraints(
        registry comment on ``_NO_PARALLEL_TOOL_CALLS`` says to keep such models
        off the list.
     """
-    # lazy: zrb internal (heavy via transitive / circular)
-    from zrb.llm.util.capabilities import model_capabilities
-
     capabilities = model_capabilities.get(
         model if isinstance(model, str) else final_model
     )

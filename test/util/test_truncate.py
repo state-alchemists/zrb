@@ -89,20 +89,22 @@ def test_truncate_chars_truncates():
 def test_the_live_stream_and_the_exported_transcript_agree():
     """One tool call must render the same in both views.
 
-    `history_formatter` and `stream_response` each carried a private
+    `history_formatter` and `stream_response` each used to carry a private
     `_truncate_kwargs` — same name, same package, same 30-char default, and
     different output: one elided as `val[:27] + "..."`, the other as
     `arg[:26] + " ..."`, so the exported transcript and the live stream
-    disagreed by a character on the same call.
+    disagreed by a character on the same call. Both now share
+    `zrb.llm.util.tool_args.truncate_tool_args_values`.
 
     Asserted through the public surface: the transcript renderer's output must
-    equal `truncate_display`, and the stream renderer must be bound to that same
-    function rather than to a copy of its logic.
+    equal `truncate_display`, and both renderers must be bound to
+    `tool_args`'s shared helper rather than to a copy of its logic.
     """
     import json
 
-    from zrb.llm.util import stream_response
+    from zrb.llm.util import history_formatter, stream_response
     from zrb.llm.util.history_formatter import format_args
+    from zrb.llm.util.tool_args import truncate_tool_args_values
     from zrb.util.truncate import truncate_display
 
     value = "x" * 80
@@ -110,4 +112,5 @@ def test_the_live_stream_and_the_exported_transcript_agree():
 
     assert exported == truncate_display(value, 30)
     assert len(exported) == 30 and exported.endswith("...")
-    assert stream_response.truncate_display is truncate_display
+    assert stream_response.truncate_tool_args_values is truncate_tool_args_values
+    assert history_formatter.truncate_tool_args_values is truncate_tool_args_values

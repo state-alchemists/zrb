@@ -52,7 +52,7 @@ class LSPManagerQuery:
             return no_server_error(
                 file_path,
                 self.list_available_servers,
-                extra_hint="[SUGGESTION]: Install an LSP server for this language.",
+                extra_hint="[SYSTEM SUGGESTION]: Install an LSP server for this language.",
             )
 
         # Primary path: textDocument/definition at an occurrence of the symbol in
@@ -114,7 +114,7 @@ class LSPManagerQuery:
         return {
             "found": False,
             "error": (
-                f"Symbol '{symbol_name}' not found. [SUGGESTION]: Try using "
+                f"Symbol '{symbol_name}' not found. [SYSTEM SUGGESTION]: Try using "
                 f"Grep to search for 'def {symbol_name}' or 'class {symbol_name}'"
             ),
         }
@@ -169,7 +169,7 @@ class LSPManagerQuery:
             "found": False,
             "error": (
                 f"No references found for '{symbol_name}'. "
-                f"[SUGGESTION]: Try using Grep to search for the symbol name."
+                f"[SYSTEM SUGGESTION]: Try using Grep to search for the symbol name."
             ),
         }
 
@@ -257,7 +257,7 @@ class LSPManagerQuery:
             "found": False,
             "error": (
                 "Could not retrieve document symbols. "
-                "[SUGGESTION]: Ensure the LSP server supports this file type."
+                "[SYSTEM SUGGESTION]: Ensure the LSP server supports this file type."
             ),
         }
 
@@ -277,8 +277,9 @@ class LSPManagerQuery:
 
         try:
             symbols = await server.workspace_symbols(query)
-        except Exception:
+        except Exception as e:
             # Server doesn't support workspace/symbol (e.g. pylsp).
+            CFG.LOGGER.debug(f"LSP workspace-symbols query failed: {e}")
             symbols = None
 
         if symbols:
@@ -321,14 +322,14 @@ class LSPManagerQuery:
                         "note": (
                             "Workspace-wide symbol search is unavailable for this "
                             "server; results are limited to the given file. "
-                            "[SUGGESTION]: use Grep for a project-wide search."
+                            "[SYSTEM SUGGESTION]: use Grep for a project-wide search."
                         ),
                     }
 
         return {
             "found": False,
             "error": (
-                f"No symbols found matching '{query}'. [SUGGESTION]: this server "
+                f"No symbols found matching '{query}'. [SYSTEM SUGGESTION]: this server "
                 "may not support workspace symbol search — use Grep instead."
             ),
         }
@@ -450,7 +451,7 @@ class LSPManagerQuery:
             "success": False,
             "error": (
                 f"Could not rename symbol '{symbol_name}'. "
-                f"[SUGGESTION]: Try using Grep to find all occurrences and "
+                f"[SYSTEM SUGGESTION]: Try using Grep to find all occurrences and "
                 f"Edit to change them."
             ),
         }

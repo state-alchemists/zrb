@@ -64,7 +64,6 @@ class ConfigLLMContent:
     LLM_JOURNAL_ENABLED = EnvField(
         to_boolean,
         serialize=on_off,
-        default_factory=lambda cfg: cfg.DEFAULT_LLM_JOURNAL_ENABLED,
         doc=(
             "Master switch for the cross-session journal. Off unregisters the "
             "three journal tools (SearchJournal, LogActivity, "
@@ -91,14 +90,12 @@ class ConfigLLMContent:
 
     LLM_JOURNAL_INDEX_FILE = EnvField(
         str,
-        default_factory=lambda cfg: cfg.DEFAULT_LLM_JOURNAL_INDEX_FILE,
         doc="Filename of the journal index file.",
     )
 
     LLM_JOURNAL_INDEX_MAX_CHARS = EnvField(
         int,
         fallback=0,
-        default_factory=lambda cfg: cfg.DEFAULT_LLM_JOURNAL_INDEX_MAX_CHARS,
         doc=(
             "Maximum characters of the journal index injected into context. "
             "The index is the HUD — it carries the user's identity and standing "
@@ -111,14 +108,12 @@ class ConfigLLMContent:
     LLM_ENABLE_REWIND = EnvField(
         to_boolean,
         serialize=on_off,
-        default_factory=lambda cfg: cfg.DEFAULT_LLM_ENABLE_REWIND,
         doc="Enable/disable the rewind feature for LLM conversations.",
     )
 
     LLM_HISTORY_BACKUP_RETAIN = EnvField(
         int,
         fallback=0,
-        default_factory=lambda cfg: cfg.DEFAULT_LLM_HISTORY_BACKUP_RETAIN,
         doc=(
             "Number of timestamped history backups to keep per conversation. "
             "0 disables backup writes entirely. -1 keeps every backup."
@@ -128,21 +123,18 @@ class ConfigLLMContent:
     LLM_HISTORY_SUMMARIZATION_WINDOW = EnvField(
         int,
         fallback=0,
-        default_factory=lambda cfg: cfg.DEFAULT_LLM_HISTORY_SUMMARIZATION_WINDOW,
         doc="Number of turns before summarization is triggered.",
     )
 
     LLM_HISTORY_MAX_DISPLAY_CHARS = EnvField(
         int,
         fallback=0,
-        default_factory=lambda cfg: cfg.DEFAULT_LLM_HISTORY_MAX_DISPLAY_CHARS,
         doc="Maximum characters to display in history.",
     )
 
     LLM_HISTORY_TRUNCATE_LENGTH = EnvField(
         int,
         fallback=0,
-        default_factory=lambda cfg: cfg.DEFAULT_LLM_HISTORY_TRUNCATE_LENGTH,
         doc="Character length for history truncation.",
     )
 

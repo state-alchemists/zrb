@@ -43,26 +43,26 @@ from zrb.util.git import (
             name="created",
             description="Include created files",
             prompt="Include created files",
-            default="True",
+            default=True,
         ),
         BoolInput(
             name="removed",
             description="Include removed files",
             prompt="Include removed files",
-            default="True",
+            default=True,
         ),
         BoolInput(
             name="updated",
             description="Include updated files",
             prompt="Include updated files",
-            default="True",
+            default=True,
         ),
     ],
     description="🔍 Get modified files",
     group=git_group,
     alias="diff",
 )
-async def get_git_diff(ctx: AnyContext):
+async def get_git_diff(ctx: AnyContext) -> str:
     ctx.print(stylize_muted("Get directory"))
     repo_dir = await get_repo_dir(print_method=ctx.print)
     diff = await get_diff(
@@ -99,7 +99,7 @@ async def get_git_diff(ctx: AnyContext):
     group=git_branch_group,
     alias="prune",
 )
-async def prune_local_branches(ctx: AnyContext):
+async def prune_local_branches(ctx: AnyContext) -> None:
     ctx.print(stylize_muted("Get directory"))
     repo_dir = await get_repo_dir(print_method=ctx.print)
     ctx.print(stylize_muted("Get existing branches"))
@@ -138,7 +138,7 @@ async def prune_local_branches(ctx: AnyContext):
     group=git_group,
     alias="commit",
 )
-async def git_commit(ctx: AnyContext):
+async def git_commit(ctx: AnyContext) -> None:
     ctx.print(stylize_muted("Get directory"))
     repo_dir = await get_repo_dir(print_method=ctx.print)
     ctx.print(stylize_muted("Add changes to staging"))
@@ -160,7 +160,7 @@ async def git_commit(ctx: AnyContext):
     group=git_group,
     alias="pull",
 )
-async def git_pull(ctx: AnyContext):
+async def git_pull(ctx: AnyContext) -> None:
     ctx.print(stylize_muted("Get directory"))
     repo_dir = await get_repo_dir(print_method=ctx.print)
     ctx.print(stylize_muted("Get current branch"))
@@ -183,7 +183,7 @@ async def git_pull(ctx: AnyContext):
     group=git_group,
     alias="push",
 )
-async def git_push(ctx: AnyContext):
+async def git_push(ctx: AnyContext) -> None:
     repo_dir = await get_repo_dir(print_method=ctx.print)
     ctx.print(stylize_muted("Get current branch"))
     current_branch = await get_current_branch(repo_dir, print_method=ctx.print)

@@ -156,7 +156,7 @@ To prevent runaway AI loops, manage API costs, and stay within provider limits, 
 | `ZRB_LLM_MAX_TOKEN_PER_MINUTE` | Max tokens processed per minute | `128000` |
 | `ZRB_LLM_MAX_TOKEN_PER_REQUEST` | Hard context window limit | `128000` |
 | `ZRB_LLM_THROTTLE_SLEEP` | Seconds to pause when rate-limited | `1.0` |
-| `ZRB_USE_TIKTOKEN` | Use tiktoken for accurate counting | `off` (false) |
+| `ZRB_ENABLE_TIKTOKEN` | Use tiktoken for accurate counting | `off` (false) |
 | `ZRB_TIKTOKEN_ENCODING` | Tiktoken encoding scheme | `cl100k_base` |
 
 ---

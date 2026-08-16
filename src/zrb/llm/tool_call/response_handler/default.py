@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import json
 from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
 from zrb.context.any_context import zrb_print
+from zrb.llm.tool_call.args import parse_tool_args
 from zrb.llm.tool_call.handler import MAX_DENIAL_REASON_CHARS
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 from zrb.util.truncate import truncate_chars
@@ -37,14 +37,7 @@ async def default_response_handler(
         return ToolDenied("User denied execution")
     elif user_response.lower().strip() in ("e", "edit"):
         try:
-            args = call.args
-            if isinstance(args, str):
-                try:
-                    args = json.loads(args)
-                except json.JSONDecodeError:
-                    pass
-            if not isinstance(args, dict):
-                args = {}
+            args = parse_tool_args(call) or {}
 
             new_args = await edit_content_via_editor(ui, args)
 

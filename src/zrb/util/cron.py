@@ -2,24 +2,12 @@ import datetime
 
 
 def parse_cron_field(field: str, min_value: int, max_value: int):
-    """
-    Parse a cron field string into a set of integer values.
+    """Parse one cron field (e.g. `"*"`, `"1-5"`, `"1,3,5"`, `"*/10"`, `"1-10/2"`)
+    into the set of integer values it matches, bounded by `min_value`/`max_value`.
 
-    Supports wildcards (*), ranges (e.g., 1-5), lists (e.g., 1,3,5),
-    and step values (e.g., */5, 1-10/2).
-
-    Args:
-        field (str): The cron field string (e.g., "*", "1-5", "*/10").
-        min_value (int): The minimum allowed value for the field.
-        max_value (int): The maximum allowed value for the field.
-
-    Returns:
-        set[int]: A set of integer values represented by the cron field.
-
-    Raises:
-        ValueError: On out-of-range values or non-positive steps — a silently
-            never-matching field (e.g. minute ``70``) is a schedule that never
-            fires with no diagnostic.
+    Raises `ValueError` on out-of-range values or non-positive steps — a
+    silently never-matching field (e.g. minute `70`) is a schedule that never
+    fires with no diagnostic.
     """
     values: set[int] = set()
     # Parse per list item so a wildcard step inside a list ("1,*/5") works.
@@ -53,16 +41,8 @@ def parse_cron_field(field: str, min_value: int, max_value: int):
 
 
 def handle_special_cron_patterns(pattern: str, dt: datetime.datetime):
-    """
-    Check if a datetime object matches a special cron pattern.
-
-    Args:
-        pattern (str): The special cron pattern (e.g., "@yearly", "@monthly").
-        dt (datetime.datetime): The datetime object to check.
-
-    Returns:
-        bool: True if the datetime matches the pattern, False otherwise.
-    """
+    """Whether `dt` matches a special `@`-prefixed pattern (`@yearly`, `@monthly`,
+    `@weekly`, `@daily`/`@midnight`, `@hourly`, `@minutely`)."""
     if pattern == "@yearly" or pattern == "@annually":
         return dt.month == 1 and dt.day == 1 and dt.hour == 0 and dt.minute == 0
     elif pattern == "@monthly":
@@ -81,19 +61,8 @@ def handle_special_cron_patterns(pattern: str, dt: datetime.datetime):
 
 
 def match_cron(cron_pattern: str, dt: datetime.datetime):
-    """
-    Check if a datetime object matches a cron pattern.
-
-    Supports standard cron format (minute hour day month day_of_week)
-    and special patterns (e.g., "@yearly", "@monthly").
-
-    Args:
-        cron_pattern (str): The cron pattern string.
-        dt (datetime.datetime): The datetime object to check.
-
-    Returns:
-        bool: True if the datetime matches the cron pattern, False otherwise.
-    """
+    """Whether `dt` matches `cron_pattern` — standard 5-field cron
+    (`minute hour day month day_of_week`) or an `@`-prefixed special pattern."""
     if cron_pattern.startswith("@"):
         return handle_special_cron_patterns(cron_pattern, dt)
     minute, hour, day, month, day_of_week = cron_pattern.split()

@@ -2,7 +2,7 @@
 # zrb-theme-high-contrast.sh — High-contrast theme for zrb llm chat
 #
 # Source this file in your shell rc to apply the high-contrast theme:
-#   source docs/examples/themes/zrb-theme-high-contrast.sh
+#   source examples/themes/zrb-theme-high-contrast.sh
 #
 # Or call the function directly:
 #   zrb_theme_high_contrast
