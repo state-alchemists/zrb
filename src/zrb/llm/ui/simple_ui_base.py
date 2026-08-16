@@ -175,7 +175,15 @@ class SimpleUI(BaseUI):
         # Schedule the async print in the running event loop
         try:
             loop = asyncio.get_running_loop()
-            loop.create_task(self.print(text, kind))
+            task = loop.create_task(self.print(text, kind))
+            # asyncio only holds a weak reference to a scheduled task — without
+            # a strong reference somewhere, it can be garbage-collected mid-
+            # execution. Track it the same way every other fire-and-forget
+            # task in this package does (base/ui.py, base/commands.py,
+            # base/conversation_commands.py).
+            if hasattr(self, "_background_tasks"):
+                self._background_tasks.add(task)
+                task.add_done_callback(self._background_tasks.discard)
         except RuntimeError:
             # No running event loop - fall back to synchronous print
             # This can happen during initialization or in edge cases
@@ -220,7 +228,7 @@ class SimpleUI(BaseUI):
 
         return self.last_output
 
-    async def _run_loop(self):
+    async def _run_loop(self) -> None:
         """Override this for custom event loop (e.g., WebSocket listener)."""
         while True:
             await asyncio.sleep(CFG.LLM_UI_STATUS_INTERVAL / 1000)

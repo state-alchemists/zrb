@@ -465,14 +465,16 @@ class TestBaseUICommandHandlers:
 
         assert help_text == ""
 
-    def test_get_cwd_display_home(self, simple_ui_instance):
+    def test_get_cwd_display_home(self, simple_ui_instance, monkeypatch):
         """Test _get_cwd_display shows home directory as ~."""
         ui = simple_ui_instance
 
         import os
 
-        home = os.path.expanduser("~")
-        os.chdir(home)
+        # monkeypatch restores the original cwd on teardown — an unrestored
+        # os.chdir() here would leak into every test that runs afterward,
+        # depending on collection order to avoid ever being noticed.
+        monkeypatch.chdir(os.path.expanduser("~"))
 
         result = ui._get_cwd_display()
 

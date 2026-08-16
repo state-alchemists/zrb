@@ -19,8 +19,7 @@ def load_module(name: str) -> ModuleType:
     return importlib.import_module(name)
 
 
-def load_file(path: str, max_depth: int = -1) -> ModuleType | None:
-    # max_depth is accepted but unused; nothing here recurses.
+def load_file(path: str) -> ModuleType | None:
     if not os.path.exists(path):
         return None
 

@@ -101,7 +101,7 @@ class BaseInput(AnyInput):
         if snake_key == self.name:
             return
         if snake_key in shared_ctx.input:
-            raise ValueError("Input already defined in the context: {snake_key}")
+            raise ValueError(f"Input already defined in the context: {snake_key}")
         shared_ctx.input[snake_key] = value
 
     def _parse_str_value(self, str_value: str) -> Any:

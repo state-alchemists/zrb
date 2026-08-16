@@ -130,7 +130,7 @@ def test_llm_configs_types():
     assert isinstance(config.SEARXNG_LANG, str)
 
     assert isinstance(config.BANNER, str)
-    assert isinstance(config.USE_TIKTOKEN, bool)
+    assert isinstance(config.ENABLE_TIKTOKEN, bool)
     assert isinstance(config.TIKTOKEN_ENCODING_NAME, str)
 
 

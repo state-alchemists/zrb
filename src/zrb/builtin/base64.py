@@ -24,7 +24,6 @@ from zrb.task.make_task import make_task
     alias="encode",
 )
 def encode_base64(ctx: AnyContext) -> str:
-
     raw = ctx.input.text.encode()
     if ctx.input.url_safe:
         result = base64.urlsafe_b64encode(raw).decode()
@@ -51,7 +50,6 @@ def encode_base64(ctx: AnyContext) -> str:
     alias="decode",
 )
 def decode_base64(ctx: AnyContext) -> str:
-
     raw = ctx.input.text.encode()
     try:
         if ctx.input.url_safe:
@@ -95,7 +93,6 @@ def decode_base64(ctx: AnyContext) -> str:
     alias="validate",
 )
 def validate_base64(ctx: AnyContext) -> bool:
-
     raw = ctx.input.text.encode()
     # Normalize the URL-safe alphabet to the standard one so `validate=True`
     # can strictly reject non-alphabet characters either way.

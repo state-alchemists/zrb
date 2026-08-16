@@ -1,4 +1,4 @@
-"""Shared attribute declarations for the `LLMChatTask` mixins.
+"""Shared attribute declarations for the `LLMChatTask` parts.
 
 Every `_`-prefixed name below is assigned in `LLMChatTask.__init__`. Declaring
 the types here once lets `ChatBuilding`, `ChatRunning`, and `ChatExecution` be
@@ -7,7 +7,7 @@ declaration cannot drift against itself.
 
 Annotation-only on purpose: a bare annotation creates no class attribute, so
 putting `ChatState` in the MRO ahead of `BaseTask` shadows nothing at runtime.
-Sibling-*method* contracts stay in the mixin that calls them — this class owns
+Sibling-*method* contracts stay in the part that calls them — this class owns
 state, not behaviour.
 """
 
@@ -43,7 +43,7 @@ if TYPE_CHECKING:
 
 
 class ChatState:
-    """State set by `LLMChatTask.__init__`, declared once for the mixins."""
+    """State set by `LLMChatTask.__init__`, declared once for the parts."""
 
     # --- Prompt -----------------------------------------------------------
     _prompt_manager: PromptManager | None

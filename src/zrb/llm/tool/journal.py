@@ -18,7 +18,11 @@ def search_journal(query: str, case_sensitive: bool = False) -> dict[str, Any]:
     journal_dir = CFG.LLM_JOURNAL_DIR
     if not journal_dir:
         return {
-            "error": "Journal directory is not configured (LLM_JOURNAL_DIR is unset)."
+            "error": (
+                "Journal directory is not configured (LLM_JOURNAL_DIR is "
+                "unset). [SYSTEM SUGGESTION]: Report this rather than "
+                "retrying."
+            )
         }
 
     abs_dir = os.path.abspath(os.path.expanduser(journal_dir))

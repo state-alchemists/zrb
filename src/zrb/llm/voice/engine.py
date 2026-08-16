@@ -10,8 +10,12 @@ imported when `start_listening()` is called.
 from __future__ import annotations
 
 import asyncio
+import io
+import json
 import logging
 import os
+import platform
+import wave
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
@@ -158,11 +162,8 @@ class VoiceEngine:
         self,
     ) -> Callable[[bytes], Coroutine[None, None, str]]:
         """Create a Vosk (offline) transcriber."""
-        # lazy: heavy third-party
-        import json
-        import platform
-
         try:
+            # lazy: heavy third-party
             from vosk import KaldiRecognizer, Model
         except ImportError:
             system = platform.system()
@@ -213,26 +214,23 @@ class VoiceEngine:
         self,
     ) -> Callable[[bytes], Coroutine[None, None, str]]:
         """Create an OpenAI Whisper API transcriber."""
-        # lazy: heavy third-party
-        import io
-        import wave
-
         try:
+            # lazy: heavy third-party
             from openai import AsyncOpenAI
         except ImportError:
             raise ImportError("openai is not installed. pip install openai.") from None
 
         api_key = os.getenv("OPENAI_API_KEY", "")
+        if not api_key:
+            raise RuntimeError(
+                "OPENAI_API_KEY is not set. Set it, or switch backends: "
+                f"{CFG.ENV_PREFIX}_LLM_VOICE_MODE=vosk|google|multimodal."
+            )
         client = AsyncOpenAI(api_key=api_key)
         model_name = CFG.LLM_VOICE_OPENAI_MODEL
 
         async def transcribe(audio_bytes: bytes) -> str:
-            wav_buffer = io.BytesIO()
-            with wave.open(wav_buffer, "wb") as wav:
-                wav.setnchannels(1)
-                wav.setsampwidth(2)
-                wav.setframerate(16000)
-                wav.writeframes(audio_bytes)
+            wav_buffer = io.BytesIO(_pcm16_to_wav_bytes(audio_bytes))
             wav_buffer.name = "audio.wav"
             result = await client.audio.transcriptions.create(
                 model=model_name,
@@ -246,11 +244,8 @@ class VoiceEngine:
         self,
     ) -> Callable[[bytes], Coroutine[None, None, str]]:
         """Create a Google STT API transcriber."""
-        # lazy: heavy third-party
-        import io
-        import wave
-
         try:
+            # lazy: heavy third-party
             from google import genai
         except ImportError:
             raise ImportError(
@@ -258,6 +253,11 @@ class VoiceEngine:
             ) from None
 
         api_key = os.getenv("GEMINI_API_KEY", os.getenv("GOOGLE_API_KEY", ""))
+        if not api_key:
+            raise RuntimeError(
+                "GEMINI_API_KEY (or GOOGLE_API_KEY) is not set. Set one, or switch "
+                f"backends: {CFG.ENV_PREFIX}_LLM_VOICE_MODE=vosk|openai|multimodal."
+            )
         client = genai.Client(api_key=api_key)
         model_name = CFG.LLM_VOICE_GOOGLE_MODEL
 
@@ -265,13 +265,7 @@ class VoiceEngine:
             # lazy: heavy third-party
             from google.genai import types
 
-            wav_buffer = io.BytesIO()
-            with wave.open(wav_buffer, "wb") as wav:
-                wav.setnchannels(1)
-                wav.setsampwidth(2)
-                wav.setframerate(16000)
-                wav.writeframes(audio_bytes)
-            wav_bytes = wav_buffer.getvalue()
+            wav_bytes = _pcm16_to_wav_bytes(audio_bytes)
 
             response = await asyncio.to_thread(
                 client.models.generate_content,
@@ -392,6 +386,17 @@ def _model_name(model: str | object) -> str:
     return str(type(model).__name__)
 
 
+def _pcm16_to_wav_bytes(audio_bytes: bytes) -> bytes:
+    """Wrap raw mono 16-bit 16kHz PCM audio in a WAV container."""
+    wav_buffer = io.BytesIO()
+    with wave.open(wav_buffer, "wb") as wav:
+        wav.setnchannels(1)
+        wav.setsampwidth(2)
+        wav.setframerate(16000)
+        wav.writeframes(audio_bytes)
+    return wav_buffer.getvalue()
+
+
 def _get_vosk_model_dir(model_name: str) -> str | None:
     """Return path to an existing Vosk model, or None."""
     cache = os.path.join(os.path.expanduser("~"), ".cache", "vosk")
@@ -456,7 +461,17 @@ async def _download_vosk_model(model_name: str, model_url: str) -> str:
     zip_data = b"".join(chunks)
 
     def _do_extract() -> None:
+        real_cache = os.path.realpath(cache)
         with zipfile.ZipFile(_io.BytesIO(zip_data)) as zf:
+            for member in zf.namelist():
+                member_path = os.path.realpath(os.path.join(cache, member))
+                if member_path != real_cache and not member_path.startswith(
+                    real_cache + os.sep
+                ):
+                    raise RuntimeError(
+                        f"Refusing to extract Vosk model: unsafe path in "
+                        f"archive member {member!r}"
+                    )
             zf.extractall(cache)
 
     await asyncio.to_thread(_do_extract)

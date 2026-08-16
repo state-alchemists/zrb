@@ -146,7 +146,6 @@ def http_request(ctx: AnyContext) -> str:
     ],
 )
 def generate_curl(ctx: AnyContext) -> str:
-
     try:
         parts = ["curl", "-X", ctx.input.method]
         if ctx.input.headers != "{}":

@@ -1,7 +1,7 @@
 import asyncio
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 
-from zrb.attr.type import IntAttr, StrAttr
+from zrb.attr.type import BoolAttr, IntAttr, StrAttr
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.context.print_fn import PrintFn
@@ -27,7 +27,7 @@ class TcpCheck(BaseTask):
         render_host: bool = True,
         port: IntAttr = 80,
         interval: float | None = None,
-        execute_condition: bool | str | Callable[[AnyContext], bool] = True,
+        execute_condition: BoolAttr = True,
         upstream: Sequence[AnyTask] | AnyTask | None = None,
         fallback: Sequence[AnyTask] | AnyTask | None = None,
         successor: Sequence[AnyTask] | AnyTask | None = None,

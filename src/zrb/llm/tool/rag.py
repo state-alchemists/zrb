@@ -110,117 +110,34 @@ def create_rag_from_directory(
             }
 
         hash_file_path = os.path.join(vector_db_path, "file_hashes.json")
-        try:
-            previous_hashes = _load_hashes(hash_file_path)
-        except Exception as e:
-            zrb_print(stylize_error(f"Error loading file hashes: {e}"), plain=True)
-            previous_hashes = {}
 
-        current_hashes = {}
-        updated_files = []
+        reindex_error = _load_or_reindex(
+            document_dir_path=document_dir_path,
+            hash_file_path=hash_file_path,
+            collection=collection,
+            openai_client=openai_client,
+            embedding_model_val=embedding_model_val,
+            chunk_size_val=chunk_size_val,
+            overlap_val=overlap_val,
+            readers=readers,
+        )
+        if reindex_error is not None:
+            return reindex_error
 
-        if not os.path.exists(document_dir_path):
-            return {
-                "error": f"Document directory not found: {document_dir_path}. [SYSTEM SUGGESTION]: Ask the user to verify the document_dir_path. The directory may have been moved, deleted, or the path may be wrong."
-            }
+        query_vector, embed_error = _embed_query(
+            openai_client=openai_client,
+            query=query,
+            embedding_model_val=embedding_model_val,
+        )
+        if embed_error is not None:
+            return embed_error
 
-        for root, _, files in os.walk(document_dir_path):
-            for file in files:
-                file_path = os.path.join(root, file)
-                try:
-                    file_hash = _compute_file_hash(file_path)
-                    relative_path = os.path.relpath(file_path, document_dir_path)
-                    current_hashes[relative_path] = file_hash
-                    if previous_hashes.get(relative_path) != file_hash:
-                        updated_files.append(file_path)
-                except Exception as e:
-                    zrb_print(
-                        stylize_error(f"Error hashing file {file_path}: {e}"),
-                        plain=True,
-                    )
-
-        if updated_files:
-            zrb_print(
-                stylize_muted(f"Updating {len(updated_files)} changed files"),
-                plain=True,
-            )
-            for file_path in updated_files:
-                try:
-                    relative_path = os.path.relpath(file_path, document_dir_path)
-                    collection.delete(where={"file_path": relative_path})
-                    content = _read_txt_content(file_path, readers)
-                    file_id = ulid.new().str
-                    # Guard against overlap >= chunk_size, which would make the
-                    # range step zero or negative (infinite loop / ValueError).
-                    step = max(1, chunk_size_val - overlap_val)
-                    for i in range(0, len(content), step):
-                        chunk = content[i : i + chunk_size_val]
-                        if chunk:
-                            chunk_id = ulid.new().str
-                            zrb_print(
-                                stylize_muted(
-                                    f"Vectorizing {relative_path} chunk {chunk_id}"
-                                ),
-                                plain=True,
-                            )
-                            embedding_response = openai_client.embeddings.create(
-                                input=chunk, model=embedding_model_val
-                            )
-                            vector = embedding_response.data[0].embedding
-                            collection.upsert(
-                                ids=[chunk_id],
-                                embeddings=[vector],
-                                documents=[chunk],
-                                metadatas={
-                                    "file_path": relative_path,
-                                    "file_id": file_id,
-                                },
-                            )
-                except Exception as e:
-                    zrb_print(
-                        stylize_error(f"Error processing {file_path}: {e}"), plain=True
-                    )
-            _save_hashes(hash_file_path, current_hashes)
-        else:
-            zrb_print(
-                stylize_muted("No changes detected. Skipping database update."),
-                plain=True,
-            )
-
-        zrb_print(stylize_muted("Vectorizing query"), plain=True)
-
-        try:
-            embedding_response = openai_client.embeddings.create(
-                input=query, model=embedding_model_val
-            )
-            query_vector = embedding_response.data[0].embedding
-        except Exception as e:
-            error_msg = str(e)
-            if "401" in error_msg or "Unauthorized" in error_msg:
-                return {
-                    "error": f"Embedding API authentication failed: {e}. [SYSTEM SUGGESTION]: The 'api_key' is invalid. Ask the user to provide a valid API key and retry the query."
-                }
-            elif "429" in error_msg or "rate limit" in error_msg.lower():
-                return {
-                    "error": f"Embedding API rate limit exceeded: {e}. [SYSTEM SUGGESTION]: Wait before retrying, or ask the user to check their API plan limits."
-                }
-            else:
-                return {
-                    "error": f"Failed to generate query embedding: {e}. [SYSTEM SUGGESTION]: The 'embedding_model' name may be invalid or the provider unreachable. Ask the user to verify the model name and base_url, then retry."
-                }
-
-        zrb_print(stylize_muted("Searching documents"), plain=True)
-
-        try:
-            results = collection.query(
-                query_embeddings=query_vector,
-                n_results=max_result_count_val,
-            )
-            return dict(results)
-        except Exception as e:
-            return {
-                "error": f"Failed to search documents: {e}. [SYSTEM SUGGESTION]: Ask the user to delete the ChromaDB directory ('{vector_db_path}') to reset the collection. This will force re-indexing of all documents on the next query."
-            }
+        return _query_collection(
+            collection=collection,
+            query_vector=query_vector,
+            max_result_count_val=max_result_count_val,
+            vector_db_path=vector_db_path,
+        )
 
     retrieve.__name__ = tool_name
     retrieve.__doc__ = dedent(f"""
@@ -229,6 +146,142 @@ def create_rag_from_directory(
         Pass a natural-language query; returns the top semantic matches from the indexed corpus.
         """).strip()
     return retrieve
+
+
+def _load_or_reindex(
+    document_dir_path: str,
+    hash_file_path: str,
+    collection: Any,
+    openai_client: Any,
+    embedding_model_val: str,
+    chunk_size_val: int,
+    overlap_val: int,
+    readers: list[RAGFileReader],
+) -> dict[str, Any] | None:
+    """Re-embed any new/changed file under `document_dir_path` into `collection`.
+
+    Returns an error dict if `document_dir_path` doesn't exist, else `None`.
+    """
+    try:
+        previous_hashes = _load_hashes(hash_file_path)
+    except Exception as e:
+        zrb_print(stylize_error(f"Error loading file hashes: {e}"), plain=True)
+        previous_hashes = {}
+
+    current_hashes = {}
+    updated_files = []
+
+    if not os.path.exists(document_dir_path):
+        return {
+            "error": f"Document directory not found: {document_dir_path}. [SYSTEM SUGGESTION]: Ask the user to verify the document_dir_path. The directory may have been moved, deleted, or the path may be wrong."
+        }
+
+    for root, _, files in os.walk(document_dir_path):
+        for file in files:
+            file_path = os.path.join(root, file)
+            try:
+                file_hash = _compute_file_hash(file_path)
+                relative_path = os.path.relpath(file_path, document_dir_path)
+                current_hashes[relative_path] = file_hash
+                if previous_hashes.get(relative_path) != file_hash:
+                    updated_files.append(file_path)
+            except Exception as e:
+                zrb_print(
+                    stylize_error(f"Error hashing file {file_path}: {e}"),
+                    plain=True,
+                )
+
+    if updated_files:
+        zrb_print(
+            stylize_muted(f"Updating {len(updated_files)} changed files"),
+            plain=True,
+        )
+        for file_path in updated_files:
+            try:
+                relative_path = os.path.relpath(file_path, document_dir_path)
+                collection.delete(where={"file_path": relative_path})
+                content = _read_txt_content(file_path, readers)
+                file_id = ulid.new().str
+                # Guard against overlap >= chunk_size, which would make the
+                # range step zero or negative (infinite loop / ValueError).
+                step = max(1, chunk_size_val - overlap_val)
+                for i in range(0, len(content), step):
+                    chunk = content[i : i + chunk_size_val]
+                    if chunk:
+                        chunk_id = ulid.new().str
+                        zrb_print(
+                            stylize_muted(
+                                f"Vectorizing {relative_path} chunk {chunk_id}"
+                            ),
+                            plain=True,
+                        )
+                        embedding_response = openai_client.embeddings.create(
+                            input=chunk, model=embedding_model_val
+                        )
+                        vector = embedding_response.data[0].embedding
+                        collection.upsert(
+                            ids=[chunk_id],
+                            embeddings=[vector],
+                            documents=[chunk],
+                            metadatas={
+                                "file_path": relative_path,
+                                "file_id": file_id,
+                            },
+                        )
+            except Exception as e:
+                zrb_print(
+                    stylize_error(f"Error processing {file_path}: {e}"), plain=True
+                )
+        _save_hashes(hash_file_path, current_hashes)
+    else:
+        zrb_print(
+            stylize_muted("No changes detected. Skipping database update."),
+            plain=True,
+        )
+    return None
+
+
+def _embed_query(
+    openai_client: Any, query: str, embedding_model_val: str
+) -> tuple[Any, dict[str, Any] | None]:
+    """Embed the query string. Returns `(vector, None)` or `(None, error_dict)`."""
+    zrb_print(stylize_muted("Vectorizing query"), plain=True)
+    try:
+        embedding_response = openai_client.embeddings.create(
+            input=query, model=embedding_model_val
+        )
+        return embedding_response.data[0].embedding, None
+    except Exception as e:
+        error_msg = str(e)
+        if "401" in error_msg or "Unauthorized" in error_msg:
+            return None, {
+                "error": f"Embedding API authentication failed: {e}. [SYSTEM SUGGESTION]: The 'api_key' is invalid. Ask the user to provide a valid API key and retry the query."
+            }
+        elif "429" in error_msg or "rate limit" in error_msg.lower():
+            return None, {
+                "error": f"Embedding API rate limit exceeded: {e}. [SYSTEM SUGGESTION]: Wait before retrying, or ask the user to check their API plan limits."
+            }
+        else:
+            return None, {
+                "error": f"Failed to generate query embedding: {e}. [SYSTEM SUGGESTION]: The 'embedding_model' name may be invalid or the provider unreachable. Ask the user to verify the model name and base_url, then retry."
+            }
+
+
+def _query_collection(
+    collection: Any, query_vector: Any, max_result_count_val: int, vector_db_path: str
+) -> dict[str, Any]:
+    """Run the similarity search and return its results (or an error dict)."""
+    zrb_print(stylize_muted("Searching documents"), plain=True)
+    try:
+        results = collection.query(
+            query_embeddings=query_vector,
+            n_results=max_result_count_val,
+        )
+        return dict(results)
+    except Exception as e:
+        return {
+            "error": f"Failed to search documents: {e}. [SYSTEM SUGGESTION]: Ask the user to delete the ChromaDB directory ('{vector_db_path}') to reset the collection. This will force re-indexing of all documents on the next query."
+        }
 
 
 def _compute_file_hash(file_path: str) -> str:

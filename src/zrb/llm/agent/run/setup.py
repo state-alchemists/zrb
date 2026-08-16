@@ -41,7 +41,6 @@ def _resolve_context_dependencies(
     # function to break a circular import — zrb.llm.agent is loaded by
     # those packages' init paths, so module-top imports here would re-enter
     # zrb.llm.agent before its __init__ has finished.
-    # lazy: zrb internal (heavy via transitive / circular)
     from zrb.llm.ui.std_ui import StdUI
 
     ui_arg = ui if ui is not None else current_ui.get()
@@ -54,7 +53,6 @@ def _resolve_context_dependencies(
         elif len(ui_arg) == 0:
             effective_ui = StdUI()
         else:
-            # lazy: zrb internal (heavy via transitive / circular)
             from zrb.llm.ui.multi_ui import MultiUI
 
             effective_ui = MultiUI(ui_arg)
@@ -67,12 +65,9 @@ def _resolve_context_dependencies(
     effective_approval_channel = approval_channel or current_approval_channel.get()
 
     if effective_approval_channel is not None and effective_ui is not None:
-        # lazy: zrb internal (heavy via transitive / circular)
         from zrb.llm.approval.multiplex_approval_channel import (
             MultiplexApprovalChannel,
         )
-
-        # lazy: zrb internal (heavy via transitive / circular)
         from zrb.llm.approval.terminal_approval_channel import TerminalApprovalChannel
 
         if not isinstance(effective_approval_channel, MultiplexApprovalChannel):

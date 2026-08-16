@@ -48,8 +48,8 @@ class HookManagerLoading:
         def register(
             self,
             hook: "HookCallable",
-            events: list[HookEvent],
-            config: HookConfig,
+            events: list[HookEvent] | None = None,
+            config: HookConfig | None = None,
         ) -> None: ...
 
     # --- Filesystem traversal --------------------------------------------

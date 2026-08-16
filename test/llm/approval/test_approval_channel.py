@@ -574,8 +574,9 @@ class TestMultiplexApprovalChannel:
         assert result.message == "Fast"
 
     @pytest.mark.asyncio
-    async def test_multiplex_channel_empty_list_auto_approves(self):
-        """Test that empty channel list auto-approves."""
+    async def test_multiplex_channel_empty_list_denies(self):
+        """An empty channel list has nothing to ask, so it must deny rather
+        than fail open and auto-approve."""
         from zrb.llm.approval.multiplex_approval_channel import MultiplexApprovalChannel
 
         channel = MultiplexApprovalChannel([])
@@ -587,7 +588,8 @@ class TestMultiplexApprovalChannel:
 
         result = await channel.request_approval(context)
 
-        assert result.approved is True
+        assert result.approved is False
+        assert result.message == "No approval channels configured"
 
     @pytest.mark.asyncio
     async def test_multiplex_channel_handles_exception(self):

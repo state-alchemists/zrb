@@ -154,7 +154,8 @@ class ChatRunning(ChatState):
         enable_rewind: bool = False,
         snapshot_dir: str = "",
     ) -> Any:
-        # lazy: zrb internal (heavy via transitive / circular)
+        # lazy: zrb.llm.ui.base.ui transitively loads pydantic_ai,
+        # prompt_toolkit, pdfplumber and playwright.
         from zrb.llm.ui.base.ui import BaseUI
 
         # Mirror _run_non_interactive_session's slash-command resolution.
@@ -304,7 +305,8 @@ class ChatRunning(ChatState):
         default_kwargs: dict[str, Any],
     ) -> "UIProtocol":
         """Determine the UI to use: factory-only, combined, or default-only."""
-        # lazy: zrb internal (heavy via transitive / circular)
+        # lazy: zrb.llm.ui.default.ui and zrb.llm.ui.multi_ui transitively
+        # load prompt_toolkit, pydantic_ai, pdfplumber and vosk.
         from zrb.llm.ui.default.ui import UI
         from zrb.llm.ui.multi_ui import MultiUI
 
@@ -315,7 +317,7 @@ class ChatRunning(ChatState):
             if len(self._approval_channels) == 1:
                 ui.set_approval_channel(self._approval_channels[0])
             elif len(self._approval_channels) > 1:
-                # lazy: zrb internal (heavy via transitive / circular)
+                # lazy: zrb.llm.approval transitively loads pydantic_ai.
                 from zrb.llm.approval import MultiplexApprovalChannel
 
                 ui.set_approval_channel(
@@ -324,7 +326,7 @@ class ChatRunning(ChatState):
             return ui
 
         # Create default UI with lazy import of output_lexer
-        # lazy: zrb internal (heavy via transitive / circular)
+        # lazy: zrb.llm.app.lexer transitively loads prompt_toolkit.
         from zrb.llm.app.lexer import CLIStyleLexer
 
         default_kwargs["output_lexer"] = CLIStyleLexer()
@@ -338,7 +340,7 @@ class ChatRunning(ChatState):
         if len(self._approval_channels) == 1:
             ui.set_approval_channel(self._approval_channels[0])
         elif len(self._approval_channels) > 1:
-            # lazy: zrb internal (heavy via transitive / circular)
+            # lazy: zrb.llm.approval transitively loads pydantic_ai.
             from zrb.llm.approval import MultiplexApprovalChannel
 
             ui.set_approval_channel(MultiplexApprovalChannel(self._approval_channels))
@@ -368,7 +370,7 @@ class ChatRunning(ChatState):
             if callable(replay):
                 replay(history)
             else:
-                # lazy: zrb internal (heavy via transitive / circular)
+                # lazy: zrb.llm.util.history_formatter transitively loads pydantic_ai.
                 from zrb.llm.util.history_formatter import format_history_as_text
 
                 ui.append_to_output(format_history_as_text(history))

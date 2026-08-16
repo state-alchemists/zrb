@@ -17,6 +17,7 @@ import tempfile
 from dataclasses import dataclass, replace
 
 from zrb.attr.type import BoolAttr
+from zrb.config.config import CFG
 from zrb.config.mixins.llm_sandbox import DEFAULT_LLM_SANDBOX_DENY_READ_PATHS
 from zrb.context.any_context import AnyContext
 from zrb.util.attr import get_bool_attr
@@ -43,10 +44,6 @@ class SandboxPolicy:
 
 def resolve_sandbox_policy_from_config() -> SandboxPolicy:
     """Build the policy from ``CFG.LLM_SANDBOX_*``."""
-    # lazy: config is read per call so tests and downstream products (which
-    # override CFG defaults at startup) always see current values.
-    from zrb.config.config import CFG
-
     return SandboxPolicy(
         enabled=CFG.LLM_SANDBOX_ENABLED,
         writable_paths=tuple(CFG.LLM_SANDBOX_WRITABLE_PATHS),

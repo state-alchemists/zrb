@@ -3,7 +3,7 @@ import os
 from typing import Any
 
 from zrb.config.config import CFG
-from zrb.util.file import is_path_excluded
+from zrb.util.file import is_path_excluded, walk_files
 from zrb.util.truncate import truncate_items
 
 DEFAULT_EXCLUDED_PATTERNS = [
@@ -51,7 +51,6 @@ def list_files(
     __pycache__, etc. Pass exclude_patterns=[] to include all. Dotfiles are hidden
     by default; use include_hidden=True to surface them.
     """
-    all_files: list[str] = []
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
         return {
@@ -62,34 +61,16 @@ def list_files(
             )
         }
 
-    depth = 3
     patterns_to_exclude = (
         exclude_patterns if exclude_patterns is not None else DEFAULT_EXCLUDED_PATTERNS
     )
 
-    initial_depth = abs_path.rstrip(os.sep).count(os.sep)
-    for root, dirs, files in os.walk(abs_path, topdown=True):
-        current_depth = root.rstrip(os.sep).count(os.sep) - initial_depth
-        if current_depth >= depth - 1:
-            del dirs[:]
-
-        dirs[:] = [
-            d
-            for d in dirs
-            if (include_hidden or not d.startswith("."))
-            and not is_path_excluded(d, patterns_to_exclude)
-        ]
-
-        for filename in files:
-            if (
-                include_hidden or not filename.startswith(".")
-            ) and not is_path_excluded(filename, patterns_to_exclude):
-                full_path = os.path.join(root, filename)
-                rel_full_path = os.path.relpath(full_path, abs_path)
-                if not is_path_excluded(rel_full_path, patterns_to_exclude):
-                    all_files.append(rel_full_path)
-
-    sorted_files = sorted(all_files)
+    sorted_files = walk_files(
+        abs_path,
+        include_hidden=include_hidden,
+        depth=3,
+        excluded_patterns=patterns_to_exclude,
+    )
 
     truncated, omitted = _truncate_file_list(sorted_files)
     if omitted is not None:

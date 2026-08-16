@@ -137,7 +137,7 @@ async def test_add_subtree_non_zero_exit(tmp_path):
         "zrb.util.git_subtree.run_command", new_callable=mock.AsyncMock
     ) as mock_run:
         mock_run.return_value = (CmdResult("", "error", ""), 1)
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(RuntimeError) as exc_info:
             await add_subtree(
                 repo_dir=repo_dir,
                 name="libA",
@@ -156,7 +156,7 @@ async def test_pull_subtree_non_zero_exit(tmp_path):
         "zrb.util.git_subtree.run_command", new_callable=mock.AsyncMock
     ) as mock_run:
         mock_run.return_value = (CmdResult("", "error", ""), 1)
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(RuntimeError) as exc_info:
             await pull_subtree(repo_dir, "src/libA", "urlA", "main")
         assert "Non zero exit code" in str(exc_info.value)
 
@@ -169,6 +169,6 @@ async def test_push_subtree_non_zero_exit(tmp_path):
         "zrb.util.git_subtree.run_command", new_callable=mock.AsyncMock
     ) as mock_run:
         mock_run.return_value = (CmdResult("", "error", ""), 1)
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(RuntimeError) as exc_info:
             await push_subtree(repo_dir, "src/libA", "urlA", "main")
         assert "Non zero exit code" in str(exc_info.value)

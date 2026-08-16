@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from typing import TYPE_CHECKING
 
 from zrb.config.env_field import EnvField, comma_list, on_off
 from zrb.util.string.conversion import to_boolean
@@ -12,9 +13,11 @@ def _include_sections_serialize(value: list[str] | str) -> str:
     return ",".join(value) if isinstance(value, list) else value
 
 
-class LLMPromptMixin:
-    ENV_PREFIX: str
-    ROOT_GROUP_NAME: str
+class ConfigLLMPrompt:
+    if TYPE_CHECKING:
+        # Attributes supplied by sibling mixins on the composed Config class.
+        ENV_PREFIX: str  # FoundationMixin
+        ROOT_GROUP_NAME: str  # FoundationMixin
 
     def __init__(self):
         self.DEFAULT_LLM_PROMPT_DIR: str = ""

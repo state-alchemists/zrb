@@ -4,6 +4,7 @@ import asyncio
 from typing import TYPE_CHECKING
 
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
+from zrb.llm.ui.queue_based_input import QueueBasedInput
 from zrb.llm.ui.simple_ui_base import SimpleUI
 from zrb.llm.ui.ui_config import UIConfig
 
@@ -13,7 +14,7 @@ if TYPE_CHECKING:
     from zrb.llm.task.llm_task import LLMTask
 
 
-class PollingUI(SimpleUI):
+class PollingUI(QueueBasedInput, SimpleUI):
     """UI for polling-based backends (HTTP API, WebSocket).
 
     This class provides output/input queues that external systems can use:
@@ -62,16 +63,6 @@ class PollingUI(SimpleUI):
         self._input_queue: asyncio.Queue[str] = asyncio.Queue()
         self._waiting_for_input = False
 
-    @property
-    def input_queue(self) -> asyncio.Queue[str]:
-        """The queue incoming messages land on.
-
-        The public read seam for the queue — without it a caller (or a test)
-        asserting on queue state has to reach for the private attribute. Prefer
-        `handle_incoming_message()` for *routing* a message in.
-        """
-        return self._input_queue
-
     async def print(self, text: str, kind: str = "text") -> None:
         """Queue output for external polling.
 
@@ -79,29 +70,3 @@ class PollingUI(SimpleUI):
         internally just puts to a queue (non-blocking).
         """
         self.output_queue.put_nowait(text)
-
-    async def get_input(self, prompt: str) -> str:
-        """Block until external system provides input via handle_incoming_message()."""
-        if prompt:
-            await self.print(f"❓ {prompt}", kind="text")
-        self._waiting_for_input = True
-        try:
-            return await self._input_queue.get()
-        finally:
-            self._waiting_for_input = False
-
-    def handle_incoming_message(self, text: str):
-        """Call this when a user message arrives.
-
-        Routes the message correctly:
-        - If LLM is waiting for input (get_input blocked): unblocks it
-        - If LLM is idle: starts a new conversation turn
-
-        This is the KEY method for external integration. Use it for:
-        - HTTP API: POST /chat calls this
-        - WebSocket: When a message event arrives
-        """
-        if self._waiting_for_input:
-            self._input_queue.put_nowait(text)
-        else:
-            self._submit_user_message(self._llm_task, text)

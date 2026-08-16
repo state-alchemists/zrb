@@ -51,6 +51,17 @@ _IGNORE_DIRS: list[str] = []
 _MAX_CONCURRENT_BG_HOOKS = 4
 _MAX_PENDING_BG_HOOKS = 64
 
+# Stand-in priority (0) for hooks with no config (e.g. manually registered),
+# so they sort predictably alongside configured hooks instead of erroring.
+# Read-only — never mutated — so one shared instance is safe across calls.
+_DEFAULT_HOOK_CONFIG = HookConfig(
+    name="default",
+    events=[],
+    type=HookType.COMMAND,
+    config=CommandHookConfig(command=""),
+    priority=0,
+)
+
 
 class HookManager(HookManagerLoading):
     def __init__(
@@ -198,82 +209,90 @@ class HookManager(HookManagerLoading):
         if not hooks_to_run:
             return results
 
-        # Create a default config for hooks without config (e.g., manually registered)
-        default_config = HookConfig(
-            name="default",
-            events=[],
-            type=HookType.COMMAND,
-            config=CommandHookConfig(command=""),
-            priority=0,
-        )
-        hooks_to_run = sorted(
-            hooks_to_run,
-            key=lambda h: self._hook_to_config.get(h, default_config).priority,
-            reverse=True,  # Higher priority first
-        )
+        hooks_to_run = self._sort_hooks_by_priority(hooks_to_run)
 
         # Sequential, not concurrent: a hook may block or stop the chain.
         for i, hook in enumerate(hooks_to_run):
-            config = self._hook_to_config.get(hook)
-            timeout = config.timeout if config else None
-
-            # Async command hooks are fire-and-forget: spawn them on the current
-            # (persistent) event loop and DON'T await. Awaiting them through the
-            # thread executor would block here until the hook's subprocess — and
-            # any child it forks, e.g. peon-ping's audio player — exits or the
-            # timeout fires, defeating the whole point of `async` and stalling
-            # the agent on every event (a per-output-chunk Notification hook
-            # alone would add a multi-second wait per chunk). They cannot block
-            # or contribute additionalContext, so omitting their result is
-            # correct.
-            if (
-                config is not None
-                and config.is_async
-                and config.type == (HookType.COMMAND)
-            ):
-                if self._spawn_background_hook(hook, context):
-                    continue
-                # No running loop (rare sync caller) — fall through to the
-                # executor so the hook still runs, just synchronously.
-
-            try:
-                result = await self._executor.execute_hook(
-                    hook, context, timeout=timeout
-                )
+            result, stop = await self._run_one_hook(i, hook, event, context)
+            if result is not None:
                 results.append(result)
-            except Exception as e:
-                logger.error(
-                    f"Error executing hook {i} for event {event}: {e}",
-                    exc_info=True,
-                )
-                results.append(
-                    HookExecutionResult(success=False, error=str(e), exit_code=1)
-                )
-                continue
-
-            # Check for blocking decisions (exit code 2). A block only halts the
-            # chain for events that can actually be blocked; for any other event
-            # the block is a no-op signal, so we keep running the remaining hooks
-            # (Claude-compatible — exit 2 is meaningful only where the lifecycle
-            # can be stopped).
-            if results[-1].blocked or results[-1].exit_code == 2:
-                if event in BLOCKING_EVENTS:
-                    logger.info(
-                        f"Hook blocked execution. Stopping further hooks for event {event}."
-                    )
-                    return results
-                logger.debug(
-                    f"Hook returned a block for non-blocking event {event}; "
-                    "ignoring block and continuing remaining hooks."
-                )
-
-            # Check for continue=false (an explicit "stop all processing" request,
-            # honored for every event regardless of whether it can be blocked).
-            if not results[-1].continue_execution:
-                logger.info(f"Hook requested stop of all processing for event {event}.")
+            if stop:
                 return results
 
         return results
+
+    def _sort_hooks_by_priority(self, hooks: list[HookCallable]) -> list[HookCallable]:
+        """Higher `priority` runs first; a hook with no config sorts as 0."""
+        return sorted(
+            hooks,
+            key=lambda h: self._hook_to_config.get(h, _DEFAULT_HOOK_CONFIG).priority,
+            reverse=True,
+        )
+
+    async def _run_one_hook(
+        self,
+        index: int,
+        hook: HookCallable,
+        event: HookEvent,
+        context: HookContext,
+    ) -> tuple[HookExecutionResult | None, bool]:
+        """Run one hook. Returns `(result, stop)`.
+
+        `result` is `None` only when an async command hook was spawned
+        fire-and-forget (nothing to record). `stop` is True when
+        `execute_hooks` must return immediately after this result — a block
+        on a blockable event, or an explicit `continue=false`.
+        """
+        config = self._hook_to_config.get(hook)
+        timeout = config.timeout if config else None
+
+        # Async command hooks are fire-and-forget: spawn them on the current
+        # (persistent) event loop and DON'T await. Awaiting them through the
+        # thread executor would block here until the hook's subprocess — and
+        # any child it forks, e.g. peon-ping's audio player — exits or the
+        # timeout fires, defeating the whole point of `async` and stalling
+        # the agent on every event (a per-output-chunk Notification hook
+        # alone would add a multi-second wait per chunk). They cannot block
+        # or contribute additionalContext, so omitting their result is
+        # correct.
+        if config is not None and config.is_async and config.type == (HookType.COMMAND):
+            if self._spawn_background_hook(hook, context):
+                return None, False
+            # No running loop (rare sync caller) — fall through to the
+            # executor so the hook still runs, just synchronously.
+
+        try:
+            result = await self._executor.execute_hook(hook, context, timeout=timeout)
+        except Exception as e:
+            logger.error(
+                f"Error executing hook {index} for event {event}: {e}",
+                exc_info=True,
+            )
+            return HookExecutionResult(success=False, error=str(e), exit_code=1), False
+
+        # Check for blocking decisions (exit code 2). A block only halts the
+        # chain for events that can actually be blocked; for any other event
+        # the block is a no-op signal, so we keep running the remaining hooks
+        # (Claude-compatible — exit 2 is meaningful only where the lifecycle
+        # can be stopped).
+        if result.blocked or result.exit_code == 2:
+            if event in BLOCKING_EVENTS:
+                logger.info(
+                    f"Hook blocked execution. Stopping further hooks for event {event}."
+                )
+                return result, True
+            logger.debug(
+                f"Hook returned a block for non-blocking event {event}; "
+                "ignoring block and continuing remaining hooks."
+            )
+
+        # Check for continue=false (an explicit "stop all processing" request,
+        # honored for every event regardless of whether it can be blocked).
+        if not result.continue_execution:
+            logger.info(f"Hook requested stop of all processing for event {event}.")
+            return result, True
+
+        return result, False
 
     def _spawn_background_hook(self, hook: HookCallable, context: HookContext) -> bool:
         """Fire an async command hook without awaiting it.
@@ -483,34 +502,43 @@ class HookManager(HookManagerLoading):
         Convert HookConfig into a HookCallable using appropriate executor.
         Wraps the actual hook with matcher evaluation.
         """
-        if config.type == HookType.COMMAND:
-            inner_hook = self._create_command_hook(
-                cast("CommandHookConfig", config.config), config.timeout
-            )
-        elif config.type == HookType.PROMPT:
-            inner_hook = self._create_prompt_hook(
-                cast("PromptHookConfig", config.config)
-            )
-        elif config.type == HookType.AGENT:
-            inner_hook = self._create_agent_hook(cast("AgentHookConfig", config.config))
-        else:
-
-            async def placeholder_hook(context: HookContext) -> HookResult:
-                logger.warning(
-                    f"Executing placeholder for hook '{config.name}' (Type: {config.type})."
-                )
-                return HookResult(success=True, output=f"Placeholder for {config.name}")
-
-            inner_hook = placeholder_hook
-
+        inner_hook = self._select_inner_hook(config)
         # Store config for debugging and timeout lookup
         self._hook_configs[config.name] = config
+        return self._wrap_with_matchers(inner_hook, config)
 
-        # Create wrapper that evaluates matchers. Async fire-and-forget is NOT
-        # handled here: this wrapper runs inside the thread executor's
-        # short-lived `asyncio.run` loop, which would cancel a task spawned here
-        # the moment it returns. `execute_hooks` dispatches async command hooks
-        # on the persistent main loop instead (see there).
+    def _select_inner_hook(self, config: HookConfig) -> HookCallable:
+        """Build the callable for `config.type` (command/prompt/agent), or a
+        logging placeholder for anything else."""
+        if config.type == HookType.COMMAND:
+            return self._create_command_hook(
+                cast("CommandHookConfig", config.config), config.timeout
+            )
+        if config.type == HookType.PROMPT:
+            return self._create_prompt_hook(cast("PromptHookConfig", config.config))
+        if config.type == HookType.AGENT:
+            return self._create_agent_hook(cast("AgentHookConfig", config.config))
+
+        async def placeholder_hook(context: HookContext) -> HookResult:
+            logger.warning(
+                f"Executing placeholder for hook '{config.name}' (Type: {config.type})."
+            )
+            return HookResult(success=True, output=f"Placeholder for {config.name}")
+
+        return placeholder_hook
+
+    def _wrap_with_matchers(
+        self, inner_hook: HookCallable, config: HookConfig
+    ) -> HookCallable:
+        """Wrap `inner_hook` so it only runs when `config.matchers` passes.
+
+        Async fire-and-forget is NOT handled here: this wrapper runs inside
+        the thread executor's short-lived `asyncio.run` loop, which would
+        cancel a task spawned here the moment it returns. `execute_hooks`
+        dispatches async command hooks on the persistent main loop instead
+        (see there).
+        """
+
         async def hook_with_matchers(context: HookContext) -> HookResult:
             if not evaluate_matchers(config.matchers, context):
                 logger.debug(

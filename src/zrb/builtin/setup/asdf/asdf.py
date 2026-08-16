@@ -44,7 +44,7 @@ download_asdf = CmdTask(
     execute_condition='{ctx.input["setup-bash"]}',
     upstream=download_asdf,
 )
-def setup_asdf_on_bash(ctx: AnyContext):
+def setup_asdf_on_bash(ctx: AnyContext) -> None:
     ctx.print("Configure asdf for bash")
     setup_asdf_sh_config(os.path.expanduser(os.path.join("~", ".bashrc")))
 
@@ -55,7 +55,7 @@ def setup_asdf_on_bash(ctx: AnyContext):
     execute_condition='{ctx.input["setup-zsh"]}',
     upstream=download_asdf,
 )
-def setup_asdf_on_zsh(ctx: AnyContext):
+def setup_asdf_on_zsh(ctx: AnyContext) -> None:
     ctx.print("Configure asdf for zsh")
     setup_asdf_sh_config(os.path.expanduser(os.path.join("~", ".zshrc")))
 
@@ -66,7 +66,7 @@ def setup_asdf_on_zsh(ctx: AnyContext):
     execute_condition='{ctx.input["setup-powershell"]}',
     upstream=download_asdf,
 )
-def setup_asdf_on_powershell(ctx: AnyContext):
+def setup_asdf_on_powershell(ctx: AnyContext) -> None:
     ctx.print("Configure asdf for powershell")
     setup_asdf_ps_config(
         os.path.expanduser(os.path.join("~", ".config", "powershell", "profile.ps1"))
@@ -80,7 +80,7 @@ def setup_asdf_on_powershell(ctx: AnyContext):
     group=setup_group,
     alias="asdf",
 )
-def setup_asdf(ctx: AnyContext):
+def setup_asdf(ctx: AnyContext) -> None:
     ctx.print("Setup complete, restart your terminal to continue")
     ctx.print("Some useful commands:")
     ctx.print("- asdf plugin add python")

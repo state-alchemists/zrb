@@ -33,7 +33,7 @@ from zrb.util.git_subtree import add_subtree, load_config, pull_subtree, push_su
     group=git_subtree_group,
     alias="add",
 )
-async def git_add_subtree(ctx: AnyContext):
+async def git_add_subtree(ctx: AnyContext) -> None:
     ctx.print(stylize_muted("Get directory"))
     repo_dir = await get_repo_dir(print_method=ctx.print)
     ctx.print(stylize_muted("Add subtree"))
@@ -54,7 +54,7 @@ async def git_add_subtree(ctx: AnyContext):
     group=git_subtree_group,
     alias="pull",
 )
-async def git_pull_subtree(ctx: AnyContext):
+async def git_pull_subtree(ctx: AnyContext) -> None:
     ctx.print(stylize_muted("Get directory"))
     repo_dir = await get_repo_dir(print_method=ctx.print)
     config = load_config(repo_dir)
@@ -86,7 +86,7 @@ async def git_pull_subtree(ctx: AnyContext):
     group=git_subtree_group,
     alias="push",
 )
-async def git_push_subtree(ctx: AnyContext):
+async def git_push_subtree(ctx: AnyContext) -> None:
     ctx.print(stylize_muted("Get directory"))
     repo_dir = await get_repo_dir(print_method=ctx.print)
     config = load_config(repo_dir)

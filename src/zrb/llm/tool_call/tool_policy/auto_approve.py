@@ -1,7 +1,7 @@
-import json
 import re
 from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
+from zrb.llm.tool_call.args import parse_tool_args
 from zrb.llm.tool_call.handler import ToolPolicy, UIProtocol
 
 if TYPE_CHECKING:
@@ -35,12 +35,7 @@ def auto_approve(
 
         # Parse arguments (best effort) — needed for the sandbox-escape check
         # even when no kwargs_patterns are configured.
-        args = call.args
-        if isinstance(args, str):
-            try:
-                args = json.loads(args)
-            except (json.JSONDecodeError, ValueError):
-                args = None
+        args = parse_tool_args(call)
 
         # A sandbox-escape request must always reach a human, regardless of
         # any auto-approval configuration.

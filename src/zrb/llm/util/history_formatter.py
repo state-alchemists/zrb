@@ -5,6 +5,11 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
+from zrb.llm.util.tool_args import (
+    is_empty_tool_args,
+    parse_tool_args_dict,
+    truncate_tool_args_values,
+)
 from zrb.util.truncate import truncate_display
 
 if TYPE_CHECKING:
@@ -69,13 +74,13 @@ def format_history_as_text(
     # Track tool call IDs to tool names for matching returns
     pending_tool_calls: dict[str, str] = {}
 
-    for i, msg in enumerate(messages):
+    for msg in messages:
         kind = getattr(msg, "kind", "unknown")
 
         if kind == "request":
-            lines.extend(_format_request(msg, i, pending_tool_calls, full))
+            lines.extend(_format_request(msg, pending_tool_calls, full))
         elif kind == "response":
-            lines.extend(_format_response(msg, i, pending_tool_calls, full))
+            lines.extend(_format_response(msg, pending_tool_calls, full))
 
     result = "\n".join(lines)
 
@@ -90,7 +95,7 @@ def format_history_as_text(
 
 
 def _format_request(
-    msg, index: int, pending_tool_calls: dict[str, str], full: bool = False
+    msg, pending_tool_calls: dict[str, str], full: bool = False
 ) -> list[str]:
     """Format a ModelRequest message.
 
@@ -154,7 +159,7 @@ def _format_request(
 
 
 def _format_response(
-    msg, index: int, pending_tool_calls: dict[str, str], full: bool = False
+    msg, pending_tool_calls: dict[str, str], full: bool = False
 ) -> list[str]:
     """Format a ModelResponse message.
 
@@ -297,33 +302,24 @@ def format_args(args, full: bool = False) -> str:
     truncation) for an export transcript.
     """
 
-    if args is None:
+    if is_empty_tool_args(args):
         return "{}"
-    if isinstance(args, str):
-        if args.strip() in ["", "null", "{}"]:
-            return "{}"
-        try:
-            obj = json.loads(args)
-            if isinstance(obj, dict):
-                return _truncate_kwargs(obj, full=full)
-        except (json.JSONDecodeError, TypeError):
-            return args if full else truncate(args, 50)
     if isinstance(args, dict):
         # Remove 'dummy' key if present (schema sanitization artifact)
         args_clean = {k: v for k, v in args.items() if k != "dummy"}
-        return _truncate_kwargs(args_clean, full=full)
+        return _dump_truncated(args_clean, full=full)
+    if isinstance(args, str):
+        parsed = parse_tool_args_dict(args)
+        if parsed is not None:
+            return _dump_truncated(parsed, full=full)
+        return args if full else truncate(args, 50)
     return str(args) if full else truncate(str(args), 50)
 
 
-def _truncate_kwargs(kwargs: dict, max_length: int = 30, full: bool = False) -> str:
-    """Truncate keyword arguments for display (no truncation when ``full``)."""
+def _dump_truncated(kwargs: dict, full: bool = False) -> str:
+    """Truncate keyword arguments and render as JSON (no truncation when ``full``)."""
 
-    truncated = {}
-    for key, val in kwargs.items():
-        if not full and isinstance(val, str):
-            truncated[key] = truncate_display(val, max_length)
-        else:
-            truncated[key] = val
+    truncated = truncate_tool_args_values(kwargs, full=full)
     try:
         return json.dumps(truncated, ensure_ascii=False)
     except (TypeError, ValueError):

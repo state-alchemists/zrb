@@ -139,6 +139,17 @@ def test_base_input_update_shared_context_snake_case_conflict():
         inp.update_shared_context(shared_ctx, value="new_value")
 
 
+def test_base_input_update_shared_context_snake_case_conflict_message():
+    """Regression: the snake_case-conflict error was missing an `f` prefix,
+    so the message showed the literal text "{snake_key}" instead of the key."""
+    inp = ConcreteInput("my-input")  # snake_case: my_input
+    shared_ctx = SharedContext()
+    shared_ctx.input["my_input"] = "existing"
+    with pytest.raises(ValueError, match="my_input") as exc_info:
+        inp.update_shared_context(shared_ctx, value="new_value")
+    assert "{snake_key}" not in str(exc_info.value)
+
+
 def test_base_input_update_shared_context_same_name_no_duplicate():
     """Test update_shared_context doesn't add duplicate for snake_case == original."""
     inp = ConcreteInput("simple")  # snake_case is same as original

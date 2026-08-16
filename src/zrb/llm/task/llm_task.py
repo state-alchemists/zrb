@@ -1,6 +1,6 @@
 """`LLMTask` — single-shot task that creates a pydantic-ai agent and runs it.
 
-This module is decomposed into mixins, mirroring `chat/task.py`:
+This module is decomposed into parts, mirroring `chat/task.py`:
 
   building.py  - post-construction config API (add/append/set), public
                       properties, and agent/prompt assembly (tools, system

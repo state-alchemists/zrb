@@ -79,20 +79,23 @@ class TestConfigSetters:
         config.LOGGING_LEVEL = "INFO"
         assert os.environ["ZRB_LOGGING_LEVEL"] == "INFO"
 
-    def test_load_builtin_setter_true(self, monkeypatch):
+    def test_enable_builtin_tasks_setter_true(self, monkeypatch):
+        # Renamed from LOAD_BUILTIN (ADR-0026) — the setter always writes the
+        # new env-var form, even though the old one is still readable.
         config = Config()
-        config.LOAD_BUILTIN = True
-        assert os.environ["ZRB_LOAD_BUILTIN"] == "on"
+        config.ENABLE_BUILTIN_TASKS = True
+        assert os.environ["ZRB_ENABLE_BUILTIN_TASKS"] == "on"
 
-    def test_load_builtin_setter_false(self, monkeypatch):
+    def test_enable_builtin_tasks_setter_false(self, monkeypatch):
         config = Config()
-        config.LOAD_BUILTIN = False
-        assert os.environ["ZRB_LOAD_BUILTIN"] == "off"
+        config.ENABLE_BUILTIN_TASKS = False
+        assert os.environ["ZRB_ENABLE_BUILTIN_TASKS"] == "off"
 
-    def test_warn_unrecommended_command_setter(self, monkeypatch):
+    def test_show_unrecommended_command_warning_setter(self, monkeypatch):
+        # Renamed from WARN_UNRECOMMENDED_COMMAND (ADR-0026).
         config = Config()
-        config.WARN_UNRECOMMENDED_COMMAND = True
-        assert os.environ["ZRB_WARN_UNRECOMMENDED_COMMAND"] == "on"
+        config.SHOW_UNRECOMMENDED_COMMAND_WARNING = True
+        assert os.environ["ZRB_SHOW_UNRECOMMENDED_COMMAND_WARNING"] == "on"
 
     def test_session_log_dir_setter(self, monkeypatch):
         config = Config()
@@ -640,10 +643,11 @@ class TestConfigSetters:
         config.LLM_EXTRA_AGENT_DIRS = ["/agent1", "/agent2"]
         assert os.environ["ZRB_LLM_EXTRA_AGENT_DIRS"] == "/agent1:/agent2"
 
-    def test_use_tiktoken_setter(self, monkeypatch):
+    def test_enable_tiktoken_setter(self, monkeypatch):
+        # Renamed from USE_TIKTOKEN (ADR-0026).
         config = Config()
-        config.USE_TIKTOKEN = True
-        assert os.environ["ZRB_USE_TIKTOKEN"] == "on"
+        config.ENABLE_TIKTOKEN = True
+        assert os.environ["ZRB_ENABLE_TIKTOKEN"] == "on"
 
     def test_tiktoken_encoding_name_setter(self, monkeypatch):
         config = Config()

@@ -2,12 +2,13 @@ import os
 
 from zrb.builtin.group import setup_group
 from zrb.builtin.setup.common_input import package_manager_input, use_sudo_input
+from zrb.builtin.setup.config_file_helper import append_config_block_if_missing
 from zrb.builtin.setup.tmux.tmux_helper import get_install_tmux_cmd
 from zrb.context.any_context import AnyContext
 from zrb.input.str_input import StrInput
 from zrb.task.cmd_task import CmdTask
 from zrb.task.make_task import make_task
-from zrb.util.file import read_file, write_file
+from zrb.util.file import read_file
 
 install_tmux = CmdTask(
     name="install-tmux",
@@ -30,13 +31,9 @@ install_tmux = CmdTask(
     group=setup_group,
     alias="tmux",
 )
-def setup_tmux(ctx: AnyContext):
+def setup_tmux(ctx: AnyContext) -> None:
     tmux_config = read_file(os.path.join(os.path.dirname(__file__), "tmux_config.sh"))
     tmux_config_file = os.path.expanduser(ctx.input["tmux-config"])
-    if not os.path.isfile(tmux_config_file):
-        write_file(tmux_config_file, "")
-    content = read_file(tmux_config_file)
-    if tmux_config in content:
+    if not append_config_block_if_missing(tmux_config_file, tmux_config):
         return
-    write_file(tmux_config_file, [content, tmux_config, ""])
     ctx.print("Setup complete, restart your terminal to continue")

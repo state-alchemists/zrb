@@ -9,16 +9,7 @@ from zrb.util.git_subtree_model import SingleSubTreeConfig, SubTreeConfig
 
 
 def load_config(repo_dir: str):
-    """
-    Load the subtree configuration from subtrees.json.
-
-    Args:
-        repo_dir (str): The path to the Git repository.
-
-    Returns:
-        SubTreeConfig: The loaded subtree configuration.
-    """
-
+    """Load `subtrees.json` from `repo_dir`, or an empty config if it doesn't exist yet."""
     file_path = os.path.join(repo_dir, "subtrees.json")
     if not os.path.exists(file_path):
         return SubTreeConfig(data={})
@@ -29,13 +20,7 @@ def load_config(repo_dir: str):
 
 
 def save_config(repo_dir: str, config: "SubTreeConfig"):
-    """
-    Save the subtree configuration to subtrees.json.
-
-    Args:
-        repo_dir (str): The path to the Git repository.
-        config (SubTreeConfig): The subtree configuration to save.
-    """
+    """Write `config` to `subtrees.json` in `repo_dir`."""
     file_path = os.path.join(repo_dir, "subtrees.json")
     write_file(file_path, config.model_dump_json(indent=2))
 
@@ -48,23 +33,11 @@ async def add_subtree(
     prefix: str,
     print_method: Callable[..., Any] = print,
 ):
+    """Add a subtree at `prefix` and record it under `name` in `subtrees.json`.
+
+    Rejects a `prefix` that already exists or a `name` already configured —
+    `git subtree add` itself would just as happily clobber either.
     """
-    Add a Git subtree to the repository.
-
-    Args:
-        repo_dir (str): The path to the Git repository.
-        name (str): The name for the subtree configuration.
-        repo_url (str): The URL of the subtree repository.
-        branch (str): The branch of the subtree repository.
-        prefix (str): The local path where the subtree will be added.
-        print_method (Callable[..., Any]): Method to print command output.
-
-    Raises:
-        ValueError: If the prefix directory already exists or subtree config
-            name already exists.
-        Exception: If the git command returns a non-zero exit code.
-    """
-
     config = load_config(repo_dir)
     if os.path.isdir(prefix):
         raise ValueError(f"Directory exists: {prefix}")
@@ -84,7 +57,7 @@ async def add_subtree(
         print_method=print_method,
     )
     if exit_code != 0:
-        raise Exception(f"Non zero exit code: {exit_code}")
+        raise RuntimeError(f"Non zero exit code: {exit_code}")
     config.data[name] = SingleSubTreeConfig(
         repo_url=repo_url, branch=branch, prefix=prefix
     )
@@ -98,19 +71,7 @@ async def pull_subtree(
     branch: str,
     print_method: Callable[..., Any] = print,
 ):
-    """
-    Pull changes from a Git subtree.
-
-    Args:
-        repo_dir (str): The path to the Git repository.
-        prefix (str): The local path of the subtree.
-        repo_url (str): The URL of the subtree repository.
-        branch (str): The branch of the subtree repository.
-        print_method (Callable[..., Any]): Method to print command output.
-
-    Raises:
-        Exception: If the git command returns a non-zero exit code.
-    """
+    """Pull `branch` from `repo_url` into the subtree at `prefix`."""
     _, exit_code = await run_command(
         cmd=[
             "git",
@@ -125,7 +86,7 @@ async def pull_subtree(
         print_method=print_method,
     )
     if exit_code != 0:
-        raise Exception(f"Non zero exit code: {exit_code}")
+        raise RuntimeError(f"Non zero exit code: {exit_code}")
 
 
 async def push_subtree(
@@ -135,19 +96,7 @@ async def push_subtree(
     branch: str,
     print_method: Callable[..., Any] = print,
 ):
-    """
-    Push changes to a Git subtree.
-
-    Args:
-        repo_dir (str): The path to the Git repository.
-        prefix (str): The local path of the subtree.
-        repo_url (str): The URL of the subtree repository.
-        branch (str): The branch of the subtree repository.
-        print_method (Callable[..., Any]): Method to print command output.
-
-    Raises:
-        Exception: If the git command returns a non-zero exit code.
-    """
+    """Push the subtree at `prefix` to `branch` on `repo_url`."""
     _, exit_code = await run_command(
         cmd=[
             "git",
@@ -162,4 +111,4 @@ async def push_subtree(
         print_method=print_method,
     )
     if exit_code != 0:
-        raise Exception(f"Non zero exit code: {exit_code}")
+        raise RuntimeError(f"Non zero exit code: {exit_code}")

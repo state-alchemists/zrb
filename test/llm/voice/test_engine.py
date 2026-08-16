@@ -406,7 +406,10 @@ class TestOpenAITranscriber:
         client.audio.transcriptions.create = AsyncMock(return_value=result_obj)
         fake_openai = MagicMock()
         fake_openai.AsyncOpenAI = MagicMock(return_value=client)
-        with patch.dict("sys.modules", {"openai": fake_openai}):
+        with (
+            patch.dict("sys.modules", {"openai": fake_openai}),
+            patch.dict(os.environ, {"OPENAI_API_KEY": "sk-fake"}),
+        ):
             transcribe = engine._make_openai_transcriber()
             assert asyncio_run(transcribe(b"\x00\x01")) == "openai text"
 
@@ -414,6 +417,17 @@ class TestOpenAITranscriber:
         engine = VoiceEngine()
         with patch.dict("sys.modules", {"openai": None}):
             with pytest.raises(ImportError, match="openai is not installed"):
+                engine._make_openai_transcriber()
+
+    def test_missing_api_key_raises(self):
+        """No OPENAI_API_KEY set -> a clear RuntimeError, not an opaque SDK error."""
+        engine = VoiceEngine()
+        fake_openai = MagicMock()
+        with (
+            patch.dict("sys.modules", {"openai": fake_openai}),
+            patch.dict(os.environ, {}, clear=True),
+        ):
+            with pytest.raises(RuntimeError, match="OPENAI_API_KEY is not set"):
                 engine._make_openai_transcriber()
 
 
@@ -440,7 +454,10 @@ class TestGoogleTranscriber:
         engine = VoiceEngine()
         response = MagicMock()
         response.text = "  google text  "
-        with self._patch_genai(response):
+        with (
+            self._patch_genai(response),
+            patch.dict(os.environ, {"GEMINI_API_KEY": "fake-key"}),
+        ):
             transcribe = engine._make_google_transcriber()
             assert asyncio_run(transcribe(b"\x00\x01")) == "google text"
 
@@ -448,7 +465,10 @@ class TestGoogleTranscriber:
         engine = VoiceEngine()
         response = MagicMock()
         response.text = None
-        with self._patch_genai(response):
+        with (
+            self._patch_genai(response),
+            patch.dict(os.environ, {"GEMINI_API_KEY": "fake-key"}),
+        ):
             transcribe = engine._make_google_transcriber()
             assert asyncio_run(transcribe(b"\x00\x01")) == ""
 
@@ -456,6 +476,16 @@ class TestGoogleTranscriber:
         engine = VoiceEngine()
         with patch.dict("sys.modules", {"google": None}):
             with pytest.raises(ImportError, match="google-genai is not installed"):
+                engine._make_google_transcriber()
+
+    def test_missing_api_key_raises(self):
+        """Neither GEMINI_API_KEY nor GOOGLE_API_KEY set -> a clear RuntimeError."""
+        engine = VoiceEngine()
+        with (
+            self._patch_genai(MagicMock()),
+            patch.dict(os.environ, {}, clear=True),
+        ):
+            with pytest.raises(RuntimeError, match="GEMINI_API_KEY .* is not set"):
                 engine._make_google_transcriber()
 
 
@@ -568,6 +598,22 @@ class TestEngineHelpers:
         ):
             assert _get_vosk_model_dir("missing") is None
 
+    def test_pcm16_to_wav_bytes_produces_valid_wav(self):
+        import wave
+        from io import BytesIO
+
+        from zrb.llm.voice.engine import _pcm16_to_wav_bytes
+
+        pcm = (b"\x01\x00\x02\x00") * 4  # 4 fake int16 samples
+        wav_bytes = _pcm16_to_wav_bytes(pcm)
+
+        assert wav_bytes.startswith(b"RIFF")
+        with wave.open(BytesIO(wav_bytes), "rb") as wav:
+            assert wav.getnchannels() == 1
+            assert wav.getsampwidth() == 2
+            assert wav.getframerate() == 16000
+            assert wav.readframes(wav.getnframes()) == pcm
+
 
 class TestDownloadVoskModelBranches:
     """Additional branches of the chunked download helper."""
@@ -596,6 +642,38 @@ class TestDownloadVoskModelBranches:
                 RuntimeError, match="did not produce expected directory"
             ):
                 asyncio_run(_download_vosk_model("m", "http://host"))
+
+    def test_rejects_zip_slip_member_path(self):
+        """A zip member escaping the cache dir (zip-slip) is refused, not extracted."""
+        fake_resp = MagicMock()
+        fake_resp.read.side_effect = [b"data", b""]
+        fake_zip = MagicMock()
+        fake_zip.__enter__.return_value = fake_zip
+        fake_zip.namelist.return_value = ["../../etc/passwd"]
+        with (
+            patch("urllib.request.urlopen", return_value=fake_resp),
+            patch("zipfile.ZipFile", return_value=fake_zip),
+            patch("os.makedirs"),
+        ):
+            with pytest.raises(RuntimeError, match="unsafe path in archive member"):
+                asyncio_run(_download_vosk_model("m", "http://host"))
+        fake_zip.extractall.assert_not_called()
+
+    def test_accepts_safe_zip_members(self):
+        """Ordinary in-tree members extract normally (no false positive)."""
+        fake_resp = MagicMock()
+        fake_resp.read.side_effect = [b"data", b""]
+        fake_zip = MagicMock()
+        fake_zip.__enter__.return_value = fake_zip
+        fake_zip.namelist.return_value = ["model-x/conf.json", "model-x/am/final.mdl"]
+        with (
+            patch("urllib.request.urlopen", return_value=fake_resp),
+            patch("zipfile.ZipFile", return_value=fake_zip),
+            patch("os.makedirs"),
+            patch("os.path.isdir", return_value=True),
+        ):
+            asyncio_run(_download_vosk_model("model-x", "http://host"))
+        fake_zip.extractall.assert_called_once()
 
 
 def asyncio_run(coro):

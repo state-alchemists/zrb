@@ -90,6 +90,16 @@ async def test_monitor_process_kill(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_monitor_process_kill_unknown_handle_has_suggestion():
+    # Regression: kill() on an unknown handle used to omit the recovery hint
+    # that poll() gives for the identical condition.
+    monitor = create_monitor_process_tool()
+    result = await monitor("nonexistent-handle", kill=True)
+    assert "Unknown handle" in result
+    assert "[SYSTEM SUGGESTION]" in result
+
+
+@pytest.mark.asyncio
 async def test_cancel_all_clears(tmp_path):
     handle = await _start_bg("sleep 30", "", str(tmp_path))
     await get_shell_background_registry().cancel_all()

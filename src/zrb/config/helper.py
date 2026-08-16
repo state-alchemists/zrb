@@ -56,6 +56,16 @@ def is_termux() -> bool:
     return False
 
 
+def is_wsl() -> bool:
+    """Best-effort detection of Windows Subsystem for Linux.
+
+    WSL exports ``WSL_DISTRO_NAME`` (the distro name) on WSL2, and ``WSLENV``
+    (the cross-boundary env-var passlist) on both WSL1 and WSL2. Either
+    signal is enough.
+    """
+    return bool(os.environ.get("WSL_DISTRO_NAME") or os.environ.get("WSLENV"))
+
+
 def get_default_diff_edit_command(editor: str) -> str:
     if editor in [
         "code",

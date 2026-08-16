@@ -1,6 +1,6 @@
-import json
 from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
+from zrb.llm.tool_call.args import parse_tool_args
 from zrb.llm.tool_call.handler import ToolPolicy, UIProtocol
 
 if TYPE_CHECKING:
@@ -124,16 +124,11 @@ def bash_safe_command_policy() -> ToolPolicy:
         if call.tool_name != "Shell":
             return await next_handler(ui, call)
 
-        try:
-            args = call.args
-            if isinstance(args, str):
-                args = json.loads(args)
-            if not isinstance(args, dict):
-                return await next_handler(ui, call)
-            command = args.get("command", "")
-            if not isinstance(command, str):
-                return await next_handler(ui, call)
-        except (json.JSONDecodeError, ValueError):
+        args = parse_tool_args(call)
+        if args is None:
+            return await next_handler(ui, call)
+        command = args.get("command", "")
+        if not isinstance(command, str):
             return await next_handler(ui, call)
 
         # A sandbox-escape request must always reach a human, no matter how

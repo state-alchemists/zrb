@@ -5,7 +5,7 @@ post-construction live here, plus the related public properties for model
 hooks. This keeps `llm_chat_task.py` focused on the `__init__` constructor and
 the execution orchestration (`_exec_action` and friends).
 
-The `_*` state this mixin mutates is set in `LLMChatTask.__init__` and typed in
+The `_*` state this part mutates is set in `LLMChatTask.__init__` and typed in
 `state.py::ChatState`.
 """
 

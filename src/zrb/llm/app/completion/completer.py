@@ -31,23 +31,23 @@ class InputCompleter(Completer):
     def __init__(
         self,
         history_manager: AnyHistoryManager,
-        attach_commands: list[str] = [],
-        exit_commands: list[str] = [],
-        info_commands: list[str] = [],
-        save_commands: list[str] = [],
-        load_commands: list[str] = [],
-        rewind_commands: list[str] = [],
-        redirect_output_commands: list[str] = [],
-        summarize_commands: list[str] = [],
-        set_model_commands: list[str] = [],
-        exec_commands: list[str] = [],
-        btw_commands: list[str] = [],
-        plan_commands: list[str] = [],
-        copy_commands: list[str] = [],
-        voice_commands: list[str] = [],
-        photo_commands: list[str] = [],
-        custom_commands: list[AnyCustomCommand] = [],
-        custom_model_names: list[str] = [],
+        attach_commands: list[str] | None = None,
+        exit_commands: list[str] | None = None,
+        info_commands: list[str] | None = None,
+        save_commands: list[str] | None = None,
+        load_commands: list[str] | None = None,
+        rewind_commands: list[str] | None = None,
+        redirect_output_commands: list[str] | None = None,
+        summarize_commands: list[str] | None = None,
+        set_model_commands: list[str] | None = None,
+        exec_commands: list[str] | None = None,
+        btw_commands: list[str] | None = None,
+        plan_commands: list[str] | None = None,
+        copy_commands: list[str] | None = None,
+        voice_commands: list[str] | None = None,
+        photo_commands: list[str] | None = None,
+        custom_commands: list[AnyCustomCommand] | None = None,
+        custom_model_names: list[str] | None = None,
         show_ollama_models: bool = True,
         show_pydantic_ai_models: bool = True,
     ):
@@ -55,23 +55,23 @@ class InputCompleter(Completer):
         from pydantic_ai.models import known_model_names
 
         self._history_manager = history_manager
-        self._attach_commands = attach_commands
-        self._exit_commands = exit_commands
-        self._info_commands = info_commands
-        self._save_commands = save_commands
-        self._load_commands = load_commands
-        self._rewind_commands = rewind_commands
-        self._redirect_output_commands = redirect_output_commands
-        self._summarize_commands = summarize_commands
-        self._set_model_commands = set_model_commands
-        self._exec_commands = exec_commands
-        self._btw_commands = btw_commands
-        self._plan_commands = plan_commands
-        self._copy_commands = copy_commands
-        self._voice_commands = voice_commands
-        self._photo_commands = photo_commands
-        self._custom_commands = custom_commands
-        self._custom_model_names = custom_model_names
+        self._attach_commands = list(attach_commands or [])
+        self._exit_commands = list(exit_commands or [])
+        self._info_commands = list(info_commands or [])
+        self._save_commands = list(save_commands or [])
+        self._load_commands = list(load_commands or [])
+        self._rewind_commands = list(rewind_commands or [])
+        self._redirect_output_commands = list(redirect_output_commands or [])
+        self._summarize_commands = list(summarize_commands or [])
+        self._set_model_commands = list(set_model_commands or [])
+        self._exec_commands = list(exec_commands or [])
+        self._btw_commands = list(btw_commands or [])
+        self._plan_commands = list(plan_commands or [])
+        self._copy_commands = list(copy_commands or [])
+        self._voice_commands = list(voice_commands or [])
+        self._photo_commands = list(photo_commands or [])
+        self._custom_commands = list(custom_commands or [])
+        self._custom_model_names = list(custom_model_names or [])
         self._show_ollama_models = show_ollama_models
         self._show_pydantic_ai_models = show_pydantic_ai_models
 

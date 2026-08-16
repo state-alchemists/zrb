@@ -1,5 +1,5 @@
 import asyncio
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -312,6 +312,39 @@ def test_multi_ui_invalidate_all(multi_ui, child_ui_1, child_ui_2):
     multi_ui.invalidate_all_uis()
     child_ui_1.invalidate_ui.assert_called_once()
     child_ui_2.invalidate_ui.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_multi_ui_process_messages_loop_no_busy_wait(multi_ui):
+    # Regression: this loop used to busy-wait via `while ...: await
+    # asyncio.sleep(0.1)` between jobs instead of awaiting the previous task
+    # directly — the exact pattern base/ui.py's twin loop was fixed to avoid.
+    real_sleep = asyncio.sleep
+    sleep_delays = []
+
+    async def tracking_sleep(delay, *a, **kw):
+        sleep_delays.append(delay)
+        return await real_sleep(0, *a, **kw)
+
+    llm_task = MagicMock()
+    llm_task.async_run = AsyncMock(return_value="AI Output")
+
+    with patch("zrb.llm.ui.multi_ui.asyncio.sleep", side_effect=tracking_sleep):
+        multi_ui._submit_user_message(llm_task, "first")
+        multi_ui._submit_user_message(llm_task, "second")
+
+        task = asyncio.create_task(multi_ui._process_messages_loop())
+        await real_sleep(0.05)
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+    assert 0.1 not in sleep_delays
+    # Both queued jobs ran: the second wasn't stuck behind a poll loop that
+    # never observed the first task settle.
+    assert llm_task.async_run.call_count == 2
 
 
 @pytest.mark.asyncio

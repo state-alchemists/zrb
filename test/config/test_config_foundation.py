@@ -4,7 +4,13 @@ from unittest import mock
 from unittest.mock import patch
 
 from zrb.config.config import Config
-from zrb.config.helper import get_current_shell, get_env, get_log_level, is_termux
+from zrb.config.helper import (
+    get_current_shell,
+    get_env,
+    get_log_level,
+    is_termux,
+    is_wsl,
+)
 
 
 def test_logger():
@@ -142,6 +148,24 @@ def test_is_termux_detects_android_root(monkeypatch):
     assert is_termux() is True
 
 
+def test_is_wsl_detects_distro_name(monkeypatch):
+    monkeypatch.setenv("WSL_DISTRO_NAME", "Ubuntu")
+    monkeypatch.delenv("WSLENV", raising=False)
+    assert is_wsl() is True
+
+
+def test_is_wsl_detects_wslenv(monkeypatch):
+    monkeypatch.delenv("WSL_DISTRO_NAME", raising=False)
+    monkeypatch.setenv("WSLENV", "TERM/u")
+    assert is_wsl() is True
+
+
+def test_is_wsl_false_off_wsl(monkeypatch):
+    monkeypatch.delenv("WSL_DISTRO_NAME", raising=False)
+    monkeypatch.delenv("WSLENV", raising=False)
+    assert is_wsl() is False
+
+
 def test_cfg_is_termux_auto_detected(monkeypatch):
     monkeypatch.delenv("ZRB_IS_TERMUX", raising=False)
     monkeypatch.setenv("TERMUX_VERSION", "0.118.0")
@@ -253,16 +277,20 @@ def test_get_log_level():
     assert get_log_level("INVALID") == logging.WARNING
 
 
-def test_load_builtin(monkeypatch):
+def test_enable_builtin_tasks_old_env_alias_still_works(monkeypatch):
+    # LOAD_BUILTIN was renamed to ENABLE_BUILTIN_TASKS (ADR-0026 verb-first
+    # alignment) — the old ZRB_LOAD_BUILTIN env var must keep working.
     monkeypatch.setenv("ZRB_LOAD_BUILTIN", "0")
     config = Config()
-    assert not config.LOAD_BUILTIN
+    assert not config.ENABLE_BUILTIN_TASKS
 
 
-def test_warn_unrecommended_command(monkeypatch):
+def test_show_unrecommended_command_warning_old_env_alias_still_works(monkeypatch):
+    # WARN_UNRECOMMENDED_COMMAND was renamed to SHOW_UNRECOMMENDED_COMMAND_WARNING
+    # (ADR-0026 verb-first alignment) — the old env var must keep working.
     monkeypatch.setenv("ZRB_WARN_UNRECOMMENDED_COMMAND", "0")
     config = Config()
-    assert not config.WARN_UNRECOMMENDED_COMMAND
+    assert not config.SHOW_UNRECOMMENDED_COMMAND_WARNING
 
 
 @mock.patch("os.path.expanduser", return_value="/home/user/.zrb/session")

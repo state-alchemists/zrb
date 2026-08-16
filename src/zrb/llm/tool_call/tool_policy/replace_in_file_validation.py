@@ -1,7 +1,7 @@
-import json
 import os
 from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
+from zrb.llm.tool_call.args import parse_tool_args
 from zrb.llm.tool_call.handler import UIProtocol
 
 if TYPE_CHECKING:
@@ -26,14 +26,8 @@ async def replace_in_file_validation_policy(
     if call.tool_name != "Edit":
         return await next_handler(ui, call)
 
-    args = call.args
-    try:
-        if isinstance(args, str):
-            args = json.loads(args)
-    except (json.JSONDecodeError, ValueError):
-        return await next_handler(ui, call)
-
-    if not isinstance(args, dict):
+    args = parse_tool_args(call)
+    if args is None:
         return await next_handler(ui, call)
 
     path = args.get("path")
@@ -45,7 +39,11 @@ async def replace_in_file_validation_policy(
 
     # 1. Check if identical
     if old_text == new_text:
-        return ToolDenied("Old text and new text are identical.")
+        return ToolDenied(
+            "Old text and new text are identical. "
+            "[SYSTEM SUGGESTION]: no edit is needed here — old_text and "
+            "new_text must differ."
+        )
 
     abs_path = os.path.abspath(os.path.expanduser(path))
 
@@ -69,7 +67,9 @@ async def replace_in_file_validation_policy(
             content = f.read()
         if old_text not in content and _find_fuzzy_match(content, old_text) is None:
             return ToolDenied(
-                f"Old text not found in {path}. Please read the file first."
+                f"Old text not found in {path}. Please read the file first. "
+                "[SYSTEM SUGGESTION]: Read the file to get its exact current "
+                "content, then retry with old_text copied from that content."
             )
     except Exception as e:
         return ToolDenied(f"Error reading file {path}: {e}")

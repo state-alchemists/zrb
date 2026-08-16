@@ -161,13 +161,14 @@ class Session(AnySession):
         )
         self._main_task_path = [] if main_task_path is None else main_task_path
 
-    def as_state_log(self) -> "SessionStateLog":
-        """Snapshot this session as a serializable pydantic log.
+    def _build_task_status_log(
+        self,
+    ) -> tuple[dict[str, TaskStatusStateLog], str]:
+        """Flatten every task's status history and find the earliest timestamp.
 
-        Captures each task's status history and timings. This is what the web
-        UI polls and what the session-state logger persists.
+        The start time falls out of the same pass since it's just the minimum
+        of each task's own flattened history, computed as we go.
         """
-
         task_status_log: dict[str, TaskStatusStateLog] = {}
         log_start_time = ""
         for task, task_status in self._task_status.items():
@@ -192,16 +193,28 @@ class Session(AnySession):
                 is_terminated=task_status.is_terminated,
                 history=history_log,
             )
+        return task_status_log, log_start_time
 
-        sanitized_input = {}
+    def _sanitize_input(self) -> dict[str, Any]:
+        """Replace any non-JSON-serializable input value with its string form."""
+        sanitized_input: dict[str, Any] = {}
         for key, value in self.shared_ctx.input.items():
             try:
                 # Test if value is serializable
-
                 json.dumps(value)
                 sanitized_input[key] = value
             except (TypeError, OverflowError):
                 sanitized_input[key] = str(value)
+        return sanitized_input
+
+    def as_state_log(self) -> "SessionStateLog":
+        """Snapshot this session as a serializable pydantic log.
+
+        Captures each task's status history and timings. This is what the web
+        UI polls and what the session-state logger persists.
+        """
+        task_status_log, log_start_time = self._build_task_status_log()
+        sanitized_input = self._sanitize_input()
 
         return SessionStateLog(
             name=self.name,

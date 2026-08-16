@@ -41,10 +41,15 @@ class LLMLimiter:
 
     @property
     def max_request_per_minute(self) -> int:
-        """Requests allowed per minute, from `LLM_MAX_REQUEST_PER_MINUTE` (default 60)."""
+        """Requests allowed per minute, from `LLM_MAX_REQUEST_PER_MINUTE` (default 60).
+
+        `0` blocks every request — checked with `is not None` so an explicit
+        zero isn't mistaken for "unset" and silently replaced by the default.
+        """
         if self._max_request_per_minute is not None:
             return self._max_request_per_minute
-        return getattr(CFG, "LLM_MAX_REQUEST_PER_MINUTE", None) or 60
+        cfg_value = getattr(CFG, "LLM_MAX_REQUEST_PER_MINUTE", None)
+        return cfg_value if cfg_value is not None else 60
 
     @max_request_per_minute.setter
     def max_request_per_minute(self, value: int):
@@ -53,10 +58,15 @@ class LLMLimiter:
 
     @property
     def max_token_per_minute(self) -> int:
-        """Tokens allowed per minute, from `LLM_MAX_TOKEN_PER_MINUTE` (default 100k)."""
+        """Tokens allowed per minute, from `LLM_MAX_TOKEN_PER_MINUTE` (default 100k).
+
+        `0` blocks every request — checked with `is not None` so an explicit
+        zero isn't mistaken for "unset" and silently replaced by the default.
+        """
         if self._max_token_per_minute is not None:
             return self._max_token_per_minute
-        return getattr(CFG, "LLM_MAX_TOKEN_PER_MINUTE", None) or 100_000
+        cfg_value = getattr(CFG, "LLM_MAX_TOKEN_PER_MINUTE", None)
+        return cfg_value if cfg_value is not None else 100_000
 
     @max_token_per_minute.setter
     def max_token_per_minute(self, value: int):
@@ -67,11 +77,14 @@ class LLMLimiter:
     def max_token_per_request(self) -> int:
         """Tokens allowed in one request, from `LLM_MAX_TOKEN_PER_REQUEST` (default 16k).
 
-        `fit_context_window` trims history to stay under this.
+        `fit_context_window` trims history to stay under this. `0` blocks
+        every request — checked with `is not None` so an explicit zero isn't
+        mistaken for "unset" and silently replaced by the default.
         """
         if self._max_token_per_request is not None:
             return self._max_token_per_request
-        return getattr(CFG, "LLM_MAX_TOKEN_PER_REQUEST", None) or 16_000
+        cfg_value = getattr(CFG, "LLM_MAX_TOKEN_PER_REQUEST", None)
+        return cfg_value if cfg_value is not None else 16_000
 
     @max_token_per_request.setter
     def max_token_per_request(self, value: int):
@@ -95,9 +108,9 @@ class LLMLimiter:
         """Whether tokens are counted with tiktoken rather than estimated.
 
         Accurate but slower, and requires the `tiktoken` package. Off by
-        default; enable with `USE_TIKTOKEN`.
+        default; enable with `ENABLE_TIKTOKEN`.
         """
-        return getattr(CFG, "USE_TIKTOKEN", False)
+        return CFG.ENABLE_TIKTOKEN
 
     @property
     def tiktoken_encoding(self) -> str:

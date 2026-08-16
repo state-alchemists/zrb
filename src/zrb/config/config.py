@@ -6,34 +6,34 @@ constant lives in a focused mixin under `_mixins/`. Public access stays flat:
 external needs to change.
 
 To find a setting:
-- foundation/env/shell/init/version/banner   -> _mixins/foundation.py
-- web HTTP/auth/branding/pagination          -> _mixins/web.py
-- LLM model/API key/base URL                 -> _mixins/llm_core.py
-- LLM UI styles/commands/intervals           -> _mixins/llm_ui.py
-- LLM throttle/retry/timeout/size caps       -> _mixins/llm_limits.py
-- LLM history/journal/snapshot/summarization -> _mixins/llm_content.py
-- LLM prompt dirs/INCLUDE_* toggles          -> _mixins/llm_prompt.py
-- LLM sandbox (FS gate, shell wrapper)       -> _mixins/llm_sandbox.py
-- LLM plugin/skill/agent search dirs         -> _mixins/llm_search.py
-- RAG embedding/chunking                     -> _mixins/rag.py
-- Internet search (SerpAPI/Brave/SearXNG)    -> _mixins/internet_search.py
-- Hooks                                      -> _mixins/hooks.py
-- Task runtime intervals/cmd buffer          -> _mixins/task_runtime.py
+- foundation/env/shell/init/version/banner   -> mixins/foundation.py
+- web HTTP/auth/branding/pagination          -> mixins/web.py
+- LLM model/API key/base URL                 -> mixins/llm_core.py
+- LLM UI styles/commands/intervals           -> mixins/llm_ui.py
+- LLM throttle/retry/timeout/size caps       -> mixins/llm_limits.py
+- LLM history/journal/snapshot/summarization -> mixins/llm_content.py
+- LLM prompt dirs/INCLUDE_* toggles          -> mixins/llm_prompt.py
+- LLM sandbox (FS gate, shell wrapper)       -> mixins/llm_sandbox.py
+- LLM plugin/skill/agent search dirs         -> mixins/llm_search.py
+- RAG embedding/chunking                     -> mixins/rag.py
+- Internet search (SerpAPI/Brave/SearXNG)    -> mixins/internet_search.py
+- Hooks                                      -> mixins/hooks.py
+- Task runtime intervals/cmd buffer          -> mixins/task_runtime.py
 - CLI semantic colors (warning/error/muted)  -> mixins/cli_style.py
 - Theme selection (ZRB_THEME preset)         -> mixins/theme.py
 """
 
 from zrb.config.env_field import EnvField
-from zrb.config.mixins.cli_style import CLIStyleMixin
+from zrb.config.mixins.cli_style import ConfigCLIStyle
 from zrb.config.mixins.foundation import FoundationMixin
 from zrb.config.mixins.hooks import HooksMixin
 from zrb.config.mixins.internet_search import InternetSearchMixin
 from zrb.config.mixins.llm_content import ConfigLLMContent
 from zrb.config.mixins.llm_core import LLMCoreMixin
 from zrb.config.mixins.llm_limits import LLMLimitsMixin
-from zrb.config.mixins.llm_prompt import LLMPromptMixin
+from zrb.config.mixins.llm_prompt import ConfigLLMPrompt
 from zrb.config.mixins.llm_sandbox import LLMSandboxMixin
-from zrb.config.mixins.llm_search import LLMSearchMixin
+from zrb.config.mixins.llm_search import ConfigLLMSearch
 from zrb.config.mixins.llm_ui import LLMUIMixin
 from zrb.config.mixins.rag import RAGMixin
 from zrb.config.mixins.task_runtime import TaskRuntimeMixin
@@ -48,15 +48,15 @@ class Config(  # noqa: E501  # Sibling parts TYPE_CHECKING-declare ENV_PREFIX/RO
     LLMUIMixin,
     LLMLimitsMixin,
     ConfigLLMContent,
-    LLMPromptMixin,
+    ConfigLLMPrompt,
     LLMSandboxMixin,
-    LLMSearchMixin,
+    ConfigLLMSearch,
     RAGMixin,
     InternetSearchMixin,
     HooksMixin,
     TaskRuntimeMixin,
     ThemeMixin,
-    CLIStyleMixin,
+    ConfigCLIStyle,
 ):
     """Global runtime configuration.
 

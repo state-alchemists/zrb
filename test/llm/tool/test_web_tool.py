@@ -356,6 +356,46 @@ async def test_open_web_page_error():
 
 
 @pytest.mark.asyncio
+async def test_open_web_page_error_has_suggestion():
+    with (
+        patch(
+            "playwright.async_api.async_playwright", side_effect=Exception("Major fail")
+        ),
+        patch("requests.get", side_effect=Exception("Requests fail")),
+    ):
+        result = await open_web_page("https://example.com")
+        assert "[SYSTEM SUGGESTION]" in result["error"]
+
+
+@pytest.mark.asyncio
+async def test_open_web_page_conversion_failure_is_not_mislabeled_as_fetch():
+    # A bug in HTML->Markdown conversion (or the summarizer) must not be
+    # reported as "Failed to fetch" — that mislabeling can send the agent
+    # into a futile retry loop against a URL that was never the problem.
+    with (
+        patch("playwright.async_api.async_playwright") as mock_playwright_ctx,
+        patch(
+            "zrb.llm.tool.web._convert_html_to_markdown",
+            side_effect=RuntimeError("converter exploded"),
+        ),
+    ):
+        mock_p = AsyncMock()
+        mock_browser = AsyncMock()
+        mock_page = AsyncMock()
+        mock_playwright_ctx.return_value.__aenter__.return_value = mock_p
+        mock_p.chromium.launch.return_value = mock_browser
+        mock_browser.new_page.return_value = mock_page
+        mock_response = MagicMock()
+        mock_response.headers = {"content-type": "text/html"}
+        mock_page.goto.return_value = mock_response
+        mock_page.content.return_value = "<html><body><p>hi</p></body></html>"
+        mock_page.eval_on_selector_all.return_value = []
+
+        with pytest.raises(RuntimeError, match="converter exploded"):
+            await open_web_page("https://example.com", summarize=False)
+
+
+@pytest.mark.asyncio
 async def test_open_web_page_with_summarization():
     # Mock playwright and LLM orchestrators
     with (

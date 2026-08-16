@@ -155,6 +155,7 @@ async def test_analyze_code_path_not_found():
     res = await analyze_code("/non/existent/path", "query")
     assert "Error" in res
     assert "not found" in res
+    assert "[SYSTEM SUGGESTION]" in res
 
 
 def test_get_file_metadatas_patterns(temp_code_dir):

@@ -1,8 +1,11 @@
-import json
 import time
 from typing import TYPE_CHECKING, Any, Callable, Literal
 
-from zrb.util.truncate import truncate_display
+from zrb.llm.util.tool_args import (
+    is_empty_tool_args,
+    parse_tool_args_dict,
+    truncate_tool_args_values,
+)
 
 if TYPE_CHECKING:
     from pydantic_ai import (
@@ -287,30 +290,12 @@ def _get_truncated_event_part_args(event: "AgentStreamEvent | ToolCallEvent") ->
     if not hasattr(part, "args"):
         return {}
     args = getattr(part, "args")
-    if args == "" or args is None:
+    if is_empty_tool_args(args):
         return {}
-    if isinstance(args, str):
-        if args.strip() in ["null", "{}"]:
-            return {}
-        try:
-            obj = json.loads(args)
-            if isinstance(obj, dict):
-                return _truncate_kwargs(obj)
-        except json.JSONDecodeError:
-            pass
-    if isinstance(args, dict):
-        return _truncate_kwargs(args)
+    parsed = parse_tool_args_dict(args)
+    if parsed is not None:
+        return truncate_tool_args_values(parsed)
     return args
-
-
-def _truncate_kwargs(kwargs: dict[str, Any]) -> dict[str, Any]:
-    return {key: _truncate_arg(val) for key, val in kwargs.items()}
-
-
-def _truncate_arg(arg: str, length: int = 30) -> str:
-    if isinstance(arg, str):
-        return truncate_display(arg, length)
-    return arg
 
 
 def _get_event_part_content(event: "AgentStreamEvent") -> str:

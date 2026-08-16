@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
+from zrb.llm.ui.queue_based_input import QueueBasedInput
 from zrb.llm.ui.simple_ui_base import SimpleUI
 from zrb.llm.ui.ui_config import UIConfig
 
@@ -15,7 +16,7 @@ if TYPE_CHECKING:
     from zrb.llm.task.llm_task import LLMTask
 
 
-class EventDrivenUI(SimpleUI):
+class EventDrivenUI(QueueBasedInput, SimpleUI):
     """UI for event-driven backends (Telegram, Discord, WhatsApp).
 
     This class handles the queue + waiting pattern that's common in
@@ -66,16 +67,6 @@ class EventDrivenUI(SimpleUI):
         self._input_queue: asyncio.Queue[str] = asyncio.Queue()
         self._waiting_for_input = False
 
-    @property
-    def input_queue(self) -> asyncio.Queue[str]:
-        """The queue incoming messages land on.
-
-        The public read seam for the queue — without it a caller (or a test)
-        asserting on queue state has to reach for the private attribute. Prefer
-        `handle_incoming_message()` for *routing* a message in.
-        """
-        return self._input_queue
-
     @abstractmethod
     async def start_event_loop(self):
         """Start the event loop for this UI.
@@ -90,28 +81,6 @@ class EventDrivenUI(SimpleUI):
         raise NotImplementedError(
             f"{self.__class__.__name__} must implement start_event_loop()"
         )
-
-    def handle_incoming_message(self, text: str):
-        """Call this when a message arrives from your backend.
-
-        Routes the message to the appropriate handler:
-        - If waiting for input (ask_user blocked), it goes to the queue
-        - Otherwise, it's submitted as a new user message to the LLM
-        """
-        if self._waiting_for_input:
-            self._input_queue.put_nowait(text)
-        else:
-            self._submit_user_message(self._llm_task, text)
-
-    async def get_input(self, prompt: str) -> str:
-        """Blocks until handle_incoming_message() receives a response."""
-        if prompt:
-            await self.print(f"❓ {prompt}", kind="text")
-        self._waiting_for_input = True
-        try:
-            return await self._input_queue.get()
-        finally:
-            self._waiting_for_input = False
 
     async def _run_loop(self):
         """Start the event loop and wait."""

@@ -200,13 +200,13 @@ class CmdTask(BaseTask):
             is_interactive=self._is_interactive,
         )
         if return_code != 0:
-            raise Exception(f"Process {self._name} exited ({return_code})")
+            raise RuntimeError(f"Process {self._name} exited ({return_code})")
         ctx.log_info(f"Exit status: {return_code}")
         return cmd_result
 
     def _get_should_warn_unrecommended_commands(self):
         if self._should_warn_unrecommended_command is None:
-            return CFG.WARN_UNRECOMMENDED_COMMAND
+            return CFG.SHOW_UNRECOMMENDED_COMMAND_WARNING
         return self._should_warn_unrecommended_command
 
     def _check_unrecommended_commands(

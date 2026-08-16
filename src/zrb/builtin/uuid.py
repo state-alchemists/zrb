@@ -34,7 +34,6 @@ from zrb.task.make_task import make_task
     alias="generate",
 )
 def generate_uuid_v1(ctx: AnyContext) -> str:
-
     result = str(
         uuid.uuid1(
             node=int(ctx.input.node) if ctx.input.node != "" else None,
@@ -65,7 +64,6 @@ def generate_uuid_v1(ctx: AnyContext) -> str:
     alias="generate",
 )
 def generate_uuid_v3(ctx: AnyContext) -> str:
-
     ns_map = {
         "dns": uuid.NAMESPACE_DNS,
         "url": uuid.NAMESPACE_URL,
@@ -85,7 +83,6 @@ def generate_uuid_v3(ctx: AnyContext) -> str:
     alias="generate",
 )
 def generate_uuid_v4(ctx: AnyContext) -> str:
-
     result = str(uuid.uuid4())
     ctx.print(result)
     return result
@@ -114,7 +111,6 @@ uuid_group.add_task(generate_uuid_v4, alias="generate")
     alias="generate",
 )
 def generate_uuid_v5(ctx: AnyContext) -> str:
-
     ns_map = {
         "dns": uuid.NAMESPACE_DNS,
         "url": uuid.NAMESPACE_URL,
@@ -135,7 +131,6 @@ def generate_uuid_v5(ctx: AnyContext) -> str:
     alias="validate",
 )
 def validate_uuid(ctx: AnyContext) -> bool:
-
     try:
         uuid.UUID(ctx.input.id, version=1)
         ctx.print("Valid UUID")
@@ -153,7 +148,6 @@ def validate_uuid(ctx: AnyContext) -> bool:
     alias="validate",
 )
 def validate_uuid_v1(ctx: AnyContext) -> bool:
-
     try:
         uuid.UUID(ctx.input.id, version=1)
         ctx.print("Valid UUID V1")
@@ -171,7 +165,6 @@ def validate_uuid_v1(ctx: AnyContext) -> bool:
     alias="validate",
 )
 def validate_uuid_v3(ctx: AnyContext) -> bool:
-
     try:
         uuid.UUID(ctx.input.id, version=3)
         ctx.print("Valid UUID V3")
@@ -189,7 +182,6 @@ def validate_uuid_v3(ctx: AnyContext) -> bool:
     alias="validate",
 )
 def validate_uuid_v4(ctx: AnyContext) -> bool:
-
     try:
         uuid.UUID(ctx.input.id, version=4)
         ctx.print("Valid UUID V4")
@@ -207,7 +199,6 @@ def validate_uuid_v4(ctx: AnyContext) -> bool:
     alias="validate",
 )
 def validate_uuid_v5(ctx: AnyContext) -> bool:
-
     try:
         uuid.UUID(ctx.input.id, version=5)
         ctx.print("Valid UUID V5")

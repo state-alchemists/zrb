@@ -181,9 +181,10 @@ class MultiUI:
         self,
         llm_task: Any,
         user_message: str,
-        attachments: list[Any] = [],
+        attachments: list[Any] | None = None,
     ):
         """Stream AI response to all UIs via shared queue."""
+        attachments = list(attachments or [])
         # A fresh turn has no answer yet; a non-string result or an error must
         # not leave last_output carrying the previous turn's answer.
         self._last_result_data = None
@@ -419,11 +420,23 @@ class MultiUI:
             try:
                 entry = await self._message_queue.get()
 
-                while (
+                # Wait for any still-running task from a previous iteration to
+                # finish. Await it directly instead of polling — this removes
+                # the busy-wait and the check-then-act race between done() and
+                # the next assignment. Swallow its outcome (incl. cancellation);
+                # this loop only needs it settled before starting the next job.
+                if (
                     self._running_llm_task is not None
                     and not self._running_llm_task.done()
                 ):
-                    await asyncio.sleep(0.1)
+                    try:
+                        await self._running_llm_task
+                    except (KeyboardInterrupt, SystemExit):
+                        raise
+                    except BaseException:
+                        current = asyncio.current_task()
+                        if current is not None and current.cancelling() > 0:
+                            raise
 
                 current_task = asyncio.current_task()
                 if current_task:

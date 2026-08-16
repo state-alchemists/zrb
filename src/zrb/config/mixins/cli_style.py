@@ -6,11 +6,18 @@ explicitly set ``ZRB_CLI_*`` env overrides the theme.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from zrb.config.env_field import EnvField
 from zrb.config.theme import theme_default
 
 
-class CLIStyleMixin:
+class ConfigCLIStyle:
+    if TYPE_CHECKING:
+        # Every field below defaults via theme_default(), whose returned
+        # factory reads this sibling-owned attribute at call time.
+        THEME: str  # ThemeMixin
+
     CLI_COLOR_WARNING = EnvField(
         str,
         default_factory=theme_default("CLI_COLOR_WARNING"),

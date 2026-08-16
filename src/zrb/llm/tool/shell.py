@@ -5,6 +5,7 @@ import re
 import tempfile
 
 from zrb.config.config import CFG
+from zrb.llm.sandbox import get_effective_sandbox_policy
 from zrb.llm.sandbox.os_sandbox import SandboxUnavailableError
 from zrb.llm.tool.stream_capture import StreamCapture
 from zrb.util.cmd.command import resolve_shell, terminate_process
@@ -232,9 +233,9 @@ def _build_sandboxed_shell_argv(
     Returns ``(argv, note)``; with the sandbox disabled (the default) this is
     a passthrough. Raises ``SandboxUnavailableError`` in fallback="deny" mode.
     """
-    # lazy: leaf module; policy is re-resolved per call so ContextVar binding
-    # and CFG overrides are honored.
-    from zrb.llm.sandbox import build_sandboxed_argv, get_effective_sandbox_policy
+    # lazy: tests patch zrb.llm.sandbox.build_sandboxed_argv; hoisting would
+    # bind the name at this module's load time and bypass the mock.
+    from zrb.llm.sandbox import build_sandboxed_argv
 
     policy = get_effective_sandbox_policy()
     return build_sandboxed_argv(shell, shell_flag, command, cwd, policy, skip=skip)

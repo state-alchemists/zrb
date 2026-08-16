@@ -408,6 +408,27 @@ async def test_base_task_execute_condition_skipped():
         assert session.get_task_status(task3).is_completed
 
 
+@pytest.mark.asyncio
+async def test_exec_action_enriches_exceptions_from_overridden_exec_action():
+    """Regression: subclasses that override `_exec_action` wholesale (CmdTask,
+    HttpCheck, TcpCheck, Scaffolder, Scheduler, ...) used to lose the base
+    class's "Task: name (file:line)" exception-enrichment note, because it
+    lived inside `_exec_action` itself rather than around the call to it.
+    The enrichment must apply regardless of how `_exec_action` is overridden.
+    """
+
+    class RaisingTask(BaseTask):
+        async def _exec_action(self, ctx):
+            raise ValueError("boom")
+
+    task = RaisingTask(name="raising_task")
+    with pytest.raises(ValueError) as exc_info:
+        await task.exec_action(mock_any_context)
+
+    notes = getattr(exc_info.value, "__notes__", [])
+    assert any("Task: raising_task" in note for note in notes)
+
+
 class TestBaseTaskToFunction:
     """Test to_function public API."""
 

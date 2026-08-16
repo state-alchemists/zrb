@@ -17,9 +17,8 @@ from typing import TYPE_CHECKING, Any
 from zrb.config.config import CFG
 from zrb.llm.agent.run.history_utils import close_dangling_tool_calls
 from zrb.llm.history_manager.file_history_manager import FileHistoryManager
-from zrb.util.attr import get_attr
+from zrb.llm.task.shared_getters import resolve_conversation_name
 from zrb.util.cli.style import remove_style
-from zrb.util.string.name import get_random_name
 
 if TYPE_CHECKING:
     from zrb.attr.type import StrAttr
@@ -49,12 +48,9 @@ class LLMTaskHistory:
 
     def get_conversation_name(self, ctx: AnyContext) -> str:
         """The configured conversation name, or a fresh random one when blank."""
-        conversation_name = str(
-            get_attr(ctx, self._conversation_name, "", self._render_conversation_name)
+        return resolve_conversation_name(
+            ctx, self._conversation_name, self._render_conversation_name
         )
-        if conversation_name.strip() == "":
-            conversation_name = get_random_name()
-        return conversation_name
 
     def get_effective_prompt(
         self,

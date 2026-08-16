@@ -68,7 +68,11 @@ async def ask_user_question(questions: list[dict[str, Any]]) -> str:
             "report the choice you could not make."
         )
     if not questions:
-        return "Error: no questions provided."
+        return (
+            "Error: no questions provided. "
+            "[SYSTEM SUGGESTION]: provide at least one question with `question` "
+            "and `options` keys, or do not call this tool."
+        )
 
     # lazy: circular — tool → agent.run.runtime_state → ... → tool
     from zrb.llm.agent.run.runtime_state import get_current_ui

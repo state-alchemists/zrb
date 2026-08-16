@@ -207,7 +207,7 @@ Hooks are defined in JSON or YAML format. Each hook has the following structure:
 | `config` | object | Yes | Type-specific configuration |
 | `description` | string | No | Human-readable description |
 | `matchers` | array | No | Conditions to filter when hook runs |
-| `async` | boolean | No | Run asynchronously (default: false) |
+| `async` | boolean | No | Run fire-and-forget in the background, without blocking the event (default: false). Only `command` hooks honor this — `prompt`/`agent` hooks always run synchronously, since their results (e.g. modifications) often need to feed back into the blocking flow. |
 | `enabled` | boolean | No | Hook is active (default: true) |
 | `timeout` | number | No | Timeout in seconds. Default is type-dependent: `command` hooks default to 600s, `prompt` hooks default to 30s, and `agent` hooks default to 60s |
 | `env` | object | No | Environment variables to inject |

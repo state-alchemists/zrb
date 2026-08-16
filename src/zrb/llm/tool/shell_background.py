@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 
 from zrb.config.config import CFG
 from zrb.llm.permission import Capability, tag
+from zrb.llm.sandbox import build_sandboxed_argv, get_effective_sandbox_policy
 from zrb.util.cmd.command import resolve_shell, terminate_process
 from zrb.util.string.name import get_random_name
 
@@ -46,9 +47,6 @@ class _ShellBackgroundRegistry:
         shell: str = "",
         dangerously_skip_sandbox: bool = False,
     ) -> str:
-        # lazy: leaf module; policy re-resolved per call (ContextVar / CFG).
-        from zrb.llm.sandbox import build_sandboxed_argv, get_effective_sandbox_policy
-
         handle = get_random_name(separator="-", add_random_digit=True)
         resolved_shell, shell_flag = resolve_shell(shell)
         effective_cwd = cwd or os.getcwd()
@@ -176,7 +174,12 @@ class _ShellBackgroundRegistry:
     async def kill(self, handle: str) -> str:
         bp = self._procs.get(handle)
         if bp is None:
-            return f"Unknown handle '{handle}'."
+            return (
+                f"Unknown handle '{handle}'. "
+                "[SYSTEM SUGGESTION]: start a process with Shell "
+                "(background=True); a finished handle is consumed by the poll "
+                "that reports its exit."
+            )
         if bp.process.returncode is not None:
             return (
                 f"Process '{handle}' has already exited (code {bp.process.returncode})."

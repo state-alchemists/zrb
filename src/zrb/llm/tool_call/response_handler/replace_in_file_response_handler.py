@@ -1,9 +1,9 @@
-import json
 import os
 import tempfile
 from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
 from zrb.config.config import CFG
+from zrb.llm.tool_call.args import parse_tool_args
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 
 if TYPE_CHECKING:
@@ -25,14 +25,8 @@ async def replace_in_file_response_handler(
     if response.lower() not in ("e", "edit"):
         return await next_handler(ui, call, response)
 
-    args = call.args
-    if isinstance(args, str):
-        try:
-            args = json.loads(args)
-        except json.JSONDecodeError:
-            pass
-
-    if not type(args) is dict:
+    args = parse_tool_args(call)
+    if args is None:
         return await next_handler(ui, call, response)
 
     old_text = args.get("old_text", "")

@@ -3,6 +3,8 @@ config dir names, and LSP server preference."""
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from zrb.config.env_field import (
     EnvField,
     colon_join,
@@ -15,9 +17,11 @@ from zrb.config.env_field import (
 from zrb.util.string.conversion import to_boolean
 
 
-class LLMSearchMixin:
-    ENV_PREFIX: str
-    ROOT_GROUP_NAME: str
+class ConfigLLMSearch:
+    if TYPE_CHECKING:
+        # Attributes supplied by sibling mixins on the composed Config class.
+        ENV_PREFIX: str  # FoundationMixin
+        ROOT_GROUP_NAME: str  # FoundationMixin
 
     def __init__(self):
         self.DEFAULT_LLM_SEARCH_PROJECT: str = "on"

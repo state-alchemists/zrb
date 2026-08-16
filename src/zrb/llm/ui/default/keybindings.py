@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 from zrb.config.config import CFG
 from zrb.llm.hook.interface import HookEvent
 from zrb.llm.util.image_scale import scale_image_bytes
-from zrb.util.cli.style import remove_style, stylize_muted
+from zrb.util.cli.style import remove_style, stylize_error, stylize_muted
 
 if TYPE_CHECKING:
     from typing import Any, TextIO
@@ -171,7 +171,6 @@ class UIKeybindings:
                     get_clipboard_image,
                     missing_tool_hint,
                 )
-                from zrb.util.cli.style import stylize_error, stylize_muted
 
                 img_bytes = await get_clipboard_image()
                 if img_bytes is not None:

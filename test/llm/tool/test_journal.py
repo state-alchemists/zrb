@@ -29,6 +29,7 @@ def test_no_journal_dir_configured():
         result = search_journal("anything")
     assert "error" in result
     assert "not configured" in result["error"]
+    assert "[SYSTEM SUGGESTION]" in result["error"]
 
 
 def test_journal_dir_missing_is_empty_not_an_error(tmp_path):

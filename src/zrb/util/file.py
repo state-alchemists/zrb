@@ -86,13 +86,28 @@ def list_files(
     depth: int = 3,
     excluded_patterns: list[str] | None = None,
 ) -> list[str]:
-    if excluded_patterns is None:
-        excluded_patterns = []
-    all_files: list[str] = []
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
         raise FileNotFoundError(f"Path does not exist: {path}")
+    return walk_files(abs_path, include_hidden, depth, excluded_patterns)
 
+
+def walk_files(
+    abs_path: str,
+    include_hidden: bool = False,
+    depth: int = 3,
+    excluded_patterns: list[str] | None = None,
+) -> list[str]:
+    """Depth-limited, exclusion-filtered directory walk.
+
+    `abs_path` must already exist — callers own the existence check (and
+    whatever they want to do when it fails), since `list_files` here and
+    `zrb.llm.tool.file_list.list_files` report a missing path two different
+    ways (raise vs. an error dict).
+    """
+    if excluded_patterns is None:
+        excluded_patterns = []
+    all_files: list[str] = []
     patterns_to_exclude = excluded_patterns
     if depth <= 0:
         depth = 1
