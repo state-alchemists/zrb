@@ -4,6 +4,8 @@
 
 Zrb can be heavily customized using environment variables. These control everything from log levels to default text editors, and even the appearance of the Web UI.
 
+> This page is about Zrb's *own* config knobs (read via the `CFG` singleton). Looking for how to define environment variables for *your own tasks* instead? See [Core Concepts: Environments (Envs)](../core-concepts/environments.md).
+
 > **Note on White-labeling:** If you have customized `_ZRB_ENV_PREFIX` (e.g., in `__main__.py` for a custom CLI), remember to replace `ZRB_` with your custom prefix (e.g., `ACME_LOGGING_LEVEL`).
 
 ---

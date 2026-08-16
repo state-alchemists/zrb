@@ -89,7 +89,7 @@ create_magic_number = cli.add_task(
     CmdTask(name="create-magic-number", cmd="echo 42")
 )
 
-# This task consumes the value via Jinja templating in the command
+# This task consumes the value via Zrb's own {ctx.x} rendering in the command
 show_magic_number = cli.add_task(
     CmdTask(
         name="show-magic-number",

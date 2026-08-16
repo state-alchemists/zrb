@@ -41,7 +41,7 @@ create_project = cli.add_task(
         # The directory containing your template files
         source_path="./templates/basic-app",
         
-        # The destination path (can use Jinja templating from inputs)
+        # The destination path (renders {ctx.x} placeholders from inputs)
         destination_path="./projects/{ctx.input.project_name}",
         
         # A dictionary of strings to find and replace in the copied files
@@ -53,6 +53,39 @@ create_project = cli.add_task(
 ```
 
 When a user runs `zrb create-project --project-name my-cool-app`, Zrb creates the new directory and injects `my-cool-app` wherever the placeholder existed in the templates.
+
+### Per-File Transforms with `ContentTransformer`
+
+The dict shorthand above rewrites every copied file the same way. To limit a
+transform to specific files, pass `ContentTransformer` instance(s) to
+`transform_content` instead of a dict:
+
+```python
+from zrb import ContentTransformer, Scaffolder, StrInput, cli
+
+create_project = cli.add_task(
+    Scaffolder(
+        name="create-project",
+        input=StrInput(name="project_name", description="Name of the app"),
+        source_path="./templates/basic-app",
+        destination_path="./projects/{ctx.input.project_name}",
+        transform_content=[
+            ContentTransformer(
+                name="rename-app",
+                match="*.py",  # glob, matched against each file's basename
+                transform={"APP_NAME_PLACEHOLDER": "{ctx.input.project_name}"},
+            ),
+        ],
+    )
+)
+```
+
+`match` accepts a glob, a list of globs, or a predicate `(ctx, file_path) -> bool`.
+By default (`match_mode="auto"`) a string pattern is tried as a regex first and
+falls back to a glob — so a glob-shaped pattern that also happens to parse as a
+valid regex is matched with regex semantics (e.g. `"config.json"` also matches
+`"configXjson"`, since `.` is a regex wildcard). Pass `match_mode="glob"` to
+force plain glob matching, or `match_mode="regex"` to force regex-only.
 
 ---
 

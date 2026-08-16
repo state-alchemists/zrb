@@ -2,7 +2,7 @@
 # zrb-theme-light.sh — Light terminal theme for zrb llm chat
 #
 # Source this file in your shell rc to apply the light theme:
-#   source docs/examples/themes/zrb-theme-light.sh
+#   source examples/themes/zrb-theme-light.sh
 #
 # Or call the function directly:
 #   zrb_theme_light

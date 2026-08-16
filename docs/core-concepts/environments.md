@@ -4,6 +4,8 @@
 
 In Zrb, environment variables (`Env`) are a powerful way to configure your tasks, manage secrets, and adapt your workflows to different deployment environments.
 
+> This page is about `Env` — the variables *your tasks* read via `ctx.env`. Looking for Zrb's own runtime config knobs (log level, default editor, LLM provider, etc.) instead? See [Configuration: Environment Variables & Overrides](../configuration/env-vars.md).
+
 You can access environment variables within a task through the `ctx.env` object.
 
 > ⚠️ **Important:** Like Inputs, `Env` definitions are inherited recursively. If Task B depends on Task A, Task B automatically loads and makes available all `Env`s required by Task A.
