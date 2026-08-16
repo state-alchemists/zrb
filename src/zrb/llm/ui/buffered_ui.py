@@ -29,12 +29,17 @@ class BufferedUI(UIProtocol):
         wrapped_ui: UIProtocol,
         prefix: str = "",
         shared_lock: asyncio.Lock | None = None,
+        session_id: str = "",
     ):
         self._wrapped = wrapped_ui
         self._prefix = prefix
         self._buffer: list[str] = []
         # Set by _run_agent_task so buffered output also feeds the activity panel.
         self._agent_id: str | None = None
+        # Scopes activity-panel updates to the session that started this
+        # delegation, so a process hosting multiple sessions doesn't bleed one
+        # session's sub-agent activity into another's.
+        self._session_id = session_id
         # Use provided shared lock (for parallel agents) or create own lock
         self._lock = shared_lock if shared_lock is not None else asyncio.Lock()
 
@@ -51,12 +56,24 @@ class BufferedUI(UIProtocol):
         """The output prefix without surrounding whitespace (e.g. ``[generalist #1]``)."""
         return self._prefix.strip()
 
+    @property
+    def parent_ui(self) -> UIProtocol:
+        """The UI this buffer flushes to (the parent agent's UI).
+
+        Public counterpart of the ``wrapped_ui`` constructor argument, so the
+        live-session continuation path can hand the parent UI a synthesized
+        message (``submit_message``) without reading ``_wrapped``.
+        """
+        return self._wrapped
+
     async def ask_user(self, prompt: str) -> str:
         # Lock ensures only one agent interacts with parent UI at a time
         # This prevents interleaved output when multiple parallel agents need approval
         async with self._lock:
-            # Flush buffered output so user can see what they're being asked about
-            self.flush_to_parent()
+            # No flush-before-ask: only the approval prompt itself reaches the
+            # main transcript. The sub-agent's routine buffered output (search
+            # queries, fetch status, ...) stays in its own buffer, visible on
+            # demand by navigating into that sub-agent's live view instead.
             prefixed_prompt = (
                 f"{self._prefix}{prompt}"
                 if self._prefix and prompt.strip() != ""
@@ -76,12 +93,13 @@ class BufferedUI(UIProtocol):
         text = sep.join(str(v) for v in values) + end
         self._buffer.append(text)
         if self._agent_id:
-            agent_activity_registry.update(self._agent_id, text)
+            agent_activity_registry.update(
+                self._agent_id, text, session_id=self._session_id
+            )
 
     async def ask_user_choice(self, spec: ChoiceSpec) -> str:
-        # Mirrors ask_user: serialize parent interaction and flush first.
+        # Mirrors ask_user: serialize parent interaction, no flush (see there).
         async with self._lock:
-            self.flush_to_parent()
             return await self._wrapped.ask_user_choice(spec)
 
     async def run_interactive_command(
@@ -130,17 +148,17 @@ class BufferedUI(UIProtocol):
         flush: bool = False,
         kind: str = "text",
     ) -> None:
-        """Immediately stream output to parent UI, bypassing the buffer.
+        """High-priority status messages (e.g. a tool-call notification mid
+        sub-agent execution) — same destination as `append_to_output` now.
 
-        Use this for high-priority status messages that should be visible
-        immediately, such as tool call notifications during subagent execution.
+        Used to bypass the buffer and write straight to the parent UI, on the
+        theory that a slow-operation status line should be visible
+        immediately. That theory turned out wrong in practice: it made
+        routine sub-agent chatter (search queries, fetch status) leak into
+        the main transcript, which is exactly the noise a human navigating
+        into this sub-agent's own live view (its buffer, via
+        `get_buffered_output()`) should see there instead — not in main.
         """
-        text = sep.join(str(v) for v in values) + end
-        if self._agent_id:
-            agent_activity_registry.update(self._agent_id, text)
-        if self._prefix:
-            lines = text.split("\n")
-            text = "\n".join(
-                f"{self._prefix}{line}" if line.strip() else "" for line in lines
-            )
-        self._wrapped.append_to_output(text, kind=kind)
+        self.append_to_output(
+            *values, sep=sep, end=end, file=file, flush=flush, kind=kind
+        )

@@ -456,3 +456,119 @@ def test_load_session_history_missing_file_is_silent(runner):
     runner._load_session_history(ui, history_manager, "sess-missing")
 
     ui._replay_history.assert_not_called()
+
+
+# ── @agent-name mention resolution ──
+
+
+@pytest.mark.asyncio
+async def test_run_interactive_session_applies_agent_mention_nudge(runner, ui_commands):
+    """A plain message mentioning a known agent gets the nudge prepended
+    before it reaches the UI."""
+    ctx = MagicMock()
+    ctx.xcom = {}
+
+    llm_task_core = MagicMock()
+    history_manager = MagicMock()
+    history_manager.load.return_value = []
+
+    mock_ui = SimpleMockUI()
+
+    with (
+        patch("zrb.llm.ui.default.ui.UI") as MockUI,
+        patch(
+            "zrb.llm.task.chat.running.resolve_agent_mention",
+            return_value="NUDGED:hi @researcher",
+        ) as mock_resolve_mention,
+    ):
+        MockUI.return_value = mock_ui
+
+        res = await runner._run_interactive_session(
+            ctx=ctx,
+            llm_task_core=llm_task_core,
+            history_manager=history_manager,
+            ui_commands=ui_commands,
+            initial_message="hi @researcher",
+            initial_conversation_name="sess1",
+            initial_yolo=False,
+            initial_attachments=[],
+        )
+
+        assert res == "Final"
+        mock_resolve_mention.assert_called_once_with("hi @researcher")
+        assert MockUI.call_args.kwargs["initial_message"] == "NUDGED:hi @researcher"
+
+
+@pytest.mark.asyncio
+async def test_run_interactive_session_slash_command_skips_mention_resolution(
+    runner, ui_commands
+):
+    """A resolved slash command must not also run through mention resolution --
+    the two syntaxes are mutually exclusive."""
+    runner._custom_commands = [
+        FakeCustomCommand(
+            command="/foo", args=["text"], prompt_template="RESOLVED:{text}"
+        )
+    ]
+
+    ctx = MagicMock()
+    ctx.xcom = {}
+
+    llm_task_core = MagicMock()
+    history_manager = MagicMock()
+    history_manager.load.return_value = []
+
+    mock_ui = SimpleMockUI()
+
+    with (
+        patch("zrb.llm.ui.default.ui.UI") as MockUI,
+        patch(
+            "zrb.llm.task.chat.running.resolve_agent_mention"
+        ) as mock_resolve_mention,
+    ):
+        MockUI.return_value = mock_ui
+
+        await runner._run_interactive_session(
+            ctx=ctx,
+            llm_task_core=llm_task_core,
+            history_manager=history_manager,
+            ui_commands=ui_commands,
+            initial_message="/foo bar",
+            initial_conversation_name="sess1",
+            initial_yolo=False,
+            initial_attachments=[],
+        )
+
+        mock_resolve_mention.assert_not_called()
+        assert MockUI.call_args.kwargs["initial_message"] == "RESOLVED:bar"
+
+
+@pytest.mark.asyncio
+async def test_run_non_interactive_session_applies_agent_mention_nudge(runner):
+    """Non-interactive (web) path applies the same mention nudge as the
+    interactive path."""
+    ctx = MagicMock()
+    ctx.shared_print = MagicMock()
+    ctx.xcom = {}
+
+    llm_task_core = MagicMock()
+    llm_task_core.async_run = AsyncMock(return_value="AI Output")
+
+    with patch(
+        "zrb.llm.task.chat.running.resolve_agent_mention",
+        return_value="NUDGED:hi @researcher",
+    ) as mock_resolve_mention:
+        await runner._run_non_interactive_session(
+            ctx=ctx,
+            llm_task_core=llm_task_core,
+            history_manager=MagicMock(),
+            ui_commands={},
+            initial_message="hi @researcher",
+            initial_conversation_name="sess1",
+            initial_yolo=False,
+            initial_attachments=[],
+        )
+
+    mock_resolve_mention.assert_called_once_with("hi @researcher")
+    sent_session = llm_task_core.async_run.call_args.args[0]
+    assert sent_session.shared_ctx.input["message"] == "NUDGED:hi @researcher"

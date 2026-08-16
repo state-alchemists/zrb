@@ -52,6 +52,10 @@ class UIMessageEditing:
             self, start: int, end: int, replacement: str
         ) -> bool: ...
 
+        # From UIAgentPicker — Down Arrow opens the sub-agent picker when the
+        # input field is empty and live sessions are tracked.
+        def open_agent_picker(self) -> bool: ...
+
         # Set by the default `UI.__init__`
         _queued_edit_entry: QueuedMessage | None
         _queued_edit_draft: str
@@ -137,10 +141,19 @@ class UIMessageEditing:
         """Step toward the newest queued message, then exit edit mode.
 
         Returns ``True`` when the keypress was consumed; ``False`` lets the
-        input field's history recall run.
+        input field's history recall run. With an empty input field and no
+        queued-message navigation in progress, Down Arrow opens the sub-agent
+        picker instead (consumed) when live sub-agent sessions exist.
         """
-        queue = self.effective_message_queue
         buffer = event.current_buffer
+        if (
+            buffer.text.strip() == ""
+            and not self._recall_navigation_active()
+            and self.open_agent_picker()
+        ):
+            return True
+
+        queue = self.effective_message_queue
         entry = self._queued_edit_entry
 
         if entry is not None and not self._recall_navigation_active():

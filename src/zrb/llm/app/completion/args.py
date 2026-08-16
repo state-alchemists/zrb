@@ -41,12 +41,28 @@ def complete_load_arg(
     arg_prefix: str,
     history_manager: AnyHistoryManager,
 ) -> Iterable[Completion]:
-    """Existing session names matching `arg_prefix`."""
+    """Existing session names matching `arg_prefix`.
+
+    A delegated sub-agent transcript (Item 4, Phase A naming) is labeled
+    "Sub-agent: <name>" rather than the generic "Session Name" — otherwise
+    it's indistinguishable from an ordinary saved session in the completion
+    dropdown, and there is no other discovery mechanism in the CLI TUI for
+    "what sub-agent sessions exist"; this label is it.
+    """
+    # lazy: zrb internal, kept cheap and dependency-free; imported here so
+    # the completion path (hit on every keystroke) doesn't pay this import
+    # unless /load is actually being typed.
+    from zrb.llm.util.subagent_session_naming import parse_delegated_session
+
     for res in history_manager.search(arg_prefix)[:10]:
+        delegated = parse_delegated_session(res)
+        display_meta = (
+            f"Sub-agent: {delegated[1]}" if delegated is not None else "Session Name"
+        )
         yield Completion(
             res,
             start_position=-len(arg_prefix),
-            display_meta="Session Name",
+            display_meta=display_meta,
         )
 
 

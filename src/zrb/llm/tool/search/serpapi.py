@@ -42,6 +42,7 @@ def search_internet(
             "safe": safe_search,
             "api_key": effective_api_key,
         },
+        timeout=CFG.LLM_WEB_HTTP_TIMEOUT / 1000,
     )
     if response.status_code != 200:
         raise_http_error(

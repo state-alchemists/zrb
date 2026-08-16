@@ -248,10 +248,12 @@ def create_layout(
     # status bar. ConditionalContainer collapses it to nothing when idle.
     extra_children = []
     if agent_activity_text is not None:
-        # lazy: activity is lightweight (stdlib only), imported here to avoid
-        # dragging the import across all layout consumers.
-        from zrb.llm.agent.activity import agent_activity_registry
-
+        # Reuse the same (session-scoped) callable the panel renders with,
+        # rather than a separate unscoped agent_activity_registry.active()
+        # call — this filter has no session_id of its own to pass, and the
+        # registry is keyed by session (Item 4, Phase D) so an unscoped read
+        # would show/hide the panel based on every session's activity, not
+        # just this one's.
         extra_children.append(
             ConditionalContainer(
                 Window(
@@ -259,7 +261,7 @@ def create_layout(
                     dont_extend_height=True,
                     style="class:bottom-toolbar",
                 ),
-                filter=Condition(lambda: bool(agent_activity_registry.active())),
+                filter=Condition(lambda: bool(agent_activity_text())),
             )
         )
 

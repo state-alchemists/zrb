@@ -47,6 +47,26 @@ def _truncate(text: str, limit: int) -> str:
     return truncate_display(text, limit)
 
 
+def _merge_output_chunk(current_text: str, content: str) -> str:
+    """Append `content` to `current_text`, resolving ``\\r`` status updates.
+
+    Carriage returns signal an in-place status rewrite: the last line since
+    the most recent newline is replaced by the content up to each ``\\r``.
+    """
+    if "\r" not in content:
+        return current_text + content
+    last_newline = current_text.rfind("\n")
+    if last_newline == -1:
+        previous = ""
+        last = current_text
+    else:
+        previous = current_text[: last_newline + 1]
+        last = current_text[last_newline + 1 :]
+    combined = last + content
+    resolved = re.sub(r"[^\n]*\r", "", combined)
+    return previous + resolved
+
+
 def _fmt_tokens(count: int) -> str:
     if count >= 1_000_000:
         return f"{count / 1_000_000:.1f}M"
@@ -98,6 +118,10 @@ class UIOutput:
         _rendered_width: int | None
         _markdown_theme: Any
         _application: Any
+
+        # From UIAgentPicker (live sub-agent view state)
+        _viewing_agent_id: str | None
+        _saved_main_output: str | None
 
         # From BaseUI. The setter is declared too: BaseUI.yolo has one, and a
         # getter-only stub here reads as a narrowing override on the composed
@@ -187,24 +211,24 @@ class UIOutput:
             self._schedule_invalidate()
             return
 
+        # While viewing a sub-agent the output pane shows that sub-agent's
+        # buffer; main-transcript appends accumulate into the parked snapshot
+        # and reappear when the user exits the view (Left).
+        saved_main_output = getattr(self, "_saved_main_output", None)
+        if (
+            getattr(self, "_viewing_agent_id", None) is not None
+            and saved_main_output is not None
+        ):
+            self._saved_main_output = _merge_output_chunk(saved_main_output, content)
+            self._schedule_invalidate()
+            return
+
         if kind not in ("text", "todo_progress"):
 
             content = stylize_muted(content)
 
         # Handle carriage returns (\r) for status updates
-        if "\r" in content:
-            last_newline = current_text.rfind("\n")
-            if last_newline == -1:
-                previous = ""
-                last = current_text
-            else:
-                previous = current_text[: last_newline + 1]
-                last = current_text[last_newline + 1 :]
-            combined = last + content
-            resolved = re.sub(r"[^\n]*\r", "", combined)
-            new_text = previous + resolved
-        else:
-            new_text = current_text + content
+        new_text = _merge_output_chunk(current_text, content)
 
         # NB: we deliberately do NOT fire a Notification hook per output chunk.
         # The Claude-Code `Notification` event means "the agent needs your
@@ -406,6 +430,34 @@ class UIOutput:
             ("bold", "Session:"),
             ("", f" {self._conversation_session_name} "),
         ]
+        # Item 4, Phase D: the UI clue that /load swapped which persona is
+        # driving new messages — absent (bar unchanged) while driving the
+        # main agent, mirroring how the activity panel collapses when idle.
+        # Extended (same wording) to announce the sub-agent whose live view
+        # the output pane currently shows (UIAgentPicker).
+        active_persona = getattr(self, "_active_subagent_persona", None)
+        viewing_agent_id = getattr(self, "_viewing_agent_id", None)
+        viewing_name = None
+        if viewing_agent_id:
+            # lazy: transitively heavy via internal — live_session.py imports
+            # run_agent (zrb.llm.agent.run.runner), which pulls in pydantic_ai.
+            from zrb.llm.agent.subagent.live_session import (
+                live_subagent_session_registry,
+            )
+
+            session = live_subagent_session_registry.get(
+                self._conversation_session_name, viewing_agent_id
+            )
+            if session is not None:
+                viewing_name = session.agent_name
+        if active_persona or viewing_name:
+            name = viewing_name if viewing_name is not None else active_persona
+            suffix = " (viewing · ← back)" if viewing_name else ""
+            line1 += [
+                ("", "| 🎭 "),
+                ("bold", "Sub-agent:"),
+                ("", f" {name}{suffix} "),
+            ]
         line2 = [
             ("", " 📋 "),
             ("bold", "Plan Mode:"),
@@ -447,20 +499,46 @@ class UIOutput:
         This panel is the legend for the [name #ordinal] prefixes in the output
         stream. Empty when nothing is delegating, so it collapses to zero height.
         Refreshed by the app's periodic redraw (LLM_UI_REFRESH_INTERVAL).
+
+        While a sub-agent's live view is showing, the panel stops listing the
+        other sub-agents and advertises the way back to the parent session
+        instead (Left Arrow).
         """
-        agents = agent_activity_registry.active()
-        if not agents:
+        viewing_agent_id = getattr(self, "_viewing_agent_id", None)
+        if viewing_agent_id is not None:
+            return [(CFG.LLM_UI_STYLE_FAINT, "Press ← to return to the parent")]
+        agents = agent_activity_registry.active(
+            session_id=self._conversation_session_name
+        )
+        # The Down-Arrow picker lists every live (running or just-finished)
+        # sub-agent session, so the panel advertises it whenever one is
+        # tracked — not only while something is currently running.
+        # lazy: transitively heavy via internal — live_session.py imports
+        # run_agent (zrb.llm.agent.run.runner), which pulls in pydantic_ai.
+        from zrb.llm.agent.subagent.live_session import (
+            live_subagent_session_registry,
+        )
+
+        live = live_subagent_session_registry.active(
+            session_id=self._conversation_session_name
+        )
+        if not agents and not live:
             return []
-        frags: list = []
+        lines: list = []
         for agent in agents:
             label = f" 🔧 #{agent.ordinal} {agent.name}"
             if agent.task:
                 label += f" · {_truncate(agent.task, 50)}"
             if agent.last_line:
                 label += f" — {_truncate(agent.last_line, 40)}"
-            frags.append((CFG.LLM_UI_STYLE_THINKING, label))
+            lines.append((CFG.LLM_UI_STYLE_THINKING, label))
+        if live:
+            lines.append((CFG.LLM_UI_STYLE_FAINT, " ↓ talk to a sub-agent"))
+        frags: list = []
+        for style, text in lines:
+            frags.append((style, text))
             frags.append(("", "\n"))
-        return frags[:-1]  # drop trailing newline so height == agent count
+        return frags[:-1]  # drop trailing newline so height == line count
 
     def get_status_bar_text(self) -> "AnyFormattedText":
         if self.current_confirmation is not None:

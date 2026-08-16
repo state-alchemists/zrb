@@ -47,6 +47,7 @@ def search_internet(
             "search_lang": language,
             "summary": "true",
         },
+        timeout=CFG.LLM_WEB_HTTP_TIMEOUT / 1000,
     )
     if response.status_code != 200:
         raise_http_error(

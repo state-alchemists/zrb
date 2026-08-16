@@ -120,7 +120,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 
 ### Delegation and concurrency
 
-- **ADR-0068** — [Delegation: envelope, context-shaped criteria, fan-out](adr-0068.md)
+- **ADR-0068** — [Delegation: envelope, context-shaped criteria, fan-out, opt-in worktree isolation](adr-0068.md)
 - **ADR-0069** — [Background work inherits permissions and can be waited on](adr-0069.md)
 - **ADR-0070** — [`BufferedUI` and a confirmation queue](adr-0070.md)
 
@@ -141,5 +141,9 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0080** — [Mermaid renders as Unicode diagram art via `termaid`; PlantUML stays deferred](adr-0080.md)
 - **ADR-0081** — [Web chat renders markdown/math/diagrams client-side; the non-interactive loop now finalizes at all](adr-0081.md)
 - **ADR-0082** — [Photo capture is a one-shot command, not a toggled mode, and carries no enable gate](adr-0082.md)
+
+### Sub-agent sessions
+
+- **ADR-0083** — [Delegated sub-agent sessions: persisted, listed, resumable, and swappable in place](adr-0083.md)
 
 🔖 [Documentation Home](../../README.md)

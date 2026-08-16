@@ -19,6 +19,7 @@ from zrb.llm.tool.delegate import (
     create_search_agent_tool,
 )
 from zrb.llm.tool.delegate_background import (
+    background_delegation_live_context,
     create_background_delegate_tool,
     create_get_delegation_result_tool,
 )
@@ -131,6 +132,12 @@ def _delegate_tool_factory(ctx):
 
 
 llm_chat.append_tool_factory(_delegate_tool_factory)
+
+# Notify the parent agent when one of its background delegations finishes,
+# instead of leaving it to remember to poll GetDelegationResult.
+llm_chat.prompt_manager.add_live_context(
+    "background_delegations", background_delegation_live_context
+)
 
 # Add argument formatter (show arguments when asking for user confirmation)
 llm_chat.prepend_argument_formatter(replace_in_file_formatter, write_file_formatter)

@@ -111,6 +111,20 @@ class ConfigLLMContent:
         doc="Enable/disable the rewind feature for LLM conversations.",
     )
 
+    LLM_SUBAGENT_HISTORY_RETAIN = EnvField(
+        int,
+        fallback=50,
+        doc=(
+            "Maximum number of persisted delegated sub-agent sessions to keep "
+            "on disk across all agent types; the oldest are pruned on each "
+            "new one. Unlike ordinary conversations, each delegation writes a "
+            "session under a brand-new, never-reused name, so nothing else "
+            "bounds this — leaving it uncapped fills the disk over a "
+            "long-running or heavily-delegating session. -1 keeps every one "
+            "(only if you are certain you want that)."
+        ),
+    )
+
     LLM_HISTORY_BACKUP_RETAIN = EnvField(
         int,
         fallback=0,

@@ -94,6 +94,43 @@ class LLMTaskBuilding:
             raise ValueError(f"Task {self.name} doesn't have prompt_manager")
         return self._prompt_manager
 
+    @prompt_manager.setter
+    def prompt_manager(self, value: PromptManager) -> None:
+        """Replace the `PromptManager` composing this task's system prompt.
+
+        Used to swap a running task's persona wholesale — e.g. the CLI TUI's
+        `/load` on a delegated sub-agent session rebuilding a fresh, isolated
+        `PromptManager` from that sub-agent's own resolved system prompt
+        (Item 4, Phase D), mirroring the fresh `LLMChatTask` the web resume
+        path builds via `SubAgentManager.create_llm_chat_task`.
+        """
+        self._prompt_manager = value
+
+    @property
+    def tools(self) -> list["Tool | ToolFuncEither"]:
+        """Tools this task's agent may call (excluding factory-resolved ones)."""
+        return self._tools
+
+    @tools.setter
+    def tools(self, value: list["Tool | ToolFuncEither"]) -> None:
+        """Replace the tool list wholesale.
+
+        `append_tool` only grows the list — this is the reset a persona swap
+        needs, so the previous persona's tools don't linger alongside the new
+        one's.
+        """
+        self._tools = value
+
+    @property
+    def toolsets(self) -> list["AbstractToolset[None]"]:
+        """Pydantic-ai toolsets this task's agent may call."""
+        return self._toolsets
+
+    @toolsets.setter
+    def toolsets(self, value: list["AbstractToolset[None]"]) -> None:
+        """Replace the toolset list wholesale (see `tools` setter)."""
+        self._toolsets = value
+
     def set_ui(self, ui: UIProtocol | None):
         """Replace every attached UI with `ui`, or detach all when None."""
         self._uis = [] if ui is None else [ui]

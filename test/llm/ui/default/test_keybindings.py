@@ -8,11 +8,12 @@ from prompt_toolkit.key_binding import KeyBindings
 
 from zrb.llm.hook.interface import HookEvent
 from zrb.llm.ui.base.message_queue import MessageQueue, QueuedMessage
+from zrb.llm.ui.default.agent_picker import UIAgentPicker
 from zrb.llm.ui.default.keybindings import UIKeybindings
 from zrb.llm.ui.default.message_editing import UIMessageEditing
 
 
-class MockUI(UIKeybindings, UIMessageEditing):
+class MockUI(UIKeybindings, UIMessageEditing, UIAgentPicker):
     def __init__(self):
         self._background_tasks = set()
         self._pending_attachments = []
@@ -26,6 +27,7 @@ class MockUI(UIKeybindings, UIMessageEditing):
 
         self._input_field = MagicMock()
         self._output_field = MagicMock()
+        self._input_field.buffer = MagicMock(text="", cursor_position=0)
 
         self.outputs = []
 
@@ -34,6 +36,10 @@ class MockUI(UIKeybindings, UIMessageEditing):
         self._queued_edit_draft = ""
         self._message_queue = MessageQueue()
         self.edit_queued_message = MagicMock(return_value=True)
+
+        # Sub-agent picker + live view (see UIAgentPicker). Mirrors the real
+        # default `UI` composition so Down Arrow's picker trigger works.
+        self._init_agent_picker_state()
 
         # Mocks for BaseUI methods
         self._cancel_pending_confirmations = MagicMock()
@@ -66,6 +72,13 @@ class MockUI(UIKeybindings, UIMessageEditing):
     @property
     def effective_message_queue(self):
         return self._message_queue
+
+    @property
+    def output_text(self):
+        return self._output_field.text
+
+    def _set_output_text(self, text):
+        self._output_field.text = text
 
 
 @pytest.fixture
@@ -116,9 +129,15 @@ def trigger_binding(key_bindings, key, event):
     bindings = key_bindings.get_bindings_for_keys((key,))
     if not bindings:
         return False
-    # Execute the last added binding for these keys (similar to prompt_toolkit behavior)
-    bindings[-1].handler(event)
-    return True
+    # Execute the last binding whose filter passes — the KeyProcessor
+    # (`KeyProcessor._get_matches`) evaluates `binding.filter()` at match time
+    # even though the raw registry's `get_bindings_for_keys` returns inactive
+    # bindings too. Last-match-wins mirrors prompt_toolkit's priority order.
+    for binding in reversed(bindings):
+        if binding.filter():
+            binding.handler(event)
+            return True
+    return False
 
 
 def test_ctrl_k_binding_focus_output(mock_ui, setup_bindings):
@@ -216,6 +235,74 @@ def test_escape_binding(mock_ui, setup_bindings):
     assert "\n<Esc> Canceled" in mock_ui.outputs
 
 
+def test_escape_while_viewing_sub_agent_cancels_it(mock_ui, setup_bindings):
+    # Esc while the output pane shows a sub-agent cancels what that sub-agent
+    # is doing (mirroring the main agent's Esc) — it never leaves the view
+    # (Left does), never cancels the running main task, and never fires the
+    # main STOP hook.
+    event = create_mock_event()
+    mock_task = MagicMock()
+    mock_task.done.return_value = False
+    mock_ui._running_llm_task = mock_task
+    mock_ui._output_field.text = "sub-agent live output"
+    mock_ui._viewing_agent_id = "abc123"
+    mock_ui._saved_main_output = "main transcript"
+    fake = _FakeLiveRegistry()
+
+    with patch(
+        "zrb.llm.agent.subagent.live_session.live_subagent_session_registry", fake
+    ):
+        trigger_binding(setup_bindings, "escape", event)
+
+    assert fake.cancelled == [("test_session", "abc123")]
+    mock_ui._cancel_pending_confirmations.assert_called_once()
+    mock_task.cancel.assert_not_called()  # never the main task
+    mock_ui.execute_hook.assert_not_called()
+    assert mock_ui._viewing_agent_id == "abc123"  # still in the view
+    assert mock_ui._saved_main_output == "main transcript"
+
+
+def test_escape_while_viewing_idle_sub_agent_does_nothing(mock_ui, setup_bindings):
+    # Esc against an idle sub-agent (nothing in flight) has nothing to cancel
+    # — no echo, no view change, no main-task involvement.
+    event = create_mock_event()
+    mock_ui._viewing_agent_id = "abc123"
+    mock_ui._saved_main_output = "main transcript"
+    fake = _FakeLiveRegistry(cancel_result=False)
+
+    with patch(
+        "zrb.llm.agent.subagent.live_session.live_subagent_session_registry", fake
+    ):
+        trigger_binding(setup_bindings, "escape", event)
+
+    assert fake.cancelled == [("test_session", "abc123")]
+    assert mock_ui._viewing_agent_id == "abc123"
+    assert "\n<Esc> Canceled\n" not in "".join(mock_ui.outputs)
+
+
+def test_left_arrow_while_viewing_returns_to_parent(mock_ui, setup_bindings):
+    # Left while the output pane shows a sub-agent returns to the main session
+    # (navigation only — the sub-agent's work is untouched).
+    event = create_mock_event()
+    mock_ui._output_field.text = "sub-agent live output"
+    mock_ui._viewing_agent_id = "abc123"
+    mock_ui._saved_main_output = "main transcript"
+
+    triggered = trigger_binding(setup_bindings, "left", event)
+
+    assert triggered is True
+    assert mock_ui._viewing_agent_id is None
+    assert mock_ui._saved_main_output is None
+    assert mock_ui.output_text == "main transcript"  # parked transcript restored
+
+
+def test_left_arrow_not_bound_while_not_viewing(mock_ui, setup_bindings):
+    # The Left binding is filtered to the sub-agent view; everywhere else it
+    # stays free for cursor movement.
+    event = create_mock_event()
+    assert trigger_binding(setup_bindings, "left", event) is False
+
+
 def test_ctrl_y_binding(mock_ui, setup_bindings):
     event = create_mock_event()
     trigger_binding(setup_bindings, "c-y", event)
@@ -304,6 +391,74 @@ def test_enter_message_while_thinking_is_queued(mock_ui, setup_bindings):
     mock_ui._submit_user_message.assert_called_once()
     event.current_buffer.reset.assert_called_once()
     assert not mock_ui.schedule_command.called
+
+
+# ── Live sub-agent view (Enter routes to the viewed sub-agent) ────────────
+
+
+class _FakeLiveRegistry:
+    def __init__(self, cancel_result=True):
+        self.sent = []
+        self.cancelled = []
+        self.cancel_result = cancel_result
+        self.entry = MagicMock()
+
+    async def send_message(self, session_id, agent_id, text):
+        self.sent.append((session_id, agent_id, text))
+        return True
+
+    def get(self, session_id, agent_id):
+        return self.entry
+
+    def cancel(self, session_id, agent_id):
+        self.cancelled.append((session_id, agent_id))
+        return self.cancel_result
+
+
+@pytest.mark.asyncio
+async def test_enter_while_viewing_sends_message_to_sub_agent(mock_ui, setup_bindings):
+    event = create_mock_event("hello sub-agent")
+    mock_ui._viewing_agent_id = "abc123"
+    fake = _FakeLiveRegistry()
+
+    with patch(
+        "zrb.llm.agent.subagent.live_session.live_subagent_session_registry", fake
+    ):
+        trigger_binding(setup_bindings, "c-m", event)
+        for task in list(mock_ui._background_tasks):
+            await task
+        assert fake.sent == [("test_session", "abc123", "hello sub-agent")]
+        event.current_buffer.reset.assert_called_once()
+        # The message is echoed into the sub-agent's own buffer so its live
+        # view reads as a conversation.
+        fake.entry.buffered_ui.append_to_output.assert_called_once_with(
+            "\n💬 hello sub-agent\n"
+        )
+        assert not mock_ui._submit_user_message.called
+        assert not mock_ui.schedule_command.called
+        assert not mock_ui.classify_input.called
+
+
+@pytest.mark.asyncio
+async def test_enter_while_viewing_sends_slash_command_as_message(
+    mock_ui, setup_bindings
+):
+    # While viewing, even a "/..." line goes to the sub-agent as a plain
+    # message — it must never dispatch as a main-session command.
+    event = create_mock_event("/save x")
+    mock_ui._viewing_agent_id = "abc123"
+    fake = _FakeLiveRegistry()
+
+    with patch(
+        "zrb.llm.agent.subagent.live_session.live_subagent_session_registry", fake
+    ):
+        trigger_binding(setup_bindings, "c-m", event)
+        for task in list(mock_ui._background_tasks):
+            await task
+        assert fake.sent == [("test_session", "abc123", "/save x")]
+
+    assert not mock_ui.schedule_command.called
+    assert not mock_ui._submit_user_message.called
 
 
 # ── Queued-message editing (UIMessageEditing) ────────────────────────────
@@ -496,6 +651,36 @@ def test_down_arrow_after_typing_falls_through_and_preserves_edit(mock_ui):
     assert mock_ui._handle_down_arrow(event) is False
     assert event.current_buffer.text == "queued message EDITED"
     assert mock_ui._queued_edit_entry is entry
+
+
+# ── Sub-agent picker trigger (UIMessageEditing + UIAgentPicker) ──────────
+
+
+def test_down_arrow_opens_agent_picker_with_empty_buffer_and_live_sessions(mock_ui):
+    event = create_mock_event()
+    mock_ui.open_agent_picker = MagicMock(return_value=True)
+
+    assert mock_ui._handle_down_arrow(event) is True
+
+    mock_ui.open_agent_picker.assert_called_once()
+
+
+def test_down_arrow_does_not_open_agent_picker_with_text_in_buffer(mock_ui):
+    event = create_mock_event("some text")
+    mock_ui.open_agent_picker = MagicMock(return_value=True)
+
+    assert mock_ui._handle_down_arrow(event) is False
+
+    mock_ui.open_agent_picker.assert_not_called()
+
+
+def test_down_arrow_does_not_open_agent_picker_without_live_sessions(mock_ui):
+    event = create_mock_event()
+    mock_ui.open_agent_picker = MagicMock(return_value=False)
+
+    assert mock_ui._handle_down_arrow(event) is False
+
+    mock_ui.open_agent_picker.assert_called_once()
 
 
 def test_up_arrow_after_cursor_move_falls_through(mock_ui):

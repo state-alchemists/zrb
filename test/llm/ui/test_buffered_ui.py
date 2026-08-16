@@ -89,8 +89,27 @@ async def test_buffered_ui_ask_user_no_prefix():
 
 
 @pytest.mark.asyncio
-async def test_buffered_ui_ask_user_choice_flushes_and_forwards():
-    """ask_user_choice flushes buffered output first, then forwards to parent."""
+async def test_buffered_ui_ask_user_does_not_flush_the_buffer():
+    """Only the approval prompt itself reaches main -- ask_user must not dump
+    the sub-agent's preceding buffered output alongside it."""
+    mock_wrapped = MagicMock()
+    mock_wrapped.ask_user = AsyncMock(return_value="user response")
+    ui = BufferedUI(mock_wrapped, prefix="[AGENT] ")
+    ui.append_to_output("buffered search result")
+
+    await ui.ask_user("Approve this?")
+
+    # ask_user itself is the only call — no separate flush call beforehand.
+    mock_wrapped.ask_user.assert_called_once()
+    assert ui.get_buffered_output() == "buffered search result\n"
+
+
+@pytest.mark.asyncio
+async def test_buffered_ui_ask_user_choice_forwards_without_flushing():
+    """ask_user_choice forwards the prompt to parent, but does NOT flush the
+    buffer first -- only the approval prompt itself reaches main; the
+    sub-agent's routine buffered output stays in its own buffer, visible only
+    by navigating into that sub-agent's live view."""
     mock_wrapped = MagicMock()
     mock_wrapped.ask_user_choice = AsyncMock(return_value="option-a")
     ui = BufferedUI(mock_wrapped, prefix="[AGENT] ")
@@ -101,8 +120,9 @@ async def test_buffered_ui_ask_user_choice_flushes_and_forwards():
 
     assert result == "option-a"
     mock_wrapped.ask_user_choice.assert_awaited_once_with(spec)
-    # Buffered output was flushed to the parent before asking.
-    mock_wrapped.append_to_output.assert_called()
+    mock_wrapped.append_to_output.assert_not_called()
+    # The buffered content is untouched, still available for on-demand viewing.
+    assert ui.get_buffered_output() == "buffered line\n"
 
 
 @pytest.mark.asyncio
@@ -176,9 +196,13 @@ def test_buffered_ui_append_to_output_updates_activity_registry():
     assert reg.update.call_args[0][0] == "agent-123"
 
 
-def test_buffered_ui_stream_to_parent_prefixes_and_feeds_activity():
-    """stream_to_parent bypasses the buffer, prefixes each non-empty line, and
-    routes to the activity registry when an id is set."""
+def test_buffered_ui_stream_to_parent_routes_into_own_buffer():
+    """stream_to_parent no longer bypasses straight to the parent UI -- that
+    was the noise-in-main bug (interim status notices leaking sub-agent
+    chatter into the main transcript). It now lands in this sub-agent's own
+    buffer (visible on demand, via get_buffered_output/entering its live
+    view) and still feeds the activity registry, but must not touch the
+    wrapped parent UI at all."""
     mock_wrapped = MagicMock()
     ui = BufferedUI(mock_wrapped, prefix="[AGENT] ")
     ui.set_activity_id("agent-xyz")
@@ -187,9 +211,34 @@ def test_buffered_ui_stream_to_parent_prefixes_and_feeds_activity():
         ui.stream_to_parent("first\nsecond")
 
     reg.update.assert_called_once()
-    mock_wrapped.append_to_output.assert_called_once()
-    streamed = mock_wrapped.append_to_output.call_args[0][0]
-    assert "[AGENT] first" in streamed
-    assert "[AGENT] second" in streamed
-    # Streaming is immediate: nothing was left in the buffer.
-    assert ui.get_buffered_output() == ""
+    mock_wrapped.append_to_output.assert_not_called()
+    assert ui.get_buffered_output() == "first\nsecond\n"
+
+
+def test_buffered_ui_passes_its_session_id_to_activity_updates():
+    """Item 4, Phase D: the session that started this delegation must scope
+    every activity-registry update, so a process hosting multiple sessions
+    doesn't bleed one session's activity into another's."""
+    mock_wrapped = MagicMock()
+    ui = BufferedUI(mock_wrapped, session_id="session-42")
+    ui.set_activity_id("agent-123")
+
+    with patch("zrb.llm.ui.buffered_ui.agent_activity_registry") as reg:
+        ui.append_to_output("line")
+        ui.stream_to_parent("status")
+
+    assert reg.update.call_args_list[0].kwargs["session_id"] == "session-42"
+    assert reg.update.call_args_list[1].kwargs["session_id"] == "session-42"
+
+
+def test_buffered_ui_defaults_to_empty_session_id():
+    """No session_id passed -> default bucket, matching the pre-Phase-D
+    single-session behavior every existing caller relies on."""
+    mock_wrapped = MagicMock()
+    ui = BufferedUI(mock_wrapped)
+    ui.set_activity_id("agent-123")
+
+    with patch("zrb.llm.ui.buffered_ui.agent_activity_registry") as reg:
+        ui.append_to_output("line")
+
+    assert reg.update.call_args.kwargs["session_id"] == ""

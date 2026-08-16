@@ -25,6 +25,14 @@ from typing import NamedTuple
 
 logger = logging.getLogger(__name__)
 
+# A shadow-repo git command is normally milliseconds, but "normally fast" was
+# exactly the assumption behind a prior incident (an unbounded network call
+# that froze the whole TUI on a stall) — a local git process can still hang
+# on lock contention, a corrupted repo, or a slow disk. Every subprocess.run
+# in this module gets this bound so a stall here is a bounded wait, not a
+# silent, unrecoverable freeze.
+_GIT_TIMEOUT_SECONDS = 30
+
 
 class Snapshot(NamedTuple):
     sha: str
@@ -150,6 +158,7 @@ class SnapshotManager:
                 cwd=self._shadow_dir,
                 capture_output=True,
                 text=True,
+                timeout=_GIT_TIMEOUT_SECONDS,
             )
             if result.returncode != 0:
                 return []
@@ -208,6 +217,7 @@ class SnapshotManager:
             ["git", "diff", "--cached", "--quiet"],
             cwd=self._shadow_dir,
             capture_output=True,
+            timeout=_GIT_TIMEOUT_SECONDS,
         )
         if result.returncode == 0:
             if allow_empty:
@@ -259,6 +269,7 @@ def _head_mc(git_dir: str) -> int | None:
             capture_output=True,
             text=True,
             check=True,
+            timeout=_GIT_TIMEOUT_SECONDS,
         )
         _, mc = _parse_commit_message(result.stdout.strip())
         return mc
@@ -274,6 +285,7 @@ def _head_sha(git_dir: str) -> str | None:
             capture_output=True,
             text=True,
             check=True,
+            timeout=_GIT_TIMEOUT_SECONDS,
         )
         return result.stdout.strip()
     except Exception:
@@ -281,7 +293,13 @@ def _head_sha(git_dir: str) -> str | None:
 
 
 def _git(cwd: str, args: list[str]):
-    subprocess.run(["git"] + args, cwd=cwd, check=True, capture_output=True)
+    subprocess.run(
+        ["git"] + args,
+        cwd=cwd,
+        check=True,
+        capture_output=True,
+        timeout=_GIT_TIMEOUT_SECONDS,
+    )
 
 
 def _prune_walk(dirs: list[str], exclude_git: bool, ignored: frozenset[str]) -> None:

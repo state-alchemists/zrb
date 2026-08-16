@@ -1,7 +1,9 @@
 """Tests for SnapshotManager — the shadow-git snapshot system for LLM /rewind."""
 
 import os
+import subprocess
 import tempfile
+from unittest.mock import patch
 
 import pytest
 
@@ -365,3 +367,58 @@ async def test_take_snapshot_force_empty_commit_when_message_count_advances(
     assert len(snapshots) == 2
     assert snapshots[0].message_count == 2
     assert snapshots[1].message_count == 1
+
+
+# ── every git subprocess call must be bounded ──
+#
+# A prior incident: an unbounded network call froze the whole TUI on a stall.
+# A local shadow-repo git command is far less likely to hang, but "far less
+# likely" was exactly the assumption that let the network case through
+# unbounded too — every subprocess.run in this module must carry a timeout,
+# so a stall here is a bounded wait, never a silent, permanent freeze.
+
+
+# Captured before any patching, so the wrapper below calls the *real*
+# subprocess.run rather than recursing into its own patch — `patch(
+# "zrb.llm.snapshot.manager.subprocess.run", ...)` replaces `run` on the
+# actual `subprocess` module object (manager.py's `import subprocess` is that
+# same module, not a copy), so a wrapper that calls `subprocess.run` by name
+# after patching calls *itself*, infinitely, silently swallowed by the
+# manager's own `except Exception` handlers as a `RecursionError` — the git
+# commands then never actually run, and the test would pass for the wrong
+# reason (a same-value recursive echo) without checking anything real. An
+# earlier version of this test had exactly that bug.
+_real_subprocess_run = subprocess.run
+
+
+def _run_records_timeout(*args, **kwargs):
+    """Delegate to the real (pre-patch) subprocess.run so git genuinely
+    runs, while recording whether a timeout was passed."""
+    _run_records_timeout.calls.append(kwargs.get("timeout"))
+    return _real_subprocess_run(*args, **kwargs)
+
+
+_run_records_timeout.calls = []
+
+
+@pytest.mark.asyncio
+async def test_every_git_subprocess_call_has_a_timeout(manager, workdir):
+    _run_records_timeout.calls.clear()
+    with patch(
+        "zrb.llm.snapshot.manager.subprocess.run",
+        side_effect=_run_records_timeout,
+    ):
+        with open(os.path.join(workdir, "a.txt"), "w") as f:
+            f.write("a")
+        sha = await manager.take_snapshot("first", message_count=1)
+        snapshots = manager.list_snapshots()
+
+    # Confirm git actually ran end-to-end (not swallowed as a recursion
+    # error) -- a broken wrapper recursing into itself would still populate
+    # `calls`, just without ever producing a real commit.
+    assert sha is not None
+    assert len(snapshots) == 1
+    assert _run_records_timeout.calls  # sanity: at least one call recorded
+    assert all(
+        t is not None for t in _run_records_timeout.calls
+    ), "every subprocess.run must pass timeout= -- found a call without one"

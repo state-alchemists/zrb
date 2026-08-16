@@ -86,6 +86,37 @@ class TestProperties:
         task.sandbox = policy
         assert task.sandbox is policy
 
+    def test_prompt_manager_setter_replaces_wholesale(self):
+        """Item 4, Phase D: swapping a running task's persona (e.g. the CLI
+        TUI's /load on a delegated sub-agent session) needs to replace the
+        whole PromptManager, not just mutate its model."""
+        from zrb.llm.prompt.manager import PromptManager
+
+        task = LLMTask(name="test-task")
+        original = task.prompt_manager
+        replacement = PromptManager(prompts=["persona body"], include_sections=[])
+        task.prompt_manager = replacement
+        assert task.prompt_manager is replacement
+        assert task.prompt_manager is not original
+
+    def test_tools_getter_and_setter_replace_wholesale(self):
+        """append_tool only grows the list; the setter is the reset a persona
+        swap needs so the previous persona's tools don't linger."""
+        tool_a, tool_b = MagicMock(), MagicMock()
+        task = LLMTask(name="test-task", tools=[tool_a])
+        assert task.tools == [tool_a]
+        task.tools = [tool_b]
+        assert task.tools == [tool_b]
+        assert tool_a not in task.get_all_tools(MagicMock())
+
+    def test_toolsets_getter_and_setter_replace_wholesale(self):
+        toolset_a, toolset_b = MagicMock(), MagicMock()
+        task = LLMTask(name="test-task", toolsets=[toolset_a])
+        assert task.toolsets == [toolset_a]
+        task.toolsets = [toolset_b]
+        assert task.toolsets == [toolset_b]
+        assert toolset_a not in task.get_all_toolsets(MagicMock())
+
 
 class TestRegistration:
     def test_append_tool_and_get_all_tools(self):

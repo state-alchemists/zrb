@@ -13,6 +13,35 @@ def mock_history_manager():
         yield
 
 
+class TestParseDelegatedSession:
+    """`parse_delegated_session`: recognizes the delegate.py naming shape."""
+
+    def test_ordinary_name_returns_none(self):
+        from zrb.runner.chat.chat_session_manager import parse_delegated_session
+
+        assert parse_delegated_session("my-project-chat") is None
+
+    def test_delegated_name_extracts_parent_and_agent(self):
+        from zrb.runner.chat.chat_session_manager import parse_delegated_session
+
+        result = parse_delegated_session("sess1-sub-researcher-deadbeef")
+        assert result == ("sess1", "researcher")
+
+    def test_hyphenated_agent_name_still_parses(self):
+        """agent names like 'code-reviewer' must not confuse the greedy match."""
+        from zrb.runner.chat.chat_session_manager import parse_delegated_session
+
+        result = parse_delegated_session("my-sess-sub-code-reviewer-0123abcd")
+        assert result == ("my-sess", "code-reviewer")
+
+    def test_short_id_suffix_does_not_match(self):
+        """The agent_id suffix must be exactly 8 hex chars, matching
+        `uuid.uuid4().hex[:8]` — a shorter/longer tail is not this shape."""
+        from zrb.runner.chat.chat_session_manager import parse_delegated_session
+
+        assert parse_delegated_session("sess1-sub-researcher-abc") is None
+
+
 class TestChatSession:
     def test_chat_session_creation(self):
         from zrb.runner.chat.chat_session_manager import ChatSession
@@ -110,6 +139,45 @@ class TestChatSessionManager:
         manager = await ChatSessionManager.get_instance()
         removed = await manager.remove_session("nonexistent")
         assert removed is False
+
+    @pytest.mark.asyncio
+    async def test_remove_session_clears_its_activity_registry_bucket(self):
+        """Removing a session must not leave its (now-empty) activity bucket
+        behind in agent_activity_registry -- one dict entry per session_id
+        ever seen would otherwise accumulate for the process's life."""
+        from zrb.llm.agent.activity import agent_activity_registry
+        from zrb.runner.chat.chat_session_manager import ChatSessionManager
+
+        manager = await ChatSessionManager.get_instance()
+        before = agent_activity_registry.tracked_session_count()
+        await manager.create_session(session_id="leak-test")
+        agent_activity_registry.start("agent-1", "researcher", session_id="leak-test")
+        agent_activity_registry.finish("agent-1", session_id="leak-test")
+        assert agent_activity_registry.tracked_session_count() == before + 1
+
+        await manager.remove_session("leak-test")
+
+        assert agent_activity_registry.tracked_session_count() == before
+
+    @pytest.mark.asyncio
+    async def test_remove_session_clears_its_live_subagent_session_bucket(self):
+        """Same leak, same fix, for the "talk to a running sub-agent
+        directly" registry (live_session.py) -- it must not outlive session
+        teardown either."""
+        from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
+        from zrb.runner.chat.chat_session_manager import ChatSessionManager
+
+        manager = await ChatSessionManager.get_instance()
+        before = live_subagent_session_registry.tracked_session_count()
+        await manager.create_session(session_id="live-leak-test")
+        live_subagent_session_registry.add_session(
+            "live-leak-test", "agent-1", "researcher", MagicMock(), MagicMock()
+        )
+        assert live_subagent_session_registry.tracked_session_count() == before + 1
+
+        await manager.remove_session("live-leak-test")
+
+        assert live_subagent_session_registry.tracked_session_count() == before
 
     @pytest.mark.asyncio
     async def test_broadcast(self):
@@ -345,6 +413,115 @@ class TestChatSessionManager:
                 sessions = manager.get_sessions()
                 # Should include the session from history
                 assert any(s["session_name"] == "test-session" for s in sessions)
+            finally:
+                manager.set_history_manager(original_hm)
+
+    def test_get_sessions_marks_ordinary_session_as_not_delegated(self, tmp_path):
+        """A plain session name must carry `parent_session_id`/`agent_name`
+        as None — it's not a delegated sub-agent transcript."""
+        from zrb.llm.history_manager.file_history_manager import FileHistoryManager
+        from zrb.runner.chat.chat_session_manager import ChatSessionManager
+
+        manager = ChatSessionManager.get_instance_sync()
+
+        history_dir = tmp_path / "history"
+        history_dir.mkdir()
+        (history_dir / "test-session-2024-01-15-10-30.json").write_text("[]")
+
+        with (
+            patch("zrb.runner.chat.chat_session_manager.CFG") as mock_cfg,
+            patch("os.path.getmtime", return_value=123456789.0),
+        ):
+            mock_cfg.LLM_HISTORY_DIR = str(history_dir)
+            mock_cfg.WEB_SESSION_PAGE_SIZE = 10
+
+            original_hm = manager.history_manager
+            manager.set_history_manager(
+                FileHistoryManager(history_dir=str(history_dir))
+            )
+
+            try:
+                sessions = manager.get_sessions()
+                entry = next(s for s in sessions if s["session_name"] == "test-session")
+                assert entry["parent_session_id"] is None
+                assert entry["agent_name"] is None
+            finally:
+                manager.set_history_manager(original_hm)
+
+    def test_get_sessions_parses_delegated_subagent_session_name(self, tmp_path):
+        """A persisted sub-agent transcript (Item 4, Phase A naming:
+        `{parent}-sub-{agent_name}-{agent_id}`, stored under
+        `subagent/{agent_type}/`) must surface its parent session and agent
+        name in the listing, with zero new registry."""
+        from zrb.llm.history_manager.file_history_manager import FileHistoryManager
+        from zrb.runner.chat.chat_session_manager import ChatSessionManager
+
+        manager = ChatSessionManager.get_instance_sync()
+
+        history_dir = tmp_path / "history"
+        history_dir.mkdir()
+        subdir = history_dir / "subagent" / "code-reviewer"
+        subdir.mkdir(parents=True)
+        (subdir / "sess1-sub-code-reviewer-a1b2c3d4.json").write_text("[]")
+
+        with (
+            patch("zrb.runner.chat.chat_session_manager.CFG") as mock_cfg,
+            patch("os.path.getmtime", return_value=123456789.0),
+        ):
+            mock_cfg.LLM_HISTORY_DIR = str(history_dir)
+            mock_cfg.WEB_SESSION_PAGE_SIZE = 10
+
+            original_hm = manager.history_manager
+            manager.set_history_manager(
+                FileHistoryManager(history_dir=str(history_dir))
+            )
+
+            try:
+                sessions = manager.get_sessions()
+                entry = next(
+                    s
+                    for s in sessions
+                    if s["session_name"] == "sess1-sub-code-reviewer-a1b2c3d4"
+                )
+                assert entry["parent_session_id"] == "sess1"
+                assert entry["agent_name"] == "code-reviewer"
+                assert entry["is_active"] is False
+            finally:
+                manager.set_history_manager(original_hm)
+
+    def test_get_sessions_lists_legacy_flat_delegated_transcripts(self, tmp_path):
+        """Delegated transcripts written before the `subagent/{agent_type}/`
+        layout (flat in the history root) still appear in the listing."""
+        from zrb.llm.history_manager.file_history_manager import FileHistoryManager
+        from zrb.runner.chat.chat_session_manager import ChatSessionManager
+
+        manager = ChatSessionManager.get_instance_sync()
+
+        history_dir = tmp_path / "history"
+        history_dir.mkdir()
+        (history_dir / "sess1-sub-researcher-a1b2c3d4.json").write_text("[]")
+
+        with (
+            patch("zrb.runner.chat.chat_session_manager.CFG") as mock_cfg,
+            patch("os.path.getmtime", return_value=123456789.0),
+        ):
+            mock_cfg.LLM_HISTORY_DIR = str(history_dir)
+            mock_cfg.WEB_SESSION_PAGE_SIZE = 10
+
+            original_hm = manager.history_manager
+            manager.set_history_manager(
+                FileHistoryManager(history_dir=str(history_dir))
+            )
+
+            try:
+                sessions = manager.get_sessions()
+                entry = next(
+                    s
+                    for s in sessions
+                    if s["session_name"] == "sess1-sub-researcher-a1b2c3d4"
+                )
+                assert entry["parent_session_id"] == "sess1"
+                assert entry["agent_name"] == "researcher"
             finally:
                 manager.set_history_manager(original_hm)
 

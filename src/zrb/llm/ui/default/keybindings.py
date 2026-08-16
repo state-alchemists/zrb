@@ -47,6 +47,13 @@ class UIKeybindings:
         _input_field: Any
         _output_field: Any
 
+        # From UIAgentPicker
+        _viewing_agent_id: str | None
+
+        def exit_agent_view(self) -> None: ...
+
+        def cancel_viewed_agent(self) -> bool: ...
+
         # From BaseUICommands
         def classify_input(self, text: str) -> str: ...
 
@@ -100,6 +107,12 @@ class UIKeybindings:
         # app-level handlers so they don't double-fire / resolve with stale text.
         no_active_choice = Condition(
             lambda: not getattr(self, "has_active_choice", lambda: False)()
+        )
+
+        # While the output pane shows a sub-agent's live view, Left returns to
+        # the main session (navigation, never cancels the sub-agent's work).
+        viewing_sub_agent = Condition(
+            lambda: getattr(self, "_viewing_agent_id", None) is not None
         )
 
         # Ctrl+K toggles focus between the input and output panes. The
@@ -218,6 +231,13 @@ class UIKeybindings:
 
         @app_keybindings.add("escape")
         def _(event):
+            # While viewing a sub-agent, Esc cancels what the sub-agent is
+            # doing (mirroring the main agent's Esc) — it never leaves the
+            # view (Left does that) and never touches the main task.
+            if getattr(self, "_viewing_agent_id", None) is not None:
+                self._cancel_pending_confirmations()
+                self.cancel_viewed_agent()
+                return
             self._cancel_pending_confirmations()
             if self._running_llm_task and not self._running_llm_task.done():
                 self._running_llm_task.cancel()
@@ -229,6 +249,14 @@ class UIKeybindings:
                     },
                 )
                 self.append_to_output("\n<Esc> Canceled")
+
+        @app_keybindings.add("left", filter=viewing_sub_agent)
+        def _(event):
+            # Left while the output pane shows a sub-agent returns to the main
+            # session. Filtered so Left still moves the text cursor in the
+            # input field everywhere else (the app-level binding only matches
+            # while `_viewing_agent_id` is set).
+            self.exit_agent_view()
 
         @app_keybindings.add("enter", filter=no_active_choice)
         def _(event):
@@ -414,6 +442,37 @@ class UIKeybindings:
         buff = event.current_buffer
         text = buff.text
         if not text.strip():
+            return
+
+        # While viewing a sub-agent every Enter is a message to it — never a
+        # /command for the main session.
+        viewing_agent_id = getattr(self, "_viewing_agent_id", None)
+        if viewing_agent_id is not None:
+            session_id = self._conversation_session_name
+            agent_id = viewing_agent_id
+            message = text
+            buff.reset()
+
+            async def _send_to_sub_agent():
+                # lazy: transitively heavy via internal — live_session.py
+                # imports run_agent (zrb.llm.agent.run.runner), which pulls
+                # in pydantic_ai.
+                from zrb.llm.agent.subagent.live_session import (
+                    live_subagent_session_registry,
+                )
+
+                await live_subagent_session_registry.send_message(
+                    session_id, agent_id, message
+                )
+                # Echo the user's message into the sub-agent's own buffer so
+                # its live view reads as a conversation.
+                entry = live_subagent_session_registry.get(session_id, agent_id)
+                if entry is not None:
+                    entry.buffered_ui.append_to_output(f"\n💬 {message.strip()}\n")
+
+            task = asyncio.create_task(_send_to_sub_agent())
+            self._background_tasks.add(task)
+            task.add_done_callback(self._background_tasks.discard)
             return
 
         # Route by recognition, not by "/" prefix — command tokens are

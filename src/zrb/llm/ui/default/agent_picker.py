@@ -1,0 +1,309 @@
+"""Sub-agent picker and live-view state for the default `UI`.
+
+The "talk to a running sub-agent directly" feature: press Down Arrow with an
+empty input field to open a picker listing every live (running or just-finished)
+sub-agent session tracked by `live_subagent_session_registry`; pick one with
+Enter to switch the output pane to that sub-agent's own buffered transcript and
+route typed messages to it. While viewing, Left Arrow returns to the main
+session (navigation — it never touches the sub-agent's work); Esc cancels what
+the sub-agent is doing, mirroring how Esc behaves on the main agent.
+
+State lives in two places on the composed `UI`:
+
+* `_picker_sessions` / `_picker_cursor` / `_agent_picker_window` — the picker
+  widget itself (a focusable `Window` shown as a `Float`, same approach as
+  `UISelection`; no nested `Application`).
+* `_viewing_agent_id` / `_saved_main_output` — the live view. While viewing, the
+  output pane is a redraw-time snapshot of the sub-agent's buffer (see
+  `sync_output_to_viewed_agent`), the main transcript is parked in
+  `_saved_main_output`, and Enter routes to the sub-agent instead of the main
+  session (see `UIKeybindings._handle_enter_dispatch`).
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
+from zrb.llm.agent.activity import agent_activity_registry
+from zrb.util.truncate import truncate_display
+
+if TYPE_CHECKING:
+    from prompt_toolkit.formatted_text import StyleAndTextTuples
+
+    from zrb.llm.agent.subagent.live_session import LiveSubAgentSession
+
+
+class UIAgentPicker:
+    """Sub-agent picker + live-view state (part of the default `UI`)."""
+
+    # Host-class contract: state owned by `BaseUI.__init__` and the default
+    # `UI.__init__` (prompt-toolkit widgets), plus methods from sibling parts.
+    # Declared here so static type checkers can verify accesses; the block
+    # does not run at runtime.
+    if TYPE_CHECKING:
+        # From BaseUI / default `UI`
+        _input_field: Any
+        _conversation_session_name: str
+
+        # From UIOutput
+        @property
+        def output_text(self) -> str: ...
+
+        def _set_output_text(self, text: str) -> None: ...
+
+    def _init_agent_picker_state(self) -> None:
+        """Initialize the picker widget and the live-view state (hidden)."""
+        self._viewing_agent_id: str | None = None
+        self._saved_main_output: str | None = None
+        self._picker_sessions: list = []
+        self._picker_cursor: int = 0
+        self._agent_picker_window = self._create_agent_picker_window()
+
+    def has_active_agent_picker(self) -> bool:
+        """Whether the sub-agent picker is currently being shown (public API)."""
+        return bool(self._picker_sessions)
+
+    @property
+    def viewing_agent_id(self) -> str | None:
+        """The sub-agent the output pane currently shows, if any."""
+        return self._viewing_agent_id
+
+    def open_agent_picker(self) -> bool:
+        """Show the picker when this session has tracked sub-agents.
+
+        Returns ``False`` (leaving the Down Arrow free for history recall)
+        when nothing is trackable. Called from ``UIMessageEditing._handle_down_arrow``.
+        """
+        # lazy: transitively heavy via internal — live_session.py imports
+        # run_agent (zrb.llm.agent.run.runner), which pulls in pydantic_ai.
+        from zrb.llm.agent.subagent.live_session import (
+            live_subagent_session_registry,
+        )
+
+        sessions = live_subagent_session_registry.active(
+            self._conversation_session_name
+        )
+        if not sessions:
+            return False
+        self._picker_sessions = list(sessions)
+        self._picker_cursor = 0
+        try:
+            # lazy: heavy third-party
+            from prompt_toolkit.application import get_app
+
+            get_app().layout.focus(self._agent_picker_window)
+        except Exception:
+            # Layout not ready (e.g. before first render) — focus on next paint.
+            pass
+        self._invalidate()
+        return True
+
+    def close_agent_picker(self) -> None:
+        """Dismiss the picker without entering any view (public API)."""
+        if not self._picker_sessions:
+            return
+        self._picker_sessions = []
+        self._picker_cursor = 0
+        try:
+            # lazy: heavy third-party
+            from prompt_toolkit.application import get_app
+
+            get_app().layout.focus(self._input_field)
+        except Exception:
+            # Layout not ready — focus on next paint.
+            pass
+        self._invalidate()
+
+    def move_agent_picker_cursor(self, delta: int) -> None:
+        """Move the picker cursor by `delta`, clamped (public API)."""
+        if not self._picker_sessions:
+            return
+        count = len(self._picker_sessions)
+        self._picker_cursor = max(0, min(count - 1, self._picker_cursor + delta))
+        self._invalidate()
+
+    def confirm_agent_picker(self) -> bool:
+        """Enter the highlighted sub-agent's live view (public API).
+
+        Returns ``False`` when the picker is not active; ``True`` after
+        switching (or when already viewing that agent).
+        """
+        if not self._picker_sessions:
+            return False
+        session = self._picker_sessions[self._picker_cursor]
+        self.enter_agent_view(session)
+        self.close_agent_picker()
+        return True
+
+    def enter_agent_view(self, session: "LiveSubAgentSession") -> None:
+        """Switch the output pane to `session`'s buffered transcript.
+
+        Parks the main transcript (the output pane's current text) so Left can
+        restore it exactly, then syncs the pane to the sub-agent's buffer.
+        """
+        if self._viewing_agent_id == session.agent_id:
+            return
+        self._saved_main_output = self.output_text
+        self._viewing_agent_id = session.agent_id
+        self._show_viewed_agent_output(session.buffered_ui.get_buffered_output())
+
+    def exit_agent_view(self) -> None:
+        """Return the output pane to the main transcript (Left while viewing)."""
+        if self._viewing_agent_id is None:
+            return
+        self._viewing_agent_id = None
+        if self._saved_main_output is not None:
+            self._set_output_text(self._saved_main_output)
+            self._saved_main_output = None
+        self._invalidate()
+
+    def cancel_viewed_agent(self) -> bool:
+        """Cancel what the viewed sub-agent is doing (Esc while viewing).
+
+        Mirrors the main agent's Esc: it stops the sub-agent's in-flight work
+        and drops its queued messages — it does *not* leave the view (Left
+        does that). Returns ``False`` when not viewing or when the sub-agent
+        had nothing in flight to cancel. On success, a ``<Esc> Canceled`` note
+        lands in the sub-agent's own buffer so its live view reflects it.
+        """
+        if self._viewing_agent_id is None:
+            return False
+        # lazy: transitively heavy via internal — live_session.py imports
+        # run_agent (zrb.llm.agent.run.runner), which pulls in pydantic_ai.
+        from zrb.llm.agent.subagent.live_session import (
+            live_subagent_session_registry,
+        )
+
+        session_id = self._conversation_session_name
+        agent_id = self._viewing_agent_id
+        if not live_subagent_session_registry.cancel(session_id, agent_id):
+            return False
+        entry = live_subagent_session_registry.get(session_id, agent_id)
+        if entry is not None:
+            entry.buffered_ui.append_to_output("\n<Esc> Canceled\n")
+        self._invalidate()
+        return True
+
+    def sync_output_to_viewed_agent(self) -> None:
+        """Copy the viewed sub-agent's buffered output into the output pane.
+
+        Called from the app's after-render hook (the periodic
+        ``LLM_UI_REFRESH_INTERVAL`` redraw) while `_viewing_agent_id` is set.
+        No-op when the content is unchanged, so a quiet sub-agent does not
+        re-invalidate the app forever.
+        """
+        if self._viewing_agent_id is None:
+            return
+        # lazy: transitively heavy via internal — live_session.py imports
+        # run_agent (zrb.llm.agent.run.runner), which pulls in pydantic_ai.
+        from zrb.llm.agent.subagent.live_session import (
+            live_subagent_session_registry,
+        )
+
+        session = live_subagent_session_registry.get(
+            self._conversation_session_name, self._viewing_agent_id
+        )
+        if session is None:
+            # The session was torn down while we were viewing it — return to main.
+            self.exit_agent_view()
+            return
+        self._show_viewed_agent_output(session.buffered_ui.get_buffered_output())
+
+    def _show_viewed_agent_output(self, content: str) -> None:
+        if content == self.output_text:
+            return
+        self._set_output_text(content)
+
+    # --- widget construction --------------------------------------------
+
+    def _create_agent_picker_window(self) -> Any:
+        # lazy: heavy third-party
+        from prompt_toolkit.key_binding import KeyBindings
+        from prompt_toolkit.layout import Window
+        from prompt_toolkit.layout.controls import FormattedTextControl
+
+        kb = KeyBindings()
+
+        @kb.add("up")
+        def _(event):
+            self.move_agent_picker_cursor(-1)
+
+        @kb.add("down")
+        def _(event):
+            self.move_agent_picker_cursor(1)
+
+        @kb.add("enter")
+        def _(event):
+            self.confirm_agent_picker()
+
+        @kb.add("escape")
+        def _(event):
+            self.close_agent_picker()
+
+        control = FormattedTextControl(
+            self._get_agent_picker_text, focusable=True, key_bindings=kb
+        )
+        return Window(
+            content=control, style="class:agent-picker", dont_extend_height=True
+        )
+
+    # --- rendering -------------------------------------------------------
+
+    def _get_agent_picker_text(self) -> "StyleAndTextTuples":
+        if not self._picker_sessions:
+            return []
+        activity = agent_activity_registry.active(
+            session_id=self._conversation_session_name
+        )
+        by_id = {entry.agent_id: entry for entry in activity}
+        frags: StyleAndTextTuples = [
+            ("class:agent-picker.question bold", " Select a sub-agent to talk to\n")
+        ]
+        for i, session in enumerate(self._picker_sessions):
+            frags += self._render_picker_row(i, session, by_id.get(session.agent_id))
+        frags.append(
+            ("class:agent-picker.hint", "\n ↑/↓ move · enter talk · esc cancel\n")
+        )
+        return frags
+
+    def _render_picker_row(
+        self,
+        i: int,
+        session: "LiveSubAgentSession",
+        activity_entry: Any,
+    ) -> "StyleAndTextTuples":
+        cursor = "❯ " if i == self._picker_cursor else "  "
+        style = (
+            "class:agent-picker.selected"
+            if i == self._picker_cursor
+            else "class:agent-picker.option"
+        )
+        running = activity_entry is not None
+        if running:
+            label = f"{session.agent_name} #{activity_entry.ordinal}"
+        else:
+            label = session.agent_name
+        state = "running" if running else "finished"
+        row: StyleAndTextTuples = [(style, f" {cursor}{label}")]
+        if running and activity_entry.task:
+            row.append(
+                (
+                    "class:agent-picker.desc",
+                    f"  — {truncate_display(activity_entry.task, 50)}",
+                )
+            )
+        row.append((style, f" [{state}]"))
+        row.append((style, "\n"))
+        return row
+
+    # --- helpers ---------------------------------------------------------
+
+    def _invalidate(self) -> None:
+        try:
+            # lazy: heavy third-party
+            from prompt_toolkit.application import get_app
+
+            get_app().invalidate()
+        except Exception:
+            # No active app to repaint — safe to ignore.
+            pass

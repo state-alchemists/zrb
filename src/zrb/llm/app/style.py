@@ -36,5 +36,14 @@ def create_style() -> Style:
             "choice.option": f"bg:{choice_bg}",
             "choice.desc": f"bg:{choice_bg} {faint}",
             "choice.hint": f"bg:{choice_bg} {faint}",
+            # Sub-agent picker (UIAgentPicker). Same panel look, reusing the
+            # same CFG style knobs — no new config for a cosmetic sibling.
+            "agent-picker-frame": f"bg:{choice_bg} {CFG.LLM_UI_STYLE_INPUT_FRAME}",
+            "agent-picker": f"bg:{choice_bg}",
+            "agent-picker.question": f"bg:{choice_bg} bold",
+            "agent-picker.selected": f"bg:{choice_selected_bg} {text} bold",
+            "agent-picker.option": f"bg:{choice_bg}",
+            "agent-picker.desc": f"bg:{choice_bg} {faint}",
+            "agent-picker.hint": f"bg:{choice_bg} {faint}",
         }
     )

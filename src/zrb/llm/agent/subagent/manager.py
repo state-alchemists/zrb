@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -22,6 +23,19 @@ if TYPE_CHECKING:
     from pydantic_ai import Agent, Tool
     from pydantic_ai.tools import ToolFuncEither
     from pydantic_ai.toolsets import AbstractToolset
+
+    from zrb.llm.task.chat.task import LLMChatTask
+
+
+@dataclass
+class _ResolvedAgentBuild:
+    """Shared build inputs for `create_agent`/`create_llm_chat_task`."""
+
+    model: Any
+    system_prompt: str
+    tools: list
+    toolsets: list
+    yolo: "bool | Callable[..., bool]"
 
 
 # Claude Code names its shell tool ``Bash``; zrb ships a single ``Shell`` tool.
@@ -236,8 +250,88 @@ class SubAgentManager(SubAgentManagerLoading, SubAgentManagerSearch):
             except Exception as e:
                 CFG.LOGGER.debug(f"Sub-agent factory '{name}' failed: {e}")
 
-        if ctx is None:
+        resolved = self.resolve_agent_build(definition, ctx, yolo)
 
+        # resolve_model=False: resolved.model was already resolved (so section
+        # factories could use it). Re-resolving inside create_agent would
+        # double-fire model_getter/model_renderer.
+        return create_agent(
+            model=resolved.model,
+            system_prompt=resolved.system_prompt,
+            tools=resolved.tools,
+            toolsets=resolved.toolsets,
+            history_processors=[create_summarizer_history_processor()],
+            yolo=resolved.yolo,
+            resolve_model=False,
+        )
+
+    def create_llm_chat_task(
+        self, name: str, ctx: AnyContext | None = None
+    ) -> "LLMChatTask | None":
+        """Build an `LLMChatTask` driven by this sub-agent's persona.
+
+        Same system prompt / tool / model resolution as `create_agent`, but
+        wrapped in the zrb `Task` type the web chat runner needs (`.async_run`,
+        `.history_manager`, `.ui_factories`, ...) instead of a bare pydantic-ai
+        `Agent` — this is what lets a human resume/continue a delegated
+        session driven by the actual sub-agent, not the main agent (Item 4,
+        Phase C).
+
+        A definition built from `agent_instance`/`agent_factory` (a pre-built
+        pydantic-ai `Agent`, not a system_prompt/tools/model triple) has
+        nothing to re-derive a task's config from, so this returns `None` for
+        those — the minority case among sub-agent definitions.
+        """
+        definition = self.get_agent_definition(name)
+        if not definition or definition.agent_instance or definition.agent_factory:
+            return None
+
+        resolved = self.resolve_agent_build(definition, ctx, yolo=None)
+
+        # lazy: zrb.llm.task.chat.task transitively loads pydantic_ai,
+        # prompt_toolkit and the full chat-task machinery.
+        from zrb.llm.task.chat.task import LLMChatTask
+
+        return LLMChatTask(
+            name=f"resumed-{definition.name}",
+            description=definition.description,
+            system_prompt=resolved.system_prompt,
+            tools=resolved.tools,
+            toolsets=resolved.toolsets,
+            model=resolved.model,
+            # resolved.model is already final (default_llm_config.resolve_model
+            # ran above) — rendering it as a template would be wrong for a
+            # non-string Model instance and is a no-op-at-best for a plain
+            # model-id string, so skip it, mirroring create_agent's
+            # resolve_model=False.
+            render_model=False,
+            history_processors=[create_summarizer_history_processor()],
+            # These four mirror builtin/llm/chat.py's bindings exactly: the web
+            # chat runner (chat_session_runner.py) drives any llm_chat_task via
+            # a per-message SharedContext(input={...}), so the task must read
+            # its message/session/attachments/interactivity from ctx.input
+            # rather than from constructor defaults.
+            message="{ctx.input.message}",
+            conversation_name="{ctx.input.session}",
+            attachment=lambda ctx: [
+                path.strip() for path in ctx.input.attach.split(",") if path.strip()
+            ],
+            interactive="{ctx.input.interactive}",
+        )
+
+    def resolve_agent_build(
+        self,
+        definition: SubAgentDefinition,
+        ctx: AnyContext | None,
+        yolo: bool | None,
+    ) -> "_ResolvedAgentBuild":
+        """Shared resolution logic behind `create_agent`/`create_llm_chat_task`:
+        tools (registry + factories, minus delegate tools and disallowed
+        names), toolsets, resolved model, and the effective system prompt
+        (inherited sections + the definition's own body). Public — the CLI
+        TUI's persona-swap-on-`/load` (Item 4, Phase D) calls it directly,
+        outside this module, to mutate a running task's persona in place."""
+        if ctx is None:
             ctx = Context(
                 shared_ctx=SharedContext(),
                 task_name="sub-agent-task",
@@ -298,17 +392,12 @@ class SubAgentManager(SubAgentManagerLoading, SubAgentManagerSearch):
             parts.append(definition.system_prompt)
         effective_system_prompt = "\n\n".join(parts).strip()
 
-        # resolve_model=False: definition.model was already resolved into
-        # final_model above (so section factories could use it). Re-resolving
-        # inside create_agent would double-fire model_getter/model_renderer.
-        return create_agent(
+        return _ResolvedAgentBuild(
             model=final_model,
             system_prompt=effective_system_prompt,
             tools=resolved_tools,
             toolsets=resolved_toolsets,
-            history_processors=[create_summarizer_history_processor()],
             yolo=effective_yolo,
-            resolve_model=False,
         )
 
     def _build_inherited_prompt(
