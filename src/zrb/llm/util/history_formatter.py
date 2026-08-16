@@ -5,9 +5,9 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
+from zrb.llm.tool_call.args import parse_tool_args_value
 from zrb.llm.util.tool_args import (
     is_empty_tool_args,
-    parse_tool_args_dict,
     truncate_tool_args_values,
 )
 from zrb.util.truncate import truncate_display
@@ -309,7 +309,7 @@ def format_args(args, full: bool = False) -> str:
         args_clean = {k: v for k, v in args.items() if k != "dummy"}
         return _dump_truncated(args_clean, full=full)
     if isinstance(args, str):
-        parsed = parse_tool_args_dict(args)
+        parsed = parse_tool_args_value(args)
         if parsed is not None:
             return _dump_truncated(parsed, full=full)
         return args if full else truncate(args, 50)

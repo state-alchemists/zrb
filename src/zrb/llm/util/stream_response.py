@@ -1,9 +1,9 @@
 import time
 from typing import TYPE_CHECKING, Any, Callable, Literal
 
+from zrb.llm.tool_call.args import parse_tool_args_value
 from zrb.llm.util.tool_args import (
     is_empty_tool_args,
-    parse_tool_args_dict,
     truncate_tool_args_values,
 )
 
@@ -292,7 +292,7 @@ def _get_truncated_event_part_args(event: "AgentStreamEvent | ToolCallEvent") ->
     args = getattr(part, "args")
     if is_empty_tool_args(args):
         return {}
-    parsed = parse_tool_args_dict(args)
+    parsed = parse_tool_args_value(args)
     if parsed is not None:
         return truncate_tool_args_values(parsed)
     return args

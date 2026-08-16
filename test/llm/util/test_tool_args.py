@@ -3,7 +3,6 @@ history_formatter.py."""
 
 from zrb.llm.util.tool_args import (
     is_empty_tool_args,
-    parse_tool_args_dict,
     truncate_tool_args_values,
 )
 
@@ -29,23 +28,6 @@ class TestIsEmptyToolArgs:
 
     def test_non_empty_string_is_not_empty(self):
         assert is_empty_tool_args('{"key": "value"}') is False
-
-
-class TestParseToolArgsDict:
-    def test_dict_passes_through(self):
-        assert parse_tool_args_dict({"key": "value"}) == {"key": "value"}
-
-    def test_json_dict_string_parses(self):
-        assert parse_tool_args_dict('{"key": "value"}') == {"key": "value"}
-
-    def test_invalid_json_string_returns_none(self):
-        assert parse_tool_args_dict("not json") is None
-
-    def test_valid_json_non_dict_string_returns_none(self):
-        assert parse_tool_args_dict("[1, 2, 3]") is None
-
-    def test_non_string_non_dict_returns_none(self):
-        assert parse_tool_args_dict(12345) is None
 
 
 class TestTruncateToolArgsValues:
