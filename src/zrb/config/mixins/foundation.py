@@ -156,17 +156,12 @@ class FoundationMixin:
     ENABLE_BUILTIN_TASKS = EnvField(
         to_boolean,
         serialize=on_off,
-        aliases=["ENABLE_BUILTIN_TASKS", "LOAD_BUILTIN"],
         doc="Whether to load pre-packaged tasks (Git, UUID, base64, etc.).",
     )
 
     SHOW_UNRECOMMENDED_COMMAND_WARNING = EnvField(
         to_boolean,
         serialize=on_off,
-        aliases=[
-            "SHOW_UNRECOMMENDED_COMMAND_WARNING",
-            "WARN_UNRECOMMENDED_COMMAND",
-        ],
         doc="Show warnings for potentially unsafe shell commands.",
     )
 
@@ -227,7 +222,6 @@ class FoundationMixin:
     ENABLE_TIKTOKEN = EnvField(
         to_boolean,
         serialize=on_off,
-        aliases=["ENABLE_TIKTOKEN", "USE_TIKTOKEN"],
         doc="Whether to use tiktoken for token counting.",
     )
 

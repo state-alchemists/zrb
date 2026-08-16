@@ -80,8 +80,8 @@ class TestConfigSetters:
         assert os.environ["ZRB_LOGGING_LEVEL"] == "INFO"
 
     def test_enable_builtin_tasks_setter_true(self, monkeypatch):
-        # Renamed from LOAD_BUILTIN (ADR-0026) — the setter always writes the
-        # new env-var form, even though the old one is still readable.
+        # Renamed from LOAD_BUILTIN (ADR-0026) — clean break, old name is
+        # no longer read.
         config = Config()
         config.ENABLE_BUILTIN_TASKS = True
         assert os.environ["ZRB_ENABLE_BUILTIN_TASKS"] == "on"

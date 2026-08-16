@@ -44,8 +44,8 @@ Zrb can be heavily customized using environment variables. These control everyth
 | `ZRB_INIT_FILE_NAME` | Name of the task-definition file zrb auto-loads. On startup zrb walks from the current directory up to the filesystem root and loads every file with this name it finds. | `zrb_init.py` |
 | `ZRB_INIT_SCRIPTS` | Colon-separated Python script paths zrb runs on startup (in addition to the discovered `ZRB_INIT_FILE_NAME` files) to register task definitions | — |
 | `ZRB_INIT_MODULES` | Comma-separated importable module names zrb imports on startup so their task definitions register (colon-separated still accepted) | — |
-| `ZRB_ENABLE_BUILTIN_TASKS` | Whether to load pre-packaged tasks (Git, UUID, base64, etc.) (formerly `ZRB_LOAD_BUILTIN`, still accepted) | `on` |
-| `ZRB_SHOW_UNRECOMMENDED_COMMAND_WARNING` | Show warnings for potentially unsafe shell commands (formerly `ZRB_WARN_UNRECOMMENDED_COMMAND`, still accepted) | `on` (true) |
+| `ZRB_ENABLE_BUILTIN_TASKS` | Whether to load pre-packaged tasks (Git, UUID, base64, etc.) | `on` |
+| `ZRB_SHOW_UNRECOMMENDED_COMMAND_WARNING` | Show warnings for potentially unsafe shell commands | `on` (true) |
 | `ZRB_MCP_CONFIG_FILE` | Path to the MCP server config file | `mcp-config.json` |
 
 ---

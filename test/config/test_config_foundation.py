@@ -277,20 +277,25 @@ def test_get_log_level():
     assert get_log_level("INVALID") == logging.WARNING
 
 
-def test_enable_builtin_tasks_old_env_alias_still_works(monkeypatch):
+def test_enable_builtin_tasks_old_env_name_is_inert(monkeypatch):
     # LOAD_BUILTIN was renamed to ENABLE_BUILTIN_TASKS (ADR-0026 verb-first
-    # alignment) — the old ZRB_LOAD_BUILTIN env var must keep working.
+    # alignment) as a clean break in 2.64.0, pre-release — the old
+    # ZRB_LOAD_BUILTIN env var is no longer read; only ZRB_ENABLE_BUILTIN_TASKS
+    # is.
     monkeypatch.setenv("ZRB_LOAD_BUILTIN", "0")
+    monkeypatch.delenv("ZRB_ENABLE_BUILTIN_TASKS", raising=False)
     config = Config()
-    assert not config.ENABLE_BUILTIN_TASKS
+    assert config.ENABLE_BUILTIN_TASKS
 
 
-def test_show_unrecommended_command_warning_old_env_alias_still_works(monkeypatch):
+def test_show_unrecommended_command_warning_old_env_name_is_inert(monkeypatch):
     # WARN_UNRECOMMENDED_COMMAND was renamed to SHOW_UNRECOMMENDED_COMMAND_WARNING
-    # (ADR-0026 verb-first alignment) — the old env var must keep working.
+    # (ADR-0026 verb-first alignment) as a clean break in 2.64.0, pre-release —
+    # the old env var is no longer read.
     monkeypatch.setenv("ZRB_WARN_UNRECOMMENDED_COMMAND", "0")
+    monkeypatch.delenv("ZRB_SHOW_UNRECOMMENDED_COMMAND_WARNING", raising=False)
     config = Config()
-    assert not config.SHOW_UNRECOMMENDED_COMMAND_WARNING
+    assert config.SHOW_UNRECOMMENDED_COMMAND_WARNING
 
 
 @mock.patch("os.path.expanduser", return_value="/home/user/.zrb/session")
