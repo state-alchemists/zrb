@@ -358,3 +358,92 @@ def test_sub_agent_manager_inherit_sections_empty_list_means_opt_out():
         prompt = mock_create.call_args.kwargs["system_prompt"]
     assert "# Persona" not in prompt
     assert "Body only." in prompt
+
+
+# ── create_llm_chat_task: Item 4 Phase C (resume as the sub-agent persona) ──
+
+
+def test_create_llm_chat_task_returns_none_for_unknown_agent():
+    manager = SubAgentManager()
+    assert manager.create_llm_chat_task("nope") is None
+
+
+def test_create_llm_chat_task_returns_none_for_agent_instance_definition():
+    """A pre-built pydantic-ai Agent has no system_prompt/tools/model triple
+    to re-derive a task's config from."""
+    manager = SubAgentManager()
+    mock_agent = MagicMock()
+    manager.add_agent(
+        SubAgentDefinition(
+            name="inst-agent",
+            path=".",
+            description="d",
+            system_prompt="p",
+            agent_instance=mock_agent,
+        )
+    )
+    assert manager.create_llm_chat_task("inst-agent") is None
+
+
+def test_create_llm_chat_task_returns_none_for_agent_factory_definition():
+    manager = SubAgentManager()
+    manager.add_agent(
+        SubAgentDefinition(
+            name="fact-agent",
+            path=".",
+            description="d",
+            system_prompt="p",
+            agent_factory=lambda: MagicMock(),
+        )
+    )
+    assert manager.create_llm_chat_task("fact-agent") is None
+
+
+def test_create_llm_chat_task_builds_task_from_resolved_persona():
+    """The resolved system prompt / tools / model — the same resolution
+    `create_agent` uses — must reach the constructed LLMChatTask, so resuming
+    a delegated session talks to the actual sub-agent, not the main agent.
+
+    Uses a name that doesn't collide with any real *.agent.md on disk —
+    `get_agent_definition` triggers a real filesystem scan on first call
+    (`_ensure_loaded`), which would otherwise clobber a manually `add_agent`'d
+    stub sharing a name with a built-in agent (e.g. "researcher")."""
+    manager = SubAgentManager()
+
+    def stub_researcher_tool():
+        """A stub-researcher-only tool."""
+        return "ok"
+
+    def delegate_tool():
+        """A delegate tool, must never reach a sub-agent."""
+        return "nested"
+
+    delegate_tool.zrb_is_delegate_tool = True
+    manager.append_tool(stub_researcher_tool, delegate_tool)
+    manager.add_agent(
+        SubAgentDefinition(
+            name="stub-researcher",
+            path=".",
+            description="Research agent",
+            system_prompt="You are a stub researcher.",
+            tools=["stub_researcher_tool", "delegate_tool"],
+            model="test-model",
+        )
+    )
+
+    mock_task = MagicMock()
+    with (
+        patch("zrb.llm.task.chat.task.LLMChatTask", return_value=mock_task) as MockTask,
+        patch("zrb.llm.agent.subagent.manager.default_llm_config") as mock_llm_config,
+    ):
+        mock_llm_config.resolve_model.return_value = "resolved-test-model"
+        result = manager.create_llm_chat_task("stub-researcher")
+
+    assert result is mock_task
+    MockTask.assert_called_once()
+    call_kwargs = MockTask.call_args.kwargs
+    assert "You are a stub researcher." in call_kwargs["system_prompt"]
+    assert stub_researcher_tool in call_kwargs["tools"]
+    assert delegate_tool not in call_kwargs["tools"]
+    assert call_kwargs["model"] == "resolved-test-model"
+    assert call_kwargs["name"] == "resumed-stub-researcher"

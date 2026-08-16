@@ -5,8 +5,19 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from zrb.config.config import CFG
+from zrb.llm.agent.activity import agent_activity_registry
 from zrb.llm.history_manager.file_history_manager import FileHistoryManager
 from zrb.llm.prompt.live_context import split_live_context
+
+# Re-exported: existing callers (chat_api_route.py) and tests import
+# parse_delegated_session from this module; the definition itself lives in
+# subagent_session_naming.py, shared with delegate.py (which formats the
+# name) and the CLI TUI's persona-swap-on-/load (Phase D), without dragging
+# delegate.py's heavy transitive imports into the web session lister.
+from zrb.llm.util.subagent_session_naming import (
+    parse_delegated_session,
+    subagent_history_directories,
+)
 from zrb.util.string.name import get_random_name
 
 _timestamp_pattern = re.compile(r"-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}(?:-\d{2})?$")
@@ -104,7 +115,9 @@ class ChatSessionManager:
         Returns ``(base_name, newest_mtime, file_count)`` tuples, newest first.
         The history dir holds a main file per session plus every timestamped
         backup, so it grows fast — hence a single ``scandir`` pass with O(n)
-        grouping, which keeps listing cheap as the directory grows.
+        grouping, which keeps listing cheap as the directory grows. Delegated
+        sub-agent transcripts live under ``subagent/{agent_type}/`` and are
+        scanned there (the history root still counts legacy flat ones).
         """
         if not CFG.LLM_HISTORY_DIR:
             return []
@@ -112,22 +125,27 @@ class ChatSessionManager:
         if not os.path.isdir(history_dir):
             return []
         grouped: dict[str, list] = {}  # base -> [max_mtime, count]
-        with os.scandir(history_dir) as entries:
-            for entry in entries:
-                if not entry.name.endswith(".json"):
-                    continue
-                base_name = self._extract_base_name(entry.name[:-5])
-                try:
-                    mtime = entry.stat().st_mtime
-                except OSError:
-                    continue
-                slot = grouped.get(base_name)
-                if slot is None:
-                    grouped[base_name] = [mtime, 1]
-                else:
-                    if mtime > slot[0]:
-                        slot[0] = mtime
-                    slot[1] += 1
+        for directory in subagent_history_directories(history_dir):
+            try:
+                entries = os.scandir(directory)
+            except OSError:
+                continue
+            with entries:
+                for entry in entries:
+                    if not entry.name.endswith(".json"):
+                        continue
+                    base_name = self._extract_base_name(entry.name[:-5])
+                    try:
+                        mtime = entry.stat().st_mtime
+                    except OSError:
+                        continue
+                    slot = grouped.get(base_name)
+                    if slot is None:
+                        grouped[base_name] = [mtime, 1]
+                    else:
+                        if mtime > slot[0]:
+                            slot[0] = mtime
+                        slot[1] += 1
         ranked = [(base, mt, count) for base, (mt, count) in grouped.items()]
         ranked.sort(key=lambda item: item[1], reverse=True)
         return ranked
@@ -139,6 +157,10 @@ class ChatSessionManager:
         for base_name, _mtime, file_count in self._scan_sessions():
             seen.add(base_name)
             is_active = base_name in self._sessions
+            # Only ever classify a non-active (history-file-only) entry as a
+            # delegated sub-agent session — an active human ChatSession whose
+            # name happens to match the shape is still a real root session.
+            delegated = None if is_active else parse_delegated_session(base_name)
             listing.append(
                 {
                     "session_id": base_name,
@@ -148,9 +170,13 @@ class ChatSessionManager:
                         self._sessions[base_name].is_processing if is_active else False
                     ),
                     "message_count": file_count,
+                    "parent_session_id": delegated[0] if delegated else None,
+                    "agent_name": delegated[1] if delegated else None,
                 }
             )
         # Active sessions with no history file yet are the newest → put on top.
+        # Always a real (human-driven) session, never a delegated one — those
+        # only ever reach the listing through the history-file scan above.
         extras = [
             {
                 "session_id": session_id,
@@ -158,6 +184,8 @@ class ChatSessionManager:
                 "is_active": True,
                 "is_processing": session.is_processing,
                 "message_count": 0,
+                "parent_session_id": None,
+                "agent_name": None,
             }
             for session_id, session in self._sessions.items()
             if session_id not in seen
@@ -215,6 +243,20 @@ class ChatSessionManager:
                 except asyncio.CancelledError:
                     pass
             del self._sessions[session_id]
+            # Otherwise this session's (now-empty) activity bucket and
+            # counter outlive it in agent_activity_registry for the rest of
+            # the process's life — a per-session-id leak, one dict entry per
+            # session ever seen (Item 4, Phase D's session-scoping fix traded
+            # cross-session bleed for this; this closes it).
+            agent_activity_registry.clear(session_id=session_id)
+            # lazy: transitively heavy via internal — live_session.py imports
+            # run_agent (zrb.llm.agent.run.runner), which pulls in pydantic_ai;
+            # deferring keeps that off chat_session_manager's module-load path.
+            from zrb.llm.agent.subagent.live_session import (
+                live_subagent_session_registry,
+            )
+
+            live_subagent_session_registry.clear(session_id=session_id)
             return True
 
     def get_messages(self, session_id: str) -> list[dict[str, Any]]:

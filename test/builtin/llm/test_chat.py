@@ -5,10 +5,18 @@ schema and fan-out machinery never reach a ~3B model. Drive the public tool
 factory against the environment and assert on what it produces.
 """
 
-from unittest.mock import patch
+import asyncio
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from zrb.builtin.llm.chat import llm_chat
 from zrb.context.shared_context import SharedContext
+from zrb.llm.tool.delegate import AgentTaskResult
+from zrb.llm.tool.delegate_background import (
+    create_background_delegate_tool,
+    get_background_registry,
+)
 
 
 def _names(profile: str, model: str | None = None) -> list[str]:
@@ -41,3 +49,37 @@ def test_minimal_profile_registers_no_delegate_tools():
 
 def test_auto_profile_uses_the_run_model_for_delegate_registration():
     assert _names("auto", "ollama:qwen2.5:3b") == []
+
+
+@pytest.mark.asyncio
+async def test_background_delegation_notice_reaches_the_chat_live_context():
+    """The parent must learn a finished background delegation on its own next
+    turn, instead of relying on the model remembering to poll
+    GetDelegationResult — driven end-to-end through the same
+    ``prompt_manager`` the built-in chat task composes its prompt from."""
+
+    async def quick_task(*args, **kwargs):
+        return AgentTaskResult("agent", "ok", None)
+
+    delegate = create_background_delegate_tool(MagicMock())
+    try:
+        with (
+            patch(
+                "zrb.llm.tool.delegate_background._run_agent_task",
+                side_effect=quick_task,
+            ),
+            patch(
+                "zrb.llm.tool.delegate_background.get_current_ui",
+                return_value=MagicMock(),
+            ),
+        ):
+            msg = await delegate("agent", "deliver", "do it", [])
+            for _ in range(5):
+                await asyncio.sleep(0)
+
+        handle = msg.split("Handle:")[1].split(".")[0].strip()
+        live_context = llm_chat.prompt_manager.create_live_context(SharedContext())
+        assert handle in live_context
+        assert "GetDelegationResult" in live_context
+    finally:
+        get_background_registry().cancel_all()

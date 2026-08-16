@@ -8,8 +8,12 @@ from typing import Any
 from zrb.config.config import CFG
 from zrb.config.web_auth_config import WebAuthConfig
 from zrb.group.any_group import AnyGroup
+from zrb.llm.agent.subagent.manager import sub_agent_manager
 from zrb.llm.util.attachment import check_attachment_bytes, get_media_type
-from zrb.runner.chat.chat_session_manager import ChatSessionManager
+from zrb.runner.chat.chat_session_manager import (
+    ChatSessionManager,
+    parse_delegated_session,
+)
 from zrb.runner.chat.chat_session_runner import run_chat_session as _run_chat_session
 from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
 from zrb.runner.web_util.user import get_user_from_request
@@ -40,6 +44,35 @@ async def _get_llm_chat_task(root_group: AnyGroup) -> Any:
         return task
     except NodeNotFoundError:
         return None
+
+
+async def _resolve_llm_chat_task_for_session(
+    session_id: str, root_group: AnyGroup
+) -> "tuple[Any, str]":
+    """The task to drive *session_id* with, and the message to broadcast if
+    none could be built.
+
+    A session_id shaped like a delegated sub-agent transcript (Item 4, Phase
+    A/C naming: `{parent}-sub-{agent_name}-{agent_id}`) resumes driven by that
+    sub-agent's own persona via `create_llm_chat_task` — not the shared main
+    `llm chat` task every ordinary session uses.
+    """
+    delegated = parse_delegated_session(session_id)
+    if delegated is not None:
+        agent_name = delegated[1]
+        llm_chat = sub_agent_manager.create_llm_chat_task(agent_name)
+        not_found_msg = (
+            f"[ERROR] Cannot resume sub-agent '{agent_name}' — its definition "
+            "no longer exists, or it was built from a pre-built agent "
+            "instance that cannot be resumed this way."
+        )
+        return llm_chat, not_found_msg
+    llm_chat = await _get_llm_chat_task(root_group)
+    not_found_msg = (
+        "[ERROR] LLM chat task not found. "
+        f"Please ensure '{CFG.ROOT_GROUP_NAME} llm chat' is registered."
+    )
+    return llm_chat, not_found_msg
 
 
 def serve_chat_api(
@@ -283,13 +316,11 @@ def serve_chat_api(
             session = await session_manager.create_session(session_id=session_id)
 
         if session.task_coroutine is None or session.task_coroutine.done():
-            llm_chat = await _get_llm_chat_task(root_group)
+            llm_chat, not_found_msg = await _resolve_llm_chat_task_for_session(
+                session_id, root_group
+            )
             if llm_chat is None:
-                await session_manager.broadcast(
-                    session_id,
-                    "[ERROR] LLM chat task not found. "
-                    f"Please ensure '{CFG.ROOT_GROUP_NAME} llm chat' is registered.",
-                )
+                await session_manager.broadcast(session_id, not_found_msg)
             else:
                 approval_channel = HTTPChatApprovalChannel(
                     session_manager=session_manager,

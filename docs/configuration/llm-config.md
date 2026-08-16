@@ -376,6 +376,7 @@ task.prompt_manager.append_prompt(
 | `ZRB_LLM_JOURNAL_INDEX_MAX_CHARS` | Max characters of the index injected into context. Overflow is dropped from the **end** on a line boundary, so write the index most-durable-first. `0` suppresses the injection; a negative value injects it uncapped | `2500` |
 | `ZRB_LLM_HISTORY_DIR` | Conversation history directory | `~/.zrb/llm-history/` |
 | `ZRB_LLM_HISTORY_BACKUP_RETAIN` | Number of timestamped history backups to keep per conversation (`-1` = keep all, `0` = disable) | `3` |
+| `ZRB_LLM_SUBAGENT_HISTORY_RETAIN` | Max persisted delegated sub-agent sessions kept on disk across all agent types (`-1` = keep every one); the oldest are pruned on each new delegation. Every delegation writes a transcript under `ZRB_LLM_HISTORY_DIR/subagent/<agent-type>/` | `50` |
 
 ---
 

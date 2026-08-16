@@ -26,6 +26,7 @@ if TYPE_CHECKING:
 
     from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
     from zrb.llm.snapshot.manager import SnapshotManager
+    from zrb.llm.task.llm_task import LLMTask
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,12 @@ class BaseUIConversationCommands:
         _is_thinking: bool
         _pending_attachments: list[Any]
         _snapshot_manager: "SnapshotManager | None"
+        _llm_task: "LLMTask"
+        _model: Any
+        # Item 4, Phase D: persona-swap-on-/load state. None when driving the
+        # main agent; set while a delegated sub-agent session is loaded.
+        _active_subagent_persona: "str | None"
+        _original_persona_snapshot: "dict[str, Any] | None"
         last_output: Any
 
         def append_to_output(self, *values: Any, **kwargs: Any) -> None: ...
@@ -126,6 +133,7 @@ class BaseUIConversationCommands:
                     # The usage meter tracks spend per loaded conversation;
                     # past sessions' spend is not persisted, so start fresh.
                     self.reset_session_token_usage()
+                    self._apply_persona_for_session(name)
                 except Exception as e:
                     self.append_to_output(
                         stylize_error(f"\n  ❌ Failed to load history: {e}\n")
@@ -135,6 +143,88 @@ class BaseUIConversationCommands:
                 )
                 return True
         return False
+
+    # --- Item 4, Phase D: persona-swap-on-/load ----------------------------
+    #
+    # /load already switches which history is replayed; loading a delegated
+    # sub-agent's transcript (Item 4, Phase A naming) additionally swaps which
+    # persona drives new messages, so continuing the conversation actually
+    # talks to that sub-agent rather than the main agent. Loading back to an
+    # ordinary session name restores the main agent — /load is the single,
+    # symmetric verb for both directions, mirroring how opencode's "up"/"down"
+    # navigation is really just "which session am I bound to right now".
+
+    def _apply_persona_for_session(self, name: str) -> None:
+        # lazy: zrb internal (heavy via transitive) — subagent_session_naming
+        # is stdlib-only, but importing it at module level here would still
+        # sit above BaseUI's own lazy-loaded dependents in load order.
+        from zrb.llm.util.subagent_session_naming import parse_delegated_session
+
+        delegated = parse_delegated_session(name)
+        if delegated is None:
+            self._restore_main_persona()
+            return
+        self._swap_to_subagent_persona(delegated[1])
+
+    def _swap_to_subagent_persona(self, agent_name: str) -> None:
+        # lazy: heavy transitive (pydantic_ai) via SubAgentManager.
+        from zrb.llm.agent.subagent.manager import sub_agent_manager
+        from zrb.llm.prompt.manager import PromptManager
+
+        definition = sub_agent_manager.get_agent_definition(agent_name)
+        if definition is None or definition.agent_instance or definition.agent_factory:
+            self.append_to_output(
+                stylize_error(
+                    f"\n  ⚠️  Cannot resume as sub-agent '{agent_name}': its "
+                    "definition no longer exists, or it was built from a "
+                    "pre-built agent instance that cannot be resumed this "
+                    "way. Continuing as the main agent.\n"
+                )
+            )
+            return
+        resolved = sub_agent_manager.resolve_agent_build(
+            definition, ctx=None, yolo=None
+        )
+
+        self._snapshot_main_persona_once()
+        self._llm_task.tools = resolved.tools
+        self._llm_task.toolsets = resolved.toolsets
+        self._llm_task.prompt_manager = PromptManager(
+            prompts=[resolved.system_prompt] if resolved.system_prompt else [],
+            include_sections=[],
+        )
+        self._model = resolved.model
+        self._active_subagent_persona = agent_name
+        self.append_to_output(
+            stylize_muted(f"\n  🤖 Now driving as sub-agent: {agent_name}\n")
+        )
+        self.invalidate_ui()
+
+    def _restore_main_persona(self) -> None:
+        snapshot = self._original_persona_snapshot
+        if snapshot is None:
+            return  # never swapped away — nothing to restore
+        self._llm_task.tools = snapshot["tools"]
+        self._llm_task.toolsets = snapshot["toolsets"]
+        self._llm_task.prompt_manager = snapshot["prompt_manager"]
+        self._model = snapshot["model"]
+        self._active_subagent_persona = None
+        self._original_persona_snapshot = None
+        self.append_to_output(stylize_muted("\n  🤖 Back to the main agent.\n"))
+        self.invalidate_ui()
+
+    def _snapshot_main_persona_once(self) -> None:
+        """Capture the main agent's config the first time it's swapped away
+        from, so `_restore_main_persona` always restores the *original*
+        persona rather than whichever sub-agent was active most recently."""
+        if self._original_persona_snapshot is not None:
+            return
+        self._original_persona_snapshot = {
+            "tools": list(self._llm_task.tools),
+            "toolsets": list(self._llm_task.toolsets),
+            "prompt_manager": self._llm_task.prompt_manager,
+            "model": self._model,
+        }
 
     # --- rewind -----------------------------------------------------------
 

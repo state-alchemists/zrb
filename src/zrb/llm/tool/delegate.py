@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import difflib
+import os
 import uuid
 from dataclasses import dataclass
 from typing import Any
@@ -10,6 +11,7 @@ from zrb.config.config import CFG
 from zrb.llm.agent.activity import HasActivityTracking, agent_activity_registry
 from zrb.llm.agent.run.runner import run_agent
 from zrb.llm.agent.run.runtime_state import get_current_hook_manager, get_current_ui
+from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
 
 # Import directly from the inner module to avoid a circular import: the
 # subagent package's __init__ triggers `apply_common_tools`, which loads
@@ -25,10 +27,17 @@ from zrb.llm.config.limiter import llm_limiter
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.permission import Capability, tag
-from zrb.llm.tool.ambient_state import get_active_worktree
+from zrb.llm.tool.ambient_state import get_active_worktree, get_current_tool_session
+from zrb.llm.tool.worktree import enter_worktree, exit_worktree
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 from zrb.llm.ui.buffered_ui import BufferedUI
 from zrb.llm.ui.std_ui import StdUI
+from zrb.llm.util.subagent_session_naming import (
+    format_delegated_session_name,
+    parse_delegated_session,
+    subagent_history_directories,
+)
+from zrb.util.string.name import get_random_name
 
 # On-demand search results are themselves capped so an unscoped query (or an
 # empty one) cannot dump the whole roster in one answer. 30 entries keeps a
@@ -115,19 +124,40 @@ async def _run_agent_task(
     # SubagentStart/Stop fire on the parent run's hook manager (Claude semantics:
     # the parent observes its subagents). agent_type is the delegated agent's name.
     agent_id = uuid.uuid4().hex[:8]
+    # Scopes the activity-panel entry to this run's own session, so a process
+    # hosting multiple sessions (the web runner) doesn't bleed one session's
+    # running sub-agents into another's panel/listing.
+    activity_session_id = get_current_tool_session()
     _tracks_activity = isinstance(ui, HasActivityTracking)
     if _tracks_activity:
         ui.set_activity_id(agent_id)
         ordinal = agent_activity_registry.start(
-            agent_id, agent_name, task=deliverable or task
+            agent_id,
+            agent_name,
+            task=deliverable or task,
+            session_id=activity_session_id,
         )
         # Label the output stream with the panel ordinal, unless the caller
         # already set a meaningful prefix (background delegation uses its handle).
         if not ui.label:
             ui.set_label(f"[{agent_name} #{ordinal}] ")
+    # The "talk to a running sub-agent directly" feature (live_session.py)
+    # needs the concrete BufferedUI (its buffer + active_run_context), not
+    # just the HasActivityTracking protocol — registered unconditionally
+    # here since it's the one place all three delegate paths (single,
+    # fan-out, background) construct their BufferedUI and share this code.
+    # active_task lets the TUI's Esc (while viewing this sub-agent) cancel
+    # exactly this turn; see `LiveSubAgentSessionRegistry.cancel`.
+    session = None
+    if isinstance(ui, BufferedUI):
+        session = live_subagent_session_registry.register(
+            activity_session_id, agent_id, agent_name, sub_agent_manager, ui
+        )
+        session.cancelled_by_human = False  # a fresh run, not a stale flag
+        session.active_task = asyncio.current_task()
     await _fire_subagent_hook(HookEvent.SUBAGENT_START, agent_name, agent_id)
     try:
-        result, _ = await run_agent(
+        result, history = await run_agent(
             agent=sub_agent,
             message=full_message,
             message_history=[],
@@ -139,8 +169,40 @@ async def _run_agent_task(
         if flush_ui and hasattr(ui, "flush_to_parent"):
             getattr(ui, "flush_to_parent")()
 
+        live_subagent_session_registry.mark_turn_finished(
+            activity_session_id, agent_id, history
+        )
+        if session is not None:
+            # End-of-session marker for the sub-agent's live view, appended
+            # after the turn went idle so the transcript visibly ends. Cancel
+            # and error paths never reach here — those show "<Esc> Canceled"
+            # (written by the TUI's cancel_viewed_agent) or the error instead.
+            session.buffered_ui.append_to_output("<Done>")
+
+        # Every completed delegation persists its transcript under a derived
+        # conversation name, bounded by LLM_SUBAGENT_HISTORY_RETAIN. No knob
+        # gates it: unlike ordinary sessions (re-saved under one name) each
+        # delegation is written exactly once, so the bounded pruning is the
+        # only thing that keeps it from filling the disk.
+        conversation_name = format_delegated_session_name(
+            get_current_tool_session(), agent_name, agent_id
+        )
+        _persist_subagent_history(conversation_name, history)
+        if result:
+            result = f"{result}\n\n(Transcript saved as '{conversation_name}')"
+
         return AgentTaskResult(agent_name, result, None)
 
+    except asyncio.CancelledError:
+        # The human pressed Esc while viewing this sub-agent (TUI) and
+        # `cancel()` flagged it. Kill only this sub-agent's turn: return a
+        # cancelled result so the main agent (which may be awaiting this
+        # delegation — e.g. in a fan-out's `asyncio.gather`) continues with a
+        # normal result instead of being cancelled too. A cancellation not
+        # initiated by `cancel()` (the main run's own Esc) re-raises.
+        if session is not None and session.consume_cancelled_flag():
+            return AgentTaskResult(agent_name, None, "Cancelled by user")
+        raise
     except RecursionError:
         return AgentTaskResult(
             agent_name,
@@ -156,9 +218,81 @@ async def _run_agent_task(
         # mislead the parent agent than to help it.
         return AgentTaskResult(agent_name, None, str(e))
     finally:
+        if session is not None and session.active_task is asyncio.current_task():
+            session.active_task = None
         if _tracks_activity:
-            agent_activity_registry.finish(agent_id)
+            agent_activity_registry.finish(agent_id, session_id=activity_session_id)
         await _fire_subagent_hook(HookEvent.SUBAGENT_STOP, agent_name, agent_id)
+
+
+def _persist_subagent_history(conversation_name: str, history: list) -> None:
+    """Save a delegated sub-agent's transcript under its own conversation name
+    (ADR item 4, Phase A), always — there is no opt-out knob.
+
+    Best-effort: persisting the transcript is not this tool's primary job, so
+    a failure here (disk full, permissions) must not surface as a delegation
+    failure — same posture as ``_fire_subagent_hook``.
+
+    Unlike an ordinary conversation (one name, re-saved across turns, where
+    ``LLM_HISTORY_BACKUP_RETAIN`` bounds its backups), every delegation mints
+    a brand-new, never-reused ``conversation_name`` — so nothing bounds these
+    files on its own. Two things keep that from filling the disk on a
+    long-running or heavily-delegating session: no backup is written for a
+    session that's never resaved (``write_backup=False``), and
+    ``_prune_old_subagent_history`` deletes the oldest ones past
+    ``CFG.LLM_SUBAGENT_HISTORY_RETAIN`` right after every write.
+    """
+    try:
+        # lazy: zrb.llm.history_manager transitively loads pydantic_ai.
+        from zrb.llm.history_manager.file_history_manager import FileHistoryManager
+
+        manager = FileHistoryManager(history_dir=CFG.LLM_HISTORY_DIR)
+        manager.update(conversation_name, history)
+        manager.save(conversation_name, write_backup=False)
+        _prune_old_subagent_history()
+    except Exception as e:  # noqa: BLE001
+        CFG.LOGGER.debug(
+            f"Failed to persist sub-agent history '{conversation_name}': {e}"
+        )
+
+
+def _prune_old_subagent_history() -> None:
+    """Delete the oldest delegated-session history files beyond
+    ``CFG.LLM_SUBAGENT_HISTORY_RETAIN``, keeping always-on persistence safe.
+    ``-1`` opts out (keep every one, at the caller's own risk); errors are
+    swallowed (best-effort, see ``_persist_subagent_history``)."""
+    retain = CFG.LLM_SUBAGENT_HISTORY_RETAIN
+    if retain < 0:
+        return
+    history_dir = os.path.expanduser(CFG.LLM_HISTORY_DIR)
+    if not os.path.isdir(history_dir):
+        return
+    # The cap is global across every location a delegated transcript can live
+    # in: the current `subagent/{agent_type}/` layout and legacy flat files in
+    # the history root (which only `parse_delegated_session` recognizes).
+    entries: list[tuple[float, str]] = []
+    try:
+        for directory in subagent_history_directories(history_dir):
+            with os.scandir(directory) as it:
+                for entry in it:
+                    if not entry.name.endswith(".json"):
+                        continue
+                    if parse_delegated_session(entry.name[: -len(".json")]) is None:
+                        continue
+                    try:
+                        entries.append((entry.stat().st_mtime, entry.path))
+                    except OSError:
+                        continue
+    except OSError:
+        return
+    if len(entries) <= retain:
+        return
+    entries.sort(key=lambda item: item[0])  # oldest first
+    for _mtime, path in entries[: len(entries) - retain]:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
 
 
 async def _fire_subagent_hook(event: HookEvent, agent_name: str, agent_id: str) -> None:
@@ -255,6 +389,20 @@ def agent_not_found_message(agent_name: str, sub_agent_manager: SubAgentManager)
     )
 
 
+async def _worktree_has_changes(worktree_path: str) -> bool:
+    """Whether *worktree_path* has any uncommitted change (`git status --short`)."""
+    proc = await asyncio.create_subprocess_exec(
+        "git",
+        "status",
+        "--short",
+        cwd=worktree_path,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    stdout, _ = await proc.communicate()
+    return bool(stdout.decode().strip())
+
+
 async def _run_parallel(
     tasks: list[dict[str, Any]],
     sub_agent_manager: SubAgentManager,
@@ -264,6 +412,14 @@ async def _run_parallel(
     A single atomic call — useful for models that cannot reliably sequence N
     tool-call rounds. Each task gets its own scope clamp and runs blind to the
     others; a shared lock serializes any approval prompts back to the parent UI.
+
+    A task with ``isolate_worktree: true`` runs inside its own git worktree
+    (ADR-0068) instead of the shared working tree — opt-in, since fanning out
+    concurrent *writes* onto one tree corrupts them into each other. `asyncio.gather`
+    schedules each `run_single_agent` coroutine as its own `Task`, which copies
+    `contextvars` at creation time, so each task's `active_worktree` is isolated
+    from its siblings' — the same guarantee `enter_worktree`/`exit_worktree`
+    already rely on for the single-agent path.
     """
     required = ("agent_name", "deliverable", "task", "non_goals")
     for idx, spec in enumerate(tasks):
@@ -284,22 +440,54 @@ async def _run_parallel(
         task = task_spec.get("task", "")
         non_goals = task_spec.get("non_goals", []) or []
         additional_context = task_spec.get("additional_context", "")
+        isolate = bool(task_spec.get("isolate_worktree", False))
         # _run_agent_task assigns the [agent_name #ordinal] label.
-        buffered_ui = BufferedUI(parent_ui, shared_lock=ui_lock)
-
-        result = await _run_agent_task(
-            agent_name=agent_name,
-            deliverable=deliverable,
-            non_goals=non_goals,
-            task=task,
-            additional_context=additional_context,
-            sub_agent_manager=sub_agent_manager,
-            ui=buffered_ui,
-            flush_ui=False,
-            yolo=None,
+        buffered_ui = BufferedUI(
+            parent_ui, shared_lock=ui_lock, session_id=get_current_tool_session()
         )
-        async with ui_lock:
-            buffered_ui.flush_to_parent()
+
+        worktree_path = ""
+        if isolate:
+            # A distinct name per task: enter_worktree's own default branch name
+            # is second-granularity, which concurrent fan-out tasks can collide
+            # on within the same second.
+            branch_name = f"delegate-{agent_name}-{get_random_name(separator='-', add_random_digit=True)}"
+            enter_msg = await enter_worktree(branch_name=branch_name)
+            worktree_path = get_active_worktree()
+            if not worktree_path:
+                return AgentTaskResult(
+                    buffered_ui.label or f"[{agent_name}]", None, enter_msg
+                )
+
+        result: AgentTaskResult | None = None
+        try:
+            result = await _run_agent_task(
+                agent_name=agent_name,
+                deliverable=deliverable,
+                non_goals=non_goals,
+                task=task,
+                additional_context=additional_context,
+                sub_agent_manager=sub_agent_manager,
+                ui=buffered_ui,
+                flush_ui=False,
+                yolo=None,
+            )
+        finally:
+            # Always attempt cleanup, including when the sub-agent errored —
+            # this is what lets isolate_worktree survive a crashed sub-agent
+            # rather than leaking worktrees (ADR-0068).
+            if isolate and worktree_path:
+                if await _worktree_has_changes(worktree_path):
+                    if result is not None and result.success and result.result:
+                        result.result += (
+                            f"\n\n(Worktree left in place for review: {worktree_path})"
+                        )
+                else:
+                    await exit_worktree(worktree_path)
+
+        # Reached only if the try block returned normally (an exception would
+        # have propagated past this point after the finally block ran).
+        assert result is not None
         return AgentTaskResult(
             buffered_ui.label or f"[{agent_name}]",
             result.result,
@@ -365,7 +553,7 @@ def create_delegate_to_agent_tool(
         parent_ui = get_current_ui() or StdUI()
         # _run_agent_task assigns the [agent_name #ordinal] label (the panel
         # is the legend); no opaque per-instance id is shown to the user.
-        buffered_ui = BufferedUI(parent_ui)
+        buffered_ui = BufferedUI(parent_ui, session_id=get_current_tool_session())
 
         task_result = await _run_agent_task(
             agent_name=agent_name,
@@ -376,8 +564,6 @@ def create_delegate_to_agent_tool(
             sub_agent_manager=sub_agent_manager,
             ui=buffered_ui,
         )
-
-        buffered_ui.flush_to_parent()
 
         if not task_result.success:
             return f"Error: {task_result.error}"
@@ -398,6 +584,12 @@ def create_delegate_to_agent_tool(
         "reconciled.\n\n"
         "FAN OUT: pass tasks=[{agent_name, deliverable, task, non_goals, ...}, ...] to run multiple "
         "sub-agents concurrently in one call. Flat args are ignored when tasks is non-empty.\n\n"
+        "ISOLATE_WORKTREE: add isolate_worktree: true to a task in the fan-out list to give "
+        "that task its own git worktree instead of the shared working tree. Use it when two or "
+        "more fanned-out tasks will WRITE to overlapping files — concurrent writes on one tree "
+        "corrupt each other. The worktree is removed automatically if the task leaves it clean; "
+        "if it has changes, the worktree is left in place and its path is reported so you (and the "
+        "user) can review and merge it manually.\n\n"
         f"AVAILABLE AGENTS:\n{agent_doc_section}"
     )
     tag(delegate_to_agent, Capability.DELEGATE)

@@ -1,3 +1,6 @@
+import asyncio
+import os
+import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -321,6 +324,133 @@ async def test_delegate_tool_exception(mock_sub_agent_manager):
         assert "Run failed" in result
 
 
+@pytest.mark.asyncio
+async def test_delegate_human_cancel_returns_gracefully(mock_sub_agent_manager):
+    """Esc while viewing a running sub-agent (TUI) cancels only that sub-agent:
+    the delegate swallows the human-flagged CancelledError and reports a
+    cancelled result, so a main agent awaiting the delegation (e.g. a fan-out's
+    `asyncio.gather`) is NOT itself cancelled."""
+    from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
+
+    live_subagent_session_registry.clear()  # earlier tests may have left sessions
+    mock_sub_agent_manager.create_agent.return_value = MagicMock()
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+    started = asyncio.Event()
+
+    async def blocking_run_agent(**kwargs):
+        started.set()
+        await asyncio.Event().wait()  # never finishes on its own
+
+    try:
+        with patch("zrb.llm.tool.delegate.run_agent", side_effect=blocking_run_agent):
+            run_task = asyncio.create_task(
+                tool(agent_name="test-agent", deliverable="d", task="t", non_goals=[])
+            )
+            await started.wait()
+            [session] = live_subagent_session_registry.active("default")
+            # The task driving the delegation is registered as the session's
+            # active task; cancelling through the registry is exactly what the
+            # TUI's Esc does.
+            assert session.active_task is run_task
+            assert live_subagent_session_registry.cancel("default", session.agent_id)
+            result = await run_task  # completes instead of raising CancelledError
+    finally:
+        live_subagent_session_registry.clear()
+
+    assert "Cancelled by user" in result
+
+
+@pytest.mark.asyncio
+async def test_delegate_cancel_without_human_flag_propagates(mock_sub_agent_manager):
+    """A cancellation NOT flagged by the sub-agent-view Esc (e.g. the main
+    run's own Esc) must propagate as CancelledError — swallowing it would
+    resurrect a main turn the user explicitly cancelled."""
+    from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
+
+    live_subagent_session_registry.clear()  # earlier tests may have left sessions
+    mock_sub_agent_manager.create_agent.return_value = MagicMock()
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+    started = asyncio.Event()
+
+    async def blocking_run_agent(**kwargs):
+        started.set()
+        await asyncio.Event().wait()
+
+    try:
+        with patch("zrb.llm.tool.delegate.run_agent", side_effect=blocking_run_agent):
+            run_task = asyncio.create_task(
+                tool(agent_name="test-agent", deliverable="d", task="t", non_goals=[])
+            )
+            await started.wait()
+            [session] = live_subagent_session_registry.active("default")
+            assert session.cancelled_by_human is False  # fresh run, flag reset
+            run_task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await run_task
+    finally:
+        live_subagent_session_registry.clear()
+
+
+@pytest.mark.asyncio
+async def test_delegate_marks_done_in_live_view_on_success(mock_sub_agent_manager):
+    """A completed delegation appends an end-of-session <Done> to the sub-agent's
+    live-view transcript — after the turn went idle, so the view visibly ends."""
+    from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
+
+    live_subagent_session_registry.clear()
+    mock_sub_agent_manager.create_agent.return_value = MagicMock()
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+
+    try:
+        with (
+            patch(
+                "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+            ) as mock_run_agent,
+            patch("zrb.llm.tool.delegate._persist_subagent_history"),
+        ):
+            mock_run_agent.return_value = ("ok", [])
+            result = await tool(
+                agent_name="test-agent", deliverable="d", task="t", non_goals=[]
+            )
+
+        assert "completed:" in result
+        [session] = live_subagent_session_registry.active("default")
+        assert session.state == "idle"
+        assert "<Done>" in session.buffered_ui.get_buffered_output()
+    finally:
+        live_subagent_session_registry.clear()
+
+
+@pytest.mark.asyncio
+async def test_delegate_cancelled_view_shows_no_done_marker(mock_sub_agent_manager):
+    """A human-cancelled delegation must not end with <Done> — the TUI wrote
+    <Esc> Canceled, and a <Done> on top would contradict it."""
+    from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
+
+    live_subagent_session_registry.clear()
+    mock_sub_agent_manager.create_agent.return_value = MagicMock()
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+    started = asyncio.Event()
+
+    async def blocking_run_agent(**kwargs):
+        started.set()
+        await asyncio.Event().wait()
+
+    try:
+        with patch("zrb.llm.tool.delegate.run_agent", side_effect=blocking_run_agent):
+            run_task = asyncio.create_task(
+                tool(agent_name="test-agent", deliverable="d", task="t", non_goals=[])
+            )
+            await started.wait()
+            [session] = live_subagent_session_registry.active("default")
+            live_subagent_session_registry.cancel("default", session.agent_id)
+            result = await run_task
+            assert "Cancelled by user" in result
+            assert "<Done>" not in session.buffered_ui.get_buffered_output()
+    finally:
+        live_subagent_session_registry.clear()
+
+
 # --- #3: permission-filtered agent roster --------------------------------
 
 
@@ -605,3 +735,602 @@ def test_create_delegate_tool_uses_default_manager():
 
     assert tool.__name__ == "DelegateToAgent"
     default.scan.assert_called()
+
+
+# ── Fan-out: opt-in worktree isolation (isolate_worktree) ──
+
+
+@pytest.mark.asyncio
+async def test_isolate_worktree_enters_and_cleans_up_when_clean(mock_sub_agent_manager):
+    mock_sub_agent_manager.create_agent.return_value = MagicMock()
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+
+    with (
+        patch(
+            "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+        ) as mock_run_agent,
+        patch(
+            "zrb.llm.tool.delegate.enter_worktree", new_callable=AsyncMock
+        ) as mock_enter,
+        patch(
+            "zrb.llm.tool.delegate.get_active_worktree",
+            return_value="/repo/.zrb/worktree/x",
+        ),
+        patch(
+            "zrb.llm.tool.delegate.exit_worktree", new_callable=AsyncMock
+        ) as mock_exit,
+        patch(
+            "zrb.llm.tool.delegate._worktree_has_changes",
+            new_callable=AsyncMock,
+            return_value=False,
+        ),
+    ):
+        mock_enter.return_value = "Worktree created: /repo/.zrb/worktree/x\nBranch: b"
+        mock_run_agent.return_value = ("done", [])
+        result = await tool(
+            tasks=[
+                {
+                    "agent_name": "test-agent",
+                    "deliverable": "d",
+                    "task": "t",
+                    "non_goals": [],
+                    "isolate_worktree": True,
+                }
+            ]
+        )
+
+    mock_enter.assert_awaited_once()
+    mock_exit.assert_awaited_once_with("/repo/.zrb/worktree/x")
+    assert "done" in result
+    assert "Worktree left in place" not in result
+
+
+@pytest.mark.asyncio
+async def test_isolate_worktree_leaves_dirty_worktree_and_reports_path(
+    mock_sub_agent_manager,
+):
+    mock_sub_agent_manager.create_agent.return_value = MagicMock()
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+
+    with (
+        patch(
+            "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+        ) as mock_run_agent,
+        patch(
+            "zrb.llm.tool.delegate.enter_worktree", new_callable=AsyncMock
+        ) as mock_enter,
+        patch(
+            "zrb.llm.tool.delegate.get_active_worktree",
+            return_value="/repo/.zrb/worktree/x",
+        ),
+        patch(
+            "zrb.llm.tool.delegate.exit_worktree", new_callable=AsyncMock
+        ) as mock_exit,
+        patch(
+            "zrb.llm.tool.delegate._worktree_has_changes",
+            new_callable=AsyncMock,
+            return_value=True,
+        ),
+    ):
+        mock_enter.return_value = "Worktree created: /repo/.zrb/worktree/x\nBranch: b"
+        mock_run_agent.return_value = ("done", [])
+        result = await tool(
+            tasks=[
+                {
+                    "agent_name": "test-agent",
+                    "deliverable": "d",
+                    "task": "t",
+                    "non_goals": [],
+                    "isolate_worktree": True,
+                }
+            ]
+        )
+
+    mock_exit.assert_not_called()
+    assert "Worktree left in place for review: /repo/.zrb/worktree/x" in result
+
+
+@pytest.mark.asyncio
+async def test_isolate_worktree_cleans_up_even_when_subagent_errors(
+    mock_sub_agent_manager,
+):
+    """Cleanup must survive a crashed/erroring sub-agent (ADR-0068)."""
+    mock_sub_agent_manager.create_agent.return_value = MagicMock()
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+
+    with (
+        patch(
+            "zrb.llm.tool.delegate.run_agent",
+            new_callable=AsyncMock,
+            side_effect=RuntimeError("boom"),
+        ),
+        patch(
+            "zrb.llm.tool.delegate.enter_worktree", new_callable=AsyncMock
+        ) as mock_enter,
+        patch(
+            "zrb.llm.tool.delegate.get_active_worktree",
+            return_value="/repo/.zrb/worktree/x",
+        ),
+        patch(
+            "zrb.llm.tool.delegate.exit_worktree", new_callable=AsyncMock
+        ) as mock_exit,
+        patch(
+            "zrb.llm.tool.delegate._worktree_has_changes",
+            new_callable=AsyncMock,
+            return_value=False,
+        ),
+    ):
+        mock_enter.return_value = "Worktree created: /repo/.zrb/worktree/x\nBranch: b"
+        result = await tool(
+            tasks=[
+                {
+                    "agent_name": "test-agent",
+                    "deliverable": "d",
+                    "task": "t",
+                    "non_goals": [],
+                    "isolate_worktree": True,
+                }
+            ]
+        )
+
+    mock_exit.assert_awaited_once_with("/repo/.zrb/worktree/x")
+    assert "Error: boom" in result
+
+
+@pytest.mark.asyncio
+async def test_fan_out_without_isolate_worktree_skips_worktree_calls(
+    mock_sub_agent_manager,
+):
+    """Default (no isolate_worktree) must not touch worktrees at all."""
+    mock_sub_agent_manager.create_agent.return_value = MagicMock()
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+
+    with (
+        patch(
+            "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+        ) as mock_run_agent,
+        patch(
+            "zrb.llm.tool.delegate.enter_worktree", new_callable=AsyncMock
+        ) as mock_enter,
+        patch(
+            "zrb.llm.tool.delegate.exit_worktree", new_callable=AsyncMock
+        ) as mock_exit,
+    ):
+        mock_run_agent.return_value = ("done", [])
+        result = await tool(
+            tasks=[
+                {
+                    "agent_name": "test-agent",
+                    "deliverable": "d",
+                    "task": "t",
+                    "non_goals": [],
+                }
+            ]
+        )
+
+    mock_enter.assert_not_called()
+    mock_exit.assert_not_called()
+    assert "done" in result
+
+
+@pytest.mark.asyncio
+async def test_isolate_worktree_enter_failure_skips_subagent(mock_sub_agent_manager):
+    """A failed EnterWorktree must not run the sub-agent at all."""
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+
+    with (
+        patch(
+            "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+        ) as mock_run_agent,
+        patch(
+            "zrb.llm.tool.delegate.enter_worktree",
+            new_callable=AsyncMock,
+            return_value="Error: Not inside a git repository.",
+        ),
+        patch("zrb.llm.tool.delegate.get_active_worktree", return_value=""),
+    ):
+        result = await tool(
+            tasks=[
+                {
+                    "agent_name": "test-agent",
+                    "deliverable": "d",
+                    "task": "t",
+                    "non_goals": [],
+                    "isolate_worktree": True,
+                }
+            ]
+        )
+
+    mock_run_agent.assert_not_called()
+    assert "Not inside a git repository" in result
+
+
+@pytest.mark.asyncio
+async def test_isolate_worktree_uses_distinct_branch_names_per_task(
+    mock_sub_agent_manager,
+):
+    """Concurrent isolate_worktree tasks must not collide on enter_worktree's
+    own (second-granularity) default branch name."""
+    mock_sub_agent_manager.create_agent.return_value = MagicMock()
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+
+    with (
+        patch(
+            "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+        ) as mock_run_agent,
+        patch(
+            "zrb.llm.tool.delegate.enter_worktree", new_callable=AsyncMock
+        ) as mock_enter,
+        patch("zrb.llm.tool.delegate.get_active_worktree", return_value="/wt"),
+        patch("zrb.llm.tool.delegate.exit_worktree", new_callable=AsyncMock),
+        patch(
+            "zrb.llm.tool.delegate._worktree_has_changes",
+            new_callable=AsyncMock,
+            return_value=False,
+        ),
+    ):
+        mock_enter.return_value = "Worktree created"
+        mock_run_agent.return_value = ("done", [])
+        await tool(
+            tasks=[
+                {
+                    "agent_name": "test-agent",
+                    "deliverable": "d",
+                    "task": "t",
+                    "non_goals": [],
+                    "isolate_worktree": True,
+                },
+                {
+                    "agent_name": "test-agent",
+                    "deliverable": "d2",
+                    "task": "t2",
+                    "non_goals": [],
+                    "isolate_worktree": True,
+                },
+            ]
+        )
+
+    branch_names = [c.kwargs["branch_name"] for c in mock_enter.await_args_list]
+    assert len(branch_names) == 2
+    assert len(set(branch_names)) == 2
+
+
+# ── Sub-agent transcript persistence (always-on, bounded by RETAIN) ──
+
+
+@pytest.mark.asyncio
+async def test_subagent_history_persisted(mock_sub_agent_manager, monkeypatch):
+    """Every completed delegation persists its transcript; no knob gates it."""
+    mock_sub_agent_manager.create_agent.return_value = MagicMock()
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+
+    with (
+        patch(
+            "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+        ) as mock_run_agent,
+        patch("zrb.llm.tool.delegate.get_current_tool_session", return_value="sess1"),
+        patch("zrb.llm.tool.delegate._persist_subagent_history") as mock_persist,
+    ):
+        mock_run_agent.return_value = ("ok", [{"fake": "message"}])
+        result = await tool(
+            agent_name="test-agent", deliverable="d", task="t", non_goals=[]
+        )
+
+    mock_persist.assert_called_once()
+    conversation_name, history = mock_persist.call_args.args
+    assert conversation_name.startswith("sess1-sub-test-agent-")
+    assert history == [{"fake": "message"}]
+    assert f"Transcript saved as '{conversation_name}'" in result
+
+
+@pytest.mark.asyncio
+async def test_subagent_history_persist_failure_does_not_break_delegation(
+    mock_sub_agent_manager, monkeypatch
+):
+    """A persistence error (disk full, permissions) must not surface as a
+    delegation failure — best-effort, same posture as the hook firing."""
+    mock_sub_agent_manager.create_agent.return_value = MagicMock()
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+
+    with (
+        patch(
+            "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+        ) as mock_run_agent,
+        patch(
+            "zrb.llm.history_manager.file_history_manager.FileHistoryManager",
+            side_effect=OSError("disk full"),
+        ),
+    ):
+        mock_run_agent.return_value = ("ok", [])
+        result = await tool(
+            agent_name="test-agent", deliverable="d", task="t", non_goals=[]
+        )
+
+    assert "completed:" in result
+    assert "ok" in result
+
+
+@pytest.mark.asyncio
+async def test_fan_out_persists_history_per_task(mock_sub_agent_manager, monkeypatch):
+    """Fan-out shares `_run_agent_task`, so each task gets its own persisted
+    transcript under a distinct conversation name."""
+    mock_sub_agent_manager.create_agent.return_value = MagicMock()
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+
+    with (
+        patch(
+            "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+        ) as mock_run_agent,
+        patch("zrb.llm.tool.delegate.get_current_tool_session", return_value="sess1"),
+        patch("zrb.llm.tool.delegate._persist_subagent_history") as mock_persist,
+    ):
+        mock_run_agent.side_effect = [("Result A", []), ("Result B", [])]
+        await tool(
+            tasks=[
+                {
+                    "agent_name": "test-agent",
+                    "deliverable": "a",
+                    "task": "ta",
+                    "non_goals": [],
+                },
+                {
+                    "agent_name": "test-agent",
+                    "deliverable": "b",
+                    "task": "tb",
+                    "non_goals": [],
+                },
+            ]
+        )
+
+    assert mock_persist.call_count == 2
+    names = {c.args[0] for c in mock_persist.call_args_list}
+    assert len(names) == 2  # distinct conversation names per task
+
+
+# ── Activity-panel session scoping (Item 4, Phase D) ──
+
+
+@pytest.mark.asyncio
+async def test_activity_start_and_finish_are_scoped_to_the_current_session(
+    mock_sub_agent_manager,
+):
+    """A process hosting multiple sessions must not bleed one session's
+    running sub-agents into another's activity panel/listing."""
+    mock_agent = MagicMock()
+    mock_sub_agent_manager.create_agent.return_value = mock_agent
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+
+    with (
+        patch(
+            "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+        ) as mock_run_agent,
+        patch(
+            "zrb.llm.tool.delegate.get_current_tool_session",
+            return_value="session-42",
+        ),
+        patch("zrb.llm.tool.delegate.agent_activity_registry") as mock_registry,
+    ):
+        mock_run_agent.return_value = ("ok", [])
+        await tool(agent_name="test-agent", deliverable="d", task="t", non_goals=[])
+
+    mock_registry.start.assert_called_once()
+    assert mock_registry.start.call_args.kwargs["session_id"] == "session-42"
+    mock_registry.finish.assert_called_once()
+    assert mock_registry.finish.call_args.kwargs["session_id"] == "session-42"
+
+
+# ── Sub-agent history disk growth (real filesystem, not mocked) ──
+#
+# Every delegation mints a brand-new conversation_name, so — unlike an
+# ordinary conversation — nothing else on disk ever reuses or rotates these
+# files. A version of _persist_subagent_history that wrote a backup and never
+# pruned filled a real user's disk and made zrb unresponsive (large
+# directories make every FileHistoryManager.search() call, e.g. /load's
+# tab-completion, an O(n) scan). These tests exercise the *real*
+# FileHistoryManager against a real directory — mocking it away, as the tests
+# above do, would not have caught this.
+
+
+def test_persist_subagent_history_does_not_grow_unbounded(tmp_path, monkeypatch):
+    from zrb.llm.tool.delegate import _persist_subagent_history
+    from zrb.llm.util.subagent_session_naming import format_delegated_session_name
+
+    monkeypatch.setenv("ZRB_LLM_HISTORY_DIR", str(tmp_path))
+    monkeypatch.setenv("ZRB_LLM_SUBAGENT_HISTORY_RETAIN", "10")
+
+    for _ in range(200):
+        name = format_delegated_session_name(
+            "sess1", "researcher", uuid.uuid4().hex[:8]
+        )
+        _persist_subagent_history(name, [])
+
+    subdir = tmp_path / "subagent" / "researcher"
+    assert list(subdir.iterdir())
+    assert len(list(subdir.iterdir())) == 10
+
+
+def test_persist_subagent_history_writes_no_backup(tmp_path, monkeypatch):
+    """Each conversation_name is unique and written exactly once -- a backup
+    of a session that's never resaved doubles disk usage for no recovery
+    value."""
+    from zrb.llm.tool.delegate import _persist_subagent_history
+    from zrb.llm.util.subagent_session_naming import format_delegated_session_name
+
+    monkeypatch.setenv("ZRB_LLM_HISTORY_DIR", str(tmp_path))
+    monkeypatch.setenv(
+        "ZRB_LLM_HISTORY_BACKUP_RETAIN", "-1"
+    )  # keep-all, if any were written
+
+    name = format_delegated_session_name("sess1", "researcher", "a1b2c3d4")
+    _persist_subagent_history(name, [])
+
+    assert len(list((tmp_path / "subagent" / "researcher").iterdir())) == 1
+    # Nothing flat in the history root: only the subagent/ directory tree.
+    assert [p for p in tmp_path.iterdir() if p.is_file()] == []
+
+
+def test_persist_subagent_history_never_prunes_ordinary_conversations(
+    tmp_path, monkeypatch
+):
+    from zrb.llm.tool.delegate import _persist_subagent_history
+    from zrb.llm.util.subagent_session_naming import format_delegated_session_name
+
+    monkeypatch.setenv("ZRB_LLM_HISTORY_DIR", str(tmp_path))
+    monkeypatch.setenv("ZRB_LLM_SUBAGENT_HISTORY_RETAIN", "3")
+
+    real_conversation = tmp_path / "my-real-conversation.json"
+    real_conversation.write_text("[]")
+
+    for _ in range(20):
+        name = format_delegated_session_name(
+            "sess1", "researcher", uuid.uuid4().hex[:8]
+        )
+        _persist_subagent_history(name, [])
+
+    assert real_conversation.exists()
+    subdir = tmp_path / "subagent" / "researcher"
+    assert len(list(subdir.iterdir())) == 3
+
+
+def test_persist_subagent_history_retain_minus_one_disables_pruning(
+    tmp_path, monkeypatch
+):
+    from zrb.llm.tool.delegate import _persist_subagent_history
+    from zrb.llm.util.subagent_session_naming import format_delegated_session_name
+
+    monkeypatch.setenv("ZRB_LLM_HISTORY_DIR", str(tmp_path))
+    monkeypatch.setenv("ZRB_LLM_SUBAGENT_HISTORY_RETAIN", "-1")
+
+    for _ in range(15):
+        name = format_delegated_session_name(
+            "sess1", "researcher", uuid.uuid4().hex[:8]
+        )
+        _persist_subagent_history(name, [])
+
+    assert len(list((tmp_path / "subagent" / "researcher").iterdir())) == 15
+
+
+def test_persist_subagent_history_keeps_most_recently_written(tmp_path, monkeypatch):
+    """Pruning must drop the oldest, not an arbitrary subset."""
+    from zrb.llm.tool.delegate import _persist_subagent_history
+    from zrb.llm.util.subagent_session_naming import format_delegated_session_name
+
+    monkeypatch.setenv("ZRB_LLM_HISTORY_DIR", str(tmp_path))
+    monkeypatch.setenv("ZRB_LLM_SUBAGENT_HISTORY_RETAIN", "2")
+
+    names = []
+    for i in range(4):
+        name = format_delegated_session_name("sess1", "researcher", f"{i:08x}")
+        names.append(name)
+        _persist_subagent_history(name, [])
+        # Force distinct mtimes even on filesystems with coarse granularity.
+        stamp = float(i)
+        os.utime(tmp_path / "subagent" / "researcher" / f"{name}.json", (stamp, stamp))
+
+    subdir = tmp_path / "subagent" / "researcher"
+    remaining = {p.stem for p in subdir.iterdir()}
+    assert remaining == {names[2], names[3]}
+
+
+def test_persist_subagent_history_layout_groups_by_agent_type(tmp_path, monkeypatch):
+    """Delegated transcripts land under LLM_HISTORY_DIR/subagent/<agent-type>/
+    — separate from main sessions (which stay flat in the history root)."""
+    from zrb.llm.tool.delegate import _persist_subagent_history
+    from zrb.llm.util.subagent_session_naming import format_delegated_session_name
+
+    monkeypatch.setenv("ZRB_LLM_HISTORY_DIR", str(tmp_path))
+    monkeypatch.setenv("ZRB_LLM_SUBAGENT_HISTORY_RETAIN", "-1")
+
+    researcher = format_delegated_session_name("sess1", "researcher", "a1b2c3d4")
+    reviewer = format_delegated_session_name("sess1", "code-reviewer", "e5f6a7b8")
+    _persist_subagent_history(researcher, [])
+    _persist_subagent_history(reviewer, [])
+
+    assert (tmp_path / "subagent" / "researcher" / f"{researcher}.json").exists()
+    assert (tmp_path / "subagent" / "code-reviewer" / f"{reviewer}.json").exists()
+    assert not (tmp_path / f"{researcher}.json").exists()
+    assert not (tmp_path / f"{reviewer}.json").exists()
+
+
+def test_persist_subagent_history_prunes_legacy_flat_files(tmp_path, monkeypatch):
+    """Old-format delegated transcripts (flat in the history root, before the
+    subagent/<agent-type>/ layout) are still pruned with the same cap."""
+    from zrb.llm.tool.delegate import _persist_subagent_history
+    from zrb.llm.util.subagent_session_naming import format_delegated_session_name
+
+    monkeypatch.setenv("ZRB_LLM_HISTORY_DIR", str(tmp_path))
+    monkeypatch.setenv("ZRB_LLM_SUBAGENT_HISTORY_RETAIN", "2")
+
+    legacy = format_delegated_session_name("sess1", "researcher", "a1b2c3d4")
+    (tmp_path / f"{legacy}.json").write_text("[]")
+    for _ in range(5):
+        name = format_delegated_session_name(
+            "sess1", "researcher", uuid.uuid4().hex[:8]
+        )
+        _persist_subagent_history(name, [])
+
+    # 5 in the new layout + 1 legacy = 6; the global cap of 2 keeps the 2
+    # newest across both locations, and the legacy one (oldest) is gone.
+    assert not (tmp_path / f"{legacy}.json").exists()
+    total = len(list((tmp_path / "subagent" / "researcher").iterdir()))
+    assert total == 2
+
+
+# ── Only tool-approval prompts reach main; routine sub-agent output stays
+# in its own buffer (the "live sub-agent session" feature) ──
+
+
+@pytest.mark.asyncio
+async def test_single_delegate_does_not_flush_routine_output_to_main(
+    mock_sub_agent_manager,
+):
+    """A sub-agent's routine buffered output (search queries, fetch status)
+    must not be dumped into the main transcript on completion -- only the
+    tool's own result reaches the main agent (as the tool-call return value,
+    a separate mechanism from the UI transcript)."""
+    mock_sub_agent_manager.create_agent.return_value = MagicMock()
+    parent_ui = MagicMock()
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+
+    async def run_and_write_to_buffer(*args, ui=None, **kwargs):
+        # Simulate the sub-agent producing routine output during its run.
+        if ui is not None:
+            ui.append_to_output("searching for things...")
+        return "done", []
+
+    with (
+        patch("zrb.llm.tool.delegate.run_agent", side_effect=run_and_write_to_buffer),
+        patch("zrb.llm.tool.delegate.get_current_ui", return_value=parent_ui),
+    ):
+        await tool(agent_name="test-agent", deliverable="d", task="t", non_goals=[])
+
+    parent_ui.append_to_output.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_fan_out_does_not_flush_routine_output_to_main(mock_sub_agent_manager):
+    mock_sub_agent_manager.create_agent.return_value = MagicMock()
+    parent_ui = MagicMock()
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+
+    async def run_and_write_to_buffer(*args, ui=None, **kwargs):
+        if ui is not None:
+            ui.append_to_output("searching for things...")
+        return "done", []
+
+    with (
+        patch("zrb.llm.tool.delegate.run_agent", side_effect=run_and_write_to_buffer),
+        patch("zrb.llm.tool.delegate.get_current_ui", return_value=parent_ui),
+    ):
+        await tool(
+            tasks=[
+                {
+                    "agent_name": "test-agent",
+                    "deliverable": "d",
+                    "task": "t",
+                    "non_goals": [],
+                }
+            ]
+        )
+
+    parent_ui.append_to_output.assert_not_called()

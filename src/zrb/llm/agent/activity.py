@@ -8,9 +8,12 @@ The parent UI's render loop and a sub-agent's run coroutine live in different
 asyncio tasks, so this is a process-global singleton rather than a ContextVar
 (which copies per task and would not be shared across them).
 
-ponytail: one registry per process. If a single process ever hosts multiple
-independent chat sessions (multi-tenant web), key entries by session id to
-avoid cross-session bleed.
+Entries are keyed by ``session_id`` (defaulting to ``""``, the single-session
+CLI case) so a process hosting multiple independent chat sessions — the web
+runner, one process serving many browser tabs — doesn't bleed one session's
+running sub-agents into another's activity panel/listing. Was a single flat
+dict until Item 4 Phase D; the `ponytail:` note that used to live here is
+resolved by this session-id parameter.
 """
 
 from __future__ import annotations
@@ -44,26 +47,29 @@ class AgentActivity:
 
 
 class AgentActivityRegistry:
-    """Tracks currently-running sub-agents for the activity panel.
+    """Tracks currently-running sub-agents for the activity panel, per session.
 
     Entries are dropped on finish: the panel shows only what is running now and
     self-clears, while each agent's full result is already flushed to the output.
     """
 
     def __init__(self) -> None:
-        self._agents: dict[str, AgentActivity] = {}
-        self._counter = 0
+        self._agents: dict[str, dict[str, AgentActivity]] = {}
+        self._counters: dict[str, int] = {}
 
-    def start(self, agent_id: str, name: str, task: str = "") -> int:
+    def start(
+        self, agent_id: str, name: str, task: str = "", session_id: str = ""
+    ) -> int:
         """Track a sub-agent and return its display ordinal (#1, #2, ...)."""
-        self._counter += 1
-        self._agents[agent_id] = AgentActivity(
-            agent_id=agent_id, name=name, ordinal=self._counter, task=task.strip()
+        counter = self._counters.get(session_id, 0) + 1
+        self._counters[session_id] = counter
+        self._agents.setdefault(session_id, {})[agent_id] = AgentActivity(
+            agent_id=agent_id, name=name, ordinal=counter, task=task.strip()
         )
-        return self._counter
+        return counter
 
-    def update(self, agent_id: str, text: str) -> None:
-        agent = self._agents.get(agent_id)
+    def update(self, agent_id: str, text: str, session_id: str = "") -> None:
+        agent = self._agents.get(session_id, {}).get(agent_id)
         if agent is None:
             return
         for line in reversed(text.splitlines()):
@@ -71,17 +77,20 @@ class AgentActivityRegistry:
                 agent.last_line = line.strip()
                 return
 
-    def finish(self, agent_id: str) -> None:
-        self._agents.pop(agent_id, None)
-        # Restart numbering once the batch fully drains, so the next fan-out
-        # begins at #1 instead of an ever-growing count.
-        if not self._agents:
-            self._counter = 0
+    def finish(self, agent_id: str, session_id: str = "") -> None:
+        bucket = self._agents.get(session_id)
+        if bucket is None:
+            return
+        bucket.pop(agent_id, None)
+        # Restart numbering once this session's batch fully drains, so its
+        # next fan-out begins at #1 instead of an ever-growing count.
+        if not bucket:
+            self._counters[session_id] = 0
 
-    def active(self) -> list[AgentActivity]:
-        return list(self._agents.values())
+    def active(self, session_id: str = "") -> list[AgentActivity]:
+        return list(self._agents.get(session_id, {}).values())
 
-    def snapshot(self) -> list[dict[str, object]]:
+    def snapshot(self, session_id: str = "") -> list[dict[str, object]]:
         """Serializable view for non-TUI backends (web/polling poll responses)."""
         return [
             {
@@ -91,11 +100,28 @@ class AgentActivityRegistry:
                 "task": a.task,
                 "last_line": a.last_line,
             }
-            for a in self._agents.values()
+            for a in self._agents.get(session_id, {}).values()
         ]
 
-    def clear(self) -> None:
-        self._agents.clear()
+    def clear(self, session_id: str | None = None) -> None:
+        """Clear one session's entries, or every session's when *session_id*
+        is omitted (e.g. process-lifetime teardown)."""
+        if session_id is None:
+            self._agents.clear()
+            self._counters.clear()
+        else:
+            self._agents.pop(session_id, None)
+            self._counters.pop(session_id, None)
+
+    def tracked_session_count(self) -> int:
+        """How many distinct session_ids this registry currently holds a
+        bucket for (including sessions with no agent left running).
+
+        A finished session whose bucket was never `clear()`-ed still counts
+        here — this is the number a caller (or a test) checks to confirm a
+        session's teardown actually released it, since `active()` alone
+        cannot distinguish "no bucket" from "an empty bucket"."""
+        return len(self._agents)
 
 
 agent_activity_registry = AgentActivityRegistry()

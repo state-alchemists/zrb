@@ -12,6 +12,11 @@ if TYPE_CHECKING:
 from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
+from zrb.llm.util.subagent_session_naming import (
+    SUBAGENT_HISTORY_SUBDIR,
+    parse_delegated_session,
+    subagent_history_directories,
+)
 from zrb.util.match import fuzzy_match
 from zrb.util.string.conversion import to_string
 
@@ -29,6 +34,13 @@ _BACKUP_FILENAME_PATTERN = re.compile(
 # only trades a re-read for memory in long sessions that touch many
 # conversations.
 _MAX_CACHED_CONVERSATIONS = 8
+
+
+def _safe_segment(name: str) -> str:
+    """A filesystem-safe single path segment for *name* (also used for the
+    per-agent-type subdirectory, which is the agent name)."""
+    safe = "".join(c for c in name if c.isalnum() or c in (" ", ".", "_", "-")).strip()
+    return safe or "default"
 
 
 class FileHistoryManager(AnyHistoryManager):
@@ -53,8 +65,7 @@ class FileHistoryManager(AnyHistoryManager):
         from pydantic import ValidationError
         from pydantic_ai.messages import ModelMessagesTypeAdapter
 
-        file_path = self._get_file_path(conversation_name)
-        current_mtime = self._file_mtime(file_path)
+        file_path, current_mtime = self._resolve_read_path(conversation_name)
 
         # Serve from cache only while the on-disk file hasn't changed since we
         # last synced. A differing mtime (incl. the file appearing/disappearing)
@@ -229,16 +240,20 @@ class FileHistoryManager(AnyHistoryManager):
             return []
 
         matches = []
-        for filename in os.listdir(self._history_dir):
-            if not filename.endswith(".json"):
-                continue
+        # Delegated transcripts live in subagent/{agent_type}/ subdirectories;
+        # scan those alongside the history root (which may still hold legacy
+        # flat delegated files) so search sees every conversation.
+        for directory in subagent_history_directories(self._history_dir):
+            for filename in os.listdir(directory):
+                if not filename.endswith(".json"):
+                    continue
 
-            conversation_name = filename[:-5]
+                conversation_name = filename[:-5]
 
-            is_match, score = fuzzy_match(conversation_name, keyword)
-            if is_match:
-                mtime = self._file_mtime(os.path.join(self._history_dir, filename))
-                matches.append((conversation_name, score, mtime or 0.0))
+                is_match, score = fuzzy_match(conversation_name, keyword)
+                if is_match:
+                    mtime = self._file_mtime(os.path.join(directory, filename))
+                    matches.append((conversation_name, score, mtime or 0.0))
 
         # Sort by fuzzy score (lower is better), then most-recently-modified
         # first. With an empty keyword every score is 0.0, so the effective
@@ -369,12 +384,43 @@ class FileHistoryManager(AnyHistoryManager):
             }
         return data
 
+    def _resolve_read_path(self, conversation_name: str) -> tuple[str, float | None]:
+        """The file to read *conversation_name* from, and its mtime.
+
+        Delegated transcripts live under ``subagent/{agent_type}/``; a name
+        that resolves to the new location but has no file there falls back to
+        the legacy flat history root (pre-layout files stay resumable, without
+        migrating them).
+        """
+        file_path = self._get_file_path(conversation_name)
+        mtime = self._file_mtime(file_path)
+        if mtime is not None:
+            return file_path, mtime
+        legacy_path = self._get_legacy_file_path(conversation_name)
+        if os.path.exists(legacy_path):
+            return legacy_path, self._file_mtime(legacy_path)
+        return file_path, None
+
+    def _get_legacy_file_path(self, conversation_name: str) -> str:
+        """The pre-`subagent/`-layout location for a delegated transcript:
+        flat in the history root, next to ordinary sessions."""
+        return os.path.join(
+            self._history_dir, f"{_safe_segment(conversation_name)}.json"
+        )
+
     def _get_file_path(self, conversation_name: str) -> str:
-        safe_name = "".join(
-            c for c in conversation_name if c.isalnum() or c in (" ", ".", "_", "-")
-        ).strip()
-        if not safe_name:
-            safe_name = "default"
+        safe_name = _safe_segment(conversation_name)
+        delegated = parse_delegated_session(safe_name)
+        if delegated is not None:
+            # Delegated sub-agent transcripts live in their own per-agent-type
+            # directory so a history listing/backup/prune never mixes them
+            # with ordinary sessions (and vice versa).
+            return os.path.join(
+                self._history_dir,
+                SUBAGENT_HISTORY_SUBDIR,
+                _safe_segment(delegated[1]),
+                f"{safe_name}.json",
+            )
         return os.path.join(self._history_dir, f"{safe_name}.json")
 
     def _extract_base_name(self, conversation_name: str) -> str:
@@ -390,13 +436,18 @@ class FileHistoryManager(AnyHistoryManager):
     def _get_backup_file_path(self, base_name: str, timestamp: datetime) -> str:
         """Get a backup file path with timestamp, handling conflicts.
 
+        A backup lands next to the conversation's main file (the same
+        directory `_get_file_path` resolves — the `subagent/{agent_type}/`
+        dir for a delegated transcript, the history root otherwise).
         Creates files like: <name>-2024-03-18-10-30-00.json
         If that exists: <name>-2024-03-18-10-30-00-1.json
         If that exists: <name>-2024-03-18-10-30-00-2.json
         etc.
         """
         ts_str = timestamp.strftime("%Y-%m-%d-%H-%M-%S")
-        base_path = os.path.join(self._history_dir, f"{base_name}-{ts_str}")
+        base_path = os.path.join(
+            os.path.dirname(self._get_file_path(base_name)), f"{base_name}-{ts_str}"
+        )
 
         candidate = f"{base_path}.json"
         if not os.path.exists(candidate):
@@ -411,9 +462,7 @@ class FileHistoryManager(AnyHistoryManager):
             if counter > 1000:
                 # Fallback to using microseconds
                 ts_str_with_us = timestamp.strftime("%Y-%m-%d-%H-%M-%S-%f")
-                return os.path.join(
-                    self._history_dir, f"{base_name}-{ts_str_with_us}.json"
-                )
+                return f"{base_path}-{ts_str_with_us}.json"
 
     def _save_data_to_file(self, file_path: str, data: Any) -> bool:
         """Save filtered data to a file.
@@ -422,6 +471,7 @@ class FileHistoryManager(AnyHistoryManager):
         file and renames into place — truncate-writing the live conversation
         file directly means a crash mid-write corrupts the whole history.
         """
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
         tmp_path = f"{file_path}.tmp"
         try:
             with open(tmp_path, "w", encoding="utf-8") as f:
@@ -453,8 +503,9 @@ class FileHistoryManager(AnyHistoryManager):
         """
         if keep < 0:
             return
+        directory = os.path.dirname(self._get_file_path(base_name))
         try:
-            entries = os.listdir(self._history_dir)
+            entries = os.listdir(directory)
         except OSError:
             return
         backups: list[str] = []
@@ -471,7 +522,7 @@ class FileHistoryManager(AnyHistoryManager):
         # granularity (FAT32, Docker overlayfs).
         backups.sort(reverse=True)
         for name in backups[keep:]:
-            full = os.path.join(self._history_dir, name)
+            full = os.path.join(directory, name)
             try:
                 os.remove(full)
             except OSError:

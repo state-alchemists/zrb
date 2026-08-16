@@ -244,6 +244,15 @@ def test_submit_user_message_falls_back_to_queue_when_enqueue_raises(base_ui):
     assert base_ui.queued_message_count == 1
 
 
+def test_submit_message_uses_own_llm_task(base_ui):
+    """Public `submit_message` (no llm_task argument) forwards to the queue
+    path with the UI's own task — the seam sub-agent continuation code uses
+    to hand the main agent a synthesized report."""
+    with patch.object(base_ui, "_submit_user_message") as mock_submit:
+        base_ui.submit_message("report text")
+    mock_submit.assert_called_once_with(base_ui.llm_task, "report text")
+
+
 @pytest.mark.asyncio
 async def test_edit_queued_message_replaces_text_in_place(base_ui):
     """A still-queued message's text can be replaced without resubmitting."""

@@ -21,6 +21,7 @@ from zrb.llm.tool_call import (
 )
 from zrb.llm.ui.base.message_queue import QueuedMessage
 from zrb.llm.ui.base.ui import BaseUI
+from zrb.llm.ui.default.agent_picker import UIAgentPicker
 from zrb.llm.ui.default.confirmation import UIConfirmation
 from zrb.llm.ui.default.keybindings import UIKeybindings
 from zrb.llm.ui.default.lifecycle import UILifecycle
@@ -57,6 +58,7 @@ class UI(
     UIConfirmation,
     UIOutput,
     UIMessageEditing,
+    UIAgentPicker,
     BaseUI,
 ):
     def __init__(
@@ -207,6 +209,10 @@ class UI(
         self._init_selection_state()
         choice_float = self._create_choice_float()
 
+        # Sub-agent picker + live view (hidden until Down Arrow opens it).
+        self._init_agent_picker_state()
+        agent_picker_float = self._create_agent_picker_float()
+
         self._layout = create_layout(
             title=self._assistant_name,
             jargon=self._jargon,
@@ -214,7 +220,7 @@ class UI(
             output_field=self._output_field,
             info_bar_text=self.get_info_bar_text,
             status_bar_text=self.get_status_bar_text,
-            extra_floats=[choice_float],
+            extra_floats=[choice_float, agent_picker_float],
             agent_activity_text=self.get_agent_activity_text,
         )
 
@@ -238,10 +244,22 @@ class UI(
 
     def _on_render(self, app: "Application") -> None:
         try:
-            self.rewrap_output()
+            if self._viewing_agent_id is not None:
+                # While viewing a sub-agent the pane shows that agent's buffer
+                # (see UIAgentPicker); the main transcript's re-wrap is parked
+                # until Esc returns to it.
+                self.sync_output_to_viewed_agent()
+            else:
+                self.rewrap_output()
         except Exception as e:
             # Runs on every frame — a re-render failure must not kill the paint.
-            logger.warning(f"Output re-wrap skipped: {e}")
+            # Log only the first occurrence of each distinct failure: the same
+            # failure on every frame would otherwise print a warning per
+            # redraw (a "recurring error" wall of identical lines).
+            message = f"Output re-wrap skipped: {e}"
+            if message != getattr(self, "_last_render_error", None):
+                self._last_render_error = message
+                logger.warning(message)
 
     async def run_interactive_command(
         self, cmd: str | list[str], shell: bool = False
@@ -281,6 +299,29 @@ class UI(
             right=0,
             content=ConditionalContainer(
                 content=framed, filter=Condition(self.has_active_choice)
+            ),
+        )
+
+    def _create_agent_picker_float(self):
+        """Float hosting the sub-agent picker, shown only while active."""
+        # lazy: heavy third-party
+        from prompt_toolkit.filters import Condition
+        from prompt_toolkit.layout.containers import ConditionalContainer, Float
+        from prompt_toolkit.widgets import Frame
+
+        framed = Frame(
+            self._agent_picker_window,
+            title="Talk to a sub-agent",
+            style="class:agent-picker-frame",
+        )
+        # Full-width (left=right=0), anchored just above the input, matching
+        # the choice float.
+        return Float(
+            bottom=4,
+            left=0,
+            right=0,
+            content=ConditionalContainer(
+                content=framed, filter=Condition(self.has_active_agent_picker)
             ),
         )
 

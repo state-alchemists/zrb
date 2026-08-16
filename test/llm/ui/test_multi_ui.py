@@ -406,8 +406,18 @@ def test_multi_ui_submit_message_falls_back_to_queue_when_enqueue_raises(multi_u
     multi_ui.active_run_context = live_run
 
     multi_ui._submit_user_message(llm_task, "steer me")
-
     assert multi_ui._message_queue.qsize() == 1
+
+
+def test_multi_ui_submit_message_uses_own_llm_task(multi_ui):
+    """Public `submit_message` (no llm_task argument) forwards to the shared
+    queue path with the queue's own task — the seam sub-agent continuation
+    code uses to hand the main agent a synthesized report."""
+    llm_task = MagicMock()
+    multi_ui.set_llm_task(llm_task)
+    with patch.object(multi_ui, "_submit_user_message") as mock_submit:
+        multi_ui.submit_message("report text")
+    mock_submit.assert_called_once_with(llm_task, "report text")
 
 
 @pytest.mark.asyncio

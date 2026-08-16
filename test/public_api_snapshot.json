@@ -1111,6 +1111,8 @@
         "successors",
         "to_function",
         "tool_confirmation",
+        "tools",
+        "toolsets",
         "upstreams"
       ]
     },
@@ -1567,10 +1569,12 @@
         "append_toolset",
         "append_toolset_factory",
         "create_agent",
+        "create_llm_chat_task",
         "get_agent_definition",
         "get_all_toolsets",
         "get_search_directories",
         "reload",
+        "resolve_agent_build",
         "scan"
       ]
     },

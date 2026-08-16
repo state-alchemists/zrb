@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from zrb.llm.ui.base.message_queue import QueuedMessage
@@ -33,6 +34,24 @@ def test_output_text_property():
     assert ui.output_text == "current"
 
 
+def test_get_agent_activity_text_scopes_by_conversation_session_name():
+    """Item 4, Phase D: the activity panel must read only this UI's own
+    session's entries, not bleed in another session's running sub-agents."""
+    from zrb.llm.agent.activity import AgentActivityRegistry
+
+    ui = MockOutputUI()
+    reg = AgentActivityRegistry()
+    reg.start("a", "researcher", session_id="test")
+    reg.start("b", "reviewer", session_id="other-session")
+
+    with patch("zrb.llm.ui.default.output.agent_activity_registry", reg):
+        frags = ui.get_agent_activity_text()
+
+    rendered = "".join(text for _style, text in frags)
+    assert "researcher" in rendered
+    assert "reviewer" not in rendered
+
+
 def test_append_to_output_basic():
     ui = MockOutputUI()
     ui._output_field.text = "line1\n"
@@ -60,6 +79,29 @@ def test_get_info_bar_text_logic():
     ui = MockOutputUI()
     res = ui.get_info_bar_text()
     assert res is not None
+
+
+def test_get_info_bar_text_omits_persona_when_driving_main_agent():
+    """No sub-agent indicator when nothing was swapped (the common case)."""
+    from prompt_toolkit.formatted_text import to_formatted_text
+
+    ui = MockOutputUI()
+    fragments = to_formatted_text(ui.get_info_bar_text())
+    rendered = "".join(text for _style, text, *_ in fragments)
+    assert "Sub-agent:" not in rendered
+
+
+def test_get_info_bar_text_shows_active_subagent_persona():
+    """Item 4, Phase D: the UI clue that /load swapped which persona is
+    driving new messages."""
+    from prompt_toolkit.formatted_text import to_formatted_text
+
+    ui = MockOutputUI()
+    ui._active_subagent_persona = "code-reviewer"
+    fragments = to_formatted_text(ui.get_info_bar_text())
+    rendered = "".join(text for _style, text, *_ in fragments)
+    assert "Sub-agent:" in rendered
+    assert "code-reviewer" in rendered
 
 
 def test_get_info_bar_text_accepts_style_strings_with_spaces():
@@ -97,6 +139,131 @@ def test_get_info_bar_text_partial_yolo_lists_tools():
     res = ui.get_info_bar_text()
     text = "".join(t for _style, t, *_ in to_formatted_text(res))
     assert "[Read,Write]" in text
+
+
+# ── Live sub-agent view (UIAgentPicker wiring) ───────────────────────────
+
+
+def test_get_agent_activity_text_shows_picker_hint_when_live_sessions_tracked():
+    """Finished-but-still-tracked sessions are absent from the activity panel,
+    yet the panel still advertises the Down-Arrow picker for them."""
+    ui = MockOutputUI()
+    no_activity = MagicMock(active=lambda session_id: [])
+    with_live = MagicMock(active=lambda session_id: [object()])
+
+    with patch("zrb.llm.ui.default.output.agent_activity_registry", no_activity):
+        with patch(
+            "zrb.llm.agent.subagent.live_session.live_subagent_session_registry",
+            with_live,
+        ):
+            frags = ui.get_agent_activity_text()
+
+    rendered = "".join(text for _style, text in frags)
+    assert "↓ talk to a sub-agent" in rendered
+
+
+def test_get_agent_activity_text_omits_picker_hint_without_live_sessions():
+    ui = MockOutputUI()
+    no_activity = MagicMock(active=lambda session_id: [])
+
+    with patch("zrb.llm.ui.default.output.agent_activity_registry", no_activity):
+        with patch(
+            "zrb.llm.agent.subagent.live_session.live_subagent_session_registry",
+            no_activity,
+        ):
+            frags = ui.get_agent_activity_text()
+
+    assert frags == []
+
+
+def test_get_agent_activity_text_shows_back_hint_while_viewing():
+    """While a sub-agent's live view is showing, the activity panel stops
+    listing running sub-agents (and the picker hint) and instead advertises
+    that Left returns to the parent session."""
+    ui = MockOutputUI()
+    ui._viewing_agent_id = "a1"
+    running = MagicMock(active=lambda session_id: [object()])
+    live = MagicMock(active=lambda session_id: [object()])
+
+    with patch("zrb.llm.ui.default.output.agent_activity_registry", running):
+        with patch(
+            "zrb.llm.agent.subagent.live_session.live_subagent_session_registry",
+            live,
+        ):
+            frags = ui.get_agent_activity_text()
+
+    rendered = "".join(text for _style, text in frags)
+    assert "Press ← to return to the parent" in rendered
+    assert "↓ talk to a sub-agent" not in rendered
+
+
+def test_get_agent_activity_text_unchanged_when_not_viewing():
+    """Outside the live view the panel still lists running sub-agents."""
+    from zrb.llm.agent.activity import AgentActivityRegistry
+
+    ui = MockOutputUI()
+    reg = AgentActivityRegistry()
+    reg.start("a", "researcher", task="research x", session_id="test")
+
+    with patch("zrb.llm.ui.default.output.agent_activity_registry", reg):
+        with patch(
+            "zrb.llm.agent.subagent.live_session.live_subagent_session_registry",
+            MagicMock(active=lambda session_id: [object()]),
+        ):
+            frags = ui.get_agent_activity_text()
+
+    rendered = "".join(text for _style, text in frags)
+    assert "researcher" in rendered
+    assert "Press ← to return to the parent" not in rendered
+
+
+def test_get_info_bar_text_shows_viewing_sub_agent():
+    from prompt_toolkit.formatted_text import to_formatted_text
+
+    ui = MockOutputUI()
+    ui._viewing_agent_id = "abc123"
+    session = SimpleNamespace(agent_name="researcher")
+
+    with patch(
+        "zrb.llm.agent.subagent.live_session.live_subagent_session_registry"
+    ) as mock_reg:
+        mock_reg.get.return_value = session
+        fragments = to_formatted_text(ui.get_info_bar_text())
+
+    rendered = "".join(text for _style, text, *_ in fragments)
+    assert "Sub-agent:" in rendered
+    assert "researcher" in rendered
+    assert "(viewing · ← back)" in rendered
+
+
+def test_append_to_output_redirects_into_saved_main_output_while_viewing():
+    # While the output pane shows a sub-agent's buffer, main-transcript appends
+    # accumulate into the parked snapshot instead of corrupting the live view.
+    ui = MockOutputUI()
+    ui._output_field.text = "sub-agent live output"
+    ui._viewing_agent_id = "abc123"
+    ui._saved_main_output = "main transcript\n"
+
+    with patch.object(ui, "_schedule_invalidate"):
+        with patch("prompt_toolkit.document.Document") as mock_doc:
+            ui.append_to_output("new main line")
+
+    assert ui._saved_main_output == "main transcript\nnew main line\n"
+    assert ui.output_text == "sub-agent live output"  # pane untouched
+    mock_doc.assert_not_called()
+
+
+def test_append_to_output_redirect_merges_carriage_returns():
+    ui = MockOutputUI()
+    ui._viewing_agent_id = "abc123"
+    ui._saved_main_output = "Status: old"
+
+    with patch.object(ui, "_schedule_invalidate"):
+        with patch("prompt_toolkit.document.Document") as mock_doc:
+            ui.append_to_output("\rStatus: new", end="")
+
+    assert ui._saved_main_output == "Status: new"
+    mock_doc.assert_not_called()
 
 
 def test_output_field_width_logic():

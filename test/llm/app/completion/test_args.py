@@ -27,6 +27,24 @@ def test_complete_load_arg_caps_at_ten_results():
     assert len(results) == 10
 
 
+def test_complete_load_arg_labels_delegated_subagent_sessions():
+    """Item 4, Phase D: without this, a delegated sub-agent transcript is
+    indistinguishable from an ordinary session in the /load dropdown -- the
+    only discovery mechanism the CLI TUI has for "what sub-agent sessions
+    exist"."""
+    hm = MagicMock()
+    hm.search.return_value = [
+        "sess1-sub-code-reviewer-a1b2c3d4",
+        "my-ordinary-session",
+    ]
+    results = {c.text: c.display_meta_text for c in complete_load_arg("s", hm)}
+    delegated_meta = results["sess1-sub-code-reviewer-a1b2c3d4"]
+    ordinary_meta = results["my-ordinary-session"]
+    assert "code-reviewer" in delegated_meta
+    assert delegated_meta != ordinary_meta
+    assert ordinary_meta == "Session Name"
+
+
 def test_complete_redirect_arg_silent_when_prefix_doesnt_match_timestamp():
     """If prefix is 'zzz', the timestamp-based suggestion is suppressed."""
     results = list(complete_redirect_arg("zzz"))

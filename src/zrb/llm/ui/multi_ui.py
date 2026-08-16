@@ -375,6 +375,13 @@ class MultiUI:
         """Submit user message through the shared queue."""
         self._submit_user_message(llm_task, user_message)
 
+    def submit_message(self, user_message: str) -> None:
+        """Queue *user_message* for the shared agent turn (steer into the live
+        run when one is in flight, ADR-0078). Uses the shared queue's own task
+        — sub-agent continuation code calls this to hand the main agent a
+        synthesized report."""
+        self._submit_user_message(self._llm_task, user_message)
+
     def _submit_user_message(self, llm_task: Any, user_message: str):
         """Submit user message to shared queue.
 

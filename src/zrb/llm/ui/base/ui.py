@@ -209,6 +209,10 @@ class BaseUI(BaseUIProperties, BaseUICommands, BaseUIReplay, BaseUISystemInfo):
         self._model = model
         self._small_model = None
         self._multimodal_model = None
+        # Item 4, Phase D: persona-swap-on-/load. None until a delegated
+        # sub-agent session is loaded; see BaseUIConversationCommands.
+        self._active_subagent_persona: str | None = None
+        self._original_persona_snapshot: dict[str, Any] | None = None
         self._triggers = _default_list(triggers)
         self._markdown_theme = markdown_theme
         self._summarize_commands = _default_list(summarize_commands)
@@ -806,6 +810,14 @@ class BaseUI(BaseUIProperties, BaseUICommands, BaseUIReplay, BaseUISystemInfo):
         entry.echo_timestamp = timestamp
         self._track_echo_span(entry, echo)
         self._message_queue.put_nowait(entry)
+
+    def submit_message(self, user_message: str) -> None:
+        """Queue *user_message* for the agent, mirroring `MultiUI.submit_message`:
+        steer into the live turn when one is in flight (ADR-0078), otherwise
+        enqueue it for the next turn. Uses the UI's own task — sub-agent
+        continuation code calls this to hand the main agent a synthesized
+        report without reaching into `_submit_user_message` or `_llm_task`."""
+        self._submit_user_message(self.llm_task, user_message)
 
     async def _stream_ai_response(
         self,

@@ -23,6 +23,7 @@ from zrb.llm.custom_command.resolver import (
     resolve_custom_command,
     resolve_custom_commands,
 )
+from zrb.llm.task.chat.agent_mention import resolve_agent_mention
 from zrb.llm.task.chat.state import ChatState
 from zrb.session.session import Session
 from zrb.util.attr import get_attr, get_str_attr
@@ -67,6 +68,12 @@ class ChatRunning(ChatState):
             resolved = resolve_custom_command(initial_message, resolved_custom_commands)
             if resolved is not None:
                 effective_message = resolved
+            else:
+                # Only nudge on @mention when the message wasn't already a
+                # slash command — the two are mutually exclusive syntaxes.
+                mentioned = resolve_agent_mention(initial_message)
+                if mentioned is not None:
+                    effective_message = mentioned
 
         # Attach factory-produced UIs (e.g. the web/SSE HTTPUI) as output sinks
         # so run_agent streams through them. This is what makes browser chat
@@ -166,6 +173,10 @@ class ChatRunning(ChatState):
             resolved = resolve_custom_command(initial_message, resolved_custom_commands)
             if resolved is not None:
                 initial_message = resolved
+            else:
+                mentioned = resolve_agent_mention(initial_message)
+                if mentioned is not None:
+                    initial_message = mentioned
 
         # Note: AsyncExitStack is handled by LLMTask._exec_action
         # 1. Resolve UIs from factories
