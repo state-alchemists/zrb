@@ -12,6 +12,7 @@ import asyncio
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
     from zrb.llm.task.llm_task import LLMTask
     from zrb.task.any_task import AnyTask
 
@@ -30,6 +31,7 @@ class QueueBasedInput:
         _llm_task: "LLMTask"
         _input_queue: "asyncio.Queue[str]"
         _waiting_for_input: bool
+        _custom_commands: "list[AnyCustomCommand]"
 
         async def print(self, text: str, kind: str = "text") -> None: ...
 
