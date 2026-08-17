@@ -198,9 +198,8 @@ def test_submit_user_message_marks_queued_while_thinking(base_ui):
         assert base_ui.queued_message_count == 1
         assert "💬" in outputs[0]
 
-        # No public setter on BaseUI (the default UI exposes one via UIOutput);
-        # flip the flag the way _stream_ai_response does.
-        base_ui._is_thinking = True
+        # Flip the flag the way _stream_ai_response does.
+        base_ui.is_thinking = True
         base_ui._submit_user_message(base_ui.llm_task, "even later")
 
     assert base_ui.queued_message_count == 2
@@ -257,14 +256,14 @@ def test_submit_message_uses_own_llm_task(base_ui):
 async def test_edit_queued_message_replaces_text_in_place(base_ui):
     """A still-queued message's text can be replaced without resubmitting."""
     entry = make_entry("original")
-    base_ui._message_queue.put_nowait(entry)
+    base_ui.message_queue.put_nowait(entry)
 
     assert base_ui.edit_queued_message(entry, "edited") is True
     assert entry.text == "edited"
     assert base_ui.queued_message_count == 1
 
     # Once the turn starts (entry popped), the edit is refused.
-    popped = await base_ui._message_queue.get()
+    popped = await base_ui.message_queue.get()
     assert popped is entry
     assert base_ui.edit_queued_message(entry, "too late") is False
     assert entry.text == "edited"
@@ -272,7 +271,7 @@ async def test_edit_queued_message_replaces_text_in_place(base_ui):
 
 def test_edit_queued_message_strips_whitespace(base_ui):
     entry = make_entry("original")
-    base_ui._message_queue.put_nowait(entry)
+    base_ui.message_queue.put_nowait(entry)
 
     assert base_ui.edit_queued_message(entry, "  edited  ") is True
     assert entry.text == "edited"

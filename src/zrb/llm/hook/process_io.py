@@ -150,7 +150,13 @@ def _unregister(sel: "selectors.BaseSelector", fileobj: Any) -> None:
 
 
 def _close_pipe(pipe: Any) -> None:
-    """Close a pipe, tolerating one already closed or never opened."""
+    """Close a pipe, tolerating one already closed, never opened, or erroring.
+
+    Runs on a detached reader thread whose exception becomes the hook's own
+    result (see test_read_hook_output_survives_a_pipe_that_fails_to_close) —
+    a close() failure here must never turn an otherwise-fine hook run into an
+    error, so this stays a broad backstop rather than a narrowed OSError catch.
+    """
     if pipe is None:
         return
     try:

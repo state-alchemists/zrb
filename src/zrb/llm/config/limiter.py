@@ -259,10 +259,10 @@ class LLMLimiter:
                     truncated_tokens = tokens[:max_tokens]
                     return enc.decode(truncated_tokens)
                 return text
-            except Exception:
+            except Exception as e:
                 # Fallback if tiktoken fails for any reason (missing package,
                 # unknown encoding name, corrupt/unfetchable BPE cache, …)
-                pass
+                CFG.LOGGER.debug(f"tiktoken truncate fallback: {e}")
         # Fallback approximation (char/4) for when tiktoken is not used or fails
         estimated_chars = max_tokens * 4
         if len(text) > estimated_chars:
@@ -280,12 +280,12 @@ class LLMLimiter:
 
                 enc = tiktoken.get_encoding(self.tiktoken_encoding)
                 return len(enc.encode(text))
-            except Exception:
+            except Exception as e:
                 # Fallback to the char/4 approximation if tiktoken fails for
                 # any reason (missing package, unknown encoding name, corrupt
                 # or unfetchable BPE cache). Counting must never crash the
                 # history pipeline — it runs before every model call.
-                pass
+                CFG.LOGGER.debug(f"tiktoken count fallback: {e}")
         # Fallback approximation (char/4)
         return len(text) // 4
 

@@ -462,7 +462,7 @@ class BaseUI(BaseUIProperties, BaseUICommands, BaseUIReplay, BaseUISystemInfo):
             f"{self.__class__.__name__} must implement append_to_output()"
         )
 
-    async def ask_user(self, prompt: str) -> str:
+    async def ask_user(self, prompt: str, output_to_parent: str = "") -> str:
         """[REQUIRED] Block and wait for user input.
 
         This method must be implemented by all UI subclasses to receive
@@ -472,6 +472,10 @@ class BaseUI(BaseUIProperties, BaseUICommands, BaseUIReplay, BaseUISystemInfo):
         Args:
             prompt: Optional prompt to display before waiting for input.
                    May be empty string if no prompt is needed.
+            output_to_parent: When set, written to the parent UI's output
+                   before the prompt is rendered.  Used by BufferedUI to
+                   relay approval messages from sub-agents to the main
+                   transcript.
 
         Returns:
             The user's input as a string.

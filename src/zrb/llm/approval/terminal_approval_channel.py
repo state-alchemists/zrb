@@ -59,7 +59,7 @@ class TerminalApprovalChannel:
 
         CFG.LOGGER.debug("TerminalApprovalChannel Waiting for user input via CLI...")
 
-        user_input = await self._ui.ask_user("")
+        user_input = await self._ui.ask_user("", output_to_parent=f"\n\n{message}")
         user_response = user_input.strip()
 
         CFG.LOGGER.debug(

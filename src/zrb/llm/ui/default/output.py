@@ -163,6 +163,16 @@ class UIOutput:
         """Get the current text in the output field."""
         return self._output_field.text
 
+    @property
+    def output_field(self) -> Any:
+        """Public read accessor for the raw output-field widget."""
+        return self._output_field
+
+    @property
+    def input_field(self) -> Any:
+        """Public read accessor for the raw input-field widget."""
+        return self._input_field
+
     def append_to_output(
         self,
         *values: object,
@@ -532,7 +542,7 @@ class UIOutput:
             if agent.last_line:
                 label += f" — {_truncate(agent.last_line, 40)}"
             lines.append((CFG.LLM_UI_STYLE_THINKING, label))
-        if live:
+        if any(s.state == "running" for s in live):
             lines.append((CFG.LLM_UI_STYLE_FAINT, " ↓ talk to a sub-agent"))
         frags: list = []
         for style, text in lines:

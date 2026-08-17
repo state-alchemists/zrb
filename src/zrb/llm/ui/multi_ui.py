@@ -312,9 +312,9 @@ class MultiUI:
             try:
                 if hasattr(ui, "invalidate_ui"):
                     ui.invalidate_ui()
-            except Exception:
+            except Exception as e:
                 # Best-effort repaint of each child UI.
-                pass
+                CFG.LOGGER.debug(f"Child UI invalidate_ui failed: {e}")
 
     def _create_session_for_llm_task(
         self,
@@ -477,7 +477,7 @@ class MultiUI:
                 logging.getLogger(__name__).error(f"Error in message queue: {e}")
                 await asyncio.sleep(CFG.LLM_UI_STATUS_INTERVAL / 1000)
 
-    async def ask_user(self, prompt: str) -> str:
+    async def ask_user(self, prompt: str, output_to_parent: str = "") -> str:
         """Race all UIs for input and return the first response.
 
         When one UI wins, cancel and clear pending confirmations in other UIs.
@@ -492,7 +492,9 @@ class MultiUI:
         for i, ui in enumerate(self._uis):
             try:
                 if hasattr(ui, "ask_user"):
-                    task = loop.create_task(ui.ask_user(prompt))
+                    task = loop.create_task(
+                        ui.ask_user(prompt, output_to_parent=output_to_parent)
+                    )
                     pending_tasks[task] = (i, ui)
             except Exception as e:
                 CFG.LOGGER.debug(f"Child UI ask_user setup failed: {e}")
@@ -585,9 +587,9 @@ class MultiUI:
             try:
                 if hasattr(ui, "cancel_pending_confirmations"):
                     ui.cancel_pending_confirmations()
-            except Exception:
+            except Exception as e:
                 # Best-effort cancel across child UIs during teardown.
-                pass
+                CFG.LOGGER.debug(f"Child UI cancel_pending_confirmations failed: {e}")
 
     def stream_to_parent(
         self,
@@ -694,9 +696,9 @@ class MultiUI:
             self._process_messages_task.cancel()
         try:
             self._main_ui.on_exit()
-        except Exception:
+        except Exception as e:
             # Best-effort teardown of the main UI.
-            pass
+            CFG.LOGGER.debug(f"Main UI on_exit failed: {e}")
 
 
 def is_shutdown_requested() -> bool:

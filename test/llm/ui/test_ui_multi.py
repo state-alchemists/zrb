@@ -331,7 +331,7 @@ class TestMultiUI:
 
         mock_ui = MagicMock()
 
-        async def error_response(prompt):
+        async def error_response(prompt, **kwargs):
             await asyncio.sleep(0.1)
             raise Exception("Test error")
 

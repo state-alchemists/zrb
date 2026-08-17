@@ -420,6 +420,7 @@ if BOT_TOKEN and CHAT_ID:
         initial_conversation_name,
         initial_yolo,
         initial_attachments,
+        custom_commands=None,
     ):
         from zrb.llm.ui import UIConfig
 
@@ -435,6 +436,7 @@ if BOT_TOKEN and CHAT_ID:
             config=cfg,
             initial_message=initial_message,
             initial_attachments=initial_attachments,
+            custom_commands=custom_commands,
             bot=bot,
             chat_id=CHAT_ID,
             skip_kinds=SKIP_KINDS,

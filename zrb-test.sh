@@ -11,10 +11,10 @@ fi
 # because it carries pre-existing unused-import noise.
 flake8 src/zrb --select=F
 
-# Complexity ratchet: fail if any function exceeds the current worst (mccabe 47,
+# Complexity ratchet: fail if any function exceeds the current worst (mccabe 46,
 # setup_app_keybindings). This blocks NEW hot-spots from landing without failing
 # on today's code; tighten the number as offenders are refactored down.
-flake8 src/zrb --select=C901 --max-complexity=47
+flake8 src/zrb --select=C901 --max-complexity=46
 
 # Second ratchet, on *true* per-function complexity. mccabe sums a nested
 # function's branches into its enclosing function, so a registration function
@@ -24,7 +24,7 @@ flake8 src/zrb --select=C901 --max-complexity=47
 python - <<'PY'
 import json, subprocess, sys
 
-LIMIT = 23
+LIMIT = 21
 report = json.loads(
     subprocess.run(
         ["radon", "cc", "src/zrb", "--json"], capture_output=True, text=True, check=True
@@ -41,6 +41,28 @@ if over:
     print(f"Per-function complexity above the ratchet ({LIMIT}):")
     for score, where in sorted(over, reverse=True):
         print(f"  {score:3d}  {where}")
+    sys.exit(1)
+PY
+
+# Private-test-access ratchet: count test/ references into *other* objects'
+# private attributes (excluding self.foo, which is a class reading its own
+# state, not a coupling problem). Fails if this count exceeds the baseline,
+# so the debt can't grow even before more of it is paid down. Tighten this
+# number as more accessors replace private reaches.
+python - <<'PY'
+import re, sys
+from pathlib import Path
+
+LIMIT = 996
+pattern = re.compile(r'\b\w+\._[a-zA-Z]\w*')
+count = sum(
+    1
+    for path in Path("test").rglob("*.py")
+    for m in pattern.finditer(path.read_text())
+    if not m.group().startswith("self.")
+)
+if count > LIMIT:
+    print(f"Non-self private test access grew from baseline ({LIMIT}) to {count}.")
     sys.exit(1)
 PY
 

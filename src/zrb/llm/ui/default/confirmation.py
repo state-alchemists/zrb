@@ -57,7 +57,7 @@ class UIConfirmation:
     def _end_choice(self) -> None:
         pass
 
-    async def ask_user(self, prompt: str) -> str:
+    async def ask_user(self, prompt: str, output_to_parent: str = "") -> str:
         """Prompt the user for free-text input via the main input field."""
         return await self._enqueue_request(prompt, None)
 

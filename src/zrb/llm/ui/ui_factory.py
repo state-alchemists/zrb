@@ -60,6 +60,7 @@ def create_ui_factory(
         initial_conversation_name: str,
         initial_yolo: bool,
         initial_attachments: list[Any],
+        custom_commands: list[Any] | None = None,
     ) -> BaseUI:
         cfg = config or UIConfig.default()
         if ui_commands:
@@ -82,6 +83,7 @@ def create_ui_factory(
             config=cfg,
             initial_message=initial_message,
             initial_attachments=initial_attachments,
+            custom_commands=custom_commands,
             **extra_kwargs,
         )
 

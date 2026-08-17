@@ -810,7 +810,7 @@ class TestChatSessionManager:
         msg.parts = [part]
         msg.timestamp = "2026-01-01T00:00:00"
 
-        with patch.object(manager._history_manager, "load", return_value=[msg]):
+        with patch.object(manager.history_manager, "load", return_value=[msg]):
             messages = manager.get_messages("msg-test")
         assert messages[0]["role"] == "user"
         assert messages[0]["content"] == "hello"
@@ -830,7 +830,7 @@ class TestChatSessionManager:
         msg.parts = [part]
         del msg.timestamp  # exercise the getattr fallback
 
-        with patch.object(manager._history_manager, "load", return_value=[msg]):
+        with patch.object(manager.history_manager, "load", return_value=[msg]):
             messages = manager.get_messages("role-test")
         assert messages[0]["role"] == "assistant"
         assert "complex" in messages[0]["content"]
@@ -854,7 +854,7 @@ class TestChatSessionManager:
         msg.parts = [part]
         msg.timestamp = None
 
-        with patch.object(manager._history_manager, "load", return_value=[msg]):
+        with patch.object(manager.history_manager, "load", return_value=[msg]):
             messages = manager.get_messages("live-context-test")
         assert messages[0]["content"] == "what's the weather"
         assert (
@@ -876,7 +876,7 @@ class TestChatSessionManager:
         msg.parts = [part]
         msg.timestamp = None
 
-        with patch.object(manager._history_manager, "load", return_value=[msg]):
+        with patch.object(manager.history_manager, "load", return_value=[msg]):
             messages = manager.get_messages("no-live-context-test")
         assert messages[0]["content"] == "hello"
         assert messages[0]["live_context"] is None
@@ -897,7 +897,7 @@ class TestChatSessionManager:
         msg.parts = [part]
         msg.timestamp = None
 
-        with patch.object(manager._history_manager, "load", return_value=[msg]):
+        with patch.object(manager.history_manager, "load", return_value=[msg]):
             messages = manager.get_messages("assistant-live-context-test")
         assert messages[0]["live_context"] is None
 

@@ -12,6 +12,8 @@ import asyncio
 import traceback as tb_lib
 from typing import TYPE_CHECKING
 
+from zrb.config.config import CFG
+
 if TYPE_CHECKING:
     from collections.abc import AsyncIterable, Callable
     from typing import Any, TextIO
@@ -164,10 +166,10 @@ class UILifecycle:
                 app.invalidate()
                 if app.layout.has_focus(self._input_field):
                     self._scroll_output_to_bottom()
-            except Exception:
+            except Exception as e:
                 # Best-effort repaint loop; a transient render error must not
                 # kill the loop.
-                pass
+                CFG.LOGGER.debug(f"Refresh loop repaint failed: {e}")
             try:
                 # When thinking or waiting for confirmation, refresh faster for
                 # animation (every 0.25s). Otherwise, refresh every 3s to save CPU.
@@ -187,9 +189,9 @@ class UILifecycle:
             buffer = self._output_field.buffer
             if buffer.cursor_position != len(buffer.text):
                 buffer.cursor_position = len(buffer.text)
-        except Exception:
+        except Exception as e:
             # Best-effort scroll; ignore if the buffer isn't ready.
-            pass
+            CFG.LOGGER.debug(f"Scroll-to-bottom failed: {e}")
 
     def handle_first_render(self):
         """Handle the first render event (public API)."""

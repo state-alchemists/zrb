@@ -251,7 +251,7 @@ def _blocked_result(output: str, stderr_output: str) -> HookResult:
         if isinstance(data, dict):
             modifications = data
             stdout_is_json = True
-    except Exception:
+    except json.JSONDecodeError:
         pass
 
     # Only treat stdout as the reason when it was NOT a JSON control object (a

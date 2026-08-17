@@ -46,6 +46,9 @@ class BaseUIProperties:
         _confirmation_output_buffer: list[str]
         _pending_attachments: list[Any]
         _plan_mode_active: bool
+        _voice_mode_active: bool
+        _is_thinking: bool
+        _message_queue: Any
 
     @property
     def llm_task(self) -> Any:
@@ -195,3 +198,45 @@ class BaseUIProperties:
     def background_tasks(self) -> Any:
         """Public read accessor for the background-task set."""
         return self._background_tasks
+
+    @property
+    def confirmation_output_buffer(self) -> list[str]:
+        """Public read accessor for the buffered output held during confirmation."""
+        return self._confirmation_output_buffer
+
+    @property
+    def pending_attachments(self) -> list[Any]:
+        """Public read accessor for attachments queued for the next turn."""
+        return self._pending_attachments
+
+    @property
+    def plan_mode_active(self) -> bool:
+        """Whether plan mode is currently active."""
+        return self._plan_mode_active
+
+    @plan_mode_active.setter
+    def plan_mode_active(self, value: bool):
+        self._plan_mode_active = value
+
+    @property
+    def voice_mode_active(self) -> bool:
+        """Whether voice dictation mode is currently active."""
+        return self._voice_mode_active
+
+    @voice_mode_active.setter
+    def voice_mode_active(self, value: bool):
+        self._voice_mode_active = value
+
+    @property
+    def is_thinking(self) -> bool:
+        """Whether the assistant is currently producing a response."""
+        return self._is_thinking
+
+    @is_thinking.setter
+    def is_thinking(self, value: bool):
+        self._is_thinking = value
+
+    @property
+    def message_queue(self) -> Any:
+        """Public read accessor for the pending-message queue."""
+        return self._message_queue

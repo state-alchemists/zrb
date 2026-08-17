@@ -32,7 +32,7 @@ def scan_files(
         _scan_recursive(
             search_path, search_path, max_depth, 0, on_file_found, effective_ignore
         )
-    except Exception:
+    except (PermissionError, OSError):
         # See docstring: one inaccessible branch must not abort the whole scan.
         pass
 

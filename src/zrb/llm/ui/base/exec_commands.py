@@ -101,6 +101,9 @@ class BaseUIExecCommands:
             self.append_to_output(f"\n💻 {timestamp} >> {cmd}\n")
             self.append_to_output(stylize_muted("\n  🔢 Executing...\n"))
 
+            # create_subprocess_shell is intentional here: cmd is raw text a
+            # human typed into the /exec prompt (pipes, redirects, globs are
+            # the point), never assembled from untrusted parts.
             process = await asyncio.create_subprocess_shell(
                 cmd,
                 stdout=asyncio.subprocess.PIPE,
@@ -115,6 +118,8 @@ class BaseUIExecCommands:
                     decoded_line = line.decode("utf-8", errors="replace")
                     self.append_to_output(decoded_line, end="")
 
+            # Fail-fast fan-out: a broken reader should abort immediately, not
+            # be masked by return_exceptions.
             await asyncio.gather(
                 read_stream(process.stdout),
                 read_stream(process.stderr, is_stderr=True),

@@ -67,7 +67,7 @@ class TestBaseUICommandHandlers:
         ui.history_manager.update = MagicMock()
         ui.history_manager.save = MagicMock()
         ui.append_to_output = MagicMock()
-        ui._conversation_session_name = "test-session"
+        ui.conversation_session_name = "test-session"
 
         result = ui._handle_save_command("/save my-save")
 
@@ -444,7 +444,7 @@ class TestBaseUICommandHandlers:
         """Test _handle_set_model_command changes model."""
         ui = simple_ui_instance
         ui._set_model_commands = ["/model"]
-        ui._is_thinking = False
+        ui.is_thinking = False
         ui.append_to_output = MagicMock()
 
         result = ui._handle_set_model_command("/model gpt-4")
@@ -456,7 +456,7 @@ class TestBaseUICommandHandlers:
         """Test _handle_set_model_command blocked while thinking."""
         ui = simple_ui_instance
         ui._set_model_commands = ["/model"]
-        ui._is_thinking = True
+        ui.is_thinking = True
 
         result = ui._handle_set_model_command("/model gpt-4")
 
@@ -466,7 +466,7 @@ class TestBaseUICommandHandlers:
         """Test _handle_set_model_command with no model provided."""
         ui = simple_ui_instance
         ui._set_model_commands = ["/model"]
-        ui._is_thinking = False
+        ui.is_thinking = False
 
         result = ui._handle_set_model_command("/model")
 
@@ -490,7 +490,7 @@ class TestBaseUICommandHandlers:
             result = ui._handle_attach_command(f"/attach {temp_path}")
 
             assert result is True
-            assert temp_path in ui._pending_attachments
+            assert temp_path in ui.pending_attachments
         finally:
             os.unlink(temp_path)
 
@@ -544,11 +544,11 @@ class TestBaseUICommandHandlers:
             result = ui._handle_photo_command("/photo")
 
             assert result is True
-            assert len(ui._background_tasks) == 1
-            task = list(ui._background_tasks)[0]
+            assert len(ui.background_tasks) == 1
+            task = list(ui.background_tasks)[0]
             await task
 
-        assert len(ui._pending_attachments) == 1
+        assert len(ui.pending_attachments) == 1
 
     @pytest.mark.asyncio
     async def test_handle_photo_command_capture_failure(self, simple_ui_instance):
@@ -563,11 +563,11 @@ class TestBaseUICommandHandlers:
         ):
             result = ui._handle_photo_command("/photo")
 
-            task = list(ui._background_tasks)[0]
+            task = list(ui.background_tasks)[0]
             await task
 
         assert result is True
-        assert ui._pending_attachments == []
+        assert ui.pending_attachments == []
         ui.append_to_output.assert_called()
 
     def test_get_help_text(self, simple_ui_instance):

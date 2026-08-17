@@ -12,6 +12,7 @@ import asyncio
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
     from zrb.llm.task.llm_task import LLMTask
     from zrb.task.any_task import AnyTask
 
@@ -30,6 +31,7 @@ class QueueBasedInput:
         _llm_task: "LLMTask"
         _input_queue: "asyncio.Queue[str]"
         _waiting_for_input: bool
+        _custom_commands: "list[AnyCustomCommand]"
 
         async def print(self, text: str, kind: str = "text") -> None: ...
 
@@ -62,9 +64,27 @@ class QueueBasedInput:
 
         Routes the message to the appropriate handler:
         - If waiting for input (ask_user blocked), it goes to the queue
+        - If it matches a custom slash command, the resolved prompt is sent
         - Otherwise, it's submitted as a new user message to the LLM
         """
         if self._waiting_for_input:
             self._input_queue.put_nowait(text)
         else:
-            self._submit_user_message(self._llm_task, text)
+            effective = self._resolve_incoming_command(text)
+            self._submit_user_message(self._llm_task, effective)
+
+    def _resolve_incoming_command(self, text: str) -> str:
+        """Resolve a custom slash command if the text starts with ``/``.
+
+        Returns the resolved prompt or the original text unchanged.
+        Built-in CLI commands (``/exit``, ``/save``, …) are not handled
+        here — those belong to the interactive prompt_toolkit UI only.
+        """
+        # lazy: zrb internal but lightweight — no heavy deps
+        from zrb.llm.custom_command.resolver import resolve_custom_command
+
+        if isinstance(text, str):
+            resolved = resolve_custom_command(text, self._custom_commands)
+            if resolved is not None:
+                return resolved
+        return text

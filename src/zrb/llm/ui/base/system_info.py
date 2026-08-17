@@ -107,10 +107,10 @@ class BaseUISystemInfo:
                 await self._update_system_info()
             except asyncio.CancelledError:
                 break
-            except Exception:
+            except Exception as e:
                 # Best-effort periodic refresh; keep the loop alive on transient
                 # errors without spamming logs each tick.
-                pass
+                CFG.LOGGER.debug(f"System-info refresh failed: {e}")
             try:
                 await asyncio.sleep(CFG.LLM_UI_LONG_STATUS_INTERVAL / 1000)
             except RuntimeError:
