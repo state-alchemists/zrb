@@ -34,6 +34,7 @@ class BufferedUI(UIProtocol):
         self._wrapped = wrapped_ui
         self._prefix = prefix
         self._buffer: list[str] = []
+        self._merged_output: str = ""
         # Set by _run_agent_task so buffered output also feeds the activity panel.
         self._agent_id: str | None = None
         # Scopes activity-panel updates to the session that started this
@@ -92,6 +93,10 @@ class BufferedUI(UIProtocol):
         kind: str = "text",
     ):
         text = sep.join(str(v) for v in values) + end
+        # lazy: circular — buffered_ui → output → ... → buffered_ui
+        from zrb.llm.ui.default.output import _merge_output_chunk
+
+        self._merged_output = _merge_output_chunk(self._merged_output, text)
         self._buffer.append(text)
         if self._agent_id:
             agent_activity_registry.update(
@@ -113,7 +118,7 @@ class BufferedUI(UIProtocol):
 
     def get_buffered_output(self) -> str:
         """Get all buffered output."""
-        return "".join(self._buffer)
+        return self._merged_output
 
     def flush_to_parent(self) -> None:
         """Flush buffered output to parent UI."""
@@ -132,6 +137,7 @@ class BufferedUI(UIProtocol):
     def clear_buffer(self) -> None:
         """Clear the buffer without flushing."""
         self._buffer.clear()
+        self._merged_output = ""
 
     @property
     def yolo(self) -> bool | frozenset:

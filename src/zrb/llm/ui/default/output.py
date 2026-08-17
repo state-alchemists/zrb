@@ -542,7 +542,7 @@ class UIOutput:
             if agent.last_line:
                 label += f" — {_truncate(agent.last_line, 40)}"
             lines.append((CFG.LLM_UI_STYLE_THINKING, label))
-        if any(s.state == "running" for s in live):
+        if agents:
             lines.append((CFG.LLM_UI_STYLE_FAINT, " ↓ talk to a sub-agent"))
         frags: list = []
         for style, text in lines:

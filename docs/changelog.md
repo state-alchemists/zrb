@@ -2,20 +2,17 @@
 
 # Changelog
 
-- [2.65.0](changelog-v2/2.65.0.md) — August 17, 2026
+- [2.65.0 - 2.65.1](changelog-v2/2.65.0-2.65.1.md) — August 17, 2026
 - [2.64.0](changelog-v2/2.64.0.md) — August 16, 2026
 - [2.63.0](changelog-v2/2.63.0.md) — August 15, 2026
-- [2.62.2](changelog-v2/2.62.2.md) — August 14, 2026
-- [2.62.1](changelog-v2/2.62.1.md) — August 14, 2026
-- [2.62.0](changelog-v2/2.62.0.md) — August 13, 2026
+- [2.62.0 - 2.62.2](changelog-v2/2.62.0-2.62.2.md) — August 13, 2026–August 14, 2026
 - [2.61.0](changelog-v2/2.61.0.md) — August 13, 2026
 - [2.60.0](changelog-v2/2.60.0.md) — August 11, 2026
 - [2.59.0](changelog-v2/2.59.0.md) — August 10, 2026
 - [2.58.0 - 2.58.1](changelog-v2/2.58.0-2.58.1.md) — August 9, 2026
 - [2.57.0](changelog-v2/2.57.0.md) — August 8, 2026
 - [2.56.0](changelog-v2/2.56.0.md) — August 7, 2026
-- [2.55.1](changelog-v2/2.55.1.md) — August 6, 2026
-- [2.55.0](changelog-v2/2.55.0.md) — August 5, 2026
+- [2.55.0 - 2.55.1](changelog-v2/2.55.0-2.55.1.md) — August 5, 2026–August 6, 2026
 - [2.54.0](changelog-v2/2.54.0.md) — August 4, 2026
 - [2.53.0-2.53.2a2](changelog-v2/2.53.0-2.53.2a2.md) — August 2, 2026–August 4, 2026
 - [2.52.0](changelog-v2/2.52.0.md) — August 1, 2026

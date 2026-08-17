@@ -144,22 +144,24 @@ def test_get_info_bar_text_partial_yolo_lists_tools():
 # ── Live sub-agent view (UIAgentPicker wiring) ───────────────────────────
 
 
-def test_get_agent_activity_text_shows_picker_hint_when_live_sessions_tracked():
-    """Finished-but-still-tracked sessions are absent from the activity panel,
-    yet the panel still advertises the Down-Arrow picker for them."""
-    ui = MockOutputUI()
-    no_activity = MagicMock(active=lambda session_id: [])
-    with_live = MagicMock(active=lambda session_id: [MagicMock(state="running")])
+def test_get_agent_activity_text_shows_picker_hint_when_agents_running():
+    """The picker hint shows while at least one sub-agent is actively running."""
+    from zrb.llm.agent.activity import AgentActivityRegistry
 
-    with patch("zrb.llm.ui.default.output.agent_activity_registry", no_activity):
+    ui = MockOutputUI()
+    reg = AgentActivityRegistry()
+    reg.start("a1", "researcher", task="research x", session_id="test")
+
+    with patch("zrb.llm.ui.default.output.agent_activity_registry", reg):
         with patch(
             "zrb.llm.agent.subagent.live_session.live_subagent_session_registry",
-            with_live,
+            MagicMock(active=lambda session_id: []),
         ):
             frags = ui.get_agent_activity_text()
 
     rendered = "".join(text for _style, text in frags)
     assert "↓ talk to a sub-agent" in rendered
+    assert "researcher" in rendered
 
 
 def test_get_agent_activity_text_omits_picker_hint_without_live_sessions():
@@ -208,7 +210,7 @@ def test_get_agent_activity_text_unchanged_when_not_viewing():
     with patch("zrb.llm.ui.default.output.agent_activity_registry", reg):
         with patch(
             "zrb.llm.agent.subagent.live_session.live_subagent_session_registry",
-            MagicMock(active=lambda session_id: [MagicMock(state="running")]),
+            MagicMock(active=lambda session_id: []),
         ):
             frags = ui.get_agent_activity_text()
 
