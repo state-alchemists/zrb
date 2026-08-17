@@ -97,6 +97,8 @@ async def _run_readiness_checks(
         run_async(check.exec_chain(session)) for check in readiness_checks
     ]
     try:
+        # Fail-fast fan-out: a readiness check erroring should abort the wait
+        # immediately, not be masked by return_exceptions.
         await asyncio.wait_for(
             asyncio.gather(*readiness_check_coros),
             timeout=readiness_timeout,

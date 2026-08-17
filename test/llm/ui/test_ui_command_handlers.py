@@ -490,7 +490,7 @@ class TestBaseUICommandHandlers:
             result = ui._handle_attach_command(f"/attach {temp_path}")
 
             assert result is True
-            assert temp_path in ui._pending_attachments
+            assert temp_path in ui.pending_attachments
         finally:
             os.unlink(temp_path)
 
@@ -544,11 +544,11 @@ class TestBaseUICommandHandlers:
             result = ui._handle_photo_command("/photo")
 
             assert result is True
-            assert len(ui._background_tasks) == 1
-            task = list(ui._background_tasks)[0]
+            assert len(ui.background_tasks) == 1
+            task = list(ui.background_tasks)[0]
             await task
 
-        assert len(ui._pending_attachments) == 1
+        assert len(ui.pending_attachments) == 1
 
     @pytest.mark.asyncio
     async def test_handle_photo_command_capture_failure(self, simple_ui_instance):
@@ -563,11 +563,11 @@ class TestBaseUICommandHandlers:
         ):
             result = ui._handle_photo_command("/photo")
 
-            task = list(ui._background_tasks)[0]
+            task = list(ui.background_tasks)[0]
             await task
 
         assert result is True
-        assert ui._pending_attachments == []
+        assert ui.pending_attachments == []
         ui.append_to_output.assert_called()
 
     def test_get_help_text(self, simple_ui_instance):

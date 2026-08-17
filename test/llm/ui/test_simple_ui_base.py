@@ -65,11 +65,11 @@ async def test_simple_ui_append_to_output_tracks_background_task(deps):
     assert hasattr(ui, "_background_tasks")
 
     ui.append_to_output("hello")
-    assert len(ui._background_tasks) == 1
+    assert len(ui.background_tasks) == 1
 
     await asyncio.sleep(0.01)
     # The done-callback discards it once it completes.
-    assert len(ui._background_tasks) == 0
+    assert len(ui.background_tasks) == 0
 
 
 def test_simple_ui_append_to_output_sync_fallback(deps, capsys):

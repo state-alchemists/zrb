@@ -312,9 +312,9 @@ class MultiUI:
             try:
                 if hasattr(ui, "invalidate_ui"):
                     ui.invalidate_ui()
-            except Exception:
+            except Exception as e:
                 # Best-effort repaint of each child UI.
-                pass
+                CFG.LOGGER.debug(f"Child UI invalidate_ui failed: {e}")
 
     def _create_session_for_llm_task(
         self,
@@ -585,9 +585,9 @@ class MultiUI:
             try:
                 if hasattr(ui, "cancel_pending_confirmations"):
                     ui.cancel_pending_confirmations()
-            except Exception:
+            except Exception as e:
                 # Best-effort cancel across child UIs during teardown.
-                pass
+                CFG.LOGGER.debug(f"Child UI cancel_pending_confirmations failed: {e}")
 
     def stream_to_parent(
         self,
@@ -694,9 +694,9 @@ class MultiUI:
             self._process_messages_task.cancel()
         try:
             self._main_ui.on_exit()
-        except Exception:
+        except Exception as e:
             # Best-effort teardown of the main UI.
-            pass
+            CFG.LOGGER.debug(f"Main UI on_exit failed: {e}")
 
 
 def is_shutdown_requested() -> bool:

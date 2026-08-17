@@ -14,6 +14,7 @@ import shutil
 from functools import lru_cache
 from typing import Any, Callable
 
+from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.llm.prompt.live_context import _LIVE_CONTEXT_ANCHOR
 from zrb.llm.sandbox.state import get_effective_sandbox_policy
@@ -280,7 +281,7 @@ def _detect_infra_types(cwd: str, home: str) -> tuple[str, ...]:
             found.append("GCP")
         if os.path.isdir(os.path.join(home, ".azure")):
             found.append("Azure")
-    except Exception:
+    except Exception as e:
         # Best-effort tooling detection; skip silently if home is unreadable.
-        pass
+        CFG.LOGGER.debug(f"Infra-type detection failed: {e}")
     return tuple(found)

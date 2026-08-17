@@ -24,6 +24,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from zrb.config.config import CFG
 from zrb.llm.agent.activity import agent_activity_registry
 from zrb.util.truncate import truncate_display
 
@@ -68,6 +69,11 @@ class UIAgentPicker:
         """The sub-agent the output pane currently shows, if any."""
         return self._viewing_agent_id
 
+    @property
+    def saved_main_output(self) -> str | None:
+        """The main transcript parked while viewing a sub-agent, if any."""
+        return self._saved_main_output
+
     def open_agent_picker(self) -> bool:
         """Show the picker when this session has tracked sub-agents.
 
@@ -92,9 +98,9 @@ class UIAgentPicker:
             from prompt_toolkit.application import get_app
 
             get_app().layout.focus(self._agent_picker_window)
-        except Exception:
+        except Exception as e:
             # Layout not ready (e.g. before first render) — focus on next paint.
-            pass
+            CFG.LOGGER.debug(f"Agent-picker focus failed: {e}")
         self._invalidate()
         return True
 
@@ -109,9 +115,9 @@ class UIAgentPicker:
             from prompt_toolkit.application import get_app
 
             get_app().layout.focus(self._input_field)
-        except Exception:
+        except Exception as e:
             # Layout not ready — focus on next paint.
-            pass
+            CFG.LOGGER.debug(f"Input-field focus failed: {e}")
         self._invalidate()
 
     def move_agent_picker_cursor(self, delta: int) -> None:
@@ -304,6 +310,6 @@ class UIAgentPicker:
             from prompt_toolkit.application import get_app
 
             get_app().invalidate()
-        except Exception:
+        except Exception as e:
             # No active app to repaint — safe to ignore.
-            pass
+            CFG.LOGGER.debug(f"Agent-picker invalidate failed: {e}")

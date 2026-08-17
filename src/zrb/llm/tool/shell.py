@@ -116,6 +116,8 @@ async def run_shell_command(
 
         timed_out = False
         try:
+            # Fail-fast fan-out: a broken reader/wait should abort immediately,
+            # not be masked by return_exceptions.
             await asyncio.wait_for(
                 asyncio.gather(
                     _read_stream(process.stdout, stdout_cap),

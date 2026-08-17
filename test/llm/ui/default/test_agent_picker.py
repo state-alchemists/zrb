@@ -119,7 +119,7 @@ def test_close_agent_picker_clears_without_viewing():
     _open(ui, [_session("a")])
     ui.close_agent_picker()
     assert ui.has_active_agent_picker() is False
-    assert ui._viewing_agent_id is None
+    assert ui.viewing_agent_id is None
 
 
 def test_confirm_agent_picker_enters_view():
@@ -128,14 +128,14 @@ def test_confirm_agent_picker_enters_view():
     _open(ui, [_session("a", agent_name="researcher"), _session("b")])
     ui.move_agent_picker_cursor(1)
     assert ui.confirm_agent_picker() is True
-    assert ui._viewing_agent_id == "b"
+    assert ui.viewing_agent_id == "b"
     assert ui.has_active_agent_picker() is False
 
 
 def test_confirm_agent_picker_noop_when_closed():
     ui = FakeUI()
     assert ui.confirm_agent_picker() is False
-    assert ui._viewing_agent_id is None
+    assert ui.viewing_agent_id is None
 
 
 def test_enter_agent_view_parks_main_and_shows_subagent():
@@ -145,8 +145,8 @@ def test_enter_agent_view_parks_main_and_shows_subagent():
 
     ui.enter_agent_view(session)
 
-    assert ui._viewing_agent_id == "a"
-    assert ui._saved_main_output == "main transcript"
+    assert ui.viewing_agent_id == "a"
+    assert ui.saved_main_output == "main transcript"
     assert ui.output_text == "sub-agent output"
 
 
@@ -159,7 +159,7 @@ def test_enter_agent_view_same_agent_is_idempotent():
     ui._output_field.text = "more sub-agent output"
     ui.enter_agent_view(session)  # same agent — must not re-park
 
-    assert ui._saved_main_output == "main transcript"
+    assert ui.saved_main_output == "main transcript"
     assert ui.output_text == "more sub-agent output"
 
 
@@ -198,7 +198,7 @@ def test_sync_output_returns_to_main_when_session_vanishes():
             FakeLiveRegistry(),
         ):
             ui.sync_output_to_viewed_agent()
-        assert ui._viewing_agent_id is None
+        assert ui.viewing_agent_id is None
         assert ui.output_text == "main transcript"
 
 
@@ -215,8 +215,8 @@ def test_exit_agent_view_restores_main():
         assert ui.output_text == "sub-agent output"
         ui.exit_agent_view()
 
-    assert ui._viewing_agent_id is None
-    assert ui._saved_main_output is None
+    assert ui.viewing_agent_id is None
+    assert ui.saved_main_output is None
     assert ui.output_text == "main transcript"
 
 
@@ -224,7 +224,7 @@ def test_exit_agent_view_noop_when_not_viewing():
     ui = FakeUI()
     ui._output_field.text = "main"
     ui.exit_agent_view()
-    assert ui._viewing_agent_id is None
+    assert ui.viewing_agent_id is None
     assert ui.output_text == "main"
 
 
@@ -238,7 +238,7 @@ def test_cancel_viewed_agent_cancels_running_session_and_echoes():
         ui.enter_agent_view(session)
         assert ui.cancel_viewed_agent() is True
         session.buffered_ui.append_to_output.assert_called_with("\n<Esc> Canceled\n")
-    assert ui._viewing_agent_id == "a"  # Esc cancels, it does not leave the view
+    assert ui.viewing_agent_id == "a"  # Esc cancels, it does not leave the view
 
 
 def test_cancel_viewed_agent_noop_when_subagent_has_nothing_in_flight():

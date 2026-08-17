@@ -272,78 +272,107 @@ class InputCompleter(Completer):
             return
 
         if self._is_command(cmd, self._set_model_commands):
-            # /model supports subcommands: /model <name>, /model small <name>, /model multimodal <name>
-            model_options = self._resolve_set_model_options()
-            if len(parts) == 1:
-                # "/model " — suggest subcommands and model names
-                yield Completion("small ", display_meta="Set small/fast model")
-                yield Completion("multimodal ", display_meta="Set multimodal model")
+            yield from self._get_model_argument_completions(text_before_cursor, parts)
+            return
+
+        single_arg = self._single_token_arg(parts, text_before_cursor)
+        if single_arg is None:
+            return
+        yield from self._get_single_token_arg_completions(
+            cmd, single_arg, complete_event
+        )
+
+    def _get_model_argument_completions(
+        self, text_before_cursor: str, parts: list[str]
+    ) -> Iterable[Completion]:
+        # /model supports subcommands: /model <name>, /model small <name>, /model multimodal <name>
+        model_options = self._resolve_set_model_options()
+        if len(parts) == 1:
+            # "/model " — suggest subcommands and model names
+            yield Completion("small ", display_meta="Set small/fast model")
+            yield Completion("multimodal ", display_meta="Set multimodal model")
+            yield from self._get_fuzzy_completions(
+                "", model_options, only_files=False, display_meta="Model Name"
+            )
+        elif len(parts) == 2:
+            sub = parts[1].lower()
+            if text_before_cursor.endswith(" "):
+                # "/model small " or "/model multimodal " — complete model name
                 yield from self._get_fuzzy_completions(
                     "", model_options, only_files=False, display_meta="Model Name"
                 )
-            elif len(parts) == 2:
-                sub = parts[1].lower()
-                if text_before_cursor.endswith(" "):
-                    # "/model small " or "/model multimodal " — complete model name
-                    yield from self._get_fuzzy_completions(
-                        "", model_options, only_files=False, display_meta="Model Name"
+            else:
+                # Completing first arg: subcommand or model name
+                if "small".startswith(sub):
+                    yield Completion(
+                        "small ",
+                        start_position=-len(parts[1]),
+                        display_meta="Set small/fast model",
                     )
-                else:
-                    # Completing first arg: subcommand or model name
-                    if "small".startswith(sub):
-                        yield Completion(
-                            "small ",
-                            start_position=-len(parts[1]),
-                            display_meta="Set small/fast model",
-                        )
-                    if "multimodal".startswith(sub):
-                        yield Completion(
-                            "multimodal ",
-                            start_position=-len(parts[1]),
-                            display_meta="Set multimodal model",
-                        )
-                    yield from self._get_fuzzy_completions(
-                        parts[1],
-                        model_options,
-                        only_files=False,
-                        display_meta="Model Name",
+                if "multimodal".startswith(sub):
+                    yield Completion(
+                        "multimodal ",
+                        start_position=-len(parts[1]),
+                        display_meta="Set multimodal model",
                     )
-            elif len(parts) == 3 and not text_before_cursor.endswith(" "):
-                # "/model small gp" — completing model name after subcommand
-                sub = parts[1].lower()
-                if sub in ("small", "multimodal"):
-                    yield from self._get_fuzzy_completions(
-                        parts[2],
-                        model_options,
-                        only_files=False,
-                        display_meta="Model Name",
-                    )
-            return
+                yield from self._get_fuzzy_completions(
+                    parts[1],
+                    model_options,
+                    only_files=False,
+                    display_meta="Model Name",
+                )
+        elif len(parts) == 3 and not text_before_cursor.endswith(" "):
+            # "/model small gp" — completing model name after subcommand
+            sub = parts[1].lower()
+            if sub in ("small", "multimodal"):
+                yield from self._get_fuzzy_completions(
+                    parts[2],
+                    model_options,
+                    only_files=False,
+                    display_meta="Model Name",
+                )
 
-        # Other commands take a single token argument.
-        if not (
-            (len(parts) == 1 and text_before_cursor.endswith(" "))
-            or (len(parts) == 2 and not text_before_cursor.endswith(" "))
-        ):
-            return
+    def _single_token_arg(
+        self, parts: list[str], text_before_cursor: str
+    ) -> str | None:
+        """The pending single-token argument, or None if not in that position."""
+        if len(parts) == 1 and text_before_cursor.endswith(" "):
+            return ""
+        if len(parts) == 2 and not text_before_cursor.endswith(" "):
+            return parts[1]
+        return None
 
-        single_arg = parts[1] if len(parts) == 2 else ""
-
-        if self._is_command(cmd, self._save_commands):
-            yield from complete_save_arg(single_arg, self._history_manager)
-        elif self._is_command(cmd, self._redirect_output_commands):
-            yield from complete_redirect_arg(single_arg)
-        elif self._is_command(cmd, self._copy_commands):
-            yield from complete_copy_arg(single_arg)
-        elif self._is_command(cmd, self._load_commands):
-            yield from complete_load_arg(single_arg, self._history_manager)
-        elif self._is_command(cmd, self._attach_commands):
-            yield from self._get_file_completions(
-                single_arg,
-                complete_event,
-                only_files=True,
-                display_meta="File Path",
-            )
+    def _get_single_token_arg_completions(
+        self, cmd: str, single_arg: str, complete_event: CompleteEvent
+    ) -> Iterable[Completion]:
+        dispatch: list[tuple[list[str], Callable[[], Iterable[Completion]]]] = [
+            (
+                self._save_commands,
+                lambda: complete_save_arg(single_arg, self._history_manager),
+            ),
+            (
+                self._redirect_output_commands,
+                lambda: complete_redirect_arg(single_arg),
+            ),
+            (self._copy_commands, lambda: complete_copy_arg(single_arg)),
+            (
+                self._load_commands,
+                lambda: complete_load_arg(single_arg, self._history_manager),
+            ),
+            (
+                self._attach_commands,
+                lambda: self._get_file_completions(
+                    single_arg,
+                    complete_event,
+                    only_files=True,
+                    display_meta="File Path",
+                ),
+            ),
+        ]
+        for cmd_list, completions_fn in dispatch:
+            if self._is_command(cmd, cmd_list):
+                yield from completions_fn()
+                return
 
     def _get_file_completions(
         self,

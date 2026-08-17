@@ -30,7 +30,7 @@ class MockOutputUI(UIOutput):
 
 def test_output_text_property():
     ui = MockOutputUI()
-    ui._output_field.text = "current"
+    ui.output_field.text = "current"
     assert ui.output_text == "current"
 
 
@@ -54,8 +54,8 @@ def test_get_agent_activity_text_scopes_by_conversation_session_name():
 
 def test_append_to_output_basic():
     ui = MockOutputUI()
-    ui._output_field.text = "line1\n"
-    ui._output_field.buffer.cursor_position = 0
+    ui.output_field.text = "line1\n"
+    ui.output_field.buffer.cursor_position = 0
 
     with patch.object(ui, "_schedule_invalidate"):
         with patch("prompt_toolkit.document.Document") as mock_doc:
@@ -66,8 +66,8 @@ def test_append_to_output_basic():
 
 def test_append_to_output_carriage_return():
     ui = MockOutputUI()
-    ui._output_field.text = "line1\nStatus: old"
-    ui._output_field.buffer.cursor_position = 0
+    ui.output_field.text = "line1\nStatus: old"
+    ui.output_field.buffer.cursor_position = 0
 
     with patch.object(ui, "_schedule_invalidate"):
         with patch("prompt_toolkit.document.Document") as mock_doc:
@@ -240,7 +240,7 @@ def test_append_to_output_redirects_into_saved_main_output_while_viewing():
     # While the output pane shows a sub-agent's buffer, main-transcript appends
     # accumulate into the parked snapshot instead of corrupting the live view.
     ui = MockOutputUI()
-    ui._output_field.text = "sub-agent live output"
+    ui.output_field.text = "sub-agent live output"
     ui._viewing_agent_id = "abc123"
     ui._saved_main_output = "main transcript\n"
 
@@ -446,7 +446,7 @@ def make_entry(text="original", marker="💬", ts="10:00"):
 def test_track_echo_span_records_when_echo_lands():
     ui = MockEditingOutputUI()
     echo = "\n💬 10:00 >> original\n"
-    ui._output_field.text = "head" + echo
+    ui.output_field.text = "head" + echo
     entry = make_entry()
 
     ui._track_echo_span(entry, echo)
@@ -459,7 +459,7 @@ def test_track_echo_span_skips_when_echo_buffered():
     # A pending confirmation diverted the echo away from the output buffer, so
     # there is nothing to splice later — the span must not be recorded.
     ui = MockEditingOutputUI()
-    ui._output_field.text = "confirmation prompt"
+    ui.output_field.text = "confirmation prompt"
     entry = make_entry()
 
     ui._track_echo_span(entry, "\n💬 10:00 >> original\n")
@@ -470,7 +470,7 @@ def test_track_echo_span_skips_when_echo_buffered():
 def test_redraw_echo_splices_edited_line():
     ui = MockEditingOutputUI()
     echo = "\n💬 10:00 >> original\n"
-    ui._output_field.text = "head" + echo + "tail"
+    ui.output_field.text = "head" + echo + "tail"
     entry = make_entry()
     start = len("head")
     entry.echo_span = (start, start + len(echo))
@@ -491,7 +491,7 @@ def test_redraw_echo_drops_span_that_no_longer_holds_the_echo():
     # it instead (the edit stays effective, the echo is just not rewritten).
     ui = MockEditingOutputUI()
     echo = "\n💬 10:00 >> original\n"
-    ui._output_field.text = "rewrapped long block now" + echo
+    ui.output_field.text = "rewrapped long block now" + echo
     entry = make_entry()
     stale_start = len("old short block")  # span recorded when the block was short
     entry.echo_span = (stale_start, stale_start + len(echo))
@@ -507,7 +507,7 @@ def test_redraw_echo_drops_span_that_no_longer_holds_the_echo():
 def test_redraw_echo_uses_entry_marker_and_timestamp():
     ui = MockEditingOutputUI()
     echo = "\n⏳ 10:00 >> original\n"
-    ui._output_field.text = echo
+    ui.output_field.text = echo
     entry = make_entry()
     entry.echo_marker = "⏳"
     entry.echo_span = (0, len(echo))
@@ -522,7 +522,7 @@ def test_redraw_echo_drops_stale_span():
     ui = MockEditingOutputUI()
     entry = make_entry()
     entry.echo_span = (0, 100)  # buffer was rewritten since (e.g. rewind)
-    ui._output_field.text = "short"
+    ui.output_field.text = "short"
 
     ui._redraw_echo(entry)
 
@@ -534,7 +534,7 @@ def test_redraw_echo_is_a_noop_without_span():
     ui = MockEditingOutputUI()
     entry = make_entry()
     entry.echo_span = None
-    ui._output_field.text = "head"
+    ui.output_field.text = "head"
 
     ui._redraw_echo(entry)
 
@@ -547,7 +547,7 @@ def test_replace_output_span_shifts_tracked_blocks_after_span():
     re-wrap still splices at the right position."""
     ui = MockMarkdownUI()
     echo = "\n💬 10:00 >> original\n"
-    ui._output_field.text = "head" + echo + "markdown"
+    ui.output_field.text = "head" + echo + "markdown"
     block_start = len("head" + echo)
     ui._rendered_blocks.append(
         [block_start, block_start + len("markdown"), "source", lambda s, w: "markdown"]
@@ -567,7 +567,7 @@ def test_replace_output_span_shifts_tracked_blocks_after_span():
 
 def test_replace_output_span_refuses_stale_span():
     ui = MockMarkdownUI()
-    ui._output_field.text = "short"
+    ui.output_field.text = "short"
 
     with patch.object(ui, "_schedule_invalidate"):
         assert ui.replace_output_span(0, 100, "x") is False

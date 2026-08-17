@@ -163,6 +163,16 @@ class UIOutput:
         """Get the current text in the output field."""
         return self._output_field.text
 
+    @property
+    def output_field(self) -> Any:
+        """Public read accessor for the raw output-field widget."""
+        return self._output_field
+
+    @property
+    def input_field(self) -> Any:
+        """Public read accessor for the raw input-field widget."""
+        return self._input_field
+
     def append_to_output(
         self,
         *values: object,

@@ -164,6 +164,8 @@ class BaseTrigger(BaseTask):
                     callback.async_run(parent_session=session, session=callback_session)
                 )
             )
+        # Fail-fast fan-out: a broken callback should surface immediately, not
+        # be masked by return_exceptions.
         await asyncio.gather(*coros)
 
     def _get_exchange_xcom(self, session: AnySession) -> Xcom:

@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, TextIO
 
+from zrb.config.config import CFG
+
 if TYPE_CHECKING:
     from prompt_toolkit.formatted_text import StyleAndTextTuples
     from prompt_toolkit.layout import Window
@@ -92,9 +94,9 @@ class UISelection(_SelectionBase):
         # scrollback (with the answer) on resolve — not duplicated here.
         try:
             get_app().layout.focus(self._choice_window)
-        except Exception:
+        except Exception as e:
             # Layout not ready (e.g. before first render) — focus on next paint.
-            pass
+            CFG.LOGGER.debug(f"Choice-window focus failed: {e}")
 
     def _end_choice(self) -> None:
         self._choice_freetext_prefix = None
@@ -109,9 +111,9 @@ class UISelection(_SelectionBase):
             from prompt_toolkit.application import get_app
 
             get_app().layout.focus(self._input_field)
-        except Exception:
+        except Exception as e:
             # Layout not ready (e.g. before first render) — focus on next paint.
-            pass
+            CFG.LOGGER.debug(f"Input-field focus failed: {e}")
 
     # --- widget construction --------------------------------------------
 
@@ -322,6 +324,6 @@ class UISelection(_SelectionBase):
             from prompt_toolkit.application import get_app
 
             get_app().invalidate()
-        except Exception:
+        except Exception as e:
             # No active app to repaint — safe to ignore.
-            pass
+            CFG.LOGGER.debug(f"Choice-widget invalidate failed: {e}")

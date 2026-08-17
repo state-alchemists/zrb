@@ -61,6 +61,11 @@ class UIMessageEditing:
         _queued_edit_draft: str
         _input_field: Any
 
+    @property
+    def queued_edit_entry(self) -> QueuedMessage | None:
+        """The still-queued message currently recalled for editing, if any."""
+        return self._queued_edit_entry
+
     def _load_edit_text(self, buffer: Any, text: str) -> None:
         """Put `text` in the input buffer with the cursor at its end.
 
