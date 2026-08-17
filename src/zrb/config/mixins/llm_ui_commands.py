@@ -28,7 +28,7 @@ class LLMUICommandsMixin:
         self.DEFAULT_LLM_UI_COMMAND_PLAN_TOGGLE: str = "/plan"
         self.DEFAULT_LLM_UI_COMMAND_COPY: str = "/copy"
         self.DEFAULT_LLM_UI_COMMAND_VOICE: str = "/voice, /v"
-        self.DEFAULT_LLM_UI_COMMAND_PHOTO: str = "/photo"
+        self.DEFAULT_LLM_UI_COMMAND_PHOTO: str = "/photo, /p"
         super().__init__()
 
     LLM_UI_COMMAND_SUMMARIZE = EnvField(

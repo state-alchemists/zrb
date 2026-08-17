@@ -128,6 +128,7 @@ def create_http_ui_factory(
         initial_conversation_name,
         initial_yolo,
         initial_attachments,
+        custom_commands=None,
     ):
         cfg = UIConfig.default()
         if ui_commands:

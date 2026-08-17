@@ -67,6 +67,33 @@ async def test_get_input_no_prompt():
 
 
 @pytest.mark.asyncio
+async def test_handle_incoming_message_resolves_slash_command():
+    ui = MockEventUI()
+    ui._waiting_for_input = False
+
+    # Register a custom slash command
+    from zrb.llm.custom_command import CustomCommand
+
+    cmd = CustomCommand(
+        command="/greet",
+        description="Say hello",
+        prompt="Please greet the user",
+    )
+    ui._custom_commands = [cmd]
+
+    ui.handle_incoming_message("/greet")
+    ui._submit_user_message.assert_called_with(ui.llm_task, "Please greet the user")
+
+    # Non-matching slash command passes through unchanged
+    ui.handle_incoming_message("/unknown")
+    ui._submit_user_message.assert_called_with(ui.llm_task, "/unknown")
+
+    # Plain message passes through unchanged
+    ui.handle_incoming_message("hello")
+    ui._submit_user_message.assert_called_with(ui.llm_task, "hello")
+
+
+@pytest.mark.asyncio
 async def test_run_async_triggers_event_loop():
     ui = MockEventUI()
     ui._submit_user_message = MagicMock()

@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from pydantic_ai import UserContent
 
     from zrb.context.any_context import AnyContext
+    from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
     from zrb.llm.task.llm_task import LLMTask
     from zrb.llm.tool_call.middleware import (
         ArgumentFormatter,
@@ -74,6 +75,7 @@ class SimpleUI(BaseUI):
         response_handlers: "list[ResponseHandler] | None" = None,
         tool_policies: "list[ToolPolicy] | None" = None,
         argument_formatters: "list[ArgumentFormatter] | None" = None,
+        custom_commands: "list[AnyCustomCommand] | None" = None,
         **kwargs,  # Accept extra kwargs for easy subclassing
     ):
         self._config = config or UIConfig.default()
@@ -108,6 +110,7 @@ class SimpleUI(BaseUI):
             set_model_commands=self._config.set_model_commands,
             exec_commands=self._config.exec_commands,
             plan_commands=self._config.plan_commands,
+            custom_commands=custom_commands or [],
             model=model,
         )
 

@@ -191,6 +191,7 @@ class ChatRunning(ChatState):
                 initial_conversation_name=initial_conversation_name,
                 initial_yolo=initial_yolo,
                 initial_attachments=initial_attachments,
+                custom_commands=resolved_custom_commands,
             )
             if isinstance(factory_ui, list):
                 resolved_uis.extend(factory_ui)
