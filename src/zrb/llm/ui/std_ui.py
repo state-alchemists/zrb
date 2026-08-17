@@ -43,7 +43,7 @@ class StdUI:
         raw = assistant_name if assistant_name else CFG.LLM_ASSISTANT_NAME
         self._assistant_name = raw[0].upper() + raw[1:] if raw else raw
 
-    async def ask_user(self, prompt: str) -> str:
+    async def ask_user(self, prompt: str, output_to_parent: str = "") -> str:
         """Prompt user via CLI input."""
 
         # lazy: heavy third-party

@@ -66,14 +66,15 @@ class BufferedUI(UIProtocol):
         """
         return self._wrapped
 
-    async def ask_user(self, prompt: str) -> str:
+    async def ask_user(self, prompt: str, output_to_parent: str = "") -> str:
         # Lock ensures only one agent interacts with parent UI at a time
         # This prevents interleaved output when multiple parallel agents need approval
         async with self._lock:
-            # No flush-before-ask: only the approval prompt itself reaches the
-            # main transcript. The sub-agent's routine buffered output (search
-            # queries, fetch status, ...) stays in its own buffer, visible on
-            # demand by navigating into that sub-agent's live view instead.
+            # Write the caller's approval/question message straight to the
+            # parent so the user sees *what* is being approved without
+            # navigating into the sub-agent's live view.
+            if output_to_parent:
+                self._wrapped.append_to_output(output_to_parent, end="")
             prefixed_prompt = (
                 f"{self._prefix}{prompt}"
                 if self._prefix and prompt.strip() != ""

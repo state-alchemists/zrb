@@ -272,14 +272,14 @@ async def test_multi_ui_stream_non_string_result_clears_last_output(
 @pytest.mark.asyncio
 async def test_multi_ui_ask_user_race(multi_ui, child_ui_1, child_ui_2):
     # Make child_ui_1 slower
-    async def slow_ask(*args):
+    async def slow_ask(*args, **kwargs):
         await asyncio.sleep(0.1)
         return "input 1"
 
     child_ui_1.ask_user = slow_ask
 
     # Make child_ui_2 faster
-    async def fast_ask(*args):
+    async def fast_ask(*args, **kwargs):
         await asyncio.sleep(0.01)
         return "input 2"
 

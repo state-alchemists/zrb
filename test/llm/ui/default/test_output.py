@@ -149,7 +149,7 @@ def test_get_agent_activity_text_shows_picker_hint_when_live_sessions_tracked():
     yet the panel still advertises the Down-Arrow picker for them."""
     ui = MockOutputUI()
     no_activity = MagicMock(active=lambda session_id: [])
-    with_live = MagicMock(active=lambda session_id: [object()])
+    with_live = MagicMock(active=lambda session_id: [MagicMock(state="running")])
 
     with patch("zrb.llm.ui.default.output.agent_activity_registry", no_activity):
         with patch(
@@ -208,7 +208,7 @@ def test_get_agent_activity_text_unchanged_when_not_viewing():
     with patch("zrb.llm.ui.default.output.agent_activity_registry", reg):
         with patch(
             "zrb.llm.agent.subagent.live_session.live_subagent_session_registry",
-            MagicMock(active=lambda session_id: [object()]),
+            MagicMock(active=lambda session_id: [MagicMock(state="running")]),
         ):
             frags = ui.get_agent_activity_text()
 

@@ -194,7 +194,7 @@ class SimpleUI(BaseUI):
             sys.stdout.write(text)
             sys.stdout.flush()
 
-    async def ask_user(self, prompt: str) -> str:
+    async def ask_user(self, prompt: str, output_to_parent: str = "") -> str:
         """Default implementation - calls simplified get_input()."""
         return await self.get_input(prompt)
 
