@@ -5,6 +5,7 @@ moved out of the tool module it was embedded in. `delegate` is still its only
 caller, but the mirror rule puts a test at its source's path.
 """
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -85,7 +86,7 @@ async def test_buffered_ui_ask_user_no_prefix():
 
     assert result == "response"
     # No prefix should be added
-    mock_wrapped.ask_user.assert_called_with("Question?")
+    mock_wrapped.ask_user.assert_called_with("Question?", agent_id=None)
 
 
 @pytest.mark.asyncio
@@ -119,10 +120,105 @@ async def test_buffered_ui_ask_user_choice_forwards_without_flushing():
     result = await ui.ask_user_choice(spec)
 
     assert result == "option-a"
-    mock_wrapped.ask_user_choice.assert_awaited_once_with(spec)
+    mock_wrapped.ask_user_choice.assert_awaited_once_with(spec, agent_id=None)
     mock_wrapped.append_to_output.assert_not_called()
     # The buffered content is untouched, still available for on-demand viewing.
     assert ui.get_buffered_output() == "buffered line\n"
+
+
+@pytest.mark.asyncio
+async def test_buffered_ui_ask_user_stamps_own_agent_id():
+    """ask_user tags the request with this instance's own agent id, so the
+    root confirmation queue can route an answer back to whichever agent's
+    live view the user is looking at."""
+    mock_wrapped = MagicMock()
+    mock_wrapped.ask_user = AsyncMock(return_value="user response")
+    ui = BufferedUI(mock_wrapped)
+    ui.set_activity_id("agent-123")
+
+    await ui.ask_user("Approve?")
+
+    assert mock_wrapped.ask_user.call_args.kwargs["agent_id"] == "agent-123"
+
+
+@pytest.mark.asyncio
+async def test_buffered_ui_ask_user_preserves_nested_agent_id():
+    """A nested delegation (a sub-agent's own sub-agent) must not relabel the
+    request as belonging to the intermediate layer -- the originating agent's
+    id is preserved all the way to the root queue."""
+    mock_wrapped = MagicMock()
+    mock_wrapped.ask_user = AsyncMock(return_value="user response")
+    ui = BufferedUI(mock_wrapped)
+    ui.set_activity_id("intermediate-agent")
+
+    await ui.ask_user("Approve?", agent_id="deepest-agent")
+
+    assert mock_wrapped.ask_user.call_args.kwargs["agent_id"] == "deepest-agent"
+
+
+@pytest.mark.asyncio
+async def test_buffered_ui_ask_user_choice_stamps_own_agent_id():
+    mock_wrapped = MagicMock()
+    mock_wrapped.ask_user_choice = AsyncMock(return_value="option-a")
+    ui = BufferedUI(mock_wrapped)
+    ui.set_activity_id("agent-123")
+
+    spec = MagicMock()
+    await ui.ask_user_choice(spec)
+
+    assert mock_wrapped.ask_user_choice.call_args.kwargs["agent_id"] == "agent-123"
+
+
+@pytest.mark.asyncio
+async def test_buffered_ui_shared_lock_does_not_block_sibling_enqueue():
+    """Regression: a shared lock across fan-out sibling agents (delegate.py's
+    `_run_parallel`) must not serialize the ENTIRE approval round-trip -- only
+    the synchronous parent-transcript write may briefly contend for it. Each
+    sibling's wait for the human's answer must happen outside the lock, so a
+    sibling whose own request arrives second can still reach the shared
+    confirmation queue (and be answered) while the first sibling's request is
+    still unresolved. Previously the lock wrapped the whole call, so the
+    second sibling never even reached `ask_user` on the wrapped UI until the
+    first was answered -- picking it via the sub-agent picker had nothing of
+    its own to resolve yet."""
+
+    class SlowWrappedUI:
+        def __init__(self):
+            self.calls = []
+            self.futures = {}
+
+        def append_to_output(self, *args, **kwargs):
+            pass
+
+        async def ask_user(self, prompt, agent_id=None):
+            self.calls.append(agent_id)
+            fut = asyncio.get_running_loop().create_future()
+            self.futures[agent_id] = fut
+            return await fut
+
+    wrapped = SlowWrappedUI()
+    lock = asyncio.Lock()
+    ui_a = BufferedUI(wrapped, shared_lock=lock)
+    ui_a.set_activity_id("a")
+    ui_b = BufferedUI(wrapped, shared_lock=lock)
+    ui_b.set_activity_id("b")
+
+    task_a = asyncio.create_task(ui_a.ask_user("", output_to_parent="approve a?"))
+    await asyncio.sleep(0.01)
+    task_b = asyncio.create_task(ui_b.ask_user("", output_to_parent="approve b?"))
+    await asyncio.sleep(0.01)
+
+    # Both siblings reached the wrapped UI's ask_user -- neither blocked
+    # waiting on the shared lock for the other's still-pending answer.
+    assert set(wrapped.calls) == {"a", "b"}
+
+    # The second sibling ("b") can be answered before the first ("a").
+    wrapped.futures["b"].set_result("y")
+    assert await task_b == "y"
+    assert not task_a.done()
+
+    wrapped.futures["a"].set_result("y")
+    assert await task_a == "y"
 
 
 @pytest.mark.asyncio

@@ -278,9 +278,13 @@ class BaseUI(BaseUIProperties, BaseUICommands, BaseUIReplay, BaseUISystemInfo):
             + [default_response_handler],
         )
         # Queue for pending confirmation requests to handle parallel tool
-        # approvals. Each entry is (future, prompt, spec); spec is a ChoiceSpec
-        # for AskUserQuestion-style requests, else None for plain text.
-        self._confirmation_queue: list[tuple[asyncio.Future[str], str, Any]] = []
+        # approvals. Each entry is (future, prompt, spec, agent_id); spec is a
+        # ChoiceSpec for AskUserQuestion-style requests, else None for plain
+        # text; agent_id is the originating sub-agent's id, or None for the
+        # main agent.
+        self._confirmation_queue: list[
+            tuple[asyncio.Future[str], str, Any, "str | None"]
+        ] = []
         self._current_confirmation: asyncio.Future[str] | None = None
         # Buffer for main-agent output during confirmation (avoids interleaving)
         self._confirmation_output_buffer: list[str] = []
@@ -462,7 +466,12 @@ class BaseUI(BaseUIProperties, BaseUICommands, BaseUIReplay, BaseUISystemInfo):
             f"{self.__class__.__name__} must implement append_to_output()"
         )
 
-    async def ask_user(self, prompt: str, output_to_parent: str = "") -> str:
+    async def ask_user(
+        self,
+        prompt: str,
+        output_to_parent: str = "",
+        agent_id: str | None = None,
+    ) -> str:
         """[REQUIRED] Block and wait for user input.
 
         This method must be implemented by all UI subclasses to receive
@@ -476,6 +485,10 @@ class BaseUI(BaseUIProperties, BaseUICommands, BaseUIReplay, BaseUISystemInfo):
                    before the prompt is rendered.  Used by BufferedUI to
                    relay approval messages from sub-agents to the main
                    transcript.
+            agent_id: The originating sub-agent's id, propagated by
+                   BufferedUI so the confirmation queue can route an answer
+                   back to whichever agent's live view the user is looking
+                   at (see `UIConfirmation._resolve_for_agent`).
 
         Returns:
             The user's input as a string.
@@ -490,7 +503,9 @@ class BaseUI(BaseUIProperties, BaseUICommands, BaseUIReplay, BaseUISystemInfo):
             f"{self.__class__.__name__} must implement ask_user()"
         )
 
-    async def ask_user_choice(self, spec: "ChoiceSpec") -> str:
+    async def ask_user_choice(
+        self, spec: "ChoiceSpec", agent_id: str | None = None
+    ) -> str:
         """[OPTIONAL] Ask a structured multiple-choice question.
 
         Default implementation formats the spec as numbered text and delegates
@@ -504,7 +519,7 @@ class BaseUI(BaseUIProperties, BaseUICommands, BaseUIReplay, BaseUISystemInfo):
         # lazy: circular — base.ui -> tool.ask -> ... -> base.ui
         from zrb.llm.tool.ask import format_choice_spec
 
-        return await self.ask_user(format_choice_spec(spec))
+        return await self.ask_user(format_choice_spec(spec), agent_id=agent_id)
 
     async def run_interactive_command(
         self, cmd: str | list[str], shell: bool = False

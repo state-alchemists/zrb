@@ -45,5 +45,8 @@ def create_style() -> Style:
             "agent-picker.option": f"bg:{choice_bg}",
             "agent-picker.desc": f"bg:{choice_bg} {faint}",
             "agent-picker.hint": f"bg:{choice_bg} {faint}",
+            "agent-picker.needs-approval": (
+                f"bg:{choice_bg} {CFG.LLM_UI_STYLE_CONFIRMATION} bold"
+            ),
         }
     )

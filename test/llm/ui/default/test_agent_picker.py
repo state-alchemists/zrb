@@ -285,3 +285,68 @@ def test_picker_renders_running_and_finished_rows():
 def test_picker_render_empty_when_closed():
     ui = FakeUI()
     assert ui._get_agent_picker_text() == []
+
+
+def test_picker_flags_agent_with_pending_approval():
+    """Regression: with several agents in flight, the picker must show
+    *which* one has an unanswered approval request -- otherwise a user can
+    pick the wrong one and think 'y' answered it (it just gets queued
+    behind whichever is current instead)."""
+    ui = FakeUI()
+    pending_future = MagicMock(done=lambda: False)
+    resolved_future = MagicMock(done=lambda: True)
+    ui._confirmation_queue = [
+        (pending_future, "", None, "a"),
+        (resolved_future, "", None, "b"),
+    ]
+    _open(
+        ui, [_session("a", agent_name="writer"), _session("b", agent_name="reviewer")]
+    )
+
+    text = "".join(t for _s, t in ui._get_agent_picker_text())
+
+    assert (
+        "writer" in text
+        and "needs approval" in text.split("writer")[1].split("reviewer")[0]
+    )
+    assert "needs approval" not in text.split("reviewer")[1]
+
+
+def test_picker_left_arrow_closes_picker_without_touching_view():
+    """Regression: the picker can be reopened while already viewing an agent
+    (Down Arrow has no `_viewing_agent_id` guard). Left previously had no
+    binding on the picker's own control, so it fell through to the app-level
+    Left and silently exited the agent view while the picker Float stayed
+    drawn on top -- Left appeared to do nothing, and the next Escape then hit
+    the app-level handler with the view already cleared, cancelling the main
+    task instead of the sub-agent. Left on the picker's own control must only
+    close the picker, leaving whatever view was already active untouched."""
+    ui = FakeUI()
+    session = _session("a", buffer_text="sub-agent output")
+    with patch(
+        "zrb.llm.agent.subagent.live_session.live_subagent_session_registry",
+        FakeLiveRegistry(session),
+    ):
+        ui.enter_agent_view(session)
+        assert ui.viewing_agent_id == "a"
+
+        _open(ui, [session])  # reopen the picker while already viewing "a"
+        assert ui.has_active_agent_picker() is True
+
+        kb = ui._agent_picker_window.content.key_bindings
+        bindings = kb.get_bindings_for_keys(("left",))
+        assert bindings, "expected a 'left' binding on the picker's own control"
+        bindings[-1].handler(MagicMock())
+
+    assert ui.has_active_agent_picker() is False
+    assert ui.viewing_agent_id == "a"  # untouched -- still viewing the same agent
+
+
+def test_picker_no_indicator_when_nothing_pending():
+    ui = FakeUI()
+    ui._confirmation_queue = []
+    _open(ui, [_session("a")])
+
+    text = "".join(t for _s, t in ui._get_agent_picker_text())
+
+    assert "needs approval" not in text
