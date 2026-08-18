@@ -5,6 +5,7 @@ import difflib
 import os
 import uuid
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from zrb.config.config import CFG
@@ -355,6 +356,17 @@ def _delegatable_agents(sub_agent_manager: SubAgentManager) -> list:
     ]
 
 
+def _sort_agents(agents: list) -> list:
+    """Put built-in core agents first, then sort each group by name."""
+    return sorted(
+        agents,
+        key=lambda agent: (
+            0 if "core_agents" in Path(agent.path).parts else 1,
+            agent.name,
+        ),
+    )
+
+
 def agent_roster_doc(sub_agent_manager: SubAgentManager) -> str:
     """The `AVAILABLE AGENTS` block for a delegation tool's docstring.
 
@@ -367,10 +379,9 @@ def agent_roster_doc(sub_agent_manager: SubAgentManager) -> str:
     agents = _delegatable_agents(sub_agent_manager)
     if not agents:
         return "- No sub-agents found."
-    # Sort by name so the roster (and its truncation boundary) is deterministic:
-    # the scan is filesystem-ordered, and once the cap cuts the list the visible
-    # subset must not depend on readdir order.
-    agents = sorted(agents, key=lambda a: a.name)
+    # Keep core agents at the front, then sort by name so the roster (and its
+    # truncation boundary) is deterministic.
+    agents = _sort_agents(agents)
     cap = CFG.LLM_MAX_AGENTS_IN_ROSTER
     shown = agents if cap < 1 else agents[:cap]
     lines = "\n".join(f"- `{a.name}`: {a.description}" for a in shown)
@@ -391,7 +402,7 @@ def agent_not_found_message(agent_name: str, sub_agent_manager: SubAgentManager)
     a near-miss (`research` for `researcher`, or a name carried over from a
     different harness's roster).
     """
-    names = sorted(a.name for a in _delegatable_agents(sub_agent_manager))
+    names = [a.name for a in _sort_agents(_delegatable_agents(sub_agent_manager))]
     if not names:
         return (
             f"Sub-agent '{agent_name}' not found: no sub-agents are registered. "
@@ -706,7 +717,7 @@ def create_search_agent_tool(
         sub_agent_manager = default_sub_agent_manager
 
     async def search_agent(query: str = "") -> str:
-        agents = _delegatable_agents(sub_agent_manager)
+        agents = _sort_agents(_delegatable_agents(sub_agent_manager))
         needle = query.strip().lower()
         if needle:
             agents = [

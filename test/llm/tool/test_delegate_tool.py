@@ -74,6 +74,28 @@ def test_agent_roster_doc_stays_complete_under_cap(mock_sub_agent_manager, monke
     assert "more" not in doc
 
 
+def test_agent_roster_doc_puts_core_agents_first(mock_sub_agent_manager, monkeypatch):
+    monkeypatch.setenv("ZRB_LLM_MAX_AGENTS_IN_ROSTER", "1")
+    core = SubAgentDefinition(
+        name="generalist",
+        path="src/zrb/llm_plugin/core_agents/generalist.agent.md",
+        description="Core generalist",
+        system_prompt="prompt",
+    )
+    optional = SubAgentDefinition(
+        name="alpha",
+        path="src/zrb/llm_plugin/agents/alpha.agent.md",
+        description="Optional agent",
+        system_prompt="prompt",
+    )
+    mock_sub_agent_manager.scan.return_value = [optional, core]
+
+    doc = agent_roster_doc(mock_sub_agent_manager)
+
+    assert "`generalist`" in doc
+    assert "`alpha`" not in doc
+
+
 def test_agent_roster_doc_cap_zero_is_unlimited(mock_sub_agent_manager, monkeypatch):
     """0 disables the cap: the whole roster is listed, no truncation note."""
     monkeypatch.setenv("ZRB_LLM_MAX_AGENTS_IN_ROSTER", "0")
