@@ -67,9 +67,20 @@ class BufferedUI(UIProtocol):
         """
         return self._wrapped
 
-    async def ask_user(self, prompt: str, output_to_parent: str = "") -> str:
-        # Lock ensures only one agent interacts with parent UI at a time
-        # This prevents interleaved output when multiple parallel agents need approval
+    async def ask_user(
+        self,
+        prompt: str,
+        output_to_parent: str = "",
+        agent_id: str | None = None,
+    ) -> str:
+        # The lock guards only the synchronous write below (prevents two
+        # sibling fan-out agents' output_to_parent writes from interleaving)
+        # — it must NOT wrap the wait for the human's answer. Holding it
+        # across that wait serialized every sibling's ENTIRE approval
+        # round-trip through whichever one acquired the lock first: the
+        # others never even reached the shared confirmation queue, so
+        # picking a different sub-agent via the picker had nothing of that
+        # agent's own to resolve yet.
         async with self._lock:
             # Write the caller's approval/question message straight to the
             # parent so the user sees *what* is being approved without
@@ -81,7 +92,14 @@ class BufferedUI(UIProtocol):
                 if self._prefix and prompt.strip() != ""
                 else prompt
             )
-            return await self._wrapped.ask_user(prefixed_prompt)
+        # Preserve the originating agent's id through nested delegation (a
+        # sub-agent's own sub-agent) instead of relabeling it as this layer's
+        # — only stamp `self._agent_id` at the layer closest to the actual
+        # caller. Awaited outside the lock so siblings can enqueue concurrently.
+        return await self._wrapped.ask_user(
+            prefixed_prompt,
+            agent_id=agent_id if agent_id is not None else self._agent_id,
+        )
 
     def append_to_output(
         self,
@@ -103,10 +121,17 @@ class BufferedUI(UIProtocol):
                 self._agent_id, text, session_id=self._session_id
             )
 
-    async def ask_user_choice(self, spec: ChoiceSpec) -> str:
-        # Mirrors ask_user: serialize parent interaction, no flush (see there).
-        async with self._lock:
-            return await self._wrapped.ask_user_choice(spec)
+    async def ask_user_choice(
+        self, spec: ChoiceSpec, agent_id: str | None = None
+    ) -> str:
+        # No synchronous parent-write to guard here (unlike ask_user's
+        # output_to_parent), so nothing needs the lock — same reasoning as
+        # ask_user: the wait for the human's answer must never be held under
+        # it, or sibling fan-out agents can't reach the shared confirmation
+        # queue concurrently.
+        return await self._wrapped.ask_user_choice(
+            spec, agent_id=agent_id if agent_id is not None else self._agent_id
+        )
 
     async def run_interactive_command(
         self, cmd: str | list[str], shell: bool = False

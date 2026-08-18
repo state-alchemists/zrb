@@ -100,7 +100,7 @@ The assistant can connect to external MCP servers defined in `mcp-config.json`. 
 
 | Tool | Description |
 |------|-------------|
-| `DelegateToAgent` | Delegate a sub-task to a named sub-agent (discovered from `agents/` directories). Pass `tasks=[{...}, ...]` to fan out several concurrently in one call. See sub-agents section below. |
+| `DelegateToAgent` | Delegate a sub-task to a named sub-agent (discovered from `core_agents/` and `agents/` directories). Pass `tasks=[{...}, ...]` to fan out several concurrently in one call. See sub-agents section below. |
 | `SearchAgent` | Find sub-agents by name or description keywords. The `DelegateToAgent` roster only lists the first `LLM_MAX_AGENTS_IN_ROSTER` agents, so use this when the agent you need is not on it. |
 | `ActivateSkill` | Load a named skill (a set of prompts and tools) into the current session. |
 | `SearchSkill` | Find skills by name or description keywords. The skill catalogue in the `workflow` prompt section only lists the first `LLM_MAX_SKILLS_IN_CATALOG` skills, so use this when the skill you need is not listed. |
@@ -222,7 +222,7 @@ my_task.append_tool(get_weather) # then layer on your own
 
 ### Sub-agents
 
-Zrb can automatically discover and manage sub-agents defined in JSON or YAML files within an `agents/` directory. The primary assistant can then delegate complex tasks to these specialized agents using the built-in `DelegateToAgent` tool.
+Zrb can automatically discover and manage sub-agents defined in Claude-compatible `AGENT.md` or `*.agent.md` files. The primary assistant can then delegate complex tasks to these specialized agents using the built-in `DelegateToAgent` tool.
 
 Sub-agent files are discovered from (in priority order):
 1. `~/.zrb/agents/`, `~/.claude/agents/` — user-global agents
@@ -230,8 +230,11 @@ Sub-agent files are discovered from (in priority order):
 3. Plugin agent directories, from `ZRB_LLM_PLUGIN_DIRS`
 4. Paths in `CFG.LLM_BASE_SEARCH_DIRS`
 5. Paths in `ZRB_LLM_EXTRA_AGENT_DIRS`
-6. Zrb's built-in agents
-7. `self._root_dir` (recursive scan target)
+6. Zrb's built-in `core_agents/` — always included
+7. Zrb's optional built-in `agents/` — included when `LLM_ENABLE_BUILTIN_AGENTS` is enabled
+8. `self._root_dir` (recursive scan target)
+
+Core agents are shown before optional agents in the `AVAILABLE AGENTS` roster and in `SearchAgent` results. `generalist` is currently the built-in core agent, so it remains available even when optional built-in agents are disabled.
 
 > 💡 **Benefit:** Sub-agents isolate context and keep the main conversation history clean.
 

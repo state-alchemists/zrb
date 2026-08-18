@@ -53,6 +53,34 @@ class DraftConfirmationUI(UIConfirmation):
         pass
 
 
+class ViewAwareConfirmationUI(UIConfirmation):
+    """Adds the `_viewing_agent_id`/`_conversation_session_name` state
+    `_resolve_for_agent`/`_handle_confirmation` read (normally supplied by
+    `UIAgentPicker` in the composed default `UI`)."""
+
+    def __init__(self, viewing_agent_id=None):
+        self._confirmation_queue = []
+        self._confirmation_output_buffer = []
+        self._current_confirmation = None
+        self._viewing_agent_id = viewing_agent_id
+        self._conversation_session_name = "sess"
+
+    def append_to_output(self, text, end="\n"):
+        pass
+
+    def invalidate_ui(self):
+        pass
+
+    def has_current_confirmation(self):
+        return self._current_confirmation is not None
+
+    def confirmation_count(self):
+        return len(self._confirmation_queue)
+
+    def handle_confirmation(self, event):
+        return self._handle_confirmation(event)
+
+
 class GuardedConfirmationUI(UIConfirmation):
     """Replicates `UIOutput.append_to_output`'s buffer guard.
 
@@ -327,3 +355,110 @@ async def test_enter_answer_restores_draft():
         assert ui._saved_draft is None
         assert ui._input_field.buffer.text == "fix the auth bug"
         assert ui._input_field.buffer.cursor_position == 0
+
+
+@pytest.mark.asyncio
+async def test_viewing_agent_resolves_its_own_queued_request_not_fifo_head():
+    """Regression: pressing y/n/e while viewing a sub-agent's live view must
+    resolve *that* agent's own pending request, even when it's not yet the
+    main FIFO's current one (another agent's request arrived first)."""
+    ui = ViewAwareConfirmationUI(viewing_agent_id="sub4")
+    fake_entry = MagicMock()
+
+    with (
+        patch("prompt_toolkit.application.get_app"),
+        patch(
+            "zrb.llm.agent.subagent.live_session.live_subagent_session_registry.get",
+            return_value=fake_entry,
+        ),
+    ):
+        task1 = asyncio.create_task(ui.ask_user("sub1 prompt", agent_id="sub1"))
+        await asyncio.sleep(0.01)
+        task4 = asyncio.create_task(ui.ask_user("sub4 prompt", agent_id="sub4"))
+        await asyncio.sleep(0.01)
+
+        # sub1's request became current; sub4's is still queued behind it.
+        assert ui.has_current_confirmation()
+        assert ui.confirmation_count() == 2
+
+        event = MagicMock()
+        event.current_buffer = FakeBuffer("y")
+        assert ui.handle_confirmation(event) is True
+
+        # sub4's future resolved, sub1's is untouched and still current.
+        assert await task4 == "y"
+        assert not task1.done()
+        fake_entry.buffered_ui.append_to_output.assert_called_once_with("y\n")
+
+        ui.submit_user_answer("y")
+        assert await task1 == "y"
+
+
+@pytest.mark.asyncio
+async def test_viewing_agent_with_own_current_request_echoes_to_its_view():
+    """When the viewed agent's request IS the FIFO head, resolving it via the
+    view-routed path still echoes the answer into its own buffer, not the
+    main transcript."""
+    ui = ViewAwareConfirmationUI(viewing_agent_id="sub1")
+    fake_entry = MagicMock()
+
+    with (
+        patch("prompt_toolkit.application.get_app"),
+        patch(
+            "zrb.llm.agent.subagent.live_session.live_subagent_session_registry.get",
+            return_value=fake_entry,
+        ),
+    ):
+        task1 = asyncio.create_task(ui.ask_user("sub1 prompt", agent_id="sub1"))
+        await asyncio.sleep(0.01)
+
+        event = MagicMock()
+        event.current_buffer = FakeBuffer("y")
+        assert ui.handle_confirmation(event) is True
+
+        assert await task1 == "y"
+        fake_entry.buffered_ui.append_to_output.assert_called_once_with("y\n")
+
+
+@pytest.mark.asyncio
+async def test_viewing_agent_with_nothing_pending_does_not_steal_others_confirmation():
+    """Viewing a sub-agent with no pending request of its own must not
+    resolve some other agent's (or the main agent's) confirmation -- it
+    falls through so the typed text is dispatched as a chat message instead."""
+    ui = ViewAwareConfirmationUI(viewing_agent_id="sub-idle")
+
+    with patch("prompt_toolkit.application.get_app"):
+        task1 = asyncio.create_task(ui.ask_user("sub1 prompt", agent_id="sub1"))
+        await asyncio.sleep(0.01)
+
+        event = MagicMock()
+        event.current_buffer = FakeBuffer("hello")
+        assert ui.handle_confirmation(event) is False
+        assert ui.has_current_confirmation()  # sub1's untouched
+
+        ui.submit_user_answer("y")
+        assert await task1 == "y"
+
+
+@pytest.mark.asyncio
+async def test_not_viewing_any_agent_keeps_fifo_behavior():
+    """Regression guard: with no sub-agent view active, resolution is exactly
+    the pre-existing FIFO-head behavior."""
+    ui = ViewAwareConfirmationUI(viewing_agent_id=None)
+
+    with patch("prompt_toolkit.application.get_app"):
+        task1 = asyncio.create_task(ui.ask_user("sub1 prompt", agent_id="sub1"))
+        await asyncio.sleep(0.01)
+        task4 = asyncio.create_task(ui.ask_user("sub4 prompt", agent_id="sub4"))
+        await asyncio.sleep(0.01)
+
+        event = MagicMock()
+        event.current_buffer = FakeBuffer("y")
+        assert ui.handle_confirmation(event) is True
+
+        # The FIFO head (sub1's request) resolved, not sub4's.
+        assert await task1 == "y"
+        assert not task4.done()
+
+        ui.submit_user_answer("y")
+        assert await task4 == "y"

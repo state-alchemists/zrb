@@ -86,7 +86,7 @@ The `ActivateSkill` tool also returns the skill directory path and companion fil
 
 ## 3. Agents and Subagents (AGENT.md)
 
-Zrb can spawn subagents defined in Claude-style `AGENT.md` (or `*.agent.md`) files.
+Zrb can spawn subagents defined in Claude-style `AGENT.md` (or `*.agent.md`) files. Zrb's built-in agents are split into two groups: `core_agents/` is always available, while the optional `agents/` directory is controlled by `ZRB_LLM_ENABLE_BUILTIN_AGENTS`. Core agents are listed before optional agents when Zrb advertises available delegates.
 
 ### Discovery Paths
 
@@ -97,6 +97,8 @@ Zrb can spawn subagents defined in Claude-style `AGENT.md` (or `*.agent.md`) fil
 | `./.claude/agents/` | Project-level (Claude) |
 | `./.zrb/agents/` | Project-level (Zrb) |
 | `ZRB_LLM_PLUGIN_DIRS` | Plugin directories |
+| `src/zrb/llm_plugin/core_agents/` | Zrb built-in core agents (always available) |
+| `src/zrb/llm_plugin/agents/` | Zrb optional built-in agents (toggleable) |
 
 ### Agent Format
 
@@ -163,7 +165,7 @@ export ZRB_LLM_PLUGIN_DIRS="/opt/zrb-plugins:/home/user/my-plugins"
 |---------|--------------|----------------|
 | Project Instructions | `CLAUDE.md`, `AGENTS.md` | Current dir → root |
 | Skills | `SKILL.md`, `*.skill.md` | `skills/` directories |
-| Agents | `AGENT.md`, `*.agent.md` | `agents/` directories |
+| Agents | `AGENT.md`, `*.agent.md` | `core_agents/` and `agents/` directories |
 | Hooks | `hooks.json`, `*.json` | `hooks/` directories |
 
 ---

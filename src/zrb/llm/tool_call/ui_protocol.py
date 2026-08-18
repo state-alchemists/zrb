@@ -26,9 +26,16 @@ class ChoiceSpec(TypedDict, total=False):
 
 
 class UIProtocol(Protocol):
-    async def ask_user(self, prompt: str, output_to_parent: str = "") -> str: ...
+    async def ask_user(
+        self,
+        prompt: str,
+        output_to_parent: str = "",
+        agent_id: str | None = None,
+    ) -> str: ...
 
-    async def ask_user_choice(self, spec: ChoiceSpec) -> str: ...
+    async def ask_user_choice(
+        self, spec: ChoiceSpec, agent_id: str | None = None
+    ) -> str: ...
 
     def append_to_output(
         self,

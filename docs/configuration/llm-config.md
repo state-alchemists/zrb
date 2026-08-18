@@ -540,7 +540,7 @@ These variables control where Zrb searches for skills and agents, and whether th
 | `ZRB_LLM_SEARCH_PROJECT` | Search project dirs (filesystem root → cwd) for config dir names | `on` |
 | `ZRB_LLM_SEARCH_HOME` | Search home directory (`~/.claude/`, `~/.zrb/`) | `on` |
 | `ZRB_LLM_ENABLE_BUILTIN_SKILLS` | Load the built-in utility skills (`llm_plugin/skills`). Core skills (`core_skills/`) are always on; user/project/plugin skills are unaffected | `on` |
-| `ZRB_LLM_ENABLE_BUILTIN_AGENTS` | Load the built-in sub-agents (`llm_plugin/agents`). User/project/plugin agents are unaffected | `on` |
+| `ZRB_LLM_ENABLE_BUILTIN_AGENTS` | Load optional built-in sub-agents (`llm_plugin/agents`). Core agents (`core_agents/`) are always on; user/project/plugin agents are unaffected | `on` |
 | `ZRB_LLM_CONFIG_DIR_NAMES` | Config subdirectory names to look for in each dir (colon-separated) | `.claude:.zrb` |
 | `ZRB_LLM_BASE_SEARCH_DIRS` | Explicit base dirs containing `skills/`, `agents/`, `plugins/` | (empty) |
 | `ZRB_LLM_EXTRA_SKILL_DIRS` | Additional direct skill directories | (empty) |
@@ -556,7 +556,8 @@ Zrb searches for skills/agents in this order (highest to lowest priority):
 3. **Configured Plugins** - Directories in `ZRB_LLM_PLUGIN_DIRS`
 4. **Base Search Dirs** - Directories in `ZRB_LLM_BASE_SEARCH_DIRS` + plugins within
 5. **Extra Direct Dirs** - `ZRB_LLM_EXTRA_SKILL_DIRS`, `ZRB_LLM_EXTRA_AGENT_DIRS`
-6. **Builtin** - Built-in skills/agents (always included)
+6. **Core Builtins** - `core_skills/` and `core_agents/` (always included)
+7. **Optional Builtins** - `skills/` and `agents/` (controlled by their built-in toggles)
 
 ### Directory Structure
 
@@ -565,6 +566,10 @@ flowchart LR
     Root["~/.claude/"] --> Skills["skills/"]
     Root --> Agents["agents/"]
     Root --> Plugins["plugins/"]
+    Builtin["zrb/llm_plugin/"] --> CoreSkills["core_skills/"]
+    Builtin --> CoreAgents["core_agents/"]
+    Builtin --> OptionalSkills["skills/"]
+    Builtin --> OptionalAgents["agents/"]
     Skills --> S1["my-skill/"] --> S1F["SKILL.md"]
     Agents --> A1["my-agent/"] --> A1F["AGENT.md"]
     Plugins --> P1["my-plugin/"]

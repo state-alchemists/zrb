@@ -1,7 +1,7 @@
 """Search-directory discovery for ``SubAgentManager``.
 
 Builds the priority-ordered list of directories to scan for sub-agents:
-home → project traversal → plugins → base → extra → builtin → root_dir.
+home → project traversal → plugins → base → extra → core builtin → optional builtin → root_dir.
 """
 
 from __future__ import annotations
@@ -29,8 +29,9 @@ class SubAgentManagerSearch:
         3. Plugins from ``LLM_PLUGIN_DIRS``
         4. ``LLM_BASE_SEARCH_DIRS``
         5. ``LLM_EXTRA_AGENT_DIRS``
-        6. Builtin (always included, lowest priority)
-        7. ``self._root_dir`` (recursive scan target)
+        6. Core builtin agents (always included, lowest priority)
+        7. Optional builtin agents (gated by ``LLM_ENABLE_BUILTIN_AGENTS``)
+        8. ``self._root_dir`` (recursive scan target)
         """
         search_dirs: list[str | Path] = []
         home = Path.home()
@@ -59,6 +60,10 @@ class SubAgentManagerSearch:
             dir_path = Path(dir_str)
             if dir_path.exists() and dir_path.is_dir():
                 search_dirs.append(dir_path)
+
+        core_builtin_path = BUILTIN_PLUGIN_DIR / "core_agents"
+        if core_builtin_path.exists() and core_builtin_path.is_dir():
+            search_dirs.append(core_builtin_path)
 
         if CFG.LLM_ENABLE_BUILTIN_AGENTS:
             builtin_path = BUILTIN_PLUGIN_DIR / "agents"

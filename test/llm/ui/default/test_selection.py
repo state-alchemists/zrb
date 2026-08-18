@@ -25,6 +25,7 @@ class FakeUI(UISelection, UIConfirmation):
 
     def __init__(self):
         self._input_field = object()
+        self._confirmation_queue = []
         self._current_confirmation = "FUTURE"  # truthy sentinel
         self.resolved: str | None = None
         self.echoes: list[str] = []

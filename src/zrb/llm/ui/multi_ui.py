@@ -477,7 +477,12 @@ class MultiUI:
                 logging.getLogger(__name__).error(f"Error in message queue: {e}")
                 await asyncio.sleep(CFG.LLM_UI_STATUS_INTERVAL / 1000)
 
-    async def ask_user(self, prompt: str, output_to_parent: str = "") -> str:
+    async def ask_user(
+        self,
+        prompt: str,
+        output_to_parent: str = "",
+        agent_id: str | None = None,
+    ) -> str:
         """Race all UIs for input and return the first response.
 
         When one UI wins, cancel and clear pending confirmations in other UIs.
@@ -493,7 +498,9 @@ class MultiUI:
             try:
                 if hasattr(ui, "ask_user"):
                     task = loop.create_task(
-                        ui.ask_user(prompt, output_to_parent=output_to_parent)
+                        ui.ask_user(
+                            prompt, output_to_parent=output_to_parent, agent_id=agent_id
+                        )
                     )
                     pending_tasks[task] = (i, ui)
             except Exception as e:
@@ -528,7 +535,9 @@ class MultiUI:
         finally:
             self._pending_input_tasks = []
 
-    async def ask_user_choice(self, spec: "ChoiceSpec") -> str:
+    async def ask_user_choice(
+        self, spec: "ChoiceSpec", agent_id: str | None = None
+    ) -> str:
         """Race all UIs for a multiple-choice answer and return the first.
 
         Mirrors `ask_user`: the first UI to answer wins, the others are
@@ -544,7 +553,7 @@ class MultiUI:
         for i, ui in enumerate(self._uis):
             try:
                 if hasattr(ui, "ask_user_choice"):
-                    task = loop.create_task(ui.ask_user_choice(spec))
+                    task = loop.create_task(ui.ask_user_choice(spec, agent_id=agent_id))
                     pending_tasks[task] = (i, ui)
             except Exception as e:
                 CFG.LOGGER.debug(f"Child UI ask_user_choice setup failed: {e}")

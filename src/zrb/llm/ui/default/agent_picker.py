@@ -46,6 +46,10 @@ class UIAgentPicker:
         _input_field: Any
         _conversation_session_name: str
 
+        # From UIConfirmation — read to flag, in the picker, which agent(s)
+        # have an unanswered approval request (see `_agent_needs_approval`).
+        _confirmation_queue: list[tuple[Any, str, Any, "str | None"]]
+
         # From UIOutput
         @property
         def output_text(self) -> str: ...
@@ -246,6 +250,21 @@ class UIAgentPicker:
         def _(event):
             self.close_agent_picker()
 
+        @kb.add("left")
+        def _(event):
+            # The picker can be reopened while already viewing an agent (Down
+            # Arrow works regardless of `_viewing_agent_id` — see
+            # `UIMessageEditing._handle_down_arrow`). Without this, Left had no
+            # binding on the picker's own control, so it fell through to the
+            # app-level Left (`viewing_sub_agent`-filtered, in keybindings.py),
+            # which silently exited the agent view while the picker Float
+            # stayed drawn on top of it — Left appeared to do nothing, and the
+            # next Escape then hit the app-level handler with
+            # `_viewing_agent_id` already cleared, cancelling the main task
+            # instead of the sub-agent. Closing just the picker here (like
+            # Escape) leaves whatever view was already active untouched.
+            self.close_agent_picker()
+
         control = FormattedTextControl(
             self._get_agent_picker_text, focusable=True, key_bindings=kb
         )
@@ -299,8 +318,24 @@ class UIAgentPicker:
                 )
             )
         row.append((style, f" [{state}]"))
+        if self._agent_needs_approval(session.agent_id):
+            row.append(("class:agent-picker.needs-approval", " ⏳ needs approval"))
         row.append((style, "\n"))
         return row
+
+    def _agent_needs_approval(self, agent_id: str) -> bool:
+        """Whether `agent_id` has an unresolved confirmation request queued.
+
+        Lets the picker flag *which* running agent(s) are actually blocked on
+        an approval — without it, a user with several sub-agents in flight has
+        no way to tell them apart and may confirm-answer the wrong one (its
+        request just gets queued behind whichever is current).
+        """
+        queue = getattr(self, "_confirmation_queue", [])
+        return any(
+            entry_agent_id == agent_id and not future.done()
+            for future, _, _, entry_agent_id in queue
+        )
 
     # --- helpers ---------------------------------------------------------
 
