@@ -12,7 +12,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any
 
-_CAPABILITY_ATTR = "zrb_capability"
+CAPABILITY_ATTR = "zrb_capability"
 
 
 class Capability(str, Enum):
@@ -27,8 +27,21 @@ class Capability(str, Enum):
 
 def tag(fn: Any, capability: Capability) -> Any:
     """Attach a capability tag to a tool callable and return it (chainable)."""
-    setattr(fn, _CAPABILITY_ATTR, capability)
+    setattr(fn, CAPABILITY_ATTR, capability)
     return fn
+
+
+def capability_metadata(capability: Capability) -> dict[str, Capability]:
+    """Build a ``ToolDefinition.metadata`` dict carrying ``capability``.
+
+    pydantic-ai's per-call dispatch (``SafeToolsetWrapper.call_tool`` in
+    ``agent/common.py``) only ever sees a ``ToolsetTool``, which has no
+    ``.function`` and no arbitrary attributes — a ``tag()`` set on the
+    original callable does not survive into that layer. ``ToolDefinition.metadata``
+    does, so ``_wrap_tool`` re-tags the capability here when it rebuilds the
+    ``Tool``.
+    """
+    return {CAPABILITY_ATTR: capability}
 
 
 def tool_capability(tool: Any) -> Capability:
@@ -36,15 +49,24 @@ def tool_capability(tool: Any) -> Capability:
 
     Resolution order:
     1. explicit ``zrb_capability`` tag (on the tool or its underlying function),
-    2. ``DELEGATE`` if the tool carries ``zrb_is_delegate_tool``,
-    3. ``UNKNOWN``.
+    2. the same tag carried as ``ToolDefinition.metadata`` (the shape a
+       ``ToolsetTool`` — e.g. what pydantic-ai's toolset dispatch hands the
+       outer gate — exposes it in),
+    3. ``DELEGATE`` if the tool carries ``zrb_is_delegate_tool``,
+    4. ``UNKNOWN``.
     """
-    cap = getattr(tool, _CAPABILITY_ATTR, None)
+    cap = getattr(tool, CAPABILITY_ATTR, None)
     if isinstance(cap, Capability):
         return cap
     fn = getattr(tool, "function", None)
     if fn is not None:
-        cap = getattr(fn, _CAPABILITY_ATTR, None)
+        cap = getattr(fn, CAPABILITY_ATTR, None)
+        if isinstance(cap, Capability):
+            return cap
+    tool_def = getattr(tool, "tool_def", None)
+    metadata = getattr(tool_def, "metadata", None) if tool_def is not None else None
+    if metadata:
+        cap = metadata.get(CAPABILITY_ATTR)
         if isinstance(cap, Capability):
             return cap
     if getattr(tool, "zrb_is_delegate_tool", False) or (
