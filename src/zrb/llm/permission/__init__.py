@@ -14,7 +14,12 @@ reproduces today's behavior exactly.
 
 from __future__ import annotations
 
-from zrb.llm.permission.capability import Capability, tag, tool_capability
+from zrb.llm.permission.capability import (
+    Capability,
+    capability_metadata,
+    tag,
+    tool_capability,
+)
 from zrb.llm.permission.policy import (
     ALLOW,
     ASK,
@@ -38,6 +43,7 @@ from zrb.llm.permission.state import (
 
 __all__ = [
     "Capability",
+    "capability_metadata",
     "tag",
     "tool_capability",
     "Rule",

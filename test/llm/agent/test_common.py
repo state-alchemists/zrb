@@ -202,27 +202,46 @@ async def testcreate_safe_wrapper_already_tool_return():
 
 
 def test_wrap_tool_callable():
+    """A bare callable is wrapped into a ``Tool`` (not left bare) so its
+    capability tag survives into ``ToolDefinition.metadata``. The outer,
+    per-call gate (``SafeToolsetWrapper.call_tool``) only ever sees a
+    ``ToolsetTool``, which carries no ``.function`` and no arbitrary
+    attributes — metadata is the only channel capability can reach it
+    through (see ``zrb.llm.permission.capability_metadata``)."""
+    from pydantic_ai import Tool
+
     from zrb.llm.agent.common import _wrap_tool
+    from zrb.llm.permission import Capability, tag
 
     def my_tool(x: int):
         return x
 
+    tag(my_tool, Capability.READ)
     wrapped = _wrap_tool(my_tool)
-    assert callable(wrapped)
+    assert isinstance(wrapped, Tool)
+    assert wrapped.metadata == {"zrb_capability": Capability.READ}
+    assert callable(wrapped.function)
 
 
 def test_wrap_tool_instance():
     from pydantic_ai import Tool
 
     from zrb.llm.agent.common import _wrap_tool
+    from zrb.llm.permission import Capability, tag
 
     def my_tool(x: int):
         return x
 
-    tool_inst = Tool(my_tool, name="test", description="desc")
+    tag(my_tool, Capability.EDIT)
+    tool_inst = Tool(
+        my_tool, name="test", description="desc", metadata={"existing": True}
+    )
     wrapped = _wrap_tool(tool_inst)
     assert isinstance(wrapped, Tool)
     assert wrapped.name == "test"
+    # The original tool's metadata is preserved, and the capability resolved
+    # from the underlying tagged function is merged in.
+    assert wrapped.metadata == {"existing": True, "zrb_capability": Capability.EDIT}
 
 
 @pytest.mark.asyncio

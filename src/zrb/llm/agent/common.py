@@ -47,6 +47,10 @@ if TYPE_CHECKING:
 
 def _wrap_tool(tool: "Tool | ToolFuncEither") -> "Tool | ToolFuncEither":
     """Wrap a tool with error handling to prevent crashes."""
+    # lazy: tests patch zrb.llm.permission.tool_capability; hoisting would
+    # bind the name at this module's load time and bypass the mock.
+    from zrb.llm.permission import capability_metadata, tool_capability
+
     if hasattr(tool, "function"):
         # lazy: heavy third-party
         from pydantic_ai import Tool as PydanticTool
@@ -55,6 +59,10 @@ def _wrap_tool(tool: "Tool | ToolFuncEither") -> "Tool | ToolFuncEither":
         original_func = getattr(tool, "function")
         safe_func = create_safe_wrapper(original_func, name=getattr(tool, "name"))
         if isinstance(tool, PydanticTool):
+            metadata = {
+                **(tool.metadata or {}),
+                **capability_metadata(tool_capability(tool)),
+            }
             return PydanticTool(
                 safe_func,
                 name=tool.name,
@@ -68,11 +76,24 @@ def _wrap_tool(tool: "Tool | ToolFuncEither") -> "Tool | ToolFuncEither":
                 requires_approval=tool.requires_approval,
                 timeout=tool.timeout,
                 defer_loading=tool.defer_loading,
+                metadata=metadata,
             )
         return tool
     else:
         # It is a callable (hasattr(tool, "function") is False, so not a Tool).
-        return create_safe_wrapper(cast("Callable", tool))
+        # Wrapped into a Tool (rather than left bare) so the capability tag
+        # survives as ToolDefinition.metadata: the outer SafeToolsetWrapper
+        # gate (see _wrap_toolset below) only ever sees a ToolsetTool, which
+        # carries a tool_def but no .function and no arbitrary attributes, so
+        # a tag() set on the raw callable would otherwise resolve as UNKNOWN
+        # there and be denied outright by policies like PLAN_MODE_POLICY.
+        # lazy: heavy third-party
+        from pydantic_ai import Tool as PydanticTool
+
+        safe_func = create_safe_wrapper(cast("Callable", tool))
+        return PydanticTool(
+            safe_func, metadata=capability_metadata(tool_capability(tool))
+        )
 
 
 def safe_copy_result(result: Any) -> Any:

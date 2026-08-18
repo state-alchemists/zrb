@@ -86,6 +86,61 @@ async def test_plan_mode_blocks_edit_and_execute_allows_read():
 
 
 @pytest.mark.asyncio
+async def test_plan_mode_allows_read_through_full_toolset_dispatch():
+    """Regression test for the outer ``SafeToolsetWrapper.call_tool`` gate.
+
+    ``create_safe_wrapper``'s own gate (exercised above) always resolved
+    capability correctly, but ``create_agent`` also wraps the whole
+    ``FunctionToolset`` so every call passes through
+    ``SafeToolsetWrapper.call_tool`` first. That layer only ever sees a
+    pydantic-ai ``ToolsetTool`` (no ``.function``, no arbitrary attributes),
+    so without ``_wrap_tool`` re-tagging the capability into
+    ``ToolDefinition.metadata``, it resolved every free-function tool as
+    ``UNKNOWN`` and ``PLAN_MODE_POLICY``'s catch-all rule denied it — Read
+    included. This drives the real ``_wrap_tool`` + ``FunctionToolset`` +
+    ``_wrap_toolset`` dispatch chain end to end, unlike the unit test above
+    which calls ``create_safe_wrapper`` directly and never touches this
+    outer layer.
+    """
+    from unittest.mock import MagicMock
+
+    from pydantic_ai.tools import RunContext
+    from pydantic_ai.toolsets import FunctionToolset
+    from pydantic_ai.usage import RunUsage
+
+    from zrb.llm.agent.common import _wrap_tool, _wrap_toolset
+
+    def read_file(path: str = ""):
+        return f"contents of {path}"
+
+    def write_file(path: str = ""):
+        return "wrote"
+
+    tag(read_file, Capability.READ)
+    tag(write_file, Capability.EDIT)
+
+    toolset = _wrap_toolset(
+        FunctionToolset(tools=[_wrap_tool(read_file), _wrap_tool(write_file)])
+    )
+    ctx = RunContext(deps=None, model=MagicMock(), usage=RunUsage())
+    tools = await toolset.get_tools(ctx)
+
+    await enter_plan_mode()
+    try:
+        read_result = await toolset.call_tool(
+            "read_file", {"path": "a.py"}, ctx, tools["read_file"]
+        )
+        write_result = await toolset.call_tool(
+            "write_file", {"path": "a.py"}, ctx, tools["write_file"]
+        )
+    finally:
+        await exit_plan_mode(plan="done")
+
+    assert read_result.return_value == "contents of a.py"
+    assert write_result.metadata.get("blocked") is True
+
+
+@pytest.mark.asyncio
 async def test_exit_plan_mode_requires_approval_even_with_yolo():
     """Verify that YOLO=True cannot auto-approve ExitPlanMode in plan mode."""
     from unittest.mock import MagicMock
