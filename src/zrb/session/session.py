@@ -32,7 +32,6 @@ from zrb.util.cli.style import (
     YELLOW,
     remove_style,
 )
-from zrb.util.group import get_node_path
 from zrb.util.run import gather_fail_fast, gather_isolated
 from zrb.util.string.name import get_random_name
 from zrb.xcom.xcom import Xcom
@@ -157,7 +156,7 @@ class Session(AnySession):
         main_task_path = (
             None
             if self._root_group is None
-            else get_node_path(self._root_group, main_task)
+            else self._root_group.get_node_path(main_task)
         )
         self._main_task_path = [] if main_task_path is None else main_task_path
 

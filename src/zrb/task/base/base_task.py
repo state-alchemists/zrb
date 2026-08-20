@@ -12,18 +12,11 @@ from zrb.input.any_input import AnyInput
 from zrb.session.any_session import AnySession
 from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
-from zrb.task.base.context import (
-    build_task_context,
-    get_combined_envs,
-    get_combined_inputs,
-)
-from zrb.task.base.execution import (
-    execute_task_action,
-    execute_task_chain,
-    run_default_action,
-)
-from zrb.task.base.lifecycle import execute_root_tasks, run_and_cleanup, run_task_async
-from zrb.task.base.operators import handle_lshift, handle_rshift
+from zrb.task.base.context import BaseTaskContext
+from zrb.task.base.execution import BaseTaskExecution
+from zrb.task.base.lifecycle import BaseTaskLifecycle
+from zrb.task.base.monitoring import BaseTaskMonitoring
+from zrb.task.base.operators import BaseTaskOperators
 from zrb.util.string.conversion import to_snake_case
 
 
@@ -157,6 +150,12 @@ class BaseTask(AnyTask):
         self._action = action
         self._print_fn = print_fn
 
+        self._base_context = BaseTaskContext(self)
+        self._base_execution = BaseTaskExecution(self)
+        self._base_lifecycle = BaseTaskLifecycle(self)
+        self._base_monitoring = BaseTaskMonitoring(self)
+        self._base_operators = BaseTaskOperators(self)
+
     def _ensure_task_list(
         self, tasks: AnyTask | Sequence[AnyTask] | None
     ) -> list[AnyTask]:
@@ -196,10 +195,10 @@ class BaseTask(AnyTask):
     def __rshift__(
         self, other: AnyTask | Sequence[AnyTask]
     ) -> AnyTask | Sequence[AnyTask]:
-        return handle_rshift(self, other)
+        return self._base_operators.handle_rshift(other)
 
     def __lshift__(self, other: AnyTask | Sequence[AnyTask]) -> AnyTask:
-        return handle_lshift(self, other)
+        return self._base_operators.handle_lshift(other)
 
     @property
     def name(self) -> str:
@@ -282,12 +281,12 @@ class BaseTask(AnyTask):
     @property
     def envs(self) -> list[AnyEnv]:
         """This task's environment variables, merged with those of its upstreams."""
-        return get_combined_envs(self, task_envs=self._envs)
+        return self._base_context.get_combined_envs(task_envs=self._envs)
 
     @property
     def inputs(self) -> list[AnyInput]:
         """This task's inputs, merged with those of its upstreams."""
-        return get_combined_inputs(self, task_inputs=self._inputs)
+        return self._base_context.get_combined_inputs(task_inputs=self._inputs)
 
     def _append_unique_tasks(
         self, items: "AnyTask | Sequence[AnyTask]", target: "list[AnyTask]"
@@ -341,7 +340,7 @@ class BaseTask(AnyTask):
         action uses. Call this when you need the same view of a session that
         the action receives.
         """
-        return build_task_context(self, session)
+        return self._base_context.build_context(session)
 
     def run(
         self,
@@ -367,8 +366,7 @@ class BaseTask(AnyTask):
         """
         try:
             return asyncio.run(
-                run_and_cleanup(
-                    self,
+                self._base_lifecycle.run_and_cleanup(
                     session=session,
                     print_fn=self._print_fn,
                     str_kwargs=str_kwargs,
@@ -404,8 +402,7 @@ class BaseTask(AnyTask):
         Returns:
             The result of the main task's action.
         """
-        return await run_task_async(
-            self,
+        return await self._base_lifecycle.run_task_async(
             session=session,
             print_fn=self._print_fn,
             str_kwargs=str_kwargs,
@@ -418,11 +415,11 @@ class BaseTask(AnyTask):
         Execution entry point used by the runners. Prefer `run`/`async_run`
         unless you are driving a session yourself.
         """
-        return await execute_root_tasks(self, session)
+        return await self._base_lifecycle.execute_root_tasks(session)
 
     async def exec_chain(self, session: AnySession):
         """Run this task, then its successors, in order."""
-        return await execute_task_chain(self, session)
+        return await self._base_execution.execute_task_chain(session)
 
     async def exec(self, session: AnySession):
         """Run this task's own action, assuming upstreams already completed.
@@ -430,7 +427,7 @@ class BaseTask(AnyTask):
         Handles readiness checks, retries, and fallbacks. It does not run
         upstreams — `exec_root_tasks` does that.
         """
-        return await execute_task_action(self, session)
+        return await self._base_execution.execute_task_action(session)
 
     async def exec_action(self, ctx: AnyContext) -> Any:
         """Public wrapper around _exec_action for cross-module callers.
@@ -469,7 +466,7 @@ class BaseTask(AnyTask):
         Returns:
             Any: The result of the action execution.
         """
-        return await run_default_action(self, ctx)
+        return await self._base_execution.run_default_action(ctx)
 
     def to_function(self) -> Callable[..., Any]:
         """Wrap this task as a plain Python function.

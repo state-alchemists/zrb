@@ -1,7 +1,6 @@
 from zrb.group.any_group import AnyGroup
 from zrb.runner.web_schema.user import User
 from zrb.task.any_task import AnyTask
-from zrb.util.group import get_non_empty_subgroups, get_subtasks
 
 
 def get_html_auth_link(user: User) -> str:
@@ -13,7 +12,7 @@ def get_html_auth_link(user: User) -> str:
 
 
 def get_html_subtask_info(user: User, parent_url: str, parent_group: AnyGroup) -> str:
-    subtasks = get_subtasks(parent_group, web_only=True)
+    subtasks = parent_group.get_subtasks(web_only=True)
     task_li = "\n".join(
         [
             get_html_task_li(parent_url, alias, subtask)
@@ -33,7 +32,7 @@ def get_html_task_li(parent_url: str, alias: str, task: AnyTask) -> str:
 
 
 def get_html_subgroup_info(user: User, parent_url: str, parent_group: AnyGroup) -> str:
-    subgroups = get_non_empty_subgroups(parent_group, web_only=True)
+    subgroups = parent_group.get_non_empty_subgroups(web_only=True)
     group_li = "\n".join(
         [
             get_html_group_li(parent_url, alias, subgroup)

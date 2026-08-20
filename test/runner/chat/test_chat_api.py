@@ -37,6 +37,7 @@ def app():
         mock_root.name = "root"
         mock_root.tasks = []
         mock_root.groups = []
+        mock_root.extract_node.return_value = (MagicMock(), ["llm", "chat"], [])
         # We patch get_instance_sync before creating the app so serve_chat_api gets our mock
         with patch(
             "zrb.runner.chat.chat_api_route.ChatSessionManager.get_instance_sync",
@@ -453,15 +454,12 @@ def test_save_uploaded_attachment_writes_file_and_returns_path():
 @pytest.mark.asyncio
 async def test_get_llm_chat_task_returns_none_when_missing():
     """Internal helper returns None when the chat node isn't registered."""
+    from zrb.group.any_group import NodeNotFoundError
     from zrb.runner.chat.chat_api_route import _get_llm_chat_task
-    from zrb.util.group import NodeNotFoundError
 
     mock_root = MagicMock()
-    with patch(
-        "zrb.runner.chat.chat_api_route.extract_node_from_args",
-        side_effect=NodeNotFoundError("nope"),
-    ):
-        result = await _get_llm_chat_task(mock_root)
+    mock_root.extract_node.side_effect = NodeNotFoundError("nope")
+    result = await _get_llm_chat_task(mock_root)
     assert result is None
 
 

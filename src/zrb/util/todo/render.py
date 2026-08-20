@@ -14,10 +14,10 @@ from zrb.util.cli.style import (
     stylize_todo_keyval,
     stylize_todo_project,
 )
-from zrb.util.todo_parser import line_to_todo_task
+from zrb.util.todo.parser import line_to_todo_task
 
 if TYPE_CHECKING:
-    from zrb.util.todo_model import TodoTaskModel
+    from zrb.util.todo.model import TodoTaskModel
 
 
 _DATE_TIME_STR_WIDTH = 14

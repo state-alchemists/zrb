@@ -45,7 +45,7 @@ from zrb.llm.tool_call import (
     write_file_formatter,
 )
 from zrb.task.any_task import AnyTask
-from zrb.task.base_task import BaseTask
+from zrb.task.base.base_task import BaseTask
 
 if TYPE_CHECKING:
     from pydantic_ai import Tool, UserContent

@@ -3,15 +3,15 @@ from unittest import mock
 
 import pytest
 
-from zrb.cmd.cmd_result import CmdResult
-from zrb.util.git_subtree import (
+from zrb.util.cmd.command import CmdResult
+from zrb.util.git.subtree import (
     add_subtree,
     load_config,
     pull_subtree,
     push_subtree,
     save_config,
 )
-from zrb.util.git_subtree_model import SingleSubTreeConfig, SubTreeConfig
+from zrb.util.git.subtree_model import SingleSubTreeConfig, SubTreeConfig
 
 
 def test_load_config_not_exists(tmp_path):
@@ -44,7 +44,7 @@ async def test_add_subtree_success(tmp_path):
     # Mock run_command to return success tuple (CmdResult, exit_code)
     # CmdResult args: output, error, display
     with mock.patch(
-        "zrb.util.git_subtree.run_command", new_callable=mock.AsyncMock
+        "zrb.util.git.subtree.run_command", new_callable=mock.AsyncMock
     ) as mock_run:
         mock_run.return_value = (CmdResult("", "", ""), 0)
         await add_subtree(
@@ -64,7 +64,7 @@ async def test_add_subtree_success(tmp_path):
 async def test_pull_subtree_success(tmp_path):
     repo_dir = str(tmp_path)
     with mock.patch(
-        "zrb.util.git_subtree.run_command", new_callable=mock.AsyncMock
+        "zrb.util.git.subtree.run_command", new_callable=mock.AsyncMock
     ) as mock_run:
         mock_run.return_value = (CmdResult("", "", ""), 0)
         await pull_subtree(repo_dir, "src/libA", "urlA", "main")
@@ -77,7 +77,7 @@ async def test_pull_subtree_success(tmp_path):
 async def test_push_subtree_success(tmp_path):
     repo_dir = str(tmp_path)
     with mock.patch(
-        "zrb.util.git_subtree.run_command", new_callable=mock.AsyncMock
+        "zrb.util.git.subtree.run_command", new_callable=mock.AsyncMock
     ) as mock_run:
         mock_run.return_value = (CmdResult("", "", ""), 0)
         await push_subtree(repo_dir, "src/libA", "urlA", "main")
@@ -134,7 +134,7 @@ async def test_add_subtree_non_zero_exit(tmp_path):
     """Test add_subtree raises exception on non-zero exit code."""
     repo_dir = str(tmp_path)
     with mock.patch(
-        "zrb.util.git_subtree.run_command", new_callable=mock.AsyncMock
+        "zrb.util.git.subtree.run_command", new_callable=mock.AsyncMock
     ) as mock_run:
         mock_run.return_value = (CmdResult("", "error", ""), 1)
         with pytest.raises(RuntimeError) as exc_info:
@@ -153,7 +153,7 @@ async def test_pull_subtree_non_zero_exit(tmp_path):
     """Test pull_subtree raises exception on non-zero exit code."""
     repo_dir = str(tmp_path)
     with mock.patch(
-        "zrb.util.git_subtree.run_command", new_callable=mock.AsyncMock
+        "zrb.util.git.subtree.run_command", new_callable=mock.AsyncMock
     ) as mock_run:
         mock_run.return_value = (CmdResult("", "error", ""), 1)
         with pytest.raises(RuntimeError) as exc_info:
@@ -166,7 +166,7 @@ async def test_push_subtree_non_zero_exit(tmp_path):
     """Test push_subtree raises exception on non-zero exit code."""
     repo_dir = str(tmp_path)
     with mock.patch(
-        "zrb.util.git_subtree.run_command", new_callable=mock.AsyncMock
+        "zrb.util.git.subtree.run_command", new_callable=mock.AsyncMock
     ) as mock_run:
         mock_run.return_value = (CmdResult("", "error", ""), 1)
         with pytest.raises(RuntimeError) as exc_info:

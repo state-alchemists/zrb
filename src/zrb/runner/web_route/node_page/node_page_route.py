@@ -3,14 +3,13 @@ from typing import TYPE_CHECKING
 
 from zrb.config.web_auth_config import WebAuthConfig
 from zrb.context.shared_context import SharedContext
-from zrb.group.any_group import AnyGroup
+from zrb.group.any_group import AnyGroup, NodeNotFoundError
 from zrb.runner.web_route.error_page.show_error_page import show_error_page
 from zrb.runner.web_route.node_page.group.show_group_page import show_group_page
 from zrb.runner.web_route.node_page.task.show_task_page import show_task_page
 from zrb.runner.web_util.user import get_user_from_request
 from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
-from zrb.util.group import NodeNotFoundError, extract_node_from_args
 
 if TYPE_CHECKING:
     # We want fastapi to only be loaded when necessary to decrease footprint
@@ -34,7 +33,7 @@ def serve_node_page(
             return show_error_page(user, root_group, 422, "Undefined path")
         args = path.strip("/").split("/")
         try:
-            node, node_path, residual_args = extract_node_from_args(root_group, args)
+            node, node_path, residual_args = root_group.extract_node(args)
         except NodeNotFoundError as e:
             return show_error_page(user, root_group, 404, str(e))
         url = f"/ui/{'/'.join(node_path)}/"

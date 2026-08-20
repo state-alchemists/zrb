@@ -5,14 +5,13 @@ from typing import TYPE_CHECKING, Any
 from zrb.config.config import CFG
 from zrb.config.web_auth_config import WebAuthConfig
 from zrb.context.shared_context import SharedContext
-from zrb.group.any_group import AnyGroup
+from zrb.group.any_group import AnyGroup, NodeNotFoundError
 from zrb.runner.web_schema.session import NewSessionResponse
 from zrb.runner.web_util.user import get_user_from_request
 from zrb.session.session import Session
 from zrb.session_state_log.session_state_log import SessionStateLog, SessionStateLogList
 from zrb.session_state_logger.any_session_state_logger import AnySessionStateLogger
 from zrb.task.any_task import AnyTask
-from zrb.util.group import NodeNotFoundError, extract_node_from_args, get_node_path
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -41,7 +40,7 @@ def serve_task_session_api(
         user = await get_user_from_request(web_auth_config, request)
         args = path.strip("/").split("/")
         try:
-            task, _, residual_args = extract_node_from_args(root_group, args)
+            task, _, residual_args = root_group.extract_node(args)
         except NodeNotFoundError:
             # FastAPI returns the Response directly; the model annotation only
             # drives response_model for the success path.
@@ -83,7 +82,7 @@ def serve_task_session_api(
         user = await get_user_from_request(web_auth_config, request)
         args = path.strip("/").split("/")
         try:
-            task, _, residual_args = extract_node_from_args(root_group, args)
+            task, _, residual_args = root_group.extract_node(args)
         except NodeNotFoundError:
             return JSONResponse(
                 content={"detail": "Not found"}, status_code=404
@@ -94,7 +93,7 @@ def serve_task_session_api(
                     content={"detail": "Forbidden"}, status_code=403
                 )  # pyright: ignore[reportReturnType]
             if residual_args[0] == "list":
-                task_path = get_node_path(root_group, task)
+                task_path = root_group.get_node_path(task)
                 max_start_time = (
                     datetime.now()
                     if max_start_query is None

@@ -7,7 +7,7 @@ from zrb.input.str_input import StrInput
 from zrb.task.make_task import make_task
 from zrb.util.cli.style import stylize_green, stylize_muted, stylize_yellow
 from zrb.util.cmd.command import run_command
-from zrb.util.git import get_repo_dir
+from zrb.util.git.commands import get_repo_dir
 
 # Optional `v`/`v-` prefix, then major.minor.patch, then an optional
 # rc/alpha/beta pre-release suffix. Matches v1.2.3, 1.2.3, v-1.2.3, 1.2.3-rc1...

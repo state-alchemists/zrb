@@ -5,8 +5,7 @@ import pytest
 from zrb.builtin import git as git_module
 from zrb.context.shared_context import SharedContext
 from zrb.session.session import Session
-from zrb.task.base.context import fill_shared_context_inputs
-from zrb.util.git_diff_model import DiffResult
+from zrb.util.git.diff_model import DiffResult
 
 
 async def _coro(val=None):

@@ -9,7 +9,7 @@ from zrb.context.print_fn import PrintFn
 from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
 from zrb.task.any_task import AnyTask
-from zrb.task.base_task import BaseTask
+from zrb.task.base.base_task import BaseTask
 from zrb.util.attr import get_str_attr
 
 if TYPE_CHECKING:

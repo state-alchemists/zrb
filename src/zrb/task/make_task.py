@@ -7,7 +7,7 @@ from zrb.env.any_env import AnyEnv
 from zrb.group.any_group import AnyGroup
 from zrb.input.any_input import AnyInput
 from zrb.task.any_task import AnyTask
-from zrb.task.base_task import BaseTask
+from zrb.task.base.base_task import BaseTask
 
 
 def make_task(

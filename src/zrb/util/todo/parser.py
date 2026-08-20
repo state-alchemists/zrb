@@ -7,7 +7,7 @@ import re
 
 from zrb.util.file import read_file, write_file
 from zrb.util.string.name import get_random_name
-from zrb.util.todo_model import TodoTaskModel
+from zrb.util.todo.model import TodoTaskModel
 
 TODO_TXT_PATTERN = re.compile(
     r"^(?P<status>x)?\s*"  # Optional completion mark ('x')

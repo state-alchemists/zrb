@@ -5,7 +5,7 @@ import pytest
 from zrb.builtin import git_subtree as git_subtree_module
 from zrb.context.shared_context import SharedContext
 from zrb.session.session import Session
-from zrb.util.git_subtree_model import SingleSubTreeConfig, SubTreeConfig
+from zrb.util.git.subtree_model import SingleSubTreeConfig, SubTreeConfig
 
 
 async def _coro(val=None):

@@ -10,7 +10,7 @@ from zrb.util.cli.style import (
     stylize_warning,
     stylize_yellow,
 )
-from zrb.util.git import (
+from zrb.util.git.commands import (
     add,
     commit,
     delete_branch,

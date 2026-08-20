@@ -10,19 +10,17 @@ from zrb.input.str_input import StrInput
 from zrb.input.text_input import TextInput
 from zrb.task.make_task import make_task
 from zrb.util.file import read_file, write_file
-from zrb.util.todo import (
-    add_duration,
+from zrb.util.todo.duration import add_duration, parse_duration
+from zrb.util.todo.model import TodoTaskModel
+from zrb.util.todo.parser import (
     cascade_todo_task,
-    get_visual_todo_card,
-    get_visual_todo_list,
     line_to_todo_task,
     load_todo_list,
-    parse_duration,
     save_todo_list,
     select_todo_task,
     todo_task_to_line,
 )
-from zrb.util.todo_model import TodoTaskModel
+from zrb.util.todo.render import get_visual_todo_card, get_visual_todo_list
 
 
 def _load_todo_list(path: str) -> list[TodoTaskModel]:

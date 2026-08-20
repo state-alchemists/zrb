@@ -3,7 +3,7 @@ from collections.abc import Callable
 from typing import Any
 
 from zrb.util.cmd.command import run_command
-from zrb.util.git_diff_model import DiffResult
+from zrb.util.git.diff_model import DiffResult
 
 
 async def get_diff(

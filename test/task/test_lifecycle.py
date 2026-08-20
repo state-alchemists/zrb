@@ -3,28 +3,23 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from zrb.context.shared_context import SharedContext
 from zrb.session.session import Session
-from zrb.task.any_task import AnyTask
-from zrb.task.base.lifecycle import (
-    execute_root_tasks,
-    log_session_state,
-    run_and_cleanup,
-    run_task_async,
-)
+from zrb.task.base.base_task import BaseTask
+from zrb.task.base.lifecycle import BaseTaskLifecycle
 
 
 @pytest.mark.asyncio
 async def test_run_and_cleanup_success():
-    task = MagicMock(spec=AnyTask)
+    task = BaseTask(name="task")
     task.exec_root_tasks = AsyncMock(return_value="result")
     task.get_ctx = MagicMock()
+    lifecycle = BaseTaskLifecycle(task)
 
     session = MagicMock(spec=Session)
     session.is_terminated = False
 
     with patch("zrb.task.base.lifecycle.Session", return_value=session):
-        res = await run_and_cleanup(task, session=session)
+        res = await lifecycle.run_and_cleanup(session=session)
 
     assert res == "result"
     session.terminate.assert_called()
@@ -32,22 +27,24 @@ async def test_run_and_cleanup_success():
 
 @pytest.mark.asyncio
 async def test_run_and_cleanup_exception():
-    task = MagicMock(spec=AnyTask)
+    task = BaseTask(name="task")
     task.exec_root_tasks = AsyncMock(side_effect=ValueError("Boom"))
     task.get_ctx = MagicMock()
+    lifecycle = BaseTaskLifecycle(task)
 
     session = MagicMock(spec=Session)
     session.is_terminated = False
 
     with pytest.raises(ValueError, match="Boom"):
-        await run_and_cleanup(task, session=session)
+        await lifecycle.run_and_cleanup(session=session)
 
     session.terminate.assert_called()
 
 
 @pytest.mark.asyncio
 async def test_execute_root_tasks_success():
-    task = MagicMock(spec=AnyTask)
+    task = BaseTask(name="task")
+    lifecycle = BaseTaskLifecycle(task)
     session = MagicMock(spec=Session)
     session.get_root_tasks.return_value = [task]
     session.is_allowed_to_run.return_value = True
@@ -64,7 +61,7 @@ async def test_execute_root_tasks_success():
     task.exec_chain = AsyncMock(return_value=None)
     task.get_ctx = MagicMock()
 
-    res = await execute_root_tasks(task, session)
+    res = await lifecycle.execute_root_tasks(session)
 
     assert res == "final"
     session.terminate.assert_called()
@@ -73,13 +70,14 @@ async def test_execute_root_tasks_success():
 
 @pytest.mark.asyncio
 async def test_execute_root_tasks_no_roots():
-    task = MagicMock(spec=AnyTask)
+    task = BaseTask(name="task")
+    lifecycle = BaseTaskLifecycle(task)
     session = MagicMock(spec=Session)
     session.get_root_tasks.return_value = []
     session.is_terminated = False
     task.get_ctx = MagicMock()
 
-    res = await execute_root_tasks(task, session)
+    res = await lifecycle.execute_root_tasks(session)
 
     assert res is None
     session.terminate.assert_called()
@@ -87,8 +85,9 @@ async def test_execute_root_tasks_no_roots():
 
 @pytest.mark.asyncio
 async def test_log_session_state():
-    task = MagicMock(spec=AnyTask)
+    task = BaseTask(name="task")
     task.get_ctx = MagicMock()
+    lifecycle = BaseTaskLifecycle(task)
 
     session = MagicMock(spec=Session)
     session.is_terminated = False
@@ -104,7 +103,7 @@ async def test_log_session_state():
             session.is_terminated = True
 
     with patch("asyncio.sleep", new=mock_sleep):
-        await log_session_state(task, session)
+        await lifecycle.log_session_state(session)
 
     assert session.state_logger.write.call_count >= 1
 
@@ -112,16 +111,17 @@ async def test_log_session_state():
 @pytest.mark.asyncio
 async def test_run_and_cleanup_cancelled_error():
     """CancelledError is re-raised from run_and_cleanup."""
-    task = MagicMock(spec=AnyTask)
+    task = BaseTask(name="task")
     task.exec_root_tasks = AsyncMock(side_effect=asyncio.CancelledError())
     ctx_mock = MagicMock()
     task.get_ctx = MagicMock(return_value=ctx_mock)
+    lifecycle = BaseTaskLifecycle(task)
 
     session = MagicMock(spec=Session)
     session.is_terminated = False
 
     with pytest.raises(asyncio.CancelledError):
-        await run_and_cleanup(task, session=session)
+        await lifecycle.run_and_cleanup(session=session)
 
     session.terminate.assert_called()
 
@@ -129,8 +129,9 @@ async def test_run_and_cleanup_cancelled_error():
 @pytest.mark.asyncio
 async def test_run_and_cleanup_session_none():
     """When session=None a new Session is created."""
-    task = MagicMock(spec=AnyTask)
+    task = BaseTask(name="task")
     task.exec_root_tasks = AsyncMock(return_value="ok")
+    lifecycle = BaseTaskLifecycle(task)
 
     fake_session = MagicMock(spec=Session)
     fake_session.is_terminated = False
@@ -138,7 +139,7 @@ async def test_run_and_cleanup_session_none():
     with patch(
         "zrb.task.base.lifecycle.Session", return_value=fake_session
     ) as mock_session_cls:
-        result = await run_and_cleanup(task)
+        result = await lifecycle.run_and_cleanup()
 
     assert mock_session_cls.called
     assert result == "ok"
@@ -151,9 +152,10 @@ async def test_execute_root_tasks_index_error_propagates():
     Swallowing it into `return None` would make a failed pipeline look
     successful (CLI exit 0).
     """
-    task = MagicMock(spec=AnyTask)
+    task = BaseTask(name="task")
     ctx_mock = MagicMock()
     task.get_ctx = MagicMock(return_value=ctx_mock)
+    lifecycle = BaseTaskLifecycle(task)
 
     session = MagicMock(spec=Session)
     session.get_root_tasks = MagicMock(return_value=[task])
@@ -164,7 +166,7 @@ async def test_execute_root_tasks_index_error_propagates():
     session.wait_deferred = AsyncMock()
 
     with pytest.raises(IndexError, match="bad index"):
-        await execute_root_tasks(task, session)
+        await lifecycle.execute_root_tasks(session)
 
     session.terminate.assert_called()
 
@@ -172,9 +174,10 @@ async def test_execute_root_tasks_index_error_propagates():
 @pytest.mark.asyncio
 async def test_execute_root_tasks_cancelled_error():
     """CancelledError propagates (after cleanup) instead of masking as success."""
-    task = MagicMock(spec=AnyTask)
+    task = BaseTask(name="task")
     ctx_mock = MagicMock()
     task.get_ctx = MagicMock(return_value=ctx_mock)
+    lifecycle = BaseTaskLifecycle(task)
 
     session = MagicMock(spec=Session)
     session.get_root_tasks = MagicMock(return_value=[task])
@@ -185,7 +188,7 @@ async def test_execute_root_tasks_cancelled_error():
     session.wait_deferred = AsyncMock()
 
     with pytest.raises(asyncio.CancelledError):
-        await execute_root_tasks(task, session)
+        await lifecycle.execute_root_tasks(session)
 
     # Cleanup still runs: session terminated despite the propagated cancel.
     session.terminate.assert_called()
@@ -194,9 +197,10 @@ async def test_execute_root_tasks_cancelled_error():
 @pytest.mark.asyncio
 async def test_execute_root_tasks_no_log_state_task():
     """Final state logged even when log_state_task is None."""
-    task = MagicMock(spec=AnyTask)
+    task = BaseTask(name="task")
     ctx_mock = MagicMock()
     task.get_ctx = MagicMock(return_value=ctx_mock)
+    lifecycle = BaseTaskLifecycle(task)
 
     session = MagicMock(spec=Session)
     session.get_root_tasks = MagicMock(return_value=[task])
@@ -218,7 +222,7 @@ async def test_execute_root_tasks_no_log_state_task():
         return None
 
     with patch("asyncio.create_task", side_effect=mock_create_task):
-        result = await execute_root_tasks(task, session)
+        result = await lifecycle.execute_root_tasks(session)
 
     assert result == "done"
     session.state_logger.write.assert_called()
@@ -227,9 +231,10 @@ async def test_execute_root_tasks_no_log_state_task():
 @pytest.mark.asyncio
 async def test_log_session_state_exception():
     """Exceptions in log_session_state are caught."""
-    task = MagicMock(spec=AnyTask)
+    task = BaseTask(name="task")
     ctx_mock = MagicMock()
     task.get_ctx = MagicMock(return_value=ctx_mock)
+    lifecycle = BaseTaskLifecycle(task)
 
     session = MagicMock(spec=Session)
     # Make is_terminated always False so loop runs once, then state_logger.write raises
@@ -252,7 +257,7 @@ async def test_log_session_state_exception():
     with patch("asyncio.sleep", new=mock_sleep):
         # Should handle the write exception gracefully
         try:
-            await log_session_state(task, session)
+            await lifecycle.log_session_state(session)
         except Exception:
             pass
 
@@ -260,9 +265,10 @@ async def test_log_session_state_exception():
 @pytest.mark.asyncio
 async def test_log_session_state_cancelled():
     """CancelledError in log_session_state is handled."""
-    task = MagicMock(spec=AnyTask)
+    task = BaseTask(name="task")
     ctx_mock = MagicMock()
     task.get_ctx = MagicMock(return_value=ctx_mock)
+    lifecycle = BaseTaskLifecycle(task)
 
     session = MagicMock(spec=Session)
     session.is_terminated = False
@@ -273,6 +279,6 @@ async def test_log_session_state_cancelled():
 
     with patch("asyncio.sleep", new=cancel_immediately):
         # Should not propagate CancelledError - it's caught internally
-        await log_session_state(task, session)
+        await lifecycle.log_session_state(session)
 
     assert session.state_logger.write.call_count >= 1

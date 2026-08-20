@@ -1,7 +1,8 @@
 import pytest
 
+from zrb.group.any_group import NodeNotFoundError
 from zrb.group.group import Group
-from zrb.task.base_task import BaseTask
+from zrb.task.base.base_task import BaseTask
 
 
 def test_remove_group_by_alias_and_name():
@@ -176,3 +177,126 @@ def test_add_task():
 def test_repr():
     g = Group(name="foo")
     assert repr(g) == "<Group name=foo>"
+
+
+def test_get_node_path_same_node():
+    group = Group(name="root")
+    assert group.get_node_path(group) == ["root"]
+
+
+def test_get_node_path_subtask():
+    group = Group(name="root")
+    task = BaseTask(name="task")
+    group.add_task(task, alias="task_alias")
+    assert group.get_node_path(task) == ["task_alias"]
+
+
+def test_get_node_path_not_found():
+    group = Group(name="root")
+    task = BaseTask(name="task")
+    assert group.get_node_path(task) is None
+
+
+def test_get_node_path_direct_subgroup():
+    group = Group(name="root")
+    subgroup = Group(name="sub")
+    group.add_group(subgroup, alias="subgroup_alias")
+    assert group.get_node_path(subgroup) == ["subgroup_alias"]
+
+
+def test_get_node_path_nested_subgroup():
+    root = Group(name="root")
+    mid = Group(name="mid")
+    root.add_group(mid)
+    deep_task = BaseTask(name="deep_task")
+    mid.add_task(deep_task)
+    assert root.get_node_path(deep_task) == ["mid", "deep_task"]
+
+
+def test_get_subtasks_web_only():
+    group = Group(name="root")
+    task1 = BaseTask(name="task1")
+    task2 = BaseTask(name="task2", cli_only=True)
+    group.add_task(task1)
+    group.add_task(task2)
+
+    assert set(group.get_subtasks().keys()) == {"task1", "task2"}
+    assert set(group.get_subtasks(web_only=True).keys()) == {"task1"}
+
+
+def test_get_all_subtasks_nested():
+    group = Group(name="root")
+    task1 = BaseTask(name="task1")
+    group.add_task(task1)
+    subgroup = Group(name="sub")
+    task2 = BaseTask(name="task2")
+    subgroup.add_task(task2)
+    group.add_group(subgroup)
+
+    all_subtasks = group.get_all_subtasks()
+    assert task1 in all_subtasks
+    assert task2 in all_subtasks
+
+
+def test_get_non_empty_subgroups():
+    group = Group(name="root")
+    with_task = Group(name="with_task")
+    with_task.add_task(BaseTask(name="task"))
+    empty = Group(name="empty")
+    group.add_group(with_task)
+    group.add_group(empty)
+
+    non_empty = group.get_non_empty_subgroups()
+    assert "with_task" in non_empty
+    assert "empty" not in non_empty
+
+
+def test_extract_node_task():
+    root = Group(name="root")
+    task = BaseTask(name="my_task")
+    root.add_task(task)
+
+    node, path, residual = root.extract_node(["my_task"])
+    assert node == task
+    assert path == ["my_task"]
+    assert residual == []
+
+
+def test_extract_node_with_residual_args():
+    root = Group(name="root")
+    task = BaseTask(name="my_task")
+    root.add_task(task)
+
+    node, path, residual = root.extract_node(["my_task", "arg1", "arg2"])
+    assert node == task
+    assert residual == ["arg1", "arg2"]
+
+
+def test_extract_node_group():
+    root = Group(name="root")
+    subgroup = Group(name="subgroup")
+    root.add_group(subgroup)
+
+    node, path, residual = root.extract_node(["subgroup"])
+    assert node == subgroup
+    assert path == ["subgroup"]
+
+
+def test_extract_node_nonexistent_raises():
+    root = Group(name="root")
+    with pytest.raises(NodeNotFoundError):
+        root.extract_node(["nonexistent"])
+
+
+def test_extract_node_web_only_skips_cli_only_task():
+    root = Group(name="root")
+    root.add_task(BaseTask(name="cli_task", cli_only=True))
+    with pytest.raises(NodeNotFoundError):
+        root.extract_node(["cli_task"], web_only=True)
+
+
+def test_extract_node_web_only_skips_empty_group():
+    root = Group(name="root")
+    root.add_group(Group(name="empty_group"))
+    with pytest.raises(NodeNotFoundError):
+        root.extract_node(["empty_group"], web_only=True)

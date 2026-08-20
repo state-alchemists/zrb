@@ -5,7 +5,7 @@ from typing import Any
 
 from zrb.util.cmd.command import run_command
 from zrb.util.file import read_file, write_file
-from zrb.util.git_subtree_model import SingleSubTreeConfig, SubTreeConfig
+from zrb.util.git.subtree_model import SingleSubTreeConfig, SubTreeConfig
 
 
 def load_config(repo_dir: str):

@@ -8,7 +8,7 @@ the same task object can appear under two names without being redefined.
 
 from typing import Any
 
-from zrb.group.any_group import AnyGroup
+from zrb.group.any_group import AnyGroup, NodeNotFoundError
 from zrb.task.any_task import AnyTask
 
 
@@ -178,3 +178,91 @@ class Group(AnyGroup):
     def get_group_by_alias(self, alias: str) -> AnyGroup | None:
         """The subgroup registered under *alias*, or None. Does not search names."""
         return self._groups.get(alias)
+
+    def get_node_path(self, node: "AnyGroup | AnyTask") -> list[str] | None:
+        """Get the path (aliases) from this group down to *node*, or None."""
+        if self == node:
+            return [self.name]
+        if isinstance(node, AnyTask):
+            for alias, subtask in self.subtasks.items():
+                if subtask == node:
+                    return [alias]
+        if isinstance(node, AnyGroup):
+            for alias, subgroup in self.subgroups.items():
+                if subgroup == node:
+                    return [alias]
+        for alias, subgroup in self.subgroups.items():
+            result = subgroup.get_node_path(node)
+            if result is not None:
+                return [alias] + result
+        return None
+
+    def get_subtasks(self, web_only: bool = False) -> dict[str, AnyTask]:
+        """Get the direct subtasks of this group."""
+        return {
+            alias: subtask
+            for alias, subtask in self.subtasks.items()
+            if not web_only or (web_only and not subtask.cli_only)
+        }
+
+    def get_all_subtasks(self, web_only: bool = False) -> list[AnyTask]:
+        """Get all subtasks (including nested ones) within this group's hierarchy."""
+        subtasks = [
+            subtask
+            for subtask in self.subtasks.values()
+            if not web_only or (web_only and not subtask.cli_only)
+        ]
+        for subgroup in self.subgroups.values():
+            subtasks += subgroup.get_all_subtasks(web_only)
+        return subtasks
+
+    def get_non_empty_subgroups(self, web_only: bool = False) -> dict[str, AnyGroup]:
+        """Get subgroups that contain at least one task."""
+        return {
+            alias: subgroup
+            for alias, subgroup in self.subgroups.items()
+            if len(subgroup.get_all_subtasks(web_only)) > 0
+        }
+
+    def extract_node(
+        self, args: list[str], web_only: bool = False
+    ) -> "tuple[AnyGroup | AnyTask, list[str], list[str]]":
+        """Extract a node (Group or Task) from a list of command-line arguments,
+        starting the search from this group.
+
+        Raises:
+            NodeNotFoundError: If no matching task or group is found for a
+                given argument.
+        """
+        node: "AnyGroup | AnyTask" = self
+        node_path = []
+        residual_args = []
+        for index, name in enumerate(args):
+            task = node.get_task_by_alias(name)
+            if web_only and task is not None and task.cli_only:
+                task = None
+            group = node.get_group_by_alias(name)
+            # Only ignore empty groups if web_only is True
+            if (
+                group is not None
+                and web_only
+                and len(group.get_all_subtasks(web_only)) == 0
+            ):
+                group = None
+            if task is None and group is None:
+                raise NodeNotFoundError(
+                    f"Invalid subcommand: {self.name} {' '.join(args)}"
+                )
+            node_path.append(name)
+            if group is not None:
+                if task is not None and index == len(args) - 1:
+                    node = task
+                    residual_args = args[index + 1 :]
+                    break
+                node = group
+                continue
+            if task is not None:
+                node = task
+                residual_args = args[index + 1 :]
+                break
+        return node, node_path, residual_args

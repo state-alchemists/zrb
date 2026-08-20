@@ -7,7 +7,7 @@ import pytest
 from zrb.callback.any_callback import AnyCallback
 from zrb.context.shared_context import SharedContext
 from zrb.session.session import Session
-from zrb.task.base_task import BaseTask
+from zrb.task.base.base_task import BaseTask
 from zrb.task.base_trigger import BaseTrigger
 from zrb.xcom.xcom import Xcom
 

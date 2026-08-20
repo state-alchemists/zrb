@@ -2,7 +2,7 @@ import datetime
 
 import pytest
 
-from zrb.util.todo_model import TodoTaskModel
+from zrb.util.todo.model import TodoTaskModel
 
 
 def test_todo_task_model_valid_creation():

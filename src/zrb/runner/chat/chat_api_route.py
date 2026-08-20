@@ -7,7 +7,7 @@ from typing import Any
 
 from zrb.config.config import CFG
 from zrb.config.web_auth_config import WebAuthConfig
-from zrb.group.any_group import AnyGroup
+from zrb.group.any_group import AnyGroup, NodeNotFoundError
 from zrb.llm.agent.subagent.manager import sub_agent_manager
 from zrb.llm.util.attachment import check_attachment_bytes, get_media_type
 from zrb.runner.chat.chat_session_manager import (
@@ -17,7 +17,6 @@ from zrb.runner.chat.chat_session_manager import (
 from zrb.runner.chat.chat_session_runner import run_chat_session as _run_chat_session
 from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
 from zrb.runner.web_util.user import get_user_from_request
-from zrb.util.group import NodeNotFoundError, extract_node_from_args
 
 from .sse_stream import SSEStreamResponse
 
@@ -40,7 +39,7 @@ def _save_uploaded_attachment(session_id: str, filename: str, data: bytes) -> st
 
 async def _get_llm_chat_task(root_group: AnyGroup) -> Any:
     try:
-        task, _, _ = extract_node_from_args(root_group, ["llm", "chat"])
+        task, _, _ = root_group.extract_node(["llm", "chat"])
         return task
     except NodeNotFoundError:
         return None
