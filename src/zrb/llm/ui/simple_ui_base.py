@@ -220,13 +220,13 @@ class SimpleUI(BaseUI):
 
     async def run_async(self) -> str:
         """Default implementation - handles common pattern."""
-        self._process_messages_task = asyncio.create_task(self._process_messages_loop())
+        self._process_messages_task = asyncio.create_task(self.process_messages_loop())
         # Add to background tasks to prevent premature garbage collection
         if hasattr(self, "_background_tasks"):
             self._background_tasks.add(self._process_messages_task)
 
         if self._initial_message:
-            self._submit_user_message(self._llm_task, self._initial_message)
+            self.submit_user_message(self._llm_task, self._initial_message)
 
         try:
             await self._run_loop()

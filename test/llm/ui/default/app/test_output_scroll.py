@@ -9,7 +9,7 @@ from prompt_toolkit.data_structures import Point
 from prompt_toolkit.lexers import SimpleLexer
 from prompt_toolkit.mouse_events import MouseButton, MouseEvent, MouseEventType
 
-from zrb.llm.app.layout import create_output_field
+from zrb.llm.ui.default.app.layout import create_output_field
 
 
 def _scroll(text_area, event_type):

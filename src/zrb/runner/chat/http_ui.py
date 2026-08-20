@@ -69,7 +69,7 @@ def create_http_ui_factory(
             finally:
                 self._waiting_for_input = False
 
-        async def _confirm_tool_execution(self, call: Any) -> Any:
+        async def confirm_tool_execution(self, call: Any) -> Any:
             context = ApprovalContext(
                 tool_name=call.tool_name,
                 tool_args=call.args if isinstance(call.args, dict) else {},
@@ -92,13 +92,13 @@ def create_http_ui_factory(
         async def run_async(self) -> str:
             """Override so `CancelledError` propagates on server shutdown."""
             self._process_messages_task = asyncio.create_task(
-                self._process_messages_loop()
+                self.process_messages_loop()
             )
             if hasattr(self, "_background_tasks"):
                 self._background_tasks.add(self._process_messages_task)
 
             if self._initial_message:
-                self._submit_user_message(self._llm_task, self._initial_message)
+                self.submit_user_message(self._llm_task, self._initial_message)
 
             _was_cancelled = False
             try:

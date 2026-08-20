@@ -40,12 +40,12 @@ async def test_polling_ui_get_input_lifecycle(polling_ui):
 
 @pytest.mark.asyncio
 async def test_polling_ui_handle_incoming_idle(polling_ui):
-    polling_ui._submit_user_message = MagicMock()
+    polling_ui.submit_user_message = MagicMock()
 
     polling_ui.handle_incoming_message("new message")
 
-    polling_ui._submit_user_message.assert_called_once()
+    polling_ui.submit_user_message.assert_called_once()
 
 
 def test_polling_ui_input_queue_property(polling_ui):
-    assert polling_ui.input_queue is polling_ui._input_queue
+    assert polling_ui.input_queue is polling_ui.input_queue

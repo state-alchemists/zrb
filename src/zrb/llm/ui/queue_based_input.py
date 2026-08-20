@@ -40,15 +40,24 @@ class QueueBasedInput:
         """
         return self._simple_ui._input_queue
 
+    @property
+    def waiting_for_input(self) -> bool:
+        """Whether `get_input` is currently blocked waiting for a response."""
+        return self._simple_ui._waiting_for_input
+
+    @waiting_for_input.setter
+    def waiting_for_input(self, value: bool) -> None:
+        self._simple_ui._waiting_for_input = value
+
     async def get_input(self, prompt: str) -> str:
         """Blocks until handle_incoming_message() receives a response."""
         if prompt:
             await self._simple_ui.print(f"❓ {prompt}", kind="text")
-        self._simple_ui._waiting_for_input = True
+        self.waiting_for_input = True
         try:
-            return await self._simple_ui._input_queue.get()
+            return await self.input_queue.get()
         finally:
-            self._simple_ui._waiting_for_input = False
+            self.waiting_for_input = False
 
     def handle_incoming_message(self, text: str):
         """Call this when a message arrives from your backend.
@@ -58,11 +67,11 @@ class QueueBasedInput:
         - If it matches a custom slash command, the resolved prompt is sent
         - Otherwise, it's submitted as a new user message to the LLM
         """
-        if self._simple_ui._waiting_for_input:
-            self._simple_ui._input_queue.put_nowait(text)
+        if self.waiting_for_input:
+            self.input_queue.put_nowait(text)
         else:
             effective = self._resolve_incoming_command(text)
-            self._simple_ui._submit_user_message(self._simple_ui._llm_task, effective)
+            self._simple_ui.submit_message(effective)
 
     def _resolve_incoming_command(self, text: str) -> str:
         """Resolve a custom slash command if the text starts with ``/``.
@@ -75,7 +84,7 @@ class QueueBasedInput:
         from zrb.llm.custom_command.resolver import resolve_custom_command
 
         if isinstance(text, str):
-            resolved = resolve_custom_command(text, self._simple_ui._custom_commands)
+            resolved = resolve_custom_command(text, self._simple_ui.custom_commands)
             if resolved is not None:
                 return resolved
         return text

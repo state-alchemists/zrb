@@ -101,35 +101,35 @@ class UIOutput:
     @property
     def is_thinking(self) -> bool:
         """Whether the assistant is currently producing a response."""
-        return self._ui._is_thinking
+        return self._ui.is_thinking
 
     @is_thinking.setter
     def is_thinking(self, value: bool) -> None:
-        self._ui._is_thinking = value
+        self._ui.is_thinking = value
 
     @property
     def current_confirmation(self) -> "asyncio.Future[str] | None":
         """The pending tool-call confirmation future, if any."""
-        return self._ui._current_confirmation
+        return self._ui.current_confirmation
 
     @current_confirmation.setter
     def current_confirmation(self, value: "asyncio.Future[str] | None") -> None:
-        self._ui._current_confirmation = value
+        self._ui.current_confirmation = value
 
     @property
     def output_text(self) -> str:
         """Get the current text in the output field."""
-        return self._ui._output_field.text
+        return self.output_field.text
 
     @property
     def output_field(self) -> Any:
         """Public read accessor for the raw output-field widget."""
-        return self._ui._output_field
+        return self._ui.output_field
 
     @property
     def input_field(self) -> Any:
         """Public read accessor for the raw input-field widget."""
-        return self._ui._input_field
+        return self._ui.input_field
 
     def append_to_output(
         self,
@@ -143,7 +143,7 @@ class UIOutput:
         # lazy: heavy third-party
         from prompt_toolkit.document import Document
 
-        current_text = self._ui._output_field.text
+        current_text = self._ui.output_field.text
 
         # The output window pins itself to the cursor, so follow-the-tail means
         # "keep the cursor on the last line". While it is, new chunks scroll
@@ -162,7 +162,7 @@ class UIOutput:
         # while following and O(distance to next newline) when scrolled up.
         is_at_last_line = True
         try:
-            cursor = self._ui._output_field.buffer.cursor_position
+            cursor = self._ui.output_field.buffer.cursor_position
             is_at_last_line = current_text.find("\n", cursor) == -1
         except Exception:
             # Per-chunk render hot path; default to "at last line" if the
@@ -174,22 +174,20 @@ class UIOutput:
 
         # Buffer main-agent output while a confirmation is pending during
         # streaming, so the confirmation prompt is not interleaved with tokens.
-        if self._ui._current_confirmation is not None and self._ui._is_thinking:
-            self._ui._confirmation_output_buffer.append(content)
+        if self._ui.current_confirmation is not None and self._ui.is_thinking:
+            self._ui.confirmation_output_buffer.append(content)
             self._schedule_invalidate()
             return
 
         # While viewing a sub-agent the output pane shows that sub-agent's
         # buffer; main-transcript appends accumulate into the parked snapshot
         # and reappear when the user exits the view (Left).
-        saved_main_output = getattr(self._ui, "_saved_main_output", None)
+        saved_main_output = getattr(self._ui, "saved_main_output", None)
         if (
-            getattr(self._ui, "_viewing_agent_id", None) is not None
+            getattr(self._ui, "viewing_agent_id", None) is not None
             and saved_main_output is not None
         ):
-            self._ui._saved_main_output = _merge_output_chunk(
-                saved_main_output, content
-            )
+            self._ui.saved_main_output = _merge_output_chunk(saved_main_output, content)
             self._schedule_invalidate()
             return
 
@@ -211,11 +209,11 @@ class UIOutput:
         new_cursor_position = (
             len(new_text)
             if should_scroll_to_end
-            else self._ui._output_field.buffer.cursor_position
+            else self._ui.output_field.buffer.cursor_position
         )
         new_cursor_position = min(max(0, new_cursor_position), len(new_text))
 
-        self._ui._output_field.buffer.set_document(
+        self._ui.output_field.buffer.set_document(
             Document(new_text, cursor_position=new_cursor_position),
             bypass_readonly=True,
         )
@@ -251,7 +249,7 @@ class UIOutput:
         # Only track what landed verbatim — a pending confirmation buffers the
         # content instead of inserting it, which would make the span a lie.
         if end - start == len(rendered):
-            self._ui._rendered_blocks.append([start, end, source, renderer])
+            self._ui.rendered_blocks.append([start, end, source, renderer])
 
     def rewrap_output(self) -> None:
         """Re-render tracked blocks at the current width (public API).
@@ -260,10 +258,10 @@ class UIOutput:
         width actually changed.
         """
         width = self.output_field_width
-        if width == self._ui._rendered_width:
+        if width == self._ui.rendered_width:
             return
-        self._ui._rendered_width = width
-        if not self._ui._rendered_blocks:
+        self._ui.rendered_width = width
+        if not self._ui.rendered_blocks:
             return
         # ponytail: splices by recorded offsets, which assumes nothing rewrote
         # the transcript inside a tracked span (only the trailing status line
@@ -271,7 +269,7 @@ class UIOutput:
         # text per block and rebuild the whole buffer from the block list.
         text = self.output_text
         shift = 0
-        for block in self._ui._rendered_blocks:
+        for block in self._ui.rendered_blocks:
             start, end = block[0] + shift, block[1] + shift
             rendered = block[3](block[2], width)
             text = text[:start] + rendered + text[end:]
@@ -281,7 +279,7 @@ class UIOutput:
 
     def _render_markdown_block(self, markdown_text: str, width: int | None) -> str:
         return render_markdown(
-            markdown_text, width=width, theme=self._ui._markdown_theme
+            markdown_text, width=width, theme=self._ui.markdown_theme
         )
 
     def replace_output_span(self, start: int, end: int, replacement: str) -> bool:
@@ -300,7 +298,7 @@ class UIOutput:
         delta = len(replacement) - (end - start)
         new_text = text[:start] + replacement + text[end:]
         if delta:
-            for block in self._ui._rendered_blocks:
+            for block in self._ui.rendered_blocks:
                 if block[0] >= end:
                     block[0] += delta
                     block[1] += delta
@@ -311,7 +309,7 @@ class UIOutput:
         # lazy: heavy third-party
         from prompt_toolkit.document import Document
 
-        buffer = self._ui._output_field.buffer
+        buffer = self._ui.output_field.buffer
         follows_tail = buffer.cursor_position >= len(buffer.text)
         cursor = len(text) if follows_tail else min(buffer.cursor_position, len(text))
         buffer.set_document(
@@ -320,22 +318,22 @@ class UIOutput:
         self._schedule_invalidate()
 
     def _schedule_invalidate(self):
-        if self._ui._pending_invalidate:
+        if self._ui.pending_invalidate:
             return
-        self._ui._pending_invalidate = True
+        self._ui.pending_invalidate = True
 
         async def _do_invalidate():
             await asyncio.sleep(0.016)
-            self._ui._pending_invalidate = False
+            self._ui.pending_invalidate = False
             self._ui.invalidate_ui()
 
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
-            self._ui._pending_invalidate = False
+            self._ui.pending_invalidate = False
             self._ui.invalidate_ui()
             return
-        self._ui._invalidate_task = loop.create_task(_do_invalidate())
+        self._ui.invalidate_task = loop.create_task(_do_invalidate())
 
     @property
     def output_field_width(self) -> int | None:
@@ -347,7 +345,7 @@ class UIOutput:
         `COLUMNS`, and can disagree with what the renderer is painting).
         """
         columns = None
-        app = getattr(self._ui, "_application", None)
+        app = getattr(self._ui, "application", None)
         if app is not None:
             try:
                 columns = app.output.get_size().columns
@@ -366,13 +364,13 @@ class UIOutput:
         from prompt_toolkit.formatted_text.utils import fragment_list_width
 
         model_name = "Unknown"
-        if self._ui._model:
-            if isinstance(self._ui._model, str):
-                model_name = self._ui._model
-            elif hasattr(self._ui._model, "model_name"):
-                model_name = getattr(self._ui._model, "model_name")
+        if self._ui.model:
+            if isinstance(self._ui.model, str):
+                model_name = self._ui.model
+            elif hasattr(self._ui.model, "model_name"):
+                model_name = getattr(self._ui.model, "model_name")
             else:
-                model_name = str(self._ui._model)
+                model_name = str(self._ui.model)
 
         # Build the bar as (style, text) fragments rather than HTML. This lets the
         # INFO_* knobs hold full prompt_toolkit style strings (e.g. "ansired bold"),
@@ -390,7 +388,7 @@ class UIOutput:
         else:
             yolo_frag = (CFG.LLM_UI_STYLE_INFO_YOLO_OFF, "OFF")
 
-        if getattr(self._ui, "_plan_mode_active", False):
+        if getattr(self._ui, "plan_mode_active", False):
             plan_frag = (_bold(CFG.LLM_UI_STYLE_INFO_PLAN_ON), "On ")
         else:
             plan_frag = (CFG.LLM_UI_STYLE_INFO_PLAN_OFF, "Off")
@@ -400,15 +398,15 @@ class UIOutput:
             ("bold", "Model:"),
             ("", f" {model_name} | 💬 "),
             ("bold", "Session:"),
-            ("", f" {self._ui._conversation_session_name} "),
+            ("", f" {self._ui.conversation_session_name} "),
         ]
         # Item 4, Phase D: the UI clue that /load swapped which persona is
         # driving new messages — absent (bar unchanged) while driving the
         # main agent, mirroring how the activity panel collapses when idle.
         # Extended (same wording) to announce the sub-agent whose live view
         # the output pane currently shows (UIAgentPicker).
-        active_persona = getattr(self._ui, "_active_subagent_persona", None)
-        viewing_agent_id = getattr(self._ui, "_viewing_agent_id", None)
+        active_persona = getattr(self._ui, "active_subagent_persona", None)
+        viewing_agent_id = getattr(self._ui, "viewing_agent_id", None)
         viewing_name = None
         if viewing_agent_id:
             # lazy: transitively heavy via internal — live_session.py imports
@@ -418,7 +416,7 @@ class UIOutput:
             )
 
             session = live_subagent_session_registry.get(
-                self._ui._conversation_session_name, viewing_agent_id
+                self._ui.conversation_session_name, viewing_agent_id
             )
             if session is not None:
                 viewing_name = session.agent_name
@@ -444,9 +442,9 @@ class UIOutput:
         line3 = [
             ("", " 📂 "),
             ("bold", "Dir:"),
-            ("", f" {self._ui._cwd} | 🌿 "),
+            ("", f" {self._ui.cwd} | 🌿 "),
             ("bold", "Git:"),
-            ("", f" {self._ui._git_info} "),
+            ("", f" {self._ui.git_info} "),
         ]
 
         total_cols = get_terminal_size().columns
@@ -476,11 +474,11 @@ class UIOutput:
         other sub-agents and advertises the way back to the parent session
         instead (Left Arrow).
         """
-        viewing_agent_id = getattr(self._ui, "_viewing_agent_id", None)
+        viewing_agent_id = getattr(self._ui, "viewing_agent_id", None)
         if viewing_agent_id is not None:
             return [(CFG.LLM_UI_STYLE_FAINT, "Press ← to return to the parent")]
         agents = agent_activity_registry.active(
-            session_id=self._ui._conversation_session_name
+            session_id=self._ui.conversation_session_name
         )
         # The Down-Arrow picker lists every live (running or just-finished)
         # sub-agent session, so the panel advertises it whenever one is
@@ -492,7 +490,7 @@ class UIOutput:
         )
 
         live = live_subagent_session_registry.active(
-            session_id=self._ui._conversation_session_name
+            session_id=self._ui.conversation_session_name
         )
         if not agents and not live:
             return []
@@ -518,7 +516,7 @@ class UIOutput:
             next_dots = (dots + 1) % 4
             setattr(self, "_confirmation_dots", next_dots)
             dot_str = "." * next_dots + " " * (3 - next_dots)
-            assistant_name = self._ui._assistant_name
+            assistant_name = self._ui.assistant_name
             return [
                 (
                     CFG.LLM_UI_STYLE_CONFIRMATION,
@@ -534,7 +532,7 @@ class UIOutput:
             return [
                 (
                     CFG.LLM_UI_STYLE_THINKING,
-                    f" ⏳ {self._ui._assistant_name} is working{dot_str} ",
+                    f" ⏳ {self._ui.assistant_name} is working{dot_str} ",
                 ),
                 *(
                     [(CFG.LLM_UI_STYLE_STATUS, f" 📥 {queued} queued ")]
@@ -557,7 +555,7 @@ class UIOutput:
             (f"fg:{CFG.LLM_UI_STYLE_FAINT}", "shift+tab to cycle "),
         ]
         # Voice mode indicator (see ADR-0076)
-        if getattr(self._ui, "_voice_mode_active", False):
+        if getattr(self._ui, "voice_mode_active", False):
             result.append((CFG.LLM_UI_STYLE_STATUS, " 🎤 VOICE "))
         result.extend(self._get_token_usage_fragments())
         return result

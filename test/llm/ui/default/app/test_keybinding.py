@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, patch
 from prompt_toolkit.keys import Keys
 from prompt_toolkit.widgets import TextArea
 
-from zrb.llm.app.keybinding import create_output_keybindings
+from zrb.llm.ui.default.app.keybinding import create_output_keybindings
 
 
 def _handler_for(kb, key):

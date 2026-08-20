@@ -6,7 +6,7 @@ style_rules reflect them live, the way test_config_theme.py checks CFG itself.
 
 from prompt_toolkit.styles import Style
 
-from zrb.llm.app.style import create_style
+from zrb.llm.ui.default.app.style import create_style
 
 
 def _rules(style: Style) -> dict:

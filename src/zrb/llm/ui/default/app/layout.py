@@ -1,33 +1,20 @@
 from typing import Any, Callable, cast
 
-from prompt_toolkit.filters import (
-    Condition,
-    has_completions,
-    has_selection,
-)
+from prompt_toolkit.filters import Condition, has_completions, has_selection
 from prompt_toolkit.formatted_text import HTML, AnyFormattedText
 from prompt_toolkit.history import History
 from prompt_toolkit.key_binding import KeyBindings
-from prompt_toolkit.layout import (
-    HSplit,
-    Layout,
-    Window,
-    WindowAlign,
-)
-from prompt_toolkit.layout.containers import (
-    ConditionalContainer,
-    Float,
-    FloatContainer,
-)
+from prompt_toolkit.layout import HSplit, Layout, Window, WindowAlign
+from prompt_toolkit.layout.containers import ConditionalContainer, Float, FloatContainer
 from prompt_toolkit.layout.controls import FormattedTextControl
 from prompt_toolkit.layout.menus import CompletionsMenu
 from prompt_toolkit.lexers import Lexer
 from prompt_toolkit.mouse_events import MouseEventType
 from prompt_toolkit.widgets import Frame, TextArea
 
-from zrb.llm.app.completion import InputCompleter
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
+from zrb.llm.ui.default.app.completion import InputCompleter
 
 
 def create_input_field(

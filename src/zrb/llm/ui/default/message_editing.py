@@ -9,15 +9,16 @@ echoed line in the output buffer is spliced to match.
 
 Where each piece lives:
 
-* `_handle_up_arrow` / `_handle_down_arrow` are the buffer-level handlers the
+* `handle_up_arrow` / `handle_down_arrow` are the buffer-level handlers the
   input field's Up/Down keybindings consult first (see `create_input_field`);
   they return ``False`` to fall through to prompt-toolkit history recall.
-* `_handle_enter_queued_edit` is called from the Enter keybinding before the
+* `handle_enter_queued_edit` is called from the Enter keybinding before the
   plain-submit path; it turns a queued message in the buffer into an edit.
-* `_track_echo_span` (overrides the `BaseUI` no-op) records where a submitted
-  echo landed in the output buffer; `_redraw_echo` (also an override) splices
-  the edited line back in. Both are called from `BaseUI`, which broadcasts
-  them across every child UI of a MultiUI.
+* `track_echo_span` records where a submitted echo landed in the output
+  buffer; `redraw_echo` splices the edited line back in. Both are called
+  through `UI`'s own `_track_echo_span`/`_redraw_echo` override hooks, which
+  `BaseUI` invokes polymorphically and broadcasts across every child UI of a
+  MultiUI.
 """
 
 from __future__ import annotations
@@ -44,6 +45,19 @@ class UIMessageEditing:
         """The still-queued message currently recalled for editing, if any."""
         return self._queued_edit_entry
 
+    @queued_edit_entry.setter
+    def queued_edit_entry(self, value: QueuedMessage | None) -> None:
+        self._queued_edit_entry = value
+
+    @property
+    def queued_edit_draft(self) -> str:
+        """The in-progress input text saved when a recall started, if any."""
+        return self._queued_edit_draft
+
+    @queued_edit_draft.setter
+    def queued_edit_draft(self, value: str) -> None:
+        self._queued_edit_draft = value
+
     def _load_edit_text(self, buffer: Any, text: str) -> None:
         """Put `text` in the input buffer with the cursor at its end.
 
@@ -53,7 +67,7 @@ class UIMessageEditing:
         buffer.text = text
         buffer.cursor_position = len(text)
 
-    def _recall_navigation_active(self) -> bool:
+    def recall_navigation_active(self) -> bool:
         """Whether Up should walk queued messages rather than move the cursor.
 
         True while the input field holds a recalled message the user has not
@@ -67,10 +81,10 @@ class UIMessageEditing:
         entry = self._queued_edit_entry
         if entry is None:
             return False
-        buffer = self._ui._input_field.buffer
+        buffer = self._ui.input_field.buffer
         return buffer.text == entry.text and buffer.cursor_position == len(buffer.text)
 
-    def _handle_up_arrow(self, event: Any) -> bool:
+    def handle_up_arrow(self, event: Any) -> bool:
         """Recall a still-queued message into the input field for editing.
 
         Returns ``True`` when the keypress was consumed by queued-message
@@ -80,7 +94,7 @@ class UIMessageEditing:
         buffer = event.current_buffer
         entry = self._queued_edit_entry
 
-        if entry is not None and not self._recall_navigation_active():
+        if entry is not None and not self.recall_navigation_active():
             # The user typed or moved the cursor since the recall — return the
             # arrows to their normal behavior instead of navigating the queue
             # over the in-progress edit (which is not recoverable: the saved
@@ -120,7 +134,7 @@ class UIMessageEditing:
         self._load_edit_text(buffer, newest.text)
         return True
 
-    def _handle_down_arrow(self, event: Any) -> bool:
+    def handle_down_arrow(self, event: Any) -> bool:
         """Step toward the newest queued message, then exit edit mode.
 
         Returns ``True`` when the keypress was consumed; ``False`` lets the
@@ -131,7 +145,7 @@ class UIMessageEditing:
         buffer = event.current_buffer
         if (
             buffer.text.strip() == ""
-            and not self._recall_navigation_active()
+            and not self.recall_navigation_active()
             and self._ui.open_agent_picker()
         ):
             return True
@@ -139,7 +153,7 @@ class UIMessageEditing:
         queue = self._ui.effective_message_queue
         entry = self._queued_edit_entry
 
-        if entry is not None and not self._recall_navigation_active():
+        if entry is not None and not self.recall_navigation_active():
             # Same guard as Up: once the user typed or moved the cursor, Down
             # must not restore the pre-recall draft over their in-progress edit.
             return False
@@ -159,7 +173,7 @@ class UIMessageEditing:
         self._load_edit_text(buffer, self._queued_edit_draft)
         return True
 
-    def _handle_enter_queued_edit(self, event: Any) -> bool:
+    def handle_enter_queued_edit(self, event: Any) -> bool:
         """Enter while a still-queued message is in the input buffer.
 
         Replaces the queued message's text in place instead of submitting a new
@@ -183,7 +197,7 @@ class UIMessageEditing:
         # The message already started — fall through and submit as a new one.
         return False
 
-    def _track_echo_span(self, entry: QueuedMessage, echo: str) -> None:
+    def track_echo_span(self, entry: QueuedMessage, echo: str) -> None:
         """Record where `echo` landed so an edit can rewrite it in place.
 
         Only recorded when the line actually reached the output buffer verbatim
@@ -195,7 +209,7 @@ class UIMessageEditing:
             entry.echo_span = (len(text) - len(echo), len(text))
             entry.echo_text = echo
 
-    def _redraw_echo(self, entry: QueuedMessage) -> None:
+    def redraw_echo(self, entry: QueuedMessage) -> None:
         """Splice `entry`'s echoed line back into the output buffer after an edit."""
         if entry.echo_span is None:
             return

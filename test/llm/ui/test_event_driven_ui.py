@@ -19,7 +19,7 @@ class MockEventUI(EventDrivenUI):
         )
         self.print_mock = AsyncMock()
         self.start_mock = AsyncMock()
-        self._submit_user_message = MagicMock()
+        self.submit_user_message = MagicMock()
 
     async def print(self, text: str, kind: str = "text") -> None:
         await self.print_mock(text, kind=kind)
@@ -35,7 +35,7 @@ async def test_handle_incoming_message():
     # Not waiting for input -> submit message
     ui._waiting_for_input = False
     ui.handle_incoming_message("hello")
-    ui._submit_user_message.assert_called_with(ui.llm_task, "hello")
+    ui.submit_user_message.assert_called_with(ui.llm_task, "hello")
     assert ui.input_queue.empty()
 
     # Waiting for input -> enqueue
@@ -90,7 +90,7 @@ async def test_handle_incoming_message_resolves_slash_command():
                 custom_commands=custom_commands,
             )
 
-        def _submit_user_message(self, llm_task, user_message):
+        def submit_user_message(self, llm_task, user_message):
             self.submitted.append(user_message)
 
         async def print(self, text, kind="text"):
@@ -119,7 +119,7 @@ async def test_handle_incoming_message_resolves_slash_command():
 @pytest.mark.asyncio
 async def test_run_async_triggers_event_loop():
     ui = MockEventUI()
-    ui._submit_user_message = MagicMock()
+    ui.submit_user_message = MagicMock()
 
     # Let it run briefly and then cancel.
     # asyncio.wait_for will cancel the task, and SimpleUI's run_async

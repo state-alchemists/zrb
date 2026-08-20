@@ -1,7 +1,7 @@
 import pytest
 from prompt_toolkit.document import Document
 
-from zrb.llm.app.lexer import CLIStyleLexer
+from zrb.llm.ui.default.app.lexer import CLIStyleLexer
 
 
 def test_cli_style_lexer_initialization():

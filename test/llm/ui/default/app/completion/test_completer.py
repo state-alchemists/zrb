@@ -7,9 +7,9 @@ import pytest
 from prompt_toolkit.completion import CompleteEvent
 from prompt_toolkit.document import Document
 
-from zrb.llm.app.completion import InputCompleter
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
+from zrb.llm.ui.default.app.completion import InputCompleter
 
 
 @pytest.fixture
@@ -54,7 +54,7 @@ def test_photo_command_completion(completer, complete_event):
     assert "camera" in matches[0].display_meta_text.lower()
 
 
-@patch("zrb.llm.app.completion.args.datetime")
+@patch("zrb.llm.ui.default.app.completion.args.datetime")
 def test_save_completion(mock_datetime, completer, complete_event):
     mock_datetime.now.return_value = datetime(2023, 10, 27, 12, 30)
     mock_datetime.strftime = datetime.strftime
@@ -64,7 +64,7 @@ def test_save_completion(mock_datetime, completer, complete_event):
     assert any(c.text == "2023-10-27-12-30" for c in completions)
 
 
-@patch("zrb.llm.app.completion.args.datetime")
+@patch("zrb.llm.ui.default.app.completion.args.datetime")
 def test_redirect_completion(mock_datetime, completer, complete_event):
     mock_datetime.now.return_value = datetime(2023, 10, 27, 12, 30)
 
@@ -73,7 +73,7 @@ def test_redirect_completion(mock_datetime, completer, complete_event):
     assert any(c.text == "response-2023-10-27-12-30.txt" for c in completions)
 
 
-@patch("zrb.llm.app.completion.args.datetime")
+@patch("zrb.llm.ui.default.app.completion.args.datetime")
 def test_copy_completion(mock_datetime, completer, complete_event):
     """Typing '/copy ' suggests a transcript-<timestamp>.txt filename."""
     mock_datetime.now.return_value = datetime(2023, 10, 27, 12, 30)
@@ -459,7 +459,7 @@ def test_fuzzy_walk_too_many_files_falls_back_to_path_completer(
 ):
     """When the recursive walk hits the file cap, completion defers to
     PathCompleter instead of fuzzy matching."""
-    from zrb.llm.app.completion import completer as completer_mod
+    from zrb.llm.ui.default.app.completion import completer as completer_mod
 
     (tmp_path / "gamma.txt").write_text("x")
     monkeypatch.chdir(tmp_path)
@@ -497,7 +497,7 @@ class TestCaches:
     """Test cache-bearing IO helpers used by InputCompleter."""
 
     def test_load_cmd_history_zsh_format(self, tmp_path):
-        from zrb.llm.app.completion.caches import load_cmd_history
+        from zrb.llm.ui.default.app.completion.caches import load_cmd_history
 
         zsh_hist = tmp_path / ".zsh_history"
         zsh_hist.write_text(": 1612345678:0;ls -la\n: 1612345679:0;echo 'hello'")
@@ -508,7 +508,7 @@ class TestCaches:
             assert "echo 'hello'" in history
 
     def test_load_cmd_history_exception(self):
-        from zrb.llm.app.completion.caches import load_cmd_history
+        from zrb.llm.ui.default.app.completion.caches import load_cmd_history
 
         with (
             patch("os.path.exists", return_value=True),
@@ -520,7 +520,7 @@ class TestCaches:
     def test_load_ollama_models_exception(self):
         import subprocess
 
-        from zrb.llm.app.completion.caches import load_ollama_models
+        from zrb.llm.ui.default.app.completion.caches import load_ollama_models
 
         cache = {}
         with patch("subprocess.run", side_effect=subprocess.SubprocessError("Failed")):
@@ -528,7 +528,7 @@ class TestCaches:
             assert models == []
 
     def test_walk_recursive_files_limit_dirs(self, tmp_path):
-        from zrb.llm.app.completion.caches import walk_recursive_files
+        from zrb.llm.ui.default.app.completion.caches import walk_recursive_files
 
         d = tmp_path / "test_dir"
         d.mkdir()
@@ -541,7 +541,7 @@ class TestCaches:
         assert len(files) == 1
 
     def test_walk_recursive_files_exception(self, tmp_path):
-        from zrb.llm.app.completion.caches import walk_recursive_files
+        from zrb.llm.ui.default.app.completion.caches import walk_recursive_files
 
         cache = {}
         with patch("os.walk", side_effect=Exception("Walk error")):

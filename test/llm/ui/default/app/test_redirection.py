@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from zrb.llm.app.redirection import GlobalStreamCapture
+from zrb.llm.ui.default.app.redirection import GlobalStreamCapture
 
 
 def test_global_stream_capture_initialization():

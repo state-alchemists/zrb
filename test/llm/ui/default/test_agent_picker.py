@@ -25,21 +25,21 @@ class FakeUI:
     """
 
     def __init__(self):
-        self._conversation_session_name = "test_session"
-        self._input_field = MagicMock()
-        self._input_field.buffer = MagicMock(text="", cursor_position=0)
+        self.conversation_session_name = "test_session"
+        self.input_field = MagicMock()
+        self.input_field.buffer = MagicMock(text="", cursor_position=0)
         self._output_field = MagicMock()
         self._output_field.text = ""
         self._output_field.buffer = MagicMock(cursor_position=0)
-        self._confirmation_queue: list = []
+        self.confirmation_queue: list = []
         self._picker = UIAgentPicker(self)
-        self._picker._init_agent_picker_state()
+        self._picker.init_agent_picker_state()
 
     @property
     def output_text(self) -> str:
         return self._output_field.text
 
-    def _set_output_text(self, text: str) -> None:
+    def set_output_text(self, text: str) -> None:
         self._output_field.text = text
         self._output_field.buffer.cursor_position = len(text)
 
@@ -112,20 +112,20 @@ def test_open_agent_picker_opens_with_sessions():
     ui = FakeUI()
     _open(ui, [_session("a"), _session("b")])
     assert ui.has_active_agent_picker() is True
-    assert ui._picker_cursor == 0
+    assert ui.picker_cursor == 0
 
 
 def test_move_agent_picker_cursor_clamps():
     ui = FakeUI()
     _open(ui, [_session("a"), _session("b")])
     ui.move_agent_picker_cursor(99)
-    assert ui._picker_cursor == 1
+    assert ui.picker_cursor == 1
     ui.move_agent_picker_cursor(-99)
-    assert ui._picker_cursor == 0
+    assert ui.picker_cursor == 0
     # No-op when closed.
     ui.close_agent_picker()
     ui.move_agent_picker_cursor(1)
-    assert ui._picker_cursor == 0
+    assert ui.picker_cursor == 0
 
 
 def test_close_agent_picker_clears_without_viewing():
@@ -138,7 +138,7 @@ def test_close_agent_picker_clears_without_viewing():
 
 def test_confirm_agent_picker_enters_view():
     ui = FakeUI()
-    ui._output_field.text = "main transcript"
+    ui.set_output_text("main transcript")
     _open(ui, [_session("a", agent_name="researcher"), _session("b")])
     ui.move_agent_picker_cursor(1)
     assert ui.confirm_agent_picker() is True
@@ -154,7 +154,7 @@ def test_confirm_agent_picker_noop_when_closed():
 
 def test_enter_agent_view_parks_main_and_shows_subagent():
     ui = FakeUI()
-    ui._output_field.text = "main transcript"
+    ui.set_output_text("main transcript")
     session = _session("a", buffer_text="sub-agent output")
 
     ui.enter_agent_view(session)
@@ -166,11 +166,11 @@ def test_enter_agent_view_parks_main_and_shows_subagent():
 
 def test_enter_agent_view_same_agent_is_idempotent():
     ui = FakeUI()
-    ui._output_field.text = "main transcript"
+    ui.set_output_text("main transcript")
     session = _session("a", buffer_text="sub-agent output")
 
     ui.enter_agent_view(session)
-    ui._output_field.text = "more sub-agent output"
+    ui.set_output_text("more sub-agent output")
     ui.enter_agent_view(session)  # same agent — must not re-park
 
     assert ui.saved_main_output == "main transcript"
@@ -197,7 +197,7 @@ def test_sync_output_to_viewed_agent_updates_and_converges():
 
 def test_sync_output_returns_to_main_when_session_vanishes():
     ui = FakeUI()
-    ui._output_field.text = "main transcript"
+    ui.set_output_text("main transcript")
     session = _session("a", buffer_text="sub-agent output")
 
     with patch(
@@ -218,7 +218,7 @@ def test_sync_output_returns_to_main_when_session_vanishes():
 
 def test_exit_agent_view_restores_main():
     ui = FakeUI()
-    ui._output_field.text = "main transcript"
+    ui.set_output_text("main transcript")
     session = _session("a", buffer_text="sub-agent output")
 
     with patch(
@@ -236,7 +236,7 @@ def test_exit_agent_view_restores_main():
 
 def test_exit_agent_view_noop_when_not_viewing():
     ui = FakeUI()
-    ui._output_field.text = "main"
+    ui.set_output_text("main")
     ui.exit_agent_view()
     assert ui.viewing_agent_id is None
     assert ui.output_text == "main"
@@ -284,7 +284,7 @@ def test_picker_renders_running_and_finished_rows():
         "zrb.llm.ui.default.agent_picker.agent_activity_registry",
         MagicMock(active=lambda session_id: [_activity("a", ordinal=3, task="report")]),
     ):
-        text = "".join(t for _s, t in ui._get_agent_picker_text())
+        text = "".join(t for _s, t in ui.get_agent_picker_text())
 
     assert "Select a sub-agent" in text
     assert "researcher" in text
@@ -298,7 +298,7 @@ def test_picker_renders_running_and_finished_rows():
 
 def test_picker_render_empty_when_closed():
     ui = FakeUI()
-    assert ui._get_agent_picker_text() == []
+    assert ui.get_agent_picker_text() == []
 
 
 def test_picker_flags_agent_with_pending_approval():
@@ -309,7 +309,7 @@ def test_picker_flags_agent_with_pending_approval():
     ui = FakeUI()
     pending_future = MagicMock(done=lambda: False)
     resolved_future = MagicMock(done=lambda: True)
-    ui._confirmation_queue = [
+    ui.confirmation_queue = [
         (pending_future, "", None, "a"),
         (resolved_future, "", None, "b"),
     ]
@@ -317,7 +317,7 @@ def test_picker_flags_agent_with_pending_approval():
         ui, [_session("a", agent_name="writer"), _session("b", agent_name="reviewer")]
     )
 
-    text = "".join(t for _s, t in ui._get_agent_picker_text())
+    text = "".join(t for _s, t in ui.get_agent_picker_text())
 
     assert (
         "writer" in text
@@ -347,7 +347,7 @@ def test_picker_left_arrow_closes_picker_without_touching_view():
         _open(ui, [session])  # reopen the picker while already viewing "a"
         assert ui.has_active_agent_picker() is True
 
-        kb = ui._agent_picker_window.content.key_bindings
+        kb = ui.agent_picker_window.content.key_bindings
         bindings = kb.get_bindings_for_keys(("left",))
         assert bindings, "expected a 'left' binding on the picker's own control"
         bindings[-1].handler(MagicMock())
@@ -358,9 +358,9 @@ def test_picker_left_arrow_closes_picker_without_touching_view():
 
 def test_picker_no_indicator_when_nothing_pending():
     ui = FakeUI()
-    ui._confirmation_queue = []
+    ui.confirmation_queue = []
     _open(ui, [_session("a")])
 
-    text = "".join(t for _s, t in ui._get_agent_picker_text())
+    text = "".join(t for _s, t in ui.get_agent_picker_text())
 
     assert "needs approval" not in text

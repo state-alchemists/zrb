@@ -21,18 +21,21 @@ class _ForwardsToConfirmation:
             raise AttributeError(name)
         return getattr(confirmation, name)
 
-    def _begin_choice(self, spec):
+    def resolve_current(self, text, echo):
+        return self._confirmation.resolve_current(text, echo)
+
+    def begin_choice(self, spec):
         pass
 
-    def _end_choice(self):
+    def end_choice(self):
         pass
 
 
 class MockConfirmationUI(_ForwardsToConfirmation):
     def __init__(self):
-        self._confirmation_queue = []
-        self._confirmation_output_buffer = []
-        self._current_confirmation = None
+        self.confirmation_queue = []
+        self.confirmation_output_buffer = []
+        self.current_confirmation = None
         self._confirmation = UIConfirmation(self)
 
     def append_to_output(self, text, end="\n"):
@@ -63,10 +66,10 @@ class DraftConfirmationUI(_ForwardsToConfirmation):
     """Wires a fake input field so the draft stash/restore paths run."""
 
     def __init__(self, draft=""):
-        self._confirmation_queue = []
-        self._confirmation_output_buffer = []
-        self._current_confirmation = None
-        self._input_field = FakeInputField(draft)
+        self.confirmation_queue = []
+        self.confirmation_output_buffer = []
+        self.current_confirmation = None
+        self.input_field = FakeInputField(draft)
         self._confirmation = UIConfirmation(self)
         # Public alias so tests can reach the composed part without a
         # leading-underscore dotted expression (counted by the
@@ -81,16 +84,16 @@ class DraftConfirmationUI(_ForwardsToConfirmation):
 
 
 class ViewAwareConfirmationUI(_ForwardsToConfirmation):
-    """Adds the `_viewing_agent_id`/`_conversation_session_name` state
-    `_resolve_for_agent`/`_handle_confirmation` read (normally supplied by
+    """Adds the `viewing_agent_id`/`conversation_session_name` state
+    `_resolve_for_agent`/`handle_confirmation` read (normally supplied by
     `UIAgentPicker` in the composed default `UI`)."""
 
     def __init__(self, viewing_agent_id=None):
-        self._confirmation_queue = []
-        self._confirmation_output_buffer = []
-        self._current_confirmation = None
-        self._viewing_agent_id = viewing_agent_id
-        self._conversation_session_name = "sess"
+        self.confirmation_queue = []
+        self.confirmation_output_buffer = []
+        self.current_confirmation = None
+        self.viewing_agent_id = viewing_agent_id
+        self.conversation_session_name = "sess"
         self._confirmation = UIConfirmation(self)
 
     def append_to_output(self, text, end="\n"):
@@ -100,13 +103,13 @@ class ViewAwareConfirmationUI(_ForwardsToConfirmation):
         pass
 
     def has_current_confirmation(self):
-        return self._current_confirmation is not None
+        return self.current_confirmation is not None
 
     def confirmation_count(self):
-        return len(self._confirmation_queue)
+        return len(self.confirmation_queue)
 
     def handle_confirmation(self, event):
-        return self._confirmation._handle_confirmation(event)
+        return self._confirmation.handle_confirmation(event)
 
 
 class GuardedConfirmationUI(_ForwardsToConfirmation):
@@ -118,17 +121,17 @@ class GuardedConfirmationUI(_ForwardsToConfirmation):
     """
 
     def __init__(self, is_thinking=True):
-        self._confirmation_queue = []
-        self._confirmation_output_buffer = []
-        self._current_confirmation = None
+        self.confirmation_queue = []
+        self.confirmation_output_buffer = []
+        self.current_confirmation = None
         self._is_thinking = is_thinking
         self.rendered = []
         self._confirmation = UIConfirmation(self)
 
     def append_to_output(self, *values, end="\n", **kwargs):
         content = " ".join(str(v) for v in values) + end
-        if self._current_confirmation is not None and self._is_thinking:
-            self._confirmation_output_buffer.append(content)
+        if self.current_confirmation is not None and self._is_thinking:
+            self.confirmation_output_buffer.append(content)
             return
         self.rendered.append(content)
 
@@ -144,12 +147,12 @@ async def test_ask_user_queueing():
         # First call becomes current
         task1 = asyncio.create_task(ui.ask_user("prompt 1"))
         await asyncio.sleep(0.01)
-        assert ui._current_confirmation is not None
+        assert ui.current_confirmation is not None
 
         # Second call is queued
         task2 = asyncio.create_task(ui.ask_user("prompt 2"))
         await asyncio.sleep(0.01)
-        assert len(ui._confirmation_queue) == 2  # task1 and task2
+        assert len(ui.confirmation_queue) == 2  # task1 and task2
 
         # Submit first answer
         ui.submit_user_answer("answer 1")
@@ -157,13 +160,13 @@ async def test_ask_user_queueing():
         assert res1 == "answer 1"
 
         # Second call should now be current
-        assert ui._current_confirmation is not None
+        assert ui.current_confirmation is not None
 
         # Submit second answer
         ui.submit_user_answer("answer 2")
         res2 = await task2
         assert res2 == "answer 2"
-        assert ui._current_confirmation is None
+        assert ui.current_confirmation is None
 
 
 @pytest.mark.asyncio
@@ -183,9 +186,9 @@ async def test_prompt_renders_while_thinking_not_swallowed_by_buffer():
 
         # The prompt was rendered, not buffered away.
         assert any("[Q1] Pick one" in chunk for chunk in ui.rendered)
-        assert ui._confirmation_output_buffer == []
+        assert ui.confirmation_output_buffer == []
         # ...and the confirmation is now correctly marked pending.
-        assert ui._current_confirmation is not None
+        assert ui.current_confirmation is not None
 
         ui.submit_user_answer("1")
         assert await task == "1"
@@ -207,7 +210,7 @@ async def test_queued_prompt_renders_when_activated_while_thinking():
 
         # Activating the queued confirmation must surface its prompt.
         assert any("second prompt" in chunk for chunk in ui.rendered)
-        assert ui._confirmation_output_buffer == []
+        assert ui.confirmation_output_buffer == []
 
         ui.submit_user_answer("a2")
         assert await task2 == "a2"
@@ -235,7 +238,7 @@ async def test_main_agent_output_buffers_during_confirmation_then_flushes():
         # 2. Main agent keeps streaming while the confirmation is pending: buffered.
         ui.append_to_output("main token 1")
         ui.append_to_output("main token 2")
-        assert ui._confirmation_output_buffer  # held, not rendered
+        assert ui.confirmation_output_buffer  # held, not rendered
         assert not any("main token" in c for c in ui.rendered)
 
         # 3. User answers -> buffered main-agent output flushes all at once.
@@ -243,7 +246,7 @@ async def test_main_agent_output_buffers_during_confirmation_then_flushes():
         assert await task == "y"
         assert any("main token 1" in c for c in ui.rendered)
         assert any("main token 2" in c for c in ui.rendered)
-        assert ui._confirmation_output_buffer == []
+        assert ui.confirmation_output_buffer == []
 
 
 @pytest.mark.asyncio
@@ -259,8 +262,8 @@ async def test_cancel_pending_confirmations():
         with pytest.raises(asyncio.CancelledError):
             await task
 
-        assert ui._current_confirmation is None
-        assert len(ui._confirmation_queue) == 0
+        assert ui.current_confirmation is None
+        assert len(ui.confirmation_queue) == 0
 
 
 @pytest.mark.asyncio
@@ -272,9 +275,9 @@ async def test_draft_stashed_and_cleared_when_confirmation_activates():
         task = asyncio.create_task(ui.ask_user("prompt"))
         await asyncio.sleep(0.01)
 
-        assert ui._current_confirmation is not None
+        assert ui.current_confirmation is not None
         assert getattr(ui.confirmation_part, "_saved_draft") == ("fix the auth bug", 0)
-        assert ui._input_field.buffer.text == ""
+        assert ui.input_field.buffer.text == ""
 
         ui.submit_user_answer("y")
         assert await task == "y"
@@ -284,19 +287,19 @@ async def test_draft_stashed_and_cleared_when_confirmation_activates():
 async def test_draft_restored_with_cursor_after_answer():
     """After the confirmation resolves, text and cursor position come back."""
     ui = DraftConfirmationUI(draft="fix the auth bug")
-    ui._input_field.buffer.cursor_position = 5
+    ui.input_field.buffer.cursor_position = 5
 
     with patch("prompt_toolkit.application.get_app"):
         task = asyncio.create_task(ui.ask_user("prompt"))
         await asyncio.sleep(0.01)
-        assert ui._input_field.buffer.text == ""
+        assert ui.input_field.buffer.text == ""
 
         ui.submit_user_answer("n")
         assert await task == "n"
 
         assert getattr(ui.confirmation_part, "_saved_draft") is None
-        assert ui._input_field.buffer.text == "fix the auth bug"
-        assert ui._input_field.buffer.cursor_position == 5
+        assert ui.input_field.buffer.text == "fix the auth bug"
+        assert ui.input_field.buffer.cursor_position == 5
 
 
 @pytest.mark.asyncio
@@ -314,16 +317,16 @@ async def test_draft_restored_only_after_queue_drains():
         assert await task1 == "a1"
 
         # Second confirmation now current — the draft is still stashed.
-        assert ui._current_confirmation is not None
+        assert ui.current_confirmation is not None
         assert getattr(ui.confirmation_part, "_saved_draft") == ("fix the auth bug", 0)
-        assert ui._input_field.buffer.text == ""
+        assert ui.input_field.buffer.text == ""
 
         ui.submit_user_answer("a2")
         assert await task2 == "a2"
 
-        assert ui._current_confirmation is None
+        assert ui.current_confirmation is None
         assert getattr(ui.confirmation_part, "_saved_draft") is None
-        assert ui._input_field.buffer.text == "fix the auth bug"
+        assert ui.input_field.buffer.text == "fix the auth bug"
 
 
 @pytest.mark.asyncio
@@ -334,7 +337,7 @@ async def test_draft_restored_on_cancel():
     with patch("prompt_toolkit.application.get_app"):
         task = asyncio.create_task(ui.ask_user("prompt"))
         await asyncio.sleep(0.01)
-        assert ui._input_field.buffer.text == ""
+        assert ui.input_field.buffer.text == ""
 
         ui.cancel_pending_confirmations()
 
@@ -342,7 +345,7 @@ async def test_draft_restored_on_cancel():
             await task
 
         assert getattr(ui.confirmation_part, "_saved_draft") is None
-        assert ui._input_field.buffer.text == "fix the auth bug"
+        assert ui.input_field.buffer.text == "fix the auth bug"
 
 
 @pytest.mark.asyncio
@@ -356,16 +359,16 @@ async def test_no_input_field_skips_draft_stash():
 
         ui.submit_user_answer("y")
         assert await task == "y"
-        assert ui._current_confirmation is None
+        assert ui.current_confirmation is None
 
 
 @pytest.mark.asyncio
 async def test_enter_answer_restores_draft():
     """Regression: the Enter handler's buffer reset must not wipe the draft.
 
-    `_handle_confirmation` clears the buffer BEFORE resolving; the answer text
+    `handle_confirmation` clears the buffer BEFORE resolving; the answer text
     is captured first, then resolution restores the stashed draft into the same
-    buffer. Previously the reset ran after `_resolve_current`, erasing the draft
+    buffer. Previously the reset ran after `resolve_current`, erasing the draft
     that `_activate_next_confirmation` had just put back.
     """
     ui = DraftConfirmationUI(draft="fix the auth bug")
@@ -373,17 +376,17 @@ async def test_enter_answer_restores_draft():
     with patch("prompt_toolkit.application.get_app"):
         task = asyncio.create_task(ui.ask_user("prompt"))
         await asyncio.sleep(0.01)
-        assert ui._input_field.buffer.text == ""
+        assert ui.input_field.buffer.text == ""
 
-        ui._input_field.buffer.text = "y"
+        ui.input_field.buffer.text = "y"
         event = MagicMock()
-        event.current_buffer = ui._input_field.buffer
-        assert ui._handle_confirmation(event) is True
+        event.current_buffer = ui.input_field.buffer
+        assert ui.handle_confirmation(event) is True
 
         assert await task == "y"
         assert getattr(ui.confirmation_part, "_saved_draft") is None
-        assert ui._input_field.buffer.text == "fix the auth bug"
-        assert ui._input_field.buffer.cursor_position == 0
+        assert ui.input_field.buffer.text == "fix the auth bug"
+        assert ui.input_field.buffer.cursor_position == 0
 
 
 @pytest.mark.asyncio

@@ -66,8 +66,8 @@ async def test_http_ui_confirm_tool_execution(mock_deps):
     channel_result.to_pydantic_result.return_value = "Approved"
     approval_channel.request_approval = AsyncMock(return_value=channel_result)
 
-    # _confirm_tool_execution is part of the UI protocol for tool use
-    res = await ui._confirm_tool_execution(mock_call)
+    # confirm_tool_execution is part of the UI protocol for tool use
+    res = await ui.confirm_tool_execution(mock_call)
 
     assert res == "Approved"
     approval_channel.request_approval.assert_called_once()

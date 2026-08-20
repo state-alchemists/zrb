@@ -50,7 +50,7 @@ class UIKeybindings:
         # While the output pane shows a sub-agent's live view, Left returns to
         # the main session (navigation, never cancels the sub-agent's work).
         viewing_sub_agent = Condition(
-            lambda: getattr(ui, "_viewing_agent_id", None) is not None
+            lambda: getattr(ui, "viewing_agent_id", None) is not None
         )
 
         # Ctrl+K toggles focus between the input and output panes. The
@@ -60,10 +60,10 @@ class UIKeybindings:
         # 0x09, so mode cycling via Shift+Tab is unavailable there.
         @app_keybindings.add("c-k")
         def _(event):
-            if event.app.layout.has_focus(ui._input_field):
-                event.app.layout.focus(ui._output_field)
+            if event.app.layout.has_focus(ui.input_field):
+                event.app.layout.focus(ui.output_field)
             else:
-                event.app.layout.focus(ui._input_field)
+                event.app.layout.focus(ui.input_field)
 
         @app_keybindings.add("c-c")
         @app_keybindings.add("escape", "c")
@@ -83,27 +83,27 @@ class UIKeybindings:
                 return
             # Don't flush the confirmation buffer: the app is exiting, so
             # writing buffered tokens is wasted work and adds latency.
-            ui._cancel_pending_confirmations(flush=False)
-            if ui._running_llm_task and not ui._running_llm_task.done():
-                ui._running_llm_task.cancel()
+            ui.cancel_pending_confirmations(flush=False)
+            if ui.running_llm_task and not ui.running_llm_task.done():
+                ui.running_llm_task.cancel()
                 ui.append_to_output("\n<Esc> Canceled")
             # Abort an in-flight voice recording/model-download so Ctrl+C
             # exits promptly instead of waiting on the download thread.
-            voice_task = getattr(ui, "_voice_task", None)
+            voice_task = getattr(ui, "voice_task", None)
             if voice_task is not None and not voice_task.done():
                 voice_task.cancel()
             ui.execute_hook(
                 HookEvent.STOP,
-                {"reason": "ctrl_c", "session": ui._conversation_session_name},
+                {"reason": "ctrl_c", "session": ui.conversation_session_name},
             )
             event.app.exit()
 
         @app_keybindings.add("c-d")
         def _(event):
             if event.app.current_buffer.text == "":
-                ui._cancel_pending_confirmations(flush=False)
-                if ui._running_llm_task and not ui._running_llm_task.done():
-                    ui._running_llm_task.cancel()
+                ui.cancel_pending_confirmations(flush=False)
+                if ui.running_llm_task and not ui.running_llm_task.done():
+                    ui.running_llm_task.cancel()
                 event.app.exit()
 
         @app_keybindings.add("c-v")
@@ -132,7 +132,7 @@ class UIKeybindings:
                     attachment = BinaryContent(
                         data=scaled.data, media_type=scaled.media_type
                     )
-                    ui._pending_attachments.append(attachment)
+                    ui.pending_attachments.append(attachment)
                     size_kb = scaled.final_bytes / 1024
                     if scaled.scaled:
                         saved_kb = scaled.saved_bytes / 1024
@@ -158,32 +158,30 @@ class UIKeybindings:
                         # lazy: heavy third-party
                         from prompt_toolkit.application import get_app as _get_app
 
-                        _get_app().layout.focus(ui._input_field)
-                        ui._input_field.buffer.paste_clipboard_data(
-                            clipboard.get_data()
-                        )
+                        _get_app().layout.focus(ui.input_field)
+                        ui.input_field.buffer.paste_clipboard_data(clipboard.get_data())
 
             task = asyncio.create_task(_handle_paste())
-            ui._background_tasks.add(task)
-            task.add_done_callback(ui._background_tasks.discard)
+            ui.background_tasks.add(task)
+            task.add_done_callback(ui.background_tasks.discard)
 
         @app_keybindings.add("escape")
         def _(event):
             # While viewing a sub-agent, Esc cancels what the sub-agent is
             # doing (mirroring the main agent's Esc) — it never leaves the
             # view (Left does that) and never touches the main task.
-            if getattr(ui, "_viewing_agent_id", None) is not None:
-                ui._cancel_pending_confirmations()
+            if getattr(ui, "viewing_agent_id", None) is not None:
+                ui.cancel_pending_confirmations()
                 ui.cancel_viewed_agent()
                 return
-            ui._cancel_pending_confirmations()
-            if ui._running_llm_task and not ui._running_llm_task.done():
-                ui._running_llm_task.cancel()
+            ui.cancel_pending_confirmations()
+            if ui.running_llm_task and not ui.running_llm_task.done():
+                ui.running_llm_task.cancel()
                 ui.execute_hook(
                     HookEvent.STOP,
                     {
                         "reason": "escape",
-                        "session": ui._conversation_session_name,
+                        "session": ui.conversation_session_name,
                     },
                 )
                 ui.append_to_output("\n<Esc> Canceled")
@@ -203,19 +201,19 @@ class UIKeybindings:
             # buffer — resolving a confirmation or submitting from it would send
             # the entire pane content (banner, help, transcript) as user input.
             # Refocus the input field instead.
-            if not event.app.layout.has_focus(ui._input_field):
-                event.app.layout.focus(ui._input_field)
+            if not event.app.layout.has_focus(ui.input_field):
+                event.app.layout.focus(ui.input_field)
                 return
 
             if self._handle_multiline(event):
                 return
 
-            if ui._handle_confirmation(event):
+            if ui.handle_confirmation(event):
                 return
 
             # A still-queued message recalled into the input field (Up arrow)
             # is edited in place here instead of submitted as a new message.
-            if ui._handle_enter_queued_edit(event):
+            if ui.handle_enter_queued_edit(event):
                 return
 
             self._handle_enter_dispatch(event, llm_task)
@@ -254,7 +252,7 @@ class UIKeybindings:
         # OS key-repeat is filtered via a 300ms debounce (macOS default repeat
         # interval is ~67ms). Ctrl+Space always inserts a literal newline.
         voice_ptt_key = CFG.LLM_VOICE_PUSH_TO_TALK_KEY.strip().lower()
-        voice_mode_active = Condition(lambda: getattr(ui, "_voice_mode_active", False))
+        voice_mode_active = Condition(lambda: getattr(ui, "voice_mode_active", False))
         _last_press: float = 0.0
         _KEY_REPEAT_DEBOUNCE = 0.3
 
@@ -266,8 +264,8 @@ class UIKeybindings:
         def _(event):
             nonlocal _voice_engine, _last_press
 
-            if not event.app.layout.has_focus(ui._input_field):
-                ui._input_field.buffer.insert_text(" ")
+            if not event.app.layout.has_focus(ui.input_field):
+                ui.input_field.buffer.insert_text(" ")
                 return
 
             # Debounce: filter OS key-repeat (events <300ms apart).
@@ -278,11 +276,11 @@ class UIKeybindings:
             _last_press = now
 
             # Second press while recording → signal stop, exit voice mode.
-            if ui._voice_recording_active:
-                ui._voice_recording_active = False
-                if ui._voice_stop_event is not None:
-                    ui._voice_stop_event.set()
-                ui._voice_mode_active = False
+            if ui.voice_recording_active:
+                ui.voice_recording_active = False
+                if ui.voice_stop_event is not None:
+                    ui.voice_stop_event.set()
+                ui.voice_mode_active = False
                 ui.append_to_output(stylize_muted("  🎤 Stopped\n"))
                 ui.invalidate_ui()
                 return
@@ -295,9 +293,9 @@ class UIKeybindings:
             engine = _voice_engine
 
             # Set synchronously BEFORE create_task so key-repeat can't race.
-            ui._voice_recording_active = True
-            ui._voice_stop_event = asyncio.Event()
-            ui._voice_task = None
+            ui.voice_recording_active = True
+            ui.voice_stop_event = asyncio.Event()
+            ui.voice_task = None
 
             async def record_and_insert():
                 # Download the Vosk model before recording (first use only).
@@ -315,10 +313,10 @@ class UIKeybindings:
                         try:
                             await engine.download_vosk_model()
                         except Exception as exc:
-                            ui._voice_mode_active = False
-                            ui._voice_recording_active = False
-                            ui._voice_task = None
-                            ui._voice_stop_event = None
+                            ui.voice_mode_active = False
+                            ui.voice_recording_active = False
+                            ui.voice_task = None
+                            ui.voice_stop_event = None
                             ui.append_to_output(
                                 stylize_muted(f"\n  ⚠️ Voice error: {exc}\n")
                             )
@@ -331,22 +329,22 @@ class UIKeybindings:
                 ui.invalidate_ui()
                 try:
                     text = await engine.start_listening(
-                        stop_event=ui._voice_stop_event,
+                        stop_event=ui.voice_stop_event,
                     )
                 except Exception as exc:
-                    ui._voice_mode_active = False
-                    ui._voice_recording_active = False
-                    ui._voice_task = None
-                    ui._voice_stop_event = None
+                    ui.voice_mode_active = False
+                    ui.voice_recording_active = False
+                    ui.voice_task = None
+                    ui.voice_stop_event = None
                     ui.append_to_output(stylize_muted(f"\n  ⚠️ Voice error: {exc}\n"))
                     ui.invalidate_ui()
                     return
-                ui._voice_mode_active = False
-                ui._voice_recording_active = False
-                ui._voice_task = None
-                ui._voice_stop_event = None
+                ui.voice_mode_active = False
+                ui.voice_recording_active = False
+                ui.voice_task = None
+                ui.voice_stop_event = None
                 if text:
-                    ui._input_field.buffer.insert_text(text)
+                    ui.input_field.buffer.insert_text(text)
                     word_count = len(text.split())
                     ui.append_to_output(
                         stylize_muted(f"\n  🎤 Transcribed ({word_count} words)\n")
@@ -356,9 +354,9 @@ class UIKeybindings:
                 ui.invalidate_ui()
 
             task = asyncio.create_task(record_and_insert())
-            ui._voice_task = task
-            ui._background_tasks.add(task)
-            task.add_done_callback(ui._background_tasks.discard)
+            ui.voice_task = task
+            ui.background_tasks.add(task)
+            task.add_done_callback(ui.background_tasks.discard)
 
     def _handle_multiline(self, event) -> bool:
         buff = event.current_buffer
@@ -383,9 +381,9 @@ class UIKeybindings:
 
         # While viewing a sub-agent every Enter is a message to it — never a
         # /command for the main session.
-        viewing_agent_id = getattr(ui, "_viewing_agent_id", None)
+        viewing_agent_id = getattr(ui, "viewing_agent_id", None)
         if viewing_agent_id is not None:
-            session_id = ui._conversation_session_name
+            session_id = ui.conversation_session_name
             agent_id = viewing_agent_id
             message = text
             buff.reset()
@@ -408,8 +406,8 @@ class UIKeybindings:
                     entry.buffered_ui.append_to_output(f"\n💬 {message.strip()}\n")
 
             task = asyncio.create_task(_send_to_sub_agent())
-            ui._background_tasks.add(task)
-            task.add_done_callback(ui._background_tasks.discard)
+            ui.background_tasks.add(task)
+            task.add_done_callback(ui.background_tasks.discard)
             return
 
         # Route by recognition, not by "/" prefix — command tokens are
@@ -431,7 +429,7 @@ class UIKeybindings:
         # (/save, /load, /model), so running one mid-response is unsafe. The
         # buffer is kept so the user can resubmit once the response finishes.
         if kind == "command":
-            if ui._is_thinking:
+            if ui.is_thinking:
                 return
             buff.reset()
             ui.schedule_command(text)
@@ -441,5 +439,5 @@ class UIKeybindings:
         # while thinking is allowed: the message loop runs one job at a time,
         # so it lands in the queue and runs when the current turn ends.
         buff.append_to_history()
-        ui._submit_user_message(llm_task, text)
+        ui.submit_user_message(llm_task, text)
         buff.reset()

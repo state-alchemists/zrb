@@ -14,14 +14,14 @@ def child_ui_1():
     ui.ask_user = AsyncMock(return_value="input 1")
     ui.run_interactive_command = AsyncMock(return_value=0)
     ui.run_async = AsyncMock(return_value="done 1")
-    ui._cancel_pending_confirmations = MagicMock()
+    ui.cancel_pending_confirmations = MagicMock()
     # Mock some expected properties/methods that MultiUI might delegate to
     ui.tool_call_handler = MagicMock()
     ui.tool_call_handler.handle = AsyncMock(return_value="Approved 1")
     # Explicit non-mock state so _stream_ai_response's plan-mode sync and
     # snapshot path behave as they would with a real UI (a MagicMock would be
     # truthy and flip the global agent-mode ContextVar, polluting other tests).
-    ui._plan_mode_active = False
+    ui.plan_mode_active = False
     ui.snapshot_manager = None
     ui.history_manager = None
     return ui
@@ -34,8 +34,8 @@ def child_ui_2():
     ui.invalidate_ui = MagicMock()
     ui.ask_user = AsyncMock(return_value="input 2")
     ui.start_event_loop = AsyncMock()
-    ui._cancel_pending_confirmations = MagicMock()
-    ui._plan_mode_active = False
+    ui.cancel_pending_confirmations = MagicMock()
+    ui.plan_mode_active = False
     return ui
 
 
@@ -47,8 +47,8 @@ def multi_ui(child_ui_1, child_ui_2):
 def test_multi_ui_init(multi_ui, child_ui_1, child_ui_2):
     assert child_ui_1.multi_ui_parent is multi_ui
     assert child_ui_2.multi_ui_parent is multi_ui
-    # multi_ui._main_ui is a property
-    assert multi_ui._main_ui is child_ui_1
+    # multi_ui.main_ui is a property
+    assert multi_ui.main_ui is child_ui_1
 
 
 def test_multi_ui_append_to_output(multi_ui, child_ui_1, child_ui_2):
@@ -99,15 +99,15 @@ def test_multi_ui_accumulate_usage_swallows_child_errors(multi_ui, child_ui_1):
 
 
 def test_multi_ui_set_thinking_mirrors_to_children(multi_ui, child_ui_1, child_ui_2):
-    multi_ui._set_thinking(True)
-    assert multi_ui._is_thinking is True
-    assert child_ui_1._is_thinking is True
-    assert child_ui_2._is_thinking is True
+    multi_ui.set_thinking(True)
+    assert multi_ui.is_thinking is True
+    assert child_ui_1.is_thinking is True
+    assert child_ui_2.is_thinking is True
 
-    multi_ui._set_thinking(False)
-    assert multi_ui._is_thinking is False
-    assert child_ui_1._is_thinking is False
-    assert child_ui_2._is_thinking is False
+    multi_ui.set_thinking(False)
+    assert multi_ui.is_thinking is False
+    assert child_ui_1.is_thinking is False
+    assert child_ui_2.is_thinking is False
 
 
 @pytest.mark.asyncio
@@ -118,11 +118,11 @@ async def test_multi_ui_stream_sets_thinking_on_children(multi_ui, child_ui_1):
     llm_task.set_ui = MagicMock()
     llm_task.tool_confirmation = MagicMock()
 
-    await multi_ui._stream_ai_response(llm_task, "Hello", [])
+    await multi_ui.stream_ai_response(llm_task, "Hello", [])
 
     # Thinking flag must be False after the run, not just during it.
-    assert multi_ui._is_thinking is False
-    assert child_ui_1._is_thinking is False
+    assert multi_ui.is_thinking is False
+    assert child_ui_1.is_thinking is False
 
 
 @pytest.mark.asyncio
@@ -134,7 +134,7 @@ async def test_multi_ui_stream_uses_append_markdown_on_main_ui(multi_ui, child_u
     llm_task.set_ui = MagicMock()
     llm_task.tool_confirmation = MagicMock()
 
-    await multi_ui._stream_ai_response(llm_task, "Hello", [])
+    await multi_ui.stream_ai_response(llm_task, "Hello", [])
 
     # The main UI gets themed, re-wrappable markdown; other children (e.g.
     # Telegram) get the pre-rendered text.
@@ -155,7 +155,7 @@ async def test_multi_ui_stream_uses_rendered_text_on_other_children(
     llm_task.set_ui = MagicMock()
     llm_task.tool_confirmation = MagicMock()
 
-    await multi_ui._stream_ai_response(llm_task, "Hello", [])
+    await multi_ui.stream_ai_response(llm_task, "Hello", [])
 
     # child_ui_2 has no append_markdown → gets rendered text with end="".
     child_ui_2.append_to_output.assert_called()
@@ -178,7 +178,7 @@ async def test_multi_ui_stream_takes_snapshot_before_run(multi_ui, child_ui_1):
     llm_task.set_ui = MagicMock()
     llm_task.tool_confirmation = MagicMock()
 
-    await multi_ui._stream_ai_response(llm_task, "Hello", [])
+    await multi_ui.stream_ai_response(llm_task, "Hello", [])
 
     snapshot_manager.take_snapshot.assert_called_once()
     kwargs = snapshot_manager.take_snapshot.call_args.kwargs
@@ -194,18 +194,18 @@ async def test_multi_ui_stream_syncs_plan_mode(multi_ui, child_ui_1):
     )
 
     multi_ui.append_to_output = MagicMock()
-    child_ui_1._plan_mode_active = True
+    child_ui_1.plan_mode_active = True
     llm_task = MagicMock()
     llm_task.async_run = AsyncMock(return_value="# Response")
     llm_task.set_ui = MagicMock()
     llm_task.tool_confirmation = MagicMock()
 
     try:
-        await multi_ui._stream_ai_response(llm_task, "Hello", [])
+        await multi_ui.stream_ai_response(llm_task, "Hello", [])
 
         # Plan mode set on the main UI must reach the run and be read back.
         assert get_current_agent_mode() == AgentMode.PLAN
-        assert child_ui_1._plan_mode_active is True
+        assert child_ui_1.plan_mode_active is True
     finally:
         # Reset the module-level ContextVar so other tests don't inherit PLAN.
         set_current_agent_mode(AgentMode.BUILD)
@@ -216,17 +216,17 @@ async def test_multi_ui_stream_updates_system_info_on_children(
     multi_ui, child_ui_1, child_ui_2
 ):
     multi_ui.append_to_output = MagicMock()
-    child_ui_1._update_system_info = AsyncMock()
-    child_ui_2._update_system_info = AsyncMock()
+    child_ui_1.update_system_info = AsyncMock()
+    child_ui_2.update_system_info = AsyncMock()
     llm_task = MagicMock()
     llm_task.async_run = AsyncMock(return_value="# Response")
     llm_task.set_ui = MagicMock()
     llm_task.tool_confirmation = MagicMock()
 
-    await multi_ui._stream_ai_response(llm_task, "Hello", [])
+    await multi_ui.stream_ai_response(llm_task, "Hello", [])
 
-    child_ui_1._update_system_info.assert_awaited_once()
-    child_ui_2._update_system_info.assert_awaited_once()
+    child_ui_1.update_system_info.assert_awaited_once()
+    child_ui_2.update_system_info.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -240,13 +240,13 @@ async def test_multi_ui_stream_repaints_after_system_info_update(multi_ui, child
     async def _update():
         order.append("update")
 
-    child_ui_1._update_system_info = _update
+    child_ui_1.update_system_info = _update
     llm_task = MagicMock()
     llm_task.async_run = AsyncMock(return_value="# Response")
     llm_task.set_ui = MagicMock()
     llm_task.tool_confirmation = MagicMock()
 
-    await multi_ui._stream_ai_response(llm_task, "Hello", [])
+    await multi_ui.stream_ai_response(llm_task, "Hello", [])
 
     assert order == ["paint", "update", "paint"]
 
@@ -258,15 +258,15 @@ async def test_multi_ui_stream_non_string_result_clears_last_output(
     # A turn whose result is not a string must not leave last_output carrying
     # the previous turn's answer.
     multi_ui.append_to_output = MagicMock()
-    multi_ui._last_result_data = "stale"
+    multi_ui.last_result_data = "stale"
     llm_task = MagicMock()
     llm_task.async_run = AsyncMock(return_value={"structured": "result"})
     llm_task.set_ui = MagicMock()
     llm_task.tool_confirmation = MagicMock()
 
-    await multi_ui._stream_ai_response(llm_task, "Hello", [])
+    await multi_ui.stream_ai_response(llm_task, "Hello", [])
 
-    assert multi_ui._last_result_data is None
+    assert multi_ui.last_result_data is None
 
 
 @pytest.mark.asyncio
@@ -330,10 +330,10 @@ async def test_multi_ui_process_messages_loop_no_busy_wait(multi_ui):
     llm_task.async_run = AsyncMock(return_value="AI Output")
 
     with patch("zrb.llm.ui.multi_ui.asyncio.sleep", side_effect=tracking_sleep):
-        multi_ui._submit_user_message(llm_task, "first")
-        multi_ui._submit_user_message(llm_task, "second")
+        multi_ui.submit_user_message(llm_task, "first")
+        multi_ui.submit_user_message(llm_task, "second")
 
-        task = asyncio.create_task(multi_ui._process_messages_loop())
+        task = asyncio.create_task(multi_ui.process_messages_loop())
         await real_sleep(0.05)
         task.cancel()
         try:
@@ -352,10 +352,10 @@ async def test_multi_ui_submit_message_and_stream(multi_ui):
     llm_task = MagicMock()
     llm_task.async_run = AsyncMock(return_value="AI Output")
 
-    multi_ui._submit_user_message(llm_task, "user query")
+    multi_ui.submit_user_message(llm_task, "user query")
 
     # Start message processor loop manually for test
-    task = asyncio.create_task(multi_ui._process_messages_loop())
+    task = asyncio.create_task(multi_ui.process_messages_loop())
 
     # Wait for processing
     await asyncio.sleep(0.05)
@@ -377,12 +377,12 @@ def test_multi_ui_submit_message_steers_into_live_run_context(multi_ui):
     llm_task = MagicMock()
     multi_ui.active_run_context = MagicMock()
 
-    multi_ui._submit_user_message(llm_task, "steer me")
+    multi_ui.submit_user_message(llm_task, "steer me")
 
     multi_ui.active_run_context.enqueue.assert_called_once_with(
         "steer me", priority="asap"
     )
-    assert multi_ui._message_queue.qsize() == 0
+    assert multi_ui.message_queue.qsize() == 0
 
 
 def test_multi_ui_submit_message_falls_back_to_queue_without_active_run_context(
@@ -392,9 +392,9 @@ def test_multi_ui_submit_message_falls_back_to_queue_without_active_run_context(
     llm_task = MagicMock()
     assert multi_ui.active_run_context is None
 
-    multi_ui._submit_user_message(llm_task, "later")
+    multi_ui.submit_user_message(llm_task, "later")
 
-    assert multi_ui._message_queue.qsize() == 1
+    assert multi_ui.message_queue.qsize() == 1
 
 
 def test_multi_ui_submit_message_falls_back_to_queue_when_enqueue_raises(multi_ui):
@@ -405,8 +405,8 @@ def test_multi_ui_submit_message_falls_back_to_queue_when_enqueue_raises(multi_u
     live_run.enqueue.side_effect = RuntimeError("run already finished")
     multi_ui.active_run_context = live_run
 
-    multi_ui._submit_user_message(llm_task, "steer me")
-    assert multi_ui._message_queue.qsize() == 1
+    multi_ui.submit_user_message(llm_task, "steer me")
+    assert multi_ui.message_queue.qsize() == 1
 
 
 def test_multi_ui_submit_message_uses_own_llm_task(multi_ui):
@@ -415,7 +415,7 @@ def test_multi_ui_submit_message_uses_own_llm_task(multi_ui):
     code uses to hand the main agent a synthesized report."""
     llm_task = MagicMock()
     multi_ui.set_llm_task(llm_task)
-    with patch.object(multi_ui, "_submit_user_message") as mock_submit:
+    with patch.object(multi_ui, "submit_user_message") as mock_submit:
         multi_ui.submit_message("report text")
     mock_submit.assert_called_once_with(llm_task, "report text")
 
@@ -425,14 +425,14 @@ async def test_multi_ui_confirm_tool_execution(multi_ui, child_ui_1):
     mock_call = MagicMock()
 
     # Test fallback to first UI's handler
-    res = await multi_ui._confirm_tool_execution(mock_call)
+    res = await multi_ui.confirm_tool_execution(mock_call)
     assert res == "Approved 1"
 
     # Test with multi_ui handler
     handler = MagicMock()
     handler.handle = AsyncMock(return_value="Approved Multi")
     multi_ui.set_tool_call_handler(handler)
-    res2 = await multi_ui._confirm_tool_execution(mock_call)
+    res2 = await multi_ui.confirm_tool_execution(mock_call)
     assert res2 == "Approved Multi"
 
     # Test with approval channel
@@ -442,7 +442,7 @@ async def test_multi_ui_confirm_tool_execution(multi_ui, child_ui_1):
     result.to_pydantic_result.return_value = "Approved Channel"
     channel.request_approval = AsyncMock(return_value=result)
     multi_ui.set_approval_channel(channel)
-    res3 = await multi_ui._confirm_tool_execution(mock_call)
+    res3 = await multi_ui.confirm_tool_execution(mock_call)
     assert res3 == "Approved Channel"
 
 

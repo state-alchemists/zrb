@@ -2,7 +2,7 @@
 
 from unittest.mock import MagicMock
 
-from zrb.llm.app.completion.args import (
+from zrb.llm.ui.default.app.completion.args import (
     complete_copy_arg,
     complete_exec_arg,
     complete_load_arg,

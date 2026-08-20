@@ -53,7 +53,7 @@ python - <<'PY'
 import re, sys
 from pathlib import Path
 
-LIMIT = 996
+LIMIT = 400
 pattern = re.compile(r'\b\w+\._[a-zA-Z]\w*')
 count = sum(
     1

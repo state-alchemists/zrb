@@ -19,18 +19,51 @@ class MockOutputUI:
         self._output_field = MagicMock()
         self._output_field.text = ""
         self._input_field = MagicMock()
-        self._conversation_session_name = "test"
-        self._cwd = "/test"
+        self.conversation_session_name = "test"
+        self.cwd = "/test"
         self.yolo = False
-        self._model = "test-model"
-        self._git_info = "main"
-        self._assistant_name = "Zrb"
+        self.model = "test-model"
+        self.git_info = "main"
+        self.assistant_name = "Zrb"
+        self.confirmation_output_buffer = []
+        self.rendered_blocks = []
+        self.rendered_width = None
+        self.pending_invalidate = False
+        self.invalidate_task = None
+        self.markdown_theme = None
+        # This double IS the implementation site for these (mirroring the
+        # real `UI`, which owns them directly — `UIOutput` just reads them
+        # through the public properties below, one hop, no bounce back).
         self._is_thinking = False
         self._current_confirmation = None
         self._output = UIOutput(self)
         # Public aliases so tests can reach these without a leading-underscore
         # dotted expression (the private-test-access ratchet counts those).
         self.output_part = self._output
+
+    @property
+    def output_field(self):
+        return self._output_field
+
+    @property
+    def input_field(self):
+        return self._input_field
+
+    @property
+    def is_thinking(self):
+        return self._is_thinking
+
+    @is_thinking.setter
+    def is_thinking(self, value):
+        self._is_thinking = value
+
+    @property
+    def current_confirmation(self):
+        return self._current_confirmation
+
+    @current_confirmation.setter
+    def current_confirmation(self, value):
+        self._current_confirmation = value
 
     def invalidate_ui(self):
         pass
@@ -120,7 +153,7 @@ def test_get_info_bar_text_shows_active_subagent_persona():
     from prompt_toolkit.formatted_text import to_formatted_text
 
     ui = MockOutputUI()
-    ui._active_subagent_persona = "code-reviewer"
+    ui.active_subagent_persona = "code-reviewer"
     fragments = to_formatted_text(ui.get_info_bar_text())
     rendered = "".join(text for _style, text, *_ in fragments)
     assert "Sub-agent:" in rendered
@@ -206,7 +239,7 @@ def test_get_agent_activity_text_shows_back_hint_while_viewing():
     listing running sub-agents (and the picker hint) and instead advertises
     that Left returns to the parent session."""
     ui = MockOutputUI()
-    ui._viewing_agent_id = "a1"
+    ui.viewing_agent_id = "a1"
     running = MagicMock(active=lambda session_id: [object()])
     live = MagicMock(active=lambda session_id: [object()])
 
@@ -246,7 +279,7 @@ def test_get_info_bar_text_shows_viewing_sub_agent():
     from prompt_toolkit.formatted_text import to_formatted_text
 
     ui = MockOutputUI()
-    ui._viewing_agent_id = "abc123"
+    ui.viewing_agent_id = "abc123"
     session = SimpleNamespace(agent_name="researcher")
 
     with patch(
@@ -266,28 +299,28 @@ def test_append_to_output_redirects_into_saved_main_output_while_viewing():
     # accumulate into the parked snapshot instead of corrupting the live view.
     ui = MockOutputUI()
     ui.output_field.text = "sub-agent live output"
-    ui._viewing_agent_id = "abc123"
-    ui._saved_main_output = "main transcript\n"
+    ui.viewing_agent_id = "abc123"
+    ui.saved_main_output = "main transcript\n"
 
     with patch.object(ui.output_part, "_schedule_invalidate"):
         with patch("prompt_toolkit.document.Document") as mock_doc:
             ui.append_to_output("new main line")
 
-    assert ui._saved_main_output == "main transcript\nnew main line\n"
+    assert ui.saved_main_output == "main transcript\nnew main line\n"
     assert ui.output_text == "sub-agent live output"  # pane untouched
     mock_doc.assert_not_called()
 
 
 def test_append_to_output_redirect_merges_carriage_returns():
     ui = MockOutputUI()
-    ui._viewing_agent_id = "abc123"
-    ui._saved_main_output = "Status: old"
+    ui.viewing_agent_id = "abc123"
+    ui.saved_main_output = "Status: old"
 
     with patch.object(ui.output_part, "_schedule_invalidate"):
         with patch("prompt_toolkit.document.Document") as mock_doc:
             ui.append_to_output("\rStatus: new", end="")
 
-    assert ui._saved_main_output == "Status: new"
+    assert ui.saved_main_output == "Status: new"
     mock_doc.assert_not_called()
 
 
@@ -328,10 +361,7 @@ class MockMarkdownUI(MockOutputUI):
 
     def __init__(self):
         super().__init__()
-        self._rendered_blocks = []
-        self._rendered_width = None
-        self._markdown_theme = None
-        self._output_field.buffer = _RecordingBuffer(self._output_field)
+        self.output_field.buffer = _RecordingBuffer(self.output_field)
 
 
 class _RecordingBuffer:
@@ -433,15 +463,15 @@ def test_output_field_width_prefers_the_running_application():
     """GlobalStreamCapture points fds 1/2 at a pipe, so get_terminal_size can
     disagree with what prompt_toolkit is painting; the app's own size wins."""
     ui = MockOutputUI()
-    ui._application = MagicMock()
-    ui._application.output.get_size.return_value = MagicMock(columns=120)
+    ui.application = MagicMock()
+    ui.application.output.get_size.return_value = MagicMock(columns=120)
 
     with patch("zrb.llm.ui.default.output.get_terminal_size") as mock_size:
         mock_size.return_value.columns = 80
         assert ui.output_field_width == 116
 
         # Unusable app size (e.g. console not detected) falls back.
-        ui._application.output.get_size.side_effect = Exception("no console")
+        ui.application.output.get_size.side_effect = Exception("no console")
         assert ui.output_field_width == 76
 
 
@@ -453,7 +483,6 @@ class MockEditingOutputUI(MockMarkdownUI):
 
     def __init__(self):
         super().__init__()
-        self._pending_invalidate = False
         self._message_editing = UIMessageEditing(self)
 
     def __getattr__(self, name):
@@ -479,7 +508,7 @@ def test_track_echo_span_records_when_echo_lands():
     ui.output_field.text = "head" + echo
     entry = make_entry()
 
-    ui._track_echo_span(entry, echo)
+    ui.track_echo_span(entry, echo)
 
     assert entry.echo_span == (len("head"), len("head") + len(echo))
     assert entry.echo_text == echo
@@ -492,7 +521,7 @@ def test_track_echo_span_skips_when_echo_buffered():
     ui.output_field.text = "confirmation prompt"
     entry = make_entry()
 
-    ui._track_echo_span(entry, "\n💬 10:00 >> original\n")
+    ui.track_echo_span(entry, "\n💬 10:00 >> original\n")
 
     assert entry.echo_span is None
 
@@ -507,7 +536,7 @@ def test_redraw_echo_splices_edited_line():
     entry.echo_text = echo
 
     entry.text = "edited text"
-    ui._redraw_echo(entry)
+    ui.redraw_echo(entry)
 
     assert ui.output_text == "head" + "\n💬 10:00 >> edited text\n" + "tail"
     assert entry.echo_span == (start, start + len("\n💬 10:00 >> edited text\n"))
@@ -528,7 +557,7 @@ def test_redraw_echo_drops_span_that_no_longer_holds_the_echo():
     entry.echo_text = echo
 
     entry.text = "edited text"
-    ui._redraw_echo(entry)
+    ui.redraw_echo(entry)
 
     assert ui.output_text == "rewrapped long block now" + echo  # untouched
     assert entry.echo_span is None
@@ -543,7 +572,7 @@ def test_redraw_echo_uses_entry_marker_and_timestamp():
     entry.echo_span = (0, len(echo))
 
     entry.text = "edited"
-    ui._redraw_echo(entry)
+    ui.redraw_echo(entry)
 
     assert ui.output_text == "\n⏳ 10:00 >> edited\n"
 
@@ -554,7 +583,7 @@ def test_redraw_echo_drops_stale_span():
     entry.echo_span = (0, 100)  # buffer was rewritten since (e.g. rewind)
     ui.output_field.text = "short"
 
-    ui._redraw_echo(entry)
+    ui.redraw_echo(entry)
 
     assert entry.echo_span is None
 
@@ -566,7 +595,7 @@ def test_redraw_echo_is_a_noop_without_span():
     entry.echo_span = None
     ui.output_field.text = "head"
 
-    ui._redraw_echo(entry)
+    ui.redraw_echo(entry)
 
     assert ui.output_text == "head"
     assert entry.echo_span is None
@@ -579,7 +608,7 @@ def test_replace_output_span_shifts_tracked_blocks_after_span():
     echo = "\n💬 10:00 >> original\n"
     ui.output_field.text = "head" + echo + "markdown"
     block_start = len("head" + echo)
-    ui._rendered_blocks.append(
+    ui.rendered_blocks.append(
         [block_start, block_start + len("markdown"), "source", lambda s, w: "markdown"]
     )
 
@@ -591,8 +620,8 @@ def test_replace_output_span_shifts_tracked_blocks_after_span():
     assert replaced is True
     assert ui.output_text == "head" + "\n💬 10:00 >> edited\n" + "markdown"
     # "original" (8 chars) → "edited" (6): -2 shift applied to the block.
-    assert ui._rendered_blocks[0][0] == block_start - 2
-    assert ui._rendered_blocks[0][1] == block_start - 2 + len("markdown")
+    assert ui.rendered_blocks[0][0] == block_start - 2
+    assert ui.rendered_blocks[0][1] == block_start - 2 + len("markdown")
 
 
 def test_replace_output_span_refuses_stale_span():

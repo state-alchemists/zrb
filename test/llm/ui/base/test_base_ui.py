@@ -27,10 +27,10 @@ class ConcreteUI(BaseUI):
 
     async def run_async(self) -> str:
         # Implementation of run_async to test public side effects
-        self._process_messages_task = asyncio.create_task(self._process_messages_loop())
+        self._process_messages_task = asyncio.create_task(self.process_messages_loop())
         try:
             # Wait for any pending jobs in the queue
-            while not self._message_queue.empty():
+            while not self.effective_message_queue.empty():
                 await asyncio.sleep(0.01)
         finally:
             self._process_messages_task.cancel()
@@ -56,19 +56,18 @@ async def test_submit_user_message_processing(base_ui):
     """Test that submitting a message eventually calls the LLM task."""
     base_ui.llm_task.async_run = AsyncMock(return_value="AI Response")
 
-    # We use a mocked run_loop or just rely on the fact that _submit_user_message
-    # adds to a queue that _process_messages_loop drains.
-    # Since we can't access _message_queue directly, we verify via the observable
-    # result after calling a public method that drives the loop.
+    # We use a mocked run_loop or just rely on the fact that submit_user_message
+    # adds to a queue that process_messages_loop drains, verified via the
+    # observable result after calling a public method that drives the loop.
 
-    # Mocking _stream_ai_response to see if it gets called when we run the loop
+    # Mocking stream_ai_response to see if it gets called when we run the loop
     with patch.object(
-        base_ui, "_stream_ai_response", new_callable=AsyncMock
+        base_ui, "stream_ai_response", new_callable=AsyncMock
     ) as mock_stream:
-        base_ui._submit_user_message(base_ui.llm_task, "hello")
+        base_ui.submit_user_message(base_ui.llm_task, "hello")
 
         # Start the loop task
-        task = asyncio.create_task(base_ui._process_messages_loop())
+        task = asyncio.create_task(base_ui.process_messages_loop())
 
         # Wait for the job to be picked up
         for _ in range(10):
@@ -85,11 +84,7 @@ async def test_stream_ai_response_updates_last_output(base_ui):
     """Verify that the AI response stream updates the public last_output property."""
     base_ui.llm_task.async_run = AsyncMock(return_value="AI Response")
 
-    # _stream_ai_response is "protected" (single underscore),
-    # but BaseUI intended for subclassing often treats these as part of the implementation contract.
-    # However, to be strictly Public API, we should trigger it via public means.
-    # But since BaseUI is abstract, we test the provided implementation of the protected method.
-    await base_ui._stream_ai_response(base_ui.llm_task, "user message")
+    await base_ui.stream_ai_response(base_ui.llm_task, "user message")
 
     assert base_ui.last_output == "AI Response"
 
@@ -102,7 +97,7 @@ async def test_confirm_tool_execution_delegation(base_ui):
     base_ui.tool_call_handler.handle = AsyncMock(return_value="Approved")
 
     # _confirm_tool_execution is protected but part of the UI protocol implementation
-    res = await base_ui._confirm_tool_execution(mock_call)
+    res = await base_ui.confirm_tool_execution(mock_call)
     assert res == "Approved"
 
 
@@ -153,7 +148,7 @@ async def test_update_system_info_loop(base_ui):
     """Test that the system info loop periodically calls update_system_info."""
     with (
         patch.object(
-            base_ui, "_update_system_info", new_callable=AsyncMock
+            base_ui, "update_system_info", new_callable=AsyncMock
         ) as mock_update,
         patch("zrb.llm.ui.base.ui.CFG") as mock_cfg,
     ):
@@ -162,7 +157,7 @@ async def test_update_system_info_loop(base_ui):
         mock_cfg.LLM_UI_LONG_STATUS_INTERVAL = 1  # 1ms
 
         # Start the loop
-        task = asyncio.create_task(base_ui._update_system_info_loop())
+        task = asyncio.create_task(base_ui.update_system_info_loop())
 
         # Wait for a few iterations
         await asyncio.sleep(0.05)
@@ -178,12 +173,12 @@ async def test_update_system_info_loop(base_ui):
 
 
 def test_get_cwd_display_logic(base_ui):
-    """Test the protected _get_cwd_display logic."""
+    """Test the get_cwd_display logic."""
     import os
 
     cwd = os.getcwd()
     # We test the method directly as it's part of the subclassing API
-    res = base_ui._get_cwd_display()
+    res = base_ui.get_cwd_display()
     if cwd.startswith(os.path.expanduser("~")):
         assert res.startswith("~")
     else:
@@ -194,13 +189,13 @@ def test_submit_user_message_marks_queued_while_thinking(base_ui):
     """A message typed while a turn is in flight is echoed as queued, not sent."""
     outputs: list[str] = []
     with patch.object(base_ui, "append_to_output", side_effect=outputs.append):
-        base_ui._submit_user_message(base_ui.llm_task, "later")
+        base_ui.submit_user_message(base_ui.llm_task, "later")
         assert base_ui.queued_message_count == 1
         assert "💬" in outputs[0]
 
         # Flip the flag the way _stream_ai_response does.
         base_ui.is_thinking = True
-        base_ui._submit_user_message(base_ui.llm_task, "even later")
+        base_ui.submit_user_message(base_ui.llm_task, "even later")
 
     assert base_ui.queued_message_count == 2
     assert "⏳" in outputs[1]
@@ -212,7 +207,7 @@ def test_submit_user_message_steers_into_live_run_context(base_ui):
     of queuing (ADR-0078)."""
     base_ui.active_run_context = MagicMock()
     with patch.object(base_ui, "append_to_output"):
-        base_ui._submit_user_message(base_ui.llm_task, "steer me")
+        base_ui.submit_user_message(base_ui.llm_task, "steer me")
 
     base_ui.active_run_context.enqueue.assert_called_once_with(
         "steer me", priority="asap"
@@ -226,7 +221,7 @@ def test_submit_user_message_falls_back_to_queue_without_active_run_context(
     """No live turn (the default) keeps the existing queue behavior."""
     assert base_ui.active_run_context is None
     with patch.object(base_ui, "append_to_output"):
-        base_ui._submit_user_message(base_ui.llm_task, "later")
+        base_ui.submit_user_message(base_ui.llm_task, "later")
 
     assert base_ui.queued_message_count == 1
 
@@ -238,7 +233,7 @@ def test_submit_user_message_falls_back_to_queue_when_enqueue_raises(base_ui):
     live_run.enqueue.side_effect = RuntimeError("run already finished")
     base_ui.active_run_context = live_run
     with patch.object(base_ui, "append_to_output"):
-        base_ui._submit_user_message(base_ui.llm_task, "steer me")
+        base_ui.submit_user_message(base_ui.llm_task, "steer me")
 
     assert base_ui.queued_message_count == 1
 
@@ -247,7 +242,7 @@ def test_submit_message_uses_own_llm_task(base_ui):
     """Public `submit_message` (no llm_task argument) forwards to the queue
     path with the UI's own task — the seam sub-agent continuation code uses
     to hand the main agent a synthesized report."""
-    with patch.object(base_ui, "_submit_user_message") as mock_submit:
+    with patch.object(base_ui, "submit_user_message") as mock_submit:
         base_ui.submit_message("report text")
     mock_submit.assert_called_once_with(base_ui.llm_task, "report text")
 
@@ -283,7 +278,7 @@ def test_edit_queued_message_strips_whitespace(base_ui):
 
 class FakeMultiUIParent:
     def __init__(self, children=None):
-        self._message_queue = MessageQueue()
+        self.message_queue = MessageQueue()
         self.children = children if children is not None else []
 
 
@@ -311,9 +306,9 @@ def test_effective_message_queue_routes_to_parent_queue(base_ui):
     parent = FakeMultiUIParent()
     base_ui.multi_ui_parent = parent
     entry = make_entry("hello")
-    parent._message_queue.put_nowait(entry)
+    parent.message_queue.put_nowait(entry)
 
-    assert base_ui.effective_message_queue is parent._message_queue
+    assert base_ui.effective_message_queue is parent.message_queue
     assert base_ui.queued_message_count == 1
 
 
@@ -324,11 +319,11 @@ def test_edit_queued_message_updates_shared_entry_and_broadcasts_redraw():
     child_a.multi_ui_parent = parent
     child_b.multi_ui_parent = parent
     entry = make_entry("original")
-    parent._message_queue.put_nowait(entry)
+    parent.message_queue.put_nowait(entry)
 
     assert child_a.edit_queued_message(entry, "edited") is True
     assert entry.text == "edited"
-    assert parent._message_queue.contains(entry)
+    assert parent.message_queue.contains(entry)
     # The entry is shared, so the echo redraw was broadcast to both children.
     assert child_a.redrawn == [entry]
     assert child_b.redrawn == [entry]
@@ -342,9 +337,9 @@ async def test_edit_queued_message_refused_after_turn_started_in_multi_ui():
     child_a.multi_ui_parent = parent
     child_b.multi_ui_parent = parent
     entry = make_entry("original")
-    parent._message_queue.put_nowait(entry)
+    parent.message_queue.put_nowait(entry)
 
-    popped = await parent._message_queue.get()
+    popped = await parent.message_queue.get()
     assert popped is entry
 
     assert child_a.edit_queued_message(entry, "too late") is False

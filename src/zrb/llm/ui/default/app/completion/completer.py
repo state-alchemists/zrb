@@ -10,20 +10,20 @@ from prompt_toolkit.completion import (
 from prompt_toolkit.document import Document
 
 from zrb.config.config import CFG
-from zrb.llm.app.completion.args import (
+from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
+from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
+from zrb.llm.ui.default.app.completion.args import (
     complete_copy_arg,
     complete_exec_arg,
     complete_load_arg,
     complete_redirect_arg,
     complete_save_arg,
 )
-from zrb.llm.app.completion.caches import (
+from zrb.llm.ui.default.app.completion.caches import (
     load_cmd_history,
     load_ollama_models,
     walk_recursive_files,
 )
-from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
-from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.util.match import fuzzy_match
 
 

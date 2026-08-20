@@ -15,9 +15,13 @@ from prompt_toolkit.layout.controls import FormattedTextControl
 from prompt_toolkit.lexers import SimpleLexer
 from prompt_toolkit.widgets import TextArea
 
-from zrb.llm.app.completion import InputCompleter
-from zrb.llm.app.layout import create_input_field, create_layout, create_output_field
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
+from zrb.llm.ui.default.app.completion import InputCompleter
+from zrb.llm.ui.default.app.layout import (
+    create_input_field,
+    create_layout,
+    create_output_field,
+)
 
 
 def _history_manager():
