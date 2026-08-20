@@ -8,9 +8,11 @@ Kept separate from `building.py` because:
 - builder is config-time API (mutators);
 - runner is execution-time orchestration (drives the inner LLMTask + UI loop).
 
-The `_*` state read here is set in `LLMChatTask.__init__` and typed in
-`state.py::ChatState`. The two sibling methods it calls (`get_model`,
-`_get_ui_conversation_name`, both on ChatExecution) are declared below.
+Composed into `LLMChatTask` as `self._running`: keeps `LLMChatTask` in
+`self._llm_chat_task` and reads its state through that reference. Two calls
+(`get_model`, `_get_ui_conversation_name`) reach methods implemented by the
+sibling `ChatExecution` collaborator through `self._llm_chat_task`'s public
+facade, which delegates to both collaborators uniformly.
 """
 
 from __future__ import annotations
@@ -24,31 +26,25 @@ from zrb.llm.custom_command.resolver import (
     resolve_custom_commands,
 )
 from zrb.llm.task.chat.agent_mention import resolve_agent_mention
-from zrb.llm.task.chat.state import ChatState
 from zrb.session.session import Session
 from zrb.util.attr import get_attr, get_str_attr
 
 if TYPE_CHECKING:
     from pydantic_ai import UserContent
-    from pydantic_ai.models import Model
 
     from zrb.context.any_context import AnyContext
     from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
     from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
+    from zrb.llm.task.chat.task import LLMChatTask
     from zrb.llm.task.llm_task import LLMTask
     from zrb.llm.tool_call.ui_protocol import UIProtocol
 
 
-class ChatRunning(ChatState):
+class ChatRunning:
     """Interactive + non-interactive session orchestration for LLMChatTask."""
 
-    if TYPE_CHECKING:
-        # Implemented by the sibling ChatExecution on the composed LLMChatTask.
-        def get_model(self, ctx: "AnyContext") -> "str | Model": ...
-
-        def _get_ui_conversation_name(
-            self, ui: "UIProtocol", initial_conversation_name: str
-        ) -> str: ...
+    def __init__(self, llm_chat_task: "LLMChatTask") -> None:
+        self._llm_chat_task = llm_chat_task
 
     async def _run_non_interactive_session(
         self,
@@ -78,9 +74,9 @@ class ChatRunning(ChatState):
         # Attach factory-produced UIs (e.g. the web/SSE HTTPUI) as output sinks
         # so run_agent streams through them. This is what makes browser chat
         # work without the interactive session's per-turn history replay and
-        # LSP/SESSION_END teardown. Programmatic self._uis are already wired
-        # into the core task by _create_llm_task_core; only factories need
-        # resolving here, now that the core task instance exists.
+        # LSP/SESSION_END teardown. Programmatic self._llm_chat_task._uis are
+        # already wired into the core task by _create_llm_task_core; only factories
+        # need resolving here, now that the core task instance exists.
         self._attach_ui_factories(
             ctx=ctx,
             llm_task_core=llm_task_core,
@@ -98,7 +94,7 @@ class ChatRunning(ChatState):
             "session": initial_conversation_name,
             "yolo": bool(initial_yolo),  # inner task uses dynamic_yolo; just pass bool
             "attachments": initial_attachments,
-            "model": self.get_model(ctx),
+            "model": self._llm_chat_task.get_model(ctx),
             "interactive": False,
         }
         shared_ctx = SharedContext(
@@ -130,7 +126,7 @@ class ChatRunning(ChatState):
         initial_attachments: "list[UserContent]",
     ) -> None:
         """Resolve `_ui_factories` and attach the results to the core task."""
-        for factory in self._ui_factories:
+        for factory in self._llm_chat_task._ui_factories:
             factory_ui = factory(
                 ctx=ctx,
                 llm_task=llm_task_core,
@@ -146,7 +142,7 @@ class ChatRunning(ChatState):
 
     def _resolve_custom_commands(self) -> list["AnyCustomCommand"]:
         """Resolve custom commands, calling any callable factories."""
-        return resolve_custom_commands(self._custom_commands)
+        return resolve_custom_commands(self._llm_chat_task._custom_commands)
 
     async def _run_interactive_session(
         self,
@@ -167,7 +163,8 @@ class ChatRunning(ChatState):
 
         # Mirror _run_non_interactive_session's slash-command resolution.
         # Resolved once here and reused by _build_default_ui_kwargs below,
-        # instead of re-resolving self._custom_commands a second time.
+        # instead of re-resolving self._llm_chat_task._custom_commands a second
+        # time.
         resolved_custom_commands = self._resolve_custom_commands()
         if isinstance(initial_message, str):
             resolved = resolve_custom_command(initial_message, resolved_custom_commands)
@@ -180,8 +177,8 @@ class ChatRunning(ChatState):
 
         # Note: AsyncExitStack is handled by LLMTask._exec_action
         # 1. Resolve UIs from factories
-        resolved_uis: list["UIProtocol"] = list(self._uis)
-        for factory in self._ui_factories:
+        resolved_uis: list["UIProtocol"] = list(self._llm_chat_task._uis)
+        for factory in self._llm_chat_task._ui_factories:
             factory_ui = factory(
                 ctx=ctx,
                 llm_task=llm_task_core,
@@ -228,7 +225,7 @@ class ChatRunning(ChatState):
         else:
             raise ValueError(f"UI {type(ui)} does not implement run_async")
         last_output = getattr(ui, "last_output", "")
-        final_conversation_name = self._get_ui_conversation_name(
+        final_conversation_name = self._llm_chat_task._get_ui_conversation_name(
             ui, initial_conversation_name
         )
         ctx.xcom["__conversation_name__"] = final_conversation_name
@@ -249,7 +246,9 @@ class ChatRunning(ChatState):
         resolved_custom_commands: "list[AnyCustomCommand] | None" = None,
     ) -> dict[str, Any]:
         """Build keyword arguments shared by all default UI constructor calls."""
-        resolved_custom_model_names = get_attr(ctx, self._custom_model_names, []) or []
+        resolved_custom_model_names = (
+            get_attr(ctx, self._llm_chat_task._custom_model_names, []) or []
+        )
         if not isinstance(resolved_custom_model_names, list):
             resolved_custom_model_names = []
 
@@ -258,21 +257,21 @@ class ChatRunning(ChatState):
 
         effective_show_ollama_models = (
             CFG.LLM_SHOW_OLLAMA_MODELS
-            if self._show_ollama_models is None
-            else self._show_ollama_models
+            if self._llm_chat_task._show_ollama_models is None
+            else self._llm_chat_task._show_ollama_models
         )
         effective_show_pydantic_ai_models = (
             CFG.LLM_SHOW_PYDANTIC_AI_MODELS
-            if self._show_pydantic_ai_models is None
-            else self._show_pydantic_ai_models
+            if self._llm_chat_task._show_pydantic_ai_models is None
+            else self._llm_chat_task._show_pydantic_ai_models
         )
 
         return {
             "ctx": ctx,
-            "yolo_xcom_key": self._yolo_xcom_key,
+            "yolo_xcom_key": self._llm_chat_task._yolo_xcom_key,
             **{
                 key: get_str_attr(ctx, value, "", render)
-                for key, (value, render) in self._ui_texts.items()
+                for key, (value, render) in self._llm_chat_task._ui_texts.items()
             },
             "output_lexer": None,  # resolved lazily to avoid early import
             "llm_task": llm_task_core,
@@ -281,11 +280,11 @@ class ChatRunning(ChatState):
             "initial_attachments": initial_attachments,
             "conversation_session_name": initial_conversation_name,
             "is_yolo": initial_yolo,
-            "triggers": self._triggers,
-            "response_handlers": self._response_handlers,
-            "tool_policies": self._tool_policies,
-            "argument_formatters": self._argument_formatters,
-            "markdown_theme": self._markdown_theme,
+            "triggers": self._llm_chat_task._triggers,
+            "response_handlers": self._llm_chat_task._response_handlers,
+            "tool_policies": self._llm_chat_task._tool_policies,
+            "argument_formatters": self._llm_chat_task._argument_formatters,
+            "markdown_theme": self._llm_chat_task._markdown_theme,
             "summarize_commands": ui_commands["summarize"],
             "attach_commands": ui_commands["attach"],
             "exit_commands": ui_commands["exit"],
@@ -303,7 +302,7 @@ class ChatRunning(ChatState):
             "voice_commands": ui_commands["voice"],
             "photo_commands": ui_commands["photo"],
             "custom_commands": resolved_custom_commands,
-            "model": self.get_model(ctx),
+            "model": self._llm_chat_task.get_model(ctx),
             "custom_model_names": resolved_custom_model_names,
             "show_ollama_models": effective_show_ollama_models,
             "show_pydantic_ai_models": effective_show_pydantic_ai_models,
@@ -322,18 +321,18 @@ class ChatRunning(ChatState):
         from zrb.llm.ui.default.ui import UI
         from zrb.llm.ui.multi_ui import MultiUI
 
-        if resolved_uis and not self._include_default_ui:
+        if resolved_uis and not self._llm_chat_task._include_default_ui:
             if len(resolved_uis) == 1:
                 return resolved_uis[0]
             ui = MultiUI(resolved_uis)
-            if len(self._approval_channels) == 1:
-                ui.set_approval_channel(self._approval_channels[0])
-            elif len(self._approval_channels) > 1:
+            if len(self._llm_chat_task._approval_channels) == 1:
+                ui.set_approval_channel(self._llm_chat_task._approval_channels[0])
+            elif len(self._llm_chat_task._approval_channels) > 1:
                 # lazy: zrb.llm.approval transitively loads pydantic_ai.
                 from zrb.llm.approval import MultiplexApprovalChannel
 
                 ui.set_approval_channel(
-                    MultiplexApprovalChannel(self._approval_channels)
+                    MultiplexApprovalChannel(self._llm_chat_task._approval_channels)
                 )
             return ui
 
@@ -349,13 +348,15 @@ class ChatRunning(ChatState):
 
         all_uis = [default_ui] + resolved_uis
         ui = MultiUI(all_uis)
-        if len(self._approval_channels) == 1:
-            ui.set_approval_channel(self._approval_channels[0])
-        elif len(self._approval_channels) > 1:
+        if len(self._llm_chat_task._approval_channels) == 1:
+            ui.set_approval_channel(self._llm_chat_task._approval_channels[0])
+        elif len(self._llm_chat_task._approval_channels) > 1:
             # lazy: zrb.llm.approval transitively loads pydantic_ai.
             from zrb.llm.approval import MultiplexApprovalChannel
 
-            ui.set_approval_channel(MultiplexApprovalChannel(self._approval_channels))
+            ui.set_approval_channel(
+                MultiplexApprovalChannel(self._llm_chat_task._approval_channels)
+            )
         ui.set_tool_call_handler(default_ui.tool_call_handler)
         return ui
 

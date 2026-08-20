@@ -2,8 +2,9 @@
 
 Maintains the working-directory and git-branch indicators shown in the chat
 UI, refreshed on a periodic loop. Split out of `ui.py` to keep that file
-focused; the methods still run on the composed `BaseUI` instance (see the
-host-class contract below), mirroring `BaseUICommands`.
+focused; composed into `BaseUI` as `self._system_info`, keeping the `BaseUI`
+reference in `self._base_ui` for the state/methods it needs (`_cwd`,
+`_git_info`, `invalidate_ui`).
 """
 
 from __future__ import annotations
@@ -13,6 +14,9 @@ import os
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
+
+if TYPE_CHECKING:
+    from zrb.llm.ui.base.ui import BaseUI
 
 
 async def _communicate_or_reap(proc) -> tuple[bytes, bytes]:
@@ -41,23 +45,18 @@ async def _communicate_or_reap(proc) -> tuple[bytes, bytes]:
 class BaseUISystemInfo:
     """Track and periodically refresh cwd / git status for the UI."""
 
-    # Host-class contract: state and methods owned by `BaseUI`. Declared here
-    # so type checkers can verify accesses; the block does not run at runtime.
-    if TYPE_CHECKING:
-        _cwd: str
-        _git_info: str
-
-        def invalidate_ui(self) -> None: ...
+    def __init__(self, base_ui: "BaseUI") -> None:
+        self._base_ui = base_ui
 
     async def _update_system_info(self):
         """Update CWD and Git info."""
-        self._cwd = self._get_cwd_display()
+        self._base_ui._cwd = self._get_cwd_display()
         branch, status = await self._get_git_info()
         if branch:
-            self._git_info = f"{branch}{status}"
+            self._base_ui._git_info = f"{branch}{status}"
         else:
-            self._git_info = "Not a git repo"
-        self.invalidate_ui()
+            self._base_ui._git_info = "Not a git repo"
+        self._base_ui.invalidate_ui()
 
     def _get_cwd_display(self) -> str:
         cwd = os.getcwd()
@@ -104,7 +103,10 @@ class BaseUISystemInfo:
         """Periodically update CWD and Git info."""
         while True:
             try:
-                await self._update_system_info()
+                # Through `self._base_ui` (not bare `self`):
+                # `_update_system_info` is also a `BaseUI` delegator, and tests
+                # patch it at that level.
+                await self._base_ui._update_system_info()
             except asyncio.CancelledError:
                 break
             except Exception as e:

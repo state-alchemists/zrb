@@ -8,7 +8,15 @@ from zrb.config.config import CFG
 from zrb.llm.ui.base.commands import BaseUICommands
 
 
-class MockUI(BaseUICommands):
+class MockUI:
+    """Stand-in for `BaseUI`: owns the state `BaseUICommands` and its
+    conversation/model/exec collaborators read through `self._base_ui`,
+    plus the `BaseUI` methods they call (`append_to_output`, `on_exit`, ...).
+    Composes a real `BaseUICommands(self)` and forwards attribute
+    lookups to it (and its sub-collaborators) so the many existing
+    `ui._handle_*`/`ui.classify_input`/... call sites below keep working
+    unchanged."""
+
     def __init__(self):
         self._exit_commands = ["/exit"]
         self._info_commands = ["/help"]
@@ -54,6 +62,18 @@ class MockUI(BaseUICommands):
 
         self.outputs = []
         self.exited = False
+
+        self._cmds = BaseUICommands(self)
+
+    def __getattr__(self, name):
+        cmds = self.__dict__.get("_cmds")
+        if cmds is None:
+            raise AttributeError(name)
+        for collaborator_attr in ("", "_conversation", "_models", "_exec"):
+            holder = getattr(cmds, collaborator_attr) if collaborator_attr else cmds
+            if hasattr(holder, name):
+                return getattr(holder, name)
+        raise AttributeError(name)
 
     def append_to_output(self, text, end="\n"):
         self.outputs.append(str(text) + end)

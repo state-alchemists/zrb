@@ -30,6 +30,10 @@ class PasswordInput(BaseInput):
         )
         self._is_secret = True
 
+    @property
+    def is_secret(self) -> bool:
+        return self._is_secret
+
     def to_html(self, shared_ctx: AnySharedContext) -> str:
         name = html.escape(self.name)
         description = html.escape(self.description)

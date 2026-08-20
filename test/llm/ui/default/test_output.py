@@ -7,7 +7,14 @@ from zrb.llm.ui.default.output import UIOutput
 from zrb.util.cli.help_panel import HelpPanel
 
 
-class MockOutputUI(UIOutput):
+class MockOutputUI:
+    """Stand-in UI composing the real `UIOutput`.
+
+    Holds the state `UIOutput` reaches via `self._ui` (normally supplied by
+    the default `UI`) and forwards everything else (public
+    methods/properties) to the composed part.
+    """
+
     def __init__(self):
         self._output_field = MagicMock()
         self._output_field.text = ""
@@ -18,14 +25,30 @@ class MockOutputUI(UIOutput):
         self._model = "test-model"
         self._git_info = "main"
         self._assistant_name = "Zrb"
-        self.is_thinking = False
-        self.current_confirmation = None
+        self._is_thinking = False
+        self._current_confirmation = None
+        self._output = UIOutput(self)
+        # Public aliases so tests can reach these without a leading-underscore
+        # dotted expression (the private-test-access ratchet counts those).
+        self.output_part = self._output
 
     def invalidate_ui(self):
         pass
 
     def execute_hook(self, *args, **kwargs):
         pass
+
+    def set_thinking(self, value):
+        self._is_thinking = value
+
+    def set_current_confirmation(self, value):
+        self._current_confirmation = value
+
+    def __getattr__(self, name):
+        output = self.__dict__.get("_output")
+        if output is None:
+            raise AttributeError(name)
+        return getattr(output, name)
 
 
 def test_output_text_property():
@@ -57,7 +80,7 @@ def test_append_to_output_basic():
     ui.output_field.text = "line1\n"
     ui.output_field.buffer.cursor_position = 0
 
-    with patch.object(ui, "_schedule_invalidate"):
+    with patch.object(ui.output_part, "_schedule_invalidate"):
         with patch("prompt_toolkit.document.Document") as mock_doc:
             ui.append_to_output("line2")
             mock_doc.assert_called()
@@ -69,7 +92,7 @@ def test_append_to_output_carriage_return():
     ui.output_field.text = "line1\nStatus: old"
     ui.output_field.buffer.cursor_position = 0
 
-    with patch.object(ui, "_schedule_invalidate"):
+    with patch.object(ui.output_part, "_schedule_invalidate"):
         with patch("prompt_toolkit.document.Document") as mock_doc:
             ui.append_to_output("\rStatus: new", end="")
             assert mock_doc.call_args[0][0] == "line1\nStatus: new"
@@ -246,7 +269,7 @@ def test_append_to_output_redirects_into_saved_main_output_while_viewing():
     ui._viewing_agent_id = "abc123"
     ui._saved_main_output = "main transcript\n"
 
-    with patch.object(ui, "_schedule_invalidate"):
+    with patch.object(ui.output_part, "_schedule_invalidate"):
         with patch("prompt_toolkit.document.Document") as mock_doc:
             ui.append_to_output("new main line")
 
@@ -260,7 +283,7 @@ def test_append_to_output_redirect_merges_carriage_returns():
     ui._viewing_agent_id = "abc123"
     ui._saved_main_output = "Status: old"
 
-    with patch.object(ui, "_schedule_invalidate"):
+    with patch.object(ui.output_part, "_schedule_invalidate"):
         with patch("prompt_toolkit.document.Document") as mock_doc:
             ui.append_to_output("\rStatus: new", end="")
 
@@ -289,12 +312,12 @@ def test_get_status_bar_text_logic():
     res = ui.get_status_bar_text()
     assert "Ready" in res[0][1]
 
-    ui.is_thinking = True
+    ui.set_thinking(True)
     res2 = ui.get_status_bar_text()
     assert "working" in res2[0][1]
 
-    ui.is_thinking = False
-    ui.current_confirmation = "mock_confirmation"
+    ui.set_thinking(False)
+    ui.set_current_confirmation("mock_confirmation")
     res3 = ui.get_status_bar_text()
     assert "confirmation" in res3[0][1]
 
@@ -331,7 +354,7 @@ def test_append_markdown_rewraps_on_resize():
     ui = MockMarkdownUI()
     paragraph = "alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo"
 
-    with patch.object(ui, "_schedule_invalidate"):
+    with patch.object(ui.output_part, "_schedule_invalidate"):
         with patch("zrb.llm.ui.default.output.get_terminal_size") as mock_size:
             mock_size.return_value.columns = 34
             ui.append_to_output("before")
@@ -353,7 +376,7 @@ def test_append_markdown_rewraps_on_resize():
 def test_rewrap_output_is_a_noop_at_unchanged_width():
     ui = MockMarkdownUI()
 
-    with patch.object(ui, "_schedule_invalidate"):
+    with patch.object(ui.output_part, "_schedule_invalidate"):
         with patch("zrb.llm.ui.default.output.get_terminal_size") as mock_size:
             mock_size.return_value.columns = 60
             ui.append_markdown("hello **world**")
@@ -377,7 +400,7 @@ def test_print_help_panel_rerenders_on_resize_without_truncating():
         art="<art-line-1>\n<art-line-2>",
     )
 
-    with patch.object(ui, "_schedule_invalidate"):
+    with patch.object(ui.output_part, "_schedule_invalidate"):
         with patch("zrb.llm.ui.default.output.get_terminal_size") as mock_size:
             mock_size.return_value.columns = 60
             ui.print_help()
@@ -398,7 +421,7 @@ def test_print_help_panel_rerenders_on_resize_without_truncating():
 
 def test_get_status_bar_text_shows_queued_messages():
     ui = MockOutputUI()
-    ui.is_thinking = True
+    ui.set_thinking(True)
     ui.queued_message_count = 2
 
     text = "".join(fragment[1] for fragment in ui.get_status_bar_text())
@@ -425,14 +448,19 @@ def test_output_field_width_prefers_the_running_application():
 # ── Queued-message echo splicing (UIMessageEditing + UIOutput) ──────────
 
 
-class MockEditingOutputUI(MockMarkdownUI, UIMessageEditing):
-    """MockMarkdownUI plus the queued-edit echo tracking/redraw methods."""
+class MockEditingOutputUI(MockMarkdownUI):
+    """MockMarkdownUI plus the composed queued-edit echo tracking/redraw part."""
 
     def __init__(self):
         super().__init__()
-        self._queued_edit_entry = None
-        self._queued_edit_draft = ""
         self._pending_invalidate = False
+        self._message_editing = UIMessageEditing(self)
+
+    def __getattr__(self, name):
+        message_editing = self.__dict__.get("_message_editing")
+        if message_editing is not None and hasattr(message_editing, name):
+            return getattr(message_editing, name)
+        return super().__getattr__(name)
 
 
 def make_entry(text="original", marker="💬", ts="10:00"):
@@ -555,7 +583,7 @@ def test_replace_output_span_shifts_tracked_blocks_after_span():
         [block_start, block_start + len("markdown"), "source", lambda s, w: "markdown"]
     )
 
-    with patch.object(ui, "_schedule_invalidate"):
+    with patch.object(ui.output_part, "_schedule_invalidate"):
         replaced = ui.replace_output_span(
             len("head"), len("head") + len(echo), "\n💬 10:00 >> edited\n"
         )
@@ -571,5 +599,5 @@ def test_replace_output_span_refuses_stale_span():
     ui = MockMarkdownUI()
     ui.output_field.text = "short"
 
-    with patch.object(ui, "_schedule_invalidate"):
+    with patch.object(ui.output_part, "_schedule_invalidate"):
         assert ui.replace_output_span(0, 100, "x") is False

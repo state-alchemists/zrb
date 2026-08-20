@@ -84,7 +84,7 @@ def _default_list(value: "Any") -> list:
     return list(value or [])
 
 
-class BaseUI(BaseUIProperties, BaseUICommands, BaseUIReplay, BaseUISystemInfo):
+class BaseUI:
     """Base class for LLM Chat UI implementations.
 
     This class provides the core chat functionality (message handling, command
@@ -207,8 +207,8 @@ class BaseUI(BaseUIProperties, BaseUICommands, BaseUIReplay, BaseUISystemInfo):
         if not self._conversation_session_name:
             self._conversation_session_name = get_random_name()
         self._model = model
-        self._small_model = None
-        self._multimodal_model = None
+        self._small_model: Any = None
+        self._multimodal_model: Any = None
         # Item 4, Phase D: persona-swap-on-/load. None until a delegated
         # sub-agent session is loaded; see BaseUIConversationCommands.
         self._active_subagent_persona: str | None = None
@@ -292,8 +292,347 @@ class BaseUI(BaseUIProperties, BaseUICommands, BaseUIReplay, BaseUISystemInfo):
         # Track background tasks to prevent garbage collection
         self._background_tasks: set[asyncio.Task] = set()
 
+        self._properties = BaseUIProperties(self)
+        self._commands = BaseUICommands(self)
+        self._replay = BaseUIReplay(self)
+        self._system_info = BaseUISystemInfo(self)
+
         if is_yolo:
             self.yolo = is_yolo
+
+    # =========================================================================
+    # BaseUIProperties delegators
+    # =========================================================================
+
+    @property
+    def llm_task(self) -> Any:
+        """Get the LLM task."""
+        return self._properties.llm_task
+
+    @llm_task.setter
+    def llm_task(self, value: Any):
+        """Set the LLM task."""
+        self._properties.llm_task = value
+
+    @property
+    def model(self) -> Any:
+        """Get the current model."""
+        return self._properties.model
+
+    @model.setter
+    def model(self, value: Any):
+        """Set the model."""
+        self._properties.model = value
+
+    @property
+    def small_model(self) -> Any:
+        """Get the current small model."""
+        return self._properties.small_model
+
+    @small_model.setter
+    def small_model(self, value: Any):
+        """Set the small model."""
+        self._properties.small_model = value
+
+    @property
+    def multimodal_model(self) -> Any:
+        """Get the current multimodal model."""
+        return self._properties.multimodal_model
+
+    @multimodal_model.setter
+    def multimodal_model(self, value: Any):
+        """Set the multimodal model."""
+        self._properties.multimodal_model = value
+
+    @property
+    def conversation_session_name(self) -> str:
+        """Get the conversation session name."""
+        return self._properties.conversation_session_name
+
+    @conversation_session_name.setter
+    def conversation_session_name(self, value: str):
+        """Set the conversation session name."""
+        self._properties.conversation_session_name = value
+
+    @property
+    def triggers(self) -> list[Callable[[], AsyncIterable[Any]]]:
+        return self._properties.triggers
+
+    @triggers.setter
+    def triggers(self, value: list[Callable[[], AsyncIterable[Any]]]):
+        self._properties.triggers = value
+
+    @property
+    def last_output(self) -> str:
+        return self._properties.last_output
+
+    @property
+    def assistant_name(self) -> str:
+        """Get the assistant name."""
+        return self._properties.assistant_name
+
+    @property
+    def initial_message(self) -> Any:
+        """Get the initial message."""
+        return self._properties.initial_message
+
+    @property
+    def exit_commands(self) -> list[str]:
+        """Get the list of exit commands."""
+        return self._properties.exit_commands
+
+    @property
+    def info_commands(self) -> list[str]:
+        """Get the list of info/help commands."""
+        return self._properties.info_commands
+
+    @property
+    def save_commands(self) -> list[str]:
+        """Get the list of save commands."""
+        return self._properties.save_commands
+
+    @property
+    def load_commands(self) -> list[str]:
+        """Get the list of load commands."""
+        return self._properties.load_commands
+
+    @property
+    def attach_commands(self) -> list[str]:
+        """Get the list of attach commands."""
+        return self._properties.attach_commands
+
+    @property
+    def photo_commands(self) -> list[str]:
+        """Get the list of photo capture commands."""
+        return self._properties.photo_commands
+
+    @property
+    def redirect_output_commands(self) -> list[str]:
+        """Get the list of redirect output commands."""
+        return self._properties.redirect_output_commands
+
+    @property
+    def yolo_toggle_commands(self) -> list[str]:
+        """Get the list of yolo toggle commands."""
+        return self._properties.yolo_toggle_commands
+
+    @property
+    def set_model_commands(self) -> list[str]:
+        """Get the list of set model commands."""
+        return self._properties.set_model_commands
+
+    @property
+    def exec_commands(self) -> list[str]:
+        """Get the list of exec commands."""
+        return self._properties.exec_commands
+
+    @property
+    def custom_commands(self) -> list[AnyCustomCommand]:
+        """Get the list of custom commands."""
+        return self._properties.custom_commands
+
+    @property
+    def summarize_commands(self) -> list[str]:
+        """Get the list of summarize commands."""
+        return self._properties.summarize_commands
+
+    @property
+    def history_manager(self) -> Any:
+        """Public read accessor for the conversation history manager."""
+        return self._properties.history_manager
+
+    @property
+    def snapshot_manager(self) -> Any:
+        """Public read accessor for the snapshot manager (may be None)."""
+        return self._properties.snapshot_manager
+
+    @property
+    def background_tasks(self) -> Any:
+        """Public read accessor for the background-task set."""
+        return self._properties.background_tasks
+
+    @property
+    def confirmation_output_buffer(self) -> list[str]:
+        """Public read accessor for the buffered output held during confirmation."""
+        return self._properties.confirmation_output_buffer
+
+    @property
+    def pending_attachments(self) -> list[Any]:
+        """Public read accessor for attachments queued for the next turn."""
+        return self._properties.pending_attachments
+
+    @property
+    def plan_mode_active(self) -> bool:
+        """Whether plan mode is currently active."""
+        return self._properties.plan_mode_active
+
+    @plan_mode_active.setter
+    def plan_mode_active(self, value: bool):
+        self._properties.plan_mode_active = value
+
+    @property
+    def voice_mode_active(self) -> bool:
+        """Whether voice dictation mode is currently active."""
+        return self._properties.voice_mode_active
+
+    @voice_mode_active.setter
+    def voice_mode_active(self, value: bool):
+        self._properties.voice_mode_active = value
+
+    @property
+    def is_thinking(self) -> bool:
+        """Whether the assistant is currently producing a response."""
+        return self._properties.is_thinking
+
+    @is_thinking.setter
+    def is_thinking(self, value: bool):
+        self._properties.is_thinking = value
+
+    @property
+    def message_queue(self) -> Any:
+        """Public read accessor for the pending-message queue."""
+        return self._properties.message_queue
+
+    # =========================================================================
+    # BaseUICommands delegators (including its composed conversation/model/exec
+    # collaborators — flattened here since callers historically reached them
+    # directly on `BaseUI`)
+    # =========================================================================
+
+    def classify_input(self, text: str) -> str:
+        return self._commands.classify_input(text)
+
+    def schedule_command(self, text: str, *, guarded: bool = True) -> None:
+        self._commands.schedule_command(text, guarded=guarded)
+
+    async def dispatch_command(self, text: str, *, guarded: bool = True) -> None:
+        await self._commands.dispatch_command(text, guarded=guarded)
+
+    def _handle_toggle_voice(self, text: str) -> bool:
+        return self._commands._handle_toggle_voice(text)
+
+    def get_help_panel(
+        self, art: str = "", header: str = "", max_commands: int | None = None
+    ) -> Any:
+        return self._commands.get_help_panel(art, header, max_commands)
+
+    def print_help(self) -> None:
+        self._commands.print_help()
+
+    def _get_help_text(self, width: int | None = None) -> str:
+        return self._commands._get_help_text(width)
+
+    # --- conversation commands ---
+    def _handle_exit_command(self, text: str) -> bool:
+        return self._commands._conversation._handle_exit_command(text)
+
+    def _handle_info_command(self, text: str) -> bool:
+        return self._commands._conversation._handle_info_command(text)
+
+    def _handle_save_command(self, text: str) -> bool:
+        return self._commands._conversation._handle_save_command(text)
+
+    def _handle_load_command(self, text: str) -> bool:
+        return self._commands._conversation._handle_load_command(text)
+
+    def _handle_rewind_command(self, text: str) -> bool:
+        return self._commands._conversation._handle_rewind_command(text)
+
+    def _last_ai_response(self) -> str:
+        return self._commands._conversation._last_ai_response()
+
+    def _write_text_to_file(self, path: str, content: str) -> None:
+        self._commands._conversation._write_text_to_file(path, content)
+
+    def _copy_to_clipboard_and_report(self, content: str, success_message: str) -> None:
+        self._commands._conversation._copy_to_clipboard_and_report(
+            content, success_message
+        )
+
+    def _handle_redirect_command(self, text: str) -> bool:
+        return self._commands._conversation._handle_redirect_command(text)
+
+    def _handle_copy_command(self, text: str) -> bool:
+        return self._commands._conversation._handle_copy_command(text)
+
+    def _handle_attach_command(self, text: str) -> bool:
+        return self._commands._conversation._handle_attach_command(text)
+
+    def _submit_attachment(self, path: str) -> None:
+        self._commands._conversation._submit_attachment(path)
+
+    def _handle_photo_command(self, text: str) -> bool:
+        return self._commands._conversation._handle_photo_command(text)
+
+    async def _submit_photo(self, device: str | None) -> None:
+        await self._commands._conversation._submit_photo(device)
+
+    def _apply_persona_for_session(self, name: str) -> None:
+        self._commands._conversation._apply_persona_for_session(name)
+
+    # --- model commands ---
+    def toggle_yolo(self) -> None:
+        self._commands._models.toggle_yolo()
+
+    def _handle_toggle_yolo(self, text: str) -> bool:
+        return self._commands._models._handle_toggle_yolo(text)
+
+    def toggle_plan(self) -> None:
+        self._commands._models.toggle_plan()
+
+    def _handle_toggle_plan(self, text: str) -> bool:
+        return self._commands._models._handle_toggle_plan(text)
+
+    def current_cycle_mode(self) -> str:
+        return self._commands._models.current_cycle_mode()
+
+    def cycle_mode(self) -> None:
+        self._commands._models.cycle_mode()
+
+    def _handle_set_model_command(self, text: str) -> bool:
+        return self._commands._models._handle_set_model_command(text)
+
+    # --- exec commands ---
+    def _handle_exec_command(self, text: str) -> bool:
+        return self._commands._exec._handle_exec_command(text)
+
+    async def _run_shell_command(self, cmd: str) -> None:
+        await self._commands._exec._run_shell_command(cmd)
+
+    def _handle_btw_command(self, text: str) -> bool:
+        return self._commands._exec._handle_btw_command(text)
+
+    async def _stream_btw_response(self, llm_task: LLMTask, question: str) -> None:
+        await self._commands._exec._stream_btw_response(llm_task, question)
+
+    def _handle_custom_command(self, text: str) -> bool:
+        return self._commands._exec._handle_custom_command(text)
+
+    # =========================================================================
+    # BaseUIReplay delegators
+    # =========================================================================
+
+    def replay_history(self, messages: list) -> None:
+        self._replay.replay_history(messages)
+
+    def _replay_history(self, messages: list) -> None:
+        self._replay._replay_history(messages)
+
+    # =========================================================================
+    # BaseUISystemInfo delegators
+    # =========================================================================
+
+    async def _update_system_info(self) -> None:
+        await self._system_info._update_system_info()
+
+    def _get_cwd_display(self) -> str:
+        return self._system_info._get_cwd_display()
+
+    async def _get_git_info(self) -> tuple[str, str]:
+        return await self._system_info._get_git_info()
+
+    async def _update_system_info_loop(self) -> None:
+        await self._system_info._update_system_info_loop()
 
     @property
     def ctx(self) -> AnyContext:

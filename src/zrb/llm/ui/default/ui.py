@@ -19,7 +19,6 @@ from zrb.llm.tool_call import (
     ResponseHandler,
     ToolPolicy,
 )
-from zrb.llm.ui.base.message_queue import QueuedMessage
 from zrb.llm.ui.base.ui import BaseUI
 from zrb.llm.ui.default.agent_picker import UIAgentPicker
 from zrb.llm.ui.default.confirmation import UIConfirmation
@@ -51,16 +50,7 @@ logger = logging.getLogger(__name__)
 GREETING_COMMAND_LIMIT = 20
 
 
-class UI(
-    UILifecycle,
-    UIKeybindings,
-    UISelection,
-    UIConfirmation,
-    UIOutput,
-    UIMessageEditing,
-    UIAgentPicker,
-    BaseUI,
-):
+class UI(BaseUI):
     def __init__(
         self,
         ctx: AnyContext,
@@ -147,6 +137,14 @@ class UI(
             enable_rewind=enable_rewind,
             snapshot_dir=snapshot_dir,
         )
+        self._lifecycle = UILifecycle(self)
+        self._output = UIOutput(self)
+        self._confirmation = UIConfirmation(self)
+        self._selection = UISelection(self, confirmation=self._confirmation)
+        self._message_editing = UIMessageEditing(self)
+        self._agent_picker = UIAgentPicker(self)
+        self._keybindings = UIKeybindings(self)
+
         self._ascii_art = ascii_art
         self._jargon = jargon
 
@@ -159,9 +157,6 @@ class UI(
         from prompt_toolkit.history import InMemoryHistory
 
         self._input_history = InMemoryHistory()
-        # Queued-message editing state (see UIMessageEditing).
-        self._queued_edit_entry: QueuedMessage | None = None
-        self._queued_edit_draft = ""
         self._input_field = create_input_field(
             history_manager=self._history_manager,
             attach_commands=self._attach_commands,
@@ -206,11 +201,11 @@ class UI(
         self.append_to_output("")
 
         # AskUserQuestion selection widget (hidden until a choice is active).
-        self._init_selection_state()
+        self._selection._init_selection_state()
         choice_float = self._create_choice_float()
 
         # Sub-agent picker + live view (hidden until Down Arrow opens it).
-        self._init_agent_picker_state()
+        self._agent_picker._init_agent_picker_state()
         agent_picker_float = self._create_agent_picker_float()
 
         self._layout = create_layout(
@@ -244,7 +239,7 @@ class UI(
 
     def _on_render(self, app: "Application") -> None:
         try:
-            if self._viewing_agent_id is not None:
+            if self.viewing_agent_id is not None:
                 # While viewing a sub-agent the pane shows that agent's buffer
                 # (see UIAgentPicker); the main transcript's re-wrap is parked
                 # until Esc returns to it.
@@ -287,7 +282,7 @@ class UI(
         from prompt_toolkit.widgets import Frame
 
         framed = Frame(
-            self._choice_window,
+            self._selection._choice_window,
             title="Select an answer",
             style="class:choice-frame",
         )
@@ -310,7 +305,7 @@ class UI(
         from prompt_toolkit.widgets import Frame
 
         framed = Frame(
-            self._agent_picker_window,
+            self._agent_picker._agent_picker_window,
             title="Talk to a sub-agent",
             style="class:agent-picker-frame",
         )
@@ -378,3 +373,255 @@ class UI(
             output=output,
             clipboard=clipboard,
         )
+
+    # =========================================================================
+    # UILifecycle delegators
+    # =========================================================================
+
+    async def cleanup_background_tasks(self) -> None:
+        await self._lifecycle.cleanup_background_tasks()
+
+    def handle_application_run_error(self, exc: Exception) -> None:
+        self._lifecycle.handle_application_run_error(exc)
+
+    async def run_async(self) -> Any:
+        return await self._lifecycle.run_async()
+
+    def handle_first_render(self) -> None:
+        self._lifecycle.handle_first_render()
+
+    def _on_first_render(self, app: "Application") -> None:
+        self._lifecycle._on_first_render(app)
+
+    def invalidate_ui(self) -> None:
+        self._lifecycle.invalidate_ui()
+
+    def on_exit(self) -> None:
+        self._lifecycle.on_exit()
+
+    # =========================================================================
+    # UIAgentPicker delegators
+    # =========================================================================
+
+    def has_active_agent_picker(self) -> bool:
+        return self._agent_picker.has_active_agent_picker()
+
+    @property
+    def viewing_agent_id(self) -> str | None:
+        return self._agent_picker.viewing_agent_id
+
+    @property
+    def saved_main_output(self) -> str | None:
+        return self._agent_picker.saved_main_output
+
+    # Private forwarders: `UIOutput`/`UIKeybindings`/`UIConfirmation` read (and,
+    # for `_saved_main_output`, write) this state on the UI — it actually
+    # lives on the composed `UIAgentPicker`, so these route the cross-part
+    # access through it rather than shadowing a stray same-named attribute.
+    @property
+    def _viewing_agent_id(self) -> str | None:
+        return self._agent_picker._viewing_agent_id
+
+    @_viewing_agent_id.setter
+    def _viewing_agent_id(self, value: str | None) -> None:
+        self._agent_picker._viewing_agent_id = value
+
+    @property
+    def _saved_main_output(self) -> str | None:
+        return self._agent_picker._saved_main_output
+
+    @_saved_main_output.setter
+    def _saved_main_output(self, value: str | None) -> None:
+        self._agent_picker._saved_main_output = value
+
+    def open_agent_picker(self) -> bool:
+        return self._agent_picker.open_agent_picker()
+
+    def close_agent_picker(self) -> None:
+        self._agent_picker.close_agent_picker()
+
+    def move_agent_picker_cursor(self, delta: int) -> None:
+        self._agent_picker.move_agent_picker_cursor(delta)
+
+    def confirm_agent_picker(self) -> bool:
+        return self._agent_picker.confirm_agent_picker()
+
+    def enter_agent_view(self, session: Any) -> None:
+        self._agent_picker.enter_agent_view(session)
+
+    def exit_agent_view(self) -> None:
+        self._agent_picker.exit_agent_view()
+
+    def cancel_viewed_agent(self) -> bool:
+        return self._agent_picker.cancel_viewed_agent()
+
+    def sync_output_to_viewed_agent(self) -> None:
+        self._agent_picker.sync_output_to_viewed_agent()
+
+    # =========================================================================
+    # UIMessageEditing delegators
+    # =========================================================================
+
+    @property
+    def queued_edit_entry(self) -> Any:
+        return self._message_editing.queued_edit_entry
+
+    def _handle_up_arrow(self, event: Any) -> bool:
+        return self._message_editing._handle_up_arrow(event)
+
+    def _handle_down_arrow(self, event: Any) -> bool:
+        return self._message_editing._handle_down_arrow(event)
+
+    def _recall_navigation_active(self) -> bool:
+        return self._message_editing._recall_navigation_active()
+
+    def _handle_enter_queued_edit(self, event: Any) -> bool:
+        return self._message_editing._handle_enter_queued_edit(event)
+
+    def _track_echo_span(self, entry: Any, echo: str) -> None:
+        self._message_editing._track_echo_span(entry, echo)
+
+    def _redraw_echo(self, entry: Any) -> None:
+        self._message_editing._redraw_echo(entry)
+
+    # =========================================================================
+    # UIOutput delegators
+    # =========================================================================
+
+    @property
+    def is_thinking(self) -> bool:
+        return self._output.is_thinking
+
+    @is_thinking.setter
+    def is_thinking(self, value: bool) -> None:
+        self._output.is_thinking = value
+
+    @property
+    def current_confirmation(self) -> "asyncio.Future[str] | None":
+        return self._output.current_confirmation
+
+    @current_confirmation.setter
+    def current_confirmation(self, value: "asyncio.Future[str] | None") -> None:
+        self._output.current_confirmation = value
+
+    @property
+    def output_text(self) -> str:
+        return self._output.output_text
+
+    @property
+    def output_field(self) -> Any:
+        return self._output.output_field
+
+    @property
+    def input_field(self) -> Any:
+        return self._output.input_field
+
+    def append_to_output(
+        self,
+        *values: object,
+        sep: str = " ",
+        end: str = "\n",
+        file: Any = None,
+        flush: bool = False,
+        kind: str = "text",
+    ) -> None:
+        self._output.append_to_output(
+            *values, sep=sep, end=end, file=file, flush=flush, kind=kind
+        )
+
+    def append_markdown(self, markdown_text: str) -> None:
+        self._output.append_markdown(markdown_text)
+
+    def print_help(self) -> None:
+        self._output.print_help()
+
+    def append_rendered(
+        self, source: Any, renderer: "Callable[[Any, int | None], str]"
+    ) -> None:
+        self._output.append_rendered(source, renderer)
+
+    def rewrap_output(self) -> None:
+        self._output.rewrap_output()
+
+    def replace_output_span(self, start: int, end: int, replacement: str) -> bool:
+        return self._output.replace_output_span(start, end, replacement)
+
+    def _set_output_text(self, text: str) -> None:
+        self._output._set_output_text(text)
+
+    @property
+    def output_field_width(self) -> int | None:
+        return self._output.output_field_width
+
+    def get_info_bar_text(self) -> Any:
+        return self._output.get_info_bar_text()
+
+    def get_agent_activity_text(self) -> Any:
+        return self._output.get_agent_activity_text()
+
+    def get_status_bar_text(self) -> Any:
+        return self._output.get_status_bar_text()
+
+    # =========================================================================
+    # UIConfirmation delegators
+    # =========================================================================
+
+    async def ask_user(
+        self,
+        prompt: str,
+        output_to_parent: str = "",
+        agent_id: str | None = None,
+    ) -> str:
+        return await self._confirmation.ask_user(prompt, output_to_parent, agent_id)
+
+    async def ask_user_choice(self, spec: Any, agent_id: str | None = None) -> str:
+        return await self._confirmation.ask_user_choice(spec, agent_id)
+
+    def submit_user_answer(self, text: str) -> bool:
+        return self._confirmation.submit_user_answer(text)
+
+    def cancel_pending_confirmations(self) -> None:
+        self._confirmation.cancel_pending_confirmations()
+
+    def _cancel_pending_confirmations(self, flush: bool = True) -> None:
+        self._confirmation._cancel_pending_confirmations(flush=flush)
+
+    def _resolve_current(self, text: str, echo: str | None) -> bool:
+        return self._confirmation._resolve_current(text, echo)
+
+    def _begin_choice(self, spec: Any) -> None:
+        self._selection._begin_choice(spec)
+
+    def _end_choice(self) -> None:
+        self._selection._end_choice()
+
+    def _handle_confirmation(self, event: Any) -> bool:
+        # `UISelection` is the front: it handles the pending-free-text case
+        # and falls through to `UIConfirmation`'s base case otherwise —
+        # mirroring the old MRO where `UISelection` preceded `UIConfirmation`.
+        return self._selection._handle_confirmation(event)
+
+    # =========================================================================
+    # UISelection delegators
+    # =========================================================================
+
+    def has_active_choice(self) -> bool:
+        return self._selection.has_active_choice()
+
+    def move_choice_cursor(self, delta: int) -> None:
+        self._selection.move_choice_cursor(delta)
+
+    def toggle_choice_current(self) -> None:
+        self._selection.toggle_choice_current()
+
+    def confirm_choice(self) -> bool:
+        return self._selection.confirm_choice()
+
+    # =========================================================================
+    # UIKeybindings delegators
+    # =========================================================================
+
+    def setup_app_keybindings(
+        self, app_keybindings: "KeyBindings", llm_task: Any
+    ) -> None:
+        self._keybindings.setup_app_keybindings(app_keybindings, llm_task)

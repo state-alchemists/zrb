@@ -76,7 +76,7 @@ class Cli(Group):
                 print(result)
             return result
         finally:
-            run_command = self._get_run_command(node_path, task_str_kwargs)
+            run_command = self._get_run_command(node, node_path, task_str_kwargs)
             self._print_run_command(run_command)
             # Print conversation name at the very end (for LLM chat tasks)
             self._print_conversation_name(node, session)
@@ -107,14 +107,20 @@ class Cli(Group):
             pass  # Not an LLM chat task or no conversation name
 
     def _get_run_command(
-        self, node_path: list[str], task_str_kwargs: dict[str, str]
+        self,
+        task: AnyTask,
+        node_path: list[str],
+        task_str_kwargs: dict[str, str],
     ) -> str:
         parts = [self.name] + node_path
-        if len(task_str_kwargs) > 0:
-            parts += [
-                self._get_run_command_param(key, val)
-                for key, val in task_str_kwargs.items()
-            ]
+        secret_input_names = {
+            task_input.name for task_input in task.inputs if task_input.is_secret
+        }
+        parts += [
+            self._get_run_command_param(key, val)
+            for key, val in task_str_kwargs.items()
+            if key not in secret_input_names
+        ]
         return " ".join(parts)
 
     def _get_run_command_param(self, key: str, val: str) -> str:

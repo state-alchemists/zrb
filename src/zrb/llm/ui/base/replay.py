@@ -2,8 +2,10 @@
 
 Renders a loaded conversation history through the same visual paths a live
 turn uses, so a resumed session looks like a fresh one. Split out of `ui.py`
-to keep that file focused; the methods still run on the composed `BaseUI`
-instance (see the host-class contract below), mirroring `BaseUICommands`.
+to keep that file focused; composed into `BaseUI` as `self._replay`, keeping
+`BaseUI` in `self._base_ui` for the state/methods it needs
+(`_markdown_theme`, `append_to_output`, `append_markdown`,
+`_get_output_field_width`).
 """
 
 from __future__ import annotations
@@ -14,24 +16,14 @@ from zrb.llm.prompt.live_context import split_live_context
 from zrb.llm.util.history_formatter import format_args, format_timestamp, truncate
 
 if TYPE_CHECKING:
-    from typing import Any
-
-    from rich.theme import Theme
+    from zrb.llm.ui.base.ui import BaseUI
 
 
 class BaseUIReplay:
     """Replay loaded `ModelMessage`s through the live-render paths."""
 
-    # Host-class contract: state and methods owned by `BaseUI`. Declared here
-    # so type checkers can verify accesses; the block does not run at runtime.
-    if TYPE_CHECKING:
-        _markdown_theme: "Theme | None"
-
-        def append_to_output(self, *values: Any, **kwargs: Any) -> None: ...
-
-        def append_markdown(self, markdown_text: str) -> None: ...
-
-        def _get_output_field_width(self) -> int | None: ...
+    def __init__(self, base_ui: "BaseUI") -> None:
+        self._base_ui = base_ui
 
     def replay_history(self, messages: list) -> None:
         """Public entry point for replaying loaded conversation history."""
@@ -56,7 +48,7 @@ class BaseUIReplay:
             if kind == "request":
                 self._replay_request_parts(parts, ts_display, pending_tool_calls)
             elif kind == "response":
-                self.append_to_output(f"\n🤖 {ts_display}>>\n")
+                self._base_ui.append_to_output(f"\n🤖 {ts_display}>>\n")
                 self._replay_response_parts(parts, pending_tool_calls)
 
     def _replay_request_parts(
@@ -76,15 +68,17 @@ class BaseUIReplay:
                     content, live_context = split_live_context(raw_content)
                 else:
                     content, live_context = str(raw_content), None
-                self.append_to_output(f"\n💬 {ts_display}>> {content.strip()}\n")
+                self._base_ui.append_to_output(
+                    f"\n💬 {ts_display}>> {content.strip()}\n"
+                )
                 if live_context:
-                    self.append_to_output(
+                    self._base_ui.append_to_output(
                         f"\n  🌐 {truncate(live_context, 500)}\n",
                         kind="live_context",
                     )
             elif pkind == "retry-prompt":
                 content = str(getattr(part, "content", "") or "")
-                self.append_to_output(
+                self._base_ui.append_to_output(
                     f"\n  🔄 Retry: {truncate(content, 200)}\n",
                     kind="tool_call",
                 )
@@ -101,14 +95,14 @@ class BaseUIReplay:
             if pkind == "thinking":
                 content = str(getattr(part, "content", "") or "")
                 if content.strip():
-                    self.append_to_output(
+                    self._base_ui.append_to_output(
                         f"  💭 {truncate(content, 500)}", kind="thinking"
                     )
             elif pkind == "text":
                 content = str(getattr(part, "content", "") or "")
                 if content.strip():
-                    self.append_to_output("\n")
-                    self.append_markdown(content)
+                    self._base_ui.append_to_output("\n")
+                    self._base_ui.append_markdown(content)
             elif pkind == "tool-call":
                 self._replay_tool_call(part, pending_tool_calls)
 
@@ -119,7 +113,7 @@ class BaseUIReplay:
         args_str = format_args(getattr(part, "args", None))
         if tool_call_id and tool_name:
             pending_tool_calls[tool_call_id] = tool_name
-        self.append_to_output(
+        self._base_ui.append_to_output(
             f"  🧰 {tool_call_id} | {tool_name} {args_str}", kind="tool_call"
         )
 
@@ -134,11 +128,11 @@ class BaseUIReplay:
         outcome = getattr(part, "outcome", "success")
         status_icon = "✅" if str(outcome) == "success" else "❌"
         content = str(getattr(part, "content", "") or "")
-        self.append_to_output(
+        self._base_ui.append_to_output(
             f"\n  🔠 {tool_call_id} | {tool_name} {status_icon}",
             kind="tool_call",
         )
         body = truncate(content, 200)
         if body.strip():
             for line in body.split("\n")[:3]:
-                self.append_to_output(f"    {line}", kind="tool_call")
+                self._base_ui.append_to_output(f"    {line}", kind="tool_call")

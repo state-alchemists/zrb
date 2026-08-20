@@ -13,7 +13,18 @@ from zrb.llm.ui.default.keybindings import UIKeybindings
 from zrb.llm.ui.default.message_editing import UIMessageEditing
 
 
-class MockUI(UIKeybindings, UIMessageEditing, UIAgentPicker):
+class MockUI:
+    """Stand-in UI composing the real `UIKeybindings`, `UIMessageEditing`
+    and `UIAgentPicker`. Each part reaches this object's state via
+    `self._ui`, so most of the state below is unchanged from the old
+    inheritance-based test double. The exception is state that now lives
+    *inside* the composed parts themselves (`_queued_edit_entry`/
+    `_queued_edit_draft` on `UIMessageEditing`, `_viewing_agent_id`/
+    `_saved_main_output` on `UIAgentPicker`) — a handful of tests poke those
+    directly, so this class exposes them as properties forwarding to the
+    real owning part.
+    """
+
     def __init__(self):
         self._background_tasks = set()
         self._pending_attachments = []
@@ -31,15 +42,15 @@ class MockUI(UIKeybindings, UIMessageEditing, UIAgentPicker):
 
         self.outputs = []
 
-        # Queued-message editing state (see UIMessageEditing).
-        self._queued_edit_entry = None
-        self._queued_edit_draft = ""
         self._message_queue = MessageQueue()
         self.edit_queued_message = MagicMock(return_value=True)
 
+        self._keybindings = UIKeybindings(self)
+        self._message_editing = UIMessageEditing(self)
         # Sub-agent picker + live view (see UIAgentPicker). Mirrors the real
         # default `UI` composition so Down Arrow's picker trigger works.
-        self._init_agent_picker_state()
+        self._agent_picker = UIAgentPicker(self)
+        self._agent_picker._init_agent_picker_state()
 
         # Mocks for BaseUI methods
         self._cancel_pending_confirmations = MagicMock()
@@ -79,6 +90,48 @@ class MockUI(UIKeybindings, UIMessageEditing, UIAgentPicker):
 
     def _set_output_text(self, text):
         self._output_field.text = text
+
+    def setup_app_keybindings(self, app_keybindings, llm_task):
+        return self._keybindings.setup_app_keybindings(app_keybindings, llm_task)
+
+    @property
+    def _queued_edit_entry(self):
+        return self._message_editing._queued_edit_entry
+
+    @_queued_edit_entry.setter
+    def _queued_edit_entry(self, value):
+        self._message_editing._queued_edit_entry = value
+
+    @property
+    def _queued_edit_draft(self):
+        return self._message_editing._queued_edit_draft
+
+    @_queued_edit_draft.setter
+    def _queued_edit_draft(self, value):
+        self._message_editing._queued_edit_draft = value
+
+    @property
+    def _viewing_agent_id(self):
+        return self._agent_picker._viewing_agent_id
+
+    @_viewing_agent_id.setter
+    def _viewing_agent_id(self, value):
+        self._agent_picker._viewing_agent_id = value
+
+    @property
+    def _saved_main_output(self):
+        return self._agent_picker._saved_main_output
+
+    @_saved_main_output.setter
+    def _saved_main_output(self, value):
+        self._agent_picker._saved_main_output = value
+
+    def __getattr__(self, name):
+        for part_attr in ("_message_editing", "_agent_picker", "_keybindings"):
+            part = self.__dict__.get(part_attr)
+            if part is not None and hasattr(part, name):
+                return getattr(part, name)
+        raise AttributeError(name)
 
 
 @pytest.fixture
@@ -874,10 +927,15 @@ async def test_ctrl_v_no_image_no_hint(mock_ui, setup_bindings):
 # token — are caught end-to-end rather than behind mocked routing.
 
 from zrb.llm.ui.base.commands import BaseUICommands  # noqa: E402
-from zrb.llm.ui.default.message_editing import UIMessageEditing  # noqa: E402
 
 
-class IntegrationUI(UIKeybindings, BaseUICommands, UIMessageEditing):
+class IntegrationUI:
+    """`BaseUICommands`, `UIKeybindings` and `UIMessageEditing` are all
+    composed (not inherited): their handlers read state through the UI
+    reference, so `self._cmds`/`self._keybindings`/`self._message_editing`
+    plus the `__getattr__` fallback below keep `self.classify_input(...)` /
+    `self.schedule_command(...)` working exactly as before."""
+
     def __init__(self):
         self._exit_commands = ["/exit"]
         self._info_commands = ["/help"]
@@ -904,8 +962,6 @@ class IntegrationUI(UIKeybindings, BaseUICommands, UIMessageEditing):
         self._background_tasks = set()
         self._conversation_session_name = "default"
         self._snapshot_manager = None
-        self._queued_edit_entry = None
-        self._queued_edit_draft = ""
         self._llm_task = MagicMock()
         self.last_output = "AI RESPONSE TEXT"
         self._input_field = MagicMock()
@@ -917,6 +973,42 @@ class IntegrationUI(UIKeybindings, BaseUICommands, UIMessageEditing):
         self.execute_hook_blocking = AsyncMock(return_value=[])
         # Leaf collaborators only.
         self._handle_confirmation = MagicMock(return_value=False)
+
+        self._cmds = BaseUICommands(self)
+        self._keybindings = UIKeybindings(self)
+        self._message_editing = UIMessageEditing(self)
+
+    def __getattr__(self, name):
+        cmds = self.__dict__.get("_cmds")
+        if cmds is not None:
+            for collaborator_attr in ("", "_conversation", "_models", "_exec"):
+                holder = getattr(cmds, collaborator_attr) if collaborator_attr else cmds
+                if hasattr(holder, name):
+                    return getattr(holder, name)
+        for part_attr in ("_keybindings", "_message_editing"):
+            part = self.__dict__.get(part_attr)
+            if part is not None and hasattr(part, name):
+                return getattr(part, name)
+        raise AttributeError(name)
+
+    def setup_app_keybindings(self, app_keybindings, llm_task):
+        return self._keybindings.setup_app_keybindings(app_keybindings, llm_task)
+
+    @property
+    def _queued_edit_entry(self):
+        return self._message_editing._queued_edit_entry
+
+    @_queued_edit_entry.setter
+    def _queued_edit_entry(self, value):
+        self._message_editing._queued_edit_entry = value
+
+    @property
+    def _queued_edit_draft(self):
+        return self._message_editing._queued_edit_draft
+
+    @_queued_edit_draft.setter
+    def _queued_edit_draft(self, value):
+        self._message_editing._queued_edit_draft = value
 
     def append_to_output(self, text, end="\n"):
         self.outputs.append(str(text))

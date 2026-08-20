@@ -115,7 +115,7 @@ class SubAgentDefinition:
         self.inherit_sections = inherit_sections
 
 
-class SubAgentManager(SubAgentManagerLoading, SubAgentManagerSearch):
+class SubAgentManager:
     def __init__(
         self,
         tool_registry: "dict[str, Callable | Tool] | None" = None,
@@ -154,12 +154,23 @@ class SubAgentManager(SubAgentManagerLoading, SubAgentManagerSearch):
         self._agents: dict[str, SubAgentDefinition] = {}
         self._ignore_dirs = IGNORE_DIRS if ignore_dirs is None else ignore_dirs
         self._loaded: bool = False
+        self._loading = SubAgentManagerLoading(
+            ignore_dirs=self._ignore_dirs, agents=self._agents
+        )
+        self._search = SubAgentManagerSearch()
 
     def reload(self):
         """Force re-scan agents. Use after CFG changes or agent file updates."""
         self._loaded = False
-        self._agents = {}
+        # Cleared in place (not reassigned): `self._loading` holds a reference
+        # to this same dict, which a reassignment would orphan.
+        self._agents.clear()
         self._ensure_loaded()
+
+    def get_search_directories(self) -> list[str | Path]:
+        """All agent search directories in priority order. See
+        `SubAgentManagerSearch.get_search_directories` for the full order."""
+        return self._search.get_search_directories(self._root_dir)
 
     def append_tool(self, *tool: "Callable | Tool"):
         """Append tools."""
@@ -197,7 +208,9 @@ class SubAgentManager(SubAgentManagerLoading, SubAgentManagerSearch):
                 else self.get_search_directories()
             )
         for search_dir in target_search_dirs:
-            self._scan_dir(Path(search_dir), max_depth=self._max_depth)
+            self._loading._scan_dir(
+                Path(search_dir), max_depth=self._max_depth, root_dir=self._root_dir
+            )
         self._loaded = True
         return list(self._agents.values())
 
@@ -462,7 +475,9 @@ class SubAgentManager(SubAgentManagerLoading, SubAgentManagerSearch):
         if target_search_dirs is None:
             target_search_dirs = self.get_search_directories()
         for search_dir in target_search_dirs:
-            self._scan_dir(Path(search_dir), max_depth=self._max_depth)
+            self._loading._scan_dir(
+                Path(search_dir), max_depth=self._max_depth, root_dir=self._root_dir
+            )
 
     def _get_tool_registry(self) -> "dict[str, Callable | Tool]":
         return self._tool_registry

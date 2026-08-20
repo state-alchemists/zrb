@@ -1,9 +1,9 @@
 """Execution slash-commands for `BaseUI`.
 
 Shell exec (`/exec`), side questions (`/btw`), and user-defined custom
-commands. Split out of `commands.py`; the handlers run on the composed
-`BaseUI` instance (see the host-class contract below), mirroring
-`BaseUICommands`.
+commands. Split out of `commands.py`. Composed into `BaseUICommands` as
+`self._exec`, keeping `BaseUI` in `self._base_ui` for state and method
+calls.
 
 Each `_handle_*` returns ``True`` if the input was consumed, ``False``
 otherwise.
@@ -20,61 +20,23 @@ from zrb.llm.ui.base.message_queue import QueuedMessage
 from zrb.util.cli.style import stylize_error, stylize_muted
 
 if TYPE_CHECKING:
-    from typing import Any
-
-    from rich.theme import Theme
-
-    from zrb.context.any_context import AnyContext
-    from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
-    from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
     from zrb.llm.task.llm_task import LLMTask
-    from zrb.llm.ui.base.message_queue import MessageQueue
-    from zrb.task.any_task import AnyTask
+    from zrb.llm.ui.base.ui import BaseUI
 
 
 class BaseUIExecCommands:
     """Shell-exec / side-question / custom-command handlers for BaseUI."""
 
-    # Host-class contract: state and methods owned by `BaseUI`. Declared here
-    # so type checkers can verify accesses; the block does not run at runtime.
-    if TYPE_CHECKING:
-        _background_tasks: set[asyncio.Task]
-        _btw_commands: list[str]
-        _custom_commands: list["AnyCustomCommand"]
-        _exec_commands: list[str]
-        _conversation_session_name: str
-        _history_manager: "AnyHistoryManager"
-        _is_thinking: bool
-        _llm_task: "LLMTask"
-        _markdown_theme: "Theme | None"
-        _message_queue: MessageQueue
-        _model: "Any"
-        _running_llm_task: asyncio.Task | None
-
-        @property
-        def ctx(self) -> "AnyContext": ...
-
-        def append_to_output(self, *values: Any, **kwargs: Any) -> None: ...
-
-        def append_markdown(self, markdown_text: str) -> None: ...
-
-        def invalidate_ui(self) -> None: ...
-
-        async def _update_system_info(self) -> None: ...
-
-        def _get_output_field_width(self) -> int | None: ...
-
-        def _submit_user_message(
-            self, llm_task: "AnyTask", user_message: str
-        ) -> None: ...
+    def __init__(self, base_ui: "BaseUI") -> None:
+        self._base_ui = base_ui
 
     # --- exec (shell) -----------------------------------------------------
 
     def _handle_exec_command(self, text: str) -> bool:
-        if self._is_thinking:
+        if self._base_ui._is_thinking:
             return False
 
-        for cmd in self._exec_commands:
+        for cmd in self._base_ui._exec_commands:
             prefix = f"{cmd} "
             if text.strip().lower().startswith(prefix):
                 shell_cmd = text.strip()[len(prefix) :].strip()
@@ -87,19 +49,19 @@ class BaseUIExecCommands:
                     kind="exec",
                     run=lambda: self._run_shell_command(entry.text),
                 )
-                self._message_queue.put_nowait(entry)
+                self._base_ui._message_queue.put_nowait(entry)
                 return True
         return False
 
     async def _run_shell_command(self, cmd: str):
-        self._is_thinking = True
-        self.invalidate_ui()
+        self._base_ui._is_thinking = True
+        self._base_ui.invalidate_ui()
         timestamp = datetime.now().strftime("%H:%M")
         process = None
 
         try:
-            self.append_to_output(f"\n💻 {timestamp} >> {cmd}\n")
-            self.append_to_output(stylize_muted("\n  🔢 Executing...\n"))
+            self._base_ui.append_to_output(f"\n💻 {timestamp} >> {cmd}\n")
+            self._base_ui.append_to_output(stylize_muted("\n  🔢 Executing...\n"))
 
             # create_subprocess_shell is intentional here: cmd is raw text a
             # human typed into the /exec prompt (pipes, redirects, globs are
@@ -116,7 +78,7 @@ class BaseUIExecCommands:
                     if not line:
                         break
                     decoded_line = line.decode("utf-8", errors="replace")
-                    self.append_to_output(decoded_line, end="")
+                    self._base_ui.append_to_output(decoded_line, end="")
 
             # Fail-fast fan-out: a broken reader should abort immediately, not
             # be masked by return_exceptions.
@@ -128,11 +90,11 @@ class BaseUIExecCommands:
             return_code = await process.wait()
 
             if return_code == 0:
-                self.append_to_output(
+                self._base_ui.append_to_output(
                     stylize_muted("\n  ✅ Command finished successfully.\n")
                 )
             else:
-                self.append_to_output(
+                self._base_ui.append_to_output(
                     stylize_error(
                         f"\n  ❌ Command failed with exit code {return_code}.\n"
                     )
@@ -160,15 +122,15 @@ class BaseUIExecCommands:
                         await asyncio.wait_for(process.wait(), timeout=1.0)
                     except BaseException:
                         pass
-            self.append_to_output("\n[Cancelled]\n")
+            self._base_ui.append_to_output("\n[Cancelled]\n")
             raise  # Re-raise to allow proper task cancellation
         except Exception as e:
-            self.append_to_output(f"\n[Error: {e}]\n")
+            self._base_ui.append_to_output(f"\n[Error: {e}]\n")
         finally:
-            self._is_thinking = False
-            self._running_llm_task = None
-            await self._update_system_info()
-            self.invalidate_ui()
+            self._base_ui._is_thinking = False
+            self._base_ui._running_llm_task = None
+            await self._base_ui._update_system_info()
+            self._base_ui.invalidate_ui()
 
     # --- /btw side question -----------------------------------------------
 
@@ -180,7 +142,7 @@ class BaseUIExecCommands:
         main conversation.
         """
         text = text.strip()
-        for cmd in self._btw_commands:
+        for cmd in self._base_ui._btw_commands:
             prefix = f"{cmd} "
             if text.lower().startswith(prefix):
                 question = text[len(prefix) :].strip()
@@ -188,13 +150,17 @@ class BaseUIExecCommands:
                     continue
 
                 async def job(q=question):
-                    await self._stream_btw_response(self._llm_task, q)
+                    # Through `self._base_ui` (not bare `self`):
+                    # `_stream_btw_response` is also a `BaseUI` delegator, and
+                    # subclasses (or test
+                    # doubles) override it there to stub the network call.
+                    await self._base_ui._stream_btw_response(self._base_ui._llm_task, q)
 
                 # Bypass the serializing message queue — run as an independent
                 # background task so it executes in parallel with the main LLM.
                 task = asyncio.create_task(job())
-                self._background_tasks.add(task)
-                task.add_done_callback(self._background_tasks.discard)
+                self._base_ui._background_tasks.add(task)
+                task.add_done_callback(self._base_ui._background_tasks.discard)
                 return True
         return False
 
@@ -207,8 +173,8 @@ class BaseUIExecCommands:
         """
         try:
             timestamp = datetime.now().strftime("%H:%M")
-            self.append_to_output(f"\n💭 {timestamp} >> {question.strip()}\n")
-            self.append_to_output(
+            self._base_ui.append_to_output(f"\n💭 {timestamp} >> {question.strip()}\n")
+            self._base_ui.append_to_output(
                 stylize_muted("  (side question — not saved to history)\n")
             )
 
@@ -219,7 +185,9 @@ class BaseUIExecCommands:
             from pydantic_ai import Agent
             from pydantic_ai.messages import ModelRequest, SystemPromptPart
 
-            raw_history = self._history_manager.load(self._conversation_session_name)
+            raw_history = self._base_ui._history_manager.load(
+                self._base_ui._conversation_session_name
+            )
             btw_history = []
             for msg in raw_history:
                 if isinstance(msg, ModelRequest):
@@ -232,44 +200,48 @@ class BaseUIExecCommands:
                     btw_history.append(msg)
 
             _sys_prompt = (
-                llm_task.get_system_prompt(self.ctx)
+                llm_task.get_system_prompt(self._base_ui.ctx)
                 + "\n\nAnswer the user's question concisely using this information when relevant."
             )
             # Use the UI's selected model if set (from /model command), otherwise fallback
-            model = self._model if self._model else llm_task.llm_config.model
+            model = (
+                self._base_ui._model
+                if self._base_ui._model
+                else llm_task.llm_config.model
+            )
             final_model = llm_task.llm_config.resolve_model(model)
             agent = Agent(
                 model=final_model,
                 system_prompt=_sys_prompt,
             )
 
-            self.append_to_output(f"\n🤖 {timestamp} >>\n")
+            self._base_ui.append_to_output(f"\n🤖 {timestamp} >>\n")
             result = await agent.run(question, message_history=btw_history)
             answer = result.output if hasattr(result, "output") else str(result)
 
-            self.append_to_output("\n")
-            self.append_markdown(answer)
+            self._base_ui.append_to_output("\n")
+            self._base_ui.append_markdown(answer)
 
         except asyncio.CancelledError:
-            self.append_to_output("\n[Cancelled]\n")
+            self._base_ui.append_to_output("\n[Cancelled]\n")
             raise
         except Exception as e:
-            self.append_to_output(f"\n[Error: {e}]\n")
+            self._base_ui.append_to_output(f"\n[Error: {e}]\n")
         finally:
-            self.invalidate_ui()
+            self._base_ui.invalidate_ui()
 
     # --- custom commands --------------------------------------------------
 
     def _handle_custom_command(self, text: str) -> bool:
-        if self._is_thinking:
+        if self._base_ui._is_thinking:
             return False
 
         text = text.strip()
         if not text:
             return False
 
-        prompt = resolve_custom_command(text, self._custom_commands)
+        prompt = resolve_custom_command(text, self._base_ui._custom_commands)
         if prompt is not None:
-            self._submit_user_message(self._llm_task, prompt)
+            self._base_ui._submit_user_message(self._base_ui._llm_task, prompt)
             return True
         return False

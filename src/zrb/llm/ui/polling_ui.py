@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from zrb.llm.task.llm_task import LLMTask
 
 
-class PollingUI(QueueBasedInput, SimpleUI):
+class PollingUI(SimpleUI):
     """UI for polling-based backends (HTTP API, WebSocket).
 
     This class provides output/input queues that external systems can use:
@@ -62,6 +62,7 @@ class PollingUI(QueueBasedInput, SimpleUI):
         self.output_queue: asyncio.Queue[str] = asyncio.Queue()
         self._input_queue: asyncio.Queue[str] = asyncio.Queue()
         self._waiting_for_input = False
+        self._input_handling = QueueBasedInput(self)
 
     async def print(self, text: str, kind: str = "text") -> None:
         """Queue output for external polling.
@@ -70,3 +71,13 @@ class PollingUI(QueueBasedInput, SimpleUI):
         internally just puts to a queue (non-blocking).
         """
         self.output_queue.put_nowait(text)
+
+    @property
+    def input_queue(self) -> "asyncio.Queue[str]":
+        return self._input_handling.input_queue
+
+    async def get_input(self, prompt: str) -> str:
+        return await self._input_handling.get_input(prompt)
+
+    def handle_incoming_message(self, text: str) -> None:
+        self._input_handling.handle_incoming_message(text)

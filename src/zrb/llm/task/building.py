@@ -8,19 +8,18 @@ prompt, and selecting the model). This keeps `llm_task.py` focused on the
 `_exec_action_inner`, `_create_agent`, `_handle_summarization`) — the methods
 that own the `run_agent` / `create_agent` / `summarize_history` call sites.
 
-State assumed to exist on the host class (set in `LLMTask.__init__`):
-- `_prompt_manager`, `_uis`, `_hook_manager`, `_llm_config`
-- `_tools`, `_tool_factories`, `_toolsets`, `_toolset_factories`
-- `_history_processors`, `_tool_confirmation`, `_approval_channel`
-- `_history_manager`, `_permissions`, `_sandbox`, `_custom_model_names`
-- `_model`, `_render_model`, `_model_settings`
+Composed into `LLMTask` as `self._building` rather than inherited: keeps
+`LLMTask` in `self._llm_task` and reads/writes its state through that
+reference (not a value cached here at construction time), since almost every
+attribute here has a public setter (`task.tools = ...`,
+`task.history_manager = ...`, ...) that must be visible immediately from
+this collaborator and from `LLMTask` itself alike.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Callable
 
-from zrb.attr.type import BoolAttr
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
 from zrb.llm.prompt.manager import PromptManager
@@ -39,49 +38,23 @@ if TYPE_CHECKING:
     from pydantic_ai.tools import ToolFuncEither
     from pydantic_ai.toolsets import AbstractToolset
 
-    from zrb.attr.type import StrListAttr
+    from zrb.attr.type import BoolAttr, StrListAttr
     from zrb.context.any_context import AnyContext
     from zrb.llm.agent import AnyToolConfirmation
     from zrb.llm.agent.common import HistoryProcessor
     from zrb.llm.approval.approval_channel import ApprovalChannel
-    from zrb.llm.config.config import LLMConfig
     from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
     from zrb.llm.permission import PermissionPolicyInput
     from zrb.llm.sandbox import SandboxInput
+    from zrb.llm.task.llm_task import LLMTask
     from zrb.llm.tool_call.ui_protocol import UIProtocol
 
 
 class LLMTaskBuilding:
     """Post-construction configuration + agent/prompt assembly for LLMTask."""
 
-    if TYPE_CHECKING:
-        # Attributes supplied by the host class (BaseTask, or set in
-        # LLMTask.__init__).
-        # `name` is a property on BaseTask; declaring it as a variable here
-        # would trip reportIncompatibleVariableOverride on the composed class.
-        @property
-        def name(self) -> str: ...
-
-        _prompt_manager: PromptManager | None
-        _uis: list[UIProtocol]
-        _hook_manager: HookManager
-        _llm_config: LLMConfig
-        _tools: list[Tool | ToolFuncEither]
-        _tool_factories: list[
-            Callable[[AnyContext], Tool | ToolFuncEither | list[Tool | ToolFuncEither]]
-        ]
-        _toolsets: list[AbstractToolset[None]]
-        _toolset_factories: list[Callable[[AnyContext], AbstractToolset[None]]]
-        _history_processors: list[HistoryProcessor]
-        _tool_confirmation: AnyToolConfirmation
-        _approval_channel: ApprovalChannel | None
-        _history_manager: AnyHistoryManager | None
-        _permissions: PermissionPolicyInput
-        _sandbox: SandboxInput | BoolAttr
-        _custom_model_names: StrListAttr | None
-        _model: Any
-        _render_model: bool
-        _model_settings: Any
+    def __init__(self, llm_task: "LLMTask") -> None:
+        self._llm_task = llm_task
 
     @property
     def prompt_manager(self) -> PromptManager:
@@ -90,9 +63,9 @@ class LLMTaskBuilding:
         Raises:
             ValueError: If the task was built without one.
         """
-        if self._prompt_manager is None:
-            raise ValueError(f"Task {self.name} doesn't have prompt_manager")
-        return self._prompt_manager
+        if self._llm_task._prompt_manager is None:
+            raise ValueError(f"Task {self._llm_task.name} doesn't have prompt_manager")
+        return self._llm_task._prompt_manager
 
     @prompt_manager.setter
     def prompt_manager(self, value: PromptManager) -> None:
@@ -104,12 +77,12 @@ class LLMTaskBuilding:
         (Item 4, Phase D), mirroring the fresh `LLMChatTask` the web resume
         path builds via `SubAgentManager.create_llm_chat_task`.
         """
-        self._prompt_manager = value
+        self._llm_task._prompt_manager = value
 
     @property
     def tools(self) -> list["Tool | ToolFuncEither"]:
         """Tools this task's agent may call (excluding factory-resolved ones)."""
-        return self._tools
+        return self._llm_task._tools
 
     @tools.setter
     def tools(self, value: list["Tool | ToolFuncEither"]) -> None:
@@ -119,21 +92,21 @@ class LLMTaskBuilding:
         needs, so the previous persona's tools don't linger alongside the new
         one's.
         """
-        self._tools = value
+        self._llm_task._tools = value
 
     @property
     def toolsets(self) -> list["AbstractToolset[None]"]:
         """Pydantic-ai toolsets this task's agent may call."""
-        return self._toolsets
+        return self._llm_task._toolsets
 
     @toolsets.setter
     def toolsets(self, value: list["AbstractToolset[None]"]) -> None:
         """Replace the toolset list wholesale (see `tools` setter)."""
-        self._toolsets = value
+        self._llm_task._toolsets = value
 
     def set_ui(self, ui: UIProtocol | None):
         """Replace every attached UI with `ui`, or detach all when None."""
-        self._uis = [] if ui is None else [ui]
+        self._llm_task._uis = [] if ui is None else [ui]
 
     def append_ui(self, ui: UIProtocol) -> None:
         """Attach one more UI, keeping those already attached.
@@ -141,21 +114,21 @@ class LLMTaskBuilding:
         Every attached UI receives the same stream of events, which is how
         output is mirrored to a terminal and a web client at once.
         """
-        self._uis.append(ui)
+        self._llm_task._uis.append(ui)
 
     def get_uis(self) -> list[UIProtocol]:
         """Return a copy of every currently attached UI."""
-        return list(self._uis)
+        return list(self._llm_task._uis)
 
     @property
     def tool_confirmation(self) -> AnyToolConfirmation:
         """Policy deciding which tool calls need the user to approve them."""
-        return self._tool_confirmation
+        return self._llm_task._tool_confirmation
 
     @tool_confirmation.setter
     def tool_confirmation(self, value: AnyToolConfirmation):
         """Replace the tool-confirmation policy."""
-        self._tool_confirmation = value
+        self._llm_task._tool_confirmation = value
 
     @property
     def approval_channel(self) -> ApprovalChannel | None:
@@ -164,12 +137,12 @@ class LLMTaskBuilding:
         None when the task runs unattended, in which case a tool call needing
         approval is denied rather than blocking.
         """
-        return self._approval_channel
+        return self._llm_task._approval_channel
 
     @approval_channel.setter
     def approval_channel(self, value: ApprovalChannel | None):
         """Replace the approval channel."""
-        self._approval_channel = value
+        self._llm_task._approval_channel = value
 
     @property
     def history_manager(self) -> AnyHistoryManager | None:
@@ -177,22 +150,22 @@ class LLMTaskBuilding:
 
         None keeps the conversation in memory only.
         """
-        return self._history_manager
+        return self._llm_task._history_manager
 
     @history_manager.setter
     def history_manager(self, value: AnyHistoryManager | None):
         """Replace the history manager."""
-        self._history_manager = value
+        self._llm_task._history_manager = value
 
     @property
     def permissions(self) -> PermissionPolicyInput:
         """Policy bounding which files and commands the agent's tools may touch."""
-        return self._permissions
+        return self._llm_task._permissions
 
     @permissions.setter
     def permissions(self, value: PermissionPolicyInput):
         """Replace the permission policy."""
-        self._permissions = value
+        self._llm_task._permissions = value
 
     @property
     def sandbox(self) -> SandboxInput | BoolAttr:
@@ -201,12 +174,12 @@ class LLMTaskBuilding:
         A bool or template toggles the default sandbox; a `SandboxInput`
         configures it.
         """
-        return self._sandbox
+        return self._llm_task._sandbox
 
     @sandbox.setter
     def sandbox(self, value: SandboxInput | BoolAttr):
         """Replace the sandbox configuration."""
-        self._sandbox = value
+        self._llm_task._sandbox = value
 
     def append_hook_factory(self, *factory: Callable[[HookManager], None]):
         """Register one or more hook factories on this task's hook manager.
@@ -222,24 +195,24 @@ class LLMTaskBuilding:
         """
         for f in factory:
             self._ensure_task_local_hook_manager()
-            f(self._hook_manager)
+            f(self._llm_task._hook_manager)
 
     def _ensure_task_local_hook_manager(self) -> None:
         # Swap the shared global default for a fresh per-task manager on first
         # registration, so task-level hooks stay isolated. A manager passed
         # explicitly at construction is left untouched.
-        if self._hook_manager is default_hook_manager:
-            self._hook_manager = HookManager()
+        if self._llm_task._hook_manager is default_hook_manager:
+            self._llm_task._hook_manager = HookManager()
 
     @property
     def custom_model_names(self) -> StrListAttr | None:
         """Extra model names offered by the model picker, beyond the detected ones."""
-        return self._custom_model_names
+        return self._llm_task._custom_model_names
 
     @custom_model_names.setter
     def custom_model_names(self, value: StrListAttr | None):
         """Replace the custom model-name list."""
-        self._custom_model_names = value
+        self._llm_task._custom_model_names = value
 
     def append_toolset(self, *toolset: AbstractToolset):
         """Add pydantic-ai toolsets whose tools the agent may call.
@@ -247,7 +220,7 @@ class LLMTaskBuilding:
         Use a toolset to attach a group of related tools at once, such as an
         MCP server's. For a single function, `append_tool` is simpler.
         """
-        self._toolsets += list(toolset)
+        self._llm_task._toolsets += list(toolset)
 
     def append_toolset_factory(
         self, *factory: Callable[[AnyContext], AbstractToolset[None]]
@@ -257,7 +230,7 @@ class LLMTaskBuilding:
         Prefer this over `append_toolset` when the toolset depends on inputs or
         env vars: a factory is called at run time, so it sees resolved values.
         """
-        self._toolset_factories += list(factory)
+        self._llm_task._toolset_factories += list(factory)
 
     def append_tool(self, *tool: Tool | ToolFuncEither):
         """Add tools the agent may call.
@@ -266,7 +239,7 @@ class LLMTaskBuilding:
         name, type hints, and docstring become the tool schema the model sees,
         so both are worth writing carefully.
         """
-        self._tools += list(tool)
+        self._llm_task._tools += list(tool)
 
     def append_tool_factory(
         self,
@@ -277,7 +250,7 @@ class LLMTaskBuilding:
         Prefer this over `append_tool` when the tool needs to close over
         resolved inputs or env vars, which exist only once the task runs.
         """
-        self._tool_factories += list(factory)
+        self._llm_task._tool_factories += list(factory)
 
     def append_history_processor(self, *processor: HistoryProcessor):
         """Add processors that rewrite conversation history before each request.
@@ -286,22 +259,26 @@ class LLMTaskBuilding:
         output. This is the seam summarization and trimming use to keep a long
         conversation inside the context window.
         """
-        self._history_processors += list(processor)
+        self._llm_task._history_processors += list(processor)
 
     def get_all_tools(self, ctx: AnyContext) -> list[Tool | ToolFuncEither]:
         """Get all tools including those resolved from factories."""
-        return resolve_all_tools(ctx, self._tools, self._tool_factories)
+        return resolve_all_tools(
+            ctx, self._llm_task._tools, self._llm_task._tool_factories
+        )
 
     def get_all_toolsets(self, ctx: AnyContext) -> list[AbstractToolset[None]]:
         """Get all toolsets including those resolved from factories."""
-        return resolve_all_toolsets(ctx, self._toolsets, self._toolset_factories)
+        return resolve_all_toolsets(
+            ctx, self._llm_task._toolsets, self._llm_task._toolset_factories
+        )
 
     def get_system_prompt(self, ctx: AnyContext) -> str:
         """Compose the full system prompt for this run.
 
         Returns the empty string when the task has no prompt manager.
         """
-        return resolve_system_prompt(ctx, self._prompt_manager)
+        return resolve_system_prompt(ctx, self._llm_task._prompt_manager)
 
     def get_live_context(
         self, ctx: AnyContext, inject_journal_index: bool = False
@@ -312,9 +289,9 @@ class LLMTaskBuilding:
         ``inject_journal_index`` appends the journal index snapshot. Callers set
         it only when the index is absent from history, so it is paid once per
         context window and re-seeded after summarization drops it."""
-        if self._prompt_manager is None:
+        if self._llm_task._prompt_manager is None:
             return ""
-        return self._prompt_manager.create_live_context(
+        return self._llm_task._prompt_manager.create_live_context(
             ctx, inject_journal_index=inject_journal_index
         )
 
@@ -323,19 +300,19 @@ class LLMTaskBuilding:
     ) -> str:
         """``get_live_context`` for async callers: git collection runs off-loop
         so the per-turn render cannot freeze the TUI's event loop."""
-        if self._prompt_manager is None:
+        if self._llm_task._prompt_manager is None:
             return ""
-        return await self._prompt_manager.create_live_context_async(
+        return await self._llm_task._prompt_manager.create_live_context_async(
             ctx, inject_journal_index=inject_journal_index
         )
 
     def get_model_settings(self, ctx: AnyContext) -> ModelSettings | None:
         """The task's model settings, falling back to the LLM config's."""
-        model_settings = self._model_settings
+        model_settings = self._llm_task._model_settings
         rendered_model_settings = get_attr(ctx, model_settings, None)
         if rendered_model_settings is not None:
             return rendered_model_settings
-        return self._llm_config.model_settings
+        return self._llm_task._llm_config.model_settings
 
     def get_model(self, ctx: AnyContext) -> str | Model:
         """The task's model, rendered against *ctx*, falling back to the config's.
@@ -343,4 +320,9 @@ class LLMTaskBuilding:
         A blank render counts as unset, so an empty ``--model`` input does not
         shadow the configured model with an empty string.
         """
-        return resolve_model(ctx, self._model, self._render_model, self._llm_config)
+        return resolve_model(
+            ctx,
+            self._llm_task._model,
+            self._llm_task._render_model,
+            self._llm_task._llm_config,
+        )

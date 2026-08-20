@@ -8,7 +8,8 @@ route typed messages to it. While viewing, Left Arrow returns to the main
 session (navigation — it never touches the sub-agent's work); Esc cancels what
 the sub-agent is doing, mirroring how Esc behaves on the main agent.
 
-State lives in two places on the composed `UI`:
+State lives in two places on this part (reached via `self._ui` from the
+composed `UI` when a sibling needs it):
 
 * `_picker_sessions` / `_picker_cursor` / `_agent_picker_window` — the picker
   widget itself (a focusable `Window` shown as a `Float`, same approach as
@@ -32,36 +33,26 @@ if TYPE_CHECKING:
     from prompt_toolkit.formatted_text import StyleAndTextTuples
 
     from zrb.llm.agent.subagent.live_session import LiveSubAgentSession
+    from zrb.llm.ui.default.ui import UI
 
 
 class UIAgentPicker:
     """Sub-agent picker + live-view state (part of the default `UI`)."""
 
-    # Host-class contract: state owned by `BaseUI.__init__` and the default
-    # `UI.__init__` (prompt-toolkit widgets), plus methods from sibling parts.
-    # Declared here so static type checkers can verify accesses; the block
-    # does not run at runtime.
-    if TYPE_CHECKING:
-        # From BaseUI / default `UI`
-        _input_field: Any
-        _conversation_session_name: str
-
-        # From UIConfirmation — read to flag, in the picker, which agent(s)
-        # have an unanswered approval request (see `_agent_needs_approval`).
-        _confirmation_queue: list[tuple[Any, str, Any, "str | None"]]
-
-        # From UIOutput
-        @property
-        def output_text(self) -> str: ...
-
-        def _set_output_text(self, text: str) -> None: ...
-
-    def _init_agent_picker_state(self) -> None:
-        """Initialize the picker widget and the live-view state (hidden)."""
+    def __init__(self, ui: "UI") -> None:
+        self._ui = ui
         self._viewing_agent_id: str | None = None
         self._saved_main_output: str | None = None
         self._picker_sessions: list = []
         self._picker_cursor: int = 0
+        self._agent_picker_window: Any = None
+
+    def _init_agent_picker_state(self) -> None:
+        """Initialize the picker widget and the live-view state (hidden)."""
+        self._viewing_agent_id = None
+        self._saved_main_output = None
+        self._picker_sessions = []
+        self._picker_cursor = 0
         self._agent_picker_window = self._create_agent_picker_window()
 
     def has_active_agent_picker(self) -> bool:
@@ -91,7 +82,7 @@ class UIAgentPicker:
         )
 
         sessions = live_subagent_session_registry.active(
-            self._conversation_session_name
+            self._ui._conversation_session_name
         )
         if not sessions:
             return False
@@ -118,7 +109,7 @@ class UIAgentPicker:
             # lazy: heavy third-party
             from prompt_toolkit.application import get_app
 
-            get_app().layout.focus(self._input_field)
+            get_app().layout.focus(self._ui._input_field)
         except Exception as e:
             # Layout not ready — focus on next paint.
             CFG.LOGGER.debug(f"Input-field focus failed: {e}")
@@ -153,7 +144,7 @@ class UIAgentPicker:
         """
         if self._viewing_agent_id == session.agent_id:
             return
-        self._saved_main_output = self.output_text
+        self._saved_main_output = self._ui.output_text
         self._viewing_agent_id = session.agent_id
         self._show_viewed_agent_output(session.buffered_ui.get_buffered_output())
 
@@ -163,7 +154,7 @@ class UIAgentPicker:
             return
         self._viewing_agent_id = None
         if self._saved_main_output is not None:
-            self._set_output_text(self._saved_main_output)
+            self._ui._set_output_text(self._saved_main_output)
             self._saved_main_output = None
         self._invalidate()
 
@@ -184,7 +175,7 @@ class UIAgentPicker:
             live_subagent_session_registry,
         )
 
-        session_id = self._conversation_session_name
+        session_id = self._ui._conversation_session_name
         agent_id = self._viewing_agent_id
         if not live_subagent_session_registry.cancel(session_id, agent_id):
             return False
@@ -211,7 +202,7 @@ class UIAgentPicker:
         )
 
         session = live_subagent_session_registry.get(
-            self._conversation_session_name, self._viewing_agent_id
+            self._ui._conversation_session_name, self._viewing_agent_id
         )
         if session is None:
             # The session was torn down while we were viewing it — return to main.
@@ -220,9 +211,9 @@ class UIAgentPicker:
         self._show_viewed_agent_output(session.buffered_ui.get_buffered_output())
 
     def _show_viewed_agent_output(self, content: str) -> None:
-        if content == self.output_text:
+        if content == self._ui.output_text:
             return
-        self._set_output_text(content)
+        self._ui._set_output_text(content)
 
     # --- widget construction --------------------------------------------
 
@@ -278,7 +269,7 @@ class UIAgentPicker:
         if not self._picker_sessions:
             return []
         activity = agent_activity_registry.active(
-            session_id=self._conversation_session_name
+            session_id=self._ui._conversation_session_name
         )
         by_id = {entry.agent_id: entry for entry in activity}
         frags: StyleAndTextTuples = [
@@ -331,7 +322,7 @@ class UIAgentPicker:
         no way to tell them apart and may confirm-answer the wrong one (its
         request just gets queued behind whichever is current).
         """
-        queue = getattr(self, "_confirmation_queue", [])
+        queue = getattr(self._ui, "_confirmation_queue", [])
         return any(
             entry_agent_id == agent_id and not future.done()
             for future, _, _, entry_agent_id in queue

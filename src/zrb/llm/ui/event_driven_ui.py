@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from zrb.llm.task.llm_task import LLMTask
 
 
-class EventDrivenUI(QueueBasedInput, SimpleUI):
+class EventDrivenUI(SimpleUI):
     """UI for event-driven backends (Telegram, Discord, WhatsApp).
 
     This class handles the queue + waiting pattern that's common in
@@ -66,6 +66,17 @@ class EventDrivenUI(QueueBasedInput, SimpleUI):
         )
         self._input_queue: asyncio.Queue[str] = asyncio.Queue()
         self._waiting_for_input = False
+        self._input_handling = QueueBasedInput(self)
+
+    @property
+    def input_queue(self) -> "asyncio.Queue[str]":
+        return self._input_handling.input_queue
+
+    async def get_input(self, prompt: str) -> str:
+        return await self._input_handling.get_input(prompt)
+
+    def handle_incoming_message(self, text: str) -> None:
+        self._input_handling.handle_incoming_message(text)
 
     @abstractmethod
     async def start_event_loop(self):

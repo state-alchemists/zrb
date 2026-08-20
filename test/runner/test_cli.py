@@ -1,6 +1,6 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from zrb import Group, IntInput, StrInput, Task
+from zrb import Group, IntInput, PasswordInput, StrInput, Task
 from zrb.config.config import CFG
 from zrb.runner.cli import Cli
 
@@ -251,6 +251,35 @@ def test_get_run_command_param_quotes_strings_with_spaces():
     # Plain values don't get quoted
     out3 = cli._get_run_command_param("flag", "true")
     assert out3 == "--flag true"
+
+
+def test_run_command_omits_secret_input(capsys):
+    cli = Cli()
+    cli.add_task(
+        Task(
+            name="login",
+            input=[
+                StrInput("username"),
+                PasswordInput("password"),
+            ],
+            action="ok",
+        )
+    )
+
+    cli.run(
+        str_args=[
+            "login",
+            "--username",
+            "alice",
+            "--password",
+            "super-secret",
+        ]
+    )
+
+    err = capsys.readouterr().err
+    assert "--username alice" in err
+    assert "--password" not in err
+    assert "super-secret" not in err
 
 
 def test_conversation_name_printed_at_end(capsys):
