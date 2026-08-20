@@ -65,6 +65,14 @@ class ChatSessionManager:
             cls._instance = cls()
         return cls._instance
 
+    @classmethod
+    def reset_instance(cls) -> None:
+        """Drop the singleton so the next `get_instance*()` builds a fresh one.
+
+        Test-only seam: production never resets the shared singleton mid-run.
+        """
+        cls._instance = None
+
     @property
     def task_lock(self) -> asyncio.Lock:
         """Lock serializing drives of the shared LLMChatTask (see __init__)."""
@@ -109,7 +117,7 @@ class ChatSessionManager:
     def _extract_base_name(self, session_name: str) -> str:
         return _timestamp_pattern.sub("", session_name)
 
-    def _scan_sessions(self) -> list[tuple[str, float, int]]:
+    def scan_sessions(self) -> list[tuple[str, float, int]]:
         """Group history files by base session name in one directory scan.
 
         Returns ``(base_name, newest_mtime, file_count)`` tuples, newest first.
@@ -154,7 +162,7 @@ class ChatSessionManager:
         """History + active sessions as display dicts, most recent first."""
         listing: list[dict[str, Any]] = []
         seen: set[str] = set()
-        for base_name, _mtime, file_count in self._scan_sessions():
+        for base_name, _mtime, file_count in self.scan_sessions():
             seen.add(base_name)
             is_active = base_name in self._sessions
             # Only ever classify a non-active (history-file-only) entry as a

@@ -263,6 +263,10 @@ class BaseTask(AnyTask):
             else 1
         )
 
+    @readiness_failure_threshold.setter
+    def readiness_failure_threshold(self, value: int) -> None:
+        self._readiness_failure_threshold = value
+
     @property
     def readiness_timeout(self) -> float:
         """Seconds a single readiness check may take before failing (default 60)."""

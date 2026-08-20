@@ -322,7 +322,7 @@ async def test_run_agent_feeds_final_result_to_event_handler():
     trailing `AgentRunResultEvent` -- that's `run_stream_events()`'s own
     synthesis, added by its consumer-facing iterator after the fact.
     `_execution_loop` must re-fire it manually so usage accounting
-    (`StreamEventHandler._handle_run_result`) keeps working."""
+    (`StreamEventHandler.handle_run_result`) keeps working."""
     agent = MagicMock()
     mock_result = MagicMock()
     mock_result.output = "done"
@@ -520,7 +520,7 @@ async def test_run_agent_deferred_requests():
 
     # Mock tool resolution - return proper DeferredToolResults object
     with patch(
-        "zrb.llm.agent.run.runner._process_deferred_requests", new_callable=AsyncMock
+        "zrb.llm.agent.run.runner.process_deferred_requests", new_callable=AsyncMock
     ) as mock_process:
         mock_deferred_results = MagicMock(spec=DeferredToolResults)
         mock_deferred_results.approvals = {}  # Empty approvals (all tools approved)
@@ -546,7 +546,7 @@ async def test_run_agent_deferred_never_reapplies_processors(calls, approvals):
     (ADR-0040 Fix B), regardless of what current_results looks like.
 
     This used to be a conditional guard (skip only when current_results had
-    pending calls/approvals), but _process_deferred_requests always populates
+    pending calls/approvals), but process_deferred_requests always populates
     current_results.approvals for every resolved call (approved, denied, or
     hook-blocked alike), so the guard's condition was always true in
     practice -- the dead reapplication branch and the now-always-true guard
@@ -585,7 +585,7 @@ async def test_run_agent_deferred_never_reapplies_processors(calls, approvals):
     agent.run = _run_from(_gen)
 
     with patch(
-        "zrb.llm.agent.run.runner._process_deferred_requests",
+        "zrb.llm.agent.run.runner.process_deferred_requests",
         new_callable=AsyncMock,
     ) as mock_process:
         mock_deferred_results = MagicMock(spec=DeferredToolResults)

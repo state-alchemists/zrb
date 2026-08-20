@@ -144,7 +144,7 @@ async def test_lsp_server_queries(lsp_server):
         # textDocument/publishDiagnostics. The server cache reads from there;
         # the pull-diagnostics request is now only a fallback when no push
         # arrived within wait_for_publish.
-        diag_uri = lsp_server._path_to_uri("/test/file.py")
+        diag_uri = lsp_server.path_to_uri("/test/file.py")
         diag_notif = json.dumps(
             {
                 "jsonrpc": "2.0",
@@ -206,7 +206,7 @@ async def test_read_loop_handles_nonascii_split_across_reads(lsp_server):
 
         # Feed the symbol response split mid-em-dash, then mark it open so the
         # query skips _ensure_open's sync.
-        lsp_server._open_files.add(lsp_server._path_to_uri("/test/file.py"))
+        lsp_server.open_files.add(lsp_server.path_to_uri("/test/file.py"))
         chunks.put_nowait(chunk1)
         chunks.put_nowait(chunk2)
 
@@ -226,7 +226,7 @@ async def test_query_opens_document_first(lsp_server, tmp_path):
     lsp_server.writer = MagicMock()
     # Pre-seed the diagnostics cache so the first-open readiness wait returns at
     # once instead of polling for the full timeout.
-    lsp_server._diagnostics[lsp_server._path_to_uri(str(target))] = (None, [])
+    lsp_server.diagnostics[lsp_server.path_to_uri(str(target))] = (None, [])
     sent: list = []
 
     async def fake_notify(message):
@@ -242,7 +242,7 @@ async def test_query_opens_document_first(lsp_server, tmp_path):
     assert "textDocument/didOpen" in methods
 
 
-def test_path_to_uri_encodes_special_characters(lsp_server):
+def testpath_to_uri_encodes_special_characters(lsp_server):
     """B26: path_to_uri must quote #/?/%/non-ASCII, matching protocol encoder."""
     from zrb.llm.lsp.protocol import LSPProtocol
     from zrb.llm.lsp.symbol_utils import uri_to_path
@@ -254,7 +254,7 @@ def test_path_to_uri_encodes_special_characters(lsp_server):
         "/tmp/h%i.py",
         "/tmp/ünî.py",
     ]:
-        uri = lsp_server._path_to_uri(path)
+        uri = lsp_server.path_to_uri(path)
         expected = LSPProtocol.create_text_document_identifier(path)["uri"]
         assert uri == expected
         # Round-trips back to the original absolute path via the shared
@@ -272,7 +272,7 @@ async def test_rename_applies_workspace_edit_to_disk(lsp_server, tmp_path):
 
     workspace_edit = {
         "changes": {
-            lsp_server._path_to_uri(str(target)): [
+            lsp_server.path_to_uri(str(target)): [
                 {
                     "range": {
                         "start": {"line": 0, "character": 4},
@@ -310,7 +310,7 @@ async def test_rename_dry_run_does_not_write(lsp_server, tmp_path):
 
     workspace_edit = {
         "changes": {
-            lsp_server._path_to_uri(str(target)): [
+            lsp_server.path_to_uri(str(target)): [
                 {
                     "range": {
                         "start": {"line": 0, "character": 4},

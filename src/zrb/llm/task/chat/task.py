@@ -816,13 +816,13 @@ class LLMChatTask(BaseTask):
     async def _exec_action(self, ctx: AnyContext) -> Any:
         return await self._execution._exec_action(ctx)
 
-    async def _teardown_interactive_resources(self) -> None:
+    async def teardown_interactive_resources(self) -> None:
         """Release process-global resources when an interactive chat ends."""
-        await self._execution._teardown_interactive_resources()
+        await self._execution.teardown_interactive_resources()
 
-    async def _teardown_background_hooks(self) -> None:
+    async def teardown_background_hooks(self) -> None:
         """Settle this run's detached (``async: true``) hooks."""
-        await self._execution._teardown_background_hooks()
+        await self._execution.teardown_background_hooks()
 
     def get_all_tools(self, ctx: AnyContext) -> "list[Tool | ToolFuncEither]":
         """Get all tools including those resolved from factories using parent context."""

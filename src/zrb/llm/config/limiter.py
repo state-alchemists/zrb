@@ -28,8 +28,8 @@ class LLMLimiter:
 
     def __init__(self):
         # Sliding window logs
-        self._request_log: deque[float] = deque()
-        self._token_log: deque[tuple[float, int]] = deque()
+        self.request_log: deque[float] = deque()
+        self.token_log: deque[tuple[float, int]] = deque()
 
         # Internal overrides
         self._max_request_per_minute: int | None = None
@@ -141,21 +141,21 @@ class LLMLimiter:
         n = len(history)
 
         # Precompute per-message costs in O(n) to avoid O(n²) re-counting in the
-        # pruning loop.  Must replicate _to_str's list-level semantics exactly:
+        # pruning loop.  Must replicate to_str's list-level semantics exactly:
         # bodies are counted per-message with skip_instructions=True, and only the
         # LAST instruction in the current window is counted once (historical
         # instructions are not replayed by pydantic-ai).  Counting each message
         # individually with skip_instructions=False would include every message's
         # instructions, wildly over-estimating the cost for long conversations.
         msg_body_tokens = [
-            self._count_tokens(self._to_str(msg, skip_instructions=True))
+            self._count_tokens(self.to_str(msg, skip_instructions=True))
             for msg in history
         ]
         msg_instr_tokens = []
         for msg in history:
             instr = getattr(msg, "instructions", None)
             msg_instr_tokens.append(
-                self._count_tokens(self._to_str(instr, skip_instructions=True))
+                self._count_tokens(self.to_str(instr, skip_instructions=True))
                 if instr
                 else 0
             )
@@ -217,13 +217,13 @@ class LLMLimiter:
         estimated_tokens = self._count_tokens(content)
 
         # 1. Prune logs older than 60 seconds
-        self._prune_logs()
+        self.prune_logs()
 
         # 2. Check limits loop
         notified = False
-        while not self._can_proceed(estimated_tokens):
-            wait_time = self._calculate_wait_time(estimated_tokens)
-            reason = self._get_limit_reason(estimated_tokens)
+        while not self.can_proceed(estimated_tokens):
+            wait_time = self.calculate_wait_time(estimated_tokens)
+            reason = self.get_limit_reason(estimated_tokens)
 
             if notifier:
                 msg = f"Rate Limit reached: {reason}. Waiting {wait_time:.1f}s..."
@@ -232,15 +232,15 @@ class LLMLimiter:
                 notified = True
 
             await asyncio.sleep(self.throttle_check_interval)
-            self._prune_logs()
+            self.prune_logs()
 
         if notified and notifier:
             notifier("\n")  # Clear status
 
         # 3. Record usage
         now = time.time()
-        self._request_log.append(now)
-        self._token_log.append((now, estimated_tokens))
+        self.request_log.append(now)
+        self.token_log.append((now, estimated_tokens))
 
     def count_tokens(self, content: Any) -> int:
         """Public alias for internal counter."""
@@ -269,10 +269,10 @@ class LLMLimiter:
             return text[:estimated_chars]
         return text
 
-    # --- Internal Helpers ---
+    # --- Helpers ---
 
     def _count_tokens(self, content: Any) -> int:
-        text = self._to_str(content)
+        text = self.to_str(content)
         if self.use_tiktoken:
             try:
                 # lazy: heavy third-party
@@ -289,7 +289,8 @@ class LLMLimiter:
         # Fallback approximation (char/4)
         return len(text) // 4
 
-    def _to_str(self, content: Any, skip_instructions: bool = False) -> str:
+    def to_str(self, content: Any, skip_instructions: bool = False) -> str:
+        """Flatten arbitrary message content into a string for token counting."""
         if isinstance(content, str):
             return content
         if isinstance(content, (int, float, bool)) or content is None:
@@ -297,9 +298,7 @@ class LLMLimiter:
 
         # Handle collections to avoid json.dumps/str() overhead on large objects
         if isinstance(content, list):
-            res = "".join(
-                self._to_str(item, skip_instructions=True) for item in content
-            )
+            res = "".join(self.to_str(item, skip_instructions=True) for item in content)
             # If counting a list of messages, only count the latest instructions.
             # This aligns with Pydantic AI's behavior where only the current instructions
             # are sent to the model, and historical instructions are not replayed.
@@ -308,7 +307,7 @@ class LLMLimiter:
                     if hasattr(item, "instructions"):
                         instr = getattr(item, "instructions", None)
                         if instr:
-                            res += self._to_str(instr, skip_instructions=True)
+                            res += self.to_str(instr, skip_instructions=True)
                             break
             return res
 
@@ -316,15 +315,15 @@ class LLMLimiter:
             # Join key-value pairs with spaces for better token counting
             items = []
             for k, v in content.items():
-                key_str = self._to_str(k, skip_instructions=skip_instructions)
-                val_str = self._to_str(v, skip_instructions=skip_instructions)
+                key_str = self.to_str(k, skip_instructions=skip_instructions)
+                val_str = self.to_str(v, skip_instructions=skip_instructions)
                 items.append(f"{key_str}: {val_str}")
             return " ".join(items)
 
         res = ""
         # 1. Handle parts (ModelRequest, ModelResponse)
         if hasattr(content, "parts"):
-            res += self._to_str(
+            res += self.to_str(
                 getattr(content, "parts", []), skip_instructions=skip_instructions
             )
 
@@ -333,17 +332,17 @@ class LLMLimiter:
         if not skip_instructions and hasattr(content, "instructions"):
             instr = getattr(content, "instructions", None)
             if instr:
-                res += self._to_str(instr, skip_instructions=True)
+                res += self.to_str(instr, skip_instructions=True)
 
         # 3. content (UserPromptPart, TextPart, ToolReturnPart, SystemPromptPart, etc.)
         if hasattr(content, "content"):
-            res += self._to_str(
+            res += self.to_str(
                 getattr(content, "content", None), skip_instructions=skip_instructions
             )
 
         # 4. args (ToolCallPart)
         if hasattr(content, "args"):
-            res += self._to_str(
+            res += self.to_str(
                 getattr(content, "args", {}), skip_instructions=skip_instructions
             )
 
@@ -356,49 +355,53 @@ class LLMLimiter:
         except Exception:
             return ""
 
-    def _prune_logs(self):
+    def prune_logs(self):
+        """Drop request/token log entries older than the 60s rate window."""
         now = time.time()
         window_start = now - 60
 
-        while self._request_log and self._request_log[0] < window_start:
-            self._request_log.popleft()
+        while self.request_log and self.request_log[0] < window_start:
+            self.request_log.popleft()
 
-        while self._token_log and self._token_log[0][0] < window_start:
-            self._token_log.popleft()
+        while self.token_log and self.token_log[0][0] < window_start:
+            self.token_log.popleft()
 
-    def _can_proceed(self, tokens: int) -> bool:
+    def can_proceed(self, tokens: int) -> bool:
+        """Whether a request needing `tokens` fits under the current rate limits."""
         # A limit of 0 blocks everything: a request budget of 0 never admits
         # any request, and a token budget of 0 rejects any positive token ask.
-        requests_ok = len(self._request_log) < self.max_request_per_minute
+        requests_ok = len(self.request_log) < self.max_request_per_minute
 
-        current_tokens = sum(t for _, t in self._token_log)
+        current_tokens = sum(t for _, t in self.token_log)
         tokens_ok = (current_tokens + tokens) <= self.max_token_per_minute
 
         return requests_ok and tokens_ok
 
-    def _get_limit_reason(self, tokens: int) -> str:
-        if len(self._request_log) >= self.max_request_per_minute:
+    def get_limit_reason(self, tokens: int) -> str:
+        """Which limit (requests or tokens) is currently blocking progress."""
+        if len(self.request_log) >= self.max_request_per_minute:
             return f"Max Requests ({self.max_request_per_minute}/min)"
         return f"Max Tokens ({self.max_token_per_minute}/min)"
 
-    def _calculate_wait_time(self, tokens: int) -> float:
+    def calculate_wait_time(self, tokens: int) -> float:
+        """Seconds to wait before a request needing `tokens` would be allowed."""
         now = time.time()
         wait = 1.0
 
         # If request limit hit, wait until oldest request expires. With a
         # request budget of 0 the log can be empty while still over-limit, so
         # only read the oldest entry when one exists.
-        if len(self._request_log) >= self.max_request_per_minute:
-            if self._request_log:
-                oldest = self._request_log[0]
+        if len(self.request_log) >= self.max_request_per_minute:
+            if self.request_log:
+                oldest = self.request_log[0]
                 wait = max(0.1, 60 - (now - oldest))
 
         # If token limit hit, wait until enough tokens expire
-        current_tokens = sum(t for _, t in self._token_log)
+        current_tokens = sum(t for _, t in self.token_log)
         if current_tokens + tokens > self.max_token_per_minute:
             needed = (current_tokens + tokens) - self.max_token_per_minute
             freed = 0
-            for ts, count in self._token_log:
+            for ts, count in self.token_log:
                 freed += count
                 if freed >= needed:
                     wait = max(wait, 60 - (now - ts))

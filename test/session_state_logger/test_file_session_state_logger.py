@@ -20,7 +20,7 @@ class TestFileSessionStateLogger:
         )
 
         logger = FileSessionStateLogger("/tmp/test_logs")
-        assert logger._session_log_dir_param == "/tmp/test_logs"
+        assert logger.session_log_dir_param == "/tmp/test_logs"
 
     def test_init_with_callable_path(self):
         """Test initialization with callable path."""
@@ -32,8 +32,8 @@ class TestFileSessionStateLogger:
             return "/dynamic/path"
 
         logger = FileSessionStateLogger(get_path)
-        assert callable(logger._session_log_dir_param)
-        assert logger._get_session_log_dir() == "/dynamic/path"
+        assert callable(logger.session_log_dir_param)
+        assert logger.get_session_log_dir() == "/dynamic/path"
 
     def test_write_creates_file(self, tmp_path):
         """Test that write creates a session file."""
@@ -123,29 +123,29 @@ class TestFileSessionStateLogger:
             assert result.data == []
 
     def test_get_session_file_path(self, tmp_path):
-        """Test _get_session_file_path."""
+        """Test get_session_file_path."""
         from zrb.session_state_logger.file_session_state_logger import (
             FileSessionStateLogger,
         )
 
         logger = FileSessionStateLogger(str(tmp_path))
 
-        path = logger._get_session_file_path("my_session")
+        path = logger.get_session_file_path("my_session")
         assert "my_session.json" in path
 
     def test_get_session_log_dir_as_string(self, tmp_path):
-        """Test _get_session_log_dir with string."""
+        """Test get_session_log_dir with string."""
         from zrb.session_state_logger.file_session_state_logger import (
             FileSessionStateLogger,
         )
 
         logger = FileSessionStateLogger(str(tmp_path))
 
-        result = logger._get_session_log_dir()
+        result = logger.get_session_log_dir()
         assert result == str(tmp_path)
 
     def test_get_session_log_dir_as_callable(self):
-        """Test _get_session_log_dir with callable."""
+        """Test get_session_log_dir with callable."""
         from zrb.session_state_logger.file_session_state_logger import (
             FileSessionStateLogger,
         )
@@ -155,7 +155,7 @@ class TestFileSessionStateLogger:
 
         logger = FileSessionStateLogger(dynamic_path)
 
-        result = logger._get_session_log_dir()
+        result = logger.get_session_log_dir()
         assert result == "/custom/path"
 
 

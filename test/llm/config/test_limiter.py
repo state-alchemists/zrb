@@ -303,124 +303,124 @@ class TestLLMLimiterRateLimiting:
     """Test rate limiting behavior through public API."""
 
     def test_can_proceed_empty_logs(self):
-        """Test _can_proceed returns True when logs are empty."""
+        """Test can_proceed returns True when logs are empty."""
         limiter = LLMLimiter()
         # Empty logs means we can proceed
-        result = limiter._can_proceed(100)
+        result = limiter.can_proceed(100)
         assert result is True
 
     def test_can_proceed_under_limits(self):
-        """Test _can_proceed returns True when under limits."""
+        """Test can_proceed returns True when under limits."""
         limiter = LLMLimiter()
         limiter.max_request_per_minute = 10
         limiter.max_token_per_minute = 1000
 
         # Add some usage but stay under limit
-        limiter._request_log.append(time.time())
-        limiter._token_log.append((time.time(), 50))
+        limiter.request_log.append(time.time())
+        limiter.token_log.append((time.time(), 50))
 
-        result = limiter._can_proceed(100)
+        result = limiter.can_proceed(100)
         assert result is True
 
     def test_can_proceed_over_request_limit(self):
-        """Test _can_proceed returns False when request limit exceeded."""
+        """Test can_proceed returns False when request limit exceeded."""
         limiter = LLMLimiter()
         limiter.max_request_per_minute = 2
 
         # Fill up request log
-        limiter._request_log.append(time.time())
-        limiter._request_log.append(time.time())
+        limiter.request_log.append(time.time())
+        limiter.request_log.append(time.time())
 
-        result = limiter._can_proceed(10)
+        result = limiter.can_proceed(10)
         assert result is False
 
     def test_can_proceed_over_token_limit(self):
-        """Test _can_proceed returns False when token limit exceeded."""
+        """Test can_proceed returns False when token limit exceeded."""
         limiter = LLMLimiter()
         limiter.max_token_per_minute = 100
 
         # Fill up token log
-        limiter._token_log.append((time.time(), 99))
+        limiter.token_log.append((time.time(), 99))
 
-        result = limiter._can_proceed(10)
+        result = limiter.can_proceed(10)
         assert result is False
 
     def test_get_limit_reason_request_limit(self):
-        """Test _get_limit_reason returns request limit message."""
+        """Test get_limit_reason returns request limit message."""
         limiter = LLMLimiter()
         limiter.max_request_per_minute = 5
 
         # Fill request log
         for _ in range(5):
-            limiter._request_log.append(time.time())
+            limiter.request_log.append(time.time())
 
-        reason = limiter._get_limit_reason(10)
+        reason = limiter.get_limit_reason(10)
         assert "Max Requests" in reason
         assert "5/min" in reason
 
     def test_get_limit_reason_token_limit(self):
-        """Test _get_limit_reason returns token limit message."""
+        """Test get_limit_reason returns token limit message."""
         limiter = LLMLimiter()
         limiter.max_request_per_minute = 100
         limiter.max_token_per_minute = 50
 
-        reason = limiter._get_limit_reason(100)
+        reason = limiter.get_limit_reason(100)
         assert "Max Tokens" in reason
         assert "50/min" in reason
 
     def test_calculate_wait_time_request_limit(self):
-        """Test _calculate_wait_time for request limit."""
+        """Test calculate_wait_time for request limit."""
         limiter = LLMLimiter()
         limiter.max_request_per_minute = 2
 
         # Fill request log
-        limiter._request_log.append(time.time())
-        limiter._request_log.append(time.time())
+        limiter.request_log.append(time.time())
+        limiter.request_log.append(time.time())
 
-        wait = limiter._calculate_wait_time(10)
+        wait = limiter.calculate_wait_time(10)
         assert wait > 0
 
     def test_calculate_wait_time_token_limit(self):
-        """Test _calculate_wait_time for token limit."""
+        """Test calculate_wait_time for token limit."""
         limiter = LLMLimiter()
         limiter.max_token_per_minute = 50
 
         # Fill token log near limit
-        limiter._token_log.append((time.time(), 40))
+        limiter.token_log.append((time.time(), 40))
 
-        wait = limiter._calculate_wait_time(20)
+        wait = limiter.calculate_wait_time(20)
         assert wait > 0
 
     def test_prune_logs_removes_old_entries(self):
-        """Test _prune_logs removes entries older than 60 seconds."""
+        """Test prune_logs removes entries older than 60 seconds."""
         limiter = LLMLimiter()
 
         # Add old entries (65 seconds ago)
         old_time = time.time() - 65
-        limiter._request_log.append(old_time)
-        limiter._token_log.append((old_time, 100))
+        limiter.request_log.append(old_time)
+        limiter.token_log.append((old_time, 100))
 
         # Add recent entries
-        limiter._request_log.append(time.time())
-        limiter._token_log.append((time.time(), 50))
+        limiter.request_log.append(time.time())
+        limiter.token_log.append((time.time(), 50))
 
-        limiter._prune_logs()
+        limiter.prune_logs()
 
-        assert len(limiter._request_log) == 1
-        assert len(limiter._token_log) == 1
+        assert len(limiter.request_log) == 1
+        assert len(limiter.token_log) == 1
 
     def test_prune_logs_keeps_recent_entries(self):
-        """Test _prune_logs keeps entries within 60 seconds."""
+        """Test prune_logs keeps entries within 60 seconds."""
         limiter = LLMLimiter()
 
         # Add recent entries
-        limiter._request_log.append(time.time())
-        limiter._token_log.append((time.time(), 100))
+        limiter.request_log.append(time.time())
+        limiter.token_log.append((time.time(), 100))
 
-        limiter._prune_logs()
+        limiter.prune_logs()
 
-        assert len(limiter._request_log) == 1
-        assert len(limiter._token_log) == 1
+        assert len(limiter.request_log) == 1
+        assert len(limiter.token_log) == 1
 
 
 class TestLLMLimiterPropertyDefaults:
@@ -458,7 +458,7 @@ class TestLLMLimiterPropertyDefaults:
             cfg.LLM_MAX_REQUEST_PER_MINUTE = 0
             cfg.LLM_MAX_TOKEN_PER_MINUTE = 100_000
             assert limiter.max_request_per_minute == 0
-            assert limiter._can_proceed(tokens=1) is False
+            assert limiter.can_proceed(tokens=1) is False
 
     def test_max_token_per_minute_zero_is_not_replaced_by_default(self):
         """An explicit 0 means 'block every request' and must not fall back
@@ -468,7 +468,7 @@ class TestLLMLimiterPropertyDefaults:
             cfg.LLM_MAX_REQUEST_PER_MINUTE = 60
             cfg.LLM_MAX_TOKEN_PER_MINUTE = 0
             assert limiter.max_token_per_minute == 0
-            assert limiter._can_proceed(tokens=1) is False
+            assert limiter.can_proceed(tokens=1) is False
 
     def test_max_token_per_request_zero_is_not_replaced_by_default(self):
         """An explicit 0 means 'block every request' and must not fall back
@@ -535,7 +535,7 @@ class TestLLMLimiterPruningLoop:
 
 
 class TestLLMLimiterToStrListInstructions:
-    """_to_str over a list counts only the latest item's instructions (lines 279-282)."""
+    """to_str over a list counts only the latest item's instructions (lines 279-282)."""
 
     def test_count_tokens_list_includes_latest_instructions(self):
         """A list whose latest item carries instructions costs more than one without.
@@ -636,11 +636,11 @@ class TestLLMLimiterTokenCounting:
         assert result > 0
 
     def test_to_str_with_nested_dict(self):
-        """Test _to_str with nested dict content."""
+        """Test to_str with nested dict content."""
         limiter = LLMLimiter()
 
         nested = {"outer": {"inner": "value"}}
-        result = limiter._to_str(nested)
+        result = limiter.to_str(nested)
         assert "outer" in result
         assert "inner" in result
 
@@ -651,7 +651,7 @@ class TestLLMLimiterTruncate:
     def test_truncate_text_no_tiktoken(self):
         """Test truncate_text works correctly with or without tiktoken."""
         limiter = LLMLimiter()
-        limiter._max_request_per_minute = None  # Force defaults
+        limiter.max_request_per_minute = None  # Force defaults
 
         text = "A" * 100
         # Max 10 tokens - result depends on whether tiktoken is available
@@ -685,13 +685,13 @@ class TestLLMLimiterTruncate:
             return original_import(name, *args, **kwargs)
 
         with patch("builtins.__import__", side_effect=failing_import):
-            limiter._max_request_per_minute = None
+            limiter.max_request_per_minute = None
             text = "A" * 100
             result = limiter.truncate_text(text, 10)
             assert len(result) <= 40
 
     def test_count_tokens_tiktoken_import_error(self):
-        """Test _count_tokens falls back when tiktoken import fails."""
+        """Test count_tokens falls back when tiktoken import fails."""
         import builtins
 
         limiter = LLMLimiter()
@@ -704,12 +704,12 @@ class TestLLMLimiterTruncate:
             return original_import(name, *args, **kwargs)
 
         with patch("builtins.__import__", side_effect=failing_import):
-            limiter._max_request_per_minute = None
-            result = limiter._count_tokens("hello world")
+            limiter.max_request_per_minute = None
+            result = limiter.count_tokens("hello world")
             assert result > 0
 
     def test_to_str_with_instructions_on_object(self):
-        """Test _to_str counts instructions from object with instructions field."""
+        """Test to_str counts instructions from object with instructions field."""
         limiter = LLMLimiter()
 
         class MockObj:
@@ -718,11 +718,11 @@ class TestLLMLimiterTruncate:
                 self.parts = []
 
         obj = MockObj()
-        result = limiter._to_str(obj)
+        result = limiter.to_str(obj)
         assert "Some instructions" in result
 
     def test_to_str_with_instructions_skip_instructions_true(self):
-        """Test _to_str skips instructions when skip_instructions=True."""
+        """Test to_str skips instructions when skip_instructions=True."""
         limiter = LLMLimiter()
 
         class MockObj:
@@ -731,39 +731,39 @@ class TestLLMLimiterTruncate:
                 self.parts = []
 
         obj = MockObj()
-        result = limiter._to_str(obj, skip_instructions=True)
+        result = limiter.to_str(obj, skip_instructions=True)
         assert "Some instructions" not in result
 
     def test_to_str_with_content_field(self):
-        """Test _to_str extracts content field."""
+        """Test to_str extracts content field."""
         limiter = LLMLimiter()
 
         class MockObj:
             content = "Hello content"
 
-        result = limiter._to_str(MockObj())
+        result = limiter.to_str(MockObj())
         assert "Hello content" in result
 
     def test_to_str_with_args_field(self):
-        """Test _to_str extracts args field."""
+        """Test to_str extracts args field."""
         limiter = LLMLimiter()
 
         class MockObj:
             args = {"key": "value"}
 
-        result = limiter._to_str(MockObj())
+        result = limiter.to_str(MockObj())
         assert "key" in result
         assert "value" in result
 
     def test_to_str_fallback_str_exception(self):
-        """Test _to_str returns empty string when str() raises."""
+        """Test to_str returns empty string when str() raises."""
         limiter = LLMLimiter()
 
         class BadObj:
             def __str__(self):
                 raise Exception("Cannot convert")
 
-        result = limiter._to_str(BadObj())
+        result = limiter.to_str(BadObj())
         assert result == ""
 
 
@@ -777,8 +777,8 @@ class TestLLMLimiterAcquireWithNotifier:
         limiter.throttle_check_interval = 0.01
 
         notifier = MagicMock()
-        limiter._request_log.append(time.time())
-        limiter._token_log.append((time.time(), 9))
+        limiter.request_log.append(time.time())
+        limiter.token_log.append((time.time(), 9))
 
         async def acquire_with_timeout():
             try:
@@ -831,7 +831,7 @@ class TestLLMLimiterAcquireWithNotifier:
         limiter.max_token_per_minute = 10000
         limiter.throttle_check_interval = 0.01
 
-        limiter._request_log.append(time.time())
+        limiter.request_log.append(time.time())
 
         notifier = MagicMock()
 

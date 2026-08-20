@@ -96,7 +96,7 @@ def _format_envelope(
     )
 
 
-async def _run_agent_task(
+async def run_agent_task(
     agent_name: str,
     deliverable: str,
     non_goals: list[str],
@@ -194,7 +194,7 @@ async def _run_agent_task(
         conversation_name = format_delegated_session_name(
             get_current_tool_session(), agent_name, agent_id
         )
-        _persist_subagent_history(conversation_name, history)
+        persist_subagent_history(conversation_name, history)
         if result:
             result = f"{result}\n\n(Transcript saved as '{conversation_name}')"
 
@@ -232,7 +232,7 @@ async def _run_agent_task(
         await _fire_subagent_hook(HookEvent.SUBAGENT_STOP, agent_name, agent_id)
 
 
-def _persist_subagent_history(conversation_name: str, history: list) -> None:
+def persist_subagent_history(conversation_name: str, history: list) -> None:
     """Save a delegated sub-agent's transcript under its own conversation name
     (ADR item 4, Phase A), always — there is no opt-out knob.
 
@@ -267,7 +267,7 @@ def _prune_old_subagent_history() -> None:
     """Delete the oldest delegated-session history files beyond
     ``CFG.LLM_SUBAGENT_HISTORY_RETAIN``, keeping always-on persistence safe.
     ``-1`` opts out (keep every one, at the caller's own risk); errors are
-    swallowed (best-effort, see ``_persist_subagent_history``)."""
+    swallowed (best-effort, see ``persist_subagent_history``)."""
     retain = CFG.LLM_SUBAGENT_HISTORY_RETAIN
     if retain < 0:
         return
@@ -322,7 +322,7 @@ async def _fire_subagent_hook(event: HookEvent, agent_name: str, agent_id: str) 
     except asyncio.CancelledError:
         # `asyncio.CancelledError` is a `BaseException`, not caught by the
         # `Exception` branch below — swallowed deliberately so "Never raises"
-        # is actually true. This call fires from `_run_agent_task`'s `finally`
+        # is actually true. This call fires from `run_agent_task`'s `finally`
         # block too, after its result is already decided; a stray cancel
         # landing in this narrow best-effort notification must not override
         # an already-settled return. It is not the cancellation signal the
@@ -422,7 +422,7 @@ def agent_not_found_message(agent_name: str, sub_agent_manager: SubAgentManager)
     )
 
 
-async def _worktree_has_changes(worktree_path: str) -> bool:
+async def worktree_has_changes(worktree_path: str) -> bool:
     """Whether *worktree_path* has any uncommitted change (`git status --short`)."""
     proc = await asyncio.create_subprocess_exec(
         "git",
@@ -436,7 +436,7 @@ async def _worktree_has_changes(worktree_path: str) -> bool:
     return bool(stdout.decode().strip())
 
 
-async def _current_head_sha(cwd: str) -> str:
+async def current_head_sha(cwd: str) -> str:
     """``git rev-parse HEAD`` in *cwd*, or ``""`` if it fails."""
     proc = await asyncio.create_subprocess_exec(
         "git",
@@ -452,10 +452,10 @@ async def _current_head_sha(cwd: str) -> str:
     return stdout.decode().strip()
 
 
-async def _worktree_has_new_commits(worktree_path: str, base_sha: str) -> bool:
+async def worktree_has_new_commits(worktree_path: str, base_sha: str) -> bool:
     """Whether *worktree_path*'s branch has any commit beyond *base_sha*.
 
-    ``_worktree_has_changes`` alone only sees uncommitted changes — a
+    ``worktree_has_changes`` alone only sees uncommitted changes — a
     sub-agent that *commits* its deliverable makes the tree clean, which
     would otherwise let cleanup force-delete the branch (and its commits)
     via `exit_worktree`'s default `keep_branch=False`. This closes that gap:
@@ -521,7 +521,7 @@ async def _run_parallel(
         non_goals = task_spec.get("non_goals", []) or []
         additional_context = task_spec.get("additional_context", "")
         isolate = bool(task_spec.get("isolate_worktree", False))
-        # _run_agent_task assigns the [agent_name #ordinal] label.
+        # run_agent_task assigns the [agent_name #ordinal] label.
         buffered_ui = BufferedUI(
             parent_ui, shared_lock=ui_lock, session_id=get_current_tool_session()
         )
@@ -531,8 +531,8 @@ async def _run_parallel(
         if isolate:
             # Captured before creating the worktree so cleanup can tell "clean
             # working tree" apart from "clean working tree but new commits
-            # exist" — see `_worktree_has_new_commits`.
-            base_sha = await _current_head_sha(os.getcwd())
+            # exist" — see `worktree_has_new_commits`.
+            base_sha = await current_head_sha(os.getcwd())
             # A distinct name per task: enter_worktree's own default branch name
             # is second-granularity, which concurrent fan-out tasks can collide
             # on within the same second.
@@ -546,7 +546,7 @@ async def _run_parallel(
 
         result: AgentTaskResult | None = None
         try:
-            result = await _run_agent_task(
+            result = await run_agent_task(
                 agent_name=agent_name,
                 deliverable=deliverable,
                 non_goals=non_goals,
@@ -563,11 +563,11 @@ async def _run_parallel(
             # rather than leaking worktrees (ADR-0068). Wrapped in its own
             # try/except: a cleanup failure (git missing, disk/lock issue)
             # must not escape into `asyncio.gather` and abort sibling tasks —
-            # same best-effort posture as `_persist_subagent_history`.
+            # same best-effort posture as `persist_subagent_history`.
             if isolate and worktree_path:
                 try:
-                    dirty = await _worktree_has_changes(worktree_path)
-                    has_new_commits = await _worktree_has_new_commits(
+                    dirty = await worktree_has_changes(worktree_path)
+                    has_new_commits = await worktree_has_new_commits(
                         worktree_path, base_sha
                     )
                     if dirty or has_new_commits:
@@ -600,7 +600,7 @@ async def _run_parallel(
     # return_exceptions=True is defense in depth, not the primary fix: cleanup
     # failures are already caught above so they surface as a result note, not
     # a raise. This guards against anything else genuinely unanticipated
-    # (e.g. `_run_agent_task` itself raising) taking down every sibling task
+    # (e.g. `run_agent_task` itself raising) taking down every sibling task
     # instead of just the one that failed.
     raw_results = await asyncio.gather(
         *[run_single_agent(t) for t in tasks], return_exceptions=True
@@ -665,11 +665,11 @@ def create_delegate_to_agent_tool(
                 "(non_goals defaults to []), or pass tasks=[...] to fan out."
             )
         parent_ui = get_current_ui() or StdUI()
-        # _run_agent_task assigns the [agent_name #ordinal] label (the panel
+        # run_agent_task assigns the [agent_name #ordinal] label (the panel
         # is the legend); no opaque per-instance id is shown to the user.
         buffered_ui = BufferedUI(parent_ui, session_id=get_current_tool_session())
 
-        task_result = await _run_agent_task(
+        task_result = await run_agent_task(
             agent_name=agent_name,
             deliverable=deliverable,
             non_goals=non_goals,

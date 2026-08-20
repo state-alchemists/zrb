@@ -323,6 +323,11 @@ class HookManager(HookManagerLoading):
         """True while any fire-and-forget hook task is still running."""
         return any(not task.done() for task in self._background_tasks)
 
+    @property
+    def background_tasks(self) -> "set[asyncio.Task]":
+        """Fire-and-forget hook tasks currently in flight."""
+        return self._background_tasks
+
     async def shutdown(
         self, grace_seconds: float = 2.0, *, drain: bool = False
     ) -> None:

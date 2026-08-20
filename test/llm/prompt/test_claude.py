@@ -36,9 +36,7 @@ def test_create_project_context_prompt_no_doc_files(tmp_path):
         called_prompts.append(p)
         return p
 
-    with patch(
-        "zrb.llm.prompt.claude._get_search_directories", return_value=[tmp_path]
-    ):
+    with patch("zrb.llm.prompt.claude.get_search_directories", return_value=[tmp_path]):
         result = handler(ctx, "base prompt", capture_next)
 
     assert called_prompts[-1] == "base prompt"
@@ -53,9 +51,7 @@ def test_create_project_context_prompt_lists_agents_md(tmp_path):
     handler = create_project_context_prompt()
     ctx = _make_ctx()
 
-    with patch(
-        "zrb.llm.prompt.claude._get_search_directories", return_value=[tmp_path]
-    ):
+    with patch("zrb.llm.prompt.claude.get_search_directories", return_value=[tmp_path]):
         result = handler(ctx, "base prompt", _identity_next)
 
     assert str(agents_md) in result
@@ -70,9 +66,7 @@ def test_create_project_context_prompt_lists_claude_md(tmp_path):
     handler = create_project_context_prompt()
     ctx = _make_ctx()
 
-    with patch(
-        "zrb.llm.prompt.claude._get_search_directories", return_value=[tmp_path]
-    ):
+    with patch("zrb.llm.prompt.claude.get_search_directories", return_value=[tmp_path]):
         result = handler(ctx, "base prompt", _identity_next)
 
     assert str(claude_md) in result
@@ -86,9 +80,7 @@ def test_create_project_context_prompt_with_empty_doc_file(tmp_path):
     handler = create_project_context_prompt()
     ctx = _make_ctx()
 
-    with patch(
-        "zrb.llm.prompt.claude._get_search_directories", return_value=[tmp_path]
-    ):
+    with patch("zrb.llm.prompt.claude.get_search_directories", return_value=[tmp_path]):
         result = handler(ctx, "base prompt", _identity_next)
 
     assert str(readme) in result
@@ -108,7 +100,7 @@ def test_create_project_context_prompt_multiple_dirs(tmp_path):
     ctx = _make_ctx()
 
     with patch(
-        "zrb.llm.prompt.claude._get_search_directories", return_value=[dir1, dir2]
+        "zrb.llm.prompt.claude.get_search_directories", return_value=[dir1, dir2]
     ):
         result = handler(ctx, "base prompt", _identity_next)
 
@@ -124,9 +116,7 @@ def test_create_project_context_prompt_listed_files_section(tmp_path):
     handler = create_project_context_prompt()
     ctx = _make_ctx()
 
-    with patch(
-        "zrb.llm.prompt.claude._get_search_directories", return_value=[tmp_path]
-    ):
+    with patch("zrb.llm.prompt.claude.get_search_directories", return_value=[tmp_path]):
         result = handler(ctx, "base prompt", _identity_next)
 
     assert "Documentation Files Found" in result
@@ -140,9 +130,7 @@ def test_create_project_context_prompt_all_doc_types_listed(tmp_path):
     handler = create_project_context_prompt()
     ctx = _make_ctx()
 
-    with patch(
-        "zrb.llm.prompt.claude._get_search_directories", return_value=[tmp_path]
-    ):
+    with patch("zrb.llm.prompt.claude.get_search_directories", return_value=[tmp_path]):
         result = handler(ctx, "base prompt", _identity_next)
 
     for name in ("AGENTS.md", "CLAUDE.md", "GEMINI.md", "README.md"):
@@ -159,7 +147,7 @@ def test_create_project_context_prompt_home_docs_are_user_level(tmp_path):
     ctx = _make_ctx()
 
     with (
-        patch("zrb.llm.prompt.claude._get_search_directories", return_value=[home]),
+        patch("zrb.llm.prompt.claude.get_search_directories", return_value=[home]),
         patch("zrb.llm.prompt.claude.Path.home", return_value=home),
     ):
         result = handler(ctx, "base prompt", _identity_next)
@@ -181,7 +169,7 @@ def test_create_project_context_prompt_dot_claude_docs_are_user_level(tmp_path):
 
     with (
         patch(
-            "zrb.llm.prompt.claude._get_search_directories", return_value=[claude_dir]
+            "zrb.llm.prompt.claude.get_search_directories", return_value=[claude_dir]
         ),
         patch("zrb.llm.prompt.claude.Path.home", return_value=home),
     ):
@@ -205,7 +193,7 @@ def test_create_project_context_prompt_splits_project_and_user_docs(tmp_path):
 
     with (
         patch(
-            "zrb.llm.prompt.claude._get_search_directories",
+            "zrb.llm.prompt.claude.get_search_directories",
             return_value=[home, project],
         ),
         patch("zrb.llm.prompt.claude.Path.home", return_value=home),
@@ -227,7 +215,7 @@ def test_create_project_context_prompt_unresolvable_home_stays_project_level(tmp
     ctx = _make_ctx()
 
     with (
-        patch("zrb.llm.prompt.claude._get_search_directories", return_value=[tmp_path]),
+        patch("zrb.llm.prompt.claude.get_search_directories", return_value=[tmp_path]),
         patch("zrb.llm.prompt.claude.Path.home", side_effect=RuntimeError("no home")),
     ):
         result = handler(ctx, "base prompt", _identity_next)
@@ -246,9 +234,7 @@ def test_create_project_context_prompt_calls_next_handler(tmp_path):
         call_count.append(p)
         return p
 
-    with patch(
-        "zrb.llm.prompt.claude._get_search_directories", return_value=[tmp_path]
-    ):
+    with patch("zrb.llm.prompt.claude.get_search_directories", return_value=[tmp_path]):
         handler(ctx, "base prompt", counting_next)
 
     assert len(call_count) == 1
@@ -261,9 +247,7 @@ def test_create_project_context_prompt_base_prompt_preserved(tmp_path):
     handler = create_project_context_prompt()
     ctx = _make_ctx()
 
-    with patch(
-        "zrb.llm.prompt.claude._get_search_directories", return_value=[tmp_path]
-    ):
+    with patch("zrb.llm.prompt.claude.get_search_directories", return_value=[tmp_path]):
         result = handler(ctx, "base prompt", _identity_next)
 
     assert "base prompt" in result
@@ -277,9 +261,7 @@ def test_create_project_context_prompt_all_files_listed_without_read(tmp_path):
     handler = create_project_context_prompt()
     ctx = _make_ctx()
 
-    with patch(
-        "zrb.llm.prompt.claude._get_search_directories", return_value=[tmp_path]
-    ):
+    with patch("zrb.llm.prompt.claude.get_search_directories", return_value=[tmp_path]):
         result = handler(ctx, "base prompt", _identity_next)
 
     # Content is not embedded
@@ -494,13 +476,13 @@ def test_build_skill_replacements_truncates_core_skills(tmp_path, monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# _get_search_directories indirect tests (no patching — real filesystem)
+# get_search_directories indirect tests (no patching — real filesystem)
 # ---------------------------------------------------------------------------
 
 
 def test_get_search_directories_includes_cwd(tmp_path):
     """
-    _get_search_directories is exercised indirectly: with a real AGENTS.md in
+    get_search_directories is exercised indirectly: with a real AGENTS.md in
     the CWD-like directory, create_project_context_prompt picks it up without
     any patching.
 
@@ -510,7 +492,7 @@ def test_get_search_directories_includes_cwd(tmp_path):
     handler = create_project_context_prompt()
     ctx = _make_ctx()
 
-    # No patch — uses real _get_search_directories
+    # No patch — uses real get_search_directories
     result = handler(ctx, "probe-prompt", _identity_next)
 
     assert isinstance(result, str)

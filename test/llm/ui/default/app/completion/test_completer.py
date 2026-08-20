@@ -202,7 +202,7 @@ def test_show_ollama_models_true_includes_ollama_models(
         show_ollama_models=True,
     )
     # Pre-fill the cache to skip the subprocess call
-    completer._ollama_cache = {
+    completer.ollama_cache = {
         "models": ["ollama:llama3", "ollama:mistral"],
         "time": time.time() + 1000,
     }
@@ -262,7 +262,7 @@ def test_both_flags_false_only_custom_models(mock_history_manager, complete_even
         show_pydantic_ai_models=False,
     )
     # Even if cache has ollama models, they should NOT appear
-    completer._ollama_cache = {
+    completer.ollama_cache = {
         "models": ["ollama:llama3"],
         "time": time.time() + 1000,
     }
@@ -318,7 +318,7 @@ def test_exec_command_arg_completion(mock_history_manager, complete_event):
         history_manager=mock_history_manager,
         exec_commands=["/exec"],
     )
-    completer._cmd_history = ["git status", "git commit", "ls"]
+    completer.cmd_history = ["git status", "git commit", "ls"]
     doc = Document(text="/exec git", cursor_position=9)
     completions = list(completer.get_completions(doc, complete_event))
     texts = [c.text for c in completions]

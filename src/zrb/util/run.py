@@ -3,7 +3,7 @@ import inspect
 from typing import Any
 
 # How long gather_fail_fast waits for cancelled siblings to unwind.
-_CANCEL_SETTLE_TIMEOUT = 5.0
+CANCEL_SETTLE_TIMEOUT = 5.0
 
 
 async def run_async(value: Any) -> Any:
@@ -99,7 +99,7 @@ async def _cancel_and_settle(tasks: "list[asyncio.Task[Any]]") -> None:
     for task in tasks:
         task.cancel()
     try:
-        await asyncio.wait(tasks, timeout=_CANCEL_SETTLE_TIMEOUT)
+        await asyncio.wait(tasks, timeout=CANCEL_SETTLE_TIMEOUT)
     except BaseException:
         # A second cancellation landing mid-settle must not replace the outcome
         # the caller is about to raise.

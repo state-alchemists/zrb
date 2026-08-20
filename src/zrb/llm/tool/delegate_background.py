@@ -45,9 +45,9 @@ from zrb.llm.permission import Capability, tag
 from zrb.llm.tool.ambient_state import get_current_tool_session
 from zrb.llm.tool.delegate import (
     BufferedUI,
-    _run_agent_task,
     agent_not_found_message,
     agent_roster_doc,
+    run_agent_task,
 )
 from zrb.llm.ui.std_ui import StdUI
 from zrb.util.string.name import get_random_name
@@ -243,14 +243,14 @@ def create_background_delegate_tool(
         non_goals (list; [] only when no scope-expansion risk). additional_context
         is optional.
         """
-        # Resolve the name before detaching. _run_agent_task would also catch an
+        # Resolve the name before detaching. run_agent_task would also catch an
         # unknown agent, but only inside the background coroutine — the model
         # would get "Started background agent 'reseacher'" and not learn the name
         # was wrong until it polled GetDelegationResult, if it ever did.
         #
         # get_agent_definition, not create_agent: create_agent runs every tool
         # factory, resolves the model, and composes the whole system prompt, and
-        # _run_agent_task calls it again inside the coroutine. Validating with it
+        # run_agent_task calls it again inside the coroutine. Validating with it
         # would build the agent twice and put the first build on the caller's
         # turn — the wait this tool exists to avoid. It is also the same lookup
         # create_agent itself uses to decide the None return, so the check is
@@ -270,7 +270,7 @@ def create_background_delegate_tool(
         # forwards approval prompts to the parent UI's confirmation queue, which
         # surfaces them to the user — the same path foreground delegate sub-agents
         # use.
-        coro = _run_agent_task(
+        coro = run_agent_task(
             agent_name=agent_name,
             deliverable=deliverable,
             non_goals=non_goals,

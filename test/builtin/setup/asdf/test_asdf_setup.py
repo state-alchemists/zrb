@@ -14,25 +14,25 @@ from zrb.builtin.setup.asdf.asdf import (
 def test_setup_asdf_on_bash():
     ctx = MagicMock()
     with patch("zrb.builtin.setup.asdf.asdf.setup_asdf_sh_config") as mock_setup:
-        setup_asdf_on_bash._action(ctx)
+        setup_asdf_on_bash.action(ctx)
         mock_setup.assert_called_once()
 
 
 def test_setup_asdf_on_zsh():
     ctx = MagicMock()
     with patch("zrb.builtin.setup.asdf.asdf.setup_asdf_sh_config") as mock_setup:
-        setup_asdf_on_zsh._action(ctx)
+        setup_asdf_on_zsh.action(ctx)
         mock_setup.assert_called_once()
 
 
 def test_setup_asdf_on_powershell():
     ctx = MagicMock()
     with patch("zrb.builtin.setup.asdf.asdf.setup_asdf_ps_config") as mock_setup:
-        setup_asdf_on_powershell._action(ctx)
+        setup_asdf_on_powershell.action(ctx)
         mock_setup.assert_called_once()
 
 
 def test_setup_asdf_main():
     ctx = MagicMock()
-    setup_asdf._action(ctx)
+    setup_asdf.action(ctx)
     assert ctx.print.called

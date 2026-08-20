@@ -88,14 +88,14 @@ async def test_name_check_does_not_build_the_agent(manager):
     """Validation uses the definition lookup, not a full agent build.
 
     ``create_agent`` runs every tool factory, resolves the model, and composes
-    the system prompt — and ``_run_agent_task`` calls it again in the
+    the system prompt — and ``run_agent_task`` calls it again in the
     coroutine. Validating with it would build twice and put the first build on
     the caller's turn, which is the wait this tool exists to avoid.
     """
     delegate = create_background_delegate_tool(manager)
 
     with patch(
-        "zrb.llm.tool.delegate_background._run_agent_task",
+        "zrb.llm.tool.delegate_background.run_agent_task",
         side_effect=AsyncMock(return_value=AgentTaskResult("a", "done", None)),
     ):
         result = await delegate(
@@ -123,9 +123,7 @@ async def test_returns_handle_immediately_without_blocking(manager):
 
     delegate = create_background_delegate_tool(manager)
     with (
-        patch(
-            "zrb.llm.tool.delegate_background._run_agent_task", side_effect=slow_task
-        ),
+        patch("zrb.llm.tool.delegate_background.run_agent_task", side_effect=slow_task),
         patch(
             "zrb.llm.tool.delegate_background.get_current_ui", return_value=MagicMock()
         ),
@@ -164,7 +162,7 @@ async def test_failed_subagent_surfaces_error(manager):
 
     delegate = create_background_delegate_tool(manager)
     with (
-        patch("zrb.llm.tool.delegate_background._run_agent_task", side_effect=boom),
+        patch("zrb.llm.tool.delegate_background.run_agent_task", side_effect=boom),
         patch(
             "zrb.llm.tool.delegate_background.get_current_ui", return_value=MagicMock()
         ),
@@ -201,7 +199,7 @@ async def test_background_inherits_parent_permission_context(manager):
         delegate = create_background_delegate_tool(manager)
         with (
             patch(
-                "zrb.llm.tool.delegate_background._run_agent_task",
+                "zrb.llm.tool.delegate_background.run_agent_task",
                 side_effect=capture_env,
             ),
             patch(
@@ -230,7 +228,7 @@ async def test_cancel_all_clears_running_tasks(manager):
 
     delegate = create_background_delegate_tool(manager)
     with (
-        patch("zrb.llm.tool.delegate_background._run_agent_task", side_effect=slow),
+        patch("zrb.llm.tool.delegate_background.run_agent_task", side_effect=slow),
         patch(
             "zrb.llm.tool.delegate_background.get_current_ui", return_value=MagicMock()
         ),
@@ -257,7 +255,7 @@ async def test_get_result_wait_returns_on_completion(manager):
     delegate = create_background_delegate_tool(manager)
     get_result = create_get_delegation_result_tool()
     with (
-        patch("zrb.llm.tool.delegate_background._run_agent_task", side_effect=gated),
+        patch("zrb.llm.tool.delegate_background.run_agent_task", side_effect=gated),
         patch(
             "zrb.llm.tool.delegate_background.get_current_ui", return_value=MagicMock()
         ),
@@ -287,7 +285,7 @@ async def test_get_result_wait_times_out_still_running(manager):
     delegate = create_background_delegate_tool(manager)
     get_result = create_get_delegation_result_tool()
     with (
-        patch("zrb.llm.tool.delegate_background._run_agent_task", side_effect=gated),
+        patch("zrb.llm.tool.delegate_background.run_agent_task", side_effect=gated),
         patch(
             "zrb.llm.tool.delegate_background.get_current_ui", return_value=MagicMock()
         ),
@@ -310,7 +308,7 @@ async def test_get_result_kill_cancels_and_consumes(manager):
     delegate = create_background_delegate_tool(manager)
     get_result = create_get_delegation_result_tool()
     with (
-        patch("zrb.llm.tool.delegate_background._run_agent_task", side_effect=gated),
+        patch("zrb.llm.tool.delegate_background.run_agent_task", side_effect=gated),
         patch(
             "zrb.llm.tool.delegate_background.get_current_ui", return_value=MagicMock()
         ),
@@ -341,7 +339,7 @@ async def test_approval_prompt_surfaces_during_wait(manager):
     get_result = create_get_delegation_result_tool()
     with (
         patch(
-            "zrb.llm.tool.delegate_background._run_agent_task",
+            "zrb.llm.tool.delegate_background.run_agent_task",
             side_effect=needs_approval,
         ),
         patch(
@@ -366,7 +364,7 @@ async def test_handle_consumed_after_collection(manager):
     get_result = create_get_delegation_result_tool()
     with (
         patch(
-            "zrb.llm.tool.delegate_background._run_agent_task", side_effect=quick_task
+            "zrb.llm.tool.delegate_background.run_agent_task", side_effect=quick_task
         ),
         patch(
             "zrb.llm.tool.delegate_background.get_current_ui", return_value=MagicMock()
@@ -394,7 +392,7 @@ async def test_own_background_handles_track_only_this_calls_handle(manager):
     delegate = create_background_delegate_tool(manager)
     with (
         patch(
-            "zrb.llm.tool.delegate_background._run_agent_task", side_effect=quick_task
+            "zrb.llm.tool.delegate_background.run_agent_task", side_effect=quick_task
         ),
         patch(
             "zrb.llm.tool.delegate_background.get_current_ui", return_value=MagicMock()
@@ -416,7 +414,7 @@ async def test_peek_done_reports_completion_once(manager):
     delegate = create_background_delegate_tool(manager)
     with (
         patch(
-            "zrb.llm.tool.delegate_background._run_agent_task", side_effect=quick_task
+            "zrb.llm.tool.delegate_background.run_agent_task", side_effect=quick_task
         ),
         patch(
             "zrb.llm.tool.delegate_background.get_current_ui", return_value=MagicMock()
@@ -443,7 +441,7 @@ async def test_live_context_notice_reports_once_then_stays_quiet(manager):
     delegate = create_background_delegate_tool(manager)
     with (
         patch(
-            "zrb.llm.tool.delegate_background._run_agent_task", side_effect=quick_task
+            "zrb.llm.tool.delegate_background.run_agent_task", side_effect=quick_task
         ),
         patch(
             "zrb.llm.tool.delegate_background.get_current_ui", return_value=MagicMock()
@@ -474,7 +472,7 @@ async def test_live_context_silent_while_still_running(manager):
 
     delegate = create_background_delegate_tool(manager)
     with (
-        patch("zrb.llm.tool.delegate_background._run_agent_task", side_effect=gated),
+        patch("zrb.llm.tool.delegate_background.run_agent_task", side_effect=gated),
         patch(
             "zrb.llm.tool.delegate_background.get_current_ui", return_value=MagicMock()
         ),
@@ -498,7 +496,7 @@ async def test_live_context_notice_does_not_consume_the_handle(manager):
     get_result = create_get_delegation_result_tool()
     with (
         patch(
-            "zrb.llm.tool.delegate_background._run_agent_task", side_effect=quick_task
+            "zrb.llm.tool.delegate_background.run_agent_task", side_effect=quick_task
         ),
         patch(
             "zrb.llm.tool.delegate_background.get_current_ui", return_value=MagicMock()

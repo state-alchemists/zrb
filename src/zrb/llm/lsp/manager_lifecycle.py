@@ -23,7 +23,7 @@ from zrb.util.cmd.command import kill_pid
 # doesn't matter, unboundedness does.
 _MAX_PROJECT_ROOT_CACHE = 4096
 
-_PROJECT_MARKERS = [
+PROJECT_MARKERS = [
     ".git",
     "pyproject.toml",
     "setup.py",
@@ -80,7 +80,7 @@ class LSPManagerLifecycle:
 
         current = path
         while current != current.parent:
-            for marker in _PROJECT_MARKERS:
+            for marker in PROJECT_MARKERS:
                 if marker.startswith("*"):
                     if list(current.glob(marker)):
                         return self._cache_project_root(file_path, str(current))

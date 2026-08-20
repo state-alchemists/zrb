@@ -35,7 +35,7 @@ class BufferedUI(UIProtocol):
         self._prefix = prefix
         self._buffer: list[str] = []
         self._merged_output: str = ""
-        # Set by _run_agent_task so buffered output also feeds the activity panel.
+        # Set by run_agent_task so buffered output also feeds the activity panel.
         self._agent_id: str | None = None
         # Scopes activity-panel updates to the session that started this
         # delegation, so a process hosting multiple sessions doesn't bleed one

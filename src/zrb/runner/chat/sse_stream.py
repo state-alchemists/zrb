@@ -25,7 +25,7 @@ class SSEStreamResponse(StreamingResponse):
     ):
         session = session_manager.get_session(session_id)
         self.session_id = session_id
-        self._queue = session.output_queue
+        self.output_queue = session.output_queue
         self._closed = False
 
         async def event_generator():
@@ -35,7 +35,7 @@ class SSEStreamResponse(StreamingResponse):
                 if self._closed:
                     break
                 try:
-                    get_task = asyncio.create_task(self._queue.get())
+                    get_task = asyncio.create_task(self.output_queue.get())
                     try:
                         item = await asyncio.wait_for(
                             get_task, timeout=CFG.LLM_SSE_KEEPALIVE_TIMEOUT / 1000

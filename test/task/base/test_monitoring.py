@@ -154,7 +154,7 @@ class TestMonitorTaskReadinessTimeout:
         check_task.exec_chain = MagicMock(return_value=None)
         task.append_readiness_check(check_task)
         # High threshold: only test timeout behavior, not threshold restart
-        task._readiness_failure_threshold = 99
+        task.readiness_failure_threshold = 99
 
         session = MagicMock(spec=AnySession)
         session.is_terminated = False
@@ -199,7 +199,7 @@ class TestMonitorTaskReadinessFailureThreshold:
         check_task = BaseTask(name="check_task")
         check_task.exec_chain = MagicMock(return_value=None)
         task.append_readiness_check(check_task)
-        task._readiness_failure_threshold = 1
+        task.readiness_failure_threshold = 1
 
         session = MagicMock(spec=AnySession)
         session.is_terminated = False
@@ -298,7 +298,7 @@ class TestMonitorTaskReadinessException:
         check_task = BaseTask(name="check_task")
         check_task.exec_chain = MagicMock(return_value=None)
         task.append_readiness_check(check_task)
-        task._readiness_failure_threshold = 99
+        task.readiness_failure_threshold = 99
 
         session = MagicMock(spec=AnySession)
         session.is_terminated = False
@@ -345,7 +345,7 @@ class TestMonitorTaskReadinessChecksNotCompleted:
         check_task = BaseTask(name="check_task")
         check_task.exec_chain = MagicMock(return_value=None)
         task.append_readiness_check(check_task)
-        task._readiness_failure_threshold = 99
+        task.readiness_failure_threshold = 99
 
         session = MagicMock(spec=AnySession)
         session.is_terminated = False
@@ -393,7 +393,7 @@ class TestMonitorTaskReadinessThresholdReached:
         check_task = BaseTask(name="check_task")
         check_task.exec_chain = MagicMock(return_value=None)
         task.append_readiness_check(check_task)
-        task._readiness_failure_threshold = 1
+        task.readiness_failure_threshold = 1
 
         session = MagicMock(spec=AnySession)
         session.is_terminated = False

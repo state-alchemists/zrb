@@ -2,7 +2,7 @@
 persisted conversation.
 
 Single source of truth for the `{parent_session}-sub-{agent_name}-{agent_id}`
-shape `zrb.llm.tool.delegate._run_agent_task` derives for every completed
+shape `zrb.llm.tool.delegate.run_agent_task` derives for every completed
 delegation (Item 4, Phase A), and for where those transcripts live on disk:
 `{LLM_HISTORY_DIR}/subagent/{agent_type}/`, separate from ordinary
 main-agent conversations (which stay flat in the history root) so a history

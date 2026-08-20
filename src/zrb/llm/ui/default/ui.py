@@ -462,7 +462,7 @@ class UI(BaseUI):
 
     @saved_main_output.setter
     def saved_main_output(self, value: str | None) -> None:
-        self._agent_picker._saved_main_output = value
+        self._agent_picker.saved_main_output = value
 
     def open_agent_picker(self) -> bool:
         return self._agent_picker.open_agent_picker()
@@ -524,6 +524,11 @@ class UI(BaseUI):
     # owns that state and exposes it correctly — inheriting it is enough.
 
     @property
+    def output_part(self) -> "UIOutput":
+        """The composed `UIOutput` part (public seam for tests)."""
+        return self._output
+
+    @property
     def output_text(self) -> str:
         return self._output.output_text
 
@@ -568,7 +573,7 @@ class UI(BaseUI):
         return self._output.replace_output_span(start, end, replacement)
 
     def set_output_text(self, text: str) -> None:
-        self._output._set_output_text(text)
+        self._output.set_output_text(text)
 
     @property
     def output_field_width(self) -> int | None:
@@ -582,6 +587,9 @@ class UI(BaseUI):
 
     def get_status_bar_text(self) -> Any:
         return self._output.get_status_bar_text()
+
+    def schedule_invalidate(self) -> None:
+        self._output.schedule_invalidate()
 
     # =========================================================================
     # UIConfirmation delegators

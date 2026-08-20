@@ -82,7 +82,7 @@ def test_get_search_directories_walks_project_hierarchy(manager, tmp_path):
     nested = tmp_path / "a" / "b"
     nested.mkdir(parents=True)
     _project_with_agents(tmp_path / "a")
-    manager._root_dir = str(nested)
+    manager.root_dir = str(nested)
 
     with patch("zrb.llm.agent.subagent.manager_search.CFG") as cfg:
         cfg.LLM_SEARCH_HOME = False

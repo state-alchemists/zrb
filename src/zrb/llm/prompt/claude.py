@@ -101,7 +101,7 @@ def create_project_context_prompt():
         current_prompt: str,
         next_handler: Callable[[AnyContext, str], str],
     ) -> str:
-        search_dirs = _get_search_directories()
+        search_dirs = get_search_directories()
 
         doc_files: dict[str, list[Path]] = {
             "AGENTS.md": [],
@@ -179,7 +179,7 @@ def _is_user_level_dir(directory: Path) -> bool:
     return resolved == home or resolved == home / ".claude"
 
 
-def _get_search_directories() -> list[Path]:
+def get_search_directories() -> list[Path]:
     try:
         home_str = str(Path.home())
     except Exception:

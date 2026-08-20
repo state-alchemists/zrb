@@ -159,7 +159,7 @@ class ChatExecution:
                     initial_attachments=initial_attachments,
                 )
             finally:
-                await self._teardown_background_hooks()
+                await self.teardown_background_hooks()
 
         try:
             return await self._llm_chat_task.run_interactive_session(
@@ -175,9 +175,9 @@ class ChatExecution:
                 snapshot_dir=effective_snapshot_dir,
             )
         finally:
-            await self._teardown_interactive_resources()
+            await self.teardown_interactive_resources()
 
-    async def _teardown_interactive_resources(self) -> None:
+    async def teardown_interactive_resources(self) -> None:
         """Release process-global resources when an interactive chat ends.
 
         Runs on normal exit, ``/exit``, EOF, or Ctrl+C (the ``finally`` fires on
@@ -224,7 +224,7 @@ class ChatExecution:
         # worker pool. Their subprocesses are in their own process group and so
         # never receive the terminal's Ctrl+C — this is what stops them
         # outliving the session.
-        await self._teardown_background_hooks()
+        await self.teardown_background_hooks()
         # Kill background shell / delegation work and reap their subprocesses
         # while the loop is still alive. Anything left running when the loop
         # closes logs "Loop <...> that handles pid N is closed" the moment it
@@ -251,7 +251,7 @@ class ChatExecution:
         except Exception as e:
             CFG.LOGGER.debug(f"Hook-executor shutdown at session end failed: {e}")
 
-    async def _teardown_background_hooks(self) -> None:
+    async def teardown_background_hooks(self) -> None:
         """Settle this run's detached (``async: true``) hooks.
 
         Runs on *both* paths. The interactive session calls it as part of the

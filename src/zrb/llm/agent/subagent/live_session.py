@@ -52,11 +52,11 @@ class LiveSubAgentSession:
     state: str = "idle"  # "idle" | "running"
     # The asyncio.Task currently driving this session's run — a continuation
     # spawned by `send_message`, or the original delegate turn's own task (set
-    # by `_run_agent_task`). `cancel` uses it to stop what the sub-agent is
+    # by `run_agent_task`). `cancel` uses it to stop what the sub-agent is
     # doing (Esc while viewing in the TUI).
     active_task: "asyncio.Task | None" = None
     # True only between `cancel` and the cancelled task's own handling of the
-    # CancelledError. Lets `_run_agent_task` tell a human-initiated cancel
+    # CancelledError. Lets `run_agent_task` tell a human-initiated cancel
     # from the main run's own cancellation, and swallow only the former so the
     # main agent's turn survives a sub-agent cancel in a fan-out.
     cancelled_by_human: bool = False
@@ -154,7 +154,7 @@ class LiveSubAgentSessionRegistry:
         Returns False when no such session is tracked, or when it had nothing
         in flight to cancel — the caller decides whether to report it.
 
-        The run task's own code (``_run_agent_task``) swallows the resulting
+        The run task's own code (``run_agent_task``) swallows the resulting
         CancelledError and returns a "cancelled" result, so cancelling one
         sub-agent of a fan-out does not take down the main agent's turn that
         is awaiting the delegation.

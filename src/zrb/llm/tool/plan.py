@@ -49,6 +49,24 @@ class TodoManager:
             cls._instance._todo_dir.mkdir(parents=True, exist_ok=True)
         return cls._instance
 
+    @property
+    def todo_dir(self) -> Path:
+        """Directory todo files are persisted under."""
+        return self._todo_dir
+
+    @todo_dir.setter
+    def todo_dir(self, value: Path) -> None:
+        self._todo_dir = value
+
+    @property
+    def todos(self) -> dict[str, dict[str, Any]]:
+        """The in-memory per-session todo cache."""
+        return self._todos
+
+    @todos.setter
+    def todos(self, value: dict[str, dict[str, Any]]) -> None:
+        self._todos = value
+
     def write_todos(
         self,
         session_name: str,
@@ -63,7 +81,7 @@ class TodoManager:
         """
         now = datetime.now().isoformat()
 
-        existing = self._load_todos(session_name) if not replace else None
+        existing = self.get_todos(session_name) if not replace else None
         existing_todos = (
             {t["id"]: t for t in existing.get("todos", [])} if existing else {}
         )
@@ -93,32 +111,20 @@ class TodoManager:
         }
 
         self._todos[session_name] = result
-        self._save_todos(session_name)
+        self.save_todos(session_name)
         return result
 
     def get_todos(self, session_name: str) -> dict[str, Any] | None:
         """
-        Get todos for a session.
+        Get todos for a session, loading from disk if not cached.
 
         Returns:
             Todo list with metadata, or None if no todos exist
         """
-        return self._load_todos(session_name)
-
-    def _get_todo_file(self, session_name: str) -> Path:
-        """Get the file path for a session's todos."""
-        # Sanitize session name for filesystem
-        safe_name = "".join(
-            c if c.isalnum() or c in "-_" else "_" for c in session_name
-        )
-        return self._todo_dir / f"{safe_name}.json"
-
-    def _load_todos(self, session_name: str) -> dict[str, Any] | None:
-        """Load todos from disk for a session."""
         if session_name in self._todos:
             return self._todos[session_name]
 
-        todo_file = self._get_todo_file(session_name)
+        todo_file = self.get_todo_file(session_name)
         if todo_file.exists():
             try:
                 with open(todo_file, "r", encoding="utf-8") as f:
@@ -131,12 +137,20 @@ class TodoManager:
                 )
         return None
 
-    def _save_todos(self, session_name: str) -> None:
+    def get_todo_file(self, session_name: str) -> Path:
+        """Get the file path for a session's todos."""
+        # Sanitize session name for filesystem
+        safe_name = "".join(
+            c if c.isalnum() or c in "-_" else "_" for c in session_name
+        )
+        return self._todo_dir / f"{safe_name}.json"
+
+    def save_todos(self, session_name: str) -> None:
         """Save todos to disk for a session."""
         if session_name not in self._todos:
             return
 
-        todo_file = self._get_todo_file(session_name)
+        todo_file = self.get_todo_file(session_name)
         try:
             with open(todo_file, "w", encoding="utf-8") as f:
                 json.dump(self._todos[session_name], f, indent=2)

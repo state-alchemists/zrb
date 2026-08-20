@@ -33,13 +33,13 @@ async def test_handle_incoming_message():
     ui = MockEventUI()
 
     # Not waiting for input -> submit message
-    ui._waiting_for_input = False
+    ui.waiting_for_input = False
     ui.handle_incoming_message("hello")
     ui.submit_user_message.assert_called_with(ui.llm_task, "hello")
     assert ui.input_queue.empty()
 
     # Waiting for input -> enqueue
-    ui._waiting_for_input = True
+    ui.waiting_for_input = True
     ui.handle_incoming_message("world")
     assert ui.input_queue.qsize() == 1
     msg = await ui.input_queue.get()
@@ -56,7 +56,7 @@ async def test_get_input():
     result = await ui.get_input("Prompt:")
     assert result == "response"
     ui.print_mock.assert_called_with("❓ Prompt:", kind="text")
-    assert ui._waiting_for_input is False
+    assert ui.waiting_for_input is False
 
 
 @pytest.mark.asyncio

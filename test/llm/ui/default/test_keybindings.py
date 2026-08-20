@@ -185,10 +185,11 @@ def trigger_binding(key_bindings, key, event):
     bindings = key_bindings.get_bindings_for_keys((key,))
     if not bindings:
         return False
-    # Execute the last binding whose filter passes — the KeyProcessor
-    # (`KeyProcessor._get_matches`) evaluates `binding.filter()` at match time
-    # even though the raw registry's `get_bindings_for_keys` returns inactive
-    # bindings too. Last-match-wins mirrors prompt_toolkit's priority order.
+    # Execute the last binding whose filter passes — prompt_toolkit's own
+    # key processor (its match-finding step) evaluates `binding.filter()` at
+    # match time even though the raw registry's `get_bindings_for_keys`
+    # returns inactive bindings too. Last-match-wins mirrors prompt_toolkit's
+    # priority order.
     for binding in reversed(bindings):
         if binding.filter():
             binding.handler(event)

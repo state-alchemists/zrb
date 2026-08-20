@@ -357,7 +357,6 @@ class TestTerminalApprovalChannelWithHandler:
 
         # Add a mock tool_call_handler with formatters
         mock_handler = MagicMock()
-        mock_handler._argument_formatters = ["formatter1", "formatter2"]
         mock_handler.format_approval_message = AsyncMock(return_value="Confirm message")
         mock_handler.get_response_handlers = MagicMock(return_value=[])
         mock_ui.tool_call_handler = mock_handler
@@ -449,7 +448,6 @@ class TestTerminalApprovalChannelWithHandler:
         mock_ui.ask_user = AsyncMock(return_value="e")
         mock_ui.append_to_output = MagicMock()
         mock_ui.run_interactive_command = AsyncMock(return_value=0)
-        mock_ui._tool_call_handler = None  # No handler
 
         channel = TerminalApprovalChannel(ui=mock_ui)
         context = ApprovalContext(

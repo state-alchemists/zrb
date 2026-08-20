@@ -21,7 +21,7 @@ def test_setup_zsh_new_file():
         patch("zrb.builtin.setup.config_file_helper.write_file") as mock_write,
     ):
 
-        setup_zsh._action(ctx)
+        setup_zsh.action(ctx)
 
         assert mock_write.call_count == 2
         assert ctx.print.called
@@ -44,7 +44,7 @@ def test_setup_zsh_existing_config():
         patch("zrb.builtin.setup.config_file_helper.write_file") as mock_write,
     ):
 
-        setup_zsh._action(ctx)
+        setup_zsh.action(ctx)
 
         assert mock_write.call_count == 0
         assert not ctx.print.called

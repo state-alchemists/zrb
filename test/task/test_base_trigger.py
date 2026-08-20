@@ -119,8 +119,8 @@ class TestBaseTriggerXCom:
         """Test pop_exchange_xcom pops data from XCom."""
         trigger = BaseTrigger(name="test_trigger", queue_name="my_queue")
         session = get_mock_session()
-        session.shared_ctx._xcom["my_queue"] = Xcom()
-        session.shared_ctx._xcom["my_queue"].push("data_to_pop")
+        session.shared_ctx.xcom["my_queue"] = Xcom()
+        session.shared_ctx.xcom["my_queue"].push("data_to_pop")
 
         data = trigger.pop_exchange_xcom(session)
         assert data == "data_to_pop"

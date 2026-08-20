@@ -159,6 +159,15 @@ class SubAgentManager:
         )
         self._search = SubAgentManagerSearch()
 
+    @property
+    def root_dir(self) -> str:
+        """Directory the project-level search starts from."""
+        return self._root_dir
+
+    @root_dir.setter
+    def root_dir(self, value: str) -> None:
+        self._root_dir = value
+
     def reload(self):
         """Force re-scan agents. Use after CFG changes or agent file updates."""
         self._loaded = False

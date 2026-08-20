@@ -674,10 +674,10 @@ class TestBaseUICommandHandlers:
         ui.on_exit()
 
     def test_get_output_field_width(self, simple_ui_instance):
-        """Test _get_output_field_width returns None by default."""
+        """Test output_field_width returns None by default."""
         ui = simple_ui_instance
 
-        assert ui._get_output_field_width() is None
+        assert ui.output_field_width is None
 
     def test_stream_to_parent(self, simple_ui_instance):
         """Test stream_to_parent calls append_to_output."""

@@ -75,6 +75,16 @@ class LSPServer(LSPServerOperations):
         """Check if the server process is alive."""
         return self.process is not None and self.process.returncode is None
 
+    @property
+    def open_files(self) -> set[str]:
+        """URIs this server has sent `textDocument/didOpen` for."""
+        return self._open_files
+
+    @property
+    def diagnostics(self) -> dict[str, "tuple[int | None, list[dict]]"]:
+        """Cached push-diagnostics per URI, keyed by `(version, diagnostics)`."""
+        return self._diagnostics
+
     async def start(self) -> bool:
         """Start the LSP server process."""
         if self.is_alive:
@@ -189,7 +199,7 @@ class LSPServer(LSPServerOperations):
             "initialize",
             {
                 "processId": None,
-                "rootUri": self._path_to_uri(self.root_path),
+                "rootUri": self.path_to_uri(self.root_path),
                 "capabilities": LSPProtocol.CAPABILITIES,
                 "clientInfo": LSPProtocol.CLIENT_INFO,
             },
@@ -209,7 +219,7 @@ class LSPServer(LSPServerOperations):
         self.request_id += 1
         return self.request_id
 
-    def _path_to_uri(self, path: str) -> str:
+    def path_to_uri(self, path: str) -> str:
         """Convert file path to URI.
 
         Delegates to the canonical encoder in ``LSPProtocol`` so the URIs we

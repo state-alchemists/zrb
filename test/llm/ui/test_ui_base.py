@@ -21,7 +21,7 @@ def test_ui_public_methods(mock_ui_deps):
 
     # Test append_to_output
     ui.output_buffer = MagicMock()
-    with patch.object(ui._output, "_schedule_invalidate"):
+    with patch.object(ui.output_part, "schedule_invalidate"):
         ui.append_to_output("New content")
     # append_to_output internally modifies output_buffer.text
     assert ui.output_buffer.text is not None

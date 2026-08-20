@@ -53,7 +53,47 @@ class StreamEventHandler:
         self._event_prefix = self._indentation
         self._printed_tool_ids = set()
 
-    def _fprint(
+    @property
+    def indentation(self) -> str:
+        return self._indentation
+
+    @property
+    def show_tool_call_detail(self) -> bool:
+        return self._show_tool_call_detail
+
+    @property
+    def show_tool_result(self) -> bool:
+        return self._show_tool_result
+
+    @property
+    def progress_idx(self) -> int:
+        return self._progress_idx
+
+    @progress_idx.setter
+    def progress_idx(self, value: int) -> None:
+        self._progress_idx = value
+
+    @property
+    def was_tool_call_delta(self) -> bool:
+        return self._was_tool_call_delta
+
+    @was_tool_call_delta.setter
+    def was_tool_call_delta(self, value: bool) -> None:
+        self._was_tool_call_delta = value
+
+    @property
+    def was_tool_call_start(self) -> bool:
+        return self._was_tool_call_start
+
+    @property
+    def event_prefix(self) -> str:
+        return self._event_prefix
+
+    @property
+    def printed_tool_ids(self) -> set:
+        return self._printed_tool_ids
+
+    def fprint(
         self,
         content: str,
         preserve_leading_newline: bool = False,
@@ -90,22 +130,22 @@ class StreamEventHandler:
         skip_prefix_update = False
 
         if isinstance(event, PartStartEvent):
-            skip_prefix_update = self._handle_part_start(event)
+            skip_prefix_update = self.handle_part_start(event)
         elif isinstance(event, PartDeltaEvent):
-            self._handle_part_delta(event)
+            self.handle_part_delta(event)
         elif isinstance(event, ToolCallEvent):
-            self._handle_tool_call(event)
+            self.handle_tool_call(event)
         elif isinstance(event, ToolResultEvent):
-            self._handle_tool_result(event)
+            self.handle_tool_result(event)
         elif isinstance(event, AgentRunResultEvent):
-            self._handle_run_result(event)
+            self.handle_run_result(event)
         elif isinstance(event, FinalResultEvent):
             self._was_tool_call_delta = False
 
         if not skip_prefix_update:
             self._event_prefix = f"\n{self._indentation}"
 
-    def _handle_part_start(self, event: "PartStartEvent") -> bool:
+    def handle_part_start(self, event: "PartStartEvent") -> bool:
         # lazy: heavy third-party
         from pydantic_ai import ToolCallPart
         from pydantic_ai.messages import TextPart
@@ -118,7 +158,7 @@ class StreamEventHandler:
             # leave this line as-is, and the 🧰 line will appear below it.
 
             if not self._show_tool_call_detail:
-                self._fprint(
+                self.fprint(
                     f"{self._event_prefix}🔄 Prepare tool parameters...",
                     preserve_leading_newline=True,
                     kind="progress",
@@ -129,14 +169,14 @@ class StreamEventHandler:
         if isinstance(event.part, TextPart):
             content = _get_event_part_content(event)
             if content:
-                self._fprint(
+                self.fprint(
                     f"{self._event_prefix}{content}",
                     preserve_leading_newline=True,
                     kind="streaming",
                 )
         else:
             content = _get_event_part_content(event)
-            self._fprint(
+            self.fprint(
                 f"{self._event_prefix}🧠 {content}",
                 preserve_leading_newline=True,
                 kind="thinking",
@@ -145,28 +185,28 @@ class StreamEventHandler:
         self._was_tool_call_start = False
         return False
 
-    def _handle_part_delta(self, event: "PartDeltaEvent"):
+    def handle_part_delta(self, event: "PartDeltaEvent"):
         # lazy: heavy third-party
         from pydantic_ai import TextPartDelta, ThinkingPartDelta, ToolCallPartDelta
 
         if isinstance(event.delta, TextPartDelta):
-            self._fprint(f"{event.delta.content_delta}", kind="streaming")
+            self.fprint(f"{event.delta.content_delta}", kind="streaming")
             self._was_tool_call_delta = False
             self._was_tool_call_start = False
         elif isinstance(event.delta, ThinkingPartDelta):
-            self._fprint(f"{event.delta.content_delta}", kind="thinking")
+            self.fprint(f"{event.delta.content_delta}", kind="thinking")
             self._was_tool_call_delta = False
             self._was_tool_call_start = False
         elif isinstance(event.delta, ToolCallPartDelta):
             if self._show_tool_call_detail:
-                self._fprint(f"{event.delta.args_delta}", kind="tool_call")
+                self.fprint(f"{event.delta.args_delta}", kind="tool_call")
                 self._was_tool_call_delta = True
                 self._was_tool_call_start = False
             else:
                 if not self._was_tool_call_delta and not self._was_tool_call_start:
-                    self._fprint("\n", kind="progress")
+                    self.fprint("\n", kind="progress")
                 # Set state before the throttle check so the carriage-return
-                # cleanup in _handle_tool_call still fires even on a throttled
+                # cleanup in handle_tool_call still fires even on a throttled
                 # delta.
                 self._was_tool_call_delta = True
                 self._was_tool_call_start = False
@@ -183,7 +223,7 @@ class StreamEventHandler:
                     self._progress_chars
                 )
 
-    def _handle_tool_call(self, event: "ToolCallEvent"):
+    def handle_tool_call(self, event: "ToolCallEvent"):
         if self._was_tool_call_delta and not self._show_tool_call_detail:
             self._print_fn("\r", "progress")
 
@@ -198,25 +238,25 @@ class StreamEventHandler:
             else:
                 args = _get_truncated_event_part_args(event)
                 line = f"{self._event_prefix}🧰 {tool_call_id} | {tool_name} {args}\n"
-            self._fprint(line, preserve_leading_newline=True, kind="tool_call")
+            self.fprint(line, preserve_leading_newline=True, kind="tool_call")
         self._was_tool_call_delta = False
 
-    def _handle_tool_result(self, event: "ToolResultEvent"):
+    def handle_tool_result(self, event: "ToolResultEvent"):
         if self._show_tool_result:
-            self._fprint(
+            self.fprint(
                 f"{self._event_prefix}🔠 {event.tool_call_id} | Return {event.part.content}\n",
                 preserve_leading_newline=True,
                 kind="tool_call",
             )
         else:
-            self._fprint(
+            self.fprint(
                 f"{self._event_prefix}🔠 {event.tool_call_id} Executed\n",
                 preserve_leading_newline=True,
                 kind="tool_call",
             )
         self._was_tool_call_delta = False
 
-    def _handle_run_result(self, event: "AgentRunResultEvent"):
+    def handle_run_result(self, event: "AgentRunResultEvent"):
         usage = event.result.usage
         if self._usage_callback is not None:
             self._usage_callback(usage, _last_request_usage(event.result))
@@ -235,7 +275,7 @@ class StreamEventHandler:
                 f"Details: {usage.details}",
             ]
         )
-        self._fprint(
+        self.fprint(
             f"{self._event_prefix}{usage_msg}\n",
             preserve_leading_newline=True,
             kind="usage",

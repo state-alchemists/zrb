@@ -13,7 +13,7 @@ async def test_ordinary_session_uses_the_shared_main_chat_task():
     main_task = MagicMock()
 
     with patch(
-        "zrb.runner.chat.chat_api_route._get_llm_chat_task",
+        "zrb.runner.chat.chat_api_route.get_llm_chat_task",
         return_value=main_task,
     ):
         llm_chat, not_found_msg = await _resolve_llm_chat_task_for_session(
@@ -28,7 +28,7 @@ async def test_ordinary_session_uses_the_shared_main_chat_task():
 async def test_ordinary_session_missing_main_task_reports_not_registered():
     root_group = MagicMock()
 
-    with patch("zrb.runner.chat.chat_api_route._get_llm_chat_task", return_value=None):
+    with patch("zrb.runner.chat.chat_api_route.get_llm_chat_task", return_value=None):
         llm_chat, not_found_msg = await _resolve_llm_chat_task_for_session(
             "my-project-chat", root_group
         )
@@ -80,7 +80,7 @@ async def test_delegated_session_never_falls_back_to_the_main_chat_task():
 
     with (
         patch(
-            "zrb.runner.chat.chat_api_route._get_llm_chat_task",
+            "zrb.runner.chat.chat_api_route.get_llm_chat_task",
             return_value=main_task,
         ),
         patch("zrb.runner.chat.chat_api_route.sub_agent_manager") as mock_manager,

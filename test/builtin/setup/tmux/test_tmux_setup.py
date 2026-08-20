@@ -18,7 +18,7 @@ def test_setup_tmux_new_file():
         patch("zrb.builtin.setup.config_file_helper.write_file") as mock_write,
     ):
 
-        setup_tmux._action(ctx)
+        setup_tmux.action(ctx)
 
         # Should be called twice: once to ensure file exists, once to append config
         assert mock_write.call_count == 2
@@ -42,7 +42,7 @@ def test_setup_tmux_existing_config():
         patch("zrb.builtin.setup.config_file_helper.write_file") as mock_write,
     ):
 
-        setup_tmux._action(ctx)
+        setup_tmux.action(ctx)
 
         # Should NOT write anything if config already exists, and must not
         # print "setup complete" for a no-op run.

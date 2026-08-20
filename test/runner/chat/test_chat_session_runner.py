@@ -23,7 +23,7 @@ def mock_deps():
     llm_chat_task.async_run = AsyncMock()
 
     session_manager = MagicMock()
-    session_manager._history_manager = "new_hm"
+    session_manager.history_manager = "new_hm"
     session_manager.broadcast = AsyncMock()
     session_manager.set_processing = MagicMock()
 

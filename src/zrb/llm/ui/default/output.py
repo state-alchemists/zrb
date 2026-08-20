@@ -176,7 +176,7 @@ class UIOutput:
         # streaming, so the confirmation prompt is not interleaved with tokens.
         if self._ui.current_confirmation is not None and self._ui.is_thinking:
             self._ui.confirmation_output_buffer.append(content)
-            self._schedule_invalidate()
+            self.schedule_invalidate()
             return
 
         # While viewing a sub-agent the output pane shows that sub-agent's
@@ -188,7 +188,7 @@ class UIOutput:
             and saved_main_output is not None
         ):
             self._ui.saved_main_output = _merge_output_chunk(saved_main_output, content)
-            self._schedule_invalidate()
+            self.schedule_invalidate()
             return
 
         if kind not in ("text", "todo_progress"):
@@ -217,7 +217,7 @@ class UIOutput:
             Document(new_text, cursor_position=new_cursor_position),
             bypass_readonly=True,
         )
-        self._schedule_invalidate()
+        self.schedule_invalidate()
 
     def append_markdown(self, markdown_text: str) -> None:
         """Append rendered markdown, remembering the source (public API)."""
@@ -275,7 +275,7 @@ class UIOutput:
             text = text[:start] + rendered + text[end:]
             block[0], block[1] = start, start + len(rendered)
             shift += len(rendered) - (end - start)
-        self._set_output_text(text)
+        self.set_output_text(text)
 
     def _render_markdown_block(self, markdown_text: str, width: int | None) -> str:
         return render_markdown(
@@ -302,10 +302,10 @@ class UIOutput:
                 if block[0] >= end:
                     block[0] += delta
                     block[1] += delta
-        self._set_output_text(new_text)
+        self.set_output_text(new_text)
         return True
 
-    def _set_output_text(self, text: str) -> None:
+    def set_output_text(self, text: str) -> None:
         # lazy: heavy third-party
         from prompt_toolkit.document import Document
 
@@ -315,9 +315,9 @@ class UIOutput:
         buffer.set_document(
             Document(text, cursor_position=cursor), bypass_readonly=True
         )
-        self._schedule_invalidate()
+        self.schedule_invalidate()
 
-    def _schedule_invalidate(self):
+    def schedule_invalidate(self):
         if self._ui.pending_invalidate:
             return
         self._ui.pending_invalidate = True

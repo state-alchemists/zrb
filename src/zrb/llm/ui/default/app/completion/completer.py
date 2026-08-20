@@ -94,6 +94,24 @@ class InputCompleter(Completer):
         self._file_cache: dict[str, Any] = {}
         self._ollama_cache: dict[str, Any] = {}
 
+    @property
+    def cmd_history(self) -> list[str]:
+        """Shell command history used to complete `/exec` arguments."""
+        return self._cmd_history
+
+    @cmd_history.setter
+    def cmd_history(self, value: list[str]) -> None:
+        self._cmd_history = value
+
+    @property
+    def ollama_cache(self) -> dict[str, Any]:
+        """The `{"models": [...], "time": ...}` Ollama-model completion cache."""
+        return self._ollama_cache
+
+    @ollama_cache.setter
+    def ollama_cache(self, value: dict[str, Any]) -> None:
+        self._ollama_cache = value
+
     def get_completions(
         self, document: Document, complete_event: CompleteEvent
     ) -> Iterable[Completion]:

@@ -62,7 +62,7 @@ from zrb.config.helper import is_wsl
 # Termux's real home directory is always at this fixed location, regardless
 # of whether the caller is native Termux or a proot-distro guest -- see the
 # module docstring and `_termux_camera_photo`.
-_TERMUX_HOME_PHOTO_PATH = "/data/data/com.termux/files/home/.zrb_camera_photo.jpg"
+TERMUX_HOME_PHOTO_PATH = "/data/data/com.termux/files/home/.zrb_camera_photo.jpg"
 
 # Last ffmpeg stderr tail, for `missing_tool_hint()` to surface -- `_run`'s
 # caller only gets `None` on failure, so the actual reason needs a side
@@ -108,7 +108,7 @@ async def _termux_camera_photo(device: str | None) -> bytes | None:
     always at this fixed location, regardless of caller.
     """
     camera_id = device or "0"
-    tmp = _TERMUX_HOME_PHOTO_PATH
+    tmp = TERMUX_HOME_PHOTO_PATH
     try:
         proc = await asyncio.create_subprocess_exec(
             "termux-camera-photo",
@@ -217,7 +217,7 @@ async def _dshow_default_device() -> str | None:
     return match.group(1) if match else None
 
 
-_CAPTURE_TIMEOUT_SECONDS = 15
+CAPTURE_TIMEOUT_SECONDS = 15
 
 
 async def _run(cmd: list[str]) -> bytes | None:
@@ -230,13 +230,13 @@ async def _run(cmd: list[str]) -> bytes | None:
         )
         try:
             stdout, stderr = await asyncio.wait_for(
-                proc.communicate(), timeout=_CAPTURE_TIMEOUT_SECONDS
+                proc.communicate(), timeout=CAPTURE_TIMEOUT_SECONDS
             )
         except asyncio.TimeoutError:
             proc.kill()
             await proc.wait()
             _last_ffmpeg_error = (
-                f"capture timed out after {_CAPTURE_TIMEOUT_SECONDS}s -- the "
+                f"capture timed out after {CAPTURE_TIMEOUT_SECONDS}s -- the "
                 "camera opened but never delivered a frame (over WSL2 this "
                 "usually means usbipd's USB/IP tunnel can't keep up with the "
                 "requested format/resolution)"

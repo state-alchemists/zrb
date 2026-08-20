@@ -62,9 +62,9 @@ class TestChatSessionManager:
     def reset_singleton(self):
         from zrb.runner.chat.chat_session_manager import ChatSessionManager
 
-        ChatSessionManager._instance = None
+        ChatSessionManager.reset_instance()
         yield
-        ChatSessionManager._instance = None
+        ChatSessionManager.reset_instance()
 
     @pytest.mark.asyncio
     async def test_get_instance_async(self):
@@ -908,7 +908,7 @@ class TestChatSessionManager:
         manager = ChatSessionManager.get_instance_sync()
         with patch("zrb.runner.chat.chat_session_manager.CFG") as mock_cfg:
             mock_cfg.LLM_HISTORY_DIR = ""
-            assert manager._scan_sessions() == []
+            assert manager.scan_sessions() == []
 
     def test_scan_sessions_empty_when_dir_missing(self, tmp_path):
         """LLM_HISTORY_DIR set but nonexistent → returns []."""
@@ -917,7 +917,7 @@ class TestChatSessionManager:
         manager = ChatSessionManager.get_instance_sync()
         with patch("zrb.runner.chat.chat_session_manager.CFG") as mock_cfg:
             mock_cfg.LLM_HISTORY_DIR = str(tmp_path / "missing")
-            assert manager._scan_sessions() == []
+            assert manager.scan_sessions() == []
 
     @pytest.mark.asyncio
     async def test_get_sessions_includes_active_without_history(self):

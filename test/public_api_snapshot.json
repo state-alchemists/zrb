@@ -416,9 +416,11 @@
         "get_group_by_alias",
         "get_node_path",
         "get_non_empty_subgroups",
+        "get_run_command_param",
         "get_subtasks",
         "get_task_by_alias",
         "name",
+        "print_conversation_name",
         "remove_group",
         "remove_task",
         "run",
@@ -736,6 +738,7 @@
       ],
       "members": [
         "add_hook_factory",
+        "background_tasks",
         "execute_hooks",
         "execute_hooks_simple",
         "get_search_directories",
@@ -1006,6 +1009,8 @@
         "snapshot_dir",
         "successors",
         "system_prompt",
+        "teardown_background_hooks",
+        "teardown_interactive_resources",
         "to_function",
         "tool_confirmation",
         "tool_factories",
@@ -1042,13 +1047,18 @@
       "init": [],
       "members": [
         "acquire",
+        "calculate_wait_time",
+        "can_proceed",
         "count_tokens",
         "fit_context_window",
+        "get_limit_reason",
         "max_request_per_minute",
         "max_token_per_minute",
         "max_token_per_request",
+        "prune_logs",
         "throttle_check_interval",
         "tiktoken_encoding",
+        "to_str",
         "truncate_text",
         "use_tiktoken"
       ]
@@ -1639,6 +1649,7 @@
         "get_search_directories",
         "reload",
         "resolve_agent_build",
+        "root_dir",
         "scan"
       ]
     },

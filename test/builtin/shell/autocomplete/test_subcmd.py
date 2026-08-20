@@ -21,7 +21,7 @@ def test_get_shell_subcommands_logic():
         "zrb.builtin.shell.autocomplete.subcmd.get_group_subcommands",
         return_value=mock_subcommands,
     ):
-        res = get_shell_subcommands._action(ctx)
+        res = get_shell_subcommands.action(ctx)
         assert res == "cmd1 cmd2"
 
 
@@ -32,5 +32,5 @@ def test_get_shell_subcommands_not_found():
     with patch(
         "zrb.builtin.shell.autocomplete.subcmd.get_group_subcommands", return_value=[]
     ):
-        res = get_shell_subcommands._action(ctx)
+        res = get_shell_subcommands.action(ctx)
         assert res == ""
