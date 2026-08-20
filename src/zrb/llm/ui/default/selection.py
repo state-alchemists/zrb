@@ -16,7 +16,7 @@ Selection model:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, TextIO
+from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 
@@ -24,45 +24,23 @@ if TYPE_CHECKING:
     from prompt_toolkit.formatted_text import StyleAndTextTuples
     from prompt_toolkit.layout import Window
 
-    class _ConfirmationContract:
-        """Static stub for the base `_handle_confirmation` reached via `super()`.
-
-        `UIConfirmation` (next in the default `UI` MRO after this mixin)
-        supplies the real method at runtime; declaring it here as a typed base
-        lets static checkers resolve `super()._handle_confirmation(...)`. This
-        class is never instantiated and does not exist at runtime.
-        """
-
-        def _handle_confirmation(self, event: Any) -> bool: ...
-
-    _SelectionBase = _ConfirmationContract
-else:
-    _SelectionBase = object
+    from zrb.llm.ui.default.confirmation import UIConfirmation
+    from zrb.llm.ui.default.ui import UI
 
 
-class UISelection(_SelectionBase):
-    """In-layout selection widget; pairs with `UIConfirmation`."""
+class UISelection:
+    """In-layout selection widget; pairs with `UIConfirmation`.
 
-    # Host-class contract: `_input_field`/`append_to_output` come from the
-    # default `UI`/`UIOutput`; resolution from `UIConfirmation`.
-    if TYPE_CHECKING:
-        _input_field: Any
-        _current_confirmation: Any
+    Reaches most state/methods through `self._owner` — the composed `UI` —
+    like every other part. The one exception is `_handle_confirmation`'s
+    base-case fallback: it holds a direct reference to the `UIConfirmation`
+    sibling so the fallback call cannot loop back through the owner's own
+    `_handle_confirmation` delegator (which dispatches to this class first).
+    """
 
-        # Mirrors UIOutput's real signature. A loose `**kwargs` stub here
-        # reads as a widening override on the composed `UI` class, which
-        # inherits both mixins (reportIncompatibleMethodOverride).
-        def append_to_output(
-            self,
-            *values: object,
-            sep: str = " ",
-            end: str = "\n",
-            file: TextIO | None = None,
-            flush: bool = False,
-            kind: str = "text",
-        ) -> None: ...
-
-        def _resolve_current(self, text: str, echo: str | None) -> bool: ...
+    def __init__(self, owner: "UI", confirmation: "UIConfirmation") -> None:
+        self._owner = owner
+        self._confirmation = confirmation
 
     def _init_selection_state(self) -> None:
         """Initialize choice state and build the (hidden) widget."""
@@ -110,7 +88,7 @@ class UISelection(_SelectionBase):
             # lazy: heavy third-party
             from prompt_toolkit.application import get_app
 
-            get_app().layout.focus(self._input_field)
+            get_app().layout.focus(self._owner._input_field)
         except Exception as e:
             # Layout not ready (e.g. before first render) — focus on next paint.
             CFG.LOGGER.debug(f"Input-field focus failed: {e}")
@@ -224,7 +202,7 @@ class UISelection(_SelectionBase):
             options[i].get("label", str(i)) for i in indices if 0 <= i < len(options)
         ]
         answer = ", ".join(labels)
-        self._resolve_current(answer, echo=self._answer_echo(question, answer))
+        self._owner._resolve_current(answer, echo=self._answer_echo(question, answer))
         return True
 
     def _answer_echo(self, question: str, answer: str) -> str:
@@ -240,7 +218,7 @@ class UISelection(_SelectionBase):
         """
         prefix = self._choice_freetext_prefix
         if prefix is None:
-            return super()._handle_confirmation(event)
+            return self._confirmation._handle_confirmation(event)
         buff = event.current_buffer
         typed = buff.text.strip()
         question = self._choice_freetext_question
@@ -250,7 +228,8 @@ class UISelection(_SelectionBase):
         # Clear the typed answer before resolving so the restored draft (stashed
         # when the confirmation activated) is not wiped afterwards.
         buff.reset()
-        self._resolve_current(combined, echo=self._answer_echo(question, combined))
+        echo = self._answer_echo(question, combined)
+        self._owner._resolve_current(combined, echo=echo)
         return True
 
     # --- rendering -------------------------------------------------------
@@ -313,10 +292,10 @@ class UISelection(_SelectionBase):
         pending mid-thinking; the free-text future is still pending here, so we
         clear the active slot for the duration of the write.
         """
-        saved = self._current_confirmation
-        self._current_confirmation = None
-        self.append_to_output(text, kind="text")
-        self._current_confirmation = saved
+        saved = self._owner._current_confirmation
+        self._owner._current_confirmation = None
+        self._owner.append_to_output(text, kind="text")
+        self._owner._current_confirmation = saved
 
     def _invalidate(self) -> None:
         try:

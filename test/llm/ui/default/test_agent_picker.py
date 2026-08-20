@@ -15,8 +15,14 @@ from unittest.mock import MagicMock, patch
 from zrb.llm.ui.default.agent_picker import UIAgentPicker
 
 
-class FakeUI(UIAgentPicker):
-    """Minimal host wiring the picker expects (see the TYPE_CHECKING contract)."""
+class FakeUI:
+    """Minimal host composing the real `UIAgentPicker`.
+
+    Wires the state/methods the part reaches via `self._owner` (normally
+    supplied by `BaseUI`/the default `UI`) and forwards everything else
+    (public methods, properties, and the widget's own attributes the tests
+    poke directly) to the composed part.
+    """
 
     def __init__(self):
         self._conversation_session_name = "test_session"
@@ -25,7 +31,9 @@ class FakeUI(UIAgentPicker):
         self._output_field = MagicMock()
         self._output_field.text = ""
         self._output_field.buffer = MagicMock(cursor_position=0)
-        self._init_agent_picker_state()
+        self._confirmation_queue: list = []
+        self._picker = UIAgentPicker(self)
+        self._picker._init_agent_picker_state()
 
     @property
     def output_text(self) -> str:
@@ -34,6 +42,12 @@ class FakeUI(UIAgentPicker):
     def _set_output_text(self, text: str) -> None:
         self._output_field.text = text
         self._output_field.buffer.cursor_position = len(text)
+
+    def __getattr__(self, name):
+        picker = self.__dict__.get("_picker")
+        if picker is None:
+            raise AttributeError(name)
+        return getattr(picker, name)
 
 
 class FakeLiveRegistry:

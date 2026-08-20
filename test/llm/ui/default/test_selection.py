@@ -16,11 +16,13 @@ from zrb.llm.ui.default.confirmation import UIConfirmation
 from zrb.llm.ui.default.selection import UISelection
 
 
-class FakeUI(UISelection, UIConfirmation):
-    """Minimal host wiring the hooks UISelection expects.
-
-    Inherits UIConfirmation so `_handle_confirmation`'s super() fall-through
-    is exercised exactly as in the real default `UI` MRO.
+class FakeUI:
+    """Minimal host composing the real `UISelection` (plus a real
+    `UIConfirmation` sibling, so `_handle_confirmation`'s fall-through to
+    `UIConfirmation`'s base case is exercised exactly as in the real default
+    `UI`). `_resolve_current` is overridden directly on this stand-in owner —
+    `UISelection`/`UIConfirmation` both call `self._owner._resolve_current`,
+    so this override is what they both see.
     """
 
     def __init__(self):
@@ -29,7 +31,9 @@ class FakeUI(UISelection, UIConfirmation):
         self._current_confirmation = "FUTURE"  # truthy sentinel
         self.resolved: str | None = None
         self.echoes: list[str] = []
-        self._init_selection_state()
+        self._confirmation = UIConfirmation(self)
+        self._selection = UISelection(self, confirmation=self._confirmation)
+        self._selection._init_selection_state()
 
     def append_to_output(self, *values, **kwargs):
         self.echoes.append("".join(str(v) for v in values))
@@ -41,6 +45,15 @@ class FakeUI(UISelection, UIConfirmation):
         self._current_confirmation = None
         self._end_choice()
         return True
+
+    def __getattr__(self, name):
+        selection = self.__dict__.get("_selection")
+        if selection is not None and hasattr(selection, name):
+            return getattr(selection, name)
+        confirmation = self.__dict__.get("_confirmation")
+        if confirmation is not None:
+            return getattr(confirmation, name)
+        raise AttributeError(name)
 
 
 def _event(text=""):

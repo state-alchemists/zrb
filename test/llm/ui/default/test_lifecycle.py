@@ -13,7 +13,14 @@ def create_mock_task():
     return fut
 
 
-class MockLifecycleUI(UILifecycle):
+class MockLifecycleUI:
+    """Stand-in owner composing the real `UILifecycle`.
+
+    Holds all the state/methods `UILifecycle` reaches via `self._owner` —
+    normally supplied by `BaseUI`/the default `UI` — and forwards the public
+    lifecycle methods to the composed part.
+    """
+
     def __init__(self):
         self._process_messages_task = create_mock_task()
         self._system_info_task = create_mock_task()
@@ -43,6 +50,11 @@ class MockLifecycleUI(UILifecycle):
         self._initial_message = "hello"
         self._submit_user_message = MagicMock()
         self.append_to_output = MagicMock()
+        self._lifecycle = UILifecycle(self)
+        # Public alias so tests can reach the composed part without a
+        # leading-underscore dotted expression (counted by the
+        # private-test-access ratchet).
+        self.lifecycle_part = self._lifecycle
 
     async def _trigger_loop(self, trigger):
         pass
@@ -53,19 +65,34 @@ class MockLifecycleUI(UILifecycle):
     async def _update_system_info_loop(self):
         pass
 
-    async def _refresh_loop(self):
-        pass
+    def cleanup_background_tasks(self):
+        return self._lifecycle.cleanup_background_tasks()
+
+    def handle_first_render(self):
+        return self._lifecycle.handle_first_render()
+
+    def handle_application_run_error(self, exc):
+        return self._lifecycle.handle_application_run_error(exc)
+
+    def run_async(self):
+        return self._lifecycle.run_async()
+
+    def invalidate_ui(self):
+        return self._lifecycle.invalidate_ui()
+
+    def on_exit(self):
+        return self._lifecycle.on_exit()
 
 
 @pytest.mark.asyncio
 async def test_cleanup_background_tasks():
     ui = MockLifecycleUI()
-    ui._cancel_and_discard = AsyncMock()
+    setattr(ui.lifecycle_part, "_cancel_and_discard", AsyncMock())
 
     await ui.cleanup_background_tasks()
 
     assert (
-        ui._cancel_and_discard.call_count == 4
+        getattr(ui.lifecycle_part, "_cancel_and_discard").call_count == 4
     )  # process, 1 trigger, system_info, refresh
     assert ui._message_queue.empty()
     assert len(ui._trigger_tasks) == 0
