@@ -10,9 +10,9 @@ from zrb.llm.ui.base.commands import BaseUICommands
 
 class MockUI:
     """Stand-in for `BaseUI`: owns the state `BaseUICommands` and its
-    conversation/model/exec collaborators read through the owner reference,
-    plus the owner-native methods they call (`append_to_output`, `on_exit`,
-    ...). Composes a real `BaseUICommands(self)` and forwards attribute
+    conversation/model/exec collaborators read through `self._base_ui`,
+    plus the `BaseUI` methods they call (`append_to_output`, `on_exit`, ...).
+    Composes a real `BaseUICommands(self)` and forwards attribute
     lookups to it (and its sub-collaborators) so the many existing
     `ui._handle_*`/`ui.classify_input`/... call sites below keep working
     unchanged."""

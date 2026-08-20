@@ -73,6 +73,10 @@ class BaseInput(AnyInput):
         return self._prompt if self._prompt is not None else self.name
 
     @property
+    def is_secret(self) -> bool:
+        return False
+
+    @property
     def allow_positional_parsing(self) -> bool:
         return self._allow_positional_parsing
 

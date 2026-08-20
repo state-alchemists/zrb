@@ -42,10 +42,11 @@ def _as_str_list(raw: Any, default: _Default) -> "list[str] | _Default":
 class SubAgentManagerLoading:
     """Filesystem walker + agent-file parsers for ``SubAgentManager``.
 
-    `ignore_dirs` and `agents` are owned by `SubAgentManager.__init__` and
-    handed in once here; `agents` is the *same* dict object the owner holds
-    (never reassigned wholesale — `SubAgentManager.reload` clears it in place)
-    so mutations made here stay visible to the owner. `root_dir` is passed per
+    `ignore_dirs` and `agents` are initialized by `SubAgentManager.__init__`
+    and handed in once here; `agents` is the *same* dict object held by
+    `SubAgentManager` (never reassigned wholesale — `SubAgentManager.reload`
+    clears it in place), so mutations made here stay visible to the manager.
+    `root_dir` is passed per
     call instead of cached, since it can change after construction.
     """
 

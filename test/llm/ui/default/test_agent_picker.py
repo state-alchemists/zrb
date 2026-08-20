@@ -18,8 +18,8 @@ from zrb.llm.ui.default.agent_picker import UIAgentPicker
 class FakeUI:
     """Minimal host composing the real `UIAgentPicker`.
 
-    Wires the state/methods the part reaches via `self._owner` (normally
-    supplied by `BaseUI`/the default `UI`) and forwards everything else
+    Wires the state/methods the part reaches via `self._ui` (normally
+    supplied by the default `UI`) and forwards everything else
     (public methods, properties, and the widget's own attributes the tests
     poke directly) to the composed part.
     """

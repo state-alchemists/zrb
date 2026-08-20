@@ -66,7 +66,8 @@ class SimpleUI(BaseUI):
     if TYPE_CHECKING:
         # Not set here — `PollingUI`/`EventDrivenUI` set these in their own
         # `__init__`, then compose `QueueBasedInput(self)`, which reads them
-        # through the owner. Declared here only so that reference type-checks.
+        # through `self._simple_ui`. Declared here only so that reference
+        # type-checks.
         _input_queue: "asyncio.Queue[str]"
         _waiting_for_input: bool
 

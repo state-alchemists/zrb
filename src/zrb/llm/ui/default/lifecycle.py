@@ -21,66 +21,64 @@ if TYPE_CHECKING:
 class UILifecycle:
     """Background-task lifecycle and exit handling for the default UI."""
 
-    def __init__(self, owner: "UI") -> None:
-        self._owner = owner
+    def __init__(self, ui: "UI") -> None:
+        self._ui = ui
 
     async def cleanup_background_tasks(self):
         """Cancel and clean up all background tasks."""
-        owner = self._owner
-        await self._cancel_and_discard(owner._process_messages_task)
+        ui = self._ui
+        await self._cancel_and_discard(ui._process_messages_task)
 
-        while not owner._message_queue.empty():
+        while not ui._message_queue.empty():
             try:
-                owner._message_queue.get_nowait()
-                owner._message_queue.task_done()
+                ui._message_queue.get_nowait()
+                ui._message_queue.task_done()
             except asyncio.QueueEmpty:
                 break
 
-        for trigger_task in owner._trigger_tasks:
+        for trigger_task in ui._trigger_tasks:
             await self._cancel_and_discard(trigger_task)
-        owner._trigger_tasks.clear()
+        ui._trigger_tasks.clear()
 
-        await self._cancel_and_discard(owner._system_info_task)
-        await self._cancel_and_discard(owner._refresh_task)
+        await self._cancel_and_discard(ui._system_info_task)
+        await self._cancel_and_discard(ui._refresh_task)
 
     def handle_application_run_error(self, exc: Exception):
         """Handle error during application.run_async (public API)."""
 
-        self._owner.append_to_output(f"[Error: {exc}]\n{tb_lib.format_exc()}")
+        self._ui.append_to_output(f"[Error: {exc}]\n{tb_lib.format_exc()}")
 
     async def run_async(self):
         """Run the application and manage triggers."""
-        owner = self._owner
-        for trigger_fn in owner._triggers:
-            trigger_task = owner._application.create_background_task(
-                owner._trigger_loop(trigger_fn)
+        ui = self._ui
+        for trigger_fn in ui._triggers:
+            trigger_task = ui._application.create_background_task(
+                ui._trigger_loop(trigger_fn)
             )
-            owner._trigger_tasks.append(trigger_task)
+            ui._trigger_tasks.append(trigger_task)
 
-        owner._process_messages_task = owner._application.create_background_task(
-            owner._process_messages_loop()
+        ui._process_messages_task = ui._application.create_background_task(
+            ui._process_messages_loop()
         )
-        self._track_background(owner._process_messages_task)
+        self._track_background(ui._process_messages_task)
 
-        owner._system_info_task = owner._application.create_background_task(
-            owner._update_system_info_loop()
+        ui._system_info_task = ui._application.create_background_task(
+            ui._update_system_info_loop()
         )
-        self._track_background(owner._system_info_task)
+        self._track_background(ui._system_info_task)
 
-        owner._refresh_task = owner._application.create_background_task(
-            self._refresh_loop()
-        )
-        self._track_background(owner._refresh_task)
+        ui._refresh_task = ui._application.create_background_task(self._refresh_loop())
+        self._track_background(ui._refresh_task)
 
         try:
-            owner._capture.start()
-            await owner._update_system_info()
-            if owner._snapshot_manager is not None:
-                await owner._snapshot_manager.take_init_snapshot()
-            return await owner._application.run_async()
+            ui._capture.start()
+            await ui._update_system_info()
+            if ui._snapshot_manager is not None:
+                await ui._snapshot_manager.take_init_snapshot()
+            return await ui._application.run_async()
         finally:
-            owner._capture.stop()
-            buffered_output = owner._capture.get_buffered_output()
+            ui._capture.stop()
+            buffered_output = ui._capture.get_buffered_output()
             if buffered_output:
                 print(buffered_output, end="")
 
@@ -88,8 +86,8 @@ class UILifecycle:
 
     def _track_background(self, task: asyncio.Task | None) -> None:
         """Add a task to `_background_tasks` to prevent premature GC."""
-        if task is not None and hasattr(self._owner, "_background_tasks"):
-            self._owner._background_tasks.add(task)
+        if task is not None and hasattr(self._ui, "_background_tasks"):
+            self._ui._background_tasks.add(task)
 
     async def _cancel_and_discard(self, task: asyncio.Task | None) -> None:
         """Cancel `task`, await its termination, and drop it from the set."""
@@ -101,20 +99,20 @@ class UILifecycle:
         except (asyncio.CancelledError, RuntimeError):
             pass
         finally:
-            if hasattr(self._owner, "_background_tasks"):
-                self._owner._background_tasks.discard(task)
+            if hasattr(self._ui, "_background_tasks"):
+                self._ui._background_tasks.discard(task)
 
     async def _refresh_loop(self):
         """Periodically invalidate UI to fix artifacts/lag."""
         # lazy: heavy third-party
         from prompt_toolkit.application import get_app
 
-        owner = self._owner
+        ui = self._ui
         while True:
             try:
                 app = get_app()
                 app.invalidate()
-                if app.layout.has_focus(owner._input_field):
+                if app.layout.has_focus(ui._input_field):
                     self._scroll_output_to_bottom()
             except Exception as e:
                 # Best-effort repaint loop; a transient render error must not
@@ -124,8 +122,8 @@ class UILifecycle:
                 # When thinking or waiting for confirmation, refresh faster for
                 # animation (every 0.25s). Otherwise, refresh every 3s to save CPU.
                 if (
-                    getattr(owner, "_is_thinking", False)
-                    or getattr(owner, "_current_confirmation", None) is not None
+                    getattr(ui, "_is_thinking", False)
+                    or getattr(ui, "_current_confirmation", None) is not None
                 ):
                     await asyncio.sleep(0.25)
                 else:
@@ -136,7 +134,7 @@ class UILifecycle:
     def _scroll_output_to_bottom(self):
         """Scroll output field to the bottom."""
         try:
-            buffer = self._owner._output_field.buffer
+            buffer = self._ui._output_field.buffer
             if buffer.cursor_position != len(buffer.text):
                 buffer.cursor_position = len(buffer.text)
         except Exception as e:
@@ -145,13 +143,13 @@ class UILifecycle:
 
     def handle_first_render(self):
         """Handle the first render event (public API)."""
-        self._on_first_render(self._owner._application)
+        self._on_first_render(self._ui._application)
 
     def _on_first_render(self, app) -> None:
         """Submit the initial message exactly once on first render."""
-        owner = self._owner
-        owner._application.after_render.remove_handler(self._on_first_render)
-        owner._submit_user_message(owner._llm_task, owner._initial_message)
+        ui = self._ui
+        ui._application.after_render.remove_handler(self._on_first_render)
+        ui._submit_user_message(ui._llm_task, ui._initial_message)
 
     def invalidate_ui(self):
         # lazy: heavy third-party
@@ -173,7 +171,7 @@ class UILifecycle:
             # No active app to exit (already torn down) — nothing to do.
             pass
 
-        if hasattr(self._owner, "_background_tasks"):
-            for task in self._owner._background_tasks:
+        if hasattr(self._ui, "_background_tasks"):
+            for task in self._ui._background_tasks:
                 if not task.done():
                     task.cancel()

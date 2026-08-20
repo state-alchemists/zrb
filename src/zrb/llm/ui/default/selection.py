@@ -31,15 +31,15 @@ if TYPE_CHECKING:
 class UISelection:
     """In-layout selection widget; pairs with `UIConfirmation`.
 
-    Reaches most state/methods through `self._owner` — the composed `UI` —
+    Reaches most state/methods through `self._ui` — the composed `UI` —
     like every other part. The one exception is `_handle_confirmation`'s
     base-case fallback: it holds a direct reference to the `UIConfirmation`
-    sibling so the fallback call cannot loop back through the owner's own
+    sibling so the fallback call cannot loop back through the UI's own
     `_handle_confirmation` delegator (which dispatches to this class first).
     """
 
-    def __init__(self, owner: "UI", confirmation: "UIConfirmation") -> None:
-        self._owner = owner
+    def __init__(self, ui: "UI", confirmation: "UIConfirmation") -> None:
+        self._ui = ui
         self._confirmation = confirmation
 
     def _init_selection_state(self) -> None:
@@ -88,7 +88,7 @@ class UISelection:
             # lazy: heavy third-party
             from prompt_toolkit.application import get_app
 
-            get_app().layout.focus(self._owner._input_field)
+            get_app().layout.focus(self._ui._input_field)
         except Exception as e:
             # Layout not ready (e.g. before first render) — focus on next paint.
             CFG.LOGGER.debug(f"Input-field focus failed: {e}")
@@ -202,7 +202,7 @@ class UISelection:
             options[i].get("label", str(i)) for i in indices if 0 <= i < len(options)
         ]
         answer = ", ".join(labels)
-        self._owner._resolve_current(answer, echo=self._answer_echo(question, answer))
+        self._ui._resolve_current(answer, echo=self._answer_echo(question, answer))
         return True
 
     def _answer_echo(self, question: str, answer: str) -> str:
@@ -229,7 +229,7 @@ class UISelection:
         # when the confirmation activated) is not wiped afterwards.
         buff.reset()
         echo = self._answer_echo(question, combined)
-        self._owner._resolve_current(combined, echo=echo)
+        self._ui._resolve_current(combined, echo=echo)
         return True
 
     # --- rendering -------------------------------------------------------
@@ -292,10 +292,10 @@ class UISelection:
         pending mid-thinking; the free-text future is still pending here, so we
         clear the active slot for the duration of the write.
         """
-        saved = self._owner._current_confirmation
-        self._owner._current_confirmation = None
-        self._owner.append_to_output(text, kind="text")
-        self._owner._current_confirmation = saved
+        saved = self._ui._current_confirmation
+        self._ui._current_confirmation = None
+        self._ui.append_to_output(text, kind="text")
+        self._ui._current_confirmation = saved
 
     def _invalidate(self) -> None:
         try:

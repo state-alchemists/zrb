@@ -45,6 +45,11 @@ class AnyInput(ABC):
 
     @property
     @abstractmethod
+    def is_secret(self) -> bool:
+        """Whether the input value considered as secret value."""
+
+    @property
+    @abstractmethod
     def allow_positional_parsing(self) -> bool:
         """Whether this input can be supplied as a bare positional argument.
 

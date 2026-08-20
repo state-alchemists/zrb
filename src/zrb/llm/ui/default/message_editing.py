@@ -34,8 +34,8 @@ if TYPE_CHECKING:
 class UIMessageEditing:
     """Up/Down/Enter editing of still-queued messages (part of the default `UI`)."""
 
-    def __init__(self, owner: "UI") -> None:
-        self._owner = owner
+    def __init__(self, ui: "UI") -> None:
+        self._ui = ui
         self._queued_edit_entry: QueuedMessage | None = None
         self._queued_edit_draft: str = ""
 
@@ -67,7 +67,7 @@ class UIMessageEditing:
         entry = self._queued_edit_entry
         if entry is None:
             return False
-        buffer = self._owner._input_field.buffer
+        buffer = self._ui._input_field.buffer
         return buffer.text == entry.text and buffer.cursor_position == len(buffer.text)
 
     def _handle_up_arrow(self, event: Any) -> bool:
@@ -76,7 +76,7 @@ class UIMessageEditing:
         Returns ``True`` when the keypress was consumed by queued-message
         navigation; ``False`` lets the input field's history recall run.
         """
-        queue = self._owner.effective_message_queue
+        queue = self._ui.effective_message_queue
         buffer = event.current_buffer
         entry = self._queued_edit_entry
 
@@ -111,7 +111,7 @@ class UIMessageEditing:
         so Down can restore it; later recalls from a stale edit mode leave the
         saved draft untouched.
         """
-        newest = self._owner.effective_message_queue.latest_editable()
+        newest = self._ui.effective_message_queue.latest_editable()
         if newest is None:
             return False
         if save_draft:
@@ -132,11 +132,11 @@ class UIMessageEditing:
         if (
             buffer.text.strip() == ""
             and not self._recall_navigation_active()
-            and self._owner.open_agent_picker()
+            and self._ui.open_agent_picker()
         ):
             return True
 
-        queue = self._owner.effective_message_queue
+        queue = self._ui.effective_message_queue
         entry = self._queued_edit_entry
 
         if entry is not None and not self._recall_navigation_active():
@@ -177,7 +177,7 @@ class UIMessageEditing:
             # submitting anything.
             self._load_edit_text(event.current_buffer, self._queued_edit_draft)
             return True
-        if self._owner.edit_queued_message(entry, text):
+        if self._ui.edit_queued_message(entry, text):
             event.current_buffer.reset()
             return True
         # The message already started — fall through and submit as a new one.
@@ -190,7 +190,7 @@ class UIMessageEditing:
         — a pending confirmation buffers the content instead, which would make
         the span a lie (the same guard `append_rendered` uses).
         """
-        text = self._owner.output_text
+        text = self._ui.output_text
         if text.endswith(echo):
             entry.echo_span = (len(text) - len(echo), len(text))
             entry.echo_text = echo
@@ -200,11 +200,11 @@ class UIMessageEditing:
         if entry.echo_span is None:
             return
         start, end = entry.echo_span
-        if end > len(self._owner.output_text):
+        if end > len(self._ui.output_text):
             # The span is stale — the buffer was rewritten since (e.g. rewind).
             entry.echo_span = None
             return
-        if entry.echo_text and self._owner.output_text[start:end] != entry.echo_text:
+        if entry.echo_text and self._ui.output_text[start:end] != entry.echo_text:
             # The span no longer holds the echoed line — a terminal resize
             # re-wrapped tracked markdown blocks and shifted the transcript
             # without updating this entry. Drop the span: the edit is already
@@ -216,6 +216,6 @@ class UIMessageEditing:
         marker = entry.echo_marker or "💬"
         ts = entry.echo_timestamp or datetime.now().strftime("%H:%M")
         echo = f"\n{marker} {ts} >> {entry.text.strip()}\n"
-        self._owner.replace_output_span(start, end, echo)
+        self._ui.replace_output_span(start, end, echo)
         entry.echo_span = (start, start + len(echo))
         entry.echo_text = echo

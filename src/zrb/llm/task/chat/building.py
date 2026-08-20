@@ -5,10 +5,10 @@ post-construction live here, plus the related public properties for model
 hooks. This keeps `llm_chat_task.py` focused on the `__init__` constructor and
 the execution orchestration (`_exec_action` and friends).
 
-Composed into `LLMChatTask` as `self._building`: takes the owning
-`LLMChatTask` and reads/writes its state through that reference rather than a
-value cached here at construction time, since most of it has a public setter
-that must be visible immediately.
+Composed into `LLMChatTask` as `self._building`: keeps `LLMChatTask` in
+`self._llm_chat_task` and reads/writes its state through that reference rather
+than a value cached here at construction time, since most of it has a public
+setter that must be visible immediately.
 """
 
 from __future__ import annotations
@@ -41,8 +41,8 @@ if TYPE_CHECKING:
 class ChatBuilding:
     """Post-construction configuration API for LLMChatTask."""
 
-    def __init__(self, owner: "LLMChatTask") -> None:
-        self._owner = owner
+    def __init__(self, llm_chat_task: "LLMChatTask") -> None:
+        self._llm_chat_task = llm_chat_task
 
     @property
     def prompt_manager(self) -> PromptManager:
@@ -51,53 +51,57 @@ class ChatBuilding:
         Raises:
             ValueError: If the task was built without one.
         """
-        if self._owner._prompt_manager is None:
-            raise ValueError(f"Task {self._owner.name} doesn't have prompt_manager")
-        return self._owner._prompt_manager
+        if self._llm_chat_task._prompt_manager is None:
+            raise ValueError(
+                f"Task {self._llm_chat_task.name} doesn't have prompt_manager"
+            )
+        return self._llm_chat_task._prompt_manager
 
     # --- UI ---------------------------------------------------------------
 
     def set_ui(self, ui: "UIProtocol | list[UIProtocol] | None"):
         """Set the UI protocol(s) for this task."""
-        self._owner._uis = [] if ui is None else (ui if isinstance(ui, list) else [ui])
+        self._llm_chat_task._uis = (
+            [] if ui is None else (ui if isinstance(ui, list) else [ui])
+        )
 
     def append_ui(self, ui: "UIProtocol") -> None:
         """Append a UI to the list of UIs."""
-        self._owner._uis.append(ui)
+        self._llm_chat_task._uis.append(ui)
 
     def set_ui_factory(self, ui_factory: Callable[..., "UIProtocol"] | None):
         """Set a factory function to instantiate the UI dynamically during execution."""
-        self._owner._ui_factories = [] if ui_factory is None else [ui_factory]
+        self._llm_chat_task._ui_factories = [] if ui_factory is None else [ui_factory]
 
     def append_ui_factory(self, factory: Callable[..., "UIProtocol"]) -> None:
         """Append a UI factory to the list of factories."""
-        self._owner._ui_factories.append(factory)
+        self._llm_chat_task._ui_factories.append(factory)
 
     # --- History manager --------------------------------------------------
 
     def set_history_manager(self, history_manager: "AnyHistoryManager") -> None:
         """Set the history manager for this task."""
-        self._owner._history_manager = history_manager
+        self._llm_chat_task._history_manager = history_manager
 
     # --- Model hooks ------------------------------------------------------
 
     @property
     def custom_model_names(self) -> "StrListAttr | None":
         """Extra model names offered by the `/model` picker, beyond detected ones."""
-        return self._owner._custom_model_names
+        return self._llm_chat_task._custom_model_names
 
     @custom_model_names.setter
     def custom_model_names(self, value: "StrListAttr | None"):
         """Replace the custom model-name list."""
-        self._owner._custom_model_names = value
+        self._llm_chat_task._custom_model_names = value
 
     def set_approval_channel(self, channel: "ApprovalChannel | None"):
         """Set the approval channel for tool confirmations."""
-        self._owner._approval_channels = [] if channel is None else [channel]
+        self._llm_chat_task._approval_channels = [] if channel is None else [channel]
 
     def append_approval_channel(self, channel: "ApprovalChannel") -> None:
         """Append an approval channel to the list."""
-        self._owner._approval_channels.append(channel)
+        self._llm_chat_task._approval_channels.append(channel)
 
     # --- Toolsets ---------------------------------------------------------
 
@@ -107,7 +111,7 @@ class ChatBuilding:
         Use a toolset to attach a group of related tools at once, such as an
         MCP server's. For a single function, `append_tool` is simpler.
         """
-        self._owner._toolsets += list(toolset)
+        self._llm_chat_task._toolsets += list(toolset)
 
     def append_toolset_factory(
         self, *factory: "Callable[[AnyContext], AbstractToolset[None]]"
@@ -117,7 +121,7 @@ class ChatBuilding:
         Prefer this over `append_toolset` when the toolset depends on inputs or
         env vars: a factory is called at run time, so it sees resolved values.
         """
-        self._owner._toolset_factories += list(factory)
+        self._llm_chat_task._toolset_factories += list(factory)
 
     # --- Tools ------------------------------------------------------------
 
@@ -128,7 +132,7 @@ class ChatBuilding:
         name, type hints, and docstring become the tool schema the model sees,
         so both are worth writing carefully.
         """
-        self._owner._tools += list(tool)
+        self._llm_chat_task._tools += list(tool)
 
     def append_tool_factory(
         self,
@@ -139,7 +143,7 @@ class ChatBuilding:
         Prefer this over `append_tool` when the tool needs to close over
         resolved inputs or env vars, which exist only once the task runs.
         """
-        self._owner._tool_factories += list(factory)
+        self._llm_chat_task._tool_factories += list(factory)
 
     # --- Hook factories ---------------------------------------------------
 
@@ -149,7 +153,7 @@ class ChatBuilding:
         Unlike `LLMTaskBuilding.append_hook_factory`, factories are stored and
         applied when the chat task builds its inner `LLMTask`, not immediately.
         """
-        self._owner._hook_factories += list(factory)
+        self._llm_chat_task._hook_factories += list(factory)
 
     # --- History processors ----------------------------------------------
 
@@ -160,7 +164,7 @@ class ChatBuilding:
         output. This is the seam summarization and trimming use to keep a long
         conversation inside the context window.
         """
-        self._owner._history_processors += list(processor)
+        self._llm_chat_task._history_processors += list(processor)
 
     # --- Response handlers / tool policies / arg formatters --------------
 
@@ -171,7 +175,9 @@ class ChatBuilding:
         The chain short-circuits: the first handler returning a non-`None`
         result wins and the rest are skipped.
         """
-        self._owner._response_handlers = list(handler) + self._owner._response_handlers
+        self._llm_chat_task._response_handlers = (
+            list(handler) + self._llm_chat_task._response_handlers
+        )
 
     def prepend_tool_policy(self, *policy: ToolPolicy):
         """Add policies deciding whether a tool call is allowed, denied, or confirmed.
@@ -180,7 +186,9 @@ class ChatBuilding:
         The chain short-circuits: the first policy returning a verdict decides,
         and the rest are skipped.
         """
-        self._owner._tool_policies = list(policy) + self._owner._tool_policies
+        self._llm_chat_task._tool_policies = (
+            list(policy) + self._llm_chat_task._tool_policies
+        )
 
     def prepend_argument_formatter(self, *formatter: ArgumentFormatter):
         """Add formatters controlling how a tool call's arguments are displayed.
@@ -190,8 +198,8 @@ class ChatBuilding:
         each non-`None` result overwrites the previous, so formatters already
         registered still run after this one and may replace its output.
         """
-        self._owner._argument_formatters = (
-            list(formatter) + self._owner._argument_formatters
+        self._llm_chat_task._argument_formatters = (
+            list(formatter) + self._llm_chat_task._argument_formatters
         )
 
     # --- Triggers ---------------------------------------------------------
@@ -203,7 +211,7 @@ class ChatBuilding:
         yields is submitted as a user turn. This is how a scheduled or
         externally-driven message enters an otherwise interactive session.
         """
-        self._owner._triggers += trigger
+        self._llm_chat_task._triggers += trigger
 
     # --- Custom commands --------------------------------------------------
 
@@ -219,29 +227,29 @@ class ChatBuilding:
         them. A callable is resolved when the session starts, which lets a
         command set be discovered at run time.
         """
-        self._owner._custom_commands += list(custom_command)
+        self._llm_chat_task._custom_commands += list(custom_command)
 
     # --- Accessors --------------------------------------------------------
 
     @property
     def llm_config(self) -> "LLMConfig":
         """Model, credentials, and endpoint settings backing this task."""
-        return self._owner._llm_config
+        return self._llm_chat_task._llm_config
 
     @property
     def llm_limiter(self) -> "LLMLimiter | None":
         """Rate and token limiter throttling requests, or None if unlimited."""
-        return self._owner._llm_limiter
+        return self._llm_chat_task._llm_limiter
 
     @property
     def permissions(self) -> "PermissionPolicyInput":
         """Policy bounding which files and commands the agent's tools may touch."""
-        return self._owner._permissions
+        return self._llm_chat_task._permissions
 
     @permissions.setter
     def permissions(self, value: "PermissionPolicyInput"):
         """Replace the permission policy."""
-        self._owner._permissions = value
+        self._llm_chat_task._permissions = value
 
     @property
     def sandbox(self) -> "SandboxInput | BoolAttr":
@@ -250,48 +258,48 @@ class ChatBuilding:
         A bool or template toggles the default sandbox; a `SandboxInput`
         configures it.
         """
-        return self._owner._sandbox
+        return self._llm_chat_task._sandbox
 
     @sandbox.setter
     def sandbox(self, value: "SandboxInput | BoolAttr"):
-        self._owner._sandbox = value
+        self._llm_chat_task._sandbox = value
 
     @property
     def history_manager(self) -> "AnyHistoryManager | None":
         """Get the history manager."""
-        return self._owner._history_manager
+        return self._llm_chat_task._history_manager
 
     @history_manager.setter
     def history_manager(self, value: "AnyHistoryManager | None"):
         """Set the history manager."""
-        self._owner._history_manager = value
+        self._llm_chat_task._history_manager = value
 
     @property
     def ui_factories(self) -> list[Callable[..., "UIProtocol"]]:
         """Get the UI factories."""
-        return self._owner._ui_factories
+        return self._llm_chat_task._ui_factories
 
     @ui_factories.setter
     def ui_factories(self, value: list[Callable[..., "UIProtocol"]]):
         """Set the UI factories."""
-        self._owner._ui_factories = value
+        self._llm_chat_task._ui_factories = value
 
     @property
     def approval_channels(self) -> list["ApprovalChannel"]:
         """Get the approval channels."""
-        return self._owner._approval_channels
+        return self._llm_chat_task._approval_channels
 
     @approval_channels.setter
     def approval_channels(self, value: list["ApprovalChannel"]):
         """Set the approval channels."""
-        self._owner._approval_channels = value
+        self._llm_chat_task._approval_channels = value
 
     @property
     def include_default_ui(self) -> bool:
         """Check if the default UI should be included."""
-        return self._owner._include_default_ui
+        return self._llm_chat_task._include_default_ui
 
     @include_default_ui.setter
     def include_default_ui(self, value: bool):
         """Set if the default UI should be included."""
-        self._owner._include_default_ui = value
+        self._llm_chat_task._include_default_ui = value

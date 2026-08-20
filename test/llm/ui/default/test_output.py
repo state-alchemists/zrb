@@ -8,10 +8,10 @@ from zrb.util.cli.help_panel import HelpPanel
 
 
 class MockOutputUI:
-    """Stand-in owner composing the real `UIOutput`.
+    """Stand-in UI composing the real `UIOutput`.
 
-    Holds the state `UIOutput` reaches via `self._owner` (normally supplied
-    by `BaseUI`/the default `UI`) and forwards everything else (public
+    Holds the state `UIOutput` reaches via `self._ui` (normally supplied by
+    the default `UI`) and forwards everything else (public
     methods/properties) to the composed part.
     """
 

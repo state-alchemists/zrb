@@ -6,11 +6,11 @@ cancelled. They are kept out of `llm_task.py` so the host stays focused on the
 constructor and the execution core. None of these methods call ``run_agent`` /
 ``create_agent`` / ``summarize_history`` (those seams stay in the host).
 
-Composed into `LLMTask` as `self._history`: takes the owning `LLMTask` and
-reads `_history_manager`/`_conversation_name`/`_render_conversation_name`
-through that reference rather than a cached copy, since `history_manager` has
-a public setter (`task.history_manager = ...`) that must be visible here
-immediately.
+Composed into `LLMTask` as `self._history`: keeps `LLMTask` in
+`self._llm_task` and reads `_history_manager`/`_conversation_name`/
+`_render_conversation_name` through that reference rather than a cached copy,
+since `history_manager` has a public setter (`task.history_manager = ...`)
+that must be visible here immediately.
 """
 
 from __future__ import annotations
@@ -37,19 +37,21 @@ class LLMTaskHistory:
     where history lives or what a failed run leaves behind.
     """
 
-    def __init__(self, owner: "LLMTask") -> None:
-        self._owner = owner
+    def __init__(self, llm_task: "LLMTask") -> None:
+        self._llm_task = llm_task
 
     def get_history_manager(self, ctx: AnyContext) -> AnyHistoryManager:
         """The configured history manager, or a default file-backed one."""
-        if self._owner._history_manager is not None:
-            return self._owner._history_manager
+        if self._llm_task._history_manager is not None:
+            return self._llm_task._history_manager
         return FileHistoryManager(history_dir=CFG.LLM_HISTORY_DIR)
 
     def get_conversation_name(self, ctx: AnyContext) -> str:
         """The configured conversation name, or a fresh random one when blank."""
         return resolve_conversation_name(
-            ctx, self._owner._conversation_name, self._owner._render_conversation_name
+            ctx,
+            self._llm_task._conversation_name,
+            self._llm_task._render_conversation_name,
         )
 
     def get_effective_prompt(

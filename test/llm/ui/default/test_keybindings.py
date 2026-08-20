@@ -14,9 +14,9 @@ from zrb.llm.ui.default.message_editing import UIMessageEditing
 
 
 class MockUI:
-    """Stand-in owner composing the real `UIKeybindings`, `UIMessageEditing`
+    """Stand-in UI composing the real `UIKeybindings`, `UIMessageEditing`
     and `UIAgentPicker`. Each part reaches this object's state via
-    `self._owner`, so most of the state below is unchanged from the old
+    `self._ui`, so most of the state below is unchanged from the old
     inheritance-based test double. The exception is state that now lives
     *inside* the composed parts themselves (`_queued_edit_entry`/
     `_queued_edit_draft` on `UIMessageEditing`, `_viewing_agent_id`/
@@ -931,7 +931,7 @@ from zrb.llm.ui.base.commands import BaseUICommands  # noqa: E402
 
 class IntegrationUI:
     """`BaseUICommands`, `UIKeybindings` and `UIMessageEditing` are all
-    composed (not inherited): their handlers read state through the owner
+    composed (not inherited): their handlers read state through the UI
     reference, so `self._cmds`/`self._keybindings`/`self._message_editing`
     plus the `__getattr__` fallback below keep `self.classify_input(...)` /
     `self.schedule_command(...)` working exactly as before."""

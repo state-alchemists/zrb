@@ -415,7 +415,7 @@ class UI(BaseUI):
         return self._agent_picker.saved_main_output
 
     # Private forwarders: `UIOutput`/`UIKeybindings`/`UIConfirmation` read (and,
-    # for `_saved_main_output`, write) this state on the owner — it actually
+    # for `_saved_main_output`, write) this state on the UI — it actually
     # lives on the composed `UIAgentPicker`, so these route the cross-part
     # access through it rather than shadowing a stray same-named attribute.
     @property

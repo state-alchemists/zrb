@@ -20,8 +20,8 @@ class FakeUI:
     """Minimal host composing the real `UISelection` (plus a real
     `UIConfirmation` sibling, so `_handle_confirmation`'s fall-through to
     `UIConfirmation`'s base case is exercised exactly as in the real default
-    `UI`). `_resolve_current` is overridden directly on this stand-in owner —
-    `UISelection`/`UIConfirmation` both call `self._owner._resolve_current`,
+    `UI`). `_resolve_current` is overridden directly on this stand-in UI —
+    `UISelection`/`UIConfirmation` both call `self._ui._resolve_current`,
     so this override is what they both see.
     """
 

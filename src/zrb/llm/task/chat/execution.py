@@ -9,13 +9,13 @@ Kept separate from `task.py` (config-time `__init__`) and from
 `building.py` / `running.py` because this part owns the
 execution-time machinery that `BaseTask` invokes on the composed task.
 
-Composed into `LLMChatTask` as `self._execution`: takes the owning
-`LLMChatTask` and reads/writes its state through that reference. The two
-session runners it calls (`_run_interactive_session`,
+Composed into `LLMChatTask` as `self._execution`: keeps `LLMChatTask` in
+`self._llm_chat_task` and reads/writes its state through that reference. The
+two session runners it calls (`_run_interactive_session`,
 `_run_non_interactive_session`) are implemented by the sibling `ChatRunning`
-collaborator, reached through the owner's delegators — same as `self.name`,
-`self.envs` (`BaseTask` properties) and `ensure_common_tools`, which needs
-the owner (not this bare part) since it duck-types a full `CommonToolHost`.
+collaborator and reached through `self._llm_chat_task`'s delegators — the same
+way `self.name`, `self.envs` (`BaseTask` properties), and
+`ensure_common_tools` use the task object as a full `CommonToolHost`.
 """
 
 from __future__ import annotations
@@ -69,15 +69,15 @@ if TYPE_CHECKING:
 class ChatExecution:
     """Execution + resource lifecycle for LLMChatTask."""
 
-    def __init__(self, owner: "LLMChatTask") -> None:
-        self._owner = owner
+    def __init__(self, llm_chat_task: "LLMChatTask") -> None:
+        self._llm_chat_task = llm_chat_task
 
     def get_system_prompt(self, ctx: AnyContext) -> str:
         """Compose the full system prompt for this run.
 
         Returns the empty string when the task has no prompt manager.
         """
-        return resolve_system_prompt(ctx, self._owner._prompt_manager)
+        return resolve_system_prompt(ctx, self._llm_chat_task._prompt_manager)
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
         # lazy: circular — task → execution (this file) → task.parse_yolo_value.
@@ -86,37 +86,37 @@ class ChatExecution:
 
         # Apply the deferred zrb-shipped tools/guidance (see chat.py's
         # defer_common_tools) before any tool/guidance is read below.
-        # `defer_common_tools` was called with the owning LLMChatTask (a full
+        # `defer_common_tools` was called with `self._llm_chat_task` (a full
         # CommonToolHost via its delegators), not this bare part.
-        ensure_common_tools(self._owner)
+        ensure_common_tools(self._llm_chat_task)
 
         # 1. Resolve inputs/attributes
         initial_conversation_name = self._get_initial_conversation_name(ctx)
-        raw_yolo = get_attr(ctx, self._owner._yolo, "", True)
+        raw_yolo = get_attr(ctx, self._llm_chat_task._yolo, "", True)
         initial_yolo = parse_yolo_value(raw_yolo)
-        if self._owner._yolo_xcom_key not in ctx.xcom:
-            ctx.xcom[self._owner._yolo_xcom_key] = Xcom()
-        ctx.xcom[self._owner._yolo_xcom_key].set(initial_yolo)
+        if self._llm_chat_task._yolo_xcom_key not in ctx.xcom:
+            ctx.xcom[self._llm_chat_task._yolo_xcom_key] = Xcom()
+        ctx.xcom[self._llm_chat_task._yolo_xcom_key].set(initial_yolo)
 
         initial_message = get_attr(
-            ctx, self._owner._message, "", self._owner._render_message
+            ctx, self._llm_chat_task._message, "", self._llm_chat_task._render_message
         )
-        initial_attachments = get_attachments(ctx, self._owner._attachment)
-        interactive = get_bool_attr(ctx, self._owner._interactive, True)
+        initial_attachments = get_attachments(ctx, self._llm_chat_task._attachment)
+        interactive = get_bool_attr(ctx, self._llm_chat_task._interactive, True)
         history_manager = (
             FileHistoryManager(history_dir=CFG.LLM_HISTORY_DIR)
-            if self._owner._history_manager is None
-            else self._owner._history_manager
+            if self._llm_chat_task._history_manager is None
+            else self._llm_chat_task._history_manager
         )
 
         # 2. Resolve rewind settings
         effective_enable_rewind = (
             CFG.LLM_ENABLE_REWIND
-            if self._owner._enable_rewind is None
-            else self._owner._enable_rewind
+            if self._llm_chat_task._enable_rewind is None
+            else self._llm_chat_task._enable_rewind
         )
         effective_snapshot_dir = get_str_attr(
-            ctx, self._owner._snapshot_dir, CFG.LLM_SNAPSHOT_DIR, True
+            ctx, self._llm_chat_task._snapshot_dir, CFG.LLM_SNAPSHOT_DIR, True
         )
 
         # 3. Resolve UI Commands
@@ -130,8 +130,8 @@ class ChatExecution:
         # model-specific capability notes (e.g. lack of parallel tool-call
         # support). Re-set on every exec — `/model` switches update
         # ctx.input.model, which flows through get_model(ctx).
-        if self._owner._prompt_manager is not None:
-            self._owner._prompt_manager.model = self.get_model(ctx)
+        if self._llm_chat_task._prompt_manager is not None:
+            self._llm_chat_task._prompt_manager.model = self.get_model(ctx)
 
         # 5. Create core LLM task
         llm_task_core = self._create_llm_task_core(
@@ -141,14 +141,14 @@ class ChatExecution:
             interactive,
             resolved_tools,
             resolved_toolsets,
-            self._owner._capabilities,
+            self._llm_chat_task._capabilities,
         )
 
         # 6. Run Interactive or Non-Interactive
         # Note: AsyncExitStack for toolsets is handled by LLMTask._exec_action
         if not interactive:
             try:
-                return await self._owner._run_non_interactive_session(
+                return await self._llm_chat_task._run_non_interactive_session(
                     ctx=ctx,
                     llm_task_core=llm_task_core,
                     history_manager=history_manager,
@@ -162,7 +162,7 @@ class ChatExecution:
                 await self._teardown_background_hooks()
 
         try:
-            return await self._owner._run_interactive_session(
+            return await self._llm_chat_task._run_interactive_session(
                 ctx=ctx,
                 llm_task_core=llm_task_core,
                 history_manager=history_manager,
@@ -201,9 +201,9 @@ class ChatExecution:
         # threading the reason through the chat loop, so we report the Claude
         # catch-all "other"; finer values (logout / prompt_input_exit) are a
         # follow-up. `reason` stays in event_data for the CLAUDE_* env vars.
-        if self._owner._active_hook_manager is not None:
+        if self._llm_chat_task._active_hook_manager is not None:
             try:
-                await self._owner._active_hook_manager.execute_hooks(
+                await self._llm_chat_task._active_hook_manager.execute_hooks(
                     HookEvent.SESSION_END,
                     {"reason": "exit"},
                     source="other",
@@ -277,8 +277,8 @@ class ChatExecution:
         ``run_agent``'s own ``hook_manager or default`` resolution.
         """
         try:
-            if self._owner._active_hook_manager is not None:
-                await self._owner._active_hook_manager.shutdown(drain=True)
+            if self._llm_chat_task._active_hook_manager is not None:
+                await self._llm_chat_task._active_hook_manager.shutdown(drain=True)
             else:
                 # lazy: only needed at teardown; keeps the import off hot paths.
                 from zrb.llm.hook.manager import hook_manager
@@ -289,17 +289,19 @@ class ChatExecution:
 
     def get_all_tools(self, ctx: AnyContext) -> list[Tool | ToolFuncEither]:
         """Get all tools including those resolved from factories using parent context."""
-        return resolve_all_tools(ctx, self._owner._tools, self._owner._tool_factories)
+        return resolve_all_tools(
+            ctx, self._llm_chat_task._tools, self._llm_chat_task._tool_factories
+        )
 
     def get_all_toolsets(self, ctx: AnyContext) -> list[AbstractToolset[None]]:
         """Get all toolsets including those resolved from factories using parent context."""
         return resolve_all_toolsets(
-            ctx, self._owner._toolsets, self._owner._toolset_factories
+            ctx, self._llm_chat_task._toolsets, self._llm_chat_task._toolset_factories
         )
 
     def _get_ui_commands(self) -> dict[str, list[str]]:
         """Resolve UI slash-command aliases from the overrides or CFG."""
-        overrides = self._owner._ui_command_overrides
+        overrides = self._llm_chat_task._ui_command_overrides
         return {
             key: overrides.get(key) or getattr(CFG, cfg_attr)
             for key, cfg_attr in UI_COMMAND_CFG_ATTRS.items()
@@ -321,26 +323,26 @@ class ChatExecution:
         from zrb.llm.tool_call.handler import ToolCallHandler
         from zrb.llm.ui.std_ui import StdUI
 
-        owner = self._owner
-        tool_confirmation = owner._tool_confirmation
-        ui = owner._uis if owner._uis else None
+        llm_chat_task = self._llm_chat_task
+        tool_confirmation = llm_chat_task._tool_confirmation
+        ui = llm_chat_task._uis if llm_chat_task._uis else None
 
         if interactive:
             # Interactive mode: Let the UI handle everything
             tool_confirmation = None
             ui = None
         elif (
-            owner._tool_policies
-            or owner._response_handlers
-            or owner._argument_formatters
+            llm_chat_task._tool_policies
+            or llm_chat_task._response_handlers
+            or llm_chat_task._argument_formatters
         ):
             # Non-interactive with policies/handlers/formatters: Use ToolCallHandler
-            if not ui and not owner._ui_factories:
+            if not ui and not llm_chat_task._ui_factories:
                 ui = StdUI()
             tool_confirmation = ToolCallHandler(
-                tool_policies=owner._tool_policies,
-                argument_formatters=owner._argument_formatters,
-                response_handlers=owner._response_handlers,
+                tool_policies=llm_chat_task._tool_policies,
+                argument_formatters=llm_chat_task._argument_formatters,
+                response_handlers=llm_chat_task._response_handlers,
             )
         else:
             # Non-interactive without policies: Use UI for approval
@@ -348,7 +350,7 @@ class ChatExecution:
             # non-interactive session resolves them and attaches the resulting
             # UI(s) (e.g. the web/SSE HTTPUI) so run_agent streams through those
             # instead of stdout.
-            if not ui and not owner._ui_factories:
+            if not ui and not llm_chat_task._ui_factories:
                 ui = StdUI()
             # tool_confirmation = None (let UI handle it via approval_channel)
 
@@ -382,9 +384,9 @@ class ChatExecution:
                     if result == ASK:
                         return False  # explicit policy ASK is a 'hard ask'
                 # fallback to YOLO only if policy has no matching rule
-            if owner._yolo_xcom_key not in ctx.xcom:
+            if llm_chat_task._yolo_xcom_key not in ctx.xcom:
                 return False
-            yolo_value = ctx.xcom[owner._yolo_xcom_key].get(False)
+            yolo_value = ctx.xcom[llm_chat_task._yolo_xcom_key].get(False)
             if isinstance(yolo_value, bool):
                 return yolo_value
             if isinstance(yolo_value, frozenset):
@@ -396,39 +398,41 @@ class ChatExecution:
 
         # Create MultiplexApprovalChannel if multiple channels
         effective_approval_channel = None
-        if len(owner._approval_channels) == 1:
-            effective_approval_channel = owner._approval_channels[0]
-        elif len(owner._approval_channels) > 1:
+        if len(llm_chat_task._approval_channels) == 1:
+            effective_approval_channel = llm_chat_task._approval_channels[0]
+        elif len(llm_chat_task._approval_channels) > 1:
             # lazy: same circular reason as the imports earlier in this class.
             from zrb.llm.approval import MultiplexApprovalChannel
 
             effective_approval_channel = MultiplexApprovalChannel(
-                owner._approval_channels
+                llm_chat_task._approval_channels
             )
 
         CFG.LOGGER.debug("llm_chat_task _create_llm_task_core:")
         CFG.LOGGER.debug(f"  tool_confirmation: {tool_confirmation}")
         CFG.LOGGER.debug(f"  effective_approval_channel: {effective_approval_channel}")
-        CFG.LOGGER.debug(f"  _approval_channels: {owner._approval_channels}")
+        CFG.LOGGER.debug(f"  _approval_channels: {llm_chat_task._approval_channels}")
 
         hook_manager = (
-            HookManager() if owner._hook_manager is None else owner._hook_manager
+            HookManager()
+            if llm_chat_task._hook_manager is None
+            else llm_chat_task._hook_manager
         )
-        for factory in owner._hook_factories:
+        for factory in llm_chat_task._hook_factories:
             factory(hook_manager)
         # Hold a reference so the interactive teardown can fire the terminal
         # SESSION_END on this exact manager (run_agent fires per-turn STOP, not
         # SESSION_END — SESSION_END is once-per-session, like Claude Code).
-        owner._active_hook_manager = hook_manager
+        llm_chat_task._active_hook_manager = hook_manager
 
         # Resolve sandbox against the outer (LLMChatTask) context before passing
         # to the inner LLMTask, whose own context does not carry a "sandbox" input
         # (see _run_non_interactive_session / _run_interactive_session).
-        resolved_sandbox = coerce_sandbox(ctx, owner._sandbox)
+        resolved_sandbox = coerce_sandbox(ctx, llm_chat_task._sandbox)
 
         # Pass resolved tools/toolsets to LLMTask (no factories needed since already resolved)
         return LLMTask(
-            name=f"{owner.name}-process",
+            name=f"{llm_chat_task.name}-process",
             input=[
                 StrInput("message", "Message"),
                 StrInput("session", "Conversation Session"),
@@ -436,26 +440,26 @@ class ChatExecution:
                 StrInput("attachments", "Attachments"),
                 StrInput("model", "Model"),
             ],
-            env=cast(list[AnyEnv | None], owner.envs),
-            system_prompt=owner._system_prompt,
-            render_system_prompt=owner._render_system_prompt,
-            prompt_manager=owner._prompt_manager,
-            active_skills=owner._active_skills,
-            render_active_skills=owner._render_active_skills,
+            env=cast(list[AnyEnv | None], llm_chat_task.envs),
+            system_prompt=llm_chat_task._system_prompt,
+            render_system_prompt=llm_chat_task._render_system_prompt,
+            prompt_manager=llm_chat_task._prompt_manager,
+            active_skills=llm_chat_task._active_skills,
+            render_active_skills=llm_chat_task._render_active_skills,
             tools=resolved_tools,
             toolsets=resolved_toolsets,
             # No factories passed - tools/toolsets already resolved with parent context
-            history_processors=owner._history_processors
+            history_processors=llm_chat_task._history_processors
             + [create_summarizer_history_processor()],
             capabilities=capabilities,
-            llm_config=owner._llm_config,
-            llm_limiter=owner._llm_limiter,
+            llm_config=llm_chat_task._llm_config,
+            llm_limiter=llm_chat_task._llm_limiter,
             history_manager=history_manager,
             hook_manager=hook_manager,
             tool_confirmation=tool_confirmation,
             ui=cast("UIProtocol | None", ui),
             approval_channel=effective_approval_channel,
-            permissions=owner._permissions,
+            permissions=llm_chat_task._permissions,
             sandbox=resolved_sandbox,
             message="{ctx.input.message}",
             conversation_name="{ctx.input.session}",
@@ -466,7 +470,7 @@ class ChatExecution:
             render_model=False,
             # Without this, LLMChatTask(model_settings=...) is accepted but
             # silently ignored: the inner task falls back to llm_config's.
-            model_settings=owner._model_settings,
+            model_settings=llm_chat_task._model_settings,
             summarize_commands=summarize_commands,
         )
 
@@ -479,7 +483,9 @@ class ChatExecution:
 
     def _get_initial_conversation_name(self, ctx: AnyContext) -> str:
         return resolve_conversation_name(
-            ctx, self._owner._conversation_name, self._owner._render_conversation_name
+            ctx,
+            self._llm_chat_task._conversation_name,
+            self._llm_chat_task._render_conversation_name,
         )
 
     def _get_ui_conversation_name(
@@ -501,5 +507,8 @@ class ChatExecution:
         `llm_config`.
         """
         return resolve_model(
-            ctx, self._owner._model, self._owner._render_model, self._owner._llm_config
+            ctx,
+            self._llm_chat_task._model,
+            self._llm_chat_task._render_model,
+            self._llm_chat_task._llm_config,
         )

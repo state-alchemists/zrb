@@ -14,10 +14,10 @@ def create_mock_task():
 
 
 class MockLifecycleUI:
-    """Stand-in owner composing the real `UILifecycle`.
+    """Stand-in UI composing the real `UILifecycle`.
 
-    Holds all the state/methods `UILifecycle` reaches via `self._owner` —
-    normally supplied by `BaseUI`/the default `UI` — and forwards the public
+    Holds all the state/methods `UILifecycle` reaches via `self._ui` —
+    supplied by the default `UI` — and forwards the public
     lifecycle methods to the composed part.
     """
 

@@ -36,7 +36,8 @@ class LSPManager:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._lifecycle = LSPManagerLifecycle()
-            # Query takes the owner (not the lifecycle collaborator directly)
+            # Query keeps the manager reference (not the lifecycle collaborator
+            # directly)
             # so instance-level patches like `patch.object(manager, "get_server", ...)`
             # take effect inside Query's own methods too.
             cls._instance._query = LSPManagerQuery(cls._instance)

@@ -5,7 +5,7 @@ from zrb.llm.ui.base.replay import BaseUIReplay
 
 class MockUI:
     """Stand-in for `BaseUI`: owns the state/methods `BaseUIReplay` reads
-    through the owner reference, and composes a real `BaseUIReplay(self)`."""
+    through `self._base_ui`, and composes a real `BaseUIReplay(self)`."""
 
     def __init__(self):
         self.calls = []  # list of (text, kind)
