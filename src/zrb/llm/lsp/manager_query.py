@@ -301,7 +301,7 @@ class LSPManagerQuery:
 
         # Fallback: filter the seed file's document symbols by the query.
         if file_path and file_path != ".":
-            doc = await self.get_document_symbols(file_path)
+            doc = await self._owner.get_document_symbols(file_path)
             if doc.get("found"):
                 q = query.lower()
                 matches = [
@@ -472,7 +472,7 @@ class LSPManagerQuery:
         # 1. Prefer the line where the symbol is defined (from document symbols).
         candidate_line: int | None = None
         try:
-            symbols = await self.get_document_symbols(file_path)
+            symbols = await self._owner.get_document_symbols(file_path)
             if symbols.get("found"):
                 for sym in symbols.get("symbols", []):
                     if sym.get("name") == symbol_name:
