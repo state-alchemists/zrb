@@ -5,7 +5,11 @@ import pytest
 from zrb.llm.task.chat.running import ChatRunning
 
 
-class MockLLMChatTask(ChatRunning):
+class MockOwner:
+    """Stand-in for the owning `LLMChatTask`: state `ChatRunning` reads plus
+    the two methods (`get_model`, `_get_ui_conversation_name`) implemented by
+    the sibling `ChatExecution` collaborator on the real owner."""
+
     def __init__(self):
         self._uis = []
         self._ui_factories = []
@@ -37,7 +41,7 @@ class MockLLMChatTask(ChatRunning):
 
 @pytest.fixture
 def runner():
-    return MockLLMChatTask()
+    return ChatRunning(MockOwner())
 
 
 @pytest.mark.asyncio
@@ -137,7 +141,7 @@ async def test_run_non_interactive_session_attaches_ui_factories(runner):
 
     http_ui = MagicMock()
     factory = MagicMock(return_value=http_ui)
-    runner._ui_factories = [factory]
+    runner._owner._ui_factories = [factory]
 
     llm_task_core = MagicMock()
     llm_task_core.async_run = AsyncMock(return_value="AI Output")
@@ -225,9 +229,9 @@ async def test_run_interactive_session_basic(runner):
 
 @pytest.mark.asyncio
 async def test_run_interactive_session_with_factories_and_multiplex(runner):
-    runner._ui_factories = [lambda **kwargs: SimpleMockUI(**kwargs)]
-    runner._include_default_ui = False
-    runner._approval_channels = [MagicMock(), MagicMock()]
+    runner._owner._ui_factories = [lambda **kwargs: SimpleMockUI(**kwargs)]
+    runner._owner._include_default_ui = False
+    runner._owner._approval_channels = [MagicMock(), MagicMock()]
 
     ctx = MagicMock()
     ctx.xcom = {}
@@ -326,7 +330,7 @@ async def test_run_interactive_session_resolves_custom_command_initial_message(
 ):
     """A slash-command initial_message must be resolved to its prompt before
     reaching the UI, mirroring _run_non_interactive_session's behavior."""
-    runner._custom_commands = [
+    runner._owner._custom_commands = [
         FakeCustomCommand(
             command="/foo", args=["text"], prompt_template="RESOLVED:{text}"
         )
@@ -365,7 +369,7 @@ async def test_run_interactive_session_leaves_plain_message_unchanged(
 ):
     """A plain (non-slash-command) initial_message must pass through as-is,
     even when custom commands are registered."""
-    runner._custom_commands = [
+    runner._owner._custom_commands = [
         FakeCustomCommand(
             command="/foo", args=["text"], prompt_template="RESOLVED:{text}"
         )
@@ -505,7 +509,7 @@ async def test_run_interactive_session_slash_command_skips_mention_resolution(
 ):
     """A resolved slash command must not also run through mention resolution --
     the two syntaxes are mutually exclusive."""
-    runner._custom_commands = [
+    runner._owner._custom_commands = [
         FakeCustomCommand(
             command="/foo", args=["text"], prompt_template="RESOLVED:{text}"
         )

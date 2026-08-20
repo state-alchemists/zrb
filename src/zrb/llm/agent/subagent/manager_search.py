@@ -7,21 +7,20 @@ home → project traversal → plugins → base → extra → core builtin → o
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.util.dir_search import BUILTIN_PLUGIN_DIR, get_upward_dirs, scan_plugin_dirs
 
 
 class SubAgentManagerSearch:
-    """Builds the search-directory list scanned by the loader mixin."""
+    """Builds the search-directory list scanned by the loading collaborator.
 
-    # Host-class contract: see ``SubAgentManagerLoading`` for the equivalent docs. ``_root_dir``
-    # is owned by ``SubAgentManager.__init__``.
-    if TYPE_CHECKING:
-        _root_dir: str
+    Stateless: `root_dir` is owned by `SubAgentManager` and passed in per call
+    rather than cached here, since it can change after construction (e.g. a
+    test retargeting `manager._root_dir`).
+    """
 
-    def get_search_directories(self) -> list[str | Path]:
+    def get_search_directories(self, root_dir: str) -> list[str | Path]:
         """All agent search directories in priority order (high → low).
 
         1. User home (``~/.claude/``, ``~/.zrb/``, …)
@@ -31,7 +30,7 @@ class SubAgentManagerSearch:
         5. ``LLM_EXTRA_AGENT_DIRS``
         6. Core builtin agents (always included, lowest priority)
         7. Optional builtin agents (gated by ``LLM_ENABLE_BUILTIN_AGENTS``)
-        8. ``self._root_dir`` (recursive scan target)
+        8. ``root_dir`` (recursive scan target)
         """
         search_dirs: list[str | Path] = []
         home = Path.home()
@@ -41,7 +40,7 @@ class SubAgentManagerSearch:
                 self._add_agents_from_root(home / pattern, search_dirs)
 
         if CFG.LLM_SEARCH_PROJECT:
-            for project_dir in get_upward_dirs(self._root_dir):
+            for project_dir in get_upward_dirs(root_dir):
                 for pattern in CFG.LLM_CONFIG_DIR_NAMES:
                     self._add_agents_from_root(project_dir / pattern, search_dirs)
 
@@ -70,7 +69,7 @@ class SubAgentManagerSearch:
             if builtin_path.exists() and builtin_path.is_dir():
                 search_dirs.append(builtin_path)
 
-        search_dirs.append(Path(self._root_dir))
+        search_dirs.append(Path(root_dir))
         return search_dirs
 
     def _add_agents_from_root(self, root: Path, search_dirs: list[str | Path]) -> None:

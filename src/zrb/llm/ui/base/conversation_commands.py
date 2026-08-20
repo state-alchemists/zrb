@@ -2,8 +2,8 @@
 
 Exit, help, save/load, rewind (snapshot restore), redirect-output, copy,
 and attach. Split out of `commands.py` to keep that file focused on
-dispatch; the handlers run on the composed `BaseUI` instance (see the
-host-class contract below), mirroring `BaseUICommands`.
+dispatch. Composed into `BaseUICommands` as `self._conversation`, taking the
+owning `BaseUI` and reading/calling its state/methods through that reference.
 
 Each `_handle_*` returns ``True`` if the input was consumed, ``False``
 otherwise.
@@ -23,11 +23,7 @@ from zrb.llm.util.subagent_session_naming import parse_delegated_session
 from zrb.util.cli.style import stylize_error, stylize_muted
 
 if TYPE_CHECKING:
-    from typing import Any
-
-    from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
-    from zrb.llm.snapshot.manager import SnapshotManager
-    from zrb.llm.task.llm_task import LLMTask
+    from zrb.llm.ui.base.ui import BaseUI
 
 logger = logging.getLogger(__name__)
 
@@ -35,57 +31,22 @@ logger = logging.getLogger(__name__)
 class BaseUIConversationCommands:
     """Conversation-management slash commands for BaseUI."""
 
-    # Host-class contract: state and methods owned by `BaseUI`. Declared here
-    # so type checkers can verify accesses; the block does not run at runtime.
-    if TYPE_CHECKING:
-        _attach_commands: list[str]
-        _photo_commands: list[str]
-        _copy_commands: list[str]
-        _exit_commands: list[str]
-        _info_commands: list[str]
-        _load_commands: list[str]
-        _redirect_output_commands: list[str]
-        _rewind_commands: list[str]
-        _save_commands: list[str]
-        _background_tasks: set[asyncio.Task]
-        _conversation_session_name: str
-        _history_manager: "AnyHistoryManager"
-        _is_thinking: bool
-        _pending_attachments: list[Any]
-        _snapshot_manager: "SnapshotManager | None"
-        _llm_task: "LLMTask"
-        _model: Any
-        # Item 4, Phase D: persona-swap-on-/load state. None when driving the
-        # main agent; set while a delegated sub-agent session is loaded.
-        _active_subagent_persona: "str | None"
-        _original_persona_snapshot: "dict[str, Any] | None"
-        last_output: Any
-
-        def append_to_output(self, *values: Any, **kwargs: Any) -> None: ...
-
-        def on_exit(self) -> None: ...
-
-        def invalidate_ui(self) -> None: ...
-
-        def reset_session_token_usage(self) -> None: ...
-
-        def print_help(self) -> None: ...
-
-        def _replay_history(self, messages: list) -> None: ...
+    def __init__(self, owner: "BaseUI") -> None:
+        self._owner = owner
 
     # --- exit / info ------------------------------------------------------
 
     def _handle_exit_command(self, text: str) -> bool:
-        if text.strip().lower() in self._exit_commands:
-            self.on_exit()
+        if text.strip().lower() in self._owner._exit_commands:
+            self._owner.on_exit()
             return True
         return False
 
     def _handle_info_command(self, text: str) -> bool:
-        if text.strip().lower() in self._info_commands:
+        if text.strip().lower() in self._owner._info_commands:
             # Rendered by print_help, not wrapped in a style here: the panel
             # emits its own ANSI, which an enclosing style code would break.
-            self.print_help()
+            self._owner.print_help()
             return True
         return False
 
@@ -93,27 +54,27 @@ class BaseUIConversationCommands:
 
     def _handle_save_command(self, text: str) -> bool:
         text = text.strip()
-        for cmd in self._save_commands:
+        for cmd in self._owner._save_commands:
             prefix = f"{cmd} "
             if text.lower().startswith(prefix):
                 name = text[len(prefix) :].strip()
                 if not name:
                     continue
                 try:
-                    history = self._history_manager.load(
-                        self._conversation_session_name
+                    history = self._owner._history_manager.load(
+                        self._owner._conversation_session_name
                     )
-                    self._history_manager.update(name, history)
-                    self._history_manager.save(name)
-                    self._history_manager.load(name)
-                    self._conversation_session_name = name
-                    self.append_to_output(
+                    self._owner._history_manager.update(name, history)
+                    self._owner._history_manager.save(name)
+                    self._owner._history_manager.load(name)
+                    self._owner._conversation_session_name = name
+                    self._owner.append_to_output(
                         stylize_muted(
                             f"\n  💾 Conversation saved and switched to: {name}\n"
                         )
                     )
                 except Exception as e:
-                    self.append_to_output(
+                    self._owner.append_to_output(
                         stylize_error(f"\n  ❌ Failed to save conversation: {e}\n")
                     )
                 return True
@@ -121,25 +82,25 @@ class BaseUIConversationCommands:
 
     def _handle_load_command(self, text: str) -> bool:
         text = text.strip()
-        for cmd in self._load_commands:
+        for cmd in self._owner._load_commands:
             prefix = f"{cmd} "
             if text.lower().startswith(prefix):
                 name = text[len(prefix) :].strip()
                 if not name:
                     continue
-                self._conversation_session_name = name
+                self._owner._conversation_session_name = name
                 try:
-                    history = self._history_manager.load(name)
-                    self._replay_history(history)
+                    history = self._owner._history_manager.load(name)
+                    self._owner._replay_history(history)
                     # The usage meter tracks spend per loaded conversation;
                     # past sessions' spend is not persisted, so start fresh.
-                    self.reset_session_token_usage()
+                    self._owner.reset_session_token_usage()
                     self._apply_persona_for_session(name)
                 except Exception as e:
-                    self.append_to_output(
+                    self._owner.append_to_output(
                         stylize_error(f"\n  ❌ Failed to load history: {e}\n")
                     )
-                self.append_to_output(
+                self._owner.append_to_output(
                     stylize_muted(f"\n  📂 Conversation session switched to: {name}\n")
                 )
                 return True
@@ -169,7 +130,7 @@ class BaseUIConversationCommands:
 
         definition = sub_agent_manager.get_agent_definition(agent_name)
         if definition is None or definition.agent_instance or definition.agent_factory:
-            self.append_to_output(
+            self._owner.append_to_output(
                 stylize_error(
                     f"\n  ⚠️  Cannot resume as sub-agent '{agent_name}': its "
                     "definition no longer exists, or it was built from a "
@@ -183,52 +144,52 @@ class BaseUIConversationCommands:
         )
 
         self._snapshot_main_persona_once()
-        self._llm_task.tools = resolved.tools
-        self._llm_task.toolsets = resolved.toolsets
-        self._llm_task.prompt_manager = PromptManager(
+        self._owner._llm_task.tools = resolved.tools
+        self._owner._llm_task.toolsets = resolved.toolsets
+        self._owner._llm_task.prompt_manager = PromptManager(
             prompts=[resolved.system_prompt] if resolved.system_prompt else [],
             include_sections=[],
         )
-        self._model = resolved.model
-        self._active_subagent_persona = agent_name
-        self.append_to_output(
+        self._owner._model = resolved.model
+        self._owner._active_subagent_persona = agent_name
+        self._owner.append_to_output(
             stylize_muted(f"\n  🤖 Now driving as sub-agent: {agent_name}\n")
         )
-        self.invalidate_ui()
+        self._owner.invalidate_ui()
 
     def _restore_main_persona(self) -> None:
-        snapshot = self._original_persona_snapshot
+        snapshot = self._owner._original_persona_snapshot
         if snapshot is None:
             return  # never swapped away — nothing to restore
-        self._llm_task.tools = snapshot["tools"]
-        self._llm_task.toolsets = snapshot["toolsets"]
-        self._llm_task.prompt_manager = snapshot["prompt_manager"]
-        self._model = snapshot["model"]
-        self._active_subagent_persona = None
-        self._original_persona_snapshot = None
-        self.append_to_output(stylize_muted("\n  🤖 Back to the main agent.\n"))
-        self.invalidate_ui()
+        self._owner._llm_task.tools = snapshot["tools"]
+        self._owner._llm_task.toolsets = snapshot["toolsets"]
+        self._owner._llm_task.prompt_manager = snapshot["prompt_manager"]
+        self._owner._model = snapshot["model"]
+        self._owner._active_subagent_persona = None
+        self._owner._original_persona_snapshot = None
+        self._owner.append_to_output(stylize_muted("\n  🤖 Back to the main agent.\n"))
+        self._owner.invalidate_ui()
 
     def _snapshot_main_persona_once(self) -> None:
         """Capture the main agent's config the first time it's swapped away
         from, so `_restore_main_persona` always restores the *original*
         persona rather than whichever sub-agent was active most recently."""
-        if self._original_persona_snapshot is not None:
+        if self._owner._original_persona_snapshot is not None:
             return
-        self._original_persona_snapshot = {
-            "tools": list(self._llm_task.tools),
-            "toolsets": list(self._llm_task.toolsets),
-            "prompt_manager": self._llm_task.prompt_manager,
-            "model": self._model,
+        self._owner._original_persona_snapshot = {
+            "tools": list(self._owner._llm_task.tools),
+            "toolsets": list(self._owner._llm_task.toolsets),
+            "prompt_manager": self._owner._llm_task.prompt_manager,
+            "model": self._owner._model,
         }
 
     # --- rewind -----------------------------------------------------------
 
     def _handle_rewind_command(self, text: str) -> bool:
-        if not self._snapshot_manager:
+        if not self._owner._snapshot_manager:
             return False
         text = text.strip()
-        for cmd in self._rewind_commands:
+        for cmd in self._owner._rewind_commands:
             if not (
                 text.lower() == cmd.lower()
                 or text.lower().startswith(cmd.lower() + " ")
@@ -236,7 +197,7 @@ class BaseUIConversationCommands:
                 continue
             arg = text[len(cmd) :].strip()
             if arg:
-                snapshots = self._snapshot_manager.list_snapshots()
+                snapshots = self._owner._snapshot_manager.list_snapshots()
                 sha: str | None = None
                 message_count: int | None = None
                 try:
@@ -245,7 +206,7 @@ class BaseUIConversationCommands:
                         sha = snapshots[idx].sha
                         message_count = snapshots[idx].message_count
                     else:
-                        self.append_to_output(
+                        self._owner.append_to_output(
                             stylize_error(f"\n  ❌ No snapshot at index {arg}\n")
                         )
                         return True
@@ -257,52 +218,52 @@ class BaseUIConversationCommands:
                             break
 
                 async def do_restore(s=sha, mc=message_count):
-                    snapshot_manager = self._snapshot_manager
+                    snapshot_manager = self._owner._snapshot_manager
                     if snapshot_manager is None:
                         return
-                    self._is_thinking = True
-                    self.invalidate_ui()
+                    self._owner._is_thinking = True
+                    self._owner.invalidate_ui()
                     try:
-                        self.append_to_output(
+                        self._owner.append_to_output(
                             stylize_muted(f"\n  ⏪ Restoring snapshot {s[:8]}...\n")
                         )
                         ok = await snapshot_manager.restore_snapshot(s)
                         if ok:
                             if mc is not None:
                                 try:
-                                    msgs = self._history_manager.load(
-                                        self._conversation_session_name
+                                    msgs = self._owner._history_manager.load(
+                                        self._owner._conversation_session_name
                                     )
                                     if len(msgs) > mc:
-                                        self._history_manager.update(
-                                            self._conversation_session_name,
+                                        self._owner._history_manager.update(
+                                            self._owner._conversation_session_name,
                                             msgs[:mc],
                                         )
-                                        self._history_manager.save(
-                                            self._conversation_session_name
+                                        self._owner._history_manager.save(
+                                            self._owner._conversation_session_name
                                         )
                                 except Exception as e:
                                     logger.warning(
                                         f"Failed to rewind conversation history: {e}"
                                     )
-                            self.append_to_output(
+                            self._owner.append_to_output(
                                 stylize_muted(f"\n  ✅ Snapshot {s[:8]} restored.\n")
                             )
                         else:
-                            self.append_to_output(
+                            self._owner.append_to_output(
                                 stylize_error("\n  ❌ Failed to restore snapshot.\n")
                             )
                     finally:
-                        self._is_thinking = False
-                        self.invalidate_ui()
+                        self._owner._is_thinking = False
+                        self._owner.invalidate_ui()
 
                 task = asyncio.create_task(do_restore())
-                self._background_tasks.add(task)
-                task.add_done_callback(self._background_tasks.discard)
+                self._owner._background_tasks.add(task)
+                task.add_done_callback(self._owner._background_tasks.discard)
             else:
-                snapshots = self._snapshot_manager.list_snapshots()
+                snapshots = self._owner._snapshot_manager.list_snapshots()
                 if not snapshots:
-                    self.append_to_output(
+                    self._owner.append_to_output(
                         stylize_muted(
                             "\n  No snapshots yet. Snapshots are taken before each AI turn.\n"
                         )
@@ -316,7 +277,7 @@ class BaseUIConversationCommands:
                     lines.append(
                         f"\n  Use `{cmd} <number>` or `{cmd} <sha>` to restore.\n"
                     )
-                    self.append_to_output(stylize_muted("\n".join(lines)))
+                    self._owner.append_to_output(stylize_muted("\n".join(lines)))
             return True
         return False
 
@@ -329,11 +290,13 @@ class BaseUIConversationCommands:
         freshly loaded ``chat --session ...`` the transcript is replayed from
         disk, so fall back to the most recent assistant message in history.
         """
-        content = self.last_output
+        content = self._owner.last_output
         if content:
             return content
         try:
-            messages = self._history_manager.load(self._conversation_session_name)
+            messages = self._owner._history_manager.load(
+                self._owner._conversation_session_name
+            )
         except Exception:
             return ""
         # lazy: tests patch extract_last_response_text; hoisting bypasses the mock
@@ -360,20 +323,20 @@ class BaseUIConversationCommands:
         from zrb.llm.util.clipboard import copy_text
 
         if copy_text(content):
-            self.append_to_output(stylize_muted(success_message))
+            self._owner.append_to_output(stylize_muted(success_message))
         else:
-            self.append_to_output(
+            self._owner.append_to_output(
                 stylize_error("\n  ❌ Failed to copy to clipboard.\n")
             )
 
     def _handle_redirect_command(self, text: str) -> bool:
         text = text.strip()
-        for cmd in self._redirect_output_commands:
+        for cmd in self._owner._redirect_output_commands:
             # Bare command → copy last output to clipboard.
             if text.lower() == cmd.lower():
                 content = self._last_ai_response()
                 if not content:
-                    self.append_to_output(
+                    self._owner.append_to_output(
                         stylize_error("\n  ❌ No AI response available to copy.\n")
                     )
                     return True
@@ -391,18 +354,18 @@ class BaseUIConversationCommands:
 
                 content = self._last_ai_response()
                 if not content:
-                    self.append_to_output(
+                    self._owner.append_to_output(
                         stylize_error("\n  ❌ No AI response available to redirect.\n")
                     )
                     return True
 
                 try:
                     self._write_text_to_file(path, content)
-                    self.append_to_output(
+                    self._owner.append_to_output(
                         stylize_muted(f"\n  📝 Last output redirected to: {path}\n")
                     )
                 except Exception as e:
-                    self.append_to_output(
+                    self._owner.append_to_output(
                         stylize_error(f"\n  ❌ Failed to redirect output: {e}\n")
                     )
 
@@ -413,15 +376,15 @@ class BaseUIConversationCommands:
 
     def _handle_copy_command(self, text: str) -> bool:
         text = text.strip()
-        for cmd in self._copy_commands:
+        for cmd in self._owner._copy_commands:
             # Bare command → copy full transcript to clipboard.
             if text.lower() == cmd.lower():
                 try:
-                    messages = self._history_manager.load(
-                        self._conversation_session_name
+                    messages = self._owner._history_manager.load(
+                        self._owner._conversation_session_name
                     )
                     if not messages:
-                        self.append_to_output(
+                        self._owner.append_to_output(
                             stylize_error("\n  ❌ No conversation history to copy.\n")
                         )
                         return True
@@ -435,7 +398,7 @@ class BaseUIConversationCommands:
                         transcript, "\n  📋 Full transcript copied to clipboard.\n"
                     )
                 except Exception as e:
-                    self.append_to_output(
+                    self._owner.append_to_output(
                         stylize_error(f"\n  ❌ Failed to copy transcript: {e}\n")
                     )
                 return True
@@ -447,11 +410,11 @@ class BaseUIConversationCommands:
                 if not path:
                     continue
                 try:
-                    messages = self._history_manager.load(
-                        self._conversation_session_name
+                    messages = self._owner._history_manager.load(
+                        self._owner._conversation_session_name
                     )
                     if not messages:
-                        self.append_to_output(
+                        self._owner.append_to_output(
                             stylize_error("\n  ❌ No conversation history to save.\n")
                         )
                         return True
@@ -462,11 +425,11 @@ class BaseUIConversationCommands:
 
                     transcript = format_history_as_text(messages, full=True)
                     self._write_text_to_file(path, transcript)
-                    self.append_to_output(
+                    self._owner.append_to_output(
                         stylize_muted(f"\n  📝 Transcript saved to: {path}\n")
                     )
                 except Exception as e:
-                    self.append_to_output(
+                    self._owner.append_to_output(
                         stylize_error(f"\n  ❌ Failed to save transcript: {e}\n")
                     )
                 return True
@@ -474,7 +437,7 @@ class BaseUIConversationCommands:
 
     def _handle_attach_command(self, text: str) -> bool:
         text = text.strip()
-        for cmd in self._attach_commands:
+        for cmd in self._owner._attach_commands:
             prefix = f"{cmd} "
             if text.lower().startswith(prefix):
                 path = text[len(prefix) :].strip()
@@ -483,35 +446,39 @@ class BaseUIConversationCommands:
         return False
 
     def _submit_attachment(self, path: str):
-        self.append_to_output(stylize_muted(f"\n  🔢 Attach {path}...\n"))
+        self._owner.append_to_output(stylize_muted(f"\n  🔢 Attach {path}...\n"))
         expanded_path = os.path.abspath(os.path.expanduser(path))
         if not os.path.isfile(expanded_path):
-            self.append_to_output(stylize_error(f"\n  ❌ File not found: {path}\n"))
+            self._owner.append_to_output(
+                stylize_error(f"\n  ❌ File not found: {path}\n")
+            )
             return
         if not get_media_type(expanded_path):
-            self.append_to_output(
+            self._owner.append_to_output(
                 stylize_error(f"\n  ❌ Unsupported file type: {path}\n")
             )
             return
         oversized_by = get_oversized_by(expanded_path)
         if oversized_by is not None:
             actual, limit = oversized_by
-            self.append_to_output(
+            self._owner.append_to_output(
                 stylize_error(
                     f"\n  ❌ File too large: {path} "
                     f"({actual} bytes, limit {limit} bytes)\n"
                 )
             )
             return
-        if expanded_path not in self._pending_attachments:
-            self._pending_attachments.append(expanded_path)
-            self.append_to_output(stylize_muted(f"\n  📎 Attached: {path}\n"))
+        if expanded_path not in self._owner._pending_attachments:
+            self._owner._pending_attachments.append(expanded_path)
+            self._owner.append_to_output(stylize_muted(f"\n  📎 Attached: {path}\n"))
         else:
-            self.append_to_output(stylize_error(f"\n  📎 Already attached: {path}\n"))
+            self._owner.append_to_output(
+                stylize_error(f"\n  📎 Already attached: {path}\n")
+            )
 
     def _handle_photo_command(self, text: str) -> bool:
         text = text.strip()
-        for cmd in self._photo_commands:
+        for cmd in self._owner._photo_commands:
             if text.lower() == cmd.lower():
                 device = None
             else:
@@ -520,16 +487,16 @@ class BaseUIConversationCommands:
                     continue
                 device = text[len(prefix) :].strip() or None
             task = asyncio.create_task(self._submit_photo(device))
-            self._background_tasks.add(task)
-            task.add_done_callback(self._background_tasks.discard)
+            self._owner._background_tasks.add(task)
+            task.add_done_callback(self._owner._background_tasks.discard)
             return True
         return False
 
     async def _submit_photo(self, device: str | None):
-        self.append_to_output(stylize_muted("\n  📷 Capturing photo...\n"))
+        self._owner.append_to_output(stylize_muted("\n  📷 Capturing photo...\n"))
         photo_bytes = await get_camera_photo(device)
         if photo_bytes is None:
-            self.append_to_output(
+            self._owner.append_to_output(
                 stylize_error(f"\n  ❌ Camera capture failed.\n{missing_tool_hint()}")
             )
             return
@@ -538,8 +505,8 @@ class BaseUIConversationCommands:
 
         scaled = scale_image_bytes(photo_bytes, media_type="image/jpeg")
         attachment = BinaryContent(data=scaled.data, media_type=scaled.media_type)
-        self._pending_attachments.append(attachment)
-        self.append_to_output(
+        self._owner._pending_attachments.append(attachment)
+        self._owner.append_to_output(
             stylize_muted(f"\n  📷 Photo captured ({scaled.final_bytes} bytes)\n")
         )
-        self.invalidate_ui()
+        self._owner.invalidate_ui()

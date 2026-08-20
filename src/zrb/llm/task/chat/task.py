@@ -86,7 +86,7 @@ def parse_yolo_value(value: Any) -> "bool | frozenset[str]":
     return tools if tools else False
 
 
-class LLMChatTask(ChatBuilding, ChatRunning, ChatExecution, BaseTask):
+class LLMChatTask(BaseTask):
 
     def __init__(
         self,
@@ -410,3 +410,222 @@ class LLMChatTask(ChatBuilding, ChatRunning, ChatExecution, BaseTask):
         self._interactive = interactive
         self._show_ollama_models = show_ollama_models
         self._show_pydantic_ai_models = show_pydantic_ai_models
+        self._building = ChatBuilding(self)
+        self._running = ChatRunning(self)
+        self._execution = ChatExecution(self)
+
+    # --- ChatBuilding delegators ---------------------------------------------
+
+    @property
+    def prompt_manager(self) -> PromptManager:
+        """The `PromptManager` composing this task's system prompt.
+
+        Raises:
+            ValueError: If the task was built without one.
+        """
+        return self._building.prompt_manager
+
+    def set_ui(self, ui: "UIProtocol | list[UIProtocol] | None") -> None:
+        """Set the UI protocol(s) for this task."""
+        self._building.set_ui(ui)
+
+    def append_ui(self, ui: "UIProtocol") -> None:
+        """Append a UI to the list of UIs."""
+        self._building.append_ui(ui)
+
+    def set_ui_factory(self, ui_factory: "Callable[..., UIProtocol] | None") -> None:
+        """Set a factory function to instantiate the UI dynamically during execution."""
+        self._building.set_ui_factory(ui_factory)
+
+    def append_ui_factory(self, factory: "Callable[..., UIProtocol]") -> None:
+        """Append a UI factory to the list of factories."""
+        self._building.append_ui_factory(factory)
+
+    def set_history_manager(self, history_manager: AnyHistoryManager) -> None:
+        """Set the history manager for this task."""
+        self._building.set_history_manager(history_manager)
+
+    @property
+    def custom_model_names(self) -> StrListAttr | None:
+        """Extra model names offered by the `/model` picker, beyond detected ones."""
+        return self._building.custom_model_names
+
+    @custom_model_names.setter
+    def custom_model_names(self, value: StrListAttr | None) -> None:
+        """Replace the custom model-name list."""
+        self._building.custom_model_names = value
+
+    def set_approval_channel(self, channel: "ApprovalChannel | None") -> None:
+        """Set the approval channel for tool confirmations."""
+        self._building.set_approval_channel(channel)
+
+    def append_approval_channel(self, channel: "ApprovalChannel") -> None:
+        """Append an approval channel to the list."""
+        self._building.append_approval_channel(channel)
+
+    def append_toolset(self, *toolset: "AbstractToolset") -> None:
+        """Add pydantic-ai toolsets whose tools the agent may call."""
+        self._building.append_toolset(*toolset)
+
+    def append_toolset_factory(
+        self, *factory: "Callable[[AnyContext], AbstractToolset[None]]"
+    ) -> None:
+        """Add factories building toolsets per run, from the task context."""
+        self._building.append_toolset_factory(*factory)
+
+    def append_tool(self, *tool: "Tool | ToolFuncEither") -> None:
+        """Add tools the agent may call."""
+        self._building.append_tool(*tool)
+
+    def append_tool_factory(
+        self,
+        *factory: "Callable[[AnyContext], Tool | ToolFuncEither | list[Tool | ToolFuncEither]]",
+    ) -> None:
+        """Add factories building tools per run, from the task context."""
+        self._building.append_tool_factory(*factory)
+
+    def append_hook_factory(self, *factory: Callable[[HookManager], None]) -> None:
+        """Add factories registering hooks on this task's hook manager."""
+        self._building.append_hook_factory(*factory)
+
+    def append_history_processor(self, *processor: "HistoryProcessor") -> None:
+        """Add processors that rewrite conversation history before each request."""
+        self._building.append_history_processor(*processor)
+
+    def prepend_response_handler(self, *handler: ResponseHandler) -> None:
+        """Add handlers that post-process a tool's result before the model sees it."""
+        self._building.prepend_response_handler(*handler)
+
+    def prepend_tool_policy(self, *policy: ToolPolicy) -> None:
+        """Add policies deciding whether a tool call is allowed, denied, or confirmed."""
+        self._building.prepend_tool_policy(*policy)
+
+    def prepend_argument_formatter(self, *formatter: ArgumentFormatter) -> None:
+        """Add formatters controlling how a tool call's arguments are displayed."""
+        self._building.prepend_argument_formatter(*formatter)
+
+    def append_trigger(self, *trigger: Callable[[], AsyncIterable[Any]]) -> None:
+        """Add sources that feed messages into the chat loop unprompted."""
+        self._building.append_trigger(*trigger)
+
+    def append_custom_command(
+        self,
+        *custom_command: (
+            AnyCustomCommand | Callable[[], AnyCustomCommand | list[AnyCustomCommand]]
+        ),
+    ) -> None:
+        """Add slash commands available inside the chat session."""
+        self._building.append_custom_command(*custom_command)
+
+    @property
+    def llm_config(self) -> LLMConfig:
+        """Model, credentials, and endpoint settings backing this task."""
+        return self._building.llm_config
+
+    @property
+    def llm_limiter(self) -> "LLMLimiter | None":
+        """Rate and token limiter throttling requests, or None if unlimited."""
+        return self._building.llm_limiter
+
+    @property
+    def permissions(self) -> "PermissionPolicyInput":
+        """Policy bounding which files and commands the agent's tools may touch."""
+        return self._building.permissions
+
+    @permissions.setter
+    def permissions(self, value: "PermissionPolicyInput") -> None:
+        """Replace the permission policy."""
+        self._building.permissions = value
+
+    @property
+    def sandbox(self) -> "SandboxInput | BoolAttr":
+        """Whether, and how, tool calls run inside a sandbox."""
+        return self._building.sandbox
+
+    @sandbox.setter
+    def sandbox(self, value: "SandboxInput | BoolAttr") -> None:
+        """Replace the sandbox configuration."""
+        self._building.sandbox = value
+
+    @property
+    def history_manager(self) -> AnyHistoryManager | None:
+        """Get the history manager."""
+        return self._building.history_manager
+
+    @history_manager.setter
+    def history_manager(self, value: AnyHistoryManager | None) -> None:
+        """Set the history manager."""
+        self._building.history_manager = value
+
+    @property
+    def ui_factories(self) -> "list[Callable[..., UIProtocol]]":
+        """Get the UI factories."""
+        return self._building.ui_factories
+
+    @ui_factories.setter
+    def ui_factories(self, value: "list[Callable[..., UIProtocol]]") -> None:
+        """Set the UI factories."""
+        self._building.ui_factories = value
+
+    @property
+    def approval_channels(self) -> "list[ApprovalChannel]":
+        """Get the approval channels."""
+        return self._building.approval_channels
+
+    @approval_channels.setter
+    def approval_channels(self, value: "list[ApprovalChannel]") -> None:
+        """Set the approval channels."""
+        self._building.approval_channels = value
+
+    @property
+    def include_default_ui(self) -> bool:
+        """Check if the default UI should be included."""
+        return self._building.include_default_ui
+
+    @include_default_ui.setter
+    def include_default_ui(self, value: bool) -> None:
+        """Set if the default UI should be included."""
+        self._building.include_default_ui = value
+
+    # --- ChatRunning delegators (cross-part call sites only) -----------------
+
+    async def _run_non_interactive_session(self, *args: Any, **kwargs: Any) -> Any:
+        return await self._running._run_non_interactive_session(*args, **kwargs)
+
+    async def _run_interactive_session(self, *args: Any, **kwargs: Any) -> Any:
+        return await self._running._run_interactive_session(*args, **kwargs)
+
+    # --- ChatExecution delegators ---------------------------------------------
+
+    def get_system_prompt(self, ctx: AnyContext) -> str:
+        """Compose the full system prompt for this run."""
+        return self._execution.get_system_prompt(ctx)
+
+    async def _exec_action(self, ctx: AnyContext) -> Any:
+        return await self._execution._exec_action(ctx)
+
+    async def _teardown_interactive_resources(self) -> None:
+        """Release process-global resources when an interactive chat ends."""
+        await self._execution._teardown_interactive_resources()
+
+    async def _teardown_background_hooks(self) -> None:
+        """Settle this run's detached (``async: true``) hooks."""
+        await self._execution._teardown_background_hooks()
+
+    def get_all_tools(self, ctx: AnyContext) -> "list[Tool | ToolFuncEither]":
+        """Get all tools including those resolved from factories using parent context."""
+        return self._execution.get_all_tools(ctx)
+
+    def get_all_toolsets(self, ctx: AnyContext) -> "list[AbstractToolset[None]]":
+        """Get all toolsets including those resolved from factories using parent context."""
+        return self._execution.get_all_toolsets(ctx)
+
+    def get_model(self, ctx: AnyContext) -> "str | Model":
+        """Resolve the model to use for this run."""
+        return self._execution.get_model(ctx)
+
+    def _get_ui_conversation_name(
+        self, ui: "UIProtocol", initial_conversation_name: str
+    ) -> str:
+        """Get the current conversation name from UI or fallback to initial name."""
+        return self._execution._get_ui_conversation_name(ui, initial_conversation_name)

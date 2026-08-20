@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.lsp.server import (
@@ -44,15 +43,17 @@ _PROJECT_MARKERS = [
 
 
 class LSPManagerLifecycle:
-    """Server lifecycle methods for `LSPManager`."""
+    """Server lifecycle methods for `LSPManager`.
 
-    # Host-class contract: these attributes are owned by `LSPManager` (see
-    # the class-level declarations and `__new__` there). Declared here so
-    # static type checkers can verify accesses; the block does not run at runtime.
-    if TYPE_CHECKING:
-        _lock: asyncio.Lock | None
-        _servers: dict[str, LSPServer]
-        _project_roots: dict[str, str]
+    Owns its own state (constructed once by `LSPManager.__new__`, inside the
+    singleton's first-instantiation guard, so it is never reset on a repeat
+    `LSPManager()` call).
+    """
+
+    def __init__(self) -> None:
+        self._servers: dict[str, LSPServer] = {}  # key: "language:root_path"
+        self._lock: asyncio.Lock | None = None  # Initialize lazily
+        self._project_roots: dict[str, str] = {}  # file_path -> detected root
 
     @property
     def lock(self) -> asyncio.Lock:

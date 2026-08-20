@@ -1,8 +1,9 @@
 """Slash-command dispatch for `BaseUI`.
 
 Routes recognized commands to handlers and fires PreCommand/PostCommand
-hooks. The concrete `_handle_*` handlers live in sibling mixins that this
-class composes (so the dispatch table and the handlers share one `self`):
+hooks. The concrete `_handle_*` handlers live in sibling collaborators this
+class composes (`self._conversation`, `self._models`, `self._exec`), each
+taking the same owning `BaseUI`:
 
   conversation_commands.py - exit/info/save/load/rewind/redirect/copy/attach
   model_commands.py        - yolo/plan toggles + model switching
@@ -29,99 +30,24 @@ from zrb.util.cli.style import stylize_muted, stylize_warning
 from zrb.util.cli.terminal import get_terminal_size
 
 if TYPE_CHECKING:
-    from typing import Any, Callable
+    from typing import Callable
 
-    from pydantic_ai.messages import UserContent
-    from pydantic_ai.models import Model
-    from rich.theme import Theme
-
-    from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
-    from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
-    from zrb.llm.snapshot.manager import SnapshotManager
-    from zrb.llm.task.llm_task import LLMTask
-    from zrb.llm.ui.base.message_queue import MessageQueue
-    from zrb.task.any_task import AnyTask
+    from zrb.llm.ui.base.ui import BaseUI
 
 logger = logging.getLogger(__name__)
 
 
-class BaseUICommands(
-    BaseUIConversationCommands, BaseUIModelCommands, BaseUIExecCommands
-):
-    """Slash-command dispatch for BaseUI (handlers live in composed mixins)."""
+class BaseUICommands:
+    """Slash-command dispatch for BaseUI (handlers live in composed collaborators)."""
 
-    # Host-class contract: state and methods owned by `BaseUI` (and concrete
-    # subclasses). Declared here so static type checkers can verify accesses;
-    # the block does not run at runtime.
-    if TYPE_CHECKING:
-        # Command lists (set in `BaseUI.__init__`)
-        _attach_commands: list[str]
-        _photo_commands: list[str]
-        _btw_commands: list[str]
-        _copy_commands: list[str]
-        _plan_commands: list[str]
-        _plan_mode_active: bool
-        _voice_commands: list[str]
-        _voice_mode_active: bool
-        _voice_recording_active: bool
-        _voice_stop_event: asyncio.Event | None
-        _voice_task: asyncio.Task | None
-        _custom_commands: list["AnyCustomCommand"]
-        _exec_commands: list[str]
-        _exit_commands: list[str]
-        _info_commands: list[str]
-        _load_commands: list[str]
-        _redirect_output_commands: list[str]
-        _rewind_commands: list[str]
-        _save_commands: list[str]
-        _set_model_commands: list[str]
-        _summarize_commands: list[str]
-        _yolo_toggle_commands: list[str]
-        # Misc state
-        _background_tasks: set[asyncio.Task]
-        _conversation_session_name: str
-        _history_manager: "AnyHistoryManager"
-        _is_thinking: bool
-        _llm_task: "LLMTask"
-        _markdown_theme: "Theme | None"
-        _message_queue: "MessageQueue"
-        _model: "Model | str | None"
-        _small_model: "Model | str | None"
-        _multimodal_model: "Model | str | None"
-        _pending_attachments: list["UserContent"]
-        _running_llm_task: asyncio.Task | None
-        _snapshot_manager: "SnapshotManager | None"
-
-        # Methods/properties provided by the host class (subclass of BaseUI).
-        last_output: Any
-
-        def append_to_output(self, *values: Any, **kwargs: Any) -> None: ...
-
-        def execute_hook(self, event: Any, event_data: Any, **kwargs) -> None: ...
-
-        async def execute_hook_blocking(
-            self, event: Any, event_data: Any, **kwargs
-        ) -> list: ...
-
-        def invalidate_ui(self) -> None: ...
-
-        def on_exit(self) -> None: ...
-
-        def _submit_user_message(
-            self, llm_task: "AnyTask", user_message: str
-        ) -> None: ...
-
-        def _replay_history(self, messages: list) -> None: ...
-
-        async def _update_system_info(self) -> None: ...
-
-        def _get_output_field_width(self) -> int | None: ...
-
-        @property
-        def yolo(self) -> bool | frozenset: ...
-
-        @yolo.setter
-        def yolo(self, value: bool | frozenset) -> None: ...
+    def __init__(self, owner: "BaseUI") -> None:
+        self._owner = owner
+        self._conversation = BaseUIConversationCommands(owner)
+        self._models = BaseUIModelCommands(owner)
+        self._exec = BaseUIExecCommands(owner)
+        # Dispatcher-private (not owner state): nothing outside schedule_command
+        # / dispatch_command reads or writes this.
+        self._command_in_flight = False
 
     # --- command dispatch (with hooks) ------------------------------------
 
@@ -138,28 +64,74 @@ class BaseUICommands(
         ``prefix=True`` → the token may be followed by ``" <args>"``;
         ``prefix=False`` → exact-match toggle.
         """
+        owner = self._owner
         return [
-            (self._handle_btw_command, self._btw_commands, True, True),
-            (self._handle_toggle_plan, self._plan_commands, True, True),
+            (self._exec._handle_btw_command, owner._btw_commands, True, True),
+            (self._models._handle_toggle_plan, owner._plan_commands, True, True),
             # prefix=True: `/yolo` toggles, `/yolo Write,Edit` sets selective yolo.
-            (self._handle_toggle_yolo, self._yolo_toggle_commands, True, True),
-            (self._handle_toggle_voice, self._voice_commands, False, True),
-            (self._handle_exit_command, self._exit_commands, False, False),
-            (self._handle_info_command, self._info_commands, False, False),
-            (self._handle_save_command, self._save_commands, True, False),
-            (self._handle_load_command, self._load_commands, True, False),
-            (self._handle_rewind_command, self._rewind_commands, True, False),
+            (self._models._handle_toggle_yolo, owner._yolo_toggle_commands, True, True),
+            (self._handle_toggle_voice, owner._voice_commands, False, True),
             (
-                self._handle_redirect_command,
-                self._redirect_output_commands,
+                self._conversation._handle_exit_command,
+                owner._exit_commands,
+                False,
+                False,
+            ),
+            (
+                self._conversation._handle_info_command,
+                owner._info_commands,
+                False,
+                False,
+            ),
+            (
+                self._conversation._handle_save_command,
+                owner._save_commands,
                 True,
                 False,
             ),
-            (self._handle_attach_command, self._attach_commands, True, False),
-            (self._handle_photo_command, self._photo_commands, True, False),
-            (self._handle_set_model_command, self._set_model_commands, True, False),
-            (self._handle_exec_command, self._exec_commands, True, False),
-            (self._handle_copy_command, self._copy_commands, True, False),
+            (
+                self._conversation._handle_load_command,
+                owner._load_commands,
+                True,
+                False,
+            ),
+            (
+                self._conversation._handle_rewind_command,
+                owner._rewind_commands,
+                True,
+                False,
+            ),
+            (
+                self._conversation._handle_redirect_command,
+                owner._redirect_output_commands,
+                True,
+                False,
+            ),
+            (
+                self._conversation._handle_attach_command,
+                owner._attach_commands,
+                True,
+                False,
+            ),
+            (
+                self._conversation._handle_photo_command,
+                owner._photo_commands,
+                True,
+                False,
+            ),
+            (
+                self._models._handle_set_model_command,
+                owner._set_model_commands,
+                True,
+                False,
+            ),
+            (self._exec._handle_exec_command, owner._exec_commands, True, False),
+            (
+                self._conversation._handle_copy_command,
+                owner._copy_commands,
+                True,
+                False,
+            ),
         ]
 
     def classify_input(self, text: str) -> str:
@@ -181,7 +153,7 @@ class BaseUICommands(
         for _handler, tokens, prefix, run_while_thinking in self._command_table():
             if _matches(stripped, tokens, prefix):
                 return "thinking_command" if run_while_thinking else "command"
-        if resolve_custom_command(stripped, self._custom_commands) is not None:
+        if resolve_custom_command(stripped, self._owner._custom_commands) is not None:
             return "command"
         return "message"
 
@@ -203,9 +175,10 @@ class BaseUICommands(
         toggle): like ``main``, they run independently and are neither blocked
         by an in-flight command nor block one.
         """
+        owner = self._owner
         if guarded:
-            if getattr(self, "_command_in_flight", False):
-                self.append_to_output(
+            if self._command_in_flight:
+                owner.append_to_output(
                     stylize_muted(
                         "\n  ⏳ A command is already running — wait for it to "
                         "finish.\n"
@@ -213,13 +186,16 @@ class BaseUICommands(
                 )
                 return
             self._command_in_flight = True
-        task = asyncio.create_task(self.dispatch_command(text, guarded=guarded))
-        self._background_tasks.add(task)
+        # Through the owner (not bare `self`): `dispatch_command` is also a
+        # `BaseUI` delegator, and patching `ui.dispatch_command` directly (as
+        # tests do) must be honored here too.
+        task = asyncio.create_task(owner.dispatch_command(text, guarded=guarded))
+        owner._background_tasks.add(task)
         task.add_done_callback(self._on_command_done)
 
     def _on_command_done(self, task: "asyncio.Task") -> None:
         """Drop the task reference and surface any swallowed exception."""
-        self._background_tasks.discard(task)
+        self._owner._background_tasks.discard(task)
         try:
             exc = task.exception()
         except asyncio.CancelledError:
@@ -235,14 +211,15 @@ class BaseUICommands(
         typed without its required argument), it is forwarded to the LLM.
         PostCommand fires only when a handler actually ran.
         """
+        owner = self._owner
         try:
             name, args = _split_command(text)
             event_data = {
                 "command": name,
                 "args": args,
-                "session": self._conversation_session_name,
+                "session": owner._conversation_session_name,
             }
-            pre_results = await self.execute_hook_blocking(
+            pre_results = await owner.execute_hook_blocking(
                 HookEvent.PRE_COMMAND,
                 event_data,
                 command_name=name,
@@ -250,7 +227,7 @@ class BaseUICommands(
             )
             if _command_blocked(pre_results):
                 reason = _command_block_reason(pre_results) or "blocked by hook"
-                self.append_to_output(
+                owner.append_to_output(
                     stylize_muted(f"\n  ⛔ {name} blocked: {reason}\n")
                 )
                 return
@@ -265,16 +242,16 @@ class BaseUICommands(
 
             handled = self._run_command_chain(text)
             if handled:
-                self.execute_hook(
+                owner.execute_hook(
                     HookEvent.POST_COMMAND,
                     {**event_data, "handled": True},
                     command_name=name,
                     command_args=args,
                     command_handled=True,
                 )
-            elif not self._is_thinking:
+            elif not owner._is_thinking:
                 # Recognized token but no handler consumed it — forward to LLM.
-                self._submit_user_message(self._llm_task, text)
+                owner._submit_user_message(owner._llm_task, text)
         finally:
             if guarded:
                 self._command_in_flight = False
@@ -287,11 +264,11 @@ class BaseUICommands(
         behind the thinking guard. Custom commands are tried last.
         """
         for handler, _tokens, _prefix, run_while_thinking in self._command_table():
-            if not run_while_thinking and self._is_thinking:
+            if not run_while_thinking and self._owner._is_thinking:
                 return False
             if handler(text):
                 return True
-        return self._handle_custom_command(text)
+        return self._exec._handle_custom_command(text)
 
     def _handle_toggle_voice(self, text: str) -> bool:
         """Toggle voice dictation mode on/off.
@@ -300,38 +277,40 @@ class BaseUICommands(
         ``/voice`` when ON → exit voice mode without recording.
         Voice mode also auto-exits after a recording completes.
         """
-        if text.strip().lower() not in [c.lower() for c in self._voice_commands]:
+        owner = self._owner
+        if text.strip().lower() not in [c.lower() for c in owner._voice_commands]:
             return False
         if not CFG.LLM_VOICE_ENABLED:
-            self.append_to_output(
+            owner.append_to_output(
                 stylize_warning(
                     "\n  🎤 Voice dictation is not enabled.\n"
                     f"     Set {CFG.ENV_PREFIX}_LLM_VOICE_ENABLED=on and restart.\n"
                 )
             )
             return True
-        if self._voice_mode_active:
+        if owner._voice_mode_active:
             self._exit_voice_mode()
         else:
-            self._voice_mode_active = True
+            owner._voice_mode_active = True
             ptt_key = CFG.LLM_VOICE_PUSH_TO_TALK_KEY.strip()
-            self.append_to_output(
+            owner.append_to_output(
                 stylize_muted(
                     f"\n  🎤 Voice dictation: ON — press [{ptt_key}] to record\n"
                 )
             )
-        self.invalidate_ui()
+        owner.invalidate_ui()
         return True
 
     def _exit_voice_mode(self):
         """Exit voice mode and stop any in-flight recording."""
-        self._voice_mode_active = False
-        self._voice_recording_active = False
-        if self._voice_stop_event is not None:
-            self._voice_stop_event.set()
-        self._voice_stop_event = None
-        self._voice_task = None
-        self.append_to_output(stylize_muted("\n  🎤 Voice dictation: OFF\n"))
+        owner = self._owner
+        owner._voice_mode_active = False
+        owner._voice_recording_active = False
+        if owner._voice_stop_event is not None:
+            owner._voice_stop_event.set()
+        owner._voice_stop_event = None
+        owner._voice_task = None
+        owner.append_to_output(stylize_muted("\n  🎤 Voice dictation: OFF\n"))
 
     # --- help text --------------------------------------------------------
 
@@ -354,7 +333,7 @@ class BaseUICommands(
 
     def print_help(self) -> None:
         """Write the help panel to the output (public API; overridable)."""
-        self.append_to_output(self._get_help_text())
+        self._owner.append_to_output(self._get_help_text())
 
     def _get_help_text(self, width: int | None = None) -> str:
         if not self._get_command_help_entries():
@@ -364,6 +343,7 @@ class BaseUICommands(
         return render_help_panel(self.get_help_panel(), width)
 
     def _get_command_help_entries(self) -> list[tuple[str, str]]:
+        owner = self._owner
         raw_lines: list[tuple[str, str]] = []
 
         def add_cmd_help(commands: list[str], description: str):
@@ -371,44 +351,44 @@ class BaseUICommands(
                 cmd = commands[0]
                 raw_lines.append((cmd, description.replace("{cmd}", cmd)))
 
-        add_cmd_help(self._exit_commands, "Exit the application")
-        add_cmd_help(self._info_commands, "Show this help message")
-        add_cmd_help(self._attach_commands, "Attach file (usage: {cmd} <path>)")
+        add_cmd_help(owner._exit_commands, "Exit the application")
+        add_cmd_help(owner._info_commands, "Show this help message")
+        add_cmd_help(owner._attach_commands, "Attach file (usage: {cmd} <path>)")
         add_cmd_help(
-            self._photo_commands,
+            owner._photo_commands,
             "Capture a photo from the camera (usage: {cmd} [device])",
         )
-        add_cmd_help(self._save_commands, "Save conversation (usage: {cmd} <name>)")
-        add_cmd_help(self._load_commands, "Load conversation (usage: {cmd} <name>)")
-        if self._snapshot_manager is not None:
+        add_cmd_help(owner._save_commands, "Save conversation (usage: {cmd} <name>)")
+        add_cmd_help(owner._load_commands, "Load conversation (usage: {cmd} <name>)")
+        if owner._snapshot_manager is not None:
             add_cmd_help(
-                self._rewind_commands,
+                owner._rewind_commands,
                 "List snapshots or restore one (usage: {cmd} [<n>|<sha>])",
             )
         add_cmd_help(
-            self._redirect_output_commands,
+            owner._redirect_output_commands,
             "Copy last output to clipboard (bare), or save to file (usage: {cmd} <file>)",
         )
         add_cmd_help(
-            self._copy_commands,
+            owner._copy_commands,
             "Copy full transcript to clipboard (bare), or save to file (usage: {cmd} <file>)",
         )
-        add_cmd_help(self._summarize_commands, "Summarize conversation history")
-        add_cmd_help(self._yolo_toggle_commands, "Toggle YOLO mode")
+        add_cmd_help(owner._summarize_commands, "Summarize conversation history")
+        add_cmd_help(owner._yolo_toggle_commands, "Toggle YOLO mode")
         add_cmd_help(
-            self._set_model_commands,
+            owner._set_model_commands,
             "Set model (usage: {cmd} <model-name>, {cmd} small <model-name>, {cmd} multimodal <model-name>)",
         )
         add_cmd_help(
-            self._exec_commands, "Execute shell command (usage: {cmd} <command>)"
+            owner._exec_commands, "Execute shell command (usage: {cmd} <command>)"
         )
         add_cmd_help(
-            self._btw_commands,
+            owner._btw_commands,
             "Ask a side question without saving to history (usage: {cmd} <question>)",
         )
-        add_cmd_help(self._plan_commands, "Toggle PLAN mode (read-only) on/off")
-        add_cmd_help(self._voice_commands, "Toggle voice dictation on/off")
-        for custom_cmd in self._custom_commands:
+        add_cmd_help(owner._plan_commands, "Toggle PLAN mode (read-only) on/off")
+        add_cmd_help(owner._voice_commands, "Toggle voice dictation on/off")
+        for custom_cmd in owner._custom_commands:
             raw_lines.append((custom_cmd.command, custom_cmd.description))
 
         return raw_lines

@@ -877,7 +877,13 @@ from zrb.llm.ui.base.commands import BaseUICommands  # noqa: E402
 from zrb.llm.ui.default.message_editing import UIMessageEditing  # noqa: E402
 
 
-class IntegrationUI(UIKeybindings, BaseUICommands, UIMessageEditing):
+class IntegrationUI(UIKeybindings, UIMessageEditing):
+    """`BaseUICommands` is composed (not inherited): its handlers read state
+    through the owner reference, so `self._cmds = BaseUICommands(self)` plus
+    the `__getattr__` fallback below keep `self.classify_input(...)` /
+    `self.schedule_command(...)` (called from `UIKeybindings`, still a real
+    inherited mixin) working exactly as before."""
+
     def __init__(self):
         self._exit_commands = ["/exit"]
         self._info_commands = ["/help"]
@@ -917,6 +923,18 @@ class IntegrationUI(UIKeybindings, BaseUICommands, UIMessageEditing):
         self.execute_hook_blocking = AsyncMock(return_value=[])
         # Leaf collaborators only.
         self._handle_confirmation = MagicMock(return_value=False)
+
+        self._cmds = BaseUICommands(self)
+
+    def __getattr__(self, name):
+        cmds = self.__dict__.get("_cmds")
+        if cmds is None:
+            raise AttributeError(name)
+        for collaborator_attr in ("", "_conversation", "_models", "_exec"):
+            holder = getattr(cmds, collaborator_attr) if collaborator_attr else cmds
+            if hasattr(holder, name):
+                return getattr(holder, name)
+        raise AttributeError(name)
 
     def append_to_output(self, text, end="\n"):
         self.outputs.append(str(text))

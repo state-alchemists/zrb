@@ -73,7 +73,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0032** — [`Scaffolder` for template-based generation](adr-0032.md)
 - **ADR-0033** — [One distribution with disciplined lazy imports](adr-0033.md)
 - **ADR-0034** — [Test discipline: ≥90%, public API only, F-only lint](adr-0034.md)
-- **ADR-0035** — [Compose from parts on a shared `self`; name the part after its host](adr-0035.md)
+- **ADR-0035** — [Compose large classes from parts via explicit collaborators, not multiple inheritance](adr-0035.md)
 
 ### LLM runtime
 

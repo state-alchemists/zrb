@@ -3,9 +3,13 @@ from types import SimpleNamespace
 from zrb.llm.ui.base.replay import BaseUIReplay
 
 
-class MockUI(BaseUIReplay):
+class MockUI:
+    """Stand-in for `BaseUI`: owns the state/methods `BaseUIReplay` reads
+    through the owner reference, and composes a real `BaseUIReplay(self)`."""
+
     def __init__(self):
         self.calls = []  # list of (text, kind)
+        self._replay_impl = BaseUIReplay(self)
 
     def append_to_output(self, *values, kind="text", **kwargs):
         self.calls.append((" ".join(str(v) for v in values), kind))
@@ -15,6 +19,9 @@ class MockUI(BaseUIReplay):
 
     def _get_output_field_width(self):
         return 80
+
+    def replay_history(self, messages):
+        return self._replay_impl.replay_history(messages)
 
 
 def _user_message(content):

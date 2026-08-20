@@ -67,7 +67,7 @@ if TYPE_CHECKING:
     from zrb.llm.tool_call.ui_protocol import UIProtocol
 
 
-class LLMTask(LLMTaskBuilding, LLMTaskHistory, BaseTask):
+class LLMTask(BaseTask):
 
     def __init__(
         self,
@@ -277,6 +277,237 @@ class LLMTask(LLMTaskBuilding, LLMTaskHistory, BaseTask):
         self._sandbox = sandbox
         self._approval_channel = approval_channel
         self._summarize_commands = summarize_commands or []
+        self._building = LLMTaskBuilding(self)
+        self._history = LLMTaskHistory(self)
+
+    # --- LLMTaskBuilding delegators ------------------------------------------
+
+    @property
+    def prompt_manager(self) -> PromptManager:
+        """The `PromptManager` composing this task's system prompt.
+
+        Raises:
+            ValueError: If the task was built without one.
+        """
+        return self._building.prompt_manager
+
+    @prompt_manager.setter
+    def prompt_manager(self, value: PromptManager) -> None:
+        """Replace the `PromptManager` composing this task's system prompt."""
+        self._building.prompt_manager = value
+
+    @property
+    def tools(self) -> "list[Tool | ToolFuncEither]":
+        """Tools this task's agent may call (excluding factory-resolved ones)."""
+        return self._building.tools
+
+    @tools.setter
+    def tools(self, value: "list[Tool | ToolFuncEither]") -> None:
+        """Replace the tool list wholesale."""
+        self._building.tools = value
+
+    @property
+    def toolsets(self) -> "list[AbstractToolset[None]]":
+        """Pydantic-ai toolsets this task's agent may call."""
+        return self._building.toolsets
+
+    @toolsets.setter
+    def toolsets(self, value: "list[AbstractToolset[None]]") -> None:
+        """Replace the toolset list wholesale (see `tools` setter)."""
+        self._building.toolsets = value
+
+    def set_ui(self, ui: "UIProtocol | None") -> None:
+        """Replace every attached UI with `ui`, or detach all when None."""
+        self._building.set_ui(ui)
+
+    def append_ui(self, ui: "UIProtocol") -> None:
+        """Attach one more UI, keeping those already attached."""
+        self._building.append_ui(ui)
+
+    def get_uis(self) -> "list[UIProtocol]":
+        """Return a copy of every currently attached UI."""
+        return self._building.get_uis()
+
+    @property
+    def tool_confirmation(self) -> AnyToolConfirmation:
+        """Policy deciding which tool calls need the user to approve them."""
+        return self._building.tool_confirmation
+
+    @tool_confirmation.setter
+    def tool_confirmation(self, value: AnyToolConfirmation) -> None:
+        """Replace the tool-confirmation policy."""
+        self._building.tool_confirmation = value
+
+    @property
+    def approval_channel(self) -> "ApprovalChannel | None":
+        """Channel carrying approval requests to whoever answers them."""
+        return self._building.approval_channel
+
+    @approval_channel.setter
+    def approval_channel(self, value: "ApprovalChannel | None") -> None:
+        """Replace the approval channel."""
+        self._building.approval_channel = value
+
+    @property
+    def history_manager(self) -> AnyHistoryManager | None:
+        """Store that persists conversation history across runs."""
+        return self._building.history_manager
+
+    @history_manager.setter
+    def history_manager(self, value: AnyHistoryManager | None) -> None:
+        """Replace the history manager."""
+        self._building.history_manager = value
+
+    @property
+    def permissions(self) -> PermissionPolicyInput:
+        """Policy bounding which files and commands the agent's tools may touch."""
+        return self._building.permissions
+
+    @permissions.setter
+    def permissions(self, value: PermissionPolicyInput) -> None:
+        """Replace the permission policy."""
+        self._building.permissions = value
+
+    @property
+    def sandbox(self) -> "SandboxInput | BoolAttr":
+        """Whether, and how, tool calls run inside a sandbox."""
+        return self._building.sandbox
+
+    @sandbox.setter
+    def sandbox(self, value: "SandboxInput | BoolAttr") -> None:
+        """Replace the sandbox configuration."""
+        self._building.sandbox = value
+
+    def append_hook_factory(self, *factory: Callable[[HookManager], None]) -> None:
+        """Register one or more hook factories on this task's hook manager."""
+        self._building.append_hook_factory(*factory)
+
+    @property
+    def custom_model_names(self) -> "StrListAttr | None":
+        """Extra model names offered by the model picker, beyond the detected ones."""
+        return self._building.custom_model_names
+
+    @custom_model_names.setter
+    def custom_model_names(self, value: "StrListAttr | None") -> None:
+        """Replace the custom model-name list."""
+        self._building.custom_model_names = value
+
+    def append_toolset(self, *toolset: "AbstractToolset") -> None:
+        """Add pydantic-ai toolsets whose tools the agent may call."""
+        self._building.append_toolset(*toolset)
+
+    def append_toolset_factory(
+        self, *factory: "Callable[[AnyContext], AbstractToolset[None]]"
+    ) -> None:
+        """Add factories building toolsets per run, from the task context."""
+        self._building.append_toolset_factory(*factory)
+
+    def append_tool(self, *tool: "Tool | ToolFuncEither") -> None:
+        """Add tools the agent may call."""
+        self._building.append_tool(*tool)
+
+    def append_tool_factory(
+        self,
+        *factory: "Callable[[AnyContext], Tool | ToolFuncEither | list[Tool | ToolFuncEither]]",
+    ) -> None:
+        """Add factories building tools per run, from the task context."""
+        self._building.append_tool_factory(*factory)
+
+    def append_history_processor(self, *processor: "HistoryProcessor") -> None:
+        """Add processors that rewrite conversation history before each request."""
+        self._building.append_history_processor(*processor)
+
+    def get_all_tools(self, ctx: AnyContext) -> "list[Tool | ToolFuncEither]":
+        """Get all tools including those resolved from factories."""
+        return self._building.get_all_tools(ctx)
+
+    def get_all_toolsets(self, ctx: AnyContext) -> "list[AbstractToolset[None]]":
+        """Get all toolsets including those resolved from factories."""
+        return self._building.get_all_toolsets(ctx)
+
+    def get_system_prompt(self, ctx: AnyContext) -> str:
+        """Compose the full system prompt for this run."""
+        return self._building.get_system_prompt(ctx)
+
+    def get_live_context(
+        self, ctx: AnyContext, inject_journal_index: bool = False
+    ) -> str:
+        """Render the per-turn ``<live-context>`` block injected into the user turn."""
+        return self._building.get_live_context(ctx, inject_journal_index)
+
+    async def get_live_context_async(
+        self, ctx: AnyContext, inject_journal_index: bool = False
+    ) -> str:
+        """``get_live_context`` for async callers."""
+        return await self._building.get_live_context_async(ctx, inject_journal_index)
+
+    def get_model_settings(self, ctx: AnyContext) -> "ModelSettings | None":
+        """The task's model settings, falling back to the LLM config's."""
+        return self._building.get_model_settings(ctx)
+
+    def get_model(self, ctx: AnyContext) -> "str | Model":
+        """The task's model, rendered against *ctx*, falling back to the config's."""
+        return self._building.get_model(ctx)
+
+    # --- LLMTaskHistory delegators --------------------------------------------
+
+    def get_history_manager(self, ctx: AnyContext) -> AnyHistoryManager:
+        """The configured history manager, or a default file-backed one."""
+        return self._history.get_history_manager(ctx)
+
+    def get_conversation_name(self, ctx: AnyContext) -> str:
+        """The configured conversation name, or a fresh random one when blank."""
+        return self._history.get_conversation_name(ctx)
+
+    def get_effective_prompt(
+        self,
+        ctx: AnyContext,
+        user_message: str,
+        user_attachments: "list[Any] | None",
+        message_history: "list[Any]",
+    ) -> "tuple[str, list[Any] | None]":
+        """The message to send this attempt, plus the attachments to send with it."""
+        return self._history.get_effective_prompt(
+            ctx, user_message, user_attachments, message_history
+        )
+
+    def is_context_length_error(self, error: Exception) -> bool:
+        """Return True when the error is a model context-length / prompt-too-long rejection."""
+        return self._history.is_context_length_error(error)
+
+    def handle_run_error(
+        self,
+        ctx: AnyContext,
+        history_manager: AnyHistoryManager,
+        conversation_name: str,
+        error: Exception,
+        partial_run: Any = None,
+    ) -> None:
+        """Persist what a failed run leaves behind, so the next retry sees it."""
+        self._history.handle_run_error(
+            ctx, history_manager, conversation_name, error, partial_run
+        )
+
+    def save_cancelled_history(
+        self,
+        history_manager: AnyHistoryManager,
+        conversation_name: str,
+        message_history: "list[Any]",
+        user_message: Any,
+        partial_run: Any = None,
+    ) -> None:
+        """Save partial history when a run is cancelled by the user (e.g. Escape)."""
+        self._history.save_cancelled_history(
+            history_manager,
+            conversation_name,
+            message_history,
+            user_message,
+            partial_run,
+        )
+
+    def post_process_output(self, output: Any) -> Any:
+        """Strip terminal styling from a string result; pass anything else through."""
+        return self._history.post_process_output(output)
 
     @property
     def llm_config(self) -> LLMConfig:

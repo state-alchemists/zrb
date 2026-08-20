@@ -1,9 +1,9 @@
 """High-level symbol-based LSP queries for `LSPManager`.
 
-Each method routes through `self.get_server(...)` (provided by the
-lifecycle mixin) and returns a friendly dict with a `found`/`success`
-flag. The `_find_symbol_position` helper bridges symbol names to
-`(line, character)` for callers that don't have the position handy.
+Each method routes through `self._owner.get_server(...)` and returns a
+friendly dict with a `found`/`success` flag. The `_find_symbol_position`
+helper bridges symbol names to `(line, character)` for callers that don't
+have the position handy.
 """
 
 from __future__ import annotations
@@ -17,24 +17,19 @@ from zrb.llm.lsp.protocol import SymbolKind
 from zrb.llm.lsp.symbol_utils import format_document_symbols, uri_to_path
 
 if TYPE_CHECKING:
-    from zrb.llm.lsp.server import LSPServer
+    from zrb.llm.lsp.manager import LSPManager
 
 
 class LSPManagerQuery:
-    """LSP query methods exposed on `LSPManager`."""
+    """LSP query methods exposed on `LSPManager`.
 
-    # Host-class contract: these are provided by `LSPManagerLifecycle` on the
-    # composed `LSPManager`. Declared here so static type checkers can verify
-    # accesses; the block does not run at runtime.
-    if TYPE_CHECKING:
+    Takes the owning `LSPManager` (rather than the lifecycle collaborator
+    directly) so that patching `manager.get_server` / `manager._find_symbol_position`
+    at the instance level — as the test suite does — is honored here too.
+    """
 
-        async def get_server(
-            self,
-            file_path: str,
-            preferred_servers: list[str] | None = None,
-        ) -> LSPServer | None: ...
-
-        def list_available_servers(self) -> dict[str, str]: ...
+    def __init__(self, owner: "LSPManager") -> None:
+        self._owner = owner
 
     async def find_definition(
         self,
@@ -47,11 +42,11 @@ class LSPManagerQuery:
         Combines workspace symbol search with kind filtering to handle the LLM's
         approximate position knowledge.
         """
-        server = await self.get_server(file_path)
+        server = await self._owner.get_server(file_path)
         if server is None:
             return no_server_error(
                 file_path,
-                self.list_available_servers,
+                self._owner.list_available_servers,
                 extra_hint="[SYSTEM SUGGESTION]: Install an LSP server for this language.",
             )
 
@@ -61,7 +56,7 @@ class LSPManagerQuery:
         # on pyright (returns nothing without indexing) and pylsp (doesn't
         # implement workspace/symbol at all).
         try:
-            position = await self._find_symbol_position(file_path, symbol_name)
+            position = await self._owner._find_symbol_position(file_path, symbol_name)
             if position:
                 line, character = position
                 locations = await server.goto_definition(file_path, line, character)
@@ -128,13 +123,15 @@ class LSPManagerQuery:
         include_declaration: bool = True,
     ) -> dict:
         """Find all references to a symbol. Falls back to grep if position unknown."""
-        server = await self.get_server(file_path)
+        server = await self._owner.get_server(file_path)
         if server is None:
-            return no_server_error(file_path, self.list_available_servers)
+            return no_server_error(file_path, self._owner.list_available_servers)
 
         try:
             if line == 0 and character == 0:
-                position = await self._find_symbol_position(file_path, symbol_name)
+                position = await self._owner._find_symbol_position(
+                    file_path, symbol_name
+                )
                 if position:
                     line, character = position
 
@@ -179,9 +176,9 @@ class LSPManagerQuery:
         severity: str | None = None,
     ) -> dict:
         """Get diagnostics (errors, warnings) for a file."""
-        server = await self.get_server(file_path)
+        server = await self._owner.get_server(file_path)
         if server is None:
-            return no_server_error(file_path, self.list_available_servers)
+            return no_server_error(file_path, self._owner.list_available_servers)
 
         try:
             diagnostics = await server.get_diagnostics(file_path)
@@ -236,9 +233,9 @@ class LSPManagerQuery:
 
     async def get_document_symbols(self, file_path: str) -> dict:
         """Get all symbols (classes, functions, variables) defined in a document."""
-        server = await self.get_server(file_path)
+        server = await self._owner.get_server(file_path)
         if server is None:
-            return no_server_error(file_path, self.list_available_servers)
+            return no_server_error(file_path, self._owner.list_available_servers)
 
         try:
             symbols = await server.document_symbols(file_path)
@@ -271,9 +268,9 @@ class LSPManagerQuery:
         satisfy a workspace search, we fall back to the symbols of ``file_path``
         filtered by the query so the tool still returns something useful.
         """
-        server = await self.get_server(file_path)
+        server = await self._owner.get_server(file_path)
         if server is None:
-            return no_server_error(file_path, self.list_available_servers)
+            return no_server_error(file_path, self._owner.list_available_servers)
 
         try:
             symbols = await server.workspace_symbols(query)
@@ -341,9 +338,9 @@ class LSPManagerQuery:
         character: int,
     ) -> dict:
         """Get hover information (type, docs) at a position."""
-        server = await self.get_server(file_path)
+        server = await self._owner.get_server(file_path)
         if server is None:
-            return no_server_error(file_path, self.list_available_servers)
+            return no_server_error(file_path, self._owner.list_available_servers)
 
         try:
             hover = await server.hover(file_path, line, character)
@@ -382,17 +379,19 @@ class LSPManagerQuery:
         dry_run: bool = True,
     ) -> dict:
         """Rename a symbol across the workspace."""
-        server = await self.get_server(file_path)
+        server = await self._owner.get_server(file_path)
         if server is None:
             return no_server_error(
                 file_path,
-                self.list_available_servers,
+                self._owner.list_available_servers,
                 success_key="success",
             )
 
         try:
             if line == 0 and character == 0:
-                position = await self._find_symbol_position(file_path, symbol_name)
+                position = await self._owner._find_symbol_position(
+                    file_path, symbol_name
+                )
                 if position:
                     line, character = position
 

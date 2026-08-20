@@ -40,30 +40,33 @@ def _as_str_list(raw: Any, default: _Default) -> "list[str] | _Default":
 
 
 class SubAgentManagerLoading:
-    """Filesystem walker + agent-file parsers for ``SubAgentManager``."""
+    """Filesystem walker + agent-file parsers for ``SubAgentManager``.
 
-    # Host-class contract: these attributes are owned by the class that mixes
-    # this in (see ``SubAgentManager.__init__``). Declared here so static type
-    # checkers can verify accesses; the block does not run at runtime.
-    if TYPE_CHECKING:
-        _ignore_dirs: list[str]
-        _root_dir: str
-        _agents: dict[str, SubAgentDefinition]
+    `ignore_dirs` and `agents` are owned by `SubAgentManager.__init__` and
+    handed in once here; `agents` is the *same* dict object the owner holds
+    (never reassigned wholesale — `SubAgentManager.reload` clears it in place)
+    so mutations made here stay visible to the owner. `root_dir` is passed per
+    call instead of cached, since it can change after construction.
+    """
 
-    def _scan_dir(self, directory: Path, max_depth: int) -> None:
+    def __init__(self, ignore_dirs: list[str], agents: "dict[str, SubAgentDefinition]"):
+        self._ignore_dirs = ignore_dirs
+        self._agents = agents
+
+    def _scan_dir(self, directory: Path, max_depth: int, root_dir: str) -> None:
         try:
             scan_files(
                 Path(directory),
                 max_depth,
-                self._on_file_found,
+                lambda item: self._on_file_found(item, root_dir),
                 self._ignore_dirs,
             )
         except Exception as e:
             CFG.LOGGER.debug(f"Failed to scan agent directory {directory}: {e}")
 
-    def _on_file_found(self, item: Path) -> None:
+    def _on_file_found(self, item: Path, root_dir: str) -> None:
         full_path = str(item)
-        rel_path = os.path.relpath(full_path, self._root_dir)
+        rel_path = os.path.relpath(full_path, root_dir)
 
         if item.name == "AGENT.py" or item.name.endswith(".agent.py"):
             self._load_agent_from_python(rel_path, full_path)
