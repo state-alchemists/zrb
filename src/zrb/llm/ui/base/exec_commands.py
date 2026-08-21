@@ -32,11 +32,11 @@ class BaseUIExecCommands:
 
     # --- exec (shell) -----------------------------------------------------
 
-    def _handle_exec_command(self, text: str) -> bool:
-        if self._base_ui._is_thinking:
+    def handle_exec_command(self, text: str) -> bool:
+        if self._base_ui.is_thinking:
             return False
 
-        for cmd in self._base_ui._exec_commands:
+        for cmd in self._base_ui.exec_commands:
             prefix = f"{cmd} "
             if text.strip().lower().startswith(prefix):
                 shell_cmd = text.strip()[len(prefix) :].strip()
@@ -47,14 +47,14 @@ class BaseUIExecCommands:
                     text=shell_cmd,
                     attachments=[],
                     kind="exec",
-                    run=lambda: self._run_shell_command(entry.text),
+                    run=lambda: self.run_shell_command(entry.text),
                 )
-                self._base_ui._message_queue.put_nowait(entry)
+                self._base_ui.message_queue.put_nowait(entry)
                 return True
         return False
 
-    async def _run_shell_command(self, cmd: str):
-        self._base_ui._is_thinking = True
+    async def run_shell_command(self, cmd: str):
+        self._base_ui.is_thinking = True
         self._base_ui.invalidate_ui()
         timestamp = datetime.now().strftime("%H:%M")
         process = None
@@ -127,14 +127,14 @@ class BaseUIExecCommands:
         except Exception as e:
             self._base_ui.append_to_output(f"\n[Error: {e}]\n")
         finally:
-            self._base_ui._is_thinking = False
-            self._base_ui._running_llm_task = None
-            await self._base_ui._update_system_info()
+            self._base_ui.is_thinking = False
+            self._base_ui.running_llm_task = None
+            await self._base_ui.update_system_info()
             self._base_ui.invalidate_ui()
 
     # --- /btw side question -----------------------------------------------
 
-    def _handle_btw_command(self, text: str) -> bool:
+    def handle_btw_command(self, text: str) -> bool:
         """Handle /btw <question> — ask a side question without saving to history.
 
         Intentionally works while the LLM is thinking (no _is_thinking guard).
@@ -142,7 +142,7 @@ class BaseUIExecCommands:
         main conversation.
         """
         text = text.strip()
-        for cmd in self._base_ui._btw_commands:
+        for cmd in self._base_ui.btw_commands:
             prefix = f"{cmd} "
             if text.lower().startswith(prefix):
                 question = text[len(prefix) :].strip()
@@ -151,20 +151,20 @@ class BaseUIExecCommands:
 
                 async def job(q=question):
                     # Through `self._base_ui` (not bare `self`):
-                    # `_stream_btw_response` is also a `BaseUI` delegator, and
+                    # `stream_btw_response` is also a `BaseUI` delegator, and
                     # subclasses (or test
                     # doubles) override it there to stub the network call.
-                    await self._base_ui._stream_btw_response(self._base_ui._llm_task, q)
+                    await self._base_ui.stream_btw_response(self._base_ui.llm_task, q)
 
                 # Bypass the serializing message queue — run as an independent
                 # background task so it executes in parallel with the main LLM.
                 task = asyncio.create_task(job())
-                self._base_ui._background_tasks.add(task)
-                task.add_done_callback(self._base_ui._background_tasks.discard)
+                self._base_ui.background_tasks.add(task)
+                task.add_done_callback(self._base_ui.background_tasks.discard)
                 return True
         return False
 
-    async def _stream_btw_response(self, llm_task: "LLMTask", question: str):
+    async def stream_btw_response(self, llm_task: "LLMTask", question: str):
         """Run an ephemeral LLM query that runs alongside the current conversation.
 
         Uses a fresh, independent pydantic-ai Agent so there are no race conditions
@@ -185,8 +185,8 @@ class BaseUIExecCommands:
             from pydantic_ai import Agent
             from pydantic_ai.messages import ModelRequest, SystemPromptPart
 
-            raw_history = self._base_ui._history_manager.load(
-                self._base_ui._conversation_session_name
+            raw_history = self._base_ui.history_manager.load(
+                self._base_ui.conversation_session_name
             )
             btw_history = []
             for msg in raw_history:
@@ -205,8 +205,8 @@ class BaseUIExecCommands:
             )
             # Use the UI's selected model if set (from /model command), otherwise fallback
             model = (
-                self._base_ui._model
-                if self._base_ui._model
+                self._base_ui.model
+                if self._base_ui.model
                 else llm_task.llm_config.model
             )
             final_model = llm_task.llm_config.resolve_model(model)
@@ -232,16 +232,16 @@ class BaseUIExecCommands:
 
     # --- custom commands --------------------------------------------------
 
-    def _handle_custom_command(self, text: str) -> bool:
-        if self._base_ui._is_thinking:
+    def handle_custom_command(self, text: str) -> bool:
+        if self._base_ui.is_thinking:
             return False
 
         text = text.strip()
         if not text:
             return False
 
-        prompt = resolve_custom_command(text, self._base_ui._custom_commands)
+        prompt = resolve_custom_command(text, self._base_ui.custom_commands)
         if prompt is not None:
-            self._base_ui._submit_user_message(self._base_ui._llm_task, prompt)
+            self._base_ui.submit_message(prompt)
             return True
         return False

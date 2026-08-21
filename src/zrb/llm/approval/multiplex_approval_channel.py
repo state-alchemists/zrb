@@ -110,3 +110,14 @@ class MultiplexApprovalChannel(ApprovalChannel):
 
 def is_shutdown_requested() -> bool:
     return getattr(sys, "zrb_shutdown_requested", False)
+
+
+def resolve_approval_channel(
+    channels: list[ApprovalChannel],
+) -> ApprovalChannel | None:
+    """Pick the single channel, wrap 2+ in `MultiplexApprovalChannel`, or `None`."""
+    if len(channels) == 1:
+        return channels[0]
+    if len(channels) > 1:
+        return MultiplexApprovalChannel(channels)
+    return None

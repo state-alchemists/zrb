@@ -3,9 +3,9 @@ import os
 import sys
 
 from zrb.config.config import CFG
+from zrb.group.any_group import NodeNotFoundError
 from zrb.runner.cli import cli
 from zrb.util.cli.style import stylize_error, stylize_muted, stylize_warning
-from zrb.util.group import NodeNotFoundError
 from zrb.util.init_path import get_init_path_list
 from zrb.util.load import load_file, load_module
 

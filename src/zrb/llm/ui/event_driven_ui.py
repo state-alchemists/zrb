@@ -72,6 +72,14 @@ class EventDrivenUI(SimpleUI):
     def input_queue(self) -> "asyncio.Queue[str]":
         return self._input_handling.input_queue
 
+    @property
+    def waiting_for_input(self) -> bool:
+        return self._input_handling.waiting_for_input
+
+    @waiting_for_input.setter
+    def waiting_for_input(self, value: bool) -> None:
+        self._input_handling.waiting_for_input = value
+
     async def get_input(self, prompt: str) -> str:
         return await self._input_handling.get_input(prompt)
 

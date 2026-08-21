@@ -4,9 +4,10 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from zrb.group.any_group import AnyGroup
+from zrb.group.group import Group
 from zrb.runner.web_schema.user import User
 from zrb.task.any_task import AnyTask
+from zrb.task.base.base_task import BaseTask
 
 
 class TestUserModel:
@@ -65,34 +66,22 @@ class TestUserCanAccessGroup:
 
     def test_super_admin_can_access_any_group(self):
         """Super admin can access any group."""
-        group = MagicMock(spec=AnyGroup)
-        group.subtasks = {}
-        group.subgroups = {}
+        group = Group(name="root")
         user = User(username="admin", is_super_admin=True)
         assert user.can_access_group(group) is True
 
     def test_user_can_access_group_with_accessible_task(self):
         """User can access group if they can access a task in it."""
-        task = MagicMock(spec=AnyTask)
-        task.name = "accessible_task"
-        task.cli_only = False
-
-        group = MagicMock(spec=AnyGroup)
-        group.subtasks = {"accessible_task": task}
-        group.subgroups = {}
+        group = Group(name="root")
+        group.add_task(BaseTask(name="accessible_task"))
 
         user = User(username="alice", accessible_tasks=["accessible_task"])
         assert user.can_access_group(group) is True
 
     def test_user_cannot_access_group_without_accessible_task(self):
         """User cannot access group if they can't access any task in it."""
-        task = MagicMock(spec=AnyTask)
-        task.name = "forbidden_task"
-        task.cli_only = False
-
-        group = MagicMock(spec=AnyGroup)
-        group.subtasks = {"forbidden_task": task}
-        group.subgroups = {}
+        group = Group(name="root")
+        group.add_task(BaseTask(name="forbidden_task"))
 
         user = User(username="alice", accessible_tasks=["other_task"])
         assert user.can_access_group(group) is False

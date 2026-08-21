@@ -82,7 +82,7 @@ async def test_termux_camera_photo_returns_bytes(clean_env, tmp_path):
     clean_env.setattr(
         "zrb.llm.util.camera.shutil.which", _which_only("termux-camera-photo")
     )
-    clean_env.setattr("zrb.llm.util.camera._TERMUX_HOME_PHOTO_PATH", fake_path)
+    clean_env.setattr("zrb.llm.util.camera.TERMUX_HOME_PHOTO_PATH", fake_path)
 
     def _make_proc(*args, **kwargs):
         # termux-camera-photo writes its output to the target path (last arg).
@@ -261,7 +261,7 @@ async def test_capture_timeout_returns_none_with_hint(clean_env):
     clean_env.setattr("sys.platform", "linux")
     clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
     clean_env.setattr("zrb.llm.util.camera.shutil.which", _which_only("ffmpeg"))
-    clean_env.setattr("zrb.llm.util.camera._CAPTURE_TIMEOUT_SECONDS", 0.05)
+    clean_env.setattr("zrb.llm.util.camera.CAPTURE_TIMEOUT_SECONDS", 0.05)
 
     hung_procs: list[_FakeProcess] = []
 

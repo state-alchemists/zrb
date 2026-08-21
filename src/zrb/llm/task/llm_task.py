@@ -51,7 +51,7 @@ from zrb.llm.task.building import LLMTaskBuilding
 from zrb.llm.task.history import LLMTaskHistory
 from zrb.llm.util.attachment import get_attachments
 from zrb.task.any_task import AnyTask
-from zrb.task.base_task import BaseTask
+from zrb.task.base.base_task import BaseTask
 from zrb.util.attr import get_attr, get_bool_attr
 
 if TYPE_CHECKING:

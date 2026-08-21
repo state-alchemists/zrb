@@ -720,7 +720,7 @@ def test_save_handles_os_error(temp_history_dir):
     manager = FileHistoryManager(temp_history_dir)
     messages = [ModelRequest(parts=[UserPromptPart(content="hello")])]
     manager.update("os-error-session", messages)
-    mtime_before = manager._cache_mtime["os-error-session"]
+    mtime_before = manager.cache_sync_mtime("os-error-session")
 
     original_open = open
 
@@ -738,8 +738,8 @@ def test_save_handles_os_error(temp_history_dir):
     # A failed write must not be recorded as a successful one: the entry stays
     # dirty (so it's never evicted, since eviction only drops clean entries)
     # and its mtime sync point stays where it was before the failed write.
-    assert "os-error-session" in manager._dirty
-    assert manager._cache_mtime["os-error-session"] == mtime_before
+    assert manager.is_dirty("os-error-session")
+    assert manager.cache_sync_mtime("os-error-session") == mtime_before
     assert not os.path.exists(os.path.join(temp_history_dir, "os-error-session.json"))
 
 

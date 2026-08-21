@@ -95,7 +95,7 @@ from zrb.session.session import Session
 
 # --- Tasks ---------------------------------------------------------------
 from zrb.task.any_task import AnyTask
-from zrb.task.base_task import BaseTask
+from zrb.task.base.base_task import BaseTask
 from zrb.task.base_trigger import BaseTrigger
 from zrb.task.cmd_task import CmdTask
 from zrb.task.http_check import HttpCheck

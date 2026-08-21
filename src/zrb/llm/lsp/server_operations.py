@@ -5,7 +5,7 @@ The document-synchronization and query half of ``LSPServer`` (definition,
 references, diagnostics, symbols, hover, rename, and the workspace-edit
 application helpers), split out to keep ``server.py`` on transport and
 lifecycle. Not a reusable mixin — it reads host state it never sets
-(``self._send_request_raw``, ``self._next_id``, ``self._path_to_uri``,
+(``self._send_request_raw``, ``self._next_id``, ``self.path_to_uri``,
 ``self.initialized``), so ``LSPServer`` is its only possible host.
 """
 
@@ -31,7 +31,7 @@ class LSPServerOperations:
         _open_files: set[str]
         _versions: dict[str, int]
         _next_id: Any
-        _path_to_uri: Any
+        path_to_uri: Any
         _send_request_raw: Any
         _send_notification_raw: Any
 
@@ -48,7 +48,7 @@ class LSPServerOperations:
         request = JSONRPCMessage.create_request(
             "textDocument/definition",
             {
-                "textDocument": {"uri": self._path_to_uri(file_path)},
+                "textDocument": {"uri": self.path_to_uri(file_path)},
                 "position": {"line": line, "character": character},
             },
             self._next_id(),
@@ -79,7 +79,7 @@ class LSPServerOperations:
         request = JSONRPCMessage.create_request(
             "textDocument/references",
             {
-                "textDocument": {"uri": self._path_to_uri(file_path)},
+                "textDocument": {"uri": self.path_to_uri(file_path)},
                 "position": {"line": line, "character": character},
                 "context": {"includeDeclaration": include_declaration},
             },
@@ -100,7 +100,7 @@ class LSPServerOperations:
         """
         if not self.initialized:
             return
-        uri = self._path_to_uri(file_path)
+        uri = self.path_to_uri(file_path)
         if uri in self._open_files:
             return
         try:
@@ -141,7 +141,7 @@ class LSPServerOperations:
         """
         if not self.initialized:
             return
-        uri = self._path_to_uri(file_path)
+        uri = self.path_to_uri(file_path)
         if uri not in self._open_files:
             await self.did_open_text_document(file_path)
             return
@@ -176,7 +176,7 @@ class LSPServerOperations:
         """
         if not self.initialized or not self.writer:
             return
-        uri = self._path_to_uri(file_path)
+        uri = self.path_to_uri(file_path)
         first_open = uri not in self._open_files
         if first_open:
             await self.did_open_text_document(file_path)
@@ -208,7 +208,7 @@ class LSPServerOperations:
         if not self.initialized:
             return None
 
-        uri = self._path_to_uri(file_path)
+        uri = self.path_to_uri(file_path)
         # Drop the cached entry so we can detect the fresh publish.
         self._diagnostics.pop(uri, None)
 
@@ -265,7 +265,7 @@ class LSPServerOperations:
 
         request = JSONRPCMessage.create_request(
             "textDocument/documentSymbol",
-            {"textDocument": {"uri": self._path_to_uri(file_path)}},
+            {"textDocument": {"uri": self.path_to_uri(file_path)}},
             self._next_id(),
         )
 
@@ -295,7 +295,7 @@ class LSPServerOperations:
         request = JSONRPCMessage.create_request(
             "textDocument/hover",
             {
-                "textDocument": {"uri": self._path_to_uri(file_path)},
+                "textDocument": {"uri": self.path_to_uri(file_path)},
                 "position": {"line": line, "character": character},
             },
             self._next_id(),
@@ -322,7 +322,7 @@ class LSPServerOperations:
             prepare_request = JSONRPCMessage.create_request(
                 "textDocument/prepareRename",
                 {
-                    "textDocument": {"uri": self._path_to_uri(file_path)},
+                    "textDocument": {"uri": self.path_to_uri(file_path)},
                     "position": {"line": line, "character": character},
                 },
                 self._next_id(),
@@ -336,7 +336,7 @@ class LSPServerOperations:
         request = JSONRPCMessage.create_request(
             "textDocument/rename",
             {
-                "textDocument": {"uri": self._path_to_uri(file_path)},
+                "textDocument": {"uri": self.path_to_uri(file_path)},
                 "position": {"line": line, "character": character},
                 "newName": new_name,
             },

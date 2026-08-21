@@ -39,7 +39,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Run["src/zrb/runner/cli.py :: Cli.run()"] --> Extract["src/zrb/util/group.py :: extract_node_from_args()"]
+    Run["src/zrb/runner/cli.py :: Cli.run()"] --> Extract["src/zrb/group/group.py :: Group.extract_node()"]
     Extract -->|"walks argv to a task"| Task["src/zrb/builtin/llm/chat.py :: llm_chat"]
     Task -->|the resolved task| Lifecycle["src/zrb/task/base/lifecycle.py :: run_task_async()"]
 ```
@@ -164,7 +164,7 @@ Control returns up through `LLMChatTask._exec_action` → `run_task_async` → `
 | Concern | File |
 |---------|------|
 | CLI entry | `src/zrb/__main__.py` |
-| Task tree resolution | `src/zrb/runner/cli.py`, `src/zrb/util/group.py` |
+| Task tree resolution | `src/zrb/runner/cli.py`, `src/zrb/group/{any_group,group}.py` |
 | Task execution lifecycle | `src/zrb/task/base/{execution,lifecycle,monitoring}.py` |
 | `llm chat` task definition | `src/zrb/builtin/llm/chat.py` |
 | Chat builder + runner | `src/zrb/llm/task/chat/{task,state,building,running,execution}.py` |

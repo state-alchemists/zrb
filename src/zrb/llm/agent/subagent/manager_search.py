@@ -17,7 +17,7 @@ class SubAgentManagerSearch:
 
     Stateless: `root_dir` is owned by `SubAgentManager` and passed in per call
     rather than cached here, since it can change after construction (e.g. a
-    test retargeting `manager._root_dir`).
+    test retargeting `manager.root_dir`).
     """
 
     def get_search_directories(self, root_dir: str) -> list[str | Path]:

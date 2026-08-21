@@ -4,14 +4,14 @@ Renders an `AskUserQuestion` `ChoiceSpec` as an in-layout selectable list
 (no nested `Application` — that would fight the running full-screen app for
 the terminal). The widget is a focusable `Window` shown as a `Float`; its own
 key bindings drive selection and resolve the active confirmation future via
-`UIConfirmation._resolve_current`.
+`UIConfirmation.resolve_current`.
 
 Selection model:
   - single-select: ↑/↓ move the cursor, Enter confirms the highlighted option.
   - multi-select: ↑/↓ move, Space toggles, Enter confirms all checked options.
   - a synthetic "✎ Type my own answer…" row drops to free-text: the widget
     closes, focus returns to the input field, and the next Enter resolves the
-    same future with the typed text (via `_handle_confirmation`).
+    same future with the typed text (via `handle_confirmation`).
 """
 
 from __future__ import annotations
@@ -32,17 +32,17 @@ class UISelection:
     """In-layout selection widget; pairs with `UIConfirmation`.
 
     Reaches most state/methods through `self._ui` — the composed `UI` —
-    like every other part. The one exception is `_handle_confirmation`'s
+    like every other part. The one exception is `handle_confirmation`'s
     base-case fallback: it holds a direct reference to the `UIConfirmation`
     sibling so the fallback call cannot loop back through the UI's own
-    `_handle_confirmation` delegator (which dispatches to this class first).
+    `handle_confirmation` delegator (which dispatches to this class first).
     """
 
     def __init__(self, ui: "UI", confirmation: "UIConfirmation") -> None:
         self._ui = ui
         self._confirmation = confirmation
 
-    def _init_selection_state(self) -> None:
+    def init_selection_state(self) -> None:
         """Initialize choice state and build the (hidden) widget."""
         self._active_choice: dict | None = None
         self._choice_cursor: int = 0
@@ -59,9 +59,19 @@ class UISelection:
         """Whether a choice widget is currently being shown (public API)."""
         return self._active_choice is not None
 
+    @property
+    def choice_cursor(self) -> int:
+        """Index of the highlighted row in the active choice widget."""
+        return self._choice_cursor
+
+    @property
+    def choice_selected(self) -> "set[int]":
+        """Indices checked so far in a multi-select choice widget."""
+        return self._choice_selected
+
     # --- hooks called by UIConfirmation -------------------------------
 
-    def _begin_choice(self, spec: dict) -> None:
+    def begin_choice(self, spec: dict) -> None:
         # lazy: heavy third-party
         from prompt_toolkit.application import get_app
 
@@ -76,7 +86,7 @@ class UISelection:
             # Layout not ready (e.g. before first render) — focus on next paint.
             CFG.LOGGER.debug(f"Choice-window focus failed: {e}")
 
-    def _end_choice(self) -> None:
+    def end_choice(self) -> None:
         self._choice_freetext_prefix = None
         self._choice_freetext_question = ""
         if self._active_choice is None:
@@ -88,7 +98,7 @@ class UISelection:
             # lazy: heavy third-party
             from prompt_toolkit.application import get_app
 
-            get_app().layout.focus(self._ui._input_field)
+            get_app().layout.focus(self._ui.input_field)
         except Exception as e:
             # Layout not ready (e.g. before first render) — focus on next paint.
             CFG.LOGGER.debug(f"Input-field focus failed: {e}")
@@ -120,7 +130,7 @@ class UISelection:
             self._confirm_choice()
 
         control = FormattedTextControl(
-            self._get_choice_text, focusable=True, key_bindings=kb
+            self.get_choice_text, focusable=True, key_bindings=kb
         )
         return Window(content=control, style="class:choice", dont_extend_height=True)
 
@@ -175,7 +185,7 @@ class UISelection:
         question = spec.get("question", "")
 
         # Free-text row: close the widget, keep the future pending, and let the
-        # next Enter in the input field resolve it via _handle_confirmation.
+        # next Enter in the input field resolve it via handle_confirmation.
         # In multi-select, any already-checked options are carried as a prefix
         # so the final answer is "those options + the typed text".
         if self._choice_cursor == self._free_text_row():
@@ -187,7 +197,7 @@ class UISelection:
                     for i in checked
                     if 0 <= i < len(options)
                 )
-            self._end_choice()  # clears prefix/question...
+            self.end_choice()  # clears prefix/question...
             self._choice_freetext_prefix = prefix  # ...then arm free-text capture
             self._choice_freetext_question = question
             self._append_now("\n  ✎ Type your answer and press Enter:\n")
@@ -202,14 +212,14 @@ class UISelection:
             options[i].get("label", str(i)) for i in indices if 0 <= i < len(options)
         ]
         answer = ", ".join(labels)
-        self._ui._resolve_current(answer, echo=self._answer_echo(question, answer))
+        self._ui.resolve_current(answer, echo=self._answer_echo(question, answer))
         return True
 
     def _answer_echo(self, question: str, answer: str) -> str:
         """Scrollback record left after the widget closes: question + answer."""
         return f"\n❓ {question}\n  ✔ {answer}\n"
 
-    def _handle_confirmation(self, event) -> bool:
+    def handle_confirmation(self, event) -> bool:
         """Resolve a pending free-text capture, combining any checked options.
 
         When free-text was reached from a multi-select choice, the typed text is
@@ -218,7 +228,7 @@ class UISelection:
         """
         prefix = self._choice_freetext_prefix
         if prefix is None:
-            return self._confirmation._handle_confirmation(event)
+            return self._confirmation.handle_confirmation(event)
         buff = event.current_buffer
         typed = buff.text.strip()
         question = self._choice_freetext_question
@@ -229,12 +239,12 @@ class UISelection:
         # when the confirmation activated) is not wiped afterwards.
         buff.reset()
         echo = self._answer_echo(question, combined)
-        self._ui._resolve_current(combined, echo=echo)
+        self._ui.resolve_current(combined, echo=echo)
         return True
 
     # --- rendering -------------------------------------------------------
 
-    def _get_choice_text(self) -> "StyleAndTextTuples":
+    def get_choice_text(self) -> "StyleAndTextTuples":
         spec = self._active_choice
         if spec is None:
             return []
@@ -292,10 +302,10 @@ class UISelection:
         pending mid-thinking; the free-text future is still pending here, so we
         clear the active slot for the duration of the write.
         """
-        saved = self._ui._current_confirmation
-        self._ui._current_confirmation = None
+        saved = self._ui.current_confirmation
+        self._ui.current_confirmation = None
         self._ui.append_to_output(text, kind="text")
-        self._ui._current_confirmation = saved
+        self._ui.current_confirmation = saved
 
     def _invalidate(self) -> None:
         try:

@@ -14,51 +14,52 @@ class MockUI:
     plus the `BaseUI` methods they call (`append_to_output`, `on_exit`, ...).
     Composes a real `BaseUICommands(self)` and forwards attribute
     lookups to it (and its sub-collaborators) so the many existing
-    `ui._handle_*`/`ui.classify_input`/... call sites below keep working
+    `ui.handle_*`/`ui.classify_input`/... call sites below keep working
     unchanged."""
 
     def __init__(self):
-        self._exit_commands = ["/exit"]
-        self._info_commands = ["/help"]
-        self._save_commands = ["/save"]
-        self._load_commands = ["/load"]
-        self._rewind_commands = ["/rewind"]
-        self._redirect_output_commands = ["/redirect"]
-        self._attach_commands = ["/attach"]
-        self._photo_commands = ["/photo"]
-        self._yolo_toggle_commands = ["/yolo"]
-        self._set_model_commands = ["/model"]
-        self._exec_commands = ["/exec"]
-        self._btw_commands = ["/btw"]
-        self._plan_commands = ["/plan"]
-        self._summarize_commands = ["/summarize"]
-        self._copy_commands = []
-        self._voice_commands = ["/voice"]
-        self._voice_mode_active = False
-        self._voice_recording_active = False
-        self._voice_task = None
-        self._voice_stop_event = None
-        self._custom_commands = []
+        self.exit_commands = ["/exit"]
+        self.info_commands = ["/help"]
+        self.save_commands = ["/save"]
+        self.load_commands = ["/load"]
+        self.rewind_commands = ["/rewind"]
+        self.redirect_output_commands = ["/redirect"]
+        self.attach_commands = ["/attach"]
+        self.photo_commands = ["/photo"]
+        self.yolo_toggle_commands = ["/yolo"]
+        self.set_model_commands = ["/model"]
+        self.exec_commands = ["/exec"]
+        self.btw_commands = ["/btw"]
+        self.plan_commands = ["/plan"]
+        self.summarize_commands = ["/summarize"]
+        self.copy_commands = []
+        self.voice_commands = ["/voice"]
+        self.voice_mode_active = False
+        self.voice_recording_active = False
+        self.voice_task = None
+        self.voice_stop_event = None
+        self.custom_commands = []
 
         self.execute_hook = MagicMock()
         self.execute_hook_blocking = AsyncMock(return_value=[])
-        self._history_manager = MagicMock()
-        self._snapshot_manager = MagicMock()
-        self._message_queue = asyncio.Queue()
-        self._pending_attachments = []
-        self._is_thinking = False
-        self._running_llm_task = None
-        self._background_tasks = set()
-        self._llm_task = MagicMock()
-        self._llm_task.get_system_prompt.return_value = "mock system prompt"
-        self._llm_task.llm_config.model = "mock-model"
-        self._llm_task.llm_config.resolve_model.return_value = "mock-resolved-model"
+        self.history_manager = MagicMock()
+        self.snapshot_manager = MagicMock()
+        self.message_queue = asyncio.Queue()
+        self.pending_attachments = []
+        self.is_thinking = False
+        self.running_llm_task = None
+        self.background_tasks = set()
+        self.llm_task = MagicMock()
+        self.llm_task.get_system_prompt.return_value = "mock system prompt"
+        self.llm_task.llm_config.model = "mock-model"
+        self.llm_task.llm_config.resolve_model.return_value = "mock-resolved-model"
         self.ctx = MagicMock()
-        self._model = "test-model"
-        self._conversation_session_name = "default"
-        self._markdown_theme = None
+        self.model = "test-model"
+        self.conversation_session_name = "default"
+        self.markdown_theme = None
         self.last_output = "some ai output"
         self.yolo = False
+        self.plan_mode_active = False
 
         self.outputs = []
         self.exited = False
@@ -87,13 +88,13 @@ class MockUI:
     def on_exit(self):
         self.exited = True
 
-    async def _update_system_info(self):
+    async def update_system_info(self):
         pass
 
     def _get_output_field_width(self):
         return 80
 
-    def _submit_user_message(self, task, prompt):
+    def submit_message(self, prompt):
         self.submitted_prompt = prompt
 
 
@@ -103,28 +104,28 @@ def ui():
 
 
 def test_handle_exit_command(ui):
-    assert ui._handle_exit_command("/exit") is True
+    assert ui.handle_exit_command("/exit") is True
     assert ui.exited is True
-    assert ui._handle_exit_command("hello") is False
+    assert ui.handle_exit_command("hello") is False
 
 
 def test_handle_info_command(ui):
-    assert ui._handle_info_command("/help") is True
+    assert ui.handle_info_command("/help") is True
     assert any("Available Commands" in o for o in ui.outputs)
 
 
 def test_handle_save_command(ui):
-    ui._history_manager.load.return_value = ["msg1"]
-    assert ui._handle_save_command("/save my-session") is True
-    ui._history_manager.update.assert_called_with("my-session", ["msg1"])
-    ui._history_manager.save.assert_called_with("my-session")
+    ui.history_manager.load.return_value = ["msg1"]
+    assert ui.handle_save_command("/save my-session") is True
+    ui.history_manager.update.assert_called_with("my-session", ["msg1"])
+    ui.history_manager.save.assert_called_with("my-session")
     assert "saved" in "".join(ui.outputs)
 
 
 def test_handle_load_command(ui):
-    ui._history_manager.load.return_value = []
-    assert ui._handle_load_command("/load other-session") is True
-    assert ui._conversation_session_name == "other-session"
+    ui.history_manager.load.return_value = []
+    assert ui.handle_load_command("/load other-session") is True
+    assert ui.conversation_session_name == "other-session"
     assert "switched" in "".join(ui.outputs)
 
 
@@ -133,9 +134,9 @@ def test_handle_rewind_command_list(ui):
     snap.sha = "1234567890"
     snap.timestamp = "2021-01-01"
     snap.label = "test"
-    ui._snapshot_manager.list_snapshots.return_value = [snap]
+    ui.snapshot_manager.list_snapshots.return_value = [snap]
 
-    assert ui._handle_rewind_command("/rewind") is True
+    assert ui.handle_rewind_command("/rewind") is True
     assert "12345678" in "".join(ui.outputs)
 
 
@@ -144,30 +145,30 @@ async def test_handle_rewind_command_restore(ui):
     snap = MagicMock()
     snap.sha = "1234567890"
     snap.message_count = 5
-    ui._snapshot_manager.list_snapshots.return_value = [snap]
-    ui._snapshot_manager.restore_snapshot = AsyncMock(return_value=True)
+    ui.snapshot_manager.list_snapshots.return_value = [snap]
+    ui.snapshot_manager.restore_snapshot = AsyncMock(return_value=True)
 
-    assert ui._handle_rewind_command("/rewind 1") is True
+    assert ui.handle_rewind_command("/rewind 1") is True
     # Restoration happens in a background task
-    assert len(ui._background_tasks) == 1
-    task = list(ui._background_tasks)[0]
+    assert len(ui.background_tasks) == 1
+    task = list(ui.background_tasks)[0]
     await task
-    ui._snapshot_manager.restore_snapshot.assert_called_with(snap.sha)
+    ui.snapshot_manager.restore_snapshot.assert_called_with(snap.sha)
 
 
 def test_handle_redirect_command(ui, tmp_path):
     out_file = tmp_path / "output.txt"
-    assert ui._handle_redirect_command(f"/redirect {out_file}") is True
+    assert ui.handle_redirect_command(f"/redirect {out_file}") is True
     assert out_file.read_text() == "some ai output"
     assert "redirected" in "".join(ui.outputs)
 
 
 def test_handle_redirect_command_bare(ui):
     """Bare /redirect copies last_output to clipboard."""
-    ui._redirect_output_commands = ["/redirect"]
+    ui.redirect_output_commands = ["/redirect"]
     ui.last_output = "clipboard content"
     with patch("zrb.llm.util.clipboard.copy_text", return_value=True) as mock_copy:
-        result = ui._handle_redirect_command("/redirect")
+        result = ui.handle_redirect_command("/redirect")
 
     assert result is True
     mock_copy.assert_called_once_with("clipboard content")
@@ -179,15 +180,15 @@ def test_handle_redirect_command_bare_falls_back_to_history(ui):
     Reproduces `chat --session <name>`: history is replayed but last_output
     is empty until a live turn runs.
     """
-    ui._redirect_output_commands = ["/redirect"]
+    ui.redirect_output_commands = ["/redirect"]
     ui.last_output = ""
-    ui._history_manager.load.return_value = [{"role": "assistant", "content": "x"}]
+    ui.history_manager.load.return_value = [{"role": "assistant", "content": "x"}]
     with patch("zrb.llm.util.clipboard.copy_text", return_value=True) as mock_copy:
         with patch(
             "zrb.llm.util.history_formatter.extract_last_response_text",
             return_value="from history",
         ):
-            result = ui._handle_redirect_command("/redirect")
+            result = ui.handle_redirect_command("/redirect")
 
     assert result is True
     mock_copy.assert_called_once_with("from history")
@@ -195,15 +196,15 @@ def test_handle_redirect_command_bare_falls_back_to_history(ui):
 
 def test_handle_redirect_command_bare_no_output_no_history(ui):
     """Bare /redirect errors when neither live output nor history text exists."""
-    ui._redirect_output_commands = ["/redirect"]
+    ui.redirect_output_commands = ["/redirect"]
     ui.last_output = ""
-    ui._history_manager.load.return_value = []
+    ui.history_manager.load.return_value = []
     with patch("zrb.llm.util.clipboard.copy_text") as mock_copy:
         with patch(
             "zrb.llm.util.history_formatter.extract_last_response_text",
             return_value="",
         ):
-            result = ui._handle_redirect_command("/redirect")
+            result = ui.handle_redirect_command("/redirect")
 
     assert result is True
     mock_copy.assert_not_called()
@@ -212,15 +213,15 @@ def test_handle_redirect_command_bare_no_output_no_history(ui):
 
 def test_handle_copy_command(ui):
     """Bare /copy copies full transcript to clipboard."""
-    ui._copy_commands = ["/copy"]
-    ui._history_manager.load.return_value = [{"role": "user", "content": "hi"}]
+    ui.copy_commands = ["/copy"]
+    ui.history_manager.load.return_value = [{"role": "user", "content": "hi"}]
 
     with patch("zrb.llm.util.clipboard.copy_text", return_value=True) as mock_copy:
         with patch(
             "zrb.llm.util.history_formatter.format_history_as_text",
             return_value="copy text",
         ):
-            result = ui._handle_copy_command("/copy")
+            result = ui.handle_copy_command("/copy")
 
     assert result is True
     mock_copy.assert_called_once_with("copy text")
@@ -228,15 +229,15 @@ def test_handle_copy_command(ui):
 
 def test_handle_copy_command_to_file(ui, tmp_path):
     """Copy with path writes transcript to file."""
-    ui._copy_commands = ["/copy"]
-    ui._history_manager.load.return_value = [{"role": "assistant", "content": "msg"}]
+    ui.copy_commands = ["/copy"]
+    ui.history_manager.load.return_value = [{"role": "assistant", "content": "msg"}]
     out_file = tmp_path / "transcript.txt"
 
     with patch(
         "zrb.llm.util.history_formatter.format_history_as_text",
         return_value="file content",
     ):
-        result = ui._handle_copy_command(f"/copy {out_file}")
+        result = ui.handle_copy_command(f"/copy {out_file}")
 
     assert result is True
     assert out_file.read_text() == "file content"
@@ -245,10 +246,10 @@ def test_handle_copy_command_to_file(ui, tmp_path):
 
 def test_handle_copy_command_no_history(ui):
     """Copy shows error when no history."""
-    ui._copy_commands = ["/copy"]
-    ui._history_manager.load.return_value = []
+    ui.copy_commands = ["/copy"]
+    ui.history_manager.load.return_value = []
 
-    result = ui._handle_copy_command("/copy")
+    result = ui.handle_copy_command("/copy")
 
     assert result is True
     assert any("no conversation" in o.lower() for o in ui.outputs)
@@ -257,28 +258,28 @@ def test_handle_copy_command_no_history(ui):
 def test_handle_attach_command(ui, tmp_path):
     f = tmp_path / "test.txt"
     f.write_text("hello")
-    assert ui._handle_attach_command(f"/attach {f}") is True
-    assert str(f) in ui._pending_attachments
+    assert ui.handle_attach_command(f"/attach {f}") is True
+    assert str(f) in ui.pending_attachments
 
 
 def test_handle_attach_command_not_found(ui, tmp_path):
     missing = tmp_path / "missing.txt"
-    assert ui._handle_attach_command(f"/attach {missing}") is True
-    assert ui._pending_attachments == []
+    assert ui.handle_attach_command(f"/attach {missing}") is True
+    assert ui.pending_attachments == []
     assert any("not found" in o.lower() for o in ui.outputs)
 
 
 def test_handle_attach_command_directory(ui, tmp_path):
-    assert ui._handle_attach_command(f"/attach {tmp_path}") is True
-    assert ui._pending_attachments == []
+    assert ui.handle_attach_command(f"/attach {tmp_path}") is True
+    assert ui.pending_attachments == []
     assert any("not found" in o.lower() for o in ui.outputs)
 
 
 def test_handle_attach_command_unsupported_type(ui, tmp_path):
     f = tmp_path / "test.xyz"
     f.write_text("data")
-    assert ui._handle_attach_command(f"/attach {f}") is True
-    assert ui._pending_attachments == []
+    assert ui.handle_attach_command(f"/attach {f}") is True
+    assert ui.pending_attachments == []
     assert any("unsupported file type" in o.lower() for o in ui.outputs)
 
 
@@ -286,8 +287,8 @@ def test_handle_attach_command_oversized(ui, tmp_path, monkeypatch):
     f = tmp_path / "test.txt"
     f.write_text("hello")
     monkeypatch.setattr(CFG, "LLM_MAX_ATTACHMENT_BYTES", 1)
-    assert ui._handle_attach_command(f"/attach {f}") is True
-    assert ui._pending_attachments == []
+    assert ui.handle_attach_command(f"/attach {f}") is True
+    assert ui.pending_attachments == []
     assert any("too large" in o.lower() for o in ui.outputs)
 
 
@@ -297,12 +298,12 @@ async def test_handle_photo_command_captures_and_attaches(ui):
         "zrb.llm.ui.base.conversation_commands.get_camera_photo",
         new=AsyncMock(return_value=b"\xff\xd8\xff-fake-jpeg"),
     ):
-        assert ui._handle_photo_command("/photo") is True
-        assert len(ui._background_tasks) == 1
-        task = list(ui._background_tasks)[0]
+        assert ui.handle_photo_command("/photo") is True
+        assert len(ui.background_tasks) == 1
+        task = list(ui.background_tasks)[0]
         await task
 
-    assert len(ui._pending_attachments) == 1
+    assert len(ui.pending_attachments) == 1
     assert any("photo captured" in o.lower() for o in ui.outputs)
 
 
@@ -312,8 +313,8 @@ async def test_handle_photo_command_passes_device_argument(ui):
     with patch(
         "zrb.llm.ui.base.conversation_commands.get_camera_photo", new=mock_capture
     ):
-        assert ui._handle_photo_command("/photo 1") is True
-        task = list(ui._background_tasks)[0]
+        assert ui.handle_photo_command("/photo 1") is True
+        task = list(ui.background_tasks)[0]
         await task
 
     mock_capture.assert_called_once_with("1")
@@ -325,24 +326,24 @@ async def test_handle_photo_command_capture_failure(ui):
         "zrb.llm.ui.base.conversation_commands.get_camera_photo",
         new=AsyncMock(return_value=None),
     ):
-        assert ui._handle_photo_command("/photo") is True
-        task = list(ui._background_tasks)[0]
+        assert ui.handle_photo_command("/photo") is True
+        task = list(ui.background_tasks)[0]
         await task
 
-    assert ui._pending_attachments == []
+    assert ui.pending_attachments == []
     assert any("capture failed" in o.lower() for o in ui.outputs)
 
 
 def test_handle_photo_command_ignores_unrelated_input(ui):
-    assert ui._handle_photo_command("hello") is False
+    assert ui.handle_photo_command("hello") is False
 
 
 def test_handle_attach_command_already_attached(ui, tmp_path):
     f = tmp_path / "test.txt"
     f.write_text("hello")
-    ui._handle_attach_command(f"/attach {f}")
-    ui._handle_attach_command(f"/attach {f}")
-    assert ui._pending_attachments == [str(f)]
+    ui.handle_attach_command(f"/attach {f}")
+    ui.handle_attach_command(f"/attach {f}")
+    assert ui.pending_attachments == [str(f)]
     assert any("already attached" in o.lower() for o in ui.outputs)
 
 
@@ -354,7 +355,7 @@ def test_toggle_yolo(ui):
 
 
 def test_handle_toggle_yolo_selective(ui):
-    assert ui._handle_toggle_yolo("/yolo Write,Edit") is True
+    assert ui.handle_toggle_yolo("/yolo Write,Edit") is True
     assert ui.yolo == frozenset(["Write", "Edit"])
 
 
@@ -367,7 +368,7 @@ def test_current_cycle_mode_reports_each_state(ui):
     ui.yolo = True
     assert ui.current_cycle_mode() == "yolo"
     ui.yolo = False
-    ui._plan_mode_active = True
+    ui.plan_mode_active = True
     # Plan takes precedence over any yolo value.
     ui.yolo = frozenset(["Write", "Edit"])
     assert ui.current_cycle_mode() == "plan"
@@ -375,40 +376,40 @@ def test_current_cycle_mode_reports_each_state(ui):
 
 def test_cycle_mode_advances_normal_to_edits_to_plan_to_normal(ui):
     ui.yolo = False
-    ui._plan_mode_active = False
+    ui.plan_mode_active = False
     assert ui.current_cycle_mode() == "normal"
     ui.cycle_mode()
     assert ui.current_cycle_mode() == "accept_edits"
     assert ui.yolo == frozenset(["Write", "Edit"])
     ui.cycle_mode()
     assert ui.current_cycle_mode() == "plan"
-    assert ui._plan_mode_active is True
+    assert ui.plan_mode_active is True
     assert ui.yolo is False  # plan and yolo never stack
     ui.cycle_mode()
     assert ui.current_cycle_mode() == "normal"
-    assert ui._plan_mode_active is False
+    assert ui.plan_mode_active is False
     assert ui.yolo is False
 
 
 def test_cycle_mode_resets_off_cycle_yolo_into_cycle(ui):
     # Full yolo (set via Ctrl+Y / /yolo) is off-cycle; Shift+Tab resets to normal.
     ui.yolo = True
-    ui._plan_mode_active = False
+    ui.plan_mode_active = False
     ui.cycle_mode()
     assert ui.current_cycle_mode() == "normal"
     assert ui.yolo is False
 
 
 def test_handle_set_model_command(ui):
-    assert ui._handle_set_model_command("/model gpt-4") is True
-    assert ui._model == "gpt-4"
+    assert ui.handle_set_model_command("/model gpt-4") is True
+    assert ui.model == "gpt-4"
     assert "switched" in "".join(ui.outputs)
 
 
 @pytest.mark.asyncio
 async def test_handle_exec_command(ui):
-    assert ui._handle_exec_command("/exec echo hello") is True
-    ui._message_queue.get_nowait()  # drain the enqueued job
+    assert ui.handle_exec_command("/exec echo hello") is True
+    ui.message_queue.get_nowait()  # drain the enqueued job
     with patch("asyncio.create_subprocess_shell") as mock_sub:
         mock_proc = AsyncMock()
         mock_proc.stdout.readline.side_effect = [b"hello\n", b""]
@@ -416,7 +417,7 @@ async def test_handle_exec_command(ui):
         mock_proc.wait.return_value = 0
         mock_sub.return_value = mock_proc
 
-        await ui._run_shell_command("echo hello")
+        await ui.run_shell_command("echo hello")
         assert "hello" in "".join(ui.outputs)
         assert "successfully" in "".join(ui.outputs)
 
@@ -427,11 +428,11 @@ async def test_handle_btw_command(ui):
         mock_agent = mock_agent_cls.return_value
         mock_agent.run = AsyncMock()
         mock_agent.run.return_value = MagicMock(output="btw answer")
-        ui._history_manager.load.return_value = []
+        ui.history_manager.load.return_value = []
 
-        assert ui._handle_btw_command("/btw what time is it?") is True
-        assert len(ui._background_tasks) == 1
-        task = list(ui._background_tasks)[0]
+        assert ui.handle_btw_command("/btw what time is it?") is True
+        assert len(ui.background_tasks) == 1
+        task = list(ui.background_tasks)[0]
         await task
         assert "btw answer" in "".join(ui.outputs)
 
@@ -441,9 +442,9 @@ def test_handle_custom_command(ui):
     custom_cmd.command = "/mycmd"
     custom_cmd.args = ["arg1"]
     custom_cmd.get_prompt.return_value = "custom prompt"
-    ui._custom_commands = [custom_cmd]
+    ui.custom_commands = [custom_cmd]
 
-    assert ui._handle_custom_command("/mycmd val1") is True
+    assert ui.handle_custom_command("/mycmd val1") is True
     assert ui.submitted_prompt == "custom prompt"
     custom_cmd.get_prompt.assert_called_with({"arg1": "val1"})
 
@@ -477,7 +478,7 @@ def _hook_result(**overrides):
 def test_classify_input_routes_by_recognition_not_prefix(ui):
     # Toggles / argument commands / custom are recognized regardless of the
     # token's prefix — a user-configured ">" redirect is a command, not a chat.
-    ui._redirect_output_commands = [">"]
+    ui.redirect_output_commands = [">"]
     assert ui.classify_input("> ~/out.txt") == "command"
     # Run-while-thinking commands.
     assert ui.classify_input("/btw what's up") == "thinking_command"
@@ -498,7 +499,7 @@ def test_classify_input_recognizes_custom_command(ui):
     custom_cmd.command = "/mycmd"
     custom_cmd.args = ["arg1"]
     custom_cmd.get_prompt.return_value = "prompt"
-    ui._custom_commands = [custom_cmd]
+    ui.custom_commands = [custom_cmd]
     assert ui.classify_input("/mycmd arg") == "command"
 
 
@@ -562,7 +563,7 @@ async def test_precommand_hook_rewrites_command_args(ui):
 
     await ui.dispatch_command("/model opus")
 
-    assert ui._model == "sonnet"  # the rewritten model was applied
+    assert ui.model == "sonnet"  # the rewritten model was applied
     # PostCommand reflects the rewritten argument, not the original.
     assert ui.execute_hook.call_args.kwargs["command_args"] == "sonnet"
 
@@ -580,7 +581,7 @@ async def test_dispatch_unhandled_forwards_to_llm(ui):
 async def test_dispatch_thinking_gates_command(ui):
     # While thinking, a non-thinking command (/help) is gated by the chain,
     # treated as unhandled, and neither submitted nor Post-fired.
-    ui._is_thinking = True
+    ui.is_thinking = True
     ui.submitted_prompt = None
 
     await ui.dispatch_command("/help")
@@ -602,8 +603,8 @@ async def test_schedule_command_runs_dispatch_as_task(ui):
     ui.schedule_command("/help")
 
     # A background task was registered; awaiting it runs the dispatch.
-    assert len(ui._background_tasks) == 1
-    await list(ui._background_tasks)[0]
+    assert len(ui.background_tasks) == 1
+    await list(ui.background_tasks)[0]
     assert captured["text"] == "/help"
 
 
@@ -614,16 +615,16 @@ async def test_schedule_rejects_concurrent_command(ui):
     # A second command while the first is in flight is rejected, not raced.
     ui.schedule_command("/exit")
 
-    assert len(ui._background_tasks) == 1
+    assert len(ui.background_tasks) == 1
     assert any("already running" in o for o in ui.outputs)
 
     # Once the first finishes, a new command is accepted again.
-    await list(ui._background_tasks)[0]
+    await list(ui.background_tasks)[0]
     ui.outputs.clear()
     ui.schedule_command("/help")
-    assert len(ui._background_tasks) == 1
+    assert len(ui.background_tasks) == 1
     assert not any("already running" in o for o in ui.outputs)
-    await list(ui._background_tasks)[0]
+    await list(ui.background_tasks)[0]
 
 
 @pytest.mark.asyncio
@@ -639,9 +640,9 @@ async def test_thinking_command_bypasses_inflight_guard(ui):
     # A run-while-thinking command still schedules — not blocked by the guard.
     ui.schedule_command("/btw hi", guarded=False)
 
-    assert len(ui._background_tasks) == 2
+    assert len(ui.background_tasks) == 2
     assert not any("already running" in o for o in ui.outputs)
-    for task in list(ui._background_tasks):
+    for task in list(ui.background_tasks):
         await task
     assert ("/help", True) in calls
     assert ("/btw hi", False) in calls
@@ -662,7 +663,7 @@ async def test_command_dispatch_exception_is_logged(ui):
 
     with patch("zrb.llm.ui.base.commands.logger") as mock_logger:
         ui.schedule_command("/help")
-        task = list(ui._background_tasks)[0]
+        task = list(ui.background_tasks)[0]
         await asyncio.gather(task, return_exceptions=True)
         await asyncio.sleep(0)  # let the done-callback run
 
@@ -671,8 +672,8 @@ async def test_command_dispatch_exception_is_logged(ui):
     # The in-flight flag was cleared despite the exception — next command runs.
     ui.execute_hook_blocking = AsyncMock(return_value=[])
     ui.schedule_command("/help")
-    assert len(ui._background_tasks) == 1
-    await list(ui._background_tasks)[0]
+    assert len(ui.background_tasks) == 1
+    await list(ui.background_tasks)[0]
 
 
 # ── Voice command tests (ADR-0076) ──────────────────────────────────────
@@ -681,46 +682,46 @@ async def test_command_dispatch_exception_is_logged(ui):
 def test_handle_toggle_voice_enables(ui):
     """`/voice` toggles voice mode on when disabled."""
     with patch.dict(os.environ, {"ZRB_LLM_VOICE_ENABLED": "true"}):
-        assert ui._voice_mode_active is False
-        result = ui._handle_toggle_voice("/voice")
+        assert ui.voice_mode_active is False
+        result = ui.handle_toggle_voice("/voice")
         assert result is True
-        assert ui._voice_mode_active is True
+        assert ui.voice_mode_active is True
         assert any("ON" in o for o in ui.outputs)
 
 
 def test_handle_toggle_voice_disables(ui):
     """`/voice` toggles voice mode off when enabled."""
-    ui._voice_mode_active = True
+    ui.voice_mode_active = True
     with patch.dict(os.environ, {"ZRB_LLM_VOICE_ENABLED": "true"}):
-        result = ui._handle_toggle_voice("/voice")
+        result = ui.handle_toggle_voice("/voice")
         assert result is True
-        assert ui._voice_mode_active is False
+        assert ui.voice_mode_active is False
         assert any("OFF" in o for o in ui.outputs)
 
 
 def test_handle_toggle_voice_blocked_when_disabled(ui):
     """`/voice` shows a message when voice is not enabled in config."""
     with patch.dict(os.environ, {"ZRB_LLM_VOICE_ENABLED": "false"}):
-        result = ui._handle_toggle_voice("/voice")
+        result = ui.handle_toggle_voice("/voice")
         assert result is True
-        assert ui._voice_mode_active is False
+        assert ui.voice_mode_active is False
         assert any("not enabled" in o for o in ui.outputs)
 
 
 def test_voice_command_in_help_text(ui):
     """Help text includes /voice when voice is enabled."""
     with patch.dict(os.environ, {"ZRB_LLM_VOICE_ENABLED": "true"}):
-        help_text = ui._get_help_text()
+        help_text = ui.get_help_text()
         assert "/voice" in help_text
 
 
 def test_voice_command_always_in_help(ui):
     """Help text always shows /voice regardless of voice enabled state."""
     with patch.dict(os.environ, {"ZRB_LLM_VOICE_ENABLED": "false"}):
-        help_text = ui._get_help_text()
+        help_text = ui.get_help_text()
         assert "/voice" in help_text
     with patch.dict(os.environ, {"ZRB_LLM_VOICE_ENABLED": "true"}):
-        help_text = ui._get_help_text()
+        help_text = ui.get_help_text()
         assert "/voice" in help_text
 
 
@@ -733,10 +734,10 @@ def test_classify_input_recognizes_voice(ui):
 def test_voice_handler_rejects_non_voice_input(ui):
     """`/q`, `/exit`, random text do NOT trigger the voice handler."""
     with patch.dict(os.environ, {"ZRB_LLM_VOICE_ENABLED": "true"}):
-        assert ui._handle_toggle_voice("/q") is False
-        assert ui._handle_toggle_voice("/exit") is False
-        assert ui._handle_toggle_voice("hello") is False
-        assert ui._handle_toggle_voice("/voice") is True
+        assert ui.handle_toggle_voice("/q") is False
+        assert ui.handle_toggle_voice("/exit") is False
+        assert ui.handle_toggle_voice("hello") is False
+        assert ui.handle_toggle_voice("/voice") is True
 
 
 @pytest.mark.asyncio
@@ -767,7 +768,7 @@ async def test_shell_command_kills_process_when_cancelled_twice(ui):
         mock_sub.return_value = mock_proc
 
         with pytest.raises(asyncio.CancelledError):
-            await ui._run_shell_command("sleep 30")
+            await ui.run_shell_command("sleep 30")
 
     assert mock_proc.terminate.called
     assert killed["done"], "process was left running after a second cancel"
@@ -797,7 +798,7 @@ async def test_shell_command_cleanup_survives_a_failing_ui_write(ui):
         ui.append_to_output = flaky_append
         try:
             with pytest.raises(RuntimeError):
-                await ui._run_shell_command("sleep 30")
+                await ui.run_shell_command("sleep 30")
         finally:
             ui.append_to_output = real_append
 

@@ -1,5 +1,4 @@
 from zrb.group.any_group import AnyGroup
-from zrb.util.group import get_non_empty_subgroups, get_subtasks
 
 
 class SubCommand:
@@ -46,9 +45,9 @@ def get_group_subcommands(
     if subcommands is None:
         subcommands = []
     nexts = []
-    for task_alias in get_subtasks(group):
+    for task_alias in group.get_subtasks():
         nexts.append(task_alias)
-    for subgroup_alias, subgroup in get_non_empty_subgroups(group).items():
+    for subgroup_alias, subgroup in group.get_non_empty_subgroups().items():
         nexts.append(subgroup_alias)
         get_group_subcommands(
             group=subgroup,

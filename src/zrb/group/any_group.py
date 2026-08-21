@@ -3,6 +3,10 @@ from abc import ABC, abstractmethod
 from zrb.task.any_task import AnyTask
 
 
+class NodeNotFoundError(ValueError):
+    pass
+
+
 class AnyGroup(ABC):
     """A CLI command group: a namespace holding tasks and nested subgroups.
 
@@ -100,4 +104,60 @@ class AnyGroup(ABC):
         """Look up a directly-registered subgroup, or None if the alias is unknown.
 
         Does not search recursively.
+        """
+
+    @abstractmethod
+    def get_node_path(self, node: "AnyGroup | AnyTask") -> list[str] | None:
+        """Get the path (aliases) from this group down to *node*, or None.
+
+        Args:
+            node: The target node.
+
+        Returns:
+            A list of aliases representing the path to the node, or None if
+            the node is not found.
+        """
+
+    @abstractmethod
+    def get_subtasks(self, web_only: bool = False) -> dict[str, AnyTask]:
+        """Get the direct subtasks of this group.
+
+        Args:
+            web_only: If True, only include tasks that are not CLI-only.
+        """
+
+    @abstractmethod
+    def get_all_subtasks(self, web_only: bool = False) -> list[AnyTask]:
+        """Get all subtasks (including nested ones) within this group's hierarchy.
+
+        Args:
+            web_only: If True, only include tasks that are not CLI-only.
+        """
+
+    @abstractmethod
+    def get_non_empty_subgroups(self, web_only: bool = False) -> "dict[str, AnyGroup]":
+        """Get subgroups that contain at least one task.
+
+        Args:
+            web_only: If True, only consider tasks that are not CLI-only.
+        """
+
+    @abstractmethod
+    def extract_node(
+        self, args: list[str], web_only: bool = False
+    ) -> "tuple[AnyGroup | AnyTask, list[str], list[str]]":
+        """Extract a node (Group or Task) from a list of command-line arguments,
+        starting the search from this group.
+
+        Args:
+            args: The list of command-line arguments.
+            web_only: If True, only consider tasks that are not CLI-only.
+
+        Returns:
+            A tuple containing the extracted node, the path to the node, and
+            any residual arguments.
+
+        Raises:
+            NodeNotFoundError: If no matching task or group is found for a
+                given argument.
         """

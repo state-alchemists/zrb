@@ -13,7 +13,6 @@ from zrb.session_state_logger.session_state_logger_factory import session_state_
 from zrb.task.any_task import AnyTask
 from zrb.task.make_task import make_task
 from zrb.util.cli.style import stylize_highlight, stylize_muted, stylize_section_header
-from zrb.util.group import extract_node_from_args, get_non_empty_subgroups, get_subtasks
 from zrb.util.string.conversion import double_quote
 
 
@@ -59,7 +58,7 @@ class Cli(Group):
         if str_args is None:
             str_args = []
         str_kwargs, str_args = self._extract_kwargs_from_args(str_args)
-        node, node_path, str_args = extract_node_from_args(self, str_args)
+        node, node_path, str_args = self.extract_node(str_args)
         if isinstance(node, AnyGroup):
             self._show_group_info(node)
             return
@@ -79,7 +78,7 @@ class Cli(Group):
             run_command = self._get_run_command(node, node_path, task_str_kwargs)
             self._print_run_command(run_command)
             # Print conversation name at the very end (for LLM chat tasks)
-            self._print_conversation_name(node, session)
+            self.print_conversation_name(node, session)
 
     def _print_run_command(self, run_command: str):
         print(
@@ -88,7 +87,7 @@ class Cli(Group):
             file=sys.stderr,
         )
 
-    def _print_conversation_name(self, task: AnyTask, session: Session | None):
+    def print_conversation_name(self, task: AnyTask, session: Session | None):
         """Print conversation name if available in shared context."""
         try:
             if session is None:
@@ -117,13 +116,14 @@ class Cli(Group):
             task_input.name for task_input in task.inputs if task_input.is_secret
         }
         parts += [
-            self._get_run_command_param(key, val)
+            self.get_run_command_param(key, val)
             for key, val in task_str_kwargs.items()
             if key not in secret_input_names
         ]
         return " ".join(parts)
 
-    def _get_run_command_param(self, key: str, val: str) -> str:
+    def get_run_command_param(self, key: str, val: str) -> str:
+        """Format a single ``--key val`` CLI param, quoting `val` if needed."""
         if '"' in val or "'" in val or " " in val or val == "":
             return f"--{key} {double_quote(val)}"
         return f"--{key} {val}"
@@ -159,7 +159,7 @@ class Cli(Group):
             print(stylize_section_header("DESCRIPTION"))
             print(group.description)
             print()
-        subgroups = get_non_empty_subgroups(group)
+        subgroups = group.get_non_empty_subgroups()
         if len(subgroups) > 0:
             print(stylize_section_header("GROUPS"))
             max_subgroup_alias_length = max(len(s) for s in subgroups)
@@ -167,7 +167,7 @@ class Cli(Group):
                 alias = alias.ljust(max_subgroup_alias_length + 1)
                 print(f"  {alias}: {subgroup.description}")
             print()
-        subtasks = get_subtasks(group)
+        subtasks = group.get_subtasks()
         if len(subtasks) > 0:
             print(stylize_section_header("TASKS"))
             max_subtask_alias_length = max(len(s) for s in subtasks)

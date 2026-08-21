@@ -22,7 +22,7 @@ class TestSSEStreamResponse:
             session_manager=mock_manager,
         )
         assert response.session_id == "test-session"
-        assert response._queue is not None
+        assert response.output_queue is not None
 
     @pytest.mark.asyncio
     async def test_headers(self):
@@ -71,7 +71,7 @@ class TestSSEStreamResponse:
             session_id="test",
             session_manager=mock_manager,
         )
-        assert response._queue is mock_queue
+        assert response.output_queue is mock_queue
 
     @pytest.mark.asyncio
     async def test_event_generator_connected_event(self):

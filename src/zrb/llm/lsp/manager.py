@@ -43,6 +43,13 @@ class LSPManager:
             cls._instance._query = LSPManagerQuery(cls._instance)
         return cls._instance
 
+    @classmethod
+    def reset_singleton(cls) -> None:
+        """Drop the cached singleton so the next `LSPManager()` call builds a
+        fresh instance. Test-isolation seam — production code never needs
+        more than one manager for the process lifetime."""
+        cls._instance = None
+
     # --- Lifecycle delegators ----------------------------------------------
 
     @property

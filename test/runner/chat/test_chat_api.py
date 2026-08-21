@@ -22,7 +22,7 @@ _mock_sm = MagicMock()
 def mock_heavy_runners():
     with (
         patch(
-            "zrb.runner.chat.chat_api_route._run_chat_session", new_callable=AsyncMock
+            "zrb.runner.chat.chat_api_route.run_chat_session", new_callable=AsyncMock
         ),
         patch("zrb.llm.agent.common.create_agent"),
     ):
@@ -37,6 +37,7 @@ def app():
         mock_root.name = "root"
         mock_root.tasks = []
         mock_root.groups = []
+        mock_root.extract_node.return_value = (MagicMock(), ["llm", "chat"], [])
         # We patch get_instance_sync before creating the app so serve_chat_api gets our mock
         with patch(
             "zrb.runner.chat.chat_api_route.ChatSessionManager.get_instance_sync",
@@ -157,7 +158,7 @@ async def test_post_message_defaults_attachments_to_empty_list(client: AsyncClie
 async def test_upload_attachment_success(client: AsyncClient, tmp_path):
     dest = tmp_path / "saved.png"
     with patch(
-        "zrb.runner.chat.chat_api_route._save_uploaded_attachment",
+        "zrb.runner.chat.chat_api_route.save_uploaded_attachment",
         return_value=str(dest),
     ) as mock_save:
         response = await client.post(
@@ -219,7 +220,7 @@ async def test_upload_attachment_forbidden_without_access(client: AsyncClient):
             new=AsyncMock(return_value=no_access_user),
         ),
         patch(
-            "zrb.runner.chat.chat_api_route._get_llm_chat_task",
+            "zrb.runner.chat.chat_api_route.get_llm_chat_task",
             new=AsyncMock(return_value=mock_task),
         ),
     ):
@@ -395,7 +396,7 @@ async def test_routes_forbid_user_without_task_access(client: AsyncClient):
             new=AsyncMock(return_value=no_access_user),
         ),
         patch(
-            "zrb.runner.chat.chat_api_route._get_llm_chat_task",
+            "zrb.runner.chat.chat_api_route.get_llm_chat_task",
             new=AsyncMock(return_value=mock_task),
         ),
     ):
@@ -429,7 +430,7 @@ async def test_routes_allow_user_with_task_access(client: AsyncClient):
             new=AsyncMock(return_value=ok_user),
         ),
         patch(
-            "zrb.runner.chat.chat_api_route._get_llm_chat_task",
+            "zrb.runner.chat.chat_api_route.get_llm_chat_task",
             new=AsyncMock(return_value=mock_task),
         ),
     ):
@@ -437,10 +438,10 @@ async def test_routes_allow_user_with_task_access(client: AsyncClient):
         assert response.status_code == 200
 
 
-def test_save_uploaded_attachment_writes_file_and_returns_path():
-    from zrb.runner.chat.chat_api_route import _save_uploaded_attachment
+def testsave_uploaded_attachment_writes_file_and_returns_path():
+    from zrb.runner.chat.chat_api_route import save_uploaded_attachment
 
-    path = _save_uploaded_attachment("some-session", "photo.png", b"data")
+    path = save_uploaded_attachment("some-session", "photo.png", b"data")
     try:
         assert os.path.isfile(path)
         assert os.path.basename(path).endswith("_photo.png")
@@ -451,17 +452,14 @@ def test_save_uploaded_attachment_writes_file_and_returns_path():
 
 
 @pytest.mark.asyncio
-async def test_get_llm_chat_task_returns_none_when_missing():
+async def testget_llm_chat_task_returns_none_when_missing():
     """Internal helper returns None when the chat node isn't registered."""
-    from zrb.runner.chat.chat_api_route import _get_llm_chat_task
-    from zrb.util.group import NodeNotFoundError
+    from zrb.group.any_group import NodeNotFoundError
+    from zrb.runner.chat.chat_api_route import get_llm_chat_task
 
     mock_root = MagicMock()
-    with patch(
-        "zrb.runner.chat.chat_api_route.extract_node_from_args",
-        side_effect=NodeNotFoundError("nope"),
-    ):
-        result = await _get_llm_chat_task(mock_root)
+    mock_root.extract_node.side_effect = NodeNotFoundError("nope")
+    result = await get_llm_chat_task(mock_root)
     assert result is None
 
 

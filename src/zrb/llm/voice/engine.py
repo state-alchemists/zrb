@@ -41,17 +41,28 @@ class VoiceEngine:
         self._transcriber: Callable[[bytes], Coroutine[None, None, str]] | None = None
 
     @property
+    def transcriber(self) -> "Callable[[bytes], Coroutine[None, None, str]] | None":
+        """The cached transcriber backend, or None before one is resolved."""
+        return self._transcriber
+
+    @transcriber.setter
+    def transcriber(
+        self, value: "Callable[[bytes], Coroutine[None, None, str]] | None"
+    ) -> None:
+        self._transcriber = value
+
+    @property
     def is_ready(self) -> bool:
         """True once a transcriber is resolved (no model download/init needed)."""
         return self._transcriber is not None
 
     def is_vosk_model_ready(self) -> bool:
         """True if the configured Vosk model is already downloaded/extracted."""
-        return _get_vosk_model_dir(CFG.LLM_VOICE_VOSK_MODEL_NAME) is not None
+        return get_vosk_model_dir(CFG.LLM_VOICE_VOSK_MODEL_NAME) is not None
 
     async def download_vosk_model(self) -> str:
         """Download+extract the configured Vosk model; return its directory."""
-        return await _download_vosk_model(
+        return await download_vosk_model(
             CFG.LLM_VOICE_VOSK_MODEL_NAME, CFG.LLM_VOICE_VOSK_MODEL_URL
         )
 
@@ -61,12 +72,12 @@ class VoiceEngine:
         Returns the transcribed text, or an empty string if nothing was spoken.
         Raises on hardware/import/transcription errors so the UI can surface them.
         """
-        audio_bytes = await self._record(stop_event)
+        audio_bytes = await self.record(stop_event)
         if not audio_bytes:
             return ""
-        return await self._transcribe(audio_bytes)
+        return await self.transcribe(audio_bytes)
 
-    async def _record(self, stop_event: asyncio.Event) -> bytes:
+    async def record(self, stop_event: asyncio.Event) -> bytes:
         """Record audio from the microphone until *stop_event* is set.
 
         Returns raw PCM int16 audio bytes, or empty bytes if cancelled.
@@ -117,15 +128,15 @@ class VoiceEngine:
         audio_int16 = (audio_data * 32767).astype(np.int16)
         return audio_int16.tobytes()
 
-    async def _transcribe(self, audio_bytes: bytes) -> str:
+    async def transcribe(self, audio_bytes: bytes) -> str:
         """Transcribe audio bytes to text using the configured backend.
 
         Raises RuntimeError if no backend is available or transcription fails.
         """
-        transcriber = await self._get_transcriber()
+        transcriber = await self.get_transcriber()
         return await transcriber(audio_bytes)
 
-    async def _get_transcriber(
+    async def get_transcriber(
         self,
     ) -> Callable[[bytes], Coroutine[None, None, str]]:
         """Resolve the transcription backend based on CFG.LLM_VOICE_MODE.
@@ -139,13 +150,13 @@ class VoiceEngine:
 
         try:
             if mode == "vosk":
-                self._transcriber = await self._make_vosk_transcriber()
+                self._transcriber = await self.make_vosk_transcriber()
             elif mode == "openai":
-                self._transcriber = self._make_openai_transcriber()
+                self._transcriber = self.make_openai_transcriber()
             elif mode == "google":
-                self._transcriber = self._make_google_transcriber()
+                self._transcriber = self.make_google_transcriber()
             elif mode == "multimodal":
-                self._transcriber = await self._make_multimodal_transcriber()
+                self._transcriber = await self.make_multimodal_transcriber()
             else:
                 raise RuntimeError(
                     f"Unknown voice mode: {mode!r}. "
@@ -158,7 +169,7 @@ class VoiceEngine:
 
         return self._transcriber
 
-    async def _make_vosk_transcriber(
+    async def make_vosk_transcriber(
         self,
     ) -> Callable[[bytes], Coroutine[None, None, str]]:
         """Create a Vosk (offline) transcriber."""
@@ -182,13 +193,13 @@ class VoiceEngine:
 
         model_name = CFG.LLM_VOICE_VOSK_MODEL_NAME
         model_url = CFG.LLM_VOICE_VOSK_MODEL_URL
-        model_dir = _get_vosk_model_dir(model_name)
+        model_dir = get_vosk_model_dir(model_name)
         model_path: str | None = None
 
         if model_dir and os.path.isdir(model_dir):
             model_path = model_dir
         else:
-            model_path = await _download_vosk_model(model_name, model_url)
+            model_path = await download_vosk_model(model_name, model_url)
 
         try:
             model = await asyncio.to_thread(Model, model_path)
@@ -210,7 +221,7 @@ class VoiceEngine:
 
         return transcribe
 
-    def _make_openai_transcriber(
+    def make_openai_transcriber(
         self,
     ) -> Callable[[bytes], Coroutine[None, None, str]]:
         """Create an OpenAI Whisper API transcriber."""
@@ -240,7 +251,7 @@ class VoiceEngine:
 
         return transcribe
 
-    def _make_google_transcriber(
+    def make_google_transcriber(
         self,
     ) -> Callable[[bytes], Coroutine[None, None, str]]:
         """Create a Google STT API transcriber."""
@@ -279,7 +290,7 @@ class VoiceEngine:
 
         return transcribe
 
-    async def _make_multimodal_transcriber(
+    async def make_multimodal_transcriber(
         self,
     ) -> Callable[[bytes], Coroutine[None, None, str]]:
         """Create a transcriber using the configured multimodal LLM.
@@ -397,7 +408,7 @@ def _pcm16_to_wav_bytes(audio_bytes: bytes) -> bytes:
     return wav_buffer.getvalue()
 
 
-def _get_vosk_model_dir(model_name: str) -> str | None:
+def get_vosk_model_dir(model_name: str) -> str | None:
     """Return path to an existing Vosk model, or None."""
     cache = os.path.join(os.path.expanduser("~"), ".cache", "vosk")
     model_path = os.path.join(cache, model_name)
@@ -409,7 +420,7 @@ def _get_vosk_model_dir(model_name: str) -> str | None:
     return None
 
 
-async def _download_vosk_model(model_name: str, model_url: str) -> str:
+async def download_vosk_model(model_name: str, model_url: str) -> str:
     """Download and extract a Vosk model.
 
     The response body is read in 64 KiB chunks with an ``await`` between each,

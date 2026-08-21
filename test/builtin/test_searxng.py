@@ -26,7 +26,7 @@ def test_copy_searxng_setting(tmp_path):
         patch("shutil.copy") as mock_copy,
     ):
 
-        copy_searxng_setting._action(ctx)
+        copy_searxng_setting.action(ctx)
 
         assert ctx.print.called
         mock_file.assert_called()

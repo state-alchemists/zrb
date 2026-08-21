@@ -23,9 +23,6 @@ from zrb.llm.prompt.manager import PromptManager
 
 def test_config_llm_include_sections_default():
     """Test that LLM_INCLUDE_SECTIONS has the correct default."""
-    # Reset CFG to ensure clean state
-    CFG._instance = None
-
     assert hasattr(
         CFG, "LLM_INCLUDE_SECTIONS"
     ), "Config should have LLM_INCLUDE_SECTIONS property"
@@ -45,13 +42,8 @@ def test_config_llm_include_sections_default():
 
 def test_config_llm_include_sections_setter():
     """Test that the LLM_INCLUDE_SECTIONS setter works."""
-    CFG._instance = None
-
     CFG.LLM_INCLUDE_SECTIONS = ["persona", "workflow"]
     assert CFG.LLM_INCLUDE_SECTIONS == ["persona", "workflow"]
-
-    # Reset
-    CFG._instance = None
 
 
 def test_environment_variable_overrides():
@@ -62,16 +54,12 @@ def test_environment_variable_overrides():
     }
 
     with patch.dict(os.environ, env_vars):
-        CFG._instance = None
-
         sections = CFG.LLM_INCLUDE_SECTIONS
         assert sections == ["persona", "principle"]
 
 
 def test_prompt_manager_uses_config_defaults():
     """Test that PromptManager uses config defaults when include_sections is None."""
-    CFG._instance = None
-
     ctx = SharedContext()
 
     # include_sections=None means use CFG defaults
@@ -84,8 +72,6 @@ def test_prompt_manager_uses_config_defaults():
 
 def test_prompt_manager_mini_overrides():
     """Test that explicit include_sections overrides config defaults."""
-    CFG._instance = None
-
     ctx = SharedContext()
 
     # Explicit include_sections takes precedence
@@ -100,8 +86,6 @@ def test_prompt_manager_mini_overrides():
 
 def test_prompt_manager_include_sections_mini_subset():
     """Explicit include_sections selects only listed sections."""
-    CFG._instance = None
-
     ctx = SharedContext()
 
     manager = PromptManager(
@@ -115,8 +99,6 @@ def test_prompt_manager_include_sections_mini_subset():
 
 def test_prompt_manager_include_sections_ordering():
     """Section ordering follows include_sections order."""
-    CFG._instance = None
-
     ctx = SharedContext()
 
     manager = PromptManager(
@@ -131,8 +113,6 @@ def test_prompt_manager_include_sections_ordering():
 @pytest.mark.asyncio
 async def test_prompt_manager_integration():
     """Integration test - verify PromptManager works end-to-end with config."""
-    CFG._instance = None
-
     ctx = SharedContext()
 
     # Test 1: Default behavior (use CFG defaults)
@@ -147,8 +127,6 @@ async def test_prompt_manager_integration():
     }
 
     with patch.dict(os.environ, env_vars):
-        CFG._instance = None
-
         manager2 = PromptManager()
         prompt2 = manager2.compose_prompt()(ctx)
         assert isinstance(prompt2, str)
@@ -158,8 +136,6 @@ async def test_prompt_manager_integration():
 
 def test_prompt_manager_empty_sections_produces_no_builtin_content():
     """include_sections=[] means no built-in sections."""
-    CFG._instance = None
-
     ctx = SharedContext()
 
     manager = PromptManager(include_sections=[])

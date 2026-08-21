@@ -7,22 +7,21 @@ from typing import Any
 
 from zrb.config.config import CFG
 from zrb.config.web_auth_config import WebAuthConfig
-from zrb.group.any_group import AnyGroup
+from zrb.group.any_group import AnyGroup, NodeNotFoundError
 from zrb.llm.agent.subagent.manager import sub_agent_manager
 from zrb.llm.util.attachment import check_attachment_bytes, get_media_type
 from zrb.runner.chat.chat_session_manager import (
     ChatSessionManager,
     parse_delegated_session,
 )
-from zrb.runner.chat.chat_session_runner import run_chat_session as _run_chat_session
+from zrb.runner.chat.chat_session_runner import run_chat_session
 from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
 from zrb.runner.web_util.user import get_user_from_request
-from zrb.util.group import NodeNotFoundError, extract_node_from_args
 
 from .sse_stream import SSEStreamResponse
 
 
-def _save_uploaded_attachment(session_id: str, filename: str, data: bytes) -> str:
+def save_uploaded_attachment(session_id: str, filename: str, data: bytes) -> str:
     """Persist an uploaded attachment to a per-session temp dir, return its path.
 
     ponytail: uploads are never cleaned up (mirrors the CLI's own /attach,
@@ -38,9 +37,9 @@ def _save_uploaded_attachment(session_id: str, filename: str, data: bytes) -> st
     return dest
 
 
-async def _get_llm_chat_task(root_group: AnyGroup) -> Any:
+async def get_llm_chat_task(root_group: AnyGroup) -> Any:
     try:
-        task, _, _ = extract_node_from_args(root_group, ["llm", "chat"])
+        task, _, _ = root_group.extract_node(["llm", "chat"])
         return task
     except NodeNotFoundError:
         return None
@@ -67,7 +66,7 @@ async def _resolve_llm_chat_task_for_session(
             "instance that cannot be resumed this way."
         )
         return llm_chat, not_found_msg
-    llm_chat = await _get_llm_chat_task(root_group)
+    llm_chat = await get_llm_chat_task(root_group)
     not_found_msg = (
         "[ERROR] LLM chat task not found. "
         f"Please ensure '{CFG.ROOT_GROUP_NAME} llm chat' is registered."
@@ -98,7 +97,7 @@ def serve_chat_api(
         missing-task condition itself).
         """
         user = await get_user_from_request(web_auth_config, request)
-        llm_chat = await _get_llm_chat_task(root_group)
+        llm_chat = await get_llm_chat_task(root_group)
         if llm_chat is not None and not user.can_access_task(llm_chat):
             return JSONResponse(content={"detail": "Forbidden"}, status_code=403)
         return None
@@ -199,7 +198,7 @@ def serve_chat_api(
         rejection = check_attachment_bytes(data, media_type)
         if rejection:
             return JSONResponse(content={"error": f"File {rejection}"}, status_code=400)
-        path = _save_uploaded_attachment(session_id, filename, data)
+        path = save_uploaded_attachment(session_id, filename, data)
         return JSONResponse(content={"path": path, "name": os.path.basename(filename)})
 
     @app.post("/api/v1/chat/sessions/{session_id}/messages")
@@ -328,7 +327,7 @@ def serve_chat_api(
                 )
                 session.approval_channel = approval_channel
                 session.task_coroutine = asyncio.create_task(
-                    _run_chat_session(session, llm_chat, session_manager)
+                    run_chat_session(session, llm_chat, session_manager)
                 )
 
         return SSEStreamResponse(

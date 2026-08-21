@@ -33,18 +33,18 @@ class TestTodoManager:
         """Test that session names are sanitized for filesystem."""
         manager = TodoManager()
         # Reset the todo directory for testing
-        manager._todo_dir = tmp_path
+        manager.todo_dir = tmp_path
 
         # Test sanitization of special characters
-        file_path = manager._get_todo_file("test/session:name*?.txt")
+        file_path = manager.get_todo_file("test/session:name*?.txt")
         assert "test" not in str(file_path) or "_" in str(file_path)
         assert "session" not in str(file_path) or "_" in str(file_path)
 
     def test_save_and_load_todos(self, tmp_path):
         """Test saving and loading todos."""
         manager = TodoManager()
-        manager._todo_dir = tmp_path
-        manager._todos = {}  # Clear cache
+        manager.todo_dir = tmp_path
+        manager.todos = {}  # Clear cache
 
         todos_data = {
             "todos": [
@@ -54,12 +54,12 @@ class TestTodoManager:
             "created_at": "2024-01-01T00:00:00",
             "total": 2,
         }
-        manager._todos["test_session"] = todos_data
-        manager._save_todos("test_session")
+        manager.todos["test_session"] = todos_data
+        manager.save_todos("test_session")
 
         # Clear cache and reload
-        manager._todos = {}
-        loaded = manager._load_todos("test_session")
+        manager.todos = {}
+        loaded = manager.get_todos("test_session")
 
         assert loaded is not None
         assert loaded["total"] == 2
@@ -68,17 +68,17 @@ class TestTodoManager:
     def test_load_todos_nonexistent_session(self, tmp_path):
         """Test loading todos for non-existent session."""
         manager = TodoManager()
-        manager._todo_dir = tmp_path
-        manager._todos = {}
+        manager.todo_dir = tmp_path
+        manager.todos = {}
 
-        result = manager._load_todos("nonexistent_session")
+        result = manager.get_todos("nonexistent_session")
         assert result is None
 
     def test_write_todos_basic(self, tmp_path):
         """Test basic todo writing."""
         manager = TodoManager()
-        manager._todo_dir = tmp_path
-        manager._todos = {}
+        manager.todo_dir = tmp_path
+        manager.todos = {}
 
         todos = [
             {"content": "Task 1"},
@@ -101,8 +101,8 @@ class TestTodoManager:
     def test_write_todos_replace_false_merge(self, tmp_path):
         """Test merging todos when replace=False."""
         manager = TodoManager()
-        manager._todo_dir = tmp_path
-        manager._todos = {}
+        manager.todo_dir = tmp_path
+        manager.todos = {}
 
         # Write initial todos
         initial_todos = [
@@ -128,8 +128,8 @@ class TestTodoManager:
     def test_write_todos_counts(self, tmp_path):
         """Test that status counts are correct."""
         manager = TodoManager()
-        manager._todo_dir = tmp_path
-        manager._todos = {}
+        manager.todo_dir = tmp_path
+        manager.todos = {}
 
         todos = [
             {"content": "Task 1", "status": "pending"},
@@ -149,8 +149,8 @@ class TestTodoManager:
     def test_sort_todos_numeric_ids(self, tmp_path):
         """Test that todos are sorted correctly with numeric IDs."""
         manager = TodoManager()
-        manager._todo_dir = tmp_path
-        manager._todos = {}
+        manager.todo_dir = tmp_path
+        manager.todos = {}
 
         # Create todos with mixed ID types
         todos = [
@@ -172,8 +172,8 @@ class TestTodoManagerErrorHandling:
     def test_load_todos_corrupted_file(self, tmp_path):
         """Test loading corrupted JSON file."""
         manager = TodoManager()
-        manager._todo_dir = tmp_path
-        manager._todos = {}
+        manager.todo_dir = tmp_path
+        manager.todos = {}
 
         # Write corrupted JSON
         corrupted_file = tmp_path / "corrupted.json"
@@ -184,7 +184,7 @@ class TestTodoManagerErrorHandling:
             # First write a valid file with different name
             manager.write_todos("valid_session", [{"content": "test"}])
             # Try to load corrupted - this should fail and return None or handle
-            result = manager._load_todos("corrupted")
+            result = manager.get_todos("corrupted")
             # If file is corrupted, it should return None
             assert result is None or result == {}
         except Exception:
@@ -194,7 +194,7 @@ class TestTodoManagerErrorHandling:
     def test_save_todos_permission_error(self, tmp_path):
         """Test handling permission errors when saving."""
         manager = TodoManager()
-        manager._todo_dir = tmp_path
+        manager.todo_dir = tmp_path
 
         # This should work without errors
         manager.write_todos("test_session", [{"content": "Task 1"}])
@@ -207,8 +207,8 @@ class TestAsyncFunctions:
     async def test_write_todos_unknown_keys(self, tmp_path):
         """write_todos rejects unknown keys with a SYSTEM SUGGESTION error."""
         manager = TodoManager()
-        manager._todo_dir = tmp_path
-        manager._todos = {}
+        manager.todo_dir = tmp_path
+        manager.todos = {}
 
         result = await write_todos(
             [{"description": "Fix bug"}, {"content": "Valid task"}],
@@ -236,8 +236,8 @@ class TestAsyncFunctions:
     async def test_write_todos_valid_keys_pass(self, tmp_path):
         """Valid keys like content, status, id should not trigger errors."""
         manager = TodoManager()
-        manager._todo_dir = tmp_path
-        manager._todos = {}
+        manager.todo_dir = tmp_path
+        manager.todos = {}
 
         result = await write_todos(
             [
@@ -255,8 +255,8 @@ class TestAsyncFunctions:
     async def test_write_todos_async(self, tmp_path):
         """Test write_todos async function."""
         manager = TodoManager()
-        manager._todo_dir = tmp_path
-        manager._todos = {}
+        manager.todo_dir = tmp_path
+        manager.todos = {}
 
         todos = [
             {"content": "Task 1", "status": "pending"},
@@ -273,8 +273,8 @@ class TestAsyncFunctions:
     async def test_write_todos_merge_mode(self, tmp_path):
         """Test write_todos with merge mode."""
         manager = TodoManager()
-        manager._todo_dir = tmp_path
-        manager._todos = {}
+        manager.todo_dir = tmp_path
+        manager.todos = {}
 
         # Write initial with explicit IDs
         await write_todos(
@@ -311,8 +311,8 @@ class TestAsyncFunctions:
     async def test_get_todos_empty(self, tmp_path):
         """Test get_todos when no todos exist."""
         manager = TodoManager()
-        manager._todo_dir = tmp_path
-        manager._todos = {}
+        manager.todo_dir = tmp_path
+        manager.todos = {}
 
         result = await get_todos(session="empty_session")
 
@@ -322,8 +322,8 @@ class TestAsyncFunctions:
     async def test_get_todos_with_data(self, tmp_path):
         """Test get_todos with existing todos."""
         manager = TodoManager()
-        manager._todo_dir = tmp_path
-        manager._todos = {}
+        manager.todo_dir = tmp_path
+        manager.todos = {}
 
         await write_todos(
             [
@@ -371,8 +371,8 @@ class TestUtilityFunctions:
     async def test_todo_tools_use_session_from_set_current_session(self, tmp_path):
         """Todo tools called without session= should use the value from set_current_session."""
         manager = TodoManager()
-        manager._todo_dir = tmp_path
-        manager._todos = {}
+        manager.todo_dir = tmp_path
+        manager.todos = {}
 
         import uuid
 
@@ -408,8 +408,8 @@ class TestTodoStatusValues:
     async def test_all_status_values(self, tmp_path):
         """Test all valid status values."""
         manager = TodoManager()
-        manager._todo_dir = tmp_path
-        manager._todos = {}
+        manager.todo_dir = tmp_path
+        manager.todos = {}
 
         for status in ["pending", "in_progress", "completed", "cancelled"]:
             todos = [{"content": f"Task with {status}", "status": status}]
@@ -420,8 +420,8 @@ class TestTodoStatusValues:
     async def test_status_counts_accuracy(self, tmp_path):
         """Test that status counts are accurate."""
         manager = TodoManager()
-        manager._todo_dir = tmp_path
-        manager._todos = {}
+        manager.todo_dir = tmp_path
+        manager.todos = {}
 
         import uuid
 

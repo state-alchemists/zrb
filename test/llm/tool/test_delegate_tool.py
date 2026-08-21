@@ -428,7 +428,7 @@ async def test_delegate_marks_done_in_live_view_on_success(mock_sub_agent_manage
             patch(
                 "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
             ) as mock_run_agent,
-            patch("zrb.llm.tool.delegate._persist_subagent_history"),
+            patch("zrb.llm.tool.delegate.persist_subagent_history"),
         ):
             mock_run_agent.return_value = ("ok", [])
             result = await tool(
@@ -717,7 +717,7 @@ async def test_delegate_swallows_hook_manager_errors(mock_sub_agent_manager):
 async def test_fire_subagent_hook_swallows_cancelled_error():
     """`_fire_subagent_hook` documents "Never raises" -- `asyncio.CancelledError`
     is a `BaseException`, not caught by a plain `except Exception`, so it must
-    be caught explicitly. This call site fires from inside `_run_agent_task`'s
+    be caught explicitly. This call site fires from inside `run_agent_task`'s
     `finally` block (after its result is already decided) and from the top of
     its `try` block -- a stray cancel landing in either window must not
     override an already-settled return or escape uncaught."""
@@ -807,17 +807,17 @@ async def test_isolate_worktree_enters_and_cleans_up_when_clean(mock_sub_agent_m
             "zrb.llm.tool.delegate.exit_worktree", new_callable=AsyncMock
         ) as mock_exit,
         patch(
-            "zrb.llm.tool.delegate._worktree_has_changes",
+            "zrb.llm.tool.delegate.worktree_has_changes",
             new_callable=AsyncMock,
             return_value=False,
         ),
         patch(
-            "zrb.llm.tool.delegate._current_head_sha",
+            "zrb.llm.tool.delegate.current_head_sha",
             new_callable=AsyncMock,
             return_value="base123",
         ),
         patch(
-            "zrb.llm.tool.delegate._worktree_has_new_commits",
+            "zrb.llm.tool.delegate.worktree_has_new_commits",
             new_callable=AsyncMock,
             return_value=False,
         ),
@@ -864,17 +864,17 @@ async def test_isolate_worktree_leaves_dirty_worktree_and_reports_path(
             "zrb.llm.tool.delegate.exit_worktree", new_callable=AsyncMock
         ) as mock_exit,
         patch(
-            "zrb.llm.tool.delegate._worktree_has_changes",
+            "zrb.llm.tool.delegate.worktree_has_changes",
             new_callable=AsyncMock,
             return_value=True,
         ),
         patch(
-            "zrb.llm.tool.delegate._current_head_sha",
+            "zrb.llm.tool.delegate.current_head_sha",
             new_callable=AsyncMock,
             return_value="base123",
         ),
         patch(
-            "zrb.llm.tool.delegate._worktree_has_new_commits",
+            "zrb.llm.tool.delegate.worktree_has_new_commits",
             new_callable=AsyncMock,
             return_value=False,
         ),
@@ -923,17 +923,17 @@ async def test_isolate_worktree_leaves_worktree_with_new_commits_and_keeps_branc
             "zrb.llm.tool.delegate.exit_worktree", new_callable=AsyncMock
         ) as mock_exit,
         patch(
-            "zrb.llm.tool.delegate._worktree_has_changes",
+            "zrb.llm.tool.delegate.worktree_has_changes",
             new_callable=AsyncMock,
             return_value=False,
         ),
         patch(
-            "zrb.llm.tool.delegate._current_head_sha",
+            "zrb.llm.tool.delegate.current_head_sha",
             new_callable=AsyncMock,
             return_value="base123",
         ),
         patch(
-            "zrb.llm.tool.delegate._worktree_has_new_commits",
+            "zrb.llm.tool.delegate.worktree_has_new_commits",
             new_callable=AsyncMock,
             return_value=True,
         ),
@@ -960,7 +960,7 @@ async def test_isolate_worktree_leaves_worktree_with_new_commits_and_keeps_branc
 async def test_isolate_worktree_cleanup_failure_reported_not_raised(
     mock_sub_agent_manager,
 ):
-    """A cleanup failure (e.g. `_worktree_has_new_commits` raising) must not
+    """A cleanup failure (e.g. `worktree_has_new_commits` raising) must not
     escape `asyncio.gather` and abort the whole fan-out — it's reported on
     the task's own result instead."""
     mock_sub_agent_manager.create_agent.return_value = MagicMock()
@@ -979,17 +979,17 @@ async def test_isolate_worktree_cleanup_failure_reported_not_raised(
         ),
         patch("zrb.llm.tool.delegate.exit_worktree", new_callable=AsyncMock),
         patch(
-            "zrb.llm.tool.delegate._worktree_has_changes",
+            "zrb.llm.tool.delegate.worktree_has_changes",
             new_callable=AsyncMock,
             return_value=False,
         ),
         patch(
-            "zrb.llm.tool.delegate._current_head_sha",
+            "zrb.llm.tool.delegate.current_head_sha",
             new_callable=AsyncMock,
             return_value="base123",
         ),
         patch(
-            "zrb.llm.tool.delegate._worktree_has_new_commits",
+            "zrb.llm.tool.delegate.worktree_has_new_commits",
             new_callable=AsyncMock,
             side_effect=RuntimeError("git binary missing"),
         ),
@@ -1046,17 +1046,17 @@ async def test_isolate_worktree_cleans_up_even_when_subagent_errors(
             "zrb.llm.tool.delegate.exit_worktree", new_callable=AsyncMock
         ) as mock_exit,
         patch(
-            "zrb.llm.tool.delegate._worktree_has_changes",
+            "zrb.llm.tool.delegate.worktree_has_changes",
             new_callable=AsyncMock,
             return_value=False,
         ),
         patch(
-            "zrb.llm.tool.delegate._current_head_sha",
+            "zrb.llm.tool.delegate.current_head_sha",
             new_callable=AsyncMock,
             return_value="base123",
         ),
         patch(
-            "zrb.llm.tool.delegate._worktree_has_new_commits",
+            "zrb.llm.tool.delegate.worktree_has_new_commits",
             new_callable=AsyncMock,
             return_value=False,
         ),
@@ -1130,7 +1130,7 @@ async def test_isolate_worktree_enter_failure_skips_subagent(mock_sub_agent_mana
         ),
         patch("zrb.llm.tool.delegate.get_active_worktree", return_value=""),
         patch(
-            "zrb.llm.tool.delegate._current_head_sha",
+            "zrb.llm.tool.delegate.current_head_sha",
             new_callable=AsyncMock,
             return_value="base123",
         ),
@@ -1170,17 +1170,17 @@ async def test_isolate_worktree_uses_distinct_branch_names_per_task(
         patch("zrb.llm.tool.delegate.get_active_worktree", return_value="/wt"),
         patch("zrb.llm.tool.delegate.exit_worktree", new_callable=AsyncMock),
         patch(
-            "zrb.llm.tool.delegate._worktree_has_changes",
+            "zrb.llm.tool.delegate.worktree_has_changes",
             new_callable=AsyncMock,
             return_value=False,
         ),
         patch(
-            "zrb.llm.tool.delegate._current_head_sha",
+            "zrb.llm.tool.delegate.current_head_sha",
             new_callable=AsyncMock,
             return_value="base123",
         ),
         patch(
-            "zrb.llm.tool.delegate._worktree_has_new_commits",
+            "zrb.llm.tool.delegate.worktree_has_new_commits",
             new_callable=AsyncMock,
             return_value=False,
         ),
@@ -1225,7 +1225,7 @@ async def test_subagent_history_persisted(mock_sub_agent_manager, monkeypatch):
             "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
         ) as mock_run_agent,
         patch("zrb.llm.tool.delegate.get_current_tool_session", return_value="sess1"),
-        patch("zrb.llm.tool.delegate._persist_subagent_history") as mock_persist,
+        patch("zrb.llm.tool.delegate.persist_subagent_history") as mock_persist,
     ):
         mock_run_agent.return_value = ("ok", [{"fake": "message"}])
         result = await tool(
@@ -1268,7 +1268,7 @@ async def test_subagent_history_persist_failure_does_not_break_delegation(
 
 @pytest.mark.asyncio
 async def test_fan_out_persists_history_per_task(mock_sub_agent_manager, monkeypatch):
-    """Fan-out shares `_run_agent_task`, so each task gets its own persisted
+    """Fan-out shares `run_agent_task`, so each task gets its own persisted
     transcript under a distinct conversation name."""
     mock_sub_agent_manager.create_agent.return_value = MagicMock()
     tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
@@ -1278,7 +1278,7 @@ async def test_fan_out_persists_history_per_task(mock_sub_agent_manager, monkeyp
             "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
         ) as mock_run_agent,
         patch("zrb.llm.tool.delegate.get_current_tool_session", return_value="sess1"),
-        patch("zrb.llm.tool.delegate._persist_subagent_history") as mock_persist,
+        patch("zrb.llm.tool.delegate.persist_subagent_history") as mock_persist,
     ):
         mock_run_agent.side_effect = [("Result A", []), ("Result B", [])]
         await tool(
@@ -1339,7 +1339,7 @@ async def test_activity_start_and_finish_are_scoped_to_the_current_session(
 #
 # Every delegation mints a brand-new conversation_name, so — unlike an
 # ordinary conversation — nothing else on disk ever reuses or rotates these
-# files. A version of _persist_subagent_history that wrote a backup and never
+# files. A version of persist_subagent_history that wrote a backup and never
 # pruned filled a real user's disk and made zrb unresponsive (large
 # directories make every FileHistoryManager.search() call, e.g. /load's
 # tab-completion, an O(n) scan). These tests exercise the *real*
@@ -1347,8 +1347,8 @@ async def test_activity_start_and_finish_are_scoped_to_the_current_session(
 # above do, would not have caught this.
 
 
-def test_persist_subagent_history_does_not_grow_unbounded(tmp_path, monkeypatch):
-    from zrb.llm.tool.delegate import _persist_subagent_history
+def testpersist_subagent_history_does_not_grow_unbounded(tmp_path, monkeypatch):
+    from zrb.llm.tool.delegate import persist_subagent_history
     from zrb.llm.util.subagent_session_naming import format_delegated_session_name
 
     monkeypatch.setenv("ZRB_LLM_HISTORY_DIR", str(tmp_path))
@@ -1358,18 +1358,18 @@ def test_persist_subagent_history_does_not_grow_unbounded(tmp_path, monkeypatch)
         name = format_delegated_session_name(
             "sess1", "researcher", uuid.uuid4().hex[:8]
         )
-        _persist_subagent_history(name, [])
+        persist_subagent_history(name, [])
 
     subdir = tmp_path / "subagent" / "researcher"
     assert list(subdir.iterdir())
     assert len(list(subdir.iterdir())) == 10
 
 
-def test_persist_subagent_history_writes_no_backup(tmp_path, monkeypatch):
+def testpersist_subagent_history_writes_no_backup(tmp_path, monkeypatch):
     """Each conversation_name is unique and written exactly once -- a backup
     of a session that's never resaved doubles disk usage for no recovery
     value."""
-    from zrb.llm.tool.delegate import _persist_subagent_history
+    from zrb.llm.tool.delegate import persist_subagent_history
     from zrb.llm.util.subagent_session_naming import format_delegated_session_name
 
     monkeypatch.setenv("ZRB_LLM_HISTORY_DIR", str(tmp_path))
@@ -1378,17 +1378,17 @@ def test_persist_subagent_history_writes_no_backup(tmp_path, monkeypatch):
     )  # keep-all, if any were written
 
     name = format_delegated_session_name("sess1", "researcher", "a1b2c3d4")
-    _persist_subagent_history(name, [])
+    persist_subagent_history(name, [])
 
     assert len(list((tmp_path / "subagent" / "researcher").iterdir())) == 1
     # Nothing flat in the history root: only the subagent/ directory tree.
     assert [p for p in tmp_path.iterdir() if p.is_file()] == []
 
 
-def test_persist_subagent_history_never_prunes_ordinary_conversations(
+def testpersist_subagent_history_never_prunes_ordinary_conversations(
     tmp_path, monkeypatch
 ):
-    from zrb.llm.tool.delegate import _persist_subagent_history
+    from zrb.llm.tool.delegate import persist_subagent_history
     from zrb.llm.util.subagent_session_naming import format_delegated_session_name
 
     monkeypatch.setenv("ZRB_LLM_HISTORY_DIR", str(tmp_path))
@@ -1401,17 +1401,17 @@ def test_persist_subagent_history_never_prunes_ordinary_conversations(
         name = format_delegated_session_name(
             "sess1", "researcher", uuid.uuid4().hex[:8]
         )
-        _persist_subagent_history(name, [])
+        persist_subagent_history(name, [])
 
     assert real_conversation.exists()
     subdir = tmp_path / "subagent" / "researcher"
     assert len(list(subdir.iterdir())) == 3
 
 
-def test_persist_subagent_history_retain_minus_one_disables_pruning(
+def testpersist_subagent_history_retain_minus_one_disables_pruning(
     tmp_path, monkeypatch
 ):
-    from zrb.llm.tool.delegate import _persist_subagent_history
+    from zrb.llm.tool.delegate import persist_subagent_history
     from zrb.llm.util.subagent_session_naming import format_delegated_session_name
 
     monkeypatch.setenv("ZRB_LLM_HISTORY_DIR", str(tmp_path))
@@ -1421,14 +1421,14 @@ def test_persist_subagent_history_retain_minus_one_disables_pruning(
         name = format_delegated_session_name(
             "sess1", "researcher", uuid.uuid4().hex[:8]
         )
-        _persist_subagent_history(name, [])
+        persist_subagent_history(name, [])
 
     assert len(list((tmp_path / "subagent" / "researcher").iterdir())) == 15
 
 
-def test_persist_subagent_history_keeps_most_recently_written(tmp_path, monkeypatch):
+def testpersist_subagent_history_keeps_most_recently_written(tmp_path, monkeypatch):
     """Pruning must drop the oldest, not an arbitrary subset."""
-    from zrb.llm.tool.delegate import _persist_subagent_history
+    from zrb.llm.tool.delegate import persist_subagent_history
     from zrb.llm.util.subagent_session_naming import format_delegated_session_name
 
     monkeypatch.setenv("ZRB_LLM_HISTORY_DIR", str(tmp_path))
@@ -1438,7 +1438,7 @@ def test_persist_subagent_history_keeps_most_recently_written(tmp_path, monkeypa
     for i in range(4):
         name = format_delegated_session_name("sess1", "researcher", f"{i:08x}")
         names.append(name)
-        _persist_subagent_history(name, [])
+        persist_subagent_history(name, [])
         # Force distinct mtimes even on filesystems with coarse granularity.
         stamp = float(i)
         os.utime(tmp_path / "subagent" / "researcher" / f"{name}.json", (stamp, stamp))
@@ -1448,10 +1448,10 @@ def test_persist_subagent_history_keeps_most_recently_written(tmp_path, monkeypa
     assert remaining == {names[2], names[3]}
 
 
-def test_persist_subagent_history_layout_groups_by_agent_type(tmp_path, monkeypatch):
+def testpersist_subagent_history_layout_groups_by_agent_type(tmp_path, monkeypatch):
     """Delegated transcripts land under LLM_HISTORY_DIR/subagent/<agent-type>/
     — separate from main sessions (which stay flat in the history root)."""
-    from zrb.llm.tool.delegate import _persist_subagent_history
+    from zrb.llm.tool.delegate import persist_subagent_history
     from zrb.llm.util.subagent_session_naming import format_delegated_session_name
 
     monkeypatch.setenv("ZRB_LLM_HISTORY_DIR", str(tmp_path))
@@ -1459,8 +1459,8 @@ def test_persist_subagent_history_layout_groups_by_agent_type(tmp_path, monkeypa
 
     researcher = format_delegated_session_name("sess1", "researcher", "a1b2c3d4")
     reviewer = format_delegated_session_name("sess1", "code-reviewer", "e5f6a7b8")
-    _persist_subagent_history(researcher, [])
-    _persist_subagent_history(reviewer, [])
+    persist_subagent_history(researcher, [])
+    persist_subagent_history(reviewer, [])
 
     assert (tmp_path / "subagent" / "researcher" / f"{researcher}.json").exists()
     assert (tmp_path / "subagent" / "code-reviewer" / f"{reviewer}.json").exists()
@@ -1468,7 +1468,7 @@ def test_persist_subagent_history_layout_groups_by_agent_type(tmp_path, monkeypa
     assert not (tmp_path / f"{reviewer}.json").exists()
 
 
-def test_persist_subagent_history_never_prunes_legacy_flat_files(tmp_path, monkeypatch):
+def testpersist_subagent_history_never_prunes_legacy_flat_files(tmp_path, monkeypatch):
     """Old-format delegated transcripts (flat in the history root, before the
     subagent/<agent-type>/ layout) are no longer pruning candidates.
 
@@ -1480,7 +1480,7 @@ def test_persist_subagent_history_never_prunes_legacy_flat_files(tmp_path, monke
     forever now, same as before this feature existed — read/search still see
     them (`subagent_history_directories`), only pruning stops.
     """
-    from zrb.llm.tool.delegate import _persist_subagent_history
+    from zrb.llm.tool.delegate import persist_subagent_history
     from zrb.llm.util.subagent_session_naming import format_delegated_session_name
 
     monkeypatch.setenv("ZRB_LLM_HISTORY_DIR", str(tmp_path))
@@ -1492,7 +1492,7 @@ def test_persist_subagent_history_never_prunes_legacy_flat_files(tmp_path, monke
         name = format_delegated_session_name(
             "sess1", "researcher", uuid.uuid4().hex[:8]
         )
-        _persist_subagent_history(name, [])
+        persist_subagent_history(name, [])
 
     # The legacy flat file survives regardless of how many subagent/ writes
     # happen; the cap of 2 applies only within subagent/researcher/.
@@ -1501,20 +1501,20 @@ def test_persist_subagent_history_never_prunes_legacy_flat_files(tmp_path, monke
     assert total == 2
 
 
-def test_persist_subagent_history_never_prunes_colliding_root_session_name(
+def testpersist_subagent_history_never_prunes_colliding_root_session_name(
     tmp_path, monkeypatch
 ):
     """A user-named session sitting flat in the history root that happens to
     match the delegated naming shape (e.g. via `/save`) must never become a
     deletion candidate, regardless of how many delegated transcripts exist."""
-    from zrb.llm.tool.delegate import _persist_subagent_history
+    from zrb.llm.tool.delegate import persist_subagent_history
     from zrb.llm.util.subagent_session_naming import format_delegated_session_name
 
     monkeypatch.setenv("ZRB_LLM_HISTORY_DIR", str(tmp_path))
     monkeypatch.setenv("ZRB_LLM_SUBAGENT_HISTORY_RETAIN", "1")
 
     # Matches `parse_delegated_session`'s shape but is an ordinary user
-    # session, not something `_persist_subagent_history` ever wrote.
+    # session, not something `persist_subagent_history` ever wrote.
     colliding_name = "myproj-sub-reviewer-1234abcd"
     (tmp_path / f"{colliding_name}.json").write_text("[]")
 
@@ -1522,7 +1522,7 @@ def test_persist_subagent_history_never_prunes_colliding_root_session_name(
         name = format_delegated_session_name(
             "sess1", "researcher", uuid.uuid4().hex[:8]
         )
-        _persist_subagent_history(name, [])
+        persist_subagent_history(name, [])
 
     assert (tmp_path / f"{colliding_name}.json").exists()
     assert len(list((tmp_path / "subagent" / "researcher").iterdir())) == 1

@@ -9,20 +9,20 @@ from zrb.util.file import read_file, write_file
 
 class FileSessionStateLogger(AnySessionStateLogger):
     def __init__(self, session_log_dir: str | Callable[[], str]):
-        self._session_log_dir_param = session_log_dir
+        self.session_log_dir_param = session_log_dir
 
-    def _get_session_log_dir(self) -> str:
+    def get_session_log_dir(self) -> str:
         """Get the session log directory as a string.
 
         If session_log_dir was provided as a callable, it will be called.
         If it was provided as a string, it will be returned directly.
         """
-        if callable(self._session_log_dir_param):
-            return self._session_log_dir_param()
-        return self._session_log_dir_param
+        if callable(self.session_log_dir_param):
+            return self.session_log_dir_param()
+        return self.session_log_dir_param
 
     def write(self, session_log: "SessionStateLog"):
-        session_file_path = self._get_session_file_path(session_log.name)
+        session_file_path = self.get_session_file_path(session_log.name)
         session_dir_path = os.path.dirname(session_file_path)
         if not os.path.isdir(session_dir_path):
             os.makedirs(session_dir_path, exist_ok=True)
@@ -35,7 +35,7 @@ class FileSessionStateLogger(AnySessionStateLogger):
 
     def read(self, session_name: str) -> "SessionStateLog":
 
-        session_file_path = self._get_session_file_path(session_name)
+        session_file_path = self.get_session_file_path(session_name)
         return SessionStateLog.model_validate_json(read_file(session_file_path))
 
     def list(
@@ -48,9 +48,7 @@ class FileSessionStateLogger(AnySessionStateLogger):
     ) -> "SessionStateLogList":
 
         matching_sessions = []
-        timeline_dir = os.path.join(
-            self._get_session_log_dir(), "_timeline", *task_path
-        )
+        timeline_dir = os.path.join(self.get_session_log_dir(), "_timeline", *task_path)
         if not os.path.exists(timeline_dir):
             return SessionStateLogList(total=0, data=[])
         for root, _, files in os.walk(timeline_dir):
@@ -68,8 +66,8 @@ class FileSessionStateLogger(AnySessionStateLogger):
         data = [session_log for _, session_log in paginated_sessions]
         return SessionStateLogList(total=total, data=data)
 
-    def _get_session_file_path(self, session_name: str) -> str:
-        return os.path.join(self._get_session_log_dir(), f"{session_name}.json")
+    def get_session_file_path(self, session_name: str) -> str:
+        return os.path.join(self.get_session_log_dir(), f"{session_name}.json")
 
     def _get_timeline_dir_path(self, session_log: "SessionStateLog") -> str:
         start_time = self._get_start_time(session_log)
@@ -87,7 +85,7 @@ class FileSessionStateLogger(AnySessionStateLogger):
             f"{minute}",
             f"{second}",
         ]
-        return os.path.join(self._get_session_log_dir(), "_timeline", *paths)
+        return os.path.join(self.get_session_log_dir(), "_timeline", *paths)
 
     def _get_start_time(self, session_log: "SessionStateLog") -> datetime.datetime:
         return datetime.datetime.strptime(

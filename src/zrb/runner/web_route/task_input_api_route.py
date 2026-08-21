@@ -2,11 +2,10 @@ import json
 from typing import TYPE_CHECKING
 
 from zrb.config.web_auth_config import WebAuthConfig
-from zrb.group.any_group import AnyGroup
+from zrb.group.any_group import AnyGroup, NodeNotFoundError
 from zrb.runner.common_util import get_task_str_kwargs
 from zrb.runner.web_util.user import get_user_from_request
 from zrb.task.any_task import AnyTask
-from zrb.util.group import NodeNotFoundError, extract_node_from_args
 
 if TYPE_CHECKING:
     # We want fastapi to only be loaded when necessary to decrease footprint
@@ -34,7 +33,7 @@ def serve_task_input_api(
         user = await get_user_from_request(web_auth_config, request)
         args = path.strip("/").split("/")
         try:
-            task, _, _ = extract_node_from_args(root_group, args)
+            task, _, _ = root_group.extract_node(args)
         except NodeNotFoundError:
             return JSONResponse(
                 content={"detail": "Not found"}, status_code=404

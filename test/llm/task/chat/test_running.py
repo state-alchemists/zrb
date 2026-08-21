@@ -7,35 +7,35 @@ from zrb.llm.task.chat.running import ChatRunning
 
 class MockLLMChatTask:
     """Stand-in for `LLMChatTask`: state `ChatRunning` reads plus the two
-    methods (`get_model`, `_get_ui_conversation_name`) implemented by the
+    methods (`get_model`, `get_ui_conversation_name`) implemented by the
     sibling `ChatExecution` collaborator on the real task facade."""
 
     def __init__(self):
-        self._uis = []
-        self._ui_factories = []
-        self._include_default_ui = True
-        self._approval_channels = []
-        self._yolo_xcom_key = "yolo"
-        self._triggers = []
-        self._response_handlers = []
-        self._tool_policies = []
-        self._argument_formatters = []
-        self._markdown_theme = None
-        self._custom_commands = []
-        self._custom_model_names = []
-        self._ui_texts = {
+        self.uis = []
+        self.ui_factories = []
+        self.include_default_ui = True
+        self.approval_channels = []
+        self.yolo_xcom_key = "yolo"
+        self.triggers = []
+        self.response_handlers = []
+        self.tool_policies = []
+        self.argument_formatters = []
+        self.markdown_theme = None
+        self.custom_commands = []
+        self.custom_model_names = []
+        self.ui_texts = {
             "greeting": ("Hello", False),
             "assistant_name": ("Zrb", False),
             "ascii_art": ("zrb", False),
             "jargon": ("Tasker", False),
         }
-        self._show_ollama_models = None
-        self._show_pydantic_ai_models = None
+        self.show_ollama_models = None
+        self.show_pydantic_ai_models = None
 
     def get_model(self, ctx):
         return "test-model"
 
-    def _get_ui_conversation_name(self, ui, name):
+    def get_ui_conversation_name(self, ui, name):
         return name
 
 
@@ -53,7 +53,7 @@ async def test_run_non_interactive_session(runner):
     llm_task_core = MagicMock()
     llm_task_core.async_run = AsyncMock(return_value="AI Output")
 
-    res = await runner._run_non_interactive_session(
+    res = await runner.run_non_interactive_session(
         ctx=ctx,
         llm_task_core=llm_task_core,
         history_manager=MagicMock(),
@@ -85,7 +85,7 @@ async def test_run_non_interactive_session_finalizes_attached_uis(runner):
     llm_task_core.async_run = AsyncMock(return_value="AI Output")
     llm_task_core.get_uis.return_value = [ui_with_markdown, ui_without_markdown]
 
-    res = await runner._run_non_interactive_session(
+    res = await runner.run_non_interactive_session(
         ctx=ctx,
         llm_task_core=llm_task_core,
         history_manager=MagicMock(),
@@ -116,7 +116,7 @@ async def test_run_non_interactive_session_skips_finalize_for_non_string_result(
     llm_task_core.async_run = AsyncMock(return_value=None)
     llm_task_core.get_uis.return_value = [ui_with_markdown]
 
-    res = await runner._run_non_interactive_session(
+    res = await runner.run_non_interactive_session(
         ctx=ctx,
         llm_task_core=llm_task_core,
         history_manager=MagicMock(),
@@ -141,12 +141,12 @@ async def test_run_non_interactive_session_attaches_ui_factories(runner):
 
     http_ui = MagicMock()
     factory = MagicMock(return_value=http_ui)
-    runner._llm_chat_task._ui_factories = [factory]
+    runner.llm_chat_task.ui_factories = [factory]
 
     llm_task_core = MagicMock()
     llm_task_core.async_run = AsyncMock(return_value="AI Output")
 
-    res = await runner._run_non_interactive_session(
+    res = await runner.run_non_interactive_session(
         ctx=ctx,
         llm_task_core=llm_task_core,
         history_manager=MagicMock(),
@@ -213,7 +213,7 @@ async def test_run_interactive_session_basic(runner):
     mock_ui = SimpleMockUI()
 
     with patch("zrb.llm.ui.default.ui.UI", return_value=mock_ui):
-        res = await runner._run_interactive_session(
+        res = await runner.run_interactive_session(
             ctx=ctx,
             llm_task_core=llm_task_core,
             history_manager=history_manager,
@@ -229,9 +229,9 @@ async def test_run_interactive_session_basic(runner):
 
 @pytest.mark.asyncio
 async def test_run_interactive_session_with_factories_and_multiplex(runner):
-    runner._llm_chat_task._ui_factories = [lambda **kwargs: SimpleMockUI(**kwargs)]
-    runner._llm_chat_task._include_default_ui = False
-    runner._llm_chat_task._approval_channels = [MagicMock(), MagicMock()]
+    runner.llm_chat_task.ui_factories = [lambda **kwargs: SimpleMockUI(**kwargs)]
+    runner.llm_chat_task.include_default_ui = False
+    runner.llm_chat_task.approval_channels = [MagicMock(), MagicMock()]
 
     ctx = MagicMock()
     ctx.xcom = {}
@@ -269,7 +269,7 @@ async def test_run_interactive_session_with_factories_and_multiplex(runner):
         patch("zrb.llm.ui.multi_ui.MultiUI", return_value=mock_multi),
         patch("zrb.llm.approval.multiplex_approval_channel.MultiplexApprovalChannel"),
     ):
-        res = await runner._run_interactive_session(
+        res = await runner.run_interactive_session(
             ctx=ctx,
             llm_task_core=llm_task_core,
             history_manager=history_manager,
@@ -329,8 +329,8 @@ async def test_run_interactive_session_resolves_custom_command_initial_message(
     runner, ui_commands
 ):
     """A slash-command initial_message must be resolved to its prompt before
-    reaching the UI, mirroring _run_non_interactive_session's behavior."""
-    runner._llm_chat_task._custom_commands = [
+    reaching the UI, mirroring run_non_interactive_session's behavior."""
+    runner.llm_chat_task.custom_commands = [
         FakeCustomCommand(
             command="/foo", args=["text"], prompt_template="RESOLVED:{text}"
         )
@@ -348,7 +348,7 @@ async def test_run_interactive_session_resolves_custom_command_initial_message(
     with patch("zrb.llm.ui.default.ui.UI") as MockUI:
         MockUI.return_value = mock_ui
 
-        res = await runner._run_interactive_session(
+        res = await runner.run_interactive_session(
             ctx=ctx,
             llm_task_core=llm_task_core,
             history_manager=history_manager,
@@ -369,7 +369,7 @@ async def test_run_interactive_session_leaves_plain_message_unchanged(
 ):
     """A plain (non-slash-command) initial_message must pass through as-is,
     even when custom commands are registered."""
-    runner._llm_chat_task._custom_commands = [
+    runner.llm_chat_task.custom_commands = [
         FakeCustomCommand(
             command="/foo", args=["text"], prompt_template="RESOLVED:{text}"
         )
@@ -387,7 +387,7 @@ async def test_run_interactive_session_leaves_plain_message_unchanged(
     with patch("zrb.llm.ui.default.ui.UI") as MockUI:
         MockUI.return_value = mock_ui
 
-        res = await runner._run_interactive_session(
+        res = await runner.run_interactive_session(
             ctx=ctx,
             llm_task_core=llm_task_core,
             history_manager=history_manager,
@@ -410,7 +410,7 @@ def test_load_session_history_uses_replay_when_available(runner):
     ui = MagicMock(spec=["replay_history", "append_to_output"])
     ui.replay_history = MagicMock()
 
-    runner._load_session_history(ui, history_manager, "sess1")
+    runner.load_session_history(ui, history_manager, "sess1")
 
     ui.replay_history.assert_called_once_with(["msg1", "msg2"])
     ui.append_to_output.assert_not_called()
@@ -434,7 +434,7 @@ def test_load_session_history_falls_back_to_text_dump(runner):
         "zrb.llm.util.history_formatter.format_history_as_text",
         return_value="FORMATTED",
     ):
-        runner._load_session_history(ui, history_manager, "sess1")
+        runner.load_session_history(ui, history_manager, "sess1")
 
     assert ui.appended == ["FORMATTED"]
 
@@ -442,24 +442,24 @@ def test_load_session_history_falls_back_to_text_dump(runner):
 def test_load_session_history_empty_name_is_noop(runner):
     """An empty conversation name must short-circuit the loader."""
     history_manager = MagicMock()
-    ui = MagicMock(spec=["_replay_history", "append_to_output"])
+    ui = MagicMock(spec=["replay_history", "append_to_output"])
 
-    runner._load_session_history(ui, history_manager, "")
+    runner.load_session_history(ui, history_manager, "")
 
     history_manager.load.assert_not_called()
-    ui._replay_history.assert_not_called()
+    ui.replay_history.assert_not_called()
 
 
 def test_load_session_history_missing_file_is_silent(runner):
     """FileNotFoundError from the history manager must not surface to the user."""
     history_manager = MagicMock()
     history_manager.load.side_effect = FileNotFoundError("no such session")
-    ui = MagicMock(spec=["_replay_history", "append_to_output"])
+    ui = MagicMock(spec=["replay_history", "append_to_output"])
 
     # Should not raise
-    runner._load_session_history(ui, history_manager, "sess-missing")
+    runner.load_session_history(ui, history_manager, "sess-missing")
 
-    ui._replay_history.assert_not_called()
+    ui.replay_history.assert_not_called()
 
 
 # ── @agent-name mention resolution ──
@@ -487,7 +487,7 @@ async def test_run_interactive_session_applies_agent_mention_nudge(runner, ui_co
     ):
         MockUI.return_value = mock_ui
 
-        res = await runner._run_interactive_session(
+        res = await runner.run_interactive_session(
             ctx=ctx,
             llm_task_core=llm_task_core,
             history_manager=history_manager,
@@ -509,7 +509,7 @@ async def test_run_interactive_session_slash_command_skips_mention_resolution(
 ):
     """A resolved slash command must not also run through mention resolution --
     the two syntaxes are mutually exclusive."""
-    runner._llm_chat_task._custom_commands = [
+    runner.llm_chat_task.custom_commands = [
         FakeCustomCommand(
             command="/foo", args=["text"], prompt_template="RESOLVED:{text}"
         )
@@ -532,7 +532,7 @@ async def test_run_interactive_session_slash_command_skips_mention_resolution(
     ):
         MockUI.return_value = mock_ui
 
-        await runner._run_interactive_session(
+        await runner.run_interactive_session(
             ctx=ctx,
             llm_task_core=llm_task_core,
             history_manager=history_manager,
@@ -562,7 +562,7 @@ async def test_run_non_interactive_session_applies_agent_mention_nudge(runner):
         "zrb.llm.task.chat.running.resolve_agent_mention",
         return_value="NUDGED:hi @researcher",
     ) as mock_resolve_mention:
-        await runner._run_non_interactive_session(
+        await runner.run_non_interactive_session(
             ctx=ctx,
             llm_task_core=llm_task_core,
             history_manager=MagicMock(),

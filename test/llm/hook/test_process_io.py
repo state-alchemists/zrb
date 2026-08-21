@@ -41,7 +41,7 @@ class _FakeProc:
         self.stdin = None
         if stdin:
             # Hold the read end open so a write cannot EPIPE.
-            self._stdin_r, stdin_w = os.pipe()
+            self.stdin_r, stdin_w = os.pipe()
             self.stdin = _FakePipe(stdin_w)
         self.returncode = 0
 
@@ -92,7 +92,7 @@ def test_read_hook_output_delivers_the_stdin_payload():
 
     assert stdout == b"ok"
     # The child's read end still holds what was written.
-    assert b"Notification" in os.read(process._stdin_r, 4096)
+    assert b"Notification" in os.read(process.stdin_r, 4096)
 
 
 class _ProcThatExitsAfterTheFirstPoll:
@@ -106,7 +106,7 @@ class _ProcThatExitsAfterTheFirstPoll:
     def __init__(self):
         stdout_r, self._stdout_w = os.pipe()
         stderr_r, self._stderr_w = os.pipe()
-        self._stdin_r, stdin_w = os.pipe()
+        self.stdin_r, stdin_w = os.pipe()
         self.stdout = _FakePipe(stdout_r)
         self.stderr = _FakePipe(stderr_r)
         self.stdin = _FakePipe(stdin_w)

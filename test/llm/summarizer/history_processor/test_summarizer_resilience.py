@@ -24,8 +24,8 @@ async def test_summarize_history_resilience():
     limiter = MockLimiter()
     messages = [ModelRequest(parts=[UserPromptPart(content="hi")])]
 
-    # Test with all optional parameters as None
-    # This simulates calls like the one in LLMTask._should_summarize
+    # Test with all optional parameters as None, simulating a caller that
+    # hasn't configured summarization thresholds.
     try:
         result = await summarize_history(
             messages,

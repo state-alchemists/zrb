@@ -26,7 +26,7 @@ def _cleanup_registry():
 @pytest.fixture
 def manager():
     """Create a fresh LSPManager for each test by resetting the singleton."""
-    LSPManager._instance = None
+    LSPManager.reset_singleton()
     return LSPManager()
 
 
@@ -34,7 +34,7 @@ class TestLspManagerSingleton:
     """Test singleton behavior."""
 
     def test_singleton_returns_same_instance(self):
-        LSPManager._instance = None
+        LSPManager.reset_singleton()
         m1 = LSPManager()
         m2 = LSPManager()
         assert m1 is m2
@@ -130,7 +130,7 @@ class TestDetectProjectRoot:
         # An ancestor of tmp_path may hold a real marker (e.g. a stray .git in
         # the system tmp dir), which would make the walk stop before the
         # fallback. Empty the marker list so the fallback is exercised hermetically.
-        monkeypatch.setattr("zrb.llm.lsp.manager_lifecycle._PROJECT_MARKERS", [])
+        monkeypatch.setattr("zrb.llm.lsp.manager_lifecycle.PROJECT_MARKERS", [])
         root = manager.detect_project_root(str(file_path))
         assert root == str(tmp_path)
 

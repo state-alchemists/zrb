@@ -25,7 +25,7 @@ def _add_task(description, keyword_priority="A", project="", context=""):
     ctx.input.project = project
     ctx.input.context = context
     ctx.input.filter = ""
-    return add_todo._action(ctx)
+    return add_todo.action(ctx)
 
 
 @pytest.fixture
@@ -50,7 +50,7 @@ def test_add_todo_complex(temp_todo_dir):
     ctx.input.filter = ""
 
     # Bypass BaseTask and call underlying function
-    res = add_todo._action(ctx)
+    res = add_todo.action(ctx)
     assert "task 1" in res
     assert os.path.exists(os.path.join(temp_todo_dir, "todo.txt"))
 
@@ -58,7 +58,7 @@ def test_add_todo_complex(temp_todo_dir):
 def test_list_todo_basic(temp_todo_dir):
     ctx = MagicMock()
     ctx.input.filter = ""
-    res = list_todo._action(ctx)
+    res = list_todo.action(ctx)
     assert res is not None
 
 
@@ -70,13 +70,13 @@ def test_show_todo_lifecycle(temp_todo_dir):
     ctx_add.input.project = ""
     ctx_add.input.context = ""
     ctx_add.input.filter = ""
-    add_todo._action(ctx_add)
+    add_todo.action(ctx_add)
 
     # Show it
     ctx_show = MagicMock()
     ctx_show.input.keyword = "show"
     ctx_show.input.filter = ""
-    res = show_todo._action(ctx_show)
+    res = show_todo.action(ctx_show)
     assert "show me" in res
 
 
@@ -84,7 +84,7 @@ def test_show_todo_not_found(temp_todo_dir):
     ctx = MagicMock()
     ctx.input.keyword = "nonexistent"
     ctx.input.filter = ""
-    show_todo._action(ctx)
+    show_todo.action(ctx)
     ctx.log_error.assert_called_with("Task not found")
 
 
@@ -96,7 +96,7 @@ def test_log_todo(temp_todo_dir):
     ctx_add.input.project = ""
     ctx_add.input.context = ""
     ctx_add.input.filter = ""
-    add_todo._action(ctx_add)
+    add_todo.action(ctx_add)
 
     # Log
     ctx_log = MagicMock()
@@ -105,7 +105,7 @@ def test_log_todo(temp_todo_dir):
     ctx_log.input.stop = "2024-01-01 12:00:00"
     ctx_log.input.log = ""
     ctx_log.input.filter = ""
-    res = log_todo._action(ctx_log)
+    res = log_todo.action(ctx_log)
     assert "DESCRIPTION" in res
 
 
@@ -117,20 +117,20 @@ def test_complete_todo(temp_todo_dir):
     ctx_add.input.project = ""
     ctx_add.input.context = ""
     ctx_add.input.filter = ""
-    add_todo._action(ctx_add)
+    add_todo.action(ctx_add)
 
     # Complete
     ctx_done = MagicMock()
     ctx_done.input.keyword = "done"
     ctx_done.input.filter = ""
-    res = complete_todo._action(ctx_done)
+    res = complete_todo.action(ctx_done)
     assert "COMPLETED AT" in res
 
     # Try to show completed (should fail)
     ctx_show = MagicMock()
     ctx_show.input.keyword = "done"
     ctx_show.input.filter = ""
-    show_todo._action(ctx_show)
+    show_todo.action(ctx_show)
     ctx_show.log_error.assert_called_with("Task already completed")
 
 
@@ -138,7 +138,7 @@ def test_edit_todo(temp_todo_dir):
     ctx = MagicMock()
     ctx.input.text = "A new task\nB another task"
     ctx.input.filter = ""
-    res = edit_todo._action(ctx)
+    res = edit_todo.action(ctx)
     assert "new task" in res
     assert "another task" in res
 
@@ -150,7 +150,7 @@ def test_edit_todo(temp_todo_dir):
 def test_archive_todo_empty(temp_todo_dir):
     ctx = MagicMock()
     ctx.input.filter = ""
-    res = archive_todo._action(ctx)
+    res = archive_todo.action(ctx)
     assert res is not None
 
 
@@ -163,7 +163,7 @@ def test_archive_todo_with_done_tasks(temp_todo_dir):
 
     ctx = MagicMock()
     ctx.input.filter = ""
-    archive_todo._action(ctx)
+    archive_todo.action(ctx)
 
     # Check filesystem
     with open(todo_file, "r") as f:
@@ -186,7 +186,7 @@ def test_list_todo_loads_existing_file(temp_todo_dir):
     _add_task("listed task")
     ctx = MagicMock()
     ctx.input.filter = ""
-    res = list_todo._action(ctx)
+    res = list_todo.action(ctx)
     assert "listed task" in res
 
 
@@ -199,13 +199,13 @@ def test_show_todo_reads_existing_log_work(temp_todo_dir):
     ctx_log.input.stop = "2024-01-01 12:00:00"
     ctx_log.input.log = "did stuff"
     ctx_log.input.filter = ""
-    log_todo._action(ctx_log)
+    log_todo.action(ctx_log)
 
     # Show should read the existing log-work file (covers line 145)
     ctx_show = MagicMock()
     ctx_show.input.keyword = "logged"
     ctx_show.input.filter = ""
-    res = show_todo._action(ctx_show)
+    res = show_todo.action(ctx_show)
     assert "logged task" in res
 
 
@@ -214,7 +214,7 @@ def test_complete_todo_not_found(temp_todo_dir):
     ctx = MagicMock()
     ctx.input.keyword = "nonexistent"
     ctx.input.filter = ""
-    res = complete_todo._action(ctx)
+    res = complete_todo.action(ctx)
     ctx.log_error.assert_called_with("Task not found")
     assert res is not None
 
@@ -225,12 +225,12 @@ def test_complete_todo_already_completed(temp_todo_dir):
     ctx_done = MagicMock()
     ctx_done.input.keyword = "repeat"
     ctx_done.input.filter = ""
-    complete_todo._action(ctx_done)
+    complete_todo.action(ctx_done)
     # Complete again -> already completed branch (covers lines 171-172)
     ctx_again = MagicMock()
     ctx_again.input.keyword = "repeat"
     ctx_again.input.filter = ""
-    res = complete_todo._action(ctx_again)
+    res = complete_todo.action(ctx_again)
     ctx_again.log_error.assert_called_with("Task already completed")
     assert res is not None
 
@@ -249,7 +249,7 @@ def test_archive_todo_makes_dir_when_missing(temp_todo_dir):
         patch("zrb.builtin.todo.os.path.isdir", return_value=False),
         patch("zrb.builtin.todo.os.makedirs") as mock_makedirs,
     ):
-        archive_todo._action(ctx)
+        archive_todo.action(ctx)
 
     mock_makedirs.assert_any_call(temp_todo_dir, exist_ok=True)
     assert os.path.exists(os.path.join(temp_todo_dir, "archive.txt"))
@@ -267,7 +267,7 @@ def test_archive_todo_appends_to_existing_archive(temp_todo_dir):
 
     ctx = MagicMock()
     ctx.input.filter = ""
-    archive_todo._action(ctx)
+    archive_todo.action(ctx)
 
     with open(archive_file, "r") as f:
         archive_content = f.read()
@@ -283,7 +283,7 @@ def test_log_todo_not_found(temp_todo_dir):
     ctx.input.stop = "2024-01-01 12:00:00"
     ctx.input.log = "note"
     ctx.input.filter = ""
-    res = log_todo._action(ctx)
+    res = log_todo.action(ctx)
     ctx.log_error.assert_called_with("Task not found")
     assert res is not None
 
@@ -308,9 +308,9 @@ def test_log_todo_reads_existing_log_work(temp_todo_dir):
         return ctx
 
     # First log creates the log-work file
-    log_todo._action(_make_ctx("first"))
+    log_todo.action(_make_ctx("first"))
     # Second log reads the existing log-work file (covers line 279)
-    res = log_todo._action(_make_ctx("second"))
+    res = log_todo.action(_make_ctx("second"))
     assert "DESCRIPTION" in res
 
 

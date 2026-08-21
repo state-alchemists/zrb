@@ -1,5 +1,5 @@
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 
@@ -100,16 +100,17 @@ async def test_simple_ui_run_interactive_command(deps):
     assert "not supported" in ui.prints[0][0]
 
 
-@pytest.mark.asyncio
-async def test_simple_ui_run_async(deps):
-    ui = ConcreteSimpleUI(initial_message="start", **deps)
-    ui._submit_user_message = MagicMock()
+class FastLoopSimpleUI(ConcreteSimpleUI):
+    """`_run_loop` overridden to return immediately (no polling delay)."""
 
-    async def fast_loop():
-        # Stop quickly
+    async def _run_loop(self) -> None:
         return
 
-    ui._run_loop = fast_loop
+
+@pytest.mark.asyncio
+async def test_simple_ui_run_async(deps):
+    ui = FastLoopSimpleUI(initial_message="start", **deps)
+    ui.submit_user_message = MagicMock()
 
     with patch(
         "zrb.llm.ui.base.ui.BaseUI.last_output", new_callable=PropertyMock
@@ -118,17 +119,18 @@ async def test_simple_ui_run_async(deps):
         res = await ui.run_async()
         assert res == "Done"
 
-    ui._submit_user_message.assert_called_once_with(ui.llm_task, "start")
+    ui.submit_user_message.assert_called_once_with(ui.llm_task, "start")
+
+
+class CancellingSimpleUI(ConcreteSimpleUI):
+    """`_run_loop` overridden to immediately raise `CancelledError`."""
+
+    async def _run_loop(self) -> None:
+        raise asyncio.CancelledError()
 
 
 @pytest.mark.asyncio
 async def test_simple_ui_run_async_cancelled(deps):
-    ui = ConcreteSimpleUI(**deps)
+    ui = CancellingSimpleUI(**deps)
 
-    async def cancel_loop():
-        raise asyncio.CancelledError()
-
-    ui._run_loop = cancel_loop
-
-    res = await ui.run_async()
-    assert True
+    await ui.run_async()

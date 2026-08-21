@@ -153,7 +153,7 @@ class TestRegistration:
         task.set_ui(ui_a)
         # append again to confirm list semantics
         task.append_ui(ui_b)
-        assert task._uis == [ui_a, ui_b]
+        assert task.get_uis() == [ui_a, ui_b]
 
     @pytest.mark.asyncio
     async def test_add_hook_factory_isolates_and_reaches_runner(self, session):

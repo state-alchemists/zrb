@@ -1,4 +1,4 @@
-"""Tests for task/base/monitoring.py - monitor_task_readiness function."""
+"""Tests for task/base/monitoring.py - BaseTaskMonitoring.monitor_task_readiness."""
 
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -7,7 +7,9 @@ import pytest
 
 from zrb.context.any_context import AnyContext
 from zrb.session.any_session import AnySession
-from zrb.task.base_task import BaseTask
+from zrb.task.base.base_task import BaseTask
+from zrb.task.base.execution import BaseTaskExecution
+from zrb.task.base.monitoring import BaseTaskMonitoring
 from zrb.task_status.task_status import TaskStatus
 
 
@@ -31,9 +33,8 @@ class TestMonitorTaskReadinessNoChecks:
     @pytest.mark.asyncio
     async def test_no_readiness_checks_returns_immediately(self):
         """If readiness_checks is empty, should return immediately with a debug log."""
-        from zrb.task.base.monitoring import monitor_task_readiness
-
         task = BaseTask(name="test_task")
+        monitoring = BaseTaskMonitoring(task, BaseTaskExecution(task))
         session = MagicMock(spec=AnySession)
         session.is_terminated = False
 
@@ -41,7 +42,7 @@ class TestMonitorTaskReadinessNoChecks:
         action_coro = MagicMock(spec=asyncio.Task)
 
         with patch.object(task, "get_ctx", return_value=ctx):
-            await monitor_task_readiness(task, session, action_coro)
+            await monitoring.monitor_task_readiness(session, action_coro)
 
         ctx.log_debug.assert_called_once()
         assert "No readiness checks" in ctx.log_debug.call_args[0][0]
@@ -53,9 +54,8 @@ class TestMonitorTaskReadinessSessionTerminated:
     @pytest.mark.asyncio
     async def test_session_terminates_during_sleep(self):
         """Loop exits when session is terminated after first sleep."""
-        from zrb.task.base.monitoring import monitor_task_readiness
-
         task = BaseTask(name="test_task")
+        monitoring = BaseTaskMonitoring(task, BaseTaskExecution(task))
         session = MagicMock(spec=AnySession)
         session.is_terminated = False
 
@@ -81,14 +81,17 @@ class TestMonitorTaskReadinessSessionTerminated:
 
         with patch.object(task, "get_ctx", return_value=ctx):
             with patch("asyncio.sleep", new=mock_sleep):
-                # gather returns a plain value (not a coroutine) since it's
-                # just an argument to the wait_for AsyncMock
-                with patch("asyncio.gather", new=MagicMock(return_value=None)):
+                with patch(
+                    "zrb.task.base.monitoring.gather_fail_fast",
+                    new=MagicMock(return_value=None),
+                ):
                     with patch("asyncio.wait_for", new=AsyncMock(return_value=None)):
                         with patch(
                             "zrb.task.base.monitoring.run_async", new=mock_run_async
                         ):
-                            await monitor_task_readiness(task, session, action_coro)
+                            await monitoring.monitor_task_readiness(
+                                session, action_coro
+                            )
 
         assert len(sleep_calls) >= 1
         ctx.log_info.assert_called()
@@ -100,9 +103,8 @@ class TestMonitorTaskReadinessSuccess:
     @pytest.mark.asyncio
     async def test_successful_readiness_check_resets_failure_count(self):
         """When all checks complete successfully, failure_count resets to 0."""
-        from zrb.task.base.monitoring import monitor_task_readiness
-
         task = BaseTask(name="test_task")
+        monitoring = BaseTaskMonitoring(task, BaseTaskExecution(task))
         check_task = BaseTask(name="check_task")
         check_task.exec_chain = MagicMock(return_value=None)
         task.append_readiness_check(check_task)
@@ -128,12 +130,17 @@ class TestMonitorTaskReadinessSuccess:
 
         with patch.object(task, "get_ctx", return_value=ctx):
             with patch("asyncio.sleep", new=mock_sleep):
-                with patch("asyncio.gather", new=MagicMock(return_value=None)):
+                with patch(
+                    "zrb.task.base.monitoring.gather_fail_fast",
+                    new=MagicMock(return_value=None),
+                ):
                     with patch("asyncio.wait_for", new=AsyncMock(return_value=None)):
                         with patch(
                             "zrb.task.base.monitoring.run_async", new=mock_run_async
                         ):
-                            await monitor_task_readiness(task, session, action_coro)
+                            await monitoring.monitor_task_readiness(
+                                session, action_coro
+                            )
 
         log_calls = [str(c) for c in ctx.log_info.call_args_list]
         assert any("OK" in c for c in log_calls)
@@ -145,14 +152,13 @@ class TestMonitorTaskReadinessTimeout:
     @pytest.mark.asyncio
     async def test_timeout_increments_failure_count(self):
         """Timeout during wait_for increments failure_count and logs a warning."""
-        from zrb.task.base.monitoring import monitor_task_readiness
-
         task = BaseTask(name="test_task")
+        monitoring = BaseTaskMonitoring(task, BaseTaskExecution(task))
         check_task = BaseTask(name="check_task")
         check_task.exec_chain = MagicMock(return_value=None)
         task.append_readiness_check(check_task)
         # High threshold: only test timeout behavior, not threshold restart
-        task._readiness_failure_threshold = 99
+        task.readiness_failure_threshold = 99
 
         session = MagicMock(spec=AnySession)
         session.is_terminated = False
@@ -175,11 +181,14 @@ class TestMonitorTaskReadinessTimeout:
 
         with patch.object(task, "get_ctx", return_value=ctx):
             with patch("asyncio.sleep", new=mock_sleep):
-                with patch("asyncio.gather", side_effect=asyncio.TimeoutError):
+                with patch(
+                    "zrb.task.base.monitoring.gather_fail_fast",
+                    side_effect=asyncio.TimeoutError,
+                ):
                     with patch(
                         "zrb.task.base.monitoring.run_async", new=mock_run_async
                     ):
-                        await monitor_task_readiness(task, session, action_coro)
+                        await monitoring.monitor_task_readiness(session, action_coro)
 
         assert ctx.log_warning.called
         warning_calls = [str(c) for c in ctx.log_warning.call_args_list]
@@ -192,13 +201,12 @@ class TestMonitorTaskReadinessFailureThreshold:
     @pytest.mark.asyncio
     async def test_threshold_reached_cancels_and_restarts(self):
         """When failure threshold is reached, cancel action and re-execute."""
-        from zrb.task.base.monitoring import monitor_task_readiness
-
         task = BaseTask(name="test_task")
+        monitoring = BaseTaskMonitoring(task, BaseTaskExecution(task))
         check_task = BaseTask(name="check_task")
         check_task.exec_chain = MagicMock(return_value=None)
         task.append_readiness_check(check_task)
-        task._readiness_failure_threshold = 1
+        task.readiness_failure_threshold = 1
 
         session = MagicMock(spec=AnySession)
         session.is_terminated = False
@@ -227,18 +235,22 @@ class TestMonitorTaskReadinessFailureThreshold:
 
         with patch.object(task, "get_ctx", return_value=ctx):
             with patch("asyncio.sleep", new=mock_sleep):
-                with patch("asyncio.gather", side_effect=asyncio.TimeoutError):
+                with patch(
+                    "zrb.task.base.monitoring.gather_fail_fast",
+                    side_effect=asyncio.TimeoutError,
+                ):
                     with patch(
                         "zrb.task.base.monitoring.run_async", new=mock_run_async
                     ):
                         with patch("asyncio.create_task", return_value=mock_new_task):
-                            with patch(
-                                "zrb.task.base.monitoring.execute_action_with_retry",
+                            with patch.object(
+                                BaseTaskExecution,
+                                "execute_action_with_retry",
                                 new=mock_exec,
                             ):
                                 try:
-                                    await monitor_task_readiness(
-                                        task, session, action_coro
+                                    await monitoring.monitor_task_readiness(
+                                        session, action_coro
                                     )
                                 except Exception:
                                     pass
@@ -252,9 +264,8 @@ class TestMonitorTaskReadinessCancelled:
     @pytest.mark.asyncio
     async def test_cancelled_error_breaks_loop(self):
         """CancelledError during check breaks the monitoring loop cleanly."""
-        from zrb.task.base.monitoring import monitor_task_readiness
-
         task = BaseTask(name="test_task")
+        monitoring = BaseTaskMonitoring(task, BaseTaskExecution(task))
         check_task = BaseTask(name="check_task")
         check_task.exec_chain = MagicMock(return_value=None)
         task.append_readiness_check(check_task)
@@ -277,8 +288,11 @@ class TestMonitorTaskReadinessCancelled:
                     "zrb.task.base.monitoring.run_async",
                     new=MagicMock(return_value=None),
                 ):
-                    with patch("asyncio.gather", side_effect=asyncio.CancelledError):
-                        await monitor_task_readiness(task, session, action_coro)
+                    with patch(
+                        "zrb.task.base.monitoring.gather_fail_fast",
+                        side_effect=asyncio.CancelledError,
+                    ):
+                        await monitoring.monitor_task_readiness(session, action_coro)
 
         info_calls = [str(c) for c in ctx.log_info.call_args_list]
         assert any(
@@ -292,13 +306,12 @@ class TestMonitorTaskReadinessException:
     @pytest.mark.asyncio
     async def test_general_exception_increments_failure_count(self):
         """General exception increments failure_count and marks check as failed."""
-        from zrb.task.base.monitoring import monitor_task_readiness
-
         task = BaseTask(name="test_task")
+        monitoring = BaseTaskMonitoring(task, BaseTaskExecution(task))
         check_task = BaseTask(name="check_task")
         check_task.exec_chain = MagicMock(return_value=None)
         task.append_readiness_check(check_task)
-        task._readiness_failure_threshold = 99
+        task.readiness_failure_threshold = 99
 
         session = MagicMock(spec=AnySession)
         session.is_terminated = False
@@ -321,11 +334,14 @@ class TestMonitorTaskReadinessException:
 
         with patch.object(task, "get_ctx", return_value=ctx):
             with patch("asyncio.sleep", new=mock_sleep):
-                with patch("asyncio.gather", side_effect=RuntimeError("check failed")):
+                with patch(
+                    "zrb.task.base.monitoring.gather_fail_fast",
+                    side_effect=RuntimeError("check failed"),
+                ):
                     with patch(
                         "zrb.task.base.monitoring.run_async", new=mock_run_async
                     ):
-                        await monitor_task_readiness(task, session, action_coro)
+                        await monitoring.monitor_task_readiness(session, action_coro)
 
         assert ctx.log_error.called
         error_calls = [str(c) for c in ctx.log_error.call_args_list]
@@ -340,13 +356,12 @@ class TestMonitorTaskReadinessChecksNotCompleted:
     @pytest.mark.asyncio
     async def test_checks_not_completed_increments_failure_count(self):
         """If wait_for succeeds but tasks aren't in completed state, increment failure."""
-        from zrb.task.base.monitoring import monitor_task_readiness
-
         task = BaseTask(name="test_task")
+        monitoring = BaseTaskMonitoring(task, BaseTaskExecution(task))
         check_task = BaseTask(name="check_task")
         check_task.exec_chain = MagicMock(return_value=None)
         task.append_readiness_check(check_task)
-        task._readiness_failure_threshold = 99
+        task.readiness_failure_threshold = 99
 
         session = MagicMock(spec=AnySession)
         session.is_terminated = False
@@ -369,12 +384,17 @@ class TestMonitorTaskReadinessChecksNotCompleted:
 
         with patch.object(task, "get_ctx", return_value=ctx):
             with patch("asyncio.sleep", new=mock_sleep):
-                with patch("asyncio.gather", new=MagicMock(return_value=None)):
+                with patch(
+                    "zrb.task.base.monitoring.gather_fail_fast",
+                    new=MagicMock(return_value=None),
+                ):
                     with patch("asyncio.wait_for", new=AsyncMock(return_value=None)):
                         with patch(
                             "zrb.task.base.monitoring.run_async", new=mock_run_async
                         ):
-                            await monitor_task_readiness(task, session, action_coro)
+                            await monitoring.monitor_task_readiness(
+                                session, action_coro
+                            )
 
         assert ctx.log_warning.called
         warning_calls = [str(c) for c in ctx.log_warning.call_args_list]
@@ -387,13 +407,12 @@ class TestMonitorTaskReadinessThresholdReached:
     @pytest.mark.asyncio
     async def test_threshold_reached_action_already_done(self):
         """Threshold reached but action already done — no cancellation needed."""
-        from zrb.task.base.monitoring import monitor_task_readiness
-
         task = BaseTask(name="test_task")
+        monitoring = BaseTaskMonitoring(task, BaseTaskExecution(task))
         check_task = BaseTask(name="check_task")
         check_task.exec_chain = MagicMock(return_value=None)
         task.append_readiness_check(check_task)
-        task._readiness_failure_threshold = 1
+        task.readiness_failure_threshold = 1
 
         session = MagicMock(spec=AnySession)
         session.is_terminated = False
@@ -422,16 +441,22 @@ class TestMonitorTaskReadinessThresholdReached:
 
         with patch.object(task, "get_ctx", return_value=ctx):
             with patch("asyncio.sleep", new=mock_sleep):
-                with patch("asyncio.gather", side_effect=asyncio.TimeoutError):
+                with patch(
+                    "zrb.task.base.monitoring.gather_fail_fast",
+                    side_effect=asyncio.TimeoutError,
+                ):
                     with patch(
                         "zrb.task.base.monitoring.run_async", new=mock_run_async
                     ):
                         with patch("asyncio.create_task", return_value=mock_new_task):
-                            with patch(
-                                "zrb.task.base.monitoring.execute_action_with_retry",
+                            with patch.object(
+                                BaseTaskExecution,
+                                "execute_action_with_retry",
                                 new=mock_exec,
                             ):
-                                await monitor_task_readiness(task, session, action_coro)
+                                await monitoring.monitor_task_readiness(
+                                    session, action_coro
+                                )
 
         # action_coro.done() was True so cancel should not be called
         action_coro.cancel.assert_not_called()
@@ -444,8 +469,6 @@ class TestMonitorOwnCancellation:
     async def test_monitor_cancel_during_action_reap_propagates(self):
         """Cancelling the monitor while it awaits the cancelled action must
         propagate — swallowing it restarts the action after shutdown."""
-        from zrb.task.base.monitoring import monitor_task_readiness
-
         check_task = BaseTask(name="check_task")
         check_task.exec_chain = AsyncMock(side_effect=ValueError("service down"))
         task = BaseTask(
@@ -455,6 +478,7 @@ class TestMonitorOwnCancellation:
             readiness_failure_threshold=1,
             readiness_timeout=5,
         )
+        monitoring = BaseTaskMonitoring(task, BaseTaskExecution(task))
 
         session = MagicMock(spec=AnySession)
         session.is_terminated = False
@@ -475,11 +499,11 @@ class TestMonitorOwnCancellation:
         mock_exec = MagicMock(return_value=None)
 
         with patch.object(task, "get_ctx", return_value=ctx):
-            with patch(
-                "zrb.task.base.monitoring.execute_action_with_retry", new=mock_exec
+            with patch.object(
+                BaseTaskExecution, "execute_action_with_retry", new=mock_exec
             ):
                 monitor = asyncio.create_task(
-                    monitor_task_readiness(task, session, action)
+                    monitoring.monitor_task_readiness(session, action)
                 )
                 # Wait until the monitor cancelled the action and is reaping it.
                 await asyncio.wait_for(started_cleanup.wait(), timeout=5)

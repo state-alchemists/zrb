@@ -65,7 +65,7 @@ async def test_background_delegation_notice_reaches_the_chat_live_context():
     try:
         with (
             patch(
-                "zrb.llm.tool.delegate_background._run_agent_task",
+                "zrb.llm.tool.delegate_background.run_agent_task",
                 side_effect=quick_task,
             ),
             patch(

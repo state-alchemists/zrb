@@ -26,9 +26,7 @@ from typing import TYPE_CHECKING, Any, Awaitable, Callable, Coroutine, TypeAlias
 
 from zrb.config.config import CFG
 from zrb.llm.agent.run.deferred_calls import (
-    process_deferred_requests as _process_deferred_requests,
-)
-from zrb.llm.agent.run.deferred_calls import (
+    process_deferred_requests,
     rebuild_for_denials,
 )
 from zrb.llm.agent.run.error_classifier import classify_error_type
@@ -562,7 +560,7 @@ async def _execution_loop(
                 # the loop we are past all the setup guards; the function it is
                 # passed to expects a concrete UIProtocol.
                 assert effective_ui is not None
-                current_results = await _process_deferred_requests(
+                current_results = await process_deferred_requests(
                     result_output,
                     effective_tool_confirmation,
                     effective_ui,

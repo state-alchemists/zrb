@@ -28,7 +28,7 @@ class HasActivityTracking(Protocol):
 
     ``BufferedUI`` (see ``zrb.llm.tool.delegate``) is the canonical
     implementation; the protocol enables ``isinstance`` checks in
-    ``_run_agent_task`` without coupling to a concrete class.
+    ``run_agent_task`` without coupling to a concrete class.
     """
 
     def set_activity_id(self, agent_id: str) -> None: ...

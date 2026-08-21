@@ -30,46 +30,46 @@ class TestBaseUICommandHandlers:
     def test_handle_exit_command(self, simple_ui_instance):
         """Test _handle_exit_command returns True for exit commands."""
         ui = simple_ui_instance
-        ui._exit_commands = ["/exit", "/quit"]
+        ui.exit_commands = ["/exit", "/quit"]
 
-        assert ui._handle_exit_command("/exit") is True
-        assert ui._handle_exit_command("/quit") is True
-        assert ui._handle_exit_command("/help") is False
+        assert ui.handle_exit_command("/exit") is True
+        assert ui.handle_exit_command("/quit") is True
+        assert ui.handle_exit_command("/help") is False
 
     def test_handle_exit_command_trims_whitespace(self, simple_ui_instance):
         """Test _handle_exit_command trims whitespace."""
         ui = simple_ui_instance
-        ui._exit_commands = ["/exit"]
+        ui.exit_commands = ["/exit"]
 
-        assert ui._handle_exit_command("  /exit  ") is True
+        assert ui.handle_exit_command("  /exit  ") is True
 
     def test_handle_info_command(self, simple_ui_instance):
         """Test _handle_info_command returns True for info commands."""
         ui = simple_ui_instance
-        ui._info_commands = ["/help", "/?"]
+        ui.info_commands = ["/help", "/?"]
         ui.append_to_output = MagicMock()
 
-        assert ui._handle_info_command("/help") is True
+        assert ui.handle_info_command("/help") is True
         ui.append_to_output.assert_called()
 
     def test_handle_info_command_empty_commands(self, simple_ui_instance):
         """Test _handle_info_command with empty commands list."""
         ui = simple_ui_instance
-        ui._info_commands = []
+        ui.info_commands = []
 
-        assert ui._handle_info_command("/help") is False
+        assert ui.handle_info_command("/help") is False
 
     def test_handle_save_command(self, simple_ui_instance):
         """Test _handle_save_command saves conversation."""
         ui = simple_ui_instance
-        ui._save_commands = ["/save"]
+        ui.save_commands = ["/save"]
         ui.history_manager.load = MagicMock(return_value=[])
         ui.history_manager.update = MagicMock()
         ui.history_manager.save = MagicMock()
         ui.append_to_output = MagicMock()
         ui.conversation_session_name = "test-session"
 
-        result = ui._handle_save_command("/save my-save")
+        result = ui.handle_save_command("/save my-save")
 
         assert result is True
         ui.history_manager.update.assert_called_once()
@@ -78,22 +78,22 @@ class TestBaseUICommandHandlers:
     def test_handle_save_command_no_name(self, simple_ui_instance):
         """Test _handle_save_command with no name provided."""
         ui = simple_ui_instance
-        ui._save_commands = ["/save"]
+        ui.save_commands = ["/save"]
         ui.history_manager.load = MagicMock(return_value=[])
         ui.history_manager.update = MagicMock()
 
-        result = ui._handle_save_command("/save")
+        result = ui.handle_save_command("/save")
 
         assert result is False
 
     def test_handle_save_command_handles_error(self, simple_ui_instance):
         """Test _handle_save_command handles history manager errors."""
         ui = simple_ui_instance
-        ui._save_commands = ["/save"]
+        ui.save_commands = ["/save"]
         ui.history_manager.load = MagicMock(side_effect=Exception("Load error"))
         ui.append_to_output = MagicMock()
 
-        result = ui._handle_save_command("/save test")
+        result = ui.handle_save_command("/save test")
 
         assert result is True  # Returns True because command matched
         ui.append_to_output.assert_called()  # Error was reported
@@ -101,12 +101,12 @@ class TestBaseUICommandHandlers:
     def test_handle_load_command(self, simple_ui_instance):
         """Test _handle_load_command loads conversation."""
         ui = simple_ui_instance
-        ui._load_commands = ["/load"]
+        ui.load_commands = ["/load"]
         ui.history_manager.load = MagicMock(return_value=[])
         ui.append_to_output = MagicMock()
         ui.accumulate_usage(MagicMock(input_tokens=100, output_tokens=50))
 
-        result = ui._handle_load_command("/load my-session")
+        result = ui.handle_load_command("/load my-session")
 
         assert result is True
         assert ui.conversation_session_name == "my-session"
@@ -116,9 +116,9 @@ class TestBaseUICommandHandlers:
     def test_handle_load_command_no_name(self, simple_ui_instance):
         """Test _handle_load_command with no name provided."""
         ui = simple_ui_instance
-        ui._load_commands = ["/load"]
+        ui.load_commands = ["/load"]
 
-        result = ui._handle_load_command("/load")
+        result = ui.handle_load_command("/load")
 
         assert result is False
 
@@ -128,14 +128,14 @@ class TestBaseUICommandHandlers:
         """Loading a plain (non-delegated) session name, never having swapped
         away, must not touch the persona at all."""
         ui = simple_ui_instance
-        ui._load_commands = ["/load"]
+        ui.load_commands = ["/load"]
         ui.history_manager.load = MagicMock(return_value=[])
 
         with patch("zrb.llm.agent.subagent.manager.sub_agent_manager") as mock_manager:
-            assert ui._handle_load_command("/load my-project-chat") is True
+            assert ui.handle_load_command("/load my-project-chat") is True
 
         mock_manager.get_agent_definition.assert_not_called()
-        assert ui._active_subagent_persona is None
+        assert ui.active_subagent_persona is None
 
     def test_load_delegated_session_swaps_persona(self, simple_ui_instance):
         """Loading a delegated sub-agent's transcript must swap the running
@@ -143,7 +143,7 @@ class TestBaseUICommandHandlers:
         from zrb.llm.agent.subagent.manager import SubAgentDefinition
 
         ui = simple_ui_instance
-        ui._load_commands = ["/load"]
+        ui.load_commands = ["/load"]
         ui.history_manager.load = MagicMock(return_value=[])
         original_tools = ["original-tool"]
         original_toolsets = ["original-toolset"]
@@ -167,7 +167,7 @@ class TestBaseUICommandHandlers:
             mock_manager.get_agent_definition.return_value = definition
             mock_manager.resolve_agent_build.return_value = resolved
 
-            result = ui._handle_load_command("/load sess1-sub-code-reviewer-a1b2c3d4")
+            result = ui.handle_load_command("/load sess1-sub-code-reviewer-a1b2c3d4")
 
         assert result is True
         mock_manager.get_agent_definition.assert_called_once_with("code-reviewer")
@@ -175,7 +175,7 @@ class TestBaseUICommandHandlers:
         assert ui.llm_task.toolsets == ["reviewer-toolset"]
         assert ui.llm_task.prompt_manager is not original_prompt_manager
         assert ui.model == "reviewer-model"
-        assert ui._active_subagent_persona == "code-reviewer"
+        assert ui.active_subagent_persona == "code-reviewer"
 
     def test_load_delegated_session_unknown_agent_reports_error(
         self, simple_ui_instance
@@ -183,16 +183,16 @@ class TestBaseUICommandHandlers:
         """An unresolvable agent must not silently swap — report and stay on
         the main agent."""
         ui = simple_ui_instance
-        ui._load_commands = ["/load"]
+        ui.load_commands = ["/load"]
         ui.history_manager.load = MagicMock(return_value=[])
         ui.append_to_output = MagicMock()
 
         with patch("zrb.llm.agent.subagent.manager.sub_agent_manager") as mock_manager:
             mock_manager.get_agent_definition.return_value = None
-            result = ui._handle_load_command("/load sess1-sub-ghost-agent-deadbeef")
+            result = ui.handle_load_command("/load sess1-sub-ghost-agent-deadbeef")
 
         assert result is True
-        assert ui._active_subagent_persona is None
+        assert ui.active_subagent_persona is None
         assert any(
             "ghost-agent" in str(call) for call in ui.append_to_output.call_args_list
         )
@@ -205,7 +205,7 @@ class TestBaseUICommandHandlers:
         from zrb.llm.agent.subagent.manager import SubAgentDefinition
 
         ui = simple_ui_instance
-        ui._load_commands = ["/load"]
+        ui.load_commands = ["/load"]
         ui.history_manager.load = MagicMock(return_value=[])
         original_tools = ["original-tool"]
         original_toolsets = ["original-toolset"]
@@ -228,16 +228,16 @@ class TestBaseUICommandHandlers:
         with patch("zrb.llm.agent.subagent.manager.sub_agent_manager") as mock_manager:
             mock_manager.get_agent_definition.return_value = definition
             mock_manager.resolve_agent_build.return_value = resolved
-            ui._handle_load_command("/load sess1-sub-researcher-deadbeef")
+            ui.handle_load_command("/load sess1-sub-researcher-deadbeef")
 
-            result = ui._handle_load_command("/load my-project-chat")
+            result = ui.handle_load_command("/load my-project-chat")
 
         assert result is True
         assert ui.llm_task.tools == original_tools
         assert ui.llm_task.toolsets == original_toolsets
         assert ui.llm_task.prompt_manager is original_prompt_manager
         assert ui.model == "main-model"
-        assert ui._active_subagent_persona is None
+        assert ui.active_subagent_persona is None
 
     def test_load_second_subagent_keeps_the_original_main_snapshot(
         self, simple_ui_instance
@@ -247,7 +247,7 @@ class TestBaseUICommandHandlers:
         from zrb.llm.agent.subagent.manager import SubAgentDefinition
 
         ui = simple_ui_instance
-        ui._load_commands = ["/load"]
+        ui.load_commands = ["/load"]
         ui.history_manager.load = MagicMock(return_value=[])
         original_tools = ["original-tool"]
         ui.llm_task.tools = original_tools
@@ -273,13 +273,13 @@ class TestBaseUICommandHandlers:
                 )
             )
 
-            ui._handle_load_command("/load sess1-sub-researcher-deadbeef")
-            ui._handle_load_command("/load sess1-sub-code-reviewer-a1b2c3d4")
-            ui._handle_load_command("/load my-project-chat")
+            ui.handle_load_command("/load sess1-sub-researcher-deadbeef")
+            ui.handle_load_command("/load sess1-sub-code-reviewer-a1b2c3d4")
+            ui.handle_load_command("/load my-project-chat")
 
         assert ui.llm_task.tools == original_tools
         assert ui.model == "main-model"
-        assert ui._active_subagent_persona is None
+        assert ui.active_subagent_persona is None
 
     def test_handle_redirect_command(self, simple_ui_instance):
         """Test _handle_redirect_command redirects output to file."""
@@ -287,15 +287,15 @@ class TestBaseUICommandHandlers:
         import tempfile
 
         ui = simple_ui_instance
-        ui._redirect_output_commands = ["/redirect"]
-        ui._last_result_data = "Test output content"
+        ui.redirect_output_commands = ["/redirect"]
+        ui.last_result_data = "Test output content"
         ui.append_to_output = MagicMock()
 
         with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as f:
             temp_path = f.name
 
         try:
-            result = ui._handle_redirect_command(f"/redirect {temp_path}")
+            result = ui.handle_redirect_command(f"/redirect {temp_path}")
 
             assert result is True
             with open(temp_path, "r") as f:
@@ -306,11 +306,11 @@ class TestBaseUICommandHandlers:
     def test_handle_redirect_command_no_output(self, simple_ui_instance):
         """Test _handle_redirect_command when no output available."""
         ui = simple_ui_instance
-        ui._redirect_output_commands = ["/redirect"]
-        ui._last_result_data = None
+        ui.redirect_output_commands = ["/redirect"]
+        ui.last_result_data = None
         ui.append_to_output = MagicMock()
 
-        result = ui._handle_redirect_command("/redirect /tmp/out.txt")
+        result = ui.handle_redirect_command("/redirect /tmp/out.txt")
 
         assert result is True
         ui.append_to_output.assert_called()  # Error message shown
@@ -320,12 +320,12 @@ class TestBaseUICommandHandlers:
         from unittest.mock import patch
 
         ui = simple_ui_instance
-        ui._redirect_output_commands = ["/redirect"]
-        ui._last_result_data = "Test AI output"
+        ui.redirect_output_commands = ["/redirect"]
+        ui.last_result_data = "Test AI output"
         ui.append_to_output = MagicMock()
 
         with patch("zrb.llm.util.clipboard.copy_text", return_value=True) as mock_copy:
-            result = ui._handle_redirect_command("/redirect")
+            result = ui.handle_redirect_command("/redirect")
 
         assert result is True
         mock_copy.assert_called_once_with("Test AI output")
@@ -335,12 +335,12 @@ class TestBaseUICommandHandlers:
         from unittest.mock import patch
 
         ui = simple_ui_instance
-        ui._redirect_output_commands = ["/redirect"]
-        ui._last_result_data = None
+        ui.redirect_output_commands = ["/redirect"]
+        ui.last_result_data = None
         ui.append_to_output = MagicMock()
 
         with patch("zrb.llm.util.clipboard.copy_text") as mock_copy:
-            result = ui._handle_redirect_command("/redirect")
+            result = ui.handle_redirect_command("/redirect")
 
         assert result is True
         mock_copy.assert_not_called()
@@ -353,7 +353,7 @@ class TestBaseUICommandHandlers:
         from unittest.mock import patch
 
         ui = simple_ui_instance
-        ui._copy_commands = ["/copy"]
+        ui.copy_commands = ["/copy"]
         ui.history_manager.load = MagicMock(
             return_value=[{"role": "user", "content": "hi"}]
         )
@@ -364,7 +364,7 @@ class TestBaseUICommandHandlers:
                 "zrb.llm.util.history_formatter.format_history_as_text",
                 return_value="transcript",
             ):
-                result = ui._handle_copy_command("/copy")
+                result = ui.handle_copy_command("/copy")
 
         assert result is True
         mock_copy.assert_called_once_with("transcript")
@@ -375,7 +375,7 @@ class TestBaseUICommandHandlers:
         import tempfile
 
         ui = simple_ui_instance
-        ui._copy_commands = ["/copy"]
+        ui.copy_commands = ["/copy"]
         ui.history_manager.load = MagicMock(
             return_value=[{"role": "user", "content": "hi"}]
         )
@@ -389,7 +389,7 @@ class TestBaseUICommandHandlers:
                 temp_path = f.name
 
             try:
-                result = ui._handle_copy_command(f"/copy {temp_path}")
+                result = ui.handle_copy_command(f"/copy {temp_path}")
                 assert result is True
                 with open(temp_path) as f:
                     assert f.read() == "transcript content"
@@ -399,11 +399,11 @@ class TestBaseUICommandHandlers:
     def test_handle_copy_command_no_history(self, simple_ui_instance):
         """Test /copy shows error when no history."""
         ui = simple_ui_instance
-        ui._copy_commands = ["/copy"]
+        ui.copy_commands = ["/copy"]
         ui.history_manager.load = MagicMock(return_value=[])
         ui.append_to_output = MagicMock()
 
-        result = ui._handle_copy_command("/copy")
+        result = ui.handle_copy_command("/copy")
 
         assert result is True
         ui.append_to_output.assert_called()  # Error shown
@@ -413,20 +413,20 @@ class TestBaseUICommandHandlers:
     ):
         """Test /copy with a trailing space strips to the bare command (clipboard copy)."""
         ui = simple_ui_instance
-        ui._copy_commands = ["/copy"]
+        ui.copy_commands = ["/copy"]
         ui.history_manager.load = MagicMock(return_value=[])
         ui.append_to_output = MagicMock()
 
-        result = ui._handle_copy_command("/copy ")
+        result = ui.handle_copy_command("/copy ")
 
         assert result is True  # stripped to bare /copy
 
     def test_handle_copy_command_unrecognized(self, simple_ui_instance):
         """Test /copy with an unrecognized command returns False."""
         ui = simple_ui_instance
-        ui._copy_commands = ["/copy"]
+        ui.copy_commands = ["/copy"]
 
-        result = ui._handle_copy_command("/notcopy")
+        result = ui.handle_copy_command("/notcopy")
 
         assert result is False
 
@@ -435,19 +435,19 @@ class TestBaseUICommandHandlers:
         ui = simple_ui_instance
 
         assert ui.yolo is False
-        ui._handle_toggle_yolo("/yolo")
+        ui.handle_toggle_yolo("/yolo")
         assert ui.yolo is True
-        ui._handle_toggle_yolo("/yolo")
+        ui.handle_toggle_yolo("/yolo")
         assert ui.yolo is False
 
     def test_handle_set_model_command(self, simple_ui_instance):
         """Test _handle_set_model_command changes model."""
         ui = simple_ui_instance
-        ui._set_model_commands = ["/model"]
+        ui.set_model_commands = ["/model"]
         ui.is_thinking = False
         ui.append_to_output = MagicMock()
 
-        result = ui._handle_set_model_command("/model gpt-4")
+        result = ui.handle_set_model_command("/model gpt-4")
 
         assert result is True
         assert ui.model == "gpt-4"
@@ -455,20 +455,20 @@ class TestBaseUICommandHandlers:
     def test_handle_set_model_command_while_thinking(self, simple_ui_instance):
         """Test _handle_set_model_command blocked while thinking."""
         ui = simple_ui_instance
-        ui._set_model_commands = ["/model"]
+        ui.set_model_commands = ["/model"]
         ui.is_thinking = True
 
-        result = ui._handle_set_model_command("/model gpt-4")
+        result = ui.handle_set_model_command("/model gpt-4")
 
         assert result is False
 
     def test_handle_set_model_command_no_model(self, simple_ui_instance):
         """Test _handle_set_model_command with no model provided."""
         ui = simple_ui_instance
-        ui._set_model_commands = ["/model"]
+        ui.set_model_commands = ["/model"]
         ui.is_thinking = False
 
-        result = ui._handle_set_model_command("/model")
+        result = ui.handle_set_model_command("/model")
 
         assert result is False
 
@@ -478,7 +478,7 @@ class TestBaseUICommandHandlers:
         import tempfile
 
         ui = simple_ui_instance
-        ui._attach_commands = ["/attach"]
+        ui.attach_commands = ["/attach"]
         ui.append_to_output = MagicMock()
 
         # Create a temp file
@@ -487,7 +487,7 @@ class TestBaseUICommandHandlers:
             temp_path = f.name
 
         try:
-            result = ui._handle_attach_command(f"/attach {temp_path}")
+            result = ui.handle_attach_command(f"/attach {temp_path}")
 
             assert result is True
             assert temp_path in ui.pending_attachments
@@ -497,10 +497,10 @@ class TestBaseUICommandHandlers:
     def test_handle_attach_command_file_not_found(self, simple_ui_instance):
         """Test _handle_attach_command with non-existent file."""
         ui = simple_ui_instance
-        ui._attach_commands = ["/attach"]
+        ui.attach_commands = ["/attach"]
         ui.append_to_output = MagicMock()
 
-        result = ui._handle_attach_command("/attach /nonexistent/file.txt")
+        result = ui.handle_attach_command("/attach /nonexistent/file.txt")
 
         assert result is True
         ui.append_to_output.assert_called()  # Error shown
@@ -511,7 +511,7 @@ class TestBaseUICommandHandlers:
         import tempfile
 
         ui = simple_ui_instance
-        ui._attach_commands = ["/attach"]
+        ui.attach_commands = ["/attach"]
         ui.append_to_output = MagicMock()
 
         with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as f:
@@ -520,10 +520,10 @@ class TestBaseUICommandHandlers:
 
         try:
             # Attach first time
-            ui._handle_attach_command(f"/attach {temp_path}")
+            ui.handle_attach_command(f"/attach {temp_path}")
             # Try to attach again
             ui.append_to_output.reset_mock()
-            result = ui._handle_attach_command(f"/attach {temp_path}")
+            result = ui.handle_attach_command(f"/attach {temp_path}")
 
             assert result is True
             ui.append_to_output.assert_called()  # "Already attached" message
@@ -534,14 +534,14 @@ class TestBaseUICommandHandlers:
     async def test_handle_photo_command_captures_and_attaches(self, simple_ui_instance):
         """Test _handle_photo_command captures a photo and attaches it."""
         ui = simple_ui_instance
-        ui._photo_commands = ["/photo"]
+        ui.photo_commands = ["/photo"]
         ui.append_to_output = MagicMock()
 
         with patch(
             "zrb.llm.ui.base.conversation_commands.get_camera_photo",
             new=AsyncMock(return_value=b"\xff\xd8\xff-fake-jpeg"),
         ):
-            result = ui._handle_photo_command("/photo")
+            result = ui.handle_photo_command("/photo")
 
             assert result is True
             assert len(ui.background_tasks) == 1
@@ -554,14 +554,14 @@ class TestBaseUICommandHandlers:
     async def test_handle_photo_command_capture_failure(self, simple_ui_instance):
         """Test _handle_photo_command shows an error when capture fails."""
         ui = simple_ui_instance
-        ui._photo_commands = ["/photo"]
+        ui.photo_commands = ["/photo"]
         ui.append_to_output = MagicMock()
 
         with patch(
             "zrb.llm.ui.base.conversation_commands.get_camera_photo",
             new=AsyncMock(return_value=None),
         ):
-            result = ui._handle_photo_command("/photo")
+            result = ui.handle_photo_command("/photo")
 
             task = list(ui.background_tasks)[0]
             await task
@@ -573,11 +573,11 @@ class TestBaseUICommandHandlers:
     def test_get_help_text(self, simple_ui_instance):
         """Test _get_help_text returns formatted help."""
         ui = simple_ui_instance
-        ui._exit_commands = ["/exit"]
-        ui._info_commands = ["/help"]
-        ui._attach_commands = ["/attach"]
+        ui.exit_commands = ["/exit"]
+        ui.info_commands = ["/help"]
+        ui.attach_commands = ["/attach"]
 
-        help_text = ui._get_help_text()
+        help_text = ui.get_help_text()
 
         assert "/exit" in help_text
         assert "/help" in help_text
@@ -591,12 +591,12 @@ class TestBaseUICommandHandlers:
     def test_get_help_text_lists_every_command_at_any_width(self, simple_ui_instance):
         """No command is dropped and no description clipped, however narrow."""
         ui = simple_ui_instance
-        ui._exit_commands = ["/exit"]
-        ui._info_commands = ["/help"]
-        ui._attach_commands = ["/attach"]
+        ui.exit_commands = ["/exit"]
+        ui.info_commands = ["/help"]
+        ui.attach_commands = ["/attach"]
 
         for width in (200, 100, 50):
-            help_text = ui._get_help_text(width=width)
+            help_text = ui.get_help_text(width=width)
             assert "and more" not in help_text
             assert "..." not in help_text
             for expected in ("/exit", "/help", "/attach", "clipboard"):
@@ -605,27 +605,27 @@ class TestBaseUICommandHandlers:
     def test_get_help_text_empty_commands(self, simple_ui_instance):
         """Test _get_help_text with all empty command lists."""
         ui = simple_ui_instance
-        ui._exit_commands = []
-        ui._info_commands = []
-        ui._attach_commands = []
-        ui._photo_commands = []
-        ui._save_commands = []
-        ui._load_commands = []
-        ui._redirect_output_commands = []
-        ui._summarize_commands = []
-        ui._yolo_toggle_commands = []
-        ui._set_model_commands = []
-        ui._exec_commands = []
-        ui._plan_commands = []
-        ui._copy_commands = []
-        ui._custom_commands = []
+        ui.exit_commands = []
+        ui.info_commands = []
+        ui.attach_commands = []
+        ui.photo_commands = []
+        ui.save_commands = []
+        ui.load_commands = []
+        ui.redirect_output_commands = []
+        ui.summarize_commands = []
+        ui.yolo_toggle_commands = []
+        ui.set_model_commands = []
+        ui.exec_commands = []
+        ui.plan_commands = []
+        ui.copy_commands = []
+        ui.custom_commands = []
 
-        help_text = ui._get_help_text()
+        help_text = ui.get_help_text()
 
         assert help_text == ""
 
     def test_get_cwd_display_home(self, simple_ui_instance, monkeypatch):
-        """Test _get_cwd_display shows home directory as ~."""
+        """Test get_cwd_display shows home directory as ~."""
         ui = simple_ui_instance
 
         import os
@@ -635,7 +635,7 @@ class TestBaseUICommandHandlers:
         # depending on collection order to avoid ever being noticed.
         monkeypatch.chdir(os.path.expanduser("~"))
 
-        result = ui._get_cwd_display()
+        result = ui.get_cwd_display()
 
         assert result == "~"
 
@@ -674,10 +674,10 @@ class TestBaseUICommandHandlers:
         ui.on_exit()
 
     def test_get_output_field_width(self, simple_ui_instance):
-        """Test _get_output_field_width returns None by default."""
+        """Test output_field_width returns None by default."""
         ui = simple_ui_instance
 
-        assert ui._get_output_field_width() is None
+        assert ui.output_field_width is None
 
     def test_stream_to_parent(self, simple_ui_instance):
         """Test stream_to_parent calls append_to_output."""
@@ -727,12 +727,12 @@ class TestLoadCommandReplay:
         from pydantic_ai.messages import ModelRequest, UserPromptPart
 
         ui = recording_ui
-        ui._load_commands = ["/load"]
+        ui.load_commands = ["/load"]
         ui.history_manager.load = MagicMock(
             return_value=[ModelRequest(parts=[UserPromptPart(content="hello there")])]
         )
 
-        assert ui._handle_load_command("/load my-session") is True
+        assert ui.handle_load_command("/load my-session") is True
 
         user_records = [r for r in ui.records if "💬" in r[0] and "hello there" in r[0]]
         assert len(user_records) == 1
@@ -744,7 +744,7 @@ class TestLoadCommandReplay:
         from pydantic_ai.messages import ModelResponse, TextPart
 
         ui = recording_ui
-        ui._load_commands = ["/load"]
+        ui.load_commands = ["/load"]
         ui.history_manager.load = MagicMock(
             return_value=[ModelResponse(parts=[TextPart(content="**bold reply**")])]
         )
@@ -753,7 +753,7 @@ class TestLoadCommandReplay:
             "zrb.llm.ui.base.ui.render_markdown",
             return_value="RENDERED MARKDOWN",
         ) as render:
-            assert ui._handle_load_command("/load my-session") is True
+            assert ui.handle_load_command("/load my-session") is True
 
         # Header for assistant should be emitted as normal text
         headers = [r for r in ui.records if "🤖" in r[0]]
@@ -773,7 +773,7 @@ class TestLoadCommandReplay:
         from pydantic_ai.messages import ModelResponse, ToolCallPart
 
         ui = recording_ui
-        ui._load_commands = ["/load"]
+        ui.load_commands = ["/load"]
         ui.history_manager.load = MagicMock(
             return_value=[
                 ModelResponse(
@@ -788,7 +788,7 @@ class TestLoadCommandReplay:
             ]
         )
 
-        assert ui._handle_load_command("/load my-session") is True
+        assert ui.handle_load_command("/load my-session") is True
 
         tool_records = [r for r in ui.records if "🧰" in r[0]]
         assert len(tool_records) == 1
@@ -801,7 +801,7 @@ class TestLoadCommandReplay:
         from pydantic_ai.messages import ModelRequest, ToolReturnPart
 
         ui = recording_ui
-        ui._load_commands = ["/load"]
+        ui.load_commands = ["/load"]
         ui.history_manager.load = MagicMock(
             return_value=[
                 ModelRequest(
@@ -816,7 +816,7 @@ class TestLoadCommandReplay:
             ]
         )
 
-        assert ui._handle_load_command("/load my-session") is True
+        assert ui.handle_load_command("/load my-session") is True
 
         return_records = [r for r in ui.records if "🔠" in r[0]]
         assert len(return_records) == 1
@@ -830,10 +830,10 @@ class TestLoadCommandReplay:
     def test_load_empty_history_only_shows_switch_message(self, recording_ui):
         """Empty history should not emit any replay output, only the switch line."""
         ui = recording_ui
-        ui._load_commands = ["/load"]
+        ui.load_commands = ["/load"]
         ui.history_manager.load = MagicMock(return_value=[])
 
-        assert ui._handle_load_command("/load my-session") is True
+        assert ui.handle_load_command("/load my-session") is True
 
         # No user/assistant/tool lines
         assert not any("💬" in r[0] for r in ui.records)
@@ -847,14 +847,14 @@ class TestLoadCommandReplay:
         from pydantic_ai.messages import ModelResponse, ThinkingPart
 
         ui = recording_ui
-        ui._load_commands = ["/load"]
+        ui.load_commands = ["/load"]
         ui.history_manager.load = MagicMock(
             return_value=[
                 ModelResponse(parts=[ThinkingPart(content="pondering the question")])
             ]
         )
 
-        assert ui._handle_load_command("/load my-session") is True
+        assert ui.handle_load_command("/load my-session") is True
 
         thinking_records = [r for r in ui.records if "💭" in r[0]]
         assert len(thinking_records) == 1
@@ -866,7 +866,7 @@ class TestLoadCommandReplay:
         from pydantic_ai.messages import ModelRequest, RetryPromptPart
 
         ui = recording_ui
-        ui._load_commands = ["/load"]
+        ui.load_commands = ["/load"]
         ui.history_manager.load = MagicMock(
             return_value=[
                 ModelRequest(
@@ -877,7 +877,7 @@ class TestLoadCommandReplay:
             ]
         )
 
-        assert ui._handle_load_command("/load my-session") is True
+        assert ui.handle_load_command("/load my-session") is True
 
         retry_records = [r for r in ui.records if "🔄" in r[0]]
         assert len(retry_records) == 1
@@ -887,9 +887,9 @@ class TestLoadCommandReplay:
     def test_load_reports_history_manager_failure(self, recording_ui):
         """If the history manager raises, an error line must be shown to the user."""
         ui = recording_ui
-        ui._load_commands = ["/load"]
+        ui.load_commands = ["/load"]
         ui.history_manager.load = MagicMock(side_effect=RuntimeError("boom"))
 
-        assert ui._handle_load_command("/load my-session") is True
+        assert ui.handle_load_command("/load my-session") is True
 
         assert any("❌" in r[0] and "boom" in r[0] for r in ui.records)

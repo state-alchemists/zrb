@@ -60,6 +60,16 @@ class FileHistoryManager(AnyHistoryManager):
         if not os.path.exists(self._history_dir):
             os.makedirs(self._history_dir, exist_ok=True)
 
+    def is_dirty(self, conversation_name: str) -> bool:
+        """Whether *conversation_name* has in-memory updates not yet persisted."""
+        return conversation_name in self._dirty
+
+    def cache_sync_mtime(self, conversation_name: str) -> "float | None":
+        """The on-disk mtime this conversation's cache entry was last synced
+        to, or None if it has never been synced (or had no file at sync
+        time)."""
+        return self._cache_mtime.get(conversation_name)
+
     def load(self, conversation_name: str) -> "list[ModelMessage]":
         # lazy: heavy third-party
         from pydantic import ValidationError

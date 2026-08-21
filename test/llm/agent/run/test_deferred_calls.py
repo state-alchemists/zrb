@@ -346,7 +346,7 @@ async def test_permission_request_hook_auto_denies():
 
 @pytest.mark.asyncio
 async def test_permission_request_not_fired_when_auto_approved_via_bound_method():
-    """Interactive mode: BaseUI._confirm_tool_execution wraps a ToolCallHandler.
+    """Interactive mode: BaseUI.confirm_tool_execution wraps a ToolCallHandler.
     When the underlying handler auto-approves, PermissionRequest must NOT fire
     even though effective_tool_confirmation is a bound method, not a
     ToolCallHandler directly."""

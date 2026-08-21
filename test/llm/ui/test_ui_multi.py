@@ -15,13 +15,12 @@ class TestMultiUI:
         ui.append_to_output = MagicMock()
         ui.ask_user = AsyncMock(return_value="y")
         ui.tool_call_handler = MagicMock()
-        ui.tool_call_handler._argument_formatters = ["formatter1"]
         ui.tool_call_handler.check_policies = AsyncMock(return_value=None)
         ui.tool_call_handler.handle = AsyncMock(return_value=MagicMock(approved=True))
-        # Pin real defaults so _stream_ai_response's plan-mode sync and snapshot
+        # Pin real defaults so stream_ai_response's plan-mode sync and snapshot
         # path behave like a real UI (a MagicMock would read truthy and flip the
         # module-level agent-mode ContextVar, polluting other tests).
-        ui._plan_mode_active = False
+        ui.plan_mode_active = False
         ui.snapshot_manager = None
         ui.history_manager = None
         return ui
@@ -43,8 +42,6 @@ class TestMultiUI:
         """Test set_tool_call_handler method."""
         multi_ui = MultiUI([mock_child_ui])
         mock_handler = MagicMock()
-        mock_handler._argument_formatters = ["fmt1", "fmt2"]
-
         multi_ui.set_tool_call_handler(mock_handler)
 
         # Verify through public property
@@ -103,7 +100,6 @@ class TestMultiUI:
         """Test _confirm_tool_execution uses handler when available."""
         multi_ui = MultiUI([mock_child_ui])
         mock_handler = MagicMock()
-        mock_handler._argument_formatters = ["fmt1"]
         mock_handler.handle = AsyncMock(return_value=MagicMock(approved=True))
         multi_ui.set_tool_call_handler(mock_handler)
 
@@ -111,7 +107,7 @@ class TestMultiUI:
         mock_call.tool_name = "Write"
         mock_call.args = {"path": "/tmp/test.txt", "content": "hello"}
 
-        result = await multi_ui._confirm_tool_execution(mock_call)
+        result = await multi_ui.confirm_tool_execution(mock_call)
 
         mock_handler.handle.assert_called_once()
 
@@ -120,7 +116,7 @@ class TestMultiUI:
         """Test _confirm_tool_execution uses winning UI's handler when no MultiUI handler."""
         multi_ui = MultiUI([mock_child_ui])
         # Don't set a handler on MultiUI - it should fall back to winning UI's handler
-        multi_ui._last_winning_ui = mock_child_ui
+        multi_ui.last_winning_ui = mock_child_ui
 
         mock_call = MagicMock()
         mock_call.tool_name = "Write"
@@ -128,7 +124,7 @@ class TestMultiUI:
 
         mock_child_ui.tool_call_handler.handle.return_value = MagicMock(approved=True)
 
-        result = await multi_ui._confirm_tool_execution(mock_call)
+        result = await multi_ui.confirm_tool_execution(mock_call)
 
         mock_child_ui.tool_call_handler.handle.assert_called_once()
 
@@ -137,7 +133,7 @@ class TestMultiUI:
         multi_ui = MultiUI([mock_child_ui])
         mock_task = MagicMock()
 
-        multi_ui._submit_user_message(mock_task, "Hello world")
+        multi_ui.submit_user_message(mock_task, "Hello world")
 
         # Verify through public behavior - message was broadcast
         mock_child_ui.append_to_output.assert_called()
@@ -158,7 +154,7 @@ class TestMultiUI:
         other_ui.cancel_pending_confirmations = MagicMock()
         multi_ui = MultiUI([mock_child_ui, other_ui])
 
-        multi_ui._clear_pending_confirmations_except(0)
+        multi_ui.clear_pending_confirmations_except(0)
 
         other_ui.cancel_pending_confirmations.assert_called_once()
 
@@ -184,7 +180,7 @@ class TestMultiUI:
 
         multi_ui = MultiUI([mock_child_ui])
         # No handler on MultiUI, no winning UI, no approval channel
-        multi_ui._last_winning_ui = None
+        multi_ui.last_winning_ui = None
 
         mock_call = MagicMock()
         mock_call.tool_name = "Write"
@@ -195,7 +191,7 @@ class TestMultiUI:
         # Use public property to set handler on child UI mock
         type(mock_child_ui).tool_call_handler = PropertyMock(return_value=mock_handler)
 
-        result = await multi_ui._confirm_tool_execution(mock_call)
+        result = await multi_ui.confirm_tool_execution(mock_call)
         mock_handler.handle.assert_called_once()
 
     def test_set_llm_task_sets_on_children(self, mock_child_ui):
@@ -210,10 +206,10 @@ class TestMultiUI:
         assert other_ui.llm_task is mock_task
 
     def test_create_session_for_llm_task(self, mock_child_ui):
-        """Test _create_session_for_llm_task creates proper session."""
+        """Test create_session_for_llm_task creates proper session."""
         multi_ui = MultiUI([mock_child_ui])
 
-        session = multi_ui._create_session_for_llm_task("Hello", [])
+        session = multi_ui.create_session_for_llm_task("Hello", [])
 
         assert session is not None
 
@@ -241,14 +237,14 @@ class TestMultiUI:
     def test_on_exit_cancels_tasks(self, mock_child_ui):
         """Test on_exit cancels all child tasks."""
         multi_ui = MultiUI([mock_child_ui])
-        multi_ui._child_tasks = [MagicMock(), MagicMock()]
-        multi_ui._pending_input_tasks = [MagicMock()]
-        multi_ui._process_messages_task = MagicMock()
+        multi_ui.child_tasks = [MagicMock(), MagicMock()]
+        multi_ui.pending_input_tasks = [MagicMock()]
+        multi_ui.process_messages_task = MagicMock()
 
         multi_ui.on_exit()
 
         # Tasks should be cancelled
-        for task in multi_ui._child_tasks:
+        for task in multi_ui.child_tasks:
             task.cancel.assert_called()
 
     def test_on_exit_calls_main_ui_on_exit(self, mock_child_ui):
@@ -272,7 +268,6 @@ class TestMultiUI:
     async def test_confirm_tool_uses_approval_channel(self):
         """Test _confirm_tool_execution falls back to approval channel."""
         mock_ui = MagicMock()
-        mock_ui._tool_call_handler = None
         multi_ui = MultiUI([mock_ui])
         mock_channel = MagicMock()
         multi_ui.set_approval_channel(mock_channel)
@@ -288,7 +283,7 @@ class TestMultiUI:
         mock_call.args = {"path": "/tmp/test"}
         mock_call.tool_call_id = "call_123"
 
-        result = await multi_ui._confirm_tool_execution(mock_call)
+        result = await multi_ui.confirm_tool_execution(mock_call)
 
         # Result is converted via to_pydantic_result() which returns ToolApproved
         assert hasattr(result, "message") or result is not None
@@ -352,7 +347,7 @@ class TestMultiUI:
 
         mock_task = MagicMock()
 
-        multi_ui._submit_user_message(mock_task, "Hello world")
+        multi_ui.submit_user_message(mock_task, "Hello world")
 
         # Verify broadcast was called
         multi_ui.append_to_output.assert_called()
@@ -390,7 +385,7 @@ class TestMultiUI:
         mock_llm_task.tool_confirmation = MagicMock()
 
         # Should not raise, but should handle error gracefully
-        await multi_ui._stream_ai_response(mock_llm_task, "Hello", [])
+        await multi_ui.stream_ai_response(mock_llm_task, "Hello", [])
 
         # Verify output was attempted (error message shown)
         multi_ui.append_to_output.assert_called()
@@ -411,7 +406,7 @@ class TestMultiUI:
         mock_llm_task.tool_confirmation = MagicMock()
 
         # Should not raise, but should log error
-        await multi_ui._stream_ai_response(mock_llm_task, "Hello", [])
+        await multi_ui.stream_ai_response(mock_llm_task, "Hello", [])
 
         # Verify error was handled (output was called)
         multi_ui.append_to_output.assert_called()
@@ -427,7 +422,7 @@ class TestMultiUI:
         mock_llm_task.set_ui = MagicMock()
         mock_llm_task.tool_confirmation = MagicMock()
 
-        await multi_ui._stream_ai_response(mock_llm_task, "Hello", [])
+        await multi_ui.stream_ai_response(mock_llm_task, "Hello", [])
 
         # Verify output was rendered
         multi_ui.append_to_output.assert_called()
@@ -441,7 +436,7 @@ class TestMultiUI:
         multi_ui = MultiUI([mock_ui1, mock_ui2])
 
         # Should not raise when skipping index 0
-        multi_ui._clear_pending_confirmations_except(0)
+        multi_ui.clear_pending_confirmations_except(0)
 
         # ui2 (index 1) should be called
         mock_ui2.cancel_pending_confirmations.assert_called_once()
@@ -473,7 +468,7 @@ class TestMultiUIReplayHistory:
 
         child = NoReplayChild()
         # Should not raise
-        MultiUI([child])._replay_history(["m1"])
+        MultiUI([child]).replay_history(["m1"])
 
     def test_replay_history_swallows_child_errors(self):
         """A child raising must not break the broadcast to other children."""

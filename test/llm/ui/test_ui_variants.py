@@ -227,7 +227,7 @@ class TestEventDrivenUI:
                 pass
 
         ui = TestEventUI(**event_ui_deps)
-        ui._llm_task = MagicMock()
+        ui.llm_task = MagicMock()
 
         # Verify handle_incoming_message exists and is callable
         assert hasattr(ui, "handle_incoming_message")
@@ -310,7 +310,7 @@ class TestPollingUI:
             pass
 
         ui = TestPollingUI(**polling_ui_deps)
-        ui._llm_task = MagicMock()
+        ui.llm_task = MagicMock()
 
         # Verify handle_incoming_message exists and is callable
         assert hasattr(ui, "handle_incoming_message")
@@ -434,8 +434,6 @@ class TestBufferedOutputMixin:
     @pytest.mark.asyncio
     async def test_start_flush_loop_creates_task(self):
         """Test start_flush_loop creates a flush task."""
-        import asyncio
-
         from zrb.llm.ui import BufferedOutputMixin
 
         class TestBuffered(BufferedOutputMixin):
@@ -450,9 +448,5 @@ class TestBufferedOutputMixin:
         # Use public property
         assert buffered.has_flush_task
 
-        # Clean up - use internal for cancellation (test cleanup is OK)
-        buffered._flush_task.cancel()
-        try:
-            await buffered._flush_task
-        except asyncio.CancelledError:
-            pass
+        # Clean up via the public method
+        await buffered.stop_flush_loop()

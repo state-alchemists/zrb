@@ -241,15 +241,15 @@ def test_run_kwarg_without_value_becomes_true_flag():
 def test_get_run_command_param_quotes_strings_with_spaces():
     """Values containing whitespace or quotes get double-quoted in the rerun hint."""
     cli = Cli()
-    out = cli._get_run_command_param("msg", "hello world")
+    out = cli.get_run_command_param("msg", "hello world")
     assert out == '--msg "hello world"'
 
     # Already-quoted values get re-wrapped consistently
-    out2 = cli._get_run_command_param("msg", "")
+    out2 = cli.get_run_command_param("msg", "")
     assert out2 == '--msg ""'
 
     # Plain values don't get quoted
-    out3 = cli._get_run_command_param("flag", "true")
+    out3 = cli.get_run_command_param("flag", "true")
     assert out3 == "--flag true"
 
 
@@ -346,4 +346,4 @@ def test_conversation_name_swallows_lookup_error():
     session = MagicMock()
     session.shared_ctx.xcom.get.side_effect = AttributeError("no xcom")
     # Should not raise despite the lookup blowing up.
-    cli._print_conversation_name(MagicMock(), session)
+    cli.print_conversation_name(MagicMock(), session)

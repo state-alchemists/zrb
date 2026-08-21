@@ -519,13 +519,13 @@ class TestHookManagerHookTypes:
             # Async command hooks are dispatched fire-and-forget on the running
             # loop: a task is spawned and no result is collected (they cannot
             # block or contribute context).
-            assert len(manager._background_tasks) == 1
+            assert len(manager.background_tasks) == 1
             assert results == []
             # Clean up: cancel the background task so it doesn't leak
-            for task in manager._background_tasks:
+            for task in manager.background_tasks:
                 task.cancel()
-            if manager._background_tasks:
-                await asyncio.gather(*manager._background_tasks, return_exceptions=True)
+            if manager.background_tasks:
+                await asyncio.gather(*manager.background_tasks, return_exceptions=True)
 
     @pytest.mark.asyncio
     async def test_prompt_hook(self, manager, tmp_path):

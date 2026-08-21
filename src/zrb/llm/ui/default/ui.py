@@ -8,19 +8,19 @@ from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
-from zrb.llm.app.keybinding import create_output_keybindings
-from zrb.llm.app.layout import create_input_field, create_layout, create_output_field
-from zrb.llm.app.redirection import GlobalStreamCapture
-from zrb.llm.app.style import create_style
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
-from zrb.llm.tool_call import (
-    ArgumentFormatter,
-    ResponseHandler,
-    ToolPolicy,
-)
+from zrb.llm.tool_call import ArgumentFormatter, ResponseHandler, ToolPolicy
 from zrb.llm.ui.base.ui import BaseUI
 from zrb.llm.ui.default.agent_picker import UIAgentPicker
+from zrb.llm.ui.default.app.keybinding import create_output_keybindings
+from zrb.llm.ui.default.app.layout import (
+    create_input_field,
+    create_layout,
+    create_output_field,
+)
+from zrb.llm.ui.default.app.redirection import GlobalStreamCapture
+from zrb.llm.ui.default.app.style import create_style
 from zrb.llm.ui.default.confirmation import UIConfirmation
 from zrb.llm.ui.default.keybindings import UIKeybindings
 from zrb.llm.ui.default.lifecycle import UILifecycle
@@ -181,9 +181,9 @@ class UI(BaseUI):
             custom_model_names=custom_model_names,
             show_ollama_models=show_ollama_models,
             show_pydantic_ai_models=show_pydantic_ai_models,
-            up_arrow_handler=self._handle_up_arrow,
-            down_arrow_handler=self._handle_down_arrow,
-            recall_active=self._recall_navigation_active,
+            up_arrow_handler=self.handle_up_arrow,
+            down_arrow_handler=self.handle_down_arrow,
+            recall_active=self.recall_navigation_active,
         )
 
         custom_output_kb = create_output_keybindings(self._input_field)
@@ -201,11 +201,11 @@ class UI(BaseUI):
         self.append_to_output("")
 
         # AskUserQuestion selection widget (hidden until a choice is active).
-        self._selection._init_selection_state()
+        self._selection.init_selection_state()
         choice_float = self._create_choice_float()
 
         # Sub-agent picker + live view (hidden until Down Arrow opens it).
-        self._agent_picker._init_agent_picker_state()
+        self._agent_picker.init_agent_picker_state()
         agent_picker_float = self._create_agent_picker_float()
 
         self._layout = create_layout(
@@ -235,7 +235,7 @@ class UI(BaseUI):
         self._application.after_render.add_handler(self._on_render)
 
         if self._initial_message:
-            self._application.after_render.add_handler(self._on_first_render)
+            self._application.after_render.add_handler(self.on_first_render)
 
     def _on_render(self, app: "Application") -> None:
         try:
@@ -274,6 +274,52 @@ class UI(BaseUI):
     def application(self) -> "Application":
         return self._application
 
+    @property
+    def capture(self) -> GlobalStreamCapture:
+        """The stdout/stderr capture guarding the terminal while the app runs."""
+        return self._capture
+
+    @property
+    def refresh_task(self) -> "asyncio.Task | None":
+        """The task running the periodic repaint loop, if started."""
+        return self._refresh_task
+
+    @refresh_task.setter
+    def refresh_task(self, value: "asyncio.Task | None") -> None:
+        self._refresh_task = value
+
+    @property
+    def rendered_blocks(self) -> "list[list]":
+        """[start, end, source, renderer] per width-dependent rendered block."""
+        return self._rendered_blocks
+
+    @property
+    def rendered_width(self) -> "int | None":
+        """The output width the tracked rendered blocks were last wrapped at."""
+        return self._rendered_width
+
+    @rendered_width.setter
+    def rendered_width(self, value: "int | None") -> None:
+        self._rendered_width = value
+
+    @property
+    def pending_invalidate(self) -> bool:
+        """Whether a debounced repaint is already scheduled."""
+        return self._pending_invalidate
+
+    @pending_invalidate.setter
+    def pending_invalidate(self, value: bool) -> None:
+        self._pending_invalidate = value
+
+    @property
+    def invalidate_task(self) -> "asyncio.Task | None":
+        """The task running the debounced repaint, if scheduled."""
+        return self._invalidate_task
+
+    @invalidate_task.setter
+    def invalidate_task(self, value: "asyncio.Task | None") -> None:
+        self._invalidate_task = value
+
     def _create_choice_float(self):
         """Float hosting the AskUserQuestion widget, shown only when active."""
         # lazy: heavy third-party
@@ -305,7 +351,7 @@ class UI(BaseUI):
         from prompt_toolkit.widgets import Frame
 
         framed = Frame(
-            self._agent_picker._agent_picker_window,
+            self._agent_picker.agent_picker_window,
             title="Talk to a sub-agent",
             style="class:agent-picker-frame",
         )
@@ -390,8 +436,8 @@ class UI(BaseUI):
     def handle_first_render(self) -> None:
         self._lifecycle.handle_first_render()
 
-    def _on_first_render(self, app: "Application") -> None:
-        self._lifecycle._on_first_render(app)
+    def on_first_render(self, app: "Application") -> None:
+        self._lifecycle.on_first_render(app)
 
     def invalidate_ui(self) -> None:
         self._lifecycle.invalidate_ui()
@@ -414,25 +460,9 @@ class UI(BaseUI):
     def saved_main_output(self) -> str | None:
         return self._agent_picker.saved_main_output
 
-    # Private forwarders: `UIOutput`/`UIKeybindings`/`UIConfirmation` read (and,
-    # for `_saved_main_output`, write) this state on the UI — it actually
-    # lives on the composed `UIAgentPicker`, so these route the cross-part
-    # access through it rather than shadowing a stray same-named attribute.
-    @property
-    def _viewing_agent_id(self) -> str | None:
-        return self._agent_picker._viewing_agent_id
-
-    @_viewing_agent_id.setter
-    def _viewing_agent_id(self, value: str | None) -> None:
-        self._agent_picker._viewing_agent_id = value
-
-    @property
-    def _saved_main_output(self) -> str | None:
-        return self._agent_picker._saved_main_output
-
-    @_saved_main_output.setter
-    def _saved_main_output(self, value: str | None) -> None:
-        self._agent_picker._saved_main_output = value
+    @saved_main_output.setter
+    def saved_main_output(self, value: str | None) -> None:
+        self._agent_picker.saved_main_output = value
 
     def open_agent_picker(self) -> bool:
         return self._agent_picker.open_agent_picker()
@@ -466,43 +496,37 @@ class UI(BaseUI):
     def queued_edit_entry(self) -> Any:
         return self._message_editing.queued_edit_entry
 
-    def _handle_up_arrow(self, event: Any) -> bool:
-        return self._message_editing._handle_up_arrow(event)
+    def handle_up_arrow(self, event: Any) -> bool:
+        return self._message_editing.handle_up_arrow(event)
 
-    def _handle_down_arrow(self, event: Any) -> bool:
-        return self._message_editing._handle_down_arrow(event)
+    def handle_down_arrow(self, event: Any) -> bool:
+        return self._message_editing.handle_down_arrow(event)
 
-    def _recall_navigation_active(self) -> bool:
-        return self._message_editing._recall_navigation_active()
+    def recall_navigation_active(self) -> bool:
+        return self._message_editing.recall_navigation_active()
 
-    def _handle_enter_queued_edit(self, event: Any) -> bool:
-        return self._message_editing._handle_enter_queued_edit(event)
+    def handle_enter_queued_edit(self, event: Any) -> bool:
+        return self._message_editing.handle_enter_queued_edit(event)
 
     def _track_echo_span(self, entry: Any, echo: str) -> None:
-        self._message_editing._track_echo_span(entry, echo)
+        """Override hook `BaseUI` invokes polymorphically (see its base no-op)."""
+        self._message_editing.track_echo_span(entry, echo)
 
     def _redraw_echo(self, entry: Any) -> None:
-        self._message_editing._redraw_echo(entry)
+        """Override hook `BaseUI` invokes polymorphically (see its base no-op)."""
+        self._message_editing.redraw_echo(entry)
 
     # =========================================================================
     # UIOutput delegators
     # =========================================================================
+    # `is_thinking`/`current_confirmation` are not redeclared here: `UI` is a
+    # genuine `BaseUI` subclass (is-a, not composed), and `BaseUI` already
+    # owns that state and exposes it correctly — inheriting it is enough.
 
     @property
-    def is_thinking(self) -> bool:
-        return self._output.is_thinking
-
-    @is_thinking.setter
-    def is_thinking(self, value: bool) -> None:
-        self._output.is_thinking = value
-
-    @property
-    def current_confirmation(self) -> "asyncio.Future[str] | None":
-        return self._output.current_confirmation
-
-    @current_confirmation.setter
-    def current_confirmation(self, value: "asyncio.Future[str] | None") -> None:
-        self._output.current_confirmation = value
+    def output_part(self) -> "UIOutput":
+        """The composed `UIOutput` part (public seam for tests)."""
+        return self._output
 
     @property
     def output_text(self) -> str:
@@ -510,11 +534,13 @@ class UI(BaseUI):
 
     @property
     def output_field(self) -> Any:
-        return self._output.output_field
+        """The prompt-toolkit output-field widget (own field, TUI-specific)."""
+        return self._output_field
 
     @property
     def input_field(self) -> Any:
-        return self._output.input_field
+        """The prompt-toolkit input-field widget (own field, TUI-specific)."""
+        return self._input_field
 
     def append_to_output(
         self,
@@ -546,8 +572,8 @@ class UI(BaseUI):
     def replace_output_span(self, start: int, end: int, replacement: str) -> bool:
         return self._output.replace_output_span(start, end, replacement)
 
-    def _set_output_text(self, text: str) -> None:
-        self._output._set_output_text(text)
+    def set_output_text(self, text: str) -> None:
+        self._output.set_output_text(text)
 
     @property
     def output_field_width(self) -> int | None:
@@ -561,6 +587,9 @@ class UI(BaseUI):
 
     def get_status_bar_text(self) -> Any:
         return self._output.get_status_bar_text()
+
+    def schedule_invalidate(self) -> None:
+        self._output.schedule_invalidate()
 
     # =========================================================================
     # UIConfirmation delegators
@@ -580,26 +609,23 @@ class UI(BaseUI):
     def submit_user_answer(self, text: str) -> bool:
         return self._confirmation.submit_user_answer(text)
 
-    def cancel_pending_confirmations(self) -> None:
-        self._confirmation.cancel_pending_confirmations()
+    def cancel_pending_confirmations(self, flush: bool = True) -> None:
+        self._confirmation.cancel_pending_confirmations(flush=flush)
 
-    def _cancel_pending_confirmations(self, flush: bool = True) -> None:
-        self._confirmation._cancel_pending_confirmations(flush=flush)
+    def resolve_current(self, text: str, echo: str | None) -> bool:
+        return self._confirmation.resolve_current(text, echo)
 
-    def _resolve_current(self, text: str, echo: str | None) -> bool:
-        return self._confirmation._resolve_current(text, echo)
+    def begin_choice(self, spec: Any) -> None:
+        self._selection.begin_choice(spec)
 
-    def _begin_choice(self, spec: Any) -> None:
-        self._selection._begin_choice(spec)
+    def end_choice(self) -> None:
+        self._selection.end_choice()
 
-    def _end_choice(self) -> None:
-        self._selection._end_choice()
-
-    def _handle_confirmation(self, event: Any) -> bool:
+    def handle_confirmation(self, event: Any) -> bool:
         # `UISelection` is the front: it handles the pending-free-text case
         # and falls through to `UIConfirmation`'s base case otherwise —
         # mirroring the old MRO where `UISelection` preceded `UIConfirmation`.
-        return self._selection._handle_confirmation(event)
+        return self._selection.handle_confirmation(event)
 
     # =========================================================================
     # UISelection delegators

@@ -195,7 +195,7 @@ async def test_gather_fail_fast_stays_bounded_when_a_child_shields_its_cleanup(
     # children and then waits for them, so a child that shields its cleanup held
     # the cancellation pending and CFG.TASK_READINESS_TIMEOUT overshot by however
     # long that child took.
-    monkeypatch.setattr("zrb.util.run._CANCEL_SETTLE_TIMEOUT", 0.2)
+    monkeypatch.setattr("zrb.util.run.CANCEL_SETTLE_TIMEOUT", 0.2)
 
     async def shielded():
         try:

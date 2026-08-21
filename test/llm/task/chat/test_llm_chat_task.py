@@ -116,9 +116,9 @@ async def test_interactive_teardown_fires_terminal_session_end():
     manager.register(record, events=[HookEvent.SESSION_END])
 
     task = LLMChatTask(name="teardown-task")
-    task._active_hook_manager = manager
+    task.active_hook_manager = manager
 
-    await task._teardown_interactive_resources()
+    await task.teardown_interactive_resources()
 
     assert fired == ["SessionEnd"]
 
@@ -150,9 +150,9 @@ async def test_interactive_teardown_shuts_down_the_session_hook_manager():
     assert manager.has_pending_background_hooks
 
     task = LLMChatTask(name="teardown-task-bg")
-    task._active_hook_manager = manager
+    task.active_hook_manager = manager
 
-    await task._teardown_interactive_resources()
+    await task.teardown_interactive_resources()
 
     assert not manager.has_pending_background_hooks
 
@@ -162,8 +162,8 @@ async def test_interactive_teardown_without_hook_manager_is_safe():
     """Teardown must not raise when no hook manager was set (e.g. session never
     reached _create_llm_task_core)."""
     task = LLMChatTask(name="teardown-task-none")
-    # _active_hook_manager defaults to None; teardown should be a no-op.
-    await task._teardown_interactive_resources()
+    # active_hook_manager defaults to None; teardown should be a no-op.
+    await task.teardown_interactive_resources()
 
 
 @pytest.mark.asyncio
@@ -345,7 +345,7 @@ def test_llm_chat_task_model_getter_via_config():
     config = LLMConfig()
     config.model_getter = getter
     task = LLMChatTask(name="test-task", llm_config=config)
-    assert task._llm_config.model_getter is getter
+    assert task.llm_config.model_getter is getter
 
 
 def test_llm_chat_task_model_renderer_via_config():
@@ -355,7 +355,7 @@ def test_llm_chat_task_model_renderer_via_config():
     config = LLMConfig()
     config.model_renderer = renderer
     task = LLMChatTask(name="test-task", llm_config=config)
-    assert task._llm_config.model_renderer is renderer
+    assert task.llm_config.model_renderer is renderer
 
 
 def test_llm_chat_task_custom_model_names_none_by_default():

@@ -4,7 +4,6 @@ from pydantic import BaseModel, ConfigDict
 
 from zrb.group.any_group import AnyGroup
 from zrb.task.any_task import AnyTask
-from zrb.util.group import get_all_subtasks
 
 
 class User(BaseModel):
@@ -31,7 +30,7 @@ class User(BaseModel):
         """
         if self.is_super_admin:
             return True
-        all_tasks = get_all_subtasks(group, web_only=True)
+        all_tasks = group.get_all_subtasks(web_only=True)
         if any(self.can_access_task(task) for task in all_tasks):
             return True
         return False
