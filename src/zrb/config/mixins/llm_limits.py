@@ -20,6 +20,11 @@ class LLMLimitsMixin:
         # and would have kept going. 300 leaves ~4x headroom over real work and
         # still cuts the loop well before a wall-clock timeout does.
         self.DEFAULT_LLM_MAX_REQUEST_PER_RUN: str = "300"
+        # Mirrors LLM_MAX_AGENTS_IN_ROSTER's default: 10 concurrent sub-agent
+        # runs is generous for real fan-out (each is its own LLM run against
+        # the shared rate limiter, and possibly its own git worktree) while
+        # still bounding a model that requests an unreasonably large batch.
+        self.DEFAULT_LLM_MAX_PARALLEL_DELEGATIONS: str = "10"
         self.DEFAULT_LLM_MAX_CONTEXT_RETRIES: str = "5"
         self.DEFAULT_LLM_TOOL_MAX_RETRIES: str = "3"
         self.DEFAULT_LLM_MCP_MAX_RETRIES: str = "3"
@@ -93,6 +98,17 @@ class LLMLimitsMixin:
             "edit it has already tried, or re-reading output it has already "
             "seen — which the prompt tells the model to stop doing but nothing "
             "could enforce. 0 or negative disables the cap."
+        ),
+    )
+
+    LLM_MAX_PARALLEL_DELEGATIONS = EnvField(
+        int,
+        doc=(
+            "Maximum sub-agent tasks DelegateToAgent's fan-out (`tasks=[...]`) "
+            "runs concurrently in one call. Each concurrent task is its own LLM "
+            "run against the shared rate limiter and, if isolate_worktree is "
+            "set, its own git worktree — unbounded fan-out lets one call "
+            "multiply both unboundedly. 0 or negative disables the cap."
         ),
     )
 

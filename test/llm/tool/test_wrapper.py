@@ -13,8 +13,8 @@ async def test_tool_safe_async_callable_hint():
         raise ValueError("Oops")
 
     res = await failing_tool("mytool")
-    assert "Error in failing_tool: Oops" in res
-    assert "[SYSTEM SUGGESTION]: Check mytool" in res
+    assert "Error in failing_tool: Oops" in res.return_value
+    assert "[SYSTEM SUGGESTION]: Check mytool" in res.return_value
 
 
 @pytest.mark.asyncio
@@ -27,9 +27,9 @@ async def test_tool_safe_async_callable_hint_exception():
         raise ValueError("Oops")
 
     res = await failing_tool("mytool")
-    assert "Error in failing_tool: Oops" in res
+    assert "Error in failing_tool: Oops" in res.return_value
     # Should not include hint if factory failed
-    assert "[SYSTEM SUGGESTION]" not in res
+    assert "[SYSTEM SUGGESTION]" not in res.return_value
 
 
 @pytest.mark.asyncio
@@ -39,7 +39,7 @@ async def test_tool_safe_async_empty_error_message():
         raise ValueError("")
 
     res = await failing_tool()
-    assert "Error in failing_tool: ValueError" in res
+    assert "Error in failing_tool: ValueError" in res.return_value
 
 
 @pytest.mark.asyncio
@@ -49,4 +49,20 @@ async def test_tool_safe_async_no_args():
         raise ValueError("Fail")
 
     res = await failing_tool()
-    assert "Error" in res
+    assert "Error" in res.return_value
+
+
+@pytest.mark.asyncio
+async def test_tool_safe_async_tags_error_metadata():
+    """The caught exception's ToolReturn carries error=True, matching the
+    same metadata convention create_safe_wrapper uses for every other tool's
+    exception path (agent/common.py) — so a structured consumer can tell this
+    apart from a normal success without string-sniffing.
+    """
+
+    @tool_safe_async
+    async def failing_tool():
+        raise ValueError("Oops")
+
+    res = await failing_tool()
+    assert res.metadata.get("error") is True

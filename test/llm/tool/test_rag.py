@@ -1,5 +1,6 @@
 """Tests for RAG tool implementation."""
 
+import asyncio
 import inspect
 from unittest.mock import MagicMock, patch
 
@@ -664,6 +665,62 @@ class TestRAGFactory:
 
         assert "error" in result
         assert "Failed to search documents" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_retrieve_offloads_blocking_calls_to_a_thread(self, tmp_path):
+        # H-3: ChromaDB/OpenAI calls must not run inline on the event loop —
+        # confirm retrieve() actually routes its blocking segments through
+        # asyncio.to_thread rather than calling them directly.
+        doc_dir = tmp_path / "docs"
+        doc_dir.mkdir()
+        (doc_dir / "test.txt").write_text("knowledge content")
+        db_dir = tmp_path / "chroma"
+        db_dir.mkdir()
+
+        retrieve = create_rag_from_directory(
+            tool_name="MyRAG",
+            tool_description="desc",
+            document_dir_path=str(doc_dir),
+            vector_db_path=str(db_dir),
+        )
+
+        mock_chroma = MagicMock()
+        mock_chroma_config = MagicMock()
+        mock_openai = MagicMock()
+        with patch.dict(
+            "sys.modules",
+            {
+                "chromadb": mock_chroma,
+                "chromadb.config": mock_chroma_config,
+                "openai": mock_openai,
+            },
+        ):
+            with patch("zrb.llm.tool.rag.CFG") as mock_cfg:
+                mock_cfg.RAG_CHUNK_SIZE = 100
+                mock_cfg.RAG_OVERLAP = 0
+                mock_cfg.RAG_MAX_RESULT_COUNT = 5
+                mock_cfg.RAG_EMBEDDING_API_KEY = "dummy"
+                mock_cfg.RAG_EMBEDDING_MODEL = "model"
+                mock_cfg.RAG_EMBEDDING_BASE_URL = None
+                mock_collection = MagicMock()
+                mock_chroma.PersistentClient.return_value.get_or_create_collection.return_value = (
+                    mock_collection
+                )
+                mock_openai_inst = mock_openai.OpenAI.return_value
+                mock_openai_inst.embeddings.create.return_value = MagicMock(
+                    data=[MagicMock(embedding=[0.1, 0.2])]
+                )
+                mock_collection.query.return_value = {"ids": [["id1"]]}
+
+                with patch(
+                    "zrb.llm.tool.rag.asyncio.to_thread",
+                    wraps=asyncio.to_thread,
+                ) as mock_to_thread:
+                    result = await retrieve(query="q")
+
+        assert "ids" in result
+        # _load_or_reindex, _embed_query, _query_collection — one call each.
+        assert mock_to_thread.call_count == 3
 
     @pytest.mark.asyncio
     async def test_retrieve_error_missing_key(self, tmp_path):

@@ -132,10 +132,10 @@ async def analyze_code(
             abs_path, extensions, include_patterns, exclude_patterns
         )
 
-    # Shutdown LSP servers to free resources
-    if use_lsp:
-        await lsp_manager.shutdown_all()
-
+    # LSP servers are left running: lsp_manager is a global singleton shared
+    # with post_write_check.py, so tearing it down here would force every
+    # other caller's next LSP query to cold-start a server. Session-end
+    # teardown (task/chat/execution.py) already handles cleanup.
     if not file_metadatas:
         return "No files found matching the criteria. [SYSTEM SUGGESTION]: Try using a different file_pattern or check if the directory contains code files."
 

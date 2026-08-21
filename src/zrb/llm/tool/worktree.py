@@ -4,12 +4,21 @@ from contextvars import ContextVar
 from datetime import datetime
 
 from zrb.config.config import CFG
-from zrb.llm.tool.wrapper import tool_safe_async
 
 active_worktree: ContextVar[str] = ContextVar("zrb_active_worktree", default="")
 
 
-@tool_safe_async
+# No @tool_safe_async here (unlike plan_mode.py/ask.py): every expected
+# failure mode below already returns its own explicit error string, so the
+# decorator only ever caught genuinely unexpected exceptions. delegate.py
+# calls these three functions directly, in-process (bypassing the
+# tool-dispatch layer entirely) and expects a plain str; leaving an
+# unexpected exception to propagate instead means: as a registered tool it
+# reaches create_safe_wrapper's own exception handling (agent/common.py),
+# which already produces the same error=True-tagged result; as a direct
+# in-process call it's caught by delegate.py's
+# `asyncio.gather(..., return_exceptions=True)`, which already has a branch
+# for exactly this. Either path is correctly handled without this decorator.
 async def enter_worktree(branch_name: str = "", cwd: str = "") -> str:
     """
     Creates an isolated git worktree on a new branch and returns its path.
@@ -72,15 +81,14 @@ async def enter_worktree(branch_name: str = "", cwd: str = "") -> str:
     return f"Worktree created: {worktree_path}\nBranch: {branch_name}"
 
 
-@tool_safe_async
 async def exit_worktree(worktree_path: str, keep_branch: bool = False) -> str:
     """
     Removes a worktree created with EnterWorktree. keep_branch=False (default) also
     runs `git branch -D` — the branch and all its commits are gone, irreversibly.
 
-    That deletion is an approval-gated action (see the Git Rules): confirm with the
-    user before discarding a branch that holds commits, and pass keep_branch=True
-    when unsure. Removing a worktree you created and left empty needs no approval.
+    Confirm with the user before discarding a branch that holds commits, and pass
+    keep_branch=True when unsure. Removing a worktree you created and left empty
+    needs no confirmation.
     """
     cwd = os.getcwd()
 
@@ -147,7 +155,6 @@ async def exit_worktree(worktree_path: str, keep_branch: bool = False) -> str:
     return "\n".join(lines)
 
 
-@tool_safe_async
 async def list_worktrees() -> str:
     """
     Lists all active git worktrees for the current repository (path, branch, commit).

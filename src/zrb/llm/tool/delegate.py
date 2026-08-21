@@ -513,8 +513,14 @@ async def _run_parallel(
 
     parent_ui = get_current_ui() or StdUI()
     ui_lock = asyncio.Lock()
+    # Bounds how many sub-agent runs (each its own LLM call against the shared
+    # rate limiter, and possibly its own git worktree) launch at once — a
+    # model-requested `tasks` list has no other size limit. 0/negative
+    # disables the cap, matching LLM_MAX_REQUEST_PER_RUN's convention.
+    _max_parallel = CFG.LLM_MAX_PARALLEL_DELEGATIONS
+    _fan_out_semaphore = asyncio.Semaphore(_max_parallel) if _max_parallel > 0 else None
 
-    async def run_single_agent(task_spec: dict[str, Any]) -> AgentTaskResult:
+    async def _run_single_agent_inner(task_spec: dict[str, Any]) -> AgentTaskResult:
         agent_name = task_spec.get("agent_name", "")
         deliverable = task_spec.get("deliverable", "")
         task = task_spec.get("task", "")
@@ -596,6 +602,12 @@ async def _run_parallel(
             result.result,
             result.error,
         )
+
+    async def run_single_agent(task_spec: dict[str, Any]) -> AgentTaskResult:
+        if _fan_out_semaphore is None:
+            return await _run_single_agent_inner(task_spec)
+        async with _fan_out_semaphore:
+            return await _run_single_agent_inner(task_spec)
 
     # return_exceptions=True is defense in depth, not the primary fix: cleanup
     # failures are already caught above so they surface as a result note, not

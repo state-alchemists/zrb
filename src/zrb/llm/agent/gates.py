@@ -65,8 +65,19 @@ def sandbox_gate(tool_name: str, capability: Any, args: dict[str, Any]) -> Any:
     # permission layer's _SALIENT_ARG_KEYS). Reads check every path-like arg;
     # writes additionally check them for EDIT/UNKNOWN tools ("src" is write-checked
     # because move_file deletes it; "dst" because it gets overwritten).
+    # "worktree_path" is write-only (exit_worktree removes it) and only ever
+    # matches ExitWorktree — EnterWorktree computes its destination internally,
+    # never as a caller-supplied arg, so it can't be gated this way.
     _SANDBOX_READ_KEYS = ("path", "file_path", "file", "filename", "src")
-    _SANDBOX_WRITE_KEYS = ("path", "file_path", "file", "filename", "src", "dst")
+    _SANDBOX_WRITE_KEYS = (
+        "path",
+        "file_path",
+        "file",
+        "filename",
+        "src",
+        "dst",
+        "worktree_path",
+    )
 
     policy = get_effective_sandbox_policy()
     if not policy.enabled:

@@ -205,6 +205,29 @@ async def test_gate_blocks_escape_when_disallowed(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_gate_checks_exit_worktree_path(tmp_path):
+    """ExitWorktree's `worktree_path` arg is write-checked, closing the C-1
+    gap: it used to appear in neither the sandbox nor permission salient-key
+    lists, so a sandbox policy could never gate its deletion target.
+    """
+    from zrb.llm.agent.common import create_safe_wrapper
+
+    def exit_worktree(worktree_path: str = "", keep_branch: bool = False):
+        return "removed"
+
+    tag(exit_worktree, Capability.EDIT)
+    wrapped = create_safe_wrapper(exit_worktree)
+
+    token = current_sandbox_policy.set(_enabled_policy(tmp_path))
+    try:
+        result = await wrapped(worktree_path=_outside_path())
+    finally:
+        current_sandbox_policy.reset(token)
+
+    assert result.metadata.get("blocked") is True
+
+
+@pytest.mark.asyncio
 async def test_gate_move_checks_src_and_dst(tmp_path):
     from zrb.llm.agent.common import create_safe_wrapper
 

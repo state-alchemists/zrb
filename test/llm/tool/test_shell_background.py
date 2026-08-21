@@ -5,10 +5,13 @@ Background processes are launched through the ``Shell`` tool with
 """
 
 import asyncio
+import os
+import re
 
 import pytest
 import pytest_asyncio
 
+from zrb.config.config import CFG
 from zrb.llm.permission import Capability, tool_capability
 from zrb.llm.tool.shell import run_shell_command
 from zrb.llm.tool.shell_background import (
@@ -106,6 +109,96 @@ async def test_cancel_all_clears(tmp_path):
     monitor = create_monitor_process_tool()
     result = await monitor(handle)
     assert "Unknown handle" in result
+
+
+def _extract_spill_path(poll_result: str, stream: str) -> str | None:
+    """Pull the path out of a "full {stream} saved to <path>" message.
+
+    ``rstrip(".")`` because the sentence's own trailing period sits right
+    against the path with no separating whitespace.
+    """
+    match = re.search(rf"full {stream} saved to (\S+)", poll_result)
+    if match is None:
+        return None
+    return match.group(1).rstrip(".")
+
+
+@pytest.mark.asyncio
+async def test_poll_truncates_large_output_and_reports_recoverable_path(
+    tmp_path, monkeypatch
+):
+    # H-2: a background process's output is now bounded — but the elided
+    # head must stay recoverable via a spill file, not just dropped.
+    monkeypatch.setattr(CFG, "LLM_MAX_OUTPUT_CHARS", 20)
+    handle = await _start_bg(
+        "head -c 500 /dev/zero | tr '\\0' 'A'", "flood", str(tmp_path)
+    )
+    monitor = create_monitor_process_tool()
+    result = await monitor(handle, wait=5)
+
+    assert "[SYSTEM SUGGESTION]" in result
+    spill_path = _extract_spill_path(result, "stdout")
+    assert spill_path is not None
+
+    with open(spill_path, "r", encoding="utf-8") as f:
+        full_output = f.read()
+    assert full_output.count("A") == 500
+
+
+@pytest.mark.asyncio
+async def test_poll_reuses_same_spill_path_across_polls(tmp_path, monkeypatch):
+    # Regression guard: a naive per-poll dump (mirroring shell.py's
+    # foreground _dump_full_output) would leak a new temp file every call.
+    monkeypatch.setattr(CFG, "LLM_MAX_OUTPUT_CHARS", 10)
+    command = (
+        "for i in 1 2 3; do head -c 50 /dev/zero | tr '\\0' 'X'; echo; sleep 0.3; done"
+    )
+    handle = await _start_bg(command, "chunked", str(tmp_path))
+    registry = get_shell_background_registry()
+
+    try:
+        await asyncio.sleep(0.4)
+        first = registry.poll(handle)
+        first_path = _extract_spill_path(first, "stdout")
+        assert first_path is not None
+
+        await asyncio.sleep(0.4)
+        second = registry.poll(handle)
+        second_path = _extract_spill_path(second, "stdout")
+
+        assert second_path == first_path
+    finally:
+        await registry.cancel_all()
+
+
+@pytest.mark.asyncio
+async def test_spill_file_survives_after_handle_consumed(tmp_path, monkeypatch):
+    monkeypatch.setattr(CFG, "LLM_MAX_OUTPUT_CHARS", 10)
+    handle = await _start_bg(
+        "echo 'this line is definitely longer than the tiny cap'",
+        "flood",
+        str(tmp_path),
+    )
+    monitor = create_monitor_process_tool()
+    result = await monitor(handle, wait=5)
+
+    assert "consumed" in result
+    spill_path = _extract_spill_path(result, "stdout")
+    assert spill_path is not None
+    assert os.path.exists(spill_path)
+
+    # The handle was consumed by the poll above (release uses close(), never
+    # discard()) — a further poll must still report it as unknown, unchanged.
+    result2 = await monitor(handle)
+    assert "Unknown handle" in result2
+
+
+@pytest.mark.asyncio
+async def test_small_output_is_not_flagged_truncated(tmp_path):
+    handle = await _start_bg("echo hello", "greeting", str(tmp_path))
+    monitor = create_monitor_process_tool()
+    result = await monitor(handle, wait=5)
+    assert "[SYSTEM SUGGESTION]" not in result
 
 
 def _reader_task_count() -> int:

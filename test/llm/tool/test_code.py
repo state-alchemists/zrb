@@ -92,6 +92,38 @@ async def test_analyze_code_with_lsp(temp_code_dir):
 
 
 @pytest.mark.asyncio
+async def test_analyze_code_does_not_shutdown_global_lsp_manager(temp_code_dir):
+    """H-5: analyze_code must not tear down every LSP server process-wide —
+    lsp_manager is a global singleton shared with post_write_check.py, and a
+    global shutdown forced that unrelated caller to cold-start a server.
+    """
+    with (
+        patch("zrb.llm.tool.code.run_agent", new_callable=AsyncMock) as mock_run,
+        patch(
+            "zrb.llm.lsp.manager.lsp_manager.list_available_servers",
+            return_value={"python": "pylsp"},
+        ),
+        patch(
+            "zrb.llm.lsp.manager.lsp_manager.get_document_symbols",
+            new_callable=AsyncMock,
+        ) as mock_sym,
+        patch(
+            "zrb.llm.lsp.manager.lsp_manager.get_diagnostics", new_callable=AsyncMock
+        ) as mock_diag,
+        patch(
+            "zrb.llm.lsp.manager.lsp_manager.shutdown_all", new_callable=AsyncMock
+        ) as mock_shutdown_all,
+    ):
+        mock_run.return_value = ("LSP Analysis result", [])
+        mock_sym.return_value = {"found": False}
+        mock_diag.return_value = {"found": False}
+
+        await analyze_code(temp_code_dir, "What symbols are there?", use_lsp=True)
+
+        mock_shutdown_all.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_analyze_code_multi_chunk(temp_code_dir):
     from unittest.mock import AsyncMock, patch
 

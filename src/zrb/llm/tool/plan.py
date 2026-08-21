@@ -88,8 +88,10 @@ class TodoManager:
         )
 
         new_todos = []
+        used_ids: set[str] = set()
         for i, todo in enumerate(todos):
-            todo_id = todo.get("id") or str(i + 1)
+            todo_id = todo.get("id") or self._next_auto_id(i, existing_todos, used_ids)
+            used_ids.add(todo_id)
             new_todos.append(
                 self._build_todo_entry(todo, todo_id, existing_todos, replace, now)
             )
@@ -166,6 +168,20 @@ class TodoManager:
             "pending": sum(1 for t in new_todos if t["status"] == "pending"),
             "cancelled": sum(1 for t in new_todos if t["status"] == "cancelled"),
         }
+
+    @staticmethod
+    def _next_auto_id(
+        index: int, existing: dict[str, dict[str, Any]], used: set[str]
+    ) -> str:
+        """Smallest id from `index + 1` upward that collides with neither
+        `existing` (the session's already-persisted todos) nor `used` (ids
+        already assigned earlier in this same call) — so an unlabeled new
+        item never silently merges into an unrelated existing one.
+        """
+        candidate = index + 1
+        while str(candidate) in existing or str(candidate) in used:
+            candidate += 1
+        return str(candidate)
 
     @staticmethod
     def _build_todo_entry(

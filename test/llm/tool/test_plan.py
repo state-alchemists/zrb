@@ -146,6 +146,32 @@ class TestTodoManager:
         assert result["in_progress"] == 1
         assert result["cancelled"] == 1
 
+    def test_merge_auto_id_does_not_collide_with_existing(self, tmp_path):
+        """An unlabeled new item must never silently merge into an unrelated,
+        already-completed item just because its auto-assigned index-based id
+        happens to match an existing one.
+        """
+        manager = TodoManager()
+        manager.todo_dir = tmp_path
+        manager.todos = {}
+
+        manager.write_todos(
+            "test_session", [{"id": "1", "content": "Old task", "status": "completed"}]
+        )
+
+        # No explicit id: today's index-based auto-id would also be "1",
+        # colliding with the already-completed item above.
+        result = manager.write_todos(
+            "test_session", [{"content": "New task"}], replace=False
+        )
+
+        assert result["total"] == 2
+        old_task = next(t for t in result["todos"] if t["content"] == "Old task")
+        new_task = next(t for t in result["todos"] if t["content"] == "New task")
+        assert old_task["id"] != new_task["id"]
+        assert old_task["status"] == "completed"
+        assert new_task["status"] == "pending"
+
     def test_sort_todos_numeric_ids(self, tmp_path):
         """Test that todos are sorted correctly with numeric IDs."""
         manager = TodoManager()

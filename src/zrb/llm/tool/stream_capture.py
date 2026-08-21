@@ -100,6 +100,21 @@ class StreamCapture:
         with open(self.spill_path, "r", encoding="utf-8") as src:
             shutil.copyfileobj(src, dest)
 
+    def flush(self) -> None:
+        """Flush the open spill file to disk, if one is open. No-op otherwise.
+
+        Needed by a long-lived caller (a background process, polled
+        repeatedly) that reports ``spill_path`` while the file may still be
+        open and default-buffered — unlike this class's original caller
+        (`shell.py`), which only ever reads the spill after `close()`, which
+        already flushes.
+        """
+        if self._spill is not None:
+            try:
+                self._spill.flush()
+            except Exception as e:
+                CFG.LOGGER.debug(f"Failed to flush spill file: {e}")
+
     def close(self) -> None:
         if self._spill is not None:
             try:

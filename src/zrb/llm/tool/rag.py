@@ -1,3 +1,4 @@
+import asyncio
 import fnmatch
 import hashlib
 import json
@@ -111,7 +112,12 @@ def create_rag_from_directory(
 
         hash_file_path = os.path.join(vector_db_path, "file_hashes.json")
 
-        reindex_error = _load_or_reindex(
+        # Off-loaded to a thread: ChromaDB and the OpenAI embedding client are
+        # synchronous, and running them inline here would freeze the whole
+        # session's event loop for as long as re-indexing/embedding takes
+        # (web.py's tools already avoid this same hazard for blocking calls).
+        reindex_error = await asyncio.to_thread(
+            _load_or_reindex,
             document_dir_path=document_dir_path,
             hash_file_path=hash_file_path,
             collection=collection,
@@ -124,7 +130,8 @@ def create_rag_from_directory(
         if reindex_error is not None:
             return reindex_error
 
-        query_vector, embed_error = _embed_query(
+        query_vector, embed_error = await asyncio.to_thread(
+            _embed_query,
             openai_client=openai_client,
             query=query,
             embedding_model_val=embedding_model_val,
@@ -132,7 +139,8 @@ def create_rag_from_directory(
         if embed_error is not None:
             return embed_error
 
-        return _query_collection(
+        return await asyncio.to_thread(
+            _query_collection,
             collection=collection,
             query_vector=query_vector,
             max_result_count_val=max_result_count_val,
