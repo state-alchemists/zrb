@@ -23,6 +23,8 @@ import shutil
 import subprocess
 from typing import NamedTuple
 
+from zrb.util.string.conversion import to_safe_filename
+
 logger = logging.getLogger(__name__)
 
 # A shadow-repo git command is normally milliseconds, but "normally fast" was
@@ -78,7 +80,7 @@ class SnapshotManager:
         ignore_dirs: "frozenset[str] | set[str] | None" = None,
     ):
         self._workdir = os.path.abspath(workdir)
-        self._shadow_dir = os.path.join(snapshot_dir, _safe_name(session_name))
+        self._shadow_dir = os.path.join(snapshot_dir, to_safe_filename(session_name))
         self._initialized = False
         self._ignore_dirs: frozenset[str] = (
             self.DEFAULT_IGNORE_DIRS if ignore_dirs is None else frozenset(ignore_dirs)
@@ -253,11 +255,6 @@ def _parse_commit_message(raw: str) -> tuple[str, int | None]:
     if m:
         return raw[: m.start()].rstrip(), int(m.group(1))
     return raw, None
-
-
-def _safe_name(name: str) -> str:
-    """Convert an arbitrary session name to a filesystem-safe directory name."""
-    return "".join(c if c.isalnum() or c in "-_" else "_" for c in name)
 
 
 def _head_mc(git_dir: str) -> int | None:

@@ -422,6 +422,11 @@ class LLMChatTask(BaseTask):
     # data, and a class method mutating its own field needs no collaborator.
 
     @property
+    def has_prompt_manager(self) -> bool:
+        """Whether this task was built with a `PromptManager`."""
+        return self._prompt_manager is not None
+
+    @property
     def prompt_manager(self) -> PromptManager:
         """The `PromptManager` composing this task's system prompt.
 

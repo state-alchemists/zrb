@@ -1,9 +1,10 @@
 """Execution machinery for `BaseTask`: the run/retry/readiness state machine.
 
-Composed into `BaseTask` as `self._base_execution`. Reaches the sibling
-`BaseTaskMonitoring` part through `self._task._base_monitoring` when readiness
-monitoring needs to be kick off, and is itself reached the same way by
-`BaseTaskMonitoring` when a monitored task needs re-execution.
+Composed into `BaseTask` as `self._base_execution`. Holds a direct reference
+to the sibling `BaseTaskMonitoring` part to kick off readiness monitoring,
+set via `set_monitoring` once `BaseTaskMonitoring` is constructed (it is
+built after `BaseTaskExecution` and itself takes a direct reference back, so
+the pair cannot both be wired through their constructors).
 """
 
 import asyncio
@@ -19,6 +20,7 @@ from zrb.xcom.xcom import Xcom
 
 if TYPE_CHECKING:
     from zrb.task.base.base_task import BaseTask
+    from zrb.task.base.monitoring import BaseTaskMonitoring
 
 
 class BaseTaskExecution:
@@ -26,6 +28,11 @@ class BaseTaskExecution:
 
     def __init__(self, task: "BaseTask") -> None:
         self._task = task
+        self._base_monitoring: "BaseTaskMonitoring | None" = None
+
+    def set_monitoring(self, base_monitoring: "BaseTaskMonitoring") -> None:
+        """Wire the sibling `BaseTaskMonitoring`, constructed after this part."""
+        self._base_monitoring = base_monitoring
 
     async def execute_task_chain(self, session: AnySession):
         """
@@ -178,9 +185,10 @@ class BaseTaskExecution:
             session.defer_action(task, action_coro)
 
             if readiness_passed and monitor_readiness:
+                assert self._base_monitoring is not None
                 monitor_coro = asyncio.create_task(
                     run_async(
-                        task._base_monitoring.monitor_task_readiness(
+                        self._base_monitoring.monitor_task_readiness(
                             session, action_coro
                         )
                     )

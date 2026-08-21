@@ -152,8 +152,9 @@ class BaseTask(AnyTask):
 
         self._base_context = BaseTaskContext(self)
         self._base_execution = BaseTaskExecution(self)
-        self._base_lifecycle = BaseTaskLifecycle(self)
-        self._base_monitoring = BaseTaskMonitoring(self)
+        self._base_lifecycle = BaseTaskLifecycle(self, self._base_context)
+        self._base_monitoring = BaseTaskMonitoring(self, self._base_execution)
+        self._base_execution.set_monitoring(self._base_monitoring)
         self._base_operators = BaseTaskOperators(self)
 
     def _ensure_task_list(

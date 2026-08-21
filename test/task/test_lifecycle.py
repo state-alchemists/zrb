@@ -5,6 +5,7 @@ import pytest
 
 from zrb.session.session import Session
 from zrb.task.base.base_task import BaseTask
+from zrb.task.base.context import BaseTaskContext
 from zrb.task.base.lifecycle import BaseTaskLifecycle
 
 
@@ -13,7 +14,7 @@ async def test_run_and_cleanup_success():
     task = BaseTask(name="task")
     task.exec_root_tasks = AsyncMock(return_value="result")
     task.get_ctx = MagicMock()
-    lifecycle = BaseTaskLifecycle(task)
+    lifecycle = BaseTaskLifecycle(task, BaseTaskContext(task))
 
     session = MagicMock(spec=Session)
     session.is_terminated = False
@@ -30,7 +31,7 @@ async def test_run_and_cleanup_exception():
     task = BaseTask(name="task")
     task.exec_root_tasks = AsyncMock(side_effect=ValueError("Boom"))
     task.get_ctx = MagicMock()
-    lifecycle = BaseTaskLifecycle(task)
+    lifecycle = BaseTaskLifecycle(task, BaseTaskContext(task))
 
     session = MagicMock(spec=Session)
     session.is_terminated = False
@@ -44,7 +45,7 @@ async def test_run_and_cleanup_exception():
 @pytest.mark.asyncio
 async def test_execute_root_tasks_success():
     task = BaseTask(name="task")
-    lifecycle = BaseTaskLifecycle(task)
+    lifecycle = BaseTaskLifecycle(task, BaseTaskContext(task))
     session = MagicMock(spec=Session)
     session.get_root_tasks.return_value = [task]
     session.is_allowed_to_run.return_value = True
@@ -71,7 +72,7 @@ async def test_execute_root_tasks_success():
 @pytest.mark.asyncio
 async def test_execute_root_tasks_no_roots():
     task = BaseTask(name="task")
-    lifecycle = BaseTaskLifecycle(task)
+    lifecycle = BaseTaskLifecycle(task, BaseTaskContext(task))
     session = MagicMock(spec=Session)
     session.get_root_tasks.return_value = []
     session.is_terminated = False
@@ -87,7 +88,7 @@ async def test_execute_root_tasks_no_roots():
 async def test_log_session_state():
     task = BaseTask(name="task")
     task.get_ctx = MagicMock()
-    lifecycle = BaseTaskLifecycle(task)
+    lifecycle = BaseTaskLifecycle(task, BaseTaskContext(task))
 
     session = MagicMock(spec=Session)
     session.is_terminated = False
@@ -115,7 +116,7 @@ async def test_run_and_cleanup_cancelled_error():
     task.exec_root_tasks = AsyncMock(side_effect=asyncio.CancelledError())
     ctx_mock = MagicMock()
     task.get_ctx = MagicMock(return_value=ctx_mock)
-    lifecycle = BaseTaskLifecycle(task)
+    lifecycle = BaseTaskLifecycle(task, BaseTaskContext(task))
 
     session = MagicMock(spec=Session)
     session.is_terminated = False
@@ -131,7 +132,7 @@ async def test_run_and_cleanup_session_none():
     """When session=None a new Session is created."""
     task = BaseTask(name="task")
     task.exec_root_tasks = AsyncMock(return_value="ok")
-    lifecycle = BaseTaskLifecycle(task)
+    lifecycle = BaseTaskLifecycle(task, BaseTaskContext(task))
 
     fake_session = MagicMock(spec=Session)
     fake_session.is_terminated = False
@@ -155,7 +156,7 @@ async def test_execute_root_tasks_index_error_propagates():
     task = BaseTask(name="task")
     ctx_mock = MagicMock()
     task.get_ctx = MagicMock(return_value=ctx_mock)
-    lifecycle = BaseTaskLifecycle(task)
+    lifecycle = BaseTaskLifecycle(task, BaseTaskContext(task))
 
     session = MagicMock(spec=Session)
     session.get_root_tasks = MagicMock(return_value=[task])
@@ -177,7 +178,7 @@ async def test_execute_root_tasks_cancelled_error():
     task = BaseTask(name="task")
     ctx_mock = MagicMock()
     task.get_ctx = MagicMock(return_value=ctx_mock)
-    lifecycle = BaseTaskLifecycle(task)
+    lifecycle = BaseTaskLifecycle(task, BaseTaskContext(task))
 
     session = MagicMock(spec=Session)
     session.get_root_tasks = MagicMock(return_value=[task])
@@ -200,7 +201,7 @@ async def test_execute_root_tasks_no_log_state_task():
     task = BaseTask(name="task")
     ctx_mock = MagicMock()
     task.get_ctx = MagicMock(return_value=ctx_mock)
-    lifecycle = BaseTaskLifecycle(task)
+    lifecycle = BaseTaskLifecycle(task, BaseTaskContext(task))
 
     session = MagicMock(spec=Session)
     session.get_root_tasks = MagicMock(return_value=[task])
@@ -234,7 +235,7 @@ async def test_log_session_state_exception():
     task = BaseTask(name="task")
     ctx_mock = MagicMock()
     task.get_ctx = MagicMock(return_value=ctx_mock)
-    lifecycle = BaseTaskLifecycle(task)
+    lifecycle = BaseTaskLifecycle(task, BaseTaskContext(task))
 
     session = MagicMock(spec=Session)
     # Make is_terminated always False so loop runs once, then state_logger.write raises
@@ -268,7 +269,7 @@ async def test_log_session_state_cancelled():
     task = BaseTask(name="task")
     ctx_mock = MagicMock()
     task.get_ctx = MagicMock(return_value=ctx_mock)
-    lifecycle = BaseTaskLifecycle(task)
+    lifecycle = BaseTaskLifecycle(task, BaseTaskContext(task))
 
     session = MagicMock(spec=Session)
     session.is_terminated = False

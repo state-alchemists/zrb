@@ -330,15 +330,14 @@ class ChatRunning:
             if len(resolved_uis) == 1:
                 return resolved_uis[0]
             ui = MultiUI(resolved_uis)
-            if len(self._llm_chat_task.approval_channels) == 1:
-                ui.set_approval_channel(self._llm_chat_task.approval_channels[0])
-            elif len(self._llm_chat_task.approval_channels) > 1:
-                # lazy: zrb.llm.approval transitively loads pydantic_ai.
-                from zrb.llm.approval import MultiplexApprovalChannel
+            # lazy: zrb.llm.approval transitively loads pydantic_ai.
+            from zrb.llm.approval import resolve_approval_channel
 
-                ui.set_approval_channel(
-                    MultiplexApprovalChannel(self._llm_chat_task.approval_channels)
-                )
+            approval_channel = resolve_approval_channel(
+                self._llm_chat_task.approval_channels
+            )
+            if approval_channel is not None:
+                ui.set_approval_channel(approval_channel)
             return ui
 
         # Create default UI with lazy import of output_lexer
@@ -353,15 +352,14 @@ class ChatRunning:
 
         all_uis = [default_ui] + resolved_uis
         ui = MultiUI(all_uis)
-        if len(self._llm_chat_task.approval_channels) == 1:
-            ui.set_approval_channel(self._llm_chat_task.approval_channels[0])
-        elif len(self._llm_chat_task.approval_channels) > 1:
-            # lazy: zrb.llm.approval transitively loads pydantic_ai.
-            from zrb.llm.approval import MultiplexApprovalChannel
+        # lazy: zrb.llm.approval transitively loads pydantic_ai.
+        from zrb.llm.approval import resolve_approval_channel
 
-            ui.set_approval_channel(
-                MultiplexApprovalChannel(self._llm_chat_task.approval_channels)
-            )
+        approval_channel = resolve_approval_channel(
+            self._llm_chat_task.approval_channels
+        )
+        if approval_channel is not None:
+            ui.set_approval_channel(approval_channel)
         ui.set_tool_call_handler(default_ui.tool_call_handler)
         return ui
 

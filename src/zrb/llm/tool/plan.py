@@ -23,6 +23,7 @@ from typing import Any, Literal
 
 from zrb.context.any_context import zrb_print
 from zrb.llm.agent.run.runtime_state import get_current_ui
+from zrb.util.string.conversion import to_safe_filename
 
 TodoStatus = Literal["pending", "in_progress", "completed", "cancelled"]
 
@@ -139,11 +140,7 @@ class TodoManager:
 
     def get_todo_file(self, session_name: str) -> Path:
         """Get the file path for a session's todos."""
-        # Sanitize session name for filesystem
-        safe_name = "".join(
-            c if c.isalnum() or c in "-_" else "_" for c in session_name
-        )
-        return self._todo_dir / f"{safe_name}.json"
+        return self._todo_dir / f"{to_safe_filename(session_name)}.json"
 
     def save_todos(self, session_name: str) -> None:
         """Save todos to disk for a session."""

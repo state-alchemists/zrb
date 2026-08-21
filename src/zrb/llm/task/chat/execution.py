@@ -77,7 +77,12 @@ class ChatExecution:
 
         Returns the empty string when the task has no prompt manager.
         """
-        return resolve_system_prompt(ctx, self._llm_chat_task.prompt_manager)
+        prompt_manager = (
+            self._llm_chat_task.prompt_manager
+            if self._llm_chat_task.has_prompt_manager
+            else None
+        )
+        return resolve_system_prompt(ctx, prompt_manager)
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
         # lazy: circular — task → execution (this file) → task.parse_yolo_value.
@@ -130,7 +135,7 @@ class ChatExecution:
         # model-specific capability notes (e.g. lack of parallel tool-call
         # support). Re-set on every exec — `/model` switches update
         # ctx.input.model, which flows through get_model(ctx).
-        if self._llm_chat_task.prompt_manager is not None:
+        if self._llm_chat_task.has_prompt_manager:
             self._llm_chat_task.prompt_manager.model = self.get_model(ctx)
 
         # 5. Create core LLM task
@@ -394,17 +399,12 @@ class ChatExecution:
                 return tool_name in yolo_value
             return False
 
-        # Create MultiplexApprovalChannel if multiple channels
-        effective_approval_channel = None
-        if len(llm_chat_task.approval_channels) == 1:
-            effective_approval_channel = llm_chat_task.approval_channels[0]
-        elif len(llm_chat_task.approval_channels) > 1:
-            # lazy: same circular reason as the imports earlier in this class.
-            from zrb.llm.approval import MultiplexApprovalChannel
+        # lazy: same circular reason as the imports earlier in this class.
+        from zrb.llm.approval import resolve_approval_channel
 
-            effective_approval_channel = MultiplexApprovalChannel(
-                llm_chat_task.approval_channels
-            )
+        effective_approval_channel = resolve_approval_channel(
+            llm_chat_task.approval_channels
+        )
 
         CFG.LOGGER.debug("llm_chat_task _create_llm_task_core:")
         CFG.LOGGER.debug(f"  tool_confirmation: {tool_confirmation}")
@@ -441,7 +441,11 @@ class ChatExecution:
             env=cast(list[AnyEnv | None], llm_chat_task.envs),
             system_prompt=llm_chat_task.system_prompt,
             render_system_prompt=llm_chat_task.render_system_prompt,
-            prompt_manager=llm_chat_task.prompt_manager,
+            prompt_manager=(
+                llm_chat_task.prompt_manager
+                if llm_chat_task.has_prompt_manager
+                else None
+            ),
             active_skills=llm_chat_task.active_skills,
             render_active_skills=llm_chat_task.render_active_skills,
             tools=resolved_tools,

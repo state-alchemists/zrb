@@ -1,8 +1,9 @@
 """Readiness monitoring for `BaseTask`, kept alive after the task is ready.
 
-Composed into `BaseTask` as `self._base_monitoring`. Reaches the sibling
-`BaseTaskExecution` part through `self._task._base_execution` to re-run the action
-when readiness flips back to failing.
+Composed into `BaseTask` as `self._base_monitoring`. Holds a direct reference
+to the sibling `BaseTaskExecution` part (constructed first, so it is
+available at `BaseTaskMonitoring.__init__` time) to re-run the action when
+readiness flips back to failing.
 """
 
 import asyncio
@@ -10,18 +11,20 @@ from typing import TYPE_CHECKING
 
 from zrb.session.any_session import AnySession
 from zrb.task.any_task import AnyTask
-from zrb.util.run import run_async
+from zrb.util.run import gather_fail_fast, run_async
 from zrb.xcom.xcom import Xcom
 
 if TYPE_CHECKING:
     from zrb.task.base.base_task import BaseTask
+    from zrb.task.base.execution import BaseTaskExecution
 
 
 class BaseTaskMonitoring:
     """Re-checks readiness after a task is ready and re-runs its action on failure."""
 
-    def __init__(self, task: "BaseTask") -> None:
+    def __init__(self, task: "BaseTask", base_execution: "BaseTaskExecution") -> None:
         self._task = task
+        self._base_execution = base_execution
 
     async def monitor_task_readiness(
         self, session: AnySession, action_coro: asyncio.Task
@@ -118,10 +121,11 @@ class BaseTaskMonitoring:
         try:
             # Fail-fast fan-out: a readiness check erroring should abort the wait
             # immediately, not be masked by return_exceptions.
-            await asyncio.wait_for(
-                asyncio.gather(*readiness_check_coros),
-                timeout=readiness_timeout,
-            )
+            gather_coro = gather_fail_fast(*readiness_check_coros)
+            if readiness_timeout > 0:
+                await asyncio.wait_for(gather_coro, timeout=readiness_timeout)
+            else:
+                await gather_coro
             return all(
                 session.get_task_status(check).is_completed
                 for check in readiness_checks
@@ -170,7 +174,7 @@ class BaseTaskMonitoring:
 
         ctx.log_info("Re-executing task action...")
         new_action_coro = asyncio.create_task(
-            run_async(task._base_execution.execute_action_with_retry(session))
+            run_async(self._base_execution.execute_action_with_retry(session))
         )
         session.defer_action(task, new_action_coro)
         return new_action_coro

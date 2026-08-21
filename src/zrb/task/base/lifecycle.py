@@ -1,8 +1,9 @@
 """Run/cleanup entry points for `BaseTask`: `run`, `async_run`, `exec_root_tasks`.
 
-Composed into `BaseTask` as `self._base_lifecycle`. Reaches the sibling
-`BaseTaskContext` part through `self._task._base_context` to seed the session's
-shared context before the root tasks execute.
+Composed into `BaseTask` as `self._base_lifecycle`. Holds a direct reference
+to the sibling `BaseTaskContext` part (constructed first, so it is available
+at `BaseTaskLifecycle.__init__` time) to seed the session's shared context
+before the root tasks execute.
 """
 
 import asyncio
@@ -16,13 +17,15 @@ from zrb.util.run import gather_isolated, run_async
 
 if TYPE_CHECKING:
     from zrb.task.base.base_task import BaseTask
+    from zrb.task.base.context import BaseTaskContext
 
 
 class BaseTaskLifecycle:
     """Drives a `BaseTask` run from process entry to session termination."""
 
-    def __init__(self, task: "BaseTask") -> None:
+    def __init__(self, task: "BaseTask", base_context: "BaseTaskContext") -> None:
         self._task = task
+        self._base_context = base_context
 
     async def run_and_cleanup(
         self,
@@ -98,10 +101,10 @@ class BaseTaskLifecycle:
         if session is None:
             session = Session(shared_ctx=SharedContext(print_fn=print_fn))
 
-        task._base_context.fill_shared_context_inputs(
+        self._base_context.fill_shared_context_inputs(
             session.shared_ctx, str_kwargs, kwargs
         )
-        task._base_context.fill_shared_context_envs(session.shared_ctx)
+        self._base_context.fill_shared_context_envs(session.shared_ctx)
 
         result = await task.exec_root_tasks(session)
         return result

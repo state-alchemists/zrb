@@ -93,6 +93,20 @@ def to_kebab_case(text: str | None) -> str:
     return "-".join([x.lower() for x in _to_space_separated(text).split(" ")])
 
 
+def to_safe_filename(text: str) -> str:
+    """
+    Convert a string to a filesystem-safe filename by replacing every
+    character other than letters, digits, `-`, and `_` with `_`.
+
+    Args:
+        text (str): The input string.
+
+    Returns:
+        str: The filesystem-safe string.
+    """
+    return "".join(c if c.isalnum() or c in "-_" else "_" for c in text)
+
+
 def to_snake_case(text: str | None) -> str:
     """
     Convert a string to snake_case.
