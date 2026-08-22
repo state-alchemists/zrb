@@ -251,8 +251,8 @@ class SSEServer:
 
         return web.json_response(
             {
-                "waiting_for_input": self._ui_instance._waiting_for_input,
-                "session_name": self._ui_instance._conversation_session_name,
+                "waiting_for_input": self._ui_instance.waiting_for_input,
+                "session_name": self._ui_instance.conversation_session_name,
             }
         )
 
@@ -262,13 +262,13 @@ class SSEServer:
             return web.json_response({"error": "UI not initialized"}, status=500)
 
         session_name = request.query.get(
-            "session", self._ui_instance._conversation_session_name
+            "session", self._ui_instance.conversation_session_name
         )
         output_format = request.query.get("format", "text")
         max_length = int(request.query.get("max_length", "10000"))
 
         try:
-            history_manager = self._ui_instance._history_manager
+            history_manager = self._ui_instance.history_manager
             messages = history_manager.load(session_name)
 
             if output_format == "json":

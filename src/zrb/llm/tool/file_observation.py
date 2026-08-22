@@ -21,30 +21,42 @@ a `ContextVar` only propagates within one asyncio task's context tree, so a
 value a sub-agent's task `.set()`s would never reach its parent or siblings;
 keying a plain dict by the (already correctly `ContextVar`-scoped) run id
 sidesteps that, mirroring `plan.py::TodoManager`'s own keyed-dict pattern for
-the same class of state. In-memory only, no disk persistence: a process
-restart forcing one fresh Read before the next overwrite is the safe
-default, not a gap worth engineering around.
+the same class of state.
+
+In-memory only, no disk persistence: a process restart forcing one fresh Read
+before the next overwrite is the safe default, not a gap worth engineering
+around. The map is an LRU capped at `MAX_OBSERVED_SCOPES` scopes: every
+delegation mints a fresh scope that outlives its run, so an uncapped map would
+grow one dead bucket per delegation for the process lifetime. Eviction fails
+safe — the next overwrite under an evicted scope is refused with a pointer
+back to `Read`, costing one extra round trip, never allowing an ungrounded
+overwrite.
 """
 
 from __future__ import annotations
 
 import asyncio
 import hashlib
-from collections import defaultdict
+from collections import OrderedDict, defaultdict
 
 from zrb.llm.agent.run.runtime_state import get_current_agent_run_scope
 
-# run_scope -> {abs_path: content_hash}
-_observed: dict[str, dict[str, str]] = {}
+# Scopes kept in the observed-content LRU before the least-recently-used one
+# is evicted (see the module docstring for why eviction is safe here).
+MAX_OBSERVED_SCOPES = 256
+
+# run_scope -> {abs_path: content_hash}, least-recently-used scope first.
+_observed: OrderedDict[str, dict[str, str]] = OrderedDict()
 
 # One lock per path, held for a whole Write/Edit call. Closes the
 # check-then-write TOCTOU window between two concurrent writers to the same
 # path (e.g. two sub-agents sharing a non-isolated worktree) — without it,
 # both could pass the observed-content check before either has written, and
 # the second would silently clobber the first.
-# Never evicted: same no-eviction posture as `_observed` above for this
-# codebase's run-scoped state, bounded by the number of distinct paths ever
-# written in the process's lifetime.
+# Never evicted — unlike `_observed`, eviction here would be unsafe (a lock
+# dropped between two concurrent acquirers voids the mutual exclusion it
+# exists for) and unnecessary (the map is bounded by the number of distinct
+# paths ever written in the process's lifetime, not by delegation count).
 _path_locks: dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
 
 
@@ -57,6 +69,26 @@ def _hash(content: str) -> str:
     return hashlib.sha256(content.encode("utf-8", errors="surrogateescape")).hexdigest()
 
 
+def _scope_bucket(scope: str) -> dict[str, str]:
+    """The observed-content bucket for *scope*, marked most-recently-used.
+
+    Creating a bucket counts as a use; so does every lookup under an existing
+    scope — an active conversation must not be evicted out from under itself
+    by chatty delegations sharing the process. Any eviction drops the
+    least-recently-used scope (never the caller's: it was just moved to the
+    MRU end).
+    """
+    bucket = _observed.get(scope)
+    if bucket is None:
+        bucket = {}
+        _observed[scope] = bucket
+    else:
+        _observed.move_to_end(scope)
+    while len(_observed) > MAX_OBSERVED_SCOPES:
+        _observed.popitem(last=False)
+    return bucket
+
+
 def record_observed(abs_path: str, content: str) -> None:
     """Record `content` as this agent run's current knowledge of `abs_path`.
 
@@ -67,7 +99,7 @@ def record_observed(abs_path: str, content: str) -> None:
     fresh Read in between.
     """
     scope = get_current_agent_run_scope()
-    _observed.setdefault(scope, {})[abs_path] = _hash(content)
+    _scope_bucket(scope)[abs_path] = _hash(content)
 
 
 def _binary_refusal(abs_path: str) -> str:
@@ -117,7 +149,13 @@ def check_observed(abs_path: str) -> str | None:
     if binary_block is not None:
         return binary_block
     scope = get_current_agent_run_scope()
-    recorded = _observed.get(scope, {}).get(abs_path)
+    bucket = _observed.get(scope)
+    if bucket is not None:
+        # A check under an active scope is a use of that scope: keep it MRU.
+        _observed.move_to_end(scope)
+        recorded = bucket.get(abs_path)
+    else:
+        recorded = None
     if recorded is None:
         return (
             f"Error: {abs_path} has not been read in this session.\n"
@@ -145,7 +183,7 @@ def check_observed(abs_path: str) -> str | None:
 
 def clear_observed() -> None:
     """Clear all recorded state. A test-isolation seam — production code
-    never needs this; per-scope buckets just persist for the process
-    lifetime, same no-eviction posture as `TodoManager`.
+    never needs this; the LRU cap bounds the map's growth (see
+    `MAX_OBSERVED_SCOPES`), and a restart clears it wholesale anyway.
     """
     _observed.clear()

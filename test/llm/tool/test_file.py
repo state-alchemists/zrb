@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from zrb.llm.tool import file_observation
 from zrb.llm.tool.file import (
     glob_files,
     list_files,
@@ -24,6 +25,17 @@ def _reset_observed_state():
     clear_observed()
     yield
     clear_observed()
+
+
+@pytest.fixture
+def run_scope():
+    """Run the body under a named agent-run scope, restoring afterwards."""
+    from zrb.llm.agent.run.runner import current_agent_run_scope
+
+    def set_scope(name: str):
+        return current_agent_run_scope.set(name)
+
+    return set_scope
 
 
 def _w(*a, **kw):
@@ -1009,6 +1021,112 @@ def test_write_file_append_to_existing_unread_file_is_not_blocked(tmp_path):
 
     assert "Successfully wrote" in result
     assert file_path.read_text() == "original, never read by this run appended"
+
+
+def test_replace_in_file_does_not_require_a_prior_read(tmp_path):
+    """Edit is not gated by the observed-hash check — it already verifies
+    old_text against live on-disk content at call time.
+    """
+    file_path = tmp_path / "f.txt"
+    file_path.write_text("hello world")
+
+    result = _r(str(file_path), "world", "zrb")
+
+    assert "Successfully" in result
+    assert file_path.read_text() == "hello zrb"
+
+
+def test_observed_map_evicts_the_least_recently_used_scope(
+    tmp_path, run_scope, monkeypatch
+):
+    """Every delegation mints a fresh scope that outlives its run, so the
+    map is LRU-capped. Eviction fails safe: the evicted scope's next
+    overwrite is refused with a pointer back to Read, never allowed.
+    """
+    from zrb.llm.tool.file_observation import record_observed
+
+    monkeypatch.setattr(file_observation, "MAX_OBSERVED_SCOPES", 2)
+
+    first = tmp_path / "first.txt"
+    second = tmp_path / "second.txt"
+    third = tmp_path / "third.txt"
+    for path in (first, second, third):
+        path.write_text("original")
+
+    # Three scopes recorded in order; the cap is 2, so s1 (the least
+    # recently used) is evicted when s3 arrives and {s2, s3} remain.
+    tokens = {}
+    for name, path in (("s1", first), ("s2", second), ("s3", third)):
+        token = run_scope(name)
+        tokens[name] = token
+        read_file(str(path))
+        record_observed(str(path), path.read_text())
+        current_agent_run_scope_reset(token)
+
+    # Each overwrite runs under the scope that did the reading — a write
+    # under any other scope (including none) must be refused regardless.
+    results = {}
+    for name, path in (("s1", first), ("s2", second), ("s3", third)):
+        token = run_scope(name)
+        results[name] = _w(str(path), "clobbered")
+        current_agent_run_scope_reset(token)
+
+    assert "has not been read in this session" in results["s1"]
+    assert "Successfully wrote" in results["s2"]
+    assert "Successfully wrote" in results["s3"]
+
+
+def test_observed_map_treats_a_check_as_a_use_of_its_scope(
+    tmp_path, run_scope, monkeypatch
+):
+    """An active conversation must not be evicted out from under itself by
+    delegations sharing the process: a blocked-write check under a scope
+    refreshes its recency just like a recording does.
+    """
+    from zrb.llm.tool.file_observation import (
+        check_observed,
+        record_observed,
+    )
+
+    monkeypatch.setattr(file_observation, "MAX_OBSERVED_SCOPES", 2)
+
+    watched = tmp_path / "watched.txt"
+    filler_a = tmp_path / "filler-a.txt"
+    filler_b = tmp_path / "filler-b.txt"
+    for path in (watched, filler_a, filler_b):
+        path.write_text("content")
+
+    # The watched scope records one file; another scope lands after it,
+    # pushing watched toward the eviction end.
+    token = run_scope("watched")
+    record_observed(str(watched), watched.read_text())
+    current_agent_run_scope_reset(token)
+    token = run_scope("filler-a")
+    read_file(str(filler_a))
+    current_agent_run_scope_reset(token)
+
+    # A check under the watched scope refreshes its recency...
+    token = run_scope("watched")
+    assert check_observed(str(watched)) is None
+    current_agent_run_scope_reset(token)
+
+    # ...so when one more scope arrives and forces an eviction, the older
+    # `filler-a` scope is dropped and the watched scope survives — without
+    # the touch above, it would have been the one evicted here.
+    token = run_scope("filler-b")
+    read_file(str(filler_b))
+    current_agent_run_scope_reset(token)
+
+    token = run_scope("watched")
+    result = _w(str(watched), "updated")
+    current_agent_run_scope_reset(token)
+    assert "Successfully wrote" in result
+
+
+def current_agent_run_scope_reset(token) -> None:
+    from zrb.llm.agent.run.runner import current_agent_run_scope
+
+    current_agent_run_scope.reset(token)
 
 
 def test_replace_in_file_does_not_require_a_prior_read(tmp_path):

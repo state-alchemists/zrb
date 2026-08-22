@@ -328,7 +328,10 @@ class UI(BaseUI):
         from prompt_toolkit.widgets import Frame
 
         choice_window = self._selection.choice_window
-        assert choice_window is not None, "init_selection_state was not called"
+        if choice_window is None:
+            raise RuntimeError(
+                "init_selection_state was not called before _create_choice_float"
+            )
         framed = Frame(
             choice_window,
             title="Select an answer",

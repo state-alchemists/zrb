@@ -35,7 +35,7 @@ The assistant comes with a rich set of built-in tools. These are automatically a
 | `Glob` | `glob_files` | Find files matching a glob pattern (e.g., `**/*.py`). |
 | `Grep` | `search_files` | Search file contents by regex pattern. Supports `context_lines` (default 2), `files_only=True` to return only matching file paths, `case_sensitive=False` for case-insensitive search, and `file_pattern` to restrict to specific file types. |
 | `Read` | `read_file` | Read a UTF-8 text file between `start_line` and `end_line` (1-indexed, inclusive; defaults: 1 to end). Every line is numbered `cat -n`-style (number right-aligned in six columns, then a tab) so `file:line` citations are read, not counted; strip the prefix through the first tab before passing text to `Edit`, which also strips it itself if it slips through. PDF text is returned unnumbered — its line breaks come from the extractor, not the document. The char cap is measured on file content, before numbering. Output exceeding the char cap is truncated at the end — narrow the range or use `Grep` to locate the section you need. Issue parallel `Read` calls to load several files in one turn. |
-| `Write` | `write_file` | Write or overwrite a file. |
+| `Write` | `write_file` | Write a file. Overwriting an existing file with `mode="w"` requires that this session has already Read it (or Written/Edited it to its current content) — otherwise the call is refused with a pointer back to `Read` (ADR-0084). Appends (`mode="a"`) need no prior read. Binary (non-UTF-8) files are refused in every mode. |
 | `Edit` | `replace_in_file` | Make targeted string replacements in a single file. |
 
 ### Web
@@ -100,7 +100,7 @@ The assistant can connect to external MCP servers defined in `mcp-config.json`. 
 
 | Tool | Description |
 |------|-------------|
-| `DelegateToAgent` | Delegate a sub-task to a named sub-agent (discovered from `core_agents/` and `agents/` directories). Pass `tasks=[{...}, ...]` to fan out several concurrently in one call. See sub-agents section below. |
+| `DelegateToAgent` | Delegate a sub-task to a named sub-agent (discovered from `core_agents/` and `agents/` directories). Pass `tasks=[{...}, ...]` to fan out several concurrently in one call — concurrency is capped at `LLM_MAX_PARALLEL_DELEGATIONS` (default 10; `0` disables), pacing rather than rejecting large batches, and each task may set `isolate_worktree: true` to run in its own git worktree. See sub-agents section below. |
 | `SearchAgent` | Find sub-agents by name or description keywords. The `DelegateToAgent` roster only lists the first `LLM_MAX_AGENTS_IN_ROSTER` agents, so use this when the agent you need is not on it. |
 | `ActivateSkill` | Load a named skill (a set of prompts and tools) into the current session. |
 | `SearchSkill` | Find skills by name or description keywords. The skill catalogue in the `workflow` prompt section only lists the first `LLM_MAX_SKILLS_IN_CATALOG` skills, so use this when the skill you need is not listed. |

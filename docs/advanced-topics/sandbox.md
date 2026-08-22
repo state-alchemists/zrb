@@ -11,9 +11,9 @@ The sandbox is **opt-in and off by default** (the same default-off invariant as 
 One `SandboxPolicy` (`zrb/llm/sandbox/`) drives two enforcement layers:
 
 1. **Python-level filesystem gate** (all platforms). `_sandbox_gate` in `agent/common.py` runs next to the permission gate for every tool call. It realpaths path-like arguments (`path`, `file_path`, `src`, `dst`, …) and blocks:
-   - **writes** outside the writable roots for `EDIT` and `UNKNOWN`-capability tools (`Write`, `Edit`, `RM`, `MV`, unvetted MCP tools),
+   - **writes** outside the writable roots for `EDIT` and `UNKNOWN`-capability tools (`Write`, `Edit`, `RM`, `MV`, unvetted MCP tools) — including `worktree_path`, `ExitWorktree`'s deletion target (`EnterWorktree` computes its own destination internally, so it needs no caller-supplied path check),
    - **reads** inside the deny-read list (credential directories such as `~/.ssh`, `~/.aws`, `~/.kube`) for every tool. A blocked call returns a `ToolReturn` with `metadata={"blocked": True}` and a `[SYSTEM SUGGESTION]`, so the model can adapt instead of crashing.
-2. **OS-level shell wrapper** (macOS, Linux). `Shell` subprocesses (foreground or `background=True`) are spawned through a kernel-enforced sandbox, immune to `cd`, symlink tricks, and check-then-use races:
+2. **OS-level subprocess wrapper** (macOS, Linux). Every subprocess a tool spawns is wrapped through `build_sandboxed_argv`, which takes any discrete `argv` and prepends only the sandbox-dispatch prefix — immune to `cd`, symlink tricks, and check-then-use races. The `Shell` tool passes its `[shell, shell_flag, command]` (foreground or `background=True`); the worktree tools pass their discrete `git` argv directly:
    - **macOS** — `sandbox-exec -p <generated SBPL profile>` (Seatbelt). Deprecated-but-functional; Chrome, Bazel, and Codex still ship on it.
    - **Linux** — `bwrap` (bubblewrap): read-only root bind, read-write binds for the writable roots, `tmpfs`/`/dev/null` masks over the deny-read paths. No PID/network unsharing, so process-group handling, timeout kill, and background-PID tracking keep working.
 
@@ -30,14 +30,14 @@ In v1 the sandbox isolates the **filesystem only** — network stays open (comma
 When no OS mechanism is available (Windows, or Linux without `bwrap`), the policy's `fallback` mode applies — never a silent passthrough:
 
 - `warn` (default): the command runs unsandboxed and a visible `[WARNING] sandbox unavailable (...)` line is prepended to the tool output.
-- `deny`: the shell tool refuses with an explanatory error. Deployments that want hard guarantees on Windows set this and rely on the file tools plus approval prompts.
+- `deny`: the spawning tool (shell, worktree) refuses with an explanatory error. Deployments that want hard guarantees on Windows set this and rely on the file tools plus approval prompts.
 
 ## Configuration
 
 | Variable | Default | Meaning |
 |---|---|---|
 | `ZRB_LLM_SANDBOX_ENABLED` | `false` | Master switch for both layers. |
-| `ZRB_LLM_SANDBOX_OS_SHELL` | `auto` | `auto` wraps shell commands when a mechanism exists; `off` keeps only the Python FS gate. |
+| `ZRB_LLM_SANDBOX_OS_SHELL` | `auto` | `auto` wraps spawned subprocesses (shell commands, worktree git calls) when a mechanism exists; `off` keeps only the Python FS gate. |
 | `ZRB_LLM_SANDBOX_WRITABLE_PATHS` | (empty) | Colon-separated writable roots. Empty = automatic: current working directory + system temp dir. |
 | `ZRB_LLM_SANDBOX_DENY_READ_PATHS` | built-in list | Colon-separated never-read paths; setting it replaces the default credential-store list. |
 | `ZRB_LLM_SANDBOX_FALLBACK` | `warn` | `warn` / `deny` when no OS mechanism exists. |
