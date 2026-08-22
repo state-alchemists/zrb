@@ -217,6 +217,20 @@ def _read_pdf(path: str, abs_path: str, start_line: int, end_line: int) -> str:
             "or contain no text layer. Use a tool suited to OCR."
         )
 
+    # A PDF read is still a read: write_file(mode="w")'s observed-content
+    # gate must recognize this file as seen, same as the plain-text path.
+    # The recorded hash has to match what check_observed re-reads from disk —
+    # the raw bytes, not this extraction (a lossy view that would trip the
+    # "has changed" branch even right after a fresh Read). True binaries are
+    # refused outright by the gate regardless; recording only matters for
+    # text-decodable files, and is best-effort since the read already
+    # succeeded above.
+    try:
+        with open(abs_path, "r", encoding="utf-8") as f:
+            record_observed(abs_path, f.read())
+    except Exception as e:
+        CFG.LOGGER.debug(f"Failed to record observed content for {abs_path}: {e}")
+
     lines = full_text.splitlines(keepends=True)
     total_lines = len(lines)
 

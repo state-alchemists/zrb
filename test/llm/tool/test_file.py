@@ -618,6 +618,73 @@ def test_read_pdf_file_invalid(tmp_path):
     assert "corrupted" in result.lower()
 
 
+def _mock_pdfplumber(extracted_text: str):
+    """Patch pdfplumber with a one-page extractor yielding *extracted_text*."""
+    import sys
+    import types
+    from unittest.mock import MagicMock, patch
+
+    mock_pdf = MagicMock()
+    mock_page = MagicMock()
+    mock_page.extract_text.return_value = extracted_text
+    mock_pdf.pages = [mock_page]
+
+    mock_pdfplumber = types.ModuleType("pdfplumber")
+    ctx = MagicMock()
+    ctx.__enter__.return_value = mock_pdf
+    mock_pdfplumber.open = MagicMock(return_value=ctx)
+    mock_pdfplumber.pdf = types.ModuleType("pdfplumber.pdf")
+    mock_pdfplumber.pdf.PDF = MagicMock()
+    return patch.dict(
+        sys.modules,
+        {"pdfplumber": mock_pdfplumber, "pdfplumber.pdf": mock_pdfplumber.pdf},
+    )
+
+
+def test_write_to_binary_file_denied_even_after_read(temp_dir):
+    """A Read grounds a text overwrite, never a binary one: Write emits UTF-8
+    only, so a real (non-UTF-8) PDF is refused outright — the refusal names
+    binary, not a misleading staleness claim."""
+    pdf_file = os.path.join(temp_dir, "real.pdf")
+    with open(pdf_file, "wb") as f:
+        f.write(b"%PDF-1.4 \xe9\x00 not valid utf-8")
+
+    with _mock_pdfplumber("extracted text"):
+        assert "extracted text" in read_file(pdf_file)
+
+    result = _w(pdf_file, "replacement text", mode="w")
+    assert "Error" in result
+    assert "binary" in result.lower()
+
+
+def test_append_to_binary_file_denied(temp_dir):
+    """Appending UTF-8 text to a binary corrupts it just like an overwrite —
+    same outright refusal, no observed-state requirement."""
+    bin_file = os.path.join(temp_dir, "blob.bin")
+    with open(bin_file, "wb") as f:
+        f.write(b"\x00\x01\xfe\xff")
+
+    result = _w(bin_file, "appended text", mode="a")
+    assert "Error" in result
+    assert "binary" in result.lower()
+    with open(bin_file, "rb") as f:
+        assert f.read() == b"\x00\x01\xfe\xff"
+
+
+def test_text_decodable_pdf_allows_grounded_overwrite(temp_dir):
+    """A .pdf whose bytes ARE valid UTF-8 is ordinary text to Write: after a
+    Read records its raw content, mode="w" proceeds without re-reading."""
+    pdf_file = os.path.join(temp_dir, "text-like.pdf")
+    with open(pdf_file, "w", encoding="utf-8") as f:
+        f.write("plain text masquerading as pdf")
+
+    with _mock_pdfplumber("plain text masquerading as pdf"):
+        read_file(pdf_file)
+
+    result = _w(pdf_file, "replacement")
+    assert "Successfully wrote" in result
+
+
 def test_read_pdf_file_line_range(tmp_path):
     pdf_file = tmp_path / "test.pdf"
     pdf_file.write_text("dummy")

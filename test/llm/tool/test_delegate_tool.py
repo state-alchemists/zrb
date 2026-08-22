@@ -267,6 +267,44 @@ async def test_delegate_tool_success(mock_sub_agent_manager):
 
 
 @pytest.mark.asyncio
+async def test_delegate_passes_live_sessions_run_scope_to_run_agent(
+    mock_sub_agent_manager,
+):
+    """The live-session registry entry's run_scope must reach run_agent, so
+    a later continuation of this same sub-agent (live_session.py) can reuse
+    it instead of each turn getting its own file_observation.py bucket."""
+    from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
+
+    live_subagent_session_registry.clear()  # earlier tests may have left sessions
+    try:
+        mock_agent = MagicMock()
+        mock_sub_agent_manager.create_agent.return_value = mock_agent
+
+        tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+
+        with patch(
+            "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+        ) as mock_run_agent:
+            mock_run_agent.return_value = ("Agent Result", [])
+
+            await tool(
+                agent_name="test-agent",
+                deliverable="updated foo.py",
+                task="do this",
+                non_goals=[],
+                additional_context="",
+            )
+
+            [session] = live_subagent_session_registry.active("default")
+            call_kwargs = mock_run_agent.call_args.kwargs
+            assert call_kwargs["run_scope"] == session.run_scope
+            assert call_kwargs["run_scope"] != ""
+    finally:
+        # A failed assert must not leak this session into other tests.
+        live_subagent_session_registry.clear()
+
+
+@pytest.mark.asyncio
 async def test_delegate_fires_subagent_start_stop(mock_sub_agent_manager):
     """Delegation fires SubagentStart before and SubagentStop after the run, on
     the parent run's hook manager, with a shared agent_id and agent_type=name."""

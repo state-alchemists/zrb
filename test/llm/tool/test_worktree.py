@@ -79,6 +79,7 @@ async def test_exit_worktree_success(mock_subprocess):
             create_mock_process(
                 returncode=0, stdout=b"test-branch\n"
             ),  # git rev-parse branch
+            create_mock_process(returncode=0, stdout=b".git\n"),  # git-common-dir
             create_mock_process(returncode=0),  # git worktree remove
             create_mock_process(returncode=0),  # git branch -D
         ]
@@ -94,6 +95,7 @@ async def test_exit_worktree_keep_branch(mock_subprocess):
             create_mock_process(
                 returncode=0, stdout=b"test-branch\n"
             ),  # git rev-parse branch
+            create_mock_process(returncode=0, stdout=b".git\n"),  # git-common-dir
             create_mock_process(returncode=0),  # git worktree remove
         ]
         res = await exit_worktree(tmpdir, keep_branch=True)
@@ -115,6 +117,7 @@ async def test_exit_worktree_remove_failure(mock_subprocess):
             create_mock_process(
                 returncode=0, stdout=b"test-branch\n"
             ),  # git rev-parse branch
+            create_mock_process(returncode=0, stdout=b".git\n"),  # git-common-dir
             create_mock_process(
                 returncode=1, stderr=b"error: worktree contains modified files"
             ),  # git worktree remove
@@ -131,6 +134,7 @@ async def test_exit_worktree_branch_delete_failure(mock_subprocess):
             create_mock_process(
                 returncode=0, stdout=b"test-branch\n"
             ),  # git rev-parse branch
+            create_mock_process(returncode=0, stdout=b".git\n"),  # git-common-dir
             create_mock_process(returncode=0),  # git worktree remove
             create_mock_process(
                 returncode=1, stderr=b"error: branch not found"
@@ -265,6 +269,7 @@ async def test_enter_and_exit_worktree_reflected_in_live_context(mock_subprocess
         os.makedirs(worktree_path, exist_ok=True)
         mock_subprocess.side_effect = [
             create_mock_process(returncode=0, stdout=b"sc-branch\n"),
+            create_mock_process(returncode=0, stdout=b".git\n"),  # git-common-dir
             create_mock_process(returncode=0),
             create_mock_process(returncode=0),
         ]
@@ -311,6 +316,7 @@ async def test_exit_worktree_routes_git_calls_through_sandbox(mock_subprocess):
     with tempfile.TemporaryDirectory() as tmpdir:
         mock_subprocess.side_effect = [
             create_mock_process(returncode=0, stdout=b"test-branch\n"),
+            create_mock_process(returncode=0, stdout=b".git\n"),  # git-common-dir
             create_mock_process(returncode=0),
             create_mock_process(returncode=0),
         ]
@@ -322,8 +328,18 @@ async def test_exit_worktree_routes_git_calls_through_sandbox(mock_subprocess):
 
         argvs = [call.args[0] for call in mock_build.call_args_list]
         assert argvs[0][:2] == ["git", "-C"]
-        assert argvs[1] == ["git", "worktree", "remove", "--force", tmpdir]
-        assert argvs[2] == ["git", "branch", "-D", "test-branch"]
+        assert argvs[1] == ["git", "-C", tmpdir, "rev-parse", "--git-common-dir"]
+        assert argvs[2] == ["git", "worktree", "remove", "--force", tmpdir]
+        assert argvs[3] == ["git", "branch", "-D", "test-branch"]
+
+        # git-common-dir resolved to "<tmpdir>/.git" (relative output,
+        # normalized against worktree_path) — its parent, tmpdir, is what
+        # the remove and branch-delete calls must anchor to, not the bare
+        # process cwd.
+        remove_cwd = mock_build.call_args_list[2].args[1]
+        branch_delete_cwd = mock_build.call_args_list[3].args[1]
+        assert remove_cwd == tmpdir
+        assert branch_delete_cwd == tmpdir
 
 
 @pytest.mark.asyncio
@@ -407,6 +423,7 @@ async def test_exit_worktree_keeps_success_when_branch_delete_sandbox_unavailabl
     with tempfile.TemporaryDirectory() as tmpdir:
         mock_subprocess.side_effect = [
             create_mock_process(returncode=0, stdout=b"test-branch\n"),
+            create_mock_process(returncode=0, stdout=b".git\n"),  # git-common-dir
             create_mock_process(returncode=0),
         ]
 

@@ -171,16 +171,21 @@ async def run_agent_task(
             limiter=llm_limiter,
             ui=ui,
             yolo=bool(yolo) if yolo is not None else yolo,
-            # run_scope deliberately omitted, not tied to the (display-only,
-            # 32-bit-truncated) agent_id above: this sub-agent's
-            # message_history starts empty, so it hasn't seen what the
-            # parent or a sibling observed — file_observation.py's
-            # read-before-overwrite tracking must not treat their reads as
-            # this run's own. Leaving it empty makes run_agent mint its own
-            # fresh full-entropy id, which also sidesteps agent_id's
-            # birthday-bound collision risk over a long process lifetime
-            # (file_observation.py's map is never evicted, unlike the
-            # activity registry agent_id otherwise serves).
+            # Not tied to the (display-only, 32-bit-truncated) agent_id
+            # above: this sub-agent's message_history starts empty, so it
+            # hasn't seen what the parent or a sibling observed —
+            # file_observation.py's read-before-overwrite tracking must not
+            # treat their reads as this run's own. `session.run_scope` is a
+            # fresh full-entropy uuid4 minted once when the live session was
+            # registered (or, when there's no live session to track, an
+            # equally fresh one that `run_agent` mints on its own below) —
+            # either way it sidesteps agent_id's birthday-bound collision
+            # risk over a long process lifetime (file_observation.py's map
+            # is never evicted, unlike the activity registry agent_id
+            # otherwise serves). Passing it explicitly (rather than leaving
+            # run_scope empty) lets `live_session.py`'s continuation turns
+            # reuse the same scope this original turn observed files under.
+            run_scope=session.run_scope if session is not None else "",
         )
 
         if flush_ui and hasattr(ui, "flush_to_parent"):

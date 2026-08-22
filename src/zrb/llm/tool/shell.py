@@ -6,7 +6,10 @@ import tempfile
 
 from zrb.config.config import CFG
 from zrb.llm.sandbox import get_effective_sandbox_policy
-from zrb.llm.sandbox.os_sandbox import SandboxUnavailableError
+from zrb.llm.sandbox.os_sandbox import (
+    SandboxUnavailableError,
+    format_sandbox_denied_message,
+)
 from zrb.llm.tool.stream_capture import StreamCapture
 from zrb.util.cmd.command import resolve_shell, terminate_process
 
@@ -64,12 +67,7 @@ async def run_shell_command(
                 command, cwd, description, shell, dangerously_skip_sandbox
             )
         except SandboxUnavailableError as e:
-            return (
-                f"Command refused by sandbox policy: {e}. "
-                "[SYSTEM SUGGESTION]: this deployment requires OS-level "
-                "sandboxing for shell commands "
-                f"({CFG.ENV_PREFIX}_LLM_SANDBOX_FALLBACK=deny)."
-            )
+            return format_sandbox_denied_message(e)
         return (
             f"Started background process. Handle: {handle}. "
             "Call MonitorProcess with this handle to check status."

@@ -5,60 +5,12 @@ from datetime import datetime
 
 from zrb.config.config import CFG
 from zrb.llm.sandbox import build_sandboxed_argv, get_effective_sandbox_policy
-from zrb.llm.sandbox.os_sandbox import SandboxUnavailableError
+from zrb.llm.sandbox.os_sandbox import (
+    SandboxUnavailableError,
+    format_sandbox_denied_message,
+)
 
 active_worktree: ContextVar[str] = ContextVar("zrb_active_worktree", default="")
-
-
-async def _run_git(
-    argv: list[str], cwd: str, sandbox_cwd: str | None = None
-) -> tuple[int | None, bytes, bytes, str | None]:
-    """Run a git command through the same OS-level sandbox `Shell` uses.
-
-    Discrete argv, not a shell string, so branch/path values never need
-    quoting. `sandbox_cwd` overrides `cwd` as the sandbox's writable-root
-    anchor when the real write target differs (e.g. `worktree add` writes
-    under `git_root`). Raises `SandboxUnavailableError` in fallback="deny"
-    mode; callers turn it into a `[SYSTEM SUGGESTION]`.
-    """
-    sandboxed_argv, note = build_sandboxed_argv(
-        argv, sandbox_cwd or cwd, get_effective_sandbox_policy()
-    )
-    # Mirrors shell.py's _start_process: start_new_session so the process
-    # doesn't inherit our session (matters for the sandbox wrappers, which
-    # exec in place), stdin=DEVNULL so a git command that unexpectedly
-    # prompts (e.g. a credential helper) fails fast instead of hanging, and
-    # the enlarged StreamReader limit so one very long stdout/stderr line
-    # can't make the read raise.
-    proc = await asyncio.create_subprocess_exec(
-        *sandboxed_argv,
-        cwd=cwd,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-        stdin=asyncio.subprocess.DEVNULL,
-        start_new_session=True,
-        limit=8 * 1024 * 1024,
-    )
-    stdout, stderr = await proc.communicate()
-    return proc.returncode, stdout, stderr, note
-
-
-def _sandbox_refused(e: SandboxUnavailableError) -> str:
-    return (
-        f"Command refused by sandbox policy: {e}. "
-        "[SYSTEM SUGGESTION]: this deployment requires OS-level sandboxing "
-        f"for shell commands ({CFG.ENV_PREFIX}_LLM_SANDBOX_FALLBACK=deny)."
-    )
-
-
-def _prepend_notes(notes: list[str | None], result: str) -> str:
-    """Prepend every collected note (in call order), not just the first —
-    an earlier git call's sandbox-fallback warning must still reach the
-    model even when a later call in the same tool invocation errors, or
-    also produces its own note.
-    """
-    text = "\n".join(n for n in notes if n)
-    return f"{text}\n{result}" if text else result
 
 
 async def enter_worktree(branch_name: str = "", cwd: str = "") -> str:
@@ -75,7 +27,7 @@ async def enter_worktree(branch_name: str = "", cwd: str = "") -> str:
             ["git", "rev-parse", "--show-toplevel"], cwd
         )
     except SandboxUnavailableError as e:
-        return _sandbox_refused(e)
+        return format_sandbox_denied_message(e)
     notes.append(note)
     if root_rc != 0:
         return _prepend_notes(
@@ -102,7 +54,7 @@ async def enter_worktree(branch_name: str = "", cwd: str = "") -> str:
             sandbox_cwd=git_root,
         )
     except SandboxUnavailableError as e:
-        return _prepend_notes(notes, _sandbox_refused(e))
+        return _prepend_notes(notes, format_sandbox_denied_message(e))
     notes.append(note)
     if add_rc != 0:
         err_msg = add_err.decode().strip()
@@ -147,16 +99,42 @@ async def exit_worktree(worktree_path: str, keep_branch: bool = False) -> str:
             ["git", "-C", worktree_path, "rev-parse", "--abbrev-ref", "HEAD"], cwd
         )
     except SandboxUnavailableError as e:
-        return _sandbox_refused(e)
+        return format_sandbox_denied_message(e)
     notes.append(note)
     branch_name = branch_out.decode().strip() if branch_rc == 0 else None
 
     try:
-        rm_rc, _, rm_err, note = await _run_git(
-            ["git", "worktree", "remove", "--force", worktree_path], cwd
+        # --git-common-dir: the main repo's .git dir, which is where `worktree
+        # remove` updates worktree-admin metadata and `branch -D` updates
+        # refs. Neither necessarily lives under `cwd` (this function's caller
+        # may be anywhere) or under `worktree_path` itself, so — mirroring
+        # `enter_worktree`'s sandbox_cwd=git_root for its `worktree add` —
+        # both the removal and the branch-delete below anchor to its parent
+        # rather than the bare process cwd.
+        common_rc, common_out, _, note = await _run_git(
+            ["git", "-C", worktree_path, "rev-parse", "--git-common-dir"], cwd
         )
     except SandboxUnavailableError as e:
-        return _prepend_notes(notes, _sandbox_refused(e))
+        return _prepend_notes(notes, format_sandbox_denied_message(e))
+    notes.append(note)
+    git_common_dir = common_out.decode().strip()
+    if common_rc == 0 and git_common_dir:
+        if not os.path.isabs(git_common_dir):
+            git_common_dir = os.path.normpath(
+                os.path.join(worktree_path, git_common_dir)
+            )
+        git_root = os.path.dirname(git_common_dir)
+    else:
+        git_root = cwd
+
+    try:
+        rm_rc, _, rm_err, note = await _run_git(
+            ["git", "worktree", "remove", "--force", worktree_path],
+            cwd,
+            sandbox_cwd=git_root,
+        )
+    except SandboxUnavailableError as e:
+        return _prepend_notes(notes, format_sandbox_denied_message(e))
     notes.append(note)
     if rm_rc != 0:
         return _prepend_notes(
@@ -176,12 +154,11 @@ async def exit_worktree(worktree_path: str, keep_branch: bool = False) -> str:
     if branch_name and not keep_branch:
         try:
             del_rc, _, del_err, note = await _run_git(
-                ["git", "branch", "-D", branch_name], cwd
+                ["git", "branch", "-D", branch_name], cwd, sandbox_cwd=git_root
             )
         except SandboxUnavailableError as e:
-            lines.append(
-                f"Branch kept: {branch_name} (could not delete — {_sandbox_refused(e)})"
-            )
+            refused = format_sandbox_denied_message(e)
+            lines.append(f"Branch kept: {branch_name} (could not delete — {refused})")
             return _prepend_notes(notes, "\n".join(lines))
         notes.append(note)
         if del_rc == 0:
@@ -205,7 +182,7 @@ async def list_worktrees() -> str:
     try:
         returncode, stdout, _, note = await _run_git(["git", "worktree", "list"], cwd)
     except SandboxUnavailableError as e:
-        return _sandbox_refused(e)
+        return format_sandbox_denied_message(e)
     if returncode != 0:
         return _prepend_notes(
             [note],
@@ -216,6 +193,49 @@ async def list_worktrees() -> str:
     output = stdout.decode().strip()
     result = output if output else "No worktrees found (only the main working tree)."
     return _prepend_notes([note], result)
+
+
+async def _run_git(
+    argv: list[str], cwd: str, sandbox_cwd: str | None = None
+) -> tuple[int | None, bytes, bytes, str | None]:
+    """Run a git command through the same OS-level sandbox `Shell` uses.
+
+    Discrete argv, not a shell string, so branch/path values never need
+    quoting. `sandbox_cwd` overrides `cwd` as the sandbox's writable-root
+    anchor when the real write target differs (e.g. `worktree add` writes
+    under `git_root`). Raises `SandboxUnavailableError` in fallback="deny"
+    mode; callers turn it into a `[SYSTEM SUGGESTION]`.
+    """
+    sandboxed_argv, note = build_sandboxed_argv(
+        argv, sandbox_cwd or cwd, get_effective_sandbox_policy()
+    )
+    # Mirrors shell.py's _start_process: start_new_session so the process
+    # doesn't inherit our session (matters for the sandbox wrappers, which
+    # exec in place), stdin=DEVNULL so a git command that unexpectedly
+    # prompts (e.g. a credential helper) fails fast instead of hanging, and
+    # the enlarged StreamReader limit so one very long stdout/stderr line
+    # can't make the read raise.
+    proc = await asyncio.create_subprocess_exec(
+        *sandboxed_argv,
+        cwd=cwd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+        stdin=asyncio.subprocess.DEVNULL,
+        start_new_session=True,
+        limit=8 * 1024 * 1024,
+    )
+    stdout, stderr = await proc.communicate()
+    return proc.returncode, stdout, stderr, note
+
+
+def _prepend_notes(notes: list[str | None], result: str) -> str:
+    """Prepend every collected note (in call order), not just the first —
+    an earlier git call's sandbox-fallback warning must still reach the
+    model even when a later call in the same tool invocation errors, or
+    also produces its own note.
+    """
+    text = "\n".join(n for n in notes if n)
+    return f"{text}\n{result}" if text else result
 
 
 def _ensure_gitignore(git_root: str, pattern: str) -> None:

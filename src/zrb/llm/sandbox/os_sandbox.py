@@ -20,6 +20,7 @@ from __future__ import annotations
 import platform
 import shutil
 
+from zrb.config.config import CFG
 from zrb.llm.sandbox.bwrap import build_bwrap_argv
 from zrb.llm.sandbox.policy import SandboxPolicy
 from zrb.llm.sandbox.seatbelt import build_sbpl
@@ -29,6 +30,17 @@ ESCAPE_NOTE = "[NOTE] executed outside the sandbox (dangerously_skip_sandbox=tru
 
 class SandboxUnavailableError(Exception):
     """No OS sandbox mechanism is available and the policy demands one."""
+
+
+def format_sandbox_denied_message(e: SandboxUnavailableError) -> str:
+    """Shared `[SYSTEM SUGGESTION]` text for a `fallback="deny"` refusal —
+    every subprocess-spawning tool (shell, worktree) surfaces the same
+    wording so a future change to it doesn't have to be repeated per tool."""
+    return (
+        f"Command refused by sandbox policy: {e}. "
+        "[SYSTEM SUGGESTION]: this deployment requires OS-level sandboxing "
+        f"for shell commands ({CFG.ENV_PREFIX}_LLM_SANDBOX_FALLBACK=deny)."
+    )
 
 
 def build_sandboxed_argv(

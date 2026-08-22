@@ -1,7 +1,12 @@
 import os
 
 from zrb.config.config import CFG
-from zrb.llm.tool.file_observation import check_observed, record_observed
+from zrb.llm.tool.file_observation import (
+    check_observed,
+    check_writable_text,
+    path_write_lock,
+    record_observed,
+)
 from zrb.llm.tool.post_write_check import format_post_write_diagnostics
 
 
@@ -12,12 +17,26 @@ async def write_file(path: str, content: str, mode: str = "w") -> str:
     For large content, write in chunks: first with mode="w", subsequent with mode="a".
     mode="w" against an existing file is refused unless this session has Read (or
     itself just Written/Edited) that file's current content — Read it first.
+    An existing file whose bytes aren't valid UTF-8 (a binary) is refused in
+    every mode — this tool writes UTF-8 text only and would corrupt it.
     On success, runs LSP/static checks — errors appear as `[DIAGNOSTIC]` in the return value.
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
+    async with path_write_lock(abs_path):
+        return await _write_file_locked(path, abs_path, content, mode)
+
+
+async def _write_file_locked(path: str, abs_path: str, content: str, mode: str) -> str:
     existed_before = os.path.exists(abs_path)
     if mode == "w" and existed_before:
+        # Includes the binary refusal: it precedes the observed-state check.
         blocked = check_observed(abs_path)
+        if blocked is not None:
+            return blocked
+    elif existed_before:
+        # Append corrupts a binary just as surely as an overwrite would —
+        # same refusal, no observed-state requirement (nothing is destroyed).
+        blocked = check_writable_text(abs_path)
         if blocked is not None:
             return blocked
 
