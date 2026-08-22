@@ -189,9 +189,11 @@ async def run_command(
         max_display_line = max(max_output_line, max_error_line)
     # While environment variables alone weren't the fix, they are still
     # good practice for encouraging simpler output from tools.
+    # NO_COLOR is deliberately NOT set here: per the NO_COLOR convention any
+    # non-empty value (even "0") disables color, so there is no value that
+    # "explicitly allows" it — absence simply inherits the user's choice.
     child_env = (env_map or os.environ).copy()
     child_env["TERM"] = "xterm-256color"  # A capable but standard terminal
-    child_env["NO_COLOR"] = "0"  # Explicitly allow color
     cmd_process = await asyncio.create_subprocess_exec(
         *cmd,
         cwd=cwd,

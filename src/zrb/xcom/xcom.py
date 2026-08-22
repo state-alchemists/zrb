@@ -34,6 +34,35 @@ class Xcom(deque):
         super().append(value)
         self.__call_push_callbacks()
 
+    def appendleft(self, value):
+        """Add a value to the front of the queue and fire push callbacks."""
+        super().appendleft(value)
+        self.__call_push_callbacks()
+
+    def extend(self, values):
+        """Add every value to the end of the queue, firing push callbacks once."""
+        super().extend(values)
+        self.__call_push_callbacks()
+
+    def extendleft(self, values):
+        """Prepend every value (in reverse), firing push callbacks once."""
+        super().extendleft(values)
+        self.__call_push_callbacks()
+
+    def insert(self, index, value):
+        """Insert a value at *index*, firing push callbacks."""
+        super().insert(index, value)
+        self.__call_push_callbacks()
+
+    def remove(self, value):
+        """Remove the first matching value, firing pop callbacks."""
+        super().remove(value)
+        self.__call_pop_callbacks()
+
+    def __setitem__(self, index, value):
+        super().__setitem__(index, value)
+        self.__call_push_callbacks()
+
     def push(self, value):
         """Add a value to the end of the queue. Alias of `append`."""
         self.append(value)

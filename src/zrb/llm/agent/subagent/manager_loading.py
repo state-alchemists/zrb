@@ -54,7 +54,8 @@ class SubAgentManagerLoading:
         self._ignore_dirs = ignore_dirs
         self._agents = agents
 
-    def _scan_dir(self, directory: Path, max_depth: int, root_dir: str) -> None:
+    def scan_dir(self, directory: Path, max_depth: int, root_dir: str) -> None:
+        """Walk ``directory`` and load every agent file found under it."""
         try:
             scan_files(
                 Path(directory),

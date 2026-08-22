@@ -36,6 +36,10 @@ _SALIENT_ARG_KEYS = (
     "pattern",
     "url",
     "agent_name",
+    # ExitWorktree's deletion target. EnterWorktree's own destination is
+    # computed internally and never appears in caller-supplied args, so this
+    # only ever matches ExitWorktree.
+    "worktree_path",
 )
 
 

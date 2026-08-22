@@ -302,6 +302,7 @@ All task types available in Zrb, from basic to advanced.
 - [Built-in Helper Tasks](docs/task-types/builtin-helpers.md) (Git, Base64, UUID, HTTP, etc.)
 
 ### III. LLM & AI Integration
+- [Choosing Between Agent Harnesses](docs/advanced-topics/harness-comparison.md) — zrb `llm chat` vs Claude Code, opencode, DeepSeek Harness, and Pi: when each is the right tool
 - [Programming the Agent](docs/advanced-topics/programming-the-agent.md) — the overview: every way to shape agent behavior in Python (tools, hooks, dynamic prompts, history processors, agent-as-pipeline-node)
 - [Programming the Prompt](docs/advanced-topics/programming-the-prompt.md) — the ladder from a plain-string `message` up to a composed `PromptManager`; feeding a `CmdTask`'s output into `LLMTask`/`LLMChatTask`
 - [LLM Assistant & AI Tasks](docs/advanced-topics/llm-integration.md) — interactive chat, `LLMTask`/`LLMChatTask` usage, troubleshooting

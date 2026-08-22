@@ -379,7 +379,7 @@ async def test_open_web_page_conversion_failure_is_not_mislabeled_as_fetch():
     with (
         patch("playwright.async_api.async_playwright") as mock_playwright_ctx,
         patch(
-            "zrb.llm.tool.web._convert_html_to_markdown",
+            "zrb.llm.tool.web.convert_html_to_markdown",
             side_effect=RuntimeError("converter exploded"),
         ),
     ):
@@ -558,7 +558,7 @@ async def test_open_web_page_closes_browser_even_when_goto_fails():
     disk-backed profile, unboundedly, across a long research session."""
     with (
         patch("playwright.async_api.async_playwright") as mock_playwright_ctx,
-        patch("zrb.llm.tool.web._fetch_page_fallback", return_value=("f", [], False)),
+        patch("zrb.llm.tool.web.fetch_page_fallback", return_value=("f", [], False)),
     ):
         mock_p = AsyncMock()
         mock_browser = AsyncMock()
@@ -746,8 +746,8 @@ async def test_run_blocking_times_out_even_if_the_call_never_returns():
 @pytest.mark.asyncio
 async def test_run_blocking_runs_the_call_on_a_daemon_thread():
     """A non-daemon thread that outlives its timeout blocks interpreter exit
-    forever (`concurrent.futures.thread._python_exit` joining it) -- the exact
-    "won't die even with repeated Ctrl+C" symptom reported."""
+    forever (concurrent.futures' thread-exit hook joins it on shutdown) -- the
+    exact "won't die even with repeated Ctrl+C" symptom reported."""
     never_return = threading.Event()
     was_daemon = {}
 
@@ -782,7 +782,7 @@ async def test_search_internet_returns_promptly_even_if_backend_never_returns(
 
     with (
         patch.dict(os.environ, {f"{CFG.ENV_PREFIX}_SEARCH_INTERNET_METHOD": "other"}),
-        patch("zrb.llm.tool.web._TIMEOUT_MARGIN_SECONDS", 0.05),
+        patch("zrb.llm.tool.web.TIMEOUT_MARGIN_SECONDS", 0.05),
         patch.dict(os.environ, {f"{CFG.ENV_PREFIX}_LLM_WEB_HTTP_TIMEOUT": "10"}),
     ):
         start = time.monotonic()

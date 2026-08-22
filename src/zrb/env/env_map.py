@@ -42,4 +42,6 @@ class EnvMap(AnyEnv):
     def _get_env_map(self, shared_ctx: AnySharedContext) -> dict[str, str]:
         if callable(self._env_map):
             return self._env_map(shared_ctx)
+        if not self._auto_render:
+            return dict(self._env_map)
         return {key: shared_ctx.render(val) for key, val in self._env_map.items()}

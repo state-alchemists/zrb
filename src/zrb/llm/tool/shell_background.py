@@ -19,15 +19,22 @@ from dataclasses import dataclass, field
 from zrb.config.config import CFG
 from zrb.llm.permission import Capability, tag
 from zrb.llm.sandbox import build_sandboxed_argv, get_effective_sandbox_policy
+from zrb.llm.tool.stream_capture import StreamCapture
 from zrb.util.cmd.command import resolve_shell, terminate_process
 from zrb.util.string.name import get_random_name
+
+
+def _new_capture() -> StreamCapture:
+    # echo=0: background processes have no console-mirroring path today, so
+    # the echo budget is irrelevant here — only retain/spill matter.
+    return StreamCapture(CFG.LLM_MAX_OUTPUT_CHARS, 0)
 
 
 @dataclass
 class _BackgroundProcess:
     process: asyncio.subprocess.Process
-    stdout_lines: list[str] = field(default_factory=list)
-    stderr_lines: list[str] = field(default_factory=list)
+    stdout_cap: StreamCapture = field(default_factory=_new_capture)
+    stderr_cap: StreamCapture = field(default_factory=_new_capture)
     description: str = ""
     returncode: int | None = None
     tasks: list[asyncio.Task] = field(default_factory=list)
@@ -53,9 +60,7 @@ class _ShellBackgroundRegistry:
         # Raises SandboxUnavailableError in fallback="deny" mode — surfaced by
         # the tool as an explanatory error.
         argv, sandbox_note = build_sandboxed_argv(
-            resolved_shell,
-            shell_flag,
-            command,
+            [resolved_shell, shell_flag, command],
             effective_cwd,
             get_effective_sandbox_policy(),
             skip=dangerously_skip_sandbox,
@@ -72,7 +77,7 @@ class _ShellBackgroundRegistry:
         )
         bp = _BackgroundProcess(process=proc, description=description or command)
         if sandbox_note:
-            bp.stderr_lines.append(f"{sandbox_note}\n")
+            bp.stderr_cap.feed(f"{sandbox_note}\n")
         self._procs[handle] = bp
         # Start readers in the background and track them so cancel_all() /
         # kill() can stop them — otherwise they leak past the process exit.
@@ -90,13 +95,13 @@ class _ShellBackgroundRegistry:
                 break
             bp = self._procs.get(handle)
             if bp is not None:
-                bp.stdout_lines.append(line.decode(errors="replace"))
+                bp.stdout_cap.feed(line.decode(errors="replace"))
         if proc.stdout:
             remaining = await proc.stdout.read()
             if remaining:
                 bp = self._procs.get(handle)
                 if bp is not None:
-                    bp.stdout_lines.append(remaining.decode(errors="replace"))
+                    bp.stdout_cap.feed(remaining.decode(errors="replace"))
 
     async def _read_stderr(self, handle: str, proc: asyncio.subprocess.Process) -> None:
         while proc.stderr and not proc.stderr.at_eof():
@@ -105,13 +110,13 @@ class _ShellBackgroundRegistry:
                 break
             bp = self._procs.get(handle)
             if bp is not None:
-                bp.stderr_lines.append(line.decode(errors="replace"))
+                bp.stderr_cap.feed(line.decode(errors="replace"))
         if proc.stderr:
             remaining = await proc.stderr.read()
             if remaining:
                 bp = self._procs.get(handle)
                 if bp is not None:
-                    bp.stderr_lines.append(remaining.decode(errors="replace"))
+                    bp.stderr_cap.feed(remaining.decode(errors="replace"))
 
     async def _wait_exit(self, handle: str, proc: asyncio.subprocess.Process) -> None:
         rc = await proc.wait()
@@ -145,8 +150,8 @@ class _ShellBackgroundRegistry:
                 "(background=True); a finished handle is consumed by the poll "
                 "that reports its exit."
             )
-        stdout = "".join(bp.stdout_lines)
-        stderr = "".join(bp.stderr_lines)
+        stdout = bp.stdout_cap.text
+        stderr = bp.stderr_cap.text
         status = "running"
         if bp.returncode is not None:
             status = f"exited (code {bp.returncode})"
@@ -156,6 +161,9 @@ class _ShellBackgroundRegistry:
             f"Stdout:\n{stdout.strip() or '(empty)'}",
             f"Stderr:\n{stderr.strip() or '(empty)'}",
         ]
+        truncation_note = _truncation_note(bp.stdout_cap, bp.stderr_cap)
+        if truncation_note:
+            lines.append(truncation_note)
         if bp.returncode is not None:
             if all(task.done() for task in bp.tasks):
                 # Output fully drained: release the entry so finished
@@ -213,6 +221,31 @@ class _ShellBackgroundRegistry:
         self._procs.clear()
 
 
+def _truncation_note(stdout_cap: StreamCapture, stderr_cap: StreamCapture) -> str:
+    """A `[SYSTEM SUGGESTION]` line naming where the full output can still be
+    read, when either stream has dropped its head — or `""` when neither has.
+
+    Reuses each stream's own (already-open, stable-path) spill file directly
+    rather than dumping a fresh merged file per poll call, which would leak
+    one temp file per call for a long-lived, repeatedly-polled process.
+    """
+    if not (stdout_cap.truncated or stderr_cap.truncated):
+        return ""
+    parts = []
+    for name, cap in (("stdout", stdout_cap), ("stderr", stderr_cap)):
+        if cap.truncated:
+            cap.flush()
+            parts.append(
+                f"{name} truncated (kept the tail, {cap.total_chars} chars "
+                f"total) — full {name} saved to {cap.spill_path}"
+            )
+    return (
+        "[SYSTEM SUGGESTION]: "
+        + "; ".join(parts)
+        + ". Grep it to locate a section, then Read that range."
+    )
+
+
 def _release_process(bp: _BackgroundProcess) -> None:
     """Cancel the detached reader/wait tasks and finalize the subprocess transport.
 
@@ -224,11 +257,19 @@ def _release_process(bp: _BackgroundProcess) -> None:
     ``RuntimeError('Event loop is closed')`` — surfaced by pytest as a
     PytestUnraisableExceptionWarning. Closing explicitly here, while the loop is
     alive, makes that ``__del__`` a no-op.
+
+    ``stdout_cap``/``stderr_cap`` are closed (flushed, handle released) but
+    never discarded: a poll response can name a spill path in the very call
+    that triggers this release, so deleting the file here would make that
+    just-reported path immediately dangling. Matches `shell.py`'s own
+    never-auto-deleted dump file for the same reason.
     """
     for task in bp.tasks:
         if not task.done():
             task.cancel()
     bp.tasks = []
+    bp.stdout_cap.close()
+    bp.stderr_cap.close()
     transport = getattr(bp.process, "_transport", None)
     if transport is not None:
         transport.close()

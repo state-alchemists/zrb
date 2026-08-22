@@ -146,6 +146,55 @@ class TestTodoManager:
         assert result["in_progress"] == 1
         assert result["cancelled"] == 1
 
+    def test_merge_auto_id_does_not_collide_with_existing(self, tmp_path):
+        """An unlabeled new item must never silently merge into an unrelated,
+        already-completed item just because its auto-assigned index-based id
+        happens to match an existing one.
+        """
+        manager = TodoManager()
+        manager.todo_dir = tmp_path
+        manager.todos = {}
+
+        manager.write_todos(
+            "test_session", [{"id": "1", "content": "Old task", "status": "completed"}]
+        )
+
+        # No explicit id: today's index-based auto-id would also be "1",
+        # colliding with the already-completed item above.
+        result = manager.write_todos(
+            "test_session", [{"content": "New task"}], replace=False
+        )
+
+        assert result["total"] == 2
+        old_task = next(t for t in result["todos"] if t["content"] == "Old task")
+        new_task = next(t for t in result["todos"] if t["content"] == "New task")
+        assert old_task["id"] != new_task["id"]
+        assert old_task["status"] == "completed"
+        assert new_task["status"] == "pending"
+
+    def test_explicit_id_does_not_collide_with_auto_id_in_same_call(self, tmp_path):
+        """A later item's explicit id must not duplicate an id an earlier,
+        unlabeled item in the *same* write_todos call already auto-claimed —
+        both would otherwise land in `todos` as two distinct entries sharing
+        one id.
+        """
+        manager = TodoManager()
+        manager.todo_dir = tmp_path
+        manager.todos = {}
+
+        # Item 0 has no id: today's index-based auto-id assigns it "1".
+        # Item 1 explicitly claims "1" too.
+        result = manager.write_todos(
+            "test_session",
+            [{"content": "First"}, {"id": "1", "content": "Second"}],
+            replace=False,
+        )
+
+        assert result["total"] == 2
+        first = next(t for t in result["todos"] if t["content"] == "First")
+        second = next(t for t in result["todos"] if t["content"] == "Second")
+        assert first["id"] != second["id"]
+
     def test_sort_todos_numeric_ids(self, tmp_path):
         """Test that todos are sorted correctly with numeric IDs."""
         manager = TodoManager()

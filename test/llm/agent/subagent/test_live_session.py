@@ -339,6 +339,43 @@ async def test_continue_live_session_drains_multiple_queued_messages(
 
 
 @pytest.mark.asyncio
+async def test_continue_live_session_reuses_entrys_run_scope_across_turns(
+    buffered_ui, sub_agent_manager
+):
+    """Each drained message is a separate run_agent() call, but they're all
+    turns of the SAME sub-agent conversation — file_observation.py's
+    read-before-overwrite tracking must see them as one run_scope, not a
+    fresh one per turn (which would make it forget files read in an earlier
+    turn of this same continuation)."""
+    from zrb.llm.agent.subagent.live_session import LiveSubAgentSession
+
+    entry = LiveSubAgentSession(
+        agent_id="a",
+        agent_name="researcher",
+        session_id="sess1",
+        sub_agent_manager=sub_agent_manager,
+        buffered_ui=buffered_ui,
+        history=[],
+        pending_queue=["first", "second"],
+        state="running",
+    )
+
+    scopes = []
+
+    async def fake_run_agent(**kwargs):
+        scopes.append(kwargs["run_scope"])
+        return "ok", kwargs["message_history"] + [kwargs["message"]]
+
+    with patch(
+        "zrb.llm.agent.subagent.live_session.run_agent", side_effect=fake_run_agent
+    ):
+        await _continue_live_session(entry)
+
+    assert scopes == [entry.run_scope, entry.run_scope]
+    assert entry.run_scope != ""
+
+
+@pytest.mark.asyncio
 async def test_continue_live_session_reflects_in_activity_registry(
     buffered_ui, sub_agent_manager
 ):

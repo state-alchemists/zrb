@@ -3,7 +3,7 @@ from typing import Any
 import requests
 
 from zrb.config.config import CFG
-from zrb.llm.tool.search._http_errors import raise_http_error
+from zrb.llm.tool.search.http_errors import raise_http_error
 
 
 def search_internet(

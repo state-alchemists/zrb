@@ -43,6 +43,9 @@ class MockUI:
         self.execute_hook = MagicMock()
         self.execute_hook_blocking = AsyncMock(return_value=[])
         self.history_manager = MagicMock()
+        self.replay_history = MagicMock()
+        self.reset_session_token_usage = MagicMock()
+        self.original_persona_snapshot = None
         self.snapshot_manager = MagicMock()
         self.message_queue = asyncio.Queue()
         self.pending_attachments = []

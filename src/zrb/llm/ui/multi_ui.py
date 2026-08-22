@@ -568,21 +568,31 @@ class MultiUI:
                 pending_tasks.keys(), return_when=asyncio.FIRST_COMPLETED
             )
 
-            completed_task = done.pop()
+            # Several UIs may finish in the same wait round; pick the one
+            # with the lowest UI index so the winner never depends on set
+            # iteration order.
+            completed_task = min(done, key=lambda t: pending_tasks[t][0])
             winning_ui_index, winning_ui = pending_tasks[completed_task]
 
             # Store winning UI for use in tool confirmations
             self._last_winning_ui = winning_ui
 
+            for task in done:
+                if task is not completed_task:
+                    task.cancel()
             for task in pending:
                 task.cancel()
 
             try:
                 result = completed_task.result()
+            except Exception as e:
+                CFG.LOGGER.debug(f"Winning UI ask_user failed: {e}")
+                # Still sync sibling confirmation queues: no input race is in
+                # flight anymore, so stale confirmations must not linger.
                 self.clear_pending_confirmations_except(winning_ui_index)
-                return result
-            except Exception:
                 return ""
+            self.clear_pending_confirmations_except(winning_ui_index)
+            return result
         finally:
             self._pending_input_tasks = []
 
@@ -619,19 +629,25 @@ class MultiUI:
                 pending_tasks.keys(), return_when=asyncio.FIRST_COMPLETED
             )
 
-            completed_task = done.pop()
+            # Same deterministic winner rule as `ask_user`.
+            completed_task = min(done, key=lambda t: pending_tasks[t][0])
             winning_ui_index, winning_ui = pending_tasks[completed_task]
             self._last_winning_ui = winning_ui
 
+            for task in done:
+                if task is not completed_task:
+                    task.cancel()
             for task in pending:
                 task.cancel()
 
             try:
                 result = completed_task.result()
+            except Exception as e:
+                CFG.LOGGER.debug(f"Winning UI ask_user_choice failed: {e}")
                 self.clear_pending_confirmations_except(winning_ui_index)
-                return result
-            except Exception:
                 return ""
+            self.clear_pending_confirmations_except(winning_ui_index)
+            return result
         finally:
             self._pending_input_tasks = []
 

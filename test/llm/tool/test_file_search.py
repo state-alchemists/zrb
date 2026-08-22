@@ -130,12 +130,12 @@ def test_files_only_truncation_notice(tmp_path):
 
 
 def test_os_walk_skips_unreadable_file(tmp_path):
-    # Arrange: a file that os.walk lists but _get_file_matches cannot read, so
+    # Arrange: a file that os.walk lists but get_file_matches cannot read, so
     # the walk must skip it with a warning. Uses a mock instead of chmod so the
     # test works regardless of whether it runs as root (GitLab CI containers).
     locked = tmp_path / "locked.py"
     locked.write_text("needle here\n")
-    real_get_file_matches = file_search_mod._get_file_matches
+    real_get_file_matches = file_search_mod.get_file_matches
 
     def _raising_get_file_matches(file_path, *args, **kwargs):
         if str(file_path).endswith("locked.py"):
@@ -146,7 +146,7 @@ def test_os_walk_skips_unreadable_file(tmp_path):
     with (
         _no_ripgrep(),
         patch(
-            "zrb.llm.tool.file_search._get_file_matches",
+            "zrb.llm.tool.file_search.get_file_matches",
             side_effect=_raising_get_file_matches,
         ),
     ):

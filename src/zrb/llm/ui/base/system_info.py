@@ -48,24 +48,24 @@ class BaseUISystemInfo:
     def __init__(self, base_ui: "BaseUI") -> None:
         self._base_ui = base_ui
 
-    async def _update_system_info(self):
+    async def update_system_info(self):
         """Update CWD and Git info."""
-        self._base_ui.cwd = self._get_cwd_display()
-        branch, status = await self._get_git_info()
+        self._base_ui.cwd = self.get_cwd_display()
+        branch, status = await self.get_git_info()
         if branch:
             self._base_ui.git_info = f"{branch}{status}"
         else:
             self._base_ui.git_info = "Not a git repo"
         self._base_ui.invalidate_ui()
 
-    def _get_cwd_display(self) -> str:
+    def get_cwd_display(self) -> str:
         cwd = os.getcwd()
         home = os.path.expanduser("~")
         if cwd.startswith(home):
             return "~" + cwd[len(home) :]
         return cwd
 
-    async def _get_git_info(self) -> tuple[str, str]:
+    async def get_git_info(self) -> tuple[str, str]:
         """Returns (branch_name, status_symbol)"""
         try:
             # Check branch
@@ -99,7 +99,7 @@ class BaseUISystemInfo:
         except Exception:
             return "", ""
 
-    async def _update_system_info_loop(self):
+    async def update_system_info_loop(self):
         """Periodically update CWD and Git info."""
         while True:
             try:

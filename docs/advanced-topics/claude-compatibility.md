@@ -4,6 +4,8 @@
 
 Zrb is designed to be highly compatible with **Claude Code** configurations. This allows you to leverage your existing Claude skills, agents, and hooks within Zrb's automated workflows.
 
+> 💡 Weighing zrb against Claude Code and other harnesses (opencode, DeepSeek Harness, Pi)? See [Choosing Between Agent Harnesses](harness-comparison.md).
+
 ---
 
 ## Table of Contents

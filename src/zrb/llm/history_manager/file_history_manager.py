@@ -79,10 +79,13 @@ class FileHistoryManager(AnyHistoryManager):
 
         # Serve from cache only while the on-disk file hasn't changed since we
         # last synced. A differing mtime (incl. the file appearing/disappearing)
-        # means the cache is stale and we must re-read.
-        if (
-            conversation_name in self._cache
-            and self._cache_mtime.get(conversation_name) == current_mtime
+        # means the cache is stale and we must re-read — except for dirty
+        # entries: their content exists only in memory and is NEWER than any
+        # disk state, so an external write landing between update() and save()
+        # must not make load() discard it.
+        if conversation_name in self._cache and (
+            conversation_name in self._dirty
+            or self._cache_mtime.get(conversation_name) == current_mtime
         ):
             self._cache.move_to_end(conversation_name)
             return self._cache[conversation_name]

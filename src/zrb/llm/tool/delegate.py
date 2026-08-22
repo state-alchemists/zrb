@@ -171,6 +171,21 @@ async def run_agent_task(
             limiter=llm_limiter,
             ui=ui,
             yolo=bool(yolo) if yolo is not None else yolo,
+            # Not tied to the (display-only, 32-bit-truncated) agent_id
+            # above: this sub-agent's message_history starts empty, so it
+            # hasn't seen what the parent or a sibling observed —
+            # file_observation.py's read-before-overwrite tracking must not
+            # treat their reads as this run's own. `session.run_scope` is a
+            # fresh full-entropy uuid4 minted once when the live session was
+            # registered (or, when there's no live session to track, an
+            # equally fresh one that `run_agent` mints on its own below) —
+            # either way it sidesteps agent_id's birthday-bound collision
+            # risk over a long process lifetime (file_observation.py's map
+            # is never evicted, unlike the activity registry agent_id
+            # otherwise serves). Passing it explicitly (rather than leaving
+            # run_scope empty) lets `live_session.py`'s continuation turns
+            # reuse the same scope this original turn observed files under.
+            run_scope=session.run_scope if session is not None else "",
         )
 
         if flush_ui and hasattr(ui, "flush_to_parent"):
@@ -513,8 +528,14 @@ async def _run_parallel(
 
     parent_ui = get_current_ui() or StdUI()
     ui_lock = asyncio.Lock()
+    # Bounds how many sub-agent runs (each its own LLM call against the shared
+    # rate limiter, and possibly its own git worktree) launch at once — a
+    # model-requested `tasks` list has no other size limit. 0/negative
+    # disables the cap, matching LLM_MAX_REQUEST_PER_RUN's convention.
+    _max_parallel = CFG.LLM_MAX_PARALLEL_DELEGATIONS
+    _fan_out_semaphore = asyncio.Semaphore(_max_parallel) if _max_parallel > 0 else None
 
-    async def run_single_agent(task_spec: dict[str, Any]) -> AgentTaskResult:
+    async def _run_single_agent_inner(task_spec: dict[str, Any]) -> AgentTaskResult:
         agent_name = task_spec.get("agent_name", "")
         deliverable = task_spec.get("deliverable", "")
         task = task_spec.get("task", "")
@@ -596,6 +617,12 @@ async def _run_parallel(
             result.result,
             result.error,
         )
+
+    async def run_single_agent(task_spec: dict[str, Any]) -> AgentTaskResult:
+        if _fan_out_semaphore is None:
+            return await _run_single_agent_inner(task_spec)
+        async with _fan_out_semaphore:
+            return await _run_single_agent_inner(task_spec)
 
     # return_exceptions=True is defense in depth, not the primary fix: cleanup
     # failures are already caught above so they surface as a result note, not

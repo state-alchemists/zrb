@@ -138,6 +138,7 @@ def test_get_task_session_api_read(app_deps, mock_user):
     mock_task = MagicMock(spec=AnyTask)
     mock_task.inputs = []
     root_group.extract_node.return_value = (mock_task, MagicMock(), ["sess1"])
+    root_group.get_node_path.return_value = ["t1"]
 
     from zrb.session_state_log.session_state_log import SessionStateLog
 
@@ -162,6 +163,62 @@ def test_get_task_session_api_read(app_deps, mock_user):
         response = client.get("/api/v1/task-sessions/my/task/sess1")
         assert response.status_code == 200
         assert response.json()["name"] == "sess1"
+
+
+def test_get_task_session_api_read_foreign_session(app_deps, mock_user):
+    """A session log recorded for another task must not be readable."""
+    client, root_group, _, session_state_logger, _ = app_deps
+
+    from zrb.task.any_task import AnyTask
+
+    mock_task = MagicMock(spec=AnyTask)
+    mock_task.inputs = []
+    root_group.extract_node.return_value = (mock_task, MagicMock(), ["sess1"])
+    root_group.get_node_path.return_value = ["this", "task"]
+
+    from zrb.session_state_log.session_state_log import SessionStateLog
+
+    mock_log = SessionStateLog(
+        name="sess1",
+        start_time="2021-01-01T00:00:00",
+        main_task_name="other",
+        path=["other", "task"],
+        input={},
+        final_result="secret-result",
+        finished=True,
+        log=[],
+        task_status={},
+    )
+    session_state_logger.read.return_value = mock_log
+
+    with patch(
+        "zrb.runner.web_route.task_session_api_route.get_user_from_request",
+        new_callable=AsyncMock,
+        return_value=mock_user,
+    ):
+        response = client.get("/api/v1/task-sessions/my/task/sess1")
+        assert response.status_code == 404
+
+
+def test_get_task_session_api_read_missing_session(app_deps, mock_user):
+    """A session name that does not resolve to a log yields 404, not 500."""
+    client, root_group, _, session_state_logger, _ = app_deps
+
+    from zrb.task.any_task import AnyTask
+
+    mock_task = MagicMock(spec=AnyTask)
+    mock_task.inputs = []
+    root_group.extract_node.return_value = (mock_task, MagicMock(), ["nope"])
+    root_group.get_node_path.return_value = ["t1"]
+    session_state_logger.read.side_effect = FileNotFoundError("no such file")
+
+    with patch(
+        "zrb.runner.web_route.task_session_api_route.get_user_from_request",
+        new_callable=AsyncMock,
+        return_value=mock_user,
+    ):
+        response = client.get("/api/v1/task-sessions/my/task/nope")
+        assert response.status_code == 404
 
 
 def test_get_task_session_api_forbidden(app_deps, mock_user):

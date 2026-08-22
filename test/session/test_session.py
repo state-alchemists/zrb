@@ -397,12 +397,46 @@ def test_as_state_log(session):
     task.upstreams = []
     task.color = None
     task.icon = None
+    task.inputs = []
 
     session.register_task(task)
     state_log = session.as_state_log()
 
     assert state_log.name == session.name
     assert "task" in state_log.task_status
+
+
+def test_as_state_log_masks_secret_input():
+    """Secret input values must be masked before reaching the state log."""
+    from zrb.context.shared_context import SharedContext
+    from zrb.input.password_input import PasswordInput
+    from zrb.session.session import SECRET_MASK
+
+    shared_ctx = SharedContext()
+    shared_ctx.input["password"] = "hunter2"
+    shared_ctx.input["plain"] = "visible"
+
+    password_input = PasswordInput(name="password")
+    other_input = MagicMock()
+    other_input.name = "plain"
+    other_input.is_secret = False
+    task = MagicMock(spec=AnyTask)
+    task.name = "mytask"
+    task.readiness_checks = []
+    task.successors = []
+    task.fallbacks = []
+    task.upstreams = []
+    task.color = None
+    task.icon = None
+    task.inputs = [password_input, other_input]
+
+    session = Session(shared_ctx=shared_ctx)
+    session.register_task(task)
+    state_log = session.as_state_log()
+
+    assert state_log.input["password"] == SECRET_MASK
+    assert "hunter2" not in str(state_log.input)
+    assert state_log.input["plain"] == "visible"
 
 
 def test_as_state_log_with_non_serializable_input():
@@ -595,3 +629,40 @@ async def test_defer_coro_prune_logs_failed_coro():
         mock_cfg.LOGGER.error.assert_called_once()
         assert "deferred failure" in mock_cfg.LOGGER.error.call_args.args[0]
     await session.wait_deferred()
+
+
+@pytest.mark.asyncio
+async def test_defer_action_cancels_previous_orphan():
+    """Re-deferring a task must cancel the previous still-running action
+    instead of leaving it orphaned (never awaited, invisible to terminate)."""
+    from zrb.context.shared_context import SharedContext
+
+    shared_ctx = SharedContext()
+    session = Session(shared_ctx=shared_ctx)
+    task = _mk_task("redeferred")
+
+    started_first = asyncio.Event()
+    cancelled_first = asyncio.Event()
+
+    async def first_action():
+        started_first.set()
+        try:
+            await asyncio.sleep(60)
+        except asyncio.CancelledError:
+            cancelled_first.set()
+            raise
+
+    async def second_action():
+        return "second"
+
+    session.defer_action(task, first_action())
+    await asyncio.wait_for(started_first.wait(), timeout=1)
+
+    session.defer_action(task, second_action())
+
+    # Give the cancellation a moment to land.
+    for _ in range(50):
+        if cancelled_first.is_set():
+            break
+        await asyncio.sleep(0.01)
+    assert cancelled_first.is_set()

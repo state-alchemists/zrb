@@ -1,5 +1,6 @@
 """Tests for RAG tool implementation."""
 
+import asyncio
 import inspect
 from unittest.mock import MagicMock, patch
 
@@ -325,10 +326,10 @@ class TestRAGFactory:
         )
 
         # Pre-seed the hash file so the single document is unchanged.
-        from zrb.llm.tool.rag import _compute_file_hash, _save_hashes
+        from zrb.llm.tool.rag import compute_file_hash, save_hashes
 
-        file_hash = _compute_file_hash(str(doc_dir / "test.txt"))
-        _save_hashes(
+        file_hash = compute_file_hash(str(doc_dir / "test.txt"))
+        save_hashes(
             str(db_dir / "file_hashes.json"),
             {"test.txt": file_hash},
         )
@@ -421,6 +422,142 @@ class TestRAGFactory:
         assert "ids" in result
 
     @pytest.mark.asyncio
+    async def test_retrieve_deletes_removed_files_and_updates_baseline(self, tmp_path):
+        # A previously indexed file that no longer exists on disk must be
+        # removed from the collection AND from file_hashes.json — otherwise
+        # deleted documents keep surfacing as semantic matches forever.
+        doc_dir = tmp_path / "docs"
+        doc_dir.mkdir()
+        (doc_dir / "kept.txt").write_text("kept content")
+        db_dir = tmp_path / "chroma"
+        db_dir.mkdir()
+
+        retrieve = create_rag_from_directory(
+            tool_name="MyRAG",
+            tool_description="desc",
+            document_dir_path=str(doc_dir),
+            vector_db_path=str(db_dir),
+        )
+
+        import json as json_mod
+
+        from zrb.llm.tool.rag import compute_file_hash, save_hashes
+
+        hash_file = str(db_dir / "file_hashes.json")
+        save_hashes(
+            hash_file,
+            {
+                "kept.txt": compute_file_hash(str(doc_dir / "kept.txt")),
+                "gone.txt": "stale-hash-of-deleted-file",
+            },
+        )
+
+        mock_chroma = MagicMock()
+        mock_chroma_config = MagicMock()
+        mock_openai = MagicMock()
+        with patch.dict(
+            "sys.modules",
+            {
+                "chromadb": mock_chroma,
+                "chromadb.config": mock_chroma_config,
+                "openai": mock_openai,
+            },
+        ):
+            with patch("zrb.llm.tool.rag.CFG") as mock_cfg:
+                mock_cfg.RAG_CHUNK_SIZE = 100
+                mock_cfg.RAG_OVERLAP = 0
+                mock_cfg.RAG_MAX_RESULT_COUNT = 5
+                mock_cfg.RAG_EMBEDDING_API_KEY = "dummy"
+                mock_cfg.RAG_EMBEDDING_MODEL = "model"
+                mock_cfg.RAG_EMBEDDING_BASE_URL = None
+                mock_collection = MagicMock()
+                mock_chroma.PersistentClient.return_value.get_or_create_collection.return_value = (
+                    mock_collection
+                )
+                mock_openai_inst = mock_openai.OpenAI.return_value
+                mock_openai_inst.embeddings.create.return_value = MagicMock(
+                    data=[MagicMock(embedding=[0.1, 0.2])]
+                )
+                mock_collection.query.return_value = {"ids": [["id1"]]}
+
+                result = await retrieve(query="q")
+
+        assert "ids" in result
+        # The deleted file's chunks were removed from the collection.
+        mock_collection.delete.assert_called_with(where={"file_path": "gone.txt"})
+        # The baseline was updated: gone.txt no longer in file_hashes.json.
+        with open(hash_file) as f:
+            saved_hashes = json_mod.load(f)
+        assert saved_hashes == {"kept.txt": saved_hashes["kept.txt"]}
+        assert "gone.txt" not in saved_hashes
+
+    @pytest.mark.asyncio
+    async def test_retrieve_keeps_index_when_unhashable_file_still_exists(
+        self, tmp_path
+    ):
+        # A file present on disk but failing to hash this round must NOT be
+        # treated as deleted (its index entries survive).
+        doc_dir = tmp_path / "docs"
+        doc_dir.mkdir()
+        (doc_dir / "test.txt").write_text("knowledge content")
+        db_dir = tmp_path / "chroma"
+        db_dir.mkdir()
+
+        retrieve = create_rag_from_directory(
+            tool_name="MyRAG",
+            tool_description="desc",
+            document_dir_path=str(doc_dir),
+            vector_db_path=str(db_dir),
+        )
+
+        from zrb.llm.tool.rag import save_hashes
+
+        hash_file = str(db_dir / "file_hashes.json")
+        save_hashes(hash_file, {"test.txt": "previous-hash"})
+
+        real_compute = None
+
+        def flaky_hash(file_path):
+            raise OSError("transient read failure")
+
+        mock_chroma = MagicMock()
+        mock_chroma_config = MagicMock()
+        mock_openai = MagicMock()
+        with patch.dict(
+            "sys.modules",
+            {
+                "chromadb": mock_chroma,
+                "chromadb.config": mock_chroma_config,
+                "openai": mock_openai,
+            },
+        ):
+            with (
+                patch("zrb.llm.tool.rag.CFG") as mock_cfg,
+                patch("zrb.llm.tool.rag.compute_file_hash", side_effect=flaky_hash),
+            ):
+                mock_cfg.RAG_CHUNK_SIZE = 100
+                mock_cfg.RAG_OVERLAP = 0
+                mock_cfg.RAG_MAX_RESULT_COUNT = 5
+                mock_cfg.RAG_EMBEDDING_API_KEY = "dummy"
+                mock_cfg.RAG_EMBEDDING_MODEL = "model"
+                mock_cfg.RAG_EMBEDDING_BASE_URL = None
+                mock_collection = MagicMock()
+                mock_chroma.PersistentClient.return_value.get_or_create_collection.return_value = (
+                    mock_collection
+                )
+                mock_openai_inst = mock_openai.OpenAI.return_value
+                mock_openai_inst.embeddings.create.return_value = MagicMock(
+                    data=[MagicMock(embedding=[0.1, 0.2])]
+                )
+                mock_collection.query.return_value = {"ids": [["id1"]]}
+
+                result = await retrieve(query="q")
+
+        assert "ids" in result
+        # The still-existing file's chunks were not removed.
+        mock_collection.delete.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_retrieve_query_embedding_auth_error(self, tmp_path):
         # rag.py:197-202: 401/Unauthorized on the query embedding.
         result = await self._run_with_query_embedding_error(
@@ -466,11 +603,11 @@ class TestRAGFactory:
             vector_db_path=str(db_dir),
         )
 
-        from zrb.llm.tool.rag import _compute_file_hash, _save_hashes
+        from zrb.llm.tool.rag import compute_file_hash, save_hashes
 
-        _save_hashes(
+        save_hashes(
             str(db_dir / "file_hashes.json"),
-            {"test.txt": _compute_file_hash(str(doc_dir / "test.txt"))},
+            {"test.txt": compute_file_hash(str(doc_dir / "test.txt"))},
         )
 
         mock_chroma = MagicMock()
@@ -529,9 +666,7 @@ class TestRAGFactory:
         ):
             with (
                 patch("zrb.llm.tool.rag.CFG") as mock_cfg,
-                patch(
-                    "zrb.llm.tool.rag._load_hashes", side_effect=RuntimeError("boom")
-                ),
+                patch("zrb.llm.tool.rag.load_hashes", side_effect=RuntimeError("boom")),
             ):
                 mock_cfg.RAG_CHUNK_SIZE = 100
                 mock_cfg.RAG_OVERLAP = 0
@@ -584,7 +719,7 @@ class TestRAGFactory:
             with (
                 patch("zrb.llm.tool.rag.CFG") as mock_cfg,
                 patch(
-                    "zrb.llm.tool.rag._compute_file_hash",
+                    "zrb.llm.tool.rag.compute_file_hash",
                     side_effect=OSError("unreadable"),
                 ),
             ):
@@ -626,11 +761,11 @@ class TestRAGFactory:
             vector_db_path=str(db_dir),
         )
 
-        from zrb.llm.tool.rag import _compute_file_hash, _save_hashes
+        from zrb.llm.tool.rag import compute_file_hash, save_hashes
 
-        _save_hashes(
+        save_hashes(
             str(db_dir / "file_hashes.json"),
-            {"test.txt": _compute_file_hash(str(doc_dir / "test.txt"))},
+            {"test.txt": compute_file_hash(str(doc_dir / "test.txt"))},
         )
 
         mock_chroma = MagicMock()
@@ -666,6 +801,63 @@ class TestRAGFactory:
         assert "Failed to search documents" in result["error"]
 
     @pytest.mark.asyncio
+    async def test_retrieve_offloads_blocking_calls_to_a_thread(self, tmp_path):
+        # ADR-0003 (async-first): ChromaDB/OpenAI calls must not run inline
+        # on the event loop — confirm retrieve() actually routes its
+        # blocking segments through asyncio.to_thread rather than calling
+        # them directly.
+        doc_dir = tmp_path / "docs"
+        doc_dir.mkdir()
+        (doc_dir / "test.txt").write_text("knowledge content")
+        db_dir = tmp_path / "chroma"
+        db_dir.mkdir()
+
+        retrieve = create_rag_from_directory(
+            tool_name="MyRAG",
+            tool_description="desc",
+            document_dir_path=str(doc_dir),
+            vector_db_path=str(db_dir),
+        )
+
+        mock_chroma = MagicMock()
+        mock_chroma_config = MagicMock()
+        mock_openai = MagicMock()
+        with patch.dict(
+            "sys.modules",
+            {
+                "chromadb": mock_chroma,
+                "chromadb.config": mock_chroma_config,
+                "openai": mock_openai,
+            },
+        ):
+            with patch("zrb.llm.tool.rag.CFG") as mock_cfg:
+                mock_cfg.RAG_CHUNK_SIZE = 100
+                mock_cfg.RAG_OVERLAP = 0
+                mock_cfg.RAG_MAX_RESULT_COUNT = 5
+                mock_cfg.RAG_EMBEDDING_API_KEY = "dummy"
+                mock_cfg.RAG_EMBEDDING_MODEL = "model"
+                mock_cfg.RAG_EMBEDDING_BASE_URL = None
+                mock_collection = MagicMock()
+                mock_chroma.PersistentClient.return_value.get_or_create_collection.return_value = (
+                    mock_collection
+                )
+                mock_openai_inst = mock_openai.OpenAI.return_value
+                mock_openai_inst.embeddings.create.return_value = MagicMock(
+                    data=[MagicMock(embedding=[0.1, 0.2])]
+                )
+                mock_collection.query.return_value = {"ids": [["id1"]]}
+
+                with patch(
+                    "zrb.llm.tool.rag.asyncio.to_thread",
+                    wraps=asyncio.to_thread,
+                ) as mock_to_thread:
+                    result = await retrieve(query="q")
+
+        assert "ids" in result
+        # _load_or_reindex, _embed_query, _query_collection — one call each.
+        assert mock_to_thread.call_count == 3
+
+    @pytest.mark.asyncio
     async def test_retrieve_error_missing_key(self, tmp_path):
         retrieve = create_rag_from_directory(tool_name="MyRAG", tool_description="desc")
 
@@ -696,11 +888,11 @@ class TestRAGUtils:
     def test_save_hashes(self, tmp_path):
         import json
 
-        from zrb.llm.tool.rag import _save_hashes
+        from zrb.llm.tool.rag import save_hashes
 
         hash_file = tmp_path / "hashes.json"
         hashes = {"file1": "hash1"}
-        _save_hashes(str(hash_file), hashes)
+        save_hashes(str(hash_file), hashes)
 
         assert hash_file.exists()
         with open(hash_file, "r") as f:
@@ -708,31 +900,31 @@ class TestRAGUtils:
         assert loaded == hashes
 
     def test_load_hashes_error_handling(self, tmp_path):
-        from zrb.llm.tool.rag import _load_hashes
+        from zrb.llm.tool.rag import load_hashes
 
         hash_file = tmp_path / "invalid.json"
         hash_file.write_text("not json")
 
         # Should not crash, just return empty
-        res = _load_hashes(str(hash_file))
+        res = load_hashes(str(hash_file))
         assert res == {}
 
     def test_read_txt_content_with_custom_reader(self, tmp_path):
-        from zrb.llm.tool.rag import _read_txt_content
+        from zrb.llm.tool.rag import read_txt_content
 
         f = tmp_path / "test.custom"
         f.write_text("original content")
 
         reader = RAGFileReader("*.custom", lambda x: "intercepted content")
 
-        res = _read_txt_content(str(f), [reader])
+        res = read_txt_content(str(f), [reader])
         assert res == "intercepted content"
 
     def test_read_txt_content_fallback(self, tmp_path):
-        from zrb.llm.tool.rag import _read_txt_content
+        from zrb.llm.tool.rag import read_txt_content
 
         f = tmp_path / "test.txt"
         f.write_text("original content")
 
-        res = _read_txt_content(str(f), [])
+        res = read_txt_content(str(f), [])
         assert res == "original content"

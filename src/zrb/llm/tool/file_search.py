@@ -14,7 +14,7 @@ from zrb.util.truncate import truncate_items, truncate_text
 # Per-line snippet cap in search output (a single matched/context line).
 _MAX_LINE_LENGTH = 1000
 # Head-keep cap on the number of matches reported for one file.
-_MAX_MATCHES_PER_FILE = 100
+MAX_MATCHES_PER_FILE = 100
 
 
 def search_files(
@@ -221,7 +221,7 @@ def _search_with_ripgrep(
     for file_path in matching_files:
         rel_file_path = os.path.relpath(file_path, os.getcwd())
         try:
-            matches = _get_file_matches(
+            matches = get_file_matches(
                 file_path,
                 pattern,
                 context_lines=context_lines,
@@ -293,7 +293,7 @@ def _search_with_os_walk(
             searched_file_count += 1
 
             try:
-                matches = _get_file_matches(
+                matches = get_file_matches(
                     file_path,
                     pattern,
                     context_lines=context_lines,
@@ -322,7 +322,7 @@ def _search_with_os_walk(
     )
 
 
-def _get_file_matches(
+def get_file_matches(
     file_path: str,
     pattern: re.Pattern,
     context_lines: int = 2,
@@ -355,15 +355,15 @@ def _get_file_matches(
             matches.append(match_data)
 
     # Cap matches per file (head-keep) so one busy file can't dominate output.
-    if len(matches) > _MAX_MATCHES_PER_FILE:
-        omitted = len(matches) - _MAX_MATCHES_PER_FILE
-        kept = matches[:_MAX_MATCHES_PER_FILE]
+    if len(matches) > MAX_MATCHES_PER_FILE:
+        omitted = len(matches) - MAX_MATCHES_PER_FILE
+        kept = matches[:MAX_MATCHES_PER_FILE]
         kept.append(
             {
                 "line_number": 0,
                 "line_content": (
                     f"[TRUNCATED {omitted} matches in this file. Showing first "
-                    f"{_MAX_MATCHES_PER_FILE}.]"
+                    f"{MAX_MATCHES_PER_FILE}.]"
                 ),
                 "context_before": [],
                 "context_after": [],

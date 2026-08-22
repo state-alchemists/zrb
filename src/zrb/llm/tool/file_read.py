@@ -1,8 +1,12 @@
 import os
 
 from zrb.config.config import CFG
+from zrb.llm.tool.file_observation import record_observed
 from zrb.llm.util.pdf import extract_pdf_text
 from zrb.util.truncate import truncate_text
+
+# Shared read-size cap for the text and PDF paths alike.
+_MAX_READ_FILE_BYTES = 10 * 1024 * 1024
 
 
 def read_file(
@@ -49,6 +53,7 @@ def read_file(
     try:
         with open(abs_path, "r", encoding="utf-8") as f:
             content = f.read()
+        record_observed(abs_path, content)
 
         lines = content.splitlines(keepends=True)
         total_lines = len(lines)
@@ -175,7 +180,7 @@ def _validate_range(start_line: int, end_line: int, total_lines: int) -> str | N
 def _check_file_safety(abs_path: str) -> str | None:
     """Checks if the file is safe to read (size and content type)."""
     file_size = os.path.getsize(abs_path)
-    if file_size > 10 * 1024 * 1024:
+    if file_size > _MAX_READ_FILE_BYTES:
         return (
             f"Error: File is too large ({file_size} bytes). "
             f"[SYSTEM SUGGESTION]: Use Grep to search for specific content instead."
@@ -199,6 +204,18 @@ def _is_pdf_file(abs_path: str) -> bool:
 
 
 def _read_pdf(path: str, abs_path: str, start_line: int, end_line: int) -> str:
+    # Same 10 MB cap as the text path (see _check_file_safety): pdfplumber
+    # materializes the whole extraction in memory, so an unbounded PDF would
+    # let one tool call exhaust the process. The binary peek does not apply —
+    # PDFs are binaries by design.
+    file_size = os.path.getsize(abs_path)
+    if file_size > _MAX_READ_FILE_BYTES:
+        return (
+            f"Error: PDF is too large ({file_size} bytes). "
+            "[SYSTEM SUGGESTION]: Split the PDF into smaller parts, or use a "
+            "tool suited to large documents."
+        )
+
     full_text = extract_pdf_text(abs_path)
 
     if full_text is None:
@@ -214,6 +231,20 @@ def _read_pdf(path: str, abs_path: str, start_line: int, end_line: int) -> str:
             "[SYSTEM SUGGESTION]: This PDF may be scanned/image-only "
             "or contain no text layer. Use a tool suited to OCR."
         )
+
+    # A PDF read is still a read: write_file(mode="w")'s observed-content
+    # gate must recognize this file as seen, same as the plain-text path.
+    # The recorded hash has to match what check_observed re-reads from disk —
+    # the raw bytes, not this extraction (a lossy view that would trip the
+    # "has changed" branch even right after a fresh Read). True binaries are
+    # refused outright by the gate regardless; recording only matters for
+    # text-decodable files, and is best-effort since the read already
+    # succeeded above.
+    try:
+        with open(abs_path, "r", encoding="utf-8") as f:
+            record_observed(abs_path, f.read())
+    except Exception as e:
+        CFG.LOGGER.debug(f"Failed to record observed content for {abs_path}: {e}")
 
     lines = full_text.splitlines(keepends=True)
     total_lines = len(lines)

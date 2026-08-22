@@ -217,7 +217,7 @@ class SubAgentManager:
                 else self.get_search_directories()
             )
         for search_dir in target_search_dirs:
-            self._loading._scan_dir(
+            self._loading.scan_dir(
                 Path(search_dir), max_depth=self._max_depth, root_dir=self._root_dir
             )
         self._loaded = True
@@ -387,11 +387,15 @@ class SubAgentManager:
 
         resolved_toolsets = self.get_all_toolsets(ctx)
 
-        # YOLO: explicit True wins; otherwise return a checker that reads the
-        # live parent state on each invocation (so toggles propagate).
+        # YOLO: an explicit True/False wins; None (or anything else) returns a
+        # checker that reads the live parent state on each invocation (so
+        # toggles propagate). The old truthiness-only check made an explicit
+        # False indistinguishable from unset.
         effective_yolo: bool | Callable[..., bool]
         if yolo is True:
             effective_yolo = True
+        elif yolo is False:
+            effective_yolo = False
         else:
             effective_yolo = make_yolo_inheritance_checker()
 
@@ -484,7 +488,7 @@ class SubAgentManager:
         if target_search_dirs is None:
             target_search_dirs = self.get_search_directories()
         for search_dir in target_search_dirs:
-            self._loading._scan_dir(
+            self._loading.scan_dir(
                 Path(search_dir), max_depth=self._max_depth, root_dir=self._root_dir
             )
 

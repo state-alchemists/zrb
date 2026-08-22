@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from zrb.llm.tool import file_observation
 from zrb.llm.tool.file import (
     glob_files,
     list_files,
@@ -13,6 +14,28 @@ from zrb.llm.tool.file import (
     search_files,
     write_file,
 )
+from zrb.llm.tool.file_observation import clear_observed
+
+
+@pytest.fixture(autouse=True)
+def _reset_observed_state():
+    """The observed-content map is a run-scoped module singleton — reset it
+    so one test's Read/Write never leaks into another's assertions.
+    """
+    clear_observed()
+    yield
+    clear_observed()
+
+
+@pytest.fixture
+def run_scope():
+    """Run the body under a named agent-run scope, restoring afterwards."""
+    from zrb.llm.agent.run.runner import current_agent_run_scope
+
+    def set_scope(name: str):
+        return current_agent_run_scope.set(name)
+
+    return set_scope
 
 
 def _w(*a, **kw):
@@ -607,6 +630,73 @@ def test_read_pdf_file_invalid(tmp_path):
     assert "corrupted" in result.lower()
 
 
+def _mock_pdfplumber(extracted_text: str):
+    """Patch pdfplumber with a one-page extractor yielding *extracted_text*."""
+    import sys
+    import types
+    from unittest.mock import MagicMock, patch
+
+    mock_pdf = MagicMock()
+    mock_page = MagicMock()
+    mock_page.extract_text.return_value = extracted_text
+    mock_pdf.pages = [mock_page]
+
+    mock_pdfplumber = types.ModuleType("pdfplumber")
+    ctx = MagicMock()
+    ctx.__enter__.return_value = mock_pdf
+    mock_pdfplumber.open = MagicMock(return_value=ctx)
+    mock_pdfplumber.pdf = types.ModuleType("pdfplumber.pdf")
+    mock_pdfplumber.pdf.PDF = MagicMock()
+    return patch.dict(
+        sys.modules,
+        {"pdfplumber": mock_pdfplumber, "pdfplumber.pdf": mock_pdfplumber.pdf},
+    )
+
+
+def test_write_to_binary_file_denied_even_after_read(temp_dir):
+    """A Read grounds a text overwrite, never a binary one: Write emits UTF-8
+    only, so a real (non-UTF-8) PDF is refused outright — the refusal names
+    binary, not a misleading staleness claim."""
+    pdf_file = os.path.join(temp_dir, "real.pdf")
+    with open(pdf_file, "wb") as f:
+        f.write(b"%PDF-1.4 \xe9\x00 not valid utf-8")
+
+    with _mock_pdfplumber("extracted text"):
+        assert "extracted text" in read_file(pdf_file)
+
+    result = _w(pdf_file, "replacement text", mode="w")
+    assert "Error" in result
+    assert "binary" in result.lower()
+
+
+def test_append_to_binary_file_denied(temp_dir):
+    """Appending UTF-8 text to a binary corrupts it just like an overwrite —
+    same outright refusal, no observed-state requirement."""
+    bin_file = os.path.join(temp_dir, "blob.bin")
+    with open(bin_file, "wb") as f:
+        f.write(b"\x00\x01\xfe\xff")
+
+    result = _w(bin_file, "appended text", mode="a")
+    assert "Error" in result
+    assert "binary" in result.lower()
+    with open(bin_file, "rb") as f:
+        assert f.read() == b"\x00\x01\xfe\xff"
+
+
+def test_text_decodable_pdf_allows_grounded_overwrite(temp_dir):
+    """A .pdf whose bytes ARE valid UTF-8 is ordinary text to Write: after a
+    Read records its raw content, mode="w" proceeds without re-reading."""
+    pdf_file = os.path.join(temp_dir, "text-like.pdf")
+    with open(pdf_file, "w", encoding="utf-8") as f:
+        f.write("plain text masquerading as pdf")
+
+    with _mock_pdfplumber("plain text masquerading as pdf"):
+        read_file(pdf_file)
+
+    result = _w(pdf_file, "replacement")
+    assert "Successfully wrote" in result
+
+
 def test_read_pdf_file_line_range(tmp_path):
     pdf_file = tmp_path / "test.pdf"
     pdf_file.write_text("dummy")
@@ -844,6 +934,226 @@ def test_write_file_says_nothing_when_the_directory_existed(tmp_path):
 
     assert "Successfully wrote" in result
     assert "created new directory" not in result
+
+
+# --- write_file read-before-overwrite gate ---
+
+
+def test_write_file_blocks_overwrite_of_unread_existing_file(tmp_path):
+    file_path = tmp_path / "f.txt"
+    file_path.write_text("original, written outside this run")
+
+    result = _w(str(file_path), "clobbered")
+
+    assert "Error" in result
+    assert "has not been read in this session" in result
+    assert file_path.read_text() == "original, written outside this run"
+
+
+def test_write_file_allows_overwrite_after_read(tmp_path):
+    file_path = tmp_path / "f.txt"
+    file_path.write_text("original")
+
+    read_file(str(file_path))
+    result = _w(str(file_path), "updated")
+
+    assert "Successfully wrote" in result
+    assert file_path.read_text() == "updated"
+
+
+def test_write_file_blocks_overwrite_when_content_changed_after_read(tmp_path):
+    file_path = tmp_path / "f.txt"
+    file_path.write_text("original")
+
+    read_file(str(file_path))
+    file_path.write_text("changed by something else")  # bypasses our tools
+    result = _w(str(file_path), "clobbered")
+
+    assert "Error" in result
+    assert "has changed since it was last read" in result
+    assert file_path.read_text() == "changed by something else"
+
+
+def test_write_file_allows_overwrite_of_new_file_without_reading_first(tmp_path):
+    file_path = tmp_path / "brand-new.txt"
+
+    result = _w(str(file_path), "hello")
+
+    assert "Successfully wrote" in result
+    assert file_path.read_text() == "hello"
+
+
+def test_write_file_allows_second_write_without_an_intervening_read(tmp_path):
+    """Write itself counts as observation — no special-casing "last tool
+    used" needed, the recorded hash is just refreshed after every write.
+    """
+    file_path = tmp_path / "f.txt"
+
+    _w(str(file_path), "first")
+    result = _w(str(file_path), "second")
+
+    assert "Successfully wrote" in result
+    assert file_path.read_text() == "second"
+
+
+def test_write_file_chunked_append_then_rewrite_is_allowed(tmp_path):
+    """The documented mode="w" then mode="a" workflow must not leave a stale
+    hash that blocks a later legitimate mode="w" rewrite by the same run.
+    """
+    file_path = tmp_path / "f.txt"
+
+    _w(str(file_path), "part1")
+    _w(str(file_path), "part2", mode="a")
+    result = _w(str(file_path), "rewritten from scratch")
+
+    assert "Successfully wrote" in result
+    assert file_path.read_text() == "rewritten from scratch"
+
+
+def test_write_file_append_to_existing_unread_file_is_not_blocked(tmp_path):
+    """mode="a" is non-destructive to existing content, so it skips the gate
+    entirely — only mode="w" against a pre-existing file is checked.
+    """
+    file_path = tmp_path / "f.txt"
+    file_path.write_text("original, never read by this run")
+
+    result = _w(str(file_path), " appended", mode="a")
+
+    assert "Successfully wrote" in result
+    assert file_path.read_text() == "original, never read by this run appended"
+
+
+def test_replace_in_file_does_not_require_a_prior_read(tmp_path):
+    """Edit is not gated by the observed-hash check — it already verifies
+    old_text against live on-disk content at call time.
+    """
+    file_path = tmp_path / "f.txt"
+    file_path.write_text("hello world")
+
+    result = _r(str(file_path), "world", "zrb")
+
+    assert "Successfully" in result
+    assert file_path.read_text() == "hello zrb"
+
+
+def test_observed_map_evicts_the_least_recently_used_scope(
+    tmp_path, run_scope, monkeypatch
+):
+    """Every delegation mints a fresh scope that outlives its run, so the
+    map is LRU-capped. Eviction fails safe: the evicted scope's next
+    overwrite is refused with a pointer back to Read, never allowed.
+    """
+    from zrb.llm.tool.file_observation import record_observed
+
+    monkeypatch.setattr(file_observation, "MAX_OBSERVED_SCOPES", 2)
+
+    first = tmp_path / "first.txt"
+    second = tmp_path / "second.txt"
+    third = tmp_path / "third.txt"
+    for path in (first, second, third):
+        path.write_text("original")
+
+    # Three scopes recorded in order; the cap is 2, so s1 (the least
+    # recently used) is evicted when s3 arrives and {s2, s3} remain.
+    tokens = {}
+    for name, path in (("s1", first), ("s2", second), ("s3", third)):
+        token = run_scope(name)
+        tokens[name] = token
+        read_file(str(path))
+        record_observed(str(path), path.read_text())
+        current_agent_run_scope_reset(token)
+
+    # Each overwrite runs under the scope that did the reading — a write
+    # under any other scope (including none) must be refused regardless.
+    results = {}
+    for name, path in (("s1", first), ("s2", second), ("s3", third)):
+        token = run_scope(name)
+        results[name] = _w(str(path), "clobbered")
+        current_agent_run_scope_reset(token)
+
+    assert "has not been read in this session" in results["s1"]
+    assert "Successfully wrote" in results["s2"]
+    assert "Successfully wrote" in results["s3"]
+
+
+def test_observed_map_treats_a_check_as_a_use_of_its_scope(
+    tmp_path, run_scope, monkeypatch
+):
+    """An active conversation must not be evicted out from under itself by
+    delegations sharing the process: a blocked-write check under a scope
+    refreshes its recency just like a recording does.
+    """
+    from zrb.llm.tool.file_observation import (
+        check_observed,
+        record_observed,
+    )
+
+    monkeypatch.setattr(file_observation, "MAX_OBSERVED_SCOPES", 2)
+
+    watched = tmp_path / "watched.txt"
+    filler_a = tmp_path / "filler-a.txt"
+    filler_b = tmp_path / "filler-b.txt"
+    for path in (watched, filler_a, filler_b):
+        path.write_text("content")
+
+    # The watched scope records one file; another scope lands after it,
+    # pushing watched toward the eviction end.
+    token = run_scope("watched")
+    record_observed(str(watched), watched.read_text())
+    current_agent_run_scope_reset(token)
+    token = run_scope("filler-a")
+    read_file(str(filler_a))
+    current_agent_run_scope_reset(token)
+
+    # A check under the watched scope refreshes its recency...
+    token = run_scope("watched")
+    assert check_observed(str(watched)) is None
+    current_agent_run_scope_reset(token)
+
+    # ...so when one more scope arrives and forces an eviction, the older
+    # `filler-a` scope is dropped and the watched scope survives — without
+    # the touch above, it would have been the one evicted here.
+    token = run_scope("filler-b")
+    read_file(str(filler_b))
+    current_agent_run_scope_reset(token)
+
+    token = run_scope("watched")
+    result = _w(str(watched), "updated")
+    current_agent_run_scope_reset(token)
+    assert "Successfully wrote" in result
+
+
+def current_agent_run_scope_reset(token) -> None:
+    from zrb.llm.agent.run.runner import current_agent_run_scope
+
+    current_agent_run_scope.reset(token)
+
+
+def test_replace_in_file_does_not_require_a_prior_read(tmp_path):
+    """Edit is not gated by the observed-hash check — it already verifies
+    old_text against live on-disk content at call time.
+    """
+    file_path = tmp_path / "f.txt"
+    file_path.write_text("hello world")
+
+    result = _r(str(file_path), "world", "zrb")
+
+    assert "Successfully" in result
+    assert file_path.read_text() == "hello zrb"
+
+
+def test_replace_in_file_then_write_overwrite_is_allowed(tmp_path):
+    """Edit also refreshes the observed hash, so a follow-up mode="w" by the
+    same run doesn't need a separate Read.
+    """
+    file_path = tmp_path / "f.txt"
+    file_path.write_text("hello world")
+
+    _r(str(file_path), "world", "zrb")
+    result = _w(str(file_path), "fully replaced")
+
+    assert "Successfully wrote" in result
+    assert file_path.read_text() == "fully replaced"
 
 
 def test_replace_in_file_already_applied_edit_says_so(tmp_path):
@@ -1096,7 +1406,7 @@ class TestFileSearchTruncation:
         from unittest.mock import patch
 
         with (
-            patch("zrb.llm.tool.file_search._MAX_MATCHES_PER_FILE", 20),
+            patch("zrb.llm.tool.file_search.MAX_MATCHES_PER_FILE", 20),
             patch("shutil.which", return_value=None),
         ):
             result = search_files("match", path=str(tmp_path))

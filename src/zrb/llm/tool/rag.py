@@ -1,3 +1,4 @@
+import asyncio
 import fnmatch
 import hashlib
 import json
@@ -111,7 +112,12 @@ def create_rag_from_directory(
 
         hash_file_path = os.path.join(vector_db_path, "file_hashes.json")
 
-        reindex_error = _load_or_reindex(
+        # Off-loaded to a thread: ChromaDB and the OpenAI embedding client are
+        # synchronous, and running them inline here would freeze the whole
+        # session's event loop for as long as re-indexing/embedding takes
+        # (web.py's tools already avoid this same hazard for blocking calls).
+        reindex_error = await asyncio.to_thread(
+            _load_or_reindex,
             document_dir_path=document_dir_path,
             hash_file_path=hash_file_path,
             collection=collection,
@@ -124,7 +130,8 @@ def create_rag_from_directory(
         if reindex_error is not None:
             return reindex_error
 
-        query_vector, embed_error = _embed_query(
+        query_vector, embed_error = await asyncio.to_thread(
+            _embed_query,
             openai_client=openai_client,
             query=query,
             embedding_model_val=embedding_model_val,
@@ -132,7 +139,8 @@ def create_rag_from_directory(
         if embed_error is not None:
             return embed_error
 
-        return _query_collection(
+        return await asyncio.to_thread(
+            _query_collection,
             collection=collection,
             query_vector=query_vector,
             max_result_count_val=max_result_count_val,
@@ -160,10 +168,14 @@ def _load_or_reindex(
 ) -> dict[str, Any] | None:
     """Re-embed any new/changed file under `document_dir_path` into `collection`.
 
+    Files that were previously indexed but no longer exist on disk have their
+    chunks removed from `collection` and their entries dropped from the hash
+    baseline.
+
     Returns an error dict if `document_dir_path` doesn't exist, else `None`.
     """
     try:
-        previous_hashes = _load_hashes(hash_file_path)
+        previous_hashes = load_hashes(hash_file_path)
     except Exception as e:
         zrb_print(stylize_error(f"Error loading file hashes: {e}"), plain=True)
         previous_hashes = {}
@@ -180,7 +192,7 @@ def _load_or_reindex(
         for file in files:
             file_path = os.path.join(root, file)
             try:
-                file_hash = _compute_file_hash(file_path)
+                file_hash = compute_file_hash(file_path)
                 relative_path = os.path.relpath(file_path, document_dir_path)
                 current_hashes[relative_path] = file_hash
                 if previous_hashes.get(relative_path) != file_hash:
@@ -191,6 +203,22 @@ def _load_or_reindex(
                     plain=True,
                 )
 
+    # A previously indexed file absent from disk is a deletion, not an
+    # unchanged file. Guarded by existence so a transient hash failure
+    # (file present but unreadable this round) never drops live index data.
+    removed_files = [
+        relative_path
+        for relative_path in sorted(set(previous_hashes) - set(current_hashes))
+        if not os.path.exists(os.path.join(document_dir_path, relative_path))
+    ]
+
+    for relative_path in removed_files:
+        zrb_print(stylize_muted(f"Removing deleted file {relative_path}"), plain=True)
+        try:
+            collection.delete(where={"file_path": relative_path})
+        except Exception as e:
+            zrb_print(stylize_error(f"Error removing {relative_path}: {e}"), plain=True)
+
     if updated_files:
         zrb_print(
             stylize_muted(f"Updating {len(updated_files)} changed files"),
@@ -200,7 +228,7 @@ def _load_or_reindex(
             try:
                 relative_path = os.path.relpath(file_path, document_dir_path)
                 collection.delete(where={"file_path": relative_path})
-                content = _read_txt_content(file_path, readers)
+                content = read_txt_content(file_path, readers)
                 file_id = ulid.new().str
                 # Guard against overlap >= chunk_size, which would make the
                 # range step zero or negative (infinite loop / ValueError).
@@ -232,7 +260,11 @@ def _load_or_reindex(
                 zrb_print(
                     stylize_error(f"Error processing {file_path}: {e}"), plain=True
                 )
-        _save_hashes(hash_file_path, current_hashes)
+        save_hashes(hash_file_path, current_hashes)
+    elif removed_files:
+        # Deletions alone must still update the baseline; otherwise the removed
+        # entries linger in file_hashes.json and get "deleted" again next time.
+        save_hashes(hash_file_path, current_hashes)
     else:
         zrb_print(
             stylize_muted("No changes detected. Skipping database update."),
@@ -284,7 +316,7 @@ def _query_collection(
         }
 
 
-def _compute_file_hash(file_path: str) -> str:
+def compute_file_hash(file_path: str) -> str:
     hash_md5 = hashlib.md5()
     with open(file_path, "rb") as f:
         for chunk in iter(lambda: f.read(4096), b""):
@@ -292,7 +324,7 @@ def _compute_file_hash(file_path: str) -> str:
     return hash_md5.hexdigest()
 
 
-def _load_hashes(file_path: str) -> dict:
+def load_hashes(file_path: str) -> dict:
     if os.path.exists(file_path):
         try:
             with open(file_path, "r", encoding="utf-8") as f:
@@ -302,12 +334,12 @@ def _load_hashes(file_path: str) -> dict:
     return {}
 
 
-def _save_hashes(file_path: str, hashes: dict):
+def save_hashes(file_path: str, hashes: dict):
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(hashes, f)
 
 
-def _read_txt_content(file_path: str, file_reader: list[RAGFileReader]):
+def read_txt_content(file_path: str, file_reader: list[RAGFileReader]):
     for reader in file_reader:
         if reader.is_match(file_path):
             return reader.read(file_path)

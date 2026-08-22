@@ -267,6 +267,44 @@ async def test_delegate_tool_success(mock_sub_agent_manager):
 
 
 @pytest.mark.asyncio
+async def test_delegate_passes_live_sessions_run_scope_to_run_agent(
+    mock_sub_agent_manager,
+):
+    """The live-session registry entry's run_scope must reach run_agent, so
+    a later continuation of this same sub-agent (live_session.py) can reuse
+    it instead of each turn getting its own file_observation.py bucket."""
+    from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
+
+    live_subagent_session_registry.clear()  # earlier tests may have left sessions
+    try:
+        mock_agent = MagicMock()
+        mock_sub_agent_manager.create_agent.return_value = mock_agent
+
+        tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+
+        with patch(
+            "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+        ) as mock_run_agent:
+            mock_run_agent.return_value = ("Agent Result", [])
+
+            await tool(
+                agent_name="test-agent",
+                deliverable="updated foo.py",
+                task="do this",
+                non_goals=[],
+                additional_context="",
+            )
+
+            [session] = live_subagent_session_registry.active("default")
+            call_kwargs = mock_run_agent.call_args.kwargs
+            assert call_kwargs["run_scope"] == session.run_scope
+            assert call_kwargs["run_scope"] != ""
+    finally:
+        # A failed assert must not leak this session into other tests.
+        live_subagent_session_registry.clear()
+
+
+@pytest.mark.asyncio
 async def test_delegate_fires_subagent_start_stop(mock_sub_agent_manager):
     """Delegation fires SubagentStart before and SubagentStop after the run, on
     the parent run's hook manager, with a shared agent_id and agent_type=name."""
@@ -590,6 +628,67 @@ async def test_delegate_fan_out_runs_all_and_combines(mock_sub_agent_manager):
     assert "Result A" in result
     assert "Result B" in result
     assert result.count("completed:") == 2
+
+
+async def _fan_out_tracking_concurrency(count: int):
+    """5 identical fan-out task specs, plus an async run_agent stand-in that
+    records the maximum number of concurrently in-flight calls.
+    """
+    tasks = [
+        {"agent_name": "a", "deliverable": "d", "task": "t", "non_goals": []}
+        for _ in range(count)
+    ]
+    in_flight = 0
+    max_in_flight = 0
+
+    async def fake_run_agent(*args, **kwargs):
+        nonlocal in_flight, max_in_flight
+        in_flight += 1
+        max_in_flight = max(max_in_flight, in_flight)
+        await asyncio.sleep(0.01)
+        in_flight -= 1
+        return ("ok", [])
+
+    return tasks, fake_run_agent, lambda: max_in_flight
+
+
+@pytest.mark.asyncio
+async def test_delegate_fan_out_respects_parallel_cap(
+    mock_sub_agent_manager, monkeypatch
+):
+    """LLM_MAX_PARALLEL_DELEGATIONS (ADR-0068) bounds how many sub-agent runs
+    are in flight at once — a model-requested `tasks` list has no other size
+    limit.
+    """
+    monkeypatch.setenv("ZRB_LLM_MAX_PARALLEL_DELEGATIONS", "2")
+    mock_sub_agent_manager.create_agent.return_value = MagicMock()
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+
+    tasks, fake_run_agent, get_max_in_flight = await _fan_out_tracking_concurrency(5)
+    with patch("zrb.llm.tool.delegate.run_agent", side_effect=fake_run_agent):
+        result = await tool(tasks=tasks)
+
+    assert get_max_in_flight() <= 2
+    assert result.count("completed:") == 5
+
+
+@pytest.mark.asyncio
+async def test_delegate_fan_out_cap_disabled_by_zero(
+    mock_sub_agent_manager, monkeypatch
+):
+    """0 disables the cap, matching LLM_MAX_REQUEST_PER_RUN's convention —
+    all tasks run concurrently, as before this fix.
+    """
+    monkeypatch.setenv("ZRB_LLM_MAX_PARALLEL_DELEGATIONS", "0")
+    mock_sub_agent_manager.create_agent.return_value = MagicMock()
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+
+    tasks, fake_run_agent, get_max_in_flight = await _fan_out_tracking_concurrency(5)
+    with patch("zrb.llm.tool.delegate.run_agent", side_effect=fake_run_agent):
+        result = await tool(tasks=tasks)
+
+    assert get_max_in_flight() == 5
+    assert result.count("completed:") == 5
 
 
 # ── BufferedUI: passthrough methods, prefix branches, activity routing ──

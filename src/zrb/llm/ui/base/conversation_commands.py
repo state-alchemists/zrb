@@ -88,6 +88,7 @@ class BaseUIConversationCommands:
                 name = text[len(prefix) :].strip()
                 if not name:
                     continue
+                previous_name = self._base_ui.conversation_session_name
                 self._base_ui.conversation_session_name = name
                 try:
                     history = self._base_ui.history_manager.load(name)
@@ -97,9 +98,15 @@ class BaseUIConversationCommands:
                     self._base_ui.reset_session_token_usage()
                     self.apply_persona_for_session(name)
                 except Exception as e:
+                    # Roll back the session-name switch: leaving it pointing
+                    # at `name` while the old transcript is still displayed
+                    # would persist subsequent turns under the wrong
+                    # conversation.
+                    self._base_ui.conversation_session_name = previous_name
                     self._base_ui.append_to_output(
                         stylize_error(f"\n  ❌ Failed to load history: {e}\n")
                     )
+                    return True
                 self._base_ui.append_to_output(
                     stylize_muted(f"\n  📂 Conversation session switched to: {name}\n")
                 )

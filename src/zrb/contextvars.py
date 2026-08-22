@@ -27,11 +27,13 @@ from zrb.context.any_context import current_ctx, get_current_ctx, zrb_print
 
 # --- Agent runtime state ---
 from zrb.llm.agent.run.runtime_state import (
+    current_agent_run_scope,
     current_approval_channel,
     current_hook_manager,
     current_tool_confirmation,
     current_ui,
     current_yolo,
+    get_current_agent_run_scope,
     get_current_approval_channel,
     get_current_hook_manager,
     get_current_tool_confirmation,
@@ -79,11 +81,13 @@ __all__ = [
     "current_yolo",
     "current_approval_channel",
     "current_hook_manager",
+    "current_agent_run_scope",
     "get_current_ui",
     "get_current_tool_confirmation",
     "get_current_yolo",
     "get_current_approval_channel",
     "get_current_hook_manager",
+    "get_current_agent_run_scope",
     # Permission state
     "current_permission_policy",
     "current_agent_mode",

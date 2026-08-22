@@ -43,7 +43,13 @@ def serve_task_input_api(
                 return JSONResponse(
                     content={"detail": "Forbidden"}, status_code=403
                 )  # pyright: ignore[reportReturnType]
-            str_kwargs = json.loads(query)
+            try:
+                str_kwargs = json.loads(query)
+            except json.JSONDecodeError:
+                return JSONResponse(
+                    content={"detail": "Invalid 'query' parameter; expected JSON"},
+                    status_code=400,
+                )  # pyright: ignore[reportReturnType]
             task_str_kwargs = get_task_str_kwargs(
                 task=task, str_args=[], str_kwargs=str_kwargs, cli_mode=False
             )

@@ -46,6 +46,31 @@ def test_arg_pattern_matches_path():
     assert policy.decide("Edit", Capability.EDIT, {"path": "main.py"}) == ALLOW
 
 
+def test_arg_pattern_matches_worktree_path():
+    """worktree_path is salient (ADR-0061) so a custom rule can target
+    ExitWorktree's deletion target — previously invisible to arg_pattern
+    matching.
+    """
+    policy = PermissionPolicy(
+        (
+            Rule("ExitWorktree", DENY, arg_pattern="*/important/*"),
+            Rule("ExitWorktree", ALLOW),
+        )
+    )
+    assert (
+        policy.decide(
+            "ExitWorktree", Capability.EDIT, {"worktree_path": "/repo/important/x"}
+        )
+        == DENY
+    )
+    assert (
+        policy.decide(
+            "ExitWorktree", Capability.EDIT, {"worktree_path": "/repo/scratch/x"}
+        )
+        == ALLOW
+    )
+
+
 def test_arg_pattern_matches_command():
     policy = PermissionPolicy(
         (Rule("Bash", DENY, arg_pattern="*--force*"), Rule("Bash", ALLOW))

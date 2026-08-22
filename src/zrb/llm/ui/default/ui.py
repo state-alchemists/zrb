@@ -327,8 +327,13 @@ class UI(BaseUI):
         from prompt_toolkit.layout.containers import ConditionalContainer, Float
         from prompt_toolkit.widgets import Frame
 
+        choice_window = self._selection.choice_window
+        if choice_window is None:
+            raise RuntimeError(
+                "init_selection_state was not called before _create_choice_float"
+            )
         framed = Frame(
-            self._selection._choice_window,
+            choice_window,
             title="Select an answer",
             style="class:choice-frame",
         )

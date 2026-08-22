@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 
 from zrb.llm.agent.run.runner import (
     AnyToolConfirmation,
+    current_agent_run_scope,
     current_hook_manager,
     current_tool_confirmation,
     current_ui,
@@ -55,15 +56,23 @@ def get_current_hook_manager() -> "HookManager | None":
     return current_hook_manager.get()
 
 
+def get_current_agent_run_scope() -> str:
+    """Return the id identifying the current agent run (see
+    `current_agent_run_scope`'s docstring in runner.py)."""
+    return current_agent_run_scope.get()
+
+
 __all__ = [
     "current_ui",
     "current_tool_confirmation",
     "current_yolo",
     "current_approval_channel",
     "current_hook_manager",
+    "current_agent_run_scope",
     "get_current_ui",
     "get_current_tool_confirmation",
     "get_current_yolo",
     "get_current_approval_channel",
     "get_current_hook_manager",
+    "get_current_agent_run_scope",
 ]

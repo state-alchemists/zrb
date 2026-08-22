@@ -24,6 +24,7 @@ Two ways a message reaches the sub-agent, tried in order by `send_message`:
 from __future__ import annotations
 
 import asyncio
+import uuid
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -47,6 +48,12 @@ class LiveSubAgentSession:
     session_id: str
     sub_agent_manager: "SubAgentManager"
     buffered_ui: "BufferedUI"
+    # The run_scope the original delegation turn ran under (see delegate.py's
+    # comment on why it's a fresh uuid4, not the display-only agent_id).
+    # Continuations must reuse it — a fresh scope per turn would make
+    # file_observation.py forget what earlier turns of this same sub-agent
+    # conversation already read.
+    run_scope: str = field(default_factory=lambda: uuid.uuid4().hex)
     history: list = field(default_factory=list)
     pending_queue: list[str] = field(default_factory=list)
     state: str = "idle"  # "idle" | "running"
@@ -235,6 +242,7 @@ async def _continue_live_session(entry: LiveSubAgentSession) -> None:
                     message_history=entry.history,
                     limiter=llm_limiter,
                     ui=entry.buffered_ui,
+                    run_scope=entry.run_scope,
                 )
                 entry.history = history
             except Exception as e:  # noqa: BLE001

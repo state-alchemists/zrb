@@ -1,12 +1,13 @@
 """Deferred-tool-call processing for `run_agent`.
 
 When pydantic-ai produces a `DeferredToolRequests`, we route each call
-through the approval precedence chain (ADR-0062, ADR-0062):
+through the approval precedence chain (ADR-0062):
 
 0. Always-approve      — tools that ARE the interaction (e.g. AskUserQuestion);
    auto-approve in every path, independent of any policy list
 1. Permission policy   — allow→auto-approve, deny→block, ask→defer
-   (checked at check_yolo time; deny pre-checked again before prompting)
+   (enforced here in `_resolve_approval`; DENY is additionally blocked at
+   execution time by `gates.permission_gate`)
 2. Tool policy         — allow→auto-approve, deny→block, no-opinion→defer
 3. Yolo                — True→auto-approve, False→continue
 4. Approval channel    — remote / multi-channel; first response wins

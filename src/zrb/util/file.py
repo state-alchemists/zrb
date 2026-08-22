@@ -26,13 +26,13 @@ def read_file(file_path: str, replace_map: dict[str, str] | None = None) -> str:
             if is_pdf
             else _read_text_file_content(abs_file_path)
         )
-        for key, val in replace_map.items():
-            content = content.replace(key, val)
-        return content
-    except Exception:
-
+    except UnicodeDecodeError:
+        # Binary file: hand back something lossless instead of raising.
         data = Path(abs_file_path).read_bytes()
         return base64.b64encode(data).decode("ascii")
+    for key, val in replace_map.items():
+        content = content.replace(key, val)
+    return content
 
 
 def _read_text_file_content(file_path: str) -> str:
@@ -48,9 +48,12 @@ def _read_pdf_file_content(file_path: str) -> str:
 
     with pdfplumber.open(file_path) as pdf:
         pdf: PDF
-        return "\n".join(
-            page.extract_text() for page in pdf.pages if page.extract_text()
-        )
+        texts = []
+        for page in pdf.pages:
+            text = page.extract_text()
+            if text:
+                texts.append(text)
+        return "\n".join(texts)
 
 
 def write_file(

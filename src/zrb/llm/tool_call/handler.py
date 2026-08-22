@@ -52,20 +52,11 @@ class ToolCallHandler:
         self._argument_formatters = argument_formatters or []
         self._response_handlers = response_handlers or []
 
-    def add_tool_policy(self, *policy: ToolPolicy):
-        self.prepend_tool_policy(*policy)
-
     def prepend_tool_policy(self, *policy: ToolPolicy):
         self._tool_policies = list(policy) + self._tool_policies
 
-    def add_argument_formatter(self, *formatter: ArgumentFormatter):
-        self.prepend_argument_formatter(*formatter)
-
     def prepend_argument_formatter(self, *formatter: ArgumentFormatter):
         self._argument_formatters = list(formatter) + self._argument_formatters
-
-    def add_response_handler(self, *handler: ResponseHandler):
-        self.prepend_response_handler(*handler)
 
     def prepend_response_handler(self, *handler: ResponseHandler):
         self._response_handlers = list(handler) + self._response_handlers

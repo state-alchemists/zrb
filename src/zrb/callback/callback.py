@@ -4,6 +4,7 @@ from typing import Any
 
 from zrb.attr.type import StrDictAttr
 from zrb.callback.any_callback import AnyCallback
+from zrb.config.config import CFG
 from zrb.session.any_session import AnySession
 from zrb.task.any_task import AnyTask
 from zrb.util.attr import get_str_dict_attr
@@ -81,6 +82,11 @@ class Callback(AnyCallback):
             ctx = session.get_ctx(self._task)
             ctx.print(traceback.format_exc())
             self._maybe_publish_error_to_parent_session(parent_session, e)
+            # Swallowed on purpose (a raised error here fail-fasts the whole
+            # trigger fan-out, cancelling sibling callbacks), but never
+            # silently: make the failure visible in the log even when no
+            # error_queue was configured.
+            CFG.LOGGER.error(f"Callback task '{self._task.name}' failed: {e!r}")
 
     def _maybe_publish_session_name_to_parent_session(
         self, parent_session: AnySession, session: AnySession

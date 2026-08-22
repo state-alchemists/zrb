@@ -66,9 +66,14 @@ class TcpCheck(BaseTask):
         self._host = host
         self._render_host = render_host
         self._port = port
-        self._interval = (
-            interval if interval is not None else CFG.TCP_CHECK_INTERVAL / 1000
-        )
+        # Read lazily at run time (like every other CFG read) so an env change
+        # after task definition still takes effect.
+        self._interval = interval
+
+    def _get_interval(self) -> float:
+        if self._interval is not None:
+            return self._interval
+        return CFG.TCP_CHECK_INTERVAL / 1000
 
     def _get_host(self, ctx: AnyContext) -> str:
         return get_str_attr(ctx, self._host, "localhost", auto_render=self._render_host)
@@ -79,6 +84,7 @@ class TcpCheck(BaseTask):
     async def _exec_action(self, ctx: AnyContext) -> bool:
         host = self._get_host(ctx)
         port = self._get_port(ctx)
+        interval = self._get_interval()
         while True:
             try:
                 ctx.log_info(f"Checking TCP connection on {host}:{port}")
@@ -97,4 +103,4 @@ class TcpCheck(BaseTask):
                 ctx.log_info(f"Timeout error {e}")
             except Exception as e:
                 ctx.log_info(f"Error: {e}")
-            await asyncio.sleep(self._interval)
+            await asyncio.sleep(interval)

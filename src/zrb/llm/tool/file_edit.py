@@ -1,6 +1,7 @@
 import os
 import re
 
+from zrb.llm.tool.file_observation import path_write_lock, record_observed
 from zrb.llm.tool.post_write_check import format_post_write_diagnostics
 
 _READ_LINE_NUMBER = re.compile(r"^ *\d+\t")
@@ -38,6 +39,17 @@ async def replace_in_file(
             "Write instead."
         )
     abs_path = os.path.abspath(os.path.expanduser(path))
+    async with path_write_lock(abs_path):
+        return await _replace_in_file_locked(path, abs_path, old_text, new_text, count)
+
+
+async def _replace_in_file_locked(
+    path: str,
+    abs_path: str,
+    old_text: str,
+    new_text: str,
+    count: int,
+) -> str:
     missing = _describe_missing_file(path, abs_path)
     if missing is not None:
         return missing
@@ -73,6 +85,7 @@ async def replace_in_file(
             "[SYSTEM SUGGESTION]: Verify the path and your write permissions, "
             "then retry."
         )
+    record_observed(abs_path, new_content)
 
     replacements = match_count if count == -1 else min(match_count, count)
     diag_suffix = await format_post_write_diagnostics(abs_path)

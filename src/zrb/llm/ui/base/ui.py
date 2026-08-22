@@ -714,7 +714,7 @@ class BaseUI:
 
     @property
     def system_info_task(self) -> "asyncio.Task | None":
-        """The task running `_update_system_info_loop`, if started."""
+        """The task running `update_system_info_loop`, if started."""
         return self._system_info_task
 
     @system_info_task.setter
@@ -846,16 +846,16 @@ class BaseUI:
     # =========================================================================
 
     async def update_system_info(self) -> None:
-        await self._system_info._update_system_info()
+        await self._system_info.update_system_info()
 
     def get_cwd_display(self) -> str:
-        return self._system_info._get_cwd_display()
+        return self._system_info.get_cwd_display()
 
     async def get_git_info(self) -> tuple[str, str]:
-        return await self._system_info._get_git_info()
+        return await self._system_info.get_git_info()
 
     async def update_system_info_loop(self) -> None:
-        await self._system_info._update_system_info_loop()
+        await self._system_info.update_system_info_loop()
 
     @property
     def ctx(self) -> AnyContext:
@@ -956,15 +956,12 @@ class BaseUI:
             task.add_done_callback(self._background_tasks.discard)
 
         except RuntimeError:
-            # No running event loop - we're in a sync context
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                loop.run_until_complete(
-                    hook_manager.execute_hooks(event, event_data, **kwargs)
-                )
-            finally:
-                loop.close()
+            # No running event loop - we're in a sync context. Runner
+            # installs a fresh loop for the duration and restores the
+            # thread's previous loop state on close, so no closed loop is
+            # left installed as the default.
+            with asyncio.Runner() as runner:
+                runner.run(hook_manager.execute_hooks(event, event_data, **kwargs))
 
     async def execute_hook_blocking(
         self, event: HookEvent, event_data: Any, **kwargs
@@ -1433,7 +1430,7 @@ class BaseUI:
                     logger.warning(f"Snapshot skipped: {snap_err}")
             # Header first
             self.append_to_output(f"\n🤖 {timestamp} >>\n")
-            session = self._create_sesion_for_llm_task(user_message, attachments)
+            session = self._create_session_for_llm_task(user_message, attachments)
 
             # Run the task with stdout/stderr redirected to UI
             self.append_to_output(stylize_muted("\n  🔢 Streaming response..."))
@@ -1470,7 +1467,7 @@ class BaseUI:
             await self.update_system_info()
             self.invalidate_ui()
 
-    def _create_sesion_for_llm_task(
+    def _create_session_for_llm_task(
         self,
         user_message: str,
         attachments: list["UserContent"],
@@ -1510,8 +1507,8 @@ class BaseUI:
         )  # --- SYSTEM INFO / TRIGGERS (Moved from UI) ---
 
     # System-info status (cwd/git) lives in BaseUISystemInfo
-    # (system_info.py): _update_system_info, _get_cwd_display,
-    # _get_git_info, _update_system_info_loop are inherited.
+    # (system_info.py): update_system_info, get_cwd_display,
+    # get_git_info, update_system_info_loop are inherited.
 
     async def _trigger_loop(
         self,

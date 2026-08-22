@@ -9,6 +9,8 @@ error_hint appended to the error message.
 import functools
 from typing import Any, Awaitable, Callable, ParamSpec, TypeVar, cast, overload
 
+from zrb.llm.agent.tool_result import tool_return
+
 P = ParamSpec("P")
 T = TypeVar("T")
 
@@ -79,7 +81,10 @@ def tool_safe_async(
                 return await cast(Awaitable[object], fn(*args, **kwargs))
             except Exception as e:  # noqa: BLE001
                 hint = _get_hint(error_hint, args, kwargs, e)
-                return _format_error(fn.__name__, args, kwargs, e, hint)
+                formatted = _format_error(fn.__name__, args, kwargs, e, hint)
+                # error=True: matches create_safe_wrapper's convention, so a
+                # caught exception stays distinguishable from a success.
+                return tool_return(formatted, error=True)
 
         return wrapper  # pyright: ignore[reportReturnType]
 
