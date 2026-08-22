@@ -1,6 +1,7 @@
 import os
 import re
 
+from zrb.llm.tool.file_observation import record_observed
 from zrb.llm.tool.post_write_check import format_post_write_diagnostics
 
 _READ_LINE_NUMBER = re.compile(r"^ *\d+\t")
@@ -73,6 +74,7 @@ async def replace_in_file(
             "[SYSTEM SUGGESTION]: Verify the path and your write permissions, "
             "then retry."
         )
+    record_observed(abs_path, new_content)
 
     replacements = match_count if count == -1 else min(match_count, count)
     diag_suffix = await format_post_write_diagnostics(abs_path)

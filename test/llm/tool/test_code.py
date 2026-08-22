@@ -93,7 +93,7 @@ async def test_analyze_code_with_lsp(temp_code_dir):
 
 @pytest.mark.asyncio
 async def test_analyze_code_does_not_shutdown_global_lsp_manager(temp_code_dir):
-    """H-5: analyze_code must not tear down every LSP server process-wide —
+    """analyze_code must not tear down every LSP server process-wide —
     lsp_manager is a global singleton shared with post_write_check.py, and a
     global shutdown forced that unrelated caller to cold-start a server.
     """

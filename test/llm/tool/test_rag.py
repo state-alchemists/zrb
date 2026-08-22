@@ -668,9 +668,10 @@ class TestRAGFactory:
 
     @pytest.mark.asyncio
     async def test_retrieve_offloads_blocking_calls_to_a_thread(self, tmp_path):
-        # H-3: ChromaDB/OpenAI calls must not run inline on the event loop —
-        # confirm retrieve() actually routes its blocking segments through
-        # asyncio.to_thread rather than calling them directly.
+        # ADR-0003 (async-first): ChromaDB/OpenAI calls must not run inline
+        # on the event loop — confirm retrieve() actually routes its
+        # blocking segments through asyncio.to_thread rather than calling
+        # them directly.
         doc_dir = tmp_path / "docs"
         doc_dir.mkdir()
         (doc_dir / "test.txt").write_text("knowledge content")

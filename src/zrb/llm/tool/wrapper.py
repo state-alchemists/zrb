@@ -82,11 +82,8 @@ def tool_safe_async(
             except Exception as e:  # noqa: BLE001
                 hint = _get_hint(error_hint, args, kwargs, e)
                 formatted = _format_error(fn.__name__, args, kwargs, e, hint)
-                # error=True matches the same metadata convention
-                # create_safe_wrapper already uses for every other tool's
-                # exception path (agent/common.py) — this closes the one gap
-                # where a caught exception was otherwise indistinguishable,
-                # metadata-wise, from a normal success.
+                # error=True: matches create_safe_wrapper's convention, so a
+                # caught exception stays distinguishable from a success.
                 return tool_return(formatted, error=True)
 
         return wrapper  # pyright: ignore[reportReturnType]

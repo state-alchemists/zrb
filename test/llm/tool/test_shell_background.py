@@ -127,8 +127,8 @@ def _extract_spill_path(poll_result: str, stream: str) -> str | None:
 async def test_poll_truncates_large_output_and_reports_recoverable_path(
     tmp_path, monkeypatch
 ):
-    # H-2: a background process's output is now bounded — but the elided
-    # head must stay recoverable via a spill file, not just dropped.
+    # ADR-0059: a background process's output is now bounded — but the
+    # elided head must stay recoverable via a spill file, not just dropped.
     monkeypatch.setattr(CFG, "LLM_MAX_OUTPUT_CHARS", 20)
     handle = await _start_bg(
         "head -c 500 /dev/zero | tr '\\0' 'A'", "flood", str(tmp_path)

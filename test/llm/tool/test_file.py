@@ -13,6 +13,17 @@ from zrb.llm.tool.file import (
     search_files,
     write_file,
 )
+from zrb.llm.tool.file_observation import clear_observed
+
+
+@pytest.fixture(autouse=True)
+def _reset_observed_state():
+    """The observed-content map is a run-scoped module singleton — reset it
+    so one test's Read/Write never leaks into another's assertions.
+    """
+    clear_observed()
+    yield
+    clear_observed()
 
 
 def _w(*a, **kw):
@@ -844,6 +855,120 @@ def test_write_file_says_nothing_when_the_directory_existed(tmp_path):
 
     assert "Successfully wrote" in result
     assert "created new directory" not in result
+
+
+# --- write_file read-before-overwrite gate ---
+
+
+def test_write_file_blocks_overwrite_of_unread_existing_file(tmp_path):
+    file_path = tmp_path / "f.txt"
+    file_path.write_text("original, written outside this run")
+
+    result = _w(str(file_path), "clobbered")
+
+    assert "Error" in result
+    assert "has not been read in this session" in result
+    assert file_path.read_text() == "original, written outside this run"
+
+
+def test_write_file_allows_overwrite_after_read(tmp_path):
+    file_path = tmp_path / "f.txt"
+    file_path.write_text("original")
+
+    read_file(str(file_path))
+    result = _w(str(file_path), "updated")
+
+    assert "Successfully wrote" in result
+    assert file_path.read_text() == "updated"
+
+
+def test_write_file_blocks_overwrite_when_content_changed_after_read(tmp_path):
+    file_path = tmp_path / "f.txt"
+    file_path.write_text("original")
+
+    read_file(str(file_path))
+    file_path.write_text("changed by something else")  # bypasses our tools
+    result = _w(str(file_path), "clobbered")
+
+    assert "Error" in result
+    assert "has changed since it was last read" in result
+    assert file_path.read_text() == "changed by something else"
+
+
+def test_write_file_allows_overwrite_of_new_file_without_reading_first(tmp_path):
+    file_path = tmp_path / "brand-new.txt"
+
+    result = _w(str(file_path), "hello")
+
+    assert "Successfully wrote" in result
+    assert file_path.read_text() == "hello"
+
+
+def test_write_file_allows_second_write_without_an_intervening_read(tmp_path):
+    """Write itself counts as observation — no special-casing "last tool
+    used" needed, the recorded hash is just refreshed after every write.
+    """
+    file_path = tmp_path / "f.txt"
+
+    _w(str(file_path), "first")
+    result = _w(str(file_path), "second")
+
+    assert "Successfully wrote" in result
+    assert file_path.read_text() == "second"
+
+
+def test_write_file_chunked_append_then_rewrite_is_allowed(tmp_path):
+    """The documented mode="w" then mode="a" workflow must not leave a stale
+    hash that blocks a later legitimate mode="w" rewrite by the same run.
+    """
+    file_path = tmp_path / "f.txt"
+
+    _w(str(file_path), "part1")
+    _w(str(file_path), "part2", mode="a")
+    result = _w(str(file_path), "rewritten from scratch")
+
+    assert "Successfully wrote" in result
+    assert file_path.read_text() == "rewritten from scratch"
+
+
+def test_write_file_append_to_existing_unread_file_is_not_blocked(tmp_path):
+    """mode="a" is non-destructive to existing content, so it skips the gate
+    entirely — only mode="w" against a pre-existing file is checked.
+    """
+    file_path = tmp_path / "f.txt"
+    file_path.write_text("original, never read by this run")
+
+    result = _w(str(file_path), " appended", mode="a")
+
+    assert "Successfully wrote" in result
+    assert file_path.read_text() == "original, never read by this run appended"
+
+
+def test_replace_in_file_does_not_require_a_prior_read(tmp_path):
+    """Edit is not gated by the observed-hash check — it already verifies
+    old_text against live on-disk content at call time.
+    """
+    file_path = tmp_path / "f.txt"
+    file_path.write_text("hello world")
+
+    result = _r(str(file_path), "world", "zrb")
+
+    assert "Successfully" in result
+    assert file_path.read_text() == "hello zrb"
+
+
+def test_replace_in_file_then_write_overwrite_is_allowed(tmp_path):
+    """Edit also refreshes the observed hash, so a follow-up mode="w" by the
+    same run doesn't need a separate Read.
+    """
+    file_path = tmp_path / "f.txt"
+    file_path.write_text("hello world")
+
+    _r(str(file_path), "world", "zrb")
+    result = _w(str(file_path), "fully replaced")
+
+    assert "Successfully wrote" in result
+    assert file_path.read_text() == "fully replaced"
 
 
 def test_replace_in_file_already_applied_edit_says_so(tmp_path):

@@ -60,9 +60,7 @@ class _ShellBackgroundRegistry:
         # Raises SandboxUnavailableError in fallback="deny" mode — surfaced by
         # the tool as an explanatory error.
         argv, sandbox_note = build_sandboxed_argv(
-            resolved_shell,
-            shell_flag,
-            command,
+            [resolved_shell, shell_flag, command],
             effective_cwd,
             get_effective_sandbox_policy(),
             skip=dangerously_skip_sandbox,

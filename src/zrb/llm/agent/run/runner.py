@@ -19,6 +19,7 @@ docs/advanced-topics/maintainer-guide.md#llm-history-sanitization-layer.
 from __future__ import annotations
 
 import asyncio
+import uuid
 from contextlib import ExitStack
 from contextvars import ContextVar
 from dataclasses import replace
@@ -102,6 +103,19 @@ current_yolo: ContextVar[bool] = ContextVar("current_yolo", default=False)
 current_hook_manager: ContextVar[HookManager | None] = ContextVar(
     "current_hook_manager", default=None
 )
+# Identifies "this specific agent run" to nested tools that need to track
+# state per-conversation without bleeding across independent conversations —
+# e.g. file_observation.py's read-before-overwrite tracking. Stable across
+# turns of the same top-level conversation (the caller passes its session
+# name). A delegated sub-agent run (delegate.py) deliberately passes nothing,
+# taking the fresh-per-call default below instead: a sub-agent has its own
+# empty message_history and hasn't seen what its parent or siblings
+# observed, so it must not share their bucket — and delegate.py's own
+# display-only agent_id is a 32-bit-truncated id, too collision-prone for a
+# map this module never evicts, unlike the fresh full uuid4 below.
+current_agent_run_scope: ContextVar[str] = ContextVar(
+    "current_agent_run_scope", default=""
+)
 
 # Process-wide guard: the OpenAI serialization patch is global and idempotent,
 # so it only needs to run once per process. The check-then-set is safe under
@@ -128,6 +142,7 @@ async def run_agent(
     permission_policy: Any = None,
     sandbox_policy: Any = None,
     checkpoint_fn: Callable[[list[Any]], Coroutine[Any, Any, None]] | None = None,
+    run_scope: str = "",
 ) -> tuple[Any, list[Any]]:
     """
     Runs the agent with rate limiting, history management, and optional CLI confirmation loop.
@@ -138,6 +153,11 @@ async def run_agent(
     tool-call round trip, not just the end of the turn — so a caller that
     persists history sees progress well before `agent.run()` returns. See
     `_build_event_stream_handler` for the boundary rule.
+
+    `run_scope` identifies this run to nested tools that need conversation-scoped
+    state (see `current_agent_run_scope`'s docstring). Pass the session name for
+    a top-level conversation, a fresh per-delegation id for a sub-agent; empty
+    defaults to a fresh id so an unscoped caller stays isolated.
     """
     global _openai_patched
     if not _openai_patched:
@@ -184,6 +204,7 @@ async def run_agent(
         _bind_contextvar(stack, current_tool_confirmation, effective_tool_confirmation)
         _bind_contextvar(stack, current_yolo, effective_yolo)
         _bind_contextvar(stack, current_hook_manager, effective_hook_manager)
+        _bind_contextvar(stack, current_agent_run_scope, run_scope or uuid.uuid4().hex)
         _bind_contextvar(stack, current_approval_channel, effective_approval_channel)
         _bind_contextvar(stack, current_permission_policy, effective_policy)
         _bind_contextvar(stack, current_sandbox_policy, effective_sandbox)

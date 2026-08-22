@@ -630,6 +630,11 @@ class LLMTask(BaseTask):
                 permission_policy=permission_policy,
                 sandbox_policy=sandbox_policy,
                 checkpoint_fn=_checkpoint,
+                # Stable across this conversation's turns (same identity used
+                # for history persistence above), so file_observation.py's
+                # read-before-overwrite tracking survives from one turn to
+                # the next rather than resetting every message.
+                run_scope=conversation_name,
             )
         except asyncio.CancelledError as ce:
             partial_run = getattr(ce, "zrb_partial_run", None)

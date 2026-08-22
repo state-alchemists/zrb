@@ -618,8 +618,8 @@ async def _fan_out_tracking_concurrency(count: int):
 async def test_delegate_fan_out_respects_parallel_cap(
     mock_sub_agent_manager, monkeypatch
 ):
-    """LLM_MAX_PARALLEL_DELEGATIONS (H-4) bounds how many sub-agent runs are
-    in flight at once — a model-requested `tasks` list has no other size
+    """LLM_MAX_PARALLEL_DELEGATIONS (ADR-0068) bounds how many sub-agent runs
+    are in flight at once — a model-requested `tasks` list has no other size
     limit.
     """
     monkeypatch.setenv("ZRB_LLM_MAX_PARALLEL_DELEGATIONS", "2")

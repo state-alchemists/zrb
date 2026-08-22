@@ -317,6 +317,90 @@ async def test_run_agent_basic():
 
 
 @pytest.mark.asyncio
+async def test_run_agent_binds_explicit_run_scope_for_nested_tools():
+    """A tool call made mid-run (e.g. file_observation.py's read-before-write
+    check) must see the `run_scope` the caller passed in — this is what lets
+    it recognize the same conversation across its own separate turns.
+    """
+    from zrb.llm.agent.run.runtime_state import get_current_agent_run_scope
+
+    seen_scope = None
+
+    async def _gen(*args, **kwargs):
+        nonlocal seen_scope
+        seen_scope = get_current_agent_run_scope()
+        mock_result = MagicMock()
+        mock_result.output = "done"
+        mock_result.all_messages.return_value = []
+        yield AgentRunResultEvent(result=mock_result)
+
+    agent = MagicMock()
+    agent.run = _run_from(_gen)
+
+    await run_agent(
+        agent=agent,
+        message="Hi",
+        message_history=[],
+        limiter=LLMLimiter(),
+        run_scope="conversation-42",
+    )
+    assert seen_scope == "conversation-42"
+
+
+@pytest.mark.asyncio
+async def test_run_agent_defaults_run_scope_to_a_fresh_id_each_call():
+    """Two runs that don't pass `run_scope` (e.g. two sibling sub-agent
+    delegations) must land in *different* scopes — never share one implicit
+    bucket, and never collide with each other by construction.
+    """
+    from zrb.llm.agent.run.runtime_state import get_current_agent_run_scope
+
+    seen_scopes = []
+
+    async def _gen(*args, **kwargs):
+        seen_scopes.append(get_current_agent_run_scope())
+        mock_result = MagicMock()
+        mock_result.output = "done"
+        mock_result.all_messages.return_value = []
+        yield AgentRunResultEvent(result=mock_result)
+
+    agent = MagicMock()
+    agent.run = _run_from(_gen)
+
+    await run_agent(agent=agent, message="Hi", message_history=[], limiter=LLMLimiter())
+    await run_agent(agent=agent, message="Hi", message_history=[], limiter=LLMLimiter())
+
+    assert len(seen_scopes) == 2
+    assert seen_scopes[0] and seen_scopes[1]
+    assert seen_scopes[0] != seen_scopes[1]
+
+
+@pytest.mark.asyncio
+async def test_run_agent_resets_run_scope_after_returning():
+    from zrb.llm.agent.run.runtime_state import get_current_agent_run_scope
+
+    agent = MagicMock()
+    mock_result = MagicMock()
+    mock_result.output = "done"
+    mock_result.all_messages.return_value = []
+
+    async def _gen(*args, **kwargs):
+        yield AgentRunResultEvent(result=mock_result)
+
+    agent.run = _run_from(_gen)
+    assert get_current_agent_run_scope() == ""
+
+    await run_agent(
+        agent=agent,
+        message="Hi",
+        message_history=[],
+        limiter=LLMLimiter(),
+        run_scope="conversation-42",
+    )
+    assert get_current_agent_run_scope() == ""
+
+
+@pytest.mark.asyncio
 async def test_run_agent_feeds_final_result_to_event_handler():
     """`agent.run(event_stream_handler=...)`'s handler never receives a
     trailing `AgentRunResultEvent` -- that's `run_stream_events()`'s own

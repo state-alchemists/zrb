@@ -240,7 +240,7 @@ def _build_sandboxed_shell_argv(
     from zrb.llm.sandbox import build_sandboxed_argv
 
     policy = get_effective_sandbox_policy()
-    return build_sandboxed_argv(shell, shell_flag, command, cwd, policy, skip=skip)
+    return build_sandboxed_argv([shell, shell_flag, command], cwd, policy, skip=skip)
 
 
 async def _start_process(argv: list[str], cwd: str) -> asyncio.subprocess.Process:

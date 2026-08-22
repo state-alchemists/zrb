@@ -1,6 +1,7 @@
 import os
 
 from zrb.config.config import CFG
+from zrb.llm.tool.file_observation import record_observed
 from zrb.llm.util.pdf import extract_pdf_text
 from zrb.util.truncate import truncate_text
 
@@ -49,6 +50,7 @@ def read_file(
     try:
         with open(abs_path, "r", encoding="utf-8") as f:
             content = f.read()
+        record_observed(abs_path, content)
 
         lines = content.splitlines(keepends=True)
         total_lines = len(lines)

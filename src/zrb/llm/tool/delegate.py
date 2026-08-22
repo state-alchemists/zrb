@@ -171,6 +171,16 @@ async def run_agent_task(
             limiter=llm_limiter,
             ui=ui,
             yolo=bool(yolo) if yolo is not None else yolo,
+            # run_scope deliberately omitted, not tied to the (display-only,
+            # 32-bit-truncated) agent_id above: this sub-agent's
+            # message_history starts empty, so it hasn't seen what the
+            # parent or a sibling observed — file_observation.py's
+            # read-before-overwrite tracking must not treat their reads as
+            # this run's own. Leaving it empty makes run_agent mint its own
+            # fresh full-entropy id, which also sidesteps agent_id's
+            # birthday-bound collision risk over a long process lifetime
+            # (file_observation.py's map is never evicted, unlike the
+            # activity registry agent_id otherwise serves).
         )
 
         if flush_ui and hasattr(ui, "flush_to_parent"):

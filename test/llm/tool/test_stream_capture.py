@@ -1,7 +1,8 @@
-"""Tests for StreamCapture.flush() — the one new surface added for H-2
-(background-shell output capping). The retain/echo/spill behavior itself is
-already exercised indirectly through test_shell.py; this file covers only
-the new method.
+"""Tests for StreamCapture.flush() — the one new surface added so
+shell_background.py could self-cap its output under the same ADR-0059
+per-tool capping rule shell.py already followed. The retain/echo/spill
+behavior itself is already exercised indirectly through test_shell.py; this
+file covers only the new method.
 """
 
 import os

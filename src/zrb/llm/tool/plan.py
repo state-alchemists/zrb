@@ -90,7 +90,13 @@ class TodoManager:
         new_todos = []
         used_ids: set[str] = set()
         for i, todo in enumerate(todos):
-            todo_id = todo.get("id") or self._next_auto_id(i, existing_todos, used_ids)
+            todo_id = todo.get("id") or ""
+            # A collision against `existing` is legitimate (an explicit id
+            # targets that todo for update, below) — but a collision against
+            # `used_ids` means this same call already claimed that id for an
+            # earlier item, which would otherwise silently duplicate it.
+            if not todo_id or todo_id in used_ids:
+                todo_id = self._next_auto_id(i, existing_todos, used_ids)
             used_ids.add(todo_id)
             new_todos.append(
                 self._build_todo_entry(todo, todo_id, existing_todos, replace, now)
@@ -175,8 +181,10 @@ class TodoManager:
     ) -> str:
         """Smallest id from `index + 1` upward that collides with neither
         `existing` (the session's already-persisted todos) nor `used` (ids
-        already assigned earlier in this same call) — so an unlabeled new
-        item never silently merges into an unrelated existing one.
+        already claimed earlier in this same call, whether auto-assigned or
+        explicit) — so a new item, labeled or not, never silently merges
+        into an unrelated existing one or duplicates an id this same call
+        already claimed.
         """
         candidate = index + 1
         while str(candidate) in existing or str(candidate) in used:

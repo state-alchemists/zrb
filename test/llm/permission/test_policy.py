@@ -47,8 +47,9 @@ def test_arg_pattern_matches_path():
 
 
 def test_arg_pattern_matches_worktree_path():
-    """worktree_path is salient so a custom rule can target ExitWorktree's
-    deletion target (C-1) — previously invisible to arg_pattern matching.
+    """worktree_path is salient (ADR-0061) so a custom rule can target
+    ExitWorktree's deletion target — previously invisible to arg_pattern
+    matching.
     """
     policy = PermissionPolicy(
         (

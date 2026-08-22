@@ -7,10 +7,12 @@ import asyncio
 import pytest
 
 from zrb.llm.agent.run.runtime_state import (
+    current_agent_run_scope,
     current_approval_channel,
     current_tool_confirmation,
     current_ui,
     current_yolo,
+    get_current_agent_run_scope,
     get_current_approval_channel,
     get_current_tool_confirmation,
     get_current_ui,
@@ -24,6 +26,16 @@ def test_default_values_are_safe():
     assert get_current_yolo() is False
     assert get_current_tool_confirmation() is None
     assert get_current_approval_channel() is None
+    assert get_current_agent_run_scope() == ""
+
+
+def test_agent_run_scope_wrapper_reads_underlying_var():
+    token = current_agent_run_scope.set("my-session")
+    try:
+        assert get_current_agent_run_scope() == "my-session"
+    finally:
+        current_agent_run_scope.reset(token)
+    assert get_current_agent_run_scope() == ""
 
 
 def test_wrapper_reads_value_set_via_underlying_contextvar():

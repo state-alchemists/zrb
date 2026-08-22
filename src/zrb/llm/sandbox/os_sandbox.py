@@ -1,8 +1,9 @@
-"""OS-level sandbox dispatch for shell subprocesses.
+"""OS-level sandbox dispatch for subprocesses.
 
-``build_sandboxed_argv`` is the single entry point the shell tools call right
-before spawning. It returns discrete argv elements for
-``asyncio.create_subprocess_exec`` — no shell quoting is ever involved.
+``build_sandboxed_argv`` is the single entry point tools call right before
+spawning a subprocess. It returns discrete argv elements for
+``asyncio.create_subprocess_exec`` — no shell quoting is ever involved,
+regardless of whether the caller's argv is itself a shell invocation.
 
 Platform matrix:
 
@@ -31,14 +32,15 @@ class SandboxUnavailableError(Exception):
 
 
 def build_sandboxed_argv(
-    shell: str,
-    shell_flag: str,
-    command: str,
+    argv: list[str],
     cwd: str,
     policy: SandboxPolicy,
     skip: bool = False,
 ) -> tuple[list[str], str | None]:
-    """Wrap a shell invocation in the platform sandbox per ``policy``.
+    """Wrap a subprocess invocation in the platform sandbox per ``policy``.
+
+    ``argv`` is exec'd as-is, shell-shaped or not — this only ever prepends a
+    sandbox-dispatch prefix in front of it.
 
     Returns ``(argv, note)``: ``argv`` to pass to ``create_subprocess_exec``
     and an optional human/model-facing note (escape notice or fallback
@@ -48,7 +50,7 @@ def build_sandboxed_argv(
     ``policy.fallback == "deny"``, or when an escape is requested while
     ``policy.allow_escape`` is off.
     """
-    plain = [shell, shell_flag, command]
+    plain = list(argv)
     if not policy.enabled or policy.os_shell == "off":
         return plain, None
     if skip:
