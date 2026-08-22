@@ -57,9 +57,7 @@ def _wrap_tool(tool: "Tool | ToolFuncEither") -> "Tool | ToolFuncEither":
 
         # It is a Tool instance (or a duck-typed equivalent)
         original_func = getattr(tool, "function")
-        safe_func = create_safe_wrapper(
-            original_func, name=getattr(tool, "name", None)
-        )
+        safe_func = create_safe_wrapper(original_func, name=getattr(tool, "name", None))
         metadata = {
             **(getattr(tool, "metadata", None) or {}),
             **capability_metadata(tool_capability(tool)),

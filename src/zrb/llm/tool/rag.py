@@ -213,15 +213,11 @@ def _load_or_reindex(
     ]
 
     for relative_path in removed_files:
-        zrb_print(
-            stylize_muted(f"Removing deleted file {relative_path}"), plain=True
-        )
+        zrb_print(stylize_muted(f"Removing deleted file {relative_path}"), plain=True)
         try:
             collection.delete(where={"file_path": relative_path})
         except Exception as e:
-            zrb_print(
-                stylize_error(f"Error removing {relative_path}: {e}"), plain=True
-            )
+            zrb_print(stylize_error(f"Error removing {relative_path}: {e}"), plain=True)
 
     if updated_files:
         zrb_print(

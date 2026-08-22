@@ -150,9 +150,7 @@ async def test_analyze_code_summarization_loop(temp_code_dir):
 
     # Mock extract_info to return multiple results, forcing summarization
     with (
-        patch(
-            "zrb.llm.tool.code.extract_info", new_callable=AsyncMock
-        ) as mock_extract,
+        patch("zrb.llm.tool.code.extract_info", new_callable=AsyncMock) as mock_extract,
         patch(
             "zrb.llm.tool.code.run_repo_agent", new_callable=AsyncMock
         ) as mock_run_agent,

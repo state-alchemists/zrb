@@ -461,7 +461,9 @@ class LLMTask(BaseTask):
         self._tool_factories = value
 
     @property
-    def toolset_factories(self) -> "list[Callable[[AnyContext], AbstractToolset[None]]]":
+    def toolset_factories(
+        self,
+    ) -> "list[Callable[[AnyContext], AbstractToolset[None]]]":
         """Factories building toolsets per run, from the task context."""
         return self._toolset_factories
 

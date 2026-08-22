@@ -666,9 +666,7 @@ class TestRAGFactory:
         ):
             with (
                 patch("zrb.llm.tool.rag.CFG") as mock_cfg,
-                patch(
-                    "zrb.llm.tool.rag.load_hashes", side_effect=RuntimeError("boom")
-                ),
+                patch("zrb.llm.tool.rag.load_hashes", side_effect=RuntimeError("boom")),
             ):
                 mock_cfg.RAG_CHUNK_SIZE = 100
                 mock_cfg.RAG_OVERLAP = 0

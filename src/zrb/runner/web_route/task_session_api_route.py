@@ -98,16 +98,12 @@ def serve_task_session_api(
                     max_start_time = (
                         datetime.now()
                         if max_start_query is None
-                        else datetime.strptime(
-                            max_start_query, "%Y-%m-%d %H:%M:%S"
-                        )
+                        else datetime.strptime(max_start_query, "%Y-%m-%d %H:%M:%S")
                     )
                     min_start_time = (
                         max_start_time - timedelta(hours=1)
                         if min_start_query is None
-                        else datetime.strptime(
-                            min_start_query, "%Y-%m-%d %H:%M:%S"
-                        )
+                        else datetime.strptime(min_start_query, "%Y-%m-%d %H:%M:%S")
                     )
                 except ValueError:
                     return JSONResponse(
@@ -127,9 +123,8 @@ def serve_task_session_api(
                 session_state_log = read_task_session_state_log(
                     session_state_logger, residual_args[0]
                 )
-                if (
-                    session_state_log is None
-                    or not session_belongs_to_task(root_group, task, session_state_log)
+                if session_state_log is None or not session_belongs_to_task(
+                    root_group, task, session_state_log
                 ):
                     return JSONResponse(
                         content={"detail": "Not found"}, status_code=404
