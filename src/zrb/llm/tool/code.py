@@ -21,7 +21,7 @@ from zrb.llm.tool.file import DEFAULT_EXCLUDED_PATTERNS
 from zrb.util.file import is_path_excluded
 
 
-async def _get_lsp_context(file_path: str, abs_dir: str) -> dict | None:
+async def get_lsp_context(file_path: str, abs_dir: str) -> dict | None:
     """Get LSP semantic context for a file (symbols + diagnostics).
 
     Returns structured data about the file without reading its content.
@@ -142,7 +142,7 @@ async def analyze_code(
     zrb_print(f"\n  📝 Extraction ({len(file_metadatas)} files)", plain=True)
 
     extraction_token_threshold = CFG.LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD
-    extracted_infos = await _extract_info(
+    extracted_infos = await extract_info(
         file_metadatas=cast(list[dict[str, str | dict]], file_metadatas),
         query=query,
         token_limit=extraction_token_threshold,
@@ -252,7 +252,7 @@ async def _get_file_metadatas_with_lsp(
         try:
             file_ext = os.path.splitext(file_path)[1].lower()
             if file_ext in LSP_SUPPORTED_EXTENSIONS:
-                lsp_tasks.append(_get_lsp_context(rel_path, dir_path))
+                lsp_tasks.append(get_lsp_context(rel_path, dir_path))
                 file_paths.append(rel_path)
             else:
                 with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
@@ -301,7 +301,7 @@ async def _get_file_metadatas_with_lsp(
     return metadata_list
 
 
-async def _extract_info(
+async def extract_info(
     file_metadatas: list[dict[str, str | dict]],
     query: str,
     token_limit: int,
@@ -342,7 +342,7 @@ async def _extract_info(
 
         if current_token_count + file_tokens + base_overhead > token_limit:
             if content_buffer:
-                await _run_repo_agent(
+                await run_repo_agent(
                     agent, query, content_buffer, "files", extracted_infos
                 )
 
@@ -353,7 +353,7 @@ async def _extract_info(
             current_token_count += file_tokens
 
     if content_buffer:
-        await _run_repo_agent(agent, query, content_buffer, "files", extracted_infos)
+        await run_repo_agent(agent, query, content_buffer, "files", extracted_infos)
 
     return extracted_infos
 
@@ -406,7 +406,7 @@ async def _summarize_info(
             > token_limit
         ):
             if content_buffer:
-                await _run_repo_agent(
+                await run_repo_agent(
                     agent, query, content_buffer, "extracted_info", summarized_infos
                 )
             content_buffer = info
@@ -414,14 +414,14 @@ async def _summarize_info(
             content_buffer += info + "\n"
 
     if content_buffer:
-        await _run_repo_agent(
+        await run_repo_agent(
             agent, query, content_buffer, "extracted_info", summarized_infos
         )
 
     return summarized_infos
 
 
-async def _run_repo_agent(agent, query, content, content_key, output_list):
+async def run_repo_agent(agent, query, content, content_key, output_list):
     """Run a stateless repo-analysis agent and append its result.
 
     `content_key` is "files" for the extractor (list of JSON strings) or

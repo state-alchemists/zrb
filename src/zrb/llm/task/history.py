@@ -52,8 +52,8 @@ class LLMTaskHistory:
         """The configured conversation name, or a fresh random one when blank."""
         return resolve_conversation_name(
             ctx,
-            self._llm_task._conversation_name,
-            self._llm_task._render_conversation_name,
+            self._llm_task.conversation_name_attr,
+            self._llm_task.render_conversation_name,
         )
 
     def get_effective_prompt(

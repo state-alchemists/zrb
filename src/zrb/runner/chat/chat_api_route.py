@@ -102,6 +102,18 @@ def serve_chat_api(
             return JSONResponse(content={"detail": "Forbidden"}, status_code=403)
         return None
 
+    async def _read_json_body(request: Request) -> dict:
+        """Parse the request body as a JSON object.
+
+        An empty or malformed body yields ``{}`` instead of an unhandled
+        500; routes treat missing fields the same as absent ones.
+        """
+        try:
+            data = await request.json()
+        except Exception:
+            return {}
+        return data if isinstance(data, dict) else {}
+
     @app.get("/api/v1/chat/sessions")
     async def list_chat_sessions(
         request: Request,
@@ -130,7 +142,7 @@ def serve_chat_api(
         forbidden = await _forbid_if_unauthorized(request)
         if forbidden is not None:
             return forbidden
-        data = await request.json() if request.method == "POST" else {}
+        data = await _read_json_body(request)
         session_id = data.get("session_id")
         session_name = data.get("session_name")
         session = await session_manager.create_session(
@@ -209,7 +221,7 @@ def serve_chat_api(
         forbidden = await _forbid_if_unauthorized(request)
         if forbidden is not None:
             return forbidden
-        data = await request.json()
+        data = await _read_json_body(request)
         message = data.get("message", "")
         attachments = data.get("attachments") or []
         is_approval_action = data.get("isApprovalAction", False)

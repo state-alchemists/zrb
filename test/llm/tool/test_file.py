@@ -1288,7 +1288,7 @@ class TestFileSearchTruncation:
         from unittest.mock import patch
 
         with (
-            patch("zrb.llm.tool.file_search._MAX_MATCHES_PER_FILE", 20),
+            patch("zrb.llm.tool.file_search.MAX_MATCHES_PER_FILE", 20),
             patch("shutil.which", return_value=None),
         ):
             result = search_files("match", path=str(tmp_path))

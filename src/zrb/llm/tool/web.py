@@ -20,7 +20,7 @@ from zrb.util.truncate import truncate_text
 # thread running forever. Combined with `_run_blocking`'s daemon thread
 # (below), the *coroutine* gives up on schedule regardless of whether the
 # underlying call ever returns.
-_TIMEOUT_MARGIN_SECONDS = 10
+TIMEOUT_MARGIN_SECONDS = 10
 _LOCAL_PROCESSING_TIMEOUT_SECONDS = 30
 
 
@@ -101,7 +101,7 @@ async def open_web_page(url: str, summarize: bool = True) -> dict:
         content
         if is_pdf
         else await _run_blocking(
-            _convert_html_to_markdown,
+            convert_html_to_markdown,
             content,
             timeout=_LOCAL_PROCESSING_TIMEOUT_SECONDS,
         )
@@ -158,7 +158,7 @@ async def search_internet(
     # ("inline they freeze the TUI's event loop for the whole download").
     # Without this, one stalled connection blocks every concurrent sub-agent
     # and the TUI's own redraw for the full call, timeout or not.
-    search_timeout = CFG.LLM_WEB_HTTP_TIMEOUT / 1000 + _TIMEOUT_MARGIN_SECONDS
+    search_timeout = CFG.LLM_WEB_HTTP_TIMEOUT / 1000 + TIMEOUT_MARGIN_SECONDS
     method = CFG.SEARCH_INTERNET_METHOD.strip().lower()
     if method == "serpapi" and CFG.SERPAPI_KEY:
         # lazy: zrb internal (heavy via transitive / circular)
@@ -324,7 +324,7 @@ async def _fetch_page_content(url: str) -> tuple:
     download + parse.
     """
     user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-    fetch_timeout = CFG.LLM_WEB_HTTP_TIMEOUT / 1000 + _TIMEOUT_MARGIN_SECONDS
+    fetch_timeout = CFG.LLM_WEB_HTTP_TIMEOUT / 1000 + TIMEOUT_MARGIN_SECONDS
     # A known .pdf extension lets us skip launching a browser entirely — but
     # only as a shortcut: plain HTTP can be refused (Cloudflare, cookie/JS wall)
     # where the browser path succeeds, so a failure here falls through to it
@@ -342,7 +342,7 @@ async def _fetch_page_content(url: str) -> tuple:
         # practice) the awaiting coroutine has nothing telling it the reply
         # will never come and hangs indefinitely. `wait_for` bounds it the
         # same way `_run_blocking` bounds the thread-based fallbacks below.
-        page_timeout = CFG.LLM_WEB_PAGE_TIMEOUT / 1000 + _TIMEOUT_MARGIN_SECONDS
+        page_timeout = CFG.LLM_WEB_PAGE_TIMEOUT / 1000 + TIMEOUT_MARGIN_SECONDS
         return await asyncio.wait_for(
             _fetch_via_browser(url, user_agent), timeout=page_timeout
         )
@@ -353,7 +353,7 @@ async def _fetch_page_content(url: str) -> tuple:
         # rather than being stuck on the same one.
         _notify(f"↩️  Browser fetch failed for {url}, retrying via plain HTTP...")
         return await _run_blocking(
-            _fetch_page_fallback, url, user_agent, timeout=fetch_timeout
+            fetch_page_fallback, url, user_agent, timeout=fetch_timeout
         )
 
 
@@ -397,7 +397,7 @@ async def _fetch_via_browser(url: str, user_agent: str) -> tuple:
             await browser.close()
 
 
-def _fetch_page_fallback(url: str, user_agent: str) -> tuple:
+def fetch_page_fallback(url: str, user_agent: str) -> tuple:
     """Plain-HTTP fallback when playwright is unavailable or fails (sync, run off-loop)."""
     # lazy: heavy third-party
     import requests
@@ -443,7 +443,7 @@ def _extract_pdf_text(data: bytes) -> str:
         return "\n".join(t for t in texts if t)
 
 
-def _convert_html_to_markdown(html_text: str) -> str:
+def convert_html_to_markdown(html_text: str) -> str:
     # lazy: heavy third-party
     from bs4 import BeautifulSoup
     from markdownify import markdownify as md

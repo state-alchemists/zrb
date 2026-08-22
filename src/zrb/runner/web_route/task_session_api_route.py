@@ -94,16 +94,29 @@ def serve_task_session_api(
                 )  # pyright: ignore[reportReturnType]
             if residual_args[0] == "list":
                 task_path = root_group.get_node_path(task)
-                max_start_time = (
-                    datetime.now()
-                    if max_start_query is None
-                    else datetime.strptime(max_start_query, "%Y-%m-%d %H:%M:%S")
-                )
-                min_start_time = (
-                    max_start_time - timedelta(hours=1)
-                    if min_start_query is None
-                    else datetime.strptime(min_start_query, "%Y-%m-%d %H:%M:%S")
-                )
+                try:
+                    max_start_time = (
+                        datetime.now()
+                        if max_start_query is None
+                        else datetime.strptime(
+                            max_start_query, "%Y-%m-%d %H:%M:%S"
+                        )
+                    )
+                    min_start_time = (
+                        max_start_time - timedelta(hours=1)
+                        if min_start_query is None
+                        else datetime.strptime(
+                            min_start_query, "%Y-%m-%d %H:%M:%S"
+                        )
+                    )
+                except ValueError:
+                    return JSONResponse(
+                        content={
+                            "detail": "Invalid 'from'/'to' timestamp; expected "
+                            "'YYYY-MM-DD HH:MM:SS'"
+                        },
+                        status_code=400,
+                    )  # pyright: ignore[reportReturnType]
                 return sanitize_session_state_log_list(
                     task,
                     session_state_logger.list(
@@ -111,12 +124,43 @@ def serve_task_session_api(
                     ),
                 )
             else:
-                return sanitize_session_state_log(
-                    task, session_state_logger.read(residual_args[0])
+                session_state_log = read_task_session_state_log(
+                    session_state_logger, residual_args[0]
                 )
+                if (
+                    session_state_log is None
+                    or not session_belongs_to_task(root_group, task, session_state_log)
+                ):
+                    return JSONResponse(
+                        content={"detail": "Not found"}, status_code=404
+                    )  # pyright: ignore[reportReturnType]
+                return sanitize_session_state_log(task, session_state_log)
         return JSONResponse(
             content={"detail": "Not found"}, status_code=404
         )  # pyright: ignore[reportReturnType]
+
+
+def read_task_session_state_log(
+    session_state_logger: AnySessionStateLogger, session_name: str
+) -> "SessionStateLog | None":
+    """Read a session log, mapping any storage/validation failure to None."""
+    try:
+        return session_state_logger.read(session_name)
+    except (OSError, ValueError):
+        # OSError: missing/unreadable file. ValueError covers JSON decode
+        # errors and pydantic's ValidationError.
+        return None
+
+
+def session_belongs_to_task(
+    root_group: AnyGroup, task: AnyTask, session_state_log: "SessionStateLog"
+) -> bool:
+    """Check that the log was recorded for the task named in the URL.
+
+    Without this check, anyone authorized for one task could read another
+    task's session by guessing its (random) session name.
+    """
+    return session_state_log.path == (root_group.get_node_path(task) or [])
 
 
 def sanitize_session_state_log_list(
@@ -147,7 +191,9 @@ def sanitize_session_state_log(
     real_inputs = {}
     for real_input in task.inputs:
         real_input_name = real_input.name
-        real_inputs[real_input_name] = enhanced_inputs[real_input_name]
+        # A foreign/legacy log may lack some of this task's inputs; serve an
+        # empty value rather than raising KeyError.
+        real_inputs[real_input_name] = enhanced_inputs.get(real_input_name, "")
     return SessionStateLog(
         name=session_state_log.name,
         start_time=session_state_log.start_time,

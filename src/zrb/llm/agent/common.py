@@ -55,14 +55,16 @@ def _wrap_tool(tool: "Tool | ToolFuncEither") -> "Tool | ToolFuncEither":
         # lazy: heavy third-party
         from pydantic_ai import Tool as PydanticTool
 
-        # It is a Tool instance
+        # It is a Tool instance (or a duck-typed equivalent)
         original_func = getattr(tool, "function")
-        safe_func = create_safe_wrapper(original_func, name=getattr(tool, "name"))
+        safe_func = create_safe_wrapper(
+            original_func, name=getattr(tool, "name", None)
+        )
+        metadata = {
+            **(getattr(tool, "metadata", None) or {}),
+            **capability_metadata(tool_capability(tool)),
+        }
         if isinstance(tool, PydanticTool):
-            metadata = {
-                **(tool.metadata or {}),
-                **capability_metadata(tool_capability(tool)),
-            }
             return PydanticTool(
                 safe_func,
                 name=tool.name,
@@ -78,7 +80,17 @@ def _wrap_tool(tool: "Tool | ToolFuncEither") -> "Tool | ToolFuncEither":
                 defer_loading=tool.defer_loading,
                 metadata=metadata,
             )
-        return tool
+        # Duck-typed tool: rebuild as a real Tool around the safe wrapper.
+        # Returning the original unchanged would silently drop both the error
+        # containment of safe_func and the capability tag — an untagged tool
+        # resolves to UNKNOWN and is denied by conservative policies.
+        return PydanticTool(
+            safe_func,
+            name=getattr(tool, "name", None),
+            description=getattr(tool, "description", None),
+            takes_ctx=bool(getattr(tool, "takes_ctx", False)),
+            metadata=metadata,
+        )
     else:
         # It is a callable (hasattr(tool, "function") is False, so not a Tool).
         # Wrapped into a Tool (rather than left bare) so the capability tag

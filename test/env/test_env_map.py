@@ -55,3 +55,15 @@ def test_env_map_auto_render(monkeypatch):
         env_map.update_context(shared_ctx)
         assert shared_ctx.env["key1"] == "hello"
         assert shared_ctx.env["key2"] == "value2"
+
+
+def test_env_map_auto_render_false_keeps_literal_value():
+    """With auto_render=False, values pass through unrendered — braces and all."""
+    env_map = EnvMap(
+        vars={"key1": "{{'hello'}}", "key2": "{literal}"},
+        auto_render=False,
+    )
+    shared_ctx = SharedContext(env={})
+    env_map.update_context(shared_ctx)
+    assert shared_ctx.env["key1"] == "{{'hello'}}"
+    assert shared_ctx.env["key2"] == "{literal}"

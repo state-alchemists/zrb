@@ -151,10 +151,10 @@ async def test_analyze_code_summarization_loop(temp_code_dir):
     # Mock extract_info to return multiple results, forcing summarization
     with (
         patch(
-            "zrb.llm.tool.code._extract_info", new_callable=AsyncMock
+            "zrb.llm.tool.code.extract_info", new_callable=AsyncMock
         ) as mock_extract,
         patch(
-            "zrb.llm.tool.code._run_repo_agent", new_callable=AsyncMock
+            "zrb.llm.tool.code.run_repo_agent", new_callable=AsyncMock
         ) as mock_run_agent,
     ):
 
@@ -172,13 +172,13 @@ async def test_analyze_code_summarization_loop(temp_code_dir):
 @pytest.mark.asyncio
 async def test_get_lsp_context_error(temp_code_dir):
 
-    from zrb.llm.tool.code import _get_lsp_context
+    from zrb.llm.tool.code import get_lsp_context
 
     with patch(
         "zrb.llm.lsp.manager.lsp_manager.get_document_symbols",
         side_effect=Exception("LSP error"),
     ):
-        res = await _get_lsp_context("main.py", temp_code_dir)
+        res = await get_lsp_context("main.py", temp_code_dir)
         assert res is None
 
 
@@ -265,8 +265,8 @@ async def test_no_matching_files(tmp_path):
 
 @pytest.mark.asyncio
 async def test_no_extracted_info(temp_code_dir):
-    # _extract_info yields nothing -> "No information could be extracted" (154)
-    with patch("zrb.llm.tool.code._extract_info", new_callable=AsyncMock) as extract:
+    # extract_info yields nothing -> "No information could be extracted" (154)
+    with patch("zrb.llm.tool.code.extract_info", new_callable=AsyncMock) as extract:
         extract.return_value = []
         res = await analyze_code(temp_code_dir, "query", use_lsp=False)
     assert "No information could be extracted" in res
@@ -331,7 +331,7 @@ async def test_lsp_exclude_and_include_and_ext_skip(tmp_path, lsp_env):
     (d / "b.py").write_text("def b(): pass")  # excluded (239)
     (d / "d.py").write_text("def d(): pass")  # not included (243)
     (d / "c.xyz").write_text("nope")  # ext skip (234)
-    # sym/diag default to found=False -> _get_lsp_context returns None (40)
+    # sym/diag default to found=False -> get_lsp_context returns None (40)
     res = await analyze_code(
         str(d),
         "query",
@@ -393,12 +393,12 @@ async def test_lsp_non_supported_extension_read_error(tmp_path, lsp_env):
 
 @pytest.mark.asyncio
 async def test_lsp_task_exception_fallback_read(tmp_path, lsp_env):
-    # _get_lsp_context raises -> gather returns Exception -> fallback read (267-274)
+    # get_lsp_context raises -> gather returns Exception -> fallback read (267-274)
     d = tmp_path / "lsp_exc"
     d.mkdir()
     (d / "main.py").write_text("def main(): pass")
     with patch(
-        "zrb.llm.tool.code._get_lsp_context",
+        "zrb.llm.tool.code.get_lsp_context",
         new_callable=AsyncMock,
         side_effect=RuntimeError("lsp down"),
     ):
@@ -408,7 +408,7 @@ async def test_lsp_task_exception_fallback_read(tmp_path, lsp_env):
 
 @pytest.mark.asyncio
 async def test_lsp_task_exception_fallback_read_error(tmp_path, lsp_env):
-    # _get_lsp_context raises AND the fallback read fails (275-276)
+    # get_lsp_context raises AND the fallback read fails (275-276)
     d = tmp_path / "lsp_exc_err"
     d.mkdir()
     (d / "main.py").write_text("def main(): pass")
@@ -422,7 +422,7 @@ async def test_lsp_task_exception_fallback_read_error(tmp_path, lsp_env):
 
     with (
         patch(
-            "zrb.llm.tool.code._get_lsp_context",
+            "zrb.llm.tool.code.get_lsp_context",
             new_callable=AsyncMock,
             side_effect=RuntimeError("lsp down"),
         ),
@@ -440,7 +440,7 @@ async def test_summarization_flushes_buffer(temp_code_dir):
     big = "info segment " * 40  # ~130 tokens, exceeds the low threshold
     with (
         patch("zrb.llm.tool.code.run_agent", new_callable=AsyncMock) as run,
-        patch("zrb.llm.tool.code._extract_info", new_callable=AsyncMock) as extract,
+        patch("zrb.llm.tool.code.extract_info", new_callable=AsyncMock) as extract,
         patch("zrb.llm.tool.code.CFG") as cfg,
     ):
         run.return_value = ("x", [])

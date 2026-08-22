@@ -198,7 +198,8 @@ class LLMTask(BaseTask):
             render_conversation_name: Whether to render `conversation_name` as a
                 template.
             history_manager: Store persisting conversation history across runs.
-                Without one, history lives in memory only.
+                Without one, a default file-backed store under LLM_HISTORY_DIR
+                is used.
             history_processors: Callables rewriting history before each request,
                 run in order. This is the seam summarization uses.
             summarize_commands: Aliases for the summarize command exposed to any
@@ -289,32 +290,34 @@ class LLMTask(BaseTask):
         Raises:
             ValueError: If the task was built without one.
         """
-        return self._building.prompt_manager
+        if self._prompt_manager is None:
+            raise ValueError(f"Task {self.name} doesn't have prompt_manager")
+        return self._prompt_manager
 
     @prompt_manager.setter
     def prompt_manager(self, value: PromptManager) -> None:
         """Replace the `PromptManager` composing this task's system prompt."""
-        self._building.prompt_manager = value
+        self._prompt_manager = value
 
     @property
     def tools(self) -> "list[Tool | ToolFuncEither]":
         """Tools this task's agent may call (excluding factory-resolved ones)."""
-        return self._building.tools
+        return self._tools
 
     @tools.setter
     def tools(self, value: "list[Tool | ToolFuncEither]") -> None:
         """Replace the tool list wholesale."""
-        self._building.tools = value
+        self._tools = value
 
     @property
     def toolsets(self) -> "list[AbstractToolset[None]]":
         """Pydantic-ai toolsets this task's agent may call."""
-        return self._building.toolsets
+        return self._toolsets
 
     @toolsets.setter
     def toolsets(self, value: "list[AbstractToolset[None]]") -> None:
         """Replace the toolset list wholesale (see `tools` setter)."""
-        self._building.toolsets = value
+        self._toolsets = value
 
     def set_ui(self, ui: "UIProtocol | None") -> None:
         """Replace every attached UI with `ui`, or detach all when None."""
@@ -331,52 +334,52 @@ class LLMTask(BaseTask):
     @property
     def tool_confirmation(self) -> AnyToolConfirmation:
         """Policy deciding which tool calls need the user to approve them."""
-        return self._building.tool_confirmation
+        return self._tool_confirmation
 
     @tool_confirmation.setter
     def tool_confirmation(self, value: AnyToolConfirmation) -> None:
         """Replace the tool-confirmation policy."""
-        self._building.tool_confirmation = value
+        self._tool_confirmation = value
 
     @property
     def approval_channel(self) -> "ApprovalChannel | None":
         """Channel carrying approval requests to whoever answers them."""
-        return self._building.approval_channel
+        return self._approval_channel
 
     @approval_channel.setter
     def approval_channel(self, value: "ApprovalChannel | None") -> None:
         """Replace the approval channel."""
-        self._building.approval_channel = value
+        self._approval_channel = value
 
     @property
     def history_manager(self) -> AnyHistoryManager | None:
         """Store that persists conversation history across runs."""
-        return self._building.history_manager
+        return self._history_manager
 
     @history_manager.setter
     def history_manager(self, value: AnyHistoryManager | None) -> None:
         """Replace the history manager."""
-        self._building.history_manager = value
+        self._history_manager = value
 
     @property
     def permissions(self) -> PermissionPolicyInput:
         """Policy bounding which files and commands the agent's tools may touch."""
-        return self._building.permissions
+        return self._permissions
 
     @permissions.setter
     def permissions(self, value: PermissionPolicyInput) -> None:
         """Replace the permission policy."""
-        self._building.permissions = value
+        self._permissions = value
 
     @property
     def sandbox(self) -> "SandboxInput | BoolAttr":
         """Whether, and how, tool calls run inside a sandbox."""
-        return self._building.sandbox
+        return self._sandbox
 
     @sandbox.setter
     def sandbox(self, value: "SandboxInput | BoolAttr") -> None:
         """Replace the sandbox configuration."""
-        self._building.sandbox = value
+        self._sandbox = value
 
     def append_hook_factory(self, *factory: Callable[[HookManager], None]) -> None:
         """Register one or more hook factories on this task's hook manager."""
@@ -385,12 +388,12 @@ class LLMTask(BaseTask):
     @property
     def custom_model_names(self) -> "StrListAttr | None":
         """Extra model names offered by the model picker, beyond the detected ones."""
-        return self._building.custom_model_names
+        return self._custom_model_names
 
     @custom_model_names.setter
     def custom_model_names(self, value: "StrListAttr | None") -> None:
         """Replace the custom model-name list."""
-        self._building.custom_model_names = value
+        self._custom_model_names = value
 
     def append_toolset(self, *toolset: "AbstractToolset") -> None:
         """Add pydantic-ai toolsets whose tools the agent may call."""
@@ -416,6 +419,83 @@ class LLMTask(BaseTask):
     def append_history_processor(self, *processor: "HistoryProcessor") -> None:
         """Add processors that rewrite conversation history before each request."""
         self._building.append_history_processor(*processor)
+
+    @property
+    def hook_manager(self) -> HookManager:
+        """The hook manager this task's lifecycle hooks run through."""
+        return self._hook_manager
+
+    @hook_manager.setter
+    def hook_manager(self, value: HookManager) -> None:
+        """Replace the hook manager."""
+        self._hook_manager = value
+
+    @property
+    def uis(self) -> "list[UIProtocol]":
+        """Every currently attached UI (mutable in place, e.g. `append_ui`)."""
+        return self._uis
+
+    @uis.setter
+    def uis(self, value: "list[UIProtocol]") -> None:
+        """Replace every attached UI."""
+        self._uis = value
+
+    @property
+    def prompt_manager_attr(self) -> "PromptManager | None":
+        """The raw prompt manager, or None when the task has none."""
+        return self._prompt_manager
+
+    @prompt_manager_attr.setter
+    def prompt_manager_attr(self, value: "PromptManager | None") -> None:
+        """Replace the raw prompt manager."""
+        self._prompt_manager = value
+
+    @property
+    def tool_factories(self) -> "list[Callable[[AnyContext], Any]]":
+        """Factories building tools per run, from the task context."""
+        return self._tool_factories
+
+    @tool_factories.setter
+    def tool_factories(self, value: "list[Callable[[AnyContext], Any]]") -> None:
+        """Replace the tool factories."""
+        self._tool_factories = value
+
+    @property
+    def toolset_factories(self) -> "list[Callable[[AnyContext], AbstractToolset[None]]]":
+        """Factories building toolsets per run, from the task context."""
+        return self._toolset_factories
+
+    @toolset_factories.setter
+    def toolset_factories(
+        self, value: "list[Callable[[AnyContext], AbstractToolset[None]]]"
+    ) -> None:
+        """Replace the toolset factories."""
+        self._toolset_factories = value
+
+    @property
+    def history_processors(self) -> "list[HistoryProcessor]":
+        """Processors rewriting conversation history before each request."""
+        return self._history_processors
+
+    @history_processors.setter
+    def history_processors(self, value: "list[HistoryProcessor]") -> None:
+        """Replace the history processors."""
+        self._history_processors = value
+
+    @property
+    def model_attr(self) -> Any:
+        """The raw model attribute, unrendered."""
+        return self._model
+
+    @property
+    def render_model(self) -> bool:
+        """Whether `model` is rendered as a template."""
+        return self._render_model
+
+    @property
+    def model_settings_attr(self) -> "ModelSettings | None | Any":
+        """The raw model-settings attribute, unrendered."""
+        return self._model_settings
 
     def get_all_tools(self, ctx: AnyContext) -> "list[Tool | ToolFuncEither]":
         """Get all tools including those resolved from factories."""
@@ -450,6 +530,16 @@ class LLMTask(BaseTask):
         return self._building.get_model(ctx)
 
     # --- LLMTaskHistory delegators --------------------------------------------
+
+    @property
+    def conversation_name_attr(self) -> "StrAttr | None":
+        """The raw conversation-name attribute, unrendered."""
+        return self._conversation_name
+
+    @property
+    def render_conversation_name(self) -> bool:
+        """Whether `conversation_name` is rendered as a template."""
+        return self._render_conversation_name
 
     def get_history_manager(self, ctx: AnyContext) -> AnyHistoryManager:
         """The configured history manager, or a default file-backed one."""
@@ -623,7 +713,10 @@ class LLMTask(BaseTask):
                 tool_confirmation=self._tool_confirmation,
                 hook_manager=self._hook_manager,
                 ui=self._uis,
-                yolo=yolo_value,
+                # A falsy task-level yolo must keep inheriting the ambient
+                # context (run_agent treats None as inherit); an explicit
+                # opt-out is available on run_agent/delegate directly.
+                yolo=yolo_value or None,
                 approval_channel=self._approval_channel,
                 system_prompt=system_prompt,
                 live_context=live_context,
@@ -694,7 +787,8 @@ class LLMTask(BaseTask):
             should_skip_approval = self._dynamic_yolo
         else:
             # Default policy-aware callable (bare LLMTask without dynamic_yolo).
-            # Follows the same precedence chain as chat/task.py check_yolo.
+            # Follows the same precedence chain as chat/task.py's
+            # _should_skip_approval.
             # Caching the yolo value at closure-creation time is fine — bare
             # LLMTask yolo is a BoolAttr, not a live xcom like LLMChatTask.
             should_skip_approval_bool = get_bool_attr(ctx, self._yolo, False)

@@ -5,6 +5,9 @@ from zrb.llm.tool.file_observation import record_observed
 from zrb.llm.util.pdf import extract_pdf_text
 from zrb.util.truncate import truncate_text
 
+# Shared read-size cap for the text and PDF paths alike.
+_MAX_READ_FILE_BYTES = 10 * 1024 * 1024
+
 
 def read_file(
     path: str,
@@ -177,7 +180,7 @@ def _validate_range(start_line: int, end_line: int, total_lines: int) -> str | N
 def _check_file_safety(abs_path: str) -> str | None:
     """Checks if the file is safe to read (size and content type)."""
     file_size = os.path.getsize(abs_path)
-    if file_size > 10 * 1024 * 1024:
+    if file_size > _MAX_READ_FILE_BYTES:
         return (
             f"Error: File is too large ({file_size} bytes). "
             f"[SYSTEM SUGGESTION]: Use Grep to search for specific content instead."
@@ -201,6 +204,18 @@ def _is_pdf_file(abs_path: str) -> bool:
 
 
 def _read_pdf(path: str, abs_path: str, start_line: int, end_line: int) -> str:
+    # Same 10 MB cap as the text path (see _check_file_safety): pdfplumber
+    # materializes the whole extraction in memory, so an unbounded PDF would
+    # let one tool call exhaust the process. The binary peek does not apply —
+    # PDFs are binaries by design.
+    file_size = os.path.getsize(abs_path)
+    if file_size > _MAX_READ_FILE_BYTES:
+        return (
+            f"Error: PDF is too large ({file_size} bytes). "
+            "[SYSTEM SUGGESTION]: Split the PDF into smaller parts, or use a "
+            "tool suited to large documents."
+        )
+
     full_text = extract_pdf_text(abs_path)
 
     if full_text is None:

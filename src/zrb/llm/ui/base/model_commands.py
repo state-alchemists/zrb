@@ -2,7 +2,7 @@
 
 YOLO toggle, PLAN-mode toggle, and model switching (`/model`, including the
 `small`/`multimodal` variants). Split out of `commands.py`. Composed into
-`BaseUICommands` as `self._model`, keeping `BaseUI` in `self._base_ui`
+`BaseUICommands` as `self._models`, keeping `BaseUI` in `self._base_ui`
 for state and method calls.
 
 Each `_handle_*` returns ``True`` if the input was consumed, ``False``

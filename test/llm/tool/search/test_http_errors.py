@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from zrb.llm.tool.search._http_errors import raise_http_error
+from zrb.llm.tool.search.http_errors import raise_http_error
 
 
 def _response(status_code: int, text: str = "some error body"):

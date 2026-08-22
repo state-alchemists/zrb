@@ -82,9 +82,15 @@ def get_default_prompt(name: str) -> str:
     return _read_package_prompt(name)
 
 
-@lru_cache(maxsize=64)
 def _find_custom_prompt(name: str, cwd: str, prompt_dir: str) -> str:
-    """Return the first matching local override content, or empty string."""
+    """Return the first matching local override content, or empty string.
+
+    Deliberately not cached: unlike package-bundled prompts, project-local
+    overrides under LLM_PROMPT_DIR can be edited mid-session (env-var
+    overrides above are re-read live too), and pinning them until restart
+    would make freshness inconsistent. The lookup costs a handful of
+    ``os.path.exists`` calls per section per composition.
+    """
     for search_path in _get_default_prompt_search_path(cwd):
         local_prompt_path = os.path.abspath(
             os.path.join(search_path, prompt_dir, f"{name}.md")

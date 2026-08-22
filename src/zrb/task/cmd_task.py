@@ -221,8 +221,13 @@ class CmdTask(BaseTask):
 
     def __get_env_map(self, ctx: AnyContext) -> dict[str, str]:
         envs = {key: val for key, val in ctx.env.items()}
-        envs["SSHPASS"] = self._get_remote_password(ctx)
-        envs["PYTHONBUFFERED"] = "1"
+        # SSHPASS must only exist for remote execution: exporting it into the
+        # environment of every local command would leak the credential to
+        # processes that never need it.
+        remote_password = self._get_remote_password(ctx)
+        if self._remote_host is not None and remote_password != "":
+            envs["SSHPASS"] = remote_password
+        envs["PYTHONUNBUFFERED"] = "1"
         return envs
 
     def _get_shell(self, ctx: AnyContext) -> str:

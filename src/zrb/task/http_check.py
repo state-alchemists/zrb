@@ -70,9 +70,14 @@ class HttpCheck(BaseTask):
         self._url = url
         self._render_url = render_url
         self._http_method = http_method
-        self._interval = (
-            interval if interval is not None else CFG.HTTP_CHECK_INTERVAL / 1000
-        )
+        # Read lazily at run time (like every other CFG read) so an env change
+        # after task definition still takes effect.
+        self._interval = interval
+
+    def _get_interval(self) -> float:
+        if self._interval is not None:
+            return self._interval
+        return CFG.HTTP_CHECK_INTERVAL / 1000
 
     def _get_url(self, ctx: AnyContext) -> str:
         return get_str_attr(
@@ -87,6 +92,7 @@ class HttpCheck(BaseTask):
 
         url = self._get_url(ctx)
         http_method = self._get_http_method(ctx)
+        interval = self._get_interval()
         while True:
             try:
                 # Bound each probe so a half-open endpoint can't hang the worker
@@ -94,7 +100,7 @@ class HttpCheck(BaseTask):
                 # request should never outlive the polling interval; a timeout is
                 # just another transient error and is retried below.
                 response = await asyncio.to_thread(
-                    requests.request, http_method, url, timeout=self._interval
+                    requests.request, http_method, url, timeout=interval
                 )
                 if response.status_code == 200:
                     return response
@@ -103,4 +109,4 @@ class HttpCheck(BaseTask):
                 # Readiness probes retry on any error (DNS, refused, timeout, …)
                 # until the endpoint comes up or the surrounding monitor stops us.
                 ctx.log_info(f"Error: {e}")
-            await asyncio.sleep(self._interval)
+            await asyncio.sleep(interval)

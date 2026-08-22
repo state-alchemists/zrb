@@ -44,7 +44,7 @@ flowchart TD
     Task -->|the resolved task| Lifecycle["src/zrb/task/base/lifecycle.py :: run_task_async()"]
 ```
 
-`extract_node_from_args(["llm", "chat", "summarise this repo"])` returns the `llm_chat` task plus residual args. `run_task_async()` builds a `Session` + `SharedContext`, then enters the standard task execution lifecycle (the 5-step flow described in [architecture.md](./architecture.md#the-task-execution-lifecycle)).
+`Group.extract_node(["llm", "chat", "summarise this repo"])` returns the `llm_chat` task plus residual args. `run_task_async()` builds a `Session` + `SharedContext`, then enters the standard task execution lifecycle (the 5-step flow described in [architecture.md](./architecture.md#the-task-execution-lifecycle)).
 
 For non-LLM tasks, the lifecycle ends here. For an `LLMChatTask`, the action handler delegates into the chat machinery.
 
@@ -54,16 +54,20 @@ For non-LLM tasks, the lifecycle ends here. For an `LLMChatTask`, the action han
 
 ```mermaid
 flowchart TD
-    Exec["src/zrb/llm/task/chat/execution.py :: LLMChatTask._exec_action()"]
-    Exec -->|part of the same class| Build["src/zrb/llm/task/chat/building.py — build the inner LLMTask"]
-    Exec -->|part of the same class| Running["src/zrb/llm/task/chat/running.py — resolve UIs, triggers, commands"]
+    Exec["src/zrb/llm/task/chat/execution.py :: ChatExecution._exec_action()"]
+    Exec -->|builds the inner LLMTask inline| Build["inner LLMTask — tools, toolsets, system prompt, capabilities"]
+    Exec -->|resolves| Running["src/zrb/llm/task/chat/running.py — resolve UIs, triggers, commands"]
 ```
 
-`LLMChatTask` (`src/zrb/llm/task/chat/task.py`) is composed as `LLMChatTask(LLMTaskBuilding, ChatRunning, ChatExecution, BaseTask)`.
+`LLMChatTask` (`src/zrb/llm/task/chat/task.py`) is a plain `BaseTask` subclass
+that composes its behavior as parts (ADR-0035): `ChatExecution`
+(`execution.py`) owns `_exec_action`, `ChatRunning` (`running.py`) resolves
+UIs/triggers/commands. Since 2.65.3 these are **composed attributes**
+(`self._execution`, `self._running`), not base classes.
 
 Three things happen here:
 
-1. **Build the inner `LLMTask`** with the resolved tools, toolsets, system prompt, capabilities, and history processors (`building.py`). Heavy collaborator: `zrb.llm.prompt.PromptManager` assembles the system prompt; `zrb.llm.skill.SkillManager`, `zrb.llm.hook.HookManager`, and `zrb.llm.agent.subagent.sub_agent_manager` contribute their respective pieces.
+1. **Build the inner `LLMTask`** with the resolved tools, toolsets, system prompt, capabilities, and history processors (inside `ChatExecution._exec_action`). Heavy collaborator: `zrb.llm.prompt.PromptManager` assembles the system prompt; `zrb.llm.skill.SkillManager`, `zrb.llm.hook.HookManager`, and `zrb.llm.agent.subagent.sub_agent_manager` contribute their respective pieces.
 2. **Resolve UIs** from `ui_factories` (or fall back to the default TUI). For `zrb llm chat`, this ends up being the prompt-toolkit UI in `src/zrb/llm/ui/default/ui.py`. See [llm-custom-ui.md](./llm-custom-ui.md) for the UI factory contract.
 3. **Wrap approval channels** — if multiple are present, in a `MultiplexApprovalChannel`. Otherwise the single channel passes through.
 
@@ -167,7 +171,7 @@ Control returns up through `LLMChatTask._exec_action` → `run_task_async` → `
 | Task tree resolution | `src/zrb/runner/cli.py`, `src/zrb/group/{any_group,group}.py` |
 | Task execution lifecycle | `src/zrb/task/base/{execution,lifecycle,monitoring}.py` |
 | `llm chat` task definition | `src/zrb/builtin/llm/chat.py` |
-| Chat builder + runner | `src/zrb/llm/task/chat/{task,state,building,running,execution}.py` |
+| Chat task + parts | `src/zrb/llm/task/chat/{task,running,execution}.py` |
 | Inner LLM task | `src/zrb/llm/task/llm_task.py` |
 | Agent factory | `src/zrb/llm/agent/common.py` |
 | Run loop | `src/zrb/llm/agent/run/runner.py` |

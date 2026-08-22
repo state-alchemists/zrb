@@ -128,3 +128,25 @@ class TestCallbackBehavior:
 
         # Assert
         assert mock_session.shared_ctx.xcom["child_data"] == "secret_data"
+
+
+@pytest.mark.asyncio
+async def test_async_run_logs_error_without_error_queue(mock_session):
+    """A callback failure must be visible in the log even when the user did
+    not configure an error_queue (it used to vanish silently)."""
+    failing_task = MagicMock()
+    failing_task.name = "failing"
+    failing_task.async_run = AsyncMock(side_effect=ValueError("boom"))
+    callback = Callback(
+        task=failing_task,
+        input_mapping={},
+        error_queue=None,
+    )
+    with patch("zrb.callback.callback.CFG") as mock_cfg:
+        result = await callback.async_run(
+            parent_session=mock_session, session=mock_session
+        )
+        mock_logger = mock_cfg.LOGGER
+    assert result is None
+    mock_logger.error.assert_called_once()
+    assert "boom" in str(mock_logger.error.call_args)

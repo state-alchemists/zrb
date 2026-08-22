@@ -61,7 +61,9 @@ def _resolve_context_dependencies(
 
     effective_tool_confirmation = tool_confirmation or current_tool_confirmation.get()
     effective_hook_manager = hook_manager or default_hook_manager
-    effective_yolo = yolo or current_yolo.get()
+    # None = inherit the parent run's YOLO state; an explicit False must stay
+    # False (a nested run opting out), which the old `yolo or ...` erased.
+    effective_yolo = yolo if yolo is not None else current_yolo.get()
     effective_approval_channel = approval_channel or current_approval_channel.get()
 
     if effective_approval_channel is not None and effective_ui is not None:

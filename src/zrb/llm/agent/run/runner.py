@@ -135,7 +135,10 @@ async def run_agent(
     tool_confirmation: AnyToolConfirmation = None,
     ui: UIProtocol | list[UIProtocol] | None = None,
     hook_manager: HookManager | None = None,
-    yolo: bool | None = False,
+    # None = inherit from the parent run's YOLO context (what an unconfigured
+    # nested helper agent wants); False = force approval prompts even inside a
+    # YOLO parent; True = skip confirmations outright.
+    yolo: bool | None = None,
     approval_channel: "ApprovalChannel | None" = None,
     system_prompt: str = "",
     live_context: str = "",

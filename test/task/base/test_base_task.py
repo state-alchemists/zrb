@@ -23,6 +23,35 @@ def test_base_task_init():
     assert task.cli_only is False
 
 
+def test_base_task_explicit_zero_readiness_values_are_kept():
+    """Explicit 0 must survive: monitoring treats timeout <= 0 as "no cap".
+
+    Falsy-value coercion used to turn an explicit readiness_timeout=0 into
+    60, making the documented "disable the cap" value unreachable.
+    """
+    task = BaseTask(
+        name="test_task",
+        readiness_timeout=0,
+        readiness_check_period=0,
+        readiness_failure_threshold=0,
+    )
+    assert task.readiness_timeout == 0
+    assert task.readiness_check_period == 0
+    assert task.readiness_failure_threshold == 0
+
+
+def test_base_task_none_readiness_values_get_defaults():
+    task = BaseTask(
+        name="test_task",
+        readiness_timeout=None,
+        readiness_check_period=None,
+        readiness_failure_threshold=None,
+    )
+    assert task.readiness_timeout == 60
+    assert task.readiness_check_period == 5.0
+    assert task.readiness_failure_threshold == 1
+
+
 def test_base_task_repr():
     task = BaseTask(name="test_task")
     assert repr(task) == "<BaseTask name=test_task>"

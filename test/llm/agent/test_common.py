@@ -244,6 +244,53 @@ def test_wrap_tool_instance():
     assert wrapped.metadata == {"existing": True, "zrb_capability": Capability.EDIT}
 
 
+def test_wrap_tool_duck_typed_instance():
+    """A tool object with ``.function`` that is not a pydantic-ai ``Tool``
+    must still be rebuilt around the safe wrapper — returning it unchanged
+    would drop error containment and the capability tag."""
+    from pydantic_ai import Tool
+
+    from zrb.llm.agent.common import _wrap_tool
+    from zrb.llm.permission import Capability, tag
+
+    def my_tool(ctx, x: int):
+        return x
+
+    tag(my_tool, Capability.EXECUTE)
+
+    class DuckTypedTool:
+        function = staticmethod(my_tool)
+        name = "duck"
+        description = "duck-typed tool"
+        takes_ctx = True
+        metadata = {"custom": "kept"}
+
+    wrapped = _wrap_tool(DuckTypedTool())
+    assert isinstance(wrapped, Tool)
+    assert wrapped.name == "duck"
+    assert wrapped.description == "duck-typed tool"
+    assert wrapped.takes_ctx is True
+    assert wrapped.metadata == {
+        "custom": "kept",
+        "zrb_capability": Capability.EXECUTE,
+    }
+    # The safe wrapper is in place: a raising call becomes an error
+    # ToolReturn instead of an uncontained exception.
+    import asyncio
+    import inspect
+
+    assert inspect.iscoroutinefunction(wrapped.function)
+
+    def broken():
+        raise RuntimeError("boom")
+
+    broken_tool = DuckTypedTool()
+    broken_tool.function = staticmethod(broken)
+    broken_tool.name = "broken"
+    result = asyncio.run(_wrap_tool(broken_tool).function())
+    assert "boom" in str(result)
+
+
 @pytest.mark.asyncio
 async def test_wrap_toolset():
     from pydantic_ai import ToolReturn

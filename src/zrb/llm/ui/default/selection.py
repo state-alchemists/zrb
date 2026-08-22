@@ -69,6 +69,11 @@ class UISelection:
         """Indices checked so far in a multi-select choice widget."""
         return self._choice_selected
 
+    @property
+    def choice_window(self) -> "Window | None":
+        """The choice widget's window (None before `init_selection_state`)."""
+        return getattr(self, "_choice_window", None)
+
     # --- hooks called by UIConfirmation -------------------------------
 
     def begin_choice(self, spec: dict) -> None:

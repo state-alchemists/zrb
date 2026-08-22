@@ -45,11 +45,17 @@ async def edit_content_via_editor(
         tf.write(content_str)
         tf_path = tf.name
 
-    await ui.run_interactive_command([editor, tf_path], shell=False)
+    try:
+        await ui.run_interactive_command([editor, tf_path], shell=False)
 
-    with open(tf_path, "r", encoding="utf-8") as tf:
-        new_content_str = tf.read()
-    os.remove(tf_path)
+        with open(tf_path, "r", encoding="utf-8") as tf:
+            new_content_str = tf.read()
+    finally:
+        # A crashed/missing editor must not leak the temp file.
+        try:
+            os.remove(tf_path)
+        except OSError:
+            pass
 
     if new_content_str == content_str:
         return content  # Return original content unchanged

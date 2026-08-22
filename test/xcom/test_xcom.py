@@ -116,3 +116,38 @@ def test_xcom_callbacks():
     xcom.push("c")
     xcom.popright()
     assert pop_count == 3
+
+
+def test_xcom_all_mutators_fire_callbacks():
+    """Every deque mutator must wake registered waiters, not just push/pop."""
+    push_count = 0
+    pop_count = 0
+
+    def on_push():
+        nonlocal push_count
+        push_count += 1
+
+    def on_pop():
+        nonlocal pop_count
+        pop_count += 1
+
+    xcom = Xcom()
+    xcom.add_push_callback(on_push)
+    xcom.add_pop_callback(on_pop)
+
+    xcom.appendleft("a")
+    assert push_count == 1
+    xcom.extend(["b", "c"])
+    assert push_count == 2
+    xcom.extendleft(["d"])
+    assert push_count == 3
+    xcom.insert(0, "e")
+    assert push_count == 4
+    xcom[0] = "f"
+    assert push_count == 5
+
+    # deque.remove/clear are pop-shaped mutations; cover them if used.
+    xcom.remove("f")
+    assert pop_count == 1
+
+    assert list(xcom) == ["d", "a", "b", "c"]

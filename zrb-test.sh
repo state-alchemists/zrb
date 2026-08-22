@@ -49,11 +49,18 @@ PY
 # state, not a coupling problem). Fails if this count exceeds the baseline,
 # so the debt can't grow even before more of it is paid down. Tighten this
 # number as more accessors replace private reaches.
+#
+# Baseline 5 = the four legitimate accesses we keep on purpose:
+#   - test_openai_patch.py names pydantic-ai internals three times: that
+#     module exists to monkey-patch exactly those attributes, and driving
+#     them through getattr indirection would only hide the coupling.
+#   - test_format.py touches `_value` on a Holder class it defines inside
+#     the same test — no foreign object involved; the regex can't tell.
 python - <<'PY'
 import re, sys
 from pathlib import Path
 
-LIMIT = 25
+LIMIT = 5
 pattern = re.compile(r'\b\w+\._[a-zA-Z]\w*')
 count = sum(
     1

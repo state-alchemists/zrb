@@ -790,6 +790,28 @@ class TestReadStreamErrorBranches:
         assert result.output == ""
 
     @pytest.mark.asyncio
+    async def test_run_command_does_not_force_no_color(self):
+        """NO_COLOR must not be set on the child env: per convention any
+        non-empty value (even "0") disables color, so setting it can only
+        strip color, never allow it."""
+        captured = {}
+
+        real_create = asyncio.create_subprocess_exec
+
+        async def fake_create(*args, **kwargs):
+            captured["env"] = kwargs.get("env")
+            return await real_create(*args, **kwargs)
+
+        with patch(
+            "zrb.util.cmd.command.asyncio.create_subprocess_exec",
+            side_effect=fake_create,
+        ):
+            await run_command(["true"])
+
+        assert "NO_COLOR" not in captured["env"]
+        assert captured["env"]["TERM"] == "xterm-256color"
+
+    @pytest.mark.asyncio
     async def test_read_stream_force_flushes_line_exceeding_buffer_limit(
         self, monkeypatch
     ):

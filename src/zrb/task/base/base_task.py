@@ -253,14 +253,18 @@ class BaseTask(AnyTask):
     @property
     def readiness_check_period(self) -> float:
         """Seconds between readiness checks while monitoring (default 5)."""
-        return self._readiness_check_period if self._readiness_check_period else 5.0
+        return (
+            self._readiness_check_period
+            if self._readiness_check_period is not None
+            else 5.0
+        )
 
     @property
     def readiness_failure_threshold(self) -> int:
         """Consecutive readiness failures tolerated before failing (default 1)."""
         return (
             self._readiness_failure_threshold
-            if self._readiness_failure_threshold
+            if self._readiness_failure_threshold is not None
             else 1
         )
 
@@ -270,8 +274,12 @@ class BaseTask(AnyTask):
 
     @property
     def readiness_timeout(self) -> float:
-        """Seconds a single readiness check may take before failing (default 60)."""
-        return self._readiness_timeout if self._readiness_timeout else 60
+        """Seconds a single readiness check may take before failing (default 60).
+
+        An explicit non-positive value disables the cap, matching how
+        :mod:`zrb.task.base.monitoring` consumes it.
+        """
+        return self._readiness_timeout if self._readiness_timeout is not None else 60
 
     @property
     def monitor_readiness(self) -> bool:

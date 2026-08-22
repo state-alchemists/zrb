@@ -36,6 +36,8 @@ from zrb.util.run import gather_fail_fast, gather_isolated
 from zrb.util.string.name import get_random_name
 from zrb.xcom.xcom import Xcom
 
+SECRET_MASK = "***"
+
 
 class Session(AnySession):
     def __init__(
@@ -195,9 +197,17 @@ class Session(AnySession):
         return task_status_log, log_start_time
 
     def _sanitize_input(self) -> dict[str, Any]:
-        """Replace any non-JSON-serializable input value with its string form."""
+        """Mask secret input values and stringify non-JSON-serializable ones.
+
+        Secrets are masked before the log reaches any persistence layer or
+        HTTP consumer; only the CLI prompt echoes them verbatim.
+        """
+        secret_names = self._get_secret_input_names()
         sanitized_input: dict[str, Any] = {}
         for key, value in self.shared_ctx.input.items():
+            if key in secret_names:
+                sanitized_input[key] = SECRET_MASK
+                continue
             try:
                 # Test if value is serializable
                 json.dumps(value)
@@ -205,6 +215,15 @@ class Session(AnySession):
             except (TypeError, OverflowError):
                 sanitized_input[key] = str(value)
         return sanitized_input
+
+    def _get_secret_input_names(self) -> set[str]:
+        """Collect names of secret inputs declared by every registered task."""
+        return {
+            task_input.name
+            for task in self._task_status
+            for task_input in task.inputs
+            if task_input.is_secret
+        }
 
     def as_state_log(self) -> "SessionStateLog":
         """Snapshot this session as a serializable pydantic log.
@@ -256,6 +275,11 @@ class Session(AnySession):
         if self._is_terminated:
             scheduled.cancel()
             return
+        previous = self._action_coros.get(task)
+        if previous is not None and previous is not scheduled and not previous.done():
+            # A re-defer would orphan the still-running action (never awaited
+            # by wait_deferred, invisible to terminate). Cancel it first.
+            previous.cancel()
         self._action_coros[task] = scheduled
 
     def defer_coro(self, coro: Coroutine[Any, Any, Any] | asyncio.Task[Any]):

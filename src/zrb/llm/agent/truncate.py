@@ -11,6 +11,8 @@ never sends to the model (see ``agent/tool_result.py``).
 
 from __future__ import annotations
 
+from typing import Any
+
 
 def _human_size(num_chars: int) -> str:
     """Render a character count as a human-friendly size string."""
@@ -22,11 +24,13 @@ def _human_size(num_chars: int) -> str:
     return f"{kb / 1024:.1f} MB"
 
 
-def truncate_tool_content(content: str, *, limit: int | None) -> tuple[str, bool]:
+def truncate_tool_content(content: Any, *, limit: int | None) -> tuple[Any, bool]:
     """Return ``(possibly-truncated content, was_truncated)``.
 
     ``limit`` is the maximum number of characters in the model-facing string.
     ``None`` or ``<= 0`` disables truncation (content returned unchanged).
+
+    Non-string content is returned unchanged (never truncated).
 
     When truncation happens, the head and tail are preserved (tool output is
     usually informative at both ends — the invocation/echo and the final

@@ -239,6 +239,77 @@ async def test_cmd_task_exec_env(mock_session):
 
 
 @pytest.mark.asyncio
+async def test_cmd_task_local_run_does_not_export_sshpass(mock_session):
+    """A local task must not leak its remote password into the child env, and
+    unbuffered Python output uses the real PYTHONUNBUFFERED variable."""
+    mock_cmd_result = CmdResult(output="output", error="", display="output")
+    call_args_list = []
+
+    def mock_run_command(*args, **kwargs):
+        async def _coro():
+            call_args_list.append((args, kwargs))
+            return (mock_cmd_result, 0)
+
+        return _coro()
+
+    import zrb.task.cmd_task
+
+    original_run_command = zrb.task.cmd_task.run_command
+    zrb.task.cmd_task.run_command = mock_run_command
+    try:
+        task = CmdTask(
+            name="test_local_secret",
+            cmd="echo hi",
+            remote_password="hunter2",
+        )
+        mock_session.register_task(task)
+        await task.exec(mock_session)
+
+        env_map = call_args_list[0][1]["env_map"]
+        assert "SSHPASS" not in env_map
+        assert env_map["PYTHONUNBUFFERED"] == "1"
+    finally:
+        zrb.task.cmd_task.run_command = original_run_command
+
+
+@pytest.mark.asyncio
+async def test_cmd_task_remote_with_password_exports_sshpass(mock_session):
+    """Remote execution with a password needs SSHPASS for sshpass."""
+    mock_cmd_result = CmdResult(output="output", error="", display="output")
+    call_args_list = []
+
+    def mock_run_command(*args, **kwargs):
+        async def _coro():
+            call_args_list.append((args, kwargs))
+            return (mock_cmd_result, 0)
+
+        return _coro()
+
+    import zrb.task.cmd_task
+
+    original_run_command = zrb.task.cmd_task.run_command
+    original_get_remote_cmd_script = zrb.task.cmd_task.get_remote_cmd_script
+    zrb.task.cmd_task.run_command = mock_run_command
+    zrb.task.cmd_task.get_remote_cmd_script = lambda *a, **k: "ssh-script"
+    try:
+        task = CmdTask(
+            name="test_remote_secret",
+            cmd="echo hi",
+            remote_host="host",
+            remote_user="user",
+            remote_password="hunter2",
+        )
+        mock_session.register_task(task)
+        await task.exec(mock_session)
+
+        env_map = call_args_list[0][1]["env_map"]
+        assert env_map["SSHPASS"] == "hunter2"
+    finally:
+        zrb.task.cmd_task.run_command = original_run_command
+        zrb.task.cmd_task.get_remote_cmd_script = original_get_remote_cmd_script
+
+
+@pytest.mark.asyncio
 async def test_cmd_task_exec_remote(mock_session):
     """Test remote command execution via exec."""
     mock_cmd_result = CmdResult(

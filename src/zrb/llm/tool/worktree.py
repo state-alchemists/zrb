@@ -243,7 +243,8 @@ def _ensure_gitignore(git_root: str, pattern: str) -> None:
     gitignore_path = os.path.join(git_root, ".gitignore")
     try:
         if os.path.exists(gitignore_path):
-            content = open(gitignore_path, "r", encoding="utf-8").read()
+            with open(gitignore_path, "r", encoding="utf-8") as f:
+                content = f.read()
             lines = content.splitlines()
             if any(line.strip() == pattern for line in lines):
                 return
