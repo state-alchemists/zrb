@@ -36,6 +36,13 @@ async def test_decode_hex_invalid_raises_clear_error():
 
 
 @pytest.mark.asyncio
+async def test_decode_hex_rejects_non_utf8_bytes():
+    """Bytes that are valid hex but not valid UTF-8 point at `hex dump`."""
+    with pytest.raises(ValueError, match="not valid UTF-8"):
+        await decode_hex.async_run(session=get_session(), kwargs={"hex": "ff"})
+
+
+@pytest.mark.asyncio
 async def test_dump_hex():
     res = await dump_hex.async_run(session=get_session(), kwargs={"text": "hi"})
     assert "00000000" in res

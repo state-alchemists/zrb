@@ -1,6 +1,6 @@
 import asyncio
 import os
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 import pytest
 
@@ -409,6 +409,69 @@ def test_handle_set_model_command(ui):
     assert "switched" in "".join(ui.outputs)
 
 
+@pytest.fixture
+def restore_llm_models():
+    """Save/restore the real llm_config model fields the /model command mutates."""
+    from zrb.llm.config.config import llm_config
+
+    saved = (llm_config.small_model, llm_config.multimodal_model)
+    yield llm_config
+    llm_config.small_model, llm_config.multimodal_model = saved
+
+
+def test_handle_set_model_command_small_variant(ui, restore_llm_models):
+    assert ui.handle_set_model_command("/model small gpt-4o-mini") is True
+    assert ui.small_model == "gpt-4o-mini"
+    assert restore_llm_models.small_model == "gpt-4o-mini"
+    assert "Small model switched to: gpt-4o-mini" in "".join(ui.outputs)
+
+
+def test_handle_set_model_command_multimodal_variant(ui, restore_llm_models):
+    assert ui.handle_set_model_command("/model multimodal gemini-flash") is True
+    assert ui.multimodal_model == "gemini-flash"
+    assert restore_llm_models.multimodal_model == "gemini-flash"
+    assert "Multimodal model switched to: gemini-flash" in "".join(ui.outputs)
+
+
+def test_handle_set_model_command_ignored_while_thinking(ui):
+    ui.is_thinking = True
+    assert ui.handle_set_model_command("/model gpt-5") is False
+    assert ui.model == "test-model"
+
+
+def test_handle_set_model_command_survives_prompt_manager_error(ui):
+    """A prompt-manager failure is debug-logged; the switch itself still lands."""
+    ui.llm_task = MagicMock()
+    type(ui.llm_task).prompt_manager = PropertyMock(
+        side_effect=RuntimeError("no manager")
+    )
+    assert ui.handle_set_model_command("/model gpt-4-turbo") is True
+    assert ui.model == "gpt-4-turbo"
+
+
+def test_handle_toggle_plan_command(ui):
+    assert ui.handle_toggle_plan("/plan") is True
+    assert ui.plan_mode_active is True
+    assert "PLAN MODE: On" in "".join(ui.outputs)
+    assert ui.handle_toggle_plan("/plan") is True
+    assert ui.plan_mode_active is False
+    assert "PLAN MODE: Off" in "".join(ui.outputs)
+
+
+def test_handle_toggle_plan_command_unrelated_text(ui):
+    assert ui.handle_toggle_plan("just a message") is False
+
+
+def test_handle_yolo_selective_tools(ui):
+    assert ui.handle_toggle_yolo("/yolo Write,Edit") is True
+    assert ui.yolo == frozenset({"Write", "Edit"})
+    # A tool list that parses to nothing leaves yolo untouched but still
+    # consumes the input.
+    ui.yolo = True
+    assert ui.handle_toggle_yolo("/yolo ,") is True
+    assert ui.yolo is True
+
+
 @pytest.mark.asyncio
 async def test_handle_exec_command(ui):
     assert ui.handle_exec_command("/exec echo hello") is True
@@ -423,6 +486,92 @@ async def test_handle_exec_command(ui):
         await ui.run_shell_command("echo hello")
         assert "hello" in "".join(ui.outputs)
         assert "successfully" in "".join(ui.outputs)
+
+
+def test_handle_exec_command_ignored_while_thinking(ui):
+    ui.is_thinking = True
+    assert ui.handle_exec_command("/exec echo hello") is False
+
+
+@pytest.mark.asyncio
+async def test_run_shell_command_reports_nonzero_exit(ui, tmp_path):
+    """A failing command surfaces its exit code instead of 'successfully'."""
+    await ui.run_shell_command(f"exit 3")
+    assert "Command failed with exit code 3" in "".join(ui.outputs)
+    assert ui.is_thinking is False
+
+
+@pytest.mark.asyncio
+async def test_run_shell_command_reports_spawn_error(ui):
+    with patch("asyncio.create_subprocess_shell", side_effect=OSError("no shell")):
+        await ui.run_shell_command("echo hi")
+    assert "[Error: no shell]" in "".join(ui.outputs)
+
+
+@pytest.mark.asyncio
+async def test_handle_btw_command_empty_question(ui):
+    assert ui.handle_btw_command("/btw  ") is False
+    assert len(ui.background_tasks) == 0
+
+
+@pytest.mark.asyncio
+async def test_stream_btw_response_strips_system_prompt_from_history(ui):
+    """The btw agent must not inherit the main agent's system prompt parts."""
+    from pydantic_ai.messages import ModelRequest, SystemPromptPart, UserPromptPart
+
+    dirty_history = [
+        ModelRequest(
+            parts=[SystemPromptPart(content="main persona"), UserPromptPart("hi")]
+        ),
+        "not-a-model-request",
+    ]
+    ui.history_manager.load.return_value = dirty_history
+    seen = {}
+
+    class FakeAgent:
+        def __init__(self, model=None, system_prompt=None):
+            pass
+
+        async def run(self, question, message_history=None):
+            seen["history"] = message_history
+            return MagicMock(output="side answer")
+
+    with patch("pydantic_ai.Agent", FakeAgent):
+        await ui.stream_btw_response(ui.llm_task, "quick question")
+
+    cleaned = seen["history"]
+    # SystemPromptPart removed; the user part and non-ModelRequest items stay.
+    request_entries = [m for m in cleaned if isinstance(m, ModelRequest)]
+    assert len(request_entries) == 1
+    assert all(not isinstance(p, SystemPromptPart) for p in request_entries[0].parts)
+    assert "not-a-model-request" in cleaned
+    assert "side answer" in "".join(ui.outputs)
+
+
+@pytest.mark.asyncio
+async def test_stream_btw_response_survives_agent_failure(ui):
+    class ExplodingAgent:
+        def __init__(self, **kwargs):
+            pass
+
+        async def run(self, question, message_history=None):
+            raise RuntimeError("provider down")
+
+    ui.history_manager.load.return_value = []
+    with patch("pydantic_ai.Agent", ExplodingAgent):
+        await ui.stream_btw_response(ui.llm_task, "q")
+    assert "[Error: provider down]" in "".join(ui.outputs)
+
+
+def test_handle_custom_command_ignored_while_thinking_or_blank(ui):
+    custom_cmd = MagicMock()
+    custom_cmd.command = "/mycmd"
+    ui.custom_commands = [custom_cmd]
+
+    ui.is_thinking = True
+    assert ui.handle_custom_command("/mycmd x") is False
+    ui.is_thinking = False
+    assert ui.handle_custom_command("   ") is False
 
 
 @pytest.mark.asyncio

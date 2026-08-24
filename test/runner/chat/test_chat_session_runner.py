@@ -219,3 +219,77 @@ async def test_run_chat_session_input_timeout_loop(mock_deps):
 
         # Ensure it didn't crash during the empty timeouts
         assert llm_chat_task.async_run.call_count == 0
+
+
+@pytest.mark.asyncio
+async def test_cancel_mid_run_cancels_inflight_llm_task_and_restores_config(
+    mock_deps,
+):
+    """Cancelling the session while an LLM run is in flight must explicitly
+    cancel (and reap) that run, restore the shared task's wiring, reset the
+    processing flag, and end as a real cancellation."""
+    session, llm_chat_task, session_manager = mock_deps
+
+    started = asyncio.Event()
+
+    async def slow_run(*args, **kwargs):
+        started.set()
+        await asyncio.sleep(30)
+
+    llm_chat_task.async_run = slow_run
+    session.input_queue.put_nowait({"message": "hello", "attachments": []})
+
+    task = asyncio.create_task(
+        run_chat_session(session, llm_chat_task, session_manager)
+    )
+    await asyncio.wait_for(started.wait(), timeout=5)
+    await asyncio.sleep(0.01)  # let the runner reach `await llm_task`
+
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    assert task.cancelled()
+    # Wiring restored despite the cancellation landing mid-run.
+    assert llm_chat_task.ui_factories == ["orig_ui"]
+    assert llm_chat_task.approval_channels == ["orig_ch"]
+    session_manager.set_processing.assert_any_call("test-id", False)
+
+
+@pytest.mark.asyncio
+async def test_cancelled_llm_run_resets_processing_and_ends_as_cancellation(mock_deps):
+    """An LLM run that ends cancelled leaves the session in a clean state:
+    processing flag reset, wiring restored, and the session itself ends as a
+    cancellation rather than limping on."""
+    session, llm_chat_task, session_manager = mock_deps
+
+    async def run_then_cancel(*args, **kwargs):
+        raise asyncio.CancelledError()
+
+    llm_chat_task.async_run = run_then_cancel
+    session.input_queue.put_nowait({"message": "hello", "attachments": []})
+
+    with pytest.raises(asyncio.CancelledError):
+        await run_chat_session(session, llm_chat_task, session_manager)
+
+    # Wiring restored despite the cancellation landing mid-run.
+    assert llm_chat_task.ui_factories == ["orig_ui"]
+    assert llm_chat_task.approval_channels == ["orig_ch"]
+    assert llm_chat_task.history_manager == "orig_hm"
+    session_manager.set_processing.assert_any_call("test-id", False)
+
+
+@pytest.mark.asyncio
+async def test_unexpected_setup_failure_broadcasts_and_ends_session(mock_deps):
+    """An exception outside the per-message machinery (e.g. the wiring itself
+    breaking) is broadcast to the client instead of vanishing."""
+    session, llm_chat_task, session_manager = mock_deps
+    session_manager.set_processing = MagicMock(side_effect=RuntimeError("boom"))
+
+    # The finally-block's own reset re-raises "boom" after broadcasting, but
+    # the client-facing broadcast must have happened first.
+    with pytest.raises(RuntimeError):
+        await run_chat_session(session, llm_chat_task, session_manager)
+
+    broadcasts = [call[0][1] for call in session_manager.broadcast.call_args_list]
+    assert any("[ERROR]" in b and "boom" in b for b in broadcasts)

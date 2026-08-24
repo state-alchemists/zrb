@@ -28,6 +28,26 @@ def test_env_prefix():
         assert config.ENV_PREFIX == "MYAPP"
 
 
+def test_is_env_set_distinguishes_user_choice_from_default(monkeypatch):
+    """is_env_set answers whether the env var behind a field was explicitly set,
+    which a plain value read cannot (unset fields fall back to defaults)."""
+    config = Config()
+    monkeypatch.delenv("ZRB_LOGGING_LEVEL", raising=False)
+    assert config.is_env_set("LOGGING_LEVEL") is False
+    monkeypatch.setenv("ZRB_LOGGING_LEVEL", "debug")
+    assert config.is_env_set("LOGGING_LEVEL") is True
+
+
+def test_is_env_set_rejects_non_env_field():
+    config = Config()
+    try:
+        config.is_env_set("LOGGER")
+    except AttributeError as e:
+        assert "not an environment-backed config field" in str(e)
+    else:
+        raise AssertionError("expected AttributeError for LOGGER")
+
+
 def test_getenv_single():
     config = Config()
     # No env set, returns default
