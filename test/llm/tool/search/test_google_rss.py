@@ -39,14 +39,14 @@ def _make_response(content: bytes):
 
 def test_search_internet_parses_items():
     with patch("requests.get", return_value=_make_response(_RSS_PAYLOAD)) as mock_get:
-        result = search_internet("python news", page=2)
+        result = search_internet("python news")
 
     mock_get.assert_called_once()
     url = mock_get.call_args[0][0]
     assert "news.google.com/rss/search" in url
     assert "python+news" in url
     assert result["query"] == "python news"
-    assert result["page"] == 2
+    assert result["page"] == 1
     assert len(result["results"]) == 2
 
     first = result["results"][0]
@@ -59,6 +59,24 @@ def test_search_internet_parses_items():
     # Missing <source> falls back to the default tag
     second = result["results"][1]
     assert second["source"] == "google_rss"
+
+
+def test_search_internet_paginates_feed_items():
+    items = "".join(
+        f"<item><title>Article {index}</title>"
+        f"<link>https://example.com/{index}</link></item>"
+        for index in range(1, 13)
+    )
+    payload = f"<rss><channel>{items}</channel></rss>".encode()
+
+    with patch("requests.get", return_value=_make_response(payload)):
+        result = search_internet("python news", page=2)
+
+    assert [item["title"] for item in result["results"]] == [
+        "Article 11",
+        "Article 12",
+    ]
+    assert result["page"] == 2
 
 
 def test_search_internet_handles_empty_channel():

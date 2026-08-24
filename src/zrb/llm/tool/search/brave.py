@@ -1,9 +1,13 @@
+import time
 from typing import Any
 
 import requests
 
 from zrb.config.config import CFG
 from zrb.llm.tool.search.http_errors import raise_http_error
+
+_MAX_RATE_LIMIT_RETRIES = 1
+_DEFAULT_RETRY_AFTER_SECONDS = 1.0
 
 
 def search_internet(
@@ -31,24 +35,36 @@ def search_internet(
         )
 
     user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    page = max(1, page)
+    if page > 10:
+        raise Exception(
+            "Error: Brave Search supports at most 10 result pages. "
+            "[SYSTEM SUGGESTION]: Retry with a page number from 1 through 10."
+        )
 
-    response = requests.get(
-        "https://api.search.brave.com/res/v1/web/search",
-        headers={
+    request_kwargs = {
+        "headers": {
             "User-Agent": user_agent,
             "Accept": "application/json",
             "x-subscription-token": effective_api_key,
         },
-        params={
+        "params": {
             "q": query,
             "count": "10",
-            "offset": (page - 1) * 10,
+            "offset": page - 1,
             "safesearch": safe_search,
             "search_lang": language,
             "summary": "true",
         },
-        timeout=CFG.LLM_WEB_HTTP_TIMEOUT / 1000,
-    )
+        "timeout": CFG.LLM_WEB_HTTP_TIMEOUT / 1000,
+    }
+    for attempt in range(_MAX_RATE_LIMIT_RETRIES + 1):
+        response = requests.get(
+            "https://api.search.brave.com/res/v1/web/search", **request_kwargs
+        )
+        if response.status_code != 429 or attempt == _MAX_RATE_LIMIT_RETRIES:
+            break
+        time.sleep(_retry_after_seconds(response))
     if response.status_code != 200:
         raise_http_error(
             response,
@@ -57,3 +73,12 @@ def search_internet(
             key_label="Brave API key",
         )
     return response.json()
+
+
+def _retry_after_seconds(response: requests.Response) -> float:
+    """Return a safe delay for a Brave rate-limit retry."""
+    retry_after = response.headers.get("Retry-After", "")
+    try:
+        return max(0.0, float(retry_after))
+    except (TypeError, ValueError):
+        return _DEFAULT_RETRY_AFTER_SECONDS

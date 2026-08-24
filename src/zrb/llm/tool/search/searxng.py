@@ -41,7 +41,7 @@ def search_internet(
 
     try:
         response = requests.get(
-            url=f"{CFG.SEARXNG_BASE_URL}/search",
+            url=f"{CFG.SEARXNG_BASE_URL.rstrip('/')}/search",
             headers={"User-Agent": user_agent},
             params={
                 "q": query,
@@ -53,8 +53,14 @@ def search_internet(
             timeout=CFG.LLM_WEB_HTTP_TIMEOUT / 1000,
         )
         if response.status_code != 200:
+            error_body = (
+                response.text[:500] if response.text else "No error details provided"
+            )
+            content_type = response.headers.get("Content-Type", "unknown")
             raise Exception(
-                f"Error: Unable to retrieve search results (status code: {response.status_code})"
+                f"Error: Unable to retrieve search results from Searxng "
+                f"(status code: {response.status_code}, content type: {content_type}). "
+                f"Response: {error_body}"
             )
         return response.json()
 

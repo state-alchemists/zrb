@@ -246,6 +246,7 @@ def _normalize_brave(raw: dict, query: str, page: int = 1) -> dict:
 
 
 def _normalize_serpapi(raw: dict, query: str, page: int = 1) -> dict:
+    query = query or raw.get("search_parameters", {}).get("q", "")
     organic = raw.get("organic_results", [])
     results = []
     for item in organic[:10]:

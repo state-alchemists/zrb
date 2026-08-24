@@ -124,6 +124,12 @@ def test_normalize_serpapi_echoes_page():
     assert result["page"] == 4
 
 
+def test_normalize_serpapi_uses_search_parameters_query():
+    raw = {"search_parameters": {"q": "actual query"}, "organic_results": []}
+    result = normalize_search_result(raw, "serpapi")
+    assert result["query"] == "actual query"
+
+
 @pytest.mark.asyncio
 async def test_search_internet_brave_threads_page(mock_brave):
     mock_brave.return_value = {"query": "q", "web": {"results": []}}

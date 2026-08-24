@@ -3,6 +3,8 @@
 import xml.etree.ElementTree as ET
 from urllib.parse import quote_plus
 
+_RESULTS_PER_PAGE = 10
+
 
 def search_internet(query: str, page: int = 1) -> dict:
     """Fetch search results from Google News RSS."""
@@ -37,6 +39,9 @@ def search_internet(query: str, page: int = 1) -> dict:
     root = ET.fromstring(response.content)
     channel = root.find("channel")
     items = channel.findall("item") if channel is not None else []
+    page = max(1, page)
+    start = (page - 1) * _RESULTS_PER_PAGE
+    items = items[start : start + _RESULTS_PER_PAGE]
 
     results = []
     for item in items:
