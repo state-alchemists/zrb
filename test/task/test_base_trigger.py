@@ -162,3 +162,64 @@ class TestBaseTriggerXCom:
         # Pop should return in FIFO order
         for i in range(3):
             assert trigger.pop_exchange_xcom(session) == f"value_{i}"
+
+
+class RecordingCallback(AnyCallback):
+    """Records the xcom payload it receives from its own session."""
+
+    def __init__(self, name: str, sink: list):
+        self.name = name
+        self.sink = sink
+
+    async def async_run(self, parent_session, session):
+        data = session.shared_ctx.xcom["test_trigger"]
+        self.sink.append((self.name, list(data)))
+        return "ok"
+
+
+@pytest.mark.asyncio
+async def test_push_to_exchange_triggers_callbacks_with_data():
+    """A push onto the exchange queue fans the popped value out to every
+    callback, each in its own session seeded with that single-item queue."""
+    sink: list = []
+    callback_a = RecordingCallback("a", sink)
+    callback_b = RecordingCallback("b", sink)
+    # No explicit queue_name: it defaults to the task name, which is also the
+    # key the executor pushes the action result under.
+    trigger = BaseTrigger(
+        name="test_trigger",
+        action=lambda ctx: "payload",
+        callback=[callback_a, callback_b],
+    )
+    shared_ctx = SharedContext(input={})
+    session = Session(shared_ctx=shared_ctx, state_logger=MagicMock())
+
+    await trigger.exec_root_tasks(session)
+    await session.wait_deferred()
+
+    assert sorted(name for name, _ in sink) == ["a", "b"]
+    for _, items in sink:
+        assert items == ["payload"]
+
+
+@pytest.mark.asyncio
+async def test_callback_failure_surfaces_from_fanout():
+    """The fan-out is fail-fast: a broken callback propagates instead of being
+    masked by return_exceptions."""
+
+    class BrokenCallback(AnyCallback):
+        async def async_run(self, parent_session, session):
+            raise RuntimeError("callback exploded")
+
+    trigger = BaseTrigger(
+        name="test_trigger",
+        action=lambda ctx: "payload",
+        callback=BrokenCallback(),
+    )
+    shared_ctx = SharedContext(input={})
+    session = Session(shared_ctx=shared_ctx, state_logger=MagicMock())
+
+    # exec_root_tasks waits for the deferred callback internally, so the
+    # failure surfaces from that call.
+    with pytest.raises(RuntimeError, match="callback exploded"):
+        await trigger.exec_root_tasks(session)

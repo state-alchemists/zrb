@@ -25,6 +25,7 @@ from zrb.builtin.json import (
 )
 from zrb.builtin.jwt import decode_jwt, encode_jwt, validate_jwt
 from zrb.builtin.llm.chat import llm_chat
+from zrb.builtin.llm.please import please
 from zrb.builtin.md5 import hash_md5, sum_md5, validate_md5
 from zrb.builtin.number import convert_base
 from zrb.builtin.python import format_python_code
@@ -106,6 +107,7 @@ __all__ = [
     "encode_jwt",
     "validate_jwt",
     "llm_chat",
+    "please",
     "hash_md5",
     "sum_md5",
     "validate_md5",

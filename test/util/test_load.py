@@ -4,7 +4,7 @@ import tempfile
 
 import pytest
 
-from zrb.util.load import load_file, load_module
+from zrb.util.load import load_file, load_module, load_module_from_path
 
 
 @pytest.fixture
@@ -52,3 +52,34 @@ def test_load_module_success():
 def test_load_module_fail():
     with pytest.raises(ImportError):
         load_module("non_existent_module_xyz")
+
+
+def test_load_file_broken_script_returns_none():
+    """A file that raises on exec is reported and yields None, not an exception."""
+    with tempfile.NamedTemporaryFile(suffix=".py", mode="w", delete=False) as f:
+        f.write("raise RuntimeError('boom')")
+        path = f.name
+    try:
+        assert load_file(path) is None
+    finally:
+        os.remove(path)
+
+
+def test_load_module_from_path_success(temp_script):
+    module = load_module_from_path("my_loaded_mod", temp_script)
+    assert module is not None
+    assert module.hello() == "world"
+
+
+def test_load_module_from_path_not_found():
+    assert load_module_from_path("nope", "/non/existent/path.py") is None
+
+
+def test_load_module_from_path_broken_script_returns_none():
+    with tempfile.NamedTemporaryFile(suffix=".py", mode="w", delete=False) as f:
+        f.write("1 / 0")
+        path = f.name
+    try:
+        assert load_module_from_path("broken_mod", path) is None
+    finally:
+        os.remove(path)

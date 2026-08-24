@@ -39,3 +39,12 @@ async def test_parse_url():
     assert parsed["path"] == "/path"
     assert parsed["query"] == {"a": "1", "b": "2"}
     assert parsed["fragment"] == "frag"
+
+
+@pytest.mark.asyncio
+async def test_parse_url_rejects_invalid_port():
+    with pytest.raises(ValueError, match="port is not a number"):
+        await parse_url.async_run(
+            session=get_session(),
+            kwargs={"url": "https://example.com:notaport/path"},
+        )

@@ -51,3 +51,33 @@ async def test_parse_cron_unknown_shortcut_raises_clear_error():
             session=get_session(),
             kwargs={"expression": "@nope", "count": 1},
         )
+
+
+@pytest.mark.asyncio
+async def test_parse_cron_unparsable_field_raises_clear_error():
+    """Right field count but garbage in a field explains how to fix it."""
+    with pytest.raises(ValueError, match="could not parse a field"):
+        await parse_cron.async_run(
+            session=get_session(), kwargs={"expression": "a b c d e", "count": 1}
+        )
+
+
+@pytest.mark.asyncio
+async def test_parse_cron_reports_when_fewer_runs_found(monkeypatch):
+    """A pattern with no match inside the scan window says so instead of
+    silently printing fewer runs."""
+    # Shrink the scan window (module-level constant) so exhausting it is quick.
+    import zrb.builtin.cron as cron_module
+
+    monkeypatch.setattr(cron_module, "_MAX_SCAN_MINUTES", 60 * 24 * 30)
+    # Feb 30th never exists, so no candidate minute can ever match.
+    lines = []
+    session = Session(
+        shared_ctx=SharedContext(print_fn=lambda *a, **k: lines.append(str(a[0]))),
+        state_logger=mock.MagicMock(),
+    )
+    result = await parse_cron.async_run(
+        session=session, kwargs={"expression": "0 0 30 2 *", "count": 3}
+    )
+    assert result == ""
+    assert any("only 0 run(s) found" in line for line in lines)

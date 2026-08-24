@@ -80,3 +80,15 @@ async def test_validate_base64_of_binary():
     s = Session(shared_ctx=SharedContext(), state_logger=mock.MagicMock())
     await base64_module.validate_base64.async_run(session=s, kwargs={"text": blob})
     assert s.final_result is True
+
+
+@pytest.mark.asyncio
+async def test_decode_base64_rejects_non_utf8_payload(session):
+    """Valid base64 carrying binary (non-UTF-8) data fails with a clear message."""
+    import base64 as b64
+
+    payload = b64.b64encode(b"\xff\xfe\x00").decode()
+    with pytest.raises(ValueError, match="not valid UTF-8"):
+        await base64_module.decode_base64.async_run(
+            session=session, kwargs={"text": payload}
+        )

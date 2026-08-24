@@ -57,3 +57,13 @@ async def test_hash_hmac():
     )
     expected = hmac.new(b"secret", b"message", "sha256").hexdigest()
     assert res == expected
+
+
+@pytest.mark.asyncio
+async def test_hash_file_unreadable_raises_clear_error(tmp_path):
+    """A directory path (OSError on open, not FileNotFoundError) reports the
+    OS reason instead of a traceback."""
+    with pytest.raises(ValueError, match="Cannot read file"):
+        await hash_file.async_run(
+            session=get_session(), kwargs={"file": str(tmp_path), "algorithm": "sha256"}
+        )

@@ -1,6 +1,7 @@
 import pytest
 
 from zrb.llm.agent.run.error_classifier import (
+    classify_error_type,
     get_retry_wait,
     is_invalid_tool_call_error,
     is_missing_reasoning_content_error,
@@ -94,3 +95,77 @@ def test_get_retry_wait_reads_a_wrapped_model_http_error():
     # A wrapper carrying no usable header falls back to exponential backoff.
     bare = ModelHTTPError(status_code=429, model_name="m", body=None)
     assert get_retry_wait(bare, 3, 60) == 8.0
+
+
+def test_is_missing_reasoning_content_error():
+    e = Exception("Missing reasoning_content in history message")
+    e.status_code = 400
+    assert is_missing_reasoning_content_error(e) is True
+
+    e2 = Exception("The reasoning_content field is required")
+    e2.status_code = 400
+    assert is_missing_reasoning_content_error(e2) is True
+
+    # Bedrock GLM-5 pattern: ValidationException code with an empty Message.
+    e3 = Exception("ValidationException on bedrock")
+    e3.status_code = 400
+    e3.body = {"Error": {"Code": "ValidationException", "Message": ""}}
+    assert is_missing_reasoning_content_error(e3) is True
+
+    # A ValidationException *with* a message is something else entirely.
+    e4 = Exception("ValidationException with detail")
+    e4.status_code = 400
+    e4.body = {"Error": {"Code": "ValidationException", "Message": "bad input"}}
+    assert is_missing_reasoning_content_error(e4) is False
+
+
+def test_is_missing_reasoning_content_requires_status_400():
+    e = Exception("missing reasoning_content")
+    e.status_code = 500
+    assert is_missing_reasoning_content_error(e) is False
+
+
+def test_classify_error_type_by_status_code():
+    def err(status):
+        e = Exception(f"error {status}")
+        e.status_code = status
+        return e
+
+    assert classify_error_type(err(429)) == "rate_limit"
+    assert classify_error_type(err(401)) == "authentication_failed"
+    assert classify_error_type(err(403)) == "authentication_failed"
+    assert classify_error_type(err(404)) == "model_not_found"
+    assert classify_error_type(err(400)) == "invalid_request"
+    assert classify_error_type(err(500)) == "server_error"
+    assert classify_error_type(err(503)) == "server_error"
+
+
+def test_classify_error_type_overloaded():
+    e = Exception("server busy")
+    e.status_code = 529
+    assert classify_error_type(e) == "overloaded"
+
+    # Via message when the status code carries a plain 5xx.
+    e2 = Exception("The model is overloaded right now")
+    e2.status_code = 500
+    assert classify_error_type(e2) == "overloaded"
+
+    # Via message alone when there is no status code at all.
+    assert classify_error_type(Exception("HTTP 529 overloaded")) == "overloaded"
+    assert classify_error_type(Exception("rate limit exceeded")) == "rate_limit"
+
+
+def test_classify_error_type_reads_response_when_no_status_code():
+    e = Exception("gateway error")
+    e.response = type("obj", (object,), {"status_code": 502})
+    assert classify_error_type(e) == "server_error"
+
+
+def test_classify_error_type_context_length_wins():
+    e = Exception("prompt too long: context length exceeded")
+    e.status_code = 400
+    assert classify_error_type(e) == "context_length"
+
+
+def test_classify_error_type_unknown_fallback():
+    assert classify_error_type(Exception("something odd happened")) == "unknown"
