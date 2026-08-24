@@ -4,6 +4,7 @@ import re
 from zrb.builtin.group import git_changelog_group
 from zrb.context.any_context import AnyContext
 from zrb.input.str_input import StrInput
+from zrb.llm.config.config import llm_config
 from zrb.task.make_task import make_task
 from zrb.util.cli.style import stylize_green, stylize_muted, stylize_yellow
 from zrb.util.cmd.command import run_command
@@ -55,6 +56,12 @@ _EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
             prompt="Changelog file template",
             default=_DEFAULT_TEMPLATE_PATH,
         ),
+        StrInput(
+            name="model",
+            description="LLM model",
+            allow_empty=True,
+            always_prompt=False,
+        ),
     ],
     description="📝 Generate one changelog file per matching git tag via LLM",
     group=git_changelog_group,
@@ -62,6 +69,7 @@ _EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
 )
 async def generate_changelog(ctx: AnyContext):
     repo_dir = await get_repo_dir(print_method=ctx.print)
+    model = str(ctx.input.model).strip() or llm_config.model
     os.makedirs(ctx.input.dir, exist_ok=True)
     with open(ctx.input.template) as f:
         template = f.read()
@@ -78,7 +86,7 @@ async def generate_changelog(ctx: AnyContext):
             continue
         previous = tags[index - 1] if index > 0 else ""
         ctx.print(stylize_muted(f"Generating {tag} (since {previous or 'start'})"))
-        content = await _summarize(ctx, repo_dir, template, tag, previous)
+        content = await _summarize(ctx, repo_dir, template, tag, previous, model)
         with open(out_path, "w") as f:
             f.write(content)
         written.append(out_path)
@@ -100,7 +108,7 @@ async def _matching_tags(ctx, repo_dir, sort, regex):
     return [t.strip() for t in result.output.splitlines() if regex.match(t.strip())]
 
 
-async def _summarize(ctx, repo_dir, template, tag, previous):
+async def _summarize(ctx, repo_dir, template, tag, previous, model):
     from zrb.llm.agent import create_agent  # lazy: pydantic_ai is a heavy extra
 
     log, stat, date = await _collect_log(ctx, repo_dir, tag, previous)
@@ -126,7 +134,7 @@ async def _summarize(ctx, repo_dir, template, tag, previous):
         f"{skeleton}\n\n"
         "Output only the resulting changelog markdown, nothing else."
     )
-    agent = create_agent(tools=[_make_git_tool(ctx, repo_dir)], yolo=True)
+    agent = create_agent(model=model, tools=[_make_git_tool(ctx, repo_dir)], yolo=True)
     result = await agent.run(instruction)
     return result.output
 
