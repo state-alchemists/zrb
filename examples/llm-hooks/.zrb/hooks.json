@@ -13,7 +13,7 @@
 
   {
     "name": "block-dangerous-bash",
-    "description": "Block dangerous Bash commands (rm, sudo, etc.)",
+    "description": "Block dangerous Shell commands (rm, sudo, etc.)",
     "events": ["PreToolUse"],
     "type": "command",
     "config": {
@@ -24,7 +24,7 @@
       {
         "field": "tool_name",
         "operator": "equals",
-        "value": "Bash"
+        "value": "Shell"
       }
     ],
     "enabled": false,
@@ -113,7 +113,7 @@
 
   {
     "name": "auto-allow-dev",
-    "description": "Auto-allow permission requests for Bash in dev mode",
+    "description": "Auto-allow permission requests for Shell in dev mode",
     "events": ["PermissionRequest"],
     "type": "command",
     "config": {
@@ -124,7 +124,7 @@
       {
         "field": "tool_name",
         "operator": "equals",
-        "value": "Bash"
+        "value": "Shell"
       }
     ],
     "enabled": false
@@ -156,18 +156,18 @@
 
   {
     "name": "ask-before-bash",
-    "description": "Force the approval prompt for Bash (permissionDecision: ask) even if a policy/YOLO would auto-approve",
+    "description": "Force the approval prompt for Shell (permissionDecision: ask) even if a policy/YOLO would auto-approve",
     "events": ["PreToolUse"],
     "type": "command",
     "config": {
-      "command": "echo '{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"permissionDecision\": \"ask\", \"permissionDecisionReason\": \"Manual approval required for Bash\"}}'",
+      "command": "echo '{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"permissionDecision\": \"ask\", \"permissionDecisionReason\": \"Manual approval required for Shell\"}}'",
       "shell": true
     },
     "matchers": [
       {
         "field": "tool_name",
         "operator": "equals",
-        "value": "Bash"
+        "value": "Shell"
       }
     ],
     "enabled": false

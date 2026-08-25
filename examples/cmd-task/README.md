@@ -43,8 +43,6 @@ zrb env-check
 # Retry example
 zrb flaky
 
-# Capture output
-zrb capture
 ```
 
 ## CmdTask Options
@@ -70,10 +68,12 @@ git_status = CmdTask(
 ## Example: Python Script
 
 ```python
+from zrb import CmdTask, Env, cli
+
 run_script = CmdTask(
     name="run",
     cmd="python script.py --input {ctx.input.file}",
     cwd="./scripts",
-    env={"PYTHONPATH": "./lib"},
+    env=[Env("PYTHONPATH", "./lib")],
 )
 ```

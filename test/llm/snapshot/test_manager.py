@@ -1,6 +1,7 @@
 """Tests for SnapshotManager — the shadow-git snapshot system for LLM /rewind."""
 
 import os
+import shutil
 import subprocess
 import tempfile
 from unittest.mock import patch
@@ -8,6 +9,7 @@ from unittest.mock import patch
 import pytest
 
 from zrb.llm.snapshot import Snapshot, SnapshotManager
+from zrb.llm.snapshot.manager import SnapshotProgress
 
 
 @pytest.fixture
@@ -344,35 +346,38 @@ async def test_take_init_snapshot_returns_none_when_setup_fails(workdir):
 async def test_take_init_snapshot_reports_start_and_done_with_copied_count(
     snapshot_dir, workdir
 ):
-    """The progress callback sees ("start", 0) before the copy and the copied
+    """The progress callback sees "start" before the copy and the copied
     file count once the init commit exists."""
     for name in ("a.txt", "b.txt"):
         with open(os.path.join(workdir, name), "w") as f:
             f.write(name)
 
     mgr = SnapshotManager(snapshot_dir, "progress-session", workdir)
-    events: list[tuple[str, int]] = []
-    sha = await mgr.take_init_snapshot(on_progress=lambda stage, n: events.append((stage, n)))
+    events: list[SnapshotProgress] = []
+    sha = await mgr.take_init_snapshot(on_progress=events.append)
 
     assert sha is not None
-    assert events == [("start", 0), ("done", 2)]
+    assert [(e.stage, e.copied, e.skipped) for e in events] == [
+        ("start", 0, 0),
+        ("done", 2, 0),
+    ]
 
 
 @pytest.mark.asyncio
-async def test_take_init_snapshot_skips_progress_when_repo_has_commits(
+async def test_take_init_snapshot_reports_up_to_date_when_repo_has_commits(
     snapshot_dir, workdir
 ):
-    """Resuming an existing session commits nothing and reports nothing."""
+    """Resuming an existing session reports up-to-date instead of copying."""
     with open(os.path.join(workdir, "f.txt"), "w") as f:
         f.write("data")
 
     mgr = SnapshotManager(snapshot_dir, "no-progress-session", workdir)
     await mgr.take_init_snapshot()
 
-    events: list[tuple[str, int]] = []
-    await mgr.take_init_snapshot(on_progress=lambda stage, n: events.append((stage, n)))
+    events: list[SnapshotProgress] = []
+    await mgr.take_init_snapshot(on_progress=events.append)
 
-    assert events == []
+    assert [e.stage for e in events] == ["up-to-date"]
 
 
 @pytest.mark.asyncio
@@ -385,13 +390,102 @@ async def test_take_init_snapshot_swallows_progress_callback_errors(
 
     mgr = SnapshotManager(snapshot_dir, "bad-callback-session", workdir)
 
-    def _boom(stage: str, copied: int):
+    def _boom(event):
         raise RuntimeError("callback bug")
 
     sha = await mgr.take_init_snapshot(on_progress=_boom)
 
     assert sha is not None
     assert len(mgr.list_snapshots()) == 1
+
+
+@pytest.mark.asyncio
+async def test_take_init_snapshot_reports_done_with_zero_copies_when_tree_matches(
+    snapshot_dir, workdir
+):
+    """A shadow tree that already matches the workdir (e.g. a prior run
+    copied files but the commit never landed) still reports a terminal
+    done event — with 0 copies, not a dangling start."""
+    from zrb.llm.snapshot.manager import _git as real_git
+    from zrb.util.string.conversion import to_safe_filename
+
+    with open(os.path.join(workdir, "f.txt"), "w") as f:
+        f.write("data")
+
+    mgr = SnapshotManager(snapshot_dir, "zero-copy-session", workdir)
+    await mgr.take_init_snapshot()
+    # Roll HEAD back to nothing while keeping the copied tree in place. The
+    # shadow-repo layout (<snapshot_dir>/<safe_session_name>) is documented
+    # in the module docstring.
+    shadow_dir = os.path.join(snapshot_dir, to_safe_filename("zero-copy-session"))
+    real_git(shadow_dir, ["update-ref", "-d", "HEAD"])
+
+    events: list[SnapshotProgress] = []
+    sha = await mgr.take_init_snapshot(on_progress=events.append)
+
+    assert sha is not None
+    assert [(e.stage, e.copied, e.skipped) for e in events] == [
+        ("start", 0, 0),
+        ("done", 0, 0),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_take_init_snapshot_reports_error_when_commit_fails_after_start(
+    snapshot_dir, workdir
+):
+    """A failure after 'start' reports a terminal error event with reason."""
+    from zrb.llm.snapshot.manager import _git as real_git
+
+    with open(os.path.join(workdir, "f.txt"), "w") as f:
+        f.write("data")
+
+    def _failing_commit_git(cwd, args):
+        if args and args[0] == "commit":
+            raise RuntimeError("commit boom")
+        return real_git(cwd, args)
+
+    mgr = SnapshotManager(snapshot_dir, "error-session", workdir)
+    events: list[SnapshotProgress] = []
+    with patch("zrb.llm.snapshot.manager._git", side_effect=_failing_commit_git):
+        sha = await mgr.take_init_snapshot(on_progress=events.append)
+
+    assert sha is None
+    assert [e.stage for e in events] == ["start", "error"]
+    assert "commit boom" in events[-1].reason
+
+
+@pytest.mark.asyncio
+async def test_take_init_snapshot_skips_unreadable_files_and_reports_them(
+    snapshot_dir, workdir
+):
+    """One unreadable file (root-owned volume mount, protected key, ...) must
+    not abort the snapshot: it's skipped, counted, and the rest is committed."""
+    real_copy2 = shutil.copy2
+
+    def _deny_secret(src, dst, **kwargs):
+        if os.path.basename(src) == "secret.key":
+            raise PermissionError(13, "Permission denied", src)
+        return real_copy2(src, dst, **kwargs)
+
+    with open(os.path.join(workdir, "normal.txt"), "w") as f:
+        f.write("fine")
+    with open(os.path.join(workdir, "secret.key"), "w") as f:
+        f.write("protected")
+
+    mgr = SnapshotManager(snapshot_dir, "skip-session", workdir)
+    events: list[SnapshotProgress] = []
+    with patch("zrb.llm.snapshot.manager.shutil.copy2", side_effect=_deny_secret):
+        sha = await mgr.take_init_snapshot(on_progress=events.append)
+
+    assert sha is not None
+    assert [(e.stage, e.copied, e.skipped) for e in events] == [
+        ("start", 0, 0),
+        ("done", 1, 1),
+    ]
+
+    snapshots = mgr.list_snapshots()
+    assert len(snapshots) == 1  # snapshot still usable for /rewind
 
 
 # ── force-empty commit when message_count advances ────────────────────────────

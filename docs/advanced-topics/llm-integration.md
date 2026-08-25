@@ -55,7 +55,7 @@ This launches a full-screen chat application where you can have a conversation w
 | `/btw <text>` | Inject a side note for the next turn without sending it as a message (runs while the assistant is thinking) |
 | `/plan` | Toggle [Plan Mode](./plan-mode.md) (read-only discovery) |
 | `/rewind [n\|sha]` | List or restore filesystem + history [snapshots](../configuration/llm-config.md#6-rewind--snapshots) (requires `ZRB_LLM_ENABLE_REWIND`) |
-| `/voice` | Toggle push-to-talk voice dictation on/off (requires `ZRB_LLM_VOICE_ENABLED`; see [Voice Dictation](../configuration/llm-config.md#23-voice-dictation)) |
+| `/voice` | Toggle push-to-talk voice dictation on/off (enabled automatically when `vosk` is installed and `ZRB_LLM_VOICE_ENABLED` is unset; see [Voice Dictation](../configuration/llm-config.md#23-voice-dictation)) |
 
 > 💡 **Tip:** Any `/command` that matches a loaded skill will be executed as a skill.
 >
@@ -95,7 +95,7 @@ By default, Zrb prompts for confirmation before executing most tools. This is co
 
 | Symptom | Solution |
 |---------|----------|
-| `/voice` says voice dictation is disabled | Set `ZRB_LLM_VOICE_ENABLED=true` — see [Voice Dictation](../configuration/llm-config.md#23-voice-dictation) |
+| `/voice` says voice dictation is disabled | Voice auto-enables when `vosk` is installed and `ZRB_LLM_VOICE_ENABLED` is unset. Otherwise: `pip install sounddevice vosk numpy`, or set `ZRB_LLM_VOICE_ENABLED=true` after installing a backend — see [Voice Dictation](../configuration/llm-config.md#23-voice-dictation) |
 | `RuntimeError` mentioning `sounddevice` or `vosk` | Those are optional dependencies: `pip install sounddevice vosk numpy` (or switch `ZRB_LLM_VOICE_MODE` to `openai`/`google`/`multimodal`) |
 | Recording starts but no audio is captured | Check OS microphone permissions for your terminal app; on Linux, check that PulseAudio/PipeWire is running |
 | No sound on WSL | WSL2 needs WSLg (Windows 11) or a PulseAudio server bridged from Windows for audio passthrough |

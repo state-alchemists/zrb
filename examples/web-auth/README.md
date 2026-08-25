@@ -14,7 +14,7 @@ web_auth_config.enable_auth = True
 # Add users
 web_auth_config.append_user(
     User(
-        username="admin",
+        username="boss",
         password="secret",
         accessible_tasks=["*"],  # All tasks
     )
@@ -40,9 +40,10 @@ ZRB_WEB_HTTP_PORT=8000 zrb server start
 ### Full Access User
 
 ```python
+# "admin" is taken by the built-in super-admin; pick another name.
 User(
-    username="admin",
-    password="admin123",
+    username="boss",
+    password="boss123",
     accessible_tasks=["*"],  # All tasks
 )
 ```
@@ -70,7 +71,7 @@ web_auth_config.guest_accessible_tasks = ["hello"]
 |------|-------|
 | Guest | `hello` |
 | `jack` | `hello`, `greet` |
-| `admin` | ALL (`*`) |
+| `boss` | ALL (`*`) |
 
 ## Authentication Flow
 
@@ -103,8 +104,8 @@ import os
 
 web_auth_config.append_user(
     User(
-        username="admin",
-        password=os.environ.get("ADMIN_PASSWORD", "change-me"),
+        username="boss",
+        password=os.environ.get("BOSS_PASSWORD", "change-me"),
         accessible_tasks=["*"],
     )
 )

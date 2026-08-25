@@ -70,8 +70,11 @@ def complete_photo_arg(arg_prefix: str) -> Iterable[Completion]:
     """Camera device ids/names for `/photo <device>` (best-effort, cached)."""
     # lazy: zrb internal; keeps the completer's import surface light and the
     # ffmpeg probe off the module-load path.
-    from zrb.llm.util.camera import list_camera_devices
+    from zrb.llm.util.camera import list_camera_devices, maybe_refresh_camera_devices
 
+    # Windows dshow names need a subprocess probe; schedule it as a
+    # fire-and-forget task so no keystroke ever blocks on ffmpeg.
+    maybe_refresh_camera_devices()
     for device in list_camera_devices():
         if device.startswith(arg_prefix):
             yield Completion(

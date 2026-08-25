@@ -288,7 +288,7 @@ async def tool_result_hook(context: HookContext) -> HookResult:
         tool_result = context.event_data.get("result", {})
 
         # Block empty search results — let the model know
-        if tool_name in {"Grep", "SearchFiles"}:
+        if tool_name in {"Grep"}:
             result_content = str(tool_result.get("content", ""))
             if "no matches" in result_content.lower() or not result_content.strip():
                 return HookResult.block(reason="No results found, try a broader query")

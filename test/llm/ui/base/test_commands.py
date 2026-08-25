@@ -132,7 +132,8 @@ def test_handle_load_command(ui):
     assert "switched" in "".join(ui.outputs)
 
 
-def test_handle_rewind_command_list(ui):
+@pytest.mark.asyncio
+async def test_handle_rewind_command_list(ui):
     snap = MagicMock()
     snap.sha = "1234567890"
     snap.timestamp = "2021-01-01"
@@ -140,6 +141,10 @@ def test_handle_rewind_command_list(ui):
     ui.snapshot_manager.list_snapshots.return_value = [snap]
 
     assert ui.handle_rewind_command("/rewind") is True
+    # Listing happens in a background task (git subprocess off the UI thread)
+    assert len(ui.background_tasks) == 1
+    task = list(ui.background_tasks)[0]
+    await task
     assert "12345678" in "".join(ui.outputs)
 
 

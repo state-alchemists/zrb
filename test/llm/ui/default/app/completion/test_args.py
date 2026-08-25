@@ -99,8 +99,6 @@ def test_complete_photo_arg_yields_device_ids():
 
 
 def test_complete_photo_arg_filters_by_prefix():
-    with patch(
-        "zrb.llm.util.camera.list_camera_devices", return_value=["0", "1"]
-    ):
+    with patch("zrb.llm.util.camera.list_camera_devices", return_value=["0", "1"]):
         results = list(complete_photo_arg("1"))
     assert [c.text for c in results] == ["1"]

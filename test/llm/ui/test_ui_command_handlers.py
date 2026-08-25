@@ -87,8 +87,8 @@ class TestBaseUICommandHandlers:
 
         assert result is True
         assert any(
-            "Conversation name required" in str(call) for call in
-            ui.append_to_output.call_args_list
+            "Conversation name required" in str(call)
+            for call in ui.append_to_output.call_args_list
         )
 
     def test_handle_save_command_handles_error(self, simple_ui_instance):
@@ -129,8 +129,8 @@ class TestBaseUICommandHandlers:
 
         assert result is True
         assert any(
-            "Conversation name required" in str(call) for call in
-            ui.append_to_output.call_args_list
+            "Conversation name required" in str(call)
+            for call in ui.append_to_output.call_args_list
         )
         # The session name must be untouched.
         assert ui.conversation_session_name == "current-session"

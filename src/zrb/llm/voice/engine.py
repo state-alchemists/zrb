@@ -102,6 +102,7 @@ class VoiceEngine:
             stream = sd.InputStream(
                 samplerate=sample_rate,
                 channels=channels,
+                dtype="float32",
                 callback=callback,
             )
         except Exception as e:

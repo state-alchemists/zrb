@@ -35,12 +35,30 @@ logger = logging.getLogger(__name__)
 # silent, unrecoverable freeze.
 _GIT_TIMEOUT_SECONDS = 30
 
-# Progress callback contract for `take_init_snapshot`: called with
-# ("start", 0) right before the workdir copy begins and ("done", n) once the
-# snapshot commit exists, where n is the number of files actually copied.
-# The "done" call happens inside a worker thread (the copy runs via
-# asyncio.to_thread), so implementers must hop back to their own loop.
-SnapshotProgressFn = Callable[[str, int], None]
+
+# Progress callback contract for `take_init_snapshot`. Stages:
+#   "start"      right before the workdir copy begins
+#   "done"       init commit exists; copied/skipped carry the copy counts
+#   "up-to-date" shadow repo already has commits (resumed session)
+#   "error"      failed after "start"; reason carries the exception text
+# All events fire on the event-loop thread: each report happens in coroutine
+# context, before or after an `await asyncio.to_thread(...)` returns.
+class SnapshotProgress(NamedTuple):
+    """Progress event for `take_init_snapshot` (see `SnapshotProgressFn`)."""
+
+    stage: str
+    copied: int = 0
+    skipped: int = 0
+    reason: str = ""
+
+
+def _progress(
+    stage: str, copied: int = 0, skipped: int = 0, reason: str = ""
+) -> SnapshotProgress:
+    return SnapshotProgress(stage, copied, skipped, reason)
+
+
+SnapshotProgressFn = Callable[[SnapshotProgress], None]
 
 
 class Snapshot(NamedTuple):
@@ -120,10 +138,8 @@ class SnapshotManager:
             # change (e.g. after a rewind followed by turns that don't touch the FS).
             # Without this, the stale mc from the previous HEAD would be used on
             # restore, truncating conversation history to the wrong point.
-            force_empty = (
-                message_count is not None
-                and _head_mc(self._shadow_dir) != message_count
-            )
+            head_mc = await asyncio.to_thread(_head_mc, self._shadow_dir)
+            force_empty = message_count is not None and head_mc != message_count
             return await asyncio.to_thread(self._commit, commit_msg, force_empty)
         except Exception as e:
             logger.warning(f"Snapshot failed: {e}")
@@ -138,19 +154,24 @@ class SnapshotManager:
         list_snapshots() always has at least one entry to rewind to.
 
         Args:
-            on_progress: Optional callback invoked with ("start", 0) before
-                the workdir copy and ("done", copied_files) after the commit.
-                Skipped entirely when the shadow repo already has commits
-                (resuming an existing session).
+            on_progress: Optional callback; see `SnapshotProgressFn` for the
+                event contract. Every invocation ends with exactly one
+                terminal event ("done", "up-to-date", or "error").
         """
+        started = False
         try:
-            self._ensure_initialized()
-            # Only create init snapshot if the repo has no commits yet
-            existing_sha = _head_sha(self._shadow_dir)
+            await asyncio.to_thread(self._ensure_initialized)
+            # Only create init snapshot if the repo has no commits yet.
+            # (Two concurrent invocations could both observe HEAD == None and
+            # double-copy/commit; benign — the second commit is empty — and
+            # today there is exactly one caller at session start.)
+            existing_sha = await asyncio.to_thread(_head_sha, self._shadow_dir)
             if existing_sha is not None:
+                _report_progress(on_progress, _progress("up-to-date"))
                 return existing_sha
-            _report_progress(on_progress, "start")
-            copied = await asyncio.to_thread(
+            started = True
+            _report_progress(on_progress, _progress("start"))
+            copied, skipped = await asyncio.to_thread(
                 _sync_dirs,
                 self._workdir,
                 self._shadow_dir,
@@ -160,13 +181,13 @@ class SnapshotManager:
                 True,  # incremental: workdir → shadow
             )
             commit_msg = _build_commit_message("init", message_count=0)
-            sha = await asyncio.to_thread(
-                self._commit, commit_msg, True  # allow_empty
-            )
-            _report_progress(on_progress, "done", copied)
+            sha = await asyncio.to_thread(self._commit, commit_msg, True)  # allow_empty
+            _report_progress(on_progress, _progress("done", copied, skipped))
             return sha
         except Exception as e:
             logger.warning(f"Init snapshot failed: {e}")
+            if started:
+                _report_progress(on_progress, _progress("error", reason=str(e)))
             return None
 
     def list_snapshots(self) -> list[Snapshot]:
@@ -332,10 +353,15 @@ def _copy_files(
     ignored: frozenset[str],
     src_rel_paths: set[str],
     incremental: bool = False,
-) -> int:
+) -> tuple[int, int]:
     """Copy all non-ignored files from *src* to *dst*, recording relative paths.
 
-    Returns the number of files actually copied (incremental skips excluded).
+    Returns (copied, skipped): files actually copied (incremental skips
+    excluded) and files that could not be read (e.g. permission-denied).
+    Unreadable files are recorded in *src_rel_paths* anyway — they exist in
+    the workdir, so a later restore's delete pass must still consider them
+    (its os.remove on an unreadable file fails and is ignored, leaving the
+    file in place).
 
     When *incremental* is True and the destination file already matches the
     source by size and mtime, ``shutil.copy2`` is skipped. ``copy2`` preserves
@@ -346,6 +372,7 @@ def _copy_files(
     operation that must undo those edits.
     """
     copied = 0
+    skipped = 0
     for root, dirs, files in os.walk(src):
         _prune_walk(dirs, exclude_git, ignored)
         rel_root = os.path.relpath(root, src)
@@ -362,10 +389,17 @@ def _copy_files(
             src_rel_paths.add(rel_path)
             if incremental and _dst_is_up_to_date(dst_path, src_stat):
                 continue
-            os.makedirs(os.path.dirname(dst_path), exist_ok=True)
-            shutil.copy2(src_path, dst_path)
+            try:
+                os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+                shutil.copy2(src_path, dst_path)
+            except OSError as e:
+                # One unreadable file (root-owned volume mount, protected
+                # key, ...) must not abort the whole snapshot.
+                logger.debug(f"Snapshot skipped {rel_path}: {e}")
+                skipped += 1
+                continue
             copied += 1
-    return copied
+    return copied, skipped
 
 
 def _stat_is_file(st: os.stat_result) -> bool:
@@ -441,10 +475,10 @@ def _sync_dirs(
     delete: bool = False,
     ignore_dirs: "frozenset[str] | None" = None,
     incremental: bool = False,
-) -> int:
+) -> tuple[int, int]:
     """Recursively copy *src* into *dst*, optionally deleting stale dst files.
 
-    Returns the number of files actually copied (incremental skips excluded).
+    Returns (copied, skipped) — see `_copy_files`.
 
     Args:
         src: Source directory path.
@@ -467,24 +501,26 @@ def _sync_dirs(
     ignored: frozenset[str] = ignore_dirs or frozenset()
     src_rel_paths: set[str] = set()
 
-    copied = _copy_files(src, dst, exclude_git, ignored, src_rel_paths, incremental)
+    copied, skipped = _copy_files(
+        src, dst, exclude_git, ignored, src_rel_paths, incremental
+    )
 
     if not delete:
-        return copied
+        return copied, skipped
 
     dst_rel_paths = _collect_pruned_rel_paths(dst, exclude_git, ignored)
     _remove_stale_files(dst, dst_rel_paths - src_rel_paths)
     _remove_empty_dirs(dst, exclude_git, ignored)
-    return copied
+    return copied, skipped
 
 
 def _report_progress(
-    on_progress: SnapshotProgressFn | None, stage: str, copied: int = 0
+    on_progress: "SnapshotProgressFn | None", event: SnapshotProgress
 ) -> None:
     """Invoke a progress callback, never letting it break the snapshot."""
     if on_progress is None:
         return
     try:
-        on_progress(stage, copied)
+        on_progress(event)
     except Exception as e:
         logger.debug(f"Snapshot progress callback failed: {e}")

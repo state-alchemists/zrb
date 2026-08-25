@@ -46,8 +46,7 @@ class BaseUICommands:
         self._models = BaseUIModelCommands(base_ui)
         self._exec = BaseUIExecCommands(base_ui)
         # Dispatcher-private (not `BaseUI` state): nothing outside
-        # schedule_command
-        # / dispatch_command reads or writes this.
+        # schedule_command / dispatch_command reads or writes this.
         self._command_in_flight = False
 
     # --- command dispatch (with hooks) ------------------------------------
@@ -255,7 +254,16 @@ class BaseUICommands:
                     command_args=args,
                     command_handled=True,
                 )
-            elif not base_ui.is_thinking:
+            elif base_ui.is_thinking:
+                # A non-thinking command arrived mid-turn. Dropping it
+                # silently would look like the TUI ate the input; say so.
+                base_ui.append_to_output(
+                    stylize_muted(
+                        f"\n  ⏳ `{name}` is not available while the model is "
+                        "thinking — resend it after the turn finishes.\n"
+                    )
+                )
+            else:
                 # Recognized token but no handler consumed it — forward to LLM.
                 base_ui.submit_message(text)
         finally:
@@ -513,12 +521,19 @@ def _get_default_help_width() -> int | None:
 
 
 def _voice_auto_enabled_by_vosk() -> bool:
-    """Voice may run without explicit opt-in when config is untouched and vosk.
+    """Voice may run without explicit opt-in when config is untouched and vosk
+    is installed.
 
-    An explicit `LLM_VOICE_ENABLED` env var always wins: `on` enables voice
-    with any backend, `off` disables it even when vosk is installed.
+    Two conditions must hold. First, `LLM_VOICE_ENABLED` must be unset — an
+    explicit value always wins: `on` enables voice with any backend, `off`
+    disables it even when vosk is installed. Second, the configured backend
+    must actually be vosk: auto-enabling a user who set
+    `LLM_VOICE_MODE=openai` would announce "(vosk detected)" and then fail on
+    a missing API key.
     """
     if CFG.is_env_set("LLM_VOICE_ENABLED"):
+        return False
+    if CFG.is_env_set("LLM_VOICE_MODE"):
         return False
     # lazy: zrb internal — keeps prompt_toolkit-free imports off the hot path
     from zrb.llm.voice.engine import vosk_installed

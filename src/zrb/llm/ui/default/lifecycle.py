@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Callable
 from zrb.config.config import CFG
 
 if TYPE_CHECKING:
+    from zrb.llm.snapshot.manager import SnapshotProgress
     from zrb.llm.ui.default.ui import UI
 
 
@@ -184,26 +185,41 @@ class UILifecycle:
                     task.cancel()
 
 
-def _make_snapshot_progress_handler(ui: "UI") -> "Callable[[str, int], None]":
-    """Render init-snapshot progress as two muted lines (start + done).
+def _make_snapshot_progress_handler(
+    ui: "UI",
+) -> "Callable[[SnapshotProgress], None]":
+    """Render init-snapshot progress as two muted lines (start + terminal).
 
-    The "done" event fires inside the snapshot's worker thread, so every
-    output hop goes through `call_soon_threadsafe`.
+    Every snapshot invocation ends with exactly one terminal line, so the
+    start line never dangles: done (with copied/skipped counts), up-to-date
+    (resumed session), or error (with the reason — no debug mode needed to
+    see why). All events arrive on the event-loop thread (the manager
+    reports from coroutine context), so a direct append is safe.
     """
     # lazy: heavy third-party
-    from zrb.util.cli.style import stylize_muted
+    from zrb.util.cli.style import stylize_muted, stylize_warning
 
-    loop = asyncio.get_running_loop()
-
-    def handler(stage: str, copied: int) -> None:
+    def handler(event: "SnapshotProgress") -> None:
+        stage, copied, skipped, reason = event
         if stage == "start":
             message = "\n  📸 Taking initial workspace snapshot...\n"
-        elif stage == "done" and copied:
-            message = f"\n  ✅ Initial workspace snapshot taken ({copied} files)\n"
+        elif stage == "done":
+            counts = f"{copied} files"
+            if skipped:
+                counts += f", {skipped} skipped (unreadable)"
+            message = f"\n  ✅ Initial workspace snapshot taken ({counts})\n"
+        elif stage == "up-to-date":
+            message = "\n  📸 Workspace snapshot up-to-date\n"
+        elif stage == "error":
+            message = (
+                f"\n  ⚠️  Initial workspace snapshot failed: {reason}\n"
+                "     /rewind will be unavailable for this session.\n"
+            )
         else:
             return
-        loop.call_soon_threadsafe(
-            ui.append_to_output, stylize_muted(message)
+        styled = (
+            stylize_warning(message) if stage == "error" else stylize_muted(message)
         )
+        ui.append_to_output(styled)
 
     return handler
