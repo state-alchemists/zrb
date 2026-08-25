@@ -15,7 +15,7 @@
 
 # Example 2: Block specific commands (PreToolUse)
 - name: block-rm-commands
-  description: Block rm commands in Bash
+  description: Block rm commands in Shell
   events:
     - PreToolUse
   type: command
@@ -30,7 +30,7 @@
   matchers:
     - field: tool_name
       operator: equals
-      value: Bash
+      value: Shell
   enabled: false
 
 # Example 3: Notify on session end (SessionEnd is terminal — fires once)
@@ -126,7 +126,7 @@
   matchers:
     - field: tool_name
       operator: equals
-      value: Bash
+      value: Shell
   enabled: false
 
 # Example 11: Notification — Log notifications
@@ -154,18 +154,18 @@
 # Example 13: PreToolUse — Force the approval prompt (permissionDecision: ask).
 # "ask" overrides a tool-policy/YOLO auto-approve; an explicit DENY still wins.
 - name: ask-before-bash
-  description: Force manual approval for Bash even if it would be auto-approved
+  description: Force manual approval for Shell even if it would be auto-approved
   events:
     - PreToolUse
   type: command
   config:
     command: |
-      echo '{"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "ask", "permissionDecisionReason": "Manual approval required for Bash"}}'
+      echo '{"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "ask", "permissionDecisionReason": "Manual approval required for Shell"}}'
     shell: true
   matchers:
     - field: tool_name
       operator: equals
-      value: Bash
+      value: Shell
   enabled: false
 
 # Example 14: PreCompact — Block compaction (skip summarization this turn).

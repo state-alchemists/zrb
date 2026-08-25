@@ -14,13 +14,13 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from zrb.llm.util.attachment import get_media_type, get_oversized_by
 from zrb.llm.util.camera import get_camera_photo, missing_tool_hint
 from zrb.llm.util.image_scale import scale_image_bytes
 from zrb.llm.util.subagent_session_naming import parse_delegated_session
-from zrb.util.cli.style import stylize_error, stylize_muted
+from zrb.util.cli.style import stylize_error, stylize_muted, stylize_warning
 
 if TYPE_CHECKING:
     from zrb.llm.ui.base.ui import BaseUI
@@ -54,6 +54,10 @@ class BaseUIConversationCommands:
 
     def handle_save_command(self, text: str) -> bool:
         text = text.strip()
+        if self._missing_argument_warning(
+            text, self._base_ui.save_commands, "Conversation name required"
+        ):
+            return True
         for cmd in self._base_ui.save_commands:
             prefix = f"{cmd} "
             if text.lower().startswith(prefix):
@@ -82,6 +86,10 @@ class BaseUIConversationCommands:
 
     def handle_load_command(self, text: str) -> bool:
         text = text.strip()
+        if self._missing_argument_warning(
+            text, self._base_ui.load_commands, "Conversation name required"
+        ):
+            return True
         for cmd in self._base_ui.load_commands:
             prefix = f"{cmd} "
             if text.lower().startswith(prefix):
@@ -89,6 +97,7 @@ class BaseUIConversationCommands:
                 if not name:
                     continue
                 previous_name = self._base_ui.conversation_session_name
+                persona_before = self._capture_persona_state()
                 self._base_ui.conversation_session_name = name
                 try:
                     history = self._base_ui.history_manager.load(name)
@@ -98,17 +107,43 @@ class BaseUIConversationCommands:
                     self._base_ui.reset_session_token_usage()
                     self.apply_persona_for_session(name)
                 except Exception as e:
-                    # Roll back the session-name switch: leaving it pointing
-                    # at `name` while the old transcript is still displayed
-                    # would persist subsequent turns under the wrong
-                    # conversation.
+                    # Roll back everything the failed load may have touched:
+                    # the session-name switch (leaving it pointing at `name`
+                    # while the old transcript is still displayed would
+                    # persist subsequent turns under the wrong conversation)
+                    # and the persona swap (a mid-swap failure could
+                    # otherwise leave sub-agent tools/prompt in place while
+                    # the session name reverted).
                     self._base_ui.conversation_session_name = previous_name
+                    self._apply_persona_state(persona_before)
                     self._base_ui.append_to_output(
                         stylize_error(f"\n  ❌ Failed to load history: {e}\n")
                     )
                     return True
                 self._base_ui.append_to_output(
                     stylize_muted(f"\n  📂 Conversation session switched to: {name}\n")
+                )
+                return True
+        return False
+
+    def _missing_argument_warning(
+        self,
+        text: str,
+        commands: list[str],
+        message: str,
+        arg_hint: str = "<name>",
+    ) -> bool:
+        """Warn when a bare argument-command is typed without its argument.
+
+        The dispatch table recognizes the bare token (`_matches` matches an
+        exact token even for prefix commands), so if no handler consumes it the
+        literal text would be forwarded to the LLM as a chat message. Consuming
+        it here turns that dead end into an actionable hint.
+        """
+        for cmd in commands:
+            if text.lower() == cmd.lower():
+                self._base_ui.append_to_output(
+                    stylize_warning(f"\n  ⚠️  {message} — usage: {cmd} {arg_hint}\n")
                 )
                 return True
         return False
@@ -192,6 +227,25 @@ class BaseUIConversationCommands:
             "model": self._base_ui.model,
         }
 
+    def _capture_persona_state(self) -> dict[str, Any]:
+        """Snapshot every piece of state a persona swap mutates, for rollback."""
+        return {
+            "tools": self._base_ui.llm_task.tools,
+            "toolsets": self._base_ui.llm_task.toolsets,
+            "prompt_manager": self._base_ui.llm_task.prompt_manager,
+            "model": self._base_ui.model,
+            "active_subagent_persona": self._base_ui.active_subagent_persona,
+            "original_persona_snapshot": self._base_ui.original_persona_snapshot,
+        }
+
+    def _apply_persona_state(self, state: dict[str, Any]) -> None:
+        self._base_ui.llm_task.tools = state["tools"]
+        self._base_ui.llm_task.toolsets = state["toolsets"]
+        self._base_ui.llm_task.prompt_manager = state["prompt_manager"]
+        self._base_ui.model = state["model"]
+        self._base_ui.active_subagent_persona = state["active_subagent_persona"]
+        self._base_ui.original_persona_snapshot = state["original_persona_snapshot"]
+
     # --- rewind -----------------------------------------------------------
 
     def handle_rewind_command(self, text: str) -> bool:
@@ -205,90 +259,109 @@ class BaseUIConversationCommands:
             ):
                 continue
             arg = text[len(cmd) :].strip()
-            if arg:
-                snapshots = self._base_ui.snapshot_manager.list_snapshots()
-                sha: str | None = None
-                message_count: int | None = None
-                try:
-                    idx = int(arg) - 1
-                    if 0 <= idx < len(snapshots):
-                        sha = snapshots[idx].sha
-                        message_count = snapshots[idx].message_count
-                    else:
-                        self._base_ui.append_to_output(
-                            stylize_error(f"\n  ❌ No snapshot at index {arg}\n")
-                        )
-                        return True
-                except ValueError:
-                    sha = arg  # treat as SHA prefix/full
-                    for snap in snapshots:
-                        if snap.sha.startswith(sha):
-                            message_count = snap.message_count
-                            break
 
-                async def do_restore(s=sha, mc=message_count):
-                    snapshot_manager = self._base_ui.snapshot_manager
-                    if snapshot_manager is None:
+            async def do_rewind(cmd=cmd, arg=arg):
+                # list_snapshots shells out to git (bounded, but still up to
+                # the git timeout under contention) — keep it off the UI
+                # thread like restore_snapshot below.
+                snapshot_manager = self._base_ui.snapshot_manager
+                if snapshot_manager is None:
+                    return
+                snapshots = await asyncio.to_thread(snapshot_manager.list_snapshots)
+                if arg:
+                    sha, message_count = self._resolve_snapshot_arg(snapshots, arg)
+                    if sha is None and message_count is None:
                         return
-                    self._base_ui.is_thinking = True
-                    self._base_ui.invalidate_ui()
-                    try:
-                        self._base_ui.append_to_output(
-                            stylize_muted(f"\n  ⏪ Restoring snapshot {s[:8]}...\n")
-                        )
-                        ok = await snapshot_manager.restore_snapshot(s)
-                        if ok:
-                            if mc is not None:
-                                try:
-                                    msgs = self._base_ui.history_manager.load(
-                                        self._base_ui.conversation_session_name
-                                    )
-                                    if len(msgs) > mc:
-                                        self._base_ui.history_manager.update(
-                                            self._base_ui.conversation_session_name,
-                                            msgs[:mc],
-                                        )
-                                        self._base_ui.history_manager.save(
-                                            self._base_ui.conversation_session_name
-                                        )
-                                except Exception as e:
-                                    logger.warning(
-                                        f"Failed to rewind conversation history: {e}"
-                                    )
-                            self._base_ui.append_to_output(
-                                stylize_muted(f"\n  ✅ Snapshot {s[:8]} restored.\n")
-                            )
-                        else:
-                            self._base_ui.append_to_output(
-                                stylize_error("\n  ❌ Failed to restore snapshot.\n")
-                            )
-                    finally:
-                        self._base_ui.is_thinking = False
-                        self._base_ui.invalidate_ui()
-
-                task = asyncio.create_task(do_restore())
-                self._base_ui.background_tasks.add(task)
-                task.add_done_callback(self._base_ui.background_tasks.discard)
-            else:
-                snapshots = self._base_ui.snapshot_manager.list_snapshots()
-                if not snapshots:
-                    self._base_ui.append_to_output(
-                        stylize_muted(
-                            "\n  No snapshots yet. Snapshots are taken before each AI turn.\n"
-                        )
-                    )
+                    await self._restore_snapshot(snapshot_manager, sha, message_count)
                 else:
-                    lines = ["\n  Snapshots (newest first):"]
-                    for i, snap in enumerate(snapshots, 1):
-                        lines.append(
-                            f"  {i:>3}. [{snap.sha[:8]}] {snap.timestamp}  {snap.label}"
-                        )
-                    lines.append(
-                        f"\n  Use `{cmd} <number>` or `{cmd} <sha>` to restore.\n"
-                    )
-                    self._base_ui.append_to_output(stylize_muted("\n".join(lines)))
+                    self._show_snapshot_list(cmd, snapshots)
+
+            task = asyncio.create_task(do_rewind())
+            self._base_ui.background_tasks.add(task)
+            task.add_done_callback(self._base_ui.background_tasks.discard)
             return True
         return False
+
+    def _resolve_snapshot_arg(
+        self, snapshots: list, arg: str
+    ) -> tuple[str | None, int | None]:
+        """Resolve `/rewind <index|sha>` to (sha, message_count).
+
+        Returns (None, None) after rendering an error when the index is out
+        of range; a SHA prefix that matches nothing falls through to a plain
+        restore attempt, which reports its own failure.
+        """
+        try:
+            idx = int(arg) - 1
+            if 0 <= idx < len(snapshots):
+                return snapshots[idx].sha, snapshots[idx].message_count
+            self._base_ui.append_to_output(
+                stylize_error(f"\n  ❌ No snapshot at index {arg}\n")
+            )
+            return None, None
+        except ValueError:
+            sha = arg  # treat as SHA prefix/full
+            for snap in snapshots:
+                if snap.sha.startswith(sha):
+                    return snap.sha, snap.message_count
+            return sha, None
+
+    def _show_snapshot_list(self, cmd: str, snapshots: list) -> None:
+        if not snapshots:
+            self._base_ui.append_to_output(
+                stylize_muted(
+                    "\n  No snapshots yet. Snapshots are taken "
+                    "before each AI turn.\n"
+                )
+            )
+            return
+        lines = ["\n  Snapshots (newest first):"]
+        for i, snap in enumerate(snapshots, 1):
+            lines.append(f"  {i:>3}. [{snap.sha[:8]}] {snap.timestamp}  {snap.label}")
+        lines.append(f"\n  Use `{cmd} <number>` or `{cmd} <sha>` to restore.\n")
+        self._base_ui.append_to_output(stylize_muted("\n".join(lines)))
+
+    async def _restore_snapshot(
+        self,
+        snapshot_manager: Any,
+        sha: str | None,
+        message_count: int | None,
+    ) -> None:
+        if sha is None:
+            return
+        self._base_ui.is_thinking = True
+        self._base_ui.invalidate_ui()
+        try:
+            self._base_ui.append_to_output(
+                stylize_muted(f"\n  ⏪ Restoring snapshot {sha[:8]}...\n")
+            )
+            ok = await snapshot_manager.restore_snapshot(sha)
+            if ok:
+                if message_count is not None:
+                    try:
+                        msgs = self._base_ui.history_manager.load(
+                            self._base_ui.conversation_session_name
+                        )
+                        if len(msgs) > message_count:
+                            self._base_ui.history_manager.update(
+                                self._base_ui.conversation_session_name,
+                                msgs[:message_count],
+                            )
+                            self._base_ui.history_manager.save(
+                                self._base_ui.conversation_session_name
+                            )
+                    except Exception as e:
+                        logger.warning(f"Failed to rewind conversation history: {e}")
+                self._base_ui.append_to_output(
+                    stylize_muted(f"\n  ✅ Snapshot {sha[:8]} restored.\n")
+                )
+            else:
+                self._base_ui.append_to_output(
+                    stylize_error("\n  ❌ Failed to restore snapshot.\n")
+                )
+        finally:
+            self._base_ui.is_thinking = False
+            self._base_ui.invalidate_ui()
 
     # --- redirect / attach ------------------------------------------------
 

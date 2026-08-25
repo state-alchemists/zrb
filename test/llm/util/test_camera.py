@@ -13,7 +13,13 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from zrb.llm.util.camera import get_camera_photo, missing_tool_hint
+from zrb.llm.util.camera import (
+    get_camera_photo,
+    list_camera_devices,
+    maybe_refresh_camera_devices,
+    missing_tool_hint,
+    refresh_camera_devices,
+)
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -470,3 +476,92 @@ def test_missing_tool_hint_generic_linux(clean_env):
 
     assert "ffmpeg" in hint
     assert "video" in hint
+
+
+# ---------------------------------------------------------------------------
+# list_camera_devices -- /photo completion suggestions
+# ---------------------------------------------------------------------------
+
+
+def test_list_camera_devices_termux_uses_camera_ids(clean_env):
+    clean_env.setattr("zrb.config.helper.is_termux", lambda: True)
+
+    assert list_camera_devices(cache={}) == ["0", "1"]
+
+
+def test_list_camera_devices_linux_globs_video_nodes(clean_env):
+    clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
+    clean_env.setattr("sys.platform", "linux")
+    clean_env.setattr(
+        "zrb.llm.util.camera.glob.glob",
+        lambda pattern: ["/dev/video1", "/dev/video0"],
+    )
+
+    # Sorted, so device order is stable in the completion dropdown.
+    assert list_camera_devices(cache={}) == ["/dev/video0", "/dev/video1"]
+
+
+def test_list_camera_devices_windows_sync_never_blocks(clean_env):
+    """Windows dshow names need the ffmpeg subprocess probe; the sync path
+    must return immediately (empty) and leave population to the async
+    refresh, so completion never blocks a keystroke."""
+    clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
+    clean_env.setattr("sys.platform", "win32")
+
+    assert list_camera_devices(cache={}) == []
+
+
+@pytest.mark.asyncio
+async def test_refresh_camera_devices_parses_dshow_names_on_windows(clean_env):
+    clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
+    clean_env.setattr("sys.platform", "win32")
+
+    listing = (
+        '[dshow @ 0000] "Integrated Webcam" (video)\n'
+        '[dshow @ 0000] "Microphone" (audio)\n'
+        '[dshow @ 0000] "USB Camera" (video)\n'
+    )
+
+    def _make_proc(*args, **kwargs):
+        return _FakeProcess(stderr=listing.encode())
+
+    with patch("asyncio.create_subprocess_exec", new=AsyncMock(side_effect=_make_proc)):
+        devices = await refresh_camera_devices(cache={})
+
+    # Audio devices are excluded; only video entries survive.
+    assert devices == ["Integrated Webcam", "USB Camera"]
+
+
+@pytest.mark.asyncio
+async def test_maybe_refresh_camera_devices_schedules_probe_when_stale(clean_env):
+    """Stale cache + a running loop → a background refresh is scheduled and
+    the cache is repopulated without blocking the caller."""
+    clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
+    clean_env.setattr("sys.platform", "win32")
+    cache: dict = {}
+
+    def _make_proc(*args, **kwargs):
+        return _FakeProcess(stderr=b'[dshow @ 0] "USB Camera" (video)\n')
+
+    with patch("asyncio.create_subprocess_exec", new=AsyncMock(side_effect=_make_proc)):
+        task = maybe_refresh_camera_devices(cache)
+        assert task is not None
+        # Deterministic: await the scheduled refresh instead of hoping a
+        # couple of loop ticks are enough (they weren't on CI).
+        await task
+
+    assert cache.get("refreshing") is False
+    assert cache.get("devices") == ["USB Camera"]
+    # Fresh cache → no new refresh scheduled.
+    assert maybe_refresh_camera_devices(cache) is None
+
+
+def test_list_camera_devices_caches_per_caller_dict(clean_env):
+    clean_env.setattr("zrb.config.helper.is_termux", lambda: True)
+
+    cache: dict = {}
+    first = list_camera_devices(cache=cache)
+    second = list_camera_devices(cache=cache)
+
+    assert first == second == ["0", "1"]
+    assert "devices" in cache

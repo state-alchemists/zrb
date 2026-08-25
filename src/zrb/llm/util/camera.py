@@ -52,12 +52,17 @@ from __future__ import annotations
 
 import asyncio
 import glob
+import logging
 import os
 import re
 import shutil
 import sys
+import time
+from typing import Any
 
 from zrb.config.helper import is_wsl
+
+logger = logging.getLogger(__name__)
 
 # Termux's real home directory is always at this fixed location, regardless
 # of whether the caller is native Termux or a proot-distro guest -- see the
@@ -198,6 +203,15 @@ async def _dshow_default_device() -> str | None:
     `ffmpeg -f dshow -list_devices true -i dummy` always exits non-zero (the
     "dummy" input doesn't exist) and writes the device list to stderr.
     """
+    names = await _dshow_device_names()
+    return names[0] if names else None
+
+
+_DSHOW_LIST_TIMEOUT_SECONDS = 5
+
+
+async def _dshow_device_names() -> list[str]:
+    """All dshow video device names, via ffmpeg's device listing."""
     try:
         proc = await asyncio.create_subprocess_exec(
             "ffmpeg",
@@ -210,11 +224,136 @@ async def _dshow_default_device() -> str | None:
             stdout=asyncio.subprocess.DEVNULL,
             stderr=asyncio.subprocess.PIPE,
         )
-        _, stderr = await proc.communicate()
+        try:
+            _, stderr = await asyncio.wait_for(
+                proc.communicate(), timeout=_DSHOW_LIST_TIMEOUT_SECONDS
+            )
+        except asyncio.TimeoutError:
+            proc.kill()
+            await proc.wait()
+            return []
     except FileNotFoundError:
+        return []
+    return _parse_dshow_video_devices(stderr.decode(errors="ignore"))
+
+
+def _parse_dshow_video_devices(stderr_text: str) -> list[str]:
+    return re.findall(r'"([^"]+)"\s*\(video\)', stderr_text)
+
+
+# ---------------------------------------------------------------------------
+# Device suggestions (/photo argument completion)
+# ---------------------------------------------------------------------------
+
+_DEVICE_CACHE_TTL_SECONDS = 60
+# Same cache-dict convention as `completion/caches.py`: callers may pass their
+# own dict to control lifetime; the module default keeps the completer
+# stateless. {"time": float, "devices": list[str], "refreshing": bool}
+_default_device_cache: dict[str, Any] = {}
+
+
+def _compute_camera_devices_sync() -> list[str]:
+    """Cheap, non-blocking device candidates; empty where a probe is needed."""
+    # lazy: tests patch zrb.config.helper.is_termux; hoisting would bind the
+    # name at this module's load time and bypass the mock.
+    from zrb.config.helper import is_termux
+
+    if is_termux():
+        # termux-camera-photo -c <camera_id>: front/back are typically 0/1.
+        return ["0", "1"]
+    if sys.platform == "darwin":
+        # avfoundation device index; probing requires a full ffmpeg listing.
+        return ["0", "1"]
+    if sys.platform == "win32":
+        # dshow addresses cameras by name -- needs the ffmpeg listing, which
+        # is a blocking subprocess and therefore only run by
+        # `refresh_camera_devices`, never inline.
+        return []
+    return sorted(glob.glob("/dev/video*"))
+
+
+def list_camera_devices(cache: "dict[str, Any] | None" = None) -> list[str]:
+    """Candidate device ids/names for `/photo <device>` completion.
+
+    Never blocks: serves the cache when fresh, otherwise computes the cheap
+    per-platform candidates (Termux/avfoundation numeric ids, /dev/video*
+    globs). Windows dshow names need a subprocess probe -- they appear once
+    `refresh_camera_devices` lands (kick it off with
+    `maybe_refresh_camera_devices`). Returns an empty list when nothing can
+    be offered yet.
+    """
+    if cache is None:
+        cache = _default_device_cache
+    cached = cache.get("devices")
+    if (
+        isinstance(cached, list)
+        and time.monotonic() - cache.get("time", 0.0) < _DEVICE_CACHE_TTL_SECONDS
+    ):
+        return list(cached)
+
+    devices = _compute_camera_devices_sync()
+    cache["time"] = time.monotonic()
+    cache["devices"] = devices
+    return devices
+
+
+async def refresh_camera_devices(cache: "dict[str, Any] | None" = None) -> list[str]:
+    """Probe devices, including the blocking Windows ffmpeg listing.
+
+    Awaiting this is safe from coroutines only; completion uses
+    `maybe_refresh_camera_devices` to schedule it as a fire-and-forget task
+    instead, so a slow probe never blocks a keystroke.
+    """
+    if cache is None:
+        cache = _default_device_cache
+    # lazy: tests patch zrb.config.helper.is_termux; hoisting would bind the
+    # name at this module's load time and bypass the mock.
+    from zrb.config.helper import is_termux
+
+    if not is_termux() and sys.platform == "win32":
+        devices = await _dshow_device_names()
+    else:
+        devices = _compute_camera_devices_sync()
+    cache["time"] = time.monotonic()
+    cache["devices"] = devices
+    return devices
+
+
+def maybe_refresh_camera_devices(
+    cache: "dict[str, Any] | None" = None,
+) -> "asyncio.Task | None":
+    """Schedule a device-probe refresh when the cache is stale.
+
+    Fire-and-forget: the completer calls this synchronously on every `/photo`
+    completion pass; the probe runs as a background task and the next
+    completion pass picks up its result. Returns the scheduled task (None
+    when the cache is fresh, a refresh is already in flight, or there is no
+    running loop) so tests and interested callers can await it deterministically.
+    """
+    if cache is None:
+        cache = _default_device_cache
+    if cache.get("refreshing"):
         return None
-    match = re.search(r'"([^"]+)"\s*\(video\)', stderr.decode(errors="ignore"))
-    return match.group(1) if match else None
+    if (
+        isinstance(cache.get("devices"), list)
+        and time.monotonic() - float(cache.get("time", 0.0)) < _DEVICE_CACHE_TTL_SECONDS
+    ):
+        return None
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        return None
+
+    async def _refresh() -> None:
+        try:
+            await refresh_camera_devices(cache)
+        except Exception as e:
+            logger.debug(f"Camera device refresh failed: {e}")
+        finally:
+            cache["refreshing"] = False
+
+    cache["refreshing"] = True
+    return loop.create_task(_refresh())
 
 
 CAPTURE_TIMEOUT_SECONDS = 15

@@ -77,11 +77,14 @@ class TestSearxngSearch:
         """Test search with non-200 status code."""
         mock_response = MagicMock()
         mock_response.status_code = 500
+        mock_response.text = "upstream failure"
+        mock_response.headers = {"Content-Type": "text/html"}
         mock_get.return_value = mock_response
 
         with pytest.raises(Exception) as excinfo:
             searxng_search("query")
         assert "status code: 500" in str(excinfo.value)
+        assert "upstream failure" in str(excinfo.value)
 
     @patch("zrb.llm.tool.search.searxng.is_docker_installed", return_value=True)
     @patch("zrb.config.config.CFG", autospec=True)
@@ -238,6 +241,7 @@ class TestBraveSearch:
 
         result = brave_search("test", page=2)
         assert result == {"results": []}
+        assert mock_get.call_args.kwargs["params"]["offset"] == 1
 
     @patch("zrb.config.config.CFG", autospec=True)
     @patch("requests.get")
@@ -286,11 +290,31 @@ class TestBraveSearch:
         mock_response = MagicMock()
         mock_response.status_code = 429
         mock_response.text = "Rate limit exceeded"
+        mock_response.headers = {"Retry-After": "0"}
         mock_get.return_value = mock_response
 
         with pytest.raises(Exception) as excinfo:
             brave_search("test")
         assert "rate limit" in str(excinfo.value).lower()
+
+    @patch("zrb.llm.tool.search.brave.time.sleep")
+    @patch("zrb.config.config.CFG", autospec=True)
+    @patch("requests.get")
+    def test_brave_search_retries_after_rate_limit(
+        self, mock_get, mock_cfg, mock_sleep
+    ):
+        mock_cfg.BRAVE_API_KEY = "test-key"
+        mock_cfg.BRAVE_API_SAFE = "off"
+        mock_cfg.BRAVE_API_LANG = "en"
+
+        rate_limited = MagicMock(status_code=429, headers={"Retry-After": "2"})
+        success = MagicMock(status_code=200)
+        success.json.return_value = {"results": []}
+        mock_get.side_effect = [rate_limited, success]
+
+        assert brave_search("test") == {"results": []}
+        mock_sleep.assert_called_once_with(2.0)
+        assert mock_get.call_count == 2
 
     @patch("zrb.config.config.CFG", autospec=True)
     @patch("requests.get")
@@ -385,6 +409,7 @@ class TestSerpapiSearch:
         mock_response = MagicMock()
         mock_response.status_code = 429
         mock_response.text = "Rate limit exceeded"
+        mock_response.headers = {"Retry-After": "0"}
         mock_get.return_value = mock_response
 
         with pytest.raises(Exception) as excinfo:

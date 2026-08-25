@@ -253,7 +253,7 @@ class TestRecord:
             def __exit__(self, *exc):
                 return False
 
-        def make_stream(samplerate, channels, callback):
+        def make_stream(samplerate, channels, dtype, callback):
             captured["callback"] = callback
             return FakeStream()
 

@@ -1,11 +1,12 @@
 """Tests for llm/app/completion/args.py."""
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from zrb.llm.ui.default.app.completion.args import (
     complete_copy_arg,
     complete_exec_arg,
     complete_load_arg,
+    complete_photo_arg,
     complete_redirect_arg,
     complete_save_arg,
 )
@@ -85,3 +86,19 @@ def test_complete_exec_arg_filters_by_prefix():
     cmd_history = ["echo hi", "ls -la", "grep foo"]
     results = list(complete_exec_arg("ls", cmd_history))
     assert [c.text for c in results] == ["ls -la"]
+
+
+def test_complete_photo_arg_yields_device_ids():
+    with patch(
+        "zrb.llm.util.camera.list_camera_devices",
+        return_value=["/dev/video0", "/dev/video1"],
+    ):
+        results = list(complete_photo_arg(""))
+    assert [c.text for c in results] == ["/dev/video0", "/dev/video1"]
+    assert all(c.display_meta_text == "Camera Device" for c in results)
+
+
+def test_complete_photo_arg_filters_by_prefix():
+    with patch("zrb.llm.util.camera.list_camera_devices", return_value=["0", "1"]):
+        results = list(complete_photo_arg("1"))
+    assert [c.text for c in results] == ["1"]

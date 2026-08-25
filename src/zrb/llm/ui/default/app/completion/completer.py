@@ -16,6 +16,7 @@ from zrb.llm.ui.default.app.completion.args import (
     complete_copy_arg,
     complete_exec_arg,
     complete_load_arg,
+    complete_photo_arg,
     complete_redirect_arg,
     complete_save_arg,
 )
@@ -386,6 +387,7 @@ class InputCompleter(Completer):
                     display_meta="File Path",
                 ),
             ),
+            (self._photo_commands, lambda: complete_photo_arg(single_arg)),
         ]
         for cmd_list, completions_fn in dispatch:
             if self._is_command(cmd, cmd_list):

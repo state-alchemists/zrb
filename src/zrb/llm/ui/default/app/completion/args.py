@@ -66,6 +66,25 @@ def complete_load_arg(
         )
 
 
+def complete_photo_arg(arg_prefix: str) -> Iterable[Completion]:
+    """Camera device ids/names for `/photo <device>` (best-effort, cached)."""
+    # lazy: tests patch zrb.llm.util.camera.list_camera_devices /
+    # maybe_refresh_camera_devices; hoisting would bind the names at this
+    # module's load time and bypass the mocks.
+    from zrb.llm.util.camera import list_camera_devices, maybe_refresh_camera_devices
+
+    # Windows dshow names need a subprocess probe; schedule it as a
+    # fire-and-forget task so no keystroke ever blocks on ffmpeg.
+    maybe_refresh_camera_devices()
+    for device in list_camera_devices():
+        if device.startswith(arg_prefix):
+            yield Completion(
+                device,
+                start_position=-len(arg_prefix),
+                display_meta="Camera Device",
+            )
+
+
 def complete_redirect_arg(arg_prefix: str) -> Iterable[Completion]:
     """A single response-<timestamp>.txt suggestion for redirecting output."""
     ts = datetime.now().strftime("response-%Y-%m-%d-%H-%M.txt")

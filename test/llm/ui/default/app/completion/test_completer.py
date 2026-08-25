@@ -54,6 +54,17 @@ def test_photo_command_completion(completer, complete_event):
     assert "camera" in matches[0].display_meta_text.lower()
 
 
+@patch(
+    "zrb.llm.util.camera.list_camera_devices",
+    return_value=["/dev/video0", "/dev/video1"],
+)
+def test_photo_device_argument_completion(mock_devices, completer, complete_event):
+    """/photo <space> suggests camera device ids."""
+    doc = Document(text="/photo ", cursor_position=7)
+    completions = list(completer.get_completions(doc, complete_event))
+    assert [c.text for c in completions] == ["/dev/video0", "/dev/video1"]
+
+
 @patch("zrb.llm.ui.default.app.completion.args.datetime")
 def test_save_completion(mock_datetime, completer, complete_event):
     mock_datetime.now.return_value = datetime(2023, 10, 27, 12, 30)

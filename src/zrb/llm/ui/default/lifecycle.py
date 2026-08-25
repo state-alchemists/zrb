@@ -10,11 +10,13 @@ from __future__ import annotations
 
 import asyncio
 import traceback as tb_lib
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 from zrb.config.config import CFG
+from zrb.util.cli.style import stylize_muted, stylize_warning
 
 if TYPE_CHECKING:
+    from zrb.llm.snapshot.manager import SnapshotProgress
     from zrb.llm.ui.default.ui import UI
 
 
@@ -74,7 +76,9 @@ class UILifecycle:
             ui.capture.start()
             await ui.update_system_info()
             if ui.snapshot_manager is not None:
-                await ui.snapshot_manager.take_init_snapshot()
+                await ui.snapshot_manager.take_init_snapshot(
+                    on_progress=_make_snapshot_progress_handler(ui)
+                )
             return await ui.application.run_async()
         finally:
             ui.capture.stop()
@@ -180,3 +184,41 @@ class UILifecycle:
             for task in self._ui.background_tasks:
                 if not task.done():
                     task.cancel()
+
+
+def _make_snapshot_progress_handler(
+    ui: "UI",
+) -> "Callable[[SnapshotProgress], None]":
+    """Render init-snapshot progress as two muted lines (start + terminal).
+
+    Every snapshot invocation ends with exactly one terminal line, so the
+    start line never dangles: done (with copied/skipped counts), up-to-date
+    (resumed session), or error (with the reason — no debug mode needed to
+    see why). All events arrive on the event-loop thread (the manager
+    reports from coroutine context), so a direct append is safe.
+    """
+
+    def handler(event: "SnapshotProgress") -> None:
+        stage, copied, skipped, reason = event
+        if stage == "start":
+            message = "\n  📸 Taking initial workspace snapshot...\n"
+        elif stage == "done":
+            counts = f"{copied} files"
+            if skipped:
+                counts += f", {skipped} skipped (unreadable)"
+            message = f"\n  ✅ Initial workspace snapshot taken ({counts})\n"
+        elif stage == "up-to-date":
+            message = "\n  📸 Workspace snapshot up-to-date\n"
+        elif stage == "error":
+            message = (
+                f"\n  ⚠️  Initial workspace snapshot failed: {reason}\n"
+                "     /rewind will be unavailable for this session.\n"
+            )
+        else:
+            return
+        styled = (
+            stylize_warning(message) if stage == "error" else stylize_muted(message)
+        )
+        ui.append_to_output(styled)
+
+    return handler

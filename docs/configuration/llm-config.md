@@ -875,11 +875,11 @@ These variables override the ANSI colors used for plain terminal output (outside
 
 ## 23. Voice Dictation
 
-Opt-in push-to-talk voice input in the chat TUI, gated by `ZRB_LLM_VOICE_ENABLED`. When enabled, the `/voice` command toggles recording mode. Audio dependencies (sounddevice, numpy) are lazy-loaded — no cost at startup.
+Push-to-talk voice input in the chat TUI, toggled by the `/voice` command. Voice is enabled automatically when `vosk` is installed and `ZRB_LLM_VOICE_ENABLED` is left unset; an explicit `ZRB_LLM_VOICE_ENABLED` value always wins (`on` enables any backend, `off` disables even with vosk installed). Audio dependencies (sounddevice, numpy) are lazy-loaded — no cost at startup.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_VOICE_ENABLED` | Master switch for voice dictation in `zrb llm chat`. Requires sounddevice + an STT backend. | `off` |
+| `ZRB_LLM_VOICE_ENABLED` | Master switch for voice dictation in `zrb llm chat`. Requires sounddevice + an STT backend. When unset and `vosk` is installed, voice is enabled automatically. | `off` |
 | `ZRB_LLM_VOICE_MODE` | Speech-to-text backend: `vosk` (offline, cross-platform), `openai` (Whisper API), `google` (Gemini STT), or `multimodal` (uses `ZRB_LLM_MULTIMODAL_MODEL` — slower/more expensive) | `vosk` |
 | `ZRB_LLM_VOICE_PUSH_TO_TALK_KEY` | prompt_toolkit key name for push-to-talk (e.g. `space`, `c-t` for Ctrl+T) | `space` |
 
@@ -895,11 +895,10 @@ Each backend uses only its own variables:
 | `vosk` | `ZRB_LLM_VOICE_VOSK_MODEL_URL` | Base URL for downloading the Vosk model zip (extracted to `~/.cache/vosk/`) | `https://alphacephei.com/vosk/models` |
 
 ```bash
-# Enable offline voice dictation with Vosk
-export ZRB_LLM_VOICE_ENABLED=on
-export ZRB_LLM_VOICE_MODE=vosk
+# Offline voice dictation with Vosk: nothing to configure — with vosk
+# installed, /voice just works (auto-enabled).
 
-# Or use OpenAI Whisper
+# Or use OpenAI Whisper (explicit opt-in required)
 export ZRB_LLM_VOICE_ENABLED=on
 export ZRB_LLM_VOICE_MODE=openai
 export ZRB_LLM_VOICE_OPENAI_MODEL=whisper-1

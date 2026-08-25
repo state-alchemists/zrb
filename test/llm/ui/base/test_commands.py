@@ -46,6 +46,7 @@ class MockUI:
         self.replay_history = MagicMock()
         self.reset_session_token_usage = MagicMock()
         self.original_persona_snapshot = None
+        self.active_subagent_persona = None
         self.snapshot_manager = MagicMock()
         self.message_queue = asyncio.Queue()
         self.pending_attachments = []
@@ -132,7 +133,8 @@ def test_handle_load_command(ui):
     assert "switched" in "".join(ui.outputs)
 
 
-def test_handle_rewind_command_list(ui):
+@pytest.mark.asyncio
+async def test_handle_rewind_command_list(ui):
     snap = MagicMock()
     snap.sha = "1234567890"
     snap.timestamp = "2021-01-01"
@@ -140,6 +142,10 @@ def test_handle_rewind_command_list(ui):
     ui.snapshot_manager.list_snapshots.return_value = [snap]
 
     assert ui.handle_rewind_command("/rewind") is True
+    # Listing happens in a background task (git subprocess off the UI thread)
+    assert len(ui.background_tasks) == 1
+    task = list(ui.background_tasks)[0]
+    await task
     assert "12345678" in "".join(ui.outputs)
 
 
@@ -858,6 +864,38 @@ def test_handle_toggle_voice_blocked_when_disabled(ui):
         assert result is True
         assert ui.voice_mode_active is False
         assert any("not enabled" in o for o in ui.outputs)
+
+
+def test_handle_toggle_voice_auto_enables_when_vosk_installed(ui):
+    """Untouched `LLM_VOICE_ENABLED` + vosk installed → voice just works."""
+    env = {k: v for k, v in os.environ.items() if not k.endswith("_LLM_VOICE_ENABLED")}
+    with patch.dict(os.environ, env, clear=True):
+        with patch("zrb.llm.voice.engine.vosk_installed", return_value=True):
+            result = ui.handle_toggle_voice("/voice")
+    assert result is True
+    assert ui.voice_mode_active is True
+    assert any("vosk detected" in o for o in ui.outputs)
+
+
+def test_handle_toggle_voice_still_blocked_without_vosk(ui):
+    """No explicit opt-in and no vosk → the not-enabled warning stays."""
+    env = {k: v for k, v in os.environ.items() if not k.endswith("_LLM_VOICE_ENABLED")}
+    with patch.dict(os.environ, env, clear=True):
+        with patch("zrb.llm.voice.engine.vosk_installed", return_value=False):
+            result = ui.handle_toggle_voice("/voice")
+    assert result is True
+    assert ui.voice_mode_active is False
+    assert any("not enabled" in o for o in ui.outputs)
+
+
+def test_handle_toggle_voice_explicit_off_wins_over_vosk(ui):
+    """`LLM_VOICE_ENABLED=false` disables voice even with vosk installed."""
+    with patch.dict(os.environ, {"ZRB_LLM_VOICE_ENABLED": "false"}):
+        with patch("zrb.llm.voice.engine.vosk_installed", return_value=True):
+            result = ui.handle_toggle_voice("/voice")
+    assert result is True
+    assert ui.voice_mode_active is False
+    assert any("not enabled" in o for o in ui.outputs)
 
 
 def test_voice_command_in_help_text(ui):
