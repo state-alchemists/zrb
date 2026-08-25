@@ -13,6 +13,7 @@ import traceback as tb_lib
 from typing import TYPE_CHECKING, Callable
 
 from zrb.config.config import CFG
+from zrb.util.cli.style import stylize_muted, stylize_warning
 
 if TYPE_CHECKING:
     from zrb.llm.snapshot.manager import SnapshotProgress
@@ -196,8 +197,6 @@ def _make_snapshot_progress_handler(
     see why). All events arrive on the event-loop thread (the manager
     reports from coroutine context), so a direct append is safe.
     """
-    # lazy: heavy third-party
-    from zrb.util.cli.style import stylize_muted, stylize_warning
 
     def handler(event: "SnapshotProgress") -> None:
         stage, copied, skipped, reason = event

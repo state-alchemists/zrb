@@ -406,7 +406,6 @@ async def test_take_init_snapshot_reports_done_with_zero_copies_when_tree_matche
     """A shadow tree that already matches the workdir (e.g. a prior run
     copied files but the commit never landed) still reports a terminal
     done event — with 0 copies, not a dangling start."""
-    from zrb.llm.snapshot.manager import _git as real_git
     from zrb.util.string.conversion import to_safe_filename
 
     with open(os.path.join(workdir, "f.txt"), "w") as f:
@@ -418,7 +417,7 @@ async def test_take_init_snapshot_reports_done_with_zero_copies_when_tree_matche
     # shadow-repo layout (<snapshot_dir>/<safe_session_name>) is documented
     # in the module docstring.
     shadow_dir = os.path.join(snapshot_dir, to_safe_filename("zero-copy-session"))
-    real_git(shadow_dir, ["update-ref", "-d", "HEAD"])
+    subprocess.run(["git", "update-ref", "-d", "HEAD"], cwd=shadow_dir, check=True)
 
     events: list[SnapshotProgress] = []
     sha = await mgr.take_init_snapshot(on_progress=events.append)
@@ -435,19 +434,19 @@ async def test_take_init_snapshot_reports_error_when_commit_fails_after_start(
     snapshot_dir, workdir
 ):
     """A failure after 'start' reports a terminal error event with reason."""
-    from zrb.llm.snapshot.manager import _git as real_git
+    real_run = subprocess.run
+
+    def _fail_commit_run(cmd, *args, **kwargs):
+        if "commit" in cmd:
+            raise RuntimeError("commit boom")
+        return real_run(cmd, *args, **kwargs)
 
     with open(os.path.join(workdir, "f.txt"), "w") as f:
         f.write("data")
 
-    def _failing_commit_git(cwd, args):
-        if args and args[0] == "commit":
-            raise RuntimeError("commit boom")
-        return real_git(cwd, args)
-
     mgr = SnapshotManager(snapshot_dir, "error-session", workdir)
     events: list[SnapshotProgress] = []
-    with patch("zrb.llm.snapshot.manager._git", side_effect=_failing_commit_git):
+    with patch("subprocess.run", side_effect=_fail_commit_run):
         sha = await mgr.take_init_snapshot(on_progress=events.append)
 
     assert sha is None

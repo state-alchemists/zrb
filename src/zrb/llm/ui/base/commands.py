@@ -535,7 +535,8 @@ def _voice_auto_enabled_by_vosk() -> bool:
         return False
     if CFG.is_env_set("LLM_VOICE_MODE"):
         return False
-    # lazy: zrb internal — keeps prompt_toolkit-free imports off the hot path
+    # lazy: tests patch zrb.llm.voice.engine.vosk_installed; hoisting would
+    # bind the name at this module's load time and bypass the mock.
     from zrb.llm.voice.engine import vosk_installed
 
     return vosk_installed()

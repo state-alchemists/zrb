@@ -269,50 +269,57 @@ class BaseUIConversationCommands:
                     return
                 snapshots = await asyncio.to_thread(snapshot_manager.list_snapshots)
                 if arg:
-                    sha: str | None = None
-                    message_count: int | None = None
-                    try:
-                        idx = int(arg) - 1
-                        if 0 <= idx < len(snapshots):
-                            sha = snapshots[idx].sha
-                            message_count = snapshots[idx].message_count
-                        else:
-                            self._base_ui.append_to_output(
-                                stylize_error(f"\n  ❌ No snapshot at index {arg}\n")
-                            )
-                            return
-                    except ValueError:
-                        sha = arg  # treat as SHA prefix/full
-                        for snap in snapshots:
-                            if snap.sha.startswith(sha):
-                                message_count = snap.message_count
-                                break
+                    sha, message_count = self._resolve_snapshot_arg(snapshots, arg)
+                    if sha is None and message_count is None:
+                        return
                     await self._restore_snapshot(snapshot_manager, sha, message_count)
                 else:
-                    if not snapshots:
-                        self._base_ui.append_to_output(
-                            stylize_muted(
-                                "\n  No snapshots yet. Snapshots are taken "
-                                "before each AI turn.\n"
-                            )
-                        )
-                    else:
-                        lines = ["\n  Snapshots (newest first):"]
-                        for i, snap in enumerate(snapshots, 1):
-                            lines.append(
-                                f"  {i:>3}. [{snap.sha[:8]}] {snap.timestamp}  "
-                                f"{snap.label}"
-                            )
-                        lines.append(
-                            f"\n  Use `{cmd} <number>` or `{cmd} <sha>` to restore.\n"
-                        )
-                        self._base_ui.append_to_output(stylize_muted("\n".join(lines)))
+                    self._show_snapshot_list(cmd, snapshots)
 
             task = asyncio.create_task(do_rewind())
             self._base_ui.background_tasks.add(task)
             task.add_done_callback(self._base_ui.background_tasks.discard)
             return True
         return False
+
+    def _resolve_snapshot_arg(
+        self, snapshots: list, arg: str
+    ) -> tuple[str | None, int | None]:
+        """Resolve `/rewind <index|sha>` to (sha, message_count).
+
+        Returns (None, None) after rendering an error when the index is out
+        of range; a SHA prefix that matches nothing falls through to a plain
+        restore attempt, which reports its own failure.
+        """
+        try:
+            idx = int(arg) - 1
+            if 0 <= idx < len(snapshots):
+                return snapshots[idx].sha, snapshots[idx].message_count
+            self._base_ui.append_to_output(
+                stylize_error(f"\n  ❌ No snapshot at index {arg}\n")
+            )
+            return None, None
+        except ValueError:
+            sha = arg  # treat as SHA prefix/full
+            for snap in snapshots:
+                if snap.sha.startswith(sha):
+                    return snap.sha, snap.message_count
+            return sha, None
+
+    def _show_snapshot_list(self, cmd: str, snapshots: list) -> None:
+        if not snapshots:
+            self._base_ui.append_to_output(
+                stylize_muted(
+                    "\n  No snapshots yet. Snapshots are taken "
+                    "before each AI turn.\n"
+                )
+            )
+            return
+        lines = ["\n  Snapshots (newest first):"]
+        for i, snap in enumerate(snapshots, 1):
+            lines.append(f"  {i:>3}. [{snap.sha[:8]}] {snap.timestamp}  {snap.label}")
+        lines.append(f"\n  Use `{cmd} <number>` or `{cmd} <sha>` to restore.\n")
+        self._base_ui.append_to_output(stylize_muted("\n".join(lines)))
 
     async def _restore_snapshot(
         self,

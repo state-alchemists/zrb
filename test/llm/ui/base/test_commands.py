@@ -46,6 +46,7 @@ class MockUI:
         self.replay_history = MagicMock()
         self.reset_session_token_usage = MagicMock()
         self.original_persona_snapshot = None
+        self.active_subagent_persona = None
         self.snapshot_manager = MagicMock()
         self.message_queue = asyncio.Queue()
         self.pending_attachments = []

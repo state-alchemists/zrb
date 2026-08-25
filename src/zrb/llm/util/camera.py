@@ -58,6 +58,7 @@ import re
 import shutil
 import sys
 import time
+from typing import Any
 
 from zrb.config.helper import is_wsl
 
@@ -248,7 +249,7 @@ _DEVICE_CACHE_TTL_SECONDS = 60
 # Same cache-dict convention as `completion/caches.py`: callers may pass their
 # own dict to control lifetime; the module default keeps the completer
 # stateless. {"time": float, "devices": list[str], "refreshing": bool}
-_default_device_cache: dict[str, object] = {}
+_default_device_cache: dict[str, Any] = {}
 
 
 def _compute_camera_devices_sync() -> list[str]:
@@ -271,9 +272,7 @@ def _compute_camera_devices_sync() -> list[str]:
     return sorted(glob.glob("/dev/video*"))
 
 
-def list_camera_devices(
-    cache: "dict[str, object] | None" = None,
-) -> list[str]:
+def list_camera_devices(cache: "dict[str, Any] | None" = None) -> list[str]:
     """Candidate device ids/names for `/photo <device>` completion.
 
     Never blocks: serves the cache when fresh, otherwise computes the cheap
@@ -288,7 +287,7 @@ def list_camera_devices(
     cached = cache.get("devices")
     if (
         isinstance(cached, list)
-        and time.monotonic() - float(cache.get("time", 0.0)) < _DEVICE_CACHE_TTL_SECONDS
+        and time.monotonic() - cache.get("time", 0.0) < _DEVICE_CACHE_TTL_SECONDS
     ):
         return list(cached)
 
@@ -298,9 +297,7 @@ def list_camera_devices(
     return devices
 
 
-async def refresh_camera_devices(
-    cache: "dict[str, object] | None" = None,
-) -> list[str]:
+async def refresh_camera_devices(cache: "dict[str, Any] | None" = None) -> list[str]:
     """Probe devices, including the blocking Windows ffmpeg listing.
 
     Awaiting this is safe from coroutines only; completion uses
@@ -322,9 +319,7 @@ async def refresh_camera_devices(
     return devices
 
 
-def maybe_refresh_camera_devices(
-    cache: "dict[str, object] | None" = None,
-) -> None:
+def maybe_refresh_camera_devices(cache: "dict[str, Any] | None" = None) -> None:
     """Schedule a device-probe refresh when the cache is stale.
 
     Fire-and-forget: the completer calls this synchronously on every `/photo`

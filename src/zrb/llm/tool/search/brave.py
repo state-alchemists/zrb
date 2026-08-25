@@ -58,12 +58,14 @@ def search_internet(
         },
         "timeout": CFG.LLM_WEB_HTTP_TIMEOUT / 1000,
     }
-    for attempt in range(_MAX_RATE_LIMIT_RETRIES + 1):
+    attempt = 0
+    while True:
         response = requests.get(
             "https://api.search.brave.com/res/v1/web/search", **request_kwargs
         )
-        if response.status_code != 429 or attempt == _MAX_RATE_LIMIT_RETRIES:
+        if response.status_code != 429 or attempt >= _MAX_RATE_LIMIT_RETRIES:
             break
+        attempt += 1
         time.sleep(_retry_after_seconds(response))
     if response.status_code != 200:
         raise_http_error(

@@ -516,12 +516,19 @@ async def test_refresh_camera_devices_parses_dshow_names_on_windows(clean_env):
     clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
     clean_env.setattr("sys.platform", "win32")
 
-    with patch(
-        "zrb.llm.util.camera._dshow_device_names",
-        new=AsyncMock(return_value=["Integrated Webcam", "USB Camera"]),
-    ):
+    listing = (
+        '[dshow @ 0000] "Integrated Webcam" (video)\n'
+        '[dshow @ 0000] "Microphone" (audio)\n'
+        '[dshow @ 0000] "USB Camera" (video)\n'
+    )
+
+    def _make_proc(*args, **kwargs):
+        return _FakeProcess(stderr=listing.encode())
+
+    with patch("asyncio.create_subprocess_exec", new=AsyncMock(side_effect=_make_proc)):
         devices = await refresh_camera_devices(cache={})
 
+    # Audio devices are excluded; only video entries survive.
     assert devices == ["Integrated Webcam", "USB Camera"]
 
 
@@ -532,10 +539,11 @@ async def test_maybe_refresh_camera_devices_schedules_probe_when_stale(clean_env
     clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
     clean_env.setattr("sys.platform", "win32")
     cache: dict = {}
-    with patch(
-        "zrb.llm.util.camera._dshow_device_names",
-        new=AsyncMock(return_value=["USB Camera"]),
-    ):
+
+    def _make_proc(*args, **kwargs):
+        return _FakeProcess(stderr=b'[dshow @ 0] "USB Camera" (video)\n')
+
+    with patch("asyncio.create_subprocess_exec", new=AsyncMock(side_effect=_make_proc)):
         maybe_refresh_camera_devices(cache)
         # The refresh runs as a background task; give the loop a tick.
         await asyncio.sleep(0)

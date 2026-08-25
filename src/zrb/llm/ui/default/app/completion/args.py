@@ -68,8 +68,9 @@ def complete_load_arg(
 
 def complete_photo_arg(arg_prefix: str) -> Iterable[Completion]:
     """Camera device ids/names for `/photo <device>` (best-effort, cached)."""
-    # lazy: zrb internal; keeps the completer's import surface light and the
-    # ffmpeg probe off the module-load path.
+    # lazy: tests patch zrb.llm.util.camera.list_camera_devices /
+    # maybe_refresh_camera_devices; hoisting would bind the names at this
+    # module's load time and bypass the mocks.
     from zrb.llm.util.camera import list_camera_devices, maybe_refresh_camera_devices
 
     # Windows dshow names need a subprocess probe; schedule it as a
