@@ -9,11 +9,12 @@ from __future__ import annotations
 
 import asyncio
 import os
+import subprocess
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from zrb.llm.util.camera import get_camera_photo, missing_tool_hint
+from zrb.llm.util.camera import get_camera_photo, list_camera_devices, missing_tool_hint
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -470,3 +471,54 @@ def test_missing_tool_hint_generic_linux(clean_env):
 
     assert "ffmpeg" in hint
     assert "video" in hint
+
+
+# ---------------------------------------------------------------------------
+# list_camera_devices -- /photo completion suggestions
+# ---------------------------------------------------------------------------
+
+
+def test_list_camera_devices_termux_uses_camera_ids(clean_env):
+    clean_env.setattr("zrb.config.helper.is_termux", lambda: True)
+
+    assert list_camera_devices(cache={}) == ["0", "1"]
+
+
+def test_list_camera_devices_linux_globs_video_nodes(clean_env):
+    clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
+    clean_env.setattr("sys.platform", "linux")
+    clean_env.setattr(
+        "zrb.llm.util.camera.glob.glob",
+        lambda pattern: ["/dev/video1", "/dev/video0"],
+    )
+
+    # Sorted, so device order is stable in the completion dropdown.
+    assert list_camera_devices(cache={}) == ["/dev/video0", "/dev/video1"]
+
+
+def test_list_camera_devices_windows_parses_dshow_names(clean_env):
+    clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
+    clean_env.setattr("sys.platform", "win32")
+
+    listing = (
+        '[dshow @ 0000] "Integrated Webcam" (video)\n'
+        '[dshow @ 0000] "Microphone" (audio)\n'
+        '[dshow @ 0000] "USB Camera" (video)\n'
+    )
+    fake = subprocess.CompletedProcess([], 1, stdout="", stderr=listing)
+    with patch("zrb.llm.util.camera.subprocess.run", return_value=fake):
+        devices = list_camera_devices(cache={})
+
+    # Audio devices are excluded; only video entries survive.
+    assert devices == ["Integrated Webcam", "USB Camera"]
+
+
+def test_list_camera_devices_caches_per_caller_dict(clean_env):
+    clean_env.setattr("zrb.config.helper.is_termux", lambda: True)
+
+    cache: dict = {}
+    first = list_camera_devices(cache=cache)
+    second = list_camera_devices(cache=cache)
+
+    assert first == second == ["0", "1"]
+    assert "devices" in cache

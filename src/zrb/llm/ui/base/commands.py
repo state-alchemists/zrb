@@ -373,22 +373,27 @@ class BaseUICommands:
         base_ui = self._base_ui
         if text.strip().lower() not in [c.lower() for c in base_ui.voice_commands]:
             return False
+        auto_vosk = False
         if not CFG.LLM_VOICE_ENABLED:
-            base_ui.append_to_output(
-                stylize_warning(
-                    "\n  🎤 Voice dictation is not enabled.\n"
-                    f"     Set {CFG.ENV_PREFIX}_LLM_VOICE_ENABLED=on and restart.\n"
+            if not _voice_auto_enabled_by_vosk():
+                base_ui.append_to_output(
+                    stylize_warning(
+                        "\n  🎤 Voice dictation is not enabled.\n"
+                        f"     Set {CFG.ENV_PREFIX}_LLM_VOICE_ENABLED=on and restart.\n"
+                    )
                 )
-            )
-            return True
+                return True
+            auto_vosk = True
         if base_ui.voice_mode_active:
             self._exit_voice_mode()
         else:
             base_ui.voice_mode_active = True
             ptt_key = CFG.LLM_VOICE_PUSH_TO_TALK_KEY.strip()
+            backend_note = " (vosk detected)" if auto_vosk else ""
             base_ui.append_to_output(
                 stylize_muted(
-                    f"\n  🎤 Voice dictation: ON — press [{ptt_key}] to record\n"
+                    f"\n  🎤 Voice dictation: ON{backend_note}"
+                    f" — press [{ptt_key}] to record\n"
                 )
             )
         base_ui.invalidate_ui()
@@ -505,6 +510,20 @@ def _get_default_help_width() -> int | None:
         return get_terminal_size().columns
     except Exception:
         return None
+
+
+def _voice_auto_enabled_by_vosk() -> bool:
+    """Voice may run without explicit opt-in when config is untouched and vosk.
+
+    An explicit `LLM_VOICE_ENABLED` env var always wins: `on` enables voice
+    with any backend, `off` disables it even when vosk is installed.
+    """
+    if CFG.is_env_set("LLM_VOICE_ENABLED"):
+        return False
+    # lazy: zrb internal — keeps prompt_toolkit-free imports off the hot path
+    from zrb.llm.voice.engine import vosk_installed
+
+    return vosk_installed()
 
 
 def _matches(text: str, tokens: list[str], prefix: bool) -> bool:

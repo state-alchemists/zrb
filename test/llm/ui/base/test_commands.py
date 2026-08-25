@@ -860,6 +860,38 @@ def test_handle_toggle_voice_blocked_when_disabled(ui):
         assert any("not enabled" in o for o in ui.outputs)
 
 
+def test_handle_toggle_voice_auto_enables_when_vosk_installed(ui):
+    """Untouched `LLM_VOICE_ENABLED` + vosk installed → voice just works."""
+    env = {k: v for k, v in os.environ.items() if not k.endswith("_LLM_VOICE_ENABLED")}
+    with patch.dict(os.environ, env, clear=True):
+        with patch("zrb.llm.voice.engine.vosk_installed", return_value=True):
+            result = ui.handle_toggle_voice("/voice")
+    assert result is True
+    assert ui.voice_mode_active is True
+    assert any("vosk detected" in o for o in ui.outputs)
+
+
+def test_handle_toggle_voice_still_blocked_without_vosk(ui):
+    """No explicit opt-in and no vosk → the not-enabled warning stays."""
+    env = {k: v for k, v in os.environ.items() if not k.endswith("_LLM_VOICE_ENABLED")}
+    with patch.dict(os.environ, env, clear=True):
+        with patch("zrb.llm.voice.engine.vosk_installed", return_value=False):
+            result = ui.handle_toggle_voice("/voice")
+    assert result is True
+    assert ui.voice_mode_active is False
+    assert any("not enabled" in o for o in ui.outputs)
+
+
+def test_handle_toggle_voice_explicit_off_wins_over_vosk(ui):
+    """`LLM_VOICE_ENABLED=false` disables voice even with vosk installed."""
+    with patch.dict(os.environ, {"ZRB_LLM_VOICE_ENABLED": "false"}):
+        with patch("zrb.llm.voice.engine.vosk_installed", return_value=True):
+            result = ui.handle_toggle_voice("/voice")
+    assert result is True
+    assert ui.voice_mode_active is False
+    assert any("not enabled" in o for o in ui.outputs)
+
+
 def test_voice_command_in_help_text(ui):
     """Help text includes /voice when voice is enabled."""
     with patch.dict(os.environ, {"ZRB_LLM_VOICE_ENABLED": "true"}):

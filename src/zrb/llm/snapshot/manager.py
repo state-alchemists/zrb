@@ -21,7 +21,7 @@ import os
 import re
 import shutil
 import subprocess
-from typing import NamedTuple
+from typing import Callable, NamedTuple
 
 from zrb.util.string.conversion import to_safe_filename
 
@@ -34,6 +34,13 @@ logger = logging.getLogger(__name__)
 # in this module gets this bound so a stall here is a bounded wait, not a
 # silent, unrecoverable freeze.
 _GIT_TIMEOUT_SECONDS = 30
+
+# Progress callback contract for `take_init_snapshot`: called with
+# ("start", 0) right before the workdir copy begins and ("done", n) once the
+# snapshot commit exists, where n is the number of files actually copied.
+# The "done" call happens inside a worker thread (the copy runs via
+# asyncio.to_thread), so implementers must hop back to their own loop.
+SnapshotProgressFn = Callable[[str, int], None]
 
 
 class Snapshot(NamedTuple):
@@ -122,11 +129,19 @@ class SnapshotManager:
             logger.warning(f"Snapshot failed: {e}")
             return None
 
-    async def take_init_snapshot(self) -> str | None:
+    async def take_init_snapshot(
+        self, on_progress: SnapshotProgressFn | None = None
+    ) -> str | None:
         """Take an empty baseline snapshot at session start.
 
         Always creates a commit (even if workdir is empty) so that
         list_snapshots() always has at least one entry to rewind to.
+
+        Args:
+            on_progress: Optional callback invoked with ("start", 0) before
+                the workdir copy and ("done", copied_files) after the commit.
+                Skipped entirely when the shadow repo already has commits
+                (resuming an existing session).
         """
         try:
             self._ensure_initialized()
@@ -134,7 +149,8 @@ class SnapshotManager:
             existing_sha = _head_sha(self._shadow_dir)
             if existing_sha is not None:
                 return existing_sha
-            await asyncio.to_thread(
+            _report_progress(on_progress, "start")
+            copied = await asyncio.to_thread(
                 _sync_dirs,
                 self._workdir,
                 self._shadow_dir,
@@ -144,9 +160,11 @@ class SnapshotManager:
                 True,  # incremental: workdir → shadow
             )
             commit_msg = _build_commit_message("init", message_count=0)
-            return await asyncio.to_thread(
+            sha = await asyncio.to_thread(
                 self._commit, commit_msg, True  # allow_empty
             )
+            _report_progress(on_progress, "done", copied)
+            return sha
         except Exception as e:
             logger.warning(f"Init snapshot failed: {e}")
             return None
@@ -314,8 +332,10 @@ def _copy_files(
     ignored: frozenset[str],
     src_rel_paths: set[str],
     incremental: bool = False,
-) -> None:
+) -> int:
     """Copy all non-ignored files from *src* to *dst*, recording relative paths.
+
+    Returns the number of files actually copied (incremental skips excluded).
 
     When *incremental* is True and the destination file already matches the
     source by size and mtime, ``shutil.copy2`` is skipped. ``copy2`` preserves
@@ -325,6 +345,7 @@ def _copy_files(
     user edited a file after the snapshot, and the restore is exactly the
     operation that must undo those edits.
     """
+    copied = 0
     for root, dirs, files in os.walk(src):
         _prune_walk(dirs, exclude_git, ignored)
         rel_root = os.path.relpath(root, src)
@@ -343,6 +364,8 @@ def _copy_files(
                 continue
             os.makedirs(os.path.dirname(dst_path), exist_ok=True)
             shutil.copy2(src_path, dst_path)
+            copied += 1
+    return copied
 
 
 def _stat_is_file(st: os.stat_result) -> bool:
@@ -418,8 +441,10 @@ def _sync_dirs(
     delete: bool = False,
     ignore_dirs: "frozenset[str] | None" = None,
     incremental: bool = False,
-) -> None:
+) -> int:
     """Recursively copy *src* into *dst*, optionally deleting stale dst files.
+
+    Returns the number of files actually copied (incremental skips excluded).
 
     Args:
         src: Source directory path.
@@ -442,11 +467,24 @@ def _sync_dirs(
     ignored: frozenset[str] = ignore_dirs or frozenset()
     src_rel_paths: set[str] = set()
 
-    _copy_files(src, dst, exclude_git, ignored, src_rel_paths, incremental)
+    copied = _copy_files(src, dst, exclude_git, ignored, src_rel_paths, incremental)
 
     if not delete:
-        return
+        return copied
 
     dst_rel_paths = _collect_pruned_rel_paths(dst, exclude_git, ignored)
     _remove_stale_files(dst, dst_rel_paths - src_rel_paths)
     _remove_empty_dirs(dst, exclude_git, ignored)
+    return copied
+
+
+def _report_progress(
+    on_progress: SnapshotProgressFn | None, stage: str, copied: int = 0
+) -> None:
+    """Invoke a progress callback, never letting it break the snapshot."""
+    if on_progress is None:
+        return
+    try:
+        on_progress(stage, copied)
+    except Exception as e:
+        logger.debug(f"Snapshot progress callback failed: {e}")

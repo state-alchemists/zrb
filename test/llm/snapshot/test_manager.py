@@ -340,6 +340,60 @@ async def test_take_init_snapshot_returns_none_when_setup_fails(workdir):
     assert result is None
 
 
+@pytest.mark.asyncio
+async def test_take_init_snapshot_reports_start_and_done_with_copied_count(
+    snapshot_dir, workdir
+):
+    """The progress callback sees ("start", 0) before the copy and the copied
+    file count once the init commit exists."""
+    for name in ("a.txt", "b.txt"):
+        with open(os.path.join(workdir, name), "w") as f:
+            f.write(name)
+
+    mgr = SnapshotManager(snapshot_dir, "progress-session", workdir)
+    events: list[tuple[str, int]] = []
+    sha = await mgr.take_init_snapshot(on_progress=lambda stage, n: events.append((stage, n)))
+
+    assert sha is not None
+    assert events == [("start", 0), ("done", 2)]
+
+
+@pytest.mark.asyncio
+async def test_take_init_snapshot_skips_progress_when_repo_has_commits(
+    snapshot_dir, workdir
+):
+    """Resuming an existing session commits nothing and reports nothing."""
+    with open(os.path.join(workdir, "f.txt"), "w") as f:
+        f.write("data")
+
+    mgr = SnapshotManager(snapshot_dir, "no-progress-session", workdir)
+    await mgr.take_init_snapshot()
+
+    events: list[tuple[str, int]] = []
+    await mgr.take_init_snapshot(on_progress=lambda stage, n: events.append((stage, n)))
+
+    assert events == []
+
+
+@pytest.mark.asyncio
+async def test_take_init_snapshot_swallows_progress_callback_errors(
+    snapshot_dir, workdir
+):
+    """A broken progress callback must not fail the snapshot."""
+    with open(os.path.join(workdir, "f.txt"), "w") as f:
+        f.write("data")
+
+    mgr = SnapshotManager(snapshot_dir, "bad-callback-session", workdir)
+
+    def _boom(stage: str, copied: int):
+        raise RuntimeError("callback bug")
+
+    sha = await mgr.take_init_snapshot(on_progress=_boom)
+
+    assert sha is not None
+    assert len(mgr.list_snapshots()) == 1
+
+
 # ── force-empty commit when message_count advances ────────────────────────────
 
 

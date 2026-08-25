@@ -20,7 +20,7 @@ from zrb.llm.util.attachment import get_media_type, get_oversized_by
 from zrb.llm.util.camera import get_camera_photo, missing_tool_hint
 from zrb.llm.util.image_scale import scale_image_bytes
 from zrb.llm.util.subagent_session_naming import parse_delegated_session
-from zrb.util.cli.style import stylize_error, stylize_muted
+from zrb.util.cli.style import stylize_error, stylize_muted, stylize_warning
 
 if TYPE_CHECKING:
     from zrb.llm.ui.base.ui import BaseUI
@@ -54,6 +54,10 @@ class BaseUIConversationCommands:
 
     def handle_save_command(self, text: str) -> bool:
         text = text.strip()
+        if self._missing_argument_warning(
+            text, self._base_ui.save_commands, "Conversation name required"
+        ):
+            return True
         for cmd in self._base_ui.save_commands:
             prefix = f"{cmd} "
             if text.lower().startswith(prefix):
@@ -82,6 +86,10 @@ class BaseUIConversationCommands:
 
     def handle_load_command(self, text: str) -> bool:
         text = text.strip()
+        if self._missing_argument_warning(
+            text, self._base_ui.load_commands, "Conversation name required"
+        ):
+            return True
         for cmd in self._base_ui.load_commands:
             prefix = f"{cmd} "
             if text.lower().startswith(prefix):
@@ -109,6 +117,24 @@ class BaseUIConversationCommands:
                     return True
                 self._base_ui.append_to_output(
                     stylize_muted(f"\n  📂 Conversation session switched to: {name}\n")
+                )
+                return True
+        return False
+
+    def _missing_argument_warning(
+        self, text: str, commands: list[str], message: str
+    ) -> bool:
+        """Warn when a bare argument-command is typed without its argument.
+
+        The dispatch table recognizes the bare token (`_matches` matches an
+        exact token even for prefix commands), so if no handler consumes it the
+        literal text would be forwarded to the LLM as a chat message. Consuming
+        it here turns that dead end into an actionable hint.
+        """
+        for cmd in commands:
+            if text.lower() == cmd.lower():
+                self._base_ui.append_to_output(
+                    stylize_warning(f"\n  ⚠️  {message} — usage: {cmd} <name>\n")
                 )
                 return True
         return False

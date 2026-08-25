@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import traceback as tb_lib
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 from zrb.config.config import CFG
 
@@ -74,7 +74,9 @@ class UILifecycle:
             ui.capture.start()
             await ui.update_system_info()
             if ui.snapshot_manager is not None:
-                await ui.snapshot_manager.take_init_snapshot()
+                await ui.snapshot_manager.take_init_snapshot(
+                    on_progress=_make_snapshot_progress_handler(ui)
+                )
             return await ui.application.run_async()
         finally:
             ui.capture.stop()
@@ -180,3 +182,28 @@ class UILifecycle:
             for task in self._ui.background_tasks:
                 if not task.done():
                     task.cancel()
+
+
+def _make_snapshot_progress_handler(ui: "UI") -> "Callable[[str, int], None]":
+    """Render init-snapshot progress as two muted lines (start + done).
+
+    The "done" event fires inside the snapshot's worker thread, so every
+    output hop goes through `call_soon_threadsafe`.
+    """
+    # lazy: heavy third-party
+    from zrb.util.cli.style import stylize_muted
+
+    loop = asyncio.get_running_loop()
+
+    def handler(stage: str, copied: int) -> None:
+        if stage == "start":
+            message = "\n  📸 Taking initial workspace snapshot...\n"
+        elif stage == "done" and copied:
+            message = f"\n  ✅ Initial workspace snapshot taken ({copied} files)\n"
+        else:
+            return
+        loop.call_soon_threadsafe(
+            ui.append_to_output, stylize_muted(message)
+        )
+
+    return handler

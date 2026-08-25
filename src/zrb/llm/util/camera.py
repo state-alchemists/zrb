@@ -55,7 +55,9 @@ import glob
 import os
 import re
 import shutil
+import subprocess
 import sys
+import time
 
 from zrb.config.helper import is_wsl
 
@@ -198,6 +200,15 @@ async def _dshow_default_device() -> str | None:
     `ffmpeg -f dshow -list_devices true -i dummy` always exits non-zero (the
     "dummy" input doesn't exist) and writes the device list to stderr.
     """
+    names = await _dshow_device_names()
+    return names[0] if names else None
+
+
+_DSHOW_LIST_TIMEOUT_SECONDS = 5
+
+
+async def _dshow_device_names() -> list[str]:
+    """All dshow video device names, via ffmpeg's device listing."""
     try:
         proc = await asyncio.create_subprocess_exec(
             "ffmpeg",
@@ -210,11 +221,91 @@ async def _dshow_default_device() -> str | None:
             stdout=asyncio.subprocess.DEVNULL,
             stderr=asyncio.subprocess.PIPE,
         )
-        _, stderr = await proc.communicate()
+        try:
+            _, stderr = await asyncio.wait_for(
+                proc.communicate(), timeout=_DSHOW_LIST_TIMEOUT_SECONDS
+            )
+        except asyncio.TimeoutError:
+            proc.kill()
+            await proc.wait()
+            return []
     except FileNotFoundError:
-        return None
-    match = re.search(r'"([^"]+)"\s*\(video\)', stderr.decode(errors="ignore"))
-    return match.group(1) if match else None
+        return []
+    return _parse_dshow_video_devices(stderr.decode(errors="ignore"))
+
+
+def _parse_dshow_video_devices(stderr_text: str) -> list[str]:
+    return re.findall(r'"([^"]+)"\s*\(video\)', stderr_text)
+
+
+# ---------------------------------------------------------------------------
+# Device suggestions (/photo argument completion)
+# ---------------------------------------------------------------------------
+
+_DEVICE_CACHE_TTL_SECONDS = 60
+# Same cache-dict convention as `completion/caches.py`: callers may pass their
+# own dict to control lifetime; the module default keeps the completer
+# stateless. {"time": float, "devices": list[str]}
+_default_device_cache: dict[str, object] = {}
+
+
+def list_camera_devices(
+    cache: "dict[str, object] | None" = None,
+) -> list[str]:
+    """Candidate device ids/names for `/photo <device>` completion.
+
+    Cheap and best-effort: Termux/avfoundation cameras are addressed by
+    numeric id, Linux/WSL by /dev/video* node, Windows by dshow name (needs
+    one ffmpeg invocation, cached). Returns an empty list when nothing can be
+    probed -- completion then simply offers nothing.
+    """
+    if cache is None:
+        cache = _default_device_cache
+    now = time.monotonic()
+    cached = cache.get("devices")
+    if (
+        isinstance(cached, list)
+        and time.monotonic() - float(cache.get("time", 0.0))
+        < _DEVICE_CACHE_TTL_SECONDS
+    ):
+        return cached
+
+    # lazy: tests patch zrb.config.helper.is_termux; hoisting would bind the
+    # name at this module's load time and bypass the mock.
+    from zrb.config.helper import is_termux
+
+    devices: list[str] = []
+    if is_termux():
+        # termux-camera-photo -c <camera_id>: front/back are typically 0/1.
+        devices = ["0", "1"]
+    elif sys.platform == "darwin":
+        # avfoundation device index; probing requires a full ffmpeg listing.
+        devices = ["0", "1"]
+    elif sys.platform == "win32":
+        try:
+            result = subprocess.run(
+                [
+                    "ffmpeg",
+                    "-f",
+                    "dshow",
+                    "-list_devices",
+                    "true",
+                    "-i",
+                    "dummy",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=_DSHOW_LIST_TIMEOUT_SECONDS,
+            )
+            devices = _parse_dshow_video_devices(result.stderr)
+        except (OSError, subprocess.SubprocessError):
+            pass
+    else:
+        devices = sorted(glob.glob("/dev/video*"))
+
+    cache["time"] = now
+    cache["devices"] = devices
+    return devices
 
 
 CAPTURE_TIMEOUT_SECONDS = 15

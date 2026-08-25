@@ -76,15 +76,20 @@ class TestBaseUICommandHandlers:
         ui.history_manager.save.assert_called_once_with("my-save")
 
     def test_handle_save_command_no_name(self, simple_ui_instance):
-        """Test _handle_save_command with no name provided."""
+        """Bare `/save` warns instead of falling through to the LLM."""
         ui = simple_ui_instance
         ui.save_commands = ["/save"]
         ui.history_manager.load = MagicMock(return_value=[])
         ui.history_manager.update = MagicMock()
+        ui.append_to_output = MagicMock()
 
         result = ui.handle_save_command("/save")
 
-        assert result is False
+        assert result is True
+        assert any(
+            "Conversation name required" in str(call) for call in
+            ui.append_to_output.call_args_list
+        )
 
     def test_handle_save_command_handles_error(self, simple_ui_instance):
         """Test _handle_save_command handles history manager errors."""
@@ -114,13 +119,31 @@ class TestBaseUICommandHandlers:
         assert ui.session_token_usage == (0, 0)
 
     def test_handle_load_command_no_name(self, simple_ui_instance):
-        """Test _handle_load_command with no name provided."""
+        """Bare `/load` warns instead of falling through to the LLM."""
         ui = simple_ui_instance
         ui.load_commands = ["/load"]
+        ui.append_to_output = MagicMock()
+        ui.conversation_session_name = "current-session"
 
         result = ui.handle_load_command("/load")
 
-        assert result is False
+        assert result is True
+        assert any(
+            "Conversation name required" in str(call) for call in
+            ui.append_to_output.call_args_list
+        )
+        # The session name must be untouched.
+        assert ui.conversation_session_name == "current-session"
+
+    def test_handle_load_command_no_name_alias_and_whitespace(self, simple_ui_instance):
+        """/resume and a trailing space hit the same warning path."""
+        ui = simple_ui_instance
+        ui.load_commands = ["/load", "/resume"]
+        ui.append_to_output = MagicMock()
+
+        assert ui.handle_load_command("  /resume  ") is True
+        assert ui.handle_load_command("/load ") is True
+        assert ui.append_to_output.call_count == 2
 
     # ── Item 4, Phase D: persona-swap-on-/load ──
 

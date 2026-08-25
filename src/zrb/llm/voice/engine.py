@@ -363,6 +363,17 @@ class VoiceEngine:
 # --- helpers below callers (per AGENTS.md convention) ------------------------
 
 
+def vosk_installed() -> bool:
+    """True when the vosk package is available for import."""
+    # lazy: heavy third-party — find_spec avoids importing the package.
+    import importlib.util
+
+    try:
+        return importlib.util.find_spec("vosk") is not None
+    except ValueError:
+        return False
+
+
 def _is_openai_chat_model(model: object) -> bool:
     """True for OpenAI chat models that cannot receive audio as content blocks.
 
