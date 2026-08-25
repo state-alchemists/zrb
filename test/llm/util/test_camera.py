@@ -544,13 +544,16 @@ async def test_maybe_refresh_camera_devices_schedules_probe_when_stale(clean_env
         return _FakeProcess(stderr=b'[dshow @ 0] "USB Camera" (video)\n')
 
     with patch("asyncio.create_subprocess_exec", new=AsyncMock(side_effect=_make_proc)):
-        maybe_refresh_camera_devices(cache)
-        # The refresh runs as a background task; give the loop a tick.
-        await asyncio.sleep(0)
-        await asyncio.sleep(0)
+        task = maybe_refresh_camera_devices(cache)
+        assert task is not None
+        # Deterministic: await the scheduled refresh instead of hoping a
+        # couple of loop ticks are enough (they weren't on CI).
+        await task
 
     assert cache.get("refreshing") is False
     assert cache.get("devices") == ["USB Camera"]
+    # Fresh cache → no new refresh scheduled.
+    assert maybe_refresh_camera_devices(cache) is None
 
 
 def test_list_camera_devices_caches_per_caller_dict(clean_env):

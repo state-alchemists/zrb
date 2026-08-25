@@ -319,26 +319,30 @@ async def refresh_camera_devices(cache: "dict[str, Any] | None" = None) -> list[
     return devices
 
 
-def maybe_refresh_camera_devices(cache: "dict[str, Any] | None" = None) -> None:
+def maybe_refresh_camera_devices(
+    cache: "dict[str, Any] | None" = None,
+) -> "asyncio.Task | None":
     """Schedule a device-probe refresh when the cache is stale.
 
     Fire-and-forget: the completer calls this synchronously on every `/photo`
     completion pass; the probe runs as a background task and the next
-    completion pass picks up its result. No-op outside a running loop.
+    completion pass picks up its result. Returns the scheduled task (None
+    when the cache is fresh, a refresh is already in flight, or there is no
+    running loop) so tests and interested callers can await it deterministically.
     """
     if cache is None:
         cache = _default_device_cache
     if cache.get("refreshing"):
-        return
+        return None
     if (
         isinstance(cache.get("devices"), list)
         and time.monotonic() - float(cache.get("time", 0.0)) < _DEVICE_CACHE_TTL_SECONDS
     ):
-        return
+        return None
     try:
         loop = asyncio.get_running_loop()
     except RuntimeError:
-        return
+        return None
 
     async def _refresh() -> None:
         try:
@@ -349,7 +353,7 @@ def maybe_refresh_camera_devices(cache: "dict[str, Any] | None" = None) -> None:
             cache["refreshing"] = False
 
     cache["refreshing"] = True
-    loop.create_task(_refresh())
+    return loop.create_task(_refresh())
 
 
 CAPTURE_TIMEOUT_SECONDS = 15
