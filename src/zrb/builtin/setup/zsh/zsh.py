@@ -3,7 +3,11 @@ import os
 from zrb.builtin.group import setup_group
 from zrb.builtin.setup.common_input import package_manager_input, use_sudo_input
 from zrb.builtin.setup.config_file_helper import append_config_block_if_missing
-from zrb.builtin.setup.zsh.zsh_helper import check_inexist_omz_dir, get_install_zsh_cmd
+from zrb.builtin.setup.zsh.zsh_helper import (
+    check_inexist_omz_dir,
+    check_inexist_zinit_dir,
+    get_install_zsh_cmd,
+)
 from zrb.context.any_context import AnyContext
 from zrb.input.str_input import StrInput
 from zrb.task.cmd_task import CmdTask
@@ -32,6 +36,11 @@ install_zinit = CmdTask(
     name="install-zinit",
     cmd='bash -c "$(curl --fail --show-error --silent --location https://raw.githubusercontent.com/zdharma-continuum/zinit/HEAD/scripts/install.sh)"',  # noqa
     upstream=install_zsh,
+    # check_inexist_zinit_dir is typed (AnyContext) -> bool; the BoolAttr slot
+    # accepts (AnyContext | AnySharedContext) -> bool | None. AnyContext is the
+    # narrower subclass, so the contravariant param trips pyright. Safe at run
+    # time — the task layer always passes an AnyContext.
+    execute_condition=check_inexist_zinit_dir,
 )
 
 

@@ -10,3 +10,8 @@ set-option -sa terminal-overrides ',xterm-256color:RGB'
 bind c new-window -c "#{pane_current_path}"
 bind '"' split-window -c "#{pane_current_path}"
 bind % split-window -h -c "#{pane_current_path}"
+
+bind -r H resize-pane -L 5
+bind -r J resize-pane -D 5
+bind -r K resize-pane -U 5
+bind -r L resize-pane -R 5

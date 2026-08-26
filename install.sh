@@ -311,23 +311,51 @@ expose_python_tools() {
 }
 
 register_autocomplete() {
-    if command_exists zrb; then
-        for rc in "$HOME/.zshrc" "$HOME/.bashrc"; do
-            [ -f "$rc" ] || continue
-            shell_name=$(basename "$rc" | sed 's/\.//')
-            if ! grep -q "zrb shell autocomplete" "$rc" 2>/dev/null; then
-                log_info "Registering zrb autocomplete to $rc"
-                {
-                    echo ""
-                    echo "# Zrb autocomplete"
-                    echo "if command -v zrb >/dev/null 2>&1; then"
-                    echo "    eval \"\$(zrb shell autocomplete $shell_name)\""
-                    echo "fi"
-                } >> "$rc"
-            fi
-        done
-        log_ok "Autocomplete registered"
+    if ! command_exists zrb; then
+        return
     fi
+
+    # POSIX-ish shells: rc file name maps to the `zrb shell autocomplete`
+    # subcommand name directly (bash -> .bashrc, zsh -> .zshrc). Listed
+    # explicitly rather than derived from the filename -- fish's config file
+    # doesn't follow the same ".<shell>rc" naming, so a generic derivation
+    # can't cover it anyway.
+    for entry in "bash:$HOME/.bashrc" "zsh:$HOME/.zshrc"; do
+        shell_name="${entry%%:*}"
+        rc="${entry#*:}"
+        [ -f "$rc" ] || continue
+        if ! grep -q "zrb shell autocomplete" "$rc" 2>/dev/null; then
+            log_info "Registering zrb autocomplete to $rc"
+            {
+                echo ""
+                echo "# Zrb autocomplete"
+                echo "if command -v zrb >/dev/null 2>&1; then"
+                echo "    eval \"\$(zrb shell autocomplete $shell_name)\""
+                echo "fi"
+            } >> "$rc"
+        fi
+    done
+
+    # Fish: different config location, different syntax (no eval/fi), and
+    # the generated script is meant to be sourced, not eval'd.
+    if command_exists fish; then
+        fish_config_dir="$HOME/.config/fish"
+        fish_config="$fish_config_dir/config.fish"
+        mkdir -p "$fish_config_dir"
+        [ -f "$fish_config" ] || touch "$fish_config"
+        if ! grep -q "zrb shell autocomplete" "$fish_config" 2>/dev/null; then
+            log_info "Registering zrb autocomplete to $fish_config"
+            {
+                echo ""
+                echo "# Zrb autocomplete"
+                echo "if command -v zrb >/dev/null 2>&1"
+                echo "    zrb shell autocomplete fish | source"
+                echo "end"
+            } >> "$fish_config"
+        fi
+    fi
+
+    log_ok "Autocomplete registered"
 }
 
 cleanup_local_venv() {

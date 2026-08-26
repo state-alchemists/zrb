@@ -301,7 +301,7 @@ Hello from Zrb!
 
 ## 4. Shell Autocomplete
 
-Zrb supports tab completion for Bash, Zsh, and PowerShell.
+Zrb supports tab completion for Bash, Zsh, Fish, and PowerShell.
 
 ### Bash
 
@@ -322,6 +322,16 @@ eval "$(zrb shell autocomplete zsh)"
 ```
 
 Then reload: `source ~/.zshrc`
+
+### Fish
+
+Add to `~/.config/fish/config.fish`:
+
+```fish
+zrb shell autocomplete fish | source
+```
+
+Then reload: `source ~/.config/fish/config.fish`
 
 ### PowerShell
 
