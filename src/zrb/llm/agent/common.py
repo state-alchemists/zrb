@@ -467,7 +467,9 @@ def create_agent(
     final_model = default_llm_config.resolve_model(model) if resolve_model else model
     effective_retries = retries if retries is not None else CFG.LLM_TOOL_MAX_RETRIES
     effective_model_settings = _apply_request_timeout(
-        _apply_capability_constraints(model, final_model, model_settings)
+        _apply_reasoning_defaults(
+            _apply_capability_constraints(model, final_model, model_settings)
+        )
     )
 
     agent: "Agent[None, Any]" = Agent(
@@ -521,6 +523,48 @@ def _apply_request_timeout(
     if "timeout" in model_settings:
         return model_settings
     return {**model_settings, "timeout": timeout_ms / 1000}
+
+
+def _apply_reasoning_defaults(
+    model_settings: "ModelSettings | None",
+) -> "ModelSettings | None":
+    """Default to a visible, cached reasoning experience out of the box.
+
+    Without ``openai_reasoning_summary``, OpenAI's Responses API returns a
+    ``ThinkingPart`` with empty ``content`` and only an opaque encrypted
+    ``signature`` — real reasoning happened, but nothing human-readable comes
+    back (confirmed against a live session's persisted history: 1612 bytes of
+    signature, zero characters of text). ``"auto"`` asks OpenAI to include a
+    readable summary. ``openai_prompt_cache_retention="24h"`` extends how long
+    OpenAI keeps a conversation's cached prefix warm (default is much
+    shorter), which matters for zrb's usage pattern of resending a growing
+    history on every turn; per pydantic-ai's own docs the two prompt-cache
+    settings are independent of the newer GPT-5.6 ``openai_prompt_cache_options``
+    mechanism, so setting both is safe.
+
+    ``LLM_THINKING`` (unset by default) maps onto pydantic-ai's own
+    cross-provider ``ModelSettings.thinking`` field, so one CFG knob controls
+    reasoning effort across OpenAI/Anthropic/Google/etc. instead of a
+    per-provider setting.
+
+    Every key here is either OpenAI-namespaced (silently ignored by every
+    other provider's model class — pydantic-ai's own convention, not
+    something to special-case per model) or the provider-agnostic ``thinking``
+    field. Caller-supplied ``model_settings`` always win, key by key.
+    """
+    # Untyped as a plain dict, not ModelSettings: the OpenAI-namespaced keys
+    # only exist on OpenAIChatModelSettings/OpenAIResponsesModelSettings, a
+    # more specific TypedDict than the provider-agnostic one this function
+    # (and every caller in the chain) is typed against.
+    defaults: dict[str, Any] = {
+        "openai_reasoning_summary": "auto",
+        "openai_prompt_cache_retention": "24h",
+    }
+    if CFG.LLM_THINKING is not None:
+        defaults["thinking"] = CFG.LLM_THINKING
+    if model_settings is None:
+        return cast("ModelSettings", defaults)
+    return cast("ModelSettings", {**defaults, **model_settings})
 
 
 def _apply_capability_constraints(

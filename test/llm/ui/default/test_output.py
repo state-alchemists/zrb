@@ -630,3 +630,203 @@ def test_replace_output_span_refuses_stale_span():
 
     with patch.object(ui.output_part, "schedule_invalidate"):
         assert ui.replace_output_span(0, 100, "x") is False
+
+
+def test_append_toggle_block_shows_collapsed_by_default():
+    ui = MockMarkdownUI()
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.append_toggle_block("short", "much longer full text")
+
+    assert "short" in ui.output_text
+    assert "much longer full text" not in ui.output_text
+    assert len(ui.rendered_blocks) == 1
+
+
+def test_append_toggle_block_skips_tracking_when_variants_match():
+    """No point tracking a block that has nothing to expand into."""
+    ui = MockMarkdownUI()
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.append_toggle_block("same", "same")
+
+    assert ui.output_text == "same"
+    assert ui.rendered_blocks == []
+
+
+def test_toggle_collapsible_block_at_cursor_expands_then_collapses():
+    ui = MockMarkdownUI()
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.append_toggle_block("short", "much longer full text")
+        # Cursor follows the tail after the append (see _RecordingBuffer).
+        toggled = ui.toggle_collapsible_block_at_cursor()
+        expanded = ui.output_text
+        toggled_again = ui.toggle_collapsible_block_at_cursor()
+        collapsed_again = ui.output_text
+
+    assert toggled is True
+    assert "much longer full text" in expanded
+    assert toggled_again is True
+    assert "short" in collapsed_again
+    assert "much longer full text" not in collapsed_again
+
+
+def test_toggle_collapsible_block_at_cursor_returns_false_without_a_block():
+    ui = MockMarkdownUI()
+    ui.output_field.text = "plain text, no toggle blocks"
+    ui.output_field.buffer.cursor_position = len(ui.output_field.text)
+
+    assert ui.toggle_collapsible_block_at_cursor() is False
+
+
+def test_toggle_collapsible_block_at_cursor_leaves_state_unchanged_on_stale_span():
+    """If the recorded span no longer matches the buffer (stale), the toggle
+    must not flip `expanded` or move the tracked offsets — otherwise a later
+    toggle would work from corrupted bookkeeping instead of retrying cleanly."""
+    ui = MockMarkdownUI()
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.append_toggle_block("short", "much longer full text")
+
+    block = ui.rendered_blocks[0]
+    # Simulate a stale span (end past the end of the buffer).
+    block[1] = len(ui.output_text) + 100
+    ui.output_field.buffer.cursor_position = len(ui.output_text)
+
+    result = ui.toggle_collapsible_block_at_cursor()
+
+    assert result is False
+    assert block[2].expanded is False
+    assert "much longer full text" not in ui.output_text
+
+
+def test_toggle_collapsible_block_at_cursor_shifts_later_blocks():
+    """Toggling an earlier block must keep a later block's offsets correct —
+    the same shift bookkeeping `replace_output_span` already guarantees for
+    markdown/help-panel blocks."""
+    ui = MockMarkdownUI()
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.append_toggle_block("first", "first EXPANDED")
+        ui.append_to_output("between")
+        ui.append_toggle_block("second", "second EXPANDED")
+
+        second_block = ui.rendered_blocks[1]
+        expected_second_text = ui.output_text[second_block[0] : second_block[1]]
+
+        # Point the cursor at the first block and toggle it.
+        ui.output_field.buffer.cursor_position = 0
+        toggled = ui.toggle_collapsible_block_at_cursor()
+
+    assert toggled is True
+    # The second block's recorded span must still slice out its own text
+    # after the first block grew.
+    assert ui.output_text[second_block[0] : second_block[1]] == expected_second_text
+
+
+def test_rewrap_output_preserves_toggle_block_expanded_state():
+    """A toggle block's renderer ignores width and reads `expanded`, so a
+    resize-triggered rewrap must not revert an expanded block to collapsed."""
+    ui = MockMarkdownUI()
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        with patch("zrb.llm.ui.default.output.get_terminal_size") as mock_size:
+            mock_size.return_value.columns = 60
+            ui.append_toggle_block("short", "much longer full text")
+            ui.output_field.buffer.cursor_position = len(ui.output_field.text)
+            ui.toggle_collapsible_block_at_cursor()
+            assert "much longer full text" in ui.output_text
+
+            mock_size.return_value.columns = 120
+            ui.rewrap_output()
+
+    assert "much longer full text" in ui.output_text
+
+
+def test_mark_and_collapse_thinking_block_wraps_the_streamed_span():
+    """Thinking streams live (unlike tool-call blocks, nothing is withheld);
+    `collapse_thinking_block` retroactively wraps that already-printed span,
+    using the caller-supplied `full` text (not re-read from the buffer —
+    see the carriage-return regression test below for why)."""
+    ui = MockMarkdownUI()
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.append_to_output("before ")
+        ui.mark_thinking_block_start()
+        ui.append_to_output("a long stream of live thinking text", end="")
+        collapsed = ui.collapse_thinking_block(
+            "🧠 Thought\n", "a long stream of live thinking text"
+        )
+
+    assert collapsed is True
+    assert "a long stream of live thinking text" not in ui.output_text
+    assert "🧠 Thought" in ui.output_text
+    assert ui.output_text.startswith("before ")
+    assert len(ui.rendered_blocks) == 1
+    # The full original text is still one toggle away.
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.output_field.buffer.cursor_position = len(ui.output_text)
+        ui.toggle_collapsible_block_at_cursor()
+    assert ui.output_text.startswith("before ")
+    assert "a long stream of live thinking text" in ui.output_text
+
+
+def test_collapse_thinking_block_ignores_buffer_mangled_by_carriage_return():
+    """Regression: the passed-in `full` must win even when the *rendered*
+    span no longer matches it (e.g. a stray \\r rewrote part of the live
+    line) — this is the whole reason `full` is a parameter instead of being
+    re-derived from the buffer."""
+    ui = MockMarkdownUI()
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.mark_thinking_block_start()
+        # \r erases back to the start of the current line — simulates what
+        # append_to_output's spinner handling does to any \r-bearing chunk.
+        ui.append_to_output("first part\rsecond part", end="")
+        # What's actually on screen right now is only "second part" — but a
+        # caller that accumulated the untouched original still has it all.
+        assert "first part" not in ui.output_text
+
+        collapsed = ui.collapse_thinking_block("🧠 Thought\n", "first part second part")
+        ui.output_field.buffer.cursor_position = len(ui.output_text)
+        ui.toggle_collapsible_block_at_cursor()
+
+    assert collapsed is True
+    assert "first part" in ui.output_text
+    assert "second part" in ui.output_text
+
+
+def test_collapse_thinking_block_without_a_mark_is_a_noop():
+    ui = MockMarkdownUI()
+    ui.output_field.text = "no marked thinking block here"
+
+    assert ui.collapse_thinking_block("🧠 Thought\n", "thinking text") is False
+    assert ui.output_text == "no marked thinking block here"
+
+
+def test_collapse_thinking_block_without_full_text_is_a_noop():
+    """Nothing was actually accumulated — nothing to collapse into, so this
+    must not create a broken (empty-when-expanded) block."""
+    ui = MockMarkdownUI()
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.mark_thinking_block_start()
+
+    assert ui.collapse_thinking_block("🧠 Thought\n", "") is False
+
+
+def test_collapse_thinking_block_consumes_the_mark_once():
+    """A second collapse call without a fresh mark must be a no-op, not
+    re-collapse (or corrupt) whatever now sits at the old offset."""
+    ui = MockMarkdownUI()
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.mark_thinking_block_start()
+        ui.append_to_output("thinking", end="")
+        ui.collapse_thinking_block("🧠 Thought\n", "thinking")
+        after_first = ui.output_text
+        result = ui.collapse_thinking_block("🧠 Thought\n", "thinking")
+
+    assert result is False
+    assert ui.output_text == after_first

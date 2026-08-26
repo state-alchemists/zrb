@@ -745,6 +745,14 @@ def _default_timeout() -> float:
     return CFG.LLM_REQUEST_TIMEOUT / 1000
 
 
+def _reasoning_defaults() -> dict:
+    """The reasoning/caching defaults every agent carries unless overridden."""
+    return {
+        "openai_reasoning_summary": "auto",
+        "openai_prompt_cache_retention": "24h",
+    }
+
+
 def test_create_agent_forces_sequential_for_parallel_unsupported_model():
     """Models in the capabilities deny-list get ``parallel_tool_calls=False``."""
     from zrb.llm.agent.common import create_agent
@@ -760,6 +768,7 @@ def test_create_agent_forces_sequential_for_parallel_unsupported_model():
     assert _settings_of(mock_agent_class) == {
         "parallel_tool_calls": False,
         "timeout": _default_timeout(),
+        **_reasoning_defaults(),
     }
 
 
@@ -780,6 +789,7 @@ def test_create_agent_respects_caller_parallel_tool_calls_override():
         "parallel_tool_calls": True,
         "temperature": 0.5,
         "timeout": _default_timeout(),
+        **_reasoning_defaults(),
     }
 
 
@@ -797,7 +807,7 @@ def test_create_agent_leaves_unknown_models_unchanged():
 
     settings = _settings_of(mock_agent_class)
     assert "parallel_tool_calls" not in settings
-    assert settings == {"timeout": _default_timeout()}
+    assert settings == {"timeout": _default_timeout(), **_reasoning_defaults()}
 
 
 # ── Request deadline ─────────────────────────────────────────────────────
@@ -817,7 +827,7 @@ def test_create_agent_applies_the_configured_request_timeout(monkeypatch):
     with patch("pydantic_ai.Agent", mock_agent_class):
         create_agent(model="openai:gpt-4o", system_prompt="test", yolo=True)
 
-    assert _settings_of(mock_agent_class) == {"timeout": 45.0}
+    assert _settings_of(mock_agent_class) == {"timeout": 45.0, **_reasoning_defaults()}
 
 
 def test_create_agent_lets_the_caller_own_the_timeout():
@@ -833,7 +843,51 @@ def test_create_agent_lets_the_caller_own_the_timeout():
             yolo=True,
         )
 
-    assert _settings_of(mock_agent_class) == {"timeout": 5.0}
+    assert _settings_of(mock_agent_class) == {"timeout": 5.0, **_reasoning_defaults()}
+
+
+def test_create_agent_lets_the_caller_own_reasoning_defaults():
+    """Caller-supplied openai_reasoning_summary/prompt_cache_retention win."""
+    from zrb.llm.agent.common import create_agent
+
+    mock_agent_class = MagicMock()
+    with patch("pydantic_ai.Agent", mock_agent_class):
+        create_agent(
+            model="openai:gpt-4o",
+            system_prompt="test",
+            model_settings={"openai_reasoning_summary": "detailed"},
+            yolo=True,
+        )
+
+    settings = _settings_of(mock_agent_class)
+    assert settings["openai_reasoning_summary"] == "detailed"
+    assert settings["openai_prompt_cache_retention"] == "24h"
+
+
+def test_create_agent_applies_configured_thinking_level(monkeypatch):
+    """CFG.LLM_THINKING maps onto pydantic-ai's unified `thinking` setting."""
+    from zrb.llm.agent.common import create_agent
+
+    monkeypatch.setattr(CFG, "DEFAULT_LLM_THINKING", "high")
+    monkeypatch.delenv(f"{CFG.ENV_PREFIX}_LLM_THINKING", raising=False)
+    mock_agent_class = MagicMock()
+    with patch("pydantic_ai.Agent", mock_agent_class):
+        create_agent(model="openai:gpt-4o", system_prompt="test", yolo=True)
+
+    assert _settings_of(mock_agent_class)["thinking"] == "high"
+
+
+def test_create_agent_omits_thinking_when_unset(monkeypatch):
+    """LLM_THINKING unset (the default) leaves `thinking` out entirely, so
+    each provider's own default behavior applies untouched."""
+    from zrb.llm.agent.common import create_agent
+
+    monkeypatch.delenv(f"{CFG.ENV_PREFIX}_LLM_THINKING", raising=False)
+    mock_agent_class = MagicMock()
+    with patch("pydantic_ai.Agent", mock_agent_class):
+        create_agent(model="openai:gpt-4o", system_prompt="test", yolo=True)
+
+    assert "thinking" not in _settings_of(mock_agent_class)
 
 
 def test_create_agent_omits_the_timeout_when_disabled(monkeypatch):
@@ -846,4 +900,6 @@ def test_create_agent_omits_the_timeout_when_disabled(monkeypatch):
     with patch("pydantic_ai.Agent", mock_agent_class):
         create_agent(model="openai:gpt-4o", system_prompt="test", yolo=True)
 
-    assert _settings_of(mock_agent_class) is None
+    # No timeout key, but the reasoning/caching defaults still apply — those
+    # are unconditional, unlike the timeout which can be disabled.
+    assert _settings_of(mock_agent_class) == _reasoning_defaults()

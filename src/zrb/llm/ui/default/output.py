@@ -92,11 +92,38 @@ def _get_mode_status_style(mode: str) -> str:
     }.get(mode, "")
 
 
+class CollapsibleBlockSource:
+    """Rendered-block payload for a collapsible line (tool-call/result,
+    thinking, ...).
+
+    Plugs into `UIOutput.rendered_blocks` as a `source` alongside the
+    markdown/help-panel sources already tracked there, so `rewrap_output`
+    re-renders it (and shifts later blocks) for free on resize.
+    """
+
+    __slots__ = ("collapsed", "full", "expanded")
+
+    def __init__(self, collapsed: str, full: str):
+        self.collapsed = collapsed
+        self.full = full
+        self.expanded = False
+
+
+def _render_collapsible_block(
+    source: "CollapsibleBlockSource", width: int | None
+) -> str:
+    return source.full if source.expanded else source.collapsed
+
+
 class UIOutput:
     """Renders the output field, info bar, and status bar for the default UI."""
 
     def __init__(self, ui: "UI") -> None:
         self._ui = ui
+        # Set by `mark_thinking_block_start`; consumed (and cleared) by
+        # `collapse_thinking_block`. Purely local, transient per-turn state —
+        # not shared with anything else, so it lives here rather than on `ui`.
+        self._thinking_block_start: int | None = None
 
     @property
     def is_thinking(self) -> bool:
@@ -250,6 +277,93 @@ class UIOutput:
         # content instead of inserting it, which would make the span a lie.
         if end - start == len(rendered):
             self._ui.rendered_blocks.append([start, end, source, renderer])
+
+    def append_toggle_block(self, collapsed: str, full: str) -> None:
+        """Append a tool-call/result line that can later be expanded in place.
+
+        Styling is applied once here (mirroring what `append_to_output` does
+        automatically for `kind="tool_call"`) because `append_rendered`
+        inserts via `append_to_output(rendered, end="")` with the default
+        `kind="text"`, which skips auto-styling.
+        """
+        if collapsed == full:
+            self.append_to_output(collapsed, end="")
+            return
+        source = CollapsibleBlockSource(stylize_muted(collapsed), stylize_muted(full))
+        self.append_rendered(source, _render_collapsible_block)
+
+    def mark_thinking_block_start(self) -> None:
+        """Record where a live-streamed thinking block begins in the buffer.
+
+        Called right before the model's first thinking chunk is printed, so
+        `collapse_thinking_block` can later wrap exactly that span. Thinking
+        streams live (unlike tool-call args/results, which are collapsed
+        from the start) — this is a retroactive collapse, not a withhold.
+        """
+        self._thinking_block_start = len(self.output_text)
+
+    def collapse_thinking_block(self, collapsed: str, full: str) -> bool:
+        """Collapse the thinking block opened by `mark_thinking_block_start`.
+
+        `full` is the accumulated text `StreamEventHandler` actually sent to
+        print_fn for this block — deliberately NOT re-read from the buffer.
+        A stray carriage return anywhere in a thinking delta can rewrite or
+        erase part of the *rendered* line (see `append_to_output`'s `\\r`
+        handling, built for progress spinners but applying to any text), so
+        reconstructing "the full thought" from what currently sits on screen
+        would silently inherit that erasure. The caller already avoided this
+        by accumulating chunks at the source.
+
+        Nothing is appended here — the live text is already on screen; this
+        replaces that already-printed span with `collapsed`, keeping `full`
+        one Ctrl+O away. A no-op if no block was marked (e.g. this UI missed
+        the start signal) or nothing was actually accumulated.
+        """
+        start = self._thinking_block_start
+        self._thinking_block_start = None
+        if start is None or not full:
+            return False
+        end = len(self.output_text)
+        if end <= start:
+            return False
+        source = CollapsibleBlockSource(stylize_muted(collapsed), stylize_muted(full))
+        if not self.replace_output_span(start, end, source.collapsed):
+            return False
+        self._ui.rendered_blocks.append(
+            [start, start + len(source.collapsed), source, _render_collapsible_block]
+        )
+        return True
+
+    def toggle_collapsible_block_at_cursor(self) -> bool:
+        """Expand/collapse the collapsible block at-or-before the output
+        cursor (a tool call, a tool result, or a collapsed thinking block).
+
+        `rendered_blocks` is append-ordered == position-ordered (the same
+        invariant `rewrap_output` relies on), so this picks the *last*
+        collapsible block at-or-before the cursor — "the block I'm looking
+        at," or the most recent one when the cursor is following the tail.
+        Returns whether a block was found and toggled.
+        """
+        try:
+            offset = self._ui.output_field.buffer.cursor_position
+        except Exception:
+            return False
+        target = None
+        for block in self._ui.rendered_blocks:
+            if block[0] > offset:
+                break
+            if isinstance(block[2], CollapsibleBlockSource):
+                target = block
+        if target is None:
+            return False
+        source = target[2]
+        new_expanded = not source.expanded
+        new_text = source.full if new_expanded else source.collapsed
+        if not self.replace_output_span(target[0], target[1], new_text):
+            return False
+        source.expanded = new_expanded
+        target[1] = target[0] + len(new_text)
+        return True
 
     def rewrap_output(self) -> None:
         """Re-render tracked blocks at the current width (public API).

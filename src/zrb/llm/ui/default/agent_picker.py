@@ -229,6 +229,37 @@ class UIAgentPicker:
             return
         self._show_viewed_agent_output(session.buffered_ui.get_buffered_output())
 
+    def toggle_viewed_agent_block(self) -> bool:
+        """Expand/collapse the collapsible block at the output cursor, in
+        the currently-viewed sub-agent's own scope (public API).
+
+        The sub-agent's `BufferedUI` tracks its own toggle blocks
+        independently of the main transcript's `UIOutput.rendered_blocks`
+        (see `BufferedUI.toggle_collapsible_block_at_offset`) — this method
+        is the routing point `UI.toggle_collapsible_block` calls into while
+        `viewing_agent_id` is set, so Ctrl+O always operates on whatever is
+        actually displayed. Returns `False` when not viewing, when the
+        session vanished, or when nothing was found to toggle.
+        """
+        if self._viewing_agent_id is None:
+            return False
+        # lazy: transitively heavy via internal — live_session.py imports
+        # run_agent (zrb.llm.agent.run.runner), which pulls in pydantic_ai.
+        from zrb.llm.agent.subagent.live_session import (
+            live_subagent_session_registry,
+        )
+
+        session = live_subagent_session_registry.get(
+            self._ui.conversation_session_name, self._viewing_agent_id
+        )
+        if session is None:
+            return False
+        offset = self._ui.output_field.buffer.cursor_position
+        toggled = session.buffered_ui.toggle_collapsible_block_at_offset(offset)
+        if toggled:
+            self._show_viewed_agent_output(session.buffered_ui.get_buffered_output())
+        return toggled
+
     def _show_viewed_agent_output(self, content: str) -> None:
         if content == self._ui.output_text:
             return

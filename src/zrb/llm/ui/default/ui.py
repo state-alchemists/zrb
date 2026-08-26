@@ -577,6 +577,29 @@ class UI(BaseUI):
     def replace_output_span(self, start: int, end: int, replacement: str) -> bool:
         return self._output.replace_output_span(start, end, replacement)
 
+    def record_tool_call_block(self, collapsed: str, full: str) -> None:
+        self._output.append_toggle_block(collapsed, full)
+
+    def mark_thinking_block_start(self) -> None:
+        self._output.mark_thinking_block_start()
+
+    def collapse_thinking_block(self, collapsed: str, full: str) -> bool:
+        return self._output.collapse_thinking_block(collapsed, full)
+
+    def toggle_collapsible_block(self) -> bool:
+        # While viewing a sub-agent, the output pane shows THAT sub-agent's
+        # own buffered text, tracked by its own toggle-block scope — not the
+        # main transcript's `rendered_blocks`. Route there so Ctrl+O always
+        # operates on whatever is actually displayed.
+        toggled = (
+            self._agent_picker.toggle_viewed_agent_block()
+            if self.viewing_agent_id is not None
+            else self._output.toggle_collapsible_block_at_cursor()
+        )
+        if toggled:
+            self.invalidate_ui()
+        return toggled
+
     def set_output_text(self, text: str) -> None:
         self._output.set_output_text(text)
 

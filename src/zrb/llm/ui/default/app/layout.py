@@ -276,10 +276,20 @@ def create_layout(
                     Window(height=1),  # Top margin
                     Frame(
                         input_field,
-                        title="Ctrl+J newline · Ctrl+V/Alt+V paste · ESC cancel · /help",
+                        title="Ctrl+J newline · Ctrl+V/Alt+V paste · ESC cancel",
                         style="class:input-frame",
                     ),
-                    Window(height=1),  # Bottom padding
+                    # Second hint line, in the slot that used to be blank
+                    # padding — the frame's own title row is a fixed single
+                    # line (prompt_toolkit's Frame), too narrow to also fit
+                    # these once Ctrl+O was added.
+                    Window(
+                        height=1,
+                        content=FormattedTextControl(
+                            HTML("<faint> Ctrl+O expand/collapse · /help</faint>")
+                        ),
+                        align=WindowAlign.CENTER,
+                    ),
                     # Sub-agent activity panel (collapses when idle)
                     *extra_children,
                     # Status Bar (fixed height)

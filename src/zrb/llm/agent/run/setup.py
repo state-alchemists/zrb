@@ -137,5 +137,8 @@ def _setup_print_and_events(print_fn, event_handler, effective_ui):
             show_tool_call_detail=CFG.LLM_SHOW_TOOL_CALL_DETAIL,
             show_tool_result=CFG.LLM_SHOW_TOOL_CALL_RESULT,
             usage_callback=getattr(effective_ui, "accumulate_usage", None),
+            tool_block_recorder=getattr(effective_ui, "record_tool_call_block", None),
+            on_thinking_start=getattr(effective_ui, "mark_thinking_block_start", None),
+            on_thinking_collapse=getattr(effective_ui, "collapse_thinking_block", None),
         )
     return effective_print_fn, effective_event_handler
