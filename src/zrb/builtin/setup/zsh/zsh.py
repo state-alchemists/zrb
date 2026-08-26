@@ -19,7 +19,7 @@ install_zsh = CmdTask(
 
 install_omz = CmdTask(
     name="install-omz",
-    cmd='sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"',  # noqa
+    cmd='[ -d "${ZSH:-$HOME/.oh-my-zsh}" ] || sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"',  # noqa
     upstream=install_zsh,
 )
 
