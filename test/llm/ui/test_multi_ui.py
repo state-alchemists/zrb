@@ -334,7 +334,10 @@ async def test_multi_ui_process_messages_loop_no_busy_wait(multi_ui):
         multi_ui.submit_user_message(llm_task, "second")
 
         task = asyncio.create_task(multi_ui.process_messages_loop())
-        await real_sleep(0.05)
+        # Wait for both queued jobs to be marked done rather than sleeping a
+        # fixed wall-clock delay — under load, a fixed sleep can elapse before
+        # the second job finishes, making the assertion below flaky.
+        await asyncio.wait_for(multi_ui.message_queue.join(), timeout=5)
         task.cancel()
         try:
             await task

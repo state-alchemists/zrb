@@ -38,7 +38,7 @@ Register-ArgumentCompleter -Native -CommandName '{command_name}' -ScriptBlock {
 
 @make_task(
     name="make-powershell-autocomplete",
-    description="🐚 Create Zrb autocomplete script for PowerShell",
+    description="🔷 Create Zrb autocomplete script for PowerShell",
     group=shell_autocomplete_group,
     alias="powershell",
 )

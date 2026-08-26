@@ -4,14 +4,11 @@ from zrb.context.any_context import AnyContext
 from zrb.task.make_task import make_task
 
 _COMPLETION_SCRIPT = """
-# Bash dynamic completion script
 _{command_name}_complete() {
     local cur cmd_input subcmd_output cache_file
     local -a subcommands
 
     cur="${COMP_WORDS[COMP_CWORD]}"
-
-    # Build the command input dynamically (excluding the current word being typed)
     cmd_input="{command_name} shell autocomplete subcmd ${COMP_WORDS[@]:0:$COMP_CWORD}"
 
     # Cache the subcommand list for a minute, keyed by cwd + the command
@@ -26,14 +23,10 @@ _{command_name}_complete() {
         printf '%s' "$subcmd_output" > "$cache_file"
     fi
 
-    # Split the output into an array of subcommands using whitespace
     IFS=' ' read -r -a subcommands <<< "$subcmd_output"
-
-    # Generate completion suggestions if subcommands is not empty
     COMPREPLY=( $(compgen -W "${subcommands[*]}" -- "$cur") )
 }
 
-# Register the completion function for {command_name}
 complete -F _{command_name}_complete {command_name}
 
 """

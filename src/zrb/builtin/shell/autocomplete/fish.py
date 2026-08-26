@@ -4,7 +4,6 @@ from zrb.context.any_context import AnyContext
 from zrb.task.make_task import make_task
 
 _COMPLETION_SCRIPT = """
-# Fish dynamic completion script
 function __{command_name}_complete
     # `commandline -opc` returns the tokens before the cursor, excluding the
     # word currently being typed (fish filters candidates against that word
@@ -30,14 +29,13 @@ function __{command_name}_complete
     printf '%s\\n' $subcommands | tee "$cache_file"
 end
 
-# Register the completion function for {command_name}
 complete -c {command_name} -f -a '(__{command_name}_complete)'
 """
 
 
 @make_task(
     name="make-fish-autocomplete",
-    description="🐚 Create Zrb autocomplete script for fish",
+    description="🐟 Create Zrb autocomplete script for fish",
     group=shell_autocomplete_group,
     alias="fish",
 )

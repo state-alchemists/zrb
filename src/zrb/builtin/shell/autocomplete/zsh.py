@@ -4,7 +4,6 @@ from zrb.context.any_context import AnyContext
 from zrb.task.make_task import make_task
 
 _COMPLETION_SCRIPT = """
-# Zsh dynamic completion script
 _{command_name}_complete() {
     local -a subcommands
     local cmd_input
@@ -25,21 +24,17 @@ _{command_name}_complete() {
         printf '%s' "$subcmd_output" > "$cache_file"
     fi
 
-    # Split the output into an array using spaces or newlines as separators
     subcommands=(${=subcmd_output})
-
-    # Provide the completion suggestions
     _describe 'subcommand' subcommands
 }
 
-# Register the completion function
 compdef _{command_name}_complete {command_name}
 """
 
 
 @make_task(
     name="make-zsh-autocomplete",
-    description="🐚 Create Zrb autocomplete script for zsh",
+    description="💫 Create Zrb autocomplete script for zsh",
     group=shell_autocomplete_group,
     alias="zsh",
 )
