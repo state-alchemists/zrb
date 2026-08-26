@@ -1,4 +1,11 @@
+import os
+
 from zrb.context.any_context import AnyContext
+
+
+def check_inexist_omz_dir(_: AnyContext) -> bool:
+    omz_dir = os.path.expanduser(os.path.join("~", ".oh-my-zsh"))
+    return not os.path.isdir(omz_dir)
 
 
 def get_install_zsh_cmd(ctx: AnyContext) -> str:
