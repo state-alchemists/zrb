@@ -3,7 +3,10 @@ import os
 from zrb.builtin.group import setup_group
 from zrb.builtin.setup.common_input import package_manager_input, use_sudo_input
 from zrb.builtin.setup.config_file_helper import append_config_block_if_missing
-from zrb.builtin.setup.tmux.tmux_helper import get_install_tmux_cmd
+from zrb.builtin.setup.tmux.tmux_helper import (
+    check_inexist_tpm_dir,
+    get_install_tmux_cmd,
+)
 from zrb.context.any_context import AnyContext
 from zrb.input.str_input import StrInput
 from zrb.task.cmd_task import CmdTask
@@ -18,6 +21,17 @@ install_tmux = CmdTask(
 )
 
 
+install_tpm = CmdTask(
+    name="install-tpm",
+    cmd="git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm",
+    # check_inexist_tpm_dir is typed (AnyContext) -> bool; the BoolAttr slot
+    # accepts (AnyContext | AnySharedContext) -> bool | None. AnyContext is the
+    # narrower subclass, so the contravariant param trips pyright. Safe at run
+    # time — the task layer always passes an AnyContext.
+    execute_condition=check_inexist_tpm_dir,
+)
+
+
 @make_task(
     name="setup-tmux",
     input=StrInput(
@@ -26,7 +40,7 @@ install_tmux = CmdTask(
         prompt="Tmux config file",
         default="~/.tmux.conf",
     ),
-    upstream=install_tmux,
+    upstream=[install_tmux, install_tpm],
     description="📺 Setup `tmux`.",
     group=setup_group,
     alias="tmux",

@@ -13,7 +13,19 @@ Register-ArgumentCompleter -Native -CommandName '{command_name}' -ScriptBlock {
     if ($wordToComplete -ne '' -and $elements.Count -gt 0 -and $elements[-1] -eq $wordToComplete) {
         $elements = $elements[0..($elements.Count - 2)]
     }
-    $subcmdOutput = {command_name} shell autocomplete subcmd $elements 2>$null
+
+    # Cache the subcommand list for a minute, keyed by cwd + the command
+    # being completed, so repeated Tab presses don't pay a fresh process
+    # spawn (and zrb_init.py reload) on every keystroke.
+    $cacheKey = (($PWD.Path + ' ' + ($elements -join ' ')) -replace '[^a-zA-Z0-9]', '_')
+    $cacheFile = Join-Path $env:TEMP "{command_name}-autocomplete-cache-$cacheKey"
+
+    if ((Test-Path $cacheFile) -and ((Get-Item $cacheFile).LastWriteTime -gt (Get-Date).AddMinutes(-1))) {
+        $subcmdOutput = Get-Content $cacheFile -Raw
+    } else {
+        $subcmdOutput = {command_name} shell autocomplete subcmd $elements 2>$null
+        $subcmdOutput | Out-File -FilePath $cacheFile -NoNewline
+    }
 
     if ($subcmdOutput) {
         $subcmdOutput -split '\\s+' | Where-Object { $_ -ne '' -and $_ -like "$wordToComplete*" } | ForEach-Object {
@@ -26,7 +38,7 @@ Register-ArgumentCompleter -Native -CommandName '{command_name}' -ScriptBlock {
 
 @make_task(
     name="make-powershell-autocomplete",
-    description="🐚 Create Zrb autocomplete script for PowerShell",
+    description="🔷 Create Zrb autocomplete script for PowerShell",
     group=shell_autocomplete_group,
     alias="powershell",
 )

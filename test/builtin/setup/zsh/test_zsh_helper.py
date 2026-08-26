@@ -1,8 +1,51 @@
 """Tests for zsh_helper.py - Zsh installation command generation."""
 
-from unittest.mock import MagicMock
+import os
+from unittest.mock import MagicMock, patch
 
-from zrb.builtin.setup.zsh.zsh_helper import get_install_zsh_cmd
+from zrb.builtin.setup.zsh.zsh_helper import (
+    check_inexist_omz_dir,
+    check_inexist_zinit_dir,
+    get_install_zsh_cmd,
+)
+
+
+def test_check_inexist_omz_dir_exists():
+    """Test check_inexist_omz_dir when ~/.oh-my-zsh exists."""
+    with patch.dict(os.environ, {"HOME": "/tmp"}):
+        with patch("os.path.isdir", return_value=True):
+            ctx = MagicMock()
+            result = check_inexist_omz_dir(ctx)
+            assert result is False
+
+
+def test_check_inexist_omz_dir_not_exists():
+    """Test check_inexist_omz_dir when ~/.oh-my-zsh does not exist."""
+    with patch.dict(os.environ, {"HOME": "/tmp"}):
+        with patch("os.path.isdir", return_value=False):
+            ctx = MagicMock()
+            result = check_inexist_omz_dir(ctx)
+            assert result is True
+
+
+def test_check_inexist_zinit_dir_exists_via_xdg_data_home():
+    """Test check_inexist_zinit_dir when $XDG_DATA_HOME/zinit/zinit.git exists."""
+    with patch.dict(os.environ, {"XDG_DATA_HOME": "/tmp/data"}):
+        with patch("os.path.isdir", return_value=True) as mock_isdir:
+            ctx = MagicMock()
+            result = check_inexist_zinit_dir(ctx)
+            assert result is False
+            mock_isdir.assert_called_once_with("/tmp/data/zinit/zinit.git")
+
+
+def test_check_inexist_zinit_dir_not_exists_default_path():
+    """Test check_inexist_zinit_dir falls back to ~/.local/share when unset."""
+    with patch.dict(os.environ, {"HOME": "/tmp"}, clear=True):
+        with patch("os.path.isdir", return_value=False) as mock_isdir:
+            ctx = MagicMock()
+            result = check_inexist_zinit_dir(ctx)
+            assert result is True
+            mock_isdir.assert_called_once_with("/tmp/.local/share/zinit/zinit.git")
 
 
 def test_get_install_zsh_cmd_with_apt():

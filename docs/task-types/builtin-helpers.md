@@ -219,6 +219,7 @@ All of these are nested under a `shell autocomplete` subgroup.
 |---------|-------------|
 | `zrb shell autocomplete bash` | Generate bash completion script |
 | `zrb shell autocomplete zsh` | Generate zsh completion script |
+| `zrb shell autocomplete fish` | Generate fish completion script |
 | `zrb shell autocomplete powershell` | Generate PowerShell completion script |
 | `zrb shell autocomplete subcmd` | List subcommands for shell completion |
 
