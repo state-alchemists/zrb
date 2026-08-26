@@ -1,7 +1,6 @@
 import asyncio
 import os
 import platform
-import re
 import tempfile
 
 from zrb.config.config import CFG
@@ -11,13 +10,8 @@ from zrb.llm.sandbox.os_sandbox import (
     format_sandbox_denied_message,
 )
 from zrb.llm.tool.stream_capture import StreamCapture
+from zrb.util.cli.ansi import strip_ansi
 from zrb.util.cmd.command import resolve_shell, terminate_process
-
-_ANSI_ESCAPE = re.compile(
-    r"(?:\x1B\[[0-?]*[ -/]*[@-~])|"  # CSI (Control Sequence Introducer)
-    r"(?:\x1B\][^\a\x1b]*[\a\x1b])|"  # OSC (Operating System Command)
-    r"(?:\x1B[0-9=>])"  # Simple 2-byte (DECSC, DECRC, etc.)
-)
 
 
 async def run_shell_command(
@@ -274,7 +268,7 @@ async def _read_stream(stream: asyncio.StreamReader, capture: StreamCapture):
             break
         decoded = line.decode(errors="replace")
         if decoded:
-            stripped = _ANSI_ESCAPE.sub("", decoded)
+            stripped = strip_ansi(decoded)
             capture.echo(stripped)
             capture.feed(stripped)
 

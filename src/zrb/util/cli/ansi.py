@@ -2,6 +2,21 @@ import re
 
 _TRAILING_BLANK = re.compile(r"((?:\s|\x1b\[[0-9;]*m)+)$")
 _WHITESPACE = re.compile(r"\s+")
+_ANSI_ESCAPE = re.compile(
+    r"(?:\x1B\[[0-?]*[ -/]*[@-~])|"  # CSI (Control Sequence Introducer)
+    r"(?:\x1B\][^\a\x1b]*[\a\x1b])|"  # OSC (Operating System Command)
+    r"(?:\x1B[0-9=>])"  # Simple 2-byte (DECSC, DECRC, etc.)
+)
+
+
+def strip_ansi(text: str) -> str:
+    """Remove ANSI escape sequences (color/style codes, OSC, ...) from `text`.
+
+    For output that started as terminal-styled text but is about to be handed
+    to something that doesn't render escape codes — an LLM's context, a log
+    file, a plain-text export.
+    """
+    return _ANSI_ESCAPE.sub("", text)
 
 
 def strip_trailing_padding(text: str) -> str:

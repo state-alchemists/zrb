@@ -553,6 +553,66 @@ async def test_call_tool_posttooluse_failure_fires_on_exception():
 
 
 @pytest.mark.asyncio
+async def test_call_tool_appends_override_note_when_args_were_edited():
+    """A tool call whose arguments the user edited during approval gets a
+    `[SYSTEM NOTE]` appended to its result, so the model learns what actually
+    ran instead of silently reading a mismatched result (override_registry,
+    see docs/adr/adr-0085.md)."""
+    from pydantic_ai import ToolReturn
+    from pydantic_ai.toolsets import FunctionToolset
+
+    from zrb.llm.agent.common import _wrap_toolset
+    from zrb.llm.tool_call.override_registry import record_override
+
+    wrapped_ts = _wrap_toolset(FunctionToolset(tools=[]))
+    record_override("edited-call", {"path": "a.txt"}, {"path": "b.txt"})
+    ctx = MagicMock(tool_call_id="edited-call")
+    with patch(
+        "pydantic_ai.toolsets.WrapperToolset.call_tool", new_callable=AsyncMock
+    ) as mock_super:
+        mock_super.return_value = "ok"
+        res = await wrapped_ts.call_tool("t", {"path": "b.txt"}, ctx, None)
+
+    assert isinstance(res, ToolReturn)
+    assert "ok" in res.return_value
+    assert "[SYSTEM NOTE]" in res.return_value
+    assert "b.txt" in res.return_value
+
+
+@pytest.mark.asyncio
+async def test_call_tool_override_note_is_one_shot_and_reaches_error_results():
+    """The note is consumed once per call, and still reaches the model when
+    the (edited) call fails."""
+    from pydantic_ai import ToolReturn
+    from pydantic_ai.toolsets import FunctionToolset
+
+    from zrb.llm.agent.common import _wrap_toolset
+    from zrb.llm.tool_call.override_registry import record_override
+
+    wrapped_ts = _wrap_toolset(FunctionToolset(tools=[]))
+    record_override("edited-call-2", {"path": "a.txt"}, {"path": "b.txt"})
+    ctx = MagicMock(tool_call_id="edited-call-2")
+    with patch(
+        "pydantic_ai.toolsets.WrapperToolset.call_tool",
+        side_effect=ValueError("boom"),
+    ):
+        res = await wrapped_ts.call_tool("t", {"path": "b.txt"}, ctx, None)
+
+    assert isinstance(res, ToolReturn)
+    assert res.metadata.get("error") is True
+    assert "[SYSTEM NOTE]" in res.return_value
+
+    # Second call for the same tool_call_id: nothing left to consume.
+    with patch(
+        "pydantic_ai.toolsets.WrapperToolset.call_tool", new_callable=AsyncMock
+    ) as mock_super:
+        mock_super.return_value = "ok"
+        res2 = await wrapped_ts.call_tool("t", {"path": "b.txt"}, ctx, None)
+
+    assert res2.return_value == "ok"
+
+
+@pytest.mark.asyncio
 async def test_call_tool_passes_claude_tool_identity_fields():
     """Pre/PostToolUse fire with Claude-standard tool_name/tool_input (and
     tool_response on Post) so tool-name matchers and stdin reads work."""

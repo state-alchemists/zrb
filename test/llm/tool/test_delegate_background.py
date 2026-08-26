@@ -275,6 +275,37 @@ async def test_get_result_wait_returns_on_completion(manager):
 
 
 @pytest.mark.asyncio
+async def test_get_result_strips_ansi_from_buffered_transcript(manager):
+    """The buffered sub-agent transcript BufferedUI feeds into the poll result
+    carries muted-styling ANSI codes (for its own live-viewer pane) — those
+    must not leak into the parent model's context, which doesn't render
+    escape codes."""
+
+    async def with_styled_output(*args, **kwargs):
+        kwargs["ui"].append_to_output("🧰 call_1 | SomeTool", kind="tool_call")
+        return AgentTaskResult("agent", "done", None)
+
+    delegate = create_background_delegate_tool(manager)
+    get_result = create_get_delegation_result_tool()
+    with (
+        patch(
+            "zrb.llm.tool.delegate_background.run_agent_task",
+            side_effect=with_styled_output,
+        ),
+        patch(
+            "zrb.llm.tool.delegate_background.get_current_ui", return_value=MagicMock()
+        ),
+    ):
+        msg = await delegate("agent", "deliver", "do it", [])
+        handle = msg.split("Handle:")[1].split(".")[0].strip()
+        result = await asyncio.wait_for(get_result(handle, wait=2), timeout=3)
+
+    assert "🧰 call_1 | SomeTool" in result
+    assert "done" in result
+    assert "\033[" not in result
+
+
+@pytest.mark.asyncio
 async def test_get_result_wait_times_out_still_running(manager):
     release = asyncio.Event()
 

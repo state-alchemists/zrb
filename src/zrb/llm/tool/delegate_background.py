@@ -50,6 +50,7 @@ from zrb.llm.tool.delegate import (
     run_agent_task,
 )
 from zrb.llm.ui.std_ui import StdUI
+from zrb.util.cli.ansi import strip_ansi
 from zrb.util.string.name import get_random_name
 
 if TYPE_CHECKING:
@@ -138,7 +139,13 @@ class _BackgroundRegistry:
         self._agent_names.pop(handle, None)
         self._notified.discard(handle)
         buffered = self._buffers.pop(handle, None)
-        output = buffered.get_buffered_output() if buffered is not None else ""
+        # strip_ansi: get_buffered_output() carries the muted styling BufferedUI
+        # applies for its own live-viewer pane (agent_picker's Left/Right view) —
+        # fine on a terminal, but this string is about to become tool-result text
+        # in the parent model's context, which doesn't render escape codes.
+        output = (
+            strip_ansi(buffered.get_buffered_output()) if buffered is not None else ""
+        )
         prefix = f"{output}\n" if output else ""
 
         try:

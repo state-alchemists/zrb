@@ -215,11 +215,26 @@ def _wrap_toolset(toolset: "AbstractToolset[None]") -> "AbstractToolset[None]":
     # lazy: tests patch zrb.llm.permission.tool_capability; hoisting would
     # bind the name at this module's load time and bypass the mock.
     from zrb.llm.permission import tool_capability
+    from zrb.llm.tool_call.override_registry import pop_override_note
 
     class SafeToolsetWrapper(WrapperToolset[None]):
         async def call_tool(
             self, name: str, tool_args: dict[str, Any], ctx: Any, tool: Any
         ) -> Any:
+            # Consumed once per call, regardless of outcome: if the user edited
+            # this call's arguments during approval, the model's own turn in
+            # history still shows what it originally wrote (pydantic-ai never
+            # rewrites that ToolCallPart) — this note is the only place left to
+            # tell it what actually ran. See override_registry's docstring.
+            override_note = pop_override_note(getattr(ctx, "tool_call_id", None))
+
+            def _with_override_note(result: Any) -> Any:
+                return (
+                    _append_tool_context(result, override_note)
+                    if override_note
+                    else result
+                )
+
             try:
                 tool_args = await _fire_pre_tool_use(name, tool_args, ctx)
                 if isinstance(tool_args, ToolReturn):
@@ -234,11 +249,13 @@ def _wrap_toolset(toolset: "AbstractToolset[None]") -> "AbstractToolset[None]":
                 # If result is already a ToolReturn, respect its framing; a
                 # PostToolUse hook may still block it or replace its content.
                 if isinstance(result, ToolReturn):
-                    return await _fire_post_tool_use(name, tool_args, result)
+                    result = await _fire_post_tool_use(name, tool_args, result)
+                    return _with_override_note(result)
                 # Create a safe copy to prevent mutation by pydantic-ai
                 safe_result = safe_copy_result(result)
                 wrapped = tool_return(safe_result, **_oversize_metadata(safe_result))
-                return await _fire_post_tool_use(name, tool_args, wrapped)
+                wrapped = await _fire_post_tool_use(name, tool_args, wrapped)
+                return _with_override_note(wrapped)
             except ModelRetry:
                 # Part of pydantic-ai's retry protocol — must reach the
                 # framework, not become an opaque error string.
@@ -246,7 +263,7 @@ def _wrap_toolset(toolset: "AbstractToolset[None]") -> "AbstractToolset[None]":
             except Exception as e:
                 await _fire_post_tool_use_failure(name, tool_args, e)
                 error_msg = f"Error executing tool {name}: {e}"
-                return tool_return(error_msg, error=True)
+                return _with_override_note(tool_return(error_msg, error=True))
 
     return SafeToolsetWrapper(toolset)
 

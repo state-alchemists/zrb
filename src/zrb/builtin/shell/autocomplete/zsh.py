@@ -8,14 +8,21 @@ _{command_name}_complete() {
     local -a subcommands
     local cmd_input
     local subcmd_output
+    local cache_dir
     local cache_file
 
     cmd_input="{command_name} shell autocomplete subcmd ${words[1,CURRENT-1]}"
 
     # Cache the subcommand list for a minute, keyed by cwd + the command
     # being completed, so repeated Tab presses don't pay a fresh process
-    # spawn (and zrb_init.py reload) on every keystroke.
-    cache_file="${TMPDIR:-/tmp}/.{command_name}-autocomplete-cache-$(printf '%s' "$PWD $cmd_input" | tr -c '[:alnum:]' '_')"
+    # spawn (and zrb_init.py reload) on every keystroke. Lives under the
+    # user's own cache dir (not shared /tmp) -- a world-writable directory
+    # with a filename any local user can predict lets another user pre-plant
+    # a symlink there and hijack the write.
+    cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/{command_name}"
+    mkdir -p "$cache_dir" 2>/dev/null
+    chmod 700 "$cache_dir" 2>/dev/null
+    cache_file="$cache_dir/autocomplete-cache-$(printf '%s' "$PWD $cmd_input" | tr -c '[:alnum:]' '_')"
 
     if [ -n "$(find "$cache_file" -mmin -1 2>/dev/null)" ]; then
         subcmd_output=$(cat "$cache_file")

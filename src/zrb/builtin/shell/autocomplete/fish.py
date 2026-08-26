@@ -10,15 +10,20 @@ function __{command_name}_complete
     # on its own, unlike bash/zsh which need it passed to compgen/_describe).
     set -l cmd_input (commandline -opc)
 
-    set -l tmp_dir $TMPDIR
-    if test -z "$tmp_dir"
-        set tmp_dir /tmp
-    end
-    set -l cache_file "$tmp_dir/.{command_name}-autocomplete-cache-"(printf '%s' "$PWD $cmd_input" | tr -c '[:alnum:]' '_')
-
     # Cache the subcommand list for a minute, keyed by cwd + the command
     # being completed, so repeated Tab presses don't pay a fresh process
-    # spawn (and zrb_init.py reload) on every keystroke.
+    # spawn (and zrb_init.py reload) on every keystroke. Lives under the
+    # user's own cache dir (not shared /tmp) -- a world-writable directory
+    # with a filename any local user can predict lets another user pre-plant
+    # a symlink there and hijack the write.
+    set -l cache_dir $XDG_CACHE_HOME
+    if test -z "$cache_dir"
+        set cache_dir "$HOME/.cache"
+    end
+    set cache_dir "$cache_dir/{command_name}"
+    mkdir -p "$cache_dir" 2>/dev/null
+    chmod 700 "$cache_dir" 2>/dev/null
+    set -l cache_file "$cache_dir/autocomplete-cache-"(printf '%s' "$PWD $cmd_input" | tr -c '[:alnum:]' '_')
     set -l fresh (find "$cache_file" -mmin -1 2>/dev/null)
     if test -n "$fresh"
         cat "$cache_file"

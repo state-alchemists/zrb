@@ -989,3 +989,70 @@ async def test_interactive_exit_plan_mode_still_prompts():
 
     assert result.approvals["call_1"] == cli_result
     tool_handler.handle.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_edited_approval_records_override_note_for_execution():
+    """An approval channel that edits a call's args registers the change so
+    `SafeToolsetWrapper.call_tool` can tell the model what actually ran
+    (override_registry, see docs/adr/adr-0085.md)."""
+    from zrb.llm.tool_call.override_registry import pop_override_note
+
+    ui = MagicMock(spec=UIProtocol)
+    hook_manager = MagicMock(spec=HookManager)
+    hook_manager.execute_hooks = AsyncMock(return_value=[])
+
+    approval_channel = MagicMock()
+    edited = MockToolApproved("ChannelApproved")
+    edited.override_args = {"path": "b.txt"}
+    channel_result = MagicMock()
+    channel_result.to_pydantic_result.return_value = edited
+    approval_channel.request_approval = AsyncMock(return_value=channel_result)
+
+    call = MagicMock()
+    call.tool_name = "test_tool"
+    call.args = {"path": "a.txt"}
+    call.tool_call_id = "call_1"
+
+    result_output = MagicMock()
+    result_output.calls = [call]
+    result_output.approvals = []
+
+    await process_deferred_requests(
+        result_output, None, ui, hook_manager, approval_channel=approval_channel
+    )
+
+    note = pop_override_note("call_1")
+    assert note is not None
+    assert "path" in note
+    assert "b.txt" in note
+
+
+@pytest.mark.asyncio
+async def test_unedited_approval_does_not_record_override_note():
+    """override_args left unset (approved as-is) must not touch the registry."""
+    from zrb.llm.tool_call.override_registry import pop_override_note
+
+    ui = MagicMock(spec=UIProtocol)
+    hook_manager = MagicMock(spec=HookManager)
+    hook_manager.execute_hooks = AsyncMock(return_value=[])
+
+    approval_channel = MagicMock()
+    channel_result = MagicMock()
+    channel_result.to_pydantic_result.return_value = MockToolApproved("ChannelApproved")
+    approval_channel.request_approval = AsyncMock(return_value=channel_result)
+
+    call = MagicMock()
+    call.tool_name = "test_tool"
+    call.args = {"path": "a.txt"}
+    call.tool_call_id = "call_unedited"
+
+    result_output = MagicMock()
+    result_output.calls = [call]
+    result_output.approvals = []
+
+    await process_deferred_requests(
+        result_output, None, ui, hook_manager, approval_channel=approval_channel
+    )
+
+    assert pop_override_note("call_unedited") is None

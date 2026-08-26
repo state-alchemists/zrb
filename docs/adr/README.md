@@ -147,4 +147,8 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 
 - **ADR-0083** — [Delegated sub-agent sessions: persisted, listed, resumable, and swappable in place](adr-0083.md)
 
+### Approval and execution
+
+- **ADR-0085** — [An edited tool call tells the model what actually ran](adr-0085.md)
+
 🔖 [Documentation Home](../../README.md)
