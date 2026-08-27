@@ -27,6 +27,25 @@ class TestStreamEventHandlerInit:
         assert handler.event_prefix == "\n  "
         assert handler.printed_tool_ids == set()
 
+    def test_fresh_handler_first_print_has_a_leading_newline(self):
+        """Regression: the tool-execution loop (runner.py) builds a brand new
+        `StreamEventHandler` on every re-entry (e.g. once per tool-approval
+        round-trip), never at a genuinely blank buffer. Without a leading
+        newline on the very first thing it prints, that first line landed
+        with no separation from whatever the *previous* handler had already
+        printed, while every later line in the same handler got one."""
+        print_fn = MagicMock()
+        handler = StreamEventHandler(print_fn=print_fn)
+        from pydantic_ai import ToolCallPart
+
+        mock_event = MagicMock()
+        mock_event.part = ToolCallPart(
+            tool_name="my_tool", args={"param": "value"}, tool_call_id="call_123"
+        )
+        handler.handle_tool_call(mock_event)
+        printed = "".join(str(c.args[0]) for c in print_fn.call_args_list if c.args)
+        assert printed.startswith("\n")
+
     def test_init_custom_values(self):
         print_fn = MagicMock()
         handler = StreamEventHandler(
@@ -630,6 +649,23 @@ class TestStreamEventHandlerToolCall:
         handler.handle_tool_call(mock_event)
         print_fn.assert_called_once()
 
+    def test_handle_tool_call_has_no_trailing_newline(self):
+        """Regression: a baked-in trailing "\\n" here doubled up with the next
+        printed line's own leading "\\n{indentation}", printing a blank line
+        after every tool call. Separation comes from the *next* thing printed
+        only — see the note in `handle_tool_call`."""
+        print_fn = MagicMock()
+        handler = StreamEventHandler(print_fn=print_fn)
+        from pydantic_ai import ToolCallPart
+
+        mock_event = MagicMock()
+        mock_event.part = ToolCallPart(
+            tool_name="my_tool", args={"param": "value"}, tool_call_id="call_123"
+        )
+        handler.handle_tool_call(mock_event)
+        printed = "".join(str(c.args[0]) for c in print_fn.call_args_list if c.args)
+        assert not printed.endswith("\n")
+
     def test_handle_tool_call_ask_user_question_ignores_recorder(self):
         """The AskUserQuestion line has nothing to expand into (its payload
         renders in the selection widget, not here) — always print directly."""
@@ -716,6 +752,20 @@ class TestStreamEventHandlerToolResult:
         recorder.assert_not_called()
         print_fn.assert_called_once()
 
+    def test_handle_tool_result_has_no_trailing_newline(self):
+        """Same redundancy as `handle_tool_call` — see that test's docstring."""
+        print_fn = MagicMock()
+        handler = StreamEventHandler(print_fn=print_fn, show_tool_result=False)
+        mock_event = MagicMock()
+        mock_event.tool_call_id = "call_123"
+        mock_event.part = MagicMock()
+        mock_event.part.content = "success"
+
+        handler.handle_tool_result(mock_event)
+
+        printed = "".join(str(c.args[0]) for c in print_fn.call_args_list if c.args)
+        assert not printed.endswith("\n")
+
 
 class TestStreamEventHandlerRunResult:
     def test_handle_run_result(self):
@@ -740,6 +790,10 @@ class TestStreamEventHandlerRunResult:
         args = print_fn.call_args[0][0]
         assert "Requests: 5" in args
         assert "Total: 1000" in args
+        # Same redundancy as `handle_tool_call` — the caller's own explicit
+        # blank line before the rendered final answer already supplies
+        # separation; a baked-in one here doubled it.
+        assert not args.endswith("\n")
 
     def test_handle_run_result_invokes_usage_callback(self):
         print_fn = MagicMock()
