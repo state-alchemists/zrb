@@ -586,6 +586,11 @@ flowchart TB
 | `on_exit()` | No-op | Cleanup on shutdown |
 | `stream_to_parent()` | Calls `append_to_output` | For multiplexed UIs |
 | `_get_output_field_width()` | None | Custom text width for formatting (exposed publicly as the `output_field_width` property, which is what the diff/markdown formatters read) |
+| `record_tool_call_block(collapsed, full)` | Falls back to `append_to_output(collapsed, end="", kind="tool_call")` | Print a tool-call/result line that a toggle-capable UI can later expand in place |
+| `mark_thinking_block_start()` | No-op | Record where a live thinking block begins, so it can be collapsed once it ends |
+| `collapse_thinking_block(collapsed, full)` | No-op | Collapse the thinking block opened by `mark_thinking_block_start()`; the thinking text itself still reaches the UI via the normal `append_to_output` stream regardless |
+
+These three are looked up with `getattr(ui, name, None)` — implement them only if your UI wants collapsible tool-call/thinking blocks (like the default TUI's `Ctrl+O`); otherwise the defaults above keep existing behavior unchanged.
 
 ### Example: WebSocket Backend
 
