@@ -313,7 +313,10 @@ def _broadcast_todo_progress(
     text = _render_todo_progress(todo_data, change_description)
     ui = get_current_ui()
     if ui is not None:
-        ui.append_to_output(text, kind="todo_progress")
+        # Leading "\n  " matches every other mid-turn status line printed
+        # outside `StreamEventHandler` (see `web.py::_notify`) — without it
+        # this lands at column 0 with no separator from whatever came before.
+        ui.append_to_output(f"\n  {text}", kind="todo_progress")
 
 
 # Tool functions for LLM integration

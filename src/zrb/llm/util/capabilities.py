@@ -58,6 +58,17 @@ class ModelCapabilities:
     # diverges — see `_DOCUMENT_PATTERNS`.
     supports_document_input: bool = False
     supports_parallel_tool_calls: bool | None = None
+    # True for a model that reasons by default but only returns a *readable*
+    # thinking summary when a request explicitly asks for one — e.g. Gemini
+    # 2.5/3 bill `thoughts_tokens` unconditionally but stay silent unless the
+    # request sets `thinking_config.include_thoughts`. Gates the one-time
+    # `thinking=True` default in `create_agent` (see
+    # `zrb.llm.agent.common._apply_reasoning_defaults`) so it only fires for
+    # models that actually need the nudge, not every model with a
+    # `supports_thinking` profile flag (forcing `thinking=True` globally would
+    # turn on Anthropic's opt-in extended thinking too, which is a cost/latency
+    # change this flag is not meant to make).
+    supports_thinking_summary: bool = False
 
 
 class ModelCapabilityRegistry:
@@ -269,6 +280,15 @@ _NO_PARALLEL_TOOL_CALLS = (
     r"glm-4\.7",
 )
 
+# Mirrors pydantic-ai's own `is_thinking_model` heuristic in
+# `pydantic_ai.profiles.google.google_model_profile` (`'gemini-2.5' in
+# model_name or 'gemini-3' in model_name`) — these are the Gemini generations
+# that think by default and support `thinking_config.include_thoughts`.
+_THINKING_SUMMARY_PATTERNS = (
+    r"gemini-2\.5",
+    r"gemini-3",
+)
+
 
 def _bare_name(model: "str | Model | None") -> str:
     """Extract a recognisable model identifier or ``""`` when undeterminable.
@@ -294,6 +314,7 @@ def _resolve_from_patterns(name: str) -> ModelCapabilities:
         supports_video_input=_matches_any(name, _VIDEO_PATTERNS),
         supports_document_input=_resolve_document(name),
         supports_parallel_tool_calls=_resolve_parallel_tool_calls(name),
+        supports_thinking_summary=_matches_any(name, _THINKING_SUMMARY_PATTERNS),
     )
 
 

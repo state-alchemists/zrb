@@ -41,6 +41,8 @@ class StreamEventHandler:
         tool_block_recorder: Callable[[str, str], None] | None = None,
         on_thinking_start: Callable[[], None] | None = None,
         on_thinking_collapse: Callable[[str, str], None] | None = None,
+        on_text_start: Callable[[], None] | None = None,
+        on_text_collapse: Callable[[str, str], None] | None = None,
     ):
         self._print_fn = print_fn
         self._usage_callback = usage_callback
@@ -50,17 +52,31 @@ class StreamEventHandler:
         self._tool_block_recorder = tool_block_recorder
         self._on_thinking_start = on_thinking_start
         self._on_thinking_collapse = on_thinking_collapse
+        self._on_text_start = on_text_start
+        self._on_text_collapse = on_text_collapse
 
         self._progress_chars = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
         self._progress_idx = 0
         self._last_progress_time = 0.0
         self._was_tool_call_delta = False
         self._was_tool_call_start = False
-        self._event_prefix = self._indentation
+        # Same value `__call__` resets this to after every event — a fresh
+        # handler always starts mid-turn (the tool-execution loop in
+        # runner.py builds a new one on every `while True:` iteration, e.g.
+        # once per tool-approval round-trip), never at a true blank buffer,
+        # so there is no first-print case that should skip the separator.
+        # Starting at the bare `self._indentation` (no leading "\n") made a
+        # fresh handler's first line land with no blank line before it while
+        # every later line in the same handler got one — the exact
+        # inconsistency this line fixes.
+        self._event_prefix = f"\n{self._indentation}"
         self._printed_tool_ids = set()
         self._thinking_open = False
         self._thinking_open_prefix = ""
         self._thinking_full_chunks: list[str] = []
+        self._text_open = False
+        self._text_open_prefix = ""
+        self._text_full_chunks: list[str] = []
 
     @property
     def indentation(self) -> str:
@@ -229,15 +245,63 @@ class StreamEventHandler:
         # opaque signature — so there's nothing to expand into. The count
         # makes that visible at a glance instead of looking like a bug.
         char_count = len(full.strip())
+        # No trailing "\n" here — whatever prints next already opens with its
+        # own "\n{indentation}" (see `_event_prefix`'s reset in `__call__`),
+        # so baking one into the label too would print a blank line after
+        # every single collapse.
         label = (
-            f"🧠 Thought ({char_count} chars)\n"
-            if char_count
-            else "🧠 Thought (empty)\n"
+            f"🧠 Thought ({char_count} chars)" if char_count else "🧠 Thought (empty)"
         )
         collapsed = self._format_content(
             f"{self._thinking_open_prefix}{label}", preserve_leading_newline=True
         )
         self._on_thinking_collapse(collapsed, full)
+
+    def _open_text_block(self) -> None:
+        if self._on_text_start is not None:
+            self._on_text_start()
+        self._text_open = True
+        self._text_open_prefix = self._event_prefix
+        self._text_full_chunks = []
+
+    def _stream_text_content(self, raw: str, preserve_leading_newline: bool) -> None:
+        """Format, accumulate, and print one chunk of the live final-text
+        response. Mirrors `_stream_thinking_content` for the same reason:
+        accumulating here (not re-reading the buffer later) survives a stray
+        `\\r` in a chunk, which `append_to_output`'s carriage-return handling
+        would otherwise rewrite/erase from the *rendered* line."""
+        formatted = self._format_content(raw, preserve_leading_newline)
+        if self._on_text_collapse is not None:
+            self._text_full_chunks.append(formatted)
+        self._print_fn(formatted, "streaming")
+
+    def _close_text_block(self) -> None:
+        """Collapse the just-finished final-text block, if one was open.
+
+        Mirrors `_close_thinking_block` for the assistant's own reply
+        instead of its reasoning. Called whenever a new part starts (a tool
+        call or a thinking part) and when the run ends — either means the
+        text streamed so far is done. `BaseUI.stream_ai_response` appends a
+        markdown-rendered copy of the same text separately afterward; this
+        only collapses the raw streamed copy so the two don't both sit on
+        screen at once.
+        """
+        if not self._text_open:
+            return
+        self._text_open = False
+        chunks, self._text_full_chunks = self._text_full_chunks, []
+        if self._on_text_collapse is None:
+            return
+        full = "".join(chunks)
+        char_count = len(full.strip())
+        # No trailing "\n" — see the matching note in `_close_thinking_block`.
+        label = (
+            f"💬 Response ({char_count} chars)" if char_count else "💬 Response (empty)"
+        )
+        collapsed = self._format_content(
+            f"{self._text_open_prefix}{label}", preserve_leading_newline=True
+        )
+        self._on_text_collapse(collapsed, full)
 
     def handle_part_start(self, event: "PartStartEvent") -> bool:
         # lazy: heavy third-party
@@ -253,6 +317,13 @@ class StreamEventHandler:
         # instead of one block holding the whole thought.
         if isinstance(event.part, (ToolCallPart, TextPart)):
             self._close_thinking_block()
+        # Same rationale, the other direction: a tool call or a new thinking
+        # part means the streamed final-text response (if one was open) is
+        # done. A new TextPart itself does not close it — see the merge note
+        # on the thinking side, which applies here too if a provider ever
+        # splits one text response across several PartStartEvents.
+        if not isinstance(event.part, TextPart):
+            self._close_text_block()
 
         if isinstance(event.part, ToolCallPart):
             # Show a static indicator so the user sees something while parameters
@@ -272,11 +343,18 @@ class StreamEventHandler:
 
         if isinstance(event.part, TextPart):
             content = _get_event_part_content(event)
-            if content:
-                self.fprint(
-                    f"{self._event_prefix}{content}",
+            # Mirrors the 🧠 lead-in below: marked once, on the block's first
+            # chunk, so the icon survives into `full` — an expanded response
+            # (Ctrl+O) keeps its 💬, not just the collapsed summary line.
+            if not self._text_open:
+                self._open_text_block()
+                marker = "💬 "
+            else:
+                marker = ""
+            if content or marker:
+                self._stream_text_content(
+                    f"{self._event_prefix}{marker}{content}",
                     preserve_leading_newline=True,
-                    kind="streaming",
                 )
         else:
             content = _get_event_part_content(event)
@@ -300,7 +378,12 @@ class StreamEventHandler:
         from pydantic_ai import TextPartDelta, ThinkingPartDelta, ToolCallPartDelta
 
         if isinstance(event.delta, TextPartDelta):
-            self.fprint(f"{event.delta.content_delta}", kind="streaming")
+            # content_delta or "" mirrors the ThinkingPartDelta guard below —
+            # not currently known to be None for text, but f"{None}" would
+            # print the literal word "None" if a provider ever did.
+            self._stream_text_content(
+                event.delta.content_delta or "", preserve_leading_newline=False
+            )
             self._was_tool_call_delta = False
             self._was_tool_call_start = False
         elif isinstance(event.delta, ThinkingPartDelta):
@@ -348,39 +431,49 @@ class StreamEventHandler:
             self._printed_tool_ids.add(tool_call_id)
             # AskUserQuestion renders its (large) question/options payload in the
             # interactive selection widget; echoing the raw args here is just noise.
+            # No trailing "\n" on any of these — every direct writer outside this
+            # handler (web.py's `_notify`, the approval-response handlers, ...)
+            # now supplies its own leading "\n{indentation}", matching what
+            # `_event_prefix` gives every event-driven print here. That makes
+            # the separator uniformly "whoever prints next supplies exactly one
+            # leading newline" — see the note on `_close_thinking_block`'s label.
             if tool_name == "AskUserQuestion":
-                line = f"{self._event_prefix}🧰 {tool_call_id} | {tool_name}\n"
+                line = f"{self._event_prefix}🧰 {tool_call_id} | {tool_name}"
                 self.fprint(line, preserve_leading_newline=True, kind="tool_call")
             else:
                 args = _get_truncated_event_part_args(event)
                 full_args = _get_full_event_part_args(event)
                 collapsed = (
-                    f"{self._event_prefix}🧰 {tool_call_id} | {tool_name} {args}\n"
+                    f"{self._event_prefix}🧰 {tool_call_id} | {tool_name} {args}"
                 )
                 full = (
-                    f"{self._event_prefix}🧰 {tool_call_id} | {tool_name} {full_args}\n"
+                    f"{self._event_prefix}🧰 {tool_call_id} | {tool_name} {full_args}"
                 )
                 self._print_toggle_line(collapsed, full, preserve_leading_newline=True)
         self._was_tool_call_delta = False
 
     def handle_tool_result(self, event: "ToolResultEvent"):
+        # No trailing "\n" — see the note in `handle_tool_call`.
         if self._show_tool_result:
             self.fprint(
-                f"{self._event_prefix}🔠 {event.tool_call_id} | Return {event.part.content}\n",
+                f"{self._event_prefix}🔠 {event.tool_call_id} | Return {event.part.content}",
                 preserve_leading_newline=True,
                 kind="tool_call",
             )
         else:
-            collapsed = f"{self._event_prefix}🔠 {event.tool_call_id} Executed\n"
+            collapsed = f"{self._event_prefix}🔠 {event.tool_call_id} Executed"
             full = (
                 f"{self._event_prefix}🔠 {event.tool_call_id} | "
-                f"Return {event.part.content}\n"
+                f"Return {event.part.content}"
             )
             self._print_toggle_line(collapsed, full, preserve_leading_newline=True)
         self._was_tool_call_delta = False
 
     def handle_run_result(self, event: "AgentRunResultEvent"):
         self._close_thinking_block()
+        # The normal case: a turn ends with the final text as the last
+        # streamed part, so this is where most text blocks actually collapse.
+        self._close_text_block()
         usage = event.result.usage
         if self._usage_callback is not None:
             self._usage_callback(usage, _last_request_usage(event.result))
@@ -399,8 +492,13 @@ class StreamEventHandler:
                 f"Details: {usage.details}",
             ]
         )
+        # No trailing "\n" — see the note in `handle_tool_call`. This is the
+        # last thing `StreamEventHandler` prints for the turn; what follows
+        # (`BaseUI.stream_ai_response`'s own explicit blank line before the
+        # rendered final answer) supplies its own separation already —
+        # keeping this one too doubled that gap to two blank lines.
         self.fprint(
-            f"{self._event_prefix}{usage_msg}\n",
+            f"{self._event_prefix}{usage_msg}",
             preserve_leading_newline=True,
             kind="usage",
         )
@@ -416,6 +514,8 @@ def create_event_handler(
     tool_block_recorder: Callable[[str, str], None] | None = None,
     on_thinking_start: Callable[[], None] | None = None,
     on_thinking_collapse: Callable[[str, str], None] | None = None,
+    on_text_start: Callable[[], None] | None = None,
+    on_text_collapse: Callable[[str, str], None] | None = None,
 ):
     """Create an event handler for agent stream events.
 
@@ -443,6 +543,16 @@ def create_event_handler(
             live-rendered line — see `_stream_thinking_content`). A UI that
             supports it replaces the already-printed live text with
             `collapsed` and keeps `full` for later expansion.
+        on_text_start: Called right before the first chunk of the final text
+            response is printed. Mirrors `on_thinking_start` for the
+            assistant's reply instead of its reasoning.
+        on_text_collapse: Called with (collapsed, full) once the final text
+            response is done streaming (a tool call or a new thinking part
+            started, or the run ended) — same contract as
+            `on_thinking_collapse`. The caller's own markdown-rendered copy
+            of the same text (e.g. `BaseUI.stream_ai_response`) is appended
+            separately afterward; this only collapses the raw streamed copy
+            so both don't sit on screen at once.
     """
     return StreamEventHandler(
         print_fn=print_fn,
@@ -453,6 +563,8 @@ def create_event_handler(
         tool_block_recorder=tool_block_recorder,
         on_thinking_start=on_thinking_start,
         on_thinking_collapse=on_thinking_collapse,
+        on_text_start=on_text_start,
+        on_text_collapse=on_text_collapse,
     )
 
 

@@ -490,3 +490,45 @@ def test_clear_buffer_resets_toggle_state():
     # No leftover mark survives the clear: collapsing without a fresh
     # mark_thinking_block_start() call afterward must be a no-op.
     assert ui.collapse_thinking_block("🧠 Thought\n", "some text") is False
+
+
+def test_mark_and_collapse_text_block_wraps_the_streamed_span():
+    """mark_text_block_start/collapse_text_block are the final-text
+    counterpart to the thinking pair — same mechanics, reused via
+    _collapse_collapsible_block."""
+    ui = BufferedUI(MagicMock())
+    ui.append_to_output("before ", end="")
+    ui.mark_text_block_start()
+    ui.append_to_output("the assistant's streamed final response", end="")
+
+    collapsed = ui.collapse_text_block(
+        "💬 Response\n", "the assistant's streamed final response"
+    )
+
+    assert collapsed is True
+    assert "the assistant's streamed final response" not in ui.get_buffered_output()
+    assert "💬 Response" in ui.get_buffered_output()
+    assert len(ui.rendered_blocks) == 1
+
+    ui.toggle_collapsible_block_at_offset(len(ui.get_buffered_output()))
+    assert ui.get_buffered_output().startswith("before ")
+    assert "the assistant's streamed final response" in ui.get_buffered_output()
+
+
+def test_collapse_text_block_without_a_mark_is_a_noop():
+    ui = BufferedUI(MagicMock())
+    ui.append_to_output("no marked text block here", end="")
+
+    assert ui.collapse_text_block("💬 Response\n", "response text") is False
+    assert ui.get_buffered_output() == "no marked text block here"
+
+
+def test_clear_buffer_resets_toggle_state_for_text_block_too():
+    ui = BufferedUI(MagicMock())
+    ui.mark_text_block_start()
+    ui.append_toggle_block("short", "full")
+
+    ui.clear_buffer()
+
+    assert ui.rendered_blocks == []
+    assert ui.collapse_text_block("💬 Response\n", "some text") is False

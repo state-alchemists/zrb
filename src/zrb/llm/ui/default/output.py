@@ -120,10 +120,15 @@ class UIOutput:
 
     def __init__(self, ui: "UI") -> None:
         self._ui = ui
-        # Set by `mark_thinking_block_start`; consumed (and cleared) by
-        # `collapse_thinking_block`. Purely local, transient per-turn state —
-        # not shared with anything else, so it lives here rather than on `ui`.
-        self._thinking_block_start: int | None = None
+        # Set by `mark_thinking_block_start`/`mark_text_block_start`; consumed
+        # (and cleared) by `collapse_thinking_block`/`collapse_text_block`.
+        # Purely local, transient per-turn state — not shared with anything
+        # else, so it lives here rather than on `ui`. One slot suffices: a
+        # thinking block and the final-text block are never open at the same
+        # time (`StreamEventHandler` always closes one before opening the
+        # other), so there is never more than one live collapsible block to
+        # track.
+        self._collapsible_block_start: int | None = None
 
     @property
     def is_thinking(self) -> bool:
@@ -300,17 +305,46 @@ class UIOutput:
         streams live (unlike tool-call args/results, which are collapsed
         from the start) — this is a retroactive collapse, not a withhold.
         """
-        self._thinking_block_start = len(self.output_text)
+        self._mark_collapsible_block_start()
 
     def collapse_thinking_block(self, collapsed: str, full: str) -> bool:
         """Collapse the thinking block opened by `mark_thinking_block_start`.
 
+        See `_collapse_collapsible_block` for the mechanics and why `full`
+        must be the caller's own accumulated text rather than re-read from
+        the buffer.
+        """
+        return self._collapse_collapsible_block(collapsed, full)
+
+    def mark_text_block_start(self) -> None:
+        """Record where the live-streamed final-text response begins.
+
+        Counterpart to `mark_thinking_block_start` for the assistant's reply
+        instead of its reasoning — same retroactive-collapse mechanics.
+        """
+        self._mark_collapsible_block_start()
+
+    def collapse_text_block(self, collapsed: str, full: str) -> bool:
+        """Collapse the final-text block opened by `mark_text_block_start`.
+
+        `BaseUI.stream_ai_response` appends a markdown-rendered copy of the
+        same text separately once the turn finishes; this only replaces the
+        raw streamed copy so the response isn't shown twice.
+        """
+        return self._collapse_collapsible_block(collapsed, full)
+
+    def _mark_collapsible_block_start(self) -> None:
+        self._collapsible_block_start = len(self.output_text)
+
+    def _collapse_collapsible_block(self, collapsed: str, full: str) -> bool:
+        """Shared mechanics for `collapse_thinking_block`/`collapse_text_block`.
+
         `full` is the accumulated text `StreamEventHandler` actually sent to
         print_fn for this block — deliberately NOT re-read from the buffer.
-        A stray carriage return anywhere in a thinking delta can rewrite or
+        A stray carriage return anywhere in a streamed delta can rewrite or
         erase part of the *rendered* line (see `append_to_output`'s `\\r`
         handling, built for progress spinners but applying to any text), so
-        reconstructing "the full thought" from what currently sits on screen
+        reconstructing "the full text" from what currently sits on screen
         would silently inherit that erasure. The caller already avoided this
         by accumulating chunks at the source.
 
@@ -319,8 +353,8 @@ class UIOutput:
         one Ctrl+O away. A no-op if no block was marked (e.g. this UI missed
         the start signal) or nothing was actually accumulated.
         """
-        start = self._thinking_block_start
-        self._thinking_block_start = None
+        start = self._collapsible_block_start
+        self._collapsible_block_start = None
         if start is None or not full:
             return False
         end = len(self.output_text)

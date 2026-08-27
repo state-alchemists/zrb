@@ -485,7 +485,8 @@ def create_agent(
     effective_retries = retries if retries is not None else CFG.LLM_TOOL_MAX_RETRIES
     effective_model_settings = _apply_request_timeout(
         _apply_reasoning_defaults(
-            _apply_capability_constraints(model, final_model, model_settings)
+            _apply_capability_constraints(model, final_model, model_settings),
+            model if isinstance(model, str) else final_model,
         )
     )
 
@@ -544,6 +545,7 @@ def _apply_request_timeout(
 
 def _apply_reasoning_defaults(
     model_settings: "ModelSettings | None",
+    model: "Model | str | None",
 ) -> "ModelSettings | None":
     """Default to a visible, cached reasoning experience out of the box.
 
@@ -562,23 +564,58 @@ def _apply_reasoning_defaults(
     ``LLM_THINKING`` (unset by default) maps onto pydantic-ai's own
     cross-provider ``ModelSettings.thinking`` field, so one CFG knob controls
     reasoning effort across OpenAI/Anthropic/Google/etc. instead of a
-    per-provider setting.
+    per-provider setting. Unlike OpenAI, Anthropic's thinking blocks already
+    come back as readable text once ``thinking`` is enabled — no
+    summary-equivalent default needed there.
 
-    Every key here is either OpenAI-namespaced (silently ignored by every
+    Google is the odd one out: Gemini 2.5/3 think (and bill
+    ``thoughts_tokens``) whether or not a request sets ``thinking``, but only
+    return the readable summary when ``thinking_config.include_thoughts`` is
+    explicitly requested — confirmed against a live session: ``thoughts_tokens``
+    non-zero on every turn, no thinking block ever rendered. Unlike OpenAI's
+    fix, this can't be a blanket default: the same unified ``thinking`` field
+    also drives Anthropic's *opt-in* extended thinking, so defaulting
+    ``thinking=True`` for every model would turn that on too — a real
+    cost/latency change, not a visibility fix. So the ``thinking=True``
+    fallback below only fires when ``LLM_THINKING`` is unset *and* the
+    resolved model is capability-flagged ``supports_thinking_summary``
+    (currently Gemini 2.5/3 only, see ``zrb.llm.util.capabilities``) — Gemini
+    already reasons by default, so this only makes the existing reasoning
+    visible, it doesn't turn anything on that wasn't already running and
+    billed.
+
+    ``anthropic_cache="5m"`` requests Anthropic's automatic prompt-cache
+    breakpoint (a top-level ``cache_control`` that the server moves forward
+    as the conversation grows). Unlike OpenAI, Anthropic never caches a
+    prompt unless a request asks for it — without this, zrb's
+    resend-the-whole-history-every-turn pattern reprocesses the full
+    conversation from scratch on every Anthropic call. "5m" is Anthropic's
+    own default TTL; "1h" costs more per cache write and only pays off for
+    gaps longer than 5 minutes between turns. Google has no request-level
+    caching default to mirror this: Gemini's context caching is a
+    pre-created cache *resource* (``google_cached_content``) that must be
+    created and kept alive out-of-band via a separate API call — out of
+    scope for a settings default.
+
+    Every key here is either provider-namespaced (silently ignored by every
     other provider's model class — pydantic-ai's own convention, not
     something to special-case per model) or the provider-agnostic ``thinking``
     field. Caller-supplied ``model_settings`` always win, key by key.
     """
-    # Untyped as a plain dict, not ModelSettings: the OpenAI-namespaced keys
-    # only exist on OpenAIChatModelSettings/OpenAIResponsesModelSettings, a
-    # more specific TypedDict than the provider-agnostic one this function
-    # (and every caller in the chain) is typed against.
+    # Untyped as a plain dict, not ModelSettings: the provider-namespaced keys
+    # only exist on their own provider's ModelSettings subclass (e.g.
+    # OpenAIChatModelSettings, AnthropicModelSettings), each more specific
+    # than the provider-agnostic one this function (and every caller in the
+    # chain) is typed against.
     defaults: dict[str, Any] = {
         "openai_reasoning_summary": "auto",
         "openai_prompt_cache_retention": "24h",
+        "anthropic_cache": "5m",
     }
     if CFG.LLM_THINKING is not None:
         defaults["thinking"] = CFG.LLM_THINKING
+    elif model_capabilities.get(model).supports_thinking_summary:
+        defaults["thinking"] = True
     if model_settings is None:
         return cast("ModelSettings", defaults)
     return cast("ModelSettings", {**defaults, **model_settings})

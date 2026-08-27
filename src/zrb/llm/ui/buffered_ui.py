@@ -40,7 +40,10 @@ class BufferedUI(UIProtocol):
         # own live view — independently scoped from the main transcript's
         # (UIOutput.rendered_blocks); see append_toggle_block below.
         self._rendered_blocks: list = []
-        self._thinking_block_start: int | None = None
+        # Set by mark_thinking_block_start/mark_text_block_start; consumed by
+        # collapse_thinking_block/collapse_text_block. One slot suffices —
+        # see UIOutput's matching field for why.
+        self._collapsible_block_start: int | None = None
         # Set by run_agent_task so buffered output also feeds the activity panel.
         self._agent_id: str | None = None
         # Scopes activity-panel updates to the session that started this
@@ -182,19 +185,35 @@ class BufferedUI(UIProtocol):
         self.append_toggle_block(collapsed, full)
 
     def mark_thinking_block_start(self) -> None:
-        self._thinking_block_start = len(self._merged_output)
+        self._collapsible_block_start = len(self._merged_output)
 
     def collapse_thinking_block(self, collapsed: str, full: str) -> bool:
         """Collapse the thinking block opened by `mark_thinking_block_start`.
 
+        See `_collapse_collapsible_block` for the mechanics.
+        """
+        return self._collapse_collapsible_block(collapsed, full)
+
+    def mark_text_block_start(self) -> None:
+        """Counterpart to `mark_thinking_block_start` for the assistant's
+        final-text reply instead of its reasoning."""
+        self._collapsible_block_start = len(self._merged_output)
+
+    def collapse_text_block(self, collapsed: str, full: str) -> bool:
+        """Collapse the final-text block opened by `mark_text_block_start`."""
+        return self._collapse_collapsible_block(collapsed, full)
+
+    def _collapse_collapsible_block(self, collapsed: str, full: str) -> bool:
+        """Shared mechanics for `collapse_thinking_block`/`collapse_text_block`.
+
         `full` is the accumulated text `StreamEventHandler` actually sent to
         print_fn for this block — same "don't re-read the buffer" contract
-        as `UIOutput.collapse_thinking_block` (a stray carriage return in a
-        thinking delta can rewrite/erase part of the *rendered* text via
+        as `UIOutput`'s counterpart (a stray carriage return in a streamed
+        delta can rewrite/erase part of the *rendered* text via
         `_merge_output_chunk`, which this class also uses).
         """
-        start = self._thinking_block_start
-        self._thinking_block_start = None
+        start = self._collapsible_block_start
+        self._collapsible_block_start = None
         if start is None or not full:
             return False
         end = len(self._merged_output)
@@ -281,7 +300,7 @@ class BufferedUI(UIProtocol):
         self._buffer.clear()
         self._merged_output = ""
         self._rendered_blocks = []
-        self._thinking_block_start = None
+        self._collapsible_block_start = None
 
     @property
     def yolo(self) -> bool | frozenset:

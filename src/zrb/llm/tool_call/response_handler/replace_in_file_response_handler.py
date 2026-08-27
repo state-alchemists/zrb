@@ -49,17 +49,20 @@ async def replace_in_file_response_handler(
         with open(new_path, "r", encoding="utf-8") as f:
             edited_new_text = f.read()
 
+        # Two-space indent, matching every other mid-turn status line printed
+        # outside `StreamEventHandler` (see `web.py::_notify` and
+        # `response_handler/default.py`) — without it these land at column 0.
         if edited_new_text != new_text:
             new_args = dict(args)
             new_args["new_text"] = edited_new_text
-            ui.append_to_output("\n✅ Replacement modified.")
+            ui.append_to_output("\n  ✅ Replacement modified.")
             return ToolApproved(override_args=new_args)
         else:
-            ui.append_to_output("\nℹ️ No changes made.")
+            ui.append_to_output("\n  ℹ️ No changes made.")
             return None
 
     except Exception as e:
-        ui.append_to_output(f"\n❌ Error during diff edit: {e}")
+        ui.append_to_output(f"\n  ❌ Error during diff edit: {e}")
         return None
     finally:
         if os.path.exists(old_path):

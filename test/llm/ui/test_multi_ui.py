@@ -185,6 +185,41 @@ def test_multi_ui_thinking_hooks_swallow_child_errors(multi_ui, child_ui_1, chil
     child_ui_2.mark_thinking_block_start.assert_called_once()
 
 
+def test_multi_ui_mark_text_block_start_forwards_to_supporting_children(
+    multi_ui, child_ui_1, child_ui_2
+):
+    child_ui_1.mark_text_block_start = MagicMock()
+    del child_ui_2.mark_text_block_start  # e.g. Telegram/SSE, no toggle support
+
+    # Must not raise for the child that doesn't support it.
+    multi_ui.mark_text_block_start()
+
+    child_ui_1.mark_text_block_start.assert_called_once_with()
+
+
+def test_multi_ui_collapse_text_block_forwards_to_supporting_children(
+    multi_ui, child_ui_1, child_ui_2
+):
+    child_ui_1.collapse_text_block = MagicMock()
+    del child_ui_2.collapse_text_block
+
+    multi_ui.collapse_text_block("💬 Response\n", "the full response")
+
+    child_ui_1.collapse_text_block.assert_called_once_with(
+        "💬 Response\n", "the full response"
+    )
+
+
+def test_multi_ui_text_hooks_swallow_child_errors(multi_ui, child_ui_1, child_ui_2):
+    child_ui_1.mark_text_block_start = MagicMock(side_effect=RuntimeError("bad"))
+    child_ui_2.mark_text_block_start = MagicMock()
+
+    # Should not raise even though child_ui_1 throws.
+    multi_ui.mark_text_block_start()
+
+    child_ui_2.mark_text_block_start.assert_called_once()
+
+
 def test_multi_ui_set_thinking_mirrors_to_children(multi_ui, child_ui_1, child_ui_2):
     multi_ui.set_thinking(True)
     assert multi_ui.is_thinking is True

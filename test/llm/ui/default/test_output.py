@@ -830,3 +830,65 @@ def test_collapse_thinking_block_consumes_the_mark_once():
 
     assert result is False
     assert ui.output_text == after_first
+
+
+def test_mark_and_collapse_text_block_wraps_the_streamed_span():
+    """`mark_text_block_start`/`collapse_text_block` are the final-text
+    counterpart to the thinking pair — same retroactive-collapse mechanics,
+    reused via `_collapse_collapsible_block`."""
+    ui = MockMarkdownUI()
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.append_to_output("before ")
+        ui.mark_text_block_start()
+        ui.append_to_output("the assistant's streamed final response", end="")
+        collapsed = ui.collapse_text_block(
+            "💬 Response\n", "the assistant's streamed final response"
+        )
+
+    assert collapsed is True
+    assert "the assistant's streamed final response" not in ui.output_text
+    assert "💬 Response" in ui.output_text
+    assert ui.output_text.startswith("before ")
+    assert len(ui.rendered_blocks) == 1
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.output_field.buffer.cursor_position = len(ui.output_text)
+        ui.toggle_collapsible_block_at_cursor()
+    assert "the assistant's streamed final response" in ui.output_text
+
+
+def test_collapse_text_block_without_a_mark_is_a_noop():
+    ui = MockMarkdownUI()
+    ui.output_field.text = "no marked text block here"
+
+    assert ui.collapse_text_block("💬 Response\n", "response text") is False
+    assert ui.output_text == "no marked text block here"
+
+
+def test_thinking_and_text_blocks_share_the_slot_without_interference():
+    """A real turn opens/collapses thinking, then opens/collapses text — the
+    two pairs share one slot (`StreamEventHandler` never has both open at
+    once). Verifies collapsing thinking first doesn't leave stale state that
+    breaks the text collapse right after."""
+    ui = MockMarkdownUI()
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.mark_thinking_block_start()
+        ui.append_to_output("reasoning about the answer", end="")
+        thinking_collapsed = ui.collapse_thinking_block(
+            "🧠 Thought\n", "reasoning about the answer"
+        )
+
+        ui.mark_text_block_start()
+        ui.append_to_output("here is the final answer", end="")
+        text_collapsed = ui.collapse_text_block(
+            "💬 Response\n", "here is the final answer"
+        )
+
+    assert thinking_collapsed is True
+    assert text_collapsed is True
+    assert "🧠 Thought" in ui.output_text
+    assert "💬 Response" in ui.output_text
+    assert "reasoning about the answer" not in ui.output_text
+    assert "here is the final answer" not in ui.output_text
+    assert len(ui.rendered_blocks) == 2

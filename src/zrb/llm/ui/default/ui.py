@@ -586,6 +586,12 @@ class UI(BaseUI):
     def collapse_thinking_block(self, collapsed: str, full: str) -> bool:
         return self._output.collapse_thinking_block(collapsed, full)
 
+    def mark_text_block_start(self) -> None:
+        self._output.mark_text_block_start()
+
+    def collapse_text_block(self, collapsed: str, full: str) -> bool:
+        return self._output.collapse_text_block(collapsed, full)
+
     def toggle_collapsible_block(self) -> bool:
         # While viewing a sub-agent, the output pane shows THAT sub-agent's
         # own buffered text, tracked by its own toggle-block scope — not the

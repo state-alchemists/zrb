@@ -59,12 +59,24 @@ def _notify(message: str) -> None:
     UI including ``BufferedUI`` for sub-agents) so it reaches the activity
     panel too. A missing/incompatible UI, or any failure here, must never
     break the actual fetch — this is a courtesy message, not the result.
+
+    The two-space indent matches ``StreamEventHandler``'s own
+    ``indentation`` (``indent_level=1``, the only value zrb ever constructs
+    it with) — this call sits outside that handler entirely, so without it
+    the line lands at column 0 while every event-driven line around it
+    (thinking, tool-call, usage) is indented. The leading ``\\n`` is this
+    call's own line break: it prints outside `StreamEventHandler`, which
+    relies on the *next* thing printed to supply the separator between
+    blocks rather than baking a trailing one into what came before — see
+    the note on `_close_thinking_block`'s label in stream_response.py.
     """
     ui = get_current_ui()
     if ui is None:
         return
     try:
-        ui.stream_to_parent(message, kind="text")
+        # end="": append_to_output defaults end="\n", which would add a
+        # second trailing newline on top of this call's own leading one.
+        ui.stream_to_parent(f"\n  {message}", end="", kind="text")
     except Exception:  # noqa: BLE001
         pass
 
