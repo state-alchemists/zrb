@@ -1843,9 +1843,9 @@
     "Xcom": {
       "init": [],
       "members": [
-        "add_pop_callback",
-        "add_push_callback",
         "append",
+        "append_pop_callback",
+        "append_push_callback",
         "appendleft",
         "extend",
         "extendleft",

@@ -60,8 +60,6 @@ class PollingUI(SimpleUI):
             **kwargs,
         )
         self.output_queue: asyncio.Queue[str] = asyncio.Queue()
-        self._input_queue: asyncio.Queue[str] = asyncio.Queue()
-        self._waiting_for_input = False
         self._input_handling = QueueBasedInput(self)
 
     async def print(self, text: str, kind: str = "text") -> None:

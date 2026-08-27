@@ -56,6 +56,7 @@ class MockUI:
         self.append_to_output = MagicMock(side_effect=lambda x: self.outputs.append(x))
         self.invalidate_ui = MagicMock()
         self.toggle_yolo = MagicMock()
+        self.toggle_collapsible_block = MagicMock()
         self.cycle_mode = MagicMock()
         self.submit_user_message = MagicMock()
         self.schedule_command = MagicMock()
@@ -364,6 +365,26 @@ def test_ctrl_y_binding(mock_ui, setup_bindings):
     event = create_mock_event()
     trigger_binding(setup_bindings, "c-y", event)
     mock_ui.toggle_yolo.assert_called_once()
+
+
+def test_ctrl_o_binding(mock_ui, setup_bindings):
+    event = create_mock_event()
+    trigger_binding(setup_bindings, "c-o", event)
+    mock_ui.toggle_collapsible_block.assert_called_once()
+
+
+def test_ctrl_o_binding_fires_while_viewing_sub_agent(mock_ui, setup_bindings):
+    """Unlike `left`, Ctrl+O is unconditional: `ui.toggle_collapsible_block`
+    itself routes to the viewed sub-agent's own toggle-block scope when
+    `viewing_agent_id` is set, so the binding stays correct in both states —
+    tested separately at the `UI`/`UIAgentPicker` level."""
+    event = create_mock_event()
+    mock_ui.viewing_agent_id = "abc123"
+
+    triggered = trigger_binding(setup_bindings, "c-o", event)
+
+    assert triggered is True
+    mock_ui.toggle_collapsible_block.assert_called_once()
 
 
 def test_shift_tab_cycles_mode(mock_ui, setup_bindings):

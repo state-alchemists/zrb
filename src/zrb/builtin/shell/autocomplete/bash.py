@@ -5,7 +5,7 @@ from zrb.task.make_task import make_task
 
 _COMPLETION_SCRIPT = """
 _{command_name}_complete() {
-    local cur cmd_input subcmd_output cache_file
+    local cur cmd_input subcmd_output cache_dir cache_file
     local -a subcommands
 
     cur="${COMP_WORDS[COMP_CWORD]}"
@@ -13,8 +13,14 @@ _{command_name}_complete() {
 
     # Cache the subcommand list for a minute, keyed by cwd + the command
     # being completed, so repeated Tab presses don't pay a fresh process
-    # spawn (and zrb_init.py reload) on every keystroke.
-    cache_file="${TMPDIR:-/tmp}/.{command_name}-autocomplete-cache-$(printf '%s' "$PWD $cmd_input" | tr -c '[:alnum:]' '_')"
+    # spawn (and zrb_init.py reload) on every keystroke. Lives under the
+    # user's own cache dir (not shared /tmp) -- a world-writable directory
+    # with a filename any local user can predict lets another user pre-plant
+    # a symlink there and hijack the write.
+    cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/{command_name}"
+    mkdir -p "$cache_dir" 2>/dev/null
+    chmod 700 "$cache_dir" 2>/dev/null
+    cache_file="$cache_dir/autocomplete-cache-$(printf '%s' "$PWD $cmd_input" | tr -c '[:alnum:]' '_')"
 
     if [ -n "$(find "$cache_file" -mmin -1 2>/dev/null)" ]; then
         subcmd_output=$(cat "$cache_file")

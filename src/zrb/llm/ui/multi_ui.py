@@ -222,6 +222,59 @@ class MultiUI:
                 except Exception as e:
                     CFG.LOGGER.debug(f"Child UI accumulate_usage failed: {e}")
 
+    def record_tool_call_block(self, collapsed: str, full: str) -> None:
+        """Give every child its tool-call/result line.
+
+        Tracks it as a toggle span on whichever children support that (the
+        default TUI, via their own `record_tool_call_block`), and falls back
+        to a plain `append_to_output` for children that don't (Telegram,
+        SSE) — so those channels keep receiving the line exactly as they did
+        before expand/collapse existed. `StreamEventHandler` calls either
+        this method or `append_to_output` for a given line, never both, so
+        every child must be reached from right here.
+        """
+        for ui in self._uis:
+            record = getattr(ui, "record_tool_call_block", None)
+            if callable(record):
+                try:
+                    record(collapsed, full)
+                    continue
+                except Exception as e:
+                    CFG.LOGGER.debug(f"Child UI record_tool_call_block failed: {e}")
+            try:
+                ui.append_to_output(collapsed, end="", kind="tool_call")
+            except Exception as e:
+                CFG.LOGGER.debug(f"Child UI append_to_output failed: {e}")
+
+    def mark_thinking_block_start(self) -> None:
+        """Let whichever children support toggling record where a live
+        thinking block begins.
+
+        Unlike `record_tool_call_block`, no fallback is needed here: the
+        thinking text itself already reached every child via the normal
+        `append_to_output` broadcast (StreamEventHandler never withholds
+        it) — this only lets toggle-capable children prepare to collapse
+        it later. A child that doesn't support it just keeps showing that
+        thinking text uncollapsed, which is a harmless default.
+        """
+        for ui in self._uis:
+            mark = getattr(ui, "mark_thinking_block_start", None)
+            if callable(mark):
+                try:
+                    mark()
+                except Exception as e:
+                    CFG.LOGGER.debug(f"Child UI mark_thinking_block_start failed: {e}")
+
+    def collapse_thinking_block(self, collapsed: str, full: str) -> None:
+        """Counterpart to `mark_thinking_block_start` — see its docstring."""
+        for ui in self._uis:
+            collapse = getattr(ui, "collapse_thinking_block", None)
+            if callable(collapse):
+                try:
+                    collapse(collapsed, full)
+                except Exception as e:
+                    CFG.LOGGER.debug(f"Child UI collapse_thinking_block failed: {e}")
+
     def replay_history(self, messages: list) -> None:
         """Replay loaded history on every child UI that supports it."""
         for ui in self._uis:

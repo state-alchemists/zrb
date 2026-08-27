@@ -338,3 +338,155 @@ def test_buffered_ui_defaults_to_empty_session_id():
         ui.append_to_output("line")
 
     assert reg.update.call_args.kwargs["session_id"] == ""
+
+
+# --- Toggle-block tracking (Ctrl+O expand/collapse in the sub-agent view) --
+# Independently scoped from UIOutput.rendered_blocks (the main transcript's) —
+# see BufferedUI.append_toggle_block's docstring. Mirrors the coverage in
+# test/llm/ui/default/test_output.py's own toggle-block tests.
+
+
+def test_append_toggle_block_shows_collapsed_by_default():
+    ui = BufferedUI(MagicMock())
+
+    ui.append_toggle_block("short", "much longer full text")
+
+    assert "short" in ui.get_buffered_output()
+    assert "much longer full text" not in ui.get_buffered_output()
+    assert len(ui.rendered_blocks) == 1
+
+
+def test_append_toggle_block_skips_tracking_when_variants_match():
+    ui = BufferedUI(MagicMock())
+
+    ui.append_toggle_block("same", "same")
+
+    assert ui.get_buffered_output() == "same"
+    assert ui.rendered_blocks == []
+
+
+def test_toggle_collapsible_block_at_offset_expands_then_collapses():
+    ui = BufferedUI(MagicMock())
+    ui.append_toggle_block("short", "much longer full text")
+
+    toggled = ui.toggle_collapsible_block_at_offset(len(ui.get_buffered_output()))
+    expanded = ui.get_buffered_output()
+    toggled_again = ui.toggle_collapsible_block_at_offset(len(ui.get_buffered_output()))
+    collapsed_again = ui.get_buffered_output()
+
+    assert toggled is True
+    assert "much longer full text" in expanded
+    assert toggled_again is True
+    assert "short" in collapsed_again
+    assert "much longer full text" not in collapsed_again
+
+
+def test_toggle_collapsible_block_at_offset_returns_false_without_a_block():
+    ui = BufferedUI(MagicMock())
+    ui.append_to_output("plain text, no toggle blocks", end="")
+
+    assert ui.toggle_collapsible_block_at_offset(5) is False
+
+
+def test_toggle_collapsible_block_at_offset_shifts_later_blocks():
+    """Toggling an earlier block must keep a later block's offsets correct."""
+    ui = BufferedUI(MagicMock())
+    ui.append_toggle_block("first", "first EXPANDED")
+    ui.append_to_output("between", end="")
+    ui.append_toggle_block("second", "second EXPANDED")
+
+    second_block = ui.rendered_blocks[1]
+    expected_second_text = ui.get_buffered_output()[second_block[0] : second_block[1]]
+
+    toggled = ui.toggle_collapsible_block_at_offset(0)
+
+    assert toggled is True
+    assert (
+        ui.get_buffered_output()[second_block[0] : second_block[1]]
+        == expected_second_text
+    )
+
+
+def test_mark_and_collapse_thinking_block_wraps_the_streamed_span():
+    """Thinking streams live (nothing withheld); collapse_thinking_block
+    retroactively wraps that already-printed span, using the caller-supplied
+    `full` text — same contract as UIOutput.collapse_thinking_block."""
+    ui = BufferedUI(MagicMock())
+    ui.append_to_output("before ", end="")
+    ui.mark_thinking_block_start()
+    ui.append_to_output("a long stream of live thinking text", end="")
+
+    collapsed = ui.collapse_thinking_block(
+        "🧠 Thought\n", "a long stream of live thinking text"
+    )
+
+    assert collapsed is True
+    assert "a long stream of live thinking text" not in ui.get_buffered_output()
+    assert "🧠 Thought" in ui.get_buffered_output()
+    assert len(ui.rendered_blocks) == 1
+
+    ui.toggle_collapsible_block_at_offset(len(ui.get_buffered_output()))
+    assert ui.get_buffered_output().startswith("before ")
+    assert "a long stream of live thinking text" in ui.get_buffered_output()
+
+
+def test_collapse_thinking_block_ignores_buffer_mangled_by_carriage_return():
+    """Regression: the passed-in `full` must win even when the *rendered*
+    span no longer matches it (a stray \\r rewrote part of the live line via
+    _merge_output_chunk, the same function UIOutput.append_to_output uses)."""
+    ui = BufferedUI(MagicMock())
+    ui.mark_thinking_block_start()
+    ui.append_to_output("first part\rsecond part", end="")
+    assert "first part" not in ui.get_buffered_output()
+
+    collapsed = ui.collapse_thinking_block("🧠 Thought\n", "first part second part")
+    ui.toggle_collapsible_block_at_offset(len(ui.get_buffered_output()))
+
+    assert collapsed is True
+    assert "first part" in ui.get_buffered_output()
+    assert "second part" in ui.get_buffered_output()
+
+
+def test_collapse_thinking_block_without_a_mark_is_a_noop():
+    ui = BufferedUI(MagicMock())
+    ui.append_to_output("no marked thinking block here", end="")
+
+    assert ui.collapse_thinking_block("🧠 Thought\n", "thinking text") is False
+    assert ui.get_buffered_output() == "no marked thinking block here"
+
+
+def test_collapse_thinking_block_without_full_text_is_a_noop():
+    ui = BufferedUI(MagicMock())
+    ui.mark_thinking_block_start()
+
+    assert ui.collapse_thinking_block("🧠 Thought\n", "") is False
+
+
+def test_toggle_collapsible_block_at_offset_leaves_state_unchanged_on_stale_span():
+    """A stale recorded span must not flip `expanded` or move the tracked
+    offsets — a later toggle should retry cleanly, not work from corrupted
+    bookkeeping."""
+    ui = BufferedUI(MagicMock())
+    ui.append_toggle_block("short", "much longer full text")
+
+    block = ui.rendered_blocks[0]
+    block[1] = len(ui.get_buffered_output()) + 100  # simulate a stale span
+
+    result = ui.toggle_collapsible_block_at_offset(len(ui.get_buffered_output()))
+
+    assert result is False
+    assert block[2].expanded is False
+    assert "much longer full text" not in ui.get_buffered_output()
+
+
+def test_clear_buffer_resets_toggle_state():
+    ui = BufferedUI(MagicMock())
+    ui.mark_thinking_block_start()
+    ui.append_toggle_block("short", "full")
+
+    ui.clear_buffer()
+
+    assert ui.rendered_blocks == []
+    # No leftover mark survives the clear: collapsing without a fresh
+    # mark_thinking_block_start() call afterward must be a no-op.
+    assert ui.collapse_thinking_block("🧠 Thought\n", "some text") is False

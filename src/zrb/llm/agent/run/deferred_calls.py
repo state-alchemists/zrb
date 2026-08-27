@@ -34,7 +34,9 @@ from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.permission import ASK
 from zrb.llm.tool_call.always_approve import is_always_auto_approve
+from zrb.llm.tool_call.args import parse_tool_args
 from zrb.llm.tool_call.handler import ToolCallHandler
+from zrb.llm.tool_call.override_registry import discard_override, record_override
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 
 if TYPE_CHECKING:
@@ -56,6 +58,32 @@ def _as_tool_input(args: Any) -> Any:
         except json.JSONDecodeError:
             return args
     return args
+
+
+def _record_override_if_edited(call, result: Any) -> None:
+    """Register an edited call with `override_registry`, so the model finds
+    out (via a note `SafeToolsetWrapper.call_tool` appends to the tool
+    result) that its arguments changed before execution.
+
+    A no-op unless `result` is an edited `ToolApproved` — the common case
+    (approved as-is, or denied) never touches the registry. `getattr` rather
+    than a direct attribute read: some approval paths return a duck-typed
+    stand-in (this module's own tests among them) that doesn't define
+    `override_args` at all, which must read the same as "no override."
+    """
+    # lazy: heavy third-party
+    from pydantic_ai import ToolApproved
+
+    if not isinstance(result, ToolApproved):
+        return
+    override_args = getattr(result, "override_args", None)
+    if override_args is None:
+        return
+    # `None` means unparseable (not a dict, or invalid JSON), not "no edit" —
+    # fall back to an empty baseline so the diff still reports every edited
+    # key as changed rather than silently dropping the override entirely.
+    original_args = parse_tool_args(call) or {}
+    record_override(call.tool_call_id, original_args, override_args)
 
 
 async def process_deferred_requests(
@@ -126,6 +154,7 @@ async def process_deferred_requests(
                 force_ask=pre.force_prompt,
             )
         current_results.approvals[call.tool_call_id] = result
+        _record_override_if_edited(call, result)
 
         if isinstance(result, ToolDenied):
             # Drop the denied call so pydantic-ai doesn't execute it.
@@ -162,6 +191,11 @@ def rebuild_for_denials(
         return current_results
 
     CFG.LOGGER.debug("Tool was denied, clearing calls in deferred results")
+    # Every call being dropped here (including edited-and-approved siblings of
+    # the denied call) will never reach execution, so any override recorded
+    # for it would otherwise leak in `_pending` forever.
+    for tool_call_id in current_results.calls:
+        discard_override(tool_call_id)
     return DeferredToolResults(
         calls={},
         approvals=current_results.approvals,

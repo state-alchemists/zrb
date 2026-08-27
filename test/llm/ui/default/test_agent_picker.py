@@ -36,6 +36,10 @@ class FakeUI:
         self._picker.init_agent_picker_state()
 
     @property
+    def output_field(self):
+        return self._output_field
+
+    @property
     def output_text(self) -> str:
         return self._output_field.text
 
@@ -214,6 +218,78 @@ def test_sync_output_returns_to_main_when_session_vanishes():
             ui.sync_output_to_viewed_agent()
         assert ui.viewing_agent_id is None
         assert ui.output_text == "main transcript"
+
+
+def test_toggle_viewed_agent_block_routes_to_the_sub_agents_own_scope():
+    """Ctrl+O while viewing a sub-agent must toggle THAT sub-agent's own
+    BufferedUI-tracked block (using the shared output pane's cursor
+    position), not the main transcript's rendered_blocks."""
+    ui = FakeUI()
+    session = _session("a", buffer_text="sub-agent output")
+    session.buffered_ui.toggle_collapsible_block_at_offset.return_value = True
+
+    with patch(
+        "zrb.llm.agent.subagent.live_session.live_subagent_session_registry",
+        FakeLiveRegistry(session),
+    ):
+        ui.enter_agent_view(session)
+        # Set AFTER entering the view — enter_agent_view's own set_output_text
+        # would otherwise move the cursor to follow the (unrelated) initial
+        # buffer_text's length, clobbering this. Simulates the user having
+        # scrolled/clicked to position 7 before pressing Ctrl+O.
+        ui.output_field.buffer.cursor_position = 7
+        # What get_buffered_output returns once the toggle actually happens.
+        session.buffered_ui.get_buffered_output.return_value = (
+            "expanded sub-agent output"
+        )
+        toggled = ui.toggle_viewed_agent_block()
+
+    assert toggled is True
+    session.buffered_ui.toggle_collapsible_block_at_offset.assert_called_once_with(7)
+    assert ui.output_text == "expanded sub-agent output"
+
+
+def test_toggle_viewed_agent_block_noop_when_not_viewing():
+    ui = FakeUI()
+
+    assert ui.toggle_viewed_agent_block() is False
+
+
+def test_toggle_viewed_agent_block_noop_when_nothing_to_toggle():
+    """No block found at that offset — pane text must be left untouched."""
+    ui = FakeUI()
+    session = _session("a", buffer_text="sub-agent output")
+    session.buffered_ui.toggle_collapsible_block_at_offset.return_value = False
+
+    with patch(
+        "zrb.llm.agent.subagent.live_session.live_subagent_session_registry",
+        FakeLiveRegistry(session),
+    ):
+        ui.enter_agent_view(session)
+        toggled = ui.toggle_viewed_agent_block()
+
+    assert toggled is False
+    assert ui.output_text == "sub-agent output"
+
+
+def test_toggle_viewed_agent_block_noop_when_session_vanished():
+    ui = FakeUI()
+    ui.set_output_text("main transcript")
+    session = _session("a", buffer_text="sub-agent output")
+
+    with patch(
+        "zrb.llm.agent.subagent.live_session.live_subagent_session_registry",
+        FakeLiveRegistry(session),
+    ):
+        ui.enter_agent_view(session)
+        with patch(
+            "zrb.llm.agent.subagent.live_session.live_subagent_session_registry",
+            FakeLiveRegistry(),
+        ):
+            toggled = ui.toggle_viewed_agent_block()
+
+    assert toggled is False
+    session.buffered_ui.toggle_collapsible_block_at_offset.assert_not_called()
 
 
 def test_exit_agent_view_restores_main():

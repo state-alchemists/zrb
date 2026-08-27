@@ -88,7 +88,7 @@ llm_chat = LLMChatTask(
 )
 
 # Register zrb-shipped default tools, factories, and guidance — deferred to the
-# first exec (ChatExecution._exec_action calls ensure_common_tools) so applying it,
+# first exec (ChatExecution.exec_action calls ensure_common_tools) so applying it,
 # which transitively imports pydantic_ai, stays off the `import zrb` path. The
 # same deferral is set on `sub_agent_manager` at the bottom of
 # `zrb/llm/agent/subagent/manager.py`, so the main agent and sub-agents

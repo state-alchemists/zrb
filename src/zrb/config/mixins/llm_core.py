@@ -5,6 +5,17 @@ from __future__ import annotations
 from zrb.config.env_field import EnvField, on_off
 from zrb.util.string.conversion import to_boolean
 
+# Mirrors pydantic_ai.settings.ThinkingEffort — the string-effort half of the
+# unified cross-provider `ModelSettings.thinking` field.
+_THINKING_EFFORTS = frozenset({"minimal", "low", "medium", "high", "xhigh"})
+
+
+def _parse_thinking_level(raw: str) -> "bool | str":
+    lowered = raw.strip().lower()
+    if lowered in _THINKING_EFFORTS:
+        return lowered
+    return to_boolean(raw)
+
 
 class LLMCoreMixin:
     ENV_PREFIX: str
@@ -18,6 +29,7 @@ class LLMCoreMixin:
         self.DEFAULT_LLM_SHOW_OLLAMA_MODELS: str = "on"
         self.DEFAULT_LLM_SHOW_PYDANTIC_AI_MODELS: str = "on"
         self.DEFAULT_LLM_PERMISSIONS: str = ""
+        self.DEFAULT_LLM_THINKING: str = ""
         super().__init__()
 
     LLM_MODEL = EnvField(
@@ -63,6 +75,20 @@ class LLMCoreMixin:
         doc=(
             "Enable/disable showing pydantic-ai KnownModelName models in model "
             "completion."
+        ),
+    )
+
+    LLM_THINKING = EnvField(
+        _parse_thinking_level,
+        nullable=True,
+        doc=(
+            "Cross-provider reasoning/thinking level, applied as pydantic-ai's "
+            "unified ModelSettings.thinking: 'minimal'/'low'/'medium'/'high'/"
+            "'xhigh' for a specific effort, or 'true'/'false' to enable/disable "
+            "at the provider's default effort. Unset (default) leaves each "
+            "provider's own default behavior alone. A provider-specific setting "
+            "(e.g. openai_reasoning_effort) passed via a task's own "
+            "model_settings still takes precedence over this."
         ),
     )
 

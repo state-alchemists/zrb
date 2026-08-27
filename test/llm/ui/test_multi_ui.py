@@ -98,6 +98,93 @@ def test_multi_ui_accumulate_usage_swallows_child_errors(multi_ui, child_ui_1):
     good_child.accumulate_usage.assert_called_once()
 
 
+def test_multi_ui_record_tool_call_block_uses_child_recorder_when_supported(
+    multi_ui, child_ui_1, child_ui_2
+):
+    """A toggle-capable child (the default TUI) gets real tracking; a child
+    without that support (Telegram/SSE-shaped) still gets the collapsed line
+    via a plain append_to_output — exactly what it would have received via
+    `fprint` before this feature existed."""
+    child_ui_1.record_tool_call_block = MagicMock()
+    del child_ui_2.record_tool_call_block
+
+    multi_ui.record_tool_call_block("collapsed", "full")
+
+    child_ui_1.record_tool_call_block.assert_called_once_with("collapsed", "full")
+    child_ui_1.append_to_output.assert_not_called()
+    child_ui_2.append_to_output.assert_called_once_with(
+        "collapsed", end="", kind="tool_call"
+    )
+
+
+def test_multi_ui_record_tool_call_block_falls_back_when_no_child_supports_it(
+    multi_ui, child_ui_1, child_ui_2
+):
+    """Dual-mode with no toggle-capable child at all (e.g. paired with a
+    non-default UI): every child must still receive the collapsed line, not
+    silence — this is the regression the fan-out-or-fallback design exists
+    to prevent."""
+    del child_ui_1.record_tool_call_block
+    del child_ui_2.record_tool_call_block
+
+    multi_ui.record_tool_call_block("collapsed", "full")
+
+    child_ui_1.append_to_output.assert_called_once_with(
+        "collapsed", end="", kind="tool_call"
+    )
+    child_ui_2.append_to_output.assert_called_once_with(
+        "collapsed", end="", kind="tool_call"
+    )
+
+
+def test_multi_ui_record_tool_call_block_swallows_child_errors(
+    multi_ui, child_ui_1, child_ui_2
+):
+    del child_ui_1.record_tool_call_block
+    child_ui_1.append_to_output = MagicMock(side_effect=RuntimeError("bad"))
+    child_ui_2.record_tool_call_block = MagicMock()
+
+    # Should not raise even though child_ui_1's append_to_output throws
+    multi_ui.record_tool_call_block("collapsed", "full")
+
+    child_ui_2.record_tool_call_block.assert_called_once_with("collapsed", "full")
+
+
+def test_multi_ui_mark_thinking_block_start_forwards_to_supporting_children(
+    multi_ui, child_ui_1, child_ui_2
+):
+    child_ui_1.mark_thinking_block_start = MagicMock()
+    del child_ui_2.mark_thinking_block_start  # e.g. Telegram/SSE, no toggle support
+
+    # Must not raise for the child that doesn't support it.
+    multi_ui.mark_thinking_block_start()
+
+    child_ui_1.mark_thinking_block_start.assert_called_once_with()
+
+
+def test_multi_ui_collapse_thinking_block_forwards_to_supporting_children(
+    multi_ui, child_ui_1, child_ui_2
+):
+    child_ui_1.collapse_thinking_block = MagicMock()
+    del child_ui_2.collapse_thinking_block
+
+    multi_ui.collapse_thinking_block("🧠 Thought\n", "the full thought")
+
+    child_ui_1.collapse_thinking_block.assert_called_once_with(
+        "🧠 Thought\n", "the full thought"
+    )
+
+
+def test_multi_ui_thinking_hooks_swallow_child_errors(multi_ui, child_ui_1, child_ui_2):
+    child_ui_1.mark_thinking_block_start = MagicMock(side_effect=RuntimeError("bad"))
+    child_ui_2.mark_thinking_block_start = MagicMock()
+
+    # Should not raise even though child_ui_1 throws.
+    multi_ui.mark_thinking_block_start()
+
+    child_ui_2.mark_thinking_block_start.assert_called_once()
+
+
 def test_multi_ui_set_thinking_mirrors_to_children(multi_ui, child_ui_1, child_ui_2):
     multi_ui.set_thinking(True)
     assert multi_ui.is_thinking is True

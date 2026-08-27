@@ -483,7 +483,7 @@ class TestLspPublicAPI:
 
         with (
             patch.object(manager, "get_server", return_value=mock_server),
-            patch.object(manager, "_find_symbol_position", return_value=(0, 4)),
+            patch.object(manager, "find_symbol_position", return_value=(0, 4)),
         ):
             result = await manager.find_references("my_func", str(file_path))
             assert result["found"] is True
@@ -599,7 +599,7 @@ class TestLspPublicAPI:
         mock_server.rename.return_value = None
         with (
             patch.object(manager, "get_server", return_value=mock_server),
-            patch.object(manager, "_find_symbol_position", return_value=(0, 0)),
+            patch.object(manager, "find_symbol_position", return_value=(0, 0)),
         ):
             result = await manager.rename_symbol("old", "new", "file.py")
             assert result["success"] is False
@@ -635,7 +635,7 @@ class TestLspPublicAPI:
         }
         with (
             patch.object(manager, "get_server", return_value=mock_server),
-            patch.object(manager, "_find_symbol_position", return_value=(0, 0)),
+            patch.object(manager, "find_symbol_position", return_value=(0, 0)),
         ):
             result = await manager.rename_symbol("old", "new", "file.py")
             assert result["success"] is True
@@ -656,7 +656,7 @@ class TestLspPublicAPI:
         mock_server.find_references.side_effect = Exception("find_references error")
         with (
             patch.object(manager, "get_server", return_value=mock_server),
-            patch.object(manager, "_find_symbol_position", return_value=(0, 0)),
+            patch.object(manager, "find_symbol_position", return_value=(0, 0)),
         ):
             result = await manager.find_references("my_func", "file.py")
             assert result["found"] is False
@@ -702,7 +702,7 @@ class TestLspPublicAPI:
         mock_server.rename.side_effect = Exception("rename error")
         with (
             patch.object(manager, "get_server", return_value=mock_server),
-            patch.object(manager, "_find_symbol_position", return_value=(0, 0)),
+            patch.object(manager, "find_symbol_position", return_value=(0, 0)),
         ):
             result = await manager.rename_symbol("old", "new", "file.py")
             assert result["success"] is False

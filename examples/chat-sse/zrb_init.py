@@ -604,11 +604,11 @@ class SSEUI(EventDrivenUI):
             if clean_prompt:
                 await self.server.broadcast(f"❓ {clean_prompt}")
 
-        self._waiting_for_input = True
+        self.waiting_for_input = True
         try:
-            return await self._input_queue.get()
+            return await self.input_queue.get()
         finally:
-            self._waiting_for_input = False
+            self.waiting_for_input = False
 
     async def start_event_loop(self) -> None:
         """Start the SSE server."""
@@ -635,6 +635,7 @@ def sse_ui_factory(
     initial_conversation_name,
     initial_yolo,
     initial_attachments,
+    custom_commands=None,
 ):
     from zrb.llm.ui import UIConfig
 
@@ -651,6 +652,7 @@ def sse_ui_factory(
         config=cfg,
         initial_message=initial_message,
         initial_attachments=initial_attachments,
+        custom_commands=custom_commands,
         server=server,
     )
     return ui

@@ -141,7 +141,7 @@ class Xcom(deque):
         while len(self) > 1:
             self.pop()
 
-    def add_push_callback(self, callback: Callable[[], Any]):
+    def append_push_callback(self, callback: Callable[[], Any]):
         """Register a zero-argument callback fired after every push.
 
         Callbacks run in registration order and receive nothing — read the
@@ -151,7 +151,7 @@ class Xcom(deque):
             self.push_callbacks: list[Callable[[], Any]] = []
         self.push_callbacks.append(callback)
 
-    def add_pop_callback(self, callback: Callable[[], Any]):
+    def append_pop_callback(self, callback: Callable[[], Any]):
         """Register a zero-argument callback fired after every pop.
 
         Fires for `pop`, `popleft`, and `popright` alike.

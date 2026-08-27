@@ -64,8 +64,6 @@ class EventDrivenUI(SimpleUI):
             model=model,
             **kwargs,
         )
-        self._input_queue: asyncio.Queue[str] = asyncio.Queue()
-        self._waiting_for_input = False
         self._input_handling = QueueBasedInput(self)
 
     @property

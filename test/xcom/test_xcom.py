@@ -101,8 +101,8 @@ def test_xcom_callbacks():
         pop_count += 1
 
     xcom = Xcom()
-    xcom.add_push_callback(on_push)
-    xcom.add_pop_callback(on_pop)
+    xcom.append_push_callback(on_push)
+    xcom.append_pop_callback(on_pop)
 
     xcom.push("a")
     assert push_count == 1
@@ -132,8 +132,8 @@ def test_xcom_all_mutators_fire_callbacks():
         pop_count += 1
 
     xcom = Xcom()
-    xcom.add_push_callback(on_push)
-    xcom.add_pop_callback(on_pop)
+    xcom.append_push_callback(on_push)
+    xcom.append_pop_callback(on_pop)
 
     xcom.appendleft("a")
     assert push_count == 1

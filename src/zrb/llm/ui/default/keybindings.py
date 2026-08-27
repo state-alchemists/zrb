@@ -222,6 +222,19 @@ class UIKeybindings:
         def _(event):
             ui.toggle_yolo()
 
+        # Ctrl+O expands/collapses the collapsible block at (or just before)
+        # the output cursor — a tool call's truncated args, a hidden tool
+        # result, or a thinking block collapsed once the model moved on.
+        # Follows the tail by default, so with no scrolling this toggles the
+        # most recently printed block. Unconditional (unlike `left` above):
+        # `ui.toggle_collapsible_block` itself routes to the currently-viewed
+        # sub-agent's own toggle-block scope when `viewing_agent_id` is set,
+        # so this single binding is always correct regardless of what the
+        # output pane is currently showing.
+        @app_keybindings.add("c-o")
+        def _(event):
+            ui.toggle_collapsible_block()
+
         if CFG.IS_TERMUX:
             # On Termux, Tab and Shift+Tab are indistinguishable (both byte 0x09),
             # so Shift+Tab never arrives — bind plain Tab to mode cycling there.

@@ -54,20 +54,20 @@ For non-LLM tasks, the lifecycle ends here. For an `LLMChatTask`, the action han
 
 ```mermaid
 flowchart TD
-    Exec["src/zrb/llm/task/chat/execution.py :: ChatExecution._exec_action()"]
+    Exec["src/zrb/llm/task/chat/execution.py :: ChatExecution.exec_action()"]
     Exec -->|builds the inner LLMTask inline| Build["inner LLMTask — tools, toolsets, system prompt, capabilities"]
     Exec -->|resolves| Running["src/zrb/llm/task/chat/running.py — resolve UIs, triggers, commands"]
 ```
 
 `LLMChatTask` (`src/zrb/llm/task/chat/task.py`) is a plain `BaseTask` subclass
 that composes its behavior as parts (ADR-0035): `ChatExecution`
-(`execution.py`) owns `_exec_action`, `ChatRunning` (`running.py`) resolves
+(`execution.py`) owns `exec_action`, `ChatRunning` (`running.py`) resolves
 UIs/triggers/commands. Since 2.65.3 these are **composed attributes**
 (`self._execution`, `self._running`), not base classes.
 
 Three things happen here:
 
-1. **Build the inner `LLMTask`** with the resolved tools, toolsets, system prompt, capabilities, and history processors (inside `ChatExecution._exec_action`). Heavy collaborator: `zrb.llm.prompt.PromptManager` assembles the system prompt; `zrb.llm.skill.SkillManager`, `zrb.llm.hook.HookManager`, and `zrb.llm.agent.subagent.sub_agent_manager` contribute their respective pieces.
+1. **Build the inner `LLMTask`** with the resolved tools, toolsets, system prompt, capabilities, and history processors (inside `ChatExecution.exec_action`). Heavy collaborator: `zrb.llm.prompt.PromptManager` assembles the system prompt; `zrb.llm.skill.SkillManager`, `zrb.llm.hook.HookManager`, and `zrb.llm.agent.subagent.sub_agent_manager` contribute their respective pieces.
 2. **Resolve UIs** from `ui_factories` (or fall back to the default TUI). For `zrb llm chat`, this ends up being the prompt-toolkit UI in `src/zrb/llm/ui/default/ui.py`. See [llm-custom-ui.md](./llm-custom-ui.md) for the UI factory contract.
 3. **Wrap approval channels** — if multiple are present, in a `MultiplexApprovalChannel`. Otherwise the single channel passes through.
 
@@ -179,7 +179,7 @@ Control returns up through `LLMChatTask._exec_action` → `run_task_async` → `
 | OpenAI serializer patch | `src/zrb/llm/agent/run/openai_patch.py` |
 | Retry / error classification | `src/zrb/llm/agent/run/{retry_loop,error_classifier}.py` |
 | Compression / summarisation | `src/zrb/llm/summarizer/history_summarizer.py` |
-| Default TUI | `src/zrb/llm/ui/default/ui.py` (composes `base/ui.py` + 4 mixins) |
+| Default TUI | `src/zrb/llm/ui/default/ui.py` (composes `base/ui.py` + 7 parts: lifecycle, output, confirmation, selection, message editing, agent picker, keybindings) |
 | HTTP chat UI | `src/zrb/runner/chat/http_ui.py` + SSE backend |
 | Hooks | `src/zrb/llm/hook/manager.py`, `creator.py`, `process_{io,kill}.py`, `matcher.py` |
 | Sub-agents | `src/zrb/llm/agent/subagent/` |

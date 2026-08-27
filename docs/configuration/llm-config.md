@@ -46,6 +46,9 @@ These variables define which LLM Zrb uses for its primary reasoning and how it c
 | `ZRB_LLM_API_KEY` | API key for your LLM provider | None |
 | `ZRB_LLM_BASE_URL` | Custom endpoint URL | None |
 | `ZRB_LLM_PERMISSIONS` | Tool permission ruleset. Empty keeps legacy yolo behavior. Accepts a shorthand (`allow`/`ask`/`deny`) or a comma-separated `key:action` list (e.g. `edit:deny,Shell:ask,*:allow`). First match wins. | (empty) |
+| `ZRB_LLM_THINKING` | Cross-provider reasoning/thinking level — `minimal`/`low`/`medium`/`high`/`xhigh` for a specific effort, or `true`/`false` to enable/disable at the provider's default effort. Maps to pydantic-ai's unified `ModelSettings.thinking`, so it applies across OpenAI/Anthropic/Google/etc. without a per-provider setting. A provider-specific setting passed via a task's own `model_settings` (e.g. `openai_reasoning_effort`) still wins over this. | (unset — provider default) |
+
+Every agent also gets `openai_reasoning_summary="auto"` and `openai_prompt_cache_retention="24h"` by default (silently ignored by non-OpenAI providers) — without a requested summary, OpenAI's reasoning models return only an opaque encrypted signature, no readable reasoning text at all. Override either, or add other OpenAI-specific settings (`openai_prompt_cache_key`, `openai_reasoning_effort`, …), via a task's own `model_settings=` — caller-supplied keys always win over these defaults.
 
 ### Supported Providers
 

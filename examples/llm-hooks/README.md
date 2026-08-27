@@ -140,8 +140,7 @@ return HookResult.block(reason="I need more information before concluding.")
 ## Example Files
 
 - `zrb_init.py` — Programmatic hook registration
-- `.zrb/hooks.json` — JSON-based command hooks
-- `.zrb/hooks.yaml` — YAML-based command hooks
+- `.zrb/hooks.json` — JSON-based command hooks (YAML is also supported — see [hooks.md](../../docs/advanced-topics/hooks.md))
 - `custom_hook.hook.py` — Python hook module
 
 ## Running

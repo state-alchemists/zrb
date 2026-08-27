@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any, TextIO
 
 from zrb.llm.agent.activity import agent_activity_registry
 from zrb.llm.tool_call.ui_protocol import UIProtocol
+from zrb.util.cli.style import stylize_muted
 
 if TYPE_CHECKING:
     from zrb.llm.tool_call.ui_protocol import ChoiceSpec
@@ -35,6 +36,11 @@ class BufferedUI(UIProtocol):
         self._prefix = prefix
         self._buffer: list[str] = []
         self._merged_output: str = ""
+        # Toggle-block tracking for Ctrl+O expand/collapse in this sub-agent's
+        # own live view — independently scoped from the main transcript's
+        # (UIOutput.rendered_blocks); see append_toggle_block below.
+        self._rendered_blocks: list = []
+        self._thinking_block_start: int | None = None
         # Set by run_agent_task so buffered output also feeds the activity panel.
         self._agent_id: str | None = None
         # Scopes activity-panel updates to the session that started this
@@ -111,15 +117,126 @@ class BufferedUI(UIProtocol):
         kind: str = "text",
     ):
         text = sep.join(str(v) for v in values) + end
-        # lazy: circular — buffered_ui → output → ... → buffered_ui
-        from zrb.llm.ui.default.output import _merge_output_chunk
-
-        self._merged_output = _merge_output_chunk(self._merged_output, text)
-        self._buffer.append(text)
+        # The activity panel (agent.last_line, rendered as plain text in
+        # output.py's get_agent_activity_text) needs the UNSTYLED line — it
+        # never interprets ANSI, so a styled string would show raw escape
+        # codes there. Style only what goes into the buffer itself.
         if self._agent_id:
             agent_activity_registry.update(
                 self._agent_id, text, session_id=self._session_id
             )
+
+        # Mirrors UIOutput.append_to_output: everything but plain text/
+        # progress-todo gets muted — tool-call/thinking/progress/usage lines
+        # read as dimmed background chatter here too, not just in the main
+        # transcript.
+        styled_text = (
+            stylize_muted(text) if kind not in ("text", "todo_progress") else text
+        )
+        # lazy: circular — buffered_ui → output → ... → buffered_ui
+        from zrb.llm.ui.default.output import _merge_output_chunk
+
+        self._merged_output = _merge_output_chunk(self._merged_output, styled_text)
+        self._buffer.append(styled_text)
+
+    def _replace_span(self, start: int, end: int, replacement: str) -> bool:
+        """Splice ``self._merged_output[start:end]`` with `replacement` in
+        place, shifting later `self._rendered_blocks` entries by the length
+        delta. Mirrors `UIOutput.replace_output_span` minus the
+        prompt_toolkit `Document`/cursor-follow/`schedule_invalidate`
+        concerns, which don't apply to a plain accumulating string.
+        """
+        if end > len(self._merged_output):
+            return False
+        delta = len(replacement) - (end - start)
+        self._merged_output = (
+            self._merged_output[:start] + replacement + self._merged_output[end:]
+        )
+        if delta:
+            for block in self._rendered_blocks:
+                if block[0] >= end:
+                    block[0] += delta
+                    block[1] += delta
+        return True
+
+    def append_toggle_block(self, collapsed: str, full: str) -> None:
+        """Append a tool-call/result line that can later be expanded in
+        place — this sub-agent's own counterpart to
+        `UIOutput.append_toggle_block`. Styling is applied once here, same
+        as there: this inserts via `append_to_output(rendered, end="")` with
+        the default `kind="text"`, which skips the kind-based auto-styling
+        `append_to_output` otherwise applies.
+        """
+        if collapsed == full:
+            self.append_to_output(collapsed, end="")
+            return
+        # lazy: circular — buffered_ui → output → ... → buffered_ui
+        from zrb.llm.ui.default.output import CollapsibleBlockSource
+
+        source = CollapsibleBlockSource(stylize_muted(collapsed), stylize_muted(full))
+        start = len(self._merged_output)
+        self.append_to_output(source.collapsed, end="")
+        self._rendered_blocks.append([start, len(self._merged_output), source])
+
+    def record_tool_call_block(self, collapsed: str, full: str) -> None:
+        self.append_toggle_block(collapsed, full)
+
+    def mark_thinking_block_start(self) -> None:
+        self._thinking_block_start = len(self._merged_output)
+
+    def collapse_thinking_block(self, collapsed: str, full: str) -> bool:
+        """Collapse the thinking block opened by `mark_thinking_block_start`.
+
+        `full` is the accumulated text `StreamEventHandler` actually sent to
+        print_fn for this block — same "don't re-read the buffer" contract
+        as `UIOutput.collapse_thinking_block` (a stray carriage return in a
+        thinking delta can rewrite/erase part of the *rendered* text via
+        `_merge_output_chunk`, which this class also uses).
+        """
+        start = self._thinking_block_start
+        self._thinking_block_start = None
+        if start is None or not full:
+            return False
+        end = len(self._merged_output)
+        if end <= start:
+            return False
+        # lazy: circular — buffered_ui → output → ... → buffered_ui
+        from zrb.llm.ui.default.output import CollapsibleBlockSource
+
+        source = CollapsibleBlockSource(stylize_muted(collapsed), stylize_muted(full))
+        if not self._replace_span(start, end, source.collapsed):
+            return False
+        self._rendered_blocks.append([start, start + len(source.collapsed), source])
+        return True
+
+    def toggle_collapsible_block_at_offset(self, offset: int) -> bool:
+        """Expand/collapse the collapsible block at-or-before `offset`.
+
+        Mirrors `UIOutput.toggle_collapsible_block_at_cursor`, but takes the
+        offset explicitly — this class has no real cursor of its own; the
+        caller (the sub-agent live view) supplies the shared output pane's
+        cursor position. Returns whether a block was found and toggled.
+        """
+        target = None
+        for block in self._rendered_blocks:
+            if block[0] > offset:
+                break
+            target = block
+        if target is None:
+            return False
+        source = target[2]
+        new_expanded = not source.expanded
+        new_text = source.full if new_expanded else source.collapsed
+        if not self._replace_span(target[0], target[1], new_text):
+            return False
+        source.expanded = new_expanded
+        target[1] = target[0] + len(new_text)
+        return True
+
+    @property
+    def rendered_blocks(self) -> list:
+        """[start, end, source] per tracked toggle block (public API)."""
+        return self._rendered_blocks
 
     async def ask_user_choice(
         self, spec: ChoiceSpec, agent_id: str | None = None
@@ -163,6 +280,8 @@ class BufferedUI(UIProtocol):
         """Clear the buffer without flushing."""
         self._buffer.clear()
         self._merged_output = ""
+        self._rendered_blocks = []
+        self._thinking_block_start = None
 
     @property
     def yolo(self) -> bool | frozenset:

@@ -553,6 +553,66 @@ async def test_call_tool_posttooluse_failure_fires_on_exception():
 
 
 @pytest.mark.asyncio
+async def test_call_tool_appends_override_note_when_args_were_edited():
+    """A tool call whose arguments the user edited during approval gets a
+    `[SYSTEM NOTE]` appended to its result, so the model learns what actually
+    ran instead of silently reading a mismatched result (override_registry,
+    see docs/adr/adr-0085.md)."""
+    from pydantic_ai import ToolReturn
+    from pydantic_ai.toolsets import FunctionToolset
+
+    from zrb.llm.agent.common import _wrap_toolset
+    from zrb.llm.tool_call.override_registry import record_override
+
+    wrapped_ts = _wrap_toolset(FunctionToolset(tools=[]))
+    record_override("edited-call", {"path": "a.txt"}, {"path": "b.txt"})
+    ctx = MagicMock(tool_call_id="edited-call")
+    with patch(
+        "pydantic_ai.toolsets.WrapperToolset.call_tool", new_callable=AsyncMock
+    ) as mock_super:
+        mock_super.return_value = "ok"
+        res = await wrapped_ts.call_tool("t", {"path": "b.txt"}, ctx, None)
+
+    assert isinstance(res, ToolReturn)
+    assert "ok" in res.return_value
+    assert "[SYSTEM NOTE]" in res.return_value
+    assert "b.txt" in res.return_value
+
+
+@pytest.mark.asyncio
+async def test_call_tool_override_note_is_one_shot_and_reaches_error_results():
+    """The note is consumed once per call, and still reaches the model when
+    the (edited) call fails."""
+    from pydantic_ai import ToolReturn
+    from pydantic_ai.toolsets import FunctionToolset
+
+    from zrb.llm.agent.common import _wrap_toolset
+    from zrb.llm.tool_call.override_registry import record_override
+
+    wrapped_ts = _wrap_toolset(FunctionToolset(tools=[]))
+    record_override("edited-call-2", {"path": "a.txt"}, {"path": "b.txt"})
+    ctx = MagicMock(tool_call_id="edited-call-2")
+    with patch(
+        "pydantic_ai.toolsets.WrapperToolset.call_tool",
+        side_effect=ValueError("boom"),
+    ):
+        res = await wrapped_ts.call_tool("t", {"path": "b.txt"}, ctx, None)
+
+    assert isinstance(res, ToolReturn)
+    assert res.metadata.get("error") is True
+    assert "[SYSTEM NOTE]" in res.return_value
+
+    # Second call for the same tool_call_id: nothing left to consume.
+    with patch(
+        "pydantic_ai.toolsets.WrapperToolset.call_tool", new_callable=AsyncMock
+    ) as mock_super:
+        mock_super.return_value = "ok"
+        res2 = await wrapped_ts.call_tool("t", {"path": "b.txt"}, ctx, None)
+
+    assert res2.return_value == "ok"
+
+
+@pytest.mark.asyncio
 async def test_call_tool_passes_claude_tool_identity_fields():
     """Pre/PostToolUse fire with Claude-standard tool_name/tool_input (and
     tool_response on Post) so tool-name matchers and stdin reads work."""
@@ -745,6 +805,14 @@ def _default_timeout() -> float:
     return CFG.LLM_REQUEST_TIMEOUT / 1000
 
 
+def _reasoning_defaults() -> dict:
+    """The reasoning/caching defaults every agent carries unless overridden."""
+    return {
+        "openai_reasoning_summary": "auto",
+        "openai_prompt_cache_retention": "24h",
+    }
+
+
 def test_create_agent_forces_sequential_for_parallel_unsupported_model():
     """Models in the capabilities deny-list get ``parallel_tool_calls=False``."""
     from zrb.llm.agent.common import create_agent
@@ -760,6 +828,7 @@ def test_create_agent_forces_sequential_for_parallel_unsupported_model():
     assert _settings_of(mock_agent_class) == {
         "parallel_tool_calls": False,
         "timeout": _default_timeout(),
+        **_reasoning_defaults(),
     }
 
 
@@ -780,6 +849,7 @@ def test_create_agent_respects_caller_parallel_tool_calls_override():
         "parallel_tool_calls": True,
         "temperature": 0.5,
         "timeout": _default_timeout(),
+        **_reasoning_defaults(),
     }
 
 
@@ -797,7 +867,7 @@ def test_create_agent_leaves_unknown_models_unchanged():
 
     settings = _settings_of(mock_agent_class)
     assert "parallel_tool_calls" not in settings
-    assert settings == {"timeout": _default_timeout()}
+    assert settings == {"timeout": _default_timeout(), **_reasoning_defaults()}
 
 
 # ── Request deadline ─────────────────────────────────────────────────────
@@ -817,7 +887,7 @@ def test_create_agent_applies_the_configured_request_timeout(monkeypatch):
     with patch("pydantic_ai.Agent", mock_agent_class):
         create_agent(model="openai:gpt-4o", system_prompt="test", yolo=True)
 
-    assert _settings_of(mock_agent_class) == {"timeout": 45.0}
+    assert _settings_of(mock_agent_class) == {"timeout": 45.0, **_reasoning_defaults()}
 
 
 def test_create_agent_lets_the_caller_own_the_timeout():
@@ -833,7 +903,51 @@ def test_create_agent_lets_the_caller_own_the_timeout():
             yolo=True,
         )
 
-    assert _settings_of(mock_agent_class) == {"timeout": 5.0}
+    assert _settings_of(mock_agent_class) == {"timeout": 5.0, **_reasoning_defaults()}
+
+
+def test_create_agent_lets_the_caller_own_reasoning_defaults():
+    """Caller-supplied openai_reasoning_summary/prompt_cache_retention win."""
+    from zrb.llm.agent.common import create_agent
+
+    mock_agent_class = MagicMock()
+    with patch("pydantic_ai.Agent", mock_agent_class):
+        create_agent(
+            model="openai:gpt-4o",
+            system_prompt="test",
+            model_settings={"openai_reasoning_summary": "detailed"},
+            yolo=True,
+        )
+
+    settings = _settings_of(mock_agent_class)
+    assert settings["openai_reasoning_summary"] == "detailed"
+    assert settings["openai_prompt_cache_retention"] == "24h"
+
+
+def test_create_agent_applies_configured_thinking_level(monkeypatch):
+    """CFG.LLM_THINKING maps onto pydantic-ai's unified `thinking` setting."""
+    from zrb.llm.agent.common import create_agent
+
+    monkeypatch.setattr(CFG, "DEFAULT_LLM_THINKING", "high")
+    monkeypatch.delenv(f"{CFG.ENV_PREFIX}_LLM_THINKING", raising=False)
+    mock_agent_class = MagicMock()
+    with patch("pydantic_ai.Agent", mock_agent_class):
+        create_agent(model="openai:gpt-4o", system_prompt="test", yolo=True)
+
+    assert _settings_of(mock_agent_class)["thinking"] == "high"
+
+
+def test_create_agent_omits_thinking_when_unset(monkeypatch):
+    """LLM_THINKING unset (the default) leaves `thinking` out entirely, so
+    each provider's own default behavior applies untouched."""
+    from zrb.llm.agent.common import create_agent
+
+    monkeypatch.delenv(f"{CFG.ENV_PREFIX}_LLM_THINKING", raising=False)
+    mock_agent_class = MagicMock()
+    with patch("pydantic_ai.Agent", mock_agent_class):
+        create_agent(model="openai:gpt-4o", system_prompt="test", yolo=True)
+
+    assert "thinking" not in _settings_of(mock_agent_class)
 
 
 def test_create_agent_omits_the_timeout_when_disabled(monkeypatch):
@@ -846,4 +960,6 @@ def test_create_agent_omits_the_timeout_when_disabled(monkeypatch):
     with patch("pydantic_ai.Agent", mock_agent_class):
         create_agent(model="openai:gpt-4o", system_prompt="test", yolo=True)
 
-    assert _settings_of(mock_agent_class) is None
+    # No timeout key, but the reasoning/caching defaults still apply — those
+    # are unconditional, unlike the timeout which can be disabled.
+    assert _settings_of(mock_agent_class) == _reasoning_defaults()

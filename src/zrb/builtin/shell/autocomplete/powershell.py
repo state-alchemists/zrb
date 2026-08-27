@@ -16,9 +16,14 @@ Register-ArgumentCompleter -Native -CommandName '{command_name}' -ScriptBlock {
 
     # Cache the subcommand list for a minute, keyed by cwd + the command
     # being completed, so repeated Tab presses don't pay a fresh process
-    # spawn (and zrb_init.py reload) on every keystroke.
+    # spawn (and zrb_init.py reload) on every keystroke. Lives under the
+    # user's own LocalAppData (not $env:TEMP, which some setups share
+    # across sessions/users) -- a predictable filename in a shared temp dir
+    # lets another user pre-plant it and hijack the write.
+    $cacheDir = Join-Path $env:LOCALAPPDATA "{command_name}\autocomplete-cache"
+    New-Item -ItemType Directory -Force -Path $cacheDir | Out-Null
     $cacheKey = (($PWD.Path + ' ' + ($elements -join ' ')) -replace '[^a-zA-Z0-9]', '_')
-    $cacheFile = Join-Path $env:TEMP "{command_name}-autocomplete-cache-$cacheKey"
+    $cacheFile = Join-Path $cacheDir $cacheKey
 
     if ((Test-Path $cacheFile) -and ((Get-Item $cacheFile).LastWriteTime -gt (Get-Date).AddMinutes(-1))) {
         $subcmdOutput = Get-Content $cacheFile -Raw

@@ -134,10 +134,10 @@ class LSPManager:
             symbol_name, new_name, file_path, line, character, dry_run
         )
 
-    async def _find_symbol_position(
+    async def find_symbol_position(
         self, file_path: str, symbol_name: str
     ) -> "tuple[int, int] | None":
-        return await self._query._find_symbol_position(file_path, symbol_name)
+        return await self._query.find_symbol_position(file_path, symbol_name)
 
     def register_lsp_server(self, name: str, config: LSPServerConfig) -> None:
         """Register a user LSP server configuration.

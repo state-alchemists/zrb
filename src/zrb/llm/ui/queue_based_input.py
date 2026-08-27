@@ -8,27 +8,29 @@ two classes for what each still owns.
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    import asyncio
+from zrb.llm.custom_command.resolver import resolve_custom_command
 
+if TYPE_CHECKING:
     from zrb.llm.ui.simple_ui_base import SimpleUI
 
 
 class QueueBasedInput:
     """`input_queue`/`get_input`/`handle_incoming_message`, shared verbatim.
 
-    Keeps the `EventDrivenUI`/`PollingUI` (a `SimpleUI`) in
-    `self._simple_ui` rather than copying its state: `_input_queue` and
-    `_waiting_for_input` are initialized by `SimpleUI.__init__` (tests
-    reassign `_waiting_for_input` directly), and `_llm_task` is reassignable
-    via the `llm_task` property after construction. Both must stay live reads
-    through `self._simple_ui`, not values cached here at construction time.
+    Owns the queue and the waiting flag itself rather than reaching into
+    `EventDrivenUI`/`PollingUI` state: only `print()`, `submit_message()` and
+    `custom_commands` are read from `self._simple_ui`, and those are already
+    public. `_llm_task` is reassignable via the `llm_task` property after
+    construction on the owner, not this part.
     """
 
     def __init__(self, simple_ui: "SimpleUI") -> None:
         self._simple_ui = simple_ui
+        self._input_queue: "asyncio.Queue[str]" = asyncio.Queue()
+        self._waiting_for_input = False
 
     @property
     def input_queue(self) -> "asyncio.Queue[str]":
@@ -38,16 +40,16 @@ class QueueBasedInput:
         asserting on queue state has to reach for the private attribute. Prefer
         `handle_incoming_message()` for *routing* a message in.
         """
-        return self._simple_ui._input_queue
+        return self._input_queue
 
     @property
     def waiting_for_input(self) -> bool:
         """Whether `get_input` is currently blocked waiting for a response."""
-        return self._simple_ui._waiting_for_input
+        return self._waiting_for_input
 
     @waiting_for_input.setter
     def waiting_for_input(self, value: bool) -> None:
-        self._simple_ui._waiting_for_input = value
+        self._waiting_for_input = value
 
     async def get_input(self, prompt: str) -> str:
         """Blocks until handle_incoming_message() receives a response."""
@@ -80,9 +82,6 @@ class QueueBasedInput:
         Built-in CLI commands (``/exit``, ``/save``, …) are not handled
         here — those belong to the interactive prompt_toolkit UI only.
         """
-        # lazy: zrb internal but lightweight — no heavy deps
-        from zrb.llm.custom_command.resolver import resolve_custom_command
-
         if isinstance(text, str):
             resolved = resolve_custom_command(text, self._simple_ui.custom_commands)
             if resolved is not None:
