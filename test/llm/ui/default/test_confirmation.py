@@ -170,6 +170,25 @@ async def test_ask_user_queueing():
 
 
 @pytest.mark.asyncio
+async def test_resolve_current_echo_does_not_double_the_trailing_newline():
+    """Regression: `echo` already carries its own trailing "\\n"
+    (`submit_user_answer` builds it as `text + "\\n"`); `append_to_output`'s
+    default `end="\\n"` used to add a second one, printing a blank line
+    after every single confirmation answer."""
+    ui = MockConfirmationUI()
+    ui.append_to_output = MagicMock()
+
+    with patch("prompt_toolkit.application.get_app"):
+        task = asyncio.create_task(ui.ask_user("prompt 1"))
+        await asyncio.sleep(0.01)
+        ui.append_to_output.reset_mock()  # drop the prompt-render call
+        ui.submit_user_answer("y")
+        assert await task == "y"
+
+    ui.append_to_output.assert_called_once_with("y\n", end="")
+
+
+@pytest.mark.asyncio
 async def test_prompt_renders_while_thinking_not_swallowed_by_buffer():
     """Regression: the confirmation prompt must render even mid-stream.
 

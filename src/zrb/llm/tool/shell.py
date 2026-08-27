@@ -4,6 +4,7 @@ import platform
 import tempfile
 
 from zrb.config.config import CFG
+from zrb.llm.agent.run.runtime_state import get_current_ui
 from zrb.llm.sandbox import get_effective_sandbox_policy
 from zrb.llm.sandbox.os_sandbox import (
     SandboxUnavailableError,
@@ -105,26 +106,35 @@ async def run_shell_command(
         echo_cap = CFG.LLM_MAX_CONSOLE_OUTPUT_CHARS
         stdout_cap = StreamCapture(max_chars, echo_cap)
         stderr_cap = StreamCapture(max_chars, echo_cap)
+        output_key = f"shell-{id(stdout_cap)}"
 
         timed_out = False
+        _mark_shell_output_start(output_key)
         try:
-            # Fail-fast fan-out: a broken reader/wait should abort immediately,
-            # not be masked by return_exceptions.
-            await asyncio.wait_for(
-                asyncio.gather(
-                    _read_stream(process.stdout, stdout_cap),
-                    _read_stream(process.stderr, stderr_cap),
-                    process.wait(),
-                ),
-                timeout=timeout,
-            )
-        except asyncio.TimeoutError:
-            timed_out = True
-            await terminate_process(
-                process,
-                CFG.LLM_SHELL_KILL_WAIT_TIMEOUT / 1000,
-                print_method=CFG.LOGGER.warning,
-            )
+            try:
+                # Fail-fast fan-out: a broken reader/wait should abort
+                # immediately, not be masked by return_exceptions.
+                await asyncio.wait_for(
+                    asyncio.gather(
+                        _read_stream(process.stdout, stdout_cap),
+                        _read_stream(process.stderr, stderr_cap),
+                        process.wait(),
+                    ),
+                    timeout=timeout,
+                )
+            except asyncio.TimeoutError:
+                timed_out = True
+                await terminate_process(
+                    process,
+                    CFG.LLM_SHELL_KILL_WAIT_TIMEOUT / 1000,
+                    print_method=CFG.LOGGER.warning,
+                )
+        finally:
+            # Always attempt the collapse once echoing may have started —
+            # including on cancellation or a stream error below — so a
+            # failed/aborted command never leaves its raw echo stuck open
+            # on screen. A no-op if nothing was ever echoed.
+            _collapse_shell_output(output_key, stdout_cap, stderr_cap)
 
         bg_pids = _collect_background_pids(temp_pid_file, process.pid)
 
@@ -175,6 +185,56 @@ async def run_shell_command(
             "[SYSTEM SUGGESTION]: Check the command syntax and that any "
             "referenced files or programs exist, then retry."
         )
+
+
+def _mark_shell_output_start(key: str) -> None:
+    """Record where this command's live stdout/stderr echo begins, on
+    whichever UI supports it (the default TUI, or a sub-agent's
+    `BufferedUI`). A missing/incompatible UI must never break the actual
+    command — same contract as `web.py`'s `_notify`.
+    """
+    ui = get_current_ui()
+    if ui is None:
+        return
+    try:
+        mark = getattr(ui, "mark_shell_output_block_start", None)
+        if callable(mark):
+            mark(key)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _collapse_shell_output(
+    key: str, stdout_cap: StreamCapture, stderr_cap: StreamCapture
+) -> None:
+    """Collapse the live echo opened by `_mark_shell_output_start`.
+
+    `full` is built from each stream's own `echoed_text` accumulator, not
+    re-read from the buffer (see `StreamCapture.echoed_text`) — the same
+    "don't trust the rendered screen" contract `StreamEventHandler` uses for
+    thinking/text. Stdout and stderr are shown as separate sections since
+    each only tracks its own chronological order, not the interleaving
+    between the two as they actually printed.
+    """
+    ui = get_current_ui()
+    if ui is None:
+        return
+    try:
+        collapse = getattr(ui, "collapse_shell_output_block", None)
+        if not callable(collapse):
+            return
+        sections = []
+        if stdout_cap.echoed_text:
+            sections.append(stdout_cap.echoed_text)
+        if stderr_cap.echoed_text:
+            sections.append(f"[stderr]\n{stderr_cap.echoed_text}")
+        full = "\n".join(sections)
+        if not full:
+            return
+        char_count = len(full.strip())
+        collapse(key, f"🖥️ Output ({char_count} chars)", full)
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def _prepare_command(command: str, use_pid_tracking: bool) -> tuple[str, str | None]:

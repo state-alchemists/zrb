@@ -55,11 +55,13 @@ class TerminalApprovalChannel:
         CFG.LOGGER.debug(
             "TerminalApprovalChannel Got confirmation message, about to display to user"
         )
-        self._ui.append_to_output(f"\n\n{message}", end="")
+        # One leading "\n", not two — see the matching note in
+        # `ToolCallHandler.handle`.
+        self._ui.append_to_output(f"\n{message}", end="")
 
         CFG.LOGGER.debug("TerminalApprovalChannel Waiting for user input via CLI...")
 
-        user_input = await self._ui.ask_user("", output_to_parent=f"\n\n{message}")
+        user_input = await self._ui.ask_user("", output_to_parent=f"\n{message}")
         user_response = user_input.strip()
 
         CFG.LOGGER.debug(

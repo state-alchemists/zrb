@@ -27,7 +27,12 @@ async def default_response_handler(
     # lazy: zrb internal (heavy via transitive / circular)
     from zrb.llm.tool_call.edit_util import edit_content_via_editor
 
-    zrb_print(user_response, plain=True)
+    # end="": this also writes to the shared audit log (can't drop it), but
+    # its default trailing "\n" stacked with `resolve_current`'s own echo of
+    # the same answer, adding a full blank line after every confirmation —
+    # worst for the common empty-answer case (hit Enter to approve), where
+    # this contributed a bare "\n" with no text to justify it.
+    zrb_print(user_response, end="", plain=True)
 
     # Two-space indent on every line here, matching `StreamEventHandler`'s own
     # `indentation` (the only value zrb ever constructs it with) — these print

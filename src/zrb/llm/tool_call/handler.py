@@ -76,8 +76,12 @@ class ToolCallHandler:
 
         while True:
             message = await self._get_confirm_user_message(ui, call)
-            ui.append_to_output(f"\n\n{message}", end="")
-            user_input = await ui.ask_user("", output_to_parent=f"\n\n{message}")
+            # One leading "\n", not two: the confirmation panel is a normal
+            # block boundary like every other (tool call, tool result,
+            # thinking) — a deliberate extra blank line here doubled up
+            # with whatever the previous block already left behind.
+            ui.append_to_output(f"\n{message}", end="")
+            user_input = await ui.ask_user("", output_to_parent=f"\n{message}")
             user_response = user_input.strip()
 
             # Response Handlers (Post-confirmation)

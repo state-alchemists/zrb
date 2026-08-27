@@ -142,5 +142,6 @@ def _setup_print_and_events(print_fn, event_handler, effective_ui):
             on_thinking_collapse=getattr(effective_ui, "collapse_thinking_block", None),
             on_text_start=getattr(effective_ui, "mark_text_block_start", None),
             on_text_collapse=getattr(effective_ui, "collapse_text_block", None),
+            on_tool_prepare_update=getattr(effective_ui, "update_tool_prepare", None),
         )
     return effective_print_fn, effective_event_handler

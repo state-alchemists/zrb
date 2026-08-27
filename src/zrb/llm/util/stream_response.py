@@ -43,6 +43,7 @@ class StreamEventHandler:
         on_thinking_collapse: Callable[[str, str], None] | None = None,
         on_text_start: Callable[[], None] | None = None,
         on_text_collapse: Callable[[str, str], None] | None = None,
+        on_tool_prepare_update: Callable[[str, str], None] | None = None,
     ):
         self._print_fn = print_fn
         self._usage_callback = usage_callback
@@ -54,6 +55,7 @@ class StreamEventHandler:
         self._on_thinking_collapse = on_thinking_collapse
         self._on_text_start = on_text_start
         self._on_text_collapse = on_text_collapse
+        self._on_tool_prepare_update = on_tool_prepare_update
 
         self._progress_chars = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
         self._progress_idx = 0
@@ -77,6 +79,15 @@ class StreamEventHandler:
         self._text_open = False
         self._text_open_prefix = ""
         self._text_full_chunks: list[str] = []
+        # Maps a streamed part's `.index` to the `tool_call_id` it belongs
+        # to (known from the part itself at `PartStartEvent` time; later
+        # `PartDeltaEvent`s only carry `.index`) and each tool call's own
+        # `_event_prefix` at the moment its placeholder opened — both scoped
+        # to `on_tool_prepare_update`'s offset-based path (see
+        # `_update_tool_prepare`). Never populated when that hook is unset,
+        # so the fallback `\r`-based path below never touches them.
+        self._tool_prepare_index_map: dict[int, str] = {}
+        self._tool_prepare_prefix: dict[str, str] = {}
 
     @property
     def indentation(self) -> str:
@@ -303,6 +314,26 @@ class StreamEventHandler:
         )
         self._on_text_collapse(collapsed, full)
 
+    def _update_tool_prepare(self, tool_call_id: str, text: str) -> None:
+        """Print/replace `tool_call_id`'s own "Prepare tool parameters" line.
+
+        Only called when `on_tool_prepare_update` is set. Reconstructs the
+        full line (this tool call's own `_event_prefix`, captured when its
+        placeholder first opened, plus `text`) and hands it to the UI's
+        offset-tracked replace, so a later call for the same `tool_call_id`
+        updates exactly that tool's own span — never "whichever line happens
+        to be last," which is what the old `\\r`-based erase relied on and
+        what broke the instant two tool calls' argument streams interleaved
+        (each one's spinner tick could erase the *other's* line).
+        """
+        if self._on_tool_prepare_update is None:
+            return
+        prefix = self._tool_prepare_prefix.get(tool_call_id, self._event_prefix)
+        formatted = self._format_content(
+            f"{prefix}{text}" if text else "", preserve_leading_newline=bool(text)
+        )
+        self._on_tool_prepare_update(tool_call_id, formatted)
+
     def handle_part_start(self, event: "PartStartEvent") -> bool:
         # lazy: heavy third-party
         from pydantic_ai import ToolCallPart
@@ -333,11 +364,26 @@ class StreamEventHandler:
             # leave this line as-is, and the 🧰 line will appear below it.
 
             if not self._show_tool_call_detail:
-                self.fprint(
-                    f"{self._event_prefix}🔄 Prepare tool parameters...",
-                    preserve_leading_newline=True,
-                    kind="progress",
-                )
+                if self._on_tool_prepare_update is not None:
+                    # Offset-tracked path: remember which tool call `.index`
+                    # belongs to (deltas only carry `.index`) and the prefix
+                    # in effect right now, then print the placeholder into
+                    # this tool call's own span.
+                    tool_call_id = event.part.tool_call_id
+                    self._tool_prepare_index_map[event.index] = tool_call_id
+                    self._tool_prepare_prefix[tool_call_id] = self._event_prefix
+                    self._update_tool_prepare(
+                        tool_call_id, "🔄 Prepare tool parameters..."
+                    )
+                else:
+                    # Fallback for a UI that hasn't opted in: unchanged from
+                    # before — a single `\r`-animated line, correct only when
+                    # tool calls don't overlap.
+                    self.fprint(
+                        f"{self._event_prefix}🔄 Prepare tool parameters...",
+                        preserve_leading_newline=True,
+                        kind="progress",
+                    )
                 self._was_tool_call_start = True
             return True
 
@@ -401,6 +447,29 @@ class StreamEventHandler:
                 self._was_tool_call_delta = True
                 self._was_tool_call_start = False
             else:
+                tool_call_id = self._tool_prepare_index_map.get(event.index)
+                if (
+                    tool_call_id is not None
+                    and self._on_tool_prepare_update is not None
+                ):
+                    # Offset-tracked path: throttled the same as the fallback
+                    # below, but replaces exactly *this* tool call's own
+                    # span — never "whichever line is currently last."
+                    now = time.monotonic()
+                    if now - self._last_progress_time < _PROGRESS_REPAINT_INTERVAL:
+                        return
+                    self._last_progress_time = now
+                    progress_char = self._progress_chars[self._progress_idx]
+                    self._progress_idx = (self._progress_idx + 1) % len(
+                        self._progress_chars
+                    )
+                    self._update_tool_prepare(
+                        tool_call_id, f"🔄 Prepare tool parameters {progress_char}"
+                    )
+                    return
+                # Fallback for a UI that hasn't opted in: unchanged from
+                # before — single-line `\r` animation, correct only when
+                # tool calls don't overlap.
                 if not self._was_tool_call_delta and not self._was_tool_call_start:
                     self.fprint("\n", kind="progress")
                 # Set state before the throttle check so the carriage-return
@@ -422,10 +491,17 @@ class StreamEventHandler:
                 )
 
     def handle_tool_call(self, event: "ToolCallEvent"):
-        if self._was_tool_call_delta and not self._show_tool_call_detail:
+        tool_call_id = event.part.tool_call_id
+        if self._on_tool_prepare_update is not None:
+            # Erase exactly this tool call's own placeholder/spinner span —
+            # offset-based, so whatever else printed in between (another
+            # tool call's own placeholder, its own spinner ticks) is
+            # untouched.
+            self._update_tool_prepare(tool_call_id, "")
+            self._tool_prepare_prefix.pop(tool_call_id, None)
+        elif self._was_tool_call_delta and not self._show_tool_call_detail:
             self._print_fn("\r", "progress")
 
-        tool_call_id = event.part.tool_call_id
         tool_name = event.part.tool_name
         if tool_call_id not in self._printed_tool_ids:
             self._printed_tool_ids.add(tool_call_id)
@@ -516,6 +592,7 @@ def create_event_handler(
     on_thinking_collapse: Callable[[str, str], None] | None = None,
     on_text_start: Callable[[], None] | None = None,
     on_text_collapse: Callable[[str, str], None] | None = None,
+    on_tool_prepare_update: Callable[[str, str], None] | None = None,
 ):
     """Create an event handler for agent stream events.
 
@@ -553,6 +630,17 @@ def create_event_handler(
             of the same text (e.g. `BaseUI.stream_ai_response`) is appended
             separately afterward; this only collapses the raw streamed copy
             so both don't sit on screen at once.
+        on_tool_prepare_update: Called with (tool_call_id, text) to print or
+            replace that tool call's own "Prepare tool parameters" line —
+            first call for a `tool_call_id` prints fresh, later calls (each
+            argument delta's spinner tick, and the empty-string erase once
+            the tool call resolves) replace exactly that line in place. Keyed
+            per tool call so concurrent (parallel) tool calls' argument
+            streams never corrupt each other's line — the previous `\\r`-
+            "erase whatever is currently the last line" approach did exactly
+            that under interleaving. A UI that doesn't support it keeps the
+            original single-line `\\r` animation, correct only when tool
+            calls don't overlap.
     """
     return StreamEventHandler(
         print_fn=print_fn,
@@ -565,6 +653,7 @@ def create_event_handler(
         on_thinking_collapse=on_thinking_collapse,
         on_text_start=on_text_start,
         on_text_collapse=on_text_collapse,
+        on_tool_prepare_update=on_tool_prepare_update,
     )
 
 

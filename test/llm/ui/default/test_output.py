@@ -892,3 +892,127 @@ def test_thinking_and_text_blocks_share_the_slot_without_interference():
     assert "reasoning about the answer" not in ui.output_text
     assert "here is the final answer" not in ui.output_text
     assert len(ui.rendered_blocks) == 2
+
+
+def test_update_tool_prepare_first_call_appends_and_tracks():
+    ui = MockMarkdownUI()
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.update_tool_prepare("call_1", "🔄 Prepare tool parameters...")
+
+    assert "🔄 Prepare tool parameters..." in ui.output_text
+
+
+def test_update_tool_prepare_second_call_replaces_in_place():
+    """A later call for the same key must overwrite its own line, not append
+    a second one — this is the spinner-tick case."""
+    ui = MockMarkdownUI()
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.update_tool_prepare("call_1", "🔄 Prepare tool parameters...")
+        ui.update_tool_prepare("call_1", "🔄 Prepare tool parameters ⠋")
+
+    assert ui.output_text.count("Prepare tool parameters") == 1
+    assert "⠋" in ui.output_text
+
+
+def test_update_tool_prepare_empty_text_erases_and_stops_tracking():
+    ui = MockMarkdownUI()
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.update_tool_prepare("call_1", "🔄 Prepare tool parameters...")
+        ui.update_tool_prepare("call_1", "")
+
+    assert "Prepare tool parameters" not in ui.output_text
+    # A second erase must be a no-op, not raise or corrupt anything.
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.update_tool_prepare("call_1", "")
+
+
+def test_update_tool_prepare_keeps_each_tool_calls_own_line_independent():
+    """Regression: two tool calls preparing arguments concurrently (parallel
+    tool calls) must never corrupt each other's line — the bug the old
+    `\\r`-erase-last-line trick had. Erasing the first must not touch or
+    invalidate the second's still-open span."""
+    ui = MockMarkdownUI()
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.update_tool_prepare("call_A", "🔄 Prepare tool parameters...")
+        ui.update_tool_prepare("call_B", "🔄 Prepare tool parameters...")
+        # Resolve A first — B's span sits entirely after A's in the buffer,
+        # so erasing A must shift B's tracked offsets, not invalidate them.
+        ui.update_tool_prepare("call_A", "")
+        ui.append_toggle_block("🧰 call_A | ToolA {}", "🧰 call_A | ToolA {}")
+        resolved = ui.update_tool_prepare("call_B", "")
+
+    assert resolved is None  # no exception; the call itself returns nothing
+    assert "Prepare tool parameters" not in ui.output_text
+    assert "call_A | ToolA" in ui.output_text
+
+
+def test_mark_and_collapse_shell_output_block_wraps_the_streamed_span():
+    """Shell output streams live (nothing withheld) the same way thinking
+    does; `collapse_shell_output_block` retroactively wraps that span,
+    keyed so a concurrent second command's own block is unaffected."""
+    ui = MockMarkdownUI()
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.append_to_output("before ")
+        ui.mark_shell_output_block_start("cmd_1")
+        ui.append_to_output("line one\nline two", end="")
+        collapsed = ui.collapse_shell_output_block(
+            "cmd_1", "🖥️ Output (17 chars)", "line one\nline two"
+        )
+
+    assert collapsed is True
+    assert "line one" not in ui.output_text
+    assert "🖥️ Output" in ui.output_text
+    assert ui.output_text.startswith("before ")
+    assert len(ui.rendered_blocks) == 1
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.output_field.buffer.cursor_position = len(ui.output_text)
+        ui.toggle_collapsible_block_at_cursor()
+    assert "line one" in ui.output_text and "line two" in ui.output_text
+
+
+def test_collapse_shell_output_block_without_a_mark_is_a_noop():
+    ui = MockMarkdownUI()
+    ui.output_field.text = "no marked shell block here"
+
+    assert ui.collapse_shell_output_block("cmd_1", "🖥️ Output", "some text") is False
+    assert ui.output_text == "no marked shell block here"
+
+
+def test_collapse_shell_output_block_consumes_the_mark_once():
+    ui = MockMarkdownUI()
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.mark_shell_output_block_start("cmd_1")
+        ui.append_to_output("output", end="")
+        ui.collapse_shell_output_block("cmd_1", "🖥️ Output", "output")
+        after_first = ui.output_text
+        result = ui.collapse_shell_output_block("cmd_1", "🖥️ Output", "output")
+
+    assert result is False
+    assert ui.output_text == after_first
+
+
+def test_shell_output_blocks_keep_each_commands_own_span_independent():
+    """Regression, same class of bug as tool-prepare: if two shell commands'
+    output ever overlap on screen, collapsing the first must shift — not
+    invalidate — the second's still-open span."""
+    ui = MockMarkdownUI()
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.mark_shell_output_block_start("cmd_A")
+        ui.append_to_output("output A", end="")
+        ui.mark_shell_output_block_start("cmd_B")
+        ui.append_to_output("output B", end="")
+        collapsed_a = ui.collapse_shell_output_block("cmd_A", "🖥️ A", "output A")
+        collapsed_b = ui.collapse_shell_output_block("cmd_B", "🖥️ B", "output B")
+
+    assert collapsed_a is True
+    assert collapsed_b is True
+    assert "output A" not in ui.output_text
+    assert "output B" not in ui.output_text
+    assert "🖥️ A" in ui.output_text and "🖥️ B" in ui.output_text

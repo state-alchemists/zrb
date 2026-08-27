@@ -397,6 +397,85 @@ async def test_console_echo_stops_at_the_display_cap(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_shell_output_collapses_on_a_ui_that_supports_it(monkeypatch):
+    """The live echo opens and closes a collapsible block on a UI that
+    implements the hooks — mirrors `_notify`'s `get_current_ui()` contract."""
+    mock_ui = MagicMock()
+    monkeypatch.setattr(shell_mod, "get_current_ui", lambda: mock_ui)
+    mock_proc = _make_mock_process(stdout_lines=["hello\n", "world\n"])
+    monkeypatch.setattr(
+        shell_mod.asyncio,
+        "create_subprocess_exec",
+        AsyncMock(return_value=mock_proc),
+    )
+
+    await run_shell_command("emit", shell="node")
+
+    mock_ui.mark_shell_output_block_start.assert_called_once()
+    mock_ui.collapse_shell_output_block.assert_called_once()
+    mark_key = mock_ui.mark_shell_output_block_start.call_args[0][0]
+    collapse_key, collapsed, full = mock_ui.collapse_shell_output_block.call_args[0]
+    assert collapse_key == mark_key
+    assert "hello" in full
+    assert "world" in full
+    assert "Output" in collapsed
+
+
+@pytest.mark.asyncio
+async def test_shell_output_collapse_is_a_noop_with_no_current_ui(monkeypatch):
+    monkeypatch.setattr(shell_mod, "get_current_ui", lambda: None)
+    mock_proc = _make_mock_process(stdout_lines=["hello\n"])
+    monkeypatch.setattr(
+        shell_mod.asyncio,
+        "create_subprocess_exec",
+        AsyncMock(return_value=mock_proc),
+    )
+
+    res = await run_shell_command("emit", shell="node")  # must not raise
+
+    assert "hello" in res
+
+
+@pytest.mark.asyncio
+async def test_shell_output_collapse_is_a_noop_without_the_hooks(monkeypatch):
+    """A UI that doesn't implement the collapse hooks (std_ui, Telegram,
+    SSE, ...) must be unaffected — the command still runs and returns
+    normally."""
+    mock_ui = MagicMock(spec=[])  # no attributes at all
+    monkeypatch.setattr(shell_mod, "get_current_ui", lambda: mock_ui)
+    mock_proc = _make_mock_process(stdout_lines=["hello\n"])
+    monkeypatch.setattr(
+        shell_mod.asyncio,
+        "create_subprocess_exec",
+        AsyncMock(return_value=mock_proc),
+    )
+
+    res = await run_shell_command("emit", shell="node")
+
+    assert "hello" in res
+
+
+@pytest.mark.asyncio
+async def test_shell_output_collapse_swallows_a_broken_uis_exception(monkeypatch):
+    """A UI whose hooks raise must never break the actual command — same
+    contract as `_notify`'s broken-UI test."""
+    mock_ui = MagicMock()
+    mock_ui.mark_shell_output_block_start.side_effect = RuntimeError("ui exploded")
+    mock_ui.collapse_shell_output_block.side_effect = RuntimeError("ui exploded")
+    monkeypatch.setattr(shell_mod, "get_current_ui", lambda: mock_ui)
+    mock_proc = _make_mock_process(stdout_lines=["hello\n"])
+    monkeypatch.setattr(
+        shell_mod.asyncio,
+        "create_subprocess_exec",
+        AsyncMock(return_value=mock_proc),
+    )
+
+    res = await run_shell_command("emit", shell="node")  # must not raise
+
+    assert "hello" in res
+
+
+@pytest.mark.asyncio
 async def test_timeout_after_flooding_is_not_diagnosed_as_a_hang(monkeypatch):
     """A command killed mid-write was not waiting on stdin.
 

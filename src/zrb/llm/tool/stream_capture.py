@@ -46,6 +46,13 @@ class StreamCapture:
         self._chunks: "deque[str]" = deque()
         self._held = 0
         self._echoed = 0
+        # Plain (unstyled) copy of exactly what `echo()` sent to the console —
+        # naturally bounded by `_echo_budget`, so no unbounded growth. Lets a
+        # caller retroactively collapse the live echo (see
+        # `run_shell_command`) without re-reading the *rendered* buffer,
+        # which a stray `\r` in a chunk could have mangled — same principle
+        # as `StreamEventHandler`'s thinking/text accumulation.
+        self._echoed_chunks: list[str] = []
         self._spill: TextIO | None = None
         self._spill_failed = False
         self.total_chars = 0
@@ -55,6 +62,11 @@ class StreamCapture:
     def text(self) -> str:
         """The retained tail — what the model is shown."""
         return "".join(self._chunks)
+
+    @property
+    def echoed_text(self) -> str:
+        """Exactly what `echo()` sent to the console, unstyled."""
+        return "".join(self._echoed_chunks)
 
     @property
     def truncated(self) -> bool:
@@ -77,19 +89,20 @@ class StreamCapture:
             return
         if len(chunk) <= remaining:
             self._echoed += len(chunk)
+            self._echoed_chunks.append(chunk)
             zrb_print(f"  {stylize_muted(chunk)}", end="", plain=True)
             return
         self._echoed = self._echo_budget
-        zrb_print(f"  {stylize_muted(chunk[:remaining])}", end="", plain=True)
-        zrb_print(
-            stylize_muted(
-                f"\n  … console output capped at {self._echo_budget} characters. "
-                "The command is still being captured; only the display stops "
-                f"here ({CFG.ENV_PREFIX}_LLM_MAX_CONSOLE_OUTPUT_CHARS).\n"
-            ),
-            end="",
-            plain=True,
+        truncated = chunk[:remaining]
+        self._echoed_chunks.append(truncated)
+        zrb_print(f"  {stylize_muted(truncated)}", end="", plain=True)
+        cap_notice = (
+            f"\n  … console output capped at {self._echo_budget} characters. "
+            "The command is still being captured; only the display stops "
+            f"here ({CFG.ENV_PREFIX}_LLM_MAX_CONSOLE_OUTPUT_CHARS).\n"
         )
+        self._echoed_chunks.append(cap_notice)
+        zrb_print(stylize_muted(cap_notice), end="", plain=True)
 
     def write_full(self, dest: TextIO) -> None:
         """Copy the complete stream into *dest*, streaming from spill if needed."""

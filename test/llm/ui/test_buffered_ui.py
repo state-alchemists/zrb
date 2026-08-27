@@ -532,3 +532,109 @@ def test_clear_buffer_resets_toggle_state_for_text_block_too():
 
     assert ui.rendered_blocks == []
     assert ui.collapse_text_block("💬 Response\n", "some text") is False
+
+
+def test_update_tool_prepare_second_call_replaces_in_place():
+    ui = BufferedUI(MagicMock())
+
+    ui.update_tool_prepare("call_1", "🔄 Prepare tool parameters...")
+    ui.update_tool_prepare("call_1", "🔄 Prepare tool parameters ⠋")
+
+    assert ui.get_buffered_output().count("Prepare tool parameters") == 1
+    assert "⠋" in ui.get_buffered_output()
+
+
+def test_update_tool_prepare_empty_text_erases_and_stops_tracking():
+    ui = BufferedUI(MagicMock())
+
+    ui.update_tool_prepare("call_1", "🔄 Prepare tool parameters...")
+    ui.update_tool_prepare("call_1", "")
+
+    assert "Prepare tool parameters" not in ui.get_buffered_output()
+    ui.update_tool_prepare("call_1", "")  # second erase must be a no-op
+
+
+def test_update_tool_prepare_keeps_each_tool_calls_own_line_independent():
+    """Regression: two tool calls preparing arguments concurrently must never
+    corrupt each other's line — the bug the old `\\r`-erase-last-line trick
+    had. Erasing the first must shift, not invalidate, the second's span."""
+    ui = BufferedUI(MagicMock())
+
+    ui.update_tool_prepare("call_A", "🔄 Prepare tool parameters...")
+    ui.update_tool_prepare("call_B", "🔄 Prepare tool parameters...")
+    ui.update_tool_prepare("call_A", "")
+    ui.append_toggle_block("🧰 call_A | ToolA {}", "🧰 call_A | ToolA {}")
+    ui.update_tool_prepare("call_B", "")
+
+    assert "Prepare tool parameters" not in ui.get_buffered_output()
+    assert "call_A | ToolA" in ui.get_buffered_output()
+
+
+def test_clear_buffer_resets_tool_prepare_spans():
+    ui = BufferedUI(MagicMock())
+    ui.update_tool_prepare("call_1", "🔄 Prepare tool parameters...")
+
+    ui.clear_buffer()
+
+    # No leftover span survives the clear: a stray update for the same key
+    # must start fresh (append) rather than try to replace a now-meaningless
+    # offset into the cleared buffer.
+    ui.update_tool_prepare("call_1", "🔄 Prepare tool parameters ⠋")
+    assert ui.get_buffered_output().count("Prepare tool parameters") == 1
+
+
+def test_mark_and_collapse_shell_output_block_wraps_the_streamed_span():
+    ui = BufferedUI(MagicMock())
+    ui.append_to_output("before ", end="")
+    ui.mark_shell_output_block_start("cmd_1")
+    ui.append_to_output("line one\nline two", end="")
+
+    collapsed = ui.collapse_shell_output_block(
+        "cmd_1", "🖥️ Output", "line one\nline two"
+    )
+
+    assert collapsed is True
+    assert "line one" not in ui.get_buffered_output()
+    assert "🖥️ Output" in ui.get_buffered_output()
+    assert len(ui.rendered_blocks) == 1
+
+    ui.toggle_collapsible_block_at_offset(len(ui.get_buffered_output()))
+    assert ui.get_buffered_output().startswith("before ")
+    assert "line one" in ui.get_buffered_output()
+
+
+def test_collapse_shell_output_block_without_a_mark_is_a_noop():
+    ui = BufferedUI(MagicMock())
+    ui.append_to_output("no marked shell block here", end="")
+
+    assert ui.collapse_shell_output_block("cmd_1", "🖥️ Output", "text") is False
+    assert ui.get_buffered_output() == "no marked shell block here"
+
+
+def test_shell_output_blocks_keep_each_commands_own_span_independent():
+    """Regression, same class of bug as tool-prepare: collapsing one shell
+    command's output must shift, not invalidate, a concurrent second
+    command's still-open span."""
+    ui = BufferedUI(MagicMock())
+
+    ui.mark_shell_output_block_start("cmd_A")
+    ui.append_to_output("output A", end="")
+    ui.mark_shell_output_block_start("cmd_B")
+    ui.append_to_output("output B", end="")
+    collapsed_a = ui.collapse_shell_output_block("cmd_A", "🖥️ A", "output A")
+    collapsed_b = ui.collapse_shell_output_block("cmd_B", "🖥️ B", "output B")
+
+    assert collapsed_a is True
+    assert collapsed_b is True
+    assert "output A" not in ui.get_buffered_output()
+    assert "output B" not in ui.get_buffered_output()
+    assert "🖥️ A" in ui.get_buffered_output() and "🖥️ B" in ui.get_buffered_output()
+
+
+def test_clear_buffer_resets_shell_output_starts():
+    ui = BufferedUI(MagicMock())
+    ui.mark_shell_output_block_start("cmd_1")
+
+    ui.clear_buffer()
+
+    assert ui.collapse_shell_output_block("cmd_1", "🖥️ Output", "text") is False
