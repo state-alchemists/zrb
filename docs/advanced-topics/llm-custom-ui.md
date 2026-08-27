@@ -1171,7 +1171,7 @@ async def get_input(self, prompt: str) -> str:
     try:
         # Timeout after 5 minutes
         return await asyncio.wait_for(
-            self._input_queue.get(),
+            self.input_queue.get(),
             timeout=300
         )
     except asyncio.TimeoutError:

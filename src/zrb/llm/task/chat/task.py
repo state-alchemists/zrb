@@ -9,7 +9,7 @@ manager + snapshot lifecycle, and the inner `LLMTask` execution. Heavy.
 is this task's own construction-time data, not a separate object's. The two
 files below hold genuinely separate behavior:
 
-  execution.py - build the inner LLMTask per turn, run `_exec_action`, teardown
+  execution.py - build the inner LLMTask per turn, run `exec_action`, teardown
   running.py   - resolve UIs/triggers/custom commands, run the loop
 
 For the public API and authoring patterns, see:
@@ -819,7 +819,7 @@ class LLMChatTask(BaseTask):
         return self._execution.get_system_prompt(ctx)
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
-        return await self._execution._exec_action(ctx)
+        return await self._execution.exec_action(ctx)
 
     async def teardown_interactive_resources(self) -> None:
         """Release process-global resources when an interactive chat ends."""

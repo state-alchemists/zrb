@@ -35,6 +35,18 @@ def record_override(
     _pending[tool_call_id] = (original_args, override_args)
 
 
+def discard_override(tool_call_id: str) -> None:
+    """Drop a recorded override for `tool_call_id` without consuming it.
+
+    Called when a call that recorded an override turns out to never execute
+    (e.g. `rebuild_for_denials` clears its whole batch because a sibling call
+    in the same batch was denied) — otherwise that entry would sit in
+    `_pending` forever, since only execution-time `pop_override_note` removes
+    entries. A no-op if nothing was recorded for this id.
+    """
+    _pending.pop(tool_call_id, None)
+
+
 def pop_override_note(tool_call_id: str | None) -> str | None:
     """Consume the override recorded for `tool_call_id`, if any.
 

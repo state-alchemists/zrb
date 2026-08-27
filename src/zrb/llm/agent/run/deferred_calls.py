@@ -36,7 +36,7 @@ from zrb.llm.permission import ASK
 from zrb.llm.tool_call.always_approve import is_always_auto_approve
 from zrb.llm.tool_call.args import parse_tool_args
 from zrb.llm.tool_call.handler import ToolCallHandler
-from zrb.llm.tool_call.override_registry import record_override
+from zrb.llm.tool_call.override_registry import discard_override, record_override
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 
 if TYPE_CHECKING:
@@ -79,9 +79,10 @@ def _record_override_if_edited(call, result: Any) -> None:
     override_args = getattr(result, "override_args", None)
     if override_args is None:
         return
-    original_args = parse_tool_args(call)
-    if original_args is None:
-        return
+    # `None` means unparseable (not a dict, or invalid JSON), not "no edit" —
+    # fall back to an empty baseline so the diff still reports every edited
+    # key as changed rather than silently dropping the override entirely.
+    original_args = parse_tool_args(call) or {}
     record_override(call.tool_call_id, original_args, override_args)
 
 
@@ -190,6 +191,11 @@ def rebuild_for_denials(
         return current_results
 
     CFG.LOGGER.debug("Tool was denied, clearing calls in deferred results")
+    # Every call being dropped here (including edited-and-approved siblings of
+    # the denied call) will never reach execution, so any override recorded
+    # for it would otherwise leak in `_pending` forever.
+    for tool_call_id in current_results.calls:
+        discard_override(tool_call_id)
     return DeferredToolResults(
         calls={},
         approvals=current_results.approvals,

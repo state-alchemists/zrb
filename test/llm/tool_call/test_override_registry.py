@@ -1,4 +1,8 @@
-from zrb.llm.tool_call.override_registry import pop_override_note, record_override
+from zrb.llm.tool_call.override_registry import (
+    discard_override,
+    pop_override_note,
+    record_override,
+)
 
 
 def test_pop_override_note_returns_none_when_nothing_recorded():
@@ -40,3 +44,15 @@ def test_pop_override_note_truncates_long_values():
 
     assert note is not None
     assert len(note) < 500
+
+
+def test_discard_override_removes_entry_without_returning_a_note():
+    record_override("call-5", {"path": "a.txt"}, {"path": "b.txt"})
+
+    discard_override("call-5")
+
+    assert pop_override_note("call-5") is None
+
+
+def test_discard_override_is_a_noop_for_unknown_id():
+    discard_override("never-recorded")  # must not raise

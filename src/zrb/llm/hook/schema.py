@@ -23,10 +23,14 @@ class CommandHookConfig:
         command: str,
         shell: bool = True,
         working_dir: str | None = None,
+        plugin_root: str | None = None,
     ):
         self.command = command
         self.shell = shell
         self.working_dir = working_dir
+        # The plugin directory this hook was loaded from, if any — exported to
+        # the child process as CLAUDE_PLUGIN_ROOT (creator.py::_build_hook_env).
+        self.plugin_root = plugin_root
 
 
 class PromptHookConfig:

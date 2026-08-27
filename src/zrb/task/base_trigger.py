@@ -138,7 +138,9 @@ class BaseTrigger(BaseTask):
 
     async def exec_root_tasks(self, session: AnySession):
         exchange_xcom = self._get_exchange_xcom(session)
-        exchange_xcom.add_push_callback(lambda: self._exchange_push_callback(session))
+        exchange_xcom.append_push_callback(
+            lambda: self._exchange_push_callback(session)
+        )
         return await super().exec_root_tasks(session)
 
     def _exchange_push_callback(self, session: AnySession):

@@ -62,7 +62,7 @@ def create_command_hook(
     config: CommandHookConfig, timeout: float | None = None
 ) -> HookCallable:
     async def command_hook(context: HookContext) -> HookResult:
-        env = _build_hook_env(context)
+        env = _build_hook_env(context, plugin_root=config.plugin_root)
         stdin_payload = _encode_stdin_payload(context)
         hook_cwd = _resolve_hook_cwd(config, context)
         try:
@@ -137,7 +137,9 @@ def create_command_hook(
     return command_hook
 
 
-def _build_hook_env(context: HookContext) -> dict[str, str]:
+def _build_hook_env(
+    context: HookContext, plugin_root: str | None = None
+) -> dict[str, str]:
     """The child's environment: the ``CLAUDE_*`` view of *context*.
 
     Values are size-bounded. event_data for SessionStart/Stop/SessionEnd carries
@@ -153,7 +155,7 @@ def _build_hook_env(context: HookContext) -> dict[str, str]:
     env["CLAUDE_PERMISSION_MODE"] = context.permission_mode
     # Best guess for project root
     env["CLAUDE_PROJECT_DIR"] = context.cwd or os.getcwd()
-    env["CLAUDE_PLUGIN_ROOT"] = ""  # TODO: Need to pass this context if available
+    env["CLAUDE_PLUGIN_ROOT"] = plugin_root or ""
     env["CLAUDE_CODE_REMOTE"] = "true" if context.metadata.get("remote") else "false"
     try:
         # Try to serialize event_data, fall back to string representation

@@ -694,7 +694,6 @@ Example hook configurations are in the `llm-hooks` example:
 
 ```bash
 # See examples/llm-hooks/.zrb/hooks.json for JSON-based hooks
-# See examples/llm-hooks/.zrb/hooks.yaml for YAML-based hooks
 ```
 
 ### Example: Simple Logging Hook

@@ -1,7 +1,7 @@
 """High-level symbol-based LSP queries for `LSPManager`.
 
 Each method routes through `self._lsp_manager.get_server(...)` and returns a
-friendly dict with a `found`/`success` flag. The `_find_symbol_position`
+friendly dict with a `found`/`success` flag. The `find_symbol_position`
 helper bridges symbol names to `(line, character)` for callers that don't
 have the position handy.
 """
@@ -25,7 +25,7 @@ class LSPManagerQuery:
 
     Takes the `LSPManager` as `self._lsp_manager` (rather than the lifecycle
     collaborator directly) so that patching `manager.get_server` /
-    `manager._find_symbol_position` at the instance level — as the test suite
+    `manager.find_symbol_position` at the instance level — as the test suite
     does — is honored here too.
     """
 
@@ -57,7 +57,7 @@ class LSPManagerQuery:
         # on pyright (returns nothing without indexing) and pylsp (doesn't
         # implement workspace/symbol at all).
         try:
-            position = await self._lsp_manager._find_symbol_position(
+            position = await self._lsp_manager.find_symbol_position(
                 file_path, symbol_name
             )
             if position:
@@ -132,7 +132,7 @@ class LSPManagerQuery:
 
         try:
             if line == 0 and character == 0:
-                position = await self._lsp_manager._find_symbol_position(
+                position = await self._lsp_manager.find_symbol_position(
                     file_path, symbol_name
                 )
                 if position:
@@ -392,7 +392,7 @@ class LSPManagerQuery:
 
         try:
             if line == 0 and character == 0:
-                position = await self._lsp_manager._find_symbol_position(
+                position = await self._lsp_manager.find_symbol_position(
                     file_path, symbol_name
                 )
                 if position:
@@ -458,7 +458,7 @@ class LSPManagerQuery:
             ),
         }
 
-    async def _find_symbol_position(
+    async def find_symbol_position(
         self, file_path: str, symbol_name: str
     ) -> tuple[int, int] | None:
         """Locate a symbol as ``(line, character)`` positioned ON the identifier.

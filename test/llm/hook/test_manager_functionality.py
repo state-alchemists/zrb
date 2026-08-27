@@ -325,6 +325,47 @@ def test_get_search_directories_dedups_home_and_project(tmp_path, monkeypatch):
     assert str((claude_dir / "settings.json").resolve()) in resolved
 
 
+def test_get_plugin_root_for_path_matches_configured_plugin_dir(tmp_path, monkeypatch):
+    """A hook file under a configured LLM_PLUGIN_DIRS entry reports that entry
+    as its plugin root (CLAUDE_PLUGIN_ROOT)."""
+    from zrb.llm.hook import hook_loader
+
+    plugin_dir = tmp_path / "my-plugin"
+    hooks_dir = plugin_dir / "hooks"
+    hooks_dir.mkdir(parents=True)
+    hook_file = hooks_dir / "hooks.json"
+    hook_file.write_text("[]")
+
+    monkeypatch.setattr(hook_loader.CFG, "LLM_PLUGIN_DIRS", [str(plugin_dir)])
+
+    assert hook_loader.get_plugin_root_for_path(hook_file) == str(plugin_dir.resolve())
+
+
+def test_get_plugin_root_for_path_matches_builtin_plugin(monkeypatch):
+    """A hook file under the built-in llm_plugin/ reports it as the plugin root."""
+    from zrb.llm.hook import hook_loader
+
+    monkeypatch.setattr(hook_loader.CFG, "LLM_PLUGIN_DIRS", [])
+    builtin_hook = hook_loader.BUILTIN_PLUGIN_DIR / "hooks" / "hooks.json"
+
+    result = hook_loader.get_plugin_root_for_path(builtin_hook)
+
+    assert result == str(hook_loader.BUILTIN_PLUGIN_DIR.resolve())
+
+
+def test_get_plugin_root_for_path_returns_none_outside_any_plugin_dir(
+    tmp_path, monkeypatch
+):
+    """A hook loaded from a non-plugin tier (home/project/custom) has no
+    plugin root — CLAUDE_PLUGIN_ROOT should stay empty for it."""
+    from zrb.llm.hook import hook_loader
+
+    monkeypatch.setattr(hook_loader.CFG, "LLM_PLUGIN_DIRS", [])
+    unrelated_file = tmp_path / ".zrb" / "hooks.json"
+
+    assert hook_loader.get_plugin_root_for_path(unrelated_file) is None
+
+
 @pytest.mark.asyncio
 async def test_shutdown_cancels_background_hooks_and_kills_their_subprocesses():
     """A detached async hook must not outlive the session that spawned it.

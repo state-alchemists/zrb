@@ -63,14 +63,6 @@ class SimpleUI(BaseUI):
         llm_chat.set_ui_factory(create_ui_factory(MyUI))
     """
 
-    if TYPE_CHECKING:
-        # Not set here — `PollingUI`/`EventDrivenUI` set these in their own
-        # `__init__`, then compose `QueueBasedInput(self)`, which reads them
-        # through `self._simple_ui`. Declared here only so that reference
-        # type-checks.
-        _input_queue: "asyncio.Queue[str]"
-        _waiting_for_input: bool
-
     def __init__(
         self,
         ctx: "AnyContext",

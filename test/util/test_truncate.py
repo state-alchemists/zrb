@@ -1,4 +1,9 @@
-from zrb.util.truncate import truncate_chars, truncate_items, truncate_text
+from zrb.util.truncate import (
+    truncate_chars,
+    truncate_display,
+    truncate_items,
+    truncate_text,
+)
 
 
 # --- truncate_text ---
@@ -73,6 +78,29 @@ def test_truncate_items_keeps_first_even_if_huge():
     kept, omitted = truncate_items(items, 10)
     assert kept == ["x" * 1000]
     assert omitted == 2
+
+
+# --- truncate_display ---
+def test_truncate_display_no_truncation():
+    assert truncate_display("short", 100) == "short"
+
+
+def test_truncate_display_normal_truncation():
+    out = truncate_display("a" * 80, 30)
+    assert len(out) == 30
+    assert out.endswith("...")
+
+
+def test_truncate_display_never_exceeds_max_chars_for_small_budgets():
+    text = "a" * 80
+    for max_chars in (0, 1, 2, 3):
+        out = truncate_display(text, max_chars)
+        assert len(out) <= max_chars
+
+
+def test_truncate_display_small_budget_has_no_ellipsis():
+    assert truncate_display("abcdef", 2) == "ab"
+    assert truncate_display("abcdef", 0) == ""
 
 
 # --- truncate_chars (unchanged) ---

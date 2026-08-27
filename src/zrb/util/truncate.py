@@ -67,4 +67,9 @@ def truncate_display(text: str, max_chars: int) -> str:
     """
     if len(text) <= max_chars:
         return text
+    if max_chars < 3:
+        # Too little room for the ellipsis to fit within max_chars; a hard
+        # cut with no ellipsis is the only way to honor the "never exceed
+        # max_chars" contract at this end of the domain.
+        return text[:max_chars]
     return text[: max_chars - 3] + "..."

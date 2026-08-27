@@ -1,6 +1,6 @@
 """Execution + resource methods for `LLMChatTask`.
 
-Holds the runtime entrypoint (`_exec_action`), system-prompt composition, the
+Holds the runtime entrypoint (`exec_action`), system-prompt composition, the
 inner `LLMTask` construction (`_create_llm_task_core`), tool/toolset/UI-command
 resolution, conversation-name helpers, model resolution, and the interactive
 teardown that releases process-global resources at session end.
@@ -84,7 +84,7 @@ class ChatExecution:
         )
         return resolve_system_prompt(ctx, prompt_manager)
 
-    async def _exec_action(self, ctx: AnyContext) -> Any:
+    async def exec_action(self, ctx: AnyContext) -> Any:
         # lazy: circular — task → execution (this file) → task.parse_yolo_value.
         from zrb.llm.common_tools import ensure_common_tools
         from zrb.llm.task.chat.task import parse_yolo_value

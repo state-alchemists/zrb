@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any
 
 import yaml
 
+from zrb.llm.hook.hook_loader import get_plugin_root_for_path
 from zrb.llm.hook.matcher import CLAUDE_EVENT_MATCHER_FIELDS
 from zrb.llm.hook.schema import (
     AgentHookConfig,
@@ -210,6 +211,7 @@ class HookManagerLoading:
                                 command=hook_def.get("command", ""),
                                 shell=True,
                                 working_dir=None,
+                                plugin_root=get_plugin_root_for_path(source),
                             )
                         else:
                             # Unsupported type in this pass
@@ -237,7 +239,7 @@ class HookManagerLoading:
 
     def _parse_and_register(self, data: dict, source: str) -> None:
         try:
-            config = self._create_hook_config(data)
+            config = self._create_hook_config(data, source)
             if not config.enabled:
                 return
 
@@ -247,7 +249,7 @@ class HookManagerLoading:
         except Exception as e:
             logger.error(f"Error registering hook from {source}: {e}", exc_info=True)
 
-    def _create_hook_config(self, data: dict) -> HookConfig:
+    def _create_hook_config(self, data: dict, source: str | None = None) -> HookConfig:
         # Manual parsing because we are not using Pydantic BaseModel
         name = data["name"]
         events = [HookEvent(e) for e in data["events"]]
@@ -261,6 +263,9 @@ class HookManagerLoading:
                 command=raw_config["command"],
                 shell=raw_config.get("shell", True),
                 working_dir=raw_config.get("working_dir"),
+                plugin_root=(
+                    get_plugin_root_for_path(source) if source is not None else None
+                ),
             )
             default_timeout = 600
         elif hook_type == HookType.PROMPT:

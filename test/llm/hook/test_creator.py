@@ -264,6 +264,36 @@ async def test_command_hook_remote_metadata_sets_env():
 
 
 @pytest.mark.asyncio
+async def test_command_hook_sets_plugin_root_env_when_configured():
+    """A hook config carrying `plugin_root` exports it as CLAUDE_PLUGIN_ROOT."""
+    hook = create_command_hook(
+        CommandHookConfig(
+            command='echo "$CLAUDE_PLUGIN_ROOT"',
+            plugin_root="/opt/some-plugin",
+        )
+    )
+    context = HookContext(event=HookEvent.NOTIFICATION, event_data=None)
+
+    result = await hook(context)
+
+    assert (result.output or "").strip() == "/opt/some-plugin"
+
+
+@pytest.mark.asyncio
+async def test_command_hook_plugin_root_defaults_to_empty():
+    """A hook with no recorded plugin origin gets an empty CLAUDE_PLUGIN_ROOT,
+    matching Claude Code's behavior for non-plugin hooks."""
+    hook = create_command_hook(
+        CommandHookConfig(command='echo "[$CLAUDE_PLUGIN_ROOT]"')
+    )
+    context = HookContext(event=HookEvent.NOTIFICATION, event_data=None)
+
+    result = await hook(context)
+
+    assert (result.output or "").strip() == "[]"
+
+
+@pytest.mark.asyncio
 async def test_command_hook_none_event_data_serializes_null():
     """When event_data is None, CLAUDE_EVENT_DATA is the literal 'null'."""
     hook = create_command_hook(CommandHookConfig(command='echo "$CLAUDE_EVENT_DATA"'))
