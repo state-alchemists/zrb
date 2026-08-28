@@ -2,7 +2,7 @@
 
 import json
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 from zrb.config.config import CFG
 from zrb.llm.tool_call.args import parse_tool_args_value
@@ -133,7 +133,7 @@ def _format_request(
     for part in user_prompt_parts:
         content = getattr(part, "content", "")
         ts_display = f"{timestamp} " if timestamp else ""
-        text = str(content) if full else truncate(str(content), 500)
+        text = _render_user_content(content, full)
         lines.append(f"💬 {ts_display}>> {text}")
 
     indent_max = None if full else 50
@@ -156,6 +156,49 @@ def _format_request(
         lines.extend(_indent_lines(str(content), 2, max_lines=indent_max))
 
     return lines
+
+
+def _render_user_content(content, full: bool = False) -> str:
+    """Render a UserPromptPart's content, which may be plain text or a
+    multimodal sequence (text interleaved with image/audio/video/document
+    attachments)."""
+    if isinstance(content, str):
+        return content if full else truncate(content, 500)
+    if isinstance(content, Sequence):
+        rendered = " ".join(format_multimodal_item(item) for item in content)
+        return rendered if full else truncate(rendered, 500)
+    return str(content) if full else truncate(str(content), 500)
+
+
+def format_multimodal_item(item) -> str:
+    """Render one item of a multimodal ``UserPromptPart.content`` sequence.
+
+    Shared with ``llm/summarizer/message_converter.py`` so the two transcript
+    renderers describe attachments identically instead of drifting apart.
+    """
+    if isinstance(item, str):
+        return item
+    # lazy: heavy third-party
+    from pydantic_ai.messages import (
+        AudioUrl,
+        BinaryContent,
+        DocumentUrl,
+        ImageUrl,
+        VideoUrl,
+    )
+
+    if isinstance(item, ImageUrl):
+        return f"[Image URL: {item.url}]"
+    if isinstance(item, AudioUrl):
+        return f"[Audio URL: {item.url}]"
+    if isinstance(item, VideoUrl):
+        return f"[Video URL: {item.url}]"
+    if isinstance(item, DocumentUrl):
+        return f"[Document URL: {item.url}]"
+    if isinstance(item, BinaryContent):
+        media_type = getattr(item, "media_type", "unknown")
+        return f"[Binary Content: {media_type}]"
+    return f"[Unknown User Content: {type(item).__name__}]"
 
 
 def _format_response(

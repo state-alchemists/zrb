@@ -367,33 +367,105 @@ def _render_prompt_template(template: str, context: HookContext) -> str:
 def create_agent_hook(config: AgentHookConfig) -> HookCallable:
     async def agent_hook(context: HookContext) -> HookResult:
         """Run an agent with the configured system prompt over the event payload."""
-        # TODO: Add tools from config.tools — for now, run without tools
+        resolved_tools = _resolve_agent_hook_tools(config.tools)
+        if config.tools and not resolved_tools:
+            # Every named tool failed to resolve — most commonly because it's
+            # config-gated and currently off (e.g. the journal tools while
+            # LLM_JOURNAL_ENABLED is false). An agent whose whole job is
+            # calling tools it doesn't have can only produce empty prose, so
+            # skip the LLM call entirely rather than pay for one that cannot
+            # do anything. A hook that genuinely wants zero tools leaves
+            # `tools` empty from the start and is unaffected by this check.
+            return HookResult(
+                success=True,
+                output=(
+                    "Skipped: none of this hook's configured tools "
+                    f"({', '.join(config.tools)}) are currently available."
+                ),
+            )
         return await _run_llm_hook(
             kind="agent",
             model=config.model,
             system_prompt=config.system_prompt,
             user_prompt=_agent_hook_input(context),
+            tools=resolved_tools,
         )
 
     return agent_hook
 
 
+def _resolve_agent_hook_tools(names: list[str]) -> list:
+    """Resolve `AgentHookConfig.tools` (names, Claude-compatible aliases
+    honored) into real tool callables — including config-gated tools like the
+    journal ones, which live behind factories rather than the static
+    registry."""
+    if not names:
+        return []
+    # lazy: circular — subagent.manager pulls in common_tools, which re-enters
+    # this package on first load; deferring the import until a hook actually
+    # runs avoids that cycle at module-import time.
+    from zrb.context.context import Context
+    from zrb.context.shared_context import SharedContext
+
+    # lazy: circular — agent.common imports hook.manager at module level, which
+    # imports this module's create_agent_hook; deferring avoids the cycle.
+    from zrb.llm.agent.common import wrap_tool
+    from zrb.llm.agent.subagent.manager import sub_agent_manager
+    from zrb.llm.agent.subagent.tool_resolver import resolve_tools_by_name
+    from zrb.llm.common_tools import ensure_common_tools
+
+    ensure_common_tools(sub_agent_manager)
+    # Mirrors resolve_agent_build's own ctx-less fallback (subagent/manager.py)
+    # — a hook fires outside any task run, so there is no real ctx to reuse.
+    ctx = Context(
+        shared_ctx=SharedContext(), task_name="agent-hook", color=0, icon="🪝"
+    )
+    resolved = resolve_tools_by_name(
+        names,
+        sub_agent_manager.get_tool_registry(),
+        sub_agent_manager.get_tool_factories(),
+        ctx,
+    )
+    # Same error containment every other agent gets (agent/common.py::create_agent):
+    # a tool's `[SYSTEM SUGGESTION]` ValueError (e.g. journal_write's link check)
+    # must come back as a tool result the model can act on, not an uncaught
+    # exception that aborts the whole hook run.
+    return [wrap_tool(tool) for tool in resolved]
+
+
 def _agent_hook_input(context: HookContext) -> str:
-    """What to hand the agent as its user turn, best available first."""
-    if context.event_data:
-        return str(context.event_data)
+    """What to hand the agent as its user turn, best available first.
+
+    A `history`/`turn` payload (a list of pydantic-ai `ModelMessage`) is
+    rendered through the shared transcript renderer rather than `str()`'d —
+    the raw payload is a dict of Python objects, not text a model should read.
+    """
+    payload = context.event_data
+    if isinstance(payload, dict):
+        messages = payload.get("turn") or payload.get("history")
+        if messages:
+            # lazy: heavy third-party (transitively imports pydantic_ai)
+            from zrb.llm.util.history_formatter import format_history_as_text
+
+            return format_history_as_text(messages, full=True)
+    if payload:
+        return str(payload)
     if context.prompt:
         return context.prompt
     return f"Hook event: {context.event.value}"
 
 
 async def _run_llm_hook(
-    kind: str, model: str | None, system_prompt: str, user_prompt: str
+    kind: str,
+    model: str | None,
+    system_prompt: str,
+    user_prompt: str,
+    tools: list | None = None,
 ) -> HookResult:
     """Shared body of the prompt and agent hooks.
 
-    They differ only in where their two prompts come from; *kind* names the one
-    in play for log messages.
+    They differ only in where their two prompts (and, for agent hooks, tools)
+    come from; *kind* names the one in play for log messages.
     """
     try:
         # lazy: pydantic_ai (heavy third-party deferral)
@@ -407,6 +479,7 @@ async def _run_llm_hook(
         agent = Agent(
             model=llm_config.resolve_model(model_name),
             system_prompt=system_prompt,
+            tools=tools or [],
             deps_type=dict,
         )
         result = await agent.run(user_prompt, deps={})

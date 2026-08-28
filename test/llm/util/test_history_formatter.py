@@ -439,3 +439,39 @@ def testformat_timestamp_non_string_non_datetime():
 def testformat_timestamp_invalid_iso_string():
     """Invalid ISO string returns '' (lines 310-311)."""
     assert format_timestamp("not-a-date") == ""
+
+
+# ── multimodal UserPromptPart content ───────────────────────────────────────
+
+
+def test_user_prompt_with_image_url():
+    """A multimodal user turn renders the image as a bracketed label."""
+    from pydantic_ai.messages import ImageUrl
+
+    messages = [
+        ModelRequest(
+            parts=[
+                UserPromptPart(content=["Look at this", ImageUrl(url="http://x/y.png")])
+            ]
+        ),
+    ]
+    result = format_history_as_text(messages)
+    assert "Look at this" in result
+    assert "[Image URL: http://x/y.png]" in result
+
+
+def test_user_prompt_with_binary_content():
+    """Binary content in a multimodal turn renders its media type, not a raw repr."""
+    from pydantic_ai.messages import BinaryContent
+
+    messages = [
+        ModelRequest(
+            parts=[
+                UserPromptPart(
+                    content=[BinaryContent(data=b"abc", media_type="audio/wav")]
+                )
+            ]
+        ),
+    ]
+    result = format_history_as_text(messages)
+    assert "[Binary Content: audio/wav]" in result

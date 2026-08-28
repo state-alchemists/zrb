@@ -232,6 +232,112 @@ async def test_agent_hook_malformed_json_output_stays_plain():
 
 
 @pytest.mark.asyncio
+async def test_agent_hook_skips_llm_call_when_no_named_tools_resolve():
+    """When every tool the config names fails to resolve (e.g. the journal
+    tools while LLM_JOURNAL_ENABLED is off), the hook must not spend an LLM
+    call it cannot do anything useful with."""
+    config = AgentHookConfig(
+        system_prompt="sp", model="fake-model", tools=["LogActivity"]
+    )
+    hook = create_agent_hook(config)
+    context = HookContext(event=HookEvent.STOP, event_data={"wrote_files": True})
+
+    agent_cls = _agent_returning("should never run")
+    mock_config, mock_module = _patched_agent(agent_cls)
+    with (
+        patch("zrb.llm.common_tools.ensure_common_tools"),
+        patch(
+            "zrb.llm.agent.subagent.manager.sub_agent_manager.get_tool_registry",
+            return_value={},
+        ),
+        patch(
+            "zrb.llm.agent.subagent.manager.sub_agent_manager.get_tool_factories",
+            return_value=(),
+        ),
+        mock_config,
+        mock_module,
+    ):
+        result = await hook(context)
+
+    assert result.success is True
+    assert "Skipped" in (result.output or "")
+    agent_cls.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_resolved_agent_hook_tools_contain_tool_errors():
+    """A resolved tool's `[SYSTEM SUGGESTION]` ValueError (journal_write's link
+    check is one real example) must come back as a tool result the judge
+    model can react to, not an exception that aborts the whole hook run —
+    the same containment `create_agent()` gives every other agent's tools."""
+    from zrb.llm.hook.creator import _resolve_agent_hook_tools
+
+    def flaky_tool() -> str:
+        raise ValueError("[SYSTEM SUGGESTION]: link target does not exist.")
+
+    flaky_tool.__name__ = "FlakyTool"
+
+    with (
+        patch("zrb.llm.common_tools.ensure_common_tools"),
+        patch(
+            "zrb.llm.agent.subagent.manager.sub_agent_manager.get_tool_registry",
+            return_value={"FlakyTool": flaky_tool},
+        ),
+        patch(
+            "zrb.llm.agent.subagent.manager.sub_agent_manager.get_tool_factories",
+            return_value=(),
+        ),
+    ):
+        resolved = _resolve_agent_hook_tools(["FlakyTool"])
+
+    assert len(resolved) == 1
+    result = await resolved[0].function()
+    assert result.metadata.get("error") is True
+    assert "does not exist" in result.return_value
+
+
+@pytest.mark.asyncio
+async def test_agent_hook_runs_when_named_tools_do_resolve():
+    """The opposite of the skip case: a resolved tool list reaches the agent."""
+    config = AgentHookConfig(
+        system_prompt="sp", model="fake-model", tools=["LogActivity"]
+    )
+    hook = create_agent_hook(config)
+    context = HookContext(event=HookEvent.STOP, event_data={"wrote_files": True})
+
+    def fake_log_activity(note: str) -> str:
+        return f"logged: {note}"
+
+    fake_log_activity.__name__ = "LogActivity"
+
+    agent_cls = _agent_returning("logged")
+    with (
+        patch("zrb.llm.hook.creator.llm_config") as mock_llm_config,
+        # Only Agent is swapped (unlike _patched_agent, which replaces the
+        # whole pydantic_ai module) — this test inspects the real Tool that
+        # wrap_tool builds around the resolved tool, below.
+        patch("pydantic_ai.Agent", agent_cls),
+        patch("zrb.llm.common_tools.ensure_common_tools"),
+        patch(
+            "zrb.llm.agent.subagent.manager.sub_agent_manager.get_tool_registry",
+            return_value={"LogActivity": fake_log_activity},
+        ),
+        patch(
+            "zrb.llm.agent.subagent.manager.sub_agent_manager.get_tool_factories",
+            return_value=(),
+        ),
+    ):
+        mock_llm_config.resolve_model.return_value = "resolved"
+        result = await hook(context)
+
+    assert result.success is True
+    tools_passed = agent_cls.call_args.kwargs["tools"]
+    assert len(tools_passed) == 1
+    returned = await tools_passed[0].function(note="x")
+    assert returned.return_value == "logged: x"
+
+
+@pytest.mark.asyncio
 async def test_agent_hook_exception_returns_failure():
     config = AgentHookConfig(system_prompt="sp", model="fake-model")
     hook = create_agent_hook(config)
