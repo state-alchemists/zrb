@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import time
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -26,6 +27,41 @@ async def test_python_hook_execution():
     assert len(executed) == 1
     assert executed[0].event == HookEvent.SESSION_START
     assert executed[0].event_data == {"test": "data"}
+
+
+@pytest.mark.asyncio
+async def test_hook_factory_fires_on_first_lazy_access_not_just_manual_scan():
+    """A factory added via `add_hook_factory` used to only run through a
+    manual `scan()`/`reload()` call. The lazy path taken by a real chat
+    session's first `execute_hooks()` skipped `_hook_factories` entirely, so
+    a factory-registered hook was silently never installed in normal use."""
+    manager = HookManager(search_dirs=[])
+    registered = []
+
+    def factory(mgr):
+        registered.append(mgr)
+
+    manager.add_hook_factory(factory)
+    await manager.execute_hooks(HookEvent.NOTIFICATION, {})
+
+    assert registered == [manager]
+
+
+def test_reload_runs_each_factory_exactly_once():
+    """`reload()` used to loop over `_hook_factories` itself and then call
+    `_ensure_loaded()` — which, after fixing the lazy path above to also run
+    factories, would have made every factory fire twice per reload."""
+    manager = HookManager(search_dirs=[])
+    call_count = 0
+
+    def factory(mgr):
+        nonlocal call_count
+        call_count += 1
+
+    manager.add_hook_factory(factory)
+    manager.reload()
+
+    assert call_count == 1
 
 
 @pytest.mark.asyncio
@@ -224,6 +260,47 @@ async def test_async_command_hook_is_non_blocking():
     # test ends, otherwise it leaks across tests. shutdown() cancels the task —
     # the hook's own CancelledError handler kills the process tree — and bounds
     # the wait, so a hook that refuses to unwind cannot hang the run.
+    await manager.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_async_agent_hook_is_non_blocking():
+    """An async agent-type Stop hook is backgrounded the same way an async
+    command hook is — otherwise every matching turn pays the judge-agent's
+    full LLM round-trip inline, defeating the point of `is_async`."""
+    manager = HookManager(search_dirs=[])
+    manager.parse_and_register(
+        {
+            "name": "slow-judge",
+            "events": ["Stop"],
+            "type": "agent",
+            "async": True,
+            "config": {"system_prompt": "judge", "model": "fake-model"},
+        },
+        "test",
+    )
+
+    agent_instance = MagicMock()
+
+    async def _slow_run(*args, **kwargs):
+        await asyncio.sleep(5)
+        return MagicMock(output="done")
+
+    agent_instance.run = AsyncMock(side_effect=_slow_run)
+    agent_cls = MagicMock(return_value=agent_instance)
+
+    with (
+        patch("zrb.llm.hook.creator.llm_config") as mock_llm_config,
+        patch.dict("sys.modules", {"pydantic_ai": MagicMock(Agent=agent_cls)}),
+    ):
+        mock_llm_config.resolve_model.return_value = "resolved"
+        start = time.monotonic()
+        results = await manager.execute_hooks(HookEvent.STOP, {})
+        elapsed = time.monotonic() - start
+
+    assert elapsed < 1.0, f"async agent hook blocked for {elapsed:.2f}s"
+    assert results == []  # fire-and-forget contributes no result
+
     await manager.shutdown()
 
 
@@ -477,6 +554,52 @@ async def test_shutdown_drain_still_cancels_a_hook_that_overruns_the_grace():
         assert not os.path.exists(
             sentinel
         ), "background hook outlived a drained shutdown"
+
+
+@pytest.mark.asyncio
+async def test_shutdown_drain_extends_for_an_agent_hooks_own_timeout():
+    """An agent-type hook doing a real LLM round-trip legitimately needs
+    longer than the flat default grace period. Its own `timeout` (not the
+    caller's `grace_seconds`) should be what actually bounds the wait, so a
+    one-shot CLI process's teardown doesn't kill it moments after dispatch —
+    this is the exact bug behind a real judge hook never getting to run."""
+    manager = HookManager(search_dirs=[])
+    manager.parse_and_register(
+        {
+            "name": "slow-judge",
+            "events": ["Stop"],
+            "type": "agent",
+            "async": True,
+            "timeout": 5,
+            "config": {"system_prompt": "judge", "model": "fake-model"},
+        },
+        "test",
+    )
+
+    agent_instance = MagicMock()
+    completed = False
+
+    async def _slow_run(*args, **kwargs):
+        nonlocal completed
+        await asyncio.sleep(0.4)
+        completed = True
+        return MagicMock(output="done")
+
+    agent_instance.run = AsyncMock(side_effect=_slow_run)
+    agent_cls = MagicMock(return_value=agent_instance)
+
+    with (
+        patch("zrb.llm.hook.creator.llm_config") as mock_llm_config,
+        patch.dict("sys.modules", {"pydantic_ai": MagicMock(Agent=agent_cls)}),
+    ):
+        mock_llm_config.resolve_model.return_value = "resolved"
+        await manager.execute_hooks(HookEvent.STOP, {})
+        # A short caller-supplied grace_seconds would normally cut this off
+        # before the 0.4s sleep finishes — only the hook's own 5s `timeout`
+        # should let it run to completion.
+        await manager.shutdown(grace_seconds=0.1, drain=True)
+
+    assert completed, "agent hook was cancelled before its own timeout elapsed"
 
 
 @pytest.mark.asyncio

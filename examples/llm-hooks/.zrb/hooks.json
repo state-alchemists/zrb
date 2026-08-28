@@ -222,5 +222,27 @@
       }
     ],
     "enabled": false
+  },
+
+  {
+    "name": "journal-compliance-judge-example",
+    "description": "WORKED EXAMPLE ONLY — zrb already ships this exact hook built-in and active by default whenever LLM_JOURNAL_ENABLED is on (src/zrb/llm/hook/journal_compliance.py, registered as a hook factory on the default hook_manager singleton, no separate flag). Enabling this JSON copy alongside it would just register a redundant second judge. Kept here to show the pattern for writing your own agent hook: a dedicated sub-agent decides, after a file-changing turn, whether it needs a journal entry (LogActivity/WriteJournalNote) and writes one itself. Only fires on turns that actually touched a file (the `wrote_files` matcher is computed in Python, no LLM call spent on turns that don't qualify). Silently a no-op while LLM_JOURNAL_ENABLED is off: `tools` names the journal tools by name, and the agent hook skips running entirely if none of its named tools resolve.",
+    "events": ["Stop"],
+    "type": "agent",
+    "config": {
+      "system_prompt": "You are a journal-compliance judge, not the main assistant. You will be shown one completed turn's transcript. Decide, using exactly the criteria in LogActivity's and WriteJournalNote's own tool descriptions, whether this turn produced something worth recording: a decision, a root cause, a stated user preference, or a non-obvious fact a later session would otherwise rediscover. If so, call the appropriate tool now. If not, do nothing and reply with a single word: skip. Never address the user — you have no user-facing reply to give.",
+      "tools": ["LogActivity", "WriteJournalNote", "SearchJournal"],
+      "model": null
+    },
+    "matchers": [
+      {
+        "field": "event_data.wrote_files",
+        "operator": "equals",
+        "value": true
+      }
+    ],
+    "async": true,
+    "enabled": false,
+    "comment": "Disabled by default — opt in once you've picked a cheap/fast model for `config.model` (null falls back to ZRB_LLM_MODEL, i.e. the main agent's own model, which defeats the point of a cheap judge)."
   }
 ]

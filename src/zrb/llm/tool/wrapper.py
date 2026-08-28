@@ -1,7 +1,7 @@
 """
 Tool wrapper utilities for consistent LLM tool behavior.
 
-Tools registered via create_agent() are already wrapped by _wrap_tool
+Tools registered via create_agent() are already wrapped by wrap_tool
 in zrb.llm.agent.common. Use tool_safe_async only when you want a custom
 error_hint appended to the error message.
 """

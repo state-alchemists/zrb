@@ -12,6 +12,11 @@ from zrb.context.shared_context import SharedContext
 from zrb.llm.agent.common import create_agent
 from zrb.llm.agent.subagent.manager_loading import SubAgentManagerLoading
 from zrb.llm.agent.subagent.manager_search import SubAgentManagerSearch
+from zrb.llm.agent.subagent.tool_resolver import (
+    canonical_tool_name,
+    resolve_tools_by_name,
+    resolved_tool_name,
+)
 from zrb.llm.agent.subagent.yolo import make_yolo_inheritance_checker
 from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.factory_resolver import resolve_factory_items
@@ -36,25 +41,6 @@ class _ResolvedAgentBuild:
     tools: list
     toolsets: list
     yolo: "bool | Callable[..., bool]"
-
-
-# Claude Code names its shell tool ``Bash``; zrb ships a single ``Shell`` tool.
-# A sub-agent file written for Claude that lists ``Bash`` maps onto ``Shell``,
-# so an agent's `tools:` / `disallowedTools:` frontmatter keeps working
-# unmodified (case-insensitive, e.g. ``Bash`` or ``bash``).
-_TOOL_NAME_ALIASES = {"bash": "Shell"}
-
-
-def _canonical_tool_name(name: str) -> str:
-    """The zrb tool name that implements the Claude-compatible name *name*."""
-    return _TOOL_NAME_ALIASES.get(name.lower(), name)
-
-
-def _resolve_tool_name(t: Any) -> str | None:
-    raw = getattr(t, "name", None)
-    if raw is not None:
-        return raw
-    return getattr(t, "__name__", None)
 
 
 class SubAgentDefinition:
@@ -184,7 +170,7 @@ class SubAgentManager:
     def append_tool(self, *tool: "Callable | Tool"):
         """Append tools."""
         for single_tool in tool:
-            tool_name = _resolve_tool_name(single_tool) or str(single_tool)
+            tool_name = resolved_tool_name(single_tool) or str(single_tool)
             self._tool_registry[tool_name] = single_tool
 
     def append_tool_factory(
@@ -361,12 +347,8 @@ class SubAgentManager:
                 icon="🤖",
             )
 
-        resolved_tools = []
-        registry = self._get_tool_registry()
-        for tool_name in definition.tools:
-            tool = registry.get(_canonical_tool_name(tool_name))
-            if tool is not None and not getattr(tool, "zrb_is_delegate_tool", False):
-                resolved_tools.append(tool)
+        registry = self.get_tool_registry()
+        resolved_tools = resolve_tools_by_name(definition.tools, registry)
 
         for factory in self._tool_factories:
             tool = factory(ctx)
@@ -379,10 +361,10 @@ class SubAgentManager:
 
         if definition.disallowed_tools:
             disallowed = {
-                _canonical_tool_name(name) for name in definition.disallowed_tools
+                canonical_tool_name(name) for name in definition.disallowed_tools
             }
             resolved_tools = [
-                t for t in resolved_tools if _resolve_tool_name(t) not in disallowed
+                t for t in resolved_tools if resolved_tool_name(t) not in disallowed
             ]
 
         resolved_toolsets = self.get_all_toolsets(ctx)
@@ -492,8 +474,17 @@ class SubAgentManager:
                 Path(search_dir), max_depth=self._max_depth, root_dir=self._root_dir
             )
 
-    def _get_tool_registry(self) -> "dict[str, Callable | Tool]":
+    def get_tool_registry(self) -> "dict[str, Callable | Tool]":
+        """Statically-registered tools, keyed by name. Public — hook/creator.py's
+        agent-hook tool resolution reads this from outside the class."""
         return self._tool_registry
+
+    def get_tool_factories(
+        self,
+    ) -> "list[Callable[[AnyContext], Tool | ToolFuncEither | list[Tool | ToolFuncEither]]]":
+        """Config-gated tool factories (journal, plan-mode, skill, ...). Public
+        for the same reason as `get_tool_registry`."""
+        return self._tool_factories
 
     def get_all_toolsets(self, ctx: AnyContext) -> list[AbstractToolset[None]]:
         """All toolsets including those resolved from factories."""

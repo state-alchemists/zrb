@@ -523,3 +523,31 @@ def _history_without_trailing_response(run_history: list[Any]) -> list[Any]:
         if trimmed:
             return trimmed
     return run_history
+
+
+# The tools whose docstrings say they change files on disk (`file.py`'s
+# `__name__` reassignments). Kept here rather than imported from `llm.tool` —
+# that package eagerly imports `pydantic_ai` (see `common_tools.py`'s own
+# circular-import note), which this module's lazy-import discipline avoids.
+FILE_MUTATING_TOOL_NAMES = frozenset({"Write", "Edit", "RM", "MV"})
+
+
+def turn_wrote_files(
+    turn_messages: list[Any], tool_names: frozenset[str] = FILE_MUTATING_TOOL_NAMES
+) -> bool:
+    """Whether *turn_messages* (this turn's slice of history) contains a call
+    to a file-mutating tool. Pure Python, no LLM involved — the cheap half of
+    gating an evidence-based journal-compliance hook: only worth asking a
+    judge-agent to look at a turn that actually touched files."""
+    from pydantic_ai.messages import (  # lazy: heavy third-party
+        ModelResponse,
+        ToolCallPart,
+    )
+
+    for msg in turn_messages:
+        if not isinstance(msg, ModelResponse):
+            continue
+        for part in getattr(msg, "parts", []):
+            if isinstance(part, ToolCallPart) and part.tool_name in tool_names:
+                return True
+    return False

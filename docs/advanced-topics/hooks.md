@@ -320,8 +320,39 @@ Run agents with tools for complex analysis.
 | Field | Type | Description |
 |-------|------|-------------|
 | `system_prompt` | string | System prompt for the agent |
-| `tools` | array | Parsed from config but **not currently wired up** — the agent hook's agent runs with no tools regardless of this field. Treat it as reserved for future use, not a working option |
-| `model` | string | Model to use (e.g., `openai:gpt-4o`) |
+| `tools` | array | Tool names, Claude-compatible aliases honored (`"Bash"` → `Shell`) — resolved against zrb's own tool set, including config-gated tools like the journal ones (`LogActivity`, `WriteJournalNote`, `SearchJournal`) that only exist when their feature is enabled. Each resolved tool gets the same error containment as the main agent's tools: a `[SYSTEM SUGGESTION]` error comes back as a tool result the hook's own model can react to, not an exception that aborts the hook run |
+| `model` | string | Model to use (e.g., `openai:gpt-4o`); omit to fall back to `ZRB_LLM_MODEL` |
+
+If every name in `tools` fails to resolve — most commonly because the feature they belong to is off (e.g. the journal tools while `LLM_JOURNAL_ENABLED` is `false`) — the hook skips its LLM call entirely rather than run an agent that has nothing it can do. A hook that genuinely wants no tools just leaves `tools` empty and is unaffected.
+
+### Built-in example: the journal-compliance judge
+
+A small dedicated sub-agent that looks at a completed turn and decides — on its own, using `LogActivity`/`WriteJournalNote`'s own documented criteria — whether the turn needs a journal entry, and writes one itself if so. It only spends an LLM call on turns that actually changed a file, via the `event_data.wrote_files` matcher (computed in plain Python at the `Stop` call site, no model involved), and `async: true` keeps it from blocking the user's response while it decides.
+
+**This one ships built-in and active** (`llm/hook/journal_compliance.py`, registered as a hook factory on the default `hook_manager` singleton) — it has no `enabled` flag of its own. It is tied entirely to `LLM_JOURNAL_ENABLED` (default on): while journaling is enabled, this hook runs; while it's off, `tools` resolves to nothing (the journal tools aren't registered either) and the hook skips its LLM call as a no-op. There is deliberately no separate switch to remember. By default it runs on `default_llm_config.small_model` — set `ZRB_LLM_SMALL_MODEL` if you want it on something other than your main model, since an unset small model falls back to the main one, which defeats the point of a cheap judge.
+
+Its system prompt lives at `llm/prompt/markdown/journal_compliance.md`, not inline in Python, so it goes through the normal prompt-override chain: drop a `journal_compliance.md` under your project's `LLM_PROMPT_DIR` (or set `ZRB_LLM_PROMPT_JOURNAL_COMPLIANCE`) to change what the judge looks for, without forking the hook itself.
+
+The shape of its `HookConfig`, for reference (built in Python by `build_journal_compliance_hook_config()`, not JSON):
+
+```json
+{
+  "name": "journal-compliance-judge",
+  "events": ["Stop"],
+  "type": "agent",
+  "config": {
+    "system_prompt": "You are a journal-compliance judge, not the main assistant. You will be shown one completed turn's transcript. Decide, using exactly the criteria in LogActivity's and WriteJournalNote's own tool descriptions, whether this turn produced something worth recording. If so, call the appropriate tool now. If not, do nothing and reply: skip.",
+    "tools": ["LogActivity", "WriteJournalNote", "SearchJournal"],
+    "model": "<ZRB_LLM_SMALL_MODEL, or your main model if unset>"
+  },
+  "matchers": [
+    { "field": "event_data.wrote_files", "operator": "equals", "value": true }
+  ],
+  "async": true
+}
+```
+
+`examples/llm-hooks/.zrb/hooks.json` still carries the equivalent JSON entry (shipped `enabled: false`) purely as a worked example of writing your **own** agent hook this way — enabling it would just register a redundant second copy alongside the built-in one.
 
 ---
 

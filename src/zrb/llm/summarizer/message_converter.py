@@ -24,16 +24,9 @@ def message_to_text(msg: Any) -> str:
 
 def model_request_to_text(msg: ModelRequest) -> str:
     # lazy: heavy third-party
-    from pydantic_ai.messages import (
-        AudioUrl,
-        BinaryContent,
-        DocumentUrl,
-        ImageUrl,
-        SystemPromptPart,
-        ToolReturnPart,
-        UserPromptPart,
-        VideoUrl,
-    )
+    from pydantic_ai.messages import SystemPromptPart, ToolReturnPart, UserPromptPart
+
+    from zrb.llm.util.history_formatter import format_multimodal_item
 
     parts = []
     msg_parts = getattr(msg, "parts", [])
@@ -46,19 +39,8 @@ def model_request_to_text(msg: ModelRequest) -> str:
                 for item in content:
                     if isinstance(item, str):
                         parts.append(f"User: {item}")
-                    elif isinstance(item, ImageUrl):
-                        parts.append(f"[Image URL: {item.url}]")
-                    elif isinstance(item, BinaryContent):
-                        media_type = getattr(item, "media_type", "unknown")
-                        parts.append(f"[Binary Content: {media_type}]")
-                    elif isinstance(item, AudioUrl):
-                        parts.append(f"[Audio URL: {item.url}]")
-                    elif isinstance(item, VideoUrl):
-                        parts.append(f"[Video URL: {item.url}]")
-                    elif isinstance(item, DocumentUrl):
-                        parts.append(f"[Document URL: {item.url}]")
                     else:
-                        parts.append(f"[Unknown User Content: {type(item).__name__}]")
+                        parts.append(format_multimodal_item(item))
             else:
                 parts.append(f"User: {str(content)}")
         elif isinstance(p, ToolReturnPart):

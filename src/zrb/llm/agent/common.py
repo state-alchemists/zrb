@@ -45,7 +45,7 @@ if TYPE_CHECKING:
     HistoryProcessor = Callable[..., Awaitable[list[ModelMessage]]]
 
 
-def _wrap_tool(tool: "Tool | ToolFuncEither") -> "Tool | ToolFuncEither":
+def wrap_tool(tool: "Tool | ToolFuncEither") -> "Tool | ToolFuncEither":
     """Wrap a tool with error handling to prevent crashes."""
     # lazy: tests patch zrb.llm.permission.tool_capability; hoisting would
     # bind the name at this module's load time and bypass the mock.
@@ -445,7 +445,7 @@ def create_agent(
 
     effective_system_prompt = expand_prompt(system_prompt)
 
-    safe_tools = [_wrap_tool(t) for t in tools]
+    safe_tools = [wrap_tool(t) for t in tools]
     safe_toolsets = [_wrap_toolset(t) for t in toolsets]
 
     final_output_type = output_type

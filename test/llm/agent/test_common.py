@@ -210,14 +210,14 @@ def test_wrap_tool_callable():
     through (see ``zrb.llm.permission.capability_metadata``)."""
     from pydantic_ai import Tool
 
-    from zrb.llm.agent.common import _wrap_tool
+    from zrb.llm.agent.common import wrap_tool
     from zrb.llm.permission import Capability, tag
 
     def my_tool(x: int):
         return x
 
     tag(my_tool, Capability.READ)
-    wrapped = _wrap_tool(my_tool)
+    wrapped = wrap_tool(my_tool)
     assert isinstance(wrapped, Tool)
     assert wrapped.metadata == {"zrb_capability": Capability.READ}
     assert callable(wrapped.function)
@@ -226,7 +226,7 @@ def test_wrap_tool_callable():
 def test_wrap_tool_instance():
     from pydantic_ai import Tool
 
-    from zrb.llm.agent.common import _wrap_tool
+    from zrb.llm.agent.common import wrap_tool
     from zrb.llm.permission import Capability, tag
 
     def my_tool(x: int):
@@ -236,7 +236,7 @@ def test_wrap_tool_instance():
     tool_inst = Tool(
         my_tool, name="test", description="desc", metadata={"existing": True}
     )
-    wrapped = _wrap_tool(tool_inst)
+    wrapped = wrap_tool(tool_inst)
     assert isinstance(wrapped, Tool)
     assert wrapped.name == "test"
     # The original tool's metadata is preserved, and the capability resolved
@@ -250,7 +250,7 @@ def test_wrap_tool_duck_typed_instance():
     would drop error containment and the capability tag."""
     from pydantic_ai import Tool
 
-    from zrb.llm.agent.common import _wrap_tool
+    from zrb.llm.agent.common import wrap_tool
     from zrb.llm.permission import Capability, tag
 
     def my_tool(ctx, x: int):
@@ -265,7 +265,7 @@ def test_wrap_tool_duck_typed_instance():
         takes_ctx = True
         metadata = {"custom": "kept"}
 
-    wrapped = _wrap_tool(DuckTypedTool())
+    wrapped = wrap_tool(DuckTypedTool())
     assert isinstance(wrapped, Tool)
     assert wrapped.name == "duck"
     assert wrapped.description == "duck-typed tool"
@@ -287,7 +287,7 @@ def test_wrap_tool_duck_typed_instance():
     broken_tool = DuckTypedTool()
     broken_tool.function = staticmethod(broken)
     broken_tool.name = "broken"
-    result = asyncio.run(_wrap_tool(broken_tool).function())
+    result = asyncio.run(wrap_tool(broken_tool).function())
     assert "boom" in str(result)
 
 

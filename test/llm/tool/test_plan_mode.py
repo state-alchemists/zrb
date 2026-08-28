@@ -94,10 +94,10 @@ async def test_plan_mode_allows_read_through_full_toolset_dispatch():
     ``FunctionToolset`` so every call passes through
     ``SafeToolsetWrapper.call_tool`` first. That layer only ever sees a
     pydantic-ai ``ToolsetTool`` (no ``.function``, no arbitrary attributes),
-    so without ``_wrap_tool`` re-tagging the capability into
+    so without ``wrap_tool`` re-tagging the capability into
     ``ToolDefinition.metadata``, it resolved every free-function tool as
     ``UNKNOWN`` and ``PLAN_MODE_POLICY``'s catch-all rule denied it — Read
-    included. This drives the real ``_wrap_tool`` + ``FunctionToolset`` +
+    included. This drives the real ``wrap_tool`` + ``FunctionToolset`` +
     ``_wrap_toolset`` dispatch chain end to end, unlike the unit test above
     which calls ``create_safe_wrapper`` directly and never touches this
     outer layer.
@@ -108,7 +108,7 @@ async def test_plan_mode_allows_read_through_full_toolset_dispatch():
     from pydantic_ai.toolsets import FunctionToolset
     from pydantic_ai.usage import RunUsage
 
-    from zrb.llm.agent.common import _wrap_tool, _wrap_toolset
+    from zrb.llm.agent.common import _wrap_toolset, wrap_tool
 
     def read_file(path: str = ""):
         return f"contents of {path}"
@@ -120,7 +120,7 @@ async def test_plan_mode_allows_read_through_full_toolset_dispatch():
     tag(write_file, Capability.EDIT)
 
     toolset = _wrap_toolset(
-        FunctionToolset(tools=[_wrap_tool(read_file), _wrap_tool(write_file)])
+        FunctionToolset(tools=[wrap_tool(read_file), wrap_tool(write_file)])
     )
     ctx = RunContext(deps=None, model=MagicMock(), usage=RunUsage())
     tools = await toolset.get_tools(ctx)

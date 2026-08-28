@@ -37,6 +37,7 @@ from zrb.llm.agent.run.history_utils import (
     _is_empty_completion,
     _merge_consecutive_messages,
     sanitize_history,
+    turn_wrote_files,
 )
 from zrb.llm.agent.run.hook_result_extractor import (
     extract_additional_context,
@@ -497,6 +498,20 @@ async def _execution_loop(
     # Gathered in the `finally` below so a lagging write can never race past the
     # caller's own end-of-turn save.
     pending_checkpoint_tasks: list[asyncio.Task] = []
+    # This whole logical turn's new messages, accumulated per loop iteration —
+    # NOT a single slice taken at the end against a fixed baseline. The
+    # DeferredToolRequests branch below reassigns `current_history = run_history`
+    # before continuing, which folds that iteration's tool call into what the
+    # next iteration treats as "already there": a baseline captured once, before
+    # the loop, would still correctly bound the *first* iteration's new slice,
+    # but a naive per-iteration `run_history[baseline:]` taken only at the
+    # *final* iteration silently drops every tool call approved in an earlier
+    # round — exactly the turn a human had to approve a Write in. Accumulating
+    # each iteration's own (already-correct) slice as it happens sidesteps that
+    # entirely. Never populated on the empty-completion retry path (that
+    # iteration's output is discarded, not part of the turn) or the
+    # stream-error retry path (no usable output yet).
+    turn_messages_acc: list[Any] = []
 
     try:
         while True:
@@ -505,13 +520,14 @@ async def _execution_loop(
                 allow_orphaned_tool_calls=(current_results is not None),
             )
             stream_error = None
+            turn_baseline_len = len(current_history)
             handler = _build_event_stream_handler(
                 effective_ui,
                 effective_event_handler,
                 partial_run,
                 checkpoint_fn=checkpoint_fn,
                 pending_checkpoint_tasks=pending_checkpoint_tasks,
-                baseline_len=len(current_history),
+                baseline_len=turn_baseline_len,
             )
             try:
                 # Docs: https://ai.pydantic.dev/agents/#streaming-all-events
@@ -577,6 +593,10 @@ async def _execution_loop(
                 continue
 
             if isinstance(result_output, DeferredToolRequests):
+                # Record now, before `current_history = run_history` below makes
+                # the next iteration treat this tool call as pre-existing history
+                # rather than something this turn did.
+                turn_messages_acc.extend(run_history[turn_baseline_len:])
                 CFG.LOGGER.debug(
                     "Got DeferredToolRequests, calling process_deferred_requests"
                 )
@@ -653,9 +673,20 @@ async def _execution_loop(
             # here — it is terminal, fired once when the chat session ends.
             # Manual interrupts raise CancelledError before reaching here, where
             # the TUI fires its own Stop, so the two paths never double-fire.
+            turn_messages_acc.extend(run_history[turn_baseline_len:])
+            turn_messages = turn_messages_acc
             stop_results = await effective_hook_manager.execute_hooks(
                 HookEvent.STOP,
-                {"output": result_output, "history": run_history},
+                {
+                    "output": result_output,
+                    "history": run_history,
+                    # This turn's new messages alone, and a free (no-LLM)
+                    # gate on whether they touched a file — lets an
+                    # evidence-gated hook (e.g. a journal-compliance agent
+                    # hook) act only on turns where it's actually warranted.
+                    "turn": turn_messages,
+                    "wrote_files": turn_wrote_files(turn_messages),
+                },
                 stop_hook_active=extension_state.block_count > 0,
             )
             stop_outcome = apply_turn_end_extension(

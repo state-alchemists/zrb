@@ -38,7 +38,7 @@ def capability_metadata(capability: Capability) -> dict[str, Capability]:
     ``agent/common.py``) only ever sees a ``ToolsetTool``, which has no
     ``.function`` and no arbitrary attributes — a ``tag()`` set on the
     original callable does not survive into that layer. ``ToolDefinition.metadata``
-    does, so ``_wrap_tool`` re-tags the capability here when it rebuilds the
+    does, so ``wrap_tool`` re-tags the capability here when it rebuilds the
     ``Tool``.
     """
     return {CAPABILITY_ATTR: capability}

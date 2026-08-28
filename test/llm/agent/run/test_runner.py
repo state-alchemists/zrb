@@ -496,6 +496,120 @@ async def test_run_agent_fires_stop_on_natural_completion():
 
 
 @pytest.mark.asyncio
+async def test_stop_event_data_carries_turn_slice_and_wrote_files_flag():
+    """The Stop hook's event_data exposes this turn's own messages, plus a
+    free (no-LLM) `wrote_files` gate, so an evidence-gated hook (e.g. a
+    journal-compliance agent hook) can act only on turns that actually
+    touched a file."""
+    from pydantic_ai.messages import (
+        ModelRequest,
+        ModelResponse,
+        TextPart,
+        ToolCallPart,
+        ToolReturnPart,
+    )
+
+    captured: list = []
+
+    async def record(context: HookContext) -> HookResult:
+        captured.append(context.event_data)
+        return HookResult(success=True)
+
+    manager = HookManager(search_dirs=[])
+    manager.register(record, events=[HookEvent.STOP])
+
+    # A dangling ToolCallPart (no matching return) is stripped by
+    # sanitize_history's orphan-call cleanup, so the return is included here —
+    # a call/return pair is what a genuinely completed turn looks like.
+    turn_messages = [
+        ModelResponse(
+            parts=[
+                ToolCallPart(tool_name="Write", args={"path": "x"}, tool_call_id="1"),
+            ]
+        ),
+        ModelRequest(
+            parts=[ToolReturnPart(tool_name="Write", content="ok", tool_call_id="1")]
+        ),
+        ModelResponse(parts=[TextPart(content="done")]),
+    ]
+
+    agent = MagicMock()
+    mock_result = MagicMock()
+    mock_result.output = "done"
+    mock_result.all_messages.return_value = turn_messages
+
+    async def _gen(*args, **kwargs):
+        yield AgentRunResultEvent(result=mock_result)
+
+    agent.run = _run_from(_gen)
+
+    await run_agent(
+        agent=agent,
+        message="Hi",
+        message_history=[],
+        limiter=LLMLimiter(),
+        hook_manager=manager,
+    )
+
+    assert len(captured) == 1
+    assert len(captured[0]["turn"]) == len(turn_messages)
+    assert captured[0]["wrote_files"] is True
+
+
+@pytest.mark.asyncio
+async def test_stop_event_data_wrote_files_false_for_read_only_turn():
+    """A turn that only calls a read-only tool does not set `wrote_files`."""
+    from pydantic_ai.messages import (
+        ModelRequest,
+        ModelResponse,
+        TextPart,
+        ToolCallPart,
+        ToolReturnPart,
+    )
+
+    captured: list = []
+
+    async def record(context: HookContext) -> HookResult:
+        captured.append(context.event_data)
+        return HookResult(success=True)
+
+    manager = HookManager(search_dirs=[])
+    manager.register(record, events=[HookEvent.STOP])
+
+    turn_messages = [
+        ModelResponse(
+            parts=[ToolCallPart(tool_name="Read", args={"path": "x"}, tool_call_id="1")]
+        ),
+        ModelRequest(
+            parts=[
+                ToolReturnPart(tool_name="Read", content="contents", tool_call_id="1")
+            ]
+        ),
+        ModelResponse(parts=[TextPart(content="done")]),
+    ]
+
+    agent = MagicMock()
+    mock_result = MagicMock()
+    mock_result.output = "done"
+    mock_result.all_messages.return_value = turn_messages
+
+    async def _gen(*args, **kwargs):
+        yield AgentRunResultEvent(result=mock_result)
+
+    agent.run = _run_from(_gen)
+
+    await run_agent(
+        agent=agent,
+        message="Hi",
+        message_history=[],
+        limiter=LLMLimiter(),
+        hook_manager=manager,
+    )
+
+    assert captured[0]["wrote_files"] is False
+
+
+@pytest.mark.asyncio
 async def test_run_agent_with_attachments():
     """Test run_agent with attachments (BinaryContent)."""
     agent = MagicMock()
@@ -615,6 +729,104 @@ async def test_run_agent_deferred_requests():
         )
         assert result == "Final with tool"
         assert call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_stop_event_wrote_files_true_after_deferred_tool_approval():
+    """A tool call that needed human approval (`DeferredToolRequests`) must
+    still count toward `wrote_files` on the turn that eventually completes.
+
+    Regression for a real bug: the DeferredToolRequests branch reassigns
+    `current_history = run_history` before continuing, which folds the
+    approved-but-not-yet-run Write call into what the next iteration's fresh
+    `run_history[turn_baseline_len:]` slice would treat as pre-existing
+    history — silently excluding it from `wrote_files`/`turn` once Stop
+    finally fires. Caught via a live interactive session where a human
+    approved a Write and the journal-compliance hook never fired: registered,
+    no exception, but the gate was never satisfied because this slice came up
+    empty. `turn_messages_acc` (accumulated per iteration, not sliced once at
+    the end) is the fix under test here.
+    """
+    from pydantic_ai import DeferredToolRequests, DeferredToolResults
+    from pydantic_ai.messages import (
+        ModelRequest,
+        ModelResponse,
+        TextPart,
+        ToolCallPart,
+        ToolReturnPart,
+    )
+
+    captured: list = []
+
+    async def record(context: HookContext) -> HookResult:
+        captured.append(context.event_data)
+        return HookResult(success=True)
+
+    manager = HookManager(search_dirs=[])
+    manager.register(record, events=[HookEvent.STOP])
+
+    agent = MagicMock()
+
+    # Round 1: the model calls Write; pydantic-ai defers it for approval.
+    round1_messages = [
+        ModelResponse(
+            parts=[
+                ToolCallPart(tool_name="Write", args={"path": "x"}, tool_call_id="1")
+            ]
+        )
+    ]
+    mock_deferred_result = MagicMock()
+    mock_deferred_result.output = MagicMock(spec=DeferredToolRequests)
+    mock_deferred_result.all_messages.return_value = round1_messages
+
+    # Round 2: after approval, the tool executes and the model replies.
+    round2_messages = [
+        *round1_messages,
+        ModelRequest(
+            parts=[ToolReturnPart(tool_name="Write", content="ok", tool_call_id="1")]
+        ),
+        ModelResponse(parts=[TextPart(content="done")]),
+    ]
+    mock_final_result = MagicMock()
+    mock_final_result.output = "done"
+    mock_final_result.all_messages.return_value = round2_messages
+
+    call_count = 0
+
+    async def _gen(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            yield AgentRunResultEvent(result=mock_deferred_result)
+        else:
+            yield AgentRunResultEvent(result=mock_final_result)
+
+    agent.run = _run_from(_gen)
+
+    with patch(
+        "zrb.llm.agent.run.runner.process_deferred_requests", new_callable=AsyncMock
+    ) as mock_process:
+        mock_deferred_results = MagicMock(spec=DeferredToolResults)
+        mock_deferred_results.approvals = {"1": "approved"}
+        mock_process.return_value = mock_deferred_results
+
+        await run_agent(
+            agent=agent,
+            message="Write it",
+            message_history=[],
+            limiter=LLMLimiter(),
+            hook_manager=manager,
+        )
+
+    assert len(captured) == 1
+    assert captured[0]["wrote_files"] is True
+    turn_tool_names = [
+        p.tool_name
+        for msg in captured[0]["turn"]
+        for p in getattr(msg, "parts", [])
+        if getattr(p, "part_kind", None) == "tool-call"
+    ]
+    assert "Write" in turn_tool_names
 
 
 @pytest.mark.asyncio
@@ -830,6 +1042,79 @@ async def test_run_agent_empty_completion_retry_trims_trailing_response():
     # leaving only the ModelRequest.
     second = histories[1]
     assert [type(m).__name__ for m in second] == ["ModelRequest"]
+
+
+@pytest.mark.asyncio
+async def test_stop_event_turn_slice_correct_after_empty_completion_retry():
+    """After an empty-completion retry re-bases `current_history`, the Stop
+    hook's `turn` slice and `wrote_files` gate must reflect only the
+    *successful* retry's new messages — not the discarded empty attempt, and
+    not the whole conversation."""
+    from pydantic_ai.messages import (
+        ModelRequest,
+        ModelResponse,
+        TextPart,
+        ToolCallPart,
+        ToolReturnPart,
+        UserPromptPart,
+    )
+
+    captured: list = []
+
+    async def record(context: HookContext) -> HookResult:
+        captured.append(context.event_data)
+        return HookResult(success=True)
+
+    manager = HookManager(search_dirs=[])
+    manager.register(record, events=[HookEvent.STOP])
+
+    agent = MagicMock()
+    empty = MagicMock()
+    empty.output = ""
+    empty.all_messages.return_value = [
+        ModelRequest(parts=[UserPromptPart(content="Hi")]),
+        ModelResponse(parts=[TextPart(content="")]),  # the degenerate turn
+    ]
+    good = MagicMock()
+    good.output = "Recovered"
+    good.all_messages.return_value = [
+        ModelRequest(parts=[UserPromptPart(content="Hi")]),
+        ModelResponse(
+            parts=[
+                ToolCallPart(tool_name="Write", args={"path": "x"}, tool_call_id="1")
+            ]
+        ),
+        ModelRequest(
+            parts=[ToolReturnPart(tool_name="Write", content="ok", tool_call_id="1")]
+        ),
+        ModelResponse(parts=[TextPart(content="Recovered")]),
+    ]
+
+    call_count = 0
+
+    async def _gen(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        yield AgentRunResultEvent(result=empty if call_count == 1 else good)
+
+    agent.run = _run_from(_gen)
+
+    result, _ = await run_agent(
+        agent=agent,
+        message="Hi",
+        message_history=[],
+        limiter=LLMLimiter(),
+        hook_manager=manager,
+    )
+
+    assert result == "Recovered"
+    assert call_count == 2
+    assert len(captured) == 1  # Stop only fires once, on the successful retry
+    # Just the retry's own new messages: the tool call, its return, and the
+    # final text — not the original UserPromptPart request already counted in
+    # current_history before this iteration.
+    assert len(captured[0]["turn"]) == 3
+    assert captured[0]["wrote_files"] is True
 
 
 @pytest.mark.asyncio

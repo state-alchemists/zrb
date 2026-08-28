@@ -43,6 +43,15 @@ _TEST_ENV = {
     # composition. Tests exercising another preset override this with
     # patch.dict / monkeypatch (which layer on top of this default).
     "ZRB_LLM_PROFILE": "auto",
+    # Off by default so the built-in journal-compliance judge (a Stop hook
+    # seeded into every HookManager, not filesystem-scanned like the peon-ping
+    # neutering below) stays a no-op: without this, any test whose Stop event
+    # happens to carry wrote_files=True — not just the ones dedicated to
+    # testing it — silently spawns a real background LLM call that outlives
+    # the test, leaking an unawaited-coroutine warning into whichever test
+    # runs next. Tests exercising the judge re-enable it explicitly
+    # (test/llm/hook/test_journal_compliance.py).
+    "ZRB_LLM_JOURNAL_ENABLED": "off",
 }
 
 
@@ -84,6 +93,13 @@ def _disable_real_filesystem_hooks():
     itself, which several tests in ``test/llm/hook/`` legitimately exercise for
     real. Tests that want hook behaviour keep building their own
     ``HookManager(search_dirs=[...])`` directly.
+
+    The built-in journal-compliance judge (also seeded into every
+    ``HookManager`` — not filesystem-scanned, so ``search_dirs=[]`` alone
+    doesn't stop it) is handled separately: ``_TEST_ENV`` below defaults
+    ``ZRB_LLM_JOURNAL_ENABLED`` off, so its factory registers nothing unless a
+    test explicitly re-enables it — see ``test/llm/hook/
+    test_journal_compliance.py``.
     """
     from unittest.mock import patch
 
