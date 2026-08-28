@@ -244,26 +244,26 @@ def test_multi_ui_update_tool_prepare_swallows_child_errors(
     child_ui_2.update_tool_prepare.assert_called_once()
 
 
-def test_multi_ui_mark_shell_output_block_start_forwards_to_supporting_children(
+def test_multi_ui_update_shell_output_forwards_to_supporting_children(
     multi_ui, child_ui_1, child_ui_2
 ):
-    child_ui_1.mark_shell_output_block_start = MagicMock()
-    del child_ui_2.mark_shell_output_block_start  # e.g. Telegram/SSE
+    child_ui_1.update_shell_output = MagicMock()
+    del child_ui_2.update_shell_output  # e.g. Telegram/SSE
 
-    multi_ui.mark_shell_output_block_start("cmd_1")
+    multi_ui.update_shell_output("cmd_1", "line one")
 
-    child_ui_1.mark_shell_output_block_start.assert_called_once_with("cmd_1")
+    child_ui_1.update_shell_output.assert_called_once_with("cmd_1", "line one")
 
 
-def test_multi_ui_collapse_shell_output_block_forwards_to_supporting_children(
+def test_multi_ui_finish_shell_output_forwards_to_supporting_children(
     multi_ui, child_ui_1, child_ui_2
 ):
-    child_ui_1.collapse_shell_output_block = MagicMock()
-    del child_ui_2.collapse_shell_output_block
+    child_ui_1.finish_shell_output = MagicMock()
+    del child_ui_2.finish_shell_output
 
-    multi_ui.collapse_shell_output_block("cmd_1", "🖥️ Output", "the full output")
+    multi_ui.finish_shell_output("cmd_1", "🖥️ Output", "the full output")
 
-    child_ui_1.collapse_shell_output_block.assert_called_once_with(
+    child_ui_1.finish_shell_output.assert_called_once_with(
         "cmd_1", "🖥️ Output", "the full output"
     )
 
@@ -271,14 +271,12 @@ def test_multi_ui_collapse_shell_output_block_forwards_to_supporting_children(
 def test_multi_ui_shell_output_hooks_swallow_child_errors(
     multi_ui, child_ui_1, child_ui_2
 ):
-    child_ui_1.mark_shell_output_block_start = MagicMock(
-        side_effect=RuntimeError("bad")
-    )
-    child_ui_2.mark_shell_output_block_start = MagicMock()
+    child_ui_1.update_shell_output = MagicMock(side_effect=RuntimeError("bad"))
+    child_ui_2.update_shell_output = MagicMock()
 
-    multi_ui.mark_shell_output_block_start("cmd_1")
+    multi_ui.update_shell_output("cmd_1", "line one")
 
-    child_ui_2.mark_shell_output_block_start.assert_called_once()
+    child_ui_2.update_shell_output.assert_called_once()
 
 
 def test_multi_ui_set_thinking_mirrors_to_children(multi_ui, child_ui_1, child_ui_2):

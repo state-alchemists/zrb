@@ -141,7 +141,7 @@ class UIOutput:
         # `update_tool_prepare`, a shell command's echo grows via ordinary
         # appends (not a live replace), so no "current end" bookkeeping is
         # needed until the one final collapse.
-        self._shell_output_starts: dict[str, int] = {}
+        self._shell_output_spans: dict[str, tuple[int, int]] = {}
 
     @property
     def is_thinking(self) -> bool:
@@ -362,25 +362,50 @@ class UIOutput:
             return False
         return self._splice_collapsed_span(start, collapsed, full)
 
-    def mark_shell_output_block_start(self, key: str) -> None:
-        """Record where a shell command's live stdout/stderr echo begins.
+    def update_shell_output(self, key: str, text: str) -> None:
+        """Grow or replace `key`'s own live shell-output line with `text`
+        (the full accumulated stdout+stderr echo so far) — called on every
+        new line while the command runs.
 
-        Keyed like `update_tool_prepare` (not the single slot thinking/text
-        share) in case the tool-execution framework ever runs more than one
-        Shell call concurrently — each command's own output must collapse
-        independently.
+        Shares mechanics with `update_tool_prepare` (see
+        `_update_keyed_line`): the *first* regression attempt at this
+        feature marked one offset and let two concurrently-running Shell
+        commands' echo interleave into the buffer between mark and
+        collapse — whichever command's block collapsed first devoured the
+        *other's* interleaved lines too, since "everything between start
+        and current end" doesn't hold when a second writer is growing its
+        own content in the same window. Replacing this key's own span
+        wholesale on every update — never touching anything outside it —
+        is what makes two commands' live output safe to interleave.
         """
-        self._shell_output_starts[key] = len(self.output_text)
+        self._update_keyed_line(self._shell_output_spans, key, text)
 
-    def collapse_shell_output_block(self, key: str, collapsed: str, full: str) -> bool:
-        """Collapse the shell-output block opened by
-        `mark_shell_output_block_start`. See `_splice_collapsed_span` for
-        the mechanics and why `full` must be the caller's own accumulated
-        echo rather than re-read from the buffer."""
-        start = self._shell_output_starts.pop(key, None)
-        if start is None:
+    def finish_shell_output(self, key: str, collapsed: str, full: str) -> bool:
+        """Collapse `key`'s live line (opened via `update_shell_output`)
+        into `collapsed`, registering it as Ctrl+O-expandable holding
+        `full`. Unlike `update_tool_prepare`'s placeholder, this needs
+        `rendered_blocks` bookkeeping since the point is to let the user
+        expand back to the full output.
+
+        `full` is the caller's own accumulated echo (see
+        `StreamCapture.echoed_text`), not re-read from the buffer — same
+        "don't trust a `\\r`-mangled screen" contract as
+        `_collapse_collapsible_block`. Uses this key's own tracked `end`,
+        not `len(output_text)`: unlike the single-slot tracker, other keys'
+        own live lines may already have grown past this one by the time it
+        finishes.
+        """
+        span = self._shell_output_spans.pop(key, None)
+        if span is None or not full:
             return False
-        return self._splice_collapsed_span(start, collapsed, full)
+        start, end = span
+        source = CollapsibleBlockSource(stylize_muted(collapsed), stylize_muted(full))
+        if not self.replace_output_span(start, end, source.collapsed):
+            return False
+        self._ui.rendered_blocks.append(
+            [start, start + len(source.collapsed), source, _render_collapsible_block]
+        )
+        return True
 
     def _splice_collapsed_span(self, start: int, collapsed: str, full: str) -> bool:
         """Shared low-level mechanics: splice `collapsed` over `[start, end)`
@@ -414,33 +439,50 @@ class UIOutput:
     def update_tool_prepare(self, key: str, text: str) -> None:
         """Print or update `key`'s own "Prepare tool parameters" line.
 
-        The first call for a given `key` appends `text` fresh and starts
-        tracking its span; every later call for the same `key` replaces
-        exactly that span — never anything else, unlike the `\\r`-based
-        "erase whatever is currently the last line" trick this replaces,
-        which broke the moment two tool calls' argument streams interleaved
-        (each one's spinner tick could erase the *other's* line). Passing an
-        empty `text` erases the line and stops tracking `key`.
+        See `_update_keyed_line` for the mechanics. Passing an empty `text`
+        erases the line and stops tracking `key`.
 
         Not a `CollapsibleBlockSource` / `rendered_blocks` entry: this line
-        never needs Ctrl+O expansion, so it skips that bookkeeping entirely.
+        never needs Ctrl+O expansion, so it skips that bookkeeping entirely
+        (unlike `update_shell_output`'s counterpart, `finish_shell_output`).
         """
-        span = self._tool_prepare_spans.get(key)
+        self._update_keyed_line(self._tool_prepare_spans, key, text)
+
+    def _update_keyed_line(
+        self, spans: "dict[str, tuple[int, int]]", key: str, text: str
+    ) -> None:
+        """Shared mechanics for `update_tool_prepare`/`update_shell_output`:
+        grow or replace `key`'s own tracked span in `spans` with `text`.
+
+        The first call for a given `key` appends `text` fresh (auto-styled
+        via `kind="progress"`) and starts tracking its span; every later
+        call replaces exactly that span (re-styled manually, since
+        `replace_output_span` doesn't apply `kind`-based styling) — never
+        anything else. This is what makes two keys' own lines safe to grow
+        concurrently: the old `\\r`-based "erase whatever is currently the
+        last line" trick (tool-prepare's original implementation) and the
+        "mark once, let anything get appended, collapse the whole span"
+        trick (shell-output's original implementation) both broke the
+        moment a second key's content landed inside the first key's own
+        span. Passing an empty `text` erases the line and stops tracking
+        `key`.
+        """
+        span = spans.get(key)
         if span is None:
             if not text:
                 return
             start = len(self.output_text)
             self.append_to_output(text, end="", kind="progress")
-            self._tool_prepare_spans[key] = (start, len(self.output_text))
+            spans[key] = (start, len(self.output_text))
             return
         start, end = span
         styled = stylize_muted(text) if text else ""
         if not self.replace_output_span(start, end, styled):
             return
         if text:
-            self._tool_prepare_spans[key] = (start, start + len(styled))
+            spans[key] = (start, start + len(styled))
         else:
-            self._tool_prepare_spans.pop(key, None)
+            spans.pop(key, None)
 
     def toggle_collapsible_block_at_cursor(self) -> bool:
         """Expand/collapse the collapsible block at-or-before the output
@@ -511,13 +553,12 @@ class UIOutput:
         Tracked rendered blocks starting at or after the replaced span are
         shifted by the length delta — the same bookkeeping `rewrap_output`
         keeps, so a later re-wrap still splices at the right offsets. Other
-        tool calls' own tracked `_tool_prepare_spans` (see
-        `update_tool_prepare`) and `_shell_output_starts` (see
-        `mark_shell_output_block_start`) get the same shift — one tool
-        call's own span resolving/erasing must not invalidate another's
-        still-open span. Returns ``False`` when the span no longer exists
-        (the echo was confirmation-buffered or the buffer was rewritten
-        since).
+        keys' own tracked spans (`_tool_prepare_spans`, see
+        `update_tool_prepare`; `_shell_output_spans`, see
+        `update_shell_output`) get the same shift — one key's own span
+        growing/shrinking/resolving must not invalidate another's still-open
+        span. Returns ``False`` when the span no longer exists (the echo was
+        confirmation-buffered or the buffer was rewritten since).
         """
         text = self.output_text
         if end > len(text):
@@ -529,15 +570,10 @@ class UIOutput:
                 if block[0] >= end:
                     block[0] += delta
                     block[1] += delta
-            for key, (span_start, span_end) in list(self._tool_prepare_spans.items()):
-                if span_start >= end:
-                    self._tool_prepare_spans[key] = (
-                        span_start + delta,
-                        span_end + delta,
-                    )
-            for key, span_start in list(self._shell_output_starts.items()):
-                if span_start >= end:
-                    self._shell_output_starts[key] = span_start + delta
+            for spans in (self._tool_prepare_spans, self._shell_output_spans):
+                for key, (span_start, span_end) in list(spans.items()):
+                    if span_start >= end:
+                        spans[key] = (span_start + delta, span_end + delta)
         self.set_output_text(new_text)
         return True
 

@@ -47,9 +47,9 @@ class BufferedUI(UIProtocol):
         # Per-tool-call span for update_tool_prepare — see UIOutput's
         # matching field for why this one is keyed instead of a single slot.
         self._tool_prepare_spans: dict[str, tuple[int, int]] = {}
-        # Per-shell-command start offset for mark_shell_output_block_start —
-        # see UIOutput's matching field for why this is keyed too.
-        self._shell_output_starts: dict[str, int] = {}
+        # Per-shell-command span for update_shell_output — see UIOutput's
+        # matching field for why this is keyed too.
+        self._shell_output_spans: dict[str, tuple[int, int]] = {}
         # Set by run_agent_task so buffered output also feeds the activity panel.
         self._agent_id: str | None = None
         # Scopes activity-panel updates to the session that started this
@@ -151,7 +151,7 @@ class BufferedUI(UIProtocol):
     def _replace_span(self, start: int, end: int, replacement: str) -> bool:
         """Splice ``self._merged_output[start:end]`` with `replacement` in
         place, shifting later `self._rendered_blocks`,
-        `self._tool_prepare_spans`, and `self._shell_output_starts` entries
+        `self._tool_prepare_spans`, and `self._shell_output_spans` entries
         by the length delta. Mirrors `UIOutput.replace_output_span` minus
         the prompt_toolkit `Document`/cursor-follow/`schedule_invalidate`
         concerns, which don't apply to a plain accumulating string.
@@ -167,15 +167,10 @@ class BufferedUI(UIProtocol):
                 if block[0] >= end:
                     block[0] += delta
                     block[1] += delta
-            for key, (span_start, span_end) in list(self._tool_prepare_spans.items()):
-                if span_start >= end:
-                    self._tool_prepare_spans[key] = (
-                        span_start + delta,
-                        span_end + delta,
-                    )
-            for key, span_start in list(self._shell_output_starts.items()):
-                if span_start >= end:
-                    self._shell_output_starts[key] = span_start + delta
+            for spans in (self._tool_prepare_spans, self._shell_output_spans):
+                for key, (span_start, span_end) in list(spans.items()):
+                    if span_start >= end:
+                        spans[key] = (span_start + delta, span_end + delta)
         return True
 
     def append_toggle_block(self, collapsed: str, full: str) -> None:
@@ -231,21 +226,34 @@ class BufferedUI(UIProtocol):
             return False
         return self._splice_collapsed_span(start, collapsed, full)
 
-    def mark_shell_output_block_start(self, key: str) -> None:
-        """Record where a shell command's live stdout/stderr echo begins.
+    def update_shell_output(self, key: str, text: str) -> None:
+        """Grow or replace `key`'s own live shell-output line with `text`.
 
-        Mirrors `UIOutput.mark_shell_output_block_start` — keyed rather
-        than a single slot, see its docstring for why.
+        Mirrors `UIOutput.update_shell_output` — see `_update_keyed_line`
+        for the mechanics and why this replaces the original mark-once/
+        collapse-once design.
         """
-        self._shell_output_starts[key] = len(self._merged_output)
+        self._update_keyed_line(self._shell_output_spans, key, text)
 
-    def collapse_shell_output_block(self, key: str, collapsed: str, full: str) -> bool:
-        """Collapse the shell-output block opened by
-        `mark_shell_output_block_start`."""
-        start = self._shell_output_starts.pop(key, None)
-        if start is None:
+    def finish_shell_output(self, key: str, collapsed: str, full: str) -> bool:
+        """Collapse `key`'s live line (opened via `update_shell_output`)
+        into `collapsed`, registering it as Ctrl+O-expandable holding
+        `full`. Uses this key's own tracked `end`, not
+        `len(self._merged_output)` — see `UIOutput.finish_shell_output`
+        for why.
+        """
+        span = self._shell_output_spans.pop(key, None)
+        if span is None or not full:
             return False
-        return self._splice_collapsed_span(start, collapsed, full)
+        start, end = span
+        # lazy: circular — buffered_ui → output → ... → buffered_ui
+        from zrb.llm.ui.default.output import CollapsibleBlockSource
+
+        source = CollapsibleBlockSource(stylize_muted(collapsed), stylize_muted(full))
+        if not self._replace_span(start, end, source.collapsed):
+            return False
+        self._rendered_blocks.append([start, start + len(source.collapsed), source])
+        return True
 
     def _splice_collapsed_span(self, start: int, collapsed: str, full: str) -> bool:
         """Shared low-level mechanics for both the single-slot tracker
@@ -272,25 +280,37 @@ class BufferedUI(UIProtocol):
     def update_tool_prepare(self, key: str, text: str) -> None:
         """Print or update `key`'s own "Prepare tool parameters" line.
 
-        Mirrors `UIOutput.update_tool_prepare` — see its docstring for the
-        mechanics and why this is keyed rather than a single slot.
+        See `_update_keyed_line` for the mechanics. Passing an empty
+        `text` erases the line and stops tracking `key`.
         """
-        span = self._tool_prepare_spans.get(key)
+        self._update_keyed_line(self._tool_prepare_spans, key, text)
+
+    def _update_keyed_line(
+        self, spans: "dict[str, tuple[int, int]]", key: str, text: str
+    ) -> None:
+        """Shared mechanics for `update_tool_prepare`/`update_shell_output`.
+
+        Mirrors `UIOutput._update_keyed_line` — see its docstring for why
+        replace-in-place (rather than the `\\r` trick or the mark-once/
+        collapse-once trick) is what makes two keys' own lines safe to
+        grow concurrently.
+        """
+        span = spans.get(key)
         if span is None:
             if not text:
                 return
             start = len(self._merged_output)
             self.append_to_output(text, end="", kind="progress")
-            self._tool_prepare_spans[key] = (start, len(self._merged_output))
+            spans[key] = (start, len(self._merged_output))
             return
         start, end = span
         styled = stylize_muted(text) if text else ""
         if not self._replace_span(start, end, styled):
             return
         if text:
-            self._tool_prepare_spans[key] = (start, start + len(styled))
+            spans[key] = (start, start + len(styled))
         else:
-            self._tool_prepare_spans.pop(key, None)
+            spans.pop(key, None)
 
     def toggle_collapsible_block_at_offset(self, offset: int) -> bool:
         """Expand/collapse the collapsible block at-or-before `offset`.
@@ -366,7 +386,7 @@ class BufferedUI(UIProtocol):
         self._rendered_blocks = []
         self._collapsible_block_start = None
         self._tool_prepare_spans = {}
-        self._shell_output_starts = {}
+        self._shell_output_spans = {}
 
     @property
     def yolo(self) -> bool | frozenset:

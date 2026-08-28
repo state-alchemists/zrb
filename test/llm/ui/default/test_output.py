@@ -950,17 +950,36 @@ def test_update_tool_prepare_keeps_each_tool_calls_own_line_independent():
     assert "call_A | ToolA" in ui.output_text
 
 
-def test_mark_and_collapse_shell_output_block_wraps_the_streamed_span():
-    """Shell output streams live (nothing withheld) the same way thinking
-    does; `collapse_shell_output_block` retroactively wraps that span,
-    keyed so a concurrent second command's own block is unaffected."""
+def test_update_shell_output_first_call_appends_and_tracks():
+    ui = MockMarkdownUI()
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.update_shell_output("cmd_1", "line one")
+
+    assert "line one" in ui.output_text
+
+
+def test_update_shell_output_second_call_replaces_with_the_grown_text():
+    """Each call passes the *full* accumulated text so far (not just the
+    new increment) — the second call must replace, not append to, the
+    first's line."""
+    ui = MockMarkdownUI()
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.update_shell_output("cmd_1", "line one")
+        ui.update_shell_output("cmd_1", "line one\nline two")
+
+    assert ui.output_text.count("line one") == 1
+    assert "line two" in ui.output_text
+
+
+def test_finish_shell_output_collapses_and_registers_for_toggle():
     ui = MockMarkdownUI()
 
     with patch.object(ui.output_part, "schedule_invalidate"):
         ui.append_to_output("before ")
-        ui.mark_shell_output_block_start("cmd_1")
-        ui.append_to_output("line one\nline two", end="")
-        collapsed = ui.collapse_shell_output_block(
+        ui.update_shell_output("cmd_1", "line one\nline two")
+        collapsed = ui.finish_shell_output(
             "cmd_1", "🖥️ Output (17 chars)", "line one\nline two"
         )
 
@@ -975,44 +994,53 @@ def test_mark_and_collapse_shell_output_block_wraps_the_streamed_span():
     assert "line one" in ui.output_text and "line two" in ui.output_text
 
 
-def test_collapse_shell_output_block_without_a_mark_is_a_noop():
+def test_finish_shell_output_without_any_update_is_a_noop():
     ui = MockMarkdownUI()
-    ui.output_field.text = "no marked shell block here"
+    ui.output_field.text = "no shell output line here"
 
-    assert ui.collapse_shell_output_block("cmd_1", "🖥️ Output", "some text") is False
-    assert ui.output_text == "no marked shell block here"
+    assert ui.finish_shell_output("cmd_1", "🖥️ Output", "some text") is False
+    assert ui.output_text == "no shell output line here"
 
 
-def test_collapse_shell_output_block_consumes_the_mark_once():
+def test_finish_shell_output_consumes_the_span_once():
     ui = MockMarkdownUI()
 
     with patch.object(ui.output_part, "schedule_invalidate"):
-        ui.mark_shell_output_block_start("cmd_1")
-        ui.append_to_output("output", end="")
-        ui.collapse_shell_output_block("cmd_1", "🖥️ Output", "output")
+        ui.update_shell_output("cmd_1", "output")
+        ui.finish_shell_output("cmd_1", "🖥️ Output", "output")
         after_first = ui.output_text
-        result = ui.collapse_shell_output_block("cmd_1", "🖥️ Output", "output")
+        result = ui.finish_shell_output("cmd_1", "🖥️ Output", "output")
 
     assert result is False
     assert ui.output_text == after_first
 
 
-def test_shell_output_blocks_keep_each_commands_own_span_independent():
-    """Regression, same class of bug as tool-prepare: if two shell commands'
-    output ever overlap on screen, collapsing the first must shift — not
-    invalidate — the second's still-open span."""
+def test_shell_output_keeps_each_commands_own_line_independent_while_growing():
+    """Regression: this is the actual bug reported — two shell commands
+    running in parallel had their interleaved live output collapse into
+    ONE block, silently swallowing one command's lines. Each `update_*`
+    call replaces exactly that command's own span (never the other's),
+    the same way `update_tool_prepare` already handles interleaved
+    argument streams."""
     ui = MockMarkdownUI()
 
     with patch.object(ui.output_part, "schedule_invalidate"):
-        ui.mark_shell_output_block_start("cmd_A")
-        ui.append_to_output("output A", end="")
-        ui.mark_shell_output_block_start("cmd_B")
-        ui.append_to_output("output B", end="")
-        collapsed_a = ui.collapse_shell_output_block("cmd_A", "🖥️ A", "output A")
-        collapsed_b = ui.collapse_shell_output_block("cmd_B", "🖥️ B", "output B")
+        # Genuinely interleaved growth, one line at a time each.
+        ui.update_shell_output("cmd_A", "dog 1")
+        ui.update_shell_output("cmd_B", "cat 1")
+        ui.update_shell_output("cmd_A", "dog 1\ndog 2")
+        ui.update_shell_output("cmd_B", "cat 1\ncat 2")
+        finished_a = ui.finish_shell_output("cmd_A", "🖥️ A", "dog 1\ndog 2")
+        finished_b = ui.finish_shell_output("cmd_B", "🖥️ B", "cat 1\ncat 2")
 
-    assert collapsed_a is True
-    assert collapsed_b is True
-    assert "output A" not in ui.output_text
-    assert "output B" not in ui.output_text
+    assert finished_a is True
+    assert finished_b is True
+    assert "dog" not in ui.output_text and "cat" not in ui.output_text
     assert "🖥️ A" in ui.output_text and "🖥️ B" in ui.output_text
+    assert len(ui.rendered_blocks) == 2
+    # Both blocks independently expand to their OWN full text — neither
+    # swallowed the other's lines.
+    collapsed_sources = [block[2] for block in ui.rendered_blocks]
+    fulls = {source.full for source in collapsed_sources}
+    assert any("dog 1" in f and "dog 2" in f for f in fulls)
+    assert any("cat 1" in f and "cat 2" in f for f in fulls)

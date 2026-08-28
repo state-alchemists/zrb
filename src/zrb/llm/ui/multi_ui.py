@@ -307,30 +307,26 @@ class MultiUI:
                 except Exception as e:
                     CFG.LOGGER.debug(f"Child UI update_tool_prepare failed: {e}")
 
-    def mark_shell_output_block_start(self, key: str) -> None:
+    def update_shell_output(self, key: str, text: str) -> None:
         """Forward to whichever children support it — same fallback story
-        as `mark_thinking_block_start`."""
+        as `update_tool_prepare`."""
         for ui in self._uis:
-            mark = getattr(ui, "mark_shell_output_block_start", None)
-            if callable(mark):
+            update = getattr(ui, "update_shell_output", None)
+            if callable(update):
                 try:
-                    mark(key)
+                    update(key, text)
                 except Exception as e:
-                    CFG.LOGGER.debug(
-                        f"Child UI mark_shell_output_block_start failed: {e}"
-                    )
+                    CFG.LOGGER.debug(f"Child UI update_shell_output failed: {e}")
 
-    def collapse_shell_output_block(self, key: str, collapsed: str, full: str) -> None:
-        """Counterpart to `mark_shell_output_block_start` — see its docstring."""
+    def finish_shell_output(self, key: str, collapsed: str, full: str) -> None:
+        """Counterpart to `update_shell_output` — see its docstring."""
         for ui in self._uis:
-            collapse = getattr(ui, "collapse_shell_output_block", None)
-            if callable(collapse):
+            finish = getattr(ui, "finish_shell_output", None)
+            if callable(finish):
                 try:
-                    collapse(key, collapsed, full)
+                    finish(key, collapsed, full)
                 except Exception as e:
-                    CFG.LOGGER.debug(
-                        f"Child UI collapse_shell_output_block failed: {e}"
-                    )
+                    CFG.LOGGER.debug(f"Child UI finish_shell_output failed: {e}")
 
     def replay_history(self, messages: list) -> None:
         """Replay loaded history on every child UI that supports it."""

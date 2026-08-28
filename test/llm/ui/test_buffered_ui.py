@@ -583,15 +583,22 @@ def test_clear_buffer_resets_tool_prepare_spans():
     assert ui.get_buffered_output().count("Prepare tool parameters") == 1
 
 
-def test_mark_and_collapse_shell_output_block_wraps_the_streamed_span():
+def test_update_shell_output_second_call_replaces_with_the_grown_text():
+    ui = BufferedUI(MagicMock())
+
+    ui.update_shell_output("cmd_1", "line one")
+    ui.update_shell_output("cmd_1", "line one\nline two")
+
+    assert ui.get_buffered_output().count("line one") == 1
+    assert "line two" in ui.get_buffered_output()
+
+
+def test_finish_shell_output_collapses_and_registers_for_toggle():
     ui = BufferedUI(MagicMock())
     ui.append_to_output("before ", end="")
-    ui.mark_shell_output_block_start("cmd_1")
-    ui.append_to_output("line one\nline two", end="")
+    ui.update_shell_output("cmd_1", "line one\nline two")
 
-    collapsed = ui.collapse_shell_output_block(
-        "cmd_1", "🖥️ Output", "line one\nline two"
-    )
+    collapsed = ui.finish_shell_output("cmd_1", "🖥️ Output", "line one\nline two")
 
     assert collapsed is True
     assert "line one" not in ui.get_buffered_output()
@@ -603,38 +610,44 @@ def test_mark_and_collapse_shell_output_block_wraps_the_streamed_span():
     assert "line one" in ui.get_buffered_output()
 
 
-def test_collapse_shell_output_block_without_a_mark_is_a_noop():
+def test_finish_shell_output_without_any_update_is_a_noop():
     ui = BufferedUI(MagicMock())
-    ui.append_to_output("no marked shell block here", end="")
+    ui.append_to_output("no shell output line here", end="")
 
-    assert ui.collapse_shell_output_block("cmd_1", "🖥️ Output", "text") is False
-    assert ui.get_buffered_output() == "no marked shell block here"
+    assert ui.finish_shell_output("cmd_1", "🖥️ Output", "text") is False
+    assert ui.get_buffered_output() == "no shell output line here"
 
 
-def test_shell_output_blocks_keep_each_commands_own_span_independent():
-    """Regression, same class of bug as tool-prepare: collapsing one shell
-    command's output must shift, not invalidate, a concurrent second
-    command's still-open span."""
+def test_shell_output_keeps_each_commands_own_line_independent_while_growing():
+    """Regression, the actual bug reported: two shell commands running in
+    parallel had their interleaved live output collapse into ONE block,
+    silently swallowing one command's lines. Each `update_shell_output`
+    call replaces exactly that command's own span, the same way
+    `update_tool_prepare` already handles interleaved argument streams."""
     ui = BufferedUI(MagicMock())
 
-    ui.mark_shell_output_block_start("cmd_A")
-    ui.append_to_output("output A", end="")
-    ui.mark_shell_output_block_start("cmd_B")
-    ui.append_to_output("output B", end="")
-    collapsed_a = ui.collapse_shell_output_block("cmd_A", "🖥️ A", "output A")
-    collapsed_b = ui.collapse_shell_output_block("cmd_B", "🖥️ B", "output B")
+    ui.update_shell_output("cmd_A", "dog 1")
+    ui.update_shell_output("cmd_B", "cat 1")
+    ui.update_shell_output("cmd_A", "dog 1\ndog 2")
+    ui.update_shell_output("cmd_B", "cat 1\ncat 2")
+    finished_a = ui.finish_shell_output("cmd_A", "🖥️ A", "dog 1\ndog 2")
+    finished_b = ui.finish_shell_output("cmd_B", "🖥️ B", "cat 1\ncat 2")
 
-    assert collapsed_a is True
-    assert collapsed_b is True
-    assert "output A" not in ui.get_buffered_output()
-    assert "output B" not in ui.get_buffered_output()
+    assert finished_a is True
+    assert finished_b is True
+    assert "dog" not in ui.get_buffered_output()
+    assert "cat" not in ui.get_buffered_output()
     assert "🖥️ A" in ui.get_buffered_output() and "🖥️ B" in ui.get_buffered_output()
+    assert len(ui.rendered_blocks) == 2
+    fulls = {block[2].full for block in ui.rendered_blocks}
+    assert any("dog 1" in f and "dog 2" in f for f in fulls)
+    assert any("cat 1" in f and "cat 2" in f for f in fulls)
 
 
-def test_clear_buffer_resets_shell_output_starts():
+def test_clear_buffer_resets_shell_output_spans():
     ui = BufferedUI(MagicMock())
-    ui.mark_shell_output_block_start("cmd_1")
+    ui.update_shell_output("cmd_1", "text")
 
     ui.clear_buffer()
 
-    assert ui.collapse_shell_output_block("cmd_1", "🖥️ Output", "text") is False
+    assert ui.finish_shell_output("cmd_1", "🖥️ Output", "text") is False

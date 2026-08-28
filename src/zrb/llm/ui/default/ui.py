@@ -595,11 +595,11 @@ class UI(BaseUI):
     def update_tool_prepare(self, key: str, text: str) -> None:
         self._output.update_tool_prepare(key, text)
 
-    def mark_shell_output_block_start(self, key: str) -> None:
-        self._output.mark_shell_output_block_start(key)
+    def update_shell_output(self, key: str, text: str) -> None:
+        self._output.update_shell_output(key, text)
 
-    def collapse_shell_output_block(self, key: str, collapsed: str, full: str) -> bool:
-        return self._output.collapse_shell_output_block(key, collapsed, full)
+    def finish_shell_output(self, key: str, collapsed: str, full: str) -> bool:
+        return self._output.finish_shell_output(key, collapsed, full)
 
     def toggle_collapsible_block(self) -> bool:
         # While viewing a sub-agent, the output pane shows THAT sub-agent's
