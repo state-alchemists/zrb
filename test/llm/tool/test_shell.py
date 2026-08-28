@@ -45,6 +45,25 @@ def _make_mock_process(
     return proc
 
 
+class _InterleavingStreamReader:
+    """Like `_MockStreamReader`, but yields control between lines so two
+    concurrent `run_shell_command()` calls genuinely interleave — matching
+    real concurrent subprocess execution (confirmed: pydantic-ai runs
+    same-turn tool calls as concurrent asyncio tasks)."""
+
+    def __init__(self, lines: list[bytes]):
+        self._lines = lines
+        self._pos = 0
+
+    async def readline(self) -> bytes:
+        await asyncio.sleep(0)
+        if self._pos < len(self._lines):
+            line = self._lines[self._pos]
+            self._pos += 1
+            return line
+        return b""
+
+
 def test_shell_name():
     assert run_shell_command.__name__ == "Shell"
 
@@ -394,6 +413,138 @@ async def test_console_echo_stops_at_the_display_cap(monkeypatch):
     assert "console output capped" in console
     assert "row-0299" not in console, "echo stopped at the cap"
     assert "row-0299" in res, "capture is unaffected by the display cap"
+
+
+@pytest.mark.asyncio
+async def test_shell_output_collapses_on_a_ui_that_supports_it(monkeypatch):
+    """The live echo grows and finishes into a collapsible block on a UI
+    that implements the hooks — mirrors `_notify`'s `get_current_ui()`
+    contract."""
+    mock_ui = MagicMock()
+    monkeypatch.setattr(shell_mod, "get_current_ui", lambda: mock_ui)
+    mock_proc = _make_mock_process(stdout_lines=["hello\n", "world\n"])
+    monkeypatch.setattr(
+        shell_mod.asyncio,
+        "create_subprocess_exec",
+        AsyncMock(return_value=mock_proc),
+    )
+
+    await run_shell_command("emit", shell="node")
+
+    # update_shell_output is throttled (see _LIVE_UPDATE_INTERVAL), so how
+    # many intermediate calls land is timing-dependent — only the final
+    # `finish_shell_output` call is guaranteed to hold the complete text.
+    mock_ui.update_shell_output.assert_called()
+    mock_ui.finish_shell_output.assert_called_once()
+    key, collapsed, full = mock_ui.finish_shell_output.call_args[0]
+    assert key == mock_ui.update_shell_output.call_args_list[0][0][0]
+    assert "hello" in full
+    assert "world" in full
+    assert "Output" in collapsed
+
+
+@pytest.mark.asyncio
+async def test_shell_output_collapse_is_a_noop_with_no_current_ui(monkeypatch):
+    monkeypatch.setattr(shell_mod, "get_current_ui", lambda: None)
+    mock_proc = _make_mock_process(stdout_lines=["hello\n"])
+    monkeypatch.setattr(
+        shell_mod.asyncio,
+        "create_subprocess_exec",
+        AsyncMock(return_value=mock_proc),
+    )
+
+    res = await run_shell_command("emit", shell="node")  # must not raise
+
+    assert "hello" in res
+
+
+@pytest.mark.asyncio
+async def test_shell_output_collapse_is_a_noop_without_the_hooks(monkeypatch):
+    """A UI that doesn't implement the collapse hooks (std_ui, Telegram,
+    SSE, ...) must be unaffected — the command still runs and returns
+    normally."""
+    mock_ui = MagicMock(spec=[])  # no attributes at all
+    monkeypatch.setattr(shell_mod, "get_current_ui", lambda: mock_ui)
+    mock_proc = _make_mock_process(stdout_lines=["hello\n"])
+    monkeypatch.setattr(
+        shell_mod.asyncio,
+        "create_subprocess_exec",
+        AsyncMock(return_value=mock_proc),
+    )
+
+    res = await run_shell_command("emit", shell="node")
+
+    assert "hello" in res
+
+
+@pytest.mark.asyncio
+async def test_shell_output_collapse_swallows_a_broken_uis_exception(monkeypatch):
+    """A UI whose hooks raise must never break the actual command — same
+    contract as `_notify`'s broken-UI test."""
+    mock_ui = MagicMock()
+    mock_ui.update_shell_output.side_effect = RuntimeError("ui exploded")
+    mock_ui.finish_shell_output.side_effect = RuntimeError("ui exploded")
+    monkeypatch.setattr(shell_mod, "get_current_ui", lambda: mock_ui)
+    mock_proc = _make_mock_process(stdout_lines=["hello\n"])
+    monkeypatch.setattr(
+        shell_mod.asyncio,
+        "create_subprocess_exec",
+        AsyncMock(return_value=mock_proc),
+    )
+
+    res = await run_shell_command("emit", shell="node")  # must not raise
+
+    assert "hello" in res
+
+
+@pytest.mark.asyncio
+async def test_two_parallel_shell_calls_each_get_their_own_collapsible_block(
+    monkeypatch,
+):
+    """The actual bug reported: two Shell commands running in parallel had
+    their genuinely-interleaved live output collapse into ONE combined
+    block, silently swallowing one command's lines. Runs two REAL
+    `run_shell_command()` calls concurrently through a real `BufferedUI` —
+    not mocks — so this fails the same way the live TUI did if the
+    per-command isolation regresses.
+    """
+    # lazy: only this test needs a real UI implementation
+    from zrb.llm.ui.buffered_ui import BufferedUI
+
+    ui = BufferedUI(MagicMock())
+    monkeypatch.setattr(shell_mod, "get_current_ui", lambda: ui)
+
+    def _interleaving_process(lines: list[str]) -> MagicMock:
+        proc = MagicMock()
+        proc.stdout = _InterleavingStreamReader([line.encode() for line in lines])
+        proc.stderr = _InterleavingStreamReader([])
+        proc.wait = AsyncMock(return_value=0)
+        proc.returncode = 0
+        proc.pid = 12345
+        return proc
+
+    dog_lines = [f"dog {i}\n" for i in range(1, 6)]
+    cat_lines = [f"cat {i}\n" for i in range(1, 6)]
+    calls = iter([_interleaving_process(dog_lines), _interleaving_process(cat_lines)])
+    monkeypatch.setattr(
+        shell_mod.asyncio,
+        "create_subprocess_exec",
+        AsyncMock(side_effect=lambda *a, **kw: next(calls)),
+    )
+
+    await asyncio.gather(
+        run_shell_command("dog-loop", shell="bash"),
+        run_shell_command("cat-loop", shell="bash"),
+    )
+
+    assert len(ui.rendered_blocks) == 2, "each command must get its own block"
+    fulls = {block[2].full for block in ui.rendered_blocks}
+    assert any(
+        all(f"dog {i}" in f for i in range(1, 6)) for f in fulls
+    ), "dog's own lines must all be in ONE of the two blocks"
+    assert any(
+        all(f"cat {i}" in f for i in range(1, 6)) for f in fulls
+    ), "cat's own lines must all be in the OTHER block, not swallowed by dog's"
 
 
 @pytest.mark.asyncio

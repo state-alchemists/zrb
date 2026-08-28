@@ -21,8 +21,30 @@ class TestStreamEventHandlerInit:
         assert handler.progress_idx == 0
         assert handler.was_tool_call_delta is False
         assert handler.was_tool_call_start is False
-        assert handler.event_prefix == "  "
+        # Same value `__call__` resets to after every event — a fresh handler
+        # always starts mid-turn (see the field's own comment), never at a
+        # true blank buffer.
+        assert handler.event_prefix == "\n  "
         assert handler.printed_tool_ids == set()
+
+    def test_fresh_handler_first_print_has_a_leading_newline(self):
+        """Regression: the tool-execution loop (runner.py) builds a brand new
+        `StreamEventHandler` on every re-entry (e.g. once per tool-approval
+        round-trip), never at a genuinely blank buffer. Without a leading
+        newline on the very first thing it prints, that first line landed
+        with no separation from whatever the *previous* handler had already
+        printed, while every later line in the same handler got one."""
+        print_fn = MagicMock()
+        handler = StreamEventHandler(print_fn=print_fn)
+        from pydantic_ai import ToolCallPart
+
+        mock_event = MagicMock()
+        mock_event.part = ToolCallPart(
+            tool_name="my_tool", args={"param": "value"}, tool_call_id="call_123"
+        )
+        handler.handle_tool_call(mock_event)
+        printed = "".join(str(c.args[0]) for c in print_fn.call_args_list if c.args)
+        assert printed.startswith("\n")
 
     def test_init_custom_values(self):
         print_fn = MagicMock()
@@ -377,6 +399,162 @@ class TestStreamEventHandlerThinkingCollapse:
         handler.handle_part_start(tool_event)  # must not raise
 
 
+class TestStreamEventHandlerTextCollapse:
+    """Mirrors TestStreamEventHandlerThinkingCollapse: the final text
+    response gets the same live-stream-then-collapse treatment as thinking,
+    so the "fainted" streamed copy doesn't sit on screen next to the
+    markdown-rendered final copy `BaseUI.stream_ai_response` appends."""
+
+    def test_text_part_opens_block_when_hook_set(self):
+        print_fn = MagicMock()
+        on_start = MagicMock()
+        handler = StreamEventHandler(print_fn=print_fn, on_text_start=on_start)
+        from pydantic_ai.messages import TextPart
+
+        mock_event = MagicMock()
+        mock_event.part = TextPart(content="Here's the answer")
+        handler.handle_part_start(mock_event)
+
+        on_start.assert_called_once_with()
+        print_fn.assert_called()  # text still streams live either way
+
+    def test_tool_call_after_text_closes_and_collapses_it(self):
+        """The realistic mid-turn case: text streamed, then a further tool
+        call starts (the response wasn't actually final yet)."""
+        print_fn = MagicMock()
+        on_start = MagicMock()
+        on_collapse = MagicMock()
+        handler = StreamEventHandler(
+            print_fn=print_fn,
+            on_text_start=on_start,
+            on_text_collapse=on_collapse,
+        )
+        from pydantic_ai import ToolCallPart
+        from pydantic_ai.messages import TextPart
+
+        text_event = MagicMock()
+        text_event.part = TextPart(content="Let me check that for you")
+        handler.handle_part_start(text_event)
+
+        tool_event = MagicMock()
+        tool_event.part = ToolCallPart(tool_name="t", args={}, tool_call_id="1")
+        handler.handle_part_start(tool_event)
+
+        on_collapse.assert_called_once()
+        collapsed_text, full_text = on_collapse.call_args[0]
+        assert "💬 Response" in collapsed_text
+        assert "Let me check that for you" in full_text
+
+    def test_carriage_return_in_a_delta_does_not_truncate_the_full_text(self):
+        """Same regression as thinking's: `full` must be accumulated at the
+        source, not re-read from a buffer a stray `\\r` may have mangled."""
+        print_fn = MagicMock()
+        on_collapse = MagicMock()
+        handler = StreamEventHandler(print_fn=print_fn, on_text_collapse=on_collapse)
+        from pydantic_ai import TextPartDelta, ToolCallPart
+        from pydantic_ai.messages import TextPart
+
+        start_event = MagicMock()
+        start_event.part = TextPart(content="Answering the question")
+        handler.handle_part_start(start_event)
+
+        delta_event = MagicMock()
+        delta_event.delta = TextPartDelta(content_delta="\rmore of the answer")
+        handler.handle_part_delta(delta_event)
+
+        tool_event = MagicMock()
+        tool_event.part = ToolCallPart(tool_name="t", args={}, tool_call_id="1")
+        handler.handle_part_start(tool_event)
+
+        on_collapse.assert_called_once()
+        _collapsed, full = on_collapse.call_args[0]
+        assert "Answering the question" in full
+        assert "more of the answer" in full
+
+    def test_no_open_text_block_never_calls_collapse(self):
+        print_fn = MagicMock()
+        on_collapse = MagicMock()
+        handler = StreamEventHandler(print_fn=print_fn, on_text_collapse=on_collapse)
+        from pydantic_ai import ToolCallPart
+
+        tool_event = MagicMock()
+        tool_event.part = ToolCallPart(tool_name="t", args={}, tool_call_id="1")
+        handler.handle_part_start(tool_event)
+
+        on_collapse.assert_not_called()
+
+    def test_run_result_closes_a_still_open_text_block(self):
+        """The common case: a turn ends with the final text as the last
+        streamed part — no subsequent tool call to trigger the close."""
+        print_fn = MagicMock()
+        on_collapse = MagicMock()
+        handler = StreamEventHandler(print_fn=print_fn, on_text_collapse=on_collapse)
+        from pydantic_ai.messages import TextPart
+
+        text_event = MagicMock()
+        text_event.part = TextPart(content="Here's the final answer")
+        handler.handle_part_start(text_event)
+
+        result_event = MagicMock()
+        result_event.result.usage = MagicMock()
+        handler.handle_run_result(result_event)
+
+        on_collapse.assert_called_once()
+        collapsed_text, full_text = on_collapse.call_args[0]
+        assert "💬 Response" in collapsed_text
+        assert "Here's the final answer" in full_text
+
+    def test_thinking_then_text_each_get_their_own_open_and_collapse(self):
+        """A turn with both: thinking closes on the text part start, text
+        closes on run result. Each hook pair fires exactly once."""
+        print_fn = MagicMock()
+        on_thinking_start = MagicMock()
+        on_thinking_collapse = MagicMock()
+        on_text_start = MagicMock()
+        on_text_collapse = MagicMock()
+        handler = StreamEventHandler(
+            print_fn=print_fn,
+            on_thinking_start=on_thinking_start,
+            on_thinking_collapse=on_thinking_collapse,
+            on_text_start=on_text_start,
+            on_text_collapse=on_text_collapse,
+        )
+        from pydantic_ai.messages import TextPart, ThinkingPart
+
+        thinking_event = MagicMock()
+        thinking_event.part = ThinkingPart(content="Let me think...")
+        handler.handle_part_start(thinking_event)
+
+        text_event = MagicMock()
+        text_event.part = TextPart(content="Here's the answer")
+        handler.handle_part_start(text_event)
+
+        result_event = MagicMock()
+        result_event.result.usage = MagicMock()
+        handler.handle_run_result(result_event)
+
+        on_thinking_start.assert_called_once_with()
+        on_thinking_collapse.assert_called_once()
+        on_text_start.assert_called_once_with()
+        on_text_collapse.assert_called_once()
+
+    def test_without_hooks_text_still_streams_and_nothing_raises(self):
+        """Regression guard: a UI that never opts in (std_ui, Telegram, ...)
+        behaves exactly as before — text just streams, nothing collapses."""
+        print_fn = MagicMock()
+        handler = StreamEventHandler(print_fn=print_fn)
+        from pydantic_ai import ToolCallPart
+        from pydantic_ai.messages import TextPart
+
+        text_event = MagicMock()
+        text_event.part = TextPart(content="Here's the answer")
+        handler.handle_part_start(text_event)
+
+        tool_event = MagicMock()
+        tool_event.part = ToolCallPart(tool_name="t", args={}, tool_call_id="1")
+        handler.handle_part_start(tool_event)  # must not raise
+
+
 class TestStreamEventHandlerToolCall:
     def test_handle_tool_call_first_time(self):
         print_fn = MagicMock()
@@ -471,6 +649,23 @@ class TestStreamEventHandlerToolCall:
         handler.handle_tool_call(mock_event)
         print_fn.assert_called_once()
 
+    def test_handle_tool_call_has_no_trailing_newline(self):
+        """Regression: a baked-in trailing "\\n" here doubled up with the next
+        printed line's own leading "\\n{indentation}", printing a blank line
+        after every tool call. Separation comes from the *next* thing printed
+        only — see the note in `handle_tool_call`."""
+        print_fn = MagicMock()
+        handler = StreamEventHandler(print_fn=print_fn)
+        from pydantic_ai import ToolCallPart
+
+        mock_event = MagicMock()
+        mock_event.part = ToolCallPart(
+            tool_name="my_tool", args={"param": "value"}, tool_call_id="call_123"
+        )
+        handler.handle_tool_call(mock_event)
+        printed = "".join(str(c.args[0]) for c in print_fn.call_args_list if c.args)
+        assert not printed.endswith("\n")
+
     def test_handle_tool_call_ask_user_question_ignores_recorder(self):
         """The AskUserQuestion line has nothing to expand into (its payload
         renders in the selection widget, not here) — always print directly."""
@@ -489,6 +684,142 @@ class TestStreamEventHandlerToolCall:
 
         recorder.assert_not_called()
         print_fn.assert_called()
+
+
+class TestStreamEventHandlerToolPrepareOffsetTracking:
+    """Regression suite for the offset-tracked `on_tool_prepare_update` path.
+
+    Before this, the "Prepare tool parameters" placeholder used `\\r` to
+    erase "whichever line is currently last" — correct only when tool calls
+    never overlap. The moment two tool calls' argument streams interleaved
+    (parallel tool calls), one's spinner tick erased the *other's* line,
+    leaving orphaned placeholder lines on screen permanently (this is the
+    literal bug reported: duplicate "🔄 Prepare tool parameters" lines).
+    """
+
+    def test_placeholder_uses_offset_hook_when_provided(self):
+        print_fn = MagicMock()
+        on_prepare = MagicMock()
+        handler = StreamEventHandler(
+            print_fn=print_fn, on_tool_prepare_update=on_prepare
+        )
+        from pydantic_ai import ToolCallPart
+
+        event = MagicMock()
+        event.index = 0
+        event.part = ToolCallPart(tool_name="Shell", args={}, tool_call_id="call_1")
+        handler.handle_part_start(event)
+
+        on_prepare.assert_called_once()
+        key, text = on_prepare.call_args[0]
+        assert key == "call_1"
+        assert "Prepare tool parameters" in text
+        print_fn.assert_not_called()  # went through the hook, not the raw \r print
+
+    def test_delta_updates_the_same_key_not_the_raw_r_print(self):
+        print_fn = MagicMock()
+        on_prepare = MagicMock()
+        handler = StreamEventHandler(
+            print_fn=print_fn, on_tool_prepare_update=on_prepare
+        )
+        from pydantic_ai import ToolCallPart, ToolCallPartDelta
+
+        start_event = MagicMock()
+        start_event.index = 0
+        start_event.part = ToolCallPart(
+            tool_name="Shell", args={}, tool_call_id="call_1"
+        )
+        handler.handle_part_start(start_event)
+
+        delta_event = MagicMock()
+        delta_event.index = 0
+        delta_event.delta = ToolCallPartDelta(args_delta='{"a":')
+        handler.handle_part_delta(delta_event)
+
+        assert on_prepare.call_count == 2  # initial placeholder + one spinner tick
+        assert on_prepare.call_args_list[-1].args[0] == "call_1"
+        print_fn.assert_not_called()
+
+    def test_resolving_a_tool_call_erases_only_its_own_key(self):
+        print_fn = MagicMock()
+        on_prepare = MagicMock()
+        handler = StreamEventHandler(
+            print_fn=print_fn, on_tool_prepare_update=on_prepare
+        )
+        from pydantic_ai import ToolCallPart
+
+        start_event = MagicMock()
+        start_event.index = 0
+        tc = ToolCallPart(tool_name="Shell", args={}, tool_call_id="call_1")
+        start_event.part = tc
+        handler.handle_part_start(start_event)
+        on_prepare.reset_mock()
+
+        tool_call_event = MagicMock()
+        tool_call_event.part = tc
+        handler.handle_tool_call(tool_call_event)
+
+        on_prepare.assert_called_once_with("call_1", "")
+
+    def test_parallel_tool_calls_each_get_their_own_key(self):
+        """The actual bug scenario: two tool calls' PartStartEvents fire, then
+        their argument deltas interleave. Each must resolve and erase
+        through its own key — never touching the other's."""
+        print_fn = MagicMock()
+        on_prepare = MagicMock()
+        handler = StreamEventHandler(
+            print_fn=print_fn, on_tool_prepare_update=on_prepare
+        )
+        from pydantic_ai import ToolCallPart, ToolCallPartDelta
+
+        tc_a = ToolCallPart(tool_name="ActivateSkill", args={}, tool_call_id="call_A")
+        tc_b = ToolCallPart(tool_name="WebSearch", args={}, tool_call_id="call_B")
+
+        start_a = MagicMock(index=0, part=tc_a)
+        start_b = MagicMock(index=1, part=tc_b)
+        handler.handle_part_start(start_a)
+        handler.handle_part_start(start_b)
+
+        delta_a = MagicMock(index=0, delta=ToolCallPartDelta(args_delta='{"skill":'))
+        delta_b = MagicMock(index=1, delta=ToolCallPartDelta(args_delta='{"query":'))
+        handler.handle_part_delta(delta_a)
+        handler.handle_part_delta(delta_b)
+
+        resolve_a = MagicMock(part=tc_a)
+        resolve_b = MagicMock(part=tc_b)
+        handler.handle_tool_call(resolve_a)
+        handler.handle_tool_call(resolve_b)
+
+        keys_touched = {c.args[0] for c in on_prepare.call_args_list}
+        assert keys_touched == {"call_A", "call_B"}
+        erase_calls = [c for c in on_prepare.call_args_list if c.args[1] == ""]
+        assert {c.args[0] for c in erase_calls} == {"call_A", "call_B"}
+        # print_fn is still used for the tool calls' own resolved lines
+        # (no recorder set here) — but never for the old \r-based spinner,
+        # which the offset-tracked path replaces entirely.
+        printed = [str(c.args[0]) for c in print_fn.call_args_list if c.args]
+        assert not any("\r" in p or "Prepare tool parameters" in p for p in printed)
+
+    def test_without_the_hook_falls_back_to_the_original_r_based_path(self):
+        """Regression guard: a UI that hasn't opted in (std_ui, Telegram, the
+        SSE web UI, ...) must see exactly the same behavior as before this
+        fix — single-line `\\r` animation via `print_fn`."""
+        print_fn = MagicMock()
+        handler = StreamEventHandler(print_fn=print_fn)
+        from pydantic_ai import ToolCallPart, ToolCallPartDelta
+
+        start_event = MagicMock(index=0)
+        start_event.part = ToolCallPart(
+            tool_name="Shell", args={}, tool_call_id="call_1"
+        )
+        handler.handle_part_start(start_event)
+
+        delta_event = MagicMock(index=0)
+        delta_event.delta = ToolCallPartDelta(args_delta='{"a":')
+        handler.handle_part_delta(delta_event)
+
+        printed = [str(c.args[0]) for c in print_fn.call_args_list if c.args]
+        assert any("\r" in p for p in printed)
 
 
 class TestStreamEventHandlerToolResult:
@@ -557,6 +888,20 @@ class TestStreamEventHandlerToolResult:
         recorder.assert_not_called()
         print_fn.assert_called_once()
 
+    def test_handle_tool_result_has_no_trailing_newline(self):
+        """Same redundancy as `handle_tool_call` — see that test's docstring."""
+        print_fn = MagicMock()
+        handler = StreamEventHandler(print_fn=print_fn, show_tool_result=False)
+        mock_event = MagicMock()
+        mock_event.tool_call_id = "call_123"
+        mock_event.part = MagicMock()
+        mock_event.part.content = "success"
+
+        handler.handle_tool_result(mock_event)
+
+        printed = "".join(str(c.args[0]) for c in print_fn.call_args_list if c.args)
+        assert not printed.endswith("\n")
+
 
 class TestStreamEventHandlerRunResult:
     def test_handle_run_result(self):
@@ -581,6 +926,10 @@ class TestStreamEventHandlerRunResult:
         args = print_fn.call_args[0][0]
         assert "Requests: 5" in args
         assert "Total: 1000" in args
+        # Same redundancy as `handle_tool_call` — the caller's own explicit
+        # blank line before the rendered final answer already supplies
+        # separation; a baked-in one here doubled it.
+        assert not args.endswith("\n")
 
     def test_handle_run_result_invokes_usage_callback(self):
         print_fn = MagicMock()

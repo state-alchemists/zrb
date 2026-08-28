@@ -275,6 +275,59 @@ class MultiUI:
                 except Exception as e:
                     CFG.LOGGER.debug(f"Child UI collapse_thinking_block failed: {e}")
 
+    def mark_text_block_start(self) -> None:
+        """Counterpart to `mark_thinking_block_start` for the assistant's
+        final-text reply instead of its reasoning — same fallback story."""
+        for ui in self._uis:
+            mark = getattr(ui, "mark_text_block_start", None)
+            if callable(mark):
+                try:
+                    mark()
+                except Exception as e:
+                    CFG.LOGGER.debug(f"Child UI mark_text_block_start failed: {e}")
+
+    def collapse_text_block(self, collapsed: str, full: str) -> None:
+        """Counterpart to `mark_text_block_start` — see its docstring."""
+        for ui in self._uis:
+            collapse = getattr(ui, "collapse_text_block", None)
+            if callable(collapse):
+                try:
+                    collapse(collapsed, full)
+                except Exception as e:
+                    CFG.LOGGER.debug(f"Child UI collapse_text_block failed: {e}")
+
+    def update_tool_prepare(self, key: str, text: str) -> None:
+        """Forward a tool call's "Prepare tool parameters" update to whichever
+        children support it — same fallback story as `mark_thinking_block_start`."""
+        for ui in self._uis:
+            update = getattr(ui, "update_tool_prepare", None)
+            if callable(update):
+                try:
+                    update(key, text)
+                except Exception as e:
+                    CFG.LOGGER.debug(f"Child UI update_tool_prepare failed: {e}")
+
+    def update_shell_output(self, key: str, text: str) -> None:
+        """Forward to whichever children support it — same fallback story
+        as `update_tool_prepare`."""
+        for ui in self._uis:
+            update = getattr(ui, "update_shell_output", None)
+            if callable(update):
+                try:
+                    update(key, text)
+                except Exception as e:
+                    CFG.LOGGER.debug(f"Child UI update_shell_output failed: {e}")
+
+    def finish_shell_output(self, key: str, collapsed: str, full: str) -> None:
+        """Counterpart to `update_shell_output` — see its docstring."""
+        for ui in self._uis:
+            finish = getattr(ui, "finish_shell_output", None)
+            if callable(finish):
+                try:
+                    finish(key, collapsed, full)
+                except Exception as e:
+                    CFG.LOGGER.debug(f"Child UI finish_shell_output failed: {e}")
+
     def replay_history(self, messages: list) -> None:
         """Replay loaded history on every child UI that supports it."""
         for ui in self._uis:

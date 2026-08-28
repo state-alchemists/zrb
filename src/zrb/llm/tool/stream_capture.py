@@ -40,12 +40,25 @@ class StreamCapture:
     ``spill_path`` is ``None``.
     """
 
-    def __init__(self, retain: int, echo: int) -> None:
+    def __init__(self, retain: int, echo: int, print_live: bool = True) -> None:
         self._retain = max(retain, 0)
         self._echo_budget = max(echo, 0)
+        # When False, `echo()` still tracks the budget and accumulates
+        # `echoed_text` but skips its own `zrb_print` — used when the caller
+        # (`run_shell_command`) has a better live display available (see
+        # `update_shell_output`) and would otherwise show the same output
+        # twice, through two different mechanisms.
+        self._print_live = print_live
         self._chunks: "deque[str]" = deque()
         self._held = 0
         self._echoed = 0
+        # Plain (unstyled) copy of exactly what `echo()` sent to the console —
+        # naturally bounded by `_echo_budget`, so no unbounded growth. Lets a
+        # caller retroactively collapse the live echo (see
+        # `run_shell_command`) without re-reading the *rendered* buffer,
+        # which a stray `\r` in a chunk could have mangled — same principle
+        # as `StreamEventHandler`'s thinking/text accumulation.
+        self._echoed_chunks: list[str] = []
         self._spill: TextIO | None = None
         self._spill_failed = False
         self.total_chars = 0
@@ -55,6 +68,11 @@ class StreamCapture:
     def text(self) -> str:
         """The retained tail — what the model is shown."""
         return "".join(self._chunks)
+
+    @property
+    def echoed_text(self) -> str:
+        """Exactly what `echo()` sent to the console, unstyled."""
+        return "".join(self._echoed_chunks)
 
     @property
     def truncated(self) -> bool:
@@ -71,25 +89,34 @@ class StreamCapture:
             self._trim()
 
     def echo(self, chunk: str) -> None:
-        """Mirror to the console until the display budget is spent."""
+        """Mirror to the console until the display budget is spent.
+
+        Budget tracking and `echoed_text` accumulation always happen;
+        the `zrb_print` side effect is skipped when `print_live` is False
+        (see `__init__`).
+        """
         remaining = self._echo_budget - self._echoed
         if remaining <= 0:
             return
         if len(chunk) <= remaining:
             self._echoed += len(chunk)
-            zrb_print(f"  {stylize_muted(chunk)}", end="", plain=True)
+            self._echoed_chunks.append(chunk)
+            if self._print_live:
+                zrb_print(f"  {stylize_muted(chunk)}", end="", plain=True)
             return
         self._echoed = self._echo_budget
-        zrb_print(f"  {stylize_muted(chunk[:remaining])}", end="", plain=True)
-        zrb_print(
-            stylize_muted(
-                f"\n  … console output capped at {self._echo_budget} characters. "
-                "The command is still being captured; only the display stops "
-                f"here ({CFG.ENV_PREFIX}_LLM_MAX_CONSOLE_OUTPUT_CHARS).\n"
-            ),
-            end="",
-            plain=True,
+        truncated = chunk[:remaining]
+        self._echoed_chunks.append(truncated)
+        if self._print_live:
+            zrb_print(f"  {stylize_muted(truncated)}", end="", plain=True)
+        cap_notice = (
+            f"\n  … console output capped at {self._echo_budget} characters. "
+            "The command is still being captured; only the display stops "
+            f"here ({CFG.ENV_PREFIX}_LLM_MAX_CONSOLE_OUTPUT_CHARS).\n"
         )
+        self._echoed_chunks.append(cap_notice)
+        if self._print_live:
+            zrb_print(stylize_muted(cap_notice), end="", plain=True)
 
     def write_full(self, dest: TextIO) -> None:
         """Copy the complete stream into *dest*, streaming from spill if needed."""

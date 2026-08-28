@@ -439,7 +439,7 @@ class TestTerminalApprovalChannelWithHandler:
 
         await channel.notify("Test message", context)
 
-        mock_ui.append_to_output.assert_called_once_with("Test message")
+        mock_ui.append_to_output.assert_called_once_with("  Test message")
 
     @pytest.mark.asyncio
     async def test_edit_response_falls_back_to_handle_edit(self):

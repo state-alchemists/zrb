@@ -55,11 +55,13 @@ class TerminalApprovalChannel:
         CFG.LOGGER.debug(
             "TerminalApprovalChannel Got confirmation message, about to display to user"
         )
-        self._ui.append_to_output(f"\n\n{message}", end="")
+        # One leading "\n", not two — see the matching note in
+        # `ToolCallHandler.handle`.
+        self._ui.append_to_output(f"\n{message}", end="")
 
         CFG.LOGGER.debug("TerminalApprovalChannel Waiting for user input via CLI...")
 
-        user_input = await self._ui.ask_user("", output_to_parent=f"\n\n{message}")
+        user_input = await self._ui.ask_user("", output_to_parent=f"\n{message}")
         user_response = user_input.strip()
 
         CFG.LOGGER.debug(
@@ -124,9 +126,12 @@ class TerminalApprovalChannel:
         """Handle edit mode - open editor for new arguments."""
         current_args = context.tool_args or {}
 
+        # Two-space indent, matching every other mid-turn status line printed
+        # outside `StreamEventHandler` (see `web.py::_notify`) — without it
+        # these land at column 0.
         args_str = json.dumps(current_args, indent=2, default=str)
-        self._ui.append_to_output(f"\n📝 Current arguments:\n```\n{args_str}\n```\n")
-        self._ui.append_to_output("Opening editor...\n")
+        self._ui.append_to_output(f"\n  📝 Current arguments:\n```\n{args_str}\n```\n")
+        self._ui.append_to_output("  Opening editor...\n")
 
         new_args = await edit_content_via_editor(self._ui, current_args)
 
@@ -136,10 +141,10 @@ class TerminalApprovalChannel:
             )
 
         if new_args == current_args:
-            self._ui.append_to_output("ℹ️ No changes made, approving original.\n")
+            self._ui.append_to_output("  ℹ️ No changes made, approving original.\n")
             return ApprovalResult(approved=True)
 
-        self._ui.append_to_output("✅ Approved with edited arguments.\n")
+        self._ui.append_to_output("  ✅ Approved with edited arguments.\n")
         return ApprovalResult(approved=True, override_args=new_args)
 
     async def notify(
@@ -148,4 +153,4 @@ class TerminalApprovalChannel:
         context: ApprovalContext | None = None,
     ) -> None:
         """Display notification to terminal."""
-        self._ui.append_to_output(message)
+        self._ui.append_to_output(f"  {message}")

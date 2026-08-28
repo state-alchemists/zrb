@@ -107,6 +107,31 @@ def test_parallel_tool_calls_known_unsupported_models(model_name):
     assert model_capabilities.get(model_name).supports_parallel_tool_calls is False
 
 
+@pytest.mark.parametrize(
+    "model_name",
+    [
+        "google-gla:gemini-2.5-flash",
+        "google-gla:gemini-2.5-pro",
+        "google-vertex:gemini-3-pro-preview",
+    ],
+)
+def test_thinking_summary_supported_for_gemini_2_5_and_3(model_name):
+    assert model_capabilities.get(model_name).supports_thinking_summary is True
+
+
+@pytest.mark.parametrize(
+    "model_name",
+    [
+        "google-gla:gemini-1.5-flash",
+        "google-gla:gemini-2.0-flash",
+        "openai:gpt-5",
+        "anthropic:claude-sonnet-4-6",
+    ],
+)
+def test_thinking_summary_unsupported_outside_gemini_2_5_and_3(model_name):
+    assert model_capabilities.get(model_name).supports_thinking_summary is False
+
+
 def test_get_returns_defaults_for_none_and_empty():
     defaults = ModelCapabilities()
     assert model_capabilities.get(None) == defaults

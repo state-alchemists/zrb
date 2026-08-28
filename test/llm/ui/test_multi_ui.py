@@ -185,6 +185,100 @@ def test_multi_ui_thinking_hooks_swallow_child_errors(multi_ui, child_ui_1, chil
     child_ui_2.mark_thinking_block_start.assert_called_once()
 
 
+def test_multi_ui_mark_text_block_start_forwards_to_supporting_children(
+    multi_ui, child_ui_1, child_ui_2
+):
+    child_ui_1.mark_text_block_start = MagicMock()
+    del child_ui_2.mark_text_block_start  # e.g. Telegram/SSE, no toggle support
+
+    # Must not raise for the child that doesn't support it.
+    multi_ui.mark_text_block_start()
+
+    child_ui_1.mark_text_block_start.assert_called_once_with()
+
+
+def test_multi_ui_collapse_text_block_forwards_to_supporting_children(
+    multi_ui, child_ui_1, child_ui_2
+):
+    child_ui_1.collapse_text_block = MagicMock()
+    del child_ui_2.collapse_text_block
+
+    multi_ui.collapse_text_block("💬 Response\n", "the full response")
+
+    child_ui_1.collapse_text_block.assert_called_once_with(
+        "💬 Response\n", "the full response"
+    )
+
+
+def test_multi_ui_text_hooks_swallow_child_errors(multi_ui, child_ui_1, child_ui_2):
+    child_ui_1.mark_text_block_start = MagicMock(side_effect=RuntimeError("bad"))
+    child_ui_2.mark_text_block_start = MagicMock()
+
+    # Should not raise even though child_ui_1 throws.
+    multi_ui.mark_text_block_start()
+
+    child_ui_2.mark_text_block_start.assert_called_once()
+
+
+def test_multi_ui_update_tool_prepare_forwards_to_supporting_children(
+    multi_ui, child_ui_1, child_ui_2
+):
+    child_ui_1.update_tool_prepare = MagicMock()
+    del child_ui_2.update_tool_prepare  # e.g. Telegram/SSE, no toggle support
+
+    multi_ui.update_tool_prepare("call_1", "🔄 Prepare tool parameters...")
+
+    child_ui_1.update_tool_prepare.assert_called_once_with(
+        "call_1", "🔄 Prepare tool parameters..."
+    )
+
+
+def test_multi_ui_update_tool_prepare_swallows_child_errors(
+    multi_ui, child_ui_1, child_ui_2
+):
+    child_ui_1.update_tool_prepare = MagicMock(side_effect=RuntimeError("bad"))
+    child_ui_2.update_tool_prepare = MagicMock()
+
+    multi_ui.update_tool_prepare("call_1", "🔄 Prepare tool parameters...")
+
+    child_ui_2.update_tool_prepare.assert_called_once()
+
+
+def test_multi_ui_update_shell_output_forwards_to_supporting_children(
+    multi_ui, child_ui_1, child_ui_2
+):
+    child_ui_1.update_shell_output = MagicMock()
+    del child_ui_2.update_shell_output  # e.g. Telegram/SSE
+
+    multi_ui.update_shell_output("cmd_1", "line one")
+
+    child_ui_1.update_shell_output.assert_called_once_with("cmd_1", "line one")
+
+
+def test_multi_ui_finish_shell_output_forwards_to_supporting_children(
+    multi_ui, child_ui_1, child_ui_2
+):
+    child_ui_1.finish_shell_output = MagicMock()
+    del child_ui_2.finish_shell_output
+
+    multi_ui.finish_shell_output("cmd_1", "🖥️ Output", "the full output")
+
+    child_ui_1.finish_shell_output.assert_called_once_with(
+        "cmd_1", "🖥️ Output", "the full output"
+    )
+
+
+def test_multi_ui_shell_output_hooks_swallow_child_errors(
+    multi_ui, child_ui_1, child_ui_2
+):
+    child_ui_1.update_shell_output = MagicMock(side_effect=RuntimeError("bad"))
+    child_ui_2.update_shell_output = MagicMock()
+
+    multi_ui.update_shell_output("cmd_1", "line one")
+
+    child_ui_2.update_shell_output.assert_called_once()
+
+
 def test_multi_ui_set_thinking_mirrors_to_children(multi_ui, child_ui_1, child_ui_2):
     multi_ui.set_thinking(True)
     assert multi_ui.is_thinking is True

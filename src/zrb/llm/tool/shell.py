@@ -2,8 +2,11 @@ import asyncio
 import os
 import platform
 import tempfile
+import time
+from typing import Any, Callable
 
 from zrb.config.config import CFG
+from zrb.llm.agent.run.runtime_state import get_current_ui
 from zrb.llm.sandbox import get_effective_sandbox_policy
 from zrb.llm.sandbox.os_sandbox import (
     SandboxUnavailableError,
@@ -12,6 +15,14 @@ from zrb.llm.sandbox.os_sandbox import (
 from zrb.llm.tool.stream_capture import StreamCapture
 from zrb.util.cli.ansi import strip_ansi
 from zrb.util.cmd.command import resolve_shell, terminate_process
+
+# Minimum seconds between live shell-output UI updates — mirrors
+# stream_response.py's _PROGRESS_REPAINT_INTERVAL: a chatty command (e.g.
+# `find /`) can emit thousands of lines/sec, and each update is an
+# O(buffer size) string splice. The *final* collapse always uses the
+# complete, unthrottled accumulator (StreamCapture.echoed_text), so no
+# output is ever lost — only how often the live view repaints.
+_LIVE_UPDATE_INTERVAL = 0.1
 
 
 async def run_shell_command(
@@ -103,28 +114,55 @@ async def run_shell_command(
         assert process.stdout is not None and process.stderr is not None
 
         echo_cap = CFG.LLM_MAX_CONSOLE_OUTPUT_CHARS
-        stdout_cap = StreamCapture(max_chars, echo_cap)
-        stderr_cap = StreamCapture(max_chars, echo_cap)
+        ui = get_current_ui()
+        supports_live_collapse = (
+            ui is not None
+            and callable(getattr(ui, "update_shell_output", None))
+            and callable(getattr(ui, "finish_shell_output", None))
+        )
+        # print_live=False when the UI has a better mechanism: StreamCapture
+        # would otherwise show the same output twice (its own zrb_print
+        # *and* the collapsible live line below).
+        stdout_cap = StreamCapture(
+            max_chars, echo_cap, print_live=not supports_live_collapse
+        )
+        stderr_cap = StreamCapture(
+            max_chars, echo_cap, print_live=not supports_live_collapse
+        )
+        output_key = f"shell-{id(stdout_cap)}"
+        on_chunk = (
+            _make_live_shell_output_pusher(ui, output_key, stdout_cap, stderr_cap)
+            if supports_live_collapse
+            else None
+        )
 
         timed_out = False
         try:
-            # Fail-fast fan-out: a broken reader/wait should abort immediately,
-            # not be masked by return_exceptions.
-            await asyncio.wait_for(
-                asyncio.gather(
-                    _read_stream(process.stdout, stdout_cap),
-                    _read_stream(process.stderr, stderr_cap),
-                    process.wait(),
-                ),
-                timeout=timeout,
-            )
-        except asyncio.TimeoutError:
-            timed_out = True
-            await terminate_process(
-                process,
-                CFG.LLM_SHELL_KILL_WAIT_TIMEOUT / 1000,
-                print_method=CFG.LOGGER.warning,
-            )
+            try:
+                # Fail-fast fan-out: a broken reader/wait should abort
+                # immediately, not be masked by return_exceptions.
+                await asyncio.wait_for(
+                    asyncio.gather(
+                        _read_stream(process.stdout, stdout_cap, on_chunk),
+                        _read_stream(process.stderr, stderr_cap, on_chunk),
+                        process.wait(),
+                    ),
+                    timeout=timeout,
+                )
+            except asyncio.TimeoutError:
+                timed_out = True
+                await terminate_process(
+                    process,
+                    CFG.LLM_SHELL_KILL_WAIT_TIMEOUT / 1000,
+                    print_method=CFG.LOGGER.warning,
+                )
+        finally:
+            # Always attempt the collapse once echoing may have started —
+            # including on cancellation or a stream error below — so a
+            # failed/aborted command never leaves its raw echo stuck open
+            # on screen. A no-op if nothing was ever echoed.
+            if supports_live_collapse:
+                _finish_shell_output(ui, output_key, stdout_cap, stderr_cap)
 
         bg_pids = _collect_background_pids(temp_pid_file, process.pid)
 
@@ -175,6 +213,85 @@ async def run_shell_command(
             "[SYSTEM SUGGESTION]: Check the command syntax and that any "
             "referenced files or programs exist, then retry."
         )
+
+
+def _combined_echo(stdout_cap: StreamCapture, stderr_cap: StreamCapture) -> str:
+    """The command's current combined echo, from each stream's own
+    `echoed_text` accumulator — not re-read from the buffer (see
+    `StreamCapture.echoed_text`), the same "don't trust the rendered
+    screen" contract `StreamEventHandler` uses for thinking/text. Stdout
+    and stderr are shown as separate sections since each only tracks its
+    own chronological order, not the interleaving between the two as they
+    actually printed.
+    """
+    sections = []
+    if stdout_cap.echoed_text:
+        sections.append(stdout_cap.echoed_text)
+    if stderr_cap.echoed_text:
+        sections.append(f"[stderr]\n{stderr_cap.echoed_text}")
+    return "\n".join(sections)
+
+
+def _format_live_shell_output(text: str) -> str:
+    """Two-space indent per line, leading "\\n" for its own block
+    boundary — matches the convention every other mid-turn writer outside
+    `StreamEventHandler` follows (see `web.py`'s `_notify`)."""
+    return "\n  " + text.replace("\n", "\n  ")
+
+
+def _make_live_shell_output_pusher(
+    ui: Any, key: str, stdout_cap: StreamCapture, stderr_cap: StreamCapture
+) -> "Callable[[], None]":
+    """Build a throttled callback that pushes the current combined
+    stdout+stderr echo to `key`'s own live line via `ui.update_shell_output`.
+
+    Called after every new line from either stream; skips updates closer
+    together than `_LIVE_UPDATE_INTERVAL` (mirrors `stream_response.py`'s
+    spinner throttle — a chatty command can emit thousands of lines/sec,
+    and each update is an O(buffer size) string splice). Nothing is lost
+    by skipping: `_finish_shell_output` always uses the complete,
+    unthrottled accumulator. A missing/broken UI must never break the
+    actual command — same contract as `web.py`'s `_notify`.
+    """
+    last_update = 0.0
+
+    def _push() -> None:
+        nonlocal last_update
+        now = time.monotonic()
+        if now - last_update < _LIVE_UPDATE_INTERVAL:
+            return
+        last_update = now
+        try:
+            ui.update_shell_output(
+                key,
+                _format_live_shell_output(_combined_echo(stdout_cap, stderr_cap)),
+            )
+        except Exception:  # noqa: BLE001
+            pass
+
+    return _push
+
+
+def _finish_shell_output(
+    ui: Any, key: str, stdout_cap: StreamCapture, stderr_cap: StreamCapture
+) -> None:
+    """Collapse `key`'s live line (opened by
+    `_make_live_shell_output_pusher`'s updates) into a one-line summary,
+    Ctrl+O-expandable back to the full echo. Called unconditionally once
+    echoing may have started — including on cancellation or a stream
+    error — so a failed/aborted command never leaves its raw echo stuck
+    open on screen. A no-op if nothing was ever echoed, or if the UI's
+    hook raises.
+    """
+    try:
+        full = _combined_echo(stdout_cap, stderr_cap)
+        if not full:
+            return
+        char_count = len(full.strip())
+        collapsed = _format_live_shell_output(f"🖥️ Output ({char_count} chars)")
+        ui.finish_shell_output(key, collapsed, _format_live_shell_output(full))
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def _prepare_command(command: str, use_pid_tracking: bool) -> tuple[str, str | None]:
@@ -258,8 +375,19 @@ async def _start_process(argv: list[str], cwd: str) -> asyncio.subprocess.Proces
     )
 
 
-async def _read_stream(stream: asyncio.StreamReader, capture: StreamCapture):
-    """Reads from a stream line by line, echoing to console and capturing."""
+async def _read_stream(
+    stream: asyncio.StreamReader,
+    capture: StreamCapture,
+    on_chunk: "Callable[[], None] | None" = None,
+) -> None:
+    """Reads from a stream line by line, echoing to console and capturing.
+
+    `on_chunk`, when given, is called after every line (a UI-side live
+    update — see `_make_live_shell_output_pusher`); `capture.echo` still
+    runs regardless, for its own budget tracking and `echoed_text`
+    accumulation (its `zrb_print` side effect is what `print_live=False`
+    suppresses, when `on_chunk` is the one actually driving the display).
+    """
     if not stream:
         return
     while True:
@@ -271,6 +399,8 @@ async def _read_stream(stream: asyncio.StreamReader, capture: StreamCapture):
             stripped = strip_ansi(decoded)
             capture.echo(stripped)
             capture.feed(stripped)
+            if on_chunk is not None:
+                on_chunk()
 
 
 def _collect_background_pids(temp_pid_file: str | None, process_pid: int) -> list[int]:

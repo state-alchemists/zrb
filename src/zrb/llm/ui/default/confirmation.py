@@ -140,7 +140,10 @@ class UIConfirmation:
         if self._ui.current_confirmation is None:
             return False
         if echo:
-            self._ui.append_to_output(echo)
+            # end="": callers (submit_user_answer) already bake their own
+            # trailing "\n" into `echo` — the default end="\n" doubled it
+            # into a blank line after every single confirmation answer.
+            self._ui.append_to_output(echo, end="")
         if not self._ui.current_confirmation.done():
             self._ui.current_confirmation.set_result(text)
         self._ui.current_confirmation = None
