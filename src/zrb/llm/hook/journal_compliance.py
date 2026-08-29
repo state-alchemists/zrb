@@ -54,7 +54,10 @@ def build_journal_compliance_hook_config() -> HookConfig:
         ),
         matchers=[
             MatcherConfig(
-                field="event_data.wrote_files",
+                # wrote_files OR looks like a stated preference (see
+                # `turn_evidence.turn_states_preference`) — computed together
+                # at dispatch (`runner.py`) since MatcherConfig has no OR.
+                field="event_data.journal_worthy",
                 operator=MatcherOperator.EQUALS,
                 value=True,
             )

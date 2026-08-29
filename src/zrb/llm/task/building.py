@@ -281,29 +281,41 @@ class LLMTaskBuilding:
         return resolve_system_prompt(ctx, self._llm_task.prompt_manager_attr)
 
     def get_live_context(
-        self, ctx: AnyContext, inject_journal_index: bool = False
+        self,
+        ctx: AnyContext,
+        inject_journal_index: bool = False,
+        first_message: str | None = None,
     ) -> str:
         """Render the per-turn ``<live-context>`` block injected into the user
         turn. Empty string when there is no prompt manager (nothing to wire).
 
         ``inject_journal_index`` appends the journal index snapshot. Callers set
         it only when the index is absent from history, so it is paid once per
-        context window and re-seeded after summarization drops it."""
+        context window and re-seeded after summarization drops it.
+        ``first_message`` feeds the journal's first-turn auto-search addendum
+        (ignored, harmlessly, on any other turn)."""
         if self._llm_task.prompt_manager_attr is None:
             return ""
         return self._llm_task.prompt_manager_attr.create_live_context(
-            ctx, inject_journal_index=inject_journal_index
+            ctx,
+            inject_journal_index=inject_journal_index,
+            first_message=first_message,
         )
 
     async def get_live_context_async(
-        self, ctx: AnyContext, inject_journal_index: bool = False
+        self,
+        ctx: AnyContext,
+        inject_journal_index: bool = False,
+        first_message: str | None = None,
     ) -> str:
         """``get_live_context`` for async callers: git collection runs off-loop
         so the per-turn render cannot freeze the TUI's event loop."""
         if self._llm_task.prompt_manager_attr is None:
             return ""
         return await self._llm_task.prompt_manager_attr.create_live_context_async(
-            ctx, inject_journal_index=inject_journal_index
+            ctx,
+            inject_journal_index=inject_journal_index,
+            first_message=first_message,
         )
 
     def get_model_settings(self, ctx: AnyContext) -> ModelSettings | None:

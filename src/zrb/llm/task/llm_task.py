@@ -514,16 +514,24 @@ class LLMTask(BaseTask):
         return self._building.get_system_prompt(ctx)
 
     def get_live_context(
-        self, ctx: AnyContext, inject_journal_index: bool = False
+        self,
+        ctx: AnyContext,
+        inject_journal_index: bool = False,
+        first_message: str | None = None,
     ) -> str:
         """Render the per-turn ``<live-context>`` block injected into the user turn."""
-        return self._building.get_live_context(ctx, inject_journal_index)
+        return self._building.get_live_context(ctx, inject_journal_index, first_message)
 
     async def get_live_context_async(
-        self, ctx: AnyContext, inject_journal_index: bool = False
+        self,
+        ctx: AnyContext,
+        inject_journal_index: bool = False,
+        first_message: str | None = None,
     ) -> str:
         """``get_live_context`` for async callers."""
-        return await self._building.get_live_context_async(ctx, inject_journal_index)
+        return await self._building.get_live_context_async(
+            ctx, inject_journal_index, first_message
+        )
 
     def get_model_settings(self, ctx: AnyContext) -> "ModelSettings | None":
         """The task's model settings, falling back to the LLM config's."""
@@ -674,7 +682,7 @@ class LLMTask(BaseTask):
         # later summarization re-seeds it at its own site (summarize_history), so
         # the index is always present without living in the cached system prompt.
         live_context = await self.get_live_context_async(
-            ctx, inject_journal_index=not message_history
+            ctx, inject_journal_index=not message_history, first_message=user_message
         )
         agent = self._create_agent(ctx, system_prompt=system_prompt, toolsets=toolsets)
         effective_message, effective_attachments = self.get_effective_prompt(

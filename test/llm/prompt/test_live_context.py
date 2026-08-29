@@ -106,6 +106,80 @@ def test_journal_disabled_suppresses_the_injection(tmp_path, monkeypatch):
     assert render_journal_index() is None
 
 
+def test_footer_points_at_the_uncapped_category_catalog(tmp_path):
+    """A category index.md is never truncated, unlike this injected copy —
+    the footer says so, so Read is a documented escape hatch, not something
+    the model has to infer from a markdown link."""
+    journal_dir = _write_index(tmp_path, "# Journal\n\n- Name: Go\n")
+    with patch("zrb.llm.prompt.live_context.CFG") as cfg:
+        cfg.LLM_JOURNAL_DIR = journal_dir
+        cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
+        cfg.LLM_JOURNAL_INDEX_MAX_CHARS = 2500
+
+        result = render_journal_index()
+
+    assert result is not None
+    assert "index.md" in result
+    assert "uncapped" in result
+
+
+def test_auto_search_adds_a_separate_unverified_section(tmp_path):
+    journal_dir = _write_index(tmp_path, "# Journal\n\n- Name: Go\n")
+    with patch("zrb.llm.prompt.live_context.CFG") as cfg:
+        cfg.LLM_JOURNAL_DIR = journal_dir
+        cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
+        cfg.LLM_JOURNAL_INDEX_MAX_CHARS = 2500
+        cfg.LLM_JOURNAL_AUTO_SEARCH_ENABLED = True
+        cfg.LLM_JOURNAL_AUTO_SEARCH_MAX_HITS = 3
+        with patch(
+            "zrb.llm.tool.journal.search_journal",
+            return_value={
+                "summary": "Found 1 matches.",
+                "results": [
+                    {"file": "technical/retry.md", "line": "3", "content": "retries"}
+                ],
+            },
+        ):
+            result = render_journal_index(first_message="tell me about retries")
+
+    assert result is not None
+    assert "## Possibly Related" in result
+    assert "unverified" in result
+    assert "technical/retry.md" in result
+
+
+def test_auto_search_omitted_when_disabled(tmp_path):
+    journal_dir = _write_index(tmp_path, "# Journal\n\n- Name: Go\n")
+    with patch("zrb.llm.prompt.live_context.CFG") as cfg:
+        cfg.LLM_JOURNAL_DIR = journal_dir
+        cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
+        cfg.LLM_JOURNAL_INDEX_MAX_CHARS = 2500
+        cfg.LLM_JOURNAL_AUTO_SEARCH_ENABLED = False
+
+        result = render_journal_index(first_message="tell me about retries")
+
+    assert result is not None
+    assert "## Possibly Related" not in result
+
+
+def test_auto_search_omitted_on_zero_hits(tmp_path):
+    journal_dir = _write_index(tmp_path, "# Journal\n\n- Name: Go\n")
+    with patch("zrb.llm.prompt.live_context.CFG") as cfg:
+        cfg.LLM_JOURNAL_DIR = journal_dir
+        cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
+        cfg.LLM_JOURNAL_INDEX_MAX_CHARS = 2500
+        cfg.LLM_JOURNAL_AUTO_SEARCH_ENABLED = True
+        cfg.LLM_JOURNAL_AUTO_SEARCH_MAX_HITS = 3
+        with patch(
+            "zrb.llm.tool.journal.search_journal",
+            return_value={"summary": "No matches found.", "results": []},
+        ):
+            result = render_journal_index(first_message="xyzzy_no_match")
+
+    assert result is not None
+    assert "## Possibly Related" not in result
+
+
 def test_negative_injects_the_whole_index_uncapped(tmp_path):
     filler = "\n".join(f"- [insight {i}](technical/n{i}.md)" for i in range(200))
     journal_dir = _write_index(tmp_path, f"# Journal\n\n{filler}\n")

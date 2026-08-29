@@ -13,12 +13,20 @@ is what makes these four invariants unviolatable rather than merely checkable:
 
 import os
 import re
+from contextlib import contextmanager
 from datetime import datetime
+
+try:
+    import fcntl
+except ImportError:  # pragma: no cover - non-POSIX platforms
+    fcntl = None  # ponytail: POSIX-only lock; non-POSIX falls back to unlocked
 
 from zrb.config.config import CFG
 
 NOTE_CATEGORIES = ("user", "preferences", "projects", "technical")
 ACTIVITY_DIR = "activity-log"
+_HISTORY_HEADING = "## History"
+_HISTORY_MAX_ENTRIES = 3
 
 # Which HUD section a note's one-line summary lands in. `projects` and
 # `technical` carry situational facts rather than identity or taste, so they
@@ -53,12 +61,13 @@ def log_activity(summary: str, files: list[str] | None = None) -> str:
     Use WriteJournalNote instead when the finding needs to be findable by topic.
     """
     root = ensure_journal_tree()
-    now = datetime.now()
-    day_file = _ensure_activity_path(root, now)
-    file_note = ", ".join(files) if files else "—"
-    entry = f"- {now.strftime('%H:%M')} — {summary.strip()}. Files: {file_note}."
-    _insert_before_backlinks(day_file, entry)
-    return f"Logged to {os.path.relpath(day_file, root)}"
+    with _journal_lock(root):
+        now = datetime.now()
+        day_file = _ensure_activity_path(root, now)
+        file_note = ", ".join(files) if files else "—"
+        entry = f"- {now.strftime('%H:%M')} — {summary.strip()}. Files: {file_note}."
+        _insert_before_backlinks(day_file, entry)
+        return f"Logged to {os.path.relpath(day_file, root)}"
 
 
 log_activity.__name__ = "LogActivity"
@@ -99,31 +108,132 @@ def write_journal_note(
     Writing is silent; do not announce it.
     """
     root = ensure_journal_tree()
-    if category not in NOTE_CATEGORIES:
-        raise ValueError(
-            f"[SYSTEM SUGGESTION]: unknown category {category!r}. "
-            f"Use one of: {', '.join(NOTE_CATEGORIES)}."
+    with _journal_lock(root):
+        if category not in NOTE_CATEGORIES:
+            raise ValueError(
+                f"[SYSTEM SUGGESTION]: unknown category {category!r}. "
+                f"Use one of: {', '.join(NOTE_CATEGORIES)}."
+            )
+        if not _SLUG_RE.match(slug):
+            raise ValueError(
+                f"[SYSTEM SUGGESTION]: slug {slug!r} must be kebab-case "
+                "(lowercase letters, digits, single hyphens)."
+            )
+        targets = _resolve_links(root, links or [])
+        note_path = os.path.join(root, category, f"{slug}.md")
+        _write_note_file(note_path, slug, title, context, finding, source, targets)
+        for target in targets:
+            _add_backlink(target, note_path, title)
+        _register_in_index(os.path.join(root, category, "index.md"), note_path, title)
+        _register_in_index(
+            os.path.join(root, "index.md"),
+            note_path,
+            title,
+            heading="## Recent Insights",
         )
-    if not _SLUG_RE.match(slug):
-        raise ValueError(
-            f"[SYSTEM SUGGESTION]: slug {slug!r} must be kebab-case "
-            "(lowercase letters, digits, single hyphens)."
-        )
-    targets = _resolve_links(root, links or [])
-    note_path = os.path.join(root, category, f"{slug}.md")
-    _write_note_file(note_path, slug, title, context, finding, source, targets)
-    for target in targets:
-        _add_backlink(target, note_path, title)
-    _register_in_index(os.path.join(root, category, "index.md"), note_path, title)
-    _register_in_index(
-        os.path.join(root, "index.md"), note_path, title, heading="## Recent Insights"
-    )
-    if hud_line:
-        _upsert_hud_line(root, _HUD_SECTION[category], hud_line.strip())
-    return f"Wrote {os.path.relpath(note_path, root)}"
+        if hud_line:
+            _upsert_hud_line(root, _HUD_SECTION[category], hud_line.strip())
+        return f"Wrote {os.path.relpath(note_path, root)}"
 
 
 write_journal_note.__name__ = "WriteJournalNote"
+
+
+def delete_journal_note(category: str, slug: str) -> str:
+    """Deletes a note and scrubs every reference to it across the journal.
+
+    Removes the note file, then walks every other file in the journal and
+    drops any markdown link line resolving to it — its entry in the category
+    index, in the root index's Recent Insights, and any `## Related`/
+    `## Backlinks` line another note held pointing here. A textual scrub
+    rather than precise Related/Backlinks bookkeeping: every link in this
+    journal is a deterministic `- [title](relative/path.md)` line, so
+    removing any line whose link resolves to this file is as precise as
+    tracking the graph structurally.
+
+    `category` is one of: user, preferences, projects, technical.
+    `slug` is the note's existing filename (without `.md`).
+
+    Writing is silent; do not announce it.
+    """
+    root = ensure_journal_tree()
+    with _journal_lock(root):
+        if category not in NOTE_CATEGORIES:
+            raise ValueError(
+                f"[SYSTEM SUGGESTION]: unknown category {category!r}. "
+                f"Use one of: {', '.join(NOTE_CATEGORIES)}."
+            )
+        note_path = os.path.join(root, category, f"{slug}.md")
+        if not os.path.isfile(note_path):
+            raise ValueError(
+                f"[SYSTEM SUGGESTION]: no note at {category}/{slug}.md. "
+                "SearchJournal for the correct slug, or omit the delete."
+            )
+        _scrub_links_to(root, note_path)
+        os.remove(note_path)
+        return f"Deleted {os.path.relpath(note_path, root)}"
+
+
+delete_journal_note.__name__ = "DeleteJournalNote"
+
+
+def _scrub_links_to(root: str, target_path: str) -> None:
+    """Drop every markdown link line elsewhere in *root* resolving to
+    *target_path*, rewriting each changed file once.
+
+    ponytail: a full-tree scan per delete — the journal is personal notes,
+    not a corpus, so O(files) here is cheap; upgrade to an index if this
+    journal ever grows past a size where that stops being true.
+    """
+    link_re = re.compile(r"^- \[[^\]]*\]\(([^)]+)\)\s*$")
+    target_abs = os.path.abspath(target_path)
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if not d.startswith(".")]
+        for filename in filenames:
+            if not filename.endswith(".md"):
+                continue
+            file_path = os.path.join(dirpath, filename)
+            if os.path.abspath(file_path) == target_abs:
+                continue
+            text = _read_text(file_path)
+            if not text:
+                continue
+            changed = False
+            kept: list[str] = []
+            for line in text.splitlines():
+                match = link_re.match(line)
+                if match:
+                    resolved = os.path.abspath(
+                        os.path.join(os.path.dirname(file_path), match.group(1))
+                    )
+                    if resolved == target_abs:
+                        changed = True
+                        continue
+                kept.append(line)
+            if changed:
+                _write_text(file_path, "\n".join(kept).rstrip() + "\n")
+
+
+@contextmanager
+def _journal_lock(root: str):
+    """Coarse-grained advisory lock over the whole journal root, held for the
+    duration of one write call. Makes the multi-file graph update (note +
+    backlinks + two indexes) atomic as a unit, not just each file write in
+    isolation — closes the lost-update race between concurrent writers (a
+    sub-agent and the main session, or the compliance-judge hook racing the
+    turn it followed). POSIX-only; falls back to a no-op where `fcntl` is
+    unavailable, matching the previous unlocked behavior there.
+    """
+    if fcntl is None:
+        yield
+        return
+    lock_path = os.path.join(root, ".lock")
+    with open(lock_path, "w") as lock_file:
+        fcntl.flock(lock_file, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(lock_file, fcntl.LOCK_UN)
 
 
 def ensure_journal_tree() -> str:
@@ -207,10 +317,23 @@ def _write_note_file(
     * ``## Related`` holds the forward links. Dropping those while the targets
       keep their backlinks is the same break seen from the other end — a
       backlink pointing at a note that no longer claims the relationship.
+    * ``## History`` holds prior Context/Finding pairs, capped at
+      ``_HISTORY_MAX_ENTRIES``. Populated from ``_prior_revision_entry``, read
+      before this function overwrites the file — otherwise a belief change
+      (a decision reversed, a root cause corrected) leaves no trace of what
+      was believed before, or when it changed.
 
     Merging is the conservative direction: a link is only ever added here, and
     ``_resolve_links`` has already confirmed each new target exists on disk.
     """
+    # Read before the rewrite below discards it: the note's prior revision,
+    # if any, becomes one bounded History entry (belief changes are traceable
+    # instead of silently overwritten — see `_prior_revision_entry`).
+    history = _merge_entries(
+        _entries_under(note_path, _HISTORY_HEADING), _prior_revision_entry(note_path)
+    )
+    if len(history) > _HISTORY_MAX_ENTRIES:
+        history = history[-_HISTORY_MAX_ENTRIES:]
     related = _merge_entries(
         _entries_under(note_path, "## Related"),
         [
@@ -234,6 +357,11 @@ def _write_note_file(
         f"**Source:** {source}",
         "",
     ]
+    if history:
+        lines.append(_HISTORY_HEADING)
+        lines.append("")
+        lines.extend(history)
+        lines.append("")
     if related:
         lines.append("## Related")
         lines.append("")
@@ -251,7 +379,12 @@ def _entries_under(path: str, heading: str) -> list[str]:
 
     Empty for a file that does not exist yet, or that has no such heading.
     """
-    lines = _read_text(path).splitlines()
+    return _entries_under_text(_read_text(path), heading)
+
+
+def _entries_under_text(text: str, heading: str) -> list[str]:
+    """`_entries_under`, given the file's content directly (no re-read)."""
+    lines = text.splitlines()
     if heading not in lines:
         return []
     start = lines.index(heading) + 1
@@ -349,7 +482,37 @@ def _upsert_hud_line(root: str, section: str, line: str) -> None:
     text = _read_text(index_path)
     if entry in text:
         return
-    _write_text(index_path, _append_under_heading(text, f"## {section}", entry))
+    text = _append_under_heading(text, f"## {section}", entry)
+    text = _cap_section_entries(
+        text, f"## {section}", CFG.LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION
+    )
+    _write_text(index_path, text)
+
+
+def _cap_section_entries(text: str, heading: str, max_entries: int) -> str:
+    """Keep only the newest *max_entries* bullet lines under *heading*,
+    dropping the oldest first (entries are always appended at the end).
+    `<= 0` means uncapped.
+
+    Scoped to HUD sections only (User/Preferences/Active Constraints) by
+    every caller — `Recent Insights` and category indexes must stay uncapped,
+    since their completeness is what makes them a trustworthy full catalog
+    for direct Read (ADR-0055).
+    """
+    if max_entries <= 0:
+        return text
+    lines = text.splitlines()
+    if heading not in lines:
+        return text
+    start = lines.index(heading) + 1
+    end = start
+    while end < len(lines) and not lines[end].startswith("## "):
+        end += 1
+    body = [line for line in lines[start:end] if line.strip()]
+    if len(body) <= max_entries:
+        return text
+    body = body[-max_entries:]
+    return "\n".join([*lines[:start], "", *body, "", *lines[end:]]).rstrip() + "\n"
 
 
 def _insert_before_backlinks(path: str, entry: str) -> None:
@@ -362,6 +525,28 @@ def _insert_before_backlinks(path: str, entry: str) -> None:
         return
     head, _, tail = text.partition(_BACKLINKS_HEADING)
     _write_text(path, f"{head.rstrip()}\n{entry}\n\n{_BACKLINKS_HEADING}{tail}")
+
+
+def _prior_revision_entry(note_path: str) -> list[str]:
+    """The just-superseded Context/Finding as one dated `## History` bullet,
+    or `[]` for a brand-new note. Must be read before `_write_note_file`
+    overwrites *note_path* — this function only reads."""
+    text = _read_text(note_path)
+    if not text:
+        return []
+    old_context = _field(text, "**Context:**")
+    old_finding = _field(text, "**Finding:**")
+    if old_context is None and old_finding is None:
+        return []
+    date = datetime.now().strftime("%Y-%m-%d")
+    return [f"- {date}: {old_context or '—'} — {old_finding or '—'}"]
+
+
+def _field(text: str, prefix: str) -> str | None:
+    for line in text.splitlines():
+        if line.startswith(prefix):
+            return line[len(prefix) :].strip()
+    return None
 
 
 def _title_of(path: str) -> str:

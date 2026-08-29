@@ -218,7 +218,11 @@ def _register_tool_factories(host: CommonToolHost) -> None:
     from zrb.llm.permission import Capability, tag
     from zrb.llm.tool.ask import ask_user_question
     from zrb.llm.tool.journal import search_journal
-    from zrb.llm.tool.journal_write import log_activity, write_journal_note
+    from zrb.llm.tool.journal_write import (
+        delete_journal_note,
+        log_activity,
+        write_journal_note,
+    )
     from zrb.llm.tool.mcp import load_mcp_config
     from zrb.llm.tool.plan_mode import enter_plan_mode, exit_plan_mode
     from zrb.llm.tool.shell_background import create_monitor_process_tool
@@ -235,7 +239,7 @@ def _register_tool_factories(host: CommonToolHost) -> None:
     tag(search_journal, Capability.READ)
     # The journal writers only ever touch CFG.LLM_JOURNAL_DIR, but they do
     # write, so plan mode must block them like any other edit.
-    for _fn in (log_activity, write_journal_note):
+    for _fn in (log_activity, write_journal_note, delete_journal_note):
         tag(_fn, Capability.EDIT)
 
     factories: list["Callable[[AnyContext], Any]"] = [
@@ -256,10 +260,10 @@ def _register_tool_factories(host: CommonToolHost) -> None:
         lambda ctx: [ask_user_question] if _resolve_interactive(ctx) else [],
         # The journal tools are the whole journal interface — there is no prompt
         # section describing the protocol any more, so LLM_JOURNAL_ENABLED=false
-        # is enforced by these three simply not existing. Their docstrings carry
+        # is enforced by these four simply not existing. Their docstrings carry
         # what earns an entry and when to write it, and disappear with them.
         lambda ctx: (
-            [search_journal, log_activity, write_journal_note]
+            [search_journal, log_activity, write_journal_note, delete_journal_note]
             if CFG.LLM_JOURNAL_ENABLED
             else []
         ),

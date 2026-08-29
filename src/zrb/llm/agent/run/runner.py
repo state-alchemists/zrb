@@ -72,7 +72,7 @@ from zrb.llm.approval.approval_channel import ApprovalChannel, current_approval_
 from zrb.llm.config.config import llm_config
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.hook.manager import HookManager
-from zrb.llm.hook.turn_evidence import turn_wrote_files
+from zrb.llm.hook.turn_evidence import turn_states_preference, turn_wrote_files
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.message import ensure_alternating_roles
 from zrb.llm.permission.state import (
@@ -642,6 +642,7 @@ async def _execution_loop(
             # Manual interrupts raise CancelledError before reaching here, where
             # the TUI fires its own Stop, so the two paths never double-fire.
             cursor.commit_round()
+            wrote_files = turn_wrote_files(cursor.accumulated)
             stop_results = await effective_hook_manager.execute_hooks(
                 HookEvent.STOP,
                 {
@@ -652,7 +653,16 @@ async def _execution_loop(
                     # evidence-gated hook (e.g. a journal-compliance agent
                     # hook) act only on turns where it's actually warranted.
                     "turn": cursor.accumulated,
-                    "wrote_files": turn_wrote_files(cursor.accumulated),
+                    "wrote_files": wrote_files,
+                    # Additive derived field: wrote_files OR looks like a
+                    # stated preference. wrote_files itself is left unchanged
+                    # for any other consumer; journal_compliance.py matches on
+                    # this combined field instead, since MatcherConfig has no
+                    # OR primitive (hook/matcher.py evaluates a matcher list
+                    # as AND-only).
+                    "journal_worthy": (
+                        wrote_files or turn_states_preference(cursor.accumulated)
+                    ),
                 },
                 stop_hook_active=extension_state.block_count > 0,
             )

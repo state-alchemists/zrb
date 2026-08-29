@@ -29,7 +29,7 @@ def test_hook_config_shape():
     assert config.is_async is True
     assert len(config.matchers) == 1
     matcher = config.matchers[0]
-    assert matcher.field == "event_data.wrote_files"
+    assert matcher.field == "event_data.journal_worthy"
     assert matcher.value is True
 
 
@@ -54,9 +54,36 @@ async def test_registers_when_journal_enabled():
     ):
         mock_cfg.LLM_JOURNAL_ENABLED = True
         mock_llm_config.resolve_model.return_value = "resolved"
-        results = await manager.execute_hooks(HookEvent.STOP, {"wrote_files": True})
+        results = await manager.execute_hooks(
+            HookEvent.STOP, {"wrote_files": True, "journal_worthy": True}
+        )
 
     assert results == []  # fire-and-forget contributes no result
+    assert manager.has_pending_background_hooks is True
+    await manager.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_fires_on_a_stated_preference_with_no_file_write():
+    """The widened trigger: `journal_worthy` is `wrote_files OR
+    turn_states_preference`, computed at dispatch (runner.py) — so a turn
+    that only stated a preference, with `wrote_files` false, still fires the
+    judge. Closes the blind spot WriteJournalNote's own docstring calls
+    highest-value: a preference said once, with no file edit."""
+    manager = HookManager(search_dirs=[])
+    agent_cls = _mock_agent_cls()
+    with (
+        patch("zrb.llm.hook.journal_compliance.CFG") as mock_cfg,
+        patch("zrb.llm.hook.creator.llm_config") as mock_llm_config,
+        patch.dict("sys.modules", {"pydantic_ai": MagicMock(Agent=agent_cls)}),
+    ):
+        mock_cfg.LLM_JOURNAL_ENABLED = True
+        mock_llm_config.resolve_model.return_value = "resolved"
+        results = await manager.execute_hooks(
+            HookEvent.STOP, {"wrote_files": False, "journal_worthy": True}
+        )
+
+    assert results == []
     assert manager.has_pending_background_hooks is True
     await manager.shutdown()
 
@@ -66,7 +93,9 @@ async def test_does_not_register_when_journal_disabled():
     manager = HookManager(search_dirs=[])
     with patch("zrb.llm.hook.journal_compliance.CFG") as mock_cfg:
         mock_cfg.LLM_JOURNAL_ENABLED = False
-        results = await manager.execute_hooks(HookEvent.STOP, {"wrote_files": True})
+        results = await manager.execute_hooks(
+            HookEvent.STOP, {"wrote_files": True, "journal_worthy": True}
+        )
 
     assert results == []
     assert manager.has_pending_background_hooks is False
@@ -94,7 +123,9 @@ async def test_factory_fires_via_the_normal_lazy_load_path():
             patch.dict("sys.modules", {"pydantic_ai": MagicMock(Agent=agent_cls)}),
         ):
             mock_llm_config.resolve_model.return_value = "resolved"
-            await manager.execute_hooks(HookEvent.STOP, {"wrote_files": True})
+            await manager.execute_hooks(
+                HookEvent.STOP, {"wrote_files": True, "journal_worthy": True}
+            )
 
     assert manager.has_pending_background_hooks is True
     await manager.shutdown()
