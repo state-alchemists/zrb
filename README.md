@@ -32,6 +32,7 @@ Whether you're running tasks from the terminal or a sleek web UI, Zrb streamline
 Zrb is designed to be powerful yet intuitive, offering a unique blend of features:
 
 -   🤖 **A Coding Agent You Program in Python:** Zrb ships a turnkey AI coding assistant (`zrb llm chat`), but its behavior is yours to shape in pure Python — custom tools, lifecycle hooks, dynamic prompts, permission policies, and history processors are all just code. And the agent drops straight into your task pipelines as a first-class node.
+-   🔗 **Agents as Pipeline Steps:** Put an LLM between deterministic tasks for bounded, reviewable automation instead of treating the model as an unattended administrator. Keep approvals, sandboxing, hooks, and persistence under your control.
 -   🐍 **Pure Python:** Write your tasks in Python. No complex DSLs or YAML configurations to learn.
 -   🔗 **Smart Task Chaining:** Define dependencies between tasks to build sophisticated, ordered workflows.
 -   💻 **Dual-Mode Execution:** Run tasks from the command line for speed or use the built-in web UI for a more visual experience.
@@ -195,7 +196,9 @@ Prefer a graphical interface? Zrb has you covered. Explore the full details in t
 zrb server start
 ```
 
-Then open your browser to `http://localhost:21213` to see your tasks in a clean, user-friendly interface.
+By default, the server binds to `127.0.0.1`, so the UI is reachable only from the local machine. Then open your browser to `http://localhost:21213` to see your tasks in a clean, user-friendly interface.
+
+> **Safety boundary:** Zrb's web UI can start and control automation tasks, so it is not intended to be exposed publicly without deliberate hardening. If you set `ZRB_WEB_HTTP_HOST` to a non-loopback address, enable authentication and replace the documented default admin password and secret key with unique values. Startup warnings call out unsafe network-exposed configurations; see the [Web UI Guide](docs/advanced-topics/web-ui.md) before using a shared or public bind.
 
 ![Zrb Web UI](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/zrb-web-ui.png)
 

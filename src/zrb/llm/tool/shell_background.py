@@ -13,14 +13,16 @@ across restarts.
 from __future__ import annotations
 
 import asyncio
+import atexit
 import os
 from dataclasses import dataclass, field
 
 from zrb.config.config import CFG
 from zrb.llm.permission import Capability, tag
 from zrb.llm.sandbox import build_sandboxed_argv, get_effective_sandbox_policy
+from zrb.llm.tool.ambient_state import get_current_chat_session_id
 from zrb.llm.tool.stream_capture import StreamCapture
-from zrb.util.cmd.command import resolve_shell, terminate_process
+from zrb.util.cmd.command import kill_pid, resolve_shell, terminate_process
 from zrb.util.string.name import get_random_name
 
 
@@ -38,6 +40,15 @@ class _BackgroundProcess:
     description: str = ""
     returncode: int | None = None
     tasks: list[asyncio.Task] = field(default_factory=list)
+    # The owning chat session's unique `ChatSessionManager` session_id (see
+    # `get_current_chat_session_id`) — NOT the display `session_name`, which
+    # is client-supplied and never guaranteed unique across concurrent
+    # sessions. Lets `cancel_for_session` clean up one web chat session's own
+    # background processes on teardown without ever touching another
+    # concurrent session's still-running ones, even if the two happen to
+    # share a display name. "" outside a web chat run (e.g. the CLI, which
+    # never calls `cancel_for_session` — only the blanket `cancel_all`).
+    owner_session_id: str = ""
 
 
 class _ShellBackgroundRegistry:
@@ -75,7 +86,11 @@ class _ShellBackgroundRegistry:
             cwd=effective_cwd,
             start_new_session=True,
         )
-        bp = _BackgroundProcess(process=proc, description=description or command)
+        bp = _BackgroundProcess(
+            process=proc,
+            description=description or command,
+            owner_session_id=get_current_chat_session_id(),
+        )
         if sandbox_note:
             bp.stderr_cap.feed(f"{sandbox_note}\n")
         self._procs[handle] = bp
@@ -220,6 +235,47 @@ class _ShellBackgroundRegistry:
             _release_process(bp)
         self._procs.clear()
 
+    async def cancel_for_session(self, session_id: str) -> None:
+        """Kill every running background process owned by *session_id*.
+
+        Used by `ChatSessionManager.remove_session()`: a web chat session can
+        end while other sessions are still running, so — unlike `cancel_all`
+        — this must only touch processes this one session started, tagged by
+        `get_current_chat_session_id()` at `start()` time. `session_id` must
+        be `ChatSessionManager`'s own unique dict key, never a display
+        `session_name` — that is never guaranteed unique, so using it here
+        could reach into an unrelated session sharing the same display name.
+        """
+        for handle, bp in list(self._procs.items()):
+            if bp.owner_session_id != session_id:
+                continue
+            if bp.process.returncode is None:
+                await terminate_process(
+                    bp.process,
+                    CFG.LLM_SHELL_KILL_WAIT_TIMEOUT / 1000,
+                    print_method=CFG.LOGGER.warning,
+                )
+            _release_process(bp)
+            self._procs.pop(handle, None)
+
+    def force_kill_all(self) -> None:
+        """Synchronously SIGKILL any running background process.
+
+        A loop-free backstop for interpreter shutdown (`atexit`), mirroring
+        `LSPManager.force_kill_all`: by then the event loop that owns the
+        subprocess transports may already be closed, so the async
+        `cancel_all`/`cancel_for_session` can no longer run. Best-effort —
+        never raises — so it is safe to register as an `atexit` handler.
+        """
+        for bp in list(self._procs.values()):
+            if bp.process.returncode is not None:
+                continue
+            try:
+                kill_pid(bp.process.pid, print_method=CFG.LOGGER.debug)
+            except Exception:  # noqa: BLE001 - atexit backstop, must never raise
+                pass
+        self._procs.clear()
+
 
 def _truncation_note(stdout_cap: StreamCapture, stderr_cap: StreamCapture) -> str:
     """A `[SYSTEM SUGGESTION]` line naming where the full output can still be
@@ -276,6 +332,7 @@ def _release_process(bp: _BackgroundProcess) -> None:
 
 
 _registry = _ShellBackgroundRegistry()
+atexit.register(_registry.force_kill_all)
 
 
 def get_shell_background_registry() -> _ShellBackgroundRegistry:

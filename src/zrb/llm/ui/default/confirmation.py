@@ -22,6 +22,8 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any
 
+from zrb.llm.tool.ambient_state import get_session_ownership_key
+
 if TYPE_CHECKING:
     from zrb.llm.ui.default.ui import UI
 
@@ -270,7 +272,9 @@ class UIConfirmation:
         # run_agent (zrb.llm.agent.run.runner), which pulls in pydantic_ai.
         from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
 
-        session_id = getattr(self._ui, "conversation_session_name", "")
+        session_id = get_session_ownership_key(
+            getattr(self._ui, "conversation_session_name", "")
+        )
         entry = live_subagent_session_registry.get(session_id, agent_id)
         if entry is not None:
             entry.buffered_ui.append_to_output(f"{text}\n")

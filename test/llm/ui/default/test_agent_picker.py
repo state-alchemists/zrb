@@ -12,7 +12,9 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+from zrb.llm.tool.ambient_state import current_chat_session_id
 from zrb.llm.ui.default.agent_picker import UIAgentPicker
+from zrb.util.contextvar_scope import scoped
 
 
 class FakeUI:
@@ -60,8 +62,10 @@ class FakeLiveRegistry:
     def __init__(self, *sessions):
         self.sessions = {s.agent_id: s for s in sessions}
         self.cancelled = []
+        self.active_session_id = None
 
     def active(self, session_id):
+        self.active_session_id = session_id
         return list(self.sessions.values())
 
     def get(self, session_id, agent_id):
@@ -117,6 +121,21 @@ def test_open_agent_picker_opens_with_sessions():
     _open(ui, [_session("a"), _session("b")])
     assert ui.has_active_agent_picker() is True
     assert ui.picker_cursor == 0
+
+
+def test_open_agent_picker_uses_unique_chat_ownership_id():
+    ui = FakeUI()
+    registry = FakeLiveRegistry(_session("a"))
+    with (
+        scoped(current_chat_session_id, "opaque-chat-id"),
+        patch(
+            "zrb.llm.agent.subagent.live_session.live_subagent_session_registry",
+            registry,
+        ),
+    ):
+        assert ui.open_agent_picker() is True
+
+    assert registry.active_session_id == "opaque-chat-id"
 
 
 def test_move_agent_picker_cursor_clamps():

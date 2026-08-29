@@ -376,6 +376,66 @@ async def test_continue_live_session_reuses_entrys_run_scope_across_turns(
 
 
 @pytest.mark.asyncio
+async def test_continue_live_session_uses_captured_authority_not_ambient(
+    registry, buffered_ui, sub_agent_manager
+):
+    """A continuation must rebind the ORIGINAL delegation's authority, not
+    whatever happens to be ambient whenever the continuation later runs.
+    `live_session.py` is the one `asyncio.ensure_future` spawn site where
+    ambient inheritance alone would be wrong (ADR-0069's "spawn inside the
+    still-bound scope" invariant does not hold here — see
+    `authority_snapshot.py`)."""
+    from zrb.llm.agent.run.runner import current_yolo
+    from zrb.llm.permission.policy import PermissionPolicy, Rule
+    from zrb.llm.permission.state import permission_policy
+    from zrb.util.contextvar_scope import scoped
+
+    narrow_policy = PermissionPolicy(rules=(Rule("*", "deny"),))
+    broad_policy = PermissionPolicy(rules=(Rule("*", "allow"),))
+
+    # The original delegation's own bound scope, still active when the
+    # session is created (mirrors run_agent_task calling add_session
+    # synchronously inside the parent's own run_agent() call).
+    with permission_policy(narrow_policy), scoped(current_yolo, False):
+        entry = registry.add_session(
+            "sess1", "a", "researcher", sub_agent_manager, buffered_ui
+        )
+
+    assert entry.authority is not None
+    assert entry.authority.permission_policy is narrow_policy
+    assert entry.authority.yolo is False
+
+    captured_kwargs = {}
+
+    async def fake_run_agent(**kwargs):
+        captured_kwargs.update(kwargs)
+        return "ok", kwargs["message_history"] + [kwargs["message"]]
+
+    with (
+        patch(
+            "zrb.llm.agent.subagent.live_session.steer_into_live_run",
+            return_value=False,
+        ),
+        patch(
+            "zrb.llm.agent.subagent.live_session.run_agent", side_effect=fake_run_agent
+        ),
+        # Ambient state at continuation time is broader than what the
+        # delegation was granted — must not leak into the continuation.
+        permission_policy(broad_policy),
+        scoped(current_yolo, True),
+    ):
+        await registry.send_message("sess1", "a", "keep going")
+        task = entry.active_task
+        if task is not None:
+            await task
+
+    assert captured_kwargs["permission_policy"] is narrow_policy
+    assert captured_kwargs["yolo"] is False
+    assert captured_kwargs["sandbox_policy"] is not None
+    assert captured_kwargs["sandbox_policy"].enabled is False
+
+
+@pytest.mark.asyncio
 async def test_continue_live_session_reflects_in_activity_registry(
     registry, buffered_ui, sub_agent_manager
 ):

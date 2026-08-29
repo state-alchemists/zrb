@@ -29,7 +29,11 @@ from zrb.llm.config.limiter import llm_limiter
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.permission import Capability, tag
-from zrb.llm.tool.ambient_state import get_active_worktree, get_current_tool_session
+from zrb.llm.tool.ambient_state import (
+    get_active_worktree,
+    get_current_tool_session,
+    get_session_ownership_key,
+)
 from zrb.llm.tool.worktree import enter_worktree, exit_worktree
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 from zrb.llm.ui.buffered_ui import BufferedUI
@@ -129,7 +133,7 @@ async def run_agent_task(
     # Scopes the activity-panel entry to this run's own session, so a process
     # hosting multiple sessions (the web runner) doesn't bleed one session's
     # running sub-agents into another's panel/listing.
-    activity_session_id = get_current_tool_session()
+    activity_session_id = get_session_ownership_key(get_current_tool_session())
     _tracks_activity = isinstance(ui, HasActivityTracking)
     if _tracks_activity:
         ui.set_activity_id(agent_id)
@@ -153,7 +157,12 @@ async def run_agent_task(
     session = None
     if isinstance(ui, BufferedUI):
         session = live_subagent_session_registry.add_session(
-            activity_session_id, agent_id, agent_name, sub_agent_manager, ui
+            activity_session_id,
+            agent_id,
+            agent_name,
+            sub_agent_manager,
+            ui,
+            yolo_override=yolo,
         )
         session.cancelled_by_human = False  # a fresh run, not a stale flag
         session.active_task = asyncio.current_task()
@@ -545,7 +554,9 @@ async def _run_parallel(
         isolate = bool(task_spec.get("isolate_worktree", False))
         # run_agent_task assigns the [agent_name #ordinal] label.
         buffered_ui = BufferedUI(
-            parent_ui, shared_lock=ui_lock, session_id=get_current_tool_session()
+            parent_ui,
+            shared_lock=ui_lock,
+            session_id=get_session_ownership_key(get_current_tool_session()),
         )
 
         worktree_path = ""
@@ -695,7 +706,10 @@ def create_delegate_to_agent_tool(
         parent_ui = get_current_ui() or StdUI()
         # run_agent_task assigns the [agent_name #ordinal] label (the panel
         # is the legend); no opaque per-instance id is shown to the user.
-        buffered_ui = BufferedUI(parent_ui, session_id=get_current_tool_session())
+        buffered_ui = BufferedUI(
+            parent_ui,
+            session_id=get_session_ownership_key(get_current_tool_session()),
+        )
 
         task_result = await run_agent_task(
             agent_name=agent_name,

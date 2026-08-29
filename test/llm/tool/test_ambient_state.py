@@ -5,14 +5,27 @@ from __future__ import annotations
 from zrb.llm.tool.ambient_state import set_current_session  # the shorter alias
 from zrb.llm.tool.ambient_state import (
     active_worktree,
+    current_chat_session_id,
     get_active_worktree,
     get_current_tool_session,
     get_interactive_mode,
+    get_session_ownership_key,
     interactive_mode,
     set_active_worktree,
     set_current_tool_session,
     set_interactive_mode,
 )
+from zrb.util.contextvar_scope import scoped
+
+
+def test_session_ownership_prefers_unique_chat_id():
+    with scoped(current_chat_session_id, "opaque-chat-id"):
+        assert get_session_ownership_key("display-name") == "opaque-chat-id"
+
+
+def test_session_ownership_falls_back_to_display_name():
+    with scoped(current_chat_session_id, ""):
+        assert get_session_ownership_key("display-name") == "display-name"
 
 
 def test_active_worktree_default_is_empty():

@@ -337,7 +337,135 @@ def test_start_server_task_builds_and_serves_app():
     mock_log.assert_called_once()
     mock_create.assert_called_once()
     mock_config.assert_called_once()
+    assert mock_config.call_args.kwargs["host"] == "127.0.0.1"
     mock_server.serve.assert_awaited_once()
+
+
+def test_start_server_warns_on_insecure_bind(monkeypatch, capsys):
+    """Non-loopback host + auth off prints a warning but still starts."""
+    from zrb.runner.cli import cli
+
+    monkeypatch.setenv("ZRB_WEB_HTTP_HOST", "0.0.0.0")
+    monkeypatch.setenv("ZRB_WEB_AUTH_ENABLED", "0")
+    mock_server = MagicMock()
+    mock_server.serve = AsyncMock()
+    with (
+        patch("uvicorn.Config") as mock_config,
+        patch("uvicorn.Server", return_value=mock_server),
+        patch("zrb.runner.web_app.create_web_app"),
+        patch("zrb.runner.web_app.configure_uvicorn_logging"),
+    ):
+        cli.run(str_args=["server", "start"])
+
+    assert mock_config.call_args.kwargs["host"] == "0.0.0.0"
+    assert "without authentication" in capsys.readouterr().err
+    mock_server.serve.assert_awaited_once()
+
+
+def test_start_server_warns_on_default_credentials_when_auth_enabled(
+    monkeypatch, capsys
+):
+    """Auth being *on* is not enough: the default password/secret are public
+    knowledge (documented in the repo), so a non-loopback bind still using
+    them must warn too, distinctly from the unauthenticated case."""
+    from zrb.runner.cli import cli
+
+    monkeypatch.setenv("ZRB_WEB_HTTP_HOST", "0.0.0.0")
+    monkeypatch.setenv("ZRB_WEB_AUTH_ENABLED", "1")
+    mock_server = MagicMock()
+    mock_server.serve = AsyncMock()
+    with (
+        patch("uvicorn.Config"),
+        patch("uvicorn.Server", return_value=mock_server),
+        patch("zrb.runner.web_app.create_web_app"),
+        patch("zrb.runner.web_app.configure_uvicorn_logging"),
+    ):
+        cli.run(str_args=["server", "start"])
+
+    err = capsys.readouterr().err
+    assert "without authentication" not in err
+    assert "WEB_SUPER_ADMIN_PASSWORD" in err
+    assert "WEB_SECRET_KEY" in err
+
+
+def test_start_server_uses_programmatic_auth_config_for_warning(monkeypatch, capsys):
+    """Warning decisions follow the auth object used by the web app, not only CFG."""
+    from zrb.config.web_auth_config import WebAuthConfig
+    from zrb.runner.cli import cli
+
+    monkeypatch.setenv("ZRB_WEB_HTTP_HOST", "0.0.0.0")
+    monkeypatch.setenv("ZRB_WEB_AUTH_ENABLED", "1")
+    auth_config = WebAuthConfig(enable_auth=False)
+    mock_server = MagicMock()
+    mock_server.serve = AsyncMock()
+    with (
+        patch("zrb.runner.cli.web_auth_config", auth_config),
+        patch("uvicorn.Config"),
+        patch("uvicorn.Server", return_value=mock_server),
+        patch("zrb.runner.web_app.create_web_app"),
+        patch("zrb.runner.web_app.configure_uvicorn_logging"),
+    ):
+        cli.run(str_args=["server", "start"])
+
+    err = capsys.readouterr().err
+    assert "without authentication" in err
+    mock_server.serve.assert_awaited_once()
+
+
+def test_start_server_no_warning_for_programmatic_custom_credentials(
+    monkeypatch, capsys
+):
+    """Programmatic auth overrides are evaluated instead of CFG defaults."""
+    from zrb.config.web_auth_config import WebAuthConfig
+    from zrb.runner.cli import cli
+
+    monkeypatch.setenv("ZRB_WEB_HTTP_HOST", "0.0.0.0")
+    monkeypatch.setenv("ZRB_WEB_AUTH_ENABLED", "0")
+    auth_config = WebAuthConfig(
+        enable_auth=True,
+        super_admin_password="programmatic-password",
+        secret_key="programmatic-secret",
+    )
+    mock_server = MagicMock()
+    mock_server.serve = AsyncMock()
+    with (
+        patch("zrb.runner.cli.web_auth_config", auth_config),
+        patch("uvicorn.Config"),
+        patch("uvicorn.Server", return_value=mock_server),
+        patch("zrb.runner.web_app.create_web_app"),
+        patch("zrb.runner.web_app.configure_uvicorn_logging"),
+    ):
+        cli.run(str_args=["server", "start"])
+
+    err = capsys.readouterr().err
+    assert "without authentication" not in err
+    assert "still has its default" not in err
+    mock_server.serve.assert_awaited_once()
+
+
+def test_start_server_no_warning_when_auth_enabled_with_custom_credentials(
+    monkeypatch, capsys
+):
+    """No warning at all once auth is on AND the defaults were changed."""
+    from zrb.runner.cli import cli
+
+    monkeypatch.setenv("ZRB_WEB_HTTP_HOST", "0.0.0.0")
+    monkeypatch.setenv("ZRB_WEB_AUTH_ENABLED", "1")
+    monkeypatch.setenv("ZRB_WEB_SUPER_ADMIN_PASSWORD", "a-unique-password")
+    monkeypatch.setenv("ZRB_WEB_SECRET_KEY", "a-unique-secret")
+    mock_server = MagicMock()
+    mock_server.serve = AsyncMock()
+    with (
+        patch("uvicorn.Config"),
+        patch("uvicorn.Server", return_value=mock_server),
+        patch("zrb.runner.web_app.create_web_app"),
+        patch("zrb.runner.web_app.configure_uvicorn_logging"),
+    ):
+        cli.run(str_args=["server", "start"])
+
+    err = capsys.readouterr().err
+    assert "without authentication" not in err
+    assert "still has its default" not in err
 
 
 def test_conversation_name_swallows_lookup_error():

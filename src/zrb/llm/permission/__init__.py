@@ -20,6 +20,7 @@ from zrb.llm.permission.capability import (
     tag,
     tool_capability,
 )
+from zrb.llm.permission.observability import record_policy_decision
 from zrb.llm.permission.policy import (
     ALLOW,
     ASK,
@@ -62,4 +63,5 @@ __all__ = [
     "get_current_agent_mode",
     "set_current_agent_mode",
     "get_effective_policy",
+    "record_policy_decision",
 ]

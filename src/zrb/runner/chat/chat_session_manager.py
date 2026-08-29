@@ -265,6 +265,23 @@ class ChatSessionManager:
             )
 
             live_subagent_session_registry.clear(session_id=session_id)
+            # Otherwise a background Shell(background=True) process this
+            # session started (e.g. via a delegated sub-agent) outlives the
+            # session with no cleanup path: the per-message teardown
+            # deliberately skips it (a background process must survive across
+            # messages in the same session), and full-shutdown cancellation
+            # never reaches it either. Session-scoped, not cancel_all() —
+            # other sessions may still have their own background processes
+            # running. Keyed by this method's own `session_id` argument (the
+            # unique dict key), never `session.session_name` — that is a
+            # client-supplied display label with no uniqueness guarantee
+            # (`create_session` never checks it), so using it here could
+            # reach into an unrelated session that happens to share a name.
+            # lazy: zrb internal (heavy via transitive — shell_background.py
+            # is otherwise loaded lazily off this module's hot path)
+            from zrb.llm.tool.shell_background import get_shell_background_registry
+
+            await get_shell_background_registry().cancel_for_session(session_id)
             return True
 
     def get_messages(self, session_id: str) -> list[dict[str, Any]]:

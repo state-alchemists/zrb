@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
 from zrb.llm.agent.activity import agent_activity_registry
+from zrb.llm.tool.ambient_state import get_session_ownership_key
 from zrb.util.truncate import truncate_display
 
 if TYPE_CHECKING:
@@ -101,7 +102,7 @@ class UIAgentPicker:
         )
 
         sessions = live_subagent_session_registry.active(
-            self._ui.conversation_session_name
+            get_session_ownership_key(self._ui.conversation_session_name)
         )
         if not sessions:
             return False
@@ -194,7 +195,7 @@ class UIAgentPicker:
             live_subagent_session_registry,
         )
 
-        session_id = self._ui.conversation_session_name
+        session_id = get_session_ownership_key(self._ui.conversation_session_name)
         agent_id = self._viewing_agent_id
         if not live_subagent_session_registry.cancel(session_id, agent_id):
             return False
@@ -221,7 +222,8 @@ class UIAgentPicker:
         )
 
         session = live_subagent_session_registry.get(
-            self._ui.conversation_session_name, self._viewing_agent_id
+            get_session_ownership_key(self._ui.conversation_session_name),
+            self._viewing_agent_id,
         )
         if session is None:
             # The session was torn down while we were viewing it — return to main.
@@ -250,7 +252,8 @@ class UIAgentPicker:
         )
 
         session = live_subagent_session_registry.get(
-            self._ui.conversation_session_name, self._viewing_agent_id
+            get_session_ownership_key(self._ui.conversation_session_name),
+            self._viewing_agent_id,
         )
         if session is None:
             return False
@@ -319,7 +322,7 @@ class UIAgentPicker:
         if not self._picker_sessions:
             return []
         activity = agent_activity_registry.active(
-            session_id=self._ui.conversation_session_name
+            session_id=get_session_ownership_key(self._ui.conversation_session_name)
         )
         by_id = {entry.agent_id: entry for entry in activity}
         frags: StyleAndTextTuples = [

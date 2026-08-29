@@ -22,6 +22,33 @@ from zrb.llm.tool.worktree import active_worktree
 
 _current_session: ContextVar[str] = ContextVar("zrb_current_session", default="default")
 
+# The *display* session name (see `get_current_tool_session` below) is a
+# client-supplied label — `ChatSessionManager.create_session` never enforces
+# it is unique, so it must never be used as a resource-ownership key (two
+# concurrent chat sessions can share one). `current_chat_session_id` instead
+# carries `ChatSessionManager`'s own dict key, which *is* unique by
+# construction — bound once per message drive in `chat_session_runner.py`,
+# read by `shell_background.py` to tag which chat session owns a background
+# process, so removing one session can never reach into another's.
+current_chat_session_id: ContextVar[str] = ContextVar(
+    "zrb_current_chat_session_id", default=""
+)
+
+
+def get_current_chat_session_id() -> str:
+    """The owning `ChatSessionManager` session_id, or "" outside a chat run."""
+    return current_chat_session_id.get()
+
+
+def get_session_ownership_key(display_name: str = "") -> str:
+    """Return the stable resource key, falling back for standalone CLI UIs.
+
+    Web chat binds the opaque manager ID for the lifetime of its driver task.
+    The interactive CLI has no ``ChatSessionManager`` ID, so its display name
+    remains the compatible fallback there.
+    """
+    return get_current_chat_session_id() or display_name or "default"
+
 
 def get_current_context_session() -> str:
     """Get the current session name, set by set_current_session() before agent runs."""
@@ -68,4 +95,7 @@ __all__ = [
     "set_current_session",
     "get_interactive_mode",
     "set_interactive_mode",
+    "current_chat_session_id",
+    "get_current_chat_session_id",
+    "get_session_ownership_key",
 ]

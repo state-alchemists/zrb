@@ -63,12 +63,6 @@ def parse_delegated_session(base_name: str) -> tuple[str, str] | None:
     return match.group("parent"), match.group("agent_name")
 
 
-def subagent_history_dir(history_dir: str, agent_name: str) -> str:
-    """The directory a delegated transcript for *agent_name* lives in:
-    ``{history_dir}/subagent/{agent_name}``."""
-    return os.path.join(history_dir, SUBAGENT_HISTORY_SUBDIR, agent_name)
-
-
 def subagent_history_directories(history_dir: str) -> list[str]:
     """The directories that can hold delegated transcripts: the history root
     itself (legacy flat files written before the subdirectory layout) plus

@@ -21,6 +21,7 @@ import platform
 import shutil
 
 from zrb.config.config import CFG
+from zrb.llm.permission.observability import record_policy_decision
 from zrb.llm.sandbox.bwrap import build_bwrap_argv
 from zrb.llm.sandbox.policy import SandboxPolicy
 from zrb.llm.sandbox.seatbelt import build_sbpl
@@ -64,14 +65,19 @@ def build_sandboxed_argv(
     """
     plain = list(argv)
     if not policy.enabled or policy.os_shell == "off":
+        record_policy_decision(layer="sandbox", decision="disabled")
         return plain, None
     if skip:
         if not policy.allow_escape:
             # The sandbox gate blocks this earlier; defense-in-depth here.
+            record_policy_decision(
+                layer="sandbox", decision="deny", reason="escape_disabled"
+            )
             raise SandboxUnavailableError(
                 "dangerously_skip_sandbox requested but escaping the sandbox "
                 "is disabled (LLM_SANDBOX_ALLOW_ESCAPE=false)"
             )
+        record_policy_decision(layer="sandbox", decision="escape")
         return plain, ESCAPE_NOTE
 
     system = platform.system()
@@ -96,7 +102,13 @@ def _fallback(
     plain: list[str], policy: SandboxPolicy, reason: str
 ) -> tuple[list[str], str | None]:
     if policy.fallback == "deny":
+        record_policy_decision(
+            layer="sandbox", decision="deny", reason=reason, fallback="deny"
+        )
         raise SandboxUnavailableError(reason)
+    record_policy_decision(
+        layer="sandbox", decision="fallback", reason=reason, fallback="warn"
+    )
     return plain, (
         f"[WARNING] sandbox unavailable ({reason}); "
         "the command ran WITHOUT OS-level isolation"

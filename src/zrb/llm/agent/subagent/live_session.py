@@ -30,6 +30,10 @@ from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.agent.activity import agent_activity_registry
+from zrb.llm.agent.run.authority_snapshot import (
+    AuthoritySnapshot,
+    capture_current_authority,
+)
 from zrb.llm.agent.run.runner import run_agent
 from zrb.llm.config.limiter import llm_limiter
 from zrb.llm.ui.base.message_queue import steer_into_live_run
@@ -54,6 +58,12 @@ class LiveSubAgentSession:
     # file_observation.py forget what earlier turns of this same sub-agent
     # conversation already read.
     run_scope: str = field(default_factory=lambda: uuid.uuid4().hex)
+    # What the original delegation was actually granted (permission policy,
+    # yolo, sandbox), captured while its scope was still bound. A
+    # continuation runs long after that scope has exited, so it must rebind
+    # this explicitly rather than inherit whatever is ambient at that later,
+    # unrelated point — see `authority_snapshot.py`'s module docstring.
+    authority: "AuthoritySnapshot | None" = None
     history: list = field(default_factory=list)
     pending_queue: list[str] = field(default_factory=list)
     state: str = "idle"  # "idle" | "running"
@@ -101,13 +111,24 @@ class LiveSubAgentSessionRegistry:
         agent_name: str,
         sub_agent_manager: "SubAgentManager",
         buffered_ui: "BufferedUI",
+        yolo_override: bool | None = None,
     ) -> LiveSubAgentSession:
+        """Register a live session, capturing the caller's current authority.
+
+        Called synchronously from `run_agent_task` while the delegating
+        turn's own scope is still bound, so `capture_current_authority` sees
+        the real grant — not whatever is ambient whenever a later
+        continuation happens to run (see `authority_snapshot.py`).
+        `yolo_override` is the same per-call override `run_agent_task` passes
+        to its own `run_agent()` call for the original turn.
+        """
         entry = LiveSubAgentSession(
             agent_id=agent_id,
             agent_name=agent_name,
             session_id=session_id,
             sub_agent_manager=sub_agent_manager,
             buffered_ui=buffered_ui,
+            authority=capture_current_authority(yolo_override),
         )
         self._sessions.setdefault(session_id, {})[agent_id] = entry
         return entry
@@ -236,6 +257,15 @@ async def _continue_live_session(entry: LiveSubAgentSession) -> None:
                 # The reply is not surfaced anywhere else -- the human watches it
                 # stream via `entry.buffered_ui` directly (no tool call is
                 # waiting on a return value here, unlike a normal delegation).
+                # Rebind the original delegation's captured authority
+                # explicitly — this call runs long after that scope exited,
+                # so ambient inheritance alone would pick up whatever is
+                # current at this later point instead (see
+                # authority_snapshot.py). Passing these as explicit arguments
+                # is sufficient: run_agent resolves and binds each of them
+                # itself (its own ExitStack), regardless of what is ambient
+                # at the call site.
+                authority = entry.authority
                 _result, history = await run_agent(
                     agent=agent,
                     message=text,
@@ -243,6 +273,11 @@ async def _continue_live_session(entry: LiveSubAgentSession) -> None:
                     limiter=llm_limiter,
                     ui=entry.buffered_ui,
                     run_scope=entry.run_scope,
+                    permission_policy=(
+                        authority.permission_policy if authority else None
+                    ),
+                    yolo=authority.yolo if authority else None,
+                    sandbox_policy=authority.sandbox_policy if authority else None,
                 )
                 entry.history = history
             except Exception as e:  # noqa: BLE001

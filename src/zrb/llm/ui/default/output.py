@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, TextIO, cast
 
 from zrb.config.config import CFG
 from zrb.llm.agent.activity import agent_activity_registry
+from zrb.llm.tool.ambient_state import get_session_ownership_key
 from zrb.llm.ui.output_chunk import CollapsibleBlockSource, merge_output_chunk
 from zrb.util.cli.help_panel import render_help_panel
 from zrb.util.cli.markdown import render_markdown
@@ -651,7 +652,8 @@ class UIOutput:
             )
 
             session = live_subagent_session_registry.get(
-                self._ui.conversation_session_name, viewing_agent_id
+                get_session_ownership_key(self._ui.conversation_session_name),
+                viewing_agent_id,
             )
             if session is not None:
                 viewing_name = session.agent_name
@@ -713,7 +715,7 @@ class UIOutput:
         if viewing_agent_id is not None:
             return [(CFG.LLM_UI_STYLE_FAINT, "Press ← to return to the parent")]
         agents = agent_activity_registry.active(
-            session_id=self._ui.conversation_session_name
+            session_id=get_session_ownership_key(self._ui.conversation_session_name)
         )
         # The Down-Arrow picker lists every live (running or just-finished)
         # sub-agent session, so the panel advertises it whenever one is
@@ -725,7 +727,7 @@ class UIOutput:
         )
 
         live = live_subagent_session_registry.active(
-            session_id=self._ui.conversation_session_name
+            session_id=get_session_ownership_key(self._ui.conversation_session_name)
         )
         if not agents and not live:
             return []

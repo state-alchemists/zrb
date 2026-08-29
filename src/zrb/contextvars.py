@@ -61,10 +61,13 @@ from zrb.llm.sandbox.state import (
 # --- Tool ambient state ---
 from zrb.llm.tool.ambient_state import (
     active_worktree,
+    current_chat_session_id,
     get_active_worktree,
+    get_current_chat_session_id,
     get_current_context_session,
     get_current_tool_session,
     get_interactive_mode,
+    get_session_ownership_key,
     interactive_mode,
     set_active_worktree,
     set_current_session,
@@ -112,4 +115,7 @@ __all__ = [
     "interactive_mode",
     "get_interactive_mode",
     "set_interactive_mode",
+    "current_chat_session_id",
+    "get_current_chat_session_id",
+    "get_session_ownership_key",
 ]
