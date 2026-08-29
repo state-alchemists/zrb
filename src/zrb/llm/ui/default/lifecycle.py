@@ -55,7 +55,7 @@ class UILifecycle:
         ui = self._ui
         for trigger_fn in ui.triggers:
             trigger_task = ui.application.create_background_task(
-                ui._trigger_loop(trigger_fn)
+                ui.trigger_loop(trigger_fn)
             )
             ui.trigger_tasks.append(trigger_task)
 

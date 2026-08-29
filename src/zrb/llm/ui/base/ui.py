@@ -1502,7 +1502,7 @@ class BaseUI:
     # (system_info.py): update_system_info, get_cwd_display,
     # get_git_info, update_system_info_loop are inherited.
 
-    async def _trigger_loop(
+    async def trigger_loop(
         self,
         trigger_factory: Callable[[], AsyncIterable[Any]],
     ):

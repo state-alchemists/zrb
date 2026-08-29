@@ -18,7 +18,7 @@ from zrb.llm.hook.manager import hook_manager as default_hook_manager
 from zrb.util.contextvar_scope import scoped
 
 
-def _bind_contextvar(stack: ExitStack, var: ContextVar, value: Any) -> None:
+def bind_contextvar(stack: ExitStack, var: ContextVar, value: Any) -> None:
     """Bind `var` to `value` for the life of `stack` (via `scoped()`).
 
     Keeps ContextVar set/reset symmetric and exception-safe across the run.
@@ -26,7 +26,7 @@ def _bind_contextvar(stack: ExitStack, var: ContextVar, value: Any) -> None:
     stack.enter_context(scoped(var, value))
 
 
-def _resolve_context_dependencies(
+def resolve_context_dependencies(
     ui, tool_confirmation, yolo, approval_channel, hook_manager
 ):
     # lazy: circular — runner → setup → runner (current_* ContextVars live in
@@ -95,7 +95,7 @@ def _resolve_context_dependencies(
     )
 
 
-def _log_startup(
+def log_startup(
     tool_confirmation,
     effective_tool_confirmation,
     approval_channel,
@@ -118,7 +118,7 @@ def _log_startup(
     CFG.LOGGER.debug(f"effective_approval_channel: {effective_approval_channel}")
 
 
-def _setup_print_and_events(print_fn, event_handler, effective_ui):
+def setup_print_and_events(print_fn, event_handler, effective_ui):
     effective_print_fn = print_fn
     if effective_print_fn == print and effective_ui:
         effective_print_fn = effective_ui.append_to_output

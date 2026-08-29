@@ -137,7 +137,7 @@ def _locate_match(
     if old_text in content:
         return old_text, old_text, new_text, ""
 
-    matched = _find_fuzzy_match(content, old_text)
+    matched = find_fuzzy_match(content, old_text)
     if matched is not None:
         return (
             matched,
@@ -152,7 +152,7 @@ def _locate_match(
         matched = (
             stripped_old
             if stripped_old in content
-            else _find_fuzzy_match(content, stripped_old)
+            else find_fuzzy_match(content, stripped_old)
         )
         if matched is not None:
             return (
@@ -317,7 +317,7 @@ def _strip_prefix_per_line(text: str) -> str:
     )
 
 
-def _find_fuzzy_match(content: str, old_text: str) -> str | None:
+def find_fuzzy_match(content: str, old_text: str) -> str | None:
     """Try relaxed matching strategies in order. Returns the actual content substring or None."""
     for strategy in (_match_line_trimmed, _match_indentation_flexible):
         result = strategy(content, old_text)

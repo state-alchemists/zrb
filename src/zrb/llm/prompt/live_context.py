@@ -51,7 +51,7 @@ from zrb.context.any_context import AnyContext
 # (a composition may drop the todo lines), and an anchor that promises lines the
 # block cannot produce is the same dangle as a rulebook naming an absent tool,
 # minus the test that catches it. The block is self-describing once it arrives.
-_LIVE_CONTEXT_ANCHOR = (
+LIVE_CONTEXT_ANCHOR = (
     "Each user turn ends with a <live-context> block describing current runtime "
     "state. It is injected automatically — not written by the user. Treat the "
     "most recent <live-context> as authoritative; earlier ones are stale "

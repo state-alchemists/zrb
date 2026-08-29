@@ -448,7 +448,7 @@ def _retry_prompt_to_text(part: Any) -> str:
     return f'(sanitized-history) prior retry feedback for tool "{name}": ' f"{content}"
 
 
-def _merge_consecutive_messages(current_history, current_message):
+def merge_consecutive_messages(current_history, current_message):
     # lazy: heavy third-party
     from pydantic_ai.messages import ModelRequest, UserPromptPart
 
@@ -478,7 +478,7 @@ _EMPTY_COMPLETION_MARKERS = frozenset(
 )
 
 
-def _is_empty_completion(result_output: Any) -> bool:
+def is_empty_completion(result_output: Any) -> bool:
     """True when the model's final text output carries no real content.
 
     Two degenerate cases seen in production with weak/overloaded models:
@@ -526,7 +526,7 @@ def close_dangling_tool_calls(history: list[Any], reason: str) -> list[Any]:
     return [*history, ModelRequest(parts=tool_returns)]
 
 
-def _history_without_trailing_response(run_history: list[Any]) -> list[Any]:
+def history_without_trailing_response(run_history: list[Any]) -> list[Any]:
     """Drop the trailing assistant ModelResponse so it can be regenerated.
 
     Used when retrying an empty completion: ``result.all_messages()`` ends with

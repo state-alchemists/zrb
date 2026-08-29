@@ -32,9 +32,9 @@ from zrb.llm.agent.run.deferred_calls import (
 )
 from zrb.llm.agent.run.error_classifier import classify_error_type
 from zrb.llm.agent.run.history_utils import (
-    _history_without_trailing_response,
-    _is_empty_completion,
-    _merge_consecutive_messages,
+    history_without_trailing_response,
+    is_empty_completion,
+    merge_consecutive_messages,
     sanitize_history,
 )
 from zrb.llm.agent.run.hook_result_extractor import (
@@ -52,10 +52,10 @@ from zrb.llm.agent.run.session_extension import (
     resolve_extended_return,
 )
 from zrb.llm.agent.run.setup import (
-    _bind_contextvar,
-    _log_startup,
-    _resolve_context_dependencies,
-    _setup_print_and_events,
+    bind_contextvar,
+    log_startup,
+    resolve_context_dependencies,
+    setup_print_and_events,
 )
 from zrb.llm.agent.run.turn_cursor import TurnCursor
 from zrb.llm.approval.approval_channel import ApprovalChannel, current_approval_channel
@@ -175,11 +175,11 @@ async def run_agent(
         effective_yolo,
         effective_approval_channel,
         effective_hook_manager,
-    ) = _resolve_context_dependencies(
+    ) = resolve_context_dependencies(
         ui, tool_confirmation, yolo, approval_channel, hook_manager
     )
 
-    _log_startup(
+    log_startup(
         tool_confirmation,
         effective_tool_confirmation,
         approval_channel,
@@ -205,14 +205,14 @@ async def run_agent(
     # bound are still reset on close, and no token is reset that was never set.
     stack = ExitStack()
     try:
-        _bind_contextvar(stack, current_ui, effective_ui)
-        _bind_contextvar(stack, current_tool_confirmation, effective_tool_confirmation)
-        _bind_contextvar(stack, current_yolo, effective_yolo)
-        _bind_contextvar(stack, current_hook_manager, effective_hook_manager)
-        _bind_contextvar(stack, current_agent_run_scope, run_scope or uuid.uuid4().hex)
-        _bind_contextvar(stack, current_approval_channel, effective_approval_channel)
-        _bind_contextvar(stack, current_permission_policy, effective_policy)
-        _bind_contextvar(stack, current_sandbox_policy, effective_sandbox)
+        bind_contextvar(stack, current_ui, effective_ui)
+        bind_contextvar(stack, current_tool_confirmation, effective_tool_confirmation)
+        bind_contextvar(stack, current_yolo, effective_yolo)
+        bind_contextvar(stack, current_hook_manager, effective_hook_manager)
+        bind_contextvar(stack, current_agent_run_scope, run_scope or uuid.uuid4().hex)
+        bind_contextvar(stack, current_approval_channel, effective_approval_channel)
+        bind_contextvar(stack, current_permission_policy, effective_policy)
+        bind_contextvar(stack, current_sandbox_policy, effective_sandbox)
         # lazy: circular — zrb.llm.tool's package __init__ eagerly loads
         # delegate.py, which imports run_agent from this module.
         from zrb.llm.tool.worktree import active_worktree
@@ -222,14 +222,14 @@ async def run_agent(
         # forgotten ExitWorktree (agent forgets, run errors) can't leak the
         # worktree past this run's boundary — it restores whatever was active
         # when the run started, snapshot-and-restore rather than always "".
-        _bind_contextvar(stack, active_worktree, active_worktree.get())
+        bind_contextvar(stack, active_worktree, active_worktree.get())
         # Isolate agent mode per run so concurrent runs don't share/clobber each
         # other's plan/build state; the final mode is propagated back to the
         # caller on close so an in-run mode switch persists (e.g. sticky /plan).
         mode_token, mode_parent = enter_agent_mode_scope()
         stack.callback(exit_agent_mode_scope, mode_token, mode_parent)
 
-        effective_print_fn, effective_event_handler = _setup_print_and_events(
+        effective_print_fn, effective_event_handler = setup_print_and_events(
             print_fn, event_handler, effective_ui
         )
 
@@ -267,7 +267,7 @@ async def run_agent(
             effective_hook_manager,
         )
 
-        current_message = _merge_consecutive_messages(current_history, prompt_content)
+        current_message = merge_consecutive_messages(current_history, prompt_content)
 
         return await _execution_loop(
             agent=agent,
@@ -637,7 +637,7 @@ async def _execution_loop(
             # sometimes returns no real text (and no tool call). Don't surface the
             # "(tool call)" placeholder as the answer — regenerate the turn a
             # bounded number of times, then raise a clear error.
-            if _is_empty_completion(cursor.output):
+            if is_empty_completion(cursor.output):
                 if (
                     retry_state.empty_completion_retry_count
                     < retry_state.max_empty_completion_retries
@@ -652,7 +652,7 @@ async def _execution_loop(
                         f"Empty completion (output={cursor.output!r}); "
                         "dropping the empty turn and regenerating"
                     )
-                    cursor.history = _history_without_trailing_response(
+                    cursor.history = history_without_trailing_response(
                         cursor.run_history
                     )
                     cursor.message = None

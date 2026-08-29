@@ -16,7 +16,7 @@ from typing import Any, Callable
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
-from zrb.llm.prompt.live_context import _LIVE_CONTEXT_ANCHOR
+from zrb.llm.prompt.live_context import LIVE_CONTEXT_ANCHOR
 from zrb.llm.sandbox.state import get_effective_sandbox_policy
 
 _DEFAULT_TOOLS: list[tuple[str, str]] = [
@@ -119,7 +119,7 @@ def system_context(
         parts.append(parallel_line)
 
     context_block = "# System Context\n" + "\n".join(parts)
-    context_block += "\n\n" + _LIVE_CONTEXT_ANCHOR
+    context_block += "\n\n" + LIVE_CONTEXT_ANCHOR
     return next_handler(ctx, f"{current_prompt}\n\n{context_block}")
 
 
