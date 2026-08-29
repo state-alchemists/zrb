@@ -1,69 +1,13 @@
-from zrb.llm.tool.code import analyze_code
-from zrb.llm.tool.delegate import (
-    create_delegate_to_agent_tool,
-    create_search_agent_tool,
-)
-from zrb.llm.tool.file import (
-    analyze_file,
-    glob_files,
-    list_files,
-    move_file,
-    read_file,
-    remove_file,
-    replace_in_file,
-    search_files,
-    write_file,
-)
-from zrb.llm.tool.journal import search_journal
-from zrb.llm.tool.journal_write import log_activity, write_journal_note
-from zrb.llm.tool.mcp import load_mcp_config
-from zrb.llm.tool.plan import (
-    create_plan_tools,
-    get_todos,
-    write_todos,
-)
-from zrb.llm.tool.rag import create_rag_from_directory
-from zrb.llm.tool.shell import run_shell_command
-from zrb.llm.tool.shell_background import create_monitor_process_tool
-from zrb.llm.tool.skill import (
-    create_activate_skill_tool,
-    create_search_skill_tool,
-)
-from zrb.llm.tool.web import open_web_page, search_internet
-from zrb.llm.tool.zrb_task import create_list_zrb_task_tool, create_run_zrb_task_tool
+"""zrb-shipped LLM tools — one module per tool family.
 
-search_journal.__name__ = "SearchJournal"
-log_activity.__name__ = "LogActivity"
-write_journal_note.__name__ = "WriteJournalNote"
-
-__all__ = [
-    "run_shell_command",
-    "analyze_code",
-    "glob_files",
-    "list_files",
-    "read_file",
-    "write_file",
-    "replace_in_file",
-    "search_files",
-    "analyze_file",
-    "remove_file",
-    "move_file",
-    "search_journal",
-    "log_activity",
-    "write_journal_note",
-    "load_mcp_config",
-    "create_rag_from_directory",
-    "create_activate_skill_tool",
-    "create_search_skill_tool",
-    "open_web_page",
-    "search_internet",
-    "create_list_zrb_task_tool",
-    "create_run_zrb_task_tool",
-    "create_delegate_to_agent_tool",
-    "create_search_agent_tool",
-    "create_monitor_process_tool",
-    # Planning tools
-    "create_plan_tools",
-    "write_todos",
-    "get_todos",
-]
+Deliberately NOT a re-export aggregator: `tool/code.py` calls into the agent
+run loop (`AnalyzeCode` delegates to a sub-agent), so an eager package-level
+re-export here would force the whole `zrb.llm.agent` package to finish
+loading before this package's own `__init__` returns — and anything reached
+transitively while `zrb.llm.agent` is still mid-import (e.g. a hook or tool
+that needs `zrb.llm.tool` back) would hit a real circular import. Nothing in
+the tree imports from this package level (checked before making it empty);
+import each tool from its own module instead, e.g.
+`from zrb.llm.tool.file import read_file`. `common_tools.py::_register_tools`
+does exactly that, and documents why.
+"""

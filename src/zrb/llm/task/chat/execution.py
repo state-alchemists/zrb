@@ -20,17 +20,19 @@ way `self.name`, `self.envs` (`BaseTask` properties), and
 
 from __future__ import annotations
 
-from dataclasses import replace
-from typing import TYPE_CHECKING, Any, cast
+from dataclasses import dataclass, replace
+from typing import TYPE_CHECKING, Any, Callable, cast
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.env.any_env import AnyEnv
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
-from zrb.llm.history_manager.file_history_manager import FileHistoryManager
+from zrb.llm.approval import resolve_approval_channel
+from zrb.llm.history_manager.file_history_manager import default_history_manager
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
+from zrb.llm.lsp.manager import lsp_manager
 from zrb.llm.permission import (
     ALLOW,
     ASK,
@@ -50,6 +52,9 @@ from zrb.llm.task.shared_getters import (
     resolve_model,
     resolve_system_prompt,
 )
+from zrb.llm.tool_call.handler import ToolCallHandler
+from zrb.llm.ui.base.ui import BaseUI
+from zrb.llm.ui.std_ui import StdUI
 from zrb.llm.util.attachment import get_attachments
 from zrb.util.attr import get_attr, get_bool_attr, get_str_attr
 from zrb.util.cli.style import stylize_highlight, stylize_muted
@@ -62,9 +67,56 @@ if TYPE_CHECKING:
     from pydantic_ai.tools import ToolFuncEither
     from pydantic_ai.toolsets import AbstractToolset
 
+    from zrb.llm.agent import AnyToolConfirmation
+    from zrb.llm.approval.approval_channel import ApprovalChannel
     from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
+    from zrb.llm.sandbox import SandboxPolicy
     from zrb.llm.task.chat.task import LLMChatTask
+    from zrb.llm.task.history_config import HistoryConfig
     from zrb.llm.tool_call.ui_protocol import UIProtocol
+
+
+def parse_yolo_value(value: Any) -> "bool | frozenset[str]":
+    """Parse a yolo input value into bool or frozenset of tool names.
+
+    - bool True/False → returned as-is
+    - "true"/"1"/"yes" → True (full yolo)
+    - ""/"false"/"0"/"no" → False (no yolo)
+    - "Write,Edit" → frozenset({"Write", "Edit"}) (selective yolo)
+    """
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (set, frozenset)):
+        return frozenset(value)
+    if not value:
+        return False
+    s = str(value).strip()
+    if not s or s.lower() in ("false", "0", "no", "none"):
+        return False
+    if s.lower() in ("true", "1", "yes"):
+        return True
+    tools = frozenset(t.strip() for t in s.split(",") if t.strip())
+    return tools if tools else False
+
+
+@dataclass(frozen=True)
+class _InnerTaskResolution:
+    """Everything `_create_llm_task_core` needs to assemble the inner `LLMTask`
+    call, computed once by `_resolve_inner_task_config`.
+
+    Keeps resolution (reading `llm_chat_task` state, coercing sandbox/approval/
+    hook-manager values, building the yolo/permission approval closure) separate
+    from construction (the `LLMTask(...)` call itself), so each half can be read
+    — and, if it ever needs one, tested — on its own.
+    """
+
+    tool_confirmation: "AnyToolConfirmation"
+    ui: "UIProtocol | None"
+    approval_channel: "ApprovalChannel | None"
+    hook_manager: HookManager
+    sandbox: "SandboxPolicy | None"
+    history: "HistoryConfig"
+    should_skip_approval: Callable[..., bool]
 
 
 class ChatExecution:
@@ -86,9 +138,7 @@ class ChatExecution:
         return resolve_system_prompt(ctx, prompt_manager)
 
     async def exec_action(self, ctx: AnyContext) -> Any:
-        # lazy: circular — task → execution (this file) → task.parse_yolo_value.
         from zrb.llm.common_tools import ensure_common_tools
-        from zrb.llm.task.chat.task import parse_yolo_value
 
         # Apply the deferred zrb-shipped tools/guidance (see chat.py's
         # defer_common_tools) before any tool/guidance is read below.
@@ -110,7 +160,7 @@ class ChatExecution:
         initial_attachments = get_attachments(ctx, self._llm_chat_task.attachment)
         interactive = get_bool_attr(ctx, self._llm_chat_task.interactive, True)
         history_manager = (
-            FileHistoryManager(history_dir=CFG.LLM_HISTORY_DIR)
+            default_history_manager()
             if self._llm_chat_task.history_manager is None
             else self._llm_chat_task.history_manager
         )
@@ -217,11 +267,7 @@ class ChatExecution:
             except Exception:
                 CFG.LOGGER.debug("SESSION_END hook raised at teardown", exc_info=True)
 
-        # lazy: circular — chat task → lsp manager → server → (back to llm); and
-        # avoids paying the import on the non-interactive/web path.
         try:
-            from zrb.llm.lsp.manager import lsp_manager
-
             await lsp_manager.shutdown_all()
         except Exception as e:
             CFG.LOGGER.debug(f"LSP shutdown at session end failed: {e}")
@@ -322,11 +368,71 @@ class ChatExecution:
         capabilities: "list[AbstractCapability[Any]]",
     ) -> LLMTask:
         """Create the inner LLMTask that handles the actual processing."""
-        # lazy: zrb.llm.ui.* and zrb.llm.tool_call.handler sit downstream of
-        # llm_task; hoisting these to module-top creates a circular import.
-        from zrb.llm.tool_call.handler import ToolCallHandler
-        from zrb.llm.ui.std_ui import StdUI
+        llm_chat_task = self._llm_chat_task
+        resolved = self._resolve_inner_task_config(
+            ctx, history_manager, interactive, resolved_tools
+        )
 
+        # Pass resolved tools/toolsets to LLMTask (no factories needed since already resolved)
+        return LLMTask(
+            name=f"{llm_chat_task.name}-process",
+            input=[
+                StrInput("message", "Message"),
+                StrInput("session", "Conversation Session"),
+                BoolInput("yolo", "YOLO Mode"),
+                StrInput("attachments", "Attachments"),
+                StrInput("model", "Model"),
+            ],
+            env=cast(list[AnyEnv | None], llm_chat_task.envs),
+            system_prompt=llm_chat_task.system_prompt,
+            render_system_prompt=llm_chat_task.render_system_prompt,
+            prompt_manager=(
+                llm_chat_task.prompt_manager
+                if llm_chat_task.has_prompt_manager
+                else None
+            ),
+            active_skills=llm_chat_task.active_skills,
+            render_active_skills=llm_chat_task.render_active_skills,
+            tools=resolved_tools,
+            toolsets=resolved_toolsets,
+            # No factories passed - tools/toolsets already resolved with parent context
+            history_processors=llm_chat_task.history_processors
+            + [create_summarizer_history_processor()],
+            capabilities=capabilities,
+            llm_config=llm_chat_task.llm_config,
+            llm_limiter=llm_chat_task.llm_limiter,
+            history_manager=resolved.history.history_manager,
+            hook_manager=resolved.hook_manager,
+            tool_confirmation=resolved.tool_confirmation,
+            ui=resolved.ui,
+            approval_channel=resolved.approval_channel,
+            permissions=llm_chat_task.permissions,
+            sandbox=resolved.sandbox,
+            message="{ctx.input.message}",
+            conversation_name=resolved.history.conversation_name,
+            render_conversation_name=resolved.history.render_conversation_name,
+            yolo="{ctx.input.yolo}",
+            dynamic_yolo=resolved.should_skip_approval,
+            attachment=lambda ctx: ctx.input.attachments,
+            model=lambda ctx: ctx.input.get("model"),
+            render_model=False,
+            # Without this, LLMChatTask(model_settings=...) is accepted but
+            # silently ignored: the inner task falls back to llm_config's.
+            model_settings=llm_chat_task.model_settings,
+            summarize_commands=summarize_commands,
+        )
+
+    def _resolve_inner_task_config(
+        self,
+        ctx: AnyContext,
+        history_manager: AnyHistoryManager,
+        interactive: bool,
+        resolved_tools: list[Tool | ToolFuncEither],
+    ) -> "_InnerTaskResolution":
+        """Resolve every value `_create_llm_task_core` needs but does not itself
+        compute: tool-confirmation/UI mode, the approval channel, the per-run
+        hook manager, sandbox coercion, and the wrap-boundary history override.
+        """
         llm_chat_task = self._llm_chat_task
         tool_confirmation = llm_chat_task.tool_confirmation
         ui = llm_chat_task.uis if llm_chat_task.uis else None
@@ -400,9 +506,6 @@ class ChatExecution:
                 return tool_name in yolo_value
             return False
 
-        # lazy: same circular reason as the imports earlier in this class.
-        from zrb.llm.approval import resolve_approval_channel
-
         effective_approval_channel = resolve_approval_channel(
             llm_chat_task.approval_channels
         )
@@ -443,53 +546,14 @@ class ChatExecution:
             render_conversation_name=True,
         )
 
-        # Pass resolved tools/toolsets to LLMTask (no factories needed since already resolved)
-        return LLMTask(
-            name=f"{llm_chat_task.name}-process",
-            input=[
-                StrInput("message", "Message"),
-                StrInput("session", "Conversation Session"),
-                BoolInput("yolo", "YOLO Mode"),
-                StrInput("attachments", "Attachments"),
-                StrInput("model", "Model"),
-            ],
-            env=cast(list[AnyEnv | None], llm_chat_task.envs),
-            system_prompt=llm_chat_task.system_prompt,
-            render_system_prompt=llm_chat_task.render_system_prompt,
-            prompt_manager=(
-                llm_chat_task.prompt_manager
-                if llm_chat_task.has_prompt_manager
-                else None
-            ),
-            active_skills=llm_chat_task.active_skills,
-            render_active_skills=llm_chat_task.render_active_skills,
-            tools=resolved_tools,
-            toolsets=resolved_toolsets,
-            # No factories passed - tools/toolsets already resolved with parent context
-            history_processors=llm_chat_task.history_processors
-            + [create_summarizer_history_processor()],
-            capabilities=capabilities,
-            llm_config=llm_chat_task.llm_config,
-            llm_limiter=llm_chat_task.llm_limiter,
-            history_manager=resolved_history.history_manager,
-            hook_manager=hook_manager,
+        return _InnerTaskResolution(
             tool_confirmation=tool_confirmation,
             ui=cast("UIProtocol | None", ui),
             approval_channel=effective_approval_channel,
-            permissions=llm_chat_task.permissions,
+            hook_manager=hook_manager,
             sandbox=resolved_sandbox,
-            message="{ctx.input.message}",
-            conversation_name=resolved_history.conversation_name,
-            render_conversation_name=resolved_history.render_conversation_name,
-            yolo="{ctx.input.yolo}",
-            dynamic_yolo=_should_skip_approval,
-            attachment=lambda ctx: ctx.input.attachments,
-            model=lambda ctx: ctx.input.get("model"),
-            render_model=False,
-            # Without this, LLMChatTask(model_settings=...) is accepted but
-            # silently ignored: the inner task falls back to llm_config's.
-            model_settings=llm_chat_task.model_settings,
-            summarize_commands=summarize_commands,
+            history=resolved_history,
+            should_skip_approval=_should_skip_approval,
         )
 
     def _print_conversation_name(self, ctx: AnyContext, conversation_name: str):
@@ -510,9 +574,6 @@ class ChatExecution:
         self, ui: "UIProtocol", initial_conversation_name: str
     ) -> str:
         """Get the current conversation name from UI or fallback to initial name."""
-        # lazy: circular — see imports at top of class.
-        from zrb.llm.ui.base.ui import BaseUI
-
         if isinstance(ui, BaseUI):
             return ui.conversation_session_name
         return getattr(ui, "conversation_session_name", initial_conversation_name)

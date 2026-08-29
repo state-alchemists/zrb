@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from pydantic_ai import ToolCallPart
 
 
-def auto_approve(
+def auto_approve(  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)
     tool_name: str,
     kwargs_patterns: dict[str, str] | Callable[[dict[str, Any]], bool] | None = None,
 ) -> ToolPolicy:

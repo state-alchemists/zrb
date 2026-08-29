@@ -188,30 +188,34 @@ async def run_shell_command(
         # still alive, then re-raise so cancellation propagates. BaseException,
         # not Exception: a re-cancel landing on the reap must not skip the kill.
         _cleanup_temp_file(temp_pid_file)
-        if process is not None and process.returncode is None:
-            try:
-                await terminate_process(
-                    process,
-                    CFG.LLM_SHELL_KILL_WAIT_TIMEOUT / 1000,
-                    print_method=CFG.LOGGER.warning,
-                )
-            except BaseException:
-                CFG.LOGGER.debug("Shell cleanup on cancel failed", exc_info=True)
+        try:
+            await _kill_if_still_running(process)
+        except BaseException:
+            CFG.LOGGER.debug("Shell cleanup on cancel failed", exc_info=True)
         raise
     except Exception as e:
         _cleanup_temp_file(temp_pid_file)
         # A failure after the process started (e.g. a stream error) must not
         # leave the command running detached with no handle to it.
-        if process is not None and process.returncode is None:
-            await terminate_process(
-                process,
-                CFG.LLM_SHELL_KILL_WAIT_TIMEOUT / 1000,
-                print_method=CFG.LOGGER.warning,
-            )
+        await _kill_if_still_running(process)
         return (
             f"Error executing command: {e}. "
             "[SYSTEM SUGGESTION]: Check the command syntax and that any "
             "referenced files or programs exist, then retry."
+        )
+
+
+async def _kill_if_still_running(process: "asyncio.subprocess.Process | None") -> None:
+    """Terminate *process* if it's still running (no-op otherwise).
+
+    Shared by the cancellation and error paths of `run_shell_command` — a
+    failure must not leave the command running detached with no handle to it.
+    """
+    if process is not None and process.returncode is None:
+        await terminate_process(
+            process,
+            CFG.LLM_SHELL_KILL_WAIT_TIMEOUT / 1000,
+            print_method=CFG.LOGGER.warning,
         )
 
 

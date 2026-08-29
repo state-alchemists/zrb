@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
 from zrb.llm.agent.run.history_utils import close_dangling_tool_calls
-from zrb.llm.history_manager.file_history_manager import FileHistoryManager
+from zrb.llm.history_manager.file_history_manager import default_history_manager
 from zrb.llm.task.shared_getters import resolve_conversation_name
 from zrb.util.cli.style import remove_style
 
@@ -46,7 +46,7 @@ class LLMTaskHistory:
         """The configured history manager, or a default file-backed one."""
         if self._llm_task.history_manager is not None:
             return self._llm_task.history_manager
-        return FileHistoryManager(history_dir=CFG.LLM_HISTORY_DIR)
+        return default_history_manager()
 
     def get_conversation_name(self, ctx: AnyContext) -> str:
         """The configured conversation name, or a fresh random one when blank."""

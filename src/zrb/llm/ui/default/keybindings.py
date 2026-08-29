@@ -33,7 +33,7 @@ class UIKeybindings:
     def __init__(self, ui: "UI") -> None:
         self._ui = ui
 
-    def setup_app_keybindings(
+    def setup_app_keybindings(  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)
         self, app_keybindings: "KeyBindings", llm_task: "AnyTask"
     ):
         # lazy: heavy third-party

@@ -61,6 +61,9 @@ def log_activity(summary: str, files: list[str] | None = None) -> str:
     return f"Logged to {os.path.relpath(day_file, root)}"
 
 
+log_activity.__name__ = "LogActivity"
+
+
 def write_journal_note(
     category: str,
     slug: str,
@@ -118,6 +121,9 @@ def write_journal_note(
     if hud_line:
         _upsert_hud_line(root, _HUD_SECTION[category], hud_line.strip())
     return f"Wrote {os.path.relpath(note_path, root)}"
+
+
+write_journal_note.__name__ = "WriteJournalNote"
 
 
 def ensure_journal_tree() -> str:

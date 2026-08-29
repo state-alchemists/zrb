@@ -2,7 +2,7 @@
 
 Maintains the working-directory and git-branch indicators shown in the chat
 UI, refreshed on a periodic loop. Split out of `ui.py` to keep that file
-focused; composed into `BaseUI` as `self._system_info`, keeping the `BaseUI`
+focused; composed into `BaseUI` as `self._base_system_info`, keeping the `BaseUI`
 reference in `self._base_ui` for the state/methods it needs (`cwd`,
 `git_info`, `invalidate_ui`).
 """

@@ -1,0 +1,142 @@
+"""Locks in two conventions AGENTS.md documents but nothing previously
+enforced mechanically, repo-wide:
+
+1. A part reaches its owner or a sibling only through a public property or
+   method — never a raw `_private` attribute on another object (AGENTS.md's
+   part-boundary rule).
+2. Business logic (everything outside the presentation layer) stays free of
+   web/TUI framework imports — `llm/ui`, `llm/app`, `runner`, and `input` are
+   the presentation layer and are exempt; everything else (task engine, LLM
+   agent/tool/permission/history/hook machinery, builtins, ...) is consumed
+   by both the CLI and the web runner, so it cannot depend on either's
+   framework.
+
+Verified clean against the whole tree before being turned into a test: rule 1
+trips on exactly 3 legitimate patterns (`super()` delegation, the singleton
+`__new__` pattern that stashes state directly on `cls`, and one third-party
+monkeypatch in `llm/agent/run/openai_patch.py`), each handled below instead of
+suppressed by a growing per-file allowlist. If a genuinely new exception shows
+up, extend `_PrivateAccessVisitor` or `MONKEYPATCH_EXCEPTIONS` — don't widen
+the private-name check itself, that's the whole point of the rule.
+"""
+
+import ast
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).parents[2]
+SRC = REPO_ROOT / "src" / "zrb"
+
+# One-off, by-name exceptions to rule 1 — see the module docstring. Keep this
+# short; if it grows, the visitor's pattern-matching is the better fix.
+MONKEYPATCH_EXCEPTIONS = {
+    "src/zrb/llm/agent/run/openai_patch.py",
+}
+
+# Directories that ARE the presentation layer, exempt from rule 2.
+FRAMEWORK_EXEMPT_DIRS = ("llm/ui", "llm/app", "runner", "input")
+FORBIDDEN_IMPORT_PREFIXES = ("fastapi", "starlette", "prompt_toolkit")
+
+
+def _iter_py_files():
+    yield from SRC.rglob("*.py")
+
+
+class _PrivateAccessVisitor(ast.NodeVisitor):
+    """Flags `obj.attr` where `attr` is private and `obj` isn't `self`/`cls`,
+    except:
+
+    - `super().foo` — base-class delegation, not a sibling reach.
+    - `cls._instance.foo` inside `__new__` — the singleton pattern stashing
+      state on the not-yet-returned instance, which IS `self` in disguise.
+    """
+
+    def __init__(self) -> None:
+        self.violations: list[tuple[int, str]] = []
+        self._function_stack: list[str] = []
+
+    def visit_FunctionDef(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
+        self._function_stack.append(node.name)
+        self.generic_visit(node)
+        self._function_stack.pop()
+
+    visit_AsyncFunctionDef = visit_FunctionDef
+
+    def visit_Attribute(self, node: ast.Attribute) -> None:
+        self.generic_visit(node)
+        if not node.attr.startswith("_") or node.attr.startswith("__"):
+            return
+        value = node.value
+        if isinstance(value, ast.Name) and value.id in ("self", "cls"):
+            return
+        if (
+            isinstance(value, ast.Call)
+            and isinstance(value.func, ast.Name)
+            and value.func.id == "super"
+        ):
+            return
+        if (
+            self._function_stack
+            and self._function_stack[-1] == "__new__"
+            and isinstance(value, ast.Attribute)
+            and value.attr == "_instance"
+            and isinstance(value.value, ast.Name)
+            and value.value.id == "cls"
+        ):
+            return
+        self.violations.append((node.lineno, node.attr))
+
+
+def _private_cross_accesses(tree: ast.AST) -> list[tuple[int, str]]:
+    visitor = _PrivateAccessVisitor()
+    visitor.visit(tree)
+    return visitor.violations
+
+
+def _forbidden_import(tree: ast.AST) -> str | None:
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name.startswith(FORBIDDEN_IMPORT_PREFIXES):
+                    return alias.name
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            if node.module.startswith(FORBIDDEN_IMPORT_PREFIXES):
+                return node.module
+    return None
+
+
+def test_no_part_reaches_another_objects_private_state():
+    """A part reaches owner/sibling state via `self._llm_task.tools` (public),
+    never `self._llm_task._tools` (private) — see AGENTS.md's "Mixin means
+    reusable" section, the paragraph on how a part reaches what it needs.
+    """
+    offenders = {}
+    for path in _iter_py_files():
+        rel = str(path.relative_to(REPO_ROOT))
+        if rel in MONKEYPATCH_EXCEPTIONS:
+            continue
+        tree = ast.parse(path.read_text(), filename=str(path))
+        violations = _private_cross_accesses(tree)
+        if violations:
+            offenders[rel] = violations
+    assert not offenders, (
+        "Found a private attribute reached through another object — only "
+        f"same-object access (via `self` or `cls`) is allowed: {offenders}"
+    )
+
+
+def test_business_logic_stays_free_of_presentation_frameworks():
+    """fastapi/starlette belong to `runner/`; prompt_toolkit belongs to
+    `llm/ui/` and `llm/app/` (and `input/`, for its own CLI prompting) — not
+    the engine, agent, tool, or permission code both the CLI and the web
+    runner drive.
+    """
+    offenders = {}
+    for path in _iter_py_files():
+        rel = str(path.relative_to(SRC))
+        if rel.startswith(FRAMEWORK_EXEMPT_DIRS):
+            continue
+        tree = ast.parse(path.read_text(), filename=str(path))
+        found = _forbidden_import(tree)
+        if found:
+            offenders[rel] = found
+    assert not offenders, f"Framework import found in business logic: {offenders}"

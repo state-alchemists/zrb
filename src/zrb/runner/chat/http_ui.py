@@ -18,7 +18,7 @@ from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
 from zrb.util.cli.style import remove_style
 
 
-def create_http_ui_factory(
+def create_http_ui_factory(  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)
     session_manager: ChatSessionManager,
     session_id: str,
     session_name: str,

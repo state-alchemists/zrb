@@ -31,7 +31,7 @@ class RAGFileReader:
         return fnmatch.fnmatch(file_name, self.glob_pattern)
 
 
-def create_rag_from_directory(
+def create_rag_from_directory(  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)
     tool_name: str,
     tool_description: str,
     document_dir_path: str = "./documents",

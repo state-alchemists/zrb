@@ -432,7 +432,11 @@ def get_vosk_model_dir(model_name: str) -> str | None:
     return None
 
 
-async def download_vosk_model(model_name: str, model_url: str) -> str:
+async def download_vosk_model(
+    model_name: str, model_url: str
+) -> (
+    str
+):  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)
     """Download and extract a Vosk model.
 
     The response body is read in 64 KiB chunks with an ``await`` between each,

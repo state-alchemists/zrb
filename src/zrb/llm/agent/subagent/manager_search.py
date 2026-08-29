@@ -48,26 +48,18 @@ class SubAgentManagerSearch:
             plugin_path = Path(plugin_path_str)
             if plugin_path.exists() and plugin_path.is_dir():
                 for plugin_dir in scan_plugin_dirs(plugin_path):
-                    agent_path = plugin_dir / "agents"
-                    if agent_path.exists() and agent_path.is_dir():
-                        search_dirs.append(agent_path)
+                    _append_if_dir(plugin_dir / "agents", search_dirs)
 
         for root_str in CFG.LLM_BASE_SEARCH_DIRS:
             self._add_agents_from_root(Path(root_str), search_dirs)
 
         for dir_str in CFG.LLM_EXTRA_AGENT_DIRS:
-            dir_path = Path(dir_str)
-            if dir_path.exists() and dir_path.is_dir():
-                search_dirs.append(dir_path)
+            _append_if_dir(Path(dir_str), search_dirs)
 
-        core_builtin_path = BUILTIN_PLUGIN_DIR / "core_agents"
-        if core_builtin_path.exists() and core_builtin_path.is_dir():
-            search_dirs.append(core_builtin_path)
+        _append_if_dir(BUILTIN_PLUGIN_DIR / "core_agents", search_dirs)
 
         if CFG.LLM_ENABLE_BUILTIN_AGENTS:
-            builtin_path = BUILTIN_PLUGIN_DIR / "agents"
-            if builtin_path.exists() and builtin_path.is_dir():
-                search_dirs.append(builtin_path)
+            _append_if_dir(BUILTIN_PLUGIN_DIR / "agents", search_dirs)
 
         search_dirs.append(Path(root_dir))
         return search_dirs
@@ -76,12 +68,14 @@ class SubAgentManagerSearch:
         """Append ``root/agents`` and any ``root/plugins/*/agents`` to *search_dirs*."""
         if not (root.exists() and root.is_dir()):
             return
-        agent_path = root / "agents"
-        if agent_path.exists() and agent_path.is_dir():
-            search_dirs.append(agent_path)
+        _append_if_dir(root / "agents", search_dirs)
         plugins_dir = root / "plugins"
         if plugins_dir.exists() and plugins_dir.is_dir():
             for plugin_dir in scan_plugin_dirs(plugins_dir):
-                agent_path = plugin_dir / "agents"
-                if agent_path.exists() and agent_path.is_dir():
-                    search_dirs.append(agent_path)
+                _append_if_dir(plugin_dir / "agents", search_dirs)
+
+
+def _append_if_dir(path: Path, search_dirs: list[str | Path]) -> None:
+    """Append *path* to *search_dirs* if it exists and is a directory."""
+    if path.exists() and path.is_dir():
+        search_dirs.append(path)

@@ -67,29 +67,6 @@ if TYPE_CHECKING:
     from zrb.llm.tool_call.ui_protocol import UIProtocol
 
 
-def parse_yolo_value(value: Any) -> "bool | frozenset[str]":
-    """Parse a yolo input value into bool or frozenset of tool names.
-
-    - bool True/False → returned as-is
-    - "true"/"1"/"yes" → True (full yolo)
-    - ""/"false"/"0"/"no" → False (no yolo)
-    - "Write,Edit" → frozenset({"Write", "Edit"}) (selective yolo)
-    """
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, (set, frozenset)):
-        return frozenset(value)
-    if not value:
-        return False
-    s = str(value).strip()
-    if not s or s.lower() in ("false", "0", "no", "none"):
-        return False
-    if s.lower() in ("true", "1", "yes"):
-        return True
-    tools = frozenset(t.strip() for t in s.split(",") if t.strip())
-    return tools if tools else False
-
-
 class LLMChatTask(BaseTask):
 
     def __init__(

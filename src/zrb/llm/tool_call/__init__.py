@@ -19,16 +19,21 @@ from zrb.llm.tool_call.tool_policy.bash_validation import bash_safe_command_poli
 from zrb.llm.tool_call.tool_policy.read_file_validation import (
     read_file_validation_policy,
 )
-from zrb.llm.tool_call.tool_policy.replace_in_file_validation import (
-    replace_in_file_validation_policy,
-)
 from zrb.llm.tool_call.ui_protocol import UIProtocol
+
+# NOTE: `replace_in_file_validation_policy` is NOT re-exported here (unlike its
+# sibling policies) — it's the one tool_policy module that reaches into
+# `zrb.llm.tool` (for fuzzy-match validation), and `zrb.llm.tool`'s own package
+# init transitively needs `zrb.llm.common_tools`, which imports THIS package
+# for `bash_safe_command_policy` above. Re-exporting it here would make that a
+# real import cycle. Import it from its own module instead:
+# `from zrb.llm.tool_call.tool_policy.replace_in_file_validation import
+# replace_in_file_validation_policy`.
 
 __all__ = [
     "check_tool_policies",
     "auto_approve",
     "bash_safe_command_policy",
-    "replace_in_file_validation_policy",
     "read_file_validation_policy",
     "ToolCallHandler",
     "ArgumentFormatter",

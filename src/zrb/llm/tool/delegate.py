@@ -276,9 +276,11 @@ def persist_subagent_history(conversation_name: str, history: list) -> None:
     """
     try:
         # lazy: zrb.llm.history_manager transitively loads pydantic_ai.
-        from zrb.llm.history_manager.file_history_manager import FileHistoryManager
+        from zrb.llm.history_manager.file_history_manager import (
+            default_history_manager,
+        )
 
-        manager = FileHistoryManager(history_dir=CFG.LLM_HISTORY_DIR)
+        manager = default_history_manager()
         manager.update(conversation_name, history)
         manager.save(conversation_name, write_backup=False)
         _prune_old_subagent_history()

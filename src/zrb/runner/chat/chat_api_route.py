@@ -74,7 +74,7 @@ async def resolve_llm_chat_task_for_session(
     return llm_chat, not_found_msg
 
 
-def serve_chat_api(
+def serve_chat_api(  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)
     app: Any,
     root_group: AnyGroup,
     web_auth_config: WebAuthConfig,

@@ -49,13 +49,17 @@ from zrb.llm.tool_call import (
 )
 from zrb.llm.tool_call.choice_spec_format import format_choice_spec
 from zrb.llm.ui.base.commands import BaseUICommands
+from zrb.llm.ui.base.confirmation_state import BaseUIConfirmationState
 from zrb.llm.ui.base.message_queue import (
     MessageQueue,
     QueuedMessage,
     submit_user_message_via_queue,
 )
+from zrb.llm.ui.base.persona_state import BaseUIPersonaState
 from zrb.llm.ui.base.replay import BaseUIReplay
 from zrb.llm.ui.base.system_info import BaseUISystemInfo
+from zrb.llm.ui.base.usage import BaseUIUsage
+from zrb.llm.ui.base.voice_state import BaseUIVoiceState
 from zrb.llm.ui.multi_ui import MultiUI
 from zrb.session.any_session import AnySession
 from zrb.session.session import Session
@@ -82,6 +86,26 @@ def _default_list(value: "Any") -> list:
     fallback don't each count as their own branch against the complexity
     ratchet in zrb-test.sh."""
     return list(value or [])
+
+
+def _command_alias_property(key: str, label: str) -> property:
+    """A `list[str]` slash-command-alias property backed by
+    `self._command_aliases[key]`, in place of one hand-written getter/setter
+    pair per command. Same 16 command names as `UI_COMMAND_CFG_ATTRS` in
+    `zrb.llm.task.chat.ui_commands` (that module maps each to its `CFG`
+    default; this one exposes the resolved value on the running UI) — kept as
+    a sibling list rather than imported, so `llm/ui` (presentation) doesn't
+    depend on `llm/task/chat` (a specific task type built on top of it).
+    """
+
+    def getter(self: "BaseUI") -> list[str]:
+        return self._command_aliases[key]
+
+    def setter(self: "BaseUI", value: list[str]) -> None:
+        self._command_aliases[key] = value
+
+    getter.__doc__ = f"Get the list of {label} commands."
+    return property(getter, setter)
 
 
 class BaseUI:
@@ -209,42 +233,35 @@ class BaseUI:
         self._model = model
         self._small_model: Any = None
         self._multimodal_model: Any = None
-        # Item 4, Phase D: persona-swap-on-/load. None until a delegated
-        # sub-agent session is loaded; see BaseUIConversationCommands.
-        self._active_subagent_persona: str | None = None
-        self._original_persona_snapshot: dict[str, Any] | None = None
+        self._base_persona = BaseUIPersonaState()
         self._triggers = _default_list(triggers)
         self._markdown_theme = markdown_theme
-        self._summarize_commands = _default_list(summarize_commands)
-        self._attach_commands = _default_list(attach_commands)
-        self._exit_commands = _default_list(exit_commands)
-        self._info_commands = _default_list(info_commands)
-        self._save_commands = _default_list(save_commands)
-        self._load_commands = _default_list(load_commands)
-        self._rewind_commands = _default_list(rewind_commands)
-        self._redirect_output_commands = _default_list(redirect_output_commands)
-        self._yolo_toggle_commands = _default_list(yolo_toggle_commands)
-        self._set_model_commands = _default_list(set_model_commands)
-        self._exec_commands = _default_list(exec_commands)
-        self._btw_commands = _default_list(btw_commands)
-        self._plan_commands = _default_list(plan_commands)
-        self._copy_commands = _default_list(copy_commands)
-        self._voice_commands = _default_list(voice_commands)
-        self._photo_commands = _default_list(photo_commands)
+        # One dict for all 16 slash-command alias lists instead of one attribute
+        # each — adding a command touches one line here and one property line
+        # below, not two independent 9-line blocks. See _command_alias_property.
+        self._command_aliases: dict[str, list[str]] = {
+            "summarize": _default_list(summarize_commands),
+            "attach": _default_list(attach_commands),
+            "exit": _default_list(exit_commands),
+            "info": _default_list(info_commands),
+            "save": _default_list(save_commands),
+            "load": _default_list(load_commands),
+            "rewind": _default_list(rewind_commands),
+            "redirect_output": _default_list(redirect_output_commands),
+            "yolo_toggle": _default_list(yolo_toggle_commands),
+            "set_model": _default_list(set_model_commands),
+            "exec": _default_list(exec_commands),
+            "btw": _default_list(btw_commands),
+            "plan": _default_list(plan_commands),
+            "copy": _default_list(copy_commands),
+            "voice": _default_list(voice_commands),
+            "photo": _default_list(photo_commands),
+        }
         self._custom_commands = _default_list(custom_commands)
         self._plan_mode_active = False
-        self._voice_mode_active = False
-        self._voice_recording_active = False
-        self._voice_task: asyncio.Task | None = None
-        self._voice_stop_event: asyncio.Event | None = None
+        self._base_voice = BaseUIVoiceState()
         self._trigger_tasks: list[asyncio.Task] = []
-        self._session_input_tokens = 0
-        self._session_output_tokens = 0
-        self._session_cache_read_tokens = 0
-        # Occupancy of the current context window = the last request's prompt
-        # size. Unlike the session totals it does not accumulate; it tracks the
-        # latest turn and drops after summarization.
-        self._context_tokens = 0
+        self._base_usage = BaseUIUsage()
         self._message_queue: MessageQueue = MessageQueue()
         self._active_run_context: Any = None
         self._process_messages_task: asyncio.Task | None = None
@@ -277,24 +294,14 @@ class BaseUI:
             response_handlers=_default_list(response_handlers)
             + [default_response_handler],
         )
-        # Queue for pending confirmation requests to handle parallel tool
-        # approvals. Each entry is (future, prompt, spec, agent_id); spec is a
-        # ChoiceSpec for AskUserQuestion-style requests, else None for plain
-        # text; agent_id is the originating sub-agent's id, or None for the
-        # main agent.
-        self._confirmation_queue: list[
-            tuple[asyncio.Future[str], str, Any, "str | None"]
-        ] = []
-        self._current_confirmation: asyncio.Future[str] | None = None
-        # Buffer for main-agent output during confirmation (avoids interleaving)
-        self._confirmation_output_buffer: list[str] = []
+        self._base_confirmation = BaseUIConfirmationState()
 
         # Track background tasks to prevent garbage collection
         self._background_tasks: set[asyncio.Task] = set()
 
-        self._commands = BaseUICommands(self)
-        self._replay = BaseUIReplay(self)
-        self._system_info = BaseUISystemInfo(self)
+        self._base_commands = BaseUICommands(self)
+        self._base_replay = BaseUIReplay(self)
+        self._base_system_info = BaseUISystemInfo(self)
 
         if is_yolo:
             self.yolo = is_yolo
@@ -386,95 +393,18 @@ class BaseUI:
         """Get the initial message."""
         return self._initial_message
 
-    @property
-    def exit_commands(self) -> list[str]:
-        """Get the list of exit commands."""
-        return self._exit_commands
-
-    @exit_commands.setter
-    def exit_commands(self, value) -> None:
-        self._exit_commands = value
-
-    @property
-    def info_commands(self) -> list[str]:
-        """Get the list of info/help commands."""
-        return self._info_commands
-
-    @info_commands.setter
-    def info_commands(self, value) -> None:
-        self._info_commands = value
-
-    @property
-    def save_commands(self) -> list[str]:
-        """Get the list of save commands."""
-        return self._save_commands
-
-    @save_commands.setter
-    def save_commands(self, value) -> None:
-        self._save_commands = value
-
-    @property
-    def load_commands(self) -> list[str]:
-        """Get the list of load commands."""
-        return self._load_commands
-
-    @load_commands.setter
-    def load_commands(self, value) -> None:
-        self._load_commands = value
-
-    @property
-    def attach_commands(self) -> list[str]:
-        """Get the list of attach commands."""
-        return self._attach_commands
-
-    @attach_commands.setter
-    def attach_commands(self, value) -> None:
-        self._attach_commands = value
-
-    @property
-    def photo_commands(self) -> list[str]:
-        """Get the list of photo capture commands."""
-        return self._photo_commands
-
-    @photo_commands.setter
-    def photo_commands(self, value) -> None:
-        self._photo_commands = value
-
-    @property
-    def redirect_output_commands(self) -> list[str]:
-        """Get the list of redirect output commands."""
-        return self._redirect_output_commands
-
-    @redirect_output_commands.setter
-    def redirect_output_commands(self, value) -> None:
-        self._redirect_output_commands = value
-
-    @property
-    def yolo_toggle_commands(self) -> list[str]:
-        """Get the list of yolo toggle commands."""
-        return self._yolo_toggle_commands
-
-    @yolo_toggle_commands.setter
-    def yolo_toggle_commands(self, value) -> None:
-        self._yolo_toggle_commands = value
-
-    @property
-    def set_model_commands(self) -> list[str]:
-        """Get the list of set model commands."""
-        return self._set_model_commands
-
-    @set_model_commands.setter
-    def set_model_commands(self, value) -> None:
-        self._set_model_commands = value
-
-    @property
-    def exec_commands(self) -> list[str]:
-        """Get the list of exec commands."""
-        return self._exec_commands
-
-    @exec_commands.setter
-    def exec_commands(self, value) -> None:
-        self._exec_commands = value
+    exit_commands = _command_alias_property("exit", "exit")
+    info_commands = _command_alias_property("info", "info/help")
+    save_commands = _command_alias_property("save", "save")
+    load_commands = _command_alias_property("load", "load")
+    attach_commands = _command_alias_property("attach", "attach")
+    photo_commands = _command_alias_property("photo", "photo capture")
+    redirect_output_commands = _command_alias_property(
+        "redirect_output", "redirect output"
+    )
+    yolo_toggle_commands = _command_alias_property("yolo_toggle", "yolo toggle")
+    set_model_commands = _command_alias_property("set_model", "set model")
+    exec_commands = _command_alias_property("exec", "exec")
 
     @property
     def custom_commands(self) -> list[AnyCustomCommand]:
@@ -485,14 +415,7 @@ class BaseUI:
     def custom_commands(self, value) -> None:
         self._custom_commands = value
 
-    @property
-    def summarize_commands(self) -> list[str]:
-        """Get the list of summarize commands."""
-        return self._summarize_commands
-
-    @summarize_commands.setter
-    def summarize_commands(self, value) -> None:
-        self._summarize_commands = value
+    summarize_commands = _command_alias_property("summarize", "summarize")
 
     @property
     def history_manager(self) -> AnyHistoryManager:
@@ -512,7 +435,7 @@ class BaseUI:
     @property
     def confirmation_output_buffer(self) -> list[str]:
         """Public read accessor for the buffered output held during confirmation."""
-        return self._confirmation_output_buffer
+        return self._base_confirmation.output_buffer
 
     @property
     def pending_attachments(self) -> list[Any]:
@@ -531,11 +454,11 @@ class BaseUI:
     @property
     def voice_mode_active(self) -> bool:
         """Whether voice dictation mode is currently active."""
-        return self._voice_mode_active
+        return self._base_voice.mode_active
 
     @voice_mode_active.setter
     def voice_mode_active(self, value: bool):
-        self._voice_mode_active = value
+        self._base_voice.mode_active = value
 
     @property
     def is_thinking(self) -> bool:
@@ -549,88 +472,49 @@ class BaseUI:
     @property
     def current_confirmation(self) -> "asyncio.Future[str] | None":
         """The pending tool-call confirmation future, if any."""
-        return self._current_confirmation
+        return self._base_confirmation.current
 
     @current_confirmation.setter
     def current_confirmation(self, value: "asyncio.Future[str] | None"):
-        self._current_confirmation = value
+        self._base_confirmation.current = value
 
     @property
     def message_queue(self) -> Any:
         """Public read accessor for the pending-message queue."""
         return self._message_queue
 
-    @property
-    def btw_commands(self) -> list[str]:
-        """Get the list of `/btw` (side-question) commands."""
-        return self._btw_commands
-
-    @btw_commands.setter
-    def btw_commands(self, value) -> None:
-        self._btw_commands = value
-
-    @property
-    def plan_commands(self) -> list[str]:
-        """Get the list of plan-mode-toggle commands."""
-        return self._plan_commands
-
-    @plan_commands.setter
-    def plan_commands(self, value) -> None:
-        self._plan_commands = value
-
-    @property
-    def voice_commands(self) -> list[str]:
-        """Get the list of voice-dictation-toggle commands."""
-        return self._voice_commands
-
-    @voice_commands.setter
-    def voice_commands(self, value) -> None:
-        self._voice_commands = value
-
-    @property
-    def rewind_commands(self) -> list[str]:
-        """Get the list of rewind/snapshot commands."""
-        return self._rewind_commands
-
-    @rewind_commands.setter
-    def rewind_commands(self, value) -> None:
-        self._rewind_commands = value
-
-    @property
-    def copy_commands(self) -> list[str]:
-        """Get the list of copy-transcript commands."""
-        return self._copy_commands
-
-    @copy_commands.setter
-    def copy_commands(self, value) -> None:
-        self._copy_commands = value
+    btw_commands = _command_alias_property("btw", "`/btw` (side-question)")
+    plan_commands = _command_alias_property("plan", "plan-mode-toggle")
+    voice_commands = _command_alias_property("voice", "voice-dictation-toggle")
+    rewind_commands = _command_alias_property("rewind", "rewind/snapshot")
+    copy_commands = _command_alias_property("copy", "copy-transcript")
 
     @property
     def voice_recording_active(self) -> bool:
         """Whether a voice recording is currently in progress."""
-        return self._voice_recording_active
+        return self._base_voice.recording_active
 
     @voice_recording_active.setter
     def voice_recording_active(self, value: bool):
-        self._voice_recording_active = value
+        self._base_voice.recording_active = value
 
     @property
     def voice_stop_event(self) -> "asyncio.Event | None":
         """The event that signals an in-progress voice recording to stop."""
-        return self._voice_stop_event
+        return self._base_voice.stop_event
 
     @voice_stop_event.setter
     def voice_stop_event(self, value: "asyncio.Event | None"):
-        self._voice_stop_event = value
+        self._base_voice.stop_event = value
 
     @property
     def voice_task(self) -> "asyncio.Task | None":
         """The task running the in-progress voice recording, if any."""
-        return self._voice_task
+        return self._base_voice.task
 
     @voice_task.setter
     def voice_task(self, value: "asyncio.Task | None"):
-        self._voice_task = value
+        self._base_voice.task = value
 
     @property
     def running_llm_task(self) -> "asyncio.Task | None":
@@ -646,31 +530,31 @@ class BaseUI:
         self,
     ) -> "list[tuple[asyncio.Future[str], str, Any, str | None]]":
         """Pending confirmation requests, each (future, prompt, spec, agent_id)."""
-        return self._confirmation_queue
+        return self._base_confirmation.queue
 
     @confirmation_queue.setter
     def confirmation_queue(
         self, value: "list[tuple[asyncio.Future[str], str, Any, str | None]]"
     ):
-        self._confirmation_queue = value
+        self._base_confirmation.queue = value
 
     @property
     def active_subagent_persona(self) -> str | None:
         """The sub-agent id whose persona is currently loaded via `/load`, if any."""
-        return self._active_subagent_persona
+        return self._base_persona.active_subagent
 
     @active_subagent_persona.setter
     def active_subagent_persona(self, value: str | None):
-        self._active_subagent_persona = value
+        self._base_persona.active_subagent = value
 
     @property
     def original_persona_snapshot(self) -> "dict[str, Any] | None":
         """The main persona's saved state, while a sub-agent persona is loaded."""
-        return self._original_persona_snapshot
+        return self._base_persona.original_snapshot
 
     @original_persona_snapshot.setter
     def original_persona_snapshot(self, value: "dict[str, Any] | None"):
-        self._original_persona_snapshot = value
+        self._base_persona.original_snapshot = value
 
     @property
     def cwd(self) -> str:
@@ -729,134 +613,134 @@ class BaseUI:
     # =========================================================================
 
     def classify_input(self, text: str) -> str:
-        return self._commands.classify_input(text)
+        return self._base_commands.classify_input(text)
 
     def schedule_command(self, text: str, *, guarded: bool = True) -> None:
-        self._commands.schedule_command(text, guarded=guarded)
+        self._base_commands.schedule_command(text, guarded=guarded)
 
     async def dispatch_command(self, text: str, *, guarded: bool = True) -> None:
-        await self._commands.dispatch_command(text, guarded=guarded)
+        await self._base_commands.dispatch_command(text, guarded=guarded)
 
     def handle_toggle_voice(self, text: str) -> bool:
-        return self._commands.handle_toggle_voice(text)
+        return self._base_commands.handle_toggle_voice(text)
 
     def get_help_panel(
         self, art: str = "", header: str = "", max_commands: int | None = None
     ) -> Any:
-        return self._commands.get_help_panel(art, header, max_commands)
+        return self._base_commands.get_help_panel(art, header, max_commands)
 
     def print_help(self) -> None:
-        self._commands.print_help()
+        self._base_commands.print_help()
 
     def get_help_text(self, width: int | None = None) -> str:
-        return self._commands.get_help_text(width)
+        return self._base_commands.get_help_text(width)
 
     # --- conversation commands ---
     def handle_exit_command(self, text: str) -> bool:
-        return self._commands.handle_exit_command(text)
+        return self._base_commands.handle_exit_command(text)
 
     def handle_info_command(self, text: str) -> bool:
-        return self._commands.handle_info_command(text)
+        return self._base_commands.handle_info_command(text)
 
     def handle_save_command(self, text: str) -> bool:
-        return self._commands.handle_save_command(text)
+        return self._base_commands.handle_save_command(text)
 
     def handle_load_command(self, text: str) -> bool:
-        return self._commands.handle_load_command(text)
+        return self._base_commands.handle_load_command(text)
 
     def handle_rewind_command(self, text: str) -> bool:
-        return self._commands.handle_rewind_command(text)
+        return self._base_commands.handle_rewind_command(text)
 
     def last_ai_response(self) -> str:
-        return self._commands.last_ai_response()
+        return self._base_commands.last_ai_response()
 
     def write_text_to_file(self, path: str, content: str) -> None:
-        self._commands.write_text_to_file(path, content)
+        self._base_commands.write_text_to_file(path, content)
 
     def copy_to_clipboard_and_report(self, content: str, success_message: str) -> None:
-        self._commands.copy_to_clipboard_and_report(content, success_message)
+        self._base_commands.copy_to_clipboard_and_report(content, success_message)
 
     def handle_redirect_command(self, text: str) -> bool:
-        return self._commands.handle_redirect_command(text)
+        return self._base_commands.handle_redirect_command(text)
 
     def handle_copy_command(self, text: str) -> bool:
-        return self._commands.handle_copy_command(text)
+        return self._base_commands.handle_copy_command(text)
 
     def handle_attach_command(self, text: str) -> bool:
-        return self._commands.handle_attach_command(text)
+        return self._base_commands.handle_attach_command(text)
 
     def submit_attachment(self, path: str) -> None:
-        self._commands.submit_attachment(path)
+        self._base_commands.submit_attachment(path)
 
     def handle_photo_command(self, text: str) -> bool:
-        return self._commands.handle_photo_command(text)
+        return self._base_commands.handle_photo_command(text)
 
     async def submit_photo(self, device: str | None) -> None:
-        await self._commands.submit_photo(device)
+        await self._base_commands.submit_photo(device)
 
     def apply_persona_for_session(self, name: str) -> None:
-        self._commands.apply_persona_for_session(name)
+        self._base_commands.apply_persona_for_session(name)
 
     # --- model commands ---
     def toggle_yolo(self) -> None:
-        self._commands.toggle_yolo()
+        self._base_commands.toggle_yolo()
 
     def handle_toggle_yolo(self, text: str) -> bool:
-        return self._commands.handle_toggle_yolo(text)
+        return self._base_commands.handle_toggle_yolo(text)
 
     def toggle_plan(self) -> None:
-        self._commands.toggle_plan()
+        self._base_commands.toggle_plan()
 
     def handle_toggle_plan(self, text: str) -> bool:
-        return self._commands.handle_toggle_plan(text)
+        return self._base_commands.handle_toggle_plan(text)
 
     def current_cycle_mode(self) -> str:
-        return self._commands.current_cycle_mode()
+        return self._base_commands.current_cycle_mode()
 
     def cycle_mode(self) -> None:
-        self._commands.cycle_mode()
+        self._base_commands.cycle_mode()
 
     def handle_set_model_command(self, text: str) -> bool:
-        return self._commands.handle_set_model_command(text)
+        return self._base_commands.handle_set_model_command(text)
 
     # --- exec commands ---
     def handle_exec_command(self, text: str) -> bool:
-        return self._commands.handle_exec_command(text)
+        return self._base_commands.handle_exec_command(text)
 
     async def run_shell_command(self, cmd: str) -> None:
-        await self._commands.run_shell_command(cmd)
+        await self._base_commands.run_shell_command(cmd)
 
     def handle_btw_command(self, text: str) -> bool:
-        return self._commands.handle_btw_command(text)
+        return self._base_commands.handle_btw_command(text)
 
     async def stream_btw_response(self, llm_task: LLMTask, question: str) -> None:
-        await self._commands.stream_btw_response(llm_task, question)
+        await self._base_commands.stream_btw_response(llm_task, question)
 
     def handle_custom_command(self, text: str) -> bool:
-        return self._commands.handle_custom_command(text)
+        return self._base_commands.handle_custom_command(text)
 
     # =========================================================================
     # BaseUIReplay delegators
     # =========================================================================
 
     def replay_history(self, messages: list) -> None:
-        self._replay.replay_history(messages)
+        self._base_replay.replay_history(messages)
 
     # =========================================================================
     # BaseUISystemInfo delegators
     # =========================================================================
 
     async def update_system_info(self) -> None:
-        await self._system_info.update_system_info()
+        await self._base_system_info.update_system_info()
 
     def get_cwd_display(self) -> str:
-        return self._system_info.get_cwd_display()
+        return self._base_system_info.get_cwd_display()
 
     async def get_git_info(self) -> tuple[str, str]:
-        return await self._system_info.get_git_info()
+        return await self._base_system_info.get_git_info()
 
     async def update_system_info_loop(self) -> None:
-        await self._system_info.update_system_info_loop()
+        await self._base_system_info.update_system_info_loop()
 
     @property
     def ctx(self) -> AnyContext:
@@ -866,45 +750,28 @@ class BaseUI:
     @property
     def session_token_usage(self) -> tuple[int, int]:
         """Accumulated (input, output) tokens across all runs in this session."""
-        return self._session_input_tokens, self._session_output_tokens
+        return self._base_usage.session_token_usage
 
     @property
     def session_cache_read_tokens(self) -> int:
         """Accumulated cache-read (cache-hit) tokens across the session."""
-        return self._session_cache_read_tokens
+        return self._base_usage.session_cache_read_tokens
 
     @property
     def context_tokens(self) -> int:
         """Tokens occupying the current context window (last request's input +
         output — the assistant's reply is now in history and re-sent next turn)."""
-        return self._context_tokens
+        return self._base_usage.context_tokens
 
     def accumulate_usage(
         self, usage: "RunUsage", context_usage: "RequestUsage | None" = None
     ) -> None:
-        """Fold one run's usage into session totals and refresh context size.
-
-        `usage` is the whole-run `RunUsage` (accumulated, for billing). Session
-        input/output only grow. `context_usage` is the *last request's*
-        `RequestUsage`; current window occupancy is its `input_tokens` (the
-        prompt sent — already inclusive of cache reads and writes, per
-        pydantic-ai's `AbstractUsage` contract) plus its `output_tokens` (the
-        reply, now appended to history). This replaces, not accumulates.
-        """
-        self._session_input_tokens += getattr(usage, "input_tokens", 0) or 0
-        self._session_output_tokens += getattr(usage, "output_tokens", 0) or 0
-        self._session_cache_read_tokens += getattr(usage, "cache_read_tokens", 0) or 0
-        if context_usage is not None:
-            self._context_tokens = (getattr(context_usage, "input_tokens", 0) or 0) + (
-                getattr(context_usage, "output_tokens", 0) or 0
-            )
+        """Fold one run's usage into session totals and refresh context size."""
+        self._base_usage.accumulate(usage, context_usage)
 
     def reset_session_token_usage(self) -> None:
         """Zero the session token totals (e.g. when switching conversations)."""
-        self._session_input_tokens = 0
-        self._session_output_tokens = 0
-        self._session_cache_read_tokens = 0
-        self._context_tokens = 0
+        self._base_usage.reset()
 
     @property
     def tool_call_handler(self) -> Any:

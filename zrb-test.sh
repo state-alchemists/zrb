@@ -11,68 +11,11 @@ fi
 # because it carries pre-existing unused-import noise.
 flake8 src/zrb --select=F
 
-# Complexity ratchet: fail if any function exceeds the current worst (mccabe 47,
-# setup_app_keybindings — one more binding registered, Ctrl+O expand/collapse).
-# This blocks NEW hot-spots from landing without failing on today's code;
-# tighten the number as offenders are refactored down.
-flake8 src/zrb --select=C901 --max-complexity=47
-
-# Second ratchet, on *true* per-function complexity. mccabe sums a nested
-# function's branches into its enclosing function, so a registration function
-# (serve_chat_api, setup_app_keybindings) scores as high as genuinely tangled
-# logic and pins the flake8 number above at 47. radon scores each function on
-# its own, which is the number worth holding down. Tighten as offenders fall.
-python - <<'PY'
-import json, subprocess, sys
-
-LIMIT = 21
-report = json.loads(
-    subprocess.run(
-        ["radon", "cc", "src/zrb", "--json"], capture_output=True, text=True, check=True
-    ).stdout
-)
-over = [
-    (block["complexity"], f"{path}:{block['lineno']} {block['name']}")
-    for path, blocks in report.items()
-    if isinstance(blocks, list)
-    for block in blocks
-    if block["complexity"] > LIMIT
-]
-if over:
-    print(f"Per-function complexity above the ratchet ({LIMIT}):")
-    for score, where in sorted(over, reverse=True):
-        print(f"  {score:3d}  {where}")
-    sys.exit(1)
-PY
-
-# Private-test-access ratchet: count test/ references into *other* objects'
-# private attributes (excluding self.foo, which is a class reading its own
-# state, not a coupling problem). Fails if this count exceeds the baseline,
-# so the debt can't grow even before more of it is paid down. Tighten this
-# number as more accessors replace private reaches.
-#
-# Baseline 5 = the four legitimate accesses we keep on purpose:
-#   - test_openai_patch.py names pydantic-ai internals three times: that
-#     module exists to monkey-patch exactly those attributes, and driving
-#     them through getattr indirection would only hide the coupling.
-#   - test_format.py touches `_value` on a Holder class it defines inside
-#     the same test — no foreign object involved; the regex can't tell.
-python - <<'PY'
-import re, sys
-from pathlib import Path
-
-LIMIT = 5
-pattern = re.compile(r'\b\w+\._[a-zA-Z]\w*')
-count = sum(
-    1
-    for path in Path("test").rglob("*.py")
-    for m in pattern.finditer(path.read_text())
-    if not m.group().startswith("self.")
-)
-if count > LIMIT:
-    print(f"Non-self private test access grew from baseline ({LIMIT}) to {count}.")
-    sys.exit(1)
-PY
+# Complexity ratchets (mccabe via flake8, true per-function via radon) and the
+# private-test-access ratchet now live as pytest tests in test/architecture/ —
+# test_complexity_ratchet.py and test_private_test_access_ratchet.py — so a
+# violation is a normal pytest failure, not shell output to scroll up for.
+# They run as part of the pytest invocation below.
 
 # Static type check. pyright is clean in "standard" mode (pyrightconfig.json);
 # keep it that way. Run only on a full pass — it type-checks the whole tree

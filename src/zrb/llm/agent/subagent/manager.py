@@ -18,6 +18,7 @@ from zrb.llm.agent.subagent.tool_resolver import (
     resolved_tool_name,
 )
 from zrb.llm.agent.subagent.yolo import make_yolo_inheritance_checker
+from zrb.llm.common_tools import defer_common_tools, ensure_common_tools
 from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.factory_resolver import resolve_factory_items
 from zrb.llm.prompt.live_context import render_journal_index
@@ -243,9 +244,6 @@ class SubAgentManager:
         Returns:
             The agent, or None when `name` matches no definition.
         """
-        # lazy: circular — common_tools imports back into this package.
-        from zrb.llm.common_tools import ensure_common_tools
-
         ensure_common_tools(self)
         definition = self.get_agent_definition(name)
         if not definition:
@@ -493,14 +491,6 @@ class SubAgentManager:
 
 # Module-level singleton - lightweight, agents loaded on first access
 sub_agent_manager = SubAgentManager()
-
-
-# Imported here (after SubAgentManager is defined) to break a circular import:
-# common_tools's registration functions pull in zrb.llm.tool, whose __init__
-# loads delegate.py, which imports SubAgentManager from this module.
-# Importing at the top would hit this module mid-load before the class exists.
-
-from zrb.llm.common_tools import defer_common_tools
 
 # Deferred (not applied now): applying pulls in pydantic_ai via the tool
 # imports. ``create_agent`` calls ``ensure_common_tools(self)`` before it reads

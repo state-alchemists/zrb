@@ -36,16 +36,12 @@ from zrb.llm.util.git import is_inside_git_dir
 from zrb.util.string.conversion import to_boolean
 
 # NOTE: `zrb.llm.tool` and `zrb.llm.lsp.tools` are imported lazily inside the
-# registration functions below. Reason: `zrb.llm.tool/__init__.py` loads
-# `delegate.py`, which imports `SubAgentManager` from
-# `zrb.llm.agent.subagent.manager`. That module's own bottom-of-file import
-# (`from zrb.llm.common_tools import defer_common_tools`) re-enters THIS
-# module. If something reaches `zrb.llm.tool` (directly or via
-# `subagent.manager`) while `common_tools.py` is still mid-load, that
-# re-entrant import finds a partially-initialized module and fails. Keeping
-# the heavy imports inside the functions defers them until
-# `apply_common_tools`/`ensure_common_tools` is actually called, by which
-# point this module has finished loading.
+# registration functions below — not to dodge a circular import (there isn't
+# one: `zrb.llm.tool/__init__.py` doesn't eagerly re-export anything, see its
+# own docstring), but because both transitively load `pydantic_ai`. Deferring
+# them until `apply_common_tools`/`ensure_common_tools` is actually called
+# keeps that cold-start cost off `import zrb` for callers that never build an
+# agent.
 
 if TYPE_CHECKING:
     from pydantic_ai.tools import Tool

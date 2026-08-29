@@ -2,7 +2,7 @@
 
 Renders a loaded conversation history through the same visual paths a live
 turn uses, so a resumed session looks like a fresh one. Split out of `ui.py`
-to keep that file focused; composed into `BaseUI` as `self._replay`, keeping
+to keep that file focused; composed into `BaseUI` as `self._base_replay`, keeping
 `BaseUI` in `self._base_ui` for the state/methods it needs
 (`_markdown_theme`, `append_to_output`, `append_markdown`,
 `_get_output_field_width`).

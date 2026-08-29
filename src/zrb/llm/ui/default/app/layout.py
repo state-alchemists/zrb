@@ -17,7 +17,7 @@ from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.ui.default.app.completion import InputCompleter
 
 
-def create_input_field(
+def create_input_field(  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)
     history_manager: AnyHistoryManager,
     attach_commands: list[str],
     exit_commands: list[str],

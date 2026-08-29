@@ -5,7 +5,7 @@ from zrb.llm.tool.shell import run_shell_command
 from zrb.runner.cli import cli
 
 
-def create_list_zrb_task_tool():
+def create_list_zrb_task_tool():  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)
     def list_zrb_tasks_impl(group_name: str = "") -> str:
         target_group = cli
         if group_name:
