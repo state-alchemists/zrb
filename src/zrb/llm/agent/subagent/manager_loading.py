@@ -10,16 +10,13 @@ from __future__ import annotations
 import os
 import uuid
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import Any, TypeVar
 
 from zrb.config.config import CFG
+from zrb.llm.agent.subagent.definition import SubAgentDefinition
 from zrb.util.asset_scanner import scan_files
 from zrb.util.frontmatter import parse_frontmatter
 from zrb.util.load import load_module_from_path
-
-if TYPE_CHECKING:
-    from zrb.llm.agent.subagent.manager import SubAgentDefinition
-
 
 _Default = TypeVar("_Default")
 
@@ -88,10 +85,6 @@ class SubAgentManagerLoading:
         # lazy: heavy third-party
         from pydantic_ai import Agent
 
-        # lazy: SubAgentDefinition lives in the sibling module that imports
-        # this part; hoisting would create a circular import.
-        from zrb.llm.agent.subagent.manager import SubAgentDefinition
-
         try:
             module_name = f"zrb_agent_{uuid.uuid4().hex}"
             module = load_module_from_path(module_name, full_path)
@@ -131,9 +124,6 @@ class SubAgentManagerLoading:
             CFG.LOGGER.debug(f"Failed to load Python agent {full_path}: {e}")
 
     def _load_agent_from_markdown(self, rel_path: str, full_path: str) -> None:
-        # lazy: zrb internal (heavy via transitive / circular)
-        from zrb.llm.agent.subagent.manager import SubAgentDefinition
-
         try:
             with open(full_path, "r", encoding="utf-8") as f:
                 content = f.read()
