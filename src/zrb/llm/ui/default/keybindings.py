@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.hook.interface import HookEvent
+from zrb.llm.tool.ambient_state import get_session_ownership_key
 from zrb.llm.util.image_scale import scale_image_bytes
 from zrb.util.cli.style import remove_style, stylize_error, stylize_muted
 
@@ -396,7 +397,7 @@ class UIKeybindings:
         # /command for the main session.
         viewing_agent_id = getattr(ui, "viewing_agent_id", None)
         if viewing_agent_id is not None:
-            session_id = ui.conversation_session_name
+            session_id = get_session_ownership_key(ui.conversation_session_name)
             agent_id = viewing_agent_id
             message = text
             buff.reset()

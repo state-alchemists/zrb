@@ -289,7 +289,7 @@ To understand Zrb's core design decisions (such as the strict use of `asyncio`, 
 
 ## Context Propagation Internals
 
-Zrb uses Python's `contextvars.ContextVar` to thread execution state through async coroutines without explicit parameter passing. There are thirteen `ContextVar` instances across the codebase, split into five layers. The single source of truth is `src/zrb/contextvars.py` (a re-export index); update this section whenever you add, remove, or rename a `ContextVar`.
+Zrb uses Python's `contextvars.ContextVar` to thread execution state through async coroutines without explicit parameter passing. There are fourteen `ContextVar` instances across the codebase, split into five layers. The single source of truth is `src/zrb/contextvars.py` (a re-export index); update this section whenever you add, remove, or rename a `ContextVar`.
 
 ### The Five Layers
 
@@ -332,8 +332,9 @@ All six are set at the start of `run_agent()` and reset in its `finally` block.
 | Variable | Type | Purpose |
 |---|---|---|
 | `active_worktree` | `str` | Path of the worktree the agent is currently operating in (set by `EnterWorktree`, cleared by `ExitWorktree`) |
-| `_current_session` | `str` | The active conversation's session id, defaulted by tools (todo tools, `DelegateToAgent`, `BufferedUI`) called without an explicit `session=` |
+| `_current_session` | `str` | The active conversation's *display* session name, defaulted by tools (todo tools, `DelegateToAgent`, `BufferedUI`) called without an explicit `session=` — a client-supplied label with no uniqueness guarantee, never a resource-ownership key |
 | `interactive_mode` | `bool` | Whether the current chat session is interactive — gates `ask_user_question` so non-interactive runs short-circuit instead of blocking on stdin |
+| `current_chat_session_id` | `str` | `ChatSessionManager`'s own unique session_id, bound once per message drive in `chat_session_runner.py`. Distinct from `_current_session` (a display name): `shell_background.py` tags a background process with this so `ChatSessionManager.remove_session()` can clean up exactly the right session's processes, never a same-named one |
 
 Set/cleared by their owning tool implementations rather than at a single entry point.
 
@@ -362,6 +363,24 @@ effective_yolo = yolo or current_yolo.get()
 ```
 
 If a child agent doesn't receive an explicit argument, it inherits from the context set by its parent. This allows YOLO mode, approval channels, and UI handles to flow naturally through nested agent calls.
+
+A delayed live-sub-agent continuation is different: it starts after the original run's ContextVar scope has ended. `AuthoritySnapshot` captures the original run's effective permission and sandbox authority while that scope is still active, then the continuation explicitly rebinds it. This prevents a later, unrelated ambient context from broadening the continuation's authority.
+
+### Resource Ownership and Cleanup
+
+Keep resource ownership aligned with the narrowest lifetime that can safely clean it up:
+
+| Resource | Owner | Cleanup boundary |
+|---|---|---|
+| Chat driver task | `ChatSession` | Cancellation or chat-session removal |
+| Background shell process | Chat session ID | Session removal or process shutdown |
+| Live sub-agent session | Parent chat session ID | Agent completion or session removal |
+| Activity-panel entry | Parent chat session ID | Sub-agent completion or session removal |
+| Approval wait/future | Approval channel / chat session | Response, cancellation, or session removal |
+| Agent run ContextVars | Agent run | `run_agent()` scope exit |
+| Conversation history | Display conversation name | History manager persistence/retention |
+
+Client-supplied display names are suitable for labels and history files, but never for ownership or cleanup keys. When a resource outlives one message, its owner must be an opaque, stable identifier that cannot collide with another concurrent session.
 
 ### Why ContextVar (not Globals or Thread-locals)?
 

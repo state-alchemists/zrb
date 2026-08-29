@@ -17,9 +17,11 @@ from typing import Any
 
 from zrb.config.config import CFG
 from zrb.context.shared_context import SharedContext
+from zrb.llm.tool.ambient_state import current_chat_session_id
 from zrb.runner.chat.chat_session_manager import ChatSession, ChatSessionManager
 from zrb.runner.chat.http_ui import create_http_ui_factory
 from zrb.session.session import Session
+from zrb.util.contextvar_scope import scoped
 
 
 async def run_chat_session(
@@ -119,9 +121,21 @@ async def run_chat_session(
                         approval_channel=approval_channel,
                     )
                     try:
-                        llm_task = asyncio.create_task(
-                            run_llm_message(session_obj, CFG.LLM_REQUEST_TIMEOUT / 1000)
-                        )
+                        # Bound only around the spawn: asyncio.create_task
+                        # copies the current context, so the task keeps this
+                        # value for its whole run regardless of when this
+                        # `with` block exits (see ADR-0069's "spawn inside the
+                        # still-bound scope" invariant). Session.session_id is
+                        # the unique key — never session_name, which
+                        # ChatSessionManager never guarantees unique — so a
+                        # background process this run starts can only ever be
+                        # cleaned up by removing *this* session.
+                        with scoped(current_chat_session_id, session.session_id):
+                            llm_task = asyncio.create_task(
+                                run_llm_message(
+                                    session_obj, CFG.LLM_REQUEST_TIMEOUT / 1000
+                                )
+                            )
                         await llm_task
                         CFG.LOGGER.info("LLM task completed")
                     except asyncio.CancelledError:

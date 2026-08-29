@@ -1420,8 +1420,12 @@ async def test_activity_start_and_finish_are_scoped_to_the_current_session(
             "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
         ) as mock_run_agent,
         patch(
+            "zrb.llm.tool.delegate.get_session_ownership_key",
+            return_value="chat-session-42",
+        ),
+        patch(
             "zrb.llm.tool.delegate.get_current_tool_session",
-            return_value="session-42",
+            return_value="display-session-42",
         ),
         patch("zrb.llm.tool.delegate.agent_activity_registry") as mock_registry,
     ):
@@ -1429,9 +1433,9 @@ async def test_activity_start_and_finish_are_scoped_to_the_current_session(
         await tool(agent_name="test-agent", deliverable="d", task="t", non_goals=[])
 
     mock_registry.start.assert_called_once()
-    assert mock_registry.start.call_args.kwargs["session_id"] == "session-42"
+    assert mock_registry.start.call_args.kwargs["session_id"] == "chat-session-42"
     mock_registry.finish.assert_called_once()
-    assert mock_registry.finish.call_args.kwargs["session_id"] == "session-42"
+    assert mock_registry.finish.call_args.kwargs["session_id"] == "chat-session-42"
 
 
 # ── Sub-agent history disk growth (real filesystem, not mocked) ──

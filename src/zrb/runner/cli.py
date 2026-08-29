@@ -2,7 +2,7 @@ import sys
 from typing import Any
 
 from zrb.config.config import CFG
-from zrb.config.web_auth_config import web_auth_config
+from zrb.config.web_auth_config import WebAuthConfig, web_auth_config
 from zrb.context.any_context import AnyContext
 from zrb.context.shared_context import SharedContext
 from zrb.group.any_group import AnyGroup
@@ -12,7 +12,12 @@ from zrb.session.session import Session
 from zrb.session_state_logger.session_state_logger_factory import session_state_logger
 from zrb.task.any_task import AnyTask
 from zrb.task.make_task import make_task
-from zrb.util.cli.style import stylize_highlight, stylize_muted, stylize_section_header
+from zrb.util.cli.style import (
+    stylize_highlight,
+    stylize_muted,
+    stylize_section_header,
+    stylize_warning,
+)
 from zrb.util.string.conversion import double_quote
 
 
@@ -239,14 +244,57 @@ async def start_server(_: AnyContext):
     from zrb.runner.web_app import configure_uvicorn_logging, create_web_app
 
     configure_uvicorn_logging()
+    _warn_if_insecure_bind(CFG.WEB_HTTP_HOST, web_auth_config)
     app = create_web_app(cli, web_auth_config, session_state_logger)
     server = Server(
         Config(
             app=app,
-            host="0.0.0.0",
+            host=CFG.WEB_HTTP_HOST,
             port=CFG.WEB_HTTP_PORT,
             loop="asyncio",
             timeout_graceful_shutdown=CFG.WEB_SHUTDOWN_TIMEOUT // 1000,
         )
     )
     await server.serve()
+
+
+_LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost"}
+
+
+def _warn_if_insecure_bind(host: str, auth_config: WebAuthConfig) -> None:
+    """Warn (never refuse) when a network-exposed bind is not actually safe.
+
+    A non-loopback bind is a legitimate, intentional choice for LAN/container
+    deployments, so this never blocks startup — it only makes the risk
+    impossible to miss. Inspect the effective auth object because callers may
+    override the CFG-backed defaults programmatically.
+    """
+    if host in _LOOPBACK_HOSTS:
+        return
+    if not auth_config.enable_auth:
+        print(
+            stylize_warning(
+                f"\nWarning: binding to '{host}' without authentication "
+                "(WEB_AUTH_ENABLED=off) exposes task execution to anyone who "
+                "can reach this host. Set WEB_AUTH_ENABLED=on, or bind to "
+                "127.0.0.1 (the default)."
+            ),
+            file=sys.stderr,
+        )
+        return
+    stale_defaults = []
+    if auth_config.super_admin_password == CFG.DEFAULT_WEB_SUPER_ADMIN_PASSWORD:
+        stale_defaults.append("WEB_SUPER_ADMIN_PASSWORD")
+    if auth_config.secret_key == CFG.DEFAULT_WEB_SECRET_KEY:
+        stale_defaults.append("WEB_SECRET_KEY")
+    if stale_defaults:
+        print(
+            stylize_warning(
+                f"\nWarning: binding to '{host}' with authentication enabled, "
+                f"but {' and '.join(stale_defaults)} still has its default, "
+                "publicly-documented value. Anyone who read zrb's docs has "
+                "these credentials. Set them to unique values before "
+                "exposing this server."
+            ),
+            file=sys.stderr,
+        )

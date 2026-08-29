@@ -327,9 +327,13 @@ def _apply_permission_policy(call, force_ask):
     # .tool_capability; hoisting would bind these names at this module's
     # load time and bypass the mocks.
     from zrb.llm.permission import ALLOW, DENY, get_effective_policy, tool_capability
+    from zrb.llm.permission.observability import record_policy_decision
 
     policy = get_effective_policy()
     if policy is None:
+        record_policy_decision(
+            layer="permission", decision="none", tool_name=call.tool_name
+        )
         return None, None
     raw_args = getattr(call, "args", None) or {}
     if isinstance(raw_args, str):
@@ -338,6 +342,9 @@ def _apply_permission_policy(call, force_ask):
         except json.JSONDecodeError:
             raw_args = {}
     decision = policy.decide(call.tool_name, tool_capability(call), raw_args)
+    record_policy_decision(
+        layer="permission", decision=str(decision), tool_name=call.tool_name
+    )
     if decision == ALLOW and not force_ask:
         # lazy: heavy third-party
         from pydantic_ai import ToolApproved

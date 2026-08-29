@@ -42,7 +42,10 @@ from zrb.llm.agent.subagent.manager import (
     sub_agent_manager as default_sub_agent_manager,
 )
 from zrb.llm.permission import Capability, tag
-from zrb.llm.tool.ambient_state import get_current_tool_session
+from zrb.llm.tool.ambient_state import (
+    get_current_tool_session,
+    get_session_ownership_key,
+)
 from zrb.llm.tool.delegate import (
     BufferedUI,
     agent_not_found_message,
@@ -268,7 +271,9 @@ def create_background_delegate_tool(
         handle = get_random_name(separator="-", add_random_digit=True)
         prefix = f"[{agent_name}:{handle}] "
         buffered_ui = BufferedUI(
-            parent_ui, prefix=prefix, session_id=get_current_tool_session()
+            parent_ui,
+            prefix=prefix,
+            session_id=get_session_ownership_key(get_current_tool_session()),
         )
 
         # The detached task copies the current context (yolo, permission policy,

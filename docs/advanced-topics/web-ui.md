@@ -24,7 +24,7 @@ To launch the Zrb Web UI, run the `server start` command:
 zrb server start
 ```
 
-By default, the server will be accessible at `http://localhost:21213`.
+By default, the server binds to `127.0.0.1` and is only reachable from the local machine at `http://localhost:21213`.
 
 ### Customizing the Port
 
@@ -34,6 +34,17 @@ You can change the default port using the `ZRB_WEB_HTTP_PORT` environment variab
 export ZRB_WEB_HTTP_PORT=8000
 zrb server start
 ```
+
+### Customizing the Host
+
+To make the server reachable from other machines (e.g. a LAN or container network), set `ZRB_WEB_HTTP_HOST` explicitly:
+
+```bash
+export ZRB_WEB_HTTP_HOST=0.0.0.0
+zrb server start
+```
+
+> ⚠️ **Warning:** Binding beyond `127.0.0.1` exposes task execution to anyone who can reach this host. Enable [authentication](#3-web-authentication-experimental) first, **and** change the default admin password and secret key — the server prints a startup warning if either still has its documented default value.
 
 ---
 
@@ -56,7 +67,7 @@ Once the server is running, open your web browser and navigate to the specified 
 
 ## 3. Web Authentication (Experimental)
 
-Zrb's Web UI includes an experimental authentication system. By default, it's disabled for ease of use in local development.
+Zrb's Web UI includes an experimental authentication system. By default, it's disabled for ease of use in local development — safe by default because the server also only binds to `127.0.0.1` unless you explicitly set `ZRB_WEB_HTTP_HOST`.
 
 ### Enabling Authentication
 
@@ -133,6 +144,7 @@ You can customize the visual styling of the Web UI using environment variables.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `ZRB_WEB_HTTP_HOST` | `127.0.0.1` | Server bind host; non-loopback exposes the server to the network |
 | `ZRB_WEB_HTTP_PORT` | `21213` | Server port |
 | `ZRB_WEB_AUTH_ENABLED` | `0` | Enable authentication |
 | `ZRB_WEB_COLOR` | `` (empty) | Theme color |

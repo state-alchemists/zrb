@@ -14,6 +14,7 @@ class WebMixin:
         self.DEFAULT_WEB_JS_PATH: str = ""
         self.DEFAULT_WEB_FAVICON_PATH: str = "/static/favicon-32x32.png"
         self.DEFAULT_WEB_COLOR: str = ""
+        self.DEFAULT_WEB_HTTP_HOST: str = "127.0.0.1"
         self.DEFAULT_WEB_HTTP_PORT: str = "21213"
         self.DEFAULT_WEB_GUEST_USERNAME: str = "user"
         self.DEFAULT_WEB_SUPER_ADMIN_USERNAME: str = "admin"
@@ -52,6 +53,15 @@ class WebMixin:
 
     WEB_COLOR = EnvField(
         str, doc="Primary brand color for the web UI (CSS color value, e.g. #3b82f6)."
+    )
+
+    WEB_HTTP_HOST = EnvField(
+        str,
+        doc=(
+            "Host/interface the web server binds to. Defaults to loopback-only; "
+            "binding to a non-loopback address (e.g. 0.0.0.0) exposes the server "
+            "to the network, so pair it with WEB_AUTH_ENABLED=on."
+        ),
     )
 
     WEB_HTTP_PORT = EnvField(int, doc="HTTP port the web server listens on.")

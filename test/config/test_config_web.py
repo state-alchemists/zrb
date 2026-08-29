@@ -37,6 +37,18 @@ def test_web_color(monkeypatch):
     assert config.WEB_COLOR == "blue"
 
 
+def test_web_http_host_default(monkeypatch):
+    monkeypatch.delenv("ZRB_WEB_HTTP_HOST", raising=False)
+    config = Config()
+    assert config.WEB_HTTP_HOST == "127.0.0.1"
+
+
+def test_web_http_host_env_override(monkeypatch):
+    monkeypatch.setenv("ZRB_WEB_HTTP_HOST", "0.0.0.0")
+    config = Config()
+    assert config.WEB_HTTP_HOST == "0.0.0.0"
+
+
 def test_web_http_port(monkeypatch):
     monkeypatch.setenv("ZRB_WEB_HTTP_PORT", "8080")
     config = Config()

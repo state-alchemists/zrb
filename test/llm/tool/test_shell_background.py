@@ -13,11 +13,13 @@ import pytest_asyncio
 
 from zrb.config.config import CFG
 from zrb.llm.permission import Capability, tool_capability
+from zrb.llm.tool.ambient_state import current_chat_session_id
 from zrb.llm.tool.shell import run_shell_command
 from zrb.llm.tool.shell_background import (
     create_monitor_process_tool,
     get_shell_background_registry,
 )
+from zrb.util.contextvar_scope import scoped
 
 
 @pytest_asyncio.fixture(autouse=True)
@@ -109,6 +111,48 @@ async def test_cancel_all_clears(tmp_path):
     monitor = create_monitor_process_tool()
     result = await monitor(handle)
     assert "Unknown handle" in result
+
+
+@pytest.mark.asyncio
+async def test_cancel_for_session_only_kills_that_sessions_processes(tmp_path):
+    """A web chat session ending must not touch another session's still-
+    running background process (unlike `cancel_all`, which is only safe when
+    every session is ending at once). Tagged by the unique
+    `current_chat_session_id`, never a display name."""
+    with scoped(current_chat_session_id, "session-a-id"):
+        handle_a = await _start_bg("sleep 30", "a", str(tmp_path))
+    with scoped(current_chat_session_id, "session-b-id"):
+        handle_b = await _start_bg("sleep 30", "b", str(tmp_path))
+
+    await get_shell_background_registry().cancel_for_session("session-a-id")
+
+    monitor = create_monitor_process_tool()
+    result_a = await monitor(handle_a)
+    assert "Unknown handle" in result_a
+    result_b = await monitor(handle_b, wait=0.2)
+    assert "running" in result_b
+    await monitor(handle_b, kill=True)
+
+
+@pytest.mark.asyncio
+async def test_force_kill_all_kills_real_process(tmp_path):
+    """`force_kill_all` is the atexit backstop — it must actually terminate
+    the OS process, not just forget it in the registry. Reads the real OS pid
+    back from a file the process writes itself, rather than reaching into the
+    registry's internals."""
+    pid_file = tmp_path / "pid"
+    await _start_bg(f"echo $$ > {pid_file}; sleep 30", "pidwriter", str(tmp_path))
+    for _ in range(50):
+        if pid_file.exists() and pid_file.read_text().strip():
+            break
+        await asyncio.sleep(0.1)
+    pid = int(pid_file.read_text().strip())
+
+    get_shell_background_registry().force_kill_all()
+    await asyncio.sleep(0.5)
+
+    with pytest.raises(ProcessLookupError):
+        os.kill(pid, 0)
 
 
 def _extract_spill_path(poll_result: str, stream: str) -> str | None:
