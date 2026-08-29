@@ -225,24 +225,17 @@
   },
 
   {
-    "name": "journal-compliance-judge-example",
-    "description": "WORKED EXAMPLE ONLY — zrb already ships this exact hook built-in and active by default whenever LLM_JOURNAL_ENABLED is on (src/zrb/llm/hook/journal_compliance.py, registered as a hook factory on the default hook_manager singleton, no separate flag). Enabling this JSON copy alongside it would just register a redundant second judge. Kept here to show the pattern for writing your own agent hook: a dedicated sub-agent decides, after a file-changing turn, whether it needs a journal entry (LogActivity/WriteJournalNote) and writes one itself. Only fires on turns that actually touched a file (the `wrote_files` matcher is computed in Python, no LLM call spent on turns that don't qualify). Silently a no-op while LLM_JOURNAL_ENABLED is off: `tools` names the journal tools by name, and the agent hook skips running entirely if none of its named tools resolve.",
-    "events": ["Stop"],
+    "name": "security-review-agent-example",
+    "description": "WORKED EXAMPLE — a different agent-hook use case from zrb's built-in journal-compliance judge (see docs/advanced-topics/hooks.md's 'Built-in example' section for that one). This one reviews a tool call *before* it runs: a small sub-agent reads the pending call and its arguments and can veto it by replying with a decision the main agent should heed. Shows an agent hook on PreToolUse rather than Stop, and a different tool set (read-only inspection tools, not the journal ones).",
+    "events": ["PreToolUse"],
     "type": "agent",
     "config": {
-      "system_prompt": "You are a journal-compliance judge, not the main assistant. You will be shown one completed turn's transcript. Decide, using exactly the criteria in LogActivity's and WriteJournalNote's own tool descriptions, whether this turn produced something worth recording: a decision, a root cause, a stated user preference, or a non-obvious fact a later session would otherwise rediscover. If so, call the appropriate tool now. If not, do nothing and reply with a single word: skip. Never address the user — you have no user-facing reply to give.",
-      "tools": ["LogActivity", "WriteJournalNote", "SearchJournal"],
+      "system_prompt": "You are a security agent, not the main assistant. You will be shown one pending tool call and its arguments. Review it for anything a cautious operator would want to see before it runs (destructive commands, credential exposure, unexpected network access). Reply with a single short sentence: either 'OK' or a one-line reason for concern. You cannot block the call yourself — your reply becomes context for the human approval prompt.",
+      "tools": ["Read", "WebFetch"],
       "model": null
     },
-    "matchers": [
-      {
-        "field": "event_data.wrote_files",
-        "operator": "equals",
-        "value": true
-      }
-    ],
-    "async": true,
+    "async": false,
     "enabled": false,
-    "comment": "Disabled by default — opt in once you've picked a cheap/fast model for `config.model` (null falls back to ZRB_LLM_MODEL, i.e. the main agent's own model, which defeats the point of a cheap judge)."
+    "comment": "Disabled by default — an agent hook on PreToolUse adds a full model round-trip before every matching tool call, which is real latency on every turn. Opt in once you've picked a cheap/fast model for `config.model` (null falls back to ZRB_LLM_MODEL, i.e. the main agent's own model)."
   }
 ]
