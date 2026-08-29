@@ -33,7 +33,7 @@ def resolve_real(path: str) -> str:
     return os.path.realpath(os.path.abspath(os.path.expanduser(path)))
 
 
-def _is_within(child: str, root: str) -> bool:
+def is_within(child: str, root: str) -> bool:
     child_n = os.path.normcase(child)
     root_n = os.path.normcase(root)
     try:
@@ -47,7 +47,7 @@ def check_read(path: str, policy: SandboxPolicy) -> str | None:
     """Return an error message if reading ``path`` is blocked, else ``None``."""
     real = resolve_real(path)
     for root in resolved_deny_read_roots(policy):
-        if _is_within(real, root):
+        if is_within(real, root):
             return (
                 f"'{path}' resolves into the protected directory '{root}' "
                 "which holds credentials and may not be read"
@@ -66,13 +66,13 @@ def check_write(path: str, policy: SandboxPolicy, cwd: str = "") -> str | None:
     """
     real = resolve_real(path)
     for root in resolved_deny_read_roots(policy):
-        if _is_within(real, root):
+        if is_within(real, root):
             return (
                 f"'{path}' resolves into the protected directory '{root}' "
                 "and may not be written"
             )
     roots = resolved_writable_roots(policy, cwd)
-    if not any(_is_within(real, root) for root in roots):
+    if not any(is_within(real, root) for root in roots):
         readable_roots = ", ".join(f"'{r}'" for r in roots)
         return f"'{path}' is outside the sandbox writable roots " f"({readable_roots})"
     return None

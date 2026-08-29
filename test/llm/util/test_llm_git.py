@@ -9,12 +9,12 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def _clear_git_cache():
-    """Clear the lru_cache on _check_git_dir before each test."""
-    from zrb.llm.util.git import _check_git_dir
+    """Clear the lru_cache on check_git_dir before each test."""
+    from zrb.llm.util.git import check_git_dir
 
-    _check_git_dir.cache_clear()
+    check_git_dir.cache_clear()
     yield
-    _check_git_dir.cache_clear()
+    check_git_dir.cache_clear()
 
 
 class TestIsInsideGitDir:

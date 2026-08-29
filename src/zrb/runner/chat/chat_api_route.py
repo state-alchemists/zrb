@@ -45,7 +45,7 @@ async def get_llm_chat_task(root_group: AnyGroup) -> Any:
         return None
 
 
-async def _resolve_llm_chat_task_for_session(
+async def resolve_llm_chat_task_for_session(
     session_id: str, root_group: AnyGroup
 ) -> "tuple[Any, str]":
     """The task to drive *session_id* with, and the message to broadcast if
@@ -327,7 +327,7 @@ def serve_chat_api(
             session = await session_manager.create_session(session_id=session_id)
 
         if session.task_coroutine is None or session.task_coroutine.done():
-            llm_chat, not_found_msg = await _resolve_llm_chat_task_for_session(
+            llm_chat, not_found_msg = await resolve_llm_chat_task_for_session(
                 session_id, root_group
             )
             if llm_chat is None:

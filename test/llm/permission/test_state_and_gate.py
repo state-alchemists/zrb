@@ -26,19 +26,32 @@ def test_public_setters_and_getters_round_trip():
         AgentMode,
         get_current_agent_mode,
         get_current_permission_policy,
+        permission_policy,
         set_current_agent_mode,
-        set_current_permission_policy,
     )
 
     policy = PermissionPolicy((Rule("*", "deny"),))
-    set_current_permission_policy(policy)
     set_current_agent_mode(AgentMode.PLAN)
     try:
-        assert get_current_permission_policy() is policy
-        assert get_current_agent_mode() == AgentMode.PLAN
+        with permission_policy(policy):
+            assert get_current_permission_policy() is policy
+            assert get_current_agent_mode() == AgentMode.PLAN
+        assert get_current_permission_policy() is None
     finally:
-        set_current_permission_policy(None)
         set_current_agent_mode(AgentMode.BUILD)
+
+
+def test_permission_policy_resets_on_exception():
+    """The whole point of `permission_policy`: an exception mid-block must
+    not leave the policy leaked into whatever runs next."""
+    from zrb.llm.permission import get_current_permission_policy, permission_policy
+
+    policy = PermissionPolicy((Rule("*", "deny"),))
+    with pytest.raises(RuntimeError):
+        with permission_policy(policy):
+            assert get_current_permission_policy() is policy
+            raise RuntimeError("boom")
+    assert get_current_permission_policy() is None
 
 
 def test_explicit_policy_is_returned():

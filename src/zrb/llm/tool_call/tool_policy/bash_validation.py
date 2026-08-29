@@ -81,7 +81,7 @@ _SAFE_PREFIXES = (
 )
 
 
-def _is_safe_command(command: str) -> bool:
+def is_safe_command(command: str) -> bool:
     """Return True only when the command is known read-only with no dangerous metacharacters."""
     stripped = command.strip()
 
@@ -136,7 +136,7 @@ def bash_safe_command_policy() -> ToolPolicy:
         if args.get("dangerously_skip_sandbox"):
             return await next_handler(ui, call)
 
-        if _is_safe_command(command):
+        if is_safe_command(command):
             return ToolApproved()
 
         return await next_handler(ui, call)

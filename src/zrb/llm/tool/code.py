@@ -124,11 +124,11 @@ async def analyze_code(
             )
         else:
             zrb_print("  📄 LSP not available, using file reading", plain=True)
-            file_metadatas = _get_file_metadatas(
+            file_metadatas = get_file_metadatas(
                 abs_path, extensions, include_patterns, exclude_patterns
             )
     else:
-        file_metadatas = _get_file_metadatas(
+        file_metadatas = get_file_metadatas(
             abs_path, extensions, include_patterns, exclude_patterns
         )
 
@@ -172,7 +172,7 @@ def _collect_matching_files(
 ) -> list[tuple[str, str]]:
     """Walk `dir_path` and return `(file_path, rel_path)` for every file passing
     the extension/include/exclude filters, in the same walk-then-sort order
-    both `_get_file_metadatas` and `_get_file_metadatas_with_lsp` need.
+    both `get_file_metadatas` and `_get_file_metadatas_with_lsp` need.
 
     A filter-evaluation error is logged and the file skipped — matching the
     original per-caller try/except around this exact block.
@@ -201,7 +201,7 @@ def _collect_matching_files(
     return matches
 
 
-def _get_file_metadatas(
+def get_file_metadatas(
     dir_path: str,
     extensions: list[str],
     include_patterns: list[str] | None,

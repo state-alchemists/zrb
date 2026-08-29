@@ -10,12 +10,14 @@ a shared instance, every task sees the update.
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any
+from typing import Any, Generator
 
 from zrb.llm.permission.policy import PLAN_MODE_POLICY, PermissionPolicy
+from zrb.util.contextvar_scope import scoped
 
 
 class AgentMode(str, Enum):
@@ -49,8 +51,17 @@ def get_current_permission_policy() -> "PermissionPolicy | None":
     return current_permission_policy.get()
 
 
-def set_current_permission_policy(policy: "PermissionPolicy | None") -> None:
-    current_permission_policy.set(policy)
+@contextmanager
+def permission_policy(policy: "PermissionPolicy | None") -> Generator[None]:
+    """Scope `policy` as the in-force permission policy for the `with` block.
+
+    Always resets on exit, including on exception. The safe replacement for
+    the old unscoped `set_current_permission_policy`, which leaked a policy
+    into every later run sharing the same context if the caller didn't reset
+    it manually (and never did on exception).
+    """
+    with scoped(current_permission_policy, policy):
+        yield
 
 
 def get_current_agent_mode() -> AgentMode:

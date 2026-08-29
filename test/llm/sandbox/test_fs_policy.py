@@ -5,24 +5,24 @@ from __future__ import annotations
 import os
 
 from zrb.llm.sandbox import SandboxPolicy, check_read, check_write
-from zrb.llm.sandbox.fs_policy import _is_within
+from zrb.llm.sandbox.fs_policy import is_within
 
-# --- _is_within -----------------------------------------------------------
+# --- is_within -----------------------------------------------------------
 
 
 def test_is_within_subpath():
-    assert _is_within("/a/b/c", "/a/b") is True
+    assert is_within("/a/b/c", "/a/b") is True
 
 
 def test_is_within_rejects_sibling_prefix():
     # "/a/bc" shares a string prefix with "/a/b" but is not inside it.
-    assert _is_within("/a/bc", "/a/b") is False
+    assert is_within("/a/bc", "/a/b") is False
 
 
 def test_is_within_mixed_abs_rel_is_false():
     # commonpath raises ValueError on mixed absolute/relative (and on
     # cross-drive comparisons on Windows) — treated as "not within".
-    assert _is_within("relative/path", "/abs/root") is False
+    assert is_within("relative/path", "/abs/root") is False
 
 
 # --- check_write ----------------------------------------------------------

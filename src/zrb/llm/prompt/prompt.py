@@ -104,21 +104,41 @@ def _find_custom_prompt(name: str, cwd: str, prompt_dir: str) -> str:
     return ""
 
 
-@lru_cache(maxsize=32)
 def _get_default_prompt_search_path(cwd: str) -> tuple[str, ...]:
+    return _get_default_prompt_search_path_cached(
+        cwd, CFG.LLM_SEARCH_PROJECT, CFG.LLM_SEARCH_HOME
+    )
+
+
+@lru_cache(maxsize=32)
+def _get_default_prompt_search_path_cached(
+    cwd: str, search_project: bool, search_home: bool
+) -> tuple[str, ...]:
+    """Directories to check for a ``{prompt_dir}/{name}.md`` override, in order.
+
+    Mirrors the project/home search toggles skills and agents already honor
+    (``SkillManager._get_project_search_dirs`` / ``_get_home_search_dirs``):
+    project ancestors are walked only when ``LLM_SEARCH_PROJECT`` is on, and
+    the home directory is always a candidate — regardless of where the
+    project lives — when ``LLM_SEARCH_HOME`` is on.
+    """
     home_path = os.path.abspath(os.path.expanduser("~"))
-    search_paths = [cwd]
-    try:
-        if os.path.commonpath([cwd, home_path]) == home_path:
-            temp_path = cwd
-            while temp_path != home_path:
-                new_temp_path = os.path.dirname(temp_path)
-                if new_temp_path == temp_path:
-                    break
-                temp_path = new_temp_path
-                search_paths.append(temp_path)
-    except ValueError:
-        pass
+    search_paths: list[str] = []
+    if search_project:
+        search_paths.append(cwd)
+        try:
+            if os.path.commonpath([cwd, home_path]) == home_path:
+                temp_path = cwd
+                while temp_path != home_path:
+                    new_temp_path = os.path.dirname(temp_path)
+                    if new_temp_path == temp_path:
+                        break
+                    temp_path = new_temp_path
+                    search_paths.append(temp_path)
+        except ValueError:
+            pass
+    if search_home and home_path not in search_paths:
+        search_paths.append(home_path)
     return tuple(search_paths)
 
 

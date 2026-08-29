@@ -7,7 +7,7 @@ import subprocess
 
 import pytest
 
-from zrb.llm.ui.base.system_info import BaseUISystemInfo, _communicate_or_reap
+from zrb.llm.ui.base.system_info import BaseUISystemInfo, communicate_or_reap
 
 
 class FakeBaseUI:
@@ -168,7 +168,7 @@ async def test_communicate_or_reap_terminates_child_on_cancellation():
     proc = await asyncio.create_subprocess_exec(
         "sleep", "30", stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
     )
-    task = asyncio.ensure_future(_communicate_or_reap(proc))
+    task = asyncio.ensure_future(communicate_or_reap(proc))
     await asyncio.sleep(0.1)
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
@@ -197,7 +197,7 @@ async def test_communicate_or_reap_kills_child_when_terminate_fails():
 
     proc.terminate = flaky_terminate
     proc.kill = flaky_kill
-    task = asyncio.ensure_future(_communicate_or_reap(proc))
+    task = asyncio.ensure_future(communicate_or_reap(proc))
     await asyncio.sleep(0.1)
     task.cancel()
     # The kill-fallback failure must not swallow the cancellation.

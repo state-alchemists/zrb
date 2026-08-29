@@ -9,11 +9,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import re
 from typing import TYPE_CHECKING, TextIO, cast
 
 from zrb.config.config import CFG
 from zrb.llm.agent.activity import agent_activity_registry
+from zrb.llm.ui.output_chunk import CollapsibleBlockSource, merge_output_chunk
 from zrb.util.cli.help_panel import render_help_panel
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import stylize_muted
@@ -48,26 +48,6 @@ def _truncate(text: str, limit: int) -> str:
     return truncate_display(text, limit)
 
 
-def _merge_output_chunk(current_text: str, content: str) -> str:
-    """Append `content` to `current_text`, resolving ``\\r`` status updates.
-
-    Carriage returns signal an in-place status rewrite: the last line since
-    the most recent newline is replaced by the content up to each ``\\r``.
-    """
-    if "\r" not in content:
-        return current_text + content
-    last_newline = current_text.rfind("\n")
-    if last_newline == -1:
-        previous = ""
-        last = current_text
-    else:
-        previous = current_text[: last_newline + 1]
-        last = current_text[last_newline + 1 :]
-    combined = last + content
-    resolved = re.sub(r"[^\n]*\r", "", combined)
-    return previous + resolved
-
-
 def _fmt_tokens(count: int) -> str:
     if count >= 1_000_000:
         return f"{count / 1_000_000:.1f}M"
@@ -90,23 +70,6 @@ def _get_mode_status_style(mode: str) -> str:
         "yolo": CFG.LLM_UI_STYLE_MODE_YOLO,
         "custom": CFG.LLM_UI_STYLE_MODE_CUSTOM,
     }.get(mode, "")
-
-
-class CollapsibleBlockSource:
-    """Rendered-block payload for a collapsible line (tool-call/result,
-    thinking, ...).
-
-    Plugs into `UIOutput.rendered_blocks` as a `source` alongside the
-    markdown/help-panel sources already tracked there, so `rewrap_output`
-    re-renders it (and shifts later blocks) for free on resize.
-    """
-
-    __slots__ = ("collapsed", "full", "expanded")
-
-    def __init__(self, collapsed: str, full: str):
-        self.collapsed = collapsed
-        self.full = full
-        self.expanded = False
 
 
 def _render_collapsible_block(
@@ -232,7 +195,7 @@ class UIOutput:
             getattr(self._ui, "viewing_agent_id", None) is not None
             and saved_main_output is not None
         ):
-            self._ui.saved_main_output = _merge_output_chunk(saved_main_output, content)
+            self._ui.saved_main_output = merge_output_chunk(saved_main_output, content)
             self.schedule_invalidate()
             return
 
@@ -241,7 +204,7 @@ class UIOutput:
             content = stylize_muted(content)
 
         # Handle carriage returns (\r) for status updates
-        new_text = _merge_output_chunk(current_text, content)
+        new_text = merge_output_chunk(current_text, content)
 
         # NB: we deliberately do NOT fire a Notification hook per output chunk.
         # The Claude-Code `Notification` event means "the agent needs your

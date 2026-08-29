@@ -37,8 +37,8 @@ from zrb.llm.permission.state import (
     get_current_agent_mode,
     get_current_permission_policy,
     get_effective_policy,
+    permission_policy,
     set_current_agent_mode,
-    set_current_permission_policy,
 )
 
 __all__ = [
@@ -58,7 +58,7 @@ __all__ = [
     "current_permission_policy",
     "current_agent_mode",
     "get_current_permission_policy",
-    "set_current_permission_policy",
+    "permission_policy",
     "get_current_agent_mode",
     "set_current_agent_mode",
     "get_effective_policy",

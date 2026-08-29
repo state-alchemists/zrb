@@ -173,7 +173,16 @@ zrb llm chat
 
 ### Advanced: the ambient policy ContextVar
 
-Under the hood every policy resolves to the `current_permission_policy` ContextVar, which each tool call reads via `get_effective_policy()`. The `permissions=` argument is the normal way to set it. For dynamic cases — e.g. choosing a policy at runtime based on live state — you can set the ContextVar directly with `set_current_permission_policy(policy)` from `zrb.llm.permission.state`. The explicit `permissions=` argument, when given, takes precedence over a value set this way.
+Under the hood every policy resolves to the `current_permission_policy` ContextVar, which each tool call reads via `get_effective_policy()`. The `permissions=` argument is the normal way to set it. For dynamic cases — e.g. choosing a policy at runtime based on live state — scope it with the `permission_policy` context manager from `zrb.llm.permission.state`:
+
+```python
+from zrb.llm.permission.state import permission_policy
+
+with permission_policy(my_dynamic_policy):
+    ...  # policy is guaranteed to unwind here, even on exception
+```
+
+The explicit `permissions=` argument, when given, takes precedence over a value set this way.
 
 ---
 🔖 [Home](../../README.md) > [Advanced Topics](./) > Permission Policy

@@ -62,6 +62,8 @@ class AnyContext(AnySharedContext):
     ):
         """Prints values to the specified output stream.
 
+        See `Context.print` in `context/context.py` for the concrete implementation.
+
         Args:
             *values (object): The values to be printed.
             sep (str, optional): Separator to use between values. Defaults to a space.
@@ -83,6 +85,8 @@ class AnyContext(AnySharedContext):
         plain: bool = False,
     ):
         """Prints error values to the specified output stream.
+
+        See `Context.print_err` in `context/context.py` for the concrete implementation.
 
         Args:
             *values (object): The values to be printed.

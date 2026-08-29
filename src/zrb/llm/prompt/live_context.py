@@ -51,7 +51,7 @@ from zrb.context.any_context import AnyContext
 # (a composition may drop the todo lines), and an anchor that promises lines the
 # block cannot produce is the same dangle as a rulebook naming an absent tool,
 # minus the test that catches it. The block is self-describing once it arrives.
-_LIVE_CONTEXT_ANCHOR = (
+LIVE_CONTEXT_ANCHOR = (
     "Each user turn ends with a <live-context> block describing current runtime "
     "state. It is injected automatically — not written by the user. Treat the "
     "most recent <live-context> as authoritative; earlier ones are stale "
@@ -61,13 +61,35 @@ _LIVE_CONTEXT_ANCHOR = (
 
 SimpleLiveContextProvider = Callable[[AnyContext], str | None]
 
-# `_append_live_context` always appends the block last, as `"\n\n" + block`
+# `append_live_context` always appends the block last, as `"\n\n" + block`
 # onto the existing text (or bare, when there was no prior text). Matched
 # non-greedily is unnecessary since the block never nests another
 # `<live-context>` — only `<journal-index>` can appear inside it.
 _LIVE_CONTEXT_BLOCK_RE = re.compile(
     r"\n\n(<live-context>.*</live-context>)\s*\Z", re.DOTALL
 )
+
+
+def append_live_context(prompt_content: Any, live_context: str) -> Any:
+    """Append the ``<live-context>`` block to the end of the current user turn.
+
+    Handles all three ``prompt_content`` shapes produced by
+    ``get_prompt_content``: ``str`` (text-only), ``list[UserContent]``
+    (multimodal — a trailing text element is added, keeping the block last for
+    recency), and ``None`` (empty turn — the block becomes the content). A
+    falsy ``live_context`` is a no-op, so callers that pass nothing leave the
+    turn untouched. Counterpart to ``split_live_context``, which strips the
+    block back off for display.
+    """
+    if not live_context:
+        return prompt_content
+    if prompt_content is None:
+        return live_context
+    if isinstance(prompt_content, str):
+        return f"{prompt_content}\n\n{live_context}"
+    if isinstance(prompt_content, list):
+        return [*prompt_content, live_context]
+    return prompt_content
 
 
 def split_live_context(content: str) -> tuple[str, str | None]:

@@ -198,12 +198,12 @@ class TestWriteFileFormatter:
 
 
 class TestFormatSingleWrite:
-    """Test _format_single_write helper function."""
+    """Test format_single_write helper function."""
 
     def test_new_file_format(self):
         """Test formatting for new file."""
         from zrb.llm.tool_call.argument_formatter.write_file_formatter import (
-            _format_single_write,
+            format_single_write,
         )
 
         ui = MockUI()
@@ -218,7 +218,7 @@ class TestFormatSingleWrite:
             ) as mock_render:
                 mock_render.return_value = "rendered"
 
-                result = _format_single_write(
+                result = format_single_write(
                     "/nonexistent/path/file.txt", "content", "w", ui
                 )
                 assert result is not None
@@ -227,7 +227,7 @@ class TestFormatSingleWrite:
     def test_overwrite_format(self):
         """Test formatting for overwrite."""
         from zrb.llm.tool_call.argument_formatter.write_file_formatter import (
-            _format_single_write,
+            format_single_write,
         )
 
         ui = MockUI()
@@ -247,7 +247,7 @@ class TestFormatSingleWrite:
                 ) as mock_render:
                     mock_render.return_value = "rendered"
 
-                    result = _format_single_write(temp_path, "new content", "w", ui)
+                    result = format_single_write(temp_path, "new content", "w", ui)
                     assert result is not None
         finally:
             os.unlink(temp_path)
@@ -255,7 +255,7 @@ class TestFormatSingleWrite:
     def test_append_format(self):
         """Test formatting for append."""
         from zrb.llm.tool_call.argument_formatter.write_file_formatter import (
-            _format_single_write,
+            format_single_write,
         )
 
         ui = MockUI()
@@ -275,7 +275,7 @@ class TestFormatSingleWrite:
                 ) as mock_render:
                     mock_render.return_value = "rendered"
 
-                    result = _format_single_write(temp_path, " appended", "a", ui)
+                    result = format_single_write(temp_path, " appended", "a", ui)
                     assert result is not None
                     assert "Append" in result
         finally:
@@ -284,7 +284,7 @@ class TestFormatSingleWrite:
     def test_no_changes_format(self):
         """Test formatting when no changes."""
         from zrb.llm.tool_call.argument_formatter.write_file_formatter import (
-            _format_single_write,
+            format_single_write,
         )
 
         ui = MockUI()
@@ -299,7 +299,7 @@ class TestFormatSingleWrite:
             ) as mock_diff:
                 mock_diff.return_value = None  # No changes
 
-                result = _format_single_write(temp_path, "same content", "w", ui)
+                result = format_single_write(temp_path, "same content", "w", ui)
                 assert "No changes" in result
         finally:
             os.unlink(temp_path)
@@ -307,7 +307,7 @@ class TestFormatSingleWrite:
     def test_expand_home_path(self):
         """Test that ~ is expanded in path."""
         from zrb.llm.tool_call.argument_formatter.write_file_formatter import (
-            _format_single_write,
+            format_single_write,
         )
 
         ui = MockUI()
@@ -323,6 +323,6 @@ class TestFormatSingleWrite:
                 mock_render.return_value = "rendered"
 
                 # Path with ~ will be expanded
-                result = _format_single_write("~/some_file.txt", "content", "w", ui)
+                result = format_single_write("~/some_file.txt", "content", "w", ui)
                 # Should work (file won't exist)
                 assert result is not None

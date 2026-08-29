@@ -7,6 +7,7 @@ from zrb.llm.ui.base.message_queue import (
     MessageQueue,
     QueuedMessage,
     steer_into_live_run,
+    submit_user_message_via_queue,
 )
 
 
@@ -180,3 +181,125 @@ def test_steer_into_live_run_false_when_enqueue_raises():
     run_context.enqueue.side_effect = RuntimeError("run already finished")
 
     assert steer_into_live_run(run_context, "hello", []) is False
+
+
+# ── submit_user_message_via_queue (shared BaseUI/MultiUI mechanics) ─────────
+
+
+def _stub_stream_ai_response(llm_task, text, attachments):
+    pass
+
+
+def test_submit_user_message_via_queue_single_target_echoes_and_queues():
+    """Standalone-UI shape: attachment_sources/echo_targets == [self]."""
+    outputs = []
+    tracked = []
+
+    class Target:
+        def take_pending_attachments(self):
+            return ["img"]
+
+        def _track_echo_span(self, entry, echo):
+            tracked.append((entry, echo))
+
+    target = Target()
+    queue = MessageQueue()
+
+    submit_user_message_via_queue(
+        append_to_output=outputs.append,
+        active_run_context=None,
+        stream_ai_response=_stub_stream_ai_response,
+        queue=queue,
+        attachment_sources=[target],
+        echo_targets=[target],
+        llm_task=object(),
+        user_message="hello",
+        marker="💬",
+    )
+
+    assert len(outputs) == 1
+    assert "💬" in outputs[0] and "hello" in outputs[0]
+    assert queue.qsize() == 1
+    entry = queue.peek_latest()
+    assert entry.text == "hello"
+    assert entry.attachments == ["img"]
+    assert entry.echo_marker == "💬"
+    assert len(tracked) == 1
+    assert tracked[0][0] is entry
+
+
+def test_submit_user_message_via_queue_fans_out_to_multiple_targets():
+    """MultiUI shape: attachment_sources/echo_targets are the children, not
+    the router's own owner."""
+    tracked_by = []
+
+    class Child:
+        def __init__(self, name, attachments):
+            self.name = name
+            self._attachments = attachments
+
+        def take_pending_attachments(self):
+            return self._attachments
+
+        def _track_echo_span(self, entry, echo):
+            tracked_by.append(self.name)
+
+    children = [Child("a", ["x"]), Child("b", ["y"])]
+    queue = MessageQueue()
+
+    submit_user_message_via_queue(
+        append_to_output=lambda *_a, **_k: None,
+        active_run_context=None,
+        stream_ai_response=_stub_stream_ai_response,
+        queue=queue,
+        attachment_sources=children,
+        echo_targets=children,
+        llm_task=object(),
+        user_message="hi",
+        marker="💬",
+    )
+
+    entry = queue.peek_latest()
+    assert entry.attachments == ["x", "y"]
+    assert tracked_by == ["a", "b"]
+
+
+def test_submit_user_message_via_queue_steers_into_live_run_instead_of_queuing():
+    run_context = MagicMock()
+    queue = MessageQueue()
+
+    submit_user_message_via_queue(
+        append_to_output=lambda *_a, **_k: None,
+        active_run_context=run_context,
+        stream_ai_response=_stub_stream_ai_response,
+        queue=queue,
+        attachment_sources=[],
+        echo_targets=[],
+        llm_task=object(),
+        user_message="steer me",
+        marker="💬",
+    )
+
+    run_context.enqueue.assert_called_once_with("steer me", priority="asap")
+    assert queue.qsize() == 0
+
+
+def test_submit_user_message_via_queue_ignores_targets_without_the_hooks():
+    """A target with neither `take_pending_attachments` nor `_track_echo_span`
+    (e.g. a Telegram child) must not break the loop."""
+    queue = MessageQueue()
+
+    submit_user_message_via_queue(
+        append_to_output=lambda *_a, **_k: None,
+        active_run_context=None,
+        stream_ai_response=_stub_stream_ai_response,
+        queue=queue,
+        attachment_sources=[object()],
+        echo_targets=[object()],
+        llm_task=object(),
+        user_message="hi",
+        marker="💬",
+    )
+
+    entry = queue.peek_latest()
+    assert entry.attachments == []

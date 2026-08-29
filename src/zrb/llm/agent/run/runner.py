@@ -32,12 +32,10 @@ from zrb.llm.agent.run.deferred_calls import (
 )
 from zrb.llm.agent.run.error_classifier import classify_error_type
 from zrb.llm.agent.run.history_utils import (
-    _append_live_context,
-    _history_without_trailing_response,
-    _is_empty_completion,
-    _merge_consecutive_messages,
+    history_without_trailing_response,
+    is_empty_completion,
+    merge_consecutive_messages,
     sanitize_history,
-    turn_wrote_files,
 )
 from zrb.llm.agent.run.hook_result_extractor import (
     extract_additional_context,
@@ -54,15 +52,17 @@ from zrb.llm.agent.run.session_extension import (
     resolve_extended_return,
 )
 from zrb.llm.agent.run.setup import (
-    _bind_contextvar,
-    _log_startup,
-    _resolve_context_dependencies,
-    _setup_print_and_events,
+    bind_contextvar,
+    log_startup,
+    resolve_context_dependencies,
+    setup_print_and_events,
 )
+from zrb.llm.agent.run.turn_cursor import TurnCursor
 from zrb.llm.approval.approval_channel import ApprovalChannel, current_approval_channel
 from zrb.llm.config.config import llm_config
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.hook.manager import HookManager
+from zrb.llm.hook.turn_evidence import turn_wrote_files
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.message import ensure_alternating_roles
 from zrb.llm.permission.state import (
@@ -70,6 +70,7 @@ from zrb.llm.permission.state import (
     enter_agent_mode_scope,
     exit_agent_mode_scope,
 )
+from zrb.llm.prompt.live_context import append_live_context
 from zrb.llm.sandbox.state import current_sandbox_policy
 from zrb.llm.tool_call.handler import ToolCallHandler
 from zrb.llm.tool_call.ui_protocol import UIProtocol
@@ -174,11 +175,11 @@ async def run_agent(
         effective_yolo,
         effective_approval_channel,
         effective_hook_manager,
-    ) = _resolve_context_dependencies(
+    ) = resolve_context_dependencies(
         ui, tool_confirmation, yolo, approval_channel, hook_manager
     )
 
-    _log_startup(
+    log_startup(
         tool_confirmation,
         effective_tool_confirmation,
         approval_channel,
@@ -204,21 +205,31 @@ async def run_agent(
     # bound are still reset on close, and no token is reset that was never set.
     stack = ExitStack()
     try:
-        _bind_contextvar(stack, current_ui, effective_ui)
-        _bind_contextvar(stack, current_tool_confirmation, effective_tool_confirmation)
-        _bind_contextvar(stack, current_yolo, effective_yolo)
-        _bind_contextvar(stack, current_hook_manager, effective_hook_manager)
-        _bind_contextvar(stack, current_agent_run_scope, run_scope or uuid.uuid4().hex)
-        _bind_contextvar(stack, current_approval_channel, effective_approval_channel)
-        _bind_contextvar(stack, current_permission_policy, effective_policy)
-        _bind_contextvar(stack, current_sandbox_policy, effective_sandbox)
+        bind_contextvar(stack, current_ui, effective_ui)
+        bind_contextvar(stack, current_tool_confirmation, effective_tool_confirmation)
+        bind_contextvar(stack, current_yolo, effective_yolo)
+        bind_contextvar(stack, current_hook_manager, effective_hook_manager)
+        bind_contextvar(stack, current_agent_run_scope, run_scope or uuid.uuid4().hex)
+        bind_contextvar(stack, current_approval_channel, effective_approval_channel)
+        bind_contextvar(stack, current_permission_policy, effective_policy)
+        bind_contextvar(stack, current_sandbox_policy, effective_sandbox)
+        # lazy: circular — zrb.llm.tool's package __init__ eagerly loads
+        # delegate.py, which imports run_agent from this module.
+        from zrb.llm.tool.worktree import active_worktree
+
+        # Backstop, not the primary contract: EnterWorktree/ExitWorktree still
+        # own setting/clearing this per tool call. This only guarantees that a
+        # forgotten ExitWorktree (agent forgets, run errors) can't leak the
+        # worktree past this run's boundary — it restores whatever was active
+        # when the run started, snapshot-and-restore rather than always "".
+        bind_contextvar(stack, active_worktree, active_worktree.get())
         # Isolate agent mode per run so concurrent runs don't share/clobber each
         # other's plan/build state; the final mode is propagated back to the
         # caller on close so an in-run mode switch persists (e.g. sticky /plan).
         mode_token, mode_parent = enter_agent_mode_scope()
         stack.callback(exit_agent_mode_scope, mode_token, mode_parent)
 
-        effective_print_fn, effective_event_handler = _setup_print_and_events(
+        effective_print_fn, effective_event_handler = setup_print_and_events(
             print_fn, event_handler, effective_ui
         )
 
@@ -244,7 +255,7 @@ async def run_agent(
         # here rather than into the system prompt so the system prompt stays
         # byte-stable across turns and the cacheable prefix survives; the block
         # is frozen into history once written (older turns are stale snapshots).
-        prompt_content = _append_live_context(prompt_content, live_context)
+        prompt_content = append_live_context(prompt_content, live_context)
 
         current_history = await _prepare_history(
             agent,
@@ -256,7 +267,7 @@ async def run_agent(
             effective_hook_manager,
         )
 
-        current_message = _merge_consecutive_messages(current_history, prompt_content)
+        current_message = merge_consecutive_messages(current_history, prompt_content)
 
         return await _execution_loop(
             agent=agent,
@@ -488,65 +499,54 @@ async def _execution_loop(
     # lazy: heavy third-party
     from pydantic_ai import AgentRunResultEvent, DeferredToolRequests, UsageLimits
 
-    run_history = current_history
-    result_output = None
+    cursor = TurnCursor(
+        history=current_history,
+        message=current_message,
+        run_history=current_history,
+    )
     retry_state = RetryState()
     extension_state = ExtensionState()
-    current_results = None
     partial_run = PartialRunAccumulator()
     # Background checkpoint-save tasks fired mid-turn (see `_build_event_stream_handler`).
     # Gathered in the `finally` below so a lagging write can never race past the
     # caller's own end-of-turn save.
     pending_checkpoint_tasks: list[asyncio.Task] = []
-    # This whole logical turn's new messages, accumulated per loop iteration —
-    # NOT a single slice taken at the end against a fixed baseline. The
-    # DeferredToolRequests branch below reassigns `current_history = run_history`
-    # before continuing, which folds that iteration's tool call into what the
-    # next iteration treats as "already there": a baseline captured once, before
-    # the loop, would still correctly bound the *first* iteration's new slice,
-    # but a naive per-iteration `run_history[baseline:]` taken only at the
-    # *final* iteration silently drops every tool call approved in an earlier
-    # round — exactly the turn a human had to approve a Write in. Accumulating
-    # each iteration's own (already-correct) slice as it happens sidesteps that
-    # entirely. Never populated on the empty-completion retry path (that
-    # iteration's output is discarded, not part of the turn) or the
-    # stream-error retry path (no usable output yet).
-    turn_messages_acc: list[Any] = []
 
     try:
         while True:
-            current_history = sanitize_history(
-                current_history,
-                allow_orphaned_tool_calls=(current_results is not None),
+            cursor.begin_round(
+                sanitize_history(
+                    cursor.history,
+                    allow_orphaned_tool_calls=(cursor.results is not None),
+                )
             )
             stream_error = None
-            turn_baseline_len = len(current_history)
             handler = _build_event_stream_handler(
                 effective_ui,
                 effective_event_handler,
                 partial_run,
                 checkpoint_fn=checkpoint_fn,
                 pending_checkpoint_tasks=pending_checkpoint_tasks,
-                baseline_len=turn_baseline_len,
+                baseline_len=cursor.round_baseline,
             )
             try:
                 # Docs: https://ai.pydantic.dev/agents/#streaming-all-events
-                CFG.LOGGER.debug(f"Run started, current_results={current_results}")
+                CFG.LOGGER.debug(f"Run started, current_results={cursor.results}")
                 result = await agent.run(
-                    current_message,
-                    message_history=current_history,
-                    deferred_tool_results=current_results,
+                    cursor.message,
+                    message_history=cursor.history,
+                    deferred_tool_results=cursor.results,
                     usage_limits=UsageLimits(request_limit=_request_limit()),
                     event_stream_handler=handler,
                 )
-                result_output = result.output
+                cursor.output = result.output
                 CFG.LOGGER.debug(
-                    f"Got result, result_output type: {type(result_output)}"
+                    f"Got result, result_output type: {type(cursor.output)}"
                 )
-                run_history = sanitize_history(
+                cursor.run_history = sanitize_history(
                     result.all_messages(),
                     allow_orphaned_tool_calls=isinstance(
-                        result_output, DeferredToolRequests
+                        cursor.output, DeferredToolRequests
                     ),
                 )
                 # `agent.run(event_stream_handler=...)`'s handler never receives
@@ -566,11 +566,11 @@ async def _execution_loop(
                 outcome = await handle_stream_error(
                     retry_state,
                     stream_error,
-                    current_history,
-                    current_message,
-                    run_history,
+                    cursor.history,
+                    cursor.message,
+                    cursor.run_history,
                     print_fn,
-                    min_turns=1 if current_results is not None else 0,
+                    min_turns=cursor.prune_floor,
                 )
                 if not outcome.should_retry:
                     # StopFailure: the turn is ending on an unrecoverable API
@@ -579,24 +579,24 @@ async def _execution_loop(
                     try:
                         await effective_hook_manager.execute_hooks(
                             HookEvent.STOP_FAILURE,
-                            {"error": str(stream_error), "history": run_history},
+                            {"error": str(stream_error), "history": cursor.run_history},
                             error=str(stream_error),
                             error_type=classify_error_type(stream_error),
                         )
                     except Exception:
                         CFG.LOGGER.debug("StopFailure hook raised", exc_info=True)
                     raise stream_error
-                current_history = outcome.new_history or current_history
-                current_message = outcome.new_message
+                cursor.history = outcome.new_history or cursor.history
+                cursor.message = outcome.new_message
                 if outcome.clear_results:
-                    current_results = None
+                    cursor.results = None
                 continue
 
-            if isinstance(result_output, DeferredToolRequests):
-                # Record now, before `current_history = run_history` below makes
-                # the next iteration treat this tool call as pre-existing history
+            if isinstance(cursor.output, DeferredToolRequests):
+                # Commit now, before `carry_forward` below makes the next
+                # iteration treat this tool call as pre-existing history
                 # rather than something this turn did.
-                turn_messages_acc.extend(run_history[turn_baseline_len:])
+                cursor.commit_round()
                 CFG.LOGGER.debug(
                     "Got DeferredToolRequests, calling process_deferred_requests"
                 )
@@ -604,32 +604,32 @@ async def _execution_loop(
                 # the loop we are past all the setup guards; the function it is
                 # passed to expects a concrete UIProtocol.
                 assert effective_ui is not None
-                current_results = await process_deferred_requests(
-                    result_output,
+                cursor.results = await process_deferred_requests(
+                    cursor.output,
                     effective_tool_confirmation,
                     effective_ui,
                     effective_hook_manager,
                     effective_approval_channel,
                 )
                 CFG.LOGGER.debug(
-                    f"process_deferred_requests returned: {current_results}"
+                    f"process_deferred_requests returned: {cursor.results}"
                 )
-                if current_results is None:
+                if cursor.results is None:
                     # Approval is pending out-of-band: the turn suspends and
                     # control returns to the user. This is neither a turn end nor
                     # a session end, so no STOP/SESSION_END fires here; the turn
                     # resumes when the approval arrives.
-                    return result_output, run_history
+                    return cursor.output, cursor.run_history
 
-                current_results = rebuild_for_denials(current_results)
-                current_message = None
+                cursor.results = rebuild_for_denials(cursor.results)
+                cursor.message = None
                 # process_deferred_requests() always populates
                 # current_results.approvals for every resolved call (approved,
                 # denied, or hook-blocked alike), so history processors are never
                 # reapplied here -- run_history feeds the next iteration as-is.
                 # Processor effects were already applied in _prepare_history
                 # before the first stream call.
-                current_history = run_history
+                cursor.carry_forward()
                 CFG.LOGGER.debug("Continuing to next iteration with current_results")
                 continue
 
@@ -637,7 +637,7 @@ async def _execution_loop(
             # sometimes returns no real text (and no tool call). Don't surface the
             # "(tool call)" placeholder as the answer — regenerate the turn a
             # bounded number of times, then raise a clear error.
-            if _is_empty_completion(result_output):
+            if is_empty_completion(cursor.output):
                 if (
                     retry_state.empty_completion_retry_count
                     < retry_state.max_empty_completion_retries
@@ -649,13 +649,15 @@ async def _execution_loop(
                         f"{retry_state.max_empty_completion_retries})..."
                     )
                     CFG.LOGGER.debug(
-                        f"Empty completion (output={result_output!r}); "
+                        f"Empty completion (output={cursor.output!r}); "
                         "dropping the empty turn and regenerating"
                     )
-                    current_history = _history_without_trailing_response(run_history)
-                    current_message = None
-                    current_results = None
-                    result_output = None
+                    cursor.history = history_without_trailing_response(
+                        cursor.run_history
+                    )
+                    cursor.message = None
+                    cursor.results = None
+                    cursor.output = None
                     continue
                 raise RuntimeError(
                     "Model returned an empty response "
@@ -673,36 +675,37 @@ async def _execution_loop(
             # here — it is terminal, fired once when the chat session ends.
             # Manual interrupts raise CancelledError before reaching here, where
             # the TUI fires its own Stop, so the two paths never double-fire.
-            turn_messages_acc.extend(run_history[turn_baseline_len:])
-            turn_messages = turn_messages_acc
+            cursor.commit_round()
             stop_results = await effective_hook_manager.execute_hooks(
                 HookEvent.STOP,
                 {
-                    "output": result_output,
-                    "history": run_history,
+                    "output": cursor.output,
+                    "history": cursor.run_history,
                     # This turn's new messages alone, and a free (no-LLM)
                     # gate on whether they touched a file — lets an
                     # evidence-gated hook (e.g. a journal-compliance agent
                     # hook) act only on turns where it's actually warranted.
-                    "turn": turn_messages,
-                    "wrote_files": turn_wrote_files(turn_messages),
+                    "turn": cursor.accumulated,
+                    "wrote_files": turn_wrote_files(cursor.accumulated),
                 },
                 stop_hook_active=extension_state.block_count > 0,
             )
             stop_outcome = apply_turn_end_extension(
                 stop_results,
                 extension_state,
-                result_output,
-                run_history,
+                cursor.output,
+                cursor.run_history,
                 print_fn,
             )
             if stop_outcome.should_continue:
-                current_message = stop_outcome.new_message
-                current_history = stop_outcome.new_history or current_history
-                result_output = None
-                current_results = None
+                cursor.message = stop_outcome.new_message
+                cursor.history = stop_outcome.new_history or cursor.history
+                cursor.output = None
+                cursor.results = None
                 continue
-            return resolve_extended_return(extension_state, result_output, run_history)
+            return resolve_extended_return(
+                extension_state, cursor.output, cursor.run_history
+            )
     except asyncio.CancelledError as ce:
         partial_run.is_interrupted = True
         setattr(ce, "zrb_partial_run", partial_run)
@@ -711,7 +714,11 @@ async def _execution_loop(
         partial_run.error = str(e)
         setattr(e, "zrb_partial_run", partial_run)
         if not hasattr(e, "zrb_history"):
-            setattr(e, "zrb_history", _resolve_crash_history(partial_run, run_history))
+            setattr(
+                e,
+                "zrb_history",
+                _resolve_crash_history(partial_run, cursor.run_history),
+            )
         raise e
     finally:
         await _await_pending_checkpoints(pending_checkpoint_tasks)

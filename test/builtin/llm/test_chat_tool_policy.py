@@ -6,60 +6,60 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from zrb.builtin.llm.chat_tool_policy import (
-    _approve_if_path_inside_parent,
-    _path_inside_any_parent,
-    _path_inside_parent,
     approve_if_mv_inside_journal_dir,
     approve_if_path_inside_cwd,
     approve_if_path_inside_journal_dir,
+    approve_if_path_inside_parent,
     approve_if_path_inside_skill_or_plugin_dir,
+    path_inside_any_parent,
+    path_inside_parent,
 )
 
 
 class TestPathInsideParent:
-    """Test _path_inside_parent helper."""
+    """Test path_inside_parent helper."""
 
     def test_path_inside_parent_returns_true(self, tmp_path):
         """Returns True when path is inside parent."""
         child = str(tmp_path / "subdir" / "file.txt")
         parent = str(tmp_path)
-        assert _path_inside_parent(child, parent) is True
+        assert path_inside_parent(child, parent) is True
 
     def test_path_is_parent_itself(self, tmp_path):
         """Returns True when path equals parent."""
         parent = str(tmp_path)
-        assert _path_inside_parent(parent, parent) is True
+        assert path_inside_parent(parent, parent) is True
 
     def test_path_outside_parent_returns_false(self, tmp_path):
         """Returns False when path is outside parent."""
         other = str(tmp_path / ".." / "other_dir" / "file.txt")
         parent = str(tmp_path)
-        assert _path_inside_parent(other, parent) is False
+        assert path_inside_parent(other, parent) is False
 
     def test_path_exception_returns_false(self):
         """Returns False when path resolution fails."""
         with patch("os.path.abspath", side_effect=Exception("fail")):
-            result = _path_inside_parent("/some/path", "/parent")
+            result = path_inside_parent("/some/path", "/parent")
         assert result is False
 
 
 class TestApproveIfPathInsideParent:
-    """Test _approve_if_path_inside_parent helper."""
+    """Test approve_if_path_inside_parent helper."""
 
     def test_with_path_key_inside(self, tmp_path):
         """Approves when 'path' is inside parent."""
         child = str(tmp_path / "file.txt")
-        result = _approve_if_path_inside_parent({"path": child}, str(tmp_path))
+        result = approve_if_path_inside_parent({"path": child}, str(tmp_path))
         assert result is True
 
     def test_with_path_key_outside(self, tmp_path):
         """Denies when 'path' is outside parent."""
-        result = _approve_if_path_inside_parent({"path": "/etc/passwd"}, str(tmp_path))
+        result = approve_if_path_inside_parent({"path": "/etc/passwd"}, str(tmp_path))
         assert result is False
 
     def test_with_no_path_key_returns_true(self):
         """Returns True when no 'path' key exists (tool args without a path are not gated)."""
-        result = _approve_if_path_inside_parent({"other_key": "value"}, "/parent")
+        result = approve_if_path_inside_parent({"other_key": "value"}, "/parent")
         assert result is True
 
 
@@ -136,29 +136,29 @@ class TestApproveIfMvInsideJournalDir:
 
 
 class TestPathInsideAnyParent:
-    """Test _path_inside_any_parent helper."""
+    """Test path_inside_any_parent helper."""
 
     def test_path_inside_first_parent(self, tmp_path):
         """Returns True when path is inside the first parent."""
         child = str(tmp_path / "sub" / "file.txt")
         parents = [str(tmp_path), "/nonexistent"]
-        assert _path_inside_any_parent(child, parents) is True
+        assert path_inside_any_parent(child, parents) is True
 
     def test_path_inside_second_parent(self, tmp_path):
         """Returns True when path is inside a later parent."""
         child = str(tmp_path / "sub" / "file.txt")
         parents = ["/nonexistent", str(tmp_path)]
-        assert _path_inside_any_parent(child, parents) is True
+        assert path_inside_any_parent(child, parents) is True
 
     def test_path_not_inside_any(self, tmp_path):
         """Returns False when path is inside none of the parents."""
         child = str(tmp_path / "file.txt")
         parents = ["/other", "/another"]
-        assert _path_inside_any_parent(child, parents) is False
+        assert path_inside_any_parent(child, parents) is False
 
     def test_empty_parents_list(self, tmp_path):
         """Returns False when parents list is empty."""
-        assert _path_inside_any_parent(str(tmp_path / "file.txt"), []) is False
+        assert path_inside_any_parent(str(tmp_path / "file.txt"), []) is False
 
 
 class TestApproveIfPathInsideSkillOrPluginDir:

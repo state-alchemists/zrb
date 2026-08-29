@@ -17,8 +17,8 @@ from pathlib import Path
 from typing import Any, Callable, cast
 
 from zrb.config.config import CFG
+from zrb.llm.hook.agent_hook_registry import get_agent_hook_builder
 from zrb.llm.hook.creator import (
-    create_agent_hook,
     create_command_hook,
     create_prompt_hook,
 )
@@ -610,13 +610,24 @@ class HookManager(HookManagerLoading):
         """Build the callable for `config.type` (command/prompt/agent), or a
         logging placeholder for anything else."""
         if config.type == HookType.COMMAND:
-            return self._create_command_hook(
+            return create_command_hook(
                 cast("CommandHookConfig", config.config), config.timeout
             )
         if config.type == HookType.PROMPT:
-            return self._create_prompt_hook(cast("PromptHookConfig", config.config))
+            return create_prompt_hook(cast("PromptHookConfig", config.config))
         if config.type == HookType.AGENT:
-            return self._create_agent_hook(cast("AgentHookConfig", config.config))
+            builder = get_agent_hook_builder()
+            if builder is not None:
+                return builder(cast("AgentHookConfig", config.config))
+
+            async def unavailable_hook(context: HookContext) -> HookResult:
+                logger.warning(
+                    f"Agent-type hook '{config.name}' skipped: zrb.llm.agent was "
+                    "never imported in this process."
+                )
+                return HookResult(success=False, output="Agent hooks unavailable")
+
+            return unavailable_hook
 
         async def placeholder_hook(context: HookContext) -> HookResult:
             logger.warning(
@@ -649,17 +660,6 @@ class HookManager(HookManagerLoading):
             return await inner_hook(context)
 
         return hook_with_matchers
-
-    def _create_command_hook(
-        self, config: CommandHookConfig, timeout: float | None = None
-    ) -> HookCallable:
-        return create_command_hook(config, timeout)
-
-    def _create_prompt_hook(self, config: PromptHookConfig) -> HookCallable:
-        return create_prompt_hook(config)
-
-    def _create_agent_hook(self, config: AgentHookConfig) -> HookCallable:
-        return create_agent_hook(config)
 
 
 # Module-level singleton - lightweight, hooks loaded on first execute_hooks() call

@@ -6,7 +6,7 @@
 
 Whether you're running tasks from the terminal or a sleek web UI, Zrb streamlines your process with task dependencies, environment management, and even inter-task communication.
 
-[Contribution Guidelines](https://github.com/state-alchemists/zrb/pulls) | [Report an Issue](https://github.com/state-alchemists/zrb/issues)
+[Contribution Guidelines](CONTRIBUTING.md) | [Report an Issue](https://github.com/state-alchemists/zrb/issues)
 
 ---
 
@@ -324,7 +324,7 @@ All task types available in Zrb, from basic to advanced.
 - [CI/CD Integration](docs/advanced-topics/ci-cd.md)
 - [Testing Zrb Tasks](docs/advanced-topics/testing-tasks.md) — mocking context, testing pipelines
 - [Upgrading Guide](docs/advanced-topics/upgrading-guide.md)
-- [Maintainer Guide](docs/advanced-topics/maintainer-guide.md)
+- [Maintainer Guide](docs/advanced-topics/maintainer-guide.md) — start here to contribute code
 
 ### V. Configuration
 - [Environment Variables & Overrides](docs/configuration/env-vars.md)

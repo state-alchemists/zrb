@@ -6,11 +6,7 @@ Zrb (Zaruba) is a Python task automation framework (v2.x). Pure-Python task defi
 
 ## Development Setup
 
-```bash
-source .venv/bin/activate && poetry lock && poetry install
-```
-
-Run tests: `source .venv/bin/activate && ./zrb-test.sh [path]` — pass nothing for all, or a file / directory / `file::test_function` path to scope.
+See [Maintainer Guide → Getting Started](docs/advanced-topics/maintainer-guide.md#getting-started) for environment setup, running tests, and troubleshooting a failing `zrb-test.sh`.
 
 ## Where the code lives
 
@@ -54,6 +50,12 @@ Inside `llm/`:
 `llm_plugin/` is split into core and optional content: `core_skills/` (always-on methodology baseline), `skills/` (utility skills, gated by `CFG.LLM_ENABLE_BUILTIN_SKILLS`), `core_agents/` (always-on sub-agents), and `agents/` (optional sub-agents, gated by `CFG.LLM_ENABLE_BUILTIN_AGENTS`). Each skill is `SKILL.md` or `SKILL.py`; each agent is `*.agent.md`. The toggles suppress only optional built-in content — user, project and plugin skills and agents always load (ADR-0054).
 
 `test/` mirrors the `src/` hierarchy. The mirror is a *naming* rule, not a completeness claim: where a test exists it sits at the mirrored path, but many modules are covered through a caller instead.
+
+**Two registration gotchas that fail silently (no error, no test failure) instead of loudly:**
+- A new task under `builtin/` must also be imported in `builtin/__init__.py` and added to its `__all__`, or it simply never appears in the CLI.
+- A new tool under `llm/tool/` must also be registered *and* `tag()`-ed with a `Capability` in `llm/common_tools.py::_register_tools`, or it silently resolves to `Capability.UNKNOWN` (denied in plan mode).
+
+`hook/manager.py` builds a `HookType.AGENT` hook through a registration seam (`hook/agent_hook_registry.py`) rather than importing `zrb.llm.agent` directly, since that subsystem itself depends on `hook.manager` — a genuine circular dependency, not just a circular import. `zrb.llm.agent`'s package `__init__` registers the real builder (`agent/hook_agent.py`) as an import side effect; if it's ever missing, `hook/manager.py` logs a warning and returns a failed `HookResult` instead of crashing.
 
 > For a top-down tour of `zrb llm chat "..."` (CLI → task → agent run → UI → history), see `docs/advanced-topics/llm-chat-lifecycle.md`.
 

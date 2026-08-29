@@ -20,6 +20,7 @@ way `self.name`, `self.envs` (`BaseTask` properties), and
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any, cast
 
 from zrb.config.config import CFG
@@ -428,6 +429,20 @@ class ChatExecution:
         # (see run_non_interactive_session / run_interactive_session).
         resolved_sandbox = coerce_sandbox(ctx, llm_chat_task.sandbox)
 
+        # The inner task's conversation identity is always the active chat
+        # session, never llm_chat_task's own conversation_name/render setting
+        # — every field here is an explicit override, not a passthrough of
+        # llm_chat_task.history_config. render_conversation_name=True is
+        # pinned deliberately: the session template below only resolves
+        # correctly when rendered, regardless of what llm_chat_task itself
+        # was configured with.
+        resolved_history = replace(
+            llm_chat_task.history_config,
+            history_manager=history_manager,
+            conversation_name="{ctx.input.session}",
+            render_conversation_name=True,
+        )
+
         # Pass resolved tools/toolsets to LLMTask (no factories needed since already resolved)
         return LLMTask(
             name=f"{llm_chat_task.name}-process",
@@ -456,7 +471,7 @@ class ChatExecution:
             capabilities=capabilities,
             llm_config=llm_chat_task.llm_config,
             llm_limiter=llm_chat_task.llm_limiter,
-            history_manager=history_manager,
+            history_manager=resolved_history.history_manager,
             hook_manager=hook_manager,
             tool_confirmation=tool_confirmation,
             ui=cast("UIProtocol | None", ui),
@@ -464,7 +479,8 @@ class ChatExecution:
             permissions=llm_chat_task.permissions,
             sandbox=resolved_sandbox,
             message="{ctx.input.message}",
-            conversation_name="{ctx.input.session}",
+            conversation_name=resolved_history.conversation_name,
+            render_conversation_name=resolved_history.render_conversation_name,
             yolo="{ctx.input.yolo}",
             dynamic_yolo=_should_skip_approval,
             attachment=lambda ctx: ctx.input.attachments,

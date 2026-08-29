@@ -22,7 +22,7 @@ def yaml_dump(obj: Any, key: str = "") -> str:
     processed_obj = _sanitize_obj(obj)
     if key:
         key_parts = _parse_key(key)
-        obj_to_dump = _get_obj_value(processed_obj, key_parts)
+        obj_to_dump = get_obj_value(processed_obj, key_parts)
     else:
         obj_to_dump = processed_obj
     yaml.add_representer(str, _multiline_string_presenter)
@@ -60,7 +60,7 @@ def edit_obj(obj: Any, key: str, val: str) -> Any:
         edit({"a": 1}, "", "2") -> 2  # Replace entire object with scalar
         edit({"a": 1}, "", "b: 2") -> {"a": 1, "b": 2}  # Patch dict if obj is dict
     """
-    parsed_value = _load_yaml(val)
+    parsed_value = load_yaml(val)
 
     if not key:
         if isinstance(obj, dict) and isinstance(parsed_value, dict):
@@ -69,7 +69,7 @@ def edit_obj(obj: Any, key: str, val: str) -> Any:
         return parsed_value
 
     key_parts = _parse_key(key)
-    return _set_obj_value(obj, key_parts, parsed_value)
+    return set_obj_value(obj, key_parts, parsed_value)
 
 
 def _sanitize_obj(obj: Any) -> Any:
@@ -111,7 +111,7 @@ def _parse_key(key: str) -> list[str]:
     return key.split(".")
 
 
-def _load_yaml(value_str: str) -> Any:
+def load_yaml(value_str: str) -> Any:
     """Parse a string value using YAML rules."""
     # lazy: heavy third-party
     import yaml
@@ -125,7 +125,7 @@ def _load_yaml(value_str: str) -> Any:
         return value_str
 
 
-def _set_obj_value(obj: Any, keys: list[str], value: Any) -> Any:
+def set_obj_value(obj: Any, keys: list[str], value: Any) -> Any:
     """Set a value in a nested structure."""
     if not keys:
         return value
@@ -135,7 +135,7 @@ def _set_obj_value(obj: Any, keys: list[str], value: Any) -> Any:
         if remaining_keys:
             if current_key not in obj:
                 obj[current_key] = {}
-            obj[current_key] = _set_obj_value(obj[current_key], remaining_keys, value)
+            obj[current_key] = set_obj_value(obj[current_key], remaining_keys, value)
         else:
             obj[current_key] = value
         return obj
@@ -144,7 +144,7 @@ def _set_obj_value(obj: Any, keys: list[str], value: Any) -> Any:
             index = int(current_key)
             if 0 <= index < len(obj):
                 if remaining_keys:
-                    obj[index] = _set_obj_value(obj[index], remaining_keys, value)
+                    obj[index] = set_obj_value(obj[index], remaining_keys, value)
                 else:
                     obj[index] = value
             else:
@@ -156,13 +156,13 @@ def _set_obj_value(obj: Any, keys: list[str], value: Any) -> Any:
         return obj
     else:
         if remaining_keys:
-            new_obj = {current_key: _set_obj_value({}, remaining_keys, value)}
+            new_obj = {current_key: set_obj_value({}, remaining_keys, value)}
             return new_obj
         else:
             return {current_key: value}
 
 
-def _get_obj_value(obj: Any, keys: list[str]) -> Any:
+def get_obj_value(obj: Any, keys: list[str]) -> Any:
     """
     Get a value from a nested structure using a list of keys.
     Returns None if the key path does not exist.

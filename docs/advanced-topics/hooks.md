@@ -325,6 +325,8 @@ Run agents with tools for complex analysis.
 
 If every name in `tools` fails to resolve — most commonly because the feature they belong to is off (e.g. the journal tools while `LLM_JOURNAL_ENABLED` is `false`) — the hook skips its LLM call entirely rather than run an agent that has nothing it can do. A hook that genuinely wants no tools just leaves `tools` empty and is unaffected.
 
+This `agent-review` snippet is a runnable worked example, not just documentation: see `security-review-agent-example` in `examples/llm-hooks/.zrb/hooks.json` (shipped `enabled: false` — an agent hook on `PreToolUse` adds a model round-trip to every matching tool call).
+
 ### Built-in example: the journal-compliance judge
 
 A small dedicated sub-agent that looks at a completed turn and decides — on its own, using `LogActivity`/`WriteJournalNote`'s own documented criteria — whether the turn needs a journal entry, and writes one itself if so. It only spends an LLM call on turns that actually changed a file, via the `event_data.wrote_files` matcher (computed in plain Python at the `Stop` call site, no model involved), and `async: true` keeps it from blocking the user's response while it decides.
@@ -352,7 +354,7 @@ The shape of its `HookConfig`, for reference (built in Python by `build_journal_
 }
 ```
 
-`examples/llm-hooks/.zrb/hooks.json` still carries the equivalent JSON entry (shipped `enabled: false`) purely as a worked example of writing your **own** agent hook this way — enabling it would just register a redundant second copy alongside the built-in one.
+Duplicating this exact hook in `examples/llm-hooks/.zrb/hooks.json` would teach nothing new, so the shipped example (`security-review-agent-example`, shipped `enabled: false`) demonstrates a different agent-hook use case instead — a `PreToolUse` review agent rather than a `Stop` one. See [llm-chat-lifecycle.md](./llm-chat-lifecycle.md#tracing-an-agent-type-hook-journal-compliance) for how this built-in one is actually wired end-to-end (the registration seam, the `HookType.AGENT` builder, and where the LLM call happens).
 
 ---
 

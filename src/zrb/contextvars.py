@@ -47,25 +47,27 @@ from zrb.llm.permission.state import (
     current_permission_policy,
     get_current_agent_mode,
     get_current_permission_policy,
+    permission_policy,
     set_current_agent_mode,
-    set_current_permission_policy,
 )
 
 # --- Sandbox state (filesystem containment policy) ---
 from zrb.llm.sandbox.state import (
     current_sandbox_policy,
     get_current_sandbox_policy,
-    set_current_sandbox_policy,
+    sandbox_policy,
 )
 
 # --- Tool ambient state ---
 from zrb.llm.tool.ambient_state import (
     active_worktree,
     get_active_worktree,
+    get_current_context_session,
     get_current_tool_session,
     get_interactive_mode,
     interactive_mode,
     set_active_worktree,
+    set_current_session,
     set_current_tool_session,
     set_interactive_mode,
 )
@@ -92,19 +94,21 @@ __all__ = [
     "current_permission_policy",
     "current_agent_mode",
     "get_current_permission_policy",
-    "set_current_permission_policy",
+    "permission_policy",
     "get_current_agent_mode",
     "set_current_agent_mode",
     # Sandbox state
     "current_sandbox_policy",
     "get_current_sandbox_policy",
-    "set_current_sandbox_policy",
+    "sandbox_policy",
     # Tool ambient state
     "active_worktree",
     "get_active_worktree",
     "set_active_worktree",
     "get_current_tool_session",
     "set_current_tool_session",
+    "get_current_context_session",
+    "set_current_session",
     "interactive_mode",
     "get_interactive_mode",
     "set_interactive_mode",

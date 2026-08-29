@@ -60,7 +60,7 @@ class MockLifecycleUI:
         # private-test-access ratchet).
         self.lifecycle_part = self._lifecycle
 
-    async def _trigger_loop(self, trigger):
+    async def trigger_loop(self, trigger):
         pass
 
     async def process_messages_loop(self):

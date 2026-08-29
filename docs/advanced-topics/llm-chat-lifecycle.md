@@ -143,6 +143,19 @@ UI streaming uses `prompt_toolkit` for the default TUI; HTTP chat uses SSE. Both
 
 Hook events fire at well-defined points (USER_PROMPT_SUBMIT, PRE_TOOL_USE, POST_TOOL_USE, POST_TOOL_USE_FAILURE, NOTIFICATION, SESSION_START, SESSION_END, …). See [hooks.md](./hooks.md) for the full event list and authoring patterns.
 
+### Tracing an AGENT-type hook (journal-compliance)
+
+The built-in journal-compliance judge (`llm/hook/journal_compliance.py`, see [hooks.md](./hooks.md#built-in-example-the-journal-compliance-judge)) is the one hook type whose builder can't live in `hook/creator.py` next to the command/prompt builders — building an agent means importing the agent subsystem, which already depends on `hook.manager` to fire `PreToolUse`/`PostToolUse`, so a direct import back would recreate that cycle. If it misbehaves, the real call path crosses that seam:
+
+1. `journal_compliance.py::register_journal_compliance_hook` — a hook factory, seeded into every fresh `HookManager`'s `_hook_factories` (`hook/manager.py.__init__`). Builds the `HookConfig`: system prompt, `LogActivity`/`WriteJournalNote`/`SearchJournal` tools, and the `event_data.wrote_files` matcher.
+2. `agent/run/runner.py` fires `HookEvent.STOP`, computing `wrote_files` via `hook/turn_evidence.py`.
+3. `hook/manager.py::_select_inner_hook`, for `HookType.AGENT`, calls `get_agent_hook_builder()` (`hook/agent_hook_registry.py`) instead of importing the agent package directly — that's the circular-dependency seam.
+4. `agent/__init__.py` imports `agent/hook_agent.py` as an import side effect at package load, which calls `register_agent_hook_builder(create_agent_hook)`. This is *why* the registry already has a builder by the time step 3 runs in any real process (every entry point imports `zrb.llm.agent` before a hook manager ever scans).
+5. `agent/hook_agent.py::create_agent_hook` resolves `tools` (config-gated on `LLM_JOURNAL_ENABLED`) and calls `run_llm_hook` (`hook/creator.py`) — the actual LLM round-trip.
+6. Back in `hook/manager.py`: matcher evaluation (`matcher.py`), priority sort, and — since journal-compliance is `async: true` — fire-and-forget dispatch and drain/timeout handling on shutdown.
+
+A hook-only test that never imports `zrb.llm.agent` sees `get_agent_hook_builder()` return `None` at step 3 and gets a logged "agent hooks unavailable" placeholder instead — expected, not a bug.
+
 ---
 
 ## Stage 7 — History persistence & shutdown
@@ -181,7 +194,7 @@ Control returns up through `LLMChatTask._exec_action` → `run_task_async` → `
 | Compression / summarisation | `src/zrb/llm/summarizer/history_summarizer.py` |
 | Default TUI | `src/zrb/llm/ui/default/ui.py` (composes `base/ui.py` + 7 parts: lifecycle, output, confirmation, selection, message editing, agent picker, keybindings) |
 | HTTP chat UI | `src/zrb/runner/chat/http_ui.py` + SSE backend |
-| Hooks | `src/zrb/llm/hook/manager.py`, `creator.py`, `process_{io,kill}.py`, `matcher.py` |
+| Hooks | `src/zrb/llm/hook/manager.py`, `creator.py`, `process_{io,kill}.py`, `matcher.py`, `agent_hook_registry.py`, `journal_compliance.py` |
 | Sub-agents | `src/zrb/llm/agent/subagent/` |
 | Permission policy | `src/zrb/llm/permission/` |
 | Persistence | `src/zrb/llm/history_manager/file_history_manager.py` |

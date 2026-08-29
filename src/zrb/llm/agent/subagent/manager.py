@@ -496,9 +496,9 @@ sub_agent_manager = SubAgentManager()
 
 
 # Imported here (after SubAgentManager is defined) to break a circular import:
-# default_tools pulls in zrb.llm.tool, whose __init__ loads delegate.py, which
-# imports SubAgentManager from this module. Importing at the top would hit
-# this module mid-load before the class exists.
+# common_tools's registration functions pull in zrb.llm.tool, whose __init__
+# loads delegate.py, which imports SubAgentManager from this module.
+# Importing at the top would hit this module mid-load before the class exists.
 
 from zrb.llm.common_tools import defer_common_tools
 

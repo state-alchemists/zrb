@@ -14,10 +14,11 @@ from zrb.llm.agent.run.runner import run_agent
 from zrb.llm.agent.run.runtime_state import get_current_hook_manager, get_current_ui
 from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
 
-# Import directly from the inner module to avoid a circular import: the
-# subagent package's __init__ triggers `apply_common_tools`, which loads
-# zrb.llm.tool, which loads this module — so the package __init__ is still
-# mid-load when delegate.py executes its imports.
+# Import directly from the inner module (not the `subagent` package's
+# __init__) to avoid a circular import: this module IS what
+# `zrb.llm.tool/__init__.py` loads first, and `subagent`'s own __init__ just
+# re-exports `.manager` — going through the package here would gain nothing
+# and adds one more frame for a future change to accidentally re-enter.
 from zrb.llm.agent.subagent.manager import (
     SubAgentManager,
 )
@@ -163,7 +164,7 @@ async def run_agent_task(
         # uncaught — in the single-delegate path `session.active_task` is the
         # same asyncio Task driving the whole main turn, so an uncaught
         # propagation here would kill the entire turn, not just this call.
-        await _fire_subagent_hook(HookEvent.SUBAGENT_START, agent_name, agent_id)
+        await fire_subagent_hook(HookEvent.SUBAGENT_START, agent_name, agent_id)
         result, history = await run_agent(
             agent=sub_agent,
             message=full_message,
@@ -244,7 +245,7 @@ async def run_agent_task(
             session.active_task = None
         if _tracks_activity:
             agent_activity_registry.finish(agent_id, session_id=activity_session_id)
-        await _fire_subagent_hook(HookEvent.SUBAGENT_STOP, agent_name, agent_id)
+        await fire_subagent_hook(HookEvent.SUBAGENT_STOP, agent_name, agent_id)
 
 
 def persist_subagent_history(conversation_name: str, history: list) -> None:
@@ -253,7 +254,7 @@ def persist_subagent_history(conversation_name: str, history: list) -> None:
 
     Best-effort: persisting the transcript is not this tool's primary job, so
     a failure here (disk full, permissions) must not surface as a delegation
-    failure — same posture as ``_fire_subagent_hook``.
+    failure — same posture as ``fire_subagent_hook``.
 
     Unlike an ordinary conversation (one name, re-saved across turns, where
     ``LLM_HISTORY_BACKUP_RETAIN`` bounds its backups), every delegation mints
@@ -323,7 +324,7 @@ def _prune_old_subagent_history() -> None:
             pass
 
 
-async def _fire_subagent_hook(event: HookEvent, agent_name: str, agent_id: str) -> None:
+async def fire_subagent_hook(event: HookEvent, agent_name: str, agent_id: str) -> None:
     """Fire SubagentStart/Stop (observe-only) on the parent run's hook manager,
     falling back to the module singleton. Never raises."""
     manager = get_current_hook_manager() or default_hook_manager

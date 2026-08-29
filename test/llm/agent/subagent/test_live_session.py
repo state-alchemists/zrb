@@ -5,10 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from zrb.llm.agent.subagent.live_session import (
-    LiveSubAgentSessionRegistry,
-    _continue_live_session,
-)
+from zrb.llm.agent.subagent.live_session import LiveSubAgentSessionRegistry
 
 
 @pytest.fixture
@@ -302,24 +299,15 @@ async def test_cancel_stops_a_running_continuation(
     assert entry.state == "idle"
 
 
-# ── _continue_live_session ──
+# ── continuation draining (via the public send_message entry point) ──
 
 
 @pytest.mark.asyncio
 async def test_continue_live_session_drains_multiple_queued_messages(
-    buffered_ui, sub_agent_manager
+    registry, buffered_ui, sub_agent_manager
 ):
-    from zrb.llm.agent.subagent.live_session import LiveSubAgentSession
-
-    entry = LiveSubAgentSession(
-        agent_id="a",
-        agent_name="researcher",
-        session_id="sess1",
-        sub_agent_manager=sub_agent_manager,
-        buffered_ui=buffered_ui,
-        history=[],
-        pending_queue=["first", "second"],
-        state="running",
+    entry = registry.add_session(
+        "sess1", "a", "researcher", sub_agent_manager, buffered_ui
     )
 
     calls = []
@@ -328,10 +316,22 @@ async def test_continue_live_session_drains_multiple_queued_messages(
         calls.append(kwargs["message"])
         return "ok", kwargs["message_history"] + [kwargs["message"]]
 
-    with patch(
-        "zrb.llm.agent.subagent.live_session.run_agent", side_effect=fake_run_agent
+    with (
+        patch(
+            "zrb.llm.agent.subagent.live_session.steer_into_live_run",
+            return_value=False,
+        ),
+        patch(
+            "zrb.llm.agent.subagent.live_session.run_agent", side_effect=fake_run_agent
+        ),
     ):
-        await _continue_live_session(entry)
+        await registry.send_message("sess1", "a", "first")
+        task = entry.active_task
+        # Second message arrives before the spawned task has had a chance to
+        # run (no `await` yet) — it must queue behind the first, not spawn a
+        # second continuation.
+        await registry.send_message("sess1", "a", "second")
+        await task
 
     assert calls == ["first", "second"]
     assert entry.history == ["first", "second"]
@@ -340,24 +340,15 @@ async def test_continue_live_session_drains_multiple_queued_messages(
 
 @pytest.mark.asyncio
 async def test_continue_live_session_reuses_entrys_run_scope_across_turns(
-    buffered_ui, sub_agent_manager
+    registry, buffered_ui, sub_agent_manager
 ):
     """Each drained message is a separate run_agent() call, but they're all
     turns of the SAME sub-agent conversation — file_observation.py's
     read-before-overwrite tracking must see them as one run_scope, not a
     fresh one per turn (which would make it forget files read in an earlier
     turn of this same continuation)."""
-    from zrb.llm.agent.subagent.live_session import LiveSubAgentSession
-
-    entry = LiveSubAgentSession(
-        agent_id="a",
-        agent_name="researcher",
-        session_id="sess1",
-        sub_agent_manager=sub_agent_manager,
-        buffered_ui=buffered_ui,
-        history=[],
-        pending_queue=["first", "second"],
-        state="running",
+    entry = registry.add_session(
+        "sess1", "a", "researcher", sub_agent_manager, buffered_ui
     )
 
     scopes = []
@@ -366,10 +357,19 @@ async def test_continue_live_session_reuses_entrys_run_scope_across_turns(
         scopes.append(kwargs["run_scope"])
         return "ok", kwargs["message_history"] + [kwargs["message"]]
 
-    with patch(
-        "zrb.llm.agent.subagent.live_session.run_agent", side_effect=fake_run_agent
+    with (
+        patch(
+            "zrb.llm.agent.subagent.live_session.steer_into_live_run",
+            return_value=False,
+        ),
+        patch(
+            "zrb.llm.agent.subagent.live_session.run_agent", side_effect=fake_run_agent
+        ),
     ):
-        await _continue_live_session(entry)
+        await registry.send_message("sess1", "a", "first")
+        task = entry.active_task
+        await registry.send_message("sess1", "a", "second")
+        await task
 
     assert scopes == [entry.run_scope, entry.run_scope]
     assert entry.run_scope != ""
@@ -377,20 +377,12 @@ async def test_continue_live_session_reuses_entrys_run_scope_across_turns(
 
 @pytest.mark.asyncio
 async def test_continue_live_session_reflects_in_activity_registry(
-    buffered_ui, sub_agent_manager
+    registry, buffered_ui, sub_agent_manager
 ):
     """A continuation is a sub-agent running -- it must show in the compact
     main-view activity line the same as the original turn did."""
-    from zrb.llm.agent.subagent.live_session import LiveSubAgentSession
-
-    entry = LiveSubAgentSession(
-        agent_id="a",
-        agent_name="researcher",
-        session_id="sess1",
-        sub_agent_manager=sub_agent_manager,
-        buffered_ui=buffered_ui,
-        pending_queue=["hello"],
-        state="running",
+    entry = registry.add_session(
+        "sess1", "a", "researcher", sub_agent_manager, buffered_ui
     )
 
     async def fake_run_agent(**kwargs):
@@ -398,13 +390,18 @@ async def test_continue_live_session_reflects_in_activity_registry(
 
     with (
         patch(
+            "zrb.llm.agent.subagent.live_session.steer_into_live_run",
+            return_value=False,
+        ),
+        patch(
             "zrb.llm.agent.subagent.live_session.run_agent", side_effect=fake_run_agent
         ),
         patch(
             "zrb.llm.agent.subagent.live_session.agent_activity_registry"
         ) as mock_registry,
     ):
-        await _continue_live_session(entry)
+        await registry.send_message("sess1", "a", "hello")
+        await entry.active_task
 
     mock_registry.start.assert_called_once_with(
         "a", "researcher", task="hello", session_id="sess1"
@@ -414,25 +411,19 @@ async def test_continue_live_session_reflects_in_activity_registry(
 
 @pytest.mark.asyncio
 async def test_continue_live_session_skips_message_when_agent_no_longer_resolves(
-    buffered_ui,
+    registry, buffered_ui, sub_agent_manager
 ):
     """The definition disappeared mid-session -- drop that message rather
     than loop forever on it, but keep draining the rest of the queue."""
-    from zrb.llm.agent.subagent.live_session import LiveSubAgentSession
+    sub_agent_manager.create_agent.return_value = None
+    entry = registry.add_session("sess1", "a", "ghost", sub_agent_manager, buffered_ui)
 
-    manager = MagicMock()
-    manager.create_agent.return_value = None
-    entry = LiveSubAgentSession(
-        agent_id="a",
-        agent_name="ghost",
-        session_id="sess1",
-        sub_agent_manager=manager,
-        buffered_ui=buffered_ui,
-        pending_queue=["hello"],
-        state="running",
-    )
-
-    await _continue_live_session(entry)
+    with patch(
+        "zrb.llm.agent.subagent.live_session.steer_into_live_run",
+        return_value=False,
+    ):
+        await registry.send_message("sess1", "a", "hello")
+        await entry.active_task
 
     assert entry.state == "idle"
     assert entry.pending_queue == []
@@ -440,57 +431,55 @@ async def test_continue_live_session_skips_message_when_agent_no_longer_resolves
 
 @pytest.mark.asyncio
 async def test_continue_live_session_swallows_run_agent_exception(
-    buffered_ui, sub_agent_manager
+    registry, buffered_ui, sub_agent_manager
 ):
     """A failed continuation turn must not crash the drain loop or leave the
     session stuck in "running" forever."""
-    from zrb.llm.agent.subagent.live_session import LiveSubAgentSession
-
-    entry = LiveSubAgentSession(
-        agent_id="a",
-        agent_name="researcher",
-        session_id="sess1",
-        sub_agent_manager=sub_agent_manager,
-        buffered_ui=buffered_ui,
-        pending_queue=["hello"],
-        state="running",
+    entry = registry.add_session(
+        "sess1", "a", "researcher", sub_agent_manager, buffered_ui
     )
 
-    with patch(
-        "zrb.llm.agent.subagent.live_session.run_agent",
-        side_effect=RuntimeError("boom"),
+    with (
+        patch(
+            "zrb.llm.agent.subagent.live_session.steer_into_live_run",
+            return_value=False,
+        ),
+        patch(
+            "zrb.llm.agent.subagent.live_session.run_agent",
+            side_effect=RuntimeError("boom"),
+        ),
     ):
-        await _continue_live_session(entry)  # must not raise
+        await registry.send_message("sess1", "a", "hello")
+        await entry.active_task  # must not raise
 
     assert entry.state == "idle"
 
 
 @pytest.mark.asyncio
 async def test_continue_live_session_marks_done_after_drain(
-    buffered_ui, sub_agent_manager
+    registry, buffered_ui, sub_agent_manager
 ):
     """A session that ends marks its end in the live view: the transcript the
     user is watching shows a trailing <Done>, so a finished sub-agent is
     unambiguous even while viewing it."""
-    from zrb.llm.agent.subagent.live_session import LiveSubAgentSession
-
-    entry = LiveSubAgentSession(
-        agent_id="a",
-        agent_name="researcher",
-        session_id="sess1",
-        sub_agent_manager=sub_agent_manager,
-        buffered_ui=buffered_ui,
-        pending_queue=["hello"],
-        state="running",
+    entry = registry.add_session(
+        "sess1", "a", "researcher", sub_agent_manager, buffered_ui
     )
 
     async def fake_run_agent(**kwargs):
         return "ok", [{"turn": 1}]
 
-    with patch(
-        "zrb.llm.agent.subagent.live_session.run_agent", side_effect=fake_run_agent
+    with (
+        patch(
+            "zrb.llm.agent.subagent.live_session.steer_into_live_run",
+            return_value=False,
+        ),
+        patch(
+            "zrb.llm.agent.subagent.live_session.run_agent", side_effect=fake_run_agent
+        ),
     ):
-        await _continue_live_session(entry)
+        await registry.send_message("sess1", "a", "hello")
+        await entry.active_task
 
     assert entry.state == "idle"
     buffered_ui.append_to_output.assert_any_call("<Done>")
@@ -498,31 +487,38 @@ async def test_continue_live_session_marks_done_after_drain(
 
 @pytest.mark.asyncio
 async def test_continue_live_session_skips_done_when_human_cancelled(
-    buffered_ui, sub_agent_manager
+    registry, buffered_ui, sub_agent_manager
 ):
     """A human-cancelled session must NOT show <Done>: the TUI already wrote
     <Esc> Canceled via cancel_viewed_agent, and a <Done> on top would
     contradict it."""
-    from zrb.llm.agent.subagent.live_session import LiveSubAgentSession
-
-    entry = LiveSubAgentSession(
-        agent_id="a",
-        agent_name="researcher",
-        session_id="sess1",
-        sub_agent_manager=sub_agent_manager,
-        buffered_ui=buffered_ui,
-        pending_queue=["hello"],
-        state="running",
-        cancelled_by_human=True,
+    entry = registry.add_session(
+        "sess1", "a", "researcher", sub_agent_manager, buffered_ui
     )
 
-    async def fake_run_agent(**kwargs):
-        return "ok", [{"turn": 1}]
+    started = asyncio.Event()
 
-    with patch(
-        "zrb.llm.agent.subagent.live_session.run_agent", side_effect=fake_run_agent
+    async def blocking_run_agent(**kwargs):
+        started.set()
+        await asyncio.Event().wait()  # never finishes on its own
+
+    with (
+        patch(
+            "zrb.llm.agent.subagent.live_session.steer_into_live_run",
+            return_value=False,
+        ),
+        patch(
+            "zrb.llm.agent.subagent.live_session.run_agent",
+            side_effect=blocking_run_agent,
+        ),
     ):
-        await _continue_live_session(entry)
+        await registry.send_message("sess1", "a", "keep going")
+        await started.wait()
+        task = entry.active_task
+
+        assert registry.cancel("sess1", "a") is True
+        with pytest.raises(asyncio.CancelledError):
+            await task
 
     calls = [c.args[0] for c in buffered_ui.append_to_output.call_args_list]
     assert "<Done>" not in calls
@@ -587,95 +583,103 @@ async def test_cancelled_then_continued_session_reports_back_to_main_agent(
 
 @pytest.mark.asyncio
 async def test_never_cancelled_session_does_not_report_back(
-    buffered_ui, sub_agent_manager
+    registry, buffered_ui, sub_agent_manager
 ):
     """A normal continuation of a sub-agent that finished (not cancelled)
     must not push anything: the main agent already received its delegation
     result."""
-    from zrb.llm.agent.subagent.live_session import LiveSubAgentSession
-
-    entry = LiveSubAgentSession(
-        agent_id="a",
-        agent_name="researcher",
-        session_id="sess1",
-        sub_agent_manager=sub_agent_manager,
-        buffered_ui=buffered_ui,
-        pending_queue=["hello"],
-        state="running",
-        notify_parent_on_end=False,
+    entry = registry.add_session(
+        "sess1", "a", "researcher", sub_agent_manager, buffered_ui
     )
 
     async def fake_run_agent(**kwargs):
         return "reply", [_response_with_text("normal reply")]
 
-    with patch(
-        "zrb.llm.agent.subagent.live_session.run_agent",
-        side_effect=fake_run_agent,
+    with (
+        patch(
+            "zrb.llm.agent.subagent.live_session.steer_into_live_run",
+            return_value=False,
+        ),
+        patch(
+            "zrb.llm.agent.subagent.live_session.run_agent",
+            side_effect=fake_run_agent,
+        ),
     ):
-        await _continue_live_session(entry)
+        await registry.send_message("sess1", "a", "hello")
+        await entry.active_task
 
     assert entry.state == "idle"
     buffered_ui.parent_ui.submit_message.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_second_cancel_suppresses_report_back(buffered_ui, sub_agent_manager):
+async def test_second_cancel_suppresses_report_back(
+    registry, buffered_ui, sub_agent_manager
+):
     """A continuation cut short by another Esc must not report: the user's
     latest word on this sub-agent was cancel, so the main agent should not be
     told it finished."""
-    from zrb.llm.agent.subagent.live_session import LiveSubAgentSession
-
-    entry = LiveSubAgentSession(
-        agent_id="a",
-        agent_name="researcher",
-        session_id="sess1",
-        sub_agent_manager=sub_agent_manager,
-        buffered_ui=buffered_ui,
-        pending_queue=["hello"],
-        state="running",
-        cancelled_by_human=True,
-        notify_parent_on_end=True,
+    entry = registry.add_session(
+        "sess1", "a", "researcher", sub_agent_manager, buffered_ui
     )
+    entry.pending_queue = ["queued"]
+    assert registry.cancel("sess1", "a") is True  # first cancel: sticky notify flag
 
-    async def fake_run_agent(**kwargs):
-        return "reply", [_response_with_text("partial reply")]
+    started = asyncio.Event()
 
-    with patch(
-        "zrb.llm.agent.subagent.live_session.run_agent",
-        side_effect=fake_run_agent,
+    async def blocking_run_agent(**kwargs):
+        started.set()
+        await asyncio.Event().wait()
+
+    with (
+        patch(
+            "zrb.llm.agent.subagent.live_session.steer_into_live_run",
+            return_value=False,
+        ),
+        patch(
+            "zrb.llm.agent.subagent.live_session.run_agent",
+            side_effect=blocking_run_agent,
+        ),
     ):
-        await _continue_live_session(entry)
+        await registry.send_message("sess1", "a", "keep going")
+        await started.wait()
+        task = entry.active_task
+
+        assert registry.cancel("sess1", "a") is True  # second cancel cuts it short
+
+        with pytest.raises(asyncio.CancelledError):
+            await task
 
     buffered_ui.parent_ui.submit_message.assert_not_called()
 
 
 @pytest.mark.asyncio
 async def test_report_back_skipped_when_history_has_no_reply(
-    buffered_ui, sub_agent_manager
+    registry, buffered_ui, sub_agent_manager
 ):
     """A continued session whose history contains no assistant text (tool-only
     or failed turns) has nothing to report."""
-    from zrb.llm.agent.subagent.live_session import LiveSubAgentSession
-
-    entry = LiveSubAgentSession(
-        agent_id="a",
-        agent_name="researcher",
-        session_id="sess1",
-        sub_agent_manager=sub_agent_manager,
-        buffered_ui=buffered_ui,
-        pending_queue=["hello"],
-        state="running",
-        notify_parent_on_end=True,
+    entry = registry.add_session(
+        "sess1", "a", "researcher", sub_agent_manager, buffered_ui
     )
+    entry.pending_queue = ["queued"]
+    assert registry.cancel("sess1", "a") is True
 
     async def fake_run_agent(**kwargs):
         return "reply", [_request_without_reply()]
 
-    with patch(
-        "zrb.llm.agent.subagent.live_session.run_agent",
-        side_effect=fake_run_agent,
+    with (
+        patch(
+            "zrb.llm.agent.subagent.live_session.steer_into_live_run",
+            return_value=False,
+        ),
+        patch(
+            "zrb.llm.agent.subagent.live_session.run_agent",
+            side_effect=fake_run_agent,
+        ),
     ):
-        await _continue_live_session(entry)
+        await registry.send_message("sess1", "a", "keep going")
+        await entry.active_task
 
     buffered_ui.parent_ui.submit_message.assert_not_called()
 

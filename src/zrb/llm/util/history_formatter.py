@@ -145,7 +145,7 @@ def _format_request(
         lines.append("📋 System Prompt:")
         if dynamic_ref:
             lines.append(f"  Ref: {dynamic_ref}")
-        lines.extend(_indent_lines(str(content), 2, max_lines=indent_max))
+        lines.extend(indent_lines(str(content), 2, max_lines=indent_max))
 
     for part in retry_parts:
         content = getattr(part, "content", "")
@@ -153,7 +153,7 @@ def _format_request(
         lines.append("🔄 Retry Prompt:")
         if tool_name:
             lines.append(f"  Tool: {tool_name}")
-        lines.extend(_indent_lines(str(content), 2, max_lines=indent_max))
+        lines.extend(indent_lines(str(content), 2, max_lines=indent_max))
 
     return lines
 
@@ -225,12 +225,12 @@ def _format_response(
     for part in thinking_parts:
         content = getattr(part, "content", "")
         lines.append("  💭 Thinking:")
-        lines.extend(_indent_lines(str(content), 4, max_lines=None if full else 10))
+        lines.extend(indent_lines(str(content), 4, max_lines=None if full else 10))
 
     text_parts = [p for p in parts if getattr(p, "part_kind", None) == "text"]
     for part in text_parts:
         content = getattr(part, "content", "")
-        lines.extend(_indent_lines(str(content), 2, max_lines=None if full else 50))
+        lines.extend(indent_lines(str(content), 2, max_lines=None if full else 50))
 
     # Then show tool calls (mimicking streaming style with 🧰)
     tool_call_parts = [p for p in parts if getattr(p, "part_kind", None) == "tool-call"]
@@ -299,12 +299,12 @@ def _format_tool_return(
 
     lines.append(f"  🔠 {id_display} | {name_display} {status_icon}")
     if shown.strip():
-        lines.extend(_indent_lines(shown, 4, max_lines=None if full else 3))
+        lines.extend(indent_lines(shown, 4, max_lines=None if full else 3))
 
     return lines
 
 
-def _indent_lines(text: str, indent: int = 2, max_lines: int | None = 50) -> list[str]:
+def indent_lines(text: str, indent: int = 2, max_lines: int | None = 50) -> list[str]:
     """Indent each line of text with proper truncation.
 
     Args:

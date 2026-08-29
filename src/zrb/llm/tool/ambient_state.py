@@ -11,16 +11,27 @@ exists" without chasing imports across tool modules.
 
 from __future__ import annotations
 
+from contextvars import ContextVar
+
 from zrb.llm.tool.ask import (
     get_interactive_mode,
     interactive_mode,
     set_interactive_mode,
 )
-from zrb.llm.tool.plan import (
-    get_current_context_session,
-    set_current_session,
-)
 from zrb.llm.tool.worktree import active_worktree
+
+_current_session: ContextVar[str] = ContextVar("zrb_current_session", default="default")
+
+
+def get_current_context_session() -> str:
+    """Get the current session name, set by set_current_session() before agent runs."""
+    return _current_session.get()
+
+
+def set_current_session(session_name: str) -> None:
+    """Set the current session name so todo tools use the right session automatically."""
+    if session_name:
+        _current_session.set(session_name)
 
 
 def get_active_worktree() -> str:

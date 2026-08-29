@@ -8,6 +8,7 @@ This guide is for developers who contribute to or maintain the Zrb project itsel
 
 ## Table of Contents
 
+- [Getting Started](#getting-started)
 - [Publishing Zrb](#publishing-zrb)
 - [Changelog](#changelog)
 - [API Reference](#api-reference)
@@ -22,6 +23,55 @@ This guide is for developers who contribute to or maintain the Zrb project itsel
 - [Quick Reference](#quick-reference)
 
 > 💡 **First time tracing a chat request?** Start with [LLM Chat Request Lifecycle](./llm-chat-lifecycle.md) — it walks `zrb llm chat "..."` from CLI to UI streaming, with file paths at each step. This guide goes deeper on the internals; that one stitches them together.
+
+---
+
+## Getting Started
+
+### Environment Setup
+
+First time only:
+
+```bash
+python -m venv .venv
+```
+
+Every session:
+
+```bash
+source .venv/bin/activate && poetry lock && poetry install
+```
+
+### Running Tests
+
+```bash
+./zrb-test.sh [path]
+```
+
+Pass nothing for the full suite, or a file / directory / `file::test_function` path to scope a run. CI runs the exact same script (`poetry run bash zrb-test.sh`), so a green local run means a green CI run.
+
+A scoped run and a full run check different things — `zrb-test.sh` gates in this order:
+
+| Gate | What it checks | If it fails |
+|------|-----------------|-------------|
+| `flake8 src/zrb --select=F` | Unused imports/vars, redefinitions (`src/` only) | Remove the dead import/var, or add the required `# lazy: <reason>` comment (see `AGENTS.md` → Imports) |
+| `flake8 src/zrb --select=C901` | A per-function complexity ratchet (mccabe) | Your function raised the *worst-in-repo* score — simplify it, or ask whether it's a registration/keybinding table (an accepted exception per `AGENTS.md`) |
+| radon per-function ratchet | Same idea as above, scored per-function instead of summed into the enclosing function | Same fix as above |
+| Private-test-access ratchet | Counts `test/` references into another object's private (`_foo`) attributes | You accessed a private member in a test — expose a public accessor instead (see `AGENTS.md` → Test Guidelines), or this is a rare accepted exception (see the script's own comment) |
+| `pyright src/zrb` (full run only) | Static type check | Fix the reported type error |
+| `pytest ... --cov-fail-under=90` (full run only) | ≥90% coverage | Add a test for the uncovered branch |
+
+Each gate's exact numbers and rationale are documented inline in `zrb-test.sh` itself — read it if a failure message alone isn't enough.
+
+**One gotcha that isn't a `zrb-test.sh` gate but bites often:** adding a new test file that shares a basename with one in another directory (e.g. two `test_manager.py` files) fails pytest *collection*, not a specific test — pytest imports rootdir-relative, so two bare files with the same name collide. Fix: add an empty `__init__.py` to the new test directory (see `AGENTS.md` → Test Guidelines for the full explanation).
+
+### Submitting a Change
+
+- **Branches:** `feat/<short-name>` for features, `fix/<short-name>` for bug fixes.
+- **Commits:** imperative subject line (`Add X`, `Fix Y`), one logical change per commit. Don't bump `pyproject.toml`'s version yourself — that's a separate maintainer-only commit tied to publishing (see [Publishing Zrb](#publishing-zrb) below).
+- **Changelog:** most changes need an entry — see [Changelog](#changelog) below for the exact format and where it goes.
+- **ADRs:** a non-trivial, consequential, and persistent design decision needs an Architecture Decision Record — see [`docs/adr/README.md`](../adr/README.md) for the criteria and mechanics.
+- For code-level conventions (naming, testing, imports, error handling), see [`AGENTS.md`](../../AGENTS.md) at the repo root — written for AI coding agents, but every rule applies to human contributors too.
 
 ---
 
@@ -277,12 +327,12 @@ All six are set at the start of `run_agent()` and reset in its `finally` block.
 |---|---|---|
 | `current_sandbox_policy` | `SandboxPolicy \| None` | In-force filesystem-containment policy (`None` = resolve from `CFG.LLM_SANDBOX_*`, which is disabled unless the deployment opted in). Set by `run_agent()` from the explicit arg or inherited from a parent run; reset in its `finally` block. Consumed by the `_sandbox_gate` in `agent/common.py` and the shell tools' OS-sandbox wrapper. |
 
-**Layer 5 — Tool ambient state** (`src/zrb/llm/tool/worktree.py`, `src/zrb/llm/tool/plan.py`, `src/zrb/llm/tool/ask.py`):
+**Layer 5 — Tool ambient state** (`src/zrb/llm/tool/worktree.py`, `src/zrb/llm/tool/ambient_state.py`, `src/zrb/llm/tool/ask.py`):
 
 | Variable | Type | Purpose |
 |---|---|---|
 | `active_worktree` | `str` | Path of the worktree the agent is currently operating in (set by `EnterWorktree`, cleared by `ExitWorktree`) |
-| `_current_session` | `str` | Session id used by the todo tools so they default to the right conversation when called without an explicit `session=` |
+| `_current_session` | `str` | The active conversation's session id, defaulted by tools (todo tools, `DelegateToAgent`, `BufferedUI`) called without an explicit `session=` |
 | `interactive_mode` | `bool` | Whether the current chat session is interactive — gates `ask_user_question` so non-interactive runs short-circuit instead of blocking on stdin |
 
 Set/cleared by their owning tool implementations rather than at a single entry point.
@@ -402,7 +452,7 @@ Zrb applies `sanitize_history()` at three points:
 2. **On the result history** after a successful stream (`runner.py` — after `AgentRunResultEvent`)
 3. **After history compression** on the kept slice (`history_summarizer.py` — `summarize_history`), which runs *all four sanitization steps* unconditionally to guarantee the returned history is provider-clean
 
-`sanitize_history()` applies four steps in a fixed order so that each step's output is valid input for the next:
+`sanitize_history()` applies its steps in a fixed order, held in the `_SANITIZE_STEPS` tuple (`history_utils.py`) so that reordering the pipeline is a visible edit to that tuple rather than an invisible statement reorder — each step's output must be valid input for the next:
 
 | Step | Function | What it fixes |
 |------|----------|---------------|
@@ -415,13 +465,15 @@ Step 2 is skipped when `allow_orphaned_tool_calls=True`. This flag must be set w
 
 ```python
 # runner.py — _execution_loop
-current_history = sanitize_history(
-    current_history,
-    allow_orphaned_tool_calls=(current_results is not None),
+cursor.begin_round(
+    sanitize_history(
+        cursor.history,
+        allow_orphaned_tool_calls=(cursor.results is not None),
+    )
 )
 ```
 
-Before applying fixes, `_detect_problems()` scans the history for invariant violations and logs each at DEBUG level. This covers nil content, text-less `ModelResponse` objects, consecutive same-role messages, and orphaned tool pairs. It has zero production overhead (DEBUG-only) but is invaluable when tracing the root cause of provider 400 errors.
+Before applying fixes, `_detect_problems()` scans the history for invariant violations and logs each at DEBUG level. This covers nil content, text-less `ModelResponse` objects, consecutive same-role messages, and orphaned tool pairs. It has zero production overhead (DEBUG-only) but is invaluable when tracing the root cause of provider 400 errors. The same check runs again after the pipeline; any problem still present there means the step order (or a step's own contract) is wrong, and is logged as such at DEBUG.
 
 ### The OpenAI Serializer Patch
 
@@ -473,14 +525,14 @@ The sanitization layer and `allow_orphaned_tool_calls` above protect against a t
 
 Two defenses cover this (see ADR-0040):
 
-1. **Prevention (`runner.py`, `_execution_loop`)** — the deferred-tool branch always sets `current_history` directly to `run_history`, unconditionally, never reapplying processors mid-deferral. It is unconditional rather than guarded because `_process_deferred_requests` populates `current_results.approvals` for every resolved call (approved, denied, or hook-blocked), so any "should I skip the summarizer?" condition is true on every deferred iteration anyway. Processor effects are already applied in `_prepare_history` before the first stream call, and the summarizer still runs on every non-deferred iteration.
+1. **Prevention (`runner.py`, `_execution_loop`)** — the deferred-tool branch calls `cursor.carry_forward()` (`turn_cursor.py`), the one and only place `TurnCursor.history` is set from `run_history`, never reapplying processors mid-deferral. It is unconditional rather than guarded because `_process_deferred_requests` populates `current_results.approvals` for every resolved call (approved, denied, or hook-blocked), so any "should I skip the summarizer?" condition is true on every deferred iteration anyway. Processor effects are already applied in `_prepare_history` before the first stream call, and the summarizer still runs on every non-deferred iteration.
 
    ```python
    # runner.py — _execution_loop, deferred-tool branch
-   current_history = run_history  # never reapply the summarizer mid-deferral
+   cursor.carry_forward()  # never reapply the summarizer mid-deferral
    ```
 
-2. **Recovery (`retry_loop.py`, `handle_stream_error`)** — a one-shot handler (gated by `deferred_mismatch_retry_done`) catches the `UserError`, clears the stale `current_results` via `RetryOutcome.clear_results`, and retries so the model generates fresh tool calls. It hands back the **intact `run_history`** (not `None`) as `new_history`: the runner assigns `outcome.new_history` to `current_history` unconditionally and the next iteration feeds it straight into `sanitize_history`, which raises `TypeError` on `None`.
+2. **Recovery (`retry_loop.py`, `handle_stream_error`)** — a one-shot handler (gated by `deferred_mismatch_retry_done`) catches the `UserError`, clears the stale `current_results` via `RetryOutcome.clear_results`, and retries so the model generates fresh tool calls. It hands back the **intact `run_history`** (not `None`) as `new_history`: the runner assigns `outcome.new_history` to `cursor.history` unconditionally and the next iteration feeds it straight into `sanitize_history`, which raises `TypeError` on `None`.
 
 ### The Empty-Completion Guard
 
@@ -513,7 +565,8 @@ Two things moved the other way and were adopted rather than kept: `ModelHTTPErro
 
 | File | Responsibility |
 |------|---------------|
-| `src/zrb/llm/agent/run/history_utils.py` | `sanitize_history()`, `filter_nil_content()`, `strip_thinking_parts()`, `strip_to_text_only()` |
+| `src/zrb/llm/agent/run/history_utils.py` | `sanitize_history()`, `_SANITIZE_STEPS`, `filter_nil_content()`, `strip_thinking_parts()`, `strip_to_text_only()`, `TurnPruneFloor` |
+| `src/zrb/llm/agent/run/turn_cursor.py` | `TurnCursor` — the loop state `_execution_loop` threads across rounds; `carry_forward()` and `commit_round()` are the two invariants this ADR depends on |
 | `src/zrb/llm/message.py` | `sanitize_orphaned_tool_calls()`, `ensure_alternating_roles()`, `validate_tool_pair_integrity()` |
 | `src/zrb/llm/agent/run/openai_patch.py` | Monkey-patch for `content: null` serialization |
 | `src/zrb/llm/agent/run/error_classifier.py` | `is_missing_reasoning_content_error()`, `is_invalid_tool_call_error()` |

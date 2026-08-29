@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any, TextIO
 
 from zrb.llm.agent.activity import agent_activity_registry
 from zrb.llm.tool_call.ui_protocol import UIProtocol
+from zrb.llm.ui.output_chunk import CollapsibleBlockSource, merge_output_chunk
 from zrb.util.cli.style import stylize_muted
 
 if TYPE_CHECKING:
@@ -142,10 +143,7 @@ class BufferedUI(UIProtocol):
         styled_text = (
             stylize_muted(text) if kind not in ("text", "todo_progress") else text
         )
-        # lazy: circular — buffered_ui → output → ... → buffered_ui
-        from zrb.llm.ui.default.output import _merge_output_chunk
-
-        self._merged_output = _merge_output_chunk(self._merged_output, styled_text)
+        self._merged_output = merge_output_chunk(self._merged_output, styled_text)
         self._buffer.append(styled_text)
 
     def _replace_span(self, start: int, end: int, replacement: str) -> bool:
@@ -184,9 +182,6 @@ class BufferedUI(UIProtocol):
         if collapsed == full:
             self.append_to_output(collapsed, end="")
             return
-        # lazy: circular — buffered_ui → output → ... → buffered_ui
-        from zrb.llm.ui.default.output import CollapsibleBlockSource
-
         source = CollapsibleBlockSource(stylize_muted(collapsed), stylize_muted(full))
         start = len(self._merged_output)
         self.append_to_output(source.collapsed, end="")
@@ -246,9 +241,6 @@ class BufferedUI(UIProtocol):
         if span is None or not full:
             return False
         start, end = span
-        # lazy: circular — buffered_ui → output → ... → buffered_ui
-        from zrb.llm.ui.default.output import CollapsibleBlockSource
-
         source = CollapsibleBlockSource(stylize_muted(collapsed), stylize_muted(full))
         if not self._replace_span(start, end, source.collapsed):
             return False
@@ -261,16 +253,13 @@ class BufferedUI(UIProtocol):
         caller's own accumulated text — same "don't re-read the buffer"
         contract as `UIOutput`'s counterpart (a stray carriage return in a
         streamed delta can rewrite/erase part of the *rendered* text via
-        `_merge_output_chunk`, which this class also uses).
+        `merge_output_chunk`, which this class also uses).
         """
         if not full:
             return False
         end = len(self._merged_output)
         if end <= start:
             return False
-        # lazy: circular — buffered_ui → output → ... → buffered_ui
-        from zrb.llm.ui.default.output import CollapsibleBlockSource
-
         source = CollapsibleBlockSource(stylize_muted(collapsed), stylize_muted(full))
         if not self._replace_span(start, end, source.collapsed):
             return False

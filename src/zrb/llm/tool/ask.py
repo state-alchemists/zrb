@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any, cast
 from zrb.config.config import CFG
 from zrb.llm.tool.wrapper import tool_safe_async
 from zrb.llm.tool_call.always_approve import register_always_auto_approve
+from zrb.llm.tool_call.choice_spec_format import format_choice_spec
 
 if TYPE_CHECKING:
     from zrb.llm.tool_call.ui_protocol import ChoiceSpec
@@ -109,7 +110,7 @@ async def ask_user_question(questions: list[dict[str, Any]]) -> str:
     total = len(questions)
     answers: list[str] = []
     for idx, q in enumerate(questions, start=1):
-        spec = _build_choice_spec(idx, total, q)
+        spec = build_choice_spec(idx, total, q)
         try:
             if hasattr(ui, "ask_user_choice"):
                 raw = await ui.ask_user_choice(cast("ChoiceSpec", spec))
@@ -150,7 +151,7 @@ async def _notify_question_pending(questions: list[dict[str, Any]]) -> None:
         CFG.LOGGER.debug(f"Notification hook for ask failed: {e}")
 
 
-def _build_choice_spec(idx: int, total: int, q: dict[str, Any]) -> dict[str, Any]:
+def build_choice_spec(idx: int, total: int, q: dict[str, Any]) -> dict[str, Any]:
     header = q.get("header") or q.get("question", "").strip().rstrip("?")[:40]
     return {
         "question": q["question"],
@@ -160,27 +161,6 @@ def _build_choice_spec(idx: int, total: int, q: dict[str, Any]) -> dict[str, Any
         "index": idx,
         "total": total,
     }
-
-
-def format_choice_spec(spec: "ChoiceSpec | dict[str, Any]") -> str:
-    """Render a `ChoiceSpec` as numbered text (fallback for non-widget UIs)."""
-    multi = bool(spec.get("multi_select"))
-    idx = spec.get("index", 1)
-    total = spec.get("total", 1)
-    counter = f"{idx}/{total}" if total > 1 else f"{idx}"
-    lines: list[str] = [f"\n[Q{counter}] {spec.get('question', '')}"]
-    for i, opt in enumerate(spec.get("options", []), start=1):
-        label = opt.get("label", f"Option {i}")
-        desc = opt.get("description", "")
-        suffix = f" — {desc}" if desc else ""
-        lines.append(f"  {i}. {label}{suffix}")
-    hint = (
-        "Reply with comma-separated numbers (e.g. 1,3) or free-form text: "
-        if multi
-        else "Reply with a number or free-form text: "
-    )
-    lines.append(hint)
-    return "\n".join(lines)
 
 
 def _resolve_answer(q: dict[str, Any], raw: str) -> str:

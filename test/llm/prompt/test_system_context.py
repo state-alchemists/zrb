@@ -13,8 +13,8 @@ from unittest.mock import MagicMock, patch
 from zrb.context.any_context import AnyContext
 from zrb.llm.prompt.live_context import render_live_context
 from zrb.llm.prompt.system_context import system_context
-from zrb.llm.sandbox import SandboxPolicy, set_current_sandbox_policy
-from zrb.llm.tool.plan import get_current_context_session
+from zrb.llm.sandbox import SandboxPolicy, sandbox_policy
+from zrb.llm.tool.ambient_state import get_current_context_session
 
 
 class TestSystemContext:
@@ -63,11 +63,8 @@ class TestSystemContext:
         ctx = MagicMock(spec=AnyContext)
         received = []
 
-        set_current_sandbox_policy(SandboxPolicy(enabled=False))
-        try:
+        with sandbox_policy(SandboxPolicy(enabled=False)):
             system_context(ctx, "test", lambda c, p: received.append(p) or "ok")
-        finally:
-            set_current_sandbox_policy(None)
 
         assert "Sandbox: none" in received[0]
 
@@ -82,11 +79,8 @@ class TestSystemContext:
         ctx = MagicMock(spec=AnyContext)
         received = []
 
-        set_current_sandbox_policy(SandboxPolicy(enabled=True))
-        try:
+        with sandbox_policy(SandboxPolicy(enabled=True)):
             system_context(ctx, "test", lambda c, p: received.append(p) or "ok")
-        finally:
-            set_current_sandbox_policy(None)
 
         assert "Sandbox" not in received[0]
 

@@ -242,7 +242,7 @@ class VoiceEngine:
         model_name = CFG.LLM_VOICE_OPENAI_MODEL
 
         async def transcribe(audio_bytes: bytes) -> str:
-            wav_buffer = io.BytesIO(_pcm16_to_wav_bytes(audio_bytes))
+            wav_buffer = io.BytesIO(pcm16_to_wav_bytes(audio_bytes))
             wav_buffer.name = "audio.wav"
             result = await client.audio.transcriptions.create(
                 model=model_name,
@@ -277,7 +277,7 @@ class VoiceEngine:
             # lazy: heavy third-party
             from google.genai import types
 
-            wav_bytes = _pcm16_to_wav_bytes(audio_bytes)
+            wav_bytes = pcm16_to_wav_bytes(audio_bytes)
 
             response = await asyncio.to_thread(
                 client.models.generate_content,
@@ -317,8 +317,8 @@ class VoiceEngine:
             )
 
         resolved = llm_config.resolve_model(multimodal_model)
-        if _is_openai_chat_model(resolved):
-            name = _model_name(multimodal_model)
+        if is_openai_chat_model(resolved):
+            name = model_name(multimodal_model)
             raise RuntimeError(
                 f"Multimodal model {name!r} is from OpenAI, which does not "
                 f"accept audio content blocks in the chat completions API "
@@ -329,7 +329,7 @@ class VoiceEngine:
             )
 
         if not model_capabilities.supports_modality(multimodal_model, "audio"):
-            name = _model_name(multimodal_model)
+            name = model_name(multimodal_model)
             raise RuntimeError(
                 f"Multimodal model {name!r} does not support audio "
                 f"transcription. Set {CFG.ENV_PREFIX}_LLM_VOICE_MODE to one of: "
@@ -375,7 +375,7 @@ def vosk_installed() -> bool:
         return False
 
 
-def _is_openai_chat_model(model: object) -> bool:
+def is_openai_chat_model(model: object) -> bool:
     """True for OpenAI chat models that cannot receive audio as content blocks.
 
     Checks both pydantic-ai :class:`~pydantic_ai.models.openai.OpenAIChatModel`
@@ -398,7 +398,7 @@ def _is_openai_chat_model(model: object) -> bool:
     return False
 
 
-def _model_name(model: str | object) -> str:
+def model_name(model: str | object) -> str:
     """Extract a user-friendly identifier from a model string or object."""
     if isinstance(model, str):
         return model
@@ -409,7 +409,7 @@ def _model_name(model: str | object) -> str:
     return str(type(model).__name__)
 
 
-def _pcm16_to_wav_bytes(audio_bytes: bytes) -> bytes:
+def pcm16_to_wav_bytes(audio_bytes: bytes) -> bytes:
     """Wrap raw mono 16-bit 16kHz PCM audio in a WAV container."""
     wav_buffer = io.BytesIO()
     with wave.open(wav_buffer, "wb") as wav:

@@ -6,9 +6,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from zrb.llm.ui.std_ui import (
-    _FREE_TEXT,
+    FREE_TEXT,
     StdUI,
-    _option_text,
+    option_text,
     resolve_choice_selection,
 )
 
@@ -190,8 +190,8 @@ def _patch_dialog(selection, multi=False):
 
 
 def test_option_text_with_and_without_description():
-    assert _option_text({"label": "A", "description": "d"}) == "A — d"
-    assert _option_text({"label": "B"}) == "B"
+    assert option_text({"label": "A", "description": "d"}) == "A — d"
+    assert option_text({"label": "B"}) == "B"
 
 
 def test_resolve_choice_selection_single_and_multi():
@@ -249,7 +249,7 @@ async def test_ask_user_choice_nothing_selected_returns_no_answer():
 @pytest.mark.asyncio
 async def test_ask_user_choice_free_text_prompts_for_input():
     ui = StdUI()
-    dlg_patch, _ = _patch_dialog(selection=_FREE_TEXT)
+    dlg_patch, _ = _patch_dialog(selection=FREE_TEXT)
     mock_session = MagicMock()
     mock_session.prompt_async = AsyncMock(return_value="my own answer  ")
     with (
@@ -265,7 +265,7 @@ async def test_ask_user_choice_free_text_prompts_for_input():
 async def test_ask_user_choice_multi_free_text_combines_checked_and_typed():
     """Multi-select + 'type my own' → checked options plus the typed answer."""
     ui = StdUI()
-    dlg_patch, _ = _patch_dialog(selection=[0, 2, _FREE_TEXT], multi=True)
+    dlg_patch, _ = _patch_dialog(selection=[0, 2, FREE_TEXT], multi=True)
     mock_session = MagicMock()
     mock_session.prompt_async = AsyncMock(return_value="custom")
     with (

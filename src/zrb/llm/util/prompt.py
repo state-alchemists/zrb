@@ -13,7 +13,7 @@ def expand_prompt(prompt: str) -> str:
     """
     if not prompt:
         return prompt
-    matches = _get_path_references(prompt)
+    matches = get_path_references(prompt)
     if not matches:
         return prompt
     appendix_entries: list[str] = []
@@ -24,7 +24,7 @@ def expand_prompt(prompt: str) -> str:
         parts.append(prompt[last_idx : match.start()])
         path_ref = match.group("path")
         original_token = match.group(0)
-        header, content, is_valid_ref = _process_path_reference(path_ref)
+        header, content, is_valid_ref = process_path_reference(path_ref)
         if not is_valid_ref:
             # Fallback: leave original token if unreadable or not found
             parts.append(original_token)
@@ -46,7 +46,7 @@ def expand_prompt(prompt: str) -> str:
     return new_prompt
 
 
-def _get_path_references(prompt: str) -> list[re.Match]:
+def get_path_references(prompt: str) -> list[re.Match]:
     """Find all @path references in the prompt.
 
     Args:
@@ -64,7 +64,7 @@ def _get_path_references(prompt: str) -> list[re.Match]:
     return list(pattern.finditer(prompt))
 
 
-def _process_path_reference(path_ref: str) -> tuple[str | None, str | None, bool]:
+def process_path_reference(path_ref: str) -> tuple[str | None, str | None, bool]:
     """Process a single path reference.
 
     Args:
