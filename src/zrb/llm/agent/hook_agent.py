@@ -25,7 +25,7 @@ from zrb.llm.hook.schema import AgentHookConfig
 def create_agent_hook(config: AgentHookConfig) -> HookCallable:
     async def agent_hook(context: HookContext) -> HookResult:
         """Run an agent with the configured system prompt over the event payload."""
-        resolved_tools = _resolve_agent_hook_tools(config.tools)
+        resolved_tools = resolve_agent_hook_tools(config.tools)
         if config.tools and not resolved_tools:
             # Every named tool failed to resolve — most commonly because it's
             # config-gated and currently off (e.g. the journal tools while
@@ -52,7 +52,7 @@ def create_agent_hook(config: AgentHookConfig) -> HookCallable:
     return agent_hook
 
 
-def _resolve_agent_hook_tools(names: list[str]) -> list:
+def resolve_agent_hook_tools(names: list[str]) -> list:
     """Resolve `AgentHookConfig.tools` (names, Claude-compatible aliases
     honored) into real tool callables — including config-gated tools like the
     journal ones, which live behind factories rather than the static

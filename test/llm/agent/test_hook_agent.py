@@ -175,7 +175,7 @@ async def test_resolved_agent_hook_tools_contain_tool_errors():
     check is one real example) must come back as a tool result the judge
     model can react to, not an exception that aborts the whole hook run —
     the same containment `create_agent()` gives every other agent's tools."""
-    from zrb.llm.agent.hook_agent import _resolve_agent_hook_tools
+    from zrb.llm.agent.hook_agent import resolve_agent_hook_tools
 
     def flaky_tool() -> str:
         raise ValueError("[SYSTEM SUGGESTION]: link target does not exist.")
@@ -193,7 +193,7 @@ async def test_resolved_agent_hook_tools_contain_tool_errors():
             return_value=(),
         ),
     ):
-        resolved = _resolve_agent_hook_tools(["FlakyTool"])
+        resolved = resolve_agent_hook_tools(["FlakyTool"])
 
     assert len(resolved) == 1
     result = await resolved[0].function()

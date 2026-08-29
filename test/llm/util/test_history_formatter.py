@@ -16,11 +16,11 @@ from pydantic_ai.messages import (
 )
 
 from zrb.llm.util.history_formatter import (
-    _indent_lines,
     extract_last_response_text,
     format_args,
     format_history_as_text,
     format_timestamp,
+    indent_lines,
     truncate,
 )
 
@@ -262,22 +262,22 @@ class TestFormatArgs:
 
 
 class TestIndentLines:
-    """Tests for _indent_lines function."""
+    """Tests for indent_lines function."""
 
     def test_single_line(self):
         """Test indenting a single line."""
-        lines = _indent_lines("Hello", indent=2)
+        lines = indent_lines("Hello", indent=2)
         assert lines == ["  Hello"]
 
     def test_multiline(self):
         """Test indenting multiple lines."""
-        lines = _indent_lines("Line 1\nLine 2", indent=4)
+        lines = indent_lines("Line 1\nLine 2", indent=4)
         assert lines == ["    Line 1", "    Line 2"]
 
     def test_max_lines_truncation(self):
         """Test that content is truncated at max_lines."""
         content = "\n".join([f"Line {i}" for i in range(100)])
-        lines = _indent_lines(content, indent=0, max_lines=10)
+        lines = indent_lines(content, indent=0, max_lines=10)
         assert len(lines) == 11  # 10 lines + truncation message
         assert "more lines" in lines[-1]
 

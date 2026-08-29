@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from zrb.llm.ui.base.ui import BaseUI
 
 
-async def _communicate_or_reap(proc) -> tuple[bytes, bytes]:
+async def communicate_or_reap(proc) -> tuple[bytes, bytes]:
     """``proc.communicate()`` that kills + reaps the child on cancellation.
 
     The system-info loop is cancelled at session teardown, which can land while
@@ -77,7 +77,7 @@ class BaseUISystemInfo:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            stdout, _ = await _communicate_or_reap(proc)
+            stdout, _ = await communicate_or_reap(proc)
             if proc.returncode != 0:
                 return "", ""
             branch = stdout.decode().strip()
@@ -90,7 +90,7 @@ class BaseUISystemInfo:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            stdout, _ = await _communicate_or_reap(proc)
+            stdout, _ = await communicate_or_reap(proc)
             is_dirty = bool(stdout.strip())
 
             return branch, "*" if is_dirty else ""

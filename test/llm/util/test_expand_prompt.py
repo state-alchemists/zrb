@@ -6,9 +6,9 @@ import tempfile
 import pytest
 
 from zrb.llm.util.prompt import (
-    _get_path_references,
-    _process_path_reference,
     expand_prompt,
+    get_path_references,
+    process_path_reference,
 )
 
 
@@ -80,36 +80,36 @@ class TestExpandPrompt:
 class TestGetPathReferences:
     def test_get_path_references_no_references(self):
         """Test prompt without @ references returns empty list."""
-        matches = _get_path_references("hello world")
+        matches = get_path_references("hello world")
         assert matches == []
 
     def test_get_path_references_empty_string(self):
         """Test empty string returns empty list."""
-        matches = _get_path_references("")
+        matches = get_path_references("")
         assert matches == []
 
     def test_get_path_references_single_path(self):
         """Test finding a single @ reference."""
-        matches = _get_path_references("Check @file.txt")
+        matches = get_path_references("Check @file.txt")
         assert len(matches) == 1
         assert matches[0].group("path") == "file.txt"
 
     def test_get_path_references_multiple_paths(self):
         """Test finding multiple @ references."""
-        matches = _get_path_references("Check @file1.txt and @file2.py")
+        matches = get_path_references("Check @file1.txt and @file2.py")
         assert len(matches) == 2
         assert matches[0].group("path") == "file1.txt"
         assert matches[1].group("path") == "file2.py"
 
     def test_get_path_references_with_path_separators(self):
         """Test @ reference with path separators."""
-        matches = _get_path_references("Check @src/lib/file.py")
+        matches = get_path_references("Check @src/lib/file.py")
         assert len(matches) == 1
         assert matches[0].group("path") == "src/lib/file.py"
 
     def test_get_path_references_with_home_dir(self):
         """Test @ reference with home directory."""
-        matches = _get_path_references("Check @~/file.txt")
+        matches = get_path_references("Check @~/file.txt")
         assert len(matches) == 1
         assert matches[0].group("path") == "~/file.txt"
 
@@ -123,7 +123,7 @@ class TestProcessPathReference:
             temp_path = f.name
 
         try:
-            header, content, is_valid = _process_path_reference(temp_path)
+            header, content, is_valid = process_path_reference(temp_path)
             assert is_valid is True
             assert "File Content:" in header
             assert content == "test content"
@@ -137,16 +137,14 @@ class TestProcessPathReference:
             with open(os.path.join(tmpdir, "test.txt"), "w") as f:
                 f.write("test")
 
-            header, content, is_valid = _process_path_reference(tmpdir)
+            header, content, is_valid = process_path_reference(tmpdir)
             assert is_valid is True
             assert "Directory Listing:" in header
             assert "test.txt" in content
 
     def test_process_path_reference_nonexistent_path(self):
         """Test processing a nonexistent path."""
-        header, content, is_valid = _process_path_reference(
-            "/nonexistent/path/file.txt"
-        )
+        header, content, is_valid = process_path_reference("/nonexistent/path/file.txt")
         assert is_valid is False
         assert header == ""
         assert content == ""
@@ -154,7 +152,7 @@ class TestProcessPathReference:
     def test_process_path_reference_empty_directory(self):
         """Test processing an empty directory."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            header, content, is_valid = _process_path_reference(tmpdir)
+            header, content, is_valid = process_path_reference(tmpdir)
             assert is_valid is True
             assert "Directory Listing:" in header
             assert content == "(Empty directory)"

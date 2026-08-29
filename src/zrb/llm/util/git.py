@@ -6,7 +6,7 @@ from zrb.config.config import CFG
 
 
 @lru_cache(maxsize=8)
-def _check_git_dir(cwd: str) -> bool:
+def check_git_dir(cwd: str) -> bool:
     """Cached probe. Raises ``TimeoutExpired`` rather than answering False.
 
     A timeout is a *transient* condition, unlike a missing git or a non-repo
@@ -37,6 +37,6 @@ def _check_git_dir(cwd: str) -> bool:
 
 def is_inside_git_dir() -> bool:
     try:
-        return _check_git_dir(os.getcwd())
+        return check_git_dir(os.getcwd())
     except subprocess.TimeoutExpired:
         return False

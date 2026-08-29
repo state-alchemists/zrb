@@ -533,16 +533,16 @@ class TestEngineHelpers:
     """Tests for module-level helper functions."""
 
     def test_is_openai_chat_model_strings(self):
-        from zrb.llm.voice.engine import _is_openai_chat_model
+        from zrb.llm.voice.engine import is_openai_chat_model
 
-        assert _is_openai_chat_model("openai:gpt-4o") is True
-        assert _is_openai_chat_model("gpt-4o") is True
-        assert _is_openai_chat_model("o1-mini") is True
-        assert _is_openai_chat_model("gemini-2.5-flash") is False
-        assert _is_openai_chat_model(123) is False
+        assert is_openai_chat_model("openai:gpt-4o") is True
+        assert is_openai_chat_model("gpt-4o") is True
+        assert is_openai_chat_model("o1-mini") is True
+        assert is_openai_chat_model("gemini-2.5-flash") is False
+        assert is_openai_chat_model(123) is False
 
     def test_is_openai_chat_model_instance(self):
-        from zrb.llm.voice.engine import _is_openai_chat_model
+        from zrb.llm.voice.engine import is_openai_chat_model
 
         class FakeModel:
             pass
@@ -550,29 +550,29 @@ class TestEngineHelpers:
         fake_mod = MagicMock()
         fake_mod.OpenAIChatModel = FakeModel
         with patch.dict("sys.modules", {"pydantic_ai.models.openai": fake_mod}):
-            assert _is_openai_chat_model(FakeModel()) is True
+            assert is_openai_chat_model(FakeModel()) is True
 
     def test_is_openai_chat_model_import_fallback(self):
-        from zrb.llm.voice.engine import _is_openai_chat_model
+        from zrb.llm.voice.engine import is_openai_chat_model
 
         with patch.dict("sys.modules", {"pydantic_ai.models.openai": None}):
-            assert _is_openai_chat_model("openai:foo") is True
-            assert _is_openai_chat_model("bar") is False
+            assert is_openai_chat_model("openai:foo") is True
+            assert is_openai_chat_model("bar") is False
 
     def test_model_name_variants(self):
-        from zrb.llm.voice.engine import _model_name
+        from zrb.llm.voice.engine import model_name
 
-        assert _model_name("gpt-4o") == "gpt-4o"
+        assert model_name("gpt-4o") == "gpt-4o"
 
         obj = MagicMock()
         obj.model_name = "the-model"
-        assert _model_name(obj) == "the-model"
+        assert model_name(obj) == "the-model"
 
         class NoName:
             model_name = None
             name = None
 
-        assert _model_name(NoName()) == "NoName"
+        assert model_name(NoName()) == "NoName"
 
     def test_get_vosk_model_dir_cache_hit(self):
         from zrb.llm.voice.engine import get_vosk_model_dir
@@ -602,10 +602,10 @@ class TestEngineHelpers:
         import wave
         from io import BytesIO
 
-        from zrb.llm.voice.engine import _pcm16_to_wav_bytes
+        from zrb.llm.voice.engine import pcm16_to_wav_bytes
 
         pcm = (b"\x01\x00\x02\x00") * 4  # 4 fake int16 samples
-        wav_bytes = _pcm16_to_wav_bytes(pcm)
+        wav_bytes = pcm16_to_wav_bytes(pcm)
 
         assert wav_bytes.startswith(b"RIFF")
         with wave.open(BytesIO(wav_bytes), "rb") as wav:

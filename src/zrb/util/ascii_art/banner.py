@@ -11,7 +11,7 @@ import random
 from zrb.config.config import CFG
 
 
-def _get_default_banner_search_path() -> list[str]:
+def get_default_banner_search_path() -> list[str]:
     current_path = os.path.abspath(os.getcwd())
     home_path = os.path.abspath(os.path.expanduser("~"))
     search_paths = [current_path]
@@ -42,7 +42,7 @@ def get_ascii_art(art: str | None = None) -> str:
             with open(art, "r", encoding="utf-8") as f:
                 return f.read()
         # Check in search paths
-        for search_path in _get_default_banner_search_path():
+        for search_path in get_default_banner_search_path():
             art_path = os.path.join(search_path, CFG.ASCII_ART_DIR, f"{art}.txt")
             if os.path.isfile(art_path):
                 with open(art_path, "r", encoding="utf-8") as f:
@@ -57,7 +57,7 @@ def get_ascii_art(art: str | None = None) -> str:
     # If no specific art requested, or if requested art not found, find a random one.
     all_art_files = []
     # Collect from search paths
-    for search_path in _get_default_banner_search_path():
+    for search_path in get_default_banner_search_path():
         art_dir = os.path.join(search_path, CFG.ASCII_ART_DIR)
         if os.path.isdir(art_dir):
             for filename in os.listdir(art_dir):

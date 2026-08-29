@@ -164,7 +164,7 @@ async def run_agent_task(
         # uncaught — in the single-delegate path `session.active_task` is the
         # same asyncio Task driving the whole main turn, so an uncaught
         # propagation here would kill the entire turn, not just this call.
-        await _fire_subagent_hook(HookEvent.SUBAGENT_START, agent_name, agent_id)
+        await fire_subagent_hook(HookEvent.SUBAGENT_START, agent_name, agent_id)
         result, history = await run_agent(
             agent=sub_agent,
             message=full_message,
@@ -245,7 +245,7 @@ async def run_agent_task(
             session.active_task = None
         if _tracks_activity:
             agent_activity_registry.finish(agent_id, session_id=activity_session_id)
-        await _fire_subagent_hook(HookEvent.SUBAGENT_STOP, agent_name, agent_id)
+        await fire_subagent_hook(HookEvent.SUBAGENT_STOP, agent_name, agent_id)
 
 
 def persist_subagent_history(conversation_name: str, history: list) -> None:
@@ -254,7 +254,7 @@ def persist_subagent_history(conversation_name: str, history: list) -> None:
 
     Best-effort: persisting the transcript is not this tool's primary job, so
     a failure here (disk full, permissions) must not surface as a delegation
-    failure — same posture as ``_fire_subagent_hook``.
+    failure — same posture as ``fire_subagent_hook``.
 
     Unlike an ordinary conversation (one name, re-saved across turns, where
     ``LLM_HISTORY_BACKUP_RETAIN`` bounds its backups), every delegation mints
@@ -324,7 +324,7 @@ def _prune_old_subagent_history() -> None:
             pass
 
 
-async def _fire_subagent_hook(event: HookEvent, agent_name: str, agent_id: str) -> None:
+async def fire_subagent_hook(event: HookEvent, agent_name: str, agent_id: str) -> None:
     """Fire SubagentStart/Stop (observe-only) on the parent run's hook manager,
     falling back to the module singleton. Never raises."""
     manager = get_current_hook_manager() or default_hook_manager

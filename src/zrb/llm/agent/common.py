@@ -93,7 +93,7 @@ def wrap_tool(tool: "Tool | ToolFuncEither") -> "Tool | ToolFuncEither":
         # It is a callable (hasattr(tool, "function") is False, so not a Tool).
         # Wrapped into a Tool (rather than left bare) so the capability tag
         # survives as ToolDefinition.metadata: the outer SafeToolsetWrapper
-        # gate (see _wrap_toolset below) only ever sees a ToolsetTool, which
+        # gate (see wrap_toolset below) only ever sees a ToolsetTool, which
         # carries a tool_def but no .function and no arbitrary attributes, so
         # a tag() set on the raw callable would otherwise resolve as UNKNOWN
         # there and be denied outright by policies like PLAN_MODE_POLICY.
@@ -206,7 +206,7 @@ def create_safe_wrapper(func: Callable, name: str | None = None) -> Callable:
     return wrapper
 
 
-def _wrap_toolset(toolset: "AbstractToolset[None]") -> "AbstractToolset[None]":
+def wrap_toolset(toolset: "AbstractToolset[None]") -> "AbstractToolset[None]":
     """Wrap a toolset with error handling."""
     # lazy: heavy third-party
     from pydantic_ai import ModelRetry, ToolReturn
@@ -446,7 +446,7 @@ def create_agent(
     effective_system_prompt = expand_prompt(system_prompt)
 
     safe_tools = [wrap_tool(t) for t in tools]
-    safe_toolsets = [_wrap_toolset(t) for t in toolsets]
+    safe_toolsets = [wrap_toolset(t) for t in toolsets]
 
     final_output_type = output_type
     effective_toolsets = list(safe_toolsets)
@@ -455,7 +455,7 @@ def create_agent(
         # single chokepoint every tool call passes through (free functions and
         # toolset tools alike). This is where PreToolUse/PostToolUse fire.
         effective_toolsets.append(
-            _wrap_toolset(
+            wrap_toolset(
                 FunctionToolset(tools=safe_tools, max_retries=CFG.LLM_TOOL_MAX_RETRIES)
             )
         )

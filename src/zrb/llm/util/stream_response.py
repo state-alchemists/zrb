@@ -388,7 +388,7 @@ class StreamEventHandler:
             return True
 
         if isinstance(event.part, TextPart):
-            content = _get_event_part_content(event)
+            content = get_event_part_content(event)
             # Mirrors the 🧠 lead-in below: marked once, on the block's first
             # chunk, so the icon survives into `full` — an expanded response
             # (Ctrl+O) keeps its 💬, not just the collapsed summary line.
@@ -403,7 +403,7 @@ class StreamEventHandler:
                     preserve_leading_newline=True,
                 )
         else:
-            content = _get_event_part_content(event)
+            content = get_event_part_content(event)
             # Only mark and print the 🧠 lead-in for the FIRST part of a
             # thinking streak — a later summary chunk (see the comment above)
             # continues the same open block instead of restarting it.
@@ -517,8 +517,8 @@ class StreamEventHandler:
                 line = f"{self._event_prefix}🧰 {tool_call_id} | {tool_name}"
                 self.fprint(line, preserve_leading_newline=True, kind="tool_call")
             else:
-                args = _get_truncated_event_part_args(event)
-                full_args = _get_full_event_part_args(event)
+                args = get_truncated_event_part_args(event)
+                full_args = get_full_event_part_args(event)
                 collapsed = (
                     f"{self._event_prefix}🧰 {tool_call_id} | {tool_name} {args}"
                 )
@@ -671,7 +671,7 @@ def _last_request_usage(result: Any) -> Any:
     return None
 
 
-def _get_truncated_event_part_args(event: "AgentStreamEvent | ToolCallEvent") -> Any:
+def get_truncated_event_part_args(event: "AgentStreamEvent | ToolCallEvent") -> Any:
     if not hasattr(event, "part"):
         return {}
     part = getattr(event, "part")
@@ -686,8 +686,8 @@ def _get_truncated_event_part_args(event: "AgentStreamEvent | ToolCallEvent") ->
     return args
 
 
-def _get_full_event_part_args(event: "AgentStreamEvent | ToolCallEvent") -> Any:
-    """Same as `_get_truncated_event_part_args`, but with untruncated values.
+def get_full_event_part_args(event: "AgentStreamEvent | ToolCallEvent") -> Any:
+    """Same as `get_truncated_event_part_args`, but with untruncated values.
 
     `event.part.args` is never mutated by parsing/truncation, so this is
     just the same lookup with `full=True`.
@@ -706,7 +706,7 @@ def _get_full_event_part_args(event: "AgentStreamEvent | ToolCallEvent") -> Any:
     return args
 
 
-def _get_event_part_content(event: "AgentStreamEvent") -> str:
+def get_event_part_content(event: "AgentStreamEvent") -> str:
     if not hasattr(event, "part"):
         return ""
     part = getattr(event, "part")

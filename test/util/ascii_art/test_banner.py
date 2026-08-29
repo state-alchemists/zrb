@@ -51,15 +51,15 @@ def test_get_ascii_art_returns_empty_when_no_art_exists(monkeypatch, tmp_path):
 
 
 def test_get_default_banner_search_path_value_error():
-    from zrb.util.ascii_art.banner import _get_default_banner_search_path
+    from zrb.util.ascii_art.banner import get_default_banner_search_path
 
     with patch("os.path.commonpath", side_effect=ValueError("different drives")):
-        res = _get_default_banner_search_path()
+        res = get_default_banner_search_path()
         assert len(res) >= 1
 
 
 def test_get_default_banner_search_path_walks_up_to_home(monkeypatch, tmp_path):
-    from zrb.util.ascii_art.banner import _get_default_banner_search_path
+    from zrb.util.ascii_art.banner import get_default_banner_search_path
 
     home = tmp_path / "home"
     nested = home / "a" / "b"
@@ -67,6 +67,6 @@ def test_get_default_banner_search_path_walks_up_to_home(monkeypatch, tmp_path):
     monkeypatch.setenv("HOME", str(home))
     monkeypatch.chdir(nested)
 
-    res = _get_default_banner_search_path()
+    res = get_default_banner_search_path()
     assert os.path.abspath(str(nested)) in res
     assert os.path.abspath(str(home)) in res

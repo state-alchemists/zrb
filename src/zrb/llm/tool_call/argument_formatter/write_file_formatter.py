@@ -39,13 +39,13 @@ async def write_file_formatter(
         # Offload: file read + difflib + Rich markdown render is pure blocking
         # CPU/IO. On the TUI it runs on prompt_toolkit's event loop before the
         # approval prompt appears, so leaving it inline freezes keystrokes.
-        return await asyncio.to_thread(_format_single_write, path, content, mode, ui)
+        return await asyncio.to_thread(format_single_write, path, content, mode, ui)
 
     except Exception:
         return None
 
 
-def _format_single_write(path: str, new_content: str, mode: str, ui) -> str | None:
+def format_single_write(path: str, new_content: str, mode: str, ui) -> str | None:
     abs_path = os.path.abspath(os.path.expanduser(path))
     old_content = ""
     file_exists = os.path.exists(abs_path)

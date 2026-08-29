@@ -8,9 +8,9 @@ import pytest
 
 from zrb.config.config import CFG
 from zrb.llm.tool.web import (
-    _run_blocking,
     normalize_search_result,
     open_web_page,
+    run_blocking,
     search_internet,
 )
 
@@ -635,18 +635,18 @@ def test_brave_request_has_a_timeout():
 def test_notify_is_a_noop_with_no_current_ui():
     """No ambient UI (the common case outside a running agent turn, e.g. these
     tests) must not raise -- this is a courtesy message, never load-bearing."""
-    from zrb.llm.tool.web import _notify
+    from zrb.llm.tool.web import notify
 
     with patch("zrb.llm.tool.web.get_current_ui", return_value=None):
-        _notify("should not raise")  # must simply do nothing
+        notify("should not raise")  # must simply do nothing
 
 
 def test_notify_forwards_to_the_current_uis_stream_to_parent():
-    from zrb.llm.tool.web import _notify
+    from zrb.llm.tool.web import notify
 
     mock_ui = MagicMock()
     with patch("zrb.llm.tool.web.get_current_ui", return_value=mock_ui):
-        _notify("hello")
+        notify("hello")
 
     mock_ui.stream_to_parent.assert_called_once()
     assert "hello" in mock_ui.stream_to_parent.call_args.args[0]
@@ -655,12 +655,12 @@ def test_notify_forwards_to_the_current_uis_stream_to_parent():
 def test_notify_swallows_a_broken_uis_exception():
     """A UI whose stream_to_parent raises must never break the actual tool
     call -- this is a best-effort courtesy message, not the result."""
-    from zrb.llm.tool.web import _notify
+    from zrb.llm.tool.web import notify
 
     mock_ui = MagicMock()
     mock_ui.stream_to_parent.side_effect = RuntimeError("ui exploded")
     with patch("zrb.llm.tool.web.get_current_ui", return_value=mock_ui):
-        _notify("should not raise either")  # must not propagate
+        notify("should not raise either")  # must not propagate
 
 
 @pytest.mark.asyncio
@@ -727,7 +727,7 @@ async def test_search_internet_notifies_before_searching(mock_google_rss):
 # `requests.get`) is not enough on its own: some blocking primitives (DNS
 # resolution via getaddrinfo has no timeout of its own) can make the call
 # never return, and `asyncio.to_thread`'s worker thread is not a daemon --
-# process exit then blocks forever joining it. `_run_blocking` bounds the
+# process exit then blocks forever joining it. `run_blocking` bounds the
 # *coroutine* with `asyncio.wait_for` and runs the call on a fresh daemon
 # thread, so neither problem can hang the turn or the process. ──
 
@@ -737,12 +737,12 @@ async def test_run_blocking_times_out_even_if_the_call_never_returns():
     never_return = threading.Event()
 
     def blocks_forever():
-        never_return.wait()  # would hang forever without _run_blocking's timeout
+        never_return.wait()  # would hang forever without run_blocking's timeout
 
     start = time.monotonic()
     try:
         with pytest.raises(TimeoutError):
-            await _run_blocking(blocks_forever, timeout=0.05)
+            await run_blocking(blocks_forever, timeout=0.05)
         elapsed = time.monotonic() - start
         assert elapsed < 2  # bounded, not "forever"
     finally:
@@ -763,7 +763,7 @@ async def test_run_blocking_runs_the_call_on_a_daemon_thread():
 
     try:
         with pytest.raises(TimeoutError):
-            await _run_blocking(blocks_forever, timeout=0.05)
+            await run_blocking(blocks_forever, timeout=0.05)
     finally:
         never_return.set()
 

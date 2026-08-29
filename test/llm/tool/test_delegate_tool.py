@@ -814,7 +814,7 @@ async def test_delegate_swallows_hook_manager_errors(mock_sub_agent_manager):
 
 @pytest.mark.asyncio
 async def test_fire_subagent_hook_swallows_cancelled_error():
-    """`_fire_subagent_hook` documents "Never raises" -- `asyncio.CancelledError`
+    """`fire_subagent_hook` documents "Never raises" -- `asyncio.CancelledError`
     is a `BaseException`, not caught by a plain `except Exception`, so it must
     be caught explicitly. This call site fires from inside `run_agent_task`'s
     `finally` block (after its result is already decided) and from the top of
@@ -822,7 +822,7 @@ async def test_fire_subagent_hook_swallows_cancelled_error():
     override an already-settled return or escape uncaught."""
     from zrb.llm.agent.run.runner import current_hook_manager
     from zrb.llm.hook.types import HookEvent
-    from zrb.llm.tool.delegate import _fire_subagent_hook
+    from zrb.llm.tool.delegate import fire_subagent_hook
 
     cancelling_manager = MagicMock()
     cancelling_manager.execute_hooks = AsyncMock(side_effect=asyncio.CancelledError())
@@ -830,7 +830,7 @@ async def test_fire_subagent_hook_swallows_cancelled_error():
     token = current_hook_manager.set(cancelling_manager)
     try:
         # Must not raise.
-        await _fire_subagent_hook(HookEvent.SUBAGENT_STOP, "test-agent", "abcd1234")
+        await fire_subagent_hook(HookEvent.SUBAGENT_STOP, "test-agent", "abcd1234")
     finally:
         current_hook_manager.reset(token)
 

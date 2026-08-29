@@ -189,15 +189,15 @@ async def test_analyze_code_path_not_found():
 
 
 def test_get_file_metadatas_patterns(temp_code_dir):
-    from zrb.llm.tool.code import _get_file_metadatas
+    from zrb.llm.tool.code import get_file_metadatas
 
     # Test exclude pattern - use wildcard to match main.py
-    metadatas = _get_file_metadatas(temp_code_dir, ["py"], None, ["main*"])
+    metadatas = get_file_metadatas(temp_code_dir, ["py"], None, ["main*"])
     assert len(metadatas) == 1
     assert metadatas[0]["path"] == "util.py"
 
     # Test include pattern
-    metadatas = _get_file_metadatas(temp_code_dir, ["py"], ["main*"], [])
+    metadatas = get_file_metadatas(temp_code_dir, ["py"], ["main*"], [])
     assert len(metadatas) == 1
     assert metadatas[0]["path"] == "main.py"
 

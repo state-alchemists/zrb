@@ -69,7 +69,7 @@ async def test_toolset_result_reaches_model_once_and_adds_no_user_turn():
     from pydantic_ai import Agent
     from pydantic_ai.toolsets import FunctionToolset
 
-    from zrb.llm.agent.common import _wrap_toolset
+    from zrb.llm.agent.common import wrap_toolset
 
     captured: list = []
 
@@ -78,7 +78,7 @@ async def test_toolset_result_reaches_model_once_and_adds_no_user_turn():
 
     agent = Agent(
         _function_model(captured),
-        toolsets=[_wrap_toolset(FunctionToolset(tools=[probe]))],
+        toolsets=[wrap_toolset(FunctionToolset(tools=[probe]))],
     )
 
     result = await agent.run("go")

@@ -7,8 +7,8 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from zrb.llm.tool.ask import (
-    _build_choice_spec,
     ask_user_question,
+    build_choice_spec,
     format_choice_spec,
     get_interactive_mode,
     set_interactive_mode,
@@ -43,7 +43,7 @@ def test_ask_user_question_registers_itself_as_always_auto_approve():
 
 
 def test_build_choice_spec_carries_counter_and_header():
-    spec = _build_choice_spec(
+    spec = build_choice_spec(
         2, 3, {"question": "Pick a DB?", "options": [{"label": "PG"}]}
     )
     assert spec["index"] == 2
@@ -54,7 +54,7 @@ def test_build_choice_spec_carries_counter_and_header():
 
 
 def test_format_choice_spec_renders_numbered_text():
-    spec = _build_choice_spec(
+    spec = build_choice_spec(
         1,
         1,
         {
@@ -70,7 +70,7 @@ def test_format_choice_spec_renders_numbered_text():
 
 
 def test_format_choice_spec_multi_select_hint_and_counter():
-    spec = _build_choice_spec(
+    spec = build_choice_spec(
         2, 4, {"question": "Pick", "options": [{"label": "A"}], "multi_select": True}
     )
     text = format_choice_spec(spec)

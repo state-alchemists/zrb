@@ -110,7 +110,7 @@ async def ask_user_question(questions: list[dict[str, Any]]) -> str:
     total = len(questions)
     answers: list[str] = []
     for idx, q in enumerate(questions, start=1):
-        spec = _build_choice_spec(idx, total, q)
+        spec = build_choice_spec(idx, total, q)
         try:
             if hasattr(ui, "ask_user_choice"):
                 raw = await ui.ask_user_choice(cast("ChoiceSpec", spec))
@@ -151,7 +151,7 @@ async def _notify_question_pending(questions: list[dict[str, Any]]) -> None:
         CFG.LOGGER.debug(f"Notification hook for ask failed: {e}")
 
 
-def _build_choice_spec(idx: int, total: int, q: dict[str, Any]) -> dict[str, Any]:
+def build_choice_spec(idx: int, total: int, q: dict[str, Any]) -> dict[str, Any]:
     header = q.get("header") or q.get("question", "").strip().rstrip("?")[:40]
     return {
         "question": q["question"],

@@ -4,10 +4,10 @@ import pytest
 
 from zrb.llm.util.stream_response import (
     StreamEventHandler,
-    _get_event_part_content,
-    _get_full_event_part_args,
-    _get_truncated_event_part_args,
     create_event_handler,
+    get_event_part_content,
+    get_full_event_part_args,
+    get_truncated_event_part_args,
 )
 
 
@@ -1047,48 +1047,48 @@ class TestCreateEventHandler:
 class TestGetTruncatedEventPartArgs:
     def test_no_part_attribute(self):
         event = MagicMock(spec=[])
-        result = _get_truncated_event_part_args(event)
+        result = get_truncated_event_part_args(event)
         assert result == {}
 
     def test_part_no_args(self):
         event = MagicMock()
         event.part = MagicMock(spec=[])
-        result = _get_truncated_event_part_args(event)
+        result = get_truncated_event_part_args(event)
         assert result == {}
 
     def test_args_empty_string(self):
         event = MagicMock()
         event.part = MagicMock()
         event.part.args = ""
-        result = _get_truncated_event_part_args(event)
+        result = get_truncated_event_part_args(event)
         assert result == {}
 
     def test_args_none(self):
         event = MagicMock()
         event.part = MagicMock()
         event.part.args = None
-        result = _get_truncated_event_part_args(event)
+        result = get_truncated_event_part_args(event)
         assert result == {}
 
     def test_args_null_string(self):
         event = MagicMock()
         event.part = MagicMock()
         event.part.args = "null"
-        result = _get_truncated_event_part_args(event)
+        result = get_truncated_event_part_args(event)
         assert result == {}
 
     def test_args_empty_dict_string(self):
         event = MagicMock()
         event.part = MagicMock()
         event.part.args = "{}"
-        result = _get_truncated_event_part_args(event)
+        result = get_truncated_event_part_args(event)
         assert result == {}
 
     def test_args_json_string(self):
         event = MagicMock()
         event.part = MagicMock()
         event.part.args = '{"key": "value", "long": "' + "x" * 50 + '"}'
-        result = _get_truncated_event_part_args(event)
+        result = get_truncated_event_part_args(event)
         assert isinstance(result, dict)
         assert "key" in result
 
@@ -1096,20 +1096,20 @@ class TestGetTruncatedEventPartArgs:
         event = MagicMock()
         event.part = MagicMock()
         event.part.args = {"key": "value"}
-        result = _get_truncated_event_part_args(event)
+        result = get_truncated_event_part_args(event)
         assert result == {"key": "value"}
 
 
 class TestGetFullEventPartArgs:
     def test_no_part_attribute(self):
         event = MagicMock(spec=[])
-        assert _get_full_event_part_args(event) == {}
+        assert get_full_event_part_args(event) == {}
 
     def test_args_empty_string(self):
         event = MagicMock()
         event.part = MagicMock()
         event.part.args = ""
-        assert _get_full_event_part_args(event) == {}
+        assert get_full_event_part_args(event) == {}
 
     def test_returns_untruncated_values(self):
         """The whole point: unlike the truncated variant, long values survive."""
@@ -1117,37 +1117,37 @@ class TestGetFullEventPartArgs:
         event = MagicMock()
         event.part = MagicMock()
         event.part.args = {"long": long_value}
-        result = _get_full_event_part_args(event)
+        result = get_full_event_part_args(event)
         assert result == {"long": long_value}
         # Sanity: the truncated sibling really does clip the same input.
-        assert _get_truncated_event_part_args(event) != result
+        assert get_truncated_event_part_args(event) != result
 
     def test_does_not_mutate_original_args(self):
         event = MagicMock()
         event.part = MagicMock()
         original = {"long": "x" * 50}
         event.part.args = original
-        _get_full_event_part_args(event)
+        get_full_event_part_args(event)
         assert event.part.args == original
 
 
 class TestGetEventPartContent:
     def test_no_part_attribute(self):
         event = MagicMock(spec=[])
-        result = _get_event_part_content(event)
+        result = get_event_part_content(event)
         assert result == ""
 
     def test_part_no_content(self):
         event = MagicMock()
         event.part = MagicMock(spec=[])
-        result = _get_event_part_content(event)
+        result = get_event_part_content(event)
         assert result == ""
 
     def test_part_with_content(self):
         event = MagicMock()
         event.part = MagicMock()
         event.part.content = "Hello world"
-        result = _get_event_part_content(event)
+        result = get_event_part_content(event)
         assert result == "Hello world"
 
 
