@@ -33,6 +33,7 @@ from zrb.llm.approval.approval_channel import ApprovalContext
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.permission import ASK
+from zrb.llm.tool.ask import get_interactive_mode
 from zrb.llm.tool_call.always_approve import is_always_auto_approve
 from zrb.llm.tool_call.args import parse_tool_args
 from zrb.llm.tool_call.handler import ToolCallHandler
@@ -369,9 +370,6 @@ def _resolve_non_interactive_ask(call, policy_decision, force_ask):
     `AskUserQuestion`) and deny any other approval-gated tool rather than
     running it unattended. See ADR-0062.
     """
-    # lazy: circular — run-loop approval path ↔ zrb.llm.tool.ask
-    from zrb.llm.tool.ask import get_interactive_mode
-
     if not (policy_decision == ASK or force_ask) or get_interactive_mode():
         return None
     # lazy: heavy third-party

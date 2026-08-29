@@ -594,7 +594,9 @@ async def test_noninteractive_exit_plan_mode_is_auto_approved():
     with (
         patch("zrb.llm.permission.get_effective_policy", return_value=_ask_policy()),
         patch("zrb.llm.permission.tool_capability", return_value=None),
-        patch("zrb.llm.tool.ask.get_interactive_mode", return_value=False),
+        patch(
+            "zrb.llm.agent.run.deferred_calls.get_interactive_mode", return_value=False
+        ),
     ):
         result = await process_deferred_requests(
             result_output, tool_handler, ui, hook_manager
@@ -631,7 +633,9 @@ async def test_noninteractive_other_ask_tool_is_denied():
     with (
         patch("zrb.llm.permission.get_effective_policy", return_value=_ask_policy()),
         patch("zrb.llm.permission.tool_capability", return_value=None),
-        patch("zrb.llm.tool.ask.get_interactive_mode", return_value=False),
+        patch(
+            "zrb.llm.agent.run.deferred_calls.get_interactive_mode", return_value=False
+        ),
     ):
         result = await process_deferred_requests(
             result_output, tool_handler, ui, hook_manager
@@ -668,7 +672,9 @@ async def test_pretooluse_ask_forces_prompt_over_auto_approve():
 
     with (
         patch("zrb.llm.permission.get_effective_policy", return_value=None),
-        patch("zrb.llm.tool.ask.get_interactive_mode", return_value=True),
+        patch(
+            "zrb.llm.agent.run.deferred_calls.get_interactive_mode", return_value=True
+        ),
     ):
         result = await process_deferred_requests(
             result_output, tool_handler, ui, hook_manager
@@ -869,7 +875,9 @@ async def test_yolo_auto_approves_with_no_policy_opinion():
 
     with (
         patch("zrb.llm.permission.get_effective_policy", return_value=None),
-        patch("zrb.llm.tool.ask.get_interactive_mode", return_value=True),
+        patch(
+            "zrb.llm.agent.run.deferred_calls.get_interactive_mode", return_value=True
+        ),
         patch("zrb.llm.agent.run.runtime_state.get_current_yolo", return_value=True),
     ):
         result = await process_deferred_requests(
@@ -906,7 +914,9 @@ async def test_approval_channel_with_invalid_json_string_args():
 
     with (
         patch("zrb.llm.permission.get_effective_policy", return_value=None),
-        patch("zrb.llm.tool.ask.get_interactive_mode", return_value=True),
+        patch(
+            "zrb.llm.agent.run.deferred_calls.get_interactive_mode", return_value=True
+        ),
         patch("zrb.llm.agent.run.runtime_state.get_current_yolo", return_value=None),
     ):
         result = await process_deferred_requests(
@@ -938,7 +948,9 @@ async def test_no_approval_mechanism_with_hard_ask_denies():
     with (
         patch("zrb.llm.permission.get_effective_policy", return_value=_ask_policy()),
         patch("zrb.llm.permission.tool_capability", return_value=None),
-        patch("zrb.llm.tool.ask.get_interactive_mode", return_value=True),
+        patch(
+            "zrb.llm.agent.run.deferred_calls.get_interactive_mode", return_value=True
+        ),
         patch("zrb.llm.agent.run.runtime_state.get_current_yolo", return_value=None),
     ):
         # effective_tool_confirmation is neither a ToolCallHandler nor callable.
@@ -968,7 +980,9 @@ async def test_no_approval_mechanism_without_ask_returns_none():
 
     with (
         patch("zrb.llm.permission.get_effective_policy", return_value=None),
-        patch("zrb.llm.tool.ask.get_interactive_mode", return_value=True),
+        patch(
+            "zrb.llm.agent.run.deferred_calls.get_interactive_mode", return_value=True
+        ),
         patch("zrb.llm.agent.run.runtime_state.get_current_yolo", return_value=None),
     ):
         result = await process_deferred_requests(
@@ -1003,7 +1017,9 @@ async def test_interactive_exit_plan_mode_still_prompts():
     with (
         patch("zrb.llm.permission.get_effective_policy", return_value=_ask_policy()),
         patch("zrb.llm.permission.tool_capability", return_value=None),
-        patch("zrb.llm.tool.ask.get_interactive_mode", return_value=True),
+        patch(
+            "zrb.llm.agent.run.deferred_calls.get_interactive_mode", return_value=True
+        ),
     ):
         result = await process_deferred_requests(
             result_output, tool_handler, ui, hook_manager

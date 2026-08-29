@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from fastapi import FastAPI
 
 
-def serve_task_session_api(
+def serve_task_session_api(  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)
     app: "FastAPI",
     root_group: AnyGroup,
     web_auth_config: WebAuthConfig,

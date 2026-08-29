@@ -410,8 +410,8 @@ async def test_open_web_page_with_summarization():
     # Mock playwright and LLM orchestrators
     with (
         patch("playwright.async_api.async_playwright") as mock_playwright_ctx,
-        patch("zrb.llm.tool.web.create_agent") as mock_create_agent,
-        patch("zrb.llm.tool.web.run_agent", new_callable=AsyncMock) as mock_run_agent,
+        patch("zrb.llm.agent.create_agent") as mock_create_agent,
+        patch("zrb.llm.agent.run_agent", new_callable=AsyncMock) as mock_run_agent,
         # The fallback must never be reached: with goto unstubbed, the
         # content-type check exploded on an auto-AsyncMock (leaking a
         # never-awaited coroutine) and the test silently fetched the real
@@ -484,8 +484,8 @@ async def test_open_web_page_summarizer_input_is_bounded():
     with (
         patch.dict(os.environ, {f"{CFG.ENV_PREFIX}_LLM_MAX_OUTPUT_CHARS": "500"}),
         patch("playwright.async_api.async_playwright") as mock_playwright_ctx,
-        patch("zrb.llm.tool.web.create_agent"),
-        patch("zrb.llm.tool.web.run_agent", new_callable=AsyncMock) as mock_run_agent,
+        patch("zrb.llm.agent.create_agent"),
+        patch("zrb.llm.agent.run_agent", new_callable=AsyncMock) as mock_run_agent,
     ):
         mock_p = AsyncMock()
         mock_browser = AsyncMock()

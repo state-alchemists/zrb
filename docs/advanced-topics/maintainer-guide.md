@@ -55,13 +55,13 @@ A scoped run and a full run check different things — `zrb-test.sh` gates in th
 | Gate | What it checks | If it fails |
 |------|-----------------|-------------|
 | `flake8 src/zrb --select=F` | Unused imports/vars, redefinitions (`src/` only) | Remove the dead import/var, or add the required `# lazy: <reason>` comment (see `AGENTS.md` → Imports) |
-| `flake8 src/zrb --select=C901` | A per-function complexity ratchet (mccabe) | Your function raised the *worst-in-repo* score — simplify it, or ask whether it's a registration/keybinding table (an accepted exception per `AGENTS.md`) |
-| radon per-function ratchet | Same idea as above, scored per-function instead of summed into the enclosing function | Same fix as above |
-| Private-test-access ratchet | Counts `test/` references into another object's private (`_foo`) attributes | You accessed a private member in a test — expose a public accessor instead (see `AGENTS.md` → Test Guidelines), or this is a rare accepted exception (see the script's own comment) |
+| `test/architecture/test_complexity_ratchet.py` (mccabe, via flake8) | A per-function complexity ratchet | Your function raised the *worst-in-repo* score — simplify it, or ask whether it's a registration/keybinding table (an accepted exception per `AGENTS.md` — mark it `# noqa: C901` with a one-line reason) |
+| `test/architecture/test_complexity_ratchet.py` (radon) | Same idea as above, scored per-function instead of summed into the enclosing function | Same fix as above |
+| `test/architecture/test_private_test_access_ratchet.py` | Counts `test/` references into another object's private (`_foo`) attributes | You accessed a private member in a test — expose a public accessor instead (see `AGENTS.md` → Test Guidelines), or this is a rare accepted exception (see the test file's own docstring) |
 | `pyright src/zrb` (full run only) | Static type check | Fix the reported type error |
 | `pytest ... --cov-fail-under=90` (full run only) | ≥90% coverage | Add a test for the uncovered branch |
 
-Each gate's exact numbers and rationale are documented inline in `zrb-test.sh` itself — read it if a failure message alone isn't enough.
+The three ratchet gates run as ordinary pytest tests under `test/architecture/` (part of the `pytest` invocation below), not as separate shell steps — each file's own docstring documents its exact numbers and rationale; read it if a failure message alone isn't enough. `zrb-test.sh` itself only runs the `flake8 --select=F` step directly.
 
 **One gotcha that isn't a `zrb-test.sh` gate but bites often:** adding a new test file that shares a basename with one in another directory (e.g. two `test_manager.py` files) fails pytest *collection*, not a specific test — pytest imports rootdir-relative, so two bare files with the same name collide. Fix: add an empty `__init__.py` to the new test directory (see `AGENTS.md` → Test Guidelines for the full explanation).
 

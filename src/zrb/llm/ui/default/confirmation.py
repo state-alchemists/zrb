@@ -22,6 +22,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any
 
+from zrb.config.config import CFG
 from zrb.llm.tool.ambient_state import get_session_ownership_key
 
 if TYPE_CHECKING:
@@ -212,9 +213,6 @@ class UIConfirmation:
         self._restore_input_draft()
 
     def handle_confirmation(self, event) -> bool:
-        # lazy: circular — base.ui -> config -> ... -> confirmation
-        from zrb.config.config import CFG
-
         buff = event.current_buffer
         text = buff.text
         viewing_agent_id = getattr(self._ui, "viewing_agent_id", None)

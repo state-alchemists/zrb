@@ -1,6 +1,7 @@
 import os
 from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
+from zrb.llm.tool.file_edit import find_fuzzy_match
 from zrb.llm.tool_call.args import parse_tool_args
 from zrb.llm.tool_call.handler import UIProtocol
 
@@ -59,9 +60,6 @@ async def replace_in_file_validation_policy(
     #    or a fuzzy match (whitespace/indentation tolerant), mirroring the
     #    replace_in_file tool's own matching so we don't deny edits the tool
     #    would actually be able to apply.
-    # lazy: circular — file_edit pulls in post_write_check → llm tool stack
-    from zrb.llm.tool.file_edit import find_fuzzy_match
-
     try:
         with open(abs_path, "r", encoding="utf-8") as f:
             content = f.read()

@@ -95,7 +95,7 @@ def _format_active_skills(
     return make_markdown_section("Active Skills (Fully Loaded)", "\n\n".join(parts))
 
 
-def create_project_context_prompt():
+def create_project_context_prompt():  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)
     def project_context(
         ctx: AnyContext,
         current_prompt: str,

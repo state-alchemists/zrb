@@ -13,6 +13,11 @@ from contextvars import ContextVar
 from typing import Any
 
 from zrb.config.config import CFG
+from zrb.llm.agent.run.runtime_state import (
+    current_tool_confirmation,
+    current_ui,
+    current_yolo,
+)
 from zrb.llm.approval.approval_channel import current_approval_channel
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
 from zrb.util.contextvar_scope import scoped
@@ -29,14 +34,6 @@ def bind_contextvar(stack: ExitStack, var: ContextVar, value: Any) -> None:
 def resolve_context_dependencies(
     ui, tool_confirmation, yolo, approval_channel, hook_manager
 ):
-    # lazy: circular — runner → setup → runner (current_* ContextVars live in
-    # runner.py, which imports this module at top level).
-    from zrb.llm.agent.run.runner import (
-        current_tool_confirmation,
-        current_ui,
-        current_yolo,
-    )
-
     # lazy: zrb.llm.ui.* and zrb.llm.approval.* are imported inside this
     # function to break a circular import — zrb.llm.agent is loaded by
     # those packages' init paths, so module-top imports here would re-enter
@@ -101,10 +98,6 @@ def log_startup(
     approval_channel,
     effective_approval_channel,
 ):
-    # lazy: circular — runner → setup → runner (current_* ContextVars live in
-    # runner.py, which imports this module at top level).
-    from zrb.llm.agent.run.runner import current_tool_confirmation
-
     CFG.LOGGER.debug("run_agent === START ===")
     CFG.LOGGER.debug(f"tool_confirmation param: {tool_confirmation}")
     CFG.LOGGER.debug(

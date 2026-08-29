@@ -48,6 +48,9 @@ def search_journal(query: str, case_sensitive: bool = False) -> dict[str, Any]:
     return _search_with_python(query, abs_dir, pattern)
 
 
+search_journal.__name__ = "SearchJournal"
+
+
 def _search_with_rg(
     query: str, abs_dir: str, case_sensitive: bool, pattern: re.Pattern
 ) -> dict[str, Any]:

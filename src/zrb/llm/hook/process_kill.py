@@ -78,11 +78,11 @@ def kill_process_tree(process: subprocess.Popen, pgid: int | None = None) -> Non
             logger.debug(f"killpg failed for hook group {group}: {e}")
     if pid is not None and not group_killed:
         try:
-            # lazy: circular — command → ... → process_kill; also keeps psutil
-            # off the import path for the common (non-timeout) case. Inside the
-            # try: an ImportError here would escape a function documented never
-            # to raise, and the outer handler would swallow the CancelledError
-            # that must propagate.
+            # lazy: heavy third-party — zrb.util.cmd.command imports psutil at
+            # module level; deferring keeps it off the common (non-timeout)
+            # path. Inside the try: an ImportError here would escape a
+            # function documented never to raise, and the outer handler
+            # would swallow the CancelledError that must propagate.
             from zrb.util.cmd.command import kill_pid
 
             kill_pid(pid, print_method=logger.debug)

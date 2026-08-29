@@ -165,7 +165,11 @@ def _close_pipe(pipe: Any) -> None:
         pass
 
 
-async def run_detached(func: Callable[[], Any], name: str) -> Any:
+async def run_detached(
+    func: Callable[[], Any], name: str
+) -> (
+    Any
+):  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)
     """Await *func* running on a daemon thread.
 
     Deliberately **not** ``loop.run_in_executor(None, ...)``. A hook whose

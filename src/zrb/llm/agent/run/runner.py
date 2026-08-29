@@ -1,8 +1,11 @@
 """LLM agent run loop: drives `pydantic_ai.Agent`, sanitizes history, retries.
 
-Owns the `current_ui`, `current_tool_confirmation`, `current_yolo`, and
-`current_approval_channel` `ContextVar`s — set on entry to `run_agent()`,
-reset in `finally`. Every other module reads them through the wrappers in
+Binds the `current_ui`, `current_tool_confirmation`, `current_yolo`,
+`current_hook_manager`, `current_agent_run_scope`, and `current_approval_channel`
+`ContextVar`s on entry to `run_agent()`, resets them in `finally`. The vars
+themselves are defined in `runtime_state.py` (not here — `setup.py`, which
+`runner.py` imports at the top, needs them too, so `runtime_state.py` owns
+them to avoid a cycle). Every other module reads them through the wrappers in
 `runtime_state.py` (re-exported from `zrb.contextvars`).
 
 Sibling files in this package each own one concern:
@@ -21,9 +24,8 @@ from __future__ import annotations
 import asyncio
 import uuid
 from contextlib import ExitStack
-from contextvars import ContextVar
 from dataclasses import replace
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, Coroutine, TypeAlias
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Coroutine
 
 from zrb.config.config import CFG
 from zrb.llm.agent.run.deferred_calls import (
@@ -46,6 +48,14 @@ from zrb.llm.agent.run.openai_patch import patch_openai_model_response_serializa
 from zrb.llm.agent.run.partial_run import PartialRunAccumulator
 from zrb.llm.agent.run.prompt_content import get_prompt_content as _get_prompt_content
 from zrb.llm.agent.run.retry_loop import RetryState, handle_stream_error
+from zrb.llm.agent.run.runtime_state import (
+    AnyToolConfirmation,
+    current_agent_run_scope,
+    current_hook_manager,
+    current_tool_confirmation,
+    current_ui,
+    current_yolo,
+)
 from zrb.llm.agent.run.session_extension import (
     ExtensionState,
     apply_turn_end_extension,
@@ -72,52 +82,12 @@ from zrb.llm.permission.state import (
 )
 from zrb.llm.prompt.live_context import append_live_context
 from zrb.llm.sandbox.state import current_sandbox_policy
-from zrb.llm.tool_call.handler import ToolCallHandler
+from zrb.llm.tool.worktree import active_worktree
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 from zrb.llm.util.prompt import expand_prompt
 
 if TYPE_CHECKING:
-    from pydantic_ai import (
-        Agent,
-        ToolApproved,
-        ToolCallPart,
-        ToolDenied,
-    )
-
-    AnyToolConfirmation: TypeAlias = (
-        Callable[
-            [ToolCallPart],
-            ToolApproved | ToolDenied | Awaitable[ToolApproved | ToolDenied],
-        ]
-        | ToolCallHandler
-        | None
-    )
-else:
-    AnyToolConfirmation: TypeAlias = Any
-
-current_ui: ContextVar[UIProtocol | None] = ContextVar("current_ui", default=None)
-current_tool_confirmation: ContextVar[AnyToolConfirmation] = ContextVar(
-    "current_tool_confirmation", default=None
-)
-current_yolo: ContextVar[bool] = ContextVar("current_yolo", default=False)
-# The hook manager active for the current run. Read by nested tools (e.g. the
-# delegate tool fires SubagentStart/Stop on the parent run's manager).
-current_hook_manager: ContextVar[HookManager | None] = ContextVar(
-    "current_hook_manager", default=None
-)
-# Identifies "this specific agent run" to nested tools that need to track
-# state per-conversation without bleeding across independent conversations —
-# e.g. file_observation.py's read-before-overwrite tracking. Stable across
-# turns of the same top-level conversation (the caller passes its session
-# name). A delegated sub-agent run (delegate.py) deliberately passes nothing,
-# taking the fresh-per-call default below instead: a sub-agent has its own
-# empty message_history and hasn't seen what its parent or siblings
-# observed, so it must not share their bucket — and delegate.py's own
-# display-only agent_id is a 32-bit-truncated id, too collision-prone for a
-# map this module never evicts, unlike the fresh full uuid4 below.
-current_agent_run_scope: ContextVar[str] = ContextVar(
-    "current_agent_run_scope", default=""
-)
+    from pydantic_ai import Agent
 
 # Process-wide guard: the OpenAI serialization patch is global and idempotent,
 # so it only needs to run once per process. The check-then-set is safe under
@@ -213,10 +183,6 @@ async def run_agent(
         bind_contextvar(stack, current_approval_channel, effective_approval_channel)
         bind_contextvar(stack, current_permission_policy, effective_policy)
         bind_contextvar(stack, current_sandbox_policy, effective_sandbox)
-        # lazy: circular — zrb.llm.tool's package __init__ eagerly loads
-        # delegate.py, which imports run_agent from this module.
-        from zrb.llm.tool.worktree import active_worktree
-
         # Backstop, not the primary contract: EnterWorktree/ExitWorktree still
         # own setting/clearing this per tool call. This only guarantees that a
         # forgotten ExitWorktree (agent forgets, run errors) can't leak the

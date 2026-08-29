@@ -43,6 +43,15 @@ def _safe_segment(name: str) -> str:
     return safe or "default"
 
 
+def default_history_manager() -> "FileHistoryManager":
+    """The file-backed history manager used wherever no explicit one is
+    configured. One place to know the default so callers depend on this
+    factory instead of each re-reading `CFG.LLM_HISTORY_DIR` and constructing
+    `FileHistoryManager` themselves.
+    """
+    return FileHistoryManager(history_dir=CFG.LLM_HISTORY_DIR)
+
+
 class FileHistoryManager(AnyHistoryManager):
     def __init__(self, history_dir: str):
         self._history_dir = os.path.expanduser(history_dir)

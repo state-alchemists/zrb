@@ -15,6 +15,7 @@ from zrb.config.config import CFG
 from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.hook.schema import AgentHookConfig, HookConfig, MatcherConfig
 from zrb.llm.hook.types import HookEvent, HookType, MatcherOperator
+from zrb.llm.prompt.prompt import get_prompt
 
 if TYPE_CHECKING:
     from zrb.llm.hook.manager import HookManager
@@ -42,11 +43,6 @@ def build_journal_compliance_hook_config() -> HookConfig:
     chain — a project's `LLM_PROMPT_DIR`/`markdown/journal_compliance.md`, or
     `ZRB_LLM_PROMPT_JOURNAL_COMPLIANCE` — the same way `message_summarizer`
     and the other internal-agent prompts are overridable."""
-    # lazy: circular — this module is imported by hook.manager at module
-    # level; zrb.llm.prompt's package __init__ pulls in prompt.claude ->
-    # skill.manager -> hook.manager, which is still mid-import at that point.
-    from zrb.llm.prompt.prompt import get_prompt
-
     return HookConfig(
         name=_NAME,
         events=[HookEvent.STOP],

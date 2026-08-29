@@ -18,7 +18,9 @@ from zrb.config.config import CFG
 from zrb.llm.permission import ALLOW, ASK, DENY, Capability
 
 
-def make_yolo_inheritance_checker() -> Callable[..., bool]:
+def make_yolo_inheritance_checker() -> (
+    Callable[..., bool]
+):  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)
     """Return a callable that reports the current effective YOLO mode.
 
     Resolution order:

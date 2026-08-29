@@ -236,11 +236,11 @@ server_group = cli.add_group(
     alias="start",
 )
 async def start_server(_: AnyContext):
-    # lazy: zrb.runner.web_app imports zrb.runner.cli back through its
-    # FastAPI route registration; hoisting causes a circular import.
+    # lazy: heavy third-party
     from uvicorn import Config, Server
 
-    # lazy: zrb internal (heavy via transitive / circular)
+    # lazy: zrb internal (heavy via transitive) — pulls in fastapi + the full
+    # web route tree; keep it off the CLI-only import path.
     from zrb.runner.web_app import configure_uvicorn_logging, create_web_app
 
     configure_uvicorn_logging()

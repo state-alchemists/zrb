@@ -1,10 +1,9 @@
 """Resolve tool names (Claude-compatible aliases honored) into tool objects.
 
 Kept dependency-free (no ``zrb.llm.tool``/``zrb.llm.common_tools`` imports) so
-it can be called from both `SubAgentManager` and hook code without tripping
-the circular-import trap `common_tools.py` documents: importing
-``zrb.llm.tool`` at module scope there deadlocks against `SubAgentManager`'s
-own re-entry into tool registration.
+it can be called from both `SubAgentManager` and hook code without pulling in
+the whole tool package (and, transitively, `pydantic_ai`) just to resolve a
+name.
 """
 
 from __future__ import annotations

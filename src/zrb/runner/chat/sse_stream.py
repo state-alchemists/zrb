@@ -17,7 +17,7 @@ from zrb.config.config import CFG
 
 
 class SSEStreamResponse(StreamingResponse):
-    def __init__(
+    def __init__(  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)
         self,
         session_id: str,
         session_manager: Any,

@@ -6,7 +6,6 @@ import threading
 from urllib.parse import urljoin
 
 from zrb.config.config import CFG
-from zrb.llm.agent import create_agent, run_agent
 from zrb.llm.agent.run.runtime_state import get_current_ui
 from zrb.llm.config.config import llm_config
 from zrb.llm.config.limiter import llm_limiter
@@ -467,6 +466,13 @@ def convert_html_to_markdown(html_text: str) -> str:
 
 async def _summarize_web_content(markdown_content: str, url: str) -> str:
     """Summarize web content using an agent while preserving references."""
+    # lazy: zrb.llm.agent transitively loads pydantic_ai. Keeping this inside
+    # the one function that needs it preserves cold-start latency for
+    # search_internet/open_web_page callers that never hit summarization —
+    # and lets this module be re-exported from zrb.llm.tool without forcing
+    # the whole agent package to finish loading first.
+    from zrb.llm.agent import create_agent, run_agent
+
     agent = create_agent(
         # Already resolved here; resolve_model=False stops create_agent from
         # firing model_getter/model_renderer a second time.

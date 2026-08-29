@@ -1,4 +1,6 @@
 from zrb.builtin.group import config_group
+from zrb.config.config import CFG
+from zrb.config.env_field import EnvField
 from zrb.context.any_context import AnyContext
 from zrb.input.str_input import StrInput
 from zrb.task.make_task import make_task
@@ -44,10 +46,6 @@ def _render_table(entries: list[tuple[str, str, str]]) -> str:
 
 
 def _collect_entries(keyword: str) -> list[tuple[str, str, str]]:
-    # lazy: circular — builtin → config → env_field
-    from zrb.config.config import CFG
-    from zrb.config.env_field import EnvField
-
     seen: set[str] = set()
     entries: list[tuple[str, str, str]] = []
     kw = keyword.lower()

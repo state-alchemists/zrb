@@ -15,10 +15,8 @@ from zrb.llm.agent.run.runtime_state import get_current_hook_manager, get_curren
 from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
 
 # Import directly from the inner module (not the `subagent` package's
-# __init__) to avoid a circular import: this module IS what
-# `zrb.llm.tool/__init__.py` loads first, and `subagent`'s own __init__ just
-# re-exports `.manager` — going through the package here would gain nothing
-# and adds one more frame for a future change to accidentally re-enter.
+# __init__): the package's own __init__ just re-exports `.manager`, so going
+# through it here would gain nothing but an extra frame.
 from zrb.llm.agent.subagent.manager import (
     SubAgentManager,
 )
@@ -276,9 +274,11 @@ def persist_subagent_history(conversation_name: str, history: list) -> None:
     """
     try:
         # lazy: zrb.llm.history_manager transitively loads pydantic_ai.
-        from zrb.llm.history_manager.file_history_manager import FileHistoryManager
+        from zrb.llm.history_manager.file_history_manager import (
+            default_history_manager,
+        )
 
-        manager = FileHistoryManager(history_dir=CFG.LLM_HISTORY_DIR)
+        manager = default_history_manager()
         manager.update(conversation_name, history)
         manager.save(conversation_name, write_backup=False)
         _prune_old_subagent_history()

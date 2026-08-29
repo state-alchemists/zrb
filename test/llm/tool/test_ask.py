@@ -102,7 +102,7 @@ async def test_returns_error_when_questions_empty():
 @pytest.mark.asyncio
 async def test_returns_error_when_ui_unavailable():
     """In interactive mode but with no current UI, fall back to guidance."""
-    with patch("zrb.llm.agent.run.runtime_state.get_current_ui", return_value=None):
+    with patch("zrb.llm.tool.ask.get_current_ui", return_value=None):
         result = await ask_user_question(
             [{"question": "x", "options": [{"label": "A"}]}]
         )
@@ -115,7 +115,7 @@ async def test_returns_error_when_ui_unavailable():
 @pytest.mark.asyncio
 async def test_missing_required_keys_surfaces_schema_error():
     fake_ui = AsyncMock()
-    with patch("zrb.llm.agent.run.runtime_state.get_current_ui", return_value=fake_ui):
+    with patch("zrb.llm.tool.ask.get_current_ui", return_value=fake_ui):
         result = await ask_user_question([{"options": [{"label": "A"}]}])
     assert "missing required keys" in result
     assert "question" in result
@@ -126,7 +126,7 @@ async def test_missing_required_keys_surfaces_schema_error():
 @pytest.mark.asyncio
 async def test_empty_options_surfaces_error():
     fake_ui = AsyncMock()
-    with patch("zrb.llm.agent.run.runtime_state.get_current_ui", return_value=fake_ui):
+    with patch("zrb.llm.tool.ask.get_current_ui", return_value=fake_ui):
         result = await ask_user_question([{"question": "x", "options": []}])
     assert "options is empty" in result
     fake_ui.ask_user_choice.assert_not_called()
@@ -137,7 +137,7 @@ async def test_resolves_numeric_pick_to_label():
     """A UI that returns a number (text-fallback path) still maps to the label."""
     fake_ui = AsyncMock()
     fake_ui.ask_user_choice.return_value = "2"
-    with patch("zrb.llm.agent.run.runtime_state.get_current_ui", return_value=fake_ui):
+    with patch("zrb.llm.tool.ask.get_current_ui", return_value=fake_ui):
         result = await ask_user_question(
             [
                 {
@@ -159,7 +159,7 @@ async def test_widget_label_answer_is_returned_verbatim():
     """A widget UI returns the chosen label directly; it survives resolution."""
     fake_ui = AsyncMock()
     fake_ui.ask_user_choice.return_value = "Flask"
-    with patch("zrb.llm.agent.run.runtime_state.get_current_ui", return_value=fake_ui):
+    with patch("zrb.llm.tool.ask.get_current_ui", return_value=fake_ui):
         result = await ask_user_question(
             [
                 {
@@ -175,7 +175,7 @@ async def test_widget_label_answer_is_returned_verbatim():
 async def test_returns_free_form_text_when_not_a_number():
     fake_ui = AsyncMock()
     fake_ui.ask_user_choice.return_value = "actually use Django"
-    with patch("zrb.llm.agent.run.runtime_state.get_current_ui", return_value=fake_ui):
+    with patch("zrb.llm.tool.ask.get_current_ui", return_value=fake_ui):
         result = await ask_user_question(
             [
                 {
@@ -191,7 +191,7 @@ async def test_returns_free_form_text_when_not_a_number():
 async def test_out_of_range_index_falls_through_to_raw_text():
     fake_ui = AsyncMock()
     fake_ui.ask_user_choice.return_value = "99"
-    with patch("zrb.llm.agent.run.runtime_state.get_current_ui", return_value=fake_ui):
+    with patch("zrb.llm.tool.ask.get_current_ui", return_value=fake_ui):
         result = await ask_user_question(
             [{"question": "x", "options": [{"label": "A"}]}]
         )
@@ -203,7 +203,7 @@ async def test_out_of_range_index_falls_through_to_raw_text():
 async def test_multi_select_resolves_comma_separated_indexes():
     fake_ui = AsyncMock()
     fake_ui.ask_user_choice.return_value = "1,3"
-    with patch("zrb.llm.agent.run.runtime_state.get_current_ui", return_value=fake_ui):
+    with patch("zrb.llm.tool.ask.get_current_ui", return_value=fake_ui):
         result = await ask_user_question(
             [
                 {
@@ -224,7 +224,7 @@ async def test_multi_select_resolves_comma_separated_indexes():
 async def test_multi_select_falls_back_to_raw_when_any_token_unresolved():
     fake_ui = AsyncMock()
     fake_ui.ask_user_choice.return_value = "1, banana"
-    with patch("zrb.llm.agent.run.runtime_state.get_current_ui", return_value=fake_ui):
+    with patch("zrb.llm.tool.ask.get_current_ui", return_value=fake_ui):
         result = await ask_user_question(
             [
                 {
@@ -242,7 +242,7 @@ async def test_multi_select_falls_back_to_raw_when_any_token_unresolved():
 async def test_empty_answer_renders_no_answer_marker():
     fake_ui = AsyncMock()
     fake_ui.ask_user_choice.return_value = ""
-    with patch("zrb.llm.agent.run.runtime_state.get_current_ui", return_value=fake_ui):
+    with patch("zrb.llm.tool.ask.get_current_ui", return_value=fake_ui):
         result = await ask_user_question(
             [{"question": "x?", "options": [{"label": "A"}]}]
         )
@@ -262,7 +262,7 @@ async def test_falls_back_to_ask_user_when_choice_unsupported():
             return "1"
 
     fake_ui = LegacyUI()
-    with patch("zrb.llm.agent.run.runtime_state.get_current_ui", return_value=fake_ui):
+    with patch("zrb.llm.tool.ask.get_current_ui", return_value=fake_ui):
         result = await ask_user_question(
             [{"question": "Pick?", "options": [{"label": "Yes"}, {"label": "No"}]}]
         )
@@ -274,7 +274,7 @@ async def test_falls_back_to_ask_user_when_choice_unsupported():
 async def test_keyboard_interrupt_returns_cancellation_suggestion():
     fake_ui = AsyncMock()
     fake_ui.ask_user_choice.side_effect = KeyboardInterrupt()
-    with patch("zrb.llm.agent.run.runtime_state.get_current_ui", return_value=fake_ui):
+    with patch("zrb.llm.tool.ask.get_current_ui", return_value=fake_ui):
         result = await ask_user_question(
             [{"question": "x?", "options": [{"label": "A"}]}]
         )
@@ -286,7 +286,7 @@ async def test_keyboard_interrupt_returns_cancellation_suggestion():
 async def test_multiple_questions_all_get_rendered():
     fake_ui = AsyncMock()
     fake_ui.ask_user_choice.side_effect = ["1", "free text"]
-    with patch("zrb.llm.agent.run.runtime_state.get_current_ui", return_value=fake_ui):
+    with patch("zrb.llm.tool.ask.get_current_ui", return_value=fake_ui):
         result = await ask_user_question(
             [
                 {

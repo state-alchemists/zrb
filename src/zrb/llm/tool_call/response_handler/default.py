@@ -24,7 +24,6 @@ async def default_response_handler(
     # lazy: tests patch `zrb.llm.tool_call.edit_util.edit_content_via_editor`
     # at the source path and rely on the patch taking effect inside this
     # function. Hoisting would bind the name at module-load.
-    # lazy: zrb internal (heavy via transitive / circular)
     from zrb.llm.tool_call.edit_util import edit_content_via_editor
 
     # end="": this also writes to the shared audit log (can't drop it), but

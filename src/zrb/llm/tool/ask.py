@@ -20,6 +20,9 @@ from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, cast
 
 from zrb.config.config import CFG
+from zrb.llm.agent.run.runtime_state import get_current_ui
+from zrb.llm.hook.manager import hook_manager
+from zrb.llm.hook.types import HookEvent
 from zrb.llm.tool.wrapper import tool_safe_async
 from zrb.llm.tool_call.always_approve import register_always_auto_approve
 from zrb.llm.tool_call.choice_spec_format import format_choice_spec
@@ -74,9 +77,6 @@ async def ask_user_question(questions: list[dict[str, Any]]) -> str:
             "[SYSTEM SUGGESTION]: provide at least one question with `question` "
             "and `options` keys, or do not call this tool."
         )
-
-    # lazy: circular — tool → agent.run.runtime_state → ... → tool
-    from zrb.llm.agent.run.runtime_state import get_current_ui
 
     ui = get_current_ui()
     if ui is None:
@@ -137,10 +137,6 @@ async def _notify_question_pending(questions: list[dict[str, Any]]) -> None:
     failure must never break the prompt.
     """
     try:
-        # lazy: circular — tool → hook.manager → llm internals → tool
-        from zrb.llm.hook.manager import hook_manager
-        from zrb.llm.hook.types import HookEvent
-
         await hook_manager.execute_hooks(
             HookEvent.NOTIFICATION,
             {"questions": questions},

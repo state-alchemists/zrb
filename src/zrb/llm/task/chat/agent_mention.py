@@ -13,6 +13,10 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 
+from zrb.llm.agent.subagent.manager import (
+    sub_agent_manager as default_sub_agent_manager,
+)
+
 if TYPE_CHECKING:
     from zrb.llm.agent.subagent.manager import SubAgentManager
 
@@ -32,14 +36,6 @@ def resolve_agent_mention(
     mention" apart from "mentioned, nudge attached".
     """
     if sub_agent_manager is None:
-        # lazy: circular — this module loads early in LLMChatTask's
-        # composition chain (task/chat/running.py), and subagent.manager's
-        # bottom import re-enters apply_common_tools before zrb.llm.tool is
-        # necessarily fully loaded. Deferring to call time sidesteps it.
-        from zrb.llm.agent.subagent.manager import (
-            sub_agent_manager as default_sub_agent_manager,
-        )
-
         sub_agent_manager = default_sub_agent_manager
 
     names: list[str] = []

@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import atexit
 
+from zrb.llm.lsp.configs import lsp_server_configs
 from zrb.llm.lsp.manager_lifecycle import LSPManagerLifecycle
 from zrb.llm.lsp.manager_query import LSPManagerQuery
 from zrb.llm.lsp.server import LSPServer, LSPServerConfig
@@ -162,11 +163,6 @@ class LSPManager:
             name: Unique key for this server (used for lookups / preferred lists)
             config: The server configuration
         """
-        # lazy: circular — ouroboros at module scope if configs import us back;
-        # import here instead, at the first call site (always runtime, never
-        # module-load), by which point all modules are fully loaded.
-        from zrb.llm.lsp.configs import lsp_server_configs
-
         lsp_server_configs.register(name, config)
 
 

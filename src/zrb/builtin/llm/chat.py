@@ -28,8 +28,10 @@ from zrb.llm.tool_call import (
     read_file_validation_policy,
     replace_in_file_formatter,
     replace_in_file_response_handler,
-    replace_in_file_validation_policy,
     write_file_formatter,
+)
+from zrb.llm.tool_call.tool_policy.replace_in_file_validation import (
+    replace_in_file_validation_policy,
 )
 from zrb.runner.cli import cli
 

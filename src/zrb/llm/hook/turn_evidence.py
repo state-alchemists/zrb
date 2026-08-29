@@ -14,8 +14,8 @@ from typing import Any
 
 # The tools whose docstrings say they change files on disk (`file.py`'s
 # `__name__` reassignments). Kept here rather than imported from `llm.tool` —
-# that package eagerly imports `pydantic_ai` (see `common_tools.py`'s own
-# circular-import note), which this module's lazy-import discipline avoids.
+# that package's tool modules transitively load `pydantic_ai`, which this
+# hook-evidence module's lazy-import discipline avoids.
 FILE_MUTATING_TOOL_NAMES = frozenset({"Write", "Edit", "RM", "MV"})
 
 

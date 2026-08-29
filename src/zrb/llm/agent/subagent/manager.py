@@ -10,6 +10,7 @@ from zrb.context.any_context import AnyContext
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
 from zrb.llm.agent.common import create_agent
+from zrb.llm.agent.subagent.definition import SubAgentDefinition
 from zrb.llm.agent.subagent.manager_loading import SubAgentManagerLoading
 from zrb.llm.agent.subagent.manager_search import SubAgentManagerSearch
 from zrb.llm.agent.subagent.tool_resolver import (
@@ -18,6 +19,7 @@ from zrb.llm.agent.subagent.tool_resolver import (
     resolved_tool_name,
 )
 from zrb.llm.agent.subagent.yolo import make_yolo_inheritance_checker
+from zrb.llm.common_tools import defer_common_tools, ensure_common_tools
 from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.factory_resolver import resolve_factory_items
 from zrb.llm.prompt.live_context import render_journal_index
@@ -41,64 +43,6 @@ class _ResolvedAgentBuild:
     tools: list
     toolsets: list
     yolo: "bool | Callable[..., bool]"
-
-
-class SubAgentDefinition:
-    """A delegatable sub-agent, as loaded from a `*.agent.md` file or built in code.
-
-    Register one with `sub_agent_manager.add_agent(SubAgentDefinition(...))`;
-    `DelegateToAgent` then lists it and can hand it work.
-    """
-
-    def __init__(
-        self,
-        name: str,
-        path: str,
-        description: str,
-        system_prompt: str,
-        model: str | None = None,
-        tools: list[str] | None = None,
-        disallowed_tools: list[str] | None = None,
-        agent_instance: Any | None = None,
-        agent_factory: Callable[[], Any] | None = None,
-        inherit_sections: list[str] | None = None,
-    ):
-        """Define a sub-agent.
-
-        Args:
-            name: How the agent is addressed when delegating to it.
-            path: Directory the definition was loaded from; relative paths in
-                `system_prompt` resolve against it.
-            description: What this agent is for. `DelegateToAgent` shows this to
-                the delegating model, so it decides whether work is routed here.
-            system_prompt: The agent's own operating instructions.
-            model: Model override. Defaults to the delegating task's model.
-            tools: Tool names the agent may call. Empty means the default
-                surface. A Claude-authored definition listing `Bash` maps onto
-                zrb's `Shell` as it loads.
-            disallowed_tools: Tool names to subtract from whatever `tools`
-                resolved to.
-            agent_instance: A pre-built pydantic-ai agent to use instead of
-                constructing one from the fields above.
-            agent_factory: Callable returning that agent, for construction that
-                must happen per run.
-            inherit_sections: Prompt sections copied from the delegating task.
-                None inherits the default set.
-        """
-        self.name = name
-        self.path = path
-        self.description = description
-        self.system_prompt = system_prompt
-        self.model = model
-        self.tools = tools if tools is not None else []
-        self.disallowed_tools = disallowed_tools if disallowed_tools is not None else []
-        self.agent_instance = agent_instance
-        self.agent_factory = agent_factory
-        # Inherit named PromptManager sections from the main-agent composition
-        # (persona, workflow, examples, system_context, project_context).
-        # None = no inheritance (only the body + tool guidance).
-        # Use ``[]`` to explicitly opt out while documenting the intent.
-        self.inherit_sections = inherit_sections
 
 
 class SubAgentManager:
@@ -243,9 +187,6 @@ class SubAgentManager:
         Returns:
             The agent, or None when `name` matches no definition.
         """
-        # lazy: circular — common_tools imports back into this package.
-        from zrb.llm.common_tools import ensure_common_tools
-
         ensure_common_tools(self)
         definition = self.get_agent_definition(name)
         if not definition:
@@ -493,14 +434,6 @@ class SubAgentManager:
 
 # Module-level singleton - lightweight, agents loaded on first access
 sub_agent_manager = SubAgentManager()
-
-
-# Imported here (after SubAgentManager is defined) to break a circular import:
-# common_tools's registration functions pull in zrb.llm.tool, whose __init__
-# loads delegate.py, which imports SubAgentManager from this module.
-# Importing at the top would hit this module mid-load before the class exists.
-
-from zrb.llm.common_tools import defer_common_tools
 
 # Deferred (not applied now): applying pulls in pydantic_ai via the tool
 # imports. ``create_agent`` calls ``ensure_common_tools(self)`` before it reads

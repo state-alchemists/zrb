@@ -84,6 +84,31 @@ class BaseTaskExecution:
     async def execute_action_until_ready(self, session: AnySession):
         """
         Manages the execution of the task's action, coordinating with readiness checks.
+
+        Dispatches to one of two independent strategies: a task with no
+        readiness checks just runs and waits; a task with readiness checks
+        runs concurrently with them and defers both for the caller.
+        """
+        task = self._task
+        if not task.readiness_checks:
+            return await self._execute_action_without_readiness_checks(session)
+        return await self._execute_action_with_readiness_checks(session)
+
+    async def _execute_action_without_readiness_checks(self, session: AnySession):
+        """No readiness checks configured: run the action and wait for it directly."""
+        task = self._task
+        ctx = task.get_ctx(session)
+        ctx.log_info("No readiness checks")
+        result = await run_async(self.execute_action_with_retry(session))
+        if session.get_task_status(task).is_completed:
+            ctx.log_info("Marked as ready")
+            session.get_task_status(task).mark_as_ready()
+        return result
+
+    async def _execute_action_with_readiness_checks(self, session: AnySession):
+        """Readiness checks configured: run the action concurrently with them,
+        gate `ready` on the checks passing, and defer both for the caller to
+        await/monitor.
         """
         task = self._task
         ctx = task.get_ctx(session)
@@ -94,14 +119,6 @@ class BaseTaskExecution:
             else CFG.TASK_READINESS_DELAY / 1000
         )
         monitor_readiness = bool(task.monitor_readiness)
-
-        if not readiness_checks:
-            ctx.log_info("No readiness checks")
-            result = await run_async(self.execute_action_with_retry(session))
-            if session.get_task_status(task).is_completed:
-                ctx.log_info("Marked as ready")
-                session.get_task_status(task).mark_as_ready()
-            return result
 
         ctx.log_info("Starting action and readiness checks")
         # Mark started BEFORE the first suspension point. `is_allowed_to_run` gates

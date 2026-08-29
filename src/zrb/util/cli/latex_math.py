@@ -101,7 +101,11 @@ def _get_latex_tools():
     return LatexWalker, LatexWalkerParseError, LatexNodes2Text()
 
 
-def convert_math_to_unicode(text: str) -> str:
+def convert_math_to_unicode(
+    text: str,
+) -> (
+    str
+):  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)
     """Convert `$...$` / `$$...$$` LaTeX math spans in `text` to Unicode.
 
     Fenced code blocks and inline code spans are masked out first, so a `$`

@@ -6,7 +6,10 @@ from typing import Any
 
 from zrb.config.config import CFG
 from zrb.llm.agent.activity import agent_activity_registry
-from zrb.llm.history_manager.file_history_manager import FileHistoryManager
+from zrb.llm.history_manager.file_history_manager import (
+    FileHistoryManager,
+    default_history_manager,
+)
 from zrb.llm.prompt.live_context import split_live_context
 
 # Re-exported: existing callers (chat_api_route.py) and tests import
@@ -42,7 +45,7 @@ class ChatSessionManager:
 
     def __init__(self):
         self._sessions: dict[str, ChatSession] = {}
-        self._history_manager = FileHistoryManager(history_dir=CFG.LLM_HISTORY_DIR)
+        self._history_manager = default_history_manager()
         self._init_coros: list[asyncio.Task] = []
         # Serializes drives of the single shared LLMChatTask. Multiple SSE sessions
         # share one task instance whose ui_factories/approval_channels/history_manager

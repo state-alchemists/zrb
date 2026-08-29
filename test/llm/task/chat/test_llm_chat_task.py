@@ -4,7 +4,8 @@ import pytest
 
 from zrb.context.shared_context import SharedContext
 from zrb.llm.approval import NullApprovalChannel
-from zrb.llm.task.chat.task import LLMChatTask, parse_yolo_value
+from zrb.llm.task.chat.execution import parse_yolo_value
+from zrb.llm.task.chat.task import LLMChatTask
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 from zrb.session.session import Session
 

@@ -237,27 +237,7 @@ async def run_command(
         display = "\r\n".join(display_lines)
         return CmdResult(stdout, stderr, display=display), return_code
     except (KeyboardInterrupt, asyncio.CancelledError, asyncio.TimeoutError):
-        try:
-            if hasattr(os, "killpg"):
-                os.killpg(cmd_process.pid, signal.SIGINT)
-            else:
-                # Windows has no POSIX process groups; terminate the tree via
-                # psutil (a hard kill there) instead of leaving the child
-                # orphaned by a swallowed AttributeError.
-                terminate_pid(cmd_process.pid, print_method=actual_print_method)
-            await asyncio.wait_for(
-                cmd_process.wait(), timeout=CFG.CMD_CLEANUP_TIMEOUT / 1000
-            )
-        except asyncio.TimeoutError:
-            # If it doesn't terminate, kill it forcefully
-            actual_print_method(
-                f"Process {cmd_process.pid} did not terminate gracefully, killing."
-            )
-            kill_pid(cmd_process.pid, print_method=actual_print_method)
-        except Exception:
-            # Cleanup path during unwind; swallow secondary errors and re-raise
-            # the original exception below.
-            pass
+        await __terminate_on_cancel(cmd_process, actual_print_method)
         raise
     finally:
         # Cancel every helper task and close the subprocess transport while the
@@ -274,6 +254,38 @@ async def run_command(
         transport = getattr(cmd_process, "_transport", None)
         if transport is not None:
             transport.close()
+
+
+async def __terminate_on_cancel(
+    cmd_process: "asyncio.subprocess.Process", print_method: Callable[..., None]
+) -> None:
+    """Best-effort termination of *cmd_process* on interrupt/cancel/timeout.
+
+    Escalates to a forceful kill if graceful termination doesn't land within
+    `CFG.CMD_CLEANUP_TIMEOUT`, and swallows any secondary error so the
+    original interrupt/cancel/timeout always propagates from the caller.
+    """
+    try:
+        if hasattr(os, "killpg"):
+            os.killpg(cmd_process.pid, signal.SIGINT)
+        else:
+            # Windows has no POSIX process groups; terminate the tree via
+            # psutil (a hard kill there) instead of leaving the child
+            # orphaned by a swallowed AttributeError.
+            terminate_pid(cmd_process.pid, print_method=print_method)
+        await asyncio.wait_for(
+            cmd_process.wait(), timeout=CFG.CMD_CLEANUP_TIMEOUT / 1000
+        )
+    except asyncio.TimeoutError:
+        # If it doesn't terminate, kill it forcefully
+        print_method(
+            f"Process {cmd_process.pid} did not terminate gracefully, killing."
+        )
+        kill_pid(cmd_process.pid, print_method=print_method)
+    except Exception:
+        # Cleanup path during unwind; swallow secondary errors and re-raise
+        # the original exception below.
+        pass
 
 
 def __get_cmd_stdin(is_interactive: bool) -> int | TextIO:
