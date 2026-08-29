@@ -20,6 +20,7 @@ from __future__ import annotations
 import asyncio
 from collections import deque
 from collections.abc import Awaitable, Callable
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
@@ -144,6 +145,60 @@ class MessageQueue(asyncio.Queue):
         self._unfinished_tasks -= 1
         if self._unfinished_tasks == 0:
             self._finished.set()
+
+
+def submit_user_message_via_queue(
+    *,
+    append_to_output: Callable[[str], Any],
+    active_run_context: Any,
+    stream_ai_response: Callable[[Any, str, list], Any],
+    queue: MessageQueue,
+    attachment_sources: list[Any],
+    echo_targets: list[Any],
+    llm_task: Any,
+    user_message: str,
+    marker: str,
+) -> None:
+    """Shared mechanics behind `BaseUI.submit_user_message` and
+    `MultiUI.submit_user_message` — echo, collect attachments, steer into a
+    live run or queue a `QueuedMessage`, mirror the echo span to whichever
+    targets can redraw it.
+
+    A standalone UI passes itself as both `attachment_sources` and
+    `echo_targets` (`[self]`); a `MultiUI` passes its children (it holds no
+    attachments or echo buffer of its own) — `append_to_output` and
+    `stream_ai_response` stay owner-called either way, since both classes
+    already implement them polymorphically (`MultiUI`'s broadcasts to every
+    child; a standalone UI's acts on itself alone).
+    """
+    timestamp = datetime.now().strftime("%H:%M")
+    echo = f"\n{marker} {timestamp} >> {user_message.strip()}\n"
+    append_to_output(echo)
+
+    attachments: list[Any] = []
+    for source in attachment_sources:
+        take: Callable[[], list[Any]] | None = getattr(
+            source, "take_pending_attachments", None
+        )
+        if callable(take):
+            attachments.extend(take())
+
+    if steer_into_live_run(active_run_context, user_message, attachments):
+        return
+
+    entry = QueuedMessage(
+        text=user_message,
+        attachments=attachments,
+        kind="message",
+        run=lambda: stream_ai_response(llm_task, entry.text, entry.attachments),
+    )
+    entry.echo_marker = marker
+    entry.echo_timestamp = timestamp
+    for target in echo_targets:
+        track = getattr(target, "_track_echo_span", None)
+        if callable(track):
+            track(entry, echo)
+    queue.put_nowait(entry)
 
 
 def steer_into_live_run(

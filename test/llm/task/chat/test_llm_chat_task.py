@@ -445,6 +445,27 @@ async def test_llm_chat_task_forwards_permissions_to_run_agent():
     assert mock_run_agent.call_args.kwargs["permission_policy"] is policy
 
 
+def test_llm_chat_task_history_config_reflects_constructor_values():
+    manager = MagicMock()
+    task = LLMChatTask(
+        name="test-task",
+        history_manager=manager,
+        conversation_name="my-convo",
+        render_conversation_name=False,
+    )
+    config = task.history_config
+    assert config.history_manager is manager
+    assert config.conversation_name == "my-convo"
+    assert config.render_conversation_name is False
+
+
+def test_llm_chat_task_history_config_reflects_history_manager_setter_immediately():
+    task = LLMChatTask(name="test-task")
+    new_manager = MagicMock()
+    task.history_manager = new_manager
+    assert task.history_config.history_manager is new_manager
+
+
 def test_llm_chat_task_sandbox_constructor_and_property():
     from zrb.llm.sandbox import SandboxPolicy
 

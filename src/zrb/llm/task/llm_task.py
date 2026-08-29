@@ -50,6 +50,7 @@ from zrb.llm.sandbox import SandboxInput, coerce_sandbox
 from zrb.llm.summarizer import summarize_history
 from zrb.llm.task.building import LLMTaskBuilding
 from zrb.llm.task.history import LLMTaskHistory
+from zrb.llm.task.history_config import HistoryConfig
 from zrb.llm.util.attachment import get_attachments
 from zrb.task.any_task import AnyTask
 from zrb.task.base.base_task import BaseTask
@@ -543,6 +544,18 @@ class LLMTask(BaseTask):
     def render_conversation_name(self) -> bool:
         """Whether `conversation_name` is rendered as a template."""
         return self._render_conversation_name
+
+    @property
+    def history_config(self) -> HistoryConfig:
+        """The history-manager/conversation-name knobs as one group — see
+        `HistoryConfig`. Recomputed on each read (not cached at construction)
+        so `history_manager`'s public setter stays immediately visible here,
+        matching that property's own contract."""
+        return HistoryConfig(
+            history_manager=self._history_manager,
+            conversation_name=self._conversation_name,
+            render_conversation_name=self._render_conversation_name,
+        )
 
     def get_history_manager(self, ctx: AnyContext) -> AnyHistoryManager:
         """The configured history manager, or a default file-backed one."""

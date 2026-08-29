@@ -35,6 +35,35 @@ class TestConversationAndHistoryLookup:
         assert isinstance(name, str) and name.strip() != ""
 
 
+class TestHistoryConfig:
+    """`LLMTask.history_config` groups the same three knobs — see
+    `HistoryConfig`'s own docstring for why chat/execution.py's wrap boundary
+    forwards this as one unit."""
+
+    def test_reflects_constructor_values(self):
+        manager = MagicMock()
+        task = LLMTask(
+            name="t",
+            history_manager=manager,
+            conversation_name="my-convo",
+            render_conversation_name=False,
+        )
+        config = task.history_config
+        assert config.history_manager is manager
+        assert config.conversation_name == "my-convo"
+        assert config.render_conversation_name is False
+
+    def test_reflects_history_manager_setter_immediately(self):
+        """`history_manager` has a public setter — `history_config` must not
+        be a value cached at construction, or the setter's documented
+        "visible immediately" contract (see `history.py`'s module docstring)
+        would silently stop holding for this read path."""
+        task = LLMTask(name="t")
+        new_manager = MagicMock()
+        task.history_manager = new_manager
+        assert task.history_config.history_manager is new_manager
+
+
 class TestEffectivePrompt:
     def test_first_attempt_passes_message_through(self):
         task = LLMTask(name="t")

@@ -18,11 +18,7 @@ from zrb.llm.permission.state import (
     get_current_agent_mode,
     set_current_agent_mode,
 )
-from zrb.llm.ui.base.message_queue import (
-    MessageQueue,
-    QueuedMessage,
-    steer_into_live_run,
-)
+from zrb.llm.ui.base.message_queue import MessageQueue, submit_user_message_via_queue
 from zrb.session.session import Session
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import stylize_muted
@@ -536,40 +532,22 @@ class MultiUI:
         """Submit user message to shared queue.
 
         This is called by child UIs when they receive user input.
-        Broadcasts to ALL UIs and puts job in shared queue.
+        Broadcasts to ALL UIs and puts job in shared queue. Attachments and
+        the echo-span redraw fan out to every child (`self._uis`) — `MultiUI`
+        holds no attachments or echo buffer of its own, unlike a standalone
+        `BaseUI`, which submits on behalf of itself alone.
         """
-        timestamp = datetime.now().strftime("%H:%M")
-        echo = f"\n💬 {timestamp} >> {user_message.strip()}\n"
-        self.append_to_output(echo)
-
-        # Collect pending attachments from all child UIs (e.g. images pasted
-        # via Ctrl+V in the default terminal UI) and clear their queues.
-        attachments = []
-        for ui in self._uis:
-            if hasattr(ui, "take_pending_attachments"):
-                attachments.extend(ui.take_pending_attachments())
-
-        if steer_into_live_run(self.active_run_context, user_message, attachments):
-            return
-
-        entry = QueuedMessage(
-            text=user_message,
-            attachments=attachments,
-            kind="message",
-            run=lambda: self.stream_ai_response(
-                llm_task, entry.text, entry.attachments
-            ),
+        submit_user_message_via_queue(
+            append_to_output=self.append_to_output,
+            active_run_context=self.active_run_context,
+            stream_ai_response=self.stream_ai_response,
+            queue=self._message_queue,
+            attachment_sources=self._uis,
+            echo_targets=self._uis,
+            llm_task=llm_task,
+            user_message=user_message,
+            marker="💬",
         )
-        entry.echo_marker = "💬"
-        entry.echo_timestamp = timestamp
-        # Record the echoed span on every child that can redraw in place so an
-        # edit of this still-queued message rewrites the line everywhere.
-        for ui in self._uis:
-            track = getattr(ui, "_track_echo_span", None)
-            if callable(track):
-                track(entry, echo)
-
-        self._message_queue.put_nowait(entry)
 
     def submit_message(self, user_message: str) -> None:
         """Queue *user_message* for the shared agent turn (steer into the live

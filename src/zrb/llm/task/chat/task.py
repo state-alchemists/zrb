@@ -39,6 +39,7 @@ from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.task.chat.execution import ChatExecution
 from zrb.llm.task.chat.running import ChatRunning
 from zrb.llm.task.chat.ui_commands import UICommands
+from zrb.llm.task.history_config import HistoryConfig
 from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.tool_call import (
     ArgumentFormatter,
@@ -570,6 +571,18 @@ class LLMChatTask(BaseTask):
     def history_manager(self, value: AnyHistoryManager | None) -> None:
         """Set the history manager."""
         self._history_manager = value
+
+    @property
+    def history_config(self) -> HistoryConfig:
+        """The history-manager/conversation-name knobs as one group — see
+        `HistoryConfig`. Recomputed on each read (not cached at construction)
+        so `history_manager`'s public setter stays immediately visible here,
+        matching that property's own contract."""
+        return HistoryConfig(
+            history_manager=self._history_manager,
+            conversation_name=self._conversation_name,
+            render_conversation_name=self._render_conversation_name,
+        )
 
     @property
     def ui_factories(self) -> "list[Callable[..., UIProtocol]]":

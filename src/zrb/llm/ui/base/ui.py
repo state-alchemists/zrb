@@ -52,7 +52,7 @@ from zrb.llm.ui.base.commands import BaseUICommands
 from zrb.llm.ui.base.message_queue import (
     MessageQueue,
     QueuedMessage,
-    steer_into_live_run,
+    submit_user_message_via_queue,
 )
 from zrb.llm.ui.base.replay import BaseUIReplay
 from zrb.llm.ui.base.system_info import BaseUISystemInfo
@@ -1368,29 +1368,23 @@ class BaseUI:
             parent_multi_ui.submit_user_message(llm_task, user_message)
             return
 
-        # No parent - process locally (original behavior)
-        timestamp = datetime.now().strftime("%H:%M")
-        # 1. Render User Message. While a turn is in flight the message only
-        # joins the queue, so say so rather than implying it was sent.
+        # No parent - process locally (original behavior). While a turn is in
+        # flight the message only joins the queue, so the marker says so
+        # rather than implying it was sent.
         marker = "⏳" if self._is_thinking else "💬"
-        echo = f"\n{marker} {timestamp} >> {user_message.strip()}\n"
-        self.append_to_output(echo)
-        # 2. Trigger AI Response
-        attachments = self.take_pending_attachments()
-        if steer_into_live_run(self.active_run_context, user_message, attachments):
-            return
-        entry = QueuedMessage(
-            text=user_message,
-            attachments=attachments,
-            kind="message",
-            run=lambda: self.stream_ai_response(
-                cast("LLMTask", llm_task), entry.text, entry.attachments
+        submit_user_message_via_queue(
+            append_to_output=self.append_to_output,
+            active_run_context=self.active_run_context,
+            stream_ai_response=lambda task, text, attachments: self.stream_ai_response(
+                cast("LLMTask", task), text, attachments
             ),
+            queue=self._message_queue,
+            attachment_sources=[self],
+            echo_targets=[self],
+            llm_task=llm_task,
+            user_message=user_message,
+            marker=marker,
         )
-        entry.echo_marker = marker
-        entry.echo_timestamp = timestamp
-        self._track_echo_span(entry, echo)
-        self._message_queue.put_nowait(entry)
 
     def submit_message(self, user_message: str) -> None:
         """Queue *user_message* for the agent, mirroring `MultiUI.submit_message`:
