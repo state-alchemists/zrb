@@ -27,6 +27,7 @@ class ConfigLLMContent:
         self.DEFAULT_LLM_JOURNAL_DIR: str = ""
         self.DEFAULT_LLM_JOURNAL_INDEX_FILE: str = "index.md"
         self.DEFAULT_LLM_JOURNAL_INDEX_MAX_CHARS: str = "2500"
+        self.DEFAULT_LLM_JOURNAL_AUTO_SEARCH_ENABLED: str = "on"
         self.DEFAULT_LLM_HISTORY_SUMMARIZATION_WINDOW: str = "100"
         self.DEFAULT_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD: str = ""
         self.DEFAULT_LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD: str = ""
@@ -103,6 +104,35 @@ class ConfigLLMContent:
             "ordered most-durable-first. 0 suppresses the injection entirely; "
             "a negative value injects the whole index uncapped."
         ),
+    )
+
+    LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION = EnvField(
+        int,
+        fallback=20,
+        doc=(
+            "Maximum hud_line entries kept per root-index HUD section (User, "
+            "Preferences, Active Constraints). Oldest entries are evicted first "
+            "so a stale preference does not sit in the always-injected index "
+            "forever. `<= 0` disables the cap (uncapped, matching the old "
+            "behavior)."
+        ),
+    )
+
+    LLM_JOURNAL_AUTO_SEARCH_ENABLED = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc=(
+            "Run one SearchJournal against the opening message on a session's "
+            "first turn, folding any hits into the injected <journal-index> "
+            "block under a clearly separate, unverified 'Possibly Related' "
+            "section. Costs one extra search subprocess, once per session."
+        ),
+    )
+
+    LLM_JOURNAL_AUTO_SEARCH_MAX_HITS = EnvField(
+        int,
+        fallback=3,
+        doc="Maximum SearchJournal hits folded into the first-turn auto-search.",
     )
 
     LLM_ENABLE_REWIND = EnvField(

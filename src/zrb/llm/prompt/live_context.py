@@ -232,7 +232,7 @@ def _format_mode_line() -> str | None:
     )
 
 
-def render_journal_index() -> str | None:
+def render_journal_index(first_message: str | None = None) -> str | None:
     """Read and format the journal index snapshot for context injection.
 
     Kept out of the cached system prompt on purpose: embedding the mutable index
@@ -242,6 +242,12 @@ def render_journal_index() -> str | None:
     (``render_live_context(inject_journal_index=True)``) and each summarization
     (baked into the summary by ``summarize_history``). Returns ``None`` when the
     index is missing or empty, and when ``LLM_JOURNAL_INDEX_MAX_CHARS`` is 0.
+
+    ``first_message`` (first-turn only — callers at later checkpoints pass
+    nothing) runs one auto-search against the opening user message and, if
+    anything matches, folds it into a separate, clearly-unverified
+    ``## Possibly Related`` section — see ``_render_possibly_related``. Gated
+    independently by ``LLM_JOURNAL_AUTO_SEARCH_ENABLED``.
 
     A missing block is therefore not proof of an empty journal — and nothing
     tells the model so, since ADR-0055 leaves the journal as three tools and no
@@ -293,18 +299,51 @@ def render_journal_index() -> str | None:
         # Mark the cut so the block does not read as the complete index; the
         # absolute path in the header tells the model where to read the rest.
         hint = "Truncated at `(...more)`. "
+    possibly_related = ""
+    if first_message and CFG.LLM_JOURNAL_AUTO_SEARCH_ENABLED:
+        possibly_related = _render_possibly_related(first_message)
     return (
         f"<journal-index>\n"
         f"Your persistent memory (index file: {index_file}). "
         f"{hint}"
-        f"Use SearchJournal for full entries.\n"
+        f"Use SearchJournal for full entries. A category's index.md (e.g. "
+        f"technical/index.md) lists every note ever written in it, uncapped — "
+        f"Read it directly for the full history.\n"
         f"{content}\n"
+        f"{possibly_related}"
         f"</journal-index>"
     )
 
 
+def _render_possibly_related(first_message: str) -> str:
+    """One auto-run ``SearchJournal`` against the opening message, folded into
+    a section kept visually and structurally separate from the curated HUD —
+    so the model cannot mistake an unverified fuzzy hit for a vetted fact.
+    Returns ``""`` on no hits (including an invalid-regex message, which
+    ``search_journal`` already reports as an error rather than raising)."""
+    # lazy: zrb internal (heavy via transitive — zrb.llm.tool's package
+    # __init__ eagerly imports several pydantic_ai-dependent tool modules)
+    from zrb.llm.tool.journal import search_journal
+
+    result = search_journal(first_message)
+    hits = result.get("results") or []
+    if not hits:
+        return ""
+    max_hits = max(CFG.LLM_JOURNAL_AUTO_SEARCH_MAX_HITS, 0)
+    lines = [
+        "\n## Possibly Related (auto-matched from your message, unverified — "
+        "read the full note before relying on it)\n"
+    ]
+    for hit in hits[:max_hits]:
+        lines.append(f"- {hit['file']}:{hit['line']}: {hit['content']}")
+    return "\n".join(lines) + "\n"
+
+
 def render_live_context(
-    ctx: AnyContext, model: "Any" = None, inject_journal_index: bool = False
+    ctx: AnyContext,
+    model: "Any" = None,
+    inject_journal_index: bool = False,
+    first_message: str | None = None,
 ) -> str:
     """Render the volatile per-turn runtime state for ``<live-context>``.
 
@@ -320,7 +359,9 @@ def render_live_context(
     so it enters history (instead of living in the cached system prompt, which it
     would invalidate on every journal write). Callers set this on the first turn
     only (empty history); summarization re-seeds the index separately, at its own
-    site (``summarize_history``).
+    site (``summarize_history``). ``first_message`` is the opening user message,
+    passed through to ``render_journal_index`` for its auto-search addendum —
+    meaningless past the first turn, so later callers leave it unset.
 
     The ``model`` argument is retained for the tool-admission seam
     (``_admits``), which currently always admits — profiles do not alter the
@@ -336,12 +377,20 @@ def render_live_context(
     session_name, interactive_bool = _wire_ambient_state(ctx)
     git_lines, todos_data = _collect_git_info(todo_manager, session_name)
     return _render_parts(
-        git_lines, todos_data, interactive_bool, inject_journal_index, model
+        git_lines,
+        todos_data,
+        interactive_bool,
+        inject_journal_index,
+        model,
+        first_message,
     )
 
 
 async def render_live_context_async(
-    ctx: AnyContext, model: "Any" = None, inject_journal_index: bool = False
+    ctx: AnyContext,
+    model: "Any" = None,
+    inject_journal_index: bool = False,
+    first_message: str | None = None,
 ) -> str:
     """``render_live_context`` for async callers (the per-turn hot path).
 
@@ -358,7 +407,12 @@ async def render_live_context_async(
         _collect_git_info, todo_manager, session_name
     )
     return _render_parts(
-        git_lines, todos_data, interactive_bool, inject_journal_index, model
+        git_lines,
+        todos_data,
+        interactive_bool,
+        inject_journal_index,
+        model,
+        first_message,
     )
 
 
@@ -394,6 +448,7 @@ def _render_parts(
     interactive_bool: bool,
     inject_journal_index: bool,
     model: "Any" = None,
+    first_message: str | None = None,
 ) -> str:
     """Assemble the live-context lines (ContextVar reads stay on the caller)."""
     # lazy: zrb internal (heavy via transitive / circular)
@@ -445,7 +500,7 @@ def _render_parts(
     # SearchJournal is always registered, so the index is handed over whenever
     # injection is on (`_admits` is the retained gate).
     if inject_journal_index and _admits(model, "SearchJournal"):
-        journal_block = render_journal_index()
+        journal_block = render_journal_index(first_message)
         if journal_block:
             parts.append(journal_block)
 

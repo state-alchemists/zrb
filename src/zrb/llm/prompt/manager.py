@@ -226,7 +226,10 @@ class PromptManager:
         self._live_context_providers.set(name, provider)
 
     def create_live_context(
-        self, ctx: AnyContext, inject_journal_index: bool = False
+        self,
+        ctx: AnyContext,
+        inject_journal_index: bool = False,
+        first_message: str | None = None,
     ) -> str:
         """Render the per-turn volatile runtime state as a ``<live-context>``
         block for injection into the latest user message.
@@ -248,12 +251,18 @@ class PromptManager:
         disabled journal emits nothing regardless of what callers ask for.
         """
         body = render_live_context(
-            ctx, self._model, inject_journal_index=inject_journal_index
+            ctx,
+            self._model,
+            inject_journal_index=inject_journal_index,
+            first_message=first_message,
         )
         return self._finish_live_context(body, ctx)
 
     async def create_live_context_async(
-        self, ctx: AnyContext, inject_journal_index: bool = False
+        self,
+        ctx: AnyContext,
+        inject_journal_index: bool = False,
+        first_message: str | None = None,
     ) -> str:
         """``create_live_context`` for async callers (the per-turn hot path):
         the git subprocesses run off-loop instead of blocking the event loop.
@@ -262,7 +271,10 @@ class PromptManager:
         from zrb.llm.prompt.live_context import render_live_context_async
 
         body = await render_live_context_async(
-            ctx, self._model, inject_journal_index=inject_journal_index
+            ctx,
+            self._model,
+            inject_journal_index=inject_journal_index,
+            first_message=first_message,
         )
         return self._finish_live_context(body, ctx)
 

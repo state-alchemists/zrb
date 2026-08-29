@@ -1,3 +1,4 @@
+import difflib
 import os
 import re
 import shutil
@@ -14,6 +15,7 @@ def search_journal(query: str, case_sensitive: bool = False) -> dict[str, Any]:
 
     Returns matching lines with file names and line numbers.
     `case_sensitive=False` (default): case-insensitive search.
+    A zero-hit search suggests nearby note titles under `did_you_mean`.
     """
     journal_dir = CFG.LLM_JOURNAL_DIR
     if not journal_dir:
@@ -67,7 +69,7 @@ def _search_with_rg(
     if proc.returncode == 2:
         return {"error": f"rg error: {proc.stderr.strip()}"}
 
-    return _format_results(proc.stdout.splitlines(), abs_dir)
+    return _format_results(proc.stdout.splitlines(), abs_dir, query)
 
 
 def _search_with_python(
@@ -89,10 +91,10 @@ def _search_with_python(
             except OSError:
                 # Unreadable file (permissions, race) — skip it, keep scanning.
                 pass
-    return _format_results(raw_lines, abs_dir)
+    return _format_results(raw_lines, abs_dir, query)
 
 
-def _format_results(raw_lines: list[str], abs_dir: str) -> dict[str, Any]:
+def _format_results(raw_lines: list[str], abs_dir: str, query: str) -> dict[str, Any]:
     results = []
     for line in raw_lines:
         parts = line.split(":", 2)
@@ -108,6 +110,34 @@ def _format_results(raw_lines: list[str], abs_dir: str) -> dict[str, Any]:
         results.append({"file": rel, "line": line_num_str, "content": truncated})
 
     if not results:
-        return {"summary": "No matches found.", "results": []}
+        empty: dict[str, Any] = {"summary": "No matches found.", "results": []}
+        suggestions = _suggest_similar(query, abs_dir)
+        if suggestions:
+            empty["did_you_mean"] = suggestions
+        return empty
 
     return {"summary": f"Found {len(results)} matches.", "results": results}
+
+
+def _suggest_similar(query: str, abs_dir: str) -> list[str]:
+    """Fuzzy-match *query* against note titles across category directories,
+    for the zero-hit path — a regex miss otherwise looks identical to "never
+    documented", which just encourages an undiscoverable duplicate note.
+    Skips `activity-log` (dated filenames, not topics)."""
+    candidates: list[str] = []
+    for name in ("user", "preferences", "projects", "technical"):
+        category_dir = os.path.join(abs_dir, name)
+        if not os.path.isdir(category_dir):
+            continue
+        for filename in os.listdir(category_dir):
+            if not filename.endswith(".md") or filename == "index.md":
+                continue
+            try:
+                with open(os.path.join(category_dir, filename), encoding="utf-8") as f:
+                    for line in f:
+                        if line.startswith("# "):
+                            candidates.append(line[2:].strip())
+                            break
+            except OSError:
+                continue
+    return difflib.get_close_matches(query, candidates, n=5, cutoff=0.6)
