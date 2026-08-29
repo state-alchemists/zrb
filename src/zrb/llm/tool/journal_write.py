@@ -2,13 +2,15 @@
 
 The model supplies *content*; this module supplies *structure*. Paths,
 timestamps, index registration, and reciprocal backlinks are derived here, which
-is what makes these four invariants unviolatable rather than merely checkable:
+is what makes these five invariants unviolatable rather than merely checkable:
 
 - **broken-link** — a link is only written after its target is confirmed on disk.
 - **missing-backlink** — the reciprocal entry is inserted in the same call.
 - **orphan** — every note is registered in its directory index, and every
   directory index is linked from the root index.
 - **missing-index** — indexes are created on the way down to the leaf.
+- **no lost update** — a coarse-grained lock (`_journal_lock`) makes each
+  writer's multi-file graph update atomic against a concurrent writer.
 """
 
 import os
