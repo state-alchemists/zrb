@@ -21,7 +21,7 @@ def test_index_exports_all_wrappers():
         "get_current_approval_channel",
         "current_sandbox_policy",
         "get_current_sandbox_policy",
-        "set_current_sandbox_policy",
+        "sandbox_policy",
         "active_worktree",
         "get_active_worktree",
         "set_active_worktree",

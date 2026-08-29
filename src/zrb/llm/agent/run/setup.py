@@ -15,15 +15,15 @@ from typing import Any
 from zrb.config.config import CFG
 from zrb.llm.approval.approval_channel import current_approval_channel
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
+from zrb.util.contextvar_scope import scoped
 
 
 def _bind_contextvar(stack: ExitStack, var: ContextVar, value: Any) -> None:
-    """Set `var` to `value` and register its reset on the stack.
+    """Bind `var` to `value` for the life of `stack` (via `scoped()`).
 
     Keeps ContextVar set/reset symmetric and exception-safe across the run.
     """
-    token = var.set(value)
-    stack.callback(var.reset, token)
+    stack.enter_context(scoped(var, value))
 
 
 def _resolve_context_dependencies(

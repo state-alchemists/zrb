@@ -16,13 +16,13 @@ Usage:
 from __future__ import annotations
 
 import json
-from contextvars import ContextVar
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
 
 from zrb.context.any_context import zrb_print
 from zrb.llm.agent.run.runtime_state import get_current_ui
+from zrb.llm.tool.ambient_state import get_current_tool_session
 from zrb.util.string.conversion import to_safe_filename
 
 TodoStatus = Literal["pending", "in_progress", "completed", "cancelled"]
@@ -226,20 +226,6 @@ class TodoManager:
 todo_manager = TodoManager()
 
 
-_current_session: ContextVar[str] = ContextVar("zrb_current_session", default="default")
-
-
-def get_current_context_session() -> str:
-    """Get the current session name, set by set_current_session() before agent runs."""
-    return _current_session.get()
-
-
-def set_current_session(session_name: str) -> None:
-    """Set the current session name so todo tools use the right session automatically."""
-    if session_name:
-        _current_session.set(session_name)
-
-
 # ── Progress visualization ─────────────────────────────────────────────────
 
 
@@ -339,7 +325,7 @@ async def write_todos(
     still outstanding stays `in_progress`; one that is blocked stays
     `in_progress` and gains a follow-up item naming the blocker.
     """
-    session_name = session or get_current_context_session()
+    session_name = session or get_current_tool_session()
 
     error = _validate_todo_keys(todos)
     if error:
@@ -415,7 +401,7 @@ async def get_todos(session: str = "") -> str:
     """
     Returns the current todo list and progress summary.
     """
-    session_name = session or get_current_context_session()
+    session_name = session or get_current_tool_session()
 
     result = todo_manager.get_todos(session_name)
 

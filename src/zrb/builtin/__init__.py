@@ -1,3 +1,7 @@
+# This is the master registration list for `zrb <group> <task>` CLI discovery.
+# A new task module under `builtin/` must be imported here AND added to
+# `__all__` below, or it silently never appears in the CLI (no error).
+
 from zrb.builtin.base64 import decode_base64, encode_base64, validate_base64
 from zrb.builtin.case import convert_case, slugify
 from zrb.builtin.changelog import generate_changelog

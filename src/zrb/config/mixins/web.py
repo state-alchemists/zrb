@@ -22,7 +22,7 @@ class WebMixin:
         self.DEFAULT_WEB_REFRESH_TOKEN_COOKIE_NAME: str = "refresh_token"
         self.DEFAULT_WEB_SECRET_KEY: str = "zrb"
         self.DEFAULT_WEB_AUTH_ENABLED: str = "off"
-        self.DEFAULT_WEB_ENABLE_SECURE_COOKIES: str = "on"
+        self.DEFAULT_WEB_AUTH_SECURE_COOKIES: str = "on"
         self.DEFAULT_WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES: str = "30"
         self.DEFAULT_WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES: str = "60"
         self.DEFAULT_WEB_TITLE: str = "Zrb"
@@ -86,9 +86,10 @@ class WebMixin:
         to_boolean, serialize=on_off, doc="Enable/disable web authentication."
     )
 
-    WEB_ENABLE_SECURE_COOKIES = EnvField(
+    WEB_AUTH_SECURE_COOKIES = EnvField(
         to_boolean,
         serialize=on_off,
+        aliases=["WEB_AUTH_SECURE_COOKIES", "WEB_ENABLE_SECURE_COOKIES"],
         doc=(
             "Set the Secure flag on auth cookies (sent over HTTPS only). "
             "Turn off for plain-HTTP deployments where browsers would "

@@ -28,6 +28,7 @@ from zrb.context.print_fn import PrintFn
 from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
 from zrb.llm.agent import AnyToolConfirmation, create_agent, run_agent
+from zrb.llm.common_tools import ensure_common_tools
 from zrb.llm.config.config import LLMConfig
 from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.config.limiter import LLMLimiter
@@ -616,9 +617,6 @@ class LLMTask(BaseTask):
         # before reading the tool surface below. No-op unless defer_common_tools
         # was called on this task, so eager apply_common_tools users are
         # unaffected.
-        # lazy: circular — common_tools imports back into the llm package.
-        from zrb.llm.common_tools import ensure_common_tools
-
         ensure_common_tools(self)
         # Resolve toolset factories exactly once. Resolving again inside
         # _create_agent would produce DIFFERENT instances: the batch entered on

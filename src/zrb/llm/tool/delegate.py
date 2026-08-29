@@ -14,10 +14,11 @@ from zrb.llm.agent.run.runner import run_agent
 from zrb.llm.agent.run.runtime_state import get_current_hook_manager, get_current_ui
 from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
 
-# Import directly from the inner module to avoid a circular import: the
-# subagent package's __init__ triggers `apply_common_tools`, which loads
-# zrb.llm.tool, which loads this module — so the package __init__ is still
-# mid-load when delegate.py executes its imports.
+# Import directly from the inner module (not the `subagent` package's
+# __init__) to avoid a circular import: this module IS what
+# `zrb.llm.tool/__init__.py` loads first, and `subagent`'s own __init__ just
+# re-exports `.manager` — going through the package here would gain nothing
+# and adds one more frame for a future change to accidentally re-enter.
 from zrb.llm.agent.subagent.manager import (
     SubAgentManager,
 )

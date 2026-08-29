@@ -35,7 +35,7 @@ from zrb.llm.sandbox.state import (
     current_sandbox_policy,
     get_current_sandbox_policy,
     get_effective_sandbox_policy,
-    set_current_sandbox_policy,
+    sandbox_policy,
 )
 
 __all__ = [
@@ -54,6 +54,6 @@ __all__ = [
     "build_sandboxed_argv",
     "current_sandbox_policy",
     "get_current_sandbox_policy",
-    "set_current_sandbox_policy",
+    "sandbox_policy",
     "get_effective_sandbox_policy",
 ]

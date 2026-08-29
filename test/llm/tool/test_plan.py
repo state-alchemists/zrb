@@ -9,12 +9,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from zrb.llm.tool.ambient_state import get_current_context_session, set_current_session
 from zrb.llm.tool.plan import (
     TodoManager,
     create_plan_tools,
-    get_current_context_session,
     get_todos,
-    set_current_session,
     todo_manager,
     write_todos,
 )

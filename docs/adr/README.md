@@ -150,5 +150,6 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 ### Approval and execution
 
 - **ADR-0085** — [An edited tool call tells the model what actually ran](adr-0085.md)
+- **ADR-0086** — [The agent-type hook builder is installed through a registry, not imported directly](adr-0086.md)
 
 🔖 [Documentation Home](../../README.md)

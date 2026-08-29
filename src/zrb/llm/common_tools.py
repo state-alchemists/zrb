@@ -36,15 +36,16 @@ from zrb.llm.util.git import is_inside_git_dir
 from zrb.util.string.conversion import to_boolean
 
 # NOTE: `zrb.llm.tool` and `zrb.llm.lsp.tools` are imported lazily inside the
-# registration functions below. Reason: ``zrb.llm.tool/__init__.py`` loads
-# ``delegate.py``, which imports ``SubAgentManager`` from
-# ``zrb.llm.agent.subagent.manager``. If this module is loaded
-# before ``manager.py`` (e.g. via ``builtin/llm/chat.py``), the
-# ``manager.py`` bottom-imports ``default_tools.py`` which re-enters
-# ``apply_common_tools`` while this module is still mid-load — causing an
-# ImportError on ``apply_common_tools``. Keeping the heavy imports inside
-# the functions defers them until ``apply_common_tools`` is actually
-# called, by which point all the cycle's modules are fully loaded.
+# registration functions below. Reason: `zrb.llm.tool/__init__.py` loads
+# `delegate.py`, which imports `SubAgentManager` from
+# `zrb.llm.agent.subagent.manager`. That module's own bottom-of-file import
+# (`from zrb.llm.common_tools import defer_common_tools`) re-enters THIS
+# module. If something reaches `zrb.llm.tool` (directly or via
+# `subagent.manager`) while `common_tools.py` is still mid-load, that
+# re-entrant import finds a partially-initialized module and fails. Keeping
+# the heavy imports inside the functions defers them until
+# `apply_common_tools`/`ensure_common_tools` is actually called, by which
+# point this module has finished loading.
 
 if TYPE_CHECKING:
     from pydantic_ai.tools import Tool
@@ -98,7 +99,12 @@ def tool_name(tool: "Callable | Tool | Any") -> str:
 
 
 def _register_tools(host: CommonToolHost) -> None:
-    """Register the statically-known tools, tagged with their capabilities."""
+    """Register the statically-known tools, tagged with their capabilities.
+
+    A new tool under `llm/tool/` must be imported here, `tag()`-ed with a
+    `Capability` (below), and appended to the `tools` list — or it silently
+    resolves to `Capability.UNKNOWN` (denied in plan mode) with no error.
+    """
     # lazy + import from source modules directly. Going through the
     # ``zrb.llm.tool`` re-export would deadlock: that package's __init__
     # loads ``delegate.py`` which triggers ``SubAgentManager`` load which

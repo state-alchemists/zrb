@@ -47,6 +47,7 @@ from zrb.llm.tool_call import (
     ToolPolicy,
     default_response_handler,
 )
+from zrb.llm.tool_call.choice_spec_format import format_choice_spec
 from zrb.llm.ui.base.commands import BaseUICommands
 from zrb.llm.ui.base.message_queue import (
     MessageQueue,
@@ -1075,9 +1076,6 @@ class BaseUI:
         Returns the chosen option label(s) — comma-joined for multi-select — or
         the user's free-form text verbatim.
         """
-        # lazy: circular — base.ui -> tool.ask -> ... -> base.ui
-        from zrb.llm.tool.ask import format_choice_spec
-
         return await self.ask_user(format_choice_spec(spec), agent_id=agent_id)
 
     async def run_interactive_command(

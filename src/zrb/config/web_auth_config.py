@@ -103,7 +103,7 @@ class WebAuthConfig:
 
     @property
     def secure_cookies(self) -> bool:
-        return self._override_or(self._secure_cookies, CFG.WEB_ENABLE_SECURE_COOKIES)
+        return self._override_or(self._secure_cookies, CFG.WEB_AUTH_SECURE_COOKIES)
 
     @secure_cookies.setter
     def secure_cookies(self, secure: bool):
@@ -187,7 +187,7 @@ class WebAuthConfig:
             return [self.default_user]
         return self._user_list + [self.super_admin, self.default_user]
 
-    def append_user(self, user: "User"):
+    def add_user(self, user: "User"):
         duplicates = [
             existing_user
             for existing_user in self.user_list

@@ -433,7 +433,7 @@ def test_mark_and_collapse_thinking_block_wraps_the_streamed_span():
 def test_collapse_thinking_block_ignores_buffer_mangled_by_carriage_return():
     """Regression: the passed-in `full` must win even when the *rendered*
     span no longer matches it (a stray \\r rewrote part of the live line via
-    _merge_output_chunk, the same function UIOutput.append_to_output uses)."""
+    merge_output_chunk, the same function UIOutput.append_to_output uses)."""
     ui = BufferedUI(MagicMock())
     ui.mark_thinking_block_start()
     ui.append_to_output("first part\rsecond part", end="")

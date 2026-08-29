@@ -9,7 +9,7 @@ from zrb.llm.sandbox import SandboxPolicy, current_sandbox_policy
 from zrb.llm.sandbox.state import (
     get_current_sandbox_policy,
     get_effective_sandbox_policy,
-    set_current_sandbox_policy,
+    sandbox_policy,
 )
 
 # --- state ------------------------------------------------------------------
@@ -30,11 +30,18 @@ def test_explicit_policy_wins():
 
 def test_public_setters_and_getters_round_trip():
     policy = SandboxPolicy(enabled=True)
-    set_current_sandbox_policy(policy)
-    try:
+    with sandbox_policy(policy):
         assert get_current_sandbox_policy() is policy
-    finally:
-        set_current_sandbox_policy(None)
+    assert get_current_sandbox_policy() is None
+
+
+def test_sandbox_policy_resets_on_exception():
+    policy = SandboxPolicy(enabled=True)
+    with pytest.raises(RuntimeError):
+        with sandbox_policy(policy):
+            assert get_current_sandbox_policy() is policy
+            raise RuntimeError("boom")
+    assert get_current_sandbox_policy() is None
 
 
 # --- gate via create_safe_wrapper -------------------------------------------

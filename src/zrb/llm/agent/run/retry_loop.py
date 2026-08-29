@@ -33,6 +33,7 @@ from zrb.llm.agent.run.error_classifier import (
     is_retryable_error,
 )
 from zrb.llm.agent.run.history_utils import (
+    TurnPruneFloor,
     drop_oldest_turn,
     strip_thinking_parts,
     strip_to_text_only,
@@ -79,7 +80,7 @@ async def handle_stream_error(
     current_message: Any,
     run_history: list[Any],
     print_fn: Callable[[str], Awaitable[Any] | Any],
-    min_turns: int = 0,
+    min_turns: TurnPruneFloor = TurnPruneFloor.ANY_TURN_MAY_DROP,
 ) -> RetryOutcome:
     """Decide whether/how to retry after a stream error. Sleeps for transient errors."""
     # lazy: heavy third-party — pydantic_ai pulls in OpenAI/Anthropic SDKs.
