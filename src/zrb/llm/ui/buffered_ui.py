@@ -20,6 +20,8 @@ from zrb.llm.ui.output_chunk import CollapsibleBlockSource, merge_output_chunk
 from zrb.util.cli.style import stylize_muted
 
 if TYPE_CHECKING:
+    from pydantic_ai.usage import RequestUsage, RunUsage
+
     from zrb.llm.tool_call.ui_protocol import ChoiceSpec
 
 
@@ -349,6 +351,21 @@ class BufferedUI(UIProtocol):
 
     async def run_async(self) -> Any:
         return await self._wrapped.run_async()
+
+    def accumulate_usage(
+        self, usage: "RunUsage", context_usage: "RequestUsage | None" = None
+    ) -> None:
+        """Forward this sub-agent's token usage to the parent UI's session
+        totals, so delegated runs count toward the displayed usage instead of
+        being silently dropped. `context_usage` is deliberately NOT forwarded:
+        it reports the *current context window's* occupancy, and this
+        sub-agent's window is not the parent's — forwarding it would make the
+        parent's context-window indicator show this sub-agent's size instead
+        of its own.
+        """
+        accumulate = getattr(self._wrapped, "accumulate_usage", None)
+        if accumulate is not None:
+            accumulate(usage)
 
     def get_buffered_output(self) -> str:
         """Get all buffered output."""

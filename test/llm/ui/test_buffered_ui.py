@@ -247,6 +247,45 @@ async def test_buffered_ui_run_async_forwards():
     mock_wrapped.run_async.assert_awaited_once()
 
 
+def test_buffered_ui_accumulate_usage_forwards_to_parent():
+    """A sub-agent's token usage must reach the parent UI's session totals
+    instead of being dropped -- otherwise the TUI's usage indicator never
+    reflects delegated work."""
+    mock_wrapped = MagicMock()
+    ui = BufferedUI(mock_wrapped)
+    usage = MagicMock()
+
+    ui.accumulate_usage(usage)
+
+    mock_wrapped.accumulate_usage.assert_called_once_with(usage)
+
+
+def test_buffered_ui_accumulate_usage_drops_context_usage():
+    """context_usage reports the *current window's* occupancy -- this
+    sub-agent's window is not the parent's, so it must not be forwarded even
+    when the caller supplies one."""
+    mock_wrapped = MagicMock()
+    ui = BufferedUI(mock_wrapped)
+    usage = MagicMock()
+    context_usage = MagicMock()
+
+    ui.accumulate_usage(usage, context_usage)
+
+    mock_wrapped.accumulate_usage.assert_called_once_with(usage)
+
+
+def test_buffered_ui_accumulate_usage_noop_when_wrapped_lacks_it():
+    """A wrapped UI without accumulate_usage (e.g. a bare UIProtocol stub)
+    must not raise."""
+
+    class _Parent:
+        pass
+
+    ui = BufferedUI(_Parent())
+
+    ui.accumulate_usage(MagicMock())  # must not raise
+
+
 def test_buffered_ui_flush_to_parent_without_prefix():
     """With no prefix, flush writes the raw buffered output verbatim."""
     mock_wrapped = MagicMock()
