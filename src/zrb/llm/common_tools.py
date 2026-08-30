@@ -262,8 +262,22 @@ def _register_tool_factories(host: CommonToolHost) -> None:
         # section describing the protocol any more, so LLM_JOURNAL_ENABLED=false
         # is enforced by these four simply not existing. Their docstrings carry
         # what earns an entry and when to write it, and disappear with them.
+        #
+        # Deferred loading: the main agent only touches these on a small
+        # minority of turns, so hide their schemas until search_tools — same
+        # rationale as analyze_code/analyze_file in _register_tools above. The
+        # journal-compliance hook (agent/hook_agent.py) names these tools
+        # explicitly rather than discovering them, so defer_loading would only
+        # cost it an extra search-then-call round trip on every run with no
+        # offsetting benefit — `resolve_agent_hook_tools` strips defer_loading
+        # back off there.
         lambda ctx: (
-            [search_journal, log_activity, write_journal_note, delete_journal_note]
+            [
+                Tool(search_journal, defer_loading=True),
+                Tool(log_activity, defer_loading=True),
+                Tool(write_journal_note, defer_loading=True),
+                Tool(delete_journal_note, defer_loading=True),
+            ]
             if CFG.LLM_JOURNAL_ENABLED
             else []
         ),

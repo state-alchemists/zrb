@@ -5,6 +5,7 @@ from typing import Annotated, Any
 from pydantic import Field
 
 from zrb.config.config import CFG
+from zrb.llm.tool.file_observation import record_listed
 from zrb.util.file import is_path_excluded, walk_files
 from zrb.util.truncate import truncate_items
 
@@ -87,6 +88,7 @@ def list_files(
     )
 
     truncated, omitted = _truncate_file_list(sorted_files)
+    record_listed(abs_path, [os.path.join(abs_path, p) for p in truncated])
     if omitted is not None:
         return {
             "files": truncated,
@@ -159,6 +161,7 @@ def glob_files(
     sorted_files = sorted(found_files)
 
     truncated, omitted = _truncate_file_list(sorted_files)
+    record_listed(abs_path, [os.path.join(abs_path, p) for p in truncated])
     if omitted is not None:
         return {
             "files": truncated,

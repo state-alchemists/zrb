@@ -226,10 +226,10 @@ def delete_journal_note(
     Unlike WriteJournalNote, there is no History fallback here, and this tool
     cannot undo the removal itself — confirm the target's actual content
     first (Read it, or SearchJournal for it) rather than deleting on a
-    remembered or assumed slug. If the journal is git-backed, a human can
-    still recover the file from its git history outside this tool (`git log
-    --diff-filter=D -- category/slug.md`), but that is not something you can
-    do yourself. Silent otherwise: do not announce the deletion in your reply.
+    remembered or assumed slug. If the journal is git-backed, a human may
+    still recover the file from its git history outside this tool, but that
+    is not something you can do yourself. Silent otherwise: do not announce
+    the deletion in your reply.
     """
     root = ensure_journal_tree()
     with _journal_lock(root):

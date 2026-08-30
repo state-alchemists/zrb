@@ -1129,6 +1129,79 @@ def current_agent_run_scope_reset(token) -> None:
     current_agent_run_scope.reset(token)
 
 
+def test_check_listed_refuses_an_unread_unlisted_file(tmp_path):
+    from zrb.llm.tool.file_observation import check_listed
+
+    target = tmp_path / "victim.txt"
+    target.write_text("content")
+    result = check_listed(str(target), recursive=False)
+    assert result is not None
+    assert "has not been read or listed" in result
+
+
+def test_check_listed_allows_a_file_shown_by_list_files(tmp_path):
+    from zrb.llm.tool.file_observation import check_listed
+
+    target = tmp_path / "victim.txt"
+    target.write_text("content")
+    list_files(str(tmp_path))
+    assert check_listed(str(target), recursive=False) is None
+
+
+def test_check_listed_allows_a_file_shown_by_glob_files(tmp_path):
+    from zrb.llm.tool.file_observation import check_listed
+
+    target = tmp_path / "victim.txt"
+    target.write_text("content")
+    glob_files("*.txt", str(tmp_path))
+    assert check_listed(str(target), recursive=False) is None
+
+
+def test_check_listed_allows_a_file_already_read(tmp_path):
+    """A Read satisfies the lighter listed-bar too — no need to also List."""
+    from zrb.llm.tool.file_observation import check_listed
+
+    target = tmp_path / "victim.txt"
+    target.write_text("content")
+    read_file(str(target))
+    assert check_listed(str(target), recursive=False) is None
+
+
+def test_check_listed_refuses_an_unlisted_directory_recursively(tmp_path):
+    from zrb.llm.tool.file_observation import check_listed
+
+    sub = tmp_path / "sub"
+    sub.mkdir()
+    result = check_listed(str(sub), recursive=True)
+    assert result is not None
+    assert "has not been listed" in result
+
+
+def test_check_listed_allows_a_listed_directory_recursively(tmp_path):
+    from zrb.llm.tool.file_observation import check_listed
+
+    sub = tmp_path / "sub"
+    sub.mkdir()
+    (sub / "a.txt").write_text("a")
+    list_files(str(sub))
+    assert check_listed(str(sub), recursive=True) is None
+
+
+def test_check_listed_refuses_a_directory_that_changed_since_listing(tmp_path):
+    """The staleness re-check: a top-level entry added after listing must
+    still be caught, mirroring check_observed's own drift detection."""
+    from zrb.llm.tool.file_observation import check_listed
+
+    sub = tmp_path / "sub"
+    sub.mkdir()
+    (sub / "a.txt").write_text("a")
+    list_files(str(sub))
+    (sub / "b.txt").write_text("b")
+    result = check_listed(str(sub), recursive=True)
+    assert result is not None
+    assert "changed since it was listed" in result
+
+
 def test_replace_in_file_does_not_require_a_prior_read(tmp_path):
     """Edit is not gated by the observed-hash check — it already verifies
     old_text against live on-disk content at call time.

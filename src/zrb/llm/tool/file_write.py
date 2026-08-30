@@ -34,8 +34,6 @@ async def write_file(
     Writes or appends to a file, creating it and any missing parent directories.
 
     For large content, write in chunks: first with mode="w", subsequent with mode="a".
-    mode="w" against an existing file is refused unless this session has Read (or
-    itself just Written/Edited) that file's current content — Read it first.
     An existing file whose bytes aren't valid UTF-8 (a binary) is refused in
     every mode — this tool writes UTF-8 text only and would corrupt it.
     On success, runs LSP/static checks — errors appear as `[DIAGNOSTIC]` in the return value.
