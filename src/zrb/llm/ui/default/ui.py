@@ -46,7 +46,7 @@ logger = logging.getLogger(__name__)
 
 # The greeting shares the screen with the conversation, so it lists at most
 # this many commands and points at `/help` for the rest.
-GREETING_COMMAND_LIMIT = 20
+GREETING_COMMAND_LIMIT = 18
 
 
 class UI(BaseUI):
