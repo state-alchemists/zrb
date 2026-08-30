@@ -9,6 +9,7 @@
 ## Table of Contents
 
 - [Constructor Parameters](#constructor-parameters)
+- [Model, Model Settings & Capabilities](#model-model-settings--capabilities)
 - [Seeding the Conversation](#seeding-the-conversation)
 - [Builder API (Post-Construction)](#builder-api-post-construction)
 - [Comparison with LLMTask](#comparison-with-llmtask)
@@ -26,29 +27,34 @@ chat = LLMChatTask(
     color: int | None = None,
     icon: str | None = None,
     description: str | None = None,
+    cli_only: bool = False,
     # Input & env
     input: list[AnyInput] | AnyInput | None = None,
     env: list[AnyEnv] | AnyEnv | None = None,
     # Conversation
     message: StrAttr | None = None,
     render_message: bool = True,
+    attachment: UserContent | list[UserContent] | Callable | None = None,
     system_prompt: str | None = None,
     render_system_prompt: bool = False,
     prompt_manager: PromptManager | None = None,
     active_skills: StrListAttr | None = None,
     render_active_skills: bool = True,
-    # Model
+    # Model — see Model, Model Settings & Capabilities, below
     model: Model | str | None = None,
     render_model: bool = True,
     model_settings: ModelSettings | None = None,
+    capabilities: list[AbstractCapability] | None = None,
     llm_config: LLMConfig | None = None,
     llm_limiter: LLMLimiter | None = None,
     custom_model_names: StrListAttr | None = None,
+    show_ollama_models: bool | None = None,
+    show_pydantic_ai_models: bool | None = None,
     # Conversation management
     conversation_name: StrAttr | None = None,
     render_conversation_name: bool = True,
     history_manager: AnyHistoryManager | None = None,
-    ui_greeting: str | None = None,
+    history_processors: list[HistoryProcessor] | None = None,
     # Tools
     tools: list[Tool] | None = None,
     toolsets: list[AbstractToolset] | None = None,
@@ -57,14 +63,34 @@ chat = LLMChatTask(
     # Tool confirmation & approval
     tool_confirmation: AnyToolConfirmation = None,
     yolo: BoolAttr = False,
+    yolo_xcom_key: str = "yolo",
     approval_channel: ApprovalChannel | None = None,
     permissions: PermissionPolicyInput = None,
     sandbox: SandboxInput = None,
-    # UI
+    tool_policies: list[ToolPolicy] | None = None,
+    response_handlers: list[ResponseHandler] | None = None,
+    argument_formatters: list[ArgumentFormatter] | None = None,
+    # Hooks — see Hook System, below
+    hook_manager: HookManager | None = None,
+    # UI & identity
     ui: UIProtocol | None = None,
     ui_factory: Callable | None = None,
+    include_default_ui: bool = True,
+    interactive: BoolAttr = True,
+    markdown_theme: Theme | None = None,
+    ui_greeting: str | None = None,
+    ui_assistant_name: StrAttr | None = None,
+    ui_jargon: StrAttr | None = None,
+    ui_ascii_art: StrAttr | None = None,
+    # each ui_* text field above has a matching render_ui_* flag (default True)
     # Slash-command alias overrides, e.g. UICommands(exit="/quit")
     ui_commands: UICommands | None = None,
+    # Extra commands & external drivers — see Custom UI Guide
+    custom_commands: list[AnyCustomCommand] | None = None,
+    triggers: list[Callable] | None = None,
+    # Rewind (see Rewind & Snapshots in the LLM Configuration guide)
+    enable_rewind: bool | None = None,
+    snapshot_dir: StrAttr | None = None,
     # Flow control (inherited from BaseTask)
     execute_condition: bool | str | Callable = True,
     retries: int = 0,
@@ -75,7 +101,23 @@ chat = LLMChatTask(
 )
 ```
 
-> This list is not exhaustive. See the `LLMChatTask`/`LLMTask` source or `--help` for the full constructor parameter list, including `cli_only`, `attachment`, `history_processors`, `capabilities`, `custom_commands`, `enable_rewind`/`snapshot_dir`, and more.
+> This list is not exhaustive. See the `LLMChatTask`/`LLMTask` source or `--help` for the full constructor parameter list, including readiness-check tuning and the other `BaseTask` flow-control parameters inherited unchanged.
+
+---
+
+## Model, Model Settings & Capabilities
+
+`model`, `model_settings`, and `capabilities` are pydantic-ai's own types, passed straight through unchanged (ADR-0036) — zrb doesn't wrap or reinterpret them. For what `Model`/`ModelSettings` accept per provider, and the full catalogue of capability classes, see [pydantic-ai's documentation](https://ai.pydantic.dev).
+
+- **`model`** — a model name string (`"openai:gpt-4o"`) or a pydantic-ai `Model` instance. See [LLM & Rate Limiter Configuration](../configuration/llm-config.md) for the supported-provider list, credentials, and the `model_getter`/`model_renderer` hooks `LLMConfig` exposes for tiering or A/B routing.
+- **`model_settings`** — a pydantic-ai `ModelSettings` (temperature, `openai_reasoning_effort`, …), or a callable taking the context for per-run values. See [Core LLM Routing](../configuration/llm-config.md#1-core-llm-routing) for the defaults zrb layers on top (`ZRB_LLM_THINKING`, `openai_reasoning_summary`, …).
+- **`capabilities`** — a list of pydantic-ai `AbstractCapability` instances (`ProcessHistory`, `Thinking`, `WebSearch`, `PrepareTools`, …), pydantic-ai's own agent-extension mechanism. It replaced the `Agent(history_processors=...)` constructor kwarg pydantic-ai itself carried before 2.36 (see [ADR-0041](../adr/adr-0041.md)). Do not confuse it with either of these zrb-specific things that share part of the name:
+  - `history_processors` (below) — zrb's **own** history-rewriting pipeline (`append_history_processor`), which predates and is independent of pydantic-ai's `capabilities`/`ProcessHistory`.
+  - the [Model Capabilities registry](../advanced-topics/extending-the-llm.md#model-capabilities) — zrb's per-model table of modality/parallel-tool-call support, unrelated to this constructor argument.
+
+`custom_model_names`, `show_ollama_models`, and `show_pydantic_ai_models` only affect the `/model` picker's autocomplete list in the chat TUI — see [Model Autocomplete](../configuration/llm-config.md#8-model-autocomplete).
+
+`active_skills`/`render_active_skills` pre-activate named skills for the session (skipping their normal on-demand discovery), rendered as templates by default; see the skill catalogue notes under [System Prompts & Identity](../configuration/llm-config.md#4-system-prompts--identity).
 
 ---
 
@@ -172,6 +214,8 @@ chat.append_hook_factory(lambda hm: hm.register(my_hook, events=[HookEvent.SESSI
 chat.append_hook_factory(lambda hm: hm.register(other_hook, events=[HookEvent.SESSION_END]))
 ```
 
+> **Isolation differs from `LLMTask`.** `LLMChatTask` builds a **fresh** `HookManager` per execution and replays every registered factory onto it each time, so one session's hooks never leak into the next. `LLMTask` instead holds a **persistent** manager — on `LLMTask`, the *first* `append_hook_factory` call swaps the process-wide default for a fresh task-local manager (later calls apply to that same manager), unless a manager was passed explicitly to the constructor, which is never swapped. See [ADR-0072](../adr/adr-0072.md) and [Hooks — Defining Hooks Programmatically](../advanced-topics/hooks.md#defining-hooks-programmatically-python) for the full rationale.
+
 ### Approval & Policy
 
 ```python
@@ -199,6 +243,15 @@ chat.append_custom_command(my_command)
 chat.set_history_manager(FileHistoryManager(history_dir="./my-history/"))
 ```
 
+`history_manager`, `conversation_name`/`render_conversation_name` are also readable as one group via the `history_config` read-only property (a `HistoryConfig`, computed fresh on every read — never cached, so a `history_manager` reassignment is immediately visible through it):
+
+```python
+chat.history_config.history_manager
+chat.history_config.conversation_name
+```
+
+Same property, same fields, on both `LLMTask` and `LLMChatTask` (ADR-0072).
+
 ---
 
 ## Comparison with LLMTask
@@ -215,7 +268,7 @@ chat.set_history_manager(FileHistoryManager(history_dir="./my-history/"))
 | **Permission policy** | `permissions=` (arg + property) | Same |
 | **Filesystem sandbox** | `sandbox=` (arg + property) | Same |
 | **Shared tool APIs** | `append_tool`, `append_tool_factory`, `append_toolset` | Same |
-| **Hook system** | Full lifecycle hooks | Same |
+| **Hook system** | `append_hook_factory` onto a **fresh** manager per run | `append_hook_factory` onto a **persistent** manager ([ADR-0072](../adr/adr-0072.md)) |
 | **History processors** | `append_history_processor` | Same |
 | **System prompt** | Via `system_prompt` or `prompt_manager` | Same |
 
