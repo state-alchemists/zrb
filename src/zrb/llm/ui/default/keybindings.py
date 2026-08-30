@@ -118,7 +118,6 @@ class UIKeybindings:
                 # lazy: tests patch `zrb.llm.util.clipboard.get_clipboard_image`
                 # at the source path; hoisting would bind the name at
                 # module-load and bypass the mock.
-                # lazy: zrb internal (heavy via transitive / circular)
                 from zrb.llm.util.clipboard import (
                     get_clipboard_image,
                     missing_tool_hint,

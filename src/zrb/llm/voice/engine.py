@@ -302,7 +302,9 @@ class VoiceEngine:
         because the chat completions API does not accept audio content blocks —
         users should set ``ZRB_LLM_VOICE_MODE=openai`` for Whisper API instead.
         """
-        # lazy: zrb internal (heavy via transitive / circular)
+        # lazy: zrb internal (heavy via transitive) — not a cycle, verified
+        # empirically (nothing zrb.llm.agent's package __init__ imports at
+        # module level reaches zrb.llm.voice).
         from zrb.llm.agent import create_agent, run_agent
         from zrb.llm.config.config import llm_config
         from zrb.llm.config.limiter import llm_limiter
@@ -447,8 +449,8 @@ async def download_vosk_model(
     Returns the model path on success.
     Raises RuntimeError if the download or extraction fails.
     """
-    # lazy: deferred to keep module import light — urllib.request drags in
-    # ssl/http and zipfile drags in lzma/bz2, for a one-shot download path.
+    # lazy: heavy (stdlib) — urllib.request drags in ssl/http and zipfile
+    # drags in lzma/bz2, for a one-shot download path.
     import io as _io
     import urllib.request as _urllib
     import zipfile

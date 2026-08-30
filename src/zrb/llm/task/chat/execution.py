@@ -61,13 +61,14 @@ from zrb.util.cli.style import stylize_highlight, stylize_muted
 from zrb.xcom.xcom import Xcom
 
 if TYPE_CHECKING:
-    from pydantic_ai import Tool
-    from pydantic_ai.capabilities import AbstractCapability
-    from pydantic_ai.models import Model
-    from pydantic_ai.tools import ToolFuncEither
-    from pydantic_ai.toolsets import AbstractToolset
-
     from zrb.llm.agent import AnyToolConfirmation
+    from zrb.llm.agent.types import (
+        AbstractCapability,
+        AbstractToolset,
+        Model,
+        Tool,
+        ToolFuncEither,
+    )
     from zrb.llm.approval.approval_channel import ApprovalChannel
     from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
     from zrb.llm.sandbox import SandboxPolicy
@@ -295,7 +296,8 @@ class ChatExecution:
             CFG.LOGGER.debug(
                 f"Background-delegation teardown at session end failed: {e}"
             )
-        # lazy: only needed at teardown; keeps the import off hot paths.
+        # lazy: zrb internal — only needed at teardown; keeps this import
+        # off the hot path every other turn takes.
         try:
             from zrb.llm.hook.executor import shutdown_hook_executor
 
@@ -330,7 +332,8 @@ class ChatExecution:
             if self._llm_chat_task.active_hook_manager is not None:
                 await self._llm_chat_task.active_hook_manager.shutdown(drain=True)
             else:
-                # lazy: only needed at teardown; keeps the import off hot paths.
+                # lazy: zrb internal — only needed at teardown; keeps this
+                # import off the hot path every other turn takes.
                 from zrb.llm.hook.manager import hook_manager
 
                 await hook_manager.shutdown(drain=True)

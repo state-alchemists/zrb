@@ -458,6 +458,39 @@ async def _prepare_history(
     )
 
 
+async def _do_agent_run(
+    agent: "Agent[None, Any]",
+    cursor: TurnCursor,
+    handler: Callable[[Any, Any], Awaitable[None]],
+    sandbox_deps: Any,
+) -> Any:
+    """Isolates the `agent.run()` call as its own function, out of
+    `_execution_loop`'s `while True` loop.
+
+    Purely a pyright-performance workaround (no behavior change): pydantic-ai's
+    `Agent.run` is a heavily overloaded generic method, and pyright re-runs its
+    overload resolution on every fixed-point pass of the loop's control-flow
+    narrowing when this call is inlined there — that combination alone took
+    ~7 minutes to check (see docs/adr — sandbox gate ADR-0069's history).
+    Moving the call to its own ordinary function drops it to ~2 seconds.
+    """
+    # lazy: heavy third-party
+    from pydantic_ai import UsageLimits
+
+    return await agent.run(
+        cursor.message,
+        message_history=cursor.history,
+        deferred_tool_results=cursor.results,
+        usage_limits=UsageLimits(request_limit=_request_limit()),
+        event_stream_handler=handler,
+        # pydantic-ai types `deps` against the Agent's own deps_type (`None`
+        # here — see create_agent's comment on why it stays pinned to None
+        # for the toolsets/model_settings overloads). `sandbox_gate` reads it
+        # via `ctx.deps` regardless of this static type (ADR-0069).
+        deps=cast(Any, sandbox_deps),
+    )
+
+
 async def _execution_loop(
     agent: "Agent[None, Any]",
     current_message: Any,
@@ -472,7 +505,7 @@ async def _execution_loop(
     sandbox_deps: Any = None,
 ) -> tuple[Any, list[Any]]:
     # lazy: heavy third-party
-    from pydantic_ai import AgentRunResultEvent, DeferredToolRequests, UsageLimits
+    from pydantic_ai import AgentRunResultEvent, DeferredToolRequests
 
     cursor = TurnCursor(
         history=current_history,
@@ -507,19 +540,7 @@ async def _execution_loop(
             try:
                 # Docs: https://ai.pydantic.dev/agents/#streaming-all-events
                 CFG.LOGGER.debug(f"Run started, current_results={cursor.results}")
-                result = await agent.run(
-                    cursor.message,
-                    message_history=cursor.history,
-                    deferred_tool_results=cursor.results,
-                    usage_limits=UsageLimits(request_limit=_request_limit()),
-                    event_stream_handler=handler,
-                    # pydantic-ai types `deps` against the Agent's own
-                    # deps_type (`None` here — see create_agent's comment on
-                    # why it stays pinned to None for the toolsets/
-                    # model_settings overloads). `sandbox_gate` reads it via
-                    # `ctx.deps` regardless of this static type (ADR-0069).
-                    deps=cast(Any, sandbox_deps),
-                )
+                result = await _do_agent_run(agent, cursor, handler, sandbox_deps)
                 cursor.output = result.output
                 CFG.LOGGER.debug(
                     f"Got result, result_output type: {type(cursor.output)}"

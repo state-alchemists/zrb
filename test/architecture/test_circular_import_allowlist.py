@@ -25,7 +25,20 @@ SRC = REPO_ROOT / "src" / "zrb"
 # Path relative to src/zrb -> number of "# lazy: circular" occurrences
 # expected in that file. Add an entry in the same diff that introduces a
 # genuine circular-import workaround, with a reason in the comment itself.
-CIRCULAR_IMPORT_ALLOWLIST: dict[str, int] = {}
+#
+# These 5 were found (and empirically confirmed as real cycles, by hoisting
+# each import to module level in a scratch copy and observing the resulting
+# ImportError) while auditing 17 comments that gave a circular-import
+# justification in non-canonical wording, invisible to the regex below. The
+# other 12 were mislabeled — 8 were plain "transitively heavy" imports with
+# no real cycle, and 4 (in tool/web.py) were test-patch-seam imports already
+# justified by a comment one block above; all 12 were recategorized rather
+# than tagged circular, per this file's own docstring above.
+CIRCULAR_IMPORT_ALLOWLIST: dict[str, int] = {
+    "llm/agent/run/setup.py": 1,
+    "llm/prompt/live_context.py": 4,
+    "llm/hook/creator.py": 1,
+}
 
 
 def _circular_import_counts() -> dict[str, int]:

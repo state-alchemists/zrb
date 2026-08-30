@@ -109,7 +109,8 @@ def _register_tools(host: CommonToolHost) -> None:
     # lazy: pydantic_ai (heavy third-party deferral)
     from pydantic_ai import Tool
 
-    # lazy: zrb internal (heavy via transitive / circular)
+    # lazy: zrb internal (heavy via transitive) — lsp.tools transitively
+    # loads the LSP client stack; not a cycle, verified empirically.
     from zrb.llm.lsp.configs import detect_available_lsp_servers
     from zrb.llm.lsp.tools import create_lsp_tools
 

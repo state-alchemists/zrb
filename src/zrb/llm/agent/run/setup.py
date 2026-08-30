@@ -34,10 +34,10 @@ def bind_contextvar(stack: ExitStack, var: ContextVar, value: Any) -> None:
 def resolve_context_dependencies(
     ui, tool_confirmation, yolo, approval_channel, hook_manager
 ):
-    # lazy: zrb.llm.ui.* and zrb.llm.approval.* are imported inside this
-    # function to break a circular import — zrb.llm.agent is loaded by
-    # those packages' init paths, so module-top imports here would re-enter
-    # zrb.llm.agent before its __init__ has finished.
+    # lazy: circular — zrb.llm.ui.* and zrb.llm.approval.* are imported
+    # inside this function to break a circular import: zrb.llm.agent is
+    # loaded by those packages' init paths, so module-top imports here
+    # would re-enter zrb.llm.agent before its __init__ has finished.
     from zrb.llm.ui.std_ui import StdUI
 
     ui_arg = ui if ui is not None else current_ui.get()
