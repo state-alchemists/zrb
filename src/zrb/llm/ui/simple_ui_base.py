@@ -12,9 +12,8 @@ from zrb.llm.ui.base.ui import BaseUI
 from zrb.llm.ui.ui_config import UIConfig
 
 if TYPE_CHECKING:
-    from pydantic_ai import UserContent
-
     from zrb.context.any_context import AnyContext
+    from zrb.llm.agent.types import UserContent
     from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
     from zrb.llm.task.llm_task import LLMTask
     from zrb.llm.tool_call.middleware import (

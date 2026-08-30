@@ -32,16 +32,17 @@ from zrb.llm.task.shared_getters import (
 from zrb.util.attr import get_attr
 
 if TYPE_CHECKING:
-    from pydantic_ai import Tool
-    from pydantic_ai.models import Model
-    from pydantic_ai.settings import ModelSettings
-    from pydantic_ai.tools import ToolFuncEither
-    from pydantic_ai.toolsets import AbstractToolset
-
     from zrb.attr.type import BoolAttr, StrListAttr
     from zrb.context.any_context import AnyContext
     from zrb.llm.agent import AnyToolConfirmation
     from zrb.llm.agent.common import HistoryProcessor
+    from zrb.llm.agent.types import (
+        AbstractToolset,
+        Model,
+        ModelSettings,
+        Tool,
+        ToolFuncEither,
+    )
     from zrb.llm.approval.approval_channel import ApprovalChannel
     from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
     from zrb.llm.permission import PermissionPolicyInput

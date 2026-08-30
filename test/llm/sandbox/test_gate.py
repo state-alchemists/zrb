@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 
+from zrb.llm.agent.gates import sandbox_gate
 from zrb.llm.permission import Capability, tag
 from zrb.llm.sandbox import SandboxPolicy, current_sandbox_policy
 from zrb.llm.sandbox.state import (
@@ -263,3 +266,59 @@ async def test_gate_move_checks_src_and_dst(tmp_path):
 
     assert blocked.metadata.get("blocked") is True
     assert allowed.return_value == "moved"
+
+
+# --- gate via explicit ctx.deps (ADR-0069) -----------------------------------
+
+
+def test_gate_uses_ctx_deps_policy_over_ambient(tmp_path):
+    """`SafeToolsetWrapper.call_tool` passes `ctx.deps` (the policy `run_agent`
+    resolved once for this run) — it must win over whatever is ambient, not
+    just fall back to it, or the explicit path is dead code. Ambient here
+    would *allow* the path; `ctx.deps` (empty writable_paths) blocks it — the
+    only way `blocked` comes back is if `ctx.deps` was actually consulted.
+    """
+    # tmp_path lives inside the always-writable system temp dir (see
+    # test_gate_blocks_edit_outside_writable_roots's note), so the
+    # discriminating target must be genuinely outside it: allowed only when
+    # the in-force policy's writable_paths names its directory.
+    import os
+
+    target = _outside_path()
+    ambient = _enabled_policy(tmp_path, writable_paths=(os.path.dirname(target),))
+    deps_policy = _enabled_policy(tmp_path)  # writable_paths=tmp_path/proj only
+
+    token = current_sandbox_policy.set(ambient)
+    try:
+        ctx = SimpleNamespace(deps=deps_policy)
+        blocked = sandbox_gate("mystery", Capability.EDIT, {"path": target}, ctx)
+    finally:
+        current_sandbox_policy.reset(token)
+
+    assert blocked is not None and blocked.metadata.get("blocked") is True
+
+
+def test_gate_falls_back_to_ambient_when_ctx_deps_is_not_a_policy(tmp_path):
+    """A `ctx.deps` that isn't a `SandboxPolicy` (e.g. a mock's auto-vivified
+    attribute, or an agent whose deps carry something unrelated) must not be
+    mistaken for one — the gate falls back to the ambient policy instead.
+    (Were the garbage `deps` used as-is, `policy.enabled` would raise
+    `AttributeError` rather than resolve — so this also fails loudly, not
+    just via a wrong assertion, if the isinstance guard is ever removed.)
+    """
+    (tmp_path / "proj").mkdir()
+    ambient = _enabled_policy(tmp_path)  # allows tmp_path/proj
+
+    token = current_sandbox_policy.set(ambient)
+    try:
+        ctx = SimpleNamespace(deps=object())
+        allowed = sandbox_gate(
+            "mystery",
+            Capability.EDIT,
+            {"path": str(tmp_path / "proj" / "x.txt")},
+            ctx,
+        )
+    finally:
+        current_sandbox_policy.reset(token)
+
+    assert allowed is None

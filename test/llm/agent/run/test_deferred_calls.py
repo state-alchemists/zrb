@@ -878,7 +878,7 @@ async def test_yolo_auto_approves_with_no_policy_opinion():
         patch(
             "zrb.llm.agent.run.deferred_calls.get_interactive_mode", return_value=True
         ),
-        patch("zrb.llm.agent.run.runtime_state.get_current_yolo", return_value=True),
+        patch("zrb.llm.agent_state.get_current_yolo", return_value=True),
     ):
         result = await process_deferred_requests(
             result_output, tool_handler, ui, hook_manager
@@ -917,7 +917,7 @@ async def test_approval_channel_with_invalid_json_string_args():
         patch(
             "zrb.llm.agent.run.deferred_calls.get_interactive_mode", return_value=True
         ),
-        patch("zrb.llm.agent.run.runtime_state.get_current_yolo", return_value=None),
+        patch("zrb.llm.agent_state.get_current_yolo", return_value=None),
     ):
         result = await process_deferred_requests(
             result_output, None, ui, hook_manager, approval_channel=approval_channel
@@ -951,7 +951,7 @@ async def test_no_approval_mechanism_with_hard_ask_denies():
         patch(
             "zrb.llm.agent.run.deferred_calls.get_interactive_mode", return_value=True
         ),
-        patch("zrb.llm.agent.run.runtime_state.get_current_yolo", return_value=None),
+        patch("zrb.llm.agent_state.get_current_yolo", return_value=None),
     ):
         # effective_tool_confirmation is neither a ToolCallHandler nor callable.
         result = await process_deferred_requests(
@@ -983,7 +983,7 @@ async def test_no_approval_mechanism_without_ask_returns_none():
         patch(
             "zrb.llm.agent.run.deferred_calls.get_interactive_mode", return_value=True
         ),
-        patch("zrb.llm.agent.run.runtime_state.get_current_yolo", return_value=None),
+        patch("zrb.llm.agent_state.get_current_yolo", return_value=None),
     ):
         result = await process_deferred_requests(
             result_output, object(), ui, hook_manager

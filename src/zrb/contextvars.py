@@ -5,7 +5,7 @@ runtime propagates. It re-exports wrappers (and the underlying `ContextVar`s)
 from three homes that keep bounded-context ownership of their state:
 
 * `zrb.context.any_context`   - the per-task execution Context (`current_ctx`)
-* `zrb.llm.agent.run.runtime_state` - agent-run ambient state (UI, YOLO, approval, ...)
+* `zrb.llm.agent_state` - agent-run ambient state (UI, YOLO, approval, ...)
 * `zrb.llm.permission.state`  - permission policy + agent mode (plan/default)
 * `zrb.llm.sandbox.state`     - sandbox policy (filesystem containment)
 * `zrb.llm.tool.ambient_state`  - tool-scoped ambient state (worktree, session)
@@ -26,7 +26,7 @@ from __future__ import annotations
 from zrb.context.any_context import current_ctx, get_current_ctx, zrb_print
 
 # --- Agent runtime state ---
-from zrb.llm.agent.run.runtime_state import (
+from zrb.llm.agent_state import (
     current_agent_run_scope,
     current_approval_channel,
     current_hook_manager,

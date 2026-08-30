@@ -28,10 +28,10 @@ def make_yolo_inheritance_checker() -> (
     2. ``get_current_ui().yolo`` (live xcom read, covers live toggles)
     3. ``False``
     """
-    # lazy: tests patch `zrb.llm.agent.run.runtime_state.get_current_*` and
+    # lazy: tests patch `zrb.llm.agent_state.get_current_*` and
     # rely on the patch taking effect inside the closure. Hoisting would
     # bind these names at module-load and bypass the mocks.
-    from zrb.llm.agent.run.runtime_state import get_current_ui, get_current_yolo
+    from zrb.llm.agent_state import get_current_ui, get_current_yolo
 
     # lazy: tests patch zrb.llm.permission.get_effective_policy; hoisting
     # would bind the name at this module's load time and bypass the mock.

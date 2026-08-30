@@ -3,10 +3,12 @@
 Binds the `current_ui`, `current_tool_confirmation`, `current_yolo`,
 `current_hook_manager`, `current_agent_run_scope`, and `current_approval_channel`
 `ContextVar`s on entry to `run_agent()`, resets them in `finally`. The vars
-themselves are defined in `runtime_state.py` (not here — `setup.py`, which
-`runner.py` imports at the top, needs them too, so `runtime_state.py` owns
-them to avoid a cycle). Every other module reads them through the wrappers in
-`runtime_state.py` (re-exported from `zrb.contextvars`).
+themselves are defined in `zrb.llm.agent_state` (not here, and not nested
+under `zrb.llm.agent` at all — `setup.py`, which `runner.py` imports at the
+top, needs them too, and so does code outside this package entirely; see
+ADR-0088 for why that module lives at the top level of `zrb.llm` instead of
+inside `agent/`). Every other module reads them through the wrappers there
+(re-exported from `zrb.contextvars`).
 
 Sibling files in this package each own one concern:
   retry_loop.py       - decide-retry-or-not after a model exception
@@ -25,7 +27,7 @@ import asyncio
 import uuid
 from contextlib import ExitStack
 from dataclasses import replace
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, Coroutine
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Coroutine, cast
 
 from zrb.config.config import CFG
 from zrb.llm.agent.run.deferred_calls import (
@@ -48,14 +50,6 @@ from zrb.llm.agent.run.openai_patch import patch_openai_model_response_serializa
 from zrb.llm.agent.run.partial_run import PartialRunAccumulator
 from zrb.llm.agent.run.prompt_content import get_prompt_content as _get_prompt_content
 from zrb.llm.agent.run.retry_loop import RetryState, handle_stream_error
-from zrb.llm.agent.run.runtime_state import (
-    AnyToolConfirmation,
-    current_agent_run_scope,
-    current_hook_manager,
-    current_tool_confirmation,
-    current_ui,
-    current_yolo,
-)
 from zrb.llm.agent.run.session_extension import (
     ExtensionState,
     apply_turn_end_extension,
@@ -68,6 +62,14 @@ from zrb.llm.agent.run.setup import (
     setup_print_and_events,
 )
 from zrb.llm.agent.run.turn_cursor import TurnCursor
+from zrb.llm.agent_state import (
+    AnyToolConfirmation,
+    current_agent_run_scope,
+    current_hook_manager,
+    current_tool_confirmation,
+    current_ui,
+    current_yolo,
+)
 from zrb.llm.approval.approval_channel import ApprovalChannel, current_approval_channel
 from zrb.llm.config.config import llm_config
 from zrb.llm.config.limiter import LLMLimiter
@@ -81,7 +83,7 @@ from zrb.llm.permission.state import (
     exit_agent_mode_scope,
 )
 from zrb.llm.prompt.live_context import append_live_context
-from zrb.llm.sandbox.state import current_sandbox_policy
+from zrb.llm.sandbox.state import current_sandbox_policy, get_effective_sandbox_policy
 from zrb.llm.tool.worktree import active_worktree
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 from zrb.llm.util.prompt import expand_prompt
@@ -183,6 +185,13 @@ async def run_agent(
         bind_contextvar(stack, current_approval_channel, effective_approval_channel)
         bind_contextvar(stack, current_permission_policy, effective_policy)
         bind_contextvar(stack, current_sandbox_policy, effective_sandbox)
+        # Resolved once, now that current_sandbox_policy reflects this run's
+        # own binding above — passed as `agent.run(deps=...)` so `sandbox_gate`
+        # reads it explicitly instead of re-deriving it from ambient state at
+        # every tool call (ADR-0069). Safe to freeze for the run's lifetime:
+        # unlike the permission policy, nothing mutates the sandbox policy
+        # mid-run.
+        sandbox_deps = get_effective_sandbox_policy()
         # Backstop, not the primary contract: EnterWorktree/ExitWorktree still
         # own setting/clearing this per tool call. This only guarantees that a
         # forgotten ExitWorktree (agent forgets, run errors) can't leak the
@@ -246,6 +255,7 @@ async def run_agent(
             effective_hook_manager=effective_hook_manager,
             effective_approval_channel=effective_approval_channel,
             checkpoint_fn=checkpoint_fn,
+            sandbox_deps=sandbox_deps,
         )
     finally:
         stack.close()
@@ -450,6 +460,39 @@ async def _prepare_history(
     )
 
 
+async def _do_agent_run(
+    agent: "Agent[None, Any]",
+    cursor: TurnCursor,
+    handler: Callable[[Any, Any], Awaitable[None]],
+    sandbox_deps: Any,
+) -> Any:
+    """Isolates the `agent.run()` call as its own function, out of
+    `_execution_loop`'s `while True` loop.
+
+    Purely a pyright-performance workaround (no behavior change): pydantic-ai's
+    `Agent.run` is a heavily overloaded generic method, and pyright re-runs its
+    overload resolution on every fixed-point pass of the loop's control-flow
+    narrowing when this call is inlined there — that combination alone took
+    ~7 minutes to check (see docs/adr — sandbox gate ADR-0069's history).
+    Moving the call to its own ordinary function drops it to ~2 seconds.
+    """
+    # lazy: heavy third-party
+    from pydantic_ai import UsageLimits
+
+    return await agent.run(
+        cursor.message,
+        message_history=cursor.history,
+        deferred_tool_results=cursor.results,
+        usage_limits=UsageLimits(request_limit=_request_limit()),
+        event_stream_handler=handler,
+        # pydantic-ai types `deps` against the Agent's own deps_type (`None`
+        # here — see create_agent's comment on why it stays pinned to None
+        # for the toolsets/model_settings overloads). `sandbox_gate` reads it
+        # via `ctx.deps` regardless of this static type (ADR-0069).
+        deps=cast(Any, sandbox_deps),
+    )
+
+
 async def _execution_loop(
     agent: "Agent[None, Any]",
     current_message: Any,
@@ -461,9 +504,10 @@ async def _execution_loop(
     effective_hook_manager: HookManager,
     effective_approval_channel: "ApprovalChannel | None",
     checkpoint_fn: Callable[[list[Any]], Coroutine[Any, Any, None]] | None = None,
+    sandbox_deps: Any = None,
 ) -> tuple[Any, list[Any]]:
     # lazy: heavy third-party
-    from pydantic_ai import AgentRunResultEvent, DeferredToolRequests, UsageLimits
+    from pydantic_ai import AgentRunResultEvent, DeferredToolRequests
 
     cursor = TurnCursor(
         history=current_history,
@@ -498,13 +542,7 @@ async def _execution_loop(
             try:
                 # Docs: https://ai.pydantic.dev/agents/#streaming-all-events
                 CFG.LOGGER.debug(f"Run started, current_results={cursor.results}")
-                result = await agent.run(
-                    cursor.message,
-                    message_history=cursor.history,
-                    deferred_tool_results=cursor.results,
-                    usage_limits=UsageLimits(request_limit=_request_limit()),
-                    event_stream_handler=handler,
-                )
+                result = await _do_agent_run(agent, cursor, handler, sandbox_deps)
                 cursor.output = result.output
                 CFG.LOGGER.debug(
                     f"Got result, result_output type: {type(cursor.output)}"

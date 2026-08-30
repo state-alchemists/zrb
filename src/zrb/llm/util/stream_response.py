@@ -8,7 +8,7 @@ from zrb.llm.util.tool_args import (
 )
 
 if TYPE_CHECKING:
-    from pydantic_ai import (
+    from zrb.llm.agent.types import (
         AgentRunResultEvent,
         AgentStreamEvent,
         PartDeltaEvent,
@@ -183,8 +183,8 @@ class StreamEventHandler:
         )
 
     async def __call__(self, event: "AgentStreamEvent"):
-        # lazy: heavy third-party
-        from pydantic_ai import (
+        # lazy: zrb internal (heavy via transitive)
+        from zrb.llm.agent.types import (
             AgentRunResultEvent,
             FinalResultEvent,
             PartDeltaEvent,
@@ -335,9 +335,8 @@ class StreamEventHandler:
         self._on_tool_prepare_update(tool_call_id, formatted)
 
     def handle_part_start(self, event: "PartStartEvent") -> bool:
-        # lazy: heavy third-party
-        from pydantic_ai import ToolCallPart
-        from pydantic_ai.messages import TextPart
+        # lazy: zrb internal (heavy via transitive)
+        from zrb.llm.agent.types import TextPart, ToolCallPart
 
         # A part boundary means "the previous part is done" — EXCEPT when the
         # new part is itself another thinking part. Some providers (OpenAI's
@@ -420,8 +419,12 @@ class StreamEventHandler:
         return False
 
     def handle_part_delta(self, event: "PartDeltaEvent"):
-        # lazy: heavy third-party
-        from pydantic_ai import TextPartDelta, ThinkingPartDelta, ToolCallPartDelta
+        # lazy: zrb internal (heavy via transitive)
+        from zrb.llm.agent.types import (
+            TextPartDelta,
+            ThinkingPartDelta,
+            ToolCallPartDelta,
+        )
 
         if isinstance(event.delta, TextPartDelta):
             # content_delta or "" mirrors the ThinkingPartDelta guard below —

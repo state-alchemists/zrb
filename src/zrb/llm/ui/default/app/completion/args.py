@@ -49,9 +49,9 @@ def complete_load_arg(
     dropdown, and there is no other discovery mechanism in the CLI TUI for
     "what sub-agent sessions exist"; this label is it.
     """
-    # lazy: zrb internal, kept cheap and dependency-free; imported here so
-    # the completion path (hit on every keystroke) doesn't pay this import
-    # unless /load is actually being typed.
+    # lazy: zrb internal — this module is cheap and dependency-free, but
+    # even a cheap import isn't worth paying on the completion hot path
+    # (hit on every keystroke) unless /load is actually being typed.
     from zrb.llm.util.subagent_session_naming import parse_delegated_session
 
     for res in history_manager.search(arg_prefix)[:10]:

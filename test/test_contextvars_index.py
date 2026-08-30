@@ -6,7 +6,11 @@ from zrb import contextvars as cv
 
 
 def test_index_exports_all_wrappers():
-    # If a wrapper is missing here, contributors will silently lose discoverability.
+    # Exact-match, not subset: a wrapper missing here means contributors
+    # silently lose discoverability, but the reverse drift (a real export
+    # this set doesn't know about) is just as real a gap and a subset check
+    # can never catch it. Update this set in the same diff that adds,
+    # removes, or renames a ContextVar export in `zrb.contextvars`.
     expected = {
         "current_ctx",
         "get_current_ctx",
@@ -27,16 +31,40 @@ def test_index_exports_all_wrappers():
         "set_active_worktree",
         "get_current_tool_session",
         "set_current_tool_session",
+        "current_hook_manager",
+        "get_current_hook_manager",
+        "current_agent_run_scope",
+        "get_current_agent_run_scope",
+        "current_permission_policy",
+        "get_current_permission_policy",
+        "permission_policy",
+        "current_agent_mode",
+        "get_current_agent_mode",
+        "set_current_agent_mode",
+        "get_current_context_session",
+        "set_current_session",
+        "interactive_mode",
+        "get_interactive_mode",
+        "set_interactive_mode",
+        "current_chat_session_id",
+        "get_current_chat_session_id",
+        "get_session_ownership_key",
     }
-    missing = expected - set(cv.__all__)
-    assert not missing, f"Missing from contextvars.__all__: {sorted(missing)}"
+    actual = set(cv.__all__)
+    assert actual == expected, (
+        "zrb.contextvars.__all__ drifted from this test's `expected` set — "
+        "a ContextVar export was added, removed, or renamed. Update "
+        "`expected` here to match, in the same diff.\n"
+        f"missing from __all__={sorted(expected - actual)}\n"
+        f"extra in __all__={sorted(actual - expected)}"
+    )
     for name in expected:
         assert hasattr(cv, name), f"`zrb.contextvars.{name}` should be importable"
 
 
 def test_index_does_not_create_independent_state():
     """The index re-exports — it must not create a parallel ContextVar."""
-    from zrb.llm.agent.run.runtime_state import current_ui as direct_var
+    from zrb.llm.agent_state import current_ui as direct_var
 
     assert cv.current_ui is direct_var
 

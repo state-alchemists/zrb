@@ -166,7 +166,8 @@ def _format_parallel_tool_call_line(model: "Any") -> str | None:
     prompt anyway), so it belongs with the other system facts rather than in a
     section of its own.
     """
-    # lazy: zrb internal (heavy via transitive / circular)
+    # lazy: zrb internal (heavy via transitive) — not a cycle, verified
+    # empirically.
     from zrb.llm.util.capabilities import model_capabilities
 
     supports = model_capabilities.get(model).supports_parallel_tool_calls
@@ -187,7 +188,8 @@ def _format_model_line(model: "Any") -> str | None:
     Returns ``None`` when *model* is None or its identifier cannot be
     resolved (e.g. ``MagicMock`` without a real ``model_name``).
     """
-    # lazy: zrb internal (heavy via transitive / circular)
+    # lazy: zrb internal (heavy via transitive) — not a cycle, verified
+    # empirically.
     from zrb.llm.util.capabilities import is_known_model
 
     if model is None or not is_known_model(model):

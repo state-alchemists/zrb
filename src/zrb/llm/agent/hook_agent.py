@@ -17,7 +17,6 @@ from zrb.llm.agent.subagent.manager import sub_agent_manager
 from zrb.llm.agent.subagent.tool_resolver import resolve_tools_by_name
 from zrb.llm.common_tools import ensure_common_tools
 from zrb.llm.hook.agent_hook_registry import register_agent_hook_builder
-from zrb.llm.hook.creator import run_llm_hook
 from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
 from zrb.llm.hook.schema import AgentHookConfig
 
@@ -25,6 +24,16 @@ from zrb.llm.hook.schema import AgentHookConfig
 def create_agent_hook(config: AgentHookConfig) -> HookCallable:
     async def agent_hook(context: HookContext) -> HookResult:
         """Run an agent with the configured system prompt over the event payload."""
+        # lazy: zrb internal (heavy via transitive) — this edge isn't itself
+        # circular, but hook.creator's own create_agent import used to be
+        # (zrb.llm.agent's package __init__ imports this module at module
+        # level). Deferring this import (and hook/manager.py's matching one)
+        # keeps hook.creator out of zrb.llm.agent's eager import closure
+        # entirely, verified by walking that closure — not just by checking
+        # this one call site — so its own create_agent import no longer
+        # needs the circular workaround.
+        from zrb.llm.hook.creator import run_llm_hook
+
         resolved_tools = resolve_agent_hook_tools(config.tools)
         if config.tools and not resolved_tools:
             # Every named tool failed to resolve — most commonly because it's

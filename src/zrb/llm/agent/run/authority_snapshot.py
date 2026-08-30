@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from zrb.llm.agent.run.runtime_state import get_current_yolo
+from zrb.llm.agent_state import get_current_yolo
 from zrb.llm.permission.policy import PermissionPolicy
 from zrb.llm.permission.state import get_effective_policy
 from zrb.llm.sandbox.policy import SandboxPolicy

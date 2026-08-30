@@ -33,7 +33,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
-    from pydantic_ai.models import Model
+    from zrb.llm.agent.types import Model
 
 Modality = Literal["image", "audio", "video", "document"]
 

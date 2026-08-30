@@ -28,8 +28,15 @@ because each provider serialises it differently and both behaviours matter:
 So the size backstop only materialises a string when it actually has to
 truncate, and never for a result carrying multimodal content.
 
-Leaf module: imported by both ``agent/common.py`` and ``agent/gates.py``, so it
-must not import either.
+Leaf module, and deliberately NOT inside the ``zrb.llm.agent`` package even
+though ``agent/common.py`` and ``agent/gates.py`` are its main callers:
+``zrb.llm.tool.wrapper`` (used by ``zrb.llm.tool.ask``, itself needed by
+``zrb.llm.tool.plan``/``ambient_state``) also needs ``tool_return`` here, and
+importing anything under ``zrb.llm.agent`` from that chain used to force
+``zrb.llm.agent``'s package ``__init__`` to load before ``tool.ask`` had
+finished importing — a genuine circular import, not just a heavy one. Living
+here instead removes that edge instead of deferring it further. See
+``test/architecture/test_circular_import_allowlist.py``'s allowlist comment.
 """
 
 from __future__ import annotations
@@ -44,8 +51,8 @@ def tool_return(value: Any, **metadata: Any) -> Any:
     It is always a dict (empty when nothing was passed) so callers can inspect
     it without a ``None`` check.
     """
-    # lazy: heavy third-party
-    from pydantic_ai import ToolReturn
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import ToolReturn
 
     return ToolReturn(return_value=value, metadata=metadata)
 
@@ -56,8 +63,8 @@ def has_multimodal(value: Any) -> bool:
     Such a payload must reach ``return_value`` intact: providers extract it from
     there, and any text rendering of it is a lossy repr, not the file.
     """
-    # lazy: heavy third-party
-    from pydantic_ai.messages import is_multi_modal_content
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import is_multi_modal_content
 
     if is_multi_modal_content(value):
         return True

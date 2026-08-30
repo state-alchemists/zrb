@@ -9,7 +9,7 @@ from zrb.llm.tool_call.ui_protocol import UIProtocol
 from zrb.util.truncate import truncate_chars
 
 if TYPE_CHECKING:
-    from pydantic_ai import ToolApproved, ToolCallPart, ToolDenied
+    from zrb.llm.agent.types import ToolApproved, ToolCallPart, ToolDenied
 
 
 async def default_response_handler(
@@ -18,8 +18,8 @@ async def default_response_handler(
     user_response: str,
     next_handler: Callable[[UIProtocol, ToolCallPart, str], Awaitable[Any]],
 ) -> ToolApproved | ToolDenied | None:
-    # lazy: heavy third-party
-    from pydantic_ai import ToolApproved, ToolDenied
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import ToolApproved, ToolDenied
 
     # lazy: tests patch `zrb.llm.tool_call.edit_util.edit_content_via_editor`
     # at the source path and rely on the patch taking effect inside this

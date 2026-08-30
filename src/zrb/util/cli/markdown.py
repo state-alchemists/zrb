@@ -20,7 +20,9 @@ def render_markdown(
     from rich.markdown import Markdown
     from rich.theme import Theme
 
-    from zrb.config.config import CFG  # lazy: defer CFG load
+    from zrb.config.config import (
+        CFG,  # lazy: zrb internal (heavy via transitive — CFG composes 15 mixins)
+    )
 
     if CFG.LLM_UI_ENABLE_MARKDOWN_MATH:
         markdown_text = convert_math_to_unicode(markdown_text)

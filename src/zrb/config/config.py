@@ -9,7 +9,9 @@ To find a setting:
 - foundation/env/shell/init/version/banner   -> mixins/foundation.py
 - web HTTP/auth/branding/pagination          -> mixins/web.py
 - LLM model/API key/base URL                 -> mixins/llm_core.py
-- LLM UI styles/commands/intervals           -> mixins/llm_ui.py
+- LLM UI styles/commands/intervals/voice      -> mixins/llm_ui.py, which
+  itself stitches together (not imported here directly) llm_ui_styles.py,
+  llm_ui_commands.py, llm_ui_runtime.py and llm_voice.py
 - LLM throttle/retry/timeout/size caps       -> mixins/llm_limits.py
 - LLM history/journal/snapshot/summarization -> mixins/llm_content.py
 - LLM prompt dirs/INCLUDE_* toggles          -> mixins/llm_prompt.py

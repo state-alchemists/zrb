@@ -71,8 +71,8 @@ class LLMTaskHistory:
         # Detect retry and avoid duplicating the initial message if it's already in history
         # Also, if it's a retry, we might want to inform the LLM about the previous failure.
         if ctx.attempt > 1 and len(message_history) > 0:
-            # lazy: heavy third-party
-            from pydantic_ai.messages import ModelRequest, UserPromptPart
+            # lazy: zrb internal (heavy via transitive)
+            from zrb.llm.agent.types import ModelRequest, UserPromptPart
 
             # Compare ONLY the most recent real user turn. Scanning the whole
             # history means a recurring message (e.g. "continue") matches some
@@ -142,8 +142,8 @@ class LLMTaskHistory:
         failure saves the history unchanged — appending to it would make the
         next attempt longer and guarantee the same failure.
         """
-        # lazy: heavy third-party
-        from pydantic_ai.messages import ModelRequest, UserPromptPart
+        # lazy: zrb internal (heavy via transitive)
+        from zrb.llm.agent.types import ModelRequest, UserPromptPart
 
         new_history = getattr(error, "zrb_history", None)
         if new_history is None:
@@ -189,8 +189,8 @@ class LLMTaskHistory:
         diagnosable.
         """
         try:
-            # lazy: heavy third-party
-            from pydantic_ai.messages import (
+            # lazy: zrb internal (heavy via transitive)
+            from zrb.llm.agent.types import (
                 ModelRequest,
                 ModelResponse,
                 TextPart,

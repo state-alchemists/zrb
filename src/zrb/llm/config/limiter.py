@@ -9,8 +9,8 @@ from zrb.util.cli.style import stylize_info
 
 def is_turn_start(msg: Any) -> bool:
     """Identify start of a new user interaction (User Prompt without Tool Return)."""
-    # lazy: heavy third-party
-    from pydantic_ai.messages import ModelRequest, ToolReturnPart, UserPromptPart
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import ModelRequest, ToolReturnPart, UserPromptPart
 
     if not isinstance(msg, ModelRequest):
         return False

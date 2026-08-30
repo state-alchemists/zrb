@@ -6,7 +6,7 @@ import threading
 from urllib.parse import urljoin
 
 from zrb.config.config import CFG
-from zrb.llm.agent.run.runtime_state import get_current_ui
+from zrb.llm.agent_state import get_current_ui
 from zrb.llm.config.config import llm_config
 from zrb.llm.config.limiter import llm_limiter
 from zrb.llm.prompt.prompt import get_prompt
@@ -158,10 +158,10 @@ async def search_internet(
     total, page, error}. Requires SERPAPI_KEY, BRAVE_API_KEY, or SearXNG configuration.
     """
     notify(f"🔎 Searching ({CFG.SEARCH_INTERNET_METHOD.strip().lower()}): {query!r}...")
-    # lazy: backend modules are kept lazy so tests can patch
-    # `zrb.llm.tool.search.<backend>.search_internet` at the source path
-    # and have the patch take effect inside this function. Hoisting would
-    # bind the names at module-load and bypass test mocks.
+    # lazy: tests patch `zrb.llm.tool.search.<backend>.search_internet` at
+    # the source path and expect the patch to take effect inside this
+    # function; hoisting would bind the names at module-load and bypass
+    # test mocks.
     # Every backend below is a synchronous `requests.get` call — run off-loop
     # via run_blocking, the same rule _fetch_page_content already follows
     # ("inline they freeze the TUI's event loop for the whole download").
@@ -170,7 +170,6 @@ async def search_internet(
     search_timeout = CFG.LLM_WEB_HTTP_TIMEOUT / 1000 + TIMEOUT_MARGIN_SECONDS
     method = CFG.SEARCH_INTERNET_METHOD.strip().lower()
     if method == "serpapi" and CFG.SERPAPI_KEY:
-        # lazy: zrb internal (heavy via transitive / circular)
         from zrb.llm.tool.search.serpapi import search_internet as serpapi_search
 
         try:
@@ -182,7 +181,6 @@ async def search_internet(
         return normalize_search_result(raw, "serpapi", page=page)
 
     if method == "brave" and CFG.BRAVE_API_KEY:
-        # lazy: zrb internal (heavy via transitive / circular)
         from zrb.llm.tool.search.brave import search_internet as brave_search
 
         try:
@@ -192,7 +190,6 @@ async def search_internet(
         return normalize_search_result(raw, "brave", page=page)
 
     if method == "searxng":
-        # lazy: zrb internal (heavy via transitive / circular)
         from zrb.llm.tool.search.searxng import search_internet as searxng_search
 
         try:
@@ -204,7 +201,6 @@ async def search_internet(
         return normalize_search_result(raw, "searxng")
 
     # default: Google News RSS — free, no API key, no Docker required
-    # lazy: zrb internal (heavy via transitive / circular)
     from zrb.llm.tool.search.google_rss import search_internet as google_rss_search
 
     try:

@@ -181,9 +181,10 @@ class BaseUIExecCommands:
             # Load current history for context (read-only snapshot).
             # Strip SystemPromptPart entries so the main agent's system prompt
             # doesn't conflict with the btw agent's own system prompt.
-            # lazy: heavy third-party
-            from pydantic_ai import Agent
-            from pydantic_ai.messages import ModelRequest, SystemPromptPart
+            # lazy: zrb internal (heavy via transitive)
+            # lazy: zrb internal (heavy via transitive)
+            from zrb.llm.agent import create_agent
+            from zrb.llm.agent.types import ModelRequest, SystemPromptPart
 
             raw_history = self._base_ui.history_manager.load(
                 self._base_ui.conversation_session_name
@@ -210,9 +211,13 @@ class BaseUIExecCommands:
                 else llm_task.llm_config.model
             )
             final_model = llm_task.llm_config.resolve_model(model)
-            agent = Agent(
+            agent = create_agent(
                 model=final_model,
                 system_prompt=_sys_prompt,
+                # No tools on this path; yolo=True keeps the output type
+                # plain `str` instead of widening to `str | DeferredToolRequests`.
+                yolo=True,
+                resolve_model=False,  # already resolved above
             )
 
             self._base_ui.append_to_output(f"\n🤖 {timestamp} >>\n")

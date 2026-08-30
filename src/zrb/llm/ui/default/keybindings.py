@@ -118,7 +118,6 @@ class UIKeybindings:
                 # lazy: tests patch `zrb.llm.util.clipboard.get_clipboard_image`
                 # at the source path; hoisting would bind the name at
                 # module-load and bypass the mock.
-                # lazy: zrb internal (heavy via transitive / circular)
                 from zrb.llm.util.clipboard import (
                     get_clipboard_image,
                     missing_tool_hint,
@@ -126,8 +125,8 @@ class UIKeybindings:
 
                 img_bytes = await get_clipboard_image()
                 if img_bytes is not None:
-                    # lazy: heavy third-party
-                    from pydantic_ai import BinaryContent
+                    # lazy: zrb internal (heavy via transitive)
+                    from zrb.llm.agent.types import BinaryContent
 
                     scaled = scale_image_bytes(img_bytes, media_type="image/png")
                     attachment = BinaryContent(

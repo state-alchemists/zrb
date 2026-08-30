@@ -75,9 +75,11 @@ def _merge_mcp_servers_config(config_files: list[str]) -> dict[str, Any]:
 
 
 def _create_mcp_toolsets(merged_servers: dict[str, Any]) -> list[Any]:
-    # lazy: heavy import (pydantic_ai, fastmcp)
+    # lazy: heavy third-party
     from fastmcp.client.transports import StdioTransport
-    from pydantic_ai.mcp import MCPToolset
+
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import MCPToolset
 
     toolsets: list[Any] = []
 

@@ -20,6 +20,7 @@ import logging
 import os
 import re
 import shutil
+import stat
 import subprocess
 from typing import Callable, NamedTuple
 
@@ -403,10 +404,7 @@ def _copy_files(
 
 
 def _stat_is_file(st: os.stat_result) -> bool:
-    # lazy: deferred to keep module import light
-    import stat as _stat
-
-    return _stat.S_ISREG(st.st_mode)
+    return stat.S_ISREG(st.st_mode)
 
 
 def _dst_is_up_to_date(dst_path: str, src_stat: os.stat_result) -> bool:

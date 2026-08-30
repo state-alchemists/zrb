@@ -6,7 +6,7 @@ import time
 from typing import Any, Callable
 
 from zrb.config.config import CFG
-from zrb.llm.agent.run.runtime_state import get_current_ui
+from zrb.llm.agent_state import get_current_ui
 from zrb.llm.sandbox import get_effective_sandbox_policy
 from zrb.llm.sandbox.os_sandbox import (
     SandboxUnavailableError,
@@ -64,7 +64,8 @@ async def run_shell_command(
     max_chars=-1 uses the configured output limit.
     """
     if background:
-        # lazy: keep the background registry off the hot foreground path.
+        # lazy: zrb internal — keeps the background registry off the hot
+        # path most Shell calls take (foreground, non-backgrounded).
         from zrb.llm.tool.shell_background import get_shell_background_registry
 
         try:

@@ -1,16 +1,28 @@
 """Ambient state for an agent run — UI, tool confirmation, YOLO, approval channel.
 
-These are set once by `run_agent` at the start of a turn and read by sub-agents,
-delegate tools, and UI callbacks that don't receive them as explicit arguments.
+These are set once by `run_agent` (`agent/run/runner.py`) at the start of a
+turn and read by sub-agents, delegate tools, and UI callbacks that don't
+receive them as explicit arguments.
 
-This module OWNS the `ContextVar`s: `run_agent` (runner.py) binds them with
-`token = var.set(...)` / `var.reset(token)` on entry, resets in `finally`, but
-does not define them — `setup.py`, a module `runner.py` itself imports at the
-top, needs these same vars, so defining them in `runner.py` would force every
-such consumer into a lazy import to dodge the cycle. Defining them here instead
-(a leaf module with no `zrb.llm.agent.run` imports of its own) lets both
-`runner.py` and `setup.py` import them directly. Callers outside this package
-should use the typed getters below rather than the raw vars.
+Deliberately NOT inside the `zrb.llm.agent` package, even though `run_agent`
+is this module's only writer: importing `zrb.llm.agent` (for `create_agent`/
+`run_agent`) eagerly loads the whole agent-construction and run-loop
+machinery, and a long list of otherwise-unrelated leaf modules — `tool/ask.py`,
+`tool/plan.py`, `tool/shell.py`, `tool/web.py`, `tool/delegate.py`,
+`tool/file_observation.py`, `ui/base/ui.py` — need nothing from that
+machinery, only a `ContextVar` getter. When this module lived at
+`agent/run/runtime_state.py`, importing any of those forced `zrb.llm.agent`'s
+package `__init__` to run first (Python imports parent packages before
+submodules), which is what made `live_context.py` and `agent/run/setup.py`
+genuinely circular: each needed one of those same leaf modules, which by then
+needed `zrb.llm.agent` back. Moving the state itself out of the `agent`
+package — rather than deferring more of the imports that reach it — removes
+that cycle at its source instead of routing around it again. See
+`test/architecture/test_circular_import_allowlist.py`'s allowlist comment for
+the closure-walk evidence.
+
+Callers outside `zrb.llm.agent.run` should use the typed getters below rather
+than the raw vars.
 """
 
 from __future__ import annotations
@@ -24,8 +36,7 @@ from zrb.llm.approval.approval_channel import (
 )
 
 if TYPE_CHECKING:
-    from pydantic_ai import ToolApproved, ToolCallPart, ToolDenied
-
+    from zrb.llm.agent.types import ToolApproved, ToolCallPart, ToolDenied
     from zrb.llm.hook.manager import HookManager
     from zrb.llm.tool_call.handler import ToolCallHandler
     from zrb.llm.tool_call.ui_protocol import UIProtocol
@@ -93,7 +104,7 @@ def get_current_hook_manager() -> "HookManager | None":
 
 def get_current_agent_run_scope() -> str:
     """Return the id identifying the current agent run (see
-    `current_agent_run_scope`'s docstring in runner.py)."""
+    `current_agent_run_scope`'s docstring above)."""
     return current_agent_run_scope.get()
 
 

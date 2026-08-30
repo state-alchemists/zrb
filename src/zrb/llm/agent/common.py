@@ -14,8 +14,8 @@ from zrb.llm.agent.run.hook_result_extractor import (
     extract_post_tool_decision,
     extract_pre_tool_decision,
 )
-from zrb.llm.agent.tool_result import has_multimodal, tool_return
 from zrb.llm.agent.truncate import truncate_tool_content
+from zrb.llm.agent_tool_result import has_multimodal, tool_return
 from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.hook.manager import hook_manager
 from zrb.llm.hook.types import HookEvent
@@ -246,7 +246,9 @@ def wrap_toolset(
                 blocked = permission_gate(name, tool_capability(tool), tool_args or {})
                 if blocked is not None:
                     return blocked
-                blocked = sandbox_gate(name, tool_capability(tool), tool_args or {})
+                blocked = sandbox_gate(
+                    name, tool_capability(tool), tool_args or {}, ctx
+                )
                 if blocked is not None:
                     return blocked
                 result = await super().call_tool(name, tool_args, ctx, tool)

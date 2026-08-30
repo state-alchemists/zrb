@@ -39,7 +39,7 @@ import asyncio
 import hashlib
 from collections import OrderedDict, defaultdict
 
-from zrb.llm.agent.run.runtime_state import get_current_agent_run_scope
+from zrb.llm.agent_state import get_current_agent_run_scope
 
 # Scopes kept in the observed-content LRU before the least-recently-used one
 # is evicted (see the module docstring for why eviction is safe here).

@@ -535,10 +535,10 @@ async def test_stream_btw_response_strips_system_prompt_from_history(ui):
     seen = {}
 
     class FakeAgent:
-        def __init__(self, model=None, system_prompt=None):
+        def __init__(self, **kwargs):
             pass
 
-        async def run(self, question, message_history=None):
+        async def run(self, question, message_history=None, **kwargs):
             seen["history"] = message_history
             return MagicMock(output="side answer")
 

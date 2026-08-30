@@ -5,7 +5,7 @@ from zrb.llm.tool_call.args import parse_tool_args
 from zrb.llm.tool_call.handler import UIProtocol
 
 if TYPE_CHECKING:
-    from pydantic_ai import ToolCallPart
+    from zrb.llm.agent.types import ToolCallPart
 
 
 async def read_file_validation_policy(
@@ -17,8 +17,8 @@ async def read_file_validation_policy(
     Validates 'Read' (read_file) tool calls.
     Rejected if the file does not exist.
     """
-    # lazy: heavy third-party
-    from pydantic_ai import ToolDenied
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import ToolDenied
 
     if call.tool_name != "Read":
         return await next_handler(ui, call)
