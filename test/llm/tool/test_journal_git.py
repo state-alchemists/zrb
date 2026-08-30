@@ -28,6 +28,7 @@ def git_journal(tmp_path):
         mock_cfg.LLM_JOURNAL_DIR = str(root)
         mock_cfg.LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION = 20
         mock_cfg.LLM_JOURNAL_GIT_ENABLED = True
+        mock_cfg.LLM_GIT_CMD_TIMEOUT = 5000
         yield str(root)
 
 
@@ -38,9 +39,17 @@ def _git(root: str, *args: str) -> str:
     return result.stdout
 
 
-def test_ensure_journal_tree_initializes_a_git_repo(git_journal):
+def test_ensure_journal_tree_alone_does_not_initialize_git(git_journal):
+    """Git init/first-commit only happens under `_journal_lock` (inside a
+    writer call), never from `ensure_journal_tree()` alone — otherwise two
+    first-time writers could race `git init` outside any lock."""
     root = ensure_journal_tree()
-    assert os.path.isdir(os.path.join(root, ".git"))
+    assert not os.path.isdir(os.path.join(root, ".git"))
+
+
+def test_write_journal_note_initializes_a_git_repo(git_journal):
+    write_journal_note("technical", "some-note", "Title", "ctx", "finding", "source")
+    assert os.path.isdir(os.path.join(git_journal, ".git"))
 
 
 def test_git_disabled_creates_no_git_repo(tmp_path):
@@ -72,6 +81,33 @@ def test_delete_journal_note_is_recoverable_via_git_history(git_journal):
     assert not os.path.isfile(os.path.join(git_journal, "technical", "some-note.md"))
     recovered = _git(git_journal, "show", "HEAD~1:technical/some-note.md")
     assert "the original finding" in recovered
+
+
+def test_hung_git_does_not_break_writes(git_journal):
+    """A hanging `git` (GPG-sign prompt, stale index.lock) must time out
+    rather than freezing the whole journal call."""
+    with patch(
+        "zrb.llm.tool.journal_write.subprocess.run",
+        side_effect=subprocess.TimeoutExpired(cmd="git", timeout=1),
+    ):
+        result = write_journal_note(
+            "technical", "some-note", "Title", "ctx", "finding", "source"
+        )
+    assert result == "Wrote technical/some-note.md"
+    assert os.path.isfile(os.path.join(git_journal, "technical", "some-note.md"))
+    assert not os.path.isdir(os.path.join(git_journal, ".git"))
+
+
+def test_git_commands_pass_a_timeout(git_journal):
+    with patch(
+        "zrb.llm.tool.journal_write.subprocess.run", wraps=subprocess.run
+    ) as mock_run:
+        write_journal_note(
+            "technical", "some-note", "Title", "ctx", "finding", "source"
+        )
+    assert mock_run.call_args_list, "expected at least one git subprocess call"
+    for call in mock_run.call_args_list:
+        assert "timeout" in call.kwargs
 
 
 def test_missing_git_binary_does_not_break_writes(git_journal):

@@ -25,7 +25,11 @@ def remove_file(
 
     Refused unless this session has Read the file, or List/Glob'd its parent
     directory (or, for `recursive=True`, List/Glob'd the directory itself) —
-    see the `[SYSTEM SUGGESTION]` on refusal for the exact fix.
+    see the `[SYSTEM SUGGESTION]` on refusal for the exact fix. That check only
+    confirms the path was *named* somewhere this session, not that it is the
+    *right* one among similarly-named candidates (e.g. a listing showing both
+    `config.json` and `config.old.json`) — verify it is the one you mean
+    before removing.
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):

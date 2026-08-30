@@ -4,7 +4,7 @@ from typing import Annotated
 
 from pydantic import Field
 
-from zrb.llm.tool.file_observation import check_observed
+from zrb.llm.tool.file_observation import check_listed, record_seen
 
 
 def move_file(
@@ -15,7 +15,8 @@ def move_file(
             description=(
                 "Destination path. Missing parent directories are created; "
                 "overwriting an existing destination is refused unless this "
-                "session has Read it first."
+                "session has Read it, or List/Glob'd its parent directory, "
+                "first."
             )
         ),
     ],
@@ -32,12 +33,13 @@ def move_file(
             "[SYSTEM SUGGESTION]: Check the source path; use List to see what exists."
         )
     if os.path.exists(abs_dst):
-        blocked = check_observed(abs_dst)
+        blocked = check_listed(abs_dst, recursive=False)
         if blocked is not None:
             return blocked
     try:
         os.makedirs(os.path.dirname(abs_dst), exist_ok=True)
         shutil.move(abs_src, abs_dst)
+        record_seen(abs_dst)
         return f"Moved: {src} -> {dst}"
     except Exception as e:
         return (

@@ -26,10 +26,6 @@ The entries below are real, on-demand instruction bundles: activate them with `A
 
 Match the whole request, not just its primary label. When several methodologies or skills apply, activate every matching one — for example, use both design and writing for an ADR, or research and coding for an unfamiliar code change. Batch independent `ActivateSkill` calls when tool-call batching is available; activate sequentially only when one selection depends on another's content.
 
-A lookup whose result should inform what you do next is not independent of the action it precedes — don't batch a search with a write or delete it should have informed (e.g. `SearchJournal` and `WriteJournalNote`/`DeleteJournalNote` targeting the same slug or topic); wait for the result first.
-
-Journal writes are recordkeeping, never the user-facing result. If you call `LogActivity` or `WriteJournalNote`, follow it with the complete final answer; do not reply only that the journal was updated.
-
 ### Core Methodologies
 
 {CORE_SKILLS}

@@ -25,6 +25,9 @@ def search_journal(
 
     Call this before WriteJournalNote or DeleteJournalNote whenever you are
     not certain a slug is free, or that it names the note you intend to touch.
+    Wait for this result before issuing that write or delete — don't batch
+    the two calls, since the write/delete it should inform depends on what
+    this search finds.
     """
     journal_dir = CFG.LLM_JOURNAL_DIR
     if not journal_dir:

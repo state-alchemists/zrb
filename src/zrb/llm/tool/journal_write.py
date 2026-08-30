@@ -81,6 +81,8 @@ def log_activity(
     """
     root = ensure_journal_tree()
     with _journal_lock(root):
+        if CFG.LLM_JOURNAL_GIT_ENABLED:
+            _ensure_journal_git(root)
         now = datetime.now()
         day_file = _ensure_activity_path(root, now)
         file_note = ", ".join(files) if files else "—"
@@ -105,7 +107,8 @@ def write_journal_note(
                 "overwrites that note — the previous Context/Finding is kept "
                 "as one bounded History entry, not preserved in full. Call "
                 "SearchJournal for this slug or topic first if you are not "
-                "certain it is free or that you mean to revise it."
+                "certain it is free or that you mean to revise it, and wait "
+                "for its result before this call — don't batch the two."
             )
         ),
     ],
@@ -173,6 +176,8 @@ def write_journal_note(
     """
     root = ensure_journal_tree()
     with _journal_lock(root):
+        if CFG.LLM_JOURNAL_GIT_ENABLED:
+            _ensure_journal_git(root)
         if category not in NOTE_CATEGORIES:
             raise ValueError(
                 f"[SYSTEM SUGGESTION]: unknown category {category!r}. "
@@ -226,13 +231,16 @@ def delete_journal_note(
     Unlike WriteJournalNote, there is no History fallback here, and this tool
     cannot undo the removal itself — confirm the target's actual content
     first (Read it, or SearchJournal for it) rather than deleting on a
-    remembered or assumed slug. If the journal is git-backed, a human may
-    still recover the file from its git history outside this tool, but that
-    is not something you can do yourself. Silent otherwise: do not announce
-    the deletion in your reply.
+    remembered or assumed slug, and wait for that result before this call —
+    don't batch the two. If the journal is git-backed, a human may still
+    recover the file from its git history outside this tool, but that is not
+    something you can do yourself. Silent otherwise: do not announce the
+    deletion in your reply.
     """
     root = ensure_journal_tree()
     with _journal_lock(root):
+        if CFG.LLM_JOURNAL_GIT_ENABLED:
+            _ensure_journal_git(root)
         if category not in NOTE_CATEGORIES:
             raise ValueError(
                 f"[SYSTEM SUGGESTION]: unknown category {category!r}. "
@@ -329,8 +337,6 @@ def ensure_journal_tree() -> str:
             f"# {name.replace('-', ' ').title()}\n",
         )
     _write_if_absent(os.path.join(root, "index.md"), _root_index_skeleton())
-    if CFG.LLM_JOURNAL_GIT_ENABLED:
-        _ensure_journal_git(root)
     return root
 
 
@@ -339,12 +345,18 @@ def _ensure_journal_git(root: str) -> None:
     real, unbounded commits instead of relying only on the in-file History
     block (capped at `_HISTORY_MAX_ENTRIES`). Never raises: a missing `git`
     binary or a failed init leaves journaling exactly as it was before this
-    existed — same fallback spirit as the `fcntl`-unavailable branch above."""
+    existed — same fallback spirit as the `fcntl`-unavailable branch above.
+
+    Callers must hold `_journal_lock(root)` — this races two first-time
+    writers' `git init`/initial commit against each other otherwise."""
     if os.path.isdir(os.path.join(root, ".git")):
         return
     try:
         subprocess.run(
-            ["git", "init", "--quiet", root], capture_output=True, check=False
+            ["git", "init", "--quiet", root],
+            capture_output=True,
+            check=False,
+            timeout=CFG.LLM_GIT_CMD_TIMEOUT / 1000,
         )
     except (OSError, subprocess.SubprocessError):
         return
@@ -354,18 +366,20 @@ def _ensure_journal_git(root: str) -> None:
 
 def _git_commit(root: str, message: str) -> None:
     """Best-effort `git add -A && git commit`, scoped to *root*. Silent on any
-    failure (no git binary, nothing to commit, git not initialized here) —
-    this is a durability backstop, never a new way for a journal call to
-    fail. Inline `-c user.*` flags so it never depends on the environment's
-    global git identity being configured."""
+    failure (no git binary, nothing to commit, git not initialized here, a
+    timeout) — this is a durability backstop, never a new way for a journal
+    call to fail. Inline `-c user.*` flags so it never depends on the
+    environment's global git identity being configured."""
     if not os.path.isdir(os.path.join(root, ".git")):
         return
     git_identity = ["-c", "user.name=zrb-journal", "-c", "user.email=journal@zrb.local"]
+    timeout = CFG.LLM_GIT_CMD_TIMEOUT / 1000
     try:
         subprocess.run(
             ["git", "-C", root, *git_identity, "add", "-A"],
             capture_output=True,
             check=False,
+            timeout=timeout,
         )
         subprocess.run(
             [
@@ -381,8 +395,12 @@ def _git_commit(root: str, message: str) -> None:
             ],
             capture_output=True,
             check=False,
+            timeout=timeout,
         )
     except (OSError, subprocess.SubprocessError):
+        # subprocess.TimeoutExpired subclasses SubprocessError, so a hung git
+        # (GPG-sign prompt, stale index.lock) is swallowed the same way as a
+        # missing binary — never a new way for a journal call to fail.
         return
 
 

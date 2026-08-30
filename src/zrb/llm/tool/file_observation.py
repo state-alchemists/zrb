@@ -291,6 +291,15 @@ def check_listed(abs_path: str, *, recursive: bool) -> str | None:
     return None
 
 
+def record_seen(abs_path: str) -> None:
+    """Record that `abs_path` was confirmed to exist at this location this
+    run — e.g. a Move's destination — satisfying `check_listed`'s
+    non-recursive bar without claiming a full LS/Glob of its parent.
+    """
+    scope = get_current_agent_run_scope()
+    _bucket(_listed_paths, scope, set).add(abs_path)
+
+
 def clear_observed() -> None:
     """Clear all recorded state. A test-isolation seam — production code
     never needs this; the LRU cap bounds the map's growth (see

@@ -80,7 +80,7 @@ def test_move_onto_unread_existing_destination_is_refused(temp_dir):
     with open(dst, "w") as f:
         f.write("old")
     result = move_file(src, dst)
-    assert "has not been read in this session" in result
+    assert "has not been read or listed in this session" in result
     assert os.path.exists(src)
     with open(dst) as f:
         assert f.read() == "old"
@@ -98,3 +98,70 @@ def test_move_onto_read_existing_destination_succeeds(temp_dir):
     assert "Moved" in result
     with open(dst) as f:
         assert f.read() == "new"
+
+
+def test_move_onto_unlisted_existing_directory_is_refused(temp_dir):
+    src = os.path.join(temp_dir, "src.txt")
+    dst = os.path.join(temp_dir, "existingdir")
+    os.mkdir(dst)
+    with open(src, "w") as f:
+        f.write("content")
+    result = move_file(src, dst)
+    assert "has not been read or listed in this session" in result
+    assert os.path.exists(src)
+
+
+def test_move_onto_listed_existing_directory_nests_source_inside_it(temp_dir):
+    from zrb.llm.tool.file_list import list_files
+
+    src = os.path.join(temp_dir, "src.txt")
+    dst = os.path.join(temp_dir, "existingdir")
+    os.mkdir(dst)
+    with open(src, "w") as f:
+        f.write("content")
+    list_files(dst)
+    result = move_file(src, dst)
+    assert "Moved" in result
+    assert not os.path.exists(src)
+    with open(os.path.join(dst, "src.txt")) as f:
+        assert f.read() == "content"
+
+
+def test_move_onto_unread_existing_binary_destination_is_refused(temp_dir):
+    src = os.path.join(temp_dir, "src.txt")
+    dst = os.path.join(temp_dir, "dst.bin")
+    with open(src, "w") as f:
+        f.write("new")
+    with open(dst, "wb") as f:
+        f.write(b"\xff\xfe\x00binary")
+    result = move_file(src, dst)
+    assert "has not been read or listed in this session" in result
+    assert os.path.exists(src)
+
+
+def test_move_onto_listed_existing_binary_destination_succeeds(temp_dir):
+    from zrb.llm.tool.file_list import list_files
+
+    src = os.path.join(temp_dir, "src.txt")
+    dst = os.path.join(temp_dir, "dst.bin")
+    with open(src, "w") as f:
+        f.write("new")
+    with open(dst, "wb") as f:
+        f.write(b"\xff\xfe\x00binary")
+    list_files(temp_dir)
+    result = move_file(src, dst)
+    assert "Moved" in result
+    with open(dst, "rb") as f:
+        assert f.read() == b"new"
+
+
+def test_move_records_destination_as_seen_for_immediate_followup(temp_dir):
+    from zrb.llm.tool.file_rm import remove_file
+
+    src = os.path.join(temp_dir, "src.txt")
+    dst = os.path.join(temp_dir, "dst.txt")
+    with open(src, "w") as f:
+        f.write("content")
+    move_file(src, dst)
+    result = remove_file(dst)
+    assert "Removed" in result
