@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from zrb.context.any_context import zrb_print
-from zrb.llm.agent.run.runtime_state import get_current_ui
+from zrb.llm.agent_state import get_current_ui
 from zrb.llm.tool.ambient_state import get_current_tool_session
 from zrb.util.string.conversion import to_safe_filename
 

@@ -6,7 +6,7 @@ import time
 from typing import Any, Callable
 
 from zrb.config.config import CFG
-from zrb.llm.agent.run.runtime_state import get_current_ui
+from zrb.llm.agent_state import get_current_ui
 from zrb.llm.sandbox import get_effective_sandbox_policy
 from zrb.llm.sandbox.os_sandbox import (
     SandboxUnavailableError,

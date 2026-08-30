@@ -9,7 +9,7 @@ error_hint appended to the error message.
 import functools
 from typing import Any, Awaitable, Callable, ParamSpec, TypeVar, cast, overload
 
-from zrb.llm.agent.tool_result import tool_return
+from zrb.llm.agent_tool_result import tool_return
 
 P = ParamSpec("P")
 T = TypeVar("T")

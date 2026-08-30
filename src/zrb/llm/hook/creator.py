@@ -377,10 +377,11 @@ async def run_llm_hook(
     come from; *kind* names the one in play for log messages.
     """
     try:
-        # lazy: circular — zrb.llm.agent's package __init__ imports
-        # zrb.llm.hook.manager (for hook_manager), and zrb.llm.hook.manager
-        # imports this module at module level; a module-top import here
-        # would re-enter zrb.llm.agent before its own __init__ has finished.
+        # lazy: zrb internal (heavy via transitive) — not circular anymore
+        # (hook/manager.py and agent/hook_agent.py both defer their own
+        # imports of this module's functions), but constructing an agent
+        # still pulls in pydantic_ai, so this stays deferred to when a
+        # prompt/agent hook actually fires.
         from zrb.llm.agent import create_agent
 
         model_name = model or CFG.LLM_MODEL

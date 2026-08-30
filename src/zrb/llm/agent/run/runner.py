@@ -3,10 +3,12 @@
 Binds the `current_ui`, `current_tool_confirmation`, `current_yolo`,
 `current_hook_manager`, `current_agent_run_scope`, and `current_approval_channel`
 `ContextVar`s on entry to `run_agent()`, resets them in `finally`. The vars
-themselves are defined in `runtime_state.py` (not here — `setup.py`, which
-`runner.py` imports at the top, needs them too, so `runtime_state.py` owns
-them to avoid a cycle). Every other module reads them through the wrappers in
-`runtime_state.py` (re-exported from `zrb.contextvars`).
+themselves are defined in `zrb.llm.agent_state` (not here, and not nested
+under `zrb.llm.agent` at all — `setup.py`, which `runner.py` imports at the
+top, needs them too, and so does code outside this package entirely; see
+ADR-0088 for why that module lives at the top level of `zrb.llm` instead of
+inside `agent/`). Every other module reads them through the wrappers there
+(re-exported from `zrb.contextvars`).
 
 Sibling files in this package each own one concern:
   retry_loop.py       - decide-retry-or-not after a model exception
@@ -48,14 +50,6 @@ from zrb.llm.agent.run.openai_patch import patch_openai_model_response_serializa
 from zrb.llm.agent.run.partial_run import PartialRunAccumulator
 from zrb.llm.agent.run.prompt_content import get_prompt_content as _get_prompt_content
 from zrb.llm.agent.run.retry_loop import RetryState, handle_stream_error
-from zrb.llm.agent.run.runtime_state import (
-    AnyToolConfirmation,
-    current_agent_run_scope,
-    current_hook_manager,
-    current_tool_confirmation,
-    current_ui,
-    current_yolo,
-)
 from zrb.llm.agent.run.session_extension import (
     ExtensionState,
     apply_turn_end_extension,
@@ -68,6 +62,14 @@ from zrb.llm.agent.run.setup import (
     setup_print_and_events,
 )
 from zrb.llm.agent.run.turn_cursor import TurnCursor
+from zrb.llm.agent_state import (
+    AnyToolConfirmation,
+    current_agent_run_scope,
+    current_hook_manager,
+    current_tool_confirmation,
+    current_ui,
+    current_yolo,
+)
 from zrb.llm.approval.approval_channel import ApprovalChannel, current_approval_channel
 from zrb.llm.config.config import llm_config
 from zrb.llm.config.limiter import LLMLimiter

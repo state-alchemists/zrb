@@ -28,8 +28,15 @@ because each provider serialises it differently and both behaviours matter:
 So the size backstop only materialises a string when it actually has to
 truncate, and never for a result carrying multimodal content.
 
-Leaf module: imported by both ``agent/common.py`` and ``agent/gates.py``, so it
-must not import either.
+Leaf module, and deliberately NOT inside the ``zrb.llm.agent`` package even
+though ``agent/common.py`` and ``agent/gates.py`` are its main callers:
+``zrb.llm.tool.wrapper`` (used by ``zrb.llm.tool.ask``, itself needed by
+``zrb.llm.tool.plan``/``ambient_state``) also needs ``tool_return`` here, and
+importing anything under ``zrb.llm.agent`` from that chain used to force
+``zrb.llm.agent``'s package ``__init__`` to load before ``tool.ask`` had
+finished importing — a genuine circular import, not just a heavy one. Living
+here instead removes that edge instead of deferring it further. See
+``test/architecture/test_circular_import_allowlist.py``'s allowlist comment.
 """
 
 from __future__ import annotations

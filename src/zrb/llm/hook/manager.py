@@ -18,10 +18,6 @@ from typing import Any, Callable, cast
 
 from zrb.config.config import CFG
 from zrb.llm.hook.agent_hook_registry import get_agent_hook_builder
-from zrb.llm.hook.creator import (
-    create_command_hook,
-    create_prompt_hook,
-)
 from zrb.llm.hook.executor import (
     HookExecutionResult,
     ThreadPoolHookExecutor,
@@ -609,6 +605,16 @@ class HookManager(HookManagerLoading):
     def _select_inner_hook(self, config: HookConfig) -> HookCallable:
         """Build the callable for `config.type` (command/prompt/agent), or a
         logging placeholder for anything else."""
+        # lazy: zrb internal (heavy via transitive) — this edge isn't itself
+        # circular, but hook.creator's own create_agent import used to be
+        # (zrb.llm.agent's package __init__ reaches this method's module,
+        # zrb.llm.hook.manager, at module level). Deferring this import
+        # (and agent/hook_agent.py's matching one) keeps hook.creator out of
+        # zrb.llm.agent's eager import closure entirely, verified by walking
+        # that closure — not just by checking this one call site — so its
+        # own create_agent import no longer needs the circular workaround.
+        from zrb.llm.hook.creator import create_command_hook, create_prompt_hook
+
         if config.type == HookType.COMMAND:
             return create_command_hook(
                 cast("CommandHookConfig", config.config), config.timeout

@@ -14,6 +14,47 @@ This doesn't ban a new one — a genuine cycle can still happen — it just
 requires it to be declared here, in the same diff, with a reason, instead of
 landing silently. Bumping `CIRCULAR_IMPORT_ALLOWLIST` off zero should be rare
 enough that it always gets a second look.
+
+An audit found 17 comments giving a circular-import justification in
+non-canonical wording, invisible to the regex below (empirically confirmed —
+by hoisting each import to module level in a scratch copy and observing the
+resulting `ImportError` — rather than taken on the comment's word). Of those
+17, 12 were mislabeled (8 plain "transitively heavy" imports with no real
+cycle, 4 test-patch-seam imports already justified elsewhere) and reworded to
+their real category. The other 6 (a 6th, in `hook/creator.py`, surfaced
+separately during a later change) were genuine — and all 6 have since been
+eliminated, not just deferred:
+
+- `hook/creator.py`'s `create_agent` import cycled because two eager
+  importers within `zrb.llm.agent`'s import closure (`hook/manager.py`,
+  `agent/hook_agent.py`) each imported its functions at module level.
+  Deferring those two importers' own imports (not `hook/creator.py`'s)
+  removed it from the closure entirely.
+- The other 5 (in `agent/run/setup.py` and `live_context.py`) all traced back
+  to the same root cause: two genuinely dependency-free "leaf" modules —
+  ambient `ContextVar` state and `ToolReturn` construction — lived *inside*
+  the `zrb.llm.agent` package (`agent/run/runtime_state.py`,
+  `agent/tool_result.py`) purely by original placement, with no actual need
+  for anything else in that package. Importing either from outside forced
+  Python to run `zrb.llm.agent`'s package `__init__` first (parent packages
+  load before submodules), which is what made `zrb.llm.ui`, `zrb.llm.tool`,
+  and `live_context.py` circular with `zrb.llm.agent` whenever they needed
+  either one. Moving both out to top-level `zrb.llm.agent_state` and
+  `zrb.llm.agent_tool_result` — genuinely dependency-free locations, not
+  nested under anything `zrb.llm.agent`'s own `__init__` reaches — removed
+  the edge at its source. Confirmed by re-running the same hoist-and-import
+  check after the move: every one of the 5 imports that used to raise
+  `ImportError` now succeeds, so they were hoisted to real module-level
+  imports too (the "lazy" tag on them is gone entirely, not recategorized).
+
+This is why the allowlist below is empty rather than a lingering "these 6 are
+just how it is" list. A useful diagnostic for finding more of this shape:
+`zrb.llm.agent` and `zrb.llm.ui`'s eager-import closures are each ~400 of
+this repo's ~430 zrb modules (computed by walking every module-level import
+transitively, excluding `if TYPE_CHECKING:` blocks) — a module reachable
+from many places, like the two moved here, is invisible to a fix that only
+defers the one import site you happened to find, since the others keep it
+reachable regardless.
 """
 
 import re
@@ -25,20 +66,7 @@ SRC = REPO_ROOT / "src" / "zrb"
 # Path relative to src/zrb -> number of "# lazy: circular" occurrences
 # expected in that file. Add an entry in the same diff that introduces a
 # genuine circular-import workaround, with a reason in the comment itself.
-#
-# These 5 were found (and empirically confirmed as real cycles, by hoisting
-# each import to module level in a scratch copy and observing the resulting
-# ImportError) while auditing 17 comments that gave a circular-import
-# justification in non-canonical wording, invisible to the regex below. The
-# other 12 were mislabeled — 8 were plain "transitively heavy" imports with
-# no real cycle, and 4 (in tool/web.py) were test-patch-seam imports already
-# justified by a comment one block above; all 12 were recategorized rather
-# than tagged circular, per this file's own docstring above.
-CIRCULAR_IMPORT_ALLOWLIST: dict[str, int] = {
-    "llm/agent/run/setup.py": 1,
-    "llm/prompt/live_context.py": 4,
-    "llm/hook/creator.py": 1,
-}
+CIRCULAR_IMPORT_ALLOWLIST: dict[str, int] = {}
 
 
 def _circular_import_counts() -> dict[str, int]:

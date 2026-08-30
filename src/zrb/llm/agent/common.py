@@ -14,8 +14,8 @@ from zrb.llm.agent.run.hook_result_extractor import (
     extract_post_tool_decision,
     extract_pre_tool_decision,
 )
-from zrb.llm.agent.tool_result import has_multimodal, tool_return
 from zrb.llm.agent.truncate import truncate_tool_content
+from zrb.llm.agent_tool_result import has_multimodal, tool_return
 from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.hook.manager import hook_manager
 from zrb.llm.hook.types import HookEvent

@@ -11,7 +11,6 @@ from typing import Any
 from zrb.config.config import CFG
 from zrb.llm.agent.activity import HasActivityTracking, agent_activity_registry
 from zrb.llm.agent.run.runner import run_agent
-from zrb.llm.agent.run.runtime_state import get_current_hook_manager, get_current_ui
 from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
 
 # Import directly from the inner module (not the `subagent` package's
@@ -23,6 +22,7 @@ from zrb.llm.agent.subagent.manager import (
 from zrb.llm.agent.subagent.manager import (
     sub_agent_manager as default_sub_agent_manager,
 )
+from zrb.llm.agent_state import get_current_hook_manager, get_current_ui
 from zrb.llm.config.limiter import llm_limiter
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
 from zrb.llm.hook.types import HookEvent

@@ -1,7 +1,7 @@
 """Tests for run-setup dependency resolution (yolo inheritance semantics)."""
 
-from zrb.llm.agent.run.runtime_state import current_yolo
 from zrb.llm.agent.run.setup import resolve_context_dependencies
+from zrb.llm.agent_state import current_yolo
 
 
 def test_yolo_none_inherits_parent_context():

@@ -389,9 +389,9 @@ def _approve_via_yolo(policy_decision, force_ask):
     An explicit policy ASK, or a hook-requested ASK, is a hard ask that YOLO
     does not override.
     """
-    # lazy: tests patch zrb.llm.agent.run.runtime_state.get_current_yolo;
+    # lazy: tests patch zrb.llm.agent_state.get_current_yolo;
     # hoisting would bind the name at this module's load time and bypass it.
-    from zrb.llm.agent.run.runtime_state import get_current_yolo
+    from zrb.llm.agent_state import get_current_yolo
 
     if get_current_yolo() is not True or policy_decision == ASK or force_ask:
         return None

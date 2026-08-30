@@ -116,7 +116,7 @@ async def test_tool_error_reaches_model_as_the_tool_result():
 
 def test_tool_return_leaves_content_unset():
     """The helper is the single place the invariant is enforced."""
-    from zrb.llm.agent.tool_result import tool_return
+    from zrb.llm.agent_tool_result import tool_return
 
     built = tool_return("visible text", blocked=True)
 
@@ -127,7 +127,7 @@ def test_tool_return_leaves_content_unset():
 
 def test_tool_return_without_metadata_is_an_empty_dict():
     """Callers inspect metadata unguarded, so it is never None."""
-    from zrb.llm.agent.tool_result import tool_return
+    from zrb.llm.agent_tool_result import tool_return
 
     assert tool_return("x").metadata == {}
 

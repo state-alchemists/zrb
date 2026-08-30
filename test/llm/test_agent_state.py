@@ -1,4 +1,4 @@
-"""Tests for agent runtime-state wrappers (zrb.llm.agent.run.runtime_state)."""
+"""Tests for agent runtime-state wrappers (zrb.llm.agent_state)."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import asyncio
 
 import pytest
 
-from zrb.llm.agent.run.runtime_state import (
+from zrb.llm.agent_state import (
     current_agent_run_scope,
     current_approval_channel,
     current_tool_confirmation,

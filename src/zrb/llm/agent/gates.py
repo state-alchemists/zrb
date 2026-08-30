@@ -31,7 +31,7 @@ from __future__ import annotations
 from typing import Any
 
 from zrb.config.config import CFG
-from zrb.llm.agent.tool_result import tool_return
+from zrb.llm.agent_tool_result import tool_return
 from zrb.llm.permission import (
     DENY,
     Capability,

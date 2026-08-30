@@ -29,6 +29,18 @@ This doesn't ban new categories from emerging — it just means a `# lazy:`
 comment this test can't classify is a signal to either reword it to state
 its real reason, or (if it's a genuinely new kind of reason) update the
 keyword lists below and AGENTS.md together, in the same diff.
+
+Deliberately NOT an exact-count ratchet (unlike
+`CIRCULAR_IMPORT_ALLOWLIST` in `test_circular_import_allowlist.py`, which
+this test originally copied that convention from). A first version asserted
+per-category counts too, and it needed a manual update in nearly every
+commit that touched a lazy import during the sweep that landed this file —
+9 updates in one sitting, none of them catching anything the validity check
+below didn't already catch. Ordinary reclassification (a comment moving
+from "heavy third-party" to "transitively heavy") is neither rare nor
+consequential the way a genuine new circular import is, so ratcheting it
+was pure churn, not a safety margin. The count-based version is preserved
+in git history if a future maintainer wants to revisit that trade-off.
 """
 
 import re
@@ -57,23 +69,24 @@ HEAVY_PACKAGES = (
     "Pillow",
 )
 
-# Per-category counts as of this test landing. A change here must be a
-# reviewed diff, same convention as CIRCULAR_IMPORT_ALLOWLIST in
-# test_circular_import_allowlist.py.
-EXPECTED_CATEGORY_COUNTS = {
-    "circular": 6,
-    "test_patch_seam": 23,
-    "transitively_heavy_or_hot_path": 98,
-    "heavy_third_party": 158,
-}
-
 
 def _clean(line: str) -> str:
     return line.strip().lstrip("#").strip()
 
 
-def _classify_all() -> tuple[dict[str, int], list[str]]:
-    counts = {key: 0 for key in EXPECTED_CATEGORY_COUNTS}
+def _is_categorized(blocktext: str) -> bool:
+    if "lazy: circular" in blocktext:
+        return True
+    if re.search(r"tests?\s+patch", blocktext, re.IGNORECASE):
+        return True
+    if re.search(r"transitiv|hot[- ]path", blocktext, re.IGNORECASE):
+        return True
+    if any(pkg in blocktext for pkg in HEAVY_PACKAGES) or "heavy" in blocktext.lower():
+        return True
+    return False
+
+
+def _find_uncategorized() -> list[str]:
     uncategorized: list[str] = []
     for path in SRC.rglob("*.py"):
         lines = path.read_text().splitlines()
@@ -92,27 +105,16 @@ def _classify_all() -> tuple[dict[str, int], list[str]]:
                 else:
                     break
             blocktext = " ".join(_clean(b) for b in block)
-            location = f"{path.relative_to(SRC)}:{i + 1}"
-
-            if "lazy: circular" in blocktext:
-                counts["circular"] += 1
-            elif re.search(r"tests?\s+patch", blocktext, re.IGNORECASE):
-                counts["test_patch_seam"] += 1
-            elif re.search(r"transitiv|hot[- ]path", blocktext, re.IGNORECASE):
-                counts["transitively_heavy_or_hot_path"] += 1
-            elif any(pkg in blocktext for pkg in HEAVY_PACKAGES) or (
-                "heavy" in blocktext.lower()
-            ):
-                counts["heavy_third_party"] += 1
-            else:
+            if not _is_categorized(blocktext):
+                location = f"{path.relative_to(SRC)}:{i + 1}"
                 uncategorized.append(f"{location}: {blocktext[:100]!r}")
 
             i = j if j > i + 1 else i + 1
-    return counts, uncategorized
+    return uncategorized
 
 
 def test_every_lazy_import_states_a_recognized_reason():
-    _, uncategorized = _classify_all()
+    uncategorized = _find_uncategorized()
     assert not uncategorized, (
         "These `# lazy:` comments don't state a reason this test recognizes "
         "(heavy third-party, transitively-heavy/hot-path internal, "
@@ -120,14 +122,4 @@ def test_every_lazy_import_states_a_recognized_reason():
         "real reason, or update this test's keyword lists and AGENTS.md's "
         "Imports section together if it's a genuinely new category:\n"
         + "\n".join(uncategorized)
-    )
-
-
-def test_lazy_import_category_counts_match_expected():
-    counts, _ = _classify_all()
-    assert counts == EXPECTED_CATEGORY_COUNTS, (
-        "`# lazy:` category counts drifted from EXPECTED_CATEGORY_COUNTS — "
-        "a comment was added, removed, or reclassified. Update "
-        "EXPECTED_CATEGORY_COUNTS in this file to match, in the same diff, "
-        f"with a reason.\nactual={counts}\nexpected={EXPECTED_CATEGORY_COUNTS}"
     )

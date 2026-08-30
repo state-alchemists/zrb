@@ -6,7 +6,7 @@ import threading
 from urllib.parse import urljoin
 
 from zrb.config.config import CFG
-from zrb.llm.agent.run.runtime_state import get_current_ui
+from zrb.llm.agent_state import get_current_ui
 from zrb.llm.config.config import llm_config
 from zrb.llm.config.limiter import llm_limiter
 from zrb.llm.prompt.prompt import get_prompt

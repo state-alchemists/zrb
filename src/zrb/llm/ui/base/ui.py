@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, Any, TextIO, cast
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.context.shared_context import SharedContext
-from zrb.llm.agent.run.runtime_state import get_current_ui
+from zrb.llm.agent_state import get_current_ui
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.hook.manager import hook_manager

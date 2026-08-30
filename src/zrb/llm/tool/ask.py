@@ -20,7 +20,7 @@ from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, cast
 
 from zrb.config.config import CFG
-from zrb.llm.agent.run.runtime_state import get_current_ui
+from zrb.llm.agent_state import get_current_ui
 from zrb.llm.hook.manager import hook_manager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.tool.wrapper import tool_safe_async
