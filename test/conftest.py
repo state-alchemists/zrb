@@ -121,3 +121,23 @@ def _disable_real_filesystem_hooks():
         hook_manager.search_dirs = []  # discover nothing from the filesystem
         hook_manager.reload()  # reset registrations + reload from [] → no fs hooks
         yield
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _warm_pydantic_ai_toolsets_import():
+    """Force a real ``pydantic_ai.toolsets`` import once per worker process,
+    before any test's ``patch.dict("sys.modules", {"pydantic_ai":
+    MagicMock(...)})`` (agent-hook tests in ``test/llm/hook/`` and
+    ``test/llm/agent/test_hook_agent.py``) can shadow the top-level package.
+
+    Once ``sys.modules["pydantic_ai.toolsets"]`` is cached for real, `from
+    pydantic_ai.toolsets import X` resolves straight from that cache — Python
+    only needs the (mocked) parent package when the submodule isn't already
+    cached. Without this, whichever test happens to run first in a fresh
+    process fails with "No module named 'pydantic_ai.toolsets'; 'pydantic_ai'
+    is not a package", since the agent-hook code path under test lazily
+    imports it for the first time while the mock is active. Order-dependent:
+    serial runs masked it because some earlier test always imported it for
+    real first; pytest-xdist's per-worker processes made it visible.
+    """
+    import pydantic_ai.toolsets  # noqa: F401
