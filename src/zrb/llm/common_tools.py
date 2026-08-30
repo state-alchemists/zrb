@@ -281,8 +281,14 @@ def _register_tool_factories(host: CommonToolHost) -> None:
             if CFG.LLM_JOURNAL_ENABLED
             else []
         ),
-        lambda ctx: tag(create_list_zrb_task_tool(), Capability.READ),
-        lambda ctx: tag(create_run_zrb_task_tool(), Capability.EXECUTE),
+        lambda ctx: Tool(
+            tag(create_list_zrb_task_tool(), Capability.READ),
+            defer_loading=True,
+        ),
+        lambda ctx: Tool(
+            tag(create_run_zrb_task_tool(), Capability.EXECUTE),
+            defer_loading=True,
+        ),
         lambda ctx: tag(create_activate_skill_tool(), Capability.META),
         # SearchSkill is the on-demand window onto the part of the skill
         # catalogue the prompt truncates, so it ships alongside the activator.

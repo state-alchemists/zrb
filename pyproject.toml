@@ -199,6 +199,10 @@ pyright = "1.1.411"
 pytest = ">=9.0.3"
 pytest-cov = "^6.1.0"
 pytest-asyncio = "^1.3.0"
+# The suite is wait-bound (real subprocess timeouts/kills), not CPU-bound —
+# ~33% average CPU utilization on a full run. Parallel workers overlap those
+# real-time waits instead of serializing them.
+pytest-xdist = "^3.6.1"
 tomlkit = "^0.13.3"
 radon = "^6.0.1"
 pdoc = ">=15"
