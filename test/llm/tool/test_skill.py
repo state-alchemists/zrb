@@ -126,16 +126,17 @@ class TestActivateSkillSchema:
         assert schema["additionalProperties"] is False
 
     def test_description_states_what_skill_should_contain(self):
-        """The schema carries no per-field description, so the tool description
-        is the only place that can say what `skill` should contain."""
+        """`skill`'s own schema description states what it should contain —
+        bound per-parameter via `Annotated`/`Field` so it reaches the model
+        even where a provider surfaces per-field descriptions but truncates
+        or de-emphasizes the top-level tool description."""
         from pydantic_ai import Tool
 
         from zrb.llm.tool.skill import create_activate_skill_tool
 
-        description = Tool(create_activate_skill_tool()).description or ""
+        schema = Tool(create_activate_skill_tool()).function_schema.json_schema
 
-        assert "skill:" in description
-        assert "core-coding" in description
+        assert "core-coding" in schema["properties"]["skill"]["description"]
 
     def test_description_does_not_point_at_a_prompt_section(self):
         """Prompt sections toggle independently (``LLM_INCLUDE_SECTIONS``), so a

@@ -16,6 +16,9 @@ import asyncio
 import atexit
 import os
 from dataclasses import dataclass, field
+from typing import Annotated
+
+from pydantic import Field
 
 from zrb.config.config import CFG
 from zrb.llm.permission import Capability, tag
@@ -341,9 +344,26 @@ def get_shell_background_registry() -> _ShellBackgroundRegistry:
 
 def create_monitor_process_tool():
     async def monitor_process(
-        handle: str,
-        kill: bool = False,
-        wait: float = 0,
+        handle: Annotated[
+            str,
+            Field(
+                description="The handle returned when the process was started with background=True."
+            ),
+        ],
+        kill: Annotated[
+            bool,
+            Field(description="True terminates the process instead of checking on it."),
+        ] = False,
+        wait: Annotated[
+            float,
+            Field(
+                description=(
+                    "Seconds to block for the process to exit before returning "
+                    "(capped by LLM_BACKGROUND_WAIT_MAX); 0 (default) returns "
+                    "immediately with the current status."
+                )
+            ),
+        ] = 0,
     ) -> str:
         """Check or kill a process started with `background=True`.
 

@@ -1,6 +1,8 @@
 import glob
 import os
-from typing import Any
+from typing import Annotated, Any
+
+from pydantic import Field
 
 from zrb.config.config import CFG
 from zrb.util.file import is_path_excluded, walk_files
@@ -42,9 +44,21 @@ def _truncate_file_list(
 
 
 def list_files(
-    path: str = ".",
-    exclude_patterns: list[str] | None = None,
-    include_hidden: bool = False,
+    path: Annotated[
+        str, Field(description="Directory to list, recursively up to 3 levels deep.")
+    ] = ".",
+    exclude_patterns: Annotated[
+        list[str] | None,
+        Field(
+            description=(
+                "Glob patterns to exclude. Defaults to a standard set "
+                "(.git, node_modules, __pycache__, etc.); pass [] to include all."
+            )
+        ),
+    ] = None,
+    include_hidden: Annotated[
+        bool, Field(description="False (default) hides dotfiles; True surfaces them.")
+    ] = False,
 ) -> dict[str, Any]:
     """
     Recursively lists files up to 3 levels deep. Auto-excludes .git, node_modules,
@@ -86,10 +100,20 @@ def list_files(
 
 
 def glob_files(
-    pattern: str,
-    path: str = ".",
-    exclude_patterns: list[str] | None = None,
-    include_hidden: bool = False,
+    pattern: Annotated[str, Field(description="Glob pattern to match, e.g. **/*.py.")],
+    path: Annotated[str, Field(description="Directory to search under.")] = ".",
+    exclude_patterns: Annotated[
+        list[str] | None,
+        Field(
+            description=(
+                "Glob patterns to exclude. Defaults to a standard set "
+                "(.git, node_modules, __pycache__, etc.); pass [] to include all."
+            )
+        ),
+    ] = None,
+    include_hidden: Annotated[
+        bool, Field(description="False (default) skips dotfiles; True matches them.")
+    ] = False,
 ) -> dict[str, Any]:
     """
     Finds files matching glob patterns (e.g. **/*.py). Auto-excludes .git, node_modules,

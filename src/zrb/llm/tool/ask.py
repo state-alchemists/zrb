@@ -17,7 +17,9 @@ semantics.
 from __future__ import annotations
 
 from contextvars import ContextVar
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Annotated, Any, cast
+
+from pydantic import Field
 
 from zrb.config.config import CFG
 from zrb.llm.agent.run.runtime_state import get_current_ui
@@ -44,15 +46,23 @@ def set_interactive_mode(value: bool) -> None:
 
 
 @tool_safe_async
-async def ask_user_question(questions: list[dict[str, Any]]) -> str:
+async def ask_user_question(
+    questions: Annotated[
+        list[dict[str, Any]],
+        Field(
+            description=(
+                "One or more questions to ask. Each entry must have: "
+                "`question` (str) the question text; `options` (list[dict]) "
+                "each with `label` (str) and optional `description` (str); "
+                "`multi_select` (bool, optional, default False) True to allow "
+                "multiple selections; `header` (str, optional) short label "
+                "(≤12 chars) shown as a chip."
+            )
+        ),
+    ],
+) -> str:
     """
     Ask the user one or more structured multiple-choice questions and return the answers.
-
-    Each entry in `questions` must have:
-      - `question` (str): the question text.
-      - `options` (list[dict]): each with `label` (str) and optional `description` (str).
-      - `multi_select` (bool, optional): True to allow multiple selections. Default False.
-      - `header` (str, optional): short label (≤12 chars) shown as a chip.
 
     The user may also type free-form text instead of selecting a labeled option;
     that text is returned verbatim.

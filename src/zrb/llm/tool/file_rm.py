@@ -1,8 +1,23 @@
 import os
 import shutil
+from typing import Annotated
+
+from pydantic import Field
 
 
-def remove_file(path: str, recursive: bool = False) -> str:
+def remove_file(
+    path: Annotated[str, Field(description="Absolute or relative path to remove.")],
+    recursive: Annotated[
+        bool,
+        Field(
+            description=(
+                "False (default) only removes a file or empty directory; True "
+                "also removes a non-empty directory's contents — irreversible "
+                "either way."
+            )
+        ),
+    ] = False,
+) -> str:
     """
     Removes a file or directory. Irreversible — there is no trash; the bytes are gone.
 

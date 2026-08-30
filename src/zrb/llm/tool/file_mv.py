@@ -1,8 +1,22 @@
 import os
 import shutil
+from typing import Annotated
+
+from pydantic import Field
 
 
-def move_file(src: str, dst: str) -> str:
+def move_file(
+    src: Annotated[str, Field(description="Path of the file or directory to move.")],
+    dst: Annotated[
+        str,
+        Field(
+            description=(
+                "Destination path. Missing parent directories are created; an "
+                "existing destination is overwritten."
+            )
+        ),
+    ],
+) -> str:
     """
     Moves or renames a file or directory. Creates missing parent directories at the destination.
 

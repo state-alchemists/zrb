@@ -31,7 +31,9 @@ from __future__ import annotations
 import asyncio
 import contextvars
 import inspect
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated
+
+from pydantic import Field
 
 from zrb.config.config import CFG
 from zrb.llm.agent.run.runtime_state import get_current_ui
@@ -234,11 +236,51 @@ def create_background_delegate_tool(
         sub_agent_manager = default_sub_agent_manager
 
     async def delegate_to_agent_background(
-        agent_name: str,
-        deliverable: str,
-        task: str,
-        non_goals: list[str],
-        additional_context: str = "",
+        agent_name: Annotated[
+            str,
+            Field(
+                description=(
+                    "Name of the sub-agent to delegate to (see AVAILABLE AGENTS "
+                    "in this tool's description)."
+                )
+            ),
+        ],
+        deliverable: Annotated[
+            str,
+            Field(
+                description=(
+                    "Concrete artifact that must exist on return — name the "
+                    "file, function, or decision."
+                )
+            ),
+        ],
+        task: Annotated[
+            str,
+            Field(
+                description=(
+                    "How to produce the deliverable — reference exact files, "
+                    "line numbers, or commands when known."
+                )
+            ),
+        ],
+        non_goals: Annotated[
+            list[str],
+            Field(
+                description=(
+                    "Things the sub-agent must NOT do (scope clamp). Pass [] "
+                    "only when certain there is no scope-expansion risk."
+                )
+            ),
+        ],
+        additional_context: Annotated[
+            str,
+            Field(
+                description=(
+                    "Extra background the sub-agent needs that doesn't belong "
+                    "in deliverable/task/non_goals."
+                )
+            ),
+        ] = "",
     ) -> str:
         """Start a subagent in the BACKGROUND and return a handle immediately.
 
@@ -248,10 +290,6 @@ def create_background_delegate_tool(
         setting. If one of its tool calls needs approval, the request interrupts
         and prompts the user through the same UI (queued behind any current
         prompt), just like a synchronous delegate.
-
-        REQUIRED ARGS mirror DelegateToAgent: agent_name, deliverable, task,
-        non_goals (list; [] only when no scope-expansion risk). additional_context
-        is optional.
         """
         # Resolve the name before detaching. run_agent_task would also catch an
         # unknown agent, but only inside the background coroutine — the model
@@ -318,17 +356,38 @@ def create_background_delegate_tool(
 
 def create_get_delegation_result_tool():
     async def get_delegation_result(
-        handle: str,
-        wait: float = 0,
-        kill: bool = False,
+        handle: Annotated[
+            str,
+            Field(
+                description=(
+                    "The handle returned by DelegateToAgentBackground for the "
+                    "background run to check."
+                )
+            ),
+        ],
+        wait: Annotated[
+            float,
+            Field(
+                description=(
+                    "Block up to this many seconds (capped by "
+                    "LLM_BACKGROUND_WAIT_MAX), returning the instant the agent "
+                    "finishes; on timeout, returns a 'still running' status "
+                    "instead. 0 (default) returns immediately."
+                )
+            ),
+        ] = 0,
+        kill: Annotated[
+            bool,
+            Field(
+                description=(
+                    "True cancels the background agent instead of collecting "
+                    "its result."
+                )
+            ),
+        ] = False,
     ) -> str:
         """Return the result of a background delegation, or a 'still running'
         status. Once a completed result is collected, the handle is consumed.
-
-        Pass `wait=N` to block up to N seconds (capped by LLM_BACKGROUND_WAIT_MAX),
-        returning the instant the agent finishes; on timeout it returns the
-        'still running' status so you can call again with another `wait`, or stop
-        the work with `kill=True`.
         """
         if kill:
             return await _registry.cancel(handle)

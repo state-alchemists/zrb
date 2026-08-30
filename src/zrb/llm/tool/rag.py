@@ -5,12 +5,14 @@ import json
 import os
 from collections.abc import Callable
 from textwrap import dedent
-from typing import Any
+from typing import Annotated, Any
 
 import ulid
+from pydantic import Field
 
 from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
+from zrb.llm.tool_call.untrusted_data import UNTRUSTED_DATA_NOTE
 from zrb.util.cli.style import stylize_error, stylize_muted
 from zrb.util.file import read_file
 
@@ -59,10 +61,43 @@ def create_rag_from_directory(  # noqa: C901 -- registration/factory fn; mccabe 
     readers = file_reader if file_reader is not None else []
 
     async def retrieve(
-        query: str,
-        api_key: str = "",
-        base_url: str = "",
-        embedding_model: str = "",
+        query: Annotated[
+            str,
+            Field(
+                description=(
+                    "Natural-language query; returns the top semantic matches "
+                    "from the indexed corpus."
+                )
+            ),
+        ],
+        api_key: Annotated[
+            str,
+            Field(
+                description=(
+                    "Embedding-provider API key for this call. Falls back to "
+                    "this tool's configured key, then CFG.RAG_EMBEDDING_API_KEY."
+                )
+            ),
+        ] = "",
+        base_url: Annotated[
+            str,
+            Field(
+                description=(
+                    "Embedding-provider base URL (e.g. for Ollama/vLLM). Falls "
+                    "back to this tool's configured URL, then "
+                    "CFG.RAG_EMBEDDING_BASE_URL."
+                )
+            ),
+        ] = "",
+        embedding_model: Annotated[
+            str,
+            Field(
+                description=(
+                    "Embedding model name. Falls back to this tool's "
+                    "configured model, then CFG.RAG_EMBEDDING_MODEL."
+                )
+            ),
+        ] = "",
     ) -> dict[str, Any]:
         try:
             # lazy: heavy third-party
@@ -309,7 +344,7 @@ def _query_collection(
             query_embeddings=query_vector,
             n_results=max_result_count_val,
         )
-        return dict(results)
+        return {**dict(results), "content_is": UNTRUSTED_DATA_NOTE}
     except Exception as e:
         return {
             "error": f"Failed to search documents: {e}. [SYSTEM SUGGESTION]: Ask the user to delete the ChromaDB directory ('{vector_db_path}') to reset the collection. This will force re-indexing of all documents on the next query."

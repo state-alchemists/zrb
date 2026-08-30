@@ -1,4 +1,7 @@
 import shlex
+from typing import Annotated
+
+from pydantic import Field
 
 from zrb.config.config import CFG
 from zrb.llm.tool.shell import run_shell_command
@@ -6,7 +9,17 @@ from zrb.runner.cli import cli
 
 
 def create_list_zrb_task_tool():  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)
-    def list_zrb_tasks_impl(group_name: str = "") -> str:
+    def list_zrb_tasks_impl(
+        group_name: Annotated[
+            str,
+            Field(
+                description=(
+                    "Space-separated group path to list, e.g. 'foo bar'; omit "
+                    "to list the root group's tasks and subgroups."
+                )
+            ),
+        ] = "",
+    ) -> str:
         target_group = cli
         if group_name:
             parts = group_name.split()
@@ -39,13 +52,29 @@ def create_list_zrb_task_tool():  # noqa: C901 -- registration/factory fn; mccab
 
 def create_run_zrb_task_tool():
     async def run_zrb_task(
-        task_name: str,
+        task_name: Annotated[
+            str,
+            Field(description="Space-separated task path to run, e.g. 'foo bar-task'."),
+        ],
         # Mutable default is intentional: pydantic-ai converts it to
         # default_factory internally, so each LLM call gets a fresh dict.
         # Using `= {}` instead of `dict[str, str] | None` keeps the JSON
         # schema compact (no anyOf + null bloat in the LLM tool description).
-        args: dict[str, str] = {},  # noqa: B006
-        timeout: int = 30,
+        args: Annotated[
+            dict[str, str],
+            Field(
+                description=(
+                    "Task arguments as {flag_name: value}; each becomes "
+                    "`--flag_name value` on the command line."
+                )
+            ),
+        ] = {},  # noqa: B006
+        timeout: Annotated[
+            int,
+            Field(
+                description="Seconds to wait for the task to finish before timing out."
+            ),
+        ] = 30,
     ) -> str:
         """Run an automation task by name with optional --key value args."""
         # Construct command, quoting every part so values containing spaces

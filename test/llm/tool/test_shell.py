@@ -333,19 +333,36 @@ def test_timeout_docstring_states_seconds_not_milliseconds():
     120000), so a bare `timeout: int = 120` invites millisecond values. One
     benchmarked model passed 15000 meaning 15s, got 15000 seconds, and its
     otherwise-perfect run was recorded as a timeout.
-    """
-    doc = run_shell_command.__doc__ or ""
 
-    assert "SECONDS" in doc
-    assert "not milliseconds" in doc
+    Checked against the `timeout` parameter's own schema description (not the
+    tool-level docstring) — that is the text pydantic-ai actually surfaces
+    next to the field the model is filling in; see ADR-0055's amendment on
+    per-parameter schema binding.
+    """
+    from pydantic_ai import Tool
+
+    desc = Tool(run_shell_command).function_schema.json_schema["properties"]["timeout"][
+        "description"
+    ]
+
+    assert "SECONDS" in desc
+    assert "not milliseconds" in desc
 
 
 def test_timeout_docstring_points_long_running_work_at_background():
-    """A large timeout is the wrong tool for a server; background=True is."""
-    doc = run_shell_command.__doc__ or ""
+    """A large timeout is the wrong tool for a server; background=True is.
 
-    assert "background=True" in doc
-    assert "server" in doc
+    Checked against the `background` parameter's own schema description; see
+    the note on `test_timeout_docstring_states_seconds_not_milliseconds`.
+    """
+    from pydantic_ai import Tool
+
+    desc = Tool(run_shell_command).function_schema.json_schema["properties"][
+        "background"
+    ]["description"]
+
+    assert "long-running" in desc
+    assert "server" in desc
 
 
 def test_docstring_points_unbounded_output_at_a_summarizing_form():

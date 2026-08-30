@@ -35,6 +35,33 @@ def test_create_delegate_tool_docstring(mock_sub_agent_manager):
     assert "A test agent" in tool.__doc__
 
 
+def _missing_param_descriptions(fn) -> list[str]:
+    from pydantic_ai import Tool
+
+    schema = Tool(fn).function_schema.json_schema
+    return [
+        param
+        for param, spec in schema.get("properties", {}).items()
+        if not spec.get("description")
+    ]
+
+
+def test_delegate_to_agent_params_carry_descriptions(mock_sub_agent_manager):
+    """Not registered via common_tools.py (main-agent-only, added directly by
+    LLMChatTask), so `test_every_registered_tool_parameter_carries_a_description`
+    in test/llm/test_common_tools.py never sees this one — pinned here instead."""
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+    missing = _missing_param_descriptions(tool)
+    assert not missing, f"DelegateToAgent params with no description: {missing}"
+
+
+def test_search_agent_params_carry_descriptions(mock_sub_agent_manager):
+    """Same rationale as test_delegate_to_agent_params_carry_descriptions."""
+    tool = create_search_agent_tool(mock_sub_agent_manager)
+    missing = _missing_param_descriptions(tool)
+    assert not missing, f"SearchAgent params with no description: {missing}"
+
+
 def _many_agents(count: int) -> list[SubAgentDefinition]:
     return [
         SubAgentDefinition(

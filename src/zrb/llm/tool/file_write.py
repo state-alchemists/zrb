@@ -1,4 +1,7 @@
 import os
+from typing import Annotated
+
+from pydantic import Field
 
 from zrb.config.config import CFG
 from zrb.llm.tool.file_observation import (
@@ -10,7 +13,23 @@ from zrb.llm.tool.file_observation import (
 from zrb.llm.tool.post_write_check import format_post_write_diagnostics
 
 
-async def write_file(path: str, content: str, mode: str = "w") -> str:
+async def write_file(
+    path: Annotated[
+        str,
+        Field(description="File to write, creating it and any missing parent dirs."),
+    ],
+    content: Annotated[str, Field(description="Full text to write, UTF-8.")],
+    mode: Annotated[
+        str,
+        Field(
+            description=(
+                '"w" (default) overwrites the whole file — refused against an '
+                "existing file this session hasn't Read/Written/Edited yet. "
+                '"a" appends, for writing large content in chunks.'
+            )
+        ),
+    ] = "w",
+) -> str:
     """
     Writes or appends to a file, creating it and any missing parent directories.
 

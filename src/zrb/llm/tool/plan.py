@@ -18,7 +18,9 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
+
+from pydantic import Field
 
 from zrb.context.any_context import zrb_print
 from zrb.llm.agent.run.runtime_state import get_current_ui
@@ -309,14 +311,34 @@ def _broadcast_todo_progress(
 
 
 async def write_todos(
-    todos: list[dict[str, Any]],
-    session: str = "",
-    replace: bool = True,
+    todos: Annotated[
+        list[dict[str, Any]],
+        Field(
+            description=(
+                'Each item: {content (str), status ("pending"|"in_progress"|'
+                '"completed"|"cancelled", default "pending"), id (auto-assigned '
+                "if omitted)}."
+            )
+        ),
+    ],
+    session: Annotated[
+        str,
+        Field(
+            description="Session to write todos for; defaults to the current tool session."
+        ),
+    ] = "",
+    replace: Annotated[
+        bool,
+        Field(
+            description=(
+                "True (default) overwrites the whole list; False merges with "
+                "the existing list."
+            )
+        ),
+    ] = True,
 ) -> str:
     """
-    Creates or replaces the session todo list. Each item: {content (str), status
-    ("pending"|"in_progress"|"completed"|"cancelled", default "pending"), id (auto-assigned
-    if omitted)}. replace=True (default) overwrites all; replace=False merges.
+    Creates or replaces the session todo list.
     To advance status, call again with the full list (replace=True).
 
     Mark an item `completed` only once its work is done *and* verified — the
@@ -397,7 +419,14 @@ def _validate_todo_keys(todos: list[dict[str, Any]]) -> str | None:
     return None
 
 
-async def get_todos(session: str = "") -> str:
+async def get_todos(
+    session: Annotated[
+        str,
+        Field(
+            description="Session to read todos for; defaults to the current tool session."
+        ),
+    ] = "",
+) -> str:
     """
     Returns the current todo list and progress summary.
     """
