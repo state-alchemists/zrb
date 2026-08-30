@@ -8,7 +8,8 @@ from fastmcp.client.transports import StdioTransport
 from pydantic_ai.mcp import MCPToolset
 
 from zrb.config.config import CFG
-from zrb.llm.tool.mcp import cap_mcp_result, load_mcp_config
+from zrb.llm.tool.mcp import cap_mcp_result, frame_mcp_result, load_mcp_config
+from zrb.llm.tool_call.untrusted_data import UNTRUSTED_DATA_NOTE
 
 
 def test_cap_mcp_result_truncates_long_string():
@@ -44,6 +45,35 @@ def test_cap_mcp_result_passes_binary_through_intact():
     image = BinaryContent(data=b"\x89PNG" * 100_000, media_type="image/png")
     with patch.dict(os.environ, {f"{CFG.ENV_PREFIX}_LLM_MAX_OUTPUT_CHARS": "500"}):
         assert cap_mcp_result(image) is image
+
+
+def test_frame_mcp_result_notes_a_string_result():
+    out = frame_mcp_result("some server output")
+    assert out == f"some server output\n\n[{UNTRUSTED_DATA_NOTE}]"
+
+
+def test_frame_mcp_result_adds_content_is_to_a_dict():
+    out = frame_mcp_result({"data": [1, 2, 3]})
+    assert out == {"data": [1, 2, 3], "content_is": UNTRUSTED_DATA_NOTE}
+
+
+def test_frame_mcp_result_does_not_override_an_existing_content_is():
+    out = frame_mcp_result({"content_is": "already labeled"})
+    assert out == {"content_is": "already labeled"}
+
+
+def test_frame_mcp_result_frames_each_string_item_in_a_list():
+    out = frame_mcp_result(["a", "b"])
+    assert out == [f"a\n\n[{UNTRUSTED_DATA_NOTE}]", f"b\n\n[{UNTRUSTED_DATA_NOTE}]"]
+
+
+def test_frame_mcp_result_passes_binary_through_untouched():
+    """Same rationale as test_cap_mcp_result_passes_binary_through_intact —
+    stringifying rich content would destroy it, not just re-frame it."""
+    from pydantic_ai.messages import BinaryContent
+
+    image = BinaryContent(data=b"\x89PNG" * 100_000, media_type="image/png")
+    assert frame_mcp_result(image) is image
 
 
 def test_cap_mcp_result_caps_text_items_but_keeps_binary_in_list():

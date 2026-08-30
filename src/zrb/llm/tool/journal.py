@@ -3,19 +3,31 @@ import os
 import re
 import shutil
 import subprocess
-from typing import Any
+from typing import Annotated, Any
+
+from pydantic import Field
 
 from zrb.config.config import CFG
 from zrb.util.truncate import truncate_text
 
 
-def search_journal(query: str, case_sensitive: bool = False) -> dict[str, Any]:
+def search_journal(
+    query: Annotated[str, Field(description="Regex pattern to search for.")],
+    case_sensitive: Annotated[
+        bool, Field(description="False (default): case-insensitive search.")
+    ] = False,
+) -> dict[str, Any]:
     """
     Searches for a regex pattern across all journal files in the configured journal directory.
 
-    Returns matching lines with file names and line numbers.
-    `case_sensitive=False` (default): case-insensitive search.
-    A zero-hit search suggests nearby note titles under `did_you_mean`.
+    Returns matching lines with file names and line numbers. A zero-hit search
+    suggests nearby note titles under `did_you_mean`.
+
+    Call this before WriteJournalNote or DeleteJournalNote whenever you are
+    not certain a slug is free, or that it names the note you intend to touch.
+    Wait for this result before issuing that write or delete — don't batch
+    the two calls, since the write/delete it should inform depends on what
+    this search finds.
     """
     journal_dir = CFG.LLM_JOURNAL_DIR
     if not journal_dir:

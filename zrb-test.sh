@@ -33,6 +33,7 @@ if [ "$#" -eq 0 ]; then
 fi
 
 pytest \
+    -n auto \
     --ignore-glob="**/template/**" \
     --ignore-glob="**/fastapp_template/**" \
     --ignore="playground" \

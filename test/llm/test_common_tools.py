@@ -74,6 +74,18 @@ def test_journal_tools_unregistered_when_journal_disabled(monkeypatch):
     assert {"Read", "Write", "Grep"} <= names
 
 
+def test_journal_tools_are_deferred_for_the_main_agent(monkeypatch):
+    """Rarely touched per turn, so their schemas stay hidden until
+    `search_tools` — the hook path un-defers its own copy separately
+    (`agent/hook_agent.py::_undeferred`)."""
+    monkeypatch.setenv("ZRB_LLM_JOURNAL_ENABLED", "true")
+    host = RecordingHost()
+    apply_common_tools(host)
+    by_name = {tool_name(t): t for t in host.resolved_tools()}
+    for name in JOURNAL_TOOLS | {"DeleteJournalNote"}:
+        assert by_name[name].defer_loading is True
+
+
 def test_shell_safety_policy_ships_with_the_shell_tools(monkeypatch):
     """The git approval rule left the prompt, so its enforcement must travel here.
 
@@ -124,3 +136,42 @@ def test_every_registered_tool_carries_a_known_capability(monkeypatch):
         if tool_capability(t) is Capability.UNKNOWN
     }
     assert not untagged, f"Tools registered without a capability tag: {untagged}"
+
+
+def test_every_registered_tool_parameter_carries_a_description(monkeypatch):
+    """A tool's docstring only reaches the model per-argument via
+    `Annotated[..., Field(description=...)]` on the parameter itself —
+    pydantic-ai only binds docstring prose to a parameter's schema when it can
+    parse a strict `Args:`-style block, so free-form prose (this codebase's
+    norm) silently produces an empty per-parameter description. ADR-0055
+    records this as the mechanism behind a model reusing an existing journal
+    slug with nothing in the schema it was filling in warning that reuse
+    overwrites. This turns a missing description into a review-time failure
+    instead of a silent gap.
+
+    Scoped to zrb's own tools (`zrb.llm.tool.*`) — third-party MCP toolsets and
+    the LSP-server tools (`zrb.llm.lsp.tools`) aren't ours to annotate.
+    """
+    from pydantic_ai import Tool as PydanticTool
+
+    monkeypatch.setenv("ZRB_LLM_JOURNAL_ENABLED", "true")
+    host = RecordingHost()
+    apply_common_tools(host)
+
+    gaps: list[str] = []
+    for tool in host.resolved_tools():
+        fn = getattr(tool, "function", tool)
+        if not getattr(fn, "__module__", "").startswith("zrb.llm.tool."):
+            continue
+        schema = (
+            tool.function_schema.json_schema
+            if isinstance(tool, PydanticTool)
+            else PydanticTool(fn).function_schema.json_schema
+        )
+        name = tool_name(tool)
+        gaps.extend(
+            f"{name}.{param}"
+            for param, spec in schema.get("properties", {}).items()
+            if not spec.get("description")
+        )
+    assert not gaps, f"Tool parameters with no schema description: {gaps}"

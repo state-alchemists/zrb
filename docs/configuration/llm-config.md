@@ -379,6 +379,10 @@ task.prompt_manager.append_prompt(
 | `ZRB_LLM_JOURNAL_DIR` | Long-term notes directory | `~/.zrb/llm-notes/` |
 | `ZRB_LLM_JOURNAL_INDEX_FILE` | Main index file name | `index.md` |
 | `ZRB_LLM_JOURNAL_INDEX_MAX_CHARS` | Max characters of the index injected into context. Overflow is dropped from the **end** on a line boundary, so write the index most-durable-first. `0` suppresses the injection; a negative value injects it uncapped | `2500` |
+| `ZRB_LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION` | Max `hud_line` entries kept per root-index HUD section (User, Preferences, Active Constraints); oldest evicted first so a stale preference doesn't sit in the always-injected index forever. `<= 0` disables the cap | `20` |
+| `ZRB_LLM_JOURNAL_AUTO_SEARCH_ENABLED` | Run one `SearchJournal` against the opening message on a session's first turn, folding any hits into the injected `<journal-index>` block under a separate, unverified "Possibly Related" section. Costs one extra search subprocess, once per session | `on` |
+| `ZRB_LLM_JOURNAL_AUTO_SEARCH_MAX_HITS` | Max `SearchJournal` hits folded into the first-turn auto-search | `3` |
+| `ZRB_LLM_JOURNAL_GIT_ENABLED` | Git-back the journal directory: `git init` on first use, and commit after every `LogActivity`/`WriteJournalNote`/`DeleteJournalNote` call. Gives the journal unbounded, diffable history and makes a delete or bad overwrite recoverable by a human outside the tools (the in-file History block only keeps the last 3 revisions). Best-effort — a missing `git` binary or a failed commit never breaks journaling, it just forgoes the commit | `on` |
 | `ZRB_LLM_HISTORY_DIR` | Conversation history directory | `~/.zrb/llm-history/` |
 | `ZRB_LLM_HISTORY_BACKUP_RETAIN` | Number of timestamped history backups to keep per conversation (`-1` = keep all, `0` = disable) | `3` |
 | `ZRB_LLM_SUBAGENT_HISTORY_RETAIN` | Max persisted delegated sub-agent sessions kept on disk across all agent types (`-1` = keep every one); the oldest are pruned on each new delegation. Every delegation writes a transcript under `ZRB_LLM_HISTORY_DIR/subagent/<agent-type>/` | `50` |

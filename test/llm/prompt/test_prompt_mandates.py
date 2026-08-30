@@ -25,12 +25,11 @@ def test_workflow_carries_evidence_and_safety_guidance():
     assert "untrusted" in prompt
 
 
-def test_workflow_explains_parallel_calls_skill_activation_and_journal_follow_up():
+def test_workflow_explains_parallel_calls_and_skill_activation():
     prompt = get_prompt("workflow")
     assert "Batch independent tool calls" in prompt
     assert "ActivateSkill" in prompt
     assert "every matching one" in prompt
-    assert "complete final answer" in prompt
 
 
 def test_example_models_a_multi_methodology_task():

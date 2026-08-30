@@ -28,6 +28,7 @@ class ConfigLLMContent:
         self.DEFAULT_LLM_JOURNAL_INDEX_FILE: str = "index.md"
         self.DEFAULT_LLM_JOURNAL_INDEX_MAX_CHARS: str = "2500"
         self.DEFAULT_LLM_JOURNAL_AUTO_SEARCH_ENABLED: str = "on"
+        self.DEFAULT_LLM_JOURNAL_GIT_ENABLED: str = "on"
         self.DEFAULT_LLM_HISTORY_SUMMARIZATION_WINDOW: str = "100"
         self.DEFAULT_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD: str = ""
         self.DEFAULT_LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD: str = ""
@@ -133,6 +134,20 @@ class ConfigLLMContent:
         int,
         fallback=3,
         doc="Maximum SearchJournal hits folded into the first-turn auto-search.",
+    )
+
+    LLM_JOURNAL_GIT_ENABLED = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc=(
+            "Git-back the journal directory: `git init` it on first use, and "
+            "commit after every LogActivity/WriteJournalNote/DeleteJournalNote "
+            "call. Gives the journal unbounded, diffable history and makes a "
+            "delete or a bad overwrite recoverable by a human outside the "
+            "tools (the in-file History block only keeps the last 3 "
+            "revisions). Best-effort: a missing `git` binary or a failed "
+            "commit never breaks journaling, it just forgoes the commit."
+        ),
     )
 
     LLM_ENABLE_REWIND = EnvField(

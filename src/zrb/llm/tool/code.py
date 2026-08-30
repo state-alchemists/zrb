@@ -1,7 +1,9 @@
 import asyncio
 import json
 import os
-from typing import cast
+from typing import Annotated, cast
+
+from pydantic import Field
 
 from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
@@ -72,21 +74,40 @@ async def get_lsp_context(file_path: str, abs_dir: str) -> dict | None:
 
 
 async def analyze_code(
-    path: str,
-    query: str,
-    file_pattern: str = "",
-    exclude_patterns: list[str] | None = None,
-    use_lsp: bool = True,
+    path: Annotated[str, Field(description="Directory to analyze.")],
+    query: Annotated[
+        str,
+        Field(
+            description=(
+                'Specific question (e.g., "how is auth implemented?"), not a '
+                'vague one (e.g., "explain this code").'
+            )
+        ),
+    ],
+    file_pattern: Annotated[
+        str, Field(description="Limits scope, e.g. `*.py`. Empty analyzes everything.")
+    ] = "",
+    exclude_patterns: Annotated[
+        list[str] | None,
+        Field(
+            description=(
+                "Glob patterns to skip; defaults to `.git`, `node_modules`, "
+                "`__pycache__`, etc. when omitted."
+            )
+        ),
+    ] = None,
+    use_lsp: Annotated[
+        bool,
+        Field(
+            description=(
+                "True (default) uses LSP for more token-efficient semantic "
+                "pre-analysis on supported file types."
+            )
+        ),
+    ] = True,
 ) -> str:
     """
     Semantic analysis of a directory via LLM sub-agent. Slow and resource-intensive.
-
-    Auto-excludes `.git`, `node_modules`, `__pycache__`, etc. When use_lsp=True (default),
-    uses LSP for more token-efficient semantic pre-analysis on supported file types.
-
-    MANDATES:
-    - Use `file_pattern` to limit scope (e.g., `*.py`).
-    - Write specific queries (e.g., "how is auth implemented?") not vague ones (e.g., "explain this code").
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):

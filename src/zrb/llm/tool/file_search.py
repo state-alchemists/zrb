@@ -4,7 +4,9 @@ import re
 import shutil
 import subprocess
 import time
-from typing import Any
+from typing import Annotated, Any
+
+from pydantic import Field
 
 from zrb.config.config import CFG
 from zrb.llm.tool.file_list import DEFAULT_EXCLUDED_PATTERNS
@@ -18,26 +20,54 @@ MAX_MATCHES_PER_FILE = 100
 
 
 def search_files(
-    pattern: str,
-    path: str = ".",
-    file_pattern: str = "",
-    exclude_patterns: list[str] | None = None,
-    timeout: float = 30.0,
-    context_lines: int = 2,
-    files_only: bool = False,
-    case_sensitive: bool = True,
+    pattern: Annotated[
+        str,
+        Field(
+            description=(
+                r"A regular expression (e.g. `def \w+`), NOT a glob — to find "
+                "files by name, use Glob instead."
+            )
+        ),
+    ],
+    path: Annotated[str, Field(description="Directory to search under.")] = ".",
+    file_pattern: Annotated[
+        str,
+        Field(description="A glob restricting which files to search (e.g. `*.py`)."),
+    ] = "",
+    exclude_patterns: Annotated[
+        list[str] | None,
+        Field(
+            description=(
+                "Glob patterns to exclude. Defaults to a standard set "
+                "(.git, node_modules, __pycache__, etc.); pass [] to include all."
+            )
+        ),
+    ] = None,
+    timeout: Annotated[
+        float,
+        Field(
+            description="Seconds before the search gives up and returns partial results."
+        ),
+    ] = 30.0,
+    context_lines: Annotated[
+        int, Field(description="Surrounding lines shown per match.")
+    ] = 2,
+    files_only: Annotated[
+        bool,
+        Field(
+            description=(
+                'True returns {"files": [...], "summary": "..."} — much '
+                "smaller output than the full per-match results."
+            )
+        ),
+    ] = False,
+    case_sensitive: Annotated[
+        bool, Field(description="False makes the search case-insensitive.")
+    ] = True,
 ) -> dict[str, Any]:
     """
     Searches file *contents* for a regular expression. Results include line
-    numbers and context.
-
-    `pattern`: a regular expression (e.g. `def \\w+`), NOT a glob — to find
-        files by name, use Glob instead.
-    `file_pattern`: a glob restricting which files to search (e.g., `*.py`).
-    `context_lines` (default 2): surrounding lines shown per match.
-    `files_only=True`: returns `{"files": [...], "summary": "..."}` — much smaller output.
-    `case_sensitive=False`: case-insensitive search.
-    Lines are truncated at 1000 chars in output.
+    numbers and context. Lines are truncated at 1000 chars in output.
     """
     start_time = time.time()
     flags = 0 if case_sensitive else re.IGNORECASE

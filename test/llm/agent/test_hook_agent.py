@@ -203,6 +203,38 @@ async def test_resolved_agent_hook_tools_contain_tool_errors():
 
 
 @pytest.mark.asyncio
+async def test_resolved_agent_hook_tools_are_undeferred():
+    """A tool registered with `defer_loading=True` for the main agent's rare
+    use (the journal tools in `common_tools.py`) must reach the hook agent
+    with `defer_loading=False` — the hook names it explicitly, so deferring it
+    here would only force a wasted search-then-call round trip on every run."""
+    from pydantic_ai import Tool
+
+    from zrb.llm.agent.hook_agent import resolve_agent_hook_tools
+
+    def deferred_tool() -> str:
+        return "ok"
+
+    deferred_tool.__name__ = "DeferredTool"
+
+    with (
+        patch("zrb.llm.agent.hook_agent.ensure_common_tools"),
+        patch(
+            "zrb.llm.agent.subagent.manager.sub_agent_manager.get_tool_registry",
+            return_value={},
+        ),
+        patch(
+            "zrb.llm.agent.subagent.manager.sub_agent_manager.get_tool_factories",
+            return_value=[lambda ctx: [Tool(deferred_tool, defer_loading=True)]],
+        ),
+    ):
+        resolved = resolve_agent_hook_tools(["DeferredTool"])
+
+    assert len(resolved) == 1
+    assert resolved[0].defer_loading is False
+
+
+@pytest.mark.asyncio
 async def test_agent_hook_runs_when_named_tools_do_resolve():
     """The opposite of the skip case: a resolved tool list reaches the agent."""
     config = AgentHookConfig(

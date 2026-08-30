@@ -1,5 +1,8 @@
 import os
 import re
+from typing import Annotated
+
+from pydantic import Field
 
 from zrb.llm.tool.file_observation import path_write_lock, record_observed
 from zrb.llm.tool.post_write_check import format_post_write_diagnostics
@@ -8,10 +11,24 @@ _READ_LINE_NUMBER = re.compile(r"^ *\d+\t")
 
 
 async def replace_in_file(
-    path: str,
-    old_text: str,
-    new_text: str,
-    count: int = -1,
+    path: Annotated[str, Field(description="File to edit.")],
+    old_text: Annotated[
+        str,
+        Field(
+            description=(
+                "Exact text to replace, copied verbatim from Read (strip its "
+                "line-number prefix first). Falls back to whitespace-tolerant "
+                "fuzzy matching if the exact text isn't found."
+            )
+        ),
+    ],
+    new_text: Annotated[str, Field(description="Text to replace old_text with.")],
+    count: Annotated[
+        int,
+        Field(
+            description="-1 (default) replaces every occurrence; 1 replaces only the first."
+        ),
+    ] = -1,
 ) -> str:
     """
     Replaces text in a file. Always Read the file first to get exact text.

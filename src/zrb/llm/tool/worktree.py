@@ -2,6 +2,9 @@ import asyncio
 import os
 from contextvars import ContextVar
 from datetime import datetime
+from typing import Annotated
+
+from pydantic import Field
 
 from zrb.config.config import CFG
 from zrb.llm.sandbox import build_sandboxed_argv, get_effective_sandbox_policy
@@ -13,10 +16,22 @@ from zrb.llm.sandbox.os_sandbox import (
 active_worktree: ContextVar[str] = ContextVar("zrb_active_worktree", default="")
 
 
-async def enter_worktree(branch_name: str = "", cwd: str = "") -> str:
+async def enter_worktree(
+    branch_name: Annotated[
+        str,
+        Field(
+            description=(
+                "Branch to create; auto-generated (worktree-YYYYMMDD-HHMMSS) "
+                "when empty."
+            )
+        ),
+    ] = "",
+    cwd: Annotated[
+        str, Field(description="Repo root to operate in, if not the current directory.")
+    ] = "",
+) -> str:
     """
     Creates an isolated git worktree on a new branch and returns its path.
-    Use cwd to specify the repo root if not the current directory.
     """
 
     cwd = cwd or os.getcwd()
@@ -76,10 +91,25 @@ async def enter_worktree(branch_name: str = "", cwd: str = "") -> str:
     return _prepend_notes(notes, result)
 
 
-async def exit_worktree(worktree_path: str, keep_branch: bool = False) -> str:
+async def exit_worktree(
+    worktree_path: Annotated[
+        str,
+        Field(
+            description="Path of the worktree to remove, as returned by EnterWorktree."
+        ),
+    ],
+    keep_branch: Annotated[
+        bool,
+        Field(
+            description=(
+                "False (default) also runs `git branch -D` — the branch and all "
+                "its commits are gone, irreversibly. Pass True to keep the branch."
+            )
+        ),
+    ] = False,
+) -> str:
     """
-    Removes a worktree created with EnterWorktree. keep_branch=False (default) also
-    runs `git branch -D` — the branch and all its commits are gone, irreversibly.
+    Removes a worktree created with EnterWorktree.
 
     Confirm with the user before discarding a branch that holds commits, and pass
     keep_branch=True when unsure. Removing a worktree you created and left empty

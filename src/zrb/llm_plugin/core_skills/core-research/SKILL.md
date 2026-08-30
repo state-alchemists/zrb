@@ -1,6 +1,6 @@
 ---
 name: core-research
-description: "Activate when the turn requires investigation — answering a question, analyzing unfamiliar code, exploring a new domain, comparing options — whether that investigation is the deliverable or only the work needed to reach one. Provides the Scope → Discover → Synthesize → Plan workflow."
+description: "Activate when answering requires investigation you have not already done — reading unfamiliar code, exploring a new domain, comparing options, or checking a claim against current or local information — whether that investigation is the deliverable or only the work needed to reach one. Skip it for a question answerable directly from context already in this conversation or from general knowledge with no current/local dependency. Provides the Scope → Discover → Synthesize → Plan workflow."
 user-invocable: false
 ---
 # Skill: core-research
@@ -40,7 +40,7 @@ Follow **Scope → Discover → Synthesize → Plan** for every research task.
 ## Safety Rules
 
 - **No premature modification**: During Scope and Discovery phases, do not modify any files. Investigation comes before action.
-- **Approval gate**: When running interactively, obtain explicit user approval of plans before implementing — this overrides the Working Loop's Frame step, which would otherwise work autonomously on directives. When running non-interactively (no user to approve), do not block on approval: present the plan inline and then proceed.
+- **Approval gate**: When running interactively, obtain explicit user approval of plans before implementing. When running non-interactively (no user to approve), do not block on approval: present the plan inline and then proceed.
 
 ## Output Standards
 

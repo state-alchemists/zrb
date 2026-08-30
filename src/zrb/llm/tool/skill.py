@@ -1,4 +1,7 @@
 from pathlib import Path
+from typing import Annotated
+
+from pydantic import Field
 
 from zrb.config.config import CFG
 from zrb.llm.skill.manager import SkillManager
@@ -15,7 +18,18 @@ def create_activate_skill_tool(skill_manager: SkillManager | None = None):
     if skill_manager is None:
         skill_manager = default_skill_manager
 
-    async def activate_skill_impl(skill: str) -> str:
+    async def activate_skill_impl(
+        skill: Annotated[
+            str,
+            Field(
+                description=(
+                    "An exact skill name, e.g. 'core-coding'. A name that does "
+                    "not resolve comes back with the valid ones listed — do "
+                    "not guess twice."
+                )
+            ),
+        ],
+    ) -> str:
         found = skill_manager.get_skill(skill)
 
         if not found:
@@ -62,9 +76,7 @@ def create_activate_skill_tool(skill_manager: SkillManager | None = None):
         "Activates specialized expertise from a skill.\n\n"
         "Returns the skill's full content, its directory path, and a listing of any\n"
         "companion files (scripts, docs, data). Use Read/Glob on the directory to\n"
-        "access companion files referenced in the skill content.\n\n"
-        "skill: an exact skill name, e.g. 'core-coding'. A name that does not\n"
-        "resolve comes back with the valid ones listed — do not guess twice."
+        "access companion files referenced in the skill content."
     )
     return activate_skill_impl
 
@@ -73,7 +85,19 @@ def create_search_skill_tool(skill_manager: SkillManager | None = None):
     if skill_manager is None:
         skill_manager = default_skill_manager
 
-    async def search_skill(query: str = "") -> str:
+    async def search_skill(
+        query: Annotated[
+            str,
+            Field(
+                description=(
+                    "Words to match against skill names and descriptions "
+                    "(case-insensitive). Leave empty to list activatable "
+                    "skills unfiltered; the listing caps at 30 matches — "
+                    "narrow the query for the rest."
+                )
+            ),
+        ] = "",
+    ) -> str:
         skills = [s for s in skill_manager.get_skills() if s.model_invocable]
         needle = query.strip().lower()
         if needle:
@@ -99,10 +123,7 @@ def create_search_skill_tool(skill_manager: SkillManager | None = None):
     search_skill.__doc__ = (
         "Searches the skill catalogue by name or description.\n\n"
         "Use it when the prompt's skill list is truncated, or a skill you need "
-        "is not listed.\n\n"
-        "query: words to match against skill names and descriptions "
-        "(case-insensitive). Leave empty to list activatable skills unfiltered; "
-        "the listing caps at 30 matches — narrow the query for the rest."
+        "is not listed."
     )
     return search_skill
 

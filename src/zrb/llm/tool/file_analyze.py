@@ -1,11 +1,19 @@
 import os
+from typing import Annotated
+
+from pydantic import Field
 
 from zrb.config.config import CFG
 from zrb.llm.tool.file_read import read_file
 from zrb.llm.tool.file_search import search_files
 
 
-async def analyze_file(path: str, query: str) -> str:
+async def analyze_file(
+    path: Annotated[str, Field(description="File to analyze.")],
+    query: Annotated[
+        str, Field(description="What to find or answer about the file's content.")
+    ],
+) -> str:
     """
     Deep semantic analysis of a file via LLM sub-agent. Slow and resource-intensive.
     """

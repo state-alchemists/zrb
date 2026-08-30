@@ -6,7 +6,9 @@ import os
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
+
+from pydantic import Field
 
 from zrb.config.config import CFG
 from zrb.llm.agent.activity import HasActivityTracking, agent_activity_registry
@@ -670,17 +672,66 @@ def create_delegate_to_agent_tool(
     agent_doc_section = agent_roster_doc(sub_agent_manager)
 
     async def delegate_to_agent(
-        agent_name: str = "",
-        deliverable: str = "",
-        task: str = "",
+        agent_name: Annotated[
+            str,
+            Field(
+                description=(
+                    "Name of the sub-agent to delegate to (see AVAILABLE AGENTS "
+                    "in this tool's description)."
+                )
+            ),
+        ] = "",
+        deliverable: Annotated[
+            str,
+            Field(
+                description=(
+                    "Concrete artifact that must exist on return — name the "
+                    "file, function, or decision."
+                )
+            ),
+        ] = "",
+        task: Annotated[
+            str,
+            Field(
+                description=(
+                    "How to produce the deliverable — reference exact files, "
+                    "line numbers, or commands when known."
+                )
+            ),
+        ] = "",
         # Mutable defaults are intentional here: pydantic-ai builds a Pydantic v2
         # model from this signature and internally converts mutable defaults to
         # default_factory, so each tool call gets a fresh list. Using `= []`
         # instead of `list[str] | None = None` keeps the JSON schema compact
         # (avoids anyOf + null union that bloats every tool description sent to the LLM).
-        non_goals: list[str] = [],  # noqa: B006
-        additional_context: str = "",
-        tasks: list[dict[str, Any]] = [],  # noqa: B006
+        non_goals: Annotated[
+            list[str],
+            Field(
+                description=(
+                    "Things the sub-agent must NOT do (scope clamp). Pass [] "
+                    "only when certain."
+                )
+            ),
+        ] = [],  # noqa: B006
+        additional_context: Annotated[
+            str,
+            Field(
+                description=(
+                    "Extra background the sub-agent needs that doesn't belong "
+                    "in deliverable/task/non_goals."
+                )
+            ),
+        ] = "",
+        tasks: Annotated[
+            list[dict[str, Any]],
+            Field(
+                description=(
+                    "Fan out: a list of task dicts (agent_name, deliverable, "
+                    "task, non_goals, ...) to run concurrently in one call. "
+                    "When non-empty, the flat args above are ignored."
+                )
+            ),
+        ] = [],  # noqa: B006
     ) -> str:
         """See module docstring; required-arg signature is the scope clamp."""
         # FAN OUT: a non-empty `tasks` list runs several sub-agents concurrently
@@ -731,10 +782,8 @@ def create_delegate_to_agent_tool(
     delegate_to_agent.__name__ = "DelegateToAgent"
     delegate_to_agent.__doc__ = (
         "Delegates a task to a named subagent for isolated execution.\n\n"
-        "The envelope is the contract — a vague envelope comes back vague:\n"
-        "- deliverable: concrete artifact that must exist on return (name the file, function, or decision).\n"
-        "- task: how to produce it — reference exact files, line numbers, or commands when known.\n"
-        "- non_goals: things the sub-agent must NOT do (scope clamp). Pass [] only when certain.\n\n"
+        "The envelope is the contract — a vague envelope comes back vague; "
+        "see each parameter's own description.\n\n"
         "For a comparative deliverable, set the axes yourself and give every "
         "sub-agent the same list — reports built on different frames cannot be "
         "reconciled.\n\n"
@@ -758,7 +807,17 @@ def create_search_agent_tool(
     if sub_agent_manager is None:
         sub_agent_manager = default_sub_agent_manager
 
-    async def search_agent(query: str = "") -> str:
+    async def search_agent(
+        query: Annotated[
+            str,
+            Field(
+                description=(
+                    "Free-text match against agent name/description. Empty "
+                    "returns every agent."
+                )
+            ),
+        ] = "",
+    ) -> str:
         agents = _sort_agents(_delegatable_agents(sub_agent_manager))
         needle = query.strip().lower()
         if needle:

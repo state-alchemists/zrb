@@ -15,8 +15,12 @@ is what makes these five invariants unviolatable rather than merely checkable:
 
 import os
 import re
+import subprocess
 from contextlib import contextmanager
 from datetime import datetime
+from typing import Annotated
+
+from pydantic import Field
 
 try:
     import fcntl
@@ -43,7 +47,21 @@ _SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 _BACKLINKS_HEADING = "## Backlinks"
 
 
-def log_activity(summary: str, files: list[str] | None = None) -> str:
+def log_activity(
+    summary: Annotated[
+        str,
+        Field(
+            description=(
+                "One line of what happened. The date, time, and file path are "
+                "derived here — pass only the summary itself."
+            )
+        ),
+    ],
+    files: Annotated[
+        list[str] | None,
+        Field(description="Paths you touched this turn, if any."),
+    ] = None,
+) -> str:
     """Records one line of work in the journal's activity log.
 
     Call this BEFORE composing your reply on any turn that changed files, or
@@ -57,18 +75,20 @@ def log_activity(summary: str, files: list[str] | None = None) -> str:
     wrong entry misleads every future session, and a number or an absence needs
     its source (`wc -l: 832`, `rg: 0 hits`) or stays out.
 
-    Writing is silent; do not announce it. The date, the time, and the file path
-    are derived here, so pass only what happened. `files` are paths you touched.
+    Writing is silent; do not announce it.
 
     Use WriteJournalNote instead when the finding needs to be findable by topic.
     """
     root = ensure_journal_tree()
     with _journal_lock(root):
+        if CFG.LLM_JOURNAL_GIT_ENABLED:
+            _ensure_journal_git(root)
         now = datetime.now()
         day_file = _ensure_activity_path(root, now)
         file_note = ", ".join(files) if files else "—"
         entry = f"- {now.strftime('%H:%M')} — {summary.strip()}. Files: {file_note}."
         _insert_before_backlinks(day_file, entry)
+        _git_commit(root, f"activity: {now:%Y-%m-%d %H:%M}")
         return f"Logged to {os.path.relpath(day_file, root)}"
 
 
@@ -76,14 +96,64 @@ log_activity.__name__ = "LogActivity"
 
 
 def write_journal_note(
-    category: str,
-    slug: str,
-    title: str,
-    context: str,
-    finding: str,
-    source: str,
-    links: list[str] | None = None,
-    hud_line: str | None = None,
+    category: Annotated[
+        str, Field(description="One of: user, preferences, projects, technical.")
+    ],
+    slug: Annotated[
+        str,
+        Field(
+            description=(
+                "Kebab-case; becomes the filename. Reusing an existing slug "
+                "overwrites that note — the previous Context/Finding is kept "
+                "as one bounded History entry, not preserved in full. Call "
+                "SearchJournal for this slug or topic first if you are not "
+                "certain it is free or that you mean to revise it, and wait "
+                "for its result before this call — don't batch the two."
+            )
+        ),
+    ],
+    title: Annotated[
+        str,
+        Field(
+            description=(
+                "Short heading for the note; also the link label used by "
+                "indexes and backlinks."
+            )
+        ),
+    ],
+    context: Annotated[str, Field(description="When the finding applies.")],
+    finding: Annotated[
+        str,
+        Field(
+            description=(
+                "The durable fact itself, stated so a future session with no "
+                "memory of this conversation understands it standalone."
+            )
+        ),
+    ],
+    source: Annotated[
+        str, Field(description="A file:line, commit hash, or URL backing the finding.")
+    ],
+    links: Annotated[
+        list[str] | None,
+        Field(
+            description=(
+                "Journal-root-relative paths of related notes (e.g. "
+                "`technical/retry-policy.md`); each gets a reciprocal "
+                "backlink automatically."
+            )
+        ),
+    ] = None,
+    hud_line: Annotated[
+        str | None,
+        Field(
+            description=(
+                "One-line compression pinned to the always-injected index, "
+                "so the fact survives without a search — use it for anything "
+                "about the user themselves or how they want to be worked with."
+            )
+        ),
+    ] = None,
 ) -> str:
     """Records a durable finding as a topic note, findable by search later.
 
@@ -97,20 +167,17 @@ def write_journal_note(
     (highest value, usually said exactly once — record it the turn it is said),
     a root cause, a decision, or an API quirk.
 
-    `category` is one of: user, preferences, projects, technical.
-    `slug` is kebab-case and becomes the filename.
-    `context` says when the finding applies; `finding` is the durable fact;
-    `source` is a file:line, commit, or URL backing it.
-    `links` are journal-root-relative paths of related notes (e.g.
-    `technical/retry-policy.md`); each gets a reciprocal backlink automatically.
-    `hud_line` is a one-line compression pinned to the always-injected index, so
-    the fact survives without a search — use it for anything about the user
-    themselves or how they want to be worked with.
+    Skip anything already recorded to your satisfaction — search first when
+    unsure, rather than writing a speculative or duplicate note. Verify before
+    recording: a wrong or spurious entry misleads every future session that
+    finds it.
 
     Writing is silent; do not announce it.
     """
     root = ensure_journal_tree()
     with _journal_lock(root):
+        if CFG.LLM_JOURNAL_GIT_ENABLED:
+            _ensure_journal_git(root)
         if category not in NOTE_CATEGORIES:
             raise ValueError(
                 f"[SYSTEM SUGGESTION]: unknown category {category!r}. "
@@ -135,13 +202,21 @@ def write_journal_note(
         )
         if hud_line:
             _upsert_hud_line(root, _HUD_SECTION[category], hud_line.strip())
+        _git_commit(root, f"write: {category}/{slug}")
         return f"Wrote {os.path.relpath(note_path, root)}"
 
 
 write_journal_note.__name__ = "WriteJournalNote"
 
 
-def delete_journal_note(category: str, slug: str) -> str:
+def delete_journal_note(
+    category: Annotated[
+        str, Field(description="One of: user, preferences, projects, technical.")
+    ],
+    slug: Annotated[
+        str, Field(description="The note's existing filename, without `.md`.")
+    ],
+) -> str:
     """Deletes a note and scrubs every reference to it across the journal.
 
     Removes the note file, then walks every other file in the journal and
@@ -153,13 +228,19 @@ def delete_journal_note(category: str, slug: str) -> str:
     removing any line whose link resolves to this file is as precise as
     tracking the graph structurally.
 
-    `category` is one of: user, preferences, projects, technical.
-    `slug` is the note's existing filename (without `.md`).
-
-    Writing is silent; do not announce it.
+    Unlike WriteJournalNote, there is no History fallback here, and this tool
+    cannot undo the removal itself — confirm the target's actual content
+    first (Read it, or SearchJournal for it) rather than deleting on a
+    remembered or assumed slug, and wait for that result before this call —
+    don't batch the two. If the journal is git-backed, a human may still
+    recover the file from its git history outside this tool, but that is not
+    something you can do yourself. Silent otherwise: do not announce the
+    deletion in your reply.
     """
     root = ensure_journal_tree()
     with _journal_lock(root):
+        if CFG.LLM_JOURNAL_GIT_ENABLED:
+            _ensure_journal_git(root)
         if category not in NOTE_CATEGORIES:
             raise ValueError(
                 f"[SYSTEM SUGGESTION]: unknown category {category!r}. "
@@ -173,6 +254,7 @@ def delete_journal_note(category: str, slug: str) -> str:
             )
         _scrub_links_to(root, note_path)
         os.remove(note_path)
+        _git_commit(root, f"delete: {category}/{slug}")
         return f"Deleted {os.path.relpath(note_path, root)}"
 
 
@@ -256,6 +338,70 @@ def ensure_journal_tree() -> str:
         )
     _write_if_absent(os.path.join(root, "index.md"), _root_index_skeleton())
     return root
+
+
+def _ensure_journal_git(root: str) -> None:
+    """Best-effort `git init` for the journal root, so writes/deletes become
+    real, unbounded commits instead of relying only on the in-file History
+    block (capped at `_HISTORY_MAX_ENTRIES`). Never raises: a missing `git`
+    binary or a failed init leaves journaling exactly as it was before this
+    existed — same fallback spirit as the `fcntl`-unavailable branch above.
+
+    Callers must hold `_journal_lock(root)` — this races two first-time
+    writers' `git init`/initial commit against each other otherwise."""
+    if os.path.isdir(os.path.join(root, ".git")):
+        return
+    try:
+        subprocess.run(
+            ["git", "init", "--quiet", root],
+            capture_output=True,
+            check=False,
+            timeout=CFG.LLM_GIT_CMD_TIMEOUT / 1000,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return
+    _write_if_absent(os.path.join(root, ".gitignore"), ".lock\n")
+    _git_commit(root, "init: journal tree")
+
+
+def _git_commit(root: str, message: str) -> None:
+    """Best-effort `git add -A && git commit`, scoped to *root*. Silent on any
+    failure (no git binary, nothing to commit, git not initialized here, a
+    timeout) — this is a durability backstop, never a new way for a journal
+    call to fail. Inline `-c user.*` flags so it never depends on the
+    environment's global git identity being configured."""
+    if not os.path.isdir(os.path.join(root, ".git")):
+        return
+    git_identity = ["-c", "user.name=zrb-journal", "-c", "user.email=journal@zrb.local"]
+    timeout = CFG.LLM_GIT_CMD_TIMEOUT / 1000
+    try:
+        subprocess.run(
+            ["git", "-C", root, *git_identity, "add", "-A"],
+            capture_output=True,
+            check=False,
+            timeout=timeout,
+        )
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                root,
+                *git_identity,
+                "commit",
+                "-m",
+                message,
+                "--allow-empty-message",
+                "--quiet",
+            ],
+            capture_output=True,
+            check=False,
+            timeout=timeout,
+        )
+    except (OSError, subprocess.SubprocessError):
+        # subprocess.TimeoutExpired subclasses SubprocessError, so a hung git
+        # (GPG-sign prompt, stale index.lock) is swallowed the same way as a
+        # missing binary — never a new way for a journal call to fail.
+        return
 
 
 def _root_index_skeleton() -> str:

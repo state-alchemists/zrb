@@ -38,7 +38,35 @@ def test_capabilities():
 def test_background_tool_is_delegate_tool(manager):
     tool = create_background_delegate_tool(manager)
     assert getattr(tool, "zrb_is_delegate_tool", False) is True
-    assert tool.__name__ == "DelegateToAgentBackground"
+
+
+def _missing_param_descriptions(fn) -> list[str]:
+    from pydantic_ai import Tool
+
+    schema = Tool(fn).function_schema.json_schema
+    return [
+        param
+        for param, spec in schema.get("properties", {}).items()
+        if not spec.get("description")
+    ]
+
+
+def test_background_delegate_params_carry_descriptions(manager):
+    """Not registered via common_tools.py (main-agent-only, added directly by
+    LLMChatTask), so `test_every_registered_tool_parameter_carries_a_description`
+    in test/llm/test_common_tools.py never sees this one — pinned here instead."""
+    tool = create_background_delegate_tool(manager)
+    missing = _missing_param_descriptions(tool)
+    assert (
+        not missing
+    ), f"DelegateToAgentBackground params with no description: {missing}"
+
+
+def test_get_delegation_result_params_carry_descriptions():
+    """Same rationale as test_background_delegate_params_carry_descriptions."""
+    tool = create_get_delegation_result_tool()
+    missing = _missing_param_descriptions(tool)
+    assert not missing, f"GetDelegationResult params with no description: {missing}"
 
 
 def test_background_docstring_carries_the_agent_roster(manager):

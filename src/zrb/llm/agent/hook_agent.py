@@ -10,6 +10,9 @@ never has to import this module directly.
 
 from __future__ import annotations
 
+import dataclasses
+from typing import Any
+
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
 from zrb.llm.agent.common import wrap_tool
@@ -84,7 +87,25 @@ def resolve_agent_hook_tools(names: list[str]) -> list:
     # a tool's `[SYSTEM SUGGESTION]` ValueError (e.g. journal_write's link check)
     # must come back as a tool result the model can act on, not an uncaught
     # exception that aborts the whole hook run.
-    return [wrap_tool(tool) for tool in resolved]
+    return [wrap_tool(_undeferred(tool)) for tool in resolved]
+
+
+def _undeferred(tool: Any) -> Any:
+    """Strip `defer_loading` from *tool* if the shared registry/factories set
+    it (e.g. the journal tools, deferred for the main agent's rare use —
+    see `common_tools.py::_register_tool_factories`).
+
+    A hook names its tools explicitly in its own config; there is no big
+    catalogue for `defer_loading` to hide a rare tool inside, so all it would
+    do here is force an extra search-then-call round trip on every hook run
+    that needs the tool, which is most of them.
+    """
+    if getattr(tool, "defer_loading", False):
+        try:
+            return dataclasses.replace(tool, defer_loading=False)
+        except TypeError:
+            return tool
+    return tool
 
 
 def _agent_hook_input(context: HookContext) -> str:

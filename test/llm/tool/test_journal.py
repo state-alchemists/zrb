@@ -235,6 +235,9 @@ def writable_journal(tmp_path):
         # A real int, matching the shipped default — tests that care about
         # eviction override this explicitly to a small cap.
         mock_cfg.LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION = 20
+        # Off here so this file's tests stay fast and independent of a `git`
+        # binary being present — test_journal_git.py exercises git-backing.
+        mock_cfg.LLM_JOURNAL_GIT_ENABLED = False
         yield str(root)
 
 

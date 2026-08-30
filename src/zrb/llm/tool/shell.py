@@ -3,7 +3,9 @@ import os
 import platform
 import tempfile
 import time
-from typing import Any, Callable
+from typing import Annotated, Any, Callable
+
+from pydantic import Field
 
 from zrb.config.config import CFG
 from zrb.llm.agent_state import get_current_ui
@@ -26,14 +28,55 @@ _LIVE_UPDATE_INTERVAL = 0.1
 
 
 async def run_shell_command(
-    command: str,
-    cwd: str = "",
-    timeout: int = 120,
-    max_chars: int = -1,
-    shell: str = "",
-    dangerously_skip_sandbox: bool = False,
-    background: bool = False,
-    description: str = "",
+    command: Annotated[
+        str, Field(description="The non-interactive command to execute.")
+    ],
+    cwd: Annotated[
+        str,
+        Field(
+            description="Working directory; defaults to the current directory when empty."
+        ),
+    ] = "",
+    timeout: Annotated[
+        int, Field(description="Timeout in SECONDS, not milliseconds (default 120).")
+    ] = 120,
+    max_chars: Annotated[
+        int,
+        Field(
+            description="Output character limit; -1 (default) uses the configured output limit."
+        ),
+    ] = -1,
+    shell: Annotated[
+        str,
+        Field(
+            description=(
+                "bash/zsh/sh (POSIX), pwsh/cmd (Windows), node/ruby/php "
+                "(runtime); empty uses the user's default shell."
+            )
+        ),
+    ] = "",
+    dangerously_skip_sandbox: Annotated[
+        bool,
+        Field(description="True exits the OS sandbox and requires user approval."),
+    ] = False,
+    background: Annotated[
+        bool,
+        Field(
+            description=(
+                "True for long-running processes (server, watcher, tail -f) — "
+                "returns immediately with a handle; check status with MonitorProcess."
+            )
+        ),
+    ] = False,
+    description: Annotated[
+        str,
+        Field(
+            description=(
+                "Short label for the background process, shown by MonitorProcess; "
+                "defaults to the command itself. Only meaningful with background=True."
+            )
+        ),
+    ] = "",
 ) -> str:
     """
     Executes a non-interactive command in a shell. Returns truncated stdout/stderr.
@@ -55,13 +98,6 @@ async def run_shell_command(
     ``--name-only`` before full contents, ``head``/``wc -l`` before a raw dump.
     An unscoped command can emit hundreds of megabytes and be killed by its own
     timeout.
-
-    timeout: SECONDS, not milliseconds (default 120). Use background=True for
-    long-running processes (server, watcher, ``tail -f``).
-    shell: ``"bash"``/``"zsh"``/``"sh"`` (POSIX), ``"pwsh"``/``"cmd"`` (Windows),
-    ``"node"``/``"ruby"``/``"php"`` (runtime); empty = user's default.
-    dangerously_skip_sandbox=True exits the OS sandbox — requires user approval.
-    max_chars=-1 uses the configured output limit.
     """
     if background:
         # lazy: zrb internal — keeps the background registry off the hot

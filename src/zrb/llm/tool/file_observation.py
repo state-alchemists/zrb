@@ -37,9 +37,13 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import os
 from collections import OrderedDict, defaultdict
+from typing import Callable, TypeVar
 
 from zrb.llm.agent_state import get_current_agent_run_scope
+
+_BucketT = TypeVar("_BucketT")
 
 # Scopes kept in the observed-content LRU before the least-recently-used one
 # is evicted (see the module docstring for why eviction is safe here).
@@ -47,6 +51,19 @@ MAX_OBSERVED_SCOPES = 256
 
 # run_scope -> {abs_path: content_hash}, least-recently-used scope first.
 _observed: OrderedDict[str, dict[str, str]] = OrderedDict()
+
+# run_scope -> {abs file paths shown in an LS/Glob result}, for RM's lighter
+# "has this path been named" bar (see `check_listed`) — a weaker guarantee
+# than `_observed`'s content hash, and deliberately so: RM's risk is picking
+# the wrong path, not destroying unseen content.
+_listed_paths: OrderedDict[str, set[str]] = OrderedDict()
+
+# run_scope -> {dir abs path: hash of a shallow os.listdir snapshot taken at
+# record time}, for RM(recursive=True)'s directory-level bar. Independent of
+# whatever LS/Glob actually displayed (which may be recursive, filtered, or
+# truncated) — this is a cheap, separate snapshot purely for detecting drift
+# between listing and removal, not a replay of LS's own walk.
+_listed_dirs: OrderedDict[str, dict[str, str]] = OrderedDict()
 
 # One lock per path, held for a whole Write/Edit call. Closes the
 # check-then-write TOCTOU window between two concurrent writers to the same
@@ -69,23 +86,38 @@ def _hash(content: str) -> str:
     return hashlib.sha256(content.encode("utf-8", errors="surrogateescape")).hexdigest()
 
 
-def _scope_bucket(scope: str) -> dict[str, str]:
-    """The observed-content bucket for *scope*, marked most-recently-used.
+def _bucket(
+    store: "OrderedDict[str, _BucketT]",
+    scope: str,
+    default_factory: Callable[[], _BucketT],
+) -> _BucketT:
+    """Get-or-create *scope*'s bucket in *store*, marked most-recently-used.
 
+    Shared by every ledger in this module (`_observed`, `_listed_paths`,
+    `_listed_dirs`) — one eviction rule instead of three copies of it.
     Creating a bucket counts as a use; so does every lookup under an existing
     scope — an active conversation must not be evicted out from under itself
     by chatty delegations sharing the process. Any eviction drops the
     least-recently-used scope (never the caller's: it was just moved to the
     MRU end).
     """
-    bucket = _observed.get(scope)
+    bucket = store.get(scope)
     if bucket is None:
-        bucket = {}
-        _observed[scope] = bucket
+        bucket = default_factory()
+        store[scope] = bucket
     else:
-        _observed.move_to_end(scope)
-    while len(_observed) > MAX_OBSERVED_SCOPES:
-        _observed.popitem(last=False)
+        store.move_to_end(scope)
+    while len(store) > MAX_OBSERVED_SCOPES:
+        store.popitem(last=False)
+    return bucket
+
+
+def _peek(store: "OrderedDict[str, _BucketT]", scope: str) -> "_BucketT | None":
+    """Read-only lookup of *scope*'s bucket in *store*, marked MRU if
+    present. Never creates a bucket — a check must not fabricate history."""
+    bucket = store.get(scope)
+    if bucket is not None:
+        store.move_to_end(scope)
     return bucket
 
 
@@ -99,7 +131,37 @@ def record_observed(abs_path: str, content: str) -> None:
     fresh Read in between.
     """
     scope = get_current_agent_run_scope()
-    _scope_bucket(scope)[abs_path] = _hash(content)
+    _bucket(_observed, scope, dict)[abs_path] = _hash(content)
+
+
+def record_listed(root_abs_path: str, shown_paths: list[str]) -> None:
+    """Record that `root_abs_path` was the root of an LS/Glob call this
+    session, and that `shown_paths` (absolute paths actually returned —
+    post-truncation, so a truncated listing never over-claims) were seen to
+    exist. See `check_listed` for how this backs RM.
+
+    `root_abs_path`, and every directory between it and each shown path, are
+    recorded too, not just the files themselves: LS/Glob only ever return
+    *files* (`walk_files` never yields directory paths, even for a listing
+    up to 3 levels deep), so a subdirectory — empty, or non-empty and only
+    known via the files shown inside it — would otherwise never satisfy
+    `check_listed`, even though a file's path in the listing directly implies
+    every directory on the way to it was seen too.
+    """
+    scope = get_current_agent_run_scope()
+    bucket = _bucket(_listed_paths, scope, set)
+    bucket.add(root_abs_path)
+    for path in shown_paths:
+        bucket.add(path)
+        parent = os.path.dirname(path)
+        while parent.startswith(root_abs_path) and parent not in bucket:
+            bucket.add(parent)
+            parent = os.path.dirname(parent)
+    try:
+        snapshot = _hash("\n".join(sorted(os.listdir(root_abs_path))))
+    except OSError:
+        return
+    _bucket(_listed_dirs, scope, dict)[root_abs_path] = snapshot
 
 
 def _binary_refusal(abs_path: str) -> str:
@@ -149,13 +211,8 @@ def check_observed(abs_path: str) -> str | None:
     if binary_block is not None:
         return binary_block
     scope = get_current_agent_run_scope()
-    bucket = _observed.get(scope)
-    if bucket is not None:
-        # A check under an active scope is a use of that scope: keep it MRU.
-        _observed.move_to_end(scope)
-        recorded = bucket.get(abs_path)
-    else:
-        recorded = None
+    bucket = _peek(_observed, scope)
+    recorded = bucket.get(abs_path) if bucket is not None else None
     if recorded is None:
         return (
             f"Error: {abs_path} has not been read in this session.\n"
@@ -181,9 +238,73 @@ def check_observed(abs_path: str) -> str | None:
     return None
 
 
+def check_listed(abs_path: str, *, recursive: bool) -> str | None:
+    """Return a blocking error string if `abs_path` isn't sufficiently
+    confirmed for RM; `None` if the removal may proceed.
+
+    `recursive=False` covers a plain file or an already-empty directory
+    (`os.rmdir`) — neither destroys unseen content, so the bar is only that
+    the path is confirmed to be the one intended: a prior Read (`_observed`)
+    or having appeared in an LS/Glob result (`_listed_paths`) both satisfy it.
+
+    `recursive=True` covers a directory about to be recursively removed
+    (`shutil.rmtree`) — satisfied only by having LS/Glob'd that exact
+    directory, re-verified against a fresh `os.listdir` snapshot so a
+    directory that gained or lost top-level entries since being listed is
+    still caught (mirrors `check_observed`'s own staleness re-check).
+    """
+    scope = get_current_agent_run_scope()
+    if not recursive:
+        observed = _peek(_observed, scope)
+        if observed is not None and abs_path in observed:
+            return None
+        listed = _peek(_listed_paths, scope)
+        if listed is not None and abs_path in listed:
+            return None
+        return (
+            f"Error: {abs_path} has not been read or listed in this session.\n"
+            "[SYSTEM SUGGESTION]: Read it, or List/Glob its parent directory, "
+            "to confirm this is the path you mean, then retry."
+        )
+    dirs = _peek(_listed_dirs, scope)
+    recorded = dirs.get(abs_path) if dirs is not None else None
+    if recorded is None:
+        return (
+            f"Error: {abs_path} has not been listed in this session.\n"
+            "[SYSTEM SUGGESTION]: List or Glob this directory first to "
+            "confirm what it contains, then retry the recursive removal."
+        )
+    try:
+        current = _hash("\n".join(sorted(os.listdir(abs_path))))
+    except OSError as e:
+        return (
+            f"Error: Could not verify {abs_path}'s current contents: {e}.\n"
+            "[SYSTEM SUGGESTION]: Investigate before retrying the removal."
+        )
+    if current != recorded:
+        return (
+            f"Error: {abs_path}'s contents have changed since it was listed "
+            "in this session.\n"
+            "[SYSTEM SUGGESTION]: List it again to see what it now contains, "
+            "then retry the removal if you still want to proceed."
+        )
+    return None
+
+
+def record_seen(abs_path: str) -> None:
+    """Record that `abs_path` was confirmed to exist at this location this
+    run — e.g. a Move's destination — satisfying `check_listed`'s
+    non-recursive bar without claiming a full LS/Glob of its parent.
+    """
+    scope = get_current_agent_run_scope()
+    _bucket(_listed_paths, scope, set).add(abs_path)
+
+
 def clear_observed() -> None:
     """Clear all recorded state. A test-isolation seam — production code
     never needs this; the LRU cap bounds the map's growth (see
     `MAX_OBSERVED_SCOPES`), and a restart clears it wholesale anyway.
     """
     _observed.clear()
+    _listed_paths.clear()
+    _listed_dirs.clear()

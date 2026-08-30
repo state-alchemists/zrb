@@ -1,4 +1,7 @@
 import os
+from typing import Annotated
+
+from pydantic import Field
 
 from zrb.config.config import CFG
 from zrb.llm.tool.file_observation import record_observed
@@ -10,9 +13,13 @@ _MAX_READ_FILE_BYTES = 10 * 1024 * 1024
 
 
 def read_file(
-    path: str,
-    start_line: int = 1,
-    end_line: int = -1,
+    path: Annotated[str, Field(description="File to read — text or PDF.")],
+    start_line: Annotated[
+        int, Field(description="1-indexed first line to return.")
+    ] = 1,
+    end_line: Annotated[
+        int, Field(description="1-indexed last line to return; -1 means the last line.")
+    ] = -1,
 ) -> str:
     """
     Reads a UTF-8 text file or extracts text from a PDF. Returns lines
