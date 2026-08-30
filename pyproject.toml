@@ -11,7 +11,7 @@ dependencies = [
     "python-dotenv>=1.1.1,<2.0.0",
     "beautifulsoup4>=4.14.2,<5.0.0",
     "pdfplumber>=0.11.7,<0.12.0",
-    "fastapi[standard]>=0.136.3,<0.137.0",
+    "fastapi[standard]>=0.141.1,<0.142.0",
     "jinja2>=3.1.0,<4.0.0",
     # PyJWT and pyjwt normalize to the same distribution; consolidated to the
     # stricter pin so PEP-621 does not see a duplicate dependency.
@@ -24,17 +24,16 @@ dependencies = [
     # Security fix: GHSA-4xgf-cpjx-pc3j - NestedSecretsSettingsSource follows symlinks outside secrets_dir.
     # pydantic-settings is transitive via pydantic-ai-slim → fastmcp-slim → mcp. Pin >=2.14.2.
     "pydantic-settings>=2.14.2",
-    "pydantic-ai-slim[mcp]>=2.27.0,<2.28.0",
+    "pydantic-ai-slim[mcp]>=2.36.0,<2.37.0",
     # NOTE: Make sure the following dependencies are not conflicting with pydantic-ai-slim
     # `openai` is a core dependency (not an extra) because every OpenAI-compatible
     # provider routes through it — OpenAI, Ollama, DeepSeek, OpenRouter, Z.ai,
     # Cerebras, Together, and the rest.
-    # >=2.45.0 is a hard floor, not a preference: `OpenAIChatModel._completions_create`
-    # passes `prompt_cache_options=` to `chat.completions.create()` unconditionally
-    # (it sends OMIT when unset, but still passes the keyword), and that parameter
-    # only exists from openai 2.45.0. An older SDK raises TypeError on *every*
-    # request. Same floor pydantic-ai's own `openai` extra sets.
-    "openai>=2.45.0",
+    # >=3.0.0 is a hard floor, not a preference: it's pydantic-ai's own `openai`
+    # extra floor as of 2.36.0. An older SDK is untested against this pydantic-ai
+    # version and may miss parameters `OpenAIChatModel` now sends unconditionally
+    # (e.g. `prompt_cache_options=`, required since openai 2.45.0).
+    "openai>=3.0.0",
     "prompt-toolkit>=3",
     "rich>=13",
     # Security fix: GHSA/CVE-2026-59950 - Cross-Site WebSocket Hijacking via unvalidated Host/Origin
@@ -79,6 +78,9 @@ dependencies = [
     # Security fix: GHSA-65pc-fj4g-8rjx (CVE-2026-45409) - DoS via crafted input to idna.encode().
     # idna is transitive via requests, httpx, anyio (pydantic-ai). We pin >=3.15.
     "idna>=3.15",
+    # pydantic-ai-slim's HTTP layer moved to httpx2 (was httpx) as of 2.36.0.
+    # >=2.7 matches pydantic-ai's own floor for it.
+    "httpx2>=2.7.0",
 ]
 
 [project.urls]
@@ -109,14 +111,13 @@ vertexai = [
     # Security fix: CVE-2026-59886 - resource exhaustion via large exponents in univ.Real decoding. We pin >=0.6.4.
     "pyasn1>=0.6.4",
 ]
-google = ["google-genai>=1.70.0"]
-anthropic = ["anthropic>=0.108.0"]
+google = ["google-genai>=2.18.0"]
+anthropic = ["anthropic>=1.0.0"]
 groq = ["groq>=0.25.0"]
-# Security fix (GHSA for supply-chain attack, see pydantic-ai #5382): mistralai==2.4.6 was
-# quarantined on PyPI. We exclude it the same way pydantic-ai-slim's mistral extra does.
-# >=2.4.2 is pydantic-ai's floor: below it, `prompt_cache_key` and `reasoning_effort`
-# are missing from `chat.complete_async` / `chat.stream_async`.
-mistral = ["mistralai>=2.4.2,!=2.4.6"]
+# >=2.9.2 is pydantic-ai-slim's own mistral extra floor as of 2.36.0. This also
+# clears the mistralai==2.4.6 PyPI quarantine (GHSA, see pydantic-ai #5382) that
+# an explicit `!=2.4.6` exclusion used to be needed for.
+mistral = ["mistralai>=2.9.2"]
 xai = [
     # >=1.14.0 matches pydantic-ai's floor for the xAI SDK.
     "xai-sdk>=1.14.0",
@@ -199,7 +200,6 @@ pytest = ">=9.0.3"
 pytest-cov = "^6.1.0"
 pytest-asyncio = "^1.3.0"
 tomlkit = "^0.13.3"
-httpx2 = ">=2.4.0"
 radon = "^6.0.1"
 pdoc = ">=15"
 
