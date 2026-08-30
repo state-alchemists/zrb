@@ -37,10 +37,9 @@ if TYPE_CHECKING:
     from prompt_toolkit.layout import Layout
     from prompt_toolkit.lexers import Lexer
     from prompt_toolkit.styles import Style
-    from pydantic_ai import UserContent
-    from pydantic_ai.models import Model
     from rich.theme import Theme
 
+    from zrb.llm.agent.types import Model, UserContent
     from zrb.llm.task.llm_task import LLMTask
 
 logger = logging.getLogger(__name__)

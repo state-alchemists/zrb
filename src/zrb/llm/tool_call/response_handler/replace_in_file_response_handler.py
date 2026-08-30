@@ -7,7 +7,7 @@ from zrb.llm.tool_call.args import parse_tool_args
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 
 if TYPE_CHECKING:
-    from pydantic_ai import ToolCallPart
+    from zrb.llm.agent.types import ToolCallPart
 
 
 async def replace_in_file_response_handler(
@@ -16,8 +16,8 @@ async def replace_in_file_response_handler(
     response: str,
     next_handler: Callable[[UIProtocol, Any, str], Awaitable[Any]],
 ) -> Any:
-    # lazy: heavy third-party
-    from pydantic_ai import ToolApproved
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import ToolApproved
 
     if call.tool_name != "Edit":
         return await next_handler(ui, call, response)

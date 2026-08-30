@@ -125,8 +125,8 @@ class UIKeybindings:
 
                 img_bytes = await get_clipboard_image()
                 if img_bytes is not None:
-                    # lazy: heavy third-party
-                    from pydantic_ai import BinaryContent
+                    # lazy: zrb internal (heavy via transitive)
+                    from zrb.llm.agent.types import BinaryContent
 
                     scaled = scale_image_bytes(img_bytes, media_type="image/png")
                     attachment = BinaryContent(

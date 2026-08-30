@@ -63,8 +63,8 @@ HEAVY_PACKAGES = (
 EXPECTED_CATEGORY_COUNTS = {
     "circular": 6,
     "test_patch_seam": 23,
-    "transitively_heavy_or_hot_path": 54,
-    "heavy_third_party": 201,
+    "transitively_heavy_or_hot_path": 98,
+    "heavy_third_party": 158,
 }
 
 

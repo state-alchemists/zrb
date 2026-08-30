@@ -30,9 +30,8 @@ from zrb.session.session import Session
 from zrb.util.attr import get_attr, get_str_attr
 
 if TYPE_CHECKING:
-    from pydantic_ai import UserContent
-
     from zrb.context.any_context import AnyContext
+    from zrb.llm.agent.types import UserContent
     from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
     from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
     from zrb.llm.task.chat.task import LLMChatTask

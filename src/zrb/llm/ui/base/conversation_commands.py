@@ -582,8 +582,8 @@ class BaseUIConversationCommands:
                 stylize_error(f"\n  ❌ Camera capture failed.\n{missing_tool_hint()}")
             )
             return
-        # lazy: heavy third-party
-        from pydantic_ai import BinaryContent
+        # lazy: zrb internal (heavy via transitive)
+        from zrb.llm.agent.types import BinaryContent
 
         scaled = scale_image_bytes(photo_bytes, media_type="image/jpeg")
         attachment = BinaryContent(data=scaled.data, media_type=scaled.media_type)

@@ -37,8 +37,8 @@ class TerminalApprovalChannel:
             f"TerminalApprovalChannel context.tool_args: {context.tool_args}"
         )
 
-        # lazy: heavy third-party
-        from pydantic_ai import ToolCallPart
+        # lazy: zrb internal (heavy via transitive)
+        from zrb.llm.agent.types import ToolCallPart
 
         call = ToolCallPart(
             tool_name=context.tool_name,
@@ -96,8 +96,8 @@ class TerminalApprovalChannel:
         response: str,
     ) -> ApprovalResult | None:
         """Handle edit via response handler chain (like ToolCallHandler does)."""
-        # lazy: heavy third-party
-        from pydantic_ai import ToolApproved, ToolDenied
+        # lazy: zrb internal (heavy via transitive)
+        from zrb.llm.agent.types import ToolApproved, ToolDenied
 
         response_handlers = handler.get_response_handlers()
 

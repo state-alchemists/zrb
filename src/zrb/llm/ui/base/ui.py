@@ -70,11 +70,17 @@ from zrb.util.string.name import get_random_name
 from zrb.xcom.xcom import Xcom
 
 if TYPE_CHECKING:
-    from pydantic_ai import ToolApproved, ToolCallPart, ToolDenied, UserContent
-    from pydantic_ai.models import Model
-    from pydantic_ai.usage import RequestUsage, RunUsage
     from rich.theme import Theme
 
+    from zrb.llm.agent.types import (
+        Model,
+        RequestUsage,
+        RunUsage,
+        ToolApproved,
+        ToolCallPart,
+        ToolDenied,
+        UserContent,
+    )
     from zrb.llm.task.llm_task import LLMTask
     from zrb.llm.tool_call.ui_protocol import ChoiceSpec
 

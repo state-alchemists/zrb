@@ -181,11 +181,10 @@ class BaseUIExecCommands:
             # Load current history for context (read-only snapshot).
             # Strip SystemPromptPart entries so the main agent's system prompt
             # doesn't conflict with the btw agent's own system prompt.
-            # lazy: heavy third-party
-            from pydantic_ai.messages import ModelRequest, SystemPromptPart
-
+            # lazy: zrb internal (heavy via transitive)
             # lazy: zrb internal (heavy via transitive)
             from zrb.llm.agent import create_agent
+            from zrb.llm.agent.types import ModelRequest, SystemPromptPart
 
             raw_history = self._base_ui.history_manager.load(
                 self._base_ui.conversation_session_name

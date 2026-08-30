@@ -777,8 +777,11 @@ def test_save_validation_error_does_not_save_file(temp_history_dir):
     manager.update("val-error-session", messages)
 
     # Force validate_python to raise a ValidationError
-    # ModelMessagesTypeAdapter is imported inside save(), so patch at the source
-    with patch("pydantic_ai.messages.ModelMessagesTypeAdapter") as mock_adapter:
+    # ModelMessagesTypeAdapter is imported inside save() from zrb.llm.agent.types
+    # (a re-export of pydantic_ai.messages.ModelMessagesTypeAdapter), so patch at
+    # that source path, not the original pydantic_ai location — the re-export
+    # already holds its own bound reference by the time save() imports it.
+    with patch("zrb.llm.agent.types.ModelMessagesTypeAdapter") as mock_adapter:
         from pydantic_core import InitErrorDetails
 
         mock_adapter.dump_python.return_value = []

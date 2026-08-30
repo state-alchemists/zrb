@@ -342,8 +342,8 @@ class VoiceEngine:
         system_prompt = get_prompt("multimodal_audio")
 
         async def transcribe(audio_bytes: bytes) -> str:
-            # lazy: heavy third-party
-            from pydantic_ai.messages import BinaryContent
+            # lazy: zrb internal (heavy via transitive)
+            from zrb.llm.agent.types import BinaryContent
 
             agent = create_agent(
                 model=resolved,

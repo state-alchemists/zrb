@@ -44,9 +44,8 @@ from zrb.util.string.conversion import to_boolean
 # agent.
 
 if TYPE_CHECKING:
-    from pydantic_ai.tools import Tool
-
     from zrb.context.any_context import AnyContext
+    from zrb.llm.agent.types import Tool
 
 
 @runtime_checkable
@@ -106,8 +105,8 @@ def _register_tools(host: CommonToolHost) -> None:
     # loads ``delegate.py`` which triggers ``SubAgentManager`` load which
     # ultimately re-enters this function. By that time the re-export
     # names (``analyze_file``, etc.) aren't yet bound on ``zrb.llm.tool``.
-    # lazy: pydantic_ai (heavy third-party deferral)
-    from pydantic_ai import Tool
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import Tool
 
     # lazy: zrb internal (heavy via transitive) — lsp.tools transitively
     # loads the LSP client stack; not a cycle, verified empirically.
@@ -211,8 +210,8 @@ def _register_tool_factories(host: CommonToolHost) -> None:
     is what lets interactivity and ``LLM_JOURNAL_ENABLED`` gate a tool without
     a second registration path.
     """
-    # lazy: pydantic_ai (heavy third-party deferral)
-    from pydantic_ai import Tool
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import Tool
 
     # lazy: zrb.llm.tool.* transitively load pydantic_ai — same reason as the
     # import block in _register_tools.

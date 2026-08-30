@@ -44,8 +44,8 @@ def tool_return(value: Any, **metadata: Any) -> Any:
     It is always a dict (empty when nothing was passed) so callers can inspect
     it without a ``None`` check.
     """
-    # lazy: heavy third-party
-    from pydantic_ai import ToolReturn
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import ToolReturn
 
     return ToolReturn(return_value=value, metadata=metadata)
 
@@ -56,8 +56,8 @@ def has_multimodal(value: Any) -> bool:
     Such a payload must reach ``return_value`` intact: providers extract it from
     there, and any text rendering of it is a lossy repr, not the file.
     """
-    # lazy: heavy third-party
-    from pydantic_ai.messages import is_multi_modal_content
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import is_multi_modal_content
 
     if is_multi_modal_content(value):
         return True

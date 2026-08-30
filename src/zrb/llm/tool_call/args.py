@@ -4,7 +4,7 @@ import json
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from pydantic_ai import ToolCallPart
+    from zrb.llm.agent.types import ToolCallPart
 
 
 def parse_tool_args_value(args: Any) -> dict[str, Any] | None:

@@ -119,9 +119,9 @@ async def replace_unsupported_attachments(
     if not isinstance(prompt_content, list):
         return prompt_content
 
-    # lazy: pydantic_ai is heavy and only needed when binaries are present.
+    # lazy: zrb internal (heavy via transitive)
     try:
-        from pydantic_ai.messages import BinaryContent
+        from zrb.llm.agent.types import BinaryContent
     except ImportError:
         return prompt_content
 

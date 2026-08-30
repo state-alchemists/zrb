@@ -5,7 +5,7 @@ from zrb.llm.tool_call.args import parse_tool_args
 from zrb.llm.tool_call.handler import ToolPolicy, UIProtocol
 
 if TYPE_CHECKING:
-    from pydantic_ai import ToolCallPart
+    from zrb.llm.agent.types import ToolCallPart
 
 
 def auto_approve(  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)
@@ -27,8 +27,8 @@ def auto_approve(  # noqa: C901 -- registration/factory fn; mccabe sums nested h
         call: "ToolCallPart",
         next_handler: Callable[[UIProtocol, "ToolCallPart"], Awaitable[Any]],
     ) -> Any:
-        # lazy: heavy third-party
-        from pydantic_ai import ToolApproved
+        # lazy: zrb internal (heavy via transitive)
+        from zrb.llm.agent.types import ToolApproved
 
         if call.tool_name != tool_name:
             return await next_handler(ui, call)

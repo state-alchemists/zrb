@@ -8,15 +8,15 @@ from zrb.llm.util.image_scale import scale_image_bytes
 from zrb.llm.util.pdf import extract_pdf_text
 
 if TYPE_CHECKING:
-    from pydantic_ai.messages import UserContent
+    from zrb.llm.agent.types import UserContent
 
 
 def normalize_attachments(
     attachments: "list[UserContent]", print_fn: Callable[[str], Any] = print
 ) -> "list[UserContent]":
 
-    # lazy: pydantic_ai is heavy; only loaded when there are attachments to wrap.
-    from pydantic_ai import BinaryContent
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import BinaryContent
 
     final_attachments = []
     for item in attachments:

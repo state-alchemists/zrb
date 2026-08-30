@@ -24,8 +24,7 @@ from zrb.llm.approval.approval_channel import (
 )
 
 if TYPE_CHECKING:
-    from pydantic_ai import ToolApproved, ToolCallPart, ToolDenied
-
+    from zrb.llm.agent.types import ToolApproved, ToolCallPart, ToolDenied
     from zrb.llm.hook.manager import HookManager
     from zrb.llm.tool_call.handler import ToolCallHandler
     from zrb.llm.tool_call.ui_protocol import UIProtocol

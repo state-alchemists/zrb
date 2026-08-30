@@ -9,7 +9,7 @@ from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.terminal import get_terminal_size
 
 if TYPE_CHECKING:
-    from pydantic_ai import ToolCallPart
+    from zrb.llm.agent.types import ToolCallPart
 
 
 async def replace_in_file_formatter(

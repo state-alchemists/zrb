@@ -26,7 +26,7 @@ from zrb.util.cli.style import stylize_error, stylize_warning
 from zrb.util.markdown import make_markdown_section
 
 if TYPE_CHECKING:
-    from pydantic_ai.messages import ModelMessage
+    from zrb.llm.agent.types import ModelMessage
 else:
     ModelMessage = Any
 
@@ -318,8 +318,8 @@ async def summarize_history(
 
 def _create_summary_model_request(summary_text: str) -> Any:
     """Construct a ModelRequest message from summary text."""
-    # lazy: heavy third-party
-    from pydantic_ai.messages import ModelRequest, UserPromptPart
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import ModelRequest, UserPromptPart
 
     try:
         return ModelRequest(
