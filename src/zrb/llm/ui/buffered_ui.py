@@ -20,8 +20,7 @@ from zrb.llm.ui.output_chunk import CollapsibleBlockSource, merge_output_chunk
 from zrb.util.cli.style import stylize_muted
 
 if TYPE_CHECKING:
-    from pydantic_ai.usage import RequestUsage, RunUsage
-
+    from zrb.llm.agent.types import RequestUsage, RunUsage
     from zrb.llm.tool_call.ui_protocol import ChoiceSpec
 
 

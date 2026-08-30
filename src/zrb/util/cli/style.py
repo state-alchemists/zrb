@@ -296,7 +296,9 @@ def _resolve_style(name: str) -> int | None:
 
 
 def stylize_muted(text: str) -> str:
-    from zrb.config.config import CFG  # lazy: defer CFG load
+    from zrb.config.config import (
+        CFG,  # lazy: zrb internal (heavy via transitive — CFG composes 15 mixins)
+    )
 
     return stylize(
         text,
@@ -314,7 +316,9 @@ def stylize_log(text: str) -> str:
 
 
 def stylize_warning(text: str) -> str:
-    from zrb.config.config import CFG  # lazy: defer CFG load
+    from zrb.config.config import (
+        CFG,  # lazy: zrb internal (heavy via transitive — CFG composes 15 mixins)
+    )
 
     return stylize(
         text,
@@ -324,7 +328,9 @@ def stylize_warning(text: str) -> str:
 
 
 def stylize_error(text: str) -> str:
-    from zrb.config.config import CFG  # lazy: defer CFG load
+    from zrb.config.config import (
+        CFG,  # lazy: zrb internal (heavy via transitive — CFG composes 15 mixins)
+    )
 
     return stylize(
         text,
@@ -334,7 +340,9 @@ def stylize_error(text: str) -> str:
 
 
 def stylize_success(text: str) -> str:
-    from zrb.config.config import CFG  # lazy: defer CFG load
+    from zrb.config.config import (
+        CFG,  # lazy: zrb internal (heavy via transitive — CFG composes 15 mixins)
+    )
 
     return stylize(
         text,
@@ -344,7 +352,9 @@ def stylize_success(text: str) -> str:
 
 
 def stylize_highlight(text: str) -> str:
-    from zrb.config.config import CFG  # lazy: defer CFG load
+    from zrb.config.config import (
+        CFG,  # lazy: zrb internal (heavy via transitive — CFG composes 15 mixins)
+    )
 
     return stylize(
         text,
@@ -354,7 +364,9 @@ def stylize_highlight(text: str) -> str:
 
 
 def stylize_info(text: str) -> str:
-    from zrb.config.config import CFG  # lazy: defer CFG load
+    from zrb.config.config import (
+        CFG,  # lazy: zrb internal (heavy via transitive — CFG composes 15 mixins)
+    )
 
     return stylize(
         text,
@@ -364,18 +376,24 @@ def stylize_info(text: str) -> str:
 
 
 def stylize_todo_project(text: str) -> str:
-    from zrb.config.config import CFG  # lazy: defer CFG load
+    from zrb.config.config import (
+        CFG,  # lazy: zrb internal (heavy via transitive — CFG composes 15 mixins)
+    )
 
     return stylize(text, color=_resolve_color(CFG.CLI_COLOR_TODO_PROJECT))
 
 
 def stylize_todo_context(text: str) -> str:
-    from zrb.config.config import CFG  # lazy: defer CFG load
+    from zrb.config.config import (
+        CFG,  # lazy: zrb internal (heavy via transitive — CFG composes 15 mixins)
+    )
 
     return stylize(text, color=_resolve_color(CFG.CLI_COLOR_TODO_CONTEXT))
 
 
 def stylize_todo_keyval(text: str) -> str:
-    from zrb.config.config import CFG  # lazy: defer CFG load
+    from zrb.config.config import (
+        CFG,  # lazy: zrb internal (heavy via transitive — CFG composes 15 mixins)
+    )
 
     return stylize(text, color=_resolve_color(CFG.CLI_COLOR_TODO_KEYVAL))

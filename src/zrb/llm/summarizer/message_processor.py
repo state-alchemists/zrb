@@ -9,7 +9,7 @@ from zrb.llm.summarizer.text_summarizer import summarize_text_plain
 from zrb.util.cli.style import stylize_error, stylize_warning
 
 if TYPE_CHECKING:
-    from pydantic_ai.messages import ModelMessage
+    from zrb.llm.agent.types import ModelMessage
 else:
     ModelMessage = Any
 
@@ -25,8 +25,8 @@ async def process_message_for_summarization(
     message_threshold: int,
     insanity_threshold: int,
 ) -> ModelMessage:
-    # lazy: heavy third-party
-    from pydantic_ai.messages import ModelRequest, ToolReturnPart
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import ModelRequest, ToolReturnPart
 
     if not isinstance(msg, ModelRequest):
         return msg
@@ -55,8 +55,8 @@ async def process_tool_return_part(
     message_threshold: int,
     insanity_threshold: int,
 ) -> tuple[Any, bool]:
-    # lazy: heavy third-party
-    from pydantic_ai import ToolApproved, ToolDenied
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import ToolApproved, ToolDenied
 
     original_content = getattr(part, "content", None)
     if original_content is None:

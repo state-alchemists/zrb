@@ -42,6 +42,14 @@ from typing import Any, Callable
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
+from zrb.llm.permission.state import AgentMode, get_current_agent_mode
+from zrb.llm.tool.ambient_state import (
+    get_active_worktree,
+    set_active_worktree,
+    set_current_tool_session,
+    set_interactive_mode,
+)
+from zrb.llm.tool.plan import todo_manager
 
 # Anchors the <live-context> contract in the cached system prompt. Stable text
 # — costs nothing per turn and never invalidates the cacheable prefix — while
@@ -136,7 +144,8 @@ def _collect_git_info(
     Returns (git_lines, todos_data).  *todos_data* is ``None`` when outside a
     git directory and the todo call itself failed.
     """
-    # lazy: zrb internal (heavy via transitive / circular)
+    # lazy: zrb internal (heavy via transitive) — not a cycle, verified
+    # empirically.
     from zrb.llm.util.git import is_inside_git_dir
 
     if not is_inside_git_dir():
@@ -221,9 +230,6 @@ def _format_mode_line() -> str | None:
     Only emits when a non-default mode (e.g. PLAN) is active, so the section is
     byte-identical to before unless plan mode is explicitly entered.
     """
-    # lazy: permission is a leaf module.
-    from zrb.llm.permission.state import AgentMode, get_current_agent_mode
-
     if get_current_agent_mode() != AgentMode.PLAN:
         return None
     return (
@@ -371,9 +377,6 @@ def render_live_context(
     On the async per-turn hot path, prefer ``render_live_context_async`` — this
     sync form blocks its caller for the duration of the git subprocesses.
     """
-    # lazy: zrb internal (heavy via transitive / circular)
-    from zrb.llm.tool.plan import todo_manager
-
     session_name, interactive_bool = _wire_ambient_state(ctx)
     git_lines, todos_data = _collect_git_info(todo_manager, session_name)
     return _render_parts(
@@ -399,9 +402,6 @@ async def render_live_context_async(
     inline they freeze the TUI at the start of every turn for as long as
     ``git status`` takes (routinely hundreds of ms on WSL2 / large repos).
     """
-    # lazy: zrb internal (heavy via transitive / circular)
-    from zrb.llm.tool.plan import todo_manager
-
     session_name, interactive_bool = _wire_ambient_state(ctx)
     git_lines, todos_data = await asyncio.to_thread(
         _collect_git_info, todo_manager, session_name
@@ -421,12 +421,6 @@ def _wire_ambient_state(ctx: AnyContext) -> tuple[str, bool]:
 
     Returns ``(session_name, interactive_bool)``.
     """
-    # lazy: zrb internal (heavy via transitive / circular)
-    from zrb.llm.tool.ambient_state import (
-        set_current_tool_session,
-        set_interactive_mode,
-    )
-
     try:
         session_name = str(ctx.input.session) if hasattr(ctx, "input") else ""
     except Exception:
@@ -451,9 +445,6 @@ def _render_parts(
     first_message: str | None = None,
 ) -> str:
     """Assemble the live-context lines (ContextVar reads stay on the caller)."""
-    # lazy: zrb internal (heavy via transitive / circular)
-    from zrb.llm.tool.ambient_state import get_active_worktree, set_active_worktree
-
     # --- Worktree (ContextVar — must run on caller's thread) ---
     active_wt = get_active_worktree()
     if active_wt and not os.path.isdir(active_wt):

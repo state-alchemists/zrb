@@ -377,21 +377,25 @@ async def run_llm_hook(
     come from; *kind* names the one in play for log messages.
     """
     try:
-        # lazy: pydantic_ai (heavy third-party deferral)
-        from pydantic_ai import Agent
+        # lazy: zrb internal (heavy via transitive) — not circular anymore
+        # (hook/manager.py and agent/hook_agent.py both defer their own
+        # imports of this module's functions), but constructing an agent
+        # still pulls in pydantic_ai, so this stays deferred to when a
+        # prompt/agent hook actually fires.
+        from zrb.llm.agent import create_agent
 
         model_name = model or CFG.LLM_MODEL
         if not model_name:
             logger.error(f"No LLM model configured for {kind} hook")
             return HookResult(success=False, output="No LLM model configured")
 
-        agent = Agent(
+        agent = create_agent(
             model=llm_config.resolve_model(model_name),
             system_prompt=system_prompt,
             tools=tools or [],
-            deps_type=dict,
+            resolve_model=False,  # already resolved above
         )
-        result = await agent.run(user_prompt, deps={})
+        result = await agent.run(user_prompt)
 
         output_text = str(result.output)
         return HookResult(

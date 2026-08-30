@@ -322,7 +322,7 @@ async def test_run_agent_binds_explicit_run_scope_for_nested_tools():
     check) must see the `run_scope` the caller passed in — this is what lets
     it recognize the same conversation across its own separate turns.
     """
-    from zrb.llm.agent.run.runtime_state import get_current_agent_run_scope
+    from zrb.llm.agent_state import get_current_agent_run_scope
 
     seen_scope = None
 
@@ -353,7 +353,7 @@ async def test_run_agent_defaults_run_scope_to_a_fresh_id_each_call():
     delegations) must land in *different* scopes — never share one implicit
     bucket, and never collide with each other by construction.
     """
-    from zrb.llm.agent.run.runtime_state import get_current_agent_run_scope
+    from zrb.llm.agent_state import get_current_agent_run_scope
 
     seen_scopes = []
 
@@ -377,7 +377,7 @@ async def test_run_agent_defaults_run_scope_to_a_fresh_id_each_call():
 
 @pytest.mark.asyncio
 async def test_run_agent_resets_run_scope_after_returning():
-    from zrb.llm.agent.run.runtime_state import get_current_agent_run_scope
+    from zrb.llm.agent_state import get_current_agent_run_scope
 
     agent = MagicMock()
     mock_result = MagicMock()
@@ -1683,7 +1683,13 @@ async def test_run_agent_multi_ui_resolution():
     limiter.count_tokens.return_value = 10
     limiter.fit_context_window.side_effect = lambda h, m, r: h
 
-    with patch("zrb.llm.ui.multi_ui.MultiUI", return_value=MagicMock()) as mock_multi:
+    # MultiUI is imported (real, module-level) into agent/run/setup.py, which
+    # is where resolve_context_dependencies actually looks it up — patch
+    # there, not at zrb.llm.ui.multi_ui, since setup.py's own name binding
+    # predates this patch.
+    with patch(
+        "zrb.llm.agent.run.setup.MultiUI", return_value=MagicMock()
+    ) as mock_multi:
         await run_agent(
             agent=agent,
             message="Hi",

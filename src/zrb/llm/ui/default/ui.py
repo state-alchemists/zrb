@@ -37,17 +37,16 @@ if TYPE_CHECKING:
     from prompt_toolkit.layout import Layout
     from prompt_toolkit.lexers import Lexer
     from prompt_toolkit.styles import Style
-    from pydantic_ai import UserContent
-    from pydantic_ai.models import Model
     from rich.theme import Theme
 
+    from zrb.llm.agent.types import Model, UserContent
     from zrb.llm.task.llm_task import LLMTask
 
 logger = logging.getLogger(__name__)
 
 # The greeting shares the screen with the conversation, so it lists at most
 # this many commands and points at `/help` for the rest.
-GREETING_COMMAND_LIMIT = 20
+GREETING_COMMAND_LIMIT = 18
 
 
 class UI(BaseUI):

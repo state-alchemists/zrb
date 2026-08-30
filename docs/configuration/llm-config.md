@@ -4,6 +4,8 @@
 
 Zrb uses `pydantic-ai` to interface with a wide array of Large Language Models, granting out-of-the-box compatibility with OpenAI, Anthropic, Google Vertex, Ollama, DeepSeek, and more. This document provides an exhaustive list of environment variables to configure Zrb's AI features.
 
+`Model`, `ModelSettings`, and the pydantic-ai `capabilities` list accepted by `LLMTask`/`LLMChatTask` (see [Model, Model Settings & Capabilities](../task-types/llmchat-task.md#model-model-settings--capabilities)) are pydantic-ai's own types, passed through unchanged — for what each provider's `Model`/`ModelSettings` actually accept, [pydantic-ai's documentation](https://ai.pydantic.dev) is the source of truth. This page covers the zrb-side knobs layered on top: routing, credentials, rate limits, and the defaults zrb applies before handing settings to pydantic-ai.
+
 ---
 
 ## Table of Contents

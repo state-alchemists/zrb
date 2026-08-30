@@ -15,7 +15,7 @@ from zrb.util.truncate import truncate_chars
 from zrb.util.yaml import yaml_dump
 
 if TYPE_CHECKING:
-    from pydantic_ai import ToolApproved, ToolCallPart, ToolDenied
+    from zrb.llm.agent.types import ToolApproved, ToolCallPart, ToolDenied
 
 # A denial reason is a short human-typed note. Clamp it so a mis-submitted
 # payload (e.g. a whole screen buffer) can never enter the conversation
@@ -66,8 +66,8 @@ class ToolCallHandler:
         ui: UIProtocol,
         call: ToolCallPart,
     ) -> ToolApproved | ToolDenied | None:
-        # lazy: heavy third-party
-        from pydantic_ai import ToolApproved, ToolDenied
+        # lazy: zrb internal (heavy via transitive)
+        from zrb.llm.agent.types import ToolApproved, ToolDenied
 
         # Tool Policies (Pre-confirmation)
         policy_result = await self.check_policies(ui, call)

@@ -13,7 +13,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from pydantic_ai.usage import RequestUsage, RunUsage
+    from zrb.llm.agent.types import RequestUsage, RunUsage
 
 
 class BaseUIUsage:

@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Any, Sequence
 
 if TYPE_CHECKING:
-    from pydantic_ai.messages import ModelRequest, ModelResponse
+    from zrb.llm.agent.types import ModelRequest, ModelResponse
 else:
     ModelRequest = Any
     ModelResponse = Any
@@ -9,8 +9,8 @@ else:
 
 def message_to_text(msg: Any) -> str:
     """Convert a pydantic_ai message to a readable text representation for summarization."""
-    # lazy: heavy third-party
-    from pydantic_ai.messages import ModelRequest, ModelResponse
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import ModelRequest, ModelResponse
 
     if isinstance(msg, ModelRequest):
         return model_request_to_text(msg)
@@ -23,9 +23,8 @@ def message_to_text(msg: Any) -> str:
 
 
 def model_request_to_text(msg: ModelRequest) -> str:
-    # lazy: heavy third-party
-    from pydantic_ai.messages import SystemPromptPart, ToolReturnPart, UserPromptPart
-
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import SystemPromptPart, ToolReturnPart, UserPromptPart
     from zrb.llm.util.history_formatter import format_multimodal_item
 
     parts = []
@@ -61,8 +60,8 @@ def model_request_to_text(msg: ModelRequest) -> str:
 
 
 def model_response_to_text(msg: ModelResponse) -> str:
-    # lazy: heavy third-party
-    from pydantic_ai.messages import FilePart, TextPart, ToolCallPart, ToolReturnPart
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import FilePart, TextPart, ToolCallPart, ToolReturnPart
 
     parts = []
     msg_parts = getattr(msg, "parts", [])

@@ -13,7 +13,7 @@ from zrb.llm.util.tool_args import (
 from zrb.util.truncate import truncate_display
 
 if TYPE_CHECKING:
-    from pydantic_ai import ModelMessage
+    from zrb.llm.agent.types import ModelMessage
 
 
 def extract_last_response_text(messages: "list[ModelMessage]") -> str:
@@ -178,8 +178,8 @@ def format_multimodal_item(item) -> str:
     """
     if isinstance(item, str):
         return item
-    # lazy: heavy third-party
-    from pydantic_ai.messages import (
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import (
         AudioUrl,
         BinaryContent,
         DocumentUrl,

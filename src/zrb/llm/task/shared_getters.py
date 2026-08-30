@@ -14,12 +14,8 @@ from zrb.util.attr import get_attr
 from zrb.util.string.name import get_random_name
 
 if TYPE_CHECKING:
-    from pydantic_ai import Tool
-    from pydantic_ai.models import Model
-    from pydantic_ai.tools import ToolFuncEither
-    from pydantic_ai.toolsets import AbstractToolset
-
     from zrb.context.any_context import AnyContext
+    from zrb.llm.agent.types import AbstractToolset, Model, Tool, ToolFuncEither
     from zrb.llm.config.config import LLMConfig
     from zrb.llm.prompt.manager import PromptManager
 

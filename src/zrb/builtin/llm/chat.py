@@ -107,8 +107,8 @@ def _tool_factory(tool, defer_loading: bool = True):
     its schema carries the sub-agent roster, and a model that has to search
     before it can see which agents exist mostly does not delegate at all.
     """
-    # lazy: pydantic_ai (heavy third-party deferral)
-    from pydantic_ai import Tool
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import Tool
 
     return Tool(tool, defer_loading=defer_loading)
 

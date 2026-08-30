@@ -10,6 +10,7 @@ that shared body's own tests, which is why some patches below still target
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from pydantic_ai import RunContext
 
 from zrb.llm.agent.hook_agent import create_agent_hook
 from zrb.llm.hook.interface import HookContext
@@ -268,9 +269,18 @@ async def test_agent_hook_runs_when_named_tools_do_resolve():
         result = await hook(context)
 
     assert result.success is True
-    tools_passed = agent_cls.call_args.kwargs["tools"]
-    assert len(tools_passed) == 1
-    returned = await tools_passed[0].function(note="x")
+    # create_agent() wraps tools into a toolset (SafeToolsetWrapper around a
+    # FunctionToolset) rather than passing a raw `tools=` kwarg to Agent(...);
+    # `.wrapped` is WrapperToolset's own public dataclass field.
+    toolsets_passed = agent_cls.call_args.kwargs["toolsets"]
+    assert len(toolsets_passed) == 1
+    function_toolset = toolsets_passed[0].wrapped
+    run_ctx = RunContext(deps=None, model=MagicMock(), usage=MagicMock())
+    resolved_tools = await function_toolset.get_tools(run_ctx)
+    assert list(resolved_tools) == ["LogActivity"]
+    returned = await function_toolset.call_tool(
+        "LogActivity", {"note": "x"}, run_ctx, resolved_tools["LogActivity"]
+    )
     assert returned.return_value == "logged: x"
 
 

@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Awaitable, Callable
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 
 if TYPE_CHECKING:
-    from pydantic_ai import ToolCallPart
+    from zrb.llm.agent.types import ToolCallPart
 
 
 ResponseHandler = Callable[

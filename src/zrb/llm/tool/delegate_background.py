@@ -36,13 +36,13 @@ from typing import TYPE_CHECKING, Annotated
 from pydantic import Field
 
 from zrb.config.config import CFG
-from zrb.llm.agent.run.runtime_state import get_current_ui
 from zrb.llm.agent.subagent.manager import (
     SubAgentManager,
 )
 from zrb.llm.agent.subagent.manager import (
     sub_agent_manager as default_sub_agent_manager,
 )
+from zrb.llm.agent_state import get_current_ui
 from zrb.llm.permission import Capability, tag
 from zrb.llm.tool.ambient_state import (
     get_current_tool_session,

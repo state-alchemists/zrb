@@ -22,8 +22,8 @@ def ensure_alternating_roles(messages: list[Any]) -> list[Any]:
     if not messages:
         return messages
 
-    # lazy: heavy third-party
-    from pydantic_ai.messages import ModelRequest, ModelResponse
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import ModelRequest, ModelResponse
 
     new_messages: list[Any] = []
     for msg in messages:
@@ -69,8 +69,8 @@ def _strip_orphaned_parts(
     content, a ``TOOL_CALL_PLACEHOLDER`` text part is prepended so the message
     stays valid.
     """
-    # lazy: heavy third-party
-    from pydantic_ai.messages import TextPart
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import TextPart
 
     new_parts = [
         p
@@ -100,8 +100,8 @@ def sanitize_orphaned_tool_calls(messages: list[Any]) -> list[Any]:
     return.  This function strips the orphaned parts and patches any messages
     that become text-less as a result.
     """
-    # lazy: heavy third-party
-    from pydantic_ai.messages import (
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import (
         ModelRequest,
         ModelResponse,
         RetryPromptPart,
@@ -150,8 +150,8 @@ def strip_orphaned_returns(messages: list[Any]) -> list[Any]:
     model's most recent turn.  Only ToolReturnParts whose calls were in
     the summarised (dropped) portion are stripped.
     """
-    # lazy: heavy third-party
-    from pydantic_ai.messages import (
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import (
         ModelRequest,
         RetryPromptPart,
         ToolReturnPart,
@@ -246,8 +246,8 @@ def _iter_tool_events(
     ``get_tool_pairs`` and ``validate_tool_pair_integrity``, so the for-loop /
     try-except / isinstance pattern exists once.
     """
-    # lazy: heavy third-party
-    from pydantic_ai.messages import RetryPromptPart, ToolCallPart, ToolReturnPart
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import RetryPromptPart, ToolCallPart, ToolReturnPart
 
     for msg_idx, msg in enumerate(messages):
         try:

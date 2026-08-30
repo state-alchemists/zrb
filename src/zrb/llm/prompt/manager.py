@@ -9,7 +9,7 @@ from zrb.llm.prompt.claude import (
     build_skill_replacements,
     create_project_context_prompt,
 )
-from zrb.llm.prompt.live_context import render_live_context
+from zrb.llm.prompt.live_context import render_live_context, render_live_context_async
 from zrb.llm.prompt.profile import active_profile
 from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.prompt.system_context import system_context
@@ -267,9 +267,6 @@ class PromptManager:
         """``create_live_context`` for async callers (the per-turn hot path):
         the git subprocesses run off-loop instead of blocking the event loop.
         """
-        # lazy: keep the async twin's import local, mirroring the sync path.
-        from zrb.llm.prompt.live_context import render_live_context_async
-
         body = await render_live_context_async(
             ctx,
             self._model,

@@ -39,7 +39,7 @@ def turn_wrote_files(
     to a file-mutating tool. Pure Python, no LLM involved — the cheap half of
     gating an evidence-based journal-compliance hook: only worth asking a
     judge-agent to look at a turn that actually touched files."""
-    from pydantic_ai.messages import (  # lazy: heavy third-party
+    from zrb.llm.agent.types import (  # lazy: zrb internal (heavy via transitive)
         ModelResponse,
         ToolCallPart,
     )
@@ -58,7 +58,7 @@ def turn_states_preference(turn_messages: list[Any]) -> bool:
     preference or standing instruction. Pure regex, no LLM involved — the
     cheap half of widening the journal-compliance gate beyond `wrote_files`
     alone, so a preference stated with no file edit still gets a look."""
-    from pydantic_ai.messages import (  # lazy: heavy third-party
+    from zrb.llm.agent.types import (  # lazy: zrb internal (heavy via transitive)
         ModelRequest,
         UserPromptPart,
     )

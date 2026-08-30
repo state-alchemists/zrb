@@ -6,7 +6,7 @@ from zrb.llm.tool_call.args import parse_tool_args
 from zrb.llm.tool_call.handler import UIProtocol
 
 if TYPE_CHECKING:
-    from pydantic_ai import ToolCallPart
+    from zrb.llm.agent.types import ToolCallPart
 
 
 async def replace_in_file_validation_policy(
@@ -21,8 +21,8 @@ async def replace_in_file_validation_policy(
     2. File does not exist.
     3. old_text is not found in the file.
     """
-    # lazy: heavy third-party
-    from pydantic_ai import ToolDenied
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import ToolDenied
 
     if call.tool_name != "Edit":
         return await next_handler(ui, call)

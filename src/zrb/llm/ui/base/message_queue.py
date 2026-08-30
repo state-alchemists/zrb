@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any
 from zrb.config.config import CFG
 
 if TYPE_CHECKING:
-    from pydantic_ai import UserContent
+    from zrb.llm.agent.types import UserContent
 
 
 class QueuedMessage:

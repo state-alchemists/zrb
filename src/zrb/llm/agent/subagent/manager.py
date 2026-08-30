@@ -364,8 +364,9 @@ class SubAgentManager:
         """
         if not inherit_sections:
             return ""
-        # lazy: zrb internal (heavy via transitive / circular) — PromptManager
-        # pulls in skill_manager which pulls in hook_manager.
+        # lazy: zrb internal (heavy via transitive) — PromptManager pulls in
+        # skill_manager which pulls in hook_manager; not a cycle, verified
+        # empirically.
         from zrb.llm.prompt.manager import PromptManager
 
         sections = list(inherit_sections)

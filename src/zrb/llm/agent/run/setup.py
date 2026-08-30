@@ -13,13 +13,17 @@ from contextvars import ContextVar
 from typing import Any
 
 from zrb.config.config import CFG
-from zrb.llm.agent.run.runtime_state import (
+from zrb.llm.agent_state import (
     current_tool_confirmation,
     current_ui,
     current_yolo,
 )
 from zrb.llm.approval.approval_channel import current_approval_channel
+from zrb.llm.approval.multiplex_approval_channel import MultiplexApprovalChannel
+from zrb.llm.approval.terminal_approval_channel import TerminalApprovalChannel
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
+from zrb.llm.ui.multi_ui import MultiUI
+from zrb.llm.ui.std_ui import StdUI
 from zrb.util.contextvar_scope import scoped
 
 
@@ -34,12 +38,6 @@ def bind_contextvar(stack: ExitStack, var: ContextVar, value: Any) -> None:
 def resolve_context_dependencies(
     ui, tool_confirmation, yolo, approval_channel, hook_manager
 ):
-    # lazy: zrb.llm.ui.* and zrb.llm.approval.* are imported inside this
-    # function to break a circular import — zrb.llm.agent is loaded by
-    # those packages' init paths, so module-top imports here would re-enter
-    # zrb.llm.agent before its __init__ has finished.
-    from zrb.llm.ui.std_ui import StdUI
-
     ui_arg = ui if ui is not None else current_ui.get()
     if ui_arg is None:
         ui_arg = StdUI()
@@ -50,8 +48,6 @@ def resolve_context_dependencies(
         elif len(ui_arg) == 0:
             effective_ui = StdUI()
         else:
-            from zrb.llm.ui.multi_ui import MultiUI
-
             effective_ui = MultiUI(ui_arg)
     else:
         effective_ui = ui_arg
@@ -64,11 +60,6 @@ def resolve_context_dependencies(
     effective_approval_channel = approval_channel or current_approval_channel.get()
 
     if effective_approval_channel is not None and effective_ui is not None:
-        from zrb.llm.approval.multiplex_approval_channel import (
-            MultiplexApprovalChannel,
-        )
-        from zrb.llm.approval.terminal_approval_channel import TerminalApprovalChannel
-
         if not isinstance(effective_approval_channel, MultiplexApprovalChannel):
             ui_for_terminal = effective_ui
             children = getattr(effective_ui, "children", None)
