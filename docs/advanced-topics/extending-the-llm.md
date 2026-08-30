@@ -242,6 +242,8 @@ Core agents are shown before optional agents in the `AVAILABLE AGENTS` roster an
 
 ## Model Capabilities
 
+> Not to be confused with the `capabilities` constructor argument on `LLMTask`/`LLMChatTask` — that's pydantic-ai's own `AbstractCapability` list (`ProcessHistory`, `Thinking`, `WebSearch`, …), documented in [Model, Model Settings & Capabilities](../task-types/llmchat-task.md#model-model-settings--capabilities). This section is zrb's own registry, described below.
+
 Zrb maintains a per-model capability registry that tracks what each model can and can't do — image/audio/video/document input, whether parallel tool calls are supported, and so on. It's used internally to decide things like *"should I let pydantic-ai emit parallel tool calls for this model?"* and *"is the user attaching an image to a text-only model — describe it via the multimodal fallback?"*.
 
 The registry ships with a built-in name-pattern table (it knows about GPT-4o, Claude, Gemini, Llava, etc.) and exposes a module-level singleton you can extend from `zrb_init.py`:

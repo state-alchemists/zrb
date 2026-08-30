@@ -667,7 +667,23 @@ The session identifier is available in the stdin JSON payload (`session_id`) but
 
 ## Defining Hooks Programmatically (Python)
 
-For complex logic, define hooks directly in `zrb_init.py`:
+### Scoped to one task: `append_hook_factory`
+
+Registering directly on `hook_manager` (below) affects every agent in the process. To scope hooks to one `LLMTask`/`LLMChatTask` instance, use its `append_hook_factory(*factory)` builder method instead, where each factory is `Callable[[HookManager], None]`:
+
+```python
+def register_my_hooks(hm: HookManager) -> None:
+    hm.register(my_hook, events=[HookEvent.SESSION_START])
+
+chat.append_hook_factory(register_my_hooks)
+```
+
+The two task classes isolate differently (ADR-0072):
+
+- **`LLMChatTask`** builds a **fresh** `HookManager` per execution and replays every registered factory onto it each time, so one chat session's hooks never leak into the next.
+- **`LLMTask`** holds a **persistent** manager. The *first* `append_hook_factory` call swaps the process-wide default for a fresh task-local manager (later calls apply to that same manager) — unless a manager was passed explicitly to the constructor's `hook_manager=` argument, which is never swapped. This keeps per-task hooks from silently mutating global state, at the cost that such a task no longer participates in the global filesystem hook set unless it was explicitly constructed with the global manager.
+
+For complex logic, you can also define hooks directly in `zrb_init.py`:
 
 ```python
 from zrb.llm.hook.manager import hook_manager
