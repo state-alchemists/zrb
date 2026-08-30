@@ -246,7 +246,9 @@ def wrap_toolset(
                 blocked = permission_gate(name, tool_capability(tool), tool_args or {})
                 if blocked is not None:
                     return blocked
-                blocked = sandbox_gate(name, tool_capability(tool), tool_args or {})
+                blocked = sandbox_gate(
+                    name, tool_capability(tool), tool_args or {}, ctx
+                )
                 if blocked is not None:
                     return blocked
                 result = await super().call_tool(name, tool_args, ctx, tool)

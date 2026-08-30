@@ -5,9 +5,21 @@ the safe-wrappers in ``agent/common.py``:
 
 * :func:`permission_gate` — enforces the *deny* outcome of the active
   ``PermissionPolicy`` (the allow/ask outcomes are handled by the approval
-  layer; only deny is expressed here).
+  layer; only deny is expressed here). Reads ``current_agent_mode`` fresh on
+  every call (via ``get_effective_policy()``) because a mid-run mode switch
+  (e.g. the model calling ``ExitPlanMode``) must take effect for the rest of
+  that same run — this is why the policy stays ambient-read rather than
+  moving to ``ctx.deps`` the way ``sandbox_gate`` does below.
 * :func:`sandbox_gate` — enforces the filesystem sandbox policy by inspecting
-  path-like arguments.
+  path-like arguments. Unlike the permission policy, the sandbox policy is
+  fixed for a run's whole lifetime (nothing mutates it mid-run), so
+  ``SafeToolsetWrapper.call_tool`` (the single chokepoint every tool call
+  passes through) hands it ``ctx.deps`` — the policy `run_agent` resolved
+  once and passed into `agent.run(deps=...)` — instead of a fresh ambient
+  read. `ctx` is optional and falls back to the ambient read when omitted,
+  for the one other caller (`create_safe_wrapper`'s own defense-in-depth gate
+  call, redundant with the chokepoint above for real invocations) that has
+  no `RunContext` to offer.
 
 Both return a blocked ``ToolReturn`` to short-circuit the call, or ``None`` to
 let it proceed. ``None`` is the zero-cost default path (no policy / sandbox
@@ -27,6 +39,7 @@ from zrb.llm.permission import (
     get_effective_policy,
 )
 from zrb.llm.sandbox import check_read, check_write, get_effective_sandbox_policy
+from zrb.llm.sandbox.policy import SandboxPolicy
 
 
 def permission_gate(tool_name: str, capability: Any, args: dict[str, Any]) -> Any:
@@ -53,13 +66,21 @@ def permission_gate(tool_name: str, capability: Any, args: dict[str, Any]) -> An
     )
 
 
-def sandbox_gate(tool_name: str, capability: Any, args: dict[str, Any]) -> Any:
+def sandbox_gate(
+    tool_name: str, capability: Any, args: dict[str, Any], ctx: Any = None
+) -> Any:
     """Return a blocked ``ToolReturn`` if the sandbox FS policy denies this call.
 
     Returns ``None`` when the sandbox is disabled (the default — zero-cost
     path) or no path argument violates the policy. EXECUTE tools are not
     path-checked here: shell commands are contained by the OS-level sandbox
     layer, not by argument inspection.
+
+    ``ctx`` is a pydantic-ai ``RunContext`` (or ``None``): when given and
+    ``ctx.deps`` is set, that's the policy `run_agent` resolved once for this
+    run — read instead of the ambient ``ContextVar``, since it's the same
+    value by construction and this is the one gate call site
+    (`SafeToolsetWrapper.call_tool`) every real tool call passes through.
     """
     # Argument keys the sandbox gate treats as filesystem paths (subset of the
     # permission layer's _SALIENT_ARG_KEYS). Reads check every path-like arg;
@@ -79,7 +100,13 @@ def sandbox_gate(tool_name: str, capability: Any, args: dict[str, Any]) -> Any:
         "worktree_path",
     )
 
-    policy = get_effective_sandbox_policy()
+    # isinstance-checked, not just "is not None": a test double's `ctx` is
+    # often a bare `MagicMock()`, whose `.deps` auto-vivifies into another
+    # MagicMock rather than raising or returning None — falling back to the
+    # ambient read for anything that isn't actually a SandboxPolicy avoids
+    # silently gating on a mock's default (truthy) attribute behavior.
+    deps = getattr(ctx, "deps", None)
+    policy = deps if isinstance(deps, SandboxPolicy) else get_effective_sandbox_policy()
     if not policy.enabled:
         return None
 

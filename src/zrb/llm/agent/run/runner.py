@@ -25,7 +25,7 @@ import asyncio
 import uuid
 from contextlib import ExitStack
 from dataclasses import replace
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, Coroutine
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Coroutine, cast
 
 from zrb.config.config import CFG
 from zrb.llm.agent.run.deferred_calls import (
@@ -81,7 +81,7 @@ from zrb.llm.permission.state import (
     exit_agent_mode_scope,
 )
 from zrb.llm.prompt.live_context import append_live_context
-from zrb.llm.sandbox.state import current_sandbox_policy
+from zrb.llm.sandbox.state import current_sandbox_policy, get_effective_sandbox_policy
 from zrb.llm.tool.worktree import active_worktree
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 from zrb.llm.util.prompt import expand_prompt
@@ -183,6 +183,13 @@ async def run_agent(
         bind_contextvar(stack, current_approval_channel, effective_approval_channel)
         bind_contextvar(stack, current_permission_policy, effective_policy)
         bind_contextvar(stack, current_sandbox_policy, effective_sandbox)
+        # Resolved once, now that current_sandbox_policy reflects this run's
+        # own binding above — passed as `agent.run(deps=...)` so `sandbox_gate`
+        # reads it explicitly instead of re-deriving it from ambient state at
+        # every tool call (ADR-0069). Safe to freeze for the run's lifetime:
+        # unlike the permission policy, nothing mutates the sandbox policy
+        # mid-run.
+        sandbox_deps = get_effective_sandbox_policy()
         # Backstop, not the primary contract: EnterWorktree/ExitWorktree still
         # own setting/clearing this per tool call. This only guarantees that a
         # forgotten ExitWorktree (agent forgets, run errors) can't leak the
@@ -246,6 +253,7 @@ async def run_agent(
             effective_hook_manager=effective_hook_manager,
             effective_approval_channel=effective_approval_channel,
             checkpoint_fn=checkpoint_fn,
+            sandbox_deps=sandbox_deps,
         )
     finally:
         stack.close()
@@ -461,6 +469,7 @@ async def _execution_loop(
     effective_hook_manager: HookManager,
     effective_approval_channel: "ApprovalChannel | None",
     checkpoint_fn: Callable[[list[Any]], Coroutine[Any, Any, None]] | None = None,
+    sandbox_deps: Any = None,
 ) -> tuple[Any, list[Any]]:
     # lazy: heavy third-party
     from pydantic_ai import AgentRunResultEvent, DeferredToolRequests, UsageLimits
@@ -504,6 +513,12 @@ async def _execution_loop(
                     deferred_tool_results=cursor.results,
                     usage_limits=UsageLimits(request_limit=_request_limit()),
                     event_stream_handler=handler,
+                    # pydantic-ai types `deps` against the Agent's own
+                    # deps_type (`None` here — see create_agent's comment on
+                    # why it stays pinned to None for the toolsets/
+                    # model_settings overloads). `sandbox_gate` reads it via
+                    # `ctx.deps` regardless of this static type (ADR-0069).
+                    deps=cast(Any, sandbox_deps),
                 )
                 cursor.output = result.output
                 CFG.LOGGER.debug(
