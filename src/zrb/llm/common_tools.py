@@ -147,9 +147,9 @@ def _register_tools(host: CommonToolHost) -> None:
     worktree_tools = (
         [enter_worktree, exit_worktree, list_worktrees] if is_inside_git_dir() else []
     )
-    # read_tool_result only makes sense when spill is enabled — registering it
+    # ReadToolResult only makes sense when spill is enabled — registering it
     # otherwise is pure prompt weight for a tool that always answers "no result".
-    spill_tools = [read_tool_result] if CFG.LLM_TOOL_SPILL_ENABLED else []
+    spill_tools = [read_tool_result] if CFG.LLM_ENABLE_TOOL_SPILL else []
     # TodoWrite replaces the whole list by default, so it subsumes the former
     # UpdateTodo (rewrite with one status changed) and ClearTodos (write []).
     plan_tools = [write_todos, get_todos]

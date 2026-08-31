@@ -456,7 +456,12 @@ async def _prepare_history(
         processed_history = safe_history
 
     return await _acquire_rate_limit(
-        limiter, prompt_content, processed_history, print_fn, reserved_tokens
+        limiter,
+        prompt_content,
+        processed_history,
+        print_fn,
+        reserved_tokens,
+        model=getattr(agent, "model", None),
     )
 
 
@@ -887,6 +892,7 @@ async def _acquire_rate_limit(
     message_history: list[Any],
     print_fn: Callable[..., Any],
     reserved_tokens: int = 0,
+    model: Any = None,
 ) -> list[Any]:
     """Prunes history and waits if rate limits are exceeded."""
 
@@ -905,7 +911,7 @@ async def _acquire_rate_limit(
     if not message:
         return message_history
     pruned_history = limiter.fit_context_window(
-        message_history, message, reserved_tokens
+        message_history, message, reserved_tokens, model=model
     )
     await limiter.acquire(
         {"message": message, "history": pruned_history},

@@ -4,6 +4,7 @@ from collections import deque
 from typing import Any, Callable
 
 from zrb.config.config import CFG
+from zrb.llm.util.capabilities import model_capabilities
 from zrb.util.cli.style import stylize_info
 
 
@@ -75,7 +76,7 @@ class LLMLimiter:
 
     @property
     def max_token_per_request(self) -> int:
-        """Tokens allowed in one request, from `LLM_MAX_TOKEN_PER_REQUEST` (default 16k).
+        """Tokens allowed in one request, from `LLM_MAX_TOKEN_PER_REQUEST` (default 128k).
 
         `fit_context_window` trims history to stay under this. `0` blocks
         every request — checked with `is not None` so an explicit zero isn't
@@ -84,12 +85,19 @@ class LLMLimiter:
         if self._max_token_per_request is not None:
             return self._max_token_per_request
         cfg_value = getattr(CFG, "LLM_MAX_TOKEN_PER_REQUEST", None)
-        return cfg_value if cfg_value is not None else 16_000
+        return cfg_value if cfg_value is not None else 128_000
 
     @max_token_per_request.setter
     def max_token_per_request(self, value: int):
         """Override the per-request token cap for this limiter."""
         self._max_token_per_request = value
+
+    def _effective_context_window(self, model: Any = None) -> int:
+        """Return the configured cap, reduced when *model* has a known window."""
+        model_window = model_capabilities.get(model).context_window
+        if model_window is None or model_window <= 0:
+            return self.max_token_per_request
+        return min(self.max_token_per_request, model_window)
 
     @property
     def throttle_check_interval(self) -> float:
@@ -120,7 +128,11 @@ class LLMLimiter:
     # --- Public API ---
 
     def fit_context_window(
-        self, history: list[Any], new_message: Any, reserved_tokens: int = 0
+        self,
+        history: list[Any],
+        new_message: Any,
+        reserved_tokens: int = 0,
+        model: Any = None,
     ) -> list[Any]:
         """
         Prunes the history (removing oldest turns) so that 'history + new_message'
@@ -132,7 +144,17 @@ class LLMLimiter:
         if not history:
             return history
 
-        available = max(0, int(self.max_token_per_request * 0.90) - reserved_tokens)
+        context_limit = int(self._effective_context_window(model) * 0.90)
+        # A provider usage anchor already includes instructions and tool schemas,
+        # so subtracting ``reserved_tokens`` again would double-count them.
+        available = max(
+            0,
+            (
+                context_limit
+                if self._has_usage_anchor(history)
+                else context_limit - reserved_tokens
+            ),
+        )
 
         new_msg_tokens = self._count_tokens(new_message)
         if new_msg_tokens > available:
@@ -140,40 +162,20 @@ class LLMLimiter:
 
         n = len(history)
 
-        # Precompute per-message costs in O(n) to avoid O(n²) re-counting in the
-        # pruning loop.  Must replicate to_str's list-level semantics exactly:
-        # bodies are counted per-message with skip_instructions=True, and only the
-        # LAST instruction in the current window is counted once (historical
-        # instructions are not replayed by pydantic-ai).  Counting each message
-        # individually with skip_instructions=False would include every message's
-        # instructions, wildly over-estimating the cost for long conversations.
-        msg_body_tokens = [
-            self._count_tokens(self.to_str(msg, skip_instructions=True))
-            for msg in history
-        ]
-        msg_instr_tokens = []
-        for msg in history:
-            instr = getattr(msg, "instructions", None)
-            msg_instr_tokens.append(
-                self._count_tokens(self.to_str(instr, skip_instructions=True))
-                if instr
-                else 0
-            )
-
-        # last_instr_from[i] = index of the last message with instructions in
-        # history[i:], or -1.  Allows O(1) "what is the active instruction cost
-        # for the window starting at i?" lookups during the pruning loop.
-        last_instr_from = [-1] * (n + 1)
-        for i in range(n - 1, -1, -1):
-            last_instr_from[i] = (
-                i if msg_instr_tokens[i] > 0 else last_instr_from[i + 1]
-            )
+        msg_body_tokens, msg_instr_tokens, last_instr_from = self._history_token_costs(
+            history
+        )
 
         def _instr_cost(from_idx: int) -> int:
             li = last_instr_from[from_idx]
             return msg_instr_tokens[li] if li >= 0 else 0
 
-        total_tokens = sum(msg_body_tokens) + _instr_cost(0)
+        usage_anchor = self._usage_anchor(history)
+        total_tokens = (
+            usage_anchor[1]
+            if usage_anchor is not None
+            else sum(msg_body_tokens) + _instr_cost(0)
+        )
 
         if total_tokens + new_msg_tokens <= available:
             return list(history)
@@ -191,18 +193,32 @@ class LLMLimiter:
                     break
 
             if next_turn == -1:
-                # No subsequent turn found; clear all remaining history.
+                if usage_anchor is not None:
+                    # The anchor is in the final turn. It cannot shrink while
+                    # retained, so assess that turn locally before dropping it.
+                    usage_anchor = None
+                    total_tokens = sum(msg_body_tokens[start:]) + _instr_cost(start)
+                    if total_tokens + new_msg_tokens <= available:
+                        break
+                # No remaining safe turn boundary can make this fit.
                 total_tokens = 0
                 start = n
                 break
 
-            # Subtract body tokens for the dropped messages.
-            for i in range(start, next_turn):
-                total_tokens -= msg_body_tokens[i]
+            if usage_anchor is not None and next_turn > usage_anchor[0]:
+                # The anchor's provider-reported input covered the older slice.
+                # Once that response is dropped, resume local accounting for the
+                # remaining messages rather than treating stale usage as current.
+                usage_anchor = None
+                total_tokens = sum(msg_body_tokens[next_turn:]) + _instr_cost(next_turn)
+            elif usage_anchor is None:
+                # Subtract body tokens for the dropped messages.
+                for i in range(start, next_turn):
+                    total_tokens -= msg_body_tokens[i]
 
-            # Adjust for the instruction-window shift: the "active last instruction"
-            # may change as old messages are pruned from the front.
-            total_tokens += _instr_cost(next_turn) - _instr_cost(start)
+                # Adjust for the instruction-window shift: the "active last instruction"
+                # may change as old messages are pruned from the front.
+                total_tokens += _instr_cost(next_turn) - _instr_cost(start)
 
             start = next_turn
 
@@ -271,8 +287,44 @@ class LLMLimiter:
 
     # --- Helpers ---
 
+    def _has_usage_anchor(self, messages: list[Any]) -> bool:
+        """Whether *messages* contain provider usage suitable for context sizing."""
+        return self._usage_anchor(messages) is not None
+
+    def _history_token_costs(
+        self, history: list[Any]
+    ) -> tuple[list[int], list[int], list[int]]:
+        """Precompute body and active-instruction costs for each history suffix."""
+        body_tokens = [
+            self._count_tokens(self.to_str(message, skip_instructions=True))
+            for message in history
+        ]
+        instruction_tokens = [self._instruction_tokens(message) for message in history]
+        last_instruction = [-1] * (len(history) + 1)
+        for index in range(len(history) - 1, -1, -1):
+            last_instruction[index] = (
+                index if instruction_tokens[index] > 0 else last_instruction[index + 1]
+            )
+        return body_tokens, instruction_tokens, last_instruction
+
+    def _instruction_tokens(self, message: Any) -> int:
+        """Return *message*'s instruction cost, excluding it when absent."""
+        instructions = getattr(message, "instructions", None)
+        if not instructions:
+            return 0
+        return self._count_tokens(self.to_str(instructions, skip_instructions=True))
+
     def _count_tokens(self, content: Any) -> int:
-        text = self.to_str(content)
+        if isinstance(content, list):
+            anchor = self._usage_anchor(content)
+            if anchor is not None:
+                index, tokens = anchor
+                return tokens + self._count_text_tokens(
+                    self.to_str(content[index + 1 :])
+                )
+        return self._count_text_tokens(self.to_str(content))
+
+    def _count_text_tokens(self, text: str) -> int:
         if self.use_tiktoken:
             try:
                 # lazy: heavy third-party
@@ -286,8 +338,16 @@ class LLMLimiter:
                 # or unfetchable BPE cache). Counting must never crash the
                 # history pipeline — it runs before every model call.
                 CFG.LOGGER.debug(f"tiktoken count fallback: {e}")
-        # Fallback approximation (char/4)
         return len(text) // 4
+
+    def _usage_anchor(self, messages: list[Any]) -> tuple[int, int] | None:
+        for index in range(len(messages) - 1, -1, -1):
+            usage = getattr(messages[index], "usage", None)
+            input_tokens = getattr(usage, "input_tokens", 0) if usage else 0
+            if isinstance(input_tokens, int) and input_tokens > 0:
+                output_tokens = getattr(usage, "output_tokens", 0) or 0
+                return index, input_tokens + output_tokens
+        return None
 
     def to_str(self, content: Any, skip_instructions: bool = False) -> str:
         """Flatten arbitrary message content into a string for token counting."""

@@ -47,7 +47,7 @@ class LLMLimitsMixin:
         # minutes of wall clock being printed.
         self.DEFAULT_LLM_MAX_CONSOLE_OUTPUT_CHARS: str = "1000000"
         self.DEFAULT_LLM_MAX_TOOL_RESULT_CHARS: str = "100000"
-        self.DEFAULT_LLM_TOOL_SPILL_ENABLED: str = "off"
+        self.DEFAULT_LLM_ENABLE_TOOL_SPILL: str = "off"
         self.DEFAULT_LLM_MAX_COMPLETION_FILES: str = "5000"
         # Image scaling — 1568px is Anthropic's no-extra-cost tier; JPEG q85 is
         # near-lossless for screenshots while halving size vs. PNG re-encode.
@@ -217,14 +217,16 @@ class LLMLimitsMixin:
         ),
     )
 
-    LLM_TOOL_SPILL_ENABLED = EnvField(
+    LLM_ENABLE_TOOL_SPILL = EnvField(
         to_boolean,
+        aliases=["LLM_ENABLE_TOOL_SPILL", "LLM_TOOL_SPILL_ENABLED"],
+        write_key="LLM_ENABLE_TOOL_SPILL",
         serialize=on_off,
         doc=(
             "When on, a tool result whose model-facing text exceeds "
             "LLM_MAX_TOOL_RESULT_CHARS is spilled (losslessly) to a queryable "
             "local store instead of being passed whole; the model gets a "
-            "read_tool_result handle plus a preview. Off by default."
+            "ReadToolResult handle plus a preview. Off by default."
         ),
     )
 

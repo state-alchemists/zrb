@@ -1,6 +1,5 @@
 """Tests for the lossless tool-result spill store (ADR-0089)."""
 
-from contextlib import contextmanager
 from typing import Any, cast
 from unittest.mock import AsyncMock, patch
 
@@ -23,6 +22,18 @@ def test_store_write_read_roundtrip(tmp_path):
     handle = store.write("run/call.0", b"alpha\nbeta\ngamma")
     assert handle == "run/call.0"
     assert store.read(handle) == b"alpha\nbeta\ngamma"
+
+
+def test_store_rejects_a_symlinked_root(tmp_path):
+    real_root = tmp_path / "real-root"
+    real_root.mkdir()
+    spill_root = tmp_path / "spill-root"
+    spill_root.symlink_to(real_root, target_is_directory=True)
+
+    with pytest.raises(PermissionError):
+        LocalFileStore(base_dir=spill_root).write("secret", b"not written")
+
+    assert not list(real_root.iterdir())
 
 
 def test_store_read_neutralizes_path_traversal(tmp_path):
@@ -72,8 +83,13 @@ def test_build_spill_preview_text_and_binary():
     assert "h1" in preview
     assert "ab" in preview and "ef" in preview
     assert "cd" not in preview
+    assert "ReadToolResult" in preview
     binary = build_spill_preview("h2", b"\x00" * 100, preview_chars=10)
     assert "binary" in binary
+
+
+def test_read_tool_result_has_a_pascal_case_tool_name():
+    assert read_tool_result.__name__ == "ReadToolResult"
 
 
 # --- maybe_spill ------------------------------------------------------------
@@ -89,7 +105,7 @@ def spill_store(tmp_path, monkeypatch):
 def _enable_spill(monkeypatch, on=True):
     from zrb.config.config import CFG
 
-    monkeypatch.setattr(CFG, "LLM_TOOL_SPILL_ENABLED", on)
+    monkeypatch.setattr(CFG, "LLM_ENABLE_TOOL_SPILL", on)
 
 
 def test_maybe_spill_disabled_returns_unchanged(monkeypatch, spill_store):
@@ -114,7 +130,7 @@ def test_maybe_spill_oversized(monkeypatch, spill_store):
     out, meta = maybe_spill(value, limit=100)
     assert out != value
     assert "stored to handle" in out
-    assert "read_tool_result" in out
+    assert "ReadToolResult" in out
     handle = meta["overflow_handle"]
     assert spill_store.read(handle) == b"z" * 500
     assert meta["overflow_chars"] == 500
@@ -180,7 +196,7 @@ def test_read_tool_result_respects_sandbox_deny_read(
 
 
 @pytest.mark.asyncio
-async def test_wrapper_spills_oversized_when_enabled(monkeypatch, spill_store):
+async def test_wrapper_defers_spill_until_after_post_tool_use(monkeypatch, spill_store):
     from pydantic_ai import ToolReturn
 
     from zrb.llm.agent.common import create_safe_wrapper
@@ -191,17 +207,12 @@ async def test_wrapper_spills_oversized_when_enabled(monkeypatch, spill_store):
     def tool():
         return big
 
-    with patch("zrb.llm.agent.common.CFG") as mock_cfg:
-        mock_cfg.LLM_MAX_TOOL_RESULT_CHARS = 1000
-        wrapped = create_safe_wrapper(tool)
-        result = await wrapped()
+    wrapped = create_safe_wrapper(tool)
+    result = await wrapped()
 
     assert isinstance(result, ToolReturn)
-    assert isinstance(result.return_value, str)
-    assert "stored to handle" in result.return_value
-    handle = result.metadata["overflow_handle"]
-    assert spill_store.read(handle) == big.encode()
-    assert result.metadata["overflow_chars"] == 5000
+    assert result.return_value == big
+    assert not result.metadata
 
 
 @pytest.mark.asyncio
@@ -237,16 +248,26 @@ async def test_toolset_spills_oversized_when_enabled(monkeypatch, spill_store):
 @pytest.mark.asyncio
 async def test_read_tool_result_does_not_spill_its_page(monkeypatch, spill_store):
     from pydantic_ai import ToolReturn
+    from pydantic_ai.toolsets import FunctionToolset
 
-    from zrb.llm.agent.common import create_safe_wrapper
+    from zrb.llm.agent.common import wrap_toolset
 
     _enable_spill(monkeypatch)
-    handle = spill_store.write("page", b"alpha\nbeta")
-    with patch("zrb.llm.agent.common.CFG") as mock_cfg:
+    wrapped_toolset = wrap_toolset(FunctionToolset(tools=[]))
+    page = "alpha\nbeta"
+    with (
+        patch("zrb.llm.agent.common.CFG") as mock_cfg,
+        patch(
+            "pydantic_ai.toolsets.WrapperToolset.call_tool",
+            new_callable=AsyncMock,
+            return_value=page,
+        ),
+    ):
         mock_cfg.LLM_MAX_TOOL_RESULT_CHARS = 1
-        result = await create_safe_wrapper(read_tool_result)(handle)
+        result = await cast(Any, wrapped_toolset).call_tool(
+            "ReadToolResult", {}, None, None
+        )
 
     assert isinstance(result, ToolReturn)
-    assert isinstance(result.return_value, str)
-    assert "alpha" in result.return_value
-    assert "stored to handle" not in result.return_value
+    assert result.return_value == page
+    assert not result.metadata

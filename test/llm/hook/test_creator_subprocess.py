@@ -87,7 +87,11 @@ async def test_command_hook_timeout_kills_grandchildren_not_just_the_shell():
     with tempfile.TemporaryDirectory() as tmp:
         sentinel = os.path.join(tmp, "survived")
         hook = create_command_hook(
-            CommandHookConfig(command=f"( sleep 0.5; touch {sentinel} ) & wait"),
+            # A wide berth past the timeout, not a tight one: kill-completion
+            # jitter under CPU contention (parallel test runs) can otherwise
+            # false-positive this assertion — see
+            # test_command_hook_timeout_kills_descendants_of_a_shell_that_already_exited.
+            CommandHookConfig(command=f"( sleep 3; touch {sentinel} ) & wait"),
             timeout=0.1,
         )
         context = HookContext(event=HookEvent.NOTIFICATION, event_data={})
@@ -98,7 +102,7 @@ async def test_command_hook_timeout_kills_grandchildren_not_just_the_shell():
         assert "timed out" in (result.output or "")
 
         # Past the grandchild's own sleep: if it were still alive it has now run.
-        await asyncio.sleep(1.0)
+        await asyncio.sleep(4.0)
         assert not os.path.exists(
             sentinel
         ), "grandchild outlived the kill and kept running"
@@ -157,14 +161,24 @@ async def test_command_hook_timeout_kills_descendants_of_a_shell_that_already_ex
     child exits is what ends the read, so a quiet descendant returns success
     instead (the test above). Both descendants share the spawned group, so one
     group kill must take out the chatter and the sentinel writer together.
+
+    The chatter is ``yes``, not a ``sleep``-paced echo loop: the read side only
+    needs *some* output inside every drain poll window (~50ms — see the
+    reader's own poll-interval constant) to keep reading past the point where
+    the shell itself has already exited, and ``yes`` writes continuously
+    (blocking on pipe backpressure, never sleeping) rather than gambling on a
+    sleep loop's cadence beating that window under CPU contention — a real
+    flakiness source under parallel test runs. The sentinel write is likewise
+    given a wide berth past the timeout so kill-completion jitter under the
+    same contention cannot false-positive the assertion below.
     """
     with tempfile.TemporaryDirectory() as tmp:
         sentinel = os.path.join(tmp, "survived")
         hook = create_command_hook(
             CommandHookConfig(
                 command=(
-                    "( while true; do echo chatter; sleep 0.01; done ) & disown; "
-                    f"( sleep 0.6; touch {sentinel} ) & disown; exit 0"
+                    "yes chatter & disown; "
+                    f"( sleep 3; touch {sentinel} ) & disown; exit 0"
                 )
             ),
             timeout=0.3,
@@ -176,7 +190,7 @@ async def test_command_hook_timeout_kills_descendants_of_a_shell_that_already_ex
         assert result.success is False
         assert "timed out" in (result.output or "")
 
-        await asyncio.sleep(1.0)
+        await asyncio.sleep(4.0)
         assert not os.path.exists(
             sentinel
         ), "descendant of an exited shell outlived the kill"

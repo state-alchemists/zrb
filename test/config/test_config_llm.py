@@ -58,6 +58,13 @@ def test_llm_max_token_per_request(monkeypatch):
     assert config.LLM_MAX_TOKEN_PER_REQUEST == 100000
 
 
+def test_llm_enable_tool_spill_reads_the_legacy_key(monkeypatch):
+    monkeypatch.delenv("ZRB_LLM_ENABLE_TOOL_SPILL", raising=False)
+    monkeypatch.setenv("ZRB_LLM_TOOL_SPILL_ENABLED", "on")
+
+    assert Config().LLM_ENABLE_TOOL_SPILL is True
+
+
 def test_llm_throttle_sleep(monkeypatch):
     monkeypatch.setenv("ZRB_LLM_THROTTLE_SLEEP", "2.0")
     config = Config()

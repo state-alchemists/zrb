@@ -130,7 +130,7 @@ def safe_copy_result(result: Any) -> Any:
 
 def _apply_tool_result_limit(tool_name: str, result: Any) -> Any:
     """Spill an oversized ``ToolReturn`` unless it is the read-back tool itself."""
-    if tool_name == "read_tool_result":
+    if tool_name == "ReadToolResult":
         return result
     value, spill_metadata = maybe_spill(
         result.return_value, limit=CFG.LLM_MAX_TOOL_RESULT_CHARS
@@ -212,11 +212,10 @@ def create_safe_wrapper(func: Callable, name: str | None = None) -> Callable:
             # Create a safe copy to prevent mutation by pydantic-ai
             safe_result = safe_copy_result(result)
 
-            # Otherwise wrap the successful result. Oversized results spill to a
-            # queryable store when enabled (lossless overflow, ADR-0089);
-            # otherwise the result goes through whole with its size flagged in
-            # metadata — see ADR-0043 and _oversize_metadata.
-            return _apply_tool_result_limit(tool_name, tool_return(safe_result))
+            # Output reduction belongs to SafeToolsetWrapper, after PostToolUse
+            # has made its final output decision (ADR-0089). Preserve the
+            # metadata-only oversize marker for direct wrapper callers (ADR-0043).
+            return tool_return(safe_result, **_oversize_metadata(safe_result))
         except ModelRetry:
             # pydantic-ai's retry protocol: the framework turns this into a
             # retry prompt for the model. Swallowing it into an error string

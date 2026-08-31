@@ -1,5 +1,6 @@
 import asyncio
 import time
+from types import SimpleNamespace
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
@@ -199,6 +200,58 @@ def test_llm_limiter_properties():
     # Test throttle_check_interval
     limiter.throttle_check_interval = 0.5
     assert limiter.throttle_check_interval == 0.5
+
+
+def test_fit_context_window_honors_a_known_model_cap():
+    limiter = LLMLimiter()
+    limiter.max_token_per_request = 256_000
+    history = [
+        ModelRequest(parts=[UserPromptPart(content="x" * 600_000)]),
+        ModelRequest(parts=[UserPromptPart(content="recent turn")]),
+    ]
+
+    assert (
+        limiter.fit_context_window(history, "next", model="openai:gpt-4o")
+        == history[1:]
+    )
+    assert limiter.fit_context_window(history, "next", model="local:unknown") == history
+
+
+def test_count_tokens_anchors_on_provider_usage():
+    limiter = LLMLimiter()
+    response = SimpleNamespace(
+        usage=SimpleNamespace(input_tokens=100, output_tokens=20)
+    )
+
+    assert limiter.count_tokens([response, "abcdefgh"]) == 122
+
+
+def test_fit_context_window_drops_a_stale_usage_anchor_before_estimating_tail():
+    limiter = LLMLimiter()
+    limiter.max_token_per_request = 1_000
+    history = [
+        ModelRequest(parts=[UserPromptPart(content="old turn")]),
+        SimpleNamespace(usage=SimpleNamespace(input_tokens=1_000, output_tokens=1)),
+        ModelRequest(parts=[UserPromptPart(content="recent turn")]),
+    ]
+
+    result = limiter.fit_context_window(history, "next")
+
+    assert result == history[2:]
+
+
+def test_fit_context_window_keeps_the_final_turn_after_a_last_usage_anchor():
+    limiter = LLMLimiter()
+    limiter.max_token_per_request = 1_000
+    history = [
+        ModelRequest(parts=[UserPromptPart(content="old turn")]),
+        ModelRequest(parts=[UserPromptPart(content="last turn")]),
+        SimpleNamespace(usage=SimpleNamespace(input_tokens=1_000, output_tokens=1)),
+    ]
+
+    result = limiter.fit_context_window(history, "next")
+
+    assert result == history[1:]
 
 
 def test_llm_limiter_fit_context_window_empty():
@@ -430,7 +483,7 @@ class TestLLMLimiterPropertyDefaults:
         limiter = LLMLimiter()
         with patch("zrb.llm.config.limiter.CFG") as cfg:
             cfg.LLM_MAX_TOKEN_PER_REQUEST = None
-            assert limiter.max_token_per_request == 16_000
+            assert limiter.max_token_per_request == 128_000
 
     def test_throttle_check_interval_default_when_cfg_falsy(self):
         limiter = LLMLimiter()

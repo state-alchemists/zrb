@@ -57,6 +57,32 @@ _ENV_CONTEXT_FIELDS = (
     "task_id",
 )
 
+# Beats between the killpg() sweeps in _kill_process_tree_with_retry, growing
+# so a sweep that still finds a survivor backs off rather than hammering the
+# same race. Three retries (four sweeps total, ~0.35s worst case) is deep
+# insurance on a path that already only runs once a hook has overrun its
+# timeout or been cancelled — nothing here fires on the happy path.
+_KILL_RETRY_DELAYS_SECONDS = (0.05, 0.1, 0.2)
+
+
+async def _kill_process_tree_with_retry(
+    process: subprocess.Popen, pgid: int | None
+) -> None:
+    """Sweep the hook's process tree, backing off between sweeps.
+
+    ``os.killpg`` signals whatever the kernel finds in the group *at that
+    instant*. A descendant that is mid-``fork()`` right then — its own
+    ``sh -c "sleep 5; touch x"`` still forking the ``( ... ) &`` job it was
+    just asked to background — can be invisible to that one scan and survive
+    it, free to run its next `;`-separated command once the sibling that
+    *was* caught dies. Repeated sweeps, once whatever was mid-fork has had a
+    moment to actually join the group, catch it.
+    """
+    kill_process_tree(process, pgid)
+    for delay in _KILL_RETRY_DELAYS_SECONDS:
+        await asyncio.sleep(delay)
+        kill_process_tree(process, pgid)
+
 
 def create_command_hook(
     config: CommandHookConfig, timeout: float | None = None
@@ -103,7 +129,7 @@ def create_command_hook(
                     timeout=timeout,
                 )
             except asyncio.TimeoutError:
-                kill_process_tree(process, hook_pgid)
+                await _kill_process_tree_with_retry(process, hook_pgid)
                 # process is a sync subprocess.Popen, so .wait() returns an
                 # int — awaiting it raises "'int' object can't be awaited",
                 # which would swallow this TimeoutError and leave the subprocess
@@ -118,7 +144,7 @@ def create_command_hook(
                     output=f"Command hook timed out after {timeout}s",
                 )
             except asyncio.CancelledError:
-                kill_process_tree(process, hook_pgid)
+                await _kill_process_tree_with_retry(process, hook_pgid)
                 raise
 
             return _interpret_exit(
