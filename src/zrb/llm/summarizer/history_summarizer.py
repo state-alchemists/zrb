@@ -287,8 +287,22 @@ async def summarize_history(
         summary_message = _create_summary_model_request(summary_text)
         if summary_message is None:
             return messages
+
+        # Preserve the opening user turn verbatim: it carries the task's original
+        # goal, which summarization would otherwise drop first. It is a pure user
+        # turn (no tool parts), so re-adding it cannot break tool-call pairing;
+        # ensure_alternating_roles folds it into the summary message when roles
+        # would otherwise collide. (Harness `preserve_first_user_message`.)
+        first_user_message = _find_first_user_message(messages)
+        keep_first_user = first_user_message is not None and all(
+            m is not first_user_message for m in to_keep
+        )
+
+        result: list[Any] = [summary_message]
+        if keep_first_user:
+            result.append(first_user_message)
         if not to_keep:
-            return [summary_message]
+            return ensure_alternating_roles(result)
         # Fix orphaned tool RETURNS before returning. split_history never
         # separates a *complete* call/return pair, so the only orphan compression
         # can introduce into `to_keep` is a ToolReturnPart whose matching call was
@@ -310,10 +324,24 @@ async def summarize_history(
             )
             to_keep = strip_orphaned_returns(to_keep)
 
-        return ensure_alternating_roles([summary_message] + to_keep)
+        result.extend(to_keep)
+        return ensure_alternating_roles(result)
     except Exception as e:
         zrb_print(stylize_error(f"  Error in summarize_history: {e}"), plain=True)
         return messages
+
+
+def _find_first_user_message(messages: "list[ModelMessage]") -> Any:
+    """Return the first ModelRequest containing a UserPromptPart, or None."""
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import ModelRequest, UserPromptPart
+
+    for msg in messages:
+        if isinstance(msg, ModelRequest) and any(
+            isinstance(part, UserPromptPart) for part in getattr(msg, "parts", [])
+        ):
+            return msg
+    return None
 
 
 def _create_summary_model_request(summary_text: str) -> Any:

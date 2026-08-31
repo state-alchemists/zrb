@@ -6,6 +6,7 @@ from zrb.context.any_context import zrb_print
 from zrb.llm.agent.common import safe_copy_result
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.summarizer.text_summarizer import summarize_text_plain
+from zrb.util.cli.ansi import strip_ansi
 from zrb.util.cli.style import stylize_error, stylize_warning
 
 if TYPE_CHECKING:
@@ -87,6 +88,10 @@ async def process_tool_return_part(
             content = str(safe_content)
     else:
         content = safe_content
+
+    # Strip ANSI escapes before measuring and summarizing: terminal-styled tool
+    # output (color codes, OSC) inflates the token count and pollutes the summary.
+    content = strip_ansi(content)
 
     content_tokens = limiter.count_tokens(content)
     if content_tokens <= message_threshold:
