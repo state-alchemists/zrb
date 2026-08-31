@@ -144,7 +144,7 @@ def _apply_tool_result_limit(tool_name: str, result: Any) -> Any:
     return ToolReturn(
         return_value=value,
         content=result.content,
-        metadata={**result.metadata, **metadata},
+        metadata={**(result.metadata or {}), **metadata},
     )
 
 
@@ -274,11 +274,23 @@ def wrap_toolset(
                 if blocked is not None:
                     return blocked
                 result = await super().call_tool(name, tool_args, ctx, tool)
-                # A PostToolUse hook runs before output reduction, so a rewritten
-                # result is subject to the same global backstop as the original.
-                if not isinstance(result, ToolReturn):
+                tool_framed = isinstance(result, ToolReturn)
+                if not tool_framed:
                     result = tool_return(safe_copy_result(result))
+                pre_hook_value = result.return_value
                 result = await _fire_post_tool_use(name, tool_args, result)
+                if tool_framed and result.return_value is pre_hook_value:
+                    # The tool framed (and possibly already truncated, e.g.
+                    # Shell/Read/Grep via LLM_MAX_OUTPUT_CHARS) its own result,
+                    # and no PostToolUse hook touched it — respect that framing.
+                    # LLM_MAX_TOOL_RESULT_CHARS is documented to catch outputs
+                    # "not already capped by a tool"; running it here too would
+                    # re-truncate an already-truncated result into a much
+                    # smaller spill preview with no way to recover the true
+                    # full output. A hook that rewrites the value (below) is
+                    # still subject to the backstop, since that content never
+                    # went through the tool's own cap.
+                    return _with_override_note(result)
                 result = _apply_tool_result_limit(name, result)
                 return _with_override_note(result)
             except ModelRetry:

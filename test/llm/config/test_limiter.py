@@ -254,6 +254,67 @@ def test_fit_context_window_keeps_the_final_turn_after_a_last_usage_anchor():
     assert result == history[1:]
 
 
+def test_fit_context_window_counts_messages_after_the_anchor():
+    """A trailing message appended after the anchored response (e.g. a fresh
+    tool result) must be counted, not silently ignored."""
+    limiter = LLMLimiter()
+    limiter.max_token_per_request = 1_000
+    history = [
+        SimpleNamespace(usage=SimpleNamespace(input_tokens=800, output_tokens=0)),
+        ModelRequest(parts=[UserPromptPart(content="y" * 500)]),
+    ]
+
+    # 1000*0.9 = 900 available. The anchor alone (800) fits, but 800 plus the
+    # ~125-token trailing message does not — it must trigger pruning.
+    result = limiter.fit_context_window(history, "next")
+
+    assert result != history
+
+
+def test_fit_context_window_prunes_incrementally_across_an_active_anchor():
+    """Before the anchor is crossed, dropping an early turn must shrink the
+    anchor-seeded total by that turn's own size — not leave the total frozen
+    until the whole pre-anchor conversation is dropped in one shot."""
+    limiter = LLMLimiter()
+    limiter.max_token_per_request = 167
+    history = [
+        ModelRequest(parts=[UserPromptPart(content="X" * 4000)]),
+        ModelRequest(parts=[UserPromptPart(content="keep1")]),
+        ModelRequest(parts=[UserPromptPart(content="keep2")]),
+        SimpleNamespace(usage=SimpleNamespace(input_tokens=1100, output_tokens=0)),
+        ModelRequest(parts=[UserPromptPart(content="recent")]),
+    ]
+
+    result = limiter.fit_context_window(history, "next")
+
+    # Only the oversized first turn needed to be dropped — everything after
+    # it, including the anchor's own response, is kept.
+    assert result == history[1:]
+
+
+def test_fit_context_window_subtracts_reserved_tokens_despite_an_anchor():
+    """reserved_tokens reflects the *current* system prompt and can have
+    grown since the anchored turn — it must still shrink `available`, not be
+    skipped just because a usage anchor is present."""
+    limiter = LLMLimiter()
+    limiter.max_token_per_request = 1_000
+    history = [
+        ModelRequest(parts=[UserPromptPart(content="old turn")]),
+        ModelRequest(parts=[UserPromptPart(content="recent turn")]),
+        SimpleNamespace(usage=SimpleNamespace(input_tokens=800, output_tokens=0)),
+    ]
+
+    # With no reserve, the anchor's 800 tokens comfortably fit under the
+    # 900 (1000*0.9) budget alongside the new message.
+    assert limiter.fit_context_window(history, "next", reserved_tokens=0) == history
+
+    # A large reserved_tokens (today's real system-prompt size, which a stale
+    # anchor from an earlier, smaller prompt would not reflect) must still
+    # shrink the budget and force pruning.
+    pruned = limiter.fit_context_window(history, "next", reserved_tokens=500)
+    assert pruned != history
+
+
 def test_llm_limiter_fit_context_window_empty():
     """Test fit_context_window with empty history."""
     limiter = LLMLimiter()

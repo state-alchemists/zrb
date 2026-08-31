@@ -1,3 +1,4 @@
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
 from zrb.config.config import CFG
@@ -331,16 +332,58 @@ async def summarize_history(
         return messages
 
 
+_SUMMARY_HEADER = "SYSTEM: Automated Context Restoration"
+
+
+def _is_summary_part(part: Any) -> bool:
+    """Whether *part* is the synthetic content built by `_create_summary_model_request`.
+
+    Matched by its section header so a prior compaction round's own summary is
+    never mistaken for a real user turn by `_find_first_user_message`.
+    """
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import UserPromptPart
+
+    return (
+        isinstance(part, UserPromptPart)
+        and isinstance(part.content, str)
+        and part.content.startswith(f"# {_SUMMARY_HEADER}")
+    )
+
+
+def _drop_summary_parts(msg: Any) -> Any:
+    """*msg* with any synthetic summary parts removed, keeping the rest intact.
+
+    `ensure_alternating_roles` merges adjacent same-role ``ModelRequest``s by
+    concatenating their ``parts`` — so a message preserved across compaction
+    rounds can carry both a prior round's synthetic summary part and a
+    genuinely preserved user part together. Stripping just the synthetic
+    part(s) avoids re-preserving that summary text forward on every later
+    round while keeping the real content.
+    """
+    parts = [part for part in getattr(msg, "parts", []) if not _is_summary_part(part)]
+    if len(parts) == len(msg.parts):
+        return msg
+    return replace(msg, parts=parts)
+
+
 def _find_first_user_message(messages: "list[ModelMessage]") -> Any:
-    """Return the first ModelRequest containing a UserPromptPart, or None."""
+    """Return the first ModelRequest carrying a real (non-synthetic) user part.
+
+    Synthetic summary parts are stripped from the returned message — see
+    `_drop_summary_parts`.
+    """
     # lazy: zrb internal (heavy via transitive)
     from zrb.llm.agent.types import ModelRequest, UserPromptPart
 
     for msg in messages:
-        if isinstance(msg, ModelRequest) and any(
-            isinstance(part, UserPromptPart) for part in getattr(msg, "parts", [])
+        if not isinstance(msg, ModelRequest):
+            continue
+        if any(
+            isinstance(part, UserPromptPart) and not _is_summary_part(part)
+            for part in getattr(msg, "parts", [])
         ):
-            return msg
+            return _drop_summary_parts(msg)
     return None
 
 
@@ -354,7 +397,7 @@ def _create_summary_model_request(summary_text: str) -> Any:
             parts=[
                 UserPromptPart(
                     content=make_markdown_section(
-                        "SYSTEM: Automated Context Restoration",
+                        _SUMMARY_HEADER,
                         "This is an automated summary of the preceding conversation history to "
                         "preserve context within the token limit. Continue the conversation "
                         "based on the state snapshot below.\n\n"

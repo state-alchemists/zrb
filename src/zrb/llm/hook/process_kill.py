@@ -77,6 +77,7 @@ def kill_process_tree(process: subprocess.Popen, pgid: int | None = None) -> Non
     pid = _safe_tree_kill_pid(process)
     if pgid is None:
         pgid = read_process_group(process)
+    pgid = _verify_process_group(process, pgid)
     group = _safe_tree_kill_group(pgid)
     group_killed = False
     if group is not None and hasattr(os, "killpg"):
@@ -104,6 +105,33 @@ def kill_process_tree(process: subprocess.Popen, pgid: int | None = None) -> Non
         process.kill()
     except Exception as e:
         logger.debug(f"Failed to kill hook process: {e}")
+
+
+def _verify_process_group(process: subprocess.Popen, pgid: int | None) -> int | None:
+    """Confirm *pgid* still matches the OS-reported group for *process*.
+
+    Safe to query here (unlike at spawn time in ``read_process_group``): by
+    the time ``kill_process_tree`` runs — a hook timeout or cancellation —
+    the child's own ``setsid()`` has long since completed, so there is no
+    race left to sample into. Catches a pid whose ``Popen`` was never
+    actually started with ``start_new_session=True``.
+    """
+    if pgid is None or not hasattr(os, "getpgid"):
+        return pgid
+    pid = getattr(process, "pid", None)
+    if not isinstance(pid, int):
+        return pgid
+    try:
+        if os.getpgid(pid) != pgid:
+            logger.debug(
+                f"refusing group kill: OS-reported group for pid {pid} does not "
+                f"match derived group {pgid} — was start_new_session set on the "
+                "hook Popen?"
+            )
+            return None
+    except Exception as e:
+        logger.debug(f"could not verify process group for pid {pid}: {e}")
+    return pgid
 
 
 def _safe_tree_kill_pid(process: subprocess.Popen) -> int | None:

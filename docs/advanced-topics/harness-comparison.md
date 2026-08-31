@@ -10,6 +10,7 @@ Zrb's AI assistant (`zrb llm chat`) is one face of a task-automation framework. 
 
 - [The One-Sentence Version](#the-one-sentence-version)
 - [At a Glance](#at-a-glance)
+- [Prompt & Context: Granular vs. All-or-Nothing](#prompt--context-granular-vs-all-or-nothing)
 - [Scenario Guide](#scenario-guide)
   - [Interactive coding session](#interactive-coding-session)
   - [An agent as a step in a pipeline](#an-agent-as-a-step-in-a-pipeline)
@@ -42,6 +43,25 @@ The other tools on this page are **agents that can run tasks**; Zrb is a **task-
 | White-labeling (your own CLI name/brand) | ✅ built-in | — | — | — | — |
 
 Nothing in the table is a knock against any tool — they simply optimize for different centers of gravity. "—" means the capability isn't the tool's job, not that it's impossible to bolt on.
+
+## Prompt & Context: Granular vs. All-or-Nothing
+
+How much of the agent can you change, and at what resolution? Zrb and Pi sit at opposite ends here, and it's a trade-off rather than a point scored.
+
+**Zrb composes its system prompt from seven named sections** — five file-backed rule sections (`persona`, `principle`, `workflow`, `example`, `profile`) plus two runtime-fact sections (`system_context`, `project_context`). Each concern is overridable on its own:
+
+- **Per-section wording** — drop a same-named `.md` file onto the override chain (project `LLM_PROMPT_DIR` → env → base prompt dir → packaged `markdown/`).
+- **Section set and order** — `ZRB_LLM_INCLUDE_SECTIONS` / `include_sections=`.
+- **Standing extra content** — `system_prompt=` / `append_prompt()`.
+- **Per-turn volatile state** — `add_live_context()`.
+- **Model-class phrasing** — `ZRB_LLM_PROFILE` (`minimal` / `standard` / `capable` / `auto`).
+- **The whole prompt** — a full middleware can still rewrite everything.
+
+The whole-prompt escape hatch is always there, but you rarely need it: you edit the one concern you care about and the rest keeps working. See [Programming the Prompt](programming-the-prompt.md).
+
+**Pi takes the opposite stance on purpose.** Its system prompt is one small fixed block over a handful of tools. You can replace the whole prompt (`--system-prompt`), append to it (`--append-system-prompt`), or let its extension API rewrite it per turn, and `AGENTS.md` is injected as project context. There is no per-section knob because there are no sections — for a minimal core that trusts a frontier model to already know how to be an agent, that's the point, not a gap.
+
+The two positions are a values choice: Zrb trades prompt weight for *resolution* — a large, legible prompt you change one concern at a time. Pi trades resolution for *brevity* — a short prompt you accept or replace whole. If you want zrb trimmed toward Pi's size, the mechanism already exists: the `minimal` profile plus `ZRB_LLM_INCLUDE_SECTIONS` — not a rewrite.
 
 ## Scenario Guide
 
@@ -120,3 +140,4 @@ And the honest answer many teams land on: **they coexist.** Keep Claude Code or 
 - Next: [LLM Integration](llm-integration.md) — using `zrb llm chat` day-to-day
 - Next: [Programming the Agent](programming-the-agent.md) — tools, hooks, dynamic prompts
 - Related: [Claude Code Compatibility](claude-compatibility.md) — reusing your existing assets
+- Related: [Programming the Prompt](programming-the-prompt.md) — overriding the system prompt section by section

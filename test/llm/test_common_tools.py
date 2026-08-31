@@ -86,6 +86,23 @@ def test_journal_tools_are_deferred_for_the_main_agent(monkeypatch):
         assert by_name[name].defer_loading is True
 
 
+def test_read_tool_result_reflects_the_live_spill_flag(monkeypatch):
+    """ReadToolResult must not be baked in at registration time: toggling
+    LLM_ENABLE_TOOL_SPILL after `apply_common_tools` already ran (e.g. a
+    long-lived session whose config changes mid-session) must still be
+    reflected the next time tools are resolved for a run."""
+    from zrb.config.config import CFG
+
+    monkeypatch.setattr(CFG, "LLM_ENABLE_TOOL_SPILL", False)
+    host = RecordingHost()
+    apply_common_tools(host)
+
+    assert "ReadToolResult" not in host.resolved_tool_names()
+
+    monkeypatch.setattr(CFG, "LLM_ENABLE_TOOL_SPILL", True)
+    assert "ReadToolResult" in host.resolved_tool_names()
+
+
 def test_shell_safety_policy_ships_with_the_shell_tools(monkeypatch):
     """The git approval rule left the prompt, so its enforcement must travel here.
 

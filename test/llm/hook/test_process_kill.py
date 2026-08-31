@@ -7,6 +7,7 @@ test runner down with it.
 """
 
 import os
+import signal
 from unittest.mock import patch
 
 from zrb.llm.hook.process_kill import kill_process_tree, read_process_group
@@ -131,6 +132,44 @@ def test_kill_process_tree_survives_a_failing_psutil_walk():
         kill_process_tree(_Proc(), pgid=_DEAD_PID)
 
     assert killed["direct"] is True
+
+
+def test_kill_process_tree_refuses_killpg_when_os_group_does_not_match():
+    """A derived pgid that no longer matches the OS-reported group for the
+    pid (e.g. a caller whose Popen was never actually started with
+    start_new_session=True) must not reach os.killpg. kill_process_tree
+    verifies this at kill time — safe to query there, unlike at spawn time in
+    read_process_group, since the race it avoids is long past by then.
+    """
+    process = _KillRecordingProc(_DEAD_PID)
+
+    def fake_getpgid(pid):
+        if pid == 0:
+            return os.getpgid(0)  # our own group — unrelated to the mismatch
+        return 5555  # does not match the derived pgid passed in below
+
+    with (
+        patch("os.getpgid", side_effect=fake_getpgid),
+        patch("os.killpg") as mock_killpg,
+        patch("zrb.util.cmd.command.kill_pid") as mock_kill_pid,
+    ):
+        kill_process_tree(process, pgid=4242)
+
+    mock_killpg.assert_not_called()
+    mock_kill_pid.assert_called_once()
+    assert mock_kill_pid.call_args.args[0] == _DEAD_PID
+    assert process.killed
+
+
+def test_kill_process_tree_verify_group_skips_a_pidless_process():
+    """With no pid to check the OS-reported group against, the derived pgid
+    passes through unverified rather than being refused outright."""
+    process = _KillRecordingProc()  # no pid attribute
+
+    with patch("os.killpg") as mock_killpg:
+        kill_process_tree(process, pgid=4242)
+
+    mock_killpg.assert_called_once_with(4242, signal.SIGKILL)
 
 
 def test_read_process_group_returns_none_for_a_pidless_process():

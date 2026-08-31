@@ -56,6 +56,16 @@ def test_store_read_rejects_symlink_escape(tmp_path):
         store.read("link")
 
 
+def test_store_roundtrips_a_hex_uuid_key(tmp_path):
+    import uuid
+
+    store = LocalFileStore(base_dir=tmp_path)
+    key = uuid.uuid4().hex
+    handle = store.write(key, b"payload")
+    assert handle == key
+    assert store.read(handle) == b"payload"
+
+
 def test_store_missing_handle_raises_oserror(tmp_path):
     store = LocalFileStore(base_dir=tmp_path)
     with pytest.raises(OSError):
@@ -133,6 +143,37 @@ def test_maybe_spill_oversized(monkeypatch, spill_store):
     assert "ReadToolResult" in out
     handle = meta["overflow_handle"]
     assert spill_store.read(handle) == b"z" * 500
+    assert meta["overflow_chars"] == 500
+
+
+def test_maybe_spill_binary_size_uses_real_byte_length(monkeypatch, spill_store):
+    _enable_spill(monkeypatch, on=True)
+    value = b"\x00" * 500
+    # json.dumps's escaped-repr of this value is ~2500 chars — under the old,
+    # incorrect measurement this would have (wrongly) spilled well below 500.
+    out, meta = maybe_spill(value, limit=600)
+    assert out == value
+    assert meta == {}
+
+
+def test_maybe_spill_binary_oversized_reports_real_byte_length(
+    monkeypatch, spill_store
+):
+    _enable_spill(monkeypatch, on=True)
+    value = b"\x00" * 500
+    out, meta = maybe_spill(value, limit=100)
+    assert out != value
+    assert meta["overflow_chars"] == 500
+    assert spill_store.read(meta["overflow_handle"]) == value
+
+
+def test_maybe_spill_memoryview_measured_by_real_size(monkeypatch, spill_store):
+    _enable_spill(monkeypatch, on=True)
+    value = memoryview(bytearray(500))
+    # str(memoryview) is ~25 chars — under the old, incorrect measurement this
+    # large payload would never have been judged oversized.
+    out, meta = maybe_spill(value, limit=100)
+    assert out != value
     assert meta["overflow_chars"] == 500
 
 

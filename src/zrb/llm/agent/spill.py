@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import stat
 import tempfile
 import uuid
@@ -29,6 +28,7 @@ from typing import Any, Protocol, runtime_checkable
 
 from zrb.llm.agent_tool_result import has_multimodal
 from zrb.llm.sandbox import check_read, check_write, get_effective_sandbox_policy
+from zrb.util.string.conversion import to_safe_filename
 
 
 @runtime_checkable
@@ -37,15 +37,6 @@ class OverflowStore(Protocol):
 
     def write(self, key: str, data: bytes) -> str: ...  # pragma: no cover
     def read(self, handle: str) -> bytes: ...  # pragma: no cover
-
-
-_UNSAFE_SEGMENT = re.compile(r"[^A-Za-z0-9._-]+")
-
-
-def _safe_segment(segment: str) -> str:
-    """Make one path segment filesystem-safe without collapsing distinct keys."""
-    cleaned = _UNSAFE_SEGMENT.sub("_", segment)
-    return "_" if cleaned in ("", ".", "..") else cleaned
 
 
 @dataclass
@@ -74,7 +65,7 @@ class LocalFileStore:
         return self._root
 
     def _path(self, key: str) -> Path:
-        segments = [_safe_segment(part) for part in key.split("/") if part]
+        segments = [to_safe_filename(part) for part in key.split("/") if part]
         if not segments:
             segments = ["_"]
         return self._root.joinpath(*segments)
@@ -204,8 +195,11 @@ def maybe_spill(value: Any, *, limit: int) -> tuple[Any, dict[str, Any]]:
 
     if has_multimodal(value):
         return value, {}
-    text = value if isinstance(value, str) else json.dumps(value, default=str)
-    if len(text) <= limit:
+    if _is_binary(value):
+        size = len(to_bytes(value))
+    else:
+        size = len(value if isinstance(value, str) else json.dumps(value, default=str))
+    if size <= limit:
         return value, {}
     if _default_store_access_error(check_write) is not None:
         return value, {}
@@ -216,7 +210,7 @@ def maybe_spill(value: Any, *, limit: int) -> tuple[Any, dict[str, Any]]:
         return value, {}
     return build_spill_preview(handle, value), {
         "overflow_handle": handle,
-        "overflow_chars": len(text),
+        "overflow_chars": size,
     }
 
 

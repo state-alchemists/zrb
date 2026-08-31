@@ -455,6 +455,65 @@ async def test_summarize_history_preserves_first_user_message():
 
 
 @pytest.mark.asyncio
+async def test_summarize_history_second_round_preserves_the_true_first_user_message():
+    """A second compaction round must not mistake the first round's own
+    synthetic summary message for the real first user message — it's a
+    ModelRequest/UserPromptPart too, and sits at index 0 after round 1."""
+    limiter = MockLimiter()
+    agent = MagicMock()
+    mock_result = MagicMock()
+    mock_result.output = "summary text"
+    agent.run = AsyncMock(return_value=mock_result)
+
+    opening_request = "refactor the parser and fix the failing test"
+    round1_messages = [
+        ModelRequest(parts=[UserPromptPart(content=opening_request)]),
+        ModelRequest(parts=[UserPromptPart(content="b" * 50)]),
+        ModelRequest(parts=[UserPromptPart(content="c" * 50)]),
+    ]
+
+    with (
+        patch("zrb.llm.config.limiter.is_turn_start", return_value=True),
+        patch(
+            "zrb.llm.summarizer.history_summarizer.chunk_and_summarize",
+            return_value="round 1 summary",
+        ),
+        patch(
+            "zrb.llm.summarizer.history_summarizer.render_journal_index",
+            return_value=None,
+        ),
+    ):
+        round1_result = await summarize_history(
+            round1_messages, agent=agent, limiter=limiter, force=True
+        )
+
+    round2_messages = round1_result + [
+        ModelRequest(parts=[UserPromptPart(content="d" * 50)]),
+    ]
+
+    with (
+        patch("zrb.llm.config.limiter.is_turn_start", return_value=True),
+        patch(
+            "zrb.llm.summarizer.history_summarizer.chunk_and_summarize",
+            return_value="round 2 summary",
+        ),
+        patch(
+            "zrb.llm.summarizer.history_summarizer.render_journal_index",
+            return_value=None,
+        ),
+    ):
+        round2_result = await summarize_history(
+            round2_messages, agent=agent, limiter=limiter, force=True
+        )
+
+    combined = "\n".join(message_to_text(m) for m in round2_result)
+    assert opening_request in combined
+    # Round 1's own synthetic summary text must not be duplicated forward —
+    # only the real user content it was fused with survives into round 2.
+    assert "round 1 summary" not in combined
+
+
+@pytest.mark.asyncio
 async def test_find_safe_split_index_no_safe_split():
     limiter = MockLimiter()
     messages = [

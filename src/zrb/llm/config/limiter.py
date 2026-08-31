@@ -145,16 +145,14 @@ class LLMLimiter:
             return history
 
         context_limit = int(self._effective_context_window(model) * 0.90)
-        # A provider usage anchor already includes instructions and tool schemas,
-        # so subtracting ``reserved_tokens`` again would double-count them.
-        available = max(
-            0,
-            (
-                context_limit
-                if self._has_usage_anchor(history)
-                else context_limit - reserved_tokens
-            ),
-        )
+        # Always subtract reserved_tokens: it is recomputed fresh from the
+        # *current* system prompt on every call (see runner._prepare_history),
+        # while a usage anchor reflects an earlier turn's prompt size. Skipping
+        # the subtraction when an anchor is present would silently shrink the
+        # safety margin if the prompt (journal index, live context) grew since
+        # then — the opposite of this function's "intentionally overestimate"
+        # design goal.
+        available = max(0, context_limit - reserved_tokens)
 
         new_msg_tokens = self._count_tokens(new_message)
         if new_msg_tokens > available:
@@ -171,11 +169,15 @@ class LLMLimiter:
             return msg_instr_tokens[li] if li >= 0 else 0
 
         usage_anchor = self._usage_anchor(history)
-        total_tokens = (
-            usage_anchor[1]
-            if usage_anchor is not None
-            else sum(msg_body_tokens) + _instr_cost(0)
-        )
+        if usage_anchor is not None:
+            anchor_index, anchor_tokens = usage_anchor
+            total_tokens = (
+                anchor_tokens
+                + sum(msg_body_tokens[anchor_index + 1 :])
+                + _instr_cost(anchor_index + 1)
+            )
+        else:
+            total_tokens = sum(msg_body_tokens) + _instr_cost(0)
 
         if total_tokens + new_msg_tokens <= available:
             return list(history)
@@ -211,8 +213,12 @@ class LLMLimiter:
                 # remaining messages rather than treating stale usage as current.
                 usage_anchor = None
                 total_tokens = sum(msg_body_tokens[next_turn:]) + _instr_cost(next_turn)
-            elif usage_anchor is None:
-                # Subtract body tokens for the dropped messages.
+            else:
+                # Subtract body tokens for the dropped messages. Applies whether
+                # or not a usage anchor is still active: the turns being dropped
+                # here are strictly before the anchor, so their local per-message
+                # estimate is the only handle on how much the drop is worth —
+                # the same approximation already used once the anchor is gone.
                 for i in range(start, next_turn):
                     total_tokens -= msg_body_tokens[i]
 
@@ -286,10 +292,6 @@ class LLMLimiter:
         return text
 
     # --- Helpers ---
-
-    def _has_usage_anchor(self, messages: list[Any]) -> bool:
-        """Whether *messages* contain provider usage suitable for context sizing."""
-        return self._usage_anchor(messages) is not None
 
     def _history_token_costs(
         self, history: list[Any]
