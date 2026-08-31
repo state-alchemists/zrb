@@ -157,13 +157,22 @@ async def test_command_hook_timeout_kills_descendants_of_a_shell_that_already_ex
     child exits is what ends the read, so a quiet descendant returns success
     instead (the test above). Both descendants share the spawned group, so one
     group kill must take out the chatter and the sentinel writer together.
+
+    The chatter is a tight builtin loop with no ``sleep`` on purpose. The reader
+    ends the read after one ``process_io._HOOK_DRAIN_INTERVAL`` (0.05s) with no
+    output, so the chatter must write more often than that. A ``sleep 0.01``
+    round-trips through ``/bin/sleep`` each iteration; on a loaded CI worker that
+    fork/exec plus scheduling can exceed 0.05s, is mistaken for silence, and the
+    hook returns success instead of timing out. A builtin loop keeps the pipe
+    full (it blocks in ``write`` once the buffer fills), so output is always
+    pending even if the chatter itself is briefly descheduled.
     """
     with tempfile.TemporaryDirectory() as tmp:
         sentinel = os.path.join(tmp, "survived")
         hook = create_command_hook(
             CommandHookConfig(
                 command=(
-                    "( while true; do echo chatter; sleep 0.01; done ) & disown; "
+                    "( while true; do echo chatter; done ) & disown; "
                     f"( sleep 0.6; touch {sentinel} ) & disown; exit 0"
                 )
             ),

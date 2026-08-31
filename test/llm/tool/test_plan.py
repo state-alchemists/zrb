@@ -404,7 +404,10 @@ class TestUtilityFunctions:
 
         unique = f"test-session-{uuid.uuid4().hex[:8]}"
         set_current_session(unique)
-        assert get_current_context_session() == unique
+        try:
+            assert get_current_context_session() == unique
+        finally:
+            set_current_session("default")
 
     def test_set_current_session_ignores_empty_string(self):
         """set_current_session with empty string should not overwrite the current value."""
@@ -412,8 +415,11 @@ class TestUtilityFunctions:
 
         unique = f"test-session-{uuid.uuid4().hex[:8]}"
         set_current_session(unique)
-        set_current_session("")  # should be a no-op
-        assert get_current_context_session() == unique
+        try:
+            set_current_session("")  # should be a no-op
+            assert get_current_context_session() == unique
+        finally:
+            set_current_session("default")
 
     @pytest.mark.asyncio
     async def test_todo_tools_use_session_from_set_current_session(self, tmp_path):
@@ -426,12 +432,14 @@ class TestUtilityFunctions:
 
         session = f"ctx-session-{uuid.uuid4().hex[:8]}"
         set_current_session(session)
+        try:
+            await write_todos([{"content": "Auto-session task"}])
+            result = await get_todos()
 
-        await write_todos([{"content": "Auto-session task"}])
-        result = await get_todos()
-
-        assert session in result
-        assert "Auto-session task" in result
+            assert session in result
+            assert "Auto-session task" in result
+        finally:
+            set_current_session("default")
 
     def test_create_plan_tools(self):
         """Agent-facing plan tools are TodoWrite + TodoRead.
