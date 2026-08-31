@@ -8,6 +8,9 @@ in `test_creator.py`.
 import asyncio
 import logging
 import os
+import shlex
+import subprocess
+import sys
 import tempfile
 import time
 from unittest.mock import patch
@@ -18,6 +21,43 @@ from zrb.llm.hook.creator import create_command_hook
 from zrb.llm.hook.interface import HookContext
 from zrb.llm.hook.schema import CommandHookConfig
 from zrb.llm.hook.types import HookEvent
+
+_PROCESS_STOP_TIMEOUT_SECONDS = 1.0
+_PROCESS_STOP_POLL_SECONDS = 0.05
+
+
+def _background_sleep_command(pid_path: str, *, exit_immediately: bool = False) -> str:
+    """Start a long-lived child that records its own pid before sleeping."""
+    script = (
+        "from pathlib import Path; import os, time; "
+        f"Path({pid_path!r}).write_text(str(os.getpid())); time.sleep(60)"
+    )
+    command = f"{shlex.quote(sys.executable)} -c {shlex.quote(script)} &"
+    return f"{command} disown; exit 0" if exit_immediately else f"{command} wait"
+
+
+def _process_is_live(pid: int) -> bool:
+    """Whether *pid* exists and is not a zombie awaiting reaping."""
+    result = subprocess.run(
+        ["ps", "-o", "stat=", "-p", str(pid)], capture_output=True, text=True
+    )
+    return result.returncode == 0 and not result.stdout.lstrip().startswith("Z")
+
+
+async def _assert_recorded_process_stops(pid_path: str) -> None:
+    """A killed child must not remain runnable after the hook returns."""
+    attempts = int(_PROCESS_STOP_TIMEOUT_SECONDS / _PROCESS_STOP_POLL_SECONDS)
+    pid: int | None = None
+    for _ in range(attempts):
+        if os.path.exists(pid_path):
+            with open(pid_path) as file:
+                pid = int(file.read())
+            if not _process_is_live(pid):
+                return
+        await asyncio.sleep(_PROCESS_STOP_POLL_SECONDS)
+    assert pid is None or not _process_is_live(
+        pid
+    ), "background descendant remained alive after hook cleanup"
 
 
 class _StubProc:
@@ -79,20 +119,16 @@ async def test_command_hook_timeout_kills_grandchildren_not_just_the_shell():
     worker thread until it exited on its own, pinning a hook-pool worker for the
     full sleep. Leaked processes plus an exhausted pool.
     """
-    # A surviving descendant is detected by its side effect, not by scanning ps.
-    # The work must be done by the *subshell*, not by the parent shell: a plain
-    # `sleep 0.5; touch x` cannot tell the two kills apart, because `touch` is
-    # run by the parent shell and so is lost either way. Backgrounding a subshell
-    # puts sleep+touch in a process that outlives a parent-only kill.
+    # The work must be done by a *subshell*, not by the parent shell: a plain
+    # `sleep; touch x` cannot tell the two kills apart, because `touch` is run by
+    # the parent shell and is lost either way. Record the subshell's pid before
+    # the parent waits, then assert that the process is not live after cleanup.
+    # This avoids treating an event-loop pause longer than the child's sleep as a
+    # false process-tree leak under a heavily parallel suite.
     with tempfile.TemporaryDirectory() as tmp:
-        sentinel = os.path.join(tmp, "survived")
+        pid_path = os.path.join(tmp, "child.pid")
         hook = create_command_hook(
-            # A wide berth past the timeout, not a tight one: kill-completion
-            # jitter under CPU contention (parallel test runs) can otherwise
-            # false-positive this assertion — see
-            # test_command_hook_timeout_kills_descendants_of_a_shell_that_already_exited.
-            CommandHookConfig(command=f"( sleep 3; touch {sentinel} ) & wait"),
-            timeout=0.1,
+            CommandHookConfig(command=_background_sleep_command(pid_path)), timeout=0.1
         )
         context = HookContext(event=HookEvent.NOTIFICATION, event_data={})
 
@@ -100,12 +136,7 @@ async def test_command_hook_timeout_kills_grandchildren_not_just_the_shell():
 
         assert result.success is False
         assert "timed out" in (result.output or "")
-
-        # Past the grandchild's own sleep: if it were still alive it has now run.
-        await asyncio.sleep(4.0)
-        assert not os.path.exists(
-            sentinel
-        ), "grandchild outlived the kill and kept running"
+        await _assert_recorded_process_stops(pid_path)
 
 
 @pytest.mark.asyncio
@@ -168,17 +199,17 @@ async def test_command_hook_timeout_kills_descendants_of_a_shell_that_already_ex
     the shell itself has already exited, and ``yes`` writes continuously
     (blocking on pipe backpressure, never sleeping) rather than gambling on a
     sleep loop's cadence beating that window under CPU contention — a real
-    flakiness source under parallel test runs. The sentinel write is likewise
-    given a wide berth past the timeout so kill-completion jitter under the
-    same contention cannot false-positive the assertion below.
+    flakiness source under parallel test runs. The long-lived child records its
+    pid, so the assertion checks its state after cleanup instead of depending on
+    when a delayed event loop notices a short child sleep has elapsed.
     """
     with tempfile.TemporaryDirectory() as tmp:
-        sentinel = os.path.join(tmp, "survived")
+        pid_path = os.path.join(tmp, "child.pid")
         hook = create_command_hook(
             CommandHookConfig(
                 command=(
                     "yes chatter & disown; "
-                    f"( sleep 3; touch {sentinel} ) & disown; exit 0"
+                    f"{_background_sleep_command(pid_path, exit_immediately=True)}"
                 )
             ),
             timeout=0.3,
@@ -189,11 +220,7 @@ async def test_command_hook_timeout_kills_descendants_of_a_shell_that_already_ex
 
         assert result.success is False
         assert "timed out" in (result.output or "")
-
-        await asyncio.sleep(4.0)
-        assert not os.path.exists(
-            sentinel
-        ), "descendant of an exited shell outlived the kill"
+        await _assert_recorded_process_stops(pid_path)
 
 
 @pytest.mark.asyncio

@@ -78,10 +78,20 @@ async def _kill_process_tree_with_retry(
     *was* caught dies. Repeated sweeps, once whatever was mid-fork has had a
     moment to actually join the group, catch it.
     """
+    cancelled_during_cleanup = False
     kill_process_tree(process, pgid)
     for delay in _KILL_RETRY_DELAYS_SECONDS:
-        await asyncio.sleep(delay)
+        try:
+            await asyncio.sleep(delay)
+        except asyncio.CancelledError:
+            # shutdown() has already requested the hook's cancellation. Its
+            # bounded settle wait may cancel the task again before all sweeps
+            # run; cleanup must still finish so a child that forked during the
+            # first kill cannot survive the session teardown.
+            cancelled_during_cleanup = True
         kill_process_tree(process, pgid)
+    if cancelled_during_cleanup:
+        raise asyncio.CancelledError
 
 
 def create_command_hook(

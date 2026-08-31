@@ -1,6 +1,9 @@
 import asyncio
 import json
 import os
+import shlex
+import subprocess
+import sys
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -9,6 +12,42 @@ import pytest
 from zrb.llm.hook.interface import HookContext, HookResult
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent, HookType
+
+_PROCESS_STOP_TIMEOUT_SECONDS = 1.0
+_PROCESS_STOP_POLL_SECONDS = 0.05
+
+
+def _background_sleep_command(pid_path: str) -> str:
+    """Start a long-lived child that records its own pid before sleeping."""
+    script = (
+        "from pathlib import Path; import os, time; "
+        f"Path({pid_path!r}).write_text(str(os.getpid())); time.sleep(60)"
+    )
+    return f"{shlex.quote(sys.executable)} -c {shlex.quote(script)} & wait"
+
+
+def _process_is_live(pid: int) -> bool:
+    """Whether *pid* exists and is not a zombie awaiting reaping."""
+    result = subprocess.run(
+        ["ps", "-o", "stat=", "-p", str(pid)], capture_output=True, text=True
+    )
+    return result.returncode == 0 and not result.stdout.lstrip().startswith("Z")
+
+
+async def _assert_recorded_process_stops(pid_path: str) -> None:
+    """A background child must not remain runnable after manager shutdown."""
+    attempts = int(_PROCESS_STOP_TIMEOUT_SECONDS / _PROCESS_STOP_POLL_SECONDS)
+    pid: int | None = None
+    for _ in range(attempts):
+        if os.path.exists(pid_path):
+            with open(pid_path) as file:
+                pid = int(file.read())
+            if not _process_is_live(pid):
+                return
+        await asyncio.sleep(_PROCESS_STOP_POLL_SECONDS)
+    assert pid is None or not _process_is_live(
+        pid
+    ), "background descendant remained alive after manager shutdown"
 
 
 @pytest.mark.asyncio
@@ -456,7 +495,7 @@ async def test_shutdown_cancels_background_hooks_and_kills_their_subprocesses():
     import tempfile
 
     with tempfile.TemporaryDirectory() as tmp:
-        sentinel = os.path.join(tmp, "survived")
+        pid_path = os.path.join(tmp, "child.pid")
         manager = HookManager(search_dirs=[])
         manager.parse_and_register(
             {
@@ -464,10 +503,10 @@ async def test_shutdown_cancels_background_hooks_and_kills_their_subprocesses():
                 "events": ["Stop"],
                 "type": "command",
                 "async": True,
-                # Subshell so the work is done by a process that outlives a
-                # parent-only kill (see test_creator_subprocess.py).
+                # The recorded child is a grandchild of the shell, so a
+                # parent-only kill would leave it runnable.
                 "config": {
-                    "command": f"( sleep 0.5; touch {sentinel} ) & wait",
+                    "command": _background_sleep_command(pid_path),
                     "shell": True,
                 },
             },
@@ -479,9 +518,8 @@ async def test_shutdown_cancels_background_hooks_and_kills_their_subprocesses():
 
         await manager.shutdown()
 
+        await _assert_recorded_process_stops(pid_path)
         assert not manager.has_pending_background_hooks
-        await asyncio.sleep(1.0)  # past the subprocess's own sleep
-        assert not os.path.exists(sentinel), "background hook outlived shutdown"
 
 
 @pytest.mark.asyncio
@@ -531,7 +569,7 @@ async def test_shutdown_drain_still_cancels_a_hook_that_overruns_the_grace():
     import tempfile
 
     with tempfile.TemporaryDirectory() as tmp:
-        sentinel = os.path.join(tmp, "survived")
+        pid_path = os.path.join(tmp, "child.pid")
         manager = HookManager(search_dirs=[])
         manager.parse_and_register(
             {
@@ -540,7 +578,7 @@ async def test_shutdown_drain_still_cancels_a_hook_that_overruns_the_grace():
                 "type": "command",
                 "async": True,
                 "config": {
-                    "command": f"( sleep 5; touch {sentinel} ) & wait",
+                    "command": _background_sleep_command(pid_path),
                     "shell": True,
                 },
             },
@@ -550,10 +588,8 @@ async def test_shutdown_drain_still_cancels_a_hook_that_overruns_the_grace():
         await manager.execute_hooks(HookEvent.STOP, {})
         await manager.shutdown(grace_seconds=0.2, drain=True)
 
-        await asyncio.sleep(0.5)
-        assert not os.path.exists(
-            sentinel
-        ), "background hook outlived a drained shutdown"
+        await _assert_recorded_process_stops(pid_path)
+        assert not manager.has_pending_background_hooks
 
 
 @pytest.mark.asyncio
