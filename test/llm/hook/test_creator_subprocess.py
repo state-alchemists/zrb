@@ -36,6 +36,15 @@ def _background_sleep_command(pid_path: str, *, exit_immediately: bool = False) 
     return f"{command} disown; exit 0" if exit_immediately else f"{command} wait"
 
 
+def _started_chatter_command(ready_path: str) -> str:
+    """Start a pipe-writing child that signals it is scheduled before the shell exits."""
+    script = (
+        "from pathlib import Path; import os; "
+        f"Path({ready_path!r}).touch(); os.execvp('yes', ['yes', 'chatter'])"
+    )
+    return f"{shlex.quote(sys.executable)} -c {shlex.quote(script)} &"
+
+
 def _process_is_live(pid: int) -> bool:
     """Whether *pid* exists and is not a zombie awaiting reaping."""
     result = subprocess.run(
@@ -196,24 +205,21 @@ async def test_command_hook_timeout_kills_descendants_of_a_shell_that_already_ex
     The chatter is ``yes``, not a ``sleep``-paced echo loop: the read side only
     needs *some* output inside every drain poll window (~50ms — see the
     reader's own poll-interval constant) to keep reading past the point where
-    the shell itself has already exited, and ``yes`` writes continuously
-    (blocking on pipe backpressure, never sleeping) rather than gambling on a
-    sleep loop's cadence beating that window under CPU contention — a real
-    flakiness source under parallel test runs. The long-lived child records its
-    pid, so the assertion checks its state after cleanup instead of depending on
-    when a delayed event loop notices a short child sleep has elapsed.
+    the shell itself has already exited. The shell waits for the chatter process
+    to signal readiness before it exits, so a busy xdist worker cannot observe a
+    quiet initial poll merely because that descendant has not been scheduled yet.
+    The long-lived child records its pid, so the assertion checks its state after
+    cleanup instead of depending on a delayed event loop noticing a short sleep.
     """
     with tempfile.TemporaryDirectory() as tmp:
+        ready_path = os.path.join(tmp, "chatter-ready")
         pid_path = os.path.join(tmp, "child.pid")
-        hook = create_command_hook(
-            CommandHookConfig(
-                command=(
-                    "yes chatter & disown; "
-                    f"{_background_sleep_command(pid_path, exit_immediately=True)}"
-                )
-            ),
-            timeout=0.3,
+        command = (
+            f"{_started_chatter_command(ready_path)} disown; "
+            f"while [ ! -f {shlex.quote(ready_path)} ]; do sleep 0.01; done; "
+            f"{_background_sleep_command(pid_path, exit_immediately=True)}"
         )
+        hook = create_command_hook(CommandHookConfig(command=command), timeout=0.3)
         context = HookContext(event=HookEvent.NOTIFICATION, event_data={})
 
         result = await hook(context)
