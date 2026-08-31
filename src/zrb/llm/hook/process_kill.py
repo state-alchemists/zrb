@@ -18,21 +18,30 @@ logger = logging.getLogger(__name__)
 
 
 def read_process_group(process: subprocess.Popen) -> int | None:
-    """The process group of a *live* child, or None if it cannot be read.
+    """The hook child's process group — derived from its pid, never queried.
 
-    Call right after spawn, because the answer is unavailable later: once the
-    child exits, ``getpgid`` raises ESRCH even while its group still holds live
-    descendants. Never raises — a missing group only costs the group kill, and
-    the per-pid fallback still runs.
+    The caller always spawns with ``start_new_session=True``, which makes the
+    child call ``setsid()`` before it execs — and POSIX guarantees a session
+    leader's pgid equals its own pid. So the group is knowable without asking
+    the OS at all.
+
+    That matters because ``setsid()`` runs *in the child*, concurrently with
+    the parent continuing past ``fork()`` — nothing orders it before the
+    parent's next instruction. Querying ``os.getpgid(pid)`` right after spawn
+    used to race that: under CPU contention the child can go unscheduled long
+    enough for the parent to sample its *pre-setsid* pgid — still the
+    parent's own, inherited one. That stale value then tripped
+    ``_safe_tree_kill_group``'s self-kill guard (it looks like our own group),
+    silently downgrading to the per-pid psutil fallback — which kills
+    descendants one at a time rather than atomically, leaving a window where
+    a killed ``sleep`` in ``sleep 5; touch x`` lets its parent shell run
+    ``touch`` before its own kill lands. Deriving the value instead of
+    sampling it closes that window entirely.
     """
     pid = getattr(process, "pid", None)
     if not isinstance(pid, int) or not hasattr(os, "getpgid"):
         return None
-    try:
-        return os.getpgid(pid)
-    except Exception as e:
-        logger.debug(f"could not read process group for hook pid {pid}: {e}")
-        return None
+    return pid
 
 
 def kill_process_tree(process: subprocess.Popen, pgid: int | None = None) -> None:

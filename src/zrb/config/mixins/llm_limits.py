@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from zrb.config.env_field import EnvField
+from zrb.config.env_field import EnvField, on_off
+from zrb.util.string.conversion import to_boolean
 
 
 class LLMLimitsMixin:
@@ -46,6 +47,7 @@ class LLMLimitsMixin:
         # minutes of wall clock being printed.
         self.DEFAULT_LLM_MAX_CONSOLE_OUTPUT_CHARS: str = "1000000"
         self.DEFAULT_LLM_MAX_TOOL_RESULT_CHARS: str = "100000"
+        self.DEFAULT_LLM_TOOL_SPILL_ENABLED: str = "off"
         self.DEFAULT_LLM_MAX_COMPLETION_FILES: str = "5000"
         # Image scaling — 1568px is Anthropic's no-extra-cost tier; JPEG q85 is
         # near-lossless for screenshots while halving size vs. PNG re-encode.
@@ -212,6 +214,17 @@ class LLMLimitsMixin:
             "result, applied after the tool runs. Catches outputs not already "
             "capped by a tool (Grep, AnalyzeCode, web, MCP). 0 disables it; "
             "only the model-facing text is affected, not structured returns."
+        ),
+    )
+
+    LLM_TOOL_SPILL_ENABLED = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc=(
+            "When on, a tool result whose model-facing text exceeds "
+            "LLM_MAX_TOOL_RESULT_CHARS is spilled (losslessly) to a queryable "
+            "local store instead of being passed whole; the model gets a "
+            "read_tool_result handle plus a preview. Off by default."
         ),
     )
 

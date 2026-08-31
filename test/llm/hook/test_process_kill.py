@@ -138,7 +138,28 @@ def test_read_process_group_returns_none_for_a_pidless_process():
     assert read_process_group(_KillRecordingProc()) is None
 
 
-def test_read_process_group_returns_none_for_a_dead_pid():
-    """getpgid raises ESRCH once the child is reaped; that costs the group kill,
-    not an exception on the timeout path."""
-    assert read_process_group(_KillRecordingProc(_DEAD_PID)) is None
+def test_read_process_group_returns_the_pid_even_for_an_already_dead_pid():
+    """The group is derived from the pid, not queried — so it is available
+    even once the child is reaped, when a live ``getpgid`` would ESRCH."""
+    assert read_process_group(_KillRecordingProc(_DEAD_PID)) == _DEAD_PID
+
+
+def test_read_process_group_ignores_a_stale_getpgid_answer():
+    """Regression: the group must never come from a live ``getpgid`` call.
+
+    ``start_new_session=True`` makes the child call ``setsid()`` before it
+    execs, which runs *in the child* concurrently with the parent continuing
+    past ``fork()`` — nothing orders it before the parent's next instruction.
+    Under CPU contention the child can still be unscheduled (pre-``setsid()``,
+    still in our own group) when the parent samples it, so a real
+    ``os.getpgid(pid)`` call here would occasionally read our own pgid instead
+    of the child's — tripping the self-kill guard in
+    ``_safe_tree_kill_group`` and downgrading to the non-atomic per-pid
+    fallback. Proven by making ``getpgid`` lie and asserting it is never
+    consulted.
+    """
+    with patch("os.getpgid", return_value=os.getpgid(0)) as mock_getpgid:
+        result = read_process_group(_KillRecordingProc(_DEAD_PID))
+
+    mock_getpgid.assert_not_called()
+    assert result == _DEAD_PID

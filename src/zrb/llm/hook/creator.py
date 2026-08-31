@@ -90,10 +90,9 @@ def create_command_hook(
                 ),
                 name="zrb-hook-spawn",
             )
-            # Read the group NOW, while the child is certainly alive. By timeout
-            # time the child may be a zombie or reaped, and getpgid then fails
-            # with ESRCH — losing the only handle on descendants that outlived
-            # it. See process_kill.kill_process_tree.
+            # Derived from process.pid, not queried — see
+            # process_kill.read_process_group for why sampling it via
+            # getpgid() here would race the child's own setsid().
             hook_pgid = read_process_group(process)
             try:
                 stdout, stderr = await asyncio.wait_for(

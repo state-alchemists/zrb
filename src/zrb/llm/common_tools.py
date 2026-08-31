@@ -106,6 +106,7 @@ def _register_tools(host: CommonToolHost) -> None:
     # ultimately re-enters this function. By that time the re-export
     # names (``analyze_file``, etc.) aren't yet bound on ``zrb.llm.tool``.
     # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.spill import read_tool_result
     from zrb.llm.agent.types import Tool
 
     # lazy: zrb internal (heavy via transitive) — lsp.tools transitively
@@ -146,6 +147,9 @@ def _register_tools(host: CommonToolHost) -> None:
     worktree_tools = (
         [enter_worktree, exit_worktree, list_worktrees] if is_inside_git_dir() else []
     )
+    # read_tool_result only makes sense when spill is enabled — registering it
+    # otherwise is pure prompt weight for a tool that always answers "no result".
+    spill_tools = [read_tool_result] if CFG.LLM_TOOL_SPILL_ENABLED else []
     # TodoWrite replaces the whole list by default, so it subsumes the former
     # UpdateTodo (rewrite with one status changed) and ClearTodos (write []).
     plan_tools = [write_todos, get_todos]
@@ -173,6 +177,8 @@ def _register_tools(host: CommonToolHost) -> None:
         tag(_fn, Capability.NETWORK)
     for _fn in plan_tools:
         tag(_fn, Capability.META)
+    for _fn in spill_tools:
+        tag(_fn, Capability.META)
     for _tool in lsp_tools:
         tag(_tool, Capability.EDIT if "Rename" in tool_name(_tool) else Capability.READ)
 
@@ -199,6 +205,7 @@ def _register_tools(host: CommonToolHost) -> None:
         *(Tool(_fn, defer_loading=True) for _fn in worktree_tools),
         *(Tool(_fn, defer_loading=True) for _fn in lsp_tools),
         *plan_tools,
+        *spill_tools,
     ]
     host.append_tool(*tools)
 

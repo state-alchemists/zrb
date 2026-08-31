@@ -110,7 +110,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0056** — [Tools are plain functions with PascalCase names](adr-0056.md)
 - **ADR-0057** — [A tool exception becomes text with `[SYSTEM SUGGESTION]`](adr-0057.md)
 - **ADR-0058** — [Tool-definition weight is managed by count, not prose](adr-0058.md)
-- **ADR-0059** — [Tool output is capped twice: per tool, then globally](adr-0059.md)
+- **ADR-0059** — [Tool output is capped at the source; global overflow is separate](adr-0059.md)
 - **ADR-0060** — [Tools carry a capability tag](adr-0060.md)
 - **ADR-0061** — [Permissions are an ordered ruleset, first match wins](adr-0061.md)
 - **ADR-0062** — [One approval chain: permission policy, tool policy, yolo](adr-0062.md)
@@ -120,6 +120,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0066** — [`Shell` is the only shell tool; background is a flag](adr-0066.md)
 - **ADR-0067** — [MCP servers are first-class tool sources](adr-0067.md)
 - **ADR-0084** — [`write_file(mode="w")` refuses to overwrite a file this run hasn't observed](adr-0084.md)
+- **ADR-0089** — [Oversized tool results spill to a queryable store instead of being truncated](adr-0089.md)
 
 ### Delegation and concurrency
 
