@@ -10,6 +10,7 @@ Zrb's AI assistant (`zrb llm chat`) is one face of a task-automation framework. 
 
 - [The One-Sentence Version](#the-one-sentence-version)
 - [At a Glance](#at-a-glance)
+- [Prompt & Context: Override Granularity](#prompt--context-override-granularity)
 - [Scenario Guide](#scenario-guide)
   - [Interactive coding session](#interactive-coding-session)
   - [An agent as a step in a pipeline](#an-agent-as-a-step-in-a-pipeline)
@@ -42,6 +43,29 @@ The other tools on this page are **agents that can run tasks**; Zrb is a **task-
 | White-labeling (your own CLI name/brand) | ✅ built-in | — | — | — | — |
 
 Nothing in the table is a knock against any tool — they simply optimize for different centers of gravity. "—" means the capability isn't the tool's job, not that it's impossible to bolt on.
+
+## Prompt & Context: Override Granularity
+
+How much of the agent can you change, and at what resolution? The four harnesses span a spectrum, from per-section to whole-prompt.
+
+**Zrb is the most granular.** The system prompt is seven named sections — five file-backed rule sections (`persona`, `principle`, `workflow`, `example`, `profile`) and two runtime-fact sections (`system_context`, `project_context`) — each overridable on its own:
+
+- **Per-section wording** — drop a same-named `.md` file onto the override chain (project `LLM_PROMPT_DIR` → env → base prompt dir → packaged `markdown/`).
+- **Section set and order** — `ZRB_LLM_INCLUDE_SECTIONS` / `include_sections=`.
+- **Standing extra content** — `system_prompt=` / `append_prompt()`.
+- **Per-turn volatile state** — `add_live_context()`.
+- **Model-class phrasing** — `ZRB_LLM_PROFILE` (`minimal` / `standard` / `capable` / `auto`).
+- **The whole prompt** — a full middleware can still rewrite everything.
+
+You edit the one concern you care about and the rest keeps working. See [Programming the Prompt](programming-the-prompt.md).
+
+**opencode is granular at a different unit — the agent.** Each agent (built-in or custom) is defined by a `prompt` file you can replace outright, stacked under layered config, rules (AGENTS.md), plugins, and skills. You author many independently-replaceable prompts, but within one agent's prompt there are no named sections to edit.
+
+**Claude Code keeps its base prompt opaque and Anthropic-managed.** You can replace the whole prompt (`--system-prompt` / `--system-prompt-file`, which drops the default tool guidance and safety instructions) or append to it (`--append-system-prompt`). The fine-grained surface is additive rather than editorial: `CLAUDE.md` files in four scopes, path-scoped rules under `.claude/rules/`, `@` imports, and auto-memory.
+
+**Pi is the coarsest, on purpose.** One small fixed prompt over a handful of tools: replace it whole (`--system-prompt`), append to it (`--append-system-prompt`), or rewrite it per turn via its extension API, with `AGENTS.md` injected as project context. There is no per-section knob because there are no sections — for a minimal core that trusts a frontier model to already know how to be an agent, that's the point, not a gap.
+
+A separate axis worth naming: **can you read the whole prompt?** Zrb, opencode, and Pi ship their base prompts as visible files you can diff and replace; Claude Code's lives in a closed binary and changes frequently, so it's reverse-engineered after the fact. Fine-grained and transparent are not the same thing — and trimming Zrb toward Pi's size is a `minimal`-profile plus `ZRB_LLM_INCLUDE_SECTIONS` setting, not a rewrite.
 
 ## Scenario Guide
 
@@ -120,3 +144,4 @@ And the honest answer many teams land on: **they coexist.** Keep Claude Code or 
 - Next: [LLM Integration](llm-integration.md) — using `zrb llm chat` day-to-day
 - Next: [Programming the Agent](programming-the-agent.md) — tools, hooks, dynamic prompts
 - Related: [Claude Code Compatibility](claude-compatibility.md) — reusing your existing assets
+- Related: [Programming the Prompt](programming-the-prompt.md) — overriding the system prompt section by section

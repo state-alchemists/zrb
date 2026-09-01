@@ -1,3 +1,4 @@
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
 from zrb.config.config import CFG
@@ -287,8 +288,22 @@ async def summarize_history(
         summary_message = _create_summary_model_request(summary_text)
         if summary_message is None:
             return messages
+
+        # Preserve the opening user turn verbatim: it carries the task's original
+        # goal, which summarization would otherwise drop first. It is a pure user
+        # turn (no tool parts), so re-adding it cannot break tool-call pairing;
+        # ensure_alternating_roles folds it into the summary message when roles
+        # would otherwise collide. (Harness `preserve_first_user_message`.)
+        first_user_message = _find_first_user_message(messages)
+        keep_first_user = first_user_message is not None and all(
+            m is not first_user_message for m in to_keep
+        )
+
+        result: list[Any] = [summary_message]
+        if keep_first_user:
+            result.append(first_user_message)
         if not to_keep:
-            return [summary_message]
+            return ensure_alternating_roles(result)
         # Fix orphaned tool RETURNS before returning. split_history never
         # separates a *complete* call/return pair, so the only orphan compression
         # can introduce into `to_keep` is a ToolReturnPart whose matching call was
@@ -310,10 +325,66 @@ async def summarize_history(
             )
             to_keep = strip_orphaned_returns(to_keep)
 
-        return ensure_alternating_roles([summary_message] + to_keep)
+        result.extend(to_keep)
+        return ensure_alternating_roles(result)
     except Exception as e:
         zrb_print(stylize_error(f"  Error in summarize_history: {e}"), plain=True)
         return messages
+
+
+_SUMMARY_HEADER = "SYSTEM: Automated Context Restoration"
+
+
+def _is_summary_part(part: Any) -> bool:
+    """Whether *part* is the synthetic content built by `_create_summary_model_request`.
+
+    Matched by its section header so a prior compaction round's own summary is
+    never mistaken for a real user turn by `_find_first_user_message`.
+    """
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import UserPromptPart
+
+    return (
+        isinstance(part, UserPromptPart)
+        and isinstance(part.content, str)
+        and part.content.startswith(f"# {_SUMMARY_HEADER}")
+    )
+
+
+def _drop_summary_parts(msg: Any) -> Any:
+    """*msg* with any synthetic summary parts removed, keeping the rest intact.
+
+    `ensure_alternating_roles` merges adjacent same-role ``ModelRequest``s by
+    concatenating their ``parts`` — so a message preserved across compaction
+    rounds can carry both a prior round's synthetic summary part and a
+    genuinely preserved user part together. Stripping just the synthetic
+    part(s) avoids re-preserving that summary text forward on every later
+    round while keeping the real content.
+    """
+    parts = [part for part in getattr(msg, "parts", []) if not _is_summary_part(part)]
+    if len(parts) == len(msg.parts):
+        return msg
+    return replace(msg, parts=parts)
+
+
+def _find_first_user_message(messages: "list[ModelMessage]") -> Any:
+    """Return the first ModelRequest carrying a real (non-synthetic) user part.
+
+    Synthetic summary parts are stripped from the returned message — see
+    `_drop_summary_parts`.
+    """
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import ModelRequest, UserPromptPart
+
+    for msg in messages:
+        if not isinstance(msg, ModelRequest):
+            continue
+        if any(
+            isinstance(part, UserPromptPart) and not _is_summary_part(part)
+            for part in getattr(msg, "parts", [])
+        ):
+            return _drop_summary_parts(msg)
+    return None
 
 
 def _create_summary_model_request(summary_text: str) -> Any:
@@ -326,7 +397,7 @@ def _create_summary_model_request(summary_text: str) -> Any:
             parts=[
                 UserPromptPart(
                     content=make_markdown_section(
-                        "SYSTEM: Automated Context Restoration",
+                        _SUMMARY_HEADER,
                         "This is an automated summary of the preceding conversation history to "
                         "preserve context within the token limit. Continue the conversation "
                         "based on the state snapshot below.\n\n"

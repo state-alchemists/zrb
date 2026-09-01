@@ -18,21 +18,30 @@ logger = logging.getLogger(__name__)
 
 
 def read_process_group(process: subprocess.Popen) -> int | None:
-    """The process group of a *live* child, or None if it cannot be read.
+    """The hook child's process group — derived from its pid, never queried.
 
-    Call right after spawn, because the answer is unavailable later: once the
-    child exits, ``getpgid`` raises ESRCH even while its group still holds live
-    descendants. Never raises — a missing group only costs the group kill, and
-    the per-pid fallback still runs.
+    The caller always spawns with ``start_new_session=True``, which makes the
+    child call ``setsid()`` before it execs — and POSIX guarantees a session
+    leader's pgid equals its own pid. So the group is knowable without asking
+    the OS at all.
+
+    That matters because ``setsid()`` runs *in the child*, concurrently with
+    the parent continuing past ``fork()`` — nothing orders it before the
+    parent's next instruction. Querying ``os.getpgid(pid)`` right after spawn
+    used to race that: under CPU contention the child can go unscheduled long
+    enough for the parent to sample its *pre-setsid* pgid — still the
+    parent's own, inherited one. That stale value then tripped
+    ``_safe_tree_kill_group``'s self-kill guard (it looks like our own group),
+    silently downgrading to the per-pid psutil fallback — which kills
+    descendants one at a time rather than atomically, leaving a window where
+    a killed ``sleep`` in ``sleep 5; touch x`` lets its parent shell run
+    ``touch`` before its own kill lands. Deriving the value instead of
+    sampling it closes that window entirely.
     """
     pid = getattr(process, "pid", None)
     if not isinstance(pid, int) or not hasattr(os, "getpgid"):
         return None
-    try:
-        return os.getpgid(pid)
-    except Exception as e:
-        logger.debug(f"could not read process group for hook pid {pid}: {e}")
-        return None
+    return pid
 
 
 def kill_process_tree(process: subprocess.Popen, pgid: int | None = None) -> None:
@@ -47,13 +56,16 @@ def kill_process_tree(process: subprocess.Popen, pgid: int | None = None) -> Non
     POSIX: signal the process group. Elsewhere, or if the group is already gone,
     fall back to psutil's recursive child walk.
 
-    *pgid* must be the group captured at spawn time (``read_process_group``).
-    Looking it up here instead does not work in the case that matters most: a
-    shell that backgrounds a child and exits immediately (``cmd & disown``)
-    is already gone by the timeout, so ``getpgid`` raises ESRCH and the group
-    kill is skipped — while the backgrounded descendant lives on holding the
-    pipes. Only the group survives the leader, so only a group captured while
-    the leader lived can reach it.
+    *pgid* is derived from the child's pid by ``read_process_group`` rather
+    than sampled via ``getpgid``, so it survives in the case that matters
+    most: a shell that backgrounds a child and exits immediately
+    (``cmd & disown``) is already gone by the timeout, and a live ``getpgid``
+    would raise ESRCH — while the backgrounded descendant lives on holding the
+    pipes. Only the group survives the leader, and the derived pgid is the one
+    handle on it. ``_verify_process_group`` re-confirms the derived group
+    against the OS at kill time (by then the child's own ``setsid()`` race is
+    long past), refusing the group kill only on a genuine mismatch, and
+    proceeds with the derived group when the pid is already reaped.
 
     Both tree kills are aimed by id, so both are catastrophic if handed one that
     is not a child's: ``killpg`` on our own group, or ``kill_pid`` on our own
@@ -68,6 +80,7 @@ def kill_process_tree(process: subprocess.Popen, pgid: int | None = None) -> Non
     pid = _safe_tree_kill_pid(process)
     if pgid is None:
         pgid = read_process_group(process)
+    pgid = _verify_process_group(process, pgid)
     group = _safe_tree_kill_group(pgid)
     group_killed = False
     if group is not None and hasattr(os, "killpg"):
@@ -95,6 +108,33 @@ def kill_process_tree(process: subprocess.Popen, pgid: int | None = None) -> Non
         process.kill()
     except Exception as e:
         logger.debug(f"Failed to kill hook process: {e}")
+
+
+def _verify_process_group(process: subprocess.Popen, pgid: int | None) -> int | None:
+    """Confirm *pgid* still matches the OS-reported group for *process*.
+
+    Safe to query here (unlike at spawn time in ``read_process_group``): by
+    the time ``kill_process_tree`` runs — a hook timeout or cancellation —
+    the child's own ``setsid()`` has long since completed, so there is no
+    race left to sample into. Catches a pid whose ``Popen`` was never
+    actually started with ``start_new_session=True``.
+    """
+    if pgid is None or not hasattr(os, "getpgid"):
+        return pgid
+    pid = getattr(process, "pid", None)
+    if not isinstance(pid, int):
+        return pgid
+    try:
+        if os.getpgid(pid) != pgid:
+            logger.debug(
+                f"refusing group kill: OS-reported group for pid {pid} does not "
+                f"match derived group {pgid} — was start_new_session set on the "
+                "hook Popen?"
+            )
+            return None
+    except Exception as e:
+        logger.debug(f"could not verify process group for pid {pid}: {e}")
+    return pgid
 
 
 def _safe_tree_kill_pid(process: subprocess.Popen) -> int | None:

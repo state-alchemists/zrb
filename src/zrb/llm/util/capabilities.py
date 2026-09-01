@@ -58,6 +58,9 @@ class ModelCapabilities:
     # diverges — see `_DOCUMENT_PATTERNS`.
     supports_document_input: bool = False
     supports_parallel_tool_calls: bool | None = None
+    # Maximum combined input/output tokens, when zrb knows the model's context
+    # window. ``None`` preserves the configured budget for unknown models.
+    context_window: int | None = None
     # True for a model that reasons by default but only returns a *readable*
     # thinking summary when a request explicitly asks for one — e.g. Gemini
     # 2.5/3 bill `thoughts_tokens` unconditionally but stay silent unless the
@@ -289,6 +292,15 @@ _THINKING_SUMMARY_PATTERNS = (
     r"gemini-3",
 )
 
+# Conservative, documented windows for model families zrb recognises. A missing
+# entry deliberately leaves the user's configured request limit unchanged.
+_CONTEXT_WINDOW_PATTERNS: tuple[tuple[str, int], ...] = (
+    (r"gpt-?4\.1", 1_000_000),
+    (r"gpt-?4o", 128_000),
+    (r"claude-(?:3|(?:haiku|sonnet|opus)-[34])", 200_000),
+    (r"gemini-(1\.5|2|3)", 1_000_000),
+)
+
 
 def _bare_name(model: "str | Model | None") -> str:
     """Extract a recognisable model identifier or ``""`` when undeterminable.
@@ -314,6 +326,7 @@ def _resolve_from_patterns(name: str) -> ModelCapabilities:
         supports_video_input=_matches_any(name, _VIDEO_PATTERNS),
         supports_document_input=_resolve_document(name),
         supports_parallel_tool_calls=_resolve_parallel_tool_calls(name),
+        context_window=_resolve_context_window(name),
         supports_thinking_summary=_matches_any(name, _THINKING_SUMMARY_PATTERNS),
     )
 
@@ -333,6 +346,13 @@ def _resolve_document(name: str) -> bool:
 def _resolve_parallel_tool_calls(name: str) -> bool | None:
     if _matches_any(name, _NO_PARALLEL_TOOL_CALLS):
         return False
+    return None
+
+
+def _resolve_context_window(name: str) -> int | None:
+    for pattern, window in _CONTEXT_WINDOW_PATTERNS:
+        if re.search(pattern, name, re.IGNORECASE):
+            return window
     return None
 
 

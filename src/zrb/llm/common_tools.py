@@ -211,6 +211,7 @@ def _register_tool_factories(host: CommonToolHost) -> None:
     a second registration path.
     """
     # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.spill import read_tool_result
     from zrb.llm.agent.types import Tool
 
     # lazy: zrb.llm.tool.* transitively load pydantic_ai — same reason as the
@@ -236,6 +237,7 @@ def _register_tool_factories(host: CommonToolHost) -> None:
     )
 
     tag(ask_user_question, Capability.META)
+    tag(read_tool_result, Capability.META)
     tag(search_journal, Capability.READ)
     # The journal writers only ever touch CFG.LLM_JOURNAL_DIR, but they do
     # write, so plan mode must block them like any other edit.
@@ -258,6 +260,13 @@ def _register_tool_factories(host: CommonToolHost) -> None:
             else []
         ),
         lambda ctx: [ask_user_question] if _resolve_interactive(ctx) else [],
+        # ReadToolResult only makes sense when spill is enabled — registering it
+        # otherwise is pure prompt weight for a tool that always answers "no
+        # result". A factory (re-evaluated on every run) rather than a static
+        # tool, so toggling LLM_ENABLE_TOOL_SPILL mid-session — e.g. via
+        # /config — takes effect on the next run instead of leaving a spilled
+        # result with no way to read it back.
+        lambda ctx: [read_tool_result] if CFG.LLM_ENABLE_TOOL_SPILL else [],
         # The journal tools are the whole journal interface — there is no prompt
         # section describing the protocol any more, so LLM_JOURNAL_ENABLED=false
         # is enforced by these four simply not existing. Their docstrings carry

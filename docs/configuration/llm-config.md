@@ -159,7 +159,7 @@ To prevent runaway AI loops, manage API costs, and stay within provider limits, 
 | `ZRB_LLM_MAX_REQUEST_PER_MINUTE` | Max API requests per minute | `60` |
 | `ZRB_LLM_MAX_REQUEST_PER_RUN` | Max model requests in one agent run before it halts — the backstop for a run that stops converging. `0` disables. | `300` |
 | `ZRB_LLM_MAX_TOKEN_PER_MINUTE` | Max tokens processed per minute | `128000` |
-| `ZRB_LLM_MAX_TOKEN_PER_REQUEST` | Hard context window limit | `128000` |
+| `ZRB_LLM_MAX_TOKEN_PER_REQUEST` | Hard context window limit. The effective per-request budget is the **lower** of this and the model's known context window (`gpt-4o` 128k, `gpt-4.1` 1M, Claude 3/4 200k, Gemini 1.5/2/3 1M); models zrb doesn't recognise keep this cap. | `128000` |
 | `ZRB_LLM_THROTTLE_SLEEP` | Seconds to pause when rate-limited | `1.0` |
 | `ZRB_ENABLE_TIKTOKEN` | Use tiktoken for accurate counting | `off` (false) |
 | `ZRB_TIKTOKEN_ENCODING` | Tiktoken encoding scheme | `cl100k_base` |
@@ -633,7 +633,8 @@ All interval and delay values are in **milliseconds**.
 | `ZRB_LLM_MAX_COMPLETION_FILES` | Maximum files scanned for path autocompletion | `5000` |
 | `ZRB_LLM_MAX_OUTPUT_CHARS` | Maximum characters returned by shell command and file read tools | `100000` |
 | `ZRB_LLM_MAX_CONSOLE_OUTPUT_CHARS` | Cap (characters) on how much of a shell command's output is mirrored to the console. Separate from `ZRB_LLM_MAX_OUTPUT_CHARS`, which caps what the model sees: a human watching a build wants far more scrollback than the model needs, but neither wants a runaway command echoed line by line. Beyond the cap the output is still captured and still reaches the model. | `1000000` |
-| `ZRB_LLM_MAX_TOOL_RESULT_CHARS` | Size (characters) above which a tool result is flagged `oversized` in `ToolReturn.metadata`. **It does not truncate** — the flag is metadata only, never sent to the model; per-tool caps (`ZRB_LLM_MAX_OUTPUT_CHARS`) are what bound what the model reads. `0` disables the check. | `100000` |
+| `ZRB_LLM_MAX_TOOL_RESULT_CHARS` | Global model-facing tool-result threshold in characters. With `ZRB_LLM_ENABLE_TOOL_SPILL=on`, results above it are losslessly spilled to a private local store and replaced by a preview and `ReadToolResult` handle; otherwise they are flagged `oversized` in app-only metadata and passed through. `0` disables both behaviors. | `100000` |
+| `ZRB_LLM_ENABLE_TOOL_SPILL` | Enables lossless spill for tool results above `ZRB_LLM_MAX_TOOL_RESULT_CHARS`. The full payload is stored under the system temp directory and can be paged or literal-substring-filtered through `ReadToolResult`; off by default. | `off` |
 | `ZRB_LLM_HISTORY_MAX_DISPLAY_CHARS` | Maximum characters shown by the `/history` command | `5000` |
 | `ZRB_LLM_HISTORY_TRUNCATE_LENGTH` | Maximum chars per field when formatting history entries | `100` |
 | `ZRB_LLM_MAX_IMAGE_DIMENSION` | Longest-edge cap (pixels) for attached images before sending to LLM | `1568` |

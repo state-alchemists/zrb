@@ -346,6 +346,114 @@ def _route_hooks(mapping):
 
 
 @pytest.mark.asyncio
+async def test_apply_tool_result_limit_survives_none_metadata():
+    """A raw ToolReturn with metadata=None (pydantic-ai's own default, e.g. from
+    an MCP toolset), rewritten by a PostToolUse hook, must not crash the
+    oversize/spill backstop. The rewritten content never went through a
+    tool's own cap, so it is still routed through _apply_tool_result_limit,
+    which merges new keys onto result.metadata."""
+    from pydantic_ai import ToolReturn
+    from pydantic_ai.toolsets import FunctionToolset
+
+    from zrb.llm.agent.common import wrap_toolset
+    from zrb.llm.hook.executor import HookExecutionResult
+    from zrb.llm.hook.types import HookEvent
+
+    wrapped_ts = wrap_toolset(FunctionToolset(tools=[]))
+    transform = HookExecutionResult(
+        success=True, hook_specific_output={"updatedToolOutput": "z" * 500}
+    )
+    raw = ToolReturn(return_value="small", metadata=None)
+    with (
+        patch(
+            "zrb.llm.hook.manager.hook_manager.execute_hooks",
+            _route_hooks({HookEvent.POST_TOOL_USE: [transform]}),
+        ),
+        patch(
+            "pydantic_ai.toolsets.WrapperToolset.call_tool",
+            new_callable=AsyncMock,
+            return_value=raw,
+        ),
+        patch("zrb.llm.agent.common.CFG") as mock_cfg,
+    ):
+        mock_cfg.LLM_MAX_TOOL_RESULT_CHARS = 100
+        res = await wrapped_ts.call_tool("external_tool", {}, None, None)
+
+    assert isinstance(res, ToolReturn)
+    assert res.metadata.get("oversized") is True
+
+
+@pytest.mark.asyncio
+async def test_call_tool_skips_backstop_for_untouched_self_framed_result():
+    """A tool's own self-framed ToolReturn (e.g. Shell/Read after their own
+    LLM_MAX_OUTPUT_CHARS truncation) is respected as-is when no PostToolUse
+    hook rewrites it — even past LLM_MAX_TOOL_RESULT_CHARS. Re-running it
+    through the global backstop would re-truncate an already-truncated result
+    into a much smaller spill preview with no way to recover the true output.
+    """
+    from pydantic_ai import ToolReturn
+    from pydantic_ai.toolsets import FunctionToolset
+
+    from zrb.llm.agent.common import wrap_toolset
+
+    wrapped_ts = wrap_toolset(FunctionToolset(tools=[]))
+    self_framed = ToolReturn(
+        return_value="[TRUNCATED]..." + "z" * 200, metadata={"already": "framed"}
+    )
+    with (
+        patch(
+            "pydantic_ai.toolsets.WrapperToolset.call_tool",
+            new_callable=AsyncMock,
+            return_value=self_framed,
+        ),
+        patch("zrb.llm.agent.common.CFG") as mock_cfg,
+    ):
+        mock_cfg.LLM_MAX_TOOL_RESULT_CHARS = 10
+        res = await wrapped_ts.call_tool("Read", {}, None, None)
+
+    assert res is self_framed
+
+
+@pytest.mark.asyncio
+async def test_call_tool_backstop_still_applies_to_hook_rewritten_output():
+    """A PostToolUse hook's updatedToolOutput is content that never went
+    through the tool's own cap, so it must still be subject to the global
+    LLM_MAX_TOOL_RESULT_CHARS backstop even when the pre-hook result was a
+    self-framed ToolReturn."""
+    from pydantic_ai import ToolReturn
+    from pydantic_ai.toolsets import FunctionToolset
+
+    from zrb.llm.agent.common import wrap_toolset
+    from zrb.llm.hook.executor import HookExecutionResult
+    from zrb.llm.hook.types import HookEvent
+
+    wrapped_ts = wrap_toolset(FunctionToolset(tools=[]))
+    transform = HookExecutionResult(
+        success=True, hook_specific_output={"updatedToolOutput": "z" * 500}
+    )
+    self_framed = ToolReturn(return_value="small")
+    with (
+        patch(
+            "zrb.llm.hook.manager.hook_manager.execute_hooks",
+            _route_hooks({HookEvent.POST_TOOL_USE: [transform]}),
+        ),
+        patch(
+            "pydantic_ai.toolsets.WrapperToolset.call_tool",
+            new_callable=AsyncMock,
+            return_value=self_framed,
+        ),
+        patch("zrb.llm.agent.common.CFG") as mock_cfg,
+    ):
+        mock_cfg.LLM_MAX_TOOL_RESULT_CHARS = 100
+        res = await wrapped_ts.call_tool("t", {}, None, None)
+
+    assert isinstance(res, ToolReturn)
+    assert res.return_value == "z" * 500
+    assert res.metadata.get("oversized") is True
+    assert res.metadata.get("original_chars") == 500
+
+
+@pytest.mark.asyncio
 async def test_call_tool_pretooluse_deny_blocks():
     """A PreToolUse hook returning permissionDecision="deny" blocks the call and
     the underlying tool never runs."""

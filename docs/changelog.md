@@ -2,14 +2,8 @@
 
 # Changelog
 
-- [2.67.7](changelog-v2/2.67.7.md) — August 31, 2026
-- [2.67.6](changelog-v2/2.67.6.md) — August 30, 2026
-- [2.67.5](changelog-v2/2.67.5.md) — August 30, 2026
-- [2.67.4](changelog-v2/2.67.4.md) — August 30, 2026
-- [2.67.3](changelog-v2/2.67.3.md) — August 29, 2026
-- [2.67.2](changelog-v2/2.67.2.md) — August 29, 2026
-- [2.67.1](changelog-v2/2.67.1.md) — August 28, 2026
-- [2.67.0](changelog-v2/2.67.0.md) — August 27, 2026
+- [2.68.0](changelog-v2/2.68.0.md) — September 1, 2026
+- [2.67.0 - 2.67.7](changelog-v2/2.67.0-2.67.7.md) — August 27, 2026–August 31, 2026
 - [2.66.0 - 2.66.1](changelog-v2/2.66.0-2.66.1.md) — August 24, 2026–August 25, 2026
 - [2.65.0 - 2.65.5](changelog-v2/2.65.0-2.65.5.md) — August 17, 2026–August 22, 2026
 - [2.64.0](changelog-v2/2.64.0.md) — August 16, 2026

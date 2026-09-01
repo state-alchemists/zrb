@@ -2,7 +2,7 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from pydantic_ai import Agent, AgentRunResultEvent
+from pydantic_ai import AgentRunResultEvent
 
 from zrb.llm.agent.run.runner import run_agent
 from zrb.llm.config.limiter import LLMLimiter
@@ -190,7 +190,7 @@ async def test_run_agent_passes_system_prompt_overhead_to_processors():
     limiter = MagicMock(spec=LLMLimiter)
     limiter.max_token_per_request = 1000
     limiter.acquire = AsyncMock()
-    limiter.fit_context_window.side_effect = lambda h, m, r: h
+    limiter.fit_context_window.side_effect = lambda h, m, r, *args, **kwargs: h
     # count_tokens("sys prompt") returns 42; subsequent calls return 0
     limiter.count_tokens.side_effect = [42] + [0] * 20
 
@@ -1596,7 +1596,7 @@ async def test_run_agent_session_start_context_prepending():
     limiter = MagicMock(spec=LLMLimiter)
     limiter.count_tokens.return_value = 10
     limiter.max_token_per_request = 1000
-    limiter.fit_context_window.side_effect = lambda h, m, r: h
+    limiter.fit_context_window.side_effect = lambda h, m, r, *args, **kwargs: h
     limiter.acquire = AsyncMock()
 
     with patch.object(agent, "run") as mock_run:
@@ -1642,7 +1642,7 @@ async def test_run_agent_user_prompt_context_prepending():
     limiter = MagicMock(spec=LLMLimiter)
     limiter.count_tokens.return_value = 10
     limiter.max_token_per_request = 1000
-    limiter.fit_context_window.side_effect = lambda h, m, r: h
+    limiter.fit_context_window.side_effect = lambda h, m, r, *args, **kwargs: h
     limiter.acquire = AsyncMock()
 
     with patch.object(agent, "run") as mock_run:
@@ -1681,7 +1681,7 @@ async def test_run_agent_multi_ui_resolution():
     limiter.acquire = AsyncMock()
     limiter.max_token_per_request = 1000
     limiter.count_tokens.return_value = 10
-    limiter.fit_context_window.side_effect = lambda h, m, r: h
+    limiter.fit_context_window.side_effect = lambda h, m, r, *args, **kwargs: h
 
     # MultiUI is imported (real, module-level) into agent/run/setup.py, which
     # is where resolve_context_dependencies actually looks it up — patch
@@ -1715,7 +1715,7 @@ async def test_run_agent_emergency_pruning():
     limiter = MagicMock(spec=LLMLimiter)
     limiter.max_token_per_request = 100
     limiter.acquire = AsyncMock()
-    limiter.fit_context_window.side_effect = lambda h, m, r: h
+    limiter.fit_context_window.side_effect = lambda h, m, r, *args, **kwargs: h
 
     # Mock history message that is too large
     msg_large = MagicMock()
@@ -1756,7 +1756,7 @@ async def test_run_agent_merge_consecutive_model_requests():
     limiter.acquire = AsyncMock()
     limiter.max_token_per_request = 1000
     limiter.count_tokens.return_value = 10
-    limiter.fit_context_window.side_effect = lambda h, m, r: h
+    limiter.fit_context_window.side_effect = lambda h, m, r, *args, **kwargs: h
 
     with patch.object(agent, "run") as mock_run:
         mock_run.side_effect = _run_from(_gen)
@@ -1793,7 +1793,7 @@ def _minimal_limiter() -> MagicMock:
     limiter.acquire = AsyncMock()
     limiter.max_token_per_request = 1000
     limiter.count_tokens.return_value = 10
-    limiter.fit_context_window.side_effect = lambda h, m, r: h
+    limiter.fit_context_window.side_effect = lambda h, m, r, *args, **kwargs: h
     return limiter
 
 

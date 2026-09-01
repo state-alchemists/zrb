@@ -486,7 +486,7 @@ async def test_integration_with_summarize_history():
     ):
         # Mock chunk_and_summarize to return a summary
         with patch(
-            "zrb.llm.summarizer.chunk_processor.chunk_and_summarize",
+            "zrb.llm.summarizer.history_summarizer.chunk_and_summarize",
             AsyncMock(return_value="<state_snapshot>Summary</state_snapshot>"),
         ):
 

@@ -83,3 +83,56 @@ async def test_process_tool_return_part_dual_thresholds():
         called_content = mock_sum.call_args[0][0]
         assert len(called_content) == 100
         assert called_content == "B" * 100
+
+
+@pytest.mark.asyncio
+async def test_process_tool_return_part_strips_ansi_before_summarize():
+    """ANSI escapes are removed from the text the summarizer receives."""
+    limiter = MockLimiter()
+    agent = MagicMock()
+
+    styled = "\x1b[31mred\x1b[0m " + "A" * 75
+    part = ToolReturnPart(content=styled)
+
+    with patch(
+        "zrb.llm.summarizer.message_processor.summarize_text_plain",
+        new_callable=AsyncMock,
+    ) as mock_sum:
+        mock_sum.return_value = "Short Summary"
+        res, modified = await process_tool_return_part(
+            part,
+            agent,
+            limiter,
+            message_threshold=50,
+            insanity_threshold=100,
+        )
+        assert modified
+        called_content = mock_sum.call_args[0][0]
+        assert "\x1b" not in called_content
+        assert called_content == "red " + "A" * 75
+
+
+@pytest.mark.asyncio
+async def test_process_tool_return_part_ansi_does_not_inflate_measurement():
+    """Measurement runs on stripped text: ANSI padding does not force a summary."""
+    limiter = MockLimiter()
+    agent = MagicMock()
+
+    # 5 real characters, ~20 characters of ANSI padding. Measured size is 5.
+    styled = "\x1b[1;32m" + "hello" + "\x1b[0m"
+    part = ToolReturnPart(content=styled)
+
+    with patch(
+        "zrb.llm.summarizer.message_processor.summarize_text_plain",
+        new_callable=AsyncMock,
+    ) as mock_sum:
+        res, modified = await process_tool_return_part(
+            part,
+            agent,
+            limiter,
+            message_threshold=10,
+            insanity_threshold=20,
+        )
+        assert not modified
+        assert res.content == styled  # unchanged — never summarized
+        mock_sum.assert_not_awaited()

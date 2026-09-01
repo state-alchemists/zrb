@@ -1,5 +1,6 @@
 import asyncio
 import time
+from types import SimpleNamespace
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
@@ -199,6 +200,119 @@ def test_llm_limiter_properties():
     # Test throttle_check_interval
     limiter.throttle_check_interval = 0.5
     assert limiter.throttle_check_interval == 0.5
+
+
+def test_fit_context_window_honors_a_known_model_cap():
+    limiter = LLMLimiter()
+    limiter.max_token_per_request = 256_000
+    history = [
+        ModelRequest(parts=[UserPromptPart(content="x" * 600_000)]),
+        ModelRequest(parts=[UserPromptPart(content="recent turn")]),
+    ]
+
+    assert (
+        limiter.fit_context_window(history, "next", model="openai:gpt-4o")
+        == history[1:]
+    )
+    assert limiter.fit_context_window(history, "next", model="local:unknown") == history
+
+
+def test_count_tokens_anchors_on_provider_usage():
+    limiter = LLMLimiter()
+    response = SimpleNamespace(
+        usage=SimpleNamespace(input_tokens=100, output_tokens=20)
+    )
+
+    assert limiter.count_tokens([response, "abcdefgh"]) == 122
+
+
+def test_fit_context_window_drops_a_stale_usage_anchor_before_estimating_tail():
+    limiter = LLMLimiter()
+    limiter.max_token_per_request = 1_000
+    history = [
+        ModelRequest(parts=[UserPromptPart(content="old turn")]),
+        SimpleNamespace(usage=SimpleNamespace(input_tokens=1_000, output_tokens=1)),
+        ModelRequest(parts=[UserPromptPart(content="recent turn")]),
+    ]
+
+    result = limiter.fit_context_window(history, "next")
+
+    assert result == history[2:]
+
+
+def test_fit_context_window_keeps_the_final_turn_after_a_last_usage_anchor():
+    limiter = LLMLimiter()
+    limiter.max_token_per_request = 1_000
+    history = [
+        ModelRequest(parts=[UserPromptPart(content="old turn")]),
+        ModelRequest(parts=[UserPromptPart(content="last turn")]),
+        SimpleNamespace(usage=SimpleNamespace(input_tokens=1_000, output_tokens=1)),
+    ]
+
+    result = limiter.fit_context_window(history, "next")
+
+    assert result == history[1:]
+
+
+def test_fit_context_window_counts_messages_after_the_anchor():
+    """A trailing message appended after the anchored response (e.g. a fresh
+    tool result) must be counted, not silently ignored."""
+    limiter = LLMLimiter()
+    limiter.max_token_per_request = 1_000
+    history = [
+        SimpleNamespace(usage=SimpleNamespace(input_tokens=800, output_tokens=0)),
+        ModelRequest(parts=[UserPromptPart(content="y" * 500)]),
+    ]
+
+    # 1000*0.9 = 900 available. The anchor alone (800) fits, but 800 plus the
+    # ~125-token trailing message does not — it must trigger pruning.
+    result = limiter.fit_context_window(history, "next")
+
+    assert result != history
+
+
+def test_fit_context_window_prunes_incrementally_across_an_active_anchor():
+    """Before the anchor is crossed, dropping an early turn must shrink the
+    anchor-seeded total by that turn's own size — not leave the total frozen
+    until the whole pre-anchor conversation is dropped in one shot."""
+    limiter = LLMLimiter()
+    limiter.max_token_per_request = 167
+    history = [
+        ModelRequest(parts=[UserPromptPart(content="X" * 4000)]),
+        ModelRequest(parts=[UserPromptPart(content="keep1")]),
+        ModelRequest(parts=[UserPromptPart(content="keep2")]),
+        SimpleNamespace(usage=SimpleNamespace(input_tokens=1100, output_tokens=0)),
+        ModelRequest(parts=[UserPromptPart(content="recent")]),
+    ]
+
+    result = limiter.fit_context_window(history, "next")
+
+    # Only the oversized first turn needed to be dropped — everything after
+    # it, including the anchor's own response, is kept.
+    assert result == history[1:]
+
+
+def test_fit_context_window_subtracts_reserved_tokens_despite_an_anchor():
+    """reserved_tokens reflects the *current* system prompt and can have
+    grown since the anchored turn — it must still shrink `available`, not be
+    skipped just because a usage anchor is present."""
+    limiter = LLMLimiter()
+    limiter.max_token_per_request = 1_000
+    history = [
+        ModelRequest(parts=[UserPromptPart(content="old turn")]),
+        ModelRequest(parts=[UserPromptPart(content="recent turn")]),
+        SimpleNamespace(usage=SimpleNamespace(input_tokens=800, output_tokens=0)),
+    ]
+
+    # With no reserve, the anchor's 800 tokens comfortably fit under the
+    # 900 (1000*0.9) budget alongside the new message.
+    assert limiter.fit_context_window(history, "next", reserved_tokens=0) == history
+
+    # A large reserved_tokens (today's real system-prompt size, which a stale
+    # anchor from an earlier, smaller prompt would not reflect) must still
+    # shrink the budget and force pruning.
+    pruned = limiter.fit_context_window(history, "next", reserved_tokens=500)
+    assert pruned != history
 
 
 def test_llm_limiter_fit_context_window_empty():
@@ -430,7 +544,7 @@ class TestLLMLimiterPropertyDefaults:
         limiter = LLMLimiter()
         with patch("zrb.llm.config.limiter.CFG") as cfg:
             cfg.LLM_MAX_TOKEN_PER_REQUEST = None
-            assert limiter.max_token_per_request == 16_000
+            assert limiter.max_token_per_request == 128_000
 
     def test_throttle_check_interval_default_when_cfg_falsy(self):
         limiter = LLMLimiter()
@@ -472,7 +586,7 @@ class TestLLMLimiterPropertyDefaults:
 
     def test_max_token_per_request_zero_is_not_replaced_by_default(self):
         """An explicit 0 means 'block every request' and must not fall back
-        to the default 16_000 just because 0 is falsy."""
+        to the default 128_000 just because 0 is falsy."""
         limiter = LLMLimiter()
         with patch("zrb.llm.config.limiter.CFG") as cfg:
             cfg.LLM_MAX_TOKEN_PER_REQUEST = 0

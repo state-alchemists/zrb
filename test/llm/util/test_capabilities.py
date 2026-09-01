@@ -85,6 +85,16 @@ def test_video_input_only_for_gemini_class():
     )
 
 
+def test_context_window_is_known_for_documented_model_families():
+    assert model_capabilities.get("openai:gpt-4o").context_window == 128_000
+    assert model_capabilities.get("openai:gpt-4.1").context_window == 1_000_000
+    assert (
+        model_capabilities.get("anthropic:claude-sonnet-3.5").context_window == 200_000
+    )
+    assert model_capabilities.get("google:gemini-2.5-pro").context_window == 1_000_000
+    assert model_capabilities.get("local:unknown").context_window is None
+
+
 def test_parallel_tool_calls_unknown_for_general_models():
     # Most models have no explicit entry → tri-state ``None`` ("unknown").
     assert model_capabilities.get("openai:gpt-4o").supports_parallel_tool_calls is None

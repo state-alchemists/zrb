@@ -14,6 +14,7 @@ from zrb.llm.agent.run.hook_result_extractor import (
     extract_post_tool_decision,
     extract_pre_tool_decision,
 )
+from zrb.llm.agent.spill import maybe_spill
 from zrb.llm.agent.truncate import truncate_tool_content
 from zrb.llm.agent_tool_result import has_multimodal, tool_return
 from zrb.llm.config.config import llm_config as default_llm_config
@@ -127,6 +128,26 @@ def safe_copy_result(result: Any) -> Any:
         return result
 
 
+def _apply_tool_result_limit(tool_name: str, result: Any) -> Any:
+    """Spill an oversized ``ToolReturn`` unless it is the read-back tool itself."""
+    if tool_name == "ReadToolResult":
+        return result
+    value, spill_metadata = maybe_spill(
+        result.return_value, limit=CFG.LLM_MAX_TOOL_RESULT_CHARS
+    )
+    metadata = spill_metadata or _oversize_metadata(value)
+    if not metadata:
+        return result
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import ToolReturn
+
+    return ToolReturn(
+        return_value=value,
+        content=result.content,
+        metadata={**(result.metadata or {}), **metadata},
+    )
+
+
 def _oversize_metadata(value: Any) -> dict[str, Any]:
     """Flag an oversized tool result in metadata, without rewriting it.
 
@@ -191,8 +212,9 @@ def create_safe_wrapper(func: Callable, name: str | None = None) -> Callable:
             # Create a safe copy to prevent mutation by pydantic-ai
             safe_result = safe_copy_result(result)
 
-            # Otherwise wrap the successful result untouched — see
-            # _oversize_metadata for why the size cap does not rewrite it.
+            # Output reduction belongs to SafeToolsetWrapper, after PostToolUse
+            # has made its final output decision (ADR-0089). Preserve the
+            # metadata-only oversize marker for direct wrapper callers (ADR-0043).
             return tool_return(safe_result, **_oversize_metadata(safe_result))
         except ModelRetry:
             # pydantic-ai's retry protocol: the framework turns this into a
@@ -252,16 +274,25 @@ def wrap_toolset(
                 if blocked is not None:
                     return blocked
                 result = await super().call_tool(name, tool_args, ctx, tool)
-                # If result is already a ToolReturn, respect its framing; a
-                # PostToolUse hook may still block it or replace its content.
-                if isinstance(result, ToolReturn):
-                    result = await _fire_post_tool_use(name, tool_args, result)
+                tool_framed = isinstance(result, ToolReturn)
+                if not tool_framed:
+                    result = tool_return(safe_copy_result(result))
+                pre_hook_value = result.return_value
+                result = await _fire_post_tool_use(name, tool_args, result)
+                if tool_framed and result.return_value is pre_hook_value:
+                    # The tool framed (and possibly already truncated, e.g.
+                    # Shell/Read/Grep via LLM_MAX_OUTPUT_CHARS) its own result,
+                    # and no PostToolUse hook touched it — respect that framing.
+                    # LLM_MAX_TOOL_RESULT_CHARS is documented to catch outputs
+                    # "not already capped by a tool"; running it here too would
+                    # re-truncate an already-truncated result into a much
+                    # smaller spill preview with no way to recover the true
+                    # full output. A hook that rewrites the value (below) is
+                    # still subject to the backstop, since that content never
+                    # went through the tool's own cap.
                     return _with_override_note(result)
-                # Create a safe copy to prevent mutation by pydantic-ai
-                safe_result = safe_copy_result(result)
-                wrapped = tool_return(safe_result, **_oversize_metadata(safe_result))
-                wrapped = await _fire_post_tool_use(name, tool_args, wrapped)
-                return _with_override_note(wrapped)
+                result = _apply_tool_result_limit(name, result)
+                return _with_override_note(result)
             except ModelRetry:
                 # Part of pydantic-ai's retry protocol — must reach the
                 # framework, not become an opaque error string.
