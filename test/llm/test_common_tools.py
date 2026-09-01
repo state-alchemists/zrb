@@ -3,6 +3,13 @@
 ``CommonToolHost`` is write-only — it has no read-back accessor — so these
 drive the public entry point against a recording host and assert on what
 reached that boundary, rather than reaching into a task's private tool lists.
+
+Applying is *storage-only*: the host's tool/toolset lists stay untouched, and
+per-run providers are appended through the same public append API a task's own
+tools go through. Only running the providers (the host's build-time
+resolution) materializes the shipped set — which is what the tests below do,
+the way the ``llm_chat`` / ``sub_agent_manager`` singletons' hosts (and any
+custom host) resolve at agent build time.
 """
 
 from zrb.context.context import Context
@@ -56,6 +63,27 @@ def _names(monkeypatch, journal_enabled: bool) -> set[str]:
 
 
 JOURNAL_TOOLS = {"SearchJournal", "LogActivity", "WriteJournalNote"}
+
+
+def test_apply_stores_providers_without_resolving_anything(monkeypatch):
+    """`apply_common_tools` is storage-only: it appends per-run providers and
+    the shell-safety policy, but resolves none of the shipped tools.
+
+    Nothing is handed to the host as a concrete tool at apply time — the
+    provider appends are exactly the storage an agent build resolves later —
+    which is what keeps the (transitively heavy) resolution off `import zrb`.
+    """
+    monkeypatch.setenv("ZRB_LLM_JOURNAL_ENABLED", "true")
+    host = RecordingHost()
+    apply_common_tools(host)
+    assert host.tools == []
+    assert len(host.tool_factories) == 1
+    assert len(host.toolset_factories) == 1
+    assert len(host.policies) == 1
+    # Resolution is the host's build step, not apply's — and it materializes
+    # the full shipped set, scoped by config (journal off here is still on).
+    assert {"Read", "Write", "Grep"} <= host.resolved_tool_names()
+    assert JOURNAL_TOOLS <= host.resolved_tool_names()
 
 
 def test_journal_tools_registered_when_journal_enabled(monkeypatch):

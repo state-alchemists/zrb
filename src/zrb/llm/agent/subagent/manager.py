@@ -20,11 +20,12 @@ from zrb.llm.agent.subagent.tool_resolver import (
     resolved_tool_name,
 )
 from zrb.llm.agent.subagent.yolo import make_yolo_inheritance_checker
-from zrb.llm.common_tools import defer_common_tools, ensure_common_tools
+from zrb.llm.common_tools import apply_common_tools
 from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.factory_resolver import resolve_factory_items
 from zrb.llm.prompt.live_context import render_journal_index
 from zrb.llm.summarizer import create_summarizer_history_processor
+from zrb.llm.tool.registry import tool_registry
 from zrb.util.asset_scanner import IGNORE_DIRS
 
 if TYPE_CHECKING:
@@ -136,7 +137,9 @@ class SubAgentManager:
 
     def append_tool_factory(
         self,
-        *factory: "Callable[[AnyContext], Tool | ToolFuncEither | list[Tool | ToolFuncEither]]",
+        *factory: (
+            "Callable[[AnyContext], Tool | ToolFuncEither | list[Tool | ToolFuncEither]]"
+        ),
     ):
         """Append tool factories."""
         for single_factory in factory:
@@ -222,7 +225,6 @@ class SubAgentManager:
         Returns:
             The agent, or None when `name` matches no definition.
         """
-        ensure_common_tools(self)
         definition = self.get_agent_definition(name)
         if not definition:
             return None
@@ -323,17 +325,9 @@ class SubAgentManager:
                 icon="🤖",
             )
 
-        registry = self.get_tool_registry()
-        resolved_tools = resolve_tools_by_name(definition.tools, registry)
-
-        for factory in self._tool_factories:
-            tool = factory(ctx)
-            if isinstance(tool, list):
-                for single_tool in tool:
-                    if not getattr(single_tool, "zrb_is_delegate_tool", False):
-                        resolved_tools.append(single_tool)
-            elif not getattr(tool, "zrb_is_delegate_tool", False):
-                resolved_tools.append(tool)
+        resolved_tools = resolve_tools_by_name(
+            definition.tools, self.get_tool_registry(), self._tool_factories, ctx
+        )
 
         if definition.disallowed_tools:
             disallowed = {
@@ -454,9 +448,18 @@ class SubAgentManager:
         self._registry.set_discovered(list(self._scanned_agents.values()))
 
     def get_tool_registry(self) -> "dict[str, Callable | Tool]":
-        """Statically-registered tools, keyed by name. Public — hook/creator.py's
-        agent-hook tool resolution reads this from outside the class."""
-        return self._tool_registry
+        """Static tools keyed by name, including the shared zrb tools.
+
+        The shared registry is resolved lazily on the first call, so the heavy
+        tool imports still stay off ``import zrb``. Manually registered tools
+        win name collisions with the shared set.
+        """
+        registry = dict(self._tool_registry)
+        for tool in tool_registry.get_tools():
+            name = resolved_tool_name(tool)
+            if name is not None:
+                registry.setdefault(name, tool)
+        return registry
 
     def get_tool_factories(
         self,
@@ -473,8 +476,7 @@ class SubAgentManager:
 # Module-level singleton - lightweight, agents loaded on first access
 sub_agent_manager = SubAgentManager(registry=sub_agent_registry)
 
-# Deferred (not applied now): applying pulls in pydantic_ai via the tool
-# imports. ``create_agent`` calls ``ensure_common_tools(self)`` before it reads
-# the tool surface, so the heavy import lands on the first agent build instead
-# of on ``import zrb``.
-defer_common_tools(sub_agent_manager)
+# Give the singleton the shared zrb-shipped tool surface. The provider appends
+# are pure storage; nothing resolves (and the transitively-imported
+# `pydantic_ai` does not load) until the first agent build.
+apply_common_tools(sub_agent_manager)

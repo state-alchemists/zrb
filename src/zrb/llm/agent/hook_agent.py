@@ -18,7 +18,6 @@ from zrb.context.shared_context import SharedContext
 from zrb.llm.agent.common import wrap_tool
 from zrb.llm.agent.subagent.manager import sub_agent_manager
 from zrb.llm.agent.subagent.tool_resolver import resolve_tools_by_name
-from zrb.llm.common_tools import ensure_common_tools
 from zrb.llm.hook.agent_hook_registry import register_agent_hook_builder
 from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
 from zrb.llm.hook.schema import AgentHookConfig
@@ -71,7 +70,6 @@ def resolve_agent_hook_tools(names: list[str]) -> list:
     registry."""
     if not names:
         return []
-    ensure_common_tools(sub_agent_manager)
     # Mirrors resolve_agent_build's own ctx-less fallback (subagent/manager.py)
     # — a hook fires outside any task run, so there is no real ctx to reuse.
     ctx = Context(

@@ -15,9 +15,9 @@ default first, so appends become part of the resolved set.
 The default itself is a *lazy seed*: a zero-argument callable returning the
 built-in tool/factory/toolset lists. It is stored, never called here — the
 built-ins transitively import ``pydantic_ai``, so ``_seed``'s heavy imports
-run only when the registry is first resolved (i.e. on the first agent build,
-replacing the deferral ``common_tools.py`` used to do with
-``defer_common_tools`` on each host).
+run only when the registry is first resolved (i.e. on the first agent build).
+``common_tools.apply_common_tools`` feeds hosts from this registry: for a task
+it appends a per-run provider that resolves on the host's next agent build.
 """
 
 from __future__ import annotations

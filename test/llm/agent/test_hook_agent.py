@@ -151,7 +151,6 @@ async def test_agent_hook_skips_llm_call_when_no_named_tools_resolve():
     agent_cls = _agent_returning("should never run")
     mock_config, mock_module = _patched_agent(agent_cls)
     with (
-        patch("zrb.llm.agent.hook_agent.ensure_common_tools"),
         patch(
             "zrb.llm.agent.subagent.manager.sub_agent_manager.get_tool_registry",
             return_value={},
@@ -184,7 +183,6 @@ async def test_resolved_agent_hook_tools_contain_tool_errors():
     flaky_tool.__name__ = "FlakyTool"
 
     with (
-        patch("zrb.llm.agent.hook_agent.ensure_common_tools"),
         patch(
             "zrb.llm.agent.subagent.manager.sub_agent_manager.get_tool_registry",
             return_value={"FlakyTool": flaky_tool},
@@ -218,7 +216,6 @@ async def test_resolved_agent_hook_tools_are_undeferred():
     deferred_tool.__name__ = "DeferredTool"
 
     with (
-        patch("zrb.llm.agent.hook_agent.ensure_common_tools"),
         patch(
             "zrb.llm.agent.subagent.manager.sub_agent_manager.get_tool_registry",
             return_value={},
@@ -255,7 +252,6 @@ async def test_agent_hook_runs_when_named_tools_do_resolve():
         # whole pydantic_ai module) — this test inspects the real Tool that
         # wrap_tool builds around the resolved tool, below.
         patch("pydantic_ai.Agent", agent_cls),
-        patch("zrb.llm.agent.hook_agent.ensure_common_tools"),
         patch(
             "zrb.llm.agent.subagent.manager.sub_agent_manager.get_tool_registry",
             return_value={"LogActivity": fake_log_activity},

@@ -15,7 +15,7 @@ two session runners it calls (`run_interactive_session`,
 `run_non_interactive_session`) are implemented by the sibling `ChatRunning`
 collaborator and reached through `self._llm_chat_task`'s delegators — the same
 way `self.name`, `self.envs` (`BaseTask` properties), and
-`ensure_common_tools` use the task object as a full `CommonToolHost`.
+`apply_common_tools` use the task object as a full `CommonToolHost`.
 """
 
 from __future__ import annotations
@@ -139,14 +139,6 @@ class ChatExecution:
         return resolve_system_prompt(ctx, prompt_manager)
 
     async def exec_action(self, ctx: AnyContext) -> Any:
-        from zrb.llm.common_tools import ensure_common_tools
-
-        # Apply the deferred zrb-shipped tools/guidance (see chat.py's
-        # defer_common_tools) before any tool/guidance is read below.
-        # `defer_common_tools` was called with `self._llm_chat_task` (a full
-        # CommonToolHost via its delegators), not this bare part.
-        ensure_common_tools(self._llm_chat_task)
-
         # 1. Resolve inputs/attributes
         initial_conversation_name = self._get_initial_conversation_name(ctx)
         raw_yolo = get_attr(ctx, self._llm_chat_task.yolo, "", True)

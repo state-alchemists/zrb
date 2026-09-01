@@ -62,10 +62,21 @@ class SubAgentRegistry:
         resolved = self._resolve(self._manual)
         return {definition.name: definition for definition in resolved}
 
-    def _effective(self) -> dict[str, SubAgentDefinition]:
+    def _resolved_view(
+        self,
+    ) -> tuple[dict[str, SubAgentDefinition], dict[str, SubAgentDefinition]]:
+        """Resolve the manual layer exactly once; return ``(manual, merged)``.
+
+        A deferred manual value (`set_agents(lambda ...)`) is re-evaluated
+        per query — but once per query, not once per member: both the merged
+        collection and the visibility check must come from the same
+        resolution, or a stateful supplier could be filtered against a
+        different snapshot than the one merged.
+        """
+        manual = self._effective_manual()
         merged = dict(self._discovered)
-        merged.update(self._effective_manual())
-        return merged
+        merged.update(manual)
+        return manual, merged
 
     def add_agent(self, definition: "SubAgentDefinition") -> None:
         """Register *definition* manually. Survives a later scan or reload."""
@@ -98,13 +109,14 @@ class SubAgentRegistry:
 
     def get_agent_definition(self, name: str) -> "SubAgentDefinition | None":
         """Look up one definition by registered name, own name, or path."""
-        definition = self._effective().get(name)
+        manual, effective = self._resolved_view()
+        definition = effective.get(name)
         if not definition:
-            for candidate in self._effective().values():
+            for candidate in effective.values():
                 if candidate.name == name or candidate.path == name:
                     definition = candidate
                     break
-        if definition and not self._is_visible(definition.name):
+        if definition and not self._is_visible(definition.name, manual):
             return None
         return definition
 
@@ -114,23 +126,25 @@ class SubAgentRegistry:
         The ``CFG.LLM_AGENTS`` allowlist twin filters only the discovered
         layer; definitions registered manually (`add_agent`, `set_agents`)
         are always visible."""
+        manual, effective = self._resolved_view()
         return [
             definition
-            for definition in self._effective().values()
-            if self._is_visible(definition.name)
+            for definition in effective.values()
+            if self._is_visible(definition.name, manual)
         ]
 
-    def _is_visible(self, name: str) -> bool:
+    def _is_visible(self, name: str, manual: dict[str, SubAgentDefinition]) -> bool:
         """Whether *name* survives the ``LLM_AGENTS`` allowlist twin.
 
-        The twin (ADR-0091) is a coarse filter over the *discovered* layer:
+        The twin is a coarse filter over the *discovered* layer:
         env names the default agents that stay in the roster. Anything
         registered manually layers on top and is always visible, matching the
         mental model "env sets the baseline; `zrb_init.py` builds on it".
         Read lazily at query time, so env changes take effect on the next
-        roster lookup without any startup copy.
+        roster lookup without any startup copy. *manual* is the already-
+        resolved manual layer from the caller's single per-query resolution.
         """
-        if name in self._effective_manual().keys():
+        if name in manual:
             return True
         allowed = list(CFG.LLM_AGENTS or [])
         return not allowed or name in allowed

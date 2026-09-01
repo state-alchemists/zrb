@@ -116,7 +116,9 @@ class PromptManager:
         Args:
             prompt_registry: Source of the default appended prompts when
                 *prompts* is ``None``. Defaults to the global
-                `prompt_registry`.
+                `prompt_registry`. Added first (a breaking change for callers
+                who passed *prompts* positionally) so registry composition
+                reads the same across every collection.
             prompts: Extra content emitted *after* every built-in section.
                 Each entry is a string, a `Callable[[AnyContext], str]`, or a
                 full middleware

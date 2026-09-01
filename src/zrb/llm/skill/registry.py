@@ -65,10 +65,19 @@ class SkillRegistry:
         resolved = self._resolve(self._manual)
         return {skill.name: skill for skill in resolved}
 
-    def _effective(self) -> dict[str, Skill]:
+    def _resolved_view(self) -> tuple[dict[str, Skill], dict[str, Skill]]:
+        """Resolve the manual layer exactly once; return ``(manual, merged)``.
+
+        A deferred manual value (`set_skills(lambda ...)`) is re-evaluated per
+        query — but once per query, not once per member: both the merged
+        collection and the visibility check must come from the same resolution,
+        or a stateful supplier could be filtered against a different snapshot
+        than the one merged.
+        """
+        manual = self._effective_manual()
         merged = dict(self._discovered)
-        merged.update(self._effective_manual())
-        return merged
+        merged.update(manual)
+        return manual, merged
 
     def add_skill(self, skill: "Skill") -> None:
         """Register *skill* manually. Survives a later scan or reload.
@@ -106,13 +115,14 @@ class SkillRegistry:
 
     def get_skill(self, name: str) -> "Skill | None":
         """Look up one skill by registered name, own name, or path."""
-        skill = self._effective().get(name)
+        manual, effective = self._resolved_view()
+        skill = effective.get(name)
         if not skill:
-            for candidate in self._effective().values():
+            for candidate in effective.values():
                 if candidate.name == name or candidate.path == name:
                     skill = candidate
                     break
-        if skill and not self._is_visible(skill.name):
+        if skill and not self._is_visible(skill.name, manual):
             return None
         return skill
 
@@ -121,13 +131,14 @@ class SkillRegistry:
         collisions. The ``CFG.LLM_SKILLS`` allowlist twin filters only the
         discovered layer; skills registered manually (`add_skill`,
         `set_skills`) are always visible."""
+        manual, effective = self._resolved_view()
         return [
             skill
-            for skill in self._effective().values()
-            if self._is_visible(skill.name)
+            for skill in effective.values()
+            if self._is_visible(skill.name, manual)
         ]
 
-    def _is_visible(self, name: str) -> bool:
+    def _is_visible(self, name: str, manual: dict[str, Skill]) -> bool:
         """Whether *name* survives the ``LLM_SKILLS`` allowlist twin.
 
         The twin (ADR-0091) is a coarse filter over the *discovered* layer:
@@ -136,8 +147,10 @@ class SkillRegistry:
         model "env sets the baseline; `zrb_init.py` builds on it". The
         registry reads ``CFG`` lazily at query time, so env changes take
         effect on the next catalogue lookup without any startup copy.
+        *manual* is the already-resolved manual layer from the caller's
+        single per-query resolution.
         """
-        if name in self._effective_manual().keys():
+        if name in manual:
             return True
         allowed = list(CFG.LLM_SKILLS or [])
         return not allowed or name in allowed

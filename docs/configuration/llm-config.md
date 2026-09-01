@@ -372,7 +372,7 @@ task.prompt_manager.append_prompt(
 
 ### Restricting the toolbox (`ZRB_LLM_TOOLS`)
 
-`ZRB_LLM_TOOLS` is the env twin of `tool_registry` (ADR-0091): a **name allowlist** of static tools the agents may call. Empty (the default) means all built-in + registered tools; non-empty keeps only the named ones.
+`ZRB_LLM_TOOLS` is the env twin of `tool_registry` (ADR-0091): a **name allowlist** of static tools the agents may call. Empty (the default) means all built-in + registered tools; non-empty keeps only the named **static** ones.
 
 ```bash
 export ZRB_LLM_TOOLS="Shell,Read,Write,Grep,Glob,TodoWrite"
