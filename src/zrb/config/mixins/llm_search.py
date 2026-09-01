@@ -126,8 +126,8 @@ class ConfigLLMSearch:
         comma_list,
         serialize=comma_join,
         doc=(
-            "Name allowlist for visible skills, the env twin of `skill_registry` "
-            "(ADR-0091). Empty means all discovered + built-in skills. Non-empty "
+            "Name allowlist for visible skills, the env twin of `skill_registry`. "
+            "Empty means all discovered + built-in skills. Non-empty "
             "restricts the catalogue to the named skills; `LLM_ENABLE_BUILTIN_SKILLS` "
             "still gates built-ins independently."
         ),
@@ -138,7 +138,7 @@ class ConfigLLMSearch:
         serialize=comma_join,
         doc=(
             "Name allowlist for the sub-agent roster, the env twin of "
-            "`sub_agent_registry` (ADR-0091). Empty means all discovered + built-in "
+            "`sub_agent_registry`. Empty means all discovered + built-in "
             "agents. Non-empty restricts the roster to the named agents; "
             "`LLM_ENABLE_BUILTIN_AGENTS` still gates built-ins independently."
         ),

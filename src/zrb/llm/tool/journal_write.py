@@ -645,7 +645,7 @@ def _cap_section_entries(text: str, heading: str, max_entries: int) -> str:
     Scoped to HUD sections only (User/Preferences/Active Constraints) by
     every caller — `Recent Insights` and category indexes must stay uncapped,
     since their completeness is what makes them a trustworthy full catalog
-    for direct Read (ADR-0055).
+    for direct Read.
     """
     if max_entries <= 0:
         return text

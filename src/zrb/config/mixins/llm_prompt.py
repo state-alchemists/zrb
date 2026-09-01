@@ -75,7 +75,7 @@ class ConfigLLMPrompt:
         serialize=comma_join,
         doc=(
             "Default appended prompts (on top of the built-in sections), the env "
-            "twin of `prompt_registry` (ADR-0091). Comma-separated; set callables "
+            "twin of `prompt_registry`. Comma-separated; set callables "
             "or longer content in zrb_init.py via `prompt_registry` instead."
         ),
     )

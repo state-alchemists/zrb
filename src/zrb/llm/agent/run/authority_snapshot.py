@@ -1,7 +1,7 @@
 """Capture ambient authority (permission policy, yolo, sandbox) for later reuse.
 
-`run_agent`'s inheritance model ("a sub-agent must not exceed its parent",
-ADR-0069) relies on `asyncio.create_task`/`ensure_future` copying the current
+`run_agent`'s inheritance model ("a sub-agent must not exceed its parent")
+relies on `asyncio.create_task`/`ensure_future` copying the current
 `ContextVar` context — correct whenever the detached task is spawned *while
 the originating scope is still bound*. A continuation spawned later, after
 that scope has already exited (`live_session.py`'s `_continue_live_session`,

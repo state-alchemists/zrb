@@ -71,7 +71,7 @@ class HookManager(HookManagerLoading):
         # Lightweight: just assign properties, no heavy operations
         """Discover, register, and run lifecycle hooks.
 
-        Decomposed per ADR-0090: the manager owns discovery, hydration,
+        Decomposed: the manager owns discovery, hydration,
         execution, and factory seeding, and composes a `HookRegistry` for the
         canonical hook collection. Registration and every query delegate to the
         registry.

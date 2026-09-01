@@ -11,8 +11,7 @@ anything that escapes the root via symlink, ``..``, or an absolute path. Handle
 segments are sanitized.
 
 Leaf module: no ``pydantic_ai`` import at module load, so the hot tool-return
-path stays cheap and nothing here drags the agent stack into a file write. See
-ADR-0089.
+path stays cheap and nothing here drags the agent stack into a file write.
 """
 
 from __future__ import annotations

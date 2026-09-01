@@ -40,7 +40,7 @@ class HooksMixin:
         serialize=comma_join,
         doc=(
             "Name allowlist for the hooks zrb dispatches, the env twin of "
-            "`hook_registry` (ADR-0091). Empty means all registered hooks. "
+            "`hook_registry`. Empty means all registered hooks. "
             "Non-empty restricts dispatch to the named hooks. Finer edits live "
             "in zrb_init.py via `hook_registry` mutation."
         ),

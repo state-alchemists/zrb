@@ -1,4 +1,4 @@
-"""The canonical tool registry — the tool half of the ADR-0090/ADR-0091 split.
+"""The canonical tool registry.
 
 ``tool_registry`` owns the ordered set of static tools, per-run tool
 factories, and toolset factories that zrb agents are built with. It is the
@@ -10,7 +10,7 @@ order — so the mutation verbs are ``append_tool`` / ``prepend_tool``, with
 ``set_tools`` for wholesale replacement and ``remove_tool`` to drop by value
 or registered name. Every mutation is a concrete edit of the resolved list:
 appending to a registry that still carries its lazy default freezes that
-default first (ADR-0090 Part 3), so appends become part of the resolved set.
+default first, so appends become part of the resolved set.
 
 The default itself is a *lazy seed*: a zero-argument callable returning the
 built-in tool/factory/toolset lists. It is stored, never called here — the
@@ -40,7 +40,7 @@ def tool_name(tool: ToolLike | Any) -> str:
     """Registered name of *tool*, whether it is a bare function or a ``Tool``.
 
     A ``Tool`` wraps the function it was built from, and zrb's tools carry
-    their PascalCase name on ``__name__`` (ADR-0056), so both layers have to
+    their PascalCase name on ``__name__``, so both layers have to
     be tried.
     """
     fn = getattr(tool, "function", tool)
@@ -89,7 +89,7 @@ class ToolRegistry:
     def _configured_names(self) -> list[str]:
         """The ``LLM_TOOLS`` name allowlist, or ``[]`` meaning "all".
 
-        The env twin of this registry (ADR-0091 Part 3): when non-empty, only
+        The env twin of this registry: when non-empty, only
         the named static tools survive resolution. Read lazily so env changes
         and later ``CFG`` edits are honored at resolve time.
         """

@@ -209,7 +209,7 @@ def steer_into_live_run(
     Returns True when delivered — the caller skips queuing entirely, since
     pydantic-ai's own drain (`RunContext.enqueue`, priority="asap") delivers it
     at the next model request, batching with any other message enqueued the
-    same way in the meantime (ADR-0078). Returns False when there is no live
+    same way in the meantime. Returns False when there is no live
     run (`run_context` is None — no turn in flight, or one is suspended on a
     pending tool approval) or the enqueue attempt itself failed (the run
     finished between the caller's check and this call); either way the

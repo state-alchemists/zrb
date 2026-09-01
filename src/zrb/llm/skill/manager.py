@@ -95,11 +95,11 @@ class Skill:
 class SkillManager:
     """Discover and resolve skills against a `SkillRegistry`.
 
-    Decomposed per ADR-0090: the manager owns discovery (`scan`, `reload`,
+    Decomposed: the manager owns discovery (`scan`, `reload`,
     `get_search_directories`) and content resolution, and composes a
     `SkillRegistry` for the canonical collection. All query and mutation
     methods delegate to the registry, so a manual `add_skill`/`set_skills`
-    survives a later scan (ADR-0090 Part 1).
+    survives a later scan.
     """
 
     def __init__(

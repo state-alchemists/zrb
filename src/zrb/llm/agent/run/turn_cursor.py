@@ -56,7 +56,7 @@ class TurnCursor:
     def carry_forward(self) -> None:
         """After a resolved deferred-tool round: `history` becomes
         `run_history` unconditionally, so the summarizer is never reapplied
-        mid-deferral (ADR-0040). `process_deferred_requests` already
+        mid-deferral. `process_deferred_requests` already
         populated every resolved call's approval, so there is nothing left
         for a processor to do — reapplying one risks dropping the very turn
         holding the approved call.

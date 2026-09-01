@@ -1,6 +1,6 @@
 """`HookRegistry` — the canonical collection of lifecycle hooks.
 
-Per ADR-0090, a registry is the *source of defaults*: it stores the full set of
+A registry is the *source of defaults*: it stores the full set of
 hooks found by filesystem discovery *plus* everything registered in code, and
 answers queries. It does not scan the filesystem or run hooks — that is
 `HookManager`'s job.
@@ -105,7 +105,7 @@ class HookRegistry:
 
     def get_hooks(self, event: HookEvent) -> list[HookCallable]:
         """All hooks registered for *event*, filtered by the ``LLM_HOOKS``
-        name allowlist twin (ADR-0091): non-empty ``CFG.LLM_HOOKS`` keeps only
+        name allowlist twin: non-empty ``CFG.LLM_HOOKS`` keeps only
         the named hooks."""
         return self._filter(self._hooks[event])
 

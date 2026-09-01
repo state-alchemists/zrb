@@ -799,8 +799,7 @@ class BaseUI:
         through this UI, or None between turns / while a turn is suspended
         (e.g. a pending tool approval). Set by `_execution_loop` for the
         duration of each `agent.run()` call; read by `submit_user_message`
-        to steer a new message into the live turn instead of queuing it
-        (ADR-0078)."""
+        to steer a new message into the live turn instead of queuing it."""
         return self._active_run_context
 
     @active_run_context.setter
@@ -1261,7 +1260,7 @@ class BaseUI:
 
     def submit_message(self, user_message: str) -> None:
         """Queue *user_message* for the agent, mirroring `MultiUI.submit_message`:
-        steer into the live turn when one is in flight (ADR-0078), otherwise
+        steer into the live turn when one is in flight, otherwise
         enqueue it for the next turn. Uses the UI's own task — sub-agent
         continuation code calls this to hand the main agent a synthesized
         report without reaching into `_llm_task`."""
@@ -1367,9 +1366,7 @@ class BaseUI:
                 ui = ui[0]
             else:
                 ui = MultiUI(ui)
-        return await self._tool_call_handler.handle(
-            ui, call
-        )  # --- SYSTEM INFO / TRIGGERS (Moved from UI) ---
+        return await self._tool_call_handler.handle(ui, call)
 
     # System-info status (cwd/git) lives in BaseUISystemInfo
     # (system_info.py): update_system_info, get_cwd_display,

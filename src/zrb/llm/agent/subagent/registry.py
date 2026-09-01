@@ -1,6 +1,6 @@
 """`SubAgentRegistry` — the canonical collection of sub-agent definitions.
 
-Per ADR-0090, a registry is the *source of defaults*: it stores the full set of
+A registry is the *source of defaults*: it stores the full set of
 sub-agents found by filesystem discovery *plus* everything appended in code, and
 answers queries. It does not scan or build agents — that is `SubAgentManager`'s
 job. Configure it from `zrb_init.py`:
@@ -39,8 +39,7 @@ class SubAgentRegistry:
 
     Queries merge the two, manual first. `set_agents` replaces the whole
     collection (the clean-slate swap); `remove_agent` drops a name from both
-    layers. `set_agents` accepts a deferred callable resolved at query time
-    (ADR-0090 Part 3).
+    layers. `set_agents` accepts a deferred callable resolved at query time.
     """
 
     def __init__(self, agents: list["SubAgentDefinition"] | None = None):
@@ -81,8 +80,7 @@ class SubAgentRegistry:
         """Replace the whole collection (manual layer) with *agents*.
 
         *agents* may be a concrete list or a deferred callable returning one.
-        A callable stays unresolved and is re-evaluated at each query
-        (ADR-0090 Part 3).
+        A callable stays unresolved and is re-evaluated at each query.
         """
         self._manual = agents
 
@@ -114,7 +112,7 @@ class SubAgentRegistry:
         """Every visible definition in the effective collection.
 
         When ``CFG.LLM_AGENTS`` names a non-empty allowlist, only those
-        agents are visible (ADR-0091 Part 3)."""
+        agents are visible."""
         return [
             definition
             for definition in self._effective().values()

@@ -1,7 +1,7 @@
 """`SkillRegistry` — the canonical collection of skills.
 
-Per ADR-0090, a registry is the *source of defaults*: it stores the full set
-of skills found by filesystem discovery *plus* everything appended in code,
+Per ADR-0090, a registry is the *source of defaults*: it stores the full set of
+skills found by filesystem discovery *plus* everything appended in code,
 and answers queries. It does not scan or resolve — that is `SkillManager`'s
 job. Configure it from `zrb_init.py`:
 
@@ -11,7 +11,7 @@ job. Configure it from `zrb_init.py`:
 
 A manually-added skill always survives a later `scan()`/`reload()` — the
 scan refreshes only the discovered layer, and a manual registration wins a
-name collision (ADR-0090 Part 1: discovery *plus* code).
+name collision.
 """
 
 from __future__ import annotations
@@ -87,7 +87,7 @@ class SkillRegistry:
         """Replace the whole collection (manual layer) with *skills*.
 
         *skills* may be a list or a deferred callable returning one. A callable
-        stays unresolved and is re-evaluated at each query (ADR-0090 Part 3),
+        stays unresolved and is re-evaluated at each query,
         so a value set during `zrb_init.py` honors later `CFG`/registry changes.
         """
         self._manual = skills
@@ -119,7 +119,7 @@ class SkillRegistry:
     def get_skills(self) -> list["Skill"]:
         """Every visible skill in the effective collection, manual wins on
         collisions. When ``CFG.LLM_SKILLS`` names a non-empty allowlist, only
-        those skills are visible (ADR-0091 Part 3)."""
+        those skills are visible."""
         return [
             skill
             for skill in self._effective().values()

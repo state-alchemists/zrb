@@ -59,12 +59,11 @@ class SubAgentManager:
         # Lightweight: just assign properties, no heavy operations
         """Discover sub-agent definitions and build agents from them.
 
-        Decomposed per ADR-0090: the manager owns discovery (`scan`,
+        Decomposed: the manager owns discovery (`scan`,
         `get_search_directories`) and agent construction, and composes a
         `SubAgentRegistry` for the canonical definition collection. All
         definition query and mutation methods delegate to the registry, so a
-        manual `add_agent`/`set_agents` survives a later scan (ADR-0090 Part 1
-        and Part 4).
+        manual `add_agent`/`set_agents` survives a later scan.
 
         Args:
             registry: The canonical `SubAgentRegistry` of definitions to read

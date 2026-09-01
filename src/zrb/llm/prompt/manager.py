@@ -122,7 +122,7 @@ class PromptManager:
                 `Callable[[ctx, current, next], str]` that may rewrite the
                 whole assembled prompt (detected by arity, 3+). May instead
                 be a zero-arg callable resolving to that list, evaluated at
-                compose time (ADR-0090 Part 3). ``None`` defers to
+                compose time. ``None`` defers to
                 *prompt_registry*.
             assistant_name: Name substituted for `{ASSISTANT_NAME}`. A callable
                 is resolved against the active context. Defaults to
@@ -308,7 +308,7 @@ class PromptManager:
         the built-in rendering, in registration order.
 
         The journal index snapshot rides here rather than the cached system
-        prompt (ADR-0042). *inject_journal_index* picks the moment (first turn);
+        prompt. *inject_journal_index* picks the moment (first turn);
         ``render_journal_index`` itself checks ``LLM_JOURNAL_ENABLED``, so a
         disabled journal emits nothing regardless of what callers ask for.
         """
@@ -485,7 +485,7 @@ class PromptManager:
 
         Resolves *name* via ``get_prompt`` at compose time,
         preferring the *profile* variant (``{name}.{profile}.md``) with fallback
-        to the base file (ADR-0049). When nothing resolves (no registered
+        to the base file. When nothing resolves (no registered
         provider, no markdown file), the section is empty — a warning
         is logged so a misspelled name in ``include_sections`` /
         ``ZRB_LLM_INCLUDE_SECTIONS`` is diagnosable instead of silently dropped.
