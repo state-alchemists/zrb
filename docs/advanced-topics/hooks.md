@@ -123,8 +123,9 @@ The hooks subsystem itself is controlled by a small set of `CFG`/env knobs, inde
 | `HOOKS_ENABLED` | `ZRB_HOOKS_ENABLED` | `on` | Master on/off switch for the entire hooks subsystem |
 | `HOOKS_DIRS` | `ZRB_HOOKS_DIRS` | `""` | Colon-separated additional directories to scan for hook scripts |
 | `HOOKS_TIMEOUT` | `ZRB_HOOKS_TIMEOUT` | `30000` | Timeout in milliseconds for hook execution |
+| `LLM_HOOKS` | `ZRB_LLM_HOOKS` | `""` | Name allowlist for the hooks zrb dispatches (ADR-0091). Empty = run every registered hook; non-empty restricts dispatch to the named hooks (e.g. `journal-compliance-judge`). Programmatic registration is unchanged — see [LLM Component Collections](../configuration/llm-collections.md) |
 
-Setting `HOOKS_ENABLED` to `off` disables the hooks subsystem entirely, regardless of what is configured in `hooks.json` files.
+Setting `HOOKS_ENABLED` to `off` disables the hooks subsystem entirely, regardless of what is configured in `hooks.json` files. `LLM_HOOKS` is a visibility twin layered on top: with `HOOKS_ENABLED` off, nothing fires even if a hook's name is allowed.
 
 ---
 

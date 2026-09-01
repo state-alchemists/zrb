@@ -36,6 +36,7 @@ from zrb.config.mixins.llm_limits import LLMLimitsMixin
 from zrb.config.mixins.llm_prompt import ConfigLLMPrompt
 from zrb.config.mixins.llm_sandbox import LLMSandboxMixin
 from zrb.config.mixins.llm_search import ConfigLLMSearch
+from zrb.config.mixins.llm_tools import ConfigLLMTools
 from zrb.config.mixins.llm_ui import LLMUIMixin
 from zrb.config.mixins.rag import RAGMixin
 from zrb.config.mixins.task_runtime import TaskRuntimeMixin
@@ -53,6 +54,7 @@ class Config(  # noqa: E501  # Sibling parts TYPE_CHECKING-declare ENV_PREFIX/RO
     ConfigLLMPrompt,
     LLMSandboxMixin,
     ConfigLLMSearch,
+    ConfigLLMTools,
     RAGMixin,
     InternetSearchMixin,
     HooksMixin,

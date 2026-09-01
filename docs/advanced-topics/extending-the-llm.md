@@ -161,6 +161,8 @@ my_chat_task.prompt_manager.append_prompt(
 
 You can extend the assistant's capabilities with your own Python functions.
 
+> **Where to put your extension.** Everything below mutates a *per-task* host (`my_task.append_tool`, `my_task.prompt_manager.append_prompt`, a manager bound to a fresh registry). To change the shipped behavior **globally** — every `zrb llm chat` and every `LLMTask` in the project — configure the shared registries instead: `tool_registry`, `skill_registry`, `sub_agent_registry`, `hook_registry`, `prompt_registry` plus their `ZRB_LLM_TOOLS` / `ZRB_LLM_SKILLS` / `ZRB_LLM_AGENTS` / `ZRB_LLM_HOOKS` / `ZRB_LLM_PROMPT` env twins. One mental model, three channels (env vars name things, `zrb_init.py` builds things, task args override one host) — see [LLM Component Collections](../configuration/llm-collections.md).
+
 ### Custom Python Tools
 
 Any Python function can be registered as a tool. The assistant automatically understands the function's purpose from its docstring and type annotations.

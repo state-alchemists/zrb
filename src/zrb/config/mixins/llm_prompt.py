@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING
 
-from zrb.config.env_field import EnvField, comma_list, on_off
+from zrb.config.env_field import EnvField, comma_join, comma_list, on_off
 from zrb.util.string.conversion import to_boolean
 
 
@@ -31,6 +31,7 @@ class ConfigLLMPrompt:
         self.DEFAULT_LLM_INCLUDE_SECTIONS: str = (
             "persona,principle,workflow,example,profile,system_context,project_context"
         )
+        self.DEFAULT_LLM_PROMPT: str = ""
         self.DEFAULT_LLM_PROFILE: str = "auto"
         # The model-facing skill/agent catalogues are capped so a huge skill or
         # sub-agent fleet does not inflate every request; the overflow is reachable
@@ -67,6 +68,16 @@ class ConfigLLMPrompt:
         comma_list,
         serialize=_include_sections_serialize,
         doc="Order-sensitive list of prompt sections to include (comma-separated).",
+    )
+
+    LLM_PROMPT = EnvField(
+        comma_list,
+        serialize=comma_join,
+        doc=(
+            "Default appended prompts (on top of the built-in sections), the env "
+            "twin of `prompt_registry` (ADR-0091). Comma-separated; set callables "
+            "or longer content in zrb_init.py via `prompt_registry` instead."
+        ),
     )
 
     LLM_PROFILE = EnvField(

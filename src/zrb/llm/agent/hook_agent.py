@@ -93,7 +93,7 @@ def resolve_agent_hook_tools(names: list[str]) -> list:
 def _undeferred(tool: Any) -> Any:
     """Strip `defer_loading` from *tool* if the shared registry/factories set
     it (e.g. the journal tools, deferred for the main agent's rare use —
-    see `common_tools.py::_register_tool_factories`).
+    see `common_tools.py::_seed_tool_factories`).
 
     A hook names its tools explicitly in its own config; there is no big
     catalogue for `defer_loading` to hide a rare tool inside, so all it would

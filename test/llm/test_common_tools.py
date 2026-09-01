@@ -140,7 +140,7 @@ def test_search_skill_ships_alongside_activate_skill(monkeypatch):
 def test_every_registered_tool_carries_a_known_capability(monkeypatch):
     """A tool that reaches `apply_common_tools` without a `tag()` call silently
     resolves to `Capability.UNKNOWN` (denied in plan mode) with no error — see
-    `_register_tools`'s docstring. This turns that silence into a test failure
+    `_seed_default_tools`'s docstring. This turns that silence into a test failure
     so a forgotten tag is caught at review time instead of in a user's plan-mode
     session."""
     monkeypatch.setenv("ZRB_LLM_JOURNAL_ENABLED", "true")

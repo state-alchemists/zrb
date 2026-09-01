@@ -218,9 +218,11 @@ def test_sub_agent_manager_reload():
     manager.add_agent(agent_def)
     assert manager.get_agent_definition("test") == agent_def
 
+    # Reload refreshes the discovered layer only; a manual registration
+    # survives (ADR-0090 Part 1: discovery *plus* code).
     with patch.object(manager, "_scan_and_load"):
         manager.reload()
-    assert manager.get_agent_definition("test") is None
+    assert manager.get_agent_definition("test") == agent_def
 
 
 def test_sub_agent_manager_add_toolset():

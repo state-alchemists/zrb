@@ -43,7 +43,7 @@ def resolve_tools_by_name(
 
     The registry alone is what `SubAgentManager` has always used for a sub-
     agent's named `tools:` list — it only holds statically-registered tools
-    (`common_tools.py`'s `_register_tools`). Config-gated tools such as the
+    (`common_tools.py`'s `_seed_default_tools`). Config-gated tools such as the
     journal ones are registered as factories instead and are invisible to a
     registry-only lookup; passing *factories* lets a caller (a hook, for
     example) name those too. Delegate tools are always excluded. A name that

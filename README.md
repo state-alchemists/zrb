@@ -332,6 +332,7 @@ All task types available in Zrb, from basic to advanced.
 ### V. Configuration
 - [Environment Variables & Overrides](docs/configuration/env-vars.md)
 - [LLM & Rate Limiter Configuration](docs/configuration/llm-config.md)
+- [LLM Component Collections](docs/configuration/llm-collections.md) — registries, managers, and the three configuration channels for skills, agents, hooks, prompts, and tools
 
 ### VI. Examples
 - [`examples/`](examples/README.md) — runnable `zrb_init.py` for every topic above, grouped by category

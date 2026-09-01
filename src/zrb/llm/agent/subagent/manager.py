@@ -13,6 +13,7 @@ from zrb.llm.agent.common import create_agent
 from zrb.llm.agent.subagent.definition import SubAgentDefinition
 from zrb.llm.agent.subagent.manager_loading import SubAgentManagerLoading
 from zrb.llm.agent.subagent.manager_search import SubAgentManagerSearch
+from zrb.llm.agent.subagent.registry import SubAgentRegistry, sub_agent_registry
 from zrb.llm.agent.subagent.tool_resolver import (
     canonical_tool_name,
     resolve_tools_by_name,
@@ -48,6 +49,7 @@ class _ResolvedAgentBuild:
 class SubAgentManager:
     def __init__(
         self,
+        registry: SubAgentRegistry | None = None,
         tool_registry: "dict[str, Callable | Tool] | None" = None,
         root_dir: str = ".",
         search_dirs: list[str | Path] | None = None,
@@ -57,7 +59,16 @@ class SubAgentManager:
         # Lightweight: just assign properties, no heavy operations
         """Discover sub-agent definitions and build agents from them.
 
+        Decomposed per ADR-0090: the manager owns discovery (`scan`,
+        `get_search_directories`) and agent construction, and composes a
+        `SubAgentRegistry` for the canonical definition collection. All
+        definition query and mutation methods delegate to the registry, so a
+        manual `add_agent`/`set_agents` survives a later scan (ADR-0090 Part 1
+        and Part 4).
+
         Args:
+            registry: The canonical `SubAgentRegistry` of definitions to read
+                and write. A fresh registry is created when `None`.
             tool_registry: Tools available to sub-agents, by name. Defaults to
                 the shared common-tool registry.
             root_dir: Directory the project-level search starts from.
@@ -67,6 +78,7 @@ class SubAgentManager:
                 descend.
             ignore_dirs: Directory names skipped while scanning.
         """
+        self._registry = registry if registry is not None else SubAgentRegistry()
         self._tool_registry = tool_registry if tool_registry is not None else {}
         self._tool_factories: list[
             Callable[
@@ -81,13 +93,18 @@ class SubAgentManager:
         self._root_dir = root_dir
         self._search_dirs = search_dirs
         self._max_depth = max_depth
-        self._agents: dict[str, SubAgentDefinition] = {}
+        self._scanned_agents: dict[str, SubAgentDefinition] = {}
         self._ignore_dirs = IGNORE_DIRS if ignore_dirs is None else ignore_dirs
         self._loaded: bool = False
         self._loading = SubAgentManagerLoading(
-            ignore_dirs=self._ignore_dirs, agents=self._agents
+            ignore_dirs=self._ignore_dirs, agents=self._scanned_agents
         )
         self._search = SubAgentManagerSearch()
+
+    @property
+    def registry(self) -> SubAgentRegistry:
+        """The canonical definition collection this manager reads and writes."""
+        return self._registry
 
     @property
     def root_dir(self) -> str:
@@ -99,11 +116,12 @@ class SubAgentManager:
         self._root_dir = value
 
     def reload(self):
-        """Force re-scan agents. Use after CFG changes or agent file updates."""
+        """Force re-scan agents. Use after CFG changes or agent file updates.
+
+        Manual registrations survive; only the discovered layer is refreshed.
+        """
         self._loaded = False
-        # Cleared in place (not reassigned): `self._loading` holds a reference
-        # to this same dict, which a reassignment would orphan.
-        self._agents.clear()
+        self._registry.clear_discovered()
         self._ensure_loaded()
 
     def get_search_directories(self) -> list[str | Path]:
@@ -138,7 +156,11 @@ class SubAgentManager:
     def scan(
         self, search_dirs: list[str | Path] | None = None
     ) -> list[SubAgentDefinition]:
-        """Scan default and provided directories. Doesn't clear manual registrations."""
+        """Scan default and provided directories. Doesn't clear manual registrations.
+
+        Manually-registered definitions are kept; a manual registration wins a
+        name collision with a discovered one.
+        """
         target_search_dirs = search_dirs
         if target_search_dirs is None:
             target_search_dirs = (
@@ -146,16 +168,36 @@ class SubAgentManager:
                 if self._search_dirs is not None
                 else self.get_search_directories()
             )
+        self._scanned_agents.clear()
         for search_dir in target_search_dirs:
             self._loading.scan_dir(
                 Path(search_dir), max_depth=self._max_depth, root_dir=self._root_dir
             )
+        self._registry.set_discovered(list(self._scanned_agents.values()))
         self._loaded = True
-        return list(self._agents.values())
+        return self.get_agents()
 
     def add_agent(self, definition: SubAgentDefinition):
-        """Manually register a sub-agent definition."""
-        self._agents[definition.name] = definition
+        """Manually register a sub-agent definition. Survives a later scan."""
+        self._registry.add_agent(definition)
+
+    def remove_agent(self, name: str) -> None:
+        """Drop a sub-agent definition by name (manual and discovered)."""
+        self._ensure_loaded()
+        self._registry.remove_agent(name)
+
+    def set_agents(self, agents):
+        """Replace the whole definition collection with *agents*.
+
+        *agents* may be a list of `SubAgentDefinition` or a deferred callable
+        returning one. Like `add_agent`, this registration survives a later scan.
+        """
+        self._registry.set_agents(agents)
+
+    def get_agents(self) -> list[SubAgentDefinition]:
+        """Return all sub-agent definitions, loading lazily on first call."""
+        self._ensure_loaded()
+        return self._registry.get_agents()
 
     def get_agent_definition(self, name: str) -> SubAgentDefinition | None:
         """Look up a sub-agent definition, loading them first if needed.
@@ -164,13 +206,7 @@ class SubAgentManager:
         name or path. Returns None when nothing matches.
         """
         self._ensure_loaded()
-        agent = self._agents.get(name)
-        if not agent:
-            for a in self._agents.values():
-                if a.name == name or a.path == name:
-                    agent = a
-                    break
-        return agent
+        return self._registry.get_agent_definition(name)
 
     def create_agent(
         self, name: str, ctx: AnyContext | None = None, yolo: bool | None = None
@@ -411,10 +447,12 @@ class SubAgentManager:
         target_search_dirs = self._search_dirs
         if target_search_dirs is None:
             target_search_dirs = self.get_search_directories()
+        self._scanned_agents.clear()
         for search_dir in target_search_dirs:
             self._loading.scan_dir(
                 Path(search_dir), max_depth=self._max_depth, root_dir=self._root_dir
             )
+        self._registry.set_discovered(list(self._scanned_agents.values()))
 
     def get_tool_registry(self) -> "dict[str, Callable | Tool]":
         """Statically-registered tools, keyed by name. Public — hook/creator.py's
@@ -434,7 +472,7 @@ class SubAgentManager:
 
 
 # Module-level singleton - lightweight, agents loaded on first access
-sub_agent_manager = SubAgentManager()
+sub_agent_manager = SubAgentManager(registry=sub_agent_registry)
 
 # Deferred (not applied now): applying pulls in pydantic_ai via the tool
 # imports. ``create_agent`` calls ``ensure_common_tools(self)`` before it reads

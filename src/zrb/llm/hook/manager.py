@@ -12,7 +12,6 @@ For the public hook authoring guide (formats, events, examples), see:
 import asyncio
 import logging
 import os
-from collections import defaultdict
 from pathlib import Path
 from typing import Any, Callable, cast
 
@@ -28,6 +27,7 @@ from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
 from zrb.llm.hook.journal_compliance import register_journal_compliance_hook
 from zrb.llm.hook.manager_loading import HookManagerLoading
 from zrb.llm.hook.matcher import evaluate_matchers
+from zrb.llm.hook.registry import HookRegistry, hook_registry
 from zrb.llm.hook.schema import (
     AgentHookConfig,
     CommandHookConfig,
@@ -63,14 +63,22 @@ _DEFAULT_HOOK_CONFIG = HookConfig(
 class HookManager(HookManagerLoading):
     def __init__(
         self,
+        registry: HookRegistry | None = None,
         search_dirs: list[str | Path] | None = None,
         max_depth: int = 1,
         ignore_dirs: list[str] | None = None,
     ):
         # Lightweight: just assign properties, no heavy operations
-        """Discover and run lifecycle hooks.
+        """Discover, register, and run lifecycle hooks.
+
+        Decomposed per ADR-0090: the manager owns discovery, hydration,
+        execution, and factory seeding, and composes a `HookRegistry` for the
+        canonical hook collection. Registration and every query delegate to the
+        registry.
 
         Args:
+            registry: The canonical `HookRegistry` to read and write. A fresh
+                registry is created when `None`, giving an isolated view.
             search_dirs: Directories to scan for hook definitions. Defaults to
                 the standard project and user locations.
             max_depth: How many directory levels below each search directory to
@@ -78,13 +86,8 @@ class HookManager(HookManagerLoading):
             ignore_dirs: Directory names skipped while scanning, such as
                 `node_modules`.
         """
-        self._hooks: dict[HookEvent, list[HookCallable]] = defaultdict(list)
-        self._global_hooks: list[HookCallable] = []
+        self._registry = registry if registry is not None else HookRegistry()
         self._executor: ThreadPoolHookExecutor = get_hook_executor()
-        self._hook_configs: dict[str, HookConfig] = {}  # name -> config for debugging
-        self._hook_to_config: dict[HookCallable, HookConfig] = (
-            {}
-        )  # hook -> config mapping
         # `register_journal_compliance_hook` ships as a *default* factory on
         # every instance, not just the module-level singleton below — a real
         # chat run's `Stop` event dispatches through a fresh, per-run
@@ -117,6 +120,11 @@ class HookManager(HookManagerLoading):
         self._bg_semaphore: asyncio.Semaphore | None = None
 
     @property
+    def registry(self) -> HookRegistry:
+        """The canonical hook collection this manager reads and writes."""
+        return self._registry
+
+    @property
     def search_dirs(self) -> list[str | Path] | None:
         """Directories scanned for hook files; ``None`` means "ask the config".
 
@@ -140,10 +148,7 @@ class HookManager(HookManagerLoading):
     def reload(self):
         """Force re-scan hooks. Use after CFG changes or hook file updates."""
         self._loaded = False
-        self._hooks = defaultdict(list)
-        self._global_hooks = []
-        self._hook_configs = {}
-        self._hook_to_config = {}
+        self._registry.clear_manual()
         # _ensure_loaded -> _scan_and_load already runs _hook_factories; no
         # separate loop here, or every factory would run twice.
         self._ensure_loaded()
@@ -178,14 +183,28 @@ class HookManager(HookManagerLoading):
         If events is None or empty, the hook is treated as a global hook (runs on all events).
         Otherwise, it is registered for the specific events.
         """
-        if config:
-            self._hook_to_config[hook] = config
+        self._registry.register(hook, events, config)
 
-        if not events:
-            self._global_hooks.append(hook)
-        else:
-            for event in events:
-                self._hooks[event].append(hook)
+    def remove_hook(self, hook: HookCallable) -> None:
+        """Unregister *hook* from every event and the global list."""
+        self._registry.remove_hook(hook)
+
+    def remove_event_hooks(self, event: HookEvent) -> None:
+        """Unregister every hook for *event* (global hooks untouched)."""
+        self._registry.remove_event_hooks(event)
+
+    def set_hooks(
+        self,
+        event: HookEvent,
+        hooks: list[HookCallable],
+        configs: dict[HookCallable, HookConfig] | None = None,
+    ) -> None:
+        """Replace the hook list for *event* — a clean-slate swap.
+
+        *configs* maps each hook to its `HookConfig`, repopulating the
+        registry's config bookkeeping for the new set.
+        """
+        self._registry.set_hooks(event, hooks, configs)
 
     async def execute_hooks(
         self,
@@ -230,7 +249,9 @@ class HookManager(HookManagerLoading):
 
         results: list[HookExecutionResult] = []
 
-        hooks_to_run = self._global_hooks + self._hooks[event]
+        hooks_to_run = self._registry.get_global_hooks() + self._registry.get_hooks(
+            event
+        )
 
         if not hooks_to_run:
             return results
@@ -251,7 +272,9 @@ class HookManager(HookManagerLoading):
         """Higher `priority` runs first; a hook with no config sorts as 0."""
         return sorted(
             hooks,
-            key=lambda h: self._hook_to_config.get(h, _DEFAULT_HOOK_CONFIG).priority,
+            key=lambda h: self._registry.get_hook_config(
+                h, _DEFAULT_HOOK_CONFIG
+            ).priority,
             reverse=True,
         )
 
@@ -269,7 +292,7 @@ class HookManager(HookManagerLoading):
         `execute_hooks` must return immediately after this result — a block
         on a blockable event, or an explicit `continue=false`.
         """
-        config = self._hook_to_config.get(hook)
+        config = self._registry.get_hook_config(hook)
         timeout = config.timeout if config else None
 
         # Async command AND agent hooks are fire-and-forget: spawn them on the
@@ -392,7 +415,7 @@ class HookManager(HookManagerLoading):
             for task in self._background_tasks
             if not task.done()
             and (hook := self._background_task_hook.get(task)) is not None
-            and (cfg := self._hook_to_config.get(hook)) is not None
+            and (cfg := self._registry.get_hook_config(hook)) is not None
             and cfg.type == HookType.AGENT
             and cfg.timeout is not None
         ]
@@ -599,7 +622,7 @@ class HookManager(HookManagerLoading):
         """
         inner_hook = self._select_inner_hook(config)
         # Store config for debugging and timeout lookup
-        self._hook_configs[config.name] = config
+        self._registry.record_config(config.name, config)
         return self._wrap_with_matchers(inner_hook, config)
 
     def _select_inner_hook(self, config: HookConfig) -> HookCallable:
@@ -669,4 +692,4 @@ class HookManager(HookManagerLoading):
 
 
 # Module-level singleton - lightweight, hooks loaded on first execute_hooks() call
-hook_manager = HookManager()
+hook_manager = HookManager(registry=hook_registry)

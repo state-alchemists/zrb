@@ -34,6 +34,8 @@ class ConfigLLMSearch:
         self.DEFAULT_LLM_LSP_PREFERRED_SERVERS: str = ""
         self.DEFAULT_LLM_ENABLE_BUILTIN_SKILLS: str = "on"
         self.DEFAULT_LLM_ENABLE_BUILTIN_AGENTS: str = "on"
+        self.DEFAULT_LLM_SKILLS: str = ""
+        self.DEFAULT_LLM_AGENTS: str = ""
         super().__init__()
 
     LLM_PLUGIN_DIRS = EnvField(
@@ -117,5 +119,27 @@ class ConfigLLMSearch:
         doc=(
             "Enable/disable the builtin sub-agents (src/zrb/llm_plugin/agents). "
             "User/project/plugin agents are unaffected."
+        ),
+    )
+
+    LLM_SKILLS = EnvField(
+        comma_list,
+        serialize=comma_join,
+        doc=(
+            "Name allowlist for visible skills, the env twin of `skill_registry` "
+            "(ADR-0091). Empty means all discovered + built-in skills. Non-empty "
+            "restricts the catalogue to the named skills; `LLM_ENABLE_BUILTIN_SKILLS` "
+            "still gates built-ins independently."
+        ),
+    )
+
+    LLM_AGENTS = EnvField(
+        comma_list,
+        serialize=comma_join,
+        doc=(
+            "Name allowlist for the sub-agent roster, the env twin of "
+            "`sub_agent_registry` (ADR-0091). Empty means all discovered + built-in "
+            "agents. Non-empty restricts the roster to the named agents; "
+            "`LLM_ENABLE_BUILTIN_AGENTS` still gates built-ins independently."
         ),
     )

@@ -231,6 +231,7 @@ The system prompt is assembled from an **ordered list of sections**. The list is
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ZRB_LLM_INCLUDE_SECTIONS` | Comma-separated, order-sensitive list of sections to include | `persona,principle,workflow,example,profile,system_context,project_context` |
+| `ZRB_LLM_PROMPT` | Comma-separated extra prompts appended after every built-in section — the env twin of `prompt_registry` (ADR-0091). Empty means none. Content that won't fit a comma value (callables, structured middleware) belongs in `zrb_init.py` via `prompt_registry`. See [LLM Component Collections](./llm-collections.md). | (empty) |
 
 Recognised section names:
 
@@ -302,7 +303,7 @@ An explicit name is **stable**: it never changes with the model. Only `auto` fol
 
 ### Programmatic Prompt Customization
 
-Beyond editing prompt files and env vars, each task exposes its `PromptManager` via the public `task.prompt_manager` property. It offers three programmatic ways to shape the system prompt, in increasing power.
+Beyond editing prompt files and env vars, each task exposes its `PromptManager` via the public `task.prompt_manager` property. It offers three programmatic ways to shape the system prompt, in increasing power. The same API exists at registry scope: `prompt_registry.set_prompts` / `append_prompt` from `zrb_init.py` changes the **default every** task starts from (`PromptManager(prompts=None)` defers there), and a task-level `prompts=` argument or mutation overrides just that host — see [LLM Component Collections](./llm-collections.md) for the resolution order.
 
 **1. Append custom instructions** — `append_prompt()` adds content that is emitted **after** all built-in sections. Accepts a static string, a `Callable[[AnyContext], str]` for runtime-dynamic text, or a *full middleware* `Callable[[ctx, current_prompt, next], str]` that can rewrite the entire assembled prompt before passing it on (middleware is detected by arity — 3+ parameters):
 
@@ -368,6 +369,16 @@ task.prompt_manager.append_prompt(
     "## Inventory rules\n- Never quote stock without a warehouse."
 )
 ```
+
+### Restricting the toolbox (`ZRB_LLM_TOOLS`)
+
+`ZRB_LLM_TOOLS` is the env twin of `tool_registry` (ADR-0091): a **name allowlist** of static tools the agents may call. Empty (the default) means all built-in + registered tools; non-empty keeps only the named ones.
+
+```bash
+export ZRB_LLM_TOOLS="Shell,Read,Write,Grep,Glob,TodoWrite"
+```
+
+The names are the registered PascalCase tool names (the `Tool` column in [Built-in LLM Tools](../advanced-topics/extending-the-llm.md#built-in-llm-tools)). Per-run factory and toolset tools are not name-known statically, so the allowlist governs the static set only. Finer edits — add a custom tool, drop a shipped one — belong in `zrb_init.py` via `tool_registry`; see [LLM Component Collections](./llm-collections.md).
 
 ---
 
@@ -537,6 +548,7 @@ Free, no API key, no Docker required. Fetches results from Google News RSS feed.
 | `ZRB_HOOKS_ENABLED` | Enable the hook system globally; set `off` to disable all hooks (none load or fire) | `on` |
 | `ZRB_HOOKS_DIRS` | Additional hook directories (colon-separated) | (empty) |
 | `ZRB_HOOKS_TIMEOUT` | Default timeout for hook execution (ms) | `30000` |
+| `ZRB_LLM_HOOKS` | Name allowlist for the hooks zrb dispatches — the env twin of `hook_registry` (ADR-0091). Empty means all registered hooks; non-empty restricts dispatch to the named hooks (e.g. `journal-compliance-judge`). Finer edits (a hook with a matcher, command config) live in `zrb_init.py` via `hook_registry`. See [LLM Component Collections](./llm-collections.md). | (empty) |
 
 ---
 
@@ -550,6 +562,8 @@ These variables control where Zrb searches for skills and agents, and whether th
 | `ZRB_LLM_SEARCH_HOME` | Search home directory (`~/.claude/`, `~/.zrb/`) | `on` |
 | `ZRB_LLM_ENABLE_BUILTIN_SKILLS` | Load the built-in utility skills (`llm_plugin/skills`). Core skills (`core_skills/`) are always on; user/project/plugin skills are unaffected | `on` |
 | `ZRB_LLM_ENABLE_BUILTIN_AGENTS` | Load optional built-in sub-agents (`llm_plugin/agents`). Core agents (`core_agents/`) are always on; user/project/plugin agents are unaffected | `on` |
+| `ZRB_LLM_SKILLS` | Name allowlist for the visible skill catalogue — the env twin of `skill_registry` (ADR-0091). Empty means all discovered + built-in skills; non-empty keeps only the named ones (`LLM_ENABLE_BUILTIN_SKILLS` still gates built-ins independently). See [LLM Component Collections](./llm-collections.md). | (empty) |
+| `ZRB_LLM_AGENTS` | Name allowlist for the sub-agent roster — the env twin of `sub_agent_registry` (ADR-0091). Empty means all discovered + built-in agents; non-empty keeps only the named ones. See [LLM Component Collections](./llm-collections.md). | (empty) |
 | `ZRB_LLM_CONFIG_DIR_NAMES` | Config subdirectory names to look for in each dir (colon-separated) | `.claude:.zrb` |
 | `ZRB_LLM_BASE_SEARCH_DIRS` | Explicit base dirs containing `skills/`, `agents/`, `plugins/` | (empty) |
 | `ZRB_LLM_EXTRA_SKILL_DIRS` | Additional direct skill directories | (empty) |
