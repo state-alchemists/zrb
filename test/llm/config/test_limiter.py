@@ -586,7 +586,7 @@ class TestLLMLimiterPropertyDefaults:
 
     def test_max_token_per_request_zero_is_not_replaced_by_default(self):
         """An explicit 0 means 'block every request' and must not fall back
-        to the default 16_000 just because 0 is falsy."""
+        to the default 128_000 just because 0 is falsy."""
         limiter = LLMLimiter()
         with patch("zrb.llm.config.limiter.CFG") as cfg:
             cfg.LLM_MAX_TOKEN_PER_REQUEST = 0

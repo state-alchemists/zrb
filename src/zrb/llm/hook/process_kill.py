@@ -56,13 +56,16 @@ def kill_process_tree(process: subprocess.Popen, pgid: int | None = None) -> Non
     POSIX: signal the process group. Elsewhere, or if the group is already gone,
     fall back to psutil's recursive child walk.
 
-    *pgid* must be the group captured at spawn time (``read_process_group``).
-    Looking it up here instead does not work in the case that matters most: a
-    shell that backgrounds a child and exits immediately (``cmd & disown``)
-    is already gone by the timeout, so ``getpgid`` raises ESRCH and the group
-    kill is skipped — while the backgrounded descendant lives on holding the
-    pipes. Only the group survives the leader, so only a group captured while
-    the leader lived can reach it.
+    *pgid* is derived from the child's pid by ``read_process_group`` rather
+    than sampled via ``getpgid``, so it survives in the case that matters
+    most: a shell that backgrounds a child and exits immediately
+    (``cmd & disown``) is already gone by the timeout, and a live ``getpgid``
+    would raise ESRCH — while the backgrounded descendant lives on holding the
+    pipes. Only the group survives the leader, and the derived pgid is the one
+    handle on it. ``_verify_process_group`` re-confirms the derived group
+    against the OS at kill time (by then the child's own ``setsid()`` race is
+    long past), refusing the group kill only on a genuine mismatch, and
+    proceeds with the derived group when the pid is already reaped.
 
     Both tree kills are aimed by id, so both are catastrophic if handed one that
     is not a child's: ``killpg`` on our own group, or ``kill_pid`` on our own
