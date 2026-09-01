@@ -12,7 +12,7 @@ Skills, sub-agents, hooks, extra prompts, and tools are all **component families
 - [The five component families](#the-five-component-families)
 - [Three configuration channels](#three-configuration-channels)
 - [Resolution order](#resolution-order)
-- [Deferred defaults: seeds, freeze, and lazy reads](#deferred-defaults-seeds-freeze-and-lazy-reads)
+- [Deferred defaults: seeds, deltas, and lazy reads](#deferred-defaults-seeds-deltas-and-lazy-reads)
 - [Worked examples](#worked-examples)
 - [`get_prompt(name)` vs `get_prompts()`](#get_promptname-vs-get_prompts)
 
@@ -25,7 +25,7 @@ Every component family has:
 | Piece | What it is | Instance |
 |-------|-----------|----------|
 | **`*Registry`** | The canonical, shared collection — the *source of defaults*. One per process. | `skill_registry`, `sub_agent_registry`, `hook_registry`, `prompt_registry`, `tool_registry` |
-| **`*Manager` (or host)** | The per-task, resolved view that actually runs. Reads from the registry unless told otherwise. Reads can't change the registry; mutations snapshot first. | `SkillManager`, `SubAgentManager`, `HookManager`, `PromptManager`, an agent host (`LLMChatTask`/`LLMTask`/`SubAgentManager`) |
+| **`*Manager` (or host)** | The per-task, resolved view that actually runs. Reads the registry as its default unless told otherwise; its own `append`/`prepend`/`remove` ops layer over that resolved base without freezing it. | `SkillManager`, `SubAgentManager`, `HookManager`, `PromptManager`, an agent host (`LLMChatTask`/`LLMTask`/`SubAgentManager`) |
 | **CFG twin** | The env-var face of the registry — `CFG.LLM_*` reads as `ZRB_LLM_*`. | `LLM_SKILLS`, `LLM_AGENTS`, `LLM_HOOKS`, `LLM_PROMPT`, `LLM_TOOLS` |
 
 The registry **stores** everything the family knows; the manager **consumes** it. `zrb_init.py` and env vars both configure the registry (or a manager's view of it); a task argument overrides one host.
@@ -65,7 +65,7 @@ export ZRB_LLM_TOOLS="Shell,Read,Write,Grep,Glob"
 export ZRB_LLM_PROMPT="Always answer in British English.,Prefer git over GUI."
 ```
 
-An **empty** twin (the default) means **everything**: all built-in and discovered skills/agents/hooks/tools. Set it to list only what you want. `LLM_TOOLS` and the rosters still honor their independent toggles — `LLM_ENABLE_BUILTIN_AGENTS`, `LLM_ENABLE_BUILTIN_SKILLS`, `HOOKS_ENABLED` — which gate the built-in bulk independently of the allowlist.
+An **empty** twin (the default) means **everything**: all built-in and discovered skills/agents/hooks/tools. Set it to list only what you want. The twin restricts only the *discovered/default* layer: something you `add_*`/`set_*` in `zrb_init.py` is manual content and always visible for skills and agents (env sets the baseline, code builds on it). Tools and hooks are single-layer registries, so for those the twin governs the whole registry. `LLM_TOOLS` and the rosters still honor their independent toggles — `LLM_ENABLE_BUILTIN_AGENTS`, `LLM_ENABLE_BUILTIN_SKILLS`, `HOOKS_ENABLED` — which gate the built-in bulk independently of the allowlist.
 
 ### 2. `zrb_init.py` — *build and replace things*
 
@@ -132,26 +132,27 @@ Per-instance mutations (`task.append_tool`, `task.prompt_manager.append_prompt`)
 
 ## Resolution order
 
-A consumer resolves each family member as:
+Components resolve by *layering*, not winner-take-all precedence. Each layer falls through to the layer below it (its default/fallback) and layers its own deltas on the result:
 
 ```
-instance argument / per-instance mutation   (highest)
+manager deltas — append/prepend/remove ops        layered over ↓
+manager's own value — constructor arg, prompts=, set_*  (falls through ↓ when unset/None)
         ↓
-registry contents — discovered + manual     (including everything zrb_init.py added)
+registry contents — discovered + manual           (including everything zrb_init.py added)
         ↓
-CFG twin (ZRB_LLM_* env var)                (restricts visibility; default: empty = all)
+CFG twin (ZRB_LLM_* env var)                     (restricts the default/discovered layer; empty = all)
         ↓
-code default                                (lowest)
+code default                                     (lowest)
 ```
 
-Concretely: `PromptManager(prompts=None)` defers to `prompt_registry`; unless the registry was mutated in `zrb_init.py`, the registry's own default resolves `CFG.LLM_PROMPT`; the empty list is the code backstop. Same ladder for skills (`SkillManager(registry=None)`), sub-agents, hooks, and tools.
+Concretely: `PromptManager(prompts=None)` reads `prompt_registry` *live* on every query; unless the registry was mutated in `zrb_init.py`, the registry's own default resolves `CFG.LLM_PROMPT`; the empty list is the code backstop. A manager's `append_prompt`/`remove_prompt` deltas are replayed over that live value, so registry or env changes *after* the append stay visible. `set_prompts` (or `prompts=`) replaces that layer's own value wholesale and clears its deltas — the layer below is then ignored. Same shape for skills (`SkillManager(registry=None)`), sub-agents, hooks, and tools.
 
-## Deferred defaults: seeds, freeze, and lazy reads
+## Deferred defaults: seeds, deltas, and lazy reads
 
 Two behaviors keep the registry the source of truth without copying:
 
 - **Seeds are lazy.** Tools (the heavy family — resolving the built-ins transitively imports `pydantic_ai`) ship as a *seed*: a stored zero-arg callable that is run the first time the registry is read, not at import. Skills/agents/hooks are discovered by their managers on first load, equally deferred. So `import zrb` never pays for content you don't use.
-- **A mutation after a deferred default freezes the resolved list.** `append_prompt` on a registry that still carries a seed first materializes the seed's current value, then appends — the append becomes part of the resolved set from then on.
+- **Deltas replay over the resolved base; nothing freezes.** `append_prompt`/`prepend_prompt`/`remove_prompt` on a registry or manager are stored as ordered ops and replayed over the freshly-resolved base on every read. A seed (or the `CFG.LLM_PROMPT` twin) keeps being honored underneath, so a later env change shows up in the appended prompts too. (Tools are the one exception: their lazy seed materializes on first access — the point of the seed is to keep heavy imports out of `import zrb`.)
 - **The CFG twins are read at resolve time, not startup.** Changing `ZRB_LLM_TOOLS` (or `CFG.LLM_TOOLS`) takes effect on the next query, with no re-import. That's why the twins are "lazy reads": env var set → registry resolves → filter applies → agents get what's visible.
 
 ## Worked examples

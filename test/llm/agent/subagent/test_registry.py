@@ -175,11 +175,12 @@ def test_reload_keeps_manual(manager):
 # ---------------------------------------------------------------------------
 
 
-def test_llm_agents_allowlist_filters_roster(manager, monkeypatch):
-    manager.add_agent(_agent("alpha"))
-    manager.add_agent(_agent("beta"))
-    monkeypatch.setenv("ZRB_LLM_AGENTS", "alpha")
-    assert [a.name for a in manager.get_agents()] == ["alpha"]
-    assert manager.get_agent_definition("beta") is None
+def test_llm_agents_allowlist_filters_only_discovered(registry, monkeypatch):
+    registry.add_agent(_agent("manual"))
+    registry.set_discovered([_agent("auto_a"), _agent("auto_b")])
+    monkeypatch.setenv("ZRB_LLM_AGENTS", "auto_a")
+    assert [a.name for a in registry.get_agents()] == ["auto_a", "manual"]
+    assert registry.get_agent_definition("auto_b") is None
+    assert registry.get_agent_definition("manual") is not None
     monkeypatch.setenv("ZRB_LLM_AGENTS", "")
-    assert {a.name for a in manager.get_agents()} == {"alpha", "beta"}
+    assert {a.name for a in registry.get_agents()} == {"manual", "auto_a", "auto_b"}

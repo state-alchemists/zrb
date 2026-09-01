@@ -303,7 +303,7 @@ An explicit name is **stable**: it never changes with the model. Only `auto` fol
 
 ### Programmatic Prompt Customization
 
-Beyond editing prompt files and env vars, each task exposes its `PromptManager` via the public `task.prompt_manager` property. It offers three programmatic ways to shape the system prompt, in increasing power. The same API exists at registry scope: `prompt_registry.set_prompts` / `append_prompt` from `zrb_init.py` changes the **default every** task starts from (`PromptManager(prompts=None)` defers there), and a task-level `prompts=` argument or mutation overrides just that host — see [LLM Component Collections](./llm-collections.md) for the resolution order.
+Beyond editing prompt files and env vars, each task exposes its `PromptManager` via the public `task.prompt_manager` property. It offers three programmatic ways to shape the system prompt, in increasing power. The same API exists at registry scope: `prompt_registry.set_prompts` / `append_prompt` from `zrb_init.py` changes the **default every** task starts from (`PromptManager(prompts=None)` defers there), and a task-level `prompts=` argument or mutation overrides just that host. Every layer's append/remove ops layer over the one below without freezing it — see [LLM Component Collections](./llm-collections.md) for the layering model.
 
 **1. Append custom instructions** — `append_prompt()` adds content that is emitted **after** all built-in sections. Accepts a static string, a `Callable[[AnyContext], str]` for runtime-dynamic text, or a *full middleware* `Callable[[ctx, current_prompt, next], str]` that can rewrite the entire assembled prompt before passing it on (middleware is detected by arity — 3+ parameters):
 

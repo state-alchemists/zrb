@@ -57,11 +57,20 @@ def test_set_prompts_deferred_awaits_query_time():
     assert len(calls) == 1
 
 
-def test_append_after_deferred_freezes_concrete():
+def test_append_after_deferred_layers_on_default():
     reg = PromptRegistry()
     reg.set_prompts(lambda: ["A"])
     reg.append_prompt("B")
     assert reg.get_prompts() == ["A", "B"]
+
+
+def test_append_layers_live_over_mutating_default():
+    default = ["A"]
+    reg = PromptRegistry(default=lambda: list(default))
+    reg.append_prompt("B")
+    assert reg.get_prompts() == ["A", "B"]
+    default.append("C")
+    assert reg.get_prompts() == ["A", "C", "B"]
 
 
 def test_set_prompts_replaces_wholesale():
@@ -129,13 +138,22 @@ def test_manager_resolves_callable_each_compose():
     assert state["calls"] == 2
 
 
-def test_append_on_deferring_manager_snapshots_registry():
+def test_append_on_deferring_manager_layers_registry():
     reg = PromptRegistry()
     reg.append_prompt("R")
     manager = _manager(reg)
     manager.append_prompt("M")
     reg.append_prompt("R2")
+    assert manager.prompts == ["R", "R2", "M"]
+
+
+def test_manager_deltas_are_local_to_instance():
+    reg = PromptRegistry()
+    reg.append_prompt("R")
+    manager = _manager(reg)
+    manager.append_prompt("M")
     assert manager.prompts == ["R", "M"]
+    assert reg.get_prompts() == ["R"]
 
 
 def test_manager_append_prompt_preserves_order():

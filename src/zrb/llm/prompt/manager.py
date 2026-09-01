@@ -13,6 +13,7 @@ from zrb.llm.prompt.live_context import render_live_context, render_live_context
 from zrb.llm.prompt.profile import active_profile
 from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.prompt.registry import (
+    PromptDelta,
     PromptList,
     PromptRegistry,
     PromptSetValue,
@@ -140,6 +141,9 @@ class PromptManager:
         """
         self._prompt_registry = prompt_registry or default_prompt_registry
         self._middlewares: PromptSetValue = prompts
+        # Ordered append/prepend/remove ops layered over the resolved base
+        # (own value, else the registry's) at query time (ADR-0090).
+        self._deltas = PromptDelta()
         self._assistant_name = assistant_name
         self._include_sections = include_sections  # None means "use CFG default"
         self._skill_manager = skill_manager or default_skill_manager
@@ -168,8 +172,9 @@ class PromptManager:
     @prompts.setter
     def prompts(self, value: PromptSetValue):
         """Replace the appended prompts wholesale. ``None`` re-defers to the
-        default registry."""
+        default registry. Clears all pending instance delta ops."""
         self._middlewares = value
+        self._deltas.clear()
 
     @property
     def active_skills(self) -> StrListAttr | None:
@@ -228,25 +233,20 @@ class PromptManager:
         """Drop every instance-appended prompt, returning to the default
         registry's prompt list."""
         self._middlewares = None
-
-    def _materialize_prompts(self) -> PromptList:
-        """Turn the instance's prompt set into a concrete list this instance
-        owns, snapshoting the default registry when deferring."""
-        value = self._middlewares
-        if value is None:
-            value = self._prompt_registry.get_prompts()
-        elif callable(value):
-            value = value()
-        resolved = [] if value is None else list(value)
-        self._middlewares = resolved
-        return resolved
+        self._deltas.clear()
 
     def _effective_prompts(self) -> PromptList:
-        """The instance's resolved prompt list: the explicit set, or (when
-        deferring) the default registry's current prompts."""
-        value = self._middlewares
-        if value is None:
-            return self._prompt_registry.get_prompts()
+        """The instance's resolved prompt list: its own explicit set (when
+        set), or — when deferring — the default registry's *current* prompts,
+        layered with this instance's ``append``/``prepend``/``remove`` ops."""
+        if self._middlewares is None:
+            base = self._prompt_registry.get_prompts()
+        else:
+            base = self._resolve_own_prompts(self._middlewares)
+        return self._deltas.apply(base)
+
+    def _resolve_own_prompts(self, value: PromptSetValue) -> PromptList:
+        """Resolve this instance's own prompt value to a concrete list."""
         if callable(value):
             value = value()
         return [] if value is None else list(value)
@@ -255,27 +255,20 @@ class PromptManager:
         """Append content emitted after all built-in sections.
 
         Accepts a static string, a `Callable[[AnyContext], str]`, or a full
-        middleware `Callable[[ctx, current, next], str]`. Appending to a
-        deferring manager snapshots the default registry's current prompts
-        first; subsequent registry changes no longer reach this instance.
+        middleware `Callable[[ctx, current, next], str]`. The op is stored
+        and layered over the resolved base each time the prompts are read,
+        so a deferring manager keeps following its registry live.
         """
-        resolved = self._materialize_prompts()
-        resolved.extend(middleware)
+        self._deltas.append(*middleware)
 
     def prepend_prompt(self, *middleware: PromptMiddleware | str):
         """Prepend content run before the current instance prompts."""
-        resolved = self._materialize_prompts()
-        resolved[0:0] = middleware
+        self._deltas.prepend(*middleware)
 
     def remove_prompt(self, middleware: PromptMiddleware | str) -> None:
         """Drop the first occurrence of the exact *middleware* from this
-        instance's prompts, resolving the default first.
-        """
-        resolved = self._materialize_prompts()
-        for i, existing in enumerate(resolved):
-            if existing is middleware or existing == middleware:
-                del resolved[i]
-                break
+        instance's prompts, layered over the resolved base."""
+        self._deltas.remove(middleware)
 
     def add_live_context(self, name: str, provider: SimplePrompt) -> None:
         """Register a dynamic per-turn live context provider.

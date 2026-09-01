@@ -118,8 +118,9 @@ class SkillRegistry:
 
     def get_skills(self) -> list["Skill"]:
         """Every visible skill in the effective collection, manual wins on
-        collisions. When ``CFG.LLM_SKILLS`` names a non-empty allowlist, only
-        those skills are visible."""
+        collisions. The ``CFG.LLM_SKILLS`` allowlist twin filters only the
+        discovered layer; skills registered manually (`add_skill`,
+        `set_skills`) are always visible."""
         return [
             skill
             for skill in self._effective().values()
@@ -129,9 +130,15 @@ class SkillRegistry:
     def _is_visible(self, name: str) -> bool:
         """Whether *name* survives the ``LLM_SKILLS`` allowlist twin.
 
-        The registry reads ``CFG`` lazily at query time, so env changes take
+        The twin (ADR-0091) is a coarse filter over the *discovered* layer:
+        env names the default skills that stay visible. Anything registered
+        manually layers on top and is always visible, matching the mental
+        model "env sets the baseline; `zrb_init.py` builds on it". The
+        registry reads ``CFG`` lazily at query time, so env changes take
         effect on the next catalogue lookup without any startup copy.
         """
+        if name in self._effective_manual().keys():
+            return True
         allowed = list(CFG.LLM_SKILLS or [])
         return not allowed or name in allowed
 

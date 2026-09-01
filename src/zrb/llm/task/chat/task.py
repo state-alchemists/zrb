@@ -316,7 +316,7 @@ class LLMChatTask(BaseTask):
         self._llm_limiter = llm_limiter
         if prompt_manager is None:
             prompt_manager = PromptManager(
-                prompts=[system_prompt] if system_prompt else [],
+                prompts=[system_prompt] if system_prompt else None,
                 render=render_system_prompt,
                 active_skills=active_skills,
                 render_active_skills=render_active_skills,

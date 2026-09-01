@@ -166,6 +166,23 @@ def test_set_hooks_with_configs(manager, registry):
     assert registry.get_hook_config(new_hook) is config
 
 
+def test_set_hooks_prunes_stale_configs(manager, registry):
+    old = _hook("old")
+    new_hook = _hook("new")
+    config = _config(HookEvent.NOTIFICATION)
+    manager.register(old, events=[HookEvent.NOTIFICATION], config=config)
+    manager.set_hooks(HookEvent.NOTIFICATION, [new_hook])
+    assert registry.get_hook_config(old) is None
+
+
+def test_remove_event_hooks_prunes_stale_configs(manager, registry):
+    hook = _hook("h")
+    config = _config(HookEvent.NOTIFICATION)
+    manager.register(hook, events=[HookEvent.NOTIFICATION], config=config)
+    manager.remove_event_hooks(HookEvent.NOTIFICATION)
+    assert registry.get_hook_config(hook) is None
+
+
 # ---------------------------------------------------------------------------
 # reload keeps a fresh registry view; manager reload clears then rescans
 # ---------------------------------------------------------------------------

@@ -241,7 +241,7 @@ class LLMTask(BaseTask):
         self._llm_limiter = default_llm_limiter if llm_limiter is None else llm_limiter
         if prompt_manager is None:
             prompt_manager = PromptManager(
-                prompts=[system_prompt] if system_prompt else [],
+                prompts=[system_prompt] if system_prompt else None,
                 render=render_system_prompt,
                 active_skills=active_skills,
                 render_active_skills=render_active_skills,

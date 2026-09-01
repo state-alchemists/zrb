@@ -175,11 +175,12 @@ def test_reload_keeps_manual(manager, skill, tmp_path):
 # ---------------------------------------------------------------------------
 
 
-def test_llm_skills_allowlist_filters_visible_skills(registry, monkeypatch):
-    registry.add_skill(_skill("alpha"))
-    registry.add_skill(_skill("beta"))
-    monkeypatch.setenv("ZRB_LLM_SKILLS", "alpha")
-    assert [s.name for s in registry.get_skills()] == ["alpha"]
-    assert registry.get_skill("beta") is None
+def test_llm_skills_allowlist_filters_only_discovered(registry, monkeypatch):
+    registry.add_skill(_skill("manual"))
+    registry.set_discovered([_skill("auto_a"), _skill("auto_b")])
+    monkeypatch.setenv("ZRB_LLM_SKILLS", "auto_a")
+    assert [s.name for s in registry.get_skills()] == ["auto_a", "manual"]
+    assert registry.get_skill("auto_b") is None
+    assert registry.get_skill("manual") is not None
     monkeypatch.setenv("ZRB_LLM_SKILLS", "")
-    assert {s.name for s in registry.get_skills()} == {"alpha", "beta"}
+    assert {s.name for s in registry.get_skills()} == {"manual", "auto_a", "auto_b"}

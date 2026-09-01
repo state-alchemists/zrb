@@ -74,6 +74,7 @@ class HookRegistry:
     def remove_event_hooks(self, event: HookEvent) -> None:
         """Drop every hook registered for *event* (global hooks untouched)."""
         self._hooks.pop(event, None)
+        self._prune_hook_configs()
 
     def set_hooks(
         self,
@@ -84,11 +85,31 @@ class HookRegistry:
         """Replace the hook list for *event* — a deliberate clean-slate swap.
 
         *configs* maps each hook to its `HookConfig`, repopulating
-        `_hook_to_config` for the new set.
+        `_hook_to_config` for the new set. Configs for hooks no longer
+        registered anywhere are pruned, so a stale identity never shadows
+        a later registration.
         """
         self._hooks[event] = list(hooks)
         if configs:
             self._hook_to_config.update(configs)
+        self._prune_hook_configs()
+
+    def _prune_hook_configs(self) -> None:
+        """Drop `_hook_to_config` entries whose hook is no longer registered.
+
+        A hook remembered only by a pre-swap `set_hooks`/`remove_event_hooks`
+        must not keep (or shadow) a config once it is out of every event and
+        the global list; re-registering it later restores whatever config the
+        new registration carries (or none).
+        """
+        registered = set(self._global_hooks)
+        for event_hooks in self._hooks.values():
+            registered.update(event_hooks)
+        self._hook_to_config = {
+            hook: config
+            for hook, config in self._hook_to_config.items()
+            if hook in registered
+        }
 
     def clear_manual(self) -> None:
         """Drop the entire collection. Used by a reload to restart from scan."""

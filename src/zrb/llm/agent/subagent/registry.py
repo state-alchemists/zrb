@@ -111,8 +111,9 @@ class SubAgentRegistry:
     def get_agents(self) -> list["SubAgentDefinition"]:
         """Every visible definition in the effective collection.
 
-        When ``CFG.LLM_AGENTS`` names a non-empty allowlist, only those
-        agents are visible."""
+        The ``CFG.LLM_AGENTS`` allowlist twin filters only the discovered
+        layer; definitions registered manually (`add_agent`, `set_agents`)
+        are always visible."""
         return [
             definition
             for definition in self._effective().values()
@@ -122,9 +123,15 @@ class SubAgentRegistry:
     def _is_visible(self, name: str) -> bool:
         """Whether *name* survives the ``LLM_AGENTS`` allowlist twin.
 
+        The twin (ADR-0091) is a coarse filter over the *discovered* layer:
+        env names the default agents that stay in the roster. Anything
+        registered manually layers on top and is always visible, matching the
+        mental model "env sets the baseline; `zrb_init.py` builds on it".
         Read lazily at query time, so env changes take effect on the next
         roster lookup without any startup copy.
         """
+        if name in self._effective_manual().keys():
+            return True
         allowed = list(CFG.LLM_AGENTS or [])
         return not allowed or name in allowed
 
