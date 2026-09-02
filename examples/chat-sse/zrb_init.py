@@ -64,7 +64,7 @@ from typing import Any
 from aiohttp import web
 
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.approval import ApprovalChannel, ApprovalContext, ApprovalResult
+from zrb.llm.approval import AnyApprovalChannel, ApprovalContext, ApprovalResult
 from zrb.llm.ui import EventDrivenUI
 from zrb.llm.util.history_formatter import format_history_as_text
 from zrb.util.cli.style import remove_style
@@ -319,7 +319,7 @@ class SSEServer:
 # =============================================================================
 
 
-class SSEApproval(ApprovalChannel):
+class SSEApproval(AnyApprovalChannel):
     """SSE approval channel supporting approve/deny/edit via text messages.
 
     Similar to TelegramApproval but using plain text responses:

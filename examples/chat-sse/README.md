@@ -371,10 +371,10 @@ class SSEUI(EventDrivenUI, BufferedOutputMixin):
 
 ### SSEApproval Channel
 
-The `SSEApproval` class implements `ApprovalChannel` to handle tool approvals via text messages:
+The `SSEApproval` class implements `AnyApprovalChannel` to handle tool approvals via text messages:
 
 ```python
-class SSEApproval(ApprovalChannel):
+class SSEApproval(AnyApprovalChannel):
     async def request_approval(self, context: ApprovalContext) -> ApprovalResult:
         # Broadcast tool call details
         # Wait for user response via /chat

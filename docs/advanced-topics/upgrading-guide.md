@@ -6,13 +6,109 @@ What to change in an existing setup when moving to a newer Zrb release. Only the
 
 ## Table of Contents
 
+- [Upgrading to 3.0.0](#upgrading-to-300)
 - [Upgrading to 2.58.0](#upgrading-to-2580)
 - [Upgrading to 2.54.0](#upgrading-to-2540)
 - [Upgrading from 1.x.x to 2.x.x](#upgrading-from-1xx-to-2xx)
 
 ---
 
-## Upgrading to 2.58.0
+## Upgrading to 3.0.0
+
+3.0.0 removes `LLMConfig`, consolidates UI construction into `UIConfig`, renames the hook and search-directory APIs to match every other family's verb set, and renames the UI and approval-channel contracts to the `Any<Thing>` convention. All of it fails loudly — `AttributeError`, `TypeError`, or `ImportError` — so a green test run means you are done. Plain `Task`/`CmdTask` task authoring is unaffected.
+
+### `LLMConfig`/`llm_config` is gone — `CFG` is the only LLM configuration object
+
+| Before | After |
+|---|---|
+| `llm_config.model` | `CFG.LLM_MODEL` |
+| `llm_config.small_model` | `CFG.LLM_SMALL_MODEL` |
+| `llm_config.multimodal_model` | `CFG.LLM_MULTIMODAL_MODEL` |
+| `llm_config.api_key` | `CFG.LLM_API_KEY` |
+| `llm_config.base_url` | `CFG.LLM_BASE_URL` |
+| `llm_config.provider` | `CFG.LLM_PROVIDER` (new, `ZRB_LLM_PROVIDER`) |
+| `llm_config.resolve_model(m)` | `resolve_configured_model(m)` (`zrb.llm.config.model_resolver`) |
+| `llm_config.model_getter = f` | `task.model_getter = f` (per task, not process-wide) |
+| `llm_config.model_renderer = f` | `task.model_renderer = f` (per task, not process-wide) |
+| `LLMTask(llm_config=...)` | `LLMTask(model_getter=..., model_renderer=...)` |
+
+`llm_config.model_settings` had no real reader and has no replacement. `model_getter`/`model_renderer` are now **task-scoped**: a `zrb_init.py` that set them once to affect every agent process-wide must set them per task instead.
+
+### `UIConfig` replaces individual UI constructor parameters
+
+`BaseUI.__init__` and `LLMChatTask.__init__` each dropped ~15-20 individual UI parameters (`*_commands`, `yolo_xcom_key`, `assistant_name`, `is_yolo`, `show_ollama_models`, `show_pydantic_ai_models`, ...) for one `ui_config: UIConfig | None`.
+
+```python
+# Before
+LLMChatTask(ui_commands=UICommands(exit="/quit"))
+
+# After
+LLMChatTask(ui_config=UIConfig(exit_commands=["/quit"]))
+```
+
+| Before | After |
+|---|---|
+| `LLMChatTask(ui_commands=UICommands(exit="/quit"))` | `LLMChatTask(ui_config=UIConfig(exit_commands=["/quit"]))` |
+| `task.yolo_xcom_key` | `task.ui_config.yolo_xcom_key` |
+| `task.show_ollama_models` | `task.ui_config.show_ollama_models` |
+| `UIConfig.minimal()` | `UIConfig(exit_commands=["/exit"], ...)` |
+
+`UICommands` and `UI_COMMAND_CFG_ATTRS` are deleted, including from `zrb`'s top-level exports. `ui_config` is a settable, type-checked property, so `llm_chat.ui_config = UIConfig(...)` works on the built-in task too.
+
+### The hook family drops `register`/`clear_manual`
+
+| Before | After |
+|---|---|
+| `hook_registry.register(...)` | `hook_registry.add_hook(...)` |
+| `hook_manager.register(...)` | `hook_manager.add_hook(...)` |
+| `hook_registry.clear_manual()` | `hook_registry.clear()` |
+
+### `get_search_directories()` is gone
+
+`HookManager`, `SkillManager`, and `SubAgentManager` each now have exactly one `search_dirs` property instead.
+
+| Before | After |
+|---|---|
+| `manager.get_search_directories()` | `manager.search_dirs` |
+| `sub_agent_manager.root_dir` | `sub_agent_manager.scan_root` |
+
+Assigning `search_dirs` (now settable on all three, not just at construction) invalidates any completed scan, so the next read/scan picks it up.
+
+### `LLMChatTask` collection setters are renamed
+
+Every ordered collection on `LLMChatTask` (tools, toolsets, history processors, triggers, custom commands, hook factories, tool policies, response handlers, argument formatters, UIs) now has the full `append_X`/`prepend_X`/`set_X`/`remove_X` verb set. The single-value slots below changed shape:
+
+| Before | After |
+|---|---|
+| `task.set_ui(x)` | `task.set_uis([x])` |
+| `task.set_ui_factory(x)` | `task.ui_factories = [x]` |
+| `task.set_approval_channel(x)` | `task.approval_channels = [x]` |
+| `task.set_history_manager(x)` | `task.history_manager = x` |
+| `task.prompt_manager if task.has_prompt_manager else None` | `task.prompt_manager` |
+
+`prompt_manager`, `hook_manager`, `llm_limiter`, and `markdown_theme` are now settable, type-checked properties too — `llm_chat.prompt_manager = pm` works on the built-in task.
+
+### The UI and approval-channel contracts are `AnyUI`/`AnyApprovalChannel`
+
+Both are now **ABCs** — a custom implementation must subclass them (an incomplete subclass now fails at instantiation with `TypeError`, not at first call with `NotImplementedError`).
+
+| Before | After |
+|---|---|
+| `from zrb.llm.tool_call.ui_protocol import UIProtocol` | `from zrb import AnyUI` |
+| `from zrb.llm.approval.approval_channel import ApprovalChannel` | `from zrb.llm.approval import AnyApprovalChannel` |
+| `class MyUI(UIProtocol):` | `class MyUI(AnyUI):` (or subclass `BaseUI`/`SimpleUI`/`EventDrivenUI`/`PollingUI`, which already do) |
+| `class MyChannel(ApprovalChannel):` | `class MyChannel(AnyApprovalChannel):` |
+
+If you only use the built-in `llm_chat` task and never subclassed these directly, no change is needed — every built-in UI and approval channel already inherits the new base.
+
+### Worth knowing (no action needed)
+
+- **`CFG` assignments now fail fast.** An unknown `CFG.UPPERCASE` name raises `AttributeError` naming the closest real knob; a value the field can't accept raises `ValueError` at the assignment site. This only surfaces bugs that were previously silent no-ops.
+- **A broken `zrb_init.py` is reported precisely, not hidden — and still not fatal.** The file, line, and exception type now print to stderr; the CLI still starts with whatever partial state resulted, same as before.
+- **13 internal `raise Exception(...)` sites now raise typed errors** (`SearchToolError`, `RuntimeError`, `ValueError`) — a bare `except Exception` still catches them.
+- **6 config mixin classes were renamed** (`ConfigLLMContent` → `LLMContentMixin`, etc.) — only relevant if you imported one directly from `zrb.config.mixins`.
+
+
 
 Three changes need action. All fail loudly — `AttributeError`, `TypeError`, or `ImportError` — rather than silently doing the wrong thing, so a green test run means you are done. Env vars and prompt files are unaffected.
 

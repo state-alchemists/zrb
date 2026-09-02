@@ -5,7 +5,7 @@ Job 1 (the override-layer-over-`CFG` half) is gone: every scalar `LLMConfig`
 used to hold (`model`, `small_model`, `multimodal_model`, `api_key`,
 `base_url`, `provider`) is a `CFG.LLM_*` knob now, and the two callable hooks
 (`model_getter`, `model_renderer`) are settable slots directly on `LLMTask`/
-`LLMChatTask` — see `docs/changelog-v2/2.70.0.md` for the migration table.
+`LLMChatTask` — see `docs/changelog-v2/3.0.0.md` for the migration table.
 
 This module is what's left: turning a `"provider:name"` string plus
 credentials into a `pydantic_ai` `Model` object. It has nothing to do with

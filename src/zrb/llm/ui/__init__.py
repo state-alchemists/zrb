@@ -9,7 +9,7 @@ UI CLASS HIERARCHY
 The UI system is organized into levels based on complexity and use case:
 
     ┌────────────────────────────────────────────────────────────────────────┐
-    │ Protocol Level (minimal interface)                                     │
+    │ AnyUI Level (minimal interface)                                        │
     ├────────────────────────────────────────────────────────────────────────┤
     │ AnyUI (zrb.llm.ui.any_ui)                                              │
     │   - 6 methods: ask_user, ask_user_choice, append_to_output,            │

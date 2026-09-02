@@ -14,19 +14,19 @@ control (and effort). Pick the lowest level that fits your backend:
 
 ```mermaid
 flowchart TB
-    Protocol["UIProtocol<br/>4 methods - tool confirmations only (non-chat)"]
+    AnyUI["AnyUI<br/>6 methods - tool confirmations only (non-chat)"]
     Level1["Level 1: SimpleUI<br/>THIS EXAMPLE - print() + get_input()"]
     Level2["Level 2: EventDrivenUI<br/>print() + start_event_loop() (Telegram/Discord)"]
     Level3["Level 3: PollingUI<br/>print() + input_queue/output_queue (HTTP, WebSocket)"]
     Level4["Level 4: BaseUI<br/>Full control - custom architectures"]
     Level5["Level 5: UI<br/>Default terminal TUI (prompt_toolkit)"]
 
-    Protocol --> Level1 --> Level2 --> Level3 --> Level4 --> Level5
+    AnyUI --> Level1 --> Level2 --> Level3 --> Level4 --> Level5
 ```
 
 | Level | Base Class | Implement | Best for |
 |-------|------------|-----------|----------|
-| — | `UIProtocol` | 4 methods | Tool confirmations in non-chat contexts |
+| — | `AnyUI` | 6 methods | Tool confirmations in non-chat contexts |
 | **1** | `SimpleUI` | `print()`, `get_input()` | **THIS EXAMPLE** — CLI, file logging, simple backends |
 | **2** | `EventDrivenUI` | `print()`, `start_event_loop()` | Telegram, Discord, WhatsApp (callback-based) |
 | **3** | `PollingUI` | `print()` | HTTP API, WebSocket polling |

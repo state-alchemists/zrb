@@ -62,7 +62,7 @@ chat = LLMChatTask(
     # Tool confirmation & approval
     tool_confirmation: AnyToolConfirmation = None,
     yolo: BoolAttr = False,
-    approval_channel: ApprovalChannel | None = None,
+    approval_channel: AnyApprovalChannel | None = None,
     permissions: PermissionPolicyInput = None,
     sandbox: SandboxInput = None,
     tool_policies: list[ToolPolicy] | None = None,

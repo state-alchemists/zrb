@@ -161,10 +161,6 @@ class ChatRunning:
         enable_rewind: bool = False,
         snapshot_dir: str = "",
     ) -> Any:
-        # lazy: zrb.llm.ui.base.ui transitively loads pydantic_ai,
-        # prompt_toolkit, pdfplumber and playwright.
-        from zrb.llm.ui.base.ui import BaseUI
-
         # Mirror run_non_interactive_session's slash-command resolution.
         # Resolved once here and reused by _build_default_ui_kwargs below,
         # instead of re-resolving self._llm_chat_task.custom_commands a second
@@ -221,10 +217,7 @@ class ChatRunning:
             self.load_session_history(ui, history_manager, initial_conversation_name)
 
         # 5. Run the UI
-        if isinstance(ui, BaseUI) or hasattr(ui, "run_async"):
-            await ui.run_async()
-        else:
-            raise ValueError(f"UI {type(ui)} does not implement run_async")
+        await ui.run_async()
         last_output = getattr(ui, "last_output", "")
         final_conversation_name = self._llm_chat_task.get_ui_conversation_name(
             ui, initial_conversation_name

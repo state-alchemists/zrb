@@ -37,7 +37,7 @@ from telegram.ext import (
 )
 
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.approval import ApprovalChannel, ApprovalContext, ApprovalResult
+from zrb.llm.approval import AnyApprovalChannel, ApprovalContext, ApprovalResult
 from zrb.llm.ui import BufferedOutputMixin, EventDrivenUI
 from zrb.util.cli.style import remove_style
 
@@ -250,7 +250,7 @@ class TelegramUI(EventDrivenUI, BufferedOutputMixin):
         self._stop_event.set()
 
 
-class TelegramApproval(ApprovalChannel):
+class TelegramApproval(AnyApprovalChannel):
     """Telegram approval channel with inline keyboard buttons."""
 
     _instances: dict[str, "TelegramApproval"] = {}

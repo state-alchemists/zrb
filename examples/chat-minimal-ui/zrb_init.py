@@ -21,7 +21,7 @@ Usage:
 
 Extension Levels:
     ┌─────────────────────────────────────────────────────────────────┐
-    │ Level 0: UIProtocol (minimal, 4 methods)                        │
+    │ Level 0: AnyUI (minimal, 6 methods)                             │
     │         - For tool confirmations only                           │
     ├─────────────────────────────────────────────────────────────────┤
     │ Level 1: SimpleUI (THIS EXAMPLE - simplest)                     │

@@ -609,6 +609,7 @@ flowchart TB
 |--------|---------|---------|
 | `invalidate_ui()` | No-op | Redraw/refresh UI |
 | `on_exit()` | No-op | Cleanup on shutdown |
+| `ask_user_choice(spec)` | Formats the spec as numbered text and delegates to `ask_user` | Override for an arrow-key-selectable widget |
 | `stream_to_parent()` | Calls `append_to_output` | For multiplexed UIs |
 | `_get_output_field_width()` | None | Custom text width for formatting (exposed publicly as the `output_field_width` property, which is what the diff/markdown formatters read) |
 | `record_tool_call_block(collapsed, full)` | Falls back to `append_to_output(collapsed, end="", kind="tool_call")` | Print a tool-call/result line that a toggle-capable UI can later expand in place |

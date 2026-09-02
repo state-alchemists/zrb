@@ -308,7 +308,7 @@ Holds the active `Context` for the currently executing task. Set at the start of
 | `current_ui` | `AnyUI \| None` | Active UI for output and user interaction |
 | `current_tool_confirmation` | `AnyToolConfirmation` | Tool approval policy |
 | `current_yolo` | `bool` | Auto-approve all tool calls |
-| `current_approval_channel` | `ApprovalChannel \| None` | Remote approval handler |
+| `current_approval_channel` | `AnyApprovalChannel \| None` | Remote approval handler |
 | `current_hook_manager` | `HookManager \| None` | Hook manager for the run; nested tools (e.g. delegate) fire SubagentStart/Stop on it |
 | `current_agent_run_scope` | `str` | Identifies this specific agent run to nested tools needing per-conversation state (e.g. `file_observation.py`'s read-before-overwrite tracking) — the session name for a top-level run, a fresh per-delegation id for a sub-agent, so a sub-agent never inherits what its parent or siblings observed |
 | `current_small_model` | `str \| Model \| None` | The UI's own `small_model` (set by `/model small ...`), so `journal_compliance.py`'s judge model and other small-tier consumers resolve per-session instead of leaking one process-wide value across concurrent chat sessions |

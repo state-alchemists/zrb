@@ -27,7 +27,6 @@ from zrb.llm.hook.manager import hook_manager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.tool.wrapper import tool_safe_async
 from zrb.llm.tool_call.always_approve import register_always_auto_approve
-from zrb.llm.tool_call.choice_spec_format import format_choice_spec
 
 if TYPE_CHECKING:
     from zrb.llm.ui.any_ui import ChoiceSpec
@@ -122,11 +121,7 @@ async def ask_user_question(
     for idx, q in enumerate(questions, start=1):
         spec = build_choice_spec(idx, total, q)
         try:
-            if hasattr(ui, "ask_user_choice"):
-                raw = await ui.ask_user_choice(cast("ChoiceSpec", spec))
-            else:
-                # Custom UI predating ask_user_choice — fall back to text.
-                raw = await ui.ask_user(format_choice_spec(spec))
+            raw = await ui.ask_user_choice(cast("ChoiceSpec", spec))
         except (KeyboardInterrupt, EOFError):
             return (
                 "[SYSTEM SUGGESTION]: User cancelled the question prompt. "

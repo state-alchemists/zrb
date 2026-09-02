@@ -8,7 +8,7 @@ APPROVAL CHANNEL HIERARCHY
 ═════════════════════════════════════════════════════════════════════════════
 
     ┌────────────────────────────────────────────────────────────────────────┐
-    │ AnyApprovalChannel (Protocol)                                             │
+    │ AnyApprovalChannel (ABC)                                               │
     │   - request_approval(context): Wait for user approval                  │
     │   - notify(message, context): Send informational message               │
     │   - Implement for custom backends                                      │
@@ -16,7 +16,7 @@ APPROVAL CHANNEL HIERARCHY
     │ Built-in Implementations:                                              │
     ├────────────────────────────────────────────────────────────────────────┤
     │ TerminalApprovalChannel                                                │
-    │   - Uses AnyUI for terminal interaction                           │
+    │   - Uses AnyUI for terminal interaction                                │
     │   - Default when no custom channel is set                              │
     │                                                                        │
     │ NullApprovalChannel                                                    │
