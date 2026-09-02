@@ -10,8 +10,8 @@ from pydantic import Field
 
 from zrb.config.config import CFG
 from zrb.llm.agent_state import get_current_ui
-from zrb.llm.config.config import llm_config
 from zrb.llm.config.limiter import llm_limiter
+from zrb.llm.config.model_resolver import resolve_configured_model
 from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.tool_call.untrusted_data import UNTRUSTED_DATA_NOTE
 from zrb.util.truncate import truncate_text
@@ -485,8 +485,8 @@ async def _summarize_web_content(markdown_content: str, url: str) -> str:
 
     agent = create_agent(
         # Already resolved here; resolve_model=False stops create_agent from
-        # firing model_getter/model_renderer a second time.
-        model=llm_config.resolve_model(),
+        # resolving it a second time.
+        model=resolve_configured_model(),
         system_prompt=get_prompt("web_summarizer"),
         resolve_model=False,
     )

@@ -73,8 +73,8 @@ from zrb.llm.agent.subagent.manager import (
     sub_agent_manager,
 )
 from zrb.llm.agent.subagent.registry import SubAgentRegistry, sub_agent_registry
-from zrb.llm.config.config import LLMConfig, llm_config
 from zrb.llm.config.limiter import LLMLimiter, llm_limiter
+from zrb.llm.config.model_resolver import ModelResolver, model_resolver
 from zrb.llm.hook import HookContext, HookEvent, HookResult
 from zrb.llm.hook.manager import HookManager, hook_manager
 from zrb.llm.hook.registry import HookRegistry, hook_registry
@@ -116,13 +116,13 @@ from zrb.util.stream import to_infinite_stream
 from zrb.xcom.xcom import Xcom
 
 # --- Typed annotations for module-level singletons -----------------------
-# `CFG`, `cli`, `*_manager`, `llm_config`, etc. are exported as instances.
+# `CFG`, `cli`, `*_manager`, `model_resolver`, etc. are exported as instances.
 # Type-annotating them at this scope helps IDEs and static analysers report
 # the right interface when users do `from zrb import hook_manager`.
 CFG: Config = CFG
 cli: Cli = cli
-llm_config: LLMConfig = llm_config
 llm_limiter: LLMLimiter = llm_limiter
+model_resolver: ModelResolver = model_resolver
 sub_agent_manager: SubAgentManager = sub_agent_manager
 sub_agent_registry: SubAgentRegistry = sub_agent_registry
 hook_manager: HookManager = hook_manager
@@ -189,10 +189,10 @@ __all__ = [
     "Xcom",
     "LLMTask",
     "LLMChatTask",
-    "LLMConfig",
-    "llm_config",
     "LLMLimiter",
     "llm_limiter",
+    "ModelResolver",
+    "model_resolver",
     "SubAgentManager",
     "sub_agent_manager",
     "SubAgentDefinition",

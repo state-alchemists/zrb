@@ -41,9 +41,9 @@
     "IntAttr",
     "IntInput",
     "LLMChatTask",
-    "LLMConfig",
     "LLMLimiter",
     "LLMTask",
+    "ModelResolver",
     "OptionInput",
     "PasswordInput",
     "PermissionPolicy",
@@ -76,12 +76,12 @@
     "fstring",
     "hook_manager",
     "hook_registry",
-    "llm_config",
     "llm_limiter",
     "load_file",
     "load_module",
     "make_task",
     "model_capabilities",
+    "model_resolver",
     "prompt_registry",
     "register_always_auto_approve",
     "register_theme",
@@ -895,11 +895,12 @@
         "attachment:KEYWORD_ONLY:1",
         "history_processors:KEYWORD_ONLY:1",
         "capabilities:KEYWORD_ONLY:1",
-        "llm_config:KEYWORD_ONLY:1",
         "llm_limiter:KEYWORD_ONLY:1",
         "model:KEYWORD_ONLY:1",
         "render_model:KEYWORD_ONLY:1",
         "model_settings:KEYWORD_ONLY:1",
+        "model_getter:KEYWORD_ONLY:1",
+        "model_renderer:KEYWORD_ONLY:1",
         "custom_model_names:KEYWORD_ONLY:1",
         "conversation_name:KEYWORD_ONLY:1",
         "render_conversation_name:KEYWORD_ONLY:1",
@@ -1000,11 +1001,12 @@
         "include_default_ui",
         "inputs",
         "interactive",
-        "llm_config",
         "llm_limiter",
         "markdown_theme",
         "message",
         "model",
+        "model_getter",
+        "model_renderer",
         "model_settings",
         "monitor_readiness",
         "name",
@@ -1088,21 +1090,6 @@
         "yolo"
       ]
     },
-    "LLMConfig": {
-      "init": [],
-      "members": [
-        "api_key",
-        "base_url",
-        "model",
-        "model_getter",
-        "model_renderer",
-        "model_settings",
-        "multimodal_model",
-        "provider",
-        "resolve_model",
-        "small_model"
-      ]
-    },
     "LLMLimiter": {
       "init": [],
       "members": [
@@ -1147,11 +1134,12 @@
         "attachment:KEYWORD_ONLY:1",
         "history_processors:KEYWORD_ONLY:1",
         "capabilities:KEYWORD_ONLY:1",
-        "llm_config:KEYWORD_ONLY:1",
         "llm_limiter:KEYWORD_ONLY:1",
         "model:KEYWORD_ONLY:1",
         "render_model:KEYWORD_ONLY:1",
         "model_settings:KEYWORD_ONLY:1",
+        "model_getter:KEYWORD_ONLY:1",
+        "model_renderer:KEYWORD_ONLY:1",
         "custom_model_names:KEYWORD_ONLY:1",
         "conversation_name:KEYWORD_ONLY:1",
         "render_conversation_name:KEYWORD_ONLY:1",
@@ -1225,9 +1213,10 @@
         "icon",
         "inputs",
         "is_context_length_error",
-        "llm_config",
         "llm_limiter",
         "model_attr",
+        "model_getter",
+        "model_renderer",
         "model_settings_attr",
         "monitor_readiness",
         "name",
@@ -1257,6 +1246,12 @@
         "toolsets",
         "uis",
         "upstreams"
+      ]
+    },
+    "ModelResolver": {
+      "init": [],
+      "members": [
+        "resolve"
       ]
     },
     "OptionInput": {

@@ -17,7 +17,7 @@ from zrb.llm.agent.run.hook_result_extractor import (
 from zrb.llm.agent.spill import maybe_spill
 from zrb.llm.agent.truncate import truncate_tool_content
 from zrb.llm.agent_tool_result import has_multimodal, tool_return
-from zrb.llm.config.config import llm_config as default_llm_config
+from zrb.llm.config.model_resolver import resolve_configured_model
 from zrb.llm.hook.manager import hook_manager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.util.capabilities import model_capabilities
@@ -512,13 +512,13 @@ def create_agent(
             effective_toolsets = [ts.approval_required() for ts in effective_toolsets]
 
     if model is None:
-        model = default_llm_config.model
+        model = CFG.LLM_MODEL
 
-    # Resolve through model_getter/model_renderer here unless the caller already
-    # did so (resolve_model=False). Resolving a second time would re-fire those
-    # callbacks on an already-resolved value — which can feed a Model object into
-    # a getter that expects a tier string. See LLMTask._create_agent.
-    final_model = default_llm_config.resolve_model(model) if resolve_model else model
+    # Resolve through CFG's configured credentials here unless the caller
+    # already did so (resolve_model=False) — e.g. LLMTask._create_agent
+    # resolves once itself (applying its own model_getter/model_renderer
+    # hooks too) and passes resolve_model=False to avoid doing it twice.
+    final_model = resolve_configured_model(model) if resolve_model else model
     effective_retries = retries if retries is not None else CFG.LLM_TOOL_MAX_RETRIES
     effective_model_settings = _apply_request_timeout(
         _apply_reasoning_defaults(

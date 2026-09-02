@@ -45,8 +45,9 @@ chat = LLMChatTask(
     render_model: bool = True,
     model_settings: ModelSettings | None = None,
     capabilities: list[AbstractCapability] | None = None,
-    llm_config: LLMConfig | None = None,
     llm_limiter: LLMLimiter | None = None,
+    model_getter: Callable | None = None,
+    model_renderer: Callable | None = None,
     custom_model_names: StrListAttr | None = None,
     # Conversation management
     conversation_name: StrAttr | None = None,
@@ -106,7 +107,7 @@ chat = LLMChatTask(
 
 `model`, `model_settings`, and `capabilities` are pydantic-ai's own types, passed straight through unchanged (ADR-0036) — zrb doesn't wrap or reinterpret them. For what `Model`/`ModelSettings` accept per provider, and the full catalogue of capability classes, see [pydantic-ai's documentation](https://ai.pydantic.dev).
 
-- **`model`** — a model name string (`"openai:gpt-4o"`) or a pydantic-ai `Model` instance. See [LLM & Rate Limiter Configuration](../configuration/llm-config.md) for the supported-provider list, credentials, and the `model_getter`/`model_renderer` hooks `LLMConfig` exposes for tiering or A/B routing.
+- **`model`** — a model name string (`"openai:gpt-4o"`) or a pydantic-ai `Model` instance. See [LLM & Rate Limiter Configuration](../configuration/llm-config.md) for the supported-provider list, credentials, and the task's own `model_getter`/`model_renderer` hooks for tiering or A/B routing.
 - **`model_settings`** — a pydantic-ai `ModelSettings` (temperature, `openai_reasoning_effort`, …), or a callable taking the context for per-run values. See [Core LLM Routing](../configuration/llm-config.md#1-core-llm-routing) for the defaults zrb layers on top (`ZRB_LLM_THINKING`, `openai_reasoning_summary`, …).
 - **`capabilities`** — a list of pydantic-ai `AbstractCapability` instances (`ProcessHistory`, `Thinking`, `WebSearch`, `PrepareTools`, …), pydantic-ai's own agent-extension mechanism. It replaced the `Agent(history_processors=...)` constructor kwarg pydantic-ai itself carried before 2.36 (see [ADR-0041](../adr/adr-0041.md)). Do not confuse it with either of these zrb-specific things that share part of the name:
   - `history_processors` (below) — zrb's **own** history-rewriting pipeline (`append_history_processor`), which predates and is independent of pydantic-ai's `capabilities`/`ProcessHistory`.
@@ -176,10 +177,11 @@ from zrb.llm.prompt.manager import PromptManager
 
 llm_chat.prompt_manager = PromptManager(prompts=["Just this one bot."])
 llm_chat.hook_manager = my_hook_manager      # or None to go back to "fresh per run"
-llm_chat.llm_config = my_llm_config
 llm_chat.llm_limiter = my_llm_limiter        # or None to remove the limit
 llm_chat.markdown_theme = my_rich_theme      # or None for the default
 llm_chat.ui_config = UIConfig(exit_commands=["/bye"])
+llm_chat.model_getter = my_model_getter      # or None to remove the hook
+llm_chat.model_renderer = my_model_renderer  # or None to remove the hook
 ```
 
 `history_manager`, `sandbox`, and `permissions` are the same kind of slot —

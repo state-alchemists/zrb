@@ -223,4 +223,78 @@ config object (or `web_auth_config` carries a documented exemption with a
 follow-up), the `"openai-chat:gpt-4o"` second default is gone, and
 `./zrb-test.sh` is green.
 
+## As implemented (divergences from this plan)
+
+Landed as `40cd14ab3` ("Phase 6: delete LLMConfig/llm_config, make CFG +
+ModelResolver the only LLM config surface (R12)"). The split into
+`ModelResolver` plus `CFG` scalars, and the `web_auth_config` exemption,
+landed exactly as written. Six things the plan didn't anticipate:
+
+- **`small_model`/`multimodal_model` needed a concurrency fix this plan never
+  raised.** §6.3's table treats them as plain scalars (`llm_config.small_model`
+  → `CFG.LLM_SMALL_MODEL`). But `LLMConfig`'s setters were process-wide
+  global state — the `/model small ...`/`/model multimodal ...` slash
+  commands wrote to the single shared `llm_config` singleton, so two
+  concurrent chat sessions in one process (e.g. two web-UI users) could leak
+  each other's model-tier choice. A straight `CFG.LLM_SMALL_MODEL = x` write
+  from the command handler would have faithfully preserved that bug, not
+  introduced it, but it's a bug worth actually fixing while every call site
+  is already being touched. Fixed with two new per-run `ContextVar`s
+  (`current_small_model`, `current_multimodal_model` in `agent_state.py`),
+  bound from the UI's own `small_model`/`multimodal_model` at the start of
+  `run_agent()` — the same pattern `current_ui`/`current_yolo` already use.
+  `src/zrb/contextvars.py` (the canonical `ContextVar` index) and its
+  pinning test, plus the maintainer-guide/architecture doc counts, needed
+  updating too (fourteen → sixteen `ContextVar`s) — none of this is in the
+  plan's scope list. `MultiUI` does not yet proxy these two attributes to
+  its children — a narrow, documented limitation, not fixed here.
+- **Three convenience functions were needed, not the one §6.3 sketches.**
+  `resolve_configured_model`/`_small_model`/`_multimodal_model` each encode a
+  different fallback shape: small falls back to `CFG.LLM_MODEL` when unset;
+  multimodal returns `None` (callers drop the attachment with a warning)
+  rather than falling back to anything. A single `resolve_configured_model`
+  function, as the plan sketches, can't express either without the caller
+  re-deriving the fallback by hand at every site — exactly the repetition
+  Step 6.3 says is "the sign you got the split right or wrong."
+- **`model_settings`, `system_prompt`, and `summarization_prompt` were pure
+  dead code, not fields needing a `CFG` twin or a slot.** §6.2 anticipated
+  `model_settings` might need to become a Phase-4-style task slot (it already
+  is one, independently, on `LLMTask`/`LLMChatTask` — `LLMConfig`'s copy had
+  no reader anywhere outside itself). `system_prompt`/`summarization_prompt`
+  were assigned in `LLMConfig.__init__` but never read by anything. All three
+  were deleted with no replacement, not migrated.
+- **§6.3's "sites to expect" list covered a fraction of the actual call
+  sites.** Real files touched beyond that list: `builtin/changelog.py`,
+  `builtin/llm/please.py`, `llm/hook/creator.py`,
+  `llm/hook/journal_compliance.py`, `llm/voice/engine.py`,
+  `llm/util/multimodal_describe.py`, `llm/agent/subagent/manager.py`,
+  `llm/agent/types.py` (a docstring reference). Each site's raise-vs-fall-back
+  and raw-name-vs-resolved-value semantics had to be traced individually —
+  a blind mechanical substitution using the plan's table would have gotten
+  several of these wrong (e.g. multimodal's None-means-unconfigured case).
+- **Test fallout was much larger than the plan's Verification section
+  implies.** `test/llm/config/test_llm_config.py` (596 lines, ~62 tests)
+  had to be deleted outright and replaced with a new
+  `test/llm/config/test_model_resolver.py` covering `ModelResolver`'s actual
+  surviving behavior — not a port, since most of the old file tested
+  config-layering properties that no longer exist. A further ~13 test files
+  across `test/llm/agent/`, `test/llm/hook/`, `test/llm/task/`,
+  `test/llm/util/`, `test/llm/voice/`, and `test/llm/ui/` had mock patches
+  targeting `llm_config`/`default_llm_config`/`LLMConfig` that needed
+  rewriting to patch the new functions/properties instead. None of this is
+  mentioned in the plan.
+- **Two architecture ratchets outside `test_mutation_surface.py` needed
+  budget bumps**: `test_constructor_surface.py`'s `PARAM_BUDGETS` (net +1
+  each on `LLMTask`/`LLMChatTask` — `model_getter`+`model_renderer` replacing
+  the single `llm_config` param) and `test_facade_size_budget.py`'s budget
+  for `llm/task/llm_task.py` (900 → 910). The public API snapshot
+  (`test/public_api_snapshot.json`) also needed regenerating via
+  `ZRB_UPDATE_API_SNAPSHOT=1` — not called out in the plan's Verification
+  section, which only lists `test_mutation_surface.py` and `./zrb-test.sh`.
+  Docs beyond §6.5's two named files also needed sweeping:
+  `docs/task-types/llmchat-task.md`, `docs/configuration/llm-collections.md`,
+  `docs/advanced-topics/hooks.md`. `docs/configuration/env-vars.md` turned
+  out to need no changes at all — `LLM_MODEL`/`LLM_PROVIDER` are documented
+  in `llm-config.md`, not there.
+
 🔖 [Plan](README.md)

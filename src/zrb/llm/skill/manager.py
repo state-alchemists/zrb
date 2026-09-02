@@ -172,7 +172,9 @@ class SkillManager:
         """
         self._registry.clear_discovered()
         self._scan_results: dict[str, Skill] = {}
-        target_search_dirs = search_dirs if search_dirs is not None else self.search_dirs
+        target_search_dirs = (
+            search_dirs if search_dirs is not None else self.search_dirs
+        )
         # Scan in order of precedence: global -> project
         # We iterate in normal order to allow later skills (project) to override earlier ones (global)
         for search_dir in target_search_dirs:

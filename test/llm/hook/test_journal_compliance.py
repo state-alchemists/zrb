@@ -49,11 +49,11 @@ async def test_registers_when_journal_enabled():
     agent_cls = _mock_agent_cls()
     with (
         patch("zrb.llm.hook.journal_compliance.CFG") as mock_cfg,
-        patch("zrb.llm.hook.creator.llm_config") as mock_llm_config,
+        patch("zrb.llm.hook.creator.resolve_configured_model") as mock_resolve_model,
         patch.dict("sys.modules", {"pydantic_ai": MagicMock(Agent=agent_cls)}),
     ):
         mock_cfg.LLM_JOURNAL_ENABLED = True
-        mock_llm_config.resolve_model.return_value = "resolved"
+        mock_resolve_model.return_value = "resolved"
         results = await manager.execute_hooks(
             HookEvent.STOP, {"wrote_files": True, "journal_worthy": True}
         )
@@ -74,11 +74,11 @@ async def test_fires_on_a_stated_preference_with_no_file_write():
     agent_cls = _mock_agent_cls()
     with (
         patch("zrb.llm.hook.journal_compliance.CFG") as mock_cfg,
-        patch("zrb.llm.hook.creator.llm_config") as mock_llm_config,
+        patch("zrb.llm.hook.creator.resolve_configured_model") as mock_resolve_model,
         patch.dict("sys.modules", {"pydantic_ai": MagicMock(Agent=agent_cls)}),
     ):
         mock_cfg.LLM_JOURNAL_ENABLED = True
-        mock_llm_config.resolve_model.return_value = "resolved"
+        mock_resolve_model.return_value = "resolved"
         results = await manager.execute_hooks(
             HookEvent.STOP, {"wrote_files": False, "journal_worthy": True}
         )
@@ -119,10 +119,12 @@ async def test_factory_fires_via_the_normal_lazy_load_path():
 
         agent_cls = _mock_agent_cls()
         with (
-            patch("zrb.llm.hook.creator.llm_config") as mock_llm_config,
+            patch(
+                "zrb.llm.hook.creator.resolve_configured_model"
+            ) as mock_resolve_model,
             patch.dict("sys.modules", {"pydantic_ai": MagicMock(Agent=agent_cls)}),
         ):
-            mock_llm_config.resolve_model.return_value = "resolved"
+            mock_resolve_model.return_value = "resolved"
             await manager.execute_hooks(
                 HookEvent.STOP, {"wrote_files": True, "journal_worthy": True}
             )

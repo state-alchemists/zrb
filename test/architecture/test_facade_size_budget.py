@@ -31,7 +31,10 @@ FACADE_BUDGETS = {
     # Phase 4 (R8): 5 component slots gained a real settable+typed property
     # (prompt_manager, hook_manager, llm_config, llm_limiter, markdown_theme).
     "llm/task/chat/task.py": 1150,
-    "llm/task/llm_task.py": 900,
+    # Phase 6 (R12): `llm_config` (1 property+setter) replaced by two task-
+    # level hook slots (`model_getter`, `model_renderer`), each with its own
+    # settable+typed property.
+    "llm/task/llm_task.py": 910,
 }
 
 

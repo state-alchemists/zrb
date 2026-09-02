@@ -226,4 +226,41 @@ Every slot in the Step 4.1 inventory is settable with a non-`Any` type, a wrong
 type raises `TypeError` naming the expected class, `has_prompt_manager` is gone,
 and `./zrb-test.sh` is green.
 
+## As implemented (divergences from this plan)
+
+Landed as `ffc5f7869` (Phase 4) plus `5a354666e` (docstring follow-up),
+scoped to `LLMChatTask` only (consistent with the plan's own examples, which
+are all `llm_chat`-scoped, but never stated as a boundary). Five divergences:
+
+- **`markdown_theme` shipped as an 8th slot.** §4.1's bucket table and §4.4's
+  `SLOTS` sketch list 7 (`prompt_manager`, `hook_manager`, `llm_config`,
+  `llm_limiter`, `history_manager`, `sandbox`, `permissions`). The real
+  `SLOTS` dict and the real setters on `LLMChatTask` include `markdown_theme`
+  too — found during the classification pass, not anticipated by the plan.
+- **§4.1's working file `plan/04-slot-inventory.md` was never created.** The
+  classification happened directly against the code rather than as a
+  committed-then-deleted artifact.
+- **§4.2's part-then-delegator template was not used.** Every slot's storage
+  and property lives directly on `LLMChatTask` in `task.py` — no owning part,
+  no delegator. This matches an existing repo convention
+  `test/architecture/test_facade_size_budget.py` already documents ("this
+  file's own docstring keeps that API on the task itself... since it is this
+  task's own construction-time data — ADR-0035"), which this plan's snippet
+  didn't account for.
+- **`permissions` and `sandbox` deliberately skip §4.3's isinstance guard.**
+  `PermissionPolicyInput`/`SandboxInput` are unions of convenient shapes, not
+  one concrete class or ABC, so there is nothing to `isinstance`-check — a
+  case the plan's "ABC or Protocol only" guidance didn't cover. Documented in
+  each setter's own docstring instead.
+- **`test/architecture/test_facade_size_budget.py`'s budget for
+  `llm/task/chat/task.py` needed a bump (1100 → 1150)**, not mentioned
+  anywhere in §4.4/§4.6 — the ratchet itself was added by Phase 3, one phase
+  after this plan's own Phase 3 draft, so it wasn't yet a fixture the plan's
+  author could reference.
+
+`has_prompt_manager`'s removal matched the plan, and turned out to be the
+simpler of the two contingencies §4.2 described: the getter's `ValueError`
+branch was unconditionally dead code, not conditionally-dead-pending-a-test
+as the plan hedged.
+
 🔖 [Plan](README.md)

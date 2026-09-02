@@ -329,10 +329,10 @@ async def test_async_agent_hook_is_non_blocking():
     agent_cls = MagicMock(return_value=agent_instance)
 
     with (
-        patch("zrb.llm.hook.creator.llm_config") as mock_llm_config,
+        patch("zrb.llm.hook.creator.resolve_configured_model") as mock_resolve_model,
         patch.dict("sys.modules", {"pydantic_ai": MagicMock(Agent=agent_cls)}),
     ):
-        mock_llm_config.resolve_model.return_value = "resolved"
+        mock_resolve_model.return_value = "resolved"
         start = time.monotonic()
         results = await manager.execute_hooks(HookEvent.STOP, {})
         elapsed = time.monotonic() - start
@@ -625,10 +625,10 @@ async def test_shutdown_drain_extends_for_an_agent_hooks_own_timeout():
     agent_cls = MagicMock(return_value=agent_instance)
 
     with (
-        patch("zrb.llm.hook.creator.llm_config") as mock_llm_config,
+        patch("zrb.llm.hook.creator.resolve_configured_model") as mock_resolve_model,
         patch.dict("sys.modules", {"pydantic_ai": MagicMock(Agent=agent_cls)}),
     ):
-        mock_llm_config.resolve_model.return_value = "resolved"
+        mock_resolve_model.return_value = "resolved"
         await manager.execute_hooks(HookEvent.STOP, {})
         # A short caller-supplied grace_seconds would normally cut this off
         # before the 0.4s sleep finishes — only the hook's own 5s `timeout`

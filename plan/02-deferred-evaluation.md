@@ -248,4 +248,34 @@ pytest test/architecture/test_deferred_config_reads.py -q   # expect 0 violation
 `test_deferred_config_reads.py` reports zero violations, a broken `zrb_init.py`
 exits 1 with file/line/exception type, and `./zrb-test.sh` is green.
 
+## As implemented (divergences from this plan)
+
+Landed as `b781f427b` (Phase 2). The verb, the ratchet test, and the exit
+behavior all landed as planned; three things came out differently:
+
+- **The measured baseline was 3 eager reads, not 2.** Beyond `todo.py` and
+  `searxng/start.py`, `src/zrb/runner/cli.py`'s `start-server` task baked
+  `CFG.ROOT_GROUP_NAME` into its `description=f"..."` at import time — the
+  same class of bug, found only once `test_deferred_config_reads.py` actually
+  ran. `Task.description` has no deferred-render mechanism to lambda-wrap, so
+  the fix there was different in kind from the other two: the description
+  became static text (dropping the branded name from it), not a callable.
+- **`load_file()` gained a new parameter this plan didn't anticipate.** §2.3
+  assumed `__main__.py`'s three `try/except BaseException` blocks were the
+  only place swallowing the error. In fact `load_file()` (`src/zrb/util/load.py`)
+  already caught and logged exceptions internally, returning `None` — so
+  `_load_or_die`'s `except Exception` had nothing to catch until `load_file`
+  gained an opt-in `raise_on_error: bool = False` parameter, used only by the
+  two fatal `zrb_init.py`-loading call sites. Existing lenient callers
+  (plugin/skill/hook discovery) are unaffected by the default.
+- **`docs/configuration/env-vars.md` gained a callout box documenting the new
+  fatal-on-broken-init behavior** — not listed in §2.5's docs scope, added
+  because the behavior change is user-visible enough to need it inline, not
+  just in the changelog.
+
+Everything else — `_load_or_die`'s shape (`Callable[[], Any]` in practice,
+not `Callable[[], None]`), the AST-walk ratchet design, the in-process
+`test/test_main.py` (no subprocess fallback needed), and the `todo.py`/
+`searxng/start.py` lambda fixes — landed exactly as written.
+
 🔖 [Plan](README.md)

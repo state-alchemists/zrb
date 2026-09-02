@@ -4,7 +4,7 @@ builds command/prompt hooks, neither of which needs the agent-building
 subsystem). It still shares `run_llm_hook`'s model-resolution and JSON-output
 handling with the prompt hook — see `test/llm/hook/test_creator_llm.py` for
 that shared body's own tests, which is why some patches below still target
-`zrb.llm.hook.creator` (where `run_llm_hook`, `CFG`, and `llm_config` live).
+`zrb.llm.hook.creator` (where `run_llm_hook`, `CFG`, and `resolve_configured_model` live).
 """
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -29,7 +29,7 @@ def _agent_returning(output):
 def _patched_agent(agent_cls):
     """Patch in *agent_cls* as pydantic_ai.Agent with a stub model resolver."""
     return (
-        patch("zrb.llm.hook.creator.llm_config"),
+        patch("zrb.llm.hook.creator.resolve_configured_model"),
         patch.dict("sys.modules", {"pydantic_ai": MagicMock(Agent=agent_cls)}),
     )
 
@@ -57,8 +57,8 @@ async def test_agent_hook_uses_dict_event_data_and_returns_json():
 
     agent_cls = _agent_returning('{"ok": true}')
     mock_config, mock_module = _patched_agent(agent_cls)
-    with mock_config as mock_llm_config, mock_module:
-        mock_llm_config.resolve_model.return_value = "resolved"
+    with mock_config as mock_resolve_model, mock_module:
+        mock_resolve_model.return_value = "resolved"
         result = await hook(context)
 
     assert result.success is True
@@ -75,8 +75,8 @@ async def test_agent_hook_falls_back_to_event_value_when_no_input():
 
     agent_cls = _agent_returning("plain")
     mock_config, mock_module = _patched_agent(agent_cls)
-    with mock_config as mock_llm_config, mock_module:
-        mock_llm_config.resolve_model.return_value = "resolved"
+    with mock_config as mock_resolve_model, mock_module:
+        mock_resolve_model.return_value = "resolved"
         result = await hook(context)
 
     assert result.success is True
@@ -96,8 +96,8 @@ async def test_agent_hook_uses_prompt_when_event_data_absent():
 
     agent_cls = _agent_returning("plain")
     mock_config, mock_module = _patched_agent(agent_cls)
-    with mock_config as mock_llm_config, mock_module:
-        mock_llm_config.resolve_model.return_value = "resolved"
+    with mock_config as mock_resolve_model, mock_module:
+        mock_resolve_model.return_value = "resolved"
         await hook(context)
 
     assert agent_cls.return_value.run.call_args.args[0] == "use me"
@@ -112,8 +112,8 @@ async def test_agent_hook_non_dict_event_data_stringified():
 
     agent_cls = _agent_returning("plain")
     mock_config, mock_module = _patched_agent(agent_cls)
-    with mock_config as mock_llm_config, mock_module:
-        mock_llm_config.resolve_model.return_value = "resolved"
+    with mock_config as mock_resolve_model, mock_module:
+        mock_resolve_model.return_value = "resolved"
         result = await hook(context)
 
     assert result.success is True
@@ -129,8 +129,8 @@ async def test_agent_hook_malformed_json_output_stays_plain():
     context = HookContext(event=HookEvent.NOTIFICATION, event_data={"a": 1})
 
     mock_config, mock_module = _patched_agent(_agent_returning("{bad json}"))
-    with mock_config as mock_llm_config, mock_module:
-        mock_llm_config.resolve_model.return_value = "resolved"
+    with mock_config as mock_resolve_model, mock_module:
+        mock_resolve_model.return_value = "resolved"
         result = await hook(context)
 
     assert result.success is True
@@ -247,7 +247,7 @@ async def test_agent_hook_runs_when_named_tools_do_resolve():
 
     agent_cls = _agent_returning("logged")
     with (
-        patch("zrb.llm.hook.creator.llm_config") as mock_llm_config,
+        patch("zrb.llm.hook.creator.resolve_configured_model") as mock_resolve_model,
         # Only Agent is swapped (unlike _patched_agent, which replaces the
         # whole pydantic_ai module) — this test inspects the real Tool that
         # wrap_tool builds around the resolved tool, below.
@@ -261,7 +261,7 @@ async def test_agent_hook_runs_when_named_tools_do_resolve():
             return_value=(),
         ),
     ):
-        mock_llm_config.resolve_model.return_value = "resolved"
+        mock_resolve_model.return_value = "resolved"
         result = await hook(context)
 
     assert result.success is True
@@ -289,8 +289,8 @@ async def test_agent_hook_exception_returns_failure():
     mock_config, mock_module = _patched_agent(
         MagicMock(side_effect=RuntimeError("boom"))
     )
-    with mock_config as mock_llm_config, mock_module:
-        mock_llm_config.resolve_model.return_value = "resolved"
+    with mock_config as mock_resolve_model, mock_module:
+        mock_resolve_model.return_value = "resolved"
         result = await hook(context)
 
     assert result.success is False

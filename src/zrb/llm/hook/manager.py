@@ -595,7 +595,9 @@ class HookManager(HookManagerLoading):
         This method can be called manually to add filesystem hooks.
         Does NOT clear manually registered hooks.
         """
-        target_search_dirs = search_dirs if search_dirs is not None else self.search_dirs
+        target_search_dirs = (
+            search_dirs if search_dirs is not None else self.search_dirs
+        )
 
         for factory in self._hook_factories:
             factory(self)

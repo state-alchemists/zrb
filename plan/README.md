@@ -2,7 +2,11 @@
 
 # Plan: converge zrb on its own conventions
 
-**Status:** proposed, not started
+**Status:** Phases 0–6 implemented (each on its own `feat/quality-improve-N`
+branch, integrating into `feat/quality-improve`; Phase 6 not yet merged there
+as of this note). Phases 7–10 not started. Each phase file's own "As
+implemented" section (added after the fact) records where the actual diff
+diverged from what is written below it.
 **Baseline:** `2.69.0`, commit `ae15e58c6`, measured 2026-09-02
 
 ---

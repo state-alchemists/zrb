@@ -386,7 +386,6 @@ class ChatExecution:
             history_processors=llm_chat_task.history_processors
             + [create_summarizer_history_processor()],
             capabilities=capabilities,
-            llm_config=llm_chat_task.llm_config,
             llm_limiter=llm_chat_task.llm_limiter,
             history_manager=resolved.history.history_manager,
             hook_manager=resolved.hook_manager,
@@ -404,8 +403,11 @@ class ChatExecution:
             model=lambda ctx: ctx.input.get("model"),
             render_model=False,
             # Without this, LLMChatTask(model_settings=...) is accepted but
-            # silently ignored: the inner task falls back to llm_config's.
+            # silently ignored: the inner LLMTask would otherwise use its own
+            # (unset) default.
             model_settings=llm_chat_task.model_settings,
+            model_getter=llm_chat_task.model_getter,
+            model_renderer=llm_chat_task.model_renderer,
             summarize_commands=summarize_commands,
         )
 
@@ -570,12 +572,10 @@ class ChatExecution:
         """Resolve the model to use for this run.
 
         A templated model name is rendered against `ctx` when the task was
-        built with `render_model`. An empty result falls back to the model from
-        `llm_config`.
+        built with `render_model`. An empty result falls back to `CFG.LLM_MODEL`.
         """
         return resolve_model(
             ctx,
             self._llm_chat_task.model,
             self._llm_chat_task.render_model,
-            self._llm_chat_task.llm_config,
         )

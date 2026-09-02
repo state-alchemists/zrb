@@ -65,12 +65,8 @@ class UIConfig:
         default_factory=_commands("LLM_UI_COMMAND_PLAN_TOGGLE")
     )
     copy_commands: list[str] = field(default_factory=_commands("LLM_UI_COMMAND_COPY"))
-    voice_commands: list[str] = field(
-        default_factory=_commands("LLM_UI_COMMAND_VOICE")
-    )
-    photo_commands: list[str] = field(
-        default_factory=_commands("LLM_UI_COMMAND_PHOTO")
-    )
+    voice_commands: list[str] = field(default_factory=_commands("LLM_UI_COMMAND_VOICE"))
+    photo_commands: list[str] = field(default_factory=_commands("LLM_UI_COMMAND_PHOTO"))
 
     # Behavior
     is_yolo: bool | frozenset = (
@@ -80,9 +76,7 @@ class UIConfig:
     # initial yolo state and a UI built from this same config agree on the
     # key without either having to see the other's resolved value.
     yolo_xcom_key: str = "yolo"
-    show_ollama_models: bool = field(
-        default_factory=lambda: CFG.LLM_SHOW_OLLAMA_MODELS
-    )
+    show_ollama_models: bool = field(default_factory=lambda: CFG.LLM_SHOW_OLLAMA_MODELS)
     show_pydantic_ai_models: bool = field(
         default_factory=lambda: CFG.LLM_SHOW_PYDANTIC_AI_MODELS
     )
@@ -124,9 +118,7 @@ class UIConfig:
             plan_commands=ui_commands.get("plan", self.plan_commands),
             copy_commands=ui_commands.get("copy", self.copy_commands),
             voice_commands=ui_commands.get("voice", self.voice_commands),
-            summarize_commands=ui_commands.get(
-                "summarize", self.summarize_commands
-            ),
+            summarize_commands=ui_commands.get("summarize", self.summarize_commands),
             assistant_name=self.assistant_name,
             is_yolo=self.is_yolo,
             yolo_xcom_key=self.yolo_xcom_key,

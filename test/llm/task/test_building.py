@@ -198,19 +198,23 @@ class TestRegistration:
 
 
 class TestAssembly:
-    def test_get_model_defaults_to_llm_config_model(self):
+    def test_get_model_defaults_to_configured_model(self):
+        from zrb.llm.config.model_resolver import resolve_configured_model
+
         task = LLMTask(name="test-task")
-        assert task.get_model(MagicMock()) == task.llm_config.model
+        assert task.get_model(MagicMock()) == resolve_configured_model()
 
     def test_get_model_uses_explicit_model(self):
         task = LLMTask(name="test-task", model="explicit-model", render_model=False)
         assert task.get_model(MagicMock()) == "explicit-model"
 
     def test_get_model_treats_blank_string_as_unset(self):
+        from zrb.llm.config.model_resolver import resolve_configured_model
+
         task = LLMTask(name="test-task", model="   ", render_model=False)
         # Blank explicit model falls back to the config default.
-        assert task.get_model(MagicMock()) == task.llm_config.model
+        assert task.get_model(MagicMock()) == resolve_configured_model()
 
-    def test_get_model_settings_falls_back_to_config(self):
+    def test_get_model_settings_defaults_to_none(self):
         task = LLMTask(name="test-task")
-        assert task.get_model_settings(MagicMock()) == task.llm_config.model_settings
+        assert task.get_model_settings(MagicMock()) is None

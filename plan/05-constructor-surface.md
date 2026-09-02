@@ -276,4 +276,43 @@ pytest test/llm/ui -q
 parameters, `LLMChatTask.__init__` is ≤ 54, the shared-parameter order test
 passes, and `./zrb-test.sh` is green.
 
+## As implemented (divergences from this plan)
+
+Option B was chosen and landed as `ec5fd4cb5` ("73 constructor parameters →
+a guessable core (Phase 5, Option B)"). `BaseUI` beat its target; `LLMChatTask`
+did not reach anywhere near its budget, because §5.3's own "handle carefully"
+carve-outs turned out to cover most of the 20-parameter list, not a couple of
+exceptions:
+
+- **`LLMChatTask` collapsed 73 → 70 (4 parameters), not 73 → ~53 (20).** Only
+  `yolo_xcom_key`, `ui_commands`, `show_ollama_models`, and
+  `show_pydantic_ai_models` actually moved into `ui_config`. Excluded, and
+  left on the task: the four `render_*` pairs (kept as task-level `*Attr`
+  rendering, per §5.3 point 1 — but the *value* halves stayed on the task
+  too, not just the render flags); `markdown_theme` (already its own Phase-4
+  slot, so redundant to also route through `UIConfig`); `enable_rewind`/
+  `snapshot_dir` (a rewind feature, not UI config); `interactive`/
+  `include_default_ui` (task-level flow-control, exactly the §5.3 point 2
+  case the plan flagged as a possible carve-out — it was one, for both).
+  `BaseUI.__init__` did land at **15** (better than the ≤ 20 target).
+- **The shipped `PARAM_BUDGETS` reflect this: `LLMChatTask: 70` and
+  `BaseUI: 15`**, not the plan's `54`/`20`/`52`. `LLMChatTask` misses this
+  plan's own "Done when" criterion (≤ 54) as a direct, expected consequence
+  of the narrower collapse above — this is not drift to fix later, it is
+  what actually turned out to be UI config versus task-level concern once
+  each parameter was read individually.
+- **§5.1's `comma_list` premise was wrong.** The plan assumes
+  `CFG.LLM_UI_COMMAND_EXIT` is a raw comma-separated string needing the
+  `comma_list` helper called explicitly. In fact `EnvField`'s own
+  `cast=comma_list` (`src/zrb/config/mixins/llm_ui_commands.py`) already
+  parses it into `list[str]` before `CFG` returns it — `UIConfig`'s
+  `_commands()` factory ended up being `lambda: list(getattr(CFG, knob))` (a
+  defensive copy), with no second `comma_list` call.
+
+Everything else — `UIConfig.minimal()` deleted, all 16 command families
+added, `assistant_name`/`yolo_xcom_key` routed through `CFG`/stabilized, the
+two latent-bug fixes (SimpleUI missing `rewind`/`btw`/`voice`; the yolo xcom
+key mismatch), `BaseUI` reaching `ui_config` only through a public accessor,
+and the shared-parameter-order fix — landed exactly as written.
+
 🔖 [Plan](README.md)

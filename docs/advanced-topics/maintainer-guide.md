@@ -289,7 +289,7 @@ To understand Zrb's core design decisions (such as the strict use of `asyncio`, 
 
 ## Context Propagation Internals
 
-Zrb uses Python's `contextvars.ContextVar` to thread execution state through async coroutines without explicit parameter passing. There are fourteen `ContextVar` instances across the codebase, split into five layers. The single source of truth is `src/zrb/contextvars.py` (a re-export index); update this section whenever you add, remove, or rename a `ContextVar`.
+Zrb uses Python's `contextvars.ContextVar` to thread execution state through async coroutines without explicit parameter passing. There are sixteen `ContextVar` instances across the codebase, split into five layers. The single source of truth is `src/zrb/contextvars.py` (a re-export index); update this section whenever you add, remove, or rename a `ContextVar`.
 
 ### The Five Layers
 
@@ -311,8 +311,10 @@ Holds the active `Context` for the currently executing task. Set at the start of
 | `current_approval_channel` | `ApprovalChannel \| None` | Remote approval handler |
 | `current_hook_manager` | `HookManager \| None` | Hook manager for the run; nested tools (e.g. delegate) fire SubagentStart/Stop on it |
 | `current_agent_run_scope` | `str` | Identifies this specific agent run to nested tools needing per-conversation state (e.g. `file_observation.py`'s read-before-overwrite tracking) — the session name for a top-level run, a fresh per-delegation id for a sub-agent, so a sub-agent never inherits what its parent or siblings observed |
+| `current_small_model` | `str \| Model \| None` | The UI's own `small_model` (set by `/model small ...`), so `journal_compliance.py`'s judge model and other small-tier consumers resolve per-session instead of leaking one process-wide value across concurrent chat sessions |
+| `current_multimodal_model` | `str \| Model \| None` | The UI's own `multimodal_model` (set by `/model multimodal ...`), read by the attachment-description pipeline and voice engine for the same per-session reason |
 
-All six are set at the start of `run_agent()` and reset in its `finally` block.
+All eight are set at the start of `run_agent()` and reset in its `finally` block.
 
 **Layer 3 — Permission state** (`src/zrb/llm/permission/state.py`):
 

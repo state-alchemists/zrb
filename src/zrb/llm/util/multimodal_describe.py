@@ -2,8 +2,9 @@
 
 Used as a fallback when the main agent's model is text-only but the user
 attached an image/audio/video. We spawn a one-shot agent with the
-configured `LLMConfig.multimodal_model`, hand it the binary, and inline
-the resulting text into the user message in place of the attachment.
+configured multimodal model (`CFG.LLM_MULTIMODAL_MODEL`, resolved via
+`zrb.llm.config.model_resolver`), hand it the binary, and inline the
+resulting text into the user message in place of the attachment.
 
 Only images and audio are described — video is rejected here because most
 multimodal models reject video too, and ad-hoc frame extraction is out of
@@ -31,9 +32,9 @@ async def describe_binary_attachment(
     """Describe a `BinaryContent` via the supplied multimodal model.
 
     The caller must pass an explicit *multimodal_model* — this function does
-    not consult `LLMConfig.multimodal_model`. That keeps the data flow
-    explicit (the runner resolves the global once and forwards it) and makes
-    tests independent of environment state.
+    not consult `CFG.LLM_MULTIMODAL_MODEL` itself. That keeps the data flow
+    explicit (the runner resolves it once and forwards it) and makes tests
+    independent of environment state.
 
     Returns the description text on success, ``None`` when:
     - the modality cannot be described (e.g. video),
@@ -61,8 +62,8 @@ async def describe_binary_attachment(
     # (verified empirically), but would if the runner's own lazy import of
     # this module were ever hoisted too, so both stay deferred.
     from zrb.llm.agent import create_agent, run_agent
-    from zrb.llm.config.config import llm_config
     from zrb.llm.config.limiter import llm_limiter
+    from zrb.llm.config.model_resolver import resolve_configured_model
 
     system_prompt = (
         get_prompt("multimodal_image")
@@ -77,9 +78,9 @@ async def describe_binary_attachment(
 
     try:
         agent = create_agent(
-            # Already resolved here; resolve_model=False avoids a second
-            # model_getter/model_renderer pass inside create_agent.
-            model=llm_config.resolve_model(multimodal_model),
+            # Already resolved here; resolve_model=False avoids resolving
+            # twice inside create_agent.
+            model=resolve_configured_model(multimodal_model),
             system_prompt=system_prompt,
             yolo=True,  # no tools, no approvals needed
             resolve_model=False,

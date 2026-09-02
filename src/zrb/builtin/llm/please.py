@@ -7,7 +7,7 @@ from zrb.config.helper import get_current_shell, is_wsl
 from zrb.context.any_context import AnyContext
 from zrb.input.str_input import StrInput
 from zrb.llm.agent import create_agent
-from zrb.llm.config.config import llm_config
+from zrb.llm.config.model_resolver import resolve_configured_small_model
 from zrb.llm.util.clipboard import copy_text
 from zrb.runner.cli import cli
 from zrb.task.make_task import make_task
@@ -50,7 +50,7 @@ closest single command that accomplishes the most essential part.
 )
 async def please(ctx: AnyContext) -> str:
     ctx.print(stylize_faint(f"🤔 Thinking about: {ctx.input.message}"))
-    model = str(ctx.input.model).strip() or llm_config.small_model
+    model = str(ctx.input.model).strip() or resolve_configured_small_model()
     agent = create_agent(model=model, system_prompt=SYSTEM_PROMPT, yolo=True)
     result = await agent.run(build_user_message(str(ctx.input.message)))
     command = strip_code_fences(str(result.output))
