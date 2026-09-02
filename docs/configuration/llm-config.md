@@ -319,7 +319,7 @@ task.prompt_manager.add_live_context(
 )
 ```
 
-A live-context provider is an extension point, so it must never take the prompt down with it: a provider that throws is logged and skipped.
+A live-context provider is an extension point, so it must never take the prompt down with it: a provider that throws is logged and skipped. Re-registering the same *name* replaces the previous provider; `remove_live_context(name)` drops one, `get_live_contexts()` returns the `(name, provider)` pairs in registration order, and `set_live_contexts(pairs)` replaces the whole list wholesale.
 
 **3. Override a built-in prompt file** — wording ships as files, so the no-Python way to change it is to place a same-named file higher on the lookup path (project dir → `ZRB_LLM_PROMPT_<NAME>` → base dir → package; the overridable names are listed under [Overridable Prompts](#overridable-prompts)). For example, put `persona.md` in the directory `ZRB_LLM_PROMPT_DIR` points to and it replaces the packaged persona wording. A *new* name in `include_sections` does not resolve to a file — the built-in section set is fixed, and an unknown name is warned and skipped (ADR-0044).
 

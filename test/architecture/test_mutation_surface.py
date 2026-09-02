@@ -197,3 +197,23 @@ def test_no_concept_is_reachable_by_two_names():
                         f"{spec}: both settable property {name!r} and {alias}() exist (R7)"
                     )
     assert not violations, "\n".join(violations)
+
+
+MANAGER_ROSTER_API = ("registry", "reload", "scan", "search_dirs")
+
+
+def test_managers_expose_the_same_roster_api():
+    """A manager is a roster resolver. Five families, one shape (ADR-0090).
+
+    `PromptManager` is deliberately excluded — ADR-0090 Part 1 states it is a
+    resolved per-task view, not a roster owner. Do not "fix" that by adding
+    it here.
+    """
+    for path in (
+        "zrb.llm.skill.manager:skill_manager",
+        "zrb.llm.agent.subagent.manager:sub_agent_manager",
+        "zrb.llm.hook.manager:hook_manager",
+    ):
+        manager = _load(path)
+        missing = [n for n in MANAGER_ROSTER_API if not hasattr(manager, n)]
+        assert not missing, f"{path} is missing {missing} (R6/R7, ADR-0090)"
