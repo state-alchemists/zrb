@@ -25,6 +25,9 @@ To find a setting:
 - Theme selection (ZRB_THEME preset)         -> mixins/theme.py
 """
 
+import difflib
+from typing import Any
+
 from zrb.config.env_field import EnvField
 from zrb.config.mixins.cli_style import ConfigCLIStyle
 from zrb.config.mixins.foundation import FoundationMixin
@@ -68,6 +71,37 @@ class Config(  # noqa: E501  # Sibling parts TYPE_CHECKING-declare ENV_PREFIX/RO
     cooperating `__init__` methods chain via `super().__init__()`, so creating
     a `Config()` populates every default in one pass.
     """
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        """Reject an assignment to an UPPERCASE name this config does not define.
+
+        `zrb_init.py` is configured by assignment, so a typo (`CFG.LLM_MODELL`)
+        would otherwise be a silent no-op the user only notices as "my setting
+        did not apply". Names that are not all-uppercase (internal `_state`) are
+        left alone. `DEFAULT_*` names are exempt too: each mixin's `__init__`
+        sets its own as a fresh instance attribute (not a class attribute), so
+        checking them here would reject the very assignment that defines them.
+        """
+        if (
+            name.isupper()
+            and not name.startswith("DEFAULT_")
+            and not hasattr(type(self), name)
+        ):
+            raise AttributeError(self._unknown_knob_message(name))
+        super().__setattr__(name, value)
+
+    def _unknown_knob_message(self, name: str) -> str:
+        known = sorted(
+            n for n in dir(type(self)) if n.isupper() and not n.startswith("DEFAULT_")
+        )
+        suggestions = difflib.get_close_matches(name, known, n=3, cutoff=0.6)
+        message = f"CFG has no setting named {name!r}."
+        if suggestions:
+            message += " Did you mean " + " / ".join(suggestions) + "?"
+        return (
+            message
+            + f" ({len(known)} settings; see `{self.ROOT_GROUP_NAME} config explain`.)"
+        )
 
     def is_env_set(self, name: str) -> bool:
         """Whether the user set the environment variable behind `CFG.<name>`.
