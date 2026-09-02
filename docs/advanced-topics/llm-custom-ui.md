@@ -46,8 +46,8 @@ flowchart TB
 
 | Level | What You Implement | What You Get For Free |
 |-------|-------------------|----------------------|
-| **BaseUI** | `__init__`, `append_to_output()`, `ask_user()`, `run_interactive_command()`, `run_async()` | Message loop, command handling, LLM interaction |
-| **SimpleUI** | 2 methods (`print`, `get_input`) | All of BaseUI + simplified `__init__` (UIConfig), default `run_async()` |
+| **BaseUI** | `__init__`, `append_to_output()`, `ask_user()`, `run_interactive_command()`, `run_async()` | Message loop, command handling, LLM interaction, `UIConfig`-based settings |
+| **SimpleUI** | 2 methods (`print`, `get_input`) | All of BaseUI, plus a default `run_async()` and `__init__` |
 | **EventDrivenUI** | 2 methods (`print`, `start_event_loop`) | All of SimpleUI + input queue + message routing |
 | **PollingUI** | 0-1 methods (optional `print`) | All of SimpleUI + input/output queues for external polling |
 
@@ -563,7 +563,7 @@ flowchart TB
 
 | Item | Purpose | Complexity |
 |------|---------|-------------|
-| `__init__()` | Initialize with 25+ parameters | Medium (boilerplate) |
+| `__init__()` | Initialize with `ctx`, `llm_task`, `history_manager`, a `ui_config`, and a handful of others | Medium (boilerplate) |
 | `append_to_output(*values, sep, end, file, flush)` | Display output | Low |
 | `ask_user(prompt: str)` | Block for user input | Medium |
 | `run_interactive_command(cmd, shell)` | Execute shell commands | Low (or return error) |
@@ -758,24 +758,13 @@ class TelegramUI(EventDrivenUI, BufferedOutputMixin):
 
 ## UIConfig: Cleaner Configuration
 
-### The Problem: BaseUI Has 25+ `__init__` Parameters
-
-```python
-# BaseUI __init__ signature (simplified)
-def __init__(
-    self, ctx, llm_task, history_manager,
-    yolo_xcom_key, assistant_name, initial_message, initial_attachments,
-    conversation_session_name, is_yolo, triggers, response_handlers,
-    tool_policies, argument_formatters, markdown_theme,
-    summarize_commands, attach_commands, exit_commands, info_commands,
-    save_commands, load_commands, redirect_output_commands,
-    yolo_toggle_commands, set_model_commands, exec_commands,
-    custom_commands, model,
-):
-    ...
-```
-
-### The Solution: UIConfig Dataclass
+`UIConfig` is **the** UI configuration object — `BaseUI.__init__` itself takes
+one `ui_config: UIConfig | None` parameter (not 25 individual ones), and every
+concrete UI (`SimpleUI`, `EventDrivenUI`, `PollingUI`, the built-in TUI, the
+web UI) is built from it. Each field defaults from its `CFG.LLM_UI_COMMAND_*`
+env twin (`docs/configuration/env-vars.md`), read lazily so a `zrb_init.py`
+change still wins — so every UI backend agrees on the shipped command aliases
+without each one re-deriving them.
 
 ```python
 from zrb.llm.ui import UIConfig, create_ui_factory
@@ -802,17 +791,31 @@ llm_chat.ui_factories = [create_ui_factory(MyUI, config=config)]
 
 | Field | Default | Description |
 |-------|---------|-------------|
-| `assistant_name` | `"Assistant"` | Name shown in prompts |
-| `exit_commands` | `["/exit", "/quit"]` | Commands to exit |
-| `info_commands` | `["/help", "/?"]` | Show help |
-| `save_commands` | `["/save"]` | Save conversation |
-| `load_commands` | `["/load"]` | Load conversation |
-| `attach_commands` | `["/attach"]` | Attach files |
-| `yolo_toggle_commands` | `["/yolo"]` | Toggle auto-approve |
-| `set_model_commands` | `["/model"]` | Switch model |
-| `exec_commands` | `["/exec"]` | Run shell commands |
+| `assistant_name` | `CFG.LLM_ASSISTANT_NAME` | Name shown in prompts |
+| `exit_commands` | `CFG.LLM_UI_COMMAND_EXIT` | Commands to exit |
+| `info_commands` | `CFG.LLM_UI_COMMAND_INFO` | Show help |
+| `save_commands` | `CFG.LLM_UI_COMMAND_SAVE` | Save conversation |
+| `load_commands` | `CFG.LLM_UI_COMMAND_LOAD` | Load conversation |
+| `attach_commands` | `CFG.LLM_UI_COMMAND_ATTACH` | Attach files |
+| `rewind_commands` | `CFG.LLM_UI_COMMAND_REWIND` | Rewind to a previous turn |
+| `redirect_output_commands` | `CFG.LLM_UI_COMMAND_REDIRECT_OUTPUT` | Copy/save the last response |
+| `yolo_toggle_commands` | `CFG.LLM_UI_COMMAND_YOLO_TOGGLE` | Toggle auto-approve |
+| `set_model_commands` | `CFG.LLM_UI_COMMAND_SET_MODEL` | Switch model |
+| `exec_commands` | `CFG.LLM_UI_COMMAND_EXEC` | Run shell commands |
+| `btw_commands` | `CFG.LLM_UI_COMMAND_BTW` | Side-channel message |
+| `plan_commands` | `CFG.LLM_UI_COMMAND_PLAN_TOGGLE` | Toggle plan mode |
+| `copy_commands` | `CFG.LLM_UI_COMMAND_COPY` | Copy the transcript |
+| `voice_commands` | `CFG.LLM_UI_COMMAND_VOICE` | Toggle voice dictation |
+| `photo_commands` | `CFG.LLM_UI_COMMAND_PHOTO` | Attach a photo |
+| `summarize_commands` | `CFG.LLM_UI_COMMAND_SUMMARIZE` | Summarize/compress history |
 | `is_yolo` | `False` | Auto-approve mode: `True` for all tools, or comma-separated names (e.g., `"Write,Edit"`) for selective |
+| `yolo_xcom_key` | `"yolo"` | xcom key the session reads/writes when yolo is toggled at run time |
+| `show_ollama_models` | `CFG.LLM_SHOW_OLLAMA_MODELS` | Whether the model picker lists local Ollama models |
+| `show_pydantic_ai_models` | `CFG.LLM_SHOW_PYDANTIC_AI_MODELS` | Whether the model picker lists models known to pydantic-ai |
 | `conversation_session_name` | `""` | Session name (empty = random) |
+
+An `LLMChatTask` (`llm_chat` included) exposes the same object as a settable
+`ui_config` property — see [LLM Component Collections](../configuration/llm-collections.md#3-per-task--instance-arguments--override-one-host).
 
 ---
 
@@ -876,7 +879,7 @@ llm_chat.ui_factories = [
 | Aspect | BaseUI | SimpleUI | Savings |
 |--------|---------|----------|---------|
 | **Items to implement** | 5: `__init__`, `append_to_output()`, `ask_user()`, `run_interactive_command()`, `run_async()` | 2: `print()`, `get_input()` | 60% fewer items |
-| **`__init__` parameters** | 25+ params | Config object + kwargs | Cleaner initialization |
+| **`__init__` parameters** | ~15 params, one of them `ui_config` | Config object + kwargs | Cleaner initialization |
 | **`__init__` boilerplate** | 20+ lines | 1 `super().__init__()` call | Less code |
 | **Event loop management** | You write `run_async()` | Handled by default | 30+ lines saved |
 | **Shell command handling** | You implement | Shows warning | Optional feature |

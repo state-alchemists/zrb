@@ -44,8 +44,6 @@ def base_ui():
     history_manager = MagicMock()
     return ConcreteUI(
         ctx=ctx,
-        yolo_xcom_key="yolo",
-        assistant_name="Assistant",
         llm_task=llm_task,
         history_manager=history_manager,
     )
@@ -294,8 +292,6 @@ class RecordingUI(ConcreteUI):
 def make_ui():
     return RecordingUI(
         ctx=SharedContext(),
-        yolo_xcom_key="yolo",
-        assistant_name="Assistant",
         llm_task=MagicMock(),
         history_manager=MagicMock(),
     )

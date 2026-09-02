@@ -48,8 +48,6 @@ chat = LLMChatTask(
     llm_config: LLMConfig | None = None,
     llm_limiter: LLMLimiter | None = None,
     custom_model_names: StrListAttr | None = None,
-    show_ollama_models: bool | None = None,
-    show_pydantic_ai_models: bool | None = None,
     # Conversation management
     conversation_name: StrAttr | None = None,
     render_conversation_name: bool = True,
@@ -63,7 +61,6 @@ chat = LLMChatTask(
     # Tool confirmation & approval
     tool_confirmation: AnyToolConfirmation = None,
     yolo: BoolAttr = False,
-    yolo_xcom_key: str = "yolo",
     approval_channel: ApprovalChannel | None = None,
     permissions: PermissionPolicyInput = None,
     sandbox: SandboxInput = None,
@@ -83,8 +80,8 @@ chat = LLMChatTask(
     ui_jargon: StrAttr | None = None,
     ui_ascii_art: StrAttr | None = None,
     # each ui_* text field above has a matching render_ui_* flag (default True)
-    # Slash-command alias overrides, e.g. UICommands(exit="/quit")
-    ui_commands: UICommands | None = None,
+    # Slash-command aliases, yolo_xcom_key, show_*_models — see UIConfig, below
+    ui_config: UIConfig | None = None,
     # Extra commands & external drivers — see Custom UI Guide
     custom_commands: list[AnyCustomCommand] | None = None,
     triggers: list[Callable] | None = None,
@@ -115,7 +112,7 @@ chat = LLMChatTask(
   - `history_processors` (below) — zrb's **own** history-rewriting pipeline (`append_history_processor`), which predates and is independent of pydantic-ai's `capabilities`/`ProcessHistory`.
   - the [Model Capabilities registry](../advanced-topics/extending-the-llm.md#model-capabilities) — zrb's per-model table of modality/parallel-tool-call support, unrelated to this constructor argument.
 
-`custom_model_names`, `show_ollama_models`, and `show_pydantic_ai_models` only affect the `/model` picker's autocomplete list in the chat TUI — see [Model Autocomplete](../configuration/llm-config.md#8-model-autocomplete).
+`custom_model_names`, and `ui_config`'s `show_ollama_models`/`show_pydantic_ai_models` fields, only affect the `/model` picker's autocomplete list in the chat TUI — see [Model Autocomplete](../configuration/llm-config.md#8-model-autocomplete).
 
 `active_skills`/`render_active_skills` pre-activate named skills for the session (skipping their normal on-demand discovery), rendered as templates by default; see the skill catalogue notes under [System Prompts & Identity](../configuration/llm-config.md#4-system-prompts--identity).
 
@@ -182,6 +179,7 @@ llm_chat.hook_manager = my_hook_manager      # or None to go back to "fresh per 
 llm_chat.llm_config = my_llm_config
 llm_chat.llm_limiter = my_llm_limiter        # or None to remove the limit
 llm_chat.markdown_theme = my_rich_theme      # or None for the default
+llm_chat.ui_config = UIConfig(exit_commands=["/bye"])
 ```
 
 `history_manager`, `sandbox`, and `permissions` are the same kind of slot —

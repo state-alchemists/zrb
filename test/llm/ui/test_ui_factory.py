@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock
 
+from zrb.config.config import CFG
 from zrb.llm.ui import UIConfig
 
 
@@ -11,25 +12,9 @@ class TestUIConfig:
 
         config = UIConfig.default()
 
-        assert config.assistant_name == "Assistant"
+        assert config.assistant_name == CFG.LLM_ASSISTANT_NAME
         assert "/exit" in config.exit_commands
         assert "/help" in config.info_commands
-
-    def test_minimal_config(self):
-        """Test UIConfig.minimal() creates minimal config."""
-
-        config = UIConfig.minimal()
-
-        assert config.exit_commands == ["/exit"]
-        assert config.info_commands == []
-        assert config.save_commands == []
-        assert config.load_commands == []
-        assert config.attach_commands == []
-        assert config.photo_commands == []
-        assert config.redirect_output_commands == []
-        assert config.yolo_toggle_commands == []
-        assert config.set_model_commands == []
-        assert config.exec_commands == []
 
     def test_merge_commands(self):
         """Test UIConfig.merge_commands() merges command dict."""
@@ -91,7 +76,7 @@ class TestCreateUIFactory:
 
         # Use public properties
         assert ui is not None
-        assert ui.assistant_name == "Assistant"
+        assert ui.assistant_name == CFG.LLM_ASSISTANT_NAME
         assert ui.conversation_session_name == "test-session"
 
     def test_create_ui_factory_with_custom_config(self):
@@ -223,4 +208,4 @@ class TestCreateUIFactory:
         # Verify UI was created with correct settings using public properties
         assert ui.conversation_session_name == "my-session"
         assert ui.initial_message == "Test message"
-        assert ui.assistant_name == "Assistant"
+        assert ui.assistant_name == CFG.LLM_ASSISTANT_NAME

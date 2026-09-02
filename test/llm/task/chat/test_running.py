@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from zrb.llm.task.chat.running import ChatRunning
+from zrb.llm.ui.ui_config import UIConfig
 
 
 class MockLLMChatTask:
@@ -15,7 +16,7 @@ class MockLLMChatTask:
         self.ui_factories = []
         self.include_default_ui = True
         self.approval_channels = []
-        self.yolo_xcom_key = "yolo"
+        self.ui_config = UIConfig()
         self.triggers = []
         self.response_handlers = []
         self.tool_policies = []
@@ -29,8 +30,6 @@ class MockLLMChatTask:
             "ascii_art": ("zrb", False),
             "jargon": ("Tasker", False),
         }
-        self.show_ollama_models = None
-        self.show_pydantic_ai_models = None
 
     def get_model(self, ctx):
         return "test-model"

@@ -472,11 +472,12 @@ When using the `/model` command in LLM chat, Zrb provides autocomplete suggestio
 
 ```python
 from zrb import LLMChatTask
+from zrb.llm.ui.ui_config import UIConfig
 
 task = LLMChatTask(
     name="chat",
-    show_ollama_models=False,        # None → falls back to ZRB_LLM_SHOW_OLLAMA_MODELS
-    show_pydantic_ai_models=False,    # None → falls back to ZRB_LLM_SHOW_PYDANTIC_AI_MODELS
+    # Unset fields fall back to ZRB_LLM_SHOW_OLLAMA_MODELS / ZRB_LLM_SHOW_PYDANTIC_AI_MODELS.
+    ui_config=UIConfig(show_ollama_models=False, show_pydantic_ai_models=False),
 )
 ```
 

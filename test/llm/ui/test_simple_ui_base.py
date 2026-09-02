@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 
+from zrb.config.config import CFG
 from zrb.llm.ui.simple_ui_base import SimpleUI
 
 
@@ -31,7 +32,7 @@ def deps():
 
 def test_simple_ui_init(deps):
     ui = ConcreteSimpleUI(**deps)
-    assert ui.assistant_name == "Assistant"  # From UIConfig.default()
+    assert ui.assistant_name == CFG.LLM_ASSISTANT_NAME  # From UIConfig.default()
     assert ui.yolo is False
 
 
