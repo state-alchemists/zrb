@@ -228,7 +228,20 @@ class EnvField(Generic[T]):
 
     def __set__(self, obj: Any, value: Any) -> None:
         key = self.env_key(obj.ENV_PREFIX)
-        if value is None and self._nullable:
-            os.environ.pop(key, None)
-            return
-        os.environ[key] = self._serialize(value)
+        if value is None:
+            if self._nullable:
+                os.environ.pop(key, None)
+                return
+            raise ValueError(
+                f"CFG.{self._name} cannot be None — this setting has no null form. "
+                f"Assign a {self._cast.__name__} value instead."
+            )
+        raw = self._serialize(value)
+        try:
+            self._cast(raw)
+        except (ValueError, TypeError) as error:
+            raise ValueError(
+                f"CFG.{self._name} = {value!r} is not valid: it serializes to "
+                f"{raw!r}, which {self._cast.__name__}() rejects ({error})."
+            ) from error
+        os.environ[key] = raw
