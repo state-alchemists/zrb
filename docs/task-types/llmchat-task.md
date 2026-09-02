@@ -173,7 +173,7 @@ complete set.
 chat.append_ui(my_ui)
 chat.prepend_ui(another_ui)
 chat.set_uis([my_ui, another_ui])
-chat.ui_factories = [lambda: MyUI()]   # settable property, not set_ui_factory()
+chat.ui_factories = [lambda: MyUI()]   # settable property
 chat.append_ui_factory(lambda: OtherUI())
 ```
 
@@ -227,7 +227,7 @@ chat.append_hook_factory(lambda hm: hm.add_hook(other_hook, events=[HookEvent.SE
 ### Approval & Policy
 
 ```python
-chat.approval_channels = [channel]   # settable property, not set_approval_channel()
+chat.approval_channels = [channel]   # settable property
 chat.append_approval_channel(channel)
 chat.prepend_tool_policy(policy)
 chat.prepend_response_handler(handler)
