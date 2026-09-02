@@ -415,20 +415,23 @@ class LLMChatTask(BaseTask):
     # data, and a class method mutating its own field needs no collaborator.
 
     @property
-    def has_prompt_manager(self) -> bool:
-        """Whether this task was built with a `PromptManager`."""
-        return self._prompt_manager is not None
-
-    @property
     def prompt_manager(self) -> PromptManager:
         """The `PromptManager` composing this task's system prompt.
 
-        Raises:
-            ValueError: If the task was built without one.
+        Never `None` — the constructor always builds a default one when
+        none is passed in.
         """
-        if self._prompt_manager is None:
-            raise ValueError(f"Task {self.name} doesn't have prompt_manager")
         return self._prompt_manager
+
+    @prompt_manager.setter
+    def prompt_manager(self, value: PromptManager) -> None:
+        """Replace the prompt manager wholesale."""
+        if not isinstance(value, PromptManager):
+            raise TypeError(
+                f"{self.name}.prompt_manager must be a PromptManager, "
+                f"got {type(value).__name__}."
+            )
+        self._prompt_manager = value
 
     # UIs (ordered) -----------------------------------------------------------
 
@@ -729,10 +732,30 @@ class LLMChatTask(BaseTask):
         """Model, credentials, and endpoint settings backing this task."""
         return self._llm_config
 
+    @llm_config.setter
+    def llm_config(self, value: LLMConfig) -> None:
+        """Replace the LLM config wholesale."""
+        if not isinstance(value, LLMConfig):
+            raise TypeError(
+                f"{self.name}.llm_config must be an LLMConfig, "
+                f"got {type(value).__name__}."
+            )
+        self._llm_config = value
+
     @property
     def llm_limiter(self) -> "LLMLimiter | None":
         """Rate and token limiter throttling requests, or None if unlimited."""
         return self._llm_limiter
+
+    @llm_limiter.setter
+    def llm_limiter(self, value: "LLMLimiter | None") -> None:
+        """Replace the rate/token limiter, or None to remove it."""
+        if value is not None and not isinstance(value, LLMLimiter):
+            raise TypeError(
+                f"{self.name}.llm_limiter must be an LLMLimiter or None, "
+                f"got {type(value).__name__}."
+            )
+        self._llm_limiter = value
 
     @property
     def permissions(self) -> "PermissionPolicyInput":
@@ -741,7 +764,13 @@ class LLMChatTask(BaseTask):
 
     @permissions.setter
     def permissions(self, value: "PermissionPolicyInput") -> None:
-        """Replace the permission policy."""
+        """Replace the permission policy.
+
+        No `isinstance` guard: `PermissionPolicyInput` is deliberately a
+        union of convenient shapes (`PermissionPolicy | str |
+        Sequence[Rule | dict] | None`), not one concrete class — that
+        flexibility is the design, not a gap.
+        """
         self._permissions = value
 
     @property
@@ -751,7 +780,12 @@ class LLMChatTask(BaseTask):
 
     @sandbox.setter
     def sandbox(self, value: "SandboxInput | BoolAttr") -> None:
-        """Replace the sandbox configuration."""
+        """Replace the sandbox configuration.
+
+        No `isinstance` guard: `SandboxInput` is deliberately a union
+        (`SandboxPolicy | bool | None`), not one concrete class — that
+        flexibility is the design, not a gap.
+        """
         self._sandbox = value
 
     @property
@@ -761,7 +795,13 @@ class LLMChatTask(BaseTask):
 
     @history_manager.setter
     def history_manager(self, value: AnyHistoryManager | None) -> None:
-        """Set the history manager."""
+        """Set the history manager, or None for the default file-backed store."""
+        if value is not None and not isinstance(value, AnyHistoryManager):
+            raise TypeError(
+                f"{self.name}.history_manager must be an AnyHistoryManager or "
+                f"None, got {type(value).__name__}. Subclass "
+                f"zrb.llm.history_manager.any_history_manager.AnyHistoryManager."
+            )
         self._history_manager = value
 
     @property
@@ -815,6 +855,16 @@ class LLMChatTask(BaseTask):
     def hook_manager(self) -> "HookManager | None":
         """The `HookManager` passed at construction, or None for "fresh per run"."""
         return self._hook_manager
+
+    @hook_manager.setter
+    def hook_manager(self, value: "HookManager | None") -> None:
+        """Replace the hook manager, or None to go back to "fresh per run"."""
+        if value is not None and not isinstance(value, HookManager):
+            raise TypeError(
+                f"{self.name}.hook_manager must be a HookManager or None, "
+                f"got {type(value).__name__}."
+            )
+        self._hook_manager = value
 
     @property
     def active_hook_manager(self) -> "HookManager | None":
@@ -930,6 +980,18 @@ class LLMChatTask(BaseTask):
     def markdown_theme(self) -> "Theme | None":
         """Rich theme used to render the assistant's markdown."""
         return self._markdown_theme
+
+    @markdown_theme.setter
+    def markdown_theme(self, value: "Theme | None") -> None:
+        """Replace the markdown theme, or None for the default.
+
+        No `isinstance` guard here (unlike the other slots): `rich.theme.Theme`
+        is only imported under `TYPE_CHECKING` — every module that touches it
+        does the same — so validating against the real class would force an
+        eager `rich` import (~12ms) on every `import zrb`. The type hint is
+        the only guard.
+        """
+        self._markdown_theme = value
 
     @property
     def show_ollama_models(self) -> bool | None:

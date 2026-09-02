@@ -28,7 +28,9 @@ FACADE_BUDGETS = {
     # collection to the full append/prepend/set/remove set — this file's own
     # docstring keeps that API on the task itself rather than delegating to a
     # part, since it is this task's own construction-time data (ADR-0035).
-    "llm/task/chat/task.py": 1100,
+    # Phase 4 (R8): 5 component slots gained a real settable+typed property
+    # (prompt_manager, hook_manager, llm_config, llm_limiter, markdown_theme).
+    "llm/task/chat/task.py": 1150,
     "llm/task/llm_task.py": 900,
 }
 
