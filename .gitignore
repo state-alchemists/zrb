@@ -12,6 +12,7 @@ htmlcov
 test-generated
 test-generated-*
 playground/generated
+*.pyc
 ZRB.md
 zrb_debug.log
 .zrb/worktree/

@@ -99,7 +99,6 @@ class PromptManager:
 
     def __init__(
         self,
-        prompt_registry: PromptRegistry | None = None,
         prompts: PromptSetValue = None,
         assistant_name: str | Callable[[AnyContext], str] | None = None,
         include_sections: list[str] | None = None,
@@ -107,6 +106,7 @@ class PromptManager:
         active_skills: StrListAttr | None = None,
         render_active_skills: bool = True,
         render: bool = False,
+        prompt_registry: PromptRegistry | None = None,
     ):
         """Build a prompt manager.
 
@@ -116,9 +116,7 @@ class PromptManager:
         Args:
             prompt_registry: Source of the default appended prompts when
                 *prompts* is ``None``. Defaults to the global
-                `prompt_registry`. Added first (a breaking change for callers
-                who passed *prompts* positionally) so registry composition
-                reads the same across every collection.
+                `prompt_registry`.
             prompts: Extra content emitted *after* every built-in section.
                 Each entry is a string, a `Callable[[AnyContext], str]`, or a
                 full middleware
@@ -140,6 +138,8 @@ class PromptManager:
                 templates against the context.
             render: Whether string prompts in `prompts` are rendered as
                 templates against the context.
+            prompt_registry: Source of default prompts when `prompts` is
+                ``None``. Defaults to the global `prompt_registry`.
         """
         self._prompt_registry = prompt_registry or default_prompt_registry
         self._middlewares: PromptSetValue = prompts

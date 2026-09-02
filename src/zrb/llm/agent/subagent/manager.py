@@ -50,12 +50,12 @@ class _ResolvedAgentBuild:
 class SubAgentManager:
     def __init__(
         self,
-        registry: SubAgentRegistry | None = None,
         tool_registry: "dict[str, Callable | Tool] | None" = None,
         root_dir: str = ".",
         search_dirs: list[str | Path] | None = None,
         max_depth: int = 1,
         ignore_dirs: list[str] | None = None,
+        registry: SubAgentRegistry | None = None,
     ):
         # Lightweight: just assign properties, no heavy operations
         """Discover sub-agent definitions and build agents from them.
@@ -67,8 +67,6 @@ class SubAgentManager:
         manual `add_agent`/`set_agents` survives a later scan.
 
         Args:
-            registry: The canonical `SubAgentRegistry` of definitions to read
-                and write. A fresh registry is created when `None`.
             tool_registry: Tools available to sub-agents, by name. Defaults to
                 the shared common-tool registry.
             root_dir: Directory the project-level search starts from.
@@ -77,6 +75,8 @@ class SubAgentManager:
             max_depth: How many directory levels below each search directory to
                 descend.
             ignore_dirs: Directory names skipped while scanning.
+            registry: The canonical `SubAgentRegistry` of definitions to read
+                and write. A fresh registry is created when `None`.
         """
         self._registry = registry if registry is not None else SubAgentRegistry()
         self._tool_registry = tool_registry if tool_registry is not None else {}

@@ -742,10 +742,10 @@
     },
     "HookManager": {
       "init": [
-        "registry:POSITIONAL_OR_KEYWORD:1",
         "search_dirs:POSITIONAL_OR_KEYWORD:1",
         "max_depth:POSITIONAL_OR_KEYWORD:1",
-        "ignore_dirs:POSITIONAL_OR_KEYWORD:1"
+        "ignore_dirs:POSITIONAL_OR_KEYWORD:1",
+        "registry:POSITIONAL_OR_KEYWORD:1"
       ],
       "members": [
         "add_hook_factory",
@@ -1291,14 +1291,14 @@
     },
     "PromptManager": {
       "init": [
-        "prompt_registry:POSITIONAL_OR_KEYWORD:1",
         "prompts:POSITIONAL_OR_KEYWORD:1",
         "assistant_name:POSITIONAL_OR_KEYWORD:1",
         "include_sections:POSITIONAL_OR_KEYWORD:1",
         "skill_manager:POSITIONAL_OR_KEYWORD:1",
         "active_skills:POSITIONAL_OR_KEYWORD:1",
         "render_active_skills:POSITIONAL_OR_KEYWORD:1",
-        "render:POSITIONAL_OR_KEYWORD:1"
+        "render:POSITIONAL_OR_KEYWORD:1",
+        "prompt_registry:POSITIONAL_OR_KEYWORD:1"
       ],
       "members": [
         "active_sections",
@@ -1636,11 +1636,11 @@
     },
     "SkillManager": {
       "init": [
-        "registry:POSITIONAL_OR_KEYWORD:1",
         "root_dir:POSITIONAL_OR_KEYWORD:1",
         "search_dirs:POSITIONAL_OR_KEYWORD:1",
         "max_depth:POSITIONAL_OR_KEYWORD:1",
-        "ignore_dirs:POSITIONAL_OR_KEYWORD:1"
+        "ignore_dirs:POSITIONAL_OR_KEYWORD:1",
+        "registry:POSITIONAL_OR_KEYWORD:1"
       ],
       "members": [
         "add_skill",
@@ -1710,12 +1710,12 @@
     },
     "SubAgentManager": {
       "init": [
-        "registry:POSITIONAL_OR_KEYWORD:1",
         "tool_registry:POSITIONAL_OR_KEYWORD:1",
         "root_dir:POSITIONAL_OR_KEYWORD:1",
         "search_dirs:POSITIONAL_OR_KEYWORD:1",
         "max_depth:POSITIONAL_OR_KEYWORD:1",
-        "ignore_dirs:POSITIONAL_OR_KEYWORD:1"
+        "ignore_dirs:POSITIONAL_OR_KEYWORD:1",
+        "registry:POSITIONAL_OR_KEYWORD:1"
       ],
       "members": [
         "add_agent",

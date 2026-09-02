@@ -63,10 +63,10 @@ _DEFAULT_HOOK_CONFIG = HookConfig(
 class HookManager(HookManagerLoading):
     def __init__(
         self,
-        registry: HookRegistry | None = None,
         search_dirs: list[str | Path] | None = None,
         max_depth: int = 1,
         ignore_dirs: list[str] | None = None,
+        registry: HookRegistry | None = None,
     ):
         # Lightweight: just assign properties, no heavy operations
         """Discover, register, and run lifecycle hooks.
@@ -77,14 +77,14 @@ class HookManager(HookManagerLoading):
         registry.
 
         Args:
-            registry: The canonical `HookRegistry` to read and write. A fresh
-                registry is created when `None`, giving an isolated view.
             search_dirs: Directories to scan for hook definitions. Defaults to
                 the standard project and user locations.
             max_depth: How many directory levels below each search directory to
                 descend.
             ignore_dirs: Directory names skipped while scanning, such as
                 `node_modules`.
+            registry: The canonical `HookRegistry` to read and write. A fresh
+                registry is created when `None`, giving an isolated view.
         """
         self._registry = registry if registry is not None else HookRegistry()
         self._executor: ThreadPoolHookExecutor = get_hook_executor()

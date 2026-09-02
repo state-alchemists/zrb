@@ -104,23 +104,23 @@ class SkillManager:
 
     def __init__(
         self,
-        registry: SkillRegistry | None = None,
         root_dir: str = ".",
         search_dirs: list[str | Path] | None = None,
         max_depth: int = 2,
         ignore_dirs: list[str] | None = None,
+        registry: SkillRegistry | None = None,
     ):
         """Create a skill manager over *registry*.
 
         Args:
-            registry: The canonical `SkillRegistry` to read and write. A fresh
-                registry is created when `None`, giving an isolated view.
             root_dir: Directory the project-level search starts from.
             search_dirs: Explicit directories to scan, replacing the defaults
                 derived from `root_dir`.
             max_depth: How many directory levels below each search directory to
                 descend.
             ignore_dirs: Directory names skipped while scanning.
+            registry: The canonical `SkillRegistry` to read and write. A fresh
+                registry is created when `None`, giving an isolated view.
         """
         self._registry = registry if registry is not None else SkillRegistry()
         self._root_dir = root_dir
