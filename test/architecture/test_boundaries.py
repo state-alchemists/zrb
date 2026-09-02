@@ -246,9 +246,7 @@ def test_every_extension_point_is_named_any_thing_in_any_thing_py():
                 continue
             expected_file = f"any_{_snake(node.name.removeprefix('Any'))}.py"
             if not node.name.startswith("Any") or path.name != expected_file:
-                offenders.append(
-                    f"{path.relative_to(SRC)}:{node.lineno} {node.name}"
-                )
+                offenders.append(f"{path.relative_to(SRC)}:{node.lineno} {node.name}")
     assert not offenders, (
         "Extension point(s) not named Any<Thing> in any_<thing>.py (R9): "
         f"{offenders}"

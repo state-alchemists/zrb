@@ -251,10 +251,7 @@ class EnvField(Generic[T]):
         #     always the canonical env form, so this is documented coercion.
         #   - catch: a non-string value (a Model, a list, a bare int) that
         #     serializes/parseaways into a different shape.
-        if (
-            round_tripped != value
-            and not isinstance(value, str)
-        ):
+        if round_tripped != value and not isinstance(value, str):
             raise ValueError(
                 f"CFG.{self._name} = {value!r} is not a value this field can "
                 f"round-trip: it serializes to {raw!r} but reads back as "

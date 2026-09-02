@@ -20,7 +20,9 @@ def workdir():
 
 @pytest.fixture
 def snapshot_dir():
-    with tempfile.TemporaryDirectory() as d:
+    # Git may finish writing repository metadata just as the fixture is torn
+    # down under xdist; cleanup should not turn a passing test into an error.
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
         yield d
 
 

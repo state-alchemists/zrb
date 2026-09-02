@@ -85,7 +85,9 @@ def _offenders(paths, limit: int, exceptions: dict[str, set[int]]):
                 continue
             if len(stripped) <= limit or lineno in exempt_lines:
                 continue
-            offenders.append(f"{rel}:{lineno} ({len(stripped)} chars) {stripped[:60]!r}")
+            offenders.append(
+                f"{rel}:{lineno} ({len(stripped)} chars) {stripped[:60]!r}"
+            )
     return offenders
 
 
@@ -116,7 +118,9 @@ def test_no_doc_paragraph_is_a_wall():
         if "changelog" not in str(p) and "/adr/" not in str(p)
     ]
     offenders = _offenders(paths, MAX_DOC_PARAGRAPH_CHARS, DENSITY_EXCEPTIONS)
-    assert not offenders, f"Doc paragraph(s) over {MAX_DOC_PARAGRAPH_CHARS} chars: {offenders}"
+    assert (
+        not offenders
+    ), f"Doc paragraph(s) over {MAX_DOC_PARAGRAPH_CHARS} chars: {offenders}"
 
 
 def test_long_doc_pages_have_a_table_of_contents():

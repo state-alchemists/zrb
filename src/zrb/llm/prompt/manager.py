@@ -247,9 +247,7 @@ class PromptManager:
         absent."""
         self._live_context_providers.remove_provider(name)
 
-    def set_live_contexts(
-        self, providers: "list[tuple[str, SimplePrompt]]"
-    ) -> None:
+    def set_live_contexts(self, providers: "list[tuple[str, SimplePrompt]]") -> None:
         """Replace the whole live-context provider list wholesale."""
         self._live_context_providers.set_providers(providers)
 
