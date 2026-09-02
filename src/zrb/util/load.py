@@ -24,10 +24,11 @@ def load_file(path: str, raise_on_error: bool = False) -> ModuleType | None:
 
     A broken file is reported and yields `None` by default — the lenient
     contract most callers (discovery of optional plugin/skill files) want.
-    Pass `raise_on_error=True` for a call site where a load failure must be
-    fatal (e.g. `zrb_init.py`, the primary config channel): a half-applied
-    config is worse than none, so that caller needs the real exception, not
-    a printed line and a `None` it may not even check.
+    Pass `raise_on_error=True` for a call site that needs the real exception
+    rather than a printed line and a `None` it may not even check — e.g.
+    `zrb_init.py`'s loader (`_load_or_warn`), which reports the file, line,
+    and exception type precisely rather than this function's own generic
+    "Error loading file X: e" fallback.
     """
     if not os.path.exists(path):
         return None

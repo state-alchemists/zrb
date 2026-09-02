@@ -57,7 +57,7 @@ Zrb can be heavily customized using environment variables. These control everyth
 | `ZRB_SHOW_UNRECOMMENDED_COMMAND_WARNING` | Show warnings for potentially unsafe shell commands | `on` (true) |
 | `ZRB_MCP_CONFIG_FILE` | Path to the MCP server config file | `mcp-config.json` |
 
-> 💡 **A broken init file aborts the CLI.** If a discovered `zrb_init.py`, an `ZRB_INIT_SCRIPTS` entry, or an `ZRB_INIT_MODULES` entry raises while loading, zrb prints the file, the line and the exception type, then exits with a non-zero status instead of continuing with a half-applied config.
+> 💡 **A broken init file is reported, not hidden — and not fatal.** If a discovered `zrb_init.py`, an `ZRB_INIT_SCRIPTS` entry, or an `ZRB_INIT_MODULES` entry raises while loading, zrb prints the file, the line and the exception type to stderr, then continues: whatever that source already did before failing stays in effect, the rest of startup (further init sources, then the CLI itself) still runs, and the printed error is what tells you to fix it and rerun.
 
 ---
 
