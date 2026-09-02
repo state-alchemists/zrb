@@ -1980,7 +1980,8 @@
   },
   "functions": {
     "load_file": [
-      "path:POSITIONAL_OR_KEYWORD:0"
+      "path:POSITIONAL_OR_KEYWORD:0",
+      "raise_on_error:POSITIONAL_OR_KEYWORD:1"
     ],
     "load_module": [
       "name:POSITIONAL_OR_KEYWORD:0"

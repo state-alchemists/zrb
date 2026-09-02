@@ -1,6 +1,8 @@
 import logging
 import os
 import sys
+import traceback
+from typing import Any, Callable
 
 from zrb.config.config import CFG
 from zrb.group.any_group import NodeNotFoundError
@@ -22,6 +24,30 @@ class FaintFormatter(logging.Formatter):
         return stylize_muted(log_msg)
 
 
+def _load_or_die(label: str, load: "Callable[[], Any]") -> None:
+    """Load one init module/script, or report it precisely and exit non-zero.
+
+    A partially applied config is worse than no config: the symptom shows up
+    somewhere unrelated. So a failure here is fatal, and the message carries
+    the file, the line and the exception type the user needs.
+    """
+    try:
+        load()
+    except (KeyboardInterrupt, SystemExit):
+        raise
+    except Exception as error:
+        frame = traceback.extract_tb(error.__traceback__)[-1]
+        print(
+            stylize_error(
+                f"Failed to load {label}\n"
+                f"  {frame.filename}:{frame.lineno}\n"
+                f"  {type(error).__name__}: {error}"
+            ),
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+
 def serve_cli():
     CFG.LOGGER.setLevel(CFG.LOGGING_LEVEL)
     # Remove existing handlers to avoid duplicates/default formatting
@@ -33,25 +59,24 @@ def serve_cli():
     try:
         for init_module in CFG.INIT_MODULES:
             CFG.LOGGER.info(f"Loading {init_module}")
-            try:
-                load_module(init_module)
-            except BaseException as e:
-                print(stylize_error(f"{e}"), file=sys.stderr)
+            _load_or_die(
+                f"init module {init_module}", lambda m=init_module: load_module(m)
+            )
         zrb_init_path_list = get_init_path_list()
         for init_script in CFG.INIT_SCRIPTS:
             abs_init_script = os.path.abspath(os.path.expanduser(init_script))
             if abs_init_script not in zrb_init_path_list:
                 CFG.LOGGER.info(f"Loading {abs_init_script}")
-                try:
-                    load_file(abs_init_script)
-                except BaseException as e:
-                    print(stylize_error(f"{e}"), file=sys.stderr)
+                _load_or_die(
+                    f"init script {abs_init_script}",
+                    lambda p=abs_init_script: load_file(p, raise_on_error=True),
+                )
         for zrb_init_path in zrb_init_path_list:
             CFG.LOGGER.info(f"Loading {zrb_init_path}")
-            try:
-                load_file(zrb_init_path)
-            except BaseException as e:
-                print(stylize_error(f"{e}"), file=sys.stderr)
+            _load_or_die(
+                f"{zrb_init_path}",
+                lambda p=zrb_init_path: load_file(p, raise_on_error=True),
+            )
         cli.run(sys.argv[1:])
     except KeyboardInterrupt:
         # The exception is handled by the task runner
