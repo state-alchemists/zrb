@@ -37,7 +37,7 @@ def _get_filter_input(allow_positional_parsing: bool = False) -> StrInput:
         allow_empty=True,
         allow_positional_parsing=allow_positional_parsing,
         always_prompt=False,
-        default=CFG.TODO_VISUAL_FILTER,
+        default=lambda _: CFG.TODO_VISUAL_FILTER,
     )
 
 
