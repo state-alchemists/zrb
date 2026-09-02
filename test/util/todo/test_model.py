@@ -27,7 +27,7 @@ def test_todo_task_model_valid_creation():
 
 
 def test_todo_task_model_invalid_priority():
-    with pytest.raises(ValueError, match="Invalid priority format"):
+    with pytest.raises(ValueError, match="Invalid priority"):
         TodoTaskModel(description="Test task", priority="invalid")
 
 

@@ -4,7 +4,11 @@ import json
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
-from zrb.llm.approval.any_approval_channel import ApprovalContext, ApprovalResult
+from zrb.llm.approval.any_approval_channel import (
+    AnyApprovalChannel,
+    ApprovalContext,
+    ApprovalResult,
+)
 from zrb.llm.tool_call.edit_util import edit_content_via_editor
 from zrb.llm.tool_call.handler import ToolCallHandler
 
@@ -12,7 +16,7 @@ if TYPE_CHECKING:
     from zrb.llm.ui.any_ui import AnyUI
 
 
-class TerminalApprovalChannel:
+class TerminalApprovalChannel(AnyApprovalChannel):
     """Default approval channel using terminal input.
 
     This wraps the existing AnyUI.ask_user() pattern for backward

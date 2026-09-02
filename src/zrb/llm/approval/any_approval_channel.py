@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ToolApproved, ToolDenied
@@ -49,9 +50,8 @@ class ApprovalResult:
             return ToolDenied(self.message)
 
 
-@runtime_checkable
-class AnyApprovalChannel(Protocol):
-    """Protocol for approval channels.
+class AnyApprovalChannel(ABC):
+    """The approval-channel contract every backend implements.
 
     An approval channel handles requests to approve/deny tool executions.
     Implementations can route approvals through different interfaces:
@@ -66,6 +66,7 @@ class AnyApprovalChannel(Protocol):
     from remote sources (e.g., waiting for Telegram message).
     """
 
+    @abstractmethod
     async def request_approval(
         self,
         context: ApprovalContext,
@@ -78,8 +79,8 @@ class AnyApprovalChannel(Protocol):
         Returns:
             ApprovalResult indicating approval or denial with optional message.
         """
-        ...
 
+    @abstractmethod
     async def notify(
         self,
         message: str,
@@ -93,4 +94,3 @@ class AnyApprovalChannel(Protocol):
             message: The notification message.
             context: Optional context for metadata.
         """
-        ...

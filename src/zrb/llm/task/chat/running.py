@@ -221,8 +221,6 @@ class ChatRunning:
             self.load_session_history(ui, history_manager, initial_conversation_name)
 
         # 5. Run the UI
-        if ui is None:
-            raise ValueError("No UI available")
         if isinstance(ui, BaseUI) or hasattr(ui, "run_async"):
             await ui.run_async()
         else:

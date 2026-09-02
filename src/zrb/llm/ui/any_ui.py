@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Protocol, TextIO, TypedDict
+from abc import ABC, abstractmethod
+from typing import Any, TextIO, TypedDict
 
 
 class ChoiceOption(TypedDict, total=False):
@@ -25,17 +26,20 @@ class ChoiceSpec(TypedDict, total=False):
     total: int
 
 
-class AnyUI(Protocol):
+class AnyUI(ABC):
     """The UI contract every task's `ui` slot is typed against.
 
-    A `Protocol`, not an ABC: a UI is structural (six duck-typed methods),
-    and nothing should have to inherit from this class to count as one —
-    `StdUI`, `BaseUI` and every custom UI in `docs/advanced-topics/
-    llm-custom-ui.md` satisfy it by shape alone. Do not "fix" this into an
-    ABC for consistency with the other `Any*` types; most of those are
-    genuine base classes, this one is deliberately not.
+    Every built-in implementer (`BaseUI`, `StdUI`, `MultiUI`, `BufferedUI`,
+    and everything `BaseUI` itself subclasses — `SimpleUI`/`EventDrivenUI`/
+    `PollingUI`/the default `UI`) explicitly inherits this class, so a
+    subclass missing a method fails at instantiation (`TypeError`) rather
+    than at first use, deep in a session. A custom UI written per
+    `docs/advanced-topics/llm-custom-ui.md` gets this for free by
+    subclassing `SimpleUI`/`EventDrivenUI`/`PollingUI`/`BaseUI` — none of
+    zrb's own docs show implementing this class directly.
     """
 
+    @abstractmethod
     async def ask_user(
         self,
         prompt: str,
@@ -43,14 +47,14 @@ class AnyUI(Protocol):
         agent_id: str | None = None,
     ) -> str:
         """Ask the user a free-text question and return their answer."""
-        ...
 
+    @abstractmethod
     async def ask_user_choice(
         self, spec: ChoiceSpec, agent_id: str | None = None
     ) -> str:
         """Ask the user a multiple-choice question and return their pick."""
-        ...
 
+    @abstractmethod
     def append_to_output(
         self,
         *values: object,
@@ -61,8 +65,8 @@ class AnyUI(Protocol):
         kind: str = "text",
     ):
         """Write output the way `print()` would, kept for later replay."""
-        ...
 
+    @abstractmethod
     def stream_to_parent(
         self,
         *values: object,
@@ -73,14 +77,13 @@ class AnyUI(Protocol):
         kind: str = "text",
     ):
         """Write output to a delegating parent UI, not this UI's own stream."""
-        ...
 
+    @abstractmethod
     async def run_interactive_command(
         self, cmd: str | list[str], shell: bool = False
     ) -> Any:
         """Run an interactive shell command, handing it the real terminal."""
-        ...
 
+    @abstractmethod
     async def run_async(self) -> Any:
         """Drive this UI's own event loop until the session ends."""
-        ...

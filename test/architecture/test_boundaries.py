@@ -16,6 +16,16 @@ enforced mechanically, repo-wide:
    Protocol used only for a local `isinstance` probe, or a callback-signature
    Protocol, is not an extension point (see `EXTENSION_POINT_EXCEPTIONS` and
    `_is_callable_only_protocol`).
+4. No bare `raise Exception(...)` — R10. It tells a caller nothing and
+   cannot be caught selectively; every raise site names a real exception
+   type.
+5. No constant-string error message under 40 characters — R10. A message
+   that short cannot name the setting, the bad value, and the remedy. An
+   f-string or a variable is assumed to carry that context already, so only
+   bare `ast.Constant` string literals are checked.
+6. Every sibling class in `config/mixins/` ends in `Mixin` — R11. One
+   naming convention per package; AGENTS.md's rule that `Mixin` means
+   reusable is the reason it's `Mixin`, not `Config<Thing>`.
 
 Verified clean against the whole tree before being turned into a test: rule 1
 trips on exactly 3 legitimate patterns (`super()` delegation, the singleton
@@ -243,3 +253,70 @@ def test_every_extension_point_is_named_any_thing_in_any_thing_py():
         "Extension point(s) not named Any<Thing> in any_<thing>.py (R9): "
         f"{offenders}"
     )
+
+
+# Exemptions for rule 5 (message length) — see
+# test_no_error_message_is_shorter_than_forty_characters's docstring. Empty
+# on purpose: every current offender was fixed rather than exempted (R10).
+# Keep this short; a growing list means the threshold, not the rule, is wrong.
+SHORT_MESSAGE_EXCEPTIONS: dict[str, set[int]] = {}
+
+
+def _iter_raises(tree: ast.AST):
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Raise) and isinstance(node.exc, ast.Call):
+            yield node
+
+
+def test_no_bare_exception_is_raised():
+    """R10. `raise Exception(...)` tells a caller nothing and cannot be
+    caught selectively — every raise site names a real exception type."""
+    offenders = []
+    for path in _iter_py_files():
+        tree = ast.parse(path.read_text(), filename=str(path))
+        for node in _iter_raises(tree):
+            func = node.exc.func  # type: ignore[union-attr]
+            if isinstance(func, ast.Name) and func.id == "Exception":
+                offenders.append(f"{path.relative_to(SRC)}:{node.lineno}")
+    assert not offenders, f"raise Exception(...) found (R10): {offenders}"
+
+
+def test_no_error_message_is_shorter_than_forty_characters():
+    """R10. A message that fits in a tweet cannot name the setting, the bad
+    value, and the remedy. Only a bare constant-string first argument is
+    checked — an f-string or a variable is assumed to already carry that
+    context, so `raise ValueError(f"...")` and `raise ValueError(msg)` are
+    both out of scope for this check."""
+    offenders = []
+    for path in _iter_py_files():
+        rel = str(path.relative_to(SRC))
+        exempt_lines = SHORT_MESSAGE_EXCEPTIONS.get(rel, set())
+        tree = ast.parse(path.read_text(), filename=str(path))
+        for node in _iter_raises(tree):
+            call = node.exc
+            if not call.args:  # type: ignore[union-attr]
+                continue
+            first = call.args[0]  # type: ignore[union-attr]
+            if not (isinstance(first, ast.Constant) and isinstance(first.value, str)):
+                continue
+            if len(first.value) >= 40 or node.lineno in exempt_lines:
+                continue
+            offenders.append(f"{rel}:{node.lineno} {first.value!r}")
+    assert not offenders, (
+        f"Error message(s) under 40 characters, naming neither the setting "
+        f"nor the remedy (R10): {offenders}"
+    )
+
+
+def test_config_mixins_share_one_naming_convention():
+    """R11. Sibling classes in one package use one convention — every
+    top-level class in `config/mixins/` ends in `Mixin` (AGENTS.md: `Mixin`
+    means reusable)."""
+    mixins_dir = SRC / "config" / "mixins"
+    offenders = []
+    for path in mixins_dir.glob("*.py"):
+        tree = ast.parse(path.read_text(), filename=str(path))
+        for node in tree.body:
+            if isinstance(node, ast.ClassDef) and not node.name.endswith("Mixin"):
+                offenders.append(f"{path.relative_to(SRC)}:{node.lineno} {node.name}")
+    assert not offenders, f"{offenders} should end in 'Mixin' (R11, ADR-0035)."

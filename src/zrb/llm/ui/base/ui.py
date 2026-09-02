@@ -48,6 +48,7 @@ from zrb.llm.tool_call import (
     default_response_handler,
 )
 from zrb.llm.tool_call.choice_spec_format import format_choice_spec
+from zrb.llm.ui.any_ui import AnyUI
 from zrb.llm.ui.base.commands import BaseUICommands
 from zrb.llm.ui.base.confirmation_state import BaseUIConfirmationState
 from zrb.llm.ui.base.message_queue import (
@@ -111,7 +112,7 @@ def _command_alias_property(key: str, label: str) -> property:
     return property(getter, setter)
 
 
-class BaseUI:
+class BaseUI(AnyUI):
     """Base class for LLM Chat UI implementations.
 
     This class provides the core chat functionality (message handling, command

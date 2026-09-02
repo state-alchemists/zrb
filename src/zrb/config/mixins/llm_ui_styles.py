@@ -14,7 +14,7 @@ from zrb.config.theme import theme_default
 from zrb.util.string.conversion import to_boolean
 
 
-class ConfigLLMUIStyles:
+class LLMUIStylesMixin:
     if TYPE_CHECKING:
         # Attributes supplied by sibling mixins on the composed Config class.
         ENV_PREFIX: str  # FoundationMixin

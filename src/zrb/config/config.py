@@ -29,17 +29,17 @@ import difflib
 from typing import Any
 
 from zrb.config.env_field import EnvField
-from zrb.config.mixins.cli_style import ConfigCLIStyle
+from zrb.config.mixins.cli_style import CLIStyleMixin
 from zrb.config.mixins.foundation import FoundationMixin
 from zrb.config.mixins.hooks import HooksMixin
 from zrb.config.mixins.internet_search import InternetSearchMixin
-from zrb.config.mixins.llm_content import ConfigLLMContent
+from zrb.config.mixins.llm_content import LLMContentMixin
 from zrb.config.mixins.llm_core import LLMCoreMixin
 from zrb.config.mixins.llm_limits import LLMLimitsMixin
-from zrb.config.mixins.llm_prompt import ConfigLLMPrompt
+from zrb.config.mixins.llm_prompt import LLMPromptMixin
 from zrb.config.mixins.llm_sandbox import LLMSandboxMixin
-from zrb.config.mixins.llm_search import ConfigLLMSearch
-from zrb.config.mixins.llm_tools import ConfigLLMTools
+from zrb.config.mixins.llm_search import LLMSearchMixin
+from zrb.config.mixins.llm_tools import LLMToolsMixin
 from zrb.config.mixins.llm_ui import LLMUIMixin
 from zrb.config.mixins.rag import RAGMixin
 from zrb.config.mixins.task_runtime import TaskRuntimeMixin
@@ -47,29 +47,36 @@ from zrb.config.mixins.theme import ThemeMixin
 from zrb.config.mixins.web import WebMixin
 
 
-class Config(  # noqa: E501  # Sibling parts TYPE_CHECKING-declare ENV_PREFIX/ROOT_GROUP_* (FoundationMixin read-write properties) as attrs for self-access; pyright flags the property-vs-attr composition as an incompatible override (false positive — all expose the same str type).
+class Config(
     FoundationMixin,
     WebMixin,
     LLMCoreMixin,
     LLMUIMixin,
     LLMLimitsMixin,
-    ConfigLLMContent,
-    ConfigLLMPrompt,
+    LLMContentMixin,
+    LLMPromptMixin,
     LLMSandboxMixin,
-    ConfigLLMSearch,
-    ConfigLLMTools,
+    LLMSearchMixin,
+    LLMToolsMixin,
     RAGMixin,
     InternetSearchMixin,
     HooksMixin,
     TaskRuntimeMixin,
     ThemeMixin,
-    ConfigCLIStyle,
+    CLIStyleMixin,
 ):
     """Global runtime configuration.
 
     Each mixin owns its DEFAULT_* constants and `@property` accessors. All
     cooperating `__init__` methods chain via `super().__init__()`, so creating
     a `Config()` populates every default in one pass.
+
+    Note: sibling parts `TYPE_CHECKING`-declare `ENV_PREFIX`/`ROOT_GROUP_*`
+    (`FoundationMixin`'s read-write properties) as plain attributes for
+    self-access; pyright flags the property-vs-attribute composition as an
+    incompatible override on this class. False positive — every mixin
+    exposes the same `str` type — so the class declaration is exempted
+    from line-length linting rather than reworded to hide it.
     """
 
     def __setattr__(self, name: str, value: Any) -> None:

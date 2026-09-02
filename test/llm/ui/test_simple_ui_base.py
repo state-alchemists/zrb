@@ -37,13 +37,12 @@ def test_simple_ui_init(deps):
 
 
 def test_simple_ui_incomplete_methods(deps):
-    ui = IncompleteUI(**deps)
-    with pytest.raises(NotImplementedError):
-        # We need an event loop to run the async method
-        asyncio.run(ui.print("test", "text"))
-
-    with pytest.raises(NotImplementedError):
-        asyncio.run(ui.get_input("prompt"))
+    """`BaseUI` now subclasses the `AnyUI` ABC, so `SimpleUI`'s `print`/
+    `get_input` `@abstractmethod`s are enforced at instantiation — a
+    subclass missing either fails fast with `TypeError`, not at first call
+    with `NotImplementedError`."""
+    with pytest.raises(TypeError, match="print|get_input"):
+        IncompleteUI(**deps)
 
 
 @pytest.mark.asyncio
